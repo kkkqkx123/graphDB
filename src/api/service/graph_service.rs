@@ -15,7 +15,7 @@ pub struct GraphService<S: StorageEngine + Clone + 'static> {
     permission_manager: Arc<PermissionManager>,
     stats_manager: Arc<StatsManager>,
     config: Config,
-    transaction_manager: Arc<Mutex<TransactionManager<S>>>,
+    transaction_manager: Arc<Mutex<TransactionManager>>,
 }
 
 impl<S: StorageEngine + Clone + 'static> GraphService<S> {

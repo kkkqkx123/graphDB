@@ -2,8 +2,6 @@
 //!
 //! 提供表达式求值过程中的选项配置和统计信息
 
-use crate::cache::CacheConfig;
-use crate::expression::cache::ExpressionCacheStats;
 use serde::{Deserialize, Serialize};
 
 /// 表达式求值选项
@@ -17,8 +15,6 @@ pub struct EvaluationOptions {
     pub max_recursion_depth: usize,
     /// 超时时间（毫秒）
     pub timeout_ms: Option<u64>,
-    /// 缓存配置
-    pub cache_config: CacheConfig,
 }
 
 impl Default for EvaluationOptions {
@@ -28,7 +24,6 @@ impl Default for EvaluationOptions {
             allow_implicit_conversion: true,
             max_recursion_depth: 1000,
             timeout_ms: Some(30000), // 30秒
-            cache_config: CacheConfig::default(),
         }
     }
 }
@@ -48,8 +43,6 @@ pub struct EvaluationStatistics {
     pub average_evaluation_time_us: f64,
     /// 最大递归深度
     pub max_recursion_depth: usize,
-    /// 详细的缓存统计信息
-    pub cache_stats: Option<crate::expression::cache::ExpressionCacheStats>,
 }
 
 impl EvaluationStatistics {
@@ -62,20 +55,6 @@ impl EvaluationStatistics {
             total_evaluation_time_us: 0,
             average_evaluation_time_us: 0.0,
             max_recursion_depth: 0,
-            cache_stats: None,
-        }
-    }
-
-    /// 创建带缓存统计的求值统计
-    pub fn with_cache_stats(cache_stats: ExpressionCacheStats) -> Self {
-        Self {
-            expressions_evaluated: 0,
-            function_calls: 0,
-            variable_accesses: 0,
-            total_evaluation_time_us: 0,
-            average_evaluation_time_us: 0.0,
-            max_recursion_depth: 0,
-            cache_stats: Some(cache_stats),
         }
     }
 
@@ -97,61 +76,11 @@ impl EvaluationStatistics {
         self.variable_accesses += 1;
     }
 
-    /// 更新缓存统计信息
-    pub fn update_cache_stats(&mut self, cache_stats: Option<ExpressionCacheStats>) {
-        self.cache_stats = cache_stats;
-    }
-
     /// 更新最大递归深度
     pub fn update_max_recursion_depth(&mut self, depth: usize) {
         if depth > self.max_recursion_depth {
             self.max_recursion_depth = depth;
         }
-    }
-
-    /// 获取总体缓存命中率
-    pub fn overall_cache_hit_rate(&self) -> f64 {
-        if let Some(ref cache_stats) = self.cache_stats {
-            let total_hits = cache_stats.function_cache_hits
-                + cache_stats.expression_cache_hits
-                + cache_stats.variable_cache_hits;
-            let total_misses = cache_stats.function_cache_misses
-                + cache_stats.expression_cache_misses
-                + cache_stats.variable_cache_misses;
-            let total_requests = total_hits + total_misses;
-
-            if total_requests == 0 {
-                0.0
-            } else {
-                total_hits as f64 / total_requests as f64
-            }
-        } else {
-            0.0
-        }
-    }
-
-    /// 获取函数缓存命中率
-    pub fn function_cache_hit_rate(&self) -> f64 {
-        self.cache_stats
-            .as_ref()
-            .map(|stats| stats.function_cache_hit_rate)
-            .unwrap_or_else(|| 0.0)
-    }
-
-    /// 获取表达式缓存命中率
-    pub fn expression_cache_hit_rate(&self) -> f64 {
-        self.cache_stats
-            .as_ref()
-            .map(|stats| stats.expression_cache_hit_rate)
-            .unwrap_or_else(|| 0.0)
-    }
-
-    /// 获取变量缓存命中率
-    pub fn variable_cache_hit_rate(&self) -> f64 {
-        self.cache_stats
-            .as_ref()
-            .map(|stats| stats.variable_cache_hit_rate)
-            .unwrap_or_else(|| 0.0)
     }
 }
 

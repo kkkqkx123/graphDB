@@ -2,11 +2,9 @@
 //!
 //! 提供表达式求值过程中的基础上下文实现
 
-use crate::cache::CacheConfig;
 use crate::core::context::traits::BaseContext;
 use crate::core::context::ContextType;
 use crate::core::Value;
-use crate::expression::cache::{ExpressionCacheManager, ExpressionCacheStats};
 use crate::expression::functions::{
     BuiltinFunction, CustomFunction, ExpressionFunction, FunctionRef,
 };
@@ -54,19 +52,12 @@ pub struct BasicExpressionContext {
     pub parent: Option<Box<BasicExpressionContext>>,
     /// 上下文深度
     pub depth: usize,
-    /// 缓存管理器
-    pub cache_manager: Option<Arc<ExpressionCacheManager>>,
 }
 
 impl ExpressionContextCoreExtended for BasicExpressionContext {
     fn get_variable(&self, name: &str) -> Option<&Value> {
         // 在当前上下文中查找
         if let Some(value) = self.variables.get(name) {
-            // 缓存查找结果
-            if let Some(cache_manager) = &self.cache_manager {
-                let cache_key = format!("var:{}:{}", name, self.depth);
-                cache_manager.cache_variable(&cache_key, value.clone());
-            }
             return Some(value);
         }
 
@@ -128,7 +119,6 @@ impl ExpressionContextCoreExtended for BasicExpressionContext {
             custom_functions: HashMap::new(),
             parent: Some(Box::new(self.clone())),
             depth: self.get_depth() + 1,
-            cache_manager: self.cache_manager.clone(),
         })
     }
 }
@@ -208,19 +198,6 @@ impl BasicExpressionContext {
             custom_functions: HashMap::new(),
             parent: None,
             depth: 0,
-            cache_manager: None,
-        }
-    }
-
-    /// 创建带缓存管理器的基础表达式上下文
-    pub fn with_cache(cache_config: CacheConfig) -> Self {
-        Self {
-            variables: HashMap::new(),
-            functions: HashMap::new(),
-            custom_functions: HashMap::new(),
-            parent: None,
-            depth: 0,
-            cache_manager: Some(Arc::new(ExpressionCacheManager::new(cache_config))),
         }
     }
 
@@ -233,23 +210,6 @@ impl BasicExpressionContext {
             custom_functions: HashMap::new(),
             parent: Some(Box::new(parent)),
             depth: parent_depth + 1,
-            cache_manager: None,
-        }
-    }
-
-    /// 创建带父上下文和缓存管理器的基础表达式上下文
-    pub fn with_parent_and_cache(
-        parent: BasicExpressionContext,
-        cache_config: CacheConfig,
-    ) -> Self {
-        let parent_depth = parent.get_depth();
-        Self {
-            variables: HashMap::new(),
-            functions: HashMap::new(),
-            custom_functions: HashMap::new(),
-            parent: Some(Box::new(parent)),
-            depth: parent_depth + 1,
-            cache_manager: Some(Arc::new(ExpressionCacheManager::new(cache_config))),
         }
     }
 
@@ -303,47 +263,6 @@ impl BasicExpressionContext {
     pub fn get_local_variable_names(&self) -> Vec<&str> {
         self.variables.keys().map(|k| k.as_str()).collect()
     }
-
-    /// 获取缓存统计信息
-    pub fn get_cache_stats(&self) -> Option<ExpressionCacheStats> {
-        self.cache_manager.as_ref().map(|cm| cm.get_cache_stats())
-    }
-
-    /// 清空所有缓存
-    pub fn clear_cache(&self) {
-        if let Some(cache_manager) = &self.cache_manager {
-            cache_manager.clear_all();
-        }
-    }
-
-    /// 重置缓存统计信息
-    pub fn reset_cache_stats(&self) {
-        if let Some(cache_manager) = &self.cache_manager {
-            cache_manager.reset_stats();
-        }
-    }
-
-    /// 执行函数并缓存结果
-    pub fn execute_function_with_cache(
-        &self,
-        function_ref: &FunctionRef,
-        args: &[Value],
-    ) -> Result<Value, crate::core::ExpressionError> {
-        // 缓存功能暂时禁用，因为需要修复生命周期问题
-        function_ref.execute(args)
-    }
-
-    /// 将参数转换为哈希值用于缓存键
-    fn args_to_hash(&self, args: &[Value]) -> String {
-        use std::collections::hash_map::DefaultHasher;
-        use std::hash::{Hash, Hasher};
-
-        let mut hasher = DefaultHasher::new();
-        for arg in args {
-            arg.hash(&mut hasher);
-        }
-        format!("{:x}", hasher.finish())
-    }
 }
 
 impl Default for BasicExpressionContext {
@@ -360,7 +279,6 @@ impl Clone for BasicExpressionContext {
             custom_functions: self.custom_functions.clone(),
             parent: self.parent.clone(),
             depth: self.get_depth(),
-            cache_manager: self.cache_manager.clone(),
         }
     }
 }

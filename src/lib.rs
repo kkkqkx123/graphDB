@@ -4,7 +4,6 @@
 //! as a single executable for personal and small-scale applications.
 
 pub mod api;
-pub mod cache;
 pub mod common;
 pub mod config;
 pub mod core;

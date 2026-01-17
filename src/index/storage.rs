@@ -9,7 +9,7 @@
 
 use crate::core::error::{ManagerError, ManagerResult};
 use crate::core::{Edge, Value, Vertex};
-use crate::index::{IndexBinaryEncoder, IndexField, QueryType};
+use crate::index::{IndexBinaryEncoder, IndexField, IndexQueryStats, QueryType};
 use dashmap::DashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, RwLock};
@@ -92,7 +92,7 @@ pub struct ConcurrentIndexStorage {
     vertex_by_id: DashMap<i64, Vertex>,
     edge_by_id: DashMap<i64, Edge>,
     field_indexes: DashMap<String, DashMap<Vec<u8>, Vec<IndexEntry>>>,
-    query_stats: crate::index::IndexQueryStats,
+    query_stats: IndexQueryStats,
     entry_count: Arc<AtomicU64>,
     memory_usage: Arc<AtomicU64>,
     last_updated: Arc<RwLock<i64>>,
@@ -113,7 +113,7 @@ impl ConcurrentIndexStorage {
             vertex_by_id: DashMap::new(),
             edge_by_id: DashMap::new(),
             field_indexes: DashMap::new(),
-            query_stats: crate::index::IndexQueryStats::new(),
+            query_stats: IndexQueryStats::new(),
             entry_count: Arc::new(AtomicU64::new(0)),
             memory_usage: Arc::new(AtomicU64::new(0)),
             last_updated: Arc::new(RwLock::new(now)),
@@ -316,7 +316,7 @@ impl ConcurrentIndexStorage {
         *last = now;
     }
 
-    pub fn get_query_stats(&self) -> &crate::index::IndexQueryStats {
+    pub fn get_query_stats(&self) -> &IndexQueryStats {
         &self.query_stats
     }
 
@@ -341,7 +341,7 @@ pub struct ConcurrentIndexManager {
     space_id: i32,
     storages: DashMap<i32, ConcurrentIndexStorage>,
     index_metadata: DashMap<i32, IndexMetadata>,
-    global_stats: Arc<crate::index::IndexQueryStats>,
+    global_stats: Arc<IndexQueryStats>,
 }
 
 #[derive(Debug, Clone)]
@@ -378,7 +378,7 @@ impl ConcurrentIndexManager {
             space_id,
             storages: DashMap::new(),
             index_metadata: DashMap::new(),
-            global_stats: Arc::new(crate::index::IndexQueryStats::new()),
+            global_stats: Arc::new(IndexQueryStats::new()),
         }
     }
 
@@ -493,7 +493,7 @@ impl ConcurrentIndexManager {
         }
     }
 
-    pub fn get_global_stats(&self) -> &crate::index::IndexQueryStats {
+    pub fn get_global_stats(&self) -> &IndexQueryStats {
         &self.global_stats
     }
 }

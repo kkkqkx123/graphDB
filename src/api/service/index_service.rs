@@ -10,9 +10,12 @@
 use crate::core::{Value, Vertex};
 use crate::index::{ConcurrentIndexStorage, Index, IndexField, IndexInfo, IndexType};
 use dashmap::DashMap;
+use lru::LruCache;
 use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
+use std::num::NonZeroUsize;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 /// 索引服务错误类型
@@ -55,6 +58,7 @@ pub struct IndexService {
     index_metadata: DashMap<i32, Index>,
     next_index_id: AtomicU64,
     config: IndexServiceConfig,
+    exact_lookup_cache: Arc<Mutex<LruCache<(String, Value), Vec<Vertex>>>>,
 }
 
 impl Default for IndexService {
@@ -69,6 +73,7 @@ impl IndexService {
     }
 
     pub fn new_with_config(space_id: i32, config: IndexServiceConfig) -> Self {
+        let cache_capacity = NonZeroUsize::new(10000).expect("Failed to create NonZeroUsize for exact lookup cache");
         Self {
             space_id,
             index_by_id: DashMap::new(),
@@ -76,6 +81,7 @@ impl IndexService {
             index_metadata: DashMap::new(),
             next_index_id: AtomicU64::new(1),
             config,
+            exact_lookup_cache: Arc::new(Mutex::new(LruCache::new(cache_capacity))),
         }
     }
 
@@ -133,6 +139,10 @@ impl IndexService {
                 self.index_by_name.remove(&metadata.name);
             }
             self.index_metadata.remove(&index_id);
+            
+            let mut cache = self.exact_lookup_cache.lock().expect("Failed to lock exact lookup cache");
+            cache.clear();
+            
             Ok(())
         } else {
             Err(IndexServiceError::NotFound(index_id))
@@ -162,6 +172,14 @@ impl IndexService {
     }
 
     pub fn exact_lookup(&self, index_name: &str, value: &Value) -> Result<Vec<Vertex>, IndexServiceError> {
+        let cache_key = (index_name.to_string(), value.clone());
+        
+        let mut cache = self.exact_lookup_cache.lock().expect("Failed to lock exact lookup cache");
+        if let Some(cached) = cache.get(&cache_key) {
+            return Ok(cached.clone());
+        }
+        drop(cache);
+        
         let index_id = self.index_by_name
             .get(index_name)
             .ok_or_else(|| IndexServiceError::NotFound(-1))?;
@@ -170,9 +188,14 @@ impl IndexService {
             .get(&index_id)
             .ok_or_else(|| IndexServiceError::NotFound(*index_id))?;
         
-        storage.exact_lookup("", value)
+        let result = storage.exact_lookup("", value)
             .map(|(vertices, _, _)| vertices)
-            .map_err(|e| IndexServiceError::StorageError(e.to_string()))
+            .map_err(|e| IndexServiceError::StorageError(e.to_string()))?;
+        
+        let mut cache = self.exact_lookup_cache.lock().expect("Failed to lock exact lookup cache");
+        cache.put(cache_key, result.clone());
+        
+        Ok(result)
     }
 
     pub fn prefix_lookup(&self, index_name: &str, prefix: &[Value]) -> Result<Vec<Vertex>, IndexServiceError> {
@@ -213,6 +236,10 @@ impl IndexService {
             .ok_or_else(|| IndexServiceError::NotFound(*index_id))?;
         
         storage.insert_vertex("", &Value::Int(vertex.id), vertex);
+        
+        let mut cache = self.exact_lookup_cache.lock().expect("Failed to lock exact lookup cache");
+        cache.clear();
+        
         Ok(())
     }
 
@@ -226,6 +253,10 @@ impl IndexService {
             .ok_or_else(|| IndexServiceError::NotFound(*index_id))?;
         
         storage.delete_vertex(vertex);
+        
+        let mut cache = self.exact_lookup_cache.lock().expect("Failed to lock exact lookup cache");
+        cache.clear();
+        
         Ok(())
     }
 
@@ -292,14 +323,6 @@ impl IndexService {
         self.create_index(name, edge_type_name, index_fields, IndexType::EdgeIndex, is_unique)
     }
 
-    /// 获取所有索引列表
-    pub fn list_indexes(&self) -> Vec<Index> {
-        self.index_metadata
-            .iter()
-            .map(|i| i.value().clone())
-            .collect()
-    }
-
     /// 检查索引是否存在
     pub fn index_exists(&self, index_id: i32) -> bool {
         self.index_metadata.contains_key(&index_id)
@@ -320,32 +343,14 @@ impl IndexService {
         self.space_id
     }
 
-    /// 创建边索引的便捷方法
-    pub fn create_edge_index(
-        &self,
-        name: &str,
-        edge_type_name: &str,
-        fields: Vec<String>,
-        is_unique: bool,
-    ) -> i32 {
-        let index_fields: Vec<IndexField> = fields
-            .into_iter()
-            .map(|field_name| {
-                IndexField::new(field_name, Value::String("string".to_string()), false)
-            })
-            .collect();
-
-        self.create_index(name, edge_type_name, index_fields, is_unique)
-    }
-
     /// 检查标签索引是否存在
     pub fn tag_index_exists(&self, index_name: &str) -> bool {
-        self.get_index_by_name(index_name).is_some()
+        self.get_index_by_name(index_name).is_ok()
     }
 
     /// 检查边索引是否存在
     pub fn edge_index_exists(&self, index_name: &str) -> bool {
-        self.get_index_by_name(index_name).is_some()
+        self.get_index_by_name(index_name).is_ok()
     }
 
     /// 获取指定标签的所有索引

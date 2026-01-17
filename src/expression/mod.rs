@@ -1,5 +1,4 @@
 pub mod aggregate_functions;
-pub mod cache;
 pub mod context;
 pub mod evaluator;
 pub mod functions;
@@ -32,9 +31,6 @@ pub use functions::{
     BuiltinFunction, ConversionFunction, CustomFunction, DateTimeFunction, ExpressionFunction,
     FunctionRef, MathFunction, StringFunction,
 };
-
-// Re-export cache module types
-pub use cache::{ExpressionCacheManager, ExpressionCacheStats};
 
 // Re-export evaluation types
 pub use context::{EvaluationOptions, EvaluationStatistics};
