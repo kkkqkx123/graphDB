@@ -144,7 +144,6 @@ It is not recommended to run all tests in one time.
    - Unit tests when original file is too large: Add individual test.rs, and add it to `mod.rs`
    - Integration tests: Located in the `tests/` directory
    - Benchmarks: Located in the `benches/` directory
-   - Tests relevent to storage: storage in `data/tests` directory, don't place in any other directory
    
 ## Additional Notes
 

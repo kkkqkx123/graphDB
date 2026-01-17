@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
+use std::env;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 #[cfg(test)]
 pub mod test_config;
@@ -10,10 +11,8 @@ pub struct Config {
     pub host: String,
     pub port: u16,
     pub storage_path: String,
-    pub cache_size: usize,
-    pub enable_cache: bool,
     pub max_connections: usize,
-    pub transaction_timeout: u64, // in seconds
+    pub transaction_timeout: u64,
     pub log_level: String,
 }
 
@@ -23,8 +22,6 @@ impl Default for Config {
             host: "127.0.0.1".to_string(),
             port: 9758,
             storage_path: "data/graphdb".to_string(),
-            cache_size: 1000,
-            enable_cache: true,
             max_connections: 10,
             transaction_timeout: 30,
             log_level: "info".to_string(),
@@ -35,7 +32,8 @@ impl Default for Config {
 impl Config {
     pub fn load<P: AsRef<Path>>(path: P) -> Result<Self, Box<dyn std::error::Error>> {
         let content = fs::read_to_string(path)?;
-        let config: Config = toml::from_str(&content)?;
+        let mut config: Config = toml::from_str(&content)?;
+        config.storage_path = Config::resolve_storage_path(&config.storage_path)?;
         Ok(config)
     }
 
@@ -43,6 +41,38 @@ impl Config {
         let content = toml::to_string_pretty(self)?;
         fs::write(path, content)?;
         Ok(())
+    }
+
+    fn resolve_storage_path(storage_path: &str) -> Result<String, Box<dyn std::error::Error>> {
+        let path = PathBuf::from(storage_path);
+
+        if path.is_absolute() {
+            return Ok(storage_path.to_string());
+        }
+
+        if storage_path.starts_with('~') {
+            if let Some(home_dir) = env::home_dir() {
+                let relative_path = &storage_path[1..];
+                let absolute_path = if relative_path.starts_with('/') || relative_path.starts_with('\\') {
+                    home_dir.join(&relative_path[1..])
+                } else {
+                    home_dir.join(relative_path)
+                };
+                return Ok(absolute_path.to_string_lossy().into_owned());
+            }
+            return Err("无法获取用户主目录".into());
+        }
+
+        if let Ok(exe_path) = env::current_exe() {
+            let exe_dir = exe_path
+                .parent()
+                .ok_or("无法获取可执行文件所在目录")?
+                .to_path_buf();
+            let absolute_path = exe_dir.join(&path);
+            return Ok(absolute_path.to_string_lossy().into_owned());
+        }
+
+        Err("无法获取可执行文件路径".into())
     }
 }
 

@@ -636,9 +636,11 @@ mod tests {
         let _ = storage.exact_lookup("name", &Value::String("NonExistent".to_string())).expect("Failed to perform exact lookup in test");
 
         let stats = storage.get_query_stats();
-        assert_eq!(stats.query_count.load(std::sync::atomic::Ordering::Relaxed), 2);
-        assert_eq!(stats.hit_count.load(std::sync::atomic::Ordering::Relaxed), 1);
-        assert_eq!(stats.miss_count.load(std::sync::atomic::Ordering::Relaxed), 1);
-        assert!((stats.hit_rate() - 0.5).abs() < 0.01);
+        assert_eq!(stats.get_total_queries(), 2);
+        assert_eq!(stats.get_exact_hits(), 1);
+        let total_hits = stats.get_total_hits();
+        let total_queries = stats.get_total_queries();
+        assert_eq!(total_queries - total_hits, 1);
+        assert!((stats.get_hit_rate() - 0.5).abs() < 0.01);
     }
 }
