@@ -344,6 +344,8 @@ pub struct ExpressionVisitorState {
     pub continue_visiting: bool,
     /// 访问深度
     pub depth: usize,
+    /// 最大达到的深度
+    pub max_depth_reached: usize,
     /// 访问计数
     pub visit_count: usize,
     /// 最大深度限制
@@ -360,11 +362,17 @@ impl ExpressionVisitorState {
         Self {
             continue_visiting: true,
             depth: 0,
+            max_depth_reached: 0,
             visit_count: 0,
             max_depth: None,
             type_filter: None,
             custom_data: HashMap::new(),
         }
+    }
+
+    /// 获取最大达到的深度
+    pub fn get_max_depth_reached(&self) -> usize {
+        self.max_depth_reached
     }
 
     /// 获取访问深度
@@ -399,6 +407,9 @@ impl ExpressionVisitorState {
     /// 增加访问深度
     pub fn increment_depth(&mut self) {
         self.depth += 1;
+        if self.depth > self.max_depth_reached {
+            self.max_depth_reached = self.depth;
+        }
     }
 
     /// 减少访问深度

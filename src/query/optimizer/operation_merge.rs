@@ -84,7 +84,7 @@ impl OptRule for CombineFilterRule {
     }
 
     fn pattern(&self) -> Pattern {
-        CommonPatterns::project_over_project() // 这里应该是filter_over_filter，但使用现有的模式
+        CommonPatterns::filter_over_filter()
     }
 }
 
@@ -494,14 +494,26 @@ mod tests {
         let mut ctx = create_test_context();
 
         let start_node = PlanNodeEnum::Start(StartNode::new());
-        let filter_node = match Filter::new(
-            start_node,
+        let child_filter_node = match Filter::new(
+            start_node.clone(),
             crate::core::Expression::Variable("col1 > 100".to_string()),
         ) {
             Ok(node) => node,
             Err(_) => return,
         };
-        let opt_node = OptGroupNode::new(1, filter_node.into_enum());
+        let child_opt_node = OptGroupNode::new(2, child_filter_node.into_enum());
+
+        let filter_node = match Filter::new(
+            start_node,
+            crate::core::Expression::Variable("col2 > 200".to_string()),
+        ) {
+            Ok(node) => node,
+            Err(_) => return,
+        };
+        let mut opt_node = OptGroupNode::new(1, filter_node.into_enum());
+        opt_node.dependencies = vec![2];
+
+        ctx.add_plan_node_and_group_node(2, &child_opt_node);
 
         let result = rule
             .apply(&mut ctx, &opt_node)
@@ -516,11 +528,32 @@ mod tests {
         let mut ctx = create_test_context();
 
         let start_node = PlanNodeEnum::Start(StartNode::new());
-        let project_node = match Project::new(start_node, vec![]) {
+        let child_project_node = match Project::new(
+            start_node.clone(),
+            vec![crate::query::validator::YieldColumn::new(
+                crate::core::Expression::Variable("col1".to_string()),
+                "col1".to_string(),
+            )],
+        ) {
             Ok(node) => node,
             Err(_) => return,
         };
-        let opt_node = OptGroupNode::new(1, project_node.into_enum());
+        let child_opt_node = OptGroupNode::new(2, child_project_node.into_enum());
+
+        let project_node = match Project::new(
+            start_node,
+            vec![crate::query::validator::YieldColumn::new(
+                crate::core::Expression::Variable("col2".to_string()),
+                "col2".to_string(),
+            )],
+        ) {
+            Ok(node) => node,
+            Err(_) => return,
+        };
+        let mut opt_node = OptGroupNode::new(1, project_node.into_enum());
+        opt_node.dependencies = vec![2];
+
+        ctx.add_plan_node_and_group_node(2, &child_opt_node);
 
         let result = rule
             .apply(&mut ctx, &opt_node)
@@ -534,9 +567,24 @@ mod tests {
         let rule = MergeGetVerticesAndProjectRule;
         let mut ctx = create_test_context();
 
-        // 创建一个获取顶点节点
+        let start_node = PlanNodeEnum::Start(StartNode::new());
+        let project_node = match Project::new(
+            start_node,
+            vec![crate::query::validator::YieldColumn::new(
+                crate::core::Expression::Variable("col1".to_string()),
+                "col1".to_string(),
+            )],
+        ) {
+            Ok(node) => node,
+            Err(_) => return,
+        };
+        let child_opt_node = OptGroupNode::new(2, project_node.into_enum());
+
         let get_vertices_node = PlanNodeEnum::GetVertices(GetVertices::new(1, ""));
-        let opt_node = OptGroupNode::new(1, get_vertices_node);
+        let mut opt_node = OptGroupNode::new(1, get_vertices_node);
+        opt_node.dependencies = vec![2];
+
+        ctx.add_plan_node_and_group_node(2, &child_opt_node);
 
         let result = rule
             .apply(&mut ctx, &opt_node)
@@ -550,9 +598,18 @@ mod tests {
         let rule = MergeGetVerticesAndDedupRule;
         let mut ctx = create_test_context();
 
-        // 创建一个获取顶点节点
+        let start_node = PlanNodeEnum::Start(StartNode::new());
+        let dedup_node = match Dedup::new(start_node) {
+            Ok(node) => node,
+            Err(_) => return,
+        };
+        let child_opt_node = OptGroupNode::new(2, dedup_node.into_enum());
+
         let get_vertices_node = PlanNodeEnum::GetVertices(GetVertices::new(1, ""));
-        let opt_node = OptGroupNode::new(1, get_vertices_node);
+        let mut opt_node = OptGroupNode::new(1, get_vertices_node);
+        opt_node.dependencies = vec![2];
+
+        ctx.add_plan_node_and_group_node(2, &child_opt_node);
 
         let result = rule
             .apply(&mut ctx, &opt_node)
@@ -566,9 +623,18 @@ mod tests {
         let rule = MergeGetNbrsAndDedupRule;
         let mut ctx = create_test_context();
 
-        // 创建一个获取邻居节点
+        let start_node = PlanNodeEnum::Start(StartNode::new());
+        let dedup_node = match Dedup::new(start_node) {
+            Ok(node) => node,
+            Err(_) => return,
+        };
+        let child_opt_node = OptGroupNode::new(2, dedup_node.into_enum());
+
         let get_nbrs_node = PlanNodeEnum::GetNeighbors(GetNeighbors::new(1, ""));
-        let opt_node = OptGroupNode::new(1, get_nbrs_node);
+        let mut opt_node = OptGroupNode::new(1, get_nbrs_node);
+        opt_node.dependencies = vec![2];
+
+        ctx.add_plan_node_and_group_node(2, &child_opt_node);
 
         let result = rule
             .apply(&mut ctx, &opt_node)
@@ -582,9 +648,24 @@ mod tests {
         let rule = MergeGetNbrsAndProjectRule;
         let mut ctx = create_test_context();
 
-        // 创建一个获取邻居节点
+        let start_node = PlanNodeEnum::Start(StartNode::new());
+        let project_node = match Project::new(
+            start_node,
+            vec![crate::query::validator::YieldColumn::new(
+                crate::core::Expression::Variable("col1".to_string()),
+                "col1".to_string(),
+            )],
+        ) {
+            Ok(node) => node,
+            Err(_) => return,
+        };
+        let child_opt_node = OptGroupNode::new(2, project_node.into_enum());
+
         let get_nbrs_node = PlanNodeEnum::GetNeighbors(GetNeighbors::new(1, ""));
-        let opt_node = OptGroupNode::new(1, get_nbrs_node);
+        let mut opt_node = OptGroupNode::new(1, get_nbrs_node);
+        opt_node.dependencies = vec![2];
+
+        ctx.add_plan_node_and_group_node(2, &child_opt_node);
 
         let result = rule
             .apply(&mut ctx, &opt_node)

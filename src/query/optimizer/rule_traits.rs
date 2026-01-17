@@ -786,11 +786,11 @@ mod tests {
         assert_eq!(all_deps[2].id, 3);
 
         // 测试 has_dependency_of_kind
-        // 所有节点都是默认节点，类型为 Unknown
-        let has_unknown = has_dependency_of_kind(&opt_ctx, &node_with_deps, "Unknown");
-        assert!(has_unknown);
+        // 默认节点是 Start 类型
+        let has_start = has_dependency_of_kind(&opt_ctx, &node_with_deps, "Start");
+        assert!(has_start);
 
-        // 使用一个存在的类型进行测试
+        // 使用一个不存在的类型进行测试
         let has_filter = has_dependency_of_kind(&opt_ctx, &node_with_deps, "Filter");
         assert!(!has_filter);
 

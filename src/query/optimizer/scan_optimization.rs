@@ -124,16 +124,15 @@ mod tests {
         let rule = IndexFullScanRule;
         let mut ctx = create_test_context();
 
-        // 创建一个扫描节点（作为索引扫描的占位符）
-        let scan_node = PlanNodeEnum::ScanVertices(
-            crate::query::planner::plan::core::nodes::ScanVerticesNode::new(1),
-        );
-        let opt_node = OptGroupNode::new(1, scan_node);
+        let index_scan_node =
+            crate::query::planner::plan::algorithms::IndexScan::new(1, 1, 1, 1, "RANGE");
+        let index_scan_enum = PlanNodeEnum::IndexScan(index_scan_node);
+
+        let opt_node = OptGroupNode::new(1, index_scan_enum);
 
         let result = rule
             .apply(&mut ctx, &opt_node)
             .expect("Rule should apply successfully");
-        // 规则应该匹配扫描节点并尝试优化
         assert!(result.is_some());
     }
 
@@ -142,16 +141,27 @@ mod tests {
         let rule = ScanWithFilterOptimizationRule;
         let mut ctx = create_test_context();
 
-        // 创建一个扫描顶点节点
+        let start_node = PlanNodeEnum::Start(
+            crate::query::planner::plan::core::nodes::StartNode::new(),
+        );
+        let filter_node = crate::query::planner::plan::core::nodes::FilterNode::new(
+            start_node,
+            crate::core::Expression::Variable("col1 > 100".to_string()),
+        )
+        .expect("Filter node should be created successfully");
+        let filter_opt_node = OptGroupNode::new(2, PlanNodeEnum::Filter(filter_node));
+
         let scan_node = PlanNodeEnum::ScanVertices(
             crate::query::planner::plan::core::nodes::ScanVerticesNode::new(1),
         );
-        let opt_node = OptGroupNode::new(1, scan_node);
+        let mut opt_node = OptGroupNode::new(1, scan_node);
+        opt_node.dependencies = vec![2];
+
+        ctx.add_plan_node_and_group_node(2, &filter_opt_node);
 
         let result = rule
             .apply(&mut ctx, &opt_node)
             .expect("Rule should apply successfully");
-        // 规则应该匹配扫描节点并尝试优化带过滤条件的扫描
         assert!(result.is_some());
     }
 }

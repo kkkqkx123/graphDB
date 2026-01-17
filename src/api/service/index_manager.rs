@@ -99,10 +99,12 @@ impl IndexManager {
 
     pub fn get_all_tag_indexes(&self, space_id: i64) -> Vec<TagIndex> {
         let tag_indexes = self.tag_indexes.read().expect("获取标签索引读锁失败");
-        tag_indexes
+        let mut indexes: Vec<TagIndex> = tag_indexes
             .get(&space_id)
             .map(|indexes| indexes.values().cloned().collect())
-            .unwrap_or_default()
+            .unwrap_or_default();
+        indexes.sort_by(|a, b| a.index_id.cmp(&b.index_id));
+        indexes
     }
 
     pub fn get_all_edge_indexes(&self, space_id: i64) -> Vec<EdgeIndex> {

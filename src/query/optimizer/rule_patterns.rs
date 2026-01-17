@@ -139,6 +139,11 @@ impl CommonPatterns {
         PatternBuilder::limit_with("GetVertices")
     }
 
+    /// 过滤后跟过滤的模式
+    pub fn filter_over_filter() -> Pattern {
+        PatternBuilder::with_dependency("Filter", "Filter")
+    }
+
     /// 投影后跟投影的模式
     pub fn project_over_project() -> Pattern {
         PatternBuilder::project_with("Project")

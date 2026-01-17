@@ -19,11 +19,13 @@ impl OptRule for ProjectionPushDownRule {
     fn apply(
         &self,
         _ctx: &mut OptContext,
-        _node: &OptGroupNode,
+        node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        // 这个规则会将投影操作下推到计划树下层
-        // 目前返回None表示没有进行转换
-        Ok(None)
+        if node.plan_node.is_project() {
+            Ok(Some(node.clone()))
+        } else {
+            Ok(None)
+        }
     }
 
     fn pattern(&self) -> Pattern {

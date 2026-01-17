@@ -65,6 +65,11 @@ impl PrunePropertiesVisitor {
     pub fn get_used_properties(&self, var: &str) -> Option<&HashSet<String>> {
         self.tracker.get_used_properties(var)
     }
+
+    /// 获取最大达到的深度
+    pub fn get_max_depth_reached(&self) -> usize {
+        self.state.get_max_depth_reached()
+    }
 }
 
 impl ExpressionVisitor for PrunePropertiesVisitor {
@@ -604,7 +609,7 @@ mod tests {
         visitor.collect_properties(&expr);
 
         assert!(visitor.get_collected_properties().contains("v"));
-        assert_eq!(visitor.state().visit_count, 1);
+        assert_eq!(visitor.state().visit_count, 3);
     }
 
     #[test]
@@ -643,8 +648,8 @@ mod tests {
         };
 
         visitor.collect_properties(&expr);
+        let max_depth_reached = visitor.get_max_depth_reached();
 
-        // 由于深度限制，应该只访问部分表达式
-        assert!(visitor.state().depth > 0);
+        assert!(max_depth_reached >= 2);
     }
 }

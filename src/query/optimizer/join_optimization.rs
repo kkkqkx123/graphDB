@@ -134,7 +134,9 @@ mod tests {
         let rule = JoinOptimizationRule;
         let mut ctx = create_test_context();
 
-        // 创建一个连接节点（使用HashInnerJoin作为测试）
+        let left_node_id = 1;
+        let right_node_id = 2;
+
         let left_node =
             PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new());
         let right_node =
@@ -148,7 +150,20 @@ mod tests {
         .expect("内连接节点应该创建成功");
 
         let join_node = PlanNodeEnum::InnerJoin(inner_join);
-        let opt_node = OptGroupNode::new(1, join_node);
+
+        let mut opt_node = OptGroupNode::new(3, join_node);
+        opt_node.dependencies = vec![left_node_id, right_node_id];
+
+        let left_group_node = OptGroupNode::new(
+            left_node_id,
+            PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new()),
+        );
+        let right_group_node = OptGroupNode::new(
+            right_node_id,
+            PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new()),
+        );
+        ctx.add_plan_node_and_group_node(left_node_id, &left_group_node);
+        ctx.add_plan_node_and_group_node(right_node_id, &right_group_node);
 
         let result = rule
             .apply(&mut ctx, &opt_node)
