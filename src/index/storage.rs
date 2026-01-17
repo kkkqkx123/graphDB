@@ -9,7 +9,7 @@
 
 use crate::core::error::{ManagerError, ManagerResult};
 use crate::core::{Edge, Value, Vertex};
-use crate::index::{IndexBinaryEncoder, QueryType};
+use crate::index::{IndexBinaryEncoder, IndexField, QueryType};
 use dashmap::DashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, RwLock};
@@ -364,12 +364,7 @@ pub enum IndexStatus {
     Failed(String),
 }
 
-#[derive(Debug, Clone)]
-pub struct IndexField {
-    pub name: String,
-    pub value_type: Value,
-    pub is_nullable: bool,
-}
+
 
 impl Default for ConcurrentIndexManager {
     fn default() -> Self {

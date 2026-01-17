@@ -540,8 +540,8 @@ impl From<crate::query::visitor::TypeDeductionError> for DBError {
     }
 }
 
-impl From<crate::graph::IndexError> for DBError {
-    fn from(err: crate::graph::IndexError) -> Self {
+impl From<crate::index::IndexError> for DBError {
+    fn from(err: crate::index::IndexError) -> Self {
         DBError::Index(err.to_string())
     }
 }

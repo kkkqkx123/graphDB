@@ -16,6 +16,8 @@ use std::sync::{Arc, Mutex};
 /// 2. 协调各个处理阶段（解析→验证→规划→优化→执行）
 /// 3. 处理错误和异常
 /// 4. 管理查询上下文
+
+/// 由于需要导入storage，不适合在query目录定义
 pub struct QueryPipelineManager<S: StorageEngine + 'static> {
     _storage: Arc<Mutex<S>>,
     _parser: Parser,

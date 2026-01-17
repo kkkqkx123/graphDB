@@ -1,18 +1,15 @@
 //! 图操作核心模块
 //!
-//! 包含图相关的核心操作，包括事务管理、索引系统和表达式计算
+//! 包含图相关的核心操作，包括事务管理、表达式计算
 
 pub mod batch_operation;
-pub mod index;
 pub mod response;
 pub mod result_set;
 pub mod schema;
 pub mod transaction;
 pub mod utils;
 
-// 重新导出图操作相关功能
 pub use batch_operation::*;
-pub use index::*;
 pub use response::*;
 pub use result_set::*;
 pub use schema::{DataType as SchemaDataType, EntityType, IndexDef, PropertyDef, SchemaDef};
