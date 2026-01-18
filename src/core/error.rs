@@ -93,18 +93,92 @@ pub enum StorageError {
 /// 查询层错误类型
 ///
 /// 涵盖查询解析、验证和执行过程中的错误
-#[derive(Error, Debug, Clone)]
+#[derive(Error, Debug, Clone, PartialEq)]
 pub enum QueryError {
     #[error("存储错误: {0}")]
     StorageError(String),
+
     #[error("解析错误: {0}")]
     ParseError(String),
+
     #[error("无效查询: {0}")]
     InvalidQuery(String),
+
     #[error("执行错误: {0}")]
     ExecutionError(String),
+
     #[error("表达式错误: {0}")]
     ExpressionError(String),
+}
+
+impl From<StorageError> for QueryError {
+    fn from(e: StorageError) -> Self {
+        QueryError::StorageError(e.to_string())
+    }
+}
+
+impl From<DBError> for QueryError {
+    fn from(e: DBError) -> Self {
+        match e {
+            DBError::Query(qe) => qe,
+            DBError::Storage(se) => QueryError::StorageError(se.to_string()),
+            DBError::Expression(expr) => QueryError::ExpressionError(expr.to_string()),
+            DBError::Plan(plan) => QueryError::ExecutionError(plan.to_string()),
+            DBError::Lock(lock) => QueryError::ExecutionError(lock.to_string()),
+            DBError::Manager(manager) => QueryError::ExecutionError(manager.to_string()),
+            DBError::Validation(msg) => QueryError::InvalidQuery(msg),
+            DBError::Io(io) => QueryError::ExecutionError(io.to_string()),
+            DBError::TypeDeduction(msg) => QueryError::ExecutionError(msg),
+            DBError::Serialization(msg) => QueryError::ExecutionError(msg),
+            DBError::Index(msg) => QueryError::ExecutionError(msg),
+            DBError::Transaction(msg) => QueryError::ExecutionError(msg),
+            DBError::Internal(msg) => QueryError::ExecutionError(msg),
+            DBError::Session(session) => QueryError::ExecutionError(session.to_string()),
+            DBError::Permission(permission) => QueryError::ExecutionError(permission.to_string()),
+        }
+    }
+}
+
+impl From<std::io::Error> for QueryError {
+    fn from(e: std::io::Error) -> Self {
+        QueryError::ExecutionError(e.to_string())
+    }
+}
+
+impl From<LockError> for QueryError {
+    fn from(e: LockError) -> Self {
+        QueryError::ExecutionError(e.to_string())
+    }
+}
+
+impl From<ManagerError> for QueryError {
+    fn from(e: ManagerError) -> Self {
+        QueryError::ExecutionError(e.to_string())
+    }
+}
+
+impl From<SessionError> for QueryError {
+    fn from(e: SessionError) -> Self {
+        QueryError::ExecutionError(e.to_string())
+    }
+}
+
+impl From<PermissionError> for QueryError {
+    fn from(e: PermissionError) -> Self {
+        QueryError::ExecutionError(e.to_string())
+    }
+}
+
+impl From<ExpressionError> for QueryError {
+    fn from(e: ExpressionError) -> Self {
+        QueryError::ExpressionError(e.to_string())
+    }
+}
+
+impl From<ExpressionErrorType> for QueryError {
+    fn from(e: ExpressionErrorType) -> Self {
+        QueryError::ExpressionError(e.to_string())
+    }
 }
 
 /// 表达式错误（结构化设计）
@@ -172,6 +246,37 @@ pub enum ExpressionErrorType {
     AggregateError,
     /// 验证错误
     ValidationError,
+}
+
+impl std::fmt::Display for ExpressionErrorType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ExpressionErrorType::TypeError => write!(f, "类型错误"),
+            ExpressionErrorType::UndefinedVariable => write!(f, "未定义变量"),
+            ExpressionErrorType::UndefinedFunction => write!(f, "未定义函数"),
+            ExpressionErrorType::UnknownFunction => write!(f, "未知函数"),
+            ExpressionErrorType::FunctionError => write!(f, "函数错误"),
+            ExpressionErrorType::ArgumentCountError => write!(f, "参数数量错误"),
+            ExpressionErrorType::InvalidArgumentCount => write!(f, "无效参数数量"),
+            ExpressionErrorType::DivisionByZero => write!(f, "除零错误"),
+            ExpressionErrorType::Overflow => write!(f, "溢出错误"),
+            ExpressionErrorType::IndexOutOfBounds => write!(f, "索引越界"),
+            ExpressionErrorType::NullError => write!(f, "空值错误"),
+            ExpressionErrorType::SyntaxError => write!(f, "语法错误"),
+            ExpressionErrorType::InvalidOperation => write!(f, "无效操作"),
+            ExpressionErrorType::PropertyNotFound => write!(f, "属性未找到"),
+            ExpressionErrorType::RuntimeError => write!(f, "运行时错误"),
+            ExpressionErrorType::UnsupportedOperation => write!(f, "不支持的操作"),
+            ExpressionErrorType::TypeConversionError => write!(f, "类型转换错误"),
+            ExpressionErrorType::OperatorError => write!(f, "操作符错误"),
+            ExpressionErrorType::LabelNotFound => write!(f, "标签未找到"),
+            ExpressionErrorType::EdgeNotFound => write!(f, "边未找到"),
+            ExpressionErrorType::PathError => write!(f, "路径错误"),
+            ExpressionErrorType::RangeError => write!(f, "范围错误"),
+            ExpressionErrorType::AggregateError => write!(f, "聚合函数错误"),
+            ExpressionErrorType::ValidationError => write!(f, "验证错误"),
+        }
+    }
 }
 
 /// 表达式错误位置信息

@@ -4,15 +4,52 @@ use crate::query::executor::ExecutionResult;
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 
-// Executor dependency information
 #[derive(Debug, Clone)]
 pub struct ExecutorDep {
     pub executor_id: i64,
-    pub dependencies: Vec<i64>, // IDs of executors that must execute before this one
-    pub successors: Vec<i64>,   // IDs of executors that depend on this one
+    pub dependencies: Vec<i64>,
+    pub successors: Vec<i64>,
 }
 
-// Scheduler trait that defines how executors are coordinated
+#[derive(Debug, Clone)]
+pub struct VariableLifetime {
+    pub name: String,
+    pub user_count: usize,
+    pub loop_layers: usize,
+    pub is_root_output: bool,
+}
+
+impl VariableLifetime {
+    pub fn new(name: String) -> Self {
+        Self {
+            name,
+            user_count: 0,
+            loop_layers: 0,
+            is_root_output: false,
+        }
+    }
+
+    pub fn is_unlimited(&self) -> bool {
+        self.user_count == usize::MAX
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum ExecutionEvent {
+    Started(i64),
+    Completed(i64, bool),
+    Failed(i64),
+}
+
+#[derive(Debug, Clone)]
+pub enum ExecutorType {
+    Normal,
+    Select,
+    Loop,
+    Argument,
+    Leaf,
+}
+
 #[async_trait]
 pub trait QueryScheduler<S: StorageEngine> {
     async fn schedule(
@@ -23,4 +60,19 @@ pub trait QueryScheduler<S: StorageEngine> {
     fn wait_finish(&mut self) -> Result<(), QueryError>;
 }
 
-// ExecutionSchedule is defined in execution_schedule.rs to avoid duplication
+#[derive(Debug, Clone)]
+pub struct SchedulerConfig {
+    pub enable_lifetime_optimize: bool,
+    pub max_concurrent_executors: usize,
+    pub execution_timeout_ms: u64,
+}
+
+impl Default for SchedulerConfig {
+    fn default() -> Self {
+        Self {
+            enable_lifetime_optimize: true,
+            max_concurrent_executors: 100,
+            execution_timeout_ms: 30000,
+        }
+    }
+}

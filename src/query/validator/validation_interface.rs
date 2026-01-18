@@ -28,7 +28,10 @@ pub enum ValidationErrorType {
 pub struct ValidationError {
     pub message: String,
     pub error_type: ValidationErrorType,
-    pub context: Option<String>, // 错误上下文信息
+    pub context: Option<String>,
+    pub line: Option<usize>,
+    pub column: Option<usize>,
+    pub query_position: Option<usize>,
 }
 
 impl ValidationError {
@@ -37,11 +40,25 @@ impl ValidationError {
             message,
             error_type,
             context: None,
+            line: None,
+            column: None,
+            query_position: None,
         }
     }
 
     pub fn with_context(mut self, context: String) -> Self {
         self.context = Some(context);
+        self
+    }
+
+    pub fn with_location(mut self, line: usize, column: usize) -> Self {
+        self.line = Some(line);
+        self.column = Some(column);
+        self
+    }
+
+    pub fn with_position(mut self, position: usize) -> Self {
+        self.query_position = Some(position);
         self
     }
 
@@ -59,6 +76,14 @@ impl ValidationError {
                 DBError::Query(QueryError::InvalidQuery(error_msg))
             }
             _ => DBError::Query(QueryError::ExecutionError(error_msg)),
+        }
+    }
+
+    pub fn location_string(&self) -> String {
+        match (self.line, self.column) {
+            (Some(line), Some(col)) => format!("第{}行第{}列", line, col),
+            (Some(line), None) => format!("第{}行", line),
+            _ => String::from("未知位置"),
         }
     }
 }

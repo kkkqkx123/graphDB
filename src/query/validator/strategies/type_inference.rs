@@ -8,6 +8,50 @@ use crate::query::validator::{ValidationError, ValidationErrorType};
 use crate::query::validator::validation_interface::ValidationContext;
 use std::collections::HashMap;
 
+/// 顶点类型定义
+#[derive(Debug, Clone, PartialEq)]
+pub struct VertexType {
+    pub tag_id: Option<i32>,
+    pub tag_name: String,
+    pub properties: Vec<PropertyType>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PropertyType {
+    pub name: String,
+    pub type_def: ValueTypeDef,
+    pub is_nullable: bool,
+}
+
+/// 边类型定义
+#[derive(Debug, Clone, PartialEq)]
+pub struct EdgeTypeInfo {
+    pub edge_type: i32,
+    pub edge_name: String,
+    pub src_tag: String,
+    pub dst_tag: String,
+    pub properties: Vec<PropertyType>,
+    pub rank_enabled: bool,
+}
+
+/// 路径类型定义
+#[derive(Debug, Clone, PartialEq)]
+pub enum PathType {
+    SimplePath,
+    AllPaths,
+    ShortestPath,
+    NonWeightedShortestPath,
+    WeightedShortestPath,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PathInfo {
+    pub path_type: PathType,
+    pub steps: Option<(i32, i32)>,
+    pub node_types: Vec<VertexType>,
+    pub edge_types: Vec<EdgeTypeInfo>,
+}
+
 /// 表达式验证上下文Trait
 /// 定义表达式验证所需的基本接口
 trait ExpressionValidationContext {
@@ -31,6 +75,174 @@ pub struct TypeInference;
 impl TypeInference {
     pub fn new() -> Self {
         Self
+    }
+
+    /// 推导顶点类型
+    pub fn deduce_vertex_type(&self, tag_name: &str, _tag_id: Option<i32>) -> VertexType {
+        VertexType {
+            tag_id: None,
+            tag_name: tag_name.to_string(),
+            properties: Vec::new(),
+        }
+    }
+
+    /// 推导边类型
+    pub fn deduce_edge_type(&self, edge_name: &str, edge_type: i32) -> EdgeTypeInfo {
+        EdgeTypeInfo {
+            edge_type,
+            edge_name: edge_name.to_string(),
+            src_tag: String::new(),
+            dst_tag: String::new(),
+            properties: Vec::new(),
+            rank_enabled: true,
+        }
+    }
+
+    /// 推导路径类型
+    pub fn deduce_path_type(
+        &self,
+        path_type: PathType,
+        steps: Option<(i32, i32)>,
+    ) -> PathInfo {
+        PathInfo {
+            path_type,
+            steps,
+            node_types: Vec::new(),
+            edge_types: Vec::new(),
+        }
+    }
+
+    /// 推导属性类型
+    pub fn deduce_property_type(&self, prop_name: &str, _object_type: &str) -> Option<ValueTypeDef> {
+        match prop_name.to_lowercase().as_str() {
+            "id" => Some(ValueTypeDef::Int),
+            "name" | "title" | "desc" | "description" => Some(ValueTypeDef::String),
+            "age" | "count" | "size" | "year" | "month" | "day" | "hour" | "minute" | "second" => {
+                Some(ValueTypeDef::Int)
+            }
+            "price" | "score" | "rate" | "ratio" | "percent" | "weight" | "height" | "width" | "length" => {
+                Some(ValueTypeDef::Float)
+            }
+            "created_at" | "updated_at" | "birthday" | "date" | "time" | "datetime" => {
+                Some(ValueTypeDef::DateTime)
+            }
+            "active" | "enabled" | "visible" | "valid" | "exists" => Some(ValueTypeDef::Bool),
+            "tags" | "labels" | "categories" => Some(ValueTypeDef::List),
+            "properties" | "attrs" | "attributes" => Some(ValueTypeDef::Map),
+            _ => None,
+        }
+    }
+
+    /// 推导列表元素类型
+    pub fn deduce_list_element_type(&self, element_type: &ValueTypeDef) -> ValueTypeDef {
+        match element_type {
+            ValueTypeDef::List => ValueTypeDef::Any,
+            ValueTypeDef::Map => ValueTypeDef::Any,
+            _ => element_type.clone(),
+        }
+    }
+
+    /// 推导 Map 值类型
+    pub fn deduce_map_value_type(&self, _map_type: &ValueTypeDef) -> ValueTypeDef {
+        ValueTypeDef::Any
+    }
+
+    /// 推导路径步数类型
+    pub fn deduce_step_type(&self) -> ValueTypeDef {
+        ValueTypeDef::Int
+    }
+
+    /// 推导 ID 类型
+    pub fn deduce_id_type(&self) -> ValueTypeDef {
+        ValueTypeDef::String
+    }
+
+    /// 推导标签列表类型
+    pub fn deduce_labels_type(&self) -> ValueTypeDef {
+        ValueTypeDef::List
+    }
+
+    /// 推导属性映射类型
+    pub fn deduce_properties_type(&self) -> ValueTypeDef {
+        ValueTypeDef::Map
+    }
+
+    /// 推导边类型名称类型
+    pub fn deduce_edge_type_name_type(&self) -> ValueTypeDef {
+        ValueTypeDef::String
+    }
+
+    /// 推导路径类型
+    pub fn deduce_path_result_type(&self) -> ValueTypeDef {
+        ValueTypeDef::Path
+    }
+
+    /// 检查类型是否可以用于索引
+    pub fn is_indexable_type(&self, type_def: &ValueTypeDef) -> bool {
+        match type_def {
+            ValueTypeDef::Bool => true,
+            ValueTypeDef::Int => true,
+            ValueTypeDef::Float => true,
+            ValueTypeDef::String => true,
+            ValueTypeDef::DateTime => true,
+            ValueTypeDef::Date => true,
+            ValueTypeDef::Time => true,
+            ValueTypeDef::Duration => true,
+            ValueTypeDef::Geography => true,
+            _ => false,
+        }
+    }
+
+    /// 获取类型的默认值
+    pub fn get_default_value(&self, type_def: &ValueTypeDef) -> Option<Expression> {
+        match type_def {
+            ValueTypeDef::Bool => Some(Expression::Literal(crate::core::Value::Bool(false))),
+            ValueTypeDef::Int => Some(Expression::Literal(crate::core::Value::Int(0))),
+            ValueTypeDef::Float => Some(Expression::Literal(crate::core::Value::Float(0.0))),
+            ValueTypeDef::String => Some(Expression::Literal(crate::core::Value::String(String::new()))),
+            ValueTypeDef::List => Some(Expression::List(Vec::new())),
+            ValueTypeDef::Map => Some(Expression::Map(Vec::new())),
+            _ => None,
+        }
+    }
+
+    /// 验证类型是否可以强制转换
+    pub fn can_cast(&self, from: &ValueTypeDef, to: &ValueTypeDef) -> bool {
+        match (from, to) {
+            (ValueTypeDef::Int, ValueTypeDef::Float) => true,
+            (ValueTypeDef::Int, ValueTypeDef::String) => true,
+            (ValueTypeDef::Float, ValueTypeDef::String) => true,
+            (ValueTypeDef::Bool, ValueTypeDef::String) => true,
+            (a, b) => a == b,
+        }
+    }
+
+    /// 获取类型的字符串表示
+    pub fn type_to_string(&self, type_def: &ValueTypeDef) -> String {
+        match type_def {
+            ValueTypeDef::Empty => "empty".to_string(),
+            ValueTypeDef::Null => "null".to_string(),
+            ValueTypeDef::Bool => "bool".to_string(),
+            ValueTypeDef::Int => "int".to_string(),
+            ValueTypeDef::Float => "float".to_string(),
+            ValueTypeDef::String => "string".to_string(),
+            ValueTypeDef::Date => "date".to_string(),
+            ValueTypeDef::Time => "time".to_string(),
+            ValueTypeDef::DateTime => "datetime".to_string(),
+            ValueTypeDef::Vertex => "vertex".to_string(),
+            ValueTypeDef::Edge => "edge".to_string(),
+            ValueTypeDef::Path => "path".to_string(),
+            ValueTypeDef::List => "list".to_string(),
+            ValueTypeDef::Map => "map".to_string(),
+            ValueTypeDef::Set => "set".to_string(),
+            ValueTypeDef::Geography => "geography".to_string(),
+            ValueTypeDef::Duration => "duration".to_string(),
+            ValueTypeDef::DataSet => "dataset".to_string(),
+            ValueTypeDef::IntRange => "int_range".to_string(),
+            ValueTypeDef::FloatRange => "float_range".to_string(),
+            ValueTypeDef::StringRange => "string_range".to_string(),
+            ValueTypeDef::Any => "any".to_string(),
+        }
     }
 
     /// 验证表达式类型

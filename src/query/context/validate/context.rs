@@ -52,6 +52,11 @@ pub struct ValidationContext {
 
     // 验证错误列表（用于ValidationContext trait）
     validation_errors: Vec<ValidationError>,
+
+    // 位置信息
+    current_line: usize,
+    current_column: usize,
+    query_position: usize,
 }
 
 impl ValidationContext {
@@ -67,6 +72,9 @@ impl ValidationContext {
             query_parts: Vec::new(),
             alias_types: HashMap::new(),
             validation_errors: Vec::new(),
+            current_line: 0,
+            current_column: 0,
+            query_position: 0,
         }
     }
 
@@ -82,7 +90,43 @@ impl ValidationContext {
             query_parts: Vec::new(),
             alias_types: HashMap::new(),
             validation_errors: Vec::new(),
+            current_line: 0,
+            current_column: 0,
+            query_position: 0,
         }
+    }
+
+    // ==================== 位置信息管理 ====================
+
+    /// 设置当前位置
+    pub fn set_location(&mut self, line: usize, column: usize) {
+        self.current_line = line;
+        self.current_column = column;
+    }
+
+    /// 设置查询位置
+    pub fn set_query_position(&mut self, position: usize) {
+        self.query_position = position;
+    }
+
+    /// 获取当前行号
+    pub fn current_line(&self) -> usize {
+        self.current_line
+    }
+
+    /// 获取当前列号
+    pub fn current_column(&self) -> usize {
+        self.current_column
+    }
+
+    /// 获取查询位置
+    pub fn query_position(&self) -> usize {
+        self.query_position
+    }
+
+    /// 获取位置字符串表示
+    pub fn location_string(&self) -> String {
+        format!("第{}行第{}列", self.current_line, self.current_column)
     }
 
     // ==================== Schema管理 ====================
@@ -561,6 +605,9 @@ impl std::fmt::Debug for ValidationContext {
             .field("query_parts", &self.query_parts)
             .field("alias_types", &self.alias_types)
             .field("validation_errors", &self.validation_errors)
+            .field("current_line", &self.current_line)
+            .field("current_column", &self.current_column)
+            .field("query_position", &self.query_position)
             .finish()
     }
 }

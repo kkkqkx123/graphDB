@@ -1,16 +1,18 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
-use super::types::ExecutorDep;
+use super::types::{ExecutorDep, ExecutorType, VariableLifetime};
 use crate::query::executor::{ExecutionResult, Executor};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 
-// Execution schedule containing multiple executors and their dependencies
-// This represents the physical execution plan with executor dependencies and scheduling
 pub struct ExecutionSchedule<S: StorageEngine> {
     pub executors: HashMap<i64, Box<dyn Executor<S>>>,
     pub dependencies: HashMap<i64, ExecutorDep>,
-    pub root_executor_id: i64, // The executor that starts the execution
+    pub root_executor_id: i64,
+    pub executor_types: HashMap<i64, ExecutorType>,
+    pub variable_lifetimes: HashMap<String, VariableLifetime>,
+    pub loop_layers: HashMap<i64, usize>,
+    pub output_variables: HashMap<i64, String>,
 }
 
 impl<S: StorageEngine + Send + 'static> ExecutionSchedule<S> {
@@ -19,7 +21,33 @@ impl<S: StorageEngine + Send + 'static> ExecutionSchedule<S> {
             executors: HashMap::new(),
             dependencies: HashMap::new(),
             root_executor_id: root_id,
+            executor_types: HashMap::new(),
+            variable_lifetimes: HashMap::new(),
+            loop_layers: HashMap::new(),
+            output_variables: HashMap::new(),
         }
+    }
+
+    pub fn set_executor_type(&mut self, executor_id: i64, exec_type: ExecutorType) {
+        self.executor_types.insert(executor_id, exec_type);
+    }
+
+    pub fn get_executor_type(&self, executor_id: i64) -> ExecutorType {
+        self.executor_types
+            .get(&executor_id)
+            .cloned()
+            .unwrap_or(ExecutorType::Normal)
+    }
+
+    pub fn set_output_variable(&mut self, executor_id: i64, var_name: String) {
+        self.output_variables.insert(executor_id, var_name.clone());
+        self.variable_lifetimes
+            .entry(var_name.clone())
+            .or_insert_with(|| VariableLifetime::new(var_name));
+    }
+
+    pub fn get_output_variable(&self, executor_id: i64) -> Option<&String> {
+        self.output_variables.get(&executor_id)
     }
 
     pub fn add_executor(&mut self, executor: Box<dyn Executor<S>>) {
@@ -175,5 +203,147 @@ impl<S: StorageEngine + Send + 'static> ExecutionSchedule<S> {
 
         recursion_stack.remove(&executor_id);
         Ok(false)
+    }
+
+    pub fn analyze_lifetime(&mut self) {
+        let mut visited: HashSet<i64> = HashSet::new();
+        let mut stack: Vec<(i64, usize)> = Vec::new();
+        stack.push((self.root_executor_id, 0));
+
+        while let Some((executor_id, current_loop_layers)) = stack.pop() {
+            self.loop_layers.insert(executor_id, current_loop_layers);
+
+            if !visited.insert(executor_id) {
+                continue;
+            }
+
+            if let Some(dep_info) = self.dependencies.get(&executor_id) {
+                for &dep_id in &dep_info.dependencies {
+                    if let Some(output_var) = self.get_output_variable(dep_id).cloned() {
+                        if let Some(lifetime) = self.variable_lifetimes.get_mut(&output_var) {
+                            lifetime.user_count += 1;
+                        }
+                    }
+                    stack.push((dep_id, current_loop_layers));
+                }
+            }
+
+            let exec_type = self.get_executor_type(executor_id);
+            match exec_type {
+                ExecutorType::Select => {
+                    if let Some(dep_info) = self.dependencies.get(&executor_id) {
+                        for &successor_id in &dep_info.successors {
+                            stack.push((successor_id, current_loop_layers));
+                        }
+                    }
+                }
+                ExecutorType::Loop => {
+                    if let Some(dep_info) = self.dependencies.get(&executor_id) {
+                        for &successor_id in &dep_info.successors {
+                            stack.push((successor_id, current_loop_layers + 1));
+                        }
+                    }
+                }
+                _ => {
+                    if let Some(dep_info) = self.dependencies.get(&executor_id) {
+                        for &successor_id in &dep_info.successors {
+                            stack.push((successor_id, current_loop_layers));
+                        }
+                    }
+                }
+            }
+        }
+
+        if let Some(root_var) = self.get_output_variable(self.root_executor_id).cloned() {
+            if let Some(lifetime) = self.variable_lifetimes.get_mut(&root_var) {
+                lifetime.is_root_output = true;
+                lifetime.user_count = usize::MAX;
+            }
+        }
+    }
+
+    pub fn get_variable_lifetime(&self, var_name: &str) -> Option<&VariableLifetime> {
+        self.variable_lifetimes.get(var_name)
+    }
+
+    pub fn get_loop_layers(&self, executor_id: i64) -> usize {
+        self.loop_layers.get(&executor_id).cloned().unwrap_or(0)
+    }
+
+    pub fn is_unlimited_variable(&self, var_name: &str) -> bool {
+        self.variable_lifetimes
+            .get(var_name)
+            .map(|l| l.is_unlimited())
+            .unwrap_or(false)
+    }
+
+    pub fn format_dependency_tree(&self, root_id: i64) -> String {
+        let mut output = String::new();
+        self.append_executor(root_id, 0, &mut output);
+        output
+    }
+
+    fn append_executor(&self, executor_id: i64, spaces: usize, output: &mut String) {
+        let indent = " ".repeat(spaces);
+        let exec_type = self.get_executor_type(executor_id);
+        let loop_layers = self.get_loop_layers(executor_id);
+        
+        output.push_str(&format!(
+            "{}[{}, type:{:?}, loop_layers:{}]\n",
+            indent, executor_id, exec_type, loop_layers
+        ));
+
+        if let Some(dep_info) = self.dependencies.get(&executor_id) {
+            for &dep_id in &dep_info.dependencies {
+                self.append_executor(dep_id, spaces + 2, output);
+            }
+        }
+    }
+
+    pub fn to_graphviz(&self, root_id: i64) -> String {
+        let mut dot = String::from("digraph ExecutionSchedule {\n");
+        dot.push_str("  rankdir=TB;\n");
+        dot.push_str("  node [shape=box];\n");
+
+        let mut visited: HashSet<i64> = HashSet::new();
+        self.collect_dot_nodes(root_id, &mut dot, &mut visited);
+
+        visited.clear();
+        self.collect_dot_edges(root_id, &mut dot, &mut visited);
+
+        dot.push_str("}\n");
+        dot
+    }
+
+    fn collect_dot_nodes(&self, executor_id: i64, dot: &mut String, visited: &mut HashSet<i64>) {
+        if !visited.insert(executor_id) {
+            return;
+        }
+
+        let exec_type = self.get_executor_type(executor_id);
+        let loop_layers = self.get_loop_layers(executor_id);
+        dot.push_str(&format!(
+            "  {} [label=\"id:{}\ntype:{:?}\nloop:{}\"];\n",
+            executor_id, executor_id, exec_type, loop_layers
+        ));
+
+        if let Some(dep_info) = self.dependencies.get(&executor_id) {
+            for &dep_id in &dep_info.dependencies {
+                self.collect_dot_nodes(dep_id, dot, visited);
+            }
+        }
+    }
+
+    fn collect_dot_edges(&self, executor_id: i64, dot: &mut String, visited: &mut HashSet<i64>) {
+        if !visited.insert(executor_id) {
+            return;
+        }
+
+        if let Some(dep_info) = self.dependencies.get(&executor_id) {
+            for &dep_id in &dep_info.successors {
+                dot.push_str(&format!("  {} -> {};\n", dep_id, executor_id));
+                self.collect_dot_edges(dep_id, dot, visited);
+            }
+        }
     }
 }
