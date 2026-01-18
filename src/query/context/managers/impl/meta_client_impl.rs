@@ -4,6 +4,7 @@ use super::super::{
     ClusterInfo, EdgeTypeDef, MetaClient, MetadataVersion, SpaceInfo,
     TagDef,
 };
+use super::super::types::{PropertyDef, PropertyType};
 use crate::core::error::{ManagerError, ManagerResult};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};

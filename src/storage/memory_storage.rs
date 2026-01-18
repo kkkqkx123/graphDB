@@ -1,5 +1,6 @@
 use super::{StorageEngine, TransactionId};
 use crate::core::{Direction, Edge, StorageError, Value, Vertex};
+use crate::core::vertex_edge_path::Tag;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 

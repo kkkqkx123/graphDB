@@ -497,7 +497,7 @@ mod tests {
             alias: "test_path".to_string(),
             anonymous: false,
             gen_path: true,
-            path_type: PathType::Default,
+            path_type: PathYieldType::Default,
             node_infos: Vec::new(),
             edge_infos: Vec::new(),
             path_build: None,

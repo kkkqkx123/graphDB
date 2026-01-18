@@ -161,7 +161,7 @@ impl CypherClausePlanner for MatchClausePlanner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::validator::structs::{NodeInfo, Path, PathType};
+    use crate::query::validator::structs::{NodeInfo, Path, PathYieldType};
 
     #[test]
     fn test_match_clause_planner_interface() {
@@ -201,7 +201,7 @@ mod tests {
             alias: "p".to_string(),
             anonymous: false,
             gen_path: false,
-            path_type: PathType::Default,
+            path_type: PathYieldType::Default,
             node_infos: vec![node_info],
             edge_infos: vec![],
             path_build: None,

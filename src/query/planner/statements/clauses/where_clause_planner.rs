@@ -18,7 +18,7 @@
 use crate::query::parser::ast::expr::Expr;
 use crate::query::planner::statements::clauses::clause_planner::ClausePlanner;
 use crate::query::planner::statements::core::{
-    ClauseType, CypherClausePlanner, DataFlowNode, FlowDirection, PlanningContext,
+    ClauseType, CypherClausePlanner, DataFlowNode, FlowDirection, PlanningContext, QueryInfo,
 };
 
 use crate::query::planner::plan::SubPlan;
