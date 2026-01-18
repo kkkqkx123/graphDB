@@ -41,6 +41,7 @@ pub struct OptContext {
     pub changed: bool, // Whether this iteration caused a change to the plan
     pub visited_groups: HashSet<usize>, // Track visited groups during exploration
     pub plan_node_to_group_node: HashMap<usize, OptGroupNode>, // Map plan node IDs to optimization group nodes
+    pub group_map: HashMap<usize, OptGroup>, // Store all optimization groups by ID
     object_pool: ObjectPool<OptGroupNode>, // Pool for reusing OptGroupNode objects
 }
 
@@ -52,6 +53,7 @@ impl OptContext {
             changed: true,
             visited_groups: HashSet::new(),
             plan_node_to_group_node: HashMap::new(),
+            group_map: HashMap::new(),
             object_pool: ObjectPool::new(),
         }
     }
@@ -883,14 +885,14 @@ impl Optimizer {
 
             // 递归收集依赖组的属性
             for dep_id in &node.dependencies {
-                if let Some(dep_group) = self.find_group_by_id(ctx, *dep_id) {
+                if let Some(dep_group) = Self::find_group_by_id(ctx, *dep_id) {
                     self.collect_required_properties(ctx, dep_group, property_tracker)?;
                 }
             }
 
             // 递归收集主体组的属性
             for body_id in &node.bodies {
-                if let Some(body_group) = self.find_group_by_id(ctx, *body_id) {
+                if let Some(body_group) = Self::find_group_by_id(ctx, *body_id) {
                     self.collect_required_properties(ctx, body_group, property_tracker)?;
                 }
             }
@@ -1076,22 +1078,26 @@ impl Optimizer {
         group: &mut OptGroup,
         property_tracker: &PropertyTracker,
     ) -> Result<(), OptimizerError> {
+        let mut groups_to_process: Vec<usize> = Vec::new();
+
         for node in &mut group.nodes {
-            // 应用属性剪枝到节点
-            self.apply_node_property_pruning(ctx, node, property_tracker)?;
+            self.apply_node_property_pruning(node, property_tracker)?;
 
-            // 递归应用属性剪枝到依赖组
-            for dep_id in &node.dependencies {
-                if let Some(dep_group) = self.find_group_by_id_mut(ctx, *dep_id) {
-                    self.apply_property_pruning(ctx, dep_group, property_tracker)?;
-                }
-            }
+            groups_to_process.extend(node.dependencies.iter());
+            groups_to_process.extend(node.bodies.iter());
+        }
 
-            // 递归应用属性剪枝到主体组
-            for body_id in &node.bodies {
-                if let Some(body_group) = self.find_group_by_id_mut(ctx, *body_id) {
-                    self.apply_property_pruning(ctx, body_group, property_tracker)?;
+        while let Some(group_id) = groups_to_process.pop() {
+            if let Some(dep_group) = ctx.group_map.get_mut(&group_id) {
+                let mut new_groups: Vec<usize> = Vec::new();
+
+                for node in &mut dep_group.nodes {
+                    self.apply_node_property_pruning(node, property_tracker)?;
+                    new_groups.extend(node.dependencies.iter());
+                    new_groups.extend(node.bodies.iter());
                 }
+
+                groups_to_process.extend(new_groups);
             }
         }
 
@@ -1101,7 +1107,6 @@ impl Optimizer {
     /// 应用属性剪枝到节点
     fn apply_node_property_pruning(
         &self,
-        _ctx: &mut OptContext,
         _node: &mut OptGroupNode,
         _property_tracker: &PropertyTracker,
     ) -> Result<(), OptimizerError> {
@@ -1118,22 +1123,26 @@ impl Optimizer {
         ctx: &mut OptContext,
         group: &mut OptGroup,
     ) -> Result<(), OptimizerError> {
+        let mut groups_to_process: Vec<usize> = Vec::new();
+
         for node in &mut group.nodes {
-            // 重写节点的参数
-            self.rewrite_node_arguments(ctx, node)?;
+            self.rewrite_node_arguments(node)?;
 
-            // 递归重写依赖组的参数
-            for dep_id in &node.dependencies {
-                if let Some(dep_group) = self.find_group_by_id_mut(ctx, *dep_id) {
-                    self.rewrite_arguments(ctx, dep_group)?;
-                }
-            }
+            groups_to_process.extend(node.dependencies.iter());
+            groups_to_process.extend(node.bodies.iter());
+        }
 
-            // 递归重写主体组的参数
-            for body_id in &node.bodies {
-                if let Some(body_group) = self.find_group_by_id_mut(ctx, *body_id) {
-                    self.rewrite_arguments(ctx, body_group)?;
+        while let Some(group_id) = groups_to_process.pop() {
+            if let Some(dep_group) = ctx.group_map.get_mut(&group_id) {
+                let mut new_groups: Vec<usize> = Vec::new();
+
+                for node in &mut dep_group.nodes {
+                    self.rewrite_node_arguments(node)?;
+                    new_groups.extend(node.dependencies.iter());
+                    new_groups.extend(node.bodies.iter());
                 }
+
+                groups_to_process.extend(new_groups);
             }
         }
 
@@ -1143,7 +1152,6 @@ impl Optimizer {
     /// 重写节点的参数
     fn rewrite_node_arguments(
         &self,
-        _ctx: &mut OptContext,
         _node: &mut OptGroupNode,
     ) -> Result<(), OptimizerError> {
         // 在完整实现中，这里会重写节点的参数引用
@@ -1152,19 +1160,13 @@ impl Optimizer {
     }
 
     /// 根据ID查找优化组
-    fn find_group_by_id(&self, _ctx: &OptContext, _group_id: usize) -> Option<&OptGroup> {
-        // 这里需要实现查找逻辑
-        // 由于 OptContext 没有存储所有组的引用，这里返回 None
-        // 在完整实现中，应该在 OptContext 中添加一个存储所有组的字段
-        None
+    fn find_group_by_id(ctx: &OptContext, group_id: usize) -> Option<&OptGroup> {
+        ctx.group_map.get(&group_id)
     }
 
     /// 根据ID查找优化组（可变引用）
-    fn find_group_by_id_mut(&self, _ctx: &mut OptContext, _group_id: usize) -> Option<&mut OptGroup> {
-        // 这里需要实现查找逻辑
-        // 由于 OptContext 没有存储所有组的引用，这里返回 None
-        // 在完整实现中，应该在 OptContext 中添加一个存储所有组的字段
-        None
+    fn find_group_by_id_mut(ctx: &mut OptContext, group_id: usize) -> Option<&mut OptGroup> {
+        ctx.group_map.get_mut(&group_id)
     }
 
     fn plan_to_group(&self, plan: &ExecutionPlan) -> Result<OptGroup, OptimizerError> {

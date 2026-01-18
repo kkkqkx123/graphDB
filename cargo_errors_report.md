@@ -3,11 +3,11 @@
 ## Summary
 
 - **Total Errors**: 0
-- **Total Warnings**: 118
-- **Total Issues**: 118
+- **Total Warnings**: 127
+- **Total Issues**: 127
 - **Unique Error Patterns**: 0
-- **Unique Warning Patterns**: 81
-- **Files with Issues**: 79
+- **Unique Warning Patterns**: 86
+- **Files with Issues**: 87
 
 ## Error Statistics
 
@@ -15,11 +15,11 @@
 
 ## Warning Statistics
 
-**Total Warnings**: 118
+**Total Warnings**: 127
 
 ### Warning Type Breakdown
 
-- **warning**: 118 warnings
+- **warning**: 127 warnings
 
 ### Files with Warnings (Top 10)
 
@@ -27,19 +27,19 @@
 - `src\storage\redb_storage.rs`: 7 warnings
 - `src\api\service\index_service.rs`: 6 warnings
 - `src\query\executor\aggregation.rs`: 5 warnings
-- `src\query\parser\lexer\lexer.rs`: 3 warnings
 - `src\query\visitor\deduce_type_visitor.rs`: 3 warnings
-- `src\query\validator\strategies\variable_validator.rs`: 2 warnings
-- `src\query\executor\data_processing\join\hash_table.rs`: 2 warnings
-- `src\core\context\manager.rs`: 2 warnings
-- `src\query\context\managers\impl\index_manager_impl.rs`: 2 warnings
+- `src\query\parser\lexer\lexer.rs`: 3 warnings
+- `src\query\optimizer\optimizer.rs`: 3 warnings
+- `src\query\context\request_context.rs`: 2 warnings
+- `src\query\executor\data_processing\transformations\append_vertices.rs`: 2 warnings
+- `src\query\context\managers\impl\storage_client_impl.rs`: 2 warnings
 
 ## Detailed Warning Categorization
 
-### warning: unused import: `crate::core::value::NullType`
+### warning: methods `validate_expression_cycles` and `calculate_expression_depth` are never used
 
-**Total Occurrences**: 118  
-**Unique Files**: 79
+**Total Occurrences**: 127  
+**Unique Files**: 87
 
 #### `src\query\executor\result_processing\sort.rs`: 8 occurrences
 
@@ -75,228 +75,165 @@
 - Line 1055: variable does not need to be mutable
 - Line 292: method `read_raw_string` is never used
 
+#### `src\query\optimizer\optimizer.rs`: 3 occurrences
+
+- Line 307: struct `DummyPlanNode` is never constructed
+- Line 316: methods `id`, `type_name`, `dependencies`, `output_var`, `col_names`, and `cost` are never used
+- Line 1168: associated function `find_group_by_id_mut` is never used
+
 #### `src\query\visitor\deduce_type_visitor.rs`: 3 occurrences
 
 - Line 256: methods `visit_property` and `visit_set` are never used
 - Line 1220: fields `storage`, `validate_context`, `inputs`, `space`, and `vid_type` are never read
 - Line 1240: multiple methods are never used
 
-#### `src\core\context\manager.rs`: 2 occurrences
-
-- Line 96: field `created_at` is never read
-- Line 306: method `is_max_contexts_exceeded` is never used
-
-#### `src\query\context\managers\impl\index_manager_impl.rs`: 2 occurrences
-
-- Line 103: methods `lookup_vertex_by_id` and `lookup_edge_by_id` are never used
-- Line 1355: associated functions `vertex_matches_values`, `edge_matches_values`, `extract_vertex_field_value`, and `extract_edge_field_value` are never used
-
 #### `src\query\validator\strategies\expression_operations.rs`: 2 occurrences
 
 - Line 537: unused variable: `validator`: help: if this is intentional, prefix it with an underscore: `_validator`
 - Line 384: method `validate_pattern_comprehension` is never used
-
-#### `src\query\executor\data_processing\transformations\append_vertices.rs`: 2 occurrences
-
-- Line 424: unused variable: `config`: help: if this is intentional, prefix it with an underscore: `_config`
-- Line 27: field `props` is never read
-
-#### `src\query\context\managers\impl\storage_client_impl.rs`: 2 occurrences
-
-- Line 20: field `storage_path` is never read
-- Line 211: associated functions `vertex_key` and `edge_key_string` are never used
-
-#### `src\query\optimizer\plan_validator.rs`: 2 occurrences
-
-- Line 459: unused import: `OptGroup`
-- Line 462: function `create_test_context` is never used
-
-#### `src\query\planner\statements\path_planner.rs`: 2 occurrences
-
-- Line 75: unused variable: `min_hops`: help: if this is intentional, prefix it with an underscore: `_min_hops`
-- Line 25: field `query_context` is never read
-
-#### `src\query\optimizer\optimizer.rs`: 2 occurrences
-
-- Line 305: struct `DummyPlanNode` is never constructed
-- Line 314: methods `id`, `type_name`, `dependencies`, `output_var`, `col_names`, and `cost` are never used
-
-#### `src\query\scheduler\async_scheduler.rs`: 2 occurrences
-
-- Line 48: fields `storage` and `execution_context` are never read
-- Line 76: multiple methods are never used
 
 #### `src\query\executor\data_processing\join\hash_table.rs`: 2 occurrences
 
 - Line 170: method `clear` is never used
 - Line 335: field `config` is never read
 
-#### `src\query\executor\data_processing\graph_traversal\tests.rs`: 2 occurrences
+#### `src\query\context\request_context.rs`: 2 occurrences
 
-- Line 3: unused import: `crate::config::test_config::test_config`
-- Line 9: unused import: `crate::query::executor::data_processing::graph_traversal::traverse::TraverseExecutor`
+- Line 1071: variable does not need to be mutable
+- Line 1080: unused `std::result::Result` that must be used
+
+#### `src\query\context\managers\impl\storage_client_impl.rs`: 2 occurrences
+
+- Line 20: field `storage_path` is never read
+- Line 211: associated functions `vertex_key` and `edge_key_string` are never used
+
+#### `src\query\executor\data_processing\transformations\append_vertices.rs`: 2 occurrences
+
+- Line 424: unused variable: `config`: help: if this is intentional, prefix it with an underscore: `_config`
+- Line 27: field `props` is never read
+
+#### `src\query\context\managers\impl\index_manager_impl.rs`: 2 occurrences
+
+- Line 103: methods `lookup_vertex_by_id` and `lookup_edge_by_id` are never used
+- Line 1355: associated functions `vertex_matches_values`, `edge_matches_values`, `extract_vertex_field_value`, and `extract_edge_field_value` are never used
+
+#### `src\query\scheduler\async_scheduler.rs`: 2 occurrences
+
+- Line 48: fields `storage` and `execution_context` are never read
+- Line 76: multiple methods are never used
+
+#### `src\query\planner\statements\path_planner.rs`: 2 occurrences
+
+- Line 75: unused variable: `min_hops`: help: if this is intentional, prefix it with an underscore: `_min_hops`
+- Line 25: field `query_context` is never read
 
 #### `src\query\validator\strategies\variable_validator.rs`: 2 occurrences
 
 - Line 253: unused import: `std::collections::HashMap`
 - Line 257: unused variable: `validator`: help: if this is intentional, prefix it with an underscore: `_validator`
 
-#### `src\query\context\request_context.rs`: 2 occurrences
+#### `src\query\executor\data_processing\graph_traversal\tests.rs`: 2 occurrences
 
-- Line 1071: variable does not need to be mutable
-- Line 1080: unused `std::result::Result` that must be used
+- Line 3: unused import: `crate::config::test_config::test_config`
+- Line 9: unused import: `crate::query::executor::data_processing::graph_traversal::traverse::TraverseExecutor`
 
-#### `src\query\executor\result_processing\aggregation.rs`: 1 occurrences
+#### `src\core\context\manager.rs`: 2 occurrences
 
-- Line 982: unused import: `crate::core::value::NullType`
+- Line 96: field `created_at` is never read
+- Line 306: method `is_max_contexts_exceeded` is never used
 
-#### `src\core\result\result_iterator.rs`: 1 occurrences
+#### `src\query\optimizer\plan_validator.rs`: 2 occurrences
 
-- Line 47: field `data` is never read
+- Line 456: unused import: `OptGroup`
+- Line 459: function `create_test_context` is never used
 
-#### `src\query\planner\statements\go_planner.rs`: 1 occurrences
+#### `src\query\validator\strategies\expression_strategy.rs`: 1 occurrences
 
-- Line 26: field `query_context` is never read
-
-#### `src\index\cache.rs`: 1 occurrences
-
-- Line 140: method `access_count` is never used
-
-#### `src\query\validator\strategies\aggregate_strategy.rs`: 1 occurrences
-
-- Line 351: unused import: `UnaryOperator`
-
-#### `src\query\executor\data_processing\join\mod.rs`: 1 occurrences
-
-- Line 252: unused imports: `Direction` and `Value`
-
-#### `src\query\planner\statements\clauses\with_clause_planner.rs`: 1 occurrences
-
-- Line 11: field `with_items` is never read
-
-#### `src\query\executor\result_processing\dedup.rs`: 1 occurrences
-
-- Line 493: unused import: `crate::core::value::NullType`
-
-#### `src\query\executor\data_processing\transformations\assign.rs`: 1 occurrences
-
-- Line 168: unused variable: `config`: help: if this is intentional, prefix it with an underscore: `_config`
-
-#### `src\query\executor\data_processing\loops.rs`: 1 occurrences
-
-- Line 549: unused import: `crate::core::value::NullType`
-
-#### `src\query\optimizer\projection_pushdown.rs`: 1 occurrences
-
-- Line 121: unused import: `crate::query::planner::plan::core::nodes::ProjectNode`
-
-#### `src\query\optimizer\join_optimization.rs`: 1 occurrences
-
-- Line 111: unused import: `crate::query::planner::plan::core::nodes::LimitNode`
-
-#### `src\query\validator\pipe_validator.rs`: 1 occurrences
-
-- Line 11: field `base` is never read
-
-#### `src\query\planner\statements\clauses\unwind_planner.rs`: 1 occurrences
-
-- Line 13: fields `unwind_expr` and `variable` are never read
-
-#### `src\core\result\result_builder.rs`: 1 occurrences
-
-- Line 188: variable does not need to be mutable
-
-#### `src\storage\iterator\get_neighbors_iter.rs`: 1 occurrences
-
-- Line 290: method `col_valid` is never used
-
-#### `src\core\result\memory_manager.rs`: 1 occurrences
-
-- Line 413: unused variable: `guard`: help: if this is intentional, prefix it with an underscore: `_guard`
-
-#### `src\query\executor\result_processing\projection.rs`: 1 occurrences
-
-- Line 321: unused import: `crate::storage::StorageEngine`
-
-#### `src\index\storage.rs`: 1 occurrences
-
-- Line 376: fields `space_id`, `index_id`, and `index_name` are never read
-
-#### `src\query\planner\statements\clauses\projection_planner.rs`: 1 occurrences
-
-- Line 9: field `projection_items` is never read
-
-#### `src\query\executor\graph_query_executor.rs`: 1 occurrences
-
-- Line 79: multiple methods are never used
-
-#### `src\query\executor\data_processing\transformations\unwind.rs`: 1 occurrences
-
-- Line 368: unused variable: `config`: help: if this is intentional, prefix it with an underscore: `_config`
-
-#### `src\query\executor\data_access.rs`: 1 occurrences
-
-- Line 272: field `edge_types` is never read
+- Line 204: methods `validate_expression_cycles` and `calculate_expression_depth` are never used
 
 #### `src\query\visitor\extract_filter_expr_visitor.rs`: 1 occurrences
 
 - Line 478: function `is_filter_expression` is never used
 
-#### `src\query\executor\factory.rs`: 1 occurrences
+#### `src\query\visitor\extract_group_suite_visitor.rs`: 1 occurrences
 
-- Line 568: variable does not need to be mutable
+- Line 121: methods `set_error` and `is_aggregate_function` are never used
 
 #### `src\query\context\managers\transaction.rs`: 1 occurrences
 
 - Line 342: unused variable: `tx2`: help: if this is intentional, prefix it with an underscore: `_tx2`
 
-#### `src\query\executor\data_modification.rs`: 1 occurrences
+#### `src\index\cache.rs`: 1 occurrences
 
-- Line 412: fields `index_name`, `index_type`, `properties`, and `tag_name` are never read
-
-#### `src\query\optimizer\limit_pushdown.rs`: 1 occurrences
-
-- Line 889: unused import: `crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum`
-
-#### `src\storage\memory_storage.rs`: 1 occurrences
-
-- Line 16: field `vertex_props` is never read
-
-#### `src\query\optimizer\elimination_rules.rs`: 1 occurrences
-
-- Line 574: unused import: `SortNode`
-
-#### `src\query\parser\expressions\expression_converter.rs`: 1 occurrences
-
-- Line 458: unused imports: `ListComprehensionExpr`, `ListExpr`, `MapExpr`, `PathExpr`, `PredicateExpr`, `PropertyAccessExpr`, `RangeExpr`, `ReduceExpr`, and `SubscriptExpr`
-
-#### `src\query\executor\result_processing\topn.rs`: 1 occurrences
-
-- Line 287: multiple methods are never used
-
-#### `src\query\executor\data_processing\join\left_join.rs`: 1 occurrences
-
-- Line 204: method `create_null_right_row` is never used
-
-#### `src\query\planner\statements\lookup_planner.rs`: 1 occurrences
-
-- Line 26: field `query_context` is never read
-
-#### `src\query\planner\statements\core\match_clause_planner.rs`: 1 occurrences
-
-- Line 35: field `paths` is never read
+- Line 140: method `access_count` is never used
 
 #### `src\query\parser\ast\tests.rs`: 1 occurrences
 
 - Line 460: unused import: `super::*`
 
-#### `src\core\result\result_core.rs`: 1 occurrences
+#### `src\query\executor\traits.rs`: 1 occurrences
 
-- Line 252: method `update_iterator_and_value` is never used
+- Line 152: fields `id`, `name`, `description`, and `is_open` are never read
 
-#### `src\api\service\query_engine.rs`: 1 occurrences
+#### `src\query\planner\plan\core\nodes\start_node.rs`: 1 occurrences
 
-- Line 65: unused import: `crate::config::Config`
+- Line 18: field `dependencies_vec` is never read
+
+#### `src\query\planner\statements\clauses\unwind_planner.rs`: 1 occurrences
+
+- Line 13: fields `unwind_expr` and `variable` are never read
+
+#### `src\core\result\memory_manager.rs`: 1 occurrences
+
+- Line 413: unused variable: `guard`: help: if this is intentional, prefix it with an underscore: `_guard`
+
+#### `src\query\executor\data_processing\transformations\pattern_apply.rs`: 1 occurrences
+
+- Line 457: unused variable: `config`: help: if this is intentional, prefix it with an underscore: `_config`
+
+#### `src\query\validator\set_validator.rs`: 1 occurrences
+
+- Line 28: field `base` is never read
+
+#### `src\query\visitor\extract_prop_expr_visitor.rs`: 1 occurrences
+
+- Line 159: method `set_error` is never used
+
+#### `src\index\binary.rs`: 1 occurrences
+
+- Line 315: unused import: `TimeValue`
+
+#### `src\query\executor\result_processing\filter.rs`: 1 occurrences
+
+- Line 388: unused import: `crate::core::value::NullType`
+
+#### `src\query\planner\statements\clauses\yield_planner.rs`: 1 occurrences
+
+- Line 13: field `yield_items` is never read
+
+#### `src\query\planner\statements\lookup_planner.rs`: 1 occurrences
+
+- Line 26: field `query_context` is never read
+
+#### `src\query\validator\order_by_validator.rs`: 1 occurrences
+
+- Line 13: field `base` is never read
+
+#### `src\query\optimizer\projection_pushdown.rs`: 1 occurrences
+
+- Line 121: unused import: `crate::query::planner::plan::core::nodes::ProjectNode`
+
+#### `src\query\visitor\fold_constant_expr_visitor.rs`: 1 occurrences
+
+- Line 77: method `set_error` is never used
+
+#### `src\core\result\result_iterator.rs`: 1 occurrences
+
+- Line 47: field `data` is never read
+
+#### `src\query\planner\statements\clauses\with_clause_planner.rs`: 1 occurrences
+
+- Line 11: field `with_items` is never read
 
 #### `src\core\type_utils.rs`: 1 occurrences
 
@@ -306,83 +243,179 @@
 
 - Line 13: field `order_items` is never read
 
-#### `src\query\validator\set_validator.rs`: 1 occurrences
+#### `src\query\parser\expressions\expression_converter.rs`: 1 occurrences
 
-- Line 28: field `base` is never read
+- Line 458: unused imports: `ListComprehensionExpr`, `ListExpr`, `MapExpr`, `PathExpr`, `PredicateExpr`, `PropertyAccessExpr`, `RangeExpr`, `ReduceExpr`, and `SubscriptExpr`
 
-#### `src\query\executor\data_processing\join\cross_join.rs`: 1 occurrences
+#### `src\index\storage.rs`: 1 occurrences
 
-- Line 82: method `execute_multi_way_cartesian_product` is never used
+- Line 376: fields `space_id`, `index_id`, and `index_name` are never read
+
+#### `src\query\executor\result_processing\topn.rs`: 1 occurrences
+
+- Line 287: multiple methods are never used
+
+#### `src\query\optimizer\join_optimization.rs`: 1 occurrences
+
+- Line 111: unused import: `crate::query::planner::plan::core::nodes::LimitNode`
 
 #### `src\query\planner\statements\clauses\pagination_planner.rs`: 1 occurrences
 
 - Line 13: fields `skip` and `limit` are never read
 
-#### `src\query\executor\result_processing\filter.rs`: 1 occurrences
+#### `src\query\validator\go_validator.rs`: 1 occurrences
 
-- Line 388: unused import: `crate::core::value::NullType`
+- Line 334: unused variable: `key`: help: if this is intentional, prefix it with an underscore: `_key`
 
-#### `src\query\executor\result_processing\sample.rs`: 1 occurrences
+#### `src\query\planner\statements\clauses\projection_planner.rs`: 1 occurrences
 
-- Line 507: unused import: `crate::core::value::NullType`
-
-#### `src\query\planner\statements\clauses\yield_planner.rs`: 1 occurrences
-
-- Line 13: field `yield_items` is never read
-
-#### `src\query\planner\plan\core\nodes\start_node.rs`: 1 occurrences
-
-- Line 18: field `dependencies_vec` is never read
-
-#### `src\query\executor\data_processing\transformations\rollup_apply.rs`: 1 occurrences
-
-- Line 527: unused variable: `config`: help: if this is intentional, prefix it with an underscore: `_config`
-
-#### `src\query\optimizer\scan_optimization.rs`: 1 occurrences
-
-- Line 101: unused import: `crate::query::planner::plan::core::nodes::ScanVerticesNode`
-
-#### `src\query\validator\order_by_validator.rs`: 1 occurrences
-
-- Line 13: field `base` is never read
-
-#### `src\query\executor\traits.rs`: 1 occurrences
-
-- Line 152: fields `id`, `name`, `description`, and `is_open` are never read
-
-#### `src\core\signal_handler.rs`: 1 occurrences
-
-- Line 52: fields `signals` and `signal_info` are never read
-
-#### `src\query\planner\planner.rs`: 1 occurrences
-
-- Line 243: field `planners` is never read
-
-#### `src\index\binary.rs`: 1 occurrences
-
-- Line 315: unused import: `TimeValue`
-
-#### `src\query\executor\data_processing\transformations\pattern_apply.rs`: 1 occurrences
-
-- Line 457: unused variable: `config`: help: if this is intentional, prefix it with an underscore: `_config`
-
-#### `src\query\planner\statements\clauses\return_clause_planner.rs`: 1 occurrences
-
-- Line 24: field `return_items` is never read
+- Line 9: field `projection_items` is never read
 
 #### `src\query\validator\find_path_validator.rs`: 1 occurrences
 
 - Line 41: field `base` is never read
 
-#### `src\query\validator\sequential_validator.rs`: 1 occurrences
+#### `src\query\visitor\property_tracker_visitor.rs`: 1 occurrences
 
-- Line 18: field `base` is never read
+- Line 184: method `set_error` is never used
+
+#### `src\query\executor\result_processing\aggregation.rs`: 1 occurrences
+
+- Line 982: unused import: `crate::core::value::NullType`
+
+#### `src\query\executor\data_processing\join\cross_join.rs`: 1 occurrences
+
+- Line 82: method `execute_multi_way_cartesian_product` is never used
+
+#### `src\query\executor\factory.rs`: 1 occurrences
+
+- Line 568: variable does not need to be mutable
+
+#### `src\query\optimizer\scan_optimization.rs`: 1 occurrences
+
+- Line 101: unused import: `crate::query::planner::plan::core::nodes::ScanVerticesNode`
+
+#### `src\query\executor\graph_query_executor.rs`: 1 occurrences
+
+- Line 79: multiple methods are never used
+
+#### `src\query\optimizer\elimination_rules.rs`: 1 occurrences
+
+- Line 574: unused import: `SortNode`
+
+#### `src\query\executor\data_processing\transformations\unwind.rs`: 1 occurrences
+
+- Line 368: unused variable: `config`: help: if this is intentional, prefix it with an underscore: `_config`
+
+#### `src\api\service\query_engine.rs`: 1 occurrences
+
+- Line 65: unused import: `crate::config::Config`
+
+#### `src\query\executor\result_processing\projection.rs`: 1 occurrences
+
+- Line 321: unused import: `crate::storage::StorageEngine`
+
+#### `src\query\planner\statements\go_planner.rs`: 1 occurrences
+
+- Line 26: field `query_context` is never read
+
+#### `src\query\visitor\validate_pattern_expression_visitor.rs`: 1 occurrences
+
+- Line 84: method `and_all` is never used
+
+#### `src\query\executor\result_processing\sample.rs`: 1 occurrences
+
+- Line 507: unused import: `crate::core::value::NullType`
+
+#### `src\query\validator\pipe_validator.rs`: 1 occurrences
+
+- Line 11: field `base` is never read
+
+#### `src\core\signal_handler.rs`: 1 occurrences
+
+- Line 52: fields `signals` and `signal_info` are never read
+
+#### `src\query\visitor\vid_extract_visitor.rs`: 1 occurrences
+
+- Line 171: method `set_error` is never used
+
+#### `src\storage\iterator\get_neighbors_iter.rs`: 1 occurrences
+
+- Line 290: method `col_valid` is never used
+
+#### `src\query\executor\data_processing\join\mod.rs`: 1 occurrences
+
+- Line 252: unused imports: `Direction` and `Value`
+
+#### `src\query\executor\data_processing\transformations\rollup_apply.rs`: 1 occurrences
+
+- Line 527: unused variable: `config`: help: if this is intentional, prefix it with an underscore: `_config`
+
+#### `src\query\optimizer\limit_pushdown.rs`: 1 occurrences
+
+- Line 889: unused import: `crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum`
+
+#### `src\query\validator\strategies\aggregate_strategy.rs`: 1 occurrences
+
+- Line 351: unused import: `UnaryOperator`
 
 #### `src\query\executor\object_pool.rs`: 1 occurrences
 
 - Line 255: variable does not need to be mutable
 
-#### `src\query\validator\strategies\expression_strategy.rs`: 1 occurrences
+#### `src\query\executor\data_access.rs`: 1 occurrences
 
-- Line 204: methods `validate_expression_cycles` and `calculate_expression_depth` are never used
+- Line 272: field `edge_types` is never read
+
+#### `src\query\executor\data_processing\join\left_join.rs`: 1 occurrences
+
+- Line 204: method `create_null_right_row` is never used
+
+#### `src\query\executor\data_processing\loops.rs`: 1 occurrences
+
+- Line 549: unused import: `crate::core::value::NullType`
+
+#### `src\query\executor\result_processing\dedup.rs`: 1 occurrences
+
+- Line 493: unused import: `crate::core::value::NullType`
+
+#### `src\query\planner\statements\core\match_clause_planner.rs`: 1 occurrences
+
+- Line 35: field `paths` is never read
+
+#### `src\query\planner\statements\clauses\return_clause_planner.rs`: 1 occurrences
+
+- Line 24: field `return_items` is never read
+
+#### `src\query\validator\sequential_validator.rs`: 1 occurrences
+
+- Line 18: field `base` is never read
+
+#### `src\query\visitor\deduce_alias_type_visitor.rs`: 1 occurrences
+
+- Line 98: method `set_error` is never used
+
+#### `src\core\result\result_core.rs`: 1 occurrences
+
+- Line 252: method `update_iterator_and_value` is never used
+
+#### `src\query\executor\data_processing\transformations\assign.rs`: 1 occurrences
+
+- Line 168: unused variable: `config`: help: if this is intentional, prefix it with an underscore: `_config`
+
+#### `src\query\executor\data_modification.rs`: 1 occurrences
+
+- Line 412: fields `index_name`, `index_type`, `properties`, and `tag_name` are never read
+
+#### `src\core\result\result_builder.rs`: 1 occurrences
+
+- Line 188: variable does not need to be mutable
+
+#### `src\storage\memory_storage.rs`: 1 occurrences
+
+- Line 16: field `vertex_props` is never read
+
+#### `src\query\planner\planner.rs`: 1 occurrences
+
+- Line 243: field `planners` is never read
 
