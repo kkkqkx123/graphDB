@@ -117,6 +117,9 @@ impl CypherClauseContext {
     }
 }
 
+use crate::core::ValueTypeDef;
+use std::collections::HashMap;
+
 /// 验证结果
 #[derive(Debug, Clone)]
 pub struct ValidationResult {
@@ -150,4 +153,20 @@ impl ValidationResult {
             self.is_valid = false;
         }
     }
+}
+
+/// LOOKUP 索引类型
+#[derive(Debug, Clone, PartialEq)]
+pub enum LookupIndexType {
+    None,
+    Single(String),
+    Composite(Vec<String>),
+}
+
+/// LOOKUP 目标定义
+#[derive(Debug, Clone)]
+pub struct LookupTarget {
+    pub label: String,
+    pub index_type: LookupIndexType,
+    pub properties: HashMap<String, ValueTypeDef>,
 }

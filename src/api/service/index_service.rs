@@ -9,10 +9,11 @@
 
 use crate::core::{Value, Vertex};
 use crate::index::{ConcurrentIndexStorage, Index, IndexField, IndexInfo, IndexType};
+use crate::storage::{MemoryStorage, StorageEngine};
 use dashmap::DashMap;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 use std::time::Duration;
 use std::time::Instant;
 
@@ -268,6 +269,7 @@ pub struct IndexService {
     index_by_id: DashMap<i32, Arc<ConcurrentIndexStorage>>,
     index_by_name: DashMap<String, i32>,
     index_metadata: DashMap<i32, Index>,
+    storage: crate::index::storage::StorageRef,
     next_index_id: AtomicU64,
     config: IndexServiceConfig,
     exact_lookup_cache: Arc<VersionedCache<Vec<Vertex>>>,
@@ -288,11 +290,13 @@ impl IndexService {
 
     pub fn new_with_config(space_id: i32, config: IndexServiceConfig) -> Self {
         let stats = Arc::new(CacheStats::default());
+        let storage: crate::index::storage::StorageRef = Arc::new(Mutex::new(MemoryStorage::new().unwrap()));
         Self {
             space_id,
             index_by_id: DashMap::new(),
             index_by_name: DashMap::new(),
             index_metadata: DashMap::new(),
+            storage,
             next_index_id: AtomicU64::new(1),
             config: config.clone(),
             exact_lookup_cache: Arc::new(VersionedCache::new(config, Arc::clone(&stats))),
@@ -325,7 +329,7 @@ impl IndexService {
 
         let index_id = self.next_index_id.fetch_add(1, Ordering::Relaxed) as i32;
 
-        let storage = Arc::new(ConcurrentIndexStorage::new(self.space_id, index_id, name.to_string()));
+        let storage = Arc::new(ConcurrentIndexStorage::new(self.space_id, index_id, name.to_string(), self.storage.clone()));
 
         self.index_by_id.insert(index_id, Arc::clone(&storage));
         self.index_by_name.insert(name.to_string(), index_id);
@@ -443,7 +447,7 @@ impl IndexService {
             .get(&index_id)
             .ok_or_else(|| IndexServiceError::NotFound(*index_id))?;
 
-        storage.insert_vertex("", &Value::Int(vertex_id), vertex);
+        storage.insert_vertex("", &Value::Int(vertex_id), &vertex);
 
         self.exact_lookup_cache.invalidate(*index_id, &Value::Int(vertex_id));
 

@@ -20,6 +20,11 @@ pub mod order_by_validator;
 pub mod limit_validator;
 pub mod use_validator;
 pub mod unwind_validator;
+pub mod lookup_validator;
+pub mod find_path_validator;
+pub mod get_subgraph_validator;
+pub mod set_validator;
+pub mod sequential_validator;
 pub mod validation_factory;
 pub mod validation_interface;
 
@@ -46,6 +51,11 @@ pub use order_by_validator::{OrderByValidator, OrderColumn, SortDirection};
 pub use limit_validator::LimitValidator;
 pub use use_validator::UseValidator;
 pub use unwind_validator::UnwindValidator;
+pub use lookup_validator::LookupValidator;
+pub use find_path_validator::{FindPathValidator, FindPathConfig, PathPattern, EdgeDirection};
+pub use get_subgraph_validator::{GetSubgraphValidator, GetSubgraphConfig, EdgeDirection as SubgraphEdgeDirection};
+pub use set_validator::{SetValidator, SetValidator as SetStatementValidator, SetItem, SetStatementType};
+pub use sequential_validator::{SequentialValidator, SequentialStatement};
 
 pub use validation_factory::{
     ValidationFactory,

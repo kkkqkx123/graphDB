@@ -3,6 +3,11 @@
 
 use crate::core::Expression;
 use crate::core::ValueTypeDef;
+use crate::core::AggregateFunction;
+use crate::core::BinaryOperator;
+use crate::core::UnaryOperator;
+use crate::core::Value;
+use crate::query::validator::base_validator::ValueType;
 use crate::query::validator::structs::*;
 use crate::query::validator::{ValidationError, ValidationErrorType};
 use crate::query::validator::validation_interface::ValidationContext;
@@ -293,7 +298,6 @@ impl TypeInference {
                 self.validate_variable_type(name, context, expected_type)
             }
             _ => {
-                // 对于其他表达式类型，使用简化的类型推导
                 let actual_type = self.deduce_expression_type_simple(expr);
                 if self.are_types_compatible(&actual_type, &expected_type) {
                     Ok(())
@@ -326,9 +330,7 @@ impl TypeInference {
             | crate::core::BinaryOperator::LessThanOrEqual
             | crate::core::BinaryOperator::GreaterThan
             | crate::core::BinaryOperator::GreaterThanOrEqual => {
-                // 比较操作符的结果是布尔值
                 if expected_type == ValueTypeDef::Bool {
-                    // 验证左右操作数类型兼容
                     let left_type = self.deduce_expression_type_full(left, context);
                     let right_type = self.deduce_expression_type_full(right, context);
                     if self.are_types_compatible(&left_type, &right_type) {
@@ -353,9 +355,7 @@ impl TypeInference {
                 }
             }
             crate::core::BinaryOperator::And | crate::core::BinaryOperator::Or => {
-                // 逻辑操作符的结果是布尔值
                 if expected_type == ValueTypeDef::Bool {
-                    // 验证左右操作数都是布尔类型
                     self.validate_expression_type_full(left, context, ValueTypeDef::Bool)?;
                     self.validate_expression_type_full(right, context, ValueTypeDef::Bool)
                 } else {
@@ -369,7 +369,6 @@ impl TypeInference {
                 }
             }
             _ => {
-                // 算术操作符，推导结果类型
                 let left_type = self.deduce_expression_type_full(left, context);
                 let right_type = self.deduce_expression_type_full(right, context);
                 let result_type = self.deduce_binary_expr_type(op, &left_type, &right_type);
@@ -399,7 +398,6 @@ impl TypeInference {
     ) -> Result<(), ValidationError> {
         match op {
             crate::core::UnaryOperator::Not => {
-                // 逻辑非的结果是布尔值
                 if expected_type == ValueTypeDef::Bool {
                     self.validate_expression_type_full(operand, context, ValueTypeDef::Bool)
                 } else {
@@ -413,7 +411,6 @@ impl TypeInference {
                 }
             }
             crate::core::UnaryOperator::Minus | crate::core::UnaryOperator::Plus => {
-                // 一元加/减操作符的结果类型与操作数相同
                 let operand_type = self.deduce_expression_type_full(operand, context);
                 if self.are_types_compatible(&operand_type, &expected_type) {
                     Ok(())
@@ -560,7 +557,6 @@ impl TypeInference {
             | crate::core::BinaryOperator::GreaterThanOrEqual => ValueTypeDef::Bool,
             crate::core::BinaryOperator::And | crate::core::BinaryOperator::Or => ValueTypeDef::Bool,
             _ => {
-                // 算术操作符，返回更精确的类型
                 if *left_type == ValueTypeDef::Float || *right_type == ValueTypeDef::Float {
                     ValueTypeDef::Float
                 } else if *left_type == ValueTypeDef::Int || *right_type == ValueTypeDef::Int {
@@ -766,6 +762,318 @@ impl TypeInference {
                 ),
                 ValidationErrorType::TypeError,
             )),
+        }
+    }
+
+    /// 从 ValueTypeDef 转换为 ValueType
+    pub fn value_type_def_to_value_type(type_def: &ValueTypeDef) -> ValueType {
+        match type_def {
+            ValueTypeDef::Empty => ValueType::Unknown,
+            ValueTypeDef::Null => ValueType::Null,
+            ValueTypeDef::Bool => ValueType::Bool,
+            ValueTypeDef::Int => ValueType::Int,
+            ValueTypeDef::Float => ValueType::Float,
+            ValueTypeDef::String => ValueType::String,
+            ValueTypeDef::Date => ValueType::Date,
+            ValueTypeDef::Time => ValueType::Time,
+            ValueTypeDef::DateTime => ValueType::DateTime,
+            ValueTypeDef::Vertex => ValueType::Vertex,
+            ValueTypeDef::Edge => ValueType::Edge,
+            ValueTypeDef::Path => ValueType::Path,
+            ValueTypeDef::List => ValueType::List,
+            ValueTypeDef::Map => ValueType::Map,
+            ValueTypeDef::Set => ValueType::Set,
+            _ => ValueType::Unknown,
+        }
+    }
+
+    /// 从 ValueType 转换为 ValueTypeDef
+    pub fn value_type_to_value_type_def(type_: &ValueType) -> ValueTypeDef {
+        match type_ {
+            ValueType::Unknown => ValueTypeDef::Any,
+            ValueType::Bool => ValueTypeDef::Bool,
+            ValueType::Int => ValueTypeDef::Int,
+            ValueType::Float => ValueTypeDef::Float,
+            ValueType::String => ValueTypeDef::String,
+            ValueType::Date => ValueTypeDef::Date,
+            ValueType::Time => ValueTypeDef::Time,
+            ValueType::DateTime => ValueTypeDef::DateTime,
+            ValueType::Vertex => ValueTypeDef::Vertex,
+            ValueType::Edge => ValueTypeDef::Edge,
+            ValueType::Path => ValueTypeDef::Path,
+            ValueType::List => ValueTypeDef::List,
+            ValueType::Map => ValueTypeDef::Map,
+            ValueType::Set => ValueTypeDef::Set,
+            ValueType::Null => ValueTypeDef::Null,
+        }
+    }
+
+    /// 完整的表达式类型推导（增强版）
+    pub fn deduce_expr_type(&self, expr: &Expression) -> ValueType {
+        match expr {
+            Expression::Literal(value) => {
+                Self::value_type_def_to_value_type(&value.get_type())
+            }
+            Expression::Variable(_) => {
+                ValueType::Unknown
+            }
+            Expression::Property { object, property: _ } => {
+                self.deduce_expr_type(object)
+            }
+            Expression::Binary { op, left, right } => {
+                let left_type = self.deduce_expr_type(left);
+                let right_type = self.deduce_expr_type(right);
+                self.deduce_binary_expr_type_enhanced(op, &left_type, &right_type)
+            }
+            Expression::Unary { op, operand } => {
+                let operand_type = self.deduce_expr_type(operand);
+                self.deduce_unary_expr_type_enhanced(op, &operand_type)
+            }
+            Expression::Function { name, args } => {
+                self.deduce_function_type_enhanced(name, args)
+            }
+            Expression::Aggregate { func, arg: _, distinct: _ } => {
+                self.deduce_aggregate_type_enhanced(func)
+            }
+            Expression::List(_) => {
+                ValueType::List
+            }
+            Expression::Map(_) => ValueType::Map,
+            Expression::Case { conditions, default } => {
+                for (_, then_expr) in conditions {
+                    let then_type = self.deduce_expr_type(then_expr);
+                    if then_type != ValueType::Unknown {
+                        return then_type;
+                    }
+                }
+                if let Some(default_expr) = default {
+                    return self.deduce_expr_type(default_expr);
+                }
+                ValueType::Unknown
+            }
+            Expression::TypeCast { expr: _, target_type: _ } => {
+                ValueType::Unknown
+            }
+            Expression::Subscript { collection, index: _ } => {
+                self.deduce_expr_type(collection)
+            }
+            Expression::Range { collection, start: _, end: _ } => {
+                self.deduce_expr_type(collection)
+            }
+            Expression::Path(_) => ValueType::Path,
+            Expression::Label(_) => ValueType::String,
+            Expression::TagProperty { tag: _, prop: _ } => ValueType::Unknown,
+            Expression::EdgeProperty { edge: _, prop: _ } => ValueType::Unknown,
+            Expression::InputProperty(_) => ValueType::Unknown,
+            Expression::VariableProperty { var: _, prop: _ } => ValueType::Unknown,
+            Expression::SourceProperty { tag: _, prop: _ } => ValueType::Unknown,
+            Expression::DestinationProperty { tag: _, prop: _ } => ValueType::Unknown,
+            _ => ValueType::Unknown,
+        }
+    }
+
+    /// 增强版二元表达式类型推导
+    pub fn deduce_binary_expr_type_enhanced(
+        &self,
+        op: &BinaryOperator,
+        left_type: &ValueType,
+        right_type: &ValueType,
+    ) -> ValueType {
+        match op.category() {
+            crate::core::OperatorCategory::Arithmetic => {
+                if *left_type == ValueType::Int && *right_type == ValueType::Int {
+                    ValueType::Int
+                } else if matches!(*left_type, ValueType::Int | ValueType::Float)
+                    && matches!(*right_type, ValueType::Int | ValueType::Float) {
+                    ValueType::Float
+                } else {
+                    ValueType::Unknown
+                }
+            }
+            crate::core::OperatorCategory::Comparison => ValueType::Bool,
+            crate::core::OperatorCategory::Logical => ValueType::Bool,
+            crate::core::OperatorCategory::String => ValueType::String,
+            _ => ValueType::Unknown,
+        }
+    }
+
+    /// 增强版一元表达式类型推导
+    pub fn deduce_unary_expr_type_enhanced(
+        &self,
+        op: &UnaryOperator,
+        operand_type: &ValueType,
+    ) -> ValueType {
+        match op {
+            UnaryOperator::Plus => operand_type.clone(),
+            UnaryOperator::Minus => operand_type.clone(),
+            UnaryOperator::Not => ValueType::Bool,
+            UnaryOperator::IsNull => ValueType::Bool,
+            UnaryOperator::IsNotNull => ValueType::Bool,
+            UnaryOperator::IsEmpty => ValueType::Bool,
+            UnaryOperator::IsNotEmpty => ValueType::Bool,
+            UnaryOperator::Increment => operand_type.clone(),
+            UnaryOperator::Decrement => operand_type.clone(),
+        }
+    }
+
+    /// 增强版函数返回类型推导
+    pub fn deduce_function_type_enhanced(&self, name: &str, args: &[Expression]) -> ValueType {
+        let name_lower = name.to_lowercase();
+        match name_lower.as_str() {
+            "id" => ValueType::String,
+            "count" | "sum" | "avg" | "min" | "max" => ValueType::Float,
+            "length" | "size" => ValueType::Int,
+            "to_string" | "string" => ValueType::String,
+            "to_int" | "to_integer" | "int" => ValueType::Int,
+            "to_float" | "to_double" | "float" => ValueType::Float,
+            "abs" => ValueType::Float,
+            "floor" | "ceil" | "round" => ValueType::Int,
+            "sqrt" | "exp" | "log" => ValueType::Float,
+            "now" => ValueType::DateTime,
+            "date" | "datetime" => ValueType::DateTime,
+            "head" | "tail" | "last" => {
+                if !args.is_empty() {
+                    self.deduce_expr_type(&args[0])
+                } else {
+                    ValueType::Unknown
+                }
+            }
+            "keys" => ValueType::List,
+            "properties" => ValueType::Map,
+            "labels" => ValueType::List,
+            "type" => ValueType::String,
+            "rank" => ValueType::Int,
+            "src" | "dst" => ValueType::String,
+            _ => ValueType::Unknown,
+        }
+    }
+
+    /// 增强版聚合函数类型推导
+    pub fn deduce_aggregate_type_enhanced(&self, func: &AggregateFunction) -> ValueType {
+        match func {
+            AggregateFunction::Count(_) => ValueType::Int,
+            AggregateFunction::Sum(_) => ValueType::Float,
+            AggregateFunction::Avg(_) => ValueType::Float,
+            AggregateFunction::Min(_) => ValueType::Unknown,
+            AggregateFunction::Max(_) => ValueType::Unknown,
+            AggregateFunction::Collect(_) => ValueType::List,
+            AggregateFunction::Distinct(_) => ValueType::Unknown,
+            AggregateFunction::Percentile(_, _) => ValueType::Float,
+        }
+    }
+
+    /// 增强版类型兼容性检查
+    pub fn are_types_compatible_enhanced(&self, actual: &ValueType, expected: &ValueType) -> bool {
+        if *actual == *expected {
+            return true;
+        }
+        match (actual, expected) {
+            (ValueType::Int, ValueType::Float) => true,
+            (ValueType::Float, ValueType::Int) => true,
+            (ValueType::Unknown, _) => true,
+            (_, ValueType::Unknown) => true,
+            _ => false,
+        }
+    }
+
+    /// 增强版过滤条件类型验证
+    pub fn validate_filter_type_enhanced(&self, filter: &Expression) -> Result<(), ValidationError> {
+        let filter_type = self.deduce_expr_type(filter);
+        match filter_type {
+            ValueType::Bool => Ok(()),
+            ValueType::Null | ValueType::Unknown => Ok(()),
+            _ => Err(ValidationError::new(
+                format!("过滤条件必须返回布尔类型，实际返回 {:?}", filter_type),
+                ValidationErrorType::TypeError,
+            )),
+        }
+    }
+
+    /// 表达式常量折叠（增强版）
+    pub fn fold_constant_expr_enhanced(&self, expr: &Expression) -> Option<Expression> {
+        match expr {
+            Expression::Binary { op, left, right } => {
+                if let Some(lit_left) = self.fold_constant_expr_enhanced(left) {
+                    if let Some(lit_right) = self.fold_constant_expr_enhanced(right) {
+                        return self.evaluate_binary_expr_enhanced(op, &lit_left, &lit_right);
+                    }
+                }
+                None
+            }
+            Expression::Unary { op, operand } => {
+                if let Some(lit_operand) = self.fold_constant_expr_enhanced(operand) {
+                    return self.evaluate_unary_expr_enhanced(op, &lit_operand);
+                }
+                None
+            }
+            _ => None,
+        }
+    }
+
+    /// 计算二元表达式的常量值（增强版）
+    fn evaluate_binary_expr_enhanced(
+        &self,
+        op: &BinaryOperator,
+        left: &Expression,
+        right: &Expression,
+    ) -> Option<Expression> {
+        match (left, right) {
+            (Expression::Literal(l), Expression::Literal(r)) => {
+                let result = self.compute_binary_op_enhanced(op, l, r)?;
+                Some(Expression::Literal(result))
+            }
+            _ => None,
+        }
+    }
+
+    /// 计算一元表达式的常量值（增强版）
+    fn evaluate_unary_expr_enhanced(&self, op: &UnaryOperator, operand: &Expression) -> Option<Expression> {
+        if let Expression::Literal(val) = operand {
+            let result = self.compute_unary_op_enhanced(op, val)?;
+            Some(Expression::Literal(result))
+        } else {
+            None
+        }
+    }
+
+    /// 计算二元操作（增强版）
+    fn compute_binary_op_enhanced(
+        &self,
+        op: &BinaryOperator,
+        left: &Value,
+        right: &Value,
+    ) -> Option<Value> {
+        match op.category() {
+            crate::core::OperatorCategory::Arithmetic => {
+                match (left, right) {
+                    (Value::Int(l), Value::Int(r)) => Some(Value::Int(l + r)),
+                    (Value::Float(l), Value::Float(r)) => Some(Value::Float(l + r)),
+                    (Value::Int(l), Value::Float(r)) => Some(Value::Float(*l as f64 + r)),
+                    (Value::Float(l), Value::Int(r)) => Some(Value::Float(l + *r as f64)),
+                    _ => None,
+                }
+            }
+            _ => None,
+        }
+    }
+
+    /// 计算一元操作（增强版）
+    fn compute_unary_op_enhanced(&self, op: &UnaryOperator, val: &Value) -> Option<Value> {
+        match op {
+            UnaryOperator::Minus => {
+                match val {
+                    Value::Int(n) => Some(Value::Int(-n)),
+                    Value::Float(n) => Some(Value::Float(-n)),
+                    _ => None,
+                }
+            }
+            UnaryOperator::Not => {
+                match val {
+                    Value::Bool(b) => Some(Value::Bool(!b)),
+                    _ => None,
+                }
+            }
+            _ => None,
         }
     }
 }

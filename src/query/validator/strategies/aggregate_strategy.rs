@@ -198,7 +198,7 @@ impl AggregateValidationStrategy {
     /// 2. 确保参数表达式的结构正确
     fn validate_expression_in_aggregate(&self, expr: &Expression) -> Result<(), ValidationError> {
         match expr {
-            // 递归检查一元操作
+            // 递归检查一元操作（包括各种一元操作符）
             Expression::Unary { operand, .. }
             | Expression::UnaryPlus(operand)
             | Expression::UnaryNegate(operand)

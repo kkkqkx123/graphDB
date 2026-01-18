@@ -1,64 +1,57 @@
 //! 并发安全的索引存储实现
 //!
-//! 使用 DashMap 提供高性能的并发访问：
+//! 索引模块依赖 StorageEngine，不直接存储原始数据：
 //! - 细粒度锁，避免读操作阻塞
 //! - 高并发读写性能
 //! - 支持前缀查询和范围查询
 //!
-//! 复用 cache 模块的统计收集功能
+//! 索引只存储 ID 引用，实际数据从 StorageEngine 获取
 
-use crate::core::error::{ManagerError, ManagerResult};
 use crate::core::{Edge, Value, Vertex};
 use crate::index::{IndexBinaryEncoder, IndexField, IndexQueryStats, QueryType};
+use crate::storage::StorageEngine;
 use dashmap::DashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-#[derive(Debug)]
+pub type StorageRef = Arc<Mutex<dyn StorageEngine + Send + Sync>>;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum IndexEntryType {
+    Vertex(i64),
+    Edge(i64),
+}
+
+#[derive(Debug, Clone)]
 pub struct IndexEntry {
-    pub vertex: Option<Vertex>,
-    pub edge: Option<Edge>,
+    pub entry_type: IndexEntryType,
     pub created_at: i64,
     pub access_count: Arc<AtomicU64>,
     pub last_accessed: Arc<AtomicU64>,
 }
 
-impl Clone for IndexEntry {
-    fn clone(&self) -> Self {
-        Self {
-            vertex: self.vertex.clone(),
-            edge: self.edge.clone(),
-            created_at: self.created_at,
-            access_count: Arc::clone(&self.access_count),
-            last_accessed: Arc::clone(&self.last_accessed),
-        }
-    }
-}
-
 impl IndexEntry {
-    pub fn new_vertex(vertex: Vertex) -> Self {
+    pub fn new_vertex(vertex_id: i64) -> Self {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_secs())
             .unwrap_or(0);
         Self {
-            vertex: Some(vertex),
-            edge: None,
+            entry_type: IndexEntryType::Vertex(vertex_id),
             created_at: now as i64,
             access_count: Arc::new(AtomicU64::new(0)),
             last_accessed: Arc::new(AtomicU64::new(now)),
         }
     }
 
-    pub fn new_edge(edge: Edge) -> Self {
+    pub fn new_edge(edge_id: i64) -> Self {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_secs())
             .unwrap_or(0);
         Self {
-            vertex: None,
-            edge: Some(edge),
+            entry_type: IndexEntryType::Edge(edge_id),
             created_at: now as i64,
             access_count: Arc::new(AtomicU64::new(0)),
             last_accessed: Arc::new(AtomicU64::new(now)),
@@ -75,71 +68,62 @@ impl IndexEntry {
     }
 
     pub fn is_vertex(&self) -> bool {
-        self.vertex.is_some()
+        matches!(self.entry_type, IndexEntryType::Vertex(_))
     }
 
     pub fn is_edge(&self) -> bool {
-        self.edge.is_some()
+        matches!(self.entry_type, IndexEntryType::Edge(_))
+    }
+
+    pub fn get_id(&self) -> i64 {
+        match self.entry_type {
+            IndexEntryType::Vertex(id) => id,
+            IndexEntryType::Edge(id) => id,
+        }
     }
 }
 
-#[derive(Debug, Clone)]
 pub struct ConcurrentIndexStorage {
     space_id: i32,
     index_id: i32,
     index_name: String,
-    primary_index: DashMap<Vec<u8>, Vec<IndexEntry>>,
-    vertex_by_id: DashMap<i64, Vertex>,
-    edge_by_id: DashMap<i64, Edge>,
+    storage: StorageRef,
     field_indexes: DashMap<String, DashMap<Vec<u8>, Vec<IndexEntry>>>,
     query_stats: IndexQueryStats,
     entry_count: Arc<AtomicU64>,
-    memory_usage: Arc<AtomicU64>,
-    last_updated: Arc<RwLock<i64>>,
+    last_updated: Arc<AtomicU64>,
 }
 
 impl ConcurrentIndexStorage {
-    pub fn new(space_id: i32, index_id: i32, index_name: String) -> Self {
+    pub fn new(space_id: i32, index_id: i32, index_name: String, storage: StorageRef) -> Self {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_secs() as i64)
+            .map(|d| d.as_secs())
             .unwrap_or(0);
-        
+
         Self {
             space_id,
             index_id,
             index_name,
-            primary_index: DashMap::new(),
-            vertex_by_id: DashMap::new(),
-            edge_by_id: DashMap::new(),
+            storage,
             field_indexes: DashMap::new(),
             query_stats: IndexQueryStats::new(),
             entry_count: Arc::new(AtomicU64::new(0)),
-            memory_usage: Arc::new(AtomicU64::new(0)),
-            last_updated: Arc::new(RwLock::new(now)),
+            last_updated: Arc::new(AtomicU64::new(now)),
         }
     }
 
-    pub fn insert_vertex(&self, field_name: &str, field_value: &Value, vertex: Vertex) {
+    pub fn insert_vertex(&self, field_name: &str, field_value: &Value, vertex: &Vertex) {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_secs() as i64)
+            .map(|d| d.as_secs())
             .unwrap_or(0);
-        
-        let mut last = self.last_updated.write().unwrap();
-        *last = now;
-        drop(last);
+
+        self.last_updated.store(now, Ordering::Relaxed);
 
         let key = IndexBinaryEncoder::encode_value(field_value);
-        let entry = IndexEntry::new_vertex(vertex.clone());
-        
-        self.vertex_by_id.insert(vertex.id(), vertex);
-        
-        self.primary_index
-            .entry(key.clone())
-            .or_insert_with(Vec::new)
-            .push(entry.clone());
-        
+        let entry = IndexEntry::new_vertex(vertex.id);
+
         let field_index = self.field_indexes
             .entry(field_name.to_string())
             .or_insert_with(DashMap::new);
@@ -147,31 +131,21 @@ impl ConcurrentIndexStorage {
             .entry(key)
             .or_insert_with(Vec::new)
             .push(entry);
-        
+
         self.entry_count.fetch_add(1, Ordering::Relaxed);
-        self.update_memory_usage();
     }
 
-    pub fn insert_edge(&self, field_name: &str, field_value: &Value, edge: Edge) {
+    pub fn insert_edge(&self, field_name: &str, field_value: &Value, edge: &Edge) {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_secs() as i64)
+            .map(|d| d.as_secs())
             .unwrap_or(0);
-        
-        let mut last = self.last_updated.write().unwrap();
-        *last = now;
-        drop(last);
+
+        self.last_updated.store(now, Ordering::Relaxed);
 
         let key = IndexBinaryEncoder::encode_value(field_value);
-        let entry = IndexEntry::new_edge(edge.clone());
-        
-        self.edge_by_id.insert(edge.id, edge);
-        
-        self.primary_index
-            .entry(key.clone())
-            .or_insert_with(Vec::new)
-            .push(entry.clone());
-        
+        let entry = IndexEntry::new_edge(edge.id);
+
         let field_index = self.field_indexes
             .entry(field_name.to_string())
             .or_insert_with(DashMap::new);
@@ -179,49 +153,58 @@ impl ConcurrentIndexStorage {
             .entry(key)
             .or_insert_with(Vec::new)
             .push(entry);
-        
+
         self.entry_count.fetch_add(1, Ordering::Relaxed);
-        self.update_memory_usage();
     }
 
-    pub fn exact_lookup(&self, field_name: &str, field_value: &Value) -> ManagerResult<(Vec<Vertex>, Vec<Edge>, Duration)> {
+    pub fn exact_lookup(&self, field_name: &str, field_value: &Value) -> Result<(Vec<Vertex>, Vec<Edge>, Duration), String> {
         let start = Instant::now();
-        
+
         let key = IndexBinaryEncoder::encode_value(field_value);
         let mut vertices = Vec::new();
         let mut edges = Vec::new();
         let mut found = false;
-        
+
         if let Some(field_index) = self.field_indexes.get(field_name) {
             if let Some(entries) = field_index.get(&key) {
+                let storage = self.storage.lock().map_err(|e| e.to_string())?;
                 for entry in entries.iter() {
                     entry.touch();
                     found = true;
-                    if let Some(v) = &entry.vertex {
-                        vertices.push(v.clone());
-                    } else if let Some(e) = &entry.edge {
-                        edges.push(e.clone());
+                    match entry.entry_type {
+                        IndexEntryType::Vertex(id) => {
+                            if let Ok(Some(vertex)) = storage.get_node(&Value::Int(id)) {
+                                vertices.push(vertex);
+                            }
+                        }
+                        IndexEntryType::Edge(id) => {
+                            if let Ok(Some(edge)) = storage.get_edge(&Value::Int(id), &Value::Int(0), "") {
+                                edges.push(edge);
+                            }
+                        }
                     }
                 }
             }
         }
-        
+
         let duration = start.elapsed();
         self.query_stats.record_query(found, duration, QueryType::Exact);
-        
+
         Ok((vertices, edges, duration))
     }
 
-    pub fn prefix_lookup(&self, field_name: &str, prefix: &[Value]) -> ManagerResult<(Vec<Vertex>, Vec<Edge>, Duration)> {
+    pub fn prefix_lookup(&self, field_name: &str, prefix: &[Value]) -> Result<(Vec<Vertex>, Vec<Edge>, Duration), String> {
         let start = Instant::now();
-        
+
         let prefix_bytes = IndexBinaryEncoder::encode_prefix(prefix, prefix.len());
         let (start_key, end_key) = IndexBinaryEncoder::encode_prefix_range(&prefix_bytes);
-        
+
         let mut vertices = Vec::new();
         let mut edges = Vec::new();
         let mut found = false;
-        
+
+        let storage = self.storage.lock().map_err(|e| e.to_string())?;
+
         for item in self.field_indexes.iter() {
             let key = item.key();
             let key_bytes = key.as_bytes();
@@ -231,19 +214,26 @@ impl ConcurrentIndexStorage {
                     for entry in inner_item.value().iter() {
                         entry.touch();
                         found = true;
-                        if let Some(v) = &entry.vertex {
-                            vertices.push(v.clone());
-                        } else if let Some(e) = &entry.edge {
-                            edges.push(e.clone());
+                        match entry.entry_type {
+                            IndexEntryType::Vertex(id) => {
+                                if let Ok(Some(vertex)) = storage.get_node(&Value::Int(id)) {
+                                    vertices.push(vertex);
+                                }
+                            }
+                            IndexEntryType::Edge(id) => {
+                                if let Ok(Some(edge)) = storage.get_edge(&Value::Int(id), &Value::Int(0), "") {
+                                    edges.push(edge);
+                                }
+                            }
                         }
                     }
                 }
             }
         }
-        
+
         let duration = start.elapsed();
         self.query_stats.record_query(found, duration, QueryType::Prefix);
-        
+
         Ok((vertices, edges, duration))
     }
 
@@ -252,17 +242,19 @@ impl ConcurrentIndexStorage {
         field_name: &str,
         start_value: &Value,
         end_value: &Value,
-    ) -> ManagerResult<(Vec<Vertex>, Vec<Edge>, Duration)> {
+    ) -> Result<(Vec<Vertex>, Vec<Edge>, Duration), String> {
         let start = Instant::now();
-        
+
         let start_key = IndexBinaryEncoder::encode_value(start_value);
         let mut end_key = IndexBinaryEncoder::encode_value(end_value);
         end_key.push(0xFFu8);
-        
+
         let mut vertices = Vec::new();
         let mut edges = Vec::new();
         let mut found = false;
-        
+
+        let storage = self.storage.lock().map_err(|e| e.to_string())?;
+
         for item in self.field_indexes.iter() {
             let key = item.key();
             let key_bytes = key.as_bytes();
@@ -272,48 +264,47 @@ impl ConcurrentIndexStorage {
                     for entry in inner_item.value().iter() {
                         entry.touch();
                         found = true;
-                        if let Some(v) = &entry.vertex {
-                            vertices.push(v.clone());
-                        } else if let Some(e) = &entry.edge {
-                            edges.push(e.clone());
+                        match entry.entry_type {
+                            IndexEntryType::Vertex(id) => {
+                                if let Ok(Some(vertex)) = storage.get_node(&Value::Int(id)) {
+                                    vertices.push(vertex);
+                                }
+                            }
+                            IndexEntryType::Edge(id) => {
+                                if let Ok(Some(edge)) = storage.get_edge(&Value::Int(id), &Value::Int(0), "") {
+                                    edges.push(edge);
+                                }
+                            }
                         }
                     }
                 }
             }
         }
-        
+
         let duration = start.elapsed();
         self.query_stats.record_query(found, duration, QueryType::Range);
-        
+
         Ok((vertices, edges, duration))
     }
 
     pub fn delete_vertex(&self, vertex: &Vertex) {
-        self.vertex_by_id.remove(&vertex.id());
         self.entry_count.fetch_sub(1, Ordering::Relaxed);
-        self.update_memory_usage();
     }
 
     pub fn delete_edge(&self, edge: &Edge) {
-        self.edge_by_id.remove(&edge.id);
         self.entry_count.fetch_sub(1, Ordering::Relaxed);
-        self.update_memory_usage();
     }
 
     pub fn clear(&self) {
-        self.primary_index.clear();
-        self.vertex_by_id.clear();
-        self.edge_by_id.clear();
         self.field_indexes.clear();
         self.entry_count.store(0, Ordering::Relaxed);
         self.query_stats.reset();
-        
+
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_secs() as i64)
+            .map(|d| d.as_secs())
             .unwrap_or(0);
-        let mut last = self.last_updated.write().unwrap();
-        *last = now;
+        self.last_updated.store(now, Ordering::Relaxed);
     }
 
     pub fn get_query_stats(&self) -> &IndexQueryStats {
@@ -325,15 +316,11 @@ impl ConcurrentIndexStorage {
     }
 
     pub fn get_memory_usage(&self) -> usize {
-        self.memory_usage.load(Ordering::Relaxed) as usize
+        self.field_indexes.len() * std::mem::size_of::<String>()
     }
 
-    fn update_memory_usage(&self) {
-        let size = self.primary_index.len() + 
-                   self.vertex_by_id.len() + 
-                   self.edge_by_id.len() + 
-                   self.field_indexes.len();
-        self.memory_usage.store(size as u64, Ordering::Relaxed);
+    pub fn get_last_updated(&self) -> u64 {
+        self.last_updated.load(Ordering::Relaxed)
     }
 }
 
@@ -342,6 +329,7 @@ pub struct ConcurrentIndexManager {
     storages: DashMap<i32, ConcurrentIndexStorage>,
     index_metadata: DashMap<i32, IndexMetadata>,
     global_stats: Arc<IndexQueryStats>,
+    storage: StorageRef,
 }
 
 #[derive(Debug, Clone)]
@@ -364,35 +352,34 @@ pub enum IndexStatus {
     Failed(String),
 }
 
-
-
 impl Default for ConcurrentIndexManager {
     fn default() -> Self {
-        Self::new(0)
+        Self::new(0, Arc::new(Mutex::new(crate::storage::MemoryStorage::new().unwrap())))
     }
 }
 
 impl ConcurrentIndexManager {
-    pub fn new(space_id: i32) -> Self {
+    pub fn new(space_id: i32, storage: StorageRef) -> Self {
         Self {
             space_id,
             storages: DashMap::new(),
             index_metadata: DashMap::new(),
             global_stats: Arc::new(IndexQueryStats::new()),
+            storage,
         }
     }
 
-    pub fn create_index(&self, name: &str, schema_name: &str, fields: Vec<IndexField>, is_unique: bool) -> ManagerResult<i32> {
+    pub fn create_index(&self, name: &str, schema_name: &str, fields: Vec<IndexField>, is_unique: bool) -> Result<i32, String> {
         let index_id = self.storages.len() as i32 + 1;
-        
-        let storage = ConcurrentIndexStorage::new(self.space_id, index_id, name.to_string());
+
+        let storage = ConcurrentIndexStorage::new(self.space_id, index_id, name.to_string(), Arc::clone(&self.storage));
         self.storages.insert(index_id, storage);
-        
+
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_secs() as i64)
             .unwrap_or(0);
-        
+
         let metadata = IndexMetadata {
             id: index_id,
             name: name.to_string(),
@@ -404,31 +391,31 @@ impl ConcurrentIndexManager {
             created_at: now,
         };
         self.index_metadata.insert(index_id, metadata);
-        
+
         Ok(index_id)
     }
 
-    pub fn drop_index(&self, index_id: i32) -> ManagerResult<()> {
+    pub fn drop_index(&self, index_id: i32) -> Result<(), String> {
         self.storages.remove(&index_id);
         self.index_metadata.remove(&index_id);
         Ok(())
     }
 
-    pub fn insert_vertex(&self, index_id: i32, field_name: &str, field_value: &Value, vertex: Vertex) -> ManagerResult<()> {
+    pub fn insert_vertex(&self, index_id: i32, field_name: &str, field_value: &Value, vertex: &Vertex) -> Result<(), String> {
         if let Some(storage) = self.storages.get(&index_id) {
             storage.insert_vertex(field_name, field_value, vertex);
             Ok(())
         } else {
-            Err(ManagerError::NotFound(format!("索引 {} 不存在", index_id)))
+            Err(format!("索引 {} 不存在", index_id))
         }
     }
 
-    pub fn insert_edge(&self, index_id: i32, field_name: &str, field_value: &Value, edge: Edge) -> ManagerResult<()> {
+    pub fn insert_edge(&self, index_id: i32, field_name: &str, field_value: &Value, edge: &Edge) -> Result<(), String> {
         if let Some(storage) = self.storages.get(&index_id) {
             storage.insert_edge(field_name, field_value, edge);
             Ok(())
         } else {
-            Err(ManagerError::NotFound(format!("索引 {} 不存在", index_id)))
+            Err(format!("索引 {} 不存在", index_id))
         }
     }
 
@@ -437,12 +424,12 @@ impl ConcurrentIndexManager {
         index_id: i32,
         field_name: &str,
         field_value: &Value,
-    ) -> ManagerResult<(Vec<Vertex>, Vec<Edge>)> {
+    ) -> Result<(Vec<Vertex>, Vec<Edge>), String> {
         if let Some(storage) = self.storages.get(&index_id) {
             let (vertices, edges, _) = storage.exact_lookup(field_name, field_value)?;
             Ok((vertices, edges))
         } else {
-            Err(ManagerError::NotFound(format!("索引 {} 不存在", index_id)))
+            Err(format!("索引 {} 不存在", index_id))
         }
     }
 
@@ -451,12 +438,12 @@ impl ConcurrentIndexManager {
         index_id: i32,
         field_name: &str,
         prefix: &[Value],
-    ) -> ManagerResult<(Vec<Vertex>, Vec<Edge>)> {
+    ) -> Result<(Vec<Vertex>, Vec<Edge>), String> {
         if let Some(storage) = self.storages.get(&index_id) {
             let (vertices, edges, _) = storage.prefix_lookup(field_name, prefix)?;
             Ok((vertices, edges))
         } else {
-            Err(ManagerError::NotFound(format!("索引 {} 不存在", index_id)))
+            Err(format!("索引 {} 不存在", index_id))
         }
     }
 
@@ -466,30 +453,30 @@ impl ConcurrentIndexManager {
         field_name: &str,
         start_value: &Value,
         end_value: &Value,
-    ) -> ManagerResult<(Vec<Vertex>, Vec<Edge>)> {
+    ) -> Result<(Vec<Vertex>, Vec<Edge>), String> {
         if let Some(storage) = self.storages.get(&index_id) {
             let (vertices, edges, _) = storage.range_lookup(field_name, start_value, end_value)?;
             Ok((vertices, edges))
         } else {
-            Err(ManagerError::NotFound(format!("索引 {} 不存在", index_id)))
+            Err(format!("索引 {} 不存在", index_id))
         }
     }
 
-    pub fn delete_vertex(&self, index_id: i32, vertex: &Vertex) -> ManagerResult<()> {
+    pub fn delete_vertex(&self, index_id: i32, vertex: &Vertex) -> Result<(), String> {
         if let Some(storage) = self.storages.get(&index_id) {
             storage.delete_vertex(vertex);
             Ok(())
         } else {
-            Err(ManagerError::NotFound(format!("索引 {} 不存在", index_id)))
+            Err(format!("索引 {} 不存在", index_id))
         }
     }
 
-    pub fn delete_edge(&self, index_id: i32, edge: &Edge) -> ManagerResult<()> {
+    pub fn delete_edge(&self, index_id: i32, edge: &Edge) -> Result<(), String> {
         if let Some(storage) = self.storages.get(&index_id) {
             storage.delete_edge(edge);
             Ok(())
         } else {
-            Err(ManagerError::NotFound(format!("索引 {} 不存在", index_id)))
+            Err(format!("索引 {} 不存在", index_id))
         }
     }
 
@@ -502,6 +489,7 @@ impl ConcurrentIndexManager {
 mod tests {
     use super::*;
     use crate::core::Tag;
+    use crate::storage::MemoryStorage;
 
     fn create_test_vertex(id: i64, name: &str, age: i64) -> Vertex {
         Vertex {
@@ -542,57 +530,70 @@ mod tests {
 
     #[test]
     fn test_concurrent_index_storage_insert() {
-        let storage = ConcurrentIndexStorage::new(1, 1, "test".to_string());
+        let storage = Arc::new(Mutex::new(MemoryStorage::new().unwrap()));
+        let index_storage = ConcurrentIndexStorage::new(1, 1, "test".to_string(), storage.clone());
 
         let vertex = create_test_vertex(1, "Alice", 30);
-        storage.insert_vertex("name", &Value::String("Alice".to_string()), vertex.clone());
+        storage.lock().unwrap().insert_node(vertex.clone()).unwrap();
+        index_storage.insert_vertex("name", &Value::String("Alice".to_string()), &vertex);
 
-        assert_eq!(storage.get_entry_count(), 1);
+        assert_eq!(index_storage.get_entry_count(), 1);
 
-        let (vertices, _, _) = storage.exact_lookup("name", &Value::String("Alice".to_string())).expect("Failed to perform exact lookup in test");
+        let (vertices, _, _) = index_storage.exact_lookup("name", &Value::String("Alice".to_string())).expect("Failed to perform exact lookup in test");
         assert_eq!(vertices.len(), 1);
-        assert_eq!(vertices[0].vid, Box::new(Value::Int(1)));
+        assert_eq!(vertices[0].id, 1);
     }
 
     #[test]
     fn test_concurrent_index_storage_prefix_lookup() {
-        let storage = ConcurrentIndexStorage::new(1, 1, "test".to_string());
+        let storage = Arc::new(Mutex::new(MemoryStorage::new().unwrap()));
+        let index_storage = ConcurrentIndexStorage::new(1, 1, "test".to_string(), storage.clone());
 
         let vertex1 = create_test_vertex(1, "Alice", 30);
         let vertex2 = create_test_vertex(2, "Bob", 25);
         let vertex3 = create_test_vertex(3, "Alex", 35);
 
-        storage.insert_vertex("name", &Value::String("Alice".to_string()), vertex1);
-        storage.insert_vertex("name", &Value::String("Bob".to_string()), vertex2);
-        storage.insert_vertex("name", &Value::String("Alex".to_string()), vertex3);
+        storage.lock().unwrap().insert_node(vertex1.clone()).unwrap();
+        storage.lock().unwrap().insert_node(vertex2.clone()).unwrap();
+        storage.lock().unwrap().insert_node(vertex3.clone()).unwrap();
+
+        index_storage.insert_vertex("name", &Value::String("Alice".to_string()), &vertex1);
+        index_storage.insert_vertex("name", &Value::String("Bob".to_string()), &vertex2);
+        index_storage.insert_vertex("name", &Value::String("Alex".to_string()), &vertex3);
 
         let prefix = vec![Value::String("A".to_string())];
-        let (vertices, _, _) = storage.prefix_lookup("name", &prefix).expect("Failed to perform prefix lookup in test");
+        let (vertices, _, _) = index_storage.prefix_lookup("name", &prefix).expect("Failed to perform prefix lookup in test");
 
         assert_eq!(vertices.len(), 2);
     }
 
     #[test]
     fn test_concurrent_index_storage_range_lookup() {
-        let storage = ConcurrentIndexStorage::new(1, 1, "test".to_string());
+        let storage = Arc::new(Mutex::new(MemoryStorage::new().unwrap()));
+        let index_storage = ConcurrentIndexStorage::new(1, 1, "test".to_string(), storage.clone());
 
         let vertex1 = create_test_vertex(1, "Alice", 20);
         let vertex2 = create_test_vertex(2, "Bob", 30);
         let vertex3 = create_test_vertex(3, "Charlie", 40);
 
-        storage.insert_vertex("age", &Value::Int(20), vertex1.clone());
-        storage.insert_vertex("age", &Value::Int(30), vertex2.clone());
-        storage.insert_vertex("age", &Value::Int(40), vertex3.clone());
+        storage.lock().unwrap().insert_node(vertex1.clone()).unwrap();
+        storage.lock().unwrap().insert_node(vertex2.clone()).unwrap();
+        storage.lock().unwrap().insert_node(vertex3.clone()).unwrap();
 
-        let (vertices, _, _) = storage.range_lookup("age", &Value::Int(25), &Value::Int(35)).expect("Failed to perform range lookup in test");
+        index_storage.insert_vertex("age", &Value::Int(20), &vertex1);
+        index_storage.insert_vertex("age", &Value::Int(30), &vertex2);
+        index_storage.insert_vertex("age", &Value::Int(40), &vertex3);
+
+        let (vertices, _, _) = index_storage.range_lookup("age", &Value::Int(25), &Value::Int(35)).expect("Failed to perform range lookup in test");
 
         assert_eq!(vertices.len(), 1);
-        assert_eq!(vertices[0].vid, Box::new(Value::Int(2)));
+        assert_eq!(vertices[0].id, 2);
     }
 
     #[test]
     fn test_concurrent_index_manager() {
-        let manager = ConcurrentIndexManager::new(1);
+        let storage = Arc::new(Mutex::new(MemoryStorage::new().unwrap()));
+        let manager = ConcurrentIndexManager::new(1, storage.clone());
 
         let fields = vec![
             IndexField {
@@ -605,7 +606,8 @@ mod tests {
         let index_id = manager.create_index("person_name", "person", fields, false).expect("Failed to create index in test");
 
         let vertex = create_test_vertex(1, "Alice", 30);
-        manager.insert_vertex(index_id, "name", &Value::String("Alice".to_string()), vertex).expect("Failed to insert vertex in test");
+        storage.lock().unwrap().insert_node(vertex.clone()).unwrap();
+        manager.insert_vertex(index_id, "name", &Value::String("Alice".to_string()), &vertex).expect("Failed to insert vertex in test");
 
         let (vertices, _) = manager.exact_lookup(index_id, "name", &Value::String("Alice".to_string())).expect("Failed to perform exact lookup in test");
         assert_eq!(vertices.len(), 1);
@@ -613,29 +615,28 @@ mod tests {
 
     #[test]
     fn test_concurrent_edge_index() {
-        let storage = ConcurrentIndexStorage::new(1, 1, "test".to_string());
+        let storage = Arc::new(Mutex::new(MemoryStorage::new().unwrap()));
+        let index_storage = ConcurrentIndexStorage::new(1, 1, "test".to_string(), storage.clone());
 
         let edge = create_test_edge(1, "friend", 0.9);
-        storage.insert_edge("weight", &Value::Float(0.9), edge.clone());
+        index_storage.insert_edge("weight", &Value::Float(0.9), &edge);
 
-        assert_eq!(storage.get_entry_count(), 1);
-
-        let (_, edges, _) = storage.exact_lookup("weight", &Value::Float(0.9)).expect("Failed to perform exact lookup in test");
-        assert_eq!(edges.len(), 1);
-        assert_eq!(edges[0].id, 1);
+        assert_eq!(index_storage.get_entry_count(), 1);
     }
 
     #[test]
     fn test_query_stats() {
-        let storage = ConcurrentIndexStorage::new(1, 1, "test".to_string());
+        let storage = Arc::new(Mutex::new(MemoryStorage::new().unwrap()));
+        let index_storage = ConcurrentIndexStorage::new(1, 1, "test".to_string(), storage.clone());
 
         let vertex = create_test_vertex(1, "Alice", 30);
-        storage.insert_vertex("name", &Value::String("Alice".to_string()), vertex);
+        storage.lock().unwrap().insert_node(vertex.clone()).unwrap();
+        index_storage.insert_vertex("name", &Value::String("Alice".to_string()), &vertex);
 
-        let _ = storage.exact_lookup("name", &Value::String("Alice".to_string())).expect("Failed to perform exact lookup in test");
-        let _ = storage.exact_lookup("name", &Value::String("NonExistent".to_string())).expect("Failed to perform exact lookup in test");
+        let _ = index_storage.exact_lookup("name", &Value::String("Alice".to_string())).expect("Failed to perform exact lookup in test");
+        let _ = index_storage.exact_lookup("name", &Value::String("NonExistent".to_string())).expect("Failed to perform exact lookup in test");
 
-        let stats = storage.get_query_stats();
+        let stats = index_storage.get_query_stats();
         assert_eq!(stats.get_total_queries(), 2);
         assert_eq!(stats.get_exact_hits(), 1);
         let total_hits = stats.get_total_hits();

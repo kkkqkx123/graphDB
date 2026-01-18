@@ -9,6 +9,7 @@
 //! 4. to_plan() - 转换为执行计划
 
 use crate::core::error::{DBError, QueryError};
+use crate::core::{Expression, Value};
 use crate::query::context::validate::ValidationContext;
 use crate::query::validator::ValidationError;
 use crate::query::validator::ValidationErrorType;
@@ -246,4 +247,66 @@ impl Validator {
             ValidationErrorType::SyntaxError,
         ));
     }
+
+    pub fn deduce_expr_type(&self, expr: &Expression) -> ValueType {
+        match expr {
+            Expression::Literal(value) => {
+                match value {
+                    Value::Bool(_) => ValueType::Bool,
+                    Value::Int(_) => ValueType::Int,
+                    Value::Float(_) => ValueType::Float,
+                    Value::String(_) => ValueType::String,
+                    Value::Null(_) => ValueType::Null,
+                    Value::Date(_) => ValueType::Date,
+                    Value::Time(_) => ValueType::Time,
+                    Value::DateTime(_) => ValueType::DateTime,
+                    Value::Vertex(_) => ValueType::Vertex,
+                    Value::Edge(_) => ValueType::Edge,
+                    Value::Path(_) => ValueType::Path,
+                    Value::List(_) => ValueType::List,
+                    Value::Map(_) => ValueType::Map,
+                    Value::Set(_) => ValueType::Set,
+                    _ => ValueType::Unknown,
+                }
+            }
+            Expression::Variable(_) => ValueType::Unknown,
+            Expression::Property { .. } => ValueType::Unknown,
+            Expression::Binary { op, .. } => {
+                match op {
+                    crate::core::BinaryOperator::Equal
+                    | crate::core::BinaryOperator::NotEqual
+                    | crate::core::BinaryOperator::LessThan
+                    | crate::core::BinaryOperator::LessThanOrEqual
+                    | crate::core::BinaryOperator::GreaterThan
+                    | crate::core::BinaryOperator::GreaterThanOrEqual => ValueType::Bool,
+                    crate::core::BinaryOperator::And | crate::core::BinaryOperator::Or => ValueType::Bool,
+                    _ => ValueType::Unknown,
+                }
+            }
+            Expression::Unary { .. } => ValueType::Unknown,
+            Expression::Function { name, .. } => {
+                match name.to_lowercase().as_str() {
+                    "id" => ValueType::String,
+                    "count" | "sum" | "avg" | "min" | "max" => ValueType::Float,
+                    "length" | "size" => ValueType::Int,
+                    "to_string" | "string" => ValueType::String,
+                    "abs" => ValueType::Float,
+                    "floor" | "ceil" | "round" => ValueType::Int,
+                    _ => ValueType::Unknown,
+                }
+            }
+            Expression::Aggregate { func, .. } => {
+                match func {
+                    crate::core::AggregateFunction::Count(_) => ValueType::Int,
+                    crate::core::AggregateFunction::Sum(_) => ValueType::Float,
+                    crate::core::AggregateFunction::Avg(_) => ValueType::Float,
+                    crate::core::AggregateFunction::Collect(_) => ValueType::List,
+                    _ => ValueType::Unknown,
+                }
+            }
+            Expression::List(_) => ValueType::List,
+            Expression::Map(_) => ValueType::Map,
+            _ => ValueType::Unknown,
+        }
+     }
 }
