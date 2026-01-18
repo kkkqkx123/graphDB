@@ -52,7 +52,7 @@ pub use limit_validator::LimitValidator;
 pub use use_validator::UseValidator;
 pub use unwind_validator::UnwindValidator;
 pub use lookup_validator::LookupValidator;
-pub use find_path_validator::{FindPathValidator, FindPathConfig, PathPattern, EdgeDirection};
+pub use find_path_validator::{FindPathValidator, FindPathConfig, PathPattern, PathEdgeDirection};
 pub use get_subgraph_validator::{GetSubgraphValidator, GetSubgraphConfig, EdgeDirection as SubgraphEdgeDirection};
 pub use set_validator::{SetValidator, SetValidator as SetStatementValidator, SetItem, SetStatementType};
 pub use sequential_validator::{SequentialValidator, SequentialStatement};

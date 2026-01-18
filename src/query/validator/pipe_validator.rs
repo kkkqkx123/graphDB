@@ -4,7 +4,6 @@
 
 use super::base_validator::{Validator, ValueType};
 use super::ValidationContext;
-use crate::core::Expression;
 use crate::query::validator::ValidationError;
 use crate::query::validator::ValidationErrorType;
 

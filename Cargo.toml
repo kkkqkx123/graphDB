@@ -36,9 +36,9 @@ rayon = "1.10.0"
 dashmap = "6.1"
 
 [features]
-default = []
-rocksdb = ["dep:rocksdb"]
+default = ["redb"]
 redb = ["dep:redb"]
+system_monitor = []
 
 [dev-dependencies]
 tokio-test = "0.4.4"

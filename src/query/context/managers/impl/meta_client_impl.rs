@@ -1,7 +1,7 @@
 //! 元数据客户端实现 - 内存中的元数据管理
 
 use super::super::{
-    ClusterInfo, EdgeTypeDef, MetaClient, MetadataVersion, PropertyDef, PropertyType, SpaceInfo,
+    ClusterInfo, EdgeTypeDef, MetaClient, MetadataVersion, SpaceInfo,
     TagDef,
 };
 use crate::core::error::{ManagerError, ManagerResult};
@@ -314,7 +314,6 @@ impl MetaClient for MemoryMetaClient {
 
     fn load_from_disk(&self) -> ManagerResult<()> {
         use std::fs;
-        use std::path::Path;
 
         if !self.storage_path.exists() {
             return Ok(());

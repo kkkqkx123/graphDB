@@ -483,8 +483,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_aggregation_executor_creation() {
-        let temp_dir = std::env::temp_dir();
-        let test_path = temp_dir.join("graphdb_test_aggregation").to_str().expect("temp_dir should be valid unicode").to_string();
         let storage = Arc::new(Mutex::new(crate::storage::MockStorage));
         let agg_funcs = vec![AggregateFunction::Count(None)];
         let group_by_keys = vec!["category".to_string()];
@@ -515,8 +513,6 @@ mod tests {
             HashMap::new(),
         );
 
-        let temp_dir = std::env::temp_dir();
-        let test_path = temp_dir.join("graphdb_test_aggregation").to_str().expect("temp_dir should be valid unicode").to_string();
         let executor = AggregationExecutor {
             base: BaseExecutor::new(1, "test".to_string(), Arc::new(Mutex::new(crate::storage::MockStorage))),
             aggregation_functions: vec![],
@@ -531,8 +527,6 @@ mod tests {
 
     #[test]
     fn test_calculate_sum() {
-        let temp_dir = std::env::temp_dir();
-        let test_path = temp_dir.join("graphdb_test_aggregation").to_str().expect("temp_dir should be valid unicode").to_string();
         let executor = AggregationExecutor {
             base: BaseExecutor::new(1, "test".to_string(), Arc::new(Mutex::new(crate::storage::MockStorage))),
             aggregation_functions: vec![],

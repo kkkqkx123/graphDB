@@ -442,7 +442,7 @@ impl PlanValidator {
     }
 
     /// 根据ID查找优化组
-    fn find_group_by_id(ctx: &OptContext, _group_id: usize) -> Option<&OptGroup> {
+    fn find_group_by_id(_ctx: &OptContext, _group_id: usize) -> Option<&OptGroup> {
         // 这里需要实现查找逻辑
         // 由于 OptContext 没有存储所有组的引用，这里返回 None
         // 在完整实现中，应该在 OptContext 中添加一个存储所有组的字段

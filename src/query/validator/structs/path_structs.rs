@@ -8,7 +8,7 @@ pub struct Path {
     pub alias: String,
     pub anonymous: bool,
     pub gen_path: bool, // 是否生成路径
-    pub path_type: PathType,
+    pub path_type: PathYieldType,
     pub node_infos: Vec<NodeInfo>,
     pub edge_infos: Vec<EdgeInfo>,
     pub path_build: Option<Expression>, // 路径构建表达式
@@ -22,7 +22,7 @@ pub struct Path {
 impl Path {
     /// 检查是否为默认路径类型
     pub fn is_default_path(&self) -> bool {
-        matches!(self.path_type, PathType::Default)
+        matches!(self.path_type, PathYieldType::Default)
     }
 
     /// 获取节点信息列表
@@ -38,7 +38,7 @@ impl Path {
 
 /// 路径类型
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum PathType {
+pub enum PathYieldType {
     Default,
     Shortest,
     AllShortest,

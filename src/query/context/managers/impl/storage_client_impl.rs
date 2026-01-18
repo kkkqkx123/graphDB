@@ -83,7 +83,7 @@ impl MemoryStorageClient {
 
         let storage = match self.storage.read() {
             Ok(s) => s,
-            Err(e) => {
+            Err(_) => {
                 return Vec::new();
             }
         };
@@ -112,7 +112,7 @@ impl MemoryStorageClient {
 
         let storage = match self.storage.read() {
             Ok(s) => s,
-            Err(e) => {
+            Err(_) => {
                 return false;
             }
         };

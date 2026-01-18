@@ -7,7 +7,6 @@ use super::rule_traits::{
     combine_conditions, combine_expression_list, BaseOptRule, FilterSplitResult, PushDownRule,
 };
 use crate::core::Expression;
-use crate::core::types::EdgeDirection;
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
 use crate::query::planner::plan::PlanNodeEnum;
 
@@ -59,7 +58,7 @@ impl OptRule for FilterPushDownRule {
                                 if let Some(pushable_condition) = pushable {
                                     // 创建带有过滤条件的新扫描节点
                                     if let Some(scan_node) = child_node.plan_node().as_scan_vertices() {
-                                        let mut new_scan_node = scan_node.clone();
+                                        let new_scan_node = scan_node.clone();
 
                                         // 重写顶点属性过滤条件
                                         let rewritten_condition = crate::core::expression_utils::ExpressionUtils::rewrite_tag_property_filter(
@@ -128,7 +127,7 @@ impl OptRule for FilterPushDownRule {
                                 if let Some(pushable_condition) = pushable {
                                     // 创建带有过滤条件的新索引扫描节点
                                     if let Some(index_scan_node) = child_node.plan_node().as_index_scan() {
-                                        let mut new_index_scan_node = index_scan_node.clone();
+                                        let new_index_scan_node = index_scan_node.clone();
 
                                         // 重写顶点属性过滤条件
                                         let rewritten_condition = crate::core::expression_utils::ExpressionUtils::rewrite_tag_property_filter(

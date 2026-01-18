@@ -170,7 +170,39 @@ impl FetchEdgesValidator {
 
             // 验证 rank 值
             if let Some(ref rank_expr) = edge_key.rank {
-                // TODO: 验证 rank 表达式是否为常量且为非负整数
+                // 检查 rank 表达式是否为常量
+                if !rank_expr.is_constant() {
+                    return Err(ValidationError::new(
+                        "rank 值必须为常量".to_string(),
+                        ValidationErrorType::SemanticError,
+                    ));
+                }
+
+                // 检查 rank 值是否为非负整数
+                if let Expression::Literal(value) = rank_expr {
+                    match value {
+                        crate::core::Value::Int(i) if *i >= 0 => {
+                            // 非负整数，验证通过
+                        }
+                        crate::core::Value::Int(_) => {
+                            return Err(ValidationError::new(
+                                "rank 值必须为非负整数".to_string(),
+                                ValidationErrorType::SemanticError,
+                            ));
+                        }
+                        _ => {
+                            return Err(ValidationError::new(
+                                "rank 值必须为整数类型".to_string(),
+                                ValidationErrorType::SemanticError,
+                            ));
+                        }
+                    }
+                } else {
+                    return Err(ValidationError::new(
+                        "rank 值必须为常量".to_string(),
+                        ValidationErrorType::SemanticError,
+                    ));
+                }
             }
         }
 

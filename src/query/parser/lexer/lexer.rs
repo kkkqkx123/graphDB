@@ -123,7 +123,6 @@ impl Lexer {
         self.read_char(); // Skip opening quote
         let mut result = String::new();
         let start_line = self.line;
-        let start_column = self.column;
 
         while let Some(ch) = self.ch {
             if ch == '\\' {

@@ -11,7 +11,7 @@
 //! - 可变长度类型（String, Date, DateTime）：长度前缀 + 数据
 //! - 复合索引：依次编码各字段
 
-use crate::core::{DateTimeValue, DateValue, DurationValue, GeographyValue, TimeValue, Value, Vertex, Edge};
+use crate::core::{DateTimeValue, DateValue, TimeValue, Value};
 use std::cmp::Ordering;
 
 pub const INDEX_KEY_SEPARATOR: u8 = 0xFF;
@@ -282,7 +282,7 @@ impl IndexBinaryEncoder {
         if prefix.is_empty() {
             return (Vec::new(), vec![0xFFu8]);
         }
-        let mut start = prefix.to_vec();
+        let start = prefix.to_vec();
         let mut end = prefix.to_vec();
         end.push(0xFFu8);
         (start, end)

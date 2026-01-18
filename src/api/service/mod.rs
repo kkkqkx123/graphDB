@@ -8,7 +8,8 @@ pub mod stats_manager;
 
 pub use authenticator::{Authenticator, PasswordAuthenticator};
 pub use graph_service::GraphService;
-pub use index_service::{IndexService, MemoryIndexCache};
+pub use index_service::IndexService;
+pub use crate::index::MemoryIndexCache;
 pub use permission_manager::{Permission, PermissionManager, RoleType};
 pub use query_engine::QueryEngine;
 pub use schema_manager::{DataType, EdgeTypeSchema, PropertySchema, SchemaManager, TagSchema};

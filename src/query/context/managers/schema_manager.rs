@@ -2,7 +2,7 @@
 
 use crate::core::error::ManagerResult;
 use super::types::{
-    CharsetInfo, EdgeTypeDefWithId, FieldDef, Schema, SchemaChange, SchemaChangeType,
+    EdgeTypeDefWithId, FieldDef, Schema, SchemaChange,
     SchemaExportConfig, SchemaHistory, SchemaImportResult, SchemaVersion, TagDefWithId,
 };
 

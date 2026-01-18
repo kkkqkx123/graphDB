@@ -115,24 +115,316 @@ impl OrderByValidator {
     }
 
     fn expression_is_empty(&self, expr: &Expression) -> bool {
-        false
+        match expr {
+            Expression::Literal(value) => {
+                match value {
+                    crate::core::Value::Null(_) => true,
+                    crate::core::Value::String(s) => s.is_empty(),
+                    _ => false,
+                }
+            },
+            Expression::Variable(name) => name.is_empty(),
+            Expression::Function { name, args } => name.is_empty() && args.is_empty(),
+            Expression::Binary { left, right, .. } => {
+                self.expression_is_empty(left) && self.expression_is_empty(right)
+            },
+            Expression::Unary { operand, .. } => self.expression_is_empty(operand),
+            Expression::List(items) => items.is_empty(),
+            Expression::Map(pairs) => pairs.is_empty(),
+            // 其他表达式类型默认不为空
+            _ => false,
+        }
     }
 
-    fn deduce_expr_type(&self, _expr: &Expression) -> Result<ValueType, ValidationError> {
-        Ok(ValueType::Unknown)
+    fn deduce_expr_type(&self, expr: &Expression) -> Result<ValueType, ValidationError> {
+        match expr {
+            Expression::Literal(value) => {
+                match value {
+                    crate::core::Value::Bool(_) => Ok(ValueType::Bool),
+                    crate::core::Value::Int(_) => Ok(ValueType::Int),
+                    crate::core::Value::Float(_) => Ok(ValueType::Float),
+                    crate::core::Value::String(_) => Ok(ValueType::String),
+                    crate::core::Value::Date(_) => Ok(ValueType::Date),
+                    crate::core::Value::Time(_) => Ok(ValueType::Time),
+                    crate::core::Value::DateTime(_) => Ok(ValueType::DateTime),
+                    crate::core::Value::Null(_) => Ok(ValueType::Null),
+                    crate::core::Value::Vertex(_) => Ok(ValueType::Vertex),
+                    crate::core::Value::Edge(_) => Ok(ValueType::Edge),
+                    crate::core::Value::Path(_) => Ok(ValueType::Path),
+                    crate::core::Value::List(_) => Ok(ValueType::List),
+                    crate::core::Value::Map(_) => Ok(ValueType::Map),
+                    crate::core::Value::Set(_) => Ok(ValueType::Set),
+                    _ => Ok(ValueType::Unknown),
+                }
+            },
+            Expression::Variable(name) => {
+                // 尝试从输入列中获取类型
+                if let Some(column_type) = self.input_columns.get(name) {
+                    Ok(column_type.clone())
+                } else {
+                    Ok(ValueType::Unknown) // 如果找不到对应列，则返回未知类型
+                }
+            },
+            Expression::Property { .. } => Ok(ValueType::Unknown), // 需要更复杂的解析
+            Expression::Binary { left, op, right } => {
+                // 对于比较操作，结果是布尔类型
+                match op {
+                    crate::core::BinaryOperator::Equal
+                    | crate::core::BinaryOperator::NotEqual
+                    | crate::core::BinaryOperator::LessThan
+                    | crate::core::BinaryOperator::LessThanOrEqual
+                    | crate::core::BinaryOperator::GreaterThan
+                    | crate::core::BinaryOperator::GreaterThanOrEqual
+                    | crate::core::BinaryOperator::And
+                    | crate::core::BinaryOperator::Or
+                    | crate::core::BinaryOperator::Xor
+                    | crate::core::BinaryOperator::Like
+                    | crate::core::BinaryOperator::In
+                    | crate::core::BinaryOperator::NotIn
+                    | crate::core::BinaryOperator::Contains
+                    | crate::core::BinaryOperator::StartsWith
+                    | crate::core::BinaryOperator::EndsWith => Ok(ValueType::Bool),
+                    // 算术操作通常返回数值类型
+                    crate::core::BinaryOperator::Add
+                    | crate::core::BinaryOperator::Subtract
+                    | crate::core::BinaryOperator::Multiply
+                    | crate::core::BinaryOperator::Divide
+                    | crate::core::BinaryOperator::Modulo
+                    | crate::core::BinaryOperator::Exponent => {
+                        let left_type = self.deduce_expr_type(left)?;
+                        let right_type = self.deduce_expr_type(right)?;
+
+                        // 如果任一操作数是浮点数，则结果为浮点数
+                        if matches!(left_type, ValueType::Float) || matches!(right_type, ValueType::Float) {
+                            Ok(ValueType::Float)
+                        } else if matches!(left_type, ValueType::Int) || matches!(right_type, ValueType::Int) {
+                            Ok(ValueType::Int)
+                        } else {
+                            Ok(ValueType::Unknown)
+                        }
+                    },
+                    // 字符串连接操作返回字符串
+                    crate::core::BinaryOperator::StringConcat => Ok(ValueType::String),
+                    // 其他操作返回未知类型
+                    _ => Ok(ValueType::Unknown),
+                }
+            },
+            Expression::Unary { op, operand } => {
+                match op {
+                    crate::core::UnaryOperator::Not => Ok(ValueType::Bool),
+                    crate::core::UnaryOperator::IsNull | crate::core::UnaryOperator::IsNotNull => Ok(ValueType::Bool),
+                    crate::core::UnaryOperator::IsEmpty | crate::core::UnaryOperator::IsNotEmpty => Ok(ValueType::Bool),
+                    crate::core::UnaryOperator::Plus | crate::core::UnaryOperator::Minus => {
+                        let operand_type = self.deduce_expr_type(operand)?;
+                        Ok(operand_type)
+                    },
+                    _ => Ok(ValueType::Unknown),
+                }
+            },
+            Expression::Function { name, args: _ } => {
+                // 根据函数名推断返回类型
+                match name.to_lowercase().as_str() {
+                    "id" => Ok(ValueType::String),
+                    "count" | "sum" | "avg" | "min" | "max" => Ok(ValueType::Float),
+                    "length" | "size" => Ok(ValueType::Int),
+                    "to_string" | "string" => Ok(ValueType::String),
+                    "abs" => Ok(ValueType::Float),
+                    "floor" | "ceil" | "round" => Ok(ValueType::Int),
+                    _ => Ok(ValueType::Unknown),
+                }
+            },
+            Expression::Aggregate { func, .. } => {
+                match func {
+                    crate::core::AggregateFunction::Count(_) => Ok(ValueType::Int),
+                    crate::core::AggregateFunction::Sum(_) => Ok(ValueType::Float),
+                    crate::core::AggregateFunction::Avg(_) => Ok(ValueType::Float),
+                    crate::core::AggregateFunction::Collect(_) => Ok(ValueType::List),
+                    _ => Ok(ValueType::Unknown),
+                }
+            },
+            Expression::List(_) => Ok(ValueType::List),
+            Expression::Map(_) => Ok(ValueType::Map),
+            Expression::Case { .. } => Ok(ValueType::Unknown), // CASE表达式的结果类型取决于其分支
+            Expression::TypeCast { target_type, .. } => {
+                // 根据目标类型转换
+                match target_type {
+                    crate::core::DataType::Bool => Ok(ValueType::Bool),
+                    crate::core::DataType::Int | crate::core::DataType::Int8 | crate::core::DataType::Int16 |
+                    crate::core::DataType::Int32 | crate::core::DataType::Int64 => Ok(ValueType::Int),
+                    crate::core::DataType::Float | crate::core::DataType::Double => Ok(ValueType::Float),
+                    crate::core::DataType::String => Ok(ValueType::String),
+                    crate::core::DataType::Date => Ok(ValueType::Date),
+                    crate::core::DataType::Time => Ok(ValueType::Time),
+                    crate::core::DataType::DateTime => Ok(ValueType::DateTime),
+                    _ => Ok(ValueType::Unknown),
+                }
+            },
+            // 图数据库特有表达式类型
+            Expression::TagProperty { .. } => Ok(ValueType::Unknown),
+            Expression::EdgeProperty { .. } => Ok(ValueType::Unknown),
+            Expression::InputProperty(name) => {
+                // 从输入列中获取类型
+                if let Some(column_type) = self.input_columns.get(name) {
+                    Ok(column_type.clone())
+                } else {
+                    Ok(ValueType::Unknown)
+                }
+            },
+            Expression::VariableProperty { var, .. } => {
+                // 从输入列中获取类型
+                if let Some(column_type) = self.input_columns.get(var) {
+                    Ok(column_type.clone())
+                } else {
+                    Ok(ValueType::Unknown)
+                }
+            },
+            Expression::SourceProperty { .. } => Ok(ValueType::Unknown),
+            Expression::DestinationProperty { .. } => Ok(ValueType::Unknown),
+
+            // 一元操作扩展
+            Expression::UnaryPlus(expr) | Expression::UnaryNegate(expr) => {
+                let operand_type = self.deduce_expr_type(expr)?;
+                Ok(operand_type)
+            },
+            Expression::UnaryNot(expr) => {
+                let _operand_type = self.deduce_expr_type(expr)?;
+                Ok(ValueType::Bool)
+            },
+            Expression::IsNull(expr) | Expression::IsNotNull(expr) |
+            Expression::IsEmpty(expr) | Expression::IsNotEmpty(expr) => {
+                let _operand_type = self.deduce_expr_type(expr)?;
+                Ok(ValueType::Bool)
+            },
+
+            // 其他表达式类型
+            _ => Ok(ValueType::Unknown),
+        }
     }
 
     fn is_comparable_type(&self, type_: &ValueType) -> bool {
         matches!(
             type_,
-            ValueType::Bool | ValueType::Int | ValueType::Float | 
-            ValueType::String | ValueType::Date | ValueType::Time | 
+            ValueType::Bool | ValueType::Int | ValueType::Float |
+            ValueType::String | ValueType::Date | ValueType::Time |
             ValueType::DateTime | ValueType::Null
         )
     }
 
-    fn get_expression_references(&self, _expr: &Expression) -> Vec<String> {
-        Vec::new()
+    fn get_expression_references(&self, expr: &Expression) -> Vec<String> {
+        let mut refs = Vec::new();
+        self.collect_refs(expr, &mut refs);
+        refs
+    }
+
+    // 辅助函数：递归收集表达式中的列引用
+    fn collect_refs(&self, expr: &Expression, refs: &mut Vec<String>) {
+        match expr {
+            Expression::Variable(name) => {
+                if !refs.contains(name) {
+                    refs.push(name.clone());
+                }
+            },
+            Expression::Function { args, .. } => {
+                for arg in args {
+                    self.collect_refs(arg, refs);
+                }
+            },
+            Expression::Binary { left, right, .. } => {
+                self.collect_refs(left, refs);
+                self.collect_refs(right, refs);
+            },
+            Expression::Unary { operand, .. } => {
+                self.collect_refs(operand, refs);
+            },
+            Expression::Aggregate { arg, .. } => {
+                self.collect_refs(arg, refs);
+            },
+            Expression::List(items) => {
+                for item in items {
+                    self.collect_refs(item, refs);
+                }
+            },
+            Expression::Map(pairs) => {
+                for (_, value) in pairs {
+                    self.collect_refs(value, refs);
+                }
+            },
+            Expression::Case { conditions, default } => {
+                for (condition, value) in conditions {
+                    self.collect_refs(condition, refs);
+                    self.collect_refs(value, refs);
+                }
+                if let Some(default_expr) = default {
+                    self.collect_refs(default_expr, refs);
+                }
+            },
+            Expression::TypeCast { expr, .. } => {
+                self.collect_refs(expr, refs);
+            },
+            Expression::Subscript { collection, index } => {
+                self.collect_refs(collection, refs);
+                self.collect_refs(index, refs);
+            },
+            Expression::Range { collection, start, end } => {
+                self.collect_refs(collection, refs);
+                if let Some(start_expr) = start {
+                    self.collect_refs(start_expr, refs);
+                }
+                if let Some(end_expr) = end {
+                    self.collect_refs(end_expr, refs);
+                }
+            },
+            // 图数据库特有表达式类型
+            Expression::InputProperty(name) => {
+                if !refs.contains(name) {
+                    refs.push(name.clone());
+                }
+            },
+            Expression::VariableProperty { var, .. } => {
+                if !refs.contains(var) {
+                    refs.push(var.clone());
+                }
+            },
+            // 一元操作扩展
+            Expression::UnaryPlus(expr) | Expression::UnaryNegate(expr) |
+            Expression::UnaryNot(expr) | Expression::UnaryIncr(expr) |
+            Expression::UnaryDecr(expr) | Expression::IsNull(expr) |
+            Expression::IsNotNull(expr) | Expression::IsEmpty(expr) |
+            Expression::IsNotEmpty(expr) => {
+                self.collect_refs(expr, refs);
+            },
+            // 列表推导
+            Expression::ListComprehension { generator, condition } => {
+                self.collect_refs(generator, refs);
+                if let Some(condition_expr) = condition {
+                    self.collect_refs(condition_expr, refs);
+                }
+            },
+            // 谓词表达式
+            Expression::Predicate { list, condition } => {
+                self.collect_refs(list, refs);
+                self.collect_refs(condition, refs);
+            },
+            // 归约表达式
+            Expression::Reduce { list, initial, expr, .. } => {
+                self.collect_refs(list, refs);
+                self.collect_refs(initial, refs);
+                self.collect_refs(expr, refs);
+            },
+            // 匹配路径模式表达式
+            Expression::MatchPathPattern { patterns, .. } => {
+                for pattern in patterns {
+                    self.collect_refs(pattern, refs);
+                }
+            },
+            // 其他表达式类型，如果包含子表达式则递归处理
+            _ => {
+                // 使用Expression的children方法获取子表达式
+                for child in expr.children() {
+                    self.collect_refs(child, refs);
+                }
+            }
+        }
     }
 
     pub fn add_order_column(&mut self, col: OrderColumn) {

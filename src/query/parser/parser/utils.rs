@@ -4,9 +4,9 @@
 
 use crate::query::parser::ast::expr::*;
 use crate::query::parser::ast::stmt::{
-    OrderByClause, OrderByItem, PropertyDef, ReturnClause, ReturnItem, YieldClause, YieldItem,
+    PropertyDef,
 };
-use crate::query::parser::ast::types::{DataType, OrderDirection, ParseError};
+use crate::query::parser::ast::types::{DataType, ParseError};
 use crate::query::parser::core::error::ParseErrorKind;
 use crate::query::parser::lexer::TokenKind as LexerToken;
 use crate::query::parser::{Token, TokenKind};

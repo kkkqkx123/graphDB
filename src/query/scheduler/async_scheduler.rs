@@ -5,7 +5,7 @@ use std::sync::{Arc, Condvar, Mutex};
 
 use super::execution_schedule::ExecutionSchedule;
 use super::types::{ExecutorType, QueryScheduler, SchedulerConfig};
-use crate::query::executor::{ExecutionContext, ExecutionResult, Executor};
+use crate::query::executor::{ExecutionContext, ExecutionResult};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 use crate::utils::safe_lock;
@@ -26,7 +26,7 @@ impl ExecutionState {
         }
     }
 
-    pub fn is_executor_executing(&self, executor_id: i64) -> bool {
+    pub fn is_executor_executing(&self, _executor_id: i64) -> bool {
         self.executing_count.load(Ordering::SeqCst) > 0
     }
 
@@ -107,7 +107,7 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
             })?;
 
         {
-            let mut state = safe_lock(&self.execution_state)
+            let state = safe_lock(&self.execution_state)
                 .expect("AsyncScheduler execution_state lock should not be poisoned");
             state.executing_count.fetch_add(1, Ordering::SeqCst);
         }
@@ -129,7 +129,7 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
         };
 
         {
-            let mut state = safe_lock(&self.execution_state)
+            let state = safe_lock(&self.execution_state)
                 .expect("AsyncScheduler execution_state lock should not be poisoned");
             state.executing_count.fetch_sub(1, Ordering::SeqCst);
         }
@@ -269,7 +269,7 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
 
                 let task = tokio::spawn(async move {
                     {
-                        let mut state_guard = safe_lock(&state)
+                        let state_guard = safe_lock(&state)
                             .expect("AsyncScheduler execution_state lock should not be poisoned");
                         state_guard.executing_count.fetch_add(1, Ordering::SeqCst);
                     }
@@ -304,7 +304,7 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
 
         for (executor_id, result) in results {
             {
-                let mut state = safe_lock(&self.execution_state)
+                let state = safe_lock(&self.execution_state)
                     .expect("AsyncScheduler execution_state lock should not be poisoned");
                 state.executing_count.fetch_sub(1, Ordering::SeqCst);
             }

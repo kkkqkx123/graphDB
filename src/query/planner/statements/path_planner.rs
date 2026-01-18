@@ -72,20 +72,21 @@ impl Planner for PathPlanner {
                 .collect();
         }
 
-        let expand_all_node = ExpandAllNode::new(
-            1,
-            edge_types.clone(),
-            direction_str,
-        );
-
-        let expand_enum = PlanNodeEnum::ExpandAll(expand_all_node);
-
         let min_hops = path_ctx.steps.m_steps as usize;
         let max_hops = if path_ctx.steps.is_m_to_n {
             path_ctx.steps.n_steps as usize
         } else {
             path_ctx.steps.m_steps as usize
         };
+
+        let mut expand_all_node = ExpandAllNode::new(
+            1,
+            edge_types.clone(),
+            direction_str,
+        );
+        expand_all_node.set_step_limit(max_hops as u32);
+
+        let expand_enum = PlanNodeEnum::ExpandAll(expand_all_node);
 
         let filter_node = if let Some(ref condition) = path_ctx.filter {
             let filter_expr = Self::parse_filter_expression(condition)?;
@@ -170,7 +171,7 @@ impl PathPlanner {
 
     /// 构建路径列
     fn build_path_columns(
-        path_ctx: &PathContext,
+        _path_ctx: &PathContext,
     ) -> Result<Vec<crate::query::validator::YieldColumn>, PlannerError> {
         let mut columns = Vec::new();
 

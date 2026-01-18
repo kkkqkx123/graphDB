@@ -1,19 +1,308 @@
-//! 并发安全的索引存储实现
+//! 统一的索引存储实现
 //!
-//! 索引模块依赖 StorageEngine，不直接存储原始数据：
+//! 提供内存索引和持久化存储的统一接口：
 //! - 细粒度锁，避免读操作阻塞
 //! - 高并发读写性能
 //! - 支持前缀查询和范围查询
+//! - 支持索引元数据和数据的持久化
 //!
 //! 索引只存储 ID 引用，实际数据从 StorageEngine 获取
 
-use crate::core::{Edge, Value, Vertex};
-use crate::index::{IndexBinaryEncoder, IndexField, IndexQueryStats, QueryType};
+use crate::core::{Edge, StorageError, Value, Vertex};
+use crate::index::{Index, IndexBinaryEncoder, IndexField, IndexQueryStats, QueryType};
 use crate::storage::StorageEngine;
+use bincode;
 use dashmap::DashMap;
+use redb::{Database, ReadableTable, TableDefinition, TypeName};
+use std::cmp::Ordering as CmpOrdering;
+use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ByteKey(pub Vec<u8>);
+
+impl redb::Key for ByteKey {
+    fn compare(data1: &[u8], data2: &[u8]) -> CmpOrdering {
+        data1.cmp(data2)
+    }
+}
+
+impl redb::Value for ByteKey {
+    type SelfType<'a> = ByteKey where Self: 'a;
+    type AsBytes<'a> = Vec<u8> where Self: 'a;
+
+    fn fixed_width() -> Option<usize> {
+        None
+    }
+
+    fn from_bytes<'a>(data: &'a [u8]) -> ByteKey where Self: 'a {
+        ByteKey(data.to_vec())
+    }
+
+    fn as_bytes<'a, 'b: 'a>(value: &'a Self::SelfType<'b>) -> Vec<u8> where Self: 'b {
+        value.0.clone()
+    }
+
+    fn type_name() -> TypeName {
+        TypeName::new("graphdb::ByteKey")
+    }
+}
+
+const INDEX_META_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefinition::new("index_metadata");
+const INDEX_DATA_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefinition::new("index_data");
+const INDEX_COUNTER_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefinition::new("index_counter");
+
+pub trait IndexPersistence {
+    fn save_index(&self, index: &Index) -> Result<(), StorageError>;
+    fn load_index(&self, index_id: i32) -> Result<Option<Index>, StorageError>;
+    fn delete_index(&self, index_id: i32) -> Result<(), StorageError>;
+    fn list_indexes(&self) -> Result<Vec<Index>, StorageError>;
+    fn save_index_data(&self, index_id: i32, data: &[u8]) -> Result<(), StorageError>;
+    fn load_index_data(&self, index_id: i32) -> Result<Option<Vec<u8>>, StorageError>;
+    fn delete_index_data(&self, index_id: i32) -> Result<(), StorageError>;
+    fn get_next_index_id(&self) -> Result<i32, StorageError>;
+    fn increment_index_id(&self) -> Result<i32, StorageError>;
+}
+
+pub struct RedbIndexPersistence {
+    db: Database,
+    db_path: String,
+}
+
+impl std::fmt::Debug for RedbIndexPersistence {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RedbIndexPersistence")
+            .field("db_path", &self.db_path)
+            .finish()
+    }
+}
+
+impl Clone for RedbIndexPersistence {
+    fn clone(&self) -> Self {
+        Self::new(&self.db_path).expect("Failed to clone RedbIndexPersistence")
+    }
+}
+
+impl RedbIndexPersistence {
+    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self, StorageError> {
+        let db_path = path.as_ref().to_string_lossy().to_string();
+
+        let db = Database::create(path.as_ref())
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        Ok(Self { db, db_path })
+    }
+
+    fn value_to_bytes<T: serde::Serialize + bincode::Encode>(&self, value: &T) -> Result<Vec<u8>, StorageError> {
+        bincode::encode_to_vec(value, bincode::config::standard())
+            .map_err(|e| StorageError::SerializationError(e.to_string()))
+    }
+
+    fn value_from_bytes<'a, T: serde::Deserialize<'a> + bincode::Decode<()>>(&self, bytes: &'a [u8]) -> Result<T, StorageError> {
+        let (value, _): (T, usize) =
+            bincode::decode_from_slice(bytes, bincode::config::standard())
+                .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+        Ok(value)
+    }
+
+    fn make_meta_key(index_id: i32) -> Vec<u8> {
+        format!("index_meta:{}", index_id).as_bytes().to_vec()
+    }
+
+    fn make_data_key(index_id: i32) -> Vec<u8> {
+        format!("index_data:{}", index_id).as_bytes().to_vec()
+    }
+
+    fn make_counter_key() -> Vec<u8> {
+        "next_index_id".as_bytes().to_vec()
+    }
+}
+
+impl IndexPersistence for RedbIndexPersistence {
+    fn save_index(&self, index: &Index) -> Result<(), StorageError> {
+        let write_txn = self
+            .db
+            .begin_write()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        {
+            let mut table = write_txn
+                .open_table(INDEX_META_TABLE)
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+            let index_bytes = self.value_to_bytes(index)?;
+            let key = Self::make_meta_key(index.id);
+            table.insert(ByteKey(key), ByteKey(index_bytes))
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+        }
+        Ok(())
+    }
+
+    fn load_index(&self, index_id: i32) -> Result<Option<Index>, StorageError> {
+        let read_txn = self
+            .db
+            .begin_read()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        let table = read_txn
+            .open_table(INDEX_META_TABLE)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        let key = Self::make_meta_key(index_id);
+        match table.get(ByteKey(key)).map_err(|e| StorageError::DbError(e.to_string()))? {
+            Some(value) => {
+                let index_bytes = value.value().0;
+                let index: Index = self.value_from_bytes(&index_bytes)?;
+                Ok(Some(index))
+            }
+            None => Ok(None),
+        }
+    }
+
+    fn delete_index(&self, index_id: i32) -> Result<(), StorageError> {
+        let write_txn = self
+            .db
+            .begin_write()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        {
+            let mut meta_table = write_txn
+                .open_table(INDEX_META_TABLE)
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+            let mut data_table = write_txn
+                .open_table(INDEX_DATA_TABLE)
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+            let meta_key = Self::make_meta_key(index_id);
+            meta_table
+                .remove(ByteKey(meta_key))
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+            let data_key = Self::make_data_key(index_id);
+            data_table
+                .remove(ByteKey(data_key))
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+        }
+        Ok(())
+    }
+
+    fn list_indexes(&self) -> Result<Vec<Index>, StorageError> {
+        let read_txn = self
+            .db
+            .begin_read()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        let table = read_txn
+            .open_table(INDEX_META_TABLE)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        let mut indexes = Vec::new();
+        for result in table.iter()
+            .map_err(|e| StorageError::DbError(e.to_string()))?
+        {
+            let (_, value) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
+            let index_bytes = value.value().0;
+            let index: Index = self.value_from_bytes(&index_bytes)?;
+            indexes.push(index);
+        }
+        Ok(indexes)
+    }
+
+    fn save_index_data(&self, index_id: i32, data: &[u8]) -> Result<(), StorageError> {
+        let write_txn = self
+            .db
+            .begin_write()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        {
+            let mut table = write_txn
+                .open_table(INDEX_DATA_TABLE)
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+            let key = Self::make_data_key(index_id);
+            table.insert(ByteKey(key), ByteKey(data.to_vec()))
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+        }
+        Ok(())
+    }
+
+    fn load_index_data(&self, index_id: i32) -> Result<Option<Vec<u8>>, StorageError> {
+        let read_txn = self
+            .db
+            .begin_read()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        let table = read_txn
+            .open_table(INDEX_DATA_TABLE)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        let key = Self::make_data_key(index_id);
+        match table.get(ByteKey(key)).map_err(|e| StorageError::DbError(e.to_string()))? {
+            Some(value) => Ok(Some(value.value().0)),
+            None => Ok(None),
+        }
+    }
+
+    fn delete_index_data(&self, index_id: i32) -> Result<(), StorageError> {
+        let write_txn = self
+            .db
+            .begin_write()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        {
+            let mut table = write_txn
+                .open_table(INDEX_DATA_TABLE)
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+            let key = Self::make_data_key(index_id);
+            table.remove(ByteKey(key))
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+        }
+        Ok(())
+    }
+
+    fn get_next_index_id(&self) -> Result<i32, StorageError> {
+        let read_txn = self
+            .db
+            .begin_read()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        let table = read_txn
+            .open_table(INDEX_COUNTER_TABLE)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        let key = Self::make_counter_key();
+        match table.get(ByteKey(key)).map_err(|e| StorageError::DbError(e.to_string()))? {
+            Some(value) => {
+                let id: i32 = self.value_from_bytes(&value.value().0)?;
+                Ok(id)
+            }
+            None => Ok(1),
+        }
+    }
+
+    fn increment_index_id(&self) -> Result<i32, StorageError> {
+        let write_txn = self
+            .db
+            .begin_write()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        let next_id = {
+            let mut table = write_txn
+                .open_table(INDEX_COUNTER_TABLE)
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+            let key = Self::make_counter_key();
+            let current_id: i32 = match table.get(ByteKey(key.clone()))
+                .map_err(|e| StorageError::DbError(e.to_string()))?
+            {
+                Some(value) => self.value_from_bytes(&value.value().0)?,
+                None => 1,
+            };
+
+            let new_id = current_id + 1;
+            let new_id_bytes = self.value_to_bytes(&new_id)?;
+            table.insert(ByteKey(key), ByteKey(new_id_bytes))
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+            new_id
+        };
+        Ok(next_id)
+    }
+}
 
 pub type StorageRef = Arc<Mutex<dyn StorageEngine + Send + Sync>>;
 
@@ -193,7 +482,7 @@ impl ConcurrentIndexStorage {
         Ok((vertices, edges, duration))
     }
 
-    pub fn prefix_lookup(&self, field_name: &str, prefix: &[Value]) -> Result<(Vec<Vertex>, Vec<Edge>, Duration), String> {
+    pub fn prefix_lookup(&self, _field_name: &str, prefix: &[Value]) -> Result<(Vec<Vertex>, Vec<Edge>, Duration), String> {
         let start = Instant::now();
 
         let prefix_bytes = IndexBinaryEncoder::encode_prefix(prefix, prefix.len());
@@ -239,7 +528,7 @@ impl ConcurrentIndexStorage {
 
     pub fn range_lookup(
         &self,
-        field_name: &str,
+        _field_name: &str,
         start_value: &Value,
         end_value: &Value,
     ) -> Result<(Vec<Vertex>, Vec<Edge>, Duration), String> {
@@ -287,11 +576,11 @@ impl ConcurrentIndexStorage {
         Ok((vertices, edges, duration))
     }
 
-    pub fn delete_vertex(&self, vertex: &Vertex) {
+    pub fn delete_vertex(&self, _vertex: &Vertex) {
         self.entry_count.fetch_sub(1, Ordering::Relaxed);
     }
 
-    pub fn delete_edge(&self, edge: &Edge) {
+    pub fn delete_edge(&self, _edge: &Edge) {
         self.entry_count.fetch_sub(1, Ordering::Relaxed);
     }
 
@@ -340,12 +629,12 @@ pub struct IndexMetadata {
     pub schema_name: String,
     pub fields: Vec<IndexField>,
     pub is_unique: bool,
-    pub status: IndexStatus,
+    pub status: IndexStorageStatus,
     pub created_at: i64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum IndexStatus {
+pub enum IndexStorageStatus {
     Active,
     Building,
     Dropped,
@@ -387,7 +676,7 @@ impl ConcurrentIndexManager {
             schema_name: schema_name.to_string(),
             fields,
             is_unique,
-            status: IndexStatus::Active,
+            status: IndexStorageStatus::Active,
             created_at: now,
         };
         self.index_metadata.insert(index_id, metadata);

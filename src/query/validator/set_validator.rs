@@ -2,7 +2,7 @@
 //! 对应 NebulaGraph SetValidator.h/.cpp 的功能
 //! 验证 SET/GET/SHOW 语句的合法性
 
-use super::base_validator::{Validator, ValueType};
+use super::base_validator::Validator;
 use super::ValidationContext;
 use crate::core::Expression;
 use crate::query::validator::ValidationError;
@@ -127,7 +127,84 @@ impl SetValidator {
                     ValidationErrorType::SemanticError,
                 ));
             }
+            // 验证变量值是否有效
+            self.validate_expression(value)?;
         }
+        Ok(())
+    }
+
+    fn validate_expression(&self, expr: &Expression) -> Result<(), ValidationError> {
+        match expr {
+            Expression::Binary { left, right, .. } => {
+                self.validate_expression(left)?;
+                self.validate_expression(right)?;
+            }
+            Expression::Unary { operand, .. } => {
+                self.validate_expression(operand)?;
+            }
+            Expression::Function { args, .. } => {
+                for arg in args {
+                    self.validate_expression(arg)?;
+                }
+            }
+            Expression::List(items) => {
+                for item in items {
+                    self.validate_expression(item)?;
+                }
+            }
+            Expression::Map(pairs) => {
+                for (_, value) in pairs {
+                    self.validate_expression(value)?;
+                }
+            }
+            Expression::Case { conditions, default, .. } => {
+                for (condition, expr) in conditions {
+                    self.validate_expression(condition)?;
+                    self.validate_expression(expr)?;
+                }
+                if let Some(default_expr) = default {
+                    self.validate_expression(default_expr)?;
+                }
+            }
+            Expression::TypeCast { expr, .. } => {
+                self.validate_expression(expr)?;
+            }
+            Expression::Subscript { collection, index } => {
+                self.validate_expression(collection)?;
+                self.validate_expression(index)?;
+            }
+            Expression::Range { collection, start, end } => {
+                self.validate_expression(collection)?;
+                if let Some(start_expr) = start {
+                    self.validate_expression(start_expr)?;
+                }
+                if let Some(end_expr) = end {
+                    self.validate_expression(end_expr)?;
+                }
+            }
+            Expression::Path(items) => {
+                for item in items {
+                    self.validate_expression(item)?;
+                }
+            }
+            Expression::ListComprehension { generator, condition } => {
+                self.validate_expression(generator)?;
+                if let Some(cond) = condition {
+                    self.validate_expression(cond)?;
+                }
+            }
+            Expression::Predicate { list, condition } => {
+                self.validate_expression(list)?;
+                self.validate_expression(condition)?;
+            }
+            Expression::Reduce { list, initial, expr, .. } => {
+                self.validate_expression(list)?;
+                self.validate_expression(initial)?;
+                self.validate_expression(expr)?;
+            }
+            _ => {}
+        }
+
         Ok(())
     }
 

@@ -662,7 +662,7 @@ impl<S: StorageEngine> TopNExecutor<S> {
 
 /// TopN 堆项
 #[derive(Debug, Clone)]
-struct TopNItem {
+pub struct TopNItem {
     sort_value: Vec<Value>,
     _original_index: usize,
     row: Vec<Value>,

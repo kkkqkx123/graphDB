@@ -316,6 +316,10 @@ impl ExpandAllNode {
         self.col_names = names;
     }
 
+    pub fn set_step_limit(&mut self, limit: u32) {
+        self.step_limit = Some(limit);
+    }
+
     pub fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
         super::plan_node_enum::PlanNodeEnum::ExpandAll(self.clone())
     }

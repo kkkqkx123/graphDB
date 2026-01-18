@@ -9,7 +9,6 @@ use crate::expression::functions::{
     BuiltinFunction, CustomFunction, ExpressionFunction, FunctionRef,
 };
 use std::collections::HashMap;
-use std::sync::Arc;
 
 /// 表达式上下文枚举，避免动态分发
 #[derive(Debug, Clone)]

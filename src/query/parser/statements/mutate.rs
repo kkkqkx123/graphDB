@@ -15,7 +15,7 @@ pub trait DeleteParser {
 }
 
 /// SET 语句解析器
-pub trait SetParser {
+pub trait SetStmtParser {
     fn parse_set_statement(&mut self) -> Result<Stmt, ParseError>;
 }
 

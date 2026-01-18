@@ -18,11 +18,9 @@
 use crate::query::parser::ast::expr::Expr;
 use crate::query::planner::statements::clauses::clause_planner::ClausePlanner;
 use crate::query::planner::statements::core::{
-    ClauseType, CypherClausePlanner, DataFlowNode, FlowDirection, PlanningContext, QueryInfo,
+    ClauseType, CypherClausePlanner, DataFlowNode, FlowDirection, PlanningContext,
 };
-use crate::query::planner::plan::core::nodes::join_node::JoinConnector;
 
-use crate::query::planner::plan::factory::PlanNodeFactory;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::common_structs::CypherClauseContext;

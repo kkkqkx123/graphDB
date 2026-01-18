@@ -15,7 +15,7 @@ use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::recursion_detector::{
     ExecutorSafetyConfig, ExecutorSafetyValidator, RecursionDetector,
 };
-use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
+use crate::query::executor::traits::{ExecutionResult, Executor};
 use crate::storage::StorageEngine;
 
 /// 循环状态

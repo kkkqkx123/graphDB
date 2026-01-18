@@ -59,7 +59,7 @@ pub struct PathInfo {
 
 /// 表达式验证上下文Trait
 /// 定义表达式验证所需的基本接口
-trait ExpressionValidationContext {
+pub trait ExpressionValidationContext {
     fn get_aliases(&self) -> &HashMap<String, AliasType>;
     fn get_variable_types(&self) -> Option<&HashMap<String, ValueTypeDef>>;
 }
@@ -1085,7 +1085,7 @@ mod tests {
 
     #[test]
     fn test_type_inference_creation() {
-        let type_inference = TypeInference::new();
+        let _type_inference = TypeInference::new();
         assert!(true);
     }
 

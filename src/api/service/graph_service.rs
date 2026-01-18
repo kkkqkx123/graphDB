@@ -1,7 +1,7 @@
 use crate::api::service::{
     Authenticator, MetricType, PasswordAuthenticator, PermissionManager, QueryEngine, StatsManager,
 };
-use crate::api::session::{ClientSession, GraphSessionManager, DEFAULT_SESSION_IDLE_TIMEOUT};
+use crate::api::session::{ClientSession, GraphSessionManager};
 use crate::config::Config;
 use crate::storage::StorageEngine;
 use crate::core::error::{SessionError, SessionResult};

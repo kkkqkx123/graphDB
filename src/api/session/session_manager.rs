@@ -1,4 +1,4 @@
-use log::{info, warn, error};
+use log::{info, warn};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, atomic::{AtomicU64, Ordering}};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};

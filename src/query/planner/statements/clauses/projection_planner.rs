@@ -3,7 +3,6 @@ use crate::query::planner::statements::core::cypher_clause_planner::{CypherClaus
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::common_structs::CypherClauseContext;
-use crate::query::validator::structs::CypherClauseKind;
 
 #[derive(Debug)]
 pub struct ProjectionPlanner {

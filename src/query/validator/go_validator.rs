@@ -162,7 +162,7 @@ impl GoValidator {
         // 2. 引用的属性是否存在
         // 3. 类型兼容性
 
-        if let Some(ref filter) = self.context.where_filter {
+        if let Some(ref _filter) = self.context.where_filter {
             // 验证过滤表达式
             // TODO: 实现表达式验证
         }
@@ -180,7 +180,7 @@ impl GoValidator {
         let mut column_names = HashMap::new();
 
         for column in &self.context.yield_columns {
-            if let Some(existing) = column_names.get(&column.alias) {
+            if let Some(_existing) = column_names.get(&column.alias) {
                 return Err(ValidationError::new(
                     format!("YIELD 列别名 '{}' 重复出现", column.alias),
                     ValidationErrorType::DuplicateKey,

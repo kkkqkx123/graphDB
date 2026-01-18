@@ -2,9 +2,10 @@
 //! 对应 NebulaGraph FindPathValidator.h/.cpp 的功能
 //! 验证 FIND PATH 语句的合法性
 
-use super::base_validator::{Validator, ValueType};
+use super::base_validator::Validator;
 use super::ValidationContext;
 use crate::core::Expression;
+use crate::core::types::EdgeDirection;
 use crate::query::validator::ValidationError;
 use crate::query::validator::ValidationErrorType;
 use std::collections::HashMap;
@@ -30,7 +31,7 @@ pub struct FindPathConfig {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum EdgeDirection {
+pub enum PathEdgeDirection {
     Forward,
     Backward,
     Both,
@@ -51,7 +52,7 @@ impl FindPathValidator {
                 dst_vertices: Vec::new(),
                 steps: None,
                 edge_types: Vec::new(),
-                direction: EdgeDirection::Forward,
+                direction: crate::core::types::EdgeDirection::Outgoing,
                 with_props: false,
                 limit: None,
                 yield_columns: Vec::new(),

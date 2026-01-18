@@ -686,7 +686,6 @@ mod tests {
         let config = SortConfig::default();
 
         let test_config = test_config();
-        let db_path = test_config.test_db_path("test_column_index_sort");
         let storage = Arc::new(Mutex::new(MockStorage));
 
         let mut executor = SortExecutor::new(1, storage, sort_keys, None, config).expect("SortExecutor::new should succeed");
@@ -711,7 +710,6 @@ mod tests {
         let config = SortConfig::default();
 
         let test_config = test_config();
-        let db_path = test_config.test_db_path("test_db_sort_2");
         let storage = Arc::new(Mutex::new(MockStorage));
 
         let mut executor = SortExecutor::new(1, storage, sort_keys, Some(3), config).expect("SortExecutor::new should succeed");
@@ -736,7 +734,6 @@ mod tests {
         let config = SortConfig::default();
 
         let test_config = test_config();
-        let db_path = test_config.test_db_path("test_column_index_top_n");
         let storage = Arc::new(Mutex::new(MockStorage));
 
         let mut executor = SortExecutor::new(1, storage, sort_keys, Some(2), config).expect("SortExecutor::new should succeed");
@@ -792,7 +789,6 @@ mod tests {
 
         let config = SortConfig::default();
         let test_config = test_config();
-        let db_path = test_config.test_db_path("test_error_handling");
         let storage = Arc::new(Mutex::new(MockStorage));
 
         let mut executor = SortExecutor::new(1, storage, sort_keys, None, config).expect("SortExecutor::new should succeed");

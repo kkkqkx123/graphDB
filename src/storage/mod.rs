@@ -1,9 +1,5 @@
 pub mod iterator;
 pub mod memory_storage;
-
-#[cfg(feature = "rocksdb")]
-pub mod rocksdb_storage;
-#[cfg(feature = "redb")]
 pub mod redb_storage;
 pub mod storage_engine;
 
@@ -12,10 +8,6 @@ pub mod test_mock;
 
 pub use iterator::*;
 pub use memory_storage::*;
-
-#[cfg(feature = "rocksdb")]
-pub use rocksdb_storage::*;
-#[cfg(feature = "redb")]
 pub use redb_storage::*;
 pub use storage_engine::*;
 

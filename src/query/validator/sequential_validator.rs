@@ -2,7 +2,7 @@
 //! 对应 NebulaGraph SequentialValidator.h/.cpp 的功能
 //! 验证多语句查询（使用分号分隔）的合法性
 
-use super::base_validator::{Validator, ValueType};
+use super::base_validator::Validator;
 use super::ValidationContext;
 use crate::query::validator::ValidationError;
 use crate::query::validator::ValidationErrorType;
@@ -72,6 +72,15 @@ impl SequentialValidator {
                     return Err(ValidationError::new(
                         format!(
                             "DDL statement cannot follow DML statement at position {}",
+                            i + 1
+                        ),
+                        ValidationErrorType::SemanticError,
+                    ));
+                }
+                if has_ddl {
+                    return Err(ValidationError::new(
+                        format!(
+                            "Multiple DDL statements are not allowed, found at position {}",
                             i + 1
                         ),
                         ValidationErrorType::SemanticError,

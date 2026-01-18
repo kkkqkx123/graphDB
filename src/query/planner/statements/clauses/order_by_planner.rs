@@ -1,7 +1,7 @@
 //! ORDER BY 子句规划器
 use crate::query::planner::statements::clauses::clause_planner::ClausePlanner;
 use crate::query::planner::statements::core::cypher_clause_planner::{
-    ClauseType, CypherClausePlanner, DataFlowNode, PlanningContext, QueryInfo,
+    ClauseType, CypherClausePlanner, DataFlowNode, PlanningContext,
 };
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;

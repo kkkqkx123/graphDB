@@ -4,10 +4,9 @@
 //! 对应C++版本中的RuntimeContext结构
 
 use crate::common::base::id::{EdgeType, TagId};
-use crate::core::error::ManagerResult;
 use crate::core::Value;
 use crate::core::Direction;
-use std::sync::{Arc, RwLock, atomic::{AtomicBool, AtomicU64, Ordering}};
+use std::sync::{Arc, RwLock, atomic::{AtomicBool, Ordering}};
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 

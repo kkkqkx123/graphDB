@@ -192,6 +192,21 @@ impl FetchVerticesValidator {
                         ValidationErrorType::SemanticError,
                     ));
                 }
+
+                // 查找标签的 Schema 并验证属性是否存在
+                let prop_exists = self.context.schemas.iter()
+                    .find(|schema| &schema.tag_name == tag_name)
+                    .map_or(false, |schema| {
+                        schema.schema.iter()
+                            .any(|prop_def| prop_def.name == *prop_name)
+                    });
+
+                if !prop_exists {
+                    return Err(ValidationError::new(
+                        format!("属性 '{}' 在标签 '{}' 中不存在", prop_name, tag_name),
+                        ValidationErrorType::SemanticError,
+                    ));
+                }
             }
         }
 

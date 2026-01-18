@@ -2,7 +2,7 @@
 
 use crate::core::error::ManagerResult;
 use super::types::{
-    ClusterInfo, EdgeTypeDef, MetadataVersion, PropertyDef, PropertyType, SpaceInfo, TagDef,
+    ClusterInfo, EdgeTypeDef, MetadataVersion, SpaceInfo, TagDef,
 };
 
 /// 元数据客户端接口 - 定义元数据访问的基本操作

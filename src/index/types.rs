@@ -3,9 +3,10 @@
 //! 提供统一的索引类型定义，包括索引状态、类型、结构等
 
 use crate::core::Value;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
 pub enum IndexStatus {
     #[serde(rename = "creating")]
     Creating,
@@ -17,7 +18,7 @@ pub enum IndexStatus {
     Failed(String),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
 pub enum IndexType {
     #[serde(rename = "tag")]
     TagIndex,
@@ -27,7 +28,7 @@ pub enum IndexType {
     FulltextIndex,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
 pub struct IndexField {
     pub name: String,
     pub value_type: Value,
@@ -44,7 +45,7 @@ impl IndexField {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
 pub struct Index {
     pub id: i32,
     pub name: String,

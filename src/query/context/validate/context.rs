@@ -7,7 +7,6 @@ use super::schema::{self, SchemaInfo, SchemaProvider};
 use super::types::{ColsDef, SpaceInfo, Variable};
 use crate::core::symbol::SymbolTable;
 use crate::core::Value;
-use crate::expression::ExpressionContext;
 use crate::query::validator::structs::{AliasType, QueryPart};
 use crate::query::validator::validation_interface::{
     ValidationContext as ValidationContextTrait, ValidationError,
