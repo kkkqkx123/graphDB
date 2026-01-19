@@ -3,7 +3,7 @@ use clap::Parser;
 
 // 导入库模块
 use graphdb::api;
-use graphdb::common::process::ProcessMonitor;
+use graphdb::common::process::ProcessManager;
 
 #[derive(Parser)]
 #[clap(version = "0.1.0", author = "GraphDB Contributors")]
@@ -30,25 +30,25 @@ async fn main() -> Result<()> {
         Cli::Serve { config } => {
             println!("Starting GraphDB service with config: {}", config);
             
-            // Initialize process monitor
-            let monitor = ProcessMonitor::new();
-            println!("Process monitor initialized");
-            println!("Memory usage: {:?}", monitor.get_memory_usage());
-            println!("CPU usage: {:?}", monitor.get_cpu_usage());
-            println!("System usage: {:?}", monitor.get_system_usage());
+            // Initialize process manager
+            let pm = ProcessManager::new();
+            println!("Process manager initialized");
+            let info = pm.current_process_info().expect("Failed to get process info");
+            println!("Process info: {:?}", info);
             
-            // Initialize and start the service
+            // Initialize and start service
             api::start_service(config).await?;
         }
         Cli::Query { query } => {
             println!("Executing query: {}", query);
             
-            // Initialize process monitor
-            let monitor = ProcessMonitor::new();
-            println!("Process monitor initialized");
-            println!("Memory usage: {:?}", monitor.get_memory_usage());
+            // Initialize process manager
+            let pm = ProcessManager::new();
+            println!("Process manager initialized");
+            let info = pm.current_process_info().expect("Failed to get process info");
+            println!("Process info: {:?}", info);
             
-            // Execute the query directly
+            // Execute query directly
             api::execute_query(&query).await?;
         }
     }
