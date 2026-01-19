@@ -93,6 +93,13 @@ impl IndexBinaryEncoder {
         }
     }
 
+    pub fn encode_index_key(value: &Value) -> Vec<u8> {
+        match value {
+            Value::String(s) => s.as_bytes().to_vec(),
+            _ => Self::encode_value(value),
+        }
+    }
+
     pub fn encode_int64(i: i64) -> Vec<u8> {
         i.to_le_bytes().to_vec()
     }
@@ -273,7 +280,14 @@ impl IndexBinaryEncoder {
             if i >= prefix_len {
                 break;
             }
-            encoded.extend_from_slice(&Self::encode_value(value));
+            match value {
+                Value::String(s) => {
+                    encoded.extend_from_slice(s.as_bytes());
+                }
+                _ => {
+                    encoded.extend_from_slice(&Self::encode_value(value));
+                }
+            }
         }
         encoded
     }

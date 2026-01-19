@@ -579,7 +579,7 @@ impl ValidationContext {
         result.push_str(&format!("  schemas: {:?},\n", self.schemas.len()));
         result.push_str(&format!(
             "  symbol_table: {:?},\n",
-            self.symbol_table.size().unwrap_or(0)
+            self.symbol_table.size()
         ));
         result.push_str(&format!("  query_parts: {:?},\n", self.query_parts.len()));
         result.push_str(&format!("  alias_types: {:?},\n", self.alias_types.len()));

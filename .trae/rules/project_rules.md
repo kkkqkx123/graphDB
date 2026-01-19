@@ -131,7 +131,7 @@ The project includes a comprehensive test suite utilising Rust's standard testin
 1. **Running tests**:
    ```bash
    cargo test # Run all tests
-   cargo test -- --test-threads=1 # Run tests sequentially (useful for debugging)
+   cargo test --lib -- --nocapture # Run lib tests
    cargo test <test_name> # Run specific test(s) matching pattern
    cargo test --test <integration_test_file> # Run specific integration test
    cargo test --release  # Run tests in release mode

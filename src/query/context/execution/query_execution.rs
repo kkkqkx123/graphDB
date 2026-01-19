@@ -350,7 +350,7 @@ impl QueryContext {
             has_execution_plan: self.plan.is_some(),
             is_killed: self.is_killed(),
             current_id: self.current_id(),
-            symbol_table_size: self.sym_table.size().unwrap_or(0),
+            symbol_table_size: self.sym_table.size(),
             variable_count: self.ectx.variable_count(),
         }
     }

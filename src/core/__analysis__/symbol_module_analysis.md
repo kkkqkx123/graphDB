@@ -1,261 +1,422 @@
-# 符号表模块设计分析报告
+# Symbol 模块重构分析报告
 
-## 概述
+## 1. 概述
 
-本报告分析了 `src/core/symbol` 目录的设计合理性，识别了存在的问题，并提供了改进建议。
+本报告对比分析 GraphDB 的 Rust 实现与原生 NebulaGraph C++ 实现中符号表（SymbolTable）的设计差异，并提出重构建议。
 
-## 当前结构
+**分析文件位置：**
+- NebulaGraph C++ 源码：`nebula-3.8.0/src/graph/context/Symbols.{h,cpp}`
+- 当前 Rust 实现：`src/core/symbol/`
 
+---
+
+## 2. NebulaGraph C++ 实现分析
+
+### 2.1 核心数据结构
+
+#### Variable 结构体
+
+```cpp
+struct Variable {
+  std::string name;
+  Value::Type type{Value::Type::DATASET};
+  std::vector<std::string> colNames;
+  std::unordered_set<PlanNode*> readBy;
+  std::unordered_set<PlanNode*> writtenBy;
+  std::atomic<uint64_t> userCount{0};
+};
 ```
-src/core/symbol/
-├── mod.rs                  # 模块定义和导出
-├── symbol_table.rs         # 符号表主实现 (560行)
-├── dependency_tracker.rs   # 依赖关系跟踪器 (492行)
-├── plan_node_ref.rs        # 计划节点引用 (104行)
-└── README.md               # 文档
+
+**设计特点：**
+- 依赖关系（readBy/writtenBy）直接嵌入 Variable 结构内
+- type 使用 NebulaGraph 的 Value::Type 枚举
+- colNames 存储输出列名（类型为 DATASET 时有效）
+- userCount 原子计数器用于追踪变量使用频率
+
+#### SymbolTable 类
+
+```cpp
+class SymbolTable final {
+ public:
+  explicit SymbolTable(ObjectPool* objPool, ExecutionContext* ectx);
+  
+  bool existsVar(const std::string& varName) const;
+  Variable* newVariable(const std::string& name);
+  bool readBy(const std::string& varName, PlanNode* node);
+  bool writtenBy(const std::string& varName, PlanNode* node);
+  bool deleteReadBy(const std::string& varName, PlanNode* node);
+  bool deleteWrittenBy(const std::string& varName, PlanNode* node);
+  bool updateReadBy(const std::string& oldVar, const std::string& newVar, PlanNode* node);
+  bool updateWrittenBy(const std::string& oldVar, const std::string& newVar, PlanNode* node);
+  Variable* getVar(const std::string& varName);
+  std::string toString() const;
+
+ private:
+  void addVar(std::string varName, Variable* variable);
+  ObjectPool* objPool_{nullptr};
+  ExecutionContext* ectx_{nullptr};
+  mutable folly::RWSpinLock lock_;
+  std::unordered_map<std::string, Variable*> vars_;
+};
 ```
 
-## 模块职责分析
+### 2.2 关键设计决策
 
-### 1. symbol_table.rs
-- ✅ **职责清晰**：管理查询中的变量、别名和符号
-- ✅ **功能完整**：提供变量创建、删除、重命名等基本操作
-- ✅ **依赖跟踪**：维护变量与计划节点之间的依赖关系
-- ❌ **职责过重**：包含不相关的对象池功能
+| 决策点 | C++ 实现 | 说明 |
+|--------|----------|------|
+| 内存管理 | ObjectPool | 预先分配内存，所有权由 SymbolTable 控制 |
+| 并发控制 | folly::RWSpinLock | 读写分离锁，优化读多写少场景 |
+| 依赖集成 | 内嵌在 Variable | PlanNode 指针直接存储在 readBy/writtenBy |
+| 上下文关联 | 强依赖 ExecutionContext | 创建变量时调用 `ectx_->initVar(name)` |
 
-### 2. dependency_tracker.rs
-- ✅ **职责单一**：专门跟踪变量与计划节点之间的读写依赖关系
-- ✅ **功能完善**：支持数据竞争检测、依赖统计等
-- ✅ **线程安全**：使用原子操作保证并发安全
+### 2.3 依赖关系示例
 
-### 3. plan_node_ref.rs
-- ❌ **位置不当**：作为通用的查询计划概念，不应放在符号表模块中
-- ✅ **设计合理**：轻量级引用，避免存储完整节点对象
+从 `SymbolsTest.cpp` 中的测试用例可以看出依赖关系的实际使用：
 
-## 发现的问题
+```cpp
+// GO 查询的变量依赖关系
+// __Start_1: writtenBy {1}, readBy {}
+// __Expand_2: writtenBy {2}, readBy {3}
+// __Project_4: writtenBy {4}, readBy {9}
+// ...
+```
 
-### 🔴 高优先级问题
+---
 
-#### 1. PlanNodeRef 位置不当
-**问题描述**：
-- `PlanNodeRef` 被放置在 `symbol` 模块中，但它是通用的查询计划概念
-- 其他模块可能需要引用计划节点，但无法直接使用
-- 违反了模块职责单一原则
+## 3. 当前 Rust 实现分析
 
-**影响**：
-- 限制了模块的复用性
-- 增加了模块间的耦合度
-- 不符合架构设计的通用性原则
+### 3.1 核心数据结构
 
-**建议**：
-- 将 `PlanNodeRef` 移至 `src/core/plan_node_ref.rs`
-- 作为核心基础类型供整个查询引擎使用
+#### Symbol 结构体
 
-### 🟠 中优先级问题
+```rust
+pub struct Symbol {
+    pub name: String,
+    pub symbol_type: SymbolType,
+    pub created_at: std::time::SystemTime,
+}
 
-#### 2. SymbolTable 职责过重
-**问题描述**：
-- `SymbolTable` 包含了对象池功能 (`obj_pool`)
-- 对象池与符号表的核心职责（变量管理）无关
-- 当前实现只是简单的 HashMap 存储，没有真正的池化机制
+#[derive(Debug, Clone, PartialEq)]
+pub enum SymbolType {
+    Variable,
+    Alias,
+    Parameter,
+    Function,
+}
+```
 
-**代码证据**：
+#### SymbolTable 结构体
+
 ```rust
 pub struct SymbolTable {
     symbols: Arc<RwLock<HashMap<String, Symbol>>>,
     dependency_tracker: Arc<RwLock<DependencyTracker>>,
-    obj_pool: Arc<RwLock<HashMap<String, Vec<u8>>>>,  // 不相关职责
 }
 ```
 
-**影响**：
-- 违反了单一职责原则
-- 增加了代码复杂度
-- 可能导致性能问题（不必要的锁竞争）
+#### DependencyTracker 独立结构
 
-**建议**：
-- 移除 `obj_pool` 相关代码
-- 如需对象池功能，应在 `src/core/allocator.rs` 中实现独立模块
-
-#### 3. 与 BasicValidationContext 的数据冗余
-**问题描述**：
-- `ValidationContext` 同时维护 `BasicValidationContext` 和 `SymbolTable`
-- 两者都管理变量信息，存在重复
-
-**代码证据**：
 ```rust
-pub fn register_variable(&mut self, var: String, cols: ColsDef) {
-    self.basic_context.register_variable(var.clone(), cols.clone());
-    let _ = self.symbol_table.new_variable(&var);  // 重复注册
+pub struct DependencyTracker {
+    dependencies: HashMap<String, VariableDependencies>,
+}
+
+pub struct VariableDependencies {
+    pub variable_name: String,
+    pub readers: HashSet<PlanNodeRef>,
+    pub writers: HashSet<PlanNodeRef>,
+    pub dependencies: Vec<Dependency>,
+    pub user_count: std::sync::atomic::AtomicU64,
 }
 ```
 
-**影响**：
-- 数据不一致风险
-- 维护成本增加
-- 性能开销
+### 3.2 架构差异
 
-**建议**：
-- 评估是否需要同时维护两套变量管理系统
-- 考虑合并或明确职责划分
+| 方面 | C++ 实现 | Rust 实现 |
+|------|----------|-----------|
+| 依赖存储位置 | Variable 内部 | 独立的 DependencyTracker |
+| 内存管理 | ObjectPool | Arc<RwLock<T>> |
+| 并发控制 | folly::RWSpinLock | std::sync::RwLock |
+| 类型系统 | Value::Type | 自定义 SymbolType |
+| PlanNode 引用 | 原始指针 * | 包装的 PlanNodeRef |
 
-### 🟡 低优先级问题
+---
 
-#### 4. 过度封装和委托
-**问题描述**：
-- `SymbolTable` 大量方法直接委托给 `DependencyTracker`
-- 增加了间接层，但没有提供额外价值
+## 4. 主要差异与问题
 
-**建议**：
-- 考虑直接暴露 `dependency_tracker()` 方法，让调用者直接操作
-- 或使用 Deref trait 实现委托
+### 4.1 架构过于复杂
 
-#### 5. 对象池设计不完整
-**问题描述**：
-- `obj_pool` 只是简单的 HashMap 存储
-- 没有真正的对象复用、容量控制、清理机制
+**问题描述：**
+当前 Rust 实现将依赖跟踪分离到独立的 `DependencyTracker`，导致：
+- 增加了不必要的间接层
+- API 调用路径变长
+- 难以与 C++ 实现对齐
 
-**建议**：
-- 如果不需要对象池，直接移除
-- 如需实现，应该有真正的复用机制
+**C++ 做法：**
+依赖关系直接存储在 `Variable.readBy` 和 `Variable.writtenBy` 中，查询和更新操作简单直接。
 
-#### 6. 错误处理不一致
-**问题描述**：
-- 部分方法返回 `Result<(), String>`，部分返回 `Option`
-- 错误消息格式不统一
+### 4.2 类型系统不完整
 
-**建议**：
-- 统一错误处理方式
-- 考虑定义专门的错误类型
+**问题描述：**
+当前 `SymbolType` 枚举缺少关键类型：
+- 缺少 `DATASET` 类型（C++ 中 Variable 默认类型）
+- 缺少 `VERTEX` 和 `EDGE` 类型
+- 未与 GraphDB 的 `DataType` 系统集成
 
-## 依赖关系分析
+**C++ 做法：**
+直接使用 `Value::Type` 枚举，包含所有 NebulaGraph 值类型。
 
+### 4.3 缺少上下文集成
+
+**问题描述：**
+当前实现中 `SymbolTable` 与 `ExecutionContext` 完全独立：
+- 创建变量时不会初始化上下文
+- 无法追踪变量的版本历史
+- 与 QueryContext 的集成不完整
+
+**C++ 做法：**
+```cpp
+Variable* SymbolTable::newVariable(const std::string& name) {
+  auto* variable = objPool_->makeAndAdd<Variable>(name);
+  addVar(name, variable);
+  ectx_->initVar(name);  // 同步初始化执行上下文
+  return variable;
+}
 ```
-symbol_table.rs
-    ├── 依赖: dependency_tracker.rs
-    └── 依赖: plan_node_ref.rs
 
-dependency_tracker.rs
-    └── 依赖: plan_node_ref.rs
+### 4.4 PlanNodeRef 抽象过度
 
-plan_node_ref.rs
-    └── 无依赖（基础类型）
+**问题描述：**
+`PlanNodeRef` 是自定义的包装类型，相比 C++ 的原始指针增加了复杂度：
+- 需要额外的序列化/克隆逻辑
+- 与实际的执行计划系统解耦
+- 增加了维护负担
+
+**C++ 做法：**
+直接使用 `PlanNode*` 原始指针，简洁明了。
+
+### 4.5 用户计数未充分利用
+
+**C++ 实现：**
+- `Variable.userCount` 原子计数器用于追踪变量使用频率
+- 可用于优化：清理未使用的变量、决定变量保留策略
+
+**Rust 实现：**
+- 虽有 `user_count` 字段，但未被生产代码使用
+
+---
+
+## 5. 重构建议
+
+### 5.1 简化架构：内嵌依赖关系
+
+**目标：** 将 `DependencyTracker` 的功能合并到 `Symbol` 结构中
+
+```rust
+#[derive(Debug, Clone)]
+pub struct Symbol {
+    pub name: String,
+    pub symbol_type: SymbolType,
+    pub data_type: Option<DataType>,      // 新增：数据类型
+    pub col_names: Vec<String>,           // 新增：列名列表
+    pub readers: HashSet<PlanNodeRef>,    // 内嵌读取者
+    pub writers: HashSet<PlanNodeRef>,    // 内嵌写入者
+    pub user_count: Arc<AtomicU64>,       // 内嵌使用计数
+    pub created_at: SystemTime,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum SymbolType {
+    Variable,
+    Alias,
+    Parameter,
+    Function,
+    Dataset,     // 新增：对应 C++ 的 DATASET
+    Vertex,      // 新增：顶点类型
+    Edge,        // 新增：边类型
+    Path,        // 新增：路径类型
+}
 ```
 
-**外部使用**：
-- `src/query/context/validate/context.rs` - 使用 `SymbolTable`
-- `src/query/context/execution/query_execution.rs` - 使用 `SymbolTable`
-- `src/utils/anon_var_generator.rs` - 使用 `SymbolTable`
+**优势：**
+- 消除 `DependencyTracker` 间接层
+- API 调用更直接
+- 与 C++ 架构对齐
 
-## 优点总结
+### 5.2 集成执行上下文
 
-✅ **职责分离清晰**：符号表与依赖跟踪器职责分明  
-✅ **线程安全**：使用 `Arc<RwLock>` 保证并发安全  
-✅ **功能完整**：支持变量管理、依赖跟踪、冲突检测等  
-✅ **测试覆盖完善**：每个模块都有相应的单元测试  
-✅ **文档齐全**：README 文档详细说明了模块用途和使用方法
+**目标：** 在创建变量时同步初始化执行上下文
 
-## 改进建议
+```rust
+impl SymbolTable {
+    pub fn new_variable(
+        &self, 
+        name: &str, 
+        execution_context: &ExecutionContext
+    ) -> Result<Symbol, String> {
+        // 检查是否已存在
+        if self.has_variable(name) {
+            return Err(format!("Variable '{}' already exists", name));
+        }
+        
+        // 同步初始化执行上下文
+        execution_context.init_var(name);
+        
+        // 创建符号
+        let symbol = Symbol::new(name.to_string(), SymbolType::Variable);
+        // ... 插入逻辑
+        Ok(symbol)
+    }
+}
+```
 
-### 短期改进（最小改动方案）
+### 5.3 完善类型系统
 
-1. **移动 PlanNodeRef**
-   ```bash
-   # 创建新文件
-   src/core/plan_node_ref.rs
-   
-   # 更新引用
-   # 在 src/core/mod.rs 中添加
-   pub mod plan_node_ref;
-   pub use plan_node_ref::*;
-   ```
+**目标：** 与 GraphDB 的 `DataType` 系统集成
 
-2. **移除对象池功能**
-   ```rust
-   // 从 SymbolTable 中移除
-   - obj_pool: Arc<RwLock<HashMap<String, Vec<u8>>>>,
-   - allocate_from_pool()
-   - deallocate_from_pool()
-   - obj_pool()
-   ```
+```rust
+pub enum SymbolType {
+    Variable,
+    Alias, 
+    Parameter,
+    Function,
+    Dataset(DataType),           // 关联数据类型
+    Vertex,
+    Edge,
+    Path,
+}
+```
 
-3. **更新模块导入**
-   ```rust
-   // 更新所有使用 PlanNodeRef 的地方
-   use crate::core::plan_node_ref::PlanNodeRef;
-   ```
+### 5.4 优化并发控制
 
-### 长期改进（全面重构方案）
+**当前问题：** 使用 `Arc<RwLock<HashMap>>` 嵌套，锁粒度较粗
 
-1. **创建计划节点模块**
-   ```
-   src/core/
-   ├── plan_node_ref.rs      # 计划节点引用
-   ├── plan_types.rs         # 计划节点类型定义
-   └── plan_utils.rs         # 计划相关工具
-   ```
+**建议方案：** 参照 C++ 的 `folly::RWSpinLock`，优化读写分离
 
-2. **简化 SymbolTable**
-   ```rust
-   pub struct SymbolTable {
-       symbols: Arc<RwLock<HashMap<String, Symbol>>>,
-       dependency_tracker: Arc<RwLock<DependencyTracker>>,
-   }
-   
-   // 直接暴露依赖跟踪器
-   impl SymbolTable {
-       pub fn dependency_tracker(&self) -> &Arc<RwLock<DependencyTracker>> {
-           &self.dependency_tracker
-       }
-   }
-   ```
+```rust
+pub struct SymbolTable {
+    // 使用更细粒度的锁策略
+    symbols: DashMap<String, Symbol>,  // 并发 HashMap
+}
+```
 
-3. **整合变量管理**
-   - 评估 `BasicValidationContext` 和 `SymbolTable` 的变量管理
-   - 考虑统一使用 `SymbolTable` 管理所有变量
-   - 或者明确职责划分：验证用 Basic，执行用 Symbol
+### 5.5 添加缺失功能
 
-4. **定义统一错误类型**
-   ```rust
-   pub enum SymbolError {
-       VariableNotFound(String),
-       VariableAlreadyExists(String),
-       LockAcquisitionFailed(String),
-       DependencyError(String),
-   }
-   ```
+#### 5.5.1 变量重命名
 
-## 实施步骤
+```rust
+impl SymbolTable {
+    pub fn rename_variable(&self, old_name: &str, new_name: &str) -> Result<(), String> {
+        // 参照 C++ updateReadBy/updateWrittenBy 实现
+        // 需要同时更新 readBy 和 writtenBy 中的引用
+    }
+}
+```
 
-### 第一阶段：紧急修复
-1. 移动 `PlanNodeRef` 到 `src/core/plan_node_ref.rs`
-2. 更新所有相关导入
-3. 移除 `obj_pool` 相关代码
+#### 5.5.2 冲突检测
 
-### 第二阶段：结构优化
-1. 简化 `SymbolTable` 的委托方法
-2. 统一错误处理
-3. 优化测试用例
+```rust
+impl SymbolTable {
+    pub fn detect_write_conflicts(&self) -> Vec<(String, Vec<PlanNodeRef>)> {
+        self.symbols
+            .iter()
+            .filter(|(_, sym)| sym.writers.len() > 1)
+            .map(|(name, sym)| (name.clone(), sym.writers.iter().cloned().collect()))
+            .collect()
+    }
+}
+```
 
-### 第三阶段：深度整合
-1. 评估变量管理系统整合
-2. 完善文档和示例
-3. 性能优化和代码清理
+---
 
-## 风险评估
+## 6. 重构优先级
 
-### 低风险改动
-- 移动 `PlanNodeRef`：影响范围明确，易于验证
-- 移除 `obj_pool`：当前功能不完整，移除无负面影响
+### 高优先级（P0）
 
-### 中风险改动
-- 简化委托方法：需要检查所有调用点
-- 统一错误处理：API 变更，需要更新调用代码
+| 任务 | 描述 | 影响范围 |
+|------|------|----------|
+| 内嵌依赖关系 | 将 DependencyTracker 功能合并到 Symbol | symbol_table.rs, mod.rs |
+| 完善类型系统 | 添加 Dataset/Vertex/Edge/Path 类型 | symbol_table.rs, types.rs |
+| 上下文集成 | SymbolTable 与 ExecutionContext 关联 | query_execution.rs, symbol_table.rs |
 
-### 高风险改动
-- 整合变量管理系统：涉及多个模块，需要全面测试
-- 重构整体架构：影响范围广，需要谨慎规划
+### 中优先级（P1）
 
-## 结论
+| 任务 | 描述 | 影响范围 |
+|------|------|----------|
+| 优化并发控制 | 评估 DashMap 或其他并发结构 | symbol_table.rs |
+| 冲突检测 | 实现 detect_write_conflicts 生产调用 | symbol_table.rs |
+| 用户计数利用 | 利用 user_count 进行优化 | 全局 |
 
-`src/core/symbol` 模块的核心设计是合理的，符号表和依赖跟踪器的职责分离清晰，功能实现完整。主要问题在于 `PlanNodeRef` 的位置不当和 `SymbolTable` 的职责过重。通过最小改动方案可以快速改善设计质量，长期可以考虑更全面的重构。
+### 低优先级（P2）
+
+| 任务 | 描述 | 影响范围 |
+|------|------|----------|
+| 简化 PlanNodeRef | 评估是否需要简化抽象 | plan_node_ref.rs |
+| 文档完善 | 补充 API 文档和使用示例 | symbol/*.rs |
+
+---
+
+## 7. 实施步骤
+
+### 阶段一：架构调整
+
+1. 修改 `Symbol` 结构体，添加 `readers`、`writers`、`col_names` 字段
+2. 修改 `SymbolType` 枚举，添加缺失类型
+3. 移除 `DependencyTracker` 独立结构，或将其降级为内部辅助类
+4. 更新 `SymbolTable` 方法签名，移除对 `DependencyTracker` 的依赖
+
+### 阶段二：上下文集成
+
+1. 在 `QueryContext` 中建立 `SymbolTable` 与 `ExecutionContext` 的关联
+2. 修改 `new_variable` 方法，调用 `execution_context.init_var()`
+3. 更新 `ValidationContext` 中的符号表使用方式
+
+### 阶段三：功能完善
+
+1. 实现变量重命名功能（包含依赖关系更新）
+2. 实现冲突检测功能
+3. 完善单元测试，覆盖重构后的 API
+
+### 阶段四：优化和验证
+
+1. 性能测试，对比重构前后的性能差异
+2. 并发安全性验证
+3. 内存使用优化
+
+---
+
+## 8. 风险评估
+
+| 风险 | 级别 | 缓解措施 |
+|------|------|----------|
+| 重构导致现有功能破坏 | 中 | 渐进式重构，保持 API 兼容 |
+| 并发控制复杂度增加 | 低 | 使用成熟并发库（DashMap） |
+| 与现有代码集成困难 | 中 | 逐步集成，频繁测试 |
+
+---
+
+## 9. 参考资料
+
+- **C++ 源码：** `nebula-3.8.0/src/graph/context/Symbols.{h,cpp}`
+- **测试用例：** `nebula-3.8.0/src/graph/validator/test/SymbolsTest.cpp`
+- **执行上下文：** `nebula-3.8.0/src/graph/context/ExecutionContext.h`
+- **查询上下文：** `nebula-3.8.0/src/graph/context/QueryContext.h`
+
+---
+
+## 10. 总结
+
+当前 Rust 实现的 `symbol` 模块设计过于复杂，与原生 C++ 实现存在显著差异。主要问题包括：
+
+1. **过度抽象**：独立的 `DependencyTracker` 增加了不必要的间接层
+2. **类型不完整**：缺少关键类型（Dataset、Vertex、Edge）
+3. **上下文脱节**：未与执行上下文集成
+4. **功能未充分利用**：依赖跟踪和用户计数功能未被生产代码使用
+
+通过本报告提出的重构方案，可以：
+- 简化架构，消除间接层
+- 完善类型系统，与 GraphDB 整体设计对齐
+- 加强上下文集成，提升模块协同效率
+- 释放潜在功能，为后续优化提供基础
+
+建议按照优先级分阶段实施，优先完成架构调整和上下文集成。

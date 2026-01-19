@@ -410,7 +410,7 @@ impl ConcurrentIndexStorage {
 
         self.last_updated.store(now, Ordering::Relaxed);
 
-        let key = IndexBinaryEncoder::encode_value(field_value);
+        let key = IndexBinaryEncoder::encode_index_key(field_value);
         let entry = IndexEntry::new_vertex(vertex.id);
 
         let field_index = self.field_indexes
@@ -432,7 +432,7 @@ impl ConcurrentIndexStorage {
 
         self.last_updated.store(now, Ordering::Relaxed);
 
-        let key = IndexBinaryEncoder::encode_value(field_value);
+        let key = IndexBinaryEncoder::encode_index_key(field_value);
         let entry = IndexEntry::new_edge(edge.id);
 
         let field_index = self.field_indexes
@@ -482,7 +482,7 @@ impl ConcurrentIndexStorage {
         Ok((vertices, edges, duration))
     }
 
-    pub fn prefix_lookup(&self, _field_name: &str, prefix: &[Value]) -> Result<(Vec<Vertex>, Vec<Edge>, Duration), String> {
+    pub fn prefix_lookup(&self, field_name: &str, prefix: &[Value]) -> Result<(Vec<Vertex>, Vec<Edge>, Duration), String> {
         let start = Instant::now();
 
         let prefix_bytes = IndexBinaryEncoder::encode_prefix(prefix, prefix.len());
@@ -494,13 +494,13 @@ impl ConcurrentIndexStorage {
 
         let storage = self.storage.lock().map_err(|e| e.to_string())?;
 
-        for item in self.field_indexes.iter() {
-            let key = item.key();
-            let key_bytes = key.as_bytes();
-            if key_bytes >= start_key.as_slice() && key_bytes < end_key.as_slice() {
-                let inner_map = item.value();
-                for inner_item in inner_map.iter() {
-                    for entry in inner_item.value().iter() {
+        if let Some(field_index) = self.field_indexes.get(field_name) {
+            for item in field_index.iter() {
+                let key: &Vec<u8> = item.key();
+                let key_bytes: &[u8] = key.as_slice();
+                if key_bytes >= start_key.as_slice() && key_bytes < end_key.as_slice() {
+                    let entries = item.value();
+                    for entry in entries.iter() {
                         entry.touch();
                         found = true;
                         match entry.entry_type {
@@ -528,7 +528,7 @@ impl ConcurrentIndexStorage {
 
     pub fn range_lookup(
         &self,
-        _field_name: &str,
+        field_name: &str,
         start_value: &Value,
         end_value: &Value,
     ) -> Result<(Vec<Vertex>, Vec<Edge>, Duration), String> {
@@ -544,13 +544,13 @@ impl ConcurrentIndexStorage {
 
         let storage = self.storage.lock().map_err(|e| e.to_string())?;
 
-        for item in self.field_indexes.iter() {
-            let key = item.key();
-            let key_bytes = key.as_bytes();
-            if key_bytes >= start_key.as_slice() && key_bytes < end_key.as_slice() {
-                let inner_map = item.value();
-                for inner_item in inner_map.iter() {
-                    for entry in inner_item.value().iter() {
+        if let Some(field_index) = self.field_indexes.get(field_name) {
+            for item in field_index.iter() {
+                let key: &Vec<u8> = item.key();
+                let key_bytes: &[u8] = key.as_slice();
+                if key_bytes >= start_key.as_slice() && key_bytes < end_key.as_slice() {
+                    let entries = item.value();
+                    for entry in entries.iter() {
                         entry.touch();
                         found = true;
                         match entry.entry_type {
