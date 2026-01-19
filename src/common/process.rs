@@ -1,13 +1,6 @@
 use std::collections::HashMap;
 use std::env;
-use std::fs;
-use std::path::Path;
 use std::process;
-use std::sync::{Arc, Mutex};
-use std::time::{Duration, SystemTime};
-
-#[cfg(unix)]
-use signal_hook::{consts::SIGINT, consts::SIGTERM, iterator::Signals};
 
 /// Represents a process identifier
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -33,11 +26,11 @@ pub struct ProcessInfo {
     pub cmd: String,
     pub cwd: String,
     pub root: String,
-    pub start_time: SystemTime,
+    pub start_time: std::time::SystemTime,
     pub parent_pid: Option<ProcessId>,
     pub status: ProcessStatus,
-    pub memory_usage: u64, // in bytes
-    pub cpu_usage: f64,    // percentage
+    pub memory_usage: u64,
+    pub cpu_usage: f64,
     pub open_files: Vec<String>,
 }
 
@@ -52,13 +45,13 @@ pub enum ProcessStatus {
 
 /// Process management utilities
 pub struct ProcessManager {
-    monitored_processes: Arc<Mutex<HashMap<ProcessId, ProcessInfo>>>,
+    monitored_processes: std::sync::Arc<std::sync::Mutex<HashMap<ProcessId, ProcessInfo>>>,
 }
 
 impl ProcessManager {
     pub fn new() -> Self {
         Self {
-            monitored_processes: Arc::new(Mutex::new(HashMap::new())),
+            monitored_processes: std::sync::Arc::new(std::sync::Mutex::new(HashMap::new())),
         }
     }
 
@@ -85,25 +78,22 @@ impl ProcessManager {
             },
             cmd: env::args().collect::<Vec<_>>().join(" "),
             cwd: env::current_dir()?.to_string_lossy().to_string(),
-            root: "/".to_string(), // Simplified, in real implementation this would be more complex
-            start_time: SystemTime::now(),
-            parent_pid: None, // Would need to query the actual parent process
+            root: "/".to_string(),
+            start_time: std::time::SystemTime::now(),
+            parent_pid: None,
             status: ProcessStatus::Running,
             memory_usage: get_memory_usage()?,
-            cpu_usage: 0.0,     // Would need to track over time
-            open_files: vec![], // Would need to query the system
+            cpu_usage: 0.0,
+            open_files: vec![],
         })
     }
 
     /// Get information about a specific process by PID
     pub fn get_process_info(&self, pid: ProcessId) -> Option<ProcessInfo> {
-        // In a real implementation, this would query system information
-        if pid.as_u32() == std::process::id() {
-            // If it's the current process, return current process info
+        if pid.as_u32() == process::id() {
             return self.current_process_info().ok();
         }
 
-        // Otherwise check if it's in our monitored set
         self.monitored_processes
             .lock()
             .expect("Process monitor lock should not be poisoned")
@@ -113,10 +103,8 @@ impl ProcessManager {
 
     /// Check if a process is running
     pub fn is_process_running(&self, pid: ProcessId) -> bool {
-        // In a real implementation, this would check if the process exists
-        // For now, we'll check our monitored processes
         if pid.as_u32() == process::id() {
-            return true; // Current process is always running
+            return true;
         }
 
         self.monitored_processes
@@ -129,8 +117,6 @@ impl ProcessManager {
     pub fn list_processes(
         &self,
     ) -> Result<Vec<ProcessInfo>, Box<dyn std::error::Error + Send + Sync>> {
-        // In a real implementation, this would query all system processes
-        // For now, return an empty list or only the current process
         Ok(vec![self.current_process_info()?])
     }
 
@@ -154,27 +140,12 @@ impl ProcessManager {
     pub fn send_signal(
         &self,
         pid: ProcessId,
-        signal: i32,
+        _signal: i32,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        // In a real implementation, this would actually send a signal to the process
-        // For now, just check if it's the current process
         if pid.as_u32() == process::id() {
-            match signal {
-                #[cfg(unix)]
-                signal_hook::consts::SIGTERM | signal_hook::consts::SIGINT => {
-                    // For the current process, we can't actually send a signal to ourselves
-                    // but we can simulate the behavior
-                    println!("Simulated signal {} to current process", signal);
-                }
-                #[cfg(not(unix))]
-                _ => {
-                    // On non-Unix systems, just log the signal
-                    println!("Signal {} to current process", signal);
-                }
-            }
+            println!("Signal {} to current process", _signal);
             Ok(())
         } else {
-            // In real implementation, would send signal to another process
             Err(format!(
                 "Cannot send signal to process {} in simplified implementation",
                 pid.as_u32()
@@ -187,98 +158,18 @@ impl ProcessManager {
     pub fn wait_for_process(
         &self,
         pid: ProcessId,
-        timeout: Option<Duration>,
+        timeout: Option<std::time::Duration>,
     ) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
-        // In a real implementation, this would wait for the process to finish
-        // For this simplified version, we'll just check if it exists and possibly sleep
         if self.is_process_running(pid) {
             if let Some(timeout) = timeout {
                 std::thread::sleep(timeout);
-                // Return false to indicate timeout
                 Ok(false)
             } else {
-                // If no timeout specified, we can't really wait in this simplified implementation
                 Err("No timeout specified in simplified implementation".into())
             }
         } else {
-            // Process already finished
             Ok(true)
         }
-    }
-}
-
-/// A process signal handler
-#[cfg(unix)]
-pub struct SignalHandler {
-    signals: Signals,
-    handlers: Arc<Mutex<HashMap<i32, Box<dyn Fn() + Send>>>>,
-}
-
-#[cfg(unix)]
-impl SignalHandler {
-    pub fn new(signal_list: &[i32]) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
-        let signals = Signals::new(signal_list)?;
-        Ok(Self {
-            signals,
-            handlers: Arc::new(Mutex::new(HashMap::new())),
-        })
-    }
-
-    pub fn register_handler<F>(
-        &self,
-        signal: i32,
-        handler: F,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>>
-    where
-        F: Fn() + Send + 'static,
-    {
-        self.handlers
-            .lock()
-            .expect("Signal handler lock should not be poisoned")
-            .insert(signal, Box::new(handler));
-        Ok(())
-    }
-
-    pub fn start_handling(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        for sig in self.signals.forever() {
-            if let Some(handler) = self
-                .handlers
-                .lock()
-                .expect("Signal handler lock should not be poisoned")
-                .get(&sig)
-            {
-                handler();
-            }
-        }
-        Ok(())
-    }
-}
-
-#[cfg(not(unix))]
-pub struct SignalHandler;
-
-#[cfg(not(unix))]
-impl SignalHandler {
-    pub fn new(_signal_list: &[i32]) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
-        Ok(Self)
-    }
-
-    pub fn register_handler<F>(
-        &self,
-        _signal: i32,
-        _handler: F,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>>
-    where
-        F: Fn() + Send + 'static,
-    {
-        // On non-Unix platforms, we don't have the same signal handling
-        // This is a simplified implementation
-        Ok(())
-    }
-
-    pub fn start_handling(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        // On non-Unix platforms, we don't have the same signal handling
-        Ok(())
     }
 }
 
@@ -297,7 +188,7 @@ fn get_memory_usage() -> Result<u64, Box<dyn std::error::Error + Send + Sync>> {
             let parts: Vec<&str> = line.split_whitespace().collect();
             if parts.len() >= 2 {
                 let kb: u64 = parts[1].parse()?;
-                return Ok(kb * 1024); // Convert to bytes
+                return Ok(kb * 1024);
             }
         }
     }
@@ -336,182 +227,6 @@ fn get_memory_usage() -> Result<u64, Box<dyn std::error::Error + Send + Sync>> {
 #[cfg(not(any(unix, windows)))]
 fn get_memory_usage() -> Result<u64, Box<dyn std::error::Error + Send + Sync>> {
     Ok(0)
-}
-
-/// Get system resource usage information
-pub struct SystemResourceUsage {
-    pub total_memory: u64,     // in bytes
-    pub available_memory: u64, // in bytes
-    pub used_memory: u64,      // in bytes
-    pub total_swap: u64,       // in bytes
-    pub used_swap: u64,        // in bytes
-    pub cpu_count: u8,
-    pub load_avg: (f64, f64, f64), // 1min, 5min, 15min load average
-}
-
-/// System resource utilities
-pub mod system_resources {
-    use super::*;
-
-    /// Get current system resource usage (Unix)
-    #[cfg(unix)]
-    pub fn get_system_usage(
-    ) -> Result<SystemResourceUsage, Box<dyn std::error::Error + Send + Sync>> {
-        use std::fs::File;
-        use std::io::{BufRead, BufReader};
-
-        let meminfo = File::open("/proc/meminfo")?;
-        let reader = BufReader::new(meminfo);
-        let mut total_memory = 0u64;
-        let mut available_memory = 0u64;
-        let mut total_swap = 0u64;
-        let mut free_swap = 0u64;
-
-        for line in reader.lines() {
-            let line = line?;
-            if line.starts_with("MemTotal:") {
-                total_memory = parse_memory_line(&line)?;
-            } else if line.starts_with("MemAvailable:") {
-                available_memory = parse_memory_line(&line)?;
-            } else if line.starts_with("SwapTotal:") {
-                total_swap = parse_memory_line(&line)?;
-            } else if line.starts_with("SwapFree:") {
-                free_swap = parse_memory_line(&line)?;
-            }
-        }
-
-        let load_avg = get_load_average()?;
-
-        Ok(SystemResourceUsage {
-            total_memory,
-            available_memory,
-            used_memory: total_memory.saturating_sub(available_memory),
-            total_swap,
-            used_swap: total_swap.saturating_sub(free_swap),
-            cpu_count: num_cpus::get() as u8,
-            load_avg,
-        })
-    }
-
-    /// Get current system resource usage (Windows)
-    #[cfg(windows)]
-    pub fn get_system_usage(
-    ) -> Result<SystemResourceUsage, Box<dyn std::error::Error + Send + Sync>> {
-        use winapi::um::sysinfoapi::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
-
-        let mut mem_status: MEMORYSTATUSEX = unsafe { std::mem::zeroed() };
-        mem_status.dwLength = std::mem::size_of::<MEMORYSTATUSEX>() as u32;
-
-        let result = unsafe { GlobalMemoryStatusEx(&mut mem_status) };
-
-        if result != 0 {
-            Ok(SystemResourceUsage {
-                total_memory: mem_status.ullTotalPhys,
-                available_memory: mem_status.ullAvailPhys,
-                used_memory: mem_status.ullTotalPhys - mem_status.ullAvailPhys,
-                total_swap: mem_status.ullTotalPageFile,
-                used_swap: mem_status.ullTotalPageFile - mem_status.ullAvailPageFile,
-                cpu_count: num_cpus::get() as u8,
-                load_avg: (0.0, 0.0, 0.0), // Windows doesn't have load average
-            })
-        } else {
-            Err("Failed to get system memory status".into())
-        }
-    }
-
-    /// Get current system resource usage (fallback)
-    #[cfg(not(any(unix, windows)))]
-    pub fn get_system_usage(
-    ) -> Result<SystemResourceUsage, Box<dyn std::error::Error + Send + Sync>> {
-        Ok(SystemResourceUsage {
-            total_memory: 0,
-            available_memory: 0,
-            used_memory: 0,
-            total_swap: 0,
-            used_swap: 0,
-            cpu_count: num_cpus::get() as u8,
-            load_avg: (0.0, 0.0, 0.0),
-        })
-    }
-
-    /// Get disk usage for a specific path
-    pub fn get_disk_usage(path: &str) -> Result<u64, Box<dyn std::error::Error + Send + Sync>> {
-        let metadata = fs::metadata(path)?;
-        Ok(metadata.len())
-    }
-
-    /// Check if a path is accessible
-    pub fn is_path_accessible(path: &str) -> bool {
-        Path::new(path).exists()
-    }
-}
-
-#[cfg(unix)]
-fn parse_memory_line(line: &str) -> Result<u64, Box<dyn std::error::Error + Send + Sync>> {
-    let parts: Vec<&str> = line.split_whitespace().collect();
-    if parts.len() >= 2 {
-        let kb: u64 = parts[1].parse()?;
-        Ok(kb * 1024)
-    } else {
-        Ok(0)
-    }
-}
-
-#[cfg(unix)]
-fn get_load_average() -> Result<(f64, f64, f64), Box<dyn std::error::Error + Send + Sync>> {
-    use libc::{getloadavg, c_double};
-    
-    let mut load = [0.0f64; 3];
-    let result = unsafe { getloadavg(load.as_mut_ptr() as *mut c_double, 3) };
-    
-    if result >= 3 {
-        Ok((load[0], load[1], load[2]))
-    } else {
-        Ok((0.0, 0.0, 0.0))
-    }
-}
-
-/// Process execution utilities
-pub mod process_execution {
-    use std::process::Command;
-
-    /// Execute a command and return its output
-    pub fn execute_command(
-        cmd: &str,
-        args: &[&str],
-    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
-        let output = Command::new(cmd).args(args).output()?;
-
-        if output.status.success() {
-            let stdout = String::from_utf8(output.stdout)?;
-            Ok(stdout)
-        } else {
-            let stderr = String::from_utf8(output.stderr)?;
-            Err(format!("Command failed: {}", stderr).into())
-        }
-    }
-
-    /// Execute a command asynchronously
-    pub async fn execute_command_async(
-        cmd: &str,
-        args: &[&str],
-    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
-        let cmd = cmd.to_owned();
-        let args: Vec<String> = args.iter().map(|s| s.to_string()).collect();
-        tokio::task::spawn_blocking(move || {
-            let args_ref: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
-            execute_command(&cmd, &args_ref)
-        })
-        .await?
-    }
-
-    /// Check if a command exists in the system
-    pub fn command_exists(cmd: &str) -> bool {
-        Command::new(cmd)
-            .arg("--help") // Use a harmless argument to test existence
-            .output()
-            .is_ok()
-    }
 }
 
 /// Get the current process environment

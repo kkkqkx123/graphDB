@@ -542,6 +542,7 @@ dependencies = [
  "encoding_rs",
  "env_logger",
  "futures",
+ "libc",
  "log",
  "lru",
  "num_cpus",

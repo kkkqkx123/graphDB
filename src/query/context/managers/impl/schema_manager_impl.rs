@@ -4,6 +4,7 @@ use super::super::{
     EdgeTypeDefWithId, FieldDef, Schema, SchemaChange, SchemaChangeType, SchemaExportConfig, SchemaHistory,
     SchemaImportResult, SchemaManager, SchemaVersion, TagDefWithId,
 };
+use crate::common::charset::CharsetUtils;
 use crate::core::error::{ManagerError, ManagerResult};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -107,6 +108,9 @@ impl SchemaManager for MemorySchemaManager {
         tag_name: &str,
         fields: Vec<FieldDef>,
     ) -> ManagerResult<i32> {
+        CharsetUtils::validate_charset_and_collation("utf8mb4", "utf8mb4_bin")
+            .map_err(|e| ManagerError::invalid_input(e))?;
+
         let mut next_id = self
             .next_tag_id
             .write()
@@ -254,6 +258,9 @@ impl SchemaManager for MemorySchemaManager {
         edge_type_name: &str,
         fields: Vec<FieldDef>,
     ) -> ManagerResult<i32> {
+        CharsetUtils::validate_charset_and_collation("utf8mb4", "utf8mb4_bin")
+            .map_err(|e| ManagerError::invalid_input(e))?;
+
         let mut next_id = self
             .next_edge_type_id
             .write()
