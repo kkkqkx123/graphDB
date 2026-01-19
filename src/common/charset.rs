@@ -141,30 +141,162 @@ impl CharsetUtils {
         }
     }
 
-    /// Detect encoding of a byte sequence (simplified)
     pub fn detect_encoding(bytes: &[u8]) -> Option<Encoding> {
-        // Try UTF-8 first (most common in modern applications)
-        if Self::is_valid_utf8(bytes) {
-            // Check if it has BOM
-            if bytes.len() >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF {
-                return Some(Encoding::Utf8Bom);
-            }
+        if bytes.is_empty() {
             return Some(Encoding::Utf8);
         }
 
-        // For more complex detection, we'd use a library like chardetng
-        // This is a simplified version
+        if let Some(encoding) = Self::detect_bom(bytes) {
+            return Some(encoding);
+        }
 
-        // Check for UTF-16 BOM
-        if bytes.len() >= 2 {
-            if (bytes[0] == 0xFF && bytes[1] == 0xFE) || (bytes[0] == 0xFE && bytes[1] == 0xFF) {
-                return Some(Encoding::Utf16);
+        Self::detect_by_heuristics(bytes)
+    }
+
+    fn detect_bom(bytes: &[u8]) -> Option<Encoding> {
+        if bytes.len() >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF {
+            return Some(Encoding::Utf8Bom);
+        }
+
+        if bytes.len() >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE {
+            return Some(Encoding::Utf16);
+        }
+
+        if bytes.len() >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF {
+            return Some(Encoding::Utf16);
+        }
+
+        None
+    }
+
+    fn detect_by_heuristics(bytes: &[u8]) -> Option<Encoding> {
+        if Self::is_valid_utf8(bytes) {
+            if Self::has_multibyte_sequences(bytes) {
+                return Some(Encoding::Utf8);
             }
         }
 
-        // For other encodings, we'll need to try decoding or use a proper detection library
-        // Returning None for now since the detection logic is quite complex
-        None
+        if Self::is_likely_gbk(bytes) {
+            return Some(Encoding::Gbk);
+        }
+
+        if Self::is_likely_big5(bytes) {
+            return Some(Encoding::Big5);
+        }
+
+        if Self::is_likely_latin1(bytes) {
+            return Some(Encoding::Latin1);
+        }
+
+        Some(Encoding::Utf8)
+    }
+
+    fn has_multibyte_sequences(bytes: &[u8]) -> bool {
+        let mut multibyte_count = 0;
+        let mut i = 0;
+
+        while i < bytes.len() {
+            let b = bytes[i];
+
+            if b & 0x80 == 0 {
+                i += 1;
+            } else if b & 0xE0 == 0xC0 {
+                if i + 1 >= bytes.len() {
+                    return false;
+                }
+                multibyte_count += 1;
+                i += 2;
+            } else if b & 0xF0 == 0xE0 {
+                if i + 2 >= bytes.len() {
+                    return false;
+                }
+                multibyte_count += 1;
+                i += 3;
+            } else if b & 0xF8 == 0xF0 {
+                if i + 3 >= bytes.len() {
+                    return false;
+                }
+                multibyte_count += 1;
+                i += 4;
+            } else {
+                return false;
+            }
+        }
+
+        multibyte_count > 0
+    }
+
+    fn is_likely_gbk(bytes: &[u8]) -> bool {
+        if bytes.is_empty() {
+            return false;
+        }
+
+        let mut high_bit_count = 0;
+        let mut gbk_sequences = 0;
+
+        for i in 0..bytes.len() {
+            if bytes[i] & 0x80 != 0 {
+                high_bit_count += 1;
+
+                if bytes[i] >= 0x81 && bytes[i] <= 0xFE {
+                    if i + 1 < bytes.len() {
+                        let trail = bytes[i + 1];
+                        if trail >= 0x40 && trail <= 0xFE {
+                            gbk_sequences += 1;
+                        }
+                    }
+                }
+            }
+        }
+
+        let ratio = high_bit_count as f64 / bytes.len() as f64;
+        ratio > 0.1 && gbk_sequences > 0
+    }
+
+    fn is_likely_big5(bytes: &[u8]) -> bool {
+        if bytes.is_empty() {
+            return false;
+        }
+
+        let mut high_bit_count = 0;
+        let mut big5_sequences = 0;
+
+        for i in 0..bytes.len() {
+            if bytes[i] & 0x80 != 0 {
+                high_bit_count += 1;
+
+                if bytes[i] >= 0x81 && bytes[i] <= 0xFE {
+                    if i + 1 < bytes.len() {
+                        let trail = bytes[i + 1];
+                        if (trail >= 0x40 && trail <= 0x7E) || (trail >= 0xA1 && trail <= 0xFE) {
+                            big5_sequences += 1;
+                        }
+                    }
+                }
+            }
+        }
+
+        let ratio = high_bit_count as f64 / bytes.len() as f64;
+        ratio > 0.1 && big5_sequences > 0
+    }
+
+    fn is_likely_latin1(bytes: &[u8]) -> bool {
+        if bytes.is_empty() {
+            return false;
+        }
+
+        let mut printable_count = 0;
+
+        for &b in bytes {
+            if (b >= 0x20 && b <= 0x7E) || b == 0x0A || b == 0x0D {
+                printable_count += 1;
+            } else if b >= 0xA0 {
+                printable_count += 1;
+            }
+        }
+
+        let ratio = printable_count as f64 / bytes.len() as f64;
+        ratio > 0.8
     }
 
     /// Convert text from one encoding to another

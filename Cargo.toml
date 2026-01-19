@@ -35,6 +35,9 @@ rand = "0.8.5"
 rayon = "1.10.0"
 dashmap = "6.1"
 
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3", features = ["processthreadsapi", "psapi", "sysinfoapi", "fileapi"] }
+
 [features]
 default = ["redb"]
 redb = ["dep:redb"]

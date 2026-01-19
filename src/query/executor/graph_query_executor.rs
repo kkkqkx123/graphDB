@@ -7,6 +7,7 @@ use crate::core::error::{DBError, DBResult, QueryError};
 use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::query::parser::ast::stmt::Stmt;
 use crate::storage::StorageEngine;
+use crate::common::thread::ThreadPool;
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
@@ -17,7 +18,6 @@ use std::sync::{Arc, Mutex};
 /// - 语句分发
 /// - 错误处理
 /// - 资源管理
-#[derive(Debug)]
 pub struct GraphQueryExecutor<S: StorageEngine> {
     /// 执行器ID
     id: i64,
@@ -27,20 +27,36 @@ pub struct GraphQueryExecutor<S: StorageEngine> {
     description: String,
     /// 存储引擎引用
     storage: Arc<Mutex<S>>,
+    /// 线程池用于并行执行查询
+    thread_pool: Option<Arc<ThreadPool>>,
     /// 是否已打开
     is_open: bool,
     /// 执行统计信息
     stats: crate::query::executor::traits::ExecutorStats,
 }
 
+impl<S: StorageEngine> std::fmt::Debug for GraphQueryExecutor<S> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GraphQueryExecutor")
+            .field("id", &self.id)
+            .field("name", &self.name)
+            .field("description", &self.description)
+            .field("is_open", &self.is_open)
+            .field("stats", &self.stats)
+            .finish()
+    }
+}
+
 impl<S: StorageEngine> GraphQueryExecutor<S> {
     /// 创建新的图查询执行器
     pub fn new(id: i64, storage: Arc<Mutex<S>>) -> Self {
+        let thread_pool = Some(Arc::new(ThreadPool::new(4)));
         Self {
             id,
             name: "GraphQueryExecutor".to_string(),
             description: "图查询语言执行器".to_string(),
             storage,
+            thread_pool,
             is_open: false,
             stats: crate::query::executor::traits::ExecutorStats::new(),
         }
@@ -48,11 +64,13 @@ impl<S: StorageEngine> GraphQueryExecutor<S> {
 
     /// 带名称创建执行器
     pub fn with_name(id: i64, name: String, storage: Arc<Mutex<S>>) -> Self {
+        let thread_pool = Some(Arc::new(ThreadPool::new(4)));
         Self {
             id,
             name,
             description: "图查询语言执行器".to_string(),
             storage,
+            thread_pool,
             is_open: false,
             stats: crate::query::executor::traits::ExecutorStats::new(),
         }
@@ -65,11 +83,13 @@ impl<S: StorageEngine> GraphQueryExecutor<S> {
         description: String,
         storage: Arc<Mutex<S>>,
     ) -> Self {
+        let thread_pool = Some(Arc::new(ThreadPool::new(4)));
         Self {
             id,
             name,
             description,
             storage,
+            thread_pool,
             is_open: false,
             stats: crate::query::executor::traits::ExecutorStats::new(),
         }

@@ -8,17 +8,30 @@ pub mod session;
 use crate::api::service::GraphService;
 use crate::config::Config;
 use crate::storage::MemoryStorage;
+use crate::common::log::{Logger, FileWriter, LogLevel};
 
-fn init_log_level(log_level: &str) {
-    let log_level = log_level.to_lowercase();
-    match log_level.as_str() {
-        "trace" => std::env::set_var("RUST_LOG", "trace"),
-        "debug" => std::env::set_var("RUST_LOG", "debug"),
-        "info" => std::env::set_var("RUST_LOG", "info"),
-        "warn" => std::env::set_var("RUST_LOG", "warn"),
-        "error" => std::env::set_var("RUST_LOG", "error"),
-        _ => std::env::set_var("RUST_LOG", "info"),
+fn init_logger(config: &Config) -> Result<Arc<Logger>> {
+    let log_level = match config.log_level.to_lowercase().as_str() {
+        "trace" => LogLevel::Trace,
+        "debug" => LogLevel::Debug,
+        "info" => LogLevel::Info,
+        "warn" => LogLevel::Warn,
+        "error" => LogLevel::Error,
+        _ => LogLevel::Info,
+    };
+
+    let file_writer = Arc::new(
+        FileWriter::new(&config.log_file, log_level)?
+            .with_max_file_size(config.max_log_file_size as u64)
+            .with_max_files(config.max_log_files as u32)
+    );
+
+    let mut logger = Arc::new(Logger::new(log_level));
+    if let Some(logger_mut) = Arc::get_mut(&mut logger) {
+        logger_mut.add_writer(file_writer);
     }
+    
+    Ok(logger)
 }
 
 pub async fn start_service(config_path: String) -> Result<()> {
@@ -37,9 +50,9 @@ pub async fn start_service(config_path: String) -> Result<()> {
     };
     println!("Configuration loaded: {:?}", config);
 
-    // Initialize log level
-    init_log_level(&config.log_level);
-    println!("Log level set to: {}", config.log_level);
+    // Initialize logger
+    let _logger = init_logger(&config)?;
+    println!("Logger initialized: {}", config.log_file);
 
     // Initialize storage
     let storage = Arc::new(MemoryStorage::new()?);
@@ -64,7 +77,7 @@ pub async fn execute_query(query_str: &str) -> Result<()> {
 
     // Initialize storage for this example
     let config = crate::config::Config::default();
-    init_log_level(&config.log_level);
+    let _logger = init_logger(&config)?;
     let storage = Arc::new(MemoryStorage::new()?);
 
     // Initialize graph service for query execution

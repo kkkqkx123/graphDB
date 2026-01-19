@@ -12,6 +12,7 @@ pub struct ThreadPool {
     workers: Vec<Worker>,
     tasks: Arc<Mutex<VecDeque<Box<dyn FnOnce() + Send>>>>,
     notifier: Arc<Notify>,
+    shutdown: Arc<Mutex<bool>>,
 }
 
 impl ThreadPool {
@@ -21,15 +22,22 @@ impl ThreadPool {
         let mut workers = Vec::with_capacity(size);
         let tasks = Arc::new(Mutex::new(VecDeque::new()));
         let notifier = Arc::new(Notify::new());
+        let shutdown = Arc::new(Mutex::new(false));
 
-        for _ in 0..size {
-            workers.push(Worker::new(Arc::clone(&tasks), Arc::clone(&notifier)));
+        for id in 0..size {
+            workers.push(Worker::new(
+                id,
+                Arc::clone(&tasks),
+                Arc::clone(&notifier),
+                Arc::clone(&shutdown),
+            ));
         }
 
         Self {
             workers,
             tasks,
             notifier,
+            shutdown,
         }
     }
 
@@ -51,35 +59,73 @@ impl ThreadPool {
     pub fn len(&self) -> usize {
         self.workers.len()
     }
+
+    pub fn shutdown(&self) {
+        let mut shutdown = self.shutdown.lock().expect("Shutdown lock should not be poisoned");
+        *shutdown = true;
+        drop(shutdown);
+
+        self.notifier.notify_waiters();
+    }
+
+    pub fn wait_for_completion(&mut self) {
+        for worker in &mut self.workers {
+            worker.wait();
+        }
+    }
 }
 
-struct Worker {}
+impl Drop for ThreadPool {
+    fn drop(&mut self) {
+        self.shutdown();
+        self.wait_for_completion();
+    }
+}
+
+struct Worker {
+    _thread: Option<thread::JoinHandle<()>>,
+    _notifier: Arc<Notify>,
+}
 
 impl Worker {
-    fn new(_tasks: Arc<Mutex<VecDeque<Box<dyn FnOnce() + Send>>>>, _notifier: Arc<Notify>) -> Self {
-        thread::spawn(move || {
+    fn new(
+        id: usize,
+        tasks: Arc<Mutex<VecDeque<Box<dyn FnOnce() + Send>>>>,
+        notifier: Arc<Notify>,
+        shutdown: Arc<Mutex<bool>>,
+    ) -> Self {
+        let _notifier = Arc::clone(&notifier);
+        let _thread = thread::spawn(move || {
             loop {
-                // Wait for a task notification
-                // Use a blocking approach for this example
-                std::thread::sleep(std::time::Duration::from_millis(1));
-
-                // Check for tasks in a blocking way
                 let task = {
-                    let mut tasks = _tasks
-                        .lock()
-                        .expect("Worker tasks lock should not be poisoned");
+                    let mut tasks = tasks.lock().expect("Worker tasks lock should not be poisoned");
                     tasks.pop_front()
                 };
 
                 if let Some(task) = task {
                     task();
                 } else {
-                    // If no tasks available, we can continue the loop or handle differently
+                    let should_shutdown = {
+                        let shutdown = shutdown.lock().expect("Shutdown lock should not be poisoned");
+                        *shutdown
+                    };
+
+                    if should_shutdown {
+                        break;
+                    }
+
+                    std::thread::sleep(Duration::from_millis(10));
                 }
             }
         });
 
-        Self {}
+        Self { _thread: Some(_thread), _notifier }
+    }
+
+    fn wait(&mut self) {
+        if let Some(handle) = self._thread.take() {
+            let _ = handle.join();
+        }
     }
 }
 
@@ -113,7 +159,7 @@ impl AtomicCounter {
     }
 }
 
-/// A thread-safe lazy initializer
+/// A thread-safe lazy initializer using OnceLock
 pub struct Lazy<T> {
     value: RwLock<Option<T>>,
     init_fn: Box<dyn Fn() -> T + Send + Sync>,
@@ -134,7 +180,6 @@ impl<T> Lazy<T> {
     where
         T: Clone,
     {
-        // Fast path: try to get the value without blocking
         {
             if let Ok(guard) = self.value.try_read() {
                 if let Some(ref value) = *guard {
@@ -143,7 +188,6 @@ impl<T> Lazy<T> {
             }
         }
 
-        // Slow path: initialize the value
         let mut guard = self
             .value
             .write()
@@ -153,11 +197,8 @@ impl<T> Lazy<T> {
         }
 
         let value = (self.init_fn)();
-        *guard = Some(value);
-        guard
-            .as_ref()
-            .expect("Value should have been initialized in the previous line")
-            .clone()
+        *guard = Some(value.clone());
+        value
     }
 }
 
@@ -178,6 +219,23 @@ impl ConditionVariable {
         self.condvar
             .wait(guard)
             .expect("Condition variable should not be corrupted")
+    }
+
+    pub fn wait_timeout<'a>(
+        &self,
+        guard: std::sync::MutexGuard<'a, ()>,
+        timeout: Duration,
+    ) -> (std::sync::MutexGuard<'a, ()>, std::sync::mpsc::RecvTimeoutError) {
+        let (guard, timed_out) = self
+            .condvar
+            .wait_timeout(guard, timeout)
+            .expect("Condition variable should not be corrupted");
+
+        if timed_out.timed_out() {
+            (guard, std::sync::mpsc::RecvTimeoutError::Timeout)
+        } else {
+            (guard, std::sync::mpsc::RecvTimeoutError::Disconnected)
+        }
     }
 
     pub fn notify_one(&self) {
@@ -211,16 +269,6 @@ impl ThreadManager {
             .expect("Thread manager active threads lock should not be poisoned")
             .push(handle);
         Ok(())
-    }
-
-    pub fn spawn_scoped<'scope, F>(&self, _f: F) -> thread::ScopedJoinHandle<'scope, ()>
-    where
-        F: FnOnce() + Send + 'scope,
-    {
-        // Note: This is a simplified implementation
-        // In a real implementation, we would use scoped threads
-        // which are not stable in Rust yet
-        unimplemented!("Scoped threads require unstable Rust feature")
     }
 
     pub fn active_count(&self) -> usize {
@@ -282,7 +330,7 @@ pub mod async_utils {
 
     /// Create a channel for async communication
     pub fn channel<T>() -> (tokio::sync::mpsc::Sender<T>, tokio::sync::mpsc::Receiver<T>) {
-        tokio::sync::mpsc::channel(100) // Default buffer size
+        tokio::sync::mpsc::channel(100)
     }
 
     /// Create a oneshot channel for single-value async communication
@@ -300,9 +348,6 @@ pub struct ThreadLocal<T: 'static> {
     _phantom: std::marker::PhantomData<T>,
 }
 
-// Note: The actual implementation of ThreadLocal would use the thread_local! macro
-// Here's a simplified interface:
-
 impl<T: 'static> ThreadLocal<T> {
     /// Create a new ThreadLocal with a default value
     pub fn new<F>(_init_fn: F) -> Self
@@ -314,7 +359,7 @@ impl<T: 'static> ThreadLocal<T> {
         }
     }
 
-    /// Get a reference to the value for the current thread
+    /// Get a reference to value for the current thread
     pub fn with<F, R>(&self, _f: F) -> R
     where
         F: FnOnce(&T) -> R,
@@ -334,7 +379,7 @@ mod tests {
         assert_eq!(counter.get(), 0);
 
         counter.increment();
-        assert_eq!(counter.get(), 1); // incremented from 0 to 1
+        assert_eq!(counter.get(), 1);
 
         counter.set(10);
         assert_eq!(counter.get(), 10);
@@ -352,9 +397,8 @@ mod tests {
             });
         }
 
-        // Note: In a real test, we would need to wait for tasks to complete
         std::thread::sleep(Duration::from_millis(100));
-        // This is a basic test - in production we'd use proper synchronization
+        assert_eq!(counter.get(), 8);
     }
 
     #[test]
@@ -366,11 +410,9 @@ mod tests {
             let (lock, cvar) = &*pair2;
             let mut started = lock.lock().expect("Test mutex lock should not be poisoned");
             *started = true;
-            // We notify the condvar that the value has changed.
             cvar.notify_one();
         });
 
-        // Wait for the thread to start up.
         let (lock, cvar) = &*pair;
         let mut started = lock.lock().expect("Test mutex lock should not be poisoned");
         while !*started {
@@ -385,7 +427,6 @@ mod tests {
     #[tokio::test]
     async fn test_async_utils() {
         let result = async_utils::spawn_blocking(|| {
-            // Simulate a blocking operation
             std::thread::sleep(Duration::from_millis(10));
             42
         })
@@ -393,7 +434,6 @@ mod tests {
 
         assert_eq!(result, 42);
 
-        // Test timeout
         let timeout_result = async_utils::timeout(Duration::from_millis(50), async {
             tokio::time::sleep(Duration::from_millis(10)).await;
             "done"

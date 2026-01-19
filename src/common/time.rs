@@ -62,11 +62,34 @@ impl Date {
         if month < 1 || month > 12 {
             return Err("Month must be between 1 and 12".to_string());
         }
-        if day < 1 || day > 31 {
-            return Err("Day must be between 1 and 31".to_string());
+
+        let max_day = Self::days_in_month(year, month);
+        if day < 1 || day > max_day {
+            return Err(format!("Day must be between 1 and {} for month {}", max_day, month));
         }
 
         Ok(Self { year, month, day })
+    }
+
+    /// Get the number of days in a month
+    fn days_in_month(year: i32, month: u32) -> u32 {
+        match month {
+            1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+            4 | 6 | 9 | 11 => 30,
+            2 => {
+                if Self::is_leap_year(year) {
+                    29
+                } else {
+                    28
+                }
+            }
+            _ => 31,
+        }
+    }
+
+    /// Check if a year is a leap year
+    fn is_leap_year(year: i32) -> bool {
+        (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)
     }
 
     /// Creates a date for today

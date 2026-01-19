@@ -160,20 +160,107 @@ impl LogWriter for ConsoleWriter {
 pub struct FileWriter {
     file: Arc<Mutex<File>>,
     min_level: LogLevel,
+    file_path: String,
+    max_file_size: u64,
+    max_files: u32,
+    current_size: Arc<Mutex<u64>>,
 }
 
 impl FileWriter {
     pub fn new<P: AsRef<Path>>(path: P, min_level: LogLevel) -> Result<Self, std::io::Error> {
+        let file_path = path.as_ref().to_string_lossy().to_string();
         let file = OpenOptions::new()
             .create(true)
             .write(true)
             .append(true)
-            .open(path)?;
+            .open(&file_path)?;
+
+        let current_size = file.metadata()?.len();
 
         Ok(Self {
             file: Arc::new(Mutex::new(file)),
             min_level,
+            file_path,
+            max_file_size: 10 * 1024 * 1024, // Default 10MB
+            max_files: 5, // Default 5 files
+            current_size: Arc::new(Mutex::new(current_size)),
         })
+    }
+
+    pub fn with_max_file_size(mut self, size: u64) -> Self {
+        self.max_file_size = size;
+        self
+    }
+
+    pub fn with_max_files(mut self, count: u32) -> Self {
+        self.max_files = count;
+        self
+    }
+
+    fn rotate_if_needed(&self) -> Result<(), std::io::Error> {
+        let current_size = *self
+            .current_size
+            .lock()
+            .expect("Current size lock should not be poisoned");
+
+        if current_size >= self.max_file_size {
+            self.rotate_files()?;
+        }
+
+        Ok(())
+    }
+
+    fn rotate_files(&self) -> Result<(), std::io::Error> {
+        // Close current file
+        {
+            let mut file = self
+                .file
+                .lock()
+                .expect("File writer lock should not be poisoned");
+            file.flush()?;
+        }
+
+        // Remove oldest file if we have too many
+        let oldest_path = format!("{}.{}", self.file_path, self.max_files);
+        if Path::new(&oldest_path).exists() {
+            std::fs::remove_file(&oldest_path)?;
+        }
+
+        // Rotate existing files
+        for i in (1..self.max_files).rev() {
+            let old_path = format!("{}.{}", self.file_path, i);
+            let new_path = format!("{}.{}", self.file_path, i + 1);
+            if Path::new(&old_path).exists() {
+                std::fs::rename(&old_path, &new_path)?;
+            }
+        }
+
+        // Move current file to .1
+        let rotated_path = format!("{}.1", self.file_path);
+        std::fs::rename(&self.file_path, &rotated_path)?;
+
+        // Create new file
+        let new_file = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .append(true)
+            .open(&self.file_path)?;
+
+        // Update file handle and reset size
+        {
+            let mut file_handle = self
+                .file
+                .lock()
+                .expect("File writer lock should not be poisoned");
+            *file_handle = new_file;
+        }
+
+        *self
+            .current_size
+            .lock()
+            .expect("Current size lock should not be poisoned") = 0;
+
+        Ok(())
     }
 }
 
@@ -183,14 +270,16 @@ impl LogWriter for FileWriter {
             return Ok(());
         }
 
+        // Check if rotation is needed
+        self.rotate_if_needed()?;
+
         let mut file = self
             .file
             .lock()
             .expect("File writer lock should not be poisoned");
 
-        writeln!(
-            file,
-            "[{}] {} [{}] [{}:{}] - {}",
+        let message = format!(
+            "[{}] {} [{}] [{}:{}] - {}\n",
             entry.level,
             entry.timestamp.format("%Y-%m-%d %H:%M:%S%.3f"),
             entry.target,
@@ -203,7 +292,18 @@ impl LogWriter for FileWriter {
                 None => 0,
             },
             entry.message
-        )?;
+        );
+
+        let bytes_written = file.write(message.as_bytes())?;
+        
+        // Update current size
+        {
+            let mut current_size = self
+                .current_size
+                .lock()
+                .expect("Current size lock should not be poisoned");
+            *current_size += bytes_written as u64;
+        }
 
         Ok(())
     }
@@ -499,8 +599,11 @@ pub fn setup_logger(config: &LogConfig) -> Result<(), Box<dyn std::error::Error 
 
         // Add file writer if path is provided
         if let Some(ref path) = config.file_path {
-            let file_writer = Arc::new(FileWriter::new(path, config.level)?);
-            logger.add_writer(file_writer);
+            let mut file_writer = FileWriter::new(path, config.level)?;
+            file_writer = file_writer
+                .with_max_file_size(config.max_file_size)
+                .with_max_files(config.max_files);
+            logger.add_writer(Arc::new(file_writer));
         }
 
         // Add module filters

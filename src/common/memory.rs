@@ -1,10 +1,10 @@
 use std::alloc::Layout;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::ptr;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 
-/// Memory tracker to monitor allocations
+/// 内存跟踪器，用于监控内存分配
 #[derive(Debug)]
 pub struct MemoryTracker {
     total_allocated: AtomicUsize,
@@ -27,7 +27,6 @@ impl MemoryTracker {
         let old_current = self.current_allocated.fetch_add(size, Ordering::SeqCst);
         self.total_allocated.fetch_add(size, Ordering::SeqCst);
 
-        // Update peak if current is greater than previous peak
         let mut current_peak = self.peak_usage.load(Ordering::SeqCst);
         loop {
             if old_current + size > current_peak {
@@ -75,157 +74,192 @@ impl MemoryTracker {
     }
 }
 
-/// Global memory tracker
+/// 全局内存跟踪器
 static MEMORY_TRACKER: once_cell::sync::Lazy<MemoryTracker> =
     once_cell::sync::Lazy::new(MemoryTracker::new);
 
-/// Get a reference to the global memory tracker
+/// 获取全局内存跟踪器的引用
 pub fn memory_tracker() -> &'static MemoryTracker {
     &MEMORY_TRACKER
 }
 
-/// Custom memory pool implementation
+/// 使用 Arena 模式的安全内存池实现
 pub struct MemoryPool {
-    pool: Arc<Mutex<Vec<u8>>>,
-    available_chunks: Arc<Mutex<HashMap<usize, Vec<usize>>>>, // size -> list of start indices
-    chunk_size_map: Arc<Mutex<HashMap<usize, usize>>>,        // start index -> size
+    pool: Arc<RwLock<Vec<u8>>>,
+    available_chunks: Arc<RwLock<BTreeMap<usize, Vec<usize>>>>,
+    chunk_size_map: Arc<RwLock<BTreeMap<usize, usize>>>,
     total_size: usize,
     used_size: Arc<AtomicUsize>,
 }
 
-impl MemoryPool {
-    pub fn new(size: usize) -> Self {
-        let mut pool = Vec::with_capacity(size);
-        pool.resize(size, 0);
+/// 从 MemoryPool 分配的内存的安全句柄
+pub struct MemoryChunk {
+    pool: Arc<RwLock<Vec<u8>>>,
+    available_chunks: Arc<RwLock<BTreeMap<usize, Vec<usize>>>>,
+    chunk_size_map: Arc<RwLock<BTreeMap<usize, usize>>>,
+    used_size: Arc<AtomicUsize>,
+    start_idx: usize,
+    size: usize,
+}
 
-        let mut available_chunks = HashMap::new();
-        if size > 0 {
-            available_chunks.insert(size, vec![0]); // Start with one chunk of `size` at position 0
-        }
-
-        Self {
-            pool: Arc::new(Mutex::new(pool)),
-            available_chunks: Arc::new(Mutex::new(available_chunks)),
-            chunk_size_map: Arc::new(Mutex::new(HashMap::new())),
-            total_size: size,
-            used_size: Arc::new(AtomicUsize::new(0)),
+impl MemoryChunk {
+    pub fn with_slice<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&[u8]) -> R,
+    {
+        let pool = self.pool.read().ok();
+        match pool {
+            Some(p) => f(&p[self.start_idx..self.start_idx + self.size]),
+            None => f(&[]),
         }
     }
 
-    pub fn allocate(&self, size: usize) -> Option<*mut u8> {
+    pub fn with_mut_slice<F, R>(&mut self, f: F) -> R
+    where
+        F: FnOnce(&mut [u8]) -> R,
+    {
+        let mut pool = self.pool.write().ok();
+        match pool {
+            Some(ref mut p) => f(&mut p[self.start_idx..self.start_idx + self.size]),
+            None => f(&mut []),
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.size
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.size == 0
+    }
+}
+
+impl Drop for MemoryChunk {
+    fn drop(&mut self) {
+        if let (Ok(mut available_chunks), Ok(mut chunk_size_map)) = (
+            self.available_chunks.write(),
+            self.chunk_size_map.write(),
+        ) {
+            available_chunks
+                .entry(self.size)
+                .or_insert_with(Vec::new)
+                .push(self.start_idx);
+
+            chunk_size_map.remove(&self.start_idx);
+
+            self.used_size.fetch_sub(self.size, Ordering::SeqCst);
+        }
+    }
+}
+
+impl MemoryPool {
+    pub fn new(size: usize) -> Result<Self, String> {
+        if size == 0 {
+            return Err("内存池大小不能为零".to_string());
+        }
+
+        let mut pool = Vec::with_capacity(size);
+        pool.resize(size, 0);
+
+        let mut available_chunks = BTreeMap::new();
+        available_chunks.insert(size, vec![0]);
+
+        Ok(Self {
+            pool: Arc::new(RwLock::new(pool)),
+            available_chunks: Arc::new(RwLock::new(available_chunks)),
+            chunk_size_map: Arc::new(RwLock::new(BTreeMap::new())),
+            total_size: size,
+            used_size: Arc::new(AtomicUsize::new(0)),
+        })
+    }
+
+    pub fn allocate(&self, size: usize) -> Result<MemoryChunk, String> {
+        if size == 0 {
+            return Err("分配大小不能为零".to_string());
+        }
+
+        if size > self.total_size {
+            return Err(format!("请求大小 {} 超过内存池总大小 {}", size, self.total_size));
+        }
+
         let mut available_chunks = self
             .available_chunks
-            .lock()
-            .expect("Available chunks lock should not be poisoned");
+            .write()
+            .map_err(|e| format!("获取可用块锁失败: {}", e))?;
 
-        // Look for a suitable chunk (first fit)
-        if let Some(&start_idx) = available_chunks.get(&size).and_then(|v| v.first()) {
-            // Found an available chunk of exact size
-            available_chunks
-                .get_mut(&size)
-                .expect("Chunk should exist")
-                .remove(0);
-            if available_chunks[&size].is_empty() {
-                available_chunks.remove(&size);
-            }
-
-            // Mark this chunk as used
-            {
-                let mut chunk_map = self
-                    .chunk_size_map
-                    .lock()
-                    .expect("Chunk size map lock was poisoned");
-                chunk_map.insert(start_idx, size);
-            }
-
-            self.used_size.fetch_add(size, Ordering::SeqCst);
-
-            let pool = self.pool.lock().expect("Pool lock was poisoned");
-            Some(pool.as_ptr() as *mut u8).map(|p| unsafe { p.add(start_idx) })
-        } else {
-            // Try to find a larger chunk that can be split
-            let mut suitable_chunk = None;
-            for (&chunk_size, indices) in available_chunks.iter() {
-                if chunk_size >= size && !indices.is_empty() {
-                    suitable_chunk = Some((chunk_size, indices[0]));
-                    break;
-                }
-            }
-
-            if let Some((original_chunk_size, start_idx)) = suitable_chunk {
-                // Remove the chunk from available list
+        if let Some(indices) = available_chunks.get(&size) {
+            if let Some(&start_idx) = indices.first() {
                 available_chunks
-                    .get_mut(&original_chunk_size)
-                    .expect("Original chunk should exist")
-                    .retain(|&x| x != start_idx);
-                if available_chunks[&original_chunk_size].is_empty() {
-                    available_chunks.remove(&original_chunk_size);
+                    .get_mut(&size)
+                    .map(|v| v.remove(0));
+
+                if available_chunks.get(&size).map_or(true, |v| v.is_empty()) {
+                    available_chunks.remove(&size);
                 }
 
-                // If there's remaining space after allocation, add it back as available
-                if original_chunk_size > size {
-                    let remaining_size = original_chunk_size - size;
-                    let remaining_start_idx = start_idx + size;
-                    available_chunks
-                        .entry(remaining_size)
-                        .or_insert_with(Vec::new)
-                        .push(remaining_start_idx);
-                }
-
-                // Mark the allocated portion as used
-                {
-                    let mut chunk_map = self
-                        .chunk_size_map
-                        .lock()
-                        .expect("Chunk size map lock was poisoned");
+                if let Ok(mut chunk_map) = self.chunk_size_map.write() {
                     chunk_map.insert(start_idx, size);
                 }
 
                 self.used_size.fetch_add(size, Ordering::SeqCst);
 
-                let pool = self.pool.lock().expect("Pool lock was poisoned");
-                Some(pool.as_ptr() as *mut u8).map(|p| unsafe { p.add(start_idx) })
-            } else {
-                // No suitable chunk found, allocation failed
-                None
+                return Ok(MemoryChunk {
+                    pool: Arc::clone(&self.pool),
+                    available_chunks: Arc::clone(&self.available_chunks),
+                    chunk_size_map: Arc::clone(&self.chunk_size_map),
+                    used_size: Arc::clone(&self.used_size),
+                    start_idx,
+                    size,
+                });
             }
         }
-    }
 
-    pub fn deallocate(&self, ptr: *mut u8, size: usize) {
-        if ptr.is_null() {
-            return;
+        let mut suitable_chunk = None;
+        for (&chunk_size, indices) in available_chunks.iter() {
+            if chunk_size >= size && !indices.is_empty() {
+                suitable_chunk = Some((chunk_size, indices[0]));
+                break;
+            }
         }
 
-        // Calculate the index in our pool
-        let pool_ptr = self.pool.lock().expect("Pool lock was poisoned").as_ptr() as *mut u8;
-        let start_idx = unsafe { ptr.offset_from(pool_ptr) as usize };
+        if let Some((original_chunk_size, start_idx)) = suitable_chunk {
+            available_chunks
+                .get_mut(&original_chunk_size)
+                .map(|v| v.retain(|&x| x != start_idx));
 
-        // Verify this is a valid pointer from our pool
-        let mut chunk_size_map = self
-            .chunk_size_map
-            .lock()
-            .expect("Chunk size map lock was poisoned");
-        if chunk_size_map.get(&start_idx) != Some(&size) {
-            // This pointer doesn't belong to our pool or size doesn't match
-            return;
+            if available_chunks
+                .get(&original_chunk_size)
+                .map_or(true, |v| v.is_empty())
+            {
+                available_chunks.remove(&original_chunk_size);
+            }
+
+            if original_chunk_size > size {
+                let remaining_size = original_chunk_size - size;
+                let remaining_start_idx = start_idx + size;
+                available_chunks
+                    .entry(remaining_size)
+                    .or_insert_with(Vec::new)
+                    .push(remaining_start_idx);
+            }
+
+            if let Ok(mut chunk_map) = self.chunk_size_map.write() {
+                chunk_map.insert(start_idx, size);
+            }
+
+            self.used_size.fetch_add(size, Ordering::SeqCst);
+
+            Ok(MemoryChunk {
+                pool: Arc::clone(&self.pool),
+                available_chunks: Arc::clone(&self.available_chunks),
+                chunk_size_map: Arc::clone(&self.chunk_size_map),
+                used_size: Arc::clone(&self.used_size),
+                start_idx,
+                size,
+            })
+        } else {
+            Err(format!("无法分配 {} 字节的内存，内存池已满或碎片化", size))
         }
-
-        // Remove from used map
-        chunk_size_map.remove(&start_idx);
-        drop(chunk_size_map);
-
-        // Add to available chunks
-        let mut available_chunks = self
-            .available_chunks
-            .lock()
-            .expect("Available chunks lock was poisoned");
-        available_chunks
-            .entry(size)
-            .or_insert_with(Vec::new)
-            .push(start_idx);
-
-        self.used_size.fetch_sub(size, Ordering::SeqCst);
     }
 
     pub fn total_size(&self) -> usize {
@@ -241,7 +275,7 @@ impl MemoryPool {
     }
 }
 
-/// Memory statistics
+/// 内存统计信息
 #[derive(Debug, Clone)]
 pub struct MemoryStats {
     pub total_allocated: usize,
@@ -253,7 +287,7 @@ pub struct MemoryStats {
     pub pool_available_size: usize,
 }
 
-/// Get memory statistics
+/// 获取内存统计信息
 pub fn get_memory_stats(pool: Option<&MemoryPool>) -> MemoryStats {
     MemoryStats {
         total_allocated: MEMORY_TRACKER.total_allocated(),
@@ -275,52 +309,45 @@ pub fn get_memory_stats(pool: Option<&MemoryPool>) -> MemoryStats {
     }
 }
 
-/// Memory utilities
+/// 内存工具函数
 pub mod memory_utils {
     use super::*;
     use std::mem;
 
-    /// Get the size of a type in bytes
     pub fn size_of<T>() -> usize {
         mem::size_of::<T>()
     }
 
-    /// Get the alignment of a type
     pub fn align_of<T>() -> usize {
         mem::align_of::<T>()
     }
 
-    /// Fill a buffer with a specific value
     pub fn fill_buffer(buffer: &mut [u8], value: u8) {
         for b in buffer.iter_mut() {
             *b = value;
         }
     }
 
-    /// Compare two byte buffers
     pub fn compare_buffers(buf1: &[u8], buf2: &[u8]) -> bool {
         buf1 == buf2
     }
 
-    /// Copy memory from one location to another
     pub unsafe fn copy_memory(src: *const u8, dest: *mut u8, size: usize) {
         ptr::copy_nonoverlapping(src, dest, size);
     }
 
-    /// Set memory to a value
     pub unsafe fn set_memory(ptr: *mut u8, value: u8, size: usize) {
         ptr::write_bytes(ptr, value, size);
     }
 
-    /// Get the memory address of a value as a usize
     pub fn get_memory_address<T: ?Sized>(r: &T) -> usize {
         r as *const T as *const () as usize
     }
 }
 
-/// A simple object pool to reuse objects and reduce allocations
+/// 简单的对象池，用于重用对象并减少分配
 pub struct ObjectPool<T> {
-    pool: Arc<Mutex<Vec<T>>>,
+    pool: Arc<RwLock<Vec<T>>>,
     factory: Box<dyn Fn() -> T + Send + Sync>,
     max_size: usize,
 }
@@ -328,89 +355,78 @@ pub struct ObjectPool<T> {
 impl<T: Clone + 'static> ObjectPool<T> {
     pub fn new(factory: Box<dyn Fn() -> T + Send + Sync>, max_size: usize) -> Self {
         Self {
-            pool: Arc::new(Mutex::new(Vec::new())),
+            pool: Arc::new(RwLock::new(Vec::new())),
             factory,
             max_size,
         }
     }
 
     pub fn get(&self) -> T {
-        let mut pool = self.pool.lock().expect("Object pool lock was poisoned");
-        if let Some(obj) = pool.pop() {
-            obj
-        } else {
-            (self.factory)()
+        if let Ok(mut pool) = self.pool.write() {
+            if let Some(obj) = pool.pop() {
+                return obj;
+            }
         }
+        (self.factory)()
     }
 
     pub fn return_obj(&self, obj: T) {
-        let mut pool = self.pool.lock().expect("Object pool lock was poisoned");
-        if pool.len() < self.max_size {
-            pool.push(obj);
+        if let Ok(mut pool) = self.pool.write() {
+            if pool.len() < self.max_size {
+                pool.push(obj);
+            }
         }
-        // Otherwise, the object is dropped
     }
 
     pub fn len(&self) -> usize {
-        self.pool
-            .lock()
-            .expect("Object pool lock was poisoned")
-            .len()
+        self.pool.read().map(|p| p.len()).unwrap_or(0)
     }
 
     pub fn is_empty(&self) -> bool {
-        self.pool
-            .lock()
-            .expect("Object pool lock was poisoned")
-            .is_empty()
+        self.pool.read().map(|p| p.is_empty()).unwrap_or(true)
     }
 }
 
-/// Memory leak detector (simplified for demonstration)
+/// 内存泄漏检测器（简化版，用于演示）
 pub struct MemoryLeakDetector {
-    allocations: Arc<Mutex<HashMap<usize, (Layout, String)>>>,
+    allocations: Arc<RwLock<std::collections::HashMap<usize, (Layout, String)>>>,
 }
 
 impl MemoryLeakDetector {
     pub fn new() -> Self {
         Self {
-            allocations: Arc::new(Mutex::new(HashMap::new())),
+            allocations: Arc::new(RwLock::new(std::collections::HashMap::new())),
         }
     }
 
     pub fn record_allocation(&self, ptr: usize, layout: Layout, location: String) {
-        let mut allocations = self
-            .allocations
-            .lock()
-            .expect("Allocations lock was poisoned");
-        allocations.insert(ptr, (layout, location));
+        if let Ok(mut allocations) = self.allocations.write() {
+            allocations.insert(ptr, (layout, location));
+        }
     }
 
     pub fn record_deallocation(&self, ptr: usize) {
-        let mut allocations = self
-            .allocations
-            .lock()
-            .expect("Allocations lock was poisoned");
-        allocations.remove(&ptr);
+        if let Ok(mut allocations) = self.allocations.write() {
+            allocations.remove(&ptr);
+        }
     }
 
     pub fn report_leaks(&self) -> Vec<(usize, Layout, String)> {
-        let allocations = self
-            .allocations
-            .lock()
-            .expect("Allocations lock was poisoned");
-        allocations
-            .iter()
-            .map(|(&ptr, (layout, location))| (ptr, *layout, location.clone()))
-            .collect()
+        if let Ok(allocations) = self.allocations.read() {
+            allocations
+                .iter()
+                .map(|(&ptr, (layout, location))| (ptr, *layout, location.clone()))
+                .collect()
+        } else {
+            Vec::new()
+        }
     }
 
     pub fn has_leaks(&self) -> bool {
-        let allocations = self
-            .allocations
-            .lock()
-            .expect("Allocations lock was poisoned");
-        !allocations.is_empty()
+        self.allocations
+            .read()
+            .map(|allocations| !allocations.is_empty())
+            .unwrap_or(false)
     }
 }
 
@@ -421,14 +437,14 @@ pub fn leak_detector() -> &'static MemoryLeakDetector {
     &LEAK_DETECTOR
 }
 
-/// Memory management configuration
+/// 内存管理配置
 #[derive(Debug, Clone)]
 pub struct MemoryConfig {
     pub enable_tracking: bool,
     pub enable_pooling: bool,
     pub pool_size: usize,
     pub max_object_pool_size: usize,
-    pub log_memory_stats_interval: Option<u64>, // seconds
+    pub log_memory_stats_interval: Option<u64>,
 }
 
 impl Default for MemoryConfig {
@@ -436,24 +452,22 @@ impl Default for MemoryConfig {
         Self {
             enable_tracking: true,
             enable_pooling: true,
-            pool_size: 10 * 1024 * 1024, // 10MB
+            pool_size: 10 * 1024 * 1024,
             max_object_pool_size: 100,
-            log_memory_stats_interval: Some(300), // 5 minutes
+            log_memory_stats_interval: Some(300),
         }
     }
 }
 
-/// Initialize memory management with the given configuration
+/// 使用给定配置初始化内存管理
 pub fn init_memory_management(config: &MemoryConfig) {
-    // Initialize tracking if enabled
     if config.enable_tracking {
         MEMORY_TRACKER.reset();
     }
 
-    // Print initial stats if needed
     if config.enable_tracking {
         let stats = get_memory_stats(None);
-        println!("Memory tracking initialized. Current stats: {:?}", stats);
+        println!("内存跟踪已初始化。当前统计: {:?}", stats);
     }
 }
 
@@ -484,30 +498,45 @@ mod tests {
 
     #[test]
     fn test_memory_pool() {
-        let pool = MemoryPool::new(1024); // 1KB pool
+        let pool = MemoryPool::new(1024).expect("内存池创建失败");
 
         assert_eq!(pool.total_size(), 1024);
         assert_eq!(pool.available_size(), 1024);
         assert_eq!(pool.used_size(), 0);
 
-        // Allocate 100 bytes
-        let ptr1 = pool.allocate(100);
-        assert!(ptr1.is_some());
-        assert_eq!(pool.available_size(), 924); // 1024 - 100
+        let mut chunk1 = pool.allocate(100).expect("分配失败");
+        assert_eq!(pool.available_size(), 924);
         assert_eq!(pool.used_size(), 100);
 
-        // Allocate another 50 bytes
-        let ptr2 = pool.allocate(50);
-        assert!(ptr2.is_some());
-        assert_eq!(pool.available_size(), 874); // 1024 - 100 - 50
+        let _chunk2 = pool.allocate(50).expect("分配失败");
+        assert_eq!(pool.available_size(), 874);
         assert_eq!(pool.used_size(), 150);
 
-        // Deallocate first chunk
-        if let Some(p) = ptr1 {
-            pool.deallocate(p, 100);
-        }
-        assert_eq!(pool.available_size(), 974); // 874 + 100
+        let value = chunk1.with_mut_slice(|slice| {
+            slice[0] = 42;
+            slice[0]
+        });
+        assert_eq!(value, 42);
+
+        let read_value = chunk1.with_slice(|slice| slice[0]);
+        assert_eq!(read_value, 42);
+
+        drop(chunk1);
+        assert_eq!(pool.available_size(), 974);
         assert_eq!(pool.used_size(), 50);
+    }
+
+    #[test]
+    fn test_memory_pool_zero_size() {
+        let pool = MemoryPool::new(0);
+        assert!(pool.is_err());
+    }
+
+    #[test]
+    fn test_memory_pool_allocation_too_large() {
+        let pool = MemoryPool::new(1024).expect("内存池创建失败");
+        let result = pool.allocate(2048);
+        assert!(result.is_err());
     }
 
     #[test]
@@ -517,17 +546,14 @@ mod tests {
 
         assert!(pool.is_empty());
 
-        // Get an object
         let obj = pool.get();
         assert_eq!(obj, 0);
         assert!(pool.is_empty());
 
-        // Return the object
         pool.return_obj(obj);
         assert!(!pool.is_empty());
         assert_eq!(pool.len(), 1);
 
-        // Get it again
         let obj2 = pool.get();
         assert_eq!(obj2, 0);
         assert!(pool.is_empty());
@@ -535,14 +561,11 @@ mod tests {
 
     #[test]
     fn test_memory_utils() {
-        // Test size_of
         assert_eq!(memory_utils::size_of::<i32>(), 4);
         assert_eq!(memory_utils::size_of::<u64>(), 8);
 
-        // Test align_of
         assert_eq!(memory_utils::align_of::<i32>(), std::mem::align_of::<i32>());
 
-        // Test buffer operations
         let mut buffer = [0u8; 10];
         memory_utils::fill_buffer(&mut buffer, 5);
         assert_eq!(buffer, [5u8; 10]);
@@ -557,7 +580,7 @@ mod tests {
 
         assert!(!detector.has_leaks());
 
-        let layout = Layout::from_size_align(100, 8).expect("Failed to create layout");
+        let layout = Layout::from_size_align(100, 8).expect("布局创建失败");
         detector.record_allocation(0x1000, layout, "test_location".to_string());
 
         assert!(detector.has_leaks());

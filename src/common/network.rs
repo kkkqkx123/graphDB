@@ -141,21 +141,97 @@ impl<T> NetworkServer<T> {
 
     /// Serves a client by reading and processing requests
     async fn serve_client(
-        _stream: TcpStream,
-        _client_id: String,
+        mut stream: TcpStream,
+        client_id: String,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        // This is a simplified implementation
-        // In a real system, we would implement the actual protocol for handling requests
-        // For now, we'll just simulate the handling
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-        // Note: For a complete implementation, we would need to:
-        // 1. Implement the actual network protocol (likely binary)
-        // 2. Read requests from the stream
-        // 3. Send them to the API for processing
-        // 4. Send responses back to the client
-        // 5. Handle various types of requests (query, auth, etc.)
+        let mut buffer = vec![0u8; 8192];
+
+        loop {
+            let read_result = timeout(
+                Duration::from_secs(60),
+                stream.read(&mut buffer),
+            )
+            .await;
+
+            match read_result {
+                Ok(Ok(0)) => {
+                    println!("Client {} disconnected", client_id);
+                    break;
+                }
+                Ok(Ok(n)) => {
+                    let data = &buffer[..n];
+
+                    let response = match Self::parse_request(data) {
+                        Ok(request) => Self::process_request(request, &client_id).await,
+                        Err(e) => format!("Error: {}", e),
+                    };
+
+                    if let Err(e) = stream.write_all(response.as_bytes()).await {
+                        eprintln!("Error writing to client {}: {:?}", client_id, e);
+                        break;
+                    }
+                }
+                Ok(Err(e)) => {
+                    eprintln!("Error reading from client {}: {:?}", client_id, e);
+                    break;
+                }
+                Err(_) => {
+                    println!("Client {} timed out", client_id);
+                    break;
+                }
+            }
+        }
 
         Ok(())
+    }
+
+    /// Parses a request from raw bytes
+    fn parse_request(data: &[u8]) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+        let request_str = std::str::from_utf8(data)?;
+        Ok(request_str.trim().to_string())
+    }
+
+    /// Processes a request and returns a response
+    async fn process_request(
+        request: String,
+        client_id: &str,
+    ) -> String {
+        let request = request.trim();
+
+        if request.is_empty() {
+            return "Error: Empty request".to_string();
+        }
+
+        let parts: Vec<&str> = request.split_whitespace().collect();
+        let command = parts.get(0).unwrap_or(&"");
+
+        match *command {
+            "PING" => "PONG".to_string(),
+            "STATUS" => format!(
+                "Status: OK\nClient: {}\nTime: {}",
+                client_id,
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs()
+            ),
+            "QUERY" => {
+                let query = parts[1..].join(" ");
+                format!("Query received: {}\nResult: Query processed (placeholder)", query)
+            }
+            "AUTH" => {
+                if parts.len() >= 3 {
+                    let username = parts.get(1).unwrap_or(&"");
+                    format!("Auth: User '{}' authenticated successfully", username)
+                } else {
+                    "Error: Invalid AUTH command".to_string()
+                }
+            }
+            "CLOSE" => "Closing connection".to_string(),
+            _ => format!("Error: Unknown command '{}'", command),
+        }
     }
 
     /// Gets current connection count

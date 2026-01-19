@@ -1,13 +1,15 @@
 use super::{StorageEngine, TransactionId};
 use crate::core::{Direction, Edge, StorageError, Value, Vertex};
 use crate::core::vertex_edge_path::Tag;
+use crate::common::memory::MemoryPool;
+use crate::common::base::id::{IdGenerator, TagId, EdgeId};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 type VertexKey = Vec<u8>;
 type EdgeKey = (Vec<u8>, Vec<u8>, String);
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct MemoryStorage {
     vertices: Arc<Mutex<HashMap<VertexKey, Vertex>>>,
     edges: Arc<Mutex<HashMap<EdgeKey, Edge>>>,
@@ -16,6 +18,22 @@ pub struct MemoryStorage {
     vertex_props: Arc<Mutex<HashMap<(String, String, Vec<u8>), Vec<VertexKey>>>>,
     active_transactions: Arc<Mutex<HashMap<TransactionId, TransactionState>>>,
     next_tx_id: Arc<Mutex<TransactionId>>,
+    memory_pool: Arc<MemoryPool>,
+    id_generator: Arc<Mutex<IdGenerator>>,
+}
+
+impl std::fmt::Debug for MemoryStorage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MemoryStorage")
+            .field("vertices", &self.vertices)
+            .field("edges", &self.edges)
+            .field("vertex_tags", &self.vertex_tags)
+            .field("edge_types", &self.edge_types)
+            .field("active_transactions", &self.active_transactions)
+            .field("next_tx_id", &self.next_tx_id)
+            .field("id_generator", &self.id_generator)
+            .finish()
+    }
 }
 
 #[derive(Debug)]
@@ -29,6 +47,9 @@ struct TransactionState {
 
 impl MemoryStorage {
     pub fn new() -> Result<Self, StorageError> {
+        let memory_pool = Arc::new(MemoryPool::new(100 * 1024 * 1024).map_err(|e| StorageError::DbError(e))?); // 100MB
+        let id_generator = Arc::new(Mutex::new(IdGenerator::new()));
+
         Ok(Self {
             vertices: Arc::new(Mutex::new(HashMap::new())),
             edges: Arc::new(Mutex::new(HashMap::new())),
@@ -37,6 +58,8 @@ impl MemoryStorage {
             vertex_props: Arc::new(Mutex::new(HashMap::new())),
             active_transactions: Arc::new(Mutex::new(HashMap::new())),
             next_tx_id: Arc::new(Mutex::new(1)),
+            memory_pool,
+            id_generator,
         })
     }
 
@@ -147,8 +170,13 @@ impl StorageEngine for MemoryStorage {
     }
 
     fn insert_edge(&mut self, edge: Edge) -> Result<(), StorageError> {
-        let key = Self::serialize_edge_key(&edge.src, &edge.dst, &edge.edge_type);
         let edge_type = edge.edge_type.clone();
+        let _edge_id = {
+            let mut generator = self.id_generator.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+            generator.generate_edge_id()
+        };
+
+        let key = Self::serialize_edge_key(&edge.src, &edge.dst, &edge_type);
 
         let mut edges = self.edges.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         edges.insert(key.clone(), edge);

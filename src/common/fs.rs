@@ -294,13 +294,24 @@ impl FileHandle {
 
 /// File lock for coordinating access to files
 pub struct FileLock {
-    _file: File,
-    _path: PathBuf,
+    file: File,
+    path: PathBuf,
+    is_exclusive: bool,
 }
 
 impl FileLock {
     /// Acquire an exclusive lock on a file
     pub fn acquire_exclusive<P: AsRef<Path>>(path: P) -> FsResult<Self> {
+        Self::acquire_lock(path, true)
+    }
+
+    /// Acquire a shared lock on a file
+    pub fn acquire_shared<P: AsRef<Path>>(path: P) -> FsResult<Self> {
+        Self::acquire_lock(path, false)
+    }
+
+    /// Internal method to acquire a lock
+    fn acquire_lock<P: AsRef<Path>>(path: P, exclusive: bool) -> FsResult<Self> {
         let file = std::fs::OpenOptions::new()
             .read(true)
             .write(true)
@@ -308,23 +319,165 @@ impl FileLock {
             .open(path.as_ref())
             .map_err(|e| FsError::IoError(e))?;
 
-        // In a real implementation, we would use proper file locking
-        // For this implementation, we'll just return the file handle
+        // Try to acquire the lock with a timeout
+        let timeout = std::time::Duration::from_secs(30);
+        let start = std::time::Instant::now();
+
+        loop {
+            match Self::try_lock(&file, exclusive) {
+                Ok(_) => break,
+                Err(_) => {
+                    if start.elapsed() >= timeout {
+                        return Err(FsError::PermissionDenied(format!(
+                            "Failed to acquire lock on file: {}",
+                            path.as_ref().display()
+                        )));
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+                }
+            }
+        }
+
         Ok(Self {
-            _file: file,
-            _path: path.as_ref().to_path_buf(),
+            file,
+            path: path.as_ref().to_path_buf(),
+            is_exclusive: exclusive,
         })
     }
 
-    /// Acquire a shared lock on a file
-    pub fn acquire_shared<P: AsRef<Path>>(path: P) -> FsResult<Self> {
-        let file = File::open(path.as_ref()).map_err(|e| FsError::IoError(e))?;
+    /// Try to acquire a lock without blocking
+    fn try_lock(file: &File, exclusive: bool) -> FsResult<()> {
+        #[cfg(unix)]
+        {
+            use std::os::unix::io::AsRawFd;
+            let fd = file.as_raw_fd();
 
-        // In a real implementation, we would use proper file locking
-        Ok(Self {
-            _file: file,
-            _path: path.as_ref().to_path_buf(),
-        })
+            let operation = if exclusive {
+                libc::LOCK_EX | libc::LOCK_NB
+            } else {
+                libc::LOCK_SH | libc::LOCK_NB
+            };
+
+            let result = unsafe { libc::flock(fd, operation) };
+
+            if result == 0 {
+                Ok(())
+            } else {
+                Err(FsError::PermissionDenied(
+                    "File is locked by another process".to_string(),
+                ))
+            }
+        }
+
+        #[cfg(windows)]
+        {
+            use std::os::windows::io::AsRawHandle;
+            use winapi::um::fileapi::LockFileEx;
+            use winapi::um::minwinbase::{LOCKFILE_EXCLUSIVE_LOCK, LOCKFILE_FAIL_IMMEDIATELY};
+            use winapi::um::minwinbase::OVERLAPPED;
+
+            let handle = file.as_raw_handle() as *mut winapi::ctypes::c_void;
+
+            let mut overlapped: OVERLAPPED = unsafe { std::mem::zeroed() };
+            let flags = if exclusive {
+                LOCKFILE_EXCLUSIVE_LOCK | LOCKFILE_FAIL_IMMEDIATELY
+            } else {
+                LOCKFILE_FAIL_IMMEDIATELY
+            };
+
+            let result = unsafe {
+                LockFileEx(
+                    handle,
+                    flags,
+                    0,
+                    0xFFFFFFFF,
+                    0xFFFFFFFF,
+                    &mut overlapped,
+                )
+            };
+
+            if result != 0 {
+                Ok(())
+            } else {
+                Err(FsError::PermissionDenied(
+                    "File is locked by another process".to_string(),
+                ))
+            }
+        }
+
+        #[cfg(not(any(unix, windows)))]
+        {
+            Ok(())
+        }
+    }
+
+    /// Release the lock
+    pub fn release(&self) -> FsResult<()> {
+        #[cfg(unix)]
+        {
+            use std::os::unix::io::AsRawFd;
+            let fd = self.file.as_raw_fd();
+            let result = unsafe { libc::flock(fd, libc::LOCK_UN) };
+
+            if result == 0 {
+                Ok(())
+            } else {
+                Err(FsError::IoError(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "Failed to release file lock",
+                )))
+            }
+        }
+
+        #[cfg(windows)]
+        {
+            use std::os::windows::io::AsRawHandle;
+            use winapi::um::fileapi::UnlockFileEx;
+            use winapi::um::minwinbase::OVERLAPPED;
+
+            let handle = self.file.as_raw_handle() as *mut winapi::ctypes::c_void;
+            let mut overlapped: OVERLAPPED = unsafe { std::mem::zeroed() };
+
+            let result = unsafe {
+                UnlockFileEx(
+                    handle,
+                    0,
+                    0xFFFFFFFF,
+                    0xFFFFFFFF,
+                    &mut overlapped,
+                )
+            };
+
+            if result != 0 {
+                Ok(())
+            } else {
+                Err(FsError::IoError(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "Failed to release file lock",
+                )))
+            }
+        }
+
+        #[cfg(not(any(unix, windows)))]
+        {
+            Ok(())
+        }
+    }
+
+    /// Get the file path
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    /// Check if the lock is exclusive
+    pub fn is_exclusive(&self) -> bool {
+        self.is_exclusive
+    }
+}
+
+impl Drop for FileLock {
+    fn drop(&mut self) {
+        let _ = self.release();
     }
 }
 

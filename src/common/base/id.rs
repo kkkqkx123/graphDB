@@ -126,6 +126,7 @@ impl fmt::Display for IndexId {
 }
 
 /// Global ID generator
+#[derive(Debug)]
 pub struct IdGenerator {
     vertex_counter: AtomicU64,
     edge_counter: AtomicU64,
@@ -158,23 +159,35 @@ impl IdGenerator {
     }
 
     pub fn generate_tag_id(&self) -> TagId {
-        let id = self.tag_counter.fetch_add(1, Ordering::SeqCst) as i32;
-        TagId::new(id)
+        let id = self.tag_counter.fetch_add(1, Ordering::SeqCst);
+        if id > i32::MAX as u64 {
+            panic!("Tag ID overflow: exceeded maximum value of i32");
+        }
+        TagId::new(id as i32)
     }
 
     pub fn generate_edge_type(&self) -> EdgeType {
-        let id = self.edge_type_counter.fetch_add(1, Ordering::SeqCst) as i32;
-        EdgeType::new(id)
+        let id = self.edge_type_counter.fetch_add(1, Ordering::SeqCst);
+        if id > i32::MAX as u64 {
+            panic!("Edge type ID overflow: exceeded maximum value of i32");
+        }
+        EdgeType::new(id as i32)
     }
 
     pub fn generate_space_id(&self) -> SpaceId {
-        let id = self.space_counter.fetch_add(1, Ordering::SeqCst) as i32;
-        SpaceId::new(id)
+        let id = self.space_counter.fetch_add(1, Ordering::SeqCst);
+        if id > i32::MAX as u64 {
+            panic!("Space ID overflow: exceeded maximum value of i32");
+        }
+        SpaceId::new(id as i32)
     }
 
     pub fn generate_index_id(&self) -> IndexId {
-        let id = self.index_counter.fetch_add(1, Ordering::SeqCst) as i32;
-        IndexId::new(id)
+        let id = self.index_counter.fetch_add(1, Ordering::SeqCst);
+        if id > i32::MAX as u64 {
+            panic!("Index ID overflow: exceeded maximum value of i32");
+        }
+        IndexId::new(id as i32)
     }
 
     pub fn reset(&self) {

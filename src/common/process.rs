@@ -1,5 +1,3 @@
-#[cfg(unix)]
-use signal_hook::{consts::SIGINT, consts::SIGTERM, iterator::Signals};
 use std::collections::HashMap;
 use std::env;
 use std::fs;
@@ -7,6 +5,9 @@ use std::path::Path;
 use std::process;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
+
+#[cfg(unix)]
+use signal_hook::{consts::SIGINT, consts::SIGTERM, iterator::Signals};
 
 /// Represents a process identifier
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -282,10 +283,59 @@ impl SignalHandler {
 }
 
 /// Get memory usage for the current process
+#[cfg(unix)]
 fn get_memory_usage() -> Result<u64, Box<dyn std::error::Error + Send + Sync>> {
-    // This is a simplified implementation that returns an approximation
-    // In a real implementation, we would check system-specific files like /proc/self/status on Linux
-    Ok(0) // Placeholder value
+    use std::fs::File;
+    use std::io::{BufRead, BufReader};
+
+    let file = File::open("/proc/self/status")?;
+    let reader = BufReader::new(file);
+
+    for line in reader.lines() {
+        let line = line?;
+        if line.starts_with("VmRSS:") {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() >= 2 {
+                let kb: u64 = parts[1].parse()?;
+                return Ok(kb * 1024); // Convert to bytes
+            }
+        }
+    }
+
+    Ok(0)
+}
+
+/// Get memory usage for the current process (Windows)
+#[cfg(windows)]
+fn get_memory_usage() -> Result<u64, Box<dyn std::error::Error + Send + Sync>> {
+    use std::mem;
+    use winapi::um::processthreadsapi::GetCurrentProcess;
+    use winapi::um::psapi::GetProcessMemoryInfo;
+    use winapi::um::psapi::PROCESS_MEMORY_COUNTERS;
+
+    let handle = unsafe { GetCurrentProcess() };
+    let mut pmc: PROCESS_MEMORY_COUNTERS = unsafe { mem::zeroed() };
+    pmc.cb = mem::size_of::<PROCESS_MEMORY_COUNTERS>() as u32;
+
+    let result = unsafe {
+        GetProcessMemoryInfo(
+            handle,
+            &mut pmc as *mut PROCESS_MEMORY_COUNTERS,
+            mem::size_of::<PROCESS_MEMORY_COUNTERS>() as u32,
+        )
+    };
+
+    if result != 0 {
+        Ok(pmc.WorkingSetSize as u64)
+    } else {
+        Ok(0)
+    }
+}
+
+/// Get memory usage for the current process (fallback for other platforms)
+#[cfg(not(any(unix, windows)))]
+fn get_memory_usage() -> Result<u64, Box<dyn std::error::Error + Send + Sync>> {
+    Ok(0)
 }
 
 /// Get system resource usage information
@@ -303,19 +353,84 @@ pub struct SystemResourceUsage {
 pub mod system_resources {
     use super::*;
 
-    /// Get current system resource usage
+    /// Get current system resource usage (Unix)
+    #[cfg(unix)]
     pub fn get_system_usage(
     ) -> Result<SystemResourceUsage, Box<dyn std::error::Error + Send + Sync>> {
-        // This is a simplified implementation
-        // In a real implementation, this would query system resources
+        use std::fs::File;
+        use std::io::{BufRead, BufReader};
+
+        let meminfo = File::open("/proc/meminfo")?;
+        let reader = BufReader::new(meminfo);
+        let mut total_memory = 0u64;
+        let mut available_memory = 0u64;
+        let mut total_swap = 0u64;
+        let mut free_swap = 0u64;
+
+        for line in reader.lines() {
+            let line = line?;
+            if line.starts_with("MemTotal:") {
+                total_memory = parse_memory_line(&line)?;
+            } else if line.starts_with("MemAvailable:") {
+                available_memory = parse_memory_line(&line)?;
+            } else if line.starts_with("SwapTotal:") {
+                total_swap = parse_memory_line(&line)?;
+            } else if line.starts_with("SwapFree:") {
+                free_swap = parse_memory_line(&line)?;
+            }
+        }
+
+        let load_avg = get_load_average()?;
+
         Ok(SystemResourceUsage {
-            total_memory: 0, // Would be filled with actual values
+            total_memory,
+            available_memory,
+            used_memory: total_memory.saturating_sub(available_memory),
+            total_swap,
+            used_swap: total_swap.saturating_sub(free_swap),
+            cpu_count: num_cpus::get() as u8,
+            load_avg,
+        })
+    }
+
+    /// Get current system resource usage (Windows)
+    #[cfg(windows)]
+    pub fn get_system_usage(
+    ) -> Result<SystemResourceUsage, Box<dyn std::error::Error + Send + Sync>> {
+        use winapi::um::sysinfoapi::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
+
+        let mut mem_status: MEMORYSTATUSEX = unsafe { std::mem::zeroed() };
+        mem_status.dwLength = std::mem::size_of::<MEMORYSTATUSEX>() as u32;
+
+        let result = unsafe { GlobalMemoryStatusEx(&mut mem_status) };
+
+        if result != 0 {
+            Ok(SystemResourceUsage {
+                total_memory: mem_status.ullTotalPhys,
+                available_memory: mem_status.ullAvailPhys,
+                used_memory: mem_status.ullTotalPhys - mem_status.ullAvailPhys,
+                total_swap: mem_status.ullTotalPageFile,
+                used_swap: mem_status.ullTotalPageFile - mem_status.ullAvailPageFile,
+                cpu_count: num_cpus::get() as u8,
+                load_avg: (0.0, 0.0, 0.0), // Windows doesn't have load average
+            })
+        } else {
+            Err("Failed to get system memory status".into())
+        }
+    }
+
+    /// Get current system resource usage (fallback)
+    #[cfg(not(any(unix, windows)))]
+    pub fn get_system_usage(
+    ) -> Result<SystemResourceUsage, Box<dyn std::error::Error + Send + Sync>> {
+        Ok(SystemResourceUsage {
+            total_memory: 0,
             available_memory: 0,
             used_memory: 0,
             total_swap: 0,
             used_swap: 0,
             cpu_count: num_cpus::get() as u8,
-            load_avg: (0.0, 0.0, 0.0), // Would be filled with actual load avg
+            load_avg: (0.0, 0.0, 0.0),
         })
     }
 
@@ -328,6 +443,31 @@ pub mod system_resources {
     /// Check if a path is accessible
     pub fn is_path_accessible(path: &str) -> bool {
         Path::new(path).exists()
+    }
+}
+
+#[cfg(unix)]
+fn parse_memory_line(line: &str) -> Result<u64, Box<dyn std::error::Error + Send + Sync>> {
+    let parts: Vec<&str> = line.split_whitespace().collect();
+    if parts.len() >= 2 {
+        let kb: u64 = parts[1].parse()?;
+        Ok(kb * 1024)
+    } else {
+        Ok(0)
+    }
+}
+
+#[cfg(unix)]
+fn get_load_average() -> Result<(f64, f64, f64), Box<dyn std::error::Error + Send + Sync>> {
+    use libc::{getloadavg, c_double};
+    
+    let mut load = [0.0f64; 3];
+    let result = unsafe { getloadavg(load.as_mut_ptr() as *mut c_double, 3) };
+    
+    if result >= 3 {
+        Ok((load[0], load[1], load[2]))
+    } else {
+        Ok((0.0, 0.0, 0.0))
     }
 }
 
@@ -386,7 +526,7 @@ pub fn get_environment_var(key: &str) -> Option<String> {
 
 /// Set an environment variable for the current process
 pub fn set_environment_var(key: &str, value: &str) {
-    unsafe { std::env::set_var(key, value) };
+    std::env::set_var(key, value);
 }
 
 /// Initialize process management
