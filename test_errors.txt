@@ -1,0 +1,1 @@
+error: could not compile `graphdb` (test "thread_common_test") due to 8 previous errors; 1 warning emitted
