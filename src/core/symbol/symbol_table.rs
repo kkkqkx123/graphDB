@@ -1,43 +1,27 @@
 use crate::core::PlanNodeRef;
+use crate::core::value::types::ValueTypeDef;
 
 use dashmap::DashMap;
-use std::collections::{HashMap, HashSet};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::collections::HashSet;
 use std::sync::Arc;
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum SymbolType {
-    Variable,
-    Alias,
-    Parameter,
-    Function,
-    Dataset,
-    Vertex,
-    Edge,
-    Path,
-}
 
 #[derive(Debug, Clone)]
 pub struct Symbol {
     pub name: String,
-    pub symbol_type: SymbolType,
+    pub value_type: ValueTypeDef,
     pub col_names: Vec<String>,
     pub readers: HashSet<PlanNodeRef>,
     pub writers: HashSet<PlanNodeRef>,
-    pub user_count: Arc<AtomicU64>,
-    pub created_at: std::time::SystemTime,
 }
 
 impl Symbol {
-    pub fn new(name: String, symbol_type: SymbolType) -> Self {
+    pub fn new(name: String, value_type: ValueTypeDef) -> Self {
         Self {
             name,
-            symbol_type,
+            value_type,
             col_names: Vec::new(),
             readers: HashSet::new(),
             writers: HashSet::new(),
-            user_count: Arc::new(AtomicU64::new(0)),
-            created_at: std::time::SystemTime::now(),
         }
     }
 
@@ -46,17 +30,9 @@ impl Symbol {
         self
     }
 
-    pub fn with_type(mut self, symbol_type: SymbolType) -> Self {
-        self.symbol_type = symbol_type;
+    pub fn with_type(mut self, value_type: ValueTypeDef) -> Self {
+        self.value_type = value_type;
         self
-    }
-
-    pub fn increment_user_count(&self) {
-        self.user_count.fetch_add(1, Ordering::Relaxed);
-    }
-
-    pub fn get_user_count(&self) -> u64 {
-        self.user_count.load(Ordering::Relaxed)
     }
 }
 
@@ -77,7 +53,7 @@ impl SymbolTable {
             return Err(format!("变量 '{}' 已存在", name));
         }
 
-        let symbol = Symbol::new(name.to_string(), SymbolType::Variable);
+        let symbol = Symbol::new(name.to_string(), ValueTypeDef::DataSet);
         self.symbols.insert(name.to_string(), symbol.clone());
         Ok(symbol)
     }
@@ -87,7 +63,7 @@ impl SymbolTable {
             return Err(format!("变量 '{}' 已存在", name));
         }
 
-        let symbol = Symbol::new(name.to_string(), SymbolType::Dataset)
+        let symbol = Symbol::new(name.to_string(), ValueTypeDef::DataSet)
             .with_col_names(col_names);
         self.symbols.insert(name.to_string(), symbol.clone());
         Ok(symbol)
@@ -112,7 +88,6 @@ impl SymbolTable {
     pub fn read_by(&self, var_name: &str, node: PlanNodeRef) -> Result<(), String> {
         if let Some(mut symbol) = self.symbols.get_mut(var_name) {
             symbol.readers.insert(node);
-            symbol.increment_user_count();
             Ok(())
         } else {
             Err(format!("变量 '{}' 不存在", var_name))
@@ -122,7 +97,6 @@ impl SymbolTable {
     pub fn written_by(&self, var_name: &str, node: PlanNodeRef) -> Result<(), String> {
         if let Some(mut symbol) = self.symbols.get_mut(var_name) {
             symbol.writers.insert(node);
-            symbol.increment_user_count();
             Ok(())
         } else {
             Err(format!("变量 '{}' 不存在", var_name))
@@ -191,61 +165,6 @@ impl SymbolTable {
         Ok(success)
     }
 
-    pub fn rename_variable(&self, old_name: &str, new_name: &str) -> Result<(), String> {
-        if let Some((_, mut symbol)) = self.symbols.remove(old_name) {
-            symbol.name = new_name.to_string();
-            self.symbols.insert(new_name.to_string(), symbol);
-            Ok(())
-        } else {
-            Err(format!("变量 '{}' 不存在", old_name))
-        }
-    }
-
-    pub fn get_readers(&self, var_name: &str) -> Result<Vec<PlanNodeRef>, String> {
-        if let Some(symbol) = self.symbols.get(var_name) {
-            Ok(symbol.readers.iter().cloned().collect())
-        } else {
-            Err(format!("变量 '{}' 不存在", var_name))
-        }
-    }
-
-    pub fn get_writers(&self, var_name: &str) -> Result<Vec<PlanNodeRef>, String> {
-        if let Some(symbol) = self.symbols.get(var_name) {
-            Ok(symbol.writers.iter().cloned().collect())
-        } else {
-            Err(format!("变量 '{}' 不存在", var_name))
-        }
-    }
-
-    pub fn get_variables_read_by(&self, node: PlanNodeRef) -> Vec<String> {
-        self.symbols
-            .iter()
-            .filter(|entry| entry.value().readers.contains(&node))
-            .map(|entry| entry.key().clone())
-            .collect()
-    }
-
-    pub fn get_variables_written_by(&self, node: PlanNodeRef) -> Vec<String> {
-        self.symbols
-            .iter()
-            .filter(|entry| entry.value().writers.contains(&node))
-            .map(|entry| entry.key().clone())
-            .collect()
-    }
-
-    pub fn detect_write_conflicts(&self) -> Vec<(String, Vec<PlanNodeRef>)> {
-        self.symbols
-            .iter()
-            .filter(|entry| entry.value().writers.len() > 1)
-            .map(|entry| {
-                (
-                    entry.key().clone(),
-                    entry.value().writers.iter().cloned().collect(),
-                )
-            })
-            .collect()
-    }
-
     pub fn to_string(&self) -> String {
         let mut result = String::new();
         result.push_str("SymbolTable {\n");
@@ -254,12 +173,11 @@ impl SymbolTable {
         for entry in self.symbols.iter() {
             let symbol = entry.value();
             result.push_str(&format!(
-                "  {}: type={:?}, readers={}, writers={}, user_count={}\n",
+                "  {}: type={:?}, readers={}, writers={}\n",
                 entry.key(),
-                symbol.symbol_type,
+                symbol.value_type,
                 symbol.readers.len(),
-                symbol.writers.len(),
-                symbol.get_user_count()
+                symbol.writers.len()
             ));
         }
 
@@ -301,13 +219,13 @@ mod tests {
 
         let symbol = table.new_variable("test_var").unwrap();
         assert_eq!(symbol.name, "test_var");
-        assert_eq!(symbol.symbol_type, SymbolType::Variable);
+        assert_eq!(symbol.value_type, ValueTypeDef::DataSet);
         assert!(table.has_variable("test_var"));
         assert!(table.new_variable("test_var").is_err());
 
         let retrieved = table.get_variable("test_var").unwrap();
         assert_eq!(retrieved.name, "test_var");
-        assert_eq!(retrieved.symbol_type, SymbolType::Variable);
+        assert_eq!(retrieved.value_type, ValueTypeDef::DataSet);
 
         assert!(table.remove_variable("test_var").unwrap());
         assert!(!table.has_variable("test_var"));
@@ -320,7 +238,7 @@ mod tests {
 
         let symbol = table.new_dataset("dataset_var", col_names.clone()).unwrap();
         assert_eq!(symbol.name, "dataset_var");
-        assert_eq!(symbol.symbol_type, SymbolType::Dataset);
+        assert_eq!(symbol.value_type, ValueTypeDef::DataSet);
         assert_eq!(symbol.col_names, col_names);
     }
 
@@ -337,54 +255,12 @@ mod tests {
         table.written_by("var1", node2).unwrap();
         table.read_by("var2", node2).unwrap();
 
-        let var1_readers = table.get_readers("var1").unwrap();
-        let var1_writers = table.get_writers("var1").unwrap();
-        let var2_readers = table.get_readers("var2").unwrap();
+        let var1 = table.get_variable("var1").unwrap();
+        let var2 = table.get_variable("var2").unwrap();
 
-        assert_eq!(var1_readers.len(), 1);
-        assert_eq!(var1_writers.len(), 1);
-        assert_eq!(var2_readers.len(), 1);
-
-        let node1_reads = table.get_variables_read_by(node1);
-        let node2_writes = table.get_variables_written_by(node2);
-
-        assert_eq!(node1_reads.len(), 1);
-        assert_eq!(node2_writes.len(), 1);
-    }
-
-    #[test]
-    fn test_write_conflict_detection() {
-        let table = SymbolTable::new();
-        table.new_variable("conflict_var").unwrap();
-
-        let node1 = PlanNodeRef::new(1);
-        let node2 = PlanNodeRef::new(2);
-
-        table.written_by("conflict_var", node1).unwrap();
-        table.written_by("conflict_var", node2).unwrap();
-
-        let conflicts = table.detect_write_conflicts();
-        assert_eq!(conflicts.len(), 1);
-        assert_eq!(conflicts[0].0, "conflict_var");
-        assert_eq!(conflicts[0].1.len(), 2);
-    }
-
-    #[test]
-    fn test_variable_rename() {
-        let table = SymbolTable::new();
-        table.new_variable("old_var").unwrap();
-
-        let node = PlanNodeRef::new(1);
-        table.read_by("old_var", node).unwrap();
-
-        table.rename_variable("old_var", "new_var").unwrap();
-
-        assert!(!table.has_variable("old_var"));
-        assert!(table.has_variable("new_var"));
-
-        let new_var_readers = table.get_readers("new_var").unwrap();
-        assert_eq!(new_var_readers.len(), 1);
-        assert_eq!(new_var_readers[0].node_id(), 1);
+        assert_eq!(var1.readers.len(), 1);
+        assert_eq!(var1.writers.len(), 1);
+        assert_eq!(var2.readers.len(), 1);
     }
 
     #[test]
@@ -395,26 +271,6 @@ mod tests {
         let table_str = table.to_string();
         assert!(table_str.contains("SymbolTable"));
         assert!(table_str.contains("test_var"));
-    }
-
-    #[test]
-    fn test_user_count() {
-        let table = SymbolTable::new();
-        table.new_variable("counter_var").unwrap();
-
-        let node = PlanNodeRef::new(1);
-
-        let symbol = table.get_variable("counter_var").unwrap();
-        assert_eq!(symbol.get_user_count(), 0);
-
-        table.read_by("counter_var", node).unwrap();
-        let symbol = table.get_variable("counter_var").unwrap();
-        assert_eq!(symbol.get_user_count(), 1);
-
-        let node2 = PlanNodeRef::new(2);
-        table.written_by("counter_var", node2).unwrap();
-        let symbol = table.get_variable("counter_var").unwrap();
-        assert_eq!(symbol.get_user_count(), 2);
     }
 
     #[test]

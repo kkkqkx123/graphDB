@@ -266,6 +266,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ProjectExecutor<S
             }
             ExecutionResult::Success => ExecutionResult::Success,
             ExecutionResult::Error(_) => input_result,
+            ExecutionResult::Result(_) => input_result,
         };
 
         Ok(projected_result)

@@ -175,6 +175,7 @@ impl<S: StorageEngine + Send + 'static> LoopExecutor<S> {
                 ExecutionResult::Count(count) => all_values.push(Value::Int(*count as i64)),
                 ExecutionResult::Success => {}
                 ExecutionResult::Error(_) => {} // Ignore error results or handle as needed
+                ExecutionResult::Result(_) => {} // Ignore Result objects
             }
         }
 

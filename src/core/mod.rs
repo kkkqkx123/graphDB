@@ -26,7 +26,9 @@ pub use error::{
     DBError, DBResult, ExpressionError, ExpressionErrorType, ExpressionPosition, QueryError,
     StorageError, SessionError, PermissionError, SessionResult, PermissionResult, QueryResult,
 };
-pub use result::*;
+
+// Result 系统
+pub use result::{ResultBuilder, r#Iterator, IteratorType};
 
 // 核心数据类型
 pub use value::*;

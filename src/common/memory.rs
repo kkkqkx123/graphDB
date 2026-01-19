@@ -1,8 +1,293 @@
 use std::alloc::Layout;
 use std::collections::BTreeMap;
 use std::ptr;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, RwLock};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::sync::{Arc, OnceLock, RwLock};
+use std::thread_local;
+
+/// 内存统计信息
+#[derive(Debug, Clone)]
+pub struct MemoryStats {
+    pub current_usage: u64,
+    pub peak_usage: u64,
+    pub limit: u64,
+    pub allocation_count: u64,
+    pub deallocation_count: u64,
+}
+
+impl MemoryStats {
+    pub fn new(current: u64, peak: u64, limit: u64) -> Self {
+        Self {
+            current_usage: current,
+            peak_usage: peak,
+            limit,
+            allocation_count: 0,
+            deallocation_count: 0,
+        }
+    }
+
+    pub fn utilization_ratio(&self) -> f64 {
+        if self.limit > 0 {
+            self.current_usage as f64 / self.limit as f64
+        } else {
+            0.0
+        }
+    }
+}
+
+/// 内存管理配置
+#[derive(Debug, Clone)]
+pub struct MemoryConfig {
+    pub max_query_memory: u64,
+    pub check_interval: usize,
+    pub spill_enabled: bool,
+    pub spill_threshold: u8,
+    pub enable_system_monitor: bool,
+    pub limit_ratio: f64,
+}
+
+impl Default for MemoryConfig {
+    fn default() -> Self {
+        Self {
+            max_query_memory: 100 * 1024 * 1024,
+            check_interval: 1000,
+            spill_enabled: true,
+            spill_threshold: 80,
+            enable_system_monitor: true,
+            limit_ratio: 0.8,
+        }
+    }
+}
+
+impl MemoryConfig {
+    pub fn new(limit: u64) -> Self {
+        Self {
+            max_query_memory: limit,
+            ..Default::default()
+        }
+    }
+
+    pub fn with_system_monitor(mut self, enable: bool) -> Self {
+        self.enable_system_monitor = enable;
+        self
+    }
+
+    pub fn with_check_interval(mut self, interval: usize) -> Self {
+        self.check_interval = interval;
+        self
+    }
+
+    pub fn with_limit_ratio(mut self, ratio: f64) -> Self {
+        self.limit_ratio = ratio;
+        self
+    }
+}
+
+/// 全局内存管理器
+pub struct GlobalMemoryManager {
+    limit: AtomicU64,
+    used: AtomicU64,
+    peak: AtomicU64,
+    allocation_count: AtomicU64,
+    deallocation_count: AtomicU64,
+}
+
+impl GlobalMemoryManager {
+    pub fn new(limit: u64) -> Self {
+        Self {
+            limit: AtomicU64::new(limit),
+            used: AtomicU64::new(0),
+            peak: AtomicU64::new(0),
+            allocation_count: AtomicU64::new(0),
+            deallocation_count: AtomicU64::new(0),
+        }
+    }
+
+    pub fn with_config(config: &MemoryConfig) -> Self {
+        let limit = if config.max_query_memory > 0 {
+            config.max_query_memory
+        } else {
+            100 * 1024 * 1024
+        };
+
+        Self::new(limit)
+    }
+
+    pub fn alloc(&self, size: u64, _throw_if_exceeded: bool) -> Result<(), String> {
+        let old_used = self.used.fetch_add(size, Ordering::Relaxed);
+        let new_used = old_used + size;
+
+        if new_used > self.limit.load(Ordering::Relaxed) {
+            self.used.fetch_sub(size, Ordering::Relaxed);
+            return Err(format!(
+                "Memory limit exceeded: {} + {} > {}",
+                old_used, size, self.limit.load(Ordering::Relaxed)
+            ));
+        }
+
+        self.allocation_count.fetch_add(1, Ordering::Relaxed);
+
+        let mut current_peak = self.peak.load(Ordering::Relaxed);
+        while new_used > current_peak {
+            match self.peak.compare_exchange_weak(
+                current_peak,
+                new_used,
+                Ordering::Relaxed,
+                Ordering::Relaxed,
+            ) {
+                Ok(_) => break,
+                Err(actual) => current_peak = actual,
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn free(&self, size: u64) {
+        self.used.fetch_sub(size, Ordering::Relaxed);
+        self.deallocation_count.fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn current_usage(&self) -> u64 {
+        self.used.load(Ordering::Relaxed)
+    }
+
+    pub fn peak_usage(&self) -> u64 {
+        self.peak.load(Ordering::Relaxed)
+    }
+
+    pub fn limit(&self) -> u64 {
+        self.limit.load(Ordering::Relaxed)
+    }
+
+    pub fn set_limit(&self, limit: u64) {
+        self.limit.store(limit, Ordering::Relaxed);
+    }
+
+    pub fn stats(&self) -> MemoryStats {
+        MemoryStats {
+            current_usage: self.current_usage(),
+            peak_usage: self.peak_usage(),
+            limit: self.limit(),
+            allocation_count: self.allocation_count.load(Ordering::Relaxed),
+            deallocation_count: self.deallocation_count.load(Ordering::Relaxed),
+        }
+    }
+}
+
+/// 全局内存管理器单例
+static GLOBAL_MEMORY_MANAGER: OnceLock<Arc<GlobalMemoryManager>> = OnceLock::new();
+
+/// 获取全局内存管理器
+pub fn global_memory_manager() -> &'static Arc<GlobalMemoryManager> {
+    GLOBAL_MEMORY_MANAGER.get_or_init(|| {
+        Arc::new(GlobalMemoryManager::new(100 * 1024 * 1024))
+    })
+}
+
+/// 线程本地预留
+thread_local! {
+    static LOCAL_RESERVED: std::cell::RefCell<u64> = const { std::cell::RefCell::new(0) };
+}
+
+const LOCAL_LIMIT: u64 = 1024 * 1024;
+
+/// 线程本地分配
+pub fn alloc_local(size: u64, throw_if_exceeded: bool) -> Result<(), String> {
+    LOCAL_RESERVED.with(|reserved| {
+        let current = *reserved.borrow();
+        if current + size > LOCAL_LIMIT {
+            if throw_if_exceeded {
+                return Err("Local reservation exceeded".to_string());
+            }
+        } else {
+            let needed = size - (LOCAL_LIMIT - current);
+            global_memory_manager().alloc(needed, throw_if_exceeded)?;
+            *reserved.borrow_mut() += size;
+        }
+        Ok(())
+    })
+}
+
+/// 线程本地释放
+pub fn free_local(size: u64) {
+    LOCAL_RESERVED.with(|reserved| {
+        *reserved.borrow_mut() = reserved.borrow().saturating_sub(size);
+
+        let current = *reserved.borrow();
+        if current > LOCAL_LIMIT {
+            let excess = current - LOCAL_LIMIT;
+            global_memory_manager().free(excess);
+            *reserved.borrow_mut() = LOCAL_LIMIT;
+        }
+    });
+}
+
+/// 内存检查 Guard
+pub struct MemoryCheckGuard {
+    throw_on_exceeded: bool,
+}
+
+impl MemoryCheckGuard {
+    pub fn new() -> Self {
+        Self {
+            throw_on_exceeded: true,
+        }
+    }
+
+    pub fn without_check() -> Self {
+        Self {
+            throw_on_exceeded: false,
+        }
+    }
+
+    pub fn throw_on_exceeded(&self) -> bool {
+        self.throw_on_exceeded
+    }
+}
+
+impl Default for MemoryCheckGuard {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// RAII 风格的内存检查控制
+pub struct ScopedMemoryCheck {
+    previous: bool,
+}
+
+impl ScopedMemoryCheck {
+    pub fn new(enable: bool) -> Self {
+        let previous = is_memory_check_enabled();
+        set_memory_check_enabled(enable);
+        Self { previous }
+    }
+}
+
+impl Drop for ScopedMemoryCheck {
+    fn drop(&mut self) {
+        set_memory_check_enabled(self.previous);
+    }
+}
+
+thread_local! {
+    static MEMORY_CHECK_ENABLED: std::cell::RefCell<bool> = const { std::cell::RefCell::new(false) };
+}
+
+/// 设置内存检查是否启用
+pub fn set_memory_check_enabled(enabled: bool) {
+    MEMORY_CHECK_ENABLED.with(|flag| {
+        *flag.borrow_mut() = enabled;
+    });
+}
+
+/// 检查内存检查是否启用
+pub fn is_memory_check_enabled() -> bool {
+    MEMORY_CHECK_ENABLED.with(|flag| {
+        *flag.borrow()
+    })
+}
 
 /// 内存跟踪器，用于监控内存分配
 #[derive(Debug)]
@@ -275,9 +560,9 @@ impl MemoryPool {
     }
 }
 
-/// 内存统计信息
+/// 内存统计信息（兼容旧版本）
 #[derive(Debug, Clone)]
-pub struct MemoryStats {
+pub struct LegacyMemoryStats {
     pub total_allocated: usize,
     pub total_deallocated: usize,
     pub current_allocated: usize,
@@ -287,9 +572,9 @@ pub struct MemoryStats {
     pub pool_available_size: usize,
 }
 
-/// 获取内存统计信息
-pub fn get_memory_stats(pool: Option<&MemoryPool>) -> MemoryStats {
-    MemoryStats {
+/// 获取内存统计信息（兼容旧版本）
+pub fn get_memory_stats(pool: Option<&MemoryPool>) -> LegacyMemoryStats {
+    LegacyMemoryStats {
         total_allocated: MEMORY_TRACKER.total_allocated(),
         total_deallocated: MEMORY_TRACKER.total_deallocated(),
         current_allocated: MEMORY_TRACKER.current_allocated(),
@@ -437,40 +722,6 @@ pub fn leak_detector() -> &'static MemoryLeakDetector {
     &LEAK_DETECTOR
 }
 
-/// 内存管理配置
-#[derive(Debug, Clone)]
-pub struct MemoryConfig {
-    pub enable_tracking: bool,
-    pub enable_pooling: bool,
-    pub pool_size: usize,
-    pub max_object_pool_size: usize,
-    pub log_memory_stats_interval: Option<u64>,
-}
-
-impl Default for MemoryConfig {
-    fn default() -> Self {
-        Self {
-            enable_tracking: true,
-            enable_pooling: true,
-            pool_size: 10 * 1024 * 1024,
-            max_object_pool_size: 100,
-            log_memory_stats_interval: Some(300),
-        }
-    }
-}
-
-/// 使用给定配置初始化内存管理
-pub fn init_memory_management(config: &MemoryConfig) {
-    if config.enable_tracking {
-        MEMORY_TRACKER.reset();
-    }
-
-    if config.enable_tracking {
-        let stats = get_memory_stats(None);
-        println!("内存跟踪已初始化。当前统计: {:?}", stats);
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -494,6 +745,30 @@ mod tests {
         tracker.reset();
         assert_eq!(tracker.total_allocated(), 0);
         assert_eq!(tracker.current_allocated(), 0);
+    }
+
+    #[test]
+    fn test_global_memory_manager() {
+        let manager = GlobalMemoryManager::new(1000);
+
+        assert_eq!(manager.limit(), 1000);
+        assert_eq!(manager.current_usage(), 0);
+        assert_eq!(manager.peak_usage(), 0);
+
+        assert!(manager.alloc(500, false).is_ok());
+        assert_eq!(manager.current_usage(), 500);
+        assert_eq!(manager.peak_usage(), 500);
+
+        assert!(manager.alloc(400, false).is_ok());
+        assert_eq!(manager.current_usage(), 900);
+        assert_eq!(manager.peak_usage(), 900);
+
+        assert!(manager.alloc(600, false).is_err());
+
+        manager.free(200);
+        assert_eq!(manager.current_usage(), 700);
+
+        assert_eq!(manager.peak_usage(), 900);
     }
 
     #[test]
@@ -588,5 +863,27 @@ mod tests {
         detector.record_deallocation(0x1000);
 
         assert!(!detector.has_leaks());
+    }
+
+    #[test]
+    fn test_memory_check_guard() {
+        let guard = MemoryCheckGuard::new();
+        assert!(guard.throw_on_exceeded());
+
+        let guard2 = MemoryCheckGuard::without_check();
+        assert!(!guard2.throw_on_exceeded());
+    }
+
+    #[test]
+    fn test_scoped_memory_check() {
+        set_memory_check_enabled(false);
+        assert!(!is_memory_check_enabled());
+
+        {
+            let _guard = ScopedMemoryCheck::new(true);
+            assert!(is_memory_check_enabled());
+        }
+
+        assert!(!is_memory_check_enabled());
     }
 }

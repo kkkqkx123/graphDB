@@ -4,6 +4,7 @@
 //! 采用组合trait的方式，提供灵活且高效的执行器接口。
 
 use crate::core::error::DBError;
+use crate::core::result::Result as CoreResult;
 use crate::storage::StorageEngine;
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -114,6 +115,8 @@ pub enum ExecutionResult {
     Edges(Vec<crate::core::Edge>),
     /// 成功执行，返回数据集
     DataSet(crate::core::DataSet),
+    /// 成功执行，返回 Result 对象
+    Result(CoreResult),
     /// 成功执行，无数据返回
     Success,
     /// 执行错误
@@ -132,10 +135,24 @@ impl ExecutionResult {
             ExecutionResult::Vertices(v) => v.len(),
             ExecutionResult::Edges(v) => v.len(),
             ExecutionResult::DataSet(ds) => ds.rows.len(),
+            ExecutionResult::Result(r) => r.row_count(),
             ExecutionResult::Count(c) => *c,
             ExecutionResult::Success => 0,
             ExecutionResult::Error(_) => 0,
             ExecutionResult::Paths(p) => p.len(),
+        }
+    }
+
+    /// 从 Result 对象创建 ExecutionResult
+    pub fn from_result(result: CoreResult) -> Self {
+        ExecutionResult::Result(result)
+    }
+
+    /// 转换为 Result 对象
+    pub fn to_result(&self) -> Option<CoreResult> {
+        match self {
+            ExecutionResult::Result(r) => Some(r.clone()),
+            _ => None,
         }
     }
 }

@@ -6,7 +6,6 @@ pub mod data_modification;
 pub mod data_processing;
 pub mod factory;
 pub mod graph_query_executor;
-pub mod memory_manager;
 pub mod object_pool;
 pub mod recursion_detector;
 pub mod result_processing;
@@ -15,7 +14,7 @@ pub mod traits;
 
 // Re-export the new trait types
 pub use traits::{
-    BaseExecutor as NewBaseExecutor, ExecutionResult, Executor, HasInput, HasStorage, ExecutorStats,
+    BaseExecutor as NewBaseExecutor, Executor, HasInput, HasStorage, ExecutorStats, ExecutionResult,
 };
 
 // Re-export the base types

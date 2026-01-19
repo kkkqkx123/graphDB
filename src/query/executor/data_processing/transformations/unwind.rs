@@ -296,6 +296,13 @@ impl<S: StorageEngine + Send + 'static> UnwindExecutor<S> {
                     )),
                 ));
             }
+            ExecutionResult::Result(_) => {
+                return Err(DBError::Query(
+                    crate::core::error::QueryError::ExecutionError(
+                        "Cannot unwind Result object".to_string(),
+                    ),
+                ));
+            }
         }
 
         Ok(dataset)

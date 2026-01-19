@@ -7,7 +7,7 @@ use crate::core::{DBError, DBResult, DataSet, Value};
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::evaluator::traits::ExpressionContext;
 use crate::expression::DefaultExpressionContext;
-use crate::query::executor::memory_manager::{MemoryConfig, MemoryTracker, TrackedVec};
+use crate::common::memory::{MemoryConfig, MemoryTracker};
 use bincode::{decode_from_slice, encode_to_vec, Decode, Encode};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
@@ -326,7 +326,7 @@ impl Drop for SpillManager {
 /// 哈希表，支持内存管理和溢出
 pub struct HashTable {
     /// 内存中的哈希表
-    memory_table: HashMap<JoinKey, TrackedVec<HashTableEntry>>,
+    memory_table: HashMap<JoinKey, Vec<HashTableEntry>>,
     /// 内存跟踪器
     memory_tracker: Arc<MemoryTracker>,
     /// 溢出管理器（可选）
@@ -405,9 +405,9 @@ impl HashTable {
 
     /// 插入条目
     pub fn insert(&mut self, key: JoinKey, entry: HashTableEntry) -> DBResult<()> {
-        // 检查内存使用
+        // 记录内存使用
         let entry_size = entry.estimated_size;
-        self.memory_tracker.allocate(entry_size)?;
+        self.memory_tracker.record_allocation(entry_size);
 
         // 检查是否需要溢出
         if self.should_spill() {
@@ -415,12 +415,9 @@ impl HashTable {
         }
 
         // 插入到内存表
-        let entries = self.memory_table.entry(key.clone()).or_insert_with(|| {
-            TrackedVec::with_capacity(10, self.memory_tracker.clone())
-                .unwrap_or_else(|_| TrackedVec::new(self.memory_tracker.clone()))
-        });
+        let entries = self.memory_table.entry(key.clone()).or_insert_with(Vec::new);
 
-        entries.push(entry)?;
+        entries.push(entry);
 
         // 记录LRU访问
         if let Ok(mut tracker) = self.lru_tracker.lock() {
@@ -438,7 +435,8 @@ impl HashTable {
 
     /// 检查是否应该溢出
     fn should_spill(&self) -> bool {
-        self.memory_tracker.should_spill() && self.spill_manager.is_some()
+        self.memory_tracker.current_allocated() > self.config.memory_config.max_query_memory as usize 
+            && self.spill_manager.is_some()
     }
 
     /// 溢出到磁盘
@@ -600,11 +598,7 @@ impl HashTableBuilder {
         dataset: &DataSet,
         key_index: usize,
     ) -> Result<SingleKeyHashTable, String> {
-        let memory_config = MemoryConfig::default();
-        let memory_tracker = Arc::new(MemoryTracker::new(
-            memory_config.max_query_memory,
-            memory_config.clone(),
-        ));
+        let memory_tracker = Arc::new(MemoryTracker::new());
 
         let config = HashTableConfig::default();
 
@@ -617,11 +611,7 @@ impl HashTableBuilder {
         dataset: &DataSet,
         key_indices: &[usize],
     ) -> Result<MultiKeyHashTable, String> {
-        let memory_config = MemoryConfig::default();
-        let memory_tracker = Arc::new(MemoryTracker::new(
-            memory_config.max_query_memory,
-            memory_config.clone(),
-        ));
+        let memory_tracker = Arc::new(MemoryTracker::new());
 
         let config = HashTableConfig::default();
 
@@ -664,10 +654,7 @@ mod tests {
     #[tokio::test]
     async fn test_hash_table_basic() {
         let config = HashTableConfig::default();
-        let memory_tracker = Arc::new(MemoryTracker::new(
-            1024 * 1024, // 1MB limit
-            config.memory_config.clone(),
-        ));
+        let memory_tracker = Arc::new(MemoryTracker::new());
 
         let mut hash_table = HashTable::new(memory_tracker, config).expect("HashTable::new should succeed");
 
@@ -697,10 +684,7 @@ mod tests {
         config.memory_config.max_query_memory = 100; // 很小的内存限制
         config.memory_config.spill_enabled = false; // 禁用溢出
 
-        let memory_tracker = Arc::new(MemoryTracker::new(
-            config.memory_config.max_query_memory,
-            config.memory_config.clone(),
-        ));
+        let memory_tracker = Arc::new(MemoryTracker::new());
 
         let mut hash_table = HashTable::new(memory_tracker, config).expect("HashTable::new should succeed");
 

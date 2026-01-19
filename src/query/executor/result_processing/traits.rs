@@ -76,6 +76,7 @@ pub trait ResultProcessor<S: StorageEngine> {
             ExecutionResult::Count(_) => Ok(()),
             ExecutionResult::Success => Ok(()),
             ExecutionResult::Error(_) => Ok(()),
+            ExecutionResult::Result(_) => Ok(()),
         }
     }
 }

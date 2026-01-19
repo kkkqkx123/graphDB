@@ -137,8 +137,8 @@ mod tests {
         let active = IndexStatus::Active;
         let failed = IndexStatus::Failed("error".to_string());
 
-        let active_json = serde_json::to_string(&active).unwrap();
-        let failed_json = serde_json::to_string(&failed).unwrap();
+        let active_json = serde_json::to_string(&active).expect("Failed to serialize IndexStatus::Active in test");
+        let failed_json = serde_json::to_string(&failed).expect("Failed to serialize IndexStatus::Failed in test");
 
         assert!(active_json.contains("active"));
         assert!(failed_json.contains("failed"));
@@ -150,8 +150,8 @@ mod tests {
         let tag = IndexType::TagIndex;
         let edge = IndexType::EdgeIndex;
 
-        let tag_json = serde_json::to_string(&tag).unwrap();
-        let edge_json = serde_json::to_string(&edge).unwrap();
+        let tag_json = serde_json::to_string(&tag).expect("Failed to serialize IndexType::TagIndex in test");
+        let edge_json = serde_json::to_string(&edge).expect("Failed to serialize IndexType::EdgeIndex in test");
 
         assert!(tag_json.contains("tag"));
         assert!(edge_json.contains("edge"));
