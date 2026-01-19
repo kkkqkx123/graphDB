@@ -115,6 +115,144 @@ impl Date {
             day: date.day(),
         }
     }
+
+    /// 添加天数到日期
+    pub fn add_days(&self, days: i64) -> Date {
+        let naive_date = self.to_naive_date();
+        let new_date = naive_date + chrono::Duration::days(days);
+        Self::from_naive_date(new_date)
+    }
+
+    /// 从日期减去天数
+    pub fn sub_days(&self, days: i64) -> Date {
+        let naive_date = self.to_naive_date();
+        let new_date = naive_date - chrono::Duration::days(days);
+        Self::from_naive_date(new_date)
+    }
+
+    /// 添加月份到日期
+    pub fn add_months(&self, months: i32) -> Date {
+        let naive_date = self.to_naive_date();
+        let new_date = naive_date.with_month(self.month)
+            .and_then(|d| d.with_year(self.year))
+            .unwrap_or(naive_date);
+        let new_date = new_date + chrono::Duration::days((months as i64) * 30);
+        Self::from_naive_date(new_date)
+    }
+
+    /// 从日期减去月份
+    pub fn sub_months(&self, months: i32) -> Date {
+        self.add_months(-months)
+    }
+
+    /// 添加年份到日期
+    pub fn add_years(&self, years: i32) -> Date {
+        let naive_date = self.to_naive_date();
+        let new_year = self.year + years;
+        let new_date = naive_date.with_year(new_year).unwrap_or(naive_date);
+        Self::from_naive_date(new_date)
+    }
+
+    /// 从日期减去年份
+    pub fn sub_years(&self, years: i32) -> Date {
+        self.add_years(-years)
+    }
+
+    /// 添加持续时间到日期
+    pub fn add_duration(&self, duration: &DurationValue) -> Date {
+        let mut naive_date = self.to_naive_date();
+
+        if duration.months != 0 {
+            naive_date = naive_date + chrono::Duration::days((duration.months as i64) * 30);
+        }
+
+        if duration.days != 0 {
+            naive_date = naive_date + chrono::Duration::days(duration.days as i64);
+        }
+
+        if duration.nsecs != 0 {
+            let seconds = duration.nsecs / 1_000_000_000;
+            naive_date = naive_date + chrono::Duration::seconds(seconds);
+        }
+
+        Self::from_naive_date(naive_date)
+    }
+
+    /// 从日期减去持续时间
+    pub fn sub_duration(&self, duration: &DurationValue) -> Date {
+        let neg_duration = DurationValue {
+            months: -duration.months,
+            days: -duration.days,
+            nsecs: -duration.nsecs,
+        };
+        self.add_duration(&neg_duration)
+    }
+
+    /// 计算两个日期之间的天数差
+    pub fn days_between(&self, other: &Date) -> i64 {
+        let self_date = self.to_naive_date();
+        let other_date = other.to_naive_date();
+        (self_date - other_date).num_days()
+    }
+
+    /// 计算两个日期之间的月数差（近似值）
+    pub fn months_between(&self, other: &Date) -> i32 {
+        let year_diff = (self.year - other.year) * 12;
+        let month_diff = self.month as i32 - other.month as i32;
+        year_diff + month_diff
+    }
+
+    /// 计算两个日期之间的年数差
+    pub fn years_between(&self, other: &Date) -> i32 {
+        self.year - other.year
+    }
+
+    /// 将日期转换为自纪元以来的天数（用于数据库存储）
+    pub fn to_int(&self) -> i64 {
+        let naive_date = self.to_naive_date();
+        naive_date.signed_duration_since(chrono::NaiveDate::from_ymd_opt(1970, 1, 1).unwrap()).num_days()
+    }
+
+    /// 从自纪元以来的天数创建日期（用于数据库存储）
+    pub fn from_int(days: i64) -> Date {
+        let naive_date = chrono::NaiveDate::from_ymd_opt(1970, 1, 1).unwrap()
+            + chrono::Duration::days(days);
+        Self::from_naive_date(naive_date)
+    }
+
+    /// 将日期序列化为字节数组（用于数据库存储）
+    pub fn to_bytes(&self) -> [u8; 3] {
+        [
+            ((self.year >> 8) & 0xFF) as u8,
+            (self.year & 0xFF) as u8,
+            self.month as u8,
+        ]
+    }
+
+    /// 从字节数组反序列化日期（用于数据库存储）
+    pub fn from_bytes(bytes: &[u8]) -> Result<Date, String> {
+        if bytes.len() < 3 {
+            return Err("字节数组长度不足".to_string());
+        }
+
+        let year = ((bytes[0] as i32) << 8) | (bytes[1] as i32);
+        let month = bytes[2] as u32;
+
+        Self::new(year, month, 1)
+    }
+
+    /// 格式化日期为字符串
+    pub fn format(&self, format: &str) -> String {
+        let naive_date = self.to_naive_date();
+        naive_date.format(format).to_string()
+    }
+
+    /// 解析日期字符串
+    pub fn parse(s: &str, format: &str) -> Result<Date, String> {
+        let naive_date = chrono::NaiveDate::parse_from_str(s, format)
+            .map_err(|e| format!("解析日期失败: {}", e))?;
+        Ok(Self::from_naive_date(naive_date))
+    }
 }
 
 impl Default for Date {

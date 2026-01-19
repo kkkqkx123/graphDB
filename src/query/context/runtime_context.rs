@@ -3,7 +3,7 @@
 //! RuntimeContext用于存储层执行节点，包含计划上下文引用和运行时可变信息
 //! 对应C++版本中的RuntimeContext结构
 
-use crate::common::base::id::{EdgeType, TagId};
+use crate::common::id::{EdgeType, TagId};
 use crate::core::Value;
 use crate::core::Direction;
 use crate::core::error::ManagerResult;

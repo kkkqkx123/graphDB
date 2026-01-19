@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 use super::base::ContextType;
 use super::traits::BaseContext;
-use crate::common::base::id::{EdgeType, TagId};
+use crate::common::id::{EdgeType, TagId};
 use crate::core::Value;
 
 /// 结果状态枚举

@@ -10,9 +10,9 @@
 //! - 日志系统
 //! - 字符集处理
 
-pub mod base;
 pub mod charset;
 pub mod fs;
+pub mod id;
 pub mod log;
 pub mod memory;
 pub mod network;
@@ -21,7 +21,7 @@ pub mod thread;
 pub mod time;
 
 // 重新导出常用的类型和函数，方便其他模块使用
-pub use base::id::*;
+pub use id::*;
 pub use charset::*;
 pub use fs::*;
 pub use log::*;

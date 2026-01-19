@@ -2,7 +2,7 @@ use super::{StorageEngine, TransactionId};
 use crate::core::{Direction, Edge, StorageError, Value, Vertex};
 use crate::core::vertex_edge_path::Tag;
 use crate::common::memory::MemoryPool;
-use crate::common::base::id::{IdGenerator, TagId, EdgeId};
+use crate::common::id::{IdGenerator, TagId, EdgeId};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 

@@ -337,3 +337,299 @@ mod tests {
         assert_eq!(connection.address, addr);
     }
 }
+
+/// 网络工具类
+pub struct NetworkUtils;
+
+impl NetworkUtils {
+    /// 获取主机名
+    pub fn get_hostname() -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+        let hostname = std::env::var("COMPUTERNAME")
+            .or_else(|_| std::env::var("HOSTNAME"))
+            .unwrap_or_else(|_| "localhost".to_string());
+        Ok(hostname)
+    }
+
+    /// 获取所有 IPv4 地址
+    pub fn list_ipv4s() -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync>> {
+        let mut ipv4s = Vec::new();
+
+        #[cfg(unix)]
+        {
+            use std::net::UdpSocket;
+            let socket = UdpSocket::bind("0.0.0.0:0")?;
+            socket.connect("8.8.8.8:80")?;
+            let local_addr = socket.local_addr()?;
+            ipv4s.push(local_addr.ip().to_string());
+        }
+
+        #[cfg(windows)]
+        {
+            use std::net::UdpSocket;
+            let socket = UdpSocket::bind("0.0.0.0:0")?;
+            socket.connect("8.8.8.8:80")?;
+            let local_addr = socket.local_addr()?;
+            ipv4s.push(local_addr.ip().to_string());
+        }
+
+        if ipv4s.is_empty() {
+            ipv4s.push("127.0.0.1".to_string());
+        }
+
+        Ok(ipv4s)
+    }
+
+    /// 获取动态端口范围
+    pub fn get_dynamic_port_range() -> (u16, u16) {
+        #[cfg(unix)]
+        {
+            unsafe {
+                let mut low: u16 = 0;
+                let mut high: u16 = 0;
+                let ret = libc::sysconf(libc::_SC_IPPORT_USERRESERVED);
+                if ret > 0 {
+                    low = (ret as u16).saturating_sub(1);
+                    high = u16::MAX;
+                } else {
+                    low = 49152;
+                    high = 65535;
+                }
+                (low, high)
+            }
+        }
+
+        #[cfg(windows)]
+        {
+            (49152, 65535)
+        }
+
+        #[cfg(not(any(unix, windows)))]
+        {
+            (49152, 65535)
+        }
+    }
+
+    /// 获取当前正在使用的端口
+    pub fn get_ports_in_use() -> std::collections::HashSet<u16> {
+        use std::net::TcpListener;
+
+        let mut ports_in_use = std::collections::HashSet::new();
+
+        #[cfg(unix)]
+        {
+            unsafe {
+                let mut info: *mut libc::addrinfo = std::mem::zeroed();
+                let mut hints: libc::addrinfo = std::mem::zeroed();
+                hints.ai_family = libc::AF_INET;
+                hints.ai_socktype = libc::SOCK_STREAM;
+
+                if libc::getaddrinfo(std::ptr::null(), std::ptr::null(), &hints, &mut info) == 0 {
+                    let mut ptr = info;
+                    while !ptr.is_null() {
+                        if (*ptr).ai_family == libc::AF_INET {
+                            let addr = (*ptr).ai_addr as *const libc::sockaddr_in;
+                            if !addr.is_null() {
+                                let port = (*addr).sin_port;
+                                ports_in_use.insert(u16::from_be(port));
+                            }
+                        }
+                        ptr = (*ptr).ai_next;
+                    }
+                    libc::freeaddrinfo(info);
+                }
+            }
+        }
+
+        #[cfg(windows)]
+        {
+            use std::net::TcpStream;
+            for port in 1..=65535 {
+                if let Ok(_) = TcpListener::bind(format!("127.0.0.1:{}", port)) {
+                    let _ = TcpListener::bind(format!("127.0.0.1:{}", port));
+                } else {
+                    ports_in_use.insert(port);
+                }
+            }
+        }
+
+        ports_in_use
+    }
+
+    /// 获取一个可用的端口（仅用于测试）
+    pub fn get_available_port() -> u16 {
+        use std::net::TcpListener;
+
+        let (low, high) = Self::get_dynamic_port_range();
+        let ports_in_use = Self::get_ports_in_use();
+
+        for port in low..=high {
+            if !ports_in_use.contains(&port) {
+                if let Ok(listener) = TcpListener::bind(format!("0.0.0.0:{}", port)) {
+                    let _ = listener.local_addr();
+                    return port;
+                }
+            }
+        }
+
+        0
+    }
+
+    /// 解析主机地址
+    pub fn resolve_host(
+        host: &str,
+        port: i32,
+    ) -> Result<Vec<std::net::SocketAddr>, Box<dyn std::error::Error + Send + Sync>> {
+        use std::net::ToSocketAddrs;
+
+        let addr_str = format!("{}:{}", host, port);
+        let addrs = addr_str.to_socket_addrs()?;
+        Ok(addrs.collect())
+    }
+
+    /// 将 32 位无符号整数转换为 IPv4 地址字符串
+    pub fn int_to_ipv4(ip: u32) -> String {
+        let bytes = ip.to_be_bytes();
+        format!("{}.{}.{}.{}", bytes[0], bytes[1], bytes[2], bytes[3])
+    }
+
+    /// 将 IPv4 地址字符串转换为 32 位无符号整数
+    pub fn ipv4_to_int(ip: &str) -> Result<u32, Box<dyn std::error::Error + Send + Sync>> {
+        let parts: Vec<&str> = ip.split('.').collect();
+        if parts.len() != 4 {
+            return Err("Invalid IPv4 address format".into());
+        }
+
+        let mut result = 0u32;
+        for (i, part) in parts.iter().enumerate() {
+            let byte: u8 = part.parse()?;
+            result |= (byte as u32) << (24 - i * 8);
+        }
+
+        Ok(result)
+    }
+
+    /// 解析 peer 字符串（格式：192.168.1.1:10001, 192.168.1.2:10001）
+    pub fn parse_peers(
+        peers_str: &str,
+    ) -> Result<Vec<HostAddr>, Box<dyn std::error::Error + Send + Sync>> {
+        let mut peers = Vec::new();
+
+        for peer_str in peers_str.split(',') {
+            let peer_str = peer_str.trim();
+            if peer_str.is_empty() {
+                continue;
+            }
+
+            let parts: Vec<&str> = peer_str.split(':').collect();
+            if parts.len() != 2 {
+                return Err(format!("Invalid peer format: {}", peer_str).into());
+            }
+
+            let host = parts[0].trim();
+            let port: u16 = parts[1].trim().parse()?;
+
+            peers.push(HostAddr {
+                host: host.to_string(),
+                port,
+            });
+        }
+
+        Ok(peers)
+    }
+
+    /// 将 HostAddr 列表转换为 peer 字符串
+    pub fn peers_to_string(hosts: &[HostAddr]) -> String {
+        hosts
+            .iter()
+            .map(|h| format!("{}:{}", h.host, h.port))
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
+
+    /// 验证主机名或 IP 地址
+    pub fn validate_host_or_ip(
+        host_or_ip: &str,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        if host_or_ip.is_empty() {
+            return Err("Host or IP cannot be empty".into());
+        }
+
+        if Self::is_valid_ipv4(host_or_ip) {
+            return Ok(());
+        }
+
+        if Self::is_valid_hostname(host_or_ip) {
+            return Ok(());
+        }
+
+        Err(format!("Invalid host or IP address: {}", host_or_ip).into())
+    }
+
+    /// 检查是否是有效的 IPv4 地址
+    fn is_valid_ipv4(ip: &str) -> bool {
+        let parts: Vec<&str> = ip.split('.').collect();
+        if parts.len() != 4 {
+            return false;
+        }
+
+        parts.iter().all(|part| {
+            if let Ok(byte) = part.parse::<u8>() {
+                true
+            } else {
+                false
+            }
+        })
+    }
+
+    /// 检查是否是有效的主机名
+    fn is_valid_hostname(hostname: &str) -> bool {
+        if hostname.is_empty() || hostname.len() > 253 {
+            return false;
+        }
+
+        hostname
+            .split('.')
+            .all(|label| {
+                !label.is_empty()
+                    && label.len() <= 63
+                    && label
+                        .chars()
+                        .all(|c| c.is_alphanumeric() || c == '-')
+            })
+    }
+}
+
+/// 主机地址
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct HostAddr {
+    pub host: String,
+    pub port: u16,
+}
+
+impl HostAddr {
+    pub fn new(host: String, port: u16) -> Self {
+        Self { host, port }
+    }
+
+    pub fn from_str(addr: &str) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+        let parts: Vec<&str> = addr.split(':').collect();
+        if parts.len() != 2 {
+            return Err(format!("Invalid address format: {}", addr).into());
+        }
+
+        let host = parts[0].trim().to_string();
+        let port: u16 = parts[1].trim().parse()?;
+
+        Ok(Self { host, port })
+    }
+
+    pub fn to_string(&self) -> String {
+        format!("{}:{}", self.host, self.port)
+    }
+}
+
+impl std::fmt::Display for HostAddr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}", self.host, self.port)
+    }
+}

@@ -42,7 +42,7 @@ slice[0] = 42;
 
 **使用示例：**
 ```rust
-use graphdb::common::base::id::{gen_vertex_id, gen_tag_id};
+use graphdb::common::id::{gen_vertex_id, gen_tag_id};
 
 let vertex_id = gen_vertex_id();
 let tag_id = gen_tag_id();
