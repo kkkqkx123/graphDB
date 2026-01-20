@@ -2,7 +2,8 @@
 //! 对应原C++中的QueryContext.h/cpp
 
 use crate::query::context::validate::ValidationContext;
-use crate::core::{SymbolTable, Value};
+use crate::query::context::SymbolTable;
+use crate::core::Value;
 use crate::graph::utils::IdGenerator;
 use crate::query::context::managers::{
     CharsetInfo, IndexManager, MetaClient, SchemaManager, StorageClient,

@@ -911,21 +911,22 @@ mod tests {
 
     #[test]
     fn test_request_context_creation() {
-        let session_info = SessionInfo::new(
-            "test_session".to_string(),
-            "test_user".to_string(),
-            vec![],
-            "192.168.1.1".to_string(),
-            12345,
-            "test_client".to_string(),
-            "test_connection".to_string(),
-        );
+        let session_info = SessionInfo {
+            session_id: 12345,
+            user_name: "test_user".to_string(),
+            space_name: None,
+            graph_addr: Some("192.168.1.1:8080".to_string()),
+            create_time: std::time::SystemTime::now(),
+            last_access_time: std::time::SystemTime::now(),
+            active_queries: 0,
+            timezone: None,
+        };
         let request_params = RequestParams::new("MATCH (n) RETURN n".to_string());
-        let ctx = RequestContext::new(session_info, request_params);
+        let ctx = RequestContext::new(Some(session_info), request_params);
 
-        assert_eq!(ctx.session_id(), Some("test_session"));
+        assert_eq!(ctx.session_id(), Some(12345));
         assert_eq!(ctx.user_name(), Some("test_user"));
-        assert_eq!(ctx.client_ip(), Some("192.168.1.1"));
+        assert_eq!(ctx.client_ip(), Some("192.168.1.1:8080"));
         assert_eq!(ctx.query(), "MATCH (n) RETURN n");
         assert_eq!(ctx.timeout_ms(), 30000);
         assert_eq!(ctx.max_retry_times(), 3);
@@ -935,13 +936,13 @@ mod tests {
     fn test_request_context_simple() {
         let ctx = RequestContext::with_session(
             "SELECT * FROM users".to_string(),
-            "test_session",
+            "12345",
             "test_user",
             "127.0.0.1",
             0,
         );
         assert_eq!(ctx.query(), "SELECT * FROM users");
-        assert_eq!(ctx.session_id(), Some("test_session"));
+        assert_eq!(ctx.session_id(), Some(12345));
         assert_eq!(ctx.user_name(), Some("test_user"));
     }
 
@@ -949,15 +950,15 @@ mod tests {
     fn test_request_context_with_session() {
         let ctx = RequestContext::with_session(
             "MATCH (n) RETURN n".to_string(),
-            "custom_session",
+            "99999",
             "admin",
             "192.168.1.100",
             8080,
         );
         assert_eq!(ctx.query(), "MATCH (n) RETURN n");
-        assert_eq!(ctx.session_id(), Some("custom_session"));
+        assert_eq!(ctx.session_id(), Some(99999));
         assert_eq!(ctx.user_name(), Some("admin"));
-        assert_eq!(ctx.client_ip(), Some("192.168.1.100"));
+        assert_eq!(ctx.client_ip(), Some("192.168.1.100:8080"));
     }
 
     #[test]
@@ -969,7 +970,7 @@ mod tests {
         let ctx = RequestContext::with_parameters(
             "MATCH (n) WHERE n.name = $name AND n.age = $age RETURN n".to_string(),
             params,
-            "custom_session",
+            "88888",
             "admin",
             "192.168.1.100",
             8080,
@@ -984,9 +985,9 @@ mod tests {
             Some(Value::String("Alice".to_string()))
         );
         assert_eq!(ctx.get_parameter("age"), Some(Value::Int(25)));
-        assert_eq!(ctx.session_id(), Some("custom_session"));
+        assert_eq!(ctx.session_id(), Some(88888));
         assert_eq!(ctx.user_name(), Some("admin"));
-        assert_eq!(ctx.client_ip(), Some("192.168.1.100"));
+        assert_eq!(ctx.client_ip(), Some("192.168.1.100:8080"));
     }
 
     #[test]
@@ -994,14 +995,14 @@ mod tests {
         let ctx = RequestContext::with_timeout(
             "LONG RUNNING QUERY".to_string(),
             60000,
-            "timeout_session",
+            "77777",
             "user",
             "192.168.1.200",
             9090,
         );
         assert_eq!(ctx.query(), "LONG RUNNING QUERY");
         assert_eq!(ctx.timeout_ms(), 60000);
-        assert_eq!(ctx.session_id(), Some("timeout_session"));
+        assert_eq!(ctx.session_id(), Some(77777));
     }
 
     #[test]
@@ -1009,21 +1010,21 @@ mod tests {
         let ctx = RequestContext::with_retry(
             "QUERY WITH RETRY".to_string(),
             5,
-            "retry_session",
+            "66666",
             "retry_user",
             "192.168.1.150",
             7070,
         );
         assert_eq!(ctx.query(), "QUERY WITH RETRY");
         assert_eq!(ctx.max_retry_times(), 5);
-        assert_eq!(ctx.session_id(), Some("retry_session"));
+        assert_eq!(ctx.session_id(), Some(66666));
     }
 
     #[test]
     fn test_request_context_with_parameters_from_context() {
         let base_ctx = RequestContext::with_session(
             "MATCH (n) RETURN n".to_string(),
-            "base_session",
+            "55555",
             "base_user",
             "192.168.1.50",
             6060,
@@ -1036,7 +1037,7 @@ mod tests {
 
         assert_eq!(new_ctx.query(), "MATCH (n) RETURN n");
         assert_eq!(new_ctx.get_parameter("limit"), Some(Value::Int(10)));
-        assert_eq!(new_ctx.session_id(), Some("base_session"));
+        assert_eq!(new_ctx.session_id(), Some(55555));
         assert_eq!(new_ctx.user_name(), Some("base_user"));
     }
 
@@ -1044,7 +1045,7 @@ mod tests {
     fn test_request_context_with_timeout_from_context() {
         let base_ctx = RequestContext::with_session(
             "LONG QUERY".to_string(),
-            "base_session",
+            "44444",
             "base_user",
             "192.168.1.60",
             5050,
@@ -1054,14 +1055,14 @@ mod tests {
 
         assert_eq!(new_ctx.query(), "LONG QUERY");
         assert_eq!(new_ctx.timeout_ms(), 120000);
-        assert_eq!(new_ctx.session_id(), Some("base_session"));
+        assert_eq!(new_ctx.session_id(), Some(44444));
     }
 
     #[test]
     fn test_request_context_with_retry_from_context() {
         let base_ctx = RequestContext::with_session(
             "RETRY QUERY".to_string(),
-            "base_session",
+            "33333",
             "base_user",
             "192.168.1.70",
             4040,
@@ -1071,7 +1072,7 @@ mod tests {
 
         assert_eq!(new_ctx.query(), "RETRY QUERY");
         assert_eq!(new_ctx.max_retry_times(), 10);
-        assert_eq!(new_ctx.session_id(), Some("base_session"));
+        assert_eq!(new_ctx.session_id(), Some(33333));
     }
 
     #[test]

@@ -457,21 +457,7 @@ mod tests {
     use crate::query::planner::plan::PlanNodeEnum;
 
     fn create_test_context() -> OptContext {
-        let session_info = SessionInfo::new(
-            "test_session",
-            "test_user",
-            vec!["user".to_string()],
-            "127.0.0.1",
-            8080,
-            "test_client",
-            "test_connection",
-        );
-        let query_context = QueryContext::new(
-            "test_query",
-            crate::core::context::query::QueryType::DataQuery,
-            "TEST QUERY",
-            session_info,
-        );
+        let query_context = QueryContext::new();
         OptContext::new(query_context)
     }
 

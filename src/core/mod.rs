@@ -7,7 +7,6 @@ pub mod plan_node_ref;
 pub mod result;
 pub mod schema;
 pub mod signal_handler;
-pub mod symbol;
 pub mod type_utils;
 pub mod value;
 pub mod vertex_edge_path;
@@ -46,7 +45,6 @@ pub use types::operators::{
 };
 
 // 其他核心类型
-pub use symbol::*;
 pub use type_utils::TypeUtils;
 
 // 计划节点引用

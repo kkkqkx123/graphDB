@@ -32,10 +32,6 @@ pub use type_utils::{value_to_bool, value_to_f64, value_to_i64, value_to_string}
 // pub use crate::expressions::ExpressionKind;
 pub use crate::core::Value;
 
-// 匿名变量生成器模块
-pub mod anon_var_generator;
-pub use anon_var_generator::AnonVarGenerator;
-
 // 错误处理辅助函数模块
 pub mod error_handling;
 pub use error_handling::{

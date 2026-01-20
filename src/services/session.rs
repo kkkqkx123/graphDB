@@ -323,11 +323,11 @@ mod tests {
             "connection_info".to_string(),
         );
 
-        assert!(session.session_info.session_id.len() > 0);
-        assert_eq!(session.session_info.username, "user123");
+        assert!(session.session_info.session_id > 0);
+        assert_eq!(session.session_info.user_name, "user123");
 
         // Check that session is initially active
-        assert!(matches!(session.session_info.status, SessionStatus::Active));
+        assert!(matches!(session.status, SessionStatus::Active));
     }
 
     #[test]
@@ -382,7 +382,7 @@ mod tests {
             .expect("Failed to get session info in test");
         assert!(info.is_some());
         assert_eq!(
-            info.expect("Session info should exist").username,
+            info.expect("Session info should exist").user_name,
             "user123".to_string()
         );
 
@@ -413,8 +413,8 @@ mod tests {
         // Initially, the session should be valid
         assert!(session.is_valid(Duration::from_secs(10)));
 
-        // Modify the last_accessed time to be in the past
-        session.session_info.last_accessed = SystemTime::now() - Duration::from_secs(15); // 15 seconds ago
+        // Modify the last_access_time to be in the past
+        session.session_info.last_access_time = SystemTime::now() - Duration::from_secs(15); // 15 seconds ago
 
         // Now it should be invalid with a 10-second timeout
         assert!(!session.is_valid(Duration::from_secs(10)));

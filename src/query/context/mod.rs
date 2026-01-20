@@ -4,6 +4,7 @@
 //! - managers/: 管理器接口
 //! - execution/: 执行相关上下文
 //! - validate/: 验证上下文（保持现有结构）
+//! - symbol/: 符号表管理
 //! - 其他模块保持不变
 
 pub mod ast;
@@ -14,6 +15,7 @@ pub mod validate;
 // 新的模块结构
 pub mod execution;
 pub mod managers;
+pub mod symbol;
 
 // 重新导出主要类型
 pub use ast::*;
@@ -22,3 +24,4 @@ pub use validate::*;
 
 // 导出新的模块结构
 pub use execution::*;
+pub use symbol::{Symbol, SymbolTable};
