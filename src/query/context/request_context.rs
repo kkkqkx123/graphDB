@@ -5,8 +5,8 @@ use crate::core::Value;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock, atomic::{AtomicBool, AtomicU64, Ordering}};
 
-// SessionInfo 现在统一使用 src/core/context/session.rs 中的定义
-use crate::core::context::session::SessionInfo;
+// SessionInfo 现在统一使用 api/session/session_manager.rs 中的定义
+use crate::api::session::session_manager::SessionInfo;
 
 /// 请求参数
 #[derive(Debug, Clone)]
@@ -199,14 +199,14 @@ pub enum RequestStatus {
 
 impl RequestContext {
     /// 创建新的请求上下文
-    pub fn new(session_info: SessionInfo, request_params: RequestParams) -> Self {
+    pub fn new(session_info: Option<SessionInfo>, request_params: RequestParams) -> Self {
         let _now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_secs() as i64)
             .unwrap_or(0);
         
         Self {
-            session_info: Some(session_info),
+            session_info,
             request_params: Arc::new(RwLock::new(request_params)),
             response: Arc::new(RwLock::new(Response::new(true))),
             start_time: std::time::SystemTime::now(),
@@ -238,17 +238,18 @@ impl RequestContext {
         client_ip: &str,
         client_port: u16,
     ) -> Self {
-        let session_info = SessionInfo::new(
-            session_id.to_string(),
-            user_name.to_string(),
-            vec![], // 默认无角色
-            client_ip.to_string(),
-            client_port,
-            "", // 默认客户端信息
-            "", // 默认连接信息
-        );
+        let session_info = SessionInfo {
+            session_id: session_id.parse().unwrap_or(0),
+            user_name: user_name.to_string(),
+            space_name: None,
+            graph_addr: Some(format!("{}:{}", client_ip, client_port)),
+            create_time: std::time::SystemTime::now(),
+            last_access_time: std::time::SystemTime::now(),
+            active_queries: 0,
+            timezone: None,
+        };
         let request_params = RequestParams::new(query);
-        Self::new(session_info, request_params)
+        Self::new(Some(session_info), request_params)
     }
 
     /// 创建带参数的请求上下文
@@ -260,17 +261,18 @@ impl RequestContext {
         client_ip: &str,
         client_port: u16,
     ) -> Self {
-        let session_info = SessionInfo::new(
-            session_id.to_string(),
-            user_name.to_string(),
-            vec![], // 默认无角色
-            client_ip.to_string(),
-            client_port,
-            "", // 默认客户端信息
-            "", // 默认连接信息
-        );
+        let session_info = SessionInfo {
+            session_id: session_id.parse().unwrap_or(0),
+            user_name: user_name.to_string(),
+            space_name: None,
+            graph_addr: Some(format!("{}:{}", client_ip, client_port)),
+            create_time: std::time::SystemTime::now(),
+            last_access_time: std::time::SystemTime::now(),
+            active_queries: 0,
+            timezone: None,
+        };
         let request_params = RequestParams::new(query).with_parameters(parameters);
-        Self::new(session_info, request_params)
+        Self::new(Some(session_info), request_params)
     }
 
     /// 创建带超时设置的请求上下文
@@ -282,17 +284,18 @@ impl RequestContext {
         client_ip: &str,
         client_port: u16,
     ) -> Self {
-        let session_info = SessionInfo::new(
-            session_id.to_string(),
-            user_name.to_string(),
-            vec![], // 默认无角色
-            client_ip.to_string(),
-            client_port,
-            "", // 默认客户端信息
-            "", // 默认连接信息
-        );
+        let session_info = SessionInfo {
+            session_id: session_id.parse().unwrap_or(0),
+            user_name: user_name.to_string(),
+            space_name: None,
+            graph_addr: Some(format!("{}:{}", client_ip, client_port)),
+            create_time: std::time::SystemTime::now(),
+            last_access_time: std::time::SystemTime::now(),
+            active_queries: 0,
+            timezone: None,
+        };
         let request_params = RequestParams::new(query).with_timeout(timeout_ms);
-        Self::new(session_info, request_params)
+        Self::new(Some(session_info), request_params)
     }
 
     /// 创建带重试设置的请求上下文
@@ -304,71 +307,75 @@ impl RequestContext {
         client_ip: &str,
         client_port: u16,
     ) -> Self {
-        let session_info = SessionInfo::new(
-            session_id.to_string(),
-            user_name.to_string(),
-            vec![], // 默认无角色
-            client_ip.to_string(),
-            client_port,
-            "", // 默认客户端信息
-            "", // 默认连接信息
-        );
+        let session_info = SessionInfo {
+            session_id: session_id.parse().unwrap_or(0),
+            user_name: user_name.to_string(),
+            space_name: None,
+            graph_addr: Some(format!("{}:{}", client_ip, client_port)),
+            create_time: std::time::SystemTime::now(),
+            last_access_time: std::time::SystemTime::now(),
+            active_queries: 0,
+            timezone: None,
+        };
         let request_params = RequestParams::new(query).with_max_retry(max_retry_times);
-        Self::new(session_info, request_params)
+        Self::new(Some(session_info), request_params)
     }
 
     /// 基于现有请求上下文创建带参数的请求上下文
     pub fn with_parameters_from_context(&self, parameters: HashMap<String, Value>) -> Self {
         let session_info = self.session_info.clone().unwrap_or_else(|| {
-            SessionInfo::new(
-                "unknown_session".to_string(),
-                "unknown_user".to_string(),
-                vec![], // 默认无角色
-                "unknown_ip".to_string(),
-                0,
-                "", // 默认客户端信息
-                "", // 默认连接信息
-            )
+            SessionInfo {
+                session_id: 0,
+                user_name: "unknown_user".to_string(),
+                space_name: None,
+                graph_addr: None,
+                create_time: std::time::SystemTime::now(),
+                last_access_time: std::time::SystemTime::now(),
+                active_queries: 0,
+                timezone: None,
+            }
         });
         let query = self.request_params.read().expect("Failed to acquire read lock on request params").query.clone();
         let request_params = RequestParams::new(query).with_parameters(parameters);
-        Self::new(session_info, request_params)
+        Self::new(Some(session_info), request_params)
     }
 
     /// 基于现有请求上下文创建带超时设置的请求上下文
     pub fn with_timeout_from_context(&self, timeout_ms: u64) -> Self {
         let session_info = self.session_info.clone().unwrap_or_else(|| {
-            SessionInfo::new(
-                "unknown_session".to_string(),
-                "unknown_user".to_string(),
-                vec![], // 默认无角色
-                "unknown_ip".to_string(),
-                0,
-                "", // 默认客户端信息
-                "", // 默认连接信息
-            )
+            SessionInfo {
+                session_id: 0,
+                user_name: "unknown_user".to_string(),
+                space_name: None,
+                graph_addr: None,
+                create_time: std::time::SystemTime::now(),
+                last_access_time: std::time::SystemTime::now(),
+                active_queries: 0,
+                timezone: None,
+            }
         });
         let query = self.request_params.read().expect("Failed to acquire read lock on request params").query.clone();
         let request_params = RequestParams::new(query).with_timeout(timeout_ms);
-        Self::new(session_info, request_params)
+        Self::new(Some(session_info), request_params)
     }
 
     /// 基于现有请求上下文创建带重试设置的请求上下文
     pub fn with_retry_from_context(&self, max_retry_times: u32) -> Self {
         let session_info = self.session_info.clone().unwrap_or_else(|| {
-            SessionInfo::new(
-                "unknown_session".to_string(),
-                "unknown_user".to_string(),
-                vec![], // 默认无角色
-                "unknown_ip".to_string(),
-                0,
-                "", // 默认客户端信息
-                "", // 默认连接信息
-            )
+            SessionInfo {
+                session_id: 0,
+                user_name: "unknown_user".to_string(),
+                space_name: None,
+                graph_addr: None,
+                create_time: std::time::SystemTime::now(),
+                last_access_time: std::time::SystemTime::now(),
+                active_queries: 0,
+                timezone: None,
+            }
         });
         let query = self.request_params.read().expect("Failed to acquire read lock on request params").query.clone();
         let request_params = RequestParams::new(query).with_max_retry(max_retry_times);
-        Self::new(session_info, request_params)
+        Self::new(Some(session_info), request_params)
     }
 
     // ==================== 会话信息管理 ====================
@@ -379,18 +386,18 @@ impl RequestContext {
     }
 
     /// 获取会话ID
-    pub fn session_id(&self) -> Option<&str> {
-        self.session_info.as_ref().map(|s| s.session_id.as_str())
+    pub fn session_id(&self) -> Option<i64> {
+        self.session_info.as_ref().map(|s| s.session_id)
     }
 
     /// 获取用户名
     pub fn user_name(&self) -> Option<&str> {
-        self.session_info.as_ref().map(|s| s.username.as_str())
+        self.session_info.as_ref().map(|s| s.user_name.as_str())
     }
 
     /// 获取客户端IP
     pub fn client_ip(&self) -> Option<&str> {
-        self.session_info.as_ref().map(|s| s.client_ip.as_str())
+        self.session_info.as_ref().and_then(|s| s.graph_addr.as_deref())
     }
 
     // ==================== 请求参数管理 ====================
@@ -858,8 +865,8 @@ impl RequestContext {
 
         if let Some(session) = &self.session_info {
             result.push_str(&format!("  session_id: {},\n", session.session_id));
-            result.push_str(&format!("  user_name: {},\n", session.username));
-            result.push_str(&format!("  client_ip: {},\n", session.client_ip));
+            result.push_str(&format!("  user_name: {},\n", session.user_name));
+            result.push_str(&format!("  graph_addr: {:?},\n", session.graph_addr));
         }
 
         let request_params = self.request_params.read().expect("Failed to acquire read lock on request params");
@@ -883,17 +890,18 @@ impl RequestContext {
 
 impl Default for RequestContext {
     fn default() -> Self {
-        let session_info = SessionInfo::new(
-            "default_session".to_string(),
-            "default_user".to_string(),
-            vec![],
-            "localhost".to_string(),
-            0,
-            "default_client".to_string(),
-            "default_connection".to_string(),
-        );
+        let session_info = SessionInfo {
+            session_id: 0,
+            user_name: "default_user".to_string(),
+            space_name: None,
+            graph_addr: Some("localhost:0".to_string()),
+            create_time: std::time::SystemTime::now(),
+            last_access_time: std::time::SystemTime::now(),
+            active_queries: 0,
+            timezone: None,
+        };
         let request_params = RequestParams::new("SELECT 1".to_string());
-        Self::new(session_info, request_params)
+        Self::new(Some(session_info), request_params)
     }
 }
 

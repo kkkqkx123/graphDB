@@ -1,5 +1,5 @@
 //! Optimizer implementation for optimizing execution plans
-use crate::core::context::QueryContext;
+use crate::query::context::execution::QueryContext;
 use crate::core::types::operators::Operator;
 use crate::query::context::validate;
 use crate::query::optimizer::property_tracker::PropertyTracker;

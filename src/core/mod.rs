@@ -13,7 +13,6 @@ pub mod value;
 pub mod vertex_edge_path;
 
 // 新增的子模块
-pub mod context;
 pub mod expression_visitor;
 pub mod expression_utils;
 pub mod types;
@@ -52,9 +51,6 @@ pub use type_utils::TypeUtils;
 
 // 计划节点引用
 pub use plan_node_ref::*;
-
-// 上下文
-pub use context::*;
 
 // 查询管道管理器
 pub use query_pipeline_manager::QueryPipelineManager;

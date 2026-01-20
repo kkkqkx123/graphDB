@@ -7,4 +7,5 @@ pub mod query_execution;
 // 重新导出所有公共类型
 pub use query_execution::{
     ExecutionPlan, ExecutionResponse, PlanNode, QueryContext, QueryContextStatus,
+    QueryExecutionContext,
 };

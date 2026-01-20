@@ -508,7 +508,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
     /// 执行执行计划
     pub async fn execute_plan(
         &mut self,
-        _query_context: &mut crate::core::context::query::QueryContext,
+        _query_context: &mut crate::query::context::execution::QueryContext,
         plan: crate::query::planner::plan::ExecutionPlan,
     ) -> Result<crate::query::executor::traits::ExecutionResult, QueryError> {
         // 获取存储引擎

@@ -1301,7 +1301,7 @@ fn can_push_down_expression_to_traverse(expr: &crate::core::Expression) -> bool 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::context::QueryContext;
+    use crate::query::context::execution::QueryContext;
     use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
     use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
     use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;

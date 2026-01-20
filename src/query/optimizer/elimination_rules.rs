@@ -566,7 +566,7 @@ impl EliminationRule for RemoveAppendVerticesBelowJoinRule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::context::QueryContext;
+    use crate::query::context::execution::QueryContext;
     use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
     use crate::query::optimizer::rule_traits::is_tautology;
     use crate::query::planner::plan::algorithms::IndexScan;

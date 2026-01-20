@@ -2,8 +2,6 @@
 //!
 //! 提供表达式求值过程中的基础上下文实现
 
-use crate::core::context::traits::BaseContext;
-use crate::core::context::ContextType;
 use crate::core::Value;
 use crate::expression::functions::{
     BuiltinFunction, CustomFunction, ExpressionFunction, FunctionRef,
@@ -279,44 +277,6 @@ impl Clone for BasicExpressionContext {
             parent: self.parent.clone(),
             depth: self.get_depth(),
         }
-    }
-}
-
-impl BaseContext for BasicExpressionContext {
-    fn id(&self) -> &str {
-        "expression_context"
-    }
-
-    fn context_type(&self) -> ContextType {
-        ContextType::Expression
-    }
-
-    fn created_at(&self) -> std::time::SystemTime {
-        std::time::SystemTime::now()
-    }
-
-    fn updated_at(&self) -> std::time::SystemTime {
-        std::time::SystemTime::now()
-    }
-
-    fn is_valid(&self) -> bool {
-        true
-    }
-
-    fn touch(&mut self) {}
-
-    fn invalidate(&mut self) {}
-
-    fn revalidate(&mut self) -> bool {
-        true
-    }
-
-    fn parent_id(&self) -> Option<&str> {
-        self.parent.as_ref().map(|_| "parent_expression")
-    }
-
-    fn depth(&self) -> usize {
-        self.depth
     }
 }
 

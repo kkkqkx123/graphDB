@@ -1,4 +1,4 @@
-use crate::core::context::session::{SessionInfo, SessionStatus};
+use crate::api::session::session_manager::SessionInfo;
 use crate::core::error::DBError;
 use crate::core::Value;
 use crate::utils::{safe_lock, safe_read, safe_write};
@@ -7,6 +7,15 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::Duration;
 use uuid::Uuid;
+
+/// 会话状态
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum SessionStatus {
+    /// 活跃
+    Active,
+    /// 已关闭
+    Closed,
+}
 
 /// Unique identifier for a session
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -34,35 +43,49 @@ pub struct Session {
     pub session_info: SessionInfo,
     pub variables: Arc<RwLock<HashMap<String, Value>>>,
     pub settings: Arc<RwLock<HashMap<String, Value>>>,
+    pub status: SessionStatus,
 }
 
 impl Session {
     pub fn new(user_id: Option<String>, client_info: String, connection_info: String) -> Self {
-        let session_info = SessionInfo::new(
-            SessionId::new().to_string(),
-            user_id.unwrap_or_else(|| "anonymous".to_string()),
-            vec![], // 默认无角色
-            "",     // 客户端IP
-            0,      // 客户端端口
-            client_info,
-            connection_info,
-        );
+        let session_id = Uuid::new_v4().to_string();
+        let session_id_i64 = session_id.parse::<i64>().unwrap_or(0);
+        
+        let session_info = SessionInfo {
+            session_id: session_id_i64,
+            user_name: user_id.unwrap_or_else(|| "anonymous".to_string()),
+            space_name: None,
+            graph_addr: None,
+            create_time: std::time::SystemTime::now(),
+            last_access_time: std::time::SystemTime::now(),
+            active_queries: 0,
+            timezone: None,
+        };
 
         Self {
             session_info,
             variables: Arc::new(RwLock::new(HashMap::new())),
             settings: Arc::new(RwLock::new(HashMap::new())),
+            status: SessionStatus::Active,
         }
     }
 
     /// Check if the session is still valid based on timeout
     pub fn is_valid(&self, timeout: Duration) -> bool {
-        self.session_info.is_valid(timeout)
+        if !matches!(self.status, SessionStatus::Active) {
+            return false;
+        }
+        
+        if let Ok(elapsed) = self.session_info.last_access_time.elapsed() {
+            elapsed < timeout
+        } else {
+            false
+        }
     }
 
     /// Update the last accessed time
     pub fn touch(&mut self) {
-        self.session_info.touch();
+        self.session_info.last_access_time = std::time::SystemTime::now();
     }
 
     /// Get a session variable
@@ -99,7 +122,7 @@ impl Session {
 
     /// Close the session
     pub fn close(&mut self) {
-        self.session_info.status = SessionStatus::Closed;
+        self.status = SessionStatus::Closed;
     }
 }
 
@@ -125,7 +148,7 @@ impl SessionManager {
         connection_info: String,
     ) -> Result<SessionId, DBError> {
         let session = Session::new(user_id, client_info, connection_info);
-        let session_id = SessionId(session.session_info.session_id.clone());
+        let session_id = SessionId(session.session_info.session_id.to_string());
 
         let session = Arc::new(Mutex::new(session));
         {
@@ -189,7 +212,7 @@ impl SessionManager {
 
         for session in sessions.values() {
             if let Ok(session) = safe_lock(session) {
-                if matches!(session.session_info.status, SessionStatus::Active)
+                if matches!(session.status, SessionStatus::Active)
                     && session.is_valid(self.default_session_timeout)
                 {
                     active_sessions.push(session.session_info.clone());
@@ -257,14 +280,14 @@ pub mod session_utils {
     pub fn session_age(session: &Session) -> Duration {
         session
             .session_info
-            .created_at
+            .create_time
             .elapsed()
             .unwrap_or(Duration::from_secs(0))
     }
 
     /// Check if a session is about to expire
     pub fn is_about_to_expire(session: &Session, warning_threshold: Duration) -> bool {
-        if let Ok(elapsed) = session.session_info.created_at.elapsed() {
+        if let Ok(elapsed) = session.session_info.create_time.elapsed() {
             let remaining = self::default_session_timeout().saturating_sub(elapsed);
             remaining < warning_threshold
         } else {

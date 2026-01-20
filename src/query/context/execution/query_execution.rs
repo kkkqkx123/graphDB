@@ -1,16 +1,77 @@
 //! 查询执行上下文 - 管理整个查询请求的上下文
 //! 对应原C++中的QueryContext.h/cpp
 
-use crate::core::context::request::RequestContext;
-use crate::core::context::{QueryExecutionContext, ValidationContext};
+use crate::query::context::validate::ValidationContext;
 use crate::core::{SymbolTable, Value};
 use crate::graph::utils::IdGenerator;
 use crate::query::context::managers::{
     CharsetInfo, IndexManager, MetaClient, SchemaManager, StorageClient,
 };
+use crate::query::context::request_context::RequestContext;
 use crate::utils::ObjectPool;
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+
+/// 查询执行上下文
+///
+/// 每个查询请求的执行上下文，存储查询变量值和中间结果
+/// 基于Nebula-Graph的ResultMap设计，使用简单的HashMap管理变量
+#[derive(Debug, Clone)]
+pub struct QueryExecutionContext {
+    /// 变量存储（类似Nebula-Graph的ResultMap）
+    variables: HashMap<String, Value>,
+}
+
+impl QueryExecutionContext {
+    /// 创建新的查询执行上下文
+    pub fn new() -> Self {
+        Self {
+            variables: HashMap::new(),
+        }
+    }
+
+    /// 设置变量值
+    pub fn set_value(&mut self, name: String, value: Value) {
+        self.variables.insert(name, value);
+    }
+
+    /// 获取变量值
+    pub fn get_value(&self, name: &str) -> Option<&Value> {
+        self.variables.get(name)
+    }
+
+    /// 移除变量
+    pub fn remove_value(&mut self, name: &str) -> Option<Value> {
+        self.variables.remove(name)
+    }
+
+    /// 检查变量是否存在
+    pub fn exists(&self, name: &str) -> bool {
+        self.variables.contains_key(name)
+    }
+
+    /// 获取所有变量名
+    pub fn variable_names(&self) -> Vec<String> {
+        self.variables.keys().cloned().collect()
+    }
+
+    /// 获取变量数量
+    pub fn variable_count(&self) -> usize {
+        self.variables.len()
+    }
+
+    /// 清空所有变量
+    pub fn clear(&mut self) {
+        self.variables.clear();
+    }
+}
+
+impl Default for QueryExecutionContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 /// 执行计划 - 表示查询的执行计划
 #[derive(Debug, Clone)]
@@ -141,7 +202,7 @@ impl QueryContext {
     pub fn new() -> Self {
         Self {
             rctx: None,
-            vctx: ValidationContext::new("default_query_context".to_string()),
+            vctx: ValidationContext::new(),
             ectx: QueryExecutionContext::new(),
             plan: None,
             schema_manager: None,
@@ -165,7 +226,7 @@ impl QueryContext {
 
         // 将请求参数复制到执行上下文中
         for (name, value) in &rctx.request_params().parameters {
-            let _ = ctx.ectx.set_value(name, value.clone());
+            let _ = ctx.ectx.set_value(name.clone(), value.clone());
         }
 
         ctx
@@ -325,14 +386,14 @@ impl QueryContext {
     /// 这仅在构建阶段有效！用于检查查询参数是否已设置
     pub fn exist_parameter(&self, param: &str) -> bool {
         match self.ectx.get_value(param) {
-            Ok(value) => {
+            Some(value) => {
                 // 检查参数值是否为空
                 match value {
                     Value::Empty => false,
                     _ => true,
                 }
             }
-            Err(_) => false, // 如果参数不存在，返回false
+            None => false, // 如果参数不存在，返回false
         }
     }
 
@@ -1210,14 +1271,12 @@ mod tests {
 
         // 测试执行上下文
         let value = crate::core::Value::Int(42);
-        ctx.ectx()
-            .set_value("test_val", value.clone())
-            .expect("Failed to set value");
+        ctx.ectx_mut().set_value("test_val".to_string(), value.clone());
         let retrieved = ctx
             .ectx()
             .get_value("test_val")
             .expect("Failed to get value");
-        assert_eq!(retrieved, value);
+        assert_eq!(*retrieved, value);
     }
 
     #[test]
@@ -1331,12 +1390,10 @@ mod tests {
         ctx.set_plan(ExecutionPlan::new(ctx.gen_id()));
 
         // 添加一些变量到执行上下文
-        ctx.ectx()
-            .set_value("test_var1", crate::core::Value::Int(42))
-            .expect("Failed to set value for test_var1");
-        ctx.ectx()
-            .set_value("test_var2", crate::core::Value::String("hello".to_string()))
-            .expect("Failed to set value for test_var2");
+        ctx.ectx_mut()
+            .set_value("test_var1".to_string(), crate::core::Value::Int(42));
+        ctx.ectx_mut()
+            .set_value("test_var2".to_string(), crate::core::Value::String("hello".to_string()));
 
         // 检查更新后的状态
         let status = ctx.get_status_info();
@@ -1371,7 +1428,6 @@ mod tests {
     fn test_with_request_context() {
         // 创建请求上下文
         let request_ctx = Arc::new(RequestContext::with_session(
-            "request_ctx_1".to_string(),
             "MATCH (n) RETURN n".to_string(),
             "test_session",
             "test_user",
@@ -1388,5 +1444,51 @@ mod tests {
             ctx.rctx().expect("Request context should exist").query(),
             "MATCH (n) RETURN n"
         );
+    }
+
+    #[test]
+    fn test_query_execution_context() {
+        let mut ctx = QueryExecutionContext::new();
+
+        // 测试设置和获取值
+        let value = Value::Int(42);
+        ctx.set_value("test_var".to_string(), value.clone());
+        assert_eq!(ctx.get_value("test_var"), Some(&value));
+    }
+
+    #[test]
+    fn test_variable_operations() {
+        let mut ctx = QueryExecutionContext::new();
+
+        // 添加变量
+        ctx.set_value("var1".to_string(), Value::Int(1));
+        ctx.set_value("var2".to_string(), Value::String("test".to_string()));
+        assert_eq!(ctx.variable_count(), 2);
+
+        // 检查存在性
+        assert!(ctx.exists("var1"));
+        assert!(!ctx.exists("non_existent"));
+
+        // 移除变量
+        let removed = ctx.remove_value("var1");
+        assert_eq!(removed, Some(Value::Int(1)));
+        assert_eq!(ctx.variable_count(), 1);
+
+        // 获取变量名
+        let names = ctx.variable_names();
+        assert_eq!(names.len(), 1);
+        assert!(names.contains(&"var2".to_string()));
+    }
+
+    #[test]
+    fn test_clear() {
+        let mut ctx = QueryExecutionContext::new();
+
+        ctx.set_value("var1".to_string(), Value::Int(1));
+        ctx.set_value("var2".to_string(), Value::String("test".to_string()));
+        assert_eq!(ctx.variable_count(), 2);
+
+        ctx.clear();
+        assert_eq!(ctx.variable_count(), 0);
     }
 }

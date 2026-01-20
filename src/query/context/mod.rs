@@ -22,6 +22,3 @@ pub use validate::*;
 
 // 导出新的模块结构
 pub use execution::*;
-
-// 使用 core::context 中的 QueryExecutionContext
-pub use crate::core::context::QueryExecutionContext;

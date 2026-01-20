@@ -1,4 +1,4 @@
-use crate::core::context::query::QueryContext;
+use crate::query::context::execution::QueryContext;
 use crate::core::error::{DBError, DBResult};
 use crate::query::executor::factory::ExecutorFactory;
 use crate::query::executor::traits::ExecutionResult;
@@ -71,22 +71,8 @@ impl<S: StorageEngine + 'static> QueryPipelineManager<S> {
     }
 
     /// 创建查询上下文
-    fn create_query_context(&self, query_text: &str) -> DBResult<QueryContext> {
-        let session_info = crate::core::context::session::SessionInfo::new(
-            "default_session".to_string(),
-            "default_user".to_string(),
-            vec![],
-            "127.0.0.1".to_string(),
-            8080,
-            "default_client".to_string(),
-            "default_connection".to_string(),
-        );
-        Ok(QueryContext::new(
-            uuid::Uuid::new_v4().to_string(),
-            crate::core::context::query::QueryType::DataQuery,
-            query_text,
-            session_info,
-        ))
+    fn create_query_context(&self, _query_text: &str) -> DBResult<QueryContext> {
+        Ok(QueryContext::new())
     }
 
     /// 解析查询文本为AST

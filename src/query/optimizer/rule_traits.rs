@@ -720,24 +720,20 @@ mod tests {
 
     #[test]
     fn test_dependency_functions() {
-        use crate::core::context::QueryContext;
+        use crate::query::context::execution::QueryContext;
 
         // 创建测试上下文
-        let session_info = crate::core::context::session::SessionInfo::new(
-            "test_session",
-            "test_user",
-            vec!["user".to_string()],
-            "127.0.0.1",
-            8080,
-            "test_client",
-            "test_connection",
-        );
-        let query_ctx = QueryContext::new(
-            "test_query",
-            crate::core::context::query::QueryType::DataQuery,
-            "TEST QUERY",
-            session_info,
-        );
+        let session_info = crate::api::session::session_manager::SessionInfo {
+            session_id: 1,
+            user_name: "test_user".to_string(),
+            space_name: None,
+            graph_addr: None,
+            create_time: std::time::SystemTime::now(),
+            last_access_time: std::time::SystemTime::now(),
+            active_queries: 0,
+            timezone: None,
+        };
+        let query_ctx = QueryContext::new();
         let mut opt_ctx = OptContext::new(query_ctx);
 
         // 创建测试节点 - 使用 OptGroupNode::default() 创建默认节点

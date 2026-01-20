@@ -1009,26 +1009,22 @@ impl BaseOptRule for UnionAllTagIndexScanRule {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::context::QueryContext;
+    use crate::query::context::execution::QueryContext;
     use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
     use crate::query::planner::plan::algorithms::IndexScan;
 
     fn create_test_context() -> OptContext {
-        let session_info = crate::core::context::session::SessionInfo::new(
-            "test_session",
-            "test_user",
-            vec!["user".to_string()],
-            "127.0.0.1",
-            8080,
-            "test_client",
-            "test_connection",
-        );
-        let query_context = QueryContext::new(
-            "test_query",
-            crate::core::context::query::QueryType::DataQuery,
-            "TEST QUERY",
-            session_info,
-        );
+        let session_info = crate::api::session::session_manager::SessionInfo {
+            session_id: 1,
+            user_name: "test_user".to_string(),
+            space_name: None,
+            graph_addr: None,
+            create_time: std::time::SystemTime::now(),
+            last_access_time: std::time::SystemTime::now(),
+            active_queries: 0,
+            timezone: None,
+        };
+        let query_context = QueryContext::new();
         OptContext::new(query_context)
     }
 

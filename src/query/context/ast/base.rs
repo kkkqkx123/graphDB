@@ -1,6 +1,6 @@
 //! 基础AST上下文定义
 
-use crate::core::context::query::QueryContext;
+use crate::query::context::execution::QueryContext;
 use crate::query::context::validate::types::SpaceInfo;
 use crate::query::parser::ast::Stmt;
 use std::sync::Arc;
@@ -236,21 +236,8 @@ impl AstContext {
             query_type: QueryType::default(),
         };
 
-        // 设置查询上下文，以便query_text()方法可以返回正确的查询文本
-        ctx.qctx = Some(std::sync::Arc::new(crate::core::context::query::QueryContext::new(
-            "temp_id".to_string(),
-            crate::core::context::query::QueryType::DataQuery,
-            query_text.to_string(),
-            crate::core::context::session::SessionInfo::new(
-                "temp_session".to_string(),
-                "temp_user".to_string(),
-                vec!["temp_role".to_string()],
-                "127.0.0.1".to_string(),
-                8080,
-                "temp_client".to_string(),
-                "temp_connection".to_string(),
-            ),
-        )));
+        // 设置查询上下文
+        ctx.qctx = Some(std::sync::Arc::new(crate::query::context::execution::QueryContext::new()));
 
         // 根据query_type参数设置一个虚拟的语句，以便statement_type()方法返回正确的值
         if query_type == "CYPHER" {
@@ -403,7 +390,10 @@ impl AstContext {
             },
             None => {
                 if let Some(ref qctx) = self.qctx {
-                    let upper_query = qctx.query_text.to_uppercase();
+                    let query_text = qctx.rctx()
+                        .map(|rctx| rctx.request_params().query.clone())
+                        .unwrap_or_default();
+                    let upper_query = query_text.to_uppercase();
                     let trimmed_query = upper_query.trim_start();
 
                     if trimmed_query.starts_with("MATCH") {
@@ -452,11 +442,11 @@ impl AstContext {
     }
 
     /// 获取查询文本
-    pub fn query_text(&self) -> &str {
+    pub fn query_text(&self) -> String {
         self.qctx
             .as_ref()
-            .map(|ctx| ctx.query_text.as_str())
-            .unwrap_or("")
+            .and_then(|ctx| ctx.rctx().map(|rctx| rctx.request_params().query.clone()))
+            .unwrap_or_default()
     }
 }
 

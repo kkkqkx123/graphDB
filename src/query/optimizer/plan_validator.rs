@@ -450,8 +450,8 @@ impl PlanValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::context::QueryContext;
-    use crate::core::context::session::SessionInfo;
+    use crate::query::context::execution::QueryContext;
+    use crate::api::session::session_manager::SessionInfo;
     use crate::core::types::expression::Expression;
     use crate::query::optimizer::optimizer::{OptContext, OptGroup, OptGroupNode};
     use crate::query::planner::plan::PlanNodeEnum;
