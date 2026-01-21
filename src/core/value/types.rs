@@ -1,29 +1,10 @@
+use crate::core::types::DataType;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
 
-/// Value类型定义枚举
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum ValueTypeDef {
-    Empty,
-    Null,
-    Bool,
-    Int,
-    Float,
-    String,
-    Date,
-    Time,
-    DateTime,
-    Vertex,
-    Edge,
-    Path,
-    List,
-    Map,
-    Set,
-    Geography,
-    Duration,
-    DataSet,
-}
+/// 统一数据类型别名（向后兼容）
+pub type ValueTypeDef = DataType;
 
 /// Null类型定义 - 简化为单节点图数据库所需的3种类型
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Encode, Decode)]

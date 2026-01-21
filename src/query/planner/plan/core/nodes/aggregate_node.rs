@@ -2,7 +2,7 @@
 //!
 //! AggregateNode 用于对输入数据进行聚合操作
 
-use crate::core::types::operators::{AggregateFunction, Operator};
+use crate::core::types::operators::AggregateFunction;
 use crate::query::context::validate::types::Variable;
 
 /// 聚合节点

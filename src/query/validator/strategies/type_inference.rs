@@ -228,8 +228,8 @@ impl TypeInference {
             ValueTypeDef::Empty => "empty".to_string(),
             ValueTypeDef::Null => "null".to_string(),
             ValueTypeDef::Bool => "bool".to_string(),
-            ValueTypeDef::Int => "int".to_string(),
-            ValueTypeDef::Float => "float".to_string(),
+            ValueTypeDef::Int | ValueTypeDef::Int8 | ValueTypeDef::Int16 | ValueTypeDef::Int32 | ValueTypeDef::Int64 => "int".to_string(),
+            ValueTypeDef::Float | ValueTypeDef::Double => "float".to_string(),
             ValueTypeDef::String => "string".to_string(),
             ValueTypeDef::Date => "date".to_string(),
             ValueTypeDef::Time => "time".to_string(),
@@ -243,7 +243,6 @@ impl TypeInference {
             ValueTypeDef::Geography => "geography".to_string(),
             ValueTypeDef::Duration => "duration".to_string(),
             ValueTypeDef::DataSet => "dataset".to_string(),
-
         }
     }
 

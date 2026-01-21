@@ -3,7 +3,6 @@
 //! 提供计划验证功能，确保优化后的计划是正确的
 
 use crate::core::types::expression::Expression;
-use crate::core::types::operators::Operator;
 use crate::query::optimizer::optimizer::{OptContext, OptGroup, OptGroupNode};
 use crate::query::optimizer::OptimizerError;
 use std::collections::HashMap;

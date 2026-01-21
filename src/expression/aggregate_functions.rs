@@ -1,4 +1,4 @@
-use crate::core::types::operators::{AggregateFunction, Operator};
+use crate::core::types::operators::AggregateFunction;
 use crate::core::Expression;
 use crate::core::{ExpressionError, Value};
 use serde::{Deserialize, Serialize};

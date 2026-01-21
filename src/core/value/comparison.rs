@@ -375,14 +375,14 @@ impl Value {
         Self::type_priority(&type_a).cmp(&Self::type_priority(&type_b))
     }
 
-    // 类型优先级映射函数 - 移除未使用的类型
+    // 类型优先级映射函数
     fn type_priority(typ: &ValueTypeDef) -> u8 {
         match typ {
             ValueTypeDef::Empty => 0,
             ValueTypeDef::Null => 1,
             ValueTypeDef::Bool => 2,
-            ValueTypeDef::Int => 3,
-            ValueTypeDef::Float => 4,
+            ValueTypeDef::Int | ValueTypeDef::Int8 | ValueTypeDef::Int16 | ValueTypeDef::Int32 | ValueTypeDef::Int64 => 3,
+            ValueTypeDef::Float | ValueTypeDef::Double => 4,
             ValueTypeDef::String => 5,
             ValueTypeDef::Date => 6,
             ValueTypeDef::Time => 7,

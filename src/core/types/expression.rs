@@ -3,6 +3,7 @@
 //! 移除了冗余的类型变体，统一使用核心表达式类型
 
 use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
+pub use crate::core::types::DataType;
 use crate::core::{NullType, Value};
 use serde::{Deserialize, Serialize};
 
@@ -58,30 +59,7 @@ pub enum Expression {
     Label(String),
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum DataType {
-    Bool,
-    Int,
-    Int8,
-    Int16,
-    Int32,
-    Int64,
-    Float,
-    Double,
-    String,
-    List,
-    Map,
-    Vertex,
-    Edge,
-    Path,
-    DateTime,
-    Date,
-    Time,
-    Duration,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum DataType {
+impl Expression {
     pub fn literal(value: impl Into<Value>) -> Self {
         Expression::Literal(value.into())
     }

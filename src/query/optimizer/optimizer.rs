@@ -1,6 +1,5 @@
 //! Optimizer implementation for optimizing execution plans
 use crate::query::context::execution::QueryContext;
-use crate::core::types::operators::Operator;
 use crate::query::context::validate;
 use crate::query::optimizer::property_tracker::PropertyTracker;
 use crate::query::planner::plan::{ExecutionPlan, PlanNodeEnum};

@@ -3,8 +3,10 @@
 
 use crate::core::expression_visitor::{ExpressionVisitor, ExpressionVisitorState};
 use crate::core::types::expression::DataType;
+use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 use crate::core::Value;
 use crate::expression::Expression;
+use crate::query::parser::ast::expr::*;
 use std::collections::HashSet;
 
 #[derive(Debug)]
@@ -95,7 +97,7 @@ impl ExpressionVisitor for FindVisitor {
     fn visit_binary(
         &mut self,
         left: &Expression,
-        _op: &crate::core::BinaryOperator,
+        _op: &BinaryOperator,
         right: &Expression,
     ) -> Self::Result {
         self.found_exprs.push(Expression::Binary {
@@ -109,7 +111,7 @@ impl ExpressionVisitor for FindVisitor {
 
     fn visit_unary(
         &mut self,
-        op: &crate::core::UnaryOperator,
+        op: &UnaryOperator,
         operand: &Expression,
     ) -> Self::Result {
         self.found_exprs.push(Expression::Unary {
@@ -131,7 +133,7 @@ impl ExpressionVisitor for FindVisitor {
 
     fn visit_aggregate(
         &mut self,
-        func: &crate::core::AggregateFunction,
+        func: &AggregateFunction,
         arg: &Expression,
         distinct: bool,
     ) -> Self::Result {
@@ -222,4 +224,32 @@ impl ExpressionVisitor for FindVisitor {
     fn visit_label(&mut self, name: &str) -> Self::Result {
         self.found_exprs.push(Expression::Label(name.to_string()));
     }
+
+    fn visit_label_expr(&mut self, _expr: &LabelExpr) -> Self::Result {}
+
+    fn visit_constant_expr(&mut self, _expr: &ConstantExpr) -> Self::Result {}
+
+    fn visit_variable_expr(&mut self, _expr: &VariableExpr) -> Self::Result {}
+
+    fn visit_binary_expr(&mut self, _expr: &BinaryExpr) -> Self::Result {}
+
+    fn visit_unary_expr(&mut self, _expr: &UnaryExpr) -> Self::Result {}
+
+    fn visit_function_call_expr(&mut self, _expr: &FunctionCallExpr) -> Self::Result {}
+
+    fn visit_property_access_expr(&mut self, _expr: &PropertyAccessExpr) -> Self::Result {}
+
+    fn visit_list_expr(&mut self, _expr: &ListExpr) -> Self::Result {}
+
+    fn visit_map_expr(&mut self, _expr: &MapExpr) -> Self::Result {}
+
+    fn visit_case_expr(&mut self, _expr: &CaseExpr) -> Self::Result {}
+
+    fn visit_subscript_expr(&mut self, _expr: &SubscriptExpr) -> Self::Result {}
+
+    fn visit_type_cast_expr(&mut self, _expr: &TypeCastExpr) -> Self::Result {}
+
+    fn visit_range_expr(&mut self, _expr: &RangeExpr) -> Self::Result {}
+
+    fn visit_path_expr(&mut self, _expr: &PathExpr) -> Self::Result {}
 }

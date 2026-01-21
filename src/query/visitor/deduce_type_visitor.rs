@@ -375,24 +375,24 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     fn parse_data_type(&self, data_type: &crate::core::DataType) -> ValueTypeDef {
         use crate::core::DataType;
         match data_type {
+            DataType::Empty => ValueTypeDef::Empty,
+            DataType::Null => ValueTypeDef::Null,
             DataType::Bool => ValueTypeDef::Bool,
-            DataType::Int => ValueTypeDef::Int,
-            DataType::Int8 => ValueTypeDef::Int,
-            DataType::Int16 => ValueTypeDef::Int,
-            DataType::Int32 => ValueTypeDef::Int,
-            DataType::Int64 => ValueTypeDef::Int,
-            DataType::Float => ValueTypeDef::Float,
-            DataType::Double => ValueTypeDef::Float,
+            DataType::Int | DataType::Int8 | DataType::Int16 | DataType::Int32 | DataType::Int64 => ValueTypeDef::Int,
+            DataType::Float | DataType::Double => ValueTypeDef::Float,
             DataType::String => ValueTypeDef::String,
-            DataType::List => ValueTypeDef::List,
-            DataType::Map => ValueTypeDef::Map,
+            DataType::Date => ValueTypeDef::Date,
+            DataType::Time => ValueTypeDef::Time,
+            DataType::DateTime => ValueTypeDef::DateTime,
             DataType::Vertex => ValueTypeDef::Vertex,
             DataType::Edge => ValueTypeDef::Edge,
             DataType::Path => ValueTypeDef::Path,
-            DataType::DateTime => ValueTypeDef::DateTime,
-            DataType::Date => ValueTypeDef::Date,
-            DataType::Time => ValueTypeDef::Time,
+            DataType::List => ValueTypeDef::List,
+            DataType::Map => ValueTypeDef::Map,
+            DataType::Set => ValueTypeDef::Set,
+            DataType::Geography => ValueTypeDef::Geography,
             DataType::Duration => ValueTypeDef::Duration,
+            DataType::DataSet => ValueTypeDef::DataSet,
         }
     }
 }
