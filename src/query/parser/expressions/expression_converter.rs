@@ -315,8 +315,6 @@ fn convert_unary_op(op: &UnaryOp) -> Result<UnaryOperator, String> {
         UnaryOp::IsNotNull => Ok(UnaryOperator::IsNotNull),
         UnaryOp::IsEmpty => Ok(UnaryOperator::IsEmpty),
         UnaryOp::IsNotEmpty => Ok(UnaryOperator::IsNotEmpty),
-        UnaryOp::Increment => Ok(UnaryOperator::Increment),
-        UnaryOp::Decrement => Ok(UnaryOperator::Decrement),
     }
 }
 

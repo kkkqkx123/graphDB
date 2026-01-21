@@ -80,26 +80,8 @@ pub enum DataType {
     Duration,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum ExpressionType {
-    Literal,
-    Variable,
-    Property,
-    Binary,
-    Unary,
-    Function,
-    Aggregate,
-    List,
-    Map,
-    Case,
-    TypeCast,
-    Subscript,
-    Range,
-    Path,
-    Label,
-}
-
-impl Expression {
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum DataType {
     pub fn literal(value: impl Into<Value>) -> Self {
         Expression::Literal(value.into())
     }
@@ -239,26 +221,6 @@ impl Expression {
             }
             Expression::Path(items) => items.iter().collect(),
             Expression::Label(_) => vec![],
-        }
-    }
-
-    pub fn expression_type(&self) -> ExpressionType {
-        match self {
-            Expression::Literal(_) => ExpressionType::Literal,
-            Expression::Variable(_) => ExpressionType::Variable,
-            Expression::Property { .. } => ExpressionType::Property,
-            Expression::Binary { .. } => ExpressionType::Binary,
-            Expression::Unary { .. } => ExpressionType::Unary,
-            Expression::Function { .. } => ExpressionType::Function,
-            Expression::Aggregate { .. } => ExpressionType::Aggregate,
-            Expression::List(_) => ExpressionType::List,
-            Expression::Map(_) => ExpressionType::Map,
-            Expression::Case { .. } => ExpressionType::Case,
-            Expression::TypeCast { .. } => ExpressionType::TypeCast,
-            Expression::Subscript { .. } => ExpressionType::Subscript,
-            Expression::Range { .. } => ExpressionType::Range,
-            Expression::Path(_) => ExpressionType::Path,
-            Expression::Label(_) => ExpressionType::Label,
         }
     }
 

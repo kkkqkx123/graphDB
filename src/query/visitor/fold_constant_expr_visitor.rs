@@ -293,8 +293,6 @@ impl FoldConstantExprVisitor {
             UnaryOperator::Plus => self.fold_unary_plus(val)?,
             UnaryOperator::Minus => self.fold_unary_minus(val)?,
             UnaryOperator::Not => self.fold_unary_not(val)?,
-            UnaryOperator::Increment => self.fold_unary_incr(val)?,
-            UnaryOperator::Decrement => self.fold_unary_decr(val)?,
             _ => return None,
         };
 
@@ -316,22 +314,6 @@ impl FoldConstantExprVisitor {
     fn fold_unary_not(&self, val: &Value) -> Option<Value> {
         match val {
             Value::Bool(b) => Some(Value::Bool(!b)),
-            _ => None,
-        }
-    }
-
-    fn fold_unary_incr(&self, val: &Value) -> Option<Value> {
-        match val {
-            Value::Int(i) => Some(Value::Int(i + 1)),
-            Value::Float(f) => Some(Value::Float(f + 1.0)),
-            _ => None,
-        }
-    }
-
-    fn fold_unary_decr(&self, val: &Value) -> Option<Value> {
-        match val {
-            Value::Int(i) => Some(Value::Int(i - 1)),
-            Value::Float(f) => Some(Value::Float(f - 1.0)),
             _ => None,
         }
     }

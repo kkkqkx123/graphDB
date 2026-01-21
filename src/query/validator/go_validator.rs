@@ -628,7 +628,7 @@ impl GoValidator {
             Expression::Property { .. } => Ok("ANY".to_string()),
             // 一元操作
             Expression::Unary { op, .. } => match op {
-                UnaryOperator::Plus | UnaryOperator::Minus | UnaryOperator::Increment | UnaryOperator::Decrement => Ok("NUMBER".to_string()),
+                UnaryOperator::Plus | UnaryOperator::Minus => Ok("NUMBER".to_string()),
                 UnaryOperator::Not | UnaryOperator::IsNull | UnaryOperator::IsNotNull | UnaryOperator::IsEmpty | UnaryOperator::IsNotEmpty => Ok("BOOL".to_string()),
             },
         }

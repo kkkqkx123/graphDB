@@ -5,7 +5,7 @@
 //! - ExpressionVisitor: 特化的访问者trait，同时支持Expression和Expr类型
 //! - GenericExpressionVisitor<T>: 泛型访问者接口，支持任意表达式类型
 
-use crate::core::types::expression::{DataType, Expression, ExpressionType};
+use crate::core::types::expression::{DataType, Expression};
 use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 use crate::core::Value;
 use crate::query::parser::ast::expr::*;
@@ -222,8 +222,6 @@ pub struct ExpressionVisitorState {
     pub visit_count: usize,
     /// 最大深度限制
     pub max_depth: Option<usize>,
-    /// 表达式类型过滤器
-    pub type_filter: Option<ExpressionTypeFilter>,
     /// 自定义状态数据
     pub custom_data: HashMap<String, Value>,
 }
@@ -237,7 +235,6 @@ impl ExpressionVisitorState {
             max_depth_reached: 0,
             visit_count: 0,
             max_depth: None,
-            type_filter: None,
             custom_data: HashMap::new(),
         }
     }
@@ -296,25 +293,6 @@ impl ExpressionVisitorState {
         self.visit_count += 1;
     }
 
-    /// 设置表达式类型过滤器
-    pub fn set_type_filter(&mut self, filter: ExpressionTypeFilter) {
-        self.type_filter = Some(filter);
-    }
-
-    /// 清除表达式类型过滤器
-    pub fn clear_type_filter(&mut self) {
-        self.type_filter = None;
-    }
-
-    /// 检查表达式类型是否被过滤
-    pub fn is_type_filtered(&self, expr_type: &ExpressionType) -> bool {
-        if let Some(ref filter) = self.type_filter {
-            !filter.contains(expr_type)
-        } else {
-            false
-        }
-    }
-
     /// 设置自定义数据
     pub fn set_custom_data(&mut self, key: String, value: Value) {
         self.custom_data.insert(key, value);
@@ -337,51 +315,6 @@ impl Default for ExpressionVisitorState {
     }
 }
 
-/// 表达式类型过滤器
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ExpressionTypeFilter {
-    target_types: std::collections::HashSet<ExpressionType>,
-}
-
-impl ExpressionTypeFilter {
-    pub fn new() -> Self {
-        Self {
-            target_types: std::collections::HashSet::new(),
-        }
-    }
-
-    pub fn with_types(mut self, types: &[ExpressionType]) -> Self {
-        self.target_types.extend(types.iter().cloned());
-        self
-    }
-
-    pub fn add_type(&mut self, expr_type: ExpressionType) {
-        self.target_types.insert(expr_type);
-    }
-
-    pub fn remove_type(&mut self, expr_type: &ExpressionType) {
-        self.target_types.remove(expr_type);
-    }
-
-    pub fn contains(&self, expr_type: &ExpressionType) -> bool {
-        self.target_types.contains(expr_type)
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.target_types.is_empty()
-    }
-
-    pub fn clear(&mut self) {
-        self.target_types.clear();
-    }
-}
-
-impl Default for ExpressionTypeFilter {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 /// 表达式访问者结果类型
 pub type VisitorResult<T> = Result<T, VisitorError>;
 
@@ -392,8 +325,6 @@ pub enum VisitorError {
     MaxDepthExceeded,
     /// 访问被停止
     VisitationStopped,
-    /// 无效的表达式类型
-    InvalidExpressionType(String),
     /// 类型不匹配
     TypeMismatch(String),
     /// 自定义错误
@@ -405,7 +336,6 @@ impl std::fmt::Display for VisitorError {
         match self {
             VisitorError::MaxDepthExceeded => write!(f, "超过最大深度限制"),
             VisitorError::VisitationStopped => write!(f, "访问被停止"),
-            VisitorError::InvalidExpressionType(msg) => write!(f, "无效的表达式类型: {}", msg),
             VisitorError::TypeMismatch(msg) => write!(f, "类型不匹配: {}", msg),
             VisitorError::Custom(msg) => write!(f, "自定义错误: {}", msg),
         }
@@ -592,21 +522,6 @@ impl ExprAcceptor for Expr {
 
 /// 表达式访问者辅助trait - 提供额外的实用方法
 pub trait ExpressionVisitorExt: ExpressionVisitor {
-    /// 检查表达式是否包含特定类型
-    fn contains_expression_type(&mut self, expr: &Expression, expr_type: &ExpressionType) -> bool {
-        if &expr.expression_type() == expr_type {
-            return true;
-        }
-
-        for child in expr.children() {
-            if self.contains_expression_type(child, expr_type) {
-                return true;
-            }
-        }
-
-        false
-    }
-
     /// 获取表达式树的最大深度
     fn max_depth(&mut self, expr: &Expression) -> usize {
         if expr.children().is_empty() {

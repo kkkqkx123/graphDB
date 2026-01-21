@@ -7,15 +7,14 @@ pub mod visitor;
 
 // 重新导出expression模块的访问器
 pub use visitor::{
-    ExpressionAcceptor, ExpressionDepthFirstVisitor, ExpressionTransformer, ExpressionTypeFilter,
-    ExpressionVisitor,
+    ExpressionAcceptor, ExpressionDepthFirstVisitor, ExpressionTransformer, ExpressionVisitor,
 };
 
 // Re-export Core operators directly - no more wrapper types
 pub use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 
 // Re-export Core expression types
-pub use crate::core::types::expression::{DataType, Expression, ExpressionType};
+pub use crate::core::types::expression::{DataType, Expression};
 
 // Re-export evaluator module
 pub use evaluator::{Evaluator, ExpressionContext, ExpressionEvaluator};

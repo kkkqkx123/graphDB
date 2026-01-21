@@ -454,8 +454,6 @@ impl std::fmt::Display for UnaryOp {
             UnaryOp::IsNotNull => write!(f, "IS NOT NULL"),
             UnaryOp::IsEmpty => write!(f, "IS EMPTY"),
             UnaryOp::IsNotEmpty => write!(f, "IS NOT EMPTY"),
-            UnaryOp::Increment => write!(f, "++"),
-            UnaryOp::Decrement => write!(f, "--"),
         }
     }
 }

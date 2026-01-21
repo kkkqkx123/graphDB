@@ -393,10 +393,6 @@ impl UnaryOperationEvaluator {
             UnaryOperator::IsNotNull => Self::eval_is_not_null(value),
             UnaryOperator::IsEmpty => Self::eval_is_empty(value),
             UnaryOperator::IsNotEmpty => Self::eval_is_not_empty(value),
-
-            // 增减操作
-            UnaryOperator::Increment => Self::eval_increment(value),
-            UnaryOperator::Decrement => Self::eval_decrement(value),
         }
     }
 
@@ -435,20 +431,6 @@ impl UnaryOperationEvaluator {
             Value::List(l) => Ok(Value::Bool(!l.is_empty())),
             Value::Map(m) => Ok(Value::Bool(!m.is_empty())),
             _ => Err(ExpressionError::type_error("EMPTY检查需要容器类型")),
-        }
-    }
-
-    fn eval_increment(value: &Value) -> Result<Value, ExpressionError> {
-        match value {
-            Value::Int(i) => Ok(Value::Int(i + 1)),
-            _ => Err(ExpressionError::type_error("递增操作需要整数")),
-        }
-    }
-
-    fn eval_decrement(value: &Value) -> Result<Value, ExpressionError> {
-        match value {
-            Value::Int(i) => Ok(Value::Int(i - 1)),
-            _ => Err(ExpressionError::type_error("递减操作需要整数")),
         }
     }
 }

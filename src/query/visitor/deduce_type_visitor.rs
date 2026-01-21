@@ -240,10 +240,6 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
                 // 逻辑非操作的结果类型是布尔值
                 self.type_ = ValueTypeDef::Bool;
             }
-            UnaryOperator::Increment | UnaryOperator::Decrement => {
-                // 自增自减操作保持数值类型
-                // 类型已在visit_expression中推导
-            }
             _ => {
                 // 其他操作保持原类型
             }

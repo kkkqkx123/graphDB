@@ -33,16 +33,11 @@ pub use value::*;
 pub use vertex_edge_path::{Direction, Edge, Path, Step, Tag, Vertex};
 
 // 表达式系统类型
-pub use types::expression::{DataType, Expression, ExpressionType};
+pub use types::expression::{DataType, Expression};
 
-// 图类型
 pub use types::graph::EdgeDirection;
 
-// 操作符系统类型
-pub use types::operators::{
-    AggregateFunction, BinaryOperator, Operator, OperatorCategory, OperatorInstance,
-    OperatorRegistry, UnaryOperator,
-};
+pub use types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 
 // 其他核心类型
 pub use type_utils::TypeUtils;

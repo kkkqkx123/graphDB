@@ -7,9 +7,6 @@ pub mod graph;
 pub mod operators;
 
 // 重新导出常用类型
-pub use expression::{DataType, Expression, ExpressionType};
+pub use expression::{DataType, Expression};
 pub use graph::EdgeDirection;
-pub use operators::{
-    AggregateFunction, BinaryOperator, Operator, OperatorCategory, OperatorInstance,
-    OperatorRegistry, UnaryOperator,
-};
+pub use operators::{AggregateFunction, BinaryOperator, UnaryOperator};

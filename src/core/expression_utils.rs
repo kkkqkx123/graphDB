@@ -651,8 +651,6 @@ impl Expression {
                 UnaryOperator::Plus => "UnaryPlus",
                 UnaryOperator::Minus => "UnaryNegate",
                 UnaryOperator::Not => "UnaryNot",
-                UnaryOperator::Increment => "UnaryIncr",
-                UnaryOperator::Decrement => "UnaryDecr",
                 UnaryOperator::IsNull => "IsNull",
                 UnaryOperator::IsNotNull => "IsNotNull",
                 UnaryOperator::IsEmpty => "IsEmpty",

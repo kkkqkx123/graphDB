@@ -2,7 +2,7 @@
 //!
 //! 这个模块提供了表达式访问者模式的基础设施，专注于表达式树的遍历和转换
 
-use crate::core::types::expression::{DataType, Expression, ExpressionType};
+use crate::core::types::expression::{DataType, Expression};
 use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 use crate::core::Value;
 
@@ -106,51 +106,6 @@ pub trait ExpressionAcceptor {
 impl ExpressionAcceptor for Expression {
     fn accept<V: ExpressionVisitor>(&self, visitor: &mut V) -> V::Result {
         visitor.visit(self)
-    }
-}
-
-/// 表达式类型过滤器 - 用于过滤特定类型的表达式
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ExpressionTypeFilter {
-    target_types: std::collections::HashSet<ExpressionType>,
-}
-
-impl ExpressionTypeFilter {
-    pub fn new() -> Self {
-        Self {
-            target_types: std::collections::HashSet::new(),
-        }
-    }
-
-    pub fn with_types(mut self, types: &[ExpressionType]) -> Self {
-        self.target_types.extend(types.iter().cloned());
-        self
-    }
-
-    pub fn add_type(&mut self, expr_type: ExpressionType) {
-        self.target_types.insert(expr_type);
-    }
-
-    pub fn remove_type(&mut self, expr_type: &ExpressionType) {
-        self.target_types.remove(expr_type);
-    }
-
-    pub fn contains(&self, expr_type: &ExpressionType) -> bool {
-        self.target_types.contains(expr_type)
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.target_types.is_empty()
-    }
-
-    pub fn clear(&mut self) {
-        self.target_types.clear();
-    }
-}
-
-impl Default for ExpressionTypeFilter {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

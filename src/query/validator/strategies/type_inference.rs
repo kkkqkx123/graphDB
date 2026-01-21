@@ -850,21 +850,30 @@ impl TypeInference {
         left_type: &ValueType,
         right_type: &ValueType,
     ) -> ValueType {
-        match op.category() {
-            crate::core::OperatorCategory::Arithmetic => {
-                if *left_type == ValueType::Int && *right_type == ValueType::Int {
-                    ValueType::Int
-                } else if matches!(*left_type, ValueType::Int | ValueType::Float)
-                    && matches!(*right_type, ValueType::Int | ValueType::Float) {
-                    ValueType::Float
-                } else {
-                    ValueType::Unknown
-                }
+        if op.is_arithmetic() {
+            if *left_type == ValueType::Int && *right_type == ValueType::Int {
+                ValueType::Int
+            } else if matches!(*left_type, ValueType::Int | ValueType::Float)
+                && matches!(*right_type, ValueType::Int | ValueType::Float) {
+                ValueType::Float
+            } else {
+                ValueType::Unknown
             }
-            crate::core::OperatorCategory::Comparison => ValueType::Bool,
-            crate::core::OperatorCategory::Logical => ValueType::Bool,
-            crate::core::OperatorCategory::String => ValueType::String,
-            _ => ValueType::Unknown,
+        } else if op.is_comparison() {
+            ValueType::Bool
+        } else if op.is_logical() {
+            ValueType::Bool
+        } else if matches!(
+            op,
+            BinaryOperator::StringConcat
+                | BinaryOperator::Like
+                | BinaryOperator::Contains
+                | BinaryOperator::StartsWith
+                | BinaryOperator::EndsWith
+        ) {
+            ValueType::String
+        } else {
+            ValueType::Unknown
         }
     }
 
@@ -882,8 +891,6 @@ impl TypeInference {
             UnaryOperator::IsNotNull => ValueType::Bool,
             UnaryOperator::IsEmpty => ValueType::Bool,
             UnaryOperator::IsNotEmpty => ValueType::Bool,
-            UnaryOperator::Increment => operand_type.clone(),
-            UnaryOperator::Decrement => operand_type.clone(),
         }
     }
 
@@ -1014,17 +1021,16 @@ impl TypeInference {
         left: &Value,
         right: &Value,
     ) -> Option<Value> {
-        match op.category() {
-            crate::core::OperatorCategory::Arithmetic => {
-                match (left, right) {
-                    (Value::Int(l), Value::Int(r)) => Some(Value::Int(l + r)),
-                    (Value::Float(l), Value::Float(r)) => Some(Value::Float(l + r)),
-                    (Value::Int(l), Value::Float(r)) => Some(Value::Float(*l as f64 + r)),
-                    (Value::Float(l), Value::Int(r)) => Some(Value::Float(l + *r as f64)),
-                    _ => None,
-                }
+        if op.is_arithmetic() {
+            match (left, right) {
+                (Value::Int(l), Value::Int(r)) => Some(Value::Int(l + r)),
+                (Value::Float(l), Value::Float(r)) => Some(Value::Float(l + r)),
+                (Value::Int(l), Value::Float(r)) => Some(Value::Float(*l as f64 + r)),
+                (Value::Float(l), Value::Int(r)) => Some(Value::Float(l + *r as f64)),
+                _ => None,
             }
-            _ => None,
+        } else {
+            None
         }
     }
 
