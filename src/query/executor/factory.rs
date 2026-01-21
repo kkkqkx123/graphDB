@@ -24,7 +24,7 @@ use crate::query::executor::recursion_detector::{
 };
 use crate::query::executor::result_processing::{
     AggregateExecutor, AssignExecutor, DedupExecutor, FilterExecutor, LimitExecutor,
-    ProjectExecutor, SortExecutor, TopNExecutor, UnwindExecutor,
+    ProjectExecutor, SampleExecutor, SampleMethod, SortExecutor, TopNExecutor, UnwindExecutor,
 };
 
 /// 执行器工厂
@@ -124,6 +124,9 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                 self.analyze_plan_node(n.input(), loop_layers)?;
             }
             PlanNodeEnum::TopN(n) => {
+                self.analyze_plan_node(n.input(), loop_layers)?;
+            }
+            PlanNodeEnum::Sample(n) => {
                 self.analyze_plan_node(n.input(), loop_layers)?;
             }
             PlanNodeEnum::Aggregate(n) => {
@@ -376,6 +379,16 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     node.limit() as usize,
                     node.sort_items().to_vec(),
                     true,
+                );
+                Ok(Box::new(executor))
+            }
+            PlanNodeEnum::Sample(node) => {
+                let executor = SampleExecutor::new(
+                    node.id(),
+                    storage,
+                    SampleMethod::Random,
+                    node.count() as usize,
+                    None,
                 );
                 Ok(Box::new(executor))
             }

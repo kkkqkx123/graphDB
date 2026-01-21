@@ -20,6 +20,7 @@ pub use super::join_node::{
     CrossJoinNode, HashInnerJoinNode, HashLeftJoinNode, InnerJoinNode, LeftJoinNode,
 };
 pub use super::project_node::ProjectNode;
+pub use super::sample_node::SampleNode;
 pub use super::sort_node::{LimitNode, SortNode, TopNNode};
 pub use super::start_node::StartNode;
 pub use super::traversal_node::{AppendVerticesNode, ExpandAllNode, ExpandNode, TraverseNode};
@@ -42,6 +43,8 @@ pub enum PlanNodeEnum {
     Limit(LimitNode),
     /// TopN 节点
     TopN(TopNNode),
+    /// 采样节点
+    Sample(SampleNode),
     /// 内连接节点
     InnerJoin(InnerJoinNode),
     /// 左连接节点
@@ -134,6 +137,10 @@ impl PlanNodeEnum {
         matches!(self, PlanNodeEnum::Limit(_))
     }
 
+    pub fn is_sample(&self) -> bool {
+        matches!(self, PlanNodeEnum::Sample(_))
+    }
+
     pub fn is_dedup(&self) -> bool {
         matches!(self, PlanNodeEnum::Dedup(_))
     }
@@ -206,6 +213,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::Sort(_) => "Sort",
             PlanNodeEnum::Limit(_) => "Limit",
             PlanNodeEnum::TopN(_) => "TopN",
+            PlanNodeEnum::Sample(_) => "Sample",
             PlanNodeEnum::InnerJoin(_) => "InnerJoin",
             PlanNodeEnum::LeftJoin(_) => "LeftJoin",
             PlanNodeEnum::CrossJoin(_) => "CrossJoin",
@@ -279,6 +287,13 @@ impl PlanNodeEnum {
         }
     }
 
+    pub fn as_sample(&self) -> Option<&SampleNode> {
+        match self {
+            PlanNodeEnum::Sample(node) => Some(node),
+            _ => None,
+        }
+    }
+
     /// 零成本类型转换（可变） - 直接使用模式匹配
     pub fn as_start_mut(&mut self) -> Option<&mut StartNode> {
         match self {
@@ -311,6 +326,13 @@ impl PlanNodeEnum {
     pub fn as_limit_mut(&mut self) -> Option<&mut LimitNode> {
         match self {
             PlanNodeEnum::Limit(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_sample_mut(&mut self) -> Option<&mut SampleNode> {
+        match self {
+            PlanNodeEnum::Sample(node) => Some(node),
             _ => None,
         }
     }
@@ -673,6 +695,15 @@ impl PlanNodeEnum {
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.name.clone());
                 }
+                desc.add_description("cost", format!("{:.2}", node.cost()));
+                desc
+            }
+            PlanNodeEnum::Sample(node) => {
+                let mut desc = PlanNodeDescription::new("Sample", node.id());
+                if let Some(var) = node.output_var() {
+                    desc = desc.with_output_var(var.name.clone());
+                }
+                desc.add_description("count", node.count().to_string());
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
