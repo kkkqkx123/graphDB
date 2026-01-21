@@ -1,35 +1,34 @@
 //! Fetch Edges查询上下文
 
-use crate::query::context::ast::{AstContext, ExpressionProps, YieldColumns};
+use crate::query::context::ast::query_types::TraverseContext;
+use crate::query::context::ast::YieldColumns;
 
-// Fetch Edges查询上下文
+/// Fetch Edges查询上下文
+///
+/// 获取边数据的查询上下文
 #[derive(Debug, Clone)]
 pub struct FetchEdgesContext {
-    pub base: AstContext,
+    pub traverse: TraverseContext,
     pub src: Option<String>,
     pub dst: Option<String>,
     pub rank: Option<String>,
     pub edge_type: Option<String>,
-    pub expr_props: ExpressionProps,
     pub yield_expr: Option<YieldColumns>,
     pub edge_name: String,
     pub distinct: bool,
-    pub input_var_name: String,
 }
 
 impl FetchEdgesContext {
-    pub fn new(base: AstContext) -> Self {
+    pub fn new(base: crate::query::context::ast::AstContext) -> Self {
         Self {
-            base,
+            traverse: TraverseContext::new(base),
             src: None,
             dst: None,
             rank: None,
             edge_type: None,
-            expr_props: ExpressionProps::default(),
             yield_expr: None,
             edge_name: String::new(),
             distinct: false,
-            input_var_name: String::new(),
         }
     }
 }

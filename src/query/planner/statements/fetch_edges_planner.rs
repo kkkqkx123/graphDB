@@ -49,7 +49,7 @@ impl Planner for FetchEdgesPlanner {
         println!("Processing FETCH EDGES query planning: {:?}", fetch_ctx);
 
         // 1. 创建参数节点，获取边的条件
-        let arg_node = ArgumentNode::new(1, &fetch_ctx.input_var_name);
+        let arg_node = ArgumentNode::new(1, &fetch_ctx.traverse.input_var_name);
 
         // 2. 创建获取边的节点
         let get_edges_node = PlanNodeEnum::GetEdges(GetEdgesNode::new(

@@ -1,18 +1,19 @@
 //! Path查询上下文
 
-use crate::query::context::ast::{AstContext, ExpressionProps, FromType, Over, Starts, StepClause};
+use crate::query::context::ast::query_types::TraverseContext;
 
-// Path查询上下文
+/// Path查询上下文
+///
+/// 路径查询的上下文信息，包含：
+/// - 公共遍历字段（来自 TraverseContext）
+/// - 目标点信息 (to)
+/// - 路径查找选项（最短路径、权重等）
+/// - 运行时计划节点
 #[derive(Debug, Clone)]
 pub struct PathContext {
-    pub base: AstContext,
-    pub from: Starts,
-    pub to: Starts,
-    pub steps: StepClause,
-    pub over: Over,
+    pub traverse: TraverseContext,
+    pub to: crate::query::context::ast::Starts,
     pub limit: i64,
-    pub filter: Option<String>,
-    pub col_names: Vec<String>,
     pub from_vids_var: String,
     pub to_vids_var: String,
     pub is_shortest: bool,
@@ -24,21 +25,16 @@ pub struct PathContext {
     pub runtime_from_dedup: Option<String>,
     pub runtime_to_project: Option<String>,
     pub runtime_to_dedup: Option<String>,
-    pub input_var_name: String,
-    pub expr_props: ExpressionProps,
 }
 
 impl PathContext {
-    pub fn new(base: AstContext) -> Self {
+    pub fn new(base: crate::query::context::ast::AstContext) -> Self {
         Self {
-            base,
-            from: Starts::new(FromType::default()),
-            to: Starts::new(FromType::default()),
-            steps: StepClause::new(),
-            over: Over::new(),
+            traverse: TraverseContext::new(base),
+            to: crate::query::context::ast::Starts::new(
+                crate::query::context::ast::FromType::default(),
+            ),
             limit: -1,
-            filter: None,
-            col_names: Vec::new(),
             from_vids_var: String::new(),
             to_vids_var: String::new(),
             is_shortest: false,
@@ -50,8 +46,6 @@ impl PathContext {
             runtime_from_dedup: None,
             runtime_to_project: None,
             runtime_to_dedup: None,
-            input_var_name: String::new(),
-            expr_props: ExpressionProps::default(),
         }
     }
 }

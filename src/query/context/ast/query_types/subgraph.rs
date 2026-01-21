@@ -46,9 +46,3 @@ impl SubgraphContext {
         }
     }
 }
-
-// 维护操作查询上下文
-#[derive(Debug, Clone)]
-pub struct MaintainContext {
-    pub base: AstContext,
-}

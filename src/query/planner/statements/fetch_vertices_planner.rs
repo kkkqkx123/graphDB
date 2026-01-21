@@ -52,7 +52,7 @@ impl Planner for FetchVerticesPlanner {
         println!("Processing FETCH VERTICES query planning: {:?}", fetch_ctx);
 
         // 1. 创建参数节点，获取顶点ID
-        let mut arg_node = ArgumentNode::new(1, &fetch_ctx.from.user_defined_var_name);
+        let mut arg_node = ArgumentNode::new(1, &fetch_ctx.traverse.from.user_defined_var_name);
         arg_node.set_col_names(vec!["vid".to_string()]);
         arg_node.set_output_var(Variable {
             name: "vertex_ids".to_string(),
@@ -62,7 +62,7 @@ impl Planner for FetchVerticesPlanner {
         let arg_node_enum = PlanNodeEnum::Argument(arg_node.clone());
 
         // 2. 创建获取顶点的节点
-        let mut get_vertices_node = GetVerticesNode::new(2, &fetch_ctx.from.user_defined_var_name);
+        let mut get_vertices_node = GetVerticesNode::new(2, &fetch_ctx.traverse.from.user_defined_var_name);
         get_vertices_node.add_dependency(arg_node_enum.clone());
         get_vertices_node.set_output_var(Variable {
             name: "fetched_vertices".to_string(),
@@ -71,6 +71,7 @@ impl Planner for FetchVerticesPlanner {
 
         // 设置顶点属性
         let tag_props = fetch_ctx
+            .traverse
             .expr_props
             .tag_props
             .iter()
