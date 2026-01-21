@@ -64,7 +64,7 @@ impl Planner for SubgraphPlanner {
         let filter_node: PlanNodeEnum = if let Some(ref condition) = subgraph_ctx.filter {
             match Filter::new(
                 expand_all_node.clone(),
-                crate::core::Expression::Variable(condition.clone()),
+                condition.clone(),
             ) {
                 Ok(node) => PlanNodeEnum::Filter(node),
                 Err(_) => expand_all_node.clone(),
@@ -77,7 +77,7 @@ impl Planner for SubgraphPlanner {
         {
             match Filter::new(
                 filter_node.clone(),
-                crate::core::Expression::Variable(tag_condition.clone()),
+                tag_condition.clone(),
             ) {
                 Ok(node) => PlanNodeEnum::Filter(node),
                 Err(_) => filter_node.clone(),
@@ -90,7 +90,7 @@ impl Planner for SubgraphPlanner {
             if let Some(ref edge_condition) = subgraph_ctx.edge_filter {
                 match Filter::new(
                     tag_filter_node.clone(),
-                    crate::core::Expression::Variable(edge_condition.clone()),
+                    edge_condition.clone(),
                 ) {
                     Ok(node) => PlanNodeEnum::Filter(node),
                     Err(_) => tag_filter_node.clone(),

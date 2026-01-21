@@ -92,8 +92,7 @@ impl Planner for GoPlanner {
         };
 
         let filter_node = if let Some(ref condition) = go_ctx.traverse.filter {
-            let filter_expr = Self::parse_filter_expression(condition)?;
-            match FilterNode::new(input_for_join, filter_expr) {
+            match FilterNode::new(input_for_join, condition.clone()) {
                 Ok(filter) => PlanNodeEnum::Filter(filter),
                 Err(e) => {
                     return Err(PlannerError::PlanGenerationFailed(format!(
@@ -140,21 +139,6 @@ impl Planner for GoPlanner {
 }
 
 impl GoPlanner {
-    /// 解析过滤表达式
-    fn parse_filter_expression(condition: &str) -> Result<Expression, PlannerError> {
-        if condition.is_empty() {
-            return Err(PlannerError::PlanGenerationFailed(
-                "Filter condition is empty".to_string(),
-            ));
-        }
-
-        if condition.starts_with('@') {
-            return Ok(Expression::Variable(condition.to_string()));
-        }
-
-        Ok(Expression::Variable(condition.to_string()))
-    }
-
     /// 构建YIELD列
     fn build_yield_columns(
         go_ctx: &GoContext,

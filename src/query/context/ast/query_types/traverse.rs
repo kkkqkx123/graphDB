@@ -2,6 +2,7 @@
 //!
 //! 提供 PathContext 和 GoContext 的公共字段，减少代码重复
 
+use crate::core::types::expression::Expression;
 use crate::query::context::ast::{AstContext, ExpressionProps, FromType, Over, Starts, StepClause};
 
 /// 遍历查询上下文基类
@@ -10,7 +11,7 @@ use crate::query::context::ast::{AstContext, ExpressionProps, FromType, Over, St
 /// - 起始点信息 (from)
 /// - 步数限制 (steps)
 /// - 边遍历规则 (over)
-/// - 过滤条件 (filter)
+/// - 过滤条件 (filter) - 使用 Expression AST
 /// - 输出列名 (col_names)
 /// - 表达式属性 (expr_props)
 /// - 输入变量名 (input_var_name)
@@ -20,7 +21,7 @@ pub struct TraverseContext {
     pub from: Starts,
     pub steps: StepClause,
     pub over: Over,
-    pub filter: Option<String>,
+    pub filter: Option<Expression>,
     pub col_names: Vec<String>,
     pub expr_props: ExpressionProps,
     pub input_var_name: String,

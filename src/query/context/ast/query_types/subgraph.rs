@@ -1,18 +1,26 @@
 //! Subgraph查询上下文
 
+use crate::core::types::expression::Expression;
 use crate::query::context::ast::{AstContext, ExpressionProps, FromType, Starts, StepClause};
 use std::collections::HashSet;
 
-// Subgraph查询上下文
+/// Subgraph查询上下文
+///
+/// 子图查询的上下文信息，包含：
+/// - 起始点信息 (from)
+/// - 步数限制 (steps)
+/// - 过滤条件 (filter, tag_filter, edge_filter) - 使用 Expression AST
+/// - 边集合 (edge_names, edge_types)
+/// - 输出配置
 #[derive(Debug, Clone)]
 pub struct SubgraphContext {
     pub base: AstContext,
     pub from: Starts,
     pub steps: StepClause,
     pub loop_steps: String,
-    pub filter: Option<String>,
-    pub tag_filter: Option<String>,
-    pub edge_filter: Option<String>,
+    pub filter: Option<Expression>,
+    pub tag_filter: Option<Expression>,
+    pub edge_filter: Option<Expression>,
     pub col_names: Vec<String>,
     pub edge_names: HashSet<String>,
     pub edge_types: HashSet<String>,

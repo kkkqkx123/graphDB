@@ -89,8 +89,7 @@ impl Planner for PathPlanner {
         let expand_enum = PlanNodeEnum::ExpandAll(expand_all_node);
 
         let filter_node = if let Some(ref condition) = path_ctx.traverse.filter {
-            let filter_expr = Self::parse_filter_expression(condition)?;
-            match FilterNode::new(expand_enum, filter_expr) {
+            match FilterNode::new(expand_enum, condition.clone()) {
                 Ok(node) => PlanNodeEnum::Filter(node),
                 Err(e) => {
                     return Err(PlannerError::PlanGenerationFailed(format!(
@@ -140,35 +139,6 @@ impl Planner for PathPlanner {
 }
 
 impl PathPlanner {
-    /// 解析过滤表达式
-    fn parse_filter_expression(condition: &str) -> Result<Expression, PlannerError> {
-        if condition.is_empty() {
-            return Err(PlannerError::PlanGenerationFailed(
-                "Filter condition is empty".to_string(),
-            ));
-        }
-
-        if condition.contains("==") {
-            let parts: Vec<&str> = condition.split("==").collect();
-            if parts.len() == 2 {
-                let left = parts[0].trim();
-                let right = parts[1].trim().trim_matches('"');
-                return Ok(Expression::Function {
-                    name: "eq".to_string(),
-                    args: vec![
-                        Expression::Property {
-                            object: Box::new(Expression::Variable(left.to_string())),
-                            property: left.to_string(),
-                        },
-                        Expression::Literal(crate::core::Value::from(right.to_string())),
-                    ],
-                });
-            }
-        }
-
-        Ok(Expression::Variable(condition.to_string()))
-    }
-
     /// 构建路径列
     fn build_path_columns(
         _path_ctx: &PathContext,
