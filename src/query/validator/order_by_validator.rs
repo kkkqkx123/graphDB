@@ -286,6 +286,10 @@ impl OrderByValidator {
                     _ => Ok(ValueType::Unknown),
                 }
             },
+            Expression::Subscript { .. } => Ok(ValueType::Unknown),
+            Expression::Range { .. } => Ok(ValueType::List),
+            Expression::Path(_) => Ok(ValueType::Path),
+            Expression::Label(_) => Ok(ValueType::String),
         }
     }
 
@@ -369,10 +373,9 @@ impl OrderByValidator {
                     refs.push(property.clone());
                 }
             },
-            // 一元操作
-            Expression::Unary { operand, .. } => {
-                self.collect_refs(operand, refs);
-            },
+            Expression::Literal(_) => {},
+            Expression::Path(_) => {},
+            Expression::Label(_) => {},
         }
     }
 

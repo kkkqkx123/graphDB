@@ -143,28 +143,6 @@ mod expr_tests {
         assert!(!expr.is_constant());
         assert_eq!(expr.to_string(), "array[Int(0)]");
     }
-
-    #[test]
-    fn test_predicate_expr() {
-        let list = Expr::Variable(VariableExpr::new("numbers".to_string(), Span::default()));
-        let condition = Expr::Binary(BinaryExpr::new(
-            Expr::Variable(VariableExpr::new("x".to_string(), Span::default())),
-            BinaryOp::GreaterThan,
-            Expr::Constant(ConstantExpr::new(Value::Int(10), Span::default())),
-            Span::default(),
-        ));
-        let expr = Expr::Predicate(PredicateExpr::new(
-            PredicateType::Any,
-            list,
-            condition,
-            Span::default(),
-        ));
-
-        assert!(!expr.is_constant());
-        assert!(expr.to_string().contains("ANY"));
-        assert!(expr.to_string().contains("numbers"));
-        assert!(expr.to_string().contains("x > Int(10)"));
-    }
 }
 
 #[cfg(test)]

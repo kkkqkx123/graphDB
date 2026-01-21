@@ -18,19 +18,10 @@ pub enum Expr {
     Map(MapExpr),
     Case(CaseExpr),
     Subscript(SubscriptExpr),
-    Predicate(PredicateExpr),
-    TagProperty(TagPropertyExpr),
-    EdgeProperty(EdgePropertyExpr),
-    InputProperty(InputPropertyExpr),
-    VariableProperty(VariablePropertyExpr),
-    SourceProperty(SourcePropertyExpr),
-    DestinationProperty(DestinationPropertyExpr),
     TypeCast(TypeCastExpr),
     Range(RangeExpr),
     Path(PathExpr),
     Label(LabelExpr),
-    Reduce(ReduceExpr),
-    ListComprehension(ListComprehensionExpr),
 }
 
 impl Expr {
@@ -47,19 +38,10 @@ impl Expr {
             Expr::Map(e) => e.span,
             Expr::Case(e) => e.span,
             Expr::Subscript(e) => e.span,
-            Expr::Predicate(e) => e.span,
-            Expr::TagProperty(e) => e.span,
-            Expr::EdgeProperty(e) => e.span,
-            Expr::InputProperty(e) => e.span,
-            Expr::VariableProperty(e) => e.span,
-            Expr::SourceProperty(e) => e.span,
-            Expr::DestinationProperty(e) => e.span,
             Expr::TypeCast(e) => e.span,
             Expr::Range(e) => e.span,
             Expr::Path(e) => e.span,
             Expr::Label(e) => e.span,
-            Expr::Reduce(e) => e.span,
-            Expr::ListComprehension(e) => e.span,
         }
     }
 
@@ -91,18 +73,6 @@ impl Expr {
                 collection_constant && start_constant && end_constant
             }
             Expr::Path(e) => e.elements.iter().all(|elem| elem.is_constant()),
-            Expr::Reduce(e) => {
-                let list_constant = e.list.is_constant();
-                let initial_constant = e.initial.is_constant();
-                let expr_constant = e.expr.is_constant();
-                list_constant && initial_constant && expr_constant
-            }
-            Expr::ListComprehension(e) => {
-                let generator_constant = e.generator.is_constant();
-                let condition_constant =
-                    e.condition.as_ref().map_or(true, |expr| expr.is_constant());
-                generator_constant && condition_constant
-            }
             _ => false,
         }
     }
@@ -175,18 +145,6 @@ impl Expr {
                 result
             }
             Expr::Subscript(e) => format!("{}[{}]", e.collection.to_string(), e.index.to_string()),
-            Expr::Predicate(e) => format!(
-                "{}(x IN {} WHERE {})",
-                e.predicate.to_string(),
-                e.list.to_string(),
-                e.condition.to_string()
-            ),
-            Expr::TagProperty(e) => format!("{}.{}", e.tag, e.prop),
-            Expr::EdgeProperty(e) => format!("{}.{}", e.edge, e.prop),
-            Expr::InputProperty(e) => format!("$-.{}", e.prop),
-            Expr::VariableProperty(e) => format!("${}.{}", e.var, e.prop),
-            Expr::SourceProperty(e) => format!("$^{}.{}", e.tag, e.prop),
-            Expr::DestinationProperty(e) => format!("$${}.{}", e.tag, e.prop),
             Expr::TypeCast(e) => format!("CAST({} AS {})", e.expr.to_string(), e.target_type),
             Expr::Range(e) => {
                 let start_str = e
@@ -209,20 +167,6 @@ impl Expr {
                 format!("[{}]", elements_str)
             }
             Expr::Label(e) => format!(":{}", e.label),
-            Expr::Reduce(e) => format!(
-                "REDUCE({}, {}, {}, {})",
-                e.var,
-                e.initial.to_string(),
-                e.list.to_string(),
-                e.expr.to_string()
-            ),
-            Expr::ListComprehension(e) => {
-                let condition_str = e
-                    .condition
-                    .as_ref()
-                    .map_or(String::new(), |expr| format!(" WHERE {}", expr.to_string()));
-                format!("[x IN {}{} | x]", e.generator.to_string(), condition_str)
-            }
         }
     }
 }
@@ -401,109 +345,6 @@ impl SubscriptExpr {
     }
 }
 
-/// 谓词表达式
-#[derive(Debug, Clone, PartialEq)]
-pub struct PredicateExpr {
-    pub span: Span,
-    pub predicate: PredicateType,
-    pub list: Box<Expr>,
-    pub condition: Box<Expr>,
-}
-
-impl PredicateExpr {
-    pub fn new(predicate: PredicateType, list: Expr, condition: Expr, span: Span) -> Self {
-        Self {
-            span,
-            predicate,
-            list: Box::new(list),
-            condition: Box::new(condition),
-        }
-    }
-}
-
-/// 标签属性表达式
-#[derive(Debug, Clone, PartialEq)]
-pub struct TagPropertyExpr {
-    pub span: Span,
-    pub tag: String,
-    pub prop: String,
-}
-
-impl TagPropertyExpr {
-    pub fn new(tag: String, prop: String, span: Span) -> Self {
-        Self { span, tag, prop }
-    }
-}
-
-/// 边属性表达式
-#[derive(Debug, Clone, PartialEq)]
-pub struct EdgePropertyExpr {
-    pub span: Span,
-    pub edge: String,
-    pub prop: String,
-}
-
-impl EdgePropertyExpr {
-    pub fn new(edge: String, prop: String, span: Span) -> Self {
-        Self { span, edge, prop }
-    }
-}
-
-/// 输入属性表达式
-#[derive(Debug, Clone, PartialEq)]
-pub struct InputPropertyExpr {
-    pub span: Span,
-    pub prop: String,
-}
-
-impl InputPropertyExpr {
-    pub fn new(prop: String, span: Span) -> Self {
-        Self { span, prop }
-    }
-}
-
-/// 变量属性表达式
-#[derive(Debug, Clone, PartialEq)]
-pub struct VariablePropertyExpr {
-    pub span: Span,
-    pub var: String,
-    pub prop: String,
-}
-
-impl VariablePropertyExpr {
-    pub fn new(var: String, prop: String, span: Span) -> Self {
-        Self { span, var, prop }
-    }
-}
-
-/// 源属性表达式
-#[derive(Debug, Clone, PartialEq)]
-pub struct SourcePropertyExpr {
-    pub span: Span,
-    pub tag: String,
-    pub prop: String,
-}
-
-impl SourcePropertyExpr {
-    pub fn new(tag: String, prop: String, span: Span) -> Self {
-        Self { span, tag, prop }
-    }
-}
-
-/// 目标属性表达式
-#[derive(Debug, Clone, PartialEq)]
-pub struct DestinationPropertyExpr {
-    pub span: Span,
-    pub tag: String,
-    pub prop: String,
-}
-
-impl DestinationPropertyExpr {
-    pub fn new(tag: String, prop: String, span: Span) -> Self {
-        Self { span, tag, prop }
-    }
-}
-
 /// 类型转换表达式
 #[derive(Debug, Clone, PartialEq)]
 pub struct TypeCastExpr {
@@ -568,46 +409,6 @@ impl LabelExpr {
     }
 }
 
-/// 归约表达式
-#[derive(Debug, Clone, PartialEq)]
-pub struct ReduceExpr {
-    pub span: Span,
-    pub var: String,
-    pub initial: Box<Expr>,
-    pub list: Box<Expr>,
-    pub expr: Box<Expr>,
-}
-
-impl ReduceExpr {
-    pub fn new(var: String, initial: Expr, list: Expr, expr: Expr, span: Span) -> Self {
-        Self {
-            span,
-            var,
-            initial: Box::new(initial),
-            list: Box::new(list),
-            expr: Box::new(expr),
-        }
-    }
-}
-
-/// 列表推导表达式
-#[derive(Debug, Clone, PartialEq)]
-pub struct ListComprehensionExpr {
-    pub span: Span,
-    pub generator: Box<Expr>,
-    pub condition: Option<Box<Expr>>,
-}
-
-impl ListComprehensionExpr {
-    pub fn new(generator: Expr, condition: Option<Expr>, span: Span) -> Self {
-        Self {
-            span,
-            generator: Box::new(generator),
-            condition: condition.map(Box::new),
-        }
-    }
-}
-
 // 实现 Display trait 用于格式化输出
 impl std::fmt::Display for BinaryOp {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -655,18 +456,6 @@ impl std::fmt::Display for UnaryOp {
             UnaryOp::IsNotEmpty => write!(f, "IS NOT EMPTY"),
             UnaryOp::Increment => write!(f, "++"),
             UnaryOp::Decrement => write!(f, "--"),
-        }
-    }
-}
-
-impl std::fmt::Display for PredicateType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            PredicateType::All => write!(f, "ALL"),
-            PredicateType::Any => write!(f, "ANY"),
-            PredicateType::Single => write!(f, "SINGLE"),
-            PredicateType::None => write!(f, "NONE"),
-            PredicateType::Exists => write!(f, "EXISTS"),
         }
     }
 }
@@ -722,10 +511,6 @@ impl ExprUtils {
                 Self::find_variables_recursive(&e.collection, variables);
                 Self::find_variables_recursive(&e.index, variables);
             }
-            Expr::Predicate(e) => {
-                Self::find_variables_recursive(&e.list, variables);
-                Self::find_variables_recursive(&e.condition, variables);
-            }
             Expr::TypeCast(e) => Self::find_variables_recursive(&e.expr, variables),
             Expr::Range(e) => {
                 Self::find_variables_recursive(&e.collection, variables);
@@ -739,17 +524,6 @@ impl ExprUtils {
             Expr::Path(e) => {
                 for elem in &e.elements {
                     Self::find_variables_recursive(elem, variables);
-                }
-            }
-            Expr::Reduce(e) => {
-                Self::find_variables_recursive(&e.initial, variables);
-                Self::find_variables_recursive(&e.list, variables);
-                Self::find_variables_recursive(&e.expr, variables);
-            }
-            Expr::ListComprehension(e) => {
-                Self::find_variables_recursive(&e.generator, variables);
-                if let Some(ref condition) = e.condition {
-                    Self::find_variables_recursive(condition, variables);
                 }
             }
             _ => {}
@@ -799,10 +573,6 @@ impl ExprUtils {
                 Self::contains_aggregate_recursive(&e.collection)
                     || Self::contains_aggregate_recursive(&e.index)
             }
-            Expr::Predicate(e) => {
-                Self::contains_aggregate_recursive(&e.list)
-                    || Self::contains_aggregate_recursive(&e.condition)
-            }
             Expr::TypeCast(e) => Self::contains_aggregate_recursive(&e.expr),
             Expr::Range(e) => {
                 let collection_contains = Self::contains_aggregate_recursive(&e.collection);
@@ -817,19 +587,6 @@ impl ExprUtils {
                 collection_contains || start_contains || end_contains
             }
             Expr::Path(e) => e.elements.iter().any(Self::contains_aggregate_recursive),
-            Expr::Reduce(e) => {
-                Self::contains_aggregate_recursive(&e.initial)
-                    || Self::contains_aggregate_recursive(&e.list)
-                    || Self::contains_aggregate_recursive(&e.expr)
-            }
-            Expr::ListComprehension(e) => {
-                let generator_contains = Self::contains_aggregate_recursive(&e.generator);
-                let condition_contains = e
-                    .condition
-                    .as_ref()
-                    .map_or(false, |expr| Self::contains_aggregate_recursive(expr));
-                generator_contains || condition_contains
-            }
             _ => false,
         }
     }

@@ -24,19 +24,10 @@ pub trait ExprVisitor {
             Expr::Map(e) => self.visit_map(e),
             Expr::Case(e) => self.visit_case(e),
             Expr::Subscript(e) => self.visit_subscript(e),
-            Expr::Predicate(e) => self.visit_predicate(e),
-            Expr::TagProperty(e) => self.visit_tag_property(e),
-            Expr::EdgeProperty(e) => self.visit_edge_property(e),
-            Expr::InputProperty(e) => self.visit_input_property(e),
-            Expr::VariableProperty(e) => self.visit_variable_property(e),
-            Expr::SourceProperty(e) => self.visit_source_property(e),
-            Expr::DestinationProperty(e) => self.visit_destination_property(e),
             Expr::TypeCast(e) => self.visit_type_cast(e),
             Expr::Range(e) => self.visit_range(e),
             Expr::Path(e) => self.visit_path(e),
             Expr::Label(e) => self.visit_label(e),
-            Expr::Reduce(e) => self.visit_reduce(e),
-            Expr::ListComprehension(e) => self.visit_list_comprehension(e),
         }
     }
 
@@ -70,27 +61,6 @@ pub trait ExprVisitor {
     /// 访问下标表达式
     fn visit_subscript(&mut self, expr: &SubscriptExpr) -> Self::Result;
 
-    /// 访问谓词表达式
-    fn visit_predicate(&mut self, expr: &PredicateExpr) -> Self::Result;
-
-    /// 访问标签属性表达式
-    fn visit_tag_property(&mut self, expr: &TagPropertyExpr) -> Self::Result;
-
-    /// 访问边属性表达式
-    fn visit_edge_property(&mut self, expr: &EdgePropertyExpr) -> Self::Result;
-
-    /// 访问输入属性表达式
-    fn visit_input_property(&mut self, expr: &InputPropertyExpr) -> Self::Result;
-
-    /// 访问变量属性表达式
-    fn visit_variable_property(&mut self, expr: &VariablePropertyExpr) -> Self::Result;
-
-    /// 访问源属性表达式
-    fn visit_source_property(&mut self, expr: &SourcePropertyExpr) -> Self::Result;
-
-    /// 访问目标属性表达式
-    fn visit_destination_property(&mut self, expr: &DestinationPropertyExpr) -> Self::Result;
-
     /// 访问类型转换表达式
     fn visit_type_cast(&mut self, expr: &TypeCastExpr) -> Self::Result;
 
@@ -102,12 +72,6 @@ pub trait ExprVisitor {
 
     /// 访问标签表达式
     fn visit_label(&mut self, expr: &LabelExpr) -> Self::Result;
-
-    /// 访问归约表达式
-    fn visit_reduce(&mut self, expr: &ReduceExpr) -> Self::Result;
-
-    /// 访问列表推导表达式
-    fn visit_list_comprehension(&mut self, expr: &ListComprehensionExpr) -> Self::Result;
 }
 
 /// 语句访问者 trait
@@ -307,36 +271,6 @@ impl ExprVisitor for DefaultVisitor {
         self.visit_expr(&expr.index);
     }
 
-    fn visit_predicate(&mut self, expr: &PredicateExpr) -> Self::Result {
-        // 访问列表和条件表达式
-        self.visit_expr(&expr.list);
-        self.visit_expr(&expr.condition);
-    }
-
-    fn visit_tag_property(&mut self, _expr: &TagPropertyExpr) -> Self::Result {
-        // 标签属性表达式没有子节点
-    }
-
-    fn visit_edge_property(&mut self, _expr: &EdgePropertyExpr) -> Self::Result {
-        // 边属性表达式没有子节点
-    }
-
-    fn visit_input_property(&mut self, _expr: &InputPropertyExpr) -> Self::Result {
-        // 输入属性表达式没有子节点
-    }
-
-    fn visit_variable_property(&mut self, _expr: &VariablePropertyExpr) -> Self::Result {
-        // 变量属性表达式没有子节点
-    }
-
-    fn visit_source_property(&mut self, _expr: &SourcePropertyExpr) -> Self::Result {
-        // 源属性表达式没有子节点
-    }
-
-    fn visit_destination_property(&mut self, _expr: &DestinationPropertyExpr) -> Self::Result {
-        // 目标属性表达式没有子节点
-    }
-
     fn visit_type_cast(&mut self, expr: &TypeCastExpr) -> Self::Result {
         // 访问表达式
         self.visit_expr(&expr.expr);
@@ -363,24 +297,6 @@ impl ExprVisitor for DefaultVisitor {
 
     fn visit_label(&mut self, _expr: &LabelExpr) -> Self::Result {
         // 标签表达式没有子节点
-    }
-
-    fn visit_reduce(&mut self, expr: &ReduceExpr) -> Self::Result {
-        // 访问列表表达式
-        self.visit_expr(&expr.list);
-        // 访问初始表达式
-        self.visit_expr(&expr.initial);
-        // 访问归约表达式
-        self.visit_expr(&expr.expr);
-    }
-
-    fn visit_list_comprehension(&mut self, expr: &ListComprehensionExpr) -> Self::Result {
-        // 访问生成器表达式
-        self.visit_expr(&expr.generator);
-        // 访问条件表达式
-        if let Some(ref condition) = expr.condition {
-            self.visit_expr(condition);
-        }
     }
 }
 
@@ -862,36 +778,6 @@ impl ExprVisitor for TypeChecker {
         self.visit_expr(&expr.index);
     }
 
-    fn visit_predicate(&mut self, expr: &PredicateExpr) -> Self::Result {
-        // 递归检查列表和条件表达式
-        self.visit_expr(&expr.list);
-        self.visit_expr(&expr.condition);
-    }
-
-    fn visit_tag_property(&mut self, _expr: &TagPropertyExpr) -> Self::Result {
-        // 标签属性表达式总是类型安全的
-    }
-
-    fn visit_edge_property(&mut self, _expr: &EdgePropertyExpr) -> Self::Result {
-        // 边属性表达式总是类型安全的
-    }
-
-    fn visit_input_property(&mut self, _expr: &InputPropertyExpr) -> Self::Result {
-        // 输入属性表达式总是类型安全的
-    }
-
-    fn visit_variable_property(&mut self, _expr: &VariablePropertyExpr) -> Self::Result {
-        // 变量属性表达式总是类型安全的
-    }
-
-    fn visit_source_property(&mut self, _expr: &SourcePropertyExpr) -> Self::Result {
-        // 源属性表达式总是类型安全的
-    }
-
-    fn visit_destination_property(&mut self, _expr: &DestinationPropertyExpr) -> Self::Result {
-        // 目标属性表达式总是类型安全的
-    }
-
     fn visit_type_cast(&mut self, expr: &TypeCastExpr) -> Self::Result {
         // 递归检查表达式
         self.visit_expr(&expr.expr);
@@ -918,24 +804,6 @@ impl ExprVisitor for TypeChecker {
 
     fn visit_label(&mut self, _expr: &LabelExpr) -> Self::Result {
         // 标签表达式总是类型安全的
-    }
-
-    fn visit_reduce(&mut self, expr: &ReduceExpr) -> Self::Result {
-        // 递归检查列表表达式
-        self.visit_expr(&expr.list);
-        // 递归检查初始表达式
-        self.visit_expr(&expr.initial);
-        // 递归检查归约表达式
-        self.visit_expr(&expr.expr);
-    }
-
-    fn visit_list_comprehension(&mut self, expr: &ListComprehensionExpr) -> Self::Result {
-        // 递归检查生成器表达式
-        self.visit_expr(&expr.generator);
-        // 递归检查条件表达式
-        if let Some(ref condition) = expr.condition {
-            self.visit_expr(condition);
-        }
     }
 }
 
@@ -1115,47 +983,6 @@ impl ExprVisitor for AstFormatter {
         self.decrease_indent();
     }
 
-    fn visit_predicate(&mut self, expr: &PredicateExpr) -> Self::Result {
-        self.write_line(&format!("Predicate: {}", expr.predicate));
-        self.increase_indent();
-        self.write_line("List:");
-        self.increase_indent();
-        self.visit_expr(&expr.list);
-        self.decrease_indent();
-        self.write_line("Condition:");
-        self.increase_indent();
-        self.visit_expr(&expr.condition);
-        self.decrease_indent();
-        self.decrease_indent();
-    }
-
-    fn visit_tag_property(&mut self, expr: &TagPropertyExpr) -> Self::Result {
-        self.write_line(&format!("TagProperty: {}.{}", expr.tag, expr.prop));
-    }
-
-    fn visit_edge_property(&mut self, expr: &EdgePropertyExpr) -> Self::Result {
-        self.write_line(&format!("EdgeProperty: {}.{}", expr.edge, expr.prop));
-    }
-
-    fn visit_input_property(&mut self, expr: &InputPropertyExpr) -> Self::Result {
-        self.write_line(&format!("InputProperty: $-.{}", expr.prop));
-    }
-
-    fn visit_variable_property(&mut self, expr: &VariablePropertyExpr) -> Self::Result {
-        self.write_line(&format!("VariableProperty: ${}.{}", expr.var, expr.prop));
-    }
-
-    fn visit_source_property(&mut self, expr: &SourcePropertyExpr) -> Self::Result {
-        self.write_line(&format!("SourceProperty: $^.{}.{}", expr.tag, expr.prop));
-    }
-
-    fn visit_destination_property(&mut self, expr: &DestinationPropertyExpr) -> Self::Result {
-        self.write_line(&format!(
-            "DestinationProperty: $$.{}.{}",
-            expr.tag, expr.prop
-        ));
-    }
-
     fn visit_type_cast(&mut self, expr: &TypeCastExpr) -> Self::Result {
         self.write_line(&format!("TypeCast: {:?}", expr.target_type));
         self.increase_indent();
@@ -1201,40 +1028,6 @@ impl ExprVisitor for AstFormatter {
 
     fn visit_label(&mut self, expr: &LabelExpr) -> Self::Result {
         self.write_line(&format!("Label: {}", expr.label));
-    }
-
-    fn visit_reduce(&mut self, expr: &ReduceExpr) -> Self::Result {
-        self.write_line(&format!("Reduce: var = {}", expr.var));
-        self.increase_indent();
-        self.write_line("List:");
-        self.increase_indent();
-        self.visit_expr(&expr.list);
-        self.decrease_indent();
-        self.write_line("Initial:");
-        self.increase_indent();
-        self.visit_expr(&expr.initial);
-        self.decrease_indent();
-        self.write_line("Expression:");
-        self.increase_indent();
-        self.visit_expr(&expr.expr);
-        self.decrease_indent();
-        self.decrease_indent();
-    }
-
-    fn visit_list_comprehension(&mut self, expr: &ListComprehensionExpr) -> Self::Result {
-        self.write_line("ListComprehension:");
-        self.increase_indent();
-        self.write_line("Generator:");
-        self.increase_indent();
-        self.visit_expr(&expr.generator);
-        self.decrease_indent();
-        if let Some(ref condition) = expr.condition {
-            self.write_line("Condition:");
-            self.increase_indent();
-            self.visit_expr(condition);
-            self.decrease_indent();
-        }
-        self.decrease_indent();
     }
 }
 

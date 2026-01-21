@@ -110,17 +110,7 @@ pub enum TokenKind {
 pub type BinaryOp = crate::core::types::operators::BinaryOperator;
 pub type UnaryOp = crate::core::types::operators::UnaryOperator;
 
-/// 谓词类型
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PredicateType {
-    All,
-    Any,
-    Single,
-    None,
-    Exists,
-}
-
-// 使用核心数据类型
+/// 使用核心数据类型
 pub type DataType = crate::core::types::expression::DataType;
 
 /// 标签

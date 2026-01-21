@@ -579,7 +579,7 @@ mod tests {
     }
 
     #[test]
-    fn test_deduce_visitor_property() {
+    fn test_deduce_visitor_property_variable() {
         let mut visitor = DeducePropsVisitor::new();
         let expr = Expression::Variable("name".to_string());
 

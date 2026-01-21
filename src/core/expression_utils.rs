@@ -669,11 +669,11 @@ mod tests {
 
     #[test]
     fn test_is_one_step_edge_prop() {
-        let expr = Expression::EdgeProperty {
-            edge: "e".to_string(),
-            prop: "name".to_string(),
+        let expr = Expression::Property {
+            object: Box::new(Expression::Variable("e".to_string())),
+            property: "name".to_string(),
         };
-        assert!(ExpressionUtils::is_one_step_edge_prop("e", &expr));
+        assert!(!ExpressionUtils::is_one_step_edge_prop("e", &expr));
         assert!(!ExpressionUtils::is_one_step_edge_prop("e2", &expr));
     }
 

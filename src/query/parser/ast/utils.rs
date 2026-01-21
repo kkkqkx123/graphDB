@@ -65,11 +65,6 @@ impl ExprFactory {
         Expr::Subscript(SubscriptExpr::new(collection, index, span))
     }
 
-    /// 创建谓词表达式
-    pub fn predicate(predicate: PredicateType, list: Expr, condition: Expr, span: Span) -> Expr {
-        Expr::Predicate(PredicateExpr::new(predicate, list, condition, span))
-    }
-
     /// 创建比较表达式
     pub fn compare(left: Expr, op: BinaryOp, right: Expr, span: Span) -> Expr {
         Self::binary(left, op, right, span)
@@ -498,13 +493,6 @@ impl ExprOptimizer {
                 e.collection = Box::new(optimized_collection);
                 e.index = Box::new(optimized_index);
                 Expr::Subscript(e)
-            }
-            Expr::Predicate(mut e) => {
-                let optimized_list = Self::constant_folding(*e.list);
-                let optimized_condition = Self::constant_folding(*e.condition);
-                e.list = Box::new(optimized_list);
-                e.condition = Box::new(optimized_condition);
-                Expr::Predicate(e)
             }
             _ => expr,
         }

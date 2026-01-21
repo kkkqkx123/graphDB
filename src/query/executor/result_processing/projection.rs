@@ -485,7 +485,10 @@ mod tests {
             ),
             ProjectionColumn::new(
                 "name".to_string(),
-                Expression::InputProperty("name".to_string()),
+                Expression::Property {
+                    object: Box::new(Expression::Variable("name".to_string())),
+                    property: "".to_string(),
+                },
             ),
         ];
 

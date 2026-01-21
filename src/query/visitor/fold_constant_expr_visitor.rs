@@ -649,8 +649,7 @@ impl ExpressionVisitor for FoldConstantExprVisitor {
         Ok(())
     }
 
-    fn visit_variable_expr(&mut self, expr: &VariableExpr) -> Self::Result {
-        self.visit_expr(expr.name.as_ref())?;
+    fn visit_variable_expr(&mut self, _expr: &VariableExpr) -> Self::Result {
         Ok(())
     }
 

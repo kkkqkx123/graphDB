@@ -548,7 +548,10 @@ mod tests {
         let compare_cols = vec![
             Expression::literal(0i64), // 简化的比较列
         ];
-        let collect_col = Expression::InputProperty("_".to_string());
+        let collect_col = Expression::Property {
+            object: Box::new(Expression::Variable("_".to_string())),
+            property: "".to_string(),
+        };
 
         let mut executor = RollUpApplyExecutor::with_context(
             1,

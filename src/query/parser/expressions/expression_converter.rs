@@ -5,11 +5,9 @@ use crate::core::types::expression::Expression;
 use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 use crate::core::Value;
 use crate::query::parser::ast::{
-    BinaryExpr, BinaryOp, CaseExpr, ConstantExpr, DestinationPropertyExpr, EdgePropertyExpr, Expr,
-    FunctionCallExpr, InputPropertyExpr, LabelExpr, ListComprehensionExpr, ListExpr, MapExpr,
-    PathExpr, PredicateExpr, PropertyAccessExpr, RangeExpr, ReduceExpr, SourcePropertyExpr,
-    SubscriptExpr, TagPropertyExpr, TypeCastExpr, UnaryExpr, UnaryOp, VariableExpr,
-    VariablePropertyExpr,
+    BinaryExpr, BinaryOp, CaseExpr, ConstantExpr, Expr, FunctionCallExpr, LabelExpr, ListExpr,
+    MapExpr, PathExpr, PropertyAccessExpr, RangeExpr, SubscriptExpr, TypeCastExpr, UnaryExpr,
+    UnaryOp, VariableExpr,
 };
 
 /// 将AST表达式转换为graph表达式
@@ -362,11 +360,9 @@ mod tests {
     use super::*;
     use crate::core::Value;
     use crate::query::parser::ast::{
-        BinaryExpr, BinaryOp, ConstantExpr, DestinationPropertyExpr, EdgePropertyExpr, Expr,
-        InputPropertyExpr, LabelExpr, ListComprehensionExpr, ListExpr, MapExpr, PathExpr,
-        PredicateExpr, PropertyAccessExpr, RangeExpr, ReduceExpr, SourcePropertyExpr, Span,
-        SubscriptExpr, TagPropertyExpr, TypeCastExpr, UnaryExpr, UnaryOp, VariableExpr,
-        VariablePropertyExpr,
+        BinaryExpr, BinaryOp, ConstantExpr, Expr, LabelExpr, ListExpr, MapExpr, PathExpr,
+        PropertyAccessExpr, RangeExpr, Span, SubscriptExpr, TypeCastExpr, UnaryExpr, UnaryOp,
+        VariableExpr,
     };
 
     #[test]
@@ -392,122 +388,6 @@ mod tests {
             assert_eq!(name, "test_var");
         } else {
             panic!("Expected Variable(\"test_var\"), got {:?}", result);
-        }
-    }
-
-    #[test]
-    fn test_convert_tag_property_expr() {
-        let ast_expr = Expr::TagProperty(TagPropertyExpr::new(
-            "person".to_string(),
-            "name".to_string(),
-            Span::default(),
-        ));
-        let result = convert_ast_to_graph_expression(&ast_expr)
-            .expect("Expected successful conversion of tag property expression");
-
-        if let Expression::Property { object, property } = result {
-            if let Expression::Variable(tag) = object.as_ref() {
-                assert_eq!(tag, "person");
-                assert_eq!(property, "name");
-            } else {
-                panic!("Expected Variable object, got {:?}", object);
-            }
-        } else {
-            panic!("Expected Property, got {:?}", result);
-        }
-    }
-
-    #[test]
-    fn test_convert_edge_property_expr() {
-        let ast_expr = Expr::EdgeProperty(EdgePropertyExpr::new(
-            "friend".to_string(),
-            "since".to_string(),
-            Span::default(),
-        ));
-        let result = convert_ast_to_graph_expression(&ast_expr)
-            .expect("Expected successful conversion of edge property expression");
-
-        if let Expression::Property { object, property } = result {
-            if let Expression::Variable(edge) = object.as_ref() {
-                assert_eq!(edge, "friend");
-                assert_eq!(property, "since");
-            } else {
-                panic!("Expected Variable object, got {:?}", object);
-            }
-        } else {
-            panic!("Expected Property, got {:?}", result);
-        }
-    }
-
-    #[test]
-    fn test_convert_input_property_expr() {
-        let ast_expr = Expr::InputProperty(InputPropertyExpr::new(
-            "input_prop".to_string(),
-            Span::default(),
-        ));
-        let result = convert_ast_to_graph_expression(&ast_expr)
-            .expect("Expected successful conversion of input property expression");
-
-        if let Expression::Property { object, property } = result {
-            assert_eq!(property, "input_prop");
-        } else {
-            panic!("Expected Property, got {:?}", result);
-        }
-    }
-
-    #[test]
-    fn test_convert_variable_property_expr() {
-        let ast_expr = Expr::VariableProperty(VariablePropertyExpr::new(
-            "var_name".to_string(),
-            "prop_name".to_string(),
-            Span::default(),
-        ));
-        let result = convert_ast_to_graph_expression(&ast_expr)
-            .expect("Expected successful conversion of variable property expression");
-
-        if let Expression::Property { object, property } = result {
-            if let Expression::Variable(var) = object.as_ref() {
-                assert_eq!(var, "var_name");
-                assert_eq!(property, "prop_name");
-            } else {
-                panic!("Expected Variable object, got {:?}", object);
-            }
-        } else {
-            panic!("Expected Property, got {:?}", result);
-        }
-    }
-
-    #[test]
-    fn test_convert_source_property_expr() {
-        let ast_expr = Expr::SourceProperty(SourcePropertyExpr::new(
-            "person".to_string(),
-            "age".to_string(),
-            Span::default(),
-        ));
-        let result = convert_ast_to_graph_expression(&ast_expr)
-            .expect("Expected successful conversion of source property expression");
-
-        if let Expression::Property { object, property } = result {
-            assert_eq!(property, "age");
-        } else {
-            panic!("Expected Property, got {:?}", result);
-        }
-    }
-
-    #[test]
-    fn test_convert_destination_property_expr() {
-        let ast_expr = Expr::DestinationProperty(DestinationPropertyExpr::new(
-            "person".to_string(),
-            "age".to_string(),
-            Span::default(),
-        ));
-        let result = convert_ast_to_graph_expression(&ast_expr)
-            .expect("Expected successful conversion of destination property expression");
-
-        if let Expression::Property { object, property } = result {
-            assert_eq!(property, "age");
-        } else {
-            panic!("Expected Property, got {:?}", result);
         }
     }
 
