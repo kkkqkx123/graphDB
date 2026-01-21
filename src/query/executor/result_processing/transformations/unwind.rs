@@ -405,7 +405,6 @@ mod tests {
         // 检查结果
         if let ExecutionResult::Values(values) = result {
             assert_eq!(values.len(), 6);
-            // UNWIND的模式是：[原始列表, 元素1, 原始列表, 元素2, 原始列表, 元素3]
             assert_eq!(
                 values[0],
                 Value::List(vec![Value::Int(1), Value::Int(2), Value::Int(3)])

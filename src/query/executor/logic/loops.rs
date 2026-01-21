@@ -1,6 +1,9 @@
 //! 循环执行器模块
 //!
 //! 包含循环控制相关的执行器
+//!
+//! NebulaGraph 对应实现：
+//! nebula-3.8.0/src/graph/executor/logic/LoopExecutor.cpp
 
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
@@ -77,7 +80,6 @@ impl<S: StorageEngine> LoopExecutor<S> {
 impl<S: StorageEngine + Send + 'static> LoopExecutor<S> {
     /// 验证循环执行器是否存在自引用
     pub fn validate_no_self_reference(&self) -> Result<(), DBError> {
-        // 检查body_executor是否指向自身
         if self.body_executor.id() == self.base.id {
             return Err(DBError::Query(
                 crate::core::error::QueryError::ExecutionError("循环执行器不能自引用".to_string()),
@@ -99,7 +101,7 @@ impl<S: StorageEngine + Send + 'static> LoopExecutor<S> {
 
                 Ok(self.value_to_bool(&result))
             }
-            None => Ok(true), // 无条件循环
+            None => Ok(true),
         }
     }
 
@@ -113,7 +115,7 @@ impl<S: StorageEngine + Send + 'static> LoopExecutor<S> {
             Value::String(s) if s.is_empty() => false,
             Value::List(l) if l.is_empty() => false,
             Value::Map(m) if m.is_empty() => false,
-            _ => true, // 非空、非零值视为 true
+            _ => true,
         }
     }
 
@@ -136,16 +138,13 @@ impl<S: StorageEngine + Send + 'static> LoopExecutor<S> {
     async fn execute_iteration(&mut self) -> DBResult<ExecutionResult> {
         self.current_iteration += 1;
 
-        // 更新循环上下文中的迭代变量
         self.loop_context.set_variable(
             "__iteration".to_string(),
             Value::Int(self.current_iteration as i64),
         );
 
-        // 执行循环体
         let result = self.body_executor.execute().await?;
 
-        // 重置循环体状态，为下次迭代做准备
         self.body_executor.close()?;
         self.body_executor.open()?;
 
@@ -158,7 +157,6 @@ impl<S: StorageEngine + Send + 'static> LoopExecutor<S> {
             return ExecutionResult::Success;
         }
 
-        // 尝试合并同类型的结果
         let mut all_values = Vec::new();
         let mut all_vertices = Vec::new();
         let mut all_edges = Vec::new();
@@ -174,12 +172,11 @@ impl<S: StorageEngine + Send + 'static> LoopExecutor<S> {
                 ExecutionResult::DataSet(dataset) => all_datasets.push(dataset.clone()),
                 ExecutionResult::Count(count) => all_values.push(Value::Int(*count as i64)),
                 ExecutionResult::Success => {}
-                ExecutionResult::Error(_) => {} // Ignore error results or handle as needed
-                ExecutionResult::Result(_) => {} // Ignore Result objects
+                ExecutionResult::Error(_) => {}
+                ExecutionResult::Result(_) => {}
             }
         }
 
-        // 根据内容返回最合适的结果类型
         if !all_values.is_empty()
             && all_vertices.is_empty()
             && all_edges.is_empty()
@@ -210,25 +207,12 @@ impl<S: StorageEngine + Send + 'static> LoopExecutor<S> {
             && all_edges.is_empty()
             && all_paths.is_empty()
         {
-            // 合并数据集
             if all_datasets.len() == 1 {
-                ExecutionResult::DataSet(
-                    all_datasets
-                        .into_iter()
-                        .next()
-                        .expect("Failed to get next dataset"),
-                )
+                ExecutionResult::DataSet(all_datasets.into_iter().next().expect("Failed to get next dataset"))
             } else {
-                // 简化处理：返回第一个数据集
-                ExecutionResult::DataSet(
-                    all_datasets
-                        .first()
-                        .cloned()
-                        .expect("Failed to get first dataset"),
-                )
+                ExecutionResult::DataSet(all_datasets.first().cloned().expect("Failed to get first dataset"))
             }
         } else {
-            // 混合类型，返回值列表
             let mut mixed_values = Vec::new();
             mixed_values.extend(all_values);
             for vertex in all_vertices {
@@ -265,11 +249,9 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for LoopExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         self.validate_no_self_reference()?;
 
-        self.safety_validator
-            .validate_loop_config(self.max_iterations)?;
+        self.safety_validator.validate_loop_config(self.max_iterations)?;
 
-        self.recursion_detector
-            .validate_executor(self.body_executor.id(), self.body_executor.name())?;
+        self.recursion_detector.validate_executor(self.body_executor.id(), self.body_executor.name())?;
 
         self.loop_state = LoopState::Running;
         self.results.clear();
@@ -361,9 +343,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for LoopExecutor<S> {
     }
 }
 
-impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S>
-    for LoopExecutor<S>
-{
+impl<S: StorageEngine + Send + 'static> HasStorage<S> for LoopExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.get_storage()
     }
@@ -429,9 +409,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for WhileLoopExecutor
     }
 }
 
-impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S>
-    for WhileLoopExecutor<S>
-{
+impl<S: StorageEngine + Send + 'static> HasStorage<S> for WhileLoopExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.inner.get_storage()
     }
@@ -461,12 +439,11 @@ impl<S: StorageEngine + Send + 'static> ForLoopExecutor<S> {
         let mut executor = LoopExecutor::new(
             id,
             storage,
-            None, // 条件在内部处理
+            None,
             body_executor,
             Some(((end - start).abs() / step.abs() + 1) as usize),
         );
 
-        // 设置循环变量
         executor.set_loop_variable(loop_var.clone(), Value::Int(start));
 
         Self {
@@ -488,8 +465,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ForLoopExecutor<S
         let mut results = Vec::new();
 
         while (self.step > 0 && current <= self.end) || (self.step < 0 && current >= self.end) {
-            self.inner
-                .set_loop_variable(self.loop_var.clone(), Value::Int(current));
+            self.inner.set_loop_variable(self.loop_var.clone(), Value::Int(current));
 
             let result = self.inner.execute_iteration().await?;
             results.push(result);
@@ -536,9 +512,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ForLoopExecutor<S
     }
 }
 
-impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S>
-    for ForLoopExecutor<S>
-{
+impl<S: StorageEngine + Send + 'static> HasStorage<S> for ForLoopExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.inner.get_storage()
     }
@@ -553,7 +527,6 @@ mod tests {
     use crate::storage::test_mock::MockStorage;
     use std::sync::{Arc, Mutex};
 
-    // 模拟计数执行器
     struct CountExecutor {
         count: i64,
         max_count: i64,
@@ -627,7 +600,6 @@ mod tests {
         let storage = Arc::new(Mutex::new(MockStorage));
         let storage_clone = storage.clone();
 
-        // 创建条件表达式：__iteration < 3
         let condition = Expression::binary(
             Expression::variable("__iteration"),
             BinaryOperator::LessThan,
@@ -641,23 +613,15 @@ mod tests {
             storage,
             condition,
             body_executor,
-            Some(5), // 最大5次迭代
+            Some(5),
         );
 
-        // 执行循环
         let result = executor.execute().await.expect("Failed to execute");
 
-        // 调试信息
-        println!("Loop result: {:?}", result);
-        println!("Current iteration: {}", executor.inner.current_iteration());
-        println!("Loop state: {:?}", executor.inner.loop_state());
-
-        // 验证结果
         match result {
             ExecutionResult::Values(values) => {
-                println!("Values: {:?}", values);
-                assert_eq!(values.len(), 3); // 应该执行3次
-                assert_eq!(values, vec![Value::Int(1), Value::Int(2), Value::Int(3),]);
+                assert_eq!(values.len(), 3);
+                assert_eq!(values, vec![Value::Int(1), Value::Int(2), Value::Int(3)]);
             }
             _ => panic!("Expected Values result, got: {:?}", result),
         }
@@ -676,14 +640,12 @@ mod tests {
         let mut executor =
             ForLoopExecutor::new(1, storage, "i".to_string(), 1, 3, 1, body_executor);
 
-        // 执行循环
         let result = executor.execute().await.expect("Failed to execute");
 
-        // 验证结果
         match result {
             ExecutionResult::Values(values) => {
-                assert_eq!(values.len(), 3); // 应该执行3次
-                assert_eq!(values, vec![Value::Int(1), Value::Int(2), Value::Int(3),]);
+                assert_eq!(values.len(), 3);
+                assert_eq!(values, vec![Value::Int(1), Value::Int(2), Value::Int(3)]);
             }
             _ => panic!("Expected Values result"),
         }

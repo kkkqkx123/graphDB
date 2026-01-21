@@ -17,15 +17,14 @@ use std::sync::{Arc, Mutex};
 use crate::query::executor::base::{ExecutionContext, StartExecutor};
 use crate::query::executor::data_access::GetVerticesExecutor;
 use crate::query::executor::data_processing::{
-    AssignExecutor, CrossJoinExecutor, ExpandExecutor, InnerJoinExecutor, LeftJoinExecutor,
-    UnwindExecutor,
+    CrossJoinExecutor, ExpandExecutor, InnerJoinExecutor, LeftJoinExecutor,
 };
 use crate::query::executor::recursion_detector::{
     ExecutorSafetyConfig, ExecutorSafetyValidator, RecursionDetector,
 };
 use crate::query::executor::result_processing::{
-    AggregateExecutor, DedupExecutor, FilterExecutor, LimitExecutor, ProjectExecutor, SortExecutor,
-    TopNExecutor,
+    AggregateExecutor, AssignExecutor, DedupExecutor, FilterExecutor, LimitExecutor,
+    ProjectExecutor, SortExecutor, TopNExecutor, UnwindExecutor,
 };
 
 /// 执行器工厂

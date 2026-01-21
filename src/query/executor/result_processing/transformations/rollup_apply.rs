@@ -19,22 +19,15 @@ use crate::storage::StorageEngine;
 /// 用于将右输入中的值根据左输入的键进行聚合
 pub struct RollUpApplyExecutor<S: StorageEngine + Send + 'static> {
     base: BaseExecutor<S>,
-    /// 左输入变量名
     left_input_var: String,
-    /// 右输入变量名
     right_input_var: String,
-    /// 比较列表达式列表
     compare_cols: Vec<Expression>,
-    /// 收集列表达式
     collect_col: Expression,
-    /// 输出列名
     col_names: Vec<String>,
-    /// 是否可以移动数据
     movable: bool,
 }
 
 impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
-    /// 创建新的RollUpApplyExecutor
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -55,7 +48,6 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         }
     }
 
-    /// 带上下文创建RollUpApplyExecutor
     pub fn with_context(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -82,9 +74,7 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         }
     }
 
-    /// 检查双输入数据集
     fn check_bi_input_data_sets(&self) -> DBResult<()> {
-        // 检查左输入
         let _left_result = self
             .base
             .context
@@ -96,7 +86,6 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
                 )))
             })?;
 
-        // 检查右输入
         let _right_result = self
             .base
             .context
@@ -111,7 +100,6 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         Ok(())
     }
 
-    /// 构建哈希表（多键）
     fn build_hash_table<C: ExpressionContext>(
         &self,
         compare_cols: &[Expression],
@@ -149,7 +137,6 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         Ok(())
     }
 
-    /// 构建单键哈希表
     fn build_single_key_hash_table<C: ExpressionContext>(
         &self,
         compare_col: &Expression,
@@ -159,10 +146,8 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         expr_context: &mut C,
     ) -> DBResult<()> {
         for value in iter {
-            // 设置当前值到表达式上下文
             expr_context.set_variable("_".to_string(), value.clone());
 
-            // 获取键值
             let key_val =
                 ExpressionEvaluator::evaluate(compare_col, expr_context).map_err(|e| {
                     DBError::Query(crate::core::error::QueryError::ExecutionError(
@@ -170,7 +155,6 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
                     ))
                 })?;
 
-            // 获取收集列的值
             let collect_val =
                 ExpressionEvaluator::evaluate(collect_col, expr_context).map_err(|e| {
                     DBError::Query(crate::core::error::QueryError::ExecutionError(
@@ -178,7 +162,6 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
                     ))
                 })?;
 
-            // 添加到哈希表
             let entry = hash_table
                 .entry(key_val)
                 .or_insert_with(|| List { values: Vec::new() });
@@ -188,7 +171,6 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         Ok(())
     }
 
-    /// 构建零键哈希表
     fn build_zero_key_hash_table<C: ExpressionContext>(
         &self,
         collect_col: &Expression,
@@ -214,7 +196,6 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         Ok(())
     }
 
-    /// 探测零键哈希表
     fn probe_zero_key<C: ExpressionContext>(
         &self,
         probe_iter: &[Value],
@@ -229,7 +210,6 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         dataset.rows.reserve(probe_iter.len());
 
         for value in probe_iter {
-            // 设置当前值到表达式上下文
             expr_context.set_variable("_".to_string(), value.clone());
 
             let mut row = Vec::new();
@@ -247,7 +227,6 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         Ok(dataset)
     }
 
-    /// 探测单键哈希表
     fn probe_single_key<C: ExpressionContext>(
         &self,
         probe_key: &Expression,
@@ -291,7 +270,6 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         Ok(dataset)
     }
 
-    /// 探测多键哈希表
     fn probe<C: ExpressionContext>(
         &self,
         probe_keys: &[Expression],
@@ -307,10 +285,8 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         dataset.rows.reserve(probe_iter.len());
 
         for value in probe_iter {
-            // 设置当前值到表达式上下文
             expr_context.set_variable("_".to_string(), value.clone());
 
-            // 构建键列表
             let mut key_list = List { values: Vec::new() };
             for col in probe_keys {
                 let val = ExpressionEvaluator::evaluate(col, expr_context).map_err(|e| {
@@ -321,7 +297,6 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
                 key_list.values.push(val);
             }
 
-            // 查找哈希表
             let vals = hash_table
                 .get(&key_list)
                 .cloned()
@@ -342,12 +317,9 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
         Ok(dataset)
     }
 
-    /// 执行RollUpApply操作
     fn execute_rollup_apply(&mut self) -> DBResult<DataSet> {
-        // 检查输入数据集
         self.check_bi_input_data_sets()?;
 
-        // 获取输入结果
         let left_result = self
             .base
             .context
@@ -359,7 +331,6 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
             .get_result(&self.right_input_var)
             .expect("Context should have right result");
 
-        // 将结果转换为值列表
         let left_values = match left_result {
             ExecutionResult::Values(values) => values.clone(),
             ExecutionResult::Vertices(vertices) => vertices
@@ -398,17 +369,13 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
             }
         };
 
-        // 创建表达式上下文
         let mut expr_context = DefaultExpressionContext::new();
 
-        // 从执行上下文中设置变量
         for (name, value) in &self.base.context.variables.clone() {
             expr_context.set_variable(name.clone(), value.clone());
         }
 
-        // 根据比较列数量选择不同的处理方式
         let result = if self.compare_cols.is_empty() {
-            // 零键情况
             let mut hash_table = List { values: Vec::new() };
             self.build_zero_key_hash_table(
                 &self.collect_col,
@@ -418,7 +385,6 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
             )?;
             self.probe_zero_key(&left_values, &hash_table, &mut expr_context)?
         } else if self.compare_cols.len() == 1 {
-            // 单键情况
             let mut hash_table = HashMap::new();
             self.build_single_key_hash_table(
                 &self.compare_cols[0],
@@ -434,7 +400,6 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
                 &mut expr_context,
             )?
         } else {
-            // 多键情况
             let mut hash_table = HashMap::new();
             self.build_hash_table(
                 &self.compare_cols,
@@ -527,13 +492,9 @@ mod tests {
         let config = test_config();
         let storage = Arc::new(Mutex::new(MockStorage));
 
-        // 创建左输入数据
         let left_values = vec![Value::Int(1), Value::Int(2)];
-
-        // 创建右输入数据
         let right_values = vec![Value::Int(1), Value::Int(1), Value::Int(2)];
 
-        // 创建执行上下文
         let mut context = crate::query::executor::base::ExecutionContext::new();
         context.set_result(
             "left".to_string(),
@@ -544,10 +505,7 @@ mod tests {
             ExecutionResult::Values(right_values.clone()),
         );
 
-        // 创建RollUpApplyExecutor
-        let compare_cols = vec![
-            Expression::literal(0i64), // 简化的比较列
-        ];
+        let compare_cols = vec![Expression::literal(0i64)];
         let collect_col = Expression::Property {
             object: Box::new(Expression::Variable("_".to_string())),
             property: "".to_string(),
@@ -564,15 +522,12 @@ mod tests {
             context,
         );
 
-        // 执行RollUpApply
         let result = executor
             .execute()
             .await
             .expect("Executor should execute successfully");
 
-        // 检查结果
         if let ExecutionResult::Values(values) = result {
-            // 应该有4个值（2个左值 × 2个聚合组）
             assert_eq!(values.len(), 4);
         } else {
             panic!("Expected Values result");

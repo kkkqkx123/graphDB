@@ -11,6 +11,7 @@
 //! - `filter` - 结果过滤（HAVING）
 //! - `sample` - 采样（SAMPLING）
 //! - `topn` - 排序优化（TOP N）
+//! - `transformations` - 数据转换（Assign、Unwind、AppendVertices等）
 
 // 列投影
 pub mod projection;
@@ -31,7 +32,6 @@ pub use aggregation::{
     HavingExecutor,
 };
 
-// Re-export AggregateFunction directly from its source
 pub use crate::core::types::operators::AggregateFunction;
 
 // 去重执行器
@@ -49,6 +49,19 @@ pub use sample::{SampleExecutor, SampleMethod};
 // TOP N 优化
 pub mod topn;
 pub use topn::TopNExecutor;
+
+// 数据转换操作
+// 这些执行器处理数据转换操作，包括：
+// - Assign（变量赋值）
+// - Unwind（列表展开）
+// - AppendVertices（追加顶点）
+// - PatternApply（模式匹配）
+// - RollUpApply（聚合操作）
+pub mod transformations;
+pub use transformations::{
+    AppendVerticesExecutor, AssignExecutor, PatternApplyExecutor, PatternType, RollUpApplyExecutor,
+    UnwindExecutor,
+};
 
 // 统一的执行器接口
 pub mod traits;

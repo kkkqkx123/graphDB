@@ -238,18 +238,15 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
             let vertex = Vertex {
                 vid: Box::new(vid.clone()),
                 id: 0,
-                tags: Vec::new(),                             // 空标签
-                properties: std::collections::HashMap::new(), // 空属性
+                tags: Vec::new(),
+                properties: std::collections::HashMap::new(),
             };
 
             if !self.track_prev_path {
-                // 不跟踪前一个路径，只返回顶点
                 let mut row = Vec::new();
                 row.push(Value::Vertex(Box::new(vertex)));
                 dataset.rows.push(row);
             } else {
-                // 跟踪前一个路径，需要保留原始行
-                // 这里简化处理，实际应该从输入结果中获取原始行
                 let mut row = Vec::new();
                 row.push(Value::Vertex(Box::new(vertex)));
                 dataset.rows.push(row);
@@ -263,7 +260,6 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
     async fn fetch_vertices(&mut self, vids: Vec<Value>) -> DBResult<Vec<Vertex>> {
         let mut vertices = Vec::new();
 
-        // 获取存储引擎
         let storage = self.get_storage().lock().map_err(|_| {
             DBError::Storage(crate::core::error::StorageError::DbError(
                 "Failed to lock storage".to_string(),
@@ -275,7 +271,6 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
                 continue;
             }
 
-            // 从存储中获取顶点
             let vertex = storage.get_node(&vid).map_err(|e| DBError::from(e))?;
 
             if let Some(vertex) = vertex {
@@ -288,13 +283,11 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
 
     /// 执行追加顶点操作
     async fn execute_append_vertices(&mut self) -> DBResult<DataSet> {
-        // 如果不需要获取属性，直接处理空属性情况
         if !self.need_fetch_prop {
             let vids = self.build_request_dataset()?;
             return self.handle_null_prop(vids);
         }
 
-        // 构建请求数据集
         let vids = self.build_request_dataset()?;
 
         if vids.is_empty() {
@@ -304,24 +297,19 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
             });
         }
 
-        // 从存储中获取顶点
         let vertices = self.fetch_vertices(vids).await?;
 
-        // 创建表达式上下文
         let _expr_context = DefaultExpressionContext::new();
 
-        // 创建输出数据集
         let mut dataset = DataSet {
             col_names: self.col_names.clone(),
             rows: Vec::new(),
         };
 
-        // 应用顶点过滤器
         for vertex in vertices {
             let vertex_value = Value::Vertex(Box::new(vertex.clone()));
             let mut row_context = DefaultExpressionContext::new();
 
-            // 如果有顶点过滤器，应用它
             if let Some(ref filter_expr) = self.v_filter {
                 let filter_result = ExpressionEvaluator::evaluate(filter_expr, &mut row_context)
                     .map_err(|e| {
@@ -331,19 +319,15 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
                     })?;
 
                 if let Value::Bool(false) = filter_result {
-                    continue; // 过滤掉这个顶点
+                    continue;
                 }
             }
 
-            // 添加到结果集
             if !self.track_prev_path {
-                // 不跟踪前一个路径，只返回顶点
                 let mut row = Vec::new();
                 row.push(vertex_value);
                 dataset.rows.push(row);
             } else {
-                // 跟踪前一个路径，需要保留原始行
-                // 这里简化处理，实际应该从输入结果中获取原始行
                 let mut row = Vec::new();
                 row.push(vertex_value);
                 dataset.rows.push(row);
@@ -424,7 +408,6 @@ mod tests {
         let config = test_config();
         let storage = Arc::new(Mutex::new(MockStorage));
 
-        // 创建输入数据
         let vids = vec![
             Value::String("vertex1".to_string()),
             Value::String("vertex2".to_string()),
@@ -432,36 +415,31 @@ mod tests {
 
         let input_result = ExecutionResult::Values(vids);
 
-        // 创建执行上下文
         let mut context = crate::query::executor::base::ExecutionContext::new();
         context.set_result("input".to_string(), input_result);
 
-        // 创建AppendVerticesExecutor
         let src_expr = Expression::Variable("_".to_string());
         let mut executor = AppendVerticesExecutor::with_context(
             1,
             storage,
             "input".to_string(),
             src_expr,
-            vec![], // 空属性列表
-            None,   // 无过滤器
+            vec![],
+            None,
             vec!["vertex".to_string()],
-            false, // 不去重
-            false, // 不跟踪前一个路径
-            false, // 不需要获取属性
+            false,
+            false,
+            false,
             context,
         );
 
-        // 执行追加顶点
         let result = executor
             .execute()
             .await
             .expect("Executor should execute successfully");
 
-        // 检查结果
         if let ExecutionResult::Values(values) = result {
             assert_eq!(values.len(), 2);
-            // 验证返回的是顶点值
             assert!(matches!(values[0], Value::Vertex(_)));
             assert!(matches!(values[1], Value::Vertex(_)));
         } else {

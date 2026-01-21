@@ -6,6 +6,9 @@
 //! - Unwind（列表展开）
 //! - PatternApply（模式匹配）
 //! - RollUpApply（聚合操作）
+//!
+//! 对应 NebulaGraph 实现：
+//! nebula-3.8.0/src/graph/executor/query/
 
 // 变量赋值执行器
 pub mod assign;

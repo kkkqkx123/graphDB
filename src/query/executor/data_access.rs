@@ -481,3 +481,262 @@ impl<S: StorageEngine> HasStorage<S> for GetPropExecutor<S> {
             .expect("GetPropExecutor storage should be set")
     }
 }
+
+use crate::core::vertex_edge_path::{Path, Step};
+use crate::core::Direction;
+
+use super::base::EdgeDirection;
+
+#[derive(Debug)]
+pub struct IndexScanExecutor<S: StorageEngine> {
+    base: BaseExecutor<S>,
+    index_name: String,
+    index_condition: Option<(String, Value)>,
+    scan_forward: bool,
+    limit: Option<usize>,
+}
+
+impl<S: StorageEngine> IndexScanExecutor<S> {
+    pub fn new(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        index_name: String,
+        index_condition: Option<(String, Value)>,
+        scan_forward: bool,
+        limit: Option<usize>,
+    ) -> Self {
+        Self {
+            base: BaseExecutor::new(id, "IndexScanExecutor".to_string(), storage),
+            index_name,
+            index_condition,
+            scan_forward,
+            limit,
+        }
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for IndexScanExecutor<S> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+        let storage = safe_lock(self.get_storage())
+            .expect("IndexScanExecutor storage lock should not be poisoned");
+
+        let mut results = Vec::new();
+
+        if let Some((prop_name, prop_value)) = &self.index_condition {
+            let scan_results = storage.scan_vertices_by_prop(&self.index_name, prop_name, prop_value)?;
+
+            for vertex in scan_results {
+                results.push(crate::core::Value::Vertex(Box::new(vertex)));
+
+                if let Some(limit) = self.limit {
+                    if results.len() >= limit {
+                        break;
+                    }
+                }
+            }
+        } else {
+            let scan_results = if self.scan_forward {
+                storage.scan_vertices_by_tag(&self.index_name)?
+            } else {
+                storage.scan_all_vertices()?
+            };
+
+            for vertex in scan_results {
+                results.push(crate::core::Value::Vertex(Box::new(vertex)));
+
+                if let Some(limit) = self.limit {
+                    if results.len() >= limit {
+                        break;
+                    }
+                }
+            }
+        }
+
+        Ok(ExecutionResult::Values(results))
+    }
+
+    fn open(&mut self) -> DBResult<()> {
+        Ok(())
+    }
+
+    fn close(&mut self) -> DBResult<()> {
+        Ok(())
+    }
+
+    fn is_open(&self) -> bool {
+        true
+    }
+
+    fn id(&self) -> i64 {
+        self.base.id
+    }
+
+    fn name(&self) -> &str {
+        &self.base.name
+    }
+
+    fn description(&self) -> &str {
+        "Index scan executor - retrieves vertices using index"
+    }
+
+    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats()
+    }
+
+    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats_mut()
+    }
+}
+
+impl<S: StorageEngine> HasStorage<S> for IndexScanExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base
+            .storage
+            .as_ref()
+            .expect("IndexScanExecutor storage should be set")
+    }
+}
+
+#[derive(Debug)]
+pub struct AllPathsExecutor<S: StorageEngine> {
+    base: BaseExecutor<S>,
+    start_vertex: Value,
+    end_vertex: Option<Value>,
+    max_hops: usize,
+    edge_types: Option<Vec<String>>,
+    direction: EdgeDirection,
+}
+
+impl<S: StorageEngine> AllPathsExecutor<S> {
+    pub fn new(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        start_vertex: Value,
+        end_vertex: Option<Value>,
+        max_hops: usize,
+        edge_types: Option<Vec<String>>,
+        direction: EdgeDirection,
+    ) -> Self {
+        Self {
+            base: BaseExecutor::new(id, "AllPathsExecutor".to_string(), storage),
+            start_vertex,
+            end_vertex,
+            max_hops,
+            edge_types,
+            direction,
+        }
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for AllPathsExecutor<S> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+        let storage = safe_lock(self.get_storage())
+            .expect("AllPathsExecutor storage lock should not be poisoned");
+
+        let mut all_paths: Vec<Path> = Vec::new();
+
+        let start_vertex_obj = if let Some(vertex) = storage.get_node(&self.start_vertex)? {
+            vertex
+        } else {
+            return Ok(ExecutionResult::Values(vec![]));
+        };
+
+        let mut current_paths: Vec<Path> = vec![Path {
+            src: Box::new(start_vertex_obj.clone()),
+            steps: Vec::new(),
+        }];
+
+        for _hop in 0..self.max_hops {
+            let mut next_paths: Vec<Path> = Vec::new();
+
+            for path in &current_paths {
+                let last_vertex_box = path.steps.last()
+                    .map(|step| step.dst.as_ref())
+                    .unwrap_or(path.src.as_ref());
+
+                let direction = match self.direction {
+                    EdgeDirection::Outgoing => Direction::Out,
+                    EdgeDirection::Incoming => Direction::In,
+                    EdgeDirection::Both => Direction::Both,
+                };
+
+                let edges = storage.get_node_edges(&self.start_vertex, direction)?;
+
+                for edge in edges {
+                    let neighbor_id = edge.dst.clone();
+
+                    if let Some(ref end_vertex) = self.end_vertex {
+                        continue;
+                    }
+
+                    if let Some(ref edge_types) = self.edge_types {
+                        if !edge_types.contains(&edge.edge_type) {
+                            continue;
+                        }
+                    }
+
+                    if let Some(neighbor) = storage.get_node(&neighbor_id)? {
+                        let mut new_path = path.clone();
+                        new_path.steps.push(Step {
+                            dst: Box::new(neighbor),
+                            edge: Box::new(edge),
+                        });
+
+                        next_paths.push(new_path.clone());
+                        all_paths.push(new_path);
+                    }
+                }
+            }
+
+            current_paths = next_paths;
+            if current_paths.is_empty() {
+                break;
+            }
+        }
+
+        Ok(ExecutionResult::Paths(all_paths))
+    }
+
+    fn open(&mut self) -> DBResult<()> {
+        Ok(())
+    }
+
+    fn close(&mut self) -> DBResult<()> {
+        Ok(())
+    }
+
+    fn is_open(&self) -> bool {
+        true
+    }
+
+    fn id(&self) -> i64 {
+        self.base.id
+    }
+
+    fn name(&self) -> &str {
+        &self.base.name
+    }
+
+    fn description(&self) -> &str {
+        "All paths executor - finds all paths between vertices"
+    }
+
+    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats()
+    }
+
+    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats_mut()
+    }
+}
+
+impl<S: StorageEngine> HasStorage<S> for AllPathsExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base
+            .storage
+            .as_ref()
+            .expect("AllPathsExecutor storage should be set")
+    }
+}
