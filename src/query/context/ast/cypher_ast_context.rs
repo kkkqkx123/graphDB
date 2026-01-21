@@ -97,9 +97,8 @@ pub struct VariableInfo {
 }
 
 /// 变量可见性级别
-/// 
-/// 表示变量在查询中的可见性范围，与 `VariableScope` 结构体不同，
-/// 此枚举仅描述变量的可见性级别，不管理作用域层级结构。
+///
+/// 表示变量在查询中的可见性范围，使用符号表管理变量作用域。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum VariableVisibility {
     /// 局部变量（仅在当前QueryPart中可见）

@@ -9,7 +9,7 @@ pub mod query_ast_context;
 pub mod query_types;
 
 // 重新导出所有公共类型
-pub use base::{AstContext, QueryType, VariableInfo, VariableScope, ScopeError};
+pub use base::{AstContext, QueryType, VariableInfo};
 pub use common::*;
 pub use cypher_ast_context::{CypherAstContext, VariableVisibility};
 pub use query_ast_context::*;

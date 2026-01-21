@@ -1,6 +1,6 @@
 //! 查询AST上下文 - 用于NGQL查询的AST上下文
 
-use super::base::AstContext;
+use super::base::{AstContext, VariableInfo};
 use std::collections::HashMap;
 
 /// 查询AST上下文
@@ -11,28 +11,18 @@ use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub struct QueryAstContext {
     base: AstContext,
-    dependencies: HashMap<String, Vec<String>>, // AST节点间的依赖关系
-    query_variables: HashMap<String, QueryVariableInfo>, // 查询变量信息
-    expression_contexts: Vec<ExpressionContext>, // 表达式上下文
-}
-
-/// 查询变量信息
-#[derive(Debug, Clone)]
-pub struct QueryVariableInfo {
-    pub variable_name: String,   // 变量名
-    pub variable_type: String,   // 变量类型（如 "vertex", "edge", "path"）
-    pub source_clause: String,   // 来源子句（如 "MATCH", "GO"）
-    pub is_aggregated: bool,     // 是否聚合变量
-    pub properties: Vec<String>, // 访问的属性列表
+    dependencies: HashMap<String, Vec<String>>,
+    query_variables: HashMap<String, VariableInfo>,
+    expression_contexts: Vec<ExpressionContext>,
 }
 
 /// 表达式上下文
 #[derive(Debug, Clone)]
 pub struct ExpressionContext {
-    pub expression_id: String,             // 表达式ID
-    pub expression_text: String,           // 表达式文本
-    pub referenced_variables: Vec<String>, // 引用的变量
-    pub expression_type: String,           // 表达式类型（如 "predicate", "projection"）
+    pub expression_id: String,
+    pub expression_text: String,
+    pub referenced_variables: Vec<String>,
+    pub expression_type: String,
 }
 
 impl QueryAstContext {
@@ -47,7 +37,7 @@ impl QueryAstContext {
     }
 
     /// 添加查询变量信息
-    pub fn add_query_variable(&mut self, var_name: String, var_info: QueryVariableInfo) {
+    pub fn add_query_variable(&mut self, var_name: String, var_info: VariableInfo) {
         self.query_variables.insert(var_name, var_info);
     }
 
@@ -62,7 +52,7 @@ impl QueryAstContext {
     }
 
     /// 获取查询变量信息
-    pub fn query_variables(&self) -> &HashMap<String, QueryVariableInfo> {
+    pub fn query_variables(&self) -> &HashMap<String, VariableInfo> {
         &self.query_variables
     }
 
@@ -82,12 +72,12 @@ impl QueryAstContext {
     }
 
     /// 获取特定查询变量信息
-    pub fn get_query_variable(&self, var_name: &str) -> Option<&QueryVariableInfo> {
+    pub fn get_query_variable(&self, var_name: &str) -> Option<&VariableInfo> {
         self.query_variables.get(var_name)
     }
 
     /// 获取特定类型的查询变量
-    pub fn get_variables_by_type(&self, var_type: &str) -> Vec<&QueryVariableInfo> {
+    pub fn get_variables_by_type(&self, var_type: &str) -> Vec<&VariableInfo> {
         self.query_variables
             .values()
             .filter(|v| v.variable_type == var_type)
@@ -95,7 +85,7 @@ impl QueryAstContext {
     }
 
     /// 获取特定来源子句的变量
-    pub fn get_variables_by_clause(&self, clause: &str) -> Vec<&QueryVariableInfo> {
+    pub fn get_variables_by_clause(&self, clause: &str) -> Vec<&VariableInfo> {
         self.query_variables
             .values()
             .filter(|v| v.source_clause == clause)
@@ -155,7 +145,7 @@ impl QueryAstContext {
     }
 
     /// 获取所有聚合变量
-    pub fn get_aggregated_variables(&self) -> Vec<&QueryVariableInfo> {
+    pub fn get_aggregated_variables(&self) -> Vec<&VariableInfo> {
         self.query_variables
             .values()
             .filter(|v| v.is_aggregated)
@@ -203,13 +193,9 @@ mod tests {
     fn test_query_ast_context_add_query_variable() {
         let mut context = QueryAstContext::new("GO FROM '1' OVER follow");
 
-        let var_info = QueryVariableInfo {
-            variable_name: "dst".to_string(),
-            variable_type: "vertex".to_string(),
-            source_clause: "GO".to_string(),
-            is_aggregated: false,
-            properties: vec!["_dst".to_string()],
-        };
+        let var_info = VariableInfo::new("dst".to_string(), "vertex".to_string())
+            .with_source_clause("GO".to_string())
+            .with_properties(vec!["_dst".to_string()]);
 
         context.add_query_variable("dst".to_string(), var_info);
         assert!(context.query_variables().contains_key("dst"));
@@ -247,21 +233,13 @@ mod tests {
     fn test_query_ast_context_get_variables_by_type() {
         let mut context = QueryAstContext::new("GO FROM '1' OVER follow");
 
-        let var_info1 = QueryVariableInfo {
-            variable_name: "dst".to_string(),
-            variable_type: "vertex".to_string(),
-            source_clause: "GO".to_string(),
-            is_aggregated: false,
-            properties: vec!["_dst".to_string()],
-        };
+        let var_info1 = VariableInfo::new("dst".to_string(), "vertex".to_string())
+            .with_source_clause("GO".to_string())
+            .with_properties(vec!["_dst".to_string()]);
 
-        let var_info2 = QueryVariableInfo {
-            variable_name: "edge".to_string(),
-            variable_type: "edge".to_string(),
-            source_clause: "GO".to_string(),
-            is_aggregated: false,
-            properties: vec!["_src".to_string(), "_dst".to_string()],
-        };
+        let var_info2 = VariableInfo::new("edge".to_string(), "edge".to_string())
+            .with_source_clause("GO".to_string())
+            .with_properties(vec!["_src".to_string(), "_dst".to_string()]);
 
         context.add_query_variable("dst".to_string(), var_info1);
         context.add_query_variable("edge".to_string(), var_info2);
@@ -275,13 +253,9 @@ mod tests {
     fn test_query_ast_context_get_variables_by_clause() {
         let mut context = QueryAstContext::new("GO FROM '1' OVER follow");
 
-        let var_info = QueryVariableInfo {
-            variable_name: "dst".to_string(),
-            variable_type: "vertex".to_string(),
-            source_clause: "GO".to_string(),
-            is_aggregated: false,
-            properties: vec!["_dst".to_string()],
-        };
+        let var_info = VariableInfo::new("dst".to_string(), "vertex".to_string())
+            .with_source_clause("GO".to_string())
+            .with_properties(vec!["_dst".to_string()]);
 
         context.add_query_variable("dst".to_string(), var_info);
 
@@ -315,21 +289,13 @@ mod tests {
     fn test_query_ast_context_get_aggregated_variables() {
         let mut context = QueryAstContext::new("GO FROM '1' OVER follow YIELD COUNT(*) AS count");
 
-        let var_info1 = QueryVariableInfo {
-            variable_name: "dst".to_string(),
-            variable_type: "vertex".to_string(),
-            source_clause: "GO".to_string(),
-            is_aggregated: false,
-            properties: vec!["_dst".to_string()],
-        };
+        let var_info1 = VariableInfo::new("dst".to_string(), "vertex".to_string())
+            .with_source_clause("GO".to_string())
+            .with_properties(vec!["_dst".to_string()]);
 
-        let var_info2 = QueryVariableInfo {
-            variable_name: "count".to_string(),
-            variable_type: "integer".to_string(),
-            source_clause: "YIELD".to_string(),
-            is_aggregated: true,
-            properties: vec![],
-        };
+        let var_info2 = VariableInfo::new("count".to_string(), "integer".to_string())
+            .with_source_clause("YIELD".to_string())
+            .with_aggregated(true);
 
         context.add_query_variable("dst".to_string(), var_info1);
         context.add_query_variable("count".to_string(), var_info2);

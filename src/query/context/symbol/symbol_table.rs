@@ -1,5 +1,6 @@
 use crate::core::PlanNodeRef;
 use crate::core::value::types::ValueTypeDef;
+use crate::query::context::ast::VariableInfo;
 
 use dashmap::DashMap;
 use std::collections::HashSet;
@@ -12,6 +13,9 @@ pub struct Symbol {
     pub col_names: Vec<String>,
     pub readers: HashSet<PlanNodeRef>,
     pub writers: HashSet<PlanNodeRef>,
+    pub source_clause: String,
+    pub properties: Vec<String>,
+    pub is_aggregated: bool,
 }
 
 impl Symbol {
@@ -22,6 +26,9 @@ impl Symbol {
             col_names: Vec::new(),
             readers: HashSet::new(),
             writers: HashSet::new(),
+            source_clause: String::new(),
+            properties: Vec::new(),
+            is_aggregated: false,
         }
     }
 
@@ -34,18 +41,59 @@ impl Symbol {
         self.value_type = value_type;
         self
     }
+
+    pub fn with_source_clause(mut self, source_clause: String) -> Self {
+        self.source_clause = source_clause;
+        self
+    }
+
+    pub fn with_properties(mut self, properties: Vec<String>) -> Self {
+        self.properties = properties;
+        self
+    }
+
+    pub fn with_aggregated(mut self, is_aggregated: bool) -> Self {
+        self.is_aggregated = is_aggregated;
+        self
+    }
+
+    pub fn to_variable_info(&self) -> VariableInfo {
+        VariableInfo::new(self.name.clone(), format!("{:?}", self.value_type))
+            .with_source_clause(self.source_clause.clone())
+            .with_properties(self.properties.clone())
+            .with_aggregated(self.is_aggregated)
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct SymbolTable {
     symbols: Arc<DashMap<String, Symbol>>,
+    pub scope_stack: Vec<HashSet<String>>,
 }
 
 impl SymbolTable {
     pub fn new() -> Self {
         Self {
             symbols: Arc::new(DashMap::new()),
+            scope_stack: vec![HashSet::new()],
         }
+    }
+
+    pub fn push_scope(&mut self) {
+        self.scope_stack.push(HashSet::new());
+    }
+
+    pub fn pop_scope(&mut self) {
+        if self.scope_stack.len() > 1 {
+            let popped_scope = self.scope_stack.pop().unwrap();
+            for name in popped_scope {
+                let _ = self.symbols.remove(&name);
+            }
+        }
+    }
+
+    pub fn current_scope(&self) -> &HashSet<String> {
+        self.scope_stack.last().expect("Scope stack is empty")
     }
 
     pub fn new_variable(&self, name: &str) -> Result<Symbol, String> {
@@ -54,6 +102,19 @@ impl SymbolTable {
         }
 
         let symbol = Symbol::new(name.to_string(), ValueTypeDef::DataSet);
+        self.symbols.insert(name.to_string(), symbol.clone());
+        Ok(symbol)
+    }
+
+    pub fn new_variable_with_info(&self, name: &str, info: VariableInfo) -> Result<Symbol, String> {
+        if self.symbols.contains_key(name) {
+            return Err(format!("变量 '{}' 已存在", name));
+        }
+
+        let symbol = Symbol::new(name.to_string(), ValueTypeDef::DataSet)
+            .with_source_clause(info.source_clause)
+            .with_properties(info.properties)
+            .with_aggregated(info.is_aggregated);
         self.symbols.insert(name.to_string(), symbol.clone());
         Ok(symbol)
     }
@@ -77,12 +138,20 @@ impl SymbolTable {
         self.symbols.get(name).map(|v| v.clone())
     }
 
+    pub fn get_variable_info(&self, name: &str) -> Option<VariableInfo> {
+        self.symbols.get(name).map(|s| s.to_variable_info())
+    }
+
     pub fn remove_variable(&self, name: &str) -> Result<bool, String> {
         Ok(self.symbols.remove(name).is_some())
     }
 
     pub fn size(&self) -> usize {
         self.symbols.len()
+    }
+
+    pub fn current_scope_size(&self) -> usize {
+        self.current_scope().len()
     }
 
     pub fn read_by(&self, var_name: &str, node: PlanNodeRef) -> Result<(), String> {
@@ -134,7 +203,7 @@ impl SymbolTable {
         }
 
         if let Some(mut symbol) = self.symbols.get_mut(new_var) {
-            if symbol.readers.insert(node) {
+            if symbol.writers.insert(node) {
                 success = true;
             }
         }
@@ -169,6 +238,7 @@ impl SymbolTable {
         let mut result = String::new();
         result.push_str("SymbolTable {\n");
         result.push_str(&format!("  symbols: {}\n", self.symbols.len()));
+        result.push_str(&format!("  scope_depth: {}\n", self.scope_stack.len()));
 
         for entry in self.symbols.iter() {
             let symbol = entry.value();
@@ -183,6 +253,30 @@ impl SymbolTable {
 
         result.push_str("}");
         result
+    }
+
+    pub fn get_variables_by_type(&self, var_type: &str) -> Vec<VariableInfo> {
+        self.symbols
+            .iter()
+            .filter(|s| format!("{:?}", s.value_type).to_lowercase().contains(&var_type.to_lowercase()))
+            .map(|s| s.to_variable_info())
+            .collect()
+    }
+
+    pub fn get_variables_by_source(&self, source: &str) -> Vec<VariableInfo> {
+        self.symbols
+            .iter()
+            .filter(|s| s.source_clause == source)
+            .map(|s| s.to_variable_info())
+            .collect()
+    }
+
+    pub fn get_aggregated_variables(&self) -> Vec<VariableInfo> {
+        self.symbols
+            .iter()
+            .filter(|s| s.is_aggregated)
+            .map(|s| s.to_variable_info())
+            .collect()
     }
 }
 
@@ -315,5 +409,55 @@ mod tests {
         handle2.join().unwrap();
 
         assert_eq!(table.size(), 100);
+    }
+
+    #[test]
+    fn test_variable_info_conversion() {
+        let table = SymbolTable::new();
+
+        let var_info = VariableInfo::new("dst".to_string(), "vertex".to_string())
+            .with_source_clause("GO".to_string())
+            .with_properties(vec!["_dst".to_string()])
+            .with_aggregated(false);
+
+        table.new_variable_with_info("dst", var_info).unwrap();
+
+        let info = table.get_variable_info("dst").unwrap();
+        assert_eq!(info.variable_name, "dst");
+        assert_eq!(info.source_clause, "GO");
+        assert_eq!(info.properties, vec!["_dst"]);
+    }
+
+    #[test]
+    fn test_scope_management() {
+        let mut table = SymbolTable::new();
+
+        table.new_variable("var1").unwrap();
+        assert_eq!(table.size(), 1);
+
+        table.push_scope();
+        table.new_variable("var2").unwrap();
+        assert_eq!(table.size(), 2);
+
+        table.pop_scope();
+        assert_eq!(table.size(), 1);
+        assert!(!table.has_variable("var2"));
+    }
+
+    #[test]
+    fn test_get_aggregated_variables() {
+        let table = SymbolTable::new();
+
+        let var1 = VariableInfo::new("var1".to_string(), "vertex".to_string())
+            .with_aggregated(false);
+        let var2 = VariableInfo::new("var2".to_string(), "integer".to_string())
+            .with_aggregated(true);
+
+        table.new_variable_with_info("var1", var1).unwrap();
+        table.new_variable_with_info("var2", var2).unwrap();
+
+        let aggregated = table.get_aggregated_variables();
+        assert_eq!(aggregated.len(), 1);
+        assert_eq!(aggregated[0].variable_name, "var2");
     }
 }

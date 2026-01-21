@@ -3,9 +3,8 @@
 
 use super::basic_context::BasicValidationContext;
 use super::generators::{AnonColGenerator, AnonVarGenerator, GeneratorFactory};
-use super::schema::{self, SchemaInfo, SchemaProvider};
+use super::schema::{SchemaInfo, SchemaProvider};
 use super::types::{ColsDef, SpaceInfo, Variable};
-use crate::core::Value;
 use crate::query::context::SymbolTable;
 use crate::query::validator::structs::{AliasType, QueryPart};
 use crate::query::validator::validation_interface::{
@@ -51,11 +50,6 @@ pub struct ValidationContext {
 
     // 验证错误列表（用于ValidationContext trait）
     validation_errors: Vec<ValidationError>,
-
-    // 位置信息
-    current_line: usize,
-    current_column: usize,
-    query_position: usize,
 }
 
 impl ValidationContext {
@@ -71,9 +65,6 @@ impl ValidationContext {
             query_parts: Vec::new(),
             alias_types: HashMap::new(),
             validation_errors: Vec::new(),
-            current_line: 0,
-            current_column: 0,
-            query_position: 0,
         }
     }
 
@@ -89,43 +80,7 @@ impl ValidationContext {
             query_parts: Vec::new(),
             alias_types: HashMap::new(),
             validation_errors: Vec::new(),
-            current_line: 0,
-            current_column: 0,
-            query_position: 0,
         }
-    }
-
-    // ==================== 位置信息管理 ====================
-
-    /// 设置当前位置
-    pub fn set_location(&mut self, line: usize, column: usize) {
-        self.current_line = line;
-        self.current_column = column;
-    }
-
-    /// 设置查询位置
-    pub fn set_query_position(&mut self, position: usize) {
-        self.query_position = position;
-    }
-
-    /// 获取当前行号
-    pub fn current_line(&self) -> usize {
-        self.current_line
-    }
-
-    /// 获取当前列号
-    pub fn current_column(&self) -> usize {
-        self.current_column
-    }
-
-    /// 获取查询位置
-    pub fn query_position(&self) -> usize {
-        self.query_position
-    }
-
-    /// 获取位置字符串表示
-    pub fn location_string(&self) -> String {
-        format!("第{}行第{}列", self.current_line, self.current_column)
     }
 
     // ==================== Schema管理 ====================
@@ -159,95 +114,10 @@ impl ValidationContext {
         }
     }
 
-    /// 验证变量类型是否符合Schema
-    pub fn validate_var_against_schema_detailed(
-        &self,
-        var_name: &str,
-        schema_name: &str,
-        mode: &schema::ValidationMode,
-        required_fields: Option<&[String]>,
-    ) -> Result<schema::SchemaValidationResult, String> {
-        let schema = match self.get_schema(schema_name) {
-            Some(s) => s,
-            None => return Err(format!("Schema '{}' not found", schema_name)),
-        };
-
-        let var_cols = self.get_var(var_name);
-        if var_cols.is_empty() {
-            return Ok(schema::SchemaValidationResult::failure(vec![
-                schema::SchemaValidationError::MissingRequiredField("变量无列定义".to_string()),
-            ]));
-        }
-
-        // 使用Schema的详细验证方法
-        Ok(schema.validate_columns(&var_cols, mode, required_fields))
-    }
-
-    /// 验证变量字段类型是否匹配Schema
-    pub fn validate_var_field_types(
-        &self,
-        var_name: &str,
-        schema_name: &str,
-    ) -> Result<Vec<String>, String> {
-        let schema = match self.get_schema(schema_name) {
-            Some(s) => s,
-            None => return Err(format!("Schema '{}' not found", schema_name)),
-        };
-
-        let var_cols = self.get_var(var_name);
-        let mut type_errors = Vec::new();
-
-        for col in &var_cols {
-            if let Some(schema_type) = schema.get_field_type(&col.name) {
-                if schema_type != &col.type_ {
-                    type_errors.push(format!(
-                        "字段 '{}' 类型不匹配: 期望 '{}', 实际 '{}'",
-                        col.name, schema_type, col.type_
-                    ));
-                }
-            } else {
-                type_errors.push(format!("字段 '{}' 在Schema中不存在", col.name));
-            }
-        }
-
-        Ok(type_errors)
-    }
-
-    /// 检查变量是否包含Schema中未定义的字段
-    pub fn check_var_extra_fields(
-        &self,
-        var_name: &str,
-        schema_name: &str,
-    ) -> Result<Vec<String>, String> {
-        let schema = match self.get_schema(schema_name) {
-            Some(s) => s,
-            None => return Err(format!("Schema '{}' not found", schema_name)),
-        };
-
-        let var_cols = self.get_var(var_name);
-        Ok(schema.has_extra_fields(&var_cols))
-    }
-
-    /// 检查变量是否缺少Schema中的字段
-    pub fn check_var_missing_fields(
-        &self,
-        var_name: &str,
-        schema_name: &str,
-    ) -> Result<Vec<String>, String> {
-        let schema = match self.get_schema(schema_name) {
-            Some(s) => s,
-            None => return Err(format!("Schema '{}' not found", schema_name)),
-        };
-
-        let var_cols = self.get_var(var_name);
-        Ok(schema.get_missing_fields(&var_cols))
-    }
-
     /// 获取所有Schema名称
     pub fn get_schema_names(&self) -> Vec<String> {
         let mut names = self.schemas.keys().cloned().collect::<Vec<_>>();
 
-        // 如果有Schema管理器，也获取其Schema名称
         if let Some(manager) = &self.schema_manager {
             let manager_names = manager.list_schemas();
             for name in manager_names {
@@ -442,45 +312,6 @@ impl ValidationContext {
         self.basic_context.var_has_column(var, col)
     }
 
-    // ==================== 参数管理（委托） ====================
-
-    /// 设置参数
-    pub fn set_parameter(&mut self, name: String, value: Value) {
-        self.basic_context.set_parameter(name, value);
-    }
-
-    /// 获取参数
-    pub fn get_parameter(&self, name: &str) -> Option<&Value> {
-        self.basic_context.get_parameter(name)
-    }
-
-    /// 检查参数是否存在
-    pub fn exist_parameter(&self, name: &str) -> bool {
-        self.basic_context.exist_parameter(name)
-    }
-
-    /// 获取所有参数
-    pub fn get_parameters(&self) -> &HashMap<String, Value> {
-        self.basic_context.get_parameters()
-    }
-
-    // ==================== 别名管理（委托） ====================
-
-    /// 添加别名及其类型（字符串类型）
-    pub fn add_alias_string(&mut self, alias: String, type_: String) {
-        self.basic_context.add_alias(alias, type_);
-    }
-
-    /// 获取别名的类型（字符串类型）
-    pub fn get_alias_string_type(&self, alias: &str) -> Option<&String> {
-        self.basic_context.get_alias_type(alias)
-    }
-
-    /// 检查别名是否存在（字符串类型）
-    pub fn exist_alias_string(&self, alias: &str) -> bool {
-        self.basic_context.exist_alias(alias)
-    }
-
     // ==================== 空间创建管理（委托） ====================
 
     /// 添加待创建的空间
@@ -515,34 +346,7 @@ impl ValidationContext {
         self.basic_context.get_indexes()
     }
 
-    // ==================== 错误管理（委托） ====================
-
-    /// 添加错误信息
-    pub fn add_error(&mut self, error: String) {
-        self.basic_context.add_error(error);
-    }
-
-    /// 获取所有错误
-    pub fn get_errors(&self) -> &[String] {
-        self.basic_context.get_errors()
-    }
-
-    /// 检查是否有错误
-    pub fn has_errors(&self) -> bool {
-        self.basic_context.has_errors()
-    }
-
-    /// 清除所有错误
-    pub fn clear_errors(&mut self) {
-        self.basic_context.clear_errors();
-    }
-
-    /// 获取错误数量
-    pub fn error_count(&self) -> usize {
-        self.basic_context.error_count()
-    }
-
-    /// 生成验证上下文的字符串表示
+    // ==================== 生成验证上下文的字符串表示 ====================
     pub fn to_string(&self) -> String {
         let mut result = String::new();
         result.push_str("ValidationContext {\n");
@@ -555,26 +359,12 @@ impl ValidationContext {
             self.basic_context.get_all_variables().len()
         ));
         result.push_str(&format!(
-            "  parameters: {:?},\n",
-            self.basic_context.get_parameters().len()
-        ));
-        result.push_str(&format!(
-            "  aliases: {:?},\n",
-            self.basic_context
-                .get_alias_type("sample")
-                .map(|t| t.as_str())
-        ));
-        result.push_str(&format!(
             "  create_spaces: {:?},\n",
             self.basic_context.get_create_spaces().len()
         ));
         result.push_str(&format!(
             "  indexes: {:?},\n",
             self.basic_context.get_indexes().len()
-        ));
-        result.push_str(&format!(
-            "  errors: {:?},\n",
-            self.basic_context.error_count()
         ));
         result.push_str(&format!("  schemas: {:?},\n", self.schemas.len()));
         result.push_str(&format!(
@@ -604,9 +394,6 @@ impl std::fmt::Debug for ValidationContext {
             .field("query_parts", &self.query_parts)
             .field("alias_types", &self.alias_types)
             .field("validation_errors", &self.validation_errors)
-            .field("current_line", &self.current_line)
-            .field("current_column", &self.current_column)
-            .field("query_position", &self.query_position)
             .finish()
     }
 }
