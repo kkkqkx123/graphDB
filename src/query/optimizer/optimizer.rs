@@ -952,23 +952,8 @@ impl Optimizer {
         match expr {
             Expression::Property { object, property } => {
                 if let Expression::Variable(var_name) = object.as_ref() {
-                    property_tracker.track_property(var_name, property);
+                    property_tracker.track_property(var_name, &property);
                 }
-            }
-            Expression::TagProperty { tag, prop } => {
-                property_tracker.track_property(tag, prop);
-            }
-            Expression::EdgeProperty { edge, prop } => {
-                property_tracker.track_property(edge, prop);
-            }
-            Expression::VariableProperty { var, prop } => {
-                property_tracker.track_property(var, prop);
-            }
-            Expression::SourceProperty { tag, prop } => {
-                property_tracker.track_property(tag, prop);
-            }
-            Expression::DestinationProperty { tag, prop } => {
-                property_tracker.track_property(tag, prop);
             }
             Expression::Binary { left, right, .. } => {
                 self.collect_expression_properties(left, property_tracker);
@@ -1024,48 +1009,6 @@ impl Optimizer {
                 for item in items {
                     self.collect_expression_properties(item, property_tracker);
                 }
-            }
-            Expression::UnaryPlus(operand) => {
-                self.collect_expression_properties(operand, property_tracker);
-            }
-            Expression::UnaryNegate(operand) => {
-                self.collect_expression_properties(operand, property_tracker);
-            }
-            Expression::UnaryNot(operand) => {
-                self.collect_expression_properties(operand, property_tracker);
-            }
-            Expression::UnaryIncr(operand) => {
-                self.collect_expression_properties(operand, property_tracker);
-            }
-            Expression::UnaryDecr(operand) => {
-                self.collect_expression_properties(operand, property_tracker);
-            }
-            Expression::IsNull(operand) => {
-                self.collect_expression_properties(operand, property_tracker);
-            }
-            Expression::IsNotNull(operand) => {
-                self.collect_expression_properties(operand, property_tracker);
-            }
-            Expression::IsEmpty(operand) => {
-                self.collect_expression_properties(operand, property_tracker);
-            }
-            Expression::IsNotEmpty(operand) => {
-                self.collect_expression_properties(operand, property_tracker);
-            }
-            Expression::ListComprehension { generator, condition } => {
-                self.collect_expression_properties(generator, property_tracker);
-                if let Some(condition_expr) = condition {
-                    self.collect_expression_properties(condition_expr, property_tracker);
-                }
-            }
-            Expression::Predicate { list, condition } => {
-                self.collect_expression_properties(list, property_tracker);
-                self.collect_expression_properties(condition, property_tracker);
-            }
-            Expression::Reduce { list, initial, expr, .. } => {
-                self.collect_expression_properties(list, property_tracker);
-                self.collect_expression_properties(initial, property_tracker);
-                self.collect_expression_properties(expr, property_tracker);
             }
             _ => {}
         }

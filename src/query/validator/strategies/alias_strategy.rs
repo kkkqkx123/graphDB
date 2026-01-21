@@ -102,59 +102,14 @@ impl AliasValidationStrategy {
                 }
                 Ok(())
             }
-            Expression::ListComprehension {
-                generator,
-                condition,
-            } => {
-                self.validate_expression_aliases(generator, aliases)?;
-                if let Some(condition_expr) = condition {
-                    self.validate_expression_aliases(condition_expr, aliases)?;
-                }
-                Ok(())
-            }
-            Expression::Predicate { list, condition } => {
-                self.validate_expression_aliases(list, aliases)?;
-                self.validate_expression_aliases(condition, aliases)
-            }
-            Expression::Reduce {
-                list,
-                initial,
-                expr,
-                ..
-            } => {
-                self.validate_expression_aliases(list, aliases)?;
-                self.validate_expression_aliases(initial, aliases)?;
-                self.validate_expression_aliases(expr, aliases)
-            }
             Expression::Subscript { collection, index } => {
                 self.validate_expression_aliases(collection, aliases)?;
                 self.validate_expression_aliases(index, aliases)
             }
-            Expression::MatchPathPattern { patterns, .. } => {
-                for pattern in patterns {
-                    self.validate_expression_aliases(pattern, aliases)?;
-                }
-                Ok(())
-            }
             Expression::Literal(_)
             | Expression::Property { .. }
-            | Expression::TagProperty { .. }
-            | Expression::EdgeProperty { .. }
-            | Expression::InputProperty(_)
-            | Expression::VariableProperty { .. }
-            | Expression::SourceProperty { .. }
-            | Expression::DestinationProperty { .. }
-            | Expression::UnaryPlus(_)
-            | Expression::UnaryNegate(_)
-            | Expression::UnaryNot(_)
-            | Expression::UnaryIncr(_)
-            | Expression::UnaryDecr(_)
-            | Expression::IsNull(_)
-            | Expression::IsNotNull(_)
-            | Expression::IsEmpty(_)
-            | Expression::IsNotEmpty(_)
-            | Expression::ESQuery(_)
-            | Expression::UUID
+            | Expression::Unary { .. }
+            | Expression::Function { .. }
             | Expression::Variable(_)
             | Expression::Label(_) => Ok(()),
             Expression::TypeCast { expr, .. } => {
@@ -203,30 +158,6 @@ impl AliasValidationStrategy {
                     format!("未定义的别名: {}", alias_name),
                     ValidationErrorType::AliasError,
                 ));
-            }
-
-            // 进一步验证别名类型是否匹配使用方式
-            match ref_expr {
-                Expression::SourceProperty { .. } | Expression::DestinationProperty { .. } => {
-                    // 源/目标属性应指向节点类型的别名
-                    if let Some(alias_type) = aliases_available.get(&alias_name) {
-                        if alias_type == &AliasType::Edge || alias_type == &AliasType::Path {
-                            return Err(ValidationError::new(
-                                format!(
-                                    "要获取边/路径的源/目标顶点ID，请使用 src/dst/endNode({})",
-                                    alias_name
-                                ),
-                                ValidationErrorType::AliasError,
-                            ));
-                        } else if alias_type != &AliasType::Node {
-                            return Err(ValidationError::new(
-                                format!("别名 `{}` 没有边属性 src/dst", alias_name),
-                                ValidationErrorType::AliasError,
-                            ));
-                        }
-                    }
-                }
-                _ => {}
             }
         }
 

@@ -25,19 +25,10 @@ pub fn convert_ast_to_graph_expression(ast_expr: &Expr) -> Result<Expression, St
         Expr::Map(expr) => convert_map_expr(expr),
         Expr::Case(expr) => convert_case_expr(expr),
         Expr::Subscript(expr) => convert_subscript_expr(expr),
-        Expr::Predicate(expr) => convert_predicate_expr(expr),
-        Expr::TagProperty(expr) => convert_tag_property_expr(expr),
-        Expr::EdgeProperty(expr) => convert_edge_property_expr(expr),
-        Expr::InputProperty(expr) => convert_input_property_expr(expr),
-        Expr::VariableProperty(expr) => convert_variable_property_expr(expr),
-        Expr::SourceProperty(expr) => convert_source_property_expr(expr),
-        Expr::DestinationProperty(expr) => convert_destination_property_expr(expr),
         Expr::TypeCast(expr) => convert_type_cast_expr(expr),
         Expr::Range(expr) => convert_range_expr(expr),
         Expr::Path(expr) => convert_path_expr(expr),
         Expr::Label(expr) => convert_label_expr(expr),
-        Expr::Reduce(expr) => convert_reduce_expr(expr),
-        Expr::ListComprehension(expr) => convert_list_comprehension_expr(expr),
     }
 }
 
@@ -52,51 +43,6 @@ fn convert_constant_expr(expr: &ConstantExpr) -> Result<Expression, String> {
         _ => return Err(format!("不支持的常量值类型: {:?}", expr.value)),
     };
     Ok(Expression::Literal(value))
-}
-
-/// 转换标签属性表达式
-fn convert_tag_property_expr(expr: &TagPropertyExpr) -> Result<Expression, String> {
-    Ok(Expression::TagProperty {
-        tag: expr.tag.clone(),
-        prop: expr.prop.clone(),
-    })
-}
-
-/// 转换边属性表达式
-fn convert_edge_property_expr(expr: &EdgePropertyExpr) -> Result<Expression, String> {
-    Ok(Expression::EdgeProperty {
-        edge: expr.edge.clone(),
-        prop: expr.prop.clone(),
-    })
-}
-
-/// 转换输入属性表达式
-fn convert_input_property_expr(expr: &InputPropertyExpr) -> Result<Expression, String> {
-    Ok(Expression::InputProperty(expr.prop.clone()))
-}
-
-/// 转换变量属性表达式
-fn convert_variable_property_expr(expr: &VariablePropertyExpr) -> Result<Expression, String> {
-    Ok(Expression::VariableProperty {
-        var: expr.var.clone(),
-        prop: expr.prop.clone(),
-    })
-}
-
-/// 转换源属性表达式
-fn convert_source_property_expr(expr: &SourcePropertyExpr) -> Result<Expression, String> {
-    Ok(Expression::SourceProperty {
-        tag: expr.tag.clone(),
-        prop: expr.prop.clone(),
-    })
-}
-
-/// 转换目标属性表达式
-fn convert_destination_property_expr(expr: &DestinationPropertyExpr) -> Result<Expression, String> {
-    Ok(Expression::DestinationProperty {
-        tag: expr.tag.clone(),
-        prop: expr.prop.clone(),
-    })
 }
 
 /// 转换类型转换表达式
@@ -142,33 +88,6 @@ fn convert_path_expr(expr: &PathExpr) -> Result<Expression, String> {
 /// 转换标签表达式
 fn convert_label_expr(expr: &LabelExpr) -> Result<Expression, String> {
     Ok(Expression::Label(expr.label.clone()))
-}
-
-/// 转换归约表达式
-fn convert_reduce_expr(expr: &ReduceExpr) -> Result<Expression, String> {
-    let initial = convert_ast_to_graph_expression(&expr.initial)?;
-    let list = convert_ast_to_graph_expression(&expr.list)?;
-    let reduce_expr = convert_ast_to_graph_expression(&expr.expr)?;
-    Ok(Expression::Reduce {
-        list: Box::new(list),
-        var: expr.var.clone(),
-        initial: Box::new(initial),
-        expr: Box::new(reduce_expr),
-    })
-}
-
-/// 转换列表推导表达式
-fn convert_list_comprehension_expr(expr: &ListComprehensionExpr) -> Result<Expression, String> {
-    let generator = convert_ast_to_graph_expression(&expr.generator)?;
-    let condition = if let Some(ref cond_expr) = expr.condition {
-        Some(Box::new(convert_ast_to_graph_expression(cond_expr)?))
-    } else {
-        None
-    };
-    Ok(Expression::ListComprehension {
-        generator: Box::new(generator),
-        condition,
-    })
 }
 
 /// 解析数据类型字符串
@@ -346,17 +265,6 @@ fn convert_subscript_expr(expr: &SubscriptExpr) -> Result<Expression, String> {
     })
 }
 
-/// 转换谓词表达式
-fn convert_predicate_expr(expr: &PredicateExpr) -> Result<Expression, String> {
-    let list = convert_ast_to_graph_expression(&expr.list)?;
-    let condition = convert_ast_to_graph_expression(&expr.condition)?;
-
-    Ok(Expression::Predicate {
-        list: Box::new(list),
-        condition: Box::new(condition),
-    })
-}
-
 /// 转换二元操作符
 fn convert_binary_op(op: &BinaryOp) -> Result<BinaryOperator, String> {
     match op {
@@ -497,11 +405,15 @@ mod tests {
         let result = convert_ast_to_graph_expression(&ast_expr)
             .expect("Expected successful conversion of tag property expression");
 
-        if let Expression::TagProperty { tag, prop } = result {
-            assert_eq!(tag, "person");
-            assert_eq!(prop, "name");
+        if let Expression::Property { object, property } = result {
+            if let Expression::Variable(tag) = object.as_ref() {
+                assert_eq!(tag, "person");
+                assert_eq!(property, "name");
+            } else {
+                panic!("Expected Variable object, got {:?}", object);
+            }
         } else {
-            panic!("Expected TagProperty, got {:?}", result);
+            panic!("Expected Property, got {:?}", result);
         }
     }
 
@@ -515,11 +427,15 @@ mod tests {
         let result = convert_ast_to_graph_expression(&ast_expr)
             .expect("Expected successful conversion of edge property expression");
 
-        if let Expression::EdgeProperty { edge, prop } = result {
-            assert_eq!(edge, "friend");
-            assert_eq!(prop, "since");
+        if let Expression::Property { object, property } = result {
+            if let Expression::Variable(edge) = object.as_ref() {
+                assert_eq!(edge, "friend");
+                assert_eq!(property, "since");
+            } else {
+                panic!("Expected Variable object, got {:?}", object);
+            }
         } else {
-            panic!("Expected EdgeProperty, got {:?}", result);
+            panic!("Expected Property, got {:?}", result);
         }
     }
 
@@ -532,10 +448,10 @@ mod tests {
         let result = convert_ast_to_graph_expression(&ast_expr)
             .expect("Expected successful conversion of input property expression");
 
-        if let Expression::InputProperty(prop) = result {
-            assert_eq!(prop, "input_prop");
+        if let Expression::Property { object, property } = result {
+            assert_eq!(property, "input_prop");
         } else {
-            panic!("Expected InputProperty, got {:?}", result);
+            panic!("Expected Property, got {:?}", result);
         }
     }
 
@@ -549,11 +465,15 @@ mod tests {
         let result = convert_ast_to_graph_expression(&ast_expr)
             .expect("Expected successful conversion of variable property expression");
 
-        if let Expression::VariableProperty { var, prop } = result {
-            assert_eq!(var, "var_name");
-            assert_eq!(prop, "prop_name");
+        if let Expression::Property { object, property } = result {
+            if let Expression::Variable(var) = object.as_ref() {
+                assert_eq!(var, "var_name");
+                assert_eq!(property, "prop_name");
+            } else {
+                panic!("Expected Variable object, got {:?}", object);
+            }
         } else {
-            panic!("Expected VariableProperty, got {:?}", result);
+            panic!("Expected Property, got {:?}", result);
         }
     }
 
@@ -567,11 +487,10 @@ mod tests {
         let result = convert_ast_to_graph_expression(&ast_expr)
             .expect("Expected successful conversion of source property expression");
 
-        if let Expression::SourceProperty { tag, prop } = result {
-            assert_eq!(tag, "person");
-            assert_eq!(prop, "age");
+        if let Expression::Property { object, property } = result {
+            assert_eq!(property, "age");
         } else {
-            panic!("Expected SourceProperty, got {:?}", result);
+            panic!("Expected Property, got {:?}", result);
         }
     }
 
@@ -585,11 +504,10 @@ mod tests {
         let result = convert_ast_to_graph_expression(&ast_expr)
             .expect("Expected successful conversion of destination property expression");
 
-        if let Expression::DestinationProperty { tag, prop } = result {
-            assert_eq!(tag, "person");
-            assert_eq!(prop, "age");
+        if let Expression::Property { object, property } = result {
+            assert_eq!(property, "age");
         } else {
-            panic!("Expected DestinationProperty, got {:?}", result);
+            panic!("Expected Property, got {:?}", result);
         }
     }
 

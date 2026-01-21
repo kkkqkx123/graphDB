@@ -62,10 +62,6 @@ impl ExpressionVisitor for VariableVisitor {
         self.variables.insert(name.to_string());
     }
 
-    fn visit_variable_property(&mut self, var: &str, _prop: &str) -> Self::Result {
-        self.variables.insert(var.to_string());
-    }
-
     fn visit_literal(&mut self, _value: &Value) -> Self::Result {}
 
     fn visit_property(&mut self, object: &Expression, _property: &str) -> Self::Result {
@@ -167,115 +163,6 @@ impl ExpressionVisitor for VariableVisitor {
 
     fn visit_label(&mut self, _name: &str) -> Self::Result {}
 
-    fn visit_tag_property(&mut self, _tag: &str, _prop: &str) -> Self::Result {}
-
-    fn visit_edge_property(&mut self, _edge: &str, _prop: &str) -> Self::Result {}
-
-    fn visit_input_property(&mut self, _prop: &str) -> Self::Result {}
-
-    fn visit_source_property(&mut self, _tag: &str, _prop: &str) -> Self::Result {}
-
-    fn visit_destination_property(&mut self, _tag: &str, _prop: &str) -> Self::Result {}
-
-    fn visit_unary_plus(&mut self, expr: &Expression) -> Self::Result {
-        self.visit_expression(expr);
-    }
-
-    fn visit_unary_negate(&mut self, expr: &Expression) -> Self::Result {
-        self.visit_expression(expr);
-    }
-
-    fn visit_unary_not(&mut self, expr: &Expression) -> Self::Result {
-        self.visit_expression(expr);
-    }
-
-    fn visit_unary_incr(&mut self, expr: &Expression) -> Self::Result {
-        self.visit_expression(expr);
-    }
-
-    fn visit_unary_decr(&mut self, expr: &Expression) -> Self::Result {
-        self.visit_expression(expr);
-    }
-
-    fn visit_is_null(&mut self, expr: &Expression) -> Self::Result {
-        self.visit_expression(expr);
-    }
-
-    fn visit_is_not_null(&mut self, expr: &Expression) -> Self::Result {
-        self.visit_expression(expr);
-    }
-
-    fn visit_is_empty(&mut self, expr: &Expression) -> Self::Result {
-        self.visit_expression(expr);
-    }
-
-    fn visit_is_not_empty(&mut self, expr: &Expression) -> Self::Result {
-        self.visit_expression(expr);
-    }
-
-    fn visit_list_comprehension(
-        &mut self,
-        generator: &Expression,
-        condition: &Option<Box<Expression>>,
-    ) -> Self::Result {
-        self.visit_expression(generator);
-        if let Some(expr) = condition {
-            self.visit_expression(expr);
-        }
-    }
-
-    fn visit_predicate(&mut self, list: &Expression, condition: &Expression) -> Self::Result {
-        self.visit_expression(list);
-        self.visit_expression(condition);
-    }
-
-    fn visit_reduce(
-        &mut self,
-        list: &Expression,
-        _var: &str,
-        initial: &Expression,
-        expr: &Expression,
-    ) -> Self::Result {
-        self.visit_expression(list);
-        self.visit_expression(initial);
-        self.visit_expression(expr);
-    }
-
-    fn visit_es_query(&mut self, _query: &str) -> Self::Result {
-        // ES查询字符串不包含变量，无需处理
-    }
-
-    fn visit_uuid(&mut self) -> Self::Result {
-        // UUID生成操作不包含变量，无需处理
-    }
-
-    fn visit_match_path_pattern(
-        &mut self,
-        _path_alias: &str,
-        _patterns: &[Expression],
-    ) -> Self::Result {
-        // 路径模式匹配不包含变量，无需处理
-    }
-
-    fn visit_type_casting(&mut self, expr: &Expression, _target_type: &str) -> Self::Result {
-        self.visit_expression(expr);
-    }
-
-    fn visit_path_build(&mut self, items: &[Expression]) -> Self::Result {
-        for item in items {
-            self.visit_expression(item);
-        }
-    }
-
-    fn visit_subscript_range(
-        &mut self,
-       _collection: &Expression,
-        _start: &Option<Box<Expression>>,
-        _end: &Option<Box<Expression>>,
-    ) -> Self::Result {
-        // 下标范围访问的子表达式将在其他visit方法中处理
-    }
-
     fn visit_constant_expr(&mut self, _e: &crate::query::parser::ast::expr::ConstantExpr) -> Self::Result {
         // 常量表达式不包含变量，无需处理
     }
@@ -339,52 +226,6 @@ impl ExpressionVisitor for VariableVisitor {
         self.visit_expr(e.index.as_ref());
     }
 
-    fn visit_predicate_expr(
-        &mut self,
-        e: &crate::query::parser::ast::expr::PredicateExpr,
-    ) -> Self::Result {
-        self.visit_expr(e.list.as_ref());
-        self.visit_expr(e.condition.as_ref());
-    }
-
-    fn visit_tag_property_expr(
-        &mut self,
-        _e: &crate::query::parser::ast::expr::TagPropertyExpr,
-    ) -> Self::Result {
-        // 标签属性表达式(tag.prop)不包含用户变量，无需处理
-    }
-
-    fn visit_edge_property_expr(
-        &mut self,
-        _e: &crate::query::parser::ast::expr::EdgePropertyExpr,
-    ) -> Self::Result {
-        // 边属性表达式(edge.prop)不包含用户变量，无需处理
-    }
-
-    fn visit_input_property_expr(
-        &mut self,
-        _e: &crate::query::parser::ast::expr::InputPropertyExpr,
-    ) -> Self::Result {
-        // 输入属性表达式($-.prop)不包含用户变量，无需处理
-    }
-
-    fn visit_variable_property_expr(
-        &mut self,
-        e: &crate::query::parser::ast::expr::VariablePropertyExpr,
-    ) -> Self::Result {
-        self.visit_variable(&e.var);
-    }
-
-    fn visit_source_property_expr(
-        &mut self,
-        _e: &crate::query::parser::ast::expr::SourcePropertyExpr,
-    ) -> Self::Result {}
-
-    fn visit_destination_property_expr(
-        &mut self,
-        _e: &crate::query::parser::ast::expr::DestinationPropertyExpr,
-    ) -> Self::Result {}
-
     fn visit_type_cast_expr(
         &mut self,
         e: &crate::query::parser::ast::expr::TypeCastExpr,
@@ -409,22 +250,6 @@ impl ExpressionVisitor for VariableVisitor {
     }
 
     fn visit_label_expr(&mut self, _e: &crate::query::parser::ast::expr::LabelExpr) -> Self::Result {}
-
-    fn visit_reduce_expr(&mut self, e: &crate::query::parser::ast::expr::ReduceExpr) -> Self::Result {
-        self.visit_expr(e.list.as_ref());
-        self.visit_expr(e.initial.as_ref());
-        self.visit_expr(e.expr.as_ref());
-    }
-
-    fn visit_list_comprehension_expr(
-        &mut self,
-        e: &crate::query::parser::ast::expr::ListComprehensionExpr,
-    ) -> Self::Result {
-        self.visit_expr(e.generator.as_ref());
-        if let Some(expr) = &e.condition {
-            self.visit_expr(expr.as_ref());
-        }
-    }
 }
 
 #[cfg(test)]

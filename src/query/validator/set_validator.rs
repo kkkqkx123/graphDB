@@ -187,21 +187,6 @@ impl SetValidator {
                     self.validate_expression(item)?;
                 }
             }
-            Expression::ListComprehension { generator, condition } => {
-                self.validate_expression(generator)?;
-                if let Some(cond) = condition {
-                    self.validate_expression(cond)?;
-                }
-            }
-            Expression::Predicate { list, condition } => {
-                self.validate_expression(list)?;
-                self.validate_expression(condition)?;
-            }
-            Expression::Reduce { list, initial, expr, .. } => {
-                self.validate_expression(list)?;
-                self.validate_expression(initial)?;
-                self.validate_expression(expr)?;
-            }
             _ => {}
         }
 

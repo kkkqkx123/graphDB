@@ -343,21 +343,6 @@ impl PlanValidator {
                     Self::validate_expression(item)?;
                 }
             }
-            Expression::ListComprehension { generator, condition } => {
-                Self::validate_expression(generator)?;
-                if let Some(cond) = condition {
-                    Self::validate_expression(cond)?;
-                }
-            }
-            Expression::Predicate { list, condition } => {
-                Self::validate_expression(list)?;
-                Self::validate_expression(condition)?;
-            }
-            Expression::Reduce { list, initial, expr, .. } => {
-                Self::validate_expression(list)?;
-                Self::validate_expression(initial)?;
-                Self::validate_expression(expr)?;
-            }
             _ => {}
         }
 

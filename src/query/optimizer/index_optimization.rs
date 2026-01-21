@@ -493,11 +493,8 @@ fn analyze_expression_for_index_scan(
 fn can_push_down_expression_to_index_scan(expr: &crate::core::Expression) -> bool {
     // 检查表达式是否可以下推到索引扫描
     match expr {
-        crate::core::Expression::TagProperty { .. } => true,
         crate::core::Expression::Property { .. } => true,
         crate::core::Expression::Variable(_) => true, // 变量也可以下推
-        crate::core::Expression::VariableProperty { .. } => true,
-        crate::core::Expression::EdgeProperty { .. } => true,
         crate::core::Expression::Binary { left, op, right } => {
             // 检查是否是支持索引的操作符
             let is_indexable_op = matches!(
@@ -595,10 +592,13 @@ fn extract_column_and_value(
     use crate::core::Expression;
 
     let column = match left {
-        Expression::Property { property, .. } => Some(property.clone()),
-        Expression::VariableProperty { var, prop } => Some(format!("{}.{}", var, prop)),
-        Expression::TagProperty { tag, prop } => Some(format!("{}.{}", tag, prop)),
-        Expression::EdgeProperty { edge, prop } => Some(format!("{}.{}", edge, prop)),
+        Expression::Property { object, property } => {
+            if let Expression::Variable(var_name) = object.as_ref() {
+                Some(format!("{}.{}", var_name, property))
+            } else {
+                Some(property.clone())
+            }
+        },
         Expression::Variable(name) => Some(name.clone()),
         _ => None,
     };

@@ -166,10 +166,10 @@ impl<S: StorageEngine + Send + 'static> SortExecutor<S> {
         col_names: &[String],
     ) -> DBResult<Option<usize>> {
         match expr {
-            Expression::InputProperty(prop_name) => {
+            Expression::Property { object: _, property } => {
                 // 查找属性名对应的列索引
                 for (index, col_name) in col_names.iter().enumerate() {
-                    if col_name == prop_name {
+                    if col_name == property {
                         return Ok(Some(index));
                     }
                 }

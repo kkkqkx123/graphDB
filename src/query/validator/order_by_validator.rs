@@ -259,45 +259,33 @@ impl OrderByValidator {
                     _ => Ok(ValueType::Unknown),
                 }
             },
-            // 图数据库特有表达式类型
-            Expression::TagProperty { .. } => Ok(ValueType::Unknown),
-            Expression::EdgeProperty { .. } => Ok(ValueType::Unknown),
-            Expression::InputProperty(name) => {
-                // 从输入列中获取类型
-                if let Some(column_type) = self.input_columns.get(name) {
+            // 属性表达式统一处理
+            Expression::Property { object, property } => {
+                if let Expression::Variable(var_name) = object.as_ref() {
+                    if let Some(column_type) = self.input_columns.get(var_name) {
+                        return Ok(column_type.clone());
+                    }
+                }
+                if let Some(column_type) = self.input_columns.get(property) {
                     Ok(column_type.clone())
                 } else {
                     Ok(ValueType::Unknown)
                 }
             },
-            Expression::VariableProperty { var, .. } => {
-                // 从输入列中获取类型
-                if let Some(column_type) = self.input_columns.get(var) {
-                    Ok(column_type.clone())
-                } else {
-                    Ok(ValueType::Unknown)
+            // 一元操作
+            Expression::Unary { op, operand } => {
+                match op {
+                    crate::core::UnaryOperator::Plus | crate::core::UnaryOperator::Minus => {
+                        self.deduce_expr_type(operand)
+                    },
+                    crate::core::UnaryOperator::Not | 
+                    crate::core::UnaryOperator::IsNull | 
+                    crate::core::UnaryOperator::IsNotNull | 
+                    crate::core::UnaryOperator::IsEmpty | 
+                    crate::core::UnaryOperator::IsNotEmpty => Ok(ValueType::Bool),
+                    _ => Ok(ValueType::Unknown),
                 }
             },
-            Expression::SourceProperty { .. } => Ok(ValueType::Unknown),
-            Expression::DestinationProperty { .. } => Ok(ValueType::Unknown),
-
-            // 一元操作扩展
-            Expression::UnaryPlus(expr) | Expression::UnaryNegate(expr) => {
-                let operand_type = self.deduce_expr_type(expr)?;
-                Ok(operand_type)
-            },
-            Expression::UnaryNot(expr) => {
-                let _operand_type = self.deduce_expr_type(expr)?;
-                Ok(ValueType::Bool)
-            },
-            Expression::IsNull(expr) | Expression::IsNotNull(expr) |
-            Expression::IsEmpty(expr) | Expression::IsNotEmpty(expr) => {
-                let _operand_type = self.deduce_expr_type(expr)?;
-                Ok(ValueType::Bool)
-            },
-
-            // 其他表达式类型
-            _ => Ok(ValueType::Unknown),
         }
     }
 
@@ -374,56 +362,17 @@ impl OrderByValidator {
                     self.collect_refs(end_expr, refs);
                 }
             },
-            // 图数据库特有表达式类型
-            Expression::InputProperty(name) => {
-                if !refs.contains(name) {
-                    refs.push(name.clone());
+            // 属性表达式统一处理
+            Expression::Property { object, property } => {
+                self.collect_refs(object, refs);
+                if !refs.contains(property) {
+                    refs.push(property.clone());
                 }
             },
-            Expression::VariableProperty { var, .. } => {
-                if !refs.contains(var) {
-                    refs.push(var.clone());
-                }
+            // 一元操作
+            Expression::Unary { operand, .. } => {
+                self.collect_refs(operand, refs);
             },
-            // 一元操作扩展
-            Expression::UnaryPlus(expr) | Expression::UnaryNegate(expr) |
-            Expression::UnaryNot(expr) | Expression::UnaryIncr(expr) |
-            Expression::UnaryDecr(expr) | Expression::IsNull(expr) |
-            Expression::IsNotNull(expr) | Expression::IsEmpty(expr) |
-            Expression::IsNotEmpty(expr) => {
-                self.collect_refs(expr, refs);
-            },
-            // 列表推导
-            Expression::ListComprehension { generator, condition } => {
-                self.collect_refs(generator, refs);
-                if let Some(condition_expr) = condition {
-                    self.collect_refs(condition_expr, refs);
-                }
-            },
-            // 谓词表达式
-            Expression::Predicate { list, condition } => {
-                self.collect_refs(list, refs);
-                self.collect_refs(condition, refs);
-            },
-            // 归约表达式
-            Expression::Reduce { list, initial, expr, .. } => {
-                self.collect_refs(list, refs);
-                self.collect_refs(initial, refs);
-                self.collect_refs(expr, refs);
-            },
-            // 匹配路径模式表达式
-            Expression::MatchPathPattern { patterns, .. } => {
-                for pattern in patterns {
-                    self.collect_refs(pattern, refs);
-                }
-            },
-            // 其他表达式类型，如果包含子表达式则递归处理
-            _ => {
-                // 使用Expression的children方法获取子表达式
-                for child in expr.children() {
-                    self.collect_refs(child, refs);
-                }
-            }
         }
     }
 

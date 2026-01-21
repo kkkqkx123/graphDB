@@ -382,81 +382,15 @@ impl GoValidator {
                 self.validate_label_name(name)?;
                 Ok(())
             }
-            // 图数据库特有表达式类型
-            Expression::TagProperty { tag, prop } => {
-                self.validate_tag_name(tag)?;
-                self.validate_property_name(prop)?;
+            // 属性表达式统一处理
+            Expression::Property { object, property } => {
+                self.validate_expression(object)?;
+                self.validate_property_name(&property)?;
                 Ok(())
             }
-            Expression::EdgeProperty { edge, prop } => {
-                self.validate_edge_name(edge)?;
-                self.validate_property_name(prop)?;
-                Ok(())
-            }
-            Expression::InputProperty(name) => {
-                self.validate_input_property_name(name)?;
-                Ok(())
-            }
-            Expression::VariableProperty { var, prop } => {
-                self.validate_variable_reference(var)?;
-                self.validate_property_name(prop)?;
-                Ok(())
-            }
-            Expression::SourceProperty { tag, prop } => {
-                self.validate_tag_name(tag)?;
-                self.validate_property_name(prop)?;
-                Ok(())
-            }
-            Expression::DestinationProperty { tag, prop } => {
-                self.validate_tag_name(tag)?;
-                self.validate_property_name(prop)?;
-                Ok(())
-            }
-            // 一元操作扩展
-            Expression::UnaryPlus(expr) |
-            Expression::UnaryNegate(expr) |
-            Expression::UnaryNot(expr) |
-            Expression::UnaryIncr(expr) |
-            Expression::UnaryDecr(expr) |
-            Expression::IsNull(expr) |
-            Expression::IsNotNull(expr) |
-            Expression::IsEmpty(expr) |
-            Expression::IsNotEmpty(expr) => {
-                self.validate_expression(expr)?;
-                Ok(())
-            }
-            // 其他表达式类型
-            Expression::ListComprehension { generator, condition } => {
-                self.validate_expression(generator)?;
-                if let Some(condition_expr) = condition {
-                    self.validate_expression(condition_expr)?;
-                }
-                Ok(())
-            }
-            Expression::Predicate { list, condition } => {
-                self.validate_expression(list)?;
-                self.validate_expression(condition)?;
-                Ok(())
-            }
-            Expression::Reduce { list, initial, expr, .. } => {
-                self.validate_expression(list)?;
-                self.validate_expression(initial)?;
-                self.validate_expression(expr)?;
-                Ok(())
-            }
-            Expression::ESQuery(_) => {
-                // Elasticsearch查询表达式，暂时认为有效
-                Ok(())
-            }
-            Expression::UUID => {
-                // UUID表达式，总是有效
-                Ok(())
-            }
-            Expression::MatchPathPattern { patterns, .. } => {
-                // 验证路径模式
-                for pattern in patterns {
-                    self.validate_expression(pattern)?;
-                }
+            // 一元操作
+            Expression::Unary { op, operand } => {
+                self.validate_expression(operand)?;
                 Ok(())
             }
         }
@@ -690,26 +624,13 @@ impl GoValidator {
             }
             Expression::Path(_) => Ok("PATH".to_string()),
             Expression::Label(_) => Ok("STRING".to_string()),
-            // 图数据库特有表达式类型
-            Expression::TagProperty { .. } => Ok("ANY".to_string()),
-            Expression::EdgeProperty { .. } => Ok("ANY".to_string()),
-            Expression::InputProperty(_) => Ok("ANY".to_string()),
-            Expression::VariableProperty { .. } => Ok("ANY".to_string()),
-            Expression::SourceProperty { .. } => Ok("ANY".to_string()),
-            Expression::DestinationProperty { .. } => Ok("ANY".to_string()),
-            // 一元操作扩展
-            Expression::UnaryPlus(_) | Expression::UnaryNegate(_) => Ok("NUMBER".to_string()),
-            Expression::UnaryNot(_) => Ok("BOOL".to_string()),
-            Expression::UnaryIncr(_) | Expression::UnaryDecr(_) => Ok("NUMBER".to_string()),
-            Expression::IsNull(_) | Expression::IsNotNull(_) => Ok("BOOL".to_string()),
-            Expression::IsEmpty(_) | Expression::IsNotEmpty(_) => Ok("BOOL".to_string()),
-            // 其他表达式类型
-            Expression::ListComprehension { .. } => Ok("LIST".to_string()),
-            Expression::Predicate { .. } => Ok("BOOL".to_string()),
-            Expression::Reduce { .. } => Ok("ANY".to_string()), // Reduce的结果类型取决于初始值和表达式
-            Expression::ESQuery(_) => Ok("STRING".to_string()),
-            Expression::UUID => Ok("STRING".to_string()),
-            Expression::MatchPathPattern { .. } => Ok("PATH".to_string()),
+            // 属性表达式统一处理
+            Expression::Property { .. } => Ok("ANY".to_string()),
+            // 一元操作
+            Expression::Unary { op, .. } => match op {
+                UnaryOperator::Plus | UnaryOperator::Minus | UnaryOperator::Increment | UnaryOperator::Decrement => Ok("NUMBER".to_string()),
+                UnaryOperator::Not | UnaryOperator::IsNull | UnaryOperator::IsNotNull | UnaryOperator::IsEmpty | UnaryOperator::IsNotEmpty => Ok("BOOL".to_string()),
+            },
         }
     }
 

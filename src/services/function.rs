@@ -312,7 +312,7 @@ impl FunctionManager {
                         if let Ok(i) = s.parse::<i64>() {
                             Value::Int(i)
                         } else {
-                            Value::Null(crate::core::NullType::BadData)
+                            Value::Null(crate::core::NullType::BadType)
                         }
                     }
                     Value::Bool(b) => Value::Int(if *b { 1 } else { 0 }),

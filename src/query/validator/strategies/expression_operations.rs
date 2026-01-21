@@ -68,33 +68,6 @@ impl ExpressionOperationsValidator {
                 // 验证条件表达式
                 self.validate_case_expression(&None, when_clauses, else_clause, depth)?;
             }
-            Expression::Reduce {
-                list,
-                var,
-                initial,
-                expr,
-            } => {
-                // 验证归约表达式
-                self.validate_reduce_expression(var, initial, list, expr, depth)?;
-            }
-            Expression::Predicate {
-                list: pred_list,
-                condition,
-            } => {
-                // 验证谓词表达式
-                self.validate_expression_operations_recursive(pred_list, depth + 1)?;
-                self.validate_expression_operations_recursive(condition, depth + 1)?;
-            }
-            Expression::ListComprehension {
-                generator,
-                condition,
-            } => {
-                // 验证列表推导表达式
-                self.validate_expression_operations_recursive(generator, depth + 1)?;
-                if let Some(cond) = condition {
-                    self.validate_expression_operations_recursive(cond, depth + 1)?;
-                }
-            }
             _ => {
                 // 其他表达式类型无需特殊验证
             }

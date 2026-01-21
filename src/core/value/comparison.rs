@@ -164,18 +164,13 @@ impl Hash for Value {
 }
 
 impl Value {
-    // Null类型比较辅助函数
+    // Null类型比较辅助函数 - 简化版本
     fn cmp_null(a: &NullType, b: &NullType) -> CmpOrdering {
         // 基于枚举变体的顺序比较
         match (a, b) {
             (NullType::Null, NullType::Null) => CmpOrdering::Equal,
             (NullType::NaN, NullType::NaN) => CmpOrdering::Equal,
-            (NullType::BadData, NullType::BadData) => CmpOrdering::Equal,
             (NullType::BadType, NullType::BadType) => CmpOrdering::Equal,
-            (NullType::Overflow, NullType::Overflow) => CmpOrdering::Equal,
-            (NullType::UnknownProp, NullType::UnknownProp) => CmpOrdering::Equal,
-            (NullType::DivByZero, NullType::DivByZero) => CmpOrdering::Equal,
-            (NullType::OutOfRange, NullType::OutOfRange) => CmpOrdering::Equal,
             _ => {
                 // 不同类型按变体顺序比较
                 let priority_a = Self::null_type_priority(a);
@@ -185,17 +180,12 @@ impl Value {
         }
     }
 
-    // Null类型优先级映射函数
+    // Null类型优先级映射函数 - 简化版本
     fn null_type_priority(typ: &NullType) -> u8 {
         match typ {
             NullType::Null => 0,
             NullType::NaN => 1,
-            NullType::BadData => 2,
-            NullType::BadType => 3,
-            NullType::Overflow => 4,
-            NullType::UnknownProp => 5,
-            NullType::DivByZero => 6,
-            NullType::OutOfRange => 7,
+            NullType::BadType => 2,
         }
     }
 
@@ -341,33 +331,12 @@ impl Value {
         }
     }
 
-    // 地理信息比较辅助函数
+    // 地理信息比较辅助函数 - 简化版本
     fn cmp_geography(a: &GeographyValue, b: &GeographyValue) -> CmpOrdering {
-        // 比较点、线、面的顺序
-        match (&a.point, &b.point) {
-            (Some(p1), Some(p2)) => match p1.0.total_cmp(&p2.0) {
-                CmpOrdering::Equal => p1.1.total_cmp(&p2.1),
-                ord => ord,
-            },
-            (None, Some(_)) => CmpOrdering::Less,
-            (Some(_), None) => CmpOrdering::Greater,
-            (None, None) => {
-                // 继续比较线串
-                match (&a.linestring, &b.linestring) {
-                    (Some(l1), Some(l2)) => Self::cmp_coordinate_list(l1, l2),
-                    (None, Some(_)) => CmpOrdering::Less,
-                    (Some(_), None) => CmpOrdering::Greater,
-                    (None, None) => {
-                        // 继续比较多边形
-                        match (&a.polygon, &b.polygon) {
-                            (Some(p1), Some(p2)) => Self::cmp_polygon_list(p1, p2),
-                            (None, Some(_)) => CmpOrdering::Less,
-                            (Some(_), None) => CmpOrdering::Greater,
-                            (None, None) => CmpOrdering::Equal,
-                        }
-                    }
-                }
-            }
+        // 比较纬度和经度
+        match a.latitude.total_cmp(&b.latitude) {
+            CmpOrdering::Equal => a.longitude.total_cmp(&b.longitude),
+            ord => ord,
         }
     }
 
@@ -406,7 +375,7 @@ impl Value {
         Self::type_priority(&type_a).cmp(&Self::type_priority(&type_b))
     }
 
-    // 类型优先级映射函数
+    // 类型优先级映射函数 - 移除未使用的类型
     fn type_priority(typ: &ValueTypeDef) -> u8 {
         match typ {
             ValueTypeDef::Empty => 0,
@@ -427,10 +396,6 @@ impl Value {
             ValueTypeDef::Set => 15,
             ValueTypeDef::Geography => 16,
             ValueTypeDef::DataSet => 17,
-            ValueTypeDef::IntRange => 18,
-            ValueTypeDef::FloatRange => 19,
-            ValueTypeDef::StringRange => 20,
-            ValueTypeDef::Any => 21,
         }
     }
 

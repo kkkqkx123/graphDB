@@ -110,7 +110,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     }
 
     /// 推导字面量表达式的类型
-    fn visit_literal(&mut self, value: &crate::core::Value) -> Result<(), TypeDeductionError> {
+    fn deduce_literal_type(&mut self, value: &crate::core::Value) -> Result<(), TypeDeductionError> {
         self.type_ = match value {
             Value::Bool(_) => ValueTypeDef::Bool,
             Value::Int(_) => ValueTypeDef::Int,
@@ -135,7 +135,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     }
 
     /// 推导二元操作符的类型
-    fn visit_binary_op(
+    fn deduce_binary_op_type(
         &mut self,
         op: &BinaryOperator,
         left_type: ValueTypeDef,
@@ -230,7 +230,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     }
 
     /// 推导一元操作符的类型
-    fn visit_unary_op(&mut self, op: &UnaryOperator) -> Result<(), TypeDeductionError> {
+    fn deduce_unary_op_type(&mut self, op: &UnaryOperator) -> Result<(), TypeDeductionError> {
         match op {
             UnaryOperator::Plus | UnaryOperator::Minus => {
                 // 正负号操作保持原类型
@@ -253,7 +253,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
 
     /// 推导属性表达式的类型
 
-    fn visit_property(&mut self, _property: &str) -> Result<(), TypeDeductionError> {
+    fn deduce_property_type(&mut self, _property: &str) -> Result<(), TypeDeductionError> {
         // 属性访问的结果类型需要根据上下文来确定
         // 简化实现，返回Empty类型
         self.type_ = ValueTypeDef::Empty;
@@ -261,7 +261,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     }
 
     /// 推导函数调用表达式的类型
-    fn visit_function_call(
+    fn deduce_function_call_type(
         &mut self,
         name: &str,
         args: &[Expression],
@@ -305,7 +305,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     }
 
     /// 推导聚合表达式的类型
-    fn visit_aggregate_func(
+    fn deduce_aggregate_func_type(
         &mut self,
         func: &crate::core::AggregateFunction,
     ) -> Result<(), TypeDeductionError> {
@@ -325,97 +325,20 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
         Ok(())
     }
 
-    /// 推导标签属性表达式的类型
-    fn visit_tag_property(&mut self, _tag: &str, _prop: &str) -> Result<(), TypeDeductionError> {
-        // 在实际实现中，这里会查询标签的schema来确定属性类型
+    fn visit_property(&mut self, object: &Expression, property: &str) -> Result<(), TypeDeductionError> {
+        // 推导属性访问表达式的类型
+        // 先推导对象类型，再获取属性类型
+        self.visit_expression(object)?;
+        
+        // 在实际实现中，这里会根据对象的schema来确定属性类型
         // 简化实现，返回Empty类型
         self.type_ = ValueTypeDef::Empty;
         Ok(())
     }
 
-    /// 推导边属性表达式的类型
-    fn visit_edge_property(&mut self, _edge: &str, _prop: &str) -> Result<(), TypeDeductionError> {
-        // 在实际实现中，这里会查询边的schema来确定属性类型
-        // 简化实现，返回Empty类型
-        self.type_ = ValueTypeDef::Empty;
-        Ok(())
-    }
-
-    /// 推导输入属性表达式的类型
-    fn visit_input_property(&mut self, name: &str) -> Result<(), TypeDeductionError> {
-        // 查找输入列
-        for (col_name, col_type) in &self.inputs {
-            if col_name == name {
-                self.type_ = col_type.clone();
-                return Ok(());
-            }
-        }
-
-        let msg = format!("输入属性 {} 不存在", name);
-        self.status = Some(TypeDeductionError::SemanticError(msg.clone()));
-        Err(TypeDeductionError::SemanticError(msg))
-    }
-
-    /// 推导变量属性表达式的类型
-    fn visit_variable_property(
-        &mut self,
-        var: &str,
-        _prop: &str,
-    ) -> Result<(), TypeDeductionError> {
-        // 检查变量是否存在
-        if !self.validate_context.exists_var(var) {
-            let msg = format!("变量 {} 不存在", var);
-            let err = TypeDeductionError::SemanticError(msg.clone());
-            self.status = Some(err.clone());
-            return Err(err);
-        }
-
-        // 在实际实现中，这里会查询变量的schema来确定属性类型
-        // 简化实现，返回Empty类型
-        self.type_ = ValueTypeDef::Empty;
-        Ok(())
-    }
-
-    /// 推导源顶点属性表达式的类型
-    fn visit_source_property(&mut self, _tag: &str, _prop: &str) -> Result<(), TypeDeductionError> {
-        // 源顶点属性，简化实现返回Empty
-        self.type_ = ValueTypeDef::Empty;
-        Ok(())
-    }
-
-    /// 推导目标顶点属性表达式的类型
-    fn visit_dest_property(&mut self, _tag: &str, _prop: &str) -> Result<(), TypeDeductionError> {
-        // 目标顶点属性，简化实现返回Empty
-        self.type_ = ValueTypeDef::Empty;
-        Ok(())
-    }
-
-    /// 推导变量表达式的类型
     fn visit_variable(&mut self, _name: &str) -> Result<(), TypeDeductionError> {
         // 变量表达式的结果类型不确定，使用Empty
         self.type_ = ValueTypeDef::Empty;
-        Ok(())
-    }
-
-    /// 推导列表表达式的类型
-    fn visit_list(&mut self, _items: &[Expression]) -> Result<(), TypeDeductionError> {
-        self.type_ = ValueTypeDef::List;
-        Ok(())
-    }
-
-    /// 推导集合表达式的类型
-
-    fn visit_set(&mut self, _items: &[Expression]) -> Result<(), TypeDeductionError> {
-        self.type_ = ValueTypeDef::Set;
-        Ok(())
-    }
-
-    /// 推导映射表达式的类型
-    fn visit_map_items(
-        &mut self,
-        _pairs: &[(String, Expression)],
-    ) -> Result<(), TypeDeductionError> {
-        self.type_ = ValueTypeDef::Map;
         Ok(())
     }
 
@@ -537,16 +460,16 @@ impl<'a, S: StorageEngine> ExpressionVisitor for DeduceTypeVisitor<'a, S> {
         let left_type = self.type_.clone();
         self.visit_expression(right)?;
         let right_type = self.type_.clone();
-        self.visit_binary_op(op, left_type, right_type)
+        self.deduce_binary_op_type(op, left_type, right_type)
     }
 
     fn visit_unary(&mut self, op: &UnaryOperator, operand: &Expression) -> Self::Result {
         self.visit_expression(operand)?;
-        self.visit_unary_op(op)
+        self.deduce_unary_op_type(op)
     }
 
     fn visit_function(&mut self, name: &str, args: &[Expression]) -> Self::Result {
-        self.visit_function_call(name, args)
+        self.deduce_function_call_type(name, args)
     }
 
     fn visit_aggregate(
@@ -556,7 +479,7 @@ impl<'a, S: StorageEngine> ExpressionVisitor for DeduceTypeVisitor<'a, S> {
         _distinct: bool,
     ) -> Self::Result {
         self.visit_expression(arg)?;
-        self.visit_aggregate_func(func)
+        self.deduce_aggregate_func_type(func)
     }
 
     fn visit_list(&mut self, items: &[Expression]) -> Self::Result {
@@ -564,7 +487,10 @@ impl<'a, S: StorageEngine> ExpressionVisitor for DeduceTypeVisitor<'a, S> {
     }
 
     fn visit_map(&mut self, pairs: &[(String, Expression)]) -> Self::Result {
-        self.visit_map_items(pairs)
+        for (_key, value) in pairs {
+            self.visit_expression(value)?;
+        }
+        Ok(())
     }
 
     fn visit_case(
@@ -664,192 +590,6 @@ impl<'a, S: StorageEngine> ExpressionVisitor for DeduceTypeVisitor<'a, S> {
         Ok(())
     }
 
-    fn visit_tag_property(&mut self, tag: &str, prop: &str) -> Self::Result {
-        self.visit_tag_property(tag, prop)
-    }
-
-    fn visit_edge_property(&mut self, edge: &str, prop: &str) -> Self::Result {
-        self.visit_edge_property(edge, prop)
-    }
-
-    fn visit_input_property(&mut self, prop: &str) -> Self::Result {
-        self.visit_input_property(prop)
-    }
-
-    fn visit_variable_property(&mut self, var: &str, prop: &str) -> Self::Result {
-        self.visit_variable_property(var, prop)
-    }
-
-    fn visit_source_property(&mut self, tag: &str, prop: &str) -> Self::Result {
-        self.visit_source_property(tag, prop)
-    }
-
-    fn visit_destination_property(&mut self, tag: &str, prop: &str) -> Self::Result {
-        self.visit_dest_property(tag, prop)
-    }
-
-    fn visit_unary_plus(&mut self, expr: &Expression) -> Self::Result {
-        self.visit_expression(expr)?;
-        Ok(())
-    }
-
-    fn visit_unary_negate(&mut self, expr: &Expression) -> Self::Result {
-        self.visit_expression(expr)?;
-        match &self.type_ {
-            ValueTypeDef::Int
-            | ValueTypeDef::Float
-            | ValueTypeDef::Empty
-            | ValueTypeDef::Null => Ok(()),
-            _ => {
-                let msg = format!("无法对类型 {:?} 执行取反操作", self.type_);
-                self.status = Some(TypeDeductionError::SemanticError(msg.clone()));
-                Err(TypeDeductionError::SemanticError(msg))
-            }
-        }
-    }
-
-    fn visit_unary_not(&mut self, expr: &Expression) -> Self::Result {
-        self.visit_expression(expr)?;
-        self.type_ = ValueTypeDef::Bool;
-        Ok(())
-    }
-
-    fn visit_unary_incr(&mut self, expr: &Expression) -> Self::Result {
-        self.visit_expression(expr)?;
-        match &self.type_ {
-            ValueTypeDef::Int | ValueTypeDef::Float => Ok(()),
-            _ => {
-                let msg = format!("无法对类型 {:?} 执行自增操作", self.type_);
-                self.status = Some(TypeDeductionError::SemanticError(msg.clone()));
-                Err(TypeDeductionError::SemanticError(msg))
-            }
-        }
-    }
-
-    fn visit_unary_decr(&mut self, expr: &Expression) -> Self::Result {
-        self.visit_expression(expr)?;
-        match &self.type_ {
-            ValueTypeDef::Int | ValueTypeDef::Float => Ok(()),
-            _ => {
-                let msg = format!("无法对类型 {:?} 执行自减操作", self.type_);
-                self.status = Some(TypeDeductionError::SemanticError(msg.clone()));
-                Err(TypeDeductionError::SemanticError(msg))
-            }
-        }
-    }
-
-    fn visit_is_null(&mut self, expr: &Expression) -> Self::Result {
-        self.visit_expression(expr)?;
-        self.type_ = ValueTypeDef::Bool;
-        Ok(())
-    }
-
-    fn visit_is_not_null(&mut self, expr: &Expression) -> Self::Result {
-        self.visit_expression(expr)?;
-        self.type_ = ValueTypeDef::Bool;
-        Ok(())
-    }
-
-    fn visit_is_empty(&mut self, expr: &Expression) -> Self::Result {
-        self.visit_expression(expr)?;
-        self.type_ = ValueTypeDef::Bool;
-        Ok(())
-    }
-
-    fn visit_is_not_empty(&mut self, expr: &Expression) -> Self::Result {
-        self.visit_expression(expr)?;
-        self.type_ = ValueTypeDef::Bool;
-        Ok(())
-    }
-
-    fn visit_type_casting(&mut self, expr: &Expression, target_type: &str) -> Self::Result {
-        self.visit_expression(expr)?;
-        self.type_ = self.parse_type_def(target_type);
-        Ok(())
-    }
-
-    fn visit_list_comprehension(
-        &mut self,
-        generator: &Expression,
-        condition: &Option<Box<Expression>>,
-    ) -> Self::Result {
-        self.visit_expression(generator)?;
-        if let Some(condition_expr) = condition {
-            self.visit_expression(condition_expr)?;
-        }
-        self.type_ = ValueTypeDef::List;
-        Ok(())
-    }
-
-    fn visit_predicate(&mut self, list: &Expression, condition: &Expression) -> Self::Result {
-        self.visit_expression(list)?;
-        self.visit_expression(condition)?;
-        self.type_ = ValueTypeDef::Bool;
-        Ok(())
-    }
-
-    fn visit_path_build(&mut self, items: &[Expression]) -> Self::Result {
-        for item in items {
-            self.visit_expression(item)?;
-        }
-        self.type_ = ValueTypeDef::Path;
-        Ok(())
-    }
-
-    fn visit_es_query(&mut self, _query: &str) -> Self::Result {
-        self.type_ = ValueTypeDef::String;
-        Ok(())
-    }
-
-    fn visit_uuid(&mut self) -> Self::Result {
-        self.type_ = ValueTypeDef::String;
-        Ok(())
-    }
-
-    fn visit_subscript_range(
-        &mut self,
-        collection: &Expression,
-        start: &Option<Box<Expression>>,
-        end: &Option<Box<Expression>>,
-    ) -> Self::Result {
-        self.visit_expression(collection)?;
-        if let Some(start_expr) = start {
-            self.visit_expression(start_expr)?;
-        }
-        if let Some(end_expr) = end {
-            self.visit_expression(end_expr)?;
-        }
-        self.type_ = ValueTypeDef::List;
-        Ok(())
-    }
-
-    fn visit_match_path_pattern(
-        &mut self,
-        _path_alias: &str,
-        patterns: &[Expression],
-    ) -> Self::Result {
-        for pattern in patterns {
-            self.visit_expression(pattern)?;
-        }
-        self.type_ = ValueTypeDef::Path;
-        Ok(())
-    }
-
-    fn visit_reduce(
-        &mut self,
-        list: &Expression,
-        _var: &str,
-        initial: &Expression,
-        expr: &Expression,
-    ) -> Self::Result {
-        self.visit_expression(initial)?;
-        let accumulator_type = self.type_.clone();
-        self.visit_expression(list)?;
-        self.visit_expression(expr)?;
-        self.type_ = accumulator_type;
-        Ok(())
-    }
-
     // AST表达式访问方法 - 提供默认实现
     fn visit_constant_expr(&mut self, expr: &crate::query::parser::ast::expr::ConstantExpr) -> Self::Result {
         self.visit_literal(&expr.value)
@@ -922,73 +662,15 @@ impl<'a, S: StorageEngine> ExpressionVisitor for DeduceTypeVisitor<'a, S> {
         Ok(())
     }
 
-    fn visit_predicate_expr(
-        &mut self,
-        expr: &crate::query::parser::ast::expr::PredicateExpr,
-    ) -> Self::Result {
-        self.visit_expr(expr.list.as_ref())?;
-        self.visit_expr(expr.condition.as_ref())?;
-        Ok(())
-    }
-
-    fn visit_tag_property_expr(
-        &mut self,
-        _expr: &crate::query::parser::ast::expr::TagPropertyExpr,
-    ) -> Self::Result {
-        // 标签属性表达式没有子表达式需要访问
-        Ok(())
-    }
-
-    fn visit_edge_property_expr(
-        &mut self,
-        _expr: &crate::query::parser::ast::expr::EdgePropertyExpr,
-    ) -> Self::Result {
-        // 边属性表达式没有子表达式需要访问
-        Ok(())
-    }
-
-    fn visit_input_property_expr(
-        &mut self,
-        _expr: &crate::query::parser::ast::expr::InputPropertyExpr,
-    ) -> Self::Result {
-        // 输入属性表达式没有子表达式需要访问
-        Ok(())
-    }
-
-    fn visit_variable_property_expr(
-        &mut self,
-        _expr: &crate::query::parser::ast::expr::VariablePropertyExpr,
-    ) -> Self::Result {
-        // 变量属性表达式没有子表达式需要访问
-        Ok(())
-    }
-
-    fn visit_source_property_expr(
-        &mut self,
-        _expr: &crate::query::parser::ast::expr::SourcePropertyExpr,
-    ) -> Self::Result {
-        // 源顶点属性表达式没有子表达式需要访问
-        Ok(())
-    }
-
-    fn visit_destination_property_expr(
-        &mut self,
-        _expr: &crate::query::parser::ast::expr::DestinationPropertyExpr,
-    ) -> Self::Result {
-        // 目标顶点属性表达式没有子表达式需要访问
-        Ok(())
-    }
-
     fn visit_type_cast_expr(
         &mut self,
         expr: &crate::query::parser::ast::expr::TypeCastExpr,
     ) -> Self::Result {
-        self.visit_expr(expr.expr.as_ref())?;
-        Ok(())
+        self.visit_expr(expr.expr.as_ref())
     }
 
     fn visit_range_expr(&mut self, expr: &crate::query::parser::ast::expr::RangeExpr) -> Self::Result {
-        self.visit_expr(&expr.collection)?;
+        self.visit_expr(expr.collection.as_ref())?;
         if let Some(start_expr) = &expr.start {
             self.visit_expr(start_expr.as_ref())?;
         }
@@ -1006,25 +688,6 @@ impl<'a, S: StorageEngine> ExpressionVisitor for DeduceTypeVisitor<'a, S> {
     }
 
     fn visit_label_expr(&mut self, _expr: &crate::query::parser::ast::expr::LabelExpr) -> Self::Result {
-        // 标签表达式没有子表达式需要访问
-        Ok(())
-    }
-
-    fn visit_reduce_expr(&mut self, expr: &crate::query::parser::ast::expr::ReduceExpr) -> Self::Result {
-        self.visit_expr(expr.initial.as_ref())?;
-        self.visit_expr(expr.list.as_ref())?;
-        self.visit_expr(expr.expr.as_ref())?;
-        Ok(())
-    }
-
-    fn visit_list_comprehension_expr(
-        &mut self,
-        expr: &crate::query::parser::ast::expr::ListComprehensionExpr,
-    ) -> Self::Result {
-        self.visit_expr(expr.generator.as_ref())?;
-        if let Some(condition_expr) = &expr.condition {
-            self.visit_expr(condition_expr.as_ref())?;
-        }
         Ok(())
     }
 

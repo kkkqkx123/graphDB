@@ -280,15 +280,7 @@ impl FilterPushDownRule {
         use crate::core::Expression;
 
         match expr {
-            // 顶点属性表达式可以下推
-            Expression::TagProperty { tag, .. } => {
-                tag == tag_alias
-            }
-            // 源顶点属性表达式可以下推
-            Expression::SourceProperty { tag, .. } => {
-                tag == tag_alias
-            }
-            // 普通属性表达式可以下推
+            // 属性表达式可以下推
             Expression::Property { .. } => true,
             // 二元操作：如果左右两边都可以下推，则可以下推
             Expression::Binary { left, right, .. } => {
@@ -315,14 +307,8 @@ impl FilterPushDownRule {
         use crate::core::Expression;
 
         match expr {
-            // 边属性表达式可以下推
-            Expression::EdgeProperty { edge, .. } => {
-                edge == edge_alias
-            }
-            // 源顶点属性表达式可以下推
-            Expression::SourceProperty { .. } => true,
-            // 目标顶点属性表达式可以下推
-            Expression::DestinationProperty { .. } => true,
+            // 属性表达式可以下推
+            Expression::Property { .. } => true,
             // 二元操作：如果左右两边都可以下推，则可以下推
             Expression::Binary { left, right, .. } => {
                 Self::can_push_down_expression_to_traverse(left, edge_alias)
@@ -492,14 +478,8 @@ impl PushFilterDownTraverseRule {
         use crate::core::Expression;
 
         match expr {
-            // 边属性表达式可以下推
-            Expression::EdgeProperty { edge, .. } => {
-                edge == edge_alias
-            }
-            // 源顶点属性表达式可以下推
-            Expression::SourceProperty { .. } => true,
-            // 目标顶点属性表达式可以下推
-            Expression::DestinationProperty { .. } => true,
+            // 属性表达式可以下推
+            Expression::Property { .. } => true,
             // 二元操作：如果左右两边都可以下推，则可以下推
             Expression::Binary { left, right, .. } => {
                 Self::can_push_down_expression_to_traverse(left, edge_alias)
@@ -1260,9 +1240,7 @@ fn analyze_expression_for_traverse(
 fn can_push_down_expression_to_scan(expr: &crate::core::Expression) -> bool {
     // 检查表达式是否可以下推到扫描操作
     match expr {
-        crate::core::Expression::TagProperty { .. } => true,
         crate::core::Expression::Property { .. } => true,
-        crate::core::Expression::SourceProperty { .. } => true,
         crate::core::Expression::Binary { left, right, .. } => {
             can_push_down_expression_to_scan(left) && can_push_down_expression_to_scan(right)
         }
@@ -1280,8 +1258,7 @@ fn can_push_down_expression_to_scan(expr: &crate::core::Expression) -> bool {
 fn can_push_down_expression_to_traverse(expr: &crate::core::Expression) -> bool {
     // 检查表达式是否可以下推到遍历操作
     match expr {
-        crate::core::Expression::SourceProperty { .. } => true,
-        crate::core::Expression::EdgeProperty { .. } => true,
+        crate::core::Expression::Property { .. } => true,
         crate::core::Expression::Binary { left, right, .. } => {
             can_push_down_expression_to_traverse(left)
                 && can_push_down_expression_to_traverse(right)
@@ -1326,11 +1303,11 @@ mod tests {
         let scan_opt_node = OptGroupNode::new(2, scan_node.clone());
         ctx.add_plan_node_and_group_node(2, &scan_opt_node);
 
-        // 创建过滤条件 - 使用源顶点属性表达式
+        // 创建过滤条件 - 使用属性表达式
         let filter_condition = crate::core::Expression::Binary {
-            left: Box::new(crate::core::Expression::SourceProperty {
-                tag: "v".to_string(),
-                prop: "col1".to_string(),
+            left: Box::new(crate::core::Expression::Property {
+                object: Box::new(crate::core::Expression::Variable("v".to_string())),
+                property: "col1".to_string(),
             }),
             op: crate::core::BinaryOperator::GreaterThan,
             right: Box::new(crate::core::Expression::Literal(crate::core::Value::Int(100))),
@@ -1366,11 +1343,11 @@ mod tests {
         let traverse_opt_node = OptGroupNode::new(2, traverse_node.clone());
         ctx.add_plan_node_and_group_node(2, &traverse_opt_node);
 
-        // 创建过滤条件 - 使用边属性表达式
+        // 创建过滤条件 - 使用属性表达式
         let filter_condition = crate::core::Expression::Binary {
-            left: Box::new(crate::core::Expression::EdgeProperty {
-                edge: "e".to_string(),
-                prop: "col1".to_string(),
+            left: Box::new(crate::core::Expression::Property {
+                object: Box::new(crate::core::Expression::Variable("e".to_string())),
+                property: "col1".to_string(),
             }),
             op: crate::core::BinaryOperator::GreaterThan,
             right: Box::new(crate::core::Expression::Literal(crate::core::Value::Int(100))),
@@ -1563,11 +1540,11 @@ mod tests {
         let scan_opt_node = OptGroupNode::new(2, scan_node.clone());
         ctx.add_plan_node_and_group_node(2, &scan_opt_node);
 
-        // 创建过滤条件 - 使用源顶点属性表达式
+        // 创建过滤条件 - 使用属性表达式
         let filter_condition = crate::core::Expression::Binary {
-            left: Box::new(crate::core::Expression::SourceProperty {
-                tag: "v".to_string(),
-                prop: "col1".to_string(),
+            left: Box::new(crate::core::Expression::Property {
+                object: Box::new(crate::core::Expression::Variable("v".to_string())),
+                property: "col1".to_string(),
             }),
             op: crate::core::BinaryOperator::GreaterThan,
             right: Box::new(crate::core::Expression::Literal(crate::core::Value::Int(100))),

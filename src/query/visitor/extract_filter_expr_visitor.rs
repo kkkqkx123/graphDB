@@ -200,144 +200,12 @@ impl ExpressionVisitor for ExtractFilterExprVisitor {
         Ok(())
     }
 
-    fn visit_tag_property(&mut self, _tag: &str, _prop: &str) -> Self::Result {
-        Ok(())
-    }
-
-    fn visit_edge_property(&mut self, _edge: &str, _prop: &str) -> Self::Result {
-        Ok(())
-    }
-
-    fn visit_input_property(&mut self, _prop: &str) -> Self::Result {
-        Ok(())
-    }
-
-    fn visit_variable_property(&mut self, _var: &str, _prop: &str) -> Self::Result {
-        Ok(())
-    }
-
-    fn visit_source_property(&mut self, _tag: &str, _prop: &str) -> Self::Result {
-        Ok(())
-    }
-
-    fn visit_destination_property(&mut self, _tag: &str, _prop: &str) -> Self::Result {
-        Ok(())
-    }
-
-    fn visit_unary_plus(&mut self, expr: &Expression) -> Self::Result {
-        self.visit_expression(expr)
-    }
-
-    fn visit_unary_negate(&mut self, expr: &Expression) -> Self::Result {
-        self.visit_expression(expr)
-    }
-
-    fn visit_unary_not(&mut self, expr: &Expression) -> Self::Result {
-        self.visit_expression(expr)
-    }
-
-    fn visit_unary_incr(&mut self, expr: &Expression) -> Self::Result {
-        self.visit_expression(expr)
-    }
-
-    fn visit_unary_decr(&mut self, expr: &Expression) -> Self::Result {
-        self.visit_expression(expr)
-    }
-
-    fn visit_is_null(&mut self, expr: &Expression) -> Self::Result {
-        self.visit_expression(expr)
-    }
-
-    fn visit_is_not_null(&mut self, expr: &Expression) -> Self::Result {
-        self.visit_expression(expr)
-    }
-
-    fn visit_is_empty(&mut self, expr: &Expression) -> Self::Result {
-        self.visit_expression(expr)
-    }
-
-    fn visit_is_not_empty(&mut self, expr: &Expression) -> Self::Result {
-        self.visit_expression(expr)
-    }
-
-    fn visit_list_comprehension(
-        &mut self,
-        generator: &Expression,
-        condition: &Option<Box<Expression>>,
-    ) -> Self::Result {
-        self.visit_expression(generator)?;
-        if let Some(c) = condition {
-            self.visit_expression(c)?;
-        }
-        Ok(())
-    }
-
-    fn visit_predicate(&mut self, list: &Expression, condition: &Expression) -> Self::Result {
-        self.visit_expression(list)?;
-        self.visit_expression(condition)
-    }
-
-    fn visit_reduce(
-        &mut self,
-        list: &Expression,
-        _var: &str,
-        initial: &Expression,
-        expr: &Expression,
-    ) -> Self::Result {
-        self.visit_expression(list)?;
-        self.visit_expression(initial)?;
-        self.visit_expression(expr)
-    }
-
-    fn visit_es_query(&mut self, _query: &str) -> Self::Result {
-        Ok(())
-    }
-
-    fn visit_uuid(&mut self) -> Self::Result {
-        Ok(())
-    }
-
-    fn visit_match_path_pattern(
-        &mut self,
-        _path_alias: &str,
-        _patterns: &[Expression],
-    ) -> Self::Result {
-        Ok(())
-    }
-
     fn state(&self) -> &ExpressionVisitorState {
         &self.state
     }
 
     fn state_mut(&mut self) -> &mut ExpressionVisitorState {
         &mut self.state
-    }
-
-    fn visit_type_casting(&mut self, expr: &Expression, _target_type: &str) -> Self::Result {
-        self.visit_expression(expr)
-    }
-
-    fn visit_path_build(&mut self, items: &[Expression]) -> Self::Result {
-        for item in items {
-            self.visit_expression(item)?;
-        }
-        Ok(())
-    }
-
-    fn visit_subscript_range(
-        &mut self,
-        collection: &Expression,
-        start: &Option<Box<Expression>>,
-        end: &Option<Box<Expression>>,
-    ) -> Self::Result {
-        self.visit_expression(collection)?;
-        if let Some(s) = start {
-            self.visit_expression(s)?;
-        }
-        if let Some(e) = end {
-            self.visit_expression(e)?;
-        }
-        Ok(())
     }
 
     fn visit_constant_expr(&mut self, _expr: &crate::query::parser::ast::expr::ConstantExpr) -> Self::Result {
@@ -402,36 +270,6 @@ impl ExpressionVisitor for ExtractFilterExprVisitor {
         Ok(())
     }
 
-    fn visit_predicate_expr(&mut self, expr: &crate::query::parser::ast::expr::PredicateExpr) -> Self::Result {
-        self.visit_expr(&expr.list)?;
-        self.visit_expr(&expr.condition)?;
-        Ok(())
-    }
-
-    fn visit_tag_property_expr(&mut self, _expr: &crate::query::parser::ast::expr::TagPropertyExpr) -> Self::Result {
-        Ok(())
-    }
-
-    fn visit_edge_property_expr(&mut self, _expr: &crate::query::parser::ast::expr::EdgePropertyExpr) -> Self::Result {
-        Ok(())
-    }
-
-    fn visit_input_property_expr(&mut self, _expr: &crate::query::parser::ast::expr::InputPropertyExpr) -> Self::Result {
-        Ok(())
-    }
-
-    fn visit_variable_property_expr(&mut self, _expr: &crate::query::parser::ast::expr::VariablePropertyExpr) -> Self::Result {
-        Ok(())
-    }
-
-    fn visit_source_property_expr(&mut self, _expr: &crate::query::parser::ast::expr::SourcePropertyExpr) -> Self::Result {
-        Ok(())
-    }
-
-    fn visit_destination_property_expr(&mut self, _expr: &crate::query::parser::ast::expr::DestinationPropertyExpr) -> Self::Result {
-        Ok(())
-    }
-
     fn visit_type_cast_expr(&mut self, expr: &crate::query::parser::ast::expr::TypeCastExpr) -> Self::Result {
         self.visit_expr(&expr.expr)?;
         Ok(())
@@ -456,21 +294,6 @@ impl ExpressionVisitor for ExtractFilterExprVisitor {
     }
 
     fn visit_label_expr(&mut self, _expr: &crate::query::parser::ast::expr::LabelExpr) -> Self::Result {
-        Ok(())
-    }
-
-    fn visit_reduce_expr(&mut self, expr: &crate::query::parser::ast::expr::ReduceExpr) -> Self::Result {
-        self.visit_expr(expr.list.as_ref())?;
-        self.visit_expr(expr.initial.as_ref())?;
-        self.visit_expr(expr.expr.as_ref())?;
-        Ok(())
-    }
-
-    fn visit_list_comprehension_expr(&mut self, expr: &crate::query::parser::ast::expr::ListComprehensionExpr) -> Self::Result {
-        self.visit_expr(expr.generator.as_ref())?;
-        if let Some(c) = &expr.condition {
-            self.visit_expr(c.as_ref())?;
-        }
         Ok(())
     }
 }

@@ -141,15 +141,15 @@ impl TypeInference {
     /// 推导列表元素类型
     pub fn deduce_list_element_type(&self, element_type: &ValueTypeDef) -> ValueTypeDef {
         match element_type {
-            ValueTypeDef::List => ValueTypeDef::Any,
-            ValueTypeDef::Map => ValueTypeDef::Any,
+            ValueTypeDef::List => ValueTypeDef::Empty,
+            ValueTypeDef::Map => ValueTypeDef::Empty,
             _ => element_type.clone(),
         }
     }
 
     /// 推导 Map 值类型
     pub fn deduce_map_value_type(&self, _map_type: &ValueTypeDef) -> ValueTypeDef {
-        ValueTypeDef::Any
+        ValueTypeDef::Empty
     }
 
     /// 推导路径步数类型
@@ -243,10 +243,7 @@ impl TypeInference {
             ValueTypeDef::Geography => "geography".to_string(),
             ValueTypeDef::Duration => "duration".to_string(),
             ValueTypeDef::DataSet => "dataset".to_string(),
-            ValueTypeDef::IntRange => "int_range".to_string(),
-            ValueTypeDef::FloatRange => "float_range".to_string(),
-            ValueTypeDef::StringRange => "string_range".to_string(),
-            ValueTypeDef::Any => "any".to_string(),
+
         }
     }
 
@@ -499,12 +496,12 @@ impl TypeInference {
     pub fn deduce_expression_type_simple(&self, expr: &Expression) -> ValueTypeDef {
         match expr {
             Expression::Literal(value) => value.get_type(),
-            Expression::Variable(_) => ValueTypeDef::Any,
+            Expression::Variable(_) => ValueTypeDef::Empty,
             Expression::Binary { op, .. } => self.deduce_binary_expr_type_simple(op),
             Expression::Unary { op, .. } => self.deduce_unary_expr_type_simple(op),
             Expression::Function { name, .. } => self.deduce_function_return_type_simple(name),
             Expression::Aggregate { func, .. } => self.deduce_aggregate_return_type(func),
-            _ => ValueTypeDef::Any,
+            _ => ValueTypeDef::Empty,
         }
     }
 
@@ -522,7 +519,7 @@ impl TypeInference {
                         return var_type.clone();
                     }
                 }
-                ValueTypeDef::Any
+                ValueTypeDef::Empty
             }
             Expression::Binary { op, left, right } => {
                 let left_type = self.deduce_expression_type_full(left, context);
@@ -537,7 +534,7 @@ impl TypeInference {
                 self.deduce_function_return_type(name, args, context)
             }
             Expression::Aggregate { func, .. } => self.deduce_aggregate_return_type(func),
-            _ => ValueTypeDef::Any,
+            _ => ValueTypeDef::Empty,
         }
     }
 
@@ -562,7 +559,7 @@ impl TypeInference {
                 } else if *left_type == ValueTypeDef::Int || *right_type == ValueTypeDef::Int {
                     ValueTypeDef::Int
                 } else {
-                    ValueTypeDef::Any
+                    ValueTypeDef::Empty
                 }
             }
         }
@@ -577,7 +574,7 @@ impl TypeInference {
         match op {
             crate::core::UnaryOperator::Not => ValueTypeDef::Bool,
             crate::core::UnaryOperator::Minus | crate::core::UnaryOperator::Plus => operand_type.clone(),
-            _ => ValueTypeDef::Any,
+            _ => ValueTypeDef::Empty,
         }
     }
 
@@ -602,8 +599,8 @@ impl TypeInference {
             "values" => ValueTypeDef::List,
             "range" => ValueTypeDef::List,
             "reverse" => ValueTypeDef::List,
-            "head" | "last" | "tail" => ValueTypeDef::Any,
-            _ => ValueTypeDef::Any,
+            "head" | "last" | "tail" => ValueTypeDef::Empty,
+            _ => ValueTypeDef::Empty,
         }
     }
 
@@ -616,9 +613,9 @@ impl TypeInference {
             crate::core::AggregateFunction::Count(_) => ValueTypeDef::Int,
             crate::core::AggregateFunction::Sum(_) => ValueTypeDef::Float,
             crate::core::AggregateFunction::Avg(_) => ValueTypeDef::Float,
-            crate::core::AggregateFunction::Max(_) | crate::core::AggregateFunction::Min(_) => ValueTypeDef::Any,
+            crate::core::AggregateFunction::Max(_) | crate::core::AggregateFunction::Min(_) => ValueTypeDef::Empty,
             crate::core::AggregateFunction::Collect(_) => ValueTypeDef::List,
-            crate::core::AggregateFunction::Distinct(_) => ValueTypeDef::Any,
+            crate::core::AggregateFunction::Distinct(_) => ValueTypeDef::Empty,
             crate::core::AggregateFunction::Percentile(_, _) => ValueTypeDef::Float,
         }
     }
@@ -633,7 +630,7 @@ impl TypeInference {
             | crate::core::BinaryOperator::GreaterThan
             | crate::core::BinaryOperator::GreaterThanOrEqual => ValueTypeDef::Bool,
             crate::core::BinaryOperator::And | crate::core::BinaryOperator::Or => ValueTypeDef::Bool,
-            _ => ValueTypeDef::Any,
+            _ => ValueTypeDef::Empty,
         }
     }
 
@@ -641,8 +638,8 @@ impl TypeInference {
     fn deduce_unary_expr_type_simple(&self, op: &crate::core::UnaryOperator) -> ValueTypeDef {
         match op {
             crate::core::UnaryOperator::Not => ValueTypeDef::Bool,
-            crate::core::UnaryOperator::Minus | crate::core::UnaryOperator::Plus => ValueTypeDef::Any,
-            _ => ValueTypeDef::Any,
+            crate::core::UnaryOperator::Minus | crate::core::UnaryOperator::Plus => ValueTypeDef::Empty,
+            _ => ValueTypeDef::Empty,
         }
     }
 
@@ -662,15 +659,15 @@ impl TypeInference {
             "values" => ValueTypeDef::List,
             "range" => ValueTypeDef::List,
             "reverse" => ValueTypeDef::List,
-            "head" | "last" | "tail" => ValueTypeDef::Any,
-            _ => ValueTypeDef::Any,
+            "head" | "last" | "tail" => ValueTypeDef::Empty,
+            _ => ValueTypeDef::Empty,
         }
     }
 
     /// 检查类型兼容性
     pub fn are_types_compatible(&self, actual: &ValueTypeDef, expected: &ValueTypeDef) -> bool {
         match (actual, expected) {
-            (ValueTypeDef::Any, _) | (_, ValueTypeDef::Any) => true,
+            (ValueTypeDef::Empty, _) | (_, ValueTypeDef::Empty) => true,
             (ValueTypeDef::Int, ValueTypeDef::Float) => true,
             (ValueTypeDef::Float, ValueTypeDef::Int) => false,
             (a, e) => a == e,
@@ -714,26 +711,6 @@ impl TypeInference {
                     || end.as_ref().map_or(false, |e| self.has_aggregate_expression(e))
             }
             Expression::Path(items) => items.iter().any(|item| self.has_aggregate_expression(item)),
-            Expression::ListComprehension {
-                generator,
-                condition,
-            } => {
-                self.has_aggregate_expression(generator)
-                    || condition.as_ref().map_or(false, |c| self.has_aggregate_expression(c))
-            }
-            Expression::Predicate { list, condition } => {
-                self.has_aggregate_expression(list) || self.has_aggregate_expression(condition)
-            }
-            Expression::Reduce {
-                initial,
-                list,
-                expr,
-                ..
-            } => {
-                self.has_aggregate_expression(initial)
-                    || self.has_aggregate_expression(list)
-                    || self.has_aggregate_expression(expr)
-            }
             Expression::TypeCast { expr, .. } => self.has_aggregate_expression(expr),
             _ => false,
         }
@@ -790,7 +767,7 @@ impl TypeInference {
     /// 从 ValueType 转换为 ValueTypeDef
     pub fn value_type_to_value_type_def(type_: &ValueType) -> ValueTypeDef {
         match type_ {
-            ValueType::Unknown => ValueTypeDef::Any,
+            ValueType::Unknown => ValueTypeDef::Empty,
             ValueType::Bool => ValueTypeDef::Bool,
             ValueType::Int => ValueTypeDef::Int,
             ValueType::Float => ValueTypeDef::Float,
@@ -862,12 +839,6 @@ impl TypeInference {
             }
             Expression::Path(_) => ValueType::Path,
             Expression::Label(_) => ValueType::String,
-            Expression::TagProperty { tag: _, prop: _ } => ValueType::Unknown,
-            Expression::EdgeProperty { edge: _, prop: _ } => ValueType::Unknown,
-            Expression::InputProperty(_) => ValueType::Unknown,
-            Expression::VariableProperty { var: _, prop: _ } => ValueType::Unknown,
-            Expression::SourceProperty { tag: _, prop: _ } => ValueType::Unknown,
-            Expression::DestinationProperty { tag: _, prop: _ } => ValueType::Unknown,
             _ => ValueType::Unknown,
         }
     }
@@ -1137,7 +1108,7 @@ mod tests {
         assert!(type_inference.are_types_compatible(&ValueTypeDef::Int, &ValueTypeDef::Int));
         assert!(type_inference.are_types_compatible(&ValueTypeDef::Int, &ValueTypeDef::Float));
         assert!(!type_inference.are_types_compatible(&ValueTypeDef::Float, &ValueTypeDef::Int));
-        assert!(type_inference.are_types_compatible(&ValueTypeDef::Any, &ValueTypeDef::Int));
-        assert!(type_inference.are_types_compatible(&ValueTypeDef::String, &ValueTypeDef::Any));
+        assert!(type_inference.are_types_compatible(&ValueTypeDef::Empty, &ValueTypeDef::Int));
+        assert!(type_inference.are_types_compatible(&ValueTypeDef::String, &ValueTypeDef::Empty));
     }
 }

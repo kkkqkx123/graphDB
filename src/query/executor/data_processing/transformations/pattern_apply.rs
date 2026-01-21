@@ -138,7 +138,7 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
                         .properties
                         .get(prop_name)
                         .cloned()
-                        .unwrap_or(Value::Null(crate::core::NullType::UnknownProp));
+                        .unwrap_or(Value::Null(crate::core::NullType::Null));
 
                     // 创建临时表达式上下文
                     let mut temp_context = DefaultExpressionContext::new();
@@ -206,7 +206,7 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
                         .properties()
                         .get(prop_name)
                         .cloned()
-                        .unwrap_or(Value::Null(crate::core::NullType::UnknownProp));
+                        .unwrap_or(Value::Null(crate::core::NullType::Null));
 
                     // 创建临时表达式上下文
                     let mut temp_context = DefaultExpressionContext::new();

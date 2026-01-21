@@ -6,6 +6,7 @@
 use crate::core::error::ExpressionError;
 use crate::core::expression_visitor::GenericExpressionVisitor;
 use crate::core::types::expression::Expression;
+use crate::core::value::NullType;
 use crate::core::Value;
 use crate::expression::evaluator::collection_operations::CollectionOperationEvaluator;
 use crate::expression::evaluator::functions::FunctionEvaluator;
@@ -176,11 +177,6 @@ impl ExpressionEvaluator {
                 CollectionOperationEvaluator.eval_property_access(&object_value, property)
             }
 
-            // 输入属性访问
-            Expression::InputProperty(name) => context
-                .get_variable(name)
-                .ok_or_else(|| ExpressionError::undefined_variable(name)),
-
             // 类型转换
             Expression::TypeCast { expr, target_type } => {
                 let value = self.visit_with_context(expr, context)?;
@@ -224,29 +220,29 @@ impl ExpressionEvaluator {
     ) -> Result<Value, ExpressionError> {
         use crate::core::types::expression::DataType;
 
-        match target_type {
-            DataType::Bool => value
-                .cast_to_bool()
-                .map_err(|e| ExpressionError::type_error(e)),
-            DataType::Int => value
-                .cast_to_int()
-                .map_err(|e| ExpressionError::type_error(e)),
-            DataType::Float => value
-                .cast_to_float()
-                .map_err(|e| ExpressionError::type_error(e)),
-            DataType::String => value
-                .cast_to_string()
-                .map_err(|e| ExpressionError::type_error(e)),
-            DataType::List => value
-                .cast_to_list()
-                .map_err(|e| ExpressionError::type_error(e)),
-            DataType::Map => value
-                .cast_to_map()
-                .map_err(|e| ExpressionError::type_error(e)),
-            _ => Err(ExpressionError::type_error(format!(
+        let result = match target_type {
+            DataType::Bool => value.to_bool(),
+            DataType::Int => value.to_int(),
+            DataType::Float => value.to_float(),
+            DataType::String => {
+                return value.to_string().map(Value::String).map_err(ExpressionError::type_error);
+            }
+            DataType::List => value.to_list(),
+            DataType::Map => value.to_map(),
+            _ => return Err(ExpressionError::type_error(format!(
                 "不支持的类型转换: {:?}",
                 target_type
             ))),
+        };
+
+        // 检查转换结果是否为 Null(BadType)
+        if let Value::Null(NullType::BadType) = result {
+            Err(ExpressionError::type_error(format!(
+                "无法将 {:?} 转换为 {:?}",
+                value, target_type
+            )))
+        } else {
+            Ok(result)
         }
     }
 
@@ -345,10 +341,9 @@ impl GenericExpressionVisitor<Expression> for ExpressionEvaluator {
                 element_values.map(Value::List)
             }
             Expression::Property { object, property } => {
-                let object_value = self.visit(object)?;
+                let object_value = self.visit(object.as_ref())?;
                 CollectionOperationEvaluator.eval_property_access(&object_value, property)
             }
-            Expression::InputProperty(name) => Err(ExpressionError::undefined_variable(name)),
             Expression::TypeCast { expr, target_type } => {
                 let value = self.visit(expr)?;
                 Self::eval_type_cast(&value, target_type)

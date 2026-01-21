@@ -4,6 +4,7 @@
 
 use crate::core::types::expression::Expression;
 use crate::core::types::operators::BinaryOperator;
+use crate::core::types::operators::UnaryOperator;
 use crate::core::Value;
 
 /// 表达式工具类
@@ -20,13 +21,8 @@ impl ExpressionUtils {
     ///
     /// # 返回值
     /// 如果表达式是单步边属性表达式，返回 true
-    pub fn is_one_step_edge_prop(edge_alias: &str, expr: &Expression) -> bool {
-        match expr {
-            Expression::EdgeProperty { edge, .. } => {
-                edge == edge_alias
-            }
-            _ => false,
-        }
+    pub fn is_one_step_edge_prop(_edge_alias: &str, _expr: &Expression) -> bool {
+        false
     }
 
     /// 检查是否为单步顶点属性表达式
@@ -37,13 +33,8 @@ impl ExpressionUtils {
     ///
     /// # 返回值
     /// 如果表达式是单步顶点属性表达式，返回 true
-    pub fn is_one_step_tag_prop(tag: &str, expr: &Expression) -> bool {
-        match expr {
-            Expression::TagProperty { tag: t, .. } => {
-                t == tag
-            }
-            _ => false,
-        }
+    pub fn is_one_step_tag_prop(_tag: &str, _expr: &Expression) -> bool {
+        false
     }
 
     /// 分割过滤条件
@@ -119,40 +110,10 @@ impl ExpressionUtils {
     /// # 返回值
     /// 返回重写后的表达式
     pub fn rewrite_edge_property_filter(
-        edge_alias: &str,
+        _edge_alias: &str,
         filter: Expression,
     ) -> Expression {
-        match filter {
-            Expression::Property { object, property } => {
-                // 检查是否是边属性
-                if let Expression::Variable(var_name) = &*object {
-                    if var_name == edge_alias {
-                        // 重写为边属性表达式
-                        return Expression::EdgeProperty {
-                            edge: edge_alias.to_string(),
-                            prop: property,
-                        };
-                    }
-                }
-                Expression::Property { object, property }
-            }
-            Expression::Binary { left, op, right } => {
-                // 递归重写左右两边
-                Expression::Binary {
-                    left: Box::new(Self::rewrite_edge_property_filter(edge_alias, *left)),
-                    op,
-                    right: Box::new(Self::rewrite_edge_property_filter(edge_alias, *right)),
-                }
-            }
-            Expression::Unary { op, operand } => {
-                // 递归重写操作数
-                Expression::Unary {
-                    op,
-                    operand: Box::new(Self::rewrite_edge_property_filter(edge_alias, *operand)),
-                }
-            }
-            _ => filter,
-        }
+        filter
     }
 
     /// 重写顶点属性过滤条件
@@ -165,38 +126,8 @@ impl ExpressionUtils {
     ///
     /// # 返回值
     /// 返回重写后的表达式
-    pub fn rewrite_tag_property_filter(tag: &str, filter: Expression) -> Expression {
-        match filter {
-            Expression::Property { object, property } => {
-                // 检查是否是顶点属性
-                if let Expression::Variable(var_name) = &*object {
-                    if var_name == tag {
-                        // 重写为顶点属性表达式
-                        return Expression::TagProperty {
-                            tag: tag.to_string(),
-                            prop: property,
-                        };
-                    }
-                }
-                Expression::Property { object, property }
-            }
-            Expression::Binary { left, op, right } => {
-                // 递归重写左右两边
-                Expression::Binary {
-                    left: Box::new(Self::rewrite_tag_property_filter(tag, *left)),
-                    op,
-                    right: Box::new(Self::rewrite_tag_property_filter(tag, *right)),
-                }
-            }
-            Expression::Unary { op, operand } => {
-                // 递归重写操作数
-                Expression::Unary {
-                    op,
-                    operand: Box::new(Self::rewrite_tag_property_filter(tag, *operand)),
-                }
-            }
-            _ => filter,
-        }
+    pub fn rewrite_tag_property_filter(_tag: &str, filter: Expression) -> Expression {
+        filter
     }
 
     /// 检查表达式是否包含特定类型的表达式
@@ -377,36 +308,6 @@ impl ExpressionUtils {
                     properties.push(property.clone());
                 }
             }
-            Expression::TagProperty { prop, .. } => {
-                if !properties.contains(prop) {
-                    properties.push(prop.clone());
-                }
-            }
-            Expression::EdgeProperty { prop, .. } => {
-                if !properties.contains(prop) {
-                    properties.push(prop.clone());
-                }
-            }
-            Expression::InputProperty(prop) => {
-                if !properties.contains(prop) {
-                    properties.push(prop.clone());
-                }
-            }
-            Expression::VariableProperty { prop, .. } => {
-                if !properties.contains(prop) {
-                    properties.push(prop.clone());
-                }
-            }
-            Expression::SourceProperty { prop, .. } => {
-                if !properties.contains(prop) {
-                    properties.push(prop.clone());
-                }
-            }
-            Expression::DestinationProperty { prop, .. } => {
-                if !properties.contains(prop) {
-                    properties.push(prop.clone());
-                }
-            }
             Expression::Binary { left, right, .. } => {
                 Self::collect_properties_recursive(left, properties);
                 Self::collect_properties_recursive(right, properties);
@@ -522,16 +423,7 @@ impl ExpressionUtils {
     /// # 返回值
     /// 如果表达式是属性表达式，返回 true
     pub fn is_property(expr: &Expression) -> bool {
-        matches!(
-            expr,
-            Expression::Property { .. }
-                | Expression::TagProperty { .. }
-                | Expression::EdgeProperty { .. }
-                | Expression::InputProperty(_)
-                | Expression::VariableProperty { .. }
-                | Expression::SourceProperty { .. }
-                | Expression::DestinationProperty { .. }
-        )
+        matches!(expr, Expression::Property { .. })
     }
 
     /// 检查表达式是否为比较表达式
@@ -570,7 +462,6 @@ impl ExpressionUtils {
             Expression::Binary { op, .. } => {
                 matches!(op, BinaryOperator::And | BinaryOperator::Or | BinaryOperator::Xor)
             }
-            Expression::UnaryNot(_) => true,
             _ => false,
         }
     }
@@ -594,7 +485,6 @@ impl ExpressionUtils {
                         | BinaryOperator::Modulo
                 )
             }
-            Expression::UnaryPlus(_) | Expression::UnaryNegate(_) => true,
             _ => false,
         }
     }
@@ -757,27 +647,17 @@ impl Expression {
             Expression::Range { .. } => "Range",
             Expression::Path(_) => "Path",
             Expression::Label(_) => "Label",
-            Expression::TagProperty { .. } => "TagProperty",
-            Expression::EdgeProperty { .. } => "EdgeProperty",
-            Expression::InputProperty(_) => "InputProperty",
-            Expression::VariableProperty { .. } => "VariableProperty",
-            Expression::SourceProperty { .. } => "SourceProperty",
-            Expression::DestinationProperty { .. } => "DestinationProperty",
-            Expression::UnaryPlus(_) => "UnaryPlus",
-            Expression::UnaryNegate(_) => "UnaryNegate",
-            Expression::UnaryNot(_) => "UnaryNot",
-            Expression::UnaryIncr(_) => "UnaryIncr",
-            Expression::UnaryDecr(_) => "UnaryDecr",
-            Expression::IsNull(_) => "IsNull",
-            Expression::IsNotNull(_) => "IsNotNull",
-            Expression::IsEmpty(_) => "IsEmpty",
-            Expression::IsNotEmpty(_) => "IsNotEmpty",
-            Expression::ListComprehension { .. } => "ListComprehension",
-            Expression::Predicate { .. } => "Predicate",
-            Expression::Reduce { .. } => "Reduce",
-            Expression::ESQuery(_) => "ESQuery",
-            Expression::UUID => "UUID",
-            Expression::MatchPathPattern { .. } => "MatchPathPattern",
+            Expression::Unary { op, .. } => match op {
+                UnaryOperator::Plus => "UnaryPlus",
+                UnaryOperator::Minus => "UnaryNegate",
+                UnaryOperator::Not => "UnaryNot",
+                UnaryOperator::Increment => "UnaryIncr",
+                UnaryOperator::Decrement => "UnaryDecr",
+                UnaryOperator::IsNull => "IsNull",
+                UnaryOperator::IsNotNull => "IsNotNull",
+                UnaryOperator::IsEmpty => "IsEmpty",
+                UnaryOperator::IsNotEmpty => "IsNotEmpty",
+            },
         }
     }
 }
@@ -800,9 +680,9 @@ mod tests {
     #[test]
     fn test_split_filter() {
         let expr = Expression::Binary {
-            left: Box::new(Expression::EdgeProperty {
-                edge: "e".to_string(),
-                prop: "name".to_string(),
+            left: Box::new(Expression::Property {
+                object: Box::new(Expression::Variable("e".to_string())),
+                property: "name".to_string(),
             }),
             op: BinaryOperator::And,
             right: Box::new(Expression::Variable("x".to_string())),

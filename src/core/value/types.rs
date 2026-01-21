@@ -23,23 +23,14 @@ pub enum ValueTypeDef {
     Geography,
     Duration,
     DataSet,
-    IntRange,
-    FloatRange,
-    StringRange,
-    Any,
 }
 
-/// Null类型定义
+/// Null类型定义 - 简化为单节点图数据库所需的3种类型
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Encode, Decode)]
 pub enum NullType {
-    Null,
-    NaN,
-    BadData,
-    BadType,
-    Overflow,
-    UnknownProp,
-    DivByZero,
-    OutOfRange,
+    Null,      // 标准null
+    NaN,       // 非数字
+    BadType,   // 类型转换错误
 }
 
 impl Default for NullType {
@@ -112,43 +103,27 @@ impl Default for DateTimeValue {
     }
 }
 
-/// 简单地理信息表示
+/// 简化地理信息表示 - 仅支持基础坐标点
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Encode, Decode)]
 pub struct GeographyValue {
-    pub point: Option<(f64, f64)>,             // latitude, longitude
-    pub linestring: Option<Vec<(f64, f64)>>,   // list of coordinates
-    pub polygon: Option<Vec<Vec<(f64, f64)>>>, // list of rings (outer and holes)
+    pub latitude: f64,
+    pub longitude: f64,
 }
 
-// 手动实现Hash for GeographyValue
+// 手动实现Hash以处理f64字段
 impl std::hash::Hash for GeographyValue {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        // Convert f64 values to bits for hashing
-        if let Some((lat, lon)) = self.point {
-            (lat.to_bits()).hash(state);
-            (lon.to_bits()).hash(state);
-        } else {
-            (0u64).hash(state); // For None case
-        }
+        // 将f64转换为位表示进行哈希
+        self.latitude.to_bits().hash(state);
+        self.longitude.to_bits().hash(state);
+    }
+}
 
-        if let Some(ref line) = self.linestring {
-            for (lat, lon) in line {
-                (lat.to_bits()).hash(state);
-                (lon.to_bits()).hash(state);
-            }
-        } else {
-            (0u64).hash(state); // For None case
-        }
-
-        if let Some(ref poly) = self.polygon {
-            for ring in poly {
-                for (lat, lon) in ring {
-                    (lat.to_bits()).hash(state);
-                    (lon.to_bits()).hash(state);
-                }
-            }
-        } else {
-            (0u64).hash(state); // For None case
+impl Default for GeographyValue {
+    fn default() -> Self {
+        GeographyValue {
+            latitude: 0.0,
+            longitude: 0.0,
         }
     }
 }
@@ -252,9 +227,9 @@ impl Value {
         matches!(self, Value::Null(_))
     }
 
-    /// 检查值是否为BadNull（BadData或BadType）
+    /// 检查值是否为BadNull（BadType）
     pub fn is_bad_null(&self) -> bool {
-        matches!(self, Value::Null(NullType::BadData) | Value::Null(NullType::BadType))
+        matches!(self, Value::Null(NullType::BadType))
     }
 
     /// 检查值是否为空
@@ -277,137 +252,6 @@ impl Value {
         let mut hasher = DefaultHasher::new();
         self.hash(&mut hasher);
         hasher.finish()
-    }
-
-    /// 转换为布尔值
-    pub fn cast_to_bool(&self) -> Result<Value, String> {
-        match self {
-            Value::Bool(b) => Ok(Value::Bool(*b)),
-            Value::Int(i) => Ok(Value::Bool(*i != 0)),
-            Value::Float(f) => Ok(Value::Bool(*f != 0.0)),
-            Value::String(s) => {
-                let lower = s.to_lowercase();
-                match lower.as_str() {
-                    "true" | "1" | "yes" | "on" => Ok(Value::Bool(true)),
-                    "false" | "0" | "no" | "off" => Ok(Value::Bool(false)),
-                    _ => Err(format!("无法将字符串 '{}' 转换为布尔值", s)),
-                }
-            }
-            Value::Null(_) => Ok(Value::Null(NullType::Null)),
-            Value::Empty => Ok(Value::Null(NullType::Null)),
-            _ => Err(format!("无法将 {:?} 转换为布尔值", self.get_type())),
-        }
-    }
-
-    /// 转换为整数
-    pub fn cast_to_int(&self) -> Result<Value, String> {
-        match self {
-            Value::Int(i) => Ok(Value::Int(*i)),
-            Value::Float(f) => Ok(Value::Int(*f as i64)),
-            Value::Bool(b) => Ok(Value::Int(if *b { 1 } else { 0 })),
-            Value::String(s) => s
-                .parse::<i64>()
-                .map(Value::Int)
-                .map_err(|_| format!("无法将字符串 '{}' 转换为整数", s)),
-            Value::Null(_) => Ok(Value::Null(NullType::Null)),
-            Value::Empty => Ok(Value::Null(NullType::Null)),
-            _ => Err(format!("无法将 {:?} 转换为整数", self.get_type())),
-        }
-    }
-
-    /// 转换为浮点数
-    pub fn cast_to_float(&self) -> Result<Value, String> {
-        match self {
-            Value::Float(f) => Ok(Value::Float(*f)),
-            Value::Int(i) => Ok(Value::Float(*i as f64)),
-            Value::Bool(b) => Ok(Value::Float(if *b { 1.0 } else { 0.0 })),
-            Value::String(s) => s
-                .parse::<f64>()
-                .map(Value::Float)
-                .map_err(|_| format!("无法将字符串 '{}' 转换为浮点数", s)),
-            Value::Null(_) => Ok(Value::Null(NullType::Null)),
-            Value::Empty => Ok(Value::Null(NullType::Null)),
-            _ => Err(format!("无法将 {:?} 转换为浮点数", self.get_type())),
-        }
-    }
-
-    /// 转换为字符串
-    pub fn cast_to_string(&self) -> Result<Value, String> {
-        match self {
-            Value::String(s) => Ok(Value::String(s.clone())),
-            Value::Bool(b) => Ok(Value::String(if *b {
-                "true".to_string()
-            } else {
-                "false".to_string()
-            })),
-            Value::Int(i) => Ok(Value::String(i.to_string())),
-            Value::Float(f) => Ok(Value::String(f.to_string())),
-            Value::Null(_) => Ok(Value::String("null".to_string())),
-            Value::Empty => Ok(Value::String("empty".to_string())),
-            Value::List(list) => {
-                let items: Vec<String> = list
-                    .iter()
-                    .map(|v| {
-                        v.cast_to_string().map(|s| {
-                            if let Value::String(s) = s {
-                                s
-                            } else {
-                                "?".to_string()
-                            }
-                        })
-                    })
-                    .collect::<Result<Vec<_>, _>>()?;
-                Ok(Value::String(format!("[{}]", items.join(", "))))
-            }
-            Value::Map(map) => {
-                let items: Vec<String> = map
-                    .iter()
-                    .map(|(k, v)| {
-                        v.cast_to_string().map(|s| {
-                            if let Value::String(s) = s {
-                                format!("{}: {}", k, s)
-                            } else {
-                                format!("{}: ?", k)
-                            }
-                        })
-                    })
-                    .collect::<Result<Vec<_>, _>>()?;
-                Ok(Value::String(format!("{{{}}}", items.join(", "))))
-            }
-            _ => Err(format!("无法将 {:?} 转换为字符串", self.get_type())),
-        }
-    }
-
-    /// 转换为列表
-    pub fn cast_to_list(&self) -> Result<Value, String> {
-        match self {
-            Value::List(list) => Ok(Value::List(list.clone())),
-            Value::Set(set) => Ok(Value::List(set.iter().cloned().collect())),
-            Value::Null(_) => Ok(Value::Null(NullType::Null)),
-            Value::Empty => Ok(Value::List(vec![])),
-            Value::String(s) => {
-                let chars: Vec<Value> = s.chars().map(|c| Value::String(c.to_string())).collect();
-                Ok(Value::List(chars))
-            }
-            _ => Err(format!("无法将 {:?} 转换为列表", self.get_type())),
-        }
-    }
-
-    /// 转换为映射
-    pub fn cast_to_map(&self) -> Result<Value, String> {
-        match self {
-            Value::Map(map) => Ok(Value::Map(map.clone())),
-            Value::Null(_) => Ok(Value::Null(NullType::Null)),
-            Value::Empty => Ok(Value::Map(std::collections::HashMap::new())),
-            Value::List(list) => {
-                let mut map = std::collections::HashMap::new();
-                for (i, v) in list.iter().enumerate() {
-                    map.insert(i.to_string(), v.clone());
-                }
-                Ok(Value::Map(map))
-            }
-            _ => Err(format!("无法将 {:?} 转换为映射", self.get_type())),
-        }
     }
 
     /// 取反操作
@@ -494,7 +338,7 @@ impl std::fmt::Display for Value {
                 }
                 write!(f, "}}")
             }
-            Value::Geography(g) => write!(f, "Geography({:?})", g),
+            Value::Geography(g) => write!(f, "Geography(lat: {}, lon: {})", g.latitude, g.longitude),
             Value::Duration(d) => write!(f, "Duration({:?})", d),
             Value::DataSet(ds) => write!(f, "DataSet({:?})", ds),
         }

@@ -41,29 +41,6 @@ impl AggregateValidationStrategy {
                     .as_ref()
                     .map_or(false, |d| self.has_aggregate_expr(d))
             }
-            Expression::ListComprehension {
-                generator,
-                condition,
-            } => {
-                self.has_aggregate_expr(generator.as_ref())
-                    || condition
-                        .as_ref()
-                        .map_or(false, |c| self.has_aggregate_expr(c))
-            }
-            Expression::Predicate { list, condition } => {
-                self.has_aggregate_expr(list.as_ref())
-                    || self.has_aggregate_expr(condition.as_ref())
-            }
-            Expression::Reduce {
-                list,
-                initial,
-                expr,
-                ..
-            } => {
-                self.has_aggregate_expr(list.as_ref())
-                    || self.has_aggregate_expr(initial.as_ref())
-                    || self.has_aggregate_expr(expr.as_ref())
-            }
             _ => false,
         }
     }
@@ -163,29 +140,6 @@ impl AggregateValidationStrategy {
                     .as_ref()
                     .map_or(false, |d| self.has_wildcard_property(d))
             }
-            Expression::ListComprehension {
-                generator,
-                condition,
-            } => {
-                self.has_wildcard_property(generator.as_ref())
-                    || condition
-                        .as_ref()
-                        .map_or(false, |c| self.has_wildcard_property(c))
-            }
-            Expression::Predicate { list, condition } => {
-                self.has_wildcard_property(list.as_ref())
-                    || self.has_wildcard_property(condition.as_ref())
-            }
-            Expression::Reduce {
-                list,
-                initial,
-                expr,
-                ..
-            } => {
-                self.has_wildcard_property(list.as_ref())
-                    || self.has_wildcard_property(initial.as_ref())
-                    || self.has_wildcard_property(expr.as_ref())
-            }
             _ => false,
         }
     }
@@ -199,16 +153,7 @@ impl AggregateValidationStrategy {
     fn validate_expression_in_aggregate(&self, expr: &Expression) -> Result<(), ValidationError> {
         match expr {
             // 递归检查一元操作（包括各种一元操作符）
-            Expression::Unary { operand, .. }
-            | Expression::UnaryPlus(operand)
-            | Expression::UnaryNegate(operand)
-            | Expression::UnaryNot(operand)
-            | Expression::UnaryIncr(operand)
-            | Expression::UnaryDecr(operand)
-            | Expression::IsNull(operand)
-            | Expression::IsNotNull(operand)
-            | Expression::IsEmpty(operand)
-            | Expression::IsNotEmpty(operand) => {
+            Expression::Unary { operand, .. } => {
                 self.validate_expression_in_aggregate(operand)?;
             }
 
@@ -258,35 +203,6 @@ impl AggregateValidationStrategy {
                 if let Some(d) = default {
                     self.validate_expression_in_aggregate(d)?;
                 }
-            }
-
-            // 递归检查列表推导
-            Expression::ListComprehension {
-                generator,
-                condition,
-            } => {
-                self.validate_expression_in_aggregate(generator)?;
-                if let Some(c) = condition {
-                    self.validate_expression_in_aggregate(c)?;
-                }
-            }
-
-            // 递归检查谓词表达式
-            Expression::Predicate { list, condition } => {
-                self.validate_expression_in_aggregate(list)?;
-                self.validate_expression_in_aggregate(condition)?;
-            }
-
-            // 递归检查归约表达式
-            Expression::Reduce {
-                list,
-                initial,
-                expr: reduce_expr,
-                ..
-            } => {
-                self.validate_expression_in_aggregate(list)?;
-                self.validate_expression_in_aggregate(initial)?;
-                self.validate_expression_in_aggregate(reduce_expr)?;
             }
 
             // 常量、属性、聚合等表达式不需要进一步递归检查

@@ -264,14 +264,6 @@ impl ExpressionValidationStrategy {
             Expression::Literal(_) => 1,
             Expression::Variable(_) => 1,
             Expression::Label(_) => 1,
-            Expression::UUID => 1,
-            Expression::ESQuery(_) => 1,
-            Expression::TagProperty { .. } => 1,
-            Expression::EdgeProperty { .. } => 1,
-            Expression::InputProperty(_) => 1,
-            Expression::SourceProperty { .. } => 1,
-            Expression::DestinationProperty { .. } => 1,
-            Expression::VariableProperty { .. } => 1,
 
             Expression::Property { object, .. } => {
                 1 + self.calculate_expression_depth(object)
@@ -284,16 +276,6 @@ impl ExpressionValidationStrategy {
             Expression::Unary { operand, .. } => {
                 1 + self.calculate_expression_depth(operand)
             }
-
-            Expression::UnaryPlus(expr) => 1 + self.calculate_expression_depth(expr),
-            Expression::UnaryNegate(expr) => 1 + self.calculate_expression_depth(expr),
-            Expression::UnaryNot(expr) => 1 + self.calculate_expression_depth(expr),
-            Expression::UnaryIncr(expr) => 1 + self.calculate_expression_depth(expr),
-            Expression::UnaryDecr(expr) => 1 + self.calculate_expression_depth(expr),
-            Expression::IsNull(expr) => 1 + self.calculate_expression_depth(expr),
-            Expression::IsNotNull(expr) => 1 + self.calculate_expression_depth(expr),
-            Expression::IsEmpty(expr) => 1 + self.calculate_expression_depth(expr),
-            Expression::IsNotEmpty(expr) => 1 + self.calculate_expression_depth(expr),
 
             Expression::Function { args, .. } => {
                 let max_arg_depth = args.iter()
@@ -361,33 +343,6 @@ impl ExpressionValidationStrategy {
                     .max()
                     .unwrap_or(0);
                 1 + max_item_depth
-            }
-
-            Expression::ListComprehension { generator, condition } => {
-                let mut depth = self.calculate_expression_depth(generator);
-                if let Some(cond) = condition {
-                    depth = depth.max(self.calculate_expression_depth(cond));
-                }
-                1 + depth
-            }
-
-            Expression::Predicate { list, condition } => {
-                1 + self.calculate_expression_depth(list)
-                    .max(self.calculate_expression_depth(condition))
-            }
-
-            Expression::Reduce { list, initial, expr, .. } => {
-                1 + self.calculate_expression_depth(list)
-                    .max(self.calculate_expression_depth(initial))
-                    .max(self.calculate_expression_depth(expr))
-            }
-
-            Expression::MatchPathPattern { patterns, .. } => {
-                let max_pattern_depth = patterns.iter()
-                    .map(|p| self.calculate_expression_depth(p))
-                    .max()
-                    .unwrap_or(0);
-                1 + max_pattern_depth
             }
         }
     }

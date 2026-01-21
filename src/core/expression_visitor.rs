@@ -80,40 +80,6 @@ pub trait ExpressionVisitor: std::fmt::Debug + Send + Sync {
             } => self.visit_range(collection, start, end),
             Expression::Path(items) => self.visit_path(items),
             Expression::Label(name) => self.visit_label(name),
-            Expression::TagProperty { tag, prop } => self.visit_tag_property(tag, prop),
-            Expression::EdgeProperty { edge, prop } => self.visit_edge_property(edge, prop),
-            Expression::InputProperty(prop) => self.visit_input_property(prop),
-            Expression::VariableProperty { var, prop } => self.visit_variable_property(var, prop),
-            Expression::SourceProperty { tag, prop } => self.visit_source_property(tag, prop),
-            Expression::DestinationProperty { tag, prop } => {
-                self.visit_destination_property(tag, prop)
-            }
-            Expression::UnaryPlus(expr) => self.visit_unary_plus(expr),
-            Expression::UnaryNegate(expr) => self.visit_unary_negate(expr),
-            Expression::UnaryNot(expr) => self.visit_unary_not(expr),
-            Expression::UnaryIncr(expr) => self.visit_unary_incr(expr),
-            Expression::UnaryDecr(expr) => self.visit_unary_decr(expr),
-            Expression::IsNull(expr) => self.visit_is_null(expr),
-            Expression::IsNotNull(expr) => self.visit_is_not_null(expr),
-            Expression::IsEmpty(expr) => self.visit_is_empty(expr),
-            Expression::IsNotEmpty(expr) => self.visit_is_not_empty(expr),
-            Expression::ListComprehension {
-                generator,
-                condition,
-            } => self.visit_list_comprehension(generator, condition),
-            Expression::Predicate { list, condition } => self.visit_predicate(list, condition),
-            Expression::Reduce {
-                list,
-                var,
-                initial,
-                expr,
-            } => self.visit_reduce(list, var, initial, expr),
-            Expression::ESQuery(query) => self.visit_es_query(query),
-            Expression::UUID => self.visit_uuid(),
-            Expression::MatchPathPattern {
-                path_alias,
-                patterns,
-            } => self.visit_match_path_pattern(path_alias, patterns),
         }
     }
 
@@ -130,19 +96,10 @@ pub trait ExpressionVisitor: std::fmt::Debug + Send + Sync {
             Expr::Map(e) => self.visit_map_expr(e),
             Expr::Case(e) => self.visit_case_expr(e),
             Expr::Subscript(e) => self.visit_subscript_expr(e),
-            Expr::Predicate(e) => self.visit_predicate_expr(e),
-            Expr::TagProperty(e) => self.visit_tag_property_expr(e),
-            Expr::EdgeProperty(e) => self.visit_edge_property_expr(e),
-            Expr::InputProperty(e) => self.visit_input_property_expr(e),
-            Expr::VariableProperty(e) => self.visit_variable_property_expr(e),
-            Expr::SourceProperty(e) => self.visit_source_property_expr(e),
-            Expr::DestinationProperty(e) => self.visit_destination_property_expr(e),
             Expr::TypeCast(e) => self.visit_type_cast_expr(e),
             Expr::Range(e) => self.visit_range_expr(e),
             Expr::Path(e) => self.visit_path_expr(e),
             Expr::Label(e) => self.visit_label_expr(e),
-            Expr::Reduce(e) => self.visit_reduce_expr(e),
-            Expr::ListComprehension(e) => self.visit_list_comprehension_expr(e),
         }
     }
 
@@ -196,72 +153,7 @@ pub trait ExpressionVisitor: std::fmt::Debug + Send + Sync {
 
     fn visit_label(&mut self, name: &str) -> Self::Result;
 
-    fn visit_tag_property(&mut self, tag: &str, prop: &str) -> Self::Result;
-
-    fn visit_edge_property(&mut self, edge: &str, prop: &str) -> Self::Result;
-
-    fn visit_input_property(&mut self, prop: &str) -> Self::Result;
-
-    fn visit_variable_property(&mut self, var: &str, prop: &str) -> Self::Result;
-
-    fn visit_source_property(&mut self, tag: &str, prop: &str) -> Self::Result;
-
-    fn visit_destination_property(&mut self, tag: &str, prop: &str) -> Self::Result;
-
-    fn visit_unary_plus(&mut self, expr: &Expression) -> Self::Result;
-
-    fn visit_unary_negate(&mut self, expr: &Expression) -> Self::Result;
-
-    fn visit_unary_not(&mut self, expr: &Expression) -> Self::Result;
-
-    fn visit_unary_incr(&mut self, expr: &Expression) -> Self::Result;
-
-    fn visit_unary_decr(&mut self, expr: &Expression) -> Self::Result;
-
-    fn visit_is_null(&mut self, expr: &Expression) -> Self::Result;
-
-    fn visit_is_not_null(&mut self, expr: &Expression) -> Self::Result;
-
-    fn visit_is_empty(&mut self, expr: &Expression) -> Self::Result;
-
-    fn visit_is_not_empty(&mut self, expr: &Expression) -> Self::Result;
-
-    fn visit_type_casting(&mut self, expr: &Expression, target_type: &str) -> Self::Result;
-
-    fn visit_list_comprehension(
-        &mut self,
-        generator: &Expression,
-        condition: &Option<Box<Expression>>,
-    ) -> Self::Result;
-
-    fn visit_predicate(&mut self, list: &Expression, condition: &Expression) -> Self::Result;
-
-    fn visit_reduce(
-        &mut self,
-        list: &Expression,
-        var: &str,
-        initial: &Expression,
-        expr: &Expression,
-    ) -> Self::Result;
-
-    fn visit_path_build(&mut self, items: &[Expression]) -> Self::Result;
-
-    fn visit_es_query(&mut self, query: &str) -> Self::Result;
-
-    fn visit_uuid(&mut self) -> Self::Result;
-
-    fn visit_subscript_range(
-        &mut self,
-        collection: &Expression,
-        start: &Option<Box<Expression>>,
-        end: &Option<Box<Expression>>,
-    ) -> Self::Result;
-
-    fn visit_match_path_pattern(
-        &mut self,
-        path_alias: &str,
-        patterns: &[Expression],
-    ) -> Self::Result;
+    fn visit_label_expr(&mut self, expr: &LabelExpr) -> Self::Result;
 
     /// Expr类型（AST表达式）访问方法
     fn visit_constant_expr(&mut self, expr: &ConstantExpr) -> Self::Result;
@@ -284,31 +176,11 @@ pub trait ExpressionVisitor: std::fmt::Debug + Send + Sync {
 
     fn visit_subscript_expr(&mut self, expr: &SubscriptExpr) -> Self::Result;
 
-    fn visit_predicate_expr(&mut self, expr: &PredicateExpr) -> Self::Result;
-
-    fn visit_tag_property_expr(&mut self, expr: &TagPropertyExpr) -> Self::Result;
-
-    fn visit_edge_property_expr(&mut self, expr: &EdgePropertyExpr) -> Self::Result;
-
-    fn visit_input_property_expr(&mut self, expr: &InputPropertyExpr) -> Self::Result;
-
-    fn visit_variable_property_expr(&mut self, expr: &VariablePropertyExpr) -> Self::Result;
-
-    fn visit_source_property_expr(&mut self, expr: &SourcePropertyExpr) -> Self::Result;
-
-    fn visit_destination_property_expr(&mut self, expr: &DestinationPropertyExpr) -> Self::Result;
-
     fn visit_type_cast_expr(&mut self, expr: &TypeCastExpr) -> Self::Result;
 
     fn visit_range_expr(&mut self, expr: &RangeExpr) -> Self::Result;
 
     fn visit_path_expr(&mut self, expr: &PathExpr) -> Self::Result;
-
-    fn visit_label_expr(&mut self, expr: &LabelExpr) -> Self::Result;
-
-    fn visit_reduce_expr(&mut self, expr: &ReduceExpr) -> Self::Result;
-
-    fn visit_list_comprehension_expr(&mut self, expr: &ListComprehensionExpr) -> Self::Result;
 
     /// 预访问钩子 - 在访问开始前调用
     fn pre_visit(&mut self) -> VisitorResult<()> {
