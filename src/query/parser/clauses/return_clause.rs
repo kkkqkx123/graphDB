@@ -8,6 +8,9 @@ pub struct ReturnClause {
     pub span: Span,
     pub items: Vec<ReturnItem>,
     pub distinct: bool,
+    pub limit: Option<super::LimitClause>,
+    pub skip: Option<super::SkipClause>,
+    pub sample: Option<super::SampleClause>,
 }
 
 /// RETURN 项

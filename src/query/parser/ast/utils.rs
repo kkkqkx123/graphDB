@@ -362,6 +362,9 @@ impl AstBuilder {
                 alias: None,
             }],
             distinct: false,
+            limit: None,
+            skip: None,
+            sample: None,
         };
 
         StmtFactory::match_stmt(

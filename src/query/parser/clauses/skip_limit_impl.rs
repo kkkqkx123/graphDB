@@ -1,6 +1,6 @@
 //! SKIP/LIMIT 子句解析器实现
 
-use crate::query::parser::clauses::{SkipClause, LimitClause};
+use crate::query::parser::clauses::{SkipClause, LimitClause, SampleClause};
 use crate::query::parser::core::error::ParseError;
 use crate::query::parser::TokenKind;
 
@@ -22,6 +22,17 @@ impl crate::query::parser::Parser {
         let count = self.parse_expression()?;
         
         Ok(LimitClause {
+            span: self.current_span(),
+            count,
+        })
+    }
+    
+    pub fn parse_sample_clause(&mut self) -> Result<SampleClause, ParseError> {
+        self.expect_token(TokenKind::Sample)?;
+        
+        let count = self.parse_expression()?;
+        
+        Ok(SampleClause {
             span: self.current_span(),
             count,
         })

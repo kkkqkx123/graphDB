@@ -509,6 +509,9 @@ impl StmtParser {
             span,
             items,
             distinct,
+            limit: None,
+            skip: None,
+            sample: None,
         })
     }
 
@@ -619,7 +622,13 @@ impl StmtParser {
             }
         }
 
-        Ok(YieldClause { span, items })
+        Ok(YieldClause {
+            span,
+            items,
+            limit: None,
+            skip: None,
+            sample: None,
+        })
     }
 
     fn parse_set_clause(&mut self) -> Result<SetClause, ParseError> {

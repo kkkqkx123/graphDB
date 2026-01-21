@@ -28,9 +28,30 @@ impl crate::query::parser::Parser {
             self.next_token();
         }
         
+        let limit = if self.current_token().kind == TokenKind::Limit {
+            Some(self.parse_limit_clause()?)
+        } else {
+            None
+        };
+        
+        let skip = if self.current_token().kind == TokenKind::Skip {
+            Some(self.parse_skip_clause()?)
+        } else {
+            None
+        };
+        
+        let sample = if self.current_token().kind == TokenKind::Sample {
+            Some(self.parse_sample_clause()?)
+        } else {
+            None
+        };
+        
         Ok(YieldClause {
             span: self.current_span(),
             items,
+            limit,
+            skip,
+            sample,
         })
     }
 }

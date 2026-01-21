@@ -7,6 +7,9 @@ use crate::query::parser::ast::*;
 pub struct YieldClause {
     pub span: Span,
     pub items: Vec<YieldItem>,
+    pub limit: Option<super::LimitClause>,
+    pub skip: Option<super::SkipClause>,
+    pub sample: Option<super::SampleClause>,
 }
 
 /// YIELD 项

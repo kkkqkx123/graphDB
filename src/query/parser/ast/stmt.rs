@@ -143,6 +143,9 @@ pub struct ReturnClause {
     pub span: Span,
     pub items: Vec<ReturnItem>,
     pub distinct: bool,
+    pub limit: Option<super::super::clauses::LimitClause>,
+    pub skip: Option<super::super::clauses::SkipClause>,
+    pub sample: Option<super::super::clauses::SampleClause>,
 }
 
 /// 返回项
@@ -263,6 +266,9 @@ pub struct OverClause {
 pub struct YieldClause {
     pub span: Span,
     pub items: Vec<YieldItem>,
+    pub limit: Option<super::super::clauses::LimitClause>,
+    pub skip: Option<super::super::clauses::SkipClause>,
+    pub sample: Option<super::super::clauses::SampleClause>,
 }
 
 /// YIELD 项
