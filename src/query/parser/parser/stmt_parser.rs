@@ -1,37 +1,29 @@
 //! 语句解析模块
 //!
 //! 负责解析各种语句，包括 MATCH、CREATE、DELETE、UPDATE 等。
-//! 提供两种使用方式：
-//! 1. 独立的 `StmtParser` 结构体
-//! 2. 作为 `Parser` 的方法
 
 use crate::core::types::graph::EdgeDirection;
-use crate::core::Value;
-use crate::core::value::types::NullType;
 use crate::query::parser::ast::*;
 use crate::query::parser::ast::expr::*;
 use crate::query::parser::ast::pattern::*;
 use crate::query::parser::ast::stmt::*;
 use crate::query::parser::ast::types::*;
-use crate::query::parser::core::error::ParseErrorKind;
 use crate::query::parser::lexer::{Lexer, TokenKind as LexerToken};
+use crate::query::parser::parser::ExprParser;
 
-/// 独立的语句解析器
-///
-/// 用于独立解析语句的场景，与完整的 SQL Parser 分离
 pub struct StmtParser {
     lexer: Lexer,
+    expr_parser: ExprParser,
 }
 
 impl StmtParser {
-    /// 创建语句解析器
     pub fn new(input: &str) -> Self {
         Self {
             lexer: Lexer::new(input),
+            expr_parser: ExprParser::new(input),
         }
     }
 
-    /// 解析语句
     pub fn parse_statement(&mut self) -> Result<Stmt, ParseError> {
         let token = self.lexer.peek().map_err(|e| ParseError::from(e))?;
         match token.kind {
@@ -57,7 +49,6 @@ impl StmtParser {
         }
     }
 
-    /// 解析 MATCH 语句
     pub fn parse_match_statement(&mut self) -> Result<Stmt, ParseError> {
         let start_span = self.current_span();
         self.expect_token(LexerToken::Match)?;
@@ -96,7 +87,6 @@ impl StmtParser {
         }))
     }
 
-    /// 解析 CREATE 语句
     pub fn parse_create_statement(&mut self) -> Result<Stmt, ParseError> {
         let start_span = self.current_span();
         self.expect_token(LexerToken::Create)?;
@@ -130,7 +120,6 @@ impl StmtParser {
         }
     }
 
-    /// 解析 DELETE 语句
     pub fn parse_delete_statement(&mut self) -> Result<Stmt, ParseError> {
         let start_span = self.current_span();
         self.expect_token(LexerToken::Delete)?;
@@ -161,7 +150,6 @@ impl StmtParser {
         Ok(Stmt::Delete(DeleteStmt { span, target, where_clause }))
     }
 
-    /// 解析 UPDATE 语句
     pub fn parse_update_statement(&mut self) -> Result<Stmt, ParseError> {
         let start_span = self.current_span();
         self.expect_token(LexerToken::Update)?;
@@ -180,7 +168,6 @@ impl StmtParser {
         Ok(Stmt::Update(UpdateStmt { span, target, set_clause, where_clause }))
     }
 
-    /// 解析 GO 语句
     pub fn parse_go_statement(&mut self) -> Result<Stmt, ParseError> {
         let start_span = self.current_span();
         self.expect_token(LexerToken::Go)?;
@@ -216,7 +203,6 @@ impl StmtParser {
         }))
     }
 
-    /// 解析 FETCH 语句
     pub fn parse_fetch_statement(&mut self) -> Result<Stmt, ParseError> {
         let start_span = self.current_span();
         self.expect_token(LexerToken::Fetch)?;
@@ -232,7 +218,6 @@ impl StmtParser {
         }))
     }
 
-    /// 解析 USE 语句
     pub fn parse_use_statement(&mut self) -> Result<Stmt, ParseError> {
         let start_span = self.current_span();
         self.expect_token(LexerToken::Use)?;
@@ -244,7 +229,6 @@ impl StmtParser {
         Ok(Stmt::Use(UseStmt { span, space }))
     }
 
-    /// 解析 SHOW 语句
     pub fn parse_show_statement(&mut self) -> Result<Stmt, ParseError> {
         let start_span = self.current_span();
         self.expect_token(LexerToken::Show)?;
@@ -268,7 +252,6 @@ impl StmtParser {
         Ok(Stmt::Show(ShowStmt { span, target }))
     }
 
-    /// 解析 EXPLAIN 语句
     pub fn parse_explain_statement(&mut self) -> Result<Stmt, ParseError> {
         let start_span = self.current_span();
         self.expect_token(LexerToken::Explain)?;
@@ -280,7 +263,6 @@ impl StmtParser {
         Ok(Stmt::Explain(ExplainStmt { span, statement }))
     }
 
-    /// 解析 LOOKUP 语句
     pub fn parse_lookup_statement(&mut self) -> Result<Stmt, ParseError> {
         let start_span = self.current_span();
         self.expect_token(LexerToken::Lookup)?;
@@ -318,7 +300,6 @@ impl StmtParser {
         }))
     }
 
-    /// 解析 UNWIND 语句
     pub fn parse_unwind_statement(&mut self) -> Result<Stmt, ParseError> {
         let start_span = self.current_span();
         self.expect_token(LexerToken::Unwind)?;
@@ -333,7 +314,6 @@ impl StmtParser {
         Ok(Stmt::Unwind(UnwindStmt { span, expression, variable }))
     }
 
-    /// 解析 MERGE 语句
     pub fn parse_merge_statement(&mut self) -> Result<Stmt, ParseError> {
         let start_span = self.current_span();
         self.expect_token(LexerToken::Merge)?;
@@ -345,7 +325,6 @@ impl StmtParser {
         Ok(Stmt::Merge(MergeStmt { span, pattern }))
     }
 
-    /// 解析 INSERT 语句
     pub fn parse_insert_statement(&mut self) -> Result<Stmt, ParseError> {
         let start_span = self.current_span();
         self.expect_token(LexerToken::Insert)?;
@@ -367,7 +346,6 @@ impl StmtParser {
         Ok(Stmt::Insert(InsertStmt { span, target }))
     }
 
-    /// 解析 RETURN 语句
     pub fn parse_return_statement(&mut self) -> Result<Stmt, ParseError> {
         let start_span = self.current_span();
         self.expect_token(LexerToken::Return)?;
@@ -381,7 +359,6 @@ impl StmtParser {
         Ok(Stmt::Return(ReturnStmt { span, items, distinct }))
     }
 
-    /// 解析 WITH 语句
     pub fn parse_with_statement(&mut self) -> Result<Stmt, ParseError> {
         let start_span = self.current_span();
         self.expect_token(LexerToken::With)?;
@@ -399,7 +376,6 @@ impl StmtParser {
         Ok(Stmt::With(WithStmt { span, items, where_clause }))
     }
 
-    /// 解析 SET 语句
     pub fn parse_set_statement(&mut self) -> Result<Stmt, ParseError> {
         let start_span = self.current_span();
         self.expect_token(LexerToken::Set)?;
@@ -421,7 +397,6 @@ impl StmtParser {
         Ok(Stmt::Set(SetStmt { span, assignments }))
     }
 
-    /// 解析 REMOVE 语句
     pub fn parse_remove_statement(&mut self) -> Result<Stmt, ParseError> {
         let start_span = self.current_span();
         self.expect_token(LexerToken::Remove)?;
@@ -433,7 +408,6 @@ impl StmtParser {
         Ok(Stmt::Remove(RemoveStmt { span, items }))
     }
 
-    /// 解析 PIPE 语句
     pub fn parse_pipe_statement(&mut self) -> Result<Stmt, ParseError> {
         let start_span = self.current_span();
         self.expect_token(LexerToken::Pipe)?;
@@ -445,230 +419,9 @@ impl StmtParser {
         Ok(Stmt::Pipe(PipeStmt { span, expression }))
     }
 
-    /// 表达式解析方法
-
-    pub fn parse_expression(&mut self) -> Result<Expr, ParseError> {
-        self.parse_or_expression()
+    fn parse_expression(&mut self) -> Result<Expr, ParseError> {
+        self.expr_parser.parse_expression()
     }
-
-    fn parse_or_expression(&mut self) -> Result<Expr, ParseError> {
-        let mut left = self.parse_and_expression()?;
-        while self.match_token(LexerToken::Or) {
-            let op = BinaryOp::Or;
-            let right = self.parse_and_expression()?;
-            let span = Span::new(left.span().start, right.span().end);
-            left = Expr::Binary(BinaryExpr::new(left, op, right, span));
-        }
-        Ok(left)
-    }
-
-    fn parse_and_expression(&mut self) -> Result<Expr, ParseError> {
-        let mut left = self.parse_not_expression()?;
-        while self.match_token(LexerToken::And) {
-            let op = BinaryOp::And;
-            let right = self.parse_not_expression()?;
-            let span = Span::new(left.span().start, right.span().end);
-            left = Expr::Binary(BinaryExpr::new(left, op, right, span));
-        }
-        Ok(left)
-    }
-
-    fn parse_not_expression(&mut self) -> Result<Expr, ParseError> {
-        if self.match_token(LexerToken::NotOp) {
-            let op = UnaryOp::Not;
-            let operand = self.parse_not_expression()?;
-            let span = Span::new(operand.span().start, operand.span().end);
-            Ok(Expr::Unary(UnaryExpr::new(op, operand, span)))
-        } else {
-            self.parse_comparison_expression()
-        }
-    }
-
-    fn parse_comparison_expression(&mut self) -> Result<Expr, ParseError> {
-        let mut left = self.parse_additive_expression()?;
-        if let Some(op) = self.parse_comparison_op() {
-            let right = self.parse_additive_expression()?;
-            let span = Span::new(left.span().start, right.span().end);
-            left = Expr::Binary(BinaryExpr::new(left, op, right, span));
-        }
-        Ok(left)
-    }
-
-    fn parse_comparison_op(&mut self) -> Option<BinaryOp> {
-        if self.match_token(LexerToken::Eq) {
-            Some(BinaryOp::Equal)
-        } else if self.match_token(LexerToken::Ne) {
-            Some(BinaryOp::NotEqual)
-        } else if self.match_token(LexerToken::Lt) {
-            Some(BinaryOp::LessThan)
-        } else if self.match_token(LexerToken::Le) {
-            Some(BinaryOp::LessThanOrEqual)
-        } else if self.match_token(LexerToken::Gt) {
-            Some(BinaryOp::GreaterThan)
-        } else if self.match_token(LexerToken::Ge) {
-            Some(BinaryOp::GreaterThanOrEqual)
-        } else {
-            None
-        }
-    }
-
-    fn parse_additive_expression(&mut self) -> Result<Expr, ParseError> {
-        let mut left = self.parse_multiplicative_expression()?;
-        while let Some(op) = self.parse_additive_op() {
-            let right = self.parse_multiplicative_expression()?;
-            let span = Span::new(left.span().start, right.span().end);
-            left = Expr::Binary(BinaryExpr::new(left, op, right, span));
-        }
-        Ok(left)
-    }
-
-    fn parse_additive_op(&mut self) -> Option<BinaryOp> {
-        if self.match_token(LexerToken::Plus) {
-            Some(BinaryOp::Add)
-        } else if self.match_token(LexerToken::Minus) {
-            Some(BinaryOp::Subtract)
-        } else {
-            None
-        }
-    }
-
-    fn parse_multiplicative_expression(&mut self) -> Result<Expr, ParseError> {
-        let mut left = self.parse_unary_expression()?;
-        while let Some(op) = self.parse_multiplicative_op() {
-            let right = self.parse_unary_expression()?;
-            let span = Span::new(left.span().start, right.span().end);
-            left = Expr::Binary(BinaryExpr::new(left, op, right, span));
-        }
-        Ok(left)
-    }
-
-    fn parse_multiplicative_op(&mut self) -> Option<BinaryOp> {
-        if self.match_token(LexerToken::Star) {
-            Some(BinaryOp::Multiply)
-        } else if self.match_token(LexerToken::Div) {
-            Some(BinaryOp::Divide)
-        } else if self.match_token(LexerToken::Mod) {
-            Some(BinaryOp::Modulo)
-        } else {
-            None
-        }
-    }
-
-    fn parse_unary_expression(&mut self) -> Result<Expr, ParseError> {
-        if self.match_token(LexerToken::Minus) {
-            let op = UnaryOp::Minus;
-            let operand = self.parse_unary_expression()?;
-            let span = Span::new(operand.span().start, operand.span().end);
-            Ok(Expr::Unary(UnaryExpr::new(op, operand, span)))
-        } else if self.match_token(LexerToken::Plus) {
-            let op = UnaryOp::Plus;
-            let operand = self.parse_unary_expression()?;
-            let span = Span::new(operand.span().start, operand.span().end);
-            Ok(Expr::Unary(UnaryExpr::new(op, operand, span)))
-        } else {
-            self.parse_primary_expression()
-        }
-    }
-
-    fn parse_primary_expression(&mut self) -> Result<Expr, ParseError> {
-        let token = self.lexer.peek().map_err(|e| ParseError::from(e))?;
-        match token.kind {
-            LexerToken::IntegerLiteral(n) => {
-                let value = self.parse_integer()?;
-                let span = self.current_span();
-                Ok(Expr::Constant(ConstantExpr::new(Value::Int(value), span)))
-            }
-            LexerToken::FloatLiteral(f) => {
-                let value = self.parse_float()?;
-                let span = self.current_span();
-                Ok(Expr::Constant(ConstantExpr::new(Value::Float(value), span)))
-            }
-            LexerToken::StringLiteral(_) => {
-                let value = self.parse_string()?;
-                let span = self.current_span();
-                Ok(Expr::Constant(ConstantExpr::new(Value::String(value), span)))
-            }
-            LexerToken::BooleanLiteral(b) => {
-                let value = Value::Bool(b);
-                self.lexer.advance();
-                let span = self.current_span();
-                Ok(Expr::Constant(ConstantExpr::new(value, span)))
-            }
-            LexerToken::Null => {
-                self.lexer.advance();
-                let span = self.current_span();
-                Ok(Expr::Constant(ConstantExpr::new(Value::Null(NullType::Null), span)))
-            }
-            LexerToken::Identifier(_) => {
-                let name = self.expect_identifier()?;
-                let span = self.current_span();
-                if self.match_token(LexerToken::LParen) {
-                    self.parse_function_call(name, span)
-                } else {
-                    Ok(Expr::Variable(VariableExpr::new(name, span)))
-                }
-            }
-            LexerToken::LParen => self.parse_subquery_expression(),
-            _ => Err(self.parse_error(format!("Unexpected token in expression: {:?}", token.kind))),
-        }
-    }
-
-    fn parse_function_call(&mut self, name: String, span: Span) -> Result<Expr, ParseError> {
-        let mut args = Vec::new();
-        if !self.check_token(LexerToken::RParen) {
-            loop {
-                args.push(self.parse_expression()?);
-                if !self.match_token(LexerToken::Comma) {
-                    break;
-                }
-            }
-        }
-        self.expect_token(LexerToken::RParen)?;
-        let call_span = Span::new(span.start, self.current_span().end);
-        Ok(Expr::FunctionCall(FunctionCallExpr::new(name, args, false, call_span)))
-    }
-
-    fn parse_subquery_expression(&mut self) -> Result<Expr, ParseError> {
-        self.expect_token(LexerToken::LParen)?;
-        let expr = self.parse_expression()?;
-        self.expect_token(LexerToken::RParen)?;
-        Ok(expr)
-    }
-
-    fn parse_integer(&mut self) -> Result<i64, ParseError> {
-        let token = self.lexer.peek().map_err(|e| ParseError::from(e))?;
-        if let LexerToken::IntegerLiteral(n) = token.kind {
-            let text = token.lexeme.clone();
-            self.lexer.advance();
-            text.parse().map_err(|_| self.parse_error(format!("Invalid integer: {}", text)))
-        } else {
-            Err(self.parse_error(format!("Expected integer, found {:?}", token.kind)))
-        }
-    }
-
-    fn parse_float(&mut self) -> Result<f64, ParseError> {
-        let token = self.lexer.peek().map_err(|e| ParseError::from(e))?;
-        if let LexerToken::FloatLiteral(f) = token.kind {
-            let text = token.lexeme.clone();
-            self.lexer.advance();
-            text.parse().map_err(|_| self.parse_error(format!("Invalid float: {}", text)))
-        } else {
-            Err(self.parse_error(format!("Expected float, found {:?}", token.kind)))
-        }
-    }
-
-    fn parse_string(&mut self) -> Result<String, ParseError> {
-        let token = self.lexer.peek().map_err(|e| ParseError::from(e))?;
-        if let LexerToken::StringLiteral(_) = token.kind {
-            let text = token.lexeme.clone();
-            self.lexer.advance();
-            Ok(text)
-        } else {
-            Err(self.parse_error(format!("Expected string, found {:?}", token.kind)))
-        }
-    }
-
-    /// 辅助方法
 
     fn parse_patterns(&mut self) -> Result<Vec<Pattern>, ParseError> {
         let mut patterns = Vec::new();
@@ -925,6 +678,17 @@ impl StmtParser {
             Position::new(pos.line, pos.column),
             Position::new(pos.line, pos.column),
         )
+    }
+
+    fn parse_integer(&mut self) -> Result<i64, ParseError> {
+        let token = self.lexer.peek().map_err(|e| ParseError::from(e))?;
+        if let LexerToken::IntegerLiteral(n) = token.kind {
+            let text = token.lexeme.clone();
+            self.lexer.advance();
+            text.parse().map_err(|_| self.parse_error(format!("Invalid integer: {}", text)))
+        } else {
+            Err(self.parse_error(format!("Expected integer, found {:?}", token.kind)))
+        }
     }
 
     fn parse_error(&self, message: String) -> ParseError {

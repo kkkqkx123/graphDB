@@ -1,6 +1,4 @@
 //! 解析器模块
-//!
-//! 基于新 AST 设计的完整解析器，提供完整的查询语言解析功能。
 
 mod expr_parser;
 mod pattern_parser;
@@ -16,10 +14,11 @@ use crate::query::parser::Token;
 use crate::query::parser::core::error::ParseErrorKind;
 use crate::query::parser::{TokenKind, ParseError};
 use crate::query::parser::ast::stmt::{FromClause, OverClause};
+use crate::query::parser::ast::expr::Expr;
 
-/// 解析器
 pub struct Parser {
     lexer: Lexer,
+    expr_parser: ExprParser,
     compat_mode: bool,
     current_token: Token,
     recursion_depth: usize,
@@ -27,7 +26,6 @@ pub struct Parser {
 }
 
 impl Parser {
-    /// 创建解析器
     pub fn new(input: &str) -> Self {
         let mut lexer = Lexer::new(input);
         let current_token = lexer.peek().unwrap_or_else(|_| {
@@ -36,6 +34,7 @@ impl Parser {
 
         Self {
             lexer,
+            expr_parser: ExprParser::new(input),
             compat_mode: false,
             current_token,
             recursion_depth: 0,
@@ -43,12 +42,10 @@ impl Parser {
         }
     }
 
-    /// 设置兼容模式
     pub fn set_compat_mode(&mut self, enabled: bool) {
         self.compat_mode = enabled;
     }
 
-    /// 进入递归
     pub fn enter_recursion(&mut self) -> Result<(), crate::query::parser::core::error::ParseError> {
         self.recursion_depth += 1;
         if self.recursion_depth > self.max_recursion_depth {
@@ -64,14 +61,12 @@ impl Parser {
         }
     }
 
-    /// 退出递归
     pub fn exit_recursion(&mut self) {
         if self.recursion_depth > 0 {
             self.recursion_depth -= 1;
         }
     }
 
-    /// 获取当前 span
     pub fn parser_current_span(&self) -> crate::query::parser::ast::types::Span {
         let pos = self.lexer.current_position();
         crate::query::parser::ast::types::Span::new(
@@ -80,7 +75,6 @@ impl Parser {
         )
     }
 
-    /// 获取当前 span（别名）
     pub fn current_span(&self) -> crate::query::parser::ast::types::Span {
         self.parser_current_span()
     }
@@ -116,5 +110,72 @@ impl Parser {
             direction = crate::core::types::graph::EdgeDirection::Both;
         }
         Ok(OverClause { span, edge_types, direction })
+    }
+
+    pub fn parse_expression(&mut self) -> Result<Expr, ParseError> {
+        self.expr_parser.parse_expression()
+    }
+
+    fn parse_expression_list(&mut self) -> Result<Vec<Expr>, ParseError> {
+        let mut expressions = Vec::new();
+        loop {
+            expressions.push(self.parse_expression()?);
+            if !self.match_token(TokenKind::Comma) {
+                break;
+            }
+        }
+        Ok(expressions)
+    }
+
+    fn match_token(&mut self, expected: TokenKind) -> bool {
+        if self.current_token.kind == expected {
+            self.next_token();
+            true
+        } else {
+            false
+        }
+    }
+
+    fn expect_token(&mut self, expected: TokenKind) -> Result<(), ParseError> {
+        if self.current_token.kind == expected {
+            self.next_token();
+            Ok(())
+        } else {
+            let span = self.parser_current_span();
+            Err(ParseError::new(
+                ParseErrorKind::UnexpectedToken,
+                format!(
+                    "Expected {:?}, found {:?}",
+                    expected, self.current_token.kind
+                ),
+                span.start.line,
+                span.start.column,
+            ))
+        }
+    }
+
+    fn parse_identifier(&mut self) -> Result<String, ParseError> {
+        match &self.current_token.kind {
+            TokenKind::Identifier(s) => {
+                let id = s.clone();
+                self.next_token();
+                Ok(id)
+            }
+            _ => Err(ParseError::new(
+                ParseErrorKind::UnexpectedToken,
+                format!("Expected identifier, found {:?}", self.current_token.kind),
+                self.current_token.line,
+                self.current_token.column,
+            )),
+        }
+    }
+
+    fn current_token(&self) -> &Token {
+        &self.current_token
+    }
+
+    fn next_token(&mut self) {
+        let token = self.lexer.next_token();
+        self.current_token = token;
     }
 }
