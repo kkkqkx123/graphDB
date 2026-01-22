@@ -20,3 +20,5 @@ pub use clauses::*;
 
 // 重新导出统一解析器
 pub use parser::Parser;
+pub use parser::ExprParser;
+pub use parser::StmtParser;

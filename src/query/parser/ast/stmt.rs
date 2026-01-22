@@ -143,9 +143,9 @@ pub struct ReturnClause {
     pub span: Span,
     pub items: Vec<ReturnItem>,
     pub distinct: bool,
-    pub limit: Option<super::super::clauses::LimitClause>,
-    pub skip: Option<super::super::clauses::SkipClause>,
-    pub sample: Option<super::super::clauses::SampleClause>,
+    pub limit: Option<super::types::LimitClause>,
+    pub skip: Option<super::types::SkipClause>,
+    pub sample: Option<super::types::SampleClause>,
 }
 
 /// 返回项
@@ -246,6 +246,20 @@ pub enum Steps {
     Variable(String),
 }
 
+/// STEP 子句
+#[derive(Debug, Clone, PartialEq)]
+pub struct StepClause {
+    pub span: Span,
+    pub steps: Steps,
+}
+
+/// WHERE 子句
+#[derive(Debug, Clone, PartialEq)]
+pub struct WhereClause {
+    pub span: Span,
+    pub condition: Expr,
+}
+
 /// FROM 子句
 #[derive(Debug, Clone, PartialEq)]
 pub struct FromClause {
@@ -266,9 +280,9 @@ pub struct OverClause {
 pub struct YieldClause {
     pub span: Span,
     pub items: Vec<YieldItem>,
-    pub limit: Option<super::super::clauses::LimitClause>,
-    pub skip: Option<super::super::clauses::SkipClause>,
-    pub sample: Option<super::super::clauses::SampleClause>,
+    pub limit: Option<super::types::LimitClause>,
+    pub skip: Option<super::types::SkipClause>,
+    pub sample: Option<super::types::SampleClause>,
 }
 
 /// YIELD 项

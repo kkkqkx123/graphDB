@@ -1,23 +1,9 @@
 //! YIELD 子句
+//!
+//! 子句结构定义已移至 ast/stmt.rs，此文件仅保留解析器 trait
 
 use crate::query::parser::ast::*;
-
-/// YIELD 子句
-#[derive(Debug, Clone, PartialEq)]
-pub struct YieldClause {
-    pub span: Span,
-    pub items: Vec<YieldItem>,
-    pub limit: Option<super::LimitClause>,
-    pub skip: Option<super::SkipClause>,
-    pub sample: Option<super::SampleClause>,
-}
-
-/// YIELD 项
-#[derive(Debug, Clone, PartialEq)]
-pub struct YieldItem {
-    pub expr: Expr,
-    pub alias: Option<String>,
-}
+use crate::query::parser::ast::types::{LimitClause, SampleClause, SkipClause};
 
 /// YIELD 子句解析器
 pub trait YieldParser {

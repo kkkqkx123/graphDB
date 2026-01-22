@@ -22,16 +22,6 @@ pub use pattern::*;
 pub mod visitor;
 pub use visitor::*;
 
-// 解析器实现
-pub mod expr_parser;
-pub use expr_parser::*;
-
-pub mod stmt_parser;
-pub use stmt_parser::*;
-
-pub mod pattern_parser;
-pub use pattern_parser::*;
-
 // 工具函数
 pub mod utils;
 pub use utils::*;

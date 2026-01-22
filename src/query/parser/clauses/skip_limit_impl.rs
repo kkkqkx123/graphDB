@@ -1,6 +1,7 @@
 //! SKIP/LIMIT 子句解析器实现
 
-use crate::query::parser::clauses::{SkipClause, LimitClause, SampleClause};
+use crate::query::parser::ast::types::{LimitClause, SkipClause, SampleClause};
+use crate::query::parser::ast::Expr;
 use crate::query::parser::core::error::ParseError;
 use crate::query::parser::TokenKind;
 
@@ -10,9 +11,11 @@ impl crate::query::parser::Parser {
         
         let count = self.parse_expression()?;
         
+        let count_value = Self::evaluate_expression_to_usize(&count)?;
+        
         Ok(SkipClause {
             span: self.current_span(),
-            count,
+            count: count_value,
         })
     }
     
@@ -21,9 +24,11 @@ impl crate::query::parser::Parser {
         
         let count = self.parse_expression()?;
         
+        let count_value = Self::evaluate_expression_to_usize(&count)?;
+        
         Ok(LimitClause {
             span: self.current_span(),
-            count,
+            count: count_value,
         })
     }
     
@@ -32,9 +37,40 @@ impl crate::query::parser::Parser {
         
         let count = self.parse_expression()?;
         
+        let count_value = Self::evaluate_expression_to_usize(&count)?;
+        
         Ok(SampleClause {
             span: self.current_span(),
-            count,
+            count: count_value,
+            percentage: None,
         })
+    }
+    
+    fn evaluate_expression_to_usize(expr: &Expr) -> Result<usize, ParseError> {
+        match expr {
+            Expr::Constant(c) => match &c.value {
+                crate::core::Value::Int(n) => Ok(*n as usize),
+                crate::core::Value::String(s) => s.parse::<usize>().map_err(|_| {
+                    ParseError::new(
+                        crate::query::parser::core::error::ParseErrorKind::SyntaxError,
+                        format!("Cannot convert '{}' to integer", s),
+                        c.span.start.line,
+                        c.span.start.column,
+                    )
+                }),
+                _ => Err(ParseError::new(
+                    crate::query::parser::core::error::ParseErrorKind::SyntaxError,
+                    "Expected integer literal".to_string(),
+                    expr.span().start.line,
+                    expr.span().start.column,
+                )),
+            },
+            _ => Err(ParseError::new(
+                crate::query::parser::core::error::ParseErrorKind::SyntaxError,
+                "Expected integer literal".to_string(),
+                expr.span().start.line,
+                expr.span().start.column,
+            )),
+        }
     }
 }

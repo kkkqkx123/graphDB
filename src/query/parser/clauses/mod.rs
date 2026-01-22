@@ -1,6 +1,6 @@
 //! 子句模块
 //!
-//! 包含所有子句的定义和解析器
+//! 包含所有子句的解析器定义。子句结构定义已统一移至 ast/stmt.rs
 
 pub mod where_clause;
 pub mod order_by;
@@ -32,3 +32,21 @@ pub use yield_clause::*;
 pub use return_clause::*;
 pub use with_clause::*;
 pub use set_clause::*;
+
+pub use crate::query::parser::ast::stmt::{
+    YieldClause,
+    YieldItem,
+    ReturnClause,
+    ReturnItem,
+    FromClause,
+    OverClause,
+    SetClause,
+    Assignment,
+    OrderByClause,
+    OrderByItem,
+    Steps,
+    WhereClause,
+    StepClause,
+};
+
+pub use crate::query::parser::ast::types::OrderDirection;

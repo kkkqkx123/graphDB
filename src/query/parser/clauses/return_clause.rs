@@ -1,24 +1,9 @@
 //! RETURN 子句
+//!
+//! 子句结构定义已移至 ast/stmt.rs，此文件仅保留解析器 trait
 
 use crate::query::parser::ast::*;
-
-/// RETURN 子句
-#[derive(Debug, Clone, PartialEq)]
-pub struct ReturnClause {
-    pub span: Span,
-    pub items: Vec<ReturnItem>,
-    pub distinct: bool,
-    pub limit: Option<super::LimitClause>,
-    pub skip: Option<super::SkipClause>,
-    pub sample: Option<super::SampleClause>,
-}
-
-/// RETURN 项
-#[derive(Debug, Clone, PartialEq)]
-pub enum ReturnItem {
-    All,
-    Expression { expr: Expr, alias: Option<String> },
-}
+use crate::query::parser::ast::types::{LimitClause, SampleClause, SkipClause};
 
 /// RETURN 子句解析器
 pub trait ReturnParser {

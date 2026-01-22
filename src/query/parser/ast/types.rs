@@ -135,5 +135,27 @@ pub enum OrderDirection {
 // 聚合函数使用核心定义，但为了兼容性提供别名
 pub type AggregateFunction = CoreAggregateFunction;
 
+/// 限制子句
+#[derive(Debug, Clone, PartialEq)]
+pub struct LimitClause {
+    pub span: Span,
+    pub count: usize,
+}
+
+/// 跳过的子句
+#[derive(Debug, Clone, PartialEq)]
+pub struct SkipClause {
+    pub span: Span,
+    pub count: usize,
+}
+
+/// 采样子句
+#[derive(Debug, Clone, PartialEq)]
+pub struct SampleClause {
+    pub span: Span,
+    pub count: usize,
+    pub percentage: Option<f64>,
+}
+
 // 使用核心ParseError定义
 pub use crate::query::parser::core::error::ParseError;

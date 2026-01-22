@@ -1,20 +1,8 @@
 //! SET 子句
+//!
+//! 子句结构定义已移至 ast/stmt.rs，此文件仅保留解析器 trait
 
 use crate::query::parser::ast::*;
-
-/// SET 子句
-#[derive(Debug, Clone, PartialEq)]
-pub struct SetClause {
-    pub span: Span,
-    pub assignments: Vec<Assignment>,
-}
-
-/// 赋值操作
-#[derive(Debug, Clone, PartialEq)]
-pub struct Assignment {
-    pub property: String,
-    pub value: Expr,
-}
 
 /// SET 子句解析器
 pub trait SetParser {

@@ -1,14 +1,8 @@
 //! OVER 子句
+//!
+//! 子句结构定义已移至 ast/stmt.rs，此文件仅保留解析器 trait
 
 use crate::query::parser::ast::*;
-
-/// OVER 子句
-#[derive(Debug, Clone, PartialEq)]
-pub struct OverClause {
-    pub span: Span,
-    pub edge_types: Vec<String>,
-    pub direction: EdgeDirection,
-}
 
 /// OVER 子句解析器
 pub trait OverParser {

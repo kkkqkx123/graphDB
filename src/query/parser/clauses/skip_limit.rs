@@ -1,27 +1,7 @@
 //! SKIP/LIMIT 子句
 
 use crate::query::parser::ast::*;
-
-/// SKIP 子句
-#[derive(Debug, Clone, PartialEq)]
-pub struct SkipClause {
-    pub span: Span,
-    pub count: Expr,
-}
-
-/// LIMIT 子句
-#[derive(Debug, Clone, PartialEq)]
-pub struct LimitClause {
-    pub span: Span,
-    pub count: Expr,
-}
-
-/// SAMPLE 子句 - 对查询结果进行随机采样
-#[derive(Debug, Clone, PartialEq)]
-pub struct SampleClause {
-    pub span: Span,
-    pub count: Expr,
-}
+use crate::query::parser::ast::types::{LimitClause, SampleClause, SkipClause};
 
 /// SKIP 子句解析器
 pub trait SkipParser {

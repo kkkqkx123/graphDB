@@ -5,11 +5,16 @@
 mod expr_parser;
 mod pattern_parser;
 mod utils;
-mod main_parser;
+mod stmt_parser;
+
+pub use expr_parser::ExprParser;
+pub use stmt_parser::StmtParser;
 
 use crate::query::parser::lexer::Lexer;
 use crate::query::parser::Token;
 use crate::query::parser::core::error::ParseErrorKind;
+use crate::query::parser::{TokenKind, ParseError};
+use crate::query::parser::ast::stmt::{FromClause, OverClause};
 
 /// 解析器
 pub struct Parser {
@@ -77,5 +82,38 @@ impl Parser {
     /// 获取当前 span（别名）
     pub fn current_span(&self) -> crate::query::parser::ast::types::Span {
         self.parser_current_span()
+    }
+
+    pub fn parse_from_clause(&mut self) -> Result<FromClause, ParseError> {
+        let span = self.current_span();
+        self.expect_token(TokenKind::From)?;
+        let vertices = self.parse_expression_list()?;
+        Ok(FromClause { span, vertices })
+    }
+
+    pub fn parse_over_clause(&mut self) -> Result<OverClause, ParseError> {
+        let span = self.current_span();
+        self.expect_token(TokenKind::Over)?;
+        let mut edge_types = Vec::new();
+        let mut direction = crate::core::types::graph::EdgeDirection::Outgoing;
+        loop {
+            let edge_type = self.parse_identifier()?;
+            edge_types.push(edge_type);
+            if self.current_token().kind != TokenKind::Comma {
+                break;
+            }
+            self.next_token();
+        }
+        if self.current_token().kind == TokenKind::Out {
+            self.next_token();
+            direction = crate::core::types::graph::EdgeDirection::Outgoing;
+        } else if self.current_token().kind == TokenKind::In {
+            self.next_token();
+            direction = crate::core::types::graph::EdgeDirection::Incoming;
+        } else if self.current_token().kind == TokenKind::Both {
+            self.next_token();
+            direction = crate::core::types::graph::EdgeDirection::Both;
+        }
+        Ok(OverClause { span, edge_types, direction })
     }
 }
