@@ -2,6 +2,7 @@
 #[cfg(test)]
 use super::*;
 use crate::core::Value;
+use crate::query::parser::core::position::Position;
 
 mod expr_tests {
     use super::*;
@@ -448,41 +449,43 @@ mod error_tests {
 
     #[test]
     fn test_parse_error_new() {
+        let position = Position::new(10, 5);
         let error = ParseError::new(
             ParseErrorKind::UnexpectedToken,
             "Unexpected token".to_string(),
-            10,
-            5,
+            position,
         );
 
         assert_eq!(error.kind, ParseErrorKind::UnexpectedToken);
         assert_eq!(error.message, "Unexpected token");
-        assert_eq!(error.line, 10);
-        assert_eq!(error.column, 5);
+        assert_eq!(error.position.line, 10);
+        assert_eq!(error.position.column, 5);
         assert!(error.offset.is_none());
         assert!(error.expected_tokens.is_empty());
     }
 
     #[test]
     fn test_parse_error_with_context() {
+        let position = Position::new(5, 10);
+        let context_error = std::io::Error::new(std::io::ErrorKind::InvalidData, "In CREATE statement");
         let error = ParseError::new(
             ParseErrorKind::SyntaxError,
             "Invalid expression".to_string(),
-            5,
-            10,
+            position,
         )
-        .with_context("In CREATE statement")
+        .with_context(context_error)
         .with_offset(100)
         .with_expected_tokens(vec!["CREATE".to_string(), "MATCH".to_string()]);
 
-        assert_eq!(error.context, Some("In CREATE statement".to_string()));
+        assert!(error.context.is_some());
         assert_eq!(error.offset, Some(100));
         assert_eq!(error.expected_tokens.len(), 2);
     }
 
     #[test]
     fn test_parse_error_unexpected_token() {
-        let error = ParseError::unexpected_token("IDENTIFIER", 1, 1);
+        let position = Position::new(1, 1);
+        let error = ParseError::unexpected_token("IDENTIFIER", position);
 
         assert_eq!(error.kind, ParseErrorKind::UnexpectedToken);
         assert!(error.message.contains("Unexpected token"));
@@ -491,7 +494,8 @@ mod error_tests {
 
     #[test]
     fn test_parse_error_unterminated_string() {
-        let error = ParseError::unterminated_string(5, 10);
+        let position = Position::new(5, 10);
+        let error = ParseError::unterminated_string(position);
 
         assert_eq!(error.kind, ParseErrorKind::UnterminatedString);
         assert!(error.message.contains("Unterminated string"));
@@ -499,7 +503,8 @@ mod error_tests {
 
     #[test]
     fn test_parse_error_unterminated_comment() {
-        let error = ParseError::unterminated_comment(5, 10);
+        let position = Position::new(5, 10);
+        let error = ParseError::unterminated_comment(position);
 
         assert_eq!(error.kind, ParseErrorKind::UnterminatedComment);
         assert!(error.message.contains("Unterminated multi-line comment"));
@@ -507,11 +512,11 @@ mod error_tests {
 
     #[test]
     fn test_parse_error_display() {
+        let position = Position::new(10, 5);
         let error = ParseError::new(
             ParseErrorKind::UnexpectedToken,
             "Expected ')'".to_string(),
-            10,
-            5,
+            position,
         )
         .with_unexpected_token("}'")
         .with_expected_tokens(vec![")".to_string(), "]".to_string()]);
@@ -529,17 +534,17 @@ mod error_tests {
         assert!(errors.is_empty());
         assert_eq!(errors.len(), 0);
 
+        let pos1 = Position::new(1, 1);
         errors.add(ParseError::new(
             ParseErrorKind::SyntaxError,
             "Error 1".to_string(),
-            1,
-            1,
+            pos1,
         ));
+        let pos2 = Position::new(2, 2);
         errors.add(ParseError::new(
             ParseErrorKind::UnexpectedToken,
             "Error 2".to_string(),
-            2,
-            2,
+            pos2,
         ));
 
         assert!(!errors.is_empty());
@@ -551,7 +556,7 @@ mod error_tests {
         let error: ParseError = "Simple error message".to_string().into();
         assert_eq!(error.kind, ParseErrorKind::SyntaxError);
         assert_eq!(error.message, "Simple error message");
-        assert_eq!(error.line, 0);
-        assert_eq!(error.column, 0);
+        assert_eq!(error.position.line, 0);
+        assert_eq!(error.position.column, 0);
     }
 }

@@ -1,17 +1,14 @@
 //! 语句解析模块
 //!
-//! 负责解析各种语句，包括 MATCH、CREATE、DELETE、UPDATE 等。
+//! 负责解析各种语句，包括 MATCH、GO、CREATE、DELETE、UPDATE 等。
 
 use crate::core::types::graph::EdgeDirection;
-use crate::query::parser::ast::types::{BinaryOp, UnaryOp};
 use crate::query::parser::ast::*;
 use crate::query::parser::ast::expr::*;
-use crate::query::parser::ast::pattern::*;
+use crate::query::parser::ast::pattern::{EdgePattern, NodePattern, PathElement, PathPattern};
 use crate::query::parser::ast::stmt::*;
 use crate::query::parser::core::error::{ParseError, ParseErrorKind};
 use crate::query::parser::core::position::Position;
-use crate::query::parser::core::span::Span;
-use crate::query::parser::lexer::TokenKind as LexerToken;
 use crate::query::parser::parser::ExprParser;
 use crate::query::parser::parser::ParseContext;
 use crate::query::parser::TokenKind;
@@ -60,7 +57,8 @@ impl<'a> StmtParser<'a> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Match)?;
 
-        let patterns = self.parse_patterns(ctx)?;
+        let mut patterns = Vec::new();
+        patterns.push(self.parse_pattern(ctx)?);
 
         let where_clause = if ctx.match_token(TokenKind::Where) {
             Some(self.parse_expression(ctx)?)
@@ -74,12 +72,6 @@ impl<'a> StmtParser<'a> {
             None
         };
 
-        let order_by = if ctx.match_token(TokenKind::Order) && ctx.match_token(TokenKind::By) {
-            Some(self.parse_order_by_clause(ctx)?)
-        } else {
-            None
-        };
-
         let end_span = ctx.current_span();
         let span = ctx.merge_span(start_span.start, end_span.end);
 
@@ -88,9 +80,54 @@ impl<'a> StmtParser<'a> {
             patterns,
             where_clause,
             return_clause,
-            order_by,
+            order_by: None,
             limit: None,
             skip: None,
+        }))
+    }
+
+    fn parse_go_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::Go)?;
+
+        let steps = self.parse_steps(ctx)?;
+
+        ctx.expect_token(TokenKind::From)?;
+        let from_span = ctx.current_span();
+        let vertices = self.parse_expression_list(ctx)?;
+        let from_clause = FromClause {
+            span: from_span,
+            vertices,
+        };
+
+        let over = if ctx.match_token(TokenKind::Over) {
+            Some(self.parse_over_clause(ctx)?)
+        } else {
+            None
+        };
+
+        let where_clause = if ctx.match_token(TokenKind::Where) {
+            Some(self.parse_expression(ctx)?)
+        } else {
+            None
+        };
+
+        let yield_clause = if ctx.match_token(TokenKind::Yield) {
+            Some(self.parse_yield_clause(ctx)?)
+        } else {
+            None
+        };
+
+        let end_span = ctx.current_span();
+        let span = ctx.merge_span(start_span.start, end_span.end);
+
+        Ok(Stmt::Go(GoStmt {
+            span,
+            steps,
+            from: from_clause,
+            over,
+            where_clause,
+            yield_clause,
         }))
     }
 
@@ -100,19 +137,17 @@ impl<'a> StmtParser<'a> {
 
         if ctx.match_token(TokenKind::Tag) {
             let name = ctx.expect_identifier()?;
-            let properties = self.parse_properties(ctx)?;
+            let properties = self.parse_property_defs(ctx)?;
             Ok(Stmt::Create(CreateStmt {
                 span: start_span,
-                kind: CreateStmtKind::Tag(name),
-                properties,
+                target: CreateTarget::Tag { name, properties },
             }))
         } else if ctx.match_token(TokenKind::Edge) {
             let name = ctx.expect_identifier()?;
-            let properties = self.parse_properties(ctx)?;
+            let properties = self.parse_property_defs(ctx)?;
             Ok(Stmt::Create(CreateStmt {
                 span: start_span,
-                kind: CreateStmtKind::Edge(name),
-                properties,
+                target: CreateTarget::EdgeType { name, properties },
             }))
         } else {
             Err(ParseError::new(
@@ -123,366 +158,298 @@ impl<'a> StmtParser<'a> {
         }
     }
 
-    pub fn parse_delete_statement(&mut self) -> Result<Stmt, ParseError> {
-        let start_span = self.current_span();
-        self.expect_token(LexerToken::Delete)?;
+    fn parse_delete_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::Delete)?;
 
-        let target = if self.match_token(LexerToken::Vertex) || self.match_token(LexerToken::Vertices) {
-            let vertices = self.parse_expression_list()?;
-            DeleteTarget::Vertices(vertices)
-        } else if self.match_token(LexerToken::Edge) || self.match_token(LexerToken::Edges) {
-            DeleteTarget::Edges {
-                src: self.parse_expression()?,
-                dst: self.parse_expression()?,
-                edge_type: None,
-                rank: None,
+        let target = if ctx.match_token(TokenKind::Vertex) {
+            let ids = self.parse_expression_list(ctx)?;
+            DeleteTarget::Vertices(ids)
+        } else {
+            DeleteTarget::Vertices(self.parse_expression_list(ctx)?)
+        };
+
+        let where_clause = if ctx.match_token(TokenKind::Where) {
+            Some(self.parse_expression(ctx)?)
+        } else {
+            None
+        };
+
+        Ok(Stmt::Delete(DeleteStmt {
+            span: start_span,
+            target,
+            where_clause,
+        }))
+    }
+
+    fn parse_update_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::Update)?;
+
+        let target = if ctx.match_token(TokenKind::Vertex) {
+            UpdateTarget::Vertex(self.parse_expression(ctx)?)
+        } else if ctx.match_token(TokenKind::Tag) {
+            UpdateTarget::Tag(ctx.expect_identifier()?)
+        } else {
+            UpdateTarget::Vertex(self.parse_expression(ctx)?)
+        };
+
+        let set_clause = if ctx.match_token(TokenKind::Set) {
+            self.parse_set_clause(ctx)?
+        } else {
+            SetClause {
+                span: ctx.current_span(),
+                assignments: Vec::new(),
+            }
+        };
+
+        let where_clause = if ctx.match_token(TokenKind::Where) {
+            Some(self.parse_expression(ctx)?)
+        } else {
+            None
+        };
+
+        Ok(Stmt::Update(UpdateStmt {
+            span: start_span,
+            target,
+            set_clause,
+            where_clause,
+        }))
+    }
+
+    fn parse_use_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::Use)?;
+
+        let space = ctx.expect_identifier()?;
+
+        Ok(Stmt::Use(UseStmt { span: start_span, space }))
+    }
+
+    fn parse_show_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::Show)?;
+
+        let target = if ctx.match_token(TokenKind::Spaces) {
+            ShowTarget::Spaces
+        } else if ctx.match_token(TokenKind::Tags) {
+            ShowTarget::Tags
+        } else if ctx.match_token(TokenKind::Edges) {
+            ShowTarget::Edges
+        } else {
+            ShowTarget::Spaces
+        };
+
+        Ok(Stmt::Show(ShowStmt { span: start_span, target }))
+    }
+
+    fn parse_explain_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::Explain)?;
+
+        let statement = Box::new(self.parse_statement(ctx)?);
+
+        Ok(Stmt::Explain(ExplainStmt { span: start_span, statement }))
+    }
+
+    fn parse_lookup_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::Lookup)?;
+
+        let target = if ctx.match_token(TokenKind::On) {
+            let name = ctx.expect_identifier()?;
+            if ctx.match_token(TokenKind::Tag) {
+                LookupTarget::Tag(name)
+            } else {
+                LookupTarget::Tag(name)
             }
         } else {
-            DeleteTarget::Vertices(vec![self.parse_expression()?])
+            LookupTarget::Tag(String::new())
         };
 
-        let where_clause = if self.match_token(LexerToken::Where) {
-            Some(self.parse_expression()?)
+        let where_clause = if ctx.match_token(TokenKind::Where) {
+            Some(self.parse_expression(ctx)?)
         } else {
             None
         };
 
-        let end_span = self.current_span();
-        let span = Span::new(start_span.start, end_span.end);
-
-        Ok(Stmt::Delete(DeleteStmt { span, target, where_clause }))
-    }
-
-    pub fn parse_update_statement(&mut self) -> Result<Stmt, ParseError> {
-        let start_span = self.current_span();
-        self.expect_token(LexerToken::Update)?;
-
-        let target = UpdateTarget::Vertex(self.parse_expression()?);
-        let set_clause = self.parse_set_clause()?;
-        let where_clause = if self.match_token(LexerToken::Where) {
-            Some(self.parse_expression()?)
+        let yield_clause = if ctx.match_token(TokenKind::Yield) {
+            Some(self.parse_yield_clause(ctx)?)
         } else {
             None
         };
-
-        let end_span = self.current_span();
-        let span = Span::new(start_span.start, end_span.end);
-
-        Ok(Stmt::Update(UpdateStmt { span, target, set_clause, where_clause }))
-    }
-
-    pub fn parse_go_statement(&mut self) -> Result<Stmt, ParseError> {
-        let start_span = self.current_span();
-        self.expect_token(LexerToken::Go)?;
-
-        let steps = self.parse_steps()?;
-        let from = self.parse_from_clause()?;
-        let over = if self.match_token(LexerToken::Over) {
-            Some(self.parse_over_clause()?)
-        } else {
-            None
-        };
-        let where_clause = if self.match_token(LexerToken::Where) {
-            Some(self.parse_expression()?)
-        } else {
-            None
-        };
-        let yield_clause = if self.match_token(LexerToken::Yield) {
-            Some(self.parse_yield_clause()?)
-        } else {
-            None
-        };
-
-        let end_span = self.current_span();
-        let span = Span::new(start_span.start, end_span.end);
-
-        Ok(Stmt::Go(GoStmt {
-            span,
-            steps,
-            from,
-            over,
-            where_clause,
-            yield_clause,
-        }))
-    }
-
-    pub fn parse_fetch_statement(&mut self) -> Result<Stmt, ParseError> {
-        let start_span = self.current_span();
-        self.expect_token(LexerToken::Fetch)?;
-
-        let ids = self.parse_expression_list()?;
-
-        let end_span = self.current_span();
-        let span = Span::new(start_span.start, end_span.end);
-
-        Ok(Stmt::Fetch(FetchStmt {
-            span,
-            target: FetchTarget::Vertices { ids, properties: None },
-        }))
-    }
-
-    pub fn parse_use_statement(&mut self) -> Result<Stmt, ParseError> {
-        let start_span = self.current_span();
-        self.expect_token(LexerToken::Use)?;
-
-        let space = self.expect_identifier()?;
-        let end_span = self.current_span();
-        let span = Span::new(start_span.start, end_span.end);
-
-        Ok(Stmt::Use(UseStmt { span, space }))
-    }
-
-    pub fn parse_show_statement(&mut self) -> Result<Stmt, ParseError> {
-        let start_span = self.current_span();
-        self.expect_token(LexerToken::Show)?;
-
-        let target = if self.match_token(LexerToken::Spaces) {
-            ShowTarget::Spaces
-        } else if self.match_token(LexerToken::Tags) {
-            ShowTarget::Tags
-        } else if self.match_token(LexerToken::Edges) {
-            ShowTarget::Edges
-        } else if self.match_token(LexerToken::Indexes) {
-            ShowTarget::Indexes
-        } else {
-            let name = self.expect_identifier()?;
-            ShowTarget::Tag(name)
-        };
-
-        let end_span = self.current_span();
-        let span = Span::new(start_span.start, end_span.end);
-
-        Ok(Stmt::Show(ShowStmt { span, target }))
-    }
-
-    pub fn parse_explain_statement(&mut self) -> Result<Stmt, ParseError> {
-        let start_span = self.current_span();
-        self.expect_token(LexerToken::Explain)?;
-
-        let statement = Box::new(self.parse_statement()?);
-        let end_span = self.current_span();
-        let span = Span::new(start_span.start, end_span.end);
-
-        Ok(Stmt::Explain(ExplainStmt { span, statement }))
-    }
-
-    pub fn parse_lookup_statement(&mut self) -> Result<Stmt, ParseError> {
-        let start_span = self.current_span();
-        self.expect_token(LexerToken::Lookup)?;
-        self.expect_token(LexerToken::On)?;
-
-        let name = self.expect_identifier()?;
-        let target = if self.match_token(LexerToken::Tag) {
-            LookupTarget::Tag(name)
-        } else if self.match_token(LexerToken::Edge) {
-            LookupTarget::Edge(name)
-        } else {
-            LookupTarget::Tag(name)
-        };
-
-        let where_clause = if self.match_token(LexerToken::Where) {
-            Some(self.parse_expression()?)
-        } else {
-            None
-        };
-
-        let yield_clause = if self.match_token(LexerToken::Yield) {
-            Some(self.parse_yield_clause()?)
-        } else {
-            None
-        };
-
-        let end_span = self.current_span();
-        let span = Span::new(start_span.start, end_span.end);
 
         Ok(Stmt::Lookup(LookupStmt {
-            span,
+            span: start_span,
             target,
             where_clause,
             yield_clause,
         }))
     }
 
-    pub fn parse_unwind_statement(&mut self) -> Result<Stmt, ParseError> {
-        let start_span = self.current_span();
-        self.expect_token(LexerToken::Unwind)?;
+    fn parse_fetch_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::Fetch)?;
 
-        let expression = self.parse_expression()?;
-        self.expect_token(LexerToken::As)?;
-        let variable = self.expect_identifier()?;
-
-        let end_span = self.current_span();
-        let span = Span::new(start_span.start, end_span.end);
-
-        Ok(Stmt::Unwind(UnwindStmt { span, expression, variable }))
-    }
-
-    pub fn parse_merge_statement(&mut self) -> Result<Stmt, ParseError> {
-        let start_span = self.current_span();
-        self.expect_token(LexerToken::Merge)?;
-
-        let pattern = self.parse_pattern()?;
-        let end_span = self.current_span();
-        let span = Span::new(start_span.start, end_span.end);
-
-        Ok(Stmt::Merge(MergeStmt { span, pattern }))
-    }
-
-    pub fn parse_insert_statement(&mut self) -> Result<Stmt, ParseError> {
-        let start_span = self.current_span();
-        self.expect_token(LexerToken::Insert)?;
-
-        let target = if self.match_token(LexerToken::Vertex) {
-            let ids = self.parse_expression_list()?;
-            InsertTarget::Vertices { ids }
-        } else if self.match_token(LexerToken::Edge) {
-            let src = self.parse_expression()?;
-            let dst = self.parse_expression()?;
-            InsertTarget::Edge { src, dst }
-        } else {
-            return Err(self.parse_error("Expected VERTEX or EDGE".to_string()));
+        let target = FetchTarget::Vertices {
+            ids: self.parse_expression_list(ctx)?,
+            properties: None,
         };
 
-        let end_span = self.current_span();
-        let span = Span::new(start_span.start, end_span.end);
-
-        Ok(Stmt::Insert(InsertStmt { span, target }))
+        Ok(Stmt::Fetch(FetchStmt {
+            span: start_span,
+            target,
+        }))
     }
 
-    pub fn parse_return_statement(&mut self) -> Result<Stmt, ParseError> {
-        let start_span = self.current_span();
-        self.expect_token(LexerToken::Return)?;
+    fn parse_unwind_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::Unwind)?;
 
-        let distinct = self.match_token(LexerToken::Distinct);
-        let items = self.parse_return_items()?;
+        let expression = self.parse_expression(ctx)?;
+        let variable = ctx.expect_identifier()?;
 
-        let end_span = self.current_span();
-        let span = Span::new(start_span.start, end_span.end);
-
-        Ok(Stmt::Return(ReturnStmt { span, items, distinct }))
+        Ok(Stmt::Unwind(UnwindStmt {
+            span: start_span,
+            expression,
+            variable,
+        }))
     }
 
-    pub fn parse_with_statement(&mut self) -> Result<Stmt, ParseError> {
-        let start_span = self.current_span();
-        self.expect_token(LexerToken::With)?;
+    fn parse_merge_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::Merge)?;
 
-        let items = self.parse_return_items()?;
-        let where_clause = if self.match_token(LexerToken::Where) {
-            Some(self.parse_expression()?)
+        let pattern = self.parse_pattern(ctx)?;
+
+        Ok(Stmt::Merge(MergeStmt {
+            span: start_span,
+            pattern,
+        }))
+    }
+
+    fn parse_insert_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::Insert)?;
+
+        let target = InsertTarget::Vertices {
+            ids: Vec::new(),
+        };
+
+        Ok(Stmt::Insert(InsertStmt { span: start_span, target }))
+    }
+
+    fn parse_return_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::Return)?;
+
+        let items = self.parse_return_items(ctx)?;
+
+        Ok(Stmt::Return(ReturnStmt {
+            span: start_span,
+            items,
+            distinct: false,
+        }))
+    }
+
+    fn parse_with_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::With)?;
+
+        let items = self.parse_return_items(ctx)?;
+
+        let where_clause = if ctx.match_token(TokenKind::Where) {
+            Some(self.parse_expression(ctx)?)
         } else {
             None
         };
 
-        let end_span = self.current_span();
-        let span = Span::new(start_span.start, end_span.end);
-
-        Ok(Stmt::With(WithStmt { span, items, where_clause }))
+        Ok(Stmt::With(WithStmt {
+            span: start_span,
+            items,
+            where_clause,
+        }))
     }
 
-    pub fn parse_set_statement(&mut self) -> Result<Stmt, ParseError> {
-        let start_span = self.current_span();
-        self.expect_token(LexerToken::Set)?;
+    fn parse_set_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::Set)?;
 
-        let mut assignments = Vec::new();
-        loop {
-            let property = self.expect_identifier()?;
-            self.expect_token(LexerToken::Assign)?;
-            let value = self.parse_expression()?;
-            assignments.push(Assignment { property, value });
-            if !self.match_token(LexerToken::Comma) {
-                break;
-            }
+        let assignments = self.parse_set_assignments(ctx)?;
+
+        Ok(Stmt::Set(SetStmt {
+            span: start_span,
+            assignments,
+        }))
+    }
+
+    fn parse_remove_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::Remove)?;
+
+        let mut items = Vec::new();
+        if ctx.match_token(TokenKind::Tag) {
+            items.push(self.parse_expression(ctx)?);
         }
 
-        let end_span = self.current_span();
-        let span = Span::new(start_span.start, end_span.end);
-
-        Ok(Stmt::Set(SetStmt { span, assignments }))
+        Ok(Stmt::Remove(RemoveStmt {
+            span: start_span,
+            items,
+        }))
     }
 
-    pub fn parse_remove_statement(&mut self) -> Result<Stmt, ParseError> {
-        let start_span = self.current_span();
-        self.expect_token(LexerToken::Remove)?;
+    fn parse_pipe_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::Pipe)?;
 
-        let items = self.parse_expression_list()?;
-        let end_span = self.current_span();
-        let span = Span::new(start_span.start, end_span.end);
+        let expression = self.parse_expression(ctx)?;
 
-        Ok(Stmt::Remove(RemoveStmt { span, items }))
+        Ok(Stmt::Pipe(PipeStmt {
+            span: start_span,
+            expression,
+        }))
     }
 
-    pub fn parse_pipe_statement(&mut self) -> Result<Stmt, ParseError> {
-        let start_span = self.current_span();
-        self.expect_token(LexerToken::Pipe)?;
-
-        let expression = self.parse_expression()?;
-        let end_span = self.current_span();
-        let span = Span::new(start_span.start, end_span.end);
-
-        Ok(Stmt::Pipe(PipeStmt { span, expression }))
+    fn parse_expression(&mut self, ctx: &mut ParseContext<'a>) -> Result<Expr, ParseError> {
+        let mut expr_parser = ExprParser::new(ctx);
+        expr_parser.parse_expression(ctx)
     }
 
-    fn parse_expression(&mut self) -> Result<Expr, ParseError> {
-        self.expr_parser.parse_expression()
-    }
-
-    fn parse_patterns(&mut self) -> Result<Vec<Pattern>, ParseError> {
-        let mut patterns = Vec::new();
-        loop {
-            patterns.push(self.parse_pattern()?);
-            if !self.match_token(LexerToken::Comma) {
-                break;
-            }
+    fn parse_expression_list(&mut self, ctx: &mut ParseContext<'a>) -> Result<Vec<Expr>, ParseError> {
+        let mut expressions = Vec::new();
+        expressions.push(self.parse_expression(ctx)?);
+        while ctx.match_token(TokenKind::Comma) {
+            expressions.push(self.parse_expression(ctx)?);
         }
-        Ok(patterns)
+        Ok(expressions)
     }
 
-    fn parse_pattern(&mut self) -> Result<Pattern, ParseError> {
-        let span = self.current_span();
-        if self.match_token(LexerToken::LParen) {
-            let variable = if let LexerToken::Identifier(_) = self.lexer.peek()?.kind {
-                Some(self.expect_identifier()?)
-            } else {
-                None
-            };
-            self.expect_token(LexerToken::RParen)?;
-            Ok(Pattern::Node(NodePattern::new(variable, vec![], None, vec![], span)))
-        } else {
-            Err(self.parse_error("Expected pattern".to_string()))
-        }
-    }
-
-    fn parse_return_items(&mut self) -> Result<Vec<ReturnItem>, ParseError> {
+    fn parse_return_items(&mut self, ctx: &mut ParseContext<'a>) -> Result<Vec<ReturnItem>, ParseError> {
         let mut items = Vec::new();
         loop {
-            if self.check_token(LexerToken::Eof)
-                || matches!(self.lexer.peek()?.kind, LexerToken::Semicolon | LexerToken::Where)
-            {
-                break;
-            }
-            if self.match_token(LexerToken::Star) {
+            if ctx.match_token(TokenKind::Star) {
                 items.push(ReturnItem::All);
             } else {
-                let expr = self.parse_expression()?;
-                let alias = if self.match_token(LexerToken::As) {
-                    Some(self.expect_identifier()?)
+                let expr = self.parse_expression(ctx)?;
+                let alias = if ctx.match_token(TokenKind::As) {
+                    Some(ctx.expect_identifier()?)
                 } else {
                     None
                 };
                 items.push(ReturnItem::Expression { expr, alias });
             }
-            if !self.match_token(LexerToken::Comma) {
+            if !ctx.match_token(TokenKind::Comma) {
                 break;
             }
         }
         Ok(items)
     }
 
-    fn parse_return_clause(&mut self) -> Result<ReturnClause, ParseError> {
-        let span = self.current_span();
-        let items = self.parse_return_items()?;
+    fn parse_return_clause(&mut self, ctx: &mut ParseContext<'a>) -> Result<ReturnClause, ParseError> {
+        ctx.expect_token(TokenKind::Return)?;
+        let items = self.parse_return_items(ctx)?;
         Ok(ReturnClause {
-            span,
+            span: ctx.current_span(),
             items,
             distinct: false,
             limit: None,
@@ -491,85 +458,11 @@ impl<'a> StmtParser<'a> {
         })
     }
 
-    fn parse_order_by_clause(&mut self) -> Result<OrderByClause, ParseError> {
-        let span = self.current_span();
-        let mut items = Vec::new();
-        loop {
-            let expr = self.parse_expression()?;
-            let direction = if self.match_token(LexerToken::Asc) {
-                OrderDirection::Asc
-            } else if self.match_token(LexerToken::Desc) {
-                OrderDirection::Desc
-            } else {
-                OrderDirection::Asc
-            };
-            items.push(OrderByItem { expr, direction });
-            if !self.match_token(LexerToken::Comma) {
-                break;
-            }
-        }
-        Ok(OrderByClause { span, items })
-    }
-
-    fn parse_steps(&mut self) -> Result<Steps, ParseError> {
-        if let LexerToken::IntegerLiteral(_) = self.lexer.peek()?.kind {
-            let steps = self.parse_integer()? as usize;
-            Ok(Steps::Fixed(steps))
-        } else {
-            Ok(Steps::Fixed(1))
-        }
-    }
-
-    fn parse_from_clause(&mut self) -> Result<FromClause, ParseError> {
-        let span = self.current_span();
-        self.expect_token(LexerToken::From)?;
-        let vertices = self.parse_expression_list()?;
-        Ok(FromClause { span, vertices })
-    }
-
-    fn parse_over_clause(&mut self) -> Result<OverClause, ParseError> {
-        let span = self.current_span();
-        self.expect_token(LexerToken::Over)?;
-
-        let mut edge_types = Vec::new();
-        let mut direction = EdgeDirection::Outgoing;
-
-        loop {
-            let edge_type = self.expect_identifier()?;
-            edge_types.push(edge_type);
-            if !self.match_token(LexerToken::Comma) {
-                break;
-            }
-        }
-
-        if self.match_token(LexerToken::Out) {
-            direction = EdgeDirection::Outgoing;
-        } else if self.match_token(LexerToken::In) {
-            direction = EdgeDirection::Incoming;
-        } else if self.match_token(LexerToken::Both) {
-            direction = EdgeDirection::Both;
-        }
-
-        Ok(OverClause { span, edge_types, direction })
-    }
-
-    fn parse_yield_clause(&mut self) -> Result<YieldClause, ParseError> {
-        let span = self.current_span();
-        let mut items = Vec::new();
-        loop {
-            let expr = self.parse_expression()?;
-            let alias = if self.match_token(LexerToken::As) {
-                Some(self.expect_identifier()?)
-            } else {
-                None
-            };
-            items.push(YieldItem { expr, alias });
-            if !self.match_token(LexerToken::Comma) {
-                break;
-            }
-        }
+    fn parse_yield_clause(&mut self, ctx: &mut ParseContext<'a>) -> Result<YieldClause, ParseError> {
+        ctx.expect_token(TokenKind::Yield)?;
+        let items = self.parse_yield_items(ctx)?;
         Ok(YieldClause {
-            span,
+            span: ctx.current_span(),
             items,
             limit: None,
             skip: None,
@@ -577,125 +470,229 @@ impl<'a> StmtParser<'a> {
         })
     }
 
-    fn parse_set_clause(&mut self) -> Result<SetClause, ParseError> {
-        let span = self.current_span();
-        self.expect_token(LexerToken::Set)?;
-        let mut assignments = Vec::new();
+    fn parse_yield_items(&mut self, ctx: &mut ParseContext<'a>) -> Result<Vec<YieldItem>, ParseError> {
+        let mut items = Vec::new();
         loop {
-            let property = self.expect_identifier()?;
-            self.expect_token(LexerToken::Assign)?;
-            let value = self.parse_expression()?;
-            assignments.push(Assignment { property, value });
-            if !self.match_token(LexerToken::Comma) {
+            let expr = self.parse_expression(ctx)?;
+            let alias = if ctx.match_token(TokenKind::As) {
+                Some(ctx.expect_identifier()?)
+            } else {
+                None
+            };
+            items.push(YieldItem { expr, alias });
+            if !ctx.match_token(TokenKind::Comma) {
                 break;
             }
         }
-        Ok(SetClause { span, assignments })
+        Ok(items)
     }
 
-    fn parse_expression_list(&mut self) -> Result<Vec<Expr>, ParseError> {
-        let mut expressions = Vec::new();
-        loop {
-            expressions.push(self.parse_expression()?);
-            if !self.match_token(LexerToken::Comma) {
-                break;
+    fn parse_pattern(&mut self, ctx: &mut ParseContext<'a>) -> Result<Pattern, ParseError> {
+        let start_span = ctx.current_span();
+
+        let left = self.parse_node_pattern(ctx)?;
+
+        let mut elements = Vec::new();
+        elements.push(PathElement::Node(left));
+
+        while ctx.match_token(TokenKind::Minus) {
+            let edge = self.parse_edge_pattern(ctx)?;
+            elements.push(PathElement::Edge(edge));
+
+            if ctx.match_token(TokenKind::Gt) {
+                let right = self.parse_node_pattern(ctx)?;
+                elements.push(PathElement::Node(right));
             }
         }
-        Ok(expressions)
+
+        let end_span = ctx.current_span();
+        let span = ctx.merge_span(start_span.start, end_span.end);
+
+        let path_pattern = PathPattern::new(elements, span);
+        Ok(Pattern::Path(path_pattern))
     }
 
-    fn parse_properties(&mut self) -> Result<Vec<PropertyDef>, ParseError> {
+    fn parse_node_pattern(&mut self, ctx: &mut ParseContext<'a>) -> Result<NodePattern, ParseError> {
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::LParen)?;
+
+        let variable = if !ctx.match_token(TokenKind::Colon) {
+            Some(ctx.expect_identifier()?)
+        } else {
+            None
+        };
+
+        let mut labels = Vec::new();
+        while ctx.match_token(TokenKind::Colon) {
+            labels.push(ctx.expect_identifier()?);
+        }
+
+        let properties = if ctx.match_token(TokenKind::LBrace) {
+            Some(self.parse_expression(ctx)?)
+        } else {
+            None
+        };
+
+        let predicates = Vec::new();
+
+        ctx.expect_token(TokenKind::RParen)?;
+
+        let end_span = ctx.current_span();
+        let span = ctx.merge_span(start_span.start, end_span.end);
+
+        Ok(NodePattern::new(variable, labels, properties, predicates, span))
+    }
+
+    fn parse_edge_pattern(&mut self, ctx: &mut ParseContext<'a>) -> Result<EdgePattern, ParseError> {
+        let start_span = ctx.current_span();
+
+        ctx.expect_token(TokenKind::Minus)?;
+
+        let variable = None;
+        let edge_types = if ctx.match_token(TokenKind::LBracket) {
+            let types = self.parse_edge_type_list(ctx)?;
+            ctx.expect_token(TokenKind::RBracket)?;
+            types
+        } else {
+            Vec::new()
+        };
+
+        let properties = if ctx.match_token(TokenKind::LBrace) {
+            Some(self.parse_expression(ctx)?)
+        } else {
+            None
+        };
+
+        let predicates = Vec::new();
+        let direction = if ctx.match_token(TokenKind::Out) {
+            EdgeDirection::Outgoing
+        } else if ctx.match_token(TokenKind::In) {
+            EdgeDirection::Incoming
+        } else {
+            EdgeDirection::Outgoing
+        };
+        let range = None;
+
+        let end_span = ctx.current_span();
+        let span = ctx.merge_span(start_span.start, end_span.end);
+
+        Ok(EdgePattern::new(
+            variable,
+            edge_types,
+            properties,
+            predicates,
+            direction,
+            range,
+            span,
+        ))
+    }
+
+    fn parse_steps(&mut self, ctx: &mut ParseContext<'a>) -> Result<Steps, ParseError> {
+        if ctx.match_token(TokenKind::Step) {
+            if let TokenKind::IntegerLiteral(n) = ctx.current_token().kind {
+                ctx.next_token();
+                Ok(Steps::Fixed(n as usize))
+            } else {
+                Ok(Steps::Fixed(1))
+            }
+        } else {
+            Ok(Steps::Fixed(1))
+        }
+    }
+
+    fn parse_over_clause(&mut self, ctx: &mut ParseContext<'a>) -> Result<OverClause, ParseError> {
+        let span = ctx.current_span();
+        let edge_types = self.parse_edge_type_list(ctx)?;
+        let direction = if ctx.match_token(TokenKind::Out) {
+            EdgeDirection::Outgoing
+        } else if ctx.match_token(TokenKind::In) {
+            EdgeDirection::Incoming
+        } else if ctx.match_token(TokenKind::Both) {
+            EdgeDirection::Both
+        } else {
+            EdgeDirection::Outgoing
+        };
+        Ok(OverClause { span, edge_types, direction })
+    }
+
+    fn parse_edge_types(&mut self, ctx: &mut ParseContext<'a>) -> Result<Vec<String>, ParseError> {
+        let mut types = Vec::new();
+        types.push(ctx.expect_identifier()?);
+        while ctx.match_token(TokenKind::Comma) {
+            types.push(ctx.expect_identifier()?);
+        }
+        Ok(types)
+    }
+
+    fn parse_edge_type_list(&mut self, ctx: &mut ParseContext<'a>) -> Result<Vec<String>, ParseError> {
+        self.parse_edge_types(ctx)
+    }
+
+    fn parse_properties(&mut self, ctx: &mut ParseContext<'a>) -> Result<Vec<PropertyDef>, ParseError> {
         let mut properties = Vec::new();
-        if self.match_token(LexerToken::LParen) {
-            loop {
-                let name = self.expect_identifier()?;
-                self.expect_token(LexerToken::Colon)?;
-                let _data_type = self.expect_identifier()?;
+        if ctx.match_token(TokenKind::LBrace) {
+            while !ctx.match_token(TokenKind::RBrace) {
+                let name = ctx.expect_identifier()?;
+                ctx.expect_token(TokenKind::Colon)?;
+                let value = self.parse_expression(ctx)?;
                 properties.push(PropertyDef {
                     name,
                     data_type: DataType::String,
                     nullable: true,
                     default: None,
                 });
-                if !self.match_token(LexerToken::Comma) {
+                if !ctx.match_token(TokenKind::Comma) {
                     break;
                 }
             }
-            self.expect_token(LexerToken::RParen)?;
         }
         Ok(properties)
     }
 
-    fn parse_index_properties(&mut self) -> Result<Vec<String>, ParseError> {
-        let mut properties = Vec::new();
-        if self.match_token(LexerToken::LParen) {
-            loop {
-                let prop = self.expect_identifier()?;
-                properties.push(prop);
-                if !self.match_token(LexerToken::Comma) {
+    fn parse_property_defs(&mut self, ctx: &mut ParseContext<'a>) -> Result<Vec<PropertyDef>, ParseError> {
+        let mut defs = Vec::new();
+        if ctx.match_token(TokenKind::LParen) {
+            while !ctx.match_token(TokenKind::RParen) {
+                let name = ctx.expect_identifier()?;
+                ctx.expect_token(TokenKind::Colon)?;
+                let data_type = ctx.expect_identifier()?;
+                let dtype = match data_type.to_uppercase().as_str() {
+                    "INT" => DataType::Int,
+                    "FLOAT" => DataType::Float,
+                    "STRING" => DataType::String,
+                    _ => DataType::String,
+                };
+                defs.push(PropertyDef {
+                    name,
+                    data_type: dtype,
+                    nullable: true,
+                    default: None,
+                });
+                if !ctx.match_token(TokenKind::Comma) {
                     break;
                 }
             }
-            self.expect_token(LexerToken::RParen)?;
         }
-        Ok(properties)
+        Ok(defs)
     }
 
-    fn match_token(&mut self, expected: LexerToken) -> bool {
-        if self.lexer.check(expected.clone()) {
-            let _ = self.lexer.advance();
-            true
-        } else {
-            false
+    fn parse_set_clause(&mut self, ctx: &mut ParseContext<'a>) -> Result<SetClause, ParseError> {
+        let span = ctx.current_span();
+        let assignments = self.parse_set_assignments(ctx)?;
+        Ok(SetClause { span, assignments })
+    }
+
+    fn parse_set_assignments(&mut self, ctx: &mut ParseContext<'a>) -> Result<Vec<Assignment>, ParseError> {
+        let mut assignments = Vec::new();
+        loop {
+            let property = ctx.expect_identifier()?;
+            ctx.expect_token(TokenKind::Assign)?;
+            let value = self.parse_expression(ctx)?;
+            assignments.push(Assignment { property, value });
+            if !ctx.match_token(TokenKind::Comma) {
+                break;
+            }
         }
-    }
-
-    fn check_token(&mut self, expected: LexerToken) -> bool {
-        self.lexer.check(expected.clone())
-    }
-
-    fn expect_token(&mut self, expected: LexerToken) -> Result<(), ParseError> {
-        let token = self.lexer.peek().map_err(|e| ParseError::from(e))?;
-        if token.kind == expected {
-            self.lexer.advance();
-            Ok(())
-        } else {
-            Err(self.parse_error(format!("Expected {:?}, found {:?}", expected, token.kind)))
-        }
-    }
-
-    fn expect_identifier(&mut self) -> Result<String, ParseError> {
-        let token = self.lexer.peek().map_err(|e| ParseError::from(e))?;
-        if let LexerToken::Identifier(_) = token.kind {
-            let text = token.lexeme.clone();
-            self.lexer.advance();
-            Ok(text)
-        } else {
-            Err(self.parse_error(format!("Expected identifier, found {:?}", token.kind)))
-        }
-    }
-
-    fn current_span(&self) -> Span {
-        let pos = self.lexer.current_position();
-        Span::new(
-            Position::new(pos.line, pos.column),
-            Position::new(pos.line, pos.column),
-        )
-    }
-
-    fn parse_integer(&mut self) -> Result<i64, ParseError> {
-        let token = self.lexer.peek().map_err(|e| ParseError::from(e))?;
-        if let LexerToken::IntegerLiteral(n) = token.kind {
-            let text = token.lexeme.clone();
-            self.lexer.advance();
-            text.parse().map_err(|_| self.parse_error(format!("Invalid integer: {}", text)))
-        } else {
-            Err(self.parse_error(format!("Expected integer, found {:?}", token.kind)))
-        }
-    }
-
-    fn parse_error(&self, message: String) -> ParseError {
-        let pos = self.lexer.current_position();
-        ParseError::new(ParseErrorKind::SyntaxError, message, pos.line, pos.column)
+        Ok(assignments)
     }
 }

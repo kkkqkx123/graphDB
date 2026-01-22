@@ -3,10 +3,7 @@
 //! 负责解析查询语句的顶层结构，包括语句、表达式、模式等。
 
 mod expr_parser;
-mod pattern_parser;
-mod utils;
 mod stmt_parser;
-mod clause_parser;
 
 pub use expr_parser::ExprParser;
 pub use stmt_parser::StmtParser;
@@ -16,7 +13,7 @@ use crate::query::parser::lexer::LexError;
 use crate::query::parser::Token;
 use crate::query::parser::core::error::{ParseError, ParseErrorKind};
 use crate::query::parser::core::position::Position;
-use crate::query::parser::core::span::Span;
+use crate::query::parser::core::position::Span;
 use crate::query::parser::TokenKind;
 use crate::query::parser::ParseErrors;
 
@@ -32,7 +29,7 @@ pub struct ParseContext<'a> {
 impl<'a> ParseContext<'a> {
     pub fn new(input: &'a str) -> Self {
         let lexer = Lexer::new(input);
-        let current_token = lexer.current_token.clone();
+        let current_token = lexer.current_token().clone();
 
         Self {
             lexer,
@@ -46,7 +43,7 @@ impl<'a> ParseContext<'a> {
 
     pub fn from_string(input: String) -> Self {
         let lexer = Lexer::from_string(input);
-        let current_token = lexer.current_token.clone();
+        let current_token = lexer.current_token().clone();
 
         Self {
             lexer,
@@ -239,50 +236,47 @@ impl<'a> ParseContext<'a> {
 
 pub struct Parser<'a> {
     ctx: ParseContext<'a>,
-    expr_parser: ExprParser<'a>,
-    stmt_parser: StmtParser<'a>,
+    _expr_parser: std::marker::PhantomData<ExprParser<'a>>,
+    _stmt_parser: std::marker::PhantomData<StmtParser<'a>>,
 }
 
 impl<'a> Parser<'a> {
     pub fn new(input: &'a str) -> Self {
         let ctx = ParseContext::new(input);
-        let expr_parser = ExprParser::new(&ctx);
-        let stmt_parser = StmtParser::new(&ctx);
 
         Self {
             ctx,
-            expr_parser,
-            stmt_parser,
+            _expr_parser: std::marker::PhantomData,
+            _stmt_parser: std::marker::PhantomData,
         }
     }
 
     pub fn from_string(input: String) -> Self {
         let ctx = ParseContext::from_string(input);
-        let expr_parser = ExprParser::new(&ctx);
-        let stmt_parser = StmtParser::new(&ctx);
 
         Self {
             ctx,
-            expr_parser,
-            stmt_parser,
+            _expr_parser: std::marker::PhantomData,
+            _stmt_parser: std::marker::PhantomData,
         }
     }
 
     pub fn set_compat_mode(&mut self, enabled: bool) {
         self.ctx.set_compat_mode(enabled);
-        self.expr_parser.set_compat_mode(enabled);
     }
 
-    pub fn parse(&mut self) -> Result<Statement, ParseError> {
+    pub fn parse(&mut self) -> Result<Stmt, ParseError> {
         self.parse_statement()
     }
 
-    pub fn parse_statement(&mut self) -> Result<Statement, ParseError> {
-        self.stmt_parser.parse_statement(&mut self.ctx)
+    pub fn parse_statement(&mut self) -> Result<Stmt, ParseError> {
+        let mut stmt_parser = StmtParser::new(&self.ctx);
+        stmt_parser.parse_statement(&mut self.ctx)
     }
 
     pub fn parse_expression(&mut self) -> Result<Expr, ParseError> {
-        self.expr_parser.parse_expression(&mut self.ctx)
+        let mut expr_parser = ExprParser::new(&self.ctx);
+        expr_parser.parse_expression(&mut self.ctx)
     }
 
     pub fn has_errors(&self) -> bool {
@@ -298,5 +292,5 @@ impl<'a> Parser<'a> {
     }
 }
 
-use crate::query::parser::ast::stmt::Statement;
+use crate::query::parser::ast::stmt::Stmt;
 use crate::query::parser::ast::expr::Expr;

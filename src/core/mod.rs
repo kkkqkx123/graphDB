@@ -16,8 +16,8 @@ pub mod expression_visitor;
 pub mod expression_utils;
 pub mod types;
 
-// 查询处理模块
-pub mod query_pipeline_manager;
+// 查询处理模块已迁移到 query 目录
+// pub mod query_pipeline_manager;
 
 // 错误和结果类型
 pub use error::{
@@ -45,6 +45,3 @@ pub use type_utils::TypeUtils;
 
 // 计划节点引用
 pub use plan_node_ref::*;
-
-// 查询管道管理器
-pub use query_pipeline_manager::QueryPipelineManager;

@@ -32,7 +32,6 @@ impl<'a> Lexer<'a> {
             current_token: Token::new(Tk::Eof, String::new(), 0, 0),
             errors: Vec::new(),
         };
-        lexer.read_char();
         lexer.current_token = lexer.next_token();
         lexer
     }
@@ -69,10 +68,6 @@ impl<'a> Lexer<'a> {
         self.chars.peek()
     }
 
-    fn current_position(&self) -> Position {
-        Position::new(self.line, self.column)
-    }
-
     fn add_error(&mut self, error: LexError) {
         self.errors.push(error);
     }
@@ -87,6 +82,10 @@ impl<'a> Lexer<'a> {
 
     pub fn errors(&self) -> &[LexError] {
         &self.errors
+    }
+
+    pub fn current_token(&self) -> &Token {
+        &self.current_token
     }
 
     fn skip_whitespace(&mut self) {
@@ -867,7 +866,7 @@ impl<'a> Lexer<'a> {
         Position::new(self.line, self.column)
     }
 
-    pub fn is_at_end(&self) -> bool {
+    pub fn is_at_end(&mut self) -> bool {
         self.chars.peek().is_none()
     }
 
@@ -930,6 +929,7 @@ mod tests {
     fn test_unterminated_comment() {
         let input = "CREATE /* comment";
         let mut lexer = Lexer::new(input);
+        lexer.advance();
         assert!(lexer.has_errors());
     }
 }

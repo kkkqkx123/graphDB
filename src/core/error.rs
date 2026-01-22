@@ -101,6 +101,12 @@ pub enum QueryError {
     #[error("解析错误: {0}")]
     ParseError(String),
 
+    #[error("规划错误: {0}")]
+    PlanningError(String),
+
+    #[error("优化错误: {0}")]
+    OptimizationError(String),
+
     #[error("无效查询: {0}")]
     InvalidQuery(String),
 

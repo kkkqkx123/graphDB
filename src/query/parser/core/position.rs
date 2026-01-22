@@ -6,7 +6,7 @@
 use std::fmt;
 
 /// Represents a position in the source code
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct Position {
     pub line: usize,
     pub column: usize,

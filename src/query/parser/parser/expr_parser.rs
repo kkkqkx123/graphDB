@@ -2,11 +2,12 @@
 //!
 //! 负责解析各种表达式，包括算术表达式、逻辑表达式、函数调用等。
 
+use crate::core::Value;
 use crate::query::parser::ast::types::{BinaryOp, UnaryOp};
 use crate::query::parser::ast::expr::*;
 use crate::query::parser::core::error::{ParseError, ParseErrorKind};
 use crate::query::parser::core::position::Position;
-use crate::query::parser::core::span::Span;
+use crate::query::parser::core::position::Span;
 use crate::query::parser::parser::ParseContext;
 use crate::query::parser::TokenKind;
 
@@ -78,31 +79,31 @@ impl<'a> ExprParser<'a> {
         match ctx.current_token().kind {
             TokenKind::Eq => {
                 ctx.next_token();
-                Some(BinaryOp::Eq)
+                Some(BinaryOp::Equal)
             }
             TokenKind::Ne => {
                 ctx.next_token();
-                Some(BinaryOp::Ne)
+                Some(BinaryOp::NotEqual)
             }
             TokenKind::Lt => {
                 ctx.next_token();
-                Some(BinaryOp::Lt)
+                Some(BinaryOp::LessThan)
             }
             TokenKind::Le => {
                 ctx.next_token();
-                Some(BinaryOp::Le)
+                Some(BinaryOp::LessThanOrEqual)
             }
             TokenKind::Gt => {
                 ctx.next_token();
-                Some(BinaryOp::Gt)
+                Some(BinaryOp::GreaterThan)
             }
             TokenKind::Ge => {
                 ctx.next_token();
-                Some(BinaryOp::Ge)
+                Some(BinaryOp::GreaterThanOrEqual)
             }
             TokenKind::Regex => {
                 ctx.next_token();
-                Some(BinaryOp::Regex)
+                Some(BinaryOp::Like)
             }
             TokenKind::Contains => {
                 ctx.next_token();
@@ -140,7 +141,7 @@ impl<'a> ExprParser<'a> {
             }
             TokenKind::Minus => {
                 ctx.next_token();
-                Some(BinaryOp::Sub)
+                Some(BinaryOp::Subtract)
             }
             _ => None,
         }
@@ -162,15 +163,15 @@ impl<'a> ExprParser<'a> {
         match ctx.current_token().kind {
             TokenKind::Star => {
                 ctx.next_token();
-                Some(BinaryOp::Mul)
+                Some(BinaryOp::Multiply)
             }
             TokenKind::Div => {
                 ctx.next_token();
-                Some(BinaryOp::Div)
+                Some(BinaryOp::Divide)
             }
             TokenKind::Mod => {
                 ctx.next_token();
-                Some(BinaryOp::Mod)
+                Some(BinaryOp::Modulo)
             }
             _ => None,
         }
@@ -246,8 +247,7 @@ impl<'a> ExprParser<'a> {
                 ctx.next_token();
                 let expr = self.parse_expression(ctx)?;
                 ctx.expect_token(TokenKind::RParen)?;
-                let span = ctx.merge_span(start_pos, ctx.current_position());
-                Ok(Expr::Grouped(Box::new(expr), span))
+                Ok(expr)
             }
             TokenKind::Identifier(name) => {
                 ctx.next_token();
@@ -255,33 +255,33 @@ impl<'a> ExprParser<'a> {
                 if ctx.match_token(TokenKind::LParen) {
                     self.parse_function_call(name, span, ctx)
                 } else {
-                    Ok(Expr::Variable(name, span))
+                    Ok(Expr::Variable(VariableExpr::new(name, span)))
                 }
             }
             TokenKind::IntegerLiteral(n) => {
                 ctx.next_token();
                 let span = ctx.merge_span(start_pos, ctx.current_position());
-                Ok(Expr::Constant(Constant::Int(n), span))
+                Ok(Expr::Constant(ConstantExpr::new(Value::Int(n), span)))
             }
             TokenKind::FloatLiteral(f) => {
                 ctx.next_token();
                 let span = ctx.merge_span(start_pos, ctx.current_position());
-                Ok(Expr::Constant(Constant::Float(f), span))
+                Ok(Expr::Constant(ConstantExpr::new(Value::Float(f), span)))
             }
             TokenKind::StringLiteral(s) => {
                 ctx.next_token();
                 let span = ctx.merge_span(start_pos, ctx.current_position());
-                Ok(Expr::Constant(Constant::String(s), span))
+                Ok(Expr::Constant(ConstantExpr::new(Value::String(s), span)))
             }
             TokenKind::BooleanLiteral(b) => {
                 ctx.next_token();
                 let span = ctx.merge_span(start_pos, ctx.current_position());
-                Ok(Expr::Constant(Constant::Bool(b), span))
+                Ok(Expr::Constant(ConstantExpr::new(Value::Bool(b), span)))
             }
             TokenKind::Null => {
                 ctx.next_token();
                 let span = ctx.merge_span(start_pos, ctx.current_position());
-                Ok(Expr::Constant(Constant::Null, span))
+                Ok(Expr::Constant(ConstantExpr::new(Value::Null(crate::core::NullType::Null), span)))
             }
             TokenKind::Count | TokenKind::Sum | TokenKind::Avg | TokenKind::Min | TokenKind::Max => {
                 let func_name = token.lexeme.clone();
@@ -294,14 +294,14 @@ impl<'a> ExprParser<'a> {
                 let elements = self.parse_expression_list(ctx)?;
                 ctx.expect_token(TokenKind::RBracket)?;
                 let span = ctx.merge_span(start_pos, ctx.current_position());
-                Ok(Expr::List(elements, span))
+                Ok(Expr::List(ListExpr::new(elements, span)))
             }
             TokenKind::LBracket => {
                 ctx.next_token();
                 let elements = self.parse_expression_list(ctx)?;
                 ctx.expect_token(TokenKind::RBracket)?;
                 let span = ctx.merge_span(start_pos, ctx.current_position());
-                Ok(Expr::List(elements, span))
+                Ok(Expr::List(ListExpr::new(elements, span)))
             }
             TokenKind::Map => {
                 ctx.next_token();
@@ -309,14 +309,14 @@ impl<'a> ExprParser<'a> {
                 let properties = self.parse_property_list(ctx)?;
                 ctx.expect_token(TokenKind::RBrace)?;
                 let span = ctx.merge_span(start_pos, ctx.current_position());
-                Ok(Expr::Map(properties, span))
+                Ok(Expr::Map(MapExpr::new(properties, span)))
             }
             TokenKind::LBrace => {
                 ctx.next_token();
                 let properties = self.parse_property_list(ctx)?;
                 ctx.expect_token(TokenKind::RBrace)?;
                 let span = ctx.merge_span(start_pos, ctx.current_position());
-                Ok(Expr::Map(properties, span))
+                Ok(Expr::Map(MapExpr::new(properties, span)))
             }
             _ => {
                 Err(ParseError::new(
@@ -336,7 +336,7 @@ impl<'a> ExprParser<'a> {
             ctx.expect_token(TokenKind::RParen)?;
             args
         };
-        Ok(Expr::FunctionCall(FunctionCallExpr::new(name, args, span)))
+        Ok(Expr::FunctionCall(FunctionCallExpr::new(name, args, false, span)))
     }
 
     fn parse_expression_list(&mut self, ctx: &mut ParseContext<'a>) -> Result<Vec<Expr>, ParseError> {

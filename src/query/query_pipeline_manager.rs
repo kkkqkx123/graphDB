@@ -13,17 +13,14 @@ use std::sync::{Arc, Mutex};
 ///
 /// 这个类取代了原来的QueryConverter，现在负责：
 /// 1. 管理查询处理的全生命周期
-/// 2. 协调各个处理阶段（解析→验证→规划→优化→执行）
+/// 2. 协调各个处理阶段（规划→优化→解析→验证→执行）
 /// 3. 处理错误和异常
 /// 4. 管理查询上下文
-
-/// 由于需要导入storage，不适合在query目录定义
 pub struct QueryPipelineManager<S: StorageEngine + 'static> {
     _storage: Arc<Mutex<S>>,
-    _parser: Parser,
     validator: Validator,
-    _planner: Box<dyn Planner>,
-    _optimizer: Optimizer,
+    planner: Box<dyn Planner>,
+    optimizer: Optimizer,
     executor_factory: ExecutorFactory<S>,
 }
 
@@ -34,10 +31,9 @@ impl<S: StorageEngine + 'static> QueryPipelineManager<S> {
 
         Self {
             _storage: storage,
-            _parser: Parser::new(""),
             validator: Validator::new(crate::query::validator::ValidationContext::new()),
-            _planner: Box::new(crate::query::planner::SequentialPlanner::new()),
-            _optimizer: Optimizer::default(),
+            planner: Box::new(crate::query::planner::SequentialPlanner::new()),
+            optimizer: Optimizer::default(),
             executor_factory,
         }
     }
@@ -81,12 +77,16 @@ impl<S: StorageEngine + 'static> QueryPipelineManager<S> {
         _query_context: &mut QueryContext,
         query_text: &str,
     ) -> DBResult<crate::query::context::ast::QueryAstContext> {
-        let _parser = Parser::new(query_text);
-        // 临时实现：返回一个空的AST上下文
-        // 在实际实现中，这里应该调用parser.parse()并处理结果
-        let ast = crate::query::context::ast::QueryAstContext::new(query_text);
-
-        Ok(ast)
+        let mut parser = Parser::new(query_text);
+        match parser.parse() {
+            Ok(_stmt) => {
+                let ast = crate::query::context::ast::QueryAstContext::new(query_text);
+                Ok(ast)
+            }
+            Err(e) => Err(DBError::Query(crate::core::error::QueryError::ParseError(
+                format!("解析失败: {}", e),
+            ))),
+        }
     }
 
     /// 验证查询的语义正确性
@@ -106,38 +106,48 @@ impl<S: StorageEngine + 'static> QueryPipelineManager<S> {
     /// 生成执行计划
     fn generate_execution_plan(
         &mut self,
-        _query_context: &mut QueryContext,
-        _ast: &crate::query::context::ast::QueryAstContext,
+        query_context: &mut QueryContext,
+        ast: &crate::query::context::ast::QueryAstContext,
     ) -> DBResult<crate::query::planner::plan::ExecutionPlan> {
-        // 临时实现：创建一个空的执行计划
-        // 在实际实现中，这里应该调用planner.transform(ast)
-        let mut plan = crate::query::planner::plan::ExecutionPlan::new(None);
-        let uuid = uuid::Uuid::new_v4();
-        let uuid_bytes = uuid.as_bytes();
-        let id = i64::from_ne_bytes([
-            uuid_bytes[0],
-            uuid_bytes[1],
-            uuid_bytes[2],
-            uuid_bytes[3],
-            uuid_bytes[4],
-            uuid_bytes[5],
-            uuid_bytes[6],
-            uuid_bytes[7],
-        ]);
-        plan.set_id(id);
-
-        Ok(plan)
+        let ast_ctx = ast.base_context();
+        match self.planner.transform(ast_ctx) {
+            Ok(sub_plan) => {
+                let mut plan = crate::query::planner::plan::ExecutionPlan::new(sub_plan.root().clone());
+                let uuid = uuid::Uuid::new_v4();
+                let uuid_bytes = uuid.as_bytes();
+                let id = i64::from_ne_bytes([
+                    uuid_bytes[0],
+                    uuid_bytes[1],
+                    uuid_bytes[2],
+                    uuid_bytes[3],
+                    uuid_bytes[4],
+                    uuid_bytes[5],
+                    uuid_bytes[6],
+                    uuid_bytes[7],
+                ]);
+                plan.set_id(id);
+                Ok(plan)
+            }
+            Err(e) => Err(DBError::Query(crate::core::error::QueryError::PlanningError(
+                format!("规划失败: {}", e),
+            ))),
+        }
     }
 
     /// 优化执行计划
     fn optimize_execution_plan(
         &mut self,
-        _query_context: &mut QueryContext,
+        query_context: &mut QueryContext,
         plan: crate::query::planner::plan::ExecutionPlan,
     ) -> DBResult<crate::query::planner::plan::ExecutionPlan> {
-        // 临时实现：直接返回原计划
-        // 在实际实现中，这里应该调用optimizer.find_best_plan()
-        Ok(plan)
+        self.optimizer
+            .find_best_plan(query_context, plan)
+            .map_err(|e| {
+                DBError::Query(crate::core::error::QueryError::OptimizationError(format!(
+                    "优化失败: {}",
+                    e
+                )))
+            })
     }
 
     /// 执行优化后的计划

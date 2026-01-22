@@ -27,7 +27,7 @@ pub enum ParseErrorKind {
     UnsupportedFeature,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug)]
 pub struct ParseError {
     pub kind: ParseErrorKind,
     pub message: String,
@@ -170,8 +170,8 @@ impl From<String> for ParseError {
     }
 }
 
-impl From<super::lexer::LexError> for ParseError {
-    fn from(lex_error: super::lexer::LexError) -> Self {
+impl From<super::super::lexer::LexError> for ParseError {
+    fn from(lex_error: super::super::lexer::LexError) -> Self {
         ParseError::new(
             ParseErrorKind::LexicalError,
             lex_error.message,
@@ -186,7 +186,7 @@ impl From<ParseError> for QueryError {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug)]
 pub struct ParseErrors {
     pub errors: Vec<ParseError>,
 }

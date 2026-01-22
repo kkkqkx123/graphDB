@@ -12,19 +12,13 @@ pub mod executor;
 pub mod optimizer;
 pub mod parser;
 pub mod planner;
+pub mod query_pipeline_manager;
 pub mod scheduler;
 pub mod validator;
 pub mod visitor;
-
-// Module-specific implementations
-// executor_factory和query_pipeline_manager已迁移到Core模块
-// pub mod executor_factory;
-// pub mod query_pipeline_manager;
-
-// Re-export commonly used types for convenience
-// pub use executor_factory::ExecutorFactory;
-// pub use query_pipeline_manager::QueryPipelineManager;
 // Re-export error types from core module
 pub use crate::core::{DBResult, QueryError};
 // Re-export execution result from executor module
 pub use executor::traits::ExecutionResult;
+// Re-export QueryPipelineManager
+pub use query_pipeline_manager::QueryPipelineManager;
