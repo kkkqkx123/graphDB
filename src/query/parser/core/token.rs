@@ -4,36 +4,7 @@
 
 use std::fmt;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct Position {
-    pub line: usize,
-    pub column: usize,
-}
-
-impl Position {
-    pub fn new(line: usize, column: usize) -> Self {
-        Self { line, column }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct Span {
-    pub start: Position,
-    pub end: Position,
-}
-
-impl Span {
-    pub fn new(start: Position, end: Position) -> Self {
-        Self { start, end }
-    }
-
-    pub fn from_tokens(start_line: usize, start_col: usize, end_line: usize, end_col: usize) -> Self {
-        Self {
-            start: Position::new(start_line, start_col),
-            end: Position::new(end_line, end_col),
-        }
-    }
-}
+use super::position::Position;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Token {
@@ -43,9 +14,23 @@ pub struct Token {
     pub column: usize,
 }
 
+impl Token {
+    pub fn new(kind: TokenKind, lexeme: String, line: usize, column: usize) -> Self {
+        Token {
+            kind,
+            lexeme,
+            line,
+            column,
+        }
+    }
+
+    pub fn position(&self) -> Position {
+        Position::new(self.line, self.column)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind {
-    // Keywords
     Create,
     Match,
     Return,
@@ -217,8 +202,6 @@ pub enum TokenKind {
     Clients,
     Sign,
     Service,
-
-    // 扩展的关键词
     Count,
     Sum,
     Avg,
@@ -236,66 +219,54 @@ pub enum TokenKind {
     Rank,
     Input,
     FindPath,
-
-    // Literals
     Identifier(String),
     StringLiteral(String),
     IntegerLiteral(i64),
     FloatLiteral(f64),
     BooleanLiteral(bool),
-
-    // Operators
-    Plus,   // +
-    Minus,  // -
-    Star,   // *
-    Div,    // /
-    Mod,    // %
-    Exp,    // **
-    Eq,     // ==
-    Assign, // =
-    Ne,     // !=
-    Lt,     // <
-    Le,     // <=
-    Gt,     // >
-    Ge,     // >=
-    Regex,  // =~
-    NotOp,  // !
-
-    // Delimiters
-    LParen,     // (
-    RParen,     // )
-    LBracket,   // [
-    RBracket,   // ]
-    LBrace,     // {
-    RBrace,     // }
-    Comma,      // ,
-    Dot,        // .
-    DotDot,     // ..
-    Colon,      // :
-    Semicolon,  // ;
-    QMark,      // ?
-    Question,   // ? (别名)
-    Pipe,       // |
-    Arrow,      // ->
-    BackArrow,  // <-
-    RightArrow, // -> (别名)
-    LeftArrow,  // <- (别名)
-    At,         // @
-    Dollar,     // $
-
-    // Special properties
-    IdProp,    // _id
-    TypeProp,  // _type
-    SrcIdProp, // _src
-    DstIdProp, // _dst
-    RankProp,  // _rank
-
-    // Graph reference identifiers
-    DstRef,   // $$
-    SrcRef,   // $^
-    InputRef, // $-
-
-    // End of input
+    Plus,
+    Minus,
+    Star,
+    Div,
+    Mod,
+    Exp,
+    Eq,
+    Assign,
+    Ne,
+    Lt,
+    Le,
+    Gt,
+    Ge,
+    Regex,
+    NotOp,
+    LParen,
+    RParen,
+    LBracket,
+    RBracket,
+    LBrace,
+    RBrace,
+    Comma,
+    Dot,
+    DotDot,
+    Colon,
+    Semicolon,
+    QMark,
+    Question,
+    Pipe,
+    Arrow,
+    BackArrow,
+    RightArrow,
+    LeftArrow,
+    At,
+    Dollar,
+    IdProp,
+    TypeProp,
+    SrcIdProp,
+    DstIdProp,
+    RankProp,
+    DstRef,
+    SrcRef,
+    InputRef,
     Eof,
 }
 
@@ -312,13 +283,57 @@ impl fmt::Display for TokenKind {
     }
 }
 
-impl Token {
-    pub fn new(kind: TokenKind, lexeme: String, line: usize, column: usize) -> Self {
-        Token {
-            kind,
-            lexeme,
-            line,
-            column,
-        }
+pub trait TokenKindExt {
+    fn is_keyword(&self) -> bool;
+    fn is_literal(&self) -> bool;
+    fn is_operator(&self) -> bool;
+    fn is_delimiter(&self) -> bool;
+    fn is_identifier(&self) -> bool;
+}
+
+impl TokenKindExt for TokenKind {
+    fn is_keyword(&self) -> bool {
+        matches!(self, TokenKind::Create | TokenKind::Match | TokenKind::Return | TokenKind::Where
+            | TokenKind::Delete | TokenKind::Update | TokenKind::Insert | TokenKind::Upsert
+            | TokenKind::From | TokenKind::To | TokenKind::As | TokenKind::With | TokenKind::Yield
+            | TokenKind::Go | TokenKind::Over | TokenKind::Step | TokenKind::Upto | TokenKind::Limit
+            | TokenKind::Asc | TokenKind::Desc | TokenKind::Order | TokenKind::By | TokenKind::Skip
+            | TokenKind::Unwind | TokenKind::Optional | TokenKind::Distinct | TokenKind::All
+            | TokenKind::Null | TokenKind::Is | TokenKind::Not | TokenKind::And | TokenKind::Or
+            | TokenKind::Xor | TokenKind::Contains | TokenKind::StartsWith | TokenKind::EndsWith
+            | TokenKind::Case | TokenKind::When | TokenKind::Then | TokenKind::Else | TokenKind::End
+            | TokenKind::Union | TokenKind::Intersect | TokenKind::Group | TokenKind::Between)
+    }
+
+    fn is_literal(&self) -> bool {
+        matches!(
+            self,
+            TokenKind::StringLiteral(_) | TokenKind::IntegerLiteral(_) | TokenKind::FloatLiteral(_)
+                | TokenKind::BooleanLiteral(_)
+        )
+    }
+
+    fn is_operator(&self) -> bool {
+        matches!(
+            self,
+            TokenKind::Plus | TokenKind::Minus | TokenKind::Star | TokenKind::Div | TokenKind::Mod
+                | TokenKind::Exp | TokenKind::Eq | TokenKind::Assign | TokenKind::Ne | TokenKind::Lt
+                | TokenKind::Le | TokenKind::Gt | TokenKind::Ge | TokenKind::Regex | TokenKind::NotOp
+        )
+    }
+
+    fn is_delimiter(&self) -> bool {
+        matches!(
+            self,
+            TokenKind::LParen | TokenKind::RParen | TokenKind::LBracket | TokenKind::RBracket
+                | TokenKind::LBrace | TokenKind::RBrace | TokenKind::Comma | TokenKind::Dot
+                | TokenKind::DotDot | TokenKind::Colon | TokenKind::Semicolon | TokenKind::QMark
+                | TokenKind::Question | TokenKind::Pipe | TokenKind::Arrow | TokenKind::BackArrow
+                | TokenKind::At | TokenKind::Dollar
+        )
+    }
+
+    fn is_identifier(&self) -> bool {
+        matches!(self, TokenKind::Identifier(_))
     }
 }

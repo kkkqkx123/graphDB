@@ -1,6 +1,12 @@
+//! Core types for the query parser
+//!
+//! This module provides the fundamental types used throughout
+//! the parser including tokens, errors, positions, and parsing context.
+
 pub mod error;
 pub mod token;
+pub mod position;
 
-// 重新导出常用类型，方便其他模块使用
 pub use error::{ParseError, ParseErrors, ParseErrorKind};
-pub use token::{Token, TokenKind, Position, Span};
+pub use token::{Token, TokenKind, TokenKindExt};
+pub use position::{Position, Span, ToSpan};

@@ -8,75 +8,80 @@ use crate::query::parser::ast::*;
 use crate::query::parser::ast::expr::*;
 use crate::query::parser::ast::pattern::*;
 use crate::query::parser::ast::stmt::*;
-use crate::query::parser::core::{ParseError, Span, Position};
-use crate::query::parser::core::error::ParseErrorKind;
-use crate::query::parser::lexer::{Lexer, TokenKind as LexerToken};
+use crate::query::parser::core::error::{ParseError, ParseErrorKind};
+use crate::query::parser::core::position::Position;
+use crate::query::parser::core::span::Span;
+use crate::query::parser::lexer::TokenKind as LexerToken;
 use crate::query::parser::parser::ExprParser;
+use crate::query::parser::parser::ParseContext;
+use crate::query::parser::TokenKind;
 
-pub struct StmtParser {
-    lexer: Lexer,
-    expr_parser: ExprParser,
+pub struct StmtParser<'a> {
+    _phantom: std::marker::PhantomData<&'a ()>,
 }
 
-impl StmtParser {
-    pub fn new(input: &str) -> Self {
+impl<'a> StmtParser<'a> {
+    pub fn new(_ctx: &ParseContext<'a>) -> Self {
         Self {
-            lexer: Lexer::new(input),
-            expr_parser: ExprParser::new(input),
+            _phantom: std::marker::PhantomData,
         }
     }
 
-    pub fn parse_statement(&mut self) -> Result<Stmt, ParseError> {
-        let token = self.lexer.peek().map_err(|e| ParseError::from(e))?;
+    pub fn parse_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {
+        let token = ctx.current_token().clone();
         match token.kind {
-            LexerToken::Match => self.parse_match_statement(),
-            LexerToken::Go => self.parse_go_statement(),
-            LexerToken::Create => self.parse_create_statement(),
-            LexerToken::Delete => self.parse_delete_statement(),
-            LexerToken::Update => self.parse_update_statement(),
-            LexerToken::Use => self.parse_use_statement(),
-            LexerToken::Show => self.parse_show_statement(),
-            LexerToken::Explain => self.parse_explain_statement(),
-            LexerToken::Lookup => self.parse_lookup_statement(),
-            LexerToken::Fetch => self.parse_fetch_statement(),
-            LexerToken::Unwind => self.parse_unwind_statement(),
-            LexerToken::Merge => self.parse_merge_statement(),
-            LexerToken::Insert => self.parse_insert_statement(),
-            LexerToken::Return => self.parse_return_statement(),
-            LexerToken::With => self.parse_with_statement(),
-            LexerToken::Set => self.parse_set_statement(),
-            LexerToken::Remove => self.parse_remove_statement(),
-            LexerToken::Pipe => self.parse_pipe_statement(),
-            _ => Err(self.parse_error(format!("Unexpected token: {:?}", token.kind))),
+            TokenKind::Match => self.parse_match_statement(ctx),
+            TokenKind::Go => self.parse_go_statement(ctx),
+            TokenKind::Create => self.parse_create_statement(ctx),
+            TokenKind::Delete => self.parse_delete_statement(ctx),
+            TokenKind::Update => self.parse_update_statement(ctx),
+            TokenKind::Use => self.parse_use_statement(ctx),
+            TokenKind::Show => self.parse_show_statement(ctx),
+            TokenKind::Explain => self.parse_explain_statement(ctx),
+            TokenKind::Lookup => self.parse_lookup_statement(ctx),
+            TokenKind::Fetch => self.parse_fetch_statement(ctx),
+            TokenKind::Unwind => self.parse_unwind_statement(ctx),
+            TokenKind::Merge => self.parse_merge_statement(ctx),
+            TokenKind::Insert => self.parse_insert_statement(ctx),
+            TokenKind::Return => self.parse_return_statement(ctx),
+            TokenKind::With => self.parse_with_statement(ctx),
+            TokenKind::Set => self.parse_set_statement(ctx),
+            TokenKind::Remove => self.parse_remove_statement(ctx),
+            TokenKind::Pipe => self.parse_pipe_statement(ctx),
+            _ => Err(ParseError::new(
+                ParseErrorKind::UnexpectedToken,
+                format!("Unexpected token: {:?}", token.kind),
+                ctx.current_position(),
+            )),
         }
     }
 
-    pub fn parse_match_statement(&mut self) -> Result<Stmt, ParseError> {
-        let start_span = self.current_span();
-        self.expect_token(LexerToken::Match)?;
+    fn parse_match_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::Match)?;
 
-        let patterns = self.parse_patterns()?;
+        let patterns = self.parse_patterns(ctx)?;
 
-        let where_clause = if self.match_token(LexerToken::Where) {
-            Some(self.parse_expression()?)
+        let where_clause = if ctx.match_token(TokenKind::Where) {
+            Some(self.parse_expression(ctx)?)
         } else {
             None
         };
 
-        let return_clause = if self.match_token(LexerToken::Return) {
-            Some(self.parse_return_clause()?)
+        let return_clause = if ctx.match_token(TokenKind::Return) {
+            Some(self.parse_return_clause(ctx)?)
         } else {
             None
         };
 
-        let order_by = if self.match_token(LexerToken::Order) && self.match_token(LexerToken::By) {
-            Some(self.parse_order_by_clause()?)
+        let order_by = if ctx.match_token(TokenKind::Order) && ctx.match_token(TokenKind::By) {
+            Some(self.parse_order_by_clause(ctx)?)
         } else {
             None
         };
 
-        let end_span = self.current_span();
-        let span = Span::new(start_span.start, end_span.end);
+        let end_span = ctx.current_span();
+        let span = ctx.merge_span(start_span.start, end_span.end);
 
         Ok(Stmt::Match(MatchStmt {
             span,
@@ -89,36 +94,32 @@ impl StmtParser {
         }))
     }
 
-    pub fn parse_create_statement(&mut self) -> Result<Stmt, ParseError> {
-        let start_span = self.current_span();
-        self.expect_token(LexerToken::Create)?;
+    fn parse_create_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::Create)?;
 
-        if self.match_token(LexerToken::Tag) {
-            let name = self.expect_identifier()?;
-            let properties = self.parse_properties()?;
+        if ctx.match_token(TokenKind::Tag) {
+            let name = ctx.expect_identifier()?;
+            let properties = self.parse_properties(ctx)?;
             Ok(Stmt::Create(CreateStmt {
                 span: start_span,
-                target: CreateTarget::Tag { name, properties },
+                kind: CreateStmtKind::Tag(name),
+                properties,
             }))
-        } else if self.match_token(LexerToken::Index) {
-            let name = self.expect_identifier()?;
-            self.expect_token(LexerToken::On)?;
-            let on = self.expect_identifier()?;
-            let properties = self.parse_index_properties()?;
+        } else if ctx.match_token(TokenKind::Edge) {
+            let name = ctx.expect_identifier()?;
+            let properties = self.parse_properties(ctx)?;
             Ok(Stmt::Create(CreateStmt {
                 span: start_span,
-                target: CreateTarget::Index { name, on, properties },
+                kind: CreateStmtKind::Edge(name),
+                properties,
             }))
         } else {
-            let pattern = self.parse_pattern()?;
-            Ok(Stmt::Create(CreateStmt {
-                span: start_span,
-                target: CreateTarget::Node {
-                    variable: None,
-                    labels: vec![],
-                    properties: None,
-                },
-            }))
+            Err(ParseError::new(
+                ParseErrorKind::UnexpectedToken,
+                "Expected TAG or EDGE after CREATE".to_string(),
+                ctx.current_position(),
+            ))
         }
     }
 

@@ -2,129 +2,213 @@
 //!
 //! 负责解析各种表达式，包括算术表达式、逻辑表达式、函数调用等。
 
-use crate::core::Value;
 use crate::query::parser::ast::types::{BinaryOp, UnaryOp};
 use crate::query::parser::ast::expr::*;
-use crate::query::parser::core::{ParseError, Span, Position};
-use crate::query::parser::core::error::ParseErrorKind;
-use crate::query::parser::lexer::{Lexer, TokenKind as LexerToken};
+use crate::query::parser::core::error::{ParseError, ParseErrorKind};
+use crate::query::parser::core::position::Position;
+use crate::query::parser::core::span::Span;
+use crate::query::parser::parser::ParseContext;
+use crate::query::parser::TokenKind;
 
-pub struct ExprParser {
-    lexer: Lexer,
+pub struct ExprParser<'a> {
+    _phantom: std::marker::PhantomData<&'a ()>,
 }
 
-impl ExprParser {
-    pub fn new(input: &str) -> Self {
+impl<'a> ExprParser<'a> {
+    pub fn new(_ctx: &ParseContext<'a>) -> Self {
         Self {
-            lexer: Lexer::new(input),
+            _phantom: std::marker::PhantomData,
         }
     }
 
-    pub fn parse_expression(&mut self) -> Result<Expr, ParseError> {
-        self.parse_or_expression()
+    pub fn parse_expression(&mut self, ctx: &mut ParseContext<'a>) -> Result<Expr, ParseError> {
+        self.parse_or_expression(ctx)
     }
 
-    fn parse_or_expression(&mut self) -> Result<Expr, ParseError> {
-        let mut left = self.parse_and_expression()?;
+    fn parse_or_expression(&mut self, ctx: &mut ParseContext<'a>) -> Result<Expr, ParseError> {
+        let mut left = self.parse_and_expression(ctx)?;
 
-        while self.match_token(LexerToken::Or) {
+        while ctx.match_token(TokenKind::Or) {
             let op = BinaryOp::Or;
-            let right = self.parse_and_expression()?;
-            let span = Span::new(left.span().start, right.span().end);
+            let right = self.parse_and_expression(ctx)?;
+            let span = ctx.merge_span(left.span().start, right.span().end);
             left = Expr::Binary(BinaryExpr::new(left, op, right, span));
         }
 
         Ok(left)
     }
 
-    fn parse_and_expression(&mut self) -> Result<Expr, ParseError> {
-        let mut left = self.parse_not_expression()?;
+    fn parse_and_expression(&mut self, ctx: &mut ParseContext<'a>) -> Result<Expr, ParseError> {
+        let mut left = self.parse_not_expression(ctx)?;
 
-        while self.match_token(LexerToken::And) {
+        while ctx.match_token(TokenKind::And) {
             let op = BinaryOp::And;
-            let right = self.parse_not_expression()?;
-            let span = Span::new(left.span().start, right.span().end);
+            let right = self.parse_not_expression(ctx)?;
+            let span = ctx.merge_span(left.span().start, right.span().end);
             left = Expr::Binary(BinaryExpr::new(left, op, right, span));
         }
 
         Ok(left)
     }
 
-    fn parse_not_expression(&mut self) -> Result<Expr, ParseError> {
-        if self.match_token(LexerToken::Not) {
+    fn parse_not_expression(&mut self, ctx: &mut ParseContext<'a>) -> Result<Expr, ParseError> {
+        if ctx.match_token(TokenKind::Not) {
             let op = UnaryOp::Not;
-            let operand = self.parse_not_expression()?;
-            let span = Span::new(operand.span().start, operand.span().end);
+            let operand = self.parse_not_expression(ctx)?;
+            let span = ctx.merge_span(operand.span().start, operand.span().end);
             Ok(Expr::Unary(UnaryExpr::new(op, operand, span)))
         } else {
-            self.parse_comparison_expression()
+            self.parse_comparison_expression(ctx)
         }
     }
 
-    fn parse_comparison_expression(&mut self) -> Result<Expr, ParseError> {
-        let mut left = self.parse_additive_expression()?;
+    fn parse_comparison_expression(&mut self, ctx: &mut ParseContext<'a>) -> Result<Expr, ParseError> {
+        let mut left = self.parse_additive_expression(ctx)?;
 
-        if let Some(op) = self.parse_comparison_op() {
-            let right = self.parse_additive_expression()?;
-            let span = Span::new(left.span().start, right.span().end);
+        if let Some(op) = self.parse_comparison_op(ctx) {
+            let right = self.parse_additive_expression(ctx)?;
+            let span = ctx.merge_span(left.span().start, right.span().end);
             left = Expr::Binary(BinaryExpr::new(left, op, right, span));
         }
 
         Ok(left)
     }
 
-    fn parse_additive_expression(&mut self) -> Result<Expr, ParseError> {
-        let mut left = self.parse_multiplicative_expression()?;
+    fn parse_comparison_op(&mut self, ctx: &mut ParseContext<'a>) -> Option<BinaryOp> {
+        match ctx.current_token().kind {
+            TokenKind::Eq => {
+                ctx.next_token();
+                Some(BinaryOp::Eq)
+            }
+            TokenKind::Ne => {
+                ctx.next_token();
+                Some(BinaryOp::Ne)
+            }
+            TokenKind::Lt => {
+                ctx.next_token();
+                Some(BinaryOp::Lt)
+            }
+            TokenKind::Le => {
+                ctx.next_token();
+                Some(BinaryOp::Le)
+            }
+            TokenKind::Gt => {
+                ctx.next_token();
+                Some(BinaryOp::Gt)
+            }
+            TokenKind::Ge => {
+                ctx.next_token();
+                Some(BinaryOp::Ge)
+            }
+            TokenKind::Regex => {
+                ctx.next_token();
+                Some(BinaryOp::Regex)
+            }
+            TokenKind::Contains => {
+                ctx.next_token();
+                Some(BinaryOp::Contains)
+            }
+            TokenKind::StartsWith => {
+                ctx.next_token();
+                Some(BinaryOp::StartsWith)
+            }
+            TokenKind::EndsWith => {
+                ctx.next_token();
+                Some(BinaryOp::EndsWith)
+            }
+            _ => None,
+        }
+    }
 
-        while let Some(op) = self.parse_additive_op() {
-            let right = self.parse_multiplicative_expression()?;
-            let span = Span::new(left.span().start, right.span().end);
+    fn parse_additive_expression(&mut self, ctx: &mut ParseContext<'a>) -> Result<Expr, ParseError> {
+        let mut left = self.parse_multiplicative_expression(ctx)?;
+
+        while let Some(op) = self.parse_additive_op(ctx) {
+            let right = self.parse_multiplicative_expression(ctx)?;
+            let span = ctx.merge_span(left.span().start, right.span().end);
             left = Expr::Binary(BinaryExpr::new(left, op, right, span));
         }
 
         Ok(left)
     }
 
-    fn parse_multiplicative_expression(&mut self) -> Result<Expr, ParseError> {
-        let mut left = self.parse_unary_expression()?;
+    fn parse_additive_op(&mut self, ctx: &mut ParseContext<'a>) -> Option<BinaryOp> {
+        match ctx.current_token().kind {
+            TokenKind::Plus => {
+                ctx.next_token();
+                Some(BinaryOp::Add)
+            }
+            TokenKind::Minus => {
+                ctx.next_token();
+                Some(BinaryOp::Sub)
+            }
+            _ => None,
+        }
+    }
 
-        while let Some(op) = self.parse_multiplicative_op() {
-            let right = self.parse_unary_expression()?;
-            let span = Span::new(left.span().start, right.span().end);
+    fn parse_multiplicative_expression(&mut self, ctx: &mut ParseContext<'a>) -> Result<Expr, ParseError> {
+        let mut left = self.parse_unary_expression(ctx)?;
+
+        while let Some(op) = self.parse_multiplicative_op(ctx) {
+            let right = self.parse_unary_expression(ctx)?;
+            let span = ctx.merge_span(left.span().start, right.span().end);
             left = Expr::Binary(BinaryExpr::new(left, op, right, span));
         }
 
         Ok(left)
     }
 
-    fn parse_unary_expression(&mut self) -> Result<Expr, ParseError> {
-        if self.match_token(LexerToken::Minus) {
+    fn parse_multiplicative_op(&mut self, ctx: &mut ParseContext<'a>) -> Option<BinaryOp> {
+        match ctx.current_token().kind {
+            TokenKind::Star => {
+                ctx.next_token();
+                Some(BinaryOp::Mul)
+            }
+            TokenKind::Div => {
+                ctx.next_token();
+                Some(BinaryOp::Div)
+            }
+            TokenKind::Mod => {
+                ctx.next_token();
+                Some(BinaryOp::Mod)
+            }
+            _ => None,
+        }
+    }
+
+    fn parse_unary_expression(&mut self, ctx: &mut ParseContext<'a>) -> Result<Expr, ParseError> {
+        if ctx.match_token(TokenKind::Minus) {
             let op = UnaryOp::Minus;
-            let operand = self.parse_unary_expression()?;
-            let span = Span::new(operand.span().start, operand.span().end);
+            let operand = self.parse_unary_expression(ctx)?;
+            let span = ctx.merge_span(operand.span().start, operand.span().end);
             Ok(Expr::Unary(UnaryExpr::new(op, operand, span)))
-        } else if self.match_token(LexerToken::Plus) {
+        } else if ctx.match_token(TokenKind::Plus) {
             let op = UnaryOp::Plus;
-            let operand = self.parse_unary_expression()?;
-            let span = Span::new(operand.span().start, operand.span().end);
+            let operand = self.parse_unary_expression(ctx)?;
+            let span = ctx.merge_span(operand.span().start, operand.span().end);
+            Ok(Expr::Unary(UnaryExpr::new(op, operand, span)))
+        } else if ctx.match_token(TokenKind::NotOp) {
+            let op = UnaryOp::Not;
+            let operand = self.parse_unary_expression(ctx)?;
+            let span = ctx.merge_span(operand.span().start, operand.span().end);
             Ok(Expr::Unary(UnaryExpr::new(op, operand, span)))
         } else {
-            self.parse_exponentiation_expression()
+            self.parse_exponentiation_expression(ctx)
         }
     }
 
-    fn parse_exponentiation_expression(&mut self) -> Result<Expr, ParseError> {
-        let mut expr = self.parse_postfix_expression()?;
+    fn parse_exponentiation_expression(&mut self, ctx: &mut ParseContext<'a>) -> Result<Expr, ParseError> {
+        let mut expr = self.parse_postfix_expression(ctx)?;
 
-        if self.match_token(LexerToken::Exp) {
+        if ctx.match_token(TokenKind::Exp) {
             let mut right_operands = Vec::new();
 
-            while self.match_token(LexerToken::Exp) {
-                right_operands.push(self.parse_unary_expression()?);
+            while ctx.match_token(TokenKind::Exp) {
+                right_operands.push(self.parse_unary_expression(ctx)?);
             }
 
             for operand in right_operands.into_iter().rev() {
-                let span = Span::new(expr.span().start, operand.span().end);
+                let span = ctx.merge_span(expr.span().start, operand.span().end);
                 expr = Expr::Binary(BinaryExpr::new(expr, BinaryOp::Exponent, operand, span));
             }
         }
@@ -132,18 +216,18 @@ impl ExprParser {
         Ok(expr)
     }
 
-    fn parse_postfix_expression(&mut self) -> Result<Expr, ParseError> {
-        let mut expr = self.parse_primary_expression()?;
+    fn parse_postfix_expression(&mut self, ctx: &mut ParseContext<'a>) -> Result<Expr, ParseError> {
+        let mut expr = self.parse_primary_expression(ctx)?;
 
         loop {
-            if self.match_token(LexerToken::LBracket) {
-                let index = self.parse_expression()?;
-                self.expect_token(LexerToken::RBracket)?;
-                let span = Span::new(expr.span().start, self.lexer.current_position());
+            if ctx.match_token(TokenKind::LBracket) {
+                let index = self.parse_expression(ctx)?;
+                ctx.expect_token(TokenKind::RBracket)?;
+                let span = ctx.merge_span(expr.span().start, ctx.current_position());
                 expr = Expr::Subscript(SubscriptExpr::new(expr, index, span));
-            } else if self.match_token(LexerToken::Dot) {
-                let property = self.expect_identifier()?;
-                let span = Span::new(expr.span().start, self.lexer.current_position());
+            } else if ctx.match_token(TokenKind::Dot) {
+                let property = ctx.expect_identifier()?;
+                let span = ctx.merge_span(expr.span().start, ctx.current_position());
                 expr = Expr::PropertyAccess(PropertyAccessExpr::new(expr, property, span));
             } else {
                 break;
@@ -153,269 +237,153 @@ impl ExprParser {
         Ok(expr)
     }
 
-    fn parse_primary_expression(&mut self) -> Result<Expr, ParseError> {
-        let token = self.lexer.peek()?;
+    fn parse_primary_expression(&mut self, ctx: &mut ParseContext<'a>) -> Result<Expr, ParseError> {
+        let token = ctx.current_token().clone();
+        let start_pos = ctx.current_position();
 
         match token.kind {
-            LexerToken::IntegerLiteral(_) => {
-                let value = self.parse_integer()?;
-                let span = self.current_span();
-                Ok(Expr::Constant(ConstantExpr::new(Value::Int(value), span)))
+            TokenKind::LParen => {
+                ctx.next_token();
+                let expr = self.parse_expression(ctx)?;
+                ctx.expect_token(TokenKind::RParen)?;
+                let span = ctx.merge_span(start_pos, ctx.current_position());
+                Ok(Expr::Grouped(Box::new(expr), span))
             }
-            LexerToken::FloatLiteral(_) => {
-                let value = self.parse_float()?;
-                let span = self.current_span();
-                Ok(Expr::Constant(ConstantExpr::new(Value::Float(value), span)))
-            }
-            LexerToken::StringLiteral(_) => {
-                let value = self.parse_string()?;
-                let span = self.current_span();
-                Ok(Expr::Constant(ConstantExpr::new(Value::String(value), span)))
-            }
-            LexerToken::BooleanLiteral(_) => {
-                let value = self.parse_boolean()?;
-                let span = self.current_span();
-                Ok(Expr::Constant(ConstantExpr::new(Value::Bool(value), span)))
-            }
-            LexerToken::Identifier(_) => {
-                let name = self.expect_identifier()?;
-                let span = self.current_span();
-
-                if self.match_token(LexerToken::LParen) {
-                    self.parse_function_call(name, span)
+            TokenKind::Identifier(name) => {
+                ctx.next_token();
+                let span = ctx.merge_span(start_pos, ctx.current_position());
+                if ctx.match_token(TokenKind::LParen) {
+                    self.parse_function_call(name, span, ctx)
                 } else {
-                    Ok(Expr::Variable(VariableExpr::new(name, span)))
+                    Ok(Expr::Variable(name, span))
                 }
             }
-            LexerToken::Count | LexerToken::Sum | LexerToken::Avg | LexerToken::Min | LexerToken::Max => {
-                let name = token.lexeme.clone();
-                let span = self.current_span();
-                self.lexer.advance();
-
-                if self.match_token(LexerToken::LParen) {
-                    self.parse_function_call(name, span)
-                } else {
-                    Ok(Expr::Variable(VariableExpr::new(name, span)))
-                }
+            TokenKind::IntegerLiteral(n) => {
+                ctx.next_token();
+                let span = ctx.merge_span(start_pos, ctx.current_position());
+                Ok(Expr::Constant(Constant::Int(n), span))
             }
-            LexerToken::LParen => {
-                self.lexer.advance();
-                let expr = self.parse_expression()?;
-                self.expect_token(LexerToken::RParen)?;
-                Ok(expr)
+            TokenKind::FloatLiteral(f) => {
+                ctx.next_token();
+                let span = ctx.merge_span(start_pos, ctx.current_position());
+                Ok(Expr::Constant(Constant::Float(f), span))
             }
-            LexerToken::LBracket => self.parse_list_expression(),
-            LexerToken::LBrace => self.parse_map_expression(),
-            _ => Err(self.parse_error(format!("Unexpected token: {:?}", token.kind))),
-        }
-    }
-
-    fn parse_function_call(&mut self, name: String, span: Span) -> Result<Expr, ParseError> {
-        let mut args = Vec::new();
-        let mut distinct = false;
-
-        if self.match_token(LexerToken::Distinct) {
-            distinct = true;
-        }
-
-        if !self.check_token(LexerToken::RParen) {
-            loop {
-                let arg = self.parse_expression()?;
-                args.push(arg);
-
-                if !self.match_token(LexerToken::Comma) {
-                    break;
-                }
+            TokenKind::StringLiteral(s) => {
+                ctx.next_token();
+                let span = ctx.merge_span(start_pos, ctx.current_position());
+                Ok(Expr::Constant(Constant::String(s), span))
             }
-        }
-
-        self.expect_token(LexerToken::RParen)?;
-        let end_span = self.current_span();
-        let full_span = Span::new(span.start, end_span.end);
-
-        Ok(Expr::FunctionCall(FunctionCallExpr::new(
-            name, args, distinct, full_span,
-        )))
-    }
-
-    fn parse_list_expression(&mut self) -> Result<Expr, ParseError> {
-        let start_span = self.current_span();
-        self.expect_token(LexerToken::LBracket)?;
-
-        let mut elements = Vec::new();
-
-        if !self.check_token(LexerToken::RBracket) {
-            loop {
-                let elem = self.parse_expression()?;
-                elements.push(elem);
-
-                if !self.match_token(LexerToken::Comma) {
-                    break;
-                }
+            TokenKind::BooleanLiteral(b) => {
+                ctx.next_token();
+                let span = ctx.merge_span(start_pos, ctx.current_position());
+                Ok(Expr::Constant(Constant::Bool(b), span))
             }
-        }
-
-        self.expect_token(LexerToken::RBracket)?;
-        let end_span = self.current_span();
-        let span = Span::new(start_span.start, end_span.end);
-
-        Ok(Expr::List(ListExpr::new(elements, span)))
-    }
-
-    fn parse_map_expression(&mut self) -> Result<Expr, ParseError> {
-        let start_span = self.current_span();
-        self.expect_token(LexerToken::LBrace)?;
-
-        let mut pairs = Vec::new();
-
-        if !self.check_token(LexerToken::RBrace) {
-            loop {
-                let key = self.expect_identifier()?;
-                self.expect_token(LexerToken::Colon)?;
-                let value = self.parse_expression()?;
-                pairs.push((key, value));
-
-                if !self.match_token(LexerToken::Comma) {
-                    break;
-                }
+            TokenKind::Null => {
+                ctx.next_token();
+                let span = ctx.merge_span(start_pos, ctx.current_position());
+                Ok(Expr::Constant(Constant::Null, span))
+            }
+            TokenKind::Count | TokenKind::Sum | TokenKind::Avg | TokenKind::Min | TokenKind::Max => {
+                let func_name = token.lexeme.clone();
+                ctx.next_token();
+                let span = ctx.merge_span(start_pos, ctx.current_position());
+                self.parse_function_call(func_name, span, ctx)
+            }
+            TokenKind::List => {
+                ctx.next_token();
+                let elements = self.parse_expression_list(ctx)?;
+                ctx.expect_token(TokenKind::RBracket)?;
+                let span = ctx.merge_span(start_pos, ctx.current_position());
+                Ok(Expr::List(elements, span))
+            }
+            TokenKind::LBracket => {
+                ctx.next_token();
+                let elements = self.parse_expression_list(ctx)?;
+                ctx.expect_token(TokenKind::RBracket)?;
+                let span = ctx.merge_span(start_pos, ctx.current_position());
+                Ok(Expr::List(elements, span))
+            }
+            TokenKind::Map => {
+                ctx.next_token();
+                ctx.expect_token(TokenKind::LBrace)?;
+                let properties = self.parse_property_list(ctx)?;
+                ctx.expect_token(TokenKind::RBrace)?;
+                let span = ctx.merge_span(start_pos, ctx.current_position());
+                Ok(Expr::Map(properties, span))
+            }
+            TokenKind::LBrace => {
+                ctx.next_token();
+                let properties = self.parse_property_list(ctx)?;
+                ctx.expect_token(TokenKind::RBrace)?;
+                let span = ctx.merge_span(start_pos, ctx.current_position());
+                Ok(Expr::Map(properties, span))
+            }
+            _ => {
+                Err(ParseError::new(
+                    ParseErrorKind::UnexpectedToken,
+                    format!("Unexpected token in expression: {:?}", token.kind),
+                    start_pos,
+                ))
             }
         }
-
-        self.expect_token(LexerToken::RBrace)?;
-        let end_span = self.current_span();
-        let span = Span::new(start_span.start, end_span.end);
-
-        Ok(Expr::Map(MapExpr::new(pairs, span)))
     }
 
-    fn parse_comparison_op(&mut self) -> Option<BinaryOp> {
-        if self.match_token(LexerToken::Eq) {
-            Some(BinaryOp::Equal)
-        } else if self.match_token(LexerToken::Ne) {
-            Some(BinaryOp::NotEqual)
-        } else if self.match_token(LexerToken::Lt) {
-            Some(BinaryOp::LessThan)
-        } else if self.match_token(LexerToken::Le) {
-            Some(BinaryOp::LessThanOrEqual)
-        } else if self.match_token(LexerToken::Gt) {
-            Some(BinaryOp::GreaterThan)
-        } else if self.match_token(LexerToken::Ge) {
-            Some(BinaryOp::GreaterThanOrEqual)
+    fn parse_function_call(&mut self, name: String, span: Span, ctx: &mut ParseContext<'a>) -> Result<Expr, ParseError> {
+        let args = if ctx.match_token(TokenKind::RParen) {
+            Vec::new()
         } else {
-            None
-        }
+            let args = self.parse_expression_list(ctx)?;
+            ctx.expect_token(TokenKind::RParen)?;
+            args
+        };
+        Ok(Expr::FunctionCall(FunctionCallExpr::new(name, args, span)))
     }
 
-    fn parse_additive_op(&mut self) -> Option<BinaryOp> {
-        if self.match_token(LexerToken::Plus) {
-            Some(BinaryOp::Add)
-        } else if self.match_token(LexerToken::Minus) {
-            Some(BinaryOp::Subtract)
-        } else {
-            None
+    fn parse_expression_list(&mut self, ctx: &mut ParseContext<'a>) -> Result<Vec<Expr>, ParseError> {
+        let mut expressions = Vec::new();
+        expressions.push(self.parse_expression(ctx)?);
+        while ctx.match_token(TokenKind::Comma) {
+            expressions.push(self.parse_expression(ctx)?);
         }
+        Ok(expressions)
     }
 
-    fn parse_multiplicative_op(&mut self) -> Option<BinaryOp> {
-        if self.match_token(LexerToken::Star) {
-            Some(BinaryOp::Multiply)
-        } else if self.match_token(LexerToken::Div) {
-            Some(BinaryOp::Divide)
-        } else if self.match_token(LexerToken::Mod) {
-            Some(BinaryOp::Modulo)
-        } else {
-            None
-        }
-    }
-
-    fn parse_integer(&mut self) -> Result<i64, ParseError> {
-        let token = self.lexer.peek().map_err(|e| ParseError::from(e))?;
-        if let LexerToken::IntegerLiteral(n) = token.kind {
-            let text = token.lexeme.clone();
-            self.lexer.advance();
-            text.parse().map_err(|_| self.parse_error(format!("Invalid integer: {}", text)))
-        } else {
-            Err(self.parse_error(format!("Expected integer, found {:?}", token.kind)))
-        }
-    }
-
-    fn parse_float(&mut self) -> Result<f64, ParseError> {
-        let token = self.lexer.peek().map_err(|e| ParseError::from(e))?;
-        if let LexerToken::FloatLiteral(n) = token.kind {
-            let text = token.lexeme.clone();
-            self.lexer.advance();
-            text.parse().map_err(|_| self.parse_error(format!("Invalid float: {}", text)))
-        } else {
-            Err(self.parse_error(format!("Expected float, found {:?}", token.kind)))
-        }
-    }
-
-    fn parse_string(&mut self) -> Result<String, ParseError> {
-        let token = self.lexer.peek().map_err(|e| ParseError::from(e))?;
-        match &token.kind {
-            LexerToken::StringLiteral(s) => {
-                self.lexer.advance();
-                Ok(s.trim_matches('"').to_string())
+    fn parse_property_list(&mut self, ctx: &mut ParseContext<'a>) -> Result<Vec<(String, Expr)>, ParseError> {
+        let mut properties = Vec::new();
+        while !ctx.match_token(TokenKind::RBrace) {
+            let key = ctx.expect_identifier()?;
+            ctx.expect_token(TokenKind::Colon)?;
+            let value = self.parse_expression(ctx)?;
+            properties.push((key, value));
+            if !ctx.match_token(TokenKind::Comma) {
+                break;
             }
-            _ => Err(self.parse_error(format!("Expected string, found {:?}", token.kind))),
         }
+        Ok(properties)
     }
 
-    fn parse_boolean(&mut self) -> Result<bool, ParseError> {
-        let token = self.lexer.peek().map_err(|e| ParseError::from(e))?;
-        if let LexerToken::BooleanLiteral(b) = token.kind {
-            let text = token.lexeme.clone();
-            self.lexer.advance();
-            text.parse().map_err(|_| self.parse_error(format!("Invalid boolean: {}", text)))
-        } else {
-            Err(self.parse_error(format!("Expected boolean, found {:?}", token.kind)))
-        }
+    pub fn set_compat_mode(&mut self, _enabled: bool) {}
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_simple_expression() {
+        let input = "1 + 2 * 3";
+        let ctx = &mut ParseContext::new(input);
+        let mut parser = ExprParser::new(ctx);
+        let result = parser.parse_expression(ctx);
+        assert!(result.is_ok());
     }
 
-    fn match_token(&mut self, expected: LexerToken) -> bool {
-        if self.lexer.check(expected.clone()) {
-            let _ = self.lexer.advance();
-            true
-        } else {
-            false
-        }
-    }
-
-    fn check_token(&mut self, expected: LexerToken) -> bool {
-        self.lexer.check(expected.clone())
-    }
-
-    fn expect_token(&mut self, expected: LexerToken) -> Result<(), ParseError> {
-        let token = self.lexer.peek().map_err(|e| ParseError::from(e))?;
-        if token.kind == expected {
-            self.lexer.advance();
-            Ok(())
-        } else {
-            Err(self.parse_error(format!("Expected {:?}, found {:?}", expected, token.kind)))
-        }
-    }
-
-    fn expect_identifier(&mut self) -> Result<String, ParseError> {
-        let token = self.lexer.peek().map_err(|e| ParseError::from(e))?;
-        if let LexerToken::Identifier(_) = token.kind {
-            let text = token.lexeme.clone();
-            self.lexer.advance();
-            Ok(text)
-        } else {
-            Err(self.parse_error(format!("Expected identifier, found {:?}", token.kind)))
-        }
-    }
-
-    fn current_span(&self) -> Span {
-        let pos = self.lexer.current_position();
-        Span::new(
-            Position::new(pos.line, pos.column),
-            Position::new(pos.line, pos.column),
-        )
-    }
-
-    fn parse_error(&self, message: String) -> ParseError {
-        let pos = self.lexer.current_position();
-        ParseError::new(ParseErrorKind::SyntaxError, message, pos.line, pos.column)
+    #[test]
+    fn test_parse_parenthesized_expression() {
+        let input = "(1 + 2) * 3";
+        let ctx = &mut ParseContext::new(input);
+        let mut parser = ExprParser::new(ctx);
+        let result = parser.parse_expression(ctx);
+        assert!(result.is_ok());
     }
 }

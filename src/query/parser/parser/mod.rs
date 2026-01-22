@@ -1,4 +1,6 @@
 //! 解析器模块
+//!
+//! 负责解析查询语句的顶层结构，包括语句、表达式、模式等。
 
 mod expr_parser;
 mod pattern_parser;
@@ -10,51 +12,72 @@ pub use expr_parser::ExprParser;
 pub use stmt_parser::StmtParser;
 
 use crate::query::parser::lexer::Lexer;
+use crate::query::parser::lexer::LexError;
 use crate::query::parser::Token;
-use crate::query::parser::core::error::ParseErrorKind;
-use crate::query::parser::{TokenKind, ParseError, Span, Position};
-use crate::query::parser::ast::stmt::{FromClause, OverClause};
-use crate::query::parser::ast::expr::Expr;
+use crate::query::parser::core::error::{ParseError, ParseErrorKind};
+use crate::query::parser::core::position::Position;
+use crate::query::parser::core::span::Span;
+use crate::query::parser::TokenKind;
+use crate::query::parser::ParseErrors;
 
-pub struct Parser {
-    lexer: Lexer,
-    expr_parser: ExprParser,
-    compat_mode: bool,
+pub struct ParseContext<'a> {
+    lexer: Lexer<'a>,
     current_token: Token,
+    errors: ParseErrors,
+    compat_mode: bool,
     recursion_depth: usize,
     max_recursion_depth: usize,
 }
 
-impl Parser {
-    pub fn new(input: &str) -> Self {
-        let mut lexer = Lexer::new(input);
-        let current_token = lexer.peek().unwrap_or_else(|_| {
-            Token::new(crate::query::parser::TokenKind::Eof, String::new(), 0, 0)
-        });
+impl<'a> ParseContext<'a> {
+    pub fn new(input: &'a str) -> Self {
+        let lexer = Lexer::new(input);
+        let current_token = lexer.current_token.clone();
 
         Self {
             lexer,
-            expr_parser: ExprParser::new(input),
-            compat_mode: false,
             current_token,
+            errors: ParseErrors::new(),
+            compat_mode: false,
             recursion_depth: 0,
             max_recursion_depth: 100,
         }
+    }
+
+    pub fn from_string(input: String) -> Self {
+        let lexer = Lexer::from_string(input);
+        let current_token = lexer.current_token.clone();
+
+        Self {
+            lexer,
+            current_token,
+            errors: ParseErrors::new(),
+            compat_mode: false,
+            recursion_depth: 0,
+            max_recursion_depth: 100,
+        }
+    }
+
+    pub fn lexer(&self) -> &Lexer<'a> {
+        &self.lexer
+    }
+
+    pub fn lexer_mut(&mut self) -> &mut Lexer<'a> {
+        &mut self.lexer
     }
 
     pub fn set_compat_mode(&mut self, enabled: bool) {
         self.compat_mode = enabled;
     }
 
-    pub fn enter_recursion(&mut self) -> Result<(), crate::query::parser::core::error::ParseError> {
+    pub fn enter_recursion(&mut self) -> Result<(), ParseError> {
         self.recursion_depth += 1;
         if self.recursion_depth > self.max_recursion_depth {
-            let pos = self.lexer.current_position();
-            Err(crate::query::parser::core::error::ParseError::new(
+            let pos = self.current_position();
+            Err(ParseError::new(
                 ParseErrorKind::SyntaxError,
                 "Recursion limit exceeded".to_string(),
-                pos.line,
-                pos.column,
+                pos,
             ))
         } else {
             Ok(())
@@ -67,67 +90,55 @@ impl Parser {
         }
     }
 
-    pub fn parser_current_span(&self) -> Span {
-        let pos = self.lexer.current_position();
-        Span::new(
-            Position::new(pos.line, pos.column),
-            Position::new(pos.line, pos.column),
-        )
+    pub fn add_error(&mut self, error: ParseError) {
+        self.errors.add(error);
+    }
+
+    pub fn add_lex_error(&mut self, error: LexError) {
+        self.errors.add(error.into());
+    }
+
+    pub fn errors(&self) -> &ParseErrors {
+        &self.errors
+    }
+
+    pub fn has_errors(&self) -> bool {
+        !self.errors.is_empty() || self.lexer.has_errors()
+    }
+
+    pub fn take_errors(&mut self) -> ParseErrors {
+        for lex_error in self.lexer.take_errors() {
+            self.errors.add(lex_error.into());
+        }
+        std::mem::take(&mut self.errors)
+    }
+
+    pub fn current_position(&self) -> Position {
+        self.lexer.current_position()
     }
 
     pub fn current_span(&self) -> Span {
-        self.parser_current_span()
+        let pos = self.current_position();
+        Span::new(pos, pos)
     }
 
-    pub fn parse_from_clause(&mut self) -> Result<FromClause, ParseError> {
-        let span = self.current_span();
-        self.expect_token(TokenKind::From)?;
-        let vertices = self.parse_expression_list()?;
-        Ok(FromClause { span, vertices })
+    pub fn merge_span(&self, start: Position, end: Position) -> Span {
+        Span::new(start, end)
     }
 
-    pub fn parse_over_clause(&mut self) -> Result<OverClause, ParseError> {
-        let span = self.current_span();
-        self.expect_token(TokenKind::Over)?;
-        let mut edge_types = Vec::new();
-        let mut direction = crate::core::types::graph::EdgeDirection::Outgoing;
-        loop {
-            let edge_type = self.parse_identifier()?;
-            edge_types.push(edge_type);
-            if self.current_token().kind != TokenKind::Comma {
-                break;
-            }
-            self.next_token();
-        }
-        if self.current_token().kind == TokenKind::Out {
-            self.next_token();
-            direction = crate::core::types::graph::EdgeDirection::Outgoing;
-        } else if self.current_token().kind == TokenKind::In {
-            self.next_token();
-            direction = crate::core::types::graph::EdgeDirection::Incoming;
-        } else if self.current_token().kind == TokenKind::Both {
-            self.next_token();
-            direction = crate::core::types::graph::EdgeDirection::Both;
-        }
-        Ok(OverClause { span, edge_types, direction })
+    pub fn current_token(&self) -> &Token {
+        &self.current_token
     }
 
-    pub fn parse_expression(&mut self) -> Result<Expr, ParseError> {
-        self.expr_parser.parse_expression()
+    pub fn next_token(&mut self) {
+        self.current_token = self.lexer.next_token();
     }
 
-    fn parse_expression_list(&mut self) -> Result<Vec<Expr>, ParseError> {
-        let mut expressions = Vec::new();
-        loop {
-            expressions.push(self.parse_expression()?);
-            if !self.match_token(TokenKind::Comma) {
-                break;
-            }
-        }
-        Ok(expressions)
+    pub fn peek_token(&self) -> &Token {
+        &self.current_token
     }
 
-    fn match_token(&mut self, expected: TokenKind) -> bool {
+    pub fn match_token(&mut self, expected: TokenKind) -> bool {
         if self.current_token.kind == expected {
             self.next_token();
             true
@@ -136,46 +147,156 @@ impl Parser {
         }
     }
 
-    fn expect_token(&mut self, expected: TokenKind) -> Result<(), ParseError> {
+    pub fn expect_token(&mut self, expected: TokenKind) -> Result<(), ParseError> {
         if self.current_token.kind == expected {
             self.next_token();
             Ok(())
         } else {
-            let span = self.parser_current_span();
+            let pos = self.current_position();
             Err(ParseError::new(
                 ParseErrorKind::UnexpectedToken,
                 format!(
                     "Expected {:?}, found {:?}",
                     expected, self.current_token.kind
                 ),
-                span.start.line,
-                span.start.column,
+                pos,
             ))
         }
     }
 
-    fn parse_identifier(&mut self) -> Result<String, ParseError> {
+    pub fn expect_identifier(&mut self) -> Result<String, ParseError> {
         match &self.current_token.kind {
             TokenKind::Identifier(s) => {
                 let id = s.clone();
                 self.next_token();
                 Ok(id)
             }
-            _ => Err(ParseError::new(
-                ParseErrorKind::UnexpectedToken,
-                format!("Expected identifier, found {:?}", self.current_token.kind),
-                self.current_token.line,
-                self.current_token.column,
-            )),
+            _ => {
+                let pos = self.current_position();
+                Err(ParseError::new(
+                    ParseErrorKind::UnexpectedToken,
+                    format!("Expected identifier, found {:?}", self.current_token.kind),
+                    pos,
+                ))
+            }
         }
     }
 
-    fn current_token(&self) -> &Token {
-        &self.current_token
+    pub fn expect_string_literal(&mut self) -> Result<String, ParseError> {
+        match &self.current_token.kind {
+            TokenKind::StringLiteral(s) => {
+                let s = s.clone();
+                self.next_token();
+                Ok(s)
+            }
+            _ => {
+                let pos = self.current_position();
+                Err(ParseError::new(
+                    ParseErrorKind::UnexpectedToken,
+                    format!("Expected string literal, found {:?}", self.current_token.kind),
+                    pos,
+                ))
+            }
+        }
     }
 
-    fn next_token(&mut self) {
-        let token = self.lexer.next_token();
-        self.current_token = token;
+    pub fn expect_integer_literal(&mut self) -> Result<i64, ParseError> {
+        match &self.current_token.kind {
+            TokenKind::IntegerLiteral(n) => {
+                let n = *n;
+                self.next_token();
+                Ok(n)
+            }
+            _ => {
+                let pos = self.current_position();
+                Err(ParseError::new(
+                    ParseErrorKind::UnexpectedToken,
+                    format!("Expected integer literal, found {:?}", self.current_token.kind),
+                    pos,
+                ))
+            }
+        }
+    }
+
+    pub fn expect_float_literal(&mut self) -> Result<f64, ParseError> {
+        match &self.current_token.kind {
+            TokenKind::FloatLiteral(f) => {
+                let f = *f;
+                self.next_token();
+                Ok(f)
+            }
+            _ => {
+                let pos = self.current_position();
+                Err(ParseError::new(
+                    ParseErrorKind::UnexpectedToken,
+                    format!("Expected float literal, found {:?}", self.current_token.kind),
+                    pos,
+                ))
+            }
+        }
     }
 }
+
+pub struct Parser<'a> {
+    ctx: ParseContext<'a>,
+    expr_parser: ExprParser<'a>,
+    stmt_parser: StmtParser<'a>,
+}
+
+impl<'a> Parser<'a> {
+    pub fn new(input: &'a str) -> Self {
+        let ctx = ParseContext::new(input);
+        let expr_parser = ExprParser::new(&ctx);
+        let stmt_parser = StmtParser::new(&ctx);
+
+        Self {
+            ctx,
+            expr_parser,
+            stmt_parser,
+        }
+    }
+
+    pub fn from_string(input: String) -> Self {
+        let ctx = ParseContext::from_string(input);
+        let expr_parser = ExprParser::new(&ctx);
+        let stmt_parser = StmtParser::new(&ctx);
+
+        Self {
+            ctx,
+            expr_parser,
+            stmt_parser,
+        }
+    }
+
+    pub fn set_compat_mode(&mut self, enabled: bool) {
+        self.ctx.set_compat_mode(enabled);
+        self.expr_parser.set_compat_mode(enabled);
+    }
+
+    pub fn parse(&mut self) -> Result<Statement, ParseError> {
+        self.parse_statement()
+    }
+
+    pub fn parse_statement(&mut self) -> Result<Statement, ParseError> {
+        self.stmt_parser.parse_statement(&mut self.ctx)
+    }
+
+    pub fn parse_expression(&mut self) -> Result<Expr, ParseError> {
+        self.expr_parser.parse_expression(&mut self.ctx)
+    }
+
+    pub fn has_errors(&self) -> bool {
+        self.ctx.has_errors()
+    }
+
+    pub fn errors(&self) -> &ParseErrors {
+        self.ctx.errors()
+    }
+
+    pub fn take_errors(&mut self) -> ParseErrors {
+        self.ctx.take_errors()
+    }
+}
+
+use crate::query::parser::ast::stmt::Statement;
+use crate::query::parser::ast::expr::Expr;
