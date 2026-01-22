@@ -6,44 +6,15 @@ use crate::query::parser::ast::expr::*;
 use crate::query::parser::ast::stmt::{
     PropertyDef,
 };
-use crate::query::parser::ast::types::{DataType, ParseError};
+use crate::query::parser::ast::types::DataType;
+use crate::query::parser::core::ParseError;
 use crate::query::parser::core::error::ParseErrorKind;
 use crate::query::parser::lexer::TokenKind as LexerToken;
-use crate::query::parser::{Token, TokenKind};
 
 impl super::Parser {
-    /// 检查并匹配 token
-    pub fn match_token(&mut self, expected: LexerToken) -> bool {
-        if self.current_token.kind == expected {
-            self.next_token();
-            true
-        } else {
-            false
-        }
-    }
-
     /// 检查 token 类型
     pub fn check_token(&mut self, expected: LexerToken) -> bool {
         self.current_token.kind == expected
-    }
-
-    /// 期望特定的 token
-    pub fn expect_token(&mut self, expected: LexerToken) -> Result<(), ParseError> {
-        if self.current_token.kind == expected {
-            self.next_token();
-            Ok(())
-        } else {
-            let span = self.parser_current_span();
-            Err(ParseError::new(
-                ParseErrorKind::UnexpectedToken,
-                format!(
-                    "Expected {:?}, found {:?}",
-                    expected, self.current_token.kind
-                ),
-                span.start.line,
-                span.start.column,
-            ))
-        }
     }
 
     /// 期望标识符
@@ -66,44 +37,6 @@ impl super::Parser {
         }
     }
 
-    /// 获取当前 token
-    pub fn current_token(&self) -> &Token {
-        &self.current_token
-    }
-
-    /// 获取下一个 token
-    pub fn next_token(&mut self) {
-        let token = self.lexer.next_token();
-        self.current_token = token;
-    }
-
-    /// 查看下一个 token 但不移动位置
-    pub fn peek_token(&self) -> TokenKind {
-        self.current_token.kind.clone()
-    }
-
-    /// 查看下一个 token 但不移动位置（返回整个 Token）
-    pub fn peek_next_token(&self) -> Token {
-        Token::new(TokenKind::Eof, String::new(), 0, 0)
-    }
-
-    /// 解析标识符
-    pub fn parse_identifier(&mut self) -> Result<String, ParseError> {
-        match &self.current_token.kind {
-            TokenKind::Identifier(s) => {
-                let id = s.clone();
-                self.next_token();
-                Ok(id)
-            }
-            _ => Err(ParseError::new(
-                ParseErrorKind::UnexpectedToken,
-                format!("Expected identifier, found {:?}", self.current_token.kind),
-                self.current_token.line,
-                self.current_token.column,
-            )),
-        }
-    }
-
     /// 检查并跳过关键字
     pub fn check_and_skip_keyword(&mut self, expected: LexerToken) -> bool {
         if self.current_token.kind == expected {
@@ -118,9 +51,8 @@ impl super::Parser {
     pub fn parse_tag_list(&mut self) -> Result<Vec<String>, ParseError> {
         let mut tags = Vec::new();
 
-        // If we start with a parenthesis, we have tag list: (tag1, tag2, ...)
         if self.current_token.kind == LexerToken::LParen {
-            self.next_token(); // Skip '('
+            self.next_token();
 
             loop {
                 let tag_name = self.parse_identifier()?;
@@ -129,12 +61,11 @@ impl super::Parser {
                 if self.current_token.kind != LexerToken::Comma {
                     break;
                 }
-                self.next_token(); // Skip comma
+                self.next_token();
             }
 
             self.expect_token(LexerToken::RParen)?;
         } else {
-            // Just a single tag
             let tag_name = self.parse_identifier()?;
             tags.push(tag_name);
         }
@@ -147,7 +78,7 @@ impl super::Parser {
         let mut properties = Vec::new();
 
         if self.current_token.kind == LexerToken::LBrace {
-            self.next_token(); // Skip '{'
+            self.next_token();
 
             if self.current_token.kind != LexerToken::RBrace {
                 loop {
@@ -165,13 +96,12 @@ impl super::Parser {
                     if self.current_token.kind != LexerToken::Comma {
                         break;
                     }
-                    self.next_token(); // Skip comma
+                    self.next_token();
                 }
             }
 
             self.expect_token(LexerToken::RBrace)?;
         } else {
-            // Parse as assignment list: prop1 = value1, prop2 = value2, ...
             loop {
                 let prop_name = self.parse_identifier()?;
                 self.expect_token(LexerToken::Assign)?;
@@ -187,7 +117,7 @@ impl super::Parser {
                 if self.current_token.kind != LexerToken::Comma {
                     break;
                 }
-                self.next_token(); // Skip comma
+                self.next_token();
             }
         }
 

@@ -12,7 +12,7 @@ pub use stmt_parser::StmtParser;
 use crate::query::parser::lexer::Lexer;
 use crate::query::parser::Token;
 use crate::query::parser::core::error::ParseErrorKind;
-use crate::query::parser::{TokenKind, ParseError};
+use crate::query::parser::{TokenKind, ParseError, Span, Position};
 use crate::query::parser::ast::stmt::{FromClause, OverClause};
 use crate::query::parser::ast::expr::Expr;
 
@@ -67,15 +67,15 @@ impl Parser {
         }
     }
 
-    pub fn parser_current_span(&self) -> crate::query::parser::ast::types::Span {
+    pub fn parser_current_span(&self) -> Span {
         let pos = self.lexer.current_position();
-        crate::query::parser::ast::types::Span::new(
-            crate::query::parser::ast::types::Position::new(pos.line, pos.column),
-            crate::query::parser::ast::types::Position::new(pos.line, pos.column),
+        Span::new(
+            Position::new(pos.line, pos.column),
+            Position::new(pos.line, pos.column),
         )
     }
 
-    pub fn current_span(&self) -> crate::query::parser::ast::types::Span {
+    pub fn current_span(&self) -> Span {
         self.parser_current_span()
     }
 

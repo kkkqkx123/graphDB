@@ -16,6 +16,7 @@
 //! - 简化路径表达式处理
 
 use crate::query::parser::ast::expr::Expr;
+use crate::query::parser::core::Span;
 use crate::query::planner::statements::clauses::clause_planner::ClausePlanner;
 use crate::query::planner::statements::core::{
     ClauseType, CypherClausePlanner, DataFlowNode, FlowDirection, PlanningContext, QueryInfo,
@@ -103,7 +104,7 @@ mod tests {
     fn test_where_clause_planner_with_filter() {
         let expr = Expr::Constant(crate::query::parser::ast::expr::ConstantExpr::new(
             crate::core::Value::Bool(true),
-            crate::query::parser::ast::types::Span::default(),
+            Span::default(),
         ));
         let planner = WhereClausePlanner::new(Some(expr));
         assert!(planner.filter_expr().is_some());

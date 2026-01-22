@@ -19,7 +19,7 @@ use crate::query::parser::ast::stmt::{
 };
 use crate::query::parser::ast::types::{LimitClause, SampleClause, SkipClause, OrderDirection};
 use crate::query::parser::ast::*;
-use crate::query::parser::core::error::ParseError;
+use crate::query::parser::core::{ParseError, Span};
 use crate::query::parser::TokenKind;
 
 impl crate::query::parser::Parser {

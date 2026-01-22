@@ -3,8 +3,9 @@
 //! 负责解析各种表达式，包括算术表达式、逻辑表达式、函数调用等。
 
 use crate::core::Value;
+use crate::query::parser::ast::types::{BinaryOp, UnaryOp};
 use crate::query::parser::ast::expr::*;
-use crate::query::parser::ast::types::*;
+use crate::query::parser::core::{ParseError, Span, Position};
 use crate::query::parser::core::error::ParseErrorKind;
 use crate::query::parser::lexer::{Lexer, TokenKind as LexerToken};
 

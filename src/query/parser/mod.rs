@@ -7,14 +7,10 @@ pub mod core;
 pub mod lexer;
 pub mod ast;
 pub mod expressions;
-pub mod statements;
 pub mod parser;
 
 // 重新导出 core 模块的常用类型
-pub use core::{ParseError, ParseErrors, Token, TokenKind};
-
-// 重新导出语句
-pub use statements::*;
+pub use core::{ParseError, ParseErrors, Token, TokenKind, Position, Span};
 
 // 重新导出 AST 中的类型
 pub use ast::{
