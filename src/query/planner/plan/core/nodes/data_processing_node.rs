@@ -510,11 +510,11 @@ impl super::plan_node_traits::PlanNode for RollUpApplyNode {
 // 为 RollUpApplyNode 实现 SingleInputNode trait
 impl super::plan_node_traits::SingleInputNode for RollUpApplyNode {
     fn input(&self) -> &super::plan_node_enum::PlanNodeEnum {
-        &self.input
+        &self.left_input
     }
 
     fn set_input(&mut self, input: super::plan_node_enum::PlanNodeEnum) {
-        self.input = Box::new(input.clone());
+        self.left_input = Box::new(input.clone());
         self.deps.clear();
         self.deps.push(Box::new(input));
     }
@@ -569,11 +569,11 @@ impl super::plan_node_traits::PlanNode for PatternApplyNode {
 // 为 PatternApplyNode 实现 SingleInputNode trait
 impl super::plan_node_traits::SingleInputNode for PatternApplyNode {
     fn input(&self) -> &super::plan_node_enum::PlanNodeEnum {
-        &self.input
+        &self.left_input
     }
 
     fn set_input(&mut self, input: super::plan_node_enum::PlanNodeEnum) {
-        self.input = Box::new(input.clone());
+        self.left_input = Box::new(input.clone());
         self.deps.clear();
         self.deps.push(Box::new(input));
     }
@@ -649,14 +649,20 @@ impl super::plan_node_traits::PlanNodeClonable for DataCollectNode {
     }
 }
 
-/// RollUpApply节点
+/// RollUpApply节点 - 分组聚合收集
+///
+/// 接收左右两个输入，将右侧数据按比较列分组后收集为列表，
+/// 为左侧每行返回对应的聚合结果
 #[derive(Debug, Clone)]
 pub struct RollUpApplyNode {
     id: i64,
-    input: Box<super::plan_node_enum::PlanNodeEnum>,
+    left_input: Box<super::plan_node_enum::PlanNodeEnum>,
+    right_input: Box<super::plan_node_enum::PlanNodeEnum>,
     deps: Vec<Box<super::plan_node_enum::PlanNodeEnum>>,
-    collect_exprs: Vec<String>,
-    lambda_vars: Vec<String>,
+    left_input_var: Option<String>,
+    right_input_var: Option<String>,
+    compare_cols: Vec<String>,
+    collect_col: Option<String>,
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
@@ -664,32 +670,53 @@ pub struct RollUpApplyNode {
 
 impl RollUpApplyNode {
     pub fn new(
-        input: super::plan_node_enum::PlanNodeEnum,
-        collect_exprs: Vec<String>,
-        lambda_vars: Vec<String>,
+        left_input: super::plan_node_enum::PlanNodeEnum,
+        right_input: super::plan_node_enum::PlanNodeEnum,
+        compare_cols: Vec<String>,
+        collect_col: Option<String>,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
-        let col_names = input.col_names().to_vec();
+        let col_names = left_input.col_names().to_vec();
         let mut deps = Vec::new();
-        deps.push(Box::new(input.clone()));
+        deps.push(Box::new(left_input.clone()));
+        deps.push(Box::new(right_input.clone()));
 
         Ok(Self {
             id: -1,
-            input: Box::new(input),
+            left_input: Box::new(left_input),
+            right_input: Box::new(right_input),
             deps,
-            collect_exprs,
-            lambda_vars,
+            left_input_var: None,
+            right_input_var: None,
+            compare_cols,
+            collect_col,
             output_var: None,
             col_names,
             cost: 0.0,
         })
     }
 
-    pub fn collect_exprs(&self) -> &[String] {
-        &self.collect_exprs
+    pub fn left_input(&self) -> &super::plan_node_enum::PlanNodeEnum {
+        &self.left_input
     }
 
-    pub fn lambda_vars(&self) -> &[String] {
-        &self.lambda_vars
+    pub fn right_input(&self) -> &super::plan_node_enum::PlanNodeEnum {
+        &self.right_input
+    }
+
+    pub fn left_input_var(&self) -> Option<&String> {
+        self.left_input_var.as_ref()
+    }
+
+    pub fn right_input_var(&self) -> Option<&String> {
+        self.right_input_var.as_ref()
+    }
+
+    pub fn compare_cols(&self) -> &[String] {
+        &self.compare_cols
+    }
+
+    pub fn collect_col(&self) -> Option<&String> {
+        self.collect_col.as_ref()
     }
 
     pub fn id(&self) -> i64 {
@@ -717,7 +744,7 @@ impl RollUpApplyNode {
     }
 
     pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
-        self.input = Box::new(dep.clone());
+        self.left_input = Box::new(dep.clone());
         self.deps.clear();
         self.deps.push(Box::new(dep));
     }
@@ -734,13 +761,24 @@ impl RollUpApplyNode {
         self.col_names = names;
     }
 
+    pub fn set_left_input_var(&mut self, var: String) {
+        self.left_input_var = Some(var);
+    }
+
+    pub fn set_right_input_var(&mut self, var: String) {
+        self.right_input_var = Some(var);
+    }
+
     pub fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
         super::plan_node_enum::PlanNodeEnum::RollUpApply(Self {
             id: self.id,
-            input: self.input.clone(),
+            left_input: self.left_input.clone(),
+            right_input: self.right_input.clone(),
             deps: self.deps.clone(),
-            collect_exprs: self.collect_exprs.clone(),
-            lambda_vars: self.lambda_vars.clone(),
+            left_input_var: self.left_input_var.clone(),
+            right_input_var: self.right_input_var.clone(),
+            compare_cols: self.compare_cols.clone(),
+            collect_col: self.collect_col.clone(),
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
@@ -754,14 +792,20 @@ impl RollUpApplyNode {
     }
 }
 
-/// PatternApply节点
+/// PatternApply节点 - 模式匹配应用
+///
+/// 接收左右两个输入，根据键列判断左侧数据是否匹配右侧模式
+/// 支持正向匹配（EXISTS）和反向匹配（NOT EXISTS）
 #[derive(Debug, Clone)]
 pub struct PatternApplyNode {
     id: i64,
-    input: Box<super::plan_node_enum::PlanNodeEnum>,
+    left_input: Box<super::plan_node_enum::PlanNodeEnum>,
+    right_input: Box<super::plan_node_enum::PlanNodeEnum>,
     deps: Vec<Box<super::plan_node_enum::PlanNodeEnum>>,
-    pattern: String,
-    join_type: String,
+    left_input_var: Option<String>,
+    right_input_var: Option<String>,
+    key_cols: Vec<String>,
+    is_anti_predicate: bool,
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
@@ -769,32 +813,53 @@ pub struct PatternApplyNode {
 
 impl PatternApplyNode {
     pub fn new(
-        input: super::plan_node_enum::PlanNodeEnum,
-        pattern: &str,
-        join_type: &str,
+        left_input: super::plan_node_enum::PlanNodeEnum,
+        right_input: super::plan_node_enum::PlanNodeEnum,
+        key_cols: Vec<String>,
+        is_anti_predicate: bool,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
-        let col_names = input.col_names().to_vec();
+        let col_names = left_input.col_names().to_vec();
         let mut deps = Vec::new();
-        deps.push(Box::new(input.clone()));
+        deps.push(Box::new(left_input.clone()));
+        deps.push(Box::new(right_input.clone()));
 
         Ok(Self {
             id: -1,
-            input: Box::new(input),
+            left_input: Box::new(left_input),
+            right_input: Box::new(right_input),
             deps,
-            pattern: pattern.to_string(),
-            join_type: join_type.to_string(),
+            left_input_var: None,
+            right_input_var: None,
+            key_cols,
+            is_anti_predicate,
             output_var: None,
             col_names,
             cost: 0.0,
         })
     }
 
-    pub fn pattern(&self) -> &str {
-        &self.pattern
+    pub fn left_input(&self) -> &super::plan_node_enum::PlanNodeEnum {
+        &self.left_input
     }
 
-    pub fn join_type(&self) -> &str {
-        &self.join_type
+    pub fn right_input(&self) -> &super::plan_node_enum::PlanNodeEnum {
+        &self.right_input
+    }
+
+    pub fn left_input_var(&self) -> Option<&String> {
+        self.left_input_var.as_ref()
+    }
+
+    pub fn right_input_var(&self) -> Option<&String> {
+        self.right_input_var.as_ref()
+    }
+
+    pub fn key_cols(&self) -> &[String] {
+        &self.key_cols
+    }
+
+    pub fn is_anti_predicate(&self) -> bool {
+        self.is_anti_predicate
     }
 
     pub fn id(&self) -> i64 {
@@ -822,7 +887,7 @@ impl PatternApplyNode {
     }
 
     pub fn add_dependency(&mut self, dep: super::plan_node_enum::PlanNodeEnum) {
-        self.input = Box::new(dep.clone());
+        self.left_input = Box::new(dep.clone());
         self.deps.clear();
         self.deps.push(Box::new(dep));
     }
@@ -839,13 +904,24 @@ impl PatternApplyNode {
         self.col_names = names;
     }
 
+    pub fn set_left_input_var(&mut self, var: String) {
+        self.left_input_var = Some(var);
+    }
+
+    pub fn set_right_input_var(&mut self, var: String) {
+        self.right_input_var = Some(var);
+    }
+
     pub fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
         super::plan_node_enum::PlanNodeEnum::PatternApply(Self {
             id: self.id,
-            input: self.input.clone(),
+            left_input: self.left_input.clone(),
+            right_input: self.right_input.clone(),
             deps: self.deps.clone(),
-            pattern: self.pattern.clone(),
-            join_type: self.join_type.clone(),
+            left_input_var: self.left_input_var.clone(),
+            right_input_var: self.right_input_var.clone(),
+            key_cols: self.key_cols.clone(),
+            is_anti_predicate: self.is_anti_predicate,
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,

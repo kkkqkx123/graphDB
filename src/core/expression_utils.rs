@@ -21,7 +21,12 @@ impl ExpressionUtils {
     ///
     /// # 返回值
     /// 如果表达式是单步边属性表达式，返回 true
-    pub fn is_one_step_edge_prop(_edge_alias: &str, _expr: &Expression) -> bool {
+    pub fn is_one_step_edge_prop(edge_alias: &str, expr: &Expression) -> bool {
+        if let Expression::Property { object, .. } = expr {
+            if let Expression::Variable(name) = object.as_ref() {
+                return name == edge_alias;
+            }
+        }
         false
     }
 
@@ -671,7 +676,7 @@ mod tests {
             object: Box::new(Expression::Variable("e".to_string())),
             property: "name".to_string(),
         };
-        assert!(!ExpressionUtils::is_one_step_edge_prop("e", &expr));
+        assert!(ExpressionUtils::is_one_step_edge_prop("e", &expr));
         assert!(!ExpressionUtils::is_one_step_edge_prop("e2", &expr));
     }
 

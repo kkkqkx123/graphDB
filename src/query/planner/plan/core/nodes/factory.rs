@@ -281,21 +281,23 @@ impl PlanNodeFactory {
 
     /// 创建RollUp应用节点
     pub fn create_roll_up_apply(
-        input: PlanNodeEnum,
-        collect_exprs: Vec<String>,
-        lambda_vars: Vec<String>,
+        left_input: PlanNodeEnum,
+        right_input: PlanNodeEnum,
+        compare_cols: Vec<String>,
+        collect_col: Option<String>,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
-        let roll_up_apply_node = RollUpApplyNode::new(input, collect_exprs, lambda_vars)?;
+        let roll_up_apply_node = RollUpApplyNode::new(left_input, right_input, compare_cols, collect_col)?;
         Ok(PlanNodeEnum::RollUpApply(roll_up_apply_node))
     }
 
     /// 创建模式应用节点
     pub fn create_pattern_apply(
-        input: PlanNodeEnum,
-        pattern: &str,
-        join_type: &str,
+        left_input: PlanNodeEnum,
+        right_input: PlanNodeEnum,
+        key_cols: Vec<String>,
+        is_anti_predicate: bool,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
-        let pattern_apply_node = PatternApplyNode::new(input, pattern, join_type)?;
+        let pattern_apply_node = PatternApplyNode::new(left_input, right_input, key_cols, is_anti_predicate)?;
         Ok(PlanNodeEnum::PatternApply(pattern_apply_node))
     }
 

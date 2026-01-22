@@ -1,6 +1,7 @@
 //! 基础AST上下文定义
 
 use crate::query::context::execution::QueryContext;
+use crate::query::context::request_context::RequestContext;
 use crate::query::context::symbol::SymbolTable;
 use crate::query::context::validate::types::SpaceInfo;
 use crate::query::parser::ast::Stmt;
@@ -97,15 +98,19 @@ impl AstContext {
     }
 
     pub fn from_strings(query_type: &str, query_text: &str) -> Self {
+        let request_params = crate::query::context::request_context::RequestParams::new(query_text.to_string());
+        let request_context = std::sync::Arc::new(RequestContext::new(None, request_params));
+        
+        let mut qctx = QueryContext::new();
+        qctx.set_rctx(request_context);
+        
         let mut ctx = Self {
-            qctx: None,
+            qctx: Some(std::sync::Arc::new(qctx)),
             sentence: None,
             space: SpaceInfo::default(),
             symbol_table: SymbolTable::new(),
             query_type: QueryType::default(),
         };
-
-        ctx.qctx = Some(std::sync::Arc::new(crate::query::context::execution::QueryContext::new()));
 
         if query_type == "CYPHER" {}
         else if query_type == "MATCH" {}

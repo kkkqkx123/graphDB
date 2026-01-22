@@ -59,8 +59,7 @@ pub use topn::TopNExecutor;
 // - RollUpApply（聚合操作）
 pub mod transformations;
 pub use transformations::{
-    AppendVerticesExecutor, AssignExecutor, PatternApplyExecutor, PatternType, RollUpApplyExecutor,
-    UnwindExecutor,
+    AppendVerticesExecutor, AssignExecutor, PatternApplyExecutor, RollUpApplyExecutor, UnwindExecutor,
 };
 
 // 统一的执行器接口

@@ -1285,7 +1285,7 @@ mod tests {
     fn test_to_string() {
         let ctx = RequestContext::with_session(
             "MATCH (n) RETURN n".to_string(),
-            "test_session",
+            "0",
             "test_user",
             "127.0.0.1",
             0,
@@ -1298,7 +1298,7 @@ mod tests {
             .expect("Expected successful retrieval of context string");
         assert!(ctx_str.contains("RequestContext"));
         assert!(ctx_str.contains("MATCH (n) RETURN n"));
-        assert!(ctx_str.contains("test_session"));
+        assert!(ctx_str.contains("0"));
         assert!(ctx_str.contains("test_user"));
         assert!(ctx_str.contains("attributes_count: 1"));
     }

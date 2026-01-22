@@ -269,3 +269,15 @@ impl From<std::collections::HashSet<Value>> for Value {
         Value::Set(value)
     }
 }
+
+impl From<(i64, &str)> for Value {
+    fn from(value: (i64, &str)) -> Self {
+        Value::List(vec![Value::Int(value.0), Value::String(value.1.to_string())])
+    }
+}
+
+impl From<(i64, String)> for Value {
+    fn from(value: (i64, String)) -> Self {
+        Value::List(vec![Value::Int(value.0), Value::String(value.1)])
+    }
+}

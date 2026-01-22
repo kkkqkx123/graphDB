@@ -15,6 +15,25 @@ use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{ExecutionResult, Executor};
 use crate::storage::StorageEngine;
 
+fn execution_result_to_values(result: &ExecutionResult) -> Result<Vec<Value>, DBError> {
+    match result {
+        ExecutionResult::Values(values) => Ok(values.clone()),
+        ExecutionResult::Vertices(vertices) => Ok(vertices
+            .iter()
+            .map(|v| Value::Vertex(Box::new(v.clone())))
+            .collect()),
+        ExecutionResult::Edges(edges) => Ok(edges
+            .iter()
+            .map(|e| Value::Edge(e.clone()))
+            .collect()),
+        _ => Err(DBError::Query(
+            crate::core::error::QueryError::ExecutionError(
+                "Unsupported result type for RollUpApply".to_string(),
+            ),
+        )),
+    }
+}
+
 /// RollUpApply执行器
 /// 用于将右输入中的值根据左输入的键进行聚合
 pub struct RollUpApplyExecutor<S: StorageEngine + Send + 'static> {
@@ -216,8 +235,6 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
 
             if self.movable {
                 row.push(value.clone());
-            } else {
-                row.push(value.clone());
             }
 
             row.push(Value::List(hash_table.values.clone()));
@@ -260,7 +277,7 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
             if self.movable {
                 row.push(value.clone());
             } else {
-                row.push(value.clone());
+                row.push(key_val.clone());
             }
 
             row.push(Value::List(vals.values));
@@ -305,8 +322,6 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
             let mut row = Vec::new();
 
             if self.movable {
-                row.push(value.clone());
-            } else {
                 row.push(value.clone());
             }
 
@@ -505,11 +520,8 @@ mod tests {
             ExecutionResult::Values(right_values.clone()),
         );
 
-        let compare_cols = vec![Expression::literal(0i64)];
-        let collect_col = Expression::Property {
-            object: Box::new(Expression::Variable("_".to_string())),
-            property: "".to_string(),
-        };
+        let compare_cols = vec![Expression::variable("_")];
+        let collect_col = Expression::variable("_");
 
         let mut executor = RollUpApplyExecutor::with_context(
             1,
@@ -529,6 +541,207 @@ mod tests {
 
         if let ExecutionResult::Values(values) = result {
             assert_eq!(values.len(), 4);
+        } else {
+            panic!("Expected Values result");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_rollup_apply_zero_key() {
+        let config = test_config();
+        let storage = Arc::new(Mutex::new(MockStorage));
+
+        let left_values = vec![Value::Int(1), Value::Int(2), Value::Int(3)];
+        let right_values = vec![Value::Int(10), Value::Int(20)];
+
+        let mut context = crate::query::executor::base::ExecutionContext::new();
+        context.set_result(
+            "left".to_string(),
+            ExecutionResult::Values(left_values.clone()),
+        );
+        context.set_result(
+            "right".to_string(),
+            ExecutionResult::Values(right_values.clone()),
+        );
+
+        let compare_cols: Vec<Expression> = vec![];
+        let collect_col = Expression::Variable("_".to_string());
+
+        let mut executor = RollUpApplyExecutor::with_context(
+            2,
+            storage,
+            "left".to_string(),
+            "right".to_string(),
+            compare_cols,
+            collect_col,
+            vec!["collected".to_string()],
+            context,
+        );
+
+        let result = executor
+            .execute()
+            .await
+            .expect("Executor should execute successfully");
+
+        if let ExecutionResult::Values(values) = result {
+            assert_eq!(values.len(), 3);
+            assert_eq!(values.len(), 3);
+            for val in &values {
+                match val {
+                    Value::List(list) => {
+                        assert_eq!(list.len(), 2);
+                    }
+                    _ => panic!("Expected List value"),
+                }
+            }
+        } else {
+            panic!("Expected Values result");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_rollup_apply_multi_key() {
+        let config = test_config();
+        let storage = Arc::new(Mutex::new(MockStorage));
+
+        let left_values = vec![
+            Value::from((1, "A")),
+            Value::from((1, "B")),
+            Value::from((2, "A")),
+        ];
+        let right_values = vec![
+            Value::from((1, "A")),
+            Value::from((1, "B")),
+            Value::from((1, "C")),
+            Value::from((2, "A")),
+        ];
+
+        let mut context = crate::query::executor::base::ExecutionContext::new();
+        context.set_result(
+            "left".to_string(),
+            ExecutionResult::Values(left_values.clone()),
+        );
+        context.set_result(
+            "right".to_string(),
+            ExecutionResult::Values(right_values.clone()),
+        );
+
+        let compare_cols = vec![
+            Expression::subscript(Expression::variable("_"), Expression::literal(0i64)),
+            Expression::subscript(Expression::variable("_"), Expression::literal(1i64)),
+        ];
+        let collect_col = Expression::Variable("_".to_string());
+
+        let mut executor = RollUpApplyExecutor::with_context(
+            3,
+            storage,
+            "left".to_string(),
+            "right".to_string(),
+            compare_cols,
+            collect_col,
+            vec!["key0".to_string(), "key1".to_string(), "collected".to_string()],
+            context,
+        );
+
+        let result = executor
+            .execute()
+            .await
+            .expect("Executor should execute successfully");
+
+        if let ExecutionResult::Values(values) = result {
+            assert_eq!(values.len(), 3);
+        } else {
+            panic!("Expected Values result");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_rollup_apply_empty_right() {
+        let config = test_config();
+        let storage = Arc::new(Mutex::new(MockStorage));
+
+        let left_values = vec![Value::Int(1), Value::Int(2)];
+        let right_values: Vec<Value> = vec![];
+
+        let mut context = crate::query::executor::base::ExecutionContext::new();
+        context.set_result(
+            "left".to_string(),
+            ExecutionResult::Values(left_values.clone()),
+        );
+        context.set_result(
+            "right".to_string(),
+            ExecutionResult::Values(right_values.clone()),
+        );
+
+        let compare_cols = vec![Expression::variable("_")];
+        let collect_col = Expression::Variable("_".to_string());
+
+        let mut executor = RollUpApplyExecutor::with_context(
+            4,
+            storage,
+            "left".to_string(),
+            "right".to_string(),
+            compare_cols,
+            collect_col,
+            vec!["key".to_string(), "collected".to_string()],
+            context,
+        );
+
+        let result = executor
+            .execute()
+            .await
+            .expect("Executor should execute successfully");
+
+        if let ExecutionResult::Values(values) = result {
+            assert_eq!(values.len(), 4);
+            assert_eq!(values[0], Value::Int(1));
+            assert_eq!(values[1], Value::List(Vec::new()));
+            assert_eq!(values[2], Value::Int(2));
+            assert_eq!(values[3], Value::List(Vec::new()));
+        } else {
+            panic!("Expected Values result");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_rollup_apply_empty_left() {
+        let config = test_config();
+        let storage = Arc::new(Mutex::new(MockStorage));
+
+        let left_values: Vec<Value> = vec![];
+        let right_values = vec![Value::Int(1), Value::Int(2)];
+
+        let mut context = crate::query::executor::base::ExecutionContext::new();
+        context.set_result(
+            "left".to_string(),
+            ExecutionResult::Values(left_values.clone()),
+        );
+        context.set_result(
+            "right".to_string(),
+            ExecutionResult::Values(right_values.clone()),
+        );
+
+        let compare_cols = vec![Expression::literal(0i64)];
+        let collect_col = Expression::Variable("_".to_string());
+
+        let mut executor = RollUpApplyExecutor::with_context(
+            5,
+            storage,
+            "left".to_string(),
+            "right".to_string(),
+            compare_cols,
+            collect_col,
+            vec!["key".to_string(), "collected".to_string()],
+            context,
+        );
+
+        let result = executor
+            .execute()
+            .await
+            .expect("Executor should execute successfully");
+
+        if let ExecutionResult::Values(values) = result {
+            assert!(values.is_empty());
         } else {
             panic!("Expected Values result");
         }

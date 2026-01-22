@@ -23,8 +23,9 @@ use crate::query::executor::recursion_detector::{
     ExecutorSafetyConfig, ExecutorSafetyValidator, RecursionDetector,
 };
 use crate::query::executor::result_processing::{
-    AggregateExecutor, AssignExecutor, DedupExecutor, FilterExecutor, LimitExecutor,
-    ProjectExecutor, SampleExecutor, SampleMethod, SortExecutor, TopNExecutor, UnwindExecutor,
+    AggregateExecutor, AppendVerticesExecutor, AssignExecutor, DedupExecutor, FilterExecutor, LimitExecutor,
+    PatternApplyExecutor, ProjectExecutor, RollUpApplyExecutor, SampleExecutor, SampleMethod, SortExecutor,
+    TopNExecutor, UnwindExecutor,
 };
 
 /// 执行器工厂
@@ -136,6 +137,11 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                 self.analyze_plan_node(n.input(), loop_layers)?;
             }
             PlanNodeEnum::Expand(n) => {
+                if let Some(input) = n.inputs().first() {
+                    self.analyze_plan_node(input, loop_layers)?;
+                }
+            }
+            PlanNodeEnum::AppendVertices(n) => {
                 if let Some(input) = n.inputs().first() {
                     self.analyze_plan_node(input, loop_layers)?;
                 }
@@ -498,6 +504,95 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     parsed_assignments.push((var_name.clone(), expr));
                 }
                 let executor = AssignExecutor::new(node.id(), storage, parsed_assignments);
+                Ok(Box::new(executor))
+            }
+
+            // AppendVertices执行器 - 追加顶点到路径结果
+            PlanNodeEnum::AppendVertices(node) => {
+                let input_var = node.input_var()
+                    .cloned()
+                    .unwrap_or_else(|| format!("input_{}", node.id()));
+
+                let src_expr = node.src_expr()
+                    .cloned()
+                    .unwrap_or_else(|| crate::core::Expression::Variable("_".to_string()));
+
+                let executor = AppendVerticesExecutor::new(
+                    node.id(),
+                    storage,
+                    input_var,
+                    src_expr,
+                    node.props().to_vec(),
+                    node.v_filter().cloned(),
+                    node.col_names().to_vec(),
+                    node.dedup(),
+                    node.track_prev_path(),
+                    node.need_fetch_prop(),
+                );
+                Ok(Box::new(executor))
+            }
+
+            // RollUpApply执行器 - 分组聚合收集
+            PlanNodeEnum::RollUpApply(node) => {
+                let left_input_var = node.left_input_var()
+                    .cloned()
+                    .unwrap_or_else(|| format!("left_{}", node.id()));
+                let right_input_var = node.right_input_var()
+                    .cloned()
+                    .unwrap_or_else(|| format!("right_{}", node.id()));
+
+                let compare_cols: Vec<crate::core::Expression> = node.compare_cols()
+                    .iter()
+                    .map(|col| {
+                        crate::query::parser::expressions::parse_expression_from_string(col)
+                            .unwrap_or_else(|_| crate::core::Expression::Variable(col.clone()))
+                    })
+                    .collect();
+
+                let collect_col = node.collect_col()
+                    .and_then(|col| {
+                        crate::query::parser::expressions::parse_expression_from_string(col).ok()
+                    })
+                    .unwrap_or_else(|| crate::core::Expression::Variable("_".to_string()));
+
+                let executor = RollUpApplyExecutor::new(
+                    node.id(),
+                    storage,
+                    left_input_var,
+                    right_input_var,
+                    compare_cols,
+                    collect_col,
+                    node.col_names().to_vec(),
+                );
+                Ok(Box::new(executor))
+            }
+
+            // PatternApply执行器 - 模式匹配应用
+            PlanNodeEnum::PatternApply(node) => {
+                let left_input_var = node.left_input_var()
+                    .cloned()
+                    .unwrap_or_else(|| format!("left_{}", node.id()));
+                let right_input_var = node.right_input_var()
+                    .cloned()
+                    .unwrap_or_else(|| format!("right_{}", node.id()));
+
+                let key_cols: Vec<crate::core::Expression> = node.key_cols()
+                    .iter()
+                    .map(|col| {
+                        crate::query::parser::expressions::parse_expression_from_string(col)
+                            .unwrap_or_else(|_| crate::core::Expression::Variable(col.clone()))
+                    })
+                    .collect();
+
+                let executor = PatternApplyExecutor::new(
+                    node.id(),
+                    storage,
+                    left_input_var,
+                    right_input_var,
+                    key_cols,
+                    node.col_names().to_vec(),
+                    node.is_anti_predicate(),
+                );
                 Ok(Box::new(executor))
             }
 

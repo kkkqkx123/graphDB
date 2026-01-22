@@ -346,6 +346,188 @@ impl ValidationContext {
         self.basic_context.get_indexes()
     }
 
+    // ==================== Schema验证方法 ====================
+
+    /// 详细验证变量与Schema的匹配情况
+    pub fn validate_var_against_schema_detailed(
+        &self,
+        var_name: &str,
+        schema_name: &str,
+        mode: &super::schema::ValidationMode,
+        required_fields: Option<&Vec<String>>,
+    ) -> Result<super::schema::SchemaValidationResult, String> {
+        let schema = self.get_schema(schema_name);
+        let columns = self.get_var(var_name);
+
+        if schema.is_none() {
+            return Ok(super::schema::SchemaValidationResult::failure(vec![
+                super::schema::SchemaValidationError::FieldNotFound(schema_name.to_string()),
+            ]));
+        }
+        let schema = schema.unwrap();
+        let mut result = super::schema::SchemaValidationResult::success();
+
+        for col in &columns {
+            match mode {
+                super::schema::ValidationMode::Strict => {
+                    if let Some(expected_type) = schema.get_field_type(&col.name) {
+                        if &col.type_ != expected_type {
+                            result.add_error(super::schema::SchemaValidationError::TypeMismatch(
+                                col.name.clone(),
+                                expected_type.clone(),
+                                col.type_.clone(),
+                            ));
+                        }
+                    } else {
+                        result.add_error(super::schema::SchemaValidationError::FieldNotFound(
+                            col.name.clone(),
+                        ));
+                    }
+                }
+                super::schema::ValidationMode::Lenient => {
+                    if !schema.has_field(&col.name) {
+                        result.add_error(super::schema::SchemaValidationError::ExtraField(
+                            col.name.clone(),
+                        ));
+                    }
+                }
+                super::schema::ValidationMode::RequiredOnly => {
+                    if let Some(required) = required_fields {
+                        if !required.contains(&col.name) && !schema.has_field(&col.name) {
+                            result.add_error(super::schema::SchemaValidationError::ExtraField(
+                                col.name.clone(),
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+
+        match mode {
+            super::schema::ValidationMode::Strict => {
+                for field_name in schema.get_field_names() {
+                    let mut found = false;
+                    for col in &columns {
+                        if col.name == field_name {
+                            found = true;
+                            break;
+                        }
+                    }
+                    if !found {
+                        result.add_error(super::schema::SchemaValidationError::MissingRequiredField(
+                            field_name.clone(),
+                        ));
+                    }
+                }
+            }
+            super::schema::ValidationMode::RequiredOnly => {
+                if let Some(required) = required_fields {
+                    for field_name in required {
+                        let mut found = false;
+                        for col in &columns {
+                            if &col.name == field_name {
+                                found = true;
+                                break;
+                            }
+                        }
+                        if !found {
+                            result.add_error(super::schema::SchemaValidationError::MissingRequiredField(
+                                field_name.clone(),
+                            ));
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+
+        Ok(result)
+    }
+
+    /// 验证变量的字段类型
+    pub fn validate_var_field_types(
+        &self,
+        var_name: &str,
+        schema_name: &str,
+    ) -> Result<Vec<String>, String> {
+        let schema = self.get_schema(schema_name);
+        let columns = self.get_var(var_name);
+
+        if schema.is_none() {
+            return Err(format!("Schema '{}' 不存在", schema_name));
+        }
+        let schema = schema.unwrap();
+        let mut errors = Vec::new();
+
+        for col in &columns {
+            if let Some(expected_type) = schema.get_field_type(&col.name) {
+                if &col.type_ != expected_type {
+                    errors.push(format!(
+                        "字段 '{}' 类型不匹配: 期望 '{}', 实际 '{}'",
+                        col.name, expected_type, col.type_
+                    ));
+                }
+            }
+        }
+
+        Ok(errors)
+    }
+
+    /// 检查变量是否缺少Schema必需的字段
+    pub fn check_var_missing_fields(
+        &self,
+        var_name: &str,
+        schema_name: &str,
+    ) -> Vec<String> {
+        let schema = self.get_schema(schema_name);
+        let columns = self.get_var(var_name);
+
+        if schema.is_none() {
+            return vec![format!("Schema '{}' 不存在", schema_name)];
+        }
+        let schema = schema.unwrap();
+        let mut missing_fields = Vec::new();
+
+        for field_name in schema.get_field_names() {
+            let mut found = false;
+            for col in &columns {
+                if col.name == field_name {
+                    found = true;
+                    break;
+                }
+            }
+            if !found {
+                missing_fields.push(field_name);
+            }
+        }
+
+        missing_fields
+    }
+
+    /// 检查变量是否包含Schema中未定义的额外字段
+    pub fn check_var_extra_fields(
+        &self,
+        var_name: &str,
+        schema_name: &str,
+    ) -> Vec<String> {
+        let schema = self.get_schema(schema_name);
+        let columns = self.get_var(var_name);
+
+        if schema.is_none() {
+            return vec![format!("Schema '{}' 不存在", schema_name)];
+        }
+        let schema = schema.unwrap();
+        let mut extra_fields = Vec::new();
+
+        for col in &columns {
+            if !schema.has_field(&col.name) {
+                extra_fields.push(col.name.clone());
+            }
+        }
+
+        extra_fields
+    }
+
     // ==================== 生成验证上下文的字符串表示 ====================
     pub fn to_string(&self) -> String {
         let mut result = String::new();
@@ -430,7 +612,9 @@ impl Default for ValidationContext {
 #[cfg(test)]
 mod tests {
     use super::super::types::Column;
+    use super::super::schema::ValidationMode;
     use super::*;
+    use super::super::schema::SchemaValidationError;
 
     struct MockSchemaProvider;
 
@@ -561,7 +745,7 @@ mod tests {
         let detailed_result = ctx.validate_var_against_schema_detailed(
             "p",
             "person",
-            &schema::ValidationMode::Strict,
+            &ValidationMode::Strict,
             None,
         );
         assert!(detailed_result.is_ok());
@@ -574,7 +758,7 @@ mod tests {
         let lenient_result = ctx.validate_var_against_schema_detailed(
             "p",
             "person",
-            &schema::ValidationMode::Lenient,
+            &ValidationMode::Lenient,
             None,
         );
         assert!(lenient_result.is_ok());
@@ -613,11 +797,11 @@ mod tests {
         ];
         ctx.register_variable("p".to_string(), cols);
 
-        // 测试详细验证 - 宽松模式
+        // 测试详细验证 - 严格模式（检测类型不匹配）
         let detailed_result = ctx.validate_var_against_schema_detailed(
             "p",
             "person",
-            &schema::ValidationMode::Lenient,
+            &ValidationMode::Strict,
             None,
         );
         assert!(detailed_result.is_ok());
@@ -668,7 +852,7 @@ mod tests {
         let lenient_result = ctx.validate_var_against_schema_detailed(
             "p",
             "person",
-            &schema::ValidationMode::Lenient,
+            &ValidationMode::Lenient,
             None,
         );
         assert!(lenient_result.is_ok());
@@ -680,7 +864,7 @@ mod tests {
         let strict_result = ctx.validate_var_against_schema_detailed(
             "p",
             "person",
-            &schema::ValidationMode::Strict,
+            &ValidationMode::Strict,
             None,
         );
         assert!(strict_result.is_ok());
@@ -689,9 +873,7 @@ mod tests {
         assert!(!validation_result.is_valid);
 
         // 检查缺失字段
-        let missing_fields = ctx
-            .check_var_missing_fields("p", "person")
-            .expect("Expected successful missing fields check");
+        let missing_fields = ctx.check_var_missing_fields("p", "person");
         assert!(missing_fields.contains(&"age".to_string()));
     }
 
@@ -732,7 +914,7 @@ mod tests {
         let lenient_result = ctx.validate_var_against_schema_detailed(
             "p",
             "person",
-            &schema::ValidationMode::Lenient,
+            &ValidationMode::Lenient,
             None,
         );
         assert!(lenient_result.is_ok());
@@ -741,9 +923,7 @@ mod tests {
         assert!(!validation_result.is_valid);
 
         // 检查额外字段
-        let extra_fields = ctx
-            .check_var_extra_fields("p", "person")
-            .expect("Expected successful extra fields check");
+        let extra_fields = ctx.check_var_extra_fields("p", "person");
         assert!(extra_fields.contains(&"email".to_string()));
     }
 
@@ -785,7 +965,7 @@ mod tests {
         let required_result = ctx.validate_var_against_schema_detailed(
             "p",
             "person",
-            &schema::ValidationMode::RequiredOnly,
+            &ValidationMode::RequiredOnly,
             Some(&required_fields),
         );
         assert!(required_result.is_ok());
@@ -798,7 +978,7 @@ mod tests {
         let missing_result = ctx.validate_var_against_schema_detailed(
             "p",
             "person",
-            &schema::ValidationMode::RequiredOnly,
+            &ValidationMode::RequiredOnly,
             Some(&required_fields_missing),
         );
         assert!(missing_result.is_ok());

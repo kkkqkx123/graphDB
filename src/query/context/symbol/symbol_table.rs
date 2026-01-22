@@ -65,48 +65,45 @@ impl Symbol {
     }
 }
 
-#[derive(Debug, Clone)]
 pub struct SymbolTable {
     symbols: Arc<DashMap<String, Symbol>>,
-    pub scope_stack: Vec<HashSet<String>>,
+}
+
+impl Clone for SymbolTable {
+    fn clone(&self) -> Self {
+        Self {
+            symbols: Arc::new(self.symbols.iter().map(|e| (e.key().clone(), e.value().clone())).collect()),
+        }
+    }
+}
+
+impl std::fmt::Debug for SymbolTable {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SymbolTable")
+            .field("symbols", &self.symbols.len())
+            .finish()
+    }
 }
 
 impl SymbolTable {
     pub fn new() -> Self {
         Self {
             symbols: Arc::new(DashMap::new()),
-            scope_stack: vec![HashSet::new()],
         }
     }
 
-    pub fn push_scope(&mut self) {
-        self.scope_stack.push(HashSet::new());
-    }
-
-    pub fn pop_scope(&mut self) {
-        if self.scope_stack.len() > 1 {
-            let popped_scope = self.scope_stack.pop().unwrap();
-            for name in popped_scope {
-                let _ = self.symbols.remove(&name);
-            }
-        }
-    }
-
-    pub fn current_scope(&self) -> &HashSet<String> {
-        self.scope_stack.last().expect("Scope stack is empty")
-    }
-
-    pub fn new_variable(&self, name: &str) -> Result<Symbol, String> {
+    pub fn new_variable(&mut self, name: &str) -> Result<Symbol, String> {
         if self.symbols.contains_key(name) {
             return Err(format!("变量 '{}' 已存在", name));
         }
 
         let symbol = Symbol::new(name.to_string(), ValueTypeDef::DataSet);
         self.symbols.insert(name.to_string(), symbol.clone());
+        
         Ok(symbol)
     }
 
-    pub fn new_variable_with_info(&self, name: &str, info: VariableInfo) -> Result<Symbol, String> {
+    pub fn new_variable_with_info(&mut self, name: &str, info: VariableInfo) -> Result<Symbol, String> {
         if self.symbols.contains_key(name) {
             return Err(format!("变量 '{}' 已存在", name));
         }
@@ -116,10 +113,11 @@ impl SymbolTable {
             .with_properties(info.properties)
             .with_aggregated(info.is_aggregated);
         self.symbols.insert(name.to_string(), symbol.clone());
+        
         Ok(symbol)
     }
 
-    pub fn new_dataset(&self, name: &str, col_names: Vec<String>) -> Result<Symbol, String> {
+    pub fn new_dataset(&mut self, name: &str, col_names: Vec<String>) -> Result<Symbol, String> {
         if self.symbols.contains_key(name) {
             return Err(format!("变量 '{}' 已存在", name));
         }
@@ -127,6 +125,7 @@ impl SymbolTable {
         let symbol = Symbol::new(name.to_string(), ValueTypeDef::DataSet)
             .with_col_names(col_names);
         self.symbols.insert(name.to_string(), symbol.clone());
+        
         Ok(symbol)
     }
 
@@ -142,7 +141,7 @@ impl SymbolTable {
         self.symbols.get(name).map(|s| s.to_variable_info())
     }
 
-    pub fn remove_variable(&self, name: &str) -> Result<bool, String> {
+    pub fn remove_variable(&mut self, name: &str) -> Result<bool, String> {
         Ok(self.symbols.remove(name).is_some())
     }
 
@@ -150,11 +149,7 @@ impl SymbolTable {
         self.symbols.len()
     }
 
-    pub fn current_scope_size(&self) -> usize {
-        self.current_scope().len()
-    }
-
-    pub fn read_by(&self, var_name: &str, node: PlanNodeRef) -> Result<(), String> {
+    pub fn read_by(&mut self, var_name: &str, node: PlanNodeRef) -> Result<(), String> {
         if let Some(mut symbol) = self.symbols.get_mut(var_name) {
             symbol.readers.insert(node);
             Ok(())
@@ -163,7 +158,7 @@ impl SymbolTable {
         }
     }
 
-    pub fn written_by(&self, var_name: &str, node: PlanNodeRef) -> Result<(), String> {
+    pub fn written_by(&mut self, var_name: &str, node: PlanNodeRef) -> Result<(), String> {
         if let Some(mut symbol) = self.symbols.get_mut(var_name) {
             symbol.writers.insert(node);
             Ok(())
@@ -172,7 +167,7 @@ impl SymbolTable {
         }
     }
 
-    pub fn delete_read_by(&self, var_name: &str, node: PlanNodeRef) -> Result<bool, String> {
+    pub fn delete_read_by(&mut self, var_name: &str, node: PlanNodeRef) -> Result<bool, String> {
         if let Some(mut symbol) = self.symbols.get_mut(var_name) {
             Ok(symbol.readers.remove(&node))
         } else {
@@ -180,7 +175,7 @@ impl SymbolTable {
         }
     }
 
-    pub fn delete_written_by(&self, var_name: &str, node: PlanNodeRef) -> Result<bool, String> {
+    pub fn delete_written_by(&mut self, var_name: &str, node: PlanNodeRef) -> Result<bool, String> {
         if let Some(mut symbol) = self.symbols.get_mut(var_name) {
             Ok(symbol.writers.remove(&node))
         } else {
@@ -189,7 +184,7 @@ impl SymbolTable {
     }
 
     pub fn update_read_by(
-        &self,
+        &mut self,
         old_var: &str,
         new_var: &str,
         node: PlanNodeRef,
@@ -212,7 +207,7 @@ impl SymbolTable {
     }
 
     pub fn update_written_by(
-        &self,
+        &mut self,
         old_var: &str,
         new_var: &str,
         node: PlanNodeRef,
@@ -238,7 +233,6 @@ impl SymbolTable {
         let mut result = String::new();
         result.push_str("SymbolTable {\n");
         result.push_str(&format!("  symbols: {}\n", self.symbols.len()));
-        result.push_str(&format!("  scope_depth: {}\n", self.scope_stack.len()));
 
         for entry in self.symbols.iter() {
             let symbol = entry.value();
@@ -309,28 +303,28 @@ mod tests {
 
     #[test]
     fn test_symbol_table() {
-        let table = SymbolTable::new();
+        let mut table = SymbolTable::new();
 
-        let symbol = table.new_variable("test_var").unwrap();
+        let symbol = table.new_variable("test_var").expect("创建 test_var 变量应该成功");
         assert_eq!(symbol.name, "test_var");
         assert_eq!(symbol.value_type, ValueTypeDef::DataSet);
         assert!(table.has_variable("test_var"));
         assert!(table.new_variable("test_var").is_err());
 
-        let retrieved = table.get_variable("test_var").unwrap();
+        let retrieved = table.get_variable("test_var").expect("获取 test_var 变量应该成功");
         assert_eq!(retrieved.name, "test_var");
         assert_eq!(retrieved.value_type, ValueTypeDef::DataSet);
 
-        assert!(table.remove_variable("test_var").unwrap());
+        assert!(table.remove_variable("test_var").expect("删除 test_var 变量应该成功"));
         assert!(!table.has_variable("test_var"));
     }
 
     #[test]
     fn test_dataset_creation() {
-        let table = SymbolTable::new();
+        let mut table = SymbolTable::new();
         let col_names = vec!["col1".to_string(), "col2".to_string()];
 
-        let symbol = table.new_dataset("dataset_var", col_names.clone()).unwrap();
+        let symbol = table.new_dataset("dataset_var", col_names.clone()).expect("创建 dataset_var 数据集应该成功");
         assert_eq!(symbol.name, "dataset_var");
         assert_eq!(symbol.value_type, ValueTypeDef::DataSet);
         assert_eq!(symbol.col_names, col_names);
@@ -338,19 +332,19 @@ mod tests {
 
     #[test]
     fn test_dependency_management() {
-        let table = SymbolTable::new();
-        table.new_variable("var1").unwrap();
-        table.new_variable("var2").unwrap();
+        let mut table = SymbolTable::new();
+        table.new_variable("var1").expect("创建 var1 变量应该成功");
+        table.new_variable("var2").expect("创建 var2 变量应该成功");
 
         let node1 = PlanNodeRef::new(1);
         let node2 = PlanNodeRef::new(2);
 
-        table.read_by("var1", node1).unwrap();
-        table.written_by("var1", node2).unwrap();
-        table.read_by("var2", node2).unwrap();
+        table.read_by("var1", node1).expect("标记 var1 的读取者应该成功");
+        table.written_by("var1", node2).expect("标记 var1 的写入者应该成功");
+        table.read_by("var2", node2).expect("标记 var2 的读取者应该成功");
 
-        let var1 = table.get_variable("var1").unwrap();
-        let var2 = table.get_variable("var2").unwrap();
+        let var1 = table.get_variable("var1").expect("获取 var1 变量应该成功");
+        let var2 = table.get_variable("var2").expect("获取 var2 变量应该成功");
 
         assert_eq!(var1.readers.len(), 1);
         assert_eq!(var1.writers.len(), 1);
@@ -359,8 +353,8 @@ mod tests {
 
     #[test]
     fn test_to_string() {
-        let table = SymbolTable::new();
-        table.new_variable("test_var").unwrap();
+        let mut table = SymbolTable::new();
+        table.new_variable("test_var").expect("创建 test_var 变量应该成功");
 
         let table_str = table.to_string();
         assert!(table_str.contains("SymbolTable"));
@@ -369,92 +363,63 @@ mod tests {
 
     #[test]
     fn test_size() {
-        let table = SymbolTable::new();
+        let mut table = SymbolTable::new();
         assert_eq!(table.size(), 0);
 
-        table.new_variable("var1").unwrap();
+        table.new_variable("var1").expect("创建 var1 变量应该成功");
         assert_eq!(table.size(), 1);
 
-        table.new_variable("var2").unwrap();
+        table.new_variable("var2").expect("创建 var2 变量应该成功");
         assert_eq!(table.size(), 2);
 
-        table.remove_variable("var1").unwrap();
+        table.remove_variable("var1").expect("删除 var1 变量应该成功");
         assert_eq!(table.size(), 1);
     }
 
     #[test]
-    fn test_concurrent_access() {
-        use std::thread;
-        use std::sync::Arc;
+    fn test_clone() {
+        let mut table = SymbolTable::new();
+        table.new_variable("var1").expect("创建 var1 变量应该成功");
+        table.new_variable("var2").expect("创建 var2 变量应该成功");
 
-        let table = Arc::new(SymbolTable::new());
-        let table2 = table.clone();
-        let table3 = table.clone();
+        let cloned = table.clone();
+        assert_eq!(cloned.size(), 2);
+        assert!(cloned.has_variable("var1"));
+        assert!(cloned.has_variable("var2"));
 
-        let handle1 = thread::spawn(move || {
-            for i in 0..50 {
-                let name = format!("var_thread1_{}", i);
-                let _ = table2.new_variable(&name);
-            }
-        });
-
-        let handle2 = thread::spawn(move || {
-            for i in 0..50 {
-                let name = format!("var_thread2_{}", i);
-                let _ = table3.new_variable(&name);
-            }
-        });
-
-        handle1.join().unwrap();
-        handle2.join().unwrap();
-
-        assert_eq!(table.size(), 100);
+        let mut table2 = SymbolTable::new();
+        table2.new_variable("var3").expect("创建 var3 变量应该成功");
+        assert_eq!(table2.size(), 1);
     }
 
     #[test]
     fn test_variable_info_conversion() {
-        let table = SymbolTable::new();
+        let mut table = SymbolTable::new();
 
         let var_info = VariableInfo::new("dst".to_string(), "vertex".to_string())
             .with_source_clause("GO".to_string())
             .with_properties(vec!["_dst".to_string()])
             .with_aggregated(false);
 
-        table.new_variable_with_info("dst", var_info).unwrap();
+        table.new_variable_with_info("dst", var_info).expect("创建 dst 变量应该成功");
 
-        let info = table.get_variable_info("dst").unwrap();
+        let info = table.get_variable_info("dst").expect("获取 dst 变量信息应该成功");
         assert_eq!(info.variable_name, "dst");
         assert_eq!(info.source_clause, "GO");
         assert_eq!(info.properties, vec!["_dst"]);
     }
 
     #[test]
-    fn test_scope_management() {
-        let mut table = SymbolTable::new();
-
-        table.new_variable("var1").unwrap();
-        assert_eq!(table.size(), 1);
-
-        table.push_scope();
-        table.new_variable("var2").unwrap();
-        assert_eq!(table.size(), 2);
-
-        table.pop_scope();
-        assert_eq!(table.size(), 1);
-        assert!(!table.has_variable("var2"));
-    }
-
-    #[test]
     fn test_get_aggregated_variables() {
-        let table = SymbolTable::new();
+        let mut table = SymbolTable::new();
 
         let var1 = VariableInfo::new("var1".to_string(), "vertex".to_string())
             .with_aggregated(false);
         let var2 = VariableInfo::new("var2".to_string(), "integer".to_string())
             .with_aggregated(true);
 
-        table.new_variable_with_info("var1", var1).unwrap();
-        table.new_variable_with_info("var2", var2).unwrap();
+        table.new_variable_with_info("var1", var1).expect("创建 var1 变量应该成功");
+        table.new_variable_with_info("var2", var2).expect("创建 var2 变量应该成功");
 
         let aggregated = table.get_aggregated_variables();
         assert_eq!(aggregated.len(), 1);

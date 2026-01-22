@@ -4,9 +4,12 @@ use crate::core::Value;
 use crate::utils::{safe_lock, safe_read, safe_write};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::Duration;
 use uuid::Uuid;
+
+static SESSION_ID_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 /// 会话状态
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -48,11 +51,11 @@ pub struct Session {
 
 impl Session {
     pub fn new(user_id: Option<String>, client_info: String, connection_info: String) -> Self {
-        let session_id = Uuid::new_v4().to_string();
-        let session_id_i64 = session_id.parse::<i64>().unwrap_or(0);
+        let counter = SESSION_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let session_id = (counter + 1) as i64;
         
         let session_info = SessionInfo {
-            session_id: session_id_i64,
+            session_id,
             user_name: user_id.unwrap_or_else(|| "anonymous".to_string()),
             space_name: None,
             graph_addr: None,

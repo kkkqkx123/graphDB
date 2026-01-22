@@ -19,5 +19,5 @@ pub mod types;
 pub use basic_context::BasicValidationContext;
 pub use context::ValidationContext;
 pub use generators::{AnonColGenerator, AnonVarGenerator, GeneratorFactory};
-pub use schema::{SchemaInfo, SchemaManager, SchemaProvider};
+pub use schema::{SchemaInfo, SchemaManager, SchemaProvider, ValidationMode};
 pub use types::{ColsDef, Column, SpaceInfo, Variable};

@@ -4,7 +4,7 @@
 
 use super::super::common::{EdgeProp, TagProp};
 use crate::core::types::EdgeDirection;
-use crate::core::Value;
+use crate::core::{Expression, Value};
 use crate::query::context::validate::types::Variable;
 
 /// 扩展节点
@@ -616,6 +616,13 @@ pub struct AppendVerticesNode {
     col_names: Vec<String>,
     cost: f64,
     dependencies: Vec<Box<super::plan_node_enum::PlanNodeEnum>>,
+    input_var: Option<String>,
+    src_expr: Option<Expression>,
+    props: Vec<String>,
+    v_filter: Option<Expression>,
+    dedup: bool,
+    track_prev_path: bool,
+    need_fetch_prop: bool,
 }
 
 // 为 AppendVerticesNode 实现 Clone
@@ -630,7 +637,14 @@ impl Clone for AppendVerticesNode {
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
-            dependencies: Vec::new(), // 依赖关系不复制，因为它们在新的上下文中无效
+            dependencies: Vec::new(),
+            input_var: self.input_var.clone(),
+            src_expr: self.src_expr.clone(),
+            props: self.props.clone(),
+            v_filter: self.v_filter.clone(),
+            dedup: self.dedup,
+            track_prev_path: self.track_prev_path,
+            need_fetch_prop: self.need_fetch_prop,
         }
     }
 }
@@ -647,6 +661,13 @@ impl AppendVerticesNode {
             col_names: Vec::new(),
             cost: 0.0,
             dependencies: Vec::new(),
+            input_var: None,
+            src_expr: None,
+            props: Vec::new(),
+            v_filter: None,
+            dedup: false,
+            track_prev_path: true,
+            need_fetch_prop: true,
         }
     }
 
@@ -668,6 +689,76 @@ impl AppendVerticesNode {
     /// 获取过滤条件
     pub fn filter(&self) -> Option<&String> {
         self.filter.as_ref()
+    }
+
+    /// 获取输入变量名
+    pub fn input_var(&self) -> Option<&String> {
+        self.input_var.as_ref()
+    }
+
+    /// 获取源表达式
+    pub fn src_expr(&self) -> Option<&Expression> {
+        self.src_expr.as_ref()
+    }
+
+    /// 获取属性列表
+    pub fn props(&self) -> &[String] {
+        &self.props
+    }
+
+    /// 获取顶点过滤表达式
+    pub fn v_filter(&self) -> Option<&Expression> {
+        self.v_filter.as_ref()
+    }
+
+    /// 是否去重
+    pub fn dedup(&self) -> bool {
+        self.dedup
+    }
+
+    /// 是否跟踪前一个路径
+    pub fn track_prev_path(&self) -> bool {
+        self.track_prev_path
+    }
+
+    /// 是否需要获取属性
+    pub fn need_fetch_prop(&self) -> bool {
+        self.need_fetch_prop
+    }
+
+    /// 设置输入变量名
+    pub fn set_input_var(&mut self, input_var: String) {
+        self.input_var = Some(input_var);
+    }
+
+    /// 设置源表达式
+    pub fn set_src_expr(&mut self, src_expr: Expression) {
+        self.src_expr = Some(src_expr);
+    }
+
+    /// 设置属性列表
+    pub fn set_props(&mut self, props: Vec<String>) {
+        self.props = props;
+    }
+
+    /// 设置顶点过滤表达式
+    pub fn set_v_filter(&mut self, v_filter: Expression) {
+        self.v_filter = Some(v_filter);
+    }
+
+    /// 设置是否去重
+    pub fn set_dedup(&mut self, dedup: bool) {
+        self.dedup = dedup;
+    }
+
+    /// 设置是否跟踪前一个路径
+    pub fn set_track_prev_path(&mut self, track_prev_path: bool) {
+        self.track_prev_path = track_prev_path;
+    }
+
+    /// 设置是否需要获取属性
+    pub fn set_need_fetch_prop(&mut self, need_fetch_prop: bool) {
+        self.need_fetch_prop = need_fetch_prop;
     }
 }
 

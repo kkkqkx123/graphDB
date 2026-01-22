@@ -3,6 +3,17 @@
 
 use std::collections::HashMap;
 
+/// Schema验证模式
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ValidationMode {
+    /// 严格模式：字段必须完全匹配，包括类型
+    Strict,
+    /// 宽松模式：允许缺少字段，忽略额外字段
+    Lenient,
+    /// 只验证必需字段
+    RequiredOnly,
+}
+
 /// Schema验证错误类型
 #[derive(Debug, Clone, PartialEq)]
 pub enum SchemaValidationError {

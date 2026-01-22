@@ -39,8 +39,7 @@ pub use result_processing::traits::ResultProcessorFactory;
 
 // Re-export transformations (数据转换执行器)
 pub use result_processing::transformations::{
-    AppendVerticesExecutor, AssignExecutor, PatternApplyExecutor, PatternType, RollUpApplyExecutor,
-    UnwindExecutor,
+    AppendVerticesExecutor, AssignExecutor, PatternApplyExecutor, RollUpApplyExecutor, UnwindExecutor,
 };
 
 // Re-export logic executors (循环控制执行器)
