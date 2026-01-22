@@ -8,17 +8,21 @@ pub mod lexer;
 pub mod ast;
 pub mod expressions;
 pub mod statements;
-pub mod clauses;
 pub mod parser;
 
 // 重新导出 core 模块的常用类型
 pub use core::{ParseError, ParseErrors, Token, TokenKind};
 
-// 重新导出语句和子句
+// 重新导出语句
 pub use statements::*;
-pub use clauses::*;
 
-// 重新导出统一解析器
+// 重新导出 AST 中的类型
+pub use ast::{
+    LimitClause, OrderDirection, OrderByClause, OrderByItem, SampleClause,
+    SetClause, SkipClause, Steps, YieldClause, YieldItem,
+};
+
+// 重新导出解析器
 pub use parser::Parser;
 pub use parser::ExprParser;
 pub use parser::StmtParser;

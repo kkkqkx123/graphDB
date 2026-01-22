@@ -455,6 +455,22 @@ pub struct PipeStmt {
     pub expression: Expr,
 }
 
+/// MATCH 子句（用于 MATCH 语句中的子句）
+#[derive(Debug, Clone, PartialEq)]
+pub struct MatchClause {
+    pub span: Span,
+    pub patterns: Vec<Pattern>,
+    pub optional: bool,
+}
+
+/// WITH 子句（用于子查询管道）
+#[derive(Debug, Clone, PartialEq)]
+pub struct WithClause {
+    pub span: Span,
+    pub items: Vec<ReturnItem>,
+    pub where_clause: Option<Expr>,
+}
+
 // 语句工具函数
 pub struct StmtUtils;
 

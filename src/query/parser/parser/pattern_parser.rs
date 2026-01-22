@@ -193,4 +193,15 @@ impl super::Parser {
             Span::default(),
         ))
     }
+    
+    pub fn parse_patterns(&mut self) -> Result<Vec<Pattern>, ParseError> {
+        let mut patterns = Vec::new();
+        loop {
+            patterns.push(self.parse_pattern()?);
+            if !self.match_token(TokenKind::Comma) {
+                break;
+            }
+        }
+        Ok(patterns)
+    }
 }

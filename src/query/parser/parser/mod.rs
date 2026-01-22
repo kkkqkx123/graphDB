@@ -6,6 +6,7 @@ mod expr_parser;
 mod pattern_parser;
 mod utils;
 mod stmt_parser;
+mod clause_parser;
 
 pub use expr_parser::ExprParser;
 pub use stmt_parser::StmtParser;
