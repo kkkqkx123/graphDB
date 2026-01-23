@@ -2,7 +2,7 @@
 //!
 //! 图模式匹配相关的 AST 定义，支持节点、边和路径模式。
 
-use super::expr::{Expr, ExprUtils};
+use super::expression::{Expression, ExprUtils};
 use super::types::*;
 
 /// 模式枚举 - 图模式匹配
@@ -32,16 +32,16 @@ pub struct NodePattern {
     pub span: Span,
     pub variable: Option<String>,
     pub labels: Vec<String>,
-    pub properties: Option<Expr>,
-    pub predicates: Vec<Expr>,
+    pub properties: Option<Expression>,
+    pub predicates: Vec<Expression>,
 }
 
 impl NodePattern {
     pub fn new(
         variable: Option<String>,
         labels: Vec<String>,
-        properties: Option<Expr>,
-        predicates: Vec<Expr>,
+        properties: Option<Expression>,
+        predicates: Vec<Expression>,
         span: Span,
     ) -> Self {
         Self {
@@ -60,8 +60,8 @@ pub struct EdgePattern {
     pub span: Span,
     pub variable: Option<String>,
     pub edge_types: Vec<String>,
-    pub properties: Option<Expr>,
-    pub predicates: Vec<Expr>,
+    pub properties: Option<Expression>,
+    pub predicates: Vec<Expression>,
     pub direction: EdgeDirection,
     pub range: Option<EdgeRange>,
 }
@@ -70,8 +70,8 @@ impl EdgePattern {
     pub fn new(
         variable: Option<String>,
         edge_types: Vec<String>,
-        properties: Option<Expr>,
-        predicates: Vec<Expr>,
+        properties: Option<Expression>,
+        predicates: Vec<Expression>,
         direction: EdgeDirection,
         range: Option<EdgeRange>,
         span: Span,

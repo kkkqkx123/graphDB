@@ -913,7 +913,7 @@ impl Optimizer {
                 // 收集投影节点中的所有属性
                 if let Some(project_node) = node.plan_node.as_project() {
                     for column in project_node.columns() {
-                        self.collect_expression_properties(&column.expr, property_tracker);
+                        self.collect_expression_properties(&column.expression, property_tracker);
                     }
                 }
             }
@@ -927,10 +927,10 @@ impl Optimizer {
                 // 收集聚合节点中的所有属性
                 if let Some(aggregate_node) = node.plan_node.as_aggregate() {
                     for group_key in aggregate_node.group_keys() {
-                        self.collect_expression_properties(&crate::core::Expr::Variable(group_key.clone()), property_tracker);
+                        self.collect_expression_properties(&crate::core::Expression::Variable(group_key.clone()), property_tracker);
                     }
                     for item in aggregate_node.aggregation_functions() {
-                        self.collect_expression_properties(&crate::core::Expr::Variable(item.name().to_string()), property_tracker);
+                        self.collect_expression_properties(&crate::core::Expression::Variable(item.name().to_string()), property_tracker);
                     }
                 }
             }
@@ -943,68 +943,68 @@ impl Optimizer {
     /// 收集表达式中的属性
     fn collect_expression_properties(
         &self,
-        expr: &crate::core::Expr,
+        expression: &crate::core::Expression,
         property_tracker: &mut PropertyTracker,
     ) {
-        use crate::core::Expr;
+        use crate::core::Expression;
 
-        match expr {
-            Expr::Property { object, property } => {
-                if let Expr::Variable(var_name) = object.as_ref() {
+        match expression {
+            Expression::Property { object, property } => {
+                if let Expression::Variable(var_name) = object.as_ref() {
                     property_tracker.track_property(var_name, &property);
                 }
             }
-            Expr::Binary { left, right, .. } => {
+            Expression::Binary { left, right, .. } => {
                 self.collect_expression_properties(left, property_tracker);
                 self.collect_expression_properties(right, property_tracker);
             }
-            Expr::Unary { operand, .. } => {
+            Expression::Unary { operand, .. } => {
                 self.collect_expression_properties(operand, property_tracker);
             }
-            Expr::Function { args, .. } => {
+            Expression::Function { args, .. } => {
                 for arg in args {
                     self.collect_expression_properties(arg, property_tracker);
                 }
             }
-            Expr::Aggregate { arg, .. } => {
+            Expression::Aggregate { arg, .. } => {
                 self.collect_expression_properties(arg, property_tracker);
             }
-            Expr::List(items) => {
+            Expression::List(items) => {
                 for item in items {
                     self.collect_expression_properties(item, property_tracker);
                 }
             }
-            Expr::Map(pairs) => {
+            Expression::Map(pairs) => {
                 for (_, value) in pairs {
                     self.collect_expression_properties(value, property_tracker);
                 }
             }
-            Expr::Case { conditions, default } => {
+            Expression::Case { conditions, default } => {
                 for (condition, value) in conditions {
                     self.collect_expression_properties(condition, property_tracker);
                     self.collect_expression_properties(value, property_tracker);
                 }
-                if let Some(default_expr) = default {
-                    self.collect_expression_properties(default_expr, property_tracker);
+                if let Some(default_expression) = default {
+                    self.collect_expression_properties(default_expression, property_tracker);
                 }
             }
-            Expr::TypeCast { expr, .. } => {
-                self.collect_expression_properties(expr, property_tracker);
+            Expression::TypeCast { expression, .. } => {
+                self.collect_expression_properties(expression, property_tracker);
             }
-            Expr::Subscript { collection, index } => {
+            Expression::Subscript { collection, index } => {
                 self.collect_expression_properties(collection, property_tracker);
                 self.collect_expression_properties(index, property_tracker);
             }
-            Expr::Range { collection, start, end } => {
+            Expression::Range { collection, start, end } => {
                 self.collect_expression_properties(collection, property_tracker);
-                if let Some(start_expr) = start {
-                    self.collect_expression_properties(start_expr, property_tracker);
+                if let Some(start_expression) = start {
+                    self.collect_expression_properties(start_expression, property_tracker);
                 }
-                if let Some(end_expr) = end {
-                    self.collect_expression_properties(end_expr, property_tracker);
+                if let Some(end_expression) = end {
+                    self.collect_expression_properties(end_expression, property_tracker);
                 }
             }
-            Expr::Path(items) => {
+            Expression::Path(items) => {
                 for item in items {
                     self.collect_expression_properties(item, property_tracker);
                 }

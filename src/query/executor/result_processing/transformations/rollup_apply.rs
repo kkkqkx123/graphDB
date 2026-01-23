@@ -519,8 +519,8 @@ mod tests {
             ExecutionResult::Values(right_values.clone()),
         );
 
-        let compare_cols = vec![Expr::variable("_")];
-        let collect_col = Expr::variable("_");
+        let compare_cols = vec![Expression::variable("_")];
+        let collect_col = Expression::variable("_");
 
         let mut executor = RollUpApplyExecutor::with_context(
             1,
@@ -562,8 +562,8 @@ mod tests {
             ExecutionResult::Values(right_values.clone()),
         );
 
-        let compare_cols: Vec<Expr> = vec![];
-        let collect_col = Expr::Variable("_".to_string());
+        let compare_cols: Vec<Expression> = vec![];
+        let collect_col = Expression::Variable("_".to_string());
 
         let mut executor = RollUpApplyExecutor::with_context(
             2,
@@ -624,10 +624,10 @@ mod tests {
         );
 
         let compare_cols = vec![
-            Expr::subscript(Expr::variable("_"), Expr::literal(0i64)),
-            Expr::subscript(Expr::variable("_"), Expr::literal(1i64)),
+            Expression::subscript(Expression::variable("_"), Expression::literal(0i64)),
+            Expression::subscript(Expression::variable("_"), Expression::literal(1i64)),
         ];
-        let collect_col = Expr::Variable("_".to_string());
+        let collect_col = Expression::Variable("_".to_string());
 
         let mut executor = RollUpApplyExecutor::with_context(
             3,
@@ -670,8 +670,8 @@ mod tests {
             ExecutionResult::Values(right_values.clone()),
         );
 
-        let compare_cols = vec![Expr::variable("_")];
-        let collect_col = Expr::Variable("_".to_string());
+        let compare_cols = vec![Expression::variable("_")];
+        let collect_col = Expression::Variable("_".to_string());
 
         let mut executor = RollUpApplyExecutor::with_context(
             4,
@@ -717,8 +717,8 @@ mod tests {
             ExecutionResult::Values(right_values.clone()),
         );
 
-        let compare_cols = vec![Expr::literal(0i64)];
-        let collect_col = Expr::Variable("_".to_string());
+        let compare_cols = vec![Expression::literal(0i64)];
+        let collect_col = Expression::Variable("_".to_string());
 
         let mut executor = RollUpApplyExecutor::with_context(
             5,

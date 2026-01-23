@@ -84,7 +84,7 @@ impl YieldValidator {
 
     fn validate_types(&mut self) -> Result<(), ValidationError> {
         for col in &self.yield_columns {
-            let expr_type = self.deduce_expr_type(&col.expr)?;
+            let expr_type = self.deduce_expr_type(&col.expression)?;
             if expr_type == ValueType::Unknown {
                 self.base.add_type_error(format!(
                     "Cannot deduce type for expression in YIELD column '{}'",
@@ -98,7 +98,7 @@ impl YieldValidator {
     fn validate_distinct(&self) -> Result<(), ValidationError> {
         if self.distinct && self.yield_columns.len() > 1 {
             let has_non_comparable = self.yield_columns.iter().any(|col| {
-                let col_type = self.deduce_expr_type(&col.expr).unwrap_or(ValueType::Unknown);
+                let col_type = self.deduce_expr_type(&col.expression).unwrap_or(ValueType::Unknown);
                 !matches!(col_type, ValueType::Bool | ValueType::Int | ValueType::Float | ValueType::String)
             });
             if has_non_comparable {
@@ -111,7 +111,7 @@ impl YieldValidator {
         Ok(())
     }
 
-    fn deduce_expr_type(&self, _expr: &crate::core::Expression) -> Result<ValueType, ValidationError> {
+    fn deduce_expr_type(&self, _expression: &crate::core::Expression) -> Result<ValueType, ValidationError> {
         Ok(ValueType::Unknown)
     }
 

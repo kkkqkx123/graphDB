@@ -13,7 +13,7 @@ pub struct FetchEdgesContext {
     pub dst: Option<String>,
     pub rank: Option<String>,
     pub edge_type: Option<String>,
-    pub yield_expr: Option<YieldColumns>,
+    pub yield_expression: Option<YieldColumns>,
     pub edge_name: String,
     pub distinct: bool,
 }
@@ -26,7 +26,7 @@ impl FetchEdgesContext {
             dst: None,
             rank: None,
             edge_type: None,
-            yield_expr: None,
+            yield_expression: None,
             edge_name: String::new(),
             distinct: false,
         }

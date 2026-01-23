@@ -3,7 +3,7 @@
 
 use super::super::structs::*;
 use super::super::validation_interface::*;
-use crate::core::Expr;
+use crate::core::Expression;
 
 /// 分页验证策略
 pub struct PaginationValidationStrategy;
@@ -16,8 +16,8 @@ impl PaginationValidationStrategy {
     /// 验证分页参数的有效性
     pub fn validate_pagination(
         &self,
-        skip_expr: Option<&Expr>,
-        limit_expr: Option<&Expr>,
+        skip_expression: Option<&Expression>,
+        limit_expression: Option<&Expression>,
         context: &PaginationContext,
     ) -> Result<(), ValidationError> {
         // 验证分页参数的有效性
@@ -35,35 +35,35 @@ impl PaginationValidationStrategy {
         }
 
         // 验证表达式类型（如果提供了表达式）
-        if let Some(skip) = skip_expr {
-            self.validate_pagination_expr(skip, "SKIP")?;
+        if let Some(skip) = skip_expression {
+            self.validate_pagination_expression(skip, "SKIP")?;
         }
 
-        if let Some(limit) = limit_expr {
-            self.validate_pagination_expr(limit, "LIMIT")?;
+        if let Some(limit) = limit_expression {
+            self.validate_pagination_expression(limit, "LIMIT")?;
         }
 
         Ok(())
     }
 
     /// 验证分页表达式
-    pub fn validate_pagination_expr(
+    pub fn validate_pagination_expression(
         &self,
-        expr: &Expr,
+        expression: &Expression,
         clause_name: &str,
     ) -> Result<(), ValidationError> {
         use crate::query::visitor::EvaluableExprVisitor;
 
         let mut visitor = EvaluableExprVisitor::new();
-        if !visitor.is_evaluable(expr) {
+        if !visitor.is_evaluable(expression) {
             return Err(ValidationError::new(
                 format!("{}表达式必须是可立即计算的常量表达式", clause_name),
                 ValidationErrorType::PaginationError,
             ));
         }
 
-        match expr {
-            Expr::Literal(crate::core::Value::Int(n)) => {
+        match expression {
+            Expression::Literal(crate::core::Value::Int(n)) => {
                 if *n >= 0 {
                     Ok(())
                 } else {
@@ -73,7 +73,7 @@ impl PaginationValidationStrategy {
                     ))
                 }
             }
-            Expr::Literal(_) => Err(ValidationError::new(
+            Expression::Literal(_) => Err(ValidationError::new(
                 format!("{}表达式必须求值为整数类型", clause_name),
                 ValidationErrorType::PaginationError,
             )),
@@ -82,7 +82,7 @@ impl PaginationValidationStrategy {
                 use crate::expression::context::basic_context::BasicExpressionContext;
 
                 let mut context = BasicExpressionContext::new();
-                match ExpressionEvaluator::evaluate(expr, &mut context) {
+                match ExpressionEvaluator::evaluate(expression, &mut context) {
                     Ok(crate::core::Value::Int(n)) => {
                         if n >= 0 {
                             Ok(())
@@ -148,10 +148,10 @@ impl ValidationStrategy for PaginationValidationStrategy {
             // 验证Match子句中的分页
             for match_ctx in &query_part.matchs {
                 if let Some(skip) = &match_ctx.skip {
-                    self.validate_pagination_expr(skip, "SKIP")?;
+                    self.validate_pagination_expression(skip, "SKIP")?;
                 }
                 if let Some(limit) = &match_ctx.limit {
-                    self.validate_pagination_expr(limit, "LIMIT")?;
+                    self.validate_pagination_expression(limit, "LIMIT")?;
                 }
             }
 
@@ -206,12 +206,12 @@ mod tests {
         let strategy = PaginationValidationStrategy::new();
 
         // 测试有效的分页表达式
-        let skip_expr = Expr::Literal(crate::core::Value::Int(1));
-        let limit_expr = Expr::Literal(crate::core::Value::Int(10));
+        let skip_expression = Expression::Literal(crate::core::Value::Int(1));
+        let limit_expression = Expression::Literal(crate::core::Value::Int(10));
         let pagination_ctx = PaginationContext { skip: 0, limit: 10 };
 
         assert!(strategy
-            .validate_pagination(Some(&skip_expr), Some(&limit_expr), &pagination_ctx)
+            .validate_pagination(Some(&skip_expression), Some(&limit_expression), &pagination_ctx)
             .is_ok());
 
         // 测试无效的分页参数
@@ -249,11 +249,11 @@ mod tests {
         // 创建测试数据
         let yield_columns = vec![
             YieldColumn::new(
-                Expr::Literal(crate::core::Value::Int(1)),
+                Expression::Literal(crate::core::Value::Int(1)),
                 "col1".to_string(),
             ),
             YieldColumn::new(
-                Expr::Literal(crate::core::Value::Int(2)),
+                Expression::Literal(crate::core::Value::Int(2)),
                 "col2".to_string(),
             ),
         ];
@@ -281,14 +281,14 @@ mod tests {
         let strategy = PaginationValidationStrategy::new();
 
         // 测试有效的整数表达式
-        let int_expr = Expr::Literal(crate::core::Value::Int(10));
+        let int_expression = Expression::Literal(crate::core::Value::Int(10));
         assert!(strategy
-            .validate_pagination_expr(&int_expr, "LIMIT")
+            .validate_pagination_expression(&int_expression, "LIMIT")
             .is_ok());
 
-        let string_expr = Expr::Literal(crate::core::Value::String("invalid".to_string()));
+        let string_expression = Expression::Literal(crate::core::Value::String("invalid".to_string()));
         assert!(strategy
-            .validate_pagination_expr(&string_expr, "LIMIT")
+            .validate_pagination_expression(&string_expression, "LIMIT")
             .is_err());
     }
 

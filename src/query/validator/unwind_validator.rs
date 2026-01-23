@@ -4,14 +4,14 @@
 
 use super::base_validator::{Validator, ValueType};
 use super::ValidationContext;
-use crate::core::{Expr, Value, NullType};
+use crate::core::{Expression, Value, NullType};
 use crate::query::validator::ValidationError;
 use crate::query::validator::ValidationErrorType;
 use std::collections::HashMap;
 
 pub struct UnwindValidator {
     base: Validator,
-    unwind_expression: Expr,
+    unwind_expression: Expression,
     variable_name: String,
     aliases_available: HashMap<String, ValueType>,
 }
@@ -20,7 +20,7 @@ impl UnwindValidator {
     pub fn new(context: ValidationContext) -> Self {
         Self {
             base: Validator::new(context),
-            unwind_expression: Expr::Literal(Value::Null(NullType::Null)),
+            unwind_expression: Expression::Literal(Value::Null(NullType::Null)),
             variable_name: String::new(),
             aliases_available: HashMap::new(),
         }
@@ -127,24 +127,24 @@ impl UnwindValidator {
         Ok(())
     }
 
-    fn expression_is_empty(&self, _expr: &Expression) -> bool {
+    fn expression_is_empty(&self, _expression: &Expression) -> bool {
         false
     }
 
-    fn deduce_expr_type(&self, _expr: &Expression) -> Result<ValueType, ValidationError> {
+    fn deduce_expr_type(&self, _expression: &Expression) -> Result<ValueType, ValidationError> {
         Ok(ValueType::List)
     }
 
-    fn deduce_list_element_type(&self, _expr: &Expression) -> Result<ValueType, ValidationError> {
+    fn deduce_list_element_type(&self, _expression: &Expression) -> Result<ValueType, ValidationError> {
         Ok(ValueType::Unknown)
     }
 
-    fn get_expression_references(&self, _expr: &Expression) -> Vec<String> {
+    fn get_expression_references(&self, _expression: &Expression) -> Vec<String> {
         Vec::new()
     }
 
-    pub fn set_unwind_expression(&mut self, expr: Expression) {
-        self.unwind_expression = expr;
+    pub fn set_unwind_expression(&mut self, expression: Expression) {
+        self.unwind_expression = expression;
     }
 
     pub fn set_variable_name(&mut self, name: String) {
@@ -167,12 +167,12 @@ impl UnwindValidator {
 impl Validator {
     pub fn validate_unwind(
         &mut self,
-        expr: Expression,
+        expression: Expression,
         var_name: String,
         aliases: &HashMap<String, ValueType>,
     ) -> Result<(), ValidationError> {
         let mut validator = UnwindValidator::new(self.context().clone());
-        validator.set_unwind_expression(expr);
+        validator.set_unwind_expression(expression);
         validator.set_variable_name(var_name);
         validator.set_aliases_available(aliases.clone());
         validator.validate()

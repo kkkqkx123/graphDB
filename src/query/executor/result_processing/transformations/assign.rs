@@ -66,9 +66,9 @@ impl<S: StorageEngine + Send + 'static> AssignExecutor<S> {
         }
 
         // 执行每个赋值项
-        for (var_name, expr) in &self.assign_items {
+        for (var_name, expression) in &self.assign_items {
             // 计算表达式的值
-            let value = ExpressionEvaluator::evaluate(expr, &mut expr_context).map_err(|e| {
+            let value = ExpressionEvaluator::evaluate(expression, &mut expr_context).map_err(|e| {
                 DBError::Query(crate::core::error::QueryError::ExecutionError(
                     e.to_string(),
                 ))
@@ -170,8 +170,8 @@ mod tests {
 
         // 创建赋值项
         let assign_items = vec![
-            ("var1".to_string(), Expr::literal(42i64)),
-            ("var2".to_string(), Expr::literal("hello")),
+            ("var1".to_string(), Expression::literal(42i64)),
+            ("var2".to_string(), Expression::literal("hello")),
         ];
 
         let mut executor = AssignExecutor::new(1, storage, assign_items);

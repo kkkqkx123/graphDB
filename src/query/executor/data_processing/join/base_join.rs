@@ -169,14 +169,14 @@ impl<S: StorageEngine> BaseJoinExecutor<S> {
     pub fn build_single_key_hash_table_with_evaluator<C: ExpressionContext>(
         &self,
         dataset: &DataSet,
-        hash_key_expr: &Expression,
+        hash_key_expression: &Expression,
         _evaluator: &JoinKeyEvaluator,
         context: &mut C,
     ) -> Result<HashMap<Value, Vec<Vec<Value>>>, QueryError> {
         let mut hash_table = HashMap::new();
 
         for row in &dataset.rows {
-            let key = JoinKeyEvaluator::evaluate_key(hash_key_expr, context)
+            let key = JoinKeyEvaluator::evaluate_key(hash_key_expression, context)
                 .map_err(|e| QueryError::ExecutionError(format!("键求值失败: {}", e)))?;
 
             hash_table
@@ -217,14 +217,14 @@ impl<S: StorageEngine> BaseJoinExecutor<S> {
         &self,
         probe_dataset: &DataSet,
         hash_table: &HashMap<Value, Vec<Vec<Value>>>,
-        probe_key_expr: &Expression,
+        probe_key_expression: &Expression,
         _evaluator: &JoinKeyEvaluator,
         context: &mut C,
     ) -> Result<Vec<(Vec<Value>, Vec<Vec<Value>>)>, QueryError> {
         let mut results = Vec::new();
 
         for probe_row in &probe_dataset.rows {
-            let key = JoinKeyEvaluator::evaluate_key(probe_key_expr, context)
+            let key = JoinKeyEvaluator::evaluate_key(probe_key_expression, context)
                 .map_err(|e| QueryError::ExecutionError(format!("探测键求值失败: {}", e)))?;
 
             if let Some(matching_rows) = hash_table.get(&key) {

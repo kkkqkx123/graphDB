@@ -12,8 +12,8 @@ use crate::core::{
     BinaryOperator, DataType, Expression, UnaryOperator, Value,
 };
 use crate::core::types::operators::AggregateFunction;
-use crate::expression::Expr;
-use crate::query::parser::ast::expr::*;
+use crate::expression::Expression;
+use crate::query::parser::ast::expression::*;
 use std::collections::{HashMap, HashSet};
 
 /// Vids 类型
@@ -149,12 +149,12 @@ impl VidExtractVisitor {
     }
 
     /// 提取顶点ID模式
-    pub fn extract(&mut self, expr: &Expr) -> Result<VidPattern, String> {
+    pub fn extract(&mut self, expression: &Expression) -> Result<VidPattern, String> {
         self.vid_pattern = VidPattern::new();
         self.current_alias = None;
         self.error = None;
 
-        self.visit_expression(expr)?;
+        self.visit_expression(expression)?;
 
         if let Some(err) = &self.error {
             Err(err.clone())
@@ -181,9 +181,9 @@ impl VidExtractVisitor {
     /// 尝试提取id(V) IN [vid1, vid2, ...]或id(V) == vid
     fn try_extract_id_comparison(
         &mut self,
-        left: &Expr,
+        left: &Expression,
         op: &BinaryOperator,
-        right: &Expr,
+        right: &Expression,
     ) {
         match op {
             BinaryOperator::Equal => {
@@ -197,11 +197,11 @@ impl VidExtractVisitor {
     }
 
     /// 尝试提取 id(V) == vid
-    fn try_extract_id_equal(&mut self, left: &Expr, right: &Expr) {
-        if let Expr::Function { name, args } = left {
+    fn try_extract_id_equal(&mut self, left: &Expression, right: &Expression) {
+        if let Expression::Function { name, args } = left {
             if self.is_id_function(name) && args.len() == 1 {
-                if let Expr::Variable(alias) = &args[0] {
-                    if let Expr::Literal(vid) = right {
+                if let Expression::Variable(alias) = &args[0] {
+                    if let Expression::Literal(vid) = right {
                         let mut vids = HashSet::new();
                         vids.insert(vid.clone());
                         self.vid_pattern
@@ -213,14 +213,14 @@ impl VidExtractVisitor {
     }
 
     /// 尝试提取 id(V) IN [vid1, vid2, ...]
-    fn try_extract_id_in(&mut self, left: &Expr, right: &Expr) {
-        if let Expr::Function { name, args } = left {
+    fn try_extract_id_in(&mut self, left: &Expression, right: &Expression) {
+        if let Expression::Function { name, args } = left {
             if self.is_id_function(name) && args.len() == 1 {
-                if let Expr::Variable(alias) = &args[0] {
-                    if let Expr::List(vids_expr) = right {
+                if let Expression::Variable(alias) = &args[0] {
+                    if let Expression::List(vids_expression) = right {
                         let mut vids = HashSet::new();
-                        for vid_expr in vids_expr {
-                            if let Expr::Literal(vid) = vid_expr {
+                        for vid_expression in vids_expression {
+                            if let Expression::Literal(vid) = vid_expression {
                                 vids.insert(vid.clone());
                             }
                         }
@@ -253,15 +253,15 @@ impl ExpressionVisitor for VidExtractVisitor {
         Ok(())
     }
 
-    fn visit_property(&mut self, object: &Expr, _property: &str) -> Self::Result {
+    fn visit_property(&mut self, object: &Expression, _property: &str) -> Self::Result {
         self.visit_expression(object)
     }
 
     fn visit_binary(
         &mut self,
-        left: &Expr,
+        left: &Expression,
         op: &BinaryOperator,
-        right: &Expr,
+        right: &Expression,
     ) -> Self::Result {
         match op {
             BinaryOperator::And => {
@@ -290,13 +290,13 @@ impl ExpressionVisitor for VidExtractVisitor {
         Ok(())
     }
 
-    fn visit_unary(&mut self, _op: &UnaryOperator, operand: &Expr) -> Self::Result {
+    fn visit_unary(&mut self, _op: &UnaryOperator, operand: &Expression) -> Self::Result {
         self.visit_expression(operand)
     }
 
     fn visit_function(&mut self, name: &str, args: &[Expression]) -> Self::Result {
         if self.is_id_function(name) && args.len() == 1 {
-            if let Expr::Variable(alias) = &args[0] {
+            if let Expression::Variable(alias) = &args[0] {
                 self.current_alias = Some(alias.clone());
             }
         }
@@ -309,7 +309,7 @@ impl ExpressionVisitor for VidExtractVisitor {
     fn visit_aggregate(
         &mut self,
         _func: &AggregateFunction,
-        arg: &Expr,
+        arg: &Expression,
         _distinct: bool,
     ) -> Self::Result {
         self.visit_expression(arg)
@@ -323,48 +323,48 @@ impl ExpressionVisitor for VidExtractVisitor {
     }
 
     fn visit_map(&mut self, pairs: &[(String, Expression)]) -> Self::Result {
-        for (_, expr) in pairs {
-            self.visit_expression(expr)?;
+        for (_, expression) in pairs {
+            self.visit_expression(expression)?;
         }
         Ok(())
     }
 
     fn visit_case(
         &mut self,
-        conditions: &[(Expr, Expr)],
-        default: &Option<Box<Expr>>,
+        conditions: &[(Expression, Expression)],
+        default: &Option<Box<Expression>>,
     ) -> Self::Result {
-        for (cond, expr) in conditions {
+        for (cond, expression) in conditions {
             self.visit_expression(cond)?;
-            self.visit_expression(expr)?;
+            self.visit_expression(expression)?;
         }
-        if let Some(default_expr) = default {
-            self.visit_expression(default_expr)?;
+        if let Some(default_expression) = default {
+            self.visit_expression(default_expression)?;
         }
         Ok(())
     }
 
-    fn visit_type_cast(&mut self, expr: &Expr, _target_type: &DataType) -> Self::Result {
-        self.visit_expression(expr)
+    fn visit_type_cast(&mut self, expression: &Expression, _target_type: &DataType) -> Self::Result {
+        self.visit_expression(expression)
     }
 
-    fn visit_subscript(&mut self, collection: &Expr, index: &Expr) -> Self::Result {
+    fn visit_subscript(&mut self, collection: &Expression, index: &Expression) -> Self::Result {
         self.visit_expression(collection)?;
         self.visit_expression(index)
     }
 
     fn visit_range(
         &mut self,
-        collection: &Expr,
-        start: &Option<Box<Expr>>,
-        end: &Option<Box<Expr>>,
+        collection: &Expression,
+        start: &Option<Box<Expression>>,
+        end: &Option<Box<Expression>>,
     ) -> Self::Result {
         self.visit_expression(collection)?;
-        if let Some(start_expr) = start {
-            self.visit_expression(start_expr)?;
+        if let Some(start_expression) = start {
+            self.visit_expression(start_expression)?;
         }
-        if let Some(end_expr) = end {
-            self.visit_expression(end_expr)?;
+        if let Some(end_expression) = end {
+            self.visit_expression(end_expression)?;
         }
         Ok(())
     }

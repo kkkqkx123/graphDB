@@ -2,7 +2,7 @@
 //!
 //! 基于枚举的简化语句定义，支持所有图数据库操作语句。
 
-use super::expr::{Expr, ExprUtils};
+use super::expression::{Expression, ExprUtils};
 use super::pattern::*;
 use super::types::*;
 use crate::core::Value;
@@ -88,14 +88,14 @@ pub enum CreateTarget {
     Node {
         variable: Option<String>,
         labels: Vec<String>,
-        properties: Option<Expr>,
+        properties: Option<Expression>,
     },
     Edge {
         variable: Option<String>,
         edge_type: String,
-        src: Expr,
-        dst: Expr,
-        properties: Option<Expr>,
+        src: Expression,
+        dst: Expression,
+        properties: Option<Expression>,
         direction: EdgeDirection,
     },
     Tag {
@@ -130,7 +130,7 @@ pub struct PropertyDef {
 pub struct MatchStmt {
     pub span: Span,
     pub patterns: Vec<Pattern>,
-    pub where_clause: Option<Expr>,
+    pub where_clause: Option<Expression>,
     pub return_clause: Option<ReturnClause>,
     pub order_by: Option<OrderByClause>,
     pub limit: Option<usize>,
@@ -152,7 +152,7 @@ pub struct ReturnClause {
 #[derive(Debug, Clone, PartialEq)]
 pub enum ReturnItem {
     All,
-    Expression { expr: Expr, alias: Option<String> },
+    Expression { expression: Expression, alias: Option<String> },
 }
 
 /// 排序子句
@@ -165,7 +165,7 @@ pub struct OrderByClause {
 /// 排序项
 #[derive(Debug, Clone, PartialEq)]
 pub struct OrderByItem {
-    pub expr: Expr,
+    pub expression: Expression,
     pub direction: OrderDirection,
 }
 
@@ -174,18 +174,18 @@ pub struct OrderByItem {
 pub struct DeleteStmt {
     pub span: Span,
     pub target: DeleteTarget,
-    pub where_clause: Option<Expr>,
+    pub where_clause: Option<Expression>,
 }
 
 /// 删除目标
 #[derive(Debug, Clone, PartialEq)]
 pub enum DeleteTarget {
-    Vertices(Vec<Expr>),
+    Vertices(Vec<Expression>),
     Edges {
-        src: Expr,
-        dst: Expr,
+        src: Expression,
+        dst: Expression,
         edge_type: Option<String>,
-        rank: Option<Expr>,
+        rank: Option<Expression>,
     },
     Tag(String),
     Index(String),
@@ -197,18 +197,18 @@ pub struct UpdateStmt {
     pub span: Span,
     pub target: UpdateTarget,
     pub set_clause: SetClause,
-    pub where_clause: Option<Expr>,
+    pub where_clause: Option<Expression>,
 }
 
 /// 更新目标
 #[derive(Debug, Clone, PartialEq)]
 pub enum UpdateTarget {
-    Vertex(Expr),
+    Vertex(Expression),
     Edge {
-        src: Expr,
-        dst: Expr,
+        src: Expression,
+        dst: Expression,
         edge_type: Option<String>,
-        rank: Option<Expr>,
+        rank: Option<Expression>,
     },
     Tag(String),
 }
@@ -224,7 +224,7 @@ pub struct SetClause {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Assignment {
     pub property: String,
-    pub value: Expr,
+    pub value: Expression,
 }
 
 /// GO 语句
@@ -234,7 +234,7 @@ pub struct GoStmt {
     pub steps: Steps,
     pub from: FromClause,
     pub over: Option<OverClause>,
-    pub where_clause: Option<Expr>,
+    pub where_clause: Option<Expression>,
     pub yield_clause: Option<YieldClause>,
 }
 
@@ -257,14 +257,14 @@ pub struct StepClause {
 #[derive(Debug, Clone, PartialEq)]
 pub struct WhereClause {
     pub span: Span,
-    pub condition: Expr,
+    pub condition: Expression,
 }
 
 /// FROM 子句
 #[derive(Debug, Clone, PartialEq)]
 pub struct FromClause {
     pub span: Span,
-    pub vertices: Vec<Expr>,
+    pub vertices: Vec<Expression>,
 }
 
 /// OVER 子句
@@ -288,7 +288,7 @@ pub struct YieldClause {
 /// YIELD 项
 #[derive(Debug, Clone, PartialEq)]
 pub struct YieldItem {
-    pub expr: Expr,
+    pub expression: Expression,
     pub alias: Option<String>,
 }
 
@@ -303,14 +303,14 @@ pub struct FetchStmt {
 #[derive(Debug, Clone, PartialEq)]
 pub enum FetchTarget {
     Vertices {
-        ids: Vec<Expr>,
+        ids: Vec<Expression>,
         properties: Option<Vec<String>>,
     },
     Edges {
-        src: Expr,
-        dst: Expr,
+        src: Expression,
+        dst: Expression,
         edge_type: String,
-        rank: Option<Expr>,
+        rank: Option<Expression>,
         properties: Option<Vec<String>>,
     },
 }
@@ -355,7 +355,7 @@ pub struct ExplainStmt {
 pub struct LookupStmt {
     pub span: Span,
     pub target: LookupTarget,
-    pub where_clause: Option<Expr>,
+    pub where_clause: Option<Expression>,
     pub yield_clause: Option<YieldClause>,
 }
 
@@ -373,7 +373,7 @@ pub struct SubgraphStmt {
     pub steps: Steps,
     pub from: FromClause,
     pub over: Option<OverClause>,
-    pub where_clause: Option<Expr>,
+    pub where_clause: Option<Expression>,
     pub yield_clause: Option<YieldClause>,
 }
 
@@ -382,9 +382,9 @@ pub struct SubgraphStmt {
 pub struct FindPathStmt {
     pub span: Span,
     pub from: FromClause,
-    pub to: Expr,
+    pub to: Expression,
     pub over: Option<OverClause>,
-    pub where_clause: Option<Expr>,
+    pub where_clause: Option<Expression>,
     pub shortest: bool,
     pub yield_clause: Option<YieldClause>,
 }
@@ -399,8 +399,8 @@ pub struct InsertStmt {
 /// INSERT 目标
 #[derive(Debug, Clone, PartialEq)]
 pub enum InsertTarget {
-    Vertices { ids: Vec<Expr> },
-    Edge { src: Expr, dst: Expr },
+    Vertices { ids: Vec<Expression> },
+    Edge { src: Expression, dst: Expression },
 }
 
 /// MERGE 语句
@@ -414,7 +414,7 @@ pub struct MergeStmt {
 #[derive(Debug, Clone, PartialEq)]
 pub struct UnwindStmt {
     pub span: Span,
-    pub expression: Expr,
+    pub expression: Expression,
     pub variable: String,
 }
 
@@ -431,7 +431,7 @@ pub struct ReturnStmt {
 pub struct WithStmt {
     pub span: Span,
     pub items: Vec<ReturnItem>,
-    pub where_clause: Option<Expr>,
+    pub where_clause: Option<Expression>,
 }
 
 /// SET 语句
@@ -445,14 +445,14 @@ pub struct SetStmt {
 #[derive(Debug, Clone, PartialEq)]
 pub struct RemoveStmt {
     pub span: Span,
-    pub items: Vec<Expr>,
+    pub items: Vec<Expression>,
 }
 
 /// PIPE 语句
 #[derive(Debug, Clone, PartialEq)]
 pub struct PipeStmt {
     pub span: Span,
-    pub expression: Expr,
+    pub expression: Expression,
 }
 
 /// MATCH 子句（用于 MATCH 语句中的子句）
@@ -468,7 +468,7 @@ pub struct MatchClause {
 pub struct WithClause {
     pub span: Span,
     pub items: Vec<ReturnItem>,
-    pub where_clause: Option<Expr>,
+    pub where_clause: Option<Expression>,
 }
 
 // 语句工具函数
@@ -604,7 +604,7 @@ impl StmtUtils {
 
 #[cfg(test)]
 mod tests {
-    use crate::query::parser::ast::VariableExpr;
+    use crate::query::parser::ast::VariableExpression;
 
     use super::*;
 
@@ -674,7 +674,7 @@ mod tests {
                 span: Span::default(),
                 vertices: vec![],
             },
-            to: Expr::Variable(VariableExpr::new("target".to_string(), Span::default())),
+            to: Expression::Variable(VariableExpression::new("target".to_string(), Span::default())),
             over: None,
             where_clause: None,
             shortest: true,

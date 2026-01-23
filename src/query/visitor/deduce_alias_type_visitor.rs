@@ -12,8 +12,8 @@ use crate::core::{
     BinaryOperator, DataType, Expression, UnaryOperator, Value,
 };
 use crate::core::types::operators::AggregateFunction;
-use crate::expression::Expr;
-use crate::query::parser::ast::expr::*;
+use crate::expression::Expression;
+use crate::query::parser::ast::expression::*;
 
 /// 别名类型
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -71,11 +71,11 @@ impl DeduceAliasTypeVisitor {
     }
 
     /// 推导表达式的别名类型
-    pub fn deduce(&mut self, expr: &Expr) -> Result<AliasType, String> {
+    pub fn deduce(&mut self, expression: &Expression) -> Result<AliasType, String> {
         self.output_type = self.input_type;
         self.error = None;
 
-        self.visit_expression(expr)?;
+        self.visit_expression(expression)?;
 
         if let Some(err) = &self.error {
             Err(err.clone())
@@ -133,15 +133,15 @@ impl ExpressionVisitor for DeduceAliasTypeVisitor {
         Ok(())
     }
 
-    fn visit_property(&mut self, object: &Expr, _property: &str) -> Self::Result {
+    fn visit_property(&mut self, object: &Expression, _property: &str) -> Self::Result {
         self.visit_expression(object)
     }
 
     fn visit_binary(
         &mut self,
-        left: &Expr,
+        left: &Expression,
         _op: &BinaryOperator,
-        right: &Expr,
+        right: &Expression,
     ) -> Self::Result {
         self.visit_expression(left)?;
         self.visit_expression(right)?;
@@ -149,7 +149,7 @@ impl ExpressionVisitor for DeduceAliasTypeVisitor {
         Ok(())
     }
 
-    fn visit_unary(&mut self, _op: &UnaryOperator, operand: &Expr) -> Self::Result {
+    fn visit_unary(&mut self, _op: &UnaryOperator, operand: &Expression) -> Self::Result {
         self.visit_expression(operand)?;
         self.set_output_type(AliasType::Runtime);
         Ok(())
@@ -170,7 +170,7 @@ impl ExpressionVisitor for DeduceAliasTypeVisitor {
     fn visit_aggregate(
         &mut self,
         _func: &AggregateFunction,
-        arg: &Expr,
+        arg: &Expression,
         _distinct: bool,
     ) -> Self::Result {
         self.visit_expression(arg)?;
@@ -187,8 +187,8 @@ impl ExpressionVisitor for DeduceAliasTypeVisitor {
     }
 
     fn visit_map(&mut self, pairs: &[(String, Expression)]) -> Self::Result {
-        for (_, expr) in pairs {
-            self.visit_expression(expr)?;
+        for (_, expression) in pairs {
+            self.visit_expression(expression)?;
         }
         self.set_output_type(AliasType::Runtime);
         Ok(())
@@ -196,27 +196,27 @@ impl ExpressionVisitor for DeduceAliasTypeVisitor {
 
     fn visit_case(
         &mut self,
-        conditions: &[(Expr, Expr)],
-        default: &Option<Box<Expr>>,
+        conditions: &[(Expression, Expression)],
+        default: &Option<Box<Expression>>,
     ) -> Self::Result {
-        for (cond, expr) in conditions {
+        for (cond, expression) in conditions {
             self.visit_expression(cond)?;
-            self.visit_expression(expr)?;
+            self.visit_expression(expression)?;
         }
-        if let Some(default_expr) = default {
-            self.visit_expression(default_expr)?;
+        if let Some(default_expression) = default {
+            self.visit_expression(default_expression)?;
         }
         self.set_output_type(AliasType::Runtime);
         Ok(())
     }
 
-    fn visit_type_cast(&mut self, expr: &Expr, _target_type: &DataType) -> Self::Result {
-        self.visit_expression(expr)?;
+    fn visit_type_cast(&mut self, expression: &Expression, _target_type: &DataType) -> Self::Result {
+        self.visit_expression(expression)?;
         self.set_output_type(AliasType::Runtime);
         Ok(())
     }
 
-    fn visit_subscript(&mut self, collection: &Expr, index: &Expr) -> Self::Result {
+    fn visit_subscript(&mut self, collection: &Expression, index: &Expression) -> Self::Result {
         self.visit_expression(collection)?;
         self.visit_expression(index)?;
         self.set_output_type(AliasType::Runtime);
@@ -225,16 +225,16 @@ impl ExpressionVisitor for DeduceAliasTypeVisitor {
 
     fn visit_range(
         &mut self,
-        collection: &Expr,
-        start: &Option<Box<Expr>>,
-        end: &Option<Box<Expr>>,
+        collection: &Expression,
+        start: &Option<Box<Expression>>,
+        end: &Option<Box<Expression>>,
     ) -> Self::Result {
         self.visit_expression(collection)?;
-        if let Some(start_expr) = start {
-            self.visit_expression(start_expr)?;
+        if let Some(start_expression) = start {
+            self.visit_expression(start_expression)?;
         }
-        if let Some(end_expr) = end {
-            self.visit_expression(end_expr)?;
+        if let Some(end_expression) = end {
+            self.visit_expression(end_expression)?;
         }
         self.set_output_type(AliasType::Runtime);
         Ok(())

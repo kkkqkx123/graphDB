@@ -11,18 +11,18 @@ use crate::core::{
     BinaryOperator, DataType, Expression, UnaryOperator, Value,
 };
 use crate::core::types::operators::AggregateFunction;
-use crate::expression::Expr;
-use crate::query::parser::ast::expr::*;
+use crate::expression::Expression;
+use crate::query::parser::ast::expression::*;
 
 /// 分组套件
 #[derive(Debug, Clone, Default)]
 pub struct GroupSuite {
     /// 分组键集合
-    pub group_keys: Vec<Expr>,
+    pub group_keys: Vec<Expression>,
     /// 分组项集合
-    pub group_items: Vec<Expr>,
+    pub group_items: Vec<Expression>,
     /// 聚合函数集合
-    pub aggregates: Vec<Expr>,
+    pub aggregates: Vec<Expression>,
 }
 
 impl GroupSuite {
@@ -32,23 +32,23 @@ impl GroupSuite {
     }
 
     /// 添加分组键
-    pub fn add_group_key(&mut self, expr: Expression) {
-        if !self.group_keys.contains(&expr) {
-            self.group_keys.push(expr);
+    pub fn add_group_key(&mut self, expression: Expression) {
+        if !self.group_keys.contains(&expression) {
+            self.group_keys.push(expression);
         }
     }
 
     /// 添加分组项
-    pub fn add_group_item(&mut self, expr: Expression) {
-        if !self.group_items.contains(&expr) {
-            self.group_items.push(expr);
+    pub fn add_group_item(&mut self, expression: Expression) {
+        if !self.group_items.contains(&expression) {
+            self.group_items.push(expression);
         }
     }
 
     /// 添加聚合函数
-    pub fn add_aggregate(&mut self, expr: Expression) {
-        if !self.aggregates.contains(&expr) {
-            self.aggregates.push(expr);
+    pub fn add_aggregate(&mut self, expression: Expression) {
+        if !self.aggregates.contains(&expression) {
+            self.aggregates.push(expression);
         }
     }
 
@@ -99,11 +99,11 @@ impl ExtractGroupSuiteVisitor {
     }
 
     /// 提取分组套件
-    pub fn extract(&mut self, expr: &Expr) -> Result<GroupSuite, String> {
+    pub fn extract(&mut self, expression: &Expression) -> Result<GroupSuite, String> {
         self.group_suite = GroupSuite::new();
         self.error = None;
 
-        self.visit_expression(expr)?;
+        self.visit_expression(expression)?;
 
         if let Some(err) = &self.error {
             Err(err.clone())
@@ -123,17 +123,17 @@ impl ExtractGroupSuiteVisitor {
     }
 
     /// 检查表达式是否为聚合函数
-    fn is_aggregate_function(&self, expr: &Expr) -> bool {
-        matches!(expr, Expr::Aggregate { .. })
+    fn is_aggregate_function(&self, expression: &Expression) -> bool {
+        matches!(expression, Expression::Aggregate { .. })
     }
 
     /// 检查表达式是否为可分组的表达式
-    fn is_groupable(&self, expr: &Expr) -> bool {
-        match expr {
-            Expr::Literal(_) => true,
-            Expr::Variable(_) => true,
-            Expr::Property { .. } => true,
-            Expr::Function { name, args } => {
+    fn is_groupable(&self, expression: &Expression) -> bool {
+        match expression {
+            Expression::Literal(_) => true,
+            Expression::Variable(_) => true,
+            Expression::Property { .. } => true,
+            Expression::Function { name, args } => {
                 let name_upper = name.to_uppercase();
                 match name_upper.as_str() {
                     "ID" | "SRC" | "DST" => args.len() == 1,
@@ -156,30 +156,30 @@ impl ExpressionVisitor for ExtractGroupSuiteVisitor {
 
     fn visit_literal(&mut self, value: &Value) -> Self::Result {
         self.group_suite
-            .add_group_key(Expr::Literal(value.clone()));
+            .add_group_key(Expression::Literal(value.clone()));
         Ok(())
     }
 
     fn visit_variable(&mut self, name: &str) -> Self::Result {
         self.group_suite
-            .add_group_key(Expr::Variable(name.to_string()));
+            .add_group_key(Expression::Variable(name.to_string()));
         Ok(())
     }
 
-    fn visit_property(&mut self, object: &Expr, property: &str) -> Self::Result {
-        let prop_expr = Expr::Property {
+    fn visit_property(&mut self, object: &Expression, property: &str) -> Self::Result {
+        let prop_expression = Expression::Property {
             object: Box::new(object.clone()),
             property: property.to_string(),
         };
-        self.group_suite.add_group_key(prop_expr);
+        self.group_suite.add_group_key(prop_expression);
         self.visit_expression(object)
     }
 
     fn visit_binary(
         &mut self,
-        left: &Expr,
+        left: &Expression,
         _op: &BinaryOperator,
-        right: &Expr,
+        right: &Expression,
     ) -> Self::Result {
         if self.is_groupable(left) {
             self.group_suite.add_group_key(left.clone());
@@ -191,7 +191,7 @@ impl ExpressionVisitor for ExtractGroupSuiteVisitor {
         self.visit_expression(right)
     }
 
-    fn visit_unary(&mut self, _op: &UnaryOperator, operand: &Expr) -> Self::Result {
+    fn visit_unary(&mut self, _op: &UnaryOperator, operand: &Expression) -> Self::Result {
         if self.is_groupable(operand) {
             self.group_suite.add_group_key(operand.clone());
         }
@@ -204,11 +204,11 @@ impl ExpressionVisitor for ExtractGroupSuiteVisitor {
         match name_upper.as_str() {
             "ID" | "SRC" | "DST" => {
                 if args.len() == 1 {
-                    let func_expr = Expr::Function {
+                    let func_expression = Expression::Function {
                         name: name.to_string(),
                         args: args.to_vec(),
                     };
-                    self.group_suite.add_group_key(func_expr);
+                    self.group_suite.add_group_key(func_expression);
                 }
             }
             _ => {
@@ -223,15 +223,15 @@ impl ExpressionVisitor for ExtractGroupSuiteVisitor {
     fn visit_aggregate(
         &mut self,
         func: &AggregateFunction,
-        arg: &Expr,
+        arg: &Expression,
         _distinct: bool,
     ) -> Self::Result {
-        let agg_expr = Expr::Aggregate {
+        let agg_expression = Expression::Aggregate {
             func: func.clone(),
             arg: Box::new(arg.clone()),
             distinct: false,
         };
-        self.group_suite.add_aggregate(agg_expr);
+        self.group_suite.add_aggregate(agg_expression);
         self.visit_expression(arg)
     }
 
@@ -243,48 +243,48 @@ impl ExpressionVisitor for ExtractGroupSuiteVisitor {
     }
 
     fn visit_map(&mut self, pairs: &[(String, Expression)]) -> Self::Result {
-        for (_, expr) in pairs {
-            self.visit_expression(expr)?;
+        for (_, expression) in pairs {
+            self.visit_expression(expression)?;
         }
         Ok(())
     }
 
     fn visit_case(
         &mut self,
-        conditions: &[(Expr, Expr)],
-        default: &Option<Box<Expr>>,
+        conditions: &[(Expression, Expression)],
+        default: &Option<Box<Expression>>,
     ) -> Self::Result {
-        for (cond, expr) in conditions {
+        for (cond, expression) in conditions {
             self.visit_expression(cond)?;
-            self.visit_expression(expr)?;
+            self.visit_expression(expression)?;
         }
-        if let Some(default_expr) = default {
-            self.visit_expression(default_expr)?;
+        if let Some(default_expression) = default {
+            self.visit_expression(default_expression)?;
         }
         Ok(())
     }
 
-    fn visit_type_cast(&mut self, expr: &Expr, _target_type: &DataType) -> Self::Result {
-        self.visit_expression(expr)
+    fn visit_type_cast(&mut self, expression: &Expression, _target_type: &DataType) -> Self::Result {
+        self.visit_expression(expression)
     }
 
-    fn visit_subscript(&mut self, collection: &Expr, index: &Expr) -> Self::Result {
+    fn visit_subscript(&mut self, collection: &Expression, index: &Expression) -> Self::Result {
         self.visit_expression(collection)?;
         self.visit_expression(index)
     }
 
     fn visit_range(
         &mut self,
-        collection: &Expr,
-        start: &Option<Box<Expr>>,
-        end: &Option<Box<Expr>>,
+        collection: &Expression,
+        start: &Option<Box<Expression>>,
+        end: &Option<Box<Expression>>,
     ) -> Self::Result {
         self.visit_expression(collection)?;
-        if let Some(start_expr) = start {
-            self.visit_expression(start_expr)?;
+        if let Some(start_expression) = start {
+            self.visit_expression(start_expression)?;
         }
-        if let Some(end_expr) = end {
-            self.visit_expression(end_expr)?;
+        if let Some(end_expression) = end {
+            self.visit_expression(end_expression)?;
         }
         Ok(())
     }
@@ -297,7 +297,7 @@ impl ExpressionVisitor for ExtractGroupSuiteVisitor {
     }
 
     fn visit_label(&mut self, name: &str) -> Self::Result {
-        self.group_suite.add_group_key(Expr::Label(name.to_string()));
+        self.group_suite.add_group_key(Expression::Label(name.to_string()));
         Ok(())
     }
 

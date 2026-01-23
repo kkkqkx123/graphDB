@@ -6,7 +6,7 @@
 //! - 添加 DISTINCT 去重支持
 //! - 完善列名设置
 
-use crate::core::types::expression::Expr;
+use crate::core::types::expression::Expression;
 use crate::query::planner::statements::clauses::clause_planner::ClausePlanner;
 use crate::query::planner::statements::core::cypher_clause_planner::{
     ClauseType, CypherClausePlanner, DataFlowNode, PlanningContext,
@@ -28,7 +28,7 @@ pub struct ReturnClausePlanner {
 #[derive(Debug, Clone)]
 pub struct ReturnItem {
     pub alias: String,
-    pub expression: Expr,
+    pub expression: Expression,
     pub is_aggregated: bool,
 }
 
@@ -49,7 +49,7 @@ impl ReturnClausePlanner {
                 let item_name = item.alias.clone();
                 items.push(ReturnItem {
                     alias: item_name.clone(),
-                    expression: Expr::Variable(item_name.clone()),
+                    expression: Expression::Variable(item_name.clone()),
                     is_aggregated: Self::is_aggregated_expression(&item_name),
                 });
             }
@@ -154,7 +154,7 @@ impl ReturnClausePlanner {
                 let item_name = item.alias.clone();
                 items.push(ReturnItem {
                     alias: item_name.clone(),
-                    expression: Expr::Variable(item_name.clone()),
+                    expression: Expression::Variable(item_name.clone()),
                     is_aggregated: Self::is_aggregated_expression(&item_name),
                 });
             }
@@ -171,14 +171,14 @@ impl ReturnClausePlanner {
         let mut columns = Vec::new();
 
         for item in items {
-            let expr = if context.has_variable(&item.alias) {
+            let expression = if context.has_variable(&item.alias) {
                 item.expression.clone()
             } else {
-                Expr::Variable(item.alias.clone())
+                Expression::Variable(item.alias.clone())
             };
 
             columns.push(crate::query::validator::YieldColumn {
-                expr,
+                expression,
                 alias: item.alias.clone(),
                 is_matched: false,
             });
@@ -186,7 +186,7 @@ impl ReturnClausePlanner {
 
         if columns.is_empty() {
             columns.push(crate::query::validator::YieldColumn {
-                expr: Expr::Variable("*".to_string()),
+                expression: Expression::Variable("*".to_string()),
                 alias: "*".to_string(),
                 is_matched: false,
             });

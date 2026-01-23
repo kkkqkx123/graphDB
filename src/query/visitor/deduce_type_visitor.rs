@@ -5,7 +5,7 @@ use crate::core::{
     expression_visitor::{ExpressionVisitor, ExpressionVisitorState, GenericExpressionVisitor},
     Expression, TypeUtils, DataType, BinaryOperator, UnaryOperator, Value,
 };
-use crate::expression::Expr;
+use crate::expression::Expression;
 use crate::query::validator::ValidationContext;
 use crate::storage::StorageEngine;
 use thiserror::Error;
@@ -104,8 +104,8 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     }
 
     /// 主推导方法 - 推导表达式的类型
-    pub fn deduce_type(&mut self, expr: &Expr) -> Result<DataType, TypeDeductionError> {
-        self.visit_expression(expr)?;
+    pub fn deduce_type(&mut self, expression: &Expression) -> Result<DataType, TypeDeductionError> {
+        self.visit_expression(expression)?;
         Ok(self.type_.clone())
     }
 
@@ -287,7 +287,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
         Ok(())
     }
 
-    fn visit_property(&mut self, object: &Expr, property: &str) -> Result<(), TypeDeductionError> {
+    fn visit_property(&mut self, object: &Expression, property: &str) -> Result<(), TypeDeductionError> {
         self.visit_expression(object)?;
 
         let object_type = self.type_.clone();
@@ -416,7 +416,7 @@ impl<'a, S: StorageEngine> ExpressionVisitor for DeduceTypeVisitor<'a, S> {
         Ok(())
     }
 
-    fn visit_property(&mut self, object: &Expr, _property: &str) -> Self::Result {
+    fn visit_property(&mut self, object: &Expression, _property: &str) -> Self::Result {
         self.visit_expression(object)?;
         self.type_ = DataType::Empty;
         Ok(())
@@ -424,9 +424,9 @@ impl<'a, S: StorageEngine> ExpressionVisitor for DeduceTypeVisitor<'a, S> {
 
     fn visit_binary(
         &mut self,
-        left: &Expr,
+        left: &Expression,
         op: &BinaryOperator,
-        right: &Expr,
+        right: &Expression,
     ) -> Self::Result {
         self.visit_expression(left)?;
         let left_type = self.type_.clone();
@@ -435,7 +435,7 @@ impl<'a, S: StorageEngine> ExpressionVisitor for DeduceTypeVisitor<'a, S> {
         self.deduce_binary_op_type(op, left_type, right_type)
     }
 
-    fn visit_unary(&mut self, op: &UnaryOperator, operand: &Expr) -> Self::Result {
+    fn visit_unary(&mut self, op: &UnaryOperator, operand: &Expression) -> Self::Result {
         self.visit_expression(operand)?;
         self.deduce_unary_op_type(op)
     }
@@ -447,7 +447,7 @@ impl<'a, S: StorageEngine> ExpressionVisitor for DeduceTypeVisitor<'a, S> {
     fn visit_aggregate(
         &mut self,
         func: &crate::core::AggregateFunction,
-        arg: &Expr,
+        arg: &Expression,
         _distinct: bool,
     ) -> Self::Result {
         self.visit_expression(arg)?;
@@ -479,14 +479,14 @@ impl<'a, S: StorageEngine> ExpressionVisitor for DeduceTypeVisitor<'a, S> {
 
     fn visit_case(
         &mut self,
-        conditions: &[(Expr, Expr)],
-        default: &Option<Box<Expr>>,
+        conditions: &[(Expression, Expression)],
+        default: &Option<Box<Expression>>,
     ) -> Self::Result {
         let mut result_type: Option<DataType> = None;
 
-        for (condition_expr, then_expr) in conditions {
-            self.visit_expression(condition_expr)?;
-            self.visit_expression(then_expr)?;
+        for (condition_expression, then_expression) in conditions {
+            self.visit_expression(condition_expression)?;
+            self.visit_expression(then_expression)?;
             let then_type = self.type_.clone();
 
             if let Some(ref existing_type) = result_type {
@@ -503,8 +503,8 @@ impl<'a, S: StorageEngine> ExpressionVisitor for DeduceTypeVisitor<'a, S> {
             }
         }
 
-        if let Some(default_expr) = default {
-            self.visit_expression(default_expr)?;
+        if let Some(default_expression) = default {
+            self.visit_expression(default_expression)?;
             let default_type = self.type_.clone();
             if let Some(ref existing_type) = result_type {
                 if !self.are_types_compatible(existing_type, &default_type) {
@@ -526,13 +526,13 @@ impl<'a, S: StorageEngine> ExpressionVisitor for DeduceTypeVisitor<'a, S> {
         Ok(())
     }
 
-    fn visit_type_cast(&mut self, expr: &Expr, target_type: &DataType) -> Self::Result {
-        self.visit_expression(expr)?;
+    fn visit_type_cast(&mut self, expression: &Expression, target_type: &DataType) -> Self::Result {
+        self.visit_expression(expression)?;
         self.type_ = self.parse_data_type(target_type);
         Ok(())
     }
 
-    fn visit_subscript(&mut self, collection: &Expr, index: &Expr) -> Self::Result {
+    fn visit_subscript(&mut self, collection: &Expression, index: &Expression) -> Self::Result {
         self.visit_expression(collection)?;
         let container_type = self.type_.clone();
         self.visit_expression(index)?;
@@ -546,16 +546,16 @@ impl<'a, S: StorageEngine> ExpressionVisitor for DeduceTypeVisitor<'a, S> {
 
     fn visit_range(
         &mut self,
-        collection: &Expr,
-        start: &Option<Box<Expr>>,
-        end: &Option<Box<Expr>>,
+        collection: &Expression,
+        start: &Option<Box<Expression>>,
+        end: &Option<Box<Expression>>,
     ) -> Self::Result {
         self.visit_expression(collection)?;
-        if let Some(start_expr) = start {
-            self.visit_expression(start_expr)?;
+        if let Some(start_expression) = start {
+            self.visit_expression(start_expression)?;
         }
-        if let Some(end_expr) = end {
-            self.visit_expression(end_expr)?;
+        if let Some(end_expression) = end {
+            self.visit_expression(end_expression)?;
         }
         self.type_ = DataType::List;
         Ok(())
@@ -764,7 +764,7 @@ mod tests {
 impl<'a, S: StorageEngine> GenericExpressionVisitor<Expression> for DeduceTypeVisitor<'a, S> {
     type Result = Result<(), TypeDeductionError>;
 
-    fn visit(&mut self, expr: &Expr) -> Self::Result {
-        self.visit_expression(expr)
+    fn visit(&mut self, expression: &Expression) -> Self::Result {
+        self.visit_expression(expression)
     }
 }

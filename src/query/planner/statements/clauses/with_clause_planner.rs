@@ -8,7 +8,7 @@ use crate::query::validator::structs::common_structs::CypherClauseContext;
 
 #[derive(Debug)]
 pub struct WithClausePlanner {
-    with_items: Vec<crate::query::parser::ast::expr::Expr>,
+    with_items: Vec<crate::query::parser::ast::expression::Expression>,
 }
 
 impl WithClausePlanner {

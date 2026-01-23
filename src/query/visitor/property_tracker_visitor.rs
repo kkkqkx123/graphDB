@@ -11,7 +11,7 @@ use crate::core::{
     BinaryOperator, DataType, Expression, UnaryOperator, Value,
 };
 use crate::core::types::operators::AggregateFunction;
-use crate::expression::Expr;
+use crate::expression::Expression;
 use std::collections::{HashMap, HashSet};
 
 /// 属性跟踪器
@@ -157,11 +157,11 @@ impl PropertyTrackerVisitor {
     }
 
     /// 跟踪表达式中的属性
-    pub fn track(&mut self, expr: &Expr) -> Result<PropertyTracker, String> {
+    pub fn track(&mut self, expression: &Expression) -> Result<PropertyTracker, String> {
         self.props_used = PropertyTracker::new();
         self.error = None;
 
-        self.visit_expression(expr)?;
+        self.visit_expression(expression)?;
 
         if let Some(err) = &self.error {
             Err(err.clone())
@@ -196,15 +196,15 @@ impl ExpressionVisitor for PropertyTrackerVisitor {
 
     fn visit_binary(
         &mut self,
-        left: &Expr,
+        left: &Expression,
         _op: &BinaryOperator,
-        right: &Expr,
+        right: &Expression,
     ) -> Self::Result {
         self.visit_expression(left)?;
         self.visit_expression(right)
     }
 
-    fn visit_unary(&mut self, _op: &UnaryOperator, operand: &Expr) -> Self::Result {
+    fn visit_unary(&mut self, _op: &UnaryOperator, operand: &Expression) -> Self::Result {
         self.visit_expression(operand)
     }
 
@@ -214,7 +214,7 @@ impl ExpressionVisitor for PropertyTrackerVisitor {
         match name_upper.as_str() {
             "ID" | "SRC" | "DST" => {
                 if !args.is_empty() {
-                    if let Expr::Variable(alias) = &args[0] {
+                    if let Expression::Variable(alias) = &args[0] {
                         self.props_used.insert_col(alias);
                     }
                 }
@@ -231,7 +231,7 @@ impl ExpressionVisitor for PropertyTrackerVisitor {
     fn visit_aggregate(
         &mut self,
         _func: &AggregateFunction,
-        arg: &Expr,
+        arg: &Expression,
         _distinct: bool,
     ) -> Self::Result {
         self.visit_expression(arg)
@@ -255,22 +255,22 @@ impl ExpressionVisitor for PropertyTrackerVisitor {
         Ok(())
     }
 
-    fn visit_case(&mut self, conditions: &[(Expr, Expr)], default: &Option<Box<Expr>>) -> Self::Result {
-        for (when_expr, then_expr) in conditions {
-            self.visit_expression(when_expr)?;
-            self.visit_expression(then_expr)?;
+    fn visit_case(&mut self, conditions: &[(Expression, Expression)], default: &Option<Box<Expression>>) -> Self::Result {
+        for (when_expression, then_expression) in conditions {
+            self.visit_expression(when_expression)?;
+            self.visit_expression(then_expression)?;
         }
-        if let Some(default_expr) = default {
-            self.visit_expression(default_expr.as_ref())?;
+        if let Some(default_expression) = default {
+            self.visit_expression(default_expression.as_ref())?;
         }
         Ok(())
     }
 
-    fn visit_type_cast(&mut self, expr: &Expr, _target_type: &DataType) -> Self::Result {
-        self.visit_expression(expr)
+    fn visit_type_cast(&mut self, expression: &Expression, _target_type: &DataType) -> Self::Result {
+        self.visit_expression(expression)
     }
 
-    fn visit_subscript(&mut self, collection: &Expr, index: &Expr) -> Self::Result {
+    fn visit_subscript(&mut self, collection: &Expression, index: &Expression) -> Self::Result {
         self.visit_expression(collection)?;
         self.visit_expression(index)?;
         Ok(())
@@ -278,16 +278,16 @@ impl ExpressionVisitor for PropertyTrackerVisitor {
 
     fn visit_range(
         &mut self,
-        collection: &Expr,
-        start: &Option<Box<Expr>>,
-        end: &Option<Box<Expr>>,
+        collection: &Expression,
+        start: &Option<Box<Expression>>,
+        end: &Option<Box<Expression>>,
     ) -> Self::Result {
         self.visit_expression(collection)?;
-        if let Some(start_expr) = start {
-            self.visit_expression(start_expr.as_ref())?;
+        if let Some(start_expression) = start {
+            self.visit_expression(start_expression.as_ref())?;
         }
-        if let Some(end_expr) = end {
-            self.visit_expression(end_expr.as_ref())?;
+        if let Some(end_expression) = end {
+            self.visit_expression(end_expression.as_ref())?;
         }
         Ok(())
     }
@@ -299,7 +299,7 @@ impl ExpressionVisitor for PropertyTrackerVisitor {
         Ok(())
     }
 
-    fn visit_property(&mut self, object: &Expr, property: &str) -> Self::Result {
+    fn visit_property(&mut self, object: &Expression, property: &str) -> Self::Result {
         self.visit_expression(object)?;
         self.props_used.insert_col(property);
         Ok(())

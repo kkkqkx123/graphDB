@@ -10,7 +10,7 @@ use crate::query::context::ast::{FromType, Starts, YieldColumns};
 pub struct FetchVerticesContext {
     pub traverse: TraverseContext,
     pub distinct: bool,
-    pub yield_expr: Option<YieldColumns>,
+    pub yield_expression: Option<YieldColumns>,
 }
 
 impl FetchVerticesContext {
@@ -18,7 +18,7 @@ impl FetchVerticesContext {
         Self {
             traverse: TraverseContext::new(base),
             distinct: false,
-            yield_expr: None,
+            yield_expression: None,
         }
     }
 }

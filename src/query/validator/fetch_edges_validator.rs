@@ -4,7 +4,7 @@
 
 use super::base_validator::Validator;
 use super::validation_interface::{ValidationError, ValidationErrorType};
-use crate::core::Expr;
+use crate::core::Expression;
 
 #[derive(Debug, Clone)]
 pub struct FetchEdgesContext {
@@ -21,14 +21,14 @@ pub struct FetchEdgesContext {
 pub struct FetchEdgeKey {
     pub src_id: EdgeEndpoint,
     pub dst_id: EdgeEndpoint,
-    pub rank: Option<Expr>,
+    pub rank: Option<Expression>,
     pub is_variable: bool,
 }
 
 #[derive(Debug, Clone)]
 pub struct EdgeEndpoint {
     pub id_type: EndpointType,
-    pub expression: Expr,
+    pub expression: Expression,
     pub is_variable: bool,
     pub variable_name: Option<String>,
 }
@@ -43,7 +43,7 @@ pub enum EndpointType {
 
 #[derive(Debug, Clone)]
 pub struct FetchEdgeYieldColumn {
-    pub expression: Expr,
+    pub expression: Expression,
     pub alias: Option<String>,
     pub prop_name: Option<String>,
 }
@@ -67,7 +67,7 @@ pub struct FetchEdgePropDef {
     pub name: String,
     pub type_: String,
     pub is_nullable: bool,
-    pub default_value: Option<Expr>,
+    pub default_value: Option<Expression>,
 }
 
 pub struct FetchEdgesValidator {
@@ -144,7 +144,7 @@ impl FetchEdgesValidator {
         for edge_key in &self.context.edge_keys {
             // 验证源顶点表达式是否有效
             match &edge_key.src_id.expression {
-                Expr::Literal(value) => {
+                Expression::Literal(value) => {
                     if value.is_null() || value.is_empty() {
                         return Err(ValidationError::new(
                             "边键的源顶点 ID 不能为空".to_string(),
@@ -157,7 +157,7 @@ impl FetchEdgesValidator {
 
             // 验证目标顶点表达式是否有效
             match &edge_key.dst_id.expression {
-                Expr::Literal(value) => {
+                Expression::Literal(value) => {
                     if value.is_null() || value.is_empty() {
                         return Err(ValidationError::new(
                             "边键的目标顶点 ID 不能为空".to_string(),
@@ -169,9 +169,9 @@ impl FetchEdgesValidator {
             }
 
             // 验证 rank 值
-            if let Some(ref rank_expr) = edge_key.rank {
+            if let Some(ref rank_expression) = edge_key.rank {
                 // 检查 rank 表达式是否为常量
-                if !rank_expr.is_constant() {
+                if !rank_expression.is_constant() {
                     return Err(ValidationError::new(
                         "rank 值必须为常量".to_string(),
                         ValidationErrorType::SemanticError,
@@ -179,7 +179,7 @@ impl FetchEdgesValidator {
                 }
 
                 // 检查 rank 值是否为非负整数
-                if let Expr::Literal(value) = rank_expr {
+                if let Expression::Literal(value) = rank_expression {
                     match value {
                         crate::core::Value::Int(i) if *i >= 0 => {
                             // 非负整数，验证通过

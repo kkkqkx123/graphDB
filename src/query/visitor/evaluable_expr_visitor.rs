@@ -4,7 +4,7 @@
 use crate::core::expression_visitor::{ExpressionVisitor, ExpressionVisitorState};
 use crate::core::Value;
 use crate::core::{AggregateFunction, BinaryOperator, DataType, Expression, UnaryOperator};
-use crate::expression::Expr;
+use crate::expression::Expression;
 
 #[derive(Debug)]
 pub struct EvaluableExprVisitor {
@@ -25,10 +25,10 @@ impl EvaluableExprVisitor {
         }
     }
 
-    pub fn is_evaluable(&mut self, expr: &Expr) -> bool {
+    pub fn is_evaluable(&mut self, expression: &Expression) -> bool {
         self.evaluable = true;
         self.error = None;
-        self.visit_expression(expr);
+        self.visit_expression(expression);
         self.evaluable
     }
 
@@ -49,12 +49,12 @@ impl ExpressionVisitor for EvaluableExprVisitor {
         self.evaluable = false;
     }
 
-    fn visit_property(&mut self, _object: &Expr, _property: &str) -> Self::Result {
+    fn visit_property(&mut self, _object: &Expression, _property: &str) -> Self::Result {
         // 属性访问不可求值
         self.evaluable = false;
     }
 
-    fn visit_unary(&mut self, _op: &UnaryOperator, operand: &Expr) -> Self::Result {
+    fn visit_unary(&mut self, _op: &UnaryOperator, operand: &Expression) -> Self::Result {
         self.visit_expression(operand)
     }
 
@@ -67,7 +67,7 @@ impl ExpressionVisitor for EvaluableExprVisitor {
     fn visit_aggregate(
         &mut self,
         _func: &AggregateFunction,
-        arg: &Expr,
+        arg: &Expression,
         _distinct: bool,
     ) -> Self::Result {
         self.visit_expression(arg)
@@ -87,26 +87,26 @@ impl ExpressionVisitor for EvaluableExprVisitor {
 
     fn visit_case(
         &mut self,
-        conditions: &[(Expr, Expr)],
-        default: &Option<Box<Expr>>,
+        conditions: &[(Expression, Expression)],
+        default: &Option<Box<Expression>>,
     ) -> Self::Result {
-        for (when_expr, then_expr) in conditions {
-            self.visit_expression(when_expr);
-            self.visit_expression(then_expr);
+        for (when_expression, then_expression) in conditions {
+            self.visit_expression(when_expression);
+            self.visit_expression(then_expression);
         }
-        if let Some(default_expr) = default {
-            self.visit_expression(default_expr.as_ref());
+        if let Some(default_expression) = default {
+            self.visit_expression(default_expression.as_ref());
         }
     }
 
-    fn visit_type_cast(&mut self, expr: &Expr, _target_type: &DataType) -> Self::Result {
-        self.visit_expression(expr)
+    fn visit_type_cast(&mut self, expression: &Expression, _target_type: &DataType) -> Self::Result {
+        self.visit_expression(expression)
     }
 
     fn visit_subscript(
         &mut self,
-        collection: &Expr,
-        index: &Expr,
+        collection: &Expression,
+        index: &Expression,
     ) -> Self::Result {
         self.visit_expression(collection);
         self.visit_expression(index);
@@ -114,16 +114,16 @@ impl ExpressionVisitor for EvaluableExprVisitor {
 
     fn visit_range(
         &mut self,
-        collection: &Expr,
-        start: &Option<Box<Expr>>,
-        end: &Option<Box<Expr>>,
+        collection: &Expression,
+        start: &Option<Box<Expression>>,
+        end: &Option<Box<Expression>>,
     ) -> Self::Result {
         self.visit_expression(collection);
-        if let Some(start_expr) = start {
-            self.visit_expression(start_expr);
+        if let Some(start_expression) = start {
+            self.visit_expression(start_expression);
         }
-        if let Some(end_expr) = end {
-            self.visit_expression(end_expr);
+        if let Some(end_expression) = end {
+            self.visit_expression(end_expression);
         }
     }
 
@@ -135,9 +135,9 @@ impl ExpressionVisitor for EvaluableExprVisitor {
 
     fn visit_binary(
         &mut self,
-        left: &Expr,
+        left: &Expression,
         _op: &crate::core::types::operators::BinaryOperator,
-        right: &Expr,
+        right: &Expression,
     ) -> Self::Result {
         self.visit_expression(left);
         self.visit_expression(right);

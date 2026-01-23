@@ -4,7 +4,7 @@
 
 use super::base_validator::{Validator, ValueType};
 use super::ValidationContext;
-use crate::core::Expr;
+use crate::core::Expression;
 use crate::query::validator::ValidationError;
 use crate::query::validator::ValidationErrorType;
 use std::collections::HashMap;
@@ -17,7 +17,7 @@ pub struct OrderByValidator {
 
 #[derive(Debug, Clone)]
 pub struct OrderColumn {
-    pub expression: Expr,
+    pub expression: Expression,
     pub alias: Option<String>,
     pub direction: SortDirection,
 }
@@ -114,31 +114,31 @@ impl OrderByValidator {
         Ok(())
     }
 
-    fn expression_is_empty(&self, expr: &Expr) -> bool {
-        match expr {
-            Expr::Literal(value) => {
+    fn expression_is_empty(&self, expression: &Expression) -> bool {
+        match expression {
+            Expression::Literal(value) => {
                 match value {
                     crate::core::Value::Null(_) => true,
                     crate::core::Value::String(s) => s.is_empty(),
                     _ => false,
                 }
             },
-            Expr::Variable(name) => name.is_empty(),
-            Expr::Function { name, args } => name.is_empty() && args.is_empty(),
-            Expr::Binary { left, right, .. } => {
+            Expression::Variable(name) => name.is_empty(),
+            Expression::Function { name, args } => name.is_empty() && args.is_empty(),
+            Expression::Binary { left, right, .. } => {
                 self.expression_is_empty(left) && self.expression_is_empty(right)
             },
-            Expr::Unary { operand, .. } => self.expression_is_empty(operand),
-            Expr::List(items) => items.is_empty(),
-            Expr::Map(pairs) => pairs.is_empty(),
+            Expression::Unary { operand, .. } => self.expression_is_empty(operand),
+            Expression::List(items) => items.is_empty(),
+            Expression::Map(pairs) => pairs.is_empty(),
             // 其他表达式类型默认不为空
             _ => false,
         }
     }
 
-    fn deduce_expr_type(&self, expr: &Expr) -> Result<ValueType, ValidationError> {
-        match expr {
-            Expr::Literal(value) => {
+    fn deduce_expr_type(&self, expression: &Expression) -> Result<ValueType, ValidationError> {
+        match expression {
+            Expression::Literal(value) => {
                 match value {
                     crate::core::Value::Bool(_) => Ok(ValueType::Bool),
                     crate::core::Value::Int(_) => Ok(ValueType::Int),
@@ -157,7 +157,7 @@ impl OrderByValidator {
                     _ => Ok(ValueType::Unknown),
                 }
             },
-            Expr::Variable(name) => {
+            Expression::Variable(name) => {
                 // 尝试从输入列中获取类型
                 if let Some(column_type) = self.input_columns.get(name) {
                     Ok(column_type.clone())
@@ -165,7 +165,7 @@ impl OrderByValidator {
                     Ok(ValueType::Unknown) // 如果找不到对应列，则返回未知类型
                 }
             },
-            Expr::Binary { left, op, right } => {
+            Expression::Binary { left, op, right } => {
                 // 对于比较操作，结果是布尔类型
                 match op {
                     crate::core::BinaryOperator::Equal
@@ -208,7 +208,7 @@ impl OrderByValidator {
                     _ => Ok(ValueType::Unknown),
                 }
             },
-            Expr::Unary { op, operand } => {
+            Expression::Unary { op, operand } => {
                 match op {
                     crate::core::UnaryOperator::Not => Ok(ValueType::Bool),
                     crate::core::UnaryOperator::IsNull | crate::core::UnaryOperator::IsNotNull => Ok(ValueType::Bool),
@@ -220,7 +220,7 @@ impl OrderByValidator {
                     _ => Ok(ValueType::Unknown),
                 }
             },
-            Expr::Function { name, args: _ } => {
+            Expression::Function { name, args: _ } => {
                 // 根据函数名推断返回类型
                 match name.to_lowercase().as_str() {
                     "id" => Ok(ValueType::String),
@@ -232,7 +232,7 @@ impl OrderByValidator {
                     _ => Ok(ValueType::Unknown),
                 }
             },
-            Expr::Aggregate { func, .. } => {
+            Expression::Aggregate { func, .. } => {
                 match func {
                     crate::core::AggregateFunction::Count(_) => Ok(ValueType::Int),
                     crate::core::AggregateFunction::Sum(_) => Ok(ValueType::Float),
@@ -241,10 +241,10 @@ impl OrderByValidator {
                     _ => Ok(ValueType::Unknown),
                 }
             },
-            Expr::List(_) => Ok(ValueType::List),
-            Expr::Map(_) => Ok(ValueType::Map),
-            Expr::Case { .. } => Ok(ValueType::Unknown), // CASE表达式的结果类型取决于其分支
-            Expr::TypeCast { target_type, .. } => {
+            Expression::List(_) => Ok(ValueType::List),
+            Expression::Map(_) => Ok(ValueType::Map),
+            Expression::Case { .. } => Ok(ValueType::Unknown), // CASE表达式的结果类型取决于其分支
+            Expression::TypeCast { target_type, .. } => {
                 // 根据目标类型转换
                 match target_type {
                     crate::core::DataType::Bool => Ok(ValueType::Bool),
@@ -259,8 +259,8 @@ impl OrderByValidator {
                 }
             },
             // 属性表达式统一处理
-            Expr::Property { object, property } => {
-                if let Expr::Variable(var_name) = object.as_ref() {
+            Expression::Property { object, property } => {
+                if let Expression::Variable(var_name) = object.as_ref() {
                     if let Some(column_type) = self.input_columns.get(var_name) {
                         return Ok(column_type.clone());
                     }
@@ -271,10 +271,10 @@ impl OrderByValidator {
                     Ok(ValueType::Unknown)
                 }
             },
-            Expr::Subscript { .. } => Ok(ValueType::Unknown),
-            Expr::Range { .. } => Ok(ValueType::List),
-            Expr::Path(_) => Ok(ValueType::Path),
-            Expr::Label(_) => Ok(ValueType::String),
+            Expression::Subscript { .. } => Ok(ValueType::Unknown),
+            Expression::Range { .. } => Ok(ValueType::List),
+            Expression::Path(_) => Ok(ValueType::Path),
+            Expression::Label(_) => Ok(ValueType::String),
         }
     }
 
@@ -287,80 +287,80 @@ impl OrderByValidator {
         )
     }
 
-    fn get_expression_references(&self, expr: &Expr) -> Vec<String> {
+    fn get_expression_references(&self, expression: &Expression) -> Vec<String> {
         let mut refs = Vec::new();
-        self.collect_refs(expr, &mut refs);
+        self.collect_refs(expression, &mut refs);
         refs
     }
 
     // 辅助函数：递归收集表达式中的列引用
-    fn collect_refs(&self, expr: &Expr, refs: &mut Vec<String>) {
-        match expr {
-            Expr::Variable(name) => {
+    fn collect_refs(&self, expression: &Expression, refs: &mut Vec<String>) {
+        match expression {
+            Expression::Variable(name) => {
                 if !refs.contains(name) {
                     refs.push(name.clone());
                 }
             },
-            Expr::Function { args, .. } => {
+            Expression::Function { args, .. } => {
                 for arg in args {
                     self.collect_refs(arg, refs);
                 }
             },
-            Expr::Binary { left, right, .. } => {
+            Expression::Binary { left, right, .. } => {
                 self.collect_refs(left, refs);
                 self.collect_refs(right, refs);
             },
-            Expr::Unary { operand, .. } => {
+            Expression::Unary { operand, .. } => {
                 self.collect_refs(operand, refs);
             },
-            Expr::Aggregate { arg, .. } => {
+            Expression::Aggregate { arg, .. } => {
                 self.collect_refs(arg, refs);
             },
-            Expr::List(items) => {
+            Expression::List(items) => {
                 for item in items {
                     self.collect_refs(item, refs);
                 }
             },
-            Expr::Map(pairs) => {
+            Expression::Map(pairs) => {
                 for (_, value) in pairs {
                     self.collect_refs(value, refs);
                 }
             },
-            Expr::Case { conditions, default } => {
+            Expression::Case { conditions, default } => {
                 for (condition, value) in conditions {
                     self.collect_refs(condition, refs);
                     self.collect_refs(value, refs);
                 }
-                if let Some(default_expr) = default {
-                    self.collect_refs(default_expr, refs);
+                if let Some(default_expression) = default {
+                    self.collect_refs(default_expression, refs);
                 }
             },
-            Expr::TypeCast { expr, .. } => {
-                self.collect_refs(expr, refs);
+            Expression::TypeCast { expression, .. } => {
+                self.collect_refs(expression, refs);
             },
-            Expr::Subscript { collection, index } => {
+            Expression::Subscript { collection, index } => {
                 self.collect_refs(collection, refs);
                 self.collect_refs(index, refs);
             },
-            Expr::Range { collection, start, end } => {
+            Expression::Range { collection, start, end } => {
                 self.collect_refs(collection, refs);
-                if let Some(start_expr) = start {
-                    self.collect_refs(start_expr, refs);
+                if let Some(start_expression) = start {
+                    self.collect_refs(start_expression, refs);
                 }
-                if let Some(end_expr) = end {
-                    self.collect_refs(end_expr, refs);
+                if let Some(end_expression) = end {
+                    self.collect_refs(end_expression, refs);
                 }
             },
             // 属性表达式统一处理
-            Expr::Property { object, property } => {
+            Expression::Property { object, property } => {
                 self.collect_refs(object, refs);
                 if !refs.contains(property) {
                     refs.push(property.clone());
                 }
             },
-            Expr::Literal(_) => {},
-            Expr::Path(_) => {},
-            Expr::Label(_) => {},
+            Expression::Literal(_) => {},
+            Expression::Path(_) => {},
+            Expression::Label(_) => {},
         }
     }
 

@@ -10,7 +10,7 @@ use super::structs::{
 use super::validation_factory::ValidationFactory;
 use super::validation_interface::{ValidationError, ValidationErrorType, ValidationStrategy};
 use super::ValidationContext;
-use crate::core::Expr;
+use crate::core::Expression;
 use std::collections::HashMap;
 
 /// Match语句验证器
@@ -89,22 +89,22 @@ impl MatchValidator {
     }
 
     /// 检查表达式是否包含聚合函数（委托给AggregateValidationStrategy）
-    pub fn has_aggregate_expr(&self, expr: &Expression) -> bool {
+    pub fn has_aggregate_expression(&self, expression: &Expression) -> bool {
         use super::strategies::AggregateValidationStrategy;
         let strategy = AggregateValidationStrategy::new();
-        strategy.has_aggregate_expr(expr)
+        strategy.has_aggregate_expression(expression)
     }
 
     /// 验证分页（委托给PaginationValidationStrategy）
     pub fn validate_pagination(
         &mut self,
-        skip_expr: Option<&Expression>,
-        limit_expr: Option<&Expression>,
+        skip_expression: Option<&Expression>,
+        limit_expression: Option<&Expression>,
         context: &PaginationContext,
     ) -> Result<(), ValidationError> {
         use super::strategies::PaginationValidationStrategy;
         let strategy = PaginationValidationStrategy::new();
-        strategy.validate_pagination(skip_expr, limit_expr, context)
+        strategy.validate_pagination(skip_expression, limit_expression, context)
     }
 
     /// 验证步数范围（委托给PaginationValidationStrategy）
@@ -128,36 +128,36 @@ impl MatchValidator {
     /// 验证Return子句（委托给ExpressionValidationStrategy）
     pub fn validate_return(
         &mut self,
-        return_expr: &Expression,
+        return_expression: &Expression,
         return_items: &[YieldColumn],
         context: &ReturnClauseContext,
     ) -> Result<(), ValidationError> {
         use super::strategies::ExpressionValidationStrategy;
         let strategy = ExpressionValidationStrategy::new();
-        strategy.validate_return(return_expr, return_items, context)
+        strategy.validate_return(return_expression, return_items, context)
     }
 
     /// 验证With子句（委托给ExpressionValidationStrategy）
     pub fn validate_with(
         &mut self,
-        with_expr: &Expression,
+        with_expression: &Expression,
         with_items: &[YieldColumn],
         context: &WithClauseContext,
     ) -> Result<(), ValidationError> {
         use super::strategies::ExpressionValidationStrategy;
         let strategy = ExpressionValidationStrategy::new();
-        strategy.validate_with(with_expr, with_items, context)
+        strategy.validate_with(with_expression, with_items, context)
     }
 
     /// 验证Unwind子句（委托给ExpressionValidationStrategy）
     pub fn validate_unwind(
         &mut self,
-        unwind_expr: &Expression,
+        unwind_expression: &Expression,
         context: &UnwindClauseContext,
     ) -> Result<(), ValidationError> {
         use super::strategies::ExpressionValidationStrategy;
         let strategy = ExpressionValidationStrategy::new();
-        strategy.validate_unwind(unwind_expr, context)
+        strategy.validate_unwind(unwind_expression, context)
     }
 
     /// 验证Yield子句（委托给ClauseValidationStrategy）
@@ -199,12 +199,12 @@ impl MatchValidator {
     /// 检查别名（委托给AliasValidationStrategy）
     pub fn check_alias(
         &mut self,
-        ref_expr: &Expression,
+        ref_expression: &Expression,
         aliases_available: &HashMap<String, AliasType>,
     ) -> Result<(), ValidationError> {
         use super::strategies::AliasValidationStrategy;
         let strategy = AliasValidationStrategy::new();
-        strategy.check_alias(ref_expr, aliases_available)
+        strategy.check_alias(ref_expression, aliases_available)
     }
 }
 
@@ -236,12 +236,12 @@ mod tests {
         let mut validator = MatchValidator::new(context);
 
         // 测试有效的分页表达式
-        let skip_expr = Expr::Literal(crate::core::Value::Int(1));
-        let limit_expr = Expr::Literal(crate::core::Value::Int(10));
+        let skip_expression = Expression::Literal(crate::core::Value::Int(1));
+        let limit_expression = Expression::Literal(crate::core::Value::Int(10));
         let pagination_ctx = PaginationContext { skip: 0, limit: 10 };
 
         assert!(validator
-            .validate_pagination(Some(&skip_expr), Some(&limit_expr), &pagination_ctx)
+            .validate_pagination(Some(&skip_expression), Some(&limit_expression), &pagination_ctx)
             .is_ok());
     }
 
@@ -256,24 +256,24 @@ mod tests {
         aliases.insert("e".to_string(), AliasType::Edge);
 
         // 测试有效的别名引用
-        let expr = Expr::Variable("n".to_string());
-        assert!(validator.validate_aliases(&[expr], &aliases).is_ok());
+        let expression = Expression::Variable("n".to_string());
+        assert!(validator.validate_aliases(&[expression], &aliases).is_ok());
 
         // 测试无效的别名引用
-        let invalid_expr = Expr::Variable("invalid".to_string());
+        let invalid_expression = Expression::Variable("invalid".to_string());
         assert!(validator
-            .validate_aliases(&[invalid_expr], &aliases)
+            .validate_aliases(&[invalid_expression], &aliases)
             .is_err());
     }
 
     #[test]
-    fn test_has_aggregate_expr() {
+    fn test_has_aggregate_expression() {
         let context = ValidationContext::new();
         let validator = MatchValidator::new(context);
 
         // 测试没有聚合函数的表达式
-        let non_agg_expr = Expr::Literal(crate::core::Value::Int(1));
-        assert_eq!(validator.has_aggregate_expr(&non_agg_expr), false);
+        let non_agg_expression = Expression::Literal(crate::core::Value::Int(1));
+        assert_eq!(validator.has_aggregate_expression(&non_agg_expression), false);
     }
 
     #[test]

@@ -165,7 +165,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for UpdateExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let mut _total_updated = 0;
 
-        let condition_expr = if let Some(ref condition_str) = self.condition {
+        let condition_expression = if let Some(ref condition_str) = self.condition {
             Some(parse_expression_from_string(condition_str).map_err(|e| {
                 crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(
                     format!("条件解析失败: {}", e),
@@ -180,7 +180,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for UpdateExecutor<S> {
 
         if let Some(updates) = &self.vertex_updates {
             for update in updates {
-                if let Some(ref expr) = condition_expr {
+                if let Some(ref expression) = condition_expression {
                     let mut context = BasicExpressionContext::default();
                     context.set_variable("vertex_id", update.vertex_id.clone());
                     for (key, value) in &update.properties {
@@ -188,7 +188,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for UpdateExecutor<S> {
                     }
 
                     let result =
-                        ExpressionEvaluator::evaluate(expr, &mut context).map_err(|e| {
+                        ExpressionEvaluator::evaluate(expression, &mut context).map_err(|e| {
                             crate::core::error::DBError::Query(
                                 crate::core::error::QueryError::ExecutionError(format!(
                                     "条件求值失败: {}",
@@ -222,7 +222,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for UpdateExecutor<S> {
 
         if let Some(updates) = &self.edge_updates {
             for update in updates {
-                if let Some(ref expr) = condition_expr {
+                if let Some(ref expression) = condition_expression {
                     let mut context = BasicExpressionContext::default();
                     context.set_variable("src", update.src.clone());
                     context.set_variable("dst", update.dst.clone());
@@ -232,7 +232,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for UpdateExecutor<S> {
                     }
 
                     let result =
-                        ExpressionEvaluator::evaluate(expr, &mut context).map_err(|e| {
+                        ExpressionEvaluator::evaluate(expression, &mut context).map_err(|e| {
                             crate::core::error::DBError::Query(
                                 crate::core::error::QueryError::ExecutionError(format!(
                                     "条件求值失败: {}",

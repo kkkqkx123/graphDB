@@ -11,8 +11,8 @@ use crate::core::{
     BinaryOperator, DataType, Expression, UnaryOperator, Value,
 };
 use crate::core::types::operators::AggregateFunction;
-use crate::expression::Expr;
-use crate::query::parser::ast::expr::*;
+use crate::expression::Expression;
+use crate::query::parser::ast::expression::*;
 
 /// 模式表达式验证访问器
 ///
@@ -38,11 +38,11 @@ impl ValidatePatternExpressionVisitor {
     }
 
     /// 验证表达式
-    pub fn validate(&mut self, expr: &Expr) -> Result<(), String> {
+    pub fn validate(&mut self, expression: &Expression) -> Result<(), String> {
         self.local_variables.clear();
         self.error = None;
 
-        self.visit_expression(expr)?;
+        self.visit_expression(expression)?;
 
         if let Some(err) = &self.error {
             Err(err.clone())
@@ -91,11 +91,11 @@ impl ValidatePatternExpressionVisitor {
         }
 
         let mut result = exprs[0].clone();
-        for expr in &exprs[1..] {
-            result = Expr::Binary {
+        for expression in &exprs[1..] {
+            result = Expression::Binary {
                 left: Box::new(result),
                 op: BinaryOperator::And,
-                right: Box::new(expr.clone()),
+                right: Box::new(expression.clone()),
             };
         }
 
@@ -120,21 +120,21 @@ impl ExpressionVisitor for ValidatePatternExpressionVisitor {
         Ok(())
     }
 
-    fn visit_property(&mut self, object: &Expr, _property: &str) -> Self::Result {
+    fn visit_property(&mut self, object: &Expression, _property: &str) -> Self::Result {
         self.visit_expression(object)
     }
 
     fn visit_binary(
         &mut self,
-        left: &Expr,
+        left: &Expression,
         _op: &BinaryOperator,
-        right: &Expr,
+        right: &Expression,
     ) -> Self::Result {
         self.visit_expression(left)?;
         self.visit_expression(right)
     }
 
-    fn visit_unary(&mut self, _op: &UnaryOperator, operand: &Expr) -> Self::Result {
+    fn visit_unary(&mut self, _op: &UnaryOperator, operand: &Expression) -> Self::Result {
         self.visit_expression(operand)
     }
 
@@ -144,7 +144,7 @@ impl ExpressionVisitor for ValidatePatternExpressionVisitor {
         match name_upper.as_str() {
             "HAS" | "HASLABEL" | "HASTAG" => {
                 if args.len() >= 1 {
-                    if let Expr::Variable(var) = &args[0] {
+                    if let Expression::Variable(var) = &args[0] {
                         if self.is_local_variable(var) {
                             self.set_error(format!(
                                 "函数 {} 的参数不能是局部变量: {}",
@@ -167,7 +167,7 @@ impl ExpressionVisitor for ValidatePatternExpressionVisitor {
     fn visit_aggregate(
         &mut self,
         _func: &AggregateFunction,
-        arg: &Expr,
+        arg: &Expression,
         _distinct: bool,
     ) -> Self::Result {
         self.visit_expression(arg)
@@ -181,48 +181,48 @@ impl ExpressionVisitor for ValidatePatternExpressionVisitor {
     }
 
     fn visit_map(&mut self, pairs: &[(String, Expression)]) -> Self::Result {
-        for (_, expr) in pairs {
-            self.visit_expression(expr)?;
+        for (_, expression) in pairs {
+            self.visit_expression(expression)?;
         }
         Ok(())
     }
 
     fn visit_case(
         &mut self,
-        conditions: &[(Expr, Expr)],
-        default: &Option<Box<Expr>>,
+        conditions: &[(Expression, Expression)],
+        default: &Option<Box<Expression>>,
     ) -> Self::Result {
-        for (cond, expr) in conditions {
+        for (cond, expression) in conditions {
             self.visit_expression(cond)?;
-            self.visit_expression(expr)?;
+            self.visit_expression(expression)?;
         }
-        if let Some(default_expr) = default {
-            self.visit_expression(default_expr)?;
+        if let Some(default_expression) = default {
+            self.visit_expression(default_expression)?;
         }
         Ok(())
     }
 
-    fn visit_type_cast(&mut self, expr: &Expr, _target_type: &DataType) -> Self::Result {
-        self.visit_expression(expr)
+    fn visit_type_cast(&mut self, expression: &Expression, _target_type: &DataType) -> Self::Result {
+        self.visit_expression(expression)
     }
 
-    fn visit_subscript(&mut self, collection: &Expr, index: &Expr) -> Self::Result {
+    fn visit_subscript(&mut self, collection: &Expression, index: &Expression) -> Self::Result {
         self.visit_expression(collection)?;
         self.visit_expression(index)
     }
 
     fn visit_range(
         &mut self,
-        collection: &Expr,
-        start: &Option<Box<Expr>>,
-        end: &Option<Box<Expr>>,
+        collection: &Expression,
+        start: &Option<Box<Expression>>,
+        end: &Option<Box<Expression>>,
     ) -> Self::Result {
         self.visit_expression(collection)?;
-        if let Some(start_expr) = start {
-            self.visit_expression(start_expr)?;
+        if let Some(start_expression) = start {
+            self.visit_expression(start_expression)?;
         }
-        if let Some(end_expr) = end {
-            self.visit_expression(end_expr)?;
+        if let Some(end_expression) = end {
+            self.visit_expression(end_expression)?;
         }
         Ok(())
     }

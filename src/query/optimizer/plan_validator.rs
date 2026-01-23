@@ -2,7 +2,7 @@
 //!
 //! 提供计划验证功能，确保优化后的计划是正确的
 
-use crate::core::types::expression::Expr;
+use crate::core::types::expression::Expression;
 use crate::query::optimizer::optimizer::{OptContext, OptGroup, OptGroupNode};
 use crate::query::optimizer::OptimizerError;
 use std::collections::HashMap;
@@ -194,7 +194,7 @@ impl PlanValidator {
             }
             crate::query::planner::plan::PlanNodeEnum::Project(project_node) => {
                 for column in project_node.columns() {
-                    Self::validate_expression(&column.expr)?;
+                    Self::validate_expression(&column.expression)?;
                 }
             }
             crate::query::planner::plan::PlanNodeEnum::Aggregate(aggregate_node) => {
@@ -288,56 +288,56 @@ impl PlanValidator {
     }
 
     /// 验证表达式
-    fn validate_expression(expr: &Expr) -> Result<(), OptimizerError> {
-        match expr {
-            Expr::Binary { left, right, .. } => {
+    fn validate_expression(expression: &Expression) -> Result<(), OptimizerError> {
+        match expression {
+            Expression::Binary { left, right, .. } => {
                 Self::validate_expression(left)?;
                 Self::validate_expression(right)?;
             }
-            Expr::Unary { operand, .. } => {
+            Expression::Unary { operand, .. } => {
                 Self::validate_expression(operand)?;
             }
-            Expr::Function { args, .. } => {
+            Expression::Function { args, .. } => {
                 for arg in args {
                     Self::validate_expression(arg)?;
                 }
             }
-            Expr::List(items) => {
+            Expression::List(items) => {
                 for item in items {
                     Self::validate_expression(item)?;
                 }
             }
-            Expr::Map(pairs) => {
+            Expression::Map(pairs) => {
                 for (_, value) in pairs {
                     Self::validate_expression(value)?;
                 }
             }
-            Expr::Case { conditions, default, .. } => {
-                for (condition, expr) in conditions {
+            Expression::Case { conditions, default, .. } => {
+                for (condition, expression) in conditions {
                     Self::validate_expression(condition)?;
-                    Self::validate_expression(expr)?;
+                    Self::validate_expression(expression)?;
                 }
-                if let Some(default_expr) = default {
-                    Self::validate_expression(default_expr)?;
+                if let Some(default_expression) = default {
+                    Self::validate_expression(default_expression)?;
                 }
             }
-            Expr::TypeCast { expr, .. } => {
-                Self::validate_expression(expr)?;
+            Expression::TypeCast { expression, .. } => {
+                Self::validate_expression(expression)?;
             }
-            Expr::Subscript { collection, index } => {
+            Expression::Subscript { collection, index } => {
                 Self::validate_expression(collection)?;
                 Self::validate_expression(index)?;
             }
-            Expr::Range { collection, start, end } => {
+            Expression::Range { collection, start, end } => {
                 Self::validate_expression(collection)?;
-                if let Some(start_expr) = start {
-                    Self::validate_expression(start_expr)?;
+                if let Some(start_expression) = start {
+                    Self::validate_expression(start_expression)?;
                 }
-                if let Some(end_expr) = end {
-                    Self::validate_expression(end_expr)?;
+                if let Some(end_expression) = end {
+                    Self::validate_expression(end_expression)?;
                 }
             }
-            Expr::Path(items) => {
+            Expression::Path(items) => {
                 for item in items {
                     Self::validate_expression(item)?;
                 }
@@ -435,19 +435,19 @@ impl PlanValidator {
 mod tests {
     use super::*;
     use crate::query::context::execution::QueryContext;
-    use crate::core::types::expression::Expr;
+    use crate::core::types::expression::Expression;
     use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
     use crate::query::planner::plan::PlanNodeEnum;
 
     #[test]
     fn test_validate_expression() {
-        let expr = Expr::Binary {
-            left: Box::new(Expr::Variable("x".to_string())),
+        let expression = Expression::Binary {
+            left: Box::new(Expression::Variable("x".to_string())),
             op: crate::core::types::operators::BinaryOperator::Equal,
-            right: Box::new(Expr::Literal(crate::core::Value::Int(42))),
+            right: Box::new(Expression::Literal(crate::core::Value::Int(42))),
         };
 
-        let result = PlanValidator::validate_expression(&expr);
+        let result = PlanValidator::validate_expression(&expression);
         assert!(result.is_ok());
     }
 

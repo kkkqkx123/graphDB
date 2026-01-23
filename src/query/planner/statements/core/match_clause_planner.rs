@@ -14,7 +14,7 @@
 /// ### 简化实现逻辑
 /// - 移除复杂的验证逻辑，内聚到接口中
 /// - 专注于核心的路径处理和变量管理
-use crate::core::Expr;
+use crate::core::Expression;
 use crate::query::planner::statements::core::{
     ClauseType, CypherClausePlanner, DataFlowNode, PlanningContext, VariableInfo,
 };
@@ -132,7 +132,7 @@ impl CypherClausePlanner for MatchClausePlanner {
         // 处理分页（如果存在）
         if let Some(skip) = &match_clause_ctx.skip {
             let skip_value = match skip {
-                Expr::Literal(crate::core::Value::Int(v)) => *v,
+                Expression::Literal(crate::core::Value::Int(v)) => *v,
                 _ => 0,
             };
 
@@ -144,7 +144,7 @@ impl CypherClausePlanner for MatchClausePlanner {
 
         if let Some(limit) = &match_clause_ctx.limit {
             let limit_value = match limit {
-                Expr::Literal(crate::core::Value::Int(v)) => *v,
+                Expression::Literal(crate::core::Value::Int(v)) => *v,
                 _ => i64::MAX,
             };
 

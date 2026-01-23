@@ -4,12 +4,12 @@
 use crate::core::expression_visitor::{ExpressionVisitor, ExpressionVisitorState};
 use crate::core::Value;
 use crate::core::{AggregateFunction, BinaryOperator, DataType, Expression, UnaryOperator};
-use crate::expression::Expr;
+use crate::expression::Expression;
 
 #[derive(Debug)]
 pub struct ExtractFilterExprVisitor {
     /// 提取到的过滤表达式
-    filter_exprs: Vec<Expr>,
+    filter_exprs: Vec<Expression>,
     /// 是否只提取顶层的过滤条件
     top_level_only: bool,
     /// 当前是否在顶层
@@ -39,23 +39,23 @@ impl ExtractFilterExprVisitor {
         }
     }
 
-    pub fn extract(&mut self, expr: &Expr) -> Result<Vec<Expr>, String> {
+    pub fn extract(&mut self, expression: &Expression) -> Result<Vec<Expression>, String> {
         self.filter_exprs.clear();
         self.is_top_level = true;
-        let result = self.visit_expression(expr);
+        let result = self.visit_expression(expression);
         result?;
         Ok(self.filter_exprs.clone())
     }
 
-    fn visit_with_updated_level(&mut self, expr: &Expr) -> Result<(), String> {
+    fn visit_with_updated_level(&mut self, expression: &Expression) -> Result<(), String> {
         let old_top_level = self.is_top_level;
         self.is_top_level = false;
-        let result = self.visit_expression(expr);
+        let result = self.visit_expression(expression);
         self.is_top_level = old_top_level;
         result
     }
 
-    pub fn get_filter_exprs(&self) -> &Vec<Expr> {
+    pub fn get_filter_exprs(&self) -> &Vec<Expression> {
         &self.filter_exprs
     }
 }
@@ -85,21 +85,21 @@ impl ExpressionVisitor for ExtractFilterExprVisitor {
         Ok(())
     }
 
-    fn visit_property(&mut self, object: &Expr, _property: &str) -> Self::Result {
+    fn visit_property(&mut self, object: &Expression, _property: &str) -> Self::Result {
         self.visit_expression(object)
     }
 
     fn visit_binary(
         &mut self,
-        left: &Expr,
+        left: &Expression,
         op: &BinaryOperator,
-        right: &Expr,
+        right: &Expression,
     ) -> Self::Result {
         if self.is_top_level || !self.top_level_only {
             self.visit_with_updated_level(left)?;
             self.visit_with_updated_level(right)?;
         } else {
-            self.filter_exprs.push(Expr::Binary {
+            self.filter_exprs.push(Expression::Binary {
                 left: Box::new(left.clone()),
                 op: op.clone(),
                 right: Box::new(right.clone()),
@@ -108,14 +108,14 @@ impl ExpressionVisitor for ExtractFilterExprVisitor {
         Ok(())
     }
 
-    fn visit_unary(&mut self, _op: &UnaryOperator, operand: &Expr) -> Self::Result {
+    fn visit_unary(&mut self, _op: &UnaryOperator, operand: &Expression) -> Self::Result {
         self.visit_expression(operand)
     }
 
     fn visit_function(&mut self, name: &str, args: &[Expression]) -> Self::Result {
         if is_filter_function(name) {
             if self.is_top_level || !self.top_level_only {
-                self.filter_exprs.push(Expr::Function {
+                self.filter_exprs.push(Expression::Function {
                     name: name.to_string(),
                     args: args.to_vec(),
                 });
@@ -130,7 +130,7 @@ impl ExpressionVisitor for ExtractFilterExprVisitor {
     fn visit_aggregate(
         &mut self,
         _func: &AggregateFunction,
-        arg: &Expr,
+        arg: &Expression,
         _distinct: bool,
     ) -> Self::Result {
         self.visit_expression(arg)
@@ -144,20 +144,20 @@ impl ExpressionVisitor for ExtractFilterExprVisitor {
     }
 
     fn visit_map(&mut self, pairs: &[(String, Expression)]) -> Self::Result {
-        for (_, expr) in pairs {
-            self.visit_expression(expr)?;
+        for (_, expression) in pairs {
+            self.visit_expression(expression)?;
         }
         Ok(())
     }
 
     fn visit_case(
         &mut self,
-        conditions: &[(Expr, Expr)],
-        default: &Option<Box<Expr>>,
+        conditions: &[(Expression, Expression)],
+        default: &Option<Box<Expression>>,
     ) -> Self::Result {
-        for (cond, expr) in conditions {
+        for (cond, expression) in conditions {
             self.visit_expression(cond)?;
-            self.visit_expression(expr)?;
+            self.visit_expression(expression)?;
         }
         if let Some(d) = default {
             self.visit_expression(d)?;
@@ -165,20 +165,20 @@ impl ExpressionVisitor for ExtractFilterExprVisitor {
         Ok(())
     }
 
-    fn visit_type_cast(&mut self, expr: &Expr, _target_type: &DataType) -> Self::Result {
-        self.visit_expression(expr)
+    fn visit_type_cast(&mut self, expression: &Expression, _target_type: &DataType) -> Self::Result {
+        self.visit_expression(expression)
     }
 
-    fn visit_subscript(&mut self, collection: &Expr, index: &Expr) -> Self::Result {
+    fn visit_subscript(&mut self, collection: &Expression, index: &Expression) -> Self::Result {
         self.visit_expression(collection)?;
         self.visit_expression(index)
     }
 
     fn visit_range(
         &mut self,
-        collection: &Expr,
-        start: &Option<Box<Expr>>,
-        end: &Option<Box<Expr>>,
+        collection: &Expression,
+        start: &Option<Box<Expression>>,
+        end: &Option<Box<Expression>>,
     ) -> Self::Result {
         self.visit_expression(collection)?;
         if let Some(s) = start {
@@ -210,11 +210,11 @@ impl ExpressionVisitor for ExtractFilterExprVisitor {
     }
 }
 
-fn is_filter_expression(expr: &Expr) -> bool {
+fn is_filter_expression(expression: &Expression) -> bool {
     // 检查表达式是否为过滤表达式
     // 通常关系表达式和函数调用是过滤表达式
     matches!(
-        expr,
-        Expr::Binary { .. } | Expr::Function { .. }
+        expression,
+        Expression::Binary { .. } | Expression::Function { .. }
     )
 }

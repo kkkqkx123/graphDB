@@ -617,7 +617,7 @@ pub struct AppendVerticesNode {
     cost: f64,
     dependencies: Vec<Box<super::plan_node_enum::PlanNodeEnum>>,
     input_var: Option<String>,
-    src_expr: Option<Expression>,
+    src_expression: Option<Expression>,
     props: Vec<String>,
     v_filter: Option<Expression>,
     dedup: bool,
@@ -639,7 +639,7 @@ impl Clone for AppendVerticesNode {
             cost: self.cost,
             dependencies: Vec::new(),
             input_var: self.input_var.clone(),
-            src_expr: self.src_expr.clone(),
+            src_expression: self.src_expression.clone(),
             props: self.props.clone(),
             v_filter: self.v_filter.clone(),
             dedup: self.dedup,
@@ -662,7 +662,7 @@ impl AppendVerticesNode {
             cost: 0.0,
             dependencies: Vec::new(),
             input_var: None,
-            src_expr: None,
+            src_expression: None,
             props: Vec::new(),
             v_filter: None,
             dedup: false,
@@ -697,8 +697,8 @@ impl AppendVerticesNode {
     }
 
     /// 获取源表达式
-    pub fn src_expr(&self) -> Option<&Expression> {
-        self.src_expr.as_ref()
+    pub fn src_expression(&self) -> Option<&Expression> {
+        self.src_expression.as_ref()
     }
 
     /// 获取属性列表
@@ -732,8 +732,8 @@ impl AppendVerticesNode {
     }
 
     /// 设置源表达式
-    pub fn set_src_expr(&mut self, src_expr: Expression) {
-        self.src_expr = Some(src_expr);
+    pub fn set_src_expression(&mut self, src_expression: Expression) {
+        self.src_expression = Some(src_expression);
     }
 
     /// 设置属性列表

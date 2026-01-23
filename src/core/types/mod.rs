@@ -39,6 +39,6 @@ pub enum DataType {
 }
 
 // 重新导出常用类型
-pub use expression::{Expr};
+pub use expression::{Expression};
 pub use graph_schema::{EdgeDirection, GraphTypeInference, VertexType, EdgeTypeInfo, PathInfo, PropertyType};
 pub use operators::{AggregateFunction, BinaryOperator, UnaryOperator};

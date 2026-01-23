@@ -155,8 +155,8 @@ impl QueryAstContext {
     /// 获取表达式中引用的所有变量
     pub fn get_all_referenced_variables(&self) -> std::collections::HashSet<String> {
         let mut vars = std::collections::HashSet::new();
-        for expr in &self.expression_contexts {
-            for var in &expr.referenced_variables {
+        for expression in &self.expression_contexts {
+            for var in &expression.referenced_variables {
                 vars.insert(var.clone());
             }
         }

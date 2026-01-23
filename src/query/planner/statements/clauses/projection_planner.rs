@@ -6,11 +6,11 @@ use crate::query::validator::structs::common_structs::CypherClauseContext;
 
 #[derive(Debug)]
 pub struct ProjectionPlanner {
-    projection_items: Vec<crate::query::parser::ast::expr::Expr>,
+    projection_items: Vec<crate::query::parser::ast::expression::Expression>,
 }
 
 impl ProjectionPlanner {
-    pub fn new(projection_items: Vec<crate::query::parser::ast::expr::Expr>) -> Self {
+    pub fn new(projection_items: Vec<crate::query::parser::ast::expression::Expression>) -> Self {
         Self { projection_items }
     }
 }

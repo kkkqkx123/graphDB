@@ -38,8 +38,8 @@ impl LimitValidator {
     }
 
     fn validate_skip(&mut self) -> Result<(), ValidationError> {
-        if let Some(skip_expr) = &self.skip {
-            let skip_type = self.deduce_expr_type(skip_expr)?;
+        if let Some(skip_expression) = &self.skip {
+            let skip_type = self.deduce_expr_type(skip_expression)?;
             if skip_type != ValueType::Int {
                 return Err(ValidationError::new(
                     format!(
@@ -50,7 +50,7 @@ impl LimitValidator {
                 ));
             }
 
-            if !self.is_constant_or_parameter(skip_expr) {
+            if !self.is_constant_or_parameter(skip_expression) {
                 if let Some(input_cols) = self.base.inputs().first() {
                     if input_cols.type_ != ValueType::Int {
                         return Err(ValidationError::new(
@@ -65,8 +65,8 @@ impl LimitValidator {
     }
 
     fn validate_limit(&mut self) -> Result<(), ValidationError> {
-        if let Some(limit_expr) = &self.limit {
-            let limit_type = self.deduce_expr_type(limit_expr)?;
+        if let Some(limit_expression) = &self.limit {
+            let limit_type = self.deduce_expr_type(limit_expression)?;
             if limit_type != ValueType::Int {
                 return Err(ValidationError::new(
                     format!(
@@ -77,7 +77,7 @@ impl LimitValidator {
                 ));
             }
 
-            if !self.is_constant_or_parameter(limit_expr) {
+            if !self.is_constant_or_parameter(limit_expression) {
                 if let Some(input_cols) = self.base.inputs().first() {
                     if input_cols.type_ != ValueType::Int {
                         return Err(ValidationError::new(
@@ -131,11 +131,11 @@ impl LimitValidator {
         Ok(())
     }
 
-    fn deduce_expr_type(&self, _expr: &Expression) -> Result<ValueType, ValidationError> {
+    fn deduce_expr_type(&self, _expression: &Expression) -> Result<ValueType, ValidationError> {
         Ok(ValueType::Int)
     }
 
-    fn is_constant_or_parameter(&self, _expr: &Expression) -> bool {
+    fn is_constant_or_parameter(&self, _expression: &Expression) -> bool {
         true
     }
 
@@ -175,11 +175,11 @@ impl Validator {
         limit: Option<&Expression>,
     ) -> Result<(), ValidationError> {
         let mut validator = LimitValidator::new(self.context().clone());
-        if let Some(skip_expr) = skip {
-            validator.set_skip(skip_expr.clone());
+        if let Some(skip_expression) = skip {
+            validator.set_skip(skip_expression.clone());
         }
-        if let Some(limit_expr) = limit {
-            validator.set_limit(limit_expr.clone());
+        if let Some(limit_expression) = limit {
+            validator.set_limit(limit_expression.clone());
         }
         validator.validate()
     }

@@ -22,7 +22,7 @@ pub struct AppendVerticesExecutor<S: StorageEngine + Send + 'static> {
     /// 输入变量名
     input_var: String,
     /// 源表达式，用于获取顶点ID
-    src_expr: Expression,
+    src_expression: Expression,
     /// 要获取的属性列表
     props: Vec<String>,
     /// 顶点过滤表达式
@@ -43,7 +43,7 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
         id: i64,
         storage: Arc<Mutex<S>>,
         input_var: String,
-        src_expr: Expression,
+        src_expression: Expression,
         props: Vec<String>,
         v_filter: Option<Expression>,
         col_names: Vec<String>,
@@ -54,7 +54,7 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
         Self {
             base: BaseExecutor::new(id, "AppendVerticesExecutor".to_string(), storage),
             input_var,
-            src_expr,
+            src_expression,
             props,
             v_filter,
             col_names,
@@ -69,7 +69,7 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
         id: i64,
         storage: Arc<Mutex<S>>,
         input_var: String,
-        src_expr: Expression,
+        src_expression: Expression,
         props: Vec<String>,
         v_filter: Option<Expression>,
         col_names: Vec<String>,
@@ -86,7 +86,7 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
                 context,
             ),
             input_var,
-            src_expr,
+            src_expression,
             props,
             v_filter,
             col_names,
@@ -133,7 +133,7 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
                     expr_context.set_variable("_".to_string(), value.clone());
 
                     // 计算源表达式获取顶点ID
-                    let vid = ExpressionEvaluator::evaluate(&self.src_expr, &mut expr_context)
+                    let vid = ExpressionEvaluator::evaluate(&self.src_expression, &mut expr_context)
                         .map_err(|e| {
                             DBError::Query(crate::core::error::QueryError::ExecutionError(
                                 e.to_string(),
@@ -156,7 +156,7 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
                     let vertex_value = Value::Vertex(Box::new(vertex.clone()));
                     expr_context.set_variable("_".to_string(), vertex_value.clone());
 
-                    let vid = ExpressionEvaluator::evaluate(&self.src_expr, &mut expr_context)
+                    let vid = ExpressionEvaluator::evaluate(&self.src_expression, &mut expr_context)
                         .map_err(|e| {
                             DBError::Query(crate::core::error::QueryError::ExecutionError(
                                 e.to_string(),
@@ -178,7 +178,7 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
                     let edge_value = Value::Edge(edge.clone());
                     expr_context.set_variable("_".to_string(), edge_value.clone());
 
-                    let vid = ExpressionEvaluator::evaluate(&self.src_expr, &mut expr_context)
+                    let vid = ExpressionEvaluator::evaluate(&self.src_expression, &mut expr_context)
                         .map_err(|e| {
                             DBError::Query(crate::core::error::QueryError::ExecutionError(
                                 e.to_string(),
@@ -310,8 +310,8 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
             let vertex_value = Value::Vertex(Box::new(vertex.clone()));
             let mut row_context = DefaultExpressionContext::new();
 
-            if let Some(ref filter_expr) = self.v_filter {
-                let filter_result = ExpressionEvaluator::evaluate(filter_expr, &mut row_context)
+            if let Some(ref filter_expression) = self.v_filter {
+                let filter_result = ExpressionEvaluator::evaluate(filter_expression, &mut row_context)
                     .map_err(|e| {
                         DBError::Query(crate::core::error::QueryError::ExecutionError(
                             e.to_string(),
@@ -418,12 +418,12 @@ mod tests {
         let mut context = crate::query::executor::base::ExecutionContext::new();
         context.set_result("input".to_string(), input_result);
 
-        let src_expr = Expr::Variable("_".to_string());
+        let src_expression = Expression::Variable("_".to_string());
         let mut executor = AppendVerticesExecutor::with_context(
             1,
             storage,
             "input".to_string(),
-            src_expr,
+            src_expression,
             vec![],
             None,
             vec!["vertex".to_string()],

@@ -372,7 +372,7 @@ mod tests {
             ExecutionResult::Values(right_values),
         );
 
-        let key_cols = vec![Expr::variable("_")];
+        let key_cols = vec![Expression::variable("_")];
         let mut executor = PatternApplyExecutor::with_context(
             1,
             storage,
@@ -410,7 +410,7 @@ mod tests {
             ExecutionResult::Values(right_values),
         );
 
-        let key_cols = vec![Expr::variable("_")];
+        let key_cols = vec![Expression::variable("_")];
         let mut executor = PatternApplyExecutor::with_context(
             1,
             storage,

@@ -5,7 +5,7 @@
 use super::base_validator::Validator;
 use super::validation_interface::{ValidationError, ValidationErrorType};
 use crate::core::{
-    AggregateFunction, BinaryOperator, Expr, UnaryOperator, Value,
+    AggregateFunction, BinaryOperator, Expression, UnaryOperator, Value,
 };
 use std::collections::HashMap;
 
@@ -13,19 +13,19 @@ use std::collections::HashMap;
 pub struct GoContext {
     pub from_source: Option<GoSource>,
     pub over_edges: Vec<OverEdge>,
-    pub where_filter: Option<Expr>,
+    pub where_filter: Option<Expression>,
     pub yield_columns: Vec<GoYieldColumn>,
     pub step_range: Option<StepRange>,
     pub inputs: Vec<GoInput>,
     pub outputs: Vec<GoOutput>,
     pub is_truncate: bool,
-    pub truncate_columns: Vec<Expr>,
+    pub truncate_columns: Vec<Expression>,
 }
 
 #[derive(Debug, Clone)]
 pub struct GoSource {
     pub source_type: GoSourceType,
-    pub expression: Expr,
+    pub expression: Expression,
     pub is_variable: bool,
     pub variable_name: Option<String>,
 }
@@ -64,7 +64,7 @@ pub struct EdgeProperty {
 
 #[derive(Debug, Clone)]
 pub struct GoYieldColumn {
-    pub expression: Expr,
+    pub expression: Expression,
     pub alias: String,
     pub is_distinct: bool,
 }
@@ -154,7 +154,7 @@ impl GoValidator {
                 }
                 GoSourceType::Variable => {
                     // 验证变量引用
-                    if let Expr::Variable(ref var_name) = source.expression {
+                    if let Expression::Variable(ref var_name) = source.expression {
                         self.validate_variable_reference(var_name)?;
                     } else {
                         return Err(ValidationError::new(
@@ -279,36 +279,36 @@ impl GoValidator {
     }
 
     /// 验证表达式
-    fn validate_expression(&self, expr: &Expr) -> Result<(), ValidationError> {
-        match expr {
-            Expr::Literal(_) => {
+    fn validate_expression(&self, expression: &Expression) -> Result<(), ValidationError> {
+        match expression {
+            Expression::Literal(_) => {
                 // 字面量总是有效的
                 Ok(())
             }
-            Expr::Variable(name) => {
+            Expression::Variable(name) => {
                 // 检查变量是否存在
                 self.validate_variable_reference(name)
             }
-            Expr::Property { object, property } => {
+            Expression::Property { object, property } => {
                 // 验证对象表达式和属性名称
                 self.validate_expression(object)?;
                 self.validate_property_name(property)?;
                 Ok(())
             }
-            Expr::Binary { left, op, right } => {
+            Expression::Binary { left, op, right } => {
                 // 验证左右操作数和操作符
                 self.validate_expression(left)?;
                 self.validate_expression(right)?;
                 self.validate_binary_operator(op)?;
                 Ok(())
             }
-            Expr::Unary { op, operand } => {
+            Expression::Unary { op, operand } => {
                 // 验证操作数和操作符
                 self.validate_expression(operand)?;
                 self.validate_unary_operator(op)?;
                 Ok(())
             }
-            Expr::Function { name, args } => {
+            Expression::Function { name, args } => {
                 // 验证函数名称和参数
                 self.validate_function_name(name)?;
                 for arg in args {
@@ -316,20 +316,20 @@ impl GoValidator {
                 }
                 Ok(())
             }
-            Expr::Aggregate { func, arg, .. } => {
+            Expression::Aggregate { func, arg, .. } => {
                 // 验证聚合函数和参数
                 self.validate_aggregate_function(func)?;
                 self.validate_expression(arg)?;
                 Ok(())
             }
-            Expr::List(items) => {
+            Expression::List(items) => {
                 // 验证列表中的每个元素
                 for item in items {
                     self.validate_expression(item)?;
                 }
                 Ok(())
             }
-            Expr::Map(pairs) => {
+            Expression::Map(pairs) => {
                 // 验证映射中的每对键值
                 for (_key, value) in pairs {
                     // 键通常是字符串，所以只验证值
@@ -337,47 +337,47 @@ impl GoValidator {
                 }
                 Ok(())
             }
-            Expr::Case { conditions, default } => {
+            Expression::Case { conditions, default } => {
                 // 验证条件和默认值
                 for (condition, result) in conditions {
                     self.validate_expression(condition)?;
                     self.validate_expression(result)?;
                 }
-                if let Some(default_expr) = default {
-                    self.validate_expression(default_expr)?;
+                if let Some(default_expression) = default {
+                    self.validate_expression(default_expression)?;
                 }
                 Ok(())
             }
-            Expr::TypeCast { expr, .. } => {
+            Expression::TypeCast { expression, .. } => {
                 // 验证类型转换表达式
-                self.validate_expression(expr)?;
+                self.validate_expression(expression)?;
                 Ok(())
             }
-            Expr::Subscript { collection, index } => {
+            Expression::Subscript { collection, index } => {
                 // 验证下标访问
                 self.validate_expression(collection)?;
                 self.validate_expression(index)?;
                 Ok(())
             }
-            Expr::Range { collection, start, end } => {
+            Expression::Range { collection, start, end } => {
                 // 验证范围访问
                 self.validate_expression(collection)?;
-                if let Some(start_expr) = start {
-                    self.validate_expression(start_expr)?;
+                if let Some(start_expression) = start {
+                    self.validate_expression(start_expression)?;
                 }
-                if let Some(end_expr) = end {
-                    self.validate_expression(end_expr)?;
+                if let Some(end_expression) = end {
+                    self.validate_expression(end_expression)?;
                 }
                 Ok(())
             }
-            Expr::Path(items) => {
+            Expression::Path(items) => {
                 // 验证路径表达式
                 for item in items {
                     self.validate_expression(item)?;
                 }
                 Ok(())
             }
-            Expr::Label(name) => {
+            Expression::Label(name) => {
                 // 验证标签名称
                 self.validate_label_name(name)?;
                 Ok(())
@@ -509,22 +509,22 @@ impl GoValidator {
     }
 
     /// 推断表达式的类型
-    fn infer_expression_type(&self, expr: &Expr) -> Result<String, ValidationError> {
-        match expr {
-            Expr::Literal(value) => {
+    fn infer_expression_type(&self, expression: &Expression) -> Result<String, ValidationError> {
+        match expression {
+            Expression::Literal(value) => {
                 // 根据字面量值推断类型
                 Ok(self.infer_literal_type(value))
             }
-            Expr::Variable(_) => {
+            Expression::Variable(_) => {
                 // 变量类型的推断可能需要访问符号表
                 // 暂时返回通用类型
                 Ok("ANY".to_string())
             }
-            Expr::Property { .. } => {
+            Expression::Property { .. } => {
                 // 属性访问的类型取决于对象和属性
                 Ok("ANY".to_string())
             }
-            Expr::Binary { left, op, right } => {
+            Expression::Binary { left, op, right } => {
                 // 二元操作的结果类型取决于操作符和操作数类型
                 let left_type = self.infer_expression_type(left)?;
                 let right_type = self.infer_expression_type(right)?;
@@ -554,7 +554,7 @@ impl GoValidator {
                     _ => Ok("ANY".to_string()),
                 }
             }
-            Expr::Unary { op, .. } => {
+            Expression::Unary { op, .. } => {
                 match op {
                     UnaryOperator::Plus | UnaryOperator::Minus => Ok("NUMBER".to_string()),
                     UnaryOperator::Not => Ok("BOOL".to_string()),
@@ -563,7 +563,7 @@ impl GoValidator {
                     _ => Ok("ANY".to_string()),
                 }
             }
-            Expr::Function { name, .. } => {
+            Expression::Function { name, .. } => {
                 // 根据函数名推断返回类型
                 match name.to_uppercase().as_str() {
                     "COALESCE" | "IFNULL" | "NULLIF" => Ok("ANY".to_string()),
@@ -576,7 +576,7 @@ impl GoValidator {
                     _ => Ok("ANY".to_string()), // 未知函数返回ANY类型
                 }
             }
-            Expr::Aggregate { func, .. } => {
+            Expression::Aggregate { func, .. } => {
                 // 根据聚合函数类型推断返回类型
                 match func {
                     AggregateFunction::Count(_) => Ok("INT".to_string()),
@@ -587,14 +587,14 @@ impl GoValidator {
                     AggregateFunction::Percentile(_, _) => Ok("DOUBLE".to_string()),
                 }
             }
-            Expr::List(_) => Ok("LIST".to_string()),
-            Expr::Map(_) => Ok("MAP".to_string()),
-            Expr::Case { .. } => Ok("ANY".to_string()), // CASE表达式类型取决于结果
-            Expr::TypeCast { target_type, .. } => {
+            Expression::List(_) => Ok("LIST".to_string()),
+            Expression::Map(_) => Ok("MAP".to_string()),
+            Expression::Case { .. } => Ok("ANY".to_string()), // CASE表达式类型取决于结果
+            Expression::TypeCast { target_type, .. } => {
                 // 直接返回目标类型
                 Ok(format!("{:?}", target_type).to_uppercase())
             }
-            Expr::Subscript { collection, .. } => {
+            Expression::Subscript { collection, .. } => {
                 // 下标访问的结果类型取决于集合元素类型
                 let collection_type = self.infer_expression_type(collection)?;
                 // 简化处理：如果是LIST则返回ELEMENT，如果是MAP则返回VALUE
@@ -606,15 +606,15 @@ impl GoValidator {
                     Ok("ANY".to_string())
                 }
             }
-            Expr::Range { collection, .. } => {
+            Expression::Range { collection, .. } => {
                 // 范围访问的结果通常是一个列表
                 let _collection_type = self.infer_expression_type(collection)?;
                 Ok("LIST".to_string())
             }
-            Expr::Path(_) => Ok("PATH".to_string()),
-            Expr::Label(_) => Ok("STRING".to_string()),
+            Expression::Path(_) => Ok("PATH".to_string()),
+            Expression::Label(_) => Ok("STRING".to_string()),
             // 属性表达式统一处理
-            Expr::Property { .. } => Ok("ANY".to_string()),
+            Expression::Property { .. } => Ok("ANY".to_string()),
         }
     }
 
@@ -658,7 +658,7 @@ impl GoValidator {
         self.context.over_edges.push(edge);
     }
 
-    pub fn set_where_filter(&mut self, filter: Expr) {
+    pub fn set_where_filter(&mut self, filter: Expression) {
         self.context.where_filter = Some(filter);
     }
 

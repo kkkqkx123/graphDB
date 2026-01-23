@@ -4,8 +4,8 @@
 use crate::core::expression_visitor::{ExpressionVisitor, ExpressionVisitorState};
 use crate::core::Value;
 use crate::core::{AggregateFunction, BinaryOperator, DataType, Expression, UnaryOperator};
-use crate::expression::Expr;
-use crate::query::parser::ast::expr::*;
+use crate::expression::Expression;
+use crate::query::parser::ast::expression::*;
 use std::collections::{HashMap, HashSet};
 
 /// 属性定义
@@ -20,7 +20,7 @@ pub struct PropDef {
 pub struct NodeInfo {
     pub alias: String,
     pub props: HashSet<String>,
-    pub vid: Option<Box<Expr>>,
+    pub vid: Option<Box<Expression>>,
     pub tags: Vec<String>, // 节点上的标签列表
 }
 
@@ -30,9 +30,9 @@ pub struct EdgeInfo {
     pub alias: String,
     pub props: HashSet<String>,
     pub type_name: String,
-    pub src: Option<Box<Expr>>,
-    pub dst: Option<Box<Expr>>,
-    pub rank: Option<Box<Expr>>,
+    pub src: Option<Box<Expression>>,
+    pub dst: Option<Box<Expression>>,
+    pub rank: Option<Box<Expression>>,
     pub steps: String, // "1" or "*"
 }
 
@@ -246,8 +246,8 @@ impl DeducePropsVisitor {
     }
 
     /// 执行属性推导
-    pub fn deduce(&mut self, expr: &Expr) -> Result<(), String> {
-        self.visit_expression(expr)
+    pub fn deduce(&mut self, expression: &Expression) -> Result<(), String> {
+        self.visit_expression(expression)
     }
 
     /// 获取推导出的表达式属性
@@ -319,7 +319,7 @@ impl ExpressionVisitor for DeducePropsVisitor {
         Ok(())
     }
 
-    fn visit_property(&mut self, object: &Expr, property: &str) -> Self::Result {
+    fn visit_property(&mut self, object: &Expression, property: &str) -> Self::Result {
         self.visit_expression(object)?;
         self.props.insert_input_prop(property);
         Ok(())
@@ -327,16 +327,16 @@ impl ExpressionVisitor for DeducePropsVisitor {
 
     fn visit_binary(
         &mut self,
-        left: &Expr,
+        left: &Expression,
         _op: &BinaryOperator,
-        right: &Expr,
+        right: &Expression,
     ) -> Self::Result {
         self.visit_expression(left)?;
         self.visit_expression(right)?;
         Ok(())
     }
 
-    fn visit_unary(&mut self, _op: &UnaryOperator, operand: &Expr) -> Self::Result {
+    fn visit_unary(&mut self, _op: &UnaryOperator, operand: &Expression) -> Self::Result {
         self.visit_expression(operand)
     }
 
@@ -350,7 +350,7 @@ impl ExpressionVisitor for DeducePropsVisitor {
     fn visit_aggregate(
         &mut self,
         _func: &AggregateFunction,
-        arg: &Expr,
+        arg: &Expression,
         _distinct: bool,
     ) -> Self::Result {
         self.visit_expression(arg)
@@ -364,32 +364,32 @@ impl ExpressionVisitor for DeducePropsVisitor {
     }
 
     fn visit_map(&mut self, pairs: &[(String, Expression)]) -> Self::Result {
-        for (_, expr) in pairs {
-            self.visit_expression(expr)?;
+        for (_, expression) in pairs {
+            self.visit_expression(expression)?;
         }
         Ok(())
     }
 
     fn visit_case(
         &mut self,
-        conditions: &[(Expr, Expr)],
-        default: &Option<Box<Expr>>,
+        conditions: &[(Expression, Expression)],
+        default: &Option<Box<Expression>>,
     ) -> Self::Result {
-        for (cond, expr) in conditions {
+        for (cond, expression) in conditions {
             self.visit_expression(cond)?;
-            self.visit_expression(expr)?;
+            self.visit_expression(expression)?;
         }
-        if let Some(default_expr) = default {
-            self.visit_expression(default_expr)?;
+        if let Some(default_expression) = default {
+            self.visit_expression(default_expression)?;
         }
         Ok(())
     }
 
-    fn visit_type_cast(&mut self, expr: &Expr, _target_type: &DataType) -> Self::Result {
-        self.visit_expression(expr)
+    fn visit_type_cast(&mut self, expression: &Expression, _target_type: &DataType) -> Self::Result {
+        self.visit_expression(expression)
     }
 
-    fn visit_subscript(&mut self, collection: &Expr, index: &Expr) -> Self::Result {
+    fn visit_subscript(&mut self, collection: &Expression, index: &Expression) -> Self::Result {
         self.visit_expression(collection)?;
         self.visit_expression(index)?;
         Ok(())
@@ -397,16 +397,16 @@ impl ExpressionVisitor for DeducePropsVisitor {
 
     fn visit_range(
         &mut self,
-        collection: &Expr,
-        start: &Option<Box<Expr>>,
-        end: &Option<Box<Expr>>,
+        collection: &Expression,
+        start: &Option<Box<Expression>>,
+        end: &Option<Box<Expression>>,
     ) -> Self::Result {
         self.visit_expression(collection)?;
-        if let Some(start_expr) = start {
-            self.visit_expression(start_expr)?;
+        if let Some(start_expression) = start {
+            self.visit_expression(start_expression)?;
         }
-        if let Some(end_expr) = end {
-            self.visit_expression(end_expr)?;
+        if let Some(end_expression) = end {
+            self.visit_expression(end_expression)?;
         }
         Ok(())
     }
@@ -484,42 +484,42 @@ mod tests {
     #[test]
     fn test_deduce_visitor_constant() {
         let mut visitor = DeducePropsVisitor::new();
-        let expr = Expr::Literal(crate::core::Value::Int(42));
+        let expression = Expression::Literal(crate::core::Value::Int(42));
 
-        assert!(visitor.deduce(&expr).is_ok());
+        assert!(visitor.deduce(&expression).is_ok());
         assert!(visitor.get_props().is_all_props_empty());
     }
 
     #[test]
     fn test_deduce_visitor_property_variable() {
         let mut visitor = DeducePropsVisitor::new();
-        let expr = Expr::Variable("name".to_string());
+        let expression = Expression::Variable("name".to_string());
 
-        assert!(visitor.deduce(&expr).is_ok());
+        assert!(visitor.deduce(&expression).is_ok());
         assert!(visitor.get_props().input_props.contains("name"));
     }
 
     #[test]
     fn test_deduce_visitor_property() {
         let mut visitor = DeducePropsVisitor::new();
-        let expr = Expr::Property {
-            object: Box::new(Expr::Variable("person".to_string())),
+        let expression = Expression::Property {
+            object: Box::new(Expression::Variable("person".to_string())),
             property: "name".to_string(),
         };
 
-        assert!(visitor.deduce(&expr).is_ok());
+        assert!(visitor.deduce(&expression).is_ok());
     }
 
     #[test]
     fn test_deduce_visitor_binary_op() {
         let mut visitor = DeducePropsVisitor::new();
-        let expr = Expr::Binary {
-            left: Box::new(Expr::Variable("age".to_string())),
+        let expression = Expression::Binary {
+            left: Box::new(Expression::Variable("age".to_string())),
             op: crate::core::BinaryOperator::Add,
-            right: Box::new(Expr::Variable("bonus".to_string())),
+            right: Box::new(Expression::Variable("bonus".to_string())),
         };
 
-        assert!(visitor.deduce(&expr).is_ok());
+        assert!(visitor.deduce(&expression).is_ok());
         let props = visitor.get_props();
         assert!(props.input_props.contains("age"));
         assert!(props.input_props.contains("bonus"));

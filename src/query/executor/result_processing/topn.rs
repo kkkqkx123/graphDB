@@ -125,7 +125,7 @@ impl<S: StorageEngine> TopNExecutor<S> {
                     crate::query::executor::result_processing::sort::SortOrder::Desc
                 };
                 crate::query::executor::result_processing::sort::SortKey::new(
-                    Expr::Variable(col),
+                    Expression::Variable(col),
                     order,
                 )
             })
@@ -174,7 +174,7 @@ impl<S: StorageEngine> TopNExecutor<S> {
                     crate::query::executor::result_processing::sort::SortOrder::Desc
                 };
                 crate::query::executor::result_processing::sort::SortKey::new(
-                    Expr::Variable(format!("col_{}", col.column_index)),
+                    Expression::Variable(format!("col_{}", col.column_index)),
                     order,
                 )
             })

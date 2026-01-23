@@ -4,7 +4,7 @@
 
 use crate::core::Value;
 use crate::query::parser::ast::types::{BinaryOp, UnaryOp};
-use crate::query::parser::ast::expr::*;
+use crate::query::parser::ast::expression::*;
 use crate::query::parser::core::error::{ParseError, ParseErrorKind};
 use crate::query::parser::core::position::Position;
 use crate::query::parser::core::position::Span;
@@ -22,54 +22,54 @@ impl<'a> ExprParser<'a> {
         }
     }
 
-    pub fn parse_expression(&mut self, ctx: &mut ParseContext<'a>) -> Result<Expr, ParseError> {
+    pub fn parse_expression(&mut self, ctx: &mut ParseContext<'a>) -> Result<Expression, ParseError> {
         self.parse_or_expression(ctx)
     }
 
-    fn parse_or_expression(&mut self, ctx: &mut ParseContext<'a>) -> Result<Expr, ParseError> {
+    fn parse_or_expression(&mut self, ctx: &mut ParseContext<'a>) -> Result<Expression, ParseError> {
         let mut left = self.parse_and_expression(ctx)?;
 
         while ctx.match_token(TokenKind::Or) {
             let op = BinaryOp::Or;
             let right = self.parse_and_expression(ctx)?;
             let span = ctx.merge_span(left.span().start, right.span().end);
-            left = Expr::Binary(BinaryExpr::new(left, op, right, span));
+            left = Expression::Binary(BinaryExpression::new(left, op, right, span));
         }
 
         Ok(left)
     }
 
-    fn parse_and_expression(&mut self, ctx: &mut ParseContext<'a>) -> Result<Expr, ParseError> {
+    fn parse_and_expression(&mut self, ctx: &mut ParseContext<'a>) -> Result<Expression, ParseError> {
         let mut left = self.parse_not_expression(ctx)?;
 
         while ctx.match_token(TokenKind::And) {
             let op = BinaryOp::And;
             let right = self.parse_not_expression(ctx)?;
             let span = ctx.merge_span(left.span().start, right.span().end);
-            left = Expr::Binary(BinaryExpr::new(left, op, right, span));
+            left = Expression::Binary(BinaryExpression::new(left, op, right, span));
         }
 
         Ok(left)
     }
 
-    fn parse_not_expression(&mut self, ctx: &mut ParseContext<'a>) -> Result<Expr, ParseError> {
+    fn parse_not_expression(&mut self, ctx: &mut ParseContext<'a>) -> Result<Expression, ParseError> {
         if ctx.match_token(TokenKind::Not) {
             let op = UnaryOp::Not;
             let operand = self.parse_not_expression(ctx)?;
             let span = ctx.merge_span(operand.span().start, operand.span().end);
-            Ok(Expr::Unary(UnaryExpr::new(op, operand, span)))
+            Ok(Expression::Unary(UnaryExpression::new(op, operand, span)))
         } else {
             self.parse_comparison_expression(ctx)
         }
     }
 
-    fn parse_comparison_expression(&mut self, ctx: &mut ParseContext<'a>) -> Result<Expr, ParseError> {
+    fn parse_comparison_expression(&mut self, ctx: &mut ParseContext<'a>) -> Result<Expression, ParseError> {
         let mut left = self.parse_additive_expression(ctx)?;
 
         if let Some(op) = self.parse_comparison_op(ctx) {
             let right = self.parse_additive_expression(ctx)?;
             let span = ctx.merge_span(left.span().start, right.span().end);
-            left = Expr::Binary(BinaryExpr::new(left, op, right, span));
+            left = Expression::Binary(BinaryExpression::new(left, op, right, span));
         }
 
         Ok(left)
@@ -121,13 +121,13 @@ impl<'a> ExprParser<'a> {
         }
     }
 
-    fn parse_additive_expression(&mut self, ctx: &mut ParseContext<'a>) -> Result<Expr, ParseError> {
+    fn parse_additive_expression(&mut self, ctx: &mut ParseContext<'a>) -> Result<Expression, ParseError> {
         let mut left = self.parse_multiplicative_expression(ctx)?;
 
         while let Some(op) = self.parse_additive_op(ctx) {
             let right = self.parse_multiplicative_expression(ctx)?;
             let span = ctx.merge_span(left.span().start, right.span().end);
-            left = Expr::Binary(BinaryExpr::new(left, op, right, span));
+            left = Expression::Binary(BinaryExpression::new(left, op, right, span));
         }
 
         Ok(left)
@@ -147,13 +147,13 @@ impl<'a> ExprParser<'a> {
         }
     }
 
-    fn parse_multiplicative_expression(&mut self, ctx: &mut ParseContext<'a>) -> Result<Expr, ParseError> {
+    fn parse_multiplicative_expression(&mut self, ctx: &mut ParseContext<'a>) -> Result<Expression, ParseError> {
         let mut left = self.parse_unary_expression(ctx)?;
 
         while let Some(op) = self.parse_multiplicative_op(ctx) {
             let right = self.parse_unary_expression(ctx)?;
             let span = ctx.merge_span(left.span().start, right.span().end);
-            left = Expr::Binary(BinaryExpr::new(left, op, right, span));
+            left = Expression::Binary(BinaryExpression::new(left, op, right, span));
         }
 
         Ok(left)
@@ -177,29 +177,29 @@ impl<'a> ExprParser<'a> {
         }
     }
 
-    fn parse_unary_expression(&mut self, ctx: &mut ParseContext<'a>) -> Result<Expr, ParseError> {
+    fn parse_unary_expression(&mut self, ctx: &mut ParseContext<'a>) -> Result<Expression, ParseError> {
         if ctx.match_token(TokenKind::Minus) {
             let op = UnaryOp::Minus;
             let operand = self.parse_unary_expression(ctx)?;
             let span = ctx.merge_span(operand.span().start, operand.span().end);
-            Ok(Expr::Unary(UnaryExpr::new(op, operand, span)))
+            Ok(Expression::Unary(UnaryExpression::new(op, operand, span)))
         } else if ctx.match_token(TokenKind::Plus) {
             let op = UnaryOp::Plus;
             let operand = self.parse_unary_expression(ctx)?;
             let span = ctx.merge_span(operand.span().start, operand.span().end);
-            Ok(Expr::Unary(UnaryExpr::new(op, operand, span)))
+            Ok(Expression::Unary(UnaryExpression::new(op, operand, span)))
         } else if ctx.match_token(TokenKind::NotOp) {
             let op = UnaryOp::Not;
             let operand = self.parse_unary_expression(ctx)?;
             let span = ctx.merge_span(operand.span().start, operand.span().end);
-            Ok(Expr::Unary(UnaryExpr::new(op, operand, span)))
+            Ok(Expression::Unary(UnaryExpression::new(op, operand, span)))
         } else {
             self.parse_exponentiation_expression(ctx)
         }
     }
 
-    fn parse_exponentiation_expression(&mut self, ctx: &mut ParseContext<'a>) -> Result<Expr, ParseError> {
-        let mut expr = self.parse_postfix_expression(ctx)?;
+    fn parse_exponentiation_expression(&mut self, ctx: &mut ParseContext<'a>) -> Result<Expression, ParseError> {
+        let mut expression = self.parse_postfix_expression(ctx)?;
 
         if ctx.match_token(TokenKind::Exp) {
             let mut right_operands = Vec::new();
@@ -209,45 +209,45 @@ impl<'a> ExprParser<'a> {
             }
 
             for operand in right_operands.into_iter().rev() {
-                let span = ctx.merge_span(expr.span().start, operand.span().end);
-                expr = Expr::Binary(BinaryExpr::new(expr, BinaryOp::Exponent, operand, span));
+                let span = ctx.merge_span(expression.span().start, operand.span().end);
+                expression = Expression::Binary(BinaryExpression::new(expression, BinaryOp::Exponent, operand, span));
             }
         }
 
-        Ok(expr)
+        Ok(expression)
     }
 
-    fn parse_postfix_expression(&mut self, ctx: &mut ParseContext<'a>) -> Result<Expr, ParseError> {
-        let mut expr = self.parse_primary_expression(ctx)?;
+    fn parse_postfix_expression(&mut self, ctx: &mut ParseContext<'a>) -> Result<Expression, ParseError> {
+        let mut expression = self.parse_primary_expression(ctx)?;
 
         loop {
             if ctx.match_token(TokenKind::LBracket) {
                 let index = self.parse_expression(ctx)?;
                 ctx.expect_token(TokenKind::RBracket)?;
-                let span = ctx.merge_span(expr.span().start, ctx.current_position());
-                expr = Expr::Subscript(SubscriptExpr::new(expr, index, span));
+                let span = ctx.merge_span(expression.span().start, ctx.current_position());
+                expression = Expression::Subscript(SubscriptExpression::new(expression, index, span));
             } else if ctx.match_token(TokenKind::Dot) {
                 let property = ctx.expect_identifier()?;
-                let span = ctx.merge_span(expr.span().start, ctx.current_position());
-                expr = Expr::PropertyAccess(PropertyAccessExpr::new(expr, property, span));
+                let span = ctx.merge_span(expression.span().start, ctx.current_position());
+                expression = Expression::PropertyAccess(PropertyAccessExpression::new(expression, property, span));
             } else {
                 break;
             }
         }
 
-        Ok(expr)
+        Ok(expression)
     }
 
-    fn parse_primary_expression(&mut self, ctx: &mut ParseContext<'a>) -> Result<Expr, ParseError> {
+    fn parse_primary_expression(&mut self, ctx: &mut ParseContext<'a>) -> Result<Expression, ParseError> {
         let token = ctx.current_token().clone();
         let start_pos = ctx.current_position();
 
         match token.kind {
             TokenKind::LParen => {
                 ctx.next_token();
-                let expr = self.parse_expression(ctx)?;
+                let expression = self.parse_expression(ctx)?;
                 ctx.expect_token(TokenKind::RParen)?;
-                Ok(expr)
+                Ok(expression)
             }
             TokenKind::Identifier(name) => {
                 ctx.next_token();
@@ -255,33 +255,33 @@ impl<'a> ExprParser<'a> {
                 if ctx.match_token(TokenKind::LParen) {
                     self.parse_function_call(name, span, ctx)
                 } else {
-                    Ok(Expr::Variable(VariableExpr::new(name, span)))
+                    Ok(Expression::Variable(VariableExpression::new(name, span)))
                 }
             }
             TokenKind::IntegerLiteral(n) => {
                 ctx.next_token();
                 let span = ctx.merge_span(start_pos, ctx.current_position());
-                Ok(Expr::Constant(ConstantExpr::new(Value::Int(n), span)))
+                Ok(Expression::Constant(ConstantExpression::new(Value::Int(n), span)))
             }
             TokenKind::FloatLiteral(f) => {
                 ctx.next_token();
                 let span = ctx.merge_span(start_pos, ctx.current_position());
-                Ok(Expr::Constant(ConstantExpr::new(Value::Float(f), span)))
+                Ok(Expression::Constant(ConstantExpression::new(Value::Float(f), span)))
             }
             TokenKind::StringLiteral(s) => {
                 ctx.next_token();
                 let span = ctx.merge_span(start_pos, ctx.current_position());
-                Ok(Expr::Constant(ConstantExpr::new(Value::String(s), span)))
+                Ok(Expression::Constant(ConstantExpression::new(Value::String(s), span)))
             }
             TokenKind::BooleanLiteral(b) => {
                 ctx.next_token();
                 let span = ctx.merge_span(start_pos, ctx.current_position());
-                Ok(Expr::Constant(ConstantExpr::new(Value::Bool(b), span)))
+                Ok(Expression::Constant(ConstantExpression::new(Value::Bool(b), span)))
             }
             TokenKind::Null => {
                 ctx.next_token();
                 let span = ctx.merge_span(start_pos, ctx.current_position());
-                Ok(Expr::Constant(ConstantExpr::new(Value::Null(crate::core::NullType::Null), span)))
+                Ok(Expression::Constant(ConstantExpression::new(Value::Null(crate::core::NullType::Null), span)))
             }
             TokenKind::Count | TokenKind::Sum | TokenKind::Avg | TokenKind::Min | TokenKind::Max => {
                 let func_name = token.lexeme.clone();
@@ -294,14 +294,14 @@ impl<'a> ExprParser<'a> {
                 let elements = self.parse_expression_list(ctx)?;
                 ctx.expect_token(TokenKind::RBracket)?;
                 let span = ctx.merge_span(start_pos, ctx.current_position());
-                Ok(Expr::List(ListExpr::new(elements, span)))
+                Ok(Expression::List(ListExpression::new(elements, span)))
             }
             TokenKind::LBracket => {
                 ctx.next_token();
                 let elements = self.parse_expression_list(ctx)?;
                 ctx.expect_token(TokenKind::RBracket)?;
                 let span = ctx.merge_span(start_pos, ctx.current_position());
-                Ok(Expr::List(ListExpr::new(elements, span)))
+                Ok(Expression::List(ListExpression::new(elements, span)))
             }
             TokenKind::Map => {
                 ctx.next_token();
@@ -309,14 +309,14 @@ impl<'a> ExprParser<'a> {
                 let properties = self.parse_property_list(ctx)?;
                 ctx.expect_token(TokenKind::RBrace)?;
                 let span = ctx.merge_span(start_pos, ctx.current_position());
-                Ok(Expr::Map(MapExpr::new(properties, span)))
+                Ok(Expression::Map(MapExpression::new(properties, span)))
             }
             TokenKind::LBrace => {
                 ctx.next_token();
                 let properties = self.parse_property_list(ctx)?;
                 ctx.expect_token(TokenKind::RBrace)?;
                 let span = ctx.merge_span(start_pos, ctx.current_position());
-                Ok(Expr::Map(MapExpr::new(properties, span)))
+                Ok(Expression::Map(MapExpression::new(properties, span)))
             }
             _ => {
                 Err(ParseError::new(
@@ -328,7 +328,7 @@ impl<'a> ExprParser<'a> {
         }
     }
 
-    fn parse_function_call(&mut self, name: String, span: Span, ctx: &mut ParseContext<'a>) -> Result<Expr, ParseError> {
+    fn parse_function_call(&mut self, name: String, span: Span, ctx: &mut ParseContext<'a>) -> Result<Expression, ParseError> {
         let args = if ctx.match_token(TokenKind::RParen) {
             Vec::new()
         } else {
@@ -336,10 +336,10 @@ impl<'a> ExprParser<'a> {
             ctx.expect_token(TokenKind::RParen)?;
             args
         };
-        Ok(Expr::FunctionCall(FunctionCallExpr::new(name, args, false, span)))
+        Ok(Expression::FunctionCall(FunctionCallExpression::new(name, args, false, span)))
     }
 
-    fn parse_expression_list(&mut self, ctx: &mut ParseContext<'a>) -> Result<Vec<Expr>, ParseError> {
+    fn parse_expression_list(&mut self, ctx: &mut ParseContext<'a>) -> Result<Vec<Expression>, ParseError> {
         let mut expressions = Vec::new();
         expressions.push(self.parse_expression(ctx)?);
         while ctx.match_token(TokenKind::Comma) {
@@ -348,7 +348,7 @@ impl<'a> ExprParser<'a> {
         Ok(expressions)
     }
 
-    fn parse_property_list(&mut self, ctx: &mut ParseContext<'a>) -> Result<Vec<(String, Expr)>, ParseError> {
+    fn parse_property_list(&mut self, ctx: &mut ParseContext<'a>) -> Result<Vec<(String, Expression)>, ParseError> {
         let mut properties = Vec::new();
         while !ctx.match_token(TokenKind::RBrace) {
             let key = ctx.expect_identifier()?;

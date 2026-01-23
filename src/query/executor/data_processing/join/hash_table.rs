@@ -2,7 +2,7 @@
 //!
 //! 提供高效的哈希表用于join操作，支持内存限制和磁盘溢出
 
-use crate::core::types::expression::Expr;
+use crate::core::types::expression::Expression;
 use crate::core::{DBError, DBResult, DataSet, Value};
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::evaluator::traits::ExpressionContext;
@@ -800,8 +800,8 @@ pub fn build_hash_table(
 
         // 评估表达式获取键值
         let mut key_values = Vec::new();
-        for key_expr in key_exprs {
-            match ExpressionEvaluator::evaluate(key_expr, &mut expr_context) {
+        for key_expression in key_exprs {
+            match ExpressionEvaluator::evaluate(key_expression, &mut expr_context) {
                 Ok(value) => key_values.push(value),
                 Err(e) => return Err(format!("键表达式求值失败: {}", e)),
             }
@@ -854,8 +854,8 @@ pub fn extract_key_values(
 
     let mut key_values = Vec::new();
 
-    for key_expr in key_exprs {
-        if let Ok(value) = ExpressionEvaluator::evaluate(key_expr, &mut expr_context) {
+    for key_expression in key_exprs {
+        if let Ok(value) = ExpressionEvaluator::evaluate(key_expression, &mut expr_context) {
             key_values.push(value);
         }
     }

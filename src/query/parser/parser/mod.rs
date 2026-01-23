@@ -274,7 +274,7 @@ impl<'a> Parser<'a> {
         stmt_parser.parse_statement(&mut self.ctx)
     }
 
-    pub fn parse_expression(&mut self) -> Result<Expr, ParseError> {
+    pub fn parse_expression(&mut self) -> Result<Expression, ParseError> {
         let mut expr_parser = ExprParser::new(&self.ctx);
         expr_parser.parse_expression(&mut self.ctx)
     }
@@ -293,4 +293,4 @@ impl<'a> Parser<'a> {
 }
 
 use crate::query::parser::ast::stmt::Stmt;
-use crate::query::parser::ast::expr::Expr;
+use crate::query::parser::ast::expression::Expression;

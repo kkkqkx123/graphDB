@@ -13,7 +13,7 @@ pub use crate::core::expression_visitor::{
 pub use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 
 // Re-export Core expression types
-pub use crate::core::types::expression::{Expr, DataType};
+pub use crate::core::types::expression::{Expression, DataType};
 
 // Re-export Core type utils
 pub use crate::core::TypeUtils;

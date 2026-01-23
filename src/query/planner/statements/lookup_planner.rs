@@ -7,7 +7,7 @@
 //! - 完善表达式解析
 //! - 添加属性索引选择逻辑
 
-use crate::core::types::expression::Expr;
+use crate::core::types::expression::Expression;
 use crate::query::context::ast::{AstContext, LookupContext};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
@@ -81,7 +81,7 @@ impl Planner for LookupPlanner {
         let mut current_node: PlanNodeEnum = PlanNodeEnum::IndexScan(index_scan_node);
 
         if lookup_ctx.is_fulltext_index && lookup_ctx.has_score {
-            let id_expr = Expr::Variable("id".to_string());
+            let id_expression = Expression::Variable("id".to_string());
 
             let get_node = if lookup_ctx.is_edge {
                 let get_edges = GetEdgesNode::new(space_id as i32, "", "", "", "");
@@ -95,7 +95,7 @@ impl Planner for LookupPlanner {
             let argument_enum = PlanNodeEnum::Argument(argument_node);
 
             let hash_join =
-                HashInnerJoinNode::new(get_node, argument_enum, vec![id_expr.clone()], vec![id_expr])
+                HashInnerJoinNode::new(get_node, argument_enum, vec![id_expression.clone()], vec![id_expression])
                     .map_err(|e| {
                         PlannerError::PlanGenerationFailed(format!(
                             "Failed to create HashInnerJoinNode: {}",
@@ -159,17 +159,17 @@ impl LookupPlanner {
     ) -> Result<Vec<crate::query::validator::YieldColumn>, PlannerError> {
         let mut columns = Vec::new();
 
-        if let Some(ref yield_expr) = lookup_ctx.yield_expr {
-            for col in &yield_expr.columns {
+        if let Some(ref yield_expression) = lookup_ctx.yield_expression {
+            for col in &yield_expression.columns {
                 columns.push(crate::query::validator::YieldColumn {
-                    expr: Self::parse_yield_expression(&col.name(), lookup_ctx.is_edge)?,
+                    expression: Self::parse_yield_expression(&col.name(), lookup_ctx.is_edge)?,
                     alias: col.alias.clone(),
                     is_matched: false,
                 });
             }
         } else {
             columns.push(crate::query::validator::YieldColumn {
-                expr: Expr::Variable("*".to_string()),
+                expression: Expression::Variable("*".to_string()),
                 alias: "result".to_string(),
                 is_matched: false,
             });
@@ -177,7 +177,7 @@ impl LookupPlanner {
 
         if columns.is_empty() {
             columns.push(crate::query::validator::YieldColumn {
-                expr: Expr::Variable("*".to_string()),
+                expression: Expression::Variable("*".to_string()),
                 alias: "result".to_string(),
                 is_matched: false,
             });
@@ -191,14 +191,14 @@ impl LookupPlanner {
         if name.contains(".") {
             let parts: Vec<&str> = name.split(".").collect();
             if parts.len() == 2 {
-                return Ok(Expr::Property {
-                    object: Box::new(Expr::Variable(parts[0].to_string())),
+                return Ok(Expression::Property {
+                    object: Box::new(Expression::Variable(parts[0].to_string())),
                     property: parts[1].to_string(),
                 });
             }
         }
 
-        Ok(Expr::Variable(name.to_string()))
+        Ok(Expression::Variable(name.to_string()))
     }
 }
 

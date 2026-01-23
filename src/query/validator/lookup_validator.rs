@@ -86,7 +86,7 @@ impl LookupValidator {
         if let Some(filter) = &self.filter_expression {
             self.validate_filter_type(filter)?;
 
-            if self.has_aggregate_expr(filter) {
+            if self.has_aggregate_expression(filter) {
                 return Err(ValidationError::new(
                     "LOOKUP filter cannot contain aggregate expressions".to_string(),
                     ValidationErrorType::SemanticError,
@@ -108,9 +108,9 @@ impl LookupValidator {
         }
     }
 
-    fn has_aggregate_expr(&self, expr: &Expression) -> bool {
+    fn has_aggregate_expression(&self, expression: &Expression) -> bool {
         let type_validator = TypeValidator::new();
-        type_validator.has_aggregate_expression(expr)
+        type_validator.has_aggregate_expression(expression)
     }
 
     fn validate_yields(&self) -> Result<(), ValidationError> {
@@ -167,8 +167,8 @@ impl Validator {
     ) -> Result<(), ValidationError> {
         let mut validator = LookupValidator::new(self.context().clone());
         validator.set_lookup_target(target);
-        if let Some(filter_expr) = filter {
-            validator.set_filter(filter_expr);
+        if let Some(filter_expression) = filter {
+            validator.set_filter(filter_expression);
         }
         for col in yield_columns {
             validator.add_yield_column(col.clone());

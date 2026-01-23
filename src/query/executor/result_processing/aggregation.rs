@@ -380,9 +380,9 @@ impl<S: StorageEngine> AggregateExecutor<S> {
 
             // 计算分组键
             let mut group_key = Vec::new();
-            for group_expr in &self.group_keys {
+            for group_expression in &self.group_keys {
                 let key_value =
-                    ExpressionEvaluator::evaluate(group_expr, &mut context).map_err(|e| {
+                    ExpressionEvaluator::evaluate(group_expression, &mut context).map_err(|e| {
                         crate::core::error::DBError::Expression(
                             crate::core::error::ExpressionError::function_error(format!(
                                 "Failed to evaluate group key: {}",
@@ -499,7 +499,7 @@ impl<S: StorageEngine> AggregateExecutor<S> {
         let mut result_dataset = crate::core::value::DataSet::new();
 
         // 设置列名
-        for _group_expr in &self.group_keys {
+        for _group_expression in &self.group_keys {
             result_dataset
                 .col_names
                 .push(format!("group_{}", result_dataset.col_names.len()));
@@ -1004,7 +1004,7 @@ mod tests {
 
         // 创建聚合执行器 (按部门分组，计算平均薪资)
         let aggregate_functions = vec![AggregateFunctionSpec::avg("salary".to_string())];
-        let group_keys = vec![Expr::variable("department")];
+        let group_keys = vec![Expression::variable("department")];
 
         let mut executor = AggregateExecutor::new(1, storage, aggregate_functions, group_keys);
 

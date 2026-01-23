@@ -11,8 +11,8 @@ use crate::core::{
     BinaryOperator, DataType, Expression, UnaryOperator, Value,
 };
 use crate::core::types::operators::AggregateFunction;
-use crate::expression::Expr;
-use crate::query::parser::ast::expr::*;
+use crate::expression::Expression;
+use crate::query::parser::ast::expression::*;
 use std::collections::{HashMap, HashSet};
 
 /// 属性表达式提取结果
@@ -40,28 +40,28 @@ impl ExtractedProps {
 
     /// 插入源属性
     pub fn insert_src_prop(&mut self, tag: String, prop: String) {
-        let expr = format!("$^.{}.{}", tag, prop);
+        let expression = format!("$^.{}.{}", tag, prop);
         if !self.src_props.contains(&(tag.clone(), prop.clone())) {
             self.src_props.push((tag, prop));
-            self.unique_edge_vertex_cols.insert(expr);
+            self.unique_edge_vertex_cols.insert(expression);
         }
     }
 
     /// 插入边属性
     pub fn insert_edge_prop(&mut self, edge: String, prop: String) {
-        let expr = format!("{}.{}", edge, prop);
+        let expression = format!("{}.{}", edge, prop);
         if !self.edge_props.contains(&(edge.clone(), prop.clone())) {
             self.edge_props.push((edge, prop));
-            self.unique_edge_vertex_cols.insert(expr);
+            self.unique_edge_vertex_cols.insert(expression);
         }
     }
 
     /// 插入目标属性
     pub fn insert_dst_prop(&mut self, tag: String, prop: String) {
-        let expr = format!("$$.{}.{}", tag, prop);
+        let expression = format!("$$.{}.{}", tag, prop);
         if !self.dst_props.contains(&(tag.clone(), prop.clone())) {
             self.dst_props.push((tag, prop));
-            self.unique_edge_vertex_cols.insert(expr);
+            self.unique_edge_vertex_cols.insert(expression);
         }
     }
 
@@ -73,8 +73,8 @@ impl ExtractedProps {
     }
 
     /// 插入属性表达式到列的映射
-    pub fn insert_prop_expr_col(&mut self, expr: String, col: String) {
-        self.prop_expr_col_map.insert(expr, col);
+    pub fn insert_prop_expr_col(&mut self, expression: String, col: String) {
+        self.prop_expr_col_map.insert(expression, col);
     }
 
     /// 合并另一个 ExtractedProps
@@ -95,8 +95,8 @@ impl ExtractedProps {
             self.insert_input_prop(prop.clone());
         }
 
-        for (expr, col) in &other.prop_expr_col_map {
-            self.prop_expr_col_map.insert(expr.clone(), col.clone());
+        for (expression, col) in &other.prop_expr_col_map {
+            self.prop_expr_col_map.insert(expression.clone(), col.clone());
         }
 
         for col in &other.unique_edge_vertex_cols {
@@ -137,11 +137,11 @@ impl ExtractPropExprVisitor {
     }
 
     /// 提取属性表达式
-    pub fn extract(&mut self, expr: &Expr) -> Result<ExtractedProps, String> {
+    pub fn extract(&mut self, expression: &Expression) -> Result<ExtractedProps, String> {
         self.extracted_props = ExtractedProps::new();
         self.error = None;
 
-        self.visit_expression(expr)?;
+        self.visit_expression(expression)?;
 
         if let Some(err) = &self.error {
             Err(err.clone())
@@ -179,21 +179,21 @@ impl ExpressionVisitor for ExtractPropExprVisitor {
         Ok(())
     }
 
-    fn visit_property(&mut self, object: &Expr, _property: &str) -> Self::Result {
+    fn visit_property(&mut self, object: &Expression, _property: &str) -> Self::Result {
         self.visit_expression(object)
     }
 
     fn visit_binary(
         &mut self,
-        left: &Expr,
+        left: &Expression,
         _op: &BinaryOperator,
-        right: &Expr,
+        right: &Expression,
     ) -> Self::Result {
         self.visit_expression(left)?;
         self.visit_expression(right)
     }
 
-    fn visit_unary(&mut self, _op: &UnaryOperator, operand: &Expr) -> Self::Result {
+    fn visit_unary(&mut self, _op: &UnaryOperator, operand: &Expression) -> Self::Result {
         self.visit_expression(operand)
     }
 
@@ -203,7 +203,7 @@ impl ExpressionVisitor for ExtractPropExprVisitor {
         match name_upper.as_str() {
             "ID" | "SRC" | "DST" => {
                 if !args.is_empty() {
-                    if let Expr::Variable(alias) = &args[0] {
+                    if let Expression::Variable(alias) = &args[0] {
                         self.extracted_props.insert_input_prop(alias.clone());
                     }
                 }
@@ -220,7 +220,7 @@ impl ExpressionVisitor for ExtractPropExprVisitor {
     fn visit_aggregate(
         &mut self,
         _func: &AggregateFunction,
-        arg: &Expr,
+        arg: &Expression,
         _distinct: bool,
     ) -> Self::Result {
         self.visit_expression(arg)
@@ -234,48 +234,48 @@ impl ExpressionVisitor for ExtractPropExprVisitor {
     }
 
     fn visit_map(&mut self, pairs: &[(String, Expression)]) -> Self::Result {
-        for (_, expr) in pairs {
-            self.visit_expression(expr)?;
+        for (_, expression) in pairs {
+            self.visit_expression(expression)?;
         }
         Ok(())
     }
 
     fn visit_case(
         &mut self,
-        conditions: &[(Expr, Expr)],
-        default: &Option<Box<Expr>>,
+        conditions: &[(Expression, Expression)],
+        default: &Option<Box<Expression>>,
     ) -> Self::Result {
-        for (cond, expr) in conditions {
+        for (cond, expression) in conditions {
             self.visit_expression(cond)?;
-            self.visit_expression(expr)?;
+            self.visit_expression(expression)?;
         }
-        if let Some(default_expr) = default {
-            self.visit_expression(default_expr)?;
+        if let Some(default_expression) = default {
+            self.visit_expression(default_expression)?;
         }
         Ok(())
     }
 
-    fn visit_type_cast(&mut self, expr: &Expr, _target_type: &DataType) -> Self::Result {
-        self.visit_expression(expr)
+    fn visit_type_cast(&mut self, expression: &Expression, _target_type: &DataType) -> Self::Result {
+        self.visit_expression(expression)
     }
 
-    fn visit_subscript(&mut self, collection: &Expr, index: &Expr) -> Self::Result {
+    fn visit_subscript(&mut self, collection: &Expression, index: &Expression) -> Self::Result {
         self.visit_expression(collection)?;
         self.visit_expression(index)
     }
 
     fn visit_range(
         &mut self,
-        collection: &Expr,
-        start: &Option<Box<Expr>>,
-        end: &Option<Box<Expr>>,
+        collection: &Expression,
+        start: &Option<Box<Expression>>,
+        end: &Option<Box<Expression>>,
     ) -> Self::Result {
         self.visit_expression(collection)?;
-        if let Some(start_expr) = start {
-            self.visit_expression(start_expr)?;
+        if let Some(start_expression) = start {
+            self.visit_expression(start_expression)?;
         }
-        if let Some(end_expr) = end {
-            self.visit_expression(end_expr)?;
+        if let Some(end_expression) = end {
+            self.visit_expression(end_expression)?;
         }
         Ok(())
     }

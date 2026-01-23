@@ -407,12 +407,12 @@ impl<'a> StmtParser<'a> {
         }))
     }
 
-    fn parse_expression(&mut self, ctx: &mut ParseContext<'a>) -> Result<Expr, ParseError> {
+    fn parse_expression(&mut self, ctx: &mut ParseContext<'a>) -> Result<Expression, ParseError> {
         let mut expr_parser = ExprParser::new(ctx);
         expr_parser.parse_expression(ctx)
     }
 
-    fn parse_expression_list(&mut self, ctx: &mut ParseContext<'a>) -> Result<Vec<Expr>, ParseError> {
+    fn parse_expression_list(&mut self, ctx: &mut ParseContext<'a>) -> Result<Vec<Expression>, ParseError> {
         let mut expressions = Vec::new();
         expressions.push(self.parse_expression(ctx)?);
         while ctx.match_token(TokenKind::Comma) {
@@ -427,13 +427,13 @@ impl<'a> StmtParser<'a> {
             if ctx.match_token(TokenKind::Star) {
                 items.push(ReturnItem::All);
             } else {
-                let expr = self.parse_expression(ctx)?;
+                let expression = self.parse_expression(ctx)?;
                 let alias = if ctx.match_token(TokenKind::As) {
                     Some(ctx.expect_identifier()?)
                 } else {
                     None
                 };
-                items.push(ReturnItem::Expression { expr, alias });
+                items.push(ReturnItem::Expression { expression, alias });
             }
             if !ctx.match_token(TokenKind::Comma) {
                 break;
@@ -470,13 +470,13 @@ impl<'a> StmtParser<'a> {
     fn parse_yield_items(&mut self, ctx: &mut ParseContext<'a>) -> Result<Vec<YieldItem>, ParseError> {
         let mut items = Vec::new();
         loop {
-            let expr = self.parse_expression(ctx)?;
+            let expression = self.parse_expression(ctx)?;
             let alias = if ctx.match_token(TokenKind::As) {
                 Some(ctx.expect_identifier()?)
             } else {
                 None
             };
-            items.push(YieldItem { expr, alias });
+            items.push(YieldItem { expression, alias });
             if !ctx.match_token(TokenKind::Comma) {
                 break;
             }

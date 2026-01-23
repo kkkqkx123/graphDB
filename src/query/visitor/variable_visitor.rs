@@ -3,7 +3,7 @@
 
 use crate::core::expression_visitor::{ExpressionVisitor, ExpressionVisitorState};
 use crate::core::Value;
-use crate::expression::Expr;
+use crate::expression::Expression;
 use std::collections::HashSet;
 
 #[derive(Debug)]
@@ -23,16 +23,16 @@ impl VariableVisitor {
     }
 
     /// 收集表达式中使用的所有变量
-    pub fn collect_variables(&mut self, expr: &Expr) -> HashSet<String> {
+    pub fn collect_variables(&mut self, expression: &Expression) -> HashSet<String> {
         self.variables.clear();
-        let _ = self.visit_expression(expr);
+        let _ = self.visit_expression(expression);
         self.variables.clone()
     }
 
     /// 检查表达式中是否包含变量
-    pub fn has_variables(&mut self, expr: &Expr) -> bool {
+    pub fn has_variables(&mut self, expression: &Expression) -> bool {
         self.variables.clear();
-        let _ = self.visit_expression(expr);
+        let _ = self.visit_expression(expression);
         !self.variables.is_empty()
     }
 
@@ -64,15 +64,15 @@ impl ExpressionVisitor for VariableVisitor {
 
     fn visit_literal(&mut self, _value: &Value) -> Self::Result {}
 
-    fn visit_property(&mut self, object: &Expr, _property: &str) -> Self::Result {
+    fn visit_property(&mut self, object: &Expression, _property: &str) -> Self::Result {
         self.visit_expression(object);
     }
 
     fn visit_binary(
         &mut self,
-        left: &Expr,
+        left: &Expression,
         _op: &crate::core::types::operators::BinaryOperator,
-        right: &Expr,
+        right: &Expression,
     ) -> Self::Result {
         self.visit_expression(left);
         self.visit_expression(right);
@@ -81,12 +81,12 @@ impl ExpressionVisitor for VariableVisitor {
     fn visit_unary(
         &mut self,
         _op: &crate::core::types::operators::UnaryOperator,
-        operand: &Expr,
+        operand: &Expression,
     ) -> Self::Result {
         self.visit_expression(operand);
     }
 
-    fn visit_function(&mut self, _name: &str, args: &[Expr]) -> Self::Result {
+    fn visit_function(&mut self, _name: &str, args: &[Expression]) -> Self::Result {
         for arg in args {
             self.visit_expression(arg);
         }
@@ -95,19 +95,19 @@ impl ExpressionVisitor for VariableVisitor {
     fn visit_aggregate(
         &mut self,
         _func: &crate::core::types::operators::AggregateFunction,
-        arg: &Expr,
+        arg: &Expression,
         _distinct: bool,
     ) -> Self::Result {
         self.visit_expression(arg);
     }
 
-    fn visit_list(&mut self, items: &[Expr]) -> Self::Result {
+    fn visit_list(&mut self, items: &[Expression]) -> Self::Result {
         for item in items {
             self.visit_expression(item);
         }
     }
 
-    fn visit_map(&mut self, pairs: &[(String, Expr)]) -> Self::Result {
+    fn visit_map(&mut self, pairs: &[(String, Expression)]) -> Self::Result {
         for (_, value) in pairs {
             self.visit_expression(value);
         }
@@ -115,47 +115,47 @@ impl ExpressionVisitor for VariableVisitor {
 
     fn visit_case(
         &mut self,
-        conditions: &[(Expr, Expr)],
-        default: &Option<Box<Expr>>,
+        conditions: &[(Expression, Expression)],
+        default: &Option<Box<Expression>>,
     ) -> Self::Result {
         for (condition, value) in conditions {
             self.visit_expression(condition);
             self.visit_expression(value);
         }
-        if let Some(expr) = default {
-            self.visit_expression(expr);
+        if let Some(expression) = default {
+            self.visit_expression(expression);
         }
     }
 
     fn visit_type_cast(
         &mut self,
-        expr: &Expr,
+        expression: &Expression,
         _target_type: &crate::core::types::expression::DataType,
     ) -> Self::Result {
-        self.visit_expression(expr);
+        self.visit_expression(expression);
     }
 
-    fn visit_subscript(&mut self, collection: &Expr, index: &Expr) -> Self::Result {
+    fn visit_subscript(&mut self, collection: &Expression, index: &Expression) -> Self::Result {
         self.visit_expression(collection);
         self.visit_expression(index);
     }
 
     fn visit_range(
         &mut self,
-        collection: &Expr,
-        start: &Option<Box<Expr>>,
-        end: &Option<Box<Expr>>,
+        collection: &Expression,
+        start: &Option<Box<Expression>>,
+        end: &Option<Box<Expression>>,
     ) -> Self::Result {
         self.visit_expression(collection);
-        if let Some(expr) = start {
-            self.visit_expression(expr);
+        if let Some(expression) = start {
+            self.visit_expression(expression);
         }
-        if let Some(expr) = end {
-            self.visit_expression(expr);
+        if let Some(expression) = end {
+            self.visit_expression(expression);
         }
     }
 
-    fn visit_path(&mut self, items: &[Expr]) -> Self::Result {
+    fn visit_path(&mut self, items: &[Expression]) -> Self::Result {
         for item in items {
             self.visit_expression(item);
         }
@@ -173,22 +173,22 @@ mod tests {
     fn test_collect_variables() {
         let mut visitor = VariableVisitor::new();
 
-        let expr = Expr::Variable("x".to_string());
-        let variables = visitor.collect_variables(&expr);
+        let expression = Expression::Variable("x".to_string());
+        let variables = visitor.collect_variables(&expression);
         assert_eq!(variables.len(), 1);
         assert!(variables.contains("x"));
 
-        let expr = Expr::Binary {
-            left: Box::new(Expr::Variable("a".to_string())),
+        let expression = Expression::Binary {
+            left: Box::new(Expression::Variable("a".to_string())),
             op: BinaryOperator::Add,
-            right: Box::new(Expr::Binary {
-                left: Box::new(Expr::Variable("b".to_string())),
+            right: Box::new(Expression::Binary {
+                left: Box::new(Expression::Variable("b".to_string())),
                 op: BinaryOperator::Multiply,
-                right: Box::new(Expr::Literal(Value::Int(2))),
+                right: Box::new(Expression::Literal(Value::Int(2))),
             }),
         };
 
-        let variables = visitor.collect_variables(&expr);
+        let variables = visitor.collect_variables(&expression);
         assert_eq!(variables.len(), 2);
         assert!(variables.contains("a"));
         assert!(variables.contains("b"));
@@ -198,32 +198,32 @@ mod tests {
     fn test_has_variables() {
         let mut visitor = VariableVisitor::new();
 
-        let expr = Expr::Variable("x".to_string());
-        assert!(visitor.has_variables(&expr));
+        let expression = Expression::Variable("x".to_string());
+        assert!(visitor.has_variables(&expression));
 
-        let expr = Expr::Literal(Value::Int(42));
-        assert!(!visitor.has_variables(&expr));
+        let expression = Expression::Literal(Value::Int(42));
+        assert!(!visitor.has_variables(&expression));
 
-        let expr = Expr::Binary {
-            left: Box::new(Expr::Variable("a".to_string())),
+        let expression = Expression::Binary {
+            left: Box::new(Expression::Variable("a".to_string())),
             op: BinaryOperator::Add,
-            right: Box::new(Expr::Literal(Value::Int(1))),
+            right: Box::new(Expression::Literal(Value::Int(1))),
         };
 
-        assert!(visitor.has_variables(&expr));
+        assert!(visitor.has_variables(&expression));
     }
 
     #[test]
     fn test_get_variables() {
         let mut visitor = VariableVisitor::new();
 
-        let expr = Expr::Binary {
-            left: Box::new(Expr::Variable("var1".to_string())),
+        let expression = Expression::Binary {
+            left: Box::new(Expression::Variable("var1".to_string())),
             op: BinaryOperator::Add,
-            right: Box::new(Expr::Variable("var2".to_string())),
+            right: Box::new(Expression::Variable("var2".to_string())),
         };
 
-        visitor.collect_variables(&expr);
+        visitor.collect_variables(&expression);
         let variables = visitor.get_variables();
         
         assert_eq!(variables.len(), 2);
@@ -235,8 +235,8 @@ mod tests {
     fn test_clear() {
         let mut visitor = VariableVisitor::new();
 
-        let expr = Expr::Variable("x".to_string());
-        visitor.collect_variables(&expr);
+        let expression = Expression::Variable("x".to_string());
+        visitor.collect_variables(&expression);
         
         assert!(!visitor.get_variables().is_empty());
         

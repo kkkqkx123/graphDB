@@ -17,7 +17,7 @@ use super::traversal_node::{AppendVerticesNode, ExpandAllNode, ExpandNode, Trave
 use crate::core::types::EdgeDirection;
 use crate::core::Value;
 use crate::core::types::operators::AggregateFunction;
-use crate::query::parser::ast::expr::Expr;
+use crate::query::parser::ast::expression::Expression;
 use crate::query::parser::expressions::convert_ast_to_graph_expression;
 use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::validator::YieldColumn;
@@ -31,17 +31,17 @@ impl PlanNodeFactory {
     /// 创建过滤节点
     pub fn create_filter(
         input: PlanNodeEnum,
-        condition: Expr,
+        condition: Expression,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
         use super::filter_node::FilterNode;
 
-        // 将 Expr 转换为 Expression
-        let expr = convert_ast_to_graph_expression(&condition).map_err(|e| {
+        // 将 Expression 转换为 Expression
+        let expression = convert_ast_to_graph_expression(&condition).map_err(|e| {
             crate::query::planner::planner::PlannerError::InvalidOperation(e.to_string())
         })?;
 
         // 创建 FilterNode
-        let filter_node = FilterNode::new(input, expr)?;
+        let filter_node = FilterNode::new(input, expression)?;
         Ok(PlanNodeEnum::Filter(filter_node))
     }
 
@@ -59,30 +59,30 @@ impl PlanNodeFactory {
     pub fn create_inner_join(
         left: PlanNodeEnum,
         right: PlanNodeEnum,
-        hash_keys: Vec<Expr>,
-        probe_keys: Vec<Expr>,
+        hash_keys: Vec<Expression>,
+        probe_keys: Vec<Expression>,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
         use super::join_node::InnerJoinNode;
 
-        // 将 Expr 转换为 Expression
-        let hash_keys_expr: Result<Vec<_>, _> = hash_keys
+        // 将 Expression 转换为 Expression
+        let hash_keys_expression: Result<Vec<_>, _> = hash_keys
             .iter()
             .map(|e| convert_ast_to_graph_expression(e))
             .collect();
-        let hash_keys_expr = hash_keys_expr.map_err(|e| {
+        let hash_keys_expression = hash_keys_expression.map_err(|e| {
             crate::query::planner::planner::PlannerError::InvalidOperation(e.to_string())
         })?;
 
-        let probe_keys_expr: Result<Vec<_>, _> = probe_keys
+        let probe_keys_expression: Result<Vec<_>, _> = probe_keys
             .iter()
             .map(|e| convert_ast_to_graph_expression(e))
             .collect();
-        let probe_keys_expr = probe_keys_expr.map_err(|e| {
+        let probe_keys_expression = probe_keys_expression.map_err(|e| {
             crate::query::planner::planner::PlannerError::InvalidOperation(e.to_string())
         })?;
 
         // 创建 InnerJoinNode
-        let inner_join_node = InnerJoinNode::new(left, right, hash_keys_expr, probe_keys_expr)?;
+        let inner_join_node = InnerJoinNode::new(left, right, hash_keys_expression, probe_keys_expression)?;
         Ok(PlanNodeEnum::InnerJoin(inner_join_node))
     }
 
@@ -265,9 +265,9 @@ impl PlanNodeFactory {
     pub fn create_unwind(
         input: PlanNodeEnum,
         alias: &str,
-        list_expr: &str,
+        list_expression: &str,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
-        let unwind_node = UnwindNode::new(input, alias, list_expr)?;
+        let unwind_node = UnwindNode::new(input, alias, list_expression)?;
         Ok(PlanNodeEnum::Unwind(unwind_node))
     }
 

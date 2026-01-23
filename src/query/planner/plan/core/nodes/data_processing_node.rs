@@ -108,7 +108,7 @@ pub struct UnwindNode {
     input: Box<super::plan_node_enum::PlanNodeEnum>,
     deps: Vec<Box<super::plan_node_enum::PlanNodeEnum>>,
     alias: String,
-    list_expr: String,
+    list_expression: String,
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
@@ -118,7 +118,7 @@ impl UnwindNode {
     pub fn new(
         input: super::plan_node_enum::PlanNodeEnum,
         alias: &str,
-        list_expr: &str,
+        list_expression: &str,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let mut col_names = input.col_names().to_vec();
         col_names.push(alias.to_string());
@@ -131,7 +131,7 @@ impl UnwindNode {
             input: Box::new(input),
             deps,
             alias: alias.to_string(),
-            list_expr: list_expr.to_string(),
+            list_expression: list_expression.to_string(),
             output_var: None,
             col_names,
             cost: 0.0,
@@ -142,8 +142,8 @@ impl UnwindNode {
         &self.alias
     }
 
-    pub fn list_expr(&self) -> &str {
-        &self.list_expr
+    pub fn list_expression(&self) -> &str {
+        &self.list_expression
     }
 
     pub fn id(&self) -> i64 {
@@ -194,7 +194,7 @@ impl UnwindNode {
             input: self.input.clone(),
             deps: self.deps.clone(),
             alias: self.alias.clone(),
-            list_expr: self.list_expr.clone(),
+            list_expression: self.list_expression.clone(),
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
@@ -1218,7 +1218,7 @@ mod tests {
         assert_eq!(unwind_node.type_name(), "Unwind");
         assert_eq!(unwind_node.dependencies().len(), 1);
         assert_eq!(unwind_node.alias(), "item");
-        assert_eq!(unwind_node.list_expr(), "list");
+        assert_eq!(unwind_node.list_expression(), "list");
     }
 
     #[test]

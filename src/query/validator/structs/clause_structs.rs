@@ -62,7 +62,7 @@ pub struct WithClauseContext {
 #[derive(Debug, Clone)]
 pub struct UnwindClauseContext {
     pub alias: String,
-    pub unwind_expr: Expression,
+    pub unwind_expression: Expression,
     pub aliases_available: HashMap<String, AliasType>,
     pub aliases_generated: HashMap<String, AliasType>,
     pub paths: Vec<Path>, // Unwind子句中可能包含的路径
@@ -112,15 +112,15 @@ pub enum OrderType {
 /// 输出列
 #[derive(Debug, Clone)]
 pub struct YieldColumn {
-    pub expr: Expression,
+    pub expression: Expression,
     pub alias: String,
     pub is_matched: bool, // 是否已匹配
 }
 
 impl YieldColumn {
-    pub fn new(expr: Expression, alias: String) -> Self {
+    pub fn new(expression: Expression, alias: String) -> Self {
         YieldColumn {
-            expr,
+            expression,
             alias,
             is_matched: false,
         }

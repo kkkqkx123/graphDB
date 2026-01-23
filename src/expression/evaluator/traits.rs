@@ -11,7 +11,7 @@ use crate::expression::Expression;
 /// 使用泛型约束避免动态分发，提高性能
 pub trait Evaluator<C: ExpressionContext> {
     /// 求值表达式
-    fn evaluate(&self, expr: &Expression, context: &mut C) -> Result<Value, ExpressionError>;
+    fn evaluate(&self, expression: &Expression, context: &mut C) -> Result<Value, ExpressionError>;
 
     /// 批量求值表达式
     fn evaluate_batch(
@@ -20,14 +20,14 @@ pub trait Evaluator<C: ExpressionContext> {
         context: &mut C,
     ) -> Result<Vec<Value>, ExpressionError> {
         let mut results = Vec::with_capacity(expressions.len());
-        for expr in expressions {
-            results.push(self.evaluate(expr, context)?);
+        for expression in expressions {
+            results.push(self.evaluate(expression, context)?);
         }
         Ok(results)
     }
 
     /// 检查表达式是否可以求值
-    fn can_evaluate(&self, _expr: &Expression, _context: &C) -> bool {
+    fn can_evaluate(&self, _expression: &Expression, _context: &C) -> bool {
         true // 默认实现：所有表达式都可以求值
     }
 

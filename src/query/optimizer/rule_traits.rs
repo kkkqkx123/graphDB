@@ -3,7 +3,7 @@
 
 use super::optimizer::{OptContext, OptGroupNode, OptRule, OptimizerError, Pattern};
 use crate::core::types::operators::BinaryOperator;
-use crate::core::{Expr, Value};
+use crate::core::{Expression, Value};
 use crate::query::planner::plan::PlanNodeEnum;
 
 use std::collections::HashMap;
@@ -125,18 +125,18 @@ impl ExpressionParser {
 
     /// 检查表达式是否为永真式
     fn check_tautology(&self, expression: &str) -> bool {
-        let expr = expression.trim();
+        let expression = expression.trim();
 
         // 检查简单的布尔常量
-        match expr {
+        match expression {
             "1 = 1" | "true" | "TRUE" | "True" | "0 = 0" => return true,
             _ => {}
         }
 
         // 检查形如 a = a 的表达式
-        if let Some(eq_pos) = expr.find('=') {
-            let left = expr[..eq_pos].trim();
-            let right = expr[eq_pos + 1..].trim();
+        if let Some(eq_pos) = expression.find('=') {
+            let left = expression[..eq_pos].trim();
+            let right = expression[eq_pos + 1..].trim();
 
             // 如果左右两边相同（忽略空格），则是永真式
             if left == right {
@@ -150,7 +150,7 @@ impl ExpressionParser {
         }
 
         // 检查逻辑永真式，如 (a AND b) OR (NOT a AND b) OR (a AND NOT b) OR (NOT a AND NOT b)
-        if self.check_logical_tautology(expr) {
+        if self.check_logical_tautology(expression) {
             return true;
         }
 
@@ -201,16 +201,16 @@ impl ExpressionParser {
 
             // 检查 NOT a 形式
             if right.starts_with("NOT ") {
-                let not_expr = right[4..].trim();
-                if left == not_expr {
+                let not_expression = right[4..].trim();
+                if left == not_expression {
                     return true;
                 }
             }
 
             // 检查 a OR NOT a 形式
             if left.starts_with("NOT ") {
-                let not_expr = left[4..].trim();
-                if right == not_expr {
+                let not_expression = left[4..].trim();
+                if right == not_expression {
                     return true;
                 }
             }
@@ -280,50 +280,50 @@ pub fn is_tautology(condition: &str) -> bool {
 }
 
 /// 辅助函数：检查Expression是否为永真式
-pub fn is_expression_tautology(expr: &Expression) -> bool {
-    match expr {
+pub fn is_expression_tautology(expression: &Expression) -> bool {
+    match expression {
         // 检查布尔字面量
-        Expr::Literal(Value::Bool(true)) => true,
-        Expr::Literal(Value::Bool(false)) => false,
+        Expression::Literal(Value::Bool(true)) => true,
+        Expression::Literal(Value::Bool(false)) => false,
 
         // 检查二元表达式
-        Expr::Binary { left, op, right } => {
+        Expression::Binary { left, op, right } => {
             match (left.as_ref(), op, right.as_ref()) {
                 // 检查 1 = 1
                 (
-                    Expr::Literal(Value::Int(1)),
+                    Expression::Literal(Value::Int(1)),
                     BinaryOperator::Equal,
-                    Expr::Literal(Value::Int(1)),
+                    Expression::Literal(Value::Int(1)),
                 ) => true,
                 // 检查 0 = 0
                 (
-                    Expr::Literal(Value::Int(0)),
+                    Expression::Literal(Value::Int(0)),
                     BinaryOperator::Equal,
-                    Expr::Literal(Value::Int(0)),
+                    Expression::Literal(Value::Int(0)),
                 ) => true,
                 // 检查 a = a
-                (Expr::Variable(a), BinaryOperator::Equal, Expr::Variable(b))
+                (Expression::Variable(a), BinaryOperator::Equal, Expression::Variable(b))
                     if a == b =>
                 {
                     true
                 }
                 // 检查逻辑或的永真式：a OR NOT a
                 (
-                    Expr::Variable(a),
+                    Expression::Variable(a),
                     BinaryOperator::Or,
-                    Expr::Unary { op, operand },
+                    Expression::Unary { op, operand },
                 ) if matches!(op, crate::core::types::operators::UnaryOperator::Not)
-                    && matches!(operand.as_ref(), Expr::Variable(b) if b == a) =>
+                    && matches!(operand.as_ref(), Expression::Variable(b) if b == a) =>
                 {
                     true
                 }
                 // 检查逻辑或的永真式：NOT a OR a
                 (
-                    Expr::Unary { op, operand },
+                    Expression::Unary { op, operand },
                     BinaryOperator::Or,
-                    Expr::Variable(b),
+                    Expression::Variable(b),
                 ) if matches!(op, crate::core::types::operators::UnaryOperator::Not)
-                    && matches!(operand.as_ref(), Expr::Variable(a) if a == b) =>
+                    && matches!(operand.as_ref(), Expression::Variable(a) if a == b) =>
                 {
                     true
                 }
@@ -497,7 +497,7 @@ pub fn clone_with_new_plan_node(node: &OptGroupNode, plan_node: PlanNodeEnum) ->
 /// 宏：简化规则实现的重复代码
 #[macro_export]
 macro_rules! impl_basic_rule {
-    ($rule_type:ty, $name:expr) => {
+    ($rule_type:ty, $name:expression) => {
         impl OptRule for $rule_type {
             fn name(&self) -> &str {
                 $name
@@ -513,7 +513,7 @@ macro_rules! impl_basic_rule {
 /// 宏：简化下推规则的实现
 #[macro_export]
 macro_rules! impl_push_down_rule {
-    ($rule_type:ty, $name:expr, $target_kind:expr) => {
+    ($rule_type:ty, $name:expression, $target_kind:expression) => {
         impl OptRule for $rule_type {
             fn name(&self) -> &str {
                 $name
@@ -546,7 +546,7 @@ macro_rules! impl_push_down_rule {
 /// 宏：简化合并规则的实现
 #[macro_export]
 macro_rules! impl_merge_rule {
-    ($rule_type:ty, $name:expr) => {
+    ($rule_type:ty, $name:expression) => {
         impl OptRule for $rule_type {
             fn name(&self) -> &str {
                 $name
@@ -578,7 +578,7 @@ macro_rules! impl_merge_rule {
 /// 宏：简化消除规则的实现
 #[macro_export]
 macro_rules! impl_elimination_rule {
-    ($rule_type:ty, $name:expr) => {
+    ($rule_type:ty, $name:expression) => {
         impl OptRule for $rule_type {
             fn name(&self) -> &str {
                 $name
@@ -609,7 +609,7 @@ macro_rules! impl_elimination_rule {
 /// 新增宏：实现带有自定义验证的规则
 #[macro_export]
 macro_rules! impl_rule_with_validation {
-    ($rule_type:ty, $name:expr, $validate:block) => {
+    ($rule_type:ty, $name:expression, $validate:block) => {
         impl OptRule for $rule_type {
             fn name(&self) -> &str {
                 $name
@@ -628,7 +628,7 @@ macro_rules! impl_rule_with_validation {
 /// 新增宏：实现带有自定义后处理的规则
 #[macro_export]
 macro_rules! impl_rule_with_post_process {
-    ($rule_type:ty, $name:expr, $post_process:block) => {
+    ($rule_type:ty, $name:expression, $post_process:block) => {
         impl OptRule for $rule_type {
             fn name(&self) -> &str {
                 $name

@@ -4,7 +4,7 @@
 use super::optimizer::OptimizerError;
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::{combine_conditions, BaseOptRule, FilterSplitResult};
-use crate::core::Expr;
+use crate::core::Expression;
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
 use crate::query::planner::plan::algorithms::IndexScan;
 use crate::query::planner::plan::core::nodes::PlanNodeEnum;
@@ -413,12 +413,12 @@ fn can_push_down_to_index_scan(condition: &Expression) -> FilterSplitResult {
     // 涉及非索引列或复杂表达式的条件需要保留在Filter节点中
 
     // 尝试解析条件表达式
-    if let Ok(expr) = parse_filter_condition(condition) {
+    if let Ok(expression) = parse_filter_condition(condition) {
         let mut pushable_conditions = Vec::new();
         let mut remaining_conditions = Vec::new();
 
         analyze_expression_for_index_scan(
-            &expr,
+            &expression,
             &mut pushable_conditions,
             &mut remaining_conditions,
         );
@@ -456,14 +456,14 @@ fn parse_filter_condition(condition: &Expression) -> Result<crate::core::Express
 
 /// 分析表达式，确定哪些部分可以下推到索引扫描
 fn analyze_expression_for_index_scan(
-    expr: &crate::core::Expression,
+    expression: &crate::core::Expression,
     pushable_conditions: &mut Vec<String>,
     remaining_conditions: &mut Vec<String>,
 ) {
     // 分析表达式
     // 通常，只涉及索引列的条件可以下推到索引扫描
-    match expr {
-        crate::core::Expr::Binary { left, op, right } => {
+    match expression {
+        crate::core::Expression::Binary { left, op, right } => {
             // 检查是否是AND操作
             if matches!(op, crate::core::BinaryOperator::And) {
                 // 递归分析左右子表达式
@@ -471,31 +471,31 @@ fn analyze_expression_for_index_scan(
                 analyze_expression_for_index_scan(right, pushable_conditions, remaining_conditions);
             } else {
                 // 检查是否可以下推
-                if can_push_down_expression_to_index_scan(expr) {
-                    pushable_conditions.push(format!("{:?}", expr));
+                if can_push_down_expression_to_index_scan(expression) {
+                    pushable_conditions.push(format!("{:?}", expression));
                 } else {
-                    remaining_conditions.push(format!("{:?}", expr));
+                    remaining_conditions.push(format!("{:?}", expression));
                 }
             }
         }
         _ => {
             // 检查其他类型的表达式
-            if can_push_down_expression_to_index_scan(expr) {
-                pushable_conditions.push(format!("{:?}", expr));
+            if can_push_down_expression_to_index_scan(expression) {
+                pushable_conditions.push(format!("{:?}", expression));
             } else {
-                remaining_conditions.push(format!("{:?}", expr));
+                remaining_conditions.push(format!("{:?}", expression));
             }
         }
     }
 }
 
 /// 检查表达式是否可以下推到索引扫描
-fn can_push_down_expression_to_index_scan(expr: &crate::core::Expr) -> bool {
+fn can_push_down_expression_to_index_scan(expression: &crate::core::Expression) -> bool {
     // 检查表达式是否可以下推到索引扫描
-    match expr {
-        crate::core::Expr::Property { .. } => true,
-        crate::core::Expr::Variable(_) => true, // 变量也可以下推
-        crate::core::Expr::Binary { left, op, right } => {
+    match expression {
+        crate::core::Expression::Property { .. } => true,
+        crate::core::Expression::Variable(_) => true, // 变量也可以下推
+        crate::core::Expression::Binary { left, op, right } => {
             // 检查是否是支持索引的操作符
             let is_indexable_op = matches!(
                 op,
@@ -511,14 +511,14 @@ fn can_push_down_expression_to_index_scan(expr: &crate::core::Expr) -> bool {
                 && can_push_down_expression_to_index_scan(left)
                 && can_push_down_expression_to_index_scan(right)
         }
-        crate::core::Expr::Unary { operand, .. } => {
+        crate::core::Expression::Unary { operand, .. } => {
             can_push_down_expression_to_index_scan(operand)
         }
-        crate::core::Expr::Function { name, .. } => {
+        crate::core::Expression::Function { name, .. } => {
             // 某些函数可以下推，如id(), properties()等
             matches!(name.to_lowercase().as_str(), "id" | "properties" | "labels")
         }
-        crate::core::Expr::Literal(_) => true, // 字面量也可以下推
+        crate::core::Expression::Literal(_) => true, // 字面量也可以下推
         _ => false,
     }
 }
@@ -535,7 +535,7 @@ fn combine_expression_list(exprs: &[String]) -> String {
 }
 
 /// 更新索引扫描的限制条件
-fn update_index_scan_limits(index_scan: &mut IndexScan, condition: &Expr) {
+fn update_index_scan_limits(index_scan: &mut IndexScan, condition: &Expression) {
     // 尝试将过滤条件转换为索引扫描限制
     // 使用表达式解析器来更准确地提取条件
 
@@ -545,14 +545,14 @@ fn update_index_scan_limits(index_scan: &mut IndexScan, condition: &Expr) {
 
 /// 从表达式中提取索引限制
 fn extract_index_limits_from_expression(
-    expr: &crate::core::Expr,
+    expression: &crate::core::Expression,
     index_scan: &mut IndexScan,
 ) {
-    use crate::core::Expr;
+    use crate::core::Expression;
 
-    match expr {
+    match expression {
         // 处理二元操作表达式
-        Expr::Binary { left, op, right } => {
+        Expression::Binary { left, op, right } => {
             // 只处理关系操作符
             if is_relational_operator(&op) {
                 if let (Some(column), Some(value)) = extract_column_and_value(left, right) {
@@ -587,27 +587,27 @@ fn is_relational_operator(op: &crate::core::BinaryOperator) -> bool {
 /// 从表达式中提取列名和值
 fn extract_column_and_value(
     left: &crate::core::Expression,
-    right: &crate::core::Expr,
+    right: &crate::core::Expression,
 ) -> (Option<String>, Option<String>) {
-    use crate::core::Expr;
+    use crate::core::Expression;
 
     let column = match left {
-        Expr::Property { object, property } => {
-            if let Expr::Variable(var_name) = object.as_ref() {
+        Expression::Property { object, property } => {
+            if let Expression::Variable(var_name) = object.as_ref() {
                 Some(format!("{}.{}", var_name, property))
             } else {
                 Some(property.clone())
             }
         },
-        Expr::Variable(name) => Some(name.clone()),
+        Expression::Variable(name) => Some(name.clone()),
         _ => None,
     };
 
     let value = match right {
-        Expr::Literal(crate::core::Value::String(s)) => Some(s.clone()),
-        Expr::Literal(crate::core::Value::Int(i)) => Some(i.to_string()),
-        Expr::Literal(crate::core::Value::Float(f)) => Some(f.to_string()),
-        Expr::Literal(crate::core::Value::Bool(b)) => Some(b.to_string()),
+        Expression::Literal(crate::core::Value::String(s)) => Some(s.clone()),
+        Expression::Literal(crate::core::Value::Int(i)) => Some(i.to_string()),
+        Expression::Literal(crate::core::Value::Float(f)) => Some(f.to_string()),
+        Expression::Literal(crate::core::Value::Bool(b)) => Some(b.to_string()),
         _ => None,
     };
 
@@ -1041,7 +1041,7 @@ mod tests {
         let filter_node = PlanNodeEnum::Filter(
             crate::query::planner::plan::core::nodes::FilterNode::new(
                 PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new()),
-                crate::core::Expr::Variable("age > 18".to_string()),
+                crate::core::Expression::Variable("age > 18".to_string()),
             )
             .expect("Failed to create filter node"),
         );
@@ -1073,7 +1073,7 @@ mod tests {
         let filter_node = PlanNodeEnum::Filter(
             crate::query::planner::plan::core::nodes::FilterNode::new(
                 PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new()),
-                crate::core::Expr::Variable("name = 'test'".to_string()),
+                crate::core::Expression::Variable("name = 'test'".to_string()),
             )
             .expect("Failed to create filter node"),
         );
@@ -1191,11 +1191,11 @@ mod tests {
         let condition = "age > 18 AND name = 'John'";
 
         // 首先测试表达式解析器是否正常工作
-        let expr = crate::core::Expr::Variable(condition.to_string());
-        let parse_result = parse_filter_condition(&expr);
+        let expression = crate::core::Expression::Variable(condition.to_string());
+        let parse_result = parse_filter_condition(&expression);
         println!("Parse result: {:?}", parse_result);
 
-        let result = can_push_down_to_index_scan(&expr);
+        let result = can_push_down_to_index_scan(&expression);
         println!("Pushable condition: {:?}", result.pushable_condition);
         println!("Remaining condition: {:?}", result.remaining_condition);
 
@@ -1225,10 +1225,10 @@ mod tests {
         let mut index_scan = IndexScan::new(1, 1, 2, 3, "RANGE");
 
         // 更新索引扫描限制 - 使用正确的二元表达式格式
-        let condition = crate::core::Expr::Binary {
-            left: Box::new(crate::core::Expr::Variable("age".to_string())),
+        let condition = crate::core::Expression::Binary {
+            left: Box::new(crate::core::Expression::Variable("age".to_string())),
             op: crate::core::BinaryOperator::GreaterThan,
-            right: Box::new(crate::core::Expr::Literal(crate::core::Value::Int(18))),
+            right: Box::new(crate::core::Expression::Literal(crate::core::Value::Int(18))),
         };
         
         update_index_scan_limits(&mut index_scan, &condition);

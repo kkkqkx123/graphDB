@@ -1,4 +1,4 @@
-use crate::core::types::expression::Expr;
+use crate::core::types::expression::Expression;
 use crate::core::{DataType, Expression};
 use crate::query::validator::{
     ValidationStrategy, ValidationError, ValidationErrorType,
@@ -19,7 +19,7 @@ impl ExpressionValidationStrategy {
     /// 验证过滤条件
     pub fn validate_filter(
         &self,
-        filter: &Expr,
+        filter: &Expression,
         context: &WhereClauseContext,
     ) -> Result<(), ValidationError> {
         // 过滤条件必须是布尔类型或可转换为布尔类型
@@ -47,7 +47,7 @@ impl ExpressionValidationStrategy {
     /// 验证Match路径
     pub fn validate_path(
         &self,
-        path: &Expr,
+        path: &Expression,
         context: &MatchClauseContext,
     ) -> Result<(), ValidationError> {
         // 验证路径表达式的类型
@@ -72,17 +72,17 @@ impl ExpressionValidationStrategy {
     /// 验证Return子句
     pub fn validate_return(
         &self,
-        return_expr: &Expression,
+        return_expression: &Expression,
         return_items: &[YieldColumn],
         context: &ReturnClauseContext,
     ) -> Result<(), ValidationError> {
         // 验证Return表达式的类型
         let type_validator = crate::query::validator::strategies::type_inference::TypeValidator;
-        let _return_type = type_validator.deduce_expression_type_full(return_expr, context);
+        let _return_type = type_validator.deduce_expression_type_full(return_expression, context);
         
         // 检查Return项中的聚合函数使用
         for item in return_items {
-            if type_validator.has_aggregate_expression(&item.expr) {
+            if type_validator.has_aggregate_expression(&item.expression) {
                 // 验证聚合函数的使用是否符合上下文
                 if !context.yield_clause.has_agg && context.yield_clause.group_keys.is_empty() {
                     return Err(ValidationError::new(
@@ -95,7 +95,7 @@ impl ExpressionValidationStrategy {
 
         // 验证表达式中的变量引用
         let var_validator = crate::query::validator::strategies::variable_validator::VariableValidator::new();
-        var_validator.validate_expression_variables(return_expr, context)?;
+        var_validator.validate_expression_variables(return_expression, context)?;
 
         Ok(())
     }
@@ -103,7 +103,7 @@ impl ExpressionValidationStrategy {
     /// 验证With子句
     pub fn validate_with(
         &self,
-        with_expr: &Expr,
+        with_expression: &Expression,
         with_items: &[YieldColumn],
         context: &WithClauseContext,
     ) -> Result<(), ValidationError> {
@@ -118,18 +118,18 @@ impl ExpressionValidationStrategy {
             query_parts: context.query_parts.clone(),
             errors: context.errors.clone(),
         };
-        self.validate_return(with_expr, with_items, &return_context)
+        self.validate_return(with_expression, with_items, &return_context)
     }
 
     /// 验证Unwind子句
     pub fn validate_unwind(
         &self,
-        unwind_expr: &Expression,
+        unwind_expression: &Expression,
         context: &UnwindClauseContext,
     ) -> Result<(), ValidationError> {
         // Unwind表达式必须是列表类型或可迭代类型
         let type_validator = crate::query::validator::strategies::type_inference::TypeValidator;
-        let unwind_type = type_validator.deduce_expression_type_full(unwind_expr, context);
+        let unwind_type = type_validator.deduce_expression_type_full(unwind_expression, context);
         
         if unwind_type != DataType::List && unwind_type != DataType::Empty {
             return Err(ValidationError::new(
@@ -140,7 +140,7 @@ impl ExpressionValidationStrategy {
 
         // 验证表达式中的变量引用
         let var_validator = crate::query::validator::strategies::variable_validator::VariableValidator::new();
-        var_validator.validate_expression_variables(unwind_expr, context)?;
+        var_validator.validate_expression_variables(unwind_expression, context)?;
 
         Ok(())
     }
@@ -153,10 +153,10 @@ impl ExpressionValidationStrategy {
         
         for column in &context.yield_columns {
             // 验证表达式的类型
-            let _column_type = type_validator.deduce_expression_type_full(&column.expr, context);
+            let _column_type = type_validator.deduce_expression_type_full(&column.expression, context);
             
             // 验证聚合函数的使用
-            if type_validator.has_aggregate_expression(&column.expr) {
+            if type_validator.has_aggregate_expression(&column.expression) {
                 if !context.has_agg && context.group_keys.is_empty() {
                     return Err(ValidationError::new(
                         "在GROUP BY子句中使用聚合函数时，必须指定GROUP BY键".to_string(),
@@ -166,7 +166,7 @@ impl ExpressionValidationStrategy {
             }
 
             // 验证表达式中的变量引用
-            var_validator.validate_expression_variables(&column.expr, context)?;
+            var_validator.validate_expression_variables(&column.expression, context)?;
         }
 
         // 验证分组键
@@ -180,7 +180,7 @@ impl ExpressionValidationStrategy {
     /// 验证单个路径模式
     pub fn validate_single_path_pattern(
         &self,
-        pattern: &Expr,
+        pattern: &Expression,
         context: &mut MatchClauseContext,
     ) -> Result<(), ValidationError> {
         // 验证路径模式的类型
@@ -202,14 +202,14 @@ impl ExpressionValidationStrategy {
     }
 
     /// 验证表达式循环引用（辅助函数）
-    fn validate_expression_cycles(&self, expr: &Expr) -> Result<(), ValidationError> {
+    fn validate_expression_cycles(&self, expression: &Expression) -> Result<(), ValidationError> {
         // 检查表达式是否包含循环引用
         // 例如：a = b + 1, b = a + 2
         
         // 使用访问器收集所有变量引用
         use crate::query::visitor::VariableVisitor;
         let mut visitor = VariableVisitor::new();
-        let variables = visitor.collect_variables(expr);
+        let variables = visitor.collect_variables(expression);
         
         // 检查是否有明显的循环引用模式
         // 例如：表达式包含同一个变量的多次引用，且这些引用之间存在依赖关系
@@ -245,7 +245,7 @@ impl ExpressionValidationStrategy {
         }
         
         // 检查表达式深度是否合理（避免过深的嵌套）
-        let depth = self.calculate_expression_depth(expr);
+        let depth = self.calculate_expression_depth(expression);
         if depth > 50 {
             return Err(ValidationError::new(
                 format!(
@@ -260,25 +260,25 @@ impl ExpressionValidationStrategy {
     }
 
     /// 计算表达式的嵌套深度
-    fn calculate_expression_depth(&self, expr: &Expr) -> usize {
-        match expr {
-            Expr::Literal(_) => 1,
-            Expr::Variable(_) => 1,
-            Expr::Label(_) => 1,
+    fn calculate_expression_depth(&self, expression: &Expression) -> usize {
+        match expression {
+            Expression::Literal(_) => 1,
+            Expression::Variable(_) => 1,
+            Expression::Label(_) => 1,
 
-            Expr::Property { object, .. } => {
+            Expression::Property { object, .. } => {
                 1 + self.calculate_expression_depth(object)
             }
 
-            Expr::Binary { left, right, .. } => {
+            Expression::Binary { left, right, .. } => {
                 1 + self.calculate_expression_depth(left).max(self.calculate_expression_depth(right))
             }
 
-            Expr::Unary { operand, .. } => {
+            Expression::Unary { operand, .. } => {
                 1 + self.calculate_expression_depth(operand)
             }
 
-            Expr::Function { args, .. } => {
+            Expression::Function { args, .. } => {
                 let max_arg_depth = args.iter()
                     .map(|arg| self.calculate_expression_depth(arg))
                     .max()
@@ -286,11 +286,11 @@ impl ExpressionValidationStrategy {
                 1 + max_arg_depth
             }
 
-            Expr::Aggregate { arg, .. } => {
+            Expression::Aggregate { arg, .. } => {
                 1 + self.calculate_expression_depth(arg)
             }
 
-            Expr::List(items) => {
+            Expression::List(items) => {
                 let max_item_depth = items.iter()
                     .map(|item| self.calculate_expression_depth(item))
                     .max()
@@ -298,7 +298,7 @@ impl ExpressionValidationStrategy {
                 1 + max_item_depth
             }
 
-            Expr::Map(entries) => {
+            Expression::Map(entries) => {
                 let max_value_depth = entries.iter()
                     .map(|(_, value)| self.calculate_expression_depth(value))
                     .max()
@@ -306,39 +306,39 @@ impl ExpressionValidationStrategy {
                 1 + max_value_depth
             }
 
-            Expr::Case { conditions, default } => {
+            Expression::Case { conditions, default } => {
                 let mut max_depth = 0;
-                for (when_expr, then_expr) in conditions {
-                    max_depth = max_depth.max(self.calculate_expression_depth(when_expr));
-                    max_depth = max_depth.max(self.calculate_expression_depth(then_expr));
+                for (when_expression, then_expression) in conditions {
+                    max_depth = max_depth.max(self.calculate_expression_depth(when_expression));
+                    max_depth = max_depth.max(self.calculate_expression_depth(then_expression));
                 }
-                if let Some(default_expr) = default {
-                    max_depth = max_depth.max(self.calculate_expression_depth(default_expr));
+                if let Some(default_expression) = default {
+                    max_depth = max_depth.max(self.calculate_expression_depth(default_expression));
                 }
                 1 + max_depth
             }
 
-            Expr::TypeCast { expr, .. } => {
-                1 + self.calculate_expression_depth(expr)
+            Expression::TypeCast { expression, .. } => {
+                1 + self.calculate_expression_depth(expression)
             }
 
-            Expr::Subscript { collection, index } => {
+            Expression::Subscript { collection, index } => {
                 1 + self.calculate_expression_depth(collection)
                     .max(self.calculate_expression_depth(index))
             }
 
-            Expr::Range { collection, start, end } => {
+            Expression::Range { collection, start, end } => {
                 let mut max_depth = self.calculate_expression_depth(collection);
-                if let Some(start_expr) = start {
-                    max_depth = max_depth.max(self.calculate_expression_depth(start_expr));
+                if let Some(start_expression) = start {
+                    max_depth = max_depth.max(self.calculate_expression_depth(start_expression));
                 }
-                if let Some(end_expr) = end {
-                    max_depth = max_depth.max(self.calculate_expression_depth(end_expr));
+                if let Some(end_expression) = end {
+                    max_depth = max_depth.max(self.calculate_expression_depth(end_expression));
                 }
                 1 + max_depth
             }
 
-            Expr::Path(items) => {
+            Expression::Path(items) => {
                 let max_item_depth = items.iter()
                     .map(|item| self.calculate_expression_depth(item))
                     .max()
@@ -373,7 +373,7 @@ impl ValidationStrategy for ExpressionValidationStrategy {
                         }
                     }
                     BoundaryClauseContext::Unwind(unwind_ctx) => {
-                        self.validate_unwind(&unwind_ctx.unwind_expr, unwind_ctx)?;
+                        self.validate_unwind(&unwind_ctx.unwind_expression, unwind_ctx)?;
                     }
                 }
             }

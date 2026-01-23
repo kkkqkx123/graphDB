@@ -8,141 +8,141 @@ mod expr_tests {
     use super::*;
 
     #[test]
-    fn test_constant_expr() {
-        let expr = Expr::Constant(ConstantExpr::new(Value::Int(42), Span::default()));
-        assert!(expr.is_constant());
-        assert_eq!(expr.to_string(), "Int(42)");
+    fn test_constant_expression() {
+        let expression = Expression::Constant(ConstantExpression::new(Value::Int(42), Span::default()));
+        assert!(expression.is_constant());
+        assert_eq!(expression.to_string(), "Int(42)");
     }
 
     #[test]
-    fn test_variable_expr() {
-        let expr = Expr::Variable(VariableExpr::new("x".to_string(), Span::default()));
-        assert!(!expr.is_constant());
-        assert_eq!(expr.to_string(), "x");
+    fn test_variable_expression() {
+        let expression = Expression::Variable(VariableExpression::new("x".to_string(), Span::default()));
+        assert!(!expression.is_constant());
+        assert_eq!(expression.to_string(), "x");
     }
 
     #[test]
-    fn test_binary_expr() {
-        let left = Expr::Constant(ConstantExpr::new(Value::Int(5), Span::default()));
-        let right = Expr::Constant(ConstantExpr::new(Value::Int(3), Span::default()));
-        let expr = Expr::Binary(BinaryExpr::new(left, BinaryOp::Add, right, Span::default()));
+    fn test_binary_expression() {
+        let left = Expression::Constant(ConstantExpression::new(Value::Int(5), Span::default()));
+        let right = Expression::Constant(ConstantExpression::new(Value::Int(3), Span::default()));
+        let expression = Expression::Binary(BinaryExpression::new(left, BinaryOp::Add, right, Span::default()));
 
-        assert!(expr.is_constant());
-        assert_eq!(expr.to_string(), "(Int(5) + Int(3))");
+        assert!(expression.is_constant());
+        assert_eq!(expression.to_string(), "(Int(5) + Int(3))");
     }
 
     #[test]
-    fn test_function_call_expr() {
+    fn test_function_call_expression() {
         let args = vec![
-            Expr::Variable(VariableExpr::new("x".to_string(), Span::default())),
-            Expr::Variable(VariableExpr::new("y".to_string(), Span::default())),
+            Expression::Variable(VariableExpression::new("x".to_string(), Span::default())),
+            Expression::Variable(VariableExpression::new("y".to_string(), Span::default())),
         ];
-        let expr = Expr::FunctionCall(FunctionCallExpr::new(
+        let expression = Expression::FunctionCall(FunctionCallExpression::new(
             "SUM".to_string(),
             args,
             false,
             Span::default(),
         ));
 
-        assert!(!expr.is_constant());
-        assert_eq!(expr.to_string(), "SUM(x, y)");
+        assert!(!expression.is_constant());
+        assert_eq!(expression.to_string(), "SUM(x, y)");
     }
 
     #[test]
-    fn test_property_access_expr() {
-        let object = Expr::Variable(VariableExpr::new("node".to_string(), Span::default()));
-        let expr = Expr::PropertyAccess(PropertyAccessExpr::new(
+    fn test_property_access_expression() {
+        let object = Expression::Variable(VariableExpression::new("node".to_string(), Span::default()));
+        let expression = Expression::PropertyAccess(PropertyAccessExpression::new(
             object,
             "name".to_string(),
             Span::default(),
         ));
 
-        assert!(!expr.is_constant());
-        assert_eq!(expr.to_string(), "node.name");
+        assert!(!expression.is_constant());
+        assert_eq!(expression.to_string(), "node.name");
     }
 
     #[test]
-    fn test_list_expr() {
+    fn test_list_expression() {
         let elements = vec![
-            Expr::Constant(ConstantExpr::new(Value::Int(1), Span::default())),
-            Expr::Constant(ConstantExpr::new(Value::Int(2), Span::default())),
-            Expr::Constant(ConstantExpr::new(Value::Int(3), Span::default())),
+            Expression::Constant(ConstantExpression::new(Value::Int(1), Span::default())),
+            Expression::Constant(ConstantExpression::new(Value::Int(2), Span::default())),
+            Expression::Constant(ConstantExpression::new(Value::Int(3), Span::default())),
         ];
-        let expr = Expr::List(ListExpr::new(elements, Span::default()));
+        let expression = Expression::List(ListExpression::new(elements, Span::default()));
 
-        assert!(expr.is_constant());
-        assert_eq!(expr.to_string(), "[Int(1), Int(2), Int(3)]");
+        assert!(expression.is_constant());
+        assert_eq!(expression.to_string(), "[Int(1), Int(2), Int(3)]");
     }
 
     #[test]
-    fn test_map_expr() {
+    fn test_map_expression() {
         let pairs = vec![
             (
                 "name".to_string(),
-                Expr::Constant(ConstantExpr::new(
+                Expression::Constant(ConstantExpression::new(
                     Value::String("John".to_string()),
                     Span::default(),
                 )),
             ),
             (
                 "age".to_string(),
-                Expr::Constant(ConstantExpr::new(Value::Int(30), Span::default())),
+                Expression::Constant(ConstantExpression::new(Value::Int(30), Span::default())),
             ),
         ];
-        let expr = Expr::Map(MapExpr::new(pairs, Span::default()));
+        let expression = Expression::Map(MapExpression::new(pairs, Span::default()));
 
-        assert!(expr.is_constant());
-        assert_eq!(expr.to_string(), "{name: String(\"John\"), age: Int(30)}");
+        assert!(expression.is_constant());
+        assert_eq!(expression.to_string(), "{name: String(\"John\"), age: Int(30)}");
     }
 
     #[test]
-    fn test_case_expr() {
-        let match_expr = Some(Expr::Variable(VariableExpr::new(
+    fn test_case_expression() {
+        let match_expression = Some(Expression::Variable(VariableExpression::new(
             "score".to_string(),
             Span::default(),
         )));
         let when_then_pairs = vec![
             (
-                Expr::Constant(ConstantExpr::new(Value::Int(90), Span::default())),
-                Expr::Constant(ConstantExpr::new(
+                Expression::Constant(ConstantExpression::new(Value::Int(90), Span::default())),
+                Expression::Constant(ConstantExpression::new(
                     Value::String("A".to_string()),
                     Span::default(),
                 )),
             ),
             (
-                Expr::Constant(ConstantExpr::new(Value::Int(80), Span::default())),
-                Expr::Constant(ConstantExpr::new(
+                Expression::Constant(ConstantExpression::new(Value::Int(80), Span::default())),
+                Expression::Constant(ConstantExpression::new(
                     Value::String("B".to_string()),
                     Span::default(),
                 )),
             ),
         ];
-        let default = Some(Expr::Constant(ConstantExpr::new(
+        let default = Some(Expression::Constant(ConstantExpression::new(
             Value::String("F".to_string()),
             Span::default(),
         )));
 
-        let expr = Expr::Case(CaseExpr::new(
-            match_expr,
+        let expression = Expression::Case(CaseExpression::new(
+            match_expression,
             when_then_pairs,
             default,
             Span::default(),
         ));
 
-        assert!(!expr.is_constant());
-        assert!(expr.to_string().contains("CASE score"));
-        assert!(expr.to_string().contains("WHEN Int(90) THEN String(\"A\")"));
-        assert!(expr.to_string().contains("ELSE String(\"F\")"));
+        assert!(!expression.is_constant());
+        assert!(expression.to_string().contains("CASE score"));
+        assert!(expression.to_string().contains("WHEN Int(90) THEN String(\"A\")"));
+        assert!(expression.to_string().contains("ELSE String(\"F\")"));
     }
 
     #[test]
-    fn test_subscript_expr() {
-        let collection = Expr::Variable(VariableExpr::new("array".to_string(), Span::default()));
-        let index = Expr::Constant(ConstantExpr::new(Value::Int(0), Span::default()));
-        let expr = Expr::Subscript(SubscriptExpr::new(collection, index, Span::default()));
+    fn test_subscript_expression() {
+        let collection = Expression::Variable(VariableExpression::new("array".to_string(), Span::default()));
+        let index = Expression::Constant(ConstantExpression::new(Value::Int(0), Span::default()));
+        let expression = Expression::Subscript(SubscriptExpression::new(collection, index, Span::default()));
 
-        assert!(!expr.is_constant());
-        assert_eq!(expr.to_string(), "array[Int(0)]");
+        assert!(!expression.is_constant());
+        assert_eq!(expression.to_string(), "array[Int(0)]");
     }
 }
 
@@ -216,7 +216,7 @@ mod stmt_tests {
                 span: Span::default(),
                 vertices: vec![],
             },
-            to: Expr::Variable(VariableExpr::new("target".to_string(), Span::default())),
+            to: Expression::Variable(VariableExpression::new("target".to_string(), Span::default())),
             over: None,
             where_clause: None,
             shortest: true,
@@ -324,32 +324,32 @@ mod visitor_tests {
     #[test]
     fn test_default_visitor() {
         let mut visitor = DefaultVisitor;
-        let expr = Expr::Constant(ConstantExpr::new(Value::Int(42), Span::default()));
+        let expression = Expression::Constant(ConstantExpression::new(Value::Int(42), Span::default()));
 
         // 应该能够访问而不出错
-        visitor.visit_expr(&expr);
+        visitor.visit_expression(&expression);
     }
 
     #[test]
     fn test_type_checker() {
         let mut checker = TypeChecker::new();
-        let left = Expr::Constant(ConstantExpr::new(Value::Int(5), Span::default()));
-        let right = Expr::Constant(ConstantExpr::new(
+        let left = Expression::Constant(ConstantExpression::new(Value::Int(5), Span::default()));
+        let right = Expression::Constant(ConstantExpression::new(
             Value::String("hello".to_string()),
             Span::default(),
         ));
-        let expr = Expr::Binary(BinaryExpr::new(left, BinaryOp::Add, right, Span::default()));
+        let expression = Expression::Binary(BinaryExpression::new(left, BinaryOp::Add, right, Span::default()));
 
-        checker.visit_expr(&expr);
+        checker.visit_expression(&expression);
         assert!(checker.has_warnings());
     }
 
     #[test]
     fn test_ast_formatter() {
         let mut formatter = AstFormatter::new();
-        let expr = Expr::Constant(ConstantExpr::new(Value::Int(42), Span::default()));
+        let expression = Expression::Constant(ConstantExpression::new(Value::Int(42), Span::default()));
 
-        let result = formatter.format(&expr);
+        let result = formatter.format(&expression);
         assert!(result.contains("Constant: Int(42)"));
     }
 }
@@ -364,18 +364,18 @@ mod utils_tests {
         let span = Span::default();
 
         // 测试常量表达式
-        let const_expr = ExprFactory::constant(Value::Int(42), span);
-        assert!(matches!(const_expr, Expr::Constant(_)));
+        let const_expression = ExprFactory::constant(Value::Int(42), span);
+        assert!(matches!(const_expression, Expression::Constant(_)));
 
         // 测试变量表达式
-        let var_expr = ExprFactory::variable("x".to_string(), span);
-        assert!(matches!(var_expr, Expr::Variable(_)));
+        let var_expression = ExprFactory::variable("x".to_string(), span);
+        assert!(matches!(var_expression, Expression::Variable(_)));
 
         // 测试二元表达式
         let left = ExprFactory::constant(Value::Int(5), span);
         let right = ExprFactory::constant(Value::Int(3), span);
-        let binary_expr = ExprFactory::binary(left, BinaryOp::Add, right, span);
-        assert!(matches!(binary_expr, Expr::Binary(_)));
+        let binary_expression = ExprFactory::binary(left, BinaryOp::Add, right, span);
+        assert!(matches!(binary_expression, Expression::Binary(_)));
     }
 
     #[test]
@@ -385,21 +385,21 @@ mod utils_tests {
         // 测试 5 + 3 -> 8
         let left = ExprFactory::constant(Value::Int(5), span);
         let right = ExprFactory::constant(Value::Int(3), span);
-        let expr = ExprFactory::binary(left, BinaryOp::Add, right, span);
+        let expression = ExprFactory::binary(left, BinaryOp::Add, right, span);
 
-        let optimized = ExprOptimizer::constant_folding(expr);
-        assert!(matches!(optimized, Expr::Constant(_)));
-        if let Expr::Constant(e) = optimized {
+        let optimized = ExprOptimizer::constant_folding(expression);
+        assert!(matches!(optimized, Expression::Constant(_)));
+        if let Expression::Constant(e) = optimized {
             assert_eq!(e.value, Value::Int(8));
         }
 
         // 测试 -5 -> -5
         let operand = ExprFactory::constant(Value::Int(5), span);
-        let expr = ExprFactory::unary(UnaryOp::Minus, operand, span);
+        let expression = ExprFactory::unary(UnaryOp::Minus, operand, span);
 
-        let optimized = ExprOptimizer::constant_folding(expr);
-        assert!(matches!(optimized, Expr::Constant(_)));
-        if let Expr::Constant(e) = optimized {
+        let optimized = ExprOptimizer::constant_folding(expression);
+        assert!(matches!(optimized, Expression::Constant(_)));
+        if let Expression::Constant(e) = optimized {
             assert_eq!(e.value, Value::Int(-5));
         }
     }
@@ -411,25 +411,25 @@ mod utils_tests {
         // 测试 x + 0 -> x
         let x = ExprFactory::variable("x".to_string(), span);
         let zero = ExprFactory::constant(Value::Int(0), span);
-        let expr = ExprFactory::binary(x.clone(), BinaryOp::Add, zero, span);
+        let expression = ExprFactory::binary(x.clone(), BinaryOp::Add, zero, span);
 
-        let simplified = ExprOptimizer::simplify(expr);
+        let simplified = ExprOptimizer::simplify(expression);
         assert_eq!(simplified, x);
 
         // 测试 x * 1 -> x
         let x = ExprFactory::variable("x".to_string(), span);
         let one = ExprFactory::constant(Value::Int(1), span);
-        let expr = ExprFactory::binary(x.clone(), BinaryOp::Multiply, one, span);
+        let expression = ExprFactory::binary(x.clone(), BinaryOp::Multiply, one, span);
 
-        let simplified = ExprOptimizer::simplify(expr);
+        let simplified = ExprOptimizer::simplify(expression);
         assert_eq!(simplified, x);
 
         // 测试 !!x -> x
         let x = ExprFactory::variable("x".to_string(), span);
-        let not_expr = ExprFactory::unary(UnaryOp::Not, x.clone(), span);
-        let expr = ExprFactory::unary(UnaryOp::Not, not_expr, span);
+        let not_expression = ExprFactory::unary(UnaryOp::Not, x.clone(), span);
+        let expression = ExprFactory::unary(UnaryOp::Not, not_expression, span);
 
-        let simplified = ExprOptimizer::simplify(expr);
+        let simplified = ExprOptimizer::simplify(expression);
         assert_eq!(simplified, x);
     }
 }

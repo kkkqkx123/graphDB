@@ -10,8 +10,8 @@ use crate::core::{
     BinaryOperator, DataType, Expression, UnaryOperator, Value,
 };
 use crate::core::types::operators::AggregateFunction;
-use crate::expression::Expr;
-use crate::query::parser::ast::expr::*;
+use crate::expression::Expression;
+use crate::query::parser::ast::expression::*;
 
 /// 常量表达式折叠访问器
 ///
@@ -23,7 +23,7 @@ pub struct FoldConstantExprVisitor {
     /// 错误状态
     error: Option<String>,
     /// 折叠后的表达式
-    folded_expr: Option<Expression>,
+    folded_expression: Option<Expression>,
     /// 访问者状态
     state: ExpressionVisitorState,
 }
@@ -34,7 +34,7 @@ impl FoldConstantExprVisitor {
         Self {
             can_be_folded: false,
             error: None,
-            folded_expr: None,
+            folded_expression: None,
             state: ExpressionVisitorState::new(),
         }
     }
@@ -42,25 +42,25 @@ impl FoldConstantExprVisitor {
     /// 尝试折叠表达式
     ///
     /// 返回折叠后的表达式，如果表达式不可折叠则返回原表达式的克隆
-    pub fn fold(&mut self, expr: &Expr) -> Result<Expression, String> {
+    pub fn fold(&mut self, expression: &Expression) -> Result<Expression, String> {
         self.can_be_folded = true;
         self.error = None;
-        self.folded_expr = None;
+        self.folded_expression = None;
 
-        self.visit_expression(expr)?;
+        self.visit_expression(expression)?;
 
-        if let Some(folded) = self.folded_expr.take() {
+        if let Some(folded) = self.folded_expression.take() {
             Ok(folded)
         } else if self.can_be_folded {
-            Ok(expr.clone())
+            Ok(expression.clone())
         } else {
             Err(self.error.clone().unwrap_or_else(|| "表达式不可折叠".to_string()))
         }
     }
 
     /// 检查表达式是否为常量
-    pub fn is_constant(expr: &Expr) -> bool {
-        matches!(expr, Expr::Literal(_))
+    pub fn is_constant(expression: &Expression) -> bool {
+        matches!(expression, Expression::Literal(_))
     }
 
     /// 检查是否可以折叠
@@ -80,28 +80,28 @@ impl FoldConstantExprVisitor {
     }
 
     /// 设置折叠后的表达式
-    fn set_folded(&mut self, expr: Expression) {
-        self.folded_expr = Some(expr);
+    fn set_folded(&mut self, expression: Expression) {
+        self.folded_expression = Some(expression);
     }
 
     /// 尝试计算二元运算
     fn try_fold_binary(
         &mut self,
-        left: &Expr,
+        left: &Expression,
         op: &BinaryOperator,
-        right: &Expr,
+        right: &Expression,
     ) -> Option<Expression> {
         if !Self::is_constant(left) || !Self::is_constant(right) {
             return None;
         }
 
         let left_val = match left {
-            Expr::Literal(v) => v,
+            Expression::Literal(v) => v,
             _ => return None,
         };
 
         let right_val = match right {
-            Expr::Literal(v) => v,
+            Expression::Literal(v) => v,
             _ => return None,
         };
 
@@ -125,7 +125,7 @@ impl FoldConstantExprVisitor {
             _ => return None,
         };
 
-        Some(Expr::Literal(result))
+        Some(Expression::Literal(result))
     }
 
     fn fold_add(&self, left: &Value, right: &Value) -> Option<Value> {
@@ -280,13 +280,13 @@ impl FoldConstantExprVisitor {
     }
 
     /// 尝试计算一元运算
-    fn try_fold_unary(&mut self, op: &UnaryOperator, operand: &Expr) -> Option<Expression> {
+    fn try_fold_unary(&mut self, op: &UnaryOperator, operand: &Expression) -> Option<Expression> {
         if !Self::is_constant(operand) {
             return None;
         }
 
         let val = match operand {
-            Expr::Literal(v) => v,
+            Expression::Literal(v) => v,
             _ => return None,
         };
 
@@ -297,7 +297,7 @@ impl FoldConstantExprVisitor {
             _ => return None,
         };
 
-        Some(Expr::Literal(result))
+        Some(Expression::Literal(result))
     }
 
     fn fold_unary_plus(&self, val: &Value) -> Option<Value> {
@@ -386,15 +386,15 @@ impl ExpressionVisitor for FoldConstantExprVisitor {
         Ok(())
     }
 
-    fn visit_property(&mut self, object: &Expr, _property: &str) -> Self::Result {
+    fn visit_property(&mut self, object: &Expression, _property: &str) -> Self::Result {
         self.visit_expression(object)
     }
 
     fn visit_binary(
         &mut self,
-        left: &Expr,
+        left: &Expression,
         op: &BinaryOperator,
-        right: &Expr,
+        right: &Expression,
     ) -> Self::Result {
         if let Some(folded) = self.try_fold_binary(left, op, right) {
             self.set_folded(folded);
@@ -405,7 +405,7 @@ impl ExpressionVisitor for FoldConstantExprVisitor {
         Ok(())
     }
 
-    fn visit_unary(&mut self, op: &UnaryOperator, operand: &Expr) -> Self::Result {
+    fn visit_unary(&mut self, op: &UnaryOperator, operand: &Expression) -> Self::Result {
         if let Some(folded) = self.try_fold_unary(op, operand) {
             self.set_folded(folded);
         } else {
@@ -421,9 +421,9 @@ impl ExpressionVisitor for FoldConstantExprVisitor {
             "ABS" | "CEIL" | "FLOOR" | "SQRT" | "POW" | "EXP" | "LOG" | "LOG10" | "SIN" | "COS"
             | "TAN" | "ASIN" | "ACOS" | "ATAN" | "ROUND" => {
                 if args.len() == 1 && Self::is_constant(&args[0]) {
-                    if let Expr::Literal(val) = &args[0] {
+                    if let Expression::Literal(val) = &args[0] {
                         if let Some(folded) = self.fold_math_function_internal(name, val) {
-                            self.set_folded(Expr::Literal(folded));
+                            self.set_folded(Expression::Literal(folded));
                             return Ok(());
                         }
                     }
@@ -431,9 +431,9 @@ impl ExpressionVisitor for FoldConstantExprVisitor {
             }
             "LOWER" | "UPPER" | "TRIM" | "LTRIM" | "RTRIM" | "REVERSE" => {
                 if args.len() == 1 && Self::is_constant(&args[0]) {
-                    if let Expr::Literal(val) = &args[0] {
+                    if let Expression::Literal(val) = &args[0] {
                         if let Some(folded) = self.fold_string_function_internal(name, val) {
-                            self.set_folded(Expr::Literal(folded));
+                            self.set_folded(Expression::Literal(folded));
                             return Ok(());
                         }
                     }
@@ -451,7 +451,7 @@ impl ExpressionVisitor for FoldConstantExprVisitor {
     fn visit_aggregate(
         &mut self,
         _func: &AggregateFunction,
-        arg: &Expr,
+        arg: &Expression,
         _distinct: bool,
     ) -> Self::Result {
         self.visit_expression(arg)
@@ -471,7 +471,7 @@ impl ExpressionVisitor for FoldConstantExprVisitor {
         }
 
         if all_constant {
-            self.set_folded(Expr::List(folded_items));
+            self.set_folded(Expression::List(folded_items));
         } else {
             for item in items {
                 self.visit_expression(item)?;
@@ -494,7 +494,7 @@ impl ExpressionVisitor for FoldConstantExprVisitor {
         }
 
         if all_constant {
-            self.set_folded(Expr::Map(folded_pairs));
+            self.set_folded(Expression::Map(folded_pairs));
         } else {
             for (_, value) in pairs {
                 self.visit_expression(value)?;
@@ -505,40 +505,40 @@ impl ExpressionVisitor for FoldConstantExprVisitor {
 
     fn visit_case(
         &mut self,
-        conditions: &[(Expr, Expr)],
-        default: &Option<Box<Expr>>,
+        conditions: &[(Expression, Expression)],
+        default: &Option<Box<Expression>>,
     ) -> Self::Result {
-        for (cond, expr) in conditions {
+        for (cond, expression) in conditions {
             self.visit_expression(cond)?;
-            self.visit_expression(expr)?;
+            self.visit_expression(expression)?;
         }
-        if let Some(default_expr) = default {
-            self.visit_expression(default_expr)?;
+        if let Some(default_expression) = default {
+            self.visit_expression(default_expression)?;
         }
         Ok(())
     }
 
-    fn visit_type_cast(&mut self, expr: &Expr, _target_type: &DataType) -> Self::Result {
-        self.visit_expression(expr)
+    fn visit_type_cast(&mut self, expression: &Expression, _target_type: &DataType) -> Self::Result {
+        self.visit_expression(expression)
     }
 
-    fn visit_subscript(&mut self, collection: &Expr, index: &Expr) -> Self::Result {
+    fn visit_subscript(&mut self, collection: &Expression, index: &Expression) -> Self::Result {
         self.visit_expression(collection)?;
         self.visit_expression(index)
     }
 
     fn visit_range(
         &mut self,
-        collection: &Expr,
-        start: &Option<Box<Expr>>,
-        end: &Option<Box<Expr>>,
+        collection: &Expression,
+        start: &Option<Box<Expression>>,
+        end: &Option<Box<Expression>>,
     ) -> Self::Result {
         self.visit_expression(collection)?;
-        if let Some(start_expr) = start {
-            self.visit_expression(start_expr)?;
+        if let Some(start_expression) = start {
+            self.visit_expression(start_expression)?;
         }
-        if let Some(end_expr) = end {
-            self.visit_expression(end_expr)?;
+        if let Some(end_expression) = end {
+            self.visit_expression(end_expression)?;
         }
         Ok(())
     }

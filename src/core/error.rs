@@ -128,7 +128,7 @@ impl From<DBError> for QueryError {
         match e {
             DBError::Query(qe) => qe,
             DBError::Storage(se) => QueryError::StorageError(se.to_string()),
-            DBError::Expression(expr) => QueryError::ExpressionError(expr.to_string()),
+            DBError::Expression(expression) => QueryError::ExpressionError(expression.to_string()),
             DBError::Plan(plan) => QueryError::ExecutionError(plan.to_string()),
             DBError::Lock(lock) => QueryError::ExecutionError(lock.to_string()),
             DBError::Manager(manager) => QueryError::ExecutionError(manager.to_string()),

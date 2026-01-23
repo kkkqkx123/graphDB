@@ -1,7 +1,7 @@
 //! 变量验证器
 //! 负责验证变量的作用域、命名格式和使用
 
-use crate::core::Expr;
+use crate::core::Expression;
 use crate::query::validator::structs::*;
 use crate::query::validator::{ValidationError, ValidationErrorType};
 use crate::query::validator::validation_interface::ValidationContext;
@@ -18,12 +18,12 @@ impl VariableValidator {
     /// 验证变量作用域
     pub fn validate_variable_scope<C: ValidationContext>(
         &self,
-        expr: &Expr,
+        expression: &Expression,
         context: &C,
         available_aliases: &HashMap<String, AliasType>,
     ) -> Result<(), ValidationError> {
         // 提取表达式中使用的变量
-        let variables = self.extract_variables(expr);
+        let variables = self.extract_variables(expression);
         
         // 验证每个变量的作用域
         for var in &variables {
@@ -108,62 +108,62 @@ impl VariableValidator {
     }
 
     /// 提取表达式中的变量
-    fn extract_variables(&self, expr: &Expression) -> Vec<String> {
+    fn extract_variables(&self, expression: &Expression) -> Vec<String> {
         let mut variables = Vec::new();
-        self.collect_variables(expr, &mut variables);
+        self.collect_variables(expression, &mut variables);
         variables
     }
 
     /// 递归收集变量
-    fn collect_variables(&self, expr: &Expr, variables: &mut Vec<String>) {
-        match expr {
-            Expr::Variable(name) => {
+    fn collect_variables(&self, expression: &Expression, variables: &mut Vec<String>) {
+        match expression {
+            Expression::Variable(name) => {
                 if !variables.contains(name) {
                     variables.push(name.clone());
                 }
             }
-            Expr::Binary { left, right, .. } => {
+            Expression::Binary { left, right, .. } => {
                 self.collect_variables(left, variables);
                 self.collect_variables(right, variables);
             }
-            Expr::Unary { operand, .. } => {
+            Expression::Unary { operand, .. } => {
                 self.collect_variables(operand, variables);
             }
-            Expr::Function { args, .. } => {
+            Expression::Function { args, .. } => {
                 for arg in args {
                     self.collect_variables(arg, variables);
                 }
             }
-            Expr::Aggregate { arg, .. } => {
+            Expression::Aggregate { arg, .. } => {
                 self.collect_variables(arg, variables);
             }
-            Expr::Property { object: inner_expr, .. } => {
-                self.collect_variables(inner_expr, variables);
+            Expression::Property { object: inner_expression, .. } => {
+                self.collect_variables(inner_expression, variables);
             }
-            Expr::Subscript { collection: inner_expr, index } => {
-                self.collect_variables(inner_expr, variables);
+            Expression::Subscript { collection: inner_expression, index } => {
+                self.collect_variables(inner_expression, variables);
                 self.collect_variables(index, variables);
             }
-            Expr::List(items) => {
+            Expression::List(items) => {
                 for item in items {
                     self.collect_variables(item, variables);
                 }
             }
-            Expr::Map(pairs) => {
+            Expression::Map(pairs) => {
                 for (_, value) in pairs {
                     self.collect_variables(value, variables);
                 }
             }
-            Expr::Case {
+            Expression::Case {
                 conditions,
                 default,
             } => {
-                for (when_expr, then_expr) in conditions {
-                    self.collect_variables(when_expr, variables);
-                    self.collect_variables(then_expr, variables);
+                for (when_expression, then_expression) in conditions {
+                    self.collect_variables(when_expression, variables);
+                    self.collect_variables(then_expression, variables);
                 }
-                if let Some(else_expr) = default {
-                    self.collect_variables(else_expr, variables);
+                if let Some(else_expression) = default {
+                    self.collect_variables(else_expression, variables);
                 }
             }
             _ => {}
@@ -171,36 +171,36 @@ impl VariableValidator {
     }
 
     /// 检查是否包含指定变量
-    pub fn contains_variable(&self, expr: &Expr, var: &str) -> bool {
-        match expr {
-            Expr::Variable(name) => name == var,
-            Expr::Binary { left, right, .. } => {
+    pub fn contains_variable(&self, expression: &Expression, var: &str) -> bool {
+        match expression {
+            Expression::Variable(name) => name == var,
+            Expression::Binary { left, right, .. } => {
                 self.contains_variable(left, var) || self.contains_variable(right, var)
             }
-            Expr::Unary { operand, .. } => self.contains_variable(operand, var),
-            Expr::Function { args, .. } => {
+            Expression::Unary { operand, .. } => self.contains_variable(operand, var),
+            Expression::Function { args, .. } => {
                 args.iter().any(|arg| self.contains_variable(arg, var))
             }
-            Expr::Aggregate { arg, .. } => self.contains_variable(arg, var),
-            Expr::Property { object: inner_expr, .. } => self.contains_variable(inner_expr, var),
-            Expr::Subscript { collection: inner_expr, index } => {
-                self.contains_variable(inner_expr, var) || self.contains_variable(index, var)
+            Expression::Aggregate { arg, .. } => self.contains_variable(arg, var),
+            Expression::Property { object: inner_expression, .. } => self.contains_variable(inner_expression, var),
+            Expression::Subscript { collection: inner_expression, index } => {
+                self.contains_variable(inner_expression, var) || self.contains_variable(index, var)
             }
-            Expr::List(items) => items.iter().any(|item| self.contains_variable(item, var)),
-            Expr::Map(pairs) => {
+            Expression::List(items) => items.iter().any(|item| self.contains_variable(item, var)),
+            Expression::Map(pairs) => {
                 pairs.iter().any(|(_, value)| self.contains_variable(value, var))
             }
-            Expr::Case {
+            Expression::Case {
                 conditions,
                 default,
             } => {
                 let mut has_var = false;
-                for (when_expr, then_expr) in conditions {
-                    has_var = has_var || self.contains_variable(when_expr, var);
-                    has_var = has_var || self.contains_variable(then_expr, var);
+                for (when_expression, then_expression) in conditions {
+                    has_var = has_var || self.contains_variable(when_expression, var);
+                    has_var = has_var || self.contains_variable(then_expression, var);
                 }
-                if let Some(else_expr) = default {
-                    has_var = has_var || self.contains_variable(else_expr, var);
+                if let Some(else_expression) = default {
+                    has_var = has_var || self.contains_variable(else_expression, var);
                 }
                 has_var
             }
@@ -211,16 +211,16 @@ impl VariableValidator {
     /// 验证表达式中的变量
     pub fn validate_expression_variables<C: ValidationContext>(
         &self,
-        expr: &Expr,
+        expression: &Expression,
         context: &C,
     ) -> Result<(), ValidationError> {
-        self.validate_variable_scope(expr, context, context.get_aliases())
+        self.validate_variable_scope(expression, context, context.get_aliases())
     }
 
     /// 检查是否为算术表达式
-    pub fn is_arithmetic_expression(&self, expr: &Expr, var: &str) -> bool {
-        match expr {
-            Expr::Binary { op, left, right } => {
+    pub fn is_arithmetic_expression(&self, expression: &Expression, var: &str) -> bool {
+        match expression {
+            Expression::Binary { op, left, right } => {
                 match op {
                     crate::core::BinaryOperator::Add
                     | crate::core::BinaryOperator::Subtract
@@ -232,7 +232,7 @@ impl VariableValidator {
                     _ => false,
                 }
             }
-            Expr::Unary { op, operand } => {
+            Expression::Unary { op, operand } => {
                 match op {
                     crate::core::UnaryOperator::Minus | crate::core::UnaryOperator::Plus => {
                         self.contains_variable(operand, var)
@@ -248,7 +248,7 @@ impl VariableValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::Expr;
+    use crate::core::Expression;
     use crate::core::Value;
     use std::collections::HashMap;
 
@@ -279,44 +279,44 @@ mod tests {
     fn test_contains_variable() {
         let validator = VariableValidator::new();
         
-        let var_expr = Expr::Variable("test_var".to_string());
-        assert!(validator.contains_variable(&var_expr, "test_var"));
-        assert!(!validator.contains_variable(&var_expr, "other_var"));
+        let var_expression = Expression::Variable("test_var".to_string());
+        assert!(validator.contains_variable(&var_expression, "test_var"));
+        assert!(!validator.contains_variable(&var_expression, "other_var"));
         
-        let literal_expr = Expr::Literal(Value::Int(42));
-        assert!(!validator.contains_variable(&literal_expr, "test_var"));
+        let literal_expression = Expression::Literal(Value::Int(42));
+        assert!(!validator.contains_variable(&literal_expression, "test_var"));
     }
 
     #[test]
     fn test_is_arithmetic_expression() {
         let validator = VariableValidator::new();
         
-        let add_expr = Expr::Binary {
+        let add_expression = Expression::Binary {
             op: crate::core::BinaryOperator::Add,
-            left: Box::new(Expr::Variable("var".to_string())),
-            right: Box::new(Expr::Literal(Value::Int(1))),
+            left: Box::new(Expression::Variable("var".to_string())),
+            right: Box::new(Expression::Literal(Value::Int(1))),
         };
-        assert!(validator.is_arithmetic_expression(&add_expr, "var"));
+        assert!(validator.is_arithmetic_expression(&add_expression, "var"));
         
-        let eq_expr = Expr::Binary {
+        let eq_expression = Expression::Binary {
             op: crate::core::BinaryOperator::Equal,
-            left: Box::new(Expr::Variable("var".to_string())),
-            right: Box::new(Expr::Literal(Value::Int(1))),
+            left: Box::new(Expression::Variable("var".to_string())),
+            right: Box::new(Expression::Literal(Value::Int(1))),
         };
-        assert!(!validator.is_arithmetic_expression(&eq_expr, "var"));
+        assert!(!validator.is_arithmetic_expression(&eq_expression, "var"));
     }
 
     #[test]
     fn test_extract_variables() {
         let validator = VariableValidator::new();
         
-        let complex_expr = Expr::Binary {
+        let complex_expression = Expression::Binary {
             op: crate::core::BinaryOperator::Add,
-            left: Box::new(Expr::Variable("var1".to_string())),
-            right: Box::new(Expr::Variable("var2".to_string())),
+            left: Box::new(Expression::Variable("var1".to_string())),
+            right: Box::new(Expression::Variable("var2".to_string())),
         };
         
-        let variables = validator.extract_variables(&complex_expr);
+        let variables = validator.extract_variables(&complex_expression);
         assert_eq!(variables.len(), 2);
         assert!(variables.contains(&"var1".to_string()));
         assert!(variables.contains(&"var2".to_string()));

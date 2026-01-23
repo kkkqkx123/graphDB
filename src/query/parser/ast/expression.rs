@@ -7,72 +7,72 @@ use crate::core::Value;
 
 /// 表达式枚举 - 核心 AST 节点
 #[derive(Debug, Clone, PartialEq)]
-pub enum Expr {
-    Constant(ConstantExpr),
-    Variable(VariableExpr),
-    Binary(BinaryExpr),
-    Unary(UnaryExpr),
-    FunctionCall(FunctionCallExpr),
-    PropertyAccess(PropertyAccessExpr),
-    List(ListExpr),
-    Map(MapExpr),
-    Case(CaseExpr),
-    Subscript(SubscriptExpr),
-    TypeCast(TypeCastExpr),
-    Range(RangeExpr),
-    Path(PathExpr),
-    Label(LabelExpr),
+pub enum Expression {
+    Constant(ConstantExpression),
+    Variable(VariableExpression),
+    Binary(BinaryExpression),
+    Unary(UnaryExpression),
+    FunctionCall(FunctionCallExpression),
+    PropertyAccess(PropertyAccessExpression),
+    List(ListExpression),
+    Map(MapExpression),
+    Case(CaseExpression),
+    Subscript(SubscriptExpression),
+    TypeCast(TypeCastExpression),
+    Range(RangeExpression),
+    Path(PathExpression),
+    Label(LabelExpression),
 }
 
-impl Expr {
+impl Expression {
     /// 获取表达式的位置信息
     pub fn span(&self) -> Span {
         match self {
-            Expr::Constant(e) => e.span,
-            Expr::Variable(e) => e.span,
-            Expr::Binary(e) => e.span,
-            Expr::Unary(e) => e.span,
-            Expr::FunctionCall(e) => e.span,
-            Expr::PropertyAccess(e) => e.span,
-            Expr::List(e) => e.span,
-            Expr::Map(e) => e.span,
-            Expr::Case(e) => e.span,
-            Expr::Subscript(e) => e.span,
-            Expr::TypeCast(e) => e.span,
-            Expr::Range(e) => e.span,
-            Expr::Path(e) => e.span,
-            Expr::Label(e) => e.span,
+            Expression::Constant(e) => e.span,
+            Expression::Variable(e) => e.span,
+            Expression::Binary(e) => e.span,
+            Expression::Unary(e) => e.span,
+            Expression::FunctionCall(e) => e.span,
+            Expression::PropertyAccess(e) => e.span,
+            Expression::List(e) => e.span,
+            Expression::Map(e) => e.span,
+            Expression::Case(e) => e.span,
+            Expression::Subscript(e) => e.span,
+            Expression::TypeCast(e) => e.span,
+            Expression::Range(e) => e.span,
+            Expression::Path(e) => e.span,
+            Expression::Label(e) => e.span,
         }
     }
 
     /// 检查表达式是否为常量
     pub fn is_constant(&self) -> bool {
         match self {
-            Expr::Constant(_) => true,
-            Expr::Binary(e) => e.left.is_constant() && e.right.is_constant(),
-            Expr::Unary(e) => e.operand.is_constant(),
-            Expr::List(e) => e.elements.iter().all(|elem| elem.is_constant()),
-            Expr::Map(e) => e.pairs.iter().all(|(_, value)| value.is_constant()),
-            Expr::Case(e) => {
+            Expression::Constant(_) => true,
+            Expression::Binary(e) => e.left.is_constant() && e.right.is_constant(),
+            Expression::Unary(e) => e.operand.is_constant(),
+            Expression::List(e) => e.elements.iter().all(|elem| elem.is_constant()),
+            Expression::Map(e) => e.pairs.iter().all(|(_, value)| value.is_constant()),
+            Expression::Case(e) => {
                 let match_constant = e
-                    .match_expr
+                    .match_expression
                     .as_ref()
-                    .map_or(true, |expr| expr.is_constant());
+                    .map_or(true, |expression| expression.is_constant());
                 let when_constant = e
                     .when_then_pairs
                     .iter()
                     .all(|(when, then)| when.is_constant() && then.is_constant());
-                let default_constant = e.default.as_ref().map_or(true, |expr| expr.is_constant());
+                let default_constant = e.default.as_ref().map_or(true, |expression| expression.is_constant());
                 match_constant && when_constant && default_constant
             }
-            Expr::Subscript(e) => e.collection.is_constant() && e.index.is_constant(),
-            Expr::Range(e) => {
+            Expression::Subscript(e) => e.collection.is_constant() && e.index.is_constant(),
+            Expression::Range(e) => {
                 let collection_constant = e.collection.is_constant();
-                let start_constant = e.start.as_ref().map_or(true, |expr| expr.is_constant());
-                let end_constant = e.end.as_ref().map_or(true, |expr| expr.is_constant());
+                let start_constant = e.start.as_ref().map_or(true, |expression| expression.is_constant());
+                let end_constant = e.end.as_ref().map_or(true, |expression| expression.is_constant());
                 collection_constant && start_constant && end_constant
             }
-            Expr::Path(e) => e.elements.iter().all(|elem| elem.is_constant()),
+            Expression::Path(e) => e.elements.iter().all(|elem| elem.is_constant()),
             _ => false,
         }
     }
@@ -80,16 +80,16 @@ impl Expr {
     /// 获取表达式的字符串表示
     pub fn to_string(&self) -> String {
         match self {
-            Expr::Constant(e) => format!("{:?}", e.value),
-            Expr::Variable(e) => e.name.clone(),
-            Expr::Binary(e) => format!(
+            Expression::Constant(e) => format!("{:?}", e.value),
+            Expression::Variable(e) => e.name.clone(),
+            Expression::Binary(e) => format!(
                 "({} {} {})",
                 e.left.to_string(),
                 e.op.to_string(),
                 e.right.to_string()
             ),
-            Expr::Unary(e) => format!("{} {}", e.op.to_string(), e.operand.to_string()),
-            Expr::FunctionCall(e) => {
+            Expression::Unary(e) => format!("{} {}", e.op.to_string(), e.operand.to_string()),
+            Expression::FunctionCall(e) => {
                 let args_str = e
                     .args
                     .iter()
@@ -103,8 +103,8 @@ impl Expr {
                     format!("{}({})", e.name, args_str)
                 }
             }
-            Expr::PropertyAccess(e) => format!("{}.{}", e.object.to_string(), e.property),
-            Expr::List(e) => {
+            Expression::PropertyAccess(e) => format!("{}.{}", e.object.to_string(), e.property),
+            Expression::List(e) => {
                 let elements_str = e
                     .elements
                     .iter()
@@ -113,7 +113,7 @@ impl Expr {
                     .join(", ");
                 format!("[{}]", elements_str)
             }
-            Expr::Map(e) => {
+            Expression::Map(e) => {
                 let pairs_str = e
                     .pairs
                     .iter()
@@ -122,11 +122,11 @@ impl Expr {
                     .join(", ");
                 format!("{{{}}}", pairs_str)
             }
-            Expr::Case(e) => {
+            Expression::Case(e) => {
                 let mut result = String::from("CASE");
 
-                if let Some(ref expr) = e.match_expr {
-                    result.push_str(&format!(" {}", expr.to_string()));
+                if let Some(ref expression) = e.match_expression {
+                    result.push_str(&format!(" {}", expression.to_string()));
                 }
 
                 for (when, then) in &e.when_then_pairs {
@@ -144,20 +144,20 @@ impl Expr {
                 result.push_str(" END");
                 result
             }
-            Expr::Subscript(e) => format!("{}[{}]", e.collection.to_string(), e.index.to_string()),
-            Expr::TypeCast(e) => format!("CAST({} AS {})", e.expr.to_string(), e.target_type),
-            Expr::Range(e) => {
+            Expression::Subscript(e) => format!("{}[{}]", e.collection.to_string(), e.index.to_string()),
+            Expression::TypeCast(e) => format!("CAST({} AS {})", e.expression.to_string(), e.target_type),
+            Expression::Range(e) => {
                 let start_str = e
                     .start
                     .as_ref()
-                    .map_or(String::new(), |expr| expr.to_string());
+                    .map_or(String::new(), |expression| expression.to_string());
                 let end_str = e
                     .end
                     .as_ref()
-                    .map_or(String::new(), |expr| expr.to_string());
+                    .map_or(String::new(), |expression| expression.to_string());
                 format!("{}[{}..{}]", e.collection.to_string(), start_str, end_str)
             }
-            Expr::Path(e) => {
+            Expression::Path(e) => {
                 let elements_str = e
                     .elements
                     .iter()
@@ -166,19 +166,19 @@ impl Expr {
                     .join(" -> ");
                 format!("[{}]", elements_str)
             }
-            Expr::Label(e) => format!(":{}", e.label),
+            Expression::Label(e) => format!(":{}", e.label),
         }
     }
 }
 
 /// 常量表达式
 #[derive(Debug, Clone, PartialEq)]
-pub struct ConstantExpr {
+pub struct ConstantExpression {
     pub span: Span,
     pub value: Value,
 }
 
-impl ConstantExpr {
+impl ConstantExpression {
     pub fn new(value: Value, span: Span) -> Self {
         Self { span, value }
     }
@@ -186,12 +186,12 @@ impl ConstantExpr {
 
 /// 变量表达式
 #[derive(Debug, Clone, PartialEq)]
-pub struct VariableExpr {
+pub struct VariableExpression {
     pub span: Span,
     pub name: String,
 }
 
-impl VariableExpr {
+impl VariableExpression {
     pub fn new(name: String, span: Span) -> Self {
         Self { span, name }
     }
@@ -199,15 +199,15 @@ impl VariableExpr {
 
 /// 二元表达式
 #[derive(Debug, Clone, PartialEq)]
-pub struct BinaryExpr {
+pub struct BinaryExpression {
     pub span: Span,
-    pub left: Box<Expr>,
+    pub left: Box<Expression>,
     pub op: BinaryOp,
-    pub right: Box<Expr>,
+    pub right: Box<Expression>,
 }
 
-impl BinaryExpr {
-    pub fn new(left: Expr, op: BinaryOp, right: Expr, span: Span) -> Self {
+impl BinaryExpression {
+    pub fn new(left: Expression, op: BinaryOp, right: Expression, span: Span) -> Self {
         Self {
             span,
             left: Box::new(left),
@@ -219,14 +219,14 @@ impl BinaryExpr {
 
 /// 一元表达式
 #[derive(Debug, Clone, PartialEq)]
-pub struct UnaryExpr {
+pub struct UnaryExpression {
     pub span: Span,
     pub op: UnaryOp,
-    pub operand: Box<Expr>,
+    pub operand: Box<Expression>,
 }
 
-impl UnaryExpr {
-    pub fn new(op: UnaryOp, operand: Expr, span: Span) -> Self {
+impl UnaryExpression {
+    pub fn new(op: UnaryOp, operand: Expression, span: Span) -> Self {
         Self {
             span,
             op,
@@ -237,15 +237,15 @@ impl UnaryExpr {
 
 /// 函数调用表达式
 #[derive(Debug, Clone, PartialEq)]
-pub struct FunctionCallExpr {
+pub struct FunctionCallExpression {
     pub span: Span,
     pub name: String,
-    pub args: Vec<Expr>,
+    pub args: Vec<Expression>,
     pub distinct: bool,
 }
 
-impl FunctionCallExpr {
-    pub fn new(name: String, args: Vec<Expr>, distinct: bool, span: Span) -> Self {
+impl FunctionCallExpression {
+    pub fn new(name: String, args: Vec<Expression>, distinct: bool, span: Span) -> Self {
         Self {
             span,
             name,
@@ -257,14 +257,14 @@ impl FunctionCallExpr {
 
 /// 属性访问表达式
 #[derive(Debug, Clone, PartialEq)]
-pub struct PropertyAccessExpr {
+pub struct PropertyAccessExpression {
     pub span: Span,
-    pub object: Box<Expr>,
+    pub object: Box<Expression>,
     pub property: String,
 }
 
-impl PropertyAccessExpr {
-    pub fn new(object: Expr, property: String, span: Span) -> Self {
+impl PropertyAccessExpression {
+    pub fn new(object: Expression, property: String, span: Span) -> Self {
         Self {
             span,
             object: Box::new(object),
@@ -275,49 +275,49 @@ impl PropertyAccessExpr {
 
 /// 列表表达式
 #[derive(Debug, Clone, PartialEq)]
-pub struct ListExpr {
+pub struct ListExpression {
     pub span: Span,
-    pub elements: Vec<Expr>,
+    pub elements: Vec<Expression>,
 }
 
-impl ListExpr {
-    pub fn new(elements: Vec<Expr>, span: Span) -> Self {
+impl ListExpression {
+    pub fn new(elements: Vec<Expression>, span: Span) -> Self {
         Self { span, elements }
     }
 }
 
 /// 映射表达式
 #[derive(Debug, Clone, PartialEq)]
-pub struct MapExpr {
+pub struct MapExpression {
     pub span: Span,
-    pub pairs: Vec<(String, Expr)>,
+    pub pairs: Vec<(String, Expression)>,
 }
 
-impl MapExpr {
-    pub fn new(pairs: Vec<(String, Expr)>, span: Span) -> Self {
+impl MapExpression {
+    pub fn new(pairs: Vec<(String, Expression)>, span: Span) -> Self {
         Self { span, pairs }
     }
 }
 
 /// CASE 表达式
 #[derive(Debug, Clone, PartialEq)]
-pub struct CaseExpr {
+pub struct CaseExpression {
     pub span: Span,
-    pub match_expr: Option<Box<Expr>>,
-    pub when_then_pairs: Vec<(Box<Expr>, Box<Expr>)>,
-    pub default: Option<Box<Expr>>,
+    pub match_expression: Option<Box<Expression>>,
+    pub when_then_pairs: Vec<(Box<Expression>, Box<Expression>)>,
+    pub default: Option<Box<Expression>>,
 }
 
-impl CaseExpr {
+impl CaseExpression {
     pub fn new(
-        match_expr: Option<Expr>,
-        when_then_pairs: Vec<(Expr, Expr)>,
-        default: Option<Expr>,
+        match_expression: Option<Expression>,
+        when_then_pairs: Vec<(Expression, Expression)>,
+        default: Option<Expression>,
         span: Span,
     ) -> Self {
         Self {
             span,
-            match_expr: match_expr.map(Box::new),
+            match_expression: match_expression.map(Box::new),
             when_then_pairs: when_then_pairs
                 .into_iter()
                 .map(|(when, then)| (Box::new(when), Box::new(then)))
@@ -329,14 +329,14 @@ impl CaseExpr {
 
 /// 下标表达式
 #[derive(Debug, Clone, PartialEq)]
-pub struct SubscriptExpr {
+pub struct SubscriptExpression {
     pub span: Span,
-    pub collection: Box<Expr>,
-    pub index: Box<Expr>,
+    pub collection: Box<Expression>,
+    pub index: Box<Expression>,
 }
 
-impl SubscriptExpr {
-    pub fn new(collection: Expr, index: Expr, span: Span) -> Self {
+impl SubscriptExpression {
+    pub fn new(collection: Expression, index: Expression, span: Span) -> Self {
         Self {
             span,
             collection: Box::new(collection),
@@ -347,17 +347,17 @@ impl SubscriptExpr {
 
 /// 类型转换表达式
 #[derive(Debug, Clone, PartialEq)]
-pub struct TypeCastExpr {
+pub struct TypeCastExpression {
     pub span: Span,
-    pub expr: Box<Expr>,
+    pub expression: Box<Expression>,
     pub target_type: String,
 }
 
-impl TypeCastExpr {
-    pub fn new(expr: Expr, target_type: String, span: Span) -> Self {
+impl TypeCastExpression {
+    pub fn new(expression: Expression, target_type: String, span: Span) -> Self {
         Self {
             span,
-            expr: Box::new(expr),
+            expression: Box::new(expression),
             target_type,
         }
     }
@@ -365,15 +365,15 @@ impl TypeCastExpr {
 
 /// 范围表达式
 #[derive(Debug, Clone, PartialEq)]
-pub struct RangeExpr {
+pub struct RangeExpression {
     pub span: Span,
-    pub collection: Box<Expr>,
-    pub start: Option<Box<Expr>>,
-    pub end: Option<Box<Expr>>,
+    pub collection: Box<Expression>,
+    pub start: Option<Box<Expression>>,
+    pub end: Option<Box<Expression>>,
 }
 
-impl RangeExpr {
-    pub fn new(collection: Expr, start: Option<Expr>, end: Option<Expr>, span: Span) -> Self {
+impl RangeExpression {
+    pub fn new(collection: Expression, start: Option<Expression>, end: Option<Expression>, span: Span) -> Self {
         Self {
             span,
             collection: Box::new(collection),
@@ -385,25 +385,25 @@ impl RangeExpr {
 
 /// 路径表达式
 #[derive(Debug, Clone, PartialEq)]
-pub struct PathExpr {
+pub struct PathExpression {
     pub span: Span,
-    pub elements: Vec<Expr>,
+    pub elements: Vec<Expression>,
 }
 
-impl PathExpr {
-    pub fn new(elements: Vec<Expr>, span: Span) -> Self {
+impl PathExpression {
+    pub fn new(elements: Vec<Expression>, span: Span) -> Self {
         Self { span, elements }
     }
 }
 
 /// 标签表达式
 #[derive(Debug, Clone, PartialEq)]
-pub struct LabelExpr {
+pub struct LabelExpression {
     pub span: Span,
     pub label: String,
 }
 
-impl LabelExpr {
+impl LabelExpression {
     pub fn new(label: String, span: Span) -> Self {
         Self { span, label }
     }
@@ -463,39 +463,39 @@ pub struct ExprUtils;
 
 impl ExprUtils {
     /// 查找表达式中的变量
-    pub fn find_variables(expr: &Expr) -> Vec<String> {
+    pub fn find_variables(expression: &Expression) -> Vec<String> {
         let mut variables = Vec::new();
-        Self::find_variables_recursive(expr, &mut variables);
+        Self::find_variables_recursive(expression, &mut variables);
         variables
     }
 
-    fn find_variables_recursive(expr: &Expr, variables: &mut Vec<String>) {
-        match expr {
-            Expr::Variable(e) => variables.push(e.name.clone()),
-            Expr::Binary(e) => {
+    fn find_variables_recursive(expression: &Expression, variables: &mut Vec<String>) {
+        match expression {
+            Expression::Variable(e) => variables.push(e.name.clone()),
+            Expression::Binary(e) => {
                 Self::find_variables_recursive(&e.left, variables);
                 Self::find_variables_recursive(&e.right, variables);
             }
-            Expr::Unary(e) => Self::find_variables_recursive(&e.operand, variables),
-            Expr::FunctionCall(e) => {
+            Expression::Unary(e) => Self::find_variables_recursive(&e.operand, variables),
+            Expression::FunctionCall(e) => {
                 for arg in &e.args {
                     Self::find_variables_recursive(arg, variables);
                 }
             }
-            Expr::PropertyAccess(e) => Self::find_variables_recursive(&e.object, variables),
-            Expr::List(e) => {
+            Expression::PropertyAccess(e) => Self::find_variables_recursive(&e.object, variables),
+            Expression::List(e) => {
                 for elem in &e.elements {
                     Self::find_variables_recursive(elem, variables);
                 }
             }
-            Expr::Map(e) => {
+            Expression::Map(e) => {
                 for (_, value) in &e.pairs {
                     Self::find_variables_recursive(value, variables);
                 }
             }
-            Expr::Case(e) => {
-                if let Some(ref expr) = e.match_expr {
-                    Self::find_variables_recursive(expr, variables);
+            Expression::Case(e) => {
+                if let Some(ref expression) = e.match_expression {
+                    Self::find_variables_recursive(expression, variables);
                 }
                 for (when, then) in &e.when_then_pairs {
                     Self::find_variables_recursive(when, variables);
@@ -505,12 +505,12 @@ impl ExprUtils {
                     Self::find_variables_recursive(default, variables);
                 }
             }
-            Expr::Subscript(e) => {
+            Expression::Subscript(e) => {
                 Self::find_variables_recursive(&e.collection, variables);
                 Self::find_variables_recursive(&e.index, variables);
             }
-            Expr::TypeCast(e) => Self::find_variables_recursive(&e.expr, variables),
-            Expr::Range(e) => {
+            Expression::TypeCast(e) => Self::find_variables_recursive(&e.expression, variables),
+            Expression::Range(e) => {
                 Self::find_variables_recursive(&e.collection, variables);
                 if let Some(ref start) = e.start {
                     Self::find_variables_recursive(start, variables);
@@ -519,7 +519,7 @@ impl ExprUtils {
                     Self::find_variables_recursive(end, variables);
                 }
             }
-            Expr::Path(e) => {
+            Expression::Path(e) => {
                 for elem in &e.elements {
                     Self::find_variables_recursive(elem, variables);
                 }
@@ -529,34 +529,34 @@ impl ExprUtils {
     }
 
     /// 检查表达式是否包含聚合函数
-    pub fn contains_aggregate(expr: &Expr) -> bool {
-        Self::contains_aggregate_recursive(expr)
+    pub fn contains_aggregate(expression: &Expression) -> bool {
+        Self::contains_aggregate_recursive(expression)
     }
 
-    fn contains_aggregate_recursive(expr: &Expr) -> bool {
-        match expr {
-            Expr::FunctionCall(e) => {
+    fn contains_aggregate_recursive(expression: &Expression) -> bool {
+        match expression {
+            Expression::FunctionCall(e) => {
                 let func_name = e.name.to_uppercase();
                 matches!(
                     func_name.as_str(),
                     "COUNT" | "SUM" | "AVG" | "MIN" | "MAX" | "COLLECT" | "AGGREGATE"
                 )
             }
-            Expr::Binary(e) => {
+            Expression::Binary(e) => {
                 Self::contains_aggregate_recursive(&e.left)
                     || Self::contains_aggregate_recursive(&e.right)
             }
-            Expr::Unary(e) => Self::contains_aggregate_recursive(&e.operand),
-            Expr::List(e) => e.elements.iter().any(Self::contains_aggregate_recursive),
-            Expr::Map(e) => e
+            Expression::Unary(e) => Self::contains_aggregate_recursive(&e.operand),
+            Expression::List(e) => e.elements.iter().any(Self::contains_aggregate_recursive),
+            Expression::Map(e) => e
                 .pairs
                 .iter()
                 .any(|(_, value)| Self::contains_aggregate_recursive(value)),
-            Expr::Case(e) => {
+            Expression::Case(e) => {
                 let match_contains = e
-                    .match_expr
+                    .match_expression
                     .as_ref()
-                    .map_or(false, |expr| Self::contains_aggregate_recursive(expr));
+                    .map_or(false, |expression| Self::contains_aggregate_recursive(expression));
                 let when_contains = e.when_then_pairs.iter().any(|(when, then)| {
                     Self::contains_aggregate_recursive(when)
                         || Self::contains_aggregate_recursive(then)
@@ -564,27 +564,27 @@ impl ExprUtils {
                 let default_contains = e
                     .default
                     .as_ref()
-                    .map_or(false, |expr| Self::contains_aggregate_recursive(expr));
+                    .map_or(false, |expression| Self::contains_aggregate_recursive(expression));
                 match_contains || when_contains || default_contains
             }
-            Expr::Subscript(e) => {
+            Expression::Subscript(e) => {
                 Self::contains_aggregate_recursive(&e.collection)
                     || Self::contains_aggregate_recursive(&e.index)
             }
-            Expr::TypeCast(e) => Self::contains_aggregate_recursive(&e.expr),
-            Expr::Range(e) => {
+            Expression::TypeCast(e) => Self::contains_aggregate_recursive(&e.expression),
+            Expression::Range(e) => {
                 let collection_contains = Self::contains_aggregate_recursive(&e.collection);
                 let start_contains = e
                     .start
                     .as_ref()
-                    .map_or(false, |expr| Self::contains_aggregate_recursive(expr));
+                    .map_or(false, |expression| Self::contains_aggregate_recursive(expression));
                 let end_contains = e
                     .end
                     .as_ref()
-                    .map_or(false, |expr| Self::contains_aggregate_recursive(expr));
+                    .map_or(false, |expression| Self::contains_aggregate_recursive(expression));
                 collection_contains || start_contains || end_contains
             }
-            Expr::Path(e) => e.elements.iter().any(Self::contains_aggregate_recursive),
+            Expression::Path(e) => e.elements.iter().any(Self::contains_aggregate_recursive),
             _ => false,
         }
     }
@@ -595,47 +595,47 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_constant_expr() {
-        let expr = Expr::Constant(ConstantExpr::new(Value::Int(42), Span::default()));
-        assert!(expr.is_constant());
-        assert_eq!(expr.to_string(), "Int(42)");
+    fn test_constant_expression() {
+        let expression = Expression::Constant(ConstantExpression::new(Value::Int(42), Span::default()));
+        assert!(expression.is_constant());
+        assert_eq!(expression.to_string(), "Int(42)");
     }
 
     #[test]
-    fn test_variable_expr() {
-        let expr = Expr::Variable(VariableExpr::new("x".to_string(), Span::default()));
-        assert!(!expr.is_constant());
-        assert_eq!(expr.to_string(), "x");
+    fn test_variable_expression() {
+        let expression = Expression::Variable(VariableExpression::new("x".to_string(), Span::default()));
+        assert!(!expression.is_constant());
+        assert_eq!(expression.to_string(), "x");
     }
 
     #[test]
-    fn test_binary_expr() {
-        let left = Expr::Constant(ConstantExpr::new(Value::Int(5), Span::default()));
-        let right = Expr::Constant(ConstantExpr::new(Value::Int(3), Span::default()));
-        let expr = Expr::Binary(BinaryExpr::new(left, BinaryOp::Add, right, Span::default()));
+    fn test_binary_expression() {
+        let left = Expression::Constant(ConstantExpression::new(Value::Int(5), Span::default()));
+        let right = Expression::Constant(ConstantExpression::new(Value::Int(3), Span::default()));
+        let expression = Expression::Binary(BinaryExpression::new(left, BinaryOp::Add, right, Span::default()));
 
-        assert!(expr.is_constant());
-        assert_eq!(expr.to_string(), "(Int(5) + Int(3))");
+        assert!(expression.is_constant());
+        assert_eq!(expression.to_string(), "(Int(5) + Int(3))");
     }
 
     #[test]
     fn test_find_variables() {
-        let expr = Expr::Variable(VariableExpr::new("test_var".to_string(), Span::default()));
-        let variables = ExprUtils::find_variables(&expr);
+        let expression = Expression::Variable(VariableExpression::new("test_var".to_string(), Span::default()));
+        let variables = ExprUtils::find_variables(&expression);
         assert_eq!(variables, vec!["test_var"]);
     }
 
     #[test]
     fn test_contains_aggregate() {
-        let func_expr = Expr::FunctionCall(FunctionCallExpr::new(
+        let func_expression = Expression::FunctionCall(FunctionCallExpression::new(
             "COUNT".to_string(),
-            vec![Expr::Variable(VariableExpr::new(
+            vec![Expression::Variable(VariableExpression::new(
                 "x".to_string(),
                 Span::default(),
             ))],
             false,
             Span::default(),
         ));
-        assert!(ExprUtils::contains_aggregate(&func_expr));
+        assert!(ExprUtils::contains_aggregate(&func_expression));
     }
 }

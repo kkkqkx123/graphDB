@@ -425,7 +425,7 @@ pub struct ShortestPath {
     pub cost: f64,
     pub edge_types: Vec<String>,
     pub max_step: usize,             // 最大步数
-    pub weight_expr: Option<String>, // 权重表达式
+    pub weight_expression: Option<String>, // 权重表达式
     pub no_reverse: bool,            // 是否不允许反向
 }
 
@@ -445,7 +445,7 @@ impl ShortestPath {
             cost: 0.0,
             edge_types,
             max_step,
-            weight_expr: None,
+            weight_expression: None,
             no_reverse: false,
         }
     }
@@ -454,12 +454,12 @@ impl ShortestPath {
         self.max_step
     }
 
-    pub fn set_weight_expr(&mut self, expr: String) {
-        self.weight_expr = Some(expr);
+    pub fn set_weight_expression(&mut self, expression: String) {
+        self.weight_expression = Some(expression);
     }
 
-    pub fn weight_expr(&self) -> &Option<String> {
-        &self.weight_expr
+    pub fn weight_expression(&self) -> &Option<String> {
+        &self.weight_expression
     }
 
     /// 获取节点的唯一ID

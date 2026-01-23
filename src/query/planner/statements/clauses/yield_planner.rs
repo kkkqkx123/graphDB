@@ -10,7 +10,7 @@ use crate::query::validator::structs::CypherClauseKind;
 
 #[derive(Debug)]
 pub struct YieldClausePlanner {
-    yield_items: Vec<crate::query::parser::ast::expr::Expr>,
+    yield_items: Vec<crate::query::parser::ast::expression::Expression>,
 }
 
 impl YieldClausePlanner {

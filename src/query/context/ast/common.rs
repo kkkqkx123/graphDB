@@ -8,7 +8,7 @@ use std::collections::HashMap;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FromType {
     /// 瞬时表达式
-    InstantExpr,
+    InstantExpression,
     /// 变量引用
     Variable,
     /// 管道输入
@@ -17,14 +17,14 @@ pub enum FromType {
 
 impl Default for FromType {
     fn default() -> Self {
-        FromType::InstantExpr
+        FromType::InstantExpression
     }
 }
 
 impl From<FromType> for String {
     fn from(t: FromType) -> Self {
         match t {
-            FromType::InstantExpr => "instant_expr".to_string(),
+            FromType::InstantExpression => "instant_expression".to_string(),
             FromType::Variable => "variable".to_string(),
             FromType::Pipe => "pipe".to_string(),
         }
@@ -34,10 +34,10 @@ impl From<FromType> for String {
 impl From<&str> for FromType {
     fn from(s: &str) -> Self {
         match s.to_lowercase().as_str() {
-            "instant_expr" => FromType::InstantExpr,
+            "instant_expression" => FromType::InstantExpression,
             "variable" => FromType::Variable,
             "pipe" => FromType::Pipe,
-            _ => FromType::InstantExpr,
+            _ => FromType::InstantExpression,
         }
     }
 }

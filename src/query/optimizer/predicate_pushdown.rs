@@ -6,7 +6,7 @@ use super::rule_patterns::{CommonPatterns, PatternBuilder};
 use super::rule_traits::{
     combine_conditions, combine_expression_list, BaseOptRule, FilterSplitResult, PushDownRule,
 };
-use crate::core::Expr;
+use crate::core::Expression;
 use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
 use crate::query::planner::plan::PlanNodeEnum;
 
@@ -49,9 +49,9 @@ impl OptRule for FilterPushDownRule {
                                 // 分割过滤条件：可以下推到扫描的条件和剩余的条件
                                 let (pushable, remaining) = crate::core::expression_utils::ExpressionUtils::split_filter(
                                     filter_condition,
-                                    |expr| {
+                                    |expression| {
                                         // 检查是否为顶点属性表达式或可以下推的表达式
-                                        Self::can_push_down_expression_to_scan(expr, &alias)
+                                        Self::can_push_down_expression_to_scan(expression, &alias)
                                     }
                                 );
 
@@ -118,9 +118,9 @@ impl OptRule for FilterPushDownRule {
                                 // 分割过滤条件：可以下推到索引扫描的条件和剩余的条件
                                 let (pushable, remaining) = crate::core::expression_utils::ExpressionUtils::split_filter(
                                     filter_condition,
-                                    |expr| {
+                                    |expression| {
                                         // 检查是否为顶点属性表达式或可以下推的表达式
-                                        Self::can_push_down_expression_to_scan(expr, &alias)
+                                        Self::can_push_down_expression_to_scan(expression, &alias)
                                     }
                                 );
 
@@ -188,9 +188,9 @@ impl OptRule for FilterPushDownRule {
                                 // 分割过滤条件：可以下推到遍历的条件和剩余的条件
                                 let (pushable, remaining) = crate::core::expression_utils::ExpressionUtils::split_filter(
                                     filter_condition,
-                                    |expr| {
+                                    |expression| {
                                         // 检查是否为边属性表达式或可以下推的表达式
-                                        Self::can_push_down_expression_to_traverse(expr, &alias)
+                                        Self::can_push_down_expression_to_traverse(expression, &alias)
                                     }
                                 );
 
@@ -276,25 +276,25 @@ impl OptRule for FilterPushDownRule {
 
 impl FilterPushDownRule {
     /// 检查表达式是否可以下推到扫描操作
-    fn can_push_down_expression_to_scan(expr: &crate::core::Expr, tag_alias: &str) -> bool {
-        use crate::core::Expr;
+    fn can_push_down_expression_to_scan(expression: &crate::core::Expression, tag_alias: &str) -> bool {
+        use crate::core::Expression;
 
-        match expr {
+        match expression {
             // 属性表达式可以下推
-            Expr::Property { .. } => true,
+            Expression::Property { .. } => true,
             // 二元操作：如果左右两边都可以下推，则可以下推
-            Expr::Binary { left, right, .. } => {
+            Expression::Binary { left, right, .. } => {
                 Self::can_push_down_expression_to_scan(left, tag_alias)
                     && Self::can_push_down_expression_to_scan(right, tag_alias)
             }
             // 一元操作：如果操作数可以下推，则可以下推
-            Expr::Unary { operand, .. } => {
+            Expression::Unary { operand, .. } => {
                 Self::can_push_down_expression_to_scan(operand, tag_alias)
             }
             // 字面量可以下推
-            Expr::Literal(_) => true,
+            Expression::Literal(_) => true,
             // 函数调用：某些函数可以下推
-            Expr::Function { name, .. } => {
+            Expression::Function { name, .. } => {
                 matches!(name.to_lowercase().as_str(), "id" | "properties" | "labels")
             }
             // 其他表达式不能下推
@@ -303,23 +303,23 @@ impl FilterPushDownRule {
     }
 
     /// 检查表达式是否可以下推到遍历操作
-    fn can_push_down_expression_to_traverse(expr: &crate::core::Expr, edge_alias: &str) -> bool {
-        use crate::core::Expr;
+    fn can_push_down_expression_to_traverse(expression: &crate::core::Expression, edge_alias: &str) -> bool {
+        use crate::core::Expression;
 
-        match expr {
+        match expression {
             // 属性表达式可以下推
-            Expr::Property { .. } => true,
+            Expression::Property { .. } => true,
             // 二元操作：如果左右两边都可以下推，则可以下推
-            Expr::Binary { left, right, .. } => {
+            Expression::Binary { left, right, .. } => {
                 Self::can_push_down_expression_to_traverse(left, edge_alias)
                     && Self::can_push_down_expression_to_traverse(right, edge_alias)
             }
             // 一元操作：如果操作数可以下推，则可以下推
-            Expr::Unary { operand, .. } => {
+            Expression::Unary { operand, .. } => {
                 Self::can_push_down_expression_to_traverse(operand, edge_alias)
             }
             // 函数调用：某些函数可以下推
-            Expr::Function { name, .. } => {
+            Expression::Function { name, .. } => {
                 matches!(name.to_lowercase().as_str(), "id" | "properties" | "labels")
             }
             // 其他表达式不能下推
@@ -391,9 +391,9 @@ impl OptRule for PushFilterDownTraverseRule {
                             // 分割过滤条件：可以下推到遍历的条件和剩余的条件
                             let (pushable, remaining) = crate::core::expression_utils::ExpressionUtils::split_filter(
                                 filter_condition,
-                                |expr| {
+                                |expression| {
                                     // 检查是否为边属性表达式或可以下推的表达式
-                                    Self::can_push_down_expression_to_traverse(expr, &alias)
+                                    Self::can_push_down_expression_to_traverse(expression, &alias)
                                 }
                             );
 
@@ -474,23 +474,23 @@ impl OptRule for PushFilterDownTraverseRule {
 
 impl PushFilterDownTraverseRule {
     /// 检查表达式是否可以下推到遍历操作
-    fn can_push_down_expression_to_traverse(expr: &crate::core::Expression, edge_alias: &str) -> bool {
-        use crate::core::Expr;
+    fn can_push_down_expression_to_traverse(expression: &crate::core::Expression, edge_alias: &str) -> bool {
+        use crate::core::Expression;
 
-        match expr {
+        match expression {
             // 属性表达式可以下推
-            Expr::Property { .. } => true,
+            Expression::Property { .. } => true,
             // 二元操作：如果左右两边都可以下推，则可以下推
-            Expr::Binary { left, right, .. } => {
+            Expression::Binary { left, right, .. } => {
                 Self::can_push_down_expression_to_traverse(left, edge_alias)
                     && Self::can_push_down_expression_to_traverse(right, edge_alias)
             }
             // 一元操作：如果操作数可以下推，则可以下推
-            Expr::Unary { operand, .. } => {
+            Expression::Unary { operand, .. } => {
                 Self::can_push_down_expression_to_traverse(operand, edge_alias)
             }
             // 函数调用：某些函数可以下推
-            Expr::Function { name, .. } => {
+            Expression::Function { name, .. } => {
                 matches!(name.to_lowercase().as_str(), "id" | "properties" | "labels")
             }
             // 其他表达式不能下推
@@ -1089,11 +1089,11 @@ fn can_push_down_to_scan(condition: &Expression) -> FilterSplitResult {
     // 涉及边属性或复杂表达式的条件需要保留在Filter节点中
 
     // 尝试解析条件表达式
-    if let Ok(expr) = parse_filter_condition(condition) {
+    if let Ok(expression) = parse_filter_condition(condition) {
         let mut pushable_conditions = Vec::new();
         let mut remaining_conditions = Vec::new();
 
-        analyze_expression_for_scan(&expr, &mut pushable_conditions, &mut remaining_conditions);
+        analyze_expression_for_scan(&expression, &mut pushable_conditions, &mut remaining_conditions);
 
         let pushable_condition = if pushable_conditions.is_empty() {
             None
@@ -1127,11 +1127,11 @@ fn can_push_down_to_traverse(condition: &Expression) -> FilterSplitResult {
     // 涉及目标顶点属性或复杂表达式的条件需要保留在Filter节点中
 
     // 尝试解析条件表达式
-    if let Ok(expr) = parse_filter_condition(condition) {
+    if let Ok(expression) = parse_filter_condition(condition) {
         let mut pushable_conditions = Vec::new();
         let mut remaining_conditions = Vec::new();
 
-        analyze_expression_for_traverse(&expr, &mut pushable_conditions, &mut remaining_conditions);
+        analyze_expression_for_traverse(&expression, &mut pushable_conditions, &mut remaining_conditions);
 
         let pushable_condition = if pushable_conditions.is_empty() {
             None
@@ -1168,14 +1168,14 @@ fn parse_filter_condition(condition: &Expression) -> Result<crate::core::Express
 
 // 分析表达式，确定哪些部分可以下推到扫描操作
 fn analyze_expression_for_scan(
-    expr: &crate::core::Expression,
+    expression: &crate::core::Expression,
     pushable_conditions: &mut Vec<String>,
     remaining_conditions: &mut Vec<String>,
 ) {
     // 分析表达式
     // 通常，只涉及顶点属性的条件可以下推到ScanVertices
-    match expr {
-        crate::core::Expr::Binary { left, op, right } => {
+    match expression {
+        crate::core::Expression::Binary { left, op, right } => {
             // 检查是否是AND操作
             if matches!(op, crate::core::BinaryOperator::And) {
                 // 递归分析左右子表达式
@@ -1183,19 +1183,19 @@ fn analyze_expression_for_scan(
                 analyze_expression_for_scan(right, pushable_conditions, remaining_conditions);
             } else {
                 // 检查是否可以下推
-                if can_push_down_expression_to_scan(expr) {
-                    pushable_conditions.push(format!("{:?}", expr));
+                if can_push_down_expression_to_scan(expression) {
+                    pushable_conditions.push(format!("{:?}", expression));
                 } else {
-                    remaining_conditions.push(format!("{:?}", expr));
+                    remaining_conditions.push(format!("{:?}", expression));
                 }
             }
         }
         _ => {
             // 检查其他类型的表达式
-            if can_push_down_expression_to_scan(expr) {
-                pushable_conditions.push(format!("{:?}", expr));
+            if can_push_down_expression_to_scan(expression) {
+                pushable_conditions.push(format!("{:?}", expression));
             } else {
-                remaining_conditions.push(format!("{:?}", expr));
+                remaining_conditions.push(format!("{:?}", expression));
             }
         }
     }
@@ -1203,14 +1203,14 @@ fn analyze_expression_for_scan(
 
 // 分析表达式，确定哪些部分可以下推到遍历操作
 fn analyze_expression_for_traverse(
-    expr: &crate::core::Expr,
+    expression: &crate::core::Expression,
     pushable_conditions: &mut Vec<String>,
     remaining_conditions: &mut Vec<String>,
 ) {
     // 分析表达式
     // 通常，涉及源顶点属性的条件可以下推到Traverse
-    match expr {
-        crate::core::Expr::Binary { left, op, right } => {
+    match expression {
+        crate::core::Expression::Binary { left, op, right } => {
             // 检查是否是AND操作
             if matches!(op, crate::core::BinaryOperator::And) {
                 // 递归分析左右子表达式
@@ -1218,59 +1218,59 @@ fn analyze_expression_for_traverse(
                 analyze_expression_for_traverse(right, pushable_conditions, remaining_conditions);
             } else {
                 // 检查是否可以下推
-                if can_push_down_expression_to_traverse(expr) {
-                    pushable_conditions.push(format!("{:?}", expr));
+                if can_push_down_expression_to_traverse(expression) {
+                    pushable_conditions.push(format!("{:?}", expression));
                 } else {
-                    remaining_conditions.push(format!("{:?}", expr));
+                    remaining_conditions.push(format!("{:?}", expression));
                 }
             }
         }
         _ => {
             // 检查其他类型的表达式
-            if can_push_down_expression_to_traverse(expr) {
-                pushable_conditions.push(format!("{:?}", expr));
+            if can_push_down_expression_to_traverse(expression) {
+                pushable_conditions.push(format!("{:?}", expression));
             } else {
-                remaining_conditions.push(format!("{:?}", expr));
+                remaining_conditions.push(format!("{:?}", expression));
             }
         }
     }
 }
 
 // 检查表达式是否可以下推到扫描操作
-fn can_push_down_expression_to_scan(expr: &crate::core::Expr) -> bool {
+fn can_push_down_expression_to_scan(expression: &crate::core::Expression) -> bool {
     // 检查表达式是否可以下推到扫描操作
-    match expr {
-        crate::core::Expr::Property { .. } => true,
-        crate::core::Expr::Binary { left, right, .. } => {
+    match expression {
+        crate::core::Expression::Property { .. } => true,
+        crate::core::Expression::Binary { left, right, .. } => {
             can_push_down_expression_to_scan(left) && can_push_down_expression_to_scan(right)
         }
-        crate::core::Expr::Unary { operand, .. } => can_push_down_expression_to_scan(operand),
-        crate::core::Expr::Function { name, .. } => {
+        crate::core::Expression::Unary { operand, .. } => can_push_down_expression_to_scan(operand),
+        crate::core::Expression::Function { name, .. } => {
             // 某些函数可以下推，如id(), properties()等
             matches!(name.to_lowercase().as_str(), "id" | "properties" | "labels")
         }
-        crate::core::Expr::Variable(_) => true, // 变量表达式可以下推
+        crate::core::Expression::Variable(_) => true, // 变量表达式可以下推
         _ => false,
     }
 }
 
 // 检查表达式是否可以下推到遍历操作
-fn can_push_down_expression_to_traverse(expr: &crate::core::Expr) -> bool {
+fn can_push_down_expression_to_traverse(expression: &crate::core::Expression) -> bool {
     // 检查表达式是否可以下推到遍历操作
-    match expr {
-        crate::core::Expr::Property { .. } => true,
-        crate::core::Expr::Binary { left, right, .. } => {
+    match expression {
+        crate::core::Expression::Property { .. } => true,
+        crate::core::Expression::Binary { left, right, .. } => {
             can_push_down_expression_to_traverse(left)
                 && can_push_down_expression_to_traverse(right)
         }
-        crate::core::Expr::Unary { operand, .. } => {
+        crate::core::Expression::Unary { operand, .. } => {
             can_push_down_expression_to_traverse(operand)
         }
-        crate::core::Expr::Function { name, .. } => {
+        crate::core::Expression::Function { name, .. } => {
             // 某些函数可以下推，如id(), properties()等
             matches!(name.to_lowercase().as_str(), "id" | "properties" | "labels")
         }
-        crate::core::Expr::Variable(_) => true, // 变量表达式可以下推
+        crate::core::Expression::Variable(_) => true, // 变量表达式可以下推
         _ => false,
     }
 }
@@ -1304,13 +1304,13 @@ mod tests {
         ctx.add_plan_node_and_group_node(2, &scan_opt_node);
 
         // 创建过滤条件 - 使用属性表达式
-        let filter_condition = crate::core::Expr::Binary {
-            left: Box::new(crate::core::Expr::Property {
-                object: Box::new(crate::core::Expr::Variable("v".to_string())),
+        let filter_condition = crate::core::Expression::Binary {
+            left: Box::new(crate::core::Expression::Property {
+                object: Box::new(crate::core::Expression::Variable("v".to_string())),
                 property: "col1".to_string(),
             }),
             op: crate::core::BinaryOperator::GreaterThan,
-            right: Box::new(crate::core::Expr::Literal(crate::core::Value::Int(100))),
+            right: Box::new(crate::core::Expression::Literal(crate::core::Value::Int(100))),
         };
 
         // 创建过滤节点并设置依赖
@@ -1344,13 +1344,13 @@ mod tests {
         ctx.add_plan_node_and_group_node(2, &traverse_opt_node);
 
         // 创建过滤条件 - 使用属性表达式
-        let filter_condition = crate::core::Expr::Binary {
-            left: Box::new(crate::core::Expr::Property {
-                object: Box::new(crate::core::Expr::Variable("e".to_string())),
+        let filter_condition = crate::core::Expression::Binary {
+            left: Box::new(crate::core::Expression::Property {
+                object: Box::new(crate::core::Expression::Variable("e".to_string())),
                 property: "col1".to_string(),
             }),
             op: crate::core::BinaryOperator::GreaterThan,
-            right: Box::new(crate::core::Expr::Literal(crate::core::Value::Int(100))),
+            right: Box::new(crate::core::Expression::Literal(crate::core::Value::Int(100))),
         };
 
         // 创建过滤节点并设置依赖
@@ -1391,7 +1391,7 @@ mod tests {
         // 创建过滤节点
         let filter_node = FilterNode::new(
             expand_opt_node.plan_node.clone(),
-            crate::core::Expr::Variable("col1 > 100".to_string()),
+            crate::core::Expression::Variable("col1 > 100".to_string()),
         )
         .expect("Filter node should be created successfully");
         let mut filter_opt_node = OptGroupNode::new(1, filter_node.into_enum());
@@ -1423,8 +1423,8 @@ mod tests {
         let hash_inner_join_node = crate::query::planner::plan::core::nodes::HashInnerJoinNode::new(
             left_node,
             right_node,
-            vec![crate::core::Expr::Variable("id".to_string())],
-            vec![crate::core::Expr::Variable("id".to_string())],
+            vec![crate::core::Expression::Variable("id".to_string())],
+            vec![crate::core::Expression::Variable("id".to_string())],
         ).expect("HashInnerJoin node should be created successfully");
         let hash_inner_join_opt_node = OptGroupNode::new(2, hash_inner_join_node.into_enum());
         ctx.add_plan_node_and_group_node(2, &hash_inner_join_opt_node);
@@ -1432,7 +1432,7 @@ mod tests {
         // 创建过滤节点
         let filter_node = FilterNode::new(
             hash_inner_join_opt_node.plan_node.clone(),
-            crate::core::Expr::Variable("col1 > 100".to_string()),
+            crate::core::Expression::Variable("col1 > 100".to_string()),
         )
         .expect("Filter node should be created successfully");
         let mut filter_opt_node = OptGroupNode::new(1, filter_node.into_enum());
@@ -1464,8 +1464,8 @@ mod tests {
         let hash_left_join_node = crate::query::planner::plan::core::nodes::HashLeftJoinNode::new(
             left_node,
             right_node,
-            vec![crate::core::Expr::Variable("id".to_string())],
-            vec![crate::core::Expr::Variable("id".to_string())],
+            vec![crate::core::Expression::Variable("id".to_string())],
+            vec![crate::core::Expression::Variable("id".to_string())],
         ).expect("HashLeftJoin node should be created successfully");
         let hash_left_join_opt_node = OptGroupNode::new(2, hash_left_join_node.into_enum());
         ctx.add_plan_node_and_group_node(2, &hash_left_join_opt_node);
@@ -1473,7 +1473,7 @@ mod tests {
         // 创建过滤节点
         let filter_node = FilterNode::new(
             hash_left_join_opt_node.plan_node.clone(),
-            crate::core::Expr::Variable("col1 > 100".to_string()),
+            crate::core::Expression::Variable("col1 > 100".to_string()),
         )
         .expect("Filter node should be created successfully");
         let mut filter_opt_node = OptGroupNode::new(1, filter_node.into_enum());
@@ -1505,8 +1505,8 @@ mod tests {
         let inner_join_node = crate::query::planner::plan::core::nodes::InnerJoinNode::new(
             left_node,
             right_node,
-            vec![crate::core::Expr::Variable("id".to_string())],
-            vec![crate::core::Expr::Variable("id".to_string())],
+            vec![crate::core::Expression::Variable("id".to_string())],
+            vec![crate::core::Expression::Variable("id".to_string())],
         ).expect("InnerJoin node should be created successfully");
         let inner_join_opt_node = OptGroupNode::new(2, inner_join_node.into_enum());
         ctx.add_plan_node_and_group_node(2, &inner_join_opt_node);
@@ -1514,7 +1514,7 @@ mod tests {
         // 创建过滤节点
         let filter_node = FilterNode::new(
             inner_join_opt_node.plan_node.clone(),
-            crate::core::Expr::Variable("col1 > 100".to_string()),
+            crate::core::Expression::Variable("col1 > 100".to_string()),
         )
         .expect("Filter node should be created successfully");
         let mut filter_opt_node = OptGroupNode::new(1, filter_node.into_enum());
@@ -1541,13 +1541,13 @@ mod tests {
         ctx.add_plan_node_and_group_node(2, &scan_opt_node);
 
         // 创建过滤条件 - 使用属性表达式
-        let filter_condition = crate::core::Expr::Binary {
-            left: Box::new(crate::core::Expr::Property {
-                object: Box::new(crate::core::Expr::Variable("v".to_string())),
+        let filter_condition = crate::core::Expression::Binary {
+            left: Box::new(crate::core::Expression::Property {
+                object: Box::new(crate::core::Expression::Variable("v".to_string())),
                 property: "col1".to_string(),
             }),
             op: crate::core::BinaryOperator::GreaterThan,
-            right: Box::new(crate::core::Expr::Literal(crate::core::Value::Int(100))),
+            right: Box::new(crate::core::Expression::Literal(crate::core::Value::Int(100))),
         };
 
         // 创建过滤节点并设置依赖
@@ -1574,7 +1574,7 @@ mod tests {
     fn test_can_push_down_to_scan() {
         // 测试辅助函数
         let result =
-            can_push_down_to_scan(&crate::core::Expr::Variable("age > 18".to_string()));
+            can_push_down_to_scan(&crate::core::Expression::Variable("age > 18".to_string()));
         // 应该返回带有可下推条件的结果
         assert!(result.pushable_condition.is_some());
     }
@@ -1583,7 +1583,7 @@ mod tests {
     fn test_can_push_down_to_traverse() {
         // 测试辅助函数
         let result =
-            can_push_down_to_traverse(&crate::core::Expr::Variable("age > 18".to_string()));
+            can_push_down_to_traverse(&crate::core::Expression::Variable("age > 18".to_string()));
         // 应该返回带有可下推条件的结果
         assert!(result.pushable_condition.is_some());
     }

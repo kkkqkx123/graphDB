@@ -1,7 +1,7 @@
 //! 表达式操作验证器
 //! 负责验证表达式的操作合法性和结构完整性
 
-use crate::core::Expr;
+use crate::core::Expression;
 use crate::query::validator::{ValidationError, ValidationErrorType};
 use std::collections::HashSet;
 
@@ -14,12 +14,12 @@ impl ExpressionOperationsValidator {
     }
 
     /// 验证表达式操作的合法性
-    pub fn validate_expression_operations(&self, expr: &Expr) -> Result<(), ValidationError> {
-        self.validate_expression_operations_recursive(expr, 0)
+    pub fn validate_expression_operations(&self, expression: &Expression) -> Result<(), ValidationError> {
+        self.validate_expression_operations_recursive(expression, 0)
     }
 
     /// 递归验证表达式操作
-    fn validate_expression_operations_recursive(&self, expr: &Expr, depth: usize) -> Result<(), ValidationError> {
+    fn validate_expression_operations_recursive(&self, expression: &Expression, depth: usize) -> Result<(), ValidationError> {
         // 检查表达式深度，防止栈溢出
         if depth > 100 {
             return Err(ValidationError::new(
@@ -28,40 +28,40 @@ impl ExpressionOperationsValidator {
             ));
         }
 
-        match expr {
-            Expr::Binary { op, left, right } => {
+        match expression {
+            Expression::Binary { op, left, right } => {
                 // 验证二元操作符
                 self.validate_binary_operation(op, left, right, depth)?;
             }
-            Expr::Unary { op, operand } => {
+            Expression::Unary { op, operand } => {
                 // 验证一元操作符
                 self.validate_unary_operation(op, operand, depth)?;
             }
-            Expr::Function { name, args } => {
+            Expression::Function { name, args } => {
                 // 验证函数调用
                 self.validate_function_call(name, args, depth)?;
             }
-            Expr::Aggregate { func, arg, distinct } => {
+            Expression::Aggregate { func, arg, distinct } => {
                 // 验证聚合函数
                 self.validate_aggregate_operation(func, arg, *distinct, depth)?;
             }
-            Expr::Property { object: prop_expr, property: name } => {
+            Expression::Property { object: prop_expression, property: name } => {
                 // 验证属性访问
-                self.validate_property_access(prop_expr, name, depth)?;
+                self.validate_property_access(prop_expression, name, depth)?;
             }
-            Expr::Subscript { collection: index_expr, index } => {
+            Expression::Subscript { collection: index_expression, index } => {
                 // 验证索引访问
-                self.validate_index_access(index_expr, index, depth)?;
+                self.validate_index_access(index_expression, index, depth)?;
             }
-            Expr::List(items) => {
+            Expression::List(items) => {
                 // 验证列表表达式
                 self.validate_list_expression(items, depth)?;
             }
-            Expr::Map(pairs) => {
+            Expression::Map(pairs) => {
                 // 验证映射表达式
                 self.validate_map_expression(pairs, depth)?;
             }
-            Expr::Case {
+            Expression::Case {
                 conditions: when_clauses,
                 default: else_clause,
             } => {
@@ -92,13 +92,13 @@ impl ExpressionOperationsValidator {
         match op {
             crate::core::BinaryOperator::Divide => {
                 // 除法需要特殊检查：除数不能为常量0
-                if let Expr::Literal(crate::core::Value::Int(0)) = right {
+                if let Expression::Literal(crate::core::Value::Int(0)) = right {
                     return Err(ValidationError::new(
                         "除数不能为0".to_string(),
                         ValidationErrorType::DivisionByZero,
                     ));
                 }
-                if let Expr::Literal(crate::core::Value::Float(0.0)) = right {
+                if let Expression::Literal(crate::core::Value::Float(0.0)) = right {
                     return Err(ValidationError::new(
                         "除数不能为0.0".to_string(),
                         ValidationErrorType::DivisionByZero,
@@ -107,7 +107,7 @@ impl ExpressionOperationsValidator {
             }
             crate::core::BinaryOperator::Modulo => {
                 // 模运算需要特殊检查：模数不能为常量0
-                if let Expr::Literal(crate::core::Value::Int(0)) = right {
+                if let Expression::Literal(crate::core::Value::Int(0)) = right {
                     return Err(ValidationError::new(
                         "模数不能为0".to_string(),
                         ValidationErrorType::DivisionByZero,
@@ -212,7 +212,7 @@ impl ExpressionOperationsValidator {
     /// 验证属性访问
     fn validate_property_access(
         &self,
-        expr: &Expression,
+        expression: &Expression,
         name: &str,
         depth: usize,
     ) -> Result<(), ValidationError> {
@@ -225,26 +225,26 @@ impl ExpressionOperationsValidator {
         }
 
         // 递归验证表达式
-        self.validate_expression_operations_recursive(expr, depth + 1)
+        self.validate_expression_operations_recursive(expression, depth + 1)
     }
 
     /// 验证索引访问
     fn validate_index_access(
         &self,
-        expr: &Expression,
+        expression: &Expression,
         index: &Expression,
         depth: usize,
     ) -> Result<(), ValidationError> {
         // 递归验证表达式和索引
-        self.validate_expression_operations_recursive(expr, depth + 1)?;
+        self.validate_expression_operations_recursive(expression, depth + 1)?;
         self.validate_expression_operations_recursive(index, depth + 1)?;
 
         // 验证索引类型（简化处理）
         match index {
-            Expr::Literal(crate::core::Value::Int(_)) => {
+            Expression::Literal(crate::core::Value::Int(_)) => {
                 // 整数索引是合法的
             }
-            Expr::Literal(crate::core::Value::String(_)) => {
+            Expression::Literal(crate::core::Value::String(_)) => {
                 // 字符串索引也是合法的（用于映射）
             }
             _ => {
@@ -256,7 +256,7 @@ impl ExpressionOperationsValidator {
     }
 
     /// 验证列表表达式
-    fn validate_list_expression(&self, items: &[Expr], depth: usize) -> Result<(), ValidationError> {
+    fn validate_list_expression(&self, items: &[Expression], depth: usize) -> Result<(), ValidationError> {
         // 验证列表大小限制
         if items.len() > 10000 {
             return Err(ValidationError::new(
@@ -332,13 +332,13 @@ impl ExpressionOperationsValidator {
         }
 
         // 递归验证每个 WHEN 子句
-        for (i, (when_expr, then_expr)) in when_clauses.iter().enumerate() {
-            self.validate_expression_operations_recursive(when_expr, depth + 1)
+        for (i, (when_expression, then_expression)) in when_clauses.iter().enumerate() {
+            self.validate_expression_operations_recursive(when_expression, depth + 1)
                 .map_err(|e| ValidationError::new(
                     format!("CASE 表达式第 {} 个 WHEN 子句验证失败: {}", i + 1, e.message),
                     e.error_type,
                 ))?;
-            self.validate_expression_operations_recursive(then_expr, depth + 1)
+            self.validate_expression_operations_recursive(then_expression, depth + 1)
                 .map_err(|e| ValidationError::new(
                     format!("CASE 表达式第 {} 个 THEN 子句验证失败: {}", i + 1, e.message),
                     e.error_type,
@@ -346,8 +346,8 @@ impl ExpressionOperationsValidator {
         }
 
         // 验证 ELSE 子句（如果存在）
-        if let Some(else_expr) = else_clause {
-            self.validate_expression_operations_recursive(else_expr, depth + 1)?;
+        if let Some(else_expression) = else_clause {
+            self.validate_expression_operations_recursive(else_expression, depth + 1)?;
         }
 
         Ok(())
@@ -385,15 +385,15 @@ impl ExpressionOperationsValidator {
     }
 
     /// 验证表达式循环依赖
-    pub fn validate_expression_cycles(&self, expr: &Expression) -> Result<(), ValidationError> {
+    pub fn validate_expression_cycles(&self, expression: &Expression) -> Result<(), ValidationError> {
         let mut visited = HashSet::new();
-        self.check_expression_cycles(expr, &mut visited, 0)
+        self.check_expression_cycles(expression, &mut visited, 0)
     }
 
     /// 检查表达式循环依赖
     fn check_expression_cycles(
         &self,
-        expr: &Expression,
+        expression: &Expression,
         visited: &mut HashSet<String>,
         depth: usize,
     ) -> Result<(), ValidationError> {
@@ -408,8 +408,8 @@ impl ExpressionOperationsValidator {
         // 这里简化处理，实际应该实现更复杂的循环检测
         // 例如检测变量之间的循环引用等
 
-        match expr {
-            Expr::Variable(name) => {
+        match expression {
+            Expression::Variable(name) => {
                 if visited.contains(name) {
                     return Err(ValidationError::new(
                         format!("检测到变量循环依赖: {:?}", name),
@@ -418,19 +418,19 @@ impl ExpressionOperationsValidator {
                 }
                 visited.insert(name.clone());
             }
-            Expr::Binary { left, right, .. } => {
+            Expression::Binary { left, right, .. } => {
                 self.check_expression_cycles(left, visited, depth + 1)?;
                 self.check_expression_cycles(right, visited, depth + 1)?;
             }
-            Expr::Unary { operand, .. } => {
+            Expression::Unary { operand, .. } => {
                 self.check_expression_cycles(operand, visited, depth + 1)?;
             }
-            Expr::Function { args, .. } => {
+            Expression::Function { args, .. } => {
                 for arg in args {
                     self.check_expression_cycles(arg, visited, depth + 1)?;
                 }
             }
-            Expr::Aggregate { arg, .. } => {
+            Expression::Aggregate { arg, .. } => {
                 self.check_expression_cycles(arg, visited, depth + 1)?;
             }
             _ => {}
@@ -440,56 +440,56 @@ impl ExpressionOperationsValidator {
     }
 
     /// 计算表达式深度
-    pub fn calculate_expression_depth(&self, expr: &Expr) -> usize {
-        match expr {
-            Expr::Literal(_) | Expr::Variable(_) => 1,
-            Expr::Binary { left, right, .. } => {
+    pub fn calculate_expression_depth(&self, expression: &Expression) -> usize {
+        match expression {
+            Expression::Literal(_) | Expression::Variable(_) => 1,
+            Expression::Binary { left, right, .. } => {
                 let left_depth = self.calculate_expression_depth(left);
                 let right_depth = self.calculate_expression_depth(right);
                 1 + left_depth.max(right_depth)
             }
-            Expr::Unary { operand, .. } => 1 + self.calculate_expression_depth(operand),
-            Expr::Function { args, .. } => {
+            Expression::Unary { operand, .. } => 1 + self.calculate_expression_depth(operand),
+            Expression::Function { args, .. } => {
                 let max_arg_depth = args.iter()
                     .map(|arg| self.calculate_expression_depth(arg))
                     .max()
                     .unwrap_or(0);
                 1 + max_arg_depth
             }
-            Expr::Aggregate { arg, .. } => 1 + self.calculate_expression_depth(arg),
-            Expr::Property { object: prop_expr, .. } => 1 + self.calculate_expression_depth(prop_expr),
-            Expr::Subscript { collection: index_expr, index } => {
-                let expr_depth = self.calculate_expression_depth(index_expr);
+            Expression::Aggregate { arg, .. } => 1 + self.calculate_expression_depth(arg),
+            Expression::Property { object: prop_expression, .. } => 1 + self.calculate_expression_depth(prop_expression),
+            Expression::Subscript { collection: index_expression, index } => {
+                let expr_depth = self.calculate_expression_depth(index_expression);
                 let index_depth = self.calculate_expression_depth(index);
                 1 + expr_depth.max(index_depth)
             }
-            Expr::List(items) => {
+            Expression::List(items) => {
                 let max_item_depth = items.iter()
                     .map(|item| self.calculate_expression_depth(item))
                     .max()
                     .unwrap_or(0);
                 1 + max_item_depth
             }
-            Expr::Map(pairs) => {
+            Expression::Map(pairs) => {
                 let max_value_depth = pairs.iter()
                     .map(|(_, value)| self.calculate_expression_depth(value))
                     .max()
                     .unwrap_or(0);
                 1 + max_value_depth
             }
-            Expr::Case {
+            Expression::Case {
                 conditions,
                 default,
             } => {
                 let mut depths = Vec::new();
                 
-                for (when_expr, then_expr) in conditions {
-                    depths.push(self.calculate_expression_depth(when_expr));
-                    depths.push(self.calculate_expression_depth(then_expr));
+                for (when_expression, then_expression) in conditions {
+                    depths.push(self.calculate_expression_depth(when_expression));
+                    depths.push(self.calculate_expression_depth(then_expression));
                 }
                 
-                if let Some(else_expr) = default {
-                    depths.push(self.calculate_expression_depth(else_expr));
+                if let Some(else_expression) = default {
+                    depths.push(self.calculate_expression_depth(else_expression));
                 }
                 
                 let max_depth = depths.into_iter().max().unwrap_or(0);
@@ -516,22 +516,22 @@ mod tests {
         let validator = ExpressionOperationsValidator::new();
         
         // 简单的字面量表达式
-        let literal_expr = Expr::Literal(Value::Int(42));
-        assert!(validator.validate_expression_operations(&literal_expr).is_ok());
+        let literal_expression = Expression::Literal(Value::Int(42));
+        assert!(validator.validate_expression_operations(&literal_expression).is_ok());
         
         // 简单的二元表达式
-        let binary_expr = Expr::Binary {
+        let binary_expression = Expression::Binary {
             op: crate::core::BinaryOperator::Add,
-            left: Box::new(Expr::Literal(Value::Int(1))),
-            right: Box::new(Expr::Literal(Value::Int(2))),
+            left: Box::new(Expression::Literal(Value::Int(1))),
+            right: Box::new(Expression::Literal(Value::Int(2))),
         };
-        assert!(validator.validate_expression_operations(&binary_expr).is_ok());
+        assert!(validator.validate_expression_operations(&binary_expression).is_ok());
         
         // 除零检测
-        let divide_by_zero = Expr::Binary {
+        let divide_by_zero = Expression::Binary {
             op: crate::core::BinaryOperator::Divide,
-            left: Box::new(Expr::Literal(Value::Int(10))),
-            right: Box::new(Expr::Literal(Value::Int(0))),
+            left: Box::new(Expression::Literal(Value::Int(10))),
+            right: Box::new(Expression::Literal(Value::Int(0))),
         };
         assert!(validator.validate_expression_operations(&divide_by_zero).is_err());
     }
@@ -541,16 +541,16 @@ mod tests {
         let validator = ExpressionOperationsValidator::new();
         
         // 有效的函数调用
-        let valid_function = Expr::Function {
+        let valid_function = Expression::Function {
             name: "length".to_string(),
-            args: vec![Expr::Literal(Value::String("test".to_string()))],
+            args: vec![Expression::Literal(Value::String("test".to_string()))],
         };
         assert!(validator.validate_expression_operations(&valid_function).is_ok());
         
         // 空函数名
-        let empty_function_name = Expr::Function {
+        let empty_function_name = Expression::Function {
             name: "".to_string(),
-            args: vec![Expr::Literal(Value::Int(1))],
+            args: vec![Expression::Literal(Value::Int(1))],
         };
         assert!(validator.validate_expression_operations(&empty_function_name).is_err());
     }
@@ -560,19 +560,19 @@ mod tests {
         let validator = ExpressionOperationsValidator::new();
         
         // 简单表达式
-        let literal_expr = Expr::Literal(Value::Int(42));
-        assert_eq!(validator.calculate_expression_depth(&literal_expr), 1);
+        let literal_expression = Expression::Literal(Value::Int(42));
+        assert_eq!(validator.calculate_expression_depth(&literal_expression), 1);
         
         // 嵌套表达式
-        let nested_expr = Expr::Binary {
+        let nested_expression = Expression::Binary {
             op: crate::core::BinaryOperator::Add,
-            left: Box::new(Expr::Literal(Value::Int(1))),
-            right: Box::new(Expr::Binary {
+            left: Box::new(Expression::Literal(Value::Int(1))),
+            right: Box::new(Expression::Binary {
                 op: crate::core::BinaryOperator::Multiply,
-                left: Box::new(Expr::Literal(Value::Int(2))),
-                right: Box::new(Expr::Literal(Value::Int(3))),
+                left: Box::new(Expression::Literal(Value::Int(2))),
+                right: Box::new(Expression::Literal(Value::Int(3))),
             }),
         };
-        assert_eq!(validator.calculate_expression_depth(&nested_expr), 3);
+        assert_eq!(validator.calculate_expression_depth(&nested_expression), 3);
     }
 }

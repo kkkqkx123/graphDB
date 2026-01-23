@@ -14,7 +14,7 @@ pub struct GetVerticesNode {
     src_ref: Expression,
     src_vids: String,
     tag_props: Vec<TagProp>,
-    expr: Option<String>,
+    expression: Option<String>,
     dedup: bool,
     limit: Option<i64>,
     output_var: Option<Variable>,
@@ -32,7 +32,7 @@ impl Clone for GetVerticesNode {
             src_ref: self.src_ref.clone(),
             src_vids: self.src_vids.clone(),
             tag_props: self.tag_props.clone(),
-            expr: self.expr.clone(),
+            expression: self.expression.clone(),
             dedup: self.dedup,
             limit: self.limit,
             output_var: self.output_var.clone(),
@@ -48,10 +48,10 @@ impl GetVerticesNode {
         Self {
             id: -1,
             space_id,
-            src_ref: Expr::Variable(src_vids.to_string()),
+            src_ref: Expression::Variable(src_vids.to_string()),
             src_vids: src_vids.to_string(),
             tag_props: Vec::new(),
-            expr: None,
+            expression: None,
             dedup: false,
             limit: None,
             output_var: None,
@@ -66,7 +66,7 @@ impl GetVerticesNode {
     }
 
     pub fn has_effective_filter(&self) -> bool {
-        self.expr.is_some()
+        self.expression.is_some()
     }
 
     /// 获取空间ID
@@ -141,8 +141,8 @@ impl GetVerticesNode {
         super::plan_node_enum::PlanNodeEnum::GetVertices(cloned)
     }
 
-    pub fn expr(&self) -> Option<&String> {
-        self.expr.as_ref()
+    pub fn expression(&self) -> Option<&String> {
+        self.expression.as_ref()
     }
 
     pub fn limit(&self) -> Option<i64> {
@@ -212,7 +212,7 @@ pub struct GetEdgesNode {
 
     edge_props: Vec<EdgeProp>,
 
-    expr: Option<String>,
+    expression: Option<String>,
 
     dedup: bool,
     limit: Option<i64>,
@@ -233,7 +233,7 @@ impl Clone for GetEdgesNode {
             rank: self.rank.clone(),
             dst: self.dst.clone(),
             edge_props: self.edge_props.clone(),
-            expr: self.expr.clone(),
+            expression: self.expression.clone(),
             dedup: self.dedup,
             limit: self.limit,
             output_var: self.output_var.clone(),
@@ -248,13 +248,13 @@ impl GetEdgesNode {
         Self {
             id: -1,
             space_id,
-            edge_ref: Expr::Variable(format!("{}->{}@{}", src, dst, edge_type)),
+            edge_ref: Expression::Variable(format!("{}->{}@{}", src, dst, edge_type)),
             src: src.to_string(),
             edge_type: edge_type.to_string(),
             rank: rank.to_string(),
             dst: dst.to_string(),
             edge_props: Vec::new(),
-            expr: None,
+            expression: None,
             dedup: false,
             limit: None,
             output_var: None,
@@ -268,7 +268,7 @@ impl GetEdgesNode {
     }
 
     pub fn has_effective_filter(&self) -> bool {
-        self.expr.is_some()
+        self.expression.is_some()
     }
 
     /// 获取空间ID
@@ -400,7 +400,7 @@ pub struct GetNeighborsNode {
 
     edge_props: Vec<EdgeProp>,
 
-    expr: Option<String>,
+    expression: Option<String>,
 
     dedup: bool,
     limit: Option<i64>,
@@ -419,7 +419,7 @@ impl Clone for GetNeighborsNode {
             edge_types: self.edge_types.clone(),
             tag_props: self.tag_props.clone(),
             edge_props: self.edge_props.clone(),
-            expr: self.expr.clone(),
+            expression: self.expression.clone(),
             dedup: self.dedup,
             limit: self.limit,
             output_var: self.output_var.clone(),
@@ -438,7 +438,7 @@ impl GetNeighborsNode {
             edge_types: Vec::new(),
             tag_props: Vec::new(),
             edge_props: Vec::new(),
-            expr: None,
+            expression: None,
             dedup: false,
             limit: None,
             output_var: None,
@@ -452,7 +452,7 @@ impl GetNeighborsNode {
     }
 
     pub fn has_effective_filter(&self) -> bool {
-        self.expr.is_some()
+        self.expression.is_some()
     }
 }
 

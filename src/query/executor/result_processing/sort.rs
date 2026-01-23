@@ -27,7 +27,7 @@ pub enum SortOrder {
 /// 排序键定义
 #[derive(Debug, Clone)]
 pub struct SortKey {
-    pub expression: Expr,
+    pub expression: Expression,
     pub order: SortOrder,
     /// 优化后的列索引（如果表达式可以解析为列索引）
     pub column_index: Option<usize>,
@@ -45,7 +45,7 @@ impl SortKey {
     /// 创建基于列索引的排序键
     pub fn from_column_index(column_index: usize, order: SortOrder) -> Self {
         Self {
-            expression: Expr::Literal(Value::Int(column_index as i64)),
+            expression: Expression::Literal(Value::Int(column_index as i64)),
             order,
             column_index: Some(column_index),
         }
@@ -150,8 +150,8 @@ impl<S: StorageEngine + Send + 'static> SortExecutor<S> {
         }
 
         // 解析表达式为列索引
-        for (i, expr) in expressions_to_parse {
-            if let Some(column_index) = self.parse_expression_to_column_index(&expr, col_names)? {
+        for (i, expression) in expressions_to_parse {
+            if let Some(column_index) = self.parse_expression_to_column_index(&expression, col_names)? {
                 self.sort_keys[i].column_index = Some(column_index);
             }
         }
@@ -162,11 +162,11 @@ impl<S: StorageEngine + Send + 'static> SortExecutor<S> {
     /// 将表达式解析为列索引
     fn parse_expression_to_column_index(
         &self,
-        expr: &Expr,
+        expression: &Expression,
         col_names: &[String],
     ) -> DBResult<Option<usize>> {
-        match expr {
-            Expr::Property { object: _, property } => {
+        match expression {
+            Expression::Property { object: _, property } => {
                 // 查找属性名对应的列索引
                 for (index, col_name) in col_names.iter().enumerate() {
                     if col_name == property {
@@ -175,7 +175,7 @@ impl<S: StorageEngine + Send + 'static> SortExecutor<S> {
                 }
                 Ok(None)
             }
-            Expr::Literal(Value::Int(index)) => {
+            Expression::Literal(Value::Int(index)) => {
                 // 直接使用列索引
                 let idx = *index as usize;
                 if idx < col_names.len() {
@@ -437,7 +437,7 @@ impl<S: StorageEngine + Send + 'static> SortExecutor<S> {
 
         for sort_key in &self.sort_keys {
             // 处理按列索引排序的特殊情况
-            if let Expr::Literal(Value::Int(index)) = &sort_key.expression {
+            if let Expression::Literal(Value::Int(index)) = &sort_key.expression {
                 let idx = *index as usize;
                 if idx < row.len() {
                     sort_values.push(row[idx].clone());
@@ -667,7 +667,7 @@ mod tests {
     #[test]
     fn test_sort_key_column_index() {
         // 测试排序键列索引功能
-        let sort_key = SortKey::new(Expr::Literal(Value::Int(1)), SortOrder::Asc);
+        let sort_key = SortKey::new(Expression::Literal(Value::Int(1)), SortOrder::Asc);
         assert!(!sort_key.uses_column_index());
 
         // 测试基于列索引的排序键

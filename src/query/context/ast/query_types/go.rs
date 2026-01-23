@@ -14,7 +14,7 @@ use crate::query::context::ast::{FromType, Starts, YieldColumns};
 #[derive(Debug, Clone)]
 pub struct GoContext {
     pub traverse: TraverseContext,
-    pub yield_expr: Option<YieldColumns>,
+    pub yield_expression: Option<YieldColumns>,
     pub distinct: bool,
     pub random: bool,
     pub limits: Vec<i64>,
@@ -22,9 +22,9 @@ pub struct GoContext {
     pub join_input: bool,
     pub join_dst: bool,
     pub is_simple: bool,
-    pub dst_props_expr: Option<YieldColumns>,
-    pub src_props_expr: Option<YieldColumns>,
-    pub edge_props_expr: Option<YieldColumns>,
+    pub dst_props_expression: Option<YieldColumns>,
+    pub src_props_expression: Option<YieldColumns>,
+    pub edge_props_expression: Option<YieldColumns>,
     pub src_vid_col_name: String,
     pub dst_vid_col_name: String,
 }
@@ -33,7 +33,7 @@ impl GoContext {
     pub fn new(base: crate::query::context::ast::AstContext) -> Self {
         Self {
             traverse: TraverseContext::new(base),
-            yield_expr: None,
+            yield_expression: None,
             distinct: false,
             random: false,
             limits: Vec::new(),
@@ -41,9 +41,9 @@ impl GoContext {
             join_input: false,
             join_dst: false,
             is_simple: false,
-            dst_props_expr: None,
-            src_props_expr: None,
-            edge_props_expr: None,
+            dst_props_expression: None,
+            src_props_expression: None,
+            edge_props_expression: None,
             src_vid_col_name: String::new(),
             dst_vid_col_name: String::new(),
         }

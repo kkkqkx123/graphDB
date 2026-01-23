@@ -51,9 +51,9 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for GetVerticesExecut
 
                 for id in ids {
                     if let Some(vertex) = storage.get_node(id)? {
-                        let include_vertex = if let Some(ref tag_filter_expr) = self.tag_filter {
+                        let include_vertex = if let Some(ref tag_filter_expression) = self.tag_filter {
                             crate::query::executor::tag_filter::TagFilterProcessor
-                                ::process_tag_filter(tag_filter_expr, &vertex)
+                                ::process_tag_filter(tag_filter_expression, &vertex)
                         } else {
                             true
                         };
@@ -78,15 +78,15 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for GetVerticesExecut
                 storage.scan_all_vertices()?
                     .into_iter()
                     .filter(|vertex| {
-                        if let Some(ref tag_filter_expr) = self.tag_filter {
+                        if let Some(ref tag_filter_expression) = self.tag_filter {
                             crate::query::executor::tag_filter::TagFilterProcessor
-                                ::process_tag_filter(tag_filter_expr, vertex)
+                                ::process_tag_filter(tag_filter_expression, vertex)
                         } else {
                             true
                         }
                     })
                     .filter(|vertex| {
-                        if let Some(ref filter_expr) = self.vertex_filter {
+                        if let Some(ref filter_expression) = self.vertex_filter {
                             let mut context =
                                 crate::expression::DefaultExpressionContext::new();
                             context.set_variable(
@@ -94,7 +94,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for GetVerticesExecut
                                 crate::core::Value::Vertex(Box::new(vertex.clone())),
                             );
 
-                            match crate::expression::evaluator::expression_evaluator::ExpressionEvaluator::evaluate(filter_expr, &mut context) {
+                            match crate::expression::evaluator::expression_evaluator::ExpressionEvaluator::evaluate(filter_expression, &mut context) {
                                 Ok(value) => {
                                     match value {
                                         crate::core::Value::Bool(b) => b,

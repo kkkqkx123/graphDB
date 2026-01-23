@@ -15,7 +15,7 @@
 //! - 专注于核心的过滤功能
 //! - 简化路径表达式处理
 
-use crate::query::parser::ast::expr::Expr;
+use crate::query::parser::ast::expression::Expression;
 use crate::query::parser::core::Span;
 use crate::query::planner::statements::clauses::clause_planner::ClausePlanner;
 use crate::query::planner::statements::core::{
@@ -33,21 +33,21 @@ use crate::query::validator::structs::CypherClauseKind;
 /// WHERE 子句是数据流转换器，需要输入并产生输出。
 #[derive(Debug)]
 pub struct WhereClausePlanner {
-    filter_expr: Option<Expr>,
+    filter_expression: Option<Expression>,
 }
 
 impl WhereClausePlanner {
     /// 创建新的 WHERE 子句规划器
     ///
     /// # 参数
-    /// * `filter_expr` - 过滤表达式，None 表示无条件
-    pub fn new(filter_expr: Option<Expr>) -> Self {
-        Self { filter_expr }
+    /// * `filter_expression` - 过滤表达式，None 表示无条件
+    pub fn new(filter_expression: Option<Expression>) -> Self {
+        Self { filter_expression }
     }
 
     /// 获取过滤表达式
-    pub fn filter_expr(&self) -> Option<&Expr> {
-        self.filter_expr.as_ref()
+    pub fn filter_expression(&self) -> Option<&Expression> {
+        self.filter_expression.as_ref()
     }
 }
 
@@ -102,12 +102,12 @@ mod tests {
 
     #[test]
     fn test_where_clause_planner_with_filter() {
-        let expr = Expr::Constant(crate::query::parser::ast::expr::ConstantExpr::new(
+        let expression = Expression::Constant(crate::query::parser::ast::expression::ConstantExpression::new(
             crate::core::Value::Bool(true),
             Span::default(),
         ));
-        let planner = WhereClausePlanner::new(Some(expr));
-        assert!(planner.filter_expr().is_some());
+        let planner = WhereClausePlanner::new(Some(expression));
+        assert!(planner.filter_expression().is_some());
     }
 
     #[test]

@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
-use crate::core::Expr;
+use crate::core::Expression;
 use crate::core::Value;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::evaluator::traits::ExpressionContext;
@@ -36,7 +36,7 @@ pub enum LoopState {
 /// 包含递归检测机制，防止循环执行器自引用
 pub struct LoopExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
-    condition: Option<Expr>, // 循环条件，None 表示无限循环
+    condition: Option<Expression>, // 循环条件，None 表示无限循环
     body_executor: Box<dyn Executor<S>>,
     max_iterations: Option<usize>,
     current_iteration: usize,
@@ -55,7 +55,7 @@ impl<S: StorageEngine> LoopExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
-        condition: Option<Expr>,
+        condition: Option<Expression>,
         body_executor: Box<dyn Executor<S>>,
         max_iterations: Option<usize>,
     ) -> Self {
@@ -91,9 +91,9 @@ impl<S: StorageEngine + Send + 'static> LoopExecutor<S> {
     /// 评估循环条件
     async fn evaluate_condition(&mut self) -> DBResult<bool> {
         match &self.condition {
-            Some(expr) => {
+            Some(expression) => {
                 let result =
-                    ExpressionEvaluator::evaluate(expr, &mut self.loop_context).map_err(|e| {
+                    ExpressionEvaluator::evaluate(expression, &mut self.loop_context).map_err(|e| {
                         DBError::Expression(crate::core::error::ExpressionError::function_error(
                             e.to_string(),
                         ))
@@ -600,10 +600,10 @@ mod tests {
         let storage = Arc::new(Mutex::new(MockStorage));
         let storage_clone = storage.clone();
 
-        let condition = Expr::binary(
-            Expr::variable("__iteration"),
+        let condition = Expression::binary(
+            Expression::variable("__iteration"),
             BinaryOperator::LessThan,
-            Expr::int(3),
+            Expression::int(3),
         );
 
         let body_executor = Box::new(CountExecutor::new(storage_clone));
