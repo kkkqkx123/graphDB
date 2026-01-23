@@ -23,7 +23,8 @@ mod tests {
     use super::GraphData;
     use super::GraphResponse;
     use super::ResultSet;
-    use crate::core::{Tag, Value, Vertex};
+    use crate::core::vertex_edge_path::Tag;
+    use crate::core::{Value, Vertex};
     use std::collections::HashMap;
 
     #[test]

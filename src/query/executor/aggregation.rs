@@ -476,7 +476,8 @@ impl<S: StorageEngine> HasStorage<S> for AggregationExecutor<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::{Value, vertex_edge_path::{Vertex, Tag}};
+    use crate::core::{Value, vertex_edge_path::Vertex};
+    use crate::core::vertex_edge_path::Tag;
     use crate::core::types::operators::AggregateFunction;
     use std::collections::HashMap;
     use tokio;

@@ -416,7 +416,7 @@ impl IndexService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::Tag;
+    use crate::core::vertex_edge_path::Tag;
 
     #[test]
     fn test_index_service_creation() {

@@ -14,12 +14,10 @@ impl TypeUtils {
             return true;
         }
 
-        // NULL和EMPTY类型与任何类型兼容
         if Self::is_superior_type(type1) || Self::is_superior_type(type2) {
             return true;
         }
 
-        // Int和Float可以相互兼容
         if (type1 == &ValueTypeDef::Int && type2 == &ValueTypeDef::Float)
             || (type1 == &ValueTypeDef::Float && type2 == &ValueTypeDef::Int)
         {
@@ -51,7 +49,6 @@ impl TypeUtils {
             ValueTypeDef::List => 11,
             ValueTypeDef::Set => 12,
             ValueTypeDef::Map => 13,
-            // 其他类型的默认优先级
             _ => 14,
         }
     }
@@ -62,7 +59,6 @@ impl TypeUtils {
             return type1.clone();
         }
 
-        // 如果其中一个是NULL或EMPTY，返回另一个
         if Self::is_superior_type(type1) {
             return type2.clone();
         }
@@ -70,27 +66,22 @@ impl TypeUtils {
             return type1.clone();
         }
 
-        // Int和Float的公共类型是Float
         if (type1 == &ValueTypeDef::Int && type2 == &ValueTypeDef::Float)
             || (type1 == &ValueTypeDef::Float && type2 == &ValueTypeDef::Int)
         {
             return ValueTypeDef::Float;
         }
 
-        // 其他情况返回Empty
         ValueTypeDef::Empty
     }
 
     /// 统一的类型兼容性检查（无需缓存）
-    /// 基于性能分析，此操作开销极小，缓存反而增加复杂度
     pub fn check_compatibility(type1: &ValueTypeDef, type2: &ValueTypeDef) -> bool {
-        // 直接复用现有逻辑，无需缓存
         Self::are_types_compatible(type1, type2)
     }
 
     /// 批量类型检查（优化内存分配）
     pub fn check_compatibility_batch(pairs: &[(ValueTypeDef, ValueTypeDef)]) -> Vec<bool> {
-        // 预分配结果向量，避免重复分配
         let mut results = Vec::with_capacity(pairs.len());
 
         for (t1, t2) in pairs {
@@ -112,7 +103,6 @@ impl TypeUtils {
     ) -> ValueTypeDef {
         match op {
             "+" | "-" | "*" | "/" => {
-                // 数值运算
                 if left_type == &ValueTypeDef::Float || right_type == &ValueTypeDef::Float {
                     ValueTypeDef::Float
                 } else {
@@ -120,7 +110,6 @@ impl TypeUtils {
                 }
             }
             "==" | "!=" | "<" | "<=" | ">" | ">=" => {
-                // 比较运算返回布尔值
                 ValueTypeDef::Bool
             }
             _ => ValueTypeDef::Empty,
@@ -131,89 +120,6 @@ impl TypeUtils {
     pub fn should_cache_expression(expr_depth: usize, expr_node_count: usize) -> bool {
         expr_depth > 3 || expr_node_count > 10
     }
-
-    #[cfg(test)]
-    fn test_check_compatibility() {
-        // 测试类型兼容性检查
-        assert!(TypeUtils::check_compatibility(
-            &ValueTypeDef::Int,
-            &ValueTypeDef::Int
-        ));
-        assert!(TypeUtils::check_compatibility(
-            &ValueTypeDef::Int,
-            &ValueTypeDef::Float
-        ));
-        assert!(!TypeUtils::check_compatibility(
-            &ValueTypeDef::Int,
-            &ValueTypeDef::String
-        ));
-    }
-
-    #[cfg(test)]
-    fn test_check_compatibility_batch() {
-        let pairs = vec![
-            (ValueTypeDef::Int, ValueTypeDef::Int),
-            (ValueTypeDef::Int, ValueTypeDef::Float),
-            (ValueTypeDef::Int, ValueTypeDef::String),
-            (ValueTypeDef::Null, ValueTypeDef::Int),
-        ];
-
-        let results = TypeUtils::check_compatibility_batch(&pairs);
-        assert_eq!(results.len(), 4);
-        assert!(results[0]); // Int == Int
-        assert!(results[1]); // Int == Float
-        assert!(!results[2]); // Int != String
-        assert!(results[3]); // Null == Int
-    }
-
-    #[cfg(test)]
-    fn test_literal_type() {
-        use crate::core::value::Value;
-
-        assert_eq!(TypeUtils::literal_type(&Value::Int(42)), ValueTypeDef::Int);
-        assert_eq!(
-            TypeUtils::literal_type(&Value::String("test".to_string())),
-            ValueTypeDef::String
-        );
-        assert_eq!(
-            TypeUtils::literal_type(&Value::Bool(true)),
-            ValueTypeDef::Bool
-        );
-    }
-
-    #[cfg(test)]
-    fn test_binary_operation_result_type() {
-        // 数值运算
-        assert_eq!(
-            TypeUtils::binary_operation_result_type("+", &ValueTypeDef::Int, &ValueTypeDef::Int),
-            ValueTypeDef::Int
-        );
-        assert_eq!(
-            TypeUtils::binary_operation_result_type("+", &ValueTypeDef::Int, &ValueTypeDef::Float),
-            ValueTypeDef::Float
-        );
-
-        // 比较运算
-        assert_eq!(
-            TypeUtils::binary_operation_result_type("==", &ValueTypeDef::Int, &ValueTypeDef::Int),
-            ValueTypeDef::Bool
-        );
-    }
-
-    #[cfg(test)]
-    fn test_should_cache_expression() {
-        // 简单表达式不应缓存
-        assert!(!TypeUtils::should_cache_expression(2, 5));
-
-        // 深度表达式应该缓存
-        assert!(TypeUtils::should_cache_expression(4, 5));
-
-        // 节点数多的表达式应该缓存
-        assert!(TypeUtils::should_cache_expression(2, 15));
-
-        // 复杂表达式应该缓存
-        assert!(TypeUtils::should_cache_expression(5, 20));
-    }
 }
 
 #[cfg(test)]
@@ -222,13 +128,11 @@ mod tests {
 
     #[test]
     fn test_are_types_compatible() {
-        // 相同类型兼容
         assert!(TypeUtils::are_types_compatible(
             &ValueTypeDef::Int,
             &ValueTypeDef::Int
         ));
 
-        // 优越类型与任何类型兼容
         assert!(TypeUtils::are_types_compatible(
             &ValueTypeDef::Null,
             &ValueTypeDef::Int
@@ -238,7 +142,6 @@ mod tests {
             &ValueTypeDef::String
         ));
 
-        // Int和Float兼容
         assert!(TypeUtils::are_types_compatible(
             &ValueTypeDef::Int,
             &ValueTypeDef::Float
@@ -248,7 +151,6 @@ mod tests {
             &ValueTypeDef::Int
         ));
 
-        // 不同类型不兼容
         assert!(!TypeUtils::are_types_compatible(
             &ValueTypeDef::Int,
             &ValueTypeDef::String
@@ -285,5 +187,78 @@ mod tests {
             TypeUtils::get_common_type(&ValueTypeDef::Int, &ValueTypeDef::String),
             ValueTypeDef::Empty
         );
+    }
+
+    #[test]
+    fn test_check_compatibility() {
+        assert!(TypeUtils::check_compatibility(
+            &ValueTypeDef::Int,
+            &ValueTypeDef::Int
+        ));
+        assert!(TypeUtils::check_compatibility(
+            &ValueTypeDef::Int,
+            &ValueTypeDef::Float
+        ));
+        assert!(!TypeUtils::check_compatibility(
+            &ValueTypeDef::Int,
+            &ValueTypeDef::String
+        ));
+    }
+
+    #[test]
+    fn test_check_compatibility_batch() {
+        let pairs = vec![
+            (ValueTypeDef::Int, ValueTypeDef::Int),
+            (ValueTypeDef::Int, ValueTypeDef::Float),
+            (ValueTypeDef::Int, ValueTypeDef::String),
+            (ValueTypeDef::Null, ValueTypeDef::Int),
+        ];
+
+        let results = TypeUtils::check_compatibility_batch(&pairs);
+        assert_eq!(results.len(), 4);
+        assert!(results[0]);
+        assert!(results[1]);
+        assert!(!results[2]);
+        assert!(results[3]);
+    }
+
+    #[test]
+    fn test_literal_type() {
+        use crate::core::value::Value;
+
+        assert_eq!(TypeUtils::literal_type(&Value::Int(42)), ValueTypeDef::Int);
+        assert_eq!(
+            TypeUtils::literal_type(&Value::String("test".to_string())),
+            ValueTypeDef::String
+        );
+        assert_eq!(
+            TypeUtils::literal_type(&Value::Bool(true)),
+            ValueTypeDef::Bool
+        );
+    }
+
+    #[test]
+    fn test_binary_operation_result_type() {
+        assert_eq!(
+            TypeUtils::binary_operation_result_type("+", &ValueTypeDef::Int, &ValueTypeDef::Int),
+            ValueTypeDef::Int
+        );
+        assert_eq!(
+            TypeUtils::binary_operation_result_type("+", &ValueTypeDef::Int, &ValueTypeDef::Float),
+            ValueTypeDef::Float
+        );
+
+        assert_eq!(
+            TypeUtils::binary_operation_result_type("==", &ValueTypeDef::Int, &ValueTypeDef::Int),
+            ValueTypeDef::Bool
+        );
+    }
+
+    #[test]
+    fn test_should_cache_expression() {
+        assert!(!TypeUtils::should_cache_expression(2, 5));
+        assert!(TypeUtils::should_cache_expression(4, 5));
+        assert!(TypeUtils::should_cache_expression(2, 15));
+        assert!(TypeUtils::should_cache_expression(5, 20));
     }
 }

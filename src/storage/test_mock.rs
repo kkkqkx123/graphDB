@@ -6,9 +6,11 @@
 use crate::core::value::NullType;
 #[cfg(test)]
 use crate::core::{
-    vertex_edge_path::{Direction, Edge, Vertex},
-    Value,
+    vertex_edge_path::Edge,
+    EdgeDirection, Value,
 };
+#[cfg(test)]
+use crate::core::vertex_edge_path::Vertex;
 #[cfg(test)]
 use crate::storage::{StorageEngine, StorageError};
 
@@ -51,7 +53,7 @@ impl StorageEngine for MockStorage {
     fn get_node_edges(
         &self,
         _node_id: &Value,
-        _direction: Direction,
+        _direction: EdgeDirection,
     ) -> Result<Vec<Edge>, StorageError> {
         Ok(Vec::new())
     }
@@ -59,7 +61,7 @@ impl StorageEngine for MockStorage {
     fn get_node_edges_filtered(
         &self,
         _node_id: &Value,
-        _direction: Direction,
+        _direction: EdgeDirection,
         _filter: Option<Box<dyn Fn(&Edge) -> bool + Send + Sync>>,
     ) -> Result<Vec<Edge>, StorageError> {
         Ok(Vec::new())

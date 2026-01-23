@@ -777,7 +777,7 @@ impl ConcurrentIndexManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::Tag;
+    use crate::core::vertex_edge_path::Tag;
     use crate::storage::MemoryStorage;
 
     fn create_test_vertex(id: i64, name: &str, age: i64) -> Vertex {

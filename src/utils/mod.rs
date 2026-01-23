@@ -16,10 +16,6 @@ pub use string_utils::{
     escape_for_query, normalize_identifier, sanitize_input, unescape_for_query,
 };
 
-// 类型转换工具模块
-pub mod type_utils;
-pub use type_utils::{value_to_bool, value_to_f64, value_to_i64, value_to_string};
-
 // 表达式工具模块 - temporarily commented out until expressions module issue is resolved
 // pub mod expression_utils;
 // pub use expression_utils::{

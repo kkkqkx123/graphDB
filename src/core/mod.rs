@@ -1,8 +1,7 @@
 pub mod error;
 pub mod plan_node_ref;
 pub mod result;
-pub mod signal_handler;
-pub mod type_utils;
+pub mod type_system;
 pub mod value;
 pub mod vertex_edge_path;
 
@@ -22,7 +21,7 @@ pub use result::{ResultBuilder, r#Iterator, IteratorType};
 
 // 核心数据类型
 pub use value::*;
-pub use vertex_edge_path::{Edge, Path, Step, Tag, Vertex};
+pub use vertex_edge_path::{Edge, Path, Vertex};
 
 // 表达式系统类型
 pub use types::expression::Expression;
@@ -33,7 +32,7 @@ pub use types::graph::EdgeDirection;
 pub use types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 
 // 其他核心类型
-pub use type_utils::TypeUtils;
+pub use type_system::TypeUtils;
 
 // 计划节点引用
 pub use plan_node_ref::*;
