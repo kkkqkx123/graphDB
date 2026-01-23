@@ -70,7 +70,7 @@ impl<S: StorageEngine + Send> ExpandAllExecutor<S> {
 
         // 获取节点的所有边
         let edges = storage
-            .get_node_edges(node_id, crate::core::Direction::Both)
+            .get_node_edges(node_id, EdgeDirection::Both)
             .map_err(|e| QueryError::StorageError(e.to_string()))?;
 
         // 过滤边类型
@@ -87,14 +87,14 @@ impl<S: StorageEngine + Send> ExpandAllExecutor<S> {
         let neighbors_with_edges = filtered_edges
             .into_iter()
             .filter_map(|edge| match self.edge_direction {
-                EdgeDirection::Incoming => {
+                EdgeDirection::In => {
                     if *edge.dst == *node_id {
                         Some(((*edge.src).clone(), edge))
                     } else {
                         None
                     }
                 }
-                EdgeDirection::Outgoing => {
+                EdgeDirection::Out => {
                     if *edge.src == *node_id {
                         Some(((*edge.dst).clone(), edge))
                     } else {

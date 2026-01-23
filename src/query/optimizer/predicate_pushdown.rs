@@ -1383,7 +1383,7 @@ mod tests {
         let expand_node = crate::query::planner::plan::core::nodes::ExpandNode::new(
             1, // space_id
             vec!["edge_type".to_string()],
-            crate::core::types::EdgeDirection::Outgoing,
+            crate::core::types::EdgeDirection::Out,
         );
         let expand_opt_node = OptGroupNode::new(3, expand_node.into_enum());
         ctx.add_plan_node_and_group_node(3, &expand_opt_node);

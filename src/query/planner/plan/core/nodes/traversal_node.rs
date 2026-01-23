@@ -896,10 +896,10 @@ mod tests {
     #[test]
     fn test_expand_node_creation() {
         let edge_types = vec!["edge1".to_string(), "edge2".to_string()];
-        let node = ExpandNode::new(1, edge_types, EdgeDirection::Outgoing);
+        let node = ExpandNode::new(1, edge_types, EdgeDirection::Out);
         assert_eq!(node.type_name(), "Expand");
         assert_eq!(node.space_id, 1);
-        assert_eq!(node.direction, EdgeDirection::Outgoing);
+        assert_eq!(node.direction, EdgeDirection::Out);
         assert_eq!(node.edge_types.len(), 2);
     }
 

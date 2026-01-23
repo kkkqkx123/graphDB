@@ -153,7 +153,7 @@ impl Over {
         Self {
             is_over_all: false,
             edge_types: Vec::new(),
-            direction: EdgeDirection::Outgoing,
+            direction: EdgeDirection::Out,
             all_edges: Vec::new(),
         }
     }

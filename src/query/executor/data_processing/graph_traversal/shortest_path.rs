@@ -112,7 +112,7 @@ impl<S: StorageEngine> ShortestPathExecutor<S> {
 
         // 获取节点的所有边
         let edges = storage
-            .get_node_edges(node_id, crate::core::Direction::Both)
+            .get_node_edges(node_id, EdgeDirection::Both)
             .map_err(|e| QueryError::StorageError(e.to_string()))?;
 
         // 过滤边类型
@@ -130,7 +130,7 @@ impl<S: StorageEngine> ShortestPathExecutor<S> {
             .into_iter()
             .filter_map(|edge| {
                 let (neighbor_id, weight) = match self.edge_direction {
-                    EdgeDirection::Incoming => {
+                    EdgeDirection::In => {
                         if *edge.dst == *node_id {
                             // 对于最短路径，我们可以使用边的ranking作为权重
                             ((*edge.src).clone(), edge.ranking as f64)
@@ -138,7 +138,7 @@ impl<S: StorageEngine> ShortestPathExecutor<S> {
                             return None;
                         }
                     }
-                    EdgeDirection::Outgoing => {
+                    EdgeDirection::Out => {
                         if *edge.src == *node_id {
                             ((*edge.dst).clone(), edge.ranking as f64)
                         } else {

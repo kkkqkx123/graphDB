@@ -1,4 +1,4 @@
-use crate::core::{Direction, Edge, StorageError, Value, Vertex};
+use crate::core::{Edge, StorageError, Value, Vertex, EdgeDirection};
 
 /// Transaction identifier
 pub type TransactionId = u64;
@@ -27,12 +27,12 @@ pub trait StorageEngine: Send + Sync {
     fn get_node_edges(
         &self,
         node_id: &Value,
-        direction: Direction,
+        direction: EdgeDirection,
     ) -> Result<Vec<Edge>, StorageError>;
     fn get_node_edges_filtered(
         &self,
         node_id: &Value,
-        direction: Direction,
+        direction: EdgeDirection,
         filter: Option<Box<dyn Fn(&Edge) -> bool + Send + Sync>>,
     ) -> Result<Vec<Edge>, StorageError>;
     fn delete_edge(

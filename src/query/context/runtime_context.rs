@@ -5,13 +5,14 @@
 
 use crate::common::id::{EdgeType, TagId};
 use crate::core::Value;
-use crate::core::Direction;
+use crate::core::EdgeDirection;
 use crate::core::error::ManagerResult;
 use std::sync::{Arc, RwLock, atomic::{AtomicBool, Ordering}};
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::query::context::managers::{SchemaManager, IndexManager};
+use crate::query::planner::plan::management::ddl::space_ops::Schema;
 
 /// 结果状态枚举
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -156,7 +157,7 @@ pub trait StorageEngine: Send + Sync + std::fmt::Debug {
     fn get_node_edges(
         &self,
         node_id: &Value,
-        direction: Direction,
+        direction: EdgeDirection,
     ) -> Result<Vec<Edge>, StorageError>;
     fn delete_edge(
         &mut self,
@@ -806,8 +807,6 @@ impl RuntimeContext {
 // 类型别名和简化定义
 pub type StorageError = String;
 pub type IndexError = String;
-pub type Schema = crate::core::schema::Schema;
-pub type Index = crate::core::schema::Schema;
 pub type Vertex = crate::core::vertex_edge_path::Vertex;
 pub type Edge = crate::core::vertex_edge_path::Edge;
 
@@ -860,7 +859,7 @@ mod tests {
         fn get_node_edges(
             &self,
             _node_id: &Value,
-            _direction: Direction,
+            _direction: EdgeDirection,
         ) -> Result<Vec<Edge>, StorageError> {
             Ok(Vec::new())
         }

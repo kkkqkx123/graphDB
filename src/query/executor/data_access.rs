@@ -298,11 +298,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for GetNeighborsExecu
         let mut neighbors = Vec::new();
 
         for vertex_id in &self.vertex_ids {
-            let direction = match self.edge_direction {
-                super::base::EdgeDirection::Outgoing => crate::core::Direction::Out,
-                super::base::EdgeDirection::Incoming => crate::core::Direction::In,
-                super::base::EdgeDirection::Both => crate::core::Direction::Both,
-            };
+            let direction = self.edge_direction;
 
             let edges = storage.get_node_edges(vertex_id, direction)?;
 
@@ -483,7 +479,6 @@ impl<S: StorageEngine> HasStorage<S> for GetPropExecutor<S> {
 }
 
 use crate::core::vertex_edge_path::{Path, Step};
-use crate::core::Direction;
 
 use super::base::EdgeDirection;
 
@@ -656,11 +651,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for AllPathsExecutor<
                     .map(|step| step.dst.as_ref())
                     .unwrap_or(path.src.as_ref());
 
-                let direction = match self.direction {
-                    EdgeDirection::Outgoing => Direction::Out,
-                    EdgeDirection::Incoming => Direction::In,
-                    EdgeDirection::Both => Direction::Both,
-                };
+                let direction = self.direction;
 
                 let edges = storage.get_node_edges(&self.start_vertex, direction)?;
 

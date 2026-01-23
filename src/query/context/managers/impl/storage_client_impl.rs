@@ -5,7 +5,7 @@ use super::super::{
     StorageResponse, UpdateResponse, UpdatedProp,
 };
 use crate::core::error::{ManagerError, ManagerResult};
-use crate::core::{Edge, Tag, Value, Vertex};
+use crate::core::{Edge, Tag, Value, Vertex, EdgeDirection};
 use crate::storage::MemoryStorage;
 use crate::storage::storage_engine::StorageEngine;
 use std::collections::HashMap;
@@ -999,7 +999,7 @@ impl StorageClient for MemoryStorageClient {
             .map_err(|e| ManagerError::StorageError(e.to_string()))?;
 
         let result = (*storage)
-            .get_node_edges(src, crate::core::Direction::Out)
+            .get_node_edges(src, EdgeDirection::Out)
             .map_err(|e| ManagerError::StorageError(e.to_string()))?;
 
         if let Some(limit) = limit {
@@ -1027,7 +1027,7 @@ impl StorageClient for MemoryStorageClient {
             .map_err(|e| ManagerError::StorageError(e.to_string()))?;
 
         let result = (*storage)
-            .get_node_edges(dst, crate::core::Direction::In)
+            .get_node_edges(dst, EdgeDirection::In)
             .map_err(|e| ManagerError::StorageError(e.to_string()))?;
 
         if let Some(limit) = limit {

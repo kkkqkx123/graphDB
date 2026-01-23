@@ -513,11 +513,3 @@ impl Default for Path {
         }
     }
 }
-
-/// Direction for traversing edges
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum Direction {
-    In,
-    Out,
-    Both,
-}

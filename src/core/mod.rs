@@ -1,11 +1,6 @@
-pub mod allocator;
-pub mod collect_n_succeeded;
-pub mod cord;
 pub mod error;
-pub mod murmur;
 pub mod plan_node_ref;
 pub mod result;
-pub mod schema;
 pub mod signal_handler;
 pub mod type_utils;
 pub mod value;
@@ -15,9 +10,6 @@ pub mod vertex_edge_path;
 pub mod expression_visitor;
 pub mod expression_utils;
 pub mod types;
-
-// 查询处理模块已迁移到 query 目录
-// pub mod query_pipeline_manager;
 
 // 错误和结果类型
 pub use error::{
@@ -30,7 +22,7 @@ pub use result::{ResultBuilder, r#Iterator, IteratorType};
 
 // 核心数据类型
 pub use value::*;
-pub use vertex_edge_path::{Direction, Edge, Path, Step, Tag, Vertex};
+pub use vertex_edge_path::{Edge, Path, Step, Tag, Vertex};
 
 // 表达式系统类型
 pub use types::expression::Expression;

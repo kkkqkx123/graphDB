@@ -53,8 +53,8 @@ impl Planner for PathPlanner {
         let arg_node_enum = PlanNodeEnum::Argument(arg_node);
 
         let direction_str = match path_ctx.traverse.over.direction {
-            EdgeDirection::Outgoing => "out",
-            EdgeDirection::Incoming => "in",
+            EdgeDirection::Out => "out",
+            EdgeDirection::In => "in",
             EdgeDirection::Both => "both",
         };
 
@@ -65,7 +65,7 @@ impl Planner for PathPlanner {
                 .map(|et| format!("-{}", et))
                 .collect();
             edge_types.extend(reverse_types);
-        } else if path_ctx.traverse.over.direction == EdgeDirection::Incoming {
+        } else if path_ctx.traverse.over.direction == EdgeDirection::In {
             edge_types = edge_types
                 .iter()
                 .map(|et| format!("-{}", et))

@@ -82,7 +82,7 @@ mod tests {
         let executor = GraphTraversalExecutorFactory::create_expand_executor(
             1,
             storage,
-            EdgeDirection::Outgoing,
+            EdgeDirection::Out,
             Some(vec!["connect".to_string()]),
             Some(1),
         );
@@ -92,7 +92,7 @@ mod tests {
         assert_eq!(executor.id(), 1);
         assert!(matches!(
             executor.get_edge_direction(),
-            EdgeDirection::Outgoing
+            EdgeDirection::Out
         ));
         assert!(executor.get_edge_types().is_some());
         assert_eq!(executor.get_max_depth(), Some(1));
@@ -122,7 +122,7 @@ mod tests {
         let executor = GraphTraversalExecutorFactory::create_traverse_executor(
             3,
             storage,
-            EdgeDirection::Outgoing,
+            EdgeDirection::Out,
             Some(vec!["connect".to_string()]),
             Some(3),
             Some("true".to_string()),
@@ -132,7 +132,7 @@ mod tests {
         assert_eq!(executor.id(), 3);
         assert!(matches!(
             executor.get_edge_direction(),
-            EdgeDirection::Outgoing
+            EdgeDirection::Out
         ));
         assert!(executor.get_edge_types().is_some());
         assert_eq!(executor.get_max_depth(), Some(3));
@@ -146,7 +146,7 @@ mod tests {
             storage,
             vec![Value::String("A".to_string())],
             vec![Value::String("C".to_string())],
-            EdgeDirection::Outgoing,
+            EdgeDirection::Out,
             None,
             Some(10), // 添加max_depth参数
             ShortestPathAlgorithm::BFS,
@@ -156,7 +156,7 @@ mod tests {
         assert_eq!(executor.id(), 4);
         assert!(matches!(
             executor.get_edge_direction(),
-            EdgeDirection::Outgoing
+            EdgeDirection::Out
         ));
         assert!(executor.get_edge_types().is_none());
     }

@@ -13,7 +13,7 @@ use thiserror::Error;
 #[cfg(test)]
 use crate::core::{Edge, Vertex};
 #[cfg(test)]
-use crate::core::Direction;
+use crate::core::EdgeDirection;
 #[cfg(test)]
 use crate::storage::StorageError;
 
@@ -749,7 +749,7 @@ mod tests {
         fn get_node_edges(
             &self,
             _node_id: &Value,
-            _direction: Direction,
+            _direction: EdgeDirection,
         ) -> Result<Vec<Edge>, StorageError> {
             Ok(Vec::new())
         }
@@ -786,7 +786,7 @@ mod tests {
         fn get_node_edges_filtered(
             &self,
             _node_id: &Value,
-            _direction: Direction,
+            _direction: EdgeDirection,
             _filter: Option<Box<dyn Fn(&Edge) -> bool + Send + Sync>>,
         ) -> Result<Vec<Edge>, StorageError> {
             Ok(Vec::new())

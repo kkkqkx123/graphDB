@@ -1,6 +1,6 @@
 use super::{StorageEngine, TransactionId};
 use crate::common::fs::FileLock;
-use crate::core::{Direction, Edge, StorageError, Value, Vertex};
+use crate::core::{Edge, StorageError, Value, Vertex, EdgeDirection};
 use bincode;
 use lru::LruCache;
 use redb::{Database, ReadableTable, TableDefinition, TypeName};
@@ -534,7 +534,7 @@ impl StorageEngine for RedbStorage {
     }
 
     fn delete_node(&mut self, id: &Value) -> Result<(), StorageError> {
-        let edges_to_delete = self.get_node_edges(id, Direction::Both)?;
+        let edges_to_delete = self.get_node_edges(id, EdgeDirection::Both)?;
         for edge in edges_to_delete {
             self.delete_edge(&edge.src, &edge.dst, &edge.edge_type)?;
         }
@@ -676,7 +676,7 @@ impl StorageEngine for RedbStorage {
     fn get_node_edges(
         &self,
         node_id: &Value,
-        direction: Direction,
+        direction: EdgeDirection,
     ) -> Result<Vec<Edge>, StorageError> {
         self.get_node_edges_filtered(node_id, direction, None)
     }
@@ -684,7 +684,7 @@ impl StorageEngine for RedbStorage {
     fn get_node_edges_filtered(
         &self,
         node_id: &Value,
-        direction: Direction,
+        direction: EdgeDirection,
         filter: Option<Box<dyn Fn(&Edge) -> bool + Send + Sync>>,
     ) -> Result<Vec<Edge>, StorageError> {
         let edge_keys = self.get_node_edge_keys(node_id)?;
@@ -693,9 +693,9 @@ impl StorageEngine for RedbStorage {
         for edge_key_bytes in edge_keys {
             if let Some(edge) = self.get_edge_from_bytes(&edge_key_bytes)? {
                 let matches_direction = match direction {
-                    Direction::Out => *edge.src == *node_id,
-                    Direction::In => *edge.dst == *node_id,
-                    Direction::Both => *edge.src == *node_id || *edge.dst == *node_id,
+                    EdgeDirection::Out => *edge.src == *node_id,
+                    EdgeDirection::In => *edge.dst == *node_id,
+                    EdgeDirection::Both => *edge.src == *node_id || *edge.dst == *node_id,
                 };
 
                 if matches_direction {

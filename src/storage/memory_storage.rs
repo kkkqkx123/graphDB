@@ -1,5 +1,5 @@
 use super::{StorageEngine, TransactionId};
-use crate::core::{Direction, Edge, StorageError, Value, Vertex};
+use crate::core::{Edge, StorageError, Value, Vertex, EdgeDirection};
 use crate::core::vertex_edge_path::Tag;
 use crate::common::memory::MemoryPool;
 use crate::common::id::{IdGenerator, TagId, EdgeId};
@@ -193,16 +193,16 @@ impl StorageEngine for MemoryStorage {
         Ok(edges.get(&key).cloned())
     }
 
-    fn get_node_edges(&self, node_id: &Value, direction: Direction) -> Result<Vec<Edge>, StorageError> {
+    fn get_node_edges(&self, node_id: &Value, direction: EdgeDirection) -> Result<Vec<Edge>, StorageError> {
         let node_key = Self::serialize_vertex_key(node_id);
         let edges = self.edges.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
 
         let result: Vec<Edge> = edges
             .values()
             .filter(|e| match direction {
-                Direction::Out => Self::serialize_vertex_key(&e.src) == node_key,
-                Direction::In => Self::serialize_vertex_key(&e.dst) == node_key,
-                Direction::Both => {
+                EdgeDirection::Out => Self::serialize_vertex_key(&e.src) == node_key,
+                EdgeDirection::In => Self::serialize_vertex_key(&e.dst) == node_key,
+                EdgeDirection::Both => {
                     Self::serialize_vertex_key(&e.src) == node_key
                         || Self::serialize_vertex_key(&e.dst) == node_key
                 }
@@ -216,7 +216,7 @@ impl StorageEngine for MemoryStorage {
     fn get_node_edges_filtered(
         &self,
         node_id: &Value,
-        direction: Direction,
+        direction: EdgeDirection,
         filter: Option<Box<dyn Fn(&Edge) -> bool + Send + Sync>>,
     ) -> Result<Vec<Edge>, StorageError> {
         let edges = self.get_node_edges(node_id, direction)?;

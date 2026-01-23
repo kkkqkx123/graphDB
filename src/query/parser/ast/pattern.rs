@@ -339,7 +339,7 @@ mod tests {
             vec!["KNOWS".to_string()],
             None,
             vec![],
-            EdgeDirection::Outgoing,
+            EdgeDirection::Out,
             None,
             Span::default(),
         ));
@@ -364,7 +364,7 @@ mod tests {
                 vec![],
                 None,
                 vec![],
-                EdgeDirection::Outgoing,
+                EdgeDirection::Out,
                 None,
                 Span::default(),
             )),

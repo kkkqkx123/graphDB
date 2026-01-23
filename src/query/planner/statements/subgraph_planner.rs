@@ -52,7 +52,7 @@ impl Planner for SubgraphPlanner {
         let _expand_node = Expand::new(
             1,
             subgraph_ctx.edge_types.iter().cloned().collect::<Vec<_>>(),
-            EdgeDirection::Outgoing,
+            EdgeDirection::Out,
         );
 
         let expand_all_node = PlanNodeEnum::ExpandAll(ExpandAll::new(

@@ -52,7 +52,7 @@ impl FindPathValidator {
                 dst_vertices: Vec::new(),
                 steps: None,
                 edge_types: Vec::new(),
-                direction: crate::core::types::EdgeDirection::Outgoing,
+                direction: crate::core::types::EdgeDirection::Out,
                 with_props: false,
                 limit: None,
                 yield_columns: Vec::new(),

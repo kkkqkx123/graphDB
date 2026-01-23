@@ -565,11 +565,11 @@ impl<'a> StmtParser<'a> {
 
         let predicates = Vec::new();
         let direction = if ctx.match_token(TokenKind::Out) {
-            EdgeDirection::Outgoing
+            EdgeDirection::Out
         } else if ctx.match_token(TokenKind::In) {
-            EdgeDirection::Incoming
+            EdgeDirection::In
         } else {
-            EdgeDirection::Outgoing
+            EdgeDirection::Out
         };
         let range = None;
 
@@ -604,13 +604,13 @@ impl<'a> StmtParser<'a> {
         let span = ctx.current_span();
         let edge_types = self.parse_edge_type_list(ctx)?;
         let direction = if ctx.match_token(TokenKind::Out) {
-            EdgeDirection::Outgoing
+            EdgeDirection::Out
         } else if ctx.match_token(TokenKind::In) {
-            EdgeDirection::Incoming
+            EdgeDirection::In
         } else if ctx.match_token(TokenKind::Both) {
             EdgeDirection::Both
         } else {
-            EdgeDirection::Outgoing
+            EdgeDirection::Out
         };
         Ok(OverClause { span, edge_types, direction })
     }

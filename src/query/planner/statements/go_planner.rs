@@ -53,8 +53,8 @@ impl Planner for GoPlanner {
         let arg_node_enum = PlanNodeEnum::Argument(arg_node);
 
         let direction_str = match go_ctx.traverse.over.direction {
-            EdgeDirection::Outgoing => "out",
-            EdgeDirection::Incoming => "in",
+            EdgeDirection::Out => "out",
+            EdgeDirection::In => "in",
             EdgeDirection::Both => "both",
         };
 

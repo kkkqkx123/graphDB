@@ -8,9 +8,9 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum EdgeDirection {
     /// 出边：从源节点指向目标节点
-    Outgoing,
+    Out,
     /// 入边：从目标节点指向源节点
-    Incoming,
+    In,
     /// 双向：同时包含出边和入边
     Both,
 }
@@ -18,19 +18,19 @@ pub enum EdgeDirection {
 impl EdgeDirection {
     /// 判断是否包含出边
     pub fn is_outgoing(&self) -> bool {
-        matches!(self, EdgeDirection::Outgoing | EdgeDirection::Both)
+        matches!(self, EdgeDirection::Out | EdgeDirection::Both)
     }
 
     /// 判断是否包含入边
     pub fn is_incoming(&self) -> bool {
-        matches!(self, EdgeDirection::Incoming | EdgeDirection::Both)
+        matches!(self, EdgeDirection::In | EdgeDirection::Both)
     }
 
     /// 获取反向方向
     pub fn reverse(&self) -> Self {
         match self {
-            EdgeDirection::Outgoing => EdgeDirection::Incoming,
-            EdgeDirection::Incoming => EdgeDirection::Outgoing,
+            EdgeDirection::Out => EdgeDirection::In,
+            EdgeDirection::In => EdgeDirection::Out,
             EdgeDirection::Both => EdgeDirection::Both,
         }
     }
@@ -39,8 +39,8 @@ impl EdgeDirection {
 impl From<&str> for EdgeDirection {
     fn from(s: &str) -> Self {
         match s.to_lowercase().as_str() {
-            "out" | "outgoing" => EdgeDirection::Outgoing,
-            "in" | "incoming" => EdgeDirection::Incoming,
+            "out" | "outgoing" => EdgeDirection::Out,
+            "in" | "incoming" => EdgeDirection::In,
             "both" | "bidirectional" => EdgeDirection::Both,
             _ => EdgeDirection::Both,
         }
