@@ -27,7 +27,7 @@ pub use vertex_edge_path::{Edge, Path, Vertex};
 pub use types::expression::Expression;
 pub use types::DataType;
 
-pub use types::graph::EdgeDirection;
+pub use types::graph_schema::EdgeDirection;
 
 pub use types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 

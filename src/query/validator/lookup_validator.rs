@@ -4,7 +4,7 @@
 
 use super::base_validator::{Validator, ValueType};
 use super::ValidationContext;
-use super::strategies::type_inference::TypeInference;
+use super::strategies::type_inference::TypeValidator;
 use crate::core::Expression;
 use crate::query::validator::ValidationError;
 use crate::query::validator::ValidationErrorType;
@@ -109,8 +109,8 @@ impl LookupValidator {
     }
 
     fn has_aggregate_expr(&self, expr: &Expression) -> bool {
-        let type_inference = TypeInference::new();
-        type_inference.has_aggregate_expression(expr)
+        let type_validator = TypeValidator::new();
+        type_validator.has_aggregate_expression(expr)
     }
 
     fn validate_yields(&self) -> Result<(), ValidationError> {

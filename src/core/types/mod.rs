@@ -5,7 +5,7 @@
 use serde::{Deserialize, Serialize};
 
 pub mod expression;
-pub mod graph;
+pub mod graph_schema;
 pub mod operators;
 
 /// 统一的数据类型枚举
@@ -40,5 +40,5 @@ pub enum DataType {
 
 // 重新导出常用类型
 pub use expression::{Expression};
-pub use graph::EdgeDirection;
+pub use graph_schema::{EdgeDirection, GraphTypeInference, VertexType, EdgeTypeInfo, PathInfo, PropertyType};
 pub use operators::{AggregateFunction, BinaryOperator, UnaryOperator};

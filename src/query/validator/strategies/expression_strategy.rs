@@ -22,7 +22,7 @@ impl ExpressionValidationStrategy {
         context: &WhereClauseContext,
     ) -> Result<(), ValidationError> {
         // 过滤条件必须是布尔类型或可转换为布尔类型
-        let type_validator = crate::query::validator::strategies::type_inference::TypeInference;
+        let type_validator = crate::query::validator::strategies::type_inference::TypeValidator;
         let filter_type = type_validator.deduce_expression_type_full(filter, context);
         
         if !type_validator.are_types_compatible(&filter_type, &ValueTypeDef::Bool) {
@@ -50,7 +50,7 @@ impl ExpressionValidationStrategy {
         context: &MatchClauseContext,
     ) -> Result<(), ValidationError> {
         // 验证路径表达式的类型
-        let type_validator = crate::query::validator::strategies::type_inference::TypeInference;
+        let type_validator = crate::query::validator::strategies::type_inference::TypeValidator;
         let path_type = type_validator.deduce_expression_type_full(path, context);
         
         // 路径表达式应该是路径类型或可以转换为路径类型
@@ -76,7 +76,7 @@ impl ExpressionValidationStrategy {
         context: &ReturnClauseContext,
     ) -> Result<(), ValidationError> {
         // 验证Return表达式的类型
-        let type_validator = crate::query::validator::strategies::type_inference::TypeInference;
+        let type_validator = crate::query::validator::strategies::type_inference::TypeValidator;
         let _return_type = type_validator.deduce_expression_type_full(return_expr, context);
         
         // 检查Return项中的聚合函数使用
@@ -127,7 +127,7 @@ impl ExpressionValidationStrategy {
         context: &UnwindClauseContext,
     ) -> Result<(), ValidationError> {
         // Unwind表达式必须是列表类型或可迭代类型
-        let type_validator = crate::query::validator::strategies::type_inference::TypeInference;
+        let type_validator = crate::query::validator::strategies::type_inference::TypeValidator;
         let unwind_type = type_validator.deduce_expression_type_full(unwind_expr, context);
         
         if unwind_type != ValueTypeDef::List && unwind_type != ValueTypeDef::Empty {
@@ -147,7 +147,7 @@ impl ExpressionValidationStrategy {
     /// 验证Yield子句
     pub fn validate_yield(&self, context: &YieldClauseContext) -> Result<(), ValidationError> {
         // 验证每个Yield列
-        let type_validator = crate::query::validator::strategies::type_inference::TypeInference;
+        let type_validator = crate::query::validator::strategies::type_inference::TypeValidator;
         let var_validator = crate::query::validator::strategies::variable_validator::VariableValidator::new();
         
         for column in &context.yield_columns {
@@ -183,7 +183,7 @@ impl ExpressionValidationStrategy {
         context: &mut MatchClauseContext,
     ) -> Result<(), ValidationError> {
         // 验证路径模式的类型
-        let type_validator = crate::query::validator::strategies::type_inference::TypeInference;
+        let type_validator = crate::query::validator::strategies::type_inference::TypeValidator;
         let pattern_type = type_validator.deduce_expression_type_full(pattern, context);
         
         if !matches!(pattern_type, ValueTypeDef::Path) && !matches!(pattern_type, ValueTypeDef::Empty) {

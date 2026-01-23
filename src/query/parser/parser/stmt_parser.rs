@@ -2,7 +2,7 @@
 //!
 //! 负责解析各种语句，包括 MATCH、GO、CREATE、DELETE、UPDATE 等。
 
-use crate::core::types::graph::EdgeDirection;
+use crate::core::types::graph_schema::EdgeDirection;
 use crate::query::parser::ast::*;
 use crate::query::parser::ast::expr::*;
 use crate::query::parser::ast::pattern::{EdgePattern, NodePattern, PathElement, PathPattern};
