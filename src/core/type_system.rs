@@ -2,72 +2,72 @@
 //!
 //! 提供类型兼容性检查、类型优先级和类型转换等核心功能
 
-use crate::core::ValueTypeDef;
+use crate::core::DataType;
 use crate::core::Value;
 use std::collections::HashMap;
 
 /// 类型转换映射表
 /// 记录每种类型可以转换到哪些目标类型
-static TYPE_CAST_MAP: std::sync::LazyLock<HashMap<ValueTypeDef, Vec<ValueTypeDef>>> =
+static TYPE_CAST_MAP: std::sync::LazyLock<HashMap<DataType, Vec<DataType>>> =
     std::sync::LazyLock::new(|| {
         let mut map = HashMap::new();
 
         // 转换为 Int
         map.insert(
-            ValueTypeDef::Int,
-            vec![ValueTypeDef::Int, ValueTypeDef::Float, ValueTypeDef::String],
+            DataType::Int,
+            vec![DataType::Int, DataType::Float, DataType::String],
         );
 
         // 转换为 Float
         map.insert(
-            ValueTypeDef::Float,
-            vec![ValueTypeDef::Float, ValueTypeDef::Int, ValueTypeDef::String],
+            DataType::Float,
+            vec![DataType::Float, DataType::Int, DataType::String],
         );
 
         // 转换为 String
         map.insert(
-            ValueTypeDef::String,
+            DataType::String,
             vec![
-                ValueTypeDef::String,
-                ValueTypeDef::Int,
-                ValueTypeDef::Float,
-                ValueTypeDef::Bool,
-                ValueTypeDef::Date,
-                ValueTypeDef::DateTime,
+                DataType::String,
+                DataType::Int,
+                DataType::Float,
+                DataType::Bool,
+                DataType::Date,
+                DataType::DateTime,
             ],
         );
 
         // 转换为 Bool
         map.insert(
-            ValueTypeDef::Bool,
+            DataType::Bool,
             vec![
-                ValueTypeDef::Bool,
-                ValueTypeDef::Int,
-                ValueTypeDef::Float,
-                ValueTypeDef::String,
+                DataType::Bool,
+                DataType::Int,
+                DataType::Float,
+                DataType::String,
             ],
         );
 
         // 优越类型可以转换为任何类型
         map.insert(
-            ValueTypeDef::Null,
+            DataType::Null,
             vec![
-                ValueTypeDef::Null,
-                ValueTypeDef::Int,
-                ValueTypeDef::Float,
-                ValueTypeDef::String,
-                ValueTypeDef::Bool,
+                DataType::Null,
+                DataType::Int,
+                DataType::Float,
+                DataType::String,
+                DataType::Bool,
             ],
         );
 
         map.insert(
-            ValueTypeDef::Empty,
+            DataType::Empty,
             vec![
-                ValueTypeDef::Empty,
-                ValueTypeDef::Bool,
-                ValueTypeDef::Int,
-                ValueTypeDef::Float,
-                ValueTypeDef::String,
+                DataType::Empty,
+                DataType::Bool,
+                DataType::Int,
+                DataType::Float,
+                DataType::String,
             ],
         );
 
@@ -79,7 +79,7 @@ pub struct TypeUtils;
 
 impl TypeUtils {
     /// 检查两种类型是否兼容
-    pub fn are_types_compatible(type1: &ValueTypeDef, type2: &ValueTypeDef) -> bool {
+    pub fn are_types_compatible(type1: &DataType, type2: &DataType) -> bool {
         if type1 == type2 {
             return true;
         }
@@ -88,8 +88,8 @@ impl TypeUtils {
             return true;
         }
 
-        if (type1 == &ValueTypeDef::Int && type2 == &ValueTypeDef::Float)
-            || (type1 == &ValueTypeDef::Float && type2 == &ValueTypeDef::Int)
+        if (type1 == &DataType::Int && type2 == &DataType::Float)
+            || (type1 == &DataType::Float && type2 == &DataType::Int)
         {
             return true;
         }
@@ -98,33 +98,33 @@ impl TypeUtils {
     }
 
     /// 检查类型是否为"优越类型"（可以与任何类型兼容）
-    pub fn is_superior_type(type_: &ValueTypeDef) -> bool {
-        matches!(type_, ValueTypeDef::Null | ValueTypeDef::Empty)
+    pub fn is_superior_type(type_: &DataType) -> bool {
+        matches!(type_, DataType::Null | DataType::Empty)
     }
 
     /// 获取类型的优先级（用于类型提升）
-    pub fn get_type_priority(type_: &ValueTypeDef) -> u8 {
+    pub fn get_type_priority(type_: &DataType) -> u8 {
         match type_ {
-            ValueTypeDef::Null | ValueTypeDef::Empty => 0,
-            ValueTypeDef::Bool => 1,
-            ValueTypeDef::Int => 2,
-            ValueTypeDef::Float => 3,
-            ValueTypeDef::String => 4,
-            ValueTypeDef::Date => 5,
-            ValueTypeDef::Time => 6,
-            ValueTypeDef::DateTime => 7,
-            ValueTypeDef::Vertex => 8,
-            ValueTypeDef::Edge => 9,
-            ValueTypeDef::Path => 10,
-            ValueTypeDef::List => 11,
-            ValueTypeDef::Set => 12,
-            ValueTypeDef::Map => 13,
+            DataType::Null | DataType::Empty => 0,
+            DataType::Bool => 1,
+            DataType::Int => 2,
+            DataType::Float => 3,
+            DataType::String => 4,
+            DataType::Date => 5,
+            DataType::Time => 6,
+            DataType::DateTime => 7,
+            DataType::Vertex => 8,
+            DataType::Edge => 9,
+            DataType::Path => 10,
+            DataType::List => 11,
+            DataType::Set => 12,
+            DataType::Map => 13,
             _ => 14,
         }
     }
 
     /// 获取两个类型的公共超类型
-    pub fn get_common_type(type1: &ValueTypeDef, type2: &ValueTypeDef) -> ValueTypeDef {
+    pub fn get_common_type(type1: &DataType, type2: &DataType) -> DataType {
         if type1 == type2 {
             return type1.clone();
         }
@@ -136,22 +136,22 @@ impl TypeUtils {
             return type1.clone();
         }
 
-        if (type1 == &ValueTypeDef::Int && type2 == &ValueTypeDef::Float)
-            || (type1 == &ValueTypeDef::Float && type2 == &ValueTypeDef::Int)
+        if (type1 == &DataType::Int && type2 == &DataType::Float)
+            || (type1 == &DataType::Float && type2 == &DataType::Int)
         {
-            return ValueTypeDef::Float;
+            return DataType::Float;
         }
 
-        ValueTypeDef::Empty
+        DataType::Empty
     }
 
     /// 统一的类型兼容性检查（无需缓存）
-    pub fn check_compatibility(type1: &ValueTypeDef, type2: &ValueTypeDef) -> bool {
+    pub fn check_compatibility(type1: &DataType, type2: &DataType) -> bool {
         Self::are_types_compatible(type1, type2)
     }
 
     /// 批量类型检查（优化内存分配）
-    pub fn check_compatibility_batch(pairs: &[(ValueTypeDef, ValueTypeDef)]) -> Vec<bool> {
+    pub fn check_compatibility_batch(pairs: &[(DataType, DataType)]) -> Vec<bool> {
         let mut results = Vec::with_capacity(pairs.len());
 
         for (t1, t2) in pairs {
@@ -161,28 +161,28 @@ impl TypeUtils {
     }
 
     /// 获取字面值类型
-    pub fn literal_type(value: &crate::core::value::Value) -> ValueTypeDef {
+    pub fn literal_type(value: &crate::core::value::Value) -> DataType {
         value.get_type()
     }
 
     /// 二元操作结果类型
     pub fn binary_operation_result_type(
         op: &str,
-        left_type: &ValueTypeDef,
-        right_type: &ValueTypeDef,
-    ) -> ValueTypeDef {
+        left_type: &DataType,
+        right_type: &DataType,
+    ) -> DataType {
         match op {
             "+" | "-" | "*" | "/" => {
-                if left_type == &ValueTypeDef::Float || right_type == &ValueTypeDef::Float {
-                    ValueTypeDef::Float
+                if left_type == &DataType::Float || right_type == &DataType::Float {
+                    DataType::Float
                 } else {
-                    ValueTypeDef::Int
+                    DataType::Int
                 }
             }
             "==" | "!=" | "<" | "<=" | ">" | ">=" => {
-                ValueTypeDef::Bool
+                DataType::Bool
             }
-            _ => ValueTypeDef::Empty,
+            _ => DataType::Empty,
         }
     }
 
@@ -192,7 +192,7 @@ impl TypeUtils {
     }
 
     /// 检查类型是否可以转换为目标类型
-    pub fn can_cast(from: &ValueTypeDef, to: &ValueTypeDef) -> bool {
+    pub fn can_cast(from: &DataType, to: &DataType) -> bool {
         if from == to {
             return true;
         }
@@ -203,7 +203,7 @@ impl TypeUtils {
     }
 
     /// 获取类型可以转换到的所有目标类型
-    pub fn get_cast_targets(from: &ValueTypeDef) -> Vec<ValueTypeDef> {
+    pub fn get_cast_targets(from: &DataType) -> Vec<DataType> {
         TYPE_CAST_MAP
             .get(from)
             .cloned()
@@ -211,59 +211,59 @@ impl TypeUtils {
     }
 
     /// 验证类型转换是否有效（基于 NebulaGraph 设计）
-    pub fn validate_type_cast(from: &ValueTypeDef, to: &ValueTypeDef) -> bool {
+    pub fn validate_type_cast(from: &DataType, to: &DataType) -> bool {
         Self::can_cast(from, to)
     }
 
     /// 获取类型的字符串表示
-    pub fn type_to_string(type_def: &ValueTypeDef) -> String {
+    pub fn type_to_string(type_def: &DataType) -> String {
         match type_def {
-            ValueTypeDef::Empty => "empty".to_string(),
-            ValueTypeDef::Null => "null".to_string(),
-            ValueTypeDef::Bool => "bool".to_string(),
-            ValueTypeDef::Int | ValueTypeDef::Int8 | ValueTypeDef::Int16 | ValueTypeDef::Int32 | ValueTypeDef::Int64 => "int".to_string(),
-            ValueTypeDef::Float | ValueTypeDef::Double => "float".to_string(),
-            ValueTypeDef::String => "string".to_string(),
-            ValueTypeDef::Date => "date".to_string(),
-            ValueTypeDef::Time => "time".to_string(),
-            ValueTypeDef::DateTime => "datetime".to_string(),
-            ValueTypeDef::Vertex => "vertex".to_string(),
-            ValueTypeDef::Edge => "edge".to_string(),
-            ValueTypeDef::Path => "path".to_string(),
-            ValueTypeDef::List => "list".to_string(),
-            ValueTypeDef::Map => "map".to_string(),
-            ValueTypeDef::Set => "set".to_string(),
-            ValueTypeDef::Geography => "geography".to_string(),
-            ValueTypeDef::Duration => "duration".to_string(),
-            ValueTypeDef::DataSet => "dataset".to_string(),
+            DataType::Empty => "empty".to_string(),
+            DataType::Null => "null".to_string(),
+            DataType::Bool => "bool".to_string(),
+            DataType::Int | DataType::Int8 | DataType::Int16 | DataType::Int32 | DataType::Int64 => "int".to_string(),
+            DataType::Float | DataType::Double => "float".to_string(),
+            DataType::String => "string".to_string(),
+            DataType::Date => "date".to_string(),
+            DataType::Time => "time".to_string(),
+            DataType::DateTime => "datetime".to_string(),
+            DataType::Vertex => "vertex".to_string(),
+            DataType::Edge => "edge".to_string(),
+            DataType::Path => "path".to_string(),
+            DataType::List => "list".to_string(),
+            DataType::Map => "map".to_string(),
+            DataType::Set => "set".to_string(),
+            DataType::Geography => "geography".to_string(),
+            DataType::Duration => "duration".to_string(),
+            DataType::DataSet => "dataset".to_string(),
         }
     }
 
     /// 检查类型是否可以用于索引
-    pub fn is_indexable_type(type_def: &ValueTypeDef) -> bool {
+    pub fn is_indexable_type(type_def: &DataType) -> bool {
         match type_def {
-            ValueTypeDef::Bool => true,
-            ValueTypeDef::Int => true,
-            ValueTypeDef::Float => true,
-            ValueTypeDef::String => true,
-            ValueTypeDef::DateTime => true,
-            ValueTypeDef::Date => true,
-            ValueTypeDef::Time => true,
-            ValueTypeDef::Duration => true,
-            ValueTypeDef::Geography => true,
+            DataType::Bool => true,
+            DataType::Int => true,
+            DataType::Float => true,
+            DataType::String => true,
+            DataType::DateTime => true,
+            DataType::Date => true,
+            DataType::Time => true,
+            DataType::Duration => true,
+            DataType::Geography => true,
             _ => false,
         }
     }
 
     /// 获取类型的默认值
-    pub fn get_default_value(type_def: &ValueTypeDef) -> Option<Value> {
+    pub fn get_default_value(type_def: &DataType) -> Option<Value> {
         match type_def {
-            ValueTypeDef::Bool => Some(Value::Bool(false)),
-            ValueTypeDef::Int => Some(Value::Int(0)),
-            ValueTypeDef::Float => Some(Value::Float(0.0)),
-            ValueTypeDef::String => Some(Value::String(String::new())),
-            ValueTypeDef::List => Some(Value::List(Vec::new())),
-            ValueTypeDef::Map => Some(Value::Map(std::collections::HashMap::new())),
+            DataType::Bool => Some(Value::Bool(false)),
+            DataType::Int => Some(Value::Int(0)),
+            DataType::Float => Some(Value::Float(0.0)),
+            DataType::String => Some(Value::String(String::new())),
+            DataType::List => Some(Value::List(Vec::new())),
+            DataType::Map => Some(Value::Map(std::collections::HashMap::new())),
             _ => None,
         }
     }
@@ -276,89 +276,89 @@ mod tests {
     #[test]
     fn test_are_types_compatible() {
         assert!(TypeUtils::are_types_compatible(
-            &ValueTypeDef::Int,
-            &ValueTypeDef::Int
+            &DataType::Int,
+            &DataType::Int
         ));
 
         assert!(TypeUtils::are_types_compatible(
-            &ValueTypeDef::Null,
-            &ValueTypeDef::Int
+            &DataType::Null,
+            &DataType::Int
         ));
         assert!(TypeUtils::are_types_compatible(
-            &ValueTypeDef::Empty,
-            &ValueTypeDef::String
+            &DataType::Empty,
+            &DataType::String
         ));
 
         assert!(TypeUtils::are_types_compatible(
-            &ValueTypeDef::Int,
-            &ValueTypeDef::Float
+            &DataType::Int,
+            &DataType::Float
         ));
         assert!(TypeUtils::are_types_compatible(
-            &ValueTypeDef::Float,
-            &ValueTypeDef::Int
+            &DataType::Float,
+            &DataType::Int
         ));
 
         assert!(!TypeUtils::are_types_compatible(
-            &ValueTypeDef::Int,
-            &ValueTypeDef::String
+            &DataType::Int,
+            &DataType::String
         ));
     }
 
     #[test]
     fn test_is_superior_type() {
-        assert!(TypeUtils::is_superior_type(&ValueTypeDef::Null));
-        assert!(TypeUtils::is_superior_type(&ValueTypeDef::Empty));
-        assert!(!TypeUtils::is_superior_type(&ValueTypeDef::Int));
-        assert!(!TypeUtils::is_superior_type(&ValueTypeDef::String));
+        assert!(TypeUtils::is_superior_type(&DataType::Null));
+        assert!(TypeUtils::is_superior_type(&DataType::Empty));
+        assert!(!TypeUtils::is_superior_type(&DataType::Int));
+        assert!(!TypeUtils::is_superior_type(&DataType::String));
     }
 
     #[test]
     fn test_get_type_priority() {
-        assert_eq!(TypeUtils::get_type_priority(&ValueTypeDef::Null), 0);
-        assert_eq!(TypeUtils::get_type_priority(&ValueTypeDef::Int), 2);
-        assert_eq!(TypeUtils::get_type_priority(&ValueTypeDef::Float), 3);
-        assert_eq!(TypeUtils::get_type_priority(&ValueTypeDef::String), 4);
+        assert_eq!(TypeUtils::get_type_priority(&DataType::Null), 0);
+        assert_eq!(TypeUtils::get_type_priority(&DataType::Int), 2);
+        assert_eq!(TypeUtils::get_type_priority(&DataType::Float), 3);
+        assert_eq!(TypeUtils::get_type_priority(&DataType::String), 4);
     }
 
     #[test]
     fn test_get_common_type() {
         assert_eq!(
-            TypeUtils::get_common_type(&ValueTypeDef::Int, &ValueTypeDef::Float),
-            ValueTypeDef::Float
+            TypeUtils::get_common_type(&DataType::Int, &DataType::Float),
+            DataType::Float
         );
         assert_eq!(
-            TypeUtils::get_common_type(&ValueTypeDef::Null, &ValueTypeDef::String),
-            ValueTypeDef::String
+            TypeUtils::get_common_type(&DataType::Null, &DataType::String),
+            DataType::String
         );
         assert_eq!(
-            TypeUtils::get_common_type(&ValueTypeDef::Int, &ValueTypeDef::String),
-            ValueTypeDef::Empty
+            TypeUtils::get_common_type(&DataType::Int, &DataType::String),
+            DataType::Empty
         );
     }
 
     #[test]
     fn test_check_compatibility() {
         assert!(TypeUtils::check_compatibility(
-            &ValueTypeDef::Int,
-            &ValueTypeDef::Int
+            &DataType::Int,
+            &DataType::Int
         ));
         assert!(TypeUtils::check_compatibility(
-            &ValueTypeDef::Int,
-            &ValueTypeDef::Float
+            &DataType::Int,
+            &DataType::Float
         ));
         assert!(!TypeUtils::check_compatibility(
-            &ValueTypeDef::Int,
-            &ValueTypeDef::String
+            &DataType::Int,
+            &DataType::String
         ));
     }
 
     #[test]
     fn test_check_compatibility_batch() {
         let pairs = vec![
-            (ValueTypeDef::Int, ValueTypeDef::Int),
-            (ValueTypeDef::Int, ValueTypeDef::Float),
-            (ValueTypeDef::Int, ValueTypeDef::String),
-            (ValueTypeDef::Null, ValueTypeDef::Int),
+            (DataType::Int, DataType::Int),
+            (DataType::Int, DataType::Float),
+            (DataType::Int, DataType::String),
+            (DataType::Null, DataType::Int),
         ];
 
         let results = TypeUtils::check_compatibility_batch(&pairs);
@@ -373,31 +373,31 @@ mod tests {
     fn test_literal_type() {
         use crate::core::value::Value;
 
-        assert_eq!(TypeUtils::literal_type(&Value::Int(42)), ValueTypeDef::Int);
+        assert_eq!(TypeUtils::literal_type(&Value::Int(42)), DataType::Int);
         assert_eq!(
             TypeUtils::literal_type(&Value::String("test".to_string())),
-            ValueTypeDef::String
+            DataType::String
         );
         assert_eq!(
             TypeUtils::literal_type(&Value::Bool(true)),
-            ValueTypeDef::Bool
+            DataType::Bool
         );
     }
 
     #[test]
     fn test_binary_operation_result_type() {
         assert_eq!(
-            TypeUtils::binary_operation_result_type("+", &ValueTypeDef::Int, &ValueTypeDef::Int),
-            ValueTypeDef::Int
+            TypeUtils::binary_operation_result_type("+", &DataType::Int, &DataType::Int),
+            DataType::Int
         );
         assert_eq!(
-            TypeUtils::binary_operation_result_type("+", &ValueTypeDef::Int, &ValueTypeDef::Float),
-            ValueTypeDef::Float
+            TypeUtils::binary_operation_result_type("+", &DataType::Int, &DataType::Float),
+            DataType::Float
         );
 
         assert_eq!(
-            TypeUtils::binary_operation_result_type("==", &ValueTypeDef::Int, &ValueTypeDef::Int),
-            ValueTypeDef::Bool
+            TypeUtils::binary_operation_result_type("==", &DataType::Int, &DataType::Int),
+            DataType::Bool
         );
     }
 
@@ -411,93 +411,93 @@ mod tests {
 
     #[test]
     fn test_can_cast() {
-        assert!(TypeUtils::can_cast(&ValueTypeDef::Int, &ValueTypeDef::Int));
-        assert!(TypeUtils::can_cast(&ValueTypeDef::Int, &ValueTypeDef::Float));
-        assert!(TypeUtils::can_cast(&ValueTypeDef::Int, &ValueTypeDef::String));
-        assert!(!TypeUtils::can_cast(&ValueTypeDef::Int, &ValueTypeDef::Bool));
+        assert!(TypeUtils::can_cast(&DataType::Int, &DataType::Int));
+        assert!(TypeUtils::can_cast(&DataType::Int, &DataType::Float));
+        assert!(TypeUtils::can_cast(&DataType::Int, &DataType::String));
+        assert!(!TypeUtils::can_cast(&DataType::Int, &DataType::Bool));
 
-        assert!(TypeUtils::can_cast(&ValueTypeDef::Float, &ValueTypeDef::Float));
-        assert!(TypeUtils::can_cast(&ValueTypeDef::Float, &ValueTypeDef::Int));
-        assert!(TypeUtils::can_cast(&ValueTypeDef::Float, &ValueTypeDef::String));
+        assert!(TypeUtils::can_cast(&DataType::Float, &DataType::Float));
+        assert!(TypeUtils::can_cast(&DataType::Float, &DataType::Int));
+        assert!(TypeUtils::can_cast(&DataType::Float, &DataType::String));
 
-        assert!(TypeUtils::can_cast(&ValueTypeDef::Null, &ValueTypeDef::Int));
-        assert!(TypeUtils::can_cast(&ValueTypeDef::Null, &ValueTypeDef::String));
+        assert!(TypeUtils::can_cast(&DataType::Null, &DataType::Int));
+        assert!(TypeUtils::can_cast(&DataType::Null, &DataType::String));
     }
 
     #[test]
     fn test_get_cast_targets() {
-        let int_targets = TypeUtils::get_cast_targets(&ValueTypeDef::Int);
-        assert!(int_targets.contains(&ValueTypeDef::Int));
-        assert!(int_targets.contains(&ValueTypeDef::Float));
-        assert!(int_targets.contains(&ValueTypeDef::String));
+        let int_targets = TypeUtils::get_cast_targets(&DataType::Int);
+        assert!(int_targets.contains(&DataType::Int));
+        assert!(int_targets.contains(&DataType::Float));
+        assert!(int_targets.contains(&DataType::String));
 
-        let float_targets = TypeUtils::get_cast_targets(&ValueTypeDef::Float);
-        assert!(float_targets.contains(&ValueTypeDef::Float));
-        assert!(float_targets.contains(&ValueTypeDef::Int));
-        assert!(float_targets.contains(&ValueTypeDef::String));
+        let float_targets = TypeUtils::get_cast_targets(&DataType::Float);
+        assert!(float_targets.contains(&DataType::Float));
+        assert!(float_targets.contains(&DataType::Int));
+        assert!(float_targets.contains(&DataType::String));
 
         // Bool 有定义的转换规则
-        let bool_targets = TypeUtils::get_cast_targets(&ValueTypeDef::Bool);
-        assert!(bool_targets.contains(&ValueTypeDef::Bool));
-        assert!(bool_targets.contains(&ValueTypeDef::Int));
+        let bool_targets = TypeUtils::get_cast_targets(&DataType::Bool);
+        assert!(bool_targets.contains(&DataType::Bool));
+        assert!(bool_targets.contains(&DataType::Int));
     }
 
     #[test]
     fn test_validate_type_cast() {
-        assert!(TypeUtils::validate_type_cast(&ValueTypeDef::Int, &ValueTypeDef::Float));
-        assert!(TypeUtils::validate_type_cast(&ValueTypeDef::Float, &ValueTypeDef::String));
+        assert!(TypeUtils::validate_type_cast(&DataType::Int, &DataType::Float));
+        assert!(TypeUtils::validate_type_cast(&DataType::Float, &DataType::String));
         // String 可以转换为 Int（根据 NebulaGraph 规范）
-        assert!(TypeUtils::validate_type_cast(&ValueTypeDef::String, &ValueTypeDef::Int));
+        assert!(TypeUtils::validate_type_cast(&DataType::String, &DataType::Int));
         // Date 不能转换为 Int
-        assert!(!TypeUtils::validate_type_cast(&ValueTypeDef::Date, &ValueTypeDef::Int));
+        assert!(!TypeUtils::validate_type_cast(&DataType::Date, &DataType::Int));
     }
 
     #[test]
     fn test_type_to_string() {
-        assert_eq!(TypeUtils::type_to_string(&ValueTypeDef::Int), "int");
-        assert_eq!(TypeUtils::type_to_string(&ValueTypeDef::Float), "float");
-        assert_eq!(TypeUtils::type_to_string(&ValueTypeDef::String), "string");
-        assert_eq!(TypeUtils::type_to_string(&ValueTypeDef::Bool), "bool");
-        assert_eq!(TypeUtils::type_to_string(&ValueTypeDef::DateTime), "datetime");
-        assert_eq!(TypeUtils::type_to_string(&ValueTypeDef::Vertex), "vertex");
-        assert_eq!(TypeUtils::type_to_string(&ValueTypeDef::Edge), "edge");
-        assert_eq!(TypeUtils::type_to_string(&ValueTypeDef::Path), "path");
-        assert_eq!(TypeUtils::type_to_string(&ValueTypeDef::List), "list");
-        assert_eq!(TypeUtils::type_to_string(&ValueTypeDef::Map), "map");
-        assert_eq!(TypeUtils::type_to_string(&ValueTypeDef::Set), "set");
+        assert_eq!(TypeUtils::type_to_string(&DataType::Int), "int");
+        assert_eq!(TypeUtils::type_to_string(&DataType::Float), "float");
+        assert_eq!(TypeUtils::type_to_string(&DataType::String), "string");
+        assert_eq!(TypeUtils::type_to_string(&DataType::Bool), "bool");
+        assert_eq!(TypeUtils::type_to_string(&DataType::DateTime), "datetime");
+        assert_eq!(TypeUtils::type_to_string(&DataType::Vertex), "vertex");
+        assert_eq!(TypeUtils::type_to_string(&DataType::Edge), "edge");
+        assert_eq!(TypeUtils::type_to_string(&DataType::Path), "path");
+        assert_eq!(TypeUtils::type_to_string(&DataType::List), "list");
+        assert_eq!(TypeUtils::type_to_string(&DataType::Map), "map");
+        assert_eq!(TypeUtils::type_to_string(&DataType::Set), "set");
     }
 
     #[test]
     fn test_is_indexable_type() {
-        assert!(TypeUtils::is_indexable_type(&ValueTypeDef::Bool));
-        assert!(TypeUtils::is_indexable_type(&ValueTypeDef::Int));
-        assert!(TypeUtils::is_indexable_type(&ValueTypeDef::Float));
-        assert!(TypeUtils::is_indexable_type(&ValueTypeDef::String));
-        assert!(TypeUtils::is_indexable_type(&ValueTypeDef::DateTime));
-        assert!(TypeUtils::is_indexable_type(&ValueTypeDef::Date));
-        assert!(TypeUtils::is_indexable_type(&ValueTypeDef::Time));
-        assert!(TypeUtils::is_indexable_type(&ValueTypeDef::Duration));
-        assert!(TypeUtils::is_indexable_type(&ValueTypeDef::Geography));
+        assert!(TypeUtils::is_indexable_type(&DataType::Bool));
+        assert!(TypeUtils::is_indexable_type(&DataType::Int));
+        assert!(TypeUtils::is_indexable_type(&DataType::Float));
+        assert!(TypeUtils::is_indexable_type(&DataType::String));
+        assert!(TypeUtils::is_indexable_type(&DataType::DateTime));
+        assert!(TypeUtils::is_indexable_type(&DataType::Date));
+        assert!(TypeUtils::is_indexable_type(&DataType::Time));
+        assert!(TypeUtils::is_indexable_type(&DataType::Duration));
+        assert!(TypeUtils::is_indexable_type(&DataType::Geography));
         
-        assert!(!TypeUtils::is_indexable_type(&ValueTypeDef::Vertex));
-        assert!(!TypeUtils::is_indexable_type(&ValueTypeDef::Edge));
-        assert!(!TypeUtils::is_indexable_type(&ValueTypeDef::Path));
-        assert!(!TypeUtils::is_indexable_type(&ValueTypeDef::List));
-        assert!(!TypeUtils::is_indexable_type(&ValueTypeDef::Map));
-        assert!(!TypeUtils::is_indexable_type(&ValueTypeDef::Set));
+        assert!(!TypeUtils::is_indexable_type(&DataType::Vertex));
+        assert!(!TypeUtils::is_indexable_type(&DataType::Edge));
+        assert!(!TypeUtils::is_indexable_type(&DataType::Path));
+        assert!(!TypeUtils::is_indexable_type(&DataType::List));
+        assert!(!TypeUtils::is_indexable_type(&DataType::Map));
+        assert!(!TypeUtils::is_indexable_type(&DataType::Set));
     }
 
     #[test]
     fn test_get_default_value() {
-        assert_eq!(TypeUtils::get_default_value(&ValueTypeDef::Bool), Some(Value::Bool(false)));
-        assert_eq!(TypeUtils::get_default_value(&ValueTypeDef::Int), Some(Value::Int(0)));
-        assert_eq!(TypeUtils::get_default_value(&ValueTypeDef::Float), Some(Value::Float(0.0)));
-        assert_eq!(TypeUtils::get_default_value(&ValueTypeDef::String), Some(Value::String(String::new())));
-        assert_eq!(TypeUtils::get_default_value(&ValueTypeDef::List), Some(Value::List(Vec::new())));
-        assert_eq!(TypeUtils::get_default_value(&ValueTypeDef::Map), Some(Value::Map(std::collections::HashMap::new())));
+        assert_eq!(TypeUtils::get_default_value(&DataType::Bool), Some(Value::Bool(false)));
+        assert_eq!(TypeUtils::get_default_value(&DataType::Int), Some(Value::Int(0)));
+        assert_eq!(TypeUtils::get_default_value(&DataType::Float), Some(Value::Float(0.0)));
+        assert_eq!(TypeUtils::get_default_value(&DataType::String), Some(Value::String(String::new())));
+        assert_eq!(TypeUtils::get_default_value(&DataType::List), Some(Value::List(Vec::new())));
+        assert_eq!(TypeUtils::get_default_value(&DataType::Map), Some(Value::Map(std::collections::HashMap::new())));
         
-        assert_eq!(TypeUtils::get_default_value(&ValueTypeDef::Vertex), None);
-        assert_eq!(TypeUtils::get_default_value(&ValueTypeDef::Edge), None);
-        assert_eq!(TypeUtils::get_default_value(&ValueTypeDef::Path), None);
+        assert_eq!(TypeUtils::get_default_value(&DataType::Vertex), None);
+        assert_eq!(TypeUtils::get_default_value(&DataType::Edge), None);
+        assert_eq!(TypeUtils::get_default_value(&DataType::Path), None);
     }
 }

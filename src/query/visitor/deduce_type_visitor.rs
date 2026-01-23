@@ -3,7 +3,7 @@
 
 use crate::core::{
     expression_visitor::{ExpressionVisitor, ExpressionVisitorState, GenericExpressionVisitor},
-    Expression, TypeUtils, ValueTypeDef,
+    Expression, TypeUtils, DataType,
 };
 use crate::core::{BinaryOperator, DataType, UnaryOperator, Value};
 use crate::query::validator::ValidationContext;
@@ -35,15 +35,15 @@ pub struct DeduceTypeVisitor<'a, S: StorageEngine> {
     /// 验证上下文
     validate_context: &'a ValidationContext,
     /// 输入列定义：列名 -> 列类型
-    inputs: Vec<(String, ValueTypeDef)>,
+    inputs: Vec<(String, DataType)>,
     /// 图空间ID
     _space: String,
     /// 当前推导状态
     status: Option<TypeDeductionError>,
     /// 推导出的类型
-    type_: ValueTypeDef,
+    type_: DataType,
     /// VID(顶点ID)类型
-    vid_type: ValueTypeDef,
+    vid_type: DataType,
     /// 访问者状态
     state: ExpressionVisitorState,
 }
@@ -52,11 +52,11 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     pub fn new(
         storage: &'a S,
         validate_context: &'a ValidationContext,
-        inputs: Vec<(String, ValueTypeDef)>,
+        inputs: Vec<(String, DataType)>,
         space: String,
     ) -> Self {
         // VID类型通常从空间配置获取，这里简化为String
-        let vid_type = ValueTypeDef::String;
+        let vid_type = DataType::String;
 
         Self {
             _storage: storage,
@@ -64,19 +64,19 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
             inputs,
             _space: space,
             status: None,
-            type_: ValueTypeDef::Empty,
+            type_: DataType::Empty,
             vid_type,
             state: ExpressionVisitorState::new(),
         }
-    }
+}
 
     /// 创建用于测试的访问器（不需要存储和验证上下文）
     pub fn new_for_test(
-        _inputs: Vec<(String, ValueTypeDef)>,
+        _inputs: Vec<(String, DataType)>,
         _space: String,
     ) -> (Self, ValidationContext) {
         let _vctx = ValidationContext::new();
-        let _vid_type = ValueTypeDef::String;
+        let _vid_type = DataType::String;
 
         // 返回值类型无法直接满足要求，这里需要特殊处理
         // 实现中应该使用默认存储引擎或Mock
@@ -94,17 +94,17 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     }
 
     /// 获取推导出的类型
-    pub fn type_(&self) -> ValueTypeDef {
+    pub fn type_(&self) -> DataType {
         self.type_.clone()
     }
 
     /// 设置VID类型
-    pub fn set_vid_type(&mut self, vid_type: ValueTypeDef) {
+    pub fn set_vid_type(&mut self, vid_type: DataType) {
         self.vid_type = vid_type;
     }
 
     /// 主推导方法 - 推导表达式的类型
-    pub fn deduce_type(&mut self, expr: &Expression) -> Result<ValueTypeDef, TypeDeductionError> {
+    pub fn deduce_type(&mut self, expr: &Expression) -> Result<DataType, TypeDeductionError> {
         self.visit_expression(expr)?;
         Ok(self.type_.clone())
     }
@@ -112,24 +112,24 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     /// 推导字面量表达式的类型
     fn deduce_literal_type(&mut self, value: &crate::core::Value) -> Result<(), TypeDeductionError> {
         self.type_ = match value {
-            Value::Bool(_) => ValueTypeDef::Bool,
-            Value::Int(_) => ValueTypeDef::Int,
-            Value::Float(_) => ValueTypeDef::Float,
-            Value::String(_) => ValueTypeDef::String,
-            Value::Null(_) => ValueTypeDef::Null,
-            Value::Empty => ValueTypeDef::Empty,
-            Value::Date(_) => ValueTypeDef::Date,
-            Value::Time(_) => ValueTypeDef::Time,
-            Value::DateTime(_) => ValueTypeDef::DateTime,
-            Value::Vertex(_) => ValueTypeDef::Vertex,
-            Value::Edge(_) => ValueTypeDef::Edge,
-            Value::Path(_) => ValueTypeDef::Path,
-            Value::List(_) => ValueTypeDef::List,
-            Value::Map(_) => ValueTypeDef::Map,
-            Value::Set(_) => ValueTypeDef::Set,
-            Value::Geography(_) => ValueTypeDef::Geography,
-            Value::Duration(_) => ValueTypeDef::Duration,
-            Value::DataSet(_) => ValueTypeDef::DataSet,
+            Value::Bool(_) => DataType::Bool,
+            Value::Int(_) => DataType::Int,
+            Value::Float(_) => DataType::Float,
+            Value::String(_) => DataType::String,
+            Value::Null(_) => DataType::Null,
+            Value::Empty => DataType::Empty,
+            Value::Date(_) => DataType::Date,
+            Value::Time(_) => DataType::Time,
+            Value::DateTime(_) => DataType::DateTime,
+            Value::Vertex(_) => DataType::Vertex,
+            Value::Edge(_) => DataType::Edge,
+            Value::Path(_) => DataType::Path,
+            Value::List(_) => DataType::List,
+            Value::Map(_) => DataType::Map,
+            Value::Set(_) => DataType::Set,
+            Value::Geography(_) => DataType::Geography,
+            Value::Duration(_) => DataType::Duration,
+            Value::DataSet(_) => DataType::DataSet,
         };
         Ok(())
     }
@@ -138,21 +138,21 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     fn deduce_binary_op_type(
         &mut self,
         op: &BinaryOperator,
-        left_type: ValueTypeDef,
-        right_type: ValueTypeDef,
+        left_type: DataType,
+        right_type: DataType,
     ) -> Result<(), TypeDeductionError> {
         match op {
             BinaryOperator::Add => {
-                if left_type == ValueTypeDef::String && right_type == ValueTypeDef::String {
-                    self.type_ = ValueTypeDef::String;
-                } else if left_type == ValueTypeDef::Int && right_type == ValueTypeDef::Int {
-                    self.type_ = ValueTypeDef::Int;
-                } else if left_type == ValueTypeDef::Float && right_type == ValueTypeDef::Float {
-                    self.type_ = ValueTypeDef::Float;
-                } else if (left_type == ValueTypeDef::Int && right_type == ValueTypeDef::Float)
-                    || (left_type == ValueTypeDef::Float && right_type == ValueTypeDef::Int)
+                if left_type == DataType::String && right_type == DataType::String {
+                    self.type_ = DataType::String;
+                } else if left_type == DataType::Int && right_type == DataType::Int {
+                    self.type_ = DataType::Int;
+                } else if left_type == DataType::Float && right_type == DataType::Float {
+                    self.type_ = DataType::Float;
+                } else if (left_type == DataType::Int && right_type == DataType::Float)
+                    || (left_type == DataType::Float && right_type == DataType::Int)
                 {
-                    self.type_ = ValueTypeDef::Float;
+                    self.type_ = DataType::Float;
                 } else if self.is_superior_type(&left_type) || self.is_superior_type(&right_type) {
                     // NULL或EMPTY类型兼容任何类型
                     self.type_ = if self.is_superior_type(&left_type) {
@@ -173,14 +173,14 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
             | BinaryOperator::Multiply
             | BinaryOperator::Divide
             | BinaryOperator::Modulo => {
-                if left_type == ValueTypeDef::Int && right_type == ValueTypeDef::Int {
-                    self.type_ = ValueTypeDef::Int;
-                } else if left_type == ValueTypeDef::Float && right_type == ValueTypeDef::Float {
-                    self.type_ = ValueTypeDef::Float;
-                } else if (left_type == ValueTypeDef::Int && right_type == ValueTypeDef::Float)
-                    || (left_type == ValueTypeDef::Float && right_type == ValueTypeDef::Int)
+                if left_type == DataType::Int && right_type == DataType::Int {
+                    self.type_ = DataType::Int;
+                } else if left_type == DataType::Float && right_type == DataType::Float {
+                    self.type_ = DataType::Float;
+                } else if (left_type == DataType::Int && right_type == DataType::Float)
+                    || (left_type == DataType::Float && right_type == DataType::Int)
                 {
-                    self.type_ = ValueTypeDef::Float;
+                    self.type_ = DataType::Float;
                 } else if self.is_superior_type(&left_type) || self.is_superior_type(&right_type) {
                     // NULL或EMPTY类型兼容任何类型
                     self.type_ = if self.is_superior_type(&left_type) {
@@ -211,19 +211,19 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
             | BinaryOperator::GreaterThan
             | BinaryOperator::GreaterThanOrEqual => {
                 // 关系操作的结果类型是布尔值
-                self.type_ = ValueTypeDef::Bool;
+                self.type_ = DataType::Bool;
             }
             BinaryOperator::And | BinaryOperator::Or => {
                 // 逻辑操作的结果类型是布尔值
-                self.type_ = ValueTypeDef::Bool;
+                self.type_ = DataType::Bool;
             }
             BinaryOperator::In => {
                 // 集合操作的结果类型是布尔值
-                self.type_ = ValueTypeDef::Bool;
+                self.type_ = DataType::Bool;
             }
             _ => {
                 // 其他操作默认返回布尔值
-                self.type_ = ValueTypeDef::Bool;
+                self.type_ = DataType::Bool;
             }
         }
         Ok(())
@@ -238,7 +238,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
             }
             UnaryOperator::Not => {
                 // 逻辑非操作的结果类型是布尔值
-                self.type_ = ValueTypeDef::Bool;
+                self.type_ = DataType::Bool;
             }
             _ => {
                 // 其他操作保持原类型
@@ -252,7 +252,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     fn deduce_property_type(&mut self, _property: &str) -> Result<(), TypeDeductionError> {
         // 属性访问的结果类型需要根据上下文来确定
         // 简化实现，返回Empty类型
-        self.type_ = ValueTypeDef::Empty;
+        self.type_ = DataType::Empty;
         Ok(())
     }
 
@@ -275,27 +275,27 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
             // ID提取函数
             "ID" | "SRC" | "DST" | "NONE_DIRECT_SRC" | "NONE_DIRECT_DST" => self.vid_type.clone(),
             // 聚合函数
-            "COUNT" => ValueTypeDef::Int,
-            "AVG" | "SUM" => ValueTypeDef::Float,
+            "COUNT" => DataType::Int,
+            "AVG" | "SUM" => DataType::Float,
             "MAX" | "MIN" => {
                 if _arg_types.is_empty() {
-                    ValueTypeDef::Empty
+                    DataType::Empty
                 } else {
                     _arg_types[0].clone()
                 }
             }
-            "COLLECT" => ValueTypeDef::List,
-            "COLLECT_SET" => ValueTypeDef::Set,
+            "COLLECT" => DataType::List,
+            "COLLECT_SET" => DataType::Set,
             // 字符串函数
             "LOWER" | "UPPER" | "TRIM" | "LTRIM" | "RTRIM" | "SUBSTR" | "REVERSE" => {
-                ValueTypeDef::String
+                DataType::String
             }
             // 数学函数
             "ABS" | "CEIL" | "FLOOR" | "SQRT" | "POW" | "EXP" | "LOG" | "LOG10" => {
-                ValueTypeDef::Float
+                DataType::Float
             }
             // 其他函数默认返回Empty
-            _ => ValueTypeDef::Empty,
+            _ => DataType::Empty,
         };
         Ok(())
     }
@@ -307,16 +307,16 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     ) -> Result<(), TypeDeductionError> {
         use crate::core::AggregateFunction;
         self.type_ = match func {
-            AggregateFunction::Count(_) => ValueTypeDef::Int,
-            AggregateFunction::Sum(_) => ValueTypeDef::Float,
-            AggregateFunction::Avg(_) => ValueTypeDef::Float,
+            AggregateFunction::Count(_) => DataType::Int,
+            AggregateFunction::Sum(_) => DataType::Float,
+            AggregateFunction::Avg(_) => DataType::Float,
             AggregateFunction::Min(_) | AggregateFunction::Max(_) => {
                 // 保持参数类型，已在visit中处理
                 self.type_.clone()
             }
-            AggregateFunction::Collect(_) => ValueTypeDef::List,
-            AggregateFunction::Distinct(_) => ValueTypeDef::List,
-            AggregateFunction::Percentile(_, _) => ValueTypeDef::Float,
+            AggregateFunction::Collect(_) => DataType::List,
+            AggregateFunction::Distinct(_) => DataType::List,
+            AggregateFunction::Percentile(_, _) => DataType::Float,
         };
         Ok(())
     }
@@ -328,71 +328,71 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
         
         // 在实际实现中，这里会根据对象的schema来确定属性类型
         // 简化实现，返回Empty类型
-        self.type_ = ValueTypeDef::Empty;
+        self.type_ = DataType::Empty;
         Ok(())
     }
 
     fn visit_variable(&mut self, _name: &str) -> Result<(), TypeDeductionError> {
         // 变量表达式的结果类型不确定，使用Empty
-        self.type_ = ValueTypeDef::Empty;
+        self.type_ = DataType::Empty;
         Ok(())
     }
 
     /// 检查两种类型是否兼容
-    fn are_types_compatible(&self, type1: &ValueTypeDef, type2: &ValueTypeDef) -> bool {
+    fn are_types_compatible(&self, type1: &DataType, type2: &DataType) -> bool {
         TypeUtils::are_types_compatible(type1, type2)
     }
 
     /// 检查类型是否为"优越类型"
     /// 优越类型包括NULL和EMPTY，它们可以与任何类型兼容
-    fn is_superior_type(&self, type_: &ValueTypeDef) -> bool {
+    fn is_superior_type(&self, type_: &DataType) -> bool {
         TypeUtils::is_superior_type(type_)
     }
 
-    /// 将字符串解析为ValueTypeDef
+    /// 将字符串解析为DataType
 
-    fn parse_type_def(&self, type_str: &str) -> ValueTypeDef {
+    fn parse_type_def(&self, type_str: &str) -> DataType {
         match type_str.to_uppercase().as_str() {
-            "INT" => ValueTypeDef::Int,
-            "FLOAT" | "DOUBLE" => ValueTypeDef::Float,
-            "STRING" => ValueTypeDef::String,
-            "BOOL" => ValueTypeDef::Bool,
-            "DATE" => ValueTypeDef::Date,
-            "TIME" => ValueTypeDef::Time,
-            "DATETIME" => ValueTypeDef::DateTime,
-            "VERTEX" => ValueTypeDef::Vertex,
-            "EDGE" => ValueTypeDef::Edge,
-            "PATH" => ValueTypeDef::Path,
-            "LIST" => ValueTypeDef::List,
-            "SET" => ValueTypeDef::Set,
-            "MAP" => ValueTypeDef::Map,
-            "NULL" => ValueTypeDef::Null,
-            _ => ValueTypeDef::Empty,
+            "INT" => DataType::Int,
+            "FLOAT" | "DOUBLE" => DataType::Float,
+            "STRING" => DataType::String,
+            "BOOL" => DataType::Bool,
+            "DATE" => DataType::Date,
+            "TIME" => DataType::Time,
+            "DATETIME" => DataType::DateTime,
+            "VERTEX" => DataType::Vertex,
+            "EDGE" => DataType::Edge,
+            "PATH" => DataType::Path,
+            "LIST" => DataType::List,
+            "SET" => DataType::Set,
+            "MAP" => DataType::Map,
+            "NULL" => DataType::Null,
+            _ => DataType::Empty,
         }
     }
 
-    /// 将DataType解析为ValueTypeDef
-    fn parse_data_type(&self, data_type: &crate::core::DataType) -> ValueTypeDef {
+    /// 将DataType解析为DataType
+    fn parse_data_type(&self, data_type: &crate::core::DataType) -> DataType {
         use crate::core::DataType;
         match data_type {
-            DataType::Empty => ValueTypeDef::Empty,
-            DataType::Null => ValueTypeDef::Null,
-            DataType::Bool => ValueTypeDef::Bool,
-            DataType::Int | DataType::Int8 | DataType::Int16 | DataType::Int32 | DataType::Int64 => ValueTypeDef::Int,
-            DataType::Float | DataType::Double => ValueTypeDef::Float,
-            DataType::String => ValueTypeDef::String,
-            DataType::Date => ValueTypeDef::Date,
-            DataType::Time => ValueTypeDef::Time,
-            DataType::DateTime => ValueTypeDef::DateTime,
-            DataType::Vertex => ValueTypeDef::Vertex,
-            DataType::Edge => ValueTypeDef::Edge,
-            DataType::Path => ValueTypeDef::Path,
-            DataType::List => ValueTypeDef::List,
-            DataType::Map => ValueTypeDef::Map,
-            DataType::Set => ValueTypeDef::Set,
-            DataType::Geography => ValueTypeDef::Geography,
-            DataType::Duration => ValueTypeDef::Duration,
-            DataType::DataSet => ValueTypeDef::DataSet,
+            DataType::Empty => DataType::Empty,
+            DataType::Null => DataType::Null,
+            DataType::Bool => DataType::Bool,
+            DataType::Int | DataType::Int8 | DataType::Int16 | DataType::Int32 | DataType::Int64 => DataType::Int,
+            DataType::Float | DataType::Double => DataType::Float,
+            DataType::String => DataType::String,
+            DataType::Date => DataType::Date,
+            DataType::Time => DataType::Time,
+            DataType::DateTime => DataType::DateTime,
+            DataType::Vertex => DataType::Vertex,
+            DataType::Edge => DataType::Edge,
+            DataType::Path => DataType::Path,
+            DataType::List => DataType::List,
+            DataType::Map => DataType::Map,
+            DataType::Set => DataType::Set,
+            DataType::Geography => DataType::Geography,
+            DataType::Duration => DataType::Duration,
+            DataType::DataSet => DataType::DataSet,
         }
     }
 }
@@ -412,37 +412,37 @@ impl<'a, S: StorageEngine> ExpressionVisitor for DeduceTypeVisitor<'a, S> {
 
     fn visit_literal(&mut self, value: &Value) -> Self::Result {
         self.type_ = match value {
-            Value::Bool(_) => ValueTypeDef::Bool,
-            Value::Int(_) => ValueTypeDef::Int,
-            Value::Float(_) => ValueTypeDef::Float,
-            Value::String(_) => ValueTypeDef::String,
-            Value::Null(_) => ValueTypeDef::Null,
-            Value::Empty => ValueTypeDef::Empty,
-            Value::Date(_) => ValueTypeDef::Date,
-            Value::Time(_) => ValueTypeDef::Time,
-            Value::DateTime(_) => ValueTypeDef::DateTime,
-            Value::Vertex(_) => ValueTypeDef::Vertex,
-            Value::Edge(_) => ValueTypeDef::Edge,
-            Value::Path(_) => ValueTypeDef::Path,
-            Value::List(_) => ValueTypeDef::List,
-            Value::Map(_) => ValueTypeDef::Map,
-            Value::Set(_) => ValueTypeDef::Set,
-            Value::Geography(_) => ValueTypeDef::Geography,
-            Value::Duration(_) => ValueTypeDef::Duration,
-            Value::DataSet(_) => ValueTypeDef::DataSet,
+            Value::Bool(_) => DataType::Bool,
+            Value::Int(_) => DataType::Int,
+            Value::Float(_) => DataType::Float,
+            Value::String(_) => DataType::String,
+            Value::Null(_) => DataType::Null,
+            Value::Empty => DataType::Empty,
+            Value::Date(_) => DataType::Date,
+            Value::Time(_) => DataType::Time,
+            Value::DateTime(_) => DataType::DateTime,
+            Value::Vertex(_) => DataType::Vertex,
+            Value::Edge(_) => DataType::Edge,
+            Value::Path(_) => DataType::Path,
+            Value::List(_) => DataType::List,
+            Value::Map(_) => DataType::Map,
+            Value::Set(_) => DataType::Set,
+            Value::Geography(_) => DataType::Geography,
+            Value::Duration(_) => DataType::Duration,
+            Value::DataSet(_) => DataType::DataSet,
         };
         Ok(())
     }
 
     fn visit_variable(&mut self, _name: &str) -> Self::Result {
         // 变量表达式的结果类型不确定，使用Empty
-        self.type_ = ValueTypeDef::Empty;
+        self.type_ = DataType::Empty;
         Ok(())
     }
 
     fn visit_property(&mut self, object: &Expression, _property: &str) -> Self::Result {
         self.visit_expression(object)?;
-        self.type_ = ValueTypeDef::Empty;
+        self.type_ = DataType::Empty;
         Ok(())
     }
 
@@ -494,7 +494,7 @@ impl<'a, S: StorageEngine> ExpressionVisitor for DeduceTypeVisitor<'a, S> {
         conditions: &[(Expression, Expression)],
         default: &Option<Box<Expression>>,
     ) -> Self::Result {
-        let mut result_type: Option<ValueTypeDef> = None;
+        let mut result_type: Option<DataType> = None;
 
         for (condition_expr, then_expr) in conditions {
             self.visit_expression(condition_expr)?;
@@ -549,9 +549,9 @@ impl<'a, S: StorageEngine> ExpressionVisitor for DeduceTypeVisitor<'a, S> {
         let container_type = self.type_.clone();
         self.visit_expression(index)?;
         self.type_ = match container_type {
-            ValueTypeDef::List => ValueTypeDef::Empty,
-            ValueTypeDef::Map => ValueTypeDef::Empty,
-            _ => ValueTypeDef::Empty,
+            DataType::List => DataType::Empty,
+            DataType::Map => DataType::Empty,
+            _ => DataType::Empty,
         };
         Ok(())
     }
@@ -569,7 +569,7 @@ impl<'a, S: StorageEngine> ExpressionVisitor for DeduceTypeVisitor<'a, S> {
         if let Some(end_expr) = end {
             self.visit_expression(end_expr)?;
         }
-        self.type_ = ValueTypeDef::List;
+        self.type_ = DataType::List;
         Ok(())
     }
 
@@ -577,12 +577,12 @@ impl<'a, S: StorageEngine> ExpressionVisitor for DeduceTypeVisitor<'a, S> {
         for item in items {
             self.visit_expression(item)?;
         }
-        self.type_ = ValueTypeDef::Path;
+        self.type_ = DataType::Path;
         Ok(())
     }
 
     fn visit_label(&mut self, _name: &str) -> Self::Result {
-        self.type_ = ValueTypeDef::String;
+        self.type_ = DataType::String;
         Ok(())
     }
 
@@ -811,10 +811,10 @@ mod tests {
             "test_space".to_string(),
         );
 
-        assert!(visitor.is_superior_type(&ValueTypeDef::Null));
-        assert!(visitor.is_superior_type(&ValueTypeDef::Empty));
-        assert!(!visitor.is_superior_type(&ValueTypeDef::Int));
-        assert!(!visitor.is_superior_type(&ValueTypeDef::String));
+        assert!(visitor.is_superior_type(&DataType::Null));
+        assert!(visitor.is_superior_type(&DataType::Empty));
+        assert!(!visitor.is_superior_type(&DataType::Int));
+        assert!(!visitor.is_superior_type(&DataType::String));
     }
 
     #[test]
@@ -828,46 +828,46 @@ mod tests {
         );
 
         // 相同类型兼容
-        assert!(visitor.are_types_compatible(&ValueTypeDef::Int, &ValueTypeDef::Int));
+        assert!(visitor.are_types_compatible(&DataType::Int, &DataType::Int));
 
         // 优越类型与任何类型兼容
-        assert!(visitor.are_types_compatible(&ValueTypeDef::Null, &ValueTypeDef::Int));
-        assert!(visitor.are_types_compatible(&ValueTypeDef::Empty, &ValueTypeDef::String));
+        assert!(visitor.are_types_compatible(&DataType::Null, &DataType::Int));
+        assert!(visitor.are_types_compatible(&DataType::Empty, &DataType::String));
 
         // Int和Float兼容
-        assert!(visitor.are_types_compatible(&ValueTypeDef::Int, &ValueTypeDef::Float));
-        assert!(visitor.are_types_compatible(&ValueTypeDef::Float, &ValueTypeDef::Int));
+        assert!(visitor.are_types_compatible(&DataType::Int, &DataType::Float));
+        assert!(visitor.are_types_compatible(&DataType::Float, &DataType::Int));
 
         // 不同类型不兼容
-        assert!(!visitor.are_types_compatible(&ValueTypeDef::Int, &ValueTypeDef::String));
+        assert!(!visitor.are_types_compatible(&DataType::Int, &DataType::String));
     }
 
     #[test]
     fn test_type_utils() {
         // 测试统一的类型工具
         assert!(TypeUtils::are_types_compatible(
-            &ValueTypeDef::Int,
-            &ValueTypeDef::Int
+            &DataType::Int,
+            &DataType::Int
         ));
         assert!(TypeUtils::are_types_compatible(
-            &ValueTypeDef::Null,
-            &ValueTypeDef::String
+            &DataType::Null,
+            &DataType::String
         ));
-        assert!(TypeUtils::is_superior_type(&ValueTypeDef::Null));
+        assert!(TypeUtils::is_superior_type(&DataType::Null));
 
         // 测试类型优先级
-        assert_eq!(TypeUtils::get_type_priority(&ValueTypeDef::Int), 2);
-        assert_eq!(TypeUtils::get_type_priority(&ValueTypeDef::Float), 3);
-        assert_eq!(TypeUtils::get_type_priority(&ValueTypeDef::String), 4);
+        assert_eq!(TypeUtils::get_type_priority(&DataType::Int), 2);
+        assert_eq!(TypeUtils::get_type_priority(&DataType::Float), 3);
+        assert_eq!(TypeUtils::get_type_priority(&DataType::String), 4);
 
         // 测试公共类型
         assert_eq!(
-            TypeUtils::get_common_type(&ValueTypeDef::Int, &ValueTypeDef::Float),
-            ValueTypeDef::Float
+            TypeUtils::get_common_type(&DataType::Int, &DataType::Float),
+            DataType::Float
         );
         assert_eq!(
-            TypeUtils::get_common_type(&ValueTypeDef::Null, &ValueTypeDef::String),
-            ValueTypeDef::String
+            TypeUtils::get_common_type(&DataType::Null, &DataType::String),
+            DataType::String
         );
     }
 }
@@ -878,9 +878,9 @@ mod tests {
 pub struct DeduceTypeVisitorBuilder<'a, S: StorageEngine> {
     storage: Option<&'a S>,
     validate_context: Option<&'a ValidationContext>,
-    inputs: Vec<(String, ValueTypeDef)>,
+    inputs: Vec<(String, DataType)>,
     space: Option<String>,
-    vid_type: ValueTypeDef,
+    vid_type: DataType,
 }
 
 impl<'a, S: StorageEngine> DeduceTypeVisitorBuilder<'a, S> {
@@ -891,7 +891,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitorBuilder<'a, S> {
             validate_context: None,
             inputs: Vec::new(),
             space: None,
-            vid_type: ValueTypeDef::String,
+            vid_type: DataType::String,
         }
     }
 
@@ -908,13 +908,13 @@ impl<'a, S: StorageEngine> DeduceTypeVisitorBuilder<'a, S> {
     }
 
     /// 设置输入列定义
-    pub fn with_inputs(mut self, inputs: Vec<(String, ValueTypeDef)>) -> Self {
+    pub fn with_inputs(mut self, inputs: Vec<(String, DataType)>) -> Self {
         self.inputs = inputs;
         self
     }
 
     /// 添加输入列定义
-    pub fn add_input(mut self, name: String, type_: ValueTypeDef) -> Self {
+    pub fn add_input(mut self, name: String, type_: DataType) -> Self {
         self.inputs.push((name, type_));
         self
     }
@@ -926,7 +926,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitorBuilder<'a, S> {
     }
 
     /// 设置VID类型
-    pub fn with_vid_type(mut self, vid_type: ValueTypeDef) -> Self {
+    pub fn with_vid_type(mut self, vid_type: DataType) -> Self {
         self.vid_type = vid_type;
         self
     }

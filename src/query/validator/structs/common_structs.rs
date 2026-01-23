@@ -117,7 +117,7 @@ impl CypherClauseContext {
     }
 }
 
-use crate::core::ValueTypeDef;
+use crate::core::DataType;
 use std::collections::HashMap;
 
 /// 验证结果
@@ -168,5 +168,5 @@ pub enum LookupIndexType {
 pub struct LookupTarget {
     pub label: String,
     pub index_type: LookupIndexType,
-    pub properties: HashMap<String, ValueTypeDef>,
+    pub properties: HashMap<String, DataType>,
 }

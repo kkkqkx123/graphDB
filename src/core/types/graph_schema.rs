@@ -2,7 +2,7 @@
 //!
 //! 包含图数据库中图结构相关的类型定义
 
-use crate::core::ValueTypeDef;
+use crate::core::DataType;
 
 /// 边的方向类型
 ///
@@ -67,7 +67,7 @@ pub struct VertexType {
 #[derive(Debug, Clone, PartialEq)]
 pub struct PropertyType {
     pub name: String,
-    pub type_def: ValueTypeDef,
+    pub type_def: DataType,
     pub is_nullable: bool,
 }
 
@@ -141,20 +141,20 @@ impl GraphTypeInference {
     }
 
     /// 推导属性类型
-    pub fn deduce_property_type(&self, prop_name: &str, _object_type: &str) -> Option<ValueTypeDef> {
+    pub fn deduce_property_type(&self, prop_name: &str, _object_type: &str) -> Option<DataType> {
         match prop_name.to_lowercase().as_str() {
-            "id" => Some(ValueTypeDef::Int),
-            "name" | "title" | "desc" | "description" => Some(ValueTypeDef::String),
+            "id" => Some(DataType::Int),
+            "name" | "title" | "desc" | "description" => Some(DataType::String),
             "age" | "count" | "size" | "year" | "month" | "day" | 
-            "hour" | "minute" | "second" => Some(ValueTypeDef::Int),
+            "hour" | "minute" | "second" => Some(DataType::Int),
             "price" | "score" | "rate" | "ratio" | "percent" | 
-            "weight" | "height" | "width" | "length" => Some(ValueTypeDef::Float),
+            "weight" | "height" | "width" | "length" => Some(DataType::Float),
             "created_at" | "updated_at" | "birthday" | "date" | "time" | "datetime" => {
-                Some(ValueTypeDef::DateTime)
+                Some(DataType::DateTime)
             }
-            "active" | "enabled" | "visible" | "valid" | "exists" => Some(ValueTypeDef::Bool),
-            "tags" | "labels" | "categories" => Some(ValueTypeDef::List),
-            "properties" | "attrs" | "attributes" => Some(ValueTypeDef::Map),
+            "active" | "enabled" | "visible" | "valid" | "exists" => Some(DataType::Bool),
+            "tags" | "labels" | "categories" => Some(DataType::List),
+            "properties" | "attrs" | "attributes" => Some(DataType::Map),
             _ => None,
         }
     }
@@ -206,14 +206,14 @@ mod tests {
     fn test_deduce_property_type() {
         let inference = GraphTypeInference::new();
         
-        assert_eq!(inference.deduce_property_type("id", "person"), Some(ValueTypeDef::Int));
-        assert_eq!(inference.deduce_property_type("name", "person"), Some(ValueTypeDef::String));
-        assert_eq!(inference.deduce_property_type("age", "person"), Some(ValueTypeDef::Int));
-        assert_eq!(inference.deduce_property_type("price", "product"), Some(ValueTypeDef::Float));
-        assert_eq!(inference.deduce_property_type("created_at", "person"), Some(ValueTypeDef::DateTime));
-        assert_eq!(inference.deduce_property_type("active", "person"), Some(ValueTypeDef::Bool));
-        assert_eq!(inference.deduce_property_type("tags", "person"), Some(ValueTypeDef::List));
-        assert_eq!(inference.deduce_property_type("properties", "person"), Some(ValueTypeDef::Map));
+        assert_eq!(inference.deduce_property_type("id", "person"), Some(DataType::Int));
+        assert_eq!(inference.deduce_property_type("name", "person"), Some(DataType::String));
+        assert_eq!(inference.deduce_property_type("age", "person"), Some(DataType::Int));
+        assert_eq!(inference.deduce_property_type("price", "product"), Some(DataType::Float));
+        assert_eq!(inference.deduce_property_type("created_at", "person"), Some(DataType::DateTime));
+        assert_eq!(inference.deduce_property_type("active", "person"), Some(DataType::Bool));
+        assert_eq!(inference.deduce_property_type("tags", "person"), Some(DataType::List));
+        assert_eq!(inference.deduce_property_type("properties", "person"), Some(DataType::Map));
         assert_eq!(inference.deduce_property_type("unknown", "person"), None);
     }
 }

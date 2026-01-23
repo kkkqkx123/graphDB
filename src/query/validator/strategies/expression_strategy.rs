@@ -1,4 +1,4 @@
-use crate::core::{Expression, ValueTypeDef};
+use crate::core::{Expression, DataType};
 use crate::query::validator::{
     ValidationStrategy, ValidationError, ValidationErrorType,
     ValidationStrategyType, WhereClauseContext, MatchClauseContext, ReturnClauseContext,
@@ -25,7 +25,7 @@ impl ExpressionValidationStrategy {
         let type_validator = crate::query::validator::strategies::type_inference::TypeValidator;
         let filter_type = type_validator.deduce_expression_type_full(filter, context);
         
-        if !type_validator.are_types_compatible(&filter_type, &ValueTypeDef::Bool) {
+        if !type_validator.are_types_compatible(&filter_type, &DataType::Bool) {
             return Err(ValidationError::new(
                 format!("过滤条件必须是布尔类型，当前类型为 {:?}", filter_type),
                 ValidationErrorType::TypeError,
@@ -54,7 +54,7 @@ impl ExpressionValidationStrategy {
         let path_type = type_validator.deduce_expression_type_full(path, context);
         
         // 路径表达式应该是路径类型或可以转换为路径类型
-        if !matches!(path_type, ValueTypeDef::Path) && !matches!(path_type, ValueTypeDef::Empty) {
+        if !matches!(path_type, DataType::Path) && !matches!(path_type, DataType::Empty) {
             return Err(ValidationError::new(
                 format!("路径表达式类型不匹配，期望路径类型，实际为 {:?}", path_type),
                 ValidationErrorType::TypeError,
@@ -130,7 +130,7 @@ impl ExpressionValidationStrategy {
         let type_validator = crate::query::validator::strategies::type_inference::TypeValidator;
         let unwind_type = type_validator.deduce_expression_type_full(unwind_expr, context);
         
-        if unwind_type != ValueTypeDef::List && unwind_type != ValueTypeDef::Empty {
+        if unwind_type != DataType::List && unwind_type != DataType::Empty {
             return Err(ValidationError::new(
                 format!("Unwind表达式必须是列表类型，当前类型为 {:?}", unwind_type),
                 ValidationErrorType::TypeError,
@@ -186,7 +186,7 @@ impl ExpressionValidationStrategy {
         let type_validator = crate::query::validator::strategies::type_inference::TypeValidator;
         let pattern_type = type_validator.deduce_expression_type_full(pattern, context);
         
-        if !matches!(pattern_type, ValueTypeDef::Path) && !matches!(pattern_type, ValueTypeDef::Empty) {
+        if !matches!(pattern_type, DataType::Path) && !matches!(pattern_type, DataType::Empty) {
             return Err(ValidationError::new(
                 format!("路径模式必须是路径类型，当前类型为 {:?}", pattern_type),
                 ValidationErrorType::TypeError,

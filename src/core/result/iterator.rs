@@ -5,7 +5,6 @@ use crate::core::DBResult;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IteratorType {
     Default,
-    Sequential,
     GetNeighbors,
     Prop,
 }
@@ -36,6 +35,7 @@ pub trait r#Iterator: Send + Sync + std::fmt::Debug {
 /// DefaultIterator
 /// 
 /// 默认迭代器，用于基本的数据遍历
+/// 合并了原有的 DefaultIterator 和 SequentialIterator（两者实现完全相同）
 #[derive(Debug)]
 pub struct DefaultIterator {
     rows: Vec<Vec<Value>>,
@@ -73,68 +73,6 @@ impl DefaultIterator {
 impl r#Iterator for DefaultIterator {
     fn iterator_type(&self) -> IteratorType {
         IteratorType::Default
-    }
-    
-    fn next(&mut self) -> DBResult<Option<Vec<Value>>> {
-        if self.index < self.rows.len() {
-            let row = self.rows[self.index].clone();
-            self.index += 1;
-            Ok(Some(row))
-        } else {
-            Ok(None)
-        }
-    }
-    
-    fn reset(&mut self) -> DBResult<()> {
-        self.index = 0;
-        Ok(())
-    }
-    
-    fn size(&self) -> usize {
-        self.rows.len()
-    }
-}
-
-/// SequentialIterator
-/// 
-/// 顺序迭代器，用于按顺序遍历数据
-#[derive(Debug)]
-pub struct SequentialIterator {
-    rows: Vec<Vec<Value>>,
-    index: usize,
-}
-
-impl SequentialIterator {
-    pub fn new(rows: Vec<Vec<Value>>) -> Self {
-        Self {
-            rows,
-            index: 0,
-        }
-    }
-    
-    pub fn with_capacity(capacity: usize) -> Self {
-        Self {
-            rows: Vec::with_capacity(capacity),
-            index: 0,
-        }
-    }
-    
-    pub fn add_row(&mut self, row: Vec<Value>) {
-        self.rows.push(row);
-    }
-    
-    pub fn rows(&self) -> &[Vec<Value>] {
-        &self.rows
-    }
-    
-    pub fn rows_mut(&mut self) -> &mut Vec<Vec<Value>> {
-        &mut self.rows
-    }
-}
-
-impl r#Iterator for SequentialIterator {
-    fn iterator_type(&self) -> IteratorType {
-        IteratorType::Sequential
     }
     
     fn next(&mut self) -> DBResult<Option<Vec<Value>>> {
@@ -357,9 +295,9 @@ mod tests {
             vec![Value::Int(3)],
         ];
         
-        let mut iter = SequentialIterator::new(rows);
+        let mut iter = DefaultIterator::new(rows);
         
-        assert_eq!(iter.iterator_type(), IteratorType::Sequential);
+        assert_eq!(iter.iterator_type(), IteratorType::Default);
         assert_eq!(iter.size(), 3);
         
         for i in 1..=3 {

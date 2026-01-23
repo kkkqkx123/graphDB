@@ -1,6 +1,6 @@
 use super::types::{
     DataSet, DateTimeValue, DateValue, DurationValue, GeographyValue, NullType, TimeValue, Value,
-    ValueTypeDef,
+    DataType,
 };
 use std::cmp::Ordering as CmpOrdering;
 use std::collections::HashMap;
@@ -376,26 +376,26 @@ impl Value {
     }
 
     // 类型优先级映射函数
-    fn type_priority(typ: &ValueTypeDef) -> u8 {
+    fn type_priority(typ: &DataType) -> u8 {
         match typ {
-            ValueTypeDef::Empty => 0,
-            ValueTypeDef::Null => 1,
-            ValueTypeDef::Bool => 2,
-            ValueTypeDef::Int | ValueTypeDef::Int8 | ValueTypeDef::Int16 | ValueTypeDef::Int32 | ValueTypeDef::Int64 => 3,
-            ValueTypeDef::Float | ValueTypeDef::Double => 4,
-            ValueTypeDef::String => 5,
-            ValueTypeDef::Date => 6,
-            ValueTypeDef::Time => 7,
-            ValueTypeDef::DateTime => 8,
-            ValueTypeDef::Duration => 9,
-            ValueTypeDef::Vertex => 10,
-            ValueTypeDef::Edge => 11,
-            ValueTypeDef::Path => 12,
-            ValueTypeDef::List => 13,
-            ValueTypeDef::Map => 14,
-            ValueTypeDef::Set => 15,
-            ValueTypeDef::Geography => 16,
-            ValueTypeDef::DataSet => 17,
+            DataType::Empty => 0,
+            DataType::Null => 1,
+            DataType::Bool => 2,
+            DataType::Int | DataType::Int8 | DataType::Int16 | DataType::Int32 | DataType::Int64 => 3,
+            DataType::Float | DataType::Double => 4,
+            DataType::String => 5,
+            DataType::Date => 6,
+            DataType::Time => 7,
+            DataType::DateTime => 8,
+            DataType::Duration => 9,
+            DataType::Vertex => 10,
+            DataType::Edge => 11,
+            DataType::Path => 12,
+            DataType::List => 13,
+            DataType::Map => 14,
+            DataType::Set => 15,
+            DataType::Geography => 16,
+            DataType::DataSet => 17,
         }
     }
 

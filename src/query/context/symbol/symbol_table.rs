@@ -1,5 +1,5 @@
 use crate::core::PlanNodeRef;
-use crate::core::value::types::ValueTypeDef;
+use crate::core::DataType;
 use crate::query::context::ast::VariableInfo;
 
 use dashmap::DashMap;
@@ -9,7 +9,7 @@ use std::sync::Arc;
 #[derive(Debug, Clone)]
 pub struct Symbol {
     pub name: String,
-    pub value_type: ValueTypeDef,
+    pub value_type: DataType,
     pub col_names: Vec<String>,
     pub readers: HashSet<PlanNodeRef>,
     pub writers: HashSet<PlanNodeRef>,
@@ -19,7 +19,7 @@ pub struct Symbol {
 }
 
 impl Symbol {
-    pub fn new(name: String, value_type: ValueTypeDef) -> Self {
+    pub fn new(name: String, value_type: DataType) -> Self {
         Self {
             name,
             value_type,
@@ -37,7 +37,7 @@ impl Symbol {
         self
     }
 
-    pub fn with_type(mut self, value_type: ValueTypeDef) -> Self {
+    pub fn with_type(mut self, value_type: DataType) -> Self {
         self.value_type = value_type;
         self
     }
@@ -97,7 +97,7 @@ impl SymbolTable {
             return Err(format!("变量 '{}' 已存在", name));
         }
 
-        let symbol = Symbol::new(name.to_string(), ValueTypeDef::DataSet);
+        let symbol = Symbol::new(name.to_string(), DataType::DataSet);
         self.symbols.insert(name.to_string(), symbol.clone());
         
         Ok(symbol)
@@ -108,7 +108,7 @@ impl SymbolTable {
             return Err(format!("变量 '{}' 已存在", name));
         }
 
-        let symbol = Symbol::new(name.to_string(), ValueTypeDef::DataSet)
+        let symbol = Symbol::new(name.to_string(), DataType::DataSet)
             .with_source_clause(info.source_clause)
             .with_properties(info.properties)
             .with_aggregated(info.is_aggregated);
@@ -122,7 +122,7 @@ impl SymbolTable {
             return Err(format!("变量 '{}' 已存在", name));
         }
 
-        let symbol = Symbol::new(name.to_string(), ValueTypeDef::DataSet)
+        let symbol = Symbol::new(name.to_string(), DataType::DataSet)
             .with_col_names(col_names);
         self.symbols.insert(name.to_string(), symbol.clone());
         
@@ -307,13 +307,13 @@ mod tests {
 
         let symbol = table.new_variable("test_var").expect("创建 test_var 变量应该成功");
         assert_eq!(symbol.name, "test_var");
-        assert_eq!(symbol.value_type, ValueTypeDef::DataSet);
+        assert_eq!(symbol.value_type, DataType::DataSet);
         assert!(table.has_variable("test_var"));
         assert!(table.new_variable("test_var").is_err());
 
         let retrieved = table.get_variable("test_var").expect("获取 test_var 变量应该成功");
         assert_eq!(retrieved.name, "test_var");
-        assert_eq!(retrieved.value_type, ValueTypeDef::DataSet);
+        assert_eq!(retrieved.value_type, DataType::DataSet);
 
         assert!(table.remove_variable("test_var").expect("删除 test_var 变量应该成功"));
         assert!(!table.has_variable("test_var"));
@@ -326,7 +326,7 @@ mod tests {
 
         let symbol = table.new_dataset("dataset_var", col_names.clone()).expect("创建 dataset_var 数据集应该成功");
         assert_eq!(symbol.name, "dataset_var");
-        assert_eq!(symbol.value_type, ValueTypeDef::DataSet);
+        assert_eq!(symbol.value_type, DataType::DataSet);
         assert_eq!(symbol.col_names, col_names);
     }
 

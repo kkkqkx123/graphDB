@@ -3,9 +3,6 @@ use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
 
-/// 统一数据类型别名（向后兼容）
-pub type ValueTypeDef = DataType;
-
 /// Null类型定义 - 简化为单节点图数据库所需的3种类型
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Encode, Decode)]
 pub enum NullType {
@@ -180,26 +177,26 @@ pub enum Value {
 
 impl Value {
     /// 获取值的类型
-    pub fn get_type(&self) -> ValueTypeDef {
+    pub fn get_type(&self) -> DataType {
         match self {
-            Value::Empty => ValueTypeDef::Empty,
-            Value::Null(_) => ValueTypeDef::Null,
-            Value::Bool(_) => ValueTypeDef::Bool,
-            Value::Int(_) => ValueTypeDef::Int,
-            Value::Float(_) => ValueTypeDef::Float,
-            Value::String(_) => ValueTypeDef::String,
-            Value::Date(_) => ValueTypeDef::Date,
-            Value::Time(_) => ValueTypeDef::Time,
-            Value::DateTime(_) => ValueTypeDef::DateTime,
-            Value::Vertex(_) => ValueTypeDef::Vertex,
-            Value::Edge(_) => ValueTypeDef::Edge,
-            Value::Path(_) => ValueTypeDef::Path,
-            Value::List(_) => ValueTypeDef::List,
-            Value::Map(_) => ValueTypeDef::Map,
-            Value::Set(_) => ValueTypeDef::Set,
-            Value::Geography(_) => ValueTypeDef::Geography,
-            Value::Duration(_) => ValueTypeDef::Duration,
-            Value::DataSet(_) => ValueTypeDef::DataSet,
+            Value::Empty => DataType::Empty,
+            Value::Null(_) => DataType::Null,
+            Value::Bool(_) => DataType::Bool,
+            Value::Int(_) => DataType::Int,
+            Value::Float(_) => DataType::Float,
+            Value::String(_) => DataType::String,
+            Value::Date(_) => DataType::Date,
+            Value::Time(_) => DataType::Time,
+            Value::DateTime(_) => DataType::DateTime,
+            Value::Vertex(_) => DataType::Vertex,
+            Value::Edge(_) => DataType::Edge,
+            Value::Path(_) => DataType::Path,
+            Value::List(_) => DataType::List,
+            Value::Map(_) => DataType::Map,
+            Value::Set(_) => DataType::Set,
+            Value::Geography(_) => DataType::Geography,
+            Value::Duration(_) => DataType::Duration,
+            Value::DataSet(_) => DataType::DataSet,
         }
     }
 

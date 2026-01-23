@@ -2,7 +2,7 @@
 //! 负责验证表达式的类型信息（类型推导使用 DeduceTypeVisitor）
 
 use crate::core::Expression;
-use crate::core::ValueTypeDef;
+use crate::core::DataType;
 use crate::core::AggregateFunction;
 use crate::core::BinaryOperator;
 use crate::core::UnaryOperator;
@@ -18,7 +18,7 @@ use std::collections::HashMap;
 /// 定义表达式验证所需的基本接口
 pub trait ExpressionValidationContext {
     fn get_aliases(&self) -> &HashMap<String, AliasType>;
-    fn get_variable_types(&self) -> Option<&HashMap<String, ValueTypeDef>>;
+    fn get_variable_types(&self) -> Option<&HashMap<String, DataType>>;
 }
 
 impl<T: ValidationContext> ExpressionValidationContext for T {
@@ -26,7 +26,7 @@ impl<T: ValidationContext> ExpressionValidationContext for T {
         self.get_aliases()
     }
 
-    fn get_variable_types(&self) -> Option<&HashMap<String, ValueTypeDef>> {
+    fn get_variable_types(&self) -> Option<&HashMap<String, DataType>> {
         None
     }
 }
@@ -42,31 +42,31 @@ impl TypeValidator {
 
     /// 检查类型是否可以用于索引
     /// 使用 TypeUtils 的统一实现
-    pub fn is_indexable_type(&self, type_def: &ValueTypeDef) -> bool {
+    pub fn is_indexable_type(&self, type_def: &DataType) -> bool {
         TypeUtils::is_indexable_type(type_def)
     }
 
     /// 获取类型的默认值
     /// 使用 TypeUtils 的统一实现
-    pub fn get_default_value(&self, type_def: &ValueTypeDef) -> Option<Expression> {
+    pub fn get_default_value(&self, type_def: &DataType) -> Option<Expression> {
         TypeUtils::get_default_value(type_def).map(|v| Expression::Literal(v))
     }
 
     /// 验证类型是否可以强制转换
     /// 使用 TypeUtils 的统一实现，确保行为一致
-    pub fn can_cast(&self, from: &ValueTypeDef, to: &ValueTypeDef) -> bool {
+    pub fn can_cast(&self, from: &DataType, to: &DataType) -> bool {
         TypeUtils::can_cast(from, to)
     }
 
     /// 获取类型的字符串表示
     /// 使用 TypeUtils 的统一实现
-    pub fn type_to_string(&self, type_def: &ValueTypeDef) -> String {
+    pub fn type_to_string(&self, type_def: &DataType) -> String {
         TypeUtils::type_to_string(type_def)
     }
 
     /// 检查两个类型是否兼容
     /// 使用 TypeUtils 的统一实现
-    pub fn are_types_compatible(&self, left: &ValueTypeDef, right: &ValueTypeDef) -> bool {
+    pub fn are_types_compatible(&self, left: &DataType, right: &DataType) -> bool {
         TypeUtils::are_types_compatible(left, right)
     }
 
@@ -75,7 +75,7 @@ impl TypeValidator {
         &self,
         expr: &Expression,
         context: &C,
-        expected_type: ValueTypeDef,
+        expected_type: DataType,
     ) -> Result<(), ValidationError> {
         self.validate_expression_type_full(expr, context, expected_type)
     }
@@ -85,7 +85,7 @@ impl TypeValidator {
         &self,
         expr: &Expression,
         context: &C,
-        expected_type: ValueTypeDef,
+        expected_type: DataType,
     ) -> Result<(), ValidationError> {
         match expr {
             Expression::Literal(value) => {
@@ -141,7 +141,7 @@ impl TypeValidator {
         left: &Expression,
         right: &Expression,
         context: &C,
-        expected_type: ValueTypeDef,
+        expected_type: DataType,
     ) -> Result<(), ValidationError> {
         match op {
             crate::core::BinaryOperator::Equal
@@ -150,7 +150,7 @@ impl TypeValidator {
             | crate::core::BinaryOperator::LessThanOrEqual
             | crate::core::BinaryOperator::GreaterThan
             | crate::core::BinaryOperator::GreaterThanOrEqual => {
-                if expected_type == ValueTypeDef::Bool {
+                if expected_type == DataType::Bool {
                     let left_type = self.deduce_expression_type_full(left, context);
                     let right_type = self.deduce_expression_type_full(right, context);
                     if self.are_types_compatible(&left_type, &right_type) {
@@ -175,9 +175,9 @@ impl TypeValidator {
                 }
             }
             crate::core::BinaryOperator::And | crate::core::BinaryOperator::Or => {
-                if expected_type == ValueTypeDef::Bool {
-                    self.validate_expression_type_full(left, context, ValueTypeDef::Bool)?;
-                    self.validate_expression_type_full(right, context, ValueTypeDef::Bool)
+                if expected_type == DataType::Bool {
+                    self.validate_expression_type_full(left, context, DataType::Bool)?;
+                    self.validate_expression_type_full(right, context, DataType::Bool)
                 } else {
                     Err(ValidationError::new(
                         format!(
@@ -214,12 +214,12 @@ impl TypeValidator {
         op: &crate::core::UnaryOperator,
         operand: &Expression,
         context: &C,
-        expected_type: ValueTypeDef,
+        expected_type: DataType,
     ) -> Result<(), ValidationError> {
         match op {
             crate::core::UnaryOperator::Not => {
-                if expected_type == ValueTypeDef::Bool {
-                    self.validate_expression_type_full(operand, context, ValueTypeDef::Bool)
+                if expected_type == DataType::Bool {
+                    self.validate_expression_type_full(operand, context, DataType::Bool)
                 } else {
                     Err(ValidationError::new(
                         format!(
@@ -254,7 +254,7 @@ impl TypeValidator {
         name: &str,
         args: &[Expression],
         context: &C,
-        expected_type: ValueTypeDef,
+        expected_type: DataType,
     ) -> Result<(), ValidationError> {
         let return_type = self.deduce_function_return_type(name, args, context);
         if self.are_types_compatible(&return_type, &expected_type) {
@@ -274,7 +274,7 @@ impl TypeValidator {
     fn validate_aggregate_return_type(
         &self,
         func: &crate::core::AggregateFunction,
-        expected_type: ValueTypeDef,
+        expected_type: DataType,
     ) -> Result<(), ValidationError> {
         let return_type = self.deduce_aggregate_return_type(func);
         if self.are_types_compatible(&return_type, &expected_type) {
@@ -295,7 +295,7 @@ impl TypeValidator {
         &self,
         name: &str,
         context: &C,
-        expected_type: ValueTypeDef,
+        expected_type: DataType,
     ) -> Result<(), ValidationError> {
         if let Some(var_types) = context.get_variable_types() {
             if let Some(var_type) = var_types.get(name) {
@@ -316,15 +316,15 @@ impl TypeValidator {
     }
 
     /// 简化的表达式类型推导
-    pub fn deduce_expression_type_simple(&self, expr: &Expression) -> ValueTypeDef {
+    pub fn deduce_expression_type_simple(&self, expr: &Expression) -> DataType {
         match expr {
             Expression::Literal(value) => value.get_type(),
-            Expression::Variable(_) => ValueTypeDef::Empty,
+            Expression::Variable(_) => DataType::Empty,
             Expression::Binary { op, .. } => self.deduce_binary_expr_type_simple(op),
             Expression::Unary { op, .. } => self.deduce_unary_expr_type_simple(op),
             Expression::Function { name, .. } => self.deduce_function_return_type_simple(name),
             Expression::Aggregate { func, .. } => self.deduce_aggregate_return_type(func),
-            _ => ValueTypeDef::Empty,
+            _ => DataType::Empty,
         }
     }
 
@@ -333,7 +333,7 @@ impl TypeValidator {
         &self,
         expr: &Expression,
         context: &C,
-    ) -> ValueTypeDef {
+    ) -> DataType {
         match expr {
             Expression::Literal(value) => value.get_type(),
             Expression::Variable(name) => {
@@ -342,7 +342,7 @@ impl TypeValidator {
                         return var_type.clone();
                     }
                 }
-                ValueTypeDef::Empty
+                DataType::Empty
             }
             Expression::Binary { op, left, right } => {
                 let left_type = self.deduce_expression_type_full(left, context);
@@ -357,7 +357,7 @@ impl TypeValidator {
                 self.deduce_function_return_type(name, args, context)
             }
             Expression::Aggregate { func, .. } => self.deduce_aggregate_return_type(func),
-            _ => ValueTypeDef::Empty,
+            _ => DataType::Empty,
         }
     }
 
@@ -365,24 +365,24 @@ impl TypeValidator {
     fn deduce_binary_expr_type(
         &self,
         op: &crate::core::BinaryOperator,
-        left_type: &ValueTypeDef,
-        right_type: &ValueTypeDef,
-    ) -> ValueTypeDef {
+        left_type: &DataType,
+        right_type: &DataType,
+    ) -> DataType {
         match op {
             crate::core::BinaryOperator::Equal
             | crate::core::BinaryOperator::NotEqual
             | crate::core::BinaryOperator::LessThan
             | crate::core::BinaryOperator::LessThanOrEqual
             | crate::core::BinaryOperator::GreaterThan
-            | crate::core::BinaryOperator::GreaterThanOrEqual => ValueTypeDef::Bool,
-            crate::core::BinaryOperator::And | crate::core::BinaryOperator::Or => ValueTypeDef::Bool,
+            | crate::core::BinaryOperator::GreaterThanOrEqual => DataType::Bool,
+            crate::core::BinaryOperator::And | crate::core::BinaryOperator::Or => DataType::Bool,
             _ => {
-                if *left_type == ValueTypeDef::Float || *right_type == ValueTypeDef::Float {
-                    ValueTypeDef::Float
-                } else if *left_type == ValueTypeDef::Int || *right_type == ValueTypeDef::Int {
-                    ValueTypeDef::Int
+                if *left_type == DataType::Float || *right_type == DataType::Float {
+                    DataType::Float
+                } else if *left_type == DataType::Int || *right_type == DataType::Int {
+                    DataType::Int
                 } else {
-                    ValueTypeDef::Empty
+                    DataType::Empty
                 }
             }
         }
@@ -392,12 +392,12 @@ impl TypeValidator {
     fn deduce_unary_expr_type(
         &self,
         op: &crate::core::UnaryOperator,
-        operand_type: &ValueTypeDef,
-    ) -> ValueTypeDef {
+        operand_type: &DataType,
+    ) -> DataType {
         match op {
-            crate::core::UnaryOperator::Not => ValueTypeDef::Bool,
+            crate::core::UnaryOperator::Not => DataType::Bool,
             crate::core::UnaryOperator::Minus | crate::core::UnaryOperator::Plus => operand_type.clone(),
-            _ => ValueTypeDef::Empty,
+            _ => DataType::Empty,
         }
     }
 
@@ -407,23 +407,23 @@ impl TypeValidator {
         name: &str,
         _args: &[Expression],
         _context: &C,
-    ) -> ValueTypeDef {
+    ) -> DataType {
         match name.to_lowercase().as_str() {
-            "abs" | "length" | "size" => ValueTypeDef::Int,
-            "round" | "floor" | "ceil" => ValueTypeDef::Int,
-            "sqrt" | "pow" | "sin" | "cos" | "tan" => ValueTypeDef::Float,
-            "concat" | "substring" | "trim" | "ltrim" | "rtrim" => ValueTypeDef::String,
-            "upper" | "lower" => ValueTypeDef::String,
-            "type" => ValueTypeDef::String,
-            "id" => ValueTypeDef::Int,
-            "properties" => ValueTypeDef::Map,
-            "labels" => ValueTypeDef::List,
-            "keys" => ValueTypeDef::List,
-            "values" => ValueTypeDef::List,
-            "range" => ValueTypeDef::List,
-            "reverse" => ValueTypeDef::List,
-            "head" | "last" | "tail" => ValueTypeDef::Empty,
-            _ => ValueTypeDef::Empty,
+            "abs" | "length" | "size" => DataType::Int,
+            "round" | "floor" | "ceil" => DataType::Int,
+            "sqrt" | "pow" | "sin" | "cos" | "tan" => DataType::Float,
+            "concat" | "substring" | "trim" | "ltrim" | "rtrim" => DataType::String,
+            "upper" | "lower" => DataType::String,
+            "type" => DataType::String,
+            "id" => DataType::Int,
+            "properties" => DataType::Map,
+            "labels" => DataType::List,
+            "keys" => DataType::List,
+            "values" => DataType::List,
+            "range" => DataType::List,
+            "reverse" => DataType::List,
+            "head" | "last" | "tail" => DataType::Empty,
+            _ => DataType::Empty,
         }
     }
 
@@ -431,59 +431,59 @@ impl TypeValidator {
     pub fn deduce_aggregate_return_type(
         &self,
         func: &crate::core::AggregateFunction,
-    ) -> ValueTypeDef {
+    ) -> DataType {
         match func {
-            crate::core::AggregateFunction::Count(_) => ValueTypeDef::Int,
-            crate::core::AggregateFunction::Sum(_) => ValueTypeDef::Float,
-            crate::core::AggregateFunction::Avg(_) => ValueTypeDef::Float,
-            crate::core::AggregateFunction::Max(_) | crate::core::AggregateFunction::Min(_) => ValueTypeDef::Empty,
-            crate::core::AggregateFunction::Collect(_) => ValueTypeDef::List,
-            crate::core::AggregateFunction::Distinct(_) => ValueTypeDef::Empty,
-            crate::core::AggregateFunction::Percentile(_, _) => ValueTypeDef::Float,
+            crate::core::AggregateFunction::Count(_) => DataType::Int,
+            crate::core::AggregateFunction::Sum(_) => DataType::Float,
+            crate::core::AggregateFunction::Avg(_) => DataType::Float,
+            crate::core::AggregateFunction::Max(_) | crate::core::AggregateFunction::Min(_) => DataType::Empty,
+            crate::core::AggregateFunction::Collect(_) => DataType::List,
+            crate::core::AggregateFunction::Distinct(_) => DataType::Empty,
+            crate::core::AggregateFunction::Percentile(_, _) => DataType::Float,
         }
     }
 
     /// 简化的二元表达式类型推导
-    fn deduce_binary_expr_type_simple(&self, op: &crate::core::BinaryOperator) -> ValueTypeDef {
+    fn deduce_binary_expr_type_simple(&self, op: &crate::core::BinaryOperator) -> DataType {
         match op {
             crate::core::BinaryOperator::Equal
             | crate::core::BinaryOperator::NotEqual
             | crate::core::BinaryOperator::LessThan
             | crate::core::BinaryOperator::LessThanOrEqual
             | crate::core::BinaryOperator::GreaterThan
-            | crate::core::BinaryOperator::GreaterThanOrEqual => ValueTypeDef::Bool,
-            crate::core::BinaryOperator::And | crate::core::BinaryOperator::Or => ValueTypeDef::Bool,
-            _ => ValueTypeDef::Empty,
+            | crate::core::BinaryOperator::GreaterThanOrEqual => DataType::Bool,
+            crate::core::BinaryOperator::And | crate::core::BinaryOperator::Or => DataType::Bool,
+            _ => DataType::Empty,
         }
     }
 
     /// 简化的一元表达式类型推导
-    fn deduce_unary_expr_type_simple(&self, op: &crate::core::UnaryOperator) -> ValueTypeDef {
+    fn deduce_unary_expr_type_simple(&self, op: &crate::core::UnaryOperator) -> DataType {
         match op {
-            crate::core::UnaryOperator::Not => ValueTypeDef::Bool,
-            crate::core::UnaryOperator::Minus | crate::core::UnaryOperator::Plus => ValueTypeDef::Empty,
-            _ => ValueTypeDef::Empty,
+            crate::core::UnaryOperator::Not => DataType::Bool,
+            crate::core::UnaryOperator::Minus | crate::core::UnaryOperator::Plus => DataType::Empty,
+            _ => DataType::Empty,
         }
     }
 
     /// 简化的函数返回类型推导
-    fn deduce_function_return_type_simple(&self, name: &str) -> ValueTypeDef {
+    fn deduce_function_return_type_simple(&self, name: &str) -> DataType {
         match name.to_lowercase().as_str() {
-            "abs" | "length" | "size" => ValueTypeDef::Int,
-            "round" | "floor" | "ceil" => ValueTypeDef::Int,
-            "sqrt" | "pow" | "sin" | "cos" | "tan" => ValueTypeDef::Float,
-            "concat" | "substring" | "trim" | "ltrim" | "rtrim" => ValueTypeDef::String,
-            "upper" | "lower" => ValueTypeDef::String,
-            "type" => ValueTypeDef::String,
-            "id" => ValueTypeDef::Int,
-            "properties" => ValueTypeDef::Map,
-            "labels" => ValueTypeDef::List,
-            "keys" => ValueTypeDef::List,
-            "values" => ValueTypeDef::List,
-            "range" => ValueTypeDef::List,
-            "reverse" => ValueTypeDef::List,
-            "head" | "last" | "tail" => ValueTypeDef::Empty,
-            _ => ValueTypeDef::Empty,
+            "abs" | "length" | "size" => DataType::Int,
+            "round" | "floor" | "ceil" => DataType::Int,
+            "sqrt" | "pow" | "sin" | "cos" | "tan" => DataType::Float,
+            "concat" | "substring" | "trim" | "ltrim" | "rtrim" => DataType::String,
+            "upper" | "lower" => DataType::String,
+            "type" => DataType::String,
+            "id" => DataType::Int,
+            "properties" => DataType::Map,
+            "labels" => DataType::List,
+            "keys" => DataType::List,
+            "values" => DataType::List,
+            "range" => DataType::List,
+            "reverse" => DataType::List,
+            "head" | "last" | "tail" => DataType::Empty,
+            _ => DataType::Empty,
         }
     }
 
@@ -538,13 +538,13 @@ impl TypeValidator {
         let key_type = self.deduce_expression_type_full(group_key, context);
         
         match key_type {
-            ValueTypeDef::Int
-            | ValueTypeDef::Float
-            | ValueTypeDef::String
-            | ValueTypeDef::Bool
-            | ValueTypeDef::Date
-            | ValueTypeDef::Time
-            | ValueTypeDef::DateTime => Ok(()),
+            DataType::Int
+            | DataType::Float
+            | DataType::String
+            | DataType::Bool
+            | DataType::Date
+            | DataType::Time
+            | DataType::DateTime => Ok(()),
             _ => Err(ValidationError::new(
                 format!(
                     "分组键的类型 {:?} 不支持，只支持基本类型",
@@ -555,46 +555,46 @@ impl TypeValidator {
         }
     }
 
-    /// 从 ValueTypeDef 转换为 ValueType
-    pub fn value_type_def_to_value_type(type_def: &ValueTypeDef) -> ValueType {
+    /// 从 DataType 转换为 ValueType
+    pub fn value_type_def_to_value_type(type_def: &DataType) -> ValueType {
         match type_def {
-            ValueTypeDef::Empty => ValueType::Unknown,
-            ValueTypeDef::Null => ValueType::Null,
-            ValueTypeDef::Bool => ValueType::Bool,
-            ValueTypeDef::Int => ValueType::Int,
-            ValueTypeDef::Float => ValueType::Float,
-            ValueTypeDef::String => ValueType::String,
-            ValueTypeDef::Date => ValueType::Date,
-            ValueTypeDef::Time => ValueType::Time,
-            ValueTypeDef::DateTime => ValueType::DateTime,
-            ValueTypeDef::Vertex => ValueType::Vertex,
-            ValueTypeDef::Edge => ValueType::Edge,
-            ValueTypeDef::Path => ValueType::Path,
-            ValueTypeDef::List => ValueType::List,
-            ValueTypeDef::Map => ValueType::Map,
-            ValueTypeDef::Set => ValueType::Set,
+            DataType::Empty => ValueType::Unknown,
+            DataType::Null => ValueType::Null,
+            DataType::Bool => ValueType::Bool,
+            DataType::Int => ValueType::Int,
+            DataType::Float => ValueType::Float,
+            DataType::String => ValueType::String,
+            DataType::Date => ValueType::Date,
+            DataType::Time => ValueType::Time,
+            DataType::DateTime => ValueType::DateTime,
+            DataType::Vertex => ValueType::Vertex,
+            DataType::Edge => ValueType::Edge,
+            DataType::Path => ValueType::Path,
+            DataType::List => ValueType::List,
+            DataType::Map => ValueType::Map,
+            DataType::Set => ValueType::Set,
             _ => ValueType::Unknown,
         }
     }
 
-    /// 从 ValueType 转换为 ValueTypeDef
-    pub fn value_type_to_value_type_def(type_: &ValueType) -> ValueTypeDef {
+    /// 从 ValueType 转换为 DataType
+    pub fn value_type_to_value_type_def(type_: &ValueType) -> DataType {
         match type_ {
-            ValueType::Unknown => ValueTypeDef::Empty,
-            ValueType::Bool => ValueTypeDef::Bool,
-            ValueType::Int => ValueTypeDef::Int,
-            ValueType::Float => ValueTypeDef::Float,
-            ValueType::String => ValueTypeDef::String,
-            ValueType::Date => ValueTypeDef::Date,
-            ValueType::Time => ValueTypeDef::Time,
-            ValueType::DateTime => ValueTypeDef::DateTime,
-            ValueType::Vertex => ValueTypeDef::Vertex,
-            ValueType::Edge => ValueTypeDef::Edge,
-            ValueType::Path => ValueTypeDef::Path,
-            ValueType::List => ValueTypeDef::List,
-            ValueType::Map => ValueTypeDef::Map,
-            ValueType::Set => ValueTypeDef::Set,
-            ValueType::Null => ValueTypeDef::Null,
+            ValueType::Unknown => DataType::Empty,
+            ValueType::Bool => DataType::Bool,
+            ValueType::Int => DataType::Int,
+            ValueType::Float => DataType::Float,
+            ValueType::String => DataType::String,
+            ValueType::Date => DataType::Date,
+            ValueType::Time => DataType::Time,
+            ValueType::DateTime => DataType::DateTime,
+            ValueType::Vertex => DataType::Vertex,
+            ValueType::Edge => DataType::Edge,
+            ValueType::Path => DataType::Path,
+            ValueType::List => DataType::List,
+            ValueType::Map => DataType::Map,
+            ValueType::Set => DataType::Set,
+            ValueType::Null => DataType::Null,
         }
     }
 
@@ -885,10 +885,10 @@ mod tests {
         let literal_expr = Expression::Literal(Value::Bool(true));
         let context = ValidationContextImpl::new();
         
-        let result = type_validator.validate_expression_type(&literal_expr, &context, ValueTypeDef::Bool);
+        let result = type_validator.validate_expression_type(&literal_expr, &context, DataType::Bool);
         assert!(result.is_ok());
         
-        let result = type_validator.validate_expression_type(&literal_expr, &context, ValueTypeDef::Int);
+        let result = type_validator.validate_expression_type(&literal_expr, &context, DataType::Int);
         assert!(result.is_err());
     }
 
@@ -896,11 +896,11 @@ mod tests {
     fn test_deduce_binary_expr_type() {
         let type_validator = TypeValidator::new();
         let op = crate::core::BinaryOperator::Equal;
-        let left_type = ValueTypeDef::Int;
-        let right_type = ValueTypeDef::Int;
+        let left_type = DataType::Int;
+        let right_type = DataType::Int;
         
         let result = type_validator.deduce_binary_expr_type(&op, &left_type, &right_type);
-        assert_eq!(result, ValueTypeDef::Bool);
+        assert_eq!(result, DataType::Bool);
     }
 
     #[test]
@@ -908,26 +908,26 @@ mod tests {
         let type_validator = TypeValidator::new();
         
         let count_type = type_validator.deduce_aggregate_return_type(&crate::core::AggregateFunction::Count(None));
-        assert_eq!(count_type, ValueTypeDef::Int);
+        assert_eq!(count_type, DataType::Int);
         
         let sum_type = type_validator.deduce_aggregate_return_type(&crate::core::AggregateFunction::Sum("value".to_string()));
-        assert_eq!(sum_type, ValueTypeDef::Float);
+        assert_eq!(sum_type, DataType::Float);
         
         let avg_type = type_validator.deduce_aggregate_return_type(&crate::core::AggregateFunction::Avg("value".to_string()));
-        assert_eq!(avg_type, ValueTypeDef::Float);
+        assert_eq!(avg_type, DataType::Float);
         
         let collect_type = type_validator.deduce_aggregate_return_type(&crate::core::AggregateFunction::Collect("value".to_string()));
-        assert_eq!(collect_type, ValueTypeDef::List);
+        assert_eq!(collect_type, DataType::List);
     }
 
     #[test]
     fn test_are_types_compatible() {
         let type_validator = TypeValidator::new();
 
-        assert!(type_validator.are_types_compatible(&ValueTypeDef::Int, &ValueTypeDef::Int));
-        assert!(type_validator.are_types_compatible(&ValueTypeDef::Int, &ValueTypeDef::Float));
-        assert!(type_validator.are_types_compatible(&ValueTypeDef::Float, &ValueTypeDef::Int));
-        assert!(type_validator.are_types_compatible(&ValueTypeDef::Empty, &ValueTypeDef::Int));
-        assert!(type_validator.are_types_compatible(&ValueTypeDef::String, &ValueTypeDef::Empty));
+        assert!(type_validator.are_types_compatible(&DataType::Int, &DataType::Int));
+        assert!(type_validator.are_types_compatible(&DataType::Int, &DataType::Float));
+        assert!(type_validator.are_types_compatible(&DataType::Float, &DataType::Int));
+        assert!(type_validator.are_types_compatible(&DataType::Empty, &DataType::Int));
+        assert!(type_validator.are_types_compatible(&DataType::String, &DataType::Empty));
     }
 }

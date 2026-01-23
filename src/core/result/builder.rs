@@ -1,6 +1,6 @@
 use crate::core::value::Value;
 use crate::core::result::Result;
-use crate::core::result::iterator::{r#Iterator as ResultIterator, DefaultIterator, SequentialIterator, GetNeighborsIterator, PropIterator, IteratorType};
+use crate::core::result::iterator::{r#Iterator as ResultIterator, DefaultIterator, GetNeighborsIterator, PropIterator, IteratorType};
 use std::sync::Arc;
 
 /// ResultBuilder
@@ -92,7 +92,6 @@ impl ResultBuilder {
         if let Some(iter_type) = self.iterator_type {
             let iterator: Arc<dyn ResultIterator> = match iter_type {
                 IteratorType::Default => Arc::new(DefaultIterator::new(result.rows().to_vec())),
-                IteratorType::Sequential => Arc::new(SequentialIterator::new(result.rows().to_vec())),
                 IteratorType::GetNeighbors => Arc::new(GetNeighborsIterator::new(vec![], vec![])),
                 IteratorType::Prop => Arc::new(PropIterator::new(result.rows().to_vec())),
             };

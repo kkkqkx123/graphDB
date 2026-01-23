@@ -18,7 +18,7 @@ pub struct SequentialValidator {
     base: Validator,
     statements: Vec<SequentialStatement>,
     max_statements: usize,
-    variables: HashMap<String, crate::core::ValueTypeDef>,
+    variables: HashMap<String, crate::core::DataType>,
 }
 
 impl SequentialValidator {
@@ -126,7 +126,7 @@ impl SequentialValidator {
         self.statements.push(statement);
     }
 
-    pub fn set_variable(&mut self, name: String, type_: crate::core::ValueTypeDef) {
+    pub fn set_variable(&mut self, name: String, type_: crate::core::DataType) {
         self.variables.insert(name, type_);
     }
 

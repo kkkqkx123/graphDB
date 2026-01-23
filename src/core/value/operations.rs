@@ -1,3 +1,9 @@
+//! 值运算模块
+//!
+//! 此模块包含的值运算方法当前未被项目使用。
+/// 算术运算方法保留供将来使用，如果确认不需要可以安全移除。
+/// 当前聚合运算逻辑实现在 query/executor/aggregation.rs 中。
+
 use super::types::Value;
 
 impl Value {
