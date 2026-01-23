@@ -170,8 +170,8 @@ mod tests {
 
         // 创建赋值项
         let assign_items = vec![
-            ("var1".to_string(), Expression::literal(42i64)),
-            ("var2".to_string(), Expression::literal("hello")),
+            ("var1".to_string(), Expr::literal(42i64)),
+            ("var2".to_string(), Expr::literal("hello")),
         ];
 
         let mut executor = AssignExecutor::new(1, storage, assign_items);

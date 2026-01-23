@@ -3,11 +3,9 @@
 //! This module implements a lexical analyzer that converts input query strings into tokens.
 
 use crate::query::parser::core::position::Position;
-use crate::query::parser::core::TokenKind;
 use crate::query::parser::{Token, TokenKind as Tk};
 use crate::query::parser::lexer::LexError;
 use std::iter::Peekable;
-use std::str::Chars;
 
 #[derive(Clone)]
 pub struct Lexer<'a> {
@@ -716,7 +714,6 @@ impl<'a> Lexer<'a> {
                 let start_line = self.line;
                 match self.read_string() {
                     Ok(literal) => {
-                        let end_col = self.column;
                         Token::new(Tk::StringLiteral(literal.clone()), literal, start_line, start_col)
                     }
                     Err(e) => {
@@ -886,19 +883,6 @@ impl<'a> Lexer<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn assert_token(token: &Token, expected_kind: Tk, expected_lexeme: &str) {
-        assert_eq!(
-            token.kind, expected_kind,
-            "Token kind mismatch. Expected: {:?}, Got: {:?}",
-            expected_kind, token.kind
-        );
-        assert_eq!(
-            token.lexeme, expected_lexeme,
-            "Lexeme mismatch for token {:?}. Expected: '{}', Got: '{}'",
-            expected_kind, expected_lexeme, token.lexeme
-        );
-    }
 
     #[test]
     fn test_simple_identifiers() {

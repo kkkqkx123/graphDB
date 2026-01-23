@@ -2,7 +2,7 @@ use super::{StorageEngine, TransactionId};
 use crate::core::{Edge, StorageError, Value, Vertex, EdgeDirection};
 use crate::core::vertex_edge_path::Tag;
 use crate::common::memory::MemoryPool;
-use crate::common::id::{IdGenerator, TagId, EdgeId};
+use crate::common::id::IdGenerator;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -15,10 +15,10 @@ pub struct MemoryStorage {
     edges: Arc<Mutex<HashMap<EdgeKey, Edge>>>,
     vertex_tags: Arc<Mutex<HashMap<String, Vec<VertexKey>>>>,
     edge_types: Arc<Mutex<HashMap<String, Vec<EdgeKey>>>>,
-    vertex_props: Arc<Mutex<HashMap<(String, String, Vec<u8>), Vec<VertexKey>>>>,
     active_transactions: Arc<Mutex<HashMap<TransactionId, TransactionState>>>,
     next_tx_id: Arc<Mutex<TransactionId>>,
-    memory_pool: Arc<MemoryPool>,
+    _vertex_props: Arc<Mutex<HashMap<(String, String, Vec<u8>), Vec<VertexKey>>>>,
+    _memory_pool: Arc<MemoryPool>,
     id_generator: Arc<Mutex<IdGenerator>>,
 }
 
@@ -55,10 +55,10 @@ impl MemoryStorage {
             edges: Arc::new(Mutex::new(HashMap::new())),
             vertex_tags: Arc::new(Mutex::new(HashMap::new())),
             edge_types: Arc::new(Mutex::new(HashMap::new())),
-            vertex_props: Arc::new(Mutex::new(HashMap::new())),
             active_transactions: Arc::new(Mutex::new(HashMap::new())),
             next_tx_id: Arc::new(Mutex::new(1)),
-            memory_pool,
+            _vertex_props: Arc::new(Mutex::new(HashMap::new())),
+            _memory_pool: memory_pool,
             id_generator,
         })
     }

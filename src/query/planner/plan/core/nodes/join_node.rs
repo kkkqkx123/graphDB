@@ -2,7 +2,7 @@
 //!
 //! 包含各种连接节点类型，如内连接、左连接等
 
-use crate::core::Expression;
+use crate::core::Expr;
 use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::SubPlan;
 
@@ -14,8 +14,8 @@ pub struct InnerJoinNode {
     id: i64,
     left: Box<super::plan_node_enum::PlanNodeEnum>,
     right: Box<super::plan_node_enum::PlanNodeEnum>,
-    hash_keys: Vec<Expression>,
-    probe_keys: Vec<Expression>,
+    hash_keys: Vec<Expr>,
+    probe_keys: Vec<Expr>,
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
@@ -28,8 +28,8 @@ impl InnerJoinNode {
     pub fn new(
         left: super::plan_node_enum::PlanNodeEnum,
         right: super::plan_node_enum::PlanNodeEnum,
-        hash_keys: Vec<Expression>,
-        probe_keys: Vec<Expression>,
+        hash_keys: Vec<Expr>,
+        probe_keys: Vec<Expr>,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let mut col_names = left.col_names().to_vec();
         col_names.extend(right.col_names().iter().cloned());
@@ -50,12 +50,12 @@ impl InnerJoinNode {
     }
 
     /// 获取哈希键
-    pub fn hash_keys(&self) -> &[Expression] {
+    pub fn hash_keys(&self) -> &[Expr] {
         &self.hash_keys
     }
 
     /// 获取探测键
-    pub fn probe_keys(&self) -> &[Expression] {
+    pub fn probe_keys(&self) -> &[Expr] {
         &self.probe_keys
     }
 
@@ -1078,8 +1078,8 @@ mod tests {
                 StartNode::new(),
             );
 
-        let hash_keys = vec![Expression::Variable("key".to_string())];
-        let probe_keys = vec![Expression::Variable("key".to_string())];
+        let hash_keys = vec![Expr::Variable("key".to_string())];
+        let probe_keys = vec![Expr::Variable("key".to_string())];
 
         let join_node = InnerJoinNode::new(left_node, right_node, hash_keys, probe_keys)
             .expect("Join node should be created successfully");
@@ -1101,8 +1101,8 @@ mod tests {
                 StartNode::new(),
             );
 
-        let hash_keys = vec![Expression::Variable("key".to_string())];
-        let probe_keys = vec![Expression::Variable("key".to_string())];
+        let hash_keys = vec![Expr::Variable("key".to_string())];
+        let probe_keys = vec![Expr::Variable("key".to_string())];
 
         let join_node =
             InnerJoinNode::new(left_node.clone(), right_node.clone(), hash_keys, probe_keys)

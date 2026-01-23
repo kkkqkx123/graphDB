@@ -33,9 +33,9 @@ pub struct DeduceTypeVisitor<'a, S: StorageEngine> {
     /// 存储引擎
     _storage: &'a S,
     /// 验证上下文
-    validate_context: &'a ValidationContext,
+    _validate_context: &'a ValidationContext,
     /// 输入列定义：列名 -> 列类型
-    inputs: Vec<(String, DataType)>,
+    _inputs: Vec<(String, DataType)>,
     /// 图空间ID
     _space: String,
     /// 当前推导状态
@@ -60,8 +60,8 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
 
         Self {
             _storage: storage,
-            validate_context,
-            inputs,
+            _validate_context: validate_context,
+            _inputs: inputs,
             _space: space,
             status: None,
             type_: DataType::Empty,
@@ -107,31 +107,6 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     pub fn deduce_type(&mut self, expr: &Expr) -> Result<DataType, TypeDeductionError> {
         self.visit_expression(expr)?;
         Ok(self.type_.clone())
-    }
-
-    /// 推导字面量表达式的类型
-    fn deduce_literal_type(&mut self, value: &crate::core::Value) -> Result<(), TypeDeductionError> {
-        self.type_ = match value {
-            Value::Bool(_) => DataType::Bool,
-            Value::Int(_) => DataType::Int,
-            Value::Float(_) => DataType::Float,
-            Value::String(_) => DataType::String,
-            Value::Null(_) => DataType::Null,
-            Value::Empty => DataType::Empty,
-            Value::Date(_) => DataType::Date,
-            Value::Time(_) => DataType::Time,
-            Value::DateTime(_) => DataType::DateTime,
-            Value::Vertex(_) => DataType::Vertex,
-            Value::Edge(_) => DataType::Edge,
-            Value::Path(_) => DataType::Path,
-            Value::List(_) => DataType::List,
-            Value::Map(_) => DataType::Map,
-            Value::Set(_) => DataType::Set,
-            Value::Geography(_) => DataType::Geography,
-            Value::Duration(_) => DataType::Duration,
-            Value::DataSet(_) => DataType::DataSet,
-        };
-        Ok(())
     }
 
     /// 推导二元操作符的类型
@@ -247,15 +222,6 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
         Ok(())
     }
 
-    /// 推导属性表达式的类型
-
-    fn deduce_property_type(&mut self, _property: &str) -> Result<(), TypeDeductionError> {
-        // 属性访问的结果类型需要根据上下文来确定
-        // 简化实现，返回Empty类型
-        self.type_ = DataType::Empty;
-        Ok(())
-    }
-
     /// 推导函数调用表达式的类型
     fn deduce_function_call_type(
         &mut self,
@@ -322,14 +288,46 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     }
 
     fn visit_property(&mut self, object: &Expr, property: &str) -> Result<(), TypeDeductionError> {
-        // 推导属性访问表达式的类型
-        // 先推导对象类型，再获取属性类型
         self.visit_expression(object)?;
-        
-        // 在实际实现中，这里会根据对象的schema来确定属性类型
-        // 简化实现，返回Empty类型
-        self.type_ = DataType::Empty;
+
+        let object_type = self.type_.clone();
+
+        self.type_ = match object_type {
+            DataType::Vertex => {
+                self.resolve_vertex_property_type(property)
+            }
+            DataType::Edge => {
+                self.resolve_edge_property_type(property)
+            }
+            DataType::Map => {
+                DataType::Empty
+            }
+            DataType::Empty | DataType::Null | DataType::List | DataType::Set | DataType::Path => {
+                DataType::Empty
+            }
+            _ => DataType::Empty,
+        };
+
         Ok(())
+    }
+
+    fn resolve_vertex_property_type(&self, property: &str) -> DataType {
+        match property.to_lowercase().as_str() {
+            "id" => DataType::String,
+            "tag" | "tags" => DataType::List,
+            _ => DataType::Empty,
+        }
+    }
+
+    fn resolve_edge_property_type(&self, property: &str) -> DataType {
+        match property.to_lowercase().as_str() {
+            "src" | "src_id" => DataType::String,
+            "dst" | "dst_id" => DataType::String,
+            "type" | "edge_type" => DataType::Int,
+            "rank" => DataType::Int,
+            "name" => DataType::String,
+            _ => DataType::Empty,
+        }
     }
 
     fn visit_variable(&mut self, _name: &str) -> Result<(), TypeDeductionError> {
@@ -347,28 +345,6 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     /// 优越类型包括NULL和EMPTY，它们可以与任何类型兼容
     fn is_superior_type(&self, type_: &DataType) -> bool {
         TypeUtils::is_superior_type(type_)
-    }
-
-    /// 将字符串解析为DataType
-
-    fn parse_type_def(&self, type_str: &str) -> DataType {
-        match type_str.to_uppercase().as_str() {
-            "INT" => DataType::Int,
-            "FLOAT" | "DOUBLE" => DataType::Float,
-            "STRING" => DataType::String,
-            "BOOL" => DataType::Bool,
-            "DATE" => DataType::Date,
-            "TIME" => DataType::Time,
-            "DATETIME" => DataType::DateTime,
-            "VERTEX" => DataType::Vertex,
-            "EDGE" => DataType::Edge,
-            "PATH" => DataType::Path,
-            "LIST" => DataType::List,
-            "SET" => DataType::Set,
-            "MAP" => DataType::Map,
-            "NULL" => DataType::Null,
-            _ => DataType::Empty,
-        }
     }
 
     /// 将DataType解析为DataType
@@ -479,7 +455,19 @@ impl<'a, S: StorageEngine> ExpressionVisitor for DeduceTypeVisitor<'a, S> {
     }
 
     fn visit_list(&mut self, items: &[Expression]) -> Self::Result {
-        self.visit_list(items)
+        if items.is_empty() {
+            self.type_ = DataType::List;
+            return Ok(());
+        }
+
+        let mut item_types: Vec<DataType> = Vec::new();
+        for item in items {
+            self.visit_expression(item)?;
+            item_types.push(self.type_.clone());
+        }
+
+        self.type_ = DataType::List;
+        Ok(())
     }
 
     fn visit_map(&mut self, pairs: &[(String, Expression)]) -> Self::Result {
@@ -768,83 +756,6 @@ mod tests {
             TypeUtils::get_common_type(&DataType::Null, &DataType::String),
             DataType::String
         );
-    }
-}
-
-/// DeduceTypeVisitor构建器
-///
-/// 提供链式API构建DeduceTypeVisitor实例
-pub struct DeduceTypeVisitorBuilder<'a, S: StorageEngine> {
-    storage: Option<&'a S>,
-    validate_context: Option<&'a ValidationContext>,
-    inputs: Vec<(String, DataType)>,
-    space: Option<String>,
-    vid_type: DataType,
-}
-
-impl<'a, S: StorageEngine> DeduceTypeVisitorBuilder<'a, S> {
-    /// 创建新的构建器
-    pub fn new() -> Self {
-        Self {
-            storage: None,
-            validate_context: None,
-            inputs: Vec::new(),
-            space: None,
-            vid_type: DataType::String,
-        }
-    }
-
-    /// 设置存储引擎
-    pub fn with_storage(mut self, storage: &'a S) -> Self {
-        self.storage = Some(storage);
-        self
-    }
-
-    /// 设置验证上下文
-    pub fn with_validate_context(mut self, validate_context: &'a ValidationContext) -> Self {
-        self.validate_context = Some(validate_context);
-        self
-    }
-
-    /// 设置输入列定义
-    pub fn with_inputs(mut self, inputs: Vec<(String, DataType)>) -> Self {
-        self.inputs = inputs;
-        self
-    }
-
-    /// 添加输入列定义
-    pub fn add_input(mut self, name: String, type_: DataType) -> Self {
-        self.inputs.push((name, type_));
-        self
-    }
-
-    /// 设置图空间
-    pub fn with_space(mut self, space: String) -> Self {
-        self.space = Some(space);
-        self
-    }
-
-    /// 设置VID类型
-    pub fn with_vid_type(mut self, vid_type: DataType) -> Self {
-        self.vid_type = vid_type;
-        self
-    }
-
-    /// 构建DeduceTypeVisitor实例
-    pub fn build(self) -> DeduceTypeVisitor<'a, S> {
-        let storage = self.storage.expect("存储引擎必须设置");
-        let validate_context = self.validate_context.expect("验证上下文必须设置");
-        let space = self.space.unwrap_or_else(|| "default".to_string());
-
-        let mut visitor = DeduceTypeVisitor::new(storage, validate_context, self.inputs, space);
-        visitor.set_vid_type(self.vid_type);
-        visitor
-    }
-}
-
-impl<'a, S: StorageEngine> Default for DeduceTypeVisitorBuilder<'a, S> {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

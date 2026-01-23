@@ -1,7 +1,7 @@
 //! 表达式类型验证系统
 //! 负责验证表达式的类型信息（类型推导使用 DeduceTypeVisitor）
 
-use crate::core::Expression;
+use crate::core::Expr;
 use crate::core::DataType;
 use crate::core::AggregateFunction;
 use crate::core::BinaryOperator;
@@ -48,8 +48,8 @@ impl TypeValidator {
 
     /// 获取类型的默认值
     /// 使用 TypeUtils 的统一实现
-    pub fn get_default_value(&self, type_def: &DataType) -> Option<Expression> {
-        TypeUtils::get_default_value(type_def).map(|v| Expression::Literal(v))
+    pub fn get_default_value(&self, type_def: &DataType) -> Option<Expr> {
+        TypeUtils::get_default_value(type_def).map(|v| Expr::Literal(v))
     }
 
     /// 验证类型是否可以强制转换
@@ -73,7 +73,7 @@ impl TypeValidator {
     /// 验证表达式类型
     pub fn validate_expression_type<C: ExpressionValidationContext>(
         &self,
-        expr: &Expression,
+        expr: &Expr,
         context: &C,
         expected_type: DataType,
     ) -> Result<(), ValidationError> {
@@ -83,12 +83,12 @@ impl TypeValidator {
     /// 完整的表达式类型验证（使用上下文）
     pub fn validate_expression_type_full<C: ExpressionValidationContext>(
         &self,
-        expr: &Expression,
+        expr: &Expr,
         context: &C,
         expected_type: DataType,
     ) -> Result<(), ValidationError> {
         match expr {
-            Expression::Literal(value) => {
+            Expr::Literal(value) => {
                 let actual_type = value.get_type();
                 if self.are_types_compatible(&actual_type, &expected_type) {
                     Ok(())
@@ -102,19 +102,19 @@ impl TypeValidator {
                     ))
                 }
             }
-            Expression::Binary { op, left, right } => {
+            Expr::Binary { op, left, right } => {
                 self.validate_binary_expression_type(op, left, right, context, expected_type)
             }
-            Expression::Unary { op, operand } => {
+            Expr::Unary { op, operand } => {
                 self.validate_unary_expression_type(op, operand, context, expected_type)
             }
-            Expression::Function { name, args } => {
+            Expr::Function { name, args } => {
                 self.validate_function_return_type(name, args, context, expected_type)
             }
-            Expression::Aggregate { func, arg: _, distinct: _ } => {
+            Expr::Aggregate { func, arg: _, distinct: _ } => {
                 self.validate_aggregate_return_type(func, expected_type)
             }
-            Expression::Variable(name) => {
+            Expr::Variable(name) => {
                 self.validate_variable_type(name, context, expected_type)
             }
             _ => {
@@ -138,8 +138,8 @@ impl TypeValidator {
     fn validate_binary_expression_type<C: ExpressionValidationContext>(
         &self,
         op: &crate::core::BinaryOperator,
-        left: &Expression,
-        right: &Expression,
+        left: &Expr,
+        right: &Expr,
         context: &C,
         expected_type: DataType,
     ) -> Result<(), ValidationError> {
@@ -316,14 +316,14 @@ impl TypeValidator {
     }
 
     /// 简化的表达式类型推导
-    pub fn deduce_expression_type_simple(&self, expr: &Expression) -> DataType {
+    pub fn deduce_expression_type_simple(&self, expr: &Expr) -> DataType {
         match expr {
-            Expression::Literal(value) => value.get_type(),
-            Expression::Variable(_) => DataType::Empty,
-            Expression::Binary { op, .. } => self.deduce_binary_expr_type_simple(op),
-            Expression::Unary { op, .. } => self.deduce_unary_expr_type_simple(op),
-            Expression::Function { name, .. } => self.deduce_function_return_type_simple(name),
-            Expression::Aggregate { func, .. } => self.deduce_aggregate_return_type(func),
+            Expr::Literal(value) => value.get_type(),
+            Expr::Variable(_) => DataType::Empty,
+            Expr::Binary { op, .. } => self.deduce_binary_expr_type_simple(op),
+            Expr::Unary { op, .. } => self.deduce_unary_expr_type_simple(op),
+            Expr::Function { name, .. } => self.deduce_function_return_type_simple(name),
+            Expr::Aggregate { func, .. } => self.deduce_aggregate_return_type(func),
             _ => DataType::Empty,
         }
     }
@@ -331,12 +331,12 @@ impl TypeValidator {
     /// 完整的表达式类型推导（使用上下文）
     pub fn deduce_expression_type_full<C: ExpressionValidationContext>(
         &self,
-        expr: &Expression,
+        expr: &Expr,
         context: &C,
     ) -> DataType {
         match expr {
-            Expression::Literal(value) => value.get_type(),
-            Expression::Variable(name) => {
+            Expr::Literal(value) => value.get_type(),
+            Expr::Variable(name) => {
                 if let Some(var_types) = context.get_variable_types() {
                     if let Some(var_type) = var_types.get(name) {
                         return var_type.clone();
@@ -344,19 +344,19 @@ impl TypeValidator {
                 }
                 DataType::Empty
             }
-            Expression::Binary { op, left, right } => {
+            Expr::Binary { op, left, right } => {
                 let left_type = self.deduce_expression_type_full(left, context);
                 let right_type = self.deduce_expression_type_full(right, context);
                 self.deduce_binary_expr_type(op, &left_type, &right_type)
             }
-            Expression::Unary { op, operand } => {
+            Expr::Unary { op, operand } => {
                 let operand_type = self.deduce_expression_type_full(operand, context);
                 self.deduce_unary_expr_type(op, &operand_type)
             }
-            Expression::Function { name, args } => {
+            Expr::Function { name, args } => {
                 self.deduce_function_return_type(name, args, context)
             }
-            Expression::Aggregate { func, .. } => self.deduce_aggregate_return_type(func),
+            Expr::Aggregate { func, .. } => self.deduce_aggregate_return_type(func),
             _ => DataType::Empty,
         }
     }
@@ -488,21 +488,21 @@ impl TypeValidator {
     }
 
     /// 检查表达式是否包含聚合函数
-    pub fn has_aggregate_expression(&self, expr: &Expression) -> bool {
+    pub fn has_aggregate_expression(&self, expr: &Expr) -> bool {
         match expr {
-            Expression::Aggregate { .. } => true,
-            Expression::Binary { left, right, .. } => {
+            Expr::Aggregate { .. } => true,
+            Expr::Binary { left, right, .. } => {
                 self.has_aggregate_expression(left) || self.has_aggregate_expression(right)
             }
-            Expression::Unary { operand, .. } => self.has_aggregate_expression(operand),
-            Expression::Function { args, .. } => {
+            Expr::Unary { operand, .. } => self.has_aggregate_expression(operand),
+            Expr::Function { args, .. } => {
                 args.iter().any(|arg| self.has_aggregate_expression(arg))
             }
-            Expression::List(items) => items.iter().any(|item| self.has_aggregate_expression(item)),
-            Expression::Map(pairs) => {
+            Expr::List(items) => items.iter().any(|item| self.has_aggregate_expression(item)),
+            Expr::Map(pairs) => {
                 pairs.iter().any(|(_, value)| self.has_aggregate_expression(value))
             }
-            Expression::Case {
+            Expr::Case {
                 conditions,
                 default,
             } => {
@@ -510,11 +510,11 @@ impl TypeValidator {
                     self.has_aggregate_expression(when_expr) || self.has_aggregate_expression(then_expr)
                 }) || default.as_ref().map_or(false, |d| self.has_aggregate_expression(d))
             }
-            Expression::Property { object, .. } => self.has_aggregate_expression(object),
-            Expression::Subscript { collection, index } => {
+            Expr::Property { object, .. } => self.has_aggregate_expression(object),
+            Expr::Subscript { collection, index } => {
                 self.has_aggregate_expression(collection) || self.has_aggregate_expression(index)
             }
-            Expression::Range {
+            Expr::Range {
                 collection,
                 start,
                 end,
@@ -523,8 +523,8 @@ impl TypeValidator {
                     || start.as_ref().map_or(false, |s| self.has_aggregate_expression(s))
                     || end.as_ref().map_or(false, |e| self.has_aggregate_expression(e))
             }
-            Expression::Path(items) => items.iter().any(|item| self.has_aggregate_expression(item)),
-            Expression::TypeCast { expr, .. } => self.has_aggregate_expression(expr),
+            Expr::Path(items) => items.iter().any(|item| self.has_aggregate_expression(item)),
+            Expr::TypeCast { expr, .. } => self.has_aggregate_expression(expr),
             _ => false,
         }
     }
@@ -532,7 +532,7 @@ impl TypeValidator {
     /// 验证分组键类型
     pub fn validate_group_key_type<C: ExpressionValidationContext>(
         &self,
-        group_key: &Expression,
+        group_key: &Expr,
         context: &C,
     ) -> Result<(), ValidationError> {
         let key_type = self.deduce_expression_type_full(group_key, context);
@@ -599,37 +599,37 @@ impl TypeValidator {
     }
 
     /// 完整的表达式类型推导（增强版）
-    pub fn deduce_expr_type(&self, expr: &Expression) -> ValueType {
+    pub fn deduce_expr_type(&self, expr: &Expr) -> ValueType {
         match expr {
-            Expression::Literal(value) => {
+            Expr::Literal(value) => {
                 Self::value_type_def_to_value_type(&value.get_type())
             }
-            Expression::Variable(_) => {
+            Expr::Variable(_) => {
                 ValueType::Unknown
             }
-            Expression::Property { object, property: _ } => {
+            Expr::Property { object, property: _ } => {
                 self.deduce_expr_type(object)
             }
-            Expression::Binary { op, left, right } => {
+            Expr::Binary { op, left, right } => {
                 let left_type = self.deduce_expr_type(left);
                 let right_type = self.deduce_expr_type(right);
                 self.deduce_binary_expr_type_enhanced(op, &left_type, &right_type)
             }
-            Expression::Unary { op, operand } => {
+            Expr::Unary { op, operand } => {
                 let operand_type = self.deduce_expr_type(operand);
                 self.deduce_unary_expr_type_enhanced(op, &operand_type)
             }
-            Expression::Function { name, args } => {
+            Expr::Function { name, args } => {
                 self.deduce_function_type_enhanced(name, args)
             }
-            Expression::Aggregate { func, arg: _, distinct: _ } => {
+            Expr::Aggregate { func, arg: _, distinct: _ } => {
                 self.deduce_aggregate_type_enhanced(func)
             }
-            Expression::List(_) => {
+            Expr::List(_) => {
                 ValueType::List
             }
-            Expression::Map(_) => ValueType::Map,
-            Expression::Case { conditions, default } => {
+            Expr::Map(_) => ValueType::Map,
+            Expr::Case { conditions, default } => {
                 for (_, then_expr) in conditions {
                     let then_type = self.deduce_expr_type(then_expr);
                     if then_type != ValueType::Unknown {
@@ -641,17 +641,17 @@ impl TypeValidator {
                 }
                 ValueType::Unknown
             }
-            Expression::TypeCast { expr: _, target_type: _ } => {
+            Expr::TypeCast { expr: _, target_type: _ } => {
                 ValueType::Unknown
             }
-            Expression::Subscript { collection, index: _ } => {
+            Expr::Subscript { collection, index: _ } => {
                 self.deduce_expr_type(collection)
             }
-            Expression::Range { collection, start: _, end: _ } => {
+            Expr::Range { collection, start: _, end: _ } => {
                 self.deduce_expr_type(collection)
             }
-            Expression::Path(_) => ValueType::Path,
-            Expression::Label(_) => ValueType::String,
+            Expr::Path(_) => ValueType::Path,
+            Expr::Label(_) => ValueType::String,
             _ => ValueType::Unknown,
         }
     }
@@ -781,9 +781,9 @@ impl TypeValidator {
     }
 
     /// 表达式常量折叠（增强版）
-    pub fn fold_constant_expr_enhanced(&self, expr: &Expression) -> Option<Expression> {
+    pub fn fold_constant_expr_enhanced(&self, expr: &Expr) -> Option<Expr> {
         match expr {
-            Expression::Binary { op, left, right } => {
+            Expr::Binary { op, left, right } => {
                 if let Some(lit_left) = self.fold_constant_expr_enhanced(left) {
                     if let Some(lit_right) = self.fold_constant_expr_enhanced(right) {
                         return self.evaluate_binary_expr_enhanced(op, &lit_left, &lit_right);
@@ -791,7 +791,7 @@ impl TypeValidator {
                 }
                 None
             }
-            Expression::Unary { op, operand } => {
+            Expr::Unary { op, operand } => {
                 if let Some(lit_operand) = self.fold_constant_expr_enhanced(operand) {
                     return self.evaluate_unary_expr_enhanced(op, &lit_operand);
                 }
@@ -805,23 +805,23 @@ impl TypeValidator {
     fn evaluate_binary_expr_enhanced(
         &self,
         op: &BinaryOperator,
-        left: &Expression,
-        right: &Expression,
-    ) -> Option<Expression> {
+        left: &Expr,
+        right: &Expr,
+    ) -> Option<Expr> {
         match (left, right) {
-            (Expression::Literal(l), Expression::Literal(r)) => {
+            (Expr::Literal(l), Expr::Literal(r)) => {
                 let result = self.compute_binary_op_enhanced(op, l, r)?;
-                Some(Expression::Literal(result))
+                Some(Expr::Literal(result))
             }
             _ => None,
         }
     }
 
     /// 计算一元表达式的常量值（增强版）
-    fn evaluate_unary_expr_enhanced(&self, op: &UnaryOperator, operand: &Expression) -> Option<Expression> {
-        if let Expression::Literal(val) = operand {
+    fn evaluate_unary_expr_enhanced(&self, op: &UnaryOperator, operand: &Expr) -> Option<Expr> {
+        if let Expr::Literal(val) = operand {
             let result = self.compute_unary_op_enhanced(op, val)?;
-            Some(Expression::Literal(result))
+            Some(Expr::Literal(result))
         } else {
             None
         }
@@ -882,7 +882,7 @@ mod tests {
     #[test]
     fn test_validate_literal_type() {
         let type_validator = TypeValidator::new();
-        let literal_expr = Expression::Literal(Value::Bool(true));
+        let literal_expr = Expr::Literal(Value::Bool(true));
         let context = ValidationContextImpl::new();
         
         let result = type_validator.validate_expression_type(&literal_expr, &context, DataType::Bool);

@@ -4,7 +4,7 @@
 
 use super::base_validator::Validator;
 use super::ValidationContext;
-use crate::core::Expression;
+use crate::core::Expr;
 use crate::query::validator::ValidationError;
 use crate::query::validator::ValidationErrorType;
 use std::collections::HashMap;
@@ -20,14 +20,14 @@ pub enum SetStatementType {
 #[derive(Debug, Clone)]
 pub struct SetItem {
     pub statement_type: SetStatementType,
-    pub target: Expression,
-    pub value: Expression,
+    pub target: Expr,
+    pub value: Expr,
 }
 
 pub struct SetValidator {
     base: Validator,
     set_items: Vec<SetItem>,
-    variables: HashMap<String, Expression>,
+    variables: HashMap<String, Expr>,
 }
 
 impl SetValidator {
@@ -54,7 +54,7 @@ impl SetValidator {
     fn validate_set_item(&self, item: &SetItem) -> Result<(), ValidationError> {
         match item.statement_type {
             SetStatementType::SetVariable => {
-                if let Expression::Variable(name) = &item.target {
+                if let Expr::Variable(name) = &item.target {
                     if name.is_empty() {
                         return Err(ValidationError::new(
                             "Variable name cannot be empty".to_string(),
@@ -75,7 +75,7 @@ impl SetValidator {
                 }
             }
             SetStatementType::SetTag => {
-                if !matches!(&item.target, Expression::Property { .. }) {
+                if !matches!(&item.target, Expr::Property { .. }) {
                     return Err(ValidationError::new(
                         "SET tag must target a property expression".to_string(),
                         ValidationErrorType::SemanticError,
@@ -83,7 +83,7 @@ impl SetValidator {
                 }
             }
             SetStatementType::SetEdge => {
-                if !matches!(&item.target, Expression::Property { .. }) {
+                if !matches!(&item.target, Expr::Property { .. }) {
                     return Err(ValidationError::new(
                         "SET edge must target a property expression".to_string(),
                         ValidationErrorType::SemanticError,
@@ -97,9 +97,9 @@ impl SetValidator {
         Ok(())
     }
 
-    fn validate_priority_value(&self, value: &Expression) -> Result<(), ValidationError> {
+    fn validate_priority_value(&self, value: &Expr) -> Result<(), ValidationError> {
         match value {
-            Expression::Literal(lit) => {
+            Expr::Literal(lit) => {
                 if let crate::core::Value::Int(n) = lit {
                     if *n < 0 {
                         return Err(ValidationError::new(
@@ -133,31 +133,31 @@ impl SetValidator {
         Ok(())
     }
 
-    fn validate_expression(&self, expr: &Expression) -> Result<(), ValidationError> {
+    fn validate_expression(&self, expr: &Expr) -> Result<(), ValidationError> {
         match expr {
-            Expression::Binary { left, right, .. } => {
+            Expr::Binary { left, right, .. } => {
                 self.validate_expression(left)?;
                 self.validate_expression(right)?;
             }
-            Expression::Unary { operand, .. } => {
+            Expr::Unary { operand, .. } => {
                 self.validate_expression(operand)?;
             }
-            Expression::Function { args, .. } => {
+            Expr::Function { args, .. } => {
                 for arg in args {
                     self.validate_expression(arg)?;
                 }
             }
-            Expression::List(items) => {
+            Expr::List(items) => {
                 for item in items {
                     self.validate_expression(item)?;
                 }
             }
-            Expression::Map(pairs) => {
+            Expr::Map(pairs) => {
                 for (_, value) in pairs {
                     self.validate_expression(value)?;
                 }
             }
-            Expression::Case { conditions, default, .. } => {
+            Expr::Case { conditions, default, .. } => {
                 for (condition, expr) in conditions {
                     self.validate_expression(condition)?;
                     self.validate_expression(expr)?;
@@ -166,14 +166,14 @@ impl SetValidator {
                     self.validate_expression(default_expr)?;
                 }
             }
-            Expression::TypeCast { expr, .. } => {
+            Expr::TypeCast { expr, .. } => {
                 self.validate_expression(expr)?;
             }
-            Expression::Subscript { collection, index } => {
+            Expr::Subscript { collection, index } => {
                 self.validate_expression(collection)?;
                 self.validate_expression(index)?;
             }
-            Expression::Range { collection, start, end } => {
+            Expr::Range { collection, start, end } => {
                 self.validate_expression(collection)?;
                 if let Some(start_expr) = start {
                     self.validate_expression(start_expr)?;
@@ -182,7 +182,7 @@ impl SetValidator {
                     self.validate_expression(end_expr)?;
                 }
             }
-            Expression::Path(items) => {
+            Expr::Path(items) => {
                 for item in items {
                     self.validate_expression(item)?;
                 }

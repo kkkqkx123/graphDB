@@ -48,7 +48,7 @@ impl GetVerticesNode {
         Self {
             id: -1,
             space_id,
-            src_ref: Expression::Variable(src_vids.to_string()),
+            src_ref: Expr::Variable(src_vids.to_string()),
             src_vids: src_vids.to_string(),
             tag_props: Vec::new(),
             expr: None,
@@ -248,7 +248,7 @@ impl GetEdgesNode {
         Self {
             id: -1,
             space_id,
-            edge_ref: Expression::Variable(format!("{}->{}@{}", src, dst, edge_type)),
+            edge_ref: Expr::Variable(format!("{}->{}@{}", src, dst, edge_type)),
             src: src.to_string(),
             edge_type: edge_type.to_string(),
             rank: rank.to_string(),

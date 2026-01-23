@@ -385,7 +385,7 @@ mod tests {
         context.set_result("input".to_string(), input_result);
 
         // 创建UnwindExecutor
-        let unwind_expr = Expression::Variable("_".to_string());
+        let unwind_expr = Expr::Variable("_".to_string());
         let mut executor = UnwindExecutor::with_context(
             1,
             storage,

@@ -388,7 +388,7 @@ mod tests {
         // 创建简单的投影：选择第一列
         let columns = vec![ProjectionColumn::new(
             "projected_col1".to_string(),
-            Expression::Variable("col1".to_string()),
+            Expr::Variable("col1".to_string()),
         )];
 
         let mut executor = ProjectExecutor::new(1, storage, columns);
@@ -432,10 +432,10 @@ mod tests {
         // 创建表达式投影：计算两列之和
         let columns = vec![ProjectionColumn::new(
             "sum".to_string(),
-            Expression::Binary {
-                left: Box::new(Expression::Variable("col1".to_string())),
+            Expr::Binary {
+                left: Box::new(Expr::Variable("col1".to_string())),
                 op: BinaryOperator::Add,
-                right: Box::new(Expression::Variable("col2".to_string())),
+                right: Box::new(Expr::Variable("col2".to_string())),
             },
         )];
 
@@ -481,11 +481,11 @@ mod tests {
         let columns = vec![
             ProjectionColumn::new(
                 "vertex_id".to_string(),
-                Expression::Variable("id".to_string()),
+                Expr::Variable("id".to_string()),
             ),
             ProjectionColumn::new(
                 "name".to_string(),
-                Expression::Variable("name".to_string()),
+                Expr::Variable("name".to_string()),
             ),
         ];
 
@@ -555,15 +555,15 @@ mod tests {
         let columns = vec![
             ProjectionColumn::new(
                 "src_id".to_string(),
-                Expression::Variable("src".to_string()),
+                Expr::Variable("src".to_string()),
             ),
             ProjectionColumn::new(
                 "dst_id".to_string(),
-                Expression::Variable("dst".to_string()),
+                Expr::Variable("dst".to_string()),
             ),
             ProjectionColumn::new(
                 "edge_type".to_string(),
-                Expression::Variable("edge_type".to_string()),
+                Expr::Variable("edge_type".to_string()),
             ),
         ];
 

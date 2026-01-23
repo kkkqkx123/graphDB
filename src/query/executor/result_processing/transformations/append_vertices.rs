@@ -418,7 +418,7 @@ mod tests {
         let mut context = crate::query::executor::base::ExecutionContext::new();
         context.set_result("input".to_string(), input_result);
 
-        let src_expr = Expression::Variable("_".to_string());
+        let src_expr = Expr::Variable("_".to_string());
         let mut executor = AppendVerticesExecutor::with_context(
             1,
             storage,

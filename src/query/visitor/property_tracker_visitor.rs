@@ -12,7 +12,6 @@ use crate::core::{
 };
 use crate::core::types::operators::AggregateFunction;
 use crate::expression::Expr;
-use crate::query::parser::ast::expr::*;
 use std::collections::{HashMap, HashSet};
 
 /// 属性跟踪器
@@ -132,8 +131,6 @@ impl PropertyTracker {
 pub struct PropertyTrackerVisitor {
     /// 属性跟踪器
     props_used: PropertyTracker,
-    /// 当前实体别名
-    entity_alias: Option<String>,
     /// 错误状态
     error: Option<String>,
     /// 访问者状态
@@ -145,7 +142,6 @@ impl PropertyTrackerVisitor {
     pub fn new() -> Self {
         Self {
             props_used: PropertyTracker::new(),
-            entity_alias: None,
             error: None,
             state: ExpressionVisitorState::new(),
         }
@@ -155,7 +151,6 @@ impl PropertyTrackerVisitor {
     pub fn with_alias(alias: String) -> Self {
         Self {
             props_used: PropertyTracker::new(),
-            entity_alias: Some(alias),
             error: None,
             state: ExpressionVisitorState::new(),
         }
@@ -178,11 +173,6 @@ impl PropertyTrackerVisitor {
     /// 获取属性跟踪器
     pub fn get_props_used(&self) -> &PropertyTracker {
         &self.props_used
-    }
-
-    /// 设置错误信息
-    fn set_error(&mut self, error: String) {
-        self.error = Some(error);
     }
 }
 

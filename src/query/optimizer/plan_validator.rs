@@ -2,7 +2,7 @@
 //!
 //! 提供计划验证功能，确保优化后的计划是正确的
 
-use crate::expression::Expression;
+use crate::core::types::expression::Expr;
 use crate::query::optimizer::optimizer::{OptContext, OptGroup, OptGroupNode};
 use crate::query::optimizer::OptimizerError;
 use std::collections::HashMap;
@@ -288,31 +288,31 @@ impl PlanValidator {
     }
 
     /// 验证表达式
-    fn validate_expression(expr: &Expression) -> Result<(), OptimizerError> {
+    fn validate_expression(expr: &Expr) -> Result<(), OptimizerError> {
         match expr {
-            Expression::Binary { left, right, .. } => {
+            Expr::Binary { left, right, .. } => {
                 Self::validate_expression(left)?;
                 Self::validate_expression(right)?;
             }
-            Expression::Unary { operand, .. } => {
+            Expr::Unary { operand, .. } => {
                 Self::validate_expression(operand)?;
             }
-            Expression::Function { args, .. } => {
+            Expr::Function { args, .. } => {
                 for arg in args {
                     Self::validate_expression(arg)?;
                 }
             }
-            Expression::List(items) => {
+            Expr::List(items) => {
                 for item in items {
                     Self::validate_expression(item)?;
                 }
             }
-            Expression::Map(pairs) => {
+            Expr::Map(pairs) => {
                 for (_, value) in pairs {
                     Self::validate_expression(value)?;
                 }
             }
-            Expression::Case { conditions, default, .. } => {
+            Expr::Case { conditions, default, .. } => {
                 for (condition, expr) in conditions {
                     Self::validate_expression(condition)?;
                     Self::validate_expression(expr)?;
@@ -321,14 +321,14 @@ impl PlanValidator {
                     Self::validate_expression(default_expr)?;
                 }
             }
-            Expression::TypeCast { expr, .. } => {
+            Expr::TypeCast { expr, .. } => {
                 Self::validate_expression(expr)?;
             }
-            Expression::Subscript { collection, index } => {
+            Expr::Subscript { collection, index } => {
                 Self::validate_expression(collection)?;
                 Self::validate_expression(index)?;
             }
-            Expression::Range { collection, start, end } => {
+            Expr::Range { collection, start, end } => {
                 Self::validate_expression(collection)?;
                 if let Some(start_expr) = start {
                     Self::validate_expression(start_expr)?;
@@ -337,7 +337,7 @@ impl PlanValidator {
                     Self::validate_expression(end_expr)?;
                 }
             }
-            Expression::Path(items) => {
+            Expr::Path(items) => {
                 for item in items {
                     Self::validate_expression(item)?;
                 }
@@ -435,22 +435,16 @@ impl PlanValidator {
 mod tests {
     use super::*;
     use crate::query::context::execution::QueryContext;
-    use crate::api::session::session_manager::SessionInfo;
-    use crate::expression::Expression;
-    use crate::query::optimizer::optimizer::{OptContext, OptGroup, OptGroupNode};
+    use crate::core::types::expression::Expr;
+    use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
     use crate::query::planner::plan::PlanNodeEnum;
-
-    fn create_test_context() -> OptContext {
-        let query_context = QueryContext::new();
-        OptContext::new(query_context)
-    }
 
     #[test]
     fn test_validate_expression() {
-        let expr = Expression::Binary {
-            left: Box::new(Expression::Variable("x".to_string())),
+        let expr = Expr::Binary {
+            left: Box::new(Expr::Variable("x".to_string())),
             op: crate::core::types::operators::BinaryOperator::Equal,
-            right: Box::new(Expression::Literal(crate::core::Value::Int(42))),
+            right: Box::new(Expr::Literal(crate::core::Value::Int(42))),
         };
 
         let result = PlanValidator::validate_expression(&expr);

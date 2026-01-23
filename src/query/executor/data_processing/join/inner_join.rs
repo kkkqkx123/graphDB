@@ -340,8 +340,8 @@ mod tests {
             storage,
             "left".to_string(),
             "right".to_string(),
-            vec![Expression::Variable("id".to_string())], // 使用表达式
-            vec![Expression::Variable("id".to_string())], // 使用表达式
+            vec![Expr::Variable("id".to_string())], // 使用表达式
+            vec![Expr::Variable("id".to_string())], // 使用表达式
             vec!["id".to_string(), "name".to_string(), "age".to_string()],
         );
 

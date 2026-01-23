@@ -3,7 +3,6 @@ pub mod context;
 pub mod evaluator;
 pub mod functions;
 pub mod storage;
-pub mod visitor;
 
 // 重新导出expression模块的访问器
 pub use crate::core::expression_visitor::{
@@ -18,9 +17,6 @@ pub use crate::core::types::expression::{Expr, DataType};
 
 // Re-export Core type utils
 pub use crate::core::TypeUtils;
-
-// Re-export Expression type alias
-pub use visitor::Expression;
 
 // Re-export evaluator module
 pub use evaluator::{Evaluator, ExpressionContext, ExpressionEvaluator};

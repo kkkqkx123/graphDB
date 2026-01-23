@@ -3,7 +3,7 @@
 
 use super::super::structs::*;
 use super::super::validation_interface::*;
-use crate::core::Expression;
+use crate::core::Expr;
 use std::collections::HashMap;
 
 /// 别名验证策略
@@ -17,7 +17,7 @@ impl AliasValidationStrategy {
     /// 验证表达式列表中的别名
     pub fn validate_aliases(
         &self,
-        exprs: &[Expression],
+        exprs: &[Expr],
         aliases: &HashMap<String, AliasType>,
     ) -> Result<(), ValidationError> {
         for expr in exprs {
@@ -29,7 +29,7 @@ impl AliasValidationStrategy {
     /// 验证单个表达式中的别名
     pub fn validate_expression_aliases(
         &self,
-        expr: &Expression,
+        expr: &Expr,
         aliases: &HashMap<String, AliasType>,
     ) -> Result<(), ValidationError> {
         // 首先检查表达式本身是否引用了一个别名
@@ -49,11 +49,11 @@ impl AliasValidationStrategy {
     }
 
     /// 从表达式中提取别名名称
-    pub fn extract_alias_name(&self, expr: &Expression) -> Option<String> {
+    pub fn extract_alias_name(&self, expr: &Expr) -> Option<String> {
         match expr {
-            Expression::Variable(name) => Some(name.clone()),
-            Expression::Property { property, .. } => Some(property.clone()),
-            Expression::Label(name) => Some(name.clone()),
+            Expr::Variable(name) => Some(name.clone()),
+            Expr::Property { property, .. } => Some(property.clone()),
+            Expr::Label(name) => Some(name.clone()),
             // 根据实际的表达式类型，可能需要处理其他别名引用
             _ => None,
         }
@@ -62,34 +62,34 @@ impl AliasValidationStrategy {
     /// 递归验证子表达式中的别名
     fn validate_subexpressions_aliases(
         &self,
-        expr: &Expression,
+        expr: &Expr,
         aliases: &HashMap<String, AliasType>,
     ) -> Result<(), ValidationError> {
         match expr {
-            Expression::Unary { operand, .. } => self.validate_expression_aliases(operand, aliases),
-            Expression::Binary { left, right, .. } => {
+            Expr::Unary { operand, .. } => self.validate_expression_aliases(operand, aliases),
+            Expr::Binary { left, right, .. } => {
                 self.validate_expression_aliases(left, aliases)?;
                 self.validate_expression_aliases(right, aliases)
             }
-            Expression::Function { args, .. } => {
+            Expr::Function { args, .. } => {
                 for arg in args {
                     self.validate_expression_aliases(arg, aliases)?;
                 }
                 Ok(())
             }
-            Expression::List(items) => {
+            Expr::List(items) => {
                 for item in items {
                     self.validate_expression_aliases(item, aliases)?;
                 }
                 Ok(())
             }
-            Expression::Map(items) => {
+            Expr::Map(items) => {
                 for (_, value) in items {
                     self.validate_expression_aliases(value, aliases)?;
                 }
                 Ok(())
             }
-            Expression::Case {
+            Expr::Case {
                 conditions,
                 default,
             } => {
@@ -102,25 +102,25 @@ impl AliasValidationStrategy {
                 }
                 Ok(())
             }
-            Expression::Subscript { collection, index } => {
+            Expr::Subscript { collection, index } => {
                 self.validate_expression_aliases(collection, aliases)?;
                 self.validate_expression_aliases(index, aliases)
             }
-            Expression::Literal(_)
-            | Expression::Property { .. }
-            | Expression::Unary { .. }
-            | Expression::Function { .. }
-            | Expression::Variable(_)
-            | Expression::Label(_) => Ok(()),
-            Expression::TypeCast { expr, .. } => {
+            Expr::Literal(_)
+            | Expr::Property { .. }
+            | Expr::Unary { .. }
+            | Expr::Function { .. }
+            | Expr::Variable(_)
+            | Expr::Label(_) => Ok(()),
+            Expr::TypeCast { expr, .. } => {
                 // 类型转换表达式需要验证其子表达式
                 self.validate_expression_aliases(expr, aliases)
             }
-            Expression::Aggregate { arg, .. } => {
+            Expr::Aggregate { arg, .. } => {
                 // 聚合函数表达式需要验证其参数表达式
                 self.validate_expression_aliases(arg, aliases)
             }
-            Expression::Range {
+            Expr::Range {
                 collection,
                 start,
                 end,
@@ -135,7 +135,7 @@ impl AliasValidationStrategy {
                 }
                 Ok(())
             }
-            Expression::Path(items) => {
+            Expr::Path(items) => {
                 // 路径表达式需要验证其所有项
                 for item in items {
                     self.validate_expression_aliases(item, aliases)?;

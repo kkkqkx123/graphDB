@@ -169,7 +169,7 @@ mod tests {
             );
 
         let columns = vec![YieldColumn {
-            expr: Expression::Variable("test".to_string()),
+            expr: Expr::Variable("test".to_string()),
             alias: "test".to_string(),
             is_matched: false,
         }];
@@ -191,12 +191,12 @@ mod tests {
 
         let columns = vec![
             YieldColumn {
-                expr: Expression::Variable("name".to_string()),
+                expr: Expr::Variable("name".to_string()),
                 alias: "name".to_string(),
                 is_matched: false,
             },
             YieldColumn {
-                expr: Expression::Variable("age".to_string()),
+                expr: Expr::Variable("age".to_string()),
                 alias: "age".to_string(),
                 is_matched: false,
             },

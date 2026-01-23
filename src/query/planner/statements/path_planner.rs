@@ -8,7 +8,7 @@
 //! - 完善路径过滤逻辑
 
 use crate::core::types::EdgeDirection;
-use crate::expression::Expression;
+use crate::core::types::expression::Expr;
 use crate::query::context::ast::{AstContext, PathContext};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
@@ -146,7 +146,7 @@ impl PathPlanner {
         let mut columns = Vec::new();
 
         columns.push(crate::query::validator::YieldColumn {
-            expr: Expression::Variable("_path".to_string()),
+            expr: Expr::Variable("_path".to_string()),
             alias: "path".to_string(),
             is_matched: false,
         });

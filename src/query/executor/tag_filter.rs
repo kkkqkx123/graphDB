@@ -3,7 +3,7 @@
 //! 提供对顶点标签的高级过滤功能，支持复杂的表达式求值
 
 use crate::core::vertex_edge_path::Vertex;
-use crate::core::Expression;
+use crate::core::Expr;
 use crate::core::Value;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::evaluator::traits::ExpressionContext;
@@ -17,7 +17,7 @@ pub struct TagFilterProcessor;
 
 impl TagFilterProcessor {
     /// 处理标签过滤表达式
-    pub fn process_tag_filter(filter_expr: &Expression, vertex: &Vertex) -> bool {
+    pub fn process_tag_filter(filter_expr: &Expr, vertex: &Vertex) -> bool {
         // 创建包含顶点标签的上下文
         let mut context = Self::create_tag_context(vertex);
 
@@ -115,15 +115,15 @@ impl TagFilterProcessor {
         // 创建表达式：tags CONTAINS tag1 OR tags CONTAINS tag2 OR ...
         let mut expr = None;
         for tag in tags {
-            let tag_expr = Expression::binary(
-                Expression::variable("tags".to_string()),
+            let tag_expr = Expr::binary(
+                Expr::variable("tags".to_string()),
                 crate::core::types::operators::BinaryOperator::In,
-                Expression::list(vec![Expression::literal(tag)]),
+                Expr::list(vec![Expr::literal(tag)]),
             );
 
             expr = match expr {
                 None => Some(tag_expr),
-                Some(existing) => Some(Expression::binary(
+                Some(existing) => Some(Expr::binary(
                     existing,
                     crate::core::types::operators::BinaryOperator::Or,
                     tag_expr,
@@ -153,10 +153,10 @@ mod tests {
         );
 
         // 测试包含标签的表达式 - "user" IN tags
-        let expr = Expression::binary(
-            Expression::literal("user".to_string()),
+        let expr = Expr::binary(
+            Expr::literal("user".to_string()),
             BinaryOperator::In,
-            Expression::variable("tags".to_string()),
+            Expr::variable("tags".to_string()),
         );
 
         assert!(TagFilterProcessor::process_tag_filter(&expr, &vertex));
@@ -174,10 +174,10 @@ mod tests {
         );
 
         // 测试标签数量表达式
-        let expr = Expression::binary(
-            Expression::variable("tag_count".to_string()),
+        let expr = Expr::binary(
+            Expr::variable("tag_count".to_string()),
             BinaryOperator::GreaterThan,
-            Expression::literal(1i64),
+            Expr::literal(1i64),
         );
 
         assert!(TagFilterProcessor::process_tag_filter(&expr, &vertex));
@@ -191,7 +191,7 @@ mod tests {
         let expr = result.expect("Expected Ok result for simple tag list parsing");
         // 验证表达式结构（这里简化测试）
         match expr {
-            Expression::Binary { op, .. } => {
+            Expr::Binary { op, .. } => {
                 assert_eq!(op, BinaryOperator::Or);
             }
             _ => panic!("Expected binary expression"),

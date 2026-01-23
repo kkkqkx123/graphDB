@@ -1048,7 +1048,7 @@ mod tests {
         ctx.add_plan_node_and_group_node(2, &start_opt_node);
 
         let columns = vec![YieldColumn::new(
-            Expression::Variable("test_var".to_string()),
+            Expr::Variable("test_var".to_string()),
             "test_alias".to_string(),
         )];
         let project_node = ProjectNode::new(start_opt_node.plan_node.clone(), columns)

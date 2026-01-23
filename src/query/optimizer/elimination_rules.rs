@@ -259,7 +259,7 @@ impl RemoveNoopProjectRule {
 
         // 首先检查投影是否包含通配符 "*"
         if columns.len() == 1 {
-            if let crate::core::Expression::Variable(var_name) = &columns[0].expr {
+            if let crate::core::Expr::Variable(var_name) = &columns[0].expr {
                 if var_name == "*" {
                     // 投影 "*" 总是无操作投影
                     return Ok(true);
@@ -302,7 +302,7 @@ impl RemoveNoopProjectRule {
         for column in columns {
             // 检查是否是表达式（不是简单的变量引用）
             match &column.expr {
-                crate::core::Expression::Variable(_) => {
+                crate::core::Expr::Variable(_) => {
                     // 简单变量，继续检查
                 }
                 _ => {
@@ -312,7 +312,7 @@ impl RemoveNoopProjectRule {
             }
 
             // 检查别名是否与原始表达式不同
-            if let crate::core::Expression::Variable(var_name) = &column.expr {
+            if let crate::core::Expr::Variable(var_name) = &column.expr {
                 if var_name != &column.alias {
                     // 别名与变量名不同，认为是别名
                     return Ok(true);
@@ -584,17 +584,17 @@ mod tests {
         let rule = EliminateFilterRule;
         let mut ctx = create_test_context();
 
-        use crate::expression::Expression;
+        use crate::core::types::expression::Expr;
         use crate::core::types::operators::BinaryOperator;
 
         let start_node = PlanNodeEnum::Start(StartNode::new());
         let filter_node = PlanNodeEnum::Filter(
             FilterNode::new(
                 start_node,
-                Expression::Binary {
-                    left: Box::new(Expression::Literal(crate::core::Value::Int(1))),
+                Expr::Binary {
+                    left: Box::new(Expr::Literal(crate::core::Value::Int(1))),
                     op: BinaryOperator::Equal,
-                    right: Box::new(Expression::Literal(crate::core::Value::Int(1))),
+                    right: Box::new(Expr::Literal(crate::core::Value::Int(1))),
                 },
             )
             .expect("Filter node should be created successfully"),
@@ -658,7 +658,7 @@ mod tests {
 
         // 测试1: 创建一个投影所有列的投影节点（应该被消除）
         let columns_all = vec![crate::query::validator::YieldColumn {
-            expr: crate::core::Expression::Variable("*".to_string()),
+            expr: crate::core::Expr::Variable("*".to_string()),
             alias: "*".to_string(),
             is_matched: false,
         }];
@@ -686,17 +686,17 @@ mod tests {
         // 测试2: 创建一个投影相同列的投影节点（应该被消除）
         let columns_same = vec![
             crate::query::validator::YieldColumn {
-                expr: crate::core::Expression::Variable("id".to_string()),
+                expr: crate::core::Expr::Variable("id".to_string()),
                 alias: "id".to_string(),
                 is_matched: false,
             },
             crate::query::validator::YieldColumn {
-                expr: crate::core::Expression::Variable("name".to_string()),
+                expr: crate::core::Expr::Variable("name".to_string()),
                 alias: "name".to_string(),
                 is_matched: false,
             },
             crate::query::validator::YieldColumn {
-                expr: crate::core::Expression::Variable("age".to_string()),
+                expr: crate::core::Expr::Variable("age".to_string()),
                 alias: "age".to_string(),
                 is_matched: false,
             },
@@ -725,12 +725,12 @@ mod tests {
         // 测试3: 创建一个投影不同列的投影节点（不应该被消除）
         let columns_diff = vec![
             crate::query::validator::YieldColumn {
-                expr: crate::core::Expression::Variable("id".to_string()),
+                expr: crate::core::Expr::Variable("id".to_string()),
                 alias: "id".to_string(),
                 is_matched: false,
             },
             crate::query::validator::YieldColumn {
-                expr: crate::core::Expression::Variable("name".to_string()),
+                expr: crate::core::Expr::Variable("name".to_string()),
                 alias: "name".to_string(),
                 is_matched: false,
             },
@@ -759,17 +759,17 @@ mod tests {
         // 测试4: 创建一个投影带别名的节点（不应该被消除）
         let columns_alias = vec![
             crate::query::validator::YieldColumn {
-                expr: crate::core::Expression::Variable("id".to_string()),
+                expr: crate::core::Expr::Variable("id".to_string()),
                 alias: "vertex_id".to_string(),
                 is_matched: false,
             },
             crate::query::validator::YieldColumn {
-                expr: crate::core::Expression::Variable("name".to_string()),
+                expr: crate::core::Expr::Variable("name".to_string()),
                 alias: "vertex_name".to_string(),
                 is_matched: false,
             },
             crate::query::validator::YieldColumn {
-                expr: crate::core::Expression::Variable("age".to_string()),
+                expr: crate::core::Expr::Variable("age".to_string()),
                 alias: "age".to_string(),
                 is_matched: false,
             },
@@ -792,20 +792,20 @@ mod tests {
         // 测试5: 创建一个投影包含表达式的节点（不应该被消除）
         let columns_expr = vec![
             crate::query::validator::YieldColumn {
-                expr: crate::core::Expression::Variable("id".to_string()),
+                expr: crate::core::Expr::Variable("id".to_string()),
                 alias: "id".to_string(),
                 is_matched: false,
             },
             crate::query::validator::YieldColumn {
-                expr: crate::core::Expression::Variable("name".to_string()),
+                expr: crate::core::Expr::Variable("name".to_string()),
                 alias: "name".to_string(),
                 is_matched: false,
             },
             crate::query::validator::YieldColumn {
-                expr: crate::core::Expression::Binary {
-                    left: Box::new(crate::core::Expression::Variable("age".to_string())),
-                    op: crate::core::BinaryOperator::Add,
-                    right: Box::new(crate::core::Expression::Literal(
+                expr: crate::core::Expr::Binary {
+                    left: Box::new(crate::core::Expr::Variable("age".to_string())),
+                    op: crate::core::types::operators::BinaryOperator::Equal,
+                    right: Box::new(crate::core::Expr::Literal(
                         crate::core::Value::String("1".to_string()),
                     )),
                 },

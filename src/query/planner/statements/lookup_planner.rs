@@ -7,7 +7,7 @@
 //! - 完善表达式解析
 //! - 添加属性索引选择逻辑
 
-use crate::expression::Expression;
+use crate::core::types::expression::Expr;
 use crate::query::context::ast::{AstContext, LookupContext};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
@@ -81,7 +81,7 @@ impl Planner for LookupPlanner {
         let mut current_node: PlanNodeEnum = PlanNodeEnum::IndexScan(index_scan_node);
 
         if lookup_ctx.is_fulltext_index && lookup_ctx.has_score {
-            let id_expr = Expression::Variable("id".to_string());
+            let id_expr = Expr::Variable("id".to_string());
 
             let get_node = if lookup_ctx.is_edge {
                 let get_edges = GetEdgesNode::new(space_id as i32, "", "", "", "");
@@ -169,7 +169,7 @@ impl LookupPlanner {
             }
         } else {
             columns.push(crate::query::validator::YieldColumn {
-                expr: Expression::Variable("*".to_string()),
+                expr: Expr::Variable("*".to_string()),
                 alias: "result".to_string(),
                 is_matched: false,
             });
@@ -177,7 +177,7 @@ impl LookupPlanner {
 
         if columns.is_empty() {
             columns.push(crate::query::validator::YieldColumn {
-                expr: Expression::Variable("*".to_string()),
+                expr: Expr::Variable("*".to_string()),
                 alias: "result".to_string(),
                 is_matched: false,
             });
@@ -191,14 +191,14 @@ impl LookupPlanner {
         if name.contains(".") {
             let parts: Vec<&str> = name.split(".").collect();
             if parts.len() == 2 {
-                return Ok(Expression::Property {
-                    object: Box::new(Expression::Variable(parts[0].to_string())),
+                return Ok(Expr::Property {
+                    object: Box::new(Expr::Variable(parts[0].to_string())),
                     property: parts[1].to_string(),
                 });
             }
         }
 
-        Ok(Expression::Variable(name.to_string()))
+        Ok(Expr::Variable(name.to_string()))
     }
 }
 

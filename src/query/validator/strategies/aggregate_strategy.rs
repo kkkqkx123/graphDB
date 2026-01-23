@@ -6,7 +6,7 @@ use super::super::validation_interface::{
     ValidationContext as ValidationContextTrait, ValidationError, ValidationErrorType,
     ValidationStrategy, ValidationStrategyType,
 };
-use crate::core::Expression;
+use crate::core::Expr;
 
 /// 聚合验证策略
 pub struct AggregateValidationStrategy;
@@ -17,21 +17,21 @@ impl AggregateValidationStrategy {
     }
 
     /// 检查表达式是否包含聚合函数
-    pub fn has_aggregate_expr(&self, expr: &Expression) -> bool {
+    pub fn has_aggregate_expr(&self, expr: &Expr) -> bool {
         match expr {
-            Expression::Aggregate { .. } => true,
-            Expression::Unary { operand, .. } => self.has_aggregate_expr(operand.as_ref()),
-            Expression::Binary { left, right, .. } => {
+            Expr::Aggregate { .. } => true,
+            Expr::Unary { operand, .. } => self.has_aggregate_expr(operand.as_ref()),
+            Expr::Binary { left, right, .. } => {
                 self.has_aggregate_expr(left.as_ref()) || self.has_aggregate_expr(right.as_ref())
             }
-            Expression::Function { args, .. } => {
+            Expr::Function { args, .. } => {
                 args.iter().any(|arg| self.has_aggregate_expr(arg))
             }
-            Expression::List(items) => items.iter().any(|item| self.has_aggregate_expr(item)),
-            Expression::Map(items) => items
+            Expr::List(items) => items.iter().any(|item| self.has_aggregate_expr(item)),
+            Expr::Map(items) => items
                 .iter()
                 .any(|(_, value)| self.has_aggregate_expr(value)),
-            Expression::Case {
+            Expr::Case {
                 conditions,
                 default,
             } => {
@@ -48,7 +48,7 @@ impl AggregateValidationStrategy {
     /// 验证UNWIND子句中不允许使用聚合函数
     pub fn validate_unwind_aggregate(
         &self,
-        unwind_expr: &Expression,
+        unwind_expr: &Expr,
     ) -> Result<(), ValidationError> {
         if self.has_aggregate_expr(unwind_expr) {
             return Err(ValidationError::new(
@@ -65,9 +65,9 @@ impl AggregateValidationStrategy {
     /// 2. 是否有聚合函数嵌套
     /// 3. 特殊属性（*）是否只用于COUNT
     /// 4. 参数表达式是否合法
-    pub fn validate_aggregate_expr(&self, expr: &Expression) -> Result<(), ValidationError> {
+    pub fn validate_aggregate_expr(&self, expr: &Expr) -> Result<(), ValidationError> {
         match expr {
-            Expression::Aggregate {
+            Expr::Aggregate {
                 func,
                 arg,
                 distinct: _,
@@ -101,7 +101,7 @@ impl AggregateValidationStrategy {
     fn validate_wildcard_property(
         &self,
         func_name: &str,
-        expr: &Expression,
+        expr: &Expr,
     ) -> Result<(), ValidationError> {
         // 简化版本：只有COUNT允许通配符
         if !func_name.contains("Count") && self.has_wildcard_property(expr) {
@@ -115,22 +115,22 @@ impl AggregateValidationStrategy {
     }
 
     /// 检查表达式中是否包含通配符属性
-    fn has_wildcard_property(&self, expr: &Expression) -> bool {
+    fn has_wildcard_property(&self, expr: &Expr) -> bool {
         match expr {
-            Expression::Property { property, .. } if property == "*" => true,
-            Expression::Unary { operand, .. } => self.has_wildcard_property(operand.as_ref()),
-            Expression::Binary { left, right, .. } => {
+            Expr::Property { property, .. } if property == "*" => true,
+            Expr::Unary { operand, .. } => self.has_wildcard_property(operand.as_ref()),
+            Expr::Binary { left, right, .. } => {
                 self.has_wildcard_property(left.as_ref())
                     || self.has_wildcard_property(right.as_ref())
             }
-            Expression::Function { args, .. } => {
+            Expr::Function { args, .. } => {
                 args.iter().any(|arg| self.has_wildcard_property(arg))
             }
-            Expression::List(items) => items.iter().any(|item| self.has_wildcard_property(item)),
-            Expression::Map(items) => items
+            Expr::List(items) => items.iter().any(|item| self.has_wildcard_property(item)),
+            Expr::Map(items) => items
                 .iter()
                 .any(|(_, value)| self.has_wildcard_property(value)),
-            Expression::Case {
+            Expr::Case {
                 conditions,
                 default,
             } => {
@@ -150,49 +150,49 @@ impl AggregateValidationStrategy {
     /// 验证规则：
     /// 1. 递归检查所有子表达式的合法性
     /// 2. 确保参数表达式的结构正确
-    fn validate_expression_in_aggregate(&self, expr: &Expression) -> Result<(), ValidationError> {
+    fn validate_expression_in_aggregate(&self, expr: &Expr) -> Result<(), ValidationError> {
         match expr {
             // 递归检查一元操作（包括各种一元操作符）
-            Expression::Unary { operand, .. } => {
+            Expr::Unary { operand, .. } => {
                 self.validate_expression_in_aggregate(operand)?;
             }
 
             // 递归检查二元操作
-            Expression::Binary { left, right, .. } => {
+            Expr::Binary { left, right, .. } => {
                 self.validate_expression_in_aggregate(left)?;
                 self.validate_expression_in_aggregate(right)?;
             }
 
             // 递归检查函数调用参数
-            Expression::Function { args, .. } => {
+            Expr::Function { args, .. } => {
                 for arg in args {
                     self.validate_expression_in_aggregate(arg)?;
                 }
             }
 
             // 递归检查列表元素
-            Expression::List(items) => {
+            Expr::List(items) => {
                 for item in items {
                     self.validate_expression_in_aggregate(item)?;
                 }
             }
 
             // 递归检查Map值
-            Expression::Map(items) => {
+            Expr::Map(items) => {
                 for (_, value) in items {
                     self.validate_expression_in_aggregate(value)?;
                 }
             }
 
             // 递归检查类型转换表达式
-            Expression::TypeCast {
+            Expr::TypeCast {
                 expr: cast_expr, ..
             } => {
                 self.validate_expression_in_aggregate(cast_expr)?;
             }
 
             // 递归检查CASE表达式
-            Expression::Case {
+            Expr::Case {
                 conditions,
                 default,
             } => {
@@ -279,13 +279,13 @@ mod tests {
         let strategy = AggregateValidationStrategy::new();
 
         // 测试没有聚合函数的表达式
-        let non_agg_expr = Expression::Literal(crate::core::Value::Int(1));
+        let non_agg_expr = Expr::Literal(crate::core::Value::Int(1));
         assert_eq!(strategy.has_aggregate_expr(&non_agg_expr), false);
 
-        let binary_expr = Expression::Binary {
-            left: Box::new(Expression::Literal(crate::core::Value::Int(1))),
+        let binary_expr = Expr::Binary {
+            left: Box::new(Expr::Literal(crate::core::Value::Int(1))),
             op: BinaryOperator::Add,
-            right: Box::new(Expression::Literal(crate::core::Value::Int(2))),
+            right: Box::new(Expr::Literal(crate::core::Value::Int(2))),
         };
         assert_eq!(strategy.has_aggregate_expr(&binary_expr), false);
     }
@@ -295,7 +295,7 @@ mod tests {
         let strategy = AggregateValidationStrategy::new();
 
         // 测试没有聚合函数的UNWIND表达式
-        let non_agg_expr = Expression::Literal(crate::core::Value::Int(1));
+        let non_agg_expr = Expr::Literal(crate::core::Value::Int(1));
         assert!(strategy.validate_unwind_aggregate(&non_agg_expr).is_ok());
 
         // 测试包含聚合函数的UNWIND表达式
@@ -308,13 +308,13 @@ mod tests {
         let strategy = AggregateValidationStrategy::new();
 
         // 测试嵌套表达式
-        let nested_expr = Expression::Binary {
-            left: Box::new(Expression::Unary {
+        let nested_expr = Expr::Binary {
+            left: Box::new(Expr::Unary {
                 op: crate::core::types::operators::UnaryOperator::Minus,
-                operand: Box::new(Expression::Literal(crate::core::Value::Int(5))),
+                operand: Box::new(Expr::Literal(crate::core::Value::Int(5))),
             }),
             op: crate::core::types::operators::BinaryOperator::Add,
-            right: Box::new(Expression::Literal(crate::core::Value::Int(10))),
+            right: Box::new(Expr::Literal(crate::core::Value::Int(10))),
         };
 
         assert_eq!(strategy.has_aggregate_expr(&nested_expr), false);
@@ -324,9 +324,9 @@ mod tests {
     fn test_validate_invalid_aggregate_function() {
         let strategy = AggregateValidationStrategy::new();
         // Count(None) 是有效的，表示 COUNT(*)
-        let expr = Expression::Aggregate {
+        let expr = Expr::Aggregate {
             func: AggregateFunction::Count(None),
-            arg: Box::new(Expression::Literal(crate::core::Value::Int(1))),
+            arg: Box::new(Expr::Literal(crate::core::Value::Int(1))),
             distinct: false,
         };
 
@@ -338,12 +338,12 @@ mod tests {
     #[test]
     fn test_validate_nested_aggregates() {
         let strategy = AggregateValidationStrategy::new();
-        let inner_agg = Expression::Aggregate {
+        let inner_agg = Expr::Aggregate {
             func: AggregateFunction::Count(None),
-            arg: Box::new(Expression::Literal(crate::core::Value::Int(1))),
+            arg: Box::new(Expr::Literal(crate::core::Value::Int(1))),
             distinct: false,
         };
-        let outer_agg = Expression::Aggregate {
+        let outer_agg = Expr::Aggregate {
             func: AggregateFunction::Sum("".to_string()),
             arg: Box::new(inner_agg),
             distinct: false,
@@ -358,10 +358,10 @@ mod tests {
     #[test]
     fn test_validate_count_with_wildcard() {
         let strategy = AggregateValidationStrategy::new();
-        let expr = Expression::Aggregate {
+        let expr = Expr::Aggregate {
             func: AggregateFunction::Count(None),
-            arg: Box::new(Expression::Property {
-                object: Box::new(Expression::Variable("n".to_string())),
+            arg: Box::new(Expr::Property {
+                object: Box::new(Expr::Variable("n".to_string())),
                 property: "*".to_string(),
             }),
             distinct: false,
@@ -374,10 +374,10 @@ mod tests {
     #[test]
     fn test_validate_sum_with_wildcard() {
         let strategy = AggregateValidationStrategy::new();
-        let expr = Expression::Aggregate {
+        let expr = Expr::Aggregate {
             func: AggregateFunction::Sum("".to_string()),
-            arg: Box::new(Expression::Property {
-                object: Box::new(Expression::Variable("n".to_string())),
+            arg: Box::new(Expr::Property {
+                object: Box::new(Expr::Variable("n".to_string())),
                 property: "*".to_string(),
             }),
             distinct: false,
@@ -418,9 +418,9 @@ mod tests {
         ];
 
         for func in valid_functions {
-            let expr = Expression::Aggregate {
+            let expr = Expr::Aggregate {
                 func,
-                arg: Box::new(Expression::Literal(crate::core::Value::Int(1))),
+                arg: Box::new(Expr::Literal(crate::core::Value::Int(1))),
                 distinct: false,
             };
 
@@ -434,9 +434,9 @@ mod tests {
     #[test]
     fn test_validate_distinct_aggregate() {
         let strategy = AggregateValidationStrategy::new();
-        let expr = Expression::Aggregate {
+        let expr = Expr::Aggregate {
             func: AggregateFunction::Count(None),
-            arg: Box::new(Expression::Literal(crate::core::Value::Int(1))),
+            arg: Box::new(Expr::Literal(crate::core::Value::Int(1))),
             distinct: true,
         };
 
@@ -449,27 +449,27 @@ mod tests {
         let strategy = AggregateValidationStrategy::new();
 
         // 直接通配符属性
-        let expr1 = Expression::Property {
-            object: Box::new(Expression::Variable("n".to_string())),
+        let expr1 = Expr::Property {
+            object: Box::new(Expr::Variable("n".to_string())),
             property: "*".to_string(),
         };
         assert!(strategy.has_wildcard_property(&expr1));
 
         // 非通配符属性
-        let expr2 = Expression::Property {
-            object: Box::new(Expression::Variable("n".to_string())),
+        let expr2 = Expr::Property {
+            object: Box::new(Expr::Variable("n".to_string())),
             property: "age".to_string(),
         };
         assert!(!strategy.has_wildcard_property(&expr2));
 
         // 二元表达式包含通配符
-        let expr3 = Expression::Binary {
-            left: Box::new(Expression::Property {
-                object: Box::new(Expression::Variable("n".to_string())),
+        let expr3 = Expr::Binary {
+            left: Box::new(Expr::Property {
+                object: Box::new(Expr::Variable("n".to_string())),
                 property: "*".to_string(),
             }),
             op: BinaryOperator::Add,
-            right: Box::new(Expression::Literal(crate::core::Value::Int(1))),
+            right: Box::new(Expr::Literal(crate::core::Value::Int(1))),
         };
         assert!(strategy.has_wildcard_property(&expr3));
     }
@@ -478,13 +478,13 @@ mod tests {
     fn test_validate_expression_in_aggregate_binary_op() {
         let strategy = AggregateValidationStrategy::new();
 
-        let expr = Expression::Binary {
-            left: Box::new(Expression::Property {
-                object: Box::new(Expression::Variable("n".to_string())),
+        let expr = Expr::Binary {
+            left: Box::new(Expr::Property {
+                object: Box::new(Expr::Variable("n".to_string())),
                 property: "value".to_string(),
             }),
             op: BinaryOperator::Add,
-            right: Box::new(Expression::Literal(crate::core::Value::Int(10))),
+            right: Box::new(Expr::Literal(crate::core::Value::Int(10))),
         };
 
         assert!(strategy.validate_expression_in_aggregate(&expr).is_ok());
@@ -495,10 +495,10 @@ mod tests {
         let strategy = AggregateValidationStrategy::new();
 
         // 测试函数调用在聚合参数中的验证
-        let expr = Expression::Function {
+        let expr = Expr::Function {
             name: "LOWER".to_string(),
-            args: vec![Expression::Property {
-                object: Box::new(Expression::Variable("n".to_string())),
+            args: vec![Expr::Property {
+                object: Box::new(Expr::Variable("n".to_string())),
                 property: "name".to_string(),
             }],
         };
@@ -512,21 +512,21 @@ mod tests {
         let strategy = AggregateValidationStrategy::new();
 
         // 测试CASE表达式在聚合参数中的验证
-        let expr = Expression::Case {
+        let expr = Expr::Case {
             conditions: vec![(
-                Expression::Binary {
-                    left: Box::new(Expression::Property {
-                        object: Box::new(Expression::Variable("n".to_string())),
+                Expr::Binary {
+                    left: Box::new(Expr::Property {
+                        object: Box::new(Expr::Variable("n".to_string())),
                         property: "status".to_string(),
                     }),
                     op: BinaryOperator::Equal,
-                    right: Box::new(Expression::Literal(crate::core::Value::String(
+                    right: Box::new(Expr::Literal(crate::core::Value::String(
                         "active".to_string(),
                     ))),
                 },
-                Expression::Literal(crate::core::Value::Int(1)),
+                Expr::Literal(crate::core::Value::Int(1)),
             )],
-            default: Some(Box::new(Expression::Literal(crate::core::Value::Int(0)))),
+            default: Some(Box::new(Expr::Literal(crate::core::Value::Int(0)))),
         };
 
         assert!(strategy.validate_expression_in_aggregate(&expr).is_ok());
@@ -536,11 +536,11 @@ mod tests {
     fn test_validate_expression_in_aggregate_list() {
         let strategy = AggregateValidationStrategy::new();
 
-        let expr = Expression::List(vec![
-            Expression::Literal(crate::core::Value::Int(1)),
-            Expression::Literal(crate::core::Value::Int(2)),
-            Expression::Property {
-                object: Box::new(Expression::Variable("n".to_string())),
+        let expr = Expr::List(vec![
+            Expr::Literal(crate::core::Value::Int(1)),
+            Expr::Literal(crate::core::Value::Int(2)),
+            Expr::Property {
+                object: Box::new(Expr::Variable("n".to_string())),
                 property: "value".to_string(),
             },
         ]);
@@ -554,9 +554,9 @@ mod tests {
         let strategy = AggregateValidationStrategy::new();
 
         // 测试类型转换在聚合参数中的验证
-        let expr = Expression::TypeCast {
-            expr: Box::new(Expression::Property {
-                object: Box::new(Expression::Variable("n".to_string())),
+        let expr = Expr::TypeCast {
+            expr: Box::new(Expr::Property {
+                object: Box::new(Expr::Variable("n".to_string())),
                 property: "value".to_string(),
             }),
             target_type: DataType::Int,
@@ -571,10 +571,10 @@ mod tests {
         let strategy = AggregateValidationStrategy::new();
 
         // 测试有效的SUM聚合
-        let expr = Expression::Aggregate {
+        let expr = Expr::Aggregate {
             func: AggregateFunction::Sum("".to_string()),
-            arg: Box::new(Expression::Property {
-                object: Box::new(Expression::Variable("n".to_string())),
+            arg: Box::new(Expr::Property {
+                object: Box::new(Expr::Variable("n".to_string())),
                 property: "amount".to_string(),
             }),
             distinct: false,
@@ -588,9 +588,9 @@ mod tests {
         let strategy = AggregateValidationStrategy::new();
 
         // 测试有效的COUNT聚合
-        let expr = Expression::Aggregate {
+        let expr = Expr::Aggregate {
             func: AggregateFunction::Count(None),
-            arg: Box::new(Expression::Literal(crate::core::Value::Int(1))),
+            arg: Box::new(Expr::Literal(crate::core::Value::Int(1))),
             distinct: false,
         };
 
@@ -601,18 +601,18 @@ mod tests {
     fn test_validate_aggregate_min_max_valid() {
         let strategy = AggregateValidationStrategy::new();
 
-        let min_expr = Expression::Aggregate {
+        let min_expr = Expr::Aggregate {
             func: AggregateFunction::Min("".to_string()),
-            arg: Box::new(Expression::Property {
-                object: Box::new(Expression::Variable("n".to_string())),
+            arg: Box::new(Expr::Property {
+                object: Box::new(Expr::Variable("n".to_string())),
                 property: "value".to_string(),
             }),
             distinct: false,
         };
-        let max_expr = Expression::Aggregate {
+        let max_expr = Expr::Aggregate {
             func: AggregateFunction::Max("".to_string()),
-            arg: Box::new(Expression::Property {
-                object: Box::new(Expression::Variable("n".to_string())),
+            arg: Box::new(Expr::Property {
+                object: Box::new(Expr::Variable("n".to_string())),
                 property: "value".to_string(),
             }),
             distinct: false,

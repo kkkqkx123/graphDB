@@ -416,7 +416,6 @@ impl IndexService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::vertex_edge_path::Tag;
 
     #[test]
     fn test_index_service_creation() {
@@ -459,7 +458,7 @@ mod tests {
             false,
         )];
 
-        service.create_index("test_idx", "person", fields.clone(), IndexType::TagIndex, false);
+        service.create_index("test_idx", "person", fields.clone(), IndexType::TagIndex, false).unwrap();
 
         assert!(service.get_index(1).is_ok());
         assert!(service.drop_index(1).is_ok());
@@ -476,8 +475,8 @@ mod tests {
             false,
         )];
 
-        service.create_index("idx1", "person", fields.clone(), IndexType::TagIndex, false);
-        service.create_index("idx2", "person", fields.clone(), IndexType::TagIndex, false);
+        service.create_index("idx1", "person", fields.clone(), IndexType::TagIndex, false).unwrap();
+        service.create_index("idx2", "person", fields.clone(), IndexType::TagIndex, false).unwrap();
 
         let indexes = service.list_indexes();
         assert_eq!(indexes.len(), 2);

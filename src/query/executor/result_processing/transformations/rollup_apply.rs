@@ -504,7 +504,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_rollup_apply_executor() {
-        let config = test_config();
         let storage = Arc::new(Mutex::new(MockStorage));
 
         let left_values = vec![Value::Int(1), Value::Int(2)];
@@ -520,8 +519,8 @@ mod tests {
             ExecutionResult::Values(right_values.clone()),
         );
 
-        let compare_cols = vec![Expression::variable("_")];
-        let collect_col = Expression::variable("_");
+        let compare_cols = vec![Expr::variable("_")];
+        let collect_col = Expr::variable("_");
 
         let mut executor = RollUpApplyExecutor::with_context(
             1,
@@ -548,7 +547,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_rollup_apply_zero_key() {
-        let config = test_config();
         let storage = Arc::new(Mutex::new(MockStorage));
 
         let left_values = vec![Value::Int(1), Value::Int(2), Value::Int(3)];
@@ -564,8 +562,8 @@ mod tests {
             ExecutionResult::Values(right_values.clone()),
         );
 
-        let compare_cols: Vec<Expression> = vec![];
-        let collect_col = Expression::Variable("_".to_string());
+        let compare_cols: Vec<Expr> = vec![];
+        let collect_col = Expr::Variable("_".to_string());
 
         let mut executor = RollUpApplyExecutor::with_context(
             2,
@@ -601,7 +599,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_rollup_apply_multi_key() {
-        let config = test_config();
         let storage = Arc::new(Mutex::new(MockStorage));
 
         let left_values = vec![
@@ -627,10 +624,10 @@ mod tests {
         );
 
         let compare_cols = vec![
-            Expression::subscript(Expression::variable("_"), Expression::literal(0i64)),
-            Expression::subscript(Expression::variable("_"), Expression::literal(1i64)),
+            Expr::subscript(Expr::variable("_"), Expr::literal(0i64)),
+            Expr::subscript(Expr::variable("_"), Expr::literal(1i64)),
         ];
-        let collect_col = Expression::Variable("_".to_string());
+        let collect_col = Expr::Variable("_".to_string());
 
         let mut executor = RollUpApplyExecutor::with_context(
             3,
@@ -673,8 +670,8 @@ mod tests {
             ExecutionResult::Values(right_values.clone()),
         );
 
-        let compare_cols = vec![Expression::variable("_")];
-        let collect_col = Expression::Variable("_".to_string());
+        let compare_cols = vec![Expr::variable("_")];
+        let collect_col = Expr::Variable("_".to_string());
 
         let mut executor = RollUpApplyExecutor::with_context(
             4,
@@ -705,7 +702,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_rollup_apply_empty_left() {
-        let config = test_config();
         let storage = Arc::new(Mutex::new(MockStorage));
 
         let left_values: Vec<Value> = vec![];
@@ -721,8 +717,8 @@ mod tests {
             ExecutionResult::Values(right_values.clone()),
         );
 
-        let compare_cols = vec![Expression::literal(0i64)];
-        let collect_col = Expression::Variable("_".to_string());
+        let compare_cols = vec![Expr::literal(0i64)];
+        let collect_col = Expr::Variable("_".to_string());
 
         let mut executor = RollUpApplyExecutor::with_context(
             5,

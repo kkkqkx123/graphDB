@@ -6,7 +6,7 @@ use crate::core::error::ExpressionError;
 use crate::core::Value;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::evaluator::traits::ExpressionContext;
-use crate::expression::Expression;
+use crate::core::types::expression::Expr;
 
 /// Join键求值器
 ///
@@ -17,14 +17,14 @@ pub struct JoinKeyEvaluator;
 
 impl JoinKeyEvaluator {
     pub fn evaluate_key<C: ExpressionContext>(
-        expr: &Expression,
+        expr: &Expr,
         context: &mut C,
     ) -> Result<Value, ExpressionError> {
         ExpressionEvaluator::evaluate(expr, context)
     }
 
     pub fn evaluate_keys<C: ExpressionContext>(
-        exprs: &[Expression],
+        exprs: &[Expr],
         context: &mut C,
     ) -> Result<Vec<Value>, ExpressionError> {
         let mut keys = Vec::with_capacity(exprs.len());
@@ -34,24 +34,24 @@ impl JoinKeyEvaluator {
         Ok(keys)
     }
 
-    pub fn is_simple_variable(expr: &Expression) -> bool {
-        matches!(expr, Expression::Variable(_))
+    pub fn is_simple_variable(expr: &Expr) -> bool {
+        matches!(expr, Expr::Variable(_))
     }
 
-    pub fn is_simple_property(expr: &Expression) -> bool {
-        matches!(expr, Expression::Property { .. })
+    pub fn is_simple_property(expr: &Expr) -> bool {
+        matches!(expr, Expr::Property { .. })
     }
 
-    pub fn get_variable_name(expr: &Expression) -> Option<&str> {
+    pub fn get_variable_name(expr: &Expr) -> Option<&str> {
         match expr {
-            Expression::Variable(name) => Some(name),
+            Expr::Variable(name) => Some(name),
             _ => None,
         }
     }
 
-    pub fn get_property_info(expr: &Expression) -> Option<(&Expression, &str)> {
+    pub fn get_property_info(expr: &Expr) -> Option<(&Expr, &str)> {
         match expr {
-            Expression::Property { object, property } => Some((object.as_ref(), property)),
+            Expr::Property { object, property } => Some((object.as_ref(), property)),
             _ => None,
         }
     }
@@ -60,46 +60,46 @@ impl JoinKeyEvaluator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::expression::Expression;
+    use crate::core::types::expression::Expr;
 
     #[test]
     fn test_is_simple_variable() {
-        let var_expr = Expression::Variable("id".to_string());
+        let var_expr = Expr::Variable("id".to_string());
         assert!(JoinKeyEvaluator::is_simple_variable(&var_expr));
 
-        let lit_expr = Expression::Literal(Value::Int(42));
+        let lit_expr = Expr::Literal(Value::Int(42));
         assert!(!JoinKeyEvaluator::is_simple_variable(&lit_expr));
     }
 
     #[test]
     fn test_get_variable_name() {
-        let var_expr = Expression::Variable("name".to_string());
+        let var_expr = Expr::Variable("name".to_string());
         assert_eq!(JoinKeyEvaluator::get_variable_name(&var_expr), Some("name"));
 
-        let lit_expr = Expression::Literal(Value::Int(42));
+        let lit_expr = Expr::Literal(Value::Int(42));
         assert_eq!(JoinKeyEvaluator::get_variable_name(&lit_expr), None);
     }
 
     #[test]
     fn test_is_simple_property() {
-        let prop_expr = Expression::Property {
-            object: Box::new(Expression::Variable("person".to_string())),
+        let prop_expr = Expr::Property {
+            object: Box::new(Expr::Variable("person".to_string())),
             property: "age".to_string(),
         };
         assert!(JoinKeyEvaluator::is_simple_property(&prop_expr));
 
-        let var_expr = Expression::Variable("id".to_string());
+        let var_expr = Expr::Variable("id".to_string());
         assert!(!JoinKeyEvaluator::is_simple_property(&var_expr));
     }
 
     #[test]
     fn test_get_property_info() {
-        let prop_expr = Expression::Property {
-            object: Box::new(Expression::Variable("person".to_string())),
+        let prop_expr = Expr::Property {
+            object: Box::new(Expr::Variable("person".to_string())),
             property: "age".to_string(),
         };
         let (object, property) = JoinKeyEvaluator::get_property_info(&prop_expr).expect("get_property_info should succeed");
-        assert!(matches!(object, Expression::Variable(_)));
+        assert!(matches!(object, Expr::Variable(_)));
         assert_eq!(property, "age");
     }
 }

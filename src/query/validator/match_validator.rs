@@ -10,7 +10,7 @@ use super::structs::{
 use super::validation_factory::ValidationFactory;
 use super::validation_interface::{ValidationError, ValidationErrorType, ValidationStrategy};
 use super::ValidationContext;
-use crate::core::Expression;
+use crate::core::Expr;
 use std::collections::HashMap;
 
 /// Match语句验证器
@@ -236,8 +236,8 @@ mod tests {
         let mut validator = MatchValidator::new(context);
 
         // 测试有效的分页表达式
-        let skip_expr = Expression::Literal(crate::core::Value::Int(1));
-        let limit_expr = Expression::Literal(crate::core::Value::Int(10));
+        let skip_expr = Expr::Literal(crate::core::Value::Int(1));
+        let limit_expr = Expr::Literal(crate::core::Value::Int(10));
         let pagination_ctx = PaginationContext { skip: 0, limit: 10 };
 
         assert!(validator
@@ -256,11 +256,11 @@ mod tests {
         aliases.insert("e".to_string(), AliasType::Edge);
 
         // 测试有效的别名引用
-        let expr = Expression::Variable("n".to_string());
+        let expr = Expr::Variable("n".to_string());
         assert!(validator.validate_aliases(&[expr], &aliases).is_ok());
 
         // 测试无效的别名引用
-        let invalid_expr = Expression::Variable("invalid".to_string());
+        let invalid_expr = Expr::Variable("invalid".to_string());
         assert!(validator
             .validate_aliases(&[invalid_expr], &aliases)
             .is_err());
@@ -272,7 +272,7 @@ mod tests {
         let validator = MatchValidator::new(context);
 
         // 测试没有聚合函数的表达式
-        let non_agg_expr = Expression::Literal(crate::core::Value::Int(1));
+        let non_agg_expr = Expr::Literal(crate::core::Value::Int(1));
         assert_eq!(validator.has_aggregate_expr(&non_agg_expr), false);
     }
 

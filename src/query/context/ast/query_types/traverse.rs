@@ -2,7 +2,7 @@
 //!
 //! 提供 PathContext 和 GoContext 的公共字段，减少代码重复
 
-use crate::expression::Expression;
+use crate::core::types::expression::Expr;
 use crate::query::context::ast::{AstContext, ExpressionProps, FromType, Over, Starts, StepClause};
 
 /// 遍历查询上下文基类

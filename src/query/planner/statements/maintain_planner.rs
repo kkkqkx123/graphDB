@@ -65,7 +65,7 @@ impl Planner for MaintainPlanner {
         use crate::core::Expression;
         use crate::query::validator::YieldColumn;
         let yield_columns = vec![YieldColumn {
-            expr: Expression::Variable(format!("MAINTAIN_{}", stmt_type)),
+            expr: Expr::Variable(format!("MAINTAIN_{}", stmt_type)),
             alias: "maintain_result".to_string(),
             is_matched: false,
         }];

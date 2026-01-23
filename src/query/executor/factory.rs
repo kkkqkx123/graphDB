@@ -362,7 +362,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     .iter()
                     .map(|item| {
                         crate::query::executor::result_processing::SortKey::new(
-                            crate::core::Expression::Variable(item.clone()),
+                            crate::core::Expr::Variable(item.clone()),
                             crate::query::executor::result_processing::SortOrder::Asc,
                         )
                     })
@@ -411,7 +411,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                 let group_by_expressions = node
                     .group_keys()
                     .iter()
-                    .map(|key| crate::core::Expression::Variable(key.clone()))
+                    .map(|key| crate::core::Expr::Variable(key.clone()))
                     .collect();
                 let executor = AggregateExecutor::new(
                     node.id(),
@@ -515,7 +515,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
 
                 let src_expr = node.src_expr()
                     .cloned()
-                    .unwrap_or_else(|| crate::core::Expression::Variable("_".to_string()));
+                    .unwrap_or_else(|| crate::core::Expr::Variable("_".to_string()));
 
                 let executor = AppendVerticesExecutor::new(
                     node.id(),
@@ -541,11 +541,11 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     .cloned()
                     .unwrap_or_else(|| format!("right_{}", node.id()));
 
-                let compare_cols: Vec<crate::core::Expression> = node.compare_cols()
+                let compare_cols: Vec<crate::core::Expr> = node.compare_cols()
                     .iter()
                     .map(|col| {
                         crate::query::parser::expressions::parse_expression_from_string(col)
-                            .unwrap_or_else(|_| crate::core::Expression::Variable(col.clone()))
+                            .unwrap_or_else(|_| crate::core::Expr::Variable(col.clone()))
                     })
                     .collect();
 
@@ -553,7 +553,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     .and_then(|col| {
                         crate::query::parser::expressions::parse_expression_from_string(col).ok()
                     })
-                    .unwrap_or_else(|| crate::core::Expression::Variable("_".to_string()));
+                    .unwrap_or_else(|| crate::core::Expr::Variable("_".to_string()));
 
                 let executor = RollUpApplyExecutor::new(
                     node.id(),
@@ -576,11 +576,11 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     .cloned()
                     .unwrap_or_else(|| format!("right_{}", node.id()));
 
-                let key_cols: Vec<crate::core::Expression> = node.key_cols()
+                let key_cols: Vec<crate::core::Expr> = node.key_cols()
                     .iter()
                     .map(|col| {
                         crate::query::parser::expressions::parse_expression_from_string(col)
-                            .unwrap_or_else(|_| crate::core::Expression::Variable(col.clone()))
+                            .unwrap_or_else(|_| crate::core::Expr::Variable(col.clone()))
                     })
                     .collect();
 

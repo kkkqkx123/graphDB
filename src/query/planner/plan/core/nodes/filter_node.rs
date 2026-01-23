@@ -178,7 +178,7 @@ mod tests {
                 start_node,
             );
 
-        let condition = Expression::Variable("test".to_string());
+        let condition = Expr::Variable("test".to_string());
         let filter_node = FilterNode::new(start_node_enum, condition)
             .expect("Filter node should be created successfully");
 

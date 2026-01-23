@@ -1,6 +1,6 @@
 //! Subgraph查询上下文
 
-use crate::expression::Expression;
+use crate::core::types::expression::Expr;
 use crate::query::context::ast::{AstContext, ExpressionProps, FromType, Starts, StepClause};
 use std::collections::HashSet;
 

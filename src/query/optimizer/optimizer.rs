@@ -927,10 +927,10 @@ impl Optimizer {
                 // 收集聚合节点中的所有属性
                 if let Some(aggregate_node) = node.plan_node.as_aggregate() {
                     for group_key in aggregate_node.group_keys() {
-                        self.collect_expression_properties(&crate::core::Expression::Variable(group_key.clone()), property_tracker);
+                        self.collect_expression_properties(&crate::core::Expr::Variable(group_key.clone()), property_tracker);
                     }
                     for item in aggregate_node.aggregation_functions() {
-                        self.collect_expression_properties(&crate::core::Expression::Variable(item.name().to_string()), property_tracker);
+                        self.collect_expression_properties(&crate::core::Expr::Variable(item.name().to_string()), property_tracker);
                     }
                 }
             }
@@ -943,43 +943,43 @@ impl Optimizer {
     /// 收集表达式中的属性
     fn collect_expression_properties(
         &self,
-        expr: &crate::core::Expression,
+        expr: &crate::core::Expr,
         property_tracker: &mut PropertyTracker,
     ) {
-        use crate::core::Expression;
+        use crate::core::Expr;
 
         match expr {
-            Expression::Property { object, property } => {
-                if let Expression::Variable(var_name) = object.as_ref() {
+            Expr::Property { object, property } => {
+                if let Expr::Variable(var_name) = object.as_ref() {
                     property_tracker.track_property(var_name, &property);
                 }
             }
-            Expression::Binary { left, right, .. } => {
+            Expr::Binary { left, right, .. } => {
                 self.collect_expression_properties(left, property_tracker);
                 self.collect_expression_properties(right, property_tracker);
             }
-            Expression::Unary { operand, .. } => {
+            Expr::Unary { operand, .. } => {
                 self.collect_expression_properties(operand, property_tracker);
             }
-            Expression::Function { args, .. } => {
+            Expr::Function { args, .. } => {
                 for arg in args {
                     self.collect_expression_properties(arg, property_tracker);
                 }
             }
-            Expression::Aggregate { arg, .. } => {
+            Expr::Aggregate { arg, .. } => {
                 self.collect_expression_properties(arg, property_tracker);
             }
-            Expression::List(items) => {
+            Expr::List(items) => {
                 for item in items {
                     self.collect_expression_properties(item, property_tracker);
                 }
             }
-            Expression::Map(pairs) => {
+            Expr::Map(pairs) => {
                 for (_, value) in pairs {
                     self.collect_expression_properties(value, property_tracker);
                 }
             }
-            Expression::Case { conditions, default } => {
+            Expr::Case { conditions, default } => {
                 for (condition, value) in conditions {
                     self.collect_expression_properties(condition, property_tracker);
                     self.collect_expression_properties(value, property_tracker);
@@ -988,14 +988,14 @@ impl Optimizer {
                     self.collect_expression_properties(default_expr, property_tracker);
                 }
             }
-            Expression::TypeCast { expr, .. } => {
+            Expr::TypeCast { expr, .. } => {
                 self.collect_expression_properties(expr, property_tracker);
             }
-            Expression::Subscript { collection, index } => {
+            Expr::Subscript { collection, index } => {
                 self.collect_expression_properties(collection, property_tracker);
                 self.collect_expression_properties(index, property_tracker);
             }
-            Expression::Range { collection, start, end } => {
+            Expr::Range { collection, start, end } => {
                 self.collect_expression_properties(collection, property_tracker);
                 if let Some(start_expr) = start {
                     self.collect_expression_properties(start_expr, property_tracker);
@@ -1004,7 +1004,7 @@ impl Optimizer {
                     self.collect_expression_properties(end_expr, property_tracker);
                 }
             }
-            Expression::Path(items) => {
+            Expr::Path(items) => {
                 for item in items {
                     self.collect_expression_properties(item, property_tracker);
                 }

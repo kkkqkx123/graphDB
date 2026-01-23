@@ -4,7 +4,7 @@
 
 use crate::core::types::expression::Expr;
 use crate::core::types::operators::BinaryOperator;
-use crate::core::{Expression, Value};
+use crate::core::{Expr as Expression, Value};
 
 pub struct ExpressionUtils;
 
@@ -103,8 +103,8 @@ mod tests {
 
     #[test]
     fn test_is_one_step_edge_prop() {
-        let expr = Expression::Property {
-            object: Box::new(Expression::Variable("e".to_string())),
+        let expr = Expr::Property {
+            object: Box::new(Expr::Variable("e".to_string())),
             property: "name".to_string(),
         };
         assert!(ExpressionUtils::is_one_step_edge_prop("e", &expr));
@@ -113,14 +113,14 @@ mod tests {
 
     #[test]
     fn test_split_filter() {
-        let expr = Expression::Binary {
-            left: Box::new(Expression::Property {
-                object: Box::new(Expression::Variable("e".to_string())),
+        let expr = Expr::Binary {
+            left: Box::new(Expr::Property {
+                object: Box::new(Expr::Variable("e".to_string())),
                 property: "name".to_string(),
             }),
             op: BinaryOperator::And,
-            right: Box::new(Expression::Property {
-                object: Box::new(Expression::Variable("v".to_string())),
+            right: Box::new(Expr::Property {
+                object: Box::new(Expr::Variable("v".to_string())),
                 property: "age".to_string(),
             }),
         };

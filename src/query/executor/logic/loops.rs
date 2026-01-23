@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
-use crate::core::Expression;
+use crate::core::Expr;
 use crate::core::Value;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::evaluator::traits::ExpressionContext;
@@ -36,7 +36,7 @@ pub enum LoopState {
 /// 包含递归检测机制，防止循环执行器自引用
 pub struct LoopExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
-    condition: Option<Expression>, // 循环条件，None 表示无限循环
+    condition: Option<Expr>, // 循环条件，None 表示无限循环
     body_executor: Box<dyn Executor<S>>,
     max_iterations: Option<usize>,
     current_iteration: usize,
@@ -55,7 +55,7 @@ impl<S: StorageEngine> LoopExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
-        condition: Option<Expression>,
+        condition: Option<Expr>,
         body_executor: Box<dyn Executor<S>>,
         max_iterations: Option<usize>,
     ) -> Self {
@@ -600,10 +600,10 @@ mod tests {
         let storage = Arc::new(Mutex::new(MockStorage));
         let storage_clone = storage.clone();
 
-        let condition = Expression::binary(
-            Expression::variable("__iteration"),
+        let condition = Expr::binary(
+            Expr::variable("__iteration"),
             BinaryOperator::LessThan,
-            Expression::int(3),
+            Expr::int(3),
         );
 
         let body_executor = Box::new(CountExecutor::new(storage_clone));

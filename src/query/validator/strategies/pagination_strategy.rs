@@ -3,7 +3,7 @@
 
 use super::super::structs::*;
 use super::super::validation_interface::*;
-use crate::core::Expression;
+use crate::core::Expr;
 
 /// 分页验证策略
 pub struct PaginationValidationStrategy;
@@ -16,8 +16,8 @@ impl PaginationValidationStrategy {
     /// 验证分页参数的有效性
     pub fn validate_pagination(
         &self,
-        skip_expr: Option<&Expression>,
-        limit_expr: Option<&Expression>,
+        skip_expr: Option<&Expr>,
+        limit_expr: Option<&Expr>,
         context: &PaginationContext,
     ) -> Result<(), ValidationError> {
         // 验证分页参数的有效性
@@ -49,7 +49,7 @@ impl PaginationValidationStrategy {
     /// 验证分页表达式
     pub fn validate_pagination_expr(
         &self,
-        expr: &Expression,
+        expr: &Expr,
         clause_name: &str,
     ) -> Result<(), ValidationError> {
         use crate::query::visitor::EvaluableExprVisitor;
@@ -63,7 +63,7 @@ impl PaginationValidationStrategy {
         }
 
         match expr {
-            Expression::Literal(crate::core::Value::Int(n)) => {
+            Expr::Literal(crate::core::Value::Int(n)) => {
                 if *n >= 0 {
                     Ok(())
                 } else {
@@ -73,7 +73,7 @@ impl PaginationValidationStrategy {
                     ))
                 }
             }
-            Expression::Literal(_) => Err(ValidationError::new(
+            Expr::Literal(_) => Err(ValidationError::new(
                 format!("{}表达式必须求值为整数类型", clause_name),
                 ValidationErrorType::PaginationError,
             )),
@@ -206,8 +206,8 @@ mod tests {
         let strategy = PaginationValidationStrategy::new();
 
         // 测试有效的分页表达式
-        let skip_expr = Expression::Literal(crate::core::Value::Int(1));
-        let limit_expr = Expression::Literal(crate::core::Value::Int(10));
+        let skip_expr = Expr::Literal(crate::core::Value::Int(1));
+        let limit_expr = Expr::Literal(crate::core::Value::Int(10));
         let pagination_ctx = PaginationContext { skip: 0, limit: 10 };
 
         assert!(strategy
@@ -249,11 +249,11 @@ mod tests {
         // 创建测试数据
         let yield_columns = vec![
             YieldColumn::new(
-                Expression::Literal(crate::core::Value::Int(1)),
+                Expr::Literal(crate::core::Value::Int(1)),
                 "col1".to_string(),
             ),
             YieldColumn::new(
-                Expression::Literal(crate::core::Value::Int(2)),
+                Expr::Literal(crate::core::Value::Int(2)),
                 "col2".to_string(),
             ),
         ];
@@ -281,12 +281,12 @@ mod tests {
         let strategy = PaginationValidationStrategy::new();
 
         // 测试有效的整数表达式
-        let int_expr = Expression::Literal(crate::core::Value::Int(10));
+        let int_expr = Expr::Literal(crate::core::Value::Int(10));
         assert!(strategy
             .validate_pagination_expr(&int_expr, "LIMIT")
             .is_ok());
 
-        let string_expr = Expression::Literal(crate::core::Value::String("invalid".to_string()));
+        let string_expr = Expr::Literal(crate::core::Value::String("invalid".to_string()));
         assert!(strategy
             .validate_pagination_expr(&string_expr, "LIMIT")
             .is_err());

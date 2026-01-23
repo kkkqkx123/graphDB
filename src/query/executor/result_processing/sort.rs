@@ -27,7 +27,7 @@ pub enum SortOrder {
 /// 排序键定义
 #[derive(Debug, Clone)]
 pub struct SortKey {
-    pub expression: Expression,
+    pub expression: Expr,
     pub order: SortOrder,
     /// 优化后的列索引（如果表达式可以解析为列索引）
     pub column_index: Option<usize>,
@@ -45,7 +45,7 @@ impl SortKey {
     /// 创建基于列索引的排序键
     pub fn from_column_index(column_index: usize, order: SortOrder) -> Self {
         Self {
-            expression: Expression::Literal(Value::Int(column_index as i64)),
+            expression: Expr::Literal(Value::Int(column_index as i64)),
             order,
             column_index: Some(column_index),
         }
@@ -162,11 +162,11 @@ impl<S: StorageEngine + Send + 'static> SortExecutor<S> {
     /// 将表达式解析为列索引
     fn parse_expression_to_column_index(
         &self,
-        expr: &Expression,
+        expr: &Expr,
         col_names: &[String],
     ) -> DBResult<Option<usize>> {
         match expr {
-            Expression::Property { object: _, property } => {
+            Expr::Property { object: _, property } => {
                 // 查找属性名对应的列索引
                 for (index, col_name) in col_names.iter().enumerate() {
                     if col_name == property {
@@ -175,7 +175,7 @@ impl<S: StorageEngine + Send + 'static> SortExecutor<S> {
                 }
                 Ok(None)
             }
-            Expression::Literal(Value::Int(index)) => {
+            Expr::Literal(Value::Int(index)) => {
                 // 直接使用列索引
                 let idx = *index as usize;
                 if idx < col_names.len() {
@@ -437,7 +437,7 @@ impl<S: StorageEngine + Send + 'static> SortExecutor<S> {
 
         for sort_key in &self.sort_keys {
             // 处理按列索引排序的特殊情况
-            if let Expression::Literal(Value::Int(index)) = &sort_key.expression {
+            if let Expr::Literal(Value::Int(index)) = &sort_key.expression {
                 let idx = *index as usize;
                 if idx < row.len() {
                     sort_values.push(row[idx].clone());
@@ -667,7 +667,7 @@ mod tests {
     #[test]
     fn test_sort_key_column_index() {
         // 测试排序键列索引功能
-        let sort_key = SortKey::new(Expression::Literal(Value::Int(1)), SortOrder::Asc);
+        let sort_key = SortKey::new(Expr::Literal(Value::Int(1)), SortOrder::Asc);
         assert!(!sort_key.uses_column_index());
 
         // 测试基于列索引的排序键
@@ -685,7 +685,6 @@ mod tests {
 
         let config = SortConfig::default();
 
-        let test_config = test_config();
         let storage = Arc::new(Mutex::new(MockStorage));
 
         let mut executor = SortExecutor::new(1, storage, sort_keys, None, config).expect("SortExecutor::new should succeed");
@@ -709,7 +708,6 @@ mod tests {
 
         let config = SortConfig::default();
 
-        let test_config = test_config();
         let storage = Arc::new(Mutex::new(MockStorage));
 
         let mut executor = SortExecutor::new(1, storage, sort_keys, Some(3), config).expect("SortExecutor::new should succeed");
@@ -733,10 +731,9 @@ mod tests {
 
         let config = SortConfig::default();
 
-        let test_config = test_config();
         let storage = Arc::new(Mutex::new(MockStorage));
 
-        let mut executor = SortExecutor::new(1, storage, sort_keys, Some(2), config).expect("SortExecutor::new should succeed");
+        let executor = SortExecutor::new(1, storage, sort_keys, Some(2), config).expect("SortExecutor::new should succeed");
 
         // 执行排序
         executor.execute_sort(&mut data_set).expect("execute_sort should succeed");
@@ -759,8 +756,6 @@ mod tests {
 
         let config = SortConfig::default();
 
-        let test_config = test_config();
-        let db_path = test_config.test_db_path("test_multi_column");
         let storage = Arc::new(Mutex::new(MockStorage));
 
         let mut executor = SortExecutor::new(1, storage, sort_keys, None, config).expect("SortExecutor::new should succeed");
@@ -788,10 +783,9 @@ mod tests {
         let sort_keys = vec![SortKey::from_column_index(10, SortOrder::Asc)]; // 无效列索引
 
         let config = SortConfig::default();
-        let test_config = test_config();
         let storage = Arc::new(Mutex::new(MockStorage));
 
-        let mut executor = SortExecutor::new(1, storage, sort_keys, None, config).expect("SortExecutor::new should succeed");
+        let executor = SortExecutor::new(1, storage, sort_keys, None, config).expect("SortExecutor::new should succeed");
 
         // 验证多列排序结果应该会返回错误，因为列索引超出范围
         let result = executor.execute_sort(&mut data_set);
@@ -808,8 +802,7 @@ mod tests {
         let sort_keys = vec![SortKey::from_column_index(2, SortOrder::Asc)];
 
         let config = SortConfig::default();
-        let test_config = test_config();
-        let db_path = test_config.test_db_path("test_column_comparison");
+
         let storage = Arc::new(Mutex::new(MockStorage));
 
         let executor = SortExecutor::new(1, storage, sort_keys, None, config).expect("SortExecutor::new should succeed");

@@ -528,13 +528,6 @@ mod tests {
 
     #[test]
     fn test_calculate_sum() {
-        let executor = AggregationExecutor {
-            base: BaseExecutor::new(1, "test".to_string(), Arc::new(Mutex::new(crate::storage::MockStorage))),
-            aggregation_functions: vec![],
-            group_by_keys: vec![],
-            filter_condition: None,
-        };
-
         let values = vec![
             Value::Int(10),
             Value::Int(20),
@@ -556,13 +549,7 @@ mod tests {
     #[test]
     fn test_calculate_count() {
         let temp_dir = std::env::temp_dir();
-        let test_path = temp_dir.join("graphdb_test_aggregation").to_str().expect("temp_dir should be valid unicode").to_string();
-        let executor = AggregationExecutor {
-            base: BaseExecutor::new(1, "test".to_string(), Arc::new(Mutex::new(crate::storage::MockStorage))),
-            aggregation_functions: vec![],
-            group_by_keys: vec![],
-            filter_condition: None,
-        };
+        let _test_path = temp_dir.join("graphdb_test_aggregation").to_str().expect("temp_dir should be valid unicode").to_string();
 
         let values = vec![
             Value::Int(10),

@@ -8,7 +8,7 @@
 //! - 添加属性投影支持
 
 use crate::core::types::EdgeDirection;
-use crate::expression::Expression;
+use crate::core::types::expression::Expr;
 use crate::query::context::ast::{AstContext, GoContext};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
@@ -67,8 +67,8 @@ impl Planner for GoPlanner {
         let input_for_join = if go_ctx.join_dst {
             let expand_enum = PlanNodeEnum::ExpandAll(expand_all_node.clone());
 
-            let join_key_left = Expression::Variable("_expandall_vid".to_string());
-            let join_key_right = Expression::Variable("_expandall_vid".to_string());
+            let join_key_left = Expr::Variable("_expandall_vid".to_string());
+            let join_key_right = Expr::Variable("_expandall_vid".to_string());
 
             let left_input =
                 PlanNodeEnum::Argument(ArgumentNode::new(0, &go_ctx.traverse.from.user_defined_var_name));
@@ -148,20 +148,20 @@ impl GoPlanner {
         if let Some(ref yield_expr) = go_ctx.yield_expr {
             for col in &yield_expr.columns {
                 columns.push(crate::query::validator::YieldColumn {
-                    expr: crate::core::Expression::Variable(col.alias.clone()),
+                    expr: crate::core::Expr::Variable(col.alias.clone()),
                     alias: col.alias.clone(),
                     is_matched: false,
                 });
             }
         } else {
             columns.push(crate::query::validator::YieldColumn {
-                expr: crate::core::Expression::Variable("_expandall_dst".to_string()),
+                expr: crate::core::Expr::Variable("_expandall_dst".to_string()),
                 alias: "dst".to_string(),
                 is_matched: false,
             });
 
             columns.push(crate::query::validator::YieldColumn {
-                expr: crate::core::Expression::Variable("_expandall_props".to_string()),
+                expr: crate::core::Expr::Variable("_expandall_props".to_string()),
                 alias: "properties".to_string(),
                 is_matched: false,
             });
@@ -169,7 +169,7 @@ impl GoPlanner {
 
         if columns.is_empty() {
             columns.push(crate::query::validator::YieldColumn {
-                expr: crate::core::Expression::Variable("*".to_string()),
+                expr: crate::core::Expr::Variable("*".to_string()),
                 alias: "result".to_string(),
                 is_matched: false,
             });

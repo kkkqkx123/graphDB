@@ -1,7 +1,7 @@
 //! 表达式转换器
 //! 将AST表达式转换为graph表达式
 
-use crate::expression::Expression;
+use crate::core::types::expression::Expr;
 use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 use crate::core::Value;
 use crate::query::parser::ast::{
@@ -31,7 +31,7 @@ pub fn convert_ast_to_graph_expression(ast_expr: &Expr) -> Result<Expression, St
 }
 
 /// 转换常量表达式
-fn convert_constant_expr(expr: &ConstantExpr) -> Result<Expression, String> {
+fn convert_constant_expr(expr: &ConstantExpr) -> Result<Expr, String> {
     let value = match &expr.value {
         Value::Bool(b) => Value::Bool(*b),
         Value::Int(i) => Value::Int(*i),
@@ -40,21 +40,21 @@ fn convert_constant_expr(expr: &ConstantExpr) -> Result<Expression, String> {
         Value::Null(nt) => Value::Null(nt.clone()),
         _ => return Err(format!("不支持的常量值类型: {:?}", expr.value)),
     };
-    Ok(Expression::Literal(value))
+    Ok(Expr::Literal(value))
 }
 
 /// 转换类型转换表达式
-fn convert_type_cast_expr(expr: &TypeCastExpr) -> Result<Expression, String> {
+fn convert_type_cast_expr(expr: &TypeCastExpr) -> Result<Expr, String> {
     let converted_expr = convert_ast_to_graph_expression(&expr.expr)?;
     let target_type = parse_data_type(&expr.target_type)?;
-    Ok(Expression::TypeCast {
+    Ok(Expr::TypeCast {
         expr: Box::new(converted_expr),
         target_type,
     })
 }
 
 /// 转换范围表达式
-fn convert_range_expr(expr: &RangeExpr) -> Result<Expression, String> {
+fn convert_range_expr(expr: &RangeExpr) -> Result<Expr, String> {
     let collection = convert_ast_to_graph_expression(&expr.collection)?;
     let start = if let Some(ref start_expr) = expr.start {
         Some(Box::new(convert_ast_to_graph_expression(start_expr)?))
@@ -66,7 +66,7 @@ fn convert_range_expr(expr: &RangeExpr) -> Result<Expression, String> {
     } else {
         None
     };
-    Ok(Expression::Range {
+    Ok(Expr::Range {
         collection: Box::new(collection),
         start,
         end,
@@ -74,18 +74,18 @@ fn convert_range_expr(expr: &RangeExpr) -> Result<Expression, String> {
 }
 
 /// 转换路径表达式
-fn convert_path_expr(expr: &PathExpr) -> Result<Expression, String> {
-    let elements: Result<Vec<Expression>, String> = expr
+fn convert_path_expr(expr: &PathExpr) -> Result<Expr, String> {
+    let elements: Result<Vec<Expr>, String> = expr
         .elements
         .iter()
         .map(|elem| convert_ast_to_graph_expression(elem))
         .collect();
-    Ok(Expression::Path(elements?))
+    Ok(Expr::Path(elements?))
 }
 
 /// 转换标签表达式
-fn convert_label_expr(expr: &LabelExpr) -> Result<Expression, String> {
-    Ok(Expression::Label(expr.label.clone()))
+fn convert_label_expr(expr: &LabelExpr) -> Result<Expr, String> {
+    Ok(Expr::Label(expr.label.clone()))
 }
 
 /// 解析数据类型字符串
@@ -109,17 +109,17 @@ fn parse_data_type(type_str: &str) -> Result<crate::core::types::expression::Dat
 }
 
 /// 转换变量表达式
-fn convert_variable_expr(expr: &VariableExpr) -> Result<Expression, String> {
-    Ok(Expression::Variable(expr.name.clone()))
+fn convert_variable_expr(expr: &VariableExpr) -> Result<Expr, String> {
+    Ok(Expr::Variable(expr.name.clone()))
 }
 
 /// 转换二元表达式
-fn convert_binary_expr(expr: &BinaryExpr) -> Result<Expression, String> {
+fn convert_binary_expr(expr: &BinaryExpr) -> Result<Expr, String> {
     let left = convert_ast_to_graph_expression(&expr.left)?;
     let right = convert_ast_to_graph_expression(&expr.right)?;
     let op = convert_binary_op(&expr.op)?;
 
-    Ok(Expression::Binary {
+    Ok(Expr::Binary {
         left: Box::new(left),
         op,
         right: Box::new(right),
@@ -127,19 +127,19 @@ fn convert_binary_expr(expr: &BinaryExpr) -> Result<Expression, String> {
 }
 
 /// 转换一元表达式
-fn convert_unary_expr(expr: &UnaryExpr) -> Result<Expression, String> {
+fn convert_unary_expr(expr: &UnaryExpr) -> Result<Expr, String> {
     let operand = convert_ast_to_graph_expression(&expr.operand)?;
     let op = convert_unary_op(&expr.op)?;
 
-    Ok(Expression::Unary {
+    Ok(Expr::Unary {
         op,
         operand: Box::new(operand),
     })
 }
 
 /// 转换函数调用表达式
-fn convert_function_call_expr(expr: &FunctionCallExpr) -> Result<Expression, String> {
-    let args: Result<Vec<Expression>, String> = expr
+fn convert_function_call_expr(expr: &FunctionCallExpr) -> Result<Expr, String> {
+    let args: Result<Vec<Expr>, String> = expr
         .args
         .iter()
         .map(|arg| convert_ast_to_graph_expression(arg))
@@ -160,14 +160,14 @@ fn convert_function_call_expr(expr: &FunctionCallExpr) -> Result<Expression, Str
         let arg = Box::new(args[0].clone());
         let aggregate_func = convert_aggregate_function(&func_name)?;
 
-        Ok(Expression::Aggregate {
+        Ok(Expr::Aggregate {
             func: aggregate_func,
             arg,
             distinct: expr.distinct,
         })
     } else {
         // 普通函数调用
-        Ok(Expression::Function {
+        Ok(Expr::Function {
             name: expr.name.clone(),
             args,
         })
@@ -175,28 +175,28 @@ fn convert_function_call_expr(expr: &FunctionCallExpr) -> Result<Expression, Str
 }
 
 /// 转换属性访问表达式
-fn convert_property_access_expr(expr: &PropertyAccessExpr) -> Result<Expression, String> {
+fn convert_property_access_expr(expr: &PropertyAccessExpr) -> Result<Expr, String> {
     let object = convert_ast_to_graph_expression(&expr.object)?;
-    Ok(Expression::Property {
+    Ok(Expr::Property {
         object: Box::new(object),
         property: expr.property.clone(),
     })
 }
 
 /// 转换列表表达式
-fn convert_list_expr(expr: &ListExpr) -> Result<Expression, String> {
-    let elements: Result<Vec<Expression>, String> = expr
+fn convert_list_expr(expr: &ListExpr) -> Result<Expr, String> {
+    let elements: Result<Vec<Expr>, String> = expr
         .elements
         .iter()
         .map(|elem| convert_ast_to_graph_expression(elem))
         .collect();
 
-    Ok(Expression::List(elements?))
+    Ok(Expr::List(elements?))
 }
 
 /// 转换映射表达式
-fn convert_map_expr(expr: &MapExpr) -> Result<Expression, String> {
-    let pairs: Result<Vec<(String, Expression)>, String> = expr
+fn convert_map_expr(expr: &MapExpr) -> Result<Expr, String> {
+    let pairs: Result<Vec<(String, Expr)>, String> = expr
         .pairs
         .iter()
         .map(|(key, value)| {
@@ -205,11 +205,11 @@ fn convert_map_expr(expr: &MapExpr) -> Result<Expression, String> {
         })
         .collect();
 
-    Ok(Expression::Map(pairs?))
+    Ok(Expr::Map(pairs?))
 }
 
 /// 转换CASE表达式
-fn convert_case_expr(expr: &CaseExpr) -> Result<Expression, String> {
+fn convert_case_expr(expr: &CaseExpr) -> Result<Expr, String> {
     let mut conditions = Vec::new();
 
     // 处理WHEN-THEN条件对
@@ -232,7 +232,7 @@ fn convert_case_expr(expr: &CaseExpr) -> Result<Expression, String> {
         let mut new_conditions = Vec::new();
 
         for (when, then) in conditions {
-            let condition = Expression::Binary {
+            let condition = Expr::Binary {
                 left: Box::new(match_expr.clone()),
                 op: BinaryOperator::Equal,
                 right: Box::new(when),
@@ -240,12 +240,12 @@ fn convert_case_expr(expr: &CaseExpr) -> Result<Expression, String> {
             new_conditions.push((condition, then));
         }
 
-        Ok(Expression::Case {
+        Ok(Expr::Case {
             conditions: new_conditions,
             default,
         })
     } else {
-        Ok(Expression::Case {
+        Ok(Expr::Case {
             conditions,
             default,
         })
@@ -253,11 +253,11 @@ fn convert_case_expr(expr: &CaseExpr) -> Result<Expression, String> {
 }
 
 /// 转换下标表达式
-fn convert_subscript_expr(expr: &SubscriptExpr) -> Result<Expression, String> {
+fn convert_subscript_expr(expr: &SubscriptExpr) -> Result<Expr, String> {
     let collection = convert_ast_to_graph_expression(&expr.collection)?;
     let index = convert_ast_to_graph_expression(&expr.index)?;
 
-    Ok(Expression::Subscript {
+    Ok(Expr::Subscript {
         collection: Box::new(collection),
         index: Box::new(index),
     })
@@ -342,7 +342,7 @@ fn is_aggregate_function(func_name: &str) -> bool {
 }
 
 /// 从字符串解析表达式
-pub fn parse_expression_from_string(condition: &str) -> Result<Expression, String> {
+pub fn parse_expression_from_string(condition: &str) -> Result<Expr, String> {
     // 创建语法分析器
     let mut parser = crate::query::parser::Parser::new(condition);
     let ast_expr = parser
@@ -369,7 +369,7 @@ mod tests {
         let result = convert_ast_to_graph_expression(&ast_expr)
             .expect("Expected successful conversion of constant expression");
 
-        if let Expression::Literal(Value::Int(value)) = result {
+        if let Expr::Literal(Value::Int(value)) = result {
             assert_eq!(value, 42);
         } else {
             panic!("Expected Literal(Int(42)), got {:?}", result);
@@ -382,7 +382,7 @@ mod tests {
         let result = convert_ast_to_graph_expression(&ast_expr)
             .expect("Expected successful conversion of variable expression");
 
-        if let Expression::Variable(name) = result {
+        if let Expr::Variable(name) = result {
             assert_eq!(name, "test_var");
         } else {
             panic!("Expected Variable(\"test_var\"), got {:?}", result);
@@ -400,8 +400,8 @@ mod tests {
         let result = convert_ast_to_graph_expression(&ast_expr)
             .expect("Expected successful conversion of type cast expression");
 
-        if let Expression::TypeCast { expr, target_type } = result {
-            assert_eq!(*expr, Expression::Literal(Value::Int(42)));
+        if let Expr::TypeCast { expr, target_type } = result {
+            assert_eq!(*expr, Expr::Literal(Value::Int(42)));
             assert_eq!(target_type, crate::core::types::expression::DataType::Float);
         } else {
             panic!("Expected TypeCast, got {:?}", result);
@@ -414,7 +414,7 @@ mod tests {
         let result = convert_ast_to_graph_expression(&ast_expr)
             .expect("Expected successful conversion of label expression");
 
-        if let Expression::Label(label) = result {
+        if let Expr::Label(label) = result {
             assert_eq!(label, "Person");
         } else {
             panic!("Expected Label, got {:?}", result);
@@ -430,10 +430,10 @@ mod tests {
         let result = convert_ast_to_graph_expression(&ast_expr)
             .expect("Expected successful conversion of binary expression");
 
-        if let Expression::Binary { left, op, right } = result {
-            assert_eq!(*left, Expression::Literal(Value::Int(5)));
+        if let Expr::Binary { left, op, right } = result {
+            assert_eq!(*left, Expr::Literal(Value::Int(5)));
             assert_eq!(op, BinaryOperator::Add);
-            assert_eq!(*right, Expression::Literal(Value::Int(3)));
+            assert_eq!(*right, Expr::Literal(Value::Int(3)));
         } else {
             panic!("Expected Binary expression, got {:?}", result);
         }
@@ -447,9 +447,9 @@ mod tests {
         let result = convert_ast_to_graph_expression(&ast_expr)
             .expect("Expected successful conversion of unary expression");
 
-        if let Expression::Unary { op, operand } = result {
+        if let Expr::Unary { op, operand } = result {
             assert_eq!(op, UnaryOperator::Not);
-            assert_eq!(*operand, Expression::Literal(Value::Bool(true)));
+            assert_eq!(*operand, Expr::Literal(Value::Bool(true)));
         } else {
             panic!("Expected Unary expression, got {:?}", result);
         }
@@ -474,6 +474,6 @@ mod tests {
         assert!(result.is_ok());
 
         let expr = result.expect("Expected successful parsing of expression from string");
-        assert!(matches!(expr, Expression::Binary { .. }));
+        assert!(matches!(expr, Expr::Binary { .. }));
     }
 }

@@ -1004,7 +1004,7 @@ mod tests {
 
         // 创建聚合执行器 (按部门分组，计算平均薪资)
         let aggregate_functions = vec![AggregateFunctionSpec::avg("salary".to_string())];
-        let group_keys = vec![Expression::variable("department")];
+        let group_keys = vec![Expr::variable("department")];
 
         let mut executor = AggregateExecutor::new(1, storage, aggregate_functions, group_keys);
 

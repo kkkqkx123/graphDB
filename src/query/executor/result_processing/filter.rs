@@ -409,13 +409,13 @@ mod tests {
         ]);
 
         // 创建过滤执行器 (age > 25)
-        let condition = Expression::Binary {
-            left: Box::new(Expression::Property {
-                object: Box::new(Expression::Variable("row".to_string())),
+        let condition = Expr::Binary {
+            left: Box::new(Expr::Property {
+                object: Box::new(Expr::Variable("row".to_string())),
                 property: "age".to_string(),
             }),
             op: crate::core::BinaryOperator::GreaterThan,
-            right: Box::new(Expression::Literal(crate::core::Value::Int(25))),
+            right: Box::new(Expr::Literal(crate::core::Value::Int(25))),
         };
 
         let mut executor = FilterExecutor::new(1, storage, condition);

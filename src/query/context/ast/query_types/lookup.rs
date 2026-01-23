@@ -1,6 +1,6 @@
 //! Lookup查询上下文
 
-use crate::expression::Expression;
+use crate::core::types::expression::Expr;
 use crate::query::context::ast::{AstContext, YieldColumns};
 
 /// Lookup查询上下文

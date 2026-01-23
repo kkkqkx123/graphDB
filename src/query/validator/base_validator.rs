@@ -9,7 +9,7 @@
 //! 4. to_plan() - 转换为执行计划
 
 use crate::core::error::{DBError, QueryError};
-use crate::core::{Expression, Value};
+use crate::core::{Expr, Value};
 use crate::query::context::validate::ValidationContext;
 use crate::query::validator::ValidationError;
 use crate::query::validator::ValidationErrorType;
@@ -250,7 +250,7 @@ impl Validator {
 
     pub fn deduce_expr_type(&self, expr: &Expression) -> ValueType {
         match expr {
-            Expression::Literal(value) => {
+            Expr::Literal(value) => {
                 match value {
                     Value::Bool(_) => ValueType::Bool,
                     Value::Int(_) => ValueType::Int,
@@ -269,9 +269,9 @@ impl Validator {
                     _ => ValueType::Unknown,
                 }
             }
-            Expression::Variable(_) => ValueType::Unknown,
-            Expression::Property { .. } => ValueType::Unknown,
-            Expression::Binary { op, .. } => {
+            Expr::Variable(_) => ValueType::Unknown,
+            Expr::Property { .. } => ValueType::Unknown,
+            Expr::Binary { op, .. } => {
                 match op {
                     crate::core::BinaryOperator::Equal
                     | crate::core::BinaryOperator::NotEqual
@@ -283,8 +283,8 @@ impl Validator {
                     _ => ValueType::Unknown,
                 }
             }
-            Expression::Unary { .. } => ValueType::Unknown,
-            Expression::Function { name, .. } => {
+            Expr::Unary { .. } => ValueType::Unknown,
+            Expr::Function { name, .. } => {
                 match name.to_lowercase().as_str() {
                     "id" => ValueType::String,
                     "count" | "sum" | "avg" | "min" | "max" => ValueType::Float,
@@ -295,7 +295,7 @@ impl Validator {
                     _ => ValueType::Unknown,
                 }
             }
-            Expression::Aggregate { func, .. } => {
+            Expr::Aggregate { func, .. } => {
                 match func {
                     crate::core::AggregateFunction::Count(_) => ValueType::Int,
                     crate::core::AggregateFunction::Sum(_) => ValueType::Float,
@@ -304,8 +304,8 @@ impl Validator {
                     _ => ValueType::Unknown,
                 }
             }
-            Expression::List(_) => ValueType::List,
-            Expression::Map(_) => ValueType::Map,
+            Expr::List(_) => ValueType::List,
+            Expr::Map(_) => ValueType::Map,
             _ => ValueType::Unknown,
         }
      }

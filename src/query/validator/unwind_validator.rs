@@ -4,14 +4,14 @@
 
 use super::base_validator::{Validator, ValueType};
 use super::ValidationContext;
-use crate::core::{Expression, Value, NullType};
+use crate::core::{Expr, Value, NullType};
 use crate::query::validator::ValidationError;
 use crate::query::validator::ValidationErrorType;
 use std::collections::HashMap;
 
 pub struct UnwindValidator {
     base: Validator,
-    unwind_expression: Expression,
+    unwind_expression: Expr,
     variable_name: String,
     aliases_available: HashMap<String, ValueType>,
 }
@@ -20,7 +20,7 @@ impl UnwindValidator {
     pub fn new(context: ValidationContext) -> Self {
         Self {
             base: Validator::new(context),
-            unwind_expression: Expression::Literal(Value::Null(NullType::Null)),
+            unwind_expression: Expr::Literal(Value::Null(NullType::Null)),
             variable_name: String::new(),
             aliases_available: HashMap::new(),
         }
