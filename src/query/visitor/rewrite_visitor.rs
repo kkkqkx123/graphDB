@@ -11,13 +11,14 @@ use crate::core::{
     BinaryOperator, DataType, Expression, UnaryOperator, Value,
 };
 use crate::core::types::operators::AggregateFunction;
+use crate::expression::Expr;
 use crate::query::parser::ast::expr::*;
 
 /// 匹配器类型：判断表达式是否需要重写
-pub type Matcher = fn(&Expression) -> bool;
+pub type Matcher = fn(&Expr) -> bool;
 
 /// 重写器类型：执行表达式重写
-pub type Rewriter = fn(&Expression) -> Expression;
+pub type Rewriter = fn(&Expr) -> Expression;
 
 /// 表达式重写访问器
 ///
@@ -57,7 +58,7 @@ impl RewriteVisitor {
 
     /// 静态方法：转换表达式
     pub fn transform(
-        expr: &Expression,
+        expr: &Expr,
         matcher: Matcher,
         rewriter: Rewriter,
     ) -> Expression {
@@ -66,7 +67,7 @@ impl RewriteVisitor {
     }
 
     /// 重写表达式
-    pub fn rewrite(&mut self, expr: &Expression) -> Expression {
+    pub fn rewrite(&mut self, expr: &Expr) -> Expression {
         if let Some(matcher) = self.matcher {
             if matcher(expr) {
                 if let Some(rewriter) = self.rewriter {
@@ -109,21 +110,21 @@ impl ExpressionVisitor for RewriteVisitor {
     fn visit_variable(&mut self, _name: &str) -> Self::Result {
     }
 
-    fn visit_property(&mut self, object: &Expression, _property: &str) -> Self::Result {
+    fn visit_property(&mut self, object: &Expr, _property: &str) -> Self::Result {
         self.visit_expression(object);
     }
 
     fn visit_binary(
         &mut self,
-        left: &Expression,
+        left: &Expr,
         _op: &BinaryOperator,
-        right: &Expression,
+        right: &Expr,
     ) -> Self::Result {
         self.visit_expression(left);
         self.visit_expression(right);
     }
 
-    fn visit_unary(&mut self, _op: &UnaryOperator, operand: &Expression) -> Self::Result {
+    fn visit_unary(&mut self, _op: &UnaryOperator, operand: &Expr) -> Self::Result {
         self.visit_expression(operand);
     }
 
@@ -136,7 +137,7 @@ impl ExpressionVisitor for RewriteVisitor {
     fn visit_aggregate(
         &mut self,
         _func: &AggregateFunction,
-        arg: &Expression,
+        arg: &Expr,
         _distinct: bool,
     ) -> Self::Result {
         self.visit_expression(arg);
@@ -156,8 +157,8 @@ impl ExpressionVisitor for RewriteVisitor {
 
     fn visit_case(
         &mut self,
-        conditions: &[(Expression, Expression)],
-        default: &Option<Box<Expression>>,
+        conditions: &[(Expr, Expr)],
+        default: &Option<Box<Expr>>,
     ) -> Self::Result {
         for (cond, expr) in conditions {
             self.visit_expression(cond);
@@ -168,20 +169,20 @@ impl ExpressionVisitor for RewriteVisitor {
         }
     }
 
-    fn visit_type_cast(&mut self, expr: &Expression, _target_type: &DataType) -> Self::Result {
+    fn visit_type_cast(&mut self, expr: &Expr, _target_type: &DataType) -> Self::Result {
         self.visit_expression(expr);
     }
 
-    fn visit_subscript(&mut self, collection: &Expression, index: &Expression) -> Self::Result {
+    fn visit_subscript(&mut self, collection: &Expr, index: &Expr) -> Self::Result {
         self.visit_expression(collection);
         self.visit_expression(index);
     }
 
     fn visit_range(
         &mut self,
-        collection: &Expression,
-        start: &Option<Box<Expression>>,
-        end: &Option<Box<Expression>>,
+        collection: &Expr,
+        start: &Option<Box<Expr>>,
+        end: &Option<Box<Expr>>,
     ) -> Self::Result {
         self.visit_expression(collection);
         if let Some(start_expr) = start {
@@ -207,80 +208,5 @@ impl ExpressionVisitor for RewriteVisitor {
 
     fn state_mut(&mut self) -> &mut ExpressionVisitorState {
         &mut self.state
-    }
-
-    fn visit_constant_expr(&mut self, _expr: &ConstantExpr) -> Self::Result {
-    }
-
-    fn visit_variable_expr(&mut self, _expr: &VariableExpr) -> Self::Result {
-    }
-
-    fn visit_binary_expr(&mut self, expr: &BinaryExpr) -> Self::Result {
-        self.visit_expr(&expr.left);
-        self.visit_expr(&expr.right);
-    }
-
-    fn visit_unary_expr(&mut self, expr: &UnaryExpr) -> Self::Result {
-        self.visit_expr(&expr.operand);
-    }
-
-    fn visit_function_call_expr(&mut self, expr: &FunctionCallExpr) -> Self::Result {
-        for arg in &expr.args {
-            self.visit_expr(arg);
-        }
-    }
-
-    fn visit_property_access_expr(&mut self, expr: &PropertyAccessExpr) -> Self::Result {
-        self.visit_expr(&expr.object);
-    }
-
-    fn visit_list_expr(&mut self, expr: &ListExpr) -> Self::Result {
-        for item in &expr.elements {
-            self.visit_expr(item);
-        }
-    }
-
-    fn visit_map_expr(&mut self, expr: &MapExpr) -> Self::Result {
-        for (_, value) in &expr.pairs {
-            self.visit_expr(value);
-        }
-    }
-
-    fn visit_case_expr(&mut self, expr: &CaseExpr) -> Self::Result {
-        for (condition, value) in &expr.when_then_pairs {
-            self.visit_expr(condition);
-            self.visit_expr(value);
-        }
-        if let Some(default_expr) = &expr.default {
-            self.visit_expr(default_expr);
-        }
-    }
-
-    fn visit_subscript_expr(&mut self, expr: &SubscriptExpr) -> Self::Result {
-        self.visit_expr(expr.collection.as_ref());
-        self.visit_expr(expr.index.as_ref());
-    }
-
-    fn visit_type_cast_expr(&mut self, expr: &TypeCastExpr) -> Self::Result {
-        self.visit_expr(expr.expr.as_ref());
-    }
-
-    fn visit_range_expr(&mut self, expr: &RangeExpr) -> Self::Result {
-        self.visit_expr(&expr.collection);
-        if let Some(start_expr) = &expr.start {
-            self.visit_expr(start_expr);
-        }
-        if let Some(end_expr) = &expr.end {
-            self.visit_expr(end_expr);
-        }
-    }
-
-    fn visit_path_expr(&mut self, expr: &PathExpr) -> Self::Result {
-        for item in &expr.elements {
-            self.visit_expr(item);
-        }
-    }
-
-    fn visit_label_expr(&mut self, _expr: &LabelExpr) -> Self::Result {
     }
 }

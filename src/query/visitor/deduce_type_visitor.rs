@@ -3,9 +3,9 @@
 
 use crate::core::{
     expression_visitor::{ExpressionVisitor, ExpressionVisitorState, GenericExpressionVisitor},
-    Expression, TypeUtils, DataType,
+    Expression, TypeUtils, DataType, BinaryOperator, UnaryOperator, Value,
 };
-use crate::core::{BinaryOperator, DataType, UnaryOperator, Value};
+use crate::expression::Expr;
 use crate::query::validator::ValidationContext;
 use crate::storage::StorageEngine;
 use thiserror::Error;
@@ -104,7 +104,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     }
 
     /// 主推导方法 - 推导表达式的类型
-    pub fn deduce_type(&mut self, expr: &Expression) -> Result<DataType, TypeDeductionError> {
+    pub fn deduce_type(&mut self, expr: &Expr) -> Result<DataType, TypeDeductionError> {
         self.visit_expression(expr)?;
         Ok(self.type_.clone())
     }
@@ -321,7 +321,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
         Ok(())
     }
 
-    fn visit_property(&mut self, object: &Expression, property: &str) -> Result<(), TypeDeductionError> {
+    fn visit_property(&mut self, object: &Expr, property: &str) -> Result<(), TypeDeductionError> {
         // 推导属性访问表达式的类型
         // 先推导对象类型，再获取属性类型
         self.visit_expression(object)?;
@@ -440,7 +440,7 @@ impl<'a, S: StorageEngine> ExpressionVisitor for DeduceTypeVisitor<'a, S> {
         Ok(())
     }
 
-    fn visit_property(&mut self, object: &Expression, _property: &str) -> Self::Result {
+    fn visit_property(&mut self, object: &Expr, _property: &str) -> Self::Result {
         self.visit_expression(object)?;
         self.type_ = DataType::Empty;
         Ok(())
@@ -448,9 +448,9 @@ impl<'a, S: StorageEngine> ExpressionVisitor for DeduceTypeVisitor<'a, S> {
 
     fn visit_binary(
         &mut self,
-        left: &Expression,
+        left: &Expr,
         op: &BinaryOperator,
-        right: &Expression,
+        right: &Expr,
     ) -> Self::Result {
         self.visit_expression(left)?;
         let left_type = self.type_.clone();
@@ -459,7 +459,7 @@ impl<'a, S: StorageEngine> ExpressionVisitor for DeduceTypeVisitor<'a, S> {
         self.deduce_binary_op_type(op, left_type, right_type)
     }
 
-    fn visit_unary(&mut self, op: &UnaryOperator, operand: &Expression) -> Self::Result {
+    fn visit_unary(&mut self, op: &UnaryOperator, operand: &Expr) -> Self::Result {
         self.visit_expression(operand)?;
         self.deduce_unary_op_type(op)
     }
@@ -471,7 +471,7 @@ impl<'a, S: StorageEngine> ExpressionVisitor for DeduceTypeVisitor<'a, S> {
     fn visit_aggregate(
         &mut self,
         func: &crate::core::AggregateFunction,
-        arg: &Expression,
+        arg: &Expr,
         _distinct: bool,
     ) -> Self::Result {
         self.visit_expression(arg)?;
@@ -491,8 +491,8 @@ impl<'a, S: StorageEngine> ExpressionVisitor for DeduceTypeVisitor<'a, S> {
 
     fn visit_case(
         &mut self,
-        conditions: &[(Expression, Expression)],
-        default: &Option<Box<Expression>>,
+        conditions: &[(Expr, Expr)],
+        default: &Option<Box<Expr>>,
     ) -> Self::Result {
         let mut result_type: Option<DataType> = None;
 
@@ -538,13 +538,13 @@ impl<'a, S: StorageEngine> ExpressionVisitor for DeduceTypeVisitor<'a, S> {
         Ok(())
     }
 
-    fn visit_type_cast(&mut self, expr: &Expression, target_type: &DataType) -> Self::Result {
+    fn visit_type_cast(&mut self, expr: &Expr, target_type: &DataType) -> Self::Result {
         self.visit_expression(expr)?;
         self.type_ = self.parse_data_type(target_type);
         Ok(())
     }
 
-    fn visit_subscript(&mut self, collection: &Expression, index: &Expression) -> Self::Result {
+    fn visit_subscript(&mut self, collection: &Expr, index: &Expr) -> Self::Result {
         self.visit_expression(collection)?;
         let container_type = self.type_.clone();
         self.visit_expression(index)?;
@@ -558,9 +558,9 @@ impl<'a, S: StorageEngine> ExpressionVisitor for DeduceTypeVisitor<'a, S> {
 
     fn visit_range(
         &mut self,
-        collection: &Expression,
-        start: &Option<Box<Expression>>,
-        end: &Option<Box<Expression>>,
+        collection: &Expr,
+        start: &Option<Box<Expr>>,
+        end: &Option<Box<Expr>>,
     ) -> Self::Result {
         self.visit_expression(collection)?;
         if let Some(start_expr) = start {
@@ -583,107 +583,6 @@ impl<'a, S: StorageEngine> ExpressionVisitor for DeduceTypeVisitor<'a, S> {
 
     fn visit_label(&mut self, _name: &str) -> Self::Result {
         self.type_ = DataType::String;
-        Ok(())
-    }
-
-    // AST表达式访问方法 - 提供默认实现
-    fn visit_constant_expr(&mut self, expr: &crate::query::parser::ast::expr::ConstantExpr) -> Self::Result {
-        self.visit_literal(&expr.value)
-    }
-
-    fn visit_variable_expr(&mut self, expr: &crate::query::parser::ast::expr::VariableExpr) -> Self::Result {
-        self.visit_variable(&expr.name)
-    }
-
-    fn visit_binary_expr(&mut self, expr: &crate::query::parser::ast::expr::BinaryExpr) -> Self::Result {
-        self.visit_expr(expr.left.as_ref())?;
-        self.visit_expr(expr.right.as_ref())?;
-        Ok(())
-    }
-
-    fn visit_unary_expr(&mut self, expr: &crate::query::parser::ast::expr::UnaryExpr) -> Self::Result {
-        self.visit_expr(expr.operand.as_ref())?;
-        Ok(())
-    }
-
-    fn visit_function_call_expr(
-        &mut self,
-        expr: &crate::query::parser::ast::expr::FunctionCallExpr,
-    ) -> Self::Result {
-        for arg in &expr.args {
-            self.visit_expr(arg)?;
-        }
-        Ok(())
-    }
-
-    fn visit_property_access_expr(
-        &mut self,
-        expr: &crate::query::parser::ast::expr::PropertyAccessExpr,
-    ) -> Self::Result {
-        self.visit_expr(expr.object.as_ref())?;
-        Ok(())
-    }
-
-    fn visit_list_expr(&mut self, expr: &crate::query::parser::ast::expr::ListExpr) -> Self::Result {
-        for element in &expr.elements {
-            self.visit_expr(element)?;
-        }
-        Ok(())
-    }
-
-    fn visit_map_expr(&mut self, expr: &crate::query::parser::ast::expr::MapExpr) -> Self::Result {
-        for (_key, value) in &expr.pairs {
-            self.visit_expr(value)?;
-        }
-        Ok(())
-    }
-
-    fn visit_case_expr(&mut self, expr: &crate::query::parser::ast::expr::CaseExpr) -> Self::Result {
-        for (when_expr, then_expr) in &expr.when_then_pairs {
-            self.visit_expr(when_expr)?;
-            self.visit_expr(then_expr)?;
-        }
-        if let Some(default_expr) = &expr.default {
-            self.visit_expr(default_expr.as_ref())?;
-        }
-        Ok(())
-    }
-
-    fn visit_subscript_expr(
-        &mut self,
-        expr: &crate::query::parser::ast::expr::SubscriptExpr,
-    ) -> Self::Result {
-        self.visit_expr(expr.collection.as_ref())?;
-        self.visit_expr(expr.index.as_ref())?;
-        Ok(())
-    }
-
-    fn visit_type_cast_expr(
-        &mut self,
-        expr: &crate::query::parser::ast::expr::TypeCastExpr,
-    ) -> Self::Result {
-        self.visit_expr(expr.expr.as_ref())
-    }
-
-    fn visit_range_expr(&mut self, expr: &crate::query::parser::ast::expr::RangeExpr) -> Self::Result {
-        self.visit_expr(expr.collection.as_ref())?;
-        if let Some(start_expr) = &expr.start {
-            self.visit_expr(start_expr.as_ref())?;
-        }
-        if let Some(end_expr) = &expr.end {
-            self.visit_expr(end_expr.as_ref())?;
-        }
-        Ok(())
-    }
-
-    fn visit_path_expr(&mut self, expr: &crate::query::parser::ast::expr::PathExpr) -> Self::Result {
-        for element in &expr.elements {
-            self.visit_expr(element)?;
-        }
-        Ok(())
-    }
-
-    fn visit_label_expr(&mut self, _expr: &crate::query::parser::ast::expr::LabelExpr) -> Self::Result {
         Ok(())
     }
 
@@ -954,7 +853,7 @@ impl<'a, S: StorageEngine> Default for DeduceTypeVisitorBuilder<'a, S> {
 impl<'a, S: StorageEngine> GenericExpressionVisitor<Expression> for DeduceTypeVisitor<'a, S> {
     type Result = Result<(), TypeDeductionError>;
 
-    fn visit(&mut self, expr: &Expression) -> Self::Result {
+    fn visit(&mut self, expr: &Expr) -> Self::Result {
         self.visit_expression(expr)
     }
 }

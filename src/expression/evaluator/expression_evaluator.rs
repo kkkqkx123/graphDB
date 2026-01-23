@@ -5,9 +5,9 @@
 
 use crate::core::error::ExpressionError;
 use crate::core::expression_visitor::GenericExpressionVisitor;
-use crate::core::types::expression::Expression;
+use crate::core::types::expression::Expr;
 use crate::core::value::NullType;
-use crate::core::Value;
+use crate::core::{Expression, Value};
 use crate::expression::evaluator::collection_operations::CollectionOperationEvaluator;
 use crate::expression::evaluator::functions::FunctionEvaluator;
 use crate::expression::evaluator::operations::{BinaryOperationEvaluator, UnaryOperationEvaluator};
@@ -20,7 +20,7 @@ pub struct ExpressionEvaluator;
 impl ExpressionEvaluator {
     /// 在给定上下文中求值表达式（泛型版本，零成本抽象）
     pub fn evaluate<C: ExpressionContext>(
-        expr: &Expression,
+        expr: &Expr,
         context: &mut C,
     ) -> Result<Value, ExpressionError> {
         let mut evaluator = Self;
@@ -40,40 +40,40 @@ impl ExpressionEvaluator {
     }
 
     /// 检查表达式是否可以求值（泛型版本）
-    pub fn can_evaluate<C: ExpressionContext>(_expr: &Expression, _context: &C) -> bool {
+    pub fn can_evaluate<C: ExpressionContext>(_expr: &Expr, _context: &C) -> bool {
         true
     }
 
     /// 在上下文中访问表达式
     fn visit_with_context<C: ExpressionContext>(
         &mut self,
-        expr: &Expression,
+        expr: &Expr,
         context: &mut C,
     ) -> Result<Value, ExpressionError> {
         match expr {
             // 字面量 - 直接返回值
-            Expression::Literal(value) => Ok(value.clone()),
+            Expr::Literal(value) => Ok(value.clone()),
 
             // 变量 - 从上下文获取
-            Expression::Variable(name) => context
+            Expr::Variable(name) => context
                 .get_variable(name)
                 .ok_or_else(|| ExpressionError::undefined_variable(name)),
 
             // 二元操作 - 递归求值左右操作数
-            Expression::Binary { left, op, right } => {
+            Expr::Binary { left, op, right } => {
                 let left_value = self.visit_with_context(left, context)?;
                 let right_value = self.visit_with_context(right, context)?;
                 BinaryOperationEvaluator::evaluate(&left_value, op, &right_value)
             }
 
             // 一元操作 - 递归求值操作数
-            Expression::Unary { op, operand } => {
+            Expr::Unary { op, operand } => {
                 let value = self.visit_with_context(operand, context)?;
                 UnaryOperationEvaluator::evaluate(op, &value)
             }
 
             // 函数调用 - 批量求值参数
-            Expression::Function { name, args } => {
+            Expr::Function { name, args } => {
                 let arg_values: Result<Vec<Value>, ExpressionError> = args
                     .iter()
                     .map(|arg| self.visit_with_context(arg, context))
@@ -83,7 +83,7 @@ impl ExpressionEvaluator {
             }
 
             // 聚合函数 - 直接求值
-            Expression::Aggregate {
+            Expr::Aggregate {
                 func,
                 arg,
                 distinct,
@@ -93,7 +93,7 @@ impl ExpressionEvaluator {
             }
 
             // CASE 表达式 - 短路求值
-            Expression::Case {
+            Expr::Case {
                 conditions,
                 default,
             } => {
@@ -115,7 +115,7 @@ impl ExpressionEvaluator {
             }
 
             // 列表 - 批量求值
-            Expression::List(elements) => {
+            Expr::List(elements) => {
                 let element_values: Result<Vec<Value>, ExpressionError> = elements
                     .iter()
                     .map(|elem| self.visit_with_context(elem, context))
@@ -124,7 +124,7 @@ impl ExpressionEvaluator {
             }
 
             // 映射 - 批量求值
-            Expression::Map(entries) => {
+            Expr::Map(entries) => {
                 let mut map_values = std::collections::HashMap::new();
                 for (key, value_expr) in entries {
                     let value = self.visit_with_context(value_expr, context)?;
@@ -134,14 +134,14 @@ impl ExpressionEvaluator {
             }
 
             // 下标访问
-            Expression::Subscript { collection, index } => {
+            Expr::Subscript { collection, index } => {
                 let collection_value = self.visit_with_context(collection, context)?;
                 let index_value = self.visit_with_context(index, context)?;
                 CollectionOperationEvaluator.eval_subscript_access(&collection_value, &index_value)
             }
 
             // 范围访问
-            Expression::Range {
+            Expr::Range {
                 collection,
                 start,
                 end,
@@ -163,7 +163,7 @@ impl ExpressionEvaluator {
             }
 
             // 路径表达式
-            Expression::Path(elements) => {
+            Expr::Path(elements) => {
                 let element_values: Result<Vec<Value>, ExpressionError> = elements
                     .iter()
                     .map(|elem| self.visit_with_context(elem, context))
@@ -172,13 +172,13 @@ impl ExpressionEvaluator {
             }
 
             // 属性访问
-            Expression::Property { object, property } => {
+            Expr::Property { object, property } => {
                 let object_value = self.visit_with_context(object, context)?;
                 CollectionOperationEvaluator.eval_property_access(&object_value, property)
             }
 
             // 类型转换
-            Expression::TypeCast { expr, target_type } => {
+            Expr::TypeCast { expr, target_type } => {
                 let value = self.visit_with_context(expr, context)?;
                 Self::eval_type_cast(&value, target_type)
             }
@@ -191,7 +191,7 @@ impl ExpressionEvaluator {
     /// 编译时分支预测优化版本（完全静态分发）
     #[inline(always)]
     pub fn evaluate_with_branch_prediction<C: ExpressionContext>(
-        expr: &Expression,
+        expr: &Expr,
         context: &mut C,
     ) -> Result<Value, ExpressionError> {
         let mut evaluator = Self;
@@ -264,20 +264,20 @@ impl ExpressionEvaluator {
 impl GenericExpressionVisitor<Expression> for ExpressionEvaluator {
     type Result = Result<Value, ExpressionError>;
 
-    fn visit(&mut self, expr: &Expression) -> Self::Result {
+    fn visit(&mut self, expr: &Expr) -> Self::Result {
         match expr {
-            Expression::Literal(value) => Ok(value.clone()),
-            Expression::Variable(name) => Err(ExpressionError::undefined_variable(name)),
-            Expression::Binary { left, op, right } => {
+            Expr::Literal(value) => Ok(value.clone()),
+            Expr::Variable(name) => Err(ExpressionError::undefined_variable(name)),
+            Expr::Binary { left, op, right } => {
                 let left_value = self.visit(left)?;
                 let right_value = self.visit(right)?;
                 BinaryOperationEvaluator::evaluate(&left_value, op, &right_value)
             }
-            Expression::Unary { op, operand } => {
+            Expr::Unary { op, operand } => {
                 let value = self.visit(operand)?;
                 UnaryOperationEvaluator::evaluate(op, &value)
             }
-            Expression::Function { name, args } => {
+            Expr::Function { name, args } => {
                 let arg_values: Result<Vec<Value>, ExpressionError> = args
                     .iter()
                     .map(|arg| self.visit(arg))
@@ -285,11 +285,11 @@ impl GenericExpressionVisitor<Expression> for ExpressionEvaluator {
                 let arg_values = arg_values?;
                 FunctionEvaluator.eval_function_call(name, &arg_values)
             }
-            Expression::Aggregate { func, arg, distinct } => {
+            Expr::Aggregate { func, arg, distinct } => {
                 let arg_value = self.visit(arg)?;
                 FunctionEvaluator.eval_aggregate_function(func, &[arg_value], *distinct)
             }
-            Expression::Case { conditions, default } => {
+            Expr::Case { conditions, default } => {
                 for (condition, value) in conditions {
                     let condition_result = self.visit(condition)?;
                     match condition_result {
@@ -303,14 +303,14 @@ impl GenericExpressionVisitor<Expression> for ExpressionEvaluator {
                     None => Ok(Value::Null(crate::core::NullType::Null)),
                 }
             }
-            Expression::List(elements) => {
+            Expr::List(elements) => {
                 let element_values: Result<Vec<Value>, ExpressionError> = elements
                     .iter()
                     .map(|elem| self.visit(elem))
                     .collect();
                 element_values.map(Value::List)
             }
-            Expression::Map(entries) => {
+            Expr::Map(entries) => {
                 let mut map_values = std::collections::HashMap::new();
                 for (key, value_expr) in entries {
                     let value = self.visit(value_expr)?;
@@ -318,12 +318,12 @@ impl GenericExpressionVisitor<Expression> for ExpressionEvaluator {
                 }
                 Ok(Value::Map(map_values))
             }
-            Expression::Subscript { collection, index } => {
+            Expr::Subscript { collection, index } => {
                 let collection_value = self.visit(collection)?;
                 let index_value = self.visit(index)?;
                 CollectionOperationEvaluator.eval_subscript_access(&collection_value, &index_value)
             }
-            Expression::Range { collection, start, end } => {
+            Expr::Range { collection, start, end } => {
                 let collection_value = self.visit(collection)?;
                 let start_value = start.as_ref().map(|e| self.visit(e)).transpose()?;
                 let end_value = end.as_ref().map(|e| self.visit(e)).transpose()?;
@@ -333,18 +333,18 @@ impl GenericExpressionVisitor<Expression> for ExpressionEvaluator {
                     end_value.as_ref(),
                 )
             }
-            Expression::Path(elements) => {
+            Expr::Path(elements) => {
                 let element_values: Result<Vec<Value>, ExpressionError> = elements
                     .iter()
                     .map(|elem| self.visit(elem))
                     .collect();
                 element_values.map(Value::List)
             }
-            Expression::Property { object, property } => {
+            Expr::Property { object, property } => {
                 let object_value = self.visit(object.as_ref())?;
                 CollectionOperationEvaluator.eval_property_access(&object_value, property)
             }
-            Expression::TypeCast { expr, target_type } => {
+            Expr::TypeCast { expr, target_type } => {
                 let value = self.visit(expr)?;
                 Self::eval_type_cast(&value, target_type)
             }

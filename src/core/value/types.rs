@@ -1,3 +1,30 @@
+//! 值类型系统
+//!
+//! 本模块定义了图数据库查询引擎中使用的所有值类型。
+//!
+//! ## 类型层次
+//!
+//! - **基础类型**: NullType, DateValue, TimeValue, DateTimeValue
+//! - **空间/时间类型**: GeographyValue, DurationValue (预留)
+//! - **复合类型**: List, Map, Set, DataSet
+//! - **图类型**: Vertex, Edge, Path
+//!
+//! ## 预留类型说明
+//!
+//! 以下类型当前版本可能未完全使用，但为支持高级查询预留：
+//!
+//! - [`GeographyValue`] - 地理空间坐标，用于位置相关查询
+//! - [`DurationValue`] - 时间间隔，用于时间范围查询
+//!
+//! 未来版本计划支持：
+//! - 空间索引和地理查询
+//! - 时间序列分析
+//! - 时空联合查询
+//!
+//! ## 与 Nebula-Graph 兼容性
+//!
+//! 本实现参考 Nebula-Graph 的类型系统设计，确保在必要时可以兼容。
+
 use crate::core::types::DataType;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
@@ -82,6 +109,30 @@ impl Default for DateTimeValue {
 }
 
 /// 简化地理信息表示 - 仅支持基础坐标点
+///
+/// ## 用途
+/// 用于表示地理位置坐标，支持基础的空间数据查询。
+/// 
+/// ## 示例
+/// ```rust
+/// use graphdb::core::value::types::GeographyValue;
+/// 
+/// let location = GeographyValue {
+///     latitude: 39.9042,   // 北京纬度
+///     longitude: 116.4074, // 北京经度
+/// };
+/// ```
+///
+/// ## 支持的查询（预留）
+/// - 距离计算：`st_distance(point1, point2)`
+/// - 区域查询：基于坐标的范围筛选
+/// - 附近搜索：查找特定距离内的点
+///
+/// ## 注意事项
+/// 当前版本仅支持基础坐标点，完整的地理空间查询需要扩展：
+/// - 多边形支持
+/// - 空间索引
+/// - 投影坐标系转换
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Encode, Decode)]
 pub struct GeographyValue {
     pub latitude: f64,
@@ -107,6 +158,44 @@ impl Default for GeographyValue {
 }
 
 /// 简单持续时间表示
+///
+/// ## 用途
+/// 用于表示时间间隔，支持时间相关的查询和计算。
+///
+/// ## 字段说明
+/// - `seconds`: 秒数（可为负数）
+/// - `microseconds`: 微秒数（-999999 到 999999）
+/// - `months`: 月数（用于日历相关的持续时间）
+///
+/// ## 示例
+/// ```rust
+/// use graphdb::core::value::types::DurationValue;
+/// 
+/// // 表示 2小时30分45.5秒
+/// let duration = DurationValue {
+///     seconds: 9045,
+///     microseconds: 500000,
+///     months: 0,
+/// };
+///
+/// // 表示 3个月
+/// let month_duration = DurationValue {
+///     seconds: 0,
+///     microseconds: 0,
+///     months: 3,
+/// };
+/// ```
+///
+/// ## 支持的查询（预留）
+/// - 时间间隔算术：`date + duration`、`date - duration`
+/// - 持续时间比较：`duration1 < duration2`
+/// - 提取组件：`duration.seconds`、`duration.months`
+///
+/// ## 与 Nebula-Graph 兼容性
+/// 参考 Nebula-Graph 的 DURATION 类型设计，支持：
+/// - 秒和微秒精度
+/// - 月份计算（考虑月份天数差异）
+/// - 负时间间隔
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash, Encode, Decode)]
 pub struct DurationValue {
     pub seconds: i64,

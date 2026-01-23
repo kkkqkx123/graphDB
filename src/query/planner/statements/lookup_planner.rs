@@ -7,7 +7,7 @@
 //! - 完善表达式解析
 //! - 添加属性索引选择逻辑
 
-use crate::core::types::expression::Expression;
+use crate::expression::Expression;
 use crate::query::context::ast::{AstContext, LookupContext};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};

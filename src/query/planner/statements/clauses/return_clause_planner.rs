@@ -6,7 +6,7 @@
 //! - 添加 DISTINCT 去重支持
 //! - 完善列名设置
 
-use crate::core::types::expression::Expression;
+use crate::expression::Expression;
 use crate::query::planner::statements::clauses::clause_planner::ClausePlanner;
 use crate::query::planner::statements::core::cypher_clause_planner::{
     ClauseType, CypherClausePlanner, DataFlowNode, PlanningContext,

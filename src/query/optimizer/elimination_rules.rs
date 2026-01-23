@@ -584,7 +584,7 @@ mod tests {
         let rule = EliminateFilterRule;
         let mut ctx = create_test_context();
 
-        use crate::core::types::expression::Expression;
+        use crate::expression::Expression;
         use crate::core::types::operators::BinaryOperator;
 
         let start_node = PlanNodeEnum::Start(StartNode::new());

@@ -2,10 +2,11 @@
 //!
 //! 这个模块提供了统一的表达式访问者接口，支持泛型和特化两种模式
 //! 主要组件：
-//! - ExpressionVisitor: 特化的访问者trait，同时支持Expression和Expr类型
+//! - ExpressionVisitor: 特化的访问者trait，使用统一的Expression类型
 //! - GenericExpressionVisitor<T>: 泛型访问者接口，支持任意表达式类型
 
-use crate::core::types::expression::{DataType, Expression};
+use crate::core::types::expression::{DataType, Expr};
+use crate::core::type_system::TypeUtils;
 use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 use crate::core::Value;
 use crate::query::parser::ast::expr::*;
@@ -34,8 +35,8 @@ pub trait ExpressionVisitable {
     fn accept<V: GenericExpressionVisitor<Self> + ?Sized>(&self, visitor: &mut V) -> V::Result;
 }
 
-/// 为Expression实现可访问 trait
-impl ExpressionVisitable for Expression {
+/// 为Expr实现可访问 trait
+impl ExpressionVisitable for Expr {
     type Result = Result<Value, crate::core::error::ExpressionError>;
 
     fn accept<V: GenericExpressionVisitor<Self> + ?Sized>(&self, visitor: &mut V) -> V::Result {
@@ -45,62 +46,51 @@ impl ExpressionVisitable for Expression {
 
 /// 表达式访问者trait
 ///
-/// 这个trait合并了原有的ExpressionVisitor和ExprVisitor，提供统一的表达式访问接口
-/// 支持两种表达式类型：Expression（core/types/expression）和Expr（query/parser/ast）
+/// 使用统一的Expr类型，提供统一的表达式访问接口
 pub trait ExpressionVisitor: std::fmt::Debug + Send + Sync {
     /// 访问者结果类型
     type Result;
 
-    /// 访问Expression类型 - 主入口点
-    fn visit_expression(&mut self, expr: &Expression) -> Self::Result {
+    /// 主入口点 - 访问Expr类型
+    fn visit_expr(&mut self, expr: &Expr) -> Self::Result {
         match expr {
-            Expression::Literal(value) => self.visit_literal(value),
-            Expression::Variable(name) => self.visit_variable(name),
-            Expression::Property { object, property } => self.visit_property(object, property),
-            Expression::Binary { left, op, right } => self.visit_binary(left, op, right),
-            Expression::Unary { op, operand } => self.visit_unary(op, operand),
-            Expression::Function { name, args } => self.visit_function(name, args),
-            Expression::Aggregate {
+            Expr::Literal(value) => self.visit_literal(value),
+            Expr::Variable(name) => self.visit_variable(name),
+            Expr::Property { object, property } => self.visit_property(object, property),
+            Expr::Binary { left, op, right } => self.visit_binary(left, op, right),
+            Expr::Unary { op, operand } => self.visit_unary(op, operand),
+            Expr::Function { name, args } => self.visit_function(name, args),
+            Expr::Aggregate {
                 func,
                 arg,
                 distinct,
             } => self.visit_aggregate(func, arg, *distinct),
-            Expression::List(items) => self.visit_list(items),
-            Expression::Map(pairs) => self.visit_map(pairs),
-            Expression::Case {
+            Expr::List(items) => self.visit_list(items),
+            Expr::Map(pairs) => self.visit_map(pairs),
+            Expr::Case {
                 conditions,
                 default,
             } => self.visit_case(conditions, default),
-            Expression::TypeCast { expr, target_type } => self.visit_type_cast(expr, target_type),
-            Expression::Subscript { collection, index } => self.visit_subscript(collection, index),
-            Expression::Range {
+            Expr::TypeCast { expr, target_type } => self.visit_type_cast(expr, target_type),
+            Expr::Subscript { collection, index } => self.visit_subscript(collection, index),
+            Expr::Range {
                 collection,
                 start,
                 end,
             } => self.visit_range(collection, start, end),
-            Expression::Path(items) => self.visit_path(items),
-            Expression::Label(name) => self.visit_label(name),
+            Expr::Path(items) => self.visit_path(items),
+            Expr::Label(name) => self.visit_label(name),
         }
     }
 
-    /// 访问Expr类型（AST表达式）- 主入口点
-    fn visit_expr(&mut self, expr: &Expr) -> Self::Result {
-        match expr {
-            Expr::Constant(e) => self.visit_constant_expr(e),
-            Expr::Variable(e) => self.visit_variable_expr(e),
-            Expr::Binary(e) => self.visit_binary_expr(e),
-            Expr::Unary(e) => self.visit_unary_expr(e),
-            Expr::FunctionCall(e) => self.visit_function_call_expr(e),
-            Expr::PropertyAccess(e) => self.visit_property_access_expr(e),
-            Expr::List(e) => self.visit_list_expr(e),
-            Expr::Map(e) => self.visit_map_expr(e),
-            Expr::Case(e) => self.visit_case_expr(e),
-            Expr::Subscript(e) => self.visit_subscript_expr(e),
-            Expr::TypeCast(e) => self.visit_type_cast_expr(e),
-            Expr::Range(e) => self.visit_range_expr(e),
-            Expr::Path(e) => self.visit_path_expr(e),
-            Expr::Label(e) => self.visit_label_expr(e),
-        }
+    /// 访问统一Expr类型的便捷方法
+    fn visit(&mut self, expr: &Expr) -> Self::Result {
+        self.visit_expr(expr)
+    }
+
+    /// 向后兼容方法 - 访问Expression类型
+    fn visit_expression(&mut self, expr: &Expr) -> Self::Result {
+        self.visit_expr(expr)
     }
 
     /// Expression类型访问方法
@@ -108,79 +98,50 @@ pub trait ExpressionVisitor: std::fmt::Debug + Send + Sync {
 
     fn visit_variable(&mut self, name: &str) -> Self::Result;
 
-    fn visit_property(&mut self, object: &Expression, property: &str) -> Self::Result;
+    fn visit_property(&mut self, object: &Expr, property: &str) -> Self::Result;
 
     fn visit_binary(
         &mut self,
-        left: &Expression,
+        left: &Expr,
         op: &BinaryOperator,
-        right: &Expression,
+        right: &Expr,
     ) -> Self::Result;
 
-    fn visit_unary(&mut self, op: &UnaryOperator, operand: &Expression) -> Self::Result;
+    fn visit_unary(&mut self, op: &UnaryOperator, operand: &Expr) -> Self::Result;
 
-    fn visit_function(&mut self, name: &str, args: &[Expression]) -> Self::Result;
+    fn visit_function(&mut self, name: &str, args: &[Expr]) -> Self::Result;
 
     fn visit_aggregate(
         &mut self,
         func: &AggregateFunction,
-        arg: &Expression,
+        arg: &Expr,
         distinct: bool,
     ) -> Self::Result;
 
-    fn visit_list(&mut self, items: &[Expression]) -> Self::Result;
+    fn visit_list(&mut self, items: &[Expr]) -> Self::Result;
 
-    fn visit_map(&mut self, pairs: &[(String, Expression)]) -> Self::Result;
+    fn visit_map(&mut self, pairs: &[(String, Expr)]) -> Self::Result;
 
     fn visit_case(
         &mut self,
-        conditions: &[(Expression, Expression)],
-        default: &Option<Box<Expression>>,
+        conditions: &[(Expr, Expr)],
+        default: &Option<Box<Expr>>,
     ) -> Self::Result;
 
-    fn visit_type_cast(&mut self, expr: &Expression, target_type: &DataType) -> Self::Result;
+    fn visit_type_cast(&mut self, expr: &Expr, target_type: &DataType) -> Self::Result;
 
-    fn visit_subscript(&mut self, collection: &Expression, index: &Expression) -> Self::Result;
+    fn visit_subscript(&mut self, collection: &Expr, index: &Expr) -> Self::Result;
 
     fn visit_range(
         &mut self,
-        collection: &Expression,
-        start: &Option<Box<Expression>>,
-        end: &Option<Box<Expression>>,
+        collection: &Expr,
+        start: &Option<Box<Expr>>,
+        end: &Option<Box<Expr>>,
     ) -> Self::Result;
 
-    fn visit_path(&mut self, items: &[Expression]) -> Self::Result;
+    fn visit_path(&mut self, items: &[Expr]) -> Self::Result;
 
     fn visit_label(&mut self, name: &str) -> Self::Result;
-
-    fn visit_label_expr(&mut self, expr: &LabelExpr) -> Self::Result;
-
-    /// Expr类型（AST表达式）访问方法
-    fn visit_constant_expr(&mut self, expr: &ConstantExpr) -> Self::Result;
-
-    fn visit_variable_expr(&mut self, expr: &VariableExpr) -> Self::Result;
-
-    fn visit_binary_expr(&mut self, expr: &BinaryExpr) -> Self::Result;
-
-    fn visit_unary_expr(&mut self, expr: &UnaryExpr) -> Self::Result;
-
-    fn visit_function_call_expr(&mut self, expr: &FunctionCallExpr) -> Self::Result;
-
-    fn visit_property_access_expr(&mut self, expr: &PropertyAccessExpr) -> Self::Result;
-
-    fn visit_list_expr(&mut self, expr: &ListExpr) -> Self::Result;
-
-    fn visit_map_expr(&mut self, expr: &MapExpr) -> Self::Result;
-
-    fn visit_case_expr(&mut self, expr: &CaseExpr) -> Self::Result;
-
-    fn visit_subscript_expr(&mut self, expr: &SubscriptExpr) -> Self::Result;
-
-    fn visit_type_cast_expr(&mut self, expr: &TypeCastExpr) -> Self::Result;
-
-    fn visit_range_expr(&mut self, expr: &RangeExpr) -> Self::Result;
-
-    fn visit_path_expr(&mut self, expr: &PathExpr) -> Self::Result;
 
     /// 预访问钩子 - 在访问开始前调用
     fn pre_visit(&mut self) -> VisitorResult<()> {
@@ -205,7 +166,7 @@ pub trait ExpressionVisitor: std::fmt::Debug + Send + Sync {
 
     /// 停止访问
     fn stop(&mut self) {
-        self.state_mut().continue_visiting = false;
+        self.state_mut().continue_visiting = false
     }
 }
 
@@ -349,7 +310,7 @@ impl std::error::Error for VisitorError {}
 /// 提供深度优先遍历表达式树的默认实现
 pub trait ExpressionDepthFirstVisitor: ExpressionVisitor {
     /// 访问子表达式
-    fn visit_children(&mut self, expr: &Expression) -> Self::Result {
+    fn visit_children(&mut self, expr: &Expr) -> Self::Result {
         for child in expr.children() {
             self.visit_expression(child);
         }
@@ -360,7 +321,7 @@ pub trait ExpressionDepthFirstVisitor: ExpressionVisitor {
     fn default_result(&self) -> Self::Result;
 
     /// 带深度控制的访问
-    fn visit_with_depth(&mut self, expr: &Expression) -> VisitorResult<Self::Result> {
+    fn visit_with_depth(&mut self, expr: &Expr) -> VisitorResult<Self::Result> {
         {
             let state = self.state_mut();
             state.increment_depth();
@@ -382,91 +343,91 @@ pub trait ExpressionDepthFirstVisitor: ExpressionVisitor {
 /// 表达式转换器trait
 ///
 /// 允许访问者修改和转换表达式树
-pub trait ExpressionTransformer: ExpressionVisitor<Result = Expression> {
+pub trait ExpressionTransformer: ExpressionVisitor<Result = Expr> {
     /// 转换表达式
-    fn transform(&mut self, expr: &Expression) -> Expression {
+    fn transform(&mut self, expr: &Expr) -> Expr {
         self.visit_expression(expr)
     }
 
     /// 转换子表达式
-    fn transform_children(&mut self, expr: &Expression) -> Expression {
+    fn transform_children(&mut self, expr: &Expr) -> Expr {
         match expr {
-            Expression::Binary { left, op, right } => {
+            Expr::Binary { left, op, right } => {
                 let new_left = self.transform(left);
                 let new_right = self.transform(right);
-                Expression::Binary {
+                Expr::Binary {
                     left: Box::new(new_left),
                     op: op.clone(),
                     right: Box::new(new_right),
                 }
             }
-            Expression::Unary { op, operand } => {
+            Expr::Unary { op, operand } => {
                 let new_operand = self.transform(operand);
-                Expression::Unary {
+                Expr::Unary {
                     op: op.clone(),
                     operand: Box::new(new_operand),
                 }
             }
-            Expression::Function { name, args } => {
-                let new_args: Vec<Expression> = args.iter().map(|a| self.transform(a)).collect();
-                Expression::Function {
+            Expr::Function { name, args } => {
+                let new_args: Vec<Expr> = args.iter().map(|a| self.transform(a)).collect();
+                Expr::Function {
                     name: name.clone(),
                     args: new_args,
                 }
             }
-            Expression::Aggregate {
+            Expr::Aggregate {
                 func,
                 arg,
                 distinct,
             } => {
                 let new_arg = self.transform(arg);
-                Expression::Aggregate {
+                Expr::Aggregate {
                     func: func.clone(),
                     arg: Box::new(new_arg),
                     distinct: *distinct,
                 }
             }
-            Expression::List(items) => {
-                let new_items: Vec<Expression> = items.iter().map(|i| self.transform(i)).collect();
-                Expression::List(new_items)
+            Expr::List(items) => {
+                let new_items: Vec<Expr> = items.iter().map(|i| self.transform(i)).collect();
+                Expr::List(new_items)
             }
-            Expression::Map(pairs) => {
-                let new_pairs: Vec<(String, Expression)> = pairs
+            Expr::Map(pairs) => {
+                let new_pairs: Vec<(String, Expr)> = pairs
                     .iter()
                     .map(|(k, v)| (k.clone(), self.transform(v)))
                     .collect();
-                Expression::Map(new_pairs)
+                Expr::Map(new_pairs)
             }
-            Expression::Case {
+            Expr::Case {
                 conditions,
                 default,
             } => {
-                let new_conditions: Vec<(Expression, Expression)> = conditions
+                let new_conditions: Vec<(Expr, Expr)> = conditions
                     .iter()
                     .map(|(c, v)| (self.transform(c), self.transform(v)))
                     .collect();
                 let new_default = default.as_ref().map(|d| Box::new(self.transform(d)));
-                Expression::Case {
+                Expr::Case {
                     conditions: new_conditions,
                     default: new_default,
                 }
             }
-            Expression::TypeCast { expr, target_type } => {
+            Expr::TypeCast { expr, target_type } => {
                 let new_expr = self.transform(expr);
-                Expression::TypeCast {
+                Expr::TypeCast {
                     expr: Box::new(new_expr),
                     target_type: target_type.clone(),
                 }
             }
-            Expression::Subscript { collection, index } => {
+            Expr::Subscript { collection, index } => {
                 let new_collection = self.transform(collection);
                 let new_index = self.transform(index);
-                Expression::Subscript {
+                Expr::Subscript {
                     collection: Box::new(new_collection),
                     index: Box::new(new_index),
                 }
             }
-            Expression::Range {
+            Expr::Range {
                 collection,
                 start,
                 end,
@@ -474,19 +435,19 @@ pub trait ExpressionTransformer: ExpressionVisitor<Result = Expression> {
                 let new_collection = self.transform(collection);
                 let new_start = start.as_ref().map(|s| Box::new(self.transform(s)));
                 let new_end = end.as_ref().map(|e| Box::new(self.transform(e)));
-                Expression::Range {
+                Expr::Range {
                     collection: Box::new(new_collection),
                     start: new_start,
                     end: new_end,
                 }
             }
-            Expression::Path(items) => {
-                let new_items: Vec<Expression> = items.iter().map(|i| self.transform(i)).collect();
-                Expression::Path(new_items)
+            Expr::Path(items) => {
+                let new_items: Vec<Expr> = items.iter().map(|i| self.transform(i)).collect();
+                Expr::Path(new_items)
             }
-            Expression::Property { object, property } => {
+            Expr::Property { object, property } => {
                 let new_object = self.transform(object);
-                Expression::Property {
+                Expr::Property {
                     object: Box::new(new_object),
                     property: property.clone(),
                 }
@@ -498,12 +459,12 @@ pub trait ExpressionTransformer: ExpressionVisitor<Result = Expression> {
 
 /// 表达式接受器trait
 ///
-/// 为Expression类型提供接受访问者的能力
+/// 为Expr类型提供接受访问者的能力
 pub trait ExpressionAcceptor {
     fn accept<V: ExpressionVisitor>(&self, visitor: &mut V) -> V::Result;
 }
 
-impl ExpressionAcceptor for Expression {
+impl ExpressionAcceptor for Expr {
     fn accept<V: ExpressionVisitor>(&self, visitor: &mut V) -> V::Result {
         visitor.visit_expression(self)
     }
@@ -523,7 +484,7 @@ impl ExprAcceptor for Expr {
 /// 表达式访问者辅助trait - 提供额外的实用方法
 pub trait ExpressionVisitorExt: ExpressionVisitor {
     /// 获取表达式树的最大深度
-    fn max_depth(&mut self, expr: &Expression) -> usize {
+    fn max_depth(&mut self, expr: &Expr) -> usize {
         if expr.children().is_empty() {
             return 1;
         }
@@ -539,10 +500,10 @@ pub trait ExpressionVisitorExt: ExpressionVisitor {
     }
 
     /// 获取表达式树中的所有变量名
-    fn collect_variables(&mut self, expr: &Expression) -> Vec<String> {
+    fn collect_variables(&mut self, expr: &Expr) -> Vec<String> {
         let mut variables = Vec::new();
 
-        if let Expression::Variable(name) = expr {
+        if let Expr::Variable(name) = expr {
             variables.push(name.clone());
         }
 
@@ -554,14 +515,14 @@ pub trait ExpressionVisitorExt: ExpressionVisitor {
     }
 
     /// 检查表达式是否有效（无循环引用等）
-    fn is_valid_expression(&mut self, expr: &Expression) -> bool {
+    fn is_valid_expression(&mut self, expr: &Expr) -> bool {
         let mut visited = std::collections::HashSet::new();
         self.check_no_cycles(expr, &mut visited)
     }
 
     fn check_no_cycles(
         &mut self,
-        expr: &Expression,
+        expr: &Expr,
         visited: &mut std::collections::HashSet<usize>,
     ) -> bool {
         let expr_id = expr as *const _ as usize;

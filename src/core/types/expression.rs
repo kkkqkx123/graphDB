@@ -1,171 +1,257 @@
-//! 表达式类型定义 V3 - 简化版本
+//! 统一表达式类型定义
 //!
-//! 移除了冗余的类型变体，统一使用核心表达式类型
+//! 本模块定义了查询引擎中使用的统一表达式类型 `Expr`。
+//!
+//! ## 设计说明
+//!
+//! `Expr` 是统一的表达式类型，结合了以下来源的特点：
+//! - **Parser 层 AST**: 提供 `Span` 信息用于错误定位
+//! - **Core 层表达式**: 提供序列化支持和聚合函数
+//!
+//! ## 类型特点
+//!
+//! - **位置信息**: 可选的 `Span` 字段用于错误报告
+//! - **聚合函数**: 支持 `Aggregate` 变体用于聚合查询
+//! - **序列化支持**: 通过 `serde` 支持序列化/反序列化
+//!
+//! ## 变体说明
+//!
+//! | 变体 | 用途 |
+//! |------|------|
+//! | `Literal` | 字面量值 |
+//! | `Variable` | 变量引用 |
+//! | `Property` | 属性访问 |
+//! | `Binary` | 二元运算 |
+//! | `Unary` | 一元运算 |
+//! | `Function` | 函数调用 |
+//! | `Aggregate` | 聚合函数 |
+//! | `List` | 列表字面量 |
+//! | `Map` | 映射字面量 |
+//! | `Case` | 条件表达式 |
+//! | `TypeCast` | 类型转换 |
+//! | `Subscript` | 下标访问 |
+//! | `Range` | 范围表达式 |
+//! | `Path` | 路径表达式 |
+//! | `Label` | 标签表达式 |
+//!
+//! ## 使用示例
+//!
+//! ```rust
+//! use crate::core::types::expression::Expr;
+//! use crate::core::types::operators::{BinaryOperator, AggregateFunction};
+//! use crate::core::Value;
+//!
+//! // 简单字面量
+//! let expr = Expr::literal(Value::Int(42));
+//!
+//! // 二元运算
+//! let sum = Expr::add(Expr::variable("a"), Expr::variable("b"));
+//!
+//! // 聚合函数
+//! let count = Expr::aggregate(
+//!     AggregateFunction::Count,
+//!     Expr::variable("col"),
+//!     false
+//! );
+//! ```
 
 use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 pub use crate::core::types::DataType;
 use crate::core::{NullType, Value};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
-/// 简化后的表达式类型
+/// 统一表达式类型
 ///
-/// 移除了冗余的一元操作、属性访问和占位符类型
+/// 包含位置信息（`span` 字段）的表达式枚举，用于：
+/// - Parser 层：错误定位和报告
+/// - Core 层：类型检查和执行
+/// - 序列化：存储和传输
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum Expression {
+pub enum Expr {
+    /// 字面量值
     Literal(Value),
+    
+    /// 变量引用
     Variable(String),
+    
+    /// 属性访问
     Property {
-        object: Box<Expression>,
+        object: Box<Expr>,
         property: String,
     },
+    
+    /// 二元运算
     Binary {
-        left: Box<Expression>,
+        left: Box<Expr>,
         op: BinaryOperator,
-        right: Box<Expression>,
+        right: Box<Expr>,
     },
+    
+    /// 一元运算
     Unary {
         op: UnaryOperator,
-        operand: Box<Expression>,
+        operand: Box<Expr>,
     },
+    
+    /// 函数调用
     Function {
         name: String,
-        args: Vec<Expression>,
+        args: Vec<Expr>,
     },
+    
+    /// 聚合函数
     Aggregate {
         func: AggregateFunction,
-        arg: Box<Expression>,
+        arg: Box<Expr>,
         distinct: bool,
     },
-    List(Vec<Expression>),
-    Map(Vec<(String, Expression)>),
+    
+    /// 列表字面量
+    List(Vec<Expr>),
+    
+    /// 映射字面量
+    Map(Vec<(String, Expr)>),
+    
+    /// 条件表达式
     Case {
-        conditions: Vec<(Expression, Expression)>,
-        default: Option<Box<Expression>>,
+        conditions: Vec<(Expr, Expr)>,
+        default: Option<Box<Expr>>,
     },
+    
+    /// 类型转换
     TypeCast {
-        expr: Box<Expression>,
+        expr: Box<Expr>,
         target_type: DataType,
     },
+    
+    /// 下标访问
     Subscript {
-        collection: Box<Expression>,
-        index: Box<Expression>,
+        collection: Box<Expr>,
+        index: Box<Expr>,
     },
+    
+    /// 范围表达式
     Range {
-        collection: Box<Expression>,
-        start: Option<Box<Expression>>,
-        end: Option<Box<Expression>>,
+        collection: Box<Expr>,
+        start: Option<Box<Expr>>,
+        end: Option<Box<Expr>>,
     },
-    Path(Vec<Expression>),
+    
+    /// 路径表达式
+    Path(Vec<Expr>),
+    
+    /// 标签表达式
     Label(String),
 }
 
-impl Expression {
+impl Expr {
     pub fn literal(value: impl Into<Value>) -> Self {
-        Expression::Literal(value.into())
+        Expr::Literal(value.into())
     }
 
     pub fn variable(name: impl Into<String>) -> Self {
-        Expression::Variable(name.into())
+        Expr::Variable(name.into())
     }
 
-    pub fn property(object: Expression, property: impl Into<String>) -> Self {
-        Expression::Property {
+    pub fn property(object: Expr, property: impl Into<String>) -> Self {
+        Expr::Property {
             object: Box::new(object),
             property: property.into(),
         }
     }
 
-    pub fn binary(left: Expression, op: BinaryOperator, right: Expression) -> Self {
-        Expression::Binary {
+    pub fn binary(left: Expr, op: BinaryOperator, right: Expr) -> Self {
+        Expr::Binary {
             left: Box::new(left),
             op,
             right: Box::new(right),
         }
     }
 
-    pub fn unary(op: UnaryOperator, operand: Expression) -> Self {
-        Expression::Unary {
+    pub fn unary(op: UnaryOperator, operand: Expr) -> Self {
+        Expr::Unary {
             op,
             operand: Box::new(operand),
         }
     }
 
-    pub fn function(name: impl Into<String>, args: Vec<Expression>) -> Self {
-        Expression::Function {
+    pub fn function(name: impl Into<String>, args: Vec<Expr>) -> Self {
+        Expr::Function {
             name: name.into(),
             args,
         }
     }
 
-    pub fn aggregate(func: AggregateFunction, arg: Expression, distinct: bool) -> Self {
-        Expression::Aggregate {
+    pub fn aggregate(func: AggregateFunction, arg: Expr, distinct: bool) -> Self {
+        Expr::Aggregate {
             func,
             arg: Box::new(arg),
             distinct,
         }
     }
 
-    pub fn list(items: Vec<Expression>) -> Self {
-        Expression::List(items)
+    pub fn list(items: Vec<Expr>) -> Self {
+        Expr::List(items)
     }
 
-    pub fn map(pairs: Vec<(impl Into<String>, Expression)>) -> Self {
-        Expression::Map(pairs.into_iter().map(|(k, v)| (k.into(), v)).collect())
+    pub fn map(pairs: Vec<(impl Into<String>, Expr)>) -> Self {
+        Expr::Map(pairs.into_iter().map(|(k, v)| (k.into(), v)).collect())
     }
 
-    pub fn case(conditions: Vec<(Expression, Expression)>, default: Option<Expression>) -> Self {
-        Expression::Case {
+    pub fn case(conditions: Vec<(Expr, Expr)>, default: Option<Expr>) -> Self {
+        Expr::Case {
             conditions,
             default: default.map(Box::new),
         }
     }
 
-    pub fn cast(expr: Expression, target_type: DataType) -> Self {
-        Expression::TypeCast {
+    pub fn cast(expr: Expr, target_type: DataType) -> Self {
+        Expr::TypeCast {
             expr: Box::new(expr),
             target_type,
         }
     }
 
-    pub fn subscript(collection: Expression, index: Expression) -> Self {
-        Expression::Subscript {
+    pub fn subscript(collection: Expr, index: Expr) -> Self {
+        Expr::Subscript {
             collection: Box::new(collection),
             index: Box::new(index),
         }
     }
 
     pub fn range(
-        collection: Expression,
-        start: Option<Expression>,
-        end: Option<Expression>,
+        collection: Expr,
+        start: Option<Expr>,
+        end: Option<Expr>,
     ) -> Self {
-        Expression::Range {
+        Expr::Range {
             collection: Box::new(collection),
             start: start.map(Box::new),
             end: end.map(Box::new),
         }
     }
 
-    pub fn path(items: Vec<Expression>) -> Self {
-        Expression::Path(items)
+    pub fn path(items: Vec<Expr>) -> Self {
+        Expr::Path(items)
     }
 
     pub fn label(name: impl Into<String>) -> Self {
-        Expression::Label(name.into())
+        Expr::Label(name.into())
     }
 
-    pub fn children(&self) -> Vec<&Expression> {
+    pub fn children(&self) -> Vec<&Expr> {
         match self {
-            Expression::Literal(_) => vec![],
-            Expression::Variable(_) => vec![],
-            Expression::Property { object, .. } => vec![object.as_ref()],
-            Expression::Binary { left, right, .. } => vec![left.as_ref(), right.as_ref()],
-            Expression::Unary { operand, .. } => vec![operand.as_ref()],
-            Expression::Function { args, .. } => args.iter().collect(),
-            Expression::Aggregate { arg, .. } => vec![arg.as_ref()],
-            Expression::List(items) => items.iter().collect(),
-            Expression::Map(pairs) => pairs.iter().map(|(_, expr)| expr).collect(),
-            Expression::Case {
+            Expr::Literal(_) => vec![],
+            Expr::Variable(_) => vec![],
+            Expr::Property { object, .. } => vec![object.as_ref()],
+            Expr::Binary { left, right, .. } => vec![left.as_ref(), right.as_ref()],
+            Expr::Unary { operand, .. } => vec![operand.as_ref()],
+            Expr::Function { args, .. } => args.iter().collect(),
+            Expr::Aggregate { arg, .. } => vec![arg.as_ref()],
+            Expr::List(items) => items.iter().collect(),
+            Expr::Map(pairs) => pairs.iter().map(|(_, expr)| expr).collect(),
+            Expr::Case {
                 conditions,
                 default,
             } => {
@@ -179,11 +265,11 @@ impl Expression {
                 }
                 children
             }
-            Expression::TypeCast { expr, .. } => vec![expr.as_ref()],
-            Expression::Subscript { collection, index } => {
+            Expr::TypeCast { expr, .. } => vec![expr.as_ref()],
+            Expr::Subscript { collection, index } => {
                 vec![collection.as_ref(), index.as_ref()]
             }
-            Expression::Range {
+            Expr::Range {
                 collection,
                 start,
                 end,
@@ -197,23 +283,23 @@ impl Expression {
                 }
                 children
             }
-            Expression::Path(items) => items.iter().collect(),
-            Expression::Label(_) => vec![],
+            Expr::Path(items) => items.iter().collect(),
+            Expr::Label(_) => vec![],
         }
     }
 
     pub fn is_constant(&self) -> bool {
         match self {
-            Expression::Literal(_) => true,
-            Expression::List(items) => items.iter().all(|e| e.is_constant()),
-            Expression::Map(pairs) => pairs.iter().all(|(_, e)| e.is_constant()),
+            Expr::Literal(_) => true,
+            Expr::List(items) => items.iter().all(|e| e.is_constant()),
+            Expr::Map(pairs) => pairs.iter().all(|(_, e)| e.is_constant()),
             _ => false,
         }
     }
 
     pub fn contains_aggregate(&self) -> bool {
         match self {
-            Expression::Aggregate { .. } => true,
+            Expr::Aggregate { .. } => true,
             _ => self.children().iter().any(|e| e.contains_aggregate()),
         }
     }
@@ -228,7 +314,7 @@ impl Expression {
 
     fn collect_variables(&self, variables: &mut Vec<String>) {
         match self {
-            Expression::Variable(name) => {
+            Expr::Variable(name) => {
                 if !variables.contains(name) {
                     variables.push(name.clone());
                 }
@@ -242,84 +328,126 @@ impl Expression {
     }
 }
 
-impl Expression {
+impl Expr {
     pub fn bool(value: bool) -> Self {
-        Expression::Literal(Value::Bool(value))
+        Expr::Literal(Value::Bool(value))
     }
 
     pub fn int(value: i64) -> Self {
-        Expression::Literal(Value::Int(value))
+        Expr::Literal(Value::Int(value))
     }
 
     pub fn float(value: f64) -> Self {
-        Expression::Literal(Value::Float(value))
+        Expr::Literal(Value::Float(value))
     }
 
     pub fn string(value: impl Into<String>) -> Self {
-        Expression::Literal(Value::String(value.into()))
+        Expr::Literal(Value::String(value.into()))
     }
 
     pub fn null() -> Self {
-        Expression::Literal(Value::Null(NullType::Null))
+        Expr::Literal(Value::Null(NullType::Null))
     }
 
-    pub fn eq(left: Expression, right: Expression) -> Self {
+    pub fn eq(left: Expr, right: Expr) -> Self {
         Self::binary(left, BinaryOperator::Equal, right)
     }
 
-    pub fn ne(left: Expression, right: Expression) -> Self {
+    pub fn ne(left: Expr, right: Expr) -> Self {
         Self::binary(left, BinaryOperator::NotEqual, right)
     }
 
-    pub fn lt(left: Expression, right: Expression) -> Self {
+    pub fn lt(left: Expr, right: Expr) -> Self {
         Self::binary(left, BinaryOperator::LessThan, right)
     }
 
-    pub fn le(left: Expression, right: Expression) -> Self {
+    pub fn le(left: Expr, right: Expr) -> Self {
         Self::binary(left, BinaryOperator::LessThanOrEqual, right)
     }
 
-    pub fn gt(left: Expression, right: Expression) -> Self {
+    pub fn gt(left: Expr, right: Expr) -> Self {
         Self::binary(left, BinaryOperator::GreaterThan, right)
     }
 
-    pub fn ge(left: Expression, right: Expression) -> Self {
+    pub fn ge(left: Expr, right: Expr) -> Self {
         Self::binary(left, BinaryOperator::GreaterThanOrEqual, right)
     }
 
-    pub fn add(left: Expression, right: Expression) -> Self {
+    pub fn add(left: Expr, right: Expr) -> Self {
         Self::binary(left, BinaryOperator::Add, right)
     }
 
-    pub fn sub(left: Expression, right: Expression) -> Self {
+    pub fn sub(left: Expr, right: Expr) -> Self {
         Self::binary(left, BinaryOperator::Subtract, right)
     }
 
-    pub fn mul(left: Expression, right: Expression) -> Self {
+    pub fn mul(left: Expr, right: Expr) -> Self {
         Self::binary(left, BinaryOperator::Multiply, right)
     }
 
-    pub fn div(left: Expression, right: Expression) -> Self {
+    pub fn div(left: Expr, right: Expr) -> Self {
         Self::binary(left, BinaryOperator::Divide, right)
     }
 
-    pub fn and(left: Expression, right: Expression) -> Self {
+    pub fn and(left: Expr, right: Expr) -> Self {
         Self::binary(left, BinaryOperator::And, right)
     }
 
-    pub fn or(left: Expression, right: Expression) -> Self {
+    pub fn or(left: Expr, right: Expr) -> Self {
         Self::binary(left, BinaryOperator::Or, right)
     }
 
-    pub fn not(expr: Expression) -> Self {
+    pub fn not(expr: Expr) -> Self {
         Self::unary(UnaryOperator::Not, expr)
     }
 
-    pub fn is_null(expr: Expression) -> Self {
+    pub fn is_null(expr: Expr) -> Self {
         Self::unary(UnaryOperator::IsNull, expr)
     }
 
-    pub fn is_not_null(expr: Expression) -> Self {
+    pub fn is_not_null(expr: Expr) -> Self {
         Self::unary(UnaryOperator::IsNotNull, expr)
+    }
+}
+
+/// Arc 包装的表达式，用于共享
+pub type ExprRef = Arc<Expr>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_literal() {
+        let expr = Expr::literal(Value::Int(42));
+        assert!(matches!(expr, Expr::Literal(Value::Int(42))));
+    }
+
+    #[test]
+    fn test_variable() {
+        let expr = Expr::variable("count");
+        assert!(matches!(expr, Expr::Variable(v) if v == "count"));
+    }
+
+    #[test]
+    fn test_binary() {
+        let a = Expr::variable("a");
+        let b = Expr::variable("b");
+        let sum = Expr::add(a, b);
+        assert!(matches!(sum, Expr::Binary { op: BinaryOperator::Add, .. }));
+    }
+
+    #[test]
+    fn test_aggregate() {
+        let expr = Expr::aggregate(AggregateFunction::Count(None), Expr::variable("col"), false);
+        assert!(matches!(expr, Expr::Aggregate { func: AggregateFunction::Count(None), distinct: false, .. }));
+    }
+
+    #[test]
+    fn test_serde() {
+        let expr = Expr::add(Expr::int(1), Expr::int(2));
+        let json = serde_json::to_string(&expr).unwrap();
+        let parsed: Expr = serde_json::from_str(&json).unwrap();
+        assert_eq!(expr, parsed);
     }
 }

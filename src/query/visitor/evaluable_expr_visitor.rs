@@ -4,6 +4,7 @@
 use crate::core::expression_visitor::{ExpressionVisitor, ExpressionVisitorState};
 use crate::core::Value;
 use crate::core::{AggregateFunction, BinaryOperator, DataType, Expression, UnaryOperator};
+use crate::expression::Expr;
 
 #[derive(Debug)]
 pub struct EvaluableExprVisitor {
@@ -24,7 +25,7 @@ impl EvaluableExprVisitor {
         }
     }
 
-    pub fn is_evaluable(&mut self, expr: &Expression) -> bool {
+    pub fn is_evaluable(&mut self, expr: &Expr) -> bool {
         self.evaluable = true;
         self.error = None;
         self.visit_expression(expr);
@@ -48,12 +49,12 @@ impl ExpressionVisitor for EvaluableExprVisitor {
         self.evaluable = false;
     }
 
-    fn visit_property(&mut self, _object: &Expression, _property: &str) -> Self::Result {
+    fn visit_property(&mut self, _object: &Expr, _property: &str) -> Self::Result {
         // 属性访问不可求值
         self.evaluable = false;
     }
 
-    fn visit_unary(&mut self, _op: &UnaryOperator, operand: &Expression) -> Self::Result {
+    fn visit_unary(&mut self, _op: &UnaryOperator, operand: &Expr) -> Self::Result {
         self.visit_expression(operand)
     }
 
@@ -66,7 +67,7 @@ impl ExpressionVisitor for EvaluableExprVisitor {
     fn visit_aggregate(
         &mut self,
         _func: &AggregateFunction,
-        arg: &Expression,
+        arg: &Expr,
         _distinct: bool,
     ) -> Self::Result {
         self.visit_expression(arg)
@@ -86,8 +87,8 @@ impl ExpressionVisitor for EvaluableExprVisitor {
 
     fn visit_case(
         &mut self,
-        conditions: &[(Expression, Expression)],
-        default: &Option<Box<Expression>>,
+        conditions: &[(Expr, Expr)],
+        default: &Option<Box<Expr>>,
     ) -> Self::Result {
         for (when_expr, then_expr) in conditions {
             self.visit_expression(when_expr);
@@ -98,14 +99,14 @@ impl ExpressionVisitor for EvaluableExprVisitor {
         }
     }
 
-    fn visit_type_cast(&mut self, expr: &Expression, _target_type: &DataType) -> Self::Result {
+    fn visit_type_cast(&mut self, expr: &Expr, _target_type: &DataType) -> Self::Result {
         self.visit_expression(expr)
     }
 
     fn visit_subscript(
         &mut self,
-        collection: &Expression,
-        index: &Expression,
+        collection: &Expr,
+        index: &Expr,
     ) -> Self::Result {
         self.visit_expression(collection);
         self.visit_expression(index);
@@ -113,9 +114,9 @@ impl ExpressionVisitor for EvaluableExprVisitor {
 
     fn visit_range(
         &mut self,
-        collection: &Expression,
-        start: &Option<Box<Expression>>,
-        end: &Option<Box<Expression>>,
+        collection: &Expr,
+        start: &Option<Box<Expr>>,
+        end: &Option<Box<Expr>>,
     ) -> Self::Result {
         self.visit_expression(collection);
         if let Some(start_expr) = start {
@@ -132,90 +133,11 @@ impl ExpressionVisitor for EvaluableExprVisitor {
         }
     }
 
-    fn visit_constant_expr(&mut self, _expr: &crate::query::parser::ast::expr::ConstantExpr) -> Self::Result {
-        // 常量表达式总是可求值的
-    }
-
-    fn visit_variable_expr(&mut self, _expr: &crate::query::parser::ast::expr::VariableExpr) -> Self::Result {
-        // 变量表达式不可求值
-        self.evaluable = false;
-    }
-
-    fn visit_binary_expr(&mut self, expr: &crate::query::parser::ast::expr::BinaryExpr) -> Self::Result {
-        self.visit_expr(&expr.left);
-        self.visit_expr(&expr.right);
-    }
-
-    fn visit_unary_expr(&mut self, expr: &crate::query::parser::ast::expr::UnaryExpr) -> Self::Result {
-        self.visit_expr(&expr.operand);
-    }
-
-    fn visit_function_call_expr(&mut self, expr: &crate::query::parser::ast::expr::FunctionCallExpr) -> Self::Result {
-        for arg in &expr.args {
-            self.visit_expr(arg);
-        }
-    }
-
-    fn visit_property_access_expr(&mut self, expr: &crate::query::parser::ast::expr::PropertyAccessExpr) -> Self::Result {
-        self.visit_expr(&expr.object);
-    }
-
-    fn visit_list_expr(&mut self, expr: &crate::query::parser::ast::expr::ListExpr) -> Self::Result {
-        for item in &expr.elements {
-            self.visit_expr(item);
-        }
-    }
-
-    fn visit_map_expr(&mut self, expr: &crate::query::parser::ast::expr::MapExpr) -> Self::Result {
-        for (_, value) in &expr.pairs {
-            self.visit_expr(value);
-        }
-    }
-
-    fn visit_case_expr(&mut self, expr: &crate::query::parser::ast::expr::CaseExpr) -> Self::Result {
-        for (cond, val) in &expr.when_then_pairs {
-            self.visit_expr(cond);
-            self.visit_expr(val);
-        }
-        if let Some(d) = &expr.default {
-            self.visit_expr(d);
-        }
-    }
-
-    fn visit_subscript_expr(&mut self, expr: &crate::query::parser::ast::expr::SubscriptExpr) -> Self::Result {
-        self.visit_expr(&expr.collection);
-        self.visit_expr(&expr.index);
-    }
-
-    fn visit_type_cast_expr(&mut self, expr: &crate::query::parser::ast::expr::TypeCastExpr) -> Self::Result {
-        self.visit_expr(&expr.expr);
-    }
-
-    fn visit_range_expr(&mut self, expr: &crate::query::parser::ast::expr::RangeExpr) -> Self::Result {
-        self.visit_expr(&expr.collection);
-        if let Some(s) = &expr.start {
-            self.visit_expr(s);
-        }
-        if let Some(e) = &expr.end {
-            self.visit_expr(e);
-        }
-    }
-
-    fn visit_path_expr(&mut self, expr: &crate::query::parser::ast::expr::PathExpr) -> Self::Result {
-        for item in &expr.elements {
-            self.visit_expr(item);
-        }
-    }
-
-    fn visit_label_expr(&mut self, _expr: &crate::query::parser::ast::expr::LabelExpr) -> Self::Result {
-        // 标签总是可求值的
-    }
-
     fn visit_binary(
         &mut self,
-        left: &Expression,
+        left: &Expr,
         _op: &crate::core::types::operators::BinaryOperator,
-        right: &Expression,
+        right: &Expr,
     ) -> Self::Result {
         self.visit_expression(left);
         self.visit_expression(right);

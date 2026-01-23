@@ -6,7 +6,7 @@ pub mod storage;
 pub mod visitor;
 
 // 重新导出expression模块的访问器
-pub use visitor::{
+pub use crate::core::expression_visitor::{
     ExpressionAcceptor, ExpressionDepthFirstVisitor, ExpressionTransformer, ExpressionVisitor,
 };
 
@@ -14,7 +14,13 @@ pub use visitor::{
 pub use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 
 // Re-export Core expression types
-pub use crate::core::types::expression::{DataType, Expression};
+pub use crate::core::types::expression::{Expr, DataType};
+
+// Re-export Core type utils
+pub use crate::core::TypeUtils;
+
+// Re-export Expression type alias
+pub use visitor::Expression;
 
 // Re-export evaluator module
 pub use evaluator::{Evaluator, ExpressionContext, ExpressionEvaluator};

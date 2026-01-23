@@ -8,7 +8,7 @@
 //! - 完善路径过滤逻辑
 
 use crate::core::types::EdgeDirection;
-use crate::core::types::expression::Expression;
+use crate::expression::Expression;
 use crate::query::context::ast::{AstContext, PathContext};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};

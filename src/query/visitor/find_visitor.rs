@@ -5,14 +5,14 @@ use crate::core::expression_visitor::{ExpressionVisitor, ExpressionVisitorState}
 use crate::core::types::expression::DataType;
 use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 use crate::core::Value;
-use crate::expression::Expression;
+use crate::expression::Expr;
 use crate::query::parser::ast::expr::*;
 use std::collections::HashSet;
 
 #[derive(Debug)]
 pub struct FindVisitor {
     /// 找到的表达式列表
-    found_exprs: Vec<Expression>,
+    found_exprs: Vec<Expr>,
     /// 访问者状态
     state: ExpressionVisitorState,
 }
@@ -26,23 +26,23 @@ impl FindVisitor {
     }
 
     /// 搜索表达式中匹配类型的所有子表达式
-    pub fn find(&mut self, expr: &Expression) -> Vec<Expression> {
+    pub fn find(&mut self, expr: &Expr) -> Vec<Expr> {
         self.found_exprs.clear();
         let _ = self.visit_expression(expr);
         self.found_exprs.clone()
     }
 
     /// 检查表达式中是否存在匹配类型的子表达式
-    pub fn exist(&mut self, expr: &Expression) -> bool {
+    pub fn exist(&mut self, expr: &Expr) -> bool {
         self.found_exprs.clear();
         let _ = self.visit_expression(expr);
         !self.found_exprs.is_empty()
     }
 
     /// 搜索表达式中匹配特定条件的子表达式
-    pub fn find_if<F>(&mut self, expr: &Expression, predicate: F) -> Vec<Expression>
+    pub fn find_if<F>(&mut self, expr: &Expr, predicate: F) -> Vec<Expr>
     where
-        F: Fn(&Expression) -> bool,
+        F: Fn(&Expr) -> bool,
     {
         let mut results = Vec::new();
         self.visit_with_predicate(expr, &predicate, &mut results);
@@ -51,11 +51,11 @@ impl FindVisitor {
 
     fn visit_with_predicate<F>(
         &self,
-        expr: &Expression,
+        expr: &Expr,
         predicate: &F,
-        results: &mut Vec<Expression>,
+        results: &mut Vec<Expr>,
     ) where
-        F: Fn(&Expression) -> bool,
+        F: Fn(&Expr) -> bool,
     {
         if predicate(expr) {
             results.push(expr.clone());
@@ -79,15 +79,15 @@ impl ExpressionVisitor for FindVisitor {
     }
 
     fn visit_literal(&mut self, value: &Value) -> Self::Result {
-        self.found_exprs.push(Expression::Literal(value.clone()));
+        self.found_exprs.push(Expr::Literal(value.clone()));
     }
 
     fn visit_variable(&mut self, name: &str) -> Self::Result {
-        self.found_exprs.push(Expression::Variable(name.to_string()));
+        self.found_exprs.push(Expr::Variable(name.to_string()));
     }
 
-    fn visit_property(&mut self, object: &Expression, property: &str) -> Self::Result {
-        self.found_exprs.push(Expression::Property {
+    fn visit_property(&mut self, object: &Expr, property: &str) -> Self::Result {
+        self.found_exprs.push(Expr::Property {
             object: Box::new(object.clone()),
             property: property.to_string(),
         });
@@ -96,11 +96,11 @@ impl ExpressionVisitor for FindVisitor {
 
     fn visit_binary(
         &mut self,
-        left: &Expression,
+        left: &Expr,
         _op: &BinaryOperator,
-        right: &Expression,
+        right: &Expr,
     ) -> Self::Result {
-        self.found_exprs.push(Expression::Binary {
+        self.found_exprs.push(Expr::Binary {
             left: Box::new(left.clone()),
             op: *_op,
             right: Box::new(right.clone()),
@@ -112,17 +112,17 @@ impl ExpressionVisitor for FindVisitor {
     fn visit_unary(
         &mut self,
         op: &UnaryOperator,
-        operand: &Expression,
+        operand: &Expr,
     ) -> Self::Result {
-        self.found_exprs.push(Expression::Unary {
+        self.found_exprs.push(Expr::Unary {
             op: *op,
             operand: Box::new(operand.clone()),
         });
         self.visit_expression(operand);
     }
 
-    fn visit_function(&mut self, name: &str, args: &[Expression]) -> Self::Result {
-        self.found_exprs.push(Expression::Function {
+    fn visit_function(&mut self, name: &str, args: &[Expr]) -> Self::Result {
+        self.found_exprs.push(Expr::Function {
             name: name.to_string(),
             args: args.to_vec(),
         });
@@ -134,10 +134,10 @@ impl ExpressionVisitor for FindVisitor {
     fn visit_aggregate(
         &mut self,
         func: &AggregateFunction,
-        arg: &Expression,
+        arg: &Expr,
         distinct: bool,
     ) -> Self::Result {
-        self.found_exprs.push(Expression::Aggregate {
+        self.found_exprs.push(Expr::Aggregate {
             func: func.clone(),
             arg: Box::new(arg.clone()),
             distinct,
@@ -145,15 +145,15 @@ impl ExpressionVisitor for FindVisitor {
         self.visit_expression(arg);
     }
 
-    fn visit_list(&mut self, items: &[Expression]) -> Self::Result {
-        self.found_exprs.push(Expression::List(items.to_vec()));
+    fn visit_list(&mut self, items: &[Expr]) -> Self::Result {
+        self.found_exprs.push(Expr::List(items.to_vec()));
         for item in items {
             self.visit_expression(item);
         }
     }
 
-    fn visit_map(&mut self, pairs: &[(String, Expression)]) -> Self::Result {
-        self.found_exprs.push(Expression::Map(pairs.to_vec()));
+    fn visit_map(&mut self, pairs: &[(String, Expr)]) -> Self::Result {
+        self.found_exprs.push(Expr::Map(pairs.to_vec()));
         for (_, value) in pairs {
             self.visit_expression(value);
         }
@@ -161,10 +161,10 @@ impl ExpressionVisitor for FindVisitor {
 
     fn visit_case(
         &mut self,
-        conditions: &[(Expression, Expression)],
-        default: &Option<Box<Expression>>,
+        conditions: &[(Expr, Expr)],
+        default: &Option<Box<Expr>>,
     ) -> Self::Result {
-        self.found_exprs.push(Expression::Case {
+        self.found_exprs.push(Expr::Case {
             conditions: conditions.to_vec(),
             default: default.clone(),
         });
@@ -177,16 +177,16 @@ impl ExpressionVisitor for FindVisitor {
         }
     }
 
-    fn visit_type_cast(&mut self, expr: &Expression, target_type: &DataType) -> Self::Result {
-        self.found_exprs.push(Expression::TypeCast {
+    fn visit_type_cast(&mut self, expr: &Expr, target_type: &DataType) -> Self::Result {
+        self.found_exprs.push(Expr::TypeCast {
             expr: Box::new(expr.clone()),
             target_type: target_type.clone(),
         });
         self.visit_expression(expr);
     }
 
-    fn visit_subscript(&mut self, collection: &Expression, index: &Expression) -> Self::Result {
-        self.found_exprs.push(Expression::Subscript {
+    fn visit_subscript(&mut self, collection: &Expr, index: &Expr) -> Self::Result {
+        self.found_exprs.push(Expr::Subscript {
             collection: Box::new(collection.clone()),
             index: Box::new(index.clone()),
         });
@@ -196,11 +196,11 @@ impl ExpressionVisitor for FindVisitor {
 
     fn visit_range(
         &mut self,
-        collection: &Expression,
-        start: &Option<Box<Expression>>,
-        end: &Option<Box<Expression>>,
+        collection: &Expr,
+        start: &Option<Box<Expr>>,
+        end: &Option<Box<Expr>>,
     ) -> Self::Result {
-        self.found_exprs.push(Expression::Range {
+        self.found_exprs.push(Expr::Range {
             collection: Box::new(collection.clone()),
             start: start.clone(),
             end: end.clone(),
@@ -214,42 +214,14 @@ impl ExpressionVisitor for FindVisitor {
         }
     }
 
-    fn visit_path(&mut self, items: &[Expression]) -> Self::Result {
-        self.found_exprs.push(Expression::Path(items.to_vec()));
+    fn visit_path(&mut self, items: &[Expr]) -> Self::Result {
+        self.found_exprs.push(Expr::Path(items.to_vec()));
         for item in items {
             self.visit_expression(item);
         }
     }
 
     fn visit_label(&mut self, name: &str) -> Self::Result {
-        self.found_exprs.push(Expression::Label(name.to_string()));
+        self.found_exprs.push(Expr::Label(name.to_string()));
     }
-
-    fn visit_label_expr(&mut self, _expr: &LabelExpr) -> Self::Result {}
-
-    fn visit_constant_expr(&mut self, _expr: &ConstantExpr) -> Self::Result {}
-
-    fn visit_variable_expr(&mut self, _expr: &VariableExpr) -> Self::Result {}
-
-    fn visit_binary_expr(&mut self, _expr: &BinaryExpr) -> Self::Result {}
-
-    fn visit_unary_expr(&mut self, _expr: &UnaryExpr) -> Self::Result {}
-
-    fn visit_function_call_expr(&mut self, _expr: &FunctionCallExpr) -> Self::Result {}
-
-    fn visit_property_access_expr(&mut self, _expr: &PropertyAccessExpr) -> Self::Result {}
-
-    fn visit_list_expr(&mut self, _expr: &ListExpr) -> Self::Result {}
-
-    fn visit_map_expr(&mut self, _expr: &MapExpr) -> Self::Result {}
-
-    fn visit_case_expr(&mut self, _expr: &CaseExpr) -> Self::Result {}
-
-    fn visit_subscript_expr(&mut self, _expr: &SubscriptExpr) -> Self::Result {}
-
-    fn visit_type_cast_expr(&mut self, _expr: &TypeCastExpr) -> Self::Result {}
-
-    fn visit_range_expr(&mut self, _expr: &RangeExpr) -> Self::Result {}
-
-    fn visit_path_expr(&mut self, _expr: &PathExpr) -> Self::Result {}
 }

@@ -2,16 +2,16 @@
 //!
 //! 提供表达式分析和转换的实用函数，类似于 nebula-graph 的 ExpressionUtils
 
-use crate::core::types::expression::Expression;
+use crate::core::types::expression::Expr;
 use crate::core::types::operators::BinaryOperator;
-use crate::core::Value;
+use crate::core::{Expression, Value};
 
 pub struct ExpressionUtils;
 
 impl ExpressionUtils {
-    pub fn is_one_step_edge_prop(edge_alias: &str, expr: &Expression) -> bool {
-        if let Expression::Property { object, .. } = expr {
-            if let Expression::Variable(name) = object.as_ref() {
+    pub fn is_one_step_edge_prop(edge_alias: &str, expr: &Expr) -> bool {
+        if let Expr::Property { object, .. } = expr {
+            if let Expr::Variable(name) = object.as_ref() {
                 return name == edge_alias;
             }
         }
@@ -19,9 +19,9 @@ impl ExpressionUtils {
     }
 
     pub fn split_filter(
-        filter: &Expression,
-        picker: impl Fn(&Expression) -> bool,
-    ) -> (Option<Expression>, Option<Expression>) {
+        filter: &Expr,
+        picker: impl Fn(&Expr) -> bool,
+    ) -> (Option<Expr>, Option<Expr>) {
         let mut picked_exprs = Vec::new();
         let mut unpicked_exprs = Vec::new();
 
@@ -43,13 +43,13 @@ impl ExpressionUtils {
     }
 
     fn split_filter_recursive(
-        expr: &Expression,
-        picker: &impl Fn(&Expression) -> bool,
-        picked: &mut Vec<Expression>,
-        unpicked: &mut Vec<Expression>,
+        expr: &Expr,
+        picker: &impl Fn(&Expr) -> bool,
+        picked: &mut Vec<Expr>,
+        unpicked: &mut Vec<Expr>,
     ) {
         match expr {
-            Expression::Binary {
+            Expr::Binary {
                 left,
                 op: BinaryOperator::And,
                 right,
@@ -69,23 +69,23 @@ impl ExpressionUtils {
 
     pub fn rewrite_edge_property_filter(
         _edge_alias: &str,
-        filter: Expression,
-    ) -> Expression {
+        filter: Expr,
+    ) -> Expr {
         filter
     }
 
-    pub fn rewrite_tag_property_filter(_tag: &str, filter: Expression) -> Expression {
+    pub fn rewrite_tag_property_filter(_tag: &str, filter: Expr) -> Expr {
         filter
     }
 
-    fn and_all(mut exprs: Vec<Expression>) -> Expression {
+    fn and_all(mut exprs: Vec<Expr>) -> Expr {
         match exprs.len() {
-            0 => Expression::Literal(crate::core::Value::Bool(true)),
+            0 => Expr::Literal(crate::core::Value::Bool(true)),
             1 => exprs.pop().expect("Should have one element"),
             _ => {
                 let mut result = exprs.pop().expect("Should have elements");
                 while let Some(expr) = exprs.pop() {
-                    result = Expression::Binary {
+                    result = Expr::Binary {
                         left: Box::new(expr),
                         op: BinaryOperator::And,
                         right: Box::new(result),

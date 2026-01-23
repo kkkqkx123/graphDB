@@ -2,7 +2,7 @@
 //!
 //! 提供高效的哈希表用于join操作，支持内存限制和磁盘溢出
 
-use crate::core::types::expression::Expression;
+use crate::expression::Expression;
 use crate::core::{DBError, DBResult, DataSet, Value};
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::evaluator::traits::ExpressionContext;

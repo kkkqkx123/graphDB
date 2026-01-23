@@ -24,7 +24,7 @@ pub use value::*;
 pub use vertex_edge_path::{Edge, Path, Vertex};
 
 // 表达式系统类型
-pub use types::expression::Expression;
+pub use crate::expression::Expression;
 pub use types::DataType;
 
 pub use types::graph_schema::EdgeDirection;

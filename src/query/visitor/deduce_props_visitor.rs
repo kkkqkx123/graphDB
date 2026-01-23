@@ -4,6 +4,7 @@
 use crate::core::expression_visitor::{ExpressionVisitor, ExpressionVisitorState};
 use crate::core::Value;
 use crate::core::{AggregateFunction, BinaryOperator, DataType, Expression, UnaryOperator};
+use crate::expression::Expr;
 use crate::query::parser::ast::expr::*;
 use std::collections::{HashMap, HashSet};
 
@@ -19,7 +20,7 @@ pub struct PropDef {
 pub struct NodeInfo {
     pub alias: String,
     pub props: HashSet<String>,
-    pub vid: Option<Box<Expression>>,
+    pub vid: Option<Box<Expr>>,
     pub tags: Vec<String>, // 节点上的标签列表
 }
 
@@ -29,9 +30,9 @@ pub struct EdgeInfo {
     pub alias: String,
     pub props: HashSet<String>,
     pub type_name: String,
-    pub src: Option<Box<Expression>>,
-    pub dst: Option<Box<Expression>>,
-    pub rank: Option<Box<Expression>>,
+    pub src: Option<Box<Expr>>,
+    pub dst: Option<Box<Expr>>,
+    pub rank: Option<Box<Expr>>,
     pub steps: String, // "1" or "*"
 }
 
@@ -245,7 +246,7 @@ impl DeducePropsVisitor {
     }
 
     /// 执行属性推导
-    pub fn deduce(&mut self, expr: &Expression) -> Result<(), String> {
+    pub fn deduce(&mut self, expr: &Expr) -> Result<(), String> {
         self.visit_expression(expr)
     }
 
@@ -318,7 +319,7 @@ impl ExpressionVisitor for DeducePropsVisitor {
         Ok(())
     }
 
-    fn visit_property(&mut self, object: &Expression, property: &str) -> Self::Result {
+    fn visit_property(&mut self, object: &Expr, property: &str) -> Self::Result {
         self.visit_expression(object)?;
         self.props.insert_input_prop(property);
         Ok(())
@@ -326,16 +327,16 @@ impl ExpressionVisitor for DeducePropsVisitor {
 
     fn visit_binary(
         &mut self,
-        left: &Expression,
+        left: &Expr,
         _op: &BinaryOperator,
-        right: &Expression,
+        right: &Expr,
     ) -> Self::Result {
         self.visit_expression(left)?;
         self.visit_expression(right)?;
         Ok(())
     }
 
-    fn visit_unary(&mut self, _op: &UnaryOperator, operand: &Expression) -> Self::Result {
+    fn visit_unary(&mut self, _op: &UnaryOperator, operand: &Expr) -> Self::Result {
         self.visit_expression(operand)
     }
 
@@ -349,7 +350,7 @@ impl ExpressionVisitor for DeducePropsVisitor {
     fn visit_aggregate(
         &mut self,
         _func: &AggregateFunction,
-        arg: &Expression,
+        arg: &Expr,
         _distinct: bool,
     ) -> Self::Result {
         self.visit_expression(arg)
@@ -371,8 +372,8 @@ impl ExpressionVisitor for DeducePropsVisitor {
 
     fn visit_case(
         &mut self,
-        conditions: &[(Expression, Expression)],
-        default: &Option<Box<Expression>>,
+        conditions: &[(Expr, Expr)],
+        default: &Option<Box<Expr>>,
     ) -> Self::Result {
         for (cond, expr) in conditions {
             self.visit_expression(cond)?;
@@ -384,11 +385,11 @@ impl ExpressionVisitor for DeducePropsVisitor {
         Ok(())
     }
 
-    fn visit_type_cast(&mut self, expr: &Expression, _target_type: &DataType) -> Self::Result {
+    fn visit_type_cast(&mut self, expr: &Expr, _target_type: &DataType) -> Self::Result {
         self.visit_expression(expr)
     }
 
-    fn visit_subscript(&mut self, collection: &Expression, index: &Expression) -> Self::Result {
+    fn visit_subscript(&mut self, collection: &Expr, index: &Expr) -> Self::Result {
         self.visit_expression(collection)?;
         self.visit_expression(index)?;
         Ok(())
@@ -396,9 +397,9 @@ impl ExpressionVisitor for DeducePropsVisitor {
 
     fn visit_range(
         &mut self,
-        collection: &Expression,
-        start: &Option<Box<Expression>>,
-        end: &Option<Box<Expression>>,
+        collection: &Expr,
+        start: &Option<Box<Expr>>,
+        end: &Option<Box<Expr>>,
     ) -> Self::Result {
         self.visit_expression(collection)?;
         if let Some(start_expr) = start {
@@ -418,95 +419,6 @@ impl ExpressionVisitor for DeducePropsVisitor {
     }
 
     fn visit_label(&mut self, _name: &str) -> Self::Result {
-        Ok(())
-    }
-
-    fn visit_constant_expr(&mut self, _expr: &ConstantExpr) -> Self::Result {
-        Ok(())
-    }
-
-    fn visit_variable_expr(&mut self, expr: &VariableExpr) -> Self::Result {
-        self.props.insert_input_prop(&expr.name);
-        Ok(())
-    }
-
-    fn visit_binary_expr(&mut self, expr: &BinaryExpr) -> Self::Result {
-        self.visit_expr(&expr.left)?;
-        self.visit_expr(&expr.right)?;
-        Ok(())
-    }
-
-    fn visit_unary_expr(&mut self, expr: &UnaryExpr) -> Self::Result {
-        self.visit_expr(&expr.operand)
-    }
-
-    fn visit_function_call_expr(&mut self, expr: &FunctionCallExpr) -> Self::Result {
-        for arg in &expr.args {
-            self.visit_expr(arg)?;
-        }
-        Ok(())
-    }
-
-    fn visit_property_access_expr(&mut self, expr: &PropertyAccessExpr) -> Self::Result {
-        self.visit_expr(&expr.object)?;
-        self.props.insert_input_prop(&expr.property);
-        Ok(())
-    }
-
-    fn visit_list_expr(&mut self, expr: &ListExpr) -> Self::Result {
-        for item in &expr.elements {
-            self.visit_expr(item)?;
-        }
-        Ok(())
-    }
-
-    fn visit_map_expr(&mut self, expr: &MapExpr) -> Self::Result {
-        for (_, value) in &expr.pairs {
-            self.visit_expr(value)?;
-        }
-        Ok(())
-    }
-
-    fn visit_case_expr(&mut self, expr: &CaseExpr) -> Self::Result {
-        for (cond, val) in &expr.when_then_pairs {
-            self.visit_expr(cond)?;
-            self.visit_expr(val)?;
-        }
-        if let Some(default_val) = &expr.default {
-            self.visit_expr(default_val)?;
-        }
-        Ok(())
-    }
-
-    fn visit_subscript_expr(&mut self, expr: &SubscriptExpr) -> Self::Result {
-        self.visit_expr(&expr.collection)?;
-        self.visit_expr(&expr.index)?;
-        Ok(())
-    }
-
-    fn visit_type_cast_expr(&mut self, expr: &TypeCastExpr) -> Self::Result {
-        self.visit_expr(&expr.expr)
-    }
-
-    fn visit_range_expr(&mut self, expr: &RangeExpr) -> Self::Result {
-        self.visit_expr(&expr.collection)?;
-        if let Some(ref start) = expr.start {
-            self.visit_expr(start)?;
-        }
-        if let Some(ref end) = expr.end {
-            self.visit_expr(end)?;
-        }
-        Ok(())
-    }
-
-    fn visit_path_expr(&mut self, expr: &PathExpr) -> Self::Result {
-        for item in &expr.elements {
-            self.visit_expr(item)?;
-        }
-        Ok(())
-    }
-
-    fn visit_label_expr(&mut self, _expr: &LabelExpr) -> Self::Result {
         Ok(())
     }
 
@@ -572,7 +484,7 @@ mod tests {
     #[test]
     fn test_deduce_visitor_constant() {
         let mut visitor = DeducePropsVisitor::new();
-        let expr = Expression::Literal(crate::core::Value::Int(42));
+        let expr = Expr::Literal(crate::core::Value::Int(42));
 
         assert!(visitor.deduce(&expr).is_ok());
         assert!(visitor.get_props().is_all_props_empty());
@@ -581,7 +493,7 @@ mod tests {
     #[test]
     fn test_deduce_visitor_property_variable() {
         let mut visitor = DeducePropsVisitor::new();
-        let expr = Expression::Variable("name".to_string());
+        let expr = Expr::Variable("name".to_string());
 
         assert!(visitor.deduce(&expr).is_ok());
         assert!(visitor.get_props().input_props.contains("name"));
@@ -590,8 +502,8 @@ mod tests {
     #[test]
     fn test_deduce_visitor_property() {
         let mut visitor = DeducePropsVisitor::new();
-        let expr = Expression::Property {
-            object: Box::new(Expression::Variable("person".to_string())),
+        let expr = Expr::Property {
+            object: Box::new(Expr::Variable("person".to_string())),
             property: "name".to_string(),
         };
 
@@ -601,10 +513,10 @@ mod tests {
     #[test]
     fn test_deduce_visitor_binary_op() {
         let mut visitor = DeducePropsVisitor::new();
-        let expr = Expression::Binary {
-            left: Box::new(Expression::Variable("age".to_string())),
+        let expr = Expr::Binary {
+            left: Box::new(Expr::Variable("age".to_string())),
             op: crate::core::BinaryOperator::Add,
-            right: Box::new(Expression::Variable("bonus".to_string())),
+            right: Box::new(Expr::Variable("bonus".to_string())),
         };
 
         assert!(visitor.deduce(&expr).is_ok());

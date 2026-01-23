@@ -3,8 +3,8 @@
 //! 定义表达式求值器的核心接口和特征
 
 use crate::core::error::ExpressionError;
-use crate::core::types::expression::Expression;
 use crate::core::Value;
+use crate::expression::Expression;
 
 /// 表达式求值器核心特征
 ///

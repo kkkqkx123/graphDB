@@ -1,7 +1,7 @@
 use super::types::{
     DataSet, DateTimeValue, DateValue, DurationValue, GeographyValue, NullType, TimeValue, Value,
-    DataType,
 };
+use crate::core::DataType;
 use std::cmp::Ordering as CmpOrdering;
 use std::collections::HashMap;
 use std::hash::Hash;

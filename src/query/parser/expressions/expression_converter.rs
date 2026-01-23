@@ -1,7 +1,7 @@
 //! 表达式转换器
 //! 将AST表达式转换为graph表达式
 
-use crate::core::types::expression::Expression;
+use crate::expression::Expression;
 use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 use crate::core::Value;
 use crate::query::parser::ast::{
