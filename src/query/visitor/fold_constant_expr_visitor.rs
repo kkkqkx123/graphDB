@@ -5,12 +5,12 @@
 //! - 支持算术运算、逻辑运算、函数调用等
 //! - 优化查询性能，减少运行时计算
 
+use crate::core::types::expression::Expression;
 use crate::core::{
     expression_visitor::{ExpressionVisitor, ExpressionVisitorState},
-    BinaryOperator, DataType, Expression, UnaryOperator, Value,
+    BinaryOperator, DataType, UnaryOperator, Value,
 };
 use crate::core::types::operators::AggregateFunction;
-use crate::expression::Expression;
 use crate::query::parser::ast::expression::*;
 
 /// 常量表达式折叠访问器

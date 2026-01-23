@@ -1,10 +1,10 @@
 //! DeducePropsVisitor - 用于推导表达式属性的访问器
 //! 对应 NebulaGraph DeducePropsVisitor.h/.cpp 的功能
 
+use crate::core::types::expression::Expression;
 use crate::core::expression_visitor::{ExpressionVisitor, ExpressionVisitorState};
 use crate::core::Value;
-use crate::core::{AggregateFunction, BinaryOperator, DataType, Expression, UnaryOperator};
-use crate::expression::Expression;
+use crate::core::{AggregateFunction, BinaryOperator, DataType, UnaryOperator};
 use crate::query::parser::ast::expression::*;
 use std::collections::{HashMap, HashSet};
 

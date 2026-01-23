@@ -6,12 +6,12 @@
 //! - 支持属性更新和别名映射
 //! - 用于属性剪裁优化
 
+use crate::core::types::expression::Expression;
 use crate::core::{
     expression_visitor::{ExpressionVisitor, ExpressionVisitorState},
-    BinaryOperator, DataType, Expression, UnaryOperator, Value,
+    BinaryOperator, DataType, UnaryOperator, Value,
 };
 use crate::core::types::operators::AggregateFunction;
-use crate::expression::Expression;
 use std::collections::{HashMap, HashSet};
 
 /// 属性跟踪器

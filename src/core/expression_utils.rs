@@ -4,7 +4,7 @@
 
 use crate::core::types::expression::Expression;
 use crate::core::types::operators::BinaryOperator;
-use crate::core::{Expression as Expression, Value};
+use crate::core::Value;
 
 pub struct ExpressionUtils;
 

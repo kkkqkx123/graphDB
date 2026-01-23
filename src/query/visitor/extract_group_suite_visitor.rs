@@ -6,12 +6,12 @@
 //! - 构建分组键集合
 //! - 支持聚合函数识别
 
+use crate::core::types::expression::Expression;
 use crate::core::{
     expression_visitor::{ExpressionVisitor, ExpressionVisitorState},
-    BinaryOperator, DataType, Expression, UnaryOperator, Value,
+    BinaryOperator, DataType, UnaryOperator, Value,
 };
 use crate::core::types::operators::AggregateFunction;
-use crate::expression::Expression;
 use crate::query::parser::ast::expression::*;
 
 /// 分组套件

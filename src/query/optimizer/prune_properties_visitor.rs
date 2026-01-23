@@ -4,7 +4,6 @@
 
 use crate::core::expression_visitor::{ExpressionVisitor, ExpressionVisitorState};
 use crate::core::types::expression::Expression;
-use crate::core::Expression;
 use crate::query::optimizer::property_tracker::PropertyTracker;
 use std::collections::HashSet;
 

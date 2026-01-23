@@ -6,12 +6,12 @@
 //! - 构建属性表达式到列的映射
 //! - 支持属性去重
 
+use crate::core::types::expression::Expression;
 use crate::core::{
     expression_visitor::{ExpressionVisitor, ExpressionVisitorState},
-    BinaryOperator, DataType, Expression, UnaryOperator, Value,
+    BinaryOperator, DataType, UnaryOperator, Value,
 };
 use crate::core::types::operators::AggregateFunction;
-use crate::expression::Expression;
 use crate::query::parser::ast::expression::*;
 use std::collections::{HashMap, HashSet};
 

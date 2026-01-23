@@ -1,5 +1,5 @@
 use crate::core::types::expression::Expression;
-use crate::core::{DataType, Expression};
+use crate::core::DataType;
 use crate::query::validator::{
     ValidationStrategy, ValidationError, ValidationErrorType,
     ValidationStrategyType, WhereClauseContext, MatchClauseContext, ReturnClauseContext,

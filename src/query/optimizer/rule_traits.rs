@@ -497,7 +497,7 @@ pub fn clone_with_new_plan_node(node: &OptGroupNode, plan_node: PlanNodeEnum) ->
 /// 宏：简化规则实现的重复代码
 #[macro_export]
 macro_rules! impl_basic_rule {
-    ($rule_type:ty, $name:expression) => {
+    ($rule_type:ty, $name:expr) => {
         impl OptRule for $rule_type {
             fn name(&self) -> &str {
                 $name
@@ -513,7 +513,7 @@ macro_rules! impl_basic_rule {
 /// 宏：简化下推规则的实现
 #[macro_export]
 macro_rules! impl_push_down_rule {
-    ($rule_type:ty, $name:expression, $target_kind:expression) => {
+    ($rule_type:ty, $name:expr, $target_kind:expr) => {
         impl OptRule for $rule_type {
             fn name(&self) -> &str {
                 $name
@@ -546,7 +546,7 @@ macro_rules! impl_push_down_rule {
 /// 宏：简化合并规则的实现
 #[macro_export]
 macro_rules! impl_merge_rule {
-    ($rule_type:ty, $name:expression) => {
+    ($rule_type:ty, $name:expr) => {
         impl OptRule for $rule_type {
             fn name(&self) -> &str {
                 $name
@@ -578,7 +578,7 @@ macro_rules! impl_merge_rule {
 /// 宏：简化消除规则的实现
 #[macro_export]
 macro_rules! impl_elimination_rule {
-    ($rule_type:ty, $name:expression) => {
+    ($rule_type:ty, $name:expr) => {
         impl OptRule for $rule_type {
             fn name(&self) -> &str {
                 $name
@@ -609,7 +609,7 @@ macro_rules! impl_elimination_rule {
 /// 新增宏：实现带有自定义验证的规则
 #[macro_export]
 macro_rules! impl_rule_with_validation {
-    ($rule_type:ty, $name:expression, $validate:block) => {
+    ($rule_type:ty, $name:expr, $validate:block) => {
         impl OptRule for $rule_type {
             fn name(&self) -> &str {
                 $name
@@ -628,7 +628,7 @@ macro_rules! impl_rule_with_validation {
 /// 新增宏：实现带有自定义后处理的规则
 #[macro_export]
 macro_rules! impl_rule_with_post_process {
-    ($rule_type:ty, $name:expression, $post_process:block) => {
+    ($rule_type:ty, $name:expr, $post_process:block) => {
         impl OptRule for $rule_type {
             fn name(&self) -> &str {
                 $name

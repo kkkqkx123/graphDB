@@ -6,12 +6,12 @@
 //! - 处理局部变量定义
 //! - 检查变量冲突
 
+use crate::core::types::expression::Expression;
 use crate::core::{
     expression_visitor::{ExpressionVisitor, ExpressionVisitorState},
-    BinaryOperator, DataType, Expression, UnaryOperator, Value,
+    BinaryOperator, DataType, UnaryOperator, Value,
 };
 use crate::core::types::operators::AggregateFunction;
-use crate::expression::Expression;
 use crate::query::parser::ast::expression::*;
 
 /// 模式表达式验证访问器

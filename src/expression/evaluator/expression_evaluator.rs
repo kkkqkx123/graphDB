@@ -7,7 +7,7 @@ use crate::core::error::ExpressionError;
 use crate::core::expression_visitor::GenericExpressionVisitor;
 use crate::core::types::expression::Expression;
 use crate::core::value::NullType;
-use crate::core::{Expression, Value};
+use crate::core::Value;
 use crate::expression::evaluator::collection_operations::CollectionOperationEvaluator;
 use crate::expression::evaluator::functions::FunctionEvaluator;
 use crate::expression::evaluator::operations::{BinaryOperationEvaluator, UnaryOperationEvaluator};

@@ -1,10 +1,10 @@
 //! EvaluableExprVisitor - 用于判断表达式是否可求值的访问器
 //! 对应 NebulaGraph EvaluableExprVisitor.h/.cpp 的功能
 
+use crate::core::types::expression::Expression;
 use crate::core::expression_visitor::{ExpressionVisitor, ExpressionVisitorState};
 use crate::core::Value;
-use crate::core::{AggregateFunction, BinaryOperator, DataType, Expression, UnaryOperator};
-use crate::expression::Expression;
+use crate::core::{AggregateFunction, BinaryOperator, DataType, UnaryOperator};
 
 #[derive(Debug)]
 pub struct EvaluableExprVisitor {

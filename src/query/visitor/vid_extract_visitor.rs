@@ -7,12 +7,12 @@
 //! - 支持多个节点的ID提取和交集运算
 //! - 用于查询优化，将过滤条件转换为索引查找
 
+use crate::core::types::expression::Expression;
 use crate::core::{
     expression_visitor::{ExpressionVisitor, ExpressionVisitorState},
-    BinaryOperator, DataType, Expression, UnaryOperator, Value,
+    BinaryOperator, DataType, UnaryOperator, Value,
 };
 use crate::core::types::operators::AggregateFunction;
-use crate::expression::Expression;
 use crate::query::parser::ast::expression::*;
 use std::collections::{HashMap, HashSet};
 

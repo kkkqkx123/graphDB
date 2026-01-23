@@ -6,12 +6,12 @@
 //! - 使用 Rewriter 函数执行重写
 //! - 支持选择性访问表达式类型
 
+use crate::core::types::expression::Expression;
 use crate::core::{
     expression_visitor::{ExpressionVisitor, ExpressionVisitorState},
-    BinaryOperator, DataType, Expression, UnaryOperator, Value,
+    BinaryOperator, DataType, UnaryOperator, Value,
 };
 use crate::core::types::operators::AggregateFunction;
-use crate::expression::Expression;
 use crate::query::parser::ast::expression::*;
 
 /// 匹配器类型：判断表达式是否需要重写

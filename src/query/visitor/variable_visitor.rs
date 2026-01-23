@@ -3,7 +3,7 @@
 
 use crate::core::expression_visitor::{ExpressionVisitor, ExpressionVisitorState};
 use crate::core::Value;
-use crate::expression::Expression;
+use crate::core::Expression;
 use std::collections::HashSet;
 
 #[derive(Debug)]

@@ -4,7 +4,7 @@
 
 use crate::core::error::ExpressionError;
 use crate::core::Value;
-use crate::expression::Expression;
+use crate::core::Expression;
 
 /// 表达式求值器核心特征
 ///

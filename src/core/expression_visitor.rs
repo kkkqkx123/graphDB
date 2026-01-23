@@ -88,11 +88,6 @@ pub trait ExpressionVisitor: std::fmt::Debug + Send + Sync {
         self.visit_expression(expression)
     }
 
-    /// 向后兼容方法 - 访问Expression类型
-    fn visit_expression(&mut self, expression: &Expression) -> Self::Result {
-        self.visit_expression(expression)
-    }
-
     /// Expression类型访问方法
     fn visit_literal(&mut self, value: &Value) -> Self::Result;
 
