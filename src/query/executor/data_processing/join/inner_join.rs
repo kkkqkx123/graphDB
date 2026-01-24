@@ -3,14 +3,14 @@
 //! 实现基于哈希的内连接算法，支持单键和多键连接
 
 use async_trait::async_trait;
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::{DataSet, Expression, Value};
+use crate::expression::context::row_context::RowExpressionContext;
+use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::data_processing::join::base_join::BaseJoinExecutor;
-use crate::query::executor::data_processing::join::hash_table::{
-    HashTableBuilder, HashTableProbe, MultiKeyHashTable, SingleKeyHashTable,
-};
 use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
@@ -18,21 +18,17 @@ use crate::storage::StorageEngine;
 /// 内连接执行器
 pub struct InnerJoinExecutor<S: StorageEngine> {
     base_executor: BaseJoinExecutor<S>,
-    /// 哈希表（用于单键连接）
-    single_key_hash_table: Option<SingleKeyHashTable>,
-    /// 多键哈希表（用于多键连接）
-    multi_key_hash_table: Option<MultiKeyHashTable>,
-    /// 是否使用多键连接
+    single_key_hash_table: Option<HashMap<Value, Vec<Vec<Value>>>>,
+    multi_key_hash_table: Option<HashMap<Vec<Value>, Vec<Vec<Value>>>>,
     use_multi_key: bool,
 }
 
-// Manual Debug implementation for InnerJoinExecutor to avoid requiring Debug trait for BaseJoinExecutor
 impl<S: StorageEngine> std::fmt::Debug for InnerJoinExecutor<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("InnerJoinExecutor")
             .field("base_executor", &"BaseJoinExecutor<S>")
-            .field("single_key_hash_table", &self.single_key_hash_table)
-            .field("multi_key_hash_table", &self.multi_key_hash_table)
+            .field("single_key_hash_table", &self.single_key_hash_table.is_some())
+            .field("multi_key_hash_table", &self.multi_key_hash_table.is_some())
             .field("use_multi_key", &self.use_multi_key)
             .finish()
     }
@@ -59,116 +55,186 @@ impl<S: StorageEngine> InnerJoinExecutor<S> {
         }
     }
 
-    /// 执行单键内连接
+    /// 执行单键内连接（使用表达式求值）
     fn execute_single_key_join(
         &mut self,
         left_dataset: &DataSet,
         right_dataset: &DataSet,
     ) -> Result<DataSet, QueryError> {
-        // 创建简单的表达式上下文（需要根据实际需求实现）
-        // 注意：这里需要根据实际的执行上下文来实现 ExpressionContext
-        // 暂时使用简化的实现，实际需要从 BaseExecutor 获取完整的上下文
-
-        // 由于 ExpressionContext 需要具体的实现，这里暂时保留原有的字符串解析逻辑
-        // 在后续实现中，需要将 Expression 转换为列索引或直接求值
-
-        // 解析键索引（临时方案，需要后续重构为表达式求值）
-        let left_key_idx = 0;
-        let right_key_idx = 0;
-
-        // 执行左右输入交换优化
         self.base_executor.optimize_join_order(left_dataset, right_dataset);
         let exchange = self.base_executor.is_exchanged();
 
-        // 决定是否交换左右输入以优化性能
-        let (build_dataset, probe_dataset, build_key_idx, probe_key_idx) = if exchange {
-            // 交换：右表作为构建表，左表作为探测表
-            (right_dataset, left_dataset, right_key_idx, left_key_idx)
+        let hash_keys = self.base_executor.get_hash_keys().clone();
+        let probe_keys = self.base_executor.get_probe_keys().clone();
+
+        if hash_keys.is_empty() || probe_keys.is_empty() {
+            return Err(QueryError::ExecutionError(
+                "哈希键或探测键为空".to_string(),
+            ));
+        }
+
+        let hash_key = hash_keys[0].clone();
+        let probe_key = probe_keys[0].clone();
+
+        let (build_dataset, probe_dataset, build_col_names, probe_col_names) = if exchange {
+            (
+                right_dataset,
+                left_dataset,
+                &right_dataset.col_names,
+                &left_dataset.col_names,
+            )
         } else {
-            // 不交换：左表作为构建表，右表作为探测表
-            (left_dataset, right_dataset, left_key_idx, right_key_idx)
+            (
+                left_dataset,
+                right_dataset,
+                &left_dataset.col_names,
+                &right_dataset.col_names,
+            )
         };
 
-        // 构建哈希表
-        let hash_table = HashTableBuilder::build_single_key_table(build_dataset, build_key_idx)
-            .map_err(|e| QueryError::ExecutionError(format!("构建哈希表失败: {}", e)))?;
+        let mut hash_table: HashMap<Value, Vec<Vec<Value>>> = HashMap::new();
 
-        // 探测哈希表
-        let probe_results =
-            HashTableProbe::probe_single_key(&hash_table, probe_dataset, probe_key_idx);
+        for row in &build_dataset.rows {
+            let mut context = RowExpressionContext::from_dataset(row, build_col_names);
+            let key = ExpressionEvaluator::evaluate(&hash_key, &mut context)
+                .map_err(|e| QueryError::ExecutionError(format!("键求值失败: {}", e)))?;
 
-        // 构建结果集
+            hash_table
+                .entry(key)
+                .or_insert_with(Vec::new)
+                .push(row.clone());
+        }
+
         let mut result = DataSet::new();
         result.col_names = self.base_executor.get_col_names().clone();
+        let output_col_names = result.col_names.clone();
 
-        for (probe_row, matching_rows) in probe_results {
-            for build_row in matching_rows {
-                let new_row = if exchange {
-                    // 交换了，探测行是左，构建行是右
-                    self.base_executor.new_row(probe_row.clone(), build_row)
-                } else {
-                    // 未交换，构建行是左，探测行是右
-                    self.base_executor.new_row(build_row, probe_row.clone())
-                };
-                result.rows.push(new_row);
+        for probe_row in &probe_dataset.rows {
+            let mut context = RowExpressionContext::from_dataset(probe_row, probe_col_names);
+            let probe_key_val = match ExpressionEvaluator::evaluate(&probe_key, &mut context) {
+                Ok(k) => k,
+                Err(_) => continue,
+            };
+
+            if let Some(matching_rows) = hash_table.get(&probe_key_val) {
+                for build_row in matching_rows {
+                    let new_row = Self::build_join_result_row(
+                        build_row,
+                        probe_row,
+                        build_col_names,
+                        probe_col_names,
+                        &output_col_names,
+                    );
+                    result.rows.push(new_row);
+                }
             }
         }
 
         Ok(result)
     }
 
-    /// 执行多键内连接
+    /// 根据输出列名构建连接结果行
+    fn build_join_result_row(
+        left_row: &[Value],
+        right_row: &[Value],
+        left_col_names: &[String],
+        right_col_names: &[String],
+        output_col_names: &[String],
+    ) -> Vec<Value> {
+        let mut result = Vec::with_capacity(output_col_names.len());
+
+        for col_name in output_col_names {
+            if let Some(idx) = left_col_names.iter().position(|c| c == col_name) {
+                if let Some(val) = left_row.get(idx) {
+                    result.push(val.clone());
+                }
+            } else if let Some(idx) = right_col_names.iter().position(|c| c == col_name) {
+                if let Some(val) = right_row.get(idx) {
+                    result.push(val.clone());
+                }
+            }
+        }
+
+        result
+    }
+
+    /// 执行多键内连接（使用表达式求值）
     fn execute_multi_key_join(
         &mut self,
         left_dataset: &DataSet,
         right_dataset: &DataSet,
     ) -> Result<DataSet, QueryError> {
-        // 由于 ExpressionContext 需要具体的实现，这里暂时保留原有的字符串解析逻辑
-        // 在后续实现中，需要将 Expression 转换为列索引或直接求值
-
-        // 解析键索引（临时方案，需要后续重构为表达式求值）
-        let mut left_key_indices = Vec::new();
-        let mut right_key_indices = Vec::new();
-
-        // 暂时使用固定索引，实际需要根据表达式求值
-        left_key_indices.push(0);
-        right_key_indices.push(0);
-
-        // 执行左右输入交换优化
         self.base_executor.optimize_join_order(left_dataset, right_dataset);
         let exchange = self.base_executor.is_exchanged();
 
-        // 决定是否交换左右输入以优化性能
-        let (build_dataset, probe_dataset, build_key_indices, probe_key_indices) = if exchange {
-            // 交换：右表作为构建表，左表作为探测表
-            (right_dataset, left_dataset, &right_key_indices, &left_key_indices)
+        let hash_keys = self.base_executor.get_hash_keys().clone();
+        let probe_keys = self.base_executor.get_probe_keys().clone();
+
+        if hash_keys.is_empty() || probe_keys.is_empty() {
+            return Err(QueryError::ExecutionError(
+                "哈希键或探测键为空".to_string(),
+            ));
+        }
+
+        let (build_dataset, probe_dataset, build_col_names, probe_col_names) = if exchange {
+            (
+                right_dataset,
+                left_dataset,
+                &right_dataset.col_names,
+                &left_dataset.col_names,
+            )
         } else {
-            // 不交换：左表作为构建表，右表作为探测表
-            (left_dataset, right_dataset, &left_key_indices, &right_key_indices)
+            (
+                left_dataset,
+                right_dataset,
+                &left_dataset.col_names,
+                &right_dataset.col_names,
+            )
         };
 
-        // 构建哈希表
-        let hash_table = HashTableBuilder::build_multi_key_table(build_dataset, build_key_indices)
-            .map_err(|e| QueryError::ExecutionError(format!("构建多键哈希表失败: {}", e)))?;
+        let mut hash_table: HashMap<Vec<Value>, Vec<Vec<Value>>> = HashMap::new();
 
-        // 探测哈希表
-        let probe_results =
-            HashTableProbe::probe_multi_key(&hash_table, probe_dataset, probe_key_indices);
+        for row in &build_dataset.rows {
+            let mut context = RowExpressionContext::from_dataset(row, build_col_names);
+            let mut key_values = Vec::with_capacity(hash_keys.len());
 
-        // 构建结果集
+            for hash_key in &hash_keys {
+                let key = ExpressionEvaluator::evaluate(hash_key, &mut context)
+                    .map_err(|e| QueryError::ExecutionError(format!("键求值失败: {}", e)))?;
+                key_values.push(key);
+            }
+
+            hash_table
+                .entry(key_values)
+                .or_insert_with(Vec::new)
+                .push(row.clone());
+        }
+
         let mut result = DataSet::new();
         result.col_names = self.base_executor.get_col_names().clone();
+        let output_col_names = result.col_names.clone();
 
-        for (probe_row, matching_rows) in probe_results {
-            for build_row in matching_rows {
-                let new_row = if exchange {
-                    // 交换了，探测行是左，构建行是右
-                    self.base_executor.new_row(probe_row.clone(), build_row)
-                } else {
-                    // 未交换，构建行是左，探测行是右
-                    self.base_executor.new_row(build_row, probe_row.clone())
-                };
-                result.rows.push(new_row);
+        for probe_row in &probe_dataset.rows {
+            let mut context = RowExpressionContext::from_dataset(probe_row, probe_col_names);
+            let mut key_values = Vec::with_capacity(probe_keys.len());
+
+            for probe_key in &probe_keys {
+                let key = ExpressionEvaluator::evaluate(probe_key, &mut context)
+                    .map_err(|e| QueryError::ExecutionError(format!("键求值失败: {}", e)))?;
+                key_values.push(key);
+            }
+
+            if let Some(matching_rows) = hash_table.get(&key_values) {
+                for build_row in matching_rows {
+                    let new_row = Self::build_join_result_row(
+                        build_row,
+                        probe_row,
+                        build_col_names,
+                        probe_col_names,
+                        &output_col_names,
+                    );
+                    result.rows.push(new_row);
+                }
             }
         }
 
@@ -200,7 +266,6 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for InnerJoinExecutor<S> {
                 .map_err(DBError::from)?
         };
 
-        // 更新统计信息
         self.base_executor
             .get_base_mut()
             .get_stats_mut()
@@ -254,7 +319,6 @@ impl<S: StorageEngine + Send + 'static> HasStorage<S> for InnerJoinExecutor<S> {
     }
 }
 
-/// 哈希内连接执行器（并行版本）
 #[derive(Debug)]
 pub struct HashInnerJoinExecutor<S: StorageEngine> {
     inner: InnerJoinExecutor<S>,
@@ -281,7 +345,6 @@ impl<S: StorageEngine> HashInnerJoinExecutor<S> {
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> Executor<S> for HashInnerJoinExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        // 目前与普通内连接相同，后续可以添加并行处理逻辑
         self.inner.execute().await
     }
 
@@ -330,22 +393,7 @@ mod tests {
     use crate::core::Value;
     use crate::storage::test_mock::MockStorage;
 
-    #[tokio::test]
-    async fn test_inner_join_single_key() {
-        let storage = Arc::new(Mutex::new(MockStorage));
-
-        // 创建执行器
-        let mut executor = InnerJoinExecutor::new(
-            1,
-            storage,
-            "left".to_string(),
-            "right".to_string(),
-            vec![Expression::Variable("id".to_string())], // 使用表达式
-            vec![Expression::Variable("id".to_string())], // 使用表达式
-            vec!["id".to_string(), "name".to_string(), "age".to_string()],
-        );
-
-        // 设置执行上下文
+    fn create_test_datasets() -> (DataSet, DataSet) {
         let left_dataset = DataSet {
             col_names: vec!["id".to_string(), "name".to_string()],
             rows: vec![
@@ -358,9 +406,29 @@ mod tests {
             col_names: vec!["id".to_string(), "age".to_string()],
             rows: vec![
                 vec![Value::Int(1), Value::Int(25)],
+                vec![Value::Int(2), Value::Int(30)],
                 vec![Value::Int(3), Value::Int(35)],
             ],
         };
+
+        (left_dataset, right_dataset)
+    }
+
+    #[tokio::test]
+    async fn test_inner_join_single_key_with_expression() {
+        let storage = Arc::new(Mutex::new(MockStorage));
+
+        let mut executor = InnerJoinExecutor::new(
+            1,
+            storage,
+            "left".to_string(),
+            "right".to_string(),
+            vec![Expression::variable("id")],
+            vec![Expression::variable("id")],
+            vec!["id".to_string(), "name".to_string(), "age".to_string()],
+        );
+
+        let (left_dataset, right_dataset) = create_test_datasets();
 
         executor.base_executor.get_base_mut().context.set_result(
             "left".to_string(),
@@ -372,27 +440,182 @@ mod tests {
             ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
         );
 
-        // 执行连接
-        let result = executor.execute().await.expect("Failed to execute");
+        let result = executor.execute().await.expect("执行失败");
 
-        // 验证结果
         match result {
             ExecutionResult::Values(values) => {
-                println!("连接结果: {}个值", values.len());
                 if let Some(Value::DataSet(dataset)) = values.first() {
-                    println!("数据集行数: {}", dataset.rows.len());
-                    for (i, row) in dataset.rows.iter().enumerate() {
-                        println!("行{}: {:?}", i, row);
-                    }
-                    assert_eq!(dataset.rows.len(), 1); // 只有一个匹配
+                    assert_eq!(dataset.rows.len(), 2);
+                    assert_eq!(dataset.rows[0][0], Value::Int(1));
                     assert_eq!(
-                        dataset.rows[0],
-                        vec![
-                            Value::Int(1),
-                            Value::String("Alice".to_string()),
-                            Value::Int(25),
-                        ]
+                        dataset.rows[0][1],
+                        Value::String("Alice".to_string())
                     );
+                    assert_eq!(dataset.rows[0][2], Value::Int(25));
+                    assert_eq!(dataset.rows[1][0], Value::Int(2));
+                    assert_eq!(
+                        dataset.rows[1][1],
+                        Value::String("Bob".to_string())
+                    );
+                    assert_eq!(dataset.rows[1][2], Value::Int(30));
+                } else {
+                    panic!("期望DataSet结果");
+                }
+            }
+            _ => panic!("期望Values结果"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_inner_join_multi_key() {
+        let storage = Arc::new(Mutex::new(MockStorage));
+
+        let left_dataset = DataSet {
+            col_names: vec!["a".to_string(), "b".to_string(), "name".to_string()],
+            rows: vec![
+                vec![Value::Int(1), Value::Int(10), Value::String("Alice".to_string())],
+                vec![Value::Int(2), Value::Int(20), Value::String("Bob".to_string())],
+            ],
+        };
+
+        let right_dataset = DataSet {
+            col_names: vec!["a".to_string(), "b".to_string(), "age".to_string()],
+            rows: vec![
+                vec![Value::Int(1), Value::Int(10), Value::Int(25)],
+                vec![Value::Int(1), Value::Int(11), Value::Int(26)],
+                vec![Value::Int(2), Value::Int(20), Value::Int(30)],
+            ],
+        };
+
+        let mut executor = InnerJoinExecutor::new(
+            2,
+            storage,
+            "left".to_string(),
+            "right".to_string(),
+            vec![
+                Expression::variable("a"),
+                Expression::variable("b"),
+            ],
+            vec![
+                Expression::variable("a"),
+                Expression::variable("b"),
+            ],
+            vec![
+                "a".to_string(),
+                "b".to_string(),
+                "name".to_string(),
+                "age".to_string(),
+            ],
+        );
+
+        executor.base_executor.get_base_mut().context.set_result(
+            "left".to_string(),
+            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+        );
+
+        executor.base_executor.get_base_mut().context.set_result(
+            "right".to_string(),
+            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
+        );
+
+        let result = executor.execute().await.expect("执行失败");
+
+        match result {
+            ExecutionResult::Values(values) => {
+                if let Some(Value::DataSet(dataset)) = values.first() {
+                    assert_eq!(dataset.rows.len(), 2);
+                    assert_eq!(dataset.rows[0][2], Value::String("Alice".to_string()));
+                    assert_eq!(dataset.rows[0][3], Value::Int(25));
+                    assert_eq!(dataset.rows[1][2], Value::String("Bob".to_string()));
+                    assert_eq!(dataset.rows[1][3], Value::Int(30));
+                } else {
+                    panic!("期望DataSet结果");
+                }
+            }
+            _ => panic!("期望Values结果"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_inner_join_empty_dataset() {
+        let storage = Arc::new(Mutex::new(MockStorage));
+
+        let left_dataset = DataSet {
+            col_names: vec!["id".to_string(), "name".to_string()],
+            rows: vec![],
+        };
+
+        let right_dataset = DataSet {
+            col_names: vec!["id".to_string(), "age".to_string()],
+            rows: vec![vec![Value::Int(1), Value::Int(25)]],
+        };
+
+        let mut executor = InnerJoinExecutor::new(
+            3,
+            storage,
+            "left".to_string(),
+            "right".to_string(),
+            vec![Expression::variable("id")],
+            vec![Expression::variable("id")],
+            vec!["id".to_string(), "name".to_string(), "age".to_string()],
+        );
+
+        executor.base_executor.get_base_mut().context.set_result(
+            "left".to_string(),
+            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+        );
+
+        executor.base_executor.get_base_mut().context.set_result(
+            "right".to_string(),
+            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
+        );
+
+        let result = executor.execute().await.expect("执行失败");
+
+        match result {
+            ExecutionResult::Values(values) => {
+                if let Some(Value::DataSet(dataset)) = values.first() {
+                    assert_eq!(dataset.rows.len(), 0);
+                } else {
+                    panic!("期望DataSet结果");
+                }
+            }
+            _ => panic!("期望Values结果"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_inner_join_with_variable_expression() {
+        let storage = Arc::new(Mutex::new(MockStorage));
+
+        let mut executor = InnerJoinExecutor::new(
+            4,
+            storage,
+            "left".to_string(),
+            "right".to_string(),
+            vec![Expression::Variable("id".to_string())],
+            vec![Expression::Variable("id".to_string())],
+            vec!["id".to_string(), "name".to_string(), "age".to_string()],
+        );
+
+        let (left_dataset, right_dataset) = create_test_datasets();
+
+        executor.base_executor.get_base_mut().context.set_result(
+            "left".to_string(),
+            ExecutionResult::Values(vec![Value::DataSet(left_dataset)]),
+        );
+
+        executor.base_executor.get_base_mut().context.set_result(
+            "right".to_string(),
+            ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
+        );
+
+        let result = executor.execute().await.expect("执行失败");
+
+        match result {
+            ExecutionResult::Values(values) => {
+                if let Some(Value::DataSet(dataset)) = values.first() {
+                    assert_eq!(dataset.rows.len(), 2);
                 } else {
                     panic!("期望DataSet结果");
                 }

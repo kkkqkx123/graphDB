@@ -313,23 +313,73 @@ impl<S: StorageEngine> BaseJoinExecutor<S> {
 
     /// 创建新行（连接左右两行）
     pub fn new_row(&self, left_row: Vec<Value>, right_row: Vec<Value>) -> Vec<Value> {
+        self.new_row_with_move(left_row, right_row, false)
+    }
+
+    /// 使用移动语义创建新行（性能优化）
+    pub fn new_row_with_move(
+        &self,
+        left_row: Vec<Value>,
+        right_row: Vec<Value>,
+        exchange: bool,
+    ) -> Vec<Value> {
+        let (left, right) = if exchange {
+            (right_row, left_row)
+        } else {
+            (left_row, right_row)
+        };
+
+        self.build_output_row(left, right)
+    }
+
+    /// 根据输出列名构建结果行
+    pub fn build_output_row(&self, left_row: Vec<Value>, right_row: Vec<Value>) -> Vec<Value> {
+        self.build_output_row_simple(left_row, right_row, &[], &[])
+    }
+
+    /// 简化版：根据位置构建结果行（假设输出列顺序为：左表所有列 + 右表非重复列）
+    pub fn build_output_row_simple(
+        &self,
+        left_row: Vec<Value>,
+        right_row: Vec<Value>,
+        left_col_names: &[String],
+        right_col_names: &[String],
+    ) -> Vec<Value> {
+        let mut result = Vec::new();
+
+        for col_name in &self.col_names {
+            if let Some(idx) = left_col_names.iter().position(|c| c == col_name) {
+                if let Some(val) = left_row.get(idx) {
+                    result.push(val.clone());
+                }
+            } else if let Some(idx) = right_col_names.iter().position(|c| c == col_name) {
+                if let Some(val) = right_row.get(idx) {
+                    result.push(val.clone());
+                }
+            }
+        }
+
+        result
+    }
+
+    /// 根据列名选择性合并行（用于自然连接）
+    pub fn new_row_by_col_names(
+        &self,
+        left_row: Vec<Value>,
+        right_row: Vec<Value>,
+        left_col_names: &[String],
+        right_col_names: &[String],
+    ) -> Vec<Value> {
         let mut new_row = Vec::new();
 
-        // 根据输出列名构建结果行
-        // 输出列名格式：["id", "name", "age"]
-        // 左表列名：["id", "name"]
-        // 右表列名：["id", "age"]
+        new_row.extend(left_row);
 
-        // 简化实现：假设输出列名已经指定了正确的顺序
-        // 对于自然连接，重复的列应该只出现一次
-        // 这里我们简单地将左表的所有列和右表的非重复列合并
-
-        // 添加左表的所有列
-        new_row.extend(left_row.clone());
-
-        // 添加右表的非重复列（从第1列开始，跳过重复的id列）
-        if right_row.len() > 1 {
-            new_row.extend(right_row[1..].iter().cloned());
+        for (idx, col_name) in right_col_names.iter().enumerate() {
+            if !left_col_names.contains(col_name) {
+                if let Some(val) = right_row.get(idx) {
+                    new_row.push(val.clone());
+                }
+            }
         }
 
         new_row

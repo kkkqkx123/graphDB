@@ -5,6 +5,7 @@
 pub mod basic_context;
 pub mod default_context;
 pub mod evaluation;
+pub mod row_context;
 
 // 重新导出默认上下文类型
 pub use default_context::{DefaultExpressionContext, StorageExpressionContext};
@@ -23,3 +24,6 @@ pub use crate::core::error::{ExpressionError, ExpressionErrorType, ExpressionPos
 
 // 重新导出扩展trait
 pub use basic_context::ExpressionContextCoreExtended;
+
+// 重新导出行上下文类型
+pub use row_context::{RowExpressionContext, RowContextRef, RowExpressionContextBuilder};
