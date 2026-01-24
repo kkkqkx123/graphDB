@@ -284,12 +284,6 @@ impl GetNeighborsIter {
             .get(&(self.col_idx as usize))
             .map(|s| s.as_str())
     }
-
-    /// 检查列是否有效
-
-    fn col_valid(&self) -> bool {
-        !self.no_edge && self.valid()
-    }
 }
 
 impl Iterator for GetNeighborsIter {

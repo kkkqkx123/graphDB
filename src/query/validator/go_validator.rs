@@ -458,39 +458,6 @@ impl GoValidator {
         Ok(())
     }
 
-    /// 验证标签名称
-    fn validate_tag_name(&self, tag_name: &str) -> Result<(), ValidationError> {
-        if tag_name.is_empty() {
-            return Err(ValidationError::new(
-                "标签名不能为空".to_string(),
-                ValidationErrorType::SemanticError,
-            ));
-        }
-        Ok(())
-    }
-
-    /// 验证边名称
-    fn validate_edge_name(&self, edge_name: &str) -> Result<(), ValidationError> {
-        if edge_name.is_empty() {
-            return Err(ValidationError::new(
-                "边名不能为空".to_string(),
-                ValidationErrorType::SemanticError,
-            ));
-        }
-        Ok(())
-    }
-
-    /// 验证输入属性名称
-    fn validate_input_property_name(&self, prop_name: &str) -> Result<(), ValidationError> {
-        if prop_name.is_empty() {
-            return Err(ValidationError::new(
-                "输入属性名不能为空".to_string(),
-                ValidationErrorType::SemanticError,
-            ));
-        }
-        Ok(())
-    }
-
     fn build_outputs(&mut self) -> Result<(), ValidationError> {
         // 构建输出列
         // 根据 YIELD 子句构建输出定义
@@ -612,8 +579,6 @@ impl GoValidator {
             }
             Expression::Path(_) => Ok("PATH".to_string()),
             Expression::Label(_) => Ok("STRING".to_string()),
-            // 属性表达式统一处理
-            Expression::Property { .. } => Ok("ANY".to_string()),
         }
     }
 

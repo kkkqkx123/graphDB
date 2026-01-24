@@ -99,16 +99,6 @@ impl IndexData {
         self.edge_by_id.insert(edge.id, edge);
     }
 
-    /// 精确查找顶点 - 使用HashMap O(1)
-    fn lookup_vertex_by_id(&self, id: i64) -> Option<&Vertex> {
-        self.vertex_by_id.get(&id)
-    }
-
-    /// 精确查找边 - 使用HashMap O(1)
-    fn lookup_edge_by_id(&self, id: i64) -> Option<&Edge> {
-        self.edge_by_id.get(&id)
-    }
-
     /// 按标签、属性和属性值精确查找顶点 - 使用BTreeMap
     fn lookup_vertex_by_property(
         &self,
@@ -1351,77 +1341,4 @@ impl IndexManager for MemoryIndexManager {
 }
 
 impl MemoryIndexManager {
-    /// 检查顶点是否匹配给定的值
-    fn vertex_matches_values(
-        vertex: &Vertex,
-        tag_name: &str,
-        fields: &[String],
-        values: &[Value],
-    ) -> bool {
-        if let Some(tag) = vertex.tags.iter().find(|t| t.name == tag_name) {
-            for (field_name, expected_value) in fields.iter().zip(values.iter()) {
-                if let Some(actual_value) = tag.properties.get(field_name) {
-                    if actual_value != expected_value {
-                        return false;
-                    }
-                } else {
-                    return false;
-                }
-            }
-            true
-        } else {
-            false
-        }
-    }
-
-    /// 检查边是否匹配给定的值
-    fn edge_matches_values(
-        edge: &Edge,
-        edge_type: &str,
-        fields: &[String],
-        values: &[Value],
-    ) -> bool {
-        if edge.edge_type != edge_type {
-            return false;
-        }
-
-        for (field_name, expected_value) in fields.iter().zip(values.iter()) {
-            if let Some(actual_value) = edge.props.get(field_name) {
-                if actual_value != expected_value {
-                    return false;
-                }
-            } else {
-                return false;
-            }
-        }
-        true
-    }
-
-    /// 从顶点提取字段值 - 简化版本，无需二进制编码
-    fn extract_vertex_field_value(
-        vertex: &Vertex,
-        tag_name: &str,
-        field_name: &str,
-    ) -> Option<(Value, String)> {
-        if let Some(tag) = vertex.tags.iter().find(|t| t.name == tag_name) {
-            if let Some(value) = tag.properties.get(field_name) {
-                return Some((value.clone(), field_name.to_string()));
-            }
-        }
-        None
-    }
-
-    /// 从边提取字段值 - 简化版本，无需二进制编码
-    fn extract_edge_field_value(
-        edge: &Edge,
-        edge_type: &str,
-        field_name: &str,
-    ) -> Option<(Value, String)> {
-        if edge.edge_type == edge_type {
-            if let Some(value) = edge.props.get(field_name) {
-                return Some((value.clone(), field_name.to_string()));
-            }
-        }
-        None
-    }
 }

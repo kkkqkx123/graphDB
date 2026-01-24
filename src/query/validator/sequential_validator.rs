@@ -15,16 +15,14 @@ pub struct SequentialStatement {
 }
 
 pub struct SequentialValidator {
-    base: Validator,
     statements: Vec<SequentialStatement>,
     max_statements: usize,
     variables: HashMap<String, crate::core::DataType>,
 }
 
 impl SequentialValidator {
-    pub fn new(context: ValidationContext) -> Self {
+    pub fn new(_context: ValidationContext) -> Self {
         Self {
-            base: Validator::new(context),
             statements: Vec::new(),
             max_statements: 100,
             variables: HashMap::new(),

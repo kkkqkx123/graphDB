@@ -15,25 +15,6 @@ use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{ExecutionResult, Executor};
 use crate::storage::StorageEngine;
 
-fn execution_result_to_values(result: &ExecutionResult) -> Result<Vec<Value>, DBError> {
-    match result {
-        ExecutionResult::Values(values) => Ok(values.clone()),
-        ExecutionResult::Vertices(vertices) => Ok(vertices
-            .iter()
-            .map(|v| Value::Vertex(Box::new(v.clone())))
-            .collect()),
-        ExecutionResult::Edges(edges) => Ok(edges
-            .iter()
-            .map(|e| Value::Edge(e.clone()))
-            .collect()),
-        _ => Err(DBError::Query(
-            crate::core::error::QueryError::ExecutionError(
-                "Unsupported result type for RollUpApply".to_string(),
-            ),
-        )),
-    }
-}
-
 /// RollUpApply执行器
 /// 用于将右输入中的值根据左输入的键进行聚合
 pub struct RollUpApplyExecutor<S: StorageEngine + Send + 'static> {

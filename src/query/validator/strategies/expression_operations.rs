@@ -353,37 +353,6 @@ impl ExpressionOperationsValidator {
         Ok(())
     }
 
-    /// 验证模式理解表达式
-    fn validate_pattern_comprehension(
-        &self,
-        _pattern: &Expression,
-        predicate: &Option<&Expression>,
-        depth: usize,
-    ) -> Result<(), ValidationError> {
-        // 验证谓词（如果存在）
-        if let Some(pred) = predicate {
-            self.validate_expression_operations_recursive(pred, depth + 1)?;
-        }
-
-        Ok(())
-    }
-
-    /// 验证归约表达式
-    fn validate_reduce_expression(
-        &self,
-        _accumulator: &str,
-        initial: &Expression,
-        list: &Expression,
-        _expression: &Expression,
-        depth: usize,
-    ) -> Result<(), ValidationError> {
-        // 递归验证初始值和列表
-        self.validate_expression_operations_recursive(initial, depth + 1)?;
-        self.validate_expression_operations_recursive(list, depth + 1)?;
-
-        Ok(())
-    }
-
     /// 验证表达式循环依赖
     pub fn validate_expression_cycles(&self, expression: &Expression) -> Result<(), ValidationError> {
         let mut visited = HashSet::new();

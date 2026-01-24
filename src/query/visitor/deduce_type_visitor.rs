@@ -287,55 +287,6 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
         Ok(())
     }
 
-    fn visit_property(&mut self, object: &Expression, property: &str) -> Result<(), TypeDeductionError> {
-        self.visit_expression(object)?;
-
-        let object_type = self.type_.clone();
-
-        self.type_ = match object_type {
-            DataType::Vertex => {
-                self.resolve_vertex_property_type(property)
-            }
-            DataType::Edge => {
-                self.resolve_edge_property_type(property)
-            }
-            DataType::Map => {
-                DataType::Empty
-            }
-            DataType::Empty | DataType::Null | DataType::List | DataType::Set | DataType::Path => {
-                DataType::Empty
-            }
-            _ => DataType::Empty,
-        };
-
-        Ok(())
-    }
-
-    fn resolve_vertex_property_type(&self, property: &str) -> DataType {
-        match property.to_lowercase().as_str() {
-            "id" => DataType::String,
-            "tag" | "tags" => DataType::List,
-            _ => DataType::Empty,
-        }
-    }
-
-    fn resolve_edge_property_type(&self, property: &str) -> DataType {
-        match property.to_lowercase().as_str() {
-            "src" | "src_id" => DataType::String,
-            "dst" | "dst_id" => DataType::String,
-            "type" | "edge_type" => DataType::Int,
-            "rank" => DataType::Int,
-            "name" => DataType::String,
-            _ => DataType::Empty,
-        }
-    }
-
-    fn visit_variable(&mut self, _name: &str) -> Result<(), TypeDeductionError> {
-        // 变量表达式的结果类型不确定，使用Empty
-        self.type_ = DataType::Empty;
-        Ok(())
-    }
-
     /// 检查两种类型是否兼容
     fn are_types_compatible(&self, type1: &DataType, type2: &DataType) -> bool {
         TypeUtils::are_types_compatible(type1, type2)

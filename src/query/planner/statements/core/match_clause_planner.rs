@@ -31,17 +31,12 @@ use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind};
 /// MATCH 子句是 Cypher 查询的核心，用于匹配图中的模式。
 /// 它可以包含多个路径，每个路径由节点和边组成。
 #[derive(Debug)]
-pub struct MatchClausePlanner {
-    paths: Vec<crate::query::validator::structs::Path>,
-}
+pub struct MatchClausePlanner {}
 
 impl MatchClausePlanner {
     /// 创建新的 MATCH 子句规划器
-    ///
-    /// # 参数
-    /// * `paths` - 要匹配的路径列表
-    pub fn new(paths: Vec<crate::query::validator::structs::Path>) -> Self {
-        Self { paths }
+    pub fn new() -> Self {
+        Self {}
     }
 }
 
@@ -165,7 +160,7 @@ mod tests {
 
     #[test]
     fn test_match_clause_planner_interface() {
-        let planner = MatchClausePlanner::new(vec![]);
+        let planner = MatchClausePlanner::new();
         assert_eq!(planner.clause_type(), ClauseType::Match);
         assert_eq!(<MatchClausePlanner as DataFlowNode>::flow_direction(&planner), crate::query::planner::statements::core::cypher_clause_planner::FlowDirection::Source);
         assert!(!planner.requires_input());
@@ -173,7 +168,7 @@ mod tests {
 
     #[test]
     fn test_match_clause_planner_validate_flow() {
-        let planner = MatchClausePlanner::new(vec![]);
+        let planner = MatchClausePlanner::new();
 
         // 测试有输入的情况（应该失败）
         let dummy_plan = SubPlan::new(None, None);
@@ -212,7 +207,7 @@ mod tests {
             roll_up_apply: false,
         };
 
-        let planner = MatchClausePlanner::new(vec![path.clone()]);
+        let planner = MatchClausePlanner::new();
 
         let query_info =
             crate::query::planner::statements::core::cypher_clause_planner::QueryInfo {

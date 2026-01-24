@@ -22,16 +22,12 @@ pub use crate::query::planner::plan::core::PlanNodeEnum;
 /// LOOKUP查询规划器
 /// 负责将LOOKUP语句转换为执行计划
 #[derive(Debug)]
-pub struct LookupPlanner {
-    query_context: AstContext,
-}
+pub struct LookupPlanner {}
 
 impl LookupPlanner {
     /// 创建新的LOOKUP规划器
     pub fn new() -> Self {
-        Self {
-            query_context: AstContext::from_strings("LOOKUP", "LOOKUP ON player WHERE player.name == 'test'"),
-        }
+        Self {}
     }
 
     /// 创建规划器实例的工厂函数

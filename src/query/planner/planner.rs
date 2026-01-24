@@ -206,10 +206,14 @@ impl PlannerRegistry {
 
     /// 从 AST 上下文提取语句类型
     fn extract_sentence_kind(&self, ast_ctx: &AstContext) -> Result<SentenceKind, PlannerError> {
-        // 这里需要根据实际的 AST 上下文结构来提取语句类型
-        // 暂时使用一个假设的方法
-        let statement_type = ast_ctx.statement_type();
-        SentenceKind::from_str(&statement_type)
+        // 直接从 AST 节点获取语句类型
+        if let Some(sentence) = ast_ctx.sentence() {
+            SentenceKind::from_str(sentence.kind())
+        } else {
+            Err(PlannerError::InvalidAstContext(
+                "Missing sentence in AST context".to_string(),
+            ))
+        }
     }
 
     /// 获取已注册的规划器数量
@@ -239,15 +243,11 @@ pub trait Planner: std::fmt::Debug {
 
 /// 顺序规划器（使用新的注册机制）
 #[derive(Debug)]
-pub struct SequentialPlanner {
-    planners: Vec<MatchAndInstantiate>,
-}
+pub struct SequentialPlanner {}
 
 impl SequentialPlanner {
     pub fn new() -> Self {
-        Self {
-            planners: Vec::new(),
-        }
+        Self {}
     }
 
     pub fn make() -> Box<dyn Planner> {
@@ -271,6 +271,43 @@ impl SequentialPlanner {
         registry.register_match_planners();
         registry.register_ngql_planners();
     }
+
+    /// 移除左侧尾部起始节点
+    ///
+    /// 当追加计划时，需要移除左侧尾部 Start 节点。
+    /// 这是因为左侧尾部的 Start 节点需要被移除，并保留一个位置用于添加依赖关系。
+    ///
+    /// TODO: 这是临时解决方案，在实现逐个执行多个序列后应移除
+    pub fn rm_left_tail_start_node(plan: &mut SubPlan) {
+        let tail = match &plan.tail {
+            Some(t) => t,
+            None => return,
+        };
+
+        if !tail.is_start() {
+            return;
+        }
+
+        let root = match &plan.root {
+            Some(r) => r,
+            None => return,
+        };
+
+        let mut current = root.clone();
+        let mut found = false;
+
+        while let Some(first_dep) = current.first_dependency() {
+            if first_dep.dependencies().is_empty() {
+                found = true;
+                break;
+            }
+            current = first_dep;
+        }
+
+        if found {
+            plan.tail = Some(current);
+        }
+    }
 }
 
 impl Planner for SequentialPlanner {
@@ -278,9 +315,35 @@ impl Planner for SequentialPlanner {
         Self::to_plan(ast_ctx)
     }
 
-    fn match_planner(&self, _ast_ctx: &AstContext) -> bool {
-        Self::match_ast_ctx(_ast_ctx)
+    fn match_planner(&self, ast_ctx: &AstContext) -> bool {
+        Self::match_ast_ctx(ast_ctx)
     }
+}
+
+/// 错误处理宏
+///
+/// 类似于 C++ 中的 NG_RETURN_IF_ERROR 宏，用于简化错误传播
+#[macro_export]
+macro_rules! ng_return_if_error {
+    ($expr:expr) => {
+        match $expr {
+            Ok(val) => val,
+            Err(e) => return Err(e.into()),
+        }
+    };
+}
+
+/// 错误处理宏变体，返回默认错误消息
+///
+/// 当表达式返回错误时，返回一个带有默认消息的 PlannerError
+#[macro_export]
+macro_rules! ng_ok_or_err {
+    ($expr:expr, $msg:expr) => {
+        match $expr {
+            Ok(val) => val,
+            Err(_) => return Err(PlannerError::PlanGenerationFailed($msg.to_string())),
+        }
+    };
 }
 
 /// 规划器错误类型

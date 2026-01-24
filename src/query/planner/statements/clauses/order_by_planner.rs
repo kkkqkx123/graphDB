@@ -9,13 +9,11 @@ use crate::query::validator::structs::common_structs::CypherClauseContext;
 use crate::query::validator::structs::CypherClauseKind;
 
 #[derive(Debug)]
-pub struct OrderByClausePlanner {
-    order_items: Vec<crate::query::parser::ast::OrderByItem>,
-}
+pub struct OrderByClausePlanner {}
 
 impl OrderByClausePlanner {
-    pub fn new(order_items: Vec<crate::query::parser::ast::OrderByItem>) -> Self {
-        Self { order_items }
+    pub fn new() -> Self {
+        Self {}
     }
 }
 

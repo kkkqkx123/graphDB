@@ -21,7 +21,6 @@ pub use crate::query::planner::plan::core::PlanNodeEnum;
 
 #[derive(Debug)]
 pub struct ReturnClausePlanner {
-    return_items: Vec<ReturnItem>,
     distinct: bool,
 }
 
@@ -35,28 +34,13 @@ pub struct ReturnItem {
 impl ReturnClausePlanner {
     pub fn new() -> Self {
         Self {
-            return_items: Vec::new(),
             distinct: false,
         }
     }
 
     /// 从 RETURN 子句上下文创建规划器
     pub fn from_context(ctx: &CypherClauseContext) -> Self {
-        let mut items = Vec::new();
-
-        if let CypherClauseContext::Return(return_ctx) = ctx {
-            for item in &return_ctx.yield_clause.yield_columns {
-                let item_name = item.alias.clone();
-                items.push(ReturnItem {
-                    alias: item_name.clone(),
-                    expression: Expression::Variable(item_name.clone()),
-                    is_aggregated: Self::is_aggregated_expression(&item_name),
-                });
-            }
-        }
-
         Self {
-            return_items: items,
             distinct: false,
         }
     }

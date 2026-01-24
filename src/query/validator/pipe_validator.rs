@@ -8,7 +8,6 @@ use crate::query::validator::ValidationError;
 use crate::query::validator::ValidationErrorType;
 
 pub struct PipeValidator {
-    base: Validator,
     left_output_cols: Vec<ColumnInfo>,
     right_input_cols: Vec<ColumnInfo>,
 }
@@ -21,9 +20,8 @@ pub struct ColumnInfo {
 }
 
 impl PipeValidator {
-    pub fn new(context: ValidationContext) -> Self {
+    pub fn new(_context: ValidationContext) -> Self {
         Self {
-            base: Validator::new(context),
             left_output_cols: Vec::new(),
             right_input_cols: Vec::new(),
         }

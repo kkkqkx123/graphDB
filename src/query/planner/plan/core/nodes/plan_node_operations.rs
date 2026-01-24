@@ -321,6 +321,16 @@ impl PlanNodeEnum {
         }
     }
 
+    /// 获取第一个依赖节点（如果存在）
+    pub fn first_dependency(&self) -> Option<PlanNodeEnum> {
+        let deps = self.dependencies();
+        if deps.is_empty() {
+            None
+        } else {
+            Some((*(deps[0].clone())))
+        }
+    }
+
     /// 设置节点的输出变量
     pub fn set_output_var(&mut self, var: Variable) {
         match self {

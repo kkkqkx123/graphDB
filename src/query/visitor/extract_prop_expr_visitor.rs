@@ -153,11 +153,6 @@ impl ExtractPropExprVisitor {
     pub fn get_extracted_props(&self) -> &ExtractedProps {
         &self.extracted_props
     }
-
-    /// 设置错误信息
-    fn set_error(&mut self, error: String) {
-        self.error = Some(error);
-    }
 }
 
 impl Default for ExtractPropExprVisitor {

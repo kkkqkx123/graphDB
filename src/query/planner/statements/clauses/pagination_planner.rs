@@ -9,14 +9,11 @@ use crate::query::validator::structs::common_structs::CypherClauseContext;
 use crate::query::validator::structs::CypherClauseKind;
 
 #[derive(Debug)]
-pub struct PaginationPlanner {
-    skip: Option<u64>,
-    limit: Option<u64>,
-}
+pub struct PaginationPlanner {}
 
 impl PaginationPlanner {
-    pub fn new(skip: Option<u64>, limit: Option<u64>) -> Self {
-        Self { skip, limit }
+    pub fn new() -> Self {
+        Self {}
     }
 }
 

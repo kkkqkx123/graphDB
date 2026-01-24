@@ -103,13 +103,6 @@ impl RedbStorage {
             .map_err(|e| StorageError::SerializationError(e.to_string()))
     }
 
-    fn value_from_bytes(&self, bytes: &[u8]) -> Result<Value, StorageError> {
-        let (value, _): (Value, usize) =
-            bincode::decode_from_slice(bytes, bincode::config::standard())
-                .map_err(|e| StorageError::SerializationError(e.to_string()))?;
-        Ok(value)
-    }
-
     fn vertex_to_bytes(&self, vertex: &Vertex) -> Result<Vec<u8>, StorageError> {
         bincode::encode_to_vec(vertex, bincode::config::standard())
             .map_err(|e| StorageError::SerializationError(e.to_string()))

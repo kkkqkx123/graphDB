@@ -15,7 +15,6 @@ pub struct StartNode {
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
-    dependencies_vec: Vec<PlanNodeEnum>,
 }
 
 impl StartNode {
@@ -26,7 +25,6 @@ impl StartNode {
             output_var: None,
             col_names: vec![],
             cost: 0.0,
-            dependencies_vec: vec![],
         }
     }
 }
@@ -74,7 +72,6 @@ impl PlanNodeClonable for StartNode {
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
-            dependencies_vec: vec![],
         })
     }
 
@@ -84,7 +81,6 @@ impl PlanNodeClonable for StartNode {
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
-            dependencies_vec: vec![],
         })
     }
 }

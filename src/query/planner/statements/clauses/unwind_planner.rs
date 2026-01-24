@@ -9,17 +9,11 @@ use crate::query::validator::structs::common_structs::CypherClauseContext;
 use crate::query::validator::structs::CypherClauseKind;
 
 #[derive(Debug)]
-pub struct UnwindClausePlanner {
-    unwind_expression: crate::query::parser::ast::expression::Expression,
-    variable: String,
-}
+pub struct UnwindClausePlanner {}
 
 impl UnwindClausePlanner {
-    pub fn new(unwind_expression: crate::query::parser::ast::expression::Expression) -> Self {
-        Self {
-            unwind_expression,
-            variable: String::new(),
-        }
+    pub fn new() -> Self {
+        Self {}
     }
 }
 

@@ -625,27 +625,6 @@ impl<'a> StmtParser<'a> {
         self.parse_edge_types(ctx)
     }
 
-    fn parse_properties(&mut self, ctx: &mut ParseContext<'a>) -> Result<Vec<PropertyDef>, ParseError> {
-        let mut properties = Vec::new();
-        if ctx.match_token(TokenKind::LBrace) {
-            while !ctx.match_token(TokenKind::RBrace) {
-                let name = ctx.expect_identifier()?;
-                ctx.expect_token(TokenKind::Colon)?;
-                let _value = self.parse_expression(ctx)?;
-                properties.push(PropertyDef {
-                    name,
-                    data_type: DataType::String,
-                    nullable: true,
-                    default: None,
-                });
-                if !ctx.match_token(TokenKind::Comma) {
-                    break;
-                }
-            }
-        }
-        Ok(properties)
-    }
-
     fn parse_property_defs(&mut self, ctx: &mut ParseContext<'a>) -> Result<Vec<PropertyDef>, ParseError> {
         let mut defs = Vec::new();
         if ctx.match_token(TokenKind::LParen) {

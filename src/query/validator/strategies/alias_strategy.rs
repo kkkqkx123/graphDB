@@ -108,8 +108,6 @@ impl AliasValidationStrategy {
             }
             Expression::Literal(_)
             | Expression::Property { .. }
-            | Expression::Unary { .. }
-            | Expression::Function { .. }
             | Expression::Variable(_)
             | Expression::Label(_) => Ok(()),
             Expression::TypeCast { expression, .. } => {

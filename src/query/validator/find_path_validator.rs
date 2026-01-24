@@ -38,14 +38,12 @@ pub enum PathEdgeDirection {
 }
 
 pub struct FindPathValidator {
-    base: Validator,
     config: FindPathConfig,
 }
 
 impl FindPathValidator {
-    pub fn new(context: ValidationContext) -> Self {
+    pub fn new(_context: ValidationContext) -> Self {
         Self {
-            base: Validator::new(context),
             config: FindPathConfig {
                 path_pattern: PathPattern::AllPaths,
                 src_vertices: Vec::new(),

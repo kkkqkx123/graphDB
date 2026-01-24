@@ -9,13 +9,11 @@ use crate::query::validator::structs::common_structs::CypherClauseContext;
 use crate::query::validator::structs::CypherClauseKind;
 
 #[derive(Debug)]
-pub struct YieldClausePlanner {
-    yield_items: Vec<crate::query::parser::ast::expression::Expression>,
-}
+pub struct YieldClausePlanner {}
 
 impl YieldClausePlanner {
     pub fn new() -> Self {
-        Self { yield_items: vec![] }
+        Self {}
     }
 }
 

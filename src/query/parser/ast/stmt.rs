@@ -60,6 +60,33 @@ impl Stmt {
             Stmt::Pipe(s) => s.span,
         }
     }
+
+    /// 获取语句类型名称
+    pub fn kind(&self) -> &'static str {
+        match self {
+            Stmt::Query(_) => "QUERY",
+            Stmt::Create(_) => "CREATE",
+            Stmt::Match(_) => "MATCH",
+            Stmt::Delete(_) => "DELETE",
+            Stmt::Update(_) => "UPDATE",
+            Stmt::Go(_) => "GO",
+            Stmt::Fetch(_) => "FETCH",
+            Stmt::Use(_) => "USE",
+            Stmt::Show(_) => "SHOW",
+            Stmt::Explain(_) => "EXPLAIN",
+            Stmt::Lookup(_) => "LOOKUP",
+            Stmt::Subgraph(_) => "SUBGRAPH",
+            Stmt::FindPath(_) => "FIND_PATH",
+            Stmt::Insert(_) => "INSERT",
+            Stmt::Merge(_) => "MERGE",
+            Stmt::Unwind(_) => "UNWIND",
+            Stmt::Return(_) => "RETURN",
+            Stmt::With(_) => "WITH",
+            Stmt::Set(_) => "SET",
+            Stmt::Remove(_) => "REMOVE",
+            Stmt::Pipe(_) => "PIPE",
+        }
+    }
 }
 
 /// 查询语句

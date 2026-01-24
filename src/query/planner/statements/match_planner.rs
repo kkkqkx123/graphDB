@@ -31,19 +31,15 @@ use crate::query::validator::structs::CypherClauseContext;
 /// 使用新的子句规划器接口和数据流管理机制。
 /// 负责将 MATCH 查询转换为可执行的执行计划。
 #[derive(Debug)]
-pub struct MatchPlanner {
-    query_context: AstContext,
-}
+pub struct MatchPlanner {}
 
 impl MatchPlanner {
-    pub fn new(query_context: AstContext) -> Self {
-        Self { query_context }
+    pub fn new() -> Self {
+        Self {}
     }
 
     pub fn make() -> Box<dyn Planner> {
-        // 创建一个默认的查询上下文
-        let query_context = AstContext::from_strings("MATCH", "MATCH (n)");
-        Box::new(Self::new(query_context))
+        Box::new(Self::new())
     }
 
     pub fn match_ast_ctx(ast_ctx: &AstContext) -> bool {
@@ -99,7 +95,7 @@ impl Planner for MatchPlanner {
                 crate::query::validator::structs::CypherClauseKind::Match => {
                     if let CypherClauseContext::Match(match_ctx) = clause_ctx {
                         clause_planners
-                            .push(Box::new(MatchClausePlanner::new(match_ctx.paths.clone())));
+                            .push(Box::new(MatchClausePlanner::new()));
                     }
                 }
                 crate::query::validator::structs::CypherClauseKind::Where => {
@@ -158,9 +154,8 @@ mod tests {
 
     #[test]
     fn test_match_planner_creation() {
-        let query_ctx = AstContext::from_strings("MATCH", "MATCH (n)");
-        let planner = MatchPlanner::new(query_ctx);
-        assert_eq!(planner.query_context.statement_type(), "MATCH");
+        let planner = MatchPlanner::new();
+        assert!(MatchPlanner::match_ast_ctx(&AstContext::from_strings("MATCH", "MATCH (n)")));
     }
 
     #[test]

@@ -5,13 +5,11 @@ use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::common_structs::CypherClauseContext;
 
 #[derive(Debug)]
-pub struct ProjectionPlanner {
-    projection_items: Vec<crate::query::parser::ast::expression::Expression>,
-}
+pub struct ProjectionPlanner {}
 
 impl ProjectionPlanner {
-    pub fn new(projection_items: Vec<crate::query::parser::ast::expression::Expression>) -> Self {
-        Self { projection_items }
+    pub fn new() -> Self {
+        Self {}
     }
 }
 

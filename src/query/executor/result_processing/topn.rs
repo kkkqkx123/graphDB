@@ -283,22 +283,6 @@ impl<S: StorageEngine> TopNExecutor<S> {
         Ok(dataset)
     }
 
-    /// 使用堆的 TopN 算法处理数据集
-    fn heap_topn_dataset(&self, dataset: &mut DataSet) -> DBResult<()> {
-        let heap_size = self.n + self.offset;
-
-        // 根据排序方向选择堆类型
-        if self.is_ascending() {
-            // 升序：使用最大堆，保留最小的N个元素
-            self.heap_ascending(dataset, heap_size)?;
-        } else {
-            // 降序：使用最小堆，保留最大的N个元素
-            self.heap_descending(dataset, heap_size)?;
-        }
-
-        Ok(())
-    }
-
     /// 升序排序的堆实现
     fn heap_ascending(&self, dataset: &mut DataSet, heap_size: usize) -> DBResult<()> {
         let mut heap = BinaryHeap::with_capacity(heap_size);
@@ -407,32 +391,6 @@ impl<S: StorageEngine> TopNExecutor<S> {
         }
 
         Ok(sort_values)
-    }
-
-    /// 对数据集进行排序
-    fn sort_dataset(&self, dataset: &mut DataSet) -> DBResult<()> {
-        dataset.rows.sort_by(|a, b| {
-            let sort_a = match self.calculate_sort_value(a, &dataset.col_names) {
-                Ok(val) => val,
-                Err(_) => return Ordering::Less, // 如果计算排序值失败，将此行放在前面
-            };
-            let sort_b = match self.calculate_sort_value(b, &dataset.col_names) {
-                Ok(val) => val,
-                Err(_) => return Ordering::Greater, // 如果计算排序值失败，将此行放在后面
-            };
-
-            // 逐个比较排序键
-            for ((idx, sort_val_a), sort_val_b) in sort_a.iter().enumerate().zip(sort_b.iter()) {
-                let comparison =
-                    self.compare_values(sort_val_a, sort_val_b, &self.sort_keys[idx].order);
-                if !comparison.is_eq() {
-                    return comparison;
-                }
-            }
-            Ordering::Equal
-        });
-
-        Ok(())
     }
 
     /// 比较两个值

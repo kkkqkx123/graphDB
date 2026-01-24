@@ -209,12 +209,3 @@ impl ExpressionVisitor for ExtractFilterExprVisitor {
         &mut self.state
     }
 }
-
-fn is_filter_expression(expression: &Expression) -> bool {
-    // 检查表达式是否为过滤表达式
-    // 通常关系表达式和函数调用是过滤表达式
-    matches!(
-        expression,
-        Expression::Binary { .. } | Expression::Function { .. }
-    )
-}

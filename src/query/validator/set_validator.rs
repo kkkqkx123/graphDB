@@ -25,15 +25,13 @@ pub struct SetItem {
 }
 
 pub struct SetValidator {
-    base: Validator,
     set_items: Vec<SetItem>,
     variables: HashMap<String, Expression>,
 }
 
 impl SetValidator {
-    pub fn new(context: ValidationContext) -> Self {
+    pub fn new(_context: ValidationContext) -> Self {
         Self {
-            base: Validator::new(context),
             set_items: Vec::new(),
             variables: HashMap::new(),
         }

@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use std::collections::HashMap;
+use std::marker::PhantomData;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 
@@ -45,31 +46,28 @@ impl ExecutionState {
 
 #[derive(Debug, Clone)]
 pub struct AsyncMsgNotifyBasedScheduler<S: StorageEngine> {
-    storage: Arc<Mutex<S>>,
-    execution_context: Arc<Mutex<ExecutionContext>>,
     execution_state: Arc<Mutex<ExecutionState>>,
     completion_notifier: Arc<(Mutex<bool>, Condvar)>,
     config: SchedulerConfig,
+    _phantom: PhantomData<S>,
 }
 
 impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
-    pub fn new(storage: Arc<Mutex<S>>) -> Self {
+    pub fn new() -> Self {
         Self {
-            storage,
-            execution_context: Arc::new(Mutex::new(ExecutionContext::new())),
             execution_state: Arc::new(Mutex::new(ExecutionState::new())),
             completion_notifier: Arc::new((Mutex::new(false), Condvar::new())),
             config: SchedulerConfig::default(),
+            _phantom: PhantomData,
         }
     }
 
-    pub fn with_config(storage: Arc<Mutex<S>>, config: SchedulerConfig) -> Self {
+    pub fn with_config(config: SchedulerConfig) -> Self {
         Self {
-            storage,
-            execution_context: Arc::new(Mutex::new(ExecutionContext::new())),
             execution_state: Arc::new(Mutex::new(ExecutionState::new())),
             completion_notifier: Arc::new((Mutex::new(false), Condvar::new())),
             config,
+            _phantom: PhantomData,
         }
     }
 

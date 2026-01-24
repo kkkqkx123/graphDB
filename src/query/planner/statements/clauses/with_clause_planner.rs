@@ -7,13 +7,11 @@ use crate::query::planner::planner::PlannerError;
 use crate::query::validator::structs::common_structs::CypherClauseContext;
 
 #[derive(Debug)]
-pub struct WithClausePlanner {
-    with_items: Vec<crate::query::parser::ast::expression::Expression>,
-}
+pub struct WithClausePlanner {}
 
 impl WithClausePlanner {
     pub fn new() -> Self {
-        Self { with_items: vec![] }
+        Self {}
     }
 }
 

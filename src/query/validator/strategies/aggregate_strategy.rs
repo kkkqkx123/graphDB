@@ -264,7 +264,7 @@ impl ValidationStrategy for AggregateValidationStrategy {
 mod tests {
     use super::*;
     use crate::core::types::expression::DataType;
-    use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
+    use crate::core::types::operators::{AggregateFunction, BinaryOperator};
     use crate::core::Expression;
 
     #[test]

@@ -652,7 +652,6 @@ impl TypeValidator {
             }
             Expression::Path(_) => ValueType::Path,
             Expression::Label(_) => ValueType::String,
-            _ => ValueType::Unknown,
         }
     }
 

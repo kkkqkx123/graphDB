@@ -21,16 +21,12 @@ pub use crate::query::planner::plan::core::PlanNodeEnum;
 /// PATH查询规划器
 /// 负责将PATH查询转换为执行计划
 #[derive(Debug)]
-pub struct PathPlanner {
-    query_context: AstContext,
-}
+pub struct PathPlanner {}
 
 impl PathPlanner {
     /// 创建新的PATH规划器
     pub fn new() -> Self {
-        Self {
-            query_context: AstContext::from_strings("PATH", "FIND SHORTEST PATH FROM $src TO $dst"),
-        }
+        Self {}
     }
 
     /// 创建规划器实例的工厂函数
