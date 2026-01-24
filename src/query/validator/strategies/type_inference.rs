@@ -440,6 +440,9 @@ impl TypeValidator {
             crate::core::AggregateFunction::Collect(_) => DataType::List,
             crate::core::AggregateFunction::Distinct(_) => DataType::Empty,
             crate::core::AggregateFunction::Percentile(_, _) => DataType::Float,
+            crate::core::AggregateFunction::Std(_) => DataType::Float,
+            crate::core::AggregateFunction::BitAnd(_) | crate::core::AggregateFunction::BitOr(_) => DataType::Int,
+            crate::core::AggregateFunction::GroupConcat(_, _) => DataType::String,
         }
     }
 
@@ -749,6 +752,9 @@ impl TypeValidator {
             AggregateFunction::Collect(_) => ValueType::List,
             AggregateFunction::Distinct(_) => ValueType::Unknown,
             AggregateFunction::Percentile(_, _) => ValueType::Float,
+            AggregateFunction::Std(_) => ValueType::Float,
+            AggregateFunction::BitAnd(_) | AggregateFunction::BitOr(_) => ValueType::Int,
+            AggregateFunction::GroupConcat(_, _) => ValueType::String,
         }
     }
 

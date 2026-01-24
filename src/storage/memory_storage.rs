@@ -326,6 +326,10 @@ impl StorageEngine for MemoryStorage {
         active_transactions.remove(&tx_id);
         Ok(())
     }
+
+    fn get_input(&self, _input_var: &str) -> Result<Option<Vec<Value>>, StorageError> {
+        Ok(None)
+    }
 }
 
 impl Default for MemoryStorage {

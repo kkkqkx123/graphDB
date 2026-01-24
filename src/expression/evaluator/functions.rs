@@ -153,6 +153,34 @@ impl FunctionEvaluator {
                     Ok(arg.clone())
                 }
             }
+            AggregateFunction::Std(_) => {
+                if arg.is_null() {
+                    Ok(Value::Null(crate::core::NullType::Null))
+                } else {
+                    Ok(arg.clone())
+                }
+            }
+            AggregateFunction::BitAnd(_) => {
+                if arg.is_null() {
+                    Ok(Value::Null(crate::core::NullType::Null))
+                } else {
+                    Ok(arg.clone())
+                }
+            }
+            AggregateFunction::BitOr(_) => {
+                if arg.is_null() {
+                    Ok(Value::Null(crate::core::NullType::Null))
+                } else {
+                    Ok(arg.clone())
+                }
+            }
+            AggregateFunction::GroupConcat(_, _) => {
+                if arg.is_null() {
+                    Ok(Value::Null(crate::core::NullType::Null))
+                } else {
+                    Ok(arg.clone())
+                }
+            }
         }
     }
 
@@ -279,6 +307,109 @@ impl FunctionEvaluator {
                     let interpolated = lower_value + weight * (upper_value - lower_value);
                     Ok(Value::Float(interpolated))
                 }
+            }
+            AggregateFunction::Std(_) => {
+                if args.is_empty() {
+                    return Err(ExpressionError::argument_count_error(1, args.len()));
+                }
+
+                let values = match &args[0] {
+                    Value::List(list) => list,
+                    _ => return Err(ExpressionError::type_error("First argument must be a list")),
+                };
+
+                if values.is_empty() {
+                    return Ok(Value::Null(crate::core::NullType::NaN));
+                }
+
+                let mut numeric_values = Vec::new();
+                for value in values {
+                    match value {
+                        Value::Int(v) => numeric_values.push(*v as f64),
+                        Value::Float(v) => numeric_values.push(*v),
+                        _ => continue,
+                    }
+                }
+
+                if numeric_values.is_empty() {
+                    return Ok(Value::Null(crate::core::NullType::NaN));
+                }
+
+                let n = numeric_values.len() as f64;
+                let mean: f64 = numeric_values.iter().sum::<f64>() / n;
+                let variance: f64 = numeric_values.iter()
+                    .map(|value| (value - mean).powi(2))
+                    .sum::<f64>() / n;
+                let std_dev = variance.sqrt();
+
+                Ok(Value::Float(std_dev))
+            }
+            AggregateFunction::BitAnd(_) => {
+                if args.is_empty() {
+                    return Err(ExpressionError::argument_count_error(1, args.len()));
+                }
+
+                let values = match &args[0] {
+                    Value::List(list) => list,
+                    _ => return Err(ExpressionError::type_error("First argument must be a list")),
+                };
+
+                if values.is_empty() {
+                    return Ok(Value::Null(crate::core::NullType::NaN));
+                }
+
+                let mut result = std::i64::MAX;
+                for value in values {
+                    match value {
+                        Value::Int(v) => result &= v,
+                        _ => return Err(ExpressionError::type_error("All values must be integers for BIT_AND")),
+                    }
+                }
+
+                Ok(Value::Int(result))
+            }
+            AggregateFunction::BitOr(_) => {
+                if args.is_empty() {
+                    return Err(ExpressionError::argument_count_error(1, args.len()));
+                }
+
+                let values = match &args[0] {
+                    Value::List(list) => list,
+                    _ => return Err(ExpressionError::type_error("First argument must be a list")),
+                };
+
+                if values.is_empty() {
+                    return Ok(Value::Null(crate::core::NullType::NaN));
+                }
+
+                let mut result = 0i64;
+                for value in values {
+                    match value {
+                        Value::Int(v) => result |= v,
+                        _ => return Err(ExpressionError::type_error("All values must be integers for BIT_OR")),
+                    }
+                }
+
+                Ok(Value::Int(result))
+            }
+            AggregateFunction::GroupConcat(_, separator) => {
+                if args.is_empty() {
+                    return Err(ExpressionError::argument_count_error(1, args.len()));
+                }
+
+                let values = match &args[0] {
+                    Value::List(list) => list,
+                    _ => return Err(ExpressionError::type_error("First argument must be a list")),
+                };
+
+                if values.is_empty() {
+                    return Ok(Value::String(String::new()));
+                }
+
+                let result: Vec<String> = values.iter()
+                    .map(|v| format!("{}", v))
+                    .collect();
+                Ok(Value::String(result.join(separator)))
             }
         }
     }

@@ -1,0 +1,197 @@
+//! 类型签名系统
+//!
+//! 定义函数的类型签名，用于类型检查和函数重载解析
+
+use crate::core::Value;
+use crate::core::types::DataType;
+use std::fmt;
+
+/// 值类型枚举（用于函数签名）
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum ValueType {
+    Null,
+    Bool,
+    Int,
+    Float,
+    String,
+    Date,
+    Time,
+    DateTime,
+    Vertex,
+    Edge,
+    Path,
+    List,
+    Map,
+    Set,
+    Geography,
+    Duration,
+    DataSet,
+    Any,
+}
+
+impl ValueType {
+    pub fn from_value(value: &Value) -> Self {
+        match value {
+            Value::Null(_) => ValueType::Null,
+            Value::Bool(_) => ValueType::Bool,
+            Value::Int(_) => ValueType::Int,
+            Value::Float(_) => ValueType::Float,
+            Value::String(_) => ValueType::String,
+            Value::Date(_) => ValueType::Date,
+            Value::Time(_) => ValueType::Time,
+            Value::DateTime(_) => ValueType::DateTime,
+            Value::Vertex(_) => ValueType::Vertex,
+            Value::Edge(_) => ValueType::Edge,
+            Value::Path(_) => ValueType::Path,
+            Value::List(_) => ValueType::List,
+            Value::Map(_) => ValueType::Map,
+            Value::Set(_) => ValueType::Set,
+            Value::Geography(_) => ValueType::Geography,
+            Value::Duration(_) => ValueType::Duration,
+            Value::DataSet(_) => ValueType::DataSet,
+            Value::Empty => ValueType::Any,
+        }
+    }
+
+    pub fn from_data_type(data_type: &DataType) -> Self {
+        match data_type {
+            DataType::Null => ValueType::Null,
+            DataType::Bool => ValueType::Bool,
+            DataType::Int | DataType::Int8 | DataType::Int16 | DataType::Int32 | DataType::Int64 => ValueType::Int,
+            DataType::Float | DataType::Double => ValueType::Float,
+            DataType::String => ValueType::String,
+            DataType::Date => ValueType::Date,
+            DataType::Time => ValueType::Time,
+            DataType::DateTime => ValueType::DateTime,
+            DataType::Vertex => ValueType::Vertex,
+            DataType::Edge => ValueType::Edge,
+            DataType::Path => ValueType::Path,
+            DataType::List => ValueType::List,
+            DataType::Map => ValueType::Map,
+            DataType::Set => ValueType::Set,
+            DataType::Geography => ValueType::Geography,
+            DataType::Duration => ValueType::Duration,
+            DataType::DataSet => ValueType::DataSet,
+            DataType::Empty => ValueType::Any,
+        }
+    }
+
+    pub fn is_numeric(&self) -> bool {
+        matches!(self, ValueType::Int | ValueType::Float)
+    }
+
+    pub fn is_string(&self) -> bool {
+        matches!(self, ValueType::String)
+    }
+
+    pub fn is_collection(&self) -> bool {
+        matches!(self, ValueType::List | ValueType::Map | ValueType::Set)
+    }
+
+    pub fn compatible_with(&self, other: &ValueType) -> bool {
+        if self == &ValueType::Any || other == &ValueType::Any {
+            return true;
+        }
+        self == other
+    }
+}
+
+impl fmt::Display for ValueType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ValueType::Null => write!(f, "NULL"),
+            ValueType::Bool => write!(f, "BOOL"),
+            ValueType::Int => write!(f, "INT"),
+            ValueType::Float => write!(f, "FLOAT"),
+            ValueType::String => write!(f, "STRING"),
+            ValueType::Date => write!(f, "DATE"),
+            ValueType::Time => write!(f, "TIME"),
+            ValueType::DateTime => write!(f, "DATETIME"),
+            ValueType::Vertex => write!(f, "VERTEX"),
+            ValueType::Edge => write!(f, "EDGE"),
+            ValueType::Path => write!(f, "PATH"),
+            ValueType::List => write!(f, "LIST"),
+            ValueType::Map => write!(f, "MAP"),
+            ValueType::Set => write!(f, "SET"),
+            ValueType::Geography => write!(f, "GEOGRAPHY"),
+            ValueType::Duration => write!(f, "DURATION"),
+            ValueType::DataSet => write!(f, "DATASET"),
+            ValueType::Any => write!(f, "ANY"),
+        }
+    }
+}
+
+/// 函数签名定义
+#[derive(Debug, Clone)]
+pub struct FunctionSignature {
+    pub name: String,
+    pub arg_types: Vec<ValueType>,
+    pub return_type: ValueType,
+    pub min_arity: usize,
+    pub max_arity: usize,
+    pub is_pure: bool,
+    pub description: String,
+}
+
+impl FunctionSignature {
+    pub fn new(
+        name: &str,
+        arg_types: Vec<ValueType>,
+        return_type: ValueType,
+        min_arity: usize,
+        max_arity: usize,
+        is_pure: bool,
+        description: &str,
+    ) -> Self {
+        Self {
+            name: name.to_string(),
+            arg_types,
+            return_type,
+            min_arity,
+            max_arity,
+            is_pure,
+            description: description.to_string(),
+        }
+    }
+
+    pub fn is_variadic(&self) -> bool {
+        self.max_arity == usize::MAX
+    }
+
+    pub fn check_arity(&self, arity: usize) -> bool {
+        arity >= self.min_arity && (self.is_variadic() || arity <= self.max_arity)
+    }
+
+    pub fn check_types(&self, args: &[Value]) -> bool {
+        if args.len() != self.arg_types.len() {
+            return false;
+        }
+        args.iter().zip(&self.arg_types).all(|(arg, expected)| {
+            let actual = ValueType::from_value(arg);
+            expected.compatible_with(&actual)
+        })
+    }
+}
+
+/// 函数调用主体
+pub type FunctionBody = dyn Fn(&[Value]) -> Result<Value, crate::core::error::ExpressionError> + Send + Sync;
+
+/// 注册的函数信息
+pub struct RegisteredFunction {
+    pub signature: FunctionSignature,
+    pub body: Box<FunctionBody>,
+}
+
+impl RegisteredFunction {
+    pub fn new(signature: FunctionSignature, body: Box<FunctionBody>) -> Self {
+        Self { signature, body }
+    }
+}
+
+impl std::fmt::Debug for RegisteredFunction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RegisteredFunction")
+            .field("signature", &self.signature)
+            .finish()
+    }
+}

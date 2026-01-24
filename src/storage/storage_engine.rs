@@ -54,4 +54,6 @@ pub trait StorageEngine: Send + Sync {
     fn begin_transaction(&mut self) -> Result<TransactionId, StorageError>;
     fn commit_transaction(&mut self, tx_id: TransactionId) -> Result<(), StorageError>;
     fn rollback_transaction(&mut self, tx_id: TransactionId) -> Result<(), StorageError>;
+
+    fn get_input(&self, input_var: &str) -> Result<Option<Vec<Value>>, StorageError>;
 }

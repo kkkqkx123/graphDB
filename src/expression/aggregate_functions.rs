@@ -163,6 +163,10 @@ impl AggregateExpression {
                     .collect(),
             )),
             AggregateFunction::Percentile(_, _) => state.calculate_percentile(50.0),
+            AggregateFunction::Std(_) => state.calculate_std(),
+            AggregateFunction::BitAnd(_) => state.calculate_bit_and(),
+            AggregateFunction::BitOr(_) => state.calculate_bit_or(),
+            AggregateFunction::GroupConcat(_, _) => state.calculate_group_concat(),
         }
     }
 }
@@ -177,6 +181,10 @@ pub struct AggregateState {
     pub values: Vec<Value>,
     pub distinct_values: std::collections::HashSet<String>,
     pub percentile_values: Vec<f64>,
+    pub std_values: Vec<f64>,
+    pub bit_and_value: Option<i64>,
+    pub bit_or_value: Option<i64>,
+    pub group_concat_values: Vec<Value>,
 }
 
 impl AggregateState {
@@ -189,6 +197,10 @@ impl AggregateState {
             values: Vec::new(),
             distinct_values: std::collections::HashSet::new(),
             percentile_values: Vec::new(),
+            std_values: Vec::new(),
+            bit_and_value: None,
+            bit_or_value: None,
+            group_concat_values: Vec::new(),
         }
     }
 
@@ -200,6 +212,10 @@ impl AggregateState {
         self.values.clear();
         self.distinct_values.clear();
         self.percentile_values.clear();
+        self.std_values.clear();
+        self.bit_and_value = None;
+        self.bit_or_value = None;
+        self.group_concat_values.clear();
     }
 
     /// 更新聚合状态
@@ -228,6 +244,44 @@ impl AggregateState {
                     Value::Float(v) => self.percentile_values.push(*v),
                     _ => {}
                 }
+            }
+            AggregateFunction::Std(_) => {
+                // STD函数特殊处理：收集数值
+                match value {
+                    Value::Int(v) => self.std_values.push(*v as f64),
+                    Value::Float(v) => self.std_values.push(*v),
+                    _ => {}
+                }
+            }
+            AggregateFunction::BitAnd(_) => {
+                // BIT_AND函数特殊处理
+                match value {
+                    Value::Int(v) => {
+                        if let Some(current) = self.bit_and_value {
+                            self.bit_and_value = Some(current & v);
+                        } else {
+                            self.bit_and_value = Some(*v);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            AggregateFunction::BitOr(_) => {
+                // BIT_OR函数特殊处理
+                match value {
+                    Value::Int(v) => {
+                        if let Some(current) = self.bit_or_value {
+                            self.bit_or_value = Some(current | v);
+                        } else {
+                            self.bit_or_value = Some(*v);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            AggregateFunction::GroupConcat(_, _) => {
+                // GROUP_CONCAT函数特殊处理
+                self.group_concat_values.push(value.clone());
             }
             _ => {
                 // 其他聚合函数的通用处理
@@ -289,6 +343,52 @@ impl AggregateState {
             let interpolated = lower_value + weight * (upper_value - lower_value);
             Ok(Value::Float(interpolated))
         }
+    }
+
+    /// 计算标准差
+    pub fn calculate_std(&self) -> Result<Value, ExpressionError> {
+        if self.std_values.is_empty() {
+            return Ok(Value::Null(crate::core::value::NullType::Null));
+        }
+
+        let n = self.std_values.len() as f64;
+        let mean: f64 = self.std_values.iter().sum::<f64>() / n;
+        let variance: f64 = self.std_values.iter()
+            .map(|value| (value - mean).powi(2))
+            .sum::<f64>() / n;
+        let std_dev = variance.sqrt();
+
+        Ok(Value::Float(std_dev))
+    }
+
+    /// 计算按位与
+    pub fn calculate_bit_and(&self) -> Result<Value, ExpressionError> {
+        if let Some(value) = self.bit_and_value {
+            Ok(Value::Int(value))
+        } else {
+            Ok(Value::Null(crate::core::value::NullType::Null))
+        }
+    }
+
+    /// 计算按位或
+    pub fn calculate_bit_or(&self) -> Result<Value, ExpressionError> {
+        if let Some(value) = self.bit_or_value {
+            Ok(Value::Int(value))
+        } else {
+            Ok(Value::Null(crate::core::value::NullType::Null))
+        }
+    }
+
+    /// 计算分组连接
+    pub fn calculate_group_concat(&self) -> Result<Value, ExpressionError> {
+        if self.group_concat_values.is_empty() {
+            return Ok(Value::String(String::new()));
+        }
+
+        let result: Vec<String> = self.group_concat_values.iter()
+            .map(|v| format!("{}", v))
+            .collect();
+        Ok(Value::String(result.join(",")))
     }
 }
 

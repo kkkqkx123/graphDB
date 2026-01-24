@@ -244,6 +244,19 @@ impl PlanValidator {
                                 });
                             }
                         }
+                        crate::core::types::operators::AggregateFunction::Std(field)
+                        | crate::core::types::operators::AggregateFunction::BitAnd(field)
+                        | crate::core::types::operators::AggregateFunction::BitOr(field)
+                        | crate::core::types::operators::AggregateFunction::GroupConcat(field, _) => {
+                            if field.is_empty() {
+                                return Err(OptimizerError::Validation {
+                                    message: format!(
+                                        "聚合节点验证失败：{} 函数字段名为空",
+                                        agg_func.name()
+                                    ),
+                                });
+                            }
+                        }
                     }
                 }
             }

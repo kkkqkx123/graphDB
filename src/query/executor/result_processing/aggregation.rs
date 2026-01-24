@@ -103,7 +103,11 @@ pub struct AggregateState {
     pub min: Option<Value>,
     pub collect: Vec<Value>,
     pub distinct_values: std::collections::HashSet<Value>,
-    pub percentile_values: Vec<f64>, // 用于计算百分位数
+    pub percentile_values: Vec<f64>,
+    pub std: Option<(f64, f64)>, // (sum_of_squares, count) for STD calculation
+    pub bit_and: Option<i64>,     // 用于BIT_AND计算
+    pub bit_or: Option<i64>,      // 用于BIT_OR计算
+    pub group_concat: String,     // 用于GROUP_CONCAT计算
 }
 
 impl AggregateState {
@@ -117,6 +121,10 @@ impl AggregateState {
             collect: Vec::new(),
             distinct_values: std::collections::HashSet::new(),
             percentile_values: Vec::new(),
+            std: None,
+            bit_and: None,
+            bit_or: None,
+            group_concat: String::new(),
         }
     }
 
@@ -266,6 +274,135 @@ impl AggregateState {
             let interpolated = lower_value + weight * (upper_value - lower_value);
             Ok(Value::Float(interpolated))
         }
+    }
+
+    /// 更新标准差状态（STD函数）
+    pub fn update_std(&mut self, value: &Value) -> DBResult<()> {
+        match value {
+            Value::Int(v) => {
+                let val = *v as f64;
+                self.update_std_numeric(val)?;
+                self.count += 1;
+            }
+            Value::Float(v) => {
+                self.update_std_numeric(*v)?;
+                self.count += 1;
+            }
+            _ => {
+                return Err(crate::core::error::DBError::Query(
+                    crate::core::error::QueryError::ExecutionError(
+                        "STD function only supports numeric values".to_string(),
+                    ),
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    fn update_std_numeric(&mut self, value: f64) -> DBResult<()> {
+        match self.std {
+            Some((sum_sq, cnt)) => {
+                self.std = Some((sum_sq + value * value, cnt + 1.0));
+            }
+            None => {
+                self.std = Some((value * value, 1.0));
+            }
+        }
+        Ok(())
+    }
+
+    /// 获取标准差结果
+    pub fn get_std_result(&self) -> Value {
+        if let Some((sum_sq, cnt)) = self.std {
+            if cnt < 2.0 {
+                return Value::Null(crate::core::value::NullType::NaN);
+            }
+            let mean_sq = sum_sq / cnt;
+            let avg = if let Some(sum) = &self.sum {
+                if let Ok(mean) = Self::divide_value_static(sum, self.count) {
+                    if let Value::Float(mean_val) = mean {
+                        mean_val * mean_val
+                    } else {
+                        return Value::Null(crate::core::value::NullType::NaN);
+                    }
+                } else {
+                    return Value::Null(crate::core::value::NullType::NaN);
+                }
+            } else {
+                return Value::Null(crate::core::value::NullType::NaN);
+            };
+            let variance = mean_sq - avg;
+            if variance < 0.0 {
+                return Value::Float(0.0);
+            }
+            Value::Float(variance.sqrt())
+        } else {
+            Value::Null(crate::core::value::NullType::NaN)
+        }
+    }
+
+    /// 更新按位与状态（BIT_AND函数）
+    pub fn update_bit_and(&mut self, value: &Value) -> DBResult<()> {
+        match value {
+            Value::Int(v) => {
+                if self.bit_and.is_none() {
+                    self.bit_and = Some(*v);
+                } else {
+                    self.bit_and = Some(self.bit_and.unwrap() & *v);
+                }
+                self.count += 1;
+                Ok(())
+            }
+            _ => Err(crate::core::error::DBError::Query(
+                crate::core::error::QueryError::ExecutionError(
+                    "BIT_AND function only supports integer values".to_string(),
+                ),
+            ))
+        }
+    }
+
+    /// 更新按位或状态（BIT_OR函数）
+    pub fn update_bit_or(&mut self, value: &Value) -> DBResult<()> {
+        match value {
+            Value::Int(v) => {
+                if self.bit_or.is_none() {
+                    self.bit_or = Some(*v);
+                } else {
+                    self.bit_or = Some(self.bit_or.unwrap() | *v);
+                }
+                self.count += 1;
+                Ok(())
+            }
+            _ => Err(crate::core::error::DBError::Query(
+                crate::core::error::QueryError::ExecutionError(
+                    "BIT_OR function only supports integer values".to_string(),
+                ),
+            ))
+        }
+    }
+
+    /// 更新连接状态（GROUP_CONCAT函数）
+    pub fn update_group_concat(&mut self, value: &Value) -> DBResult<()> {
+        let str_val = match value {
+            Value::String(s) => s.clone(),
+            Value::Int(i) => i.to_string(),
+            Value::Float(f) => f.to_string(),
+            _ => {
+                return Err(crate::core::error::DBError::Query(
+                    crate::core::error::QueryError::ExecutionError(
+                        "GROUP_CONCAT function only supports string-convertible values".to_string(),
+                    ),
+                ));
+            }
+        };
+
+        if self.group_concat.is_empty() {
+            self.group_concat = str_val;
+        } else {
+            self.group_concat = format!("{},{}", self.group_concat, str_val);
+        }
+        self.count += 1;
+        Ok(())
     }
 }
 
@@ -491,6 +628,70 @@ impl<S: StorageEngine> AggregateExecutor<S> {
                             }
                         }
                     }
+                    AggregateFunction::Std(_) => {
+                        // STD函数 - 计算标准差
+                        if let Some(field) = &agg_func.field {
+                            if let Some(col_index) =
+                                dataset.col_names.iter().position(|name| name == field)
+                            {
+                                if col_index < row.len() {
+                                    let state = group_state
+                                        .groups
+                                        .entry(group_key.clone())
+                                        .or_insert_with(AggregateState::new);
+                                    state.update_std(&row[col_index])?;
+                                }
+                            }
+                        }
+                    }
+                    AggregateFunction::BitAnd(_) => {
+                        // BIT_AND函数 - 按位与
+                        if let Some(field) = &agg_func.field {
+                            if let Some(col_index) =
+                                dataset.col_names.iter().position(|name| name == field)
+                            {
+                                if col_index < row.len() {
+                                    let state = group_state
+                                        .groups
+                                        .entry(group_key.clone())
+                                        .or_insert_with(AggregateState::new);
+                                    state.update_bit_and(&row[col_index])?;
+                                }
+                            }
+                        }
+                    }
+                    AggregateFunction::BitOr(_) => {
+                        // BIT_OR函数 - 按位或
+                        if let Some(field) = &agg_func.field {
+                            if let Some(col_index) =
+                                dataset.col_names.iter().position(|name| name == field)
+                            {
+                                if col_index < row.len() {
+                                    let state = group_state
+                                        .groups
+                                        .entry(group_key.clone())
+                                        .or_insert_with(AggregateState::new);
+                                    state.update_bit_or(&row[col_index])?;
+                                }
+                            }
+                        }
+                    }
+                    AggregateFunction::GroupConcat(_, _) => {
+                        // GROUP_CONCAT函数 - 分组连接
+                        if let Some(field) = &agg_func.field {
+                            if let Some(col_index) =
+                                dataset.col_names.iter().position(|name| name == field)
+                            {
+                                if col_index < row.len() {
+                                    let state = group_state
+                                        .groups
+                                        .entry(group_key.clone())
+                                        .or_insert_with(AggregateState::new);
+                                    state.update_group_concat(&row[col_index])?;
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -557,6 +758,34 @@ impl<S: StorageEngine> AggregateExecutor<S> {
                         "percentile".to_string()
                     }
                 }
+                AggregateFunction::Std(_) => {
+                    if let Some(field) = &agg_func.field {
+                        format!("std_{}", field)
+                    } else {
+                        "std".to_string()
+                    }
+                }
+                AggregateFunction::BitAnd(_) => {
+                    if let Some(field) = &agg_func.field {
+                        format!("bitand_{}", field)
+                    } else {
+                        "bitand".to_string()
+                    }
+                }
+                AggregateFunction::BitOr(_) => {
+                    if let Some(field) = &agg_func.field {
+                        format!("bitor_{}", field)
+                    } else {
+                        "bitor".to_string()
+                    }
+                }
+                AggregateFunction::GroupConcat(_, _) => {
+                    if let Some(field) = &agg_func.field {
+                        format!("group_concat_{}", field)
+                    } else {
+                        "group_concat".to_string()
+                    }
+                }
             };
             result_dataset.col_names.push(col_name);
         }
@@ -611,6 +840,32 @@ impl<S: StorageEngine> AggregateExecutor<S> {
                         agg_state
                             .calculate_percentile(50.0)
                             .unwrap_or(Value::Null(crate::core::value::NullType::NaN))
+                    }
+                    AggregateFunction::Std(_) => {
+                        // STD函数 - 返回标准差
+                        agg_state.get_std_result()
+                    }
+                    AggregateFunction::BitAnd(_) => {
+                        // BIT_AND函数 - 返回按位与结果
+                        agg_state
+                            .bit_and
+                            .map(Value::Int)
+                            .unwrap_or(Value::Null(crate::core::value::NullType::NaN))
+                    }
+                    AggregateFunction::BitOr(_) => {
+                        // BIT_OR函数 - 返回按位或结果
+                        agg_state
+                            .bit_or
+                            .map(Value::Int)
+                            .unwrap_or(Value::Null(crate::core::value::NullType::NaN))
+                    }
+                    AggregateFunction::GroupConcat(_, _) => {
+                        // GROUP_CONCAT函数 - 返回连接结果
+                        if agg_state.group_concat.is_empty() {
+                            Value::Null(crate::core::value::NullType::NaN)
+                        } else {
+                            Value::String(agg_state.group_concat.clone())
+                        }
                     }
                 };
                 result_row.push(agg_value);

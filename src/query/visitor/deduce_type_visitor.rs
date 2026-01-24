@@ -283,6 +283,9 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
             AggregateFunction::Collect(_) => DataType::List,
             AggregateFunction::Distinct(_) => DataType::List,
             AggregateFunction::Percentile(_, _) => DataType::Float,
+            AggregateFunction::Std(_) => DataType::Float,
+            AggregateFunction::BitAnd(_) | AggregateFunction::BitOr(_) => DataType::Int,
+            AggregateFunction::GroupConcat(_, _) => DataType::String,
         };
         Ok(())
     }

@@ -199,6 +199,15 @@ impl ExpressionOperationsValidator {
                 // PERCENTILE 需要数值类型参数
                 // 这里简化处理，实际应该验证类型
             }
+            crate::core::AggregateFunction::Std(_) => {
+                // STD 需要数值类型参数
+            }
+            crate::core::AggregateFunction::BitAnd(_) | crate::core::AggregateFunction::BitOr(_) => {
+                // BIT_AND 和 BIT_OR 需要整数类型参数
+            }
+            crate::core::AggregateFunction::GroupConcat(_, _) => {
+                // GROUP_CONCAT 可以接受任意类型参数
+            }
         }
 
         // 验证 DISTINCT 标记

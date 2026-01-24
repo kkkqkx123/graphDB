@@ -1,12 +1,32 @@
 //! 表达式函数模块
 //!
 //! 提供表达式求值过程中的函数定义和实现，包括内置函数和自定义函数
+//!
+//! ## 模块结构
+//!
+//! - `signature.rs` - 类型签名系统
+//! - `registry.rs` - 函数注册表
+//!
+//! ## 使用方式
+//!
+//! ```rust
+//! use crate::expression::functions::{global_registry, FunctionRegistry};
+//!
+//! let registry = global_registry();
+//! let result = registry.execute("abs", &[Value::Int(-5)]);
+//! ```
+
+pub mod signature;
+pub mod registry;
+
+pub use signature::{FunctionSignature, ValueType, RegisteredFunction};
+pub use registry::{FunctionRegistry, global_registry};
 
 use crate::core::error::ExpressionError;
 use crate::core::types::operators::AggregateFunction;
 use crate::core::Value;
 
-/// 函数引用枚举，避免动态分发
+/// 函数引用枚举，用于表达式中引用函数
 #[derive(Debug, Clone)]
 pub enum FunctionRef<'a> {
     /// 内置函数引用
@@ -79,9 +99,6 @@ pub enum StringFunction {
     EndsWith,
 }
 
-// 聚合函数现在从 crate::core::types::operators 导入
-// 以避免重复定义，参见 operators.rs
-
 /// 类型转换函数
 #[derive(Debug, Clone, PartialEq)]
 pub enum ConversionFunction {
@@ -152,13 +169,11 @@ impl ExpressionFunction for BuiltinFunction {
     }
 
     fn execute(&self, args: &[Value]) -> Result<Value, ExpressionError> {
-        match self {
-            BuiltinFunction::Math(f) => f.execute(args),
-            BuiltinFunction::String(f) => f.execute(args),
-            BuiltinFunction::Aggregate(f) => f.execute(args),
-            BuiltinFunction::Conversion(f) => f.execute(args),
-            BuiltinFunction::DateTime(f) => f.execute(args),
-        }
+        let registry = global_registry();
+        let name = self.name();
+        
+        // 使用注册表执行函数
+        registry.execute(name, args)
     }
 
     fn description(&self) -> &str {
@@ -172,9 +187,8 @@ impl ExpressionFunction for BuiltinFunction {
     }
 }
 
-// 为每个函数类型实现ExpressionFunction trait
-impl ExpressionFunction for MathFunction {
-    fn name(&self) -> &str {
+impl MathFunction {
+    pub fn name(&self) -> &str {
         match self {
             MathFunction::Abs => "abs",
             MathFunction::Sqrt => "sqrt",
@@ -190,7 +204,7 @@ impl ExpressionFunction for MathFunction {
         }
     }
 
-    fn arity(&self) -> usize {
+    pub fn arity(&self) -> usize {
         match self {
             MathFunction::Abs
             | MathFunction::Sqrt
@@ -205,20 +219,11 @@ impl ExpressionFunction for MathFunction {
         }
     }
 
-    fn is_variadic(&self) -> bool {
+    pub fn is_variadic(&self) -> bool {
         false
     }
 
-    fn execute(&self, _args: &[Value]) -> Result<Value, ExpressionError> {
-        // 实现数学函数的具体逻辑
-        // 这里暂时返回错误，等待后续实现
-        Err(ExpressionError::runtime_error(format!(
-            "数学函数 {:?} 尚未实现",
-            self
-        )))
-    }
-
-    fn description(&self) -> &str {
+    pub fn description(&self) -> &str {
         match self {
             MathFunction::Abs => "计算绝对值",
             MathFunction::Sqrt => "计算平方根",
@@ -235,8 +240,8 @@ impl ExpressionFunction for MathFunction {
     }
 }
 
-impl ExpressionFunction for StringFunction {
-    fn name(&self) -> &str {
+impl StringFunction {
+    pub fn name(&self) -> &str {
         match self {
             StringFunction::Length => "length",
             StringFunction::Upper => "upper",
@@ -251,7 +256,7 @@ impl ExpressionFunction for StringFunction {
         }
     }
 
-    fn arity(&self) -> usize {
+    pub fn arity(&self) -> usize {
         match self {
             StringFunction::Length
             | StringFunction::Upper
@@ -266,18 +271,11 @@ impl ExpressionFunction for StringFunction {
         }
     }
 
-    fn is_variadic(&self) -> bool {
+    pub fn is_variadic(&self) -> bool {
         matches!(self, StringFunction::Concat)
     }
 
-    fn execute(&self, _args: &[Value]) -> Result<Value, ExpressionError> {
-        Err(ExpressionError::runtime_error(format!(
-            "字符串函数 {:?} 尚未实现",
-            self
-        )))
-    }
-
-    fn description(&self) -> &str {
+    pub fn description(&self) -> &str {
         match self {
             StringFunction::Length => "计算字符串长度",
             StringFunction::Upper => "转换为大写",
@@ -293,36 +291,12 @@ impl ExpressionFunction for StringFunction {
     }
 }
 
-impl ExpressionFunction for AggregateFunction {
-    fn name(&self) -> &str {
-        match self {
-            AggregateFunction::Count(_) => "count",
-            AggregateFunction::Sum(_) => "sum",
-            AggregateFunction::Avg(_) => "avg",
-            AggregateFunction::Min(_) => "min",
-            AggregateFunction::Max(_) => "max",
-            AggregateFunction::Collect(_) => "collect",
-            AggregateFunction::Distinct(_) => "distinct",
-            AggregateFunction::Percentile(_, _) => "percentile",
-        }
-    }
-
-    fn arity(&self) -> usize {
-        1
-    }
-
-    fn is_variadic(&self) -> bool {
+impl AggregateFunction {
+    pub fn is_variadic(&self) -> bool {
         false
     }
 
-    fn execute(&self, _args: &[Value]) -> Result<Value, ExpressionError> {
-        Err(ExpressionError::runtime_error(format!(
-            "聚合函数 {:?} 尚未实现",
-            self
-        )))
-    }
-
-    fn description(&self) -> &str {
+    pub fn description(&self) -> &str {
         match self {
             AggregateFunction::Count(_) => "计数",
             AggregateFunction::Sum(_) => "求和",
@@ -332,12 +306,16 @@ impl ExpressionFunction for AggregateFunction {
             AggregateFunction::Collect(_) => "收集",
             AggregateFunction::Distinct(_) => "去重",
             AggregateFunction::Percentile(_, _) => "百分位数",
+            AggregateFunction::Std(_) => "标准差",
+            AggregateFunction::BitAnd(_) => "按位与",
+            AggregateFunction::BitOr(_) => "按位或",
+            AggregateFunction::GroupConcat(_, _) => "分组连接",
         }
     }
 }
 
-impl ExpressionFunction for ConversionFunction {
-    fn name(&self) -> &str {
+impl ConversionFunction {
+    pub fn name(&self) -> &str {
         match self {
             ConversionFunction::ToString => "to_string",
             ConversionFunction::ToInt => "to_int",
@@ -346,22 +324,15 @@ impl ExpressionFunction for ConversionFunction {
         }
     }
 
-    fn arity(&self) -> usize {
+    pub fn arity(&self) -> usize {
         1
     }
 
-    fn is_variadic(&self) -> bool {
+    pub fn is_variadic(&self) -> bool {
         false
     }
 
-    fn execute(&self, _args: &[Value]) -> Result<Value, ExpressionError> {
-        Err(ExpressionError::runtime_error(format!(
-            "类型转换函数 {:?} 尚未实现",
-            self
-        )))
-    }
-
-    fn description(&self) -> &str {
+    pub fn description(&self) -> &str {
         match self {
             ConversionFunction::ToString => "转换为字符串",
             ConversionFunction::ToInt => "转换为整数",
@@ -371,8 +342,8 @@ impl ExpressionFunction for ConversionFunction {
     }
 }
 
-impl ExpressionFunction for DateTimeFunction {
-    fn name(&self) -> &str {
+impl DateTimeFunction {
+    pub fn name(&self) -> &str {
         match self {
             DateTimeFunction::Now => "now",
             DateTimeFunction::Date => "date",
@@ -386,7 +357,7 @@ impl ExpressionFunction for DateTimeFunction {
         }
     }
 
-    fn arity(&self) -> usize {
+    pub fn arity(&self) -> usize {
         match self {
             DateTimeFunction::Now => 0,
             DateTimeFunction::Date | DateTimeFunction::Time => 1,
@@ -399,18 +370,11 @@ impl ExpressionFunction for DateTimeFunction {
         }
     }
 
-    fn is_variadic(&self) -> bool {
+    pub fn is_variadic(&self) -> bool {
         false
     }
 
-    fn execute(&self, _args: &[Value]) -> Result<Value, ExpressionError> {
-        Err(ExpressionError::runtime_error(format!(
-            "日期时间函数 {:?} 尚未实现",
-            self
-        )))
-    }
-
-    fn description(&self) -> &str {
+    pub fn description(&self) -> &str {
         match self {
             DateTimeFunction::Now => "当前时间",
             DateTimeFunction::Date => "日期",
@@ -438,13 +402,9 @@ impl ExpressionFunction for CustomFunction {
         self.is_variadic
     }
 
-    fn execute(&self, _args: &[Value]) -> Result<Value, ExpressionError> {
-        // 这里应该根据function_id调用具体的函数实现
-        // 暂时返回错误，等待后续实现
-        Err(ExpressionError::runtime_error(format!(
-            "自定义函数 {} 尚未实现",
-            self.name
-        )))
+    fn execute(&self, args: &[Value]) -> Result<Value, ExpressionError> {
+        let registry = global_registry();
+        registry.execute(&self.name, args)
     }
 
     fn description(&self) -> &str {

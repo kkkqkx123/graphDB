@@ -183,6 +183,10 @@ pub enum AggregateFunction {
     Collect(String),
     Distinct(String),
     Percentile(String, f64),
+    Std(String),
+    BitAnd(String),
+    BitOr(String),
+    GroupConcat(String, String),
 }
 
 impl AggregateFunction {
@@ -196,6 +200,10 @@ impl AggregateFunction {
             AggregateFunction::Collect(_) => "COLLECT",
             AggregateFunction::Distinct(_) => "DISTINCT",
             AggregateFunction::Percentile(_, _) => "PERCENTILE",
+            AggregateFunction::Std(_) => "STD",
+            AggregateFunction::BitAnd(_) => "BIT_AND",
+            AggregateFunction::BitOr(_) => "BIT_OR",
+            AggregateFunction::GroupConcat(_, _) => "GROUP_CONCAT",
         }
     }
 
@@ -216,8 +224,18 @@ impl AggregateFunction {
             | AggregateFunction::Min(_)
             | AggregateFunction::Max(_)
             | AggregateFunction::Collect(_)
-            | AggregateFunction::Distinct(_) => 1,
+            | AggregateFunction::Distinct(_)
+            | AggregateFunction::Std(_)
+            | AggregateFunction::BitAnd(_)
+            | AggregateFunction::BitOr(_) => 1,
             AggregateFunction::Percentile(_, _) => 2,
+            AggregateFunction::GroupConcat(_, _) => {
+                if self.separator().is_empty() {
+                    1
+                } else {
+                    2
+                }
+            }
         }
     }
 
@@ -229,6 +247,7 @@ impl AggregateFunction {
                 | AggregateFunction::Min(_)
                 | AggregateFunction::Max(_)
                 | AggregateFunction::Percentile(_, _)
+                | AggregateFunction::Std(_)
         )
     }
 
@@ -237,6 +256,13 @@ impl AggregateFunction {
             self,
             AggregateFunction::Count(_) | AggregateFunction::Collect(_) | AggregateFunction::Distinct(_)
         )
+    }
+
+    pub fn separator(&self) -> String {
+        match self {
+            AggregateFunction::GroupConcat(_, sep) => sep.clone(),
+            _ => String::new(),
+        }
     }
 
     pub fn field_name(&self) -> Option<&str> {
@@ -250,6 +276,10 @@ impl AggregateFunction {
             AggregateFunction::Collect(field) => Some(field),
             AggregateFunction::Distinct(field) => Some(field),
             AggregateFunction::Percentile(field, _) => Some(field),
+            AggregateFunction::Std(field) => Some(field),
+            AggregateFunction::BitAnd(field) => Some(field),
+            AggregateFunction::BitOr(field) => Some(field),
+            AggregateFunction::GroupConcat(field, _) => Some(field),
         }
     }
 }

@@ -882,4 +882,8 @@ impl StorageEngine for RedbStorage {
 
         Ok(())
     }
+
+    fn get_input(&self, _input_var: &str) -> Result<Option<Vec<Value>>, StorageError> {
+        Ok(None)
+    }
 }

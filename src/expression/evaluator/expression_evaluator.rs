@@ -12,6 +12,7 @@ use crate::expression::evaluator::collection_operations::CollectionOperationEval
 use crate::expression::evaluator::functions::FunctionEvaluator;
 use crate::expression::evaluator::operations::{BinaryOperationEvaluator, UnaryOperationEvaluator};
 use crate::expression::evaluator::traits::ExpressionContext;
+use crate::expression::functions::global_registry;
 
 /// 表达式求值器实现（unit struct，零开销）
 #[derive(Debug)]
@@ -79,7 +80,7 @@ impl ExpressionEvaluator {
                     .map(|arg| self.visit_with_context(arg, context))
                     .collect();
                 let arg_values = arg_values?;
-                FunctionEvaluator.eval_function_call(name, &arg_values)
+                global_registry().execute(name, &arg_values)
             }
 
             // 聚合函数 - 直接求值
@@ -283,7 +284,7 @@ impl GenericExpressionVisitor<Expression> for ExpressionEvaluator {
                     .map(|arg| self.visit(arg))
                     .collect();
                 let arg_values = arg_values?;
-                FunctionEvaluator.eval_function_call(name, &arg_values)
+                global_registry().execute(name, &arg_values)
             }
             Expression::Aggregate { func, arg, distinct } => {
                 let arg_value = self.visit(arg)?;

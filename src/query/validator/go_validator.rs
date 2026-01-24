@@ -551,6 +551,9 @@ impl GoValidator {
                     AggregateFunction::Min(_) | AggregateFunction::Max(_) => Ok("ANY".to_string()),
                     AggregateFunction::Collect(_) | AggregateFunction::Distinct(_) => Ok("LIST".to_string()),
                     AggregateFunction::Percentile(_, _) => Ok("DOUBLE".to_string()),
+                    AggregateFunction::Std(_) => Ok("DOUBLE".to_string()),
+                    AggregateFunction::BitAnd(_) | AggregateFunction::BitOr(_) => Ok("INT".to_string()),
+                    AggregateFunction::GroupConcat(_, _) => Ok("STRING".to_string()),
                 }
             }
             Expression::List(_) => Ok("LIST".to_string()),
