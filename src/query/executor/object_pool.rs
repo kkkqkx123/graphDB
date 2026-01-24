@@ -252,7 +252,7 @@ mod tests {
 
     #[test]
     fn test_object_pool_release_and_acquire() {
-        let mut pool = ExecutorObjectPool::<MockStorage>::default_pool();
+        let pool = ExecutorObjectPool::<MockStorage>::default_pool();
 
         // 由于没有实际的执行器实现，这里只测试接口
         // 在实际使用中，会释放真实的执行器实例

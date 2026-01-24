@@ -13,7 +13,6 @@ use crate::core::{
     BinaryOperator, DataType, UnaryOperator, Value,
 };
 use crate::core::types::operators::AggregateFunction;
-use crate::query::parser::ast::expression::*;
 use std::collections::{HashMap, HashSet};
 
 /// Vids 类型
@@ -166,11 +165,6 @@ impl VidExtractVisitor {
     /// 获取提取到的顶点ID模式
     pub fn get_vid_pattern(&self) -> &VidPattern {
         &self.vid_pattern
-    }
-
-    /// 设置错误信息
-    fn set_error(&mut self, error: String) {
-        self.error = Some(error);
     }
 
     /// 检查是否为id函数调用

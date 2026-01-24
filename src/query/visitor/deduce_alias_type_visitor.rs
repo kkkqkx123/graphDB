@@ -13,7 +13,6 @@ use crate::core::{
     BinaryOperator, DataType, UnaryOperator, Value,
 };
 use crate::core::types::operators::AggregateFunction;
-use crate::query::parser::ast::expression::*;
 
 /// 别名类型
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -92,11 +91,6 @@ impl DeduceAliasTypeVisitor {
     /// 设置输出类型
     fn set_output_type(&mut self, output_type: AliasType) {
         self.output_type = output_type;
-    }
-
-    /// 设置错误信息
-    fn set_error(&mut self, error: String) {
-        self.error = Some(error);
     }
 
     /// 检查函数是否返回特定类型

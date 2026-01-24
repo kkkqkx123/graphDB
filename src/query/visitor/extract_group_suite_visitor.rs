@@ -12,7 +12,6 @@ use crate::core::{
     BinaryOperator, DataType, UnaryOperator, Value,
 };
 use crate::core::types::operators::AggregateFunction;
-use crate::query::parser::ast::expression::*;
 
 /// 分组套件
 #[derive(Debug, Clone, Default)]
@@ -115,16 +114,6 @@ impl ExtractGroupSuiteVisitor {
     /// 获取提取到的分组套件
     pub fn get_group_suite(&self) -> &GroupSuite {
         &self.group_suite
-    }
-
-    /// 设置错误信息
-    fn set_error(&mut self, error: String) {
-        self.error = Some(error);
-    }
-
-    /// 检查表达式是否为聚合函数
-    fn is_aggregate_function(&self, expression: &Expression) -> bool {
-        matches!(expression, Expression::Aggregate { .. })
     }
 
     /// 检查表达式是否为可分组的表达式

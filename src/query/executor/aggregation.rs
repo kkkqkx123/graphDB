@@ -22,8 +22,6 @@ pub struct AggregationExecutor<S: StorageEngine> {
     aggregation_functions: Vec<AggregateFunction>,
     /// GROUP BY字段列表
     group_by_keys: Vec<String>,
-    /// 过滤条件
-    filter_condition: Option<crate::core::Expression>,
 }
 
 impl<S: StorageEngine> AggregationExecutor<S> {
@@ -32,13 +30,11 @@ impl<S: StorageEngine> AggregationExecutor<S> {
         storage: Arc<Mutex<S>>,
         aggregation_functions: Vec<AggregateFunction>,
         group_by_keys: Vec<String>,
-        filter_condition: Option<crate::core::Expression>,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "AggregationExecutor".to_string(), storage),
             aggregation_functions,
             group_by_keys,
-            filter_condition,
         }
     }
 
@@ -493,7 +489,6 @@ mod tests {
             storage,
             agg_funcs,
             group_by_keys,
-            None,
         );
 
         assert_eq!(executor.id(), 1);
@@ -564,13 +559,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_aggregate_values_count() {
-        let temp_dir = std::env::temp_dir();
-        let test_path = temp_dir.join("graphdb_test_aggregation").to_str().expect("temp_dir should be valid unicode").to_string();
         let executor = AggregationExecutor {
             base: BaseExecutor::new(1, "test".to_string(), Arc::new(Mutex::new(crate::storage::MockStorage))),
             aggregation_functions: vec![AggregateFunction::Count(None)],
             group_by_keys: vec![],
-            filter_condition: None,
         };
 
         let values = vec![

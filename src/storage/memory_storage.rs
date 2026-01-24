@@ -172,7 +172,7 @@ impl StorageEngine for MemoryStorage {
     fn insert_edge(&mut self, edge: Edge) -> Result<(), StorageError> {
         let edge_type = edge.edge_type.clone();
         let _edge_id = {
-            let mut generator = self.id_generator.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+            let generator = self.id_generator.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
             generator.generate_edge_id()
         };
 

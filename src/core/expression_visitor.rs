@@ -8,7 +8,6 @@
 use crate::core::types::expression::{DataType, Expression};
 use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 use crate::core::Value;
-use crate::query::parser::ast::expression::*;
 use std::collections::HashMap;
 
 pub mod prelude {

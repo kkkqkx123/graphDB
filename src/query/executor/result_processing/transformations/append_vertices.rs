@@ -23,8 +23,6 @@ pub struct AppendVerticesExecutor<S: StorageEngine + Send + 'static> {
     input_var: String,
     /// 源表达式，用于获取顶点ID
     src_expression: Expression,
-    /// 要获取的属性列表
-    props: Vec<String>,
     /// 顶点过滤表达式
     v_filter: Option<Expression>,
     /// 输出列名
@@ -44,7 +42,6 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
         storage: Arc<Mutex<S>>,
         input_var: String,
         src_expression: Expression,
-        props: Vec<String>,
         v_filter: Option<Expression>,
         col_names: Vec<String>,
         dedup: bool,
@@ -55,7 +52,6 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
             base: BaseExecutor::new(id, "AppendVerticesExecutor".to_string(), storage),
             input_var,
             src_expression,
-            props,
             v_filter,
             col_names,
             dedup,
@@ -70,7 +66,6 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
         storage: Arc<Mutex<S>>,
         input_var: String,
         src_expression: Expression,
-        props: Vec<String>,
         v_filter: Option<Expression>,
         col_names: Vec<String>,
         dedup: bool,
@@ -87,7 +82,6 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
             ),
             input_var,
             src_expression,
-            props,
             v_filter,
             col_names,
             dedup,
@@ -397,7 +391,6 @@ impl<S: StorageEngine + Send> HasStorage<S> for AppendVerticesExecutor<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::test_config::test_config;
     use crate::core::Expression;
     use crate::core::Value;
     use crate::storage::MockStorage;
@@ -405,7 +398,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_append_vertices_executor() {
-        let config = test_config();
         let storage = Arc::new(Mutex::new(MockStorage));
 
         let vids = vec![
@@ -424,7 +416,6 @@ mod tests {
             storage,
             "input".to_string(),
             src_expression,
-            vec![],
             None,
             vec!["vertex".to_string()],
             false,

@@ -1,6 +1,5 @@
 //! Optimizer implementation for optimizing execution plans
 use crate::query::context::execution::QueryContext;
-use crate::query::context::validate;
 use crate::query::optimizer::property_tracker::PropertyTracker;
 use crate::query::planner::plan::{ExecutionPlan, PlanNodeEnum};
 
@@ -297,44 +296,6 @@ pub struct OptGroupNode {
     pub properties: PlanNodeProperties,
     pub explored_rules: Vec<String>, // Track which rules have been applied to this node
     pub group_id: usize,             // ID of the group this node belongs to
-}
-
-use crate::query::context::validate::types::Variable;
-
-// A dummy plan node for default implementation
-#[derive(Debug, Default)]
-struct DummyPlanNode {
-    id: i64,
-    dependencies: Vec<PlanNodeEnum>,
-    output_var: Option<Variable>,
-    col_names: Vec<String>,
-    cost: f64,
-}
-
-impl DummyPlanNode {
-    fn id(&self) -> i64 {
-        self.id
-    }
-
-    fn type_name(&self) -> &'static str {
-        "Dummy"
-    }
-
-    fn dependencies(&self) -> &[PlanNodeEnum] {
-        &self.dependencies
-    }
-
-    fn output_var(&self) -> Option<&validate::types::Variable> {
-        self.output_var.as_ref()
-    }
-
-    fn col_names(&self) -> &[String] {
-        &self.col_names
-    }
-
-    fn cost(&self) -> f64 {
-        self.cost
-    }
 }
 
 impl Default for OptGroupNode {
@@ -1104,11 +1065,6 @@ impl Optimizer {
     /// 根据ID查找优化组
     fn find_group_by_id(ctx: &OptContext, group_id: usize) -> Option<&OptGroup> {
         ctx.group_map.get(&group_id)
-    }
-
-    /// 根据ID查找优化组（可变引用）
-    fn find_group_by_id_mut(ctx: &mut OptContext, group_id: usize) -> Option<&mut OptGroup> {
-        ctx.group_map.get_mut(&group_id)
     }
 
     fn plan_to_group(&self, plan: &ExecutionPlan) -> Result<OptGroup, OptimizerError> {

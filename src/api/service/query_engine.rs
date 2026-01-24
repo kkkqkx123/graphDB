@@ -62,7 +62,6 @@ impl<S: StorageEngine + Clone + 'static> QueryEngine<S> {
 mod tests {
     use super::*;
     use crate::api::session::client_session::{ClientSession, Session};
-    use crate::config::Config;
     use crate::storage::MemoryStorage;
     use std::sync::Arc;
 

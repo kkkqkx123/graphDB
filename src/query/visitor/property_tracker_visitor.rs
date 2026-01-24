@@ -148,7 +148,7 @@ impl PropertyTrackerVisitor {
     }
 
     /// 创建带有实体别名的访问器
-    pub fn with_alias(alias: String) -> Self {
+    pub fn with_alias(_alias: String) -> Self {
         Self {
             props_used: PropertyTracker::new(),
             error: None,

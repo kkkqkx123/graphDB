@@ -522,7 +522,6 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     storage,
                     input_var,
                     src_expression,
-                    node.props().to_vec(),
                     node.v_filter().cloned(),
                     node.col_names().to_vec(),
                     node.dedup(),
@@ -672,7 +671,7 @@ mod tests {
 
     #[test]
     fn test_recursion_detector_basic() {
-        let mut factory = ExecutorFactory::<MockStorage>::new();
+        let factory = ExecutorFactory::<MockStorage>::new();
         let storage = Arc::new(Mutex::new(MockStorage));
         let context = ExecutionContext::new();
 

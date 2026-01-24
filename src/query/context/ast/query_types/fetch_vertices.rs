@@ -1,7 +1,7 @@
 //! Fetch Vertices查询上下文
 
 use crate::query::context::ast::query_types::TraverseContext;
-use crate::query::context::ast::{FromType, Starts, YieldColumns};
+use crate::query::context::ast::YieldColumns;
 
 /// Fetch Vertices查询上下文
 ///

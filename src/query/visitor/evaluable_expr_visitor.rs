@@ -4,7 +4,7 @@
 use crate::core::types::expression::Expression;
 use crate::core::expression_visitor::{ExpressionVisitor, ExpressionVisitorState};
 use crate::core::Value;
-use crate::core::{AggregateFunction, BinaryOperator, DataType, UnaryOperator};
+use crate::core::{AggregateFunction, DataType, UnaryOperator};
 
 #[derive(Debug)]
 pub struct EvaluableExprVisitor {

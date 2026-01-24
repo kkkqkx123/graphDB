@@ -262,38 +262,6 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn read_raw_string(&mut self) -> Result<String, LexError> {
-        let start = self.position;
-        self.read_char();
-        self.read_char();
-        self.read_char();
-
-        while let Some(&ch) = self.peek_char() {
-            if ch == '"' {
-                let second = self.chars.clone().next();
-                let third = self.chars.clone().nth(1);
-                if second == Some('"') && third == Some('"') {
-                    self.read_char();
-                    self.read_char();
-                    self.read_char();
-                    return Ok(self
-                        .input
-                        .get(start..self.position - 3)
-                        .unwrap_or("")
-                        .to_string());
-                }
-            }
-            self.read_char();
-        }
-
-        let error = LexError::new(
-            "Unterminated raw string literal".to_string(),
-            self.current_position(),
-        );
-        self.add_error(error.clone());
-        Err(error)
-    }
-
     fn lookup_keyword(&self, identifier: &str) -> Tk {
         match identifier.to_uppercase().as_str() {
             "CREATE" => Tk::Create,

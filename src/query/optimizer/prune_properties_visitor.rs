@@ -123,11 +123,6 @@ impl ExpressionVisitor for PrunePropertiesVisitor {
             Expression::Property { object, property } => {
                 if let Expression::Variable(var_name) = object.as_ref() {
                     self.tracker.track_property(var_name, property);
-                }
-            }
-            Expression::Property { object, property } => {
-                if let Expression::Variable(var_name) = object.as_ref() {
-                    self.tracker.track_property(var_name, property);
                 } else {
                     self.visit_expression(object.as_ref());
                 }

@@ -358,9 +358,8 @@ mod tests {
     use super::*;
     use crate::core::Value;
     use crate::query::parser::ast::{
-        BinaryExpression, BinaryOp, ConstantExpression, Expression, LabelExpression, ListExpression, MapExpression, PathExpression,
-        PropertyAccessExpression, RangeExpression, Span, SubscriptExpression, TypeCastExpression, UnaryExpression, UnaryOp,
-        VariableExpression,
+        BinaryExpression, BinaryOp, ConstantExpression, Expression, LabelExpression,
+        Span, TypeCastExpression, UnaryExpression, UnaryOp, VariableExpression,
     };
 
     #[test]

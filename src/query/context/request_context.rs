@@ -1077,7 +1077,7 @@ mod tests {
 
     #[test]
     fn test_request_parameters() {
-        let mut ctx = RequestContext::with_session(
+        let ctx = RequestContext::with_session(
             "MATCH (n) WHERE n.name = $name RETURN n".to_string(),
             "test_session",
             "test_user",
@@ -1086,7 +1086,7 @@ mod tests {
         );
 
         // 设置参数
-        ctx.set_parameter("name".to_string(), Value::String("Alice".to_string()));
+        ctx.set_parameter("name".to_string(), Value::String("Alice".to_string())).expect("set_parameter should succeed");
 
         // 获取参数
         let param = ctx.get_parameter("name");

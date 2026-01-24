@@ -6,7 +6,6 @@ use crate::core::types::expression::DataType;
 use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 use crate::core::Value;
 use crate::core::Expression;
-use crate::query::parser::ast::expression::*;
 
 #[derive(Debug)]
 pub struct FindVisitor {

@@ -18,30 +18,26 @@ use std::sync::{Arc, RwLock};
 pub struct MemoryStorageClient {
     storage: Arc<RwLock<MemoryStorage>>,
     connected: bool,
-    storage_path: PathBuf,
 }
 
 impl MemoryStorageClient {
     /// 创建新的持久化存储客户端
     pub fn new() -> Self {
-        let storage_path = PathBuf::from("./data/storage");
         let storage = MemoryStorage::new()
             .expect("Failed to create MemoryStorage");
         Self {
             storage: Arc::new(RwLock::new(storage)),
             connected: true,
-            storage_path,
         }
     }
 
     /// 创建带存储路径的持久化存储客户端
-    pub fn with_path(storage_path: PathBuf) -> Self {
+    pub fn with_path(_storage_path: PathBuf) -> Self {
         let storage = MemoryStorage::new()
             .expect("Failed to create MemoryStorage");
         Self {
             storage: Arc::new(RwLock::new(storage)),
             connected: true,
-            storage_path,
         }
     }
 
@@ -206,19 +202,6 @@ impl MemoryStorageClient {
     /// 保存数据到磁盘
     pub fn save_to_disk(&self) -> ManagerResult<()> {
         Ok(())
-    }
-
-    /// 生成顶点键
-    fn vertex_key(vid: &Value) -> String {
-        format!("{:?}", vid)
-    }
-
-    /// 生成边键
-    fn edge_key_string(key: &EdgeKey) -> String {
-        format!(
-            "{:?}:{:?}:{:?}:{:?}",
-            key.src, key.edge_type, key.ranking, key.dst
-        )
     }
 
     /// 从键字符串解析Value

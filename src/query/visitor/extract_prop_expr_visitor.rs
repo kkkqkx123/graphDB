@@ -12,7 +12,6 @@ use crate::core::{
     BinaryOperator, DataType, UnaryOperator, Value,
 };
 use crate::core::types::operators::AggregateFunction;
-use crate::query::parser::ast::expression::*;
 use std::collections::{HashMap, HashSet};
 
 /// 属性表达式提取结果

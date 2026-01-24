@@ -650,19 +650,6 @@ mod tests {
         data_set
     }
 
-    fn create_large_test_dataset(size: usize) -> DataSet {
-        let mut data_set = DataSet::new();
-        data_set.col_names = vec!["id".to_string(), "value".to_string()];
-
-        for i in 0..size {
-            data_set
-                .rows
-                .push(vec![Value::Int(i as i64), Value::Int((size - i) as i64)]);
-        }
-
-        data_set
-    }
-
     #[test]
     fn test_sort_key_column_index() {
         // 测试排序键列索引功能
@@ -732,7 +719,7 @@ mod tests {
 
         let storage = Arc::new(Mutex::new(MockStorage));
 
-        let executor = SortExecutor::new(1, storage, sort_keys, Some(2), config).expect("SortExecutor::new should succeed");
+        let mut executor = SortExecutor::new(1, storage, sort_keys, Some(2), config).expect("SortExecutor::new should succeed");
 
         // 执行排序
         executor.execute_sort(&mut data_set).expect("execute_sort should succeed");
@@ -784,7 +771,7 @@ mod tests {
         let config = SortConfig::default();
         let storage = Arc::new(Mutex::new(MockStorage));
 
-        let executor = SortExecutor::new(1, storage, sort_keys, None, config).expect("SortExecutor::new should succeed");
+        let mut executor = SortExecutor::new(1, storage, sort_keys, None, config).expect("SortExecutor::new should succeed");
 
         // 验证多列排序结果应该会返回错误，因为列索引超出范围
         let result = executor.execute_sort(&mut data_set);
@@ -804,7 +791,7 @@ mod tests {
 
         let storage = Arc::new(Mutex::new(MockStorage));
 
-        let mut executor = SortExecutor::new(1, storage, sort_keys, None, config).expect("SortExecutor::new should succeed");
+        let executor = SortExecutor::new(1, storage, sort_keys, None, config).expect("SortExecutor::new should succeed");
 
         // 测试列索引比较功能
         let row1 = &data_set.rows[0]; // Alice: 85.5

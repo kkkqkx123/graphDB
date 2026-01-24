@@ -1,7 +1,7 @@
 //! GO查询上下文
 
 use crate::query::context::ast::query_types::TraverseContext;
-use crate::query::context::ast::{FromType, Starts, YieldColumns};
+use crate::query::context::ast::YieldColumns;
 
 /// GO查询上下文
 ///

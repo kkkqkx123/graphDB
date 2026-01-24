@@ -631,7 +631,7 @@ impl<'a> StmtParser<'a> {
             while !ctx.match_token(TokenKind::RBrace) {
                 let name = ctx.expect_identifier()?;
                 ctx.expect_token(TokenKind::Colon)?;
-                let value = self.parse_expression(ctx)?;
+                let _value = self.parse_expression(ctx)?;
                 properties.push(PropertyDef {
                     name,
                     data_type: DataType::String,

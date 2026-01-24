@@ -12,7 +12,6 @@ use crate::core::{
     BinaryOperator, DataType, UnaryOperator, Value,
 };
 use crate::core::types::operators::AggregateFunction;
-use crate::query::parser::ast::expression::*;
 
 /// 匹配器类型：判断表达式是否需要重写
 pub type Matcher = fn(&Expression) -> bool;

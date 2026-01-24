@@ -11,7 +11,6 @@ use crate::core::{
     BinaryOperator, DataType, UnaryOperator, Value,
 };
 use crate::core::types::operators::AggregateFunction;
-use crate::query::parser::ast::expression::*;
 
 /// 常量表达式折叠访问器
 ///
@@ -71,12 +70,6 @@ impl FoldConstantExprVisitor {
     /// 获取错误信息
     pub fn get_error(&self) -> Option<&String> {
         self.error.as_ref()
-    }
-
-    /// 设置错误信息
-    fn set_error(&mut self, error: String) {
-        self.error = Some(error);
-        self.can_be_folded = false;
     }
 
     /// 设置折叠后的表达式

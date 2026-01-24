@@ -490,7 +490,6 @@ impl<S: StorageEngine + Send + 'static> InputExecutor<S> for DedupExecutor<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::value::NullType;
     use crate::storage::test_mock::MockStorage;
     use std::collections::HashMap;
 

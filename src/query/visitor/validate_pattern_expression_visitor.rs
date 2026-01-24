@@ -12,7 +12,6 @@ use crate::core::{
     BinaryOperator, DataType, UnaryOperator, Value,
 };
 use crate::core::types::operators::AggregateFunction;
-use crate::query::parser::ast::expression::*;
 
 /// 模式表达式验证访问器
 ///
@@ -61,45 +60,9 @@ impl ValidatePatternExpressionVisitor {
         self.error = Some(error);
     }
 
-    /// 添加局部变量
-    fn add_local_variable(&mut self, var: &str) {
-        if !self.local_variables.contains(&var.to_string()) {
-            self.local_variables.push(var.to_string());
-        }
-    }
-
-    /// 移除局部变量
-    fn remove_local_variable(&mut self, var: &str) {
-        if let Some(pos) = self.local_variables.iter().position(|v| v == var) {
-            self.local_variables.remove(pos);
-        }
-    }
-
     /// 检查变量是否为局部变量
     fn is_local_variable(&self, var: &str) -> bool {
         self.local_variables.contains(&var.to_string())
-    }
-
-    /// 将多个表达式用 AND 连接
-    fn and_all(&self, exprs: &[Expression]) -> Option<Expression> {
-        if exprs.is_empty() {
-            return None;
-        }
-
-        if exprs.len() == 1 {
-            return Some(exprs[0].clone());
-        }
-
-        let mut result = exprs[0].clone();
-        for expression in &exprs[1..] {
-            result = Expression::Binary {
-                left: Box::new(result),
-                op: BinaryOperator::And,
-                right: Box::new(expression.clone()),
-            };
-        }
-
-        Some(result)
     }
 }
 

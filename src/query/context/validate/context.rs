@@ -614,7 +614,6 @@ mod tests {
     use super::super::types::Column;
     use super::super::schema::ValidationMode;
     use super::*;
-    use super::super::schema::SchemaValidationError;
 
     struct MockSchemaProvider;
 

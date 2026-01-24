@@ -86,7 +86,7 @@ struct Worker {
 
 impl Worker {
     fn new(
-        id: usize,
+        _id: usize,
         tasks: Arc<Mutex<VecDeque<Box<dyn FnOnce() + Send>>>>,
         notifier: Arc<Notify>,
         shutdown: Arc<Mutex<bool>>,

@@ -104,7 +104,7 @@ impl AstContext {
         let mut qctx = QueryContext::new();
         qctx.set_rctx(request_context);
         
-        let mut ctx = Self {
+        let ctx = Self {
             qctx: Some(std::sync::Arc::new(qctx)),
             sentence: None,
             space: SpaceInfo::default(),

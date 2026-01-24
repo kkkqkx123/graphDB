@@ -331,7 +331,6 @@ impl RedbStorage {
             .open_table(INDEXES_TABLE)
             .map_err(|e| StorageError::DbError(e.to_string()))?;
 
-        let edge_type_bytes = edge_type.as_bytes();
         let index_key = format!("edge_type_index:{}", edge_type);
         let index_key_bytes = index_key.as_bytes();
 
