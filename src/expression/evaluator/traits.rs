@@ -51,9 +51,6 @@ pub trait ExpressionContext {
     /// 设置变量值
     fn set_variable(&mut self, name: String, value: Value);
 
-    /// 获取所有变量名
-    fn get_variable_names(&self) -> Vec<&str>;
-
     /// 检查变量是否存在
     fn has_variable(&self, name: &str) -> bool {
         self.get_variable(name).is_some()

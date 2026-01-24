@@ -1,13 +1,17 @@
 //! 基础表达式上下文模块
 //!
 //! 提供表达式求值过程中的基础上下文实现
+//! 使用独立的组件管理不同职责
 
 use crate::core::Value;
 use crate::core::error::{ExpressionError, ExpressionErrorType};
-use crate::expression::functions::{
-    BuiltinFunction, CustomFunction, ExpressionFunction, FunctionRef,
+use crate::expression::functions::{BuiltinFunction, CustomFunction, FunctionRef};
+use crate::expression::context::{
+    cache_manager::CacheManager,
+    function_registry::FunctionRegistry,
+    version_manager::VersionManager,
+    traits::*,
 };
-use regex::Regex;
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -18,196 +22,39 @@ pub enum ExpressionContextType {
     Basic(BasicExpressionContext),
 }
 
-/// 表达式上下文特征
-pub trait ExpressionContextCoreExtended {
-    /// 获取变量值
-    fn get_variable(&self, name: &str) -> Option<&Value>;
-
-    /// 获取函数
-    fn get_function(&self, name: &str) -> Option<FunctionRef>;
-
-    /// 检查变量是否存在
-    fn has_variable(&self, name: &str) -> bool;
-
-    /// 获取所有变量名
-    fn get_variable_names(&self) -> Vec<&str>;
-
-    /// 获取上下文深度
-    fn get_depth(&self) -> usize;
-
-    /// 创建子上下文
-    fn create_child_context(&self) -> ExpressionContextType;
-}
-
 /// 基础表达式上下文
+///
+/// 使用独立的组件管理不同职责：
+/// - VersionManager: 管理变量版本历史
+/// - FunctionRegistry: 管理函数注册
+/// - CacheManager: 管理缓存
 #[derive(Debug)]
 pub struct BasicExpressionContext {
-    /// 变量绑定
-    pub variables: HashMap<String, Value>,
+    /// 版本管理器
+    pub version_manager: VersionManager,
     /// 函数注册表
-    pub functions: HashMap<String, BuiltinFunction>,
-    /// 自定义函数注册表
-    pub custom_functions: HashMap<String, CustomFunction>,
+    pub function_registry: FunctionRegistry,
+    /// 缓存管理器
+    pub cache_manager: CacheManager,
     /// 父上下文
     pub parent: Option<Box<BasicExpressionContext>>,
     /// 上下文深度
     pub depth: usize,
-    /// 正则表达式缓存
-    pub regex_cache: HashMap<String, Regex>,
     /// 内部变量（用于 ListComprehension、Predicate 等表达式）
     pub inner_variables: HashMap<String, Value>,
     /// 路径存储（使用 Rc 以支持引用返回）
     pub paths: HashMap<String, Rc<crate::core::vertex_edge_path::Path>>,
 }
 
-impl ExpressionContextCoreExtended for BasicExpressionContext {
-    fn get_variable(&self, name: &str) -> Option<&Value> {
-        // 在当前上下文中查找
-        if let Some(value) = self.variables.get(name) {
-            return Some(value);
-        }
-
-        // 如果在当前上下文中找不到，则在父上下文中查找
-        if let Some(parent) = &self.parent {
-            ExpressionContextCoreExtended::get_variable(parent, name)
-        } else {
-            None
-        }
-    }
-
-    fn get_function(&self, name: &str) -> Option<FunctionRef> {
-        // 在当前上下文中查找内置函数
-        if let Some(function) = self.functions.get(name) {
-            return Some(FunctionRef::Builtin(function));
-        }
-
-        // 然后查找自定义函数
-        if let Some(function) = self.custom_functions.get(name) {
-            return Some(FunctionRef::Custom(function));
-        }
-
-        // 如果在当前上下文中找不到，则在父上下文中查找
-        if let Some(parent) = &self.parent {
-            parent.get_function(name)
-        } else {
-            None
-        }
-    }
-
-    fn has_variable(&self, name: &str) -> bool {
-        ExpressionContextCoreExtended::get_variable(self, name).is_some()
-    }
-
-    fn get_variable_names(&self) -> Vec<&str> {
-        let mut names: Vec<&str> = self.variables.keys().map(|k| k.as_str()).collect();
-
-        // 添加父上下文中的变量名（去重）
-        if let Some(parent) = &self.parent {
-            let parent_names = parent.get_variable_names();
-            for name in parent_names {
-                if !names.contains(&name) {
-                    names.push(name);
-                }
-            }
-        }
-
-        names
-    }
-
-    fn get_depth(&self) -> usize {
-        self.depth
-    }
-
-    fn create_child_context(&self) -> ExpressionContextType {
-        ExpressionContextType::Basic(BasicExpressionContext {
-            variables: HashMap::new(),
-            functions: HashMap::new(),
-            custom_functions: HashMap::new(),
-            parent: Some(Box::new(self.clone())),
-            depth: self.get_depth() + 1,
-            regex_cache: HashMap::new(),
-            inner_variables: HashMap::new(),
-            paths: HashMap::new(),
-        })
-    }
-}
-
-impl ExpressionContextCoreExtended for Box<BasicExpressionContext> {
-    fn get_variable(&self, name: &str) -> Option<&Value> {
-        (**self).get_variable(name)
-    }
-
-    fn get_function(&self, name: &str) -> Option<FunctionRef> {
-        (**self).get_function(name)
-    }
-
-    fn has_variable(&self, name: &str) -> bool {
-        (**self).has_variable(name)
-    }
-
-    fn get_variable_names(&self) -> Vec<&str> {
-        (**self).get_variable_names()
-    }
-
-    fn get_depth(&self) -> usize {
-        (**self).get_depth()
-    }
-
-    fn create_child_context(&self) -> ExpressionContextType {
-        (**self).create_child_context()
-    }
-}
-
-impl ExpressionContextCoreExtended for ExpressionContextType {
-    fn get_variable(&self, name: &str) -> Option<&Value> {
-        match self {
-            ExpressionContextType::Basic(ctx) => {
-                ExpressionContextCoreExtended::get_variable(ctx, name)
-            }
-        }
-    }
-
-    fn get_function(&self, name: &str) -> Option<FunctionRef> {
-        match self {
-            ExpressionContextType::Basic(ctx) => ctx.get_function(name),
-        }
-    }
-
-    fn has_variable(&self, name: &str) -> bool {
-        match self {
-            ExpressionContextType::Basic(ctx) => ctx.has_variable(name),
-        }
-    }
-
-    fn get_variable_names(&self) -> Vec<&str> {
-        match self {
-            ExpressionContextType::Basic(ctx) => ctx.get_variable_names(),
-        }
-    }
-
-    fn get_depth(&self) -> usize {
-        match self {
-            ExpressionContextType::Basic(ctx) => ctx.get_depth(),
-        }
-    }
-
-    fn create_child_context(&self) -> ExpressionContextType {
-        match self {
-            ExpressionContextType::Basic(ctx) => ctx.create_child_context(),
-        }
-    }
-}
-
 impl BasicExpressionContext {
     /// 创建新的基础表达式上下文
     pub fn new() -> Self {
         Self {
-            variables: HashMap::new(),
-            functions: HashMap::new(),
-            custom_functions: HashMap::new(),
+            version_manager: VersionManager::new(),
+            function_registry: FunctionRegistry::new(),
+            cache_manager: CacheManager::new(),
             parent: None,
             depth: 0,
-            regex_cache: HashMap::new(),
             inner_variables: HashMap::new(),
             paths: HashMap::new(),
         }
@@ -217,66 +64,66 @@ impl BasicExpressionContext {
     pub fn with_parent(parent: BasicExpressionContext) -> Self {
         let parent_depth = parent.get_depth();
         Self {
-            variables: HashMap::new(),
-            functions: HashMap::new(),
-            custom_functions: HashMap::new(),
+            version_manager: VersionManager::new(),
+            function_registry: FunctionRegistry::new(),
+            cache_manager: CacheManager::new(),
             parent: Some(Box::new(parent)),
             depth: parent_depth + 1,
-            regex_cache: HashMap::new(),
             inner_variables: HashMap::new(),
             paths: HashMap::new(),
         }
     }
 
-    /// 设置变量
+    /// 设置变量（添加新版本）
     pub fn set_variable(&mut self, name: impl Into<String>, value: Value) {
-        self.variables.insert(name.into(), value);
+        self.version_manager.set_version(name.into(), value);
     }
 
     /// 批量设置变量
     pub fn set_variables(&mut self, variables: HashMap<String, Value>) {
-        self.variables = variables;
+        for (name, value) in variables {
+            self.set_variable(name, value);
+        }
     }
 
     /// 注册内置函数
     pub fn register_builtin_function(&mut self, function: BuiltinFunction) {
-        self.functions.insert(function.name().to_string(), function);
+        self.function_registry.register_builtin(function);
     }
 
     /// 注册自定义函数
     pub fn register_custom_function(&mut self, function: CustomFunction) {
-        self.custom_functions
-            .insert(function.name.clone(), function);
+        self.function_registry.register_custom(function);
     }
 
     /// 获取内置函数
     pub fn get_builtin_function(&self, name: &str) -> Option<&BuiltinFunction> {
-        self.functions.get(name)
+        self.function_registry.get_builtin(name)
     }
 
     /// 获取自定义函数
     pub fn get_custom_function(&self, name: &str) -> Option<&CustomFunction> {
-        self.custom_functions.get(name)
+        self.function_registry.get_custom(name)
     }
 
     /// 移除变量
-    pub fn remove_variable(&mut self, name: &str) -> Option<Value> {
-        self.variables.remove(name)
+    pub fn remove_variable(&mut self, name: &str) -> Option<Vec<Value>> {
+        self.version_manager.remove(name)
     }
 
     /// 清空所有变量
     pub fn clear_variables(&mut self) {
-        self.variables.clear();
+        self.version_manager.clear();
     }
 
     /// 检查变量是否在当前上下文中定义
     pub fn is_local_variable(&self, name: &str) -> bool {
-        self.variables.contains_key(name)
+        self.version_manager.exists(name)
     }
 
     /// 获取当前上下文中的变量名
     pub fn get_local_variable_names(&self) -> Vec<&str> {
-        self.variables.keys().map(|k| k.as_str()).collect()
+        self.version_manager.variable_names()
     }
 
     /// 设置内部变量（用于 ListComprehension、Predicate 等表达式）
@@ -290,15 +137,8 @@ impl BasicExpressionContext {
     }
 
     /// 获取正则表达式（自动缓存）
-    pub fn get_regex(&mut self, pattern: &str) -> Option<&Regex> {
-        if !self.regex_cache.contains_key(pattern) {
-            if let Ok(regex) = Regex::new(pattern) {
-                self.regex_cache.insert(pattern.to_string(), regex);
-            } else {
-                return None;
-            }
-        }
-        self.regex_cache.get(pattern)
+    pub fn get_regex(&mut self, pattern: &str) -> Option<&regex::Regex> {
+        self.cache_manager.get_regex(pattern)
     }
 
     /// 获取变量属性值
@@ -316,43 +156,23 @@ impl BasicExpressionContext {
 
     /// 获取指定版本的变量值
     pub fn get_versioned_var(&self, name: &str, version: i64) -> Option<Value> {
-        if let Some(var_value) = self.get_variable(name) {
-            if let Value::List(list) = var_value {
-                let size = list.len() as i64;
-                if version <= 0 {
-                    let idx = (-version).min(size - 1) as usize;
-                    Some(list[idx].clone())
-                } else {
-                    let idx = (size - version).max(0) as usize;
-                    if idx < list.len() {
-                        Some(list[idx].clone())
-                    } else {
-                        None
-                    }
-                }
-            } else {
-                Some(var_value.clone())
-            }
-        } else {
-            None
-        }
+        self.version_manager.get_version(name, version).cloned()
     }
 
     /// 获取变量属性在元组中的索引
     pub fn get_var_prop_index(&self, _var: &str, prop: &str) -> Option<usize> {
-        self.variables.keys().position(|k| k == prop)
+        self.version_manager.variable_names().iter().position(|&k| k == prop)
     }
 
     /// 设置变量（带错误处理）
     pub fn set_var(&mut self, name: &str, value: Value) -> Result<(), ExpressionError> {
-        self.variables.insert(name.to_string(), value);
+        self.set_variable(name, value);
         Ok(())
     }
 
     /// 获取变量值（带错误处理）
     pub fn get_var(&self, name: &str) -> Result<Value, ExpressionError> {
-        self.variables.get(name)
-            .cloned()
+        self.get_variable(name)
             .ok_or_else(|| ExpressionError::new(
                 ExpressionErrorType::UndefinedVariable,
                 format!("变量 '{}' 未定义", name)
@@ -471,7 +291,7 @@ impl BasicExpressionContext {
 
     /// 获取输入属性值 ($-.prop)
     pub fn get_input_prop(&self, prop: &str) -> Result<Value, ExpressionError> {
-        self.variables.get(prop)
+        self.version_manager.get_latest(prop)
             .cloned()
             .ok_or_else(|| ExpressionError::new(
                 ExpressionErrorType::PropertyNotFound,
@@ -481,8 +301,9 @@ impl BasicExpressionContext {
 
     /// 获取输入属性在元组中的索引
     pub fn get_input_prop_index(&self, prop: &str) -> Result<usize, ExpressionError> {
-        self.variables.keys()
-            .position(|k| k == prop)
+        self.version_manager.variable_names()
+            .iter()
+            .position(|&k| k == prop)
             .ok_or_else(|| ExpressionError::new(
                 ExpressionErrorType::PropertyNotFound,
                 format!("输入属性 '{}' 不存在", prop)
@@ -498,10 +319,12 @@ impl BasicExpressionContext {
             ));
         }
         let idx = index as usize;
-        for value in self.variables.values() {
-            if let Value::List(list) = value {
-                if idx < list.len() {
-                    return Ok(list[idx].clone());
+        for value in self.version_manager.variable_names() {
+            if let Some(val) = self.version_manager.get_version(value, 0) {
+                if let Value::List(list) = val {
+                    if idx < list.len() {
+                        return Ok(list[idx].clone());
+                    }
                 }
             }
         }
@@ -513,8 +336,8 @@ impl BasicExpressionContext {
 
     /// 内部方法：获取顶点（从变量中解析）
     fn get_vertex_internal(&self) -> Option<&crate::core::Vertex> {
-        if let Some(Value::Vertex(v)) = self.variables.get("_vertex") {
-            Some(v)
+        if let Some(Value::Vertex(v)) = self.version_manager.get_latest("_vertex") {
+            Some(v.as_ref())
         } else {
             None
         }
@@ -522,11 +345,29 @@ impl BasicExpressionContext {
 
     /// 内部方法：获取边（从变量中解析）
     fn get_edge_internal(&self) -> Option<&crate::core::Edge> {
-        if let Some(Value::Edge(e)) = self.variables.get("_edge") {
+        if let Some(Value::Edge(e)) = self.version_manager.get_latest("_edge") {
             Some(e)
         } else {
             None
         }
+    }
+
+    /// 获取上下文深度
+    pub fn get_depth(&self) -> usize {
+        self.depth
+    }
+
+    /// 创建子上下文
+    pub fn create_child_context(&self) -> ExpressionContextType {
+        ExpressionContextType::Basic(BasicExpressionContext {
+            version_manager: VersionManager::new(),
+            function_registry: FunctionRegistry::new(),
+            cache_manager: CacheManager::new(),
+            parent: Some(Box::new(self.clone())),
+            depth: self.get_depth() + 1,
+            inner_variables: HashMap::new(),
+            paths: HashMap::new(),
+        })
     }
 }
 
@@ -539,28 +380,102 @@ impl Default for BasicExpressionContext {
 impl Clone for BasicExpressionContext {
     fn clone(&self) -> Self {
         Self {
-            variables: self.variables.clone(),
-            functions: self.functions.clone(),
-            custom_functions: self.custom_functions.clone(),
+            version_manager: self.version_manager.clone(),
+            function_registry: self.function_registry.clone(),
+            cache_manager: self.cache_manager.clone(),
             parent: self.parent.clone(),
             depth: self.get_depth(),
-            regex_cache: self.regex_cache.clone(),
             inner_variables: self.inner_variables.clone(),
             paths: self.paths.clone(),
         }
     }
 }
 
-// 为BasicExpressionContext实现统一的ExpressionContext trait
-impl crate::expression::evaluator::traits::ExpressionContext for BasicExpressionContext {
-    fn get_variable(&self, name: &str) -> Option<crate::core::Value> {
-        ExpressionContextCoreExtended::get_variable(self, name).cloned()
+impl VariableContext for BasicExpressionContext {
+    fn get_variable(&self, name: &str) -> Option<Value> {
+        // 首先在当前上下文中查找
+        if let Some(value) = self.version_manager.get_latest(name) {
+            return Some(value.clone());
+        }
+
+        // 然后在内部变量中查找
+        if let Some(value) = self.inner_variables.get(name) {
+            return Some(value.clone());
+        }
+
+        // 如果在当前上下文中找不到，则在父上下文中查找
+        if let Some(parent) = &self.parent {
+            parent.get_variable(name)
+        } else {
+            None
+        }
     }
 
-    fn set_variable(&mut self, name: String, value: crate::core::Value) {
-        self.set_variable(name, value);
+    fn set_variable(&mut self, name: String, value: Value) {
+        self.version_manager.set_version(name, value);
     }
 
+    fn get_variable_names(&self) -> Vec<&str> {
+        let mut names = self.version_manager.variable_names();
+        names.extend(self.inner_variables.keys().map(|k| k.as_str()));
+
+        // 添加父上下文中的变量名（去重）
+        if let Some(parent) = &self.parent {
+            let parent_names = parent.get_variable_names();
+            for name in parent_names {
+                if !names.contains(&name) {
+                    names.push(name);
+                }
+            }
+        }
+
+        names
+    }
+
+    fn variable_count(&self) -> usize {
+        let mut count = self.version_manager.variable_names().len() + self.inner_variables.len();
+        if let Some(parent) = &self.parent {
+            count += parent.variable_count();
+        }
+        count
+    }
+
+    fn get_all_variables(&self) -> Option<HashMap<String, Value>> {
+        let mut all_vars = HashMap::new();
+
+        // 收集当前上下文的变量
+        for name in self.version_manager.variable_names() {
+            if let Some(value) = self.version_manager.get_latest(name) {
+                all_vars.insert(name.to_string(), value.clone());
+            }
+        }
+
+        // 收集内部变量
+        for (name, value) in &self.inner_variables {
+            all_vars.insert(name.clone(), value.clone());
+        }
+
+        // 收集父上下文的变量
+        if let Some(parent) = &self.parent {
+            if let Some(parent_vars) = parent.get_all_variables() {
+                for (name, value) in parent_vars {
+                    if !all_vars.contains_key(&name) {
+                        all_vars.insert(name, value);
+                    }
+                }
+            }
+        }
+
+        Some(all_vars)
+    }
+
+    fn clear_variables(&mut self) {
+        self.version_manager.clear();
+        self.inner_variables.clear();
+    }
+}
+
+impl GraphContext for BasicExpressionContext {
     fn get_vertex(&self) -> Option<&crate::core::Vertex> {
         self.get_vertex_internal()
     }
@@ -589,32 +504,133 @@ impl crate::expression::evaluator::traits::ExpressionContext for BasicExpression
         self.paths.insert(name.clone(), rc_path.clone());
         self.set_variable(name, crate::core::Value::Path(rc_path.as_ref().clone()));
     }
+}
 
-    fn is_empty(&self) -> bool {
-        self.variables.is_empty()
-    }
-
-    fn variable_count(&self) -> usize {
-        self.variables.len()
-    }
-
-    fn variable_names(&self) -> Vec<String> {
-        self.variables.keys().cloned().collect()
-    }
-
-    fn get_all_variables(&self) -> Option<std::collections::HashMap<String, crate::core::Value>> {
-        let mut value_map = std::collections::HashMap::new();
-        for (name, value) in &self.variables {
-            value_map.insert(name.clone(), value.clone());
+impl FunctionContext for BasicExpressionContext {
+    fn get_function(&self, name: &str) -> Option<FunctionRef> {
+        // 在当前上下文中查找函数
+        if let Some(function) = self.function_registry.get(name) {
+            return Some(function);
         }
-        Some(value_map)
+
+        // 如果在当前上下文中找不到，则在父上下文中查找
+        if let Some(parent) = &self.parent {
+            parent.get_function(name)
+        } else {
+            None
+        }
+    }
+
+    fn get_function_names(&self) -> Vec<&str> {
+        let mut names = self.function_registry.function_names();
+
+        // 添加父上下文中的函数名（去重）
+        if let Some(parent) = &self.parent {
+            let parent_names = parent.get_function_names();
+            for name in parent_names {
+                if !names.contains(&name) {
+                    names.push(name);
+                }
+            }
+        }
+
+        names
+    }
+}
+
+impl CacheContext for BasicExpressionContext {
+    fn get_regex(&mut self, pattern: &str) -> Option<&regex::Regex> {
+        self.cache_manager.get_regex(pattern)
+    }
+}
+
+impl ScopedContext for BasicExpressionContext {
+    fn get_depth(&self) -> usize {
+        self.depth
+    }
+
+    fn create_child_context(&self) -> Box<dyn ExpressionContext> {
+        Box::new(BasicExpressionContext {
+            version_manager: VersionManager::new(),
+            function_registry: FunctionRegistry::new(),
+            cache_manager: CacheManager::new(),
+            parent: Some(Box::new(self.clone())),
+            depth: self.get_depth() + 1,
+            inner_variables: HashMap::new(),
+            paths: HashMap::new(),
+        })
+    }
+}
+
+impl ExpressionContext for BasicExpressionContext {
+    fn is_empty(&self) -> bool {
+        self.version_manager.variable_names().is_empty()
+            && self.inner_variables.is_empty()
+            && self.paths.is_empty()
     }
 
     fn clear(&mut self) {
-        self.variables.clear();
+        self.version_manager.clear();
+        self.function_registry.clear();
+        self.cache_manager.clear();
+        self.inner_variables.clear();
+        self.paths.clear();
+    }
+}
+
+impl crate::expression::evaluator::traits::ExpressionContext for BasicExpressionContext {
+    fn get_variable(&self, name: &str) -> Option<crate::core::Value> {
+        VariableContext::get_variable(self, name)
     }
 
-    fn get_variable_names(&self) -> Vec<&str> {
-        self.variables.keys().map(|k| k.as_str()).collect()
+    fn set_variable(&mut self, name: String, value: crate::core::Value) {
+        VariableContext::set_variable(self, name, value);
+    }
+
+    fn get_vertex(&self) -> Option<&crate::core::Vertex> {
+        GraphContext::get_vertex(self)
+    }
+
+    fn get_edge(&self) -> Option<&crate::core::Edge> {
+        GraphContext::get_edge(self)
+    }
+
+    fn get_path(&self, name: &str) -> Option<&crate::core::vertex_edge_path::Path> {
+        GraphContext::get_path(self, name)
+    }
+
+    fn set_vertex(&mut self, vertex: crate::core::Vertex) {
+        GraphContext::set_vertex(self, vertex);
+    }
+
+    fn set_edge(&mut self, edge: crate::core::Edge) {
+        GraphContext::set_edge(self, edge);
+    }
+
+    fn add_path(&mut self, name: String, path: crate::core::vertex_edge_path::Path) {
+        GraphContext::add_path(self, name, path);
+    }
+
+    fn is_empty(&self) -> bool {
+        ExpressionContext::is_empty(self)
+    }
+
+    fn variable_count(&self) -> usize {
+        VariableContext::variable_count(self)
+    }
+
+    fn variable_names(&self) -> Vec<String> {
+        VariableContext::get_variable_names(self)
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect()
+    }
+
+    fn get_all_variables(&self) -> Option<std::collections::HashMap<String, crate::core::Value>> {
+        VariableContext::get_all_variables(self)
+    }
+
+    fn clear(&mut self) {
+        ExpressionContext::clear(self);
     }
 }

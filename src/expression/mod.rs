@@ -20,18 +20,8 @@ pub use evaluator::{Evaluator, ExpressionContext, ExpressionEvaluator};
 
 // Re-export context module types
 pub use context::{
-    BasicExpressionContext, DefaultExpressionContext, ExpressionContextCoreExtended,
-    ExpressionContextType, StorageExpressionContext,
+    BasicExpressionContext, DefaultExpressionContext, ExpressionContextType, StorageExpressionContext,
 };
-
-// Re-export functions module types
-pub use functions::{
-    BuiltinFunction, ConversionFunction, CustomFunction, DateTimeFunction, ExpressionFunction,
-    FunctionRef, MathFunction, StringFunction,
-};
-
-// Re-export evaluation types
-pub use context::{EvaluationOptions, EvaluationStatistics};
 
 // Re-export error types
 pub use crate::core::error::{ExpressionError, ExpressionErrorType, ExpressionPosition};

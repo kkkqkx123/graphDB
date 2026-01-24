@@ -4,7 +4,7 @@
 //! 支持按列名和列索引访问行数据
 
 use crate::core::Value;
-use crate::expression::evaluator::traits::ExpressionContext;
+use crate::expression::context::traits::*;
 use std::collections::HashMap;
 
 /// 行表达式上下文
@@ -103,13 +103,13 @@ impl RowExpressionContext {
     pub fn to_default_context(&self) -> crate::expression::context::default_context::DefaultExpressionContext {
         let mut ctx = crate::expression::context::default_context::DefaultExpressionContext::new();
         for (name, value) in &self.variables {
-            ctx.set_variable(name.clone(), value.clone());
+            ctx = ctx.add_variable(name.clone(), value.clone());
         }
         ctx
     }
 }
 
-impl ExpressionContext for RowExpressionContext {
+impl VariableContext for RowExpressionContext {
     fn get_variable(&self, name: &str) -> Option<Value> {
         // 首先检查变量映射
         if let Some(value) = self.variables.get(name) {
@@ -134,14 +134,32 @@ impl ExpressionContext for RowExpressionContext {
         names
     }
 
-    fn has_variable(&self, name: &str) -> bool {
-        self.variables.contains_key(name) || self.has_column(name)
+    fn variable_count(&self) -> usize {
+        self.variables.len() + self.col_names.len()
     }
 
-    fn get_depth(&self) -> usize {
-        0
+    fn get_all_variables(&self) -> Option<HashMap<String, Value>> {
+        let mut all_vars = HashMap::new();
+        for (name, value) in &self.variables {
+            all_vars.insert(name.clone(), value.clone());
+        }
+        for (name, &idx) in &self.col_name_index {
+            if let Some(value) = self.row.get(idx) {
+                all_vars.insert(name.clone(), value.clone());
+            }
+        }
+        Some(all_vars)
     }
 
+    fn clear_variables(&mut self) {
+        self.row.clear();
+        self.col_names.clear();
+        self.col_name_index.clear();
+        self.variables.clear();
+    }
+}
+
+impl GraphContext for RowExpressionContext {
     fn get_vertex(&self) -> Option<&crate::core::Vertex> {
         None
     }
@@ -165,32 +183,39 @@ impl ExpressionContext for RowExpressionContext {
     fn add_path(&mut self, _name: String, _path: crate::core::vertex_edge_path::Path) {
         // 不支持
     }
+}
 
+impl FunctionContext for RowExpressionContext {
+    fn get_function(&self, _name: &str) -> Option<crate::expression::functions::FunctionRef> {
+        // RowExpressionContext 不支持函数注册
+        None
+    }
+
+    fn get_function_names(&self) -> Vec<&str> {
+        Vec::new()
+    }
+}
+
+impl CacheContext for RowExpressionContext {
+    fn get_regex(&mut self, _pattern: &str) -> Option<&regex::Regex> {
+        // RowExpressionContext 不支持缓存
+        None
+    }
+}
+
+impl ScopedContext for RowExpressionContext {
+    fn get_depth(&self) -> usize {
+        0
+    }
+
+    fn create_child_context(&self) -> Box<dyn ExpressionContext> {
+        Box::new(Self::new(self.row.clone(), self.col_names.clone()))
+    }
+}
+
+impl ExpressionContext for RowExpressionContext {
     fn is_empty(&self) -> bool {
         self.row.is_empty() && self.variables.is_empty()
-    }
-
-    fn variable_count(&self) -> usize {
-        self.variables.len() + self.col_names.len()
-    }
-
-    fn variable_names(&self) -> Vec<String> {
-        let mut names: Vec<String> = self.variables.keys().cloned().collect();
-        names.extend(self.col_names.clone());
-        names
-    }
-
-    fn get_all_variables(&self) -> Option<std::collections::HashMap<String, Value>> {
-        let mut all_vars = std::collections::HashMap::new();
-        for (name, value) in &self.variables {
-            all_vars.insert(name.clone(), value.clone());
-        }
-        for (name, &idx) in &self.col_name_index {
-            if let Some(value) = self.row.get(idx) {
-                all_vars.insert(name.clone(), value.clone());
-            }
-        }
-        Some(all_vars)
     }
 
     fn clear(&mut self) {
@@ -198,6 +223,63 @@ impl ExpressionContext for RowExpressionContext {
         self.col_names.clear();
         self.col_name_index.clear();
         self.variables.clear();
+    }
+}
+
+impl crate::expression::evaluator::traits::ExpressionContext for RowExpressionContext {
+    fn get_variable(&self, name: &str) -> Option<crate::core::Value> {
+        VariableContext::get_variable(self, name)
+    }
+
+    fn set_variable(&mut self, name: String, value: crate::core::Value) {
+        VariableContext::set_variable(self, name, value);
+    }
+
+    fn get_vertex(&self) -> Option<&crate::core::Vertex> {
+        GraphContext::get_vertex(self)
+    }
+
+    fn get_edge(&self) -> Option<&crate::core::Edge> {
+        GraphContext::get_edge(self)
+    }
+
+    fn get_path(&self, name: &str) -> Option<&crate::core::vertex_edge_path::Path> {
+        GraphContext::get_path(self, name)
+    }
+
+    fn set_vertex(&mut self, _vertex: crate::core::Vertex) {
+        // 不支持
+    }
+
+    fn set_edge(&mut self, _edge: crate::core::Edge) {
+        // 不支持
+    }
+
+    fn add_path(&mut self, _name: String, _path: crate::core::vertex_edge_path::Path) {
+        // 不支持
+    }
+
+    fn is_empty(&self) -> bool {
+        ExpressionContext::is_empty(self)
+    }
+
+    fn variable_count(&self) -> usize {
+        VariableContext::variable_count(self)
+    }
+
+    fn variable_names(&self) -> Vec<String> {
+        VariableContext::get_variable_names(self)
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect()
+    }
+
+    fn get_all_variables(&self) -> Option<std::collections::HashMap<String, crate::core::Value>> {
+        VariableContext::get_all_variables(self)
+    }
+
+    fn clear(&mut self) {
+        ExpressionContext::clear(self);
     }
 }
 
@@ -267,7 +349,6 @@ impl Default for RowExpressionContextBuilder {
 mod tests {
     use super::*;
     use crate::core::Value;
-    use crate::core::types::expression::Expression;
 
     #[test]
     fn test_row_context_basic() {
