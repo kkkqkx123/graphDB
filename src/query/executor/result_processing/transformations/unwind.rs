@@ -372,7 +372,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_unwind_executor() {
-        let config = test_config();
+        let _config = test_config();
         let storage = Arc::new(Mutex::new(MockStorage));
 
         // 创建输入数据

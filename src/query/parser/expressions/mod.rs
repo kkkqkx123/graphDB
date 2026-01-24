@@ -3,7 +3,6 @@
 //! This module provides utilities to convert AST expressions to core expressions.
 
 use crate::query::parser::ast::*;
-use crate::query::parser::{ParseError, Token, TokenKind};
 
 pub mod expression_converter;
 

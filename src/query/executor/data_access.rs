@@ -647,10 +647,6 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for AllPathsExecutor<
             let mut next_paths: Vec<Path> = Vec::new();
 
             for path in &current_paths {
-                let last_vertex_box = path.steps.last()
-                    .map(|step| step.dst.as_ref())
-                    .unwrap_or(path.src.as_ref());
-
                 let direction = self.direction;
 
                 let edges = storage.get_node_edges(&self.start_vertex, direction)?;

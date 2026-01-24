@@ -654,7 +654,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_rollup_apply_empty_right() {
-        let config = test_config();
+        let _config = test_config();
         let storage = Arc::new(Mutex::new(MockStorage));
 
         let left_values = vec![Value::Int(1), Value::Int(2)];

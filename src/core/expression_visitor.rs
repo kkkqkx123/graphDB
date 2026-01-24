@@ -6,7 +6,6 @@
 //! - GenericExpressionVisitor<T>: 泛型访问者接口，支持任意表达式类型
 
 use crate::core::types::expression::{DataType, Expression};
-use crate::core::type_system::TypeUtils;
 use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 use crate::core::Value;
 use crate::query::parser::ast::expression::*;

@@ -250,11 +250,10 @@ mod tests {
     use super::*;
     use crate::core::Expression;
     use crate::core::Value;
-    use std::collections::HashMap;
 
     #[test]
     fn test_variable_validator_creation() {
-        let validator = VariableValidator::new();
+        let _validator = VariableValidator::new();
         assert!(true);
     }
 

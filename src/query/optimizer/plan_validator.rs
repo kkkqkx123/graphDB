@@ -434,9 +434,8 @@ impl PlanValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::context::execution::QueryContext;
     use crate::core::types::expression::Expression;
-    use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
+    use crate::query::optimizer::optimizer::OptGroupNode;
     use crate::query::planner::plan::PlanNodeEnum;
 
     #[test]

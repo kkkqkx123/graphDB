@@ -118,19 +118,8 @@ mod tests {
     use super::*;
     use crate::query::context::execution::QueryContext;
     use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
-    use crate::query::planner::plan::core::nodes::ProjectNode;
 
     fn create_test_context() -> OptContext {
-        let session_info = crate::api::session::session_manager::SessionInfo {
-            session_id: 1,
-            user_name: "test_user".to_string(),
-            space_name: None,
-            graph_addr: None,
-            create_time: std::time::SystemTime::now(),
-            last_access_time: std::time::SystemTime::now(),
-            active_queries: 0,
-            timezone: None,
-        };
         let query_context = QueryContext::new();
         OptContext::new(query_context)
     }

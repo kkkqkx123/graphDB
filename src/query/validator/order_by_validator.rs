@@ -216,8 +216,7 @@ impl OrderByValidator {
                     crate::core::UnaryOperator::Plus | crate::core::UnaryOperator::Minus => {
                         let operand_type = self.deduce_expr_type(operand)?;
                         Ok(operand_type)
-                    },
-                    _ => Ok(ValueType::Unknown),
+                    }
                 }
             },
             Expression::Function { name, args: _ } => {

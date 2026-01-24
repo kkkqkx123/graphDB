@@ -886,7 +886,6 @@ mod tests {
     use crate::query::planner::plan::core::nodes::graph_scan_node::{
         GetEdgesNode, GetNeighborsNode, GetVerticesNode, ScanEdgesNode, ScanVerticesNode,
     };
-    use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
     use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
     use crate::query::planner::plan::core::nodes::project_node::ProjectNode;
     use crate::query::planner::plan::core::nodes::sort_node::LimitNode;

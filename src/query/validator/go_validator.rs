@@ -560,7 +560,6 @@ impl GoValidator {
                     UnaryOperator::Not => Ok("BOOL".to_string()),
                     UnaryOperator::IsNull | UnaryOperator::IsNotNull |
                     UnaryOperator::IsEmpty | UnaryOperator::IsNotEmpty => Ok("BOOL".to_string()),
-                    _ => Ok("ANY".to_string()),
                 }
             }
             Expression::Function { name, .. } => {

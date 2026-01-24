@@ -611,7 +611,6 @@ impl<S: StorageEngine + Send + 'static> HasStorage<S> for SortExecutor<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::test_config::test_config;
     use crate::core::value::{DataSet, Value};
     use crate::storage::MockStorage;
 
@@ -798,14 +797,14 @@ mod tests {
 
     #[test]
     fn test_compare_by_column_indices() {
-        let mut data_set = create_test_dataset();
+        let data_set = create_test_dataset();
         let sort_keys = vec![SortKey::from_column_index(2, SortOrder::Asc)];
 
         let config = SortConfig::default();
 
         let storage = Arc::new(Mutex::new(MockStorage));
 
-        let executor = SortExecutor::new(1, storage, sort_keys, None, config).expect("SortExecutor::new should succeed");
+        let mut executor = SortExecutor::new(1, storage, sort_keys, None, config).expect("SortExecutor::new should succeed");
 
         // 测试列索引比较功能
         let row1 = &data_set.rows[0]; // Alice: 85.5

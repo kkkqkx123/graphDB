@@ -7,7 +7,6 @@ use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOper
 use crate::core::Value;
 use crate::core::Expression;
 use crate::query::parser::ast::expression::*;
-use std::collections::HashSet;
 
 #[derive(Debug)]
 pub struct FindVisitor {

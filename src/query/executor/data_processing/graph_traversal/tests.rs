@@ -1,12 +1,10 @@
 #[cfg(test)]
 mod tests {
-    use crate::config::test_config::test_config;
     use crate::core::{Edge, Value, Vertex};
     use crate::query::executor::base::EdgeDirection;
     use crate::query::executor::data_processing::graph_traversal::factory::GraphTraversalExecutorFactory;
     use crate::query::executor::data_processing::graph_traversal::shortest_path::ShortestPathAlgorithm;
     use crate::query::executor::data_processing::graph_traversal::traits::GraphTraversalExecutor;
-    use crate::query::executor::data_processing::graph_traversal::traverse::TraverseExecutor;
     use crate::query::executor::traits::Executor;
     use crate::storage::{MockStorage, StorageEngine};
     use std::sync::{Arc, Mutex};

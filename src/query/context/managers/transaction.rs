@@ -339,7 +339,7 @@ mod tests {
         let tx1 = manager
             .begin_transaction(None)
             .expect("Failed to begin transaction 1");
-        let tx2 = manager
+        let _tx2 = manager
             .begin_transaction(None)
             .expect("Failed to begin transaction 2");
 

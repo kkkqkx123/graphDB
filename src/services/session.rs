@@ -50,7 +50,7 @@ pub struct Session {
 }
 
 impl Session {
-    pub fn new(user_id: Option<String>, client_info: String, connection_info: String) -> Self {
+    pub fn new(user_id: Option<String>, _client_info: String, _connection_info: String) -> Self {
         let counter = SESSION_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let session_id = (counter + 1) as i64;
         
