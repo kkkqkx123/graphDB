@@ -640,6 +640,10 @@ mod tests {
         fn batch_insert_edges(&mut self, _edges: Vec<Edge>) -> Result<(), StorageError> {
             Ok(())
         }
+
+        fn get_input(&self, _input_var: &str) -> Result<Option<Vec<Value>>, StorageError> {
+            Ok(None)
+        }
     }
 
     #[test]

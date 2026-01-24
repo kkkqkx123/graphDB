@@ -9,27 +9,19 @@ use crate::storage::StorageEngine;
 
 pub use crate::core::types::EdgeDirection;
 
-// Context for execution - holds variables and intermediate results
+// Context for execution - holds intermediate results only
 #[derive(Debug, Clone)]
 pub struct ExecutionContext {
-    pub variables: HashMap<String, Value>,
     pub results: HashMap<String, ExecutionResult>,
+    pub variables: HashMap<String, Value>,
 }
 
 impl ExecutionContext {
     pub fn new() -> Self {
         Self {
-            variables: HashMap::new(),
             results: HashMap::new(),
+            variables: HashMap::new(),
         }
-    }
-
-    pub fn set_variable(&mut self, name: String, value: Value) {
-        self.variables.insert(name, value);
-    }
-
-    pub fn get_variable(&self, name: &str) -> Option<&Value> {
-        self.variables.get(name)
     }
 
     pub fn set_result(&mut self, name: String, result: ExecutionResult) {
@@ -38,6 +30,14 @@ impl ExecutionContext {
 
     pub fn get_result(&self, name: &str) -> Option<&ExecutionResult> {
         self.results.get(name)
+    }
+
+    pub fn set_variable(&mut self, name: String, value: Value) {
+        self.variables.insert(name, value);
+    }
+
+    pub fn get_variable(&self, name: &str) -> Option<&Value> {
+        self.variables.get(name)
     }
 }
 

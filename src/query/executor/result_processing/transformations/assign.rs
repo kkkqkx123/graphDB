@@ -60,11 +60,6 @@ impl<S: StorageEngine + Send + 'static> AssignExecutor<S> {
     fn execute_assign(&mut self) -> DBResult<()> {
         let mut expr_context = DefaultExpressionContext::new();
 
-        // 从执行上下文中设置变量
-        for (name, value) in &self.base.context.variables.clone() {
-            expr_context.set_variable(name.clone(), value.clone());
-        }
-
         // 执行每个赋值项
         for (var_name, expression) in &self.assign_items {
             // 计算表达式的值
@@ -88,12 +83,15 @@ impl<S: StorageEngine + Send + 'static> AssignExecutor<S> {
                         .set_result(var_name.clone(), ExecutionResult::Values(values));
                 }
                 _ => {
-                    // 其他类型直接设置为变量
+                    // 其他类型直接设置为结果
                     self.base
                         .context
-                        .set_variable(var_name.clone(), value.clone());
+                        .set_result(var_name.clone(), ExecutionResult::Values(vec![value.clone()]));
                 }
             }
+
+            // 同时设置变量以便后续使用
+            self.base.context.set_variable(var_name.clone(), value.clone());
 
             // 同时更新表达式上下文，以便后续表达式可以使用这个变量
             expr_context.set_variable(var_name.clone(), value);

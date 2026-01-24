@@ -367,10 +367,6 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
 
         let mut expr_context = DefaultExpressionContext::new();
 
-        for (name, value) in &self.base.context.variables.clone() {
-            expr_context.set_variable(name.clone(), value.clone());
-        }
-
         let result = if self.compare_cols.is_empty() {
             let mut hash_table = List { values: Vec::new() };
             self.build_zero_key_hash_table(

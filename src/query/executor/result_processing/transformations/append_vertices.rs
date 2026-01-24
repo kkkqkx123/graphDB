@@ -107,11 +107,6 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
         // 创建表达式上下文
         let mut expr_context = DefaultExpressionContext::new();
 
-        // 从执行上下文中设置变量
-        for (name, value) in &self.base.context.variables.clone() {
-            expr_context.set_variable(name.clone(), value.clone());
-        }
-
         let mut vids = Vec::new();
         let mut seen = if self.dedup {
             Some(std::collections::HashMap::new())
@@ -210,11 +205,6 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
 
         // 创建表达式上下文
         let mut expr_context = DefaultExpressionContext::new();
-
-        // 从执行上下文中设置变量
-        for (name, value) in &self.base.context.variables.clone() {
-            expr_context.set_variable(name.clone(), value.clone());
-        }
 
         // 获取输入结果
         let _input_result = self

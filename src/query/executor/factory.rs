@@ -5,6 +5,7 @@
 
 use crate::core::{EdgeDirection, Value};
 use crate::core::error::QueryError;
+use crate::query::context::execution::QueryContext;
 use crate::query::executor::traits::Executor;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::{
@@ -21,6 +22,7 @@ use crate::query::executor::data_processing::{
     graph_traversal::{ExpandAllExecutor, MultiShortestPathExecutor, ShortestPathExecutor, TraverseExecutor},
     CrossJoinExecutor, ExpandExecutor, InnerJoinExecutor, LeftJoinExecutor,
 };
+use crate::query::executor::logic::LoopExecutor;
 use crate::query::executor::recursion_detector::{
     ExecutorSafetyConfig, ExecutorSafetyValidator, RecursionDetector,
 };
@@ -305,7 +307,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
         &self,
         plan_node: &PlanNodeEnum,
         storage: Arc<Mutex<S>>,
-        _context: &ExecutionContext,
+        context: &ExecutionContext,
     ) -> Result<Box<dyn Executor<S>>, QueryError> {
         // 验证执行器类型和配置
         self.validate_plan_node(plan_node)?;
@@ -749,12 +751,31 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
             }
 
             // 循环执行器
-            PlanNodeEnum::Loop(_node) => {
-                // 注意：循环执行器需要body_executor，这里暂时返回错误
-                // 在实际使用中，需要在构建循环执行器时传入body_executor
-                Err(QueryError::ExecutionError(
-                    "循环执行器需要body_executor，请在构建时传入".to_string(),
-                ))
+            PlanNodeEnum::Loop(node) => {
+                let body = node.body()
+                    .as_ref()
+                    .ok_or_else(|| QueryError::ExecutionError(
+                        "Loop节点缺少body".to_string(),
+                    ))?;
+                
+                let body_executor = self.create_executor(body, storage.clone(), context)?;
+                
+                let condition = node.condition()
+                    .is_empty()
+                    .then_some(node.condition().to_string())
+                    .filter(|c| !c.is_empty())
+                    .and_then(|c| {
+                        crate::query::parser::expressions::parse_expression_from_string(&c).ok()
+                    });
+                
+                let executor = LoopExecutor::new(
+                    node.id(),
+                    storage,
+                    condition,
+                    body_executor,
+                    None,
+                );
+                Ok(Box::new(executor))
             }
 
             _ => Err(QueryError::ExecutionError(format!(
@@ -767,7 +788,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
     /// 执行执行计划
     pub async fn execute_plan(
         &mut self,
-        _query_context: &mut crate::query::context::execution::QueryContext,
+        query_context: &mut QueryContext,
         plan: crate::query::planner::plan::ExecutionPlan,
     ) -> Result<crate::query::executor::traits::ExecutionResult, QueryError> {
         // 获取存储引擎
@@ -785,15 +806,18 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
         // 分析执行计划的生命周期和安全性
         self.analyze_plan_lifecycle(root_node)?;
 
+        // 检查查询是否被终止
+        if query_context.is_killed() {
+            return Err(QueryError::ExecutionError(
+                "查询已被终止".to_string()
+            ));
+        }
+
         // 创建执行上下文
         let execution_context = ExecutionContext::new();
 
-        // 设置会话和数据库信息到执行上下文中
-        // 注意：ExecutionContext 结构可能需要扩展以支持这些字段
-        // 目前我们使用基本的执行上下文，后续可以根据需要扩展
-
-        // 创建根执行器
-        let mut executor = self.create_executor(root_node, storage, &execution_context)?;
+        // 递归构建执行树并执行
+        let mut executor = self.build_and_create_executor(root_node, storage, &execution_context)?;
 
         // 执行根执行器
         let result = executor
@@ -803,6 +827,18 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
 
         // 返回执行结果
         Ok(result)
+    }
+
+    /// 递归构建执行器树
+    fn build_and_create_executor(
+        &self,
+        plan_node: &PlanNodeEnum,
+        storage: Arc<Mutex<S>>,
+        context: &ExecutionContext,
+    ) -> Result<Box<dyn Executor<S>>, QueryError> {
+        // 先递归构建子节点
+        let executor = self.create_executor(plan_node, storage, context)?;
+        Ok(executor)
     }
 }
 

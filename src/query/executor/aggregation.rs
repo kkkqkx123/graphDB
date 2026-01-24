@@ -380,13 +380,14 @@ impl<S: StorageEngine> AggregationExecutor<S> {
         }
 
         if val.is_null() || val.is_empty_value() {
+            agg_data.set_result(Value::Int(0));
             return;
         }
 
         let current = match agg_data.result() {
             Value::Int(i) => *i as f64,
             Value::Float(f) => *f,
-            Value::Null(_) => 0.0,
+            Value::Null(crate::core::value::NullType::NaN) => 0.0,
             _ => return,
         };
 
@@ -870,7 +871,7 @@ mod tests {
     fn test_agg_data_sum_update() {
         let mut agg_data = AggData::new();
         agg_data.set_result(Value::Float(10.0));
-        *agg_data.sum_mut() = 10.0;
+        *agg_data.sum_mut() = Value::Float(10.0);
         assert_eq!(agg_data.sum(), Some(&Value::Float(10.0)));
     }
 

@@ -95,11 +95,6 @@ impl<S: StorageEngine + Send + 'static> UnwindExecutor<S> {
         // 创建表达式上下文
         let mut expr_context = DefaultExpressionContext::new();
 
-        // 从执行上下文中设置变量
-        for (name, value) in &self.base.context.variables.clone() {
-            expr_context.set_variable(name.clone(), value.clone());
-        }
-
         // 创建输出数据集
         let mut dataset = DataSet {
             col_names: self.col_names.clone(),
