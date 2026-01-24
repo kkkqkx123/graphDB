@@ -22,7 +22,7 @@ pub mod registry;
 pub use signature::{FunctionSignature, ValueType, RegisteredFunction};
 pub use registry::{FunctionRegistry, global_registry};
 
-use crate::core::error::ExpressionError;
+use crate::core::error::{ExpressionError, ExpressionErrorType};
 use crate::core::types::operators::AggregateFunction;
 use crate::core::Value;
 
@@ -33,6 +33,56 @@ pub enum FunctionRef<'a> {
     Builtin(&'a BuiltinFunction),
     /// 自定义函数引用
     Custom(&'a CustomFunction),
+}
+
+/// 拥有所有权的函数引用
+#[derive(Debug, Clone)]
+pub enum OwnedFunctionRef {
+    /// 内置函数引用（拥有所有权）
+    Builtin(BuiltinFunction),
+    /// 自定义函数引用（拥有所有权）
+    Custom(CustomFunction),
+}
+
+impl<'a> From<FunctionRef<'a>> for OwnedFunctionRef {
+    fn from(func_ref: FunctionRef<'a>) -> Self {
+        match func_ref {
+            FunctionRef::Builtin(f) => OwnedFunctionRef::Builtin(f.clone()),
+            FunctionRef::Custom(f) => OwnedFunctionRef::Custom(f.clone()),
+        }
+    }
+}
+
+impl OwnedFunctionRef {
+    pub fn name(&self) -> &str {
+        match self {
+            OwnedFunctionRef::Builtin(f) => f.name(),
+            OwnedFunctionRef::Custom(f) => f.name(),
+        }
+    }
+
+    pub fn execute(&self, args: &[Value]) -> Result<Value, ExpressionError> {
+        match self {
+            OwnedFunctionRef::Builtin(f) => f.execute(args),
+            OwnedFunctionRef::Custom(f) => f.execute(args),
+        }
+    }
+
+    pub fn execute_with_cache<C>(&self, args: &[Value], cache: &mut C) -> Result<Value, ExpressionError>
+    where
+        C: crate::expression::context::traits::CacheContext,
+    {
+        match self {
+            OwnedFunctionRef::Builtin(f) => {
+                if let BuiltinFunction::Regex(regex_func) = f {
+                    regex_func.execute_with_cache(args, cache)
+                } else {
+                    f.execute(args)
+                }
+            }
+            OwnedFunctionRef::Custom(f) => f.execute(args),
+        }
+    }
 }
 
 /// 表达式函数特征
@@ -53,6 +103,28 @@ pub trait ExpressionFunction: Send + Sync {
     fn description(&self) -> &str;
 }
 
+/// 缓存感知函数特征
+///
+/// 允许函数访问上下文的缓存管理器，用于优化需要缓存的函数（如正则表达式）
+pub trait CachedFunction: Send + Sync {
+    /// 获取函数名称
+    fn name(&self) -> &str;
+
+    /// 获取参数数量
+    fn arity(&self) -> usize;
+
+    /// 检查是否接受可变参数
+    fn is_variadic(&self) -> bool;
+
+    /// 执行函数（带缓存访问）
+    fn execute_with_cache<C>(&self, args: &[Value], cache: &mut C) -> Result<Value, ExpressionError>
+    where
+        C: crate::expression::context::traits::CacheContext;
+
+    /// 获取函数描述
+    fn description(&self) -> &str;
+}
+
 /// 内置函数类型，避免动态分发
 #[derive(Debug, Clone)]
 pub enum BuiltinFunction {
@@ -60,6 +132,8 @@ pub enum BuiltinFunction {
     Math(MathFunction),
     /// 字符串函数
     String(StringFunction),
+    /// 正则表达式函数
+    Regex(RegexFunction),
     /// 聚合函数
     Aggregate(AggregateFunction),
     /// 类型转换函数
@@ -97,6 +171,14 @@ pub enum StringFunction {
     Contains,
     StartsWith,
     EndsWith,
+}
+
+/// 正则表达式函数
+#[derive(Debug, Clone, PartialEq)]
+pub enum RegexFunction {
+    RegexMatch,
+    RegexReplace,
+    RegexFind,
 }
 
 /// 类型转换函数
@@ -142,6 +224,7 @@ impl ExpressionFunction for BuiltinFunction {
         match self {
             BuiltinFunction::Math(f) => f.name(),
             BuiltinFunction::String(f) => f.name(),
+            BuiltinFunction::Regex(f) => f.name(),
             BuiltinFunction::Aggregate(f) => f.name(),
             BuiltinFunction::Conversion(f) => f.name(),
             BuiltinFunction::DateTime(f) => f.name(),
@@ -152,6 +235,7 @@ impl ExpressionFunction for BuiltinFunction {
         match self {
             BuiltinFunction::Math(f) => f.arity(),
             BuiltinFunction::String(f) => f.arity(),
+            BuiltinFunction::Regex(f) => f.arity(),
             BuiltinFunction::Aggregate(f) => f.arity(),
             BuiltinFunction::Conversion(f) => f.arity(),
             BuiltinFunction::DateTime(f) => f.arity(),
@@ -162,6 +246,7 @@ impl ExpressionFunction for BuiltinFunction {
         match self {
             BuiltinFunction::Math(f) => f.is_variadic(),
             BuiltinFunction::String(f) => f.is_variadic(),
+            BuiltinFunction::Regex(f) => f.is_variadic(),
             BuiltinFunction::Aggregate(f) => f.is_variadic(),
             BuiltinFunction::Conversion(f) => f.is_variadic(),
             BuiltinFunction::DateTime(f) => f.is_variadic(),
@@ -180,6 +265,7 @@ impl ExpressionFunction for BuiltinFunction {
         match self {
             BuiltinFunction::Math(f) => f.description(),
             BuiltinFunction::String(f) => f.description(),
+            BuiltinFunction::Regex(f) => f.description(),
             BuiltinFunction::Aggregate(f) => f.description(),
             BuiltinFunction::Conversion(f) => f.description(),
             BuiltinFunction::DateTime(f) => f.description(),
@@ -287,6 +373,36 @@ impl StringFunction {
             StringFunction::Contains => "检查是否包含子字符串",
             StringFunction::StartsWith => "检查是否以指定字符串开头",
             StringFunction::EndsWith => "检查是否以指定字符串结尾",
+        }
+    }
+}
+
+impl RegexFunction {
+    pub fn name(&self) -> &str {
+        match self {
+            RegexFunction::RegexMatch => "regex_match",
+            RegexFunction::RegexReplace => "regex_replace",
+            RegexFunction::RegexFind => "regex_find",
+        }
+    }
+
+    pub fn arity(&self) -> usize {
+        match self {
+            RegexFunction::RegexMatch => 2,
+            RegexFunction::RegexReplace => 3,
+            RegexFunction::RegexFind => 2,
+        }
+    }
+
+    pub fn is_variadic(&self) -> bool {
+        false
+    }
+
+    pub fn description(&self) -> &str {
+        match self {
+            RegexFunction::RegexMatch => "正则表达式匹配",
+            RegexFunction::RegexReplace => "正则表达式替换",
+            RegexFunction::RegexFind => "正则表达式查找",
         }
     }
 }
@@ -451,5 +567,106 @@ impl FunctionRef<'_> {
             FunctionRef::Builtin(f) => f.description(),
             FunctionRef::Custom(f) => f.description(),
         }
+    }
+
+    /// 执行函数（带缓存）
+    pub fn execute_with_cache<C>(&self, args: &[Value], cache: &mut C) -> Result<Value, ExpressionError>
+    where
+        C: crate::expression::context::traits::CacheContext,
+    {
+        match self {
+            FunctionRef::Builtin(f) => {
+                if let BuiltinFunction::Regex(regex_func) = f {
+                    regex_func.execute_with_cache(args, cache)
+                } else {
+                    f.execute(args)
+                }
+            }
+            FunctionRef::Custom(f) => f.execute(args),
+        }
+    }
+}
+
+impl CachedFunction for RegexFunction {
+    fn name(&self) -> &str {
+        self.name()
+    }
+
+    fn arity(&self) -> usize {
+        self.arity()
+    }
+
+    fn is_variadic(&self) -> bool {
+        self.is_variadic()
+    }
+
+    fn execute_with_cache<C>(&self, args: &[Value], cache: &mut C) -> Result<Value, ExpressionError>
+    where
+        C: crate::expression::context::traits::CacheContext,
+    {
+        match self {
+            RegexFunction::RegexMatch => {
+                match (&args[0], &args[1]) {
+                    (Value::String(s), Value::String(pattern)) => {
+                        if let Some(regex) = cache.get_regex(pattern) {
+                            Ok(Value::Bool(regex.is_match(s)))
+                        } else {
+                            Err(ExpressionError::new(
+                                ExpressionErrorType::InvalidOperation,
+                                format!("无效的正则表达式: {}", pattern),
+                            ))
+                        }
+                    }
+                    (Value::Null(_), _) | (_, Value::Null(_)) => {
+                        Ok(Value::Null(crate::core::value::NullType::Null))
+                    }
+                    _ => Err(ExpressionError::type_error("regex_match函数需要字符串类型")),
+                }
+            }
+            RegexFunction::RegexReplace => {
+                match (&args[0], &args[1], &args[2]) {
+                    (Value::String(s), Value::String(pattern), Value::String(replacement)) => {
+                        if let Some(regex) = cache.get_regex(pattern) {
+                            Ok(Value::String(regex.replace_all(s, replacement.as_str()).to_string()))
+                        } else {
+                            Err(ExpressionError::new(
+                                ExpressionErrorType::InvalidOperation,
+                                format!("无效的正则表达式: {}", pattern),
+                            ))
+                        }
+                    }
+                    (Value::Null(_), _, _) | (_, Value::Null(_), _) | (_, _, Value::Null(_)) => {
+                        Ok(Value::Null(crate::core::value::NullType::Null))
+                    }
+                    _ => Err(ExpressionError::type_error("regex_replace函数需要字符串类型")),
+                }
+            }
+            RegexFunction::RegexFind => {
+                match (&args[0], &args[1]) {
+                    (Value::String(s), Value::String(pattern)) => {
+                        if let Some(regex) = cache.get_regex(pattern) {
+                            if let Some(matched) = regex.find(s) {
+                                Ok(Value::String(matched.as_str().to_string()))
+                            } else {
+                                Ok(Value::Null(crate::core::value::NullType::Null))
+                            }
+                        } else {
+                            Err(ExpressionError::new(
+                                ExpressionErrorType::InvalidOperation,
+                                format!("无效的正则表达式: {}", pattern),
+                            ))
+                        }
+                    }
+                    (Value::Null(_), _) | (_, Value::Null(_)) => {
+                        Ok(Value::Null(crate::core::value::NullType::Null))
+                    }
+                    _ => Err(ExpressionError::type_error("regex_find函数需要字符串类型")),
+                }
+            }
+        }
+    }
+
+    fn description(&self) -> &str {
+        self.description()
     }
 }

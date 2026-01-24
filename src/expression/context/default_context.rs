@@ -5,6 +5,8 @@
 use crate::core::{Edge, Value, Vertex};
 use crate::core::error::ExpressionError;
 use crate::expression::context::{
+    cache_manager::CacheManager,
+    function_registry::FunctionRegistry,
     traits::*,
     version_manager::VersionManager,
 };
@@ -53,21 +55,27 @@ pub trait StorageExpressionContext: ExpressionContext {
     /// 获取源顶点属性值
     fn get_src_prop(&self, tag: &str, prop: &str) -> Result<Value, ExpressionError>;
 
-    /// 获取顶点
-    fn get_vertex(&self, name: &str) -> Result<Value, ExpressionError>;
+    /// 获取顶点（按标签名）
+    fn get_vertex_by_tag(&self, name: &str) -> Result<Value, ExpressionError>;
 
-    /// 获取边
-    fn get_edge(&self) -> Result<Value, ExpressionError>;
+    /// 获取边（作为值）
+    fn get_edge_value(&self) -> Result<Value, ExpressionError>;
 }
 
 /// 简单的表达式上下文实现
 ///
 /// 轻量级上下文，适用于大部分表达式求值场景
 /// 使用 VersionManager 管理变量，支持版本控制
+/// 使用 FunctionRegistry 管理函数，支持自定义函数
+/// 使用 CacheManager 管理缓存，提升性能
 #[derive(Clone, Debug)]
 pub struct DefaultExpressionContext {
     /// 版本管理器
     version_manager: VersionManager,
+    /// 函数注册表
+    function_registry: FunctionRegistry,
+    /// 缓存管理器
+    cache_manager: CacheManager,
     /// 顶点
     vertex: Option<Vertex>,
     /// 边
@@ -81,10 +89,91 @@ impl DefaultExpressionContext {
     pub fn new() -> Self {
         Self {
             version_manager: VersionManager::new(),
+            function_registry: FunctionRegistry::new(),
+            cache_manager: CacheManager::new(),
             vertex: None,
             edge: None,
             paths: HashMap::new(),
         }
+    }
+
+    /// 创建带有全局函数注册表的上下文
+    pub fn with_global_functions() -> Self {
+        let mut context = Self::new();
+        context.register_global_functions();
+        context
+    }
+
+    /// 注册全局函数
+    pub fn register_global_functions(&mut self) {
+        use crate::expression::functions::{BuiltinFunction, MathFunction, StringFunction, RegexFunction, ConversionFunction, DateTimeFunction};
+        
+        self.function_registry.register_builtin(BuiltinFunction::Math(MathFunction::Abs));
+        self.function_registry.register_builtin(BuiltinFunction::Math(MathFunction::Sqrt));
+        self.function_registry.register_builtin(BuiltinFunction::Math(MathFunction::Pow));
+        self.function_registry.register_builtin(BuiltinFunction::Math(MathFunction::Log));
+        self.function_registry.register_builtin(BuiltinFunction::Math(MathFunction::Log10));
+        self.function_registry.register_builtin(BuiltinFunction::Math(MathFunction::Sin));
+        self.function_registry.register_builtin(BuiltinFunction::Math(MathFunction::Cos));
+        self.function_registry.register_builtin(BuiltinFunction::Math(MathFunction::Tan));
+        self.function_registry.register_builtin(BuiltinFunction::Math(MathFunction::Round));
+        self.function_registry.register_builtin(BuiltinFunction::Math(MathFunction::Ceil));
+        self.function_registry.register_builtin(BuiltinFunction::Math(MathFunction::Floor));
+
+        self.function_registry.register_builtin(BuiltinFunction::String(StringFunction::Length));
+        self.function_registry.register_builtin(BuiltinFunction::String(StringFunction::Upper));
+        self.function_registry.register_builtin(BuiltinFunction::String(StringFunction::Lower));
+        self.function_registry.register_builtin(BuiltinFunction::String(StringFunction::Trim));
+        self.function_registry.register_builtin(BuiltinFunction::String(StringFunction::Substring));
+        self.function_registry.register_builtin(BuiltinFunction::String(StringFunction::Concat));
+        self.function_registry.register_builtin(BuiltinFunction::String(StringFunction::Replace));
+        self.function_registry.register_builtin(BuiltinFunction::String(StringFunction::Contains));
+        self.function_registry.register_builtin(BuiltinFunction::String(StringFunction::StartsWith));
+        self.function_registry.register_builtin(BuiltinFunction::String(StringFunction::EndsWith));
+
+        self.function_registry.register_builtin(BuiltinFunction::Regex(RegexFunction::RegexMatch));
+        self.function_registry.register_builtin(BuiltinFunction::Regex(RegexFunction::RegexReplace));
+        self.function_registry.register_builtin(BuiltinFunction::Regex(RegexFunction::RegexFind));
+
+        self.function_registry.register_builtin(BuiltinFunction::Conversion(ConversionFunction::ToString));
+        self.function_registry.register_builtin(BuiltinFunction::Conversion(ConversionFunction::ToInt));
+        self.function_registry.register_builtin(BuiltinFunction::Conversion(ConversionFunction::ToFloat));
+        self.function_registry.register_builtin(BuiltinFunction::Conversion(ConversionFunction::ToBool));
+
+        self.function_registry.register_builtin(BuiltinFunction::DateTime(DateTimeFunction::Now));
+        self.function_registry.register_builtin(BuiltinFunction::DateTime(DateTimeFunction::Date));
+        self.function_registry.register_builtin(BuiltinFunction::DateTime(DateTimeFunction::Time));
+        self.function_registry.register_builtin(BuiltinFunction::DateTime(DateTimeFunction::Year));
+        self.function_registry.register_builtin(BuiltinFunction::DateTime(DateTimeFunction::Month));
+        self.function_registry.register_builtin(BuiltinFunction::DateTime(DateTimeFunction::Day));
+        self.function_registry.register_builtin(BuiltinFunction::DateTime(DateTimeFunction::Hour));
+        self.function_registry.register_builtin(BuiltinFunction::DateTime(DateTimeFunction::Minute));
+        self.function_registry.register_builtin(BuiltinFunction::DateTime(DateTimeFunction::Second));
+    }
+
+    /// 注册自定义函数
+    pub fn register_function(&mut self, function: crate::expression::functions::CustomFunction) {
+        self.function_registry.register_custom(function);
+    }
+
+    /// 获取函数注册表引用
+    pub fn function_registry(&self) -> &FunctionRegistry {
+        &self.function_registry
+    }
+
+    /// 获取函数注册表可变引用
+    pub fn function_registry_mut(&mut self) -> &mut FunctionRegistry {
+        &mut self.function_registry
+    }
+
+    /// 获取缓存管理器引用
+    pub fn cache_manager(&self) -> &CacheManager {
+        &self.cache_manager
+    }
+
+    /// 获取缓存管理器可变引用
+    pub fn cache_manager_mut(&mut self) -> &mut CacheManager {
+        &mut self.cache_manager
     }
 
     /// 设置顶点
@@ -215,20 +304,18 @@ impl GraphContext for DefaultExpressionContext {
 }
 
 impl FunctionContext for DefaultExpressionContext {
-    fn get_function(&self, _name: &str) -> Option<crate::expression::functions::FunctionRef> {
-        // DefaultExpressionContext 不支持函数注册
-        None
+    fn get_function(&self, name: &str) -> Option<crate::expression::functions::FunctionRef> {
+        self.function_registry.get(name)
     }
 
     fn get_function_names(&self) -> Vec<&str> {
-        Vec::new()
+        self.function_registry.function_names()
     }
 }
 
 impl CacheContext for DefaultExpressionContext {
-    fn get_regex(&mut self, _pattern: &str) -> Option<&regex::Regex> {
-        // DefaultExpressionContext 不支持缓存
-        None
+    fn get_regex(&mut self, pattern: &str) -> Option<&regex::Regex> {
+        self.cache_manager.get_regex_internal(pattern)
     }
 }
 
@@ -392,7 +479,7 @@ impl StorageExpressionContext for DefaultExpressionContext {
         }
     }
 
-    fn get_vertex(&self, name: &str) -> Result<Value, ExpressionError> {
+    fn get_vertex_by_tag(&self, name: &str) -> Result<Value, ExpressionError> {
         if let Some(vertex) = &self.vertex {
             if vertex.has_tag(name) {
                 Ok(Value::Vertex(Box::new(vertex.clone())))
@@ -404,7 +491,7 @@ impl StorageExpressionContext for DefaultExpressionContext {
         }
     }
 
-    fn get_edge(&self) -> Result<Value, ExpressionError> {
+    fn get_edge_value(&self) -> Result<Value, ExpressionError> {
         self.edge.as_ref()
             .map(|e| Value::Edge(e.clone()))
             .ok_or_else(|| ExpressionError::type_error("上下文中没有边"))
@@ -465,5 +552,17 @@ impl crate::expression::evaluator::traits::ExpressionContext for DefaultExpressi
 
     fn clear(&mut self) {
         ExpressionContext::clear(self);
+    }
+
+    fn get_function(&self, name: &str) -> Option<crate::expression::functions::FunctionRef> {
+        FunctionContext::get_function(self, name)
+    }
+
+    fn supports_cache(&self) -> bool {
+        true
+    }
+
+    fn get_cache(&mut self) -> Option<&mut crate::expression::context::cache_manager::CacheManager> {
+        Some(&mut self.cache_manager)
     }
 }

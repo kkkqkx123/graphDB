@@ -25,8 +25,8 @@ impl CacheManager {
         }
     }
 
-    /// 获取或编译正则表达式
-    pub fn get_regex(&mut self, pattern: &str) -> Option<&Regex> {
+    /// 获取或编译正则表达式（内部方法）
+    pub fn get_regex_internal(&mut self, pattern: &str) -> Option<&Regex> {
         if !self.regex_cache.contains_key(pattern) {
             if let Ok(regex) = Regex::new(pattern) {
                 self.regex_cache.insert(pattern.to_string(), regex);
@@ -120,6 +120,12 @@ impl CacheManager {
     }
 }
 
+impl crate::expression::context::traits::CacheContext for CacheManager {
+    fn get_regex(&mut self, pattern: &str) -> Option<&regex::Regex> {
+        self.get_regex_internal(pattern)
+    }
+}
+
 impl Default for CacheManager {
     fn default() -> Self {
         Self::new()
@@ -134,12 +140,12 @@ mod tests {
     fn test_cache_manager_regex() {
         let mut cache = CacheManager::new();
 
-        let regex = cache.get_regex(r"\d+");
+        let regex = cache.get_regex_internal(r"\d+");
         assert!(regex.is_some());
         assert!(regex.unwrap().is_match("123"));
         assert_eq!(cache.regex_count(), 1);
 
-        let regex2 = cache.get_regex(r"\d+");
+        let regex2 = cache.get_regex_internal(r"\d+");
         assert!(regex2.is_some());
         assert_eq!(cache.regex_count(), 1);
     }
@@ -148,7 +154,7 @@ mod tests {
     fn test_cache_manager_regex_invalid() {
         let mut cache = CacheManager::new();
 
-        let regex = cache.get_regex(r"[invalid");
+        let regex = cache.get_regex_internal(r"[invalid");
         assert!(regex.is_none());
         assert_eq!(cache.regex_count(), 0);
     }
@@ -170,7 +176,7 @@ mod tests {
     fn test_cache_manager_clear() {
         let mut cache = CacheManager::new();
 
-        cache.get_regex(r"\d+");
+        cache.get_regex_internal(r"\d+");
         cache.set_generic("key1".to_string(), "value1".to_string());
 
         assert_eq!(cache.total_count(), 2);
@@ -181,7 +187,7 @@ mod tests {
         cache.clear_generic();
         assert_eq!(cache.total_count(), 0);
 
-        cache.get_regex(r"\d+");
+        cache.get_regex_internal(r"\d+");
         cache.set_generic("key1".to_string(), "value1".to_string());
 
         cache.clear();
@@ -192,9 +198,9 @@ mod tests {
     fn test_cache_manager_patterns() {
         let mut cache = CacheManager::new();
 
-        cache.get_regex(r"\d+");
-        cache.get_regex(r"[a-z]+");
-        cache.get_regex(r"\w+");
+        cache.get_regex_internal(r"\d+");
+        cache.get_regex_internal(r"[a-z]+");
+        cache.get_regex_internal(r"\w+");
 
         let patterns = cache.regex_patterns();
         assert_eq!(patterns.len(), 3);

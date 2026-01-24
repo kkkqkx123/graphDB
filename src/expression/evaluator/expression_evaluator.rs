@@ -80,7 +80,30 @@ impl ExpressionEvaluator {
                     .map(|arg| self.visit_with_context(arg, context))
                     .collect();
                 let arg_values = arg_values?;
-                global_registry().execute(name, &arg_values)
+                
+                // 先获取函数（不可变借用）
+                let func_ref = context.get_function(name);
+                
+                if let Some(func_ref) = func_ref {
+                    // 转换为拥有所有权的函数引用以避免借用问题
+                    let owned_func: crate::expression::functions::OwnedFunctionRef = func_ref.clone().into();
+                    
+                    // 显式释放 func_ref 的借用
+                    drop(func_ref);
+                    
+                    // 如果上下文支持缓存，使用缓存感知执行
+                    if context.supports_cache() {
+                        // 获取缓存（可变借用）
+                        if let Some(cache) = context.get_cache() {
+                            return owned_func.execute_with_cache(&arg_values, cache);
+                        }
+                    }
+                    // 否则使用普通执行
+                    owned_func.execute(&arg_values)
+                } else {
+                    // 如果上下文中没有，则使用全局注册表
+                    global_registry().execute(name, &arg_values)
+                }
             }
 
             // 聚合函数 - 直接求值

@@ -587,6 +587,10 @@ impl crate::expression::evaluator::traits::ExpressionContext for BasicExpression
         VariableContext::set_variable(self, name, value);
     }
 
+    fn get_function(&self, name: &str) -> Option<crate::expression::functions::FunctionRef> {
+        self.function_registry.get(name)
+    }
+
     fn get_vertex(&self) -> Option<&crate::core::Vertex> {
         GraphContext::get_vertex(self)
     }

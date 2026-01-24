@@ -51,6 +51,11 @@ pub trait ExpressionContext {
     /// 设置变量值
     fn set_variable(&mut self, name: String, value: Value);
 
+    /// 获取函数引用
+    fn get_function(&self, name: &str) -> Option<crate::expression::functions::FunctionRef> {
+        None
+    }
+
     /// 检查变量是否存在
     fn has_variable(&self, name: &str) -> bool {
         self.get_variable(name).is_some()
@@ -59,6 +64,16 @@ pub trait ExpressionContext {
     /// 获取上下文深度
     fn get_depth(&self) -> usize {
         0 // 默认实现
+    }
+
+    /// 检查上下文是否支持缓存
+    fn supports_cache(&self) -> bool {
+        false // 默认实现：不支持缓存
+    }
+
+    /// 获取缓存管理器（如果支持）
+    fn get_cache(&mut self) -> Option<&mut crate::expression::context::cache_manager::CacheManager> {
+        None // 默认实现：无缓存
     }
 
     // 图数据库特有功能
