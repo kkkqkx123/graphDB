@@ -25,7 +25,7 @@ pub struct ExpandExecutor<S: StorageEngine> {
     pub sample_limit: Option<usize>, // 采样限制
     input_executor: Option<Box<dyn Executor<S>>>,
     // 缓存已访问的节点，用于避免循环
-    visited_nodes: HashSet<Value>,
+    pub visited_nodes: HashSet<Value>,
     // 邻接关系缓存
     adjacency_cache: HashMap<Value, Vec<Value>>,
     // 当前扩展步数
@@ -146,55 +146,15 @@ impl<S: StorageEngine> ExpandExecutor<S> {
 
     /// 获取节点的邻居节点
     async fn get_neighbors(&self, node_id: &Value) -> Result<Vec<Value>, QueryError> {
-        let storage = safe_lock(self.get_storage())
-            .expect("ExpandExecutor storage lock should not be poisoned");
-
-        // 获取节点的所有边
-        let edges = storage
-            .get_node_edges(node_id, EdgeDirection::Both)
-            .map_err(|e| QueryError::StorageError(e.to_string()))?;
-
-        // 过滤边类型
-        let filtered_edges = if let Some(ref edge_types) = self.edge_types {
-            edges
-                .into_iter()
-                .filter(|edge| edge_types.contains(&edge.edge_type))
-                .collect()
-        } else {
-            edges
-        };
-
-        // 根据方向过滤边并提取邻居节点ID
-        let neighbors = filtered_edges
-            .into_iter()
-            .filter_map(|edge| match self.edge_direction {
-                EdgeDirection::In => {
-                    if *edge.dst == *node_id {
-                        Some((*edge.src).clone())
-                    } else {
-                        None
-                    }
-                }
-                EdgeDirection::Out => {
-                    if *edge.src == *node_id {
-                        Some((*edge.dst).clone())
-                    } else {
-                        None
-                    }
-                }
-                EdgeDirection::Both => {
-                    if *edge.src == *node_id {
-                        Some((*edge.dst).clone())
-                    } else if *edge.dst == *node_id {
-                        Some((*edge.src).clone())
-                    } else {
-                        None
-                    }
-                }
-            })
-            .collect();
-
-        Ok(neighbors)
+        let storage = self.base.get_storage().clone();
+        super::traversal_utils::get_neighbors(
+            &storage,
+            node_id,
+            self.edge_direction,
+            &self.edge_types,
+        )
+        .await
+        .map_err(|e| QueryError::StorageError(e.to_string()))
     }
 
     /// 执行单步扩展

@@ -3,6 +3,7 @@
 //! 负责根据执行计划创建对应的执行器实例
 //! 采用直接匹配模式，简单高效，易于维护
 
+use crate::core::{EdgeDirection, Value};
 use crate::core::error::QueryError;
 use crate::query::executor::traits::Executor;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
@@ -15,8 +16,9 @@ use std::sync::{Arc, Mutex};
 
 // 导入已实现的执行器
 use crate::query::executor::base::{ExecutionContext, StartExecutor};
-use crate::query::executor::data_access::GetVerticesExecutor;
+use crate::query::executor::data_access::{AllPathsExecutor, GetVerticesExecutor};
 use crate::query::executor::data_processing::{
+    graph_traversal::{ExpandAllExecutor, MultiShortestPathExecutor, ShortestPathExecutor, TraverseExecutor},
     CrossJoinExecutor, ExpandExecutor, InnerJoinExecutor, LeftJoinExecutor,
 };
 use crate::query::executor::recursion_detector::{
@@ -27,6 +29,28 @@ use crate::query::executor::result_processing::{
     PatternApplyExecutor, ProjectExecutor, RollUpApplyExecutor, SampleExecutor, SampleMethod, SortExecutor,
     TopNExecutor, UnwindExecutor,
 };
+
+/// 从 PlanNode 提取顶点 ID 列表
+/// 用于多源最短路径等算法获取起始和目标顶点
+fn extract_vertex_ids_from_node(node: &PlanNodeEnum) -> Vec<Value> {
+    match node {
+        PlanNodeEnum::GetVertices(n) => {
+            vec![Value::from(format!("vertex_{}", n.id()))]
+        }
+        PlanNodeEnum::ScanVertices(n) => {
+            vec![Value::from(format!("scan_{}", n.id()))]
+        }
+        PlanNodeEnum::Project(n) => {
+            vec![Value::from(format!("project_{}", n.id()))]
+        }
+        PlanNodeEnum::Start(_) => {
+            vec![Value::from("__start__")]
+        }
+        _ => {
+            vec![Value::from(format!("node_{}", node.id()))]
+        }
+    }
+}
 
 /// 执行器工厂
 ///
@@ -473,6 +497,135 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                         Some(node.edge_types().to_vec())
                     },
                     node.step_limit().and_then(|s| usize::try_from(s).ok()),
+                );
+                Ok(Box::new(executor))
+            }
+
+            // ExpandAll执行器 - 支持GO语句的多步扩展
+            PlanNodeEnum::ExpandAll(node) => {
+                self.safety_validator
+                    .validate_expand_config(node.step_limit().and_then(|s| usize::try_from(s).ok()))
+                    .map_err(|e| QueryError::ExecutionError(e.to_string()))?;
+
+                let executor = ExpandAllExecutor::new(
+                    node.id(),
+                    storage,
+                    node.direction().into(),
+                    if node.edge_types().is_empty() {
+                        None
+                    } else {
+                        Some(node.edge_types().to_vec())
+                    },
+                    node.step_limit().and_then(|s| usize::try_from(s).ok()),
+                );
+                Ok(Box::new(executor))
+            }
+
+            // Traverse执行器 - 支持MATCH语句的路径遍历
+            PlanNodeEnum::Traverse(node) => {
+                let executor = TraverseExecutor::new(
+                    node.id(),
+                    storage,
+                    node.direction().into(),
+                    if node.edge_types().is_empty() {
+                        None
+                    } else {
+                        Some(node.edge_types().to_vec())
+                    },
+                    node.step_limit().and_then(|s| usize::try_from(s).ok()),
+                    node.filter().cloned(),
+                );
+                Ok(Box::new(executor))
+            }
+
+            // AllPaths执行器 - 查找所有路径
+            PlanNodeEnum::AllPaths(node) => {
+                let start_vertex = if let Some(first_dep) = node.deps.first() {
+                    extract_vertex_ids_from_node(first_dep)
+                        .into_iter()
+                        .next()
+                        .unwrap_or_else(|| Value::from("start"))
+                } else {
+                    Value::from("start")
+                };
+
+                let executor = AllPathsExecutor::new(
+                    node.id(),
+                    storage,
+                    start_vertex,
+                    None,
+                    node.max_hop(),
+                    if node.edge_types.is_empty() {
+                        None
+                    } else {
+                        Some(node.edge_types.clone())
+                    },
+                    EdgeDirection::Both,
+                );
+                Ok(Box::new(executor))
+            }
+
+            // 最短路径执行器 - 单对单最短路径
+            PlanNodeEnum::ShortestPath(node) => {
+                let start_vertex_ids = if let Some(left) = node.deps.first() {
+                    extract_vertex_ids_from_node(left)
+                } else {
+                    vec![Value::from("start")]
+                };
+
+                let end_vertex_ids = if let Some(right) = node.deps.get(1) {
+                    extract_vertex_ids_from_node(right)
+                } else {
+                    vec![Value::from("end")]
+                };
+
+                let executor = crate::query::executor::data_processing::graph_traversal::ShortestPathExecutor::new(
+                    node.id(),
+                    storage,
+                    start_vertex_ids,
+                    end_vertex_ids,
+                    EdgeDirection::Both,
+                    if node.edge_types.is_empty() {
+                        None
+                    } else {
+                        Some(node.edge_types.clone())
+                    },
+                    Some(node.max_step()),
+                    crate::query::executor::data_processing::graph_traversal::ShortestPathAlgorithm::BFS,
+                );
+                Ok(Box::new(executor))
+            }
+
+            // MultiShortestPath执行器 - 多源最短路径
+            PlanNodeEnum::MultiShortestPath(node) => {
+                let left_vids = if node.left_vid_var.is_empty() {
+                    if let Some(left) = node.deps.first() {
+                        extract_vertex_ids_from_node(left)
+                    } else {
+                        vec![Value::from("left_start")]
+                    }
+                } else {
+                    vec![Value::from(node.left_vid_var.as_str())]
+                };
+
+                let right_vids = if node.right_vid_var.is_empty() {
+                    if let Some(right) = node.deps.get(1) {
+                        extract_vertex_ids_from_node(right)
+                    } else {
+                        vec![Value::from("right_target")]
+                    }
+                } else {
+                    vec![Value::from(node.right_vid_var.as_str())]
+                };
+
+                let executor = crate::query::executor::data_processing::graph_traversal::MultiShortestPathExecutor::new(
+                    node.id(),
+                    storage,
+                    left_vids,
+                    right_vids,
+                    node.steps(),
+                    None,
+                    node.single_shortest(),
                 );
                 Ok(Box::new(executor))
             }

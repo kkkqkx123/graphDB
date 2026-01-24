@@ -1,6 +1,7 @@
 use super::*;
 use crate::query::executor::data_processing::graph_traversal::expand::ExpandExecutor;
 use crate::query::executor::data_processing::graph_traversal::expand_all::ExpandAllExecutor;
+use crate::query::executor::data_processing::graph_traversal::shortest_path::ShortestPathAlgorithm;
 use crate::query::executor::data_processing::graph_traversal::shortest_path::ShortestPathExecutor;
 use crate::query::executor::data_processing::graph_traversal::traits::TraversalStats;
 use crate::query::executor::data_processing::graph_traversal::traverse::TraverseExecutor;
@@ -37,7 +38,6 @@ macro_rules! impl_graph_traversal_executor {
             }
 
             fn validate_config(&self) -> Result<(), String> {
-                // 基本配置验证
                 if let Some(max_depth) = self.max_depth {
                     if max_depth == 0 {
                         return Err("最大深度不能为0".to_string());
@@ -47,19 +47,68 @@ macro_rules! impl_graph_traversal_executor {
             }
 
             fn get_stats(&self) -> TraversalStats {
-                // 默认统计信息
                 TraversalStats::default()
             }
         }
     };
 }
 
-// 为所有图遍历执行器实现通用特征
-impl_graph_traversal_executor!(ExpandExecutor<S>);
+/// 宏定义：为具有访问节点统计的执行器实现通用统计信息
+macro_rules! impl_graph_traversal_executor_with_stats {
+    ($executor:ty, $visited_nodes_field:ident) => {
+        impl<S: crate::storage::StorageEngine> GraphTraversalExecutor<S> for $executor {
+            fn set_edge_direction(
+                &mut self,
+                direction: crate::query::executor::base::EdgeDirection,
+            ) {
+                self.edge_direction = direction;
+            }
 
-// 使用宏为其他执行器实现通用特征
-impl_graph_traversal_executor!(ExpandAllExecutor<S>);
-impl_graph_traversal_executor!(TraverseExecutor<S>);
+            fn set_edge_types(&mut self, edge_types: Option<Vec<String>>) {
+                self.edge_types = edge_types;
+            }
+
+            fn set_max_depth(&mut self, max_depth: Option<usize>) {
+                self.max_depth = max_depth;
+            }
+
+            fn get_edge_direction(&self) -> crate::query::executor::base::EdgeDirection {
+                self.edge_direction.clone()
+            }
+
+            fn get_edge_types(&self) -> Option<Vec<String>> {
+                self.edge_types.clone()
+            }
+
+            fn get_max_depth(&self) -> Option<usize> {
+                self.max_depth
+            }
+
+            fn validate_config(&self) -> Result<(), String> {
+                if let Some(max_depth) = self.max_depth {
+                    if max_depth == 0 {
+                        return Err("最大深度不能为0".to_string());
+                    }
+                }
+                Ok(())
+            }
+
+            fn get_stats(&self) -> TraversalStats {
+                TraversalStats {
+                    nodes_visited: self.$visited_nodes_field.len(),
+                    edges_traversed: 0,
+                    execution_time_ms: 0,
+                    max_depth_reached: self.max_depth.unwrap_or(0),
+                }
+            }
+        }
+    };
+}
+
+// 使用带统计的宏为具有 visited_nodes 字段的执行器实现通用特征
+impl_graph_traversal_executor_with_stats!(ExpandExecutor<S>, visited_nodes);
+impl_graph_traversal_executor_with_stats!(ExpandAllExecutor<S>, visited_nodes);
+impl_graph_traversal_executor_with_stats!(TraverseExecutor<S>, visited_nodes);
 
 /// 为ShortestPathExecutor提供特殊实现
 impl<S: crate::storage::StorageEngine> GraphTraversalExecutor<S> for ShortestPathExecutor<S> {
@@ -99,8 +148,20 @@ impl<S: crate::storage::StorageEngine> GraphTraversalExecutor<S> for ShortestPat
         }
 
         // 验证算法选择是否有效
-        // 注意：algorithm字段是私有的，这里暂时跳过验证
-        // 在实际实现中，应该通过公共方法来获取算法类型
+        let algorithm = self.get_algorithm();
+        match algorithm {
+            ShortestPathAlgorithm::Dijkstra | ShortestPathAlgorithm::BFS | ShortestPathAlgorithm::AStar => {
+                // 所有枚举变体都是有效的
+            }
+        }
+
+        // 验证起始节点和结束节点配置
+        if self.get_start_vertex_ids().is_empty() {
+            return Err("最短路径必须配置至少一个起始节点".to_string());
+        }
+        if self.get_end_vertex_ids().is_empty() {
+            return Err("最短路径必须配置至少一个结束节点".to_string());
+        }
 
         Ok(())
     }

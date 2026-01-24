@@ -16,11 +16,14 @@ pub mod shortest_path;
 pub mod tests;
 pub mod traits;
 pub mod traverse;
+pub mod traversal_utils;
 
 // 重新导出主要类型
 pub use expand::ExpandExecutor;
 pub use expand_all::ExpandAllExecutor;
-pub use shortest_path::{ShortestPathAlgorithm, ShortestPathExecutor};
+pub use shortest_path::{
+    MultiShortestPathExecutor, ShortestPathAlgorithm, ShortestPathExecutor,
+};
 pub use traverse::TraverseExecutor;
 
 // 导出通用特征和工厂

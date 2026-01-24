@@ -208,6 +208,9 @@ pub struct ExpandAllNode {
     edge_types: Vec<String>,
     direction: String,
     step_limit: Option<u32>,
+    step_limits: Option<Vec<u32>>,
+    join_input: bool,
+    sample: bool,
 
     edge_props: Vec<EdgeProp>,
 
@@ -227,12 +230,15 @@ impl Clone for ExpandAllNode {
             edge_types: self.edge_types.clone(),
             direction: self.direction.clone(),
             step_limit: self.step_limit,
+            step_limits: self.step_limits.clone(),
+            join_input: self.join_input,
+            sample: self.sample,
             edge_props: self.edge_props.clone(),
             vertex_props: self.vertex_props.clone(),
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
-            dependencies: Vec::new(), // 依赖关系不复制，因为它们在新的上下文中无效
+            dependencies: Vec::new(),
         }
     }
 }
@@ -245,6 +251,9 @@ impl ExpandAllNode {
             edge_types,
             direction: direction.to_string(),
             step_limit: None,
+            step_limits: None,
+            join_input: false,
+            sample: false,
             edge_props: Vec::new(),
             vertex_props: Vec::new(),
             output_var: None,
@@ -252,6 +261,36 @@ impl ExpandAllNode {
             cost: 0.0,
             dependencies: Vec::new(),
         }
+    }
+
+    /// 获取步数限制列表
+    pub fn step_limits(&self) -> Option<&Vec<u32>> {
+        self.step_limits.as_ref()
+    }
+
+    /// 设置步数限制列表
+    pub fn set_step_limits(&mut self, limits: Vec<u32>) {
+        self.step_limits = Some(limits);
+    }
+
+    /// 获取是否连接输入
+    pub fn join_input(&self) -> bool {
+        self.join_input
+    }
+
+    /// 设置是否连接输入
+    pub fn set_join_input(&mut self, join: bool) {
+        self.join_input = join;
+    }
+
+    /// 获取是否采样
+    pub fn sample(&self) -> bool {
+        self.sample
+    }
+
+    /// 设置是否采样
+    pub fn set_sample(&mut self, sample: bool) {
+        self.sample = sample;
     }
 
     /// 获取边类型
@@ -411,6 +450,7 @@ pub struct TraverseNode {
     direction: String,
     step_limit: Option<u32>,
     filter: Option<String>,
+    track_prev_path: bool,
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
@@ -427,10 +467,11 @@ impl Clone for TraverseNode {
             direction: self.direction.clone(),
             step_limit: self.step_limit,
             filter: self.filter.clone(),
+            track_prev_path: self.track_prev_path,
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
-            dependencies: Vec::new(), // 依赖关系不复制，因为它们在新的上下文中无效
+            dependencies: Vec::new(),
         }
     }
 }
@@ -444,11 +485,22 @@ impl TraverseNode {
             direction: direction.to_string(),
             step_limit: None,
             filter: None,
+            track_prev_path: false,
             output_var: None,
             col_names: Vec::new(),
             cost: 0.0,
             dependencies: Vec::new(),
         }
+    }
+
+    /// 获取是否追踪前序路径
+    pub fn track_prev_path(&self) -> bool {
+        self.track_prev_path
+    }
+
+    /// 设置是否追踪前序路径
+    pub fn set_track_prev_path(&mut self, track: bool) {
+        self.track_prev_path = track;
     }
 
     /// 获取边类型

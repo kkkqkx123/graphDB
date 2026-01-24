@@ -103,6 +103,36 @@ impl<S: StorageEngine> ShortestPathExecutor<S> {
         }
     }
 
+    /// 获取当前使用的最短路径算法
+    pub fn get_algorithm(&self) -> ShortestPathAlgorithm {
+        self.algorithm.clone()
+    }
+
+    /// 设置最短路径算法
+    pub fn set_algorithm(&mut self, algorithm: ShortestPathAlgorithm) {
+        self.algorithm = algorithm;
+    }
+
+    /// 获取起始节点ID列表
+    pub fn get_start_vertex_ids(&self) -> &Vec<Value> {
+        &self.start_vertex_ids
+    }
+
+    /// 获取结束节点ID列表
+    pub fn get_end_vertex_ids(&self) -> &Vec<Value> {
+        &self.end_vertex_ids
+    }
+
+    /// 设置起始节点ID列表
+    pub fn set_start_vertex_ids(&mut self, ids: Vec<Value>) {
+        self.start_vertex_ids = ids;
+    }
+
+    /// 设置结束节点ID列表
+    pub fn set_end_vertex_ids(&mut self, ids: Vec<Value>) {
+        self.end_vertex_ids = ids;
+    }
+
     /// 获取节点的邻居节点和对应的边
     async fn get_neighbors_with_edges(
         &self,
@@ -493,5 +523,326 @@ impl<S: StorageEngine + Send> HasStorage<S> for ShortestPathExecutor<S> {
             .storage
             .as_ref()
             .expect("ShortestPathExecutor storage should be set")
+    }
+}
+
+/// MultiShortestPathExecutor - 多源最短路径执行器
+///
+/// 计算多组起始节点到目标节点之间的最短路径
+/// 使用双向 BFS 算法，同时从两侧扩展以提高效率
+/// 适用于社交网络分析、推荐系统等场景
+pub struct MultiShortestPathExecutor<S: StorageEngine> {
+    base: BaseExecutor<S>,
+    left_start_vertices: Vec<Value>,
+    right_target_vertices: Vec<Value>,
+    max_steps: usize,
+    edge_types: Option<Vec<String>>,
+    single_shortest: bool,
+    input_executor: Option<Box<dyn Executor<S>>>,
+    left_visited: HashSet<Value>,
+    right_visited: HashSet<Value>,
+    left_paths: HashMap<Value, Vec<Path>>,
+    right_paths: HashMap<Value, Vec<Path>>,
+    history_left_paths: HashMap<Value, HashMap<Value, Vec<Path>>>,
+    history_right_paths: HashMap<Value, HashMap<Value, Vec<Path>>>,
+    current_step: usize,
+    result_paths: Vec<Path>,
+}
+
+impl<S: StorageEngine> std::fmt::Debug for MultiShortestPathExecutor<S> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MultiShortestPathExecutor")
+            .field("base", &"BaseExecutor")
+            .field("left_start_vertices", &self.left_start_vertices)
+            .field("right_target_vertices", &self.right_target_vertices)
+            .field("max_steps", &self.max_steps)
+            .field("single_shortest", &self.single_shortest)
+            .field("input_executor", &"Option<Box<dyn Executor<S>>>")
+            .field("current_step", &self.current_step)
+            .finish()
+    }
+}
+
+impl<S: StorageEngine> MultiShortestPathExecutor<S> {
+    pub fn new(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        left_start_vertices: Vec<Value>,
+        right_target_vertices: Vec<Value>,
+        max_steps: usize,
+        edge_types: Option<Vec<String>>,
+        single_shortest: bool,
+    ) -> Self {
+        Self {
+            base: BaseExecutor::new(id, "MultiShortestPathExecutor".to_string(), storage),
+            left_start_vertices,
+            right_target_vertices,
+            max_steps,
+            edge_types,
+            single_shortest,
+            input_executor: None,
+            left_visited: HashSet::new(),
+            right_visited: HashSet::new(),
+            left_paths: HashMap::new(),
+            right_paths: HashMap::new(),
+            history_left_paths: HashMap::new(),
+            history_right_paths: HashMap::new(),
+            current_step: 1,
+            result_paths: Vec::new(),
+        }
+    }
+
+    fn get_neighbors_with_edges(
+        &self,
+        node_id: &Value,
+    ) -> Result<Vec<(Value, Edge)>, QueryError> {
+        let storage = safe_lock(&*self.get_storage())
+            .expect("MultiShortestPathExecutor storage lock should not be poisoned");
+
+        let edges = storage
+            .get_node_edges(node_id, EdgeDirection::Both)
+            .map_err(|e| QueryError::StorageError(e.to_string()))?;
+
+        let filtered_edges = if let Some(ref edge_types) = self.edge_types {
+            edges
+                .into_iter()
+                .filter(|edge| edge_types.contains(&edge.edge_type))
+                .collect()
+        } else {
+            edges
+        };
+
+        Ok(filtered_edges
+            .into_iter()
+            .map(|edge| (*edge.dst.clone(), edge))
+            .collect())
+    }
+
+    fn build_left_paths(&mut self) -> Result<(), QueryError> {
+        self.left_paths.clear();
+
+        let mut initial_data: Vec<(Value, Path, Value)> = Vec::new();
+        for start_vertex in &self.left_start_vertices {
+            let storage = safe_lock(&*self.get_storage())
+                .expect("MultiShortestPathExecutor storage lock should not be poisoned");
+
+            if let Ok(Some(vertex)) = storage.get_node(start_vertex) {
+                let path = Path {
+                    src: Box::new(vertex),
+                    steps: Vec::new(),
+                };
+                initial_data.push((start_vertex.clone(), path, start_vertex.clone()));
+            }
+        }
+
+        for (vid, path, visited_vid) in initial_data {
+            self.left_paths.insert(vid, vec![path]);
+            self.left_visited.insert(visited_vid);
+        }
+
+        let mut new_discoveries: Vec<(Value, Path)> = Vec::new();
+        for (current_id, paths) in &self.left_paths {
+            let neighbors = self.get_neighbors_with_edges(current_id)?;
+            for (neighbor_id, edge) in neighbors {
+                if self.left_visited.contains(&neighbor_id) {
+                    continue;
+                }
+
+                self.left_visited.insert(neighbor_id.clone());
+
+                let edge_clone = edge.clone();
+                for path in paths {
+                    let storage = safe_lock(&*self.get_storage())
+                        .expect("MultiShortestPathExecutor storage lock should not be poisoned");
+
+                    if let Ok(Some(dst_vertex)) = storage.get_node(&neighbor_id) {
+                        let mut new_path = path.clone();
+                        new_path.steps.push(Step {
+                            dst: Box::new(dst_vertex),
+                            edge: Box::new(edge_clone.clone()),
+                        });
+                        new_discoveries.push((neighbor_id.clone(), new_path));
+                    }
+                }
+            }
+        }
+
+        for (vid, path) in new_discoveries {
+            self.left_paths
+                .entry(vid)
+                .or_insert_with(Vec::new)
+                .push(path);
+        }
+
+        Ok(())
+    }
+
+    fn build_right_paths(&mut self) -> Result<(), QueryError> {
+        self.right_paths.clear();
+
+        let mut initial_data: Vec<(Value, Path, Value)> = Vec::new();
+        for target_vertex in &self.right_target_vertices {
+            let storage = safe_lock(&*self.get_storage())
+                .expect("MultiShortestPathExecutor storage lock should not be poisoned");
+
+            if let Ok(Some(vertex)) = storage.get_node(target_vertex) {
+                let path = Path {
+                    src: Box::new(vertex),
+                    steps: Vec::new(),
+                };
+                initial_data.push((target_vertex.clone(), path, target_vertex.clone()));
+            }
+        }
+
+        for (vid, path, visited_vid) in initial_data {
+            self.right_paths.insert(vid, vec![path]);
+            self.right_visited.insert(visited_vid);
+        }
+
+        let mut new_discoveries: Vec<(Value, Path)> = Vec::new();
+        for (current_id, paths) in &self.right_paths {
+            let neighbors = self.get_neighbors_with_edges(current_id)?;
+            for (neighbor_id, edge) in neighbors {
+                if self.right_visited.contains(&neighbor_id) {
+                    continue;
+                }
+
+                self.right_visited.insert(neighbor_id.clone());
+
+                let edge_clone = edge.clone();
+                for path in paths {
+                    let storage = safe_lock(&*self.get_storage())
+                        .expect("MultiShortestPathExecutor storage lock should not be poisoned");
+
+                    if let Ok(Some(dst_vertex)) = storage.get_node(&neighbor_id) {
+                        let mut new_path = path.clone();
+                        new_path.steps.push(Step {
+                            dst: Box::new(dst_vertex),
+                            edge: Box::new(edge_clone.clone()),
+                        });
+                        new_discoveries.push((neighbor_id.clone(), new_path));
+                    }
+                }
+            }
+        }
+
+        for (vid, path) in new_discoveries {
+            self.right_paths
+                .entry(vid)
+                .or_insert_with(Vec::new)
+                .push(path);
+        }
+
+        Ok(())
+    }
+
+    fn conjunct_paths(&mut self) {
+        let meet_points: Vec<(Value, Vec<Path>, Vec<Path>)> = self
+            .left_paths
+            .iter()
+            .filter_map(|(left_vid, left_path_list)| {
+                self.right_paths
+                    .get(left_vid)
+                    .map(|right_path_list| {
+                        (
+                            left_vid.clone(),
+                            left_path_list.clone(),
+                            right_path_list.clone(),
+                        )
+                    })
+            })
+            .collect();
+
+        for (_meet_vid, left_list, right_list) in meet_points {
+            for left_path in left_list {
+                for right_path in &right_list {
+                    let mut combined_path = left_path.clone();
+                    for step in right_path.steps.iter().rev() {
+                        combined_path.steps.push(step.clone());
+                    }
+                    self.result_paths.push(combined_path);
+                }
+            }
+        }
+    }
+}
+
+impl<S: StorageEngine> InputExecutor<S> for MultiShortestPathExecutor<S> {
+    fn set_input(&mut self, input: Box<dyn Executor<S>>) {
+        self.input_executor = Some(input);
+    }
+
+    fn get_input(&self) -> Option<&Box<dyn Executor<S>>> {
+        self.input_executor.as_ref()
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for MultiShortestPathExecutor<S> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+        if self.left_start_vertices.is_empty() || self.right_target_vertices.is_empty() {
+            return Ok(ExecutionResult::Paths(vec![]));
+        }
+
+        if self.current_step > self.max_steps {
+            return Ok(ExecutionResult::Paths(self.result_paths.clone()));
+        }
+
+        let _ = self.build_left_paths();
+        let _ = self.build_right_paths();
+
+        self.conjunct_paths();
+
+        self.current_step += 1;
+
+        if self.single_shortest && !self.result_paths.is_empty() {
+            self.result_paths.sort_by(|a, b| a.steps.len().cmp(&b.steps.len()));
+            self.result_paths.truncate(1);
+        }
+
+        Ok(ExecutionResult::Paths(self.result_paths.clone()))
+    }
+
+    fn open(&mut self) -> DBResult<()> {
+        self.base.open()?;
+        Ok(())
+    }
+
+    fn close(&mut self) -> DBResult<()> {
+        self.base.close()?;
+        Ok(())
+    }
+
+    fn is_open(&self) -> bool {
+        self.base.is_open()
+    }
+
+    fn id(&self) -> i64 {
+        self.base.id
+    }
+
+    fn name(&self) -> &str {
+        &self.base.name
+    }
+
+    fn description(&self) -> &str {
+        &self.base.description
+    }
+
+    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats()
+    }
+
+    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats_mut()
+    }
+}
+
+impl<S: StorageEngine + Send> HasStorage<S> for MultiShortestPathExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base
+            .storage
+            .as_ref()
+            .expect("MultiShortestPathExecutor storage should be set")
     }
 }

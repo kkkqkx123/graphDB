@@ -26,7 +26,7 @@ pub struct TraverseExecutor<S: StorageEngine> {
     // 遍历状态
     current_paths: Vec<Path>,
     completed_paths: Vec<Path>,
-    visited_nodes: HashSet<Value>,
+    pub visited_nodes: HashSet<Value>,
     // 遍历配置
     track_prev_path: bool,
     generate_path: bool,
@@ -92,55 +92,15 @@ impl<S: StorageEngine> TraverseExecutor<S> {
         &self,
         node_id: &Value,
     ) -> Result<Vec<(Value, Edge)>, QueryError> {
-        let storage = safe_lock(self.get_storage())
-            .expect("TraverseExecutor storage lock should not be poisoned");
-
-        // 获取节点的所有边
-        let edges = storage
-            .get_node_edges(node_id, EdgeDirection::Both)
-            .map_err(|e| QueryError::StorageError(e.to_string()))?;
-
-        // 过滤边类型
-        let filtered_edges = if let Some(ref edge_types) = self.edge_types {
-            edges
-                .into_iter()
-                .filter(|edge| edge_types.contains(&edge.edge_type))
-                .collect()
-        } else {
-            edges
-        };
-
-        // 根据方向过滤边并提取邻居节点ID和边
-        let neighbors_with_edges = filtered_edges
-            .into_iter()
-            .filter_map(|edge| match self.edge_direction {
-                EdgeDirection::In => {
-                    if *edge.dst == *node_id {
-                        Some(((*edge.src).clone(), edge))
-                    } else {
-                        None
-                    }
-                }
-                EdgeDirection::Out => {
-                    if *edge.src == *node_id {
-                        Some(((*edge.dst).clone(), edge))
-                    } else {
-                        None
-                    }
-                }
-                EdgeDirection::Both => {
-                    if *edge.src == *node_id {
-                        Some(((*edge.dst).clone(), edge))
-                    } else if *edge.dst == *node_id {
-                        Some(((*edge.src).clone(), edge))
-                    } else {
-                        None
-                    }
-                }
-            })
-            .collect();
-
-        Ok(neighbors_with_edges)
+        let storage = self.base.get_storage().clone();
+        super::traversal_utils::get_neighbors_with_edges(
+            &storage,
+            node_id,
+            self.edge_direction,
+            &self.edge_types,
+        )
+        .await
+        .map_err(|e| QueryError::StorageError(e.to_string()))
     }
 
     /// 检查条件是否满足
