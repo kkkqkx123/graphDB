@@ -9,8 +9,6 @@
 //!
 //! 基于nebula-graph的join实现，使用哈希连接算法优化性能
 
-use crate::core::Expression;
-
 pub mod base_join;
 pub mod cross_join;
 pub mod full_outer_join;

@@ -165,7 +165,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_assign_executor() {
-        let config = test_config();
+        let _config = test_config();
         let storage = Arc::new(Mutex::new(MockStorage));
 
         // 创建赋值项

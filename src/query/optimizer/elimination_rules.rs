@@ -571,7 +571,7 @@ mod tests {
     use crate::query::optimizer::rule_traits::is_tautology;
     use crate::query::planner::plan::algorithms::IndexScan;
     use crate::query::planner::plan::core::nodes::{
-        AppendVerticesNode, DedupNode, FilterNode, ProjectNode, SortNode, StartNode,
+        AppendVerticesNode, DedupNode, FilterNode, ProjectNode, StartNode,
     };
 
     fn create_test_context() -> OptContext {

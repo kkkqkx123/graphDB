@@ -72,7 +72,7 @@ impl Planner for PathPlanner {
                 .collect();
         }
 
-        let min_hops = path_ctx.traverse.steps.m_steps as usize;
+        let _min_hops = path_ctx.traverse.steps.m_steps as usize;
         let max_hops = if path_ctx.traverse.steps.is_m_to_n {
             path_ctx.traverse.steps.n_steps as usize
         } else {

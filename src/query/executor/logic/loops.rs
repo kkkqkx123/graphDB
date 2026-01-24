@@ -521,7 +521,6 @@ impl<S: StorageEngine + Send + 'static> HasStorage<S> for ForLoopExecutor<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::value::NullType;
     use crate::core::BinaryOperator;
     use crate::query::executor::traits::ExecutorStats;
     use crate::storage::test_mock::MockStorage;

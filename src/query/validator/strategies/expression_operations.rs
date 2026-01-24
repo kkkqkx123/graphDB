@@ -507,7 +507,7 @@ mod tests {
 
     #[test]
     fn test_expression_operations_validator_creation() {
-        let validator = ExpressionOperationsValidator::new();
+        let _validator = ExpressionOperationsValidator::new();
         assert!(true);
     }
 

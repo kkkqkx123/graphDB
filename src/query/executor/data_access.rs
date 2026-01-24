@@ -654,7 +654,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for AllPathsExecutor<
                 for edge in edges {
                     let neighbor_id = edge.dst.clone();
 
-                    if let Some(ref end_vertex) = self.end_vertex {
+                    if let Some(ref _end_vertex) = self.end_vertex {
                         continue;
                     }
 

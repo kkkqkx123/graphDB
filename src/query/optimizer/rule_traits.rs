@@ -723,7 +723,7 @@ mod tests {
         use crate::query::context::execution::QueryContext;
 
         // 创建测试上下文
-        let session_info = crate::api::session::session_manager::SessionInfo {
+        let _session_info = crate::api::session::session_manager::SessionInfo {
             session_id: 1,
             user_name: "test_user".to_string(),
             space_name: None,

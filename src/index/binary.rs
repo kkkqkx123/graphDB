@@ -326,7 +326,7 @@ impl IndexBinaryEncoder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::{DateValue, DateTimeValue, TimeValue};
+    use crate::core::{DateValue, DateTimeValue};
 
     #[test]
     fn test_encode_decode_int64() {

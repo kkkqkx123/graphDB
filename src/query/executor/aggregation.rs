@@ -513,7 +513,6 @@ mod tests {
             base: BaseExecutor::new(1, "test".to_string(), Arc::new(Mutex::new(crate::storage::MockStorage))),
             aggregation_functions: vec![],
             group_by_keys: vec![],
-            filter_condition: None,
         };
 
         // 测试从顶点提取age字段

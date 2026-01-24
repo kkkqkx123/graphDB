@@ -106,7 +106,7 @@ impl<S: StorageEngine + 'static> QueryPipelineManager<S> {
     /// 生成执行计划
     fn generate_execution_plan(
         &mut self,
-        query_context: &mut QueryContext,
+        _query_context: &mut QueryContext,
         ast: &crate::query::context::ast::QueryAstContext,
     ) -> DBResult<crate::query::planner::plan::ExecutionPlan> {
         let ast_ctx = ast.base_context();

@@ -1014,7 +1014,7 @@ mod tests {
     use crate::query::planner::plan::algorithms::IndexScan;
 
     fn create_test_context() -> OptContext {
-        let session_info = crate::api::session::session_manager::SessionInfo {
+        let _session_info = crate::api::session::session_manager::SessionInfo {
             session_id: 1,
             user_name: "test_user".to_string(),
             space_name: None,

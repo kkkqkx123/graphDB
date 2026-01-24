@@ -319,7 +319,6 @@ mod tests {
     use crate::query::executor::HasStorage;
     use crate::query::executor::traits::{ExecutionResult, Executor, ExecutorStats};
     use crate::storage::test_mock::MockStorage;
-    use crate::storage::StorageEngine;
 
     // 模拟输入执行器
     struct MockInputExecutor {

@@ -872,7 +872,7 @@ mod tests {
     #[test]
     fn test_unterminated_string() {
         let input = r#""hello"#;
-        let mut lexer = Lexer::new(input);
+        let lexer = Lexer::new(input);
         assert!(lexer.has_errors());
         assert!(!lexer.errors().is_empty());
     }

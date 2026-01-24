@@ -5,7 +5,6 @@ use crate::core::types::expression::Expression;
 use crate::core::expression_visitor::{ExpressionVisitor, ExpressionVisitorState};
 use crate::core::Value;
 use crate::core::{AggregateFunction, BinaryOperator, DataType, UnaryOperator};
-use crate::query::parser::ast::expression::*;
 use std::collections::{HashMap, HashSet};
 
 /// 属性定义
