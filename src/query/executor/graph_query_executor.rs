@@ -4,8 +4,9 @@
 //! 支持MATCH、CREATE、DELETE等图操作语句
 
 use crate::core::error::{DBError, DBResult, QueryError};
+use crate::query::executor::admin as admin_executor;
 use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
-use crate::query::parser::ast::stmt::Stmt;
+use crate::query::parser::ast::stmt::{AlterStmt, ChangePasswordStmt, DescStmt, DropStmt, Stmt};
 use crate::storage::StorageEngine;
 use crate::common::thread::ThreadPool;
 use async_trait::async_trait;
@@ -47,7 +48,7 @@ impl<S: StorageEngine> std::fmt::Debug for GraphQueryExecutor<S> {
     }
 }
 
-impl<S: StorageEngine> GraphQueryExecutor<S> {
+impl<S: StorageEngine + 'static> GraphQueryExecutor<S> {
     /// 创建新的图查询执行器
     pub fn new(id: i64, storage: Arc<Mutex<S>>) -> Self {
         let thread_pool = Some(Arc::new(ThreadPool::new(4)));
@@ -122,6 +123,10 @@ impl<S: StorageEngine> GraphQueryExecutor<S> {
             Stmt::Set(clause) => self.execute_set(clause).await,
             Stmt::Remove(clause) => self.execute_remove(clause).await,
             Stmt::Pipe(clause) => self.execute_pipe(clause).await,
+            Stmt::Drop(clause) => self.execute_drop(clause).await,
+            Stmt::Desc(clause) => self.execute_desc(clause).await,
+            Stmt::Alter(clause) => self.execute_alter(clause).await,
+            Stmt::ChangePassword(clause) => self.execute_change_password(clause).await,
         }
     }
 
@@ -207,6 +212,105 @@ impl<S: StorageEngine> GraphQueryExecutor<S> {
 
     async fn execute_pipe(&mut self, _clause: crate::query::parser::ast::stmt::PipeStmt) -> Result<ExecutionResult, DBError> {
         Err(DBError::Query(QueryError::ExecutionError("PIPE语句执行未实现".to_string())))
+    }
+
+    async fn execute_drop(&mut self, clause: DropStmt) -> Result<ExecutionResult, DBError> {
+        use crate::query::parser::ast::stmt::DropTarget;
+        let id = self.id;
+
+        match clause.target {
+            DropTarget::Space(space_name) => {
+                let mut executor = admin_executor::DropSpaceExecutor::new(id, self.storage.clone(), space_name);
+                executor.open()?;
+                executor.execute().await.map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
+            }
+            DropTarget::Tag { space_name, tag_name } => {
+                let mut executor = admin_executor::DropTagExecutor::new(id, self.storage.clone(), space_name, tag_name);
+                executor.open()?;
+                executor.execute().await.map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
+            }
+            DropTarget::Edge { space_name, edge_name } => {
+                let mut executor = admin_executor::DropEdgeExecutor::new(id, self.storage.clone(), space_name, edge_name);
+                executor.open()?;
+                executor.execute().await.map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
+            }
+            DropTarget::TagIndex { space_name, index_name } => {
+                let mut executor = admin_executor::DropTagIndexExecutor::new(id, self.storage.clone(), space_name, index_name);
+                executor.open()?;
+                executor.execute().await.map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
+            }
+            DropTarget::EdgeIndex { space_name, index_name } => {
+                let mut executor = admin_executor::DropEdgeIndexExecutor::new(id, self.storage.clone(), space_name, index_name);
+                executor.open()?;
+                executor.execute().await.map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
+            }
+        }
+    }
+
+    async fn execute_desc(&mut self, clause: DescStmt) -> Result<ExecutionResult, DBError> {
+        use crate::query::parser::ast::stmt::DescTarget;
+        let id = self.id;
+
+        match clause.target {
+            DescTarget::Space(space_name) => {
+                let mut executor = admin_executor::DescSpaceExecutor::new(id, self.storage.clone(), space_name);
+                executor.open()?;
+                executor.execute().await.map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
+            }
+            DescTarget::Tag { space_name, tag_name } => {
+                let mut executor = admin_executor::DescTagExecutor::new(id, self.storage.clone(), space_name, tag_name);
+                executor.open()?;
+                executor.execute().await.map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
+            }
+            DescTarget::Edge { space_name, edge_name } => {
+                let mut executor = admin_executor::DescEdgeExecutor::new(id, self.storage.clone(), space_name, edge_name);
+                executor.open()?;
+                executor.execute().await.map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
+            }
+        }
+    }
+
+    async fn execute_alter(&mut self, clause: AlterStmt) -> Result<ExecutionResult, DBError> {
+        use crate::query::parser::ast::stmt::AlterTarget;
+        use admin_executor::{AlterEdgeExecutor, AlterTagExecutor, AlterEdgeInfo, AlterTagInfo, AlterTagItem, AlterEdgeItem, AlterTagOp, AlterEdgeOp};
+        let id = self.id;
+
+        match clause.target {
+            AlterTarget::Tag { space_name, tag_name, additions, deletions: _ } => {
+                let mut items = Vec::new();
+                for prop in additions {
+                    items.push(AlterTagItem::add_property(prop));
+                }
+                let alter_info = AlterTagInfo::new(space_name, tag_name).with_items(items);
+                let mut executor = AlterTagExecutor::new(id, self.storage.clone(), alter_info);
+                executor.open()?;
+                executor.execute().await.map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
+            }
+            AlterTarget::Edge { space_name, edge_name, additions, deletions: _ } => {
+                let mut items = Vec::new();
+                for prop in additions {
+                    items.push(AlterEdgeItem::add_property(prop));
+                }
+                let alter_info = AlterEdgeInfo::new(space_name, edge_name).with_items(items);
+                let mut executor = AlterEdgeExecutor::new(id, self.storage.clone(), alter_info);
+                executor.open()?;
+                executor.execute().await.map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
+            }
+        }
+    }
+
+    async fn execute_change_password(&mut self, clause: ChangePasswordStmt) -> Result<ExecutionResult, DBError> {
+        use admin_executor::{ChangePasswordExecutor, PasswordInfo};
+        let id = self.id;
+
+        let password_info = PasswordInfo {
+            username: clause.username,
+            old_password: clause.old_password,
+            new_password: clause.new_password,
+        };
+        let mut executor = ChangePasswordExecutor::new(id, self.storage.clone(), password_info);
+        executor.open()?;
+        executor.execute().await.map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
     }
 }
 

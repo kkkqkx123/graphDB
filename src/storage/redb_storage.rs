@@ -1,6 +1,11 @@
 use super::{StorageEngine, TransactionId};
 use crate::common::fs::FileLock;
 use crate::core::{Edge, StorageError, Value, Vertex, EdgeDirection};
+use crate::core::types::{
+    SpaceInfo, TagInfo, EdgeTypeSchema, IndexInfo,
+    PropertyDef, InsertVertexInfo, InsertEdgeInfo, UpdateInfo,
+    PasswordInfo,
+};
 use bincode;
 use lru::LruCache;
 use redb::{Database, ReadableTable, TableDefinition, TypeName};
@@ -885,5 +890,131 @@ impl StorageEngine for RedbStorage {
 
     fn get_input(&self, _input_var: &str) -> Result<Option<Vec<Value>>, StorageError> {
         Ok(None)
+    }
+
+    // ========== 空间管理 ==========
+    fn create_space(&mut self, _space: &SpaceInfo) -> Result<bool, StorageError> {
+        Err(StorageError::NotSupported("create_space not supported in RedbStorage".to_string()))
+    }
+
+    fn drop_space(&mut self, _space_name: &str) -> Result<bool, StorageError> {
+        Err(StorageError::NotSupported("drop_space not supported in RedbStorage".to_string()))
+    }
+
+    fn get_space(&self, _space_name: &str) -> Result<Option<SpaceInfo>, StorageError> {
+        Err(StorageError::NotSupported("get_space not supported in RedbStorage".to_string()))
+    }
+
+    fn list_spaces(&self) -> Result<Vec<SpaceInfo>, StorageError> {
+        Err(StorageError::NotSupported("list_spaces not supported in RedbStorage".to_string()))
+    }
+
+    // ========== 标签管理 ==========
+    fn create_tag(&mut self, _info: &TagInfo) -> Result<bool, StorageError> {
+        Err(StorageError::NotSupported("create_tag not supported in RedbStorage".to_string()))
+    }
+
+    fn alter_tag(&mut self, _space_name: &str, _tag_name: &str, _additions: Vec<PropertyDef>, _deletions: Vec<String>) -> Result<bool, StorageError> {
+        Err(StorageError::NotSupported("alter_tag not supported in RedbStorage".to_string()))
+    }
+
+    fn get_tag(&self, _space_name: &str, _tag_name: &str) -> Result<Option<TagInfo>, StorageError> {
+        Err(StorageError::NotSupported("get_tag not supported in RedbStorage".to_string()))
+    }
+
+    fn drop_tag(&mut self, _space_name: &str, _tag_name: &str) -> Result<bool, StorageError> {
+        Err(StorageError::NotSupported("drop_tag not supported in RedbStorage".to_string()))
+    }
+
+    fn list_tags(&self, _space_name: &str) -> Result<Vec<TagInfo>, StorageError> {
+        Err(StorageError::NotSupported("list_tags not supported in RedbStorage".to_string()))
+    }
+
+    // ========== 边类型管理 ==========
+    fn create_edge_type(&mut self, _info: &EdgeTypeSchema) -> Result<bool, StorageError> {
+        Err(StorageError::NotSupported("create_edge_type not supported in RedbStorage".to_string()))
+    }
+
+    fn alter_edge_type(&mut self, _space_name: &str, _edge_type_name: &str, _additions: Vec<PropertyDef>, _deletions: Vec<String>) -> Result<bool, StorageError> {
+        Err(StorageError::NotSupported("alter_edge_type not supported in RedbStorage".to_string()))
+    }
+
+    fn get_edge_type(&self, _space_name: &str, _edge_type_name: &str) -> Result<Option<EdgeTypeSchema>, StorageError> {
+        Err(StorageError::NotSupported("get_edge_type not supported in RedbStorage".to_string()))
+    }
+
+    fn drop_edge_type(&mut self, _space_name: &str, _edge_type_name: &str) -> Result<bool, StorageError> {
+        Err(StorageError::NotSupported("drop_edge_type not supported in RedbStorage".to_string()))
+    }
+
+    fn list_edge_types(&self, _space_name: &str) -> Result<Vec<EdgeTypeSchema>, StorageError> {
+        Err(StorageError::NotSupported("list_edge_types not supported in RedbStorage".to_string()))
+    }
+
+    // ========== 索引管理 ==========
+    fn create_tag_index(&mut self, _info: &IndexInfo) -> Result<bool, StorageError> {
+        Err(StorageError::NotSupported("create_tag_index not supported in RedbStorage".to_string()))
+    }
+
+    fn drop_tag_index(&mut self, _space_name: &str, _index_name: &str) -> Result<bool, StorageError> {
+        Err(StorageError::NotSupported("drop_tag_index not supported in RedbStorage".to_string()))
+    }
+
+    fn get_tag_index(&self, _space_name: &str, _index_name: &str) -> Result<Option<IndexInfo>, StorageError> {
+        Err(StorageError::NotSupported("get_tag_index not supported in RedbStorage".to_string()))
+    }
+
+    fn list_tag_indexes(&self, _space_name: &str) -> Result<Vec<IndexInfo>, StorageError> {
+        Err(StorageError::NotSupported("list_tag_indexes not supported in RedbStorage".to_string()))
+    }
+
+    fn rebuild_tag_index(&mut self, _space_name: &str, _index_name: &str) -> Result<bool, StorageError> {
+        Err(StorageError::NotSupported("rebuild_tag_index not supported in RedbStorage".to_string()))
+    }
+
+    fn create_edge_index(&mut self, _info: &IndexInfo) -> Result<bool, StorageError> {
+        Err(StorageError::NotSupported("create_edge_index not supported in RedbStorage".to_string()))
+    }
+
+    fn drop_edge_index(&mut self, _space_name: &str, _index_name: &str) -> Result<bool, StorageError> {
+        Err(StorageError::NotSupported("drop_edge_index not supported in RedbStorage".to_string()))
+    }
+
+    fn get_edge_index(&self, _space_name: &str, _index_name: &str) -> Result<Option<IndexInfo>, StorageError> {
+        Err(StorageError::NotSupported("get_edge_index not supported in RedbStorage".to_string()))
+    }
+
+    fn list_edge_indexes(&self, _space_name: &str) -> Result<Vec<IndexInfo>, StorageError> {
+        Err(StorageError::NotSupported("list_edge_indexes not supported in RedbStorage".to_string()))
+    }
+
+    fn rebuild_edge_index(&mut self, _space_name: &str, _index_name: &str) -> Result<bool, StorageError> {
+        Err(StorageError::NotSupported("rebuild_edge_index not supported in RedbStorage".to_string()))
+    }
+
+    // ========== 数据变更 ==========
+    fn insert_vertex_data(&mut self, _info: &InsertVertexInfo) -> Result<bool, StorageError> {
+        Err(StorageError::NotSupported("insert_vertex_data not supported in RedbStorage".to_string()))
+    }
+
+    fn insert_edge_data(&mut self, _info: &InsertEdgeInfo) -> Result<bool, StorageError> {
+        Err(StorageError::NotSupported("insert_edge_data not supported in RedbStorage".to_string()))
+    }
+
+    fn delete_vertex_data(&mut self, _space_name: &str, _vertex_id: &str) -> Result<bool, StorageError> {
+        Err(StorageError::NotSupported("delete_vertex_data not supported in RedbStorage".to_string()))
+    }
+
+    fn delete_edge_data(&mut self, _space_name: &str, _src: &str, _dst: &str, _rank: i64) -> Result<bool, StorageError> {
+        Err(StorageError::NotSupported("delete_edge_data not supported in RedbStorage".to_string()))
+    }
+
+    fn update_data(&mut self, _info: &UpdateInfo) -> Result<bool, StorageError> {
+        Err(StorageError::NotSupported("update_data not supported in RedbStorage".to_string()))
+    }
+
+    // ========== 用户管理 ==========
+    fn change_password(&mut self, _info: &PasswordInfo) -> Result<bool, StorageError> {
+        Err(StorageError::NotSupported("change_password not supported in RedbStorage".to_string()))
     }
 }

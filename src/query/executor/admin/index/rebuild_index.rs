@@ -5,7 +5,7 @@
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
-use crate::query::executor::base::{BaseExecutor, Executor, HasStorage};
+use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageEngine;
 
 /// 重建标签索引执行器
@@ -33,8 +33,10 @@ impl<S: StorageEngine> RebuildTagIndexExecutor<S> {
 impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for RebuildTagIndexExecutor<S> {
     async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let storage_guard = storage.lock().map_err(|e| {
-            crate::core::error::DBError::StorageError(format!("Storage lock poisoned: {}", e))
+        let mut storage_guard = storage.lock().map_err(|e| {
+            crate::core::error::DBError::Storage(
+                crate::core::error::StorageError::DbError(format!("Storage lock poisoned: {}", e))
+            )
         })?;
 
         let result = storage_guard.rebuild_tag_index(&self.space_name, &self.index_name);
@@ -79,6 +81,12 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for RebuildTagIndexEx
     }
 }
 
+impl<S: StorageEngine> crate::query::executor::base::HasStorage<S> for RebuildTagIndexExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.get_storage()
+    }
+}
+
 /// 重建边索引执行器
 ///
 /// 该执行器负责重建指定的边索引。
@@ -104,8 +112,10 @@ impl<S: StorageEngine> RebuildEdgeIndexExecutor<S> {
 impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for RebuildEdgeIndexExecutor<S> {
     async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let storage_guard = storage.lock().map_err(|e| {
-            crate::core::error::DBError::StorageError(format!("Storage lock poisoned: {}", e))
+        let mut storage_guard = storage.lock().map_err(|e| {
+            crate::core::error::DBError::Storage(
+                crate::core::error::StorageError::DbError(format!("Storage lock poisoned: {}", e))
+            )
         })?;
 
         let result = storage_guard.rebuild_edge_index(&self.space_name, &self.index_name);
@@ -147,5 +157,11 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for RebuildEdgeIndexE
 
     fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
         self.base.get_stats_mut()
+    }
+}
+
+impl<S: StorageEngine> crate::query::executor::base::HasStorage<S> for RebuildEdgeIndexExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.get_storage()
     }
 }

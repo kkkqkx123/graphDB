@@ -1,4 +1,5 @@
 // Re-export all executor modules
+pub mod admin;
 pub mod base;
 pub mod data_access;
 pub mod data_modification;
@@ -44,3 +45,15 @@ pub use logic::{ForLoopExecutor, LoopExecutor, LoopState, WhileLoopExecutor};
 
 // Re-export graph query executor
 pub use graph_query_executor::GraphQueryExecutor;
+
+// Re-export admin executors (管理执行器)
+pub use admin::{
+    CreateSpaceExecutor, DropSpaceExecutor, DescSpaceExecutor, ShowSpacesExecutor,
+    CreateTagExecutor, AlterTagExecutor, DescTagExecutor, DropTagExecutor, ShowTagsExecutor,
+    CreateEdgeExecutor, AlterEdgeExecutor, DescEdgeExecutor, DropEdgeExecutor, ShowEdgesExecutor,
+    CreateTagIndexExecutor, DropTagIndexExecutor, DescTagIndexExecutor, ShowTagIndexesExecutor,
+    CreateEdgeIndexExecutor, DropEdgeIndexExecutor, DescEdgeIndexExecutor, ShowEdgeIndexesExecutor,
+    RebuildTagIndexExecutor, RebuildEdgeIndexExecutor,
+    InsertVertexExecutor, InsertEdgeExecutor, DeleteExecutor, UpdateExecutor,
+    ChangePasswordExecutor,
+};

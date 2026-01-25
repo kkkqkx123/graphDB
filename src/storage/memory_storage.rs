@@ -1,6 +1,11 @@
 use super::{StorageEngine, TransactionId};
 use crate::core::{Edge, StorageError, Value, Vertex, EdgeDirection};
 use crate::core::vertex_edge_path::Tag;
+use crate::core::types::{
+    SpaceInfo, TagInfo, EdgeTypeSchema, IndexInfo,
+    PropertyDef, InsertVertexInfo, InsertEdgeInfo, UpdateInfo,
+    PasswordInfo,
+};
 use crate::common::memory::MemoryPool;
 use crate::common::id::IdGenerator;
 use std::collections::HashMap;
@@ -20,6 +25,12 @@ pub struct MemoryStorage {
     _vertex_props: Arc<Mutex<HashMap<(String, String, Vec<u8>), Vec<VertexKey>>>>,
     _memory_pool: Arc<MemoryPool>,
     id_generator: Arc<Mutex<IdGenerator>>,
+    spaces: Arc<Mutex<HashMap<String, SpaceInfo>>>,
+    tags: Arc<Mutex<HashMap<String, HashMap<String, TagInfo>>>>,
+    edge_type_infos: Arc<Mutex<HashMap<String, HashMap<String, EdgeTypeSchema>>>>,
+    tag_indexes: Arc<Mutex<HashMap<String, HashMap<String, IndexInfo>>>>,
+    edge_indexes: Arc<Mutex<HashMap<String, HashMap<String, IndexInfo>>>>,
+    users: Arc<Mutex<HashMap<String, String>>>,
 }
 
 impl std::fmt::Debug for MemoryStorage {
@@ -60,6 +71,12 @@ impl MemoryStorage {
             _vertex_props: Arc::new(Mutex::new(HashMap::new())),
             _memory_pool: memory_pool,
             id_generator,
+            spaces: Arc::new(Mutex::new(HashMap::new())),
+            tags: Arc::new(Mutex::new(HashMap::new())),
+            edge_type_infos: Arc::new(Mutex::new(HashMap::new())),
+            tag_indexes: Arc::new(Mutex::new(HashMap::new())),
+            edge_indexes: Arc::new(Mutex::new(HashMap::new())),
+            users: Arc::new(Mutex::new(HashMap::new())),
         })
     }
 
@@ -329,6 +346,361 @@ impl StorageEngine for MemoryStorage {
 
     fn get_input(&self, _input_var: &str) -> Result<Option<Vec<Value>>, StorageError> {
         Ok(None)
+    }
+
+    // ========== 空间管理 ==========
+    fn create_space(&mut self, space: &SpaceInfo) -> Result<bool, StorageError> {
+        let mut spaces = self.spaces.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        if spaces.contains_key(&space.name) {
+            return Ok(false);
+        }
+        spaces.insert(space.name.clone(), space.clone());
+        
+        let mut tags = self.tags.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        tags.insert(space.name.clone(), HashMap::new());
+        
+        let mut edge_type_infos = self.edge_type_infos.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        edge_type_infos.insert(space.name.clone(), HashMap::new());
+        
+        let mut tag_indexes = self.tag_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        tag_indexes.insert(space.name.clone(), HashMap::new());
+        
+        let mut edge_indexes = self.edge_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        edge_indexes.insert(space.name.clone(), HashMap::new());
+        
+        Ok(true)
+    }
+
+    fn drop_space(&mut self, space_name: &str) -> Result<bool, StorageError> {
+        let mut spaces = self.spaces.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        if !spaces.contains_key(space_name) {
+            return Ok(false);
+        }
+        spaces.remove(space_name);
+        
+        let mut tags = self.tags.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        tags.remove(space_name);
+        
+        let mut edge_type_infos = self.edge_type_infos.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        edge_type_infos.remove(space_name);
+        
+        let mut tag_indexes = self.tag_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        tag_indexes.remove(space_name);
+        
+        let mut edge_indexes = self.edge_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        edge_indexes.remove(space_name);
+        
+        Ok(true)
+    }
+
+    fn get_space(&self, space_name: &str) -> Result<Option<SpaceInfo>, StorageError> {
+        let spaces = self.spaces.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        Ok(spaces.get(space_name).cloned())
+    }
+
+    fn list_spaces(&self) -> Result<Vec<SpaceInfo>, StorageError> {
+        let spaces = self.spaces.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        Ok(spaces.values().cloned().collect())
+    }
+
+    // ========== 标签管理 ==========
+    fn create_tag(&mut self, info: &TagInfo) -> Result<bool, StorageError> {
+        let mut tags = self.tags.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        if let Some(space_tags) = tags.get_mut(&info.space_name) {
+            if space_tags.contains_key(&info.name) {
+                return Ok(false);
+            }
+            space_tags.insert(info.name.clone(), info.clone());
+            Ok(true)
+        } else {
+            Err(StorageError::DbError(format!("Space '{}' not found", info.space_name)))
+        }
+    }
+
+    fn alter_tag(&mut self, space_name: &str, tag_name: &str, additions: Vec<PropertyDef>, deletions: Vec<String>) -> Result<bool, StorageError> {
+        let mut tags = self.tags.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        if let Some(space_tags) = tags.get_mut(space_name) {
+            if let Some(tag_info) = space_tags.get_mut(tag_name) {
+                for prop in additions {
+                    let new_prop = super::super::core::types::PropertyType {
+                        name: prop.name,
+                        type_def: prop.data_type,
+                        is_nullable: prop.nullable,
+                    };
+                    tag_info.properties.retain(|p| p.name != new_prop.name);
+                    tag_info.properties.push(new_prop);
+                }
+                for prop_name in deletions {
+                    tag_info.properties.retain(|p| p.name != prop_name);
+                }
+                Ok(true)
+            } else {
+                Ok(false)
+            }
+        } else {
+            Err(StorageError::DbError(format!("Space '{}' not found", space_name)))
+        }
+    }
+
+    fn get_tag(&self, space_name: &str, tag_name: &str) -> Result<Option<TagInfo>, StorageError> {
+        let tags = self.tags.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        if let Some(space_tags) = tags.get(space_name) {
+            Ok(space_tags.get(tag_name).cloned())
+        } else {
+            Err(StorageError::DbError(format!("Space '{}' not found", space_name)))
+        }
+    }
+
+    fn drop_tag(&mut self, space_name: &str, tag_name: &str) -> Result<bool, StorageError> {
+        let mut tags = self.tags.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        if let Some(space_tags) = tags.get_mut(space_name) {
+            Ok(space_tags.remove(tag_name).is_some())
+        } else {
+            Err(StorageError::DbError(format!("Space '{}' not found", space_name)))
+        }
+    }
+
+    fn list_tags(&self, space_name: &str) -> Result<Vec<TagInfo>, StorageError> {
+        let tags = self.tags.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        if let Some(space_tags) = tags.get(space_name) {
+            Ok(space_tags.values().cloned().collect())
+        } else {
+            Err(StorageError::DbError(format!("Space '{}' not found", space_name)))
+        }
+    }
+
+    // ========== 边类型管理 ==========
+    fn create_edge_type(&mut self, info: &EdgeTypeSchema) -> Result<bool, StorageError> {
+        let mut edge_type_infos = self.edge_type_infos.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        if let Some(space_edge_types) = edge_type_infos.get_mut(&info.space_name) {
+            if space_edge_types.contains_key(&info.name) {
+                return Ok(false);
+            }
+            space_edge_types.insert(info.name.clone(), info.clone());
+            Ok(true)
+        } else {
+            Err(StorageError::DbError(format!("Space '{}' not found", info.space_name)))
+        }
+    }
+
+    fn alter_edge_type(&mut self, space_name: &str, edge_type_name: &str, additions: Vec<PropertyDef>, deletions: Vec<String>) -> Result<bool, StorageError> {
+        let mut edge_type_infos = self.edge_type_infos.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        if let Some(space_edge_types) = edge_type_infos.get_mut(space_name) {
+            if let Some(edge_type_info) = space_edge_types.get_mut(edge_type_name) {
+                for prop in additions {
+                    let new_prop = super::super::core::types::PropertyType {
+                        name: prop.name,
+                        type_def: prop.data_type,
+                        is_nullable: prop.nullable,
+                    };
+                    edge_type_info.properties.retain(|p| p.name != new_prop.name);
+                    edge_type_info.properties.push(new_prop);
+                }
+                for prop_name in deletions {
+                    edge_type_info.properties.retain(|p| p.name != prop_name);
+                }
+                Ok(true)
+            } else {
+                Ok(false)
+            }
+        } else {
+            Err(StorageError::DbError(format!("Space '{}' not found", space_name)))
+        }
+    }
+
+    fn get_edge_type(&self, space_name: &str, edge_type_name: &str) -> Result<Option<EdgeTypeSchema>, StorageError> {
+        let edge_type_infos = self.edge_type_infos.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        if let Some(space_edge_types) = edge_type_infos.get(space_name) {
+            Ok(space_edge_types.get(edge_type_name).cloned())
+        } else {
+            Err(StorageError::DbError(format!("Space '{}' not found", space_name)))
+        }
+    }
+
+    fn drop_edge_type(&mut self, space_name: &str, edge_type_name: &str) -> Result<bool, StorageError> {
+        let mut edge_type_infos = self.edge_type_infos.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        if let Some(space_edge_types) = edge_type_infos.get_mut(space_name) {
+            Ok(space_edge_types.remove(edge_type_name).is_some())
+        } else {
+            Err(StorageError::DbError(format!("Space '{}' not found", space_name)))
+        }
+    }
+
+    fn list_edge_types(&self, space_name: &str) -> Result<Vec<EdgeTypeSchema>, StorageError> {
+        let edge_type_infos = self.edge_type_infos.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        if let Some(space_edge_types) = edge_type_infos.get(space_name) {
+            Ok(space_edge_types.values().cloned().collect())
+        } else {
+            Err(StorageError::DbError(format!("Space '{}' not found", space_name)))
+        }
+    }
+
+    // ========== 索引管理 ==========
+    fn create_tag_index(&mut self, info: &IndexInfo) -> Result<bool, StorageError> {
+        let mut tag_indexes = self.tag_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        if let Some(space_indexes) = tag_indexes.get_mut(&info.space_name) {
+            if space_indexes.contains_key(&info.name) {
+                return Ok(false);
+            }
+            space_indexes.insert(info.name.clone(), info.clone());
+            Ok(true)
+        } else {
+            Err(StorageError::DbError(format!("Space '{}' not found", info.space_name)))
+        }
+    }
+
+    fn drop_tag_index(&mut self, space_name: &str, index_name: &str) -> Result<bool, StorageError> {
+        let mut tag_indexes = self.tag_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        if let Some(space_indexes) = tag_indexes.get_mut(space_name) {
+            Ok(space_indexes.remove(index_name).is_some())
+        } else {
+            Err(StorageError::DbError(format!("Space '{}' not found", space_name)))
+        }
+    }
+
+    fn get_tag_index(&self, space_name: &str, index_name: &str) -> Result<Option<IndexInfo>, StorageError> {
+        let tag_indexes = self.tag_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        if let Some(space_indexes) = tag_indexes.get(space_name) {
+            Ok(space_indexes.get(index_name).cloned())
+        } else {
+            Err(StorageError::DbError(format!("Space '{}' not found", space_name)))
+        }
+    }
+
+    fn list_tag_indexes(&self, space_name: &str) -> Result<Vec<IndexInfo>, StorageError> {
+        let tag_indexes = self.tag_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        if let Some(space_indexes) = tag_indexes.get(space_name) {
+            Ok(space_indexes.values().cloned().collect())
+        } else {
+            Err(StorageError::DbError(format!("Space '{}' not found", space_name)))
+        }
+    }
+
+    fn rebuild_tag_index(&mut self, _space_name: &str, _index_name: &str) -> Result<bool, StorageError> {
+        Ok(true)
+    }
+
+    fn create_edge_index(&mut self, info: &IndexInfo) -> Result<bool, StorageError> {
+        let mut edge_indexes = self.edge_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        if let Some(space_indexes) = edge_indexes.get_mut(&info.space_name) {
+            if space_indexes.contains_key(&info.name) {
+                return Ok(false);
+            }
+            space_indexes.insert(info.name.clone(), info.clone());
+            Ok(true)
+        } else {
+            Err(StorageError::DbError(format!("Space '{}' not found", info.space_name)))
+        }
+    }
+
+    fn drop_edge_index(&mut self, space_name: &str, index_name: &str) -> Result<bool, StorageError> {
+        let mut edge_indexes = self.edge_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        if let Some(space_indexes) = edge_indexes.get_mut(space_name) {
+            Ok(space_indexes.remove(index_name).is_some())
+        } else {
+            Err(StorageError::DbError(format!("Space '{}' not found", space_name)))
+        }
+    }
+
+    fn get_edge_index(&self, space_name: &str, index_name: &str) -> Result<Option<IndexInfo>, StorageError> {
+        let edge_indexes = self.edge_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        if let Some(space_indexes) = edge_indexes.get(space_name) {
+            Ok(space_indexes.get(index_name).cloned())
+        } else {
+            Err(StorageError::DbError(format!("Space '{}' not found", space_name)))
+        }
+    }
+
+    fn list_edge_indexes(&self, space_name: &str) -> Result<Vec<IndexInfo>, StorageError> {
+        let edge_indexes = self.edge_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        if let Some(space_indexes) = edge_indexes.get(space_name) {
+            Ok(space_indexes.values().cloned().collect())
+        } else {
+            Err(StorageError::DbError(format!("Space '{}' not found", space_name)))
+        }
+    }
+
+    fn rebuild_edge_index(&mut self, _space_name: &str, _index_name: &str) -> Result<bool, StorageError> {
+        Ok(true)
+    }
+
+    // ========== 数据变更 ==========
+    fn insert_vertex_data(&mut self, info: &InsertVertexInfo) -> Result<bool, StorageError> {
+        let mut vertices = self.vertices.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let vertex_key = Self::serialize_value(&Value::String(info.vertex_id.clone()));
+        
+        if vertices.contains_key(&vertex_key) {
+            return Ok(false);
+        }
+        
+        let vertex = Vertex::new_with_properties(
+            Value::String(info.vertex_id.clone()),
+            vec![Tag::new(info.tag_name.clone(), HashMap::new())],
+            info.properties.iter().cloned().collect(),
+        );
+        
+        vertices.insert(vertex_key, vertex);
+        Ok(true)
+    }
+
+    fn insert_edge_data(&mut self, info: &InsertEdgeInfo) -> Result<bool, StorageError> {
+        let mut edges = self.edges.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        
+        let edge_key = (
+            Self::serialize_value(&Value::String(info.src_vertex_id.clone())),
+            Self::serialize_value(&Value::String(info.dst_vertex_id.clone())),
+            info.edge_name.clone(),
+        );
+        
+        if edges.contains_key(&edge_key) {
+            return Ok(false);
+        }
+        
+        let edge = Edge::new(
+            Value::String(info.src_vertex_id.clone()),
+            Value::String(info.dst_vertex_id.clone()),
+            info.edge_name.clone(),
+            info.rank,
+            info.properties.iter().cloned().collect(),
+        );
+        
+        edges.insert(edge_key, edge);
+        Ok(true)
+    }
+
+    fn delete_vertex_data(&mut self, _space_name: &str, vertex_id: &str) -> Result<bool, StorageError> {
+        let mut vertices = self.vertices.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let vertex_key = Self::serialize_value(&Value::String(vertex_id.to_string()));
+        Ok(vertices.remove(&vertex_key).is_some())
+    }
+
+    fn delete_edge_data(&mut self, _space_name: &str, src: &str, dst: &str, rank: i64) -> Result<bool, StorageError> {
+        let mut edges = self.edges.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        
+        let edge_key = (
+            Self::serialize_value(&Value::String(src.to_string())),
+            Self::serialize_value(&Value::String(dst.to_string())),
+            rank.to_string(),
+        );
+        
+        Ok(edges.remove(&edge_key).is_some())
+    }
+
+    fn update_data(&mut self, _info: &UpdateInfo) -> Result<bool, StorageError> {
+        Ok(true)
+    }
+
+    // ========== 用户管理 ==========
+    fn change_password(&mut self, info: &PasswordInfo) -> Result<bool, StorageError> {
+        let mut users = self.users.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        if let Some(hashed_password) = users.get(&info.username) {
+            if *hashed_password == info.old_password {
+                users.insert(info.username.clone(), info.new_password.clone());
+                return Ok(true);
+            }
+            return Ok(false);
+        }
+        Ok(false)
     }
 }
 

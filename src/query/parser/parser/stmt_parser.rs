@@ -3,6 +3,7 @@
 //! 负责解析各种语句，包括 MATCH、GO、CREATE、DELETE、UPDATE 等。
 
 use crate::core::types::graph_schema::EdgeDirection;
+use crate::core::types::PropertyDef;
 use crate::query::parser::ast::*;
 use crate::query::parser::ast::pattern::{EdgePattern, NodePattern, PathElement, PathPattern};
 use crate::query::parser::core::error::{ParseError, ParseErrorKind};
@@ -42,6 +43,10 @@ impl<'a> StmtParser<'a> {
             TokenKind::Set => self.parse_set_statement(ctx),
             TokenKind::Remove => self.parse_remove_statement(ctx),
             TokenKind::Pipe => self.parse_pipe_statement(ctx),
+            TokenKind::Drop => self.parse_drop_statement(ctx),
+            TokenKind::Desc => self.parse_desc_statement(ctx),
+            TokenKind::Alter => self.parse_alter_statement(ctx),
+            TokenKind::ChangePassword => self.parse_change_password_statement(ctx),
             _ => Err(ParseError::new(
                 ParseErrorKind::UnexpectedToken,
                 format!("Unexpected token: {:?}", token.kind),
@@ -670,5 +675,157 @@ impl<'a> StmtParser<'a> {
             }
         }
         Ok(assignments)
+    }
+
+    fn parse_drop_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::Drop)?;
+
+        let target = if ctx.match_token(TokenKind::Space) {
+            DropTarget::Space(ctx.expect_identifier()?)
+        } else if ctx.match_token(TokenKind::Tag) {
+            let tag_name = ctx.expect_identifier()?;
+            DropTarget::Tag { space_name: String::new(), tag_name }
+        } else if ctx.match_token(TokenKind::Edge) {
+            let edge_name = ctx.expect_identifier()?;
+            DropTarget::Edge { space_name: String::new(), edge_name }
+        } else if ctx.match_token(TokenKind::Index) {
+            let index_name = ctx.expect_identifier()?;
+            DropTarget::TagIndex { space_name: String::new(), index_name }
+        } else if ctx.match_token(TokenKind::Edge) && ctx.match_token(TokenKind::Index) {
+            let index_name = ctx.expect_identifier()?;
+            DropTarget::EdgeIndex { space_name: String::new(), index_name }
+        } else {
+            return Err(ParseError::new(
+                ParseErrorKind::UnexpectedToken,
+                "Expected SPACE, TAG, EDGE, or INDEX".to_string(),
+                ctx.current_position(),
+            ));
+        };
+
+        let end_span = ctx.current_span();
+        let span = ctx.merge_span(start_span.start, end_span.end);
+
+        Ok(Stmt::Drop(DropStmt { span, target }))
+    }
+
+    fn parse_desc_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::Desc)?;
+
+        let target = if ctx.match_token(TokenKind::Space) {
+            DescTarget::Space(ctx.expect_identifier()?)
+        } else if ctx.match_token(TokenKind::Tag) {
+            let tag_name = ctx.expect_identifier()?;
+            DescTarget::Tag { space_name: String::new(), tag_name }
+        } else if ctx.match_token(TokenKind::Edge) {
+            let edge_name = ctx.expect_identifier()?;
+            DescTarget::Edge { space_name: String::new(), edge_name }
+        } else {
+            return Err(ParseError::new(
+                ParseErrorKind::UnexpectedToken,
+                "Expected SPACE, TAG, or EDGE".to_string(),
+                ctx.current_position(),
+            ));
+        };
+
+        let end_span = ctx.current_span();
+        let span = ctx.merge_span(start_span.start, end_span.end);
+
+        Ok(Stmt::Desc(DescStmt { span, target }))
+    }
+
+    fn parse_alter_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::Alter)?;
+
+        let (is_tag, space_name, name, additions, deletions) = if ctx.match_token(TokenKind::Tag) {
+            let tag_name = ctx.expect_identifier()?;
+            ctx.expect_token(TokenKind::Space)?;
+            let space_name = ctx.expect_identifier()?;
+            let additions = self.parse_alter_additions(ctx)?;
+            let deletions = self.parse_alter_deletions(ctx)?;
+            (true, space_name, tag_name, additions, deletions)
+        } else if ctx.match_token(TokenKind::Edge) {
+            let edge_name = ctx.expect_identifier()?;
+            ctx.expect_token(TokenKind::Space)?;
+            let space_name = ctx.expect_identifier()?;
+            let additions = self.parse_alter_additions(ctx)?;
+            let deletions = self.parse_alter_deletions(ctx)?;
+            (false, space_name, edge_name, additions, deletions)
+        } else {
+            return Err(ParseError::new(
+                ParseErrorKind::UnexpectedToken,
+                "Expected TAG or EDGE".to_string(),
+                ctx.current_position(),
+            ));
+        };
+
+        let end_span = ctx.current_span();
+        let span = ctx.merge_span(start_span.start, end_span.end);
+
+        if is_tag {
+            Ok(Stmt::Alter(AlterStmt {
+                span,
+                target: AlterTarget::Tag {
+                    space_name,
+                    tag_name: name,
+                    additions,
+                    deletions,
+                },
+            }))
+        } else {
+            Ok(Stmt::Alter(AlterStmt {
+                span,
+                target: AlterTarget::Edge {
+                    space_name,
+                    edge_name: name,
+                    additions,
+                    deletions,
+                },
+            }))
+        }
+    }
+
+    fn parse_alter_additions(&mut self, ctx: &mut ParseContext<'a>) -> Result<Vec<PropertyDef>, ParseError> {
+        let mut additions = Vec::new();
+        if ctx.match_token(TokenKind::Add) {
+            additions = self.parse_property_defs(ctx)?;
+        }
+        Ok(additions)
+    }
+
+    fn parse_alter_deletions(&mut self, ctx: &mut ParseContext<'a>) -> Result<Vec<String>, ParseError> {
+        let mut deletions = Vec::new();
+        if ctx.match_token(TokenKind::Drop) {
+            ctx.expect_token(TokenKind::LParen)?;
+            while !ctx.match_token(TokenKind::RParen) {
+                deletions.push(ctx.expect_identifier()?);
+                if !ctx.match_token(TokenKind::Comma) {
+                    break;
+                }
+            }
+        }
+        Ok(deletions)
+    }
+
+    fn parse_change_password_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::ChangePassword)?;
+
+        let username = ctx.expect_identifier()?;
+        ctx.expect_token(TokenKind::Password)?;
+        let old_password = ctx.expect_string_literal()?;
+        let new_password = ctx.expect_string_literal()?;
+
+        let end_span = ctx.current_span();
+        let span = ctx.merge_span(start_span.start, end_span.end);
+
+        Ok(Stmt::ChangePassword(ChangePasswordStmt {
+            span,
+            username,
+            old_password,
+            new_password,
+        }))
     }
 }

@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 pub mod expression;
 pub mod graph_schema;
 pub mod operators;
+pub mod metadata;
 
 /// 统一的数据类型枚举
 ///
@@ -42,3 +43,8 @@ pub enum DataType {
 pub use expression::{Expression};
 pub use graph_schema::{EdgeDirection, GraphTypeInference, VertexType, EdgeTypeInfo, PathInfo, PropertyType};
 pub use operators::{AggregateFunction, BinaryOperator, UnaryOperator};
+pub use metadata::{
+    SpaceInfo, TagInfo, EdgeTypeSchema, IndexInfo,
+    PropertyDef, InsertVertexInfo, InsertEdgeInfo, UpdateInfo,
+    UpdateTarget, UpdateOp, PasswordInfo,
+};

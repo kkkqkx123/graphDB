@@ -5,8 +5,9 @@
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
-use crate::core::PropertyDef;
-use crate::query::executor::base::{BaseExecutor, Executor, HasStorage};
+use crate::core::types::metadata::PropertyDef;
+use crate::core::types::graph_schema::PropertyType;
+use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageEngine;
 
 /// 标签修改操作类型
@@ -96,11 +97,21 @@ impl<S: StorageEngine> AlterTagExecutor<S> {
 impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for AlterTagExecutor<S> {
     async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let storage_guard = storage.lock().map_err(|e| {
-            crate::core::error::DBError::StorageError(format!("Storage lock poisoned: {}", e))
+        let mut storage_guard = storage.lock().map_err(|e| {
+            crate::core::error::DBError::Storage(
+                crate::core::error::StorageError::DbError(format!("Storage lock poisoned: {}", e))
+            )
         })?;
 
-        let result = storage_guard.alter_tag(&self.alter_info);
+        let items: Vec<String> = self.alter_info.items.iter().filter_map(|item| {
+            match item.op {
+                AlterTagOp::Add => item.property.as_ref().map(|p| p.name.clone()),
+                AlterTagOp::Drop => item.property_name.clone(),
+                AlterTagOp::Change => item.property_name.clone(),
+            }
+        }).collect();
+        
+        let result = storage_guard.alter_tag(&self.alter_info.space_name, &self.alter_info.tag_name, Vec::new(), items);
 
         match result {
             Ok(true) => Ok(ExecutionResult::Success),
@@ -140,5 +151,11 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for AlterTagExecutor<
 
     fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
         self.base.get_stats_mut()
+    }
+}
+
+impl<S: StorageEngine> crate::query::executor::base::HasStorage<S> for AlterTagExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.get_storage()
     }
 }

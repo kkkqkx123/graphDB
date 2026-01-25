@@ -203,6 +203,10 @@ impl AstContext {
                 Stmt::Set(_) => "SET",
                 Stmt::Remove(_) => "REMOVE",
                 Stmt::Pipe(_) => "PIPE",
+                Stmt::Drop(_) => "DROP",
+                Stmt::Desc(_) => "DESC",
+                Stmt::Alter(_) => "ALTER",
+                Stmt::ChangePassword(_) => "CHANGE_PASSWORD",
             },
             None => {
                 if let Some(ref qctx) = self.qctx {

@@ -5,6 +5,7 @@
 use super::expression::{Expression, ExprUtils};
 use super::pattern::*;
 use super::types::*;
+use crate::core::types::PropertyDef;
 use crate::core::Value;
 
 /// 语句枚举 - 所有图数据库操作语句
@@ -31,6 +32,10 @@ pub enum Stmt {
     Set(SetStmt),
     Remove(RemoveStmt),
     Pipe(PipeStmt),
+    Drop(DropStmt),
+    Desc(DescStmt),
+    Alter(AlterStmt),
+    ChangePassword(ChangePasswordStmt),
 }
 
 impl Stmt {
@@ -58,6 +63,10 @@ impl Stmt {
             Stmt::Set(s) => s.span,
             Stmt::Remove(s) => s.span,
             Stmt::Pipe(s) => s.span,
+            Stmt::Drop(s) => s.span,
+            Stmt::Desc(s) => s.span,
+            Stmt::Alter(s) => s.span,
+            Stmt::ChangePassword(s) => s.span,
         }
     }
 
@@ -85,6 +94,10 @@ impl Stmt {
             Stmt::Set(_) => "SET",
             Stmt::Remove(_) => "REMOVE",
             Stmt::Pipe(_) => "PIPE",
+            Stmt::Drop(_) => "DROP",
+            Stmt::Desc(_) => "DESC",
+            Stmt::Alter(_) => "ALTER",
+            Stmt::ChangePassword(_) => "CHANGE_PASSWORD",
         }
     }
 }
@@ -141,15 +154,6 @@ pub enum CreateTarget {
         on: String,
         properties: Vec<String>,
     },
-}
-
-/// 属性定义
-#[derive(Debug, Clone, PartialEq)]
-pub struct PropertyDef {
-    pub name: String,
-    pub data_type: DataType,
-    pub nullable: bool,
-    pub default: Option<Value>,
 }
 
 /// MATCH 语句
@@ -627,6 +631,89 @@ impl StmtUtils {
             _ => {}
         }
     }
+}
+
+/// DROP 语句 - 删除空间、标签、边类型或索引
+#[derive(Debug, Clone, PartialEq)]
+pub struct DropStmt {
+    pub span: Span,
+    pub target: DropTarget,
+}
+
+/// DROP 目标
+#[derive(Debug, Clone, PartialEq)]
+pub enum DropTarget {
+    Space(String),
+    Tag {
+        space_name: String,
+        tag_name: String,
+    },
+    Edge {
+        space_name: String,
+        edge_name: String,
+    },
+    TagIndex {
+        space_name: String,
+        index_name: String,
+    },
+    EdgeIndex {
+        space_name: String,
+        index_name: String,
+    },
+}
+
+/// DESCRIBE 语句 - 描述空间、标签或边类型
+#[derive(Debug, Clone, PartialEq)]
+pub struct DescStmt {
+    pub span: Span,
+    pub target: DescTarget,
+}
+
+/// DESCRIBE 目标
+#[derive(Debug, Clone, PartialEq)]
+pub enum DescTarget {
+    Space(String),
+    Tag {
+        space_name: String,
+        tag_name: String,
+    },
+    Edge {
+        space_name: String,
+        edge_name: String,
+    },
+}
+
+/// ALTER 语句 - 修改标签或边类型
+#[derive(Debug, Clone, PartialEq)]
+pub struct AlterStmt {
+    pub span: Span,
+    pub target: AlterTarget,
+}
+
+/// ALTER 目标
+#[derive(Debug, Clone, PartialEq)]
+pub enum AlterTarget {
+    Tag {
+        space_name: String,
+        tag_name: String,
+        additions: Vec<PropertyDef>,
+        deletions: Vec<String>,
+    },
+    Edge {
+        space_name: String,
+        edge_name: String,
+        additions: Vec<PropertyDef>,
+        deletions: Vec<String>,
+    },
+}
+
+/// CHANGE PASSWORD 语句
+#[derive(Debug, Clone, PartialEq)]
+pub struct ChangePasswordStmt {
+    pub span: Span,
+    pub username: String,
+    pub old_password: String,
+    pub new_password: String,
 }
 
 #[cfg(test)]

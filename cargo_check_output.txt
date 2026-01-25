@@ -1,1 +1,1 @@
-error: could not compile `graphdb` (lib) due to 2 previous errors; 49 warnings emitted
+error: could not compile `graphdb` (lib) due to 138 previous errors; 25 warnings emitted

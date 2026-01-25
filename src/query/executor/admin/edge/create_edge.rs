@@ -5,20 +5,41 @@
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
-use crate::core::PropertyDef;
-use crate::query::executor::base::{BaseExecutor, Executor, HasStorage};
+use crate::core::types::metadata::{EdgeTypeSchema, PropertyDef};
+use crate::core::types::graph_schema::PropertyType;
+use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageEngine;
 
-/// 边类型信息
+impl EdgeTypeSchema {
+    pub fn from_executor(executor_info: &ExecutorEdgeInfo) -> Self {
+        let properties: Vec<PropertyType> = executor_info.properties
+            .iter()
+            .map(|p| PropertyType {
+                name: p.name.clone(),
+                type_def: p.data_type.clone(),
+                is_nullable: p.nullable,
+            })
+            .collect();
+        
+        Self {
+            space_name: executor_info.space_name.clone(),
+            name: executor_info.edge_name.clone(),
+            properties,
+            comment: executor_info.comment.clone(),
+        }
+    }
+}
+
+/// 边类型信息（执行器内部使用）
 #[derive(Debug, Clone)]
-pub struct EdgeInfo {
+pub struct ExecutorEdgeInfo {
     pub space_name: String,
     pub edge_name: String,
     pub properties: Vec<PropertyDef>,
     pub comment: Option<String>,
 }
 
-impl EdgeInfo {
+impl ExecutorEdgeInfo {
     pub fn new(space_name: String, edge_name: String) -> Self {
         Self {
             space_name,
@@ -45,13 +66,13 @@ impl EdgeInfo {
 #[derive(Debug)]
 pub struct CreateEdgeExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
-    edge_info: EdgeInfo,
+    edge_info: ExecutorEdgeInfo,
     if_not_exists: bool,
 }
 
 impl<S: StorageEngine> CreateEdgeExecutor<S> {
     /// 创建新的 CreateEdgeExecutor
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, edge_info: EdgeInfo) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, edge_info: ExecutorEdgeInfo) -> Self {
         Self {
             base: BaseExecutor::new(id, "CreateEdgeExecutor".to_string(), storage),
             edge_info,
@@ -60,7 +81,7 @@ impl<S: StorageEngine> CreateEdgeExecutor<S> {
     }
 
     /// 创建带 IF NOT EXISTS 选项的 CreateEdgeExecutor
-    pub fn with_if_not_exists(id: i64, storage: Arc<Mutex<S>>, edge_info: EdgeInfo) -> Self {
+    pub fn with_if_not_exists(id: i64, storage: Arc<Mutex<S>>, edge_info: ExecutorEdgeInfo) -> Self {
         Self {
             base: BaseExecutor::new(id, "CreateEdgeExecutor".to_string(), storage),
             edge_info,
@@ -73,11 +94,14 @@ impl<S: StorageEngine> CreateEdgeExecutor<S> {
 impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for CreateEdgeExecutor<S> {
     async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let storage_guard = storage.lock().map_err(|e| {
-            crate::core::error::DBError::StorageError(format!("Storage lock poisoned: {}", e))
+        let mut storage_guard = storage.lock().map_err(|e| {
+            crate::core::error::DBError::Storage(
+                crate::core::error::StorageError::DbError(format!("Storage lock poisoned: {}", e))
+            )
         })?;
 
-        let result = storage_guard.create_edge(&self.edge_info);
+        let metadata_edge_info = EdgeTypeSchema::from_executor(&self.edge_info);
+        let result = storage_guard.create_edge_type(&metadata_edge_info);
 
         match result {
             Ok(true) => Ok(ExecutionResult::Success),
@@ -123,5 +147,11 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for CreateEdgeExecuto
 
     fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
         self.base.get_stats_mut()
+    }
+}
+
+impl<S: StorageEngine> crate::query::executor::base::HasStorage<S> for CreateEdgeExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.get_storage()
     }
 }

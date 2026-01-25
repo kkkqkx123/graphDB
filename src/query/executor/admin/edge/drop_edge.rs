@@ -5,7 +5,7 @@
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
-use crate::query::executor::base::{BaseExecutor, Executor, HasStorage};
+use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageEngine;
 
 /// 删除边类型执行器
@@ -45,11 +45,13 @@ impl<S: StorageEngine> DropEdgeExecutor<S> {
 impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for DropEdgeExecutor<S> {
     async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let storage_guard = storage.lock().map_err(|e| {
-            crate::core::error::DBError::StorageError(format!("Storage lock poisoned: {}", e))
+        let mut storage_guard = storage.lock().map_err(|e| {
+            crate::core::error::DBError::Storage(
+                crate::core::error::StorageError::DbError(format!("Storage lock poisoned: {}", e))
+            )
         })?;
 
-        let result = storage_guard.drop_edge(&self.space_name, &self.edge_name);
+        let result = storage_guard.drop_edge_type(&self.space_name, &self.edge_name);
 
         match result {
             Ok(true) => Ok(ExecutionResult::Success),
@@ -95,5 +97,11 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for DropEdgeExecutor<
 
     fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
         self.base.get_stats_mut()
+    }
+}
+
+impl<S: StorageEngine> crate::query::executor::base::HasStorage<S> for DropEdgeExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.get_storage()
     }
 }

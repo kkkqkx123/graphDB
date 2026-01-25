@@ -3,6 +3,7 @@
 //! 包含图数据库中图结构相关的类型定义
 
 use crate::core::DataType;
+use serde::{Deserialize, Serialize};
 
 /// 边的方向类型
 ///
@@ -64,7 +65,7 @@ pub struct VertexType {
 }
 
 /// 属性类型定义
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PropertyType {
     pub name: String,
     pub type_def: DataType,

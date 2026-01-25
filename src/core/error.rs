@@ -90,6 +90,8 @@ pub enum StorageError {
     TransactionError(String),
     #[error("事务未找到: {0}")]
     TransactionNotFound(u64),
+    #[error("操作不支持: {0}")]
+    NotSupported(String),
 }
 
 /// 查询层错误类型

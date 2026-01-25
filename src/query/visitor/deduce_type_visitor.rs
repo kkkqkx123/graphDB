@@ -644,6 +644,132 @@ mod tests {
         fn get_input(&self, _input_var: &str) -> Result<Option<Vec<Value>>, StorageError> {
             Ok(None)
         }
+
+        // ========== 空间管理 ==========
+        fn create_space(&mut self, _space: &crate::core::types::SpaceInfo) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn drop_space(&mut self, _space_name: &str) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn get_space(&self, _space_name: &str) -> Result<Option<crate::core::types::SpaceInfo>, StorageError> {
+            Ok(None)
+        }
+
+        fn list_spaces(&self) -> Result<Vec<crate::core::types::SpaceInfo>, StorageError> {
+            Ok(Vec::new())
+        }
+
+        // ========== 标签管理 ==========
+        fn create_tag(&mut self, _info: &crate::core::types::TagInfo) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn alter_tag(&mut self, _space_name: &str, _tag_name: &str, _additions: Vec<crate::core::types::PropertyDef>, _deletions: Vec<String>) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn get_tag(&self, _space_name: &str, _tag_name: &str) -> Result<Option<crate::core::types::TagInfo>, StorageError> {
+            Ok(None)
+        }
+
+        fn drop_tag(&mut self, _space_name: &str, _tag_name: &str) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn list_tags(&self, _space_name: &str) -> Result<Vec<crate::core::types::TagInfo>, StorageError> {
+            Ok(Vec::new())
+        }
+
+        // ========== 边类型管理 ==========
+        fn create_edge_type(&mut self, _info: &crate::core::types::EdgeTypeSchema) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn alter_edge_type(&mut self, _space_name: &str, _edge_type_name: &str, _additions: Vec<crate::core::types::PropertyDef>, _deletions: Vec<String>) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn get_edge_type(&self, _space_name: &str, _edge_type_name: &str) -> Result<Option<crate::core::types::EdgeTypeSchema>, StorageError> {
+            Ok(None)
+        }
+
+        fn drop_edge_type(&mut self, _space_name: &str, _edge_type_name: &str) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn list_edge_types(&self, _space_name: &str) -> Result<Vec<crate::core::types::EdgeTypeSchema>, StorageError> {
+            Ok(Vec::new())
+        }
+
+        // ========== 索引管理 ==========
+        fn create_tag_index(&mut self, _info: &crate::core::types::IndexInfo) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn drop_tag_index(&mut self, _space_name: &str, _index_name: &str) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn get_tag_index(&self, _space_name: &str, _index_name: &str) -> Result<Option<crate::core::types::IndexInfo>, StorageError> {
+            Ok(None)
+        }
+
+        fn list_tag_indexes(&self, _space_name: &str) -> Result<Vec<crate::core::types::IndexInfo>, StorageError> {
+            Ok(Vec::new())
+        }
+
+        fn rebuild_tag_index(&mut self, _space_name: &str, _index_name: &str) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn create_edge_index(&mut self, _info: &crate::core::types::IndexInfo) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn drop_edge_index(&mut self, _space_name: &str, _index_name: &str) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn get_edge_index(&self, _space_name: &str, _index_name: &str) -> Result<Option<crate::core::types::IndexInfo>, StorageError> {
+            Ok(None)
+        }
+
+        fn list_edge_indexes(&self, _space_name: &str) -> Result<Vec<crate::core::types::IndexInfo>, StorageError> {
+            Ok(Vec::new())
+        }
+
+        fn rebuild_edge_index(&mut self, _space_name: &str, _index_name: &str) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        // ========== 数据变更 ==========
+        fn insert_vertex_data(&mut self, _info: &crate::core::types::InsertVertexInfo) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn insert_edge_data(&mut self, _info: &crate::core::types::InsertEdgeInfo) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn delete_vertex_data(&mut self, _space_name: &str, _vertex_id: &str) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn delete_edge_data(&mut self, _space_name: &str, _src: &str, _dst: &str, _rank: i64) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn update_data(&mut self, _info: &crate::core::types::UpdateInfo) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        // ========== 用户管理 ==========
+        fn change_password(&mut self, _info: &crate::core::types::PasswordInfo) -> Result<bool, StorageError> {
+            Ok(true)
+        }
     }
 
     #[test]

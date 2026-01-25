@@ -5,7 +5,7 @@
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
-use crate::query::executor::base::{BaseExecutor, Executor, HasStorage};
+use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageEngine;
 
 /// 删除图空间执行器
@@ -42,8 +42,10 @@ impl<S: StorageEngine> DropSpaceExecutor<S> {
 impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for DropSpaceExecutor<S> {
     async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let storage_guard = storage.lock().map_err(|e| {
-            crate::core::error::DBError::StorageError(format!("Storage lock poisoned: {}", e))
+        let mut storage_guard = storage.lock().map_err(|e| {
+            crate::core::error::DBError::Storage(
+                crate::core::error::StorageError::DbError(format!("Storage lock poisoned: {}", e))
+            )
         })?;
 
         let result = storage_guard.drop_space(&self.space_name);
@@ -91,5 +93,11 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for DropSpaceExecutor
 
     fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
         self.base.get_stats_mut()
+    }
+}
+
+impl<S: StorageEngine> crate::query::executor::base::HasStorage<S> for DropSpaceExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.get_storage()
     }
 }

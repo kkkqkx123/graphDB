@@ -5,16 +5,9 @@
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
-use crate::query::executor::base::{BaseExecutor, Executor, HasStorage};
+use crate::core::types::metadata::PasswordInfo;
+use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageEngine;
-
-/// 密码信息
-#[derive(Debug, Clone)]
-pub struct PasswordInfo {
-    pub username: String,
-    pub old_password: String,
-    pub new_password: String,
-}
 
 /// 变更密码执行器
 ///
@@ -39,8 +32,10 @@ impl<S: StorageEngine> ChangePasswordExecutor<S> {
 impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ChangePasswordExecutor<S> {
     async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let storage_guard = storage.lock().map_err(|e| {
-            crate::core::error::DBError::StorageError(format!("Storage lock poisoned: {}", e))
+        let mut storage_guard = storage.lock().map_err(|e| {
+            crate::core::error::DBError::Storage(
+                crate::core::error::StorageError::DbError(format!("Storage lock poisoned: {}", e))
+            )
         })?;
 
         let result = storage_guard.change_password(&self.password_info);
@@ -82,5 +77,11 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ChangePasswordExe
 
     fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
         self.base.get_stats_mut()
+    }
+}
+
+impl<S: StorageEngine> crate::query::executor::base::HasStorage<S> for ChangePasswordExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.get_storage()
     }
 }

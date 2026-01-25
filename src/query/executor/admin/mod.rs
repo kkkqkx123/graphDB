@@ -20,9 +20,13 @@ pub use self::tag::{
     CreateTagExecutor, AlterTagExecutor, DescTagExecutor, DropTagExecutor, ShowTagsExecutor,
 };
 
+pub use self::tag::alter_tag::{AlterTagInfo, AlterTagItem, AlterTagOp};
+
 pub use self::edge::{
     CreateEdgeExecutor, AlterEdgeExecutor, DescEdgeExecutor, DropEdgeExecutor, ShowEdgesExecutor,
 };
+
+pub use self::edge::alter_edge::{AlterEdgeInfo, AlterEdgeItem, AlterEdgeOp};
 
 pub use self::index::{
     CreateTagIndexExecutor, DropTagIndexExecutor, DescTagIndexExecutor, ShowTagIndexesExecutor,
@@ -37,3 +41,5 @@ pub use self::data::{
 pub use self::user::{
     ChangePasswordExecutor,
 };
+
+pub use crate::core::types::metadata::PasswordInfo;

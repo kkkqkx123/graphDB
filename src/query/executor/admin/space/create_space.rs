@@ -5,20 +5,41 @@
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
-use crate::core::Value;
-use crate::query::executor::base::{BaseExecutor, Executor, HasStorage};
+use crate::core::{DataType, Value};
+use crate::core::types::metadata::SpaceInfo;
+use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageEngine;
 
-/// 图空间信息
+impl SpaceInfo {
+    pub fn from_executor(executor_info: &ExecutorSpaceInfo) -> Self {
+        let vid_type = match executor_info.vid_type.as_str() {
+            "INT64" => DataType::Int64,
+            "INT32" => DataType::Int32,
+            "INT16" => DataType::Int16,
+            "INT8" => DataType::Int8,
+            _ => DataType::String,
+        };
+        
+        Self {
+            name: executor_info.space_name.clone(),
+            partition_num: executor_info.partition_num as i32,
+            replica_factor: executor_info.replica_factor as i32,
+            vid_type,
+            comment: None,
+        }
+    }
+}
+
+/// 图空间信息（执行器内部使用）
 #[derive(Debug, Clone)]
-pub struct SpaceInfo {
+pub struct ExecutorSpaceInfo {
     pub space_name: String,
     pub partition_num: usize,
     pub replica_factor: usize,
     pub vid_type: String,
 }
 
-impl SpaceInfo {
+impl ExecutorSpaceInfo {
     pub fn new(space_name: String) -> Self {
         Self {
             space_name,
@@ -50,12 +71,12 @@ impl SpaceInfo {
 #[derive(Debug)]
 pub struct CreateSpaceExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
-    space_info: SpaceInfo,
+    space_info: ExecutorSpaceInfo,
 }
 
 impl<S: StorageEngine> CreateSpaceExecutor<S> {
     /// 创建新的 CreateSpaceExecutor
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_info: SpaceInfo) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_info: ExecutorSpaceInfo) -> Self {
         Self {
             base: BaseExecutor::new(id, "CreateSpaceExecutor".to_string(), storage),
             space_info,
@@ -67,11 +88,14 @@ impl<S: StorageEngine> CreateSpaceExecutor<S> {
 impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for CreateSpaceExecutor<S> {
     async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let storage_guard = storage.lock().map_err(|e| {
-            crate::core::error::DBError::StorageError(format!("Storage lock poisoned: {}", e))
+        let mut storage_guard = storage.lock().map_err(|e| {
+            crate::core::error::DBError::Storage(
+                crate::core::error::StorageError::DbError(format!("Storage lock poisoned: {}", e))
+            )
         })?;
 
-        let result = storage_guard.create_space(&self.space_info);
+        let metadata_space_info = SpaceInfo::from_executor(&self.space_info);
+        let result = storage_guard.create_space(&metadata_space_info);
 
         match result {
             Ok(_) => Ok(ExecutionResult::Success),
@@ -109,5 +133,11 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for CreateSpaceExecut
 
     fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
         self.base.get_stats_mut()
+    }
+}
+
+impl<S: StorageEngine> crate::query::executor::base::HasStorage<S> for CreateSpaceExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.get_storage()
     }
 }

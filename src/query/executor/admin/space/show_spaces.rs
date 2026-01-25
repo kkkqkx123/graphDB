@@ -5,8 +5,9 @@
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
-use crate::core::{DataSet, Row, Value};
-use crate::query::executor::base::{BaseExecutor, Executor, HasStorage};
+use crate::core::{DataSet, Value};
+use crate::storage::iterator::Row;
+use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageEngine;
 
 /// 列出图空间执行器
@@ -31,37 +32,35 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ShowSpacesExecuto
     async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let storage_guard = storage.lock().map_err(|e| {
-            crate::core::error::DBError::StorageError(format!("Storage lock poisoned: {}", e))
+            crate::core::error::DBError::Storage(
+                crate::core::error::StorageError::DbError(format!("Storage lock poisoned: {}", e))
+            )
         })?;
 
         let result = storage_guard.list_spaces();
 
         match result {
-            Ok(space_descs) => {
-                let rows: Vec<Row> = space_descs
+            Ok(spaces) => {
+                let rows: Vec<Row> = spaces
                     .iter()
-                    .map(|desc| {
-                        Row::new(vec![
-                            Value::Int(desc.id as i64),
-                            Value::String(desc.name.clone()),
-                            Value::Int(desc.partition_num as i64),
-                            Value::Int(desc.replica_factor as i64),
-                            Value::String(desc.vid_type.clone()),
-                            Value::String(desc.charset.clone()),
-                            Value::String(desc.collate.clone()),
-                        ])
+                    .map(|space| {
+                        vec![
+                            Value::String(space.name.clone()),
+                            Value::Int(space.partition_num as i64),
+                            Value::Int(space.replica_factor as i64),
+                            Value::String(format!("{:?}", space.vid_type)),
+                            Value::String(space.comment.clone().unwrap_or_else(|| "".to_string())),
+                        ]
                     })
                     .collect();
 
                 let dataset = DataSet {
-                    columns: vec![
-                        "ID".to_string(),
+                    col_names: vec![
                         "Name".to_string(),
                         "Partition Number".to_string(),
                         "Replica Factor".to_string(),
                         "Vid Type".to_string(),
-                        "Charset".to_string(),
-                        "Collate".to_string(),
+                        "Comment".to_string(),
                     ],
                     rows,
                 };
@@ -101,5 +100,11 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ShowSpacesExecuto
 
     fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
         self.base.get_stats_mut()
+    }
+}
+
+impl<S: StorageEngine> crate::query::executor::base::HasStorage<S> for ShowSpacesExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.get_storage()
     }
 }

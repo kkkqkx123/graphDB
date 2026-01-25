@@ -5,8 +5,11 @@
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
-use crate::core::{DataSet, PropertyType, Row, Value};
-use crate::query::executor::base::{BaseExecutor, Executor, HasStorage};
+use crate::core::DataSet;
+use crate::core::types::graph_schema::PropertyType;
+use crate::core::Value;
+use crate::storage::iterator::Row;
+use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageEngine;
 
 /// 边类型描述信息
@@ -48,31 +51,30 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for DescEdgeExecutor<
     async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let storage_guard = storage.lock().map_err(|e| {
-            crate::core::error::DBError::StorageError(format!("Storage lock poisoned: {}", e))
+            crate::core::error::DBError::Storage(
+                crate::core::error::StorageError::DbError(format!("Storage lock poisoned: {}", e))
+            )
         })?;
 
-        let result = storage_guard.get_edge_type_desc(&self.space_name, &self.edge_name);
+        let result = storage_guard.get_edge_type(&self.space_name, &self.edge_name);
 
         match result {
-            Ok(Some(edge_descs)) => {
-                let rows: Vec<Row> = edge_descs
+            Ok(Some(edge_schema)) => {
+                let rows: Vec<Row> = edge_schema.properties
                     .iter()
-                    .map(|desc| {
-                        Row::new(vec![
-                            Value::String(desc.field_name.clone()),
-                            Value::String(format!("{:?}", desc.field_type)),
-                            Value::Bool(desc.nullable),
-                            Value::String(desc.default_value
-                                .as_ref()
-                                .map(|v| format!("{}", v))
-                                .unwrap_or_else(|| "".to_string())),
-                            Value::String(desc.comment.clone().unwrap_or_else(|| "".to_string())),
-                        ])
+                    .map(|field| {
+                        vec![
+                            Value::String(field.name.clone()),
+                            Value::String(format!("{:?}", field.type_def)),
+                            Value::Bool(field.is_nullable),
+                            Value::String("".to_string()),
+                            Value::String("".to_string()),
+                        ]
                     })
                     .collect();
 
                 let dataset = DataSet {
-                    columns: vec![
+                    col_names: vec![
                         "Field".to_string(),
                         "Type".to_string(),
                         "Nullable".to_string(),
@@ -119,5 +121,11 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for DescEdgeExecutor<
 
     fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
         self.base.get_stats_mut()
+    }
+}
+
+impl<S: StorageEngine> crate::query::executor::base::HasStorage<S> for DescEdgeExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.get_storage()
     }
 }

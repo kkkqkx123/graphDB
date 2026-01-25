@@ -5,8 +5,10 @@
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
-use crate::core::{DataSet, Row, Value};
-use crate::query::executor::base::{BaseExecutor, Executor, HasStorage};
+use crate::core::{DataSet, Value};
+use crate::storage::iterator::Row;
+use crate::core::types::metadata::IndexInfo;
+use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageEngine;
 
 /// 边索引描述信息
@@ -19,16 +21,41 @@ pub struct EdgeIndexDesc {
     pub comment: Option<String>,
 }
 
+impl EdgeIndexDesc {
+    pub fn from_metadata(info: &IndexInfo) -> Self {
+        Self {
+            index_id: 0,
+            index_name: info.name.clone(),
+            edge_name: info.target_name.clone(),
+            fields: info.properties.clone(),
+            comment: info.comment.clone(),
+        }
+    }
+}
+
+impl From<&EdgeIndexDesc> for IndexInfo {
+    fn from(desc: &EdgeIndexDesc) -> Self {
+        IndexInfo {
+            space_name: String::new(),
+            name: desc.index_name.clone(),
+            target_type: "edge".to_string(),
+            target_name: desc.edge_name.clone(),
+            properties: desc.fields.clone(),
+            comment: desc.comment.clone(),
+        }
+    }
+}
+
 /// 创建边索引执行器
 #[derive(Debug)]
 pub struct CreateEdgeIndexExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
-    index_info: super::tag_index::IndexInfo,
+    index_info: IndexInfo,
     if_not_exists: bool,
 }
 
 impl<S: StorageEngine> CreateEdgeIndexExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, index_info: super::tag_index::IndexInfo) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, index_info: IndexInfo) -> Self {
         Self {
             base: BaseExecutor::new(id, "CreateEdgeIndexExecutor".to_string(), storage),
             index_info,
@@ -36,7 +63,7 @@ impl<S: StorageEngine> CreateEdgeIndexExecutor<S> {
         }
     }
 
-    pub fn with_if_not_exists(id: i64, storage: Arc<Mutex<S>>, index_info: super::tag_index::IndexInfo) -> Self {
+    pub fn with_if_not_exists(id: i64, storage: Arc<Mutex<S>>, index_info: IndexInfo) -> Self {
         Self {
             base: BaseExecutor::new(id, "CreateEdgeIndexExecutor".to_string(), storage),
             index_info,
@@ -49,8 +76,10 @@ impl<S: StorageEngine> CreateEdgeIndexExecutor<S> {
 impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for CreateEdgeIndexExecutor<S> {
     async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let storage_guard = storage.lock().map_err(|e| {
-            crate::core::error::DBError::StorageError(format!("Storage lock poisoned: {}", e))
+        let mut storage_guard = storage.lock().map_err(|e| {
+            crate::core::error::DBError::Storage(
+                crate::core::error::StorageError::DbError(format!("Storage lock poisoned: {}", e))
+            )
         })?;
 
         let result = storage_guard.create_edge_index(&self.index_info);
@@ -61,7 +90,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for CreateEdgeIndexEx
                 if self.if_not_exists {
                     Ok(ExecutionResult::Success)
                 } else {
-                    Ok(ExecutionResult::Error(format!("Index '{}' already exists", self.index_info.index_name)))
+                    Ok(ExecutionResult::Error(format!("Index '{}' already exists", self.index_info.name)))
                 }
             }
             Err(e) => Ok(ExecutionResult::Error(format!("Failed to create edge index: {}", e))),
@@ -76,6 +105,18 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for CreateEdgeIndexEx
     fn description(&self) -> &str { "Creates an edge index" }
     fn stats(&self) -> &crate::query::executor::base::ExecutorStats { self.base.get_stats() }
     fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats { self.base.get_stats_mut() }
+}
+
+impl<S: StorageEngine> crate::query::executor::base::HasStorage<S> for ShowEdgeIndexesExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.get_storage()
+    }
+}
+
+impl<S: StorageEngine> crate::query::executor::base::HasStorage<S> for CreateEdgeIndexExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.get_storage()
+    }
 }
 
 /// 删除边索引执行器
@@ -111,8 +152,10 @@ impl<S: StorageEngine> DropEdgeIndexExecutor<S> {
 impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for DropEdgeIndexExecutor<S> {
     async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let storage_guard = storage.lock().map_err(|e| {
-            crate::core::error::DBError::StorageError(format!("Storage lock poisoned: {}", e))
+        let mut storage_guard = storage.lock().map_err(|e| {
+            crate::core::error::DBError::Storage(
+                crate::core::error::StorageError::DbError(format!("Storage lock poisoned: {}", e))
+            )
         })?;
 
         let result = storage_guard.drop_edge_index(&self.space_name, &self.index_name);
@@ -140,6 +183,12 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for DropEdgeIndexExec
     fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats { self.base.get_stats_mut() }
 }
 
+impl<S: StorageEngine> crate::query::executor::base::HasStorage<S> for DropEdgeIndexExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.get_storage()
+    }
+}
+
 /// 描述边索引执行器
 #[derive(Debug)]
 pub struct DescEdgeIndexExecutor<S: StorageEngine> {
@@ -163,22 +212,27 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for DescEdgeIndexExec
     async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let storage_guard = storage.lock().map_err(|e| {
-            crate::core::error::DBError::StorageError(format!("Storage lock poisoned: {}", e))
+            crate::core::error::DBError::Storage(
+                crate::core::error::StorageError::DbError(format!("Storage lock poisoned: {}", e))
+            )
         })?;
 
-        let result = storage_guard.get_edge_index_desc(&self.space_name, &self.index_name);
+        let result = storage_guard.get_edge_index(&self.space_name, &self.index_name);
 
         match result {
             Ok(Some(desc)) => {
-                let rows = vec![Row::new(vec![
-                    Value::String(desc.index_name),
-                    Value::String(desc.edge_name),
-                    Value::String(desc.fields.join(", ")),
-                    Value::String(desc.comment.unwrap_or_else(|| "".to_string())),
-                ])];
+                let desc = EdgeIndexDesc::from_metadata(&desc);
+                let rows = vec![
+                    vec![
+                        Value::String(desc.index_name),
+                        Value::String(desc.edge_name),
+                        Value::String(desc.fields.join(", ")),
+                        Value::String(desc.comment.unwrap_or_else(|| "".to_string())),
+                    ]
+                ];
 
                 let dataset = DataSet {
-                    columns: vec!["Index Name".to_string(), "Edge Name".to_string(), "Fields".to_string(), "Comment".to_string()],
+                    col_names: vec!["Index Name".to_string(), "Edge Name".to_string(), "Fields".to_string(), "Comment".to_string()],
                     rows,
                 };
                 Ok(ExecutionResult::DataSet(dataset))
@@ -196,6 +250,12 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for DescEdgeIndexExec
     fn description(&self) -> &str { "Describes an edge index" }
     fn stats(&self) -> &crate::query::executor::base::ExecutorStats { self.base.get_stats() }
     fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats { self.base.get_stats_mut() }
+}
+
+impl<S: StorageEngine> crate::query::executor::base::HasStorage<S> for DescEdgeIndexExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.get_storage()
+    }
 }
 
 /// 列出边索引执行器
@@ -219,7 +279,9 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ShowEdgeIndexesEx
     async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let storage_guard = storage.lock().map_err(|e| {
-            crate::core::error::DBError::StorageError(format!("Storage lock poisoned: {}", e))
+            crate::core::error::DBError::Storage(
+                crate::core::error::StorageError::DbError(format!("Storage lock poisoned: {}", e))
+            )
         })?;
 
         let result = storage_guard.list_edge_indexes(&self.space_name);
@@ -229,16 +291,17 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ShowEdgeIndexesEx
                 let rows: Vec<Row> = indexes
                     .iter()
                     .map(|desc| {
-                        Row::new(vec![
+                        let desc = EdgeIndexDesc::from_metadata(desc);
+                        vec![
                             Value::String(desc.index_name.clone()),
                             Value::String(desc.edge_name.clone()),
                             Value::String(desc.fields.join(", ")),
-                        ])
+                        ]
                     })
                     .collect();
 
                 let dataset = DataSet {
-                    columns: vec!["Index Name".to_string(), "Edge Name".to_string(), "Fields".to_string()],
+                    col_names: vec!["Index Name".to_string(), "Edge Name".to_string(), "Fields".to_string()],
                     rows,
                 };
                 Ok(ExecutionResult::DataSet(dataset))

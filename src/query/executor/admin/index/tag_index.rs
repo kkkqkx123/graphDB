@@ -5,41 +5,11 @@
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
-use crate::core::{DataSet, Row, Value};
-use crate::query::executor::base::{BaseExecutor, Executor, HasStorage};
+use crate::core::{DataSet, Value};
+use crate::storage::iterator::Row;
+use crate::core::types::metadata::IndexInfo;
+use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageEngine;
-
-/// 索引信息
-#[derive(Debug, Clone)]
-pub struct IndexInfo {
-    pub space_name: String,
-    pub index_name: String,
-    pub tag_name: String,
-    pub fields: Vec<String>,
-    pub comment: Option<String>,
-}
-
-impl IndexInfo {
-    pub fn new(space_name: String, index_name: String, tag_name: String) -> Self {
-        Self {
-            space_name,
-            index_name,
-            tag_name,
-            fields: Vec::new(),
-            comment: None,
-        }
-    }
-
-    pub fn with_fields(mut self, fields: Vec<String>) -> Self {
-        self.fields = fields;
-        self
-    }
-
-    pub fn with_comment(mut self, comment: String) -> Self {
-        self.comment = Some(comment);
-        self
-    }
-}
 
 /// 标签索引描述信息
 #[derive(Debug, Clone)]
@@ -49,6 +19,31 @@ pub struct TagIndexDesc {
     pub tag_name: String,
     pub fields: Vec<String>,
     pub comment: Option<String>,
+}
+
+impl TagIndexDesc {
+    pub fn from_metadata(info: &IndexInfo) -> Self {
+        Self {
+            index_id: 0,
+            index_name: info.name.clone(),
+            tag_name: info.target_name.clone(),
+            fields: info.properties.clone(),
+            comment: info.comment.clone(),
+        }
+    }
+}
+
+impl From<&TagIndexDesc> for IndexInfo {
+    fn from(desc: &TagIndexDesc) -> Self {
+        IndexInfo {
+            space_name: String::new(),
+            name: desc.index_name.clone(),
+            target_type: "tag".to_string(),
+            target_name: desc.tag_name.clone(),
+            properties: desc.fields.clone(),
+            comment: desc.comment.clone(),
+        }
+    }
 }
 
 /// 创建标签索引执行器
@@ -81,8 +76,10 @@ impl<S: StorageEngine> CreateTagIndexExecutor<S> {
 impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for CreateTagIndexExecutor<S> {
     async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let storage_guard = storage.lock().map_err(|e| {
-            crate::core::error::DBError::StorageError(format!("Storage lock poisoned: {}", e))
+        let mut storage_guard = storage.lock().map_err(|e| {
+            crate::core::error::DBError::Storage(
+                crate::core::error::StorageError::DbError(format!("Storage lock poisoned: {}", e))
+            )
         })?;
 
         let result = storage_guard.create_tag_index(&self.index_info);
@@ -93,7 +90,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for CreateTagIndexExe
                 if self.if_not_exists {
                     Ok(ExecutionResult::Success)
                 } else {
-                    Ok(ExecutionResult::Error(format!("Index '{}' already exists", self.index_info.index_name)))
+                    Ok(ExecutionResult::Error(format!("Index '{}' already exists", self.index_info.name)))
                 }
             }
             Err(e) => Ok(ExecutionResult::Error(format!("Failed to create tag index: {}", e))),
@@ -108,6 +105,18 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for CreateTagIndexExe
     fn description(&self) -> &str { "Creates a tag index" }
     fn stats(&self) -> &crate::query::executor::base::ExecutorStats { self.base.get_stats() }
     fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats { self.base.get_stats_mut() }
+}
+
+impl<S: StorageEngine> crate::query::executor::base::HasStorage<S> for ShowTagIndexesExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.get_storage()
+    }
+}
+
+impl<S: StorageEngine> crate::query::executor::base::HasStorage<S> for CreateTagIndexExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.get_storage()
+    }
 }
 
 /// 删除标签索引执行器
@@ -143,8 +152,10 @@ impl<S: StorageEngine> DropTagIndexExecutor<S> {
 impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for DropTagIndexExecutor<S> {
     async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let storage_guard = storage.lock().map_err(|e| {
-            crate::core::error::DBError::StorageError(format!("Storage lock poisoned: {}", e))
+        let mut storage_guard = storage.lock().map_err(|e| {
+            crate::core::error::DBError::Storage(
+                crate::core::error::StorageError::DbError(format!("Storage lock poisoned: {}", e))
+            )
         })?;
 
         let result = storage_guard.drop_tag_index(&self.space_name, &self.index_name);
@@ -172,6 +183,12 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for DropTagIndexExecu
     fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats { self.base.get_stats_mut() }
 }
 
+impl<S: StorageEngine> crate::query::executor::base::HasStorage<S> for DropTagIndexExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.get_storage()
+    }
+}
+
 /// 描述标签索引执行器
 #[derive(Debug)]
 pub struct DescTagIndexExecutor<S: StorageEngine> {
@@ -195,22 +212,27 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for DescTagIndexExecu
     async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let storage_guard = storage.lock().map_err(|e| {
-            crate::core::error::DBError::StorageError(format!("Storage lock poisoned: {}", e))
+            crate::core::error::DBError::Storage(
+                crate::core::error::StorageError::DbError(format!("Storage lock poisoned: {}", e))
+            )
         })?;
 
-        let result = storage_guard.get_tag_index_desc(&self.space_name, &self.index_name);
+        let result = storage_guard.get_tag_index(&self.space_name, &self.index_name);
 
         match result {
             Ok(Some(desc)) => {
-                let rows = vec![Row::new(vec![
-                    Value::String(desc.index_name),
-                    Value::String(desc.tag_name),
-                    Value::String(desc.fields.join(", ")),
-                    Value::String(desc.comment.unwrap_or_else(|| "".to_string())),
-                ])];
+                let desc = TagIndexDesc::from_metadata(&desc);
+                let rows = vec![
+                    vec![
+                        Value::String(desc.index_name),
+                        Value::String(desc.tag_name),
+                        Value::String(desc.fields.join(", ")),
+                        Value::String(desc.comment.unwrap_or_else(|| "".to_string())),
+                    ]
+                ];
 
                 let dataset = DataSet {
-                    columns: vec!["Index Name".to_string(), "Tag Name".to_string(), "Fields".to_string(), "Comment".to_string()],
+                    col_names: vec!["Index Name".to_string(), "Tag Name".to_string(), "Fields".to_string(), "Comment".to_string()],
                     rows,
                 };
                 Ok(ExecutionResult::DataSet(dataset))
@@ -228,6 +250,12 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for DescTagIndexExecu
     fn description(&self) -> &str { "Describes a tag index" }
     fn stats(&self) -> &crate::query::executor::base::ExecutorStats { self.base.get_stats() }
     fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats { self.base.get_stats_mut() }
+}
+
+impl<S: StorageEngine> crate::query::executor::base::HasStorage<S> for DescTagIndexExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.get_storage()
+    }
 }
 
 /// 列出标签索引执行器
@@ -251,7 +279,9 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ShowTagIndexesExe
     async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let storage_guard = storage.lock().map_err(|e| {
-            crate::core::error::DBError::StorageError(format!("Storage lock poisoned: {}", e))
+            crate::core::error::DBError::Storage(
+                crate::core::error::StorageError::DbError(format!("Storage lock poisoned: {}", e))
+            )
         })?;
 
         let result = storage_guard.list_tag_indexes(&self.space_name);
@@ -261,16 +291,17 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ShowTagIndexesExe
                 let rows: Vec<Row> = indexes
                     .iter()
                     .map(|desc| {
-                        Row::new(vec![
+                        let desc = TagIndexDesc::from_metadata(desc);
+                        vec![
                             Value::String(desc.index_name.clone()),
                             Value::String(desc.tag_name.clone()),
                             Value::String(desc.fields.join(", ")),
-                        ])
+                        ]
                     })
                     .collect();
 
                 let dataset = DataSet {
-                    columns: vec!["Index Name".to_string(), "Tag Name".to_string(), "Fields".to_string()],
+                    col_names: vec!["Index Name".to_string(), "Tag Name".to_string(), "Fields".to_string()],
                     rows,
                 };
                 Ok(ExecutionResult::DataSet(dataset))

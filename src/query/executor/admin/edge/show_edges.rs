@@ -5,8 +5,9 @@
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
-use crate::core::{DataSet, Row, Value};
-use crate::query::executor::base::{BaseExecutor, Executor, HasStorage};
+use crate::core::{DataSet, Value};
+use crate::storage::iterator::Row;
+use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageEngine;
 
 /// 列出边类型执行器
@@ -33,22 +34,24 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ShowEdgesExecutor
     async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let storage_guard = storage.lock().map_err(|e| {
-            crate::core::error::DBError::StorageError(format!("Storage lock poisoned: {}", e))
+            crate::core::error::DBError::Storage(
+                crate::core::error::StorageError::DbError(format!("Storage lock poisoned: {}", e))
+            )
         })?;
 
         let result = storage_guard.list_edge_types(&self.space_name);
 
         match result {
-            Ok(edge_names) => {
-                let rows: Vec<Row> = edge_names
+            Ok(edge_schemas) => {
+                let rows: Vec<Row> = edge_schemas
                     .iter()
-                    .map(|name| {
-                        Row::new(vec![Value::String(name.clone())])
+                    .map(|schema| {
+                        vec![Value::String(schema.name.clone())]
                     })
                     .collect();
 
                 let dataset = DataSet {
-                    columns: vec!["Edge Type".to_string()],
+                    col_names: vec!["Edge Type".to_string()],
                     rows,
                 };
                 Ok(ExecutionResult::DataSet(dataset))
@@ -87,5 +90,11 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ShowEdgesExecutor
 
     fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
         self.base.get_stats_mut()
+    }
+}
+
+impl<S: StorageEngine> crate::query::executor::base::HasStorage<S> for ShowEdgesExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.get_storage()
     }
 }

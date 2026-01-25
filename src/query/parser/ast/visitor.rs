@@ -102,6 +102,10 @@ pub trait StmtVisitor {
             Stmt::Set(s) => self.visit_set(s),
             Stmt::Remove(s) => self.visit_remove(s),
             Stmt::Pipe(s) => self.visit_pipe(s),
+            Stmt::Drop(s) => self.visit_drop(s),
+            Stmt::Desc(s) => self.visit_desc(s),
+            Stmt::Alter(s) => self.visit_alter(s),
+            Stmt::ChangePassword(s) => self.visit_change_password(s),
         }
     }
 
@@ -167,6 +171,18 @@ pub trait StmtVisitor {
 
     /// 访问 PIPE 语句
     fn visit_pipe(&mut self, stmt: &PipeStmt) -> Self::Result;
+
+    /// 访问 DROP 语句
+    fn visit_drop(&mut self, stmt: &DropStmt) -> Self::Result;
+
+    /// 访问 DESCRIBE 语句
+    fn visit_desc(&mut self, stmt: &DescStmt) -> Self::Result;
+
+    /// 访问 ALTER 语句
+    fn visit_alter(&mut self, stmt: &AlterStmt) -> Self::Result;
+
+    /// 访问 CHANGE PASSWORD 语句
+    fn visit_change_password(&mut self, stmt: &ChangePasswordStmt) -> Self::Result;
 }
 
 /// 模式访问者 trait
@@ -585,6 +601,22 @@ impl StmtVisitor for DefaultVisitor {
     fn visit_pipe(&mut self, stmt: &PipeStmt) -> Self::Result {
         // 访问表达式
         self.visit_expression(&stmt.expression);
+    }
+
+    fn visit_drop(&mut self, _stmt: &DropStmt) -> Self::Result {
+        // DROP 语句没有子表达式
+    }
+
+    fn visit_desc(&mut self, _stmt: &DescStmt) -> Self::Result {
+        // DESCRIBE 语句没有子表达式
+    }
+
+    fn visit_alter(&mut self, _stmt: &AlterStmt) -> Self::Result {
+        // ALTER 语句没有子表达式
+    }
+
+    fn visit_change_password(&mut self, _stmt: &ChangePasswordStmt) -> Self::Result {
+        // CHANGE PASSWORD 语句没有子表达式
     }
 }
 
