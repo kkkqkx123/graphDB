@@ -1,49 +1,45 @@
 //! 通用规则trait和工具函数的完整实现
 //! 提供优化规则的通用接口和辅助函数，减少代码重复
 
-use super::optimizer::{OptContext, OptGroupNode, OptRule, OptimizerError, Pattern};
+use super::core::Cost;
+use super::plan::{OptContext, OptGroupNode, OptRule, Pattern};
+use super::engine::OptimizerError;
 use crate::core::types::operators::BinaryOperator;
 use crate::core::{Expression, Value};
 use crate::query::planner::plan::PlanNodeEnum;
 
 use std::collections::HashMap;
 
-/// 优化规则的基础trait，扩展了OptRule
 pub trait BaseOptRule: OptRule {
-    /// 获取规则的优先级，数值越小优先级越高
     fn priority(&self) -> u32 {
-        100 // 默认优先级
+        100
     }
 
-    /// 检查规则是否适用于给定的计划节点
     fn is_applicable(&self, node: &OptGroupNode) -> bool {
         self.pattern().matches(node)
     }
 
-    /// 应用规则前的验证
     fn validate(&self, _ctx: &OptContext, _node: &OptGroupNode) -> Result<(), OptimizerError> {
-        // 默认实现不做任何验证
         Ok(())
     }
 
-    /// 应用规则后的处理
     fn post_process(
         &self,
         _ctx: &mut OptContext,
         _original_node: &OptGroupNode,
         _result_node: &OptGroupNode,
     ) -> Result<(), OptimizerError> {
-        // 默认实现不做任何处理
         Ok(())
+    }
+
+    fn phase(&self) -> super::core::OptimizationPhase {
+        super::core::OptimizationPhase::LogicalOptimization
     }
 }
 
-/// 下推优化规则的通用trait
 pub trait PushDownRule: BaseOptRule {
-    /// 检查是否可以下推到指定的子节点类型
     fn can_push_down_to(&self, child_node: &PlanNodeEnum) -> bool;
 
-    /// 获取下推后的新节点
     fn create_pushed_down_node(
         &self,
         ctx: &mut OptContext,
@@ -52,12 +48,9 @@ pub trait PushDownRule: BaseOptRule {
     ) -> Result<Option<OptGroupNode>, OptimizerError>;
 }
 
-/// 合并优化规则的通用trait
 pub trait MergeRule: BaseOptRule {
-    /// 检查是否可以合并指定的节点
     fn can_merge(&self, node: &OptGroupNode, child: &OptGroupNode) -> bool;
 
-    /// 创建合并后的新节点
     fn create_merged_node(
         &self,
         ctx: &mut OptContext,
@@ -66,12 +59,9 @@ pub trait MergeRule: BaseOptRule {
     ) -> Result<Option<OptGroupNode>, OptimizerError>;
 }
 
-/// 消除优化规则的通用trait
 pub trait EliminationRule: BaseOptRule {
-    /// 检查节点是否可以被消除
     fn can_eliminate(&self, _ctx: &OptContext, _node: &OptGroupNode) -> bool;
 
-    /// 获取消除后的替代节点（如果有）
     fn get_replacement(
         &self,
         _ctx: &mut OptContext,
@@ -79,14 +69,23 @@ pub trait EliminationRule: BaseOptRule {
     ) -> Result<Option<OptGroupNode>, OptimizerError>;
 }
 
-/// 表达式解析器，用于分析条件表达式
+pub trait CostAwareRule: BaseOptRule {
+    fn estimate_cost_before(&self, ctx: &OptContext, node: &OptGroupNode) -> Cost;
+
+    fn estimate_cost_after(&self, ctx: &OptContext, node: &OptGroupNode, new_node: &OptGroupNode) -> Cost;
+
+    fn should_apply(&self, ctx: &OptContext, node: &OptGroupNode, new_node: &OptGroupNode) -> bool {
+        let cost_before = self.estimate_cost_before(ctx, node);
+        let cost_after = self.estimate_cost_after(ctx, node, new_node);
+        cost_after.total() < cost_before.total()
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ExpressionParser {
-    // 缓存已解析的表达式，避免重复解析
     parsed_expressions: HashMap<String, ParsedExpression>,
 }
 
-/// 解析后的表达式结构
 #[derive(Debug, Clone)]
 pub struct ParsedExpression {
     pub is_tautology: bool,

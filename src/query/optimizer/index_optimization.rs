@@ -1,11 +1,11 @@
 //! 索引优化规则
 //! 这些规则负责优化索引操作，包括基于过滤条件的索引扫描优化和索引扫描操作本身的优化
 
-use super::optimizer::OptimizerError;
+use super::engine::OptimizerError;
+use super::plan::{OptContext, OptGroupNode, OptRule, Pattern};
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::{combine_conditions, BaseOptRule, FilterSplitResult};
 use crate::core::Expression;
-use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
 use crate::query::planner::plan::algorithms::IndexScan;
 use crate::query::planner::plan::core::nodes::PlanNodeEnum;
 
@@ -1010,7 +1010,7 @@ impl BaseOptRule for UnionAllTagIndexScanRule {}
 mod tests {
     use super::*;
     use crate::query::context::execution::QueryContext;
-    use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
+    use crate::query::optimizer::plan::{OptContext, OptGroupNode};
     use crate::query::planner::plan::algorithms::IndexScan;
 
     fn create_test_context() -> OptContext {

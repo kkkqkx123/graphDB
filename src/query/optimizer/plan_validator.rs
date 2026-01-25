@@ -2,9 +2,9 @@
 //!
 //! 提供计划验证功能，确保优化后的计划是正确的
 
+use super::engine::OptimizerError;
+use super::plan::{OptContext, OptGroup, OptGroupNode};
 use crate::core::types::expression::Expression;
-use crate::query::optimizer::optimizer::{OptContext, OptGroup, OptGroupNode};
-use crate::query::optimizer::OptimizerError;
 use std::collections::HashMap;
 
 /// 计划验证器
@@ -401,7 +401,7 @@ impl PlanValidator {
     /// 验证节点属性
     fn validate_node_properties(node: &OptGroupNode) -> Result<(), OptimizerError> {
         // 验证成本非负
-        if node.cost < 0.0 {
+        if node.cost.total() < 0.0 {
             return Err(OptimizerError::Validation {
                 message: format!(
                     "节点属性验证失败：节点 {} 的成本为负数 {}",
@@ -448,7 +448,7 @@ impl PlanValidator {
 mod tests {
     use super::*;
     use crate::core::types::expression::Expression;
-    use crate::query::optimizer::optimizer::OptGroupNode;
+    use crate::query::optimizer::plan::OptGroupNode;
     use crate::query::planner::plan::PlanNodeEnum;
 
     #[test]

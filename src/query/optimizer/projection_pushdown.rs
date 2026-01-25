@@ -1,10 +1,10 @@
 //! 投影下推优化规则
 //! 这些规则负责将投影操作下推到计划树的底层，以减少数据传输量
 
-use super::optimizer::OptimizerError;
+use super::engine::OptimizerError;
+use super::plan::{OptContext, OptGroupNode, OptRule, Pattern};
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::{BaseOptRule, PushDownRule};
-use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
 use crate::query::planner::plan::core::nodes::PlanNodeEnum;
 
 /// 投影下推规则
@@ -117,7 +117,7 @@ impl PushDownRule for PushProjectDownRule {
 mod tests {
     use super::*;
     use crate::query::context::execution::QueryContext;
-    use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
+    use crate::query::optimizer::plan::{OptContext, OptGroupNode};
 
     fn create_test_context() -> OptContext {
         let query_context = QueryContext::new();

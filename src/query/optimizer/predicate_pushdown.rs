@@ -1,13 +1,13 @@
 //! 谓词下推优化规则
 //! 这些规则负责将过滤条件下推到计划树的底层，以减少数据处理量
 
-use super::optimizer::OptimizerError;
+use super::engine::OptimizerError;
+use super::plan::{OptContext, OptGroupNode, OptRule, Pattern};
 use super::rule_patterns::{CommonPatterns, PatternBuilder};
 use super::rule_traits::{
     combine_conditions, combine_expression_list, BaseOptRule, FilterSplitResult, PushDownRule,
 };
 use crate::core::Expression;
-use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
 use crate::query::planner::plan::PlanNodeEnum;
 
 /// 通用过滤条件下推规则
@@ -1279,7 +1279,7 @@ fn can_push_down_expression_to_traverse(expression: &crate::core::Expression) ->
 mod tests {
     use super::*;
     use crate::query::context::execution::QueryContext;
-    use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
+    use crate::query::optimizer::plan::{OptContext, OptGroupNode};
     use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
     use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
     use crate::query::planner::plan::core::nodes::{FilterNode, StartNode};

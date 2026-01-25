@@ -5,13 +5,21 @@
 pub mod rule_patterns;
 pub mod rule_traits;
 
+// 核心类型模块
+pub mod core;
+
+// 执行计划表示模块
+pub mod plan;
+
+// 优化引擎模块
+pub mod engine;
+
 // 优化策略模块
 pub mod elimination_rules;
 pub mod index_optimization;
 pub mod join_optimization;
 pub mod limit_pushdown;
 pub mod operation_merge;
-pub mod optimizer;
 pub mod plan_validator;
 pub mod predicate_pushdown;
 pub mod projection_pushdown;
@@ -19,6 +27,18 @@ pub mod property_tracker;
 pub mod prune_properties_visitor;
 pub mod scan_optimization;
 pub mod transformation_rules;
+
+// Re-export core types
+pub use core::{Cost, OptimizationConfig, OptimizationPhase, OptimizationStats, Statistics};
+
+// Re-export plan types
+pub use plan::{
+    OptContext, OptGroup, OptGroupNode, MatchedResult, MatchNode, ObjectPool, OptRule, Pattern,
+    PlanCandidate, PlanNodeProperties, TransformResult,
+};
+
+// Re-export engine types
+pub use engine::{ExplorationState, Optimizer, OptimizerError, RuleSet};
 
 // Re-export all rule structs for convenient access
 pub use elimination_rules::{
@@ -48,9 +68,7 @@ pub use predicate_pushdown::{
 pub use projection_pushdown::{ProjectionPushDownRule, PushProjectDownRule};
 pub use rule_traits::{BaseOptRule, EliminationRule, MergeRule, PushDownRule};
 pub use scan_optimization::{IndexFullScanRule, ScanWithFilterOptimizationRule};
-pub use optimizer::OptimizerError;
 pub use transformation_rules::TopNRule;
 
-// Re-export the main Optimizer struct
-pub use optimizer::Optimizer;
+// Re-export PlanValidator
 pub use plan_validator::PlanValidator;

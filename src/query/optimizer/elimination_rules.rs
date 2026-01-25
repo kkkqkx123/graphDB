@@ -1,12 +1,12 @@
 //! 消除优化规则
 //! 这些规则负责消除冗余的操作，如永真式过滤、无操作投影、不必要的去重等
 
-use super::optimizer::OptimizerError;
+use super::engine::OptimizerError;
+use super::plan::{OptContext, OptGroupNode, OptRule, Pattern};
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::{
     create_basic_pattern, is_expression_tautology, BaseOptRule, EliminationRule,
 };
-use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
 use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::plan::ProjectNode;
 
@@ -567,7 +567,7 @@ impl EliminationRule for RemoveAppendVerticesBelowJoinRule {
 mod tests {
     use super::*;
     use crate::query::context::execution::QueryContext;
-    use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
+    use crate::query::optimizer::plan::{OptContext, OptGroupNode};
     use crate::query::optimizer::rule_traits::is_tautology;
     use crate::query::planner::plan::algorithms::IndexScan;
     use crate::query::planner::plan::core::nodes::{

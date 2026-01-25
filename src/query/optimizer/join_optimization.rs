@@ -1,10 +1,10 @@
 //! 连接优化规则
 //! 这些规则负责优化连接操作，专注于连接算法和策略优化
 
-use super::optimizer::OptimizerError;
+use super::engine::OptimizerError;
+use super::plan::{OptContext, OptGroupNode, OptRule, Pattern};
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::BaseOptRule;
-use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
 
 /// 转换连接以获得更好性能的规则
 #[derive(Debug)]
@@ -106,7 +106,7 @@ impl JoinOptimizationRule {
 mod tests {
     use super::*;
     use crate::query::context::execution::QueryContext;
-    use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
+    use crate::query::optimizer::plan::{OptContext, OptGroupNode};
     use crate::query::planner::plan::PlanNodeEnum;
 
     fn create_test_context() -> OptContext {

@@ -1,10 +1,10 @@
 //! 操作合并优化规则
 //! 这些规则负责合并多个连续的相同类型操作，以减少中间结果和执行开销
 
-use super::optimizer::OptimizerError;
+use super::engine::OptimizerError;
+use super::plan::{OptContext, OptGroupNode, OptRule, Pattern};
 use super::rule_patterns::{CommonPatterns, PatternBuilder};
 use super::rule_traits::{combine_conditions, BaseOptRule, MergeRule};
-use crate::query::optimizer::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
 use crate::query::planner::plan::FilterNode as FilterPlanNode;
 
 /// 合并多个过滤操作的规则
@@ -461,7 +461,7 @@ impl MergeRule for MergeGetNbrsAndProjectRule {
 mod tests {
     use super::*;
     use crate::query::context::execution::QueryContext;
-    use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
+    use crate::query::optimizer::plan::{OptContext, OptGroupNode};
     use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
     use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
     use crate::query::planner::plan::core::nodes::{

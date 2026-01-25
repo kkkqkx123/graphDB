@@ -1,8 +1,8 @@
 //! LIMIT下推优化规则
 //! 这些规则负责将LIMIT操作下推到计划树的底层，以减少数据处理量
 
-use super::optimizer::OptimizerError;
-use super::optimizer::{OptContext, OptGroupNode, OptRule, Pattern};
+use super::engine::OptimizerError;
+use super::plan::{OptContext, OptGroupNode, OptRule, Pattern};
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::{BaseOptRule, PushDownRule};
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
@@ -881,7 +881,7 @@ mod tests {
     use super::*;
     use crate::query::context::execution::QueryContext;
     use crate::core::Expression;
-    use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
+    use crate::query::optimizer::plan::{OptContext, OptGroupNode};
     use crate::query::planner::plan::algorithms::IndexScan;
     use crate::query::planner::plan::core::nodes::graph_scan_node::{
         GetEdgesNode, GetNeighborsNode, GetVerticesNode, ScanEdgesNode, ScanVerticesNode,

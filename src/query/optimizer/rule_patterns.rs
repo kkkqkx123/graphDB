@@ -1,7 +1,7 @@
 //! 常用模式匹配逻辑
 //! 提供可复用的模式匹配组件，简化规则实现
 
-use super::optimizer::{MatchNode, Pattern};
+use super::plan::{MatchNode, Pattern};
 
 /// 常用的模式匹配构建器
 pub struct PatternBuilder;

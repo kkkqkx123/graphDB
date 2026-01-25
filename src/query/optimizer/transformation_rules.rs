@@ -1,7 +1,8 @@
 //! 转换规则
 //! 这些规则负责将计划节点转换为等效但更高效的节点
 
-use super::optimizer::{OptContext, OptGroupNode, OptRule, OptimizerError, Pattern};
+use super::engine::OptimizerError;
+use super::plan::{OptContext, OptGroupNode, OptRule, Pattern};
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::BaseOptRule;
 use crate::query::planner::plan::core::nodes::PlanNodeEnum;
@@ -84,7 +85,7 @@ impl BaseOptRule for TopNRule {}
 mod tests {
     use super::*;
     use crate::query::context::execution::QueryContext;
-    use crate::query::optimizer::optimizer::{OptContext, OptGroupNode};
+    use crate::query::optimizer::plan::{OptContext, OptGroupNode};
     use crate::query::planner::plan::core::nodes::SortNode;
 
     fn create_test_context() -> OptContext {
