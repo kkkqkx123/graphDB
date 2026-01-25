@@ -1,9 +1,10 @@
 use async_trait::async_trait;
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
+use std::cmp::Reverse;
 use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
-use crate::core::{Edge, Path, Value};
+use crate::core::{Edge, Path, Value, Vertex};
 use crate::core::vertex_edge_path::Step;
 use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
 use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
@@ -11,44 +12,89 @@ use crate::query::QueryError;
 use crate::storage::StorageEngine;
 use crate::utils::safe_lock;
 
-/// 最短路径算法枚举
 #[derive(Debug, Clone)]
-pub enum ShortestPathAlgorithm {
-    /// Dijkstra 算法
-    Dijkstra,
-    /// BFS 广度优先搜索
+pub struct DistanceNode {
+    pub distance: f64,
+    pub vertex_id: Value,
+}
+
+impl Eq for DistanceNode {}
+
+impl PartialEq for DistanceNode {
+    fn eq(&self, other: &Self) -> bool {
+        self.distance == other.distance && self.vertex_id == other.vertex_id
+    }
+}
+
+impl Ord for DistanceNode {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        other.distance.partial_cmp(&self.distance).unwrap_or(std::cmp::Ordering::Equal)
+    }
+}
+
+impl PartialOrd for DistanceNode {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct BidirectionalBFSState {
+    pub left_queue: VecDeque<(Value, Path)>,
+    pub right_queue: VecDeque<(Value, Path)>,
+    pub left_visited: HashMap<Value, (Path, f64)>,
+    pub right_visited: HashMap<Value, (Path, f64)>,
+    pub left_edges: Vec<HashMap<Value, Vec<(Edge, Value)>>>,
+    pub right_edges: Vec<HashMap<Value, Vec<(Edge, Value)>>>,
+}
+
+impl BidirectionalBFSState {
+    pub fn new() -> Self {
+        Self {
+            left_queue: VecDeque::new(),
+            right_queue: VecDeque::new(),
+            left_visited: HashMap::new(),
+            right_visited: HashMap::new(),
+            left_edges: Vec::new(),
+            right_edges: Vec::new(),
+        }
+    }
+}
+
+impl Default for BidirectionalBFSState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum ShortestPathAlgorithmType {
     BFS,
-    /// A* 算法
+    Dijkstra,
     AStar,
 }
 
-/// ShortestPathExecutor - 最短路径执行器
-///
-/// 计算两个节点之间的最短路径，支持多种算法
-/// 适用于社交网络、路线规划等场景
+pub type ShortestPathAlgorithm = ShortestPathAlgorithmType;
+
 pub struct ShortestPathExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
     start_vertex_ids: Vec<Value>,
     end_vertex_ids: Vec<Value>,
     pub edge_direction: EdgeDirection,
     pub edge_types: Option<Vec<String>>,
-    pub max_depth: Option<usize>,     // 最大搜索深度限制
-    algorithm: ShortestPathAlgorithm, // 使用的算法
+    pub max_depth: Option<usize>,
+    algorithm: ShortestPathAlgorithmType,
     input_executor: Option<Box<dyn Executor<S>>>,
-    // 路径缓存
-    shortest_paths: Vec<Path>,
-    // 算法状态
-    visited_nodes: HashSet<Value>,
-    distance_map: HashMap<Value, f64>,
-    previous_map: HashMap<Value, (Value, Edge)>, // node -> (previous_node, edge)
-    // 统计信息
+    pub shortest_paths: Vec<Path>,
     pub nodes_visited: usize,
     pub edges_traversed: usize,
     pub execution_time_ms: u64,
     pub max_depth_reached: usize,
+    pub single_shortest: bool,
+    pub limit: usize,
+    termination_map: HashMap<(Value, Value), bool>,
 }
 
-// Manual Debug implementation for ShortestPathExecutor to avoid requiring Debug trait for Executor trait object
 impl<S: StorageEngine> std::fmt::Debug for ShortestPathExecutor<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ShortestPathExecutor")
@@ -59,15 +105,11 @@ impl<S: StorageEngine> std::fmt::Debug for ShortestPathExecutor<S> {
             .field("edge_types", &self.edge_types)
             .field("max_depth", &self.max_depth)
             .field("algorithm", &self.algorithm)
-            .field("input_executor", &"Option<Box<dyn Executor<S>>>")
+            .field("single_shortest", &self.single_shortest)
+            .field("limit", &self.limit)
             .field("shortest_paths", &self.shortest_paths)
-            .field("visited_nodes", &self.visited_nodes)
-            .field("distance_map", &"HashMap<Value, f64>")
-            .field("previous_map", &"HashMap<Value, (Value, Edge)>")
             .field("nodes_visited", &self.nodes_visited)
             .field("edges_traversed", &self.edges_traversed)
-            .field("execution_time_ms", &self.execution_time_ms)
-            .field("max_depth_reached", &self.max_depth_reached)
             .finish()
     }
 }
@@ -81,7 +123,7 @@ impl<S: StorageEngine> ShortestPathExecutor<S> {
         edge_direction: EdgeDirection,
         edge_types: Option<Vec<String>>,
         max_depth: Option<usize>,
-        algorithm: ShortestPathAlgorithm,
+        algorithm: ShortestPathAlgorithmType,
     ) -> Self {
         Self {
             base: BaseExecutor::new(id, "ShortestPathExecutor".to_string(), storage),
@@ -93,47 +135,65 @@ impl<S: StorageEngine> ShortestPathExecutor<S> {
             algorithm,
             input_executor: None,
             shortest_paths: Vec::new(),
-            visited_nodes: HashSet::new(),
-            distance_map: HashMap::new(),
-            previous_map: HashMap::new(),
             nodes_visited: 0,
             edges_traversed: 0,
             execution_time_ms: 0,
             max_depth_reached: 0,
+            single_shortest: false,
+            limit: std::usize::MAX,
+            termination_map: HashMap::new(),
         }
     }
 
-    /// 获取当前使用的最短路径算法
-    pub fn get_algorithm(&self) -> ShortestPathAlgorithm {
+    pub fn with_limits(mut self, single_shortest: bool, limit: usize) -> Self {
+        self.single_shortest = single_shortest;
+        self.limit = limit;
+        self
+    }
+
+    pub fn get_algorithm(&self) -> ShortestPathAlgorithmType {
         self.algorithm.clone()
     }
 
-    /// 设置最短路径算法
-    pub fn set_algorithm(&mut self, algorithm: ShortestPathAlgorithm) {
+    pub fn set_algorithm(&mut self, algorithm: ShortestPathAlgorithmType) {
         self.algorithm = algorithm;
     }
 
-    /// 获取起始节点ID列表
     pub fn get_start_vertex_ids(&self) -> &Vec<Value> {
         &self.start_vertex_ids
     }
 
-    /// 获取结束节点ID列表
     pub fn get_end_vertex_ids(&self) -> &Vec<Value> {
         &self.end_vertex_ids
     }
 
-    /// 设置起始节点ID列表
     pub fn set_start_vertex_ids(&mut self, ids: Vec<Value>) {
         self.start_vertex_ids = ids;
     }
 
-    /// 设置结束节点ID列表
     pub fn set_end_vertex_ids(&mut self, ids: Vec<Value>) {
         self.end_vertex_ids = ids;
     }
 
-    /// 获取节点的邻居节点和对应的边
+    fn init_termination_map(&mut self) {
+        self.termination_map.clear();
+        for start_id in &self.start_vertex_ids {
+            for end_id in &self.end_vertex_ids {
+                self.termination_map.insert((start_id.clone(), end_id.clone()), true);
+            }
+        }
+    }
+
+    fn check_termination(&self) -> bool {
+        self.termination_map.values().all(|&v| !v)
+    }
+
+    fn mark_termination(&mut self, start_id: &Value, end_id: &Value) {
+        if let Some(found) = self.termination_map.get_mut(&(start_id.clone(), end_id.clone())) {
+            *found = false;
+        }
+    }
+
     async fn get_neighbors_with_edges(
         &self,
         node_id: &Value,
@@ -141,12 +201,10 @@ impl<S: StorageEngine> ShortestPathExecutor<S> {
         let storage = safe_lock(&*self.get_storage())
             .expect("ShortestPathExecutor storage lock should not be poisoned");
 
-        // 获取节点的所有边
         let edges = storage
             .get_node_edges(node_id, EdgeDirection::Both)
             .map_err(|e| QueryError::StorageError(e.to_string()))?;
 
-        // 过滤边类型
         let filtered_edges = if let Some(ref edge_types) = self.edge_types {
             edges
                 .into_iter()
@@ -156,14 +214,12 @@ impl<S: StorageEngine> ShortestPathExecutor<S> {
             edges
         };
 
-        // 根据方向过滤边并提取邻居节点ID和边
         let neighbors_with_edges = filtered_edges
             .into_iter()
             .filter_map(|edge| {
                 let (neighbor_id, weight) = match self.edge_direction {
                     EdgeDirection::In => {
                         if *edge.dst == *node_id {
-                            // 对于最短路径，我们可以使用边的ranking作为权重
                             ((*edge.src).clone(), edge.ranking as f64)
                         } else {
                             return None;
@@ -193,13 +249,432 @@ impl<S: StorageEngine> ShortestPathExecutor<S> {
         Ok(neighbors_with_edges)
     }
 
-    /// BFS算法实现
-    async fn bfs_shortest_path(&mut self) -> Result<(), QueryError> {
+    pub fn has_duplicate_edges(&self, path: &Path) -> bool {
+        let mut edge_set = HashSet::new();
+        
+        for step in &path.steps {
+            let edge = &step.edge;
+            let edge_key = format!("{}_{}_{}", edge.src, edge.dst, edge.ranking);
+            if !edge_set.insert(edge_key) {
+                return true;
+            }
+        }
+        
+        false
+    }
+
+    pub async fn bidirectional_bfs(
+        &mut self,
+        start_ids: &[Value],
+        end_ids: &[Value],
+    ) -> Result<Vec<Path>, QueryError> {
+        let mut state = BidirectionalBFSState::new();
+        let mut result_paths = Vec::new();
+        let mut visited_left: HashMap<Value, Path> = HashMap::new();
+        let mut visited_right: HashMap<Value, Path> = HashMap::new();
+        let mut left_edges: Vec<HashMap<Value, Vec<(Edge, Value)>>> = Vec::new();
+        let mut right_edges: Vec<HashMap<Value, Vec<(Edge, Value)>>> = Vec::new();
+
+        for start_id in start_ids {
+            let storage = safe_lock(&*self.get_storage())
+                .expect("ShortestPathExecutor storage lock should not be poisoned");
+            if let Ok(Some(start_vertex)) = storage.get_node(start_id) {
+                let initial_path = Path {
+                    src: Box::new(start_vertex),
+                    steps: Vec::new(),
+                };
+                state.left_queue.push_back((start_id.clone(), initial_path.clone()));
+                visited_left.insert(start_id.clone(), initial_path);
+            }
+        }
+
+        for end_id in end_ids {
+            let storage = safe_lock(&*self.get_storage())
+                .expect("ShortestPathExecutor storage lock should not be poisoned");
+            if let Ok(Some(end_vertex)) = storage.get_node(end_id) {
+                let initial_path = Path {
+                    src: Box::new(end_vertex),
+                    steps: Vec::new(),
+                };
+                state.right_queue.push_back((end_id.clone(), initial_path.clone()));
+                visited_right.insert(end_id.clone(), initial_path);
+            }
+        }
+
+        while !state.left_queue.is_empty() && !state.right_queue.is_empty() {
+            if self.single_shortest && !result_paths.is_empty() {
+                break;
+            }
+
+            if self.shortest_paths.len() >= self.limit {
+                break;
+            }
+
+            left_edges.push(HashMap::new());
+            let left_step_edges = left_edges.last_mut().unwrap();
+            
+            while let Some((current_id, current_path)) = state.left_queue.pop_front() {
+                self.nodes_visited += 1;
+
+                if let Some(right_path) = visited_right.get(&current_id) {
+                    let mut combined_path = current_path.clone();
+                    let mut right_path = right_path.clone();
+                    right_path.steps.reverse();
+                    combined_path.steps.extend(right_path.steps);
+                    
+                    if !self.has_duplicate_edges(&combined_path) {
+                        result_paths.push(combined_path);
+                    }
+                    continue;
+                }
+
+                if let Some(max_depth) = self.max_depth {
+                    if current_path.steps.len() >= max_depth {
+                        continue;
+                    }
+                }
+
+                let neighbors = self.get_neighbors_with_edges(&current_id).await?;
+                self.edges_traversed += neighbors.len();
+
+                for (neighbor_id, edge, _weight) in neighbors {
+                    let neighbor_id = neighbor_id.clone();
+                    let edge = edge.clone();
+                    let current_id = current_id.clone();
+
+                    if visited_left.contains_key(&neighbor_id) {
+                        continue;
+                    }
+
+                    let storage = safe_lock(&*self.get_storage())
+                        .expect("ShortestPathExecutor storage lock should not be poisoned");
+                    if let Ok(Some(neighbor_vertex)) = storage.get_node(&neighbor_id) {
+                        let mut new_path = current_path.clone();
+                        new_path.steps.push(Step {
+                            dst: Box::new(neighbor_vertex),
+                            edge: Box::new(edge.clone()),
+                        });
+
+                        state.left_queue.push_back((neighbor_id.clone(), new_path.clone()));
+                        visited_left.insert(neighbor_id.clone(), new_path);
+                        left_step_edges.insert(neighbor_id.clone(), vec![(edge, current_id)]);
+                    }
+                }
+            }
+
+            if self.check_termination() {
+                break;
+            }
+
+            right_edges.push(HashMap::new());
+            let right_step_edges = right_edges.last_mut().unwrap();
+            
+            while let Some((current_id, current_path)) = state.right_queue.pop_front() {
+                self.nodes_visited += 1;
+
+                if visited_left.contains_key(&current_id) {
+                    continue;
+                }
+
+                if let Some(max_depth) = self.max_depth {
+                    if current_path.steps.len() >= max_depth {
+                        continue;
+                    }
+                }
+
+                let neighbors = self.get_neighbors_with_edges(&current_id).await?;
+                self.edges_traversed += neighbors.len();
+
+                for (neighbor_id, edge, _weight) in neighbors {
+                    let neighbor_id = neighbor_id.clone();
+                    let edge = edge.clone();
+                    let current_id = current_id.clone();
+
+                    if visited_right.contains_key(&neighbor_id) {
+                        continue;
+                    }
+
+                    let storage = safe_lock(&*self.get_storage())
+                        .expect("ShortestPathExecutor storage lock should not be poisoned");
+                    if let Ok(Some(neighbor_vertex)) = storage.get_node(&neighbor_id) {
+                        let mut new_path = current_path.clone();
+                        new_path.steps.push(Step {
+                            dst: Box::new(neighbor_vertex),
+                            edge: Box::new(edge.clone()),
+                        });
+
+                        state.right_queue.push_back((neighbor_id.clone(), new_path.clone()));
+                        visited_right.insert(neighbor_id.clone(), new_path);
+                        right_step_edges.insert(neighbor_id.clone(), vec![(edge, current_id)]);
+                    }
+                }
+            }
+
+            if state.left_queue.is_empty() && state.right_queue.is_empty() {
+                break;
+            }
+        }
+
+        if self.single_shortest && !result_paths.is_empty() {
+            result_paths.sort_by(|a, b| a.steps.len().cmp(&b.steps.len()));
+            result_paths.truncate(1);
+        }
+
+        if result_paths.len() > self.limit {
+            result_paths.truncate(self.limit);
+        }
+
+        Ok(result_paths)
+    }
+
+    pub async fn dijkstra_with_binary_heap(
+        &mut self,
+        start_ids: &[Value],
+        end_ids: &[Value],
+    ) -> Result<Vec<Path>, QueryError> {
+        let mut distance_map: HashMap<Value, f64> = HashMap::new();
+        let mut previous_map: HashMap<Value, (Value, Edge)> = HashMap::new();
+        let mut visited_nodes: HashSet<Value> = HashSet::new();
+        let mut priority_queue: BinaryHeap<Reverse<DistanceNode>> = BinaryHeap::new();
+
+        for start_id in start_ids {
+            distance_map.insert(start_id.clone(), 0.0);
+            priority_queue.push(Reverse(DistanceNode {
+                distance: 0.0,
+                vertex_id: start_id.clone(),
+            }));
+        }
+
+        let mut result_paths = Vec::new();
+
+        while let Some(Reverse(current)) = priority_queue.pop() {
+            if self.single_shortest && !result_paths.is_empty() {
+                break;
+            }
+
+            if self.shortest_paths.len() >= self.limit {
+                break;
+            }
+
+            if visited_nodes.contains(&current.vertex_id) {
+                continue;
+            }
+            visited_nodes.insert(current.vertex_id.clone());
+            self.nodes_visited += 1;
+
+            if end_ids.contains(&current.vertex_id) {
+                if let Some(path) = self.reconstruct_path_with_previous(&current.vertex_id, &previous_map, start_ids)? {
+                    if !self.has_duplicate_edges(&path) {
+                        result_paths.push(path);
+                    }
+                }
+                continue;
+            }
+
+            if let Some(max_depth) = self.max_depth {
+                if current.distance as usize >= max_depth {
+                    continue;
+                }
+            }
+
+            let neighbors = self.get_neighbors_with_edges(&current.vertex_id).await?;
+            self.edges_traversed += neighbors.len();
+
+            for (neighbor_id, edge, weight) in neighbors {
+                if visited_nodes.contains(&neighbor_id) {
+                    continue;
+                }
+
+                let new_distance = current.distance + weight;
+                let existing_distance = distance_map.get(&neighbor_id).unwrap_or(&f64::INFINITY);
+
+                if new_distance < *existing_distance {
+                    distance_map.insert(neighbor_id.clone(), new_distance);
+                    previous_map.insert(neighbor_id.clone(), (current.vertex_id.clone(), edge));
+                    priority_queue.push(Reverse(DistanceNode {
+                        distance: new_distance,
+                        vertex_id: neighbor_id,
+                    }));
+                }
+            }
+        }
+
+        if self.single_shortest && !result_paths.is_empty() {
+            result_paths.sort_by(|a, b| {
+                let weight_a: f64 = a.steps.iter().map(|s| s.edge.ranking as f64).sum();
+                let weight_b: f64 = b.steps.iter().map(|s| s.edge.ranking as f64).sum();
+                weight_a.partial_cmp(&weight_b).unwrap()
+            });
+            result_paths.truncate(1);
+        }
+
+        if result_paths.len() > self.limit {
+            result_paths.truncate(self.limit);
+        }
+
+        Ok(result_paths)
+    }
+
+    pub async fn a_star(
+        &mut self,
+        start_ids: &[Value],
+        end_ids: &[Value],
+    ) -> Result<Vec<Path>, QueryError> {
+        let heuristic = |_current: &Value, _end: &Value| -> f64 {
+            0.0f64
+        };
+
+        self.dijkstra_with_heuristic(start_ids, end_ids, &heuristic).await
+    }
+
+    pub async fn dijkstra_with_heuristic<F>(
+        &mut self,
+        start_ids: &[Value],
+        end_ids: &[Value],
+        heuristic: &F,
+    ) -> Result<Vec<Path>, QueryError>
+    where
+        F: Fn(&Value, &Value) -> f64,
+    {
+        let mut distance_map: HashMap<Value, f64> = HashMap::new();
+        let mut previous_map: HashMap<Value, (Value, Edge)> = HashMap::new();
+        let mut visited_nodes: HashSet<Value> = HashSet::new();
+        let mut priority_queue: BinaryHeap<Reverse<DistanceNode>> = BinaryHeap::new();
+
+        for start_id in start_ids {
+            distance_map.insert(start_id.clone(), 0.0);
+            priority_queue.push(Reverse(DistanceNode {
+                distance: 0.0,
+                vertex_id: start_id.clone(),
+            }));
+        }
+
+        let mut result_paths = Vec::new();
+
+        while let Some(Reverse(current)) = priority_queue.pop() {
+            if self.single_shortest && !result_paths.is_empty() {
+                break;
+            }
+
+            if self.shortest_paths.len() >= self.limit {
+                break;
+            }
+
+            if visited_nodes.contains(&current.vertex_id) {
+                continue;
+            }
+            visited_nodes.insert(current.vertex_id.clone());
+            self.nodes_visited += 1;
+
+            if end_ids.contains(&current.vertex_id) {
+                if let Some(path) = self.reconstruct_path_with_previous(&current.vertex_id, &previous_map, start_ids)? {
+                    if !self.has_duplicate_edges(&path) {
+                        result_paths.push(path);
+                    }
+                }
+                continue;
+            }
+
+            if let Some(max_depth) = self.max_depth {
+                if current.distance as usize >= max_depth {
+                    continue;
+                }
+            }
+
+            let neighbors = self.get_neighbors_with_edges(&current.vertex_id).await?;
+            self.edges_traversed += neighbors.len();
+
+            for (neighbor_id, edge, weight) in neighbors {
+                if visited_nodes.contains(&neighbor_id) {
+                    continue;
+                }
+
+                let g_score = current.distance + weight;
+                let h_score = if let Some(end_id) = end_ids.first() {
+                    heuristic(&neighbor_id, end_id)
+                } else {
+                    0.0
+                };
+                let f_score = g_score + h_score;
+
+                let existing_distance = distance_map.get(&neighbor_id).unwrap_or(&f64::INFINITY);
+
+                if g_score < *existing_distance {
+                    distance_map.insert(neighbor_id.clone(), g_score);
+                    previous_map.insert(neighbor_id.clone(), (current.vertex_id.clone(), edge));
+                    priority_queue.push(Reverse(DistanceNode {
+                        distance: f_score,
+                        vertex_id: neighbor_id,
+                    }));
+                }
+            }
+        }
+
+        if self.single_shortest && !result_paths.is_empty() {
+            result_paths.sort_by(|a, b| {
+                let weight_a: f64 = a.steps.iter().map(|s| s.edge.ranking as f64).sum();
+                let weight_b: f64 = b.steps.iter().map(|s| s.edge.ranking as f64).sum();
+                weight_a.partial_cmp(&weight_b).unwrap()
+            });
+            result_paths.truncate(1);
+        }
+
+        if result_paths.len() > self.limit {
+            result_paths.truncate(self.limit);
+        }
+
+        Ok(result_paths)
+    }
+
+    fn reconstruct_path_with_previous(
+        &self,
+        end_id: &Value,
+        previous_map: &HashMap<Value, (Value, Edge)>,
+        start_ids: &[Value],
+    ) -> Result<Option<Path>, QueryError> {
+        let mut path_steps = Vec::new();
+        let mut current_id = end_id.clone();
+
+        while let Some((prev_id, edge)) = previous_map.get(&current_id) {
+            let storage = safe_lock(&*self.get_storage())
+                .expect("ShortestPathExecutor storage lock should not be poisoned");
+            if let Ok(Some(current_vertex)) = storage.get_node(&current_id) {
+                path_steps.push(Step {
+                    dst: Box::new(current_vertex),
+                    edge: Box::new(edge.clone()),
+                });
+            }
+            current_id = prev_id.clone();
+        }
+
+        if !start_ids.contains(&current_id) {
+            return Ok(None);
+        }
+
+        let storage = safe_lock(&*self.get_storage())
+            .expect("ShortestPathExecutor storage lock should not be poisoned");
+        if let Ok(Some(start_vertex)) = storage.get_node(&current_id) {
+            path_steps.reverse();
+
+            Ok(Some(Path {
+                src: Box::new(start_vertex),
+                steps: path_steps,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub async fn bfs_shortest_path(
+        &mut self,
+        start_ids: &[Value],
+        end_ids: &[Value],
+    ) -> Result<Vec<Path>, QueryError> {
         let mut queue = VecDeque::new();
         let mut path_map: HashMap<Value, Path> = HashMap::new();
+        let mut result_paths = Vec::new();
 
-        // 初始化队列
-        for start_id in &self.start_vertex_ids {
+        for start_id in start_ids {
             let storage = safe_lock(&*self.get_storage())
                 .expect("ShortestPathExecutor storage lock should not be poisoned");
             if let Ok(Some(start_vertex)) = storage.get_node(start_id) {
@@ -213,22 +688,31 @@ impl<S: StorageEngine> ShortestPathExecutor<S> {
         }
 
         while let Some((current_id, current_path)) = queue.pop_front() {
-            // 检查是否到达目标节点
-            if self.end_vertex_ids.contains(&current_id) {
-                self.shortest_paths.push(current_path);
+            if self.single_shortest && !result_paths.is_empty() {
+                break;
+            }
+
+            if end_ids.contains(&current_id) {
+                if !self.has_duplicate_edges(&current_path) {
+                    result_paths.push(current_path);
+                }
                 continue;
             }
 
-            // 获取邻居节点
+            if let Some(max_depth) = self.max_depth {
+                if current_path.steps.len() >= max_depth {
+                    continue;
+                }
+            }
+
             let neighbors = self.get_neighbors_with_edges(&current_id).await?;
+            self.edges_traversed += neighbors.len();
 
             for (neighbor_id, edge, _weight) in neighbors {
-                // 如果已经访问过，跳过
                 if path_map.contains_key(&neighbor_id) {
                     continue;
                 }
 
-                // 创建新路径
                 let storage = safe_lock(&*self.get_storage())
                     .expect("ShortestPathExecutor storage lock should not be poisoned");
                 if let Ok(Some(neighbor_vertex)) = storage.get_node(&neighbor_id) {
@@ -243,137 +727,59 @@ impl<S: StorageEngine> ShortestPathExecutor<S> {
                 }
             }
         }
-        Ok(())
+
+        if self.single_shortest && !result_paths.is_empty() {
+            result_paths.sort_by(|a, b| a.steps.len().cmp(&b.steps.len()));
+            result_paths.truncate(1);
+        }
+
+        if result_paths.len() > self.limit {
+            result_paths.truncate(self.limit);
+        }
+
+        Ok(result_paths)
     }
 
-    /// Dijkstra算法实现
-    async fn dijkstra_shortest_path(&mut self) -> Result<(), QueryError> {
-        // 初始化距离表
-        for start_id in &self.start_vertex_ids {
-            self.distance_map.insert(start_id.clone(), 0.0);
-        }
+    pub async fn compute_shortest_paths(&mut self) -> Result<(), QueryError> {
+        self.init_termination_map();
 
-        let mut priority_queue: Vec<(f64, Value)> = self
-            .start_vertex_ids
-            .iter()
-            .map(|id| (0.0, id.clone()))
-            .collect();
+        let start_time = std::time::Instant::now();
 
-        while !priority_queue.is_empty() {
-            // 找到距离最小的节点
-            priority_queue.sort_by(|a, b| {
-                a.0.partial_cmp(&b.0)
-                    .expect("Distance values should be comparable")
-            });
-            let (current_distance, current_id) = priority_queue.remove(0);
+        let start_ids = self.start_vertex_ids.clone();
+        let end_ids = self.end_vertex_ids.clone();
 
-            // 如果已经访问过，跳过
-            if self.visited_nodes.contains(&current_id) {
-                continue;
-            }
-            self.visited_nodes.insert(current_id.clone());
-
-            // 检查是否到达目标节点
-            if self.end_vertex_ids.contains(&current_id) {
-                // 重建路径
-                if let Some(path) = self.reconstruct_path(&current_id)? {
-                    self.shortest_paths.push(path);
-                }
-                continue;
-            }
-
-            // 获取邻居节点
-            let neighbors = self.get_neighbors_with_edges(&current_id).await?;
-
-            for (neighbor_id, edge, weight) in neighbors {
-                if self.visited_nodes.contains(&neighbor_id) {
-                    continue;
-                }
-
-                let new_distance = current_distance + weight;
-                let existing_distance = self
-                    .distance_map
-                    .get(&neighbor_id)
-                    .unwrap_or(&f64::INFINITY);
-
-                if new_distance < *existing_distance {
-                    self.distance_map.insert(neighbor_id.clone(), new_distance);
-                    self.previous_map
-                        .insert(neighbor_id.clone(), (current_id.clone(), edge));
-                    priority_queue.push((new_distance, neighbor_id));
-                }
-            }
-        }
-        Ok(())
-    }
-
-    /// 重建路径
-    fn reconstruct_path(&self, end_id: &Value) -> Result<Option<Path>, QueryError> {
-        let mut path_steps = Vec::new();
-        let mut current_id = end_id.clone();
-
-        // 回溯路径
-        while let Some((prev_id, edge)) = self.previous_map.get(&current_id) {
-            let storage = safe_lock(&*self.get_storage())
-                .expect("ShortestPathExecutor storage lock should not be poisoned");
-            if let Ok(Some(current_vertex)) = storage.get_node(&current_id) {
-                path_steps.push(Step {
-                    dst: Box::new(current_vertex),
-                    edge: Box::new(edge.clone()),
-                });
-            }
-            current_id = prev_id.clone();
-        }
-
-        // 检查起始节点
-        if !self.start_vertex_ids.contains(&current_id) {
-            return Ok(None);
-        }
-
-        // 获取起始节点
-        let storage = safe_lock(&*self.get_storage())
-            .expect("ShortestPathExecutor storage lock should not be poisoned");
-        if let Ok(Some(start_vertex)) = storage.get_node(&current_id) {
-            // 反转路径步骤
-            path_steps.reverse();
-
-            Ok(Some(Path {
-                src: Box::new(start_vertex),
-                steps: path_steps,
-            }))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// 执行最短路径计算
-    async fn compute_shortest_paths(&mut self) -> Result<(), QueryError> {
         match self.algorithm {
-            ShortestPathAlgorithm::BFS => {
-                self.bfs_shortest_path().await?;
+            ShortestPathAlgorithmType::BFS => {
+                self.shortest_paths = self.bfs_shortest_path(&start_ids, &end_ids).await?;
             }
-            ShortestPathAlgorithm::Dijkstra => {
-                self.dijkstra_shortest_path().await?;
+            ShortestPathAlgorithmType::Dijkstra => {
+                self.shortest_paths = self.dijkstra_with_binary_heap(&start_ids, &end_ids).await?;
             }
-            ShortestPathAlgorithm::AStar => {
-                // A*算法需要启发式函数，这里暂时使用Dijkstra
-                self.dijkstra_shortest_path().await?;
+            ShortestPathAlgorithmType::AStar => {
+                self.shortest_paths = self.a_star(&start_ids, &end_ids).await?;
             }
         }
+
+        self.execution_time_ms = start_time.elapsed().as_millis() as u64;
+
+        if self.single_shortest && !self.shortest_paths.is_empty() {
+            self.shortest_paths.truncate(1);
+        }
+
+        if self.shortest_paths.len() > self.limit {
+            self.shortest_paths.truncate(self.limit);
+        }
+
         Ok(())
     }
 
-    /// 构建结果
-    fn build_result(&self) -> ExecutionResult {
+    pub fn build_result(&self) -> ExecutionResult {
         let mut path_values = Vec::new();
 
         for path in &self.shortest_paths {
             let mut path_value = Vec::new();
-
-            // 添加起始节点
             path_value.push(Value::Vertex(path.src.clone()));
 
-            // 添加每一步的边和节点
             for step in &path.steps {
                 path_value.push(Value::Edge((*step.edge).clone()));
                 path_value.push(Value::Vertex(step.dst.clone()));
@@ -399,22 +805,16 @@ impl<S: StorageEngine> InputExecutor<S> for ShortestPathExecutor<S> {
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> Executor<S> for ShortestPathExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        // 首先执行输入执行器（如果存在）
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
             input_exec.execute().await?
         } else {
-            // 如果没有输入执行器，返回空结果
             ExecutionResult::Vertices(Vec::new())
         };
 
-        // 提取起始和结束节点
         let (start_nodes, end_nodes) = match input_result {
             ExecutionResult::Vertices(vertices) => {
                 if vertices.len() >= 2 {
-                    (
-                        vec![(*vertices[0].vid).clone()],
-                        vec![(*vertices[1].vid).clone()],
-                    )
+                    (vec![(*vertices[0].vid).clone()], vec![(*vertices[1].vid).clone()])
                 } else {
                     (Vec::new(), Vec::new())
                 }
@@ -422,10 +822,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for ShortestPathExecutor<S> 
             ExecutionResult::Edges(edges) => {
                 if !edges.is_empty() {
                     let first_edge = &edges[0];
-                    (
-                        vec![(*first_edge.src).clone()],
-                        vec![(*first_edge.dst).clone()],
-                    )
+                    (vec![(*first_edge.src).clone()], vec![(*first_edge.dst).clone()])
                 } else {
                     (Vec::new(), Vec::new())
                 }
@@ -440,7 +837,6 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for ShortestPathExecutor<S> 
             _ => (Vec::new(), Vec::new()),
         };
 
-        // 如果没有提供起始和结束节点，使用预设的节点
         let start_nodes = if start_nodes.is_empty() {
             self.start_vertex_ids.clone()
         } else {
@@ -457,22 +853,20 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for ShortestPathExecutor<S> 
             return Ok(ExecutionResult::Values(Vec::new()));
         }
 
-        // 更新起始和结束节点
         self.start_vertex_ids = start_nodes;
         self.end_vertex_ids = end_nodes;
 
-        // 执行最短路径计算
         self.compute_shortest_paths().await.map_err(DBError::from)?;
 
-        // 构建结果
         Ok(self.build_result())
     }
 
     fn open(&mut self) -> DBResult<()> {
         self.shortest_paths.clear();
-        self.visited_nodes.clear();
-        self.distance_map.clear();
-        self.previous_map.clear();
+        self.termination_map.clear();
+        self.nodes_visited = 0;
+        self.edges_traversed = 0;
+        self.max_depth_reached = 0;
 
         if let Some(ref mut input_exec) = self.input_executor {
             input_exec.open()?;
@@ -482,9 +876,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for ShortestPathExecutor<S> 
 
     fn close(&mut self) -> DBResult<()> {
         self.shortest_paths.clear();
-        self.visited_nodes.clear();
-        self.distance_map.clear();
-        self.previous_map.clear();
+        self.termination_map.clear();
 
         if let Some(ref mut input_exec) = self.input_executor {
             input_exec.close()?;
@@ -519,18 +911,10 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for ShortestPathExecutor<S> 
 
 impl<S: StorageEngine + Send> HasStorage<S> for ShortestPathExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base
-            .storage
-            .as_ref()
-            .expect("ShortestPathExecutor storage should be set")
+        self.base.storage.as_ref().expect("ShortestPathExecutor storage should be set")
     }
 }
 
-/// MultiShortestPathExecutor - 多源最短路径执行器
-///
-/// 计算多组起始节点到目标节点之间的最短路径
-/// 使用双向 BFS 算法，同时从两侧扩展以提高效率
-/// 适用于社交网络分析、推荐系统等场景
 pub struct MultiShortestPathExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
     left_start_vertices: Vec<Value>,
@@ -538,6 +922,7 @@ pub struct MultiShortestPathExecutor<S: StorageEngine> {
     max_steps: usize,
     edge_types: Option<Vec<String>>,
     single_shortest: bool,
+    limit: usize,
     input_executor: Option<Box<dyn Executor<S>>>,
     left_visited: HashSet<Value>,
     right_visited: HashSet<Value>,
@@ -547,6 +932,8 @@ pub struct MultiShortestPathExecutor<S: StorageEngine> {
     history_right_paths: HashMap<Value, HashMap<Value, Vec<Path>>>,
     current_step: usize,
     result_paths: Vec<Path>,
+    nodes_visited: usize,
+    edges_traversed: usize,
 }
 
 impl<S: StorageEngine> std::fmt::Debug for MultiShortestPathExecutor<S> {
@@ -557,6 +944,7 @@ impl<S: StorageEngine> std::fmt::Debug for MultiShortestPathExecutor<S> {
             .field("right_target_vertices", &self.right_target_vertices)
             .field("max_steps", &self.max_steps)
             .field("single_shortest", &self.single_shortest)
+            .field("limit", &self.limit)
             .field("input_executor", &"Option<Box<dyn Executor<S>>>")
             .field("current_step", &self.current_step)
             .finish()
@@ -580,6 +968,7 @@ impl<S: StorageEngine> MultiShortestPathExecutor<S> {
             max_steps,
             edge_types,
             single_shortest,
+            limit: std::usize::MAX,
             input_executor: None,
             left_visited: HashSet::new(),
             right_visited: HashSet::new(),
@@ -589,13 +978,31 @@ impl<S: StorageEngine> MultiShortestPathExecutor<S> {
             history_right_paths: HashMap::new(),
             current_step: 1,
             result_paths: Vec::new(),
+            nodes_visited: 0,
+            edges_traversed: 0,
         }
     }
 
-    fn get_neighbors_with_edges(
-        &self,
-        node_id: &Value,
-    ) -> Result<Vec<(Value, Edge)>, QueryError> {
+    pub fn with_limit(mut self, limit: usize) -> Self {
+        self.limit = limit;
+        self
+    }
+
+    fn has_duplicate_edges(&self, path: &Path) -> bool {
+        let mut edge_set = HashSet::new();
+        
+        for step in &path.steps {
+            let edge = &step.edge;
+            let edge_key = format!("{}_{}_{}", edge.src, edge.dst, edge.ranking);
+            if !edge_set.insert(edge_key) {
+                return true;
+            }
+        }
+        
+        false
+    }
+
+    fn get_neighbors_with_edges(&self, node_id: &Value) -> Result<Vec<(Value, Edge)>, QueryError> {
         let storage = safe_lock(&*self.get_storage())
             .expect("MultiShortestPathExecutor storage lock should not be poisoned");
 
@@ -643,12 +1050,15 @@ impl<S: StorageEngine> MultiShortestPathExecutor<S> {
         let mut new_discoveries: Vec<(Value, Path)> = Vec::new();
         for (current_id, paths) in &self.left_paths {
             let neighbors = self.get_neighbors_with_edges(current_id)?;
+            self.edges_traversed += neighbors.len();
+            
             for (neighbor_id, edge) in neighbors {
                 if self.left_visited.contains(&neighbor_id) {
                     continue;
                 }
 
                 self.left_visited.insert(neighbor_id.clone());
+                self.nodes_visited += 1;
 
                 let edge_clone = edge.clone();
                 for path in paths {
@@ -702,12 +1112,15 @@ impl<S: StorageEngine> MultiShortestPathExecutor<S> {
         let mut new_discoveries: Vec<(Value, Path)> = Vec::new();
         for (current_id, paths) in &self.right_paths {
             let neighbors = self.get_neighbors_with_edges(current_id)?;
+            self.edges_traversed += neighbors.len();
+            
             for (neighbor_id, edge) in neighbors {
                 if self.right_visited.contains(&neighbor_id) {
                     continue;
                 }
 
                 self.right_visited.insert(neighbor_id.clone());
+                self.nodes_visited += 1;
 
                 let edge_clone = edge.clone();
                 for path in paths {
@@ -756,11 +1169,21 @@ impl<S: StorageEngine> MultiShortestPathExecutor<S> {
         for (_meet_vid, left_list, right_list) in meet_points {
             for left_path in left_list {
                 for right_path in &right_list {
+                    if self.has_duplicate_edges(&left_path) {
+                        continue;
+                    }
+                    if self.has_duplicate_edges(right_path) {
+                        continue;
+                    }
+
                     let mut combined_path = left_path.clone();
                     for step in right_path.steps.iter().rev() {
                         combined_path.steps.push(step.clone());
                     }
-                    self.result_paths.push(combined_path);
+                    
+                    if !self.has_duplicate_edges(&combined_path) {
+                        self.result_paths.push(combined_path);
+                    }
                 }
             }
         }
@@ -800,16 +1223,33 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for MultiShortestPath
             self.result_paths.truncate(1);
         }
 
+        if self.result_paths.len() > self.limit {
+            self.result_paths.truncate(self.limit);
+        }
+
         Ok(ExecutionResult::Paths(self.result_paths.clone()))
     }
 
     fn open(&mut self) -> DBResult<()> {
         self.base.open()?;
+        self.left_visited.clear();
+        self.right_visited.clear();
+        self.left_paths.clear();
+        self.right_paths.clear();
+        self.history_left_paths.clear();
+        self.history_right_paths.clear();
+        self.result_paths.clear();
+        self.current_step = 1;
+        self.nodes_visited = 0;
+        self.edges_traversed = 0;
         Ok(())
     }
 
     fn close(&mut self) -> DBResult<()> {
         self.base.close()?;
+        self.left_visited.clear();
+        self.right_visited.clear();
+        self.result_paths.clear();
         Ok(())
     }
 
@@ -840,9 +1280,6 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for MultiShortestPath
 
 impl<S: StorageEngine + Send> HasStorage<S> for MultiShortestPathExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base
-            .storage
-            .as_ref()
-            .expect("MultiShortestPathExecutor storage should be set")
+        self.base.storage.as_ref().expect("MultiShortestPathExecutor storage should be set")
     }
 }

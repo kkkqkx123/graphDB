@@ -99,7 +99,7 @@ impl<S: StorageEngine> LeftJoinExecutor<S> {
                         let right_row = &build_dataset.rows[right_idx];
                         let new_row = self
                             .base_executor
-                            .new_row(left_row.clone(), right_row.clone());
+                            .new_row(left_row.clone(), right_row.clone(), &left_dataset.col_names, &right_dataset.col_names);
                         result.rows.push(new_row);
                     }
                 }
@@ -177,7 +177,7 @@ impl<S: StorageEngine> LeftJoinExecutor<S> {
                         let right_row = &build_dataset.rows[right_idx];
                         let new_row = self
                             .base_executor
-                            .new_row(left_row.clone(), right_row.clone());
+                            .new_row(left_row.clone(), right_row.clone(), &left_dataset.col_names, &right_dataset.col_names);
                         result.rows.push(new_row);
                     }
                 }

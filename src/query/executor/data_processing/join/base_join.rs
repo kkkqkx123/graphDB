@@ -312,8 +312,14 @@ impl<S: StorageEngine> BaseJoinExecutor<S> {
     }
 
     /// 创建新行（连接左右两行）
-    pub fn new_row(&self, left_row: Vec<Value>, right_row: Vec<Value>) -> Vec<Value> {
-        self.new_row_with_move(left_row, right_row, false)
+    pub fn new_row(
+        &self,
+        left_row: Vec<Value>,
+        right_row: Vec<Value>,
+        left_col_names: &[String],
+        right_col_names: &[String],
+    ) -> Vec<Value> {
+        self.new_row_with_move(left_row, right_row, false, left_col_names, right_col_names)
     }
 
     /// 使用移动语义创建新行（性能优化）
@@ -322,6 +328,8 @@ impl<S: StorageEngine> BaseJoinExecutor<S> {
         left_row: Vec<Value>,
         right_row: Vec<Value>,
         exchange: bool,
+        left_col_names: &[String],
+        right_col_names: &[String],
     ) -> Vec<Value> {
         let (left, right) = if exchange {
             (right_row, left_row)
@@ -329,12 +337,18 @@ impl<S: StorageEngine> BaseJoinExecutor<S> {
             (left_row, right_row)
         };
 
-        self.build_output_row(left, right)
+        self.build_output_row(left, right, left_col_names, right_col_names)
     }
 
     /// 根据输出列名构建结果行
-    pub fn build_output_row(&self, left_row: Vec<Value>, right_row: Vec<Value>) -> Vec<Value> {
-        self.build_output_row_simple(left_row, right_row, &[], &[])
+    pub fn build_output_row(
+        &self,
+        left_row: Vec<Value>,
+        right_row: Vec<Value>,
+        left_col_names: &[String],
+        right_col_names: &[String],
+    ) -> Vec<Value> {
+        self.build_output_row_simple(left_row, right_row, left_col_names, right_col_names)
     }
 
     /// 简化版：根据位置构建结果行（假设输出列顺序为：左表所有列 + 右表非重复列）
@@ -346,6 +360,17 @@ impl<S: StorageEngine> BaseJoinExecutor<S> {
         right_col_names: &[String],
     ) -> Vec<Value> {
         let mut result = Vec::new();
+
+        if left_col_names.is_empty() && right_col_names.is_empty() {
+            for (i, col_name) in self.col_names.iter().enumerate() {
+                if i < left_row.len() {
+                    result.push(left_row[i].clone());
+                } else if i - left_row.len() < right_row.len() {
+                    result.push(right_row[i - left_row.len()].clone());
+                }
+            }
+            return result;
+        }
 
         for col_name in &self.col_names {
             if let Some(idx) = left_col_names.iter().position(|c| c == col_name) {

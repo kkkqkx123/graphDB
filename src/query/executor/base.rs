@@ -42,7 +42,7 @@ impl ExecutionContext {
 }
 
 // Base executor with common functionality
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct BaseExecutor<S: StorageEngine> {
     pub id: i64,
     pub name: String,

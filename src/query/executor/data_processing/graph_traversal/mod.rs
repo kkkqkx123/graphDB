@@ -6,7 +6,7 @@
 //! - 完整遍历（Traverse）
 //! - 最短路径（ShortestPath）
 //! - 所有路径（AllPaths）
-//! - 子图提取（Subgraph）
+//! - 子图提取（Sub图）
 
 pub mod expand;
 pub mod expand_all;
@@ -22,7 +22,10 @@ pub mod traversal_utils;
 pub use expand::ExpandExecutor;
 pub use expand_all::ExpandAllExecutor;
 pub use shortest_path::{
-    MultiShortestPathExecutor, ShortestPathAlgorithm, ShortestPathExecutor,
+    MultiShortestPathExecutor,
+    ShortestPathAlgorithm,
+    ShortestPathAlgorithmType,
+    ShortestPathExecutor,
 };
 pub use traverse::TraverseExecutor;
 
