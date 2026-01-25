@@ -10,7 +10,6 @@ use crate::query::optimizer::plan::{
 };
 use crate::query::optimizer::property_tracker::PropertyTracker;
 use crate::query::planner::plan::{ExecutionPlan, PlanNodeEnum};
-use crate::query::optimizer::rule_traits::BaseOptRule;
 use crate::query::optimizer::PlanValidator;
 
 #[derive(Debug)]

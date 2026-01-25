@@ -272,7 +272,7 @@ impl<S: StorageEngine + 'static> GraphQueryExecutor<S> {
 
     async fn execute_alter(&mut self, clause: AlterStmt) -> Result<ExecutionResult, DBError> {
         use crate::query::parser::ast::stmt::AlterTarget;
-        use admin_executor::{AlterEdgeExecutor, AlterTagExecutor, AlterEdgeInfo, AlterTagInfo, AlterTagItem, AlterEdgeItem, AlterTagOp, AlterEdgeOp};
+        use admin_executor::{AlterEdgeExecutor, AlterTagExecutor, AlterEdgeInfo, AlterTagInfo, AlterTagItem, AlterEdgeItem};
         let id = self.id;
 
         match clause.target {

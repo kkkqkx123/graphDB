@@ -270,7 +270,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_statement(&mut self) -> Result<Stmt, ParseError> {
-        let mut stmt_parser = StmtParser::new(&self.ctx);
+        let mut stmt_parser = StmtParser::new();
         stmt_parser.parse_statement(&mut self.ctx)
     }
 

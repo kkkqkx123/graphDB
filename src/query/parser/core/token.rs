@@ -188,6 +188,7 @@ pub enum TokenKind {
     SetList,
     Clear,
     Merge,
+    Values,
     Divide,
     Rename,
     Local,

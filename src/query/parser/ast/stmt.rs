@@ -6,7 +6,6 @@ use super::expression::{Expression, ExprUtils};
 use super::pattern::*;
 use super::types::*;
 use crate::core::types::PropertyDef;
-use crate::core::Value;
 
 /// 语句枚举 - 所有图数据库操作语句
 #[derive(Debug, Clone, PartialEq)]
@@ -430,8 +429,19 @@ pub struct InsertStmt {
 /// INSERT 目标
 #[derive(Debug, Clone, PartialEq)]
 pub enum InsertTarget {
-    Vertices { ids: Vec<Expression> },
-    Edge { src: Expression, dst: Expression },
+    Vertices {
+        tag_name: String,
+        prop_names: Vec<String>,
+        values: Vec<(Expression, Vec<Expression>)>,
+    },
+    Edge {
+        edge_name: String,
+        prop_names: Vec<String>,
+        src: Expression,
+        dst: Expression,
+        rank: Option<Expression>,
+        values: Vec<Expression>,
+    },
 }
 
 /// MERGE 语句
@@ -439,6 +449,8 @@ pub enum InsertTarget {
 pub struct MergeStmt {
     pub span: Span,
     pub pattern: Pattern,
+    pub on_create: Option<SetClause>,
+    pub on_match: Option<SetClause>,
 }
 
 /// UNWIND 语句

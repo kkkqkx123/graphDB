@@ -1,8 +1,16 @@
 //! PlanNode 枚举定义
 //!
-//! 简化的PlanNodeEnum定义，只包含枚举和基本方法
+//!
 
 use super::plan_node_traits::PlanNode;
+use super::admin_node::{
+    CreateSpaceNode, DropSpaceNode, DescSpaceNode, ShowSpacesNode,
+    CreateTagNode, AlterTagNode, DescTagNode, DropTagNode, ShowTagsNode,
+    CreateEdgeNode, AlterEdgeNode, DescEdgeNode, DropEdgeNode, ShowEdgesNode,
+    CreateTagIndexNode, DropTagIndexNode, DescTagIndexNode, ShowTagIndexesNode,
+    CreateEdgeIndexNode, DropEdgeIndexNode, DescEdgeIndexNode, ShowEdgeIndexesNode,
+    RebuildTagIndexNode, RebuildEdgeIndexNode,
+};
 use crate::query::planner::plan::core::explain::PlanNodeDescription;
 
 // 导入并重新导出所有具体的节点类型
@@ -113,6 +121,56 @@ pub enum PlanNodeEnum {
     AllPaths(AllPaths),
     /// 最短路径节点
     ShortestPath(ShortestPath),
+
+    /// ========== 管理节点 ==========
+    /// 创建图空间
+    CreateSpace(CreateSpaceNode),
+    /// 删除图空间
+    DropSpace(DropSpaceNode),
+    /// 描述图空间
+    DescSpace(DescSpaceNode),
+    /// 显示所有图空间
+    ShowSpaces(ShowSpacesNode),
+    /// 创建标签
+    CreateTag(CreateTagNode),
+    /// 修改标签
+    AlterTag(AlterTagNode),
+    /// 描述标签
+    DescTag(DescTagNode),
+    /// 删除标签
+    DropTag(DropTagNode),
+    /// 显示所有标签
+    ShowTags(ShowTagsNode),
+    /// 创建边类型
+    CreateEdge(CreateEdgeNode),
+    /// 修改边类型
+    AlterEdge(AlterEdgeNode),
+    /// 描述边类型
+    DescEdge(DescEdgeNode),
+    /// 删除边类型
+    DropEdge(DropEdgeNode),
+    /// 显示所有边类型
+    ShowEdges(ShowEdgesNode),
+    /// 创建标签索引
+    CreateTagIndex(CreateTagIndexNode),
+    /// 删除标签索引
+    DropTagIndex(DropTagIndexNode),
+    /// 描述标签索引
+    DescTagIndex(DescTagIndexNode),
+    /// 显示所有标签索引
+    ShowTagIndexes(ShowTagIndexesNode),
+    /// 创建边索引
+    CreateEdgeIndex(CreateEdgeIndexNode),
+    /// 删除边索引
+    DropEdgeIndex(DropEdgeIndexNode),
+    /// 描述边索引
+    DescEdgeIndex(DescEdgeIndexNode),
+    /// 显示所有边索引
+    ShowEdgeIndexes(ShowEdgeIndexesNode),
+    /// 重建标签索引
+    RebuildTagIndex(RebuildTagIndexNode),
+    /// 重建边索引
+    RebuildEdgeIndex(RebuildEdgeIndexNode),
 }
 
 impl PlanNodeEnum {
@@ -206,6 +264,102 @@ impl PlanNodeEnum {
         matches!(self, PlanNodeEnum::CartesianProduct(_))
     }
 
+    pub fn is_create_space(&self) -> bool {
+        matches!(self, PlanNodeEnum::CreateSpace(_))
+    }
+
+    pub fn is_drop_space(&self) -> bool {
+        matches!(self, PlanNodeEnum::DropSpace(_))
+    }
+
+    pub fn is_desc_space(&self) -> bool {
+        matches!(self, PlanNodeEnum::DescSpace(_))
+    }
+
+    pub fn is_show_spaces(&self) -> bool {
+        matches!(self, PlanNodeEnum::ShowSpaces(_))
+    }
+
+    pub fn is_create_tag(&self) -> bool {
+        matches!(self, PlanNodeEnum::CreateTag(_))
+    }
+
+    pub fn is_alter_tag(&self) -> bool {
+        matches!(self, PlanNodeEnum::AlterTag(_))
+    }
+
+    pub fn is_desc_tag(&self) -> bool {
+        matches!(self, PlanNodeEnum::DescTag(_))
+    }
+
+    pub fn is_drop_tag(&self) -> bool {
+        matches!(self, PlanNodeEnum::DropTag(_))
+    }
+
+    pub fn is_show_tags(&self) -> bool {
+        matches!(self, PlanNodeEnum::ShowTags(_))
+    }
+
+    pub fn is_create_edge(&self) -> bool {
+        matches!(self, PlanNodeEnum::CreateEdge(_))
+    }
+
+    pub fn is_alter_edge(&self) -> bool {
+        matches!(self, PlanNodeEnum::AlterEdge(_))
+    }
+
+    pub fn is_desc_edge(&self) -> bool {
+        matches!(self, PlanNodeEnum::DescEdge(_))
+    }
+
+    pub fn is_drop_edge(&self) -> bool {
+        matches!(self, PlanNodeEnum::DropEdge(_))
+    }
+
+    pub fn is_show_edges(&self) -> bool {
+        matches!(self, PlanNodeEnum::ShowEdges(_))
+    }
+
+    pub fn is_create_tag_index(&self) -> bool {
+        matches!(self, PlanNodeEnum::CreateTagIndex(_))
+    }
+
+    pub fn is_drop_tag_index(&self) -> bool {
+        matches!(self, PlanNodeEnum::DropTagIndex(_))
+    }
+
+    pub fn is_desc_tag_index(&self) -> bool {
+        matches!(self, PlanNodeEnum::DescTagIndex(_))
+    }
+
+    pub fn is_show_tag_indexes(&self) -> bool {
+        matches!(self, PlanNodeEnum::ShowTagIndexes(_))
+    }
+
+    pub fn is_create_edge_index(&self) -> bool {
+        matches!(self, PlanNodeEnum::CreateEdgeIndex(_))
+    }
+
+    pub fn is_drop_edge_index(&self) -> bool {
+        matches!(self, PlanNodeEnum::DropEdgeIndex(_))
+    }
+
+    pub fn is_desc_edge_index(&self) -> bool {
+        matches!(self, PlanNodeEnum::DescEdgeIndex(_))
+    }
+
+    pub fn is_show_edge_indexes(&self) -> bool {
+        matches!(self, PlanNodeEnum::ShowEdgeIndexes(_))
+    }
+
+    pub fn is_rebuild_tag_index(&self) -> bool {
+        matches!(self, PlanNodeEnum::RebuildTagIndex(_))
+    }
+
+    pub fn is_rebuild_edge_index(&self) -> bool {
+        matches!(self, PlanNodeEnum::RebuildEdgeIndex(_))
+    }
+
     pub fn type_name(&self) -> &'static str {
         match self {
             PlanNodeEnum::Start(_) => "Start",
@@ -248,6 +402,30 @@ impl PlanNodeEnum {
             PlanNodeEnum::BFSShortest(_) => "BFSShortest",
             PlanNodeEnum::AllPaths(_) => "AllPaths",
             PlanNodeEnum::ShortestPath(_) => "ShortestPath",
+            PlanNodeEnum::CreateSpace(_) => "CreateSpace",
+            PlanNodeEnum::DropSpace(_) => "DropSpace",
+            PlanNodeEnum::DescSpace(_) => "DescSpace",
+            PlanNodeEnum::ShowSpaces(_) => "ShowSpaces",
+            PlanNodeEnum::CreateTag(_) => "CreateTag",
+            PlanNodeEnum::AlterTag(_) => "AlterTag",
+            PlanNodeEnum::DescTag(_) => "DescTag",
+            PlanNodeEnum::DropTag(_) => "DropTag",
+            PlanNodeEnum::ShowTags(_) => "ShowTags",
+            PlanNodeEnum::CreateEdge(_) => "CreateEdge",
+            PlanNodeEnum::AlterEdge(_) => "AlterEdge",
+            PlanNodeEnum::DescEdge(_) => "DescEdge",
+            PlanNodeEnum::DropEdge(_) => "DropEdge",
+            PlanNodeEnum::ShowEdges(_) => "ShowEdges",
+            PlanNodeEnum::CreateTagIndex(_) => "CreateTagIndex",
+            PlanNodeEnum::DropTagIndex(_) => "DropTagIndex",
+            PlanNodeEnum::DescTagIndex(_) => "DescTagIndex",
+            PlanNodeEnum::ShowTagIndexes(_) => "ShowTagIndexes",
+            PlanNodeEnum::CreateEdgeIndex(_) => "CreateEdgeIndex",
+            PlanNodeEnum::DropEdgeIndex(_) => "DropEdgeIndex",
+            PlanNodeEnum::DescEdgeIndex(_) => "DescEdgeIndex",
+            PlanNodeEnum::ShowEdgeIndexes(_) => "ShowEdgeIndexes",
+            PlanNodeEnum::RebuildTagIndex(_) => "RebuildTagIndex",
+            PlanNodeEnum::RebuildEdgeIndex(_) => "RebuildEdgeIndex",
         }
     }
 
@@ -403,6 +581,174 @@ impl PlanNodeEnum {
     pub fn as_aggregate(&self) -> Option<&AggregateNode> {
         match self {
             PlanNodeEnum::Aggregate(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_create_space(&self) -> Option<&CreateSpaceNode> {
+        match self {
+            PlanNodeEnum::CreateSpace(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_drop_space(&self) -> Option<&DropSpaceNode> {
+        match self {
+            PlanNodeEnum::DropSpace(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_desc_space(&self) -> Option<&DescSpaceNode> {
+        match self {
+            PlanNodeEnum::DescSpace(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_show_spaces(&self) -> Option<&ShowSpacesNode> {
+        match self {
+            PlanNodeEnum::ShowSpaces(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_create_tag(&self) -> Option<&CreateTagNode> {
+        match self {
+            PlanNodeEnum::CreateTag(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_alter_tag(&self) -> Option<&AlterTagNode> {
+        match self {
+            PlanNodeEnum::AlterTag(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_desc_tag(&self) -> Option<&DescTagNode> {
+        match self {
+            PlanNodeEnum::DescTag(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_drop_tag(&self) -> Option<&DropTagNode> {
+        match self {
+            PlanNodeEnum::DropTag(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_show_tags(&self) -> Option<&ShowTagsNode> {
+        match self {
+            PlanNodeEnum::ShowTags(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_create_edge(&self) -> Option<&CreateEdgeNode> {
+        match self {
+            PlanNodeEnum::CreateEdge(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_alter_edge(&self) -> Option<&AlterEdgeNode> {
+        match self {
+            PlanNodeEnum::AlterEdge(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_desc_edge(&self) -> Option<&DescEdgeNode> {
+        match self {
+            PlanNodeEnum::DescEdge(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_drop_edge(&self) -> Option<&DropEdgeNode> {
+        match self {
+            PlanNodeEnum::DropEdge(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_show_edges(&self) -> Option<&ShowEdgesNode> {
+        match self {
+            PlanNodeEnum::ShowEdges(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_create_tag_index(&self) -> Option<&CreateTagIndexNode> {
+        match self {
+            PlanNodeEnum::CreateTagIndex(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_drop_tag_index(&self) -> Option<&DropTagIndexNode> {
+        match self {
+            PlanNodeEnum::DropTagIndex(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_desc_tag_index(&self) -> Option<&DescTagIndexNode> {
+        match self {
+            PlanNodeEnum::DescTagIndex(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_show_tag_indexes(&self) -> Option<&ShowTagIndexesNode> {
+        match self {
+            PlanNodeEnum::ShowTagIndexes(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_create_edge_index(&self) -> Option<&CreateEdgeIndexNode> {
+        match self {
+            PlanNodeEnum::CreateEdgeIndex(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_drop_edge_index(&self) -> Option<&DropEdgeIndexNode> {
+        match self {
+            PlanNodeEnum::DropEdgeIndex(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_desc_edge_index(&self) -> Option<&DescEdgeIndexNode> {
+        match self {
+            PlanNodeEnum::DescEdgeIndex(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_show_edge_indexes(&self) -> Option<&ShowEdgeIndexesNode> {
+        match self {
+            PlanNodeEnum::ShowEdgeIndexes(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_rebuild_tag_index(&self) -> Option<&RebuildTagIndexNode> {
+        match self {
+            PlanNodeEnum::RebuildTagIndex(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_rebuild_edge_index(&self) -> Option<&RebuildEdgeIndexNode> {
+        match self {
+            PlanNodeEnum::RebuildEdgeIndex(node) => Some(node),
             _ => None,
         }
     }
@@ -786,6 +1132,11 @@ impl PlanNodeEnum {
                 }
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
+            }
+
+            // 管理节点 - 简化描述
+            _ => {
+                PlanNodeDescription::new(self.name(), self.id())
             }
         }
     }

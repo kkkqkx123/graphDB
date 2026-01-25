@@ -51,6 +51,9 @@ impl PlanNodeEnum {
             PlanNodeEnum::BFSShortest(node) => node.id(),
             PlanNodeEnum::AllPaths(node) => node.id(),
             PlanNodeEnum::ShortestPath(node) => node.id(),
+
+            // 管理节点
+            _ => 0,
         }
     }
 
@@ -98,6 +101,9 @@ impl PlanNodeEnum {
             PlanNodeEnum::BFSShortest(_) => "BFSShortest",
             PlanNodeEnum::AllPaths(_) => "AllPaths",
             PlanNodeEnum::ShortestPath(_) => "ShortestPath",
+
+            // 管理节点
+            _ => "AdminNode",
         }
     }
 
@@ -145,6 +151,9 @@ impl PlanNodeEnum {
             PlanNodeEnum::BFSShortest(node) => node.output_var(),
             PlanNodeEnum::AllPaths(node) => node.output_var(),
             PlanNodeEnum::ShortestPath(node) => node.output_var(),
+
+            // 管理节点 - 无输出变量
+            _ => None,
         }
     }
 
@@ -192,6 +201,9 @@ impl PlanNodeEnum {
             PlanNodeEnum::BFSShortest(node) => node.col_names(),
             PlanNodeEnum::AllPaths(node) => node.col_names(),
             PlanNodeEnum::ShortestPath(node) => node.col_names(),
+
+            // 管理节点 - 无列名
+            _ => &[],
         }
     }
 
@@ -239,6 +251,9 @@ impl PlanNodeEnum {
             PlanNodeEnum::BFSShortest(node) => node.cost(),
             PlanNodeEnum::AllPaths(node) => node.cost(),
             PlanNodeEnum::ShortestPath(node) => node.cost(),
+
+            // 管理节点 - 默认成本
+            _ => 1.0,
         }
     }
 
@@ -318,6 +333,9 @@ impl PlanNodeEnum {
             PlanNodeEnum::Loop(_node) => vec![],
             PlanNodeEnum::PassThrough(_node) => vec![],
             PlanNodeEnum::Select(_node) => vec![],
+
+            // 管理节点 - 无输入依赖
+            _ => vec![],
         }
     }
 
@@ -375,6 +393,9 @@ impl PlanNodeEnum {
             PlanNodeEnum::BFSShortest(node) => node.set_output_var(var),
             PlanNodeEnum::AllPaths(node) => node.set_output_var(var),
             PlanNodeEnum::ShortestPath(node) => node.set_output_var(var),
+
+            // 管理节点 - 不需要设置输出变量
+            _ => {}
         }
     }
 
@@ -422,6 +443,9 @@ impl PlanNodeEnum {
             PlanNodeEnum::BFSShortest(node) => node.set_col_names(names),
             PlanNodeEnum::AllPaths(node) => node.set_col_names(names),
             PlanNodeEnum::ShortestPath(node) => node.set_col_names(names),
+
+            // 管理节点 - 不需要设置列名
+            _ => {}
         }
     }
 }

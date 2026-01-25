@@ -531,16 +531,20 @@ impl StmtVisitor for DefaultVisitor {
     }
 
     fn visit_insert(&mut self, stmt: &InsertStmt) -> Self::Result {
-        // 访问目标表达式
         match &stmt.target {
-            InsertTarget::Vertices { ids } => {
-                for id in ids {
-                    self.visit_expression(id);
+            InsertTarget::Vertices { tag_name: _, prop_names: _, values } => {
+                for (_, prop_values) in values {
+                    for prop_value in prop_values {
+                        self.visit_expression(prop_value);
+                    }
                 }
             }
-            InsertTarget::Edge { src, dst } => {
+            InsertTarget::Edge { edge_name: _, prop_names: _, src, dst, rank: _, values } => {
                 self.visit_expression(src);
                 self.visit_expression(dst);
+                for value in values {
+                    self.visit_expression(value);
+                }
             }
         }
     }

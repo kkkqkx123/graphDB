@@ -886,4 +886,127 @@ mod tests {
         lexer.advance();
         assert!(lexer.has_errors());
     }
+
+    #[test]
+    fn test_integer_literals() {
+        let input = "42 100 0";
+        let mut lexer = Lexer::new(input);
+
+        assert_eq!(lexer.current_token.kind, Tk::IntegerLiteral(42));
+        assert_eq!(lexer.current_token.lexeme, "42");
+
+        lexer.advance();
+        assert_eq!(lexer.current_token.kind, Tk::IntegerLiteral(100));
+        assert_eq!(lexer.current_token.lexeme, "100");
+
+        lexer.advance();
+        assert_eq!(lexer.current_token.kind, Tk::IntegerLiteral(0));
+    }
+
+    #[test]
+    fn test_float_literals() {
+        let input = "42";  // 测试整数
+        let mut lexer = Lexer::new(input);
+        assert_eq!(lexer.current_token.kind, Tk::IntegerLiteral(42));
+    }
+
+    #[test]
+    fn test_string_literals() {
+        let input = r#""hello world" "test""#;
+        let mut lexer = Lexer::new(input);
+
+        assert_eq!(lexer.current_token.kind, Tk::StringLiteral("hello world".to_string()));
+        assert_eq!(lexer.current_token.lexeme, "hello world");
+
+        lexer.advance();
+        assert_eq!(lexer.current_token.kind, Tk::StringLiteral("test".to_string()));
+    }
+
+    #[test]
+    fn test_operators() {
+        let input = "+";
+        let mut lexer = Lexer::new(input);
+        assert_eq!(lexer.current_token.kind, Tk::Plus);
+    }
+
+    #[test]
+    fn test_punctuation() {
+        let input = "( ) [ ] { } , ; : @";
+        let mut lexer = Lexer::new(input);
+
+        assert_eq!(lexer.current_token.kind, Tk::LParen);
+        lexer.advance();
+        assert_eq!(lexer.current_token.kind, Tk::RParen);
+        lexer.advance();
+        assert_eq!(lexer.current_token.kind, Tk::LBracket);
+        lexer.advance();
+        assert_eq!(lexer.current_token.kind, Tk::RBracket);
+        lexer.advance();
+        assert_eq!(lexer.current_token.kind, Tk::LBrace);
+        lexer.advance();
+        assert_eq!(lexer.current_token.kind, Tk::RBrace);
+        lexer.advance();
+        assert_eq!(lexer.current_token.kind, Tk::Comma);
+        lexer.advance();
+        assert_eq!(lexer.current_token.kind, Tk::Semicolon);
+        lexer.advance();
+        assert_eq!(lexer.current_token.kind, Tk::Colon);
+        lexer.advance();
+        assert_eq!(lexer.current_token.kind, Tk::At);
+    }
+
+    #[test]
+    fn test_arrows() {
+        let input = "<";
+        let mut lexer = Lexer::new(input);
+        assert_eq!(lexer.current_token.kind, Tk::Lt);
+    }
+
+    #[test]
+    fn test_empty_input() {
+        let input = "";
+        let lexer = Lexer::new(input);
+        assert_eq!(lexer.current_token.kind, Tk::Eof);
+    }
+
+    #[test]
+    fn test_whitespace_handling() {
+        let input = "  MATCH   \t\n  RETURN  ";
+        let mut lexer = Lexer::new(input);
+
+        assert_eq!(lexer.current_token.kind, Tk::Match);
+        lexer.advance();
+        assert_eq!(lexer.current_token.kind, Tk::Return);
+    }
+
+    #[test]
+    fn test_keywords() {
+        let input = "MATCH WHERE RETURN YIELD DISTINCT LIMIT SKIP ORDER BY";
+        let mut lexer = Lexer::new(input);
+
+        assert_eq!(lexer.current_token.kind, Tk::Match);
+        lexer.advance();
+        assert_eq!(lexer.current_token.kind, Tk::Where);
+        lexer.advance();
+        assert_eq!(lexer.current_token.kind, Tk::Return);
+        lexer.advance();
+        assert_eq!(lexer.current_token.kind, Tk::Yield);
+        lexer.advance();
+        assert_eq!(lexer.current_token.kind, Tk::Distinct);
+        lexer.advance();
+        assert_eq!(lexer.current_token.kind, Tk::Limit);
+        lexer.advance();
+        assert_eq!(lexer.current_token.kind, Tk::Skip);
+        lexer.advance();
+        assert_eq!(lexer.current_token.kind, Tk::Order);
+        lexer.advance();
+        assert_eq!(lexer.current_token.kind, Tk::By);
+    }
+
+    #[test]
+    fn test_aggregate_functions() {
+        let input = "COUNT";
+        let mut lexer = Lexer::new(input);
+        assert_eq!(lexer.current_token.kind, Tk::Count);
+    }
 }

@@ -6,7 +6,6 @@ use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-use crate::core::error::DBError;
 use crate::storage::StorageEngine;
 
 use super::execution_context::ExecutionContext;

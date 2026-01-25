@@ -1,4 +1,5 @@
 pub mod aggregate_node;
+pub mod admin_node;
 pub mod control_flow_node;
 pub mod data_processing_node;
 pub mod factory;

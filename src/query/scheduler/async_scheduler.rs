@@ -6,7 +6,7 @@ use std::sync::{Arc, Condvar, Mutex};
 
 use super::execution_schedule::ExecutionSchedule;
 use super::types::{ExecutorType, QueryScheduler, SchedulerConfig};
-use crate::query::executor::{ExecutionContext, ExecutionResult};
+use crate::query::executor::ExecutionResult;
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
 use crate::utils::safe_lock;

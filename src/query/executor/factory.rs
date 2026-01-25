@@ -32,6 +32,19 @@ use crate::query::executor::result_processing::{
     TopNExecutor, UnwindExecutor,
 };
 
+use crate::query::executor::admin::{
+    CreateSpaceExecutor, DropSpaceExecutor, DescSpaceExecutor, ShowSpacesExecutor,
+    CreateTagExecutor, AlterTagExecutor, DescTagExecutor, DropTagExecutor, ShowTagsExecutor,
+    CreateEdgeExecutor, AlterEdgeExecutor, DescEdgeExecutor, DropEdgeExecutor, ShowEdgesExecutor,
+    CreateTagIndexExecutor, DropTagIndexExecutor, DescTagIndexExecutor, ShowTagIndexesExecutor,
+    CreateEdgeIndexExecutor, DropEdgeIndexExecutor, DescEdgeIndexExecutor, ShowEdgeIndexesExecutor,
+    RebuildTagIndexExecutor, RebuildEdgeIndexExecutor,
+};
+
+use crate::query::planner::plan::core::nodes::admin_node::{
+    SpaceManageInfo, TagManageInfo, TagAlterInfo, EdgeManageInfo, EdgeAlterInfo, IndexManageInfo,
+};
+
 /// 从 PlanNode 提取顶点 ID 列表
 /// 用于多源最短路径等算法获取起始和目标顶点
 fn extract_vertex_ids_from_node(node: &PlanNodeEnum) -> Vec<Value> {
@@ -52,6 +65,16 @@ fn extract_vertex_ids_from_node(node: &PlanNodeEnum) -> Vec<Value> {
             vec![Value::from(format!("node_{}", node.id()))]
         }
     }
+}
+
+/// 解析表达式字符串为 Graph 表达式
+/// 安全版本：解析失败时记录日志并返回 None
+fn parse_expression_safe(expr_str: &str) -> Option<crate::core::Expression> {
+    crate::query::parser::expressions::parse_expression_from_string(expr_str)
+        .inspect_err(|e| {
+            log::warn!("Failed to parse expression: {}, error: {:?}", expr_str, e);
+        })
+        .ok()
 }
 
 /// 执行器工厂
@@ -323,10 +346,10 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     storage,
                     None,
                     node.tag_filter().as_ref().and_then(|f| {
-                        crate::query::parser::expressions::parse_expression_from_string(f).ok()
+                        parse_expression_safe(f)
                     }),
                     node.vertex_filter().as_ref().and_then(|f| {
-                        crate::query::parser::expressions::parse_expression_from_string(f).ok()
+                        parse_expression_safe(f)
                     }),
                     node.limit().map(|l| l as usize),
                 );
@@ -347,7 +370,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     )]),
                     None,
                     node.expression().and_then(|e| {
-                        crate::query::parser::expressions::parse_expression_from_string(e).ok()
+                        parse_expression_safe(e)
                     }),
                     node.limit().map(|l| l as usize),
                 );
@@ -704,9 +727,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     .collect();
 
                 let collect_col = node.collect_col()
-                    .and_then(|col| {
-                        crate::query::parser::expressions::parse_expression_from_string(col).ok()
-                    })
+                    .and_then(|col| parse_expression_safe(col))
                     .unwrap_or_else(|| crate::core::Expression::Variable("_".to_string()));
 
                 let executor = RollUpApplyExecutor::new(
@@ -764,9 +785,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     .is_empty()
                     .then_some(node.condition().to_string())
                     .filter(|c| !c.is_empty())
-                    .and_then(|c| {
-                        crate::query::parser::expressions::parse_expression_from_string(&c).ok()
-                    });
+                    .and_then(|c| parse_expression_safe(&c));
                 
                 let executor = LoopExecutor::new(
                     node.id(),
@@ -774,6 +793,246 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     condition,
                     body_executor,
                     None,
+                );
+                Ok(Box::new(executor))
+            }
+
+            // ========== 管理执行器 ==========
+
+            // 空间管理执行器
+            PlanNodeEnum::CreateSpace(node) => {
+                use crate::query::executor::admin::space::create_space::ExecutorSpaceInfo;
+                let space_info = ExecutorSpaceInfo::new(node.info().space_name.clone())
+                    .with_partition_num(node.info().partition_num)
+                    .with_replica_factor(node.info().replica_factor)
+                    .with_vid_type(node.info().vid_type.clone());
+                let executor = CreateSpaceExecutor::new(node.id(), storage, space_info);
+                Ok(Box::new(executor))
+            }
+
+            PlanNodeEnum::DropSpace(node) => {
+                let executor = DropSpaceExecutor::new(node.id(), storage, node.space_name().to_string());
+                Ok(Box::new(executor))
+            }
+
+            PlanNodeEnum::DescSpace(node) => {
+                let executor = DescSpaceExecutor::new(node.id(), storage, node.space_name().to_string());
+                Ok(Box::new(executor))
+            }
+
+            PlanNodeEnum::ShowSpaces(node) => {
+                let executor = ShowSpacesExecutor::new(node.id(), storage);
+                Ok(Box::new(executor))
+            }
+
+            // 标签管理执行器
+            PlanNodeEnum::CreateTag(node) => {
+                use crate::query::executor::admin::tag::create_tag::ExecutorTagInfo;
+                let tag_info = ExecutorTagInfo {
+                    space_name: node.info().space_name.clone(),
+                    tag_name: node.info().tag_name.clone(),
+                    properties: node.info().properties.clone(),
+                    comment: None,
+                };
+                let executor = CreateTagExecutor::new(node.id(), storage, tag_info);
+                Ok(Box::new(executor))
+            }
+
+            PlanNodeEnum::AlterTag(node) => {
+                use crate::query::executor::admin::tag::alter_tag::{AlterTagInfo, AlterTagItem, AlterTagOp};
+                let mut alter_info = AlterTagInfo::new(
+                    node.info().space_name.clone(),
+                    node.info().tag_name.clone(),
+                );
+                for prop in node.info().additions.iter() {
+                    let item = AlterTagItem::add_property(prop.clone());
+                    alter_info = alter_info.with_items(vec![item]);
+                }
+                for prop_name in node.info().deletions.iter() {
+                    let item = AlterTagItem::drop_property(prop_name.clone());
+                    alter_info = alter_info.with_items(vec![item]);
+                }
+                let executor = AlterTagExecutor::new(node.id(), storage, alter_info);
+                Ok(Box::new(executor))
+            }
+
+            PlanNodeEnum::DescTag(node) => {
+                let executor = DescTagExecutor::new(
+                    node.id(),
+                    storage,
+                    node.space_name().to_string(),
+                    node.tag_name().to_string(),
+                );
+                Ok(Box::new(executor))
+            }
+
+            PlanNodeEnum::DropTag(node) => {
+                let executor = DropTagExecutor::new(
+                    node.id(),
+                    storage,
+                    node.space_name().to_string(),
+                    node.tag_name().to_string(),
+                );
+                Ok(Box::new(executor))
+            }
+
+            PlanNodeEnum::ShowTags(node) => {
+                let executor = ShowTagsExecutor::new(node.id(), storage, "".to_string());
+                Ok(Box::new(executor))
+            }
+
+            // 边类型管理执行器
+            PlanNodeEnum::CreateEdge(node) => {
+                use crate::query::executor::admin::edge::create_edge::ExecutorEdgeInfo;
+                let edge_info = ExecutorEdgeInfo {
+                    space_name: node.info().space_name.clone(),
+                    edge_name: node.info().edge_name.clone(),
+                    properties: node.info().properties.clone(),
+                    comment: None,
+                };
+                let executor = CreateEdgeExecutor::new(node.id(), storage, edge_info);
+                Ok(Box::new(executor))
+            }
+
+            PlanNodeEnum::AlterEdge(node) => {
+                use crate::query::executor::admin::edge::alter_edge::{AlterEdgeInfo, AlterEdgeItem, AlterEdgeOp};
+                let mut alter_info = AlterEdgeInfo::new(
+                    node.info().space_name.clone(),
+                    node.info().edge_name.clone(),
+                );
+                for prop in node.info().additions.iter() {
+                    let item = AlterEdgeItem::add_property(prop.clone());
+                    alter_info = alter_info.with_items(vec![item]);
+                }
+                for prop_name in node.info().deletions.iter() {
+                    let item = AlterEdgeItem::drop_property(prop_name.clone());
+                    alter_info = alter_info.with_items(vec![item]);
+                }
+                let executor = AlterEdgeExecutor::new(node.id(), storage, alter_info);
+                Ok(Box::new(executor))
+            }
+
+            PlanNodeEnum::DescEdge(node) => {
+                let executor = DescEdgeExecutor::new(
+                    node.id(),
+                    storage,
+                    node.space_name().to_string(),
+                    node.edge_name().to_string(),
+                );
+                Ok(Box::new(executor))
+            }
+
+            PlanNodeEnum::DropEdge(node) => {
+                let executor = DropEdgeExecutor::new(
+                    node.id(),
+                    storage,
+                    node.space_name().to_string(),
+                    node.edge_name().to_string(),
+                );
+                Ok(Box::new(executor))
+            }
+
+            PlanNodeEnum::ShowEdges(node) => {
+                let executor = ShowEdgesExecutor::new(node.id(), storage, "".to_string());
+                Ok(Box::new(executor))
+            }
+
+            // 标签索引管理执行器
+            PlanNodeEnum::CreateTagIndex(node) => {
+                use crate::core::types::metadata::IndexInfo;
+                let index_info = IndexInfo {
+                    space_name: node.info().space_name.clone(),
+                    name: node.info().index_name.clone(),
+                    target_type: node.info().target_type.clone(),
+                    target_name: node.info().target_name.clone(),
+                    properties: node.info().properties.clone(),
+                    comment: None,
+                };
+                let executor = CreateTagIndexExecutor::new(node.id(), storage, index_info);
+                Ok(Box::new(executor))
+            }
+
+            PlanNodeEnum::DropTagIndex(node) => {
+                let executor = DropTagIndexExecutor::new(
+                    node.id(),
+                    storage,
+                    node.space_name().to_string(),
+                    node.index_name().to_string(),
+                );
+                Ok(Box::new(executor))
+            }
+
+            PlanNodeEnum::DescTagIndex(node) => {
+                let executor = DescTagIndexExecutor::new(
+                    node.id(),
+                    storage,
+                    node.space_name().to_string(),
+                    node.index_name().to_string(),
+                );
+                Ok(Box::new(executor))
+            }
+
+            PlanNodeEnum::ShowTagIndexes(node) => {
+                let executor = ShowTagIndexesExecutor::new(node.id(), storage, "".to_string());
+                Ok(Box::new(executor))
+            }
+
+            PlanNodeEnum::RebuildTagIndex(node) => {
+                let executor = RebuildTagIndexExecutor::new(
+                    node.id(),
+                    storage,
+                    node.space_name().to_string(),
+                    node.index_name().to_string(),
+                );
+                Ok(Box::new(executor))
+            }
+
+            // 边索引管理执行器
+            PlanNodeEnum::CreateEdgeIndex(node) => {
+                use crate::core::types::metadata::IndexInfo;
+                let index_info = IndexInfo {
+                    space_name: node.info().space_name.clone(),
+                    name: node.info().index_name.clone(),
+                    target_type: node.info().target_type.clone(),
+                    target_name: node.info().target_name.clone(),
+                    properties: node.info().properties.clone(),
+                    comment: None,
+                };
+                let executor = CreateEdgeIndexExecutor::new(node.id(), storage, index_info);
+                Ok(Box::new(executor))
+            }
+
+            PlanNodeEnum::DropEdgeIndex(node) => {
+                let executor = DropEdgeIndexExecutor::new(
+                    node.id(),
+                    storage,
+                    node.space_name().to_string(),
+                    node.index_name().to_string(),
+                );
+                Ok(Box::new(executor))
+            }
+
+            PlanNodeEnum::DescEdgeIndex(node) => {
+                let executor = DescEdgeIndexExecutor::new(
+                    node.id(),
+                    storage,
+                    node.space_name().to_string(),
+                    node.index_name().to_string(),
+                );
+                Ok(Box::new(executor))
+            }
+
+            PlanNodeEnum::ShowEdgeIndexes(node) => {
+                let executor = ShowEdgeIndexesExecutor::new(node.id(), storage, "".to_string());
+                Ok(Box::new(executor))
+            }
+
+            PlanNodeEnum::RebuildEdgeIndex(node) => {
+                let executor = RebuildEdgeIndexExecutor::new(
+                    node.id(),
+                    storage,
+                    node.space_name().to_string(),
+                    node.index_name().to_string(),
                 );
                 Ok(Box::new(executor))
             }

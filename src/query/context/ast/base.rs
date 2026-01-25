@@ -155,6 +155,10 @@ impl AstContext {
         self.sentence.as_ref()
     }
 
+    pub fn set_statement(&mut self, stmt: Stmt) {
+        self.sentence = Some(stmt);
+    }
+
     pub fn space(&self) -> &SpaceInfo {
         &self.space
     }

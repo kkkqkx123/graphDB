@@ -6,7 +6,6 @@ use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::core::types::metadata::PropertyDef;
-use crate::core::types::graph_schema::PropertyType;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageEngine;
 

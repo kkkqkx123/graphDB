@@ -16,7 +16,7 @@ pub struct StmtParser<'a> {
 }
 
 impl<'a> StmtParser<'a> {
-    pub fn new(_ctx: &ParseContext<'a>) -> Self {
+    pub fn new() -> Self {
         Self {
             _phantom: std::marker::PhantomData,
         }
@@ -293,9 +293,37 @@ impl<'a> StmtParser<'a> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Fetch)?;
 
-        let target = FetchTarget::Vertices {
-            ids: self.parse_expression_list(ctx)?,
-            properties: None,
+        let target = if ctx.match_token(TokenKind::Tag) {
+            let tag_name = ctx.expect_identifier()?;
+            let ids = self.parse_expression_list(ctx)?;
+            FetchTarget::Vertices {
+                ids,
+                properties: None,
+            }
+        } else if ctx.match_token(TokenKind::Edge) {
+            let edge_type = ctx.expect_identifier()?;
+            let src = self.parse_expression(ctx)?;
+            ctx.expect_token(TokenKind::Minus)?;
+            ctx.expect_token(TokenKind::Gt)?;
+            let dst = self.parse_expression(ctx)?;
+            let rank = if ctx.match_token(TokenKind::At) {
+                Some(self.parse_expression(ctx)?)
+            } else {
+                None
+            };
+            FetchTarget::Edges {
+                src,
+                dst,
+                edge_type,
+                rank,
+                properties: None,
+            }
+        } else {
+            let ids = self.parse_expression_list(ctx)?;
+            FetchTarget::Vertices {
+                ids,
+                properties: None,
+            }
         };
 
         Ok(Stmt::Fetch(FetchStmt {
@@ -324,9 +352,25 @@ impl<'a> StmtParser<'a> {
 
         let pattern = self.parse_pattern(ctx)?;
 
+        let on_create = if ctx.match_token(TokenKind::On)
+            && ctx.match_token(TokenKind::Create)
+        {
+            Some(self.parse_set_clause(ctx)?)
+        } else {
+            None
+        };
+
+        let on_match = if ctx.match_token(TokenKind::On) && ctx.match_token(TokenKind::Match) {
+            Some(self.parse_set_clause(ctx)?)
+        } else {
+            None
+        };
+
         Ok(Stmt::Merge(MergeStmt {
             span: start_span,
             pattern,
+            on_create,
+            on_match,
         }))
     }
 
@@ -334,11 +378,109 @@ impl<'a> StmtParser<'a> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Insert)?;
 
-        let target = InsertTarget::Vertices {
-            ids: Vec::new(),
+        let target = if ctx.match_token(TokenKind::Vertex) {
+            let tag_name = ctx.expect_identifier()?;
+            let prop_names = if ctx.match_token(TokenKind::LParen) {
+                self.parse_property_names(ctx)?
+            } else {
+                Vec::new()
+            };
+            ctx.expect_token(TokenKind::Values)?;
+            let values = self.parse_insert_vertex_values(ctx)?;
+            InsertTarget::Vertices {
+                tag_name,
+                prop_names,
+                values,
+            }
+        } else if ctx.match_token(TokenKind::Edge) {
+            let edge_name = ctx.expect_identifier()?;
+            let prop_names = if ctx.match_token(TokenKind::LParen) {
+                self.parse_property_names(ctx)?
+            } else {
+                Vec::new()
+            };
+            ctx.expect_token(TokenKind::Values)?;
+            let values = self.parse_insert_edge_values(ctx)?;
+            InsertTarget::Edge {
+                edge_name,
+                prop_names,
+                src: values.0,
+                dst: values.1,
+                rank: values.2,
+                values: values.3,
+            }
+        } else {
+            return Err(ParseError::new(
+                ParseErrorKind::UnexpectedToken,
+                "Expected VERTEX or EDGE after INSERT".to_string(),
+                ctx.current_position(),
+            ));
         };
 
         Ok(Stmt::Insert(InsertStmt { span: start_span, target }))
+    }
+
+    fn parse_property_names(&mut self, ctx: &mut ParseContext<'a>) -> Result<Vec<String>, ParseError> {
+        let mut names = Vec::new();
+        loop {
+            names.push(ctx.expect_identifier()?);
+            if !ctx.match_token(TokenKind::Comma) {
+                break;
+            }
+        }
+        ctx.expect_token(TokenKind::RParen)?;
+        Ok(names)
+    }
+
+    fn parse_insert_vertex_values(
+        &mut self,
+        ctx: &mut ParseContext<'a>,
+    ) -> Result<Vec<(Expression, Vec<Expression>)>, ParseError> {
+        let mut values = Vec::new();
+        loop {
+            let vid = self.parse_expression(ctx)?;
+            ctx.expect_token(TokenKind::Colon)?;
+            ctx.expect_token(TokenKind::LParen)?;
+            let mut prop_values = Vec::new();
+            loop {
+                prop_values.push(self.parse_expression(ctx)?);
+                if !ctx.match_token(TokenKind::Comma) {
+                    break;
+                }
+            }
+            ctx.expect_token(TokenKind::RParen)?;
+            values.push((vid, prop_values));
+            if !ctx.match_token(TokenKind::Comma) {
+                break;
+            }
+        }
+        Ok(values)
+    }
+
+    fn parse_insert_edge_values(
+        &mut self,
+        ctx: &mut ParseContext<'a>,
+    ) -> Result<(Expression, Expression, Option<Expression>, Vec<Expression>), ParseError> {
+        let src = self.parse_expression(ctx)?;
+        ctx.expect_token(TokenKind::Minus)?;
+        ctx.expect_token(TokenKind::Gt)?;
+        let dst = self.parse_expression(ctx)?;
+        let rank = if ctx.match_token(TokenKind::At) {
+            Some(self.parse_expression(ctx)?)
+        } else {
+            None
+        };
+        ctx.expect_token(TokenKind::Colon)?;
+        ctx.expect_token(TokenKind::LParen)?;
+        let mut values = Vec::new();
+        loop {
+            values.push(self.parse_expression(ctx)?);
+            if !ctx.match_token(TokenKind::Comma) {
+                break;
+            }
+        }
+        ctx.expect_token(TokenKind::RParen)?;
+        Ok((src, dst, rank, values))
     }
 
     fn parse_return_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {
@@ -685,16 +827,48 @@ impl<'a> StmtParser<'a> {
             DropTarget::Space(ctx.expect_identifier()?)
         } else if ctx.match_token(TokenKind::Tag) {
             let tag_name = ctx.expect_identifier()?;
-            DropTarget::Tag { space_name: String::new(), tag_name }
-        } else if ctx.match_token(TokenKind::Edge) {
+            let space_name = if ctx.match_token(TokenKind::In) {
+                Some(ctx.expect_identifier()?)
+            } else {
+                None
+            };
+            DropTarget::Tag {
+                space_name: space_name.unwrap_or_default(),
+                tag_name,
+            }
+        } else if ctx.match_token(TokenKind::Edge) && !ctx.match_token(TokenKind::Index) {
             let edge_name = ctx.expect_identifier()?;
-            DropTarget::Edge { space_name: String::new(), edge_name }
+            let space_name = if ctx.match_token(TokenKind::In) {
+                Some(ctx.expect_identifier()?)
+            } else {
+                None
+            };
+            DropTarget::Edge {
+                space_name: space_name.unwrap_or_default(),
+                edge_name,
+            }
         } else if ctx.match_token(TokenKind::Index) {
             let index_name = ctx.expect_identifier()?;
-            DropTarget::TagIndex { space_name: String::new(), index_name }
+            let space_name = if ctx.match_token(TokenKind::On) {
+                Some(ctx.expect_identifier()?)
+            } else {
+                None
+            };
+            DropTarget::TagIndex {
+                space_name: space_name.unwrap_or_default(),
+                index_name,
+            }
         } else if ctx.match_token(TokenKind::Edge) && ctx.match_token(TokenKind::Index) {
             let index_name = ctx.expect_identifier()?;
-            DropTarget::EdgeIndex { space_name: String::new(), index_name }
+            let space_name = if ctx.match_token(TokenKind::On) {
+                Some(ctx.expect_identifier()?)
+            } else {
+                None
+            };
+            DropTarget::EdgeIndex {
+                space_name: space_name.unwrap_or_default(),
+                index_name,
+            }
         } else {
             return Err(ParseError::new(
                 ParseErrorKind::UnexpectedToken,
@@ -717,10 +891,26 @@ impl<'a> StmtParser<'a> {
             DescTarget::Space(ctx.expect_identifier()?)
         } else if ctx.match_token(TokenKind::Tag) {
             let tag_name = ctx.expect_identifier()?;
-            DescTarget::Tag { space_name: String::new(), tag_name }
+            let space_name = if ctx.match_token(TokenKind::In) {
+                Some(ctx.expect_identifier()?)
+            } else {
+                None
+            };
+            DescTarget::Tag {
+                space_name: space_name.unwrap_or_default(),
+                tag_name,
+            }
         } else if ctx.match_token(TokenKind::Edge) {
             let edge_name = ctx.expect_identifier()?;
-            DescTarget::Edge { space_name: String::new(), edge_name }
+            let space_name = if ctx.match_token(TokenKind::In) {
+                Some(ctx.expect_identifier()?)
+            } else {
+                None
+            };
+            DescTarget::Edge {
+                space_name: space_name.unwrap_or_default(),
+                edge_name,
+            }
         } else {
             return Err(ParseError::new(
                 ParseErrorKind::UnexpectedToken,

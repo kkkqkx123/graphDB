@@ -4,6 +4,7 @@ use crate::query::executor::factory::ExecutorFactory;
 use crate::query::executor::traits::ExecutionResult;
 use crate::query::optimizer::Optimizer;
 use crate::query::parser::Parser;
+use crate::query::parser::ast::Stmt;
 use crate::query::planner::Planner;
 use crate::query::validator::Validator;
 use crate::storage::StorageEngine;
@@ -51,13 +52,13 @@ impl<S: StorageEngine + 'static> QueryPipelineManager<S> {
         let mut query_context = self.create_query_context(query_text)?;
 
         // 2. 解析查询
-        let ast = self.parse_query(&mut query_context, query_text)?;
+        let (stmt, ast) = self.parse_query(&mut query_context, query_text)?;
 
         // 3. 验证查询
-        self.validate_query(&mut query_context, &ast)?;
+        self.validate_query(&mut query_context, &ast, &stmt)?;
 
         // 4. 生成执行计划
-        let execution_plan = self.generate_execution_plan(&mut query_context, &ast)?;
+        let execution_plan = self.generate_execution_plan(&mut query_context, &ast, &stmt)?;
 
         // 5. 优化执行计划
         let optimized_plan = self.optimize_execution_plan(&mut query_context, execution_plan)?;
@@ -76,12 +77,13 @@ impl<S: StorageEngine + 'static> QueryPipelineManager<S> {
         &mut self,
         _query_context: &mut QueryContext,
         query_text: &str,
-    ) -> DBResult<crate::query::context::ast::QueryAstContext> {
+    ) -> DBResult<(Stmt, crate::query::context::ast::QueryAstContext)> {
         let mut parser = Parser::new(query_text);
         match parser.parse() {
-            Ok(_stmt) => {
-                let ast = crate::query::context::ast::QueryAstContext::new(query_text);
-                Ok(ast)
+            Ok(stmt) => {
+                let mut ast = crate::query::context::ast::QueryAstContext::new(query_text);
+                ast.set_statement(stmt.clone());
+                Ok((stmt, ast))
             }
             Err(e) => Err(DBError::Query(crate::core::error::QueryError::ParseError(
                 format!("解析失败: {}", e),
@@ -94,6 +96,7 @@ impl<S: StorageEngine + 'static> QueryPipelineManager<S> {
         &mut self,
         _query_context: &mut QueryContext,
         _ast: &crate::query::context::ast::QueryAstContext,
+        _stmt: &Stmt,
     ) -> DBResult<()> {
         self.validator.validate_unified().map_err(|e| {
             DBError::Query(crate::core::error::QueryError::InvalidQuery(format!(
@@ -108,6 +111,7 @@ impl<S: StorageEngine + 'static> QueryPipelineManager<S> {
         &mut self,
         _query_context: &mut QueryContext,
         ast: &crate::query::context::ast::QueryAstContext,
+        _stmt: &Stmt,
     ) -> DBResult<crate::query::planner::plan::ExecutionPlan> {
         let ast_ctx = ast.base_context();
         match self.planner.transform(ast_ctx) {

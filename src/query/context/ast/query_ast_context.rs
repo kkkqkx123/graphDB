@@ -71,6 +71,11 @@ impl QueryAstContext {
         &self.base
     }
 
+    /// 设置语句
+    pub fn set_statement(&mut self, stmt: crate::query::parser::ast::Stmt) {
+        self.base.set_statement(stmt);
+    }
+
     /// 获取特定查询变量信息
     pub fn get_query_variable(&self, var_name: &str) -> Option<&VariableInfo> {
         self.query_variables.get(var_name)
