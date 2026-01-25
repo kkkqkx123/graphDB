@@ -1,0 +1,119 @@
+//! DescSpaceExecutor - 描述图空间执行器
+//!
+//! 负责查看指定图空间的详细信息。
+
+use async_trait::async_trait;
+use std::sync::{Arc, Mutex};
+
+use crate::core::{DataSet, Row, Value};
+use crate::query::executor::base::{BaseExecutor, Executor, HasStorage};
+use crate::storage::StorageEngine;
+
+/// 图空间详情
+#[derive(Debug, Clone)]
+pub struct SpaceDesc {
+    pub id: i32,
+    pub name: String,
+    pub partition_num: usize,
+    pub replica_factor: usize,
+    pub vid_type: String,
+    pub charset: String,
+    pub collate: String,
+}
+
+impl SpaceDesc {
+    pub fn to_row(&self) -> Row {
+        Row::new(vec![
+            Value::Int(self.id as i64),
+            Value::String(self.name.clone()),
+            Value::Int(self.partition_num as i64),
+            Value::Int(self.replica_factor as i64),
+            Value::String(self.vid_type.clone()),
+            Value::String(self.charset.clone()),
+            Value::String(self.collate.clone()),
+        ])
+    }
+}
+
+/// 描述图空间执行器
+///
+/// 该执行器负责返回指定图空间的详细信息。
+#[derive(Debug)]
+pub struct DescSpaceExecutor<S: StorageEngine> {
+    base: BaseExecutor<S>,
+    space_name: String,
+}
+
+impl<S: StorageEngine> DescSpaceExecutor<S> {
+    /// 创建新的 DescSpaceExecutor
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String) -> Self {
+        Self {
+            base: BaseExecutor::new(id, "DescSpaceExecutor".to_string(), storage),
+            space_name,
+        }
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for DescSpaceExecutor<S> {
+    async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
+        let storage = self.get_storage();
+        let storage_guard = storage.lock().map_err(|e| {
+            crate::core::error::DBError::StorageError(format!("Storage lock poisoned: {}", e))
+        })?;
+
+        let result = storage_guard.get_space_desc(&self.space_name);
+
+        match result {
+            Ok(Some(space_desc)) => {
+                let dataset = DataSet {
+                    columns: vec![
+                        "ID".to_string(),
+                        "Name".to_string(),
+                        "Partition Number".to_string(),
+                        "Replica Factor".to_string(),
+                        "Vid Type".to_string(),
+                        "Charset".to_string(),
+                        "Collate".to_string(),
+                    ],
+                    rows: vec![space_desc.to_row()],
+                };
+                Ok(ExecutionResult::DataSet(dataset))
+            }
+            Ok(None) => Ok(ExecutionResult::Error(format!("Space '{}' not found", self.space_name))),
+            Err(e) => Ok(ExecutionResult::Error(format!("Failed to describe space: {}", e))),
+        }
+    }
+
+    fn open(&mut self) -> crate::query::executor::base::DBResult<()> {
+        self.base.open()
+    }
+
+    fn close(&mut self) -> crate::query::executor::base::DBResult<()> {
+        self.base.close()
+    }
+
+    fn is_open(&self) -> bool {
+        self.base.is_open()
+    }
+
+    fn id(&self) -> i64 {
+        self.base.id
+    }
+
+    fn name(&self) -> &str {
+        "DescSpaceExecutor"
+    }
+
+    fn description(&self) -> &str {
+        "Describes a graph space"
+    }
+
+    fn stats(&self) -> &crate::query::executor::base::ExecutorStats {
+        self.base.get_stats()
+    }
+
+    fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
+        self.base.get_stats_mut()
+    }
+}

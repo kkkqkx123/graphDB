@@ -1,0 +1,99 @@
+//! DropTagExecutor - 删除标签执行器
+//!
+//! 负责删除指定的标签及其所有数据。
+
+use async_trait::async_trait;
+use std::sync::{Arc, Mutex};
+
+use crate::query::executor::base::{BaseExecutor, Executor, HasStorage};
+use crate::storage::StorageEngine;
+
+/// 删除标签执行器
+///
+/// 该执行器负责删除指定的标签及其所有数据。
+#[derive(Debug)]
+pub struct DropTagExecutor<S: StorageEngine> {
+    base: BaseExecutor<S>,
+    space_name: String,
+    tag_name: String,
+    if_exists: bool,
+}
+
+impl<S: StorageEngine> DropTagExecutor<S> {
+    /// 创建新的 DropTagExecutor
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String, tag_name: String) -> Self {
+        Self {
+            base: BaseExecutor::new(id, "DropTagExecutor".to_string(), storage),
+            space_name,
+            tag_name,
+            if_exists: false,
+        }
+    }
+
+    /// 创建带 IF EXISTS 选项的 DropTagExecutor
+    pub fn with_if_exists(id: i64, storage: Arc<Mutex<S>>, space_name: String, tag_name: String) -> Self {
+        Self {
+            base: BaseExecutor::new(id, "DropTagExecutor".to_string(), storage),
+            space_name,
+            tag_name,
+            if_exists: true,
+        }
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for DropTagExecutor<S> {
+    async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
+        let storage = self.get_storage();
+        let storage_guard = storage.lock().map_err(|e| {
+            crate::core::error::DBError::StorageError(format!("Storage lock poisoned: {}", e))
+        })?;
+
+        let result = storage_guard.drop_tag(&self.space_name, &self.tag_name);
+
+        match result {
+            Ok(true) => Ok(ExecutionResult::Success),
+            Ok(false) => {
+                if self.if_exists {
+                    Ok(ExecutionResult::Success)
+                } else {
+                    Ok(ExecutionResult::Error(format!("Tag '{}' not found in space '{}'",
+                        self.tag_name, self.space_name)))
+                }
+            }
+            Err(e) => Ok(ExecutionResult::Error(format!("Failed to drop tag: {}", e))),
+        }
+    }
+
+    fn open(&mut self) -> crate::query::executor::base::DBResult<()> {
+        self.base.open()
+    }
+
+    fn close(&mut self) -> crate::query::executor::base::DBResult<()> {
+        self.base.close()
+    }
+
+    fn is_open(&self) -> bool {
+        self.base.is_open()
+    }
+
+    fn id(&self) -> i64 {
+        self.base.id
+    }
+
+    fn name(&self) -> &str {
+        "DropTagExecutor"
+    }
+
+    fn description(&self) -> &str {
+        "Drops a tag"
+    }
+
+    fn stats(&self) -> &crate::query::executor::base::ExecutorStats {
+        self.base.get_stats()
+    }
+
+    fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
+        self.base.get_stats_mut()
+    }
+}
