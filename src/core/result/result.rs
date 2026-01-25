@@ -1,5 +1,5 @@
 use crate::core::value::Value;
-use crate::core::result::iterator::r#Iterator as ResultIterator;
+use crate::core::result::iterator::r#Iterator;
 use std::sync::Arc;
 
 /// Result 状态
@@ -45,7 +45,7 @@ pub struct Result {
     rows: Vec<Vec<Value>>,
     col_names: Vec<String>,
     meta: ResultMeta,
-    iterator: Option<Arc<dyn ResultIterator>>,
+    iterator: Option<Arc<dyn Iterator>>,
 }
 
 impl Result {
@@ -142,15 +142,15 @@ impl Result {
         }
     }
 
-    pub fn set_iterator(&mut self, iterator: Arc<dyn ResultIterator>) {
+    pub fn set_iterator(&mut self, iterator: Arc<dyn Iterator>) {
         self.iterator = Some(iterator);
     }
 
-    pub fn iterator(&self) -> Option<&Arc<dyn ResultIterator>> {
+    pub fn iterator(&self) -> Option<&Arc<dyn Iterator>> {
         self.iterator.as_ref()
     }
 
-    pub fn take_iterator(&mut self) -> Option<Arc<dyn ResultIterator>> {
+    pub fn take_iterator(&mut self) -> Option<Arc<dyn Iterator>> {
         self.iterator.take()
     }
 

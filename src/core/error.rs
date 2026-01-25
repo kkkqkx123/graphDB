@@ -16,6 +16,8 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use thiserror::Error;
 
+pub use crate::core::types::DataType;
+
 /// 统一的数据库错误类型
 #[derive(Error, Debug)]
 pub enum DBError {
@@ -675,12 +677,6 @@ impl From<serde_json::Error> for DBError {
     }
 }
 
-impl From<crate::query::context::validate::schema::SchemaValidationError> for DBError {
-    fn from(err: crate::query::context::validate::schema::SchemaValidationError) -> Self {
-        DBError::Validation(err.to_string())
-    }
-}
-
 impl From<crate::query::planner::planner::PlannerError> for DBError {
     fn from(err: crate::query::planner::planner::PlannerError) -> Self {
         DBError::Query(QueryError::ExecutionError(err.to_string()))
@@ -741,6 +737,219 @@ pub enum PermissionError {
     
     #[error("用户不存在: {0}")]
     UserNotFound(String),
+}
+
+/// 验证错误类型枚举（统一版本）
+///
+/// 提供完整的验证错误分类，与QueryError::InvalidQuery对应
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ValidationErrorType {
+    SyntaxError,
+    SemanticError,
+    TypeError,
+    AliasError,
+    AggregateError,
+    PaginationError,
+    ExpressionDepthError,
+    VariableNotFound,
+    CyclicReference,
+    DivisionByZero,
+    TooManyArguments,
+    TooManyElements,
+    DuplicateKey,
+}
+
+impl fmt::Display for ValidationErrorType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ValidationErrorType::SyntaxError => write!(f, "语法错误"),
+            ValidationErrorType::SemanticError => write!(f, "语义错误"),
+            ValidationErrorType::TypeError => write!(f, "类型错误"),
+            ValidationErrorType::AliasError => write!(f, "别名错误"),
+            ValidationErrorType::AggregateError => write!(f, "聚合函数错误"),
+            ValidationErrorType::PaginationError => write!(f, "分页错误"),
+            ValidationErrorType::ExpressionDepthError => write!(f, "表达式深度错误"),
+            ValidationErrorType::VariableNotFound => write!(f, "变量未找到"),
+            ValidationErrorType::CyclicReference => write!(f, "循环引用"),
+            ValidationErrorType::DivisionByZero => write!(f, "除零错误"),
+            ValidationErrorType::TooManyArguments => write!(f, "参数过多"),
+            ValidationErrorType::TooManyElements => write!(f, "元素过多"),
+            ValidationErrorType::DuplicateKey => write!(f, "重复键"),
+        }
+    }
+}
+
+impl From<ValidationErrorType> for QueryError {
+    fn from(e: ValidationErrorType) -> Self {
+        match e {
+            ValidationErrorType::SyntaxError => QueryError::ParseError(e.to_string()),
+            _ => QueryError::InvalidQuery(e.to_string()),
+        }
+    }
+}
+
+/// 统一验证错误结构
+///
+/// 包含错误类型、错误消息和位置信息
+/// 支持序列化/反序列化，用于跨模块传递
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ValidationError {
+    pub message: String,
+    pub error_type: ValidationErrorType,
+    pub context: Option<String>,
+    pub line: Option<usize>,
+    pub column: Option<usize>,
+    pub query_position: Option<usize>,
+}
+
+impl ValidationError {
+    pub fn new(message: String, error_type: ValidationErrorType) -> Self {
+        Self {
+            message,
+            error_type,
+            context: None,
+            line: None,
+            column: None,
+            query_position: None,
+        }
+    }
+
+    pub fn with_context(mut self, context: String) -> Self {
+        self.context = Some(context);
+        self
+    }
+
+    pub fn with_location(mut self, line: usize, column: usize) -> Self {
+        self.line = Some(line);
+        self.column = Some(column);
+        self
+    }
+
+    pub fn with_position(mut self, position: usize) -> Self {
+        self.query_position = Some(position);
+        self
+    }
+
+    pub fn location_string(&self) -> String {
+        match (self.line, self.column) {
+            (Some(line), Some(col)) => format!("第{}行第{}列", line, col),
+            (Some(line), None) => format!("第{}行", line),
+            _ => String::from("未知位置"),
+        }
+    }
+
+    pub fn to_db_error(&self) -> DBError {
+        self.clone().into()
+    }
+}
+
+impl fmt::Display for ValidationError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}: {}", self.error_type, self.message)
+    }
+}
+
+impl std::error::Error for ValidationError {}
+
+impl From<ValidationError> for DBError {
+    fn from(err: ValidationError) -> Self {
+        let error_msg = if let Some(ref ctx) = err.context {
+            format!("{} (上下文: {})", err.message, ctx)
+        } else {
+            err.message.clone()
+        };
+
+        match err.error_type {
+            ValidationErrorType::SyntaxError => {
+                DBError::Query(QueryError::ParseError(error_msg))
+            }
+            ValidationErrorType::SemanticError | ValidationErrorType::TypeError => {
+                DBError::Query(QueryError::InvalidQuery(error_msg))
+            }
+            _ => DBError::Query(QueryError::ExecutionError(error_msg)),
+        }
+    }
+}
+
+/// 验证结果类型别名
+pub type ValidationResult = Result<(), ValidationError>;
+
+/// Schema验证模式
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ValidationMode {
+    Strict,
+    Lenient,
+    RequiredOnly,
+}
+
+/// Schema验证错误类型（统一版本）
+///
+/// 使用DataType替代String，提高类型安全性
+#[derive(Debug, Clone, PartialEq)]
+pub enum SchemaValidationError {
+    FieldNotFound(String),
+    TypeMismatch(String, DataType, DataType),
+    MissingRequiredField(String),
+    ExtraField(String),
+}
+
+impl fmt::Display for SchemaValidationError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            SchemaValidationError::FieldNotFound(field) => {
+                write!(f, "字段 '{}' 在Schema中不存在", field)
+            }
+            SchemaValidationError::TypeMismatch(field, expected, actual) => {
+                write!(
+                    f,
+                    "字段 '{}' 类型不匹配: 期望 '{:?}', 实际 '{:?}'",
+                    field, expected, actual
+                )
+            }
+            SchemaValidationError::MissingRequiredField(field) => {
+                write!(f, "缺少必需字段 '{}'", field)
+            }
+            SchemaValidationError::ExtraField(field) => {
+                write!(f, "变量中包含Schema中未定义的字段 '{}'", field)
+            }
+        }
+    }
+}
+
+impl std::error::Error for SchemaValidationError {}
+
+impl From<SchemaValidationError> for DBError {
+    fn from(err: SchemaValidationError) -> Self {
+        DBError::Validation(err.to_string())
+    }
+}
+
+/// Schema验证结果
+#[derive(Debug, Clone)]
+pub struct SchemaValidationResult {
+    pub is_valid: bool,
+    pub errors: Vec<SchemaValidationError>,
+}
+
+impl SchemaValidationResult {
+    pub fn success() -> Self {
+        Self {
+            is_valid: true,
+            errors: Vec::new(),
+        }
+    }
+
+    pub fn failure(errors: Vec<SchemaValidationError>) -> Self {
+        Self {
+            is_valid: false,
+            errors,
+        }
+    }
+
+    pub fn add_error(&mut self, error: SchemaValidationError) {
+        self.is_valid = false;
+        self.errors.push(error);
+    }
 }
 
 /// 类型别名，用于向后兼容

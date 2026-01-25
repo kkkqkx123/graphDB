@@ -167,6 +167,7 @@ impl Default for BasicValidationContext {
 mod tests {
     use super::*;
     use crate::query::context::Column;
+    use crate::core::types::DataType;
 
     #[test]
     fn test_basic_validate_context_new() {
@@ -186,11 +187,17 @@ mod tests {
             vec![
                 Column {
                     name: "id".to_string(),
-                    type_: "INT".to_string(),
+                    type_: DataType::Int,
+                    nullable: false,
+                    default_value: None,
+                    comment: None,
                 },
                 Column {
                     name: "name".to_string(),
-                    type_: "STRING".to_string(),
+                    type_: DataType::String,
+                    nullable: false,
+                    default_value: None,
+                    comment: None,
                 },
             ],
         );

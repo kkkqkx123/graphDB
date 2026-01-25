@@ -9,6 +9,7 @@ pub mod vertex_edge_path;
 pub mod expression_visitor;
 pub mod expression_utils;
 pub mod types;
+pub mod concurrency;
 
 // 错误和结果类型
 pub use error::{

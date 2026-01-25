@@ -1,6 +1,6 @@
 use crate::core::value::Value;
 use crate::core::result::Result;
-use crate::core::result::iterator::{r#Iterator as ResultIterator, DefaultIterator, GetNeighborsIterator, PropIterator, IteratorType};
+use crate::core::result::iterator::{r#Iterator, DefaultIterator, GetNeighborsIterator, PropIterator, IteratorType};
 use std::sync::Arc;
 
 /// ResultBuilder
@@ -90,7 +90,7 @@ impl ResultBuilder {
         result.set_state(crate::core::result::result::ResultState::Completed);
 
         if let Some(iter_type) = self.iterator_type {
-            let iterator: Arc<dyn ResultIterator> = match iter_type {
+            let iterator: Arc<dyn Iterator> = match iter_type {
                 IteratorType::Default => Arc::new(DefaultIterator::new(result.rows().to_vec())),
                 IteratorType::GetNeighbors => Arc::new(GetNeighborsIterator::new(vec![], vec![])),
                 IteratorType::Prop => Arc::new(PropIterator::new(result.rows().to_vec())),
@@ -102,7 +102,7 @@ impl ResultBuilder {
         result
     }
 
-    pub fn build_with_iterator(self, iterator: Arc<dyn ResultIterator>) -> Result {
+    pub fn build_with_iterator(self, iterator: Arc<dyn Iterator>) -> Result {
         let mut result = if let Some(cap) = self.capacity {
             Result::with_capacity(cap, self.col_names.len())
         } else {

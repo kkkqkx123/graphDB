@@ -11,7 +11,7 @@ use std::collections::{HashMap, HashSet};
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PropDef {
     pub name: String,
-    pub type_: String,
+    pub type_: DataType,
 }
 
 /// 节点信息 - 记录查询中涉及的节点及其属性

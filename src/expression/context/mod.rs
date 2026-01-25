@@ -7,6 +7,7 @@ pub mod cache_manager;
 pub mod default_context;
 pub mod evaluation;
 pub mod function_registry;
+pub mod query_expression_context;
 pub mod row_context;
 pub mod traits;
 pub mod version_manager;
@@ -22,6 +23,9 @@ pub use basic_context::{BasicExpressionContext, ExpressionContextType};
 
 // 重新导出行上下文类型
 pub use row_context::{RowExpressionContext, RowContextRef, RowExpressionContextBuilder};
+
+// 重新导出查询表达式上下文
+pub use query_expression_context::QueryExpressionContext;
 
 // 重新导出新组件
 pub use cache_manager::CacheManager;

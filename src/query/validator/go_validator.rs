@@ -5,7 +5,7 @@
 use super::base_validator::Validator;
 use super::validation_interface::{ValidationError, ValidationErrorType};
 use crate::core::{
-    AggregateFunction, BinaryOperator, Expression, UnaryOperator, Value,
+    AggregateFunction, BinaryOperator, DataType, Expression, UnaryOperator, Value,
 };
 use std::collections::HashMap;
 
@@ -59,7 +59,7 @@ pub enum EdgeDirection {
 pub struct EdgeProperty {
     pub name: String,
     pub prop_name: String,
-    pub prop_type: String,
+    pub prop_type: DataType,
 }
 
 #[derive(Debug, Clone)]
@@ -84,13 +84,13 @@ pub struct GoInput {
 #[derive(Debug, Clone)]
 pub struct InputColumn {
     pub name: String,
-    pub type_: String,
+    pub type_: DataType,
 }
 
 #[derive(Debug, Clone)]
 pub struct GoOutput {
     pub name: String,
-    pub type_: String,
+    pub type_: DataType,
     pub alias: String,
 }
 
@@ -476,7 +476,7 @@ impl GoValidator {
     }
 
     /// 推断表达式的类型
-    fn infer_expression_type(&self, expression: &Expression) -> Result<String, ValidationError> {
+    fn infer_expression_type(&self, expression: &Expression) -> Result<DataType, ValidationError> {
         match expression {
             Expression::Literal(value) => {
                 // 根据字面量值推断类型
@@ -485,11 +485,11 @@ impl GoValidator {
             Expression::Variable(_) => {
                 // 变量类型的推断可能需要访问符号表
                 // 暂时返回通用类型
-                Ok("ANY".to_string())
+                Ok(DataType::Empty)
             }
             Expression::Property { .. } => {
                 // 属性访问的类型取决于对象和属性
-                Ok("ANY".to_string())
+                Ok(DataType::Empty)
             }
             Expression::Binary { left, op, right } => {
                 // 二元操作的结果类型取决于操作符和操作数类型
@@ -498,114 +498,112 @@ impl GoValidator {
 
                 // 根据操作符确定结果类型
                 match op {
-                    BinaryOperator::And | BinaryOperator::Or => Ok("BOOL".to_string()),
+                    BinaryOperator::And | BinaryOperator::Or => Ok(DataType::Bool),
                     BinaryOperator::Equal | BinaryOperator::NotEqual |
                     BinaryOperator::LessThan | BinaryOperator::LessThanOrEqual |
                     BinaryOperator::GreaterThan | BinaryOperator::GreaterThanOrEqual |
                     BinaryOperator::Like | BinaryOperator::In | BinaryOperator::NotIn |
                     BinaryOperator::Contains | BinaryOperator::StartsWith | BinaryOperator::EndsWith => {
-                        Ok("BOOL".to_string())
+                        Ok(DataType::Bool)
                     }
                     BinaryOperator::Add | BinaryOperator::Subtract |
                     BinaryOperator::Multiply | BinaryOperator::Divide | BinaryOperator::Modulo => {
                         // 如果任一操作数是浮点数，则结果为浮点数
-                        if left_type == "FLOAT" || right_type == "FLOAT" ||
-                           left_type == "DOUBLE" || right_type == "DOUBLE" {
-                            Ok("DOUBLE".to_string())
+                        if left_type == DataType::Float || right_type == DataType::Float ||
+                           left_type == DataType::Double || right_type == DataType::Double {
+                            Ok(DataType::Double)
                         } else {
                             // 默认返回整数类型
-                            Ok("INT".to_string())
+                            Ok(DataType::Int)
                         }
                     }
-                    BinaryOperator::StringConcat => Ok("STRING".to_string()),
-                    _ => Ok("ANY".to_string()),
+                    BinaryOperator::StringConcat => Ok(DataType::String),
+                    _ => Ok(DataType::Empty),
                 }
             }
             Expression::Unary { op, .. } => {
                 match op {
-                    UnaryOperator::Plus | UnaryOperator::Minus => Ok("NUMBER".to_string()),
-                    UnaryOperator::Not => Ok("BOOL".to_string()),
+                    UnaryOperator::Plus | UnaryOperator::Minus => Ok(DataType::Empty),
+                    UnaryOperator::Not => Ok(DataType::Bool),
                     UnaryOperator::IsNull | UnaryOperator::IsNotNull |
-                    UnaryOperator::IsEmpty | UnaryOperator::IsNotEmpty => Ok("BOOL".to_string()),
+                    UnaryOperator::IsEmpty | UnaryOperator::IsNotEmpty => Ok(DataType::Bool),
                 }
             }
             Expression::Function { name, .. } => {
                 // 根据函数名推断返回类型
                 match name.to_uppercase().as_str() {
-                    "COALESCE" | "IFNULL" | "NULLIF" => Ok("ANY".to_string()),
-                    "UPPER" | "LOWER" | "TRIM" | "LTRIM" | "RTRIM" | "REPLACE" | "SUBSTR" => Ok("STRING".to_string()),
-                    "LENGTH" | "CHAR_LENGTH" | "BIT_LENGTH" => Ok("INT".to_string()),
-                    "ABS" | "ROUND" | "FLOOR" | "CEIL" => Ok("NUMBER".to_string()),
-                    "NOW" | "TODAY" | "CURRENT_DATE" | "CURRENT_TIME" | "CURRENT_TIMESTAMP" => Ok("DATETIME".to_string()),
-                    "DATE" | "TIME" => Ok("DATETIME".to_string()),
-                    "YEAR" | "MONTH" | "DAY" | "HOUR" | "MINUTE" | "SECOND" => Ok("INT".to_string()),
-                    _ => Ok("ANY".to_string()), // 未知函数返回ANY类型
+                    "COALESCE" | "IFNULL" | "NULLIF" => Ok(DataType::Empty),
+                    "UPPER" | "LOWER" | "TRIM" | "LTRIM" | "RTRIM" | "REPLACE" | "SUBSTR" => Ok(DataType::String),
+                    "LENGTH" | "CHAR_LENGTH" | "BIT_LENGTH" => Ok(DataType::Int),
+                    "ABS" | "ROUND" | "FLOOR" | "CEIL" => Ok(DataType::Empty),
+                    "NOW" | "TODAY" | "CURRENT_DATE" | "CURRENT_TIME" | "CURRENT_TIMESTAMP" => Ok(DataType::DateTime),
+                    "DATE" | "TIME" => Ok(DataType::DateTime),
+                    "YEAR" | "MONTH" | "DAY" | "HOUR" | "MINUTE" | "SECOND" => Ok(DataType::Int),
+                    _ => Ok(DataType::Empty), // 未知函数返回Empty类型
                 }
             }
             Expression::Aggregate { func, .. } => {
                 // 根据聚合函数类型推断返回类型
                 match func {
-                    AggregateFunction::Count(_) => Ok("INT".to_string()),
-                    AggregateFunction::Sum(_) => Ok("NUMBER".to_string()),
-                    AggregateFunction::Avg(_) => Ok("DOUBLE".to_string()),
-                    AggregateFunction::Min(_) | AggregateFunction::Max(_) => Ok("ANY".to_string()),
-                    AggregateFunction::Collect(_) | AggregateFunction::Distinct(_) => Ok("LIST".to_string()),
-                    AggregateFunction::Percentile(_, _) => Ok("DOUBLE".to_string()),
-                    AggregateFunction::Std(_) => Ok("DOUBLE".to_string()),
-                    AggregateFunction::BitAnd(_) | AggregateFunction::BitOr(_) => Ok("INT".to_string()),
-                    AggregateFunction::GroupConcat(_, _) => Ok("STRING".to_string()),
+                    AggregateFunction::Count(_) => Ok(DataType::Int),
+                    AggregateFunction::Sum(_) => Ok(DataType::Empty),
+                    AggregateFunction::Avg(_) => Ok(DataType::Double),
+                    AggregateFunction::Min(_) | AggregateFunction::Max(_) => Ok(DataType::Empty),
+                    AggregateFunction::Collect(_) | AggregateFunction::Distinct(_) => Ok(DataType::List),
+                    AggregateFunction::Percentile(_, _) => Ok(DataType::Double),
+                    AggregateFunction::Std(_) => Ok(DataType::Double),
+                    AggregateFunction::BitAnd(_) | AggregateFunction::BitOr(_) => Ok(DataType::Int),
+                    AggregateFunction::GroupConcat(_, _) => Ok(DataType::String),
                 }
             }
-            Expression::List(_) => Ok("LIST".to_string()),
-            Expression::Map(_) => Ok("MAP".to_string()),
-            Expression::Case { .. } => Ok("ANY".to_string()), // CASE表达式类型取决于结果
+            Expression::List(_) => Ok(DataType::List),
+            Expression::Map(_) => Ok(DataType::Map),
+            Expression::Case { .. } => Ok(DataType::Empty), // CASE表达式类型取决于结果
             Expression::TypeCast { target_type, .. } => {
                 // 直接返回目标类型
-                Ok(format!("{:?}", target_type).to_uppercase())
+                Ok(target_type.clone())
             }
             Expression::Subscript { collection, .. } => {
                 // 下标访问的结果类型取决于集合元素类型
                 let collection_type = self.infer_expression_type(collection)?;
                 // 简化处理：如果是LIST则返回ELEMENT，如果是MAP则返回VALUE
-                if collection_type.starts_with("LIST") {
-                    Ok("ELEMENT".to_string()) // 实际上应该更精确地推断元素类型
-                } else if collection_type.starts_with("MAP") {
-                    Ok("VALUE".to_string()) // 实际上应该更精确地推断值类型
-                } else {
-                    Ok("ANY".to_string())
+                match collection_type {
+                    DataType::List => Ok(DataType::Empty),
+                    DataType::Map => Ok(DataType::Empty),
+                    _ => Ok(DataType::Empty),
                 }
             }
             Expression::Range { collection, .. } => {
                 // 范围访问的结果通常是一个列表
                 let _collection_type = self.infer_expression_type(collection)?;
-                Ok("LIST".to_string())
+                Ok(DataType::List)
             }
-            Expression::Path(_) => Ok("PATH".to_string()),
-            Expression::Label(_) => Ok("STRING".to_string()),
+            Expression::Path(_) => Ok(DataType::Path),
+            Expression::Label(_) => Ok(DataType::String),
         }
     }
 
     /// 从字面量值推断类型
-    fn infer_literal_type(&self, value: &Value) -> String {
+    fn infer_literal_type(&self, value: &Value) -> DataType {
         match value {
-            Value::Null(_) => "NULL".to_string(),
-            Value::Bool(_) => "BOOL".to_string(),
-            Value::Int(_) => "INT".to_string(),
-            Value::Float(_) => "DOUBLE".to_string(),
-            Value::String(_) => "STRING".to_string(),
-            Value::List(_) => "LIST".to_string(),
-            Value::Map(_) => "MAP".to_string(),
-            Value::Set(_) => "SET".to_string(),
-            Value::Vertex(_) => "VERTEX".to_string(),
-            Value::Edge(_) => "EDGE".to_string(),
-            Value::Path(_) => "PATH".to_string(),
-            Value::Date(_) => "DATE".to_string(),
-            Value::Time(_) => "TIME".to_string(),
-            Value::DateTime(_) => "DATETIME".to_string(),
-            Value::Duration(_) => "DURATION".to_string(),
-            Value::Geography(_) => "GEOGRAPHY".to_string(),
-            Value::DataSet(_) => "DATASET".to_string(),
-            Value::Empty => "EMPTY".to_string(),
+            Value::Null(_) => DataType::Null,
+            Value::Bool(_) => DataType::Bool,
+            Value::Int(_) => DataType::Int,
+            Value::Float(_) => DataType::Double,
+            Value::String(_) => DataType::String,
+            Value::List(_) => DataType::List,
+            Value::Map(_) => DataType::Map,
+            Value::Set(_) => DataType::Set,
+            Value::Vertex(_) => DataType::Vertex,
+            Value::Edge(_) => DataType::Edge,
+            Value::Path(_) => DataType::Path,
+            Value::Date(_) => DataType::Date,
+            Value::Time(_) => DataType::Time,
+            Value::DateTime(_) => DataType::DateTime,
+            Value::Duration(_) => DataType::Duration,
+            Value::Geography(_) => DataType::Geography,
+            Value::DataSet(_) => DataType::DataSet,
+            Value::Empty => DataType::Empty,
         }
     }
 

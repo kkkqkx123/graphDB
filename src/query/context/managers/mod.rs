@@ -7,6 +7,7 @@ pub mod index_manager;
 pub mod meta_client;
 pub mod retry;
 pub mod schema_manager;
+pub mod schema_traits;
 pub mod storage_client;
 pub mod transaction;
 pub mod types;
@@ -18,6 +19,10 @@ pub use meta_client::MetaClient;
 pub use r#impl::*;
 pub use retry::{retry_with_backoff, retry_with_strategy, RetryConfig, RetryStrategy};
 pub use schema_manager::SchemaManager;
+pub use schema_traits::{
+    SchemaReader, SchemaWriter, SchemaVersionControl, SchemaPersistence, SchemaImportExport,
+    SchemaManagerBuilder,
+};
 pub use storage_client::{
     DelTags, EdgeKey, ExecResponse, NewEdge, NewTag, NewVertex, StorageClient, StorageOperation,
     StorageResponse, UpdateResponse, UpdatedProp,

@@ -1,106 +1,11 @@
 //! 验证策略接口定义
 //! 定义验证策略的统一接口，使用core模块中的统一错误类型
 
-use crate::core::error::{DBError, QueryError};
+use crate::core::error::{DBError, QueryError, ValidationError as CoreValidationError, ValidationErrorType as CoreValidationErrorType};
 use crate::query::validator::structs::*;
 use std::collections::HashMap;
 
-/// 验证错误类型（为了向后兼容保留，但建议使用DBError）
-#[derive(Debug, Clone, PartialEq)]
-pub enum ValidationErrorType {
-    SyntaxError,
-    SemanticError,
-    TypeError,
-    AliasError,
-    AggregateError,
-    PaginationError,
-    ExpressionDepthError,
-    VariableNotFound,
-    CyclicReference,
-    DivisionByZero,
-    TooManyArguments,
-    TooManyElements,
-    DuplicateKey,
-}
-
-/// 验证错误结构（为了向后兼容保留，但建议使用DBError）
-#[derive(Debug, Clone)]
-pub struct ValidationError {
-    pub message: String,
-    pub error_type: ValidationErrorType,
-    pub context: Option<String>,
-    pub line: Option<usize>,
-    pub column: Option<usize>,
-    pub query_position: Option<usize>,
-}
-
-impl ValidationError {
-    pub fn new(message: String, error_type: ValidationErrorType) -> Self {
-        Self {
-            message,
-            error_type,
-            context: None,
-            line: None,
-            column: None,
-            query_position: None,
-        }
-    }
-
-    pub fn with_context(mut self, context: String) -> Self {
-        self.context = Some(context);
-        self
-    }
-
-    pub fn with_location(mut self, line: usize, column: usize) -> Self {
-        self.line = Some(line);
-        self.column = Some(column);
-        self
-    }
-
-    pub fn with_position(mut self, position: usize) -> Self {
-        self.query_position = Some(position);
-        self
-    }
-
-    /// 转换为统一的DBError
-    pub fn to_db_error(&self) -> DBError {
-        let error_msg = if let Some(ref ctx) = self.context {
-            format!("{} (上下文: {})", self.message, ctx)
-        } else {
-            self.message.clone()
-        };
-
-        match self.error_type {
-            ValidationErrorType::SyntaxError => DBError::Query(QueryError::ParseError(error_msg)),
-            ValidationErrorType::SemanticError | ValidationErrorType::TypeError => {
-                DBError::Query(QueryError::InvalidQuery(error_msg))
-            }
-            _ => DBError::Query(QueryError::ExecutionError(error_msg)),
-        }
-    }
-
-    pub fn location_string(&self) -> String {
-        match (self.line, self.column) {
-            (Some(line), Some(col)) => format!("第{}行第{}列", line, col),
-            (Some(line), None) => format!("第{}行", line),
-            _ => String::from("未知位置"),
-        }
-    }
-}
-
-impl std::fmt::Display for ValidationError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}: {}", self.error_type, self.message)
-    }
-}
-
-impl std::error::Error for ValidationError {}
-
-impl From<ValidationError> for DBError {
-    fn from(err: ValidationError) -> Self {
-        err.to_db_error()
-    }
-}
+pub use crate::core::error::{ValidationError, ValidationErrorType};
 
 /// 验证策略类型枚举
 #[derive(Debug, Clone, PartialEq)]
@@ -123,12 +28,7 @@ pub trait ValidationContext {
 
 /// 验证策略统一接口
 pub trait ValidationStrategy {
-    /// 执行验证
     fn validate(&self, context: &dyn ValidationContext) -> Result<(), ValidationError>;
-
-    /// 获取策略类型
     fn strategy_type(&self) -> ValidationStrategyType;
-
-    /// 策略名称（用于调试和日志）
     fn strategy_name(&self) -> &'static str;
 }

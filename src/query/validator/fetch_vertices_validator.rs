@@ -5,6 +5,7 @@
 use super::base_validator::Validator;
 use super::validation_interface::{ValidationError, ValidationErrorType};
 use crate::core::Expression;
+use crate::core::types::DataType;
 
 #[derive(Debug, Clone)]
 pub struct FetchVerticesContext {
@@ -44,7 +45,7 @@ pub struct FetchYieldColumn {
 #[derive(Debug, Clone)]
 pub struct FetchOutput {
     pub name: String,
-    pub type_: String,
+    pub type_: DataType,
     pub alias: String,
     pub tag_name: Option<String>,
 }
@@ -59,7 +60,7 @@ pub struct FetchSchema {
 #[derive(Debug, Clone)]
 pub struct FetchPropDef {
     pub name: String,
-    pub type_: String,
+    pub type_: DataType,
     pub is_nullable: bool,
     pub default_value: Option<Expression>,
 }
@@ -220,7 +221,7 @@ impl FetchVerticesValidator {
         for column in &self.context.yield_columns {
             let output = FetchOutput {
                 name: column.alias.clone(),
-                type_: String::new(),
+                type_: DataType::String,
                 alias: column.alias.clone(),
                 tag_name: column.tag_name.clone(),
             };

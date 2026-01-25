@@ -5,6 +5,7 @@
 use super::base_validator::Validator;
 use super::validation_interface::{ValidationError, ValidationErrorType};
 use crate::core::Expression;
+use crate::core::types::DataType;
 
 #[derive(Debug, Clone)]
 pub struct FetchEdgesContext {
@@ -51,7 +52,7 @@ pub struct FetchEdgeYieldColumn {
 #[derive(Debug, Clone)]
 pub struct FetchEdgeOutput {
     pub name: String,
-    pub type_: String,
+    pub type_: DataType,
     pub alias: String,
 }
 
@@ -65,7 +66,7 @@ pub struct FetchEdgeSchema {
 #[derive(Debug, Clone)]
 pub struct FetchEdgePropDef {
     pub name: String,
-    pub type_: String,
+    pub type_: DataType,
     pub is_nullable: bool,
     pub default_value: Option<Expression>,
 }
@@ -262,7 +263,7 @@ impl FetchEdgesValidator {
             let alias_name = column.alias.clone().unwrap_or_else(|| String::new());
             let output = FetchEdgeOutput {
                 name: alias_name.clone(),
-                type_: String::new(),
+                type_: DataType::String,
                 alias: alias_name,
             };
             self.context.outputs.push(output);

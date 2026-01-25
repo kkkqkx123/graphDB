@@ -3,76 +3,9 @@
 
 use std::collections::HashMap;
 
-/// Schema验证模式
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum ValidationMode {
-    /// 严格模式：字段必须完全匹配，包括类型
-    Strict,
-    /// 宽松模式：允许缺少字段，忽略额外字段
-    Lenient,
-    /// 只验证必需字段
-    RequiredOnly,
-}
-
-/// Schema验证错误类型
-#[derive(Debug, Clone, PartialEq)]
-pub enum SchemaValidationError {
-    FieldNotFound(String),
-    TypeMismatch(String, String, String),
-    MissingRequiredField(String),
-    ExtraField(String),
-}
-
-impl std::fmt::Display for SchemaValidationError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            SchemaValidationError::FieldNotFound(field) => {
-                write!(f, "字段 '{}' 在Schema中不存在", field)
-            }
-            SchemaValidationError::TypeMismatch(field, expected, actual) => {
-                write!(
-                    f,
-                    "字段 '{}' 类型不匹配: 期望 '{}', 实际 '{}'",
-                    field, expected, actual
-                )
-            }
-            SchemaValidationError::MissingRequiredField(field) => {
-                write!(f, "缺少必需字段 '{}'", field)
-            }
-            SchemaValidationError::ExtraField(field) => {
-                write!(f, "变量中包含Schema中未定义的字段 '{}'", field)
-            }
-        }
-    }
-}
-
-/// Schema验证结果
-#[derive(Debug, Clone)]
-pub struct SchemaValidationResult {
-    pub is_valid: bool,
-    pub errors: Vec<SchemaValidationError>,
-}
-
-impl SchemaValidationResult {
-    pub fn success() -> Self {
-        Self {
-            is_valid: true,
-            errors: Vec::new(),
-        }
-    }
-
-    pub fn failure(errors: Vec<SchemaValidationError>) -> Self {
-        Self {
-            is_valid: false,
-            errors,
-        }
-    }
-
-    pub fn add_error(&mut self, error: SchemaValidationError) {
-        self.is_valid = false;
-        self.errors.push(error);
-    }
-}
+pub use crate::core::error::{
+    DataType, SchemaValidationError, SchemaValidationResult, ValidationMode,
+};
 
 /// Schema提供者trait
 pub trait SchemaProvider: Send + Sync {
@@ -84,7 +17,7 @@ pub trait SchemaProvider: Send + Sync {
 #[derive(Debug, Clone)]
 pub struct SchemaInfo {
     pub name: String,
-    pub fields: HashMap<String, String>,
+    pub fields: HashMap<String, DataType>,
     pub is_vertex: bool,
 }
 
@@ -97,11 +30,11 @@ impl SchemaInfo {
         }
     }
 
-    pub fn add_field(&mut self, name: String, type_: String) {
+    pub fn add_field(&mut self, name: String, type_: DataType) {
         self.fields.insert(name, type_);
     }
 
-    pub fn get_field_type(&self, name: &str) -> Option<&String> {
+    pub fn get_field_type(&self, name: &str) -> Option<&DataType> {
         self.fields.get(name)
     }
 
@@ -167,12 +100,13 @@ impl SchemaProvider for SchemaManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::types::DataType;
 
     #[test]
     fn test_schema_info_creation() {
         let mut schema = SchemaInfo::new("person".to_string(), true);
-        schema.add_field("id".to_string(), "INT".to_string());
-        schema.add_field("name".to_string(), "STRING".to_string());
+        schema.add_field("id".to_string(), DataType::Int);
+        schema.add_field("name".to_string(), DataType::String);
 
         assert_eq!(schema.name, "person");
         assert!(schema.is_vertex);
@@ -180,7 +114,7 @@ mod tests {
         assert!(schema.has_field("id"));
         assert!(schema.has_field("name"));
         assert!(!schema.has_field("age"));
-        assert_eq!(schema.get_field_type("id"), Some(&"INT".to_string()));
+        assert_eq!(schema.get_field_type("id"), Some(&DataType::Int));
     }
 
     #[test]
@@ -188,7 +122,7 @@ mod tests {
         let mut manager = SchemaManager::new();
 
         let mut person_schema = SchemaInfo::new("person".to_string(), true);
-        person_schema.add_field("id".to_string(), "INT".to_string());
+        person_schema.add_field("id".to_string(), DataType::Int);
         manager.add_schema(person_schema);
 
         assert!(manager.has_schema("person"));

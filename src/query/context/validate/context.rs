@@ -463,7 +463,7 @@ impl ValidationContext {
             if let Some(expected_type) = schema.get_field_type(&col.name) {
                 if &col.type_ != expected_type {
                     errors.push(format!(
-                        "字段 '{}' 类型不匹配: 期望 '{}', 实际 '{}'",
+                        "字段 '{}' 类型不匹配: 期望 '{:?}', 实际 '{:?}'",
                         col.name, expected_type, col.type_
                     ));
                 }
@@ -614,6 +614,7 @@ mod tests {
     use super::super::types::Column;
     use super::super::schema::ValidationMode;
     use super::*;
+    use crate::core::types::DataType;
 
     struct MockSchemaProvider;
 
@@ -621,8 +622,8 @@ mod tests {
         fn get_schema(&self, name: &str) -> Option<SchemaInfo> {
             if name == "test_schema" {
                 let mut fields = HashMap::new();
-                fields.insert("id".to_string(), "INT".to_string());
-                fields.insert("name".to_string(), "STRING".to_string());
+                fields.insert("id".to_string(), DataType::Int);
+                fields.insert("name".to_string(), DataType::String);
 
                 Some(SchemaInfo {
                     name: name.to_string(),
@@ -690,11 +691,17 @@ mod tests {
         let cols = vec![
             Column {
                 name: "id".to_string(),
-                type_: "INT".to_string(),
+                type_: DataType::Int,
+                nullable: false,
+                default_value: None,
+                comment: None,
             },
             Column {
                 name: "name".to_string(),
-                type_: "STRING".to_string(),
+                type_: DataType::String,
+                nullable: false,
+                default_value: None,
+                comment: None,
             },
         ];
         ctx.register_variable("test_var".to_string(), cols);
@@ -712,9 +719,9 @@ mod tests {
 
         // 添加Schema
         let mut fields = HashMap::new();
-        fields.insert("id".to_string(), "INT".to_string());
-        fields.insert("name".to_string(), "STRING".to_string());
-        fields.insert("age".to_string(), "INT".to_string());
+        fields.insert("id".to_string(), DataType::Int);
+        fields.insert("name".to_string(), DataType::String);
+        fields.insert("age".to_string(), DataType::Int);
 
         let schema = SchemaInfo {
             name: "person".to_string(),
@@ -727,15 +734,24 @@ mod tests {
         let cols = vec![
             Column {
                 name: "id".to_string(),
-                type_: "INT".to_string(),
+                type_: DataType::Int,
+                nullable: false,
+                default_value: None,
+                comment: None,
             },
             Column {
                 name: "name".to_string(),
-                type_: "STRING".to_string(),
+                type_: DataType::String,
+                nullable: false,
+                default_value: None,
+                comment: None,
             },
             Column {
                 name: "age".to_string(),
-                type_: "INT".to_string(),
+                type_: DataType::Int,
+                nullable: false,
+                default_value: None,
+                comment: None,
             },
         ];
         ctx.register_variable("p".to_string(), cols);
@@ -773,8 +789,8 @@ mod tests {
 
         // 添加Schema
         let mut fields = HashMap::new();
-        fields.insert("id".to_string(), "INT".to_string());
-        fields.insert("name".to_string(), "STRING".to_string());
+        fields.insert("id".to_string(), DataType::Int);
+        fields.insert("name".to_string(), DataType::String);
 
         let schema = SchemaInfo {
             name: "person".to_string(),
@@ -787,11 +803,17 @@ mod tests {
         let cols = vec![
             Column {
                 name: "id".to_string(),
-                type_: "STRING".to_string(), // 错误：应该是INT
+                type_: DataType::String, // 错误：应该是INT
+                nullable: false,
+                default_value: None,
+                comment: None,
             },
             Column {
                 name: "name".to_string(),
-                type_: "STRING".to_string(),
+                type_: DataType::String,
+                nullable: false,
+                default_value: None,
+                comment: None,
             },
         ];
         ctx.register_variable("p".to_string(), cols);
@@ -823,9 +845,9 @@ mod tests {
 
         // 添加Schema
         let mut fields = HashMap::new();
-        fields.insert("id".to_string(), "INT".to_string());
-        fields.insert("name".to_string(), "STRING".to_string());
-        fields.insert("age".to_string(), "INT".to_string());
+        fields.insert("id".to_string(), DataType::Int);
+        fields.insert("name".to_string(), DataType::String);
+        fields.insert("age".to_string(), DataType::Int);
 
         let schema = SchemaInfo {
             name: "person".to_string(),
@@ -838,11 +860,17 @@ mod tests {
         let cols = vec![
             Column {
                 name: "id".to_string(),
-                type_: "INT".to_string(),
+                type_: DataType::Int,
+                nullable: false,
+                default_value: None,
+                comment: None,
             },
             Column {
                 name: "name".to_string(),
-                type_: "STRING".to_string(),
+                type_: DataType::String,
+                nullable: false,
+                default_value: None,
+                comment: None,
             },
         ];
         ctx.register_variable("p".to_string(), cols);
@@ -882,8 +910,8 @@ mod tests {
 
         // 添加Schema
         let mut fields = HashMap::new();
-        fields.insert("id".to_string(), "INT".to_string());
-        fields.insert("name".to_string(), "STRING".to_string());
+        fields.insert("id".to_string(), DataType::Int);
+        fields.insert("name".to_string(), DataType::String);
 
         let schema = SchemaInfo {
             name: "person".to_string(),
@@ -896,15 +924,24 @@ mod tests {
         let cols = vec![
             Column {
                 name: "id".to_string(),
-                type_: "INT".to_string(),
+                type_: DataType::Int,
+                nullable: false,
+                default_value: None,
+                comment: None,
             },
             Column {
                 name: "name".to_string(),
-                type_: "STRING".to_string(),
+                type_: DataType::String,
+                nullable: false,
+                default_value: None,
+                comment: None,
             },
             Column {
                 name: "email".to_string(), // 额外字段
-                type_: "STRING".to_string(),
+                type_: DataType::String,
+                nullable: false,
+                default_value: None,
+                comment: None,
             },
         ];
         ctx.register_variable("p".to_string(), cols);
@@ -932,10 +969,10 @@ mod tests {
 
         // 添加Schema
         let mut fields = HashMap::new();
-        fields.insert("id".to_string(), "INT".to_string());
-        fields.insert("name".to_string(), "STRING".to_string());
-        fields.insert("age".to_string(), "INT".to_string());
-        fields.insert("email".to_string(), "STRING".to_string());
+        fields.insert("id".to_string(), DataType::Int);
+        fields.insert("name".to_string(), DataType::String);
+        fields.insert("age".to_string(), DataType::Int);
+        fields.insert("email".to_string(), DataType::String);
 
         let schema = SchemaInfo {
             name: "person".to_string(),
@@ -948,11 +985,17 @@ mod tests {
         let cols = vec![
             Column {
                 name: "id".to_string(),
-                type_: "INT".to_string(),
+                type_: DataType::Int,
+                nullable: false,
+                default_value: None,
+                comment: None,
             },
             Column {
                 name: "name".to_string(),
-                type_: "STRING".to_string(),
+                type_: DataType::String,
+                nullable: false,
+                default_value: None,
+                comment: None,
             },
         ];
         ctx.register_variable("p".to_string(), cols);
