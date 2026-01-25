@@ -1,13 +1,6 @@
 // Re-export all executor modules
-pub mod aggregation;
 pub mod base;
 pub mod data_access;
-
-// Re-export data access executors
-pub use data_access::{
-    AllPathsExecutor, GetEdgesExecutor, GetNeighborsExecutor, GetPropExecutor, GetVerticesExecutor,
-    IndexScanExecutor,
-};
 pub mod data_modification;
 pub mod data_processing;
 pub mod factory;
@@ -19,13 +12,17 @@ pub mod result_processing;
 pub mod tag_filter;
 pub mod traits;
 
-// Re-export the new trait types
-pub use traits::{
-    BaseExecutor as NewBaseExecutor, Executor, HasInput, HasStorage, ExecutorStats, ExecutionResult,
+// Re-export from base module (统一的基础类型)
+pub use base::{
+    BaseExecutor, ChainableExecutor, ExecutionContext, ExecutionResult, Executor,
+    ExecutorStats, HasInput, HasStorage, InputExecutor, StartExecutor,
 };
 
-// Re-export the base types
-pub use base::{BaseExecutor, ChainableExecutor, ExecutionContext, InputExecutor, StartExecutor};
+// Re-export data access executors
+pub use data_access::{
+    AllPathsExecutor, GetEdgesExecutor, GetNeighborsExecutor, GetPropExecutor, GetVerticesExecutor,
+    IndexScanExecutor,
+};
 
 // Re-export result processing executors
 pub use result_processing::{

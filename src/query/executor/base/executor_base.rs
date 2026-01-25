@@ -1,59 +1,117 @@
+//! 基础执行器实现
+//!
+//! 提供执行器的基础结构和通用功能，包括 Executor trait、HasStorage trait、HasInput trait 等。
+
 use async_trait::async_trait;
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-use crate::core::{Edge, Value, Vertex};
-use crate::query::executor::traits::{DBResult, ExecutionResult, Executor, ExecutorStats, HasStorage};
+use crate::core::error::DBError;
 use crate::storage::StorageEngine;
 
-pub use crate::core::types::EdgeDirection;
+use super::execution_context::ExecutionContext;
+use super::execution_result::{ExecutionResult, DBResult};
+use super::executor_stats::ExecutorStats;
 
-// Context for execution - holds intermediate results only
-#[derive(Debug, Clone)]
-pub struct ExecutionContext {
-    pub results: HashMap<String, ExecutionResult>,
-    pub variables: HashMap<String, Value>,
+/// 统一的执行器 trait
+///
+/// 所有执行器必须实现的核心 trait，包含执行、生命周期和元数据功能。
+#[async_trait]
+pub trait Executor<S: StorageEngine>: Send + Sync {
+    /// 执行查询
+    async fn execute(&mut self) -> DBResult<ExecutionResult>;
+
+    /// 打开执行器
+    fn open(&mut self) -> DBResult<()>;
+
+    /// 关闭执行器
+    fn close(&mut self) -> DBResult<()>;
+
+    /// 检查执行器是否已打开
+    fn is_open(&self) -> bool;
+
+    /// 获取执行器 ID
+    fn id(&self) -> i64;
+
+    /// 获取执行器名称
+    fn name(&self) -> &str;
+
+    /// 获取执行器描述
+    fn description(&self) -> &str;
+
+    /// 获取执行统计信息
+    fn stats(&self) -> &ExecutorStats;
+
+    /// 获取可变的执行统计信息
+    fn stats_mut(&mut self) -> &mut ExecutorStats;
+
+    /// 检查内存使用
+    fn check_memory(&self) -> DBResult<()> {
+        Ok(())
+    }
 }
 
-impl ExecutionContext {
-    pub fn new() -> Self {
-        Self {
-            results: HashMap::new(),
-            variables: HashMap::new(),
-        }
-    }
+/// 存储访问 trait
+///
+/// 只需要存储访问能力的执行器可以实现此 trait。
+pub trait HasStorage<S: StorageEngine> {
+    fn get_storage(&self) -> &Arc<Mutex<S>>;
+}
 
-    pub fn set_result(&mut self, name: String, result: ExecutionResult) {
-        self.results.insert(name, result);
-    }
+/// 输入访问 trait - 统一输入处理机制
+///
+/// 需要访问输入数据的执行器应实现此 trait。
+pub trait HasInput<S: StorageEngine> {
+    fn get_input(&self) -> Option<&ExecutionResult>;
+    fn set_input(&mut self, input: ExecutionResult);
+}
 
-    pub fn get_result(&self, name: &str) -> Option<&ExecutionResult> {
-        self.results.get(name)
-    }
+/// 输入执行器 trait
+///
+/// 用于处理来自其他执行器的输入数据。
+pub trait InputExecutor<S: StorageEngine> {
+    fn set_input(&mut self, input: Box<dyn Executor<S>>);
+    fn get_input(&self) -> Option<&Box<dyn Executor<S>>>;
+}
 
-    pub fn set_variable(&mut self, name: String, value: Value) {
-        self.variables.insert(name, value);
-    }
-
-    pub fn get_variable(&self, name: &str) -> Option<&Value> {
-        self.variables.get(name)
+/// 可链式执行的执行器 trait
+///
+/// 支持链式组合的执行器可以实现此 trait。
+pub trait ChainableExecutor<S: StorageEngine + Send + 'static>:
+    Executor<S> + InputExecutor<S>
+{
+    fn chain(mut self, next: Box<dyn Executor<S>>) -> Box<dyn Executor<S>>
+    where
+        Self: Sized + 'static,
+    {
+        self.set_input(next);
+        Box::new(self)
     }
 }
 
-// Base executor with common functionality
+/// 基础执行器
+///
+/// 提供执行器的通用功能，包括存储访问、统计信息、生命周期管理等。
 #[derive(Clone, Debug)]
 pub struct BaseExecutor<S: StorageEngine> {
+    /// 执行器 ID
     pub id: i64,
+    /// 执行器名称
     pub name: String,
+    /// 执行器描述
     pub description: String,
+    /// 存储引擎引用
     pub storage: Option<Arc<Mutex<S>>>,
+    /// 执行上下文
     pub context: ExecutionContext,
+    /// 是否已打开
     is_open: bool,
+    /// 执行统计信息
     stats: ExecutorStats,
 }
 
 impl<S: StorageEngine> BaseExecutor<S> {
+    /// 创建新的基础执行器（带存储）
     pub fn new(id: i64, name: String, storage: Arc<Mutex<S>>) -> Self {
         Self {
             id,
@@ -66,6 +124,7 @@ impl<S: StorageEngine> BaseExecutor<S> {
         }
     }
 
+    /// 创建新的基础执行器（不带存储）
     pub fn without_storage(id: i64, name: String) -> Self {
         Self {
             id,
@@ -78,12 +137,8 @@ impl<S: StorageEngine> BaseExecutor<S> {
         }
     }
 
-    pub fn with_context(
-        id: i64,
-        name: String,
-        storage: Arc<Mutex<S>>,
-        context: ExecutionContext,
-    ) -> Self {
+    /// 创建带上下文的基础执行器
+    pub fn with_context(id: i64, name: String, storage: Arc<Mutex<S>>, context: ExecutionContext) -> Self {
         Self {
             id,
             name,
@@ -95,12 +150,8 @@ impl<S: StorageEngine> BaseExecutor<S> {
         }
     }
 
-    pub fn with_description(
-        id: i64,
-        name: String,
-        description: String,
-        storage: Arc<Mutex<S>>,
-    ) -> Self {
+    /// 创建带描述的基础执行器
+    pub fn with_description(id: i64, name: String, description: String, storage: Arc<Mutex<S>>) -> Self {
         Self {
             id,
             name,
@@ -112,6 +163,7 @@ impl<S: StorageEngine> BaseExecutor<S> {
         }
     }
 
+    /// 创建带上下文和描述的基础执行器
     pub fn with_context_and_description(
         id: i64,
         name: String,
@@ -130,12 +182,12 @@ impl<S: StorageEngine> BaseExecutor<S> {
         }
     }
 
-    /// 获取执行统计信息
+    /// 获取执行统计信息（不可变引用）
     pub fn get_stats(&self) -> &ExecutorStats {
         &self.stats
     }
 
-    /// 获取可变的执行统计信息
+    /// 获取执行统计信息（可变引用）
     pub fn get_stats_mut(&mut self) -> &mut ExecutorStats {
         &mut self.stats
     }
@@ -143,9 +195,7 @@ impl<S: StorageEngine> BaseExecutor<S> {
 
 impl<S: StorageEngine> HasStorage<S> for BaseExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.storage
-            .as_ref()
-            .expect("BaseExecutor storage should be set")
+        self.storage.as_ref().expect("Storage not set")
     }
 }
 
@@ -193,32 +243,16 @@ impl<S: StorageEngine> Executor<S> for BaseExecutor<S> {
     }
 }
 
-// Trait for executors that process input from other executors
-pub trait InputExecutor<S: StorageEngine> {
-    fn set_input(&mut self, input: Box<dyn Executor<S>>);
-    fn get_input(&self) -> Option<&Box<dyn Executor<S>>>;
-}
-
-// Trait for executors that can be chained together
-pub trait ChainableExecutor<S: StorageEngine + Send + 'static>:
-    Executor<S> + InputExecutor<S>
-{
-    fn chain(mut self, next: Box<dyn Executor<S>>) -> Box<dyn Executor<S>>
-    where
-        Self: Sized + 'static,
-    {
-        self.set_input(next);
-        Box::new(self)
-    }
-}
-
-// Implementation for StartExecutor
+/// 开始执行器
+///
+/// 表示查询执行的起始点，不产生实际数据。
 #[derive(Debug)]
 pub struct StartExecutor<S: StorageEngine> {
     base: BaseExecutor<S>,
 }
 
 impl<S: StorageEngine> StartExecutor<S> {
+    /// 创建新的开始执行器
     pub fn new(id: i64) -> Self {
         Self {
             base: BaseExecutor::without_storage(id, "StartExecutor".to_string()),
@@ -265,48 +299,5 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for StartExecutor<S> {
 
     fn stats_mut(&mut self) -> &mut ExecutorStats {
         self.base.get_stats_mut()
-    }
-}
-
-// Legacy ExecutionResult for backward compatibility
-#[derive(Debug, Clone)]
-pub enum OldExecutionResult {
-    Vertices(Vec<Vertex>),
-    Edges(Vec<Edge>),
-    Values(Vec<Value>),
-    Paths(Vec<crate::core::vertex_edge_path::Path>),
-    DataSet(crate::core::value::DataSet),
-    Count(usize),
-    Success,
-}
-
-// Helper functions for working with OldExecutionResult
-impl OldExecutionResult {
-    pub fn is_empty(&self) -> bool {
-        match self {
-            OldExecutionResult::Vertices(v) => v.is_empty(),
-            OldExecutionResult::Edges(e) => e.is_empty(),
-            OldExecutionResult::Values(v) => v.is_empty(),
-            OldExecutionResult::Paths(p) => p.is_empty(),
-            OldExecutionResult::DataSet(ds) => ds.rows.is_empty(),
-            OldExecutionResult::Count(c) => *c == 0,
-            OldExecutionResult::Success => false,
-        }
-    }
-
-    pub fn len(&self) -> usize {
-        match self {
-            OldExecutionResult::Vertices(v) => v.len(),
-            OldExecutionResult::Edges(e) => e.len(),
-            OldExecutionResult::Values(v) => v.len(),
-            OldExecutionResult::Paths(p) => p.len(),
-            OldExecutionResult::DataSet(ds) => ds.rows.len(),
-            OldExecutionResult::Count(c) => *c,
-            OldExecutionResult::Success => 0,
-        }
-    }
-
-    pub fn count(&self) -> usize {
-        self.len()
     }
 }

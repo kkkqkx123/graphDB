@@ -1,226 +1,89 @@
-//! Executor trait 重构 - 统一简化架构
+//! 执行器 trait 定义
 //!
-//! 这个模块提供了简化的执行器trait设计，减少动态分发，提高性能。
-//! 采用组合trait的方式，提供灵活且高效的执行器接口。
+//! 本模块提供执行器相关的 trait 定义。
+//! 注意：基础类型（ExecutorStats、ExecutionResult、BaseExecutor 等）已迁移到 base/ 模块。
+//! 本模块主要保留 ResultProcessor 等结果处理相关的 trait。
 
-use crate::core::error::DBError;
-use crate::core::result::Result as CoreResult;
 use crate::storage::StorageEngine;
-use async_trait::async_trait;
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
 
-/// 执行器统计信息
-#[derive(Debug, Clone, Default)]
-pub struct ExecutorStats {
-    /// 处理的行数
-    pub num_rows: usize,
-    /// 执行时间（微秒）
-    pub exec_time_us: u64,
-    /// 总时间（微秒）
-    pub total_time_us: u64,
-    /// 其他统计信息
-    pub other_stats: HashMap<String, String>,
-}
+// 从 base 模块重新导出基础类型
+pub use crate::query::executor::base::{
+    DBResult, ExecutionResult, Executor, ExecutorStats, HasInput, HasStorage,
+};
 
-impl ExecutorStats {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn add_row(&mut self, count: usize) {
-        self.num_rows += count;
-    }
-
-    pub fn add_exec_time(&mut self, duration: Duration) {
-        self.exec_time_us += duration.as_micros() as u64;
-    }
-
-    pub fn add_total_time(&mut self, duration: Duration) {
-        self.total_time_us += duration.as_micros() as u64;
-    }
-
-    pub fn add_stat(&mut self, key: String, value: String) {
-        self.other_stats.insert(key, value);
-    }
-
-    pub fn get_stat(&self, key: &str) -> Option<&String> {
-        self.other_stats.get(key)
-    }
-}
-
-/// 统一的执行器trait - 核心接口
+/// 结果处理器 trait
 ///
-/// 这是所有执行器必须实现的核心trait，包含执行、生命周期和元数据功能
-#[async_trait]
-pub trait Executor<S: StorageEngine>: Send + Sync {
-    /// 执行查询
-    async fn execute(&mut self) -> DBResult<ExecutionResult>;
+/// 用于处理查询结果的执行器应实现此 trait。
+pub trait ResultProcessor<S: StorageEngine>: Executor<S> {
+    /// 获取处理器上下文
+    fn get_context(&self) -> &ResultProcessorContext<S>;
 
-    /// 打开执行器
-    fn open(&mut self) -> DBResult<()>;
-
-    /// 关闭执行器
-    fn close(&mut self) -> DBResult<()>;
-
-    /// 检查执行器是否已打开
-    fn is_open(&self) -> bool;
-
-    /// 获取执行器ID
-    fn id(&self) -> i64;
-
-    /// 获取执行器名称
-    fn name(&self) -> &str;
-
-    /// 获取执行器描述
-    fn description(&self) -> &str;
-
-    /// 获取执行统计信息
-    fn stats(&self) -> &ExecutorStats;
-
-    /// 获取可变的执行统计信息
-    fn stats_mut(&mut self) -> &mut ExecutorStats;
-
-    /// 检查内存使用
-    fn check_memory(&self) -> DBResult<()> {
-        Ok(())
-    }
+    /// 获取可变的处理器上下文
+    fn get_context_mut(&mut self) -> &mut ResultProcessorContext<S>;
 }
 
-/// 存储访问trait - 可选功能
+/// 结果处理器上下文
 ///
-/// 只需要存储访问能力的执行器可以实现此trait
-pub trait HasStorage<S: StorageEngine> {
-    fn get_storage(&self) -> &Arc<Mutex<S>>;
-}
-
-/// 输入访问trait - 可选功能
-///
-/// 需要访问输入执行器的执行器可以实现此trait
-pub trait HasInput<S: StorageEngine> {
-    fn get_input(&self) -> Option<&Box<dyn Executor<S>>>;
-    fn get_input_mut(&mut self) -> Option<&mut Box<dyn Executor<S>>>;
-    fn set_input_impl(&mut self, input: Box<dyn Executor<S>>);
-}
-
-/// 执行结果类型
+/// 为结果处理器提供必要的上下文信息。
 #[derive(Debug, Clone)]
-pub enum ExecutionResult {
-    /// 成功执行，返回数据
-    Values(Vec<crate::core::Value>),
-    /// 成功执行，返回顶点数据
-    Vertices(Vec<crate::core::Vertex>),
-    /// 成功执行，返回边数据
-    Edges(Vec<crate::core::Edge>),
-    /// 成功执行，返回数据集
-    DataSet(crate::core::DataSet),
-    /// 成功执行，返回 Result 对象
-    Result(CoreResult),
-    /// 成功执行，无数据返回
-    Success,
-    /// 执行错误
-    Error(String),
-    /// 返回计数
-    Count(usize),
-    /// 返回路径
-    Paths(Vec<crate::core::vertex_edge_path::Path>),
+pub struct ResultProcessorContext<S: StorageEngine> {
+    /// 存储引擎引用
+    pub storage: Option<std::sync::Arc<std::sync::Mutex<S>>>,
+    /// 输入数据
+    pub input: Option<ExecutionResult>,
 }
 
-impl ExecutionResult {
-    /// 获取结果中的元素计数
-    pub fn count(&self) -> usize {
-        match self {
-            ExecutionResult::Values(v) => v.len(),
-            ExecutionResult::Vertices(v) => v.len(),
-            ExecutionResult::Edges(v) => v.len(),
-            ExecutionResult::DataSet(ds) => ds.rows.len(),
-            ExecutionResult::Result(r) => r.row_count(),
-            ExecutionResult::Count(c) => *c,
-            ExecutionResult::Success => 0,
-            ExecutionResult::Error(_) => 0,
-            ExecutionResult::Paths(p) => p.len(),
-        }
-    }
-
-    /// 从 Result 对象创建 ExecutionResult
-    pub fn from_result(result: CoreResult) -> Self {
-        ExecutionResult::Result(result)
-    }
-
-    /// 转换为 Result 对象
-    pub fn to_result(&self) -> Option<CoreResult> {
-        match self {
-            ExecutionResult::Result(r) => Some(r.clone()),
-            _ => None,
-        }
-    }
-}
-
-/// 结果类型别名
-pub type DBResult<T> = Result<T, DBError>;
-
-/// 基础执行器实现 - 提供默认的执行器行为
-///
-/// 提供存储、ID、名称、描述等基础功能
-#[derive(Debug)]
-pub struct BaseExecutor<S: StorageEngine> {
-    storage: Option<Arc<Mutex<S>>>,
-    id: i64,
-    name: String,
-    description: String,
-    is_open: bool,
-    stats: ExecutorStats,
-}
-
-impl<S: StorageEngine> BaseExecutor<S> {
-    /// 创建新的基础执行器（带存储）
-    pub fn new(storage: Arc<Mutex<S>>, id: i64, name: &str, description: &str) -> Self {
+impl<S: StorageEngine> ResultProcessorContext<S> {
+    /// 创建新的上下文
+    pub fn new(storage: std::sync::Arc<std::sync::Mutex<S>>) -> Self {
         Self {
             storage: Some(storage),
-            id,
-            name: name.to_string(),
-            description: description.to_string(),
-            is_open: false,
-            stats: ExecutorStats::new(),
+            input: None,
         }
     }
 
-    /// 创建新的基础执行器（不带存储）
-    pub fn new_without_storage(id: i64, name: &str, description: &str) -> Self {
+    /// 创建不带存储的上下文
+    pub fn new_without_storage() -> Self {
         Self {
             storage: None,
-            id,
-            name: name.to_string(),
-            description: description.to_string(),
-            is_open: false,
-            stats: ExecutorStats::new(),
+            input: None,
         }
-    }
-
-    /// 获取存储引擎的可变引用
-    pub fn storage_mut(&mut self) -> &Arc<Mutex<S>> {
-        self.storage.as_ref().expect("Storage not set")
-    }
-
-    /// 设置存储引擎
-    pub fn set_storage(&mut self, storage: Arc<Mutex<S>>) {
-        self.storage = Some(storage);
-    }
-
-    /// 获取执行统计信息
-    pub fn get_stats(&self) -> &ExecutorStats {
-        &self.stats
-    }
-
-    /// 获取可变的执行统计信息
-    pub fn get_stats_mut(&mut self) -> &mut ExecutorStats {
-        &mut self.stats
     }
 }
 
-impl<S: StorageEngine> HasStorage<S> for BaseExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.storage.as_ref().expect("Storage not set")
+/// 基础结果处理器
+///
+/// 提供结果处理器的通用功能。
+#[derive(Debug, Clone)]
+pub struct BaseResultProcessor<S: StorageEngine> {
+    /// 处理器 ID
+    pub id: i64,
+    /// 处理器名称
+    pub name: String,
+    /// 处理器描述
+    pub description: String,
+    /// 处理器上下文
+    pub context: ResultProcessorContext<S>,
+}
+
+impl<S: StorageEngine> BaseResultProcessor<S> {
+    /// 创建新的基础结果处理器
+    pub fn new(id: i64, name: String, description: String, storage: std::sync::Arc<std::sync::Mutex<S>>) -> Self {
+        Self {
+            id,
+            name,
+            description,
+            context: ResultProcessorContext::new(storage),
+        }
+    }
+
+    /// 获取处理器 ID
+    pub fn id(&self) -> i64 {
+        self.id
+    }
+
+    /// 获取处理器名称
+    pub fn name(&self) -> &str {
+        &self.name
     }
 }
