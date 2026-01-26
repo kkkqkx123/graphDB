@@ -7,9 +7,9 @@ use std::collections::HashSet;
 /// Subgraph查询上下文
 ///
 /// 子图查询的上下文信息，包含：
-/// - 起始点信息 (from)
-/// - 步数限制 (steps)
-/// - 过滤条件 (filter, tag_filter, edge_filter) - 使用 Expression AST
+/// - 公共遍历字段
+/// - 循环步数 (loop_steps)
+/// - 过滤条件 (tag_filter, edge_filter) - 使用 Expression AST
 /// - 边集合 (edge_names, edge_types)
 /// - 输出配置
 #[derive(Debug, Clone)]

@@ -1,18 +1,26 @@
 //! Path查询上下文
 
-use crate::query::context::ast::query_types::TraverseContext;
+use crate::core::types::expression::Expression;
+use crate::query::context::ast::{AstContext, ExpressionProps, FromType, Over, Starts, StepClause};
 
 /// Path查询上下文
 ///
 /// 路径查询的上下文信息，包含：
-/// - 公共遍历字段（来自 TraverseContext）
+/// - 公共遍历字段
 /// - 目标点信息 (to)
 /// - 路径查找选项（最短路径、权重等）
 /// - 运行时计划节点
 #[derive(Debug, Clone)]
 pub struct PathContext {
-    pub traverse: TraverseContext,
-    pub to: crate::query::context::ast::Starts,
+    pub base: AstContext,
+    pub from: Starts,
+    pub to: Starts,
+    pub steps: StepClause,
+    pub over: Over,
+    pub filter: Option<Expression>,
+    pub col_names: Vec<String>,
+    pub expr_props: ExpressionProps,
+    pub input_var_name: String,
     pub limit: i64,
     pub from_vids_var: String,
     pub to_vids_var: String,
@@ -28,12 +36,17 @@ pub struct PathContext {
 }
 
 impl PathContext {
-    pub fn new(base: crate::query::context::ast::AstContext) -> Self {
+    pub fn new(base: AstContext) -> Self {
         Self {
-            traverse: TraverseContext::new(base),
-            to: crate::query::context::ast::Starts::new(
-                crate::query::context::ast::FromType::default(),
-            ),
+            base,
+            from: Starts::new(FromType::default()),
+            to: Starts::new(FromType::default()),
+            steps: StepClause::new(),
+            over: Over::new(),
+            filter: None,
+            col_names: Vec::new(),
+            expr_props: ExpressionProps::default(),
+            input_var_name: String::new(),
             limit: -1,
             from_vids_var: String::new(),
             to_vids_var: String::new(),

@@ -17,11 +17,13 @@ use std::sync::Arc;
 ///
 /// 验证阶段的上下文，包含验证所需的信息，集成Schema管理和生成器功能
 ///
+/// 注意：符号表由 QueryContext 持有，这里通过 sym_table 引用访问
+///
 /// 主要功能：
 /// 1. 基本验证上下文的所有功能
 /// 2. Schema管理和验证
 /// 3. 匿名变量和列生成
-/// 4. 增强版符号表集成
+/// 4. 符号表引用（来自 QueryContext）
 #[derive(Clone)]
 pub struct ValidationContext {
     // 基本验证上下文
@@ -36,8 +38,8 @@ pub struct ValidationContext {
     // 匿名列生成器
     anon_col_gen: AnonColGenerator,
 
-    // 符号表
-    symbol_table: SymbolTable,
+    // 符号表引用（来自 QueryContext）
+    sym_table: Option<Arc<SymbolTable>>,
 
     // Schema缓存
     schemas: HashMap<String, SchemaInfo>,
@@ -60,7 +62,7 @@ impl ValidationContext {
             schema_manager: None,
             anon_var_gen: GeneratorFactory::create_anon_var_generator(),
             anon_col_gen: GeneratorFactory::create_anon_col_generator(),
-            symbol_table: SymbolTable::new(),
+            sym_table: None,
             schemas: HashMap::new(),
             query_parts: Vec::new(),
             alias_types: HashMap::new(),
@@ -75,12 +77,22 @@ impl ValidationContext {
             schema_manager: None,
             anon_var_gen: GeneratorFactory::create_anon_var_generator(),
             anon_col_gen: GeneratorFactory::create_anon_col_generator(),
-            symbol_table: SymbolTable::new(),
+            sym_table: None,
             schemas: HashMap::new(),
             query_parts: Vec::new(),
             alias_types: HashMap::new(),
             validation_errors: Vec::new(),
         }
+    }
+
+    /// 设置符号表引用
+    pub fn set_symbol_table(&mut self, sym_table: Arc<SymbolTable>) {
+        self.sym_table = Some(sym_table);
+    }
+
+    /// 获取符号表引用
+    pub fn symbol_table(&self) -> Option<&SymbolTable> {
+        self.sym_table.as_deref()
     }
 
     // ==================== Schema管理 ====================
@@ -226,14 +238,9 @@ impl ValidationContext {
 
     // ==================== 符号表 ====================
 
-    /// 获取符号表
-    pub fn symbol_table(&self) -> &SymbolTable {
-        &self.symbol_table
-    }
-
-    /// 获取可变符号表
-    pub fn symbol_table_mut(&mut self) -> &mut SymbolTable {
-        &mut self.symbol_table
+    /// 获取符号表引用
+    pub fn symbol_table(&self) -> Option<&SymbolTable> {
+        self.sym_table.as_deref()
     }
 
     // ==================== 基本上下文委托 ====================
@@ -278,7 +285,9 @@ impl ValidationContext {
             .register_variable(var.clone(), cols.clone());
 
         // 同时在符号表中注册
-        let _ = self.symbol_table.new_variable(&var);
+        if let Some(sym_table) = &self.sym_table {
+            let _ = sym_table.new_variable(&var);
+        }
     }
 
     /// 获取变量的列定义
@@ -294,7 +303,9 @@ impl ValidationContext {
     /// 添加变量对象
     pub fn add_variable(&mut self, var: Variable) {
         self.basic_context.add_variable(var.clone());
-        let _ = self.symbol_table.new_variable(&var.name);
+        if let Some(sym_table) = &self.sym_table {
+            let _ = sym_table.new_variable(&var.name);
+        }
     }
 
     /// 获取变量对象
@@ -549,9 +560,10 @@ impl ValidationContext {
             self.basic_context.get_indexes().len()
         ));
         result.push_str(&format!("  schemas: {:?},\n", self.schemas.len()));
+        let sym_table_size = self.sym_table.as_ref().map(|t| t.size()).unwrap_or(0);
         result.push_str(&format!(
             "  symbol_table: {:?},\n",
-            self.symbol_table.size()
+            sym_table_size
         ));
         result.push_str(&format!("  query_parts: {:?},\n", self.query_parts.len()));
         result.push_str(&format!("  alias_types: {:?},\n", self.alias_types.len()));
@@ -571,7 +583,7 @@ impl std::fmt::Debug for ValidationContext {
             .field("schema_manager", &"<SchemaProvider>")
             .field("anon_var_gen", &self.anon_var_gen)
             .field("anon_col_gen", &self.anon_col_gen)
-            .field("symbol_table", &self.symbol_table)
+            .field("symbol_table", &self.sym_table)
             .field("schemas", &self.schemas)
             .field("query_parts", &self.query_parts)
             .field("alias_types", &self.alias_types)
@@ -687,6 +699,10 @@ mod tests {
     fn test_variable_with_symbol_table() {
         let mut ctx = ValidationContext::new();
 
+        // 设置符号表
+        let sym_table = Arc::new(SymbolTable::new());
+        ctx.set_symbol_table(sym_table.clone());
+
         // 注册变量
         let cols = vec![
             Column {
@@ -710,7 +726,7 @@ mod tests {
         assert!(ctx.exists_var("test_var"));
 
         // 验证符号表中有该变量
-        assert!(ctx.symbol_table().has_variable("test_var"));
+        assert!(ctx.symbol_table().expect("符号表已设置").has_variable("test_var"));
     }
 
     #[test]

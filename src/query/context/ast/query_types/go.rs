@@ -1,19 +1,26 @@
 //! GO查询上下文
 
-use crate::query::context::ast::query_types::TraverseContext;
-use crate::query::context::ast::YieldColumns;
+use crate::core::types::expression::Expression;
+use crate::query::context::ast::{AstContext, ExpressionProps, FromType, Over, Starts, StepClause, YieldColumns};
 
 /// GO查询上下文
 ///
 /// GO遍历查询的上下文信息，包含：
-/// - 公共遍历字段（来自 TraverseContext）
+/// - 公共遍历字段
 /// - Yield表达式
 /// - 查询选项（distinct, random, limits等）
 /// - 属性表达式（src, dst, edge）
 /// - VID列名
 #[derive(Debug, Clone)]
 pub struct GoContext {
-    pub traverse: TraverseContext,
+    pub base: AstContext,
+    pub from: Starts,
+    pub steps: StepClause,
+    pub over: Over,
+    pub filter: Option<Expression>,
+    pub col_names: Vec<String>,
+    pub expr_props: ExpressionProps,
+    pub input_var_name: String,
     pub yield_expression: Option<YieldColumns>,
     pub distinct: bool,
     pub random: bool,
@@ -30,9 +37,16 @@ pub struct GoContext {
 }
 
 impl GoContext {
-    pub fn new(base: crate::query::context::ast::AstContext) -> Self {
+    pub fn new(base: AstContext) -> Self {
         Self {
-            traverse: TraverseContext::new(base),
+            base,
+            from: Starts::new(FromType::default()),
+            steps: StepClause::new(),
+            over: Over::new(),
+            filter: None,
+            col_names: Vec::new(),
+            expr_props: ExpressionProps::default(),
+            input_var_name: String::new(),
             yield_expression: None,
             distinct: false,
             random: false,

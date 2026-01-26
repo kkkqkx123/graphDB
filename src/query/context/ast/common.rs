@@ -4,6 +4,45 @@ use crate::core::types::EdgeDirection;
 use crate::query::validator::structs::clause_structs::YieldColumn;
 use std::collections::HashMap;
 
+/// 变量信息
+///
+/// 统一变量信息结构，用于存储查询中的变量元数据
+#[derive(Debug, Clone)]
+pub struct VariableInfo {
+    pub variable_name: String,
+    pub variable_type: String,
+    pub source_clause: String,
+    pub is_aggregated: bool,
+    pub properties: Vec<String>,
+}
+
+impl VariableInfo {
+    pub fn new(variable_name: String, variable_type: String) -> Self {
+        Self {
+            variable_name,
+            variable_type,
+            source_clause: String::new(),
+            is_aggregated: false,
+            properties: Vec::new(),
+        }
+    }
+
+    pub fn with_source_clause(mut self, source_clause: String) -> Self {
+        self.source_clause = source_clause;
+        self
+    }
+
+    pub fn with_properties(mut self, properties: Vec<String>) -> Self {
+        self.properties = properties;
+        self
+    }
+
+    pub fn with_aggregated(mut self, is_aggregated: bool) -> Self {
+        self.is_aggregated = is_aggregated;
+        self
+    }
+}
+
 /// 起始顶点类型 - 强类型枚举替代String
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FromType {

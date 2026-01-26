@@ -8,7 +8,6 @@ pub mod go;
 pub mod lookup;
 pub mod path;
 pub mod subgraph;
-pub mod traverse;
 
 // 重新导出所有查询类型上下文
 pub use fetch_edges::*;
@@ -17,4 +16,3 @@ pub use go::*;
 pub use lookup::*;
 pub use path::*;
 pub use subgraph::*;
-pub use traverse::*;

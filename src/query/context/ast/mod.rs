@@ -8,6 +8,6 @@ pub mod common;
 pub mod query_types;
 
 // 重新导出所有公共类型
-pub use base::{AstContext, QueryType, VariableInfo, AstContextTrait};
-pub use common::*;
+pub use base::{AstContext, QueryType, AstContextTrait};
+pub use common::{VariableInfo, *};
 pub use query_types::*;

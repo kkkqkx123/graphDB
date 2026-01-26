@@ -1,5 +1,6 @@
 //! 基础AST上下文定义
 
+use crate::query::context::ast::common::VariableInfo;
 use crate::query::context::execution::QueryContext;
 use crate::query::context::request_context::RequestContext;
 use crate::query::context::symbol::SymbolTable;
@@ -22,45 +23,6 @@ impl Default for QueryType {
     }
 }
 
-/// 变量信息
-///
-/// 统一变量信息结构，用于存储查询中的变量元数据
-#[derive(Debug, Clone)]
-pub struct VariableInfo {
-    pub variable_name: String,
-    pub variable_type: String,
-    pub source_clause: String,
-    pub is_aggregated: bool,
-    pub properties: Vec<String>,
-}
-
-impl VariableInfo {
-    pub fn new(variable_name: String, variable_type: String) -> Self {
-        Self {
-            variable_name,
-            variable_type,
-            source_clause: String::new(),
-            is_aggregated: false,
-            properties: Vec::new(),
-        }
-    }
-
-    pub fn with_source_clause(mut self, source_clause: String) -> Self {
-        self.source_clause = source_clause;
-        self
-    }
-
-    pub fn with_properties(mut self, properties: Vec<String>) -> Self {
-        self.properties = properties;
-        self
-    }
-
-    pub fn with_aggregated(mut self, is_aggregated: bool) -> Self {
-        self.is_aggregated = is_aggregated;
-        self
-    }
-}
-
 /// AST上下文接口
 pub trait AstContextTrait {
     fn get_query_context(&self) -> Option<Arc<QueryContext>>;
@@ -75,24 +37,23 @@ pub trait AstContextTrait {
 /// - QueryContext: 访问运行时资源
 /// - Sentence: 关联原始语法树节点
 /// - SpaceInfo: 支持多空间场景
-/// - SymbolTable: 符号表管理
 /// - QueryType: 查询类型标识
+///
+/// 注意：符号表由 QueryContext 持有，AstContext 通过 qctx.sym_table() 访问
 #[derive(Debug, Clone)]
 pub struct AstContext {
-    pub qctx: Option<Arc<QueryContext>>,
+    pub qctx: Arc<QueryContext>,
     pub sentence: Option<Stmt>,
     pub space: SpaceInfo,
-    pub symbol_table: SymbolTable,
     pub query_type: QueryType,
 }
 
 impl AstContext {
-    pub fn new(qctx: Option<Arc<QueryContext>>, sentence: Option<Stmt>) -> Self {
+    pub fn new(qctx: Arc<QueryContext>, sentence: Option<Stmt>) -> Self {
         Self {
             qctx,
             sentence,
             space: SpaceInfo::default(),
-            symbol_table: SymbolTable::new(),
             query_type: QueryType::default(),
         }
     }
@@ -105,10 +66,9 @@ impl AstContext {
         qctx.set_rctx(request_context);
         
         let ctx = Self {
-            qctx: Some(std::sync::Arc::new(qctx)),
+            qctx: std::sync::Arc::new(qctx),
             sentence: None,
             space: SpaceInfo::default(),
-            symbol_table: SymbolTable::new(),
             query_type: QueryType::default(),
         };
 
@@ -119,7 +79,7 @@ impl AstContext {
     }
 
     pub fn with_space(
-        qctx: Option<Arc<QueryContext>>,
+        qctx: Arc<QueryContext>,
         sentence: Option<Stmt>,
         space: SpaceInfo,
     ) -> Self {
@@ -127,13 +87,12 @@ impl AstContext {
             qctx,
             sentence,
             space,
-            symbol_table: SymbolTable::new(),
             query_type: QueryType::default(),
         }
     }
 
     pub fn with_query_type(
-        qctx: Option<Arc<QueryContext>>,
+        qctx: Arc<QueryContext>,
         sentence: Option<Stmt>,
         space: SpaceInfo,
         query_type: QueryType,
@@ -142,13 +101,12 @@ impl AstContext {
             qctx,
             sentence,
             space,
-            symbol_table: SymbolTable::new(),
             query_type,
         }
     }
 
-    pub fn query_context(&self) -> Option<&Arc<QueryContext>> {
-        self.qctx.as_ref()
+    pub fn query_context(&self) -> &QueryContext {
+        &self.qctx
     }
 
     pub fn sentence(&self) -> Option<&Stmt> {
@@ -168,11 +126,7 @@ impl AstContext {
     }
 
     pub fn symbol_table(&self) -> &SymbolTable {
-        &self.symbol_table
-    }
-
-    pub fn symbol_table_mut(&mut self) -> &mut SymbolTable {
-        &mut self.symbol_table
+        &self.qctx.sym_table()
     }
 
     pub fn query_type(&self) -> QueryType {
@@ -286,17 +240,16 @@ impl AstContextTrait for AstContext {
     }
 
     fn lookup_variable(&self, name: &str) -> Option<VariableInfo> {
-        self.symbol_table.get_variable_info(name)
+        self.symbol_table().get_variable_info(name)
     }
 }
 
 impl Default for AstContext {
     fn default() -> Self {
         Self {
-            qctx: None,
+            qctx: Arc::new(QueryContext::new()),
             sentence: None,
             space: SpaceInfo::default(),
-            symbol_table: SymbolTable::new(),
             query_type: QueryType::default(),
         }
     }
@@ -305,10 +258,9 @@ impl Default for AstContext {
 impl From<(&str, &str)> for AstContext {
     fn from((_query_type, _query_text): (&str, &str)) -> Self {
         Self {
-            qctx: None,
+            qctx: Arc::new(QueryContext::new()),
             sentence: None,
             space: SpaceInfo::default(),
-            symbol_table: SymbolTable::new(),
             query_type: QueryType::default(),
         }
     }
