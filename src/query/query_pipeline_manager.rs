@@ -73,16 +73,16 @@ impl<S: StorageEngine + 'static> QueryPipelineManager<S> {
 
     /// 解析查询文本为 AST 上下文
     ///
-    /// 直接生成 QueryAstContext，Parser 输出的 Stmt 会自动设置到上下文中
+    /// 直接生成 AstContext，Parser 输出的 Stmt 会自动设置到上下文中
     fn parse_into_context(
         &mut self,
         query_text: &str,
-    ) -> DBResult<crate::query::context::ast::QueryAstContext> {
+    ) -> DBResult<crate::query::context::ast::AstContext> {
         let mut parser = Parser::new(query_text);
         match parser.parse() {
             Ok(stmt) => {
-                let mut ast = crate::query::context::ast::QueryAstContext::new(query_text);
-                ast.set_statement(stmt);
+                let mut ast = crate::query::context::ast::AstContext::new(None, Some(stmt));
+                ast.set_query_type_from_statement();
                 Ok(ast)
             }
             Err(e) => Err(DBError::Query(crate::core::error::QueryError::ParseError(
@@ -95,9 +95,9 @@ impl<S: StorageEngine + 'static> QueryPipelineManager<S> {
     fn validate_query(
         &mut self,
         _query_context: &mut QueryContext,
-        ast: &crate::query::context::ast::QueryAstContext,
+        ast: &crate::query::context::ast::AstContext,
     ) -> DBResult<()> {
-        let _stmt = ast.base_context().sentence().ok_or_else(|| {
+        let _stmt = ast.sentence().ok_or_else(|| {
             DBError::Query(crate::core::error::QueryError::InvalidQuery(
                 "AST 上下文中缺少语句".to_string(),
             ))
@@ -114,10 +114,9 @@ impl<S: StorageEngine + 'static> QueryPipelineManager<S> {
     fn generate_execution_plan(
         &mut self,
         _query_context: &mut QueryContext,
-        ast: &crate::query::context::ast::QueryAstContext,
+        ast: &crate::query::context::ast::AstContext,
     ) -> DBResult<crate::query::planner::plan::ExecutionPlan> {
-        let ast_ctx = ast.base_context();
-        match self.planner.transform(ast_ctx) {
+        match self.planner.transform(ast) {
             Ok(sub_plan) => {
                 let mut plan = crate::query::planner::plan::ExecutionPlan::new(sub_plan.root().clone());
                 let uuid = uuid::Uuid::new_v4();
