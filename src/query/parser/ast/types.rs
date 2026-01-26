@@ -6,7 +6,7 @@
 pub use crate::core::types::operators::AggregateFunction as CoreAggregateFunction;
 pub use crate::core::types::EdgeDirection;
 
-pub use crate::query::parser::core::Span;
+pub use crate::core::types::Span;
 
 pub type BinaryOp = crate::core::types::operators::BinaryOperator;
 pub type UnaryOp = crate::core::types::operators::UnaryOperator;

@@ -2,8 +2,9 @@
 //! 对应 NebulaGraph DeduceTypeVisitor.h/.cpp 的功能
 
 use crate::core::types::expression::Expression;
+use crate::core::types::expression::visitor::{ExpressionVisitor, ExpressionVisitorState};
+use crate::core::expression_visitor::GenericExpressionVisitor;
 use crate::core::{
-    expression_visitor::{ExpressionVisitor, ExpressionVisitorState, GenericExpressionVisitor},
     TypeUtils, DataType, BinaryOperator, UnaryOperator, Value,
 };
 use crate::query::validator::ValidationContext;
@@ -434,7 +435,7 @@ impl<'a, S: StorageEngine> ExpressionVisitor for DeduceTypeVisitor<'a, S> {
     fn visit_case(
         &mut self,
         conditions: &[(Expression, Expression)],
-        default: &Option<Box<Expression>>,
+        default: Option<&Expression>,
     ) -> Self::Result {
         let mut result_type: Option<DataType> = None;
 
@@ -501,8 +502,8 @@ impl<'a, S: StorageEngine> ExpressionVisitor for DeduceTypeVisitor<'a, S> {
     fn visit_range(
         &mut self,
         collection: &Expression,
-        start: &Option<Box<Expression>>,
-        end: &Option<Box<Expression>>,
+        start: Option<&Expression>,
+        end: Option<&Expression>,
     ) -> Self::Result {
         self.visit_expression(collection)?;
         if let Some(start_expression) = start {
@@ -848,7 +849,7 @@ mod tests {
 impl<'a, S: StorageEngine> GenericExpressionVisitor<Expression> for DeduceTypeVisitor<'a, S> {
     type Result = Result<(), TypeDeductionError>;
 
-    fn visit(&mut self, expression: &Expression) -> Self::Result {
+    fn visit(&mut self, expression: &Expression) -> <Self as GenericExpressionVisitor<Expression>>::Result {
         self.visit_expression(expression)
     }
 }

@@ -1,17 +1,134 @@
 //! 表达式访问者模式
 //!
-//! 这个模块提供了统一的表达式访问者接口，支持泛型和特化两种模式
-//! 主要组件：
-//! - ExpressionVisitor: 特化的访问者trait，使用统一的Expression类型
-//! - GenericExpressionVisitor<T>: 泛型访问者接口，支持任意表达式类型
+//! 这个模块提供了表达式访问者接口。
+//!
+//! **重要**: 此模块保留旧的接口定义以保持向后兼容。
+//! 新代码请使用 `core::types::expression::visitor` 模块中的统一接口。
 
 use crate::core::types::expression::{DataType, Expression};
 use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 use crate::core::Value;
 use std::collections::HashMap;
 
+/// 表达式访问者状态
+#[derive(Debug, Clone)]
+pub struct ExpressionVisitorState {
+    pub continue_visiting: bool,
+    pub depth: usize,
+    pub max_depth_reached: usize,
+    pub visit_count: usize,
+    pub max_depth: Option<usize>,
+    pub custom_data: HashMap<String, Value>,
+}
+
+impl ExpressionVisitorState {
+    pub fn new() -> Self {
+        Self {
+            continue_visiting: true,
+            depth: 0,
+            max_depth_reached: 0,
+            visit_count: 0,
+            max_depth: None,
+            custom_data: HashMap::new(),
+        }
+    }
+
+    pub fn max_depth_reached(&self) -> usize {
+        self.max_depth_reached
+    }
+
+    pub fn depth(&self) -> usize {
+        self.depth
+    }
+
+    pub fn visit_count(&self) -> usize {
+        self.visit_count
+    }
+
+    pub fn set_max_depth(&mut self, max_depth: usize) {
+        self.max_depth = Some(max_depth);
+    }
+
+    pub fn clear_max_depth(&mut self) {
+        self.max_depth = None;
+    }
+
+    pub fn exceeds_max_depth(&self) -> bool {
+        if let Some(max) = self.max_depth {
+            self.depth > max
+        } else {
+            false
+        }
+    }
+
+    pub fn increment_depth(&mut self) {
+        self.depth += 1;
+        if self.depth > self.max_depth_reached {
+            self.max_depth_reached = self.depth;
+        }
+    }
+
+    pub fn decrement_depth(&mut self) {
+        if self.depth > 0 {
+            self.depth -= 1;
+        }
+    }
+
+    pub fn increment_visit_count(&mut self) {
+        self.visit_count += 1;
+    }
+
+    pub fn set_custom_data(&mut self, key: String, value: Value) {
+        self.custom_data.insert(key, value);
+    }
+
+    pub fn get_custom_data(&self, key: &str) -> Option<&Value> {
+        self.custom_data.get(key)
+    }
+
+    pub fn remove_custom_data(&mut self, key: &str) -> Option<Value> {
+        self.custom_data.remove(key)
+    }
+}
+
+impl Default for ExpressionVisitorState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// 表达式访问者结果类型
+pub type VisitorResult<T> = Result<T, VisitorError>;
+
+/// 表达式访问者错误类型
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum VisitorError {
+    MaxDepthExceeded,
+    VisitationStopped,
+    TypeMismatch(String),
+    Custom(String),
+}
+
+impl std::fmt::Display for VisitorError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            VisitorError::MaxDepthExceeded => write!(f, "超过最大深度限制"),
+            VisitorError::VisitationStopped => write!(f, "访问被停止"),
+            VisitorError::TypeMismatch(msg) => write!(f, "类型不匹配: {}", msg),
+            VisitorError::Custom(msg) => write!(f, "自定义错误: {}", msg),
+        }
+    }
+}
+
+impl std::error::Error for VisitorError {}
+
 pub mod prelude {
-    pub use super::{ExpressionVisitor, GenericExpressionVisitor};
+    pub use super::{
+        ExprAcceptor, ExpressionAcceptor, ExpressionDepthFirstVisitor,
+        ExpressionTransformer, ExpressionVisitor, ExpressionVisitorExt,
+        ExpressionVisitorState, ExpressionVisitable, GenericExpressionVisitor, VisitorError,
+        VisitorResult,
+    };
 }
 
 /// 泛型表达式访问者trait
@@ -44,7 +161,8 @@ impl ExpressionVisitable for Expression {
 
 /// 表达式访问者trait
 ///
-/// 使用统一的Expression类型，提供统一的表达式访问接口
+/// 此 trait 是向后兼容版本，用于遍历 Expression 类型。
+/// 新代码请考虑使用 `core::types::expression::visitor::ExpressionVisitor`。
 pub trait ExpressionVisitor: std::fmt::Debug + Send + Sync {
     /// 访问者结果类型
     type Result;
@@ -58,82 +176,65 @@ pub trait ExpressionVisitor: std::fmt::Debug + Send + Sync {
             Expression::Binary { left, op, right } => self.visit_binary(left, op, right),
             Expression::Unary { op, operand } => self.visit_unary(op, operand),
             Expression::Function { name, args } => self.visit_function(name, args),
-            Expression::Aggregate {
-                func,
-                arg,
-                distinct,
-            } => self.visit_aggregate(func, arg, *distinct),
+            Expression::Aggregate { func, arg, distinct } => {
+                self.visit_aggregate(func, arg, *distinct)
+            }
             Expression::List(items) => self.visit_list(items),
             Expression::Map(pairs) => self.visit_map(pairs),
-            Expression::Case {
-                conditions,
-                default,
-            } => self.visit_case(conditions, default),
-            Expression::TypeCast { expression, target_type } => self.visit_type_cast(expression, target_type),
-            Expression::Subscript { collection, index } => self.visit_subscript(collection, index),
-            Expression::Range {
-                collection,
-                start,
-                end,
-            } => self.visit_range(collection, start, end),
+            Expression::Case { conditions, default } => self.visit_case(conditions, default),
+            Expression::TypeCast { expression, target_type } => {
+                self.visit_type_cast(expression, target_type)
+            }
+            Expression::Subscript { collection, index } => {
+                self.visit_subscript(collection, index)
+            }
+            Expression::Range { collection, start, end } => {
+                self.visit_range(collection, start, end)
+            }
             Expression::Path(items) => self.visit_path(items),
             Expression::Label(name) => self.visit_label(name),
         }
     }
 
-    /// 访问统一Expression类型的便捷方法
+    /// 访问统一Expression类型的便捷方法（可选覆盖）
     fn visit(&mut self, expression: &Expression) -> Self::Result {
         self.visit_expression(expression)
     }
 
     /// Expression类型访问方法
     fn visit_literal(&mut self, value: &Value) -> Self::Result;
-
     fn visit_variable(&mut self, name: &str) -> Self::Result;
-
     fn visit_property(&mut self, object: &Expression, property: &str) -> Self::Result;
-
     fn visit_binary(
         &mut self,
         left: &Expression,
         op: &BinaryOperator,
         right: &Expression,
     ) -> Self::Result;
-
     fn visit_unary(&mut self, op: &UnaryOperator, operand: &Expression) -> Self::Result;
-
     fn visit_function(&mut self, name: &str, args: &[Expression]) -> Self::Result;
-
     fn visit_aggregate(
         &mut self,
         func: &AggregateFunction,
         arg: &Expression,
         distinct: bool,
     ) -> Self::Result;
-
     fn visit_list(&mut self, items: &[Expression]) -> Self::Result;
-
     fn visit_map(&mut self, pairs: &[(String, Expression)]) -> Self::Result;
-
     fn visit_case(
         &mut self,
         conditions: &[(Expression, Expression)],
         default: &Option<Box<Expression>>,
     ) -> Self::Result;
-
     fn visit_type_cast(&mut self, expression: &Expression, target_type: &DataType) -> Self::Result;
-
     fn visit_subscript(&mut self, collection: &Expression, index: &Expression) -> Self::Result;
-
     fn visit_range(
         &mut self,
         collection: &Expression,
         start: &Option<Box<Expression>>,
         end: &Option<Box<Expression>>,
     ) -> Self::Result;
-
     fn visit_path(&mut self, items: &[Expression]) -> Self::Result;
-
     fn visit_label(&mut self, name: &str) -> Self::Result;
 
     /// 预访问钩子 - 在访问开始前调用
@@ -163,140 +264,14 @@ pub trait ExpressionVisitor: std::fmt::Debug + Send + Sync {
     }
 }
 
-/// 表达式访问者状态
-#[derive(Debug, Clone)]
-pub struct ExpressionVisitorState {
-    /// 是否继续访问
-    pub continue_visiting: bool,
-    /// 访问深度
-    pub depth: usize,
-    /// 最大达到的深度
-    pub max_depth_reached: usize,
-    /// 访问计数
-    pub visit_count: usize,
-    /// 最大深度限制
-    pub max_depth: Option<usize>,
-    /// 自定义状态数据
-    pub custom_data: HashMap<String, Value>,
-}
-
-impl ExpressionVisitorState {
-    /// 创建新的访问者状态
-    pub fn new() -> Self {
-        Self {
-            continue_visiting: true,
-            depth: 0,
-            max_depth_reached: 0,
-            visit_count: 0,
-            max_depth: None,
-            custom_data: HashMap::new(),
-        }
-    }
-
-    /// 获取最大达到的深度
-    pub fn get_max_depth_reached(&self) -> usize {
-        self.max_depth_reached
-    }
-
-    /// 获取访问深度
-    pub fn depth(&self) -> usize {
-        self.depth
-    }
-
-    /// 获取访问计数
-    pub fn visit_count(&self) -> usize {
-        self.visit_count
-    }
-
-    /// 设置最大深度限制
-    pub fn set_max_depth(&mut self, max_depth: usize) {
-        self.max_depth = Some(max_depth);
-    }
-
-    /// 清除最大深度限制
-    pub fn clear_max_depth(&mut self) {
-        self.max_depth = None;
-    }
-
-    /// 检查是否超过最大深度
-    pub fn exceeds_max_depth(&self) -> bool {
-        if let Some(max) = self.max_depth {
-            self.depth > max
-        } else {
-            false
-        }
-    }
-
-    /// 增加访问深度
-    pub fn increment_depth(&mut self) {
-        self.depth += 1;
-        if self.depth > self.max_depth_reached {
-            self.max_depth_reached = self.depth;
-        }
-    }
-
-    /// 减少访问深度
-    pub fn decrement_depth(&mut self) {
-        if self.depth > 0 {
-            self.depth -= 1;
-        }
-    }
-
-    /// 增加访问计数
-    pub fn increment_visit_count(&mut self) {
-        self.visit_count += 1;
-    }
-
-    /// 设置自定义数据
-    pub fn set_custom_data(&mut self, key: String, value: Value) {
-        self.custom_data.insert(key, value);
-    }
-
-    /// 获取自定义数据
-    pub fn get_custom_data(&self, key: &str) -> Option<&Value> {
-        self.custom_data.get(key)
-    }
-
-    /// 移除自定义数据
-    pub fn remove_custom_data(&mut self, key: &str) -> Option<Value> {
-        self.custom_data.remove(key)
-    }
-}
-
-impl Default for ExpressionVisitorState {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+/// 表达式访问者状态类型
+pub type ExpressionVisitorStateAlias = ExpressionVisitorState;
 
 /// 表达式访问者结果类型
-pub type VisitorResult<T> = Result<T, VisitorError>;
+pub type VisitorResultAlias<T> = VisitorResult<T>;
 
 /// 表达式访问者错误类型
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum VisitorError {
-    /// 超过最大深度限制
-    MaxDepthExceeded,
-    /// 访问被停止
-    VisitationStopped,
-    /// 类型不匹配
-    TypeMismatch(String),
-    /// 自定义错误
-    Custom(String),
-}
-
-impl std::fmt::Display for VisitorError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            VisitorError::MaxDepthExceeded => write!(f, "超过最大深度限制"),
-            VisitorError::VisitationStopped => write!(f, "访问被停止"),
-            VisitorError::TypeMismatch(msg) => write!(f, "类型不匹配: {}", msg),
-            VisitorError::Custom(msg) => write!(f, "自定义错误: {}", msg),
-        }
-    }
-}
-
-impl std::error::Error for VisitorError {}
+pub type VisitorErrorAlias = VisitorError;
 
 /// 表达式深度优先遍历器trait
 ///
@@ -325,11 +300,11 @@ pub trait ExpressionDepthFirstVisitor: ExpressionVisitor {
             }
         }
 
-        let result = Ok(self.visit_expression(expression));
+        let result = self.visit_expression(expression);
 
         let state = self.state_mut();
         state.decrement_depth();
-        result
+        Ok(result)
     }
 }
 
@@ -368,11 +343,7 @@ pub trait ExpressionTransformer: ExpressionVisitor<Result = Expression> {
                     args: new_args,
                 }
             }
-            Expression::Aggregate {
-                func,
-                arg,
-                distinct,
-            } => {
+            Expression::Aggregate { func, arg, distinct } => {
                 let new_arg = self.transform(arg);
                 Expression::Aggregate {
                     func: func.clone(),
@@ -474,7 +445,9 @@ impl ExprAcceptor for Expression {
     }
 }
 
-/// 表达式访问者辅助trait - 提供额外的实用方法
+/// 表达式访问者辅助trait
+///
+/// 提供额外的实用方法
 pub trait ExpressionVisitorExt: ExpressionVisitor {
     /// 获取表达式树的最大深度
     fn max_depth(&mut self, expression: &Expression) -> usize {
@@ -539,3 +512,418 @@ pub trait ExpressionVisitorExt: ExpressionVisitor {
 
 /// 为所有实现了ExpressionVisitor的类型自动实现ExpressionVisitorExt
 impl<T: ExpressionVisitor> ExpressionVisitorExt for T {}
+
+/// Adapter: 将 ExpressionVisitor 转换为新版 ExpressionVisitor
+///
+/// 用于在旧版接口和新版接口之间进行兼容
+#[derive(Debug, Clone)]
+pub struct LegacyToNewAdapter<T: ExpressionVisitor> {
+    visitor: T,
+}
+
+impl<T: ExpressionVisitor> LegacyToNewAdapter<T> {
+    /// 创建新的适配器
+    pub fn new(visitor: T) -> Self {
+        Self { visitor }
+    }
+
+    /// 获取内部 visitor
+    pub fn inner(&self) -> &T {
+        &self.visitor
+    }
+
+    /// 获取内部 visitor 的可变引用
+    pub fn inner_mut(&mut self) -> &mut T {
+        &mut self.visitor
+    }
+}
+
+impl<T: ExpressionVisitor> crate::core::types::expression::visitor::ExpressionVisitor
+    for LegacyToNewAdapter<T>
+{
+    type Result = T::Result;
+
+    fn visit_expression(&mut self, expression: &Expression) -> Self::Result {
+        self.visitor.visit_expression(expression)
+    }
+
+    fn visit_literal(&mut self, value: &Value) -> Self::Result {
+        self.visitor.visit_literal(value)
+    }
+
+    fn visit_variable(&mut self, name: &str) -> Self::Result {
+        self.visitor.visit_variable(name)
+    }
+
+    fn visit_property(&mut self, object: &Expression, property: &str) -> Self::Result {
+        self.visitor.visit_property(object, property)
+    }
+
+    fn visit_binary(
+        &mut self,
+        left: &Expression,
+        op: &BinaryOperator,
+        right: &Expression,
+    ) -> Self::Result {
+        self.visitor.visit_binary(left, op, right)
+    }
+
+    fn visit_unary(&mut self, op: &UnaryOperator, operand: &Expression) -> Self::Result {
+        self.visitor.visit_unary(op, operand)
+    }
+
+    fn visit_function(&mut self, name: &str, args: &[Expression]) -> Self::Result {
+        self.visitor.visit_function(name, args)
+    }
+
+    fn visit_aggregate(
+        &mut self,
+        func: &AggregateFunction,
+        arg: &Expression,
+        distinct: bool,
+    ) -> Self::Result {
+        self.visitor.visit_aggregate(func, arg, distinct)
+    }
+
+    fn visit_list(&mut self, items: &[Expression]) -> Self::Result {
+        self.visitor.visit_list(items)
+    }
+
+    fn visit_map(&mut self, pairs: &[(String, Expression)]) -> Self::Result {
+        self.visitor.visit_map(pairs)
+    }
+
+    fn visit_case(
+        &mut self,
+        conditions: &[(Expression, Expression)],
+        default: Option<&Expression>,
+    ) -> Self::Result {
+        let default_ref = default.map(|e| Box::new(e.clone()));
+        self.visitor.visit_case(conditions, &default_ref)
+    }
+
+    fn visit_type_cast(&mut self, expression: &Expression, target_type: &DataType) -> Self::Result {
+        self.visitor.visit_type_cast(expression, target_type)
+    }
+
+    fn visit_subscript(&mut self, collection: &Expression, index: &Expression) -> Self::Result {
+        self.visitor.visit_subscript(collection, index)
+    }
+
+    fn visit_range(
+        &mut self,
+        collection: &Expression,
+        start: Option<&Expression>,
+        end: Option<&Expression>,
+    ) -> Self::Result {
+        let start_ref = start.map(|e| Box::new(e.clone()));
+        let end_ref = end.map(|e| Box::new(e.clone()));
+        self.visitor.visit_range(collection, &start_ref, &end_ref)
+    }
+
+    fn visit_path(&mut self, items: &[Expression]) -> Self::Result {
+        self.visitor.visit_path(items)
+    }
+
+    fn visit_label(&mut self, name: &str) -> Self::Result {
+        self.visitor.visit_label(name)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::types::operators::BinaryOperator;
+
+    /// 测试用的简单访问者
+    struct CountingVisitor {
+        count: usize,
+        state: ExpressionVisitorState,
+    }
+
+    impl CountingVisitor {
+        fn new() -> Self {
+            Self {
+                count: 0,
+                state: ExpressionVisitorState::new(),
+            }
+        }
+    }
+
+    impl ExpressionVisitor for CountingVisitor {
+        type Result = usize;
+
+        fn visit_literal(&mut self, _value: &Value) -> Self::Result {
+            self.count += 1;
+            self.count
+        }
+
+        fn visit_variable(&mut self, _name: &str) -> Self::Result {
+            self.count += 1;
+            self.count
+        }
+
+        fn visit_property(&mut self, object: &Expression, _property: &str) -> Self::Result {
+            self.visit_expression(object)
+        }
+
+        fn visit_binary(
+            &mut self,
+            left: &Expression,
+            _op: &BinaryOperator,
+            right: &Expression,
+        ) -> Self::Result {
+            self.visit_expression(left)?;
+            self.visit_expression(right)?;
+            Ok(self.count)
+        }
+
+        fn visit_unary(&mut self, _op: &UnaryOperator, operand: &Expression) -> Self::Result {
+            self.visit_expression(operand)
+        }
+
+        fn visit_function(&mut self, _name: &str, args: &[Expression]) -> Self::Result {
+            for arg in args {
+                self.visit_expression(arg)?;
+            }
+            Ok(self.count)
+        }
+
+        fn visit_aggregate(
+            &mut self,
+            _func: &AggregateFunction,
+            arg: &Expression,
+            _distinct: bool,
+        ) -> Self::Result {
+            self.visit_expression(arg)
+        }
+
+        fn visit_list(&mut self, items: &[Expression]) -> Self::Result {
+            for item in items {
+                self.visit_expression(item)?;
+            }
+            Ok(self.count)
+        }
+
+        fn visit_map(&mut self, pairs: &[(String, Expression)]) -> Self::Result {
+            for (_, value) in pairs {
+                self.visit_expression(value)?;
+            }
+            Ok(self.count)
+        }
+
+        fn visit_case(
+            &mut self,
+            conditions: &[(Expression, Expression)],
+            default: &Option<Box<Expression>>,
+        ) -> Self::Result {
+            for (when, then) in conditions {
+                self.visit_expression(when)?;
+                self.visit_expression(then)?;
+            }
+            if let Some(default) = default {
+                self.visit_expression(default)?;
+            }
+            Ok(self.count)
+        }
+
+        fn visit_type_cast(&mut self, expression: &Expression, _target_type: &DataType) -> Self::Result {
+            self.visit_expression(expression)
+        }
+
+        fn visit_subscript(&mut self, collection: &Expression, index: &Expression) -> Self::Result {
+            self.visit_expression(collection)?;
+            self.visit_expression(index)
+        }
+
+        fn visit_range(
+            &mut self,
+            collection: &Expression,
+            start: &Option<Box<Expression>>,
+            end: &Option<Box<Expression>>,
+        ) -> Self::Result {
+            self.visit_expression(collection)?;
+            if let Some(start) = start {
+                self.visit_expression(start)?;
+            }
+            if let Some(end) = end {
+                self.visit_expression(end)?;
+            }
+            Ok(self.count)
+        }
+
+        fn visit_path(&mut self, items: &[Expression]) -> Self::Result {
+            for item in items {
+                self.visit_expression(item)?;
+            }
+            Ok(self.count)
+        }
+
+        fn visit_label(&mut self, _name: &str) -> Self::Result {
+            self.count += 1;
+            Ok(self.count)
+        }
+    }
+
+    #[test]
+    fn test_new_visitor_interface() {
+        let expr = Expression::binary(
+            Expression::variable("a"),
+            BinaryOperator::Add,
+            Expression::variable("b"),
+        );
+
+        let mut visitor = CountingVisitor::new();
+        let result = visitor.visit_expression(&expr);
+
+        assert!(result.is_ok());
+        assert_eq!(visitor.count, 2);
+    }
+
+    #[test]
+    fn test_legacy_adapter() {
+        struct LegacyVisitor {
+            count: usize,
+        }
+
+        impl LegacyVisitor {
+            fn new() -> Self {
+                Self { count: 0 }
+            }
+        }
+
+        impl ExpressionVisitor for LegacyVisitor {
+            type Result = usize;
+
+            fn visit(&mut self, expression: &Expression) -> Self::Result {
+                self.visit_expression(expression)
+            }
+
+            fn visit_literal(&mut self, _value: &Value) -> Self::Result {
+                self.count += 1;
+                self.count
+            }
+
+            fn visit_variable(&mut self, _name: &str) -> Self::Result {
+                self.count += 1;
+                self.count
+            }
+
+            fn visit_property(&mut self, object: &Expression, _property: &str) -> Self::Result {
+                self.visit_expression(object)
+            }
+
+            fn visit_binary(
+                &mut self,
+                left: &Expression,
+                _op: &BinaryOperator,
+                right: &Expression,
+            ) -> Self::Result {
+                self.visit_expression(left)?;
+                self.visit_expression(right)?;
+                Ok(self.count)
+            }
+
+            fn visit_unary(&mut self, _op: &UnaryOperator, operand: &Expression) -> Self::Result {
+                self.visit_expression(operand)
+            }
+
+            fn visit_function(&mut self, _name: &str, args: &[Expression]) -> Self::Result {
+                for arg in args {
+                    self.visit_expression(arg)?;
+                }
+                Ok(self.count)
+            }
+
+            fn visit_aggregate(
+                &mut self,
+                _func: &AggregateFunction,
+                arg: &Expression,
+                _distinct: bool,
+            ) -> Self::Result {
+                self.visit_expression(arg)
+            }
+
+            fn visit_list(&mut self, items: &[Expression]) -> Self::Result {
+                for item in items {
+                    self.visit_expression(item)?;
+                }
+                Ok(self.count)
+            }
+
+            fn visit_map(&mut self, pairs: &[(String, Expression)]) -> Self::Result {
+                for (_, value) in pairs {
+                    self.visit_expression(value)?;
+                }
+                Ok(self.count)
+            }
+
+            fn visit_case(
+                &mut self,
+                conditions: &[(Expression, Expression)],
+                default: &Option<Box<Expression>>,
+            ) -> Self::Result {
+                for (when, then) in conditions {
+                    self.visit_expression(when)?;
+                    self.visit_expression(then)?;
+                }
+                if let Some(default) = default {
+                    self.visit_expression(default)?;
+                }
+                Ok(self.count)
+            }
+
+            fn visit_type_cast(&mut self, expression: &Expression, _target_type: &DataType) -> Self::Result {
+                self.visit_expression(expression)
+            }
+
+            fn visit_subscript(&mut self, collection: &Expression, index: &Expression) -> Self::Result {
+                self.visit_expression(collection)?;
+                self.visit_expression(index)
+            }
+
+            fn visit_range(
+                &mut self,
+                collection: &Expression,
+                start: &Option<Box<Expression>>,
+                end: &Option<Box<Expression>>,
+            ) -> Self::Result {
+                self.visit_expression(collection)?;
+                if let Some(start) = start {
+                    self.visit_expression(start)?;
+                }
+                if let Some(end) = end {
+                    self.visit_expression(end)?;
+                }
+                Ok(self.count)
+            }
+
+            fn visit_path(&mut self, items: &[Expression]) -> Self::Result {
+                for item in items {
+                    self.visit_expression(item)?;
+                }
+                Ok(self.count)
+            }
+
+            fn visit_label(&mut self, _name: &str) -> Self::Result {
+                self.count += 1;
+                Ok(self.count)
+            }
+
+            fn state(&self) -> &ExpressionVisitorState {
+                panic!("Not implemented for test")
+            }
+
+            fn state_mut(&mut self) -> &mut ExpressionVisitorState {
+                panic!("Not implemented for test")
+            }
+        }
+
+        // Test that the module exports work correctly
+        let _ = prelude::ExpressionVisitor;
+        let _ = ExpressionDepthFirstVisitor;
+        let _ = ExpressionTransformer;
+        let _ = ExpressionVisitorExt;
+        let _ = ExpressionVisitorState::new();
+    }
+}

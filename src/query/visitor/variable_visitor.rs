@@ -1,7 +1,7 @@
 //! VariableVisitor - 用于收集表达式中变量的访问器
 //! 对应 NebulaGraph VariableVisitor.h/.cpp 的功能
 
-use crate::core::expression_visitor::{ExpressionVisitor, ExpressionVisitorState};
+use crate::core::types::expression::visitor::{ExpressionVisitor, ExpressionVisitorState};
 use crate::core::Value;
 use crate::core::Expression;
 use std::collections::HashSet;
@@ -116,7 +116,7 @@ impl ExpressionVisitor for VariableVisitor {
     fn visit_case(
         &mut self,
         conditions: &[(Expression, Expression)],
-        default: &Option<Box<Expression>>,
+        default: Option<&Expression>,
     ) -> Self::Result {
         for (condition, value) in conditions {
             self.visit_expression(condition);
@@ -143,8 +143,8 @@ impl ExpressionVisitor for VariableVisitor {
     fn visit_range(
         &mut self,
         collection: &Expression,
-        start: &Option<Box<Expression>>,
-        end: &Option<Box<Expression>>,
+        start: Option<&Expression>,
+        end: Option<&Expression>,
     ) -> Self::Result {
         self.visit_expression(collection);
         if let Some(expression) = start {

@@ -2,7 +2,7 @@
 #[cfg(test)]
 use super::*;
 use crate::core::Value;
-use crate::query::parser::core::position::Position;
+use crate::core::types::Position;
 
 mod expr_tests {
     use super::*;

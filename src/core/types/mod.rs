@@ -8,6 +8,7 @@ pub mod expression;
 pub mod graph_schema;
 pub mod operators;
 pub mod metadata;
+pub mod span;
 
 /// 统一的数据类型枚举
 ///
@@ -40,7 +41,7 @@ pub enum DataType {
 }
 
 // 重新导出常用类型
-pub use expression::{Expression};
+pub use expression::{Expression, ExpressionMeta};
 pub use graph_schema::{EdgeDirection, GraphTypeInference, VertexType, EdgeTypeInfo, PathInfo, PropertyType};
 pub use operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 pub use metadata::{
@@ -48,3 +49,4 @@ pub use metadata::{
     PropertyDef, InsertVertexInfo, InsertEdgeInfo, UpdateInfo,
     UpdateTarget, UpdateOp, PasswordInfo,
 };
+pub use span::{Position, Span, ToSpan};

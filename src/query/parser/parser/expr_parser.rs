@@ -6,7 +6,7 @@ use crate::core::Value;
 use crate::query::parser::ast::types::{BinaryOp, UnaryOp};
 use crate::query::parser::ast::expression::*;
 use crate::query::parser::core::error::{ParseError, ParseErrorKind};
-use crate::query::parser::core::position::Span;
+use crate::core::types::Span;
 use crate::query::parser::parser::ParseContext;
 use crate::query::parser::TokenKind;
 

@@ -6,8 +6,8 @@
 //! - 优化查询性能，减少运行时计算
 
 use crate::core::types::expression::Expression;
+use crate::core::types::expression::visitor::{ExpressionVisitor, ExpressionVisitorState};
 use crate::core::{
-    expression_visitor::{ExpressionVisitor, ExpressionVisitorState},
     BinaryOperator, DataType, UnaryOperator, Value,
 };
 use crate::core::types::operators::AggregateFunction;
@@ -499,7 +499,7 @@ impl ExpressionVisitor for FoldConstantExprVisitor {
     fn visit_case(
         &mut self,
         conditions: &[(Expression, Expression)],
-        default: &Option<Box<Expression>>,
+        default: Option<&Expression>,
     ) -> Self::Result {
         for (cond, expression) in conditions {
             self.visit_expression(cond)?;
@@ -523,8 +523,8 @@ impl ExpressionVisitor for FoldConstantExprVisitor {
     fn visit_range(
         &mut self,
         collection: &Expression,
-        start: &Option<Box<Expression>>,
-        end: &Option<Box<Expression>>,
+        start: Option<&Expression>,
+        end: Option<&Expression>,
     ) -> Self::Result {
         self.visit_expression(collection)?;
         if let Some(start_expression) = start {
@@ -547,11 +547,11 @@ impl ExpressionVisitor for FoldConstantExprVisitor {
         Ok(())
     }
 
-    fn state(&self) -> &crate::core::expression_visitor::ExpressionVisitorState {
+    fn state(&self) -> &ExpressionVisitorState {
         &self.state
     }
 
-    fn state_mut(&mut self) -> &mut crate::core::expression_visitor::ExpressionVisitorState {
+    fn state_mut(&mut self) -> &mut ExpressionVisitorState {
         &mut self.state
     }
 }

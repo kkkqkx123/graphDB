@@ -5,7 +5,7 @@ pub mod functions;
 pub mod storage;
 
 // 重新导出expression模块的访问器
-pub use crate::core::expression_visitor::{
+pub use crate::core::types::expression::visitor::{
     ExpressionAcceptor, ExpressionDepthFirstVisitor, ExpressionTransformer, ExpressionVisitor,
 };
 

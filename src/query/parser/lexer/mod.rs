@@ -3,7 +3,7 @@ pub mod lexer;
 pub use crate::query::parser::{Token, TokenKind};
 pub use lexer::Lexer;
 
-use crate::query::parser::core::position::Position;
+use crate::core::types::Position;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct LexError {

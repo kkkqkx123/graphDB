@@ -61,6 +61,15 @@ use crate::core::{NullType, Value};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
+pub mod expression;
+pub use expression::{ExpressionId, ExpressionMeta};
+
+pub mod visitor;
+pub use visitor::{
+    ExpressionDepthFirstVisitor, ExpressionTransformer, ExpressionVisitor,
+    ExpressionVisitorExt, ExpressionVisitorState, VisitorError, VisitorResult,
+};
+
 /// 统一表达式类型
 ///
 /// 包含位置信息（`span` 字段）的表达式枚举，用于：
@@ -324,6 +333,103 @@ impl Expression {
                     child.collect_variables(variables);
                 }
             }
+        }
+    }
+
+    pub fn is_literal(&self) -> bool {
+        matches!(self, Expression::Literal(_))
+    }
+
+    pub fn as_literal(&self) -> Option<&Value> {
+        match self {
+            Expression::Literal(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn is_variable(&self) -> bool {
+        matches!(self, Expression::Variable(_))
+    }
+
+    pub fn as_variable(&self) -> Option<&str> {
+        match self {
+            Expression::Variable(name) => Some(name),
+            _ => None,
+        }
+    }
+
+    pub fn is_aggregate(&self) -> bool {
+        matches!(self, Expression::Aggregate { .. })
+    }
+
+    pub fn to_expression_string(&self) -> String {
+        match self {
+            Expression::Literal(v) => format!("{:?}", v),
+            Expression::Variable(name) => name.clone(),
+            Expression::Property { object, property } => {
+                format!("{}.{}", object.to_expression_string(), property)
+            }
+            Expression::Binary { left, op, right } => {
+                format!("({} {} {})", left.to_expression_string(), op.name(), right.to_expression_string())
+            }
+            Expression::Unary { op, operand } => {
+                format!("({} {})", op.name(), operand.to_expression_string())
+            }
+            Expression::Function { name, args } => {
+                let args_str = args.iter()
+                    .map(|e| e.to_expression_string())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("{}({})", name, args_str)
+            }
+            Expression::Aggregate { func, arg, distinct } => {
+                let distinct_str = if *distinct { "DISTINCT " } else { "" };
+                format!("{}({}{})", func.name(), distinct_str, arg.to_expression_string())
+            }
+            Expression::List(items) => {
+                let items_str = items.iter()
+                    .map(|e| e.to_expression_string())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("[{}]", items_str)
+            }
+            Expression::Map(pairs) => {
+                let pairs_str = pairs.iter()
+                    .map(|(k, v)| format!("{}: {}", k, v.to_expression_string()))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("{{{}}}", pairs_str)
+            }
+            Expression::Case { conditions, default } => {
+                let mut result = String::from("CASE ");
+                for (cond, value) in conditions {
+                    result.push_str(&format!("WHEN {} THEN {} ", cond.to_expression_string(), value.to_expression_string()));
+                }
+                if let Some(def) = default {
+                    result.push_str(&format!("ELSE {} ", def.to_expression_string()));
+                }
+                result.push_str("END");
+                result
+            }
+            Expression::TypeCast { expression, target_type } => {
+                format!("({} AS {:?})", expression.to_expression_string(), target_type)
+            }
+            Expression::Subscript { collection, index } => {
+                format!("{}[{}]", collection.to_expression_string(), index.to_expression_string())
+            }
+            Expression::Range { collection, start, end } => {
+                let start_str = start.as_ref().map(|e| e.to_expression_string()).unwrap_or_default();
+                let end_str = end.as_ref().map(|e| e.to_expression_string()).unwrap_or_default();
+                format!("{}[{}..{}]", collection.to_expression_string(), start_str, end_str)
+            }
+            Expression::Path(items) => {
+                let items_str = items.iter()
+                    .map(|e| e.to_expression_string())
+                    .collect::<Vec<_>>()
+                    .join("->");
+                format!("({})", items_str)
+            }
+            Expression::Label(name) => format!(":{}", name),
         }
     }
 }

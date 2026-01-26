@@ -2,7 +2,7 @@
 //! 对应 NebulaGraph ExtractFilterExprVisitor.h/.cpp 的功能
 
 use crate::core::types::expression::Expression;
-use crate::core::expression_visitor::{ExpressionVisitor, ExpressionVisitorState};
+use crate::core::types::expression::visitor::{ExpressionVisitor, ExpressionVisitorState};
 use crate::core::Value;
 use crate::core::{AggregateFunction, BinaryOperator, DataType, UnaryOperator};
 
@@ -153,7 +153,7 @@ impl ExpressionVisitor for ExtractFilterExprVisitor {
     fn visit_case(
         &mut self,
         conditions: &[(Expression, Expression)],
-        default: &Option<Box<Expression>>,
+        default: Option<&Expression>,
     ) -> Self::Result {
         for (cond, expression) in conditions {
             self.visit_expression(cond)?;
@@ -177,8 +177,8 @@ impl ExpressionVisitor for ExtractFilterExprVisitor {
     fn visit_range(
         &mut self,
         collection: &Expression,
-        start: &Option<Box<Expression>>,
-        end: &Option<Box<Expression>>,
+        start: Option<&Expression>,
+        end: Option<&Expression>,
     ) -> Self::Result {
         self.visit_expression(collection)?;
         if let Some(s) = start {

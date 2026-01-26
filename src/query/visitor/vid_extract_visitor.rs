@@ -8,8 +8,8 @@
 //! - 用于查询优化，将过滤条件转换为索引查找
 
 use crate::core::types::expression::Expression;
+use crate::core::types::expression::visitor::{ExpressionVisitor, ExpressionVisitorState};
 use crate::core::{
-    expression_visitor::{ExpressionVisitor, ExpressionVisitorState},
     BinaryOperator, DataType, UnaryOperator, Value,
 };
 use crate::core::types::operators::AggregateFunction;
@@ -326,7 +326,7 @@ impl ExpressionVisitor for VidExtractVisitor {
     fn visit_case(
         &mut self,
         conditions: &[(Expression, Expression)],
-        default: &Option<Box<Expression>>,
+        default: Option<&Expression>,
     ) -> Self::Result {
         for (cond, expression) in conditions {
             self.visit_expression(cond)?;
@@ -350,8 +350,8 @@ impl ExpressionVisitor for VidExtractVisitor {
     fn visit_range(
         &mut self,
         collection: &Expression,
-        start: &Option<Box<Expression>>,
-        end: &Option<Box<Expression>>,
+        start: Option<&Expression>,
+        end: Option<&Expression>,
     ) -> Self::Result {
         self.visit_expression(collection)?;
         if let Some(start_expression) = start {

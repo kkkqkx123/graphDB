@@ -16,7 +16,7 @@
 //! - 简化路径表达式处理
 
 use crate::query::parser::ast::expression::Expression;
-use crate::query::parser::core::Span;
+use crate::core::types::Span;
 use crate::query::planner::statements::clauses::clause_planner::ClausePlanner;
 use crate::query::planner::statements::core::{
     ClauseType, CypherClausePlanner, DataFlowNode, FlowDirection, PlanningContext, QueryInfo,

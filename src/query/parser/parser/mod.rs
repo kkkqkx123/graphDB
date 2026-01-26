@@ -12,8 +12,7 @@ use crate::query::parser::lexer::Lexer;
 use crate::query::parser::lexer::LexError;
 use crate::query::parser::Token;
 use crate::query::parser::core::error::{ParseError, ParseErrorKind};
-use crate::query::parser::core::position::Position;
-use crate::query::parser::core::position::Span;
+use crate::core::types::{Position, Span};
 use crate::query::parser::TokenKind;
 use crate::query::parser::ParseErrors;
 

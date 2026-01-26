@@ -2,7 +2,7 @@
 //!
 //! 用于修剪未使用的属性，优化查询计划
 
-use crate::core::expression_visitor::{ExpressionVisitor, ExpressionVisitorState};
+use crate::core::types::expression::visitor::{ExpressionVisitor, ExpressionVisitorState};
 use crate::core::types::expression::Expression;
 use crate::query::optimizer::property_tracker::PropertyTracker;
 use std::collections::HashSet;
@@ -68,7 +68,7 @@ impl PrunePropertiesVisitor {
 
     /// 获取最大达到的深度
     pub fn get_max_depth_reached(&self) -> usize {
-        self.state.get_max_depth_reached()
+        self.state.max_depth_reached()
     }
 }
 
@@ -84,7 +84,7 @@ impl ExpressionVisitor for PrunePropertiesVisitor {
     }
 
     fn visit_expression(&mut self, expression: &Expression) -> Self::Result {
-        if !self.should_continue() {
+        if !self.state.continue_visiting {
             return;
         }
 
@@ -219,7 +219,7 @@ impl ExpressionVisitor for PrunePropertiesVisitor {
     fn visit_case(
         &mut self,
         conditions: &[(Expression, Expression)],
-        default: &Option<Box<Expression>>,
+        default: Option<&Expression>,
     ) -> Self::Result {
         for (condition, expression) in conditions {
             self.visit_expression(condition);
@@ -246,8 +246,8 @@ impl ExpressionVisitor for PrunePropertiesVisitor {
     fn visit_range(
         &mut self,
         collection: &Expression,
-        start: &Option<Box<Expression>>,
-        end: &Option<Box<Expression>>,
+        start: Option<&Expression>,
+        end: Option<&Expression>,
     ) -> Self::Result {
         self.visit_expression(collection);
         if let Some(start_expression) = start {
