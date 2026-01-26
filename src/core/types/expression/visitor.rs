@@ -595,7 +595,7 @@ mod tests {
 
         fn visit_label(&mut self, _name: &str) -> Self::Result {
             self.count += 1;
-            Ok(self.count)
+            self.count
         }
     }
 
@@ -610,8 +610,7 @@ mod tests {
         let mut visitor = CountingVisitor { count: 0 };
         let result = visitor.visit_expression(&expr);
 
-        assert!(result.is_ok());
-        assert_eq!(visitor.count, 2);
+        assert_eq!(result, 2);
     }
 
     #[test]

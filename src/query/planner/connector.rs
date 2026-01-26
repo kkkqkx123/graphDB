@@ -4,6 +4,7 @@
 
 use crate::query::context::QueryContext;
 use crate::query::planner::plan::{PlanNodeEnum, SubPlan};
+use crate::query::planner::planner::PlannerError;
 use std::collections::HashSet;
 
 /// 连接类型枚举
@@ -29,15 +30,15 @@ impl SegmentsConnector {
         left: SubPlan,
         right: SubPlan,
         _inter_aliases: HashSet<&str>,
-    ) -> SubPlan {
+    ) -> Result<SubPlan, PlannerError> {
         let left_root = match left.root {
             Some(ref r) => r,
-            None => return right,
+            None => return Ok(right),
         };
 
         let right_root = match right.root {
             Some(ref r) => r,
-            None => return left,
+            None => return Ok(left),
         };
 
         let _col_names = left_root.col_names().to_vec();
@@ -48,21 +49,13 @@ impl SegmentsConnector {
                 vec![],
                 vec![],
             )
-            .unwrap_or_else(|_| {
-                crate::query::planner::plan::core::nodes::InnerJoinNode::new(
-                    PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new()),
-                    PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new()),
-                    vec![],
-                    vec![],
-                )
-                .unwrap()
-            }),
+            .map_err(|e| PlannerError::JoinFailed(format!("内连接节点创建失败: {}", e)))?,
         );
 
-        SubPlan {
+        Ok(SubPlan {
             root: Some(join_node),
             tail: left.tail.or(right.tail),
-        }
+        })
     }
 
     /// 创建左连接
@@ -73,15 +66,15 @@ impl SegmentsConnector {
         left: SubPlan,
         right: SubPlan,
         _inter_aliases: HashSet<&str>,
-    ) -> SubPlan {
+    ) -> Result<SubPlan, PlannerError> {
         let left_root = match left.root {
             Some(ref r) => r,
-            None => return right,
+            None => return Ok(right),
         };
 
         let right_root = match right.root {
             Some(ref r) => r,
-            None => return left,
+            None => return Ok(left),
         };
 
         let join_node = PlanNodeEnum::LeftJoin(
@@ -91,21 +84,13 @@ impl SegmentsConnector {
                 vec![],
                 vec![],
             )
-            .unwrap_or_else(|_| {
-                crate::query::planner::plan::core::nodes::LeftJoinNode::new(
-                    PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new()),
-                    PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new()),
-                    vec![],
-                    vec![],
-                )
-                .unwrap()
-            }),
+            .map_err(|e| PlannerError::JoinFailed(format!("左连接节点创建失败: {}", e)))?,
         );
 
-        SubPlan {
+        Ok(SubPlan {
             root: Some(join_node),
             tail: left.tail.or(right.tail),
-        }
+        })
     }
 
     /// 添加输入
@@ -121,15 +106,15 @@ impl SegmentsConnector {
     /// 创建交叉连接
     ///
     /// 将两个计划进行笛卡尔积连接
-    pub fn cross_join(left: SubPlan, right: SubPlan) -> SubPlan {
+    pub fn cross_join(left: SubPlan, right: SubPlan) -> Result<SubPlan, PlannerError> {
         let left_root = match left.root {
             Some(ref r) => r,
-            None => return right,
+            None => return Ok(right),
         };
 
         let right_root = match right.root {
             Some(ref r) => r,
-            None => return left,
+            None => return Ok(left),
         };
 
         let join_node = PlanNodeEnum::CrossJoin(
@@ -137,19 +122,13 @@ impl SegmentsConnector {
                 left_root.clone(),
                 right_root.clone(),
             )
-            .unwrap_or_else(|_| {
-                crate::query::planner::plan::core::nodes::CrossJoinNode::new(
-                    PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new()),
-                    PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new()),
-                )
-                .unwrap()
-            }),
+            .map_err(|e| PlannerError::JoinFailed(format!("交叉连接节点创建失败: {}", e)))?,
         );
 
-        SubPlan {
+        Ok(SubPlan {
             root: Some(join_node),
             tail: left.tail.or(right.tail),
-        }
+        })
     }
 }
 
@@ -167,7 +146,8 @@ mod tests {
         ));
 
         let result = SegmentsConnector::inner_join(&QueryContext::new(), left, right, HashSet::new());
-        assert!(result.root.is_some());
+        assert!(result.is_ok());
+        assert!(result.unwrap().root.is_some());
     }
 
     #[test]
@@ -180,7 +160,8 @@ mod tests {
         ));
 
         let result = SegmentsConnector::left_join(&QueryContext::new(), left, right, HashSet::new());
-        assert!(result.root.is_some());
+        assert!(result.is_ok());
+        assert!(result.unwrap().root.is_some());
     }
 
     #[test]
@@ -193,7 +174,8 @@ mod tests {
         ));
 
         let result = SegmentsConnector::cross_join(left, right);
-        assert!(result.root.is_some());
+        assert!(result.is_ok());
+        assert!(result.unwrap().root.is_some());
     }
 
     #[test]
@@ -207,5 +189,29 @@ mod tests {
 
         let result = SegmentsConnector::add_input(input_plan, dependent_plan, true);
         assert!(result.root.is_some());
+    }
+
+    #[test]
+    fn test_inner_join_with_empty_left() {
+        let left = SubPlan::new(None, None);
+        let right = SubPlan::from_single_node(PlanNodeEnum::Start(
+            crate::query::planner::plan::core::nodes::StartNode::new(),
+        ));
+
+        let result = SegmentsConnector::inner_join(&QueryContext::new(), left, right, HashSet::new());
+        assert!(result.is_ok());
+        assert!(result.unwrap().root.is_some());
+    }
+
+    #[test]
+    fn test_cross_join_with_empty_right() {
+        let left = SubPlan::from_single_node(PlanNodeEnum::Start(
+            crate::query::planner::plan::core::nodes::StartNode::new(),
+        ));
+        let right = SubPlan::new(None, None);
+
+        let result = SegmentsConnector::cross_join(left, right);
+        assert!(result.is_ok());
+        assert!(result.unwrap().root.is_some());
     }
 }

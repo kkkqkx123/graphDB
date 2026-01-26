@@ -17,7 +17,7 @@ use std::sync::{Arc, Mutex};
 
 // 导入已实现的执行器
 use crate::query::executor::base::{ExecutionContext, StartExecutor};
-use crate::query::executor::data_access::{AllPathsExecutor, GetVerticesExecutor};
+use crate::query::executor::data_access::{AllPathsExecutor, GetNeighborsExecutor, GetVerticesExecutor};
 use crate::query::executor::data_processing::{
     graph_traversal::{ExpandAllExecutor, MultiShortestPathExecutor, ShortestPathExecutor, TraverseExecutor},
     CrossJoinExecutor, ExpandExecutor, InnerJoinExecutor, LeftJoinExecutor,
@@ -374,6 +374,25 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                         parse_expression_safe(e)
                     }),
                     node.limit().map(|l| l as usize),
+                );
+                Ok(Box::new(executor))
+            }
+            PlanNodeEnum::GetNeighbors(node) => {
+                let vertex_ids = vec![crate::core::Value::String(
+                    node.src_vids().to_string(),
+                )];
+                let edge_direction = super::base::EdgeDirection::Both;
+                let edge_types = if node.edge_types().is_empty() {
+                    None
+                } else {
+                    Some(node.edge_types().to_vec())
+                };
+                let executor = GetNeighborsExecutor::new(
+                    node.id(),
+                    storage,
+                    vertex_ids,
+                    edge_direction,
+                    edge_types,
                 );
                 Ok(Box::new(executor))
             }

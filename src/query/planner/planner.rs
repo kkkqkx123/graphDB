@@ -358,6 +358,9 @@ pub enum PlannerError {
     #[error("Plan generation failed: {0}")]
     PlanGenerationFailed(String),
 
+    #[error("Join operation failed: {0}")]
+    JoinFailed(String),
+
     #[error("Invalid AST context: {0}")]
     InvalidAstContext(String),
 

@@ -15,15 +15,16 @@
 /// - 移除复杂的验证逻辑，内聚到接口中
 /// - 专注于核心的路径处理和变量管理
 use crate::core::Expression;
+use crate::query::planner::connector::SegmentsConnector;
+use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
 use crate::query::planner::statements::core::{
     ClauseType, CypherClausePlanner, DataFlowNode, PlanningContext, VariableInfo,
 };
-use crate::query::planner::plan::core::nodes::join_node::JoinConnector;
 
 use crate::query::planner::plan::factory::PlanNodeFactory;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
-use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind};
+use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind, MatchClauseContext, Path};
 
 /// MATCH子句规划器
 /// 负责规划 MATCH 子句的执行，是数据流的起始点
@@ -37,6 +38,59 @@ impl MatchClausePlanner {
     /// 创建新的 MATCH 子句规划器
     pub fn new() -> Self {
         Self {}
+    }
+
+    fn plan_path(
+        &self,
+        path: &Path,
+        _context: &mut PlanningContext,
+        _match_clause_ctx: &MatchClauseContext,
+    ) -> Result<SubPlan, PlannerError> {
+        let space_id = 1i32;
+
+        let mut current_plan = SubPlan::new(None, None);
+
+        for node_info in path.node_infos.iter() {
+            let scan_node = crate::query::planner::plan::core::nodes::ScanVerticesNode::new(space_id);
+            let node_plan = SubPlan::from_root(scan_node.clone().into_enum());
+
+            current_plan = if let Some(existing_root) = current_plan.root.take() {
+                SegmentsConnector::cross_join(
+                    SubPlan::new(Some(existing_root), current_plan.tail),
+                    node_plan,
+                )?
+            } else {
+                node_plan
+            };
+
+            if let Some(filter) = &node_info.filter {
+                let filter_node = crate::query::planner::plan::core::nodes::FilterNode::new(
+                    scan_node.into_enum(),
+                    filter.clone(),
+                )?;
+                current_plan = SubPlan::new(Some(filter_node.into_enum()), current_plan.tail);
+            }
+        }
+
+        for edge_info in &path.edge_infos {
+            let expand_node = crate::query::planner::plan::core::nodes::ExpandAllNode::new(
+                space_id,
+                edge_info.types.clone(),
+                "both",
+            );
+            let edge_plan = SubPlan::from_root(expand_node.into_enum());
+
+            current_plan = if let Some(existing_root) = current_plan.root.take() {
+                SegmentsConnector::cross_join(
+                    SubPlan::new(Some(existing_root), current_plan.tail),
+                    edge_plan,
+                )?
+            } else {
+                edge_plan
+            };
+        }
+
+        Ok(current_plan)
     }
 }
 
@@ -81,12 +135,9 @@ impl CypherClausePlanner for MatchClausePlanner {
         let mut plan = SubPlan::new(None, None);
 
         for path in &match_clause_ctx.paths {
-            // 暂时创建一个简单的计划，因为 find_path 方法不存在
-            // TODO: 实现路径处理逻辑
-            let path_plan = SubPlan::new(None, None);
+            let path_plan = self.plan_path(path, context, match_clause_ctx)?;
 
             // 更新上下文中的变量信息
-            // 使用新的 VariableInfo 结构提供完整的变量信息
             for node_info in &path.node_infos {
                 if !node_info.alias.is_empty() {
                     let variable_info = VariableInfo {
@@ -112,16 +163,14 @@ impl CypherClausePlanner for MatchClausePlanner {
             }
 
             // 连接路径计划
-            if plan.root.is_none() {
-                plan = path_plan;
+            plan = if let Some(existing_root) = plan.root.take() {
+                SegmentsConnector::cross_join(
+                    SubPlan::new(Some(existing_root), plan.tail),
+                    path_plan,
+                )?
             } else {
-                // 使用新的统一连接器连接多个路径
-                let temp_ast_context = crate::query::context::ast::base::AstContext::from_strings(
-                    &context.query_info.statement_type,
-                    &context.query_info.query_id,
-                );
-                plan = JoinConnector::cartesian_product(&temp_ast_context, &plan, &path_plan)?;
-            }
+                path_plan
+            };
         }
 
         // 处理分页（如果存在）

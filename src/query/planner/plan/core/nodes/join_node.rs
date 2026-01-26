@@ -5,6 +5,7 @@
 use crate::core::Expression;
 use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::SubPlan;
+use crate::query::planner::planner::PlannerError;
 
 /// 内连接节点
 ///
@@ -83,10 +84,10 @@ impl InnerJoinNode {
         &self.inner_deps
     }
 
-    pub fn add_dependency(&mut self, _dep: super::plan_node_enum::PlanNodeEnum) {
-        // 内连接节点不支持添加依赖，它需要恰好两个输入
-        // 在实际使用中，内连接节点在创建时就确定了依赖
-        panic!("内连接节点不支持添加依赖，它需要恰好两个输入")
+    pub fn add_dependency(&mut self, _dep: super::plan_node_enum::PlanNodeEnum) -> Result<(), PlannerError> {
+        Err(PlannerError::InvalidOperation(
+            "内连接节点不支持添加依赖，它需要恰好两个输入".to_string(),
+        ))
     }
 
     pub fn remove_dependency(&mut self, id: i64) -> bool {
@@ -295,8 +296,10 @@ impl LeftJoinNode {
         &self.inner_deps
     }
 
-    pub fn add_dependency(&mut self, _dep: super::plan_node_enum::PlanNodeEnum) {
-        panic!("左连接节点不支持添加依赖，它需要恰好两个输入")
+    pub fn add_dependency(&mut self, _dep: super::plan_node_enum::PlanNodeEnum) -> Result<(), PlannerError> {
+        Err(PlannerError::InvalidOperation(
+            "左连接节点不支持添加依赖，它需要恰好两个输入".to_string(),
+        ))
     }
 
     pub fn remove_dependency(&mut self, id: i64) -> bool {
@@ -488,8 +491,10 @@ impl CrossJoinNode {
         &self.inner_deps
     }
 
-    pub fn add_dependency(&mut self, _dep: super::plan_node_enum::PlanNodeEnum) {
-        panic!("交叉连接节点不支持添加依赖，它需要恰好两个输入")
+    pub fn add_dependency(&mut self, _dep: super::plan_node_enum::PlanNodeEnum) -> Result<(), PlannerError> {
+        Err(PlannerError::InvalidOperation(
+            "交叉连接节点不支持添加依赖，它需要恰好两个输入".to_string(),
+        ))
     }
 
     pub fn remove_dependency(&mut self, id: i64) -> bool {
@@ -684,8 +689,10 @@ impl HashInnerJoinNode {
         &self.inner_deps
     }
 
-    pub fn add_dependency(&mut self, _dep: super::plan_node_enum::PlanNodeEnum) {
-        panic!("哈希内连接节点不支持添加依赖，它需要恰好两个输入")
+    pub fn add_dependency(&mut self, _dep: super::plan_node_enum::PlanNodeEnum) -> Result<(), PlannerError> {
+        Err(PlannerError::InvalidOperation(
+            "哈希内连接节点不支持添加依赖，它需要恰好两个输入".to_string(),
+        ))
     }
 
     pub fn remove_dependency(&mut self, id: i64) -> bool {
@@ -893,8 +900,10 @@ impl HashLeftJoinNode {
         &self.inner_deps
     }
 
-    pub fn add_dependency(&mut self, _dep: super::plan_node_enum::PlanNodeEnum) {
-        panic!("哈希左连接节点不支持添加依赖，它需要恰好两个输入")
+    pub fn add_dependency(&mut self, _dep: super::plan_node_enum::PlanNodeEnum) -> Result<(), PlannerError> {
+        Err(PlannerError::InvalidOperation(
+            "哈希左连接节点不支持添加依赖，它需要恰好两个输入".to_string(),
+        ))
     }
 
     pub fn remove_dependency(&mut self, id: i64) -> bool {

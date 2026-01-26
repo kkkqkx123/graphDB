@@ -11,10 +11,14 @@
 //! - 属性投影
 //! - ORDER BY / LIMIT / SKIP
 
+use crate::core::Expression;
 use crate::query::context::ast::AstContext;
+use crate::query::planner::connector::SegmentsConnector;
 use crate::query::planner::plan::SubPlan;
+use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
+use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
+use crate::query::planner::plan::core::nodes::{PlanNodeEnum, ScanVerticesNode};
 use crate::query::planner::planner::{Planner, PlannerError};
-use crate::query::planner::plan::core::nodes::{plan_node_traits::PlanNode, ScanVerticesNode};
 
 /// MATCH 规划器
 ///
@@ -35,26 +39,57 @@ impl MatchPlanner {
         ast_ctx.statement_type().to_uppercase() == "MATCH"
     }
 
-    fn parse_tag_from_pattern(pattern: &str) -> Option<String> {
+    pub fn parse_tag_from_pattern(pattern: &str) -> Option<String> {
         let colon_pos = pattern.find(':')?;
-        let tag = &pattern[colon_pos + 1..];
-        Some(tag.trim_end_matches(')').to_string())
+        let closing_paren_pos = pattern.find(')')?;
+        if colon_pos < closing_paren_pos {
+            let tag_part = &pattern[colon_pos + 1..closing_paren_pos];
+            Some(tag_part.to_string())
+        } else {
+            None
+        }
     }
 
-    fn parse_edge_type_from_pattern(pattern: &str) -> Option<String> {
-        if !pattern.contains('-') {
-            return None;
-        }
-        let start = pattern.find("->")? - 1;
-        let end = pattern.len();
-        let edge_type = &pattern[start + 1..end];
-        Some(edge_type.to_string())
+    fn plan_node_pattern(
+        &self,
+        _node: &str,
+        _space_id: i32,
+    ) -> Result<PlanNodeEnum, PlannerError> {
+        let scan_node = ScanVerticesNode::new(_space_id);
+        Ok(scan_node.into_enum())
+    }
+
+    fn plan_edge_pattern(
+        &self,
+        _edge: &str,
+        _space_id: i32,
+    ) -> Result<PlanNodeEnum, PlannerError> {
+        let expand_node = crate::query::planner::plan::core::nodes::ExpandAllNode::new(
+            _space_id,
+            vec![],
+            "both",
+        );
+        Ok(expand_node.into_enum())
+    }
+
+    fn plan_filter(&self, _condition: &Expression) -> Result<PlanNodeEnum, PlannerError> {
+        let start_node = ScanVerticesNode::new(1);
+        let filter_node = FilterNode::new(start_node.into_enum(), _condition.clone())?;
+        Ok(filter_node.into_enum())
+    }
+
+    fn join_plans(
+        &self,
+        left: SubPlan,
+        right: SubPlan,
+    ) -> Result<SubPlan, PlannerError> {
+        SegmentsConnector::cross_join(left, right)
     }
 }
 
 impl Planner for MatchPlanner {
     fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
-        let _stmt = ast_ctx.sentence().ok_or_else(|| {
+        let stmt = ast_ctx.sentence().ok_or_else(|| {
             PlannerError::InvalidAstContext("AstContext 中缺少语句".to_string())
         })?;
 

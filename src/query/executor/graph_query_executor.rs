@@ -4,9 +4,13 @@
 //! 支持MATCH、CREATE、DELETE等图操作语句
 
 use crate::core::error::{DBError, DBResult, QueryError};
+use crate::query::context::ast::AstContext;
 use crate::query::executor::admin as admin_executor;
+use crate::query::executor::factory::ExecutorFactory;
 use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::query::parser::ast::stmt::{AlterStmt, ChangePasswordStmt, DescStmt, DropStmt, Stmt};
+use crate::query::planner::planner::Planner;
+use crate::query::planner::statements::MatchPlanner;
 use crate::storage::StorageEngine;
 use crate::common::thread::ThreadPool;
 use async_trait::async_trait;
@@ -130,8 +134,35 @@ impl<S: StorageEngine + 'static> GraphQueryExecutor<S> {
         }
     }
 
-    async fn execute_match(&mut self, _clause: crate::query::parser::ast::stmt::MatchStmt) -> Result<ExecutionResult, DBError> {
-        Err(DBError::Query(QueryError::ExecutionError("MATCH语句执行未实现".to_string())))
+    async fn execute_match(&mut self, clause: crate::query::parser::ast::stmt::MatchStmt) -> Result<ExecutionResult, DBError> {
+        let id = self.id;
+
+        let mut ast_ctx = AstContext::new(None, Some(Stmt::Match(clause)));
+        ast_ctx.set_query_type(crate::query::context::ast::QueryType::ReadQuery);
+
+        let mut planner = MatchPlanner::new();
+        let plan = planner.transform(&ast_ctx)
+            .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
+
+        let root_node = plan.root()
+            .as_ref()
+            .ok_or_else(|| DBError::Query(QueryError::ExecutionError("执行计划为空".to_string())))?
+            .clone();
+
+        let mut executor_factory = ExecutorFactory::with_storage(self.storage.clone());
+        let mut executor = executor_factory.create_executor(&root_node, self.storage.clone(), &Default::default())
+            .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
+
+        executor.open()
+            .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
+
+        let result = executor.execute().await
+            .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
+
+        executor.close()
+            .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
+
+        Ok(result)
     }
 
     async fn execute_create(&mut self, _clause: crate::query::parser::ast::stmt::CreateStmt) -> Result<ExecutionResult, DBError> {

@@ -454,6 +454,38 @@ impl GetNeighborsNode {
     pub fn has_effective_filter(&self) -> bool {
         self.expression.is_some()
     }
+
+    pub fn space_id(&self) -> i32 {
+        self.space_id
+    }
+
+    pub fn src_vids(&self) -> &str {
+        &self.src_vids
+    }
+
+    pub fn edge_types(&self) -> &[String] {
+        &self.edge_types
+    }
+
+    pub fn tag_props(&self) -> &[TagProp] {
+        &self.tag_props
+    }
+
+    pub fn edge_props(&self) -> &[EdgeProp] {
+        &self.edge_props
+    }
+
+    pub fn expression(&self) -> Option<&String> {
+        self.expression.as_ref()
+    }
+
+    pub fn dedup(&self) -> bool {
+        self.dedup
+    }
+
+    pub fn limit(&self) -> Option<i64> {
+        self.limit
+    }
 }
 
 impl GetNeighborsNode {
