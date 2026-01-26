@@ -17,8 +17,7 @@ use super::traversal_node::{AppendVerticesNode, ExpandAllNode, ExpandNode, Trave
 use crate::core::types::EdgeDirection;
 use crate::core::Value;
 use crate::core::types::operators::AggregateFunction;
-use crate::query::parser::ast::expression::Expression;
-use crate::query::parser::expressions::convert_ast_to_graph_expression;
+use crate::core::types::expression::Expression;
 use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::validator::YieldColumn;
 
@@ -35,13 +34,7 @@ impl PlanNodeFactory {
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
         use super::filter_node::FilterNode;
 
-        // 将 Expression 转换为 Expression
-        let expression = convert_ast_to_graph_expression(&condition).map_err(|e| {
-            crate::query::planner::planner::PlannerError::InvalidOperation(e.to_string())
-        })?;
-
-        // 创建 FilterNode
-        let filter_node = FilterNode::new(input, expression)?;
+        let filter_node = FilterNode::new(input, condition)?;
         Ok(PlanNodeEnum::Filter(filter_node))
     }
 
@@ -64,25 +57,7 @@ impl PlanNodeFactory {
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
         use super::join_node::InnerJoinNode;
 
-        // 将 Expression 转换为 Expression
-        let hash_keys_expression: Result<Vec<_>, _> = hash_keys
-            .iter()
-            .map(|e| convert_ast_to_graph_expression(e))
-            .collect();
-        let hash_keys_expression = hash_keys_expression.map_err(|e| {
-            crate::query::planner::planner::PlannerError::InvalidOperation(e.to_string())
-        })?;
-
-        let probe_keys_expression: Result<Vec<_>, _> = probe_keys
-            .iter()
-            .map(|e| convert_ast_to_graph_expression(e))
-            .collect();
-        let probe_keys_expression = probe_keys_expression.map_err(|e| {
-            crate::query::planner::planner::PlannerError::InvalidOperation(e.to_string())
-        })?;
-
-        // 创建 InnerJoinNode
-        let inner_join_node = InnerJoinNode::new(left, right, hash_keys_expression, probe_keys_expression)?;
+        let inner_join_node = InnerJoinNode::new(left, right, hash_keys, probe_keys)?;
         Ok(PlanNodeEnum::InnerJoin(inner_join_node))
     }
 

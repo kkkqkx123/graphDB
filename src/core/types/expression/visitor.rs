@@ -672,3 +672,31 @@ impl ExpressionAcceptor for Expression {
         visitor.visit_expression(self)
     }
 }
+
+/// 泛型表达式访问者trait
+///
+/// 使用泛型参数T来支持不同的表达式类型
+/// 通过impl Trait约束实现零开销抽象
+pub trait GenericExpressionVisitor<T: ?Sized> {
+    /// 访问者结果类型
+    type Result;
+
+    /// 主入口点 - 访问表达式
+    fn visit(&mut self, expression: &T) -> Self::Result;
+}
+
+/// 表达式可访问 trait
+/// 定义表达式类型如何接受访问者
+pub trait ExpressionVisitable {
+    type Result;
+    fn accept<V: GenericExpressionVisitor<Self> + ?Sized>(&self, visitor: &mut V) -> V::Result;
+}
+
+/// 为Expression实现可访问 trait
+impl ExpressionVisitable for Expression {
+    type Result = Result<Value, crate::core::error::ExpressionError>;
+
+    fn accept<V: GenericExpressionVisitor<Self> + ?Sized>(&self, visitor: &mut V) -> V::Result {
+        visitor.visit(self)
+    }
+}

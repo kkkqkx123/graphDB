@@ -1,10 +1,10 @@
 //! 表达式转换器
 //!
-//! 将AST表达式转换为graph表达式
+//! 将AST表达式转换为统一表达式类型
 //!
 //! ## 功能说明
 //!
-//! 该模块提供了将抽象语法树(AST)表达式转换为内部图表达式表示的功能。
+//! 该模块提供了将抽象语法树(AST)表达式转换为内部统一表达式表示的功能。
 //! 支持多种表达式类型，包括：
 //! - 字面量表达式（常量值）
 //! - 变量引用
@@ -20,15 +20,16 @@
 //!
 //! ```rust
 //! use crate::query::parser::Parser;
-//! use crate::query::parser::expressions::expression_converter::convert_ast_to_graph_expression;
+//! use crate::query::parser::expressions::expression_converter::convert_ast_to_expression_meta;
 //!
 //! let query = "MATCH (n) WHERE n.age > 25 RETURN n.name";
 //! let mut parser = Parser::new(query);
 //! let ast_expression = parser.parse_expression().unwrap();
-//! let graph_expression = convert_ast_to_graph_expression(&ast_expression).unwrap();
+//! let expression_meta = convert_ast_to_expression_meta(&ast_expression).unwrap();
 //! ```
 
 use crate::core::types::expression::Expression as GraphExpression;
+use crate::core::types::expression::ExpressionMeta;
 use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 use crate::core::Value;
 use crate::query::parser::ast::{
@@ -66,7 +67,11 @@ use crate::query::parser::ast::{
 /// - `Range` - 范围表达式
 /// - `Path` - 路径表达式
 /// - `Label` - 标签表达式
-pub fn convert_ast_to_graph_expression(ast_expression: &Expression) -> Result<GraphExpression, String> {
+///
+/// **注意**: 此函数现在为内部函数，主要由 `convert_ast_to_expression_meta` 调用。
+/// 外部代码应使用 `convert_ast_to_expression_meta` 或 `parse_expression_meta_from_string`。
+#[doc(hidden)]
+pub(crate) fn convert_ast_to_graph_expression(ast_expression: &crate::query::parser::ast::Expression) -> Result<GraphExpression, String> {
     match ast_expression {
         Expression::Constant(expression) => convert_constant_expression(expression),
         Expression::Variable(expression) => convert_variable_expression(expression),
@@ -85,26 +90,17 @@ pub fn convert_ast_to_graph_expression(ast_expression: &Expression) -> Result<Gr
     }
 }
 
-/// 转换常量表达式
-///
-/// 将AST中的常量表达式转换为graph字面量表达式。
-/// 支持布尔值、整数、浮点数、字符串和空值类型。
-///
-/// # 参数
-///
-/// * `expression` - 常量表达式引用
-///
-/// # 返回值
-///
-/// 成功时返回包含转换后值的`GraphExpression::Literal`，
+/// 成功时返回包含转换后值的`Expression::Literal`，
 /// 失败时返回错误信息字符串
 ///
 /// # 示例
 ///
 /// ```rust
+/// use crate::query::parser::ast::ConstantExpression;
+/// use crate::core::Value;
 /// let expr = ConstantExpression::new(Value::Int(42), Span::default());
-/// let result = convert_constant_expression(&expr).unwrap();
-/// assert!(matches!(result, GraphExpression::Literal(Value::Int(42))));
+/// let result = convert_constant_expression(&expr);
+/// assert!(matches!(result, Expression::Literal(Value::Int(42))));
 /// ```
 fn convert_constant_expression(expression: &ConstantExpression) -> Result<GraphExpression, String> {
     let value = match &expression.value {
@@ -620,10 +616,58 @@ fn is_aggregate_function(func_name: &str) -> bool {
     )
 }
 
+/// 将AST表达式转换为富表达式（包含位置信息）
+///
+/// 此函数是新的推荐入口点，返回包含Span信息的ExpressionMeta。
+/// Span信息用于错误定位和调试。
+///
+/// # 参数
+///
+/// * `ast_expression` - AST表达式引用
+///
+/// # 返回值
+///
+/// 返回包含位置信息的ExpressionMeta，如果转换失败则返回错误信息字符串
+pub fn convert_ast_to_expression_meta(ast_expression: &crate::query::parser::ast::Expression) -> Result<ExpressionMeta, String> {
+    let span = ast_expression.span();
+    let core_expression = convert_ast_to_graph_expression(ast_expression)?;
+    Ok(ExpressionMeta::with_span(core_expression, span))
+}
+
+/// 从字符串解析表达式并返回富表达式
+///
+/// 解析给定的表达式字符串，返回包含Span信息的ExpressionMeta。
+/// Span信息反映表达式在源字符串中的位置范围。
+///
+/// # 参数
+///
+/// * `condition` - 包含表达式的字符串
+///
+/// # 返回值
+///
+/// 成功时返回包含位置信息的ExpressionMeta
+/// 失败时返回错误信息字符串
+///
+/// # 示例
+///
+/// ```rust
+/// let result = parse_expression_meta_from_string("n.age > 25");
+/// assert!(result.is_ok());
+/// let meta = result.unwrap();
+/// assert!(meta.span().is_some());
+/// ```
+pub fn parse_expression_meta_from_string(condition: &str) -> Result<ExpressionMeta, String> {
+    let mut parser = crate::query::parser::Parser::new(condition);
+    let ast_expression = parser
+        .parse_expression()
+        .map_err(|e| format!("语法分析错误: {:?}", e))?;
+    convert_ast_to_expression_meta(&ast_expression)
+}
+
 /// 从字符串解析表达式
 ///
-/// 这是一个便捷函数，直接从字符串解析并转换为graph表达式。
-/// 内部先调用Parser创建AST，然后转换为graph表达式。
+/// **已废弃**：请使用 `parse_expression_meta_from_string` 替代。
+/// 此函数保留用于向后兼容。
 ///
 /// # 参数
 ///
@@ -637,19 +681,9 @@ fn is_aggregate_function(func_name: &str) -> bool {
 /// # 示例
 ///
 /// ```rust
-/// let result = parse_expression_from_string("n.age > 25");
+/// let result = parse_expression_meta_from_string("n.age > 25");
 /// assert!(result.is_ok());
 /// ```
-pub fn parse_expression_from_string(condition: &str) -> Result<GraphExpression, String> {
-    // 创建语法分析器
-    let mut parser = crate::query::parser::Parser::new(condition);
-    let ast_expression = parser
-        .parse_expression()
-        .map_err(|e| format!("语法分析错误: {:?}", e))?;
-
-    // 转换为graph表达式
-    convert_ast_to_graph_expression(&ast_expression)
-}
 
 #[cfg(test)]
 mod tests {
@@ -766,12 +800,12 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_expression_from_string() {
-        let result = parse_expression_from_string("5 + 3");
+    fn test_parse_expression_meta_from_string() {
+        let result = parse_expression_meta_from_string("5 + 3");
         assert!(result.is_ok());
 
-        let expression = result.expect("Expected successful parsing of expression from string");
-        assert!(matches!(expression, GraphExpression::Binary { .. }));
+        let meta = result.expect("Expected successful parsing of expression from string");
+        assert!(matches!(meta.expression, crate::core::Expression::Binary { .. }));
     }
 
     #[test]

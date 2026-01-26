@@ -2,8 +2,7 @@
 //! 对应 NebulaGraph DeduceTypeVisitor.h/.cpp 的功能
 
 use crate::core::types::expression::Expression;
-use crate::core::types::expression::visitor::{ExpressionVisitor, ExpressionVisitorState};
-use crate::core::expression_visitor::GenericExpressionVisitor;
+use crate::core::types::expression::visitor::{ExpressionVisitor, ExpressionVisitorState, GenericExpressionVisitor};
 use crate::core::{
     TypeUtils, DataType, BinaryOperator, UnaryOperator, Value,
 };

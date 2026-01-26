@@ -70,7 +70,8 @@ fn extract_vertex_ids_from_node(node: &PlanNodeEnum) -> Vec<Value> {
 /// 解析表达式字符串为 Graph 表达式
 /// 安全版本：解析失败时记录日志并返回 None
 fn parse_expression_safe(expr_str: &str) -> Option<crate::core::Expression> {
-    crate::query::parser::expressions::parse_expression_from_string(expr_str)
+    crate::query::parser::expressions::parse_expression_meta_from_string(expr_str)
+        .map(|meta| meta.into())
         .inspect_err(|e| {
             log::warn!("Failed to parse expression: {}, error: {:?}", expr_str, e);
         })
@@ -657,9 +658,10 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
 
             // 数据转换执行器
             PlanNodeEnum::Unwind(node) => {
-                let unwind_expression = crate::query::parser::expressions::parse_expression_from_string(
+                let unwind_expression = crate::query::parser::expressions::parse_expression_meta_from_string(
                     node.list_expression(),
                 )
+                .map(|meta| meta.into())
                 .map_err(|e| QueryError::ExecutionError(format!("解析表达式失败: {}", e)))?;
                 let executor = UnwindExecutor::new(
                     node.id(),
@@ -675,7 +677,8 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                 let mut parsed_assignments = Vec::new();
                 for (var_name, expr_str) in node.assignments() {
                     let expression =
-                        crate::query::parser::expressions::parse_expression_from_string(expr_str)
+                        crate::query::parser::expressions::parse_expression_meta_from_string(expr_str)
+                            .map(|meta| meta.into())
                             .map_err(|e| {
                             QueryError::ExecutionError(format!("解析表达式失败: {}", e))
                         })?;
@@ -721,7 +724,8 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                 let compare_cols: Vec<crate::core::Expression> = node.compare_cols()
                     .iter()
                     .map(|col| {
-                        crate::query::parser::expressions::parse_expression_from_string(col)
+                        crate::query::parser::expressions::parse_expression_meta_from_string(col)
+                            .map(|meta| meta.into())
                             .unwrap_or_else(|_| crate::core::Expression::Variable(col.clone()))
                     })
                     .collect();
@@ -754,7 +758,8 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                 let key_cols: Vec<crate::core::Expression> = node.key_cols()
                     .iter()
                     .map(|col| {
-                        crate::query::parser::expressions::parse_expression_from_string(col)
+                        crate::query::parser::expressions::parse_expression_meta_from_string(col)
+                            .map(|meta| meta.into())
                             .unwrap_or_else(|_| crate::core::Expression::Variable(col.clone()))
                     })
                     .collect();

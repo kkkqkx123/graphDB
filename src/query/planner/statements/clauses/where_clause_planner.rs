@@ -15,7 +15,7 @@
 //! - 专注于核心的过滤功能
 //! - 简化路径表达式处理
 
-use crate::query::parser::ast::expression::Expression;
+use crate::core::types::expression::Expression;
 use crate::core::types::Span;
 use crate::query::planner::statements::clauses::clause_planner::ClausePlanner;
 use crate::query::planner::statements::core::{
@@ -102,10 +102,7 @@ mod tests {
 
     #[test]
     fn test_where_clause_planner_with_filter() {
-        let expression = Expression::Constant(crate::query::parser::ast::expression::ConstantExpression::new(
-            crate::core::Value::Bool(true),
-            Span::default(),
-        ));
+        let expression = Expression::literal(true);
         let planner = WhereClausePlanner::new(Some(expression));
         assert!(planner.filter_expression().is_some());
     }

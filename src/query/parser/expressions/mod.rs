@@ -4,5 +4,5 @@
 
 pub mod expression_converter;
 
-pub use expression_converter::convert_ast_to_graph_expression;
-pub use expression_converter::parse_expression_from_string;
+pub use expression_converter::convert_ast_to_expression_meta;
+pub use expression_converter::parse_expression_meta_from_string;

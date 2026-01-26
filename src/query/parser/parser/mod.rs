@@ -278,6 +278,14 @@ impl<'a> Parser<'a> {
         expr_parser.parse_expression(&mut self.ctx)
     }
 
+    pub fn parse_expression_with_span(&mut self) -> Result<ExpressionMeta, ParseError> {
+        let mut expr_parser = ExprParser::new(&self.ctx);
+        let expression = expr_parser.parse_expression(&mut self.ctx)?;
+        let core_expression = crate::query::parser::expressions::convert_ast_to_expression_meta(&expression)
+            .map_err(|e| ParseError::new(ParseErrorKind::SyntaxError, e, self.ctx.current_position()))?;
+        Ok(core_expression)
+    }
+
     pub fn has_errors(&self) -> bool {
         self.ctx.has_errors()
     }
@@ -293,3 +301,4 @@ impl<'a> Parser<'a> {
 
 use crate::query::parser::ast::stmt::Stmt;
 use crate::query::parser::ast::expression::Expression;
+use crate::core::types::expression::ExpressionMeta;

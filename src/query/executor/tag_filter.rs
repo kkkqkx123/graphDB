@@ -91,8 +91,8 @@ impl TagFilterProcessor {
     /// 解析标签过滤字符串为表达式
     pub fn parse_tag_filter(filter_str: &str) -> Result<Expression, String> {
         // 尝试解析为完整表达式
-        match crate::query::parser::expressions::parse_expression_from_string(filter_str) {
-            Ok(expression) => Ok(expression),
+        match crate::query::parser::expressions::parse_expression_meta_from_string(filter_str) {
+            Ok(meta) => Ok(meta.into()),
             Err(_) => {
                 // 如果解析失败，尝试作为简单的标签列表处理
                 Self::parse_simple_tag_list(filter_str)

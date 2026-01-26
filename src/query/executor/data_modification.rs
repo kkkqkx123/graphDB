@@ -6,7 +6,7 @@ use crate::core::{Edge, Value, Vertex};
 use crate::expression::context::basic_context::BasicExpressionContext;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::traits::{DBResult, ExecutionResult, Executor, HasStorage};
-use crate::query::parser::expressions::expression_converter::parse_expression_from_string;
+use crate::query::parser::expressions::parse_expression_meta_from_string;
 use crate::storage::StorageEngine;
 use crate::utils::safe_lock;
 
@@ -166,7 +166,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for UpdateExecutor<S> {
         let mut _total_updated = 0;
 
         let condition_expression = if let Some(ref condition_str) = self.condition {
-            Some(parse_expression_from_string(condition_str).map_err(|e| {
+            Some(parse_expression_meta_from_string(condition_str).map(|meta| meta.into()).map_err(|e| {
                 crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(
                     format!("条件解析失败: {}", e),
                 ))
