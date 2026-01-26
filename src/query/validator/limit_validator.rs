@@ -18,7 +18,7 @@ pub struct LimitValidator {
 impl LimitValidator {
     pub fn new(context: ValidationContext) -> Self {
         Self {
-            base: Validator::new(context),
+            base: Validator::with_context(context),
             skip: None,
             limit: None,
             count: None,

@@ -79,7 +79,7 @@ pub struct FetchEdgesValidator {
 impl FetchEdgesValidator {
     pub fn new(context: super::ValidationContext) -> Self {
         Self {
-            base: Validator::new(context),
+            base: Validator::with_context(context),
             context: FetchEdgesContext {
                 edge_keys: Vec::new(),
                 edge_name: String::new(),

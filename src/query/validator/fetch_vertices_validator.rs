@@ -73,7 +73,7 @@ pub struct FetchVerticesValidator {
 impl FetchVerticesValidator {
     pub fn new(context: super::ValidationContext) -> Self {
         Self {
-            base: Validator::new(context),
+            base: Validator::with_context(context),
             context: FetchVerticesContext {
                 vertex_ids: Vec::new(),
                 tag_names: Vec::new(),

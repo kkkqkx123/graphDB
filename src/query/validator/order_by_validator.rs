@@ -32,7 +32,7 @@ pub enum SortDirection {
 impl OrderByValidator {
     pub fn new(context: ValidationContext) -> Self {
         Self {
-            _base: Validator::new(context),
+            _base: Validator::with_context(context),
             order_columns: Vec::new(),
             input_columns: HashMap::new(),
         }

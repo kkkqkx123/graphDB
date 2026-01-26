@@ -22,7 +22,7 @@ pub struct LookupValidator {
 impl LookupValidator {
     pub fn new(context: ValidationContext) -> Self {
         Self {
-            base: Validator::new(context),
+            base: Validator::with_context(context),
             lookup_target: LookupTarget {
                 label: String::new(),
                 index_type: LookupIndexType::None,

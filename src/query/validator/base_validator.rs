@@ -8,14 +8,14 @@
 //! 3. check_permission() - 权限检查
 //! 4. to_plan() - 转换为执行计划
 
-use crate::core::error::{DBError, QueryError};
+use crate::core::error::{DBError, DBResult, QueryError, ValidationError as CoreValidationError, ValidationErrorType};
 use crate::core::{Expression, Value};
+use crate::query::context::ast::AstContext;
+use crate::query::context::execution::QueryContext;
 use crate::query::context::validate::ValidationContext;
-use crate::query::validator::ValidationError;
-use crate::query::validator::ValidationErrorType;
 
 pub struct Validator {
-    context: ValidationContext,
+    context: Option<ValidationContext>,
     input_var_name: String,
     no_space_required: bool,
     outputs: Vec<ColumnDef>,
@@ -85,9 +85,9 @@ pub struct EdgeProperty {
 }
 
 impl Validator {
-    pub fn new(context: ValidationContext) -> Self {
+    pub fn new() -> Self {
         Self {
-            context,
+            context: Some(ValidationContext::new()),
             input_var_name: String::new(),
             no_space_required: false,
             outputs: Vec::new(),
@@ -97,62 +97,194 @@ impl Validator {
         }
     }
 
-    pub fn validate(&mut self) -> Result<(), ValidationError> {
-        self.validate_lifecycle()
+    pub fn with_context(context: ValidationContext) -> Self {
+        Self {
+            context: Some(context),
+            input_var_name: String::new(),
+            no_space_required: false,
+            outputs: Vec::new(),
+            inputs: Vec::new(),
+            expr_props: ExpressionProps::default(),
+            user_defined_vars: Vec::new(),
+        }
     }
 
-    fn validate_lifecycle(&mut self) -> Result<(), ValidationError> {
-        if !self.no_space_required && !self.space_chosen() {
-            return Err(ValidationError::new(
+    pub fn validate_with_ast_context(
+        &mut self,
+        query_context: Option<&QueryContext>,
+        ast: &mut AstContext,
+    ) -> DBResult<()> {
+        self.outputs.clear();
+        self.inputs.clear();
+        self.expr_props = ExpressionProps::default();
+        self.user_defined_vars.clear();
+
+        self.validate_lifecycle_with_ast(query_context, ast)?;
+
+        for output in &self.outputs {
+            ast.add_output(output.name.clone(), output.type_.clone());
+        }
+
+        for input in &self.inputs {
+            ast.add_input(input.name.clone(), input.type_.clone());
+        }
+
+        let validation_errors = self.get_validation_errors();
+        for error in validation_errors {
+            ast.add_validation_error(error.clone());
+        }
+
+        if ast.has_validation_errors() {
+            let errors = ast.validation_errors();
+            let first_error = errors.first();
+            if let Some(error) = first_error {
+                return Err(DBError::Query(QueryError::InvalidQuery(format!(
+                    "验证失败: {}",
+                    error.message
+                ))));
+            }
+        }
+
+        Ok(())
+    }
+
+    fn validate_lifecycle_with_ast(
+        &mut self,
+        query_context: Option<&QueryContext>,
+        ast: &mut AstContext,
+    ) -> Result<(), CoreValidationError> {
+        if !self.no_space_required && !self.space_chosen_in_ast(ast) {
+            return Err(CoreValidationError::new(
                 "No space selected. Use `USE <space>` to select a graph space first.".to_string(),
                 ValidationErrorType::SemanticError,
             ));
         }
 
-        self.validate_impl()?;
+        self.validate_impl_with_ast(query_context, ast)?;
 
-        if self.context.has_validation_errors() {
-            let errors = self.context.get_validation_errors();
-            if let Some(first_error) = errors.first() {
-                return Err(first_error.clone());
-            }
+        let errors = self.get_validation_errors();
+        if let Some(first_error) = errors.first() {
+            return Err(first_error.clone());
         }
 
         self.check_permission()?;
 
-        self.to_plan()?;
+        self.to_plan_with_ast(ast)?;
 
         Ok(())
     }
 
-    fn space_chosen(&self) -> bool {
-        self.context.space_chosen()
+    fn space_chosen_in_ast(&self, ast: &AstContext) -> bool {
+        ast.space().space_id.is_some()
     }
 
-    fn validate_impl(&mut self) -> Result<(), ValidationError> {
+    fn validate_impl_with_ast(
+        &mut self,
+        _query_context: Option<&QueryContext>,
+        _ast: &mut AstContext,
+    ) -> Result<(), CoreValidationError> {
         Ok(())
     }
 
-    fn check_permission(&self) -> Result<(), ValidationError> {
+    fn check_permission(&self) -> Result<(), CoreValidationError> {
         Ok(())
     }
 
-    fn to_plan(&mut self) -> Result<(), ValidationError> {
+    fn to_plan_with_ast(&mut self, _ast: &mut AstContext) -> Result<(), CoreValidationError> {
+        Ok(())
+    }
+
+    pub fn get_validation_errors(&self) -> Vec<CoreValidationError> {
+        if let Some(ref ctx) = self.context {
+            ctx.get_validation_errors().to_vec()
+        } else {
+            Vec::new()
+        }
+    }
+
+    fn validate_impl(&mut self) -> Result<(), CoreValidationError> {
         Ok(())
     }
 
     pub fn validate_unified(&mut self) -> Result<(), DBError> {
-        self.validate_lifecycle().map_err(|e| {
-            DBError::Query(QueryError::InvalidQuery(format!("验证失败: {}", e.message)))
-        })
+        let ctx = match self.context {
+            Some(ref mut ctx) => ctx,
+            None => {
+                return Err(DBError::Query(QueryError::InvalidQuery(
+                    "验证上下文未初始化".to_string(),
+                )));
+            }
+        };
+
+        let has_errors = ctx.has_validation_errors();
+        ctx.clear_validation_errors();
+
+        if !self.no_space_required && !ctx.space_chosen() {
+            return Err(DBError::Query(QueryError::InvalidQuery(
+                "No space selected. Use `USE <space>` to select a graph space first.".to_string(),
+            )));
+        }
+
+        drop(ctx);
+
+        if let Err(e) = self.validate_impl() {
+            return Err(DBError::Query(QueryError::InvalidQuery(format!(
+                "验证失败: {}",
+                e.message
+            ))));
+        }
+
+        let ctx = self.context.as_mut().expect("ValidationContext 未初始化");
+        if ctx.has_validation_errors() {
+            let errors = ctx.get_validation_errors();
+            if let Some(first_error) = errors.first() {
+                return Err(DBError::Query(QueryError::InvalidQuery(format!(
+                    "验证失败: {}",
+                    first_error.message
+                ))));
+            }
+        }
+
+        drop(ctx);
+
+        if let Err(e) = self.check_permission() {
+            return Err(DBError::Query(QueryError::InvalidQuery(format!(
+                "权限检查失败: {}",
+                e.message
+            ))));
+        }
+
+        if let Err(e) = self.to_plan() {
+            return Err(DBError::Query(QueryError::InvalidQuery(format!(
+                "计划生成失败: {}",
+                e.message
+            ))));
+        }
+
+        let ctx = self.context.as_mut().expect("ValidationContext 未初始化");
+        if has_errors || ctx.has_validation_errors() {
+            let errors = ctx.get_validation_errors();
+            if let Some(first_error) = errors.first() {
+                return Err(DBError::Query(QueryError::InvalidQuery(format!(
+                    "验证失败: {}",
+                    first_error.message
+                ))));
+            }
+        }
+
+        Ok(())
+    }
+
+    fn to_plan(&mut self) -> Result<(), CoreValidationError> {
+        Ok(())
     }
 
     pub fn context_mut(&mut self) -> &mut ValidationContext {
-        &mut self.context
+        self.context.as_mut().expect("ValidationContext 未初始化")
     }
 
     pub fn context(&self) -> &ValidationContext {
-        &self.context
+        self.context.as_ref().expect("ValidationContext 未初始化")
     }
 
     pub fn set_input_var_name(&mut self, name: String) {
@@ -223,26 +355,28 @@ impl Validator {
         &self.user_defined_vars
     }
 
-    pub fn add_error(&mut self, error: ValidationError) {
-        self.context.add_validation_error(error);
+    pub fn add_error(&mut self, error: CoreValidationError) {
+        if let Some(ref mut ctx) = self.context {
+            ctx.add_validation_error(error);
+        }
     }
 
     pub fn add_semantic_error(&mut self, message: String) {
-        self.context.add_validation_error(ValidationError::new(
+        self.add_error(CoreValidationError::new(
             message,
             ValidationErrorType::SemanticError,
         ));
     }
 
     pub fn add_type_error(&mut self, message: String) {
-        self.context.add_validation_error(ValidationError::new(
+        self.add_error(CoreValidationError::new(
             message,
             ValidationErrorType::TypeError,
         ));
     }
 
     pub fn add_syntax_error(&mut self, message: String) {
-        self.context.add_validation_error(ValidationError::new(
+        self.add_error(CoreValidationError::new(
             message,
             ValidationErrorType::SyntaxError,
         ));

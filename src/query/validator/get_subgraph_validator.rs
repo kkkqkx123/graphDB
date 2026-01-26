@@ -35,7 +35,7 @@ pub struct GetSubgraphValidator {
 impl GetSubgraphValidator {
     pub fn new(context: ValidationContext) -> Self {
         Self {
-            base: Validator::new(context),
+            base: Validator::with_context(context),
             config: GetSubgraphConfig {
                 steps: Some((1, None)),
                 vertex_filters: Vec::new(),

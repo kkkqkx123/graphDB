@@ -22,7 +22,7 @@ pub struct MatchValidator {
 impl MatchValidator {
     pub fn new(context: ValidationContext) -> Self {
         Self {
-            base: Validator::new(context),
+            base: Validator::with_context(context),
             validation_strategies: ValidationFactory::create_all_strategies(),
         }
     }

@@ -15,7 +15,7 @@ pub struct UseValidator {
 impl UseValidator {
     pub fn new(context: ValidationContext) -> Self {
         Self {
-            base: Validator::new(context),
+            base: Validator::with_context(context),
             space_name: String::new(),
         }
     }

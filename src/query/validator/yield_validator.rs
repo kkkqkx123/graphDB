@@ -19,7 +19,7 @@ pub struct YieldValidator {
 impl YieldValidator {
     pub fn new(context: ValidationContext) -> Self {
         Self {
-            base: Validator::new(context),
+            base: Validator::with_context(context),
             yield_columns: Vec::new(),
             distinct: false,
             aliases_available: HashMap::new(),

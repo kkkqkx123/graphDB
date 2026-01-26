@@ -19,7 +19,7 @@ pub struct UnwindValidator {
 impl UnwindValidator {
     pub fn new(context: ValidationContext) -> Self {
         Self {
-            base: Validator::new(context),
+            base: Validator::with_context(context),
             unwind_expression: Expression::Literal(Value::Null(NullType::Null)),
             variable_name: String::new(),
             aliases_available: HashMap::new(),

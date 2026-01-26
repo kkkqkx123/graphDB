@@ -102,7 +102,7 @@ pub struct GoValidator {
 impl GoValidator {
     pub fn new(context: super::ValidationContext) -> Self {
         Self {
-            base: Validator::new(context),
+            base: Validator::with_context(context),
             context: GoContext {
                 from_source: None,
                 over_edges: Vec::new(),

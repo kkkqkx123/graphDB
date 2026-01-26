@@ -1,42 +1,122 @@
 //! 验证策略工厂
 //! 负责创建和管理验证策略实例
 
+use std::collections::HashMap;
+
+use super::base_validator::Validator;
 use super::strategies::*;
-use super::validation_interface::*;
+use super::validation_interface::ValidationStrategyType;
 
-pub struct ValidationFactory;
+#[derive(Debug, Clone, Default)]
+pub struct ValidatorConfig {
+    pub enable_type_check: bool,
+    pub enable_permission_check: bool,
+    pub max_nesting_depth: usize,
+    pub max_expression_count: usize,
+}
 
-impl ValidationFactory {
-    /// 创建指定类型的验证策略
-    pub fn create_strategy(strategy_type: ValidationStrategyType) -> Box<dyn ValidationStrategy> {
-        match strategy_type {
-            ValidationStrategyType::Alias => Box::new(AliasValidationStrategy::new()),
-            ValidationStrategyType::Expression => Box::new(ExpressionValidationStrategy::new()),
-            ValidationStrategyType::Clause => Box::new(ClauseValidationStrategy::new()),
-            ValidationStrategyType::Aggregate => Box::new(AggregateValidationStrategy::new()),
-            ValidationStrategyType::Pagination => Box::new(PaginationValidationStrategy::new()),
+impl ValidatorConfig {
+    pub fn new() -> Self {
+        Self {
+            enable_type_check: true,
+            enable_permission_check: true,
+            max_nesting_depth: 100,
+            max_expression_count: 1000,
         }
     }
 
-    /// 创建所有验证策略
-    pub fn create_all_strategies() -> Vec<Box<dyn ValidationStrategy>> {
+    pub fn with_type_check(mut self, enable: bool) -> Self {
+        self.enable_type_check = enable;
+        self
+    }
+
+    pub fn with_permission_check(mut self, enable: bool) -> Self {
+        self.enable_permission_check = enable;
+        self
+    }
+
+    pub fn with_max_nesting_depth(mut self, depth: usize) -> Self {
+        self.max_nesting_depth = depth;
+        self
+    }
+
+    pub fn with_max_expression_count(mut self, count: usize) -> Self {
+        self.max_expression_count = count;
+        self
+    }
+}
+
+pub struct ValidationFactory {
+    validators: HashMap<&'static str, Box<dyn Fn() -> Validator>>,
+    config: ValidatorConfig,
+}
+
+impl ValidationFactory {
+    pub fn new() -> Self {
+        let mut factory = Self {
+            validators: HashMap::new(),
+            config: ValidatorConfig::new(),
+        };
+
+        factory.register_default_validators();
+        factory
+    }
+
+    pub fn create_all_strategies() -> Vec<Box<dyn super::validation_interface::ValidationStrategy>> {
         vec![
-            Self::create_strategy(ValidationStrategyType::Alias),
-            Self::create_strategy(ValidationStrategyType::Expression),
-            Self::create_strategy(ValidationStrategyType::Clause),
-            Self::create_strategy(ValidationStrategyType::Aggregate),
-            Self::create_strategy(ValidationStrategyType::Pagination),
+            Box::new(AliasValidationStrategy::new()),
+            Box::new(ExpressionValidationStrategy::new()),
+            Box::new(ClauseValidationStrategy::new()),
+            Box::new(AggregateValidationStrategy::new()),
+            Box::new(PaginationValidationStrategy::new()),
         ]
     }
 
-    /// 创建特定验证策略组合
-    pub fn create_strategy_set(
-        strategy_types: &[ValidationStrategyType],
-    ) -> Vec<Box<dyn ValidationStrategy>> {
-        strategy_types
-            .iter()
-            .map(|strategy_type| Self::create_strategy(strategy_type.clone()))
-            .collect()
+    fn register_default_validators(&mut self) {
+        self.register("MATCH", || Validator::new());
+        self.register("GO", || Validator::new());
+        self.register("LOOKUP", || Validator::new());
+        self.register("FETCH_VERTICES", || Validator::new());
+        self.register("FETCH_EDGES", || Validator::new());
+        self.register("USE", || Validator::new());
+        self.register("PIPE", || Validator::new());
+        self.register("YIELD", || Validator::new());
+        self.register("ORDER_BY", || Validator::new());
+        self.register("LIMIT", || Validator::new());
+        self.register("UNWIND", || Validator::new());
+        self.register("FIND_PATH", || Validator::new());
+        self.register("GET_SUBGRAPH", || Validator::new());
+        self.register("SET", || Validator::new());
+        self.register("SEQUENTIAL", || Validator::new());
+    }
+
+    pub fn register<F>(&mut self, name: &'static str, creator: F)
+    where
+        F: Fn() -> Validator + 'static,
+    {
+        self.validators.insert(name, Box::new(creator));
+    }
+
+    pub fn create(&self, statement_type: &str) -> Validator {
+        if let Some(creator) = self.validators.get(statement_type) {
+            creator()
+        } else {
+            Validator::new()
+        }
+    }
+
+    pub fn set_config(&mut self, config: ValidatorConfig) {
+        self.config = config;
+    }
+
+    pub fn config(&self) -> &ValidatorConfig {
+        &self.config
+    }
+}
+
+impl Default for ValidationFactory {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

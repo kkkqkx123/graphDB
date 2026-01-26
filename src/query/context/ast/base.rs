@@ -1,11 +1,13 @@
 //! 基础AST上下文定义
 
+use crate::core::error::ValidationError;
 use crate::query::context::ast::common::VariableInfo;
 use crate::query::context::execution::QueryContext;
 use crate::query::context::request_context::RequestContext;
 use crate::query::context::symbol::SymbolTable;
 use crate::query::context::validate::types::SpaceInfo;
 use crate::query::parser::ast::Stmt;
+use crate::query::validator::ColumnDef;
 use once_cell::sync::Lazy;
 use std::sync::Arc;
 
@@ -41,6 +43,7 @@ pub trait AstContextTrait {
 /// - Sentence: 关联原始语法树节点
 /// - SpaceInfo: 支持多空间场景
 /// - QueryType: 查询类型标识
+/// - 验证结果: outputs, inputs, validation_errors
 ///
 /// 注意：符号表由 QueryContext 持有，AstContext 通过 qctx.sym_table() 访问
 #[derive(Debug, Clone)]
@@ -49,6 +52,9 @@ pub struct AstContext {
     pub sentence: Option<Stmt>,
     pub space: SpaceInfo,
     pub query_type: QueryType,
+    pub(crate) outputs: Vec<ColumnDef>,
+    pub(crate) inputs: Vec<ColumnDef>,
+    pub(crate) validation_errors: Vec<ValidationError>,
 }
 
 impl AstContext {
@@ -58,6 +64,9 @@ impl AstContext {
             sentence,
             space: SpaceInfo::default(),
             query_type: QueryType::default(),
+            outputs: Vec::new(),
+            inputs: Vec::new(),
+            validation_errors: Vec::new(),
         }
     }
 
@@ -73,6 +82,9 @@ impl AstContext {
             sentence: None,
             space: SpaceInfo::default(),
             query_type: QueryType::default(),
+            outputs: Vec::new(),
+            inputs: Vec::new(),
+            validation_errors: Vec::new(),
         };
 
         if query_type == "CYPHER" {}
@@ -91,6 +103,9 @@ impl AstContext {
             sentence,
             space,
             query_type: QueryType::default(),
+            outputs: Vec::new(),
+            inputs: Vec::new(),
+            validation_errors: Vec::new(),
         }
     }
 
@@ -105,6 +120,9 @@ impl AstContext {
             sentence,
             space,
             query_type,
+            outputs: Vec::new(),
+            inputs: Vec::new(),
+            validation_errors: Vec::new(),
         }
     }
 
@@ -238,6 +256,38 @@ impl AstContext {
             .and_then(|ctx| ctx.rctx().map(|rctx| rctx.request_params().query.clone()))
             .unwrap_or_default()
     }
+
+    pub fn add_output(&mut self, name: String, type_: crate::query::validator::ValueType) {
+        self.outputs.push(ColumnDef { name, type_ });
+    }
+
+    pub fn outputs(&self) -> &[ColumnDef] {
+        &self.outputs
+    }
+
+    pub fn add_input(&mut self, name: String, type_: crate::query::validator::ValueType) {
+        self.inputs.push(ColumnDef { name, type_ });
+    }
+
+    pub fn inputs(&self) -> &[ColumnDef] {
+        &self.inputs
+    }
+
+    pub fn add_validation_error(&mut self, error: ValidationError) {
+        self.validation_errors.push(error);
+    }
+
+    pub fn validation_errors(&self) -> &[ValidationError] {
+        &self.validation_errors
+    }
+
+    pub fn has_validation_errors(&self) -> bool {
+        !self.validation_errors.is_empty()
+    }
+
+    pub fn clear_validation_errors(&mut self) {
+        self.validation_errors.clear();
+    }
 }
 
 impl AstContextTrait for AstContext {
@@ -265,6 +315,9 @@ impl Default for AstContext {
             sentence: None,
             space: SpaceInfo::default(),
             query_type: QueryType::default(),
+            outputs: Vec::new(),
+            inputs: Vec::new(),
+            validation_errors: Vec::new(),
         }
     }
 }
@@ -276,6 +329,9 @@ impl From<(&str, &str)> for AstContext {
             sentence: None,
             space: SpaceInfo::default(),
             query_type: QueryType::default(),
+            outputs: Vec::new(),
+            inputs: Vec::new(),
+            validation_errors: Vec::new(),
         }
     }
 }

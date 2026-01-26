@@ -31,7 +31,7 @@ impl<S: StorageEngine + 'static> QueryPipelineManager<S> {
 
         Self {
             _storage: storage,
-            validator: Validator::new(crate::query::validator::ValidationContext::new()),
+            validator: Validator::new(),
             planner: Box::new(crate::query::planner::SequentialPlanner::new()),
             optimizer: Optimizer::default(),
             executor_factory,
@@ -51,10 +51,10 @@ impl<S: StorageEngine + 'static> QueryPipelineManager<S> {
         let mut query_context = self.create_query_context(query_text)?;
 
         // 2. 解析查询并生成 AST 上下文
-        let ast = self.parse_into_context(query_text)?;
+        let mut ast = self.parse_into_context(query_text)?;
 
         // 3. 验证查询
-        self.validate_query(&mut query_context, &ast)?;
+        self.validate_query(&mut query_context, &mut ast)?;
 
         // 4. 生成执行计划
         let execution_plan = self.generate_execution_plan(&mut query_context, &ast)?;
@@ -94,20 +94,15 @@ impl<S: StorageEngine + 'static> QueryPipelineManager<S> {
     /// 验证查询的语义正确性
     fn validate_query(
         &mut self,
-        _query_context: &mut QueryContext,
-        ast: &crate::query::context::ast::AstContext,
+        query_context: &mut QueryContext,
+        ast: &mut crate::query::context::ast::AstContext,
     ) -> DBResult<()> {
         let _stmt = ast.sentence().ok_or_else(|| {
             DBError::Query(crate::core::error::QueryError::InvalidQuery(
                 "AST 上下文中缺少语句".to_string(),
             ))
         })?;
-        self.validator.validate_unified().map_err(|e| {
-            DBError::Query(crate::core::error::QueryError::InvalidQuery(format!(
-                "验证失败: {}",
-                e
-            )))
-        })
+        self.validator.validate_with_ast_context(Some(query_context), ast)
     }
 
     /// 生成执行计划
