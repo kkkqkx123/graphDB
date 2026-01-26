@@ -5,8 +5,6 @@ use super::super::{
     TagDef,
 };
 use crate::query::context::managers::types::{PropertyDef as ManagerPropertyDef, PropertyType as ManagerPropertyType};
-use crate::core::types::metadata::PropertyDef;
-use crate::core::types::graph_schema::PropertyType;
 use crate::core::error::{ManagerError, ManagerResult};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -697,15 +695,15 @@ mod tests {
         let tag_def = TagDef {
             tag_name: "person".to_string(),
             properties: vec![
-                PropertyDef {
+                ManagerPropertyDef {
                     name: "name".to_string(),
-                    type_: PropertyType::String,
+                    type_: ManagerPropertyType::String,
                     nullable: false,
                     default: None,
                 },
-                PropertyDef {
+                ManagerPropertyDef {
                     name: "age".to_string(),
-                    type_: PropertyType::Int,
+                    type_: ManagerPropertyType::Int,
                     nullable: true,
                     default: None,
                 },
@@ -783,9 +781,9 @@ mod tests {
         let edge_type_def = EdgeTypeDef {
             edge_name: "knows".to_string(),
             properties: vec![
-                PropertyDef {
+                ManagerPropertyDef {
                     name: "since".to_string(),
-                    type_: PropertyType::Int,
+                    type_: ManagerPropertyType::Int,
                     nullable: true,
                     default: None,
                 },

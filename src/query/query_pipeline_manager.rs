@@ -4,7 +4,6 @@ use crate::query::executor::factory::ExecutorFactory;
 use crate::query::executor::traits::ExecutionResult;
 use crate::query::optimizer::Optimizer;
 use crate::query::parser::Parser;
-use crate::query::parser::ast::Stmt;
 use crate::query::planner::Planner;
 use crate::query::validator::Validator;
 use crate::storage::StorageEngine;
@@ -14,7 +13,7 @@ use std::sync::{Arc, Mutex};
 ///
 /// 这个类取代了原来的QueryConverter，现在负责：
 /// 1. 管理查询处理的全生命周期
-/// 2. 协调各个处理阶段（规划→优化→解析→验证→执行）
+/// 2. 协调各个处理阶段（解析→验证→规划→优化→执行）
 /// 3. 处理错误和异常
 /// 4. 管理查询上下文
 pub struct QueryPipelineManager<S: StorageEngine + 'static> {
@@ -51,14 +50,14 @@ impl<S: StorageEngine + 'static> QueryPipelineManager<S> {
         // 1. 创建查询上下文
         let mut query_context = self.create_query_context(query_text)?;
 
-        // 2. 解析查询
-        let (stmt, ast) = self.parse_query(&mut query_context, query_text)?;
+        // 2. 解析查询并生成 AST 上下文
+        let ast = self.parse_into_context(query_text)?;
 
         // 3. 验证查询
-        self.validate_query(&mut query_context, &ast, &stmt)?;
+        self.validate_query(&mut query_context, &ast)?;
 
         // 4. 生成执行计划
-        let execution_plan = self.generate_execution_plan(&mut query_context, &ast, &stmt)?;
+        let execution_plan = self.generate_execution_plan(&mut query_context, &ast)?;
 
         // 5. 优化执行计划
         let optimized_plan = self.optimize_execution_plan(&mut query_context, execution_plan)?;
@@ -72,18 +71,19 @@ impl<S: StorageEngine + 'static> QueryPipelineManager<S> {
         Ok(QueryContext::new())
     }
 
-    /// 解析查询文本为AST
-    fn parse_query(
+    /// 解析查询文本为 AST 上下文
+    ///
+    /// 直接生成 QueryAstContext，Parser 输出的 Stmt 会自动设置到上下文中
+    fn parse_into_context(
         &mut self,
-        _query_context: &mut QueryContext,
         query_text: &str,
-    ) -> DBResult<(Stmt, crate::query::context::ast::QueryAstContext)> {
+    ) -> DBResult<crate::query::context::ast::QueryAstContext> {
         let mut parser = Parser::new(query_text);
         match parser.parse() {
             Ok(stmt) => {
                 let mut ast = crate::query::context::ast::QueryAstContext::new(query_text);
-                ast.set_statement(stmt.clone());
-                Ok((stmt, ast))
+                ast.set_statement(stmt);
+                Ok(ast)
             }
             Err(e) => Err(DBError::Query(crate::core::error::QueryError::ParseError(
                 format!("解析失败: {}", e),
@@ -95,9 +95,13 @@ impl<S: StorageEngine + 'static> QueryPipelineManager<S> {
     fn validate_query(
         &mut self,
         _query_context: &mut QueryContext,
-        _ast: &crate::query::context::ast::QueryAstContext,
-        _stmt: &Stmt,
+        ast: &crate::query::context::ast::QueryAstContext,
     ) -> DBResult<()> {
+        let _stmt = ast.base_context().sentence().ok_or_else(|| {
+            DBError::Query(crate::core::error::QueryError::InvalidQuery(
+                "AST 上下文中缺少语句".to_string(),
+            ))
+        })?;
         self.validator.validate_unified().map_err(|e| {
             DBError::Query(crate::core::error::QueryError::InvalidQuery(format!(
                 "验证失败: {}",
@@ -111,7 +115,6 @@ impl<S: StorageEngine + 'static> QueryPipelineManager<S> {
         &mut self,
         _query_context: &mut QueryContext,
         ast: &crate::query::context::ast::QueryAstContext,
-        _stmt: &Stmt,
     ) -> DBResult<crate::query::planner::plan::ExecutionPlan> {
         let ast_ctx = ast.base_context();
         match self.planner.transform(ast_ctx) {
