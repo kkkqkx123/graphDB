@@ -362,13 +362,20 @@ impl<'a> ExprParser<'a> {
             }
             TokenKind::LBracket => {
                 ctx.next_token();
-                let elements = self.parse_expression_list(ctx)?;
-                ctx.expect_token(TokenKind::RBracket)?;
-                let span = ctx.merge_span(start_pos, ctx.current_position());
-                Ok(ParseResult {
-                    expr: Expression::list(elements.into_iter().map(|e| e.expr).collect()),
-                    span,
-                })
+                if ctx.match_token(TokenKind::Identifier(_)) || ctx.match_token(TokenKind::In) {
+                    self.parse_list_comprehension(start_pos, ctx)
+                } else {
+                    let elements = self.parse_expression_list(ctx)?;
+                    ctx.expect_token(TokenKind::RBracket)?;
+                    let span = ctx.merge_span(start_pos, ctx.current_position());
+                    Ok(ParseResult {
+                        expr: Expression::list(elements.into_iter().map(|e| e.expr).collect()),
+                        span,
+                    })
+                }
+            }
+            TokenKind::Case => {
+                self.parse_case_expression(start_pos, ctx)
             }
             TokenKind::Map => {
                 ctx.next_token();
@@ -436,6 +443,67 @@ impl<'a> ExprParser<'a> {
             }
         }
         Ok(properties)
+    }
+
+    fn parse_case_expression(&mut self, start_pos: Position, ctx: &mut ParseContext<'a>) -> Result<ParseResult, ParseError> {
+        ctx.expect_token(TokenKind::Case)?;
+        
+        let test_expr = if ctx.peek_token().kind != TokenKind::When {
+            Some(Box::new(self.parse_expression(ctx)?))
+        } else {
+            None
+        };
+        
+        let mut conditions = Vec::new();
+        while ctx.match_token(TokenKind::When) {
+            let when_expr = self.parse_expression(ctx)?;
+            ctx.expect_token(TokenKind::Then)?;
+            let then_expr = self.parse_expression(ctx)?;
+            conditions.push((when_expr.expr, then_expr.expr));
+        }
+        
+        let default = if ctx.match_token(TokenKind::Else) {
+            Some(Box::new(self.parse_expression(ctx)?))
+        } else {
+            None
+        };
+        
+        ctx.expect_token(TokenKind::End)?;
+        
+        let span = ctx.merge_span(start_pos, ctx.current_position());
+        Ok(ParseResult {
+            expr: Expression::case(conditions, default.map(|e| *e)),
+            span,
+        })
+    }
+
+    fn parse_list_comprehension(&mut self, start_pos: Position, ctx: &mut ParseContext<'a>) -> Result<ParseResult, ParseError> {
+        let variable = ctx.expect_identifier()?;
+        ctx.expect_token(TokenKind::In)?;
+        let source = Box::new(self.parse_expression(ctx)?);
+        
+        let (filter, map) = if ctx.match_token(TokenKind::Pipe) {
+            let map_expr = self.parse_expression(ctx)?;
+            (None, Some(Box::new(map_expr.expr)))
+        } else if ctx.match_token(TokenKind::Where) {
+            let filter_expr = Box::new(self.parse_expression(ctx)?);
+            let map_expr = if ctx.match_token(TokenKind::Pipe) {
+                Some(Box::new(self.parse_expression(ctx)?.expr))
+            } else {
+                None
+            };
+            (Some(filter_expr), map_expr)
+        } else {
+            (None, None)
+        };
+        
+        ctx.expect_token(TokenKind::RBracket)?;
+        
+        let span = ctx.merge_span(start_pos, ctx.current_position());
+        Ok(ParseResult {
+            expr: Expression::list_comprehension(variable, *source, filter.map(|e| *e), map.map(|e| *e)),
+            span,
+        })
     }
 
     pub fn set_compat_mode(&mut self, _enabled: bool) {}

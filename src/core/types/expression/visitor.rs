@@ -48,6 +48,9 @@ pub trait ExpressionVisitor: Send + Sync {
             }
             Expression::Path(items) => self.visit_path(items),
             Expression::Label(name) => self.visit_label(name),
+            Expression::ListComprehension { variable, source, filter, map } => {
+                self.visit_list_comprehension(variable, source.as_ref(), filter.as_deref(), map.as_deref())
+            }
         }
     }
 
@@ -114,6 +117,15 @@ pub trait ExpressionVisitor: Send + Sync {
 
     /// 访问标签表达式
     fn visit_label(&mut self, name: &str) -> Self::Result;
+
+    /// 访问列表推导表达式
+    fn visit_list_comprehension(
+        &mut self,
+        variable: &str,
+        source: &Expression,
+        filter: Option<&Expression>,
+        map: Option<&Expression>,
+    ) -> Self::Result;
 
     /// 获取访问者状态（默认实现）
     fn state(&self) -> &ExpressionVisitorState {
@@ -397,7 +409,7 @@ pub trait ExpressionTransformer: ExpressionVisitor<Result = Expression> {
                     property: property.clone(),
                 }
             }
-            Expression::Literal(_) | Expression::Variable(_) | Expression::Label(_) => {
+            Expression::Literal(_) | Expression::Variable(_) | Expression::Label(_) | Expression::ListComprehension { .. } => {
                 expression.clone()
             }
         }

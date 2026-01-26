@@ -655,6 +655,7 @@ impl TypeValidator {
             }
             Expression::Path(_) => ValueType::Path,
             Expression::Label(_) => ValueType::String,
+            Expression::ListComprehension { .. } => ValueType::List,
         }
     }
 

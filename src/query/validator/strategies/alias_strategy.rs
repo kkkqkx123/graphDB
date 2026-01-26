@@ -109,7 +109,8 @@ impl AliasValidationStrategy {
             Expression::Literal(_)
             | Expression::Property { .. }
             | Expression::Variable(_)
-            | Expression::Label(_) => Ok(()),
+            | Expression::Label(_)
+            | Expression::ListComprehension { .. } => Ok(()),
             Expression::TypeCast { expression, .. } => {
                 // 类型转换表达式需要验证其子表达式
                 self.validate_expression_aliases(expression, aliases)

@@ -382,6 +382,7 @@ impl GoValidator {
                 self.validate_label_name(name)?;
                 Ok(())
             }
+            Expression::ListComprehension { .. } => Ok(()),
         }
     }
 
@@ -580,6 +581,7 @@ impl GoValidator {
             }
             Expression::Path(_) => Ok(DataType::Path),
             Expression::Label(_) => Ok(DataType::String),
+            Expression::ListComprehension { .. } => Ok(DataType::List),
         }
     }
 

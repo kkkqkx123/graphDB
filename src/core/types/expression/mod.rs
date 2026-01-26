@@ -153,6 +153,14 @@ pub enum Expression {
     
     /// 标签表达式
     Label(String),
+    
+    /// 列表推导表达式
+    ListComprehension {
+        variable: String,
+        source: Box<Expression>,
+        filter: Option<Box<Expression>>,
+        map: Option<Box<Expression>>,
+    },
 }
 
 impl Expression {
@@ -249,6 +257,20 @@ impl Expression {
     pub fn label(name: impl Into<String>) -> Self {
         Expression::Label(name.into())
     }
+    
+    pub fn list_comprehension(
+        variable: impl Into<String>,
+        source: Expression,
+        filter: Option<Expression>,
+        map: Option<Expression>,
+    ) -> Self {
+        Expression::ListComprehension {
+            variable: variable.into(),
+            source: Box::new(source),
+            filter: filter.map(Box::new),
+            map: map.map(Box::new),
+        }
+    }
 
     pub fn children(&self) -> Vec<&Expression> {
         match self {
@@ -295,6 +317,21 @@ impl Expression {
             }
             Expression::Path(items) => items.iter().collect(),
             Expression::Label(_) => vec![],
+            Expression::ListComprehension {
+                source,
+                filter,
+                map,
+                ..
+            } => {
+                let mut children = vec![source.as_ref()];
+                if let Some(f) = filter {
+                    children.push(f.as_ref());
+                }
+                if let Some(m) = map {
+                    children.push(m.as_ref());
+                }
+                children
+            }
         }
     }
 
@@ -431,6 +468,12 @@ impl Expression {
                 format!("({})", items_str)
             }
             Expression::Label(name) => format!(":{}", name),
+            Expression::ListComprehension { variable, source, filter, map } => {
+                let source_str = source.to_expression_string();
+                let filter_str = filter.as_ref().map(|f| format!(" WHERE {}", f.to_expression_string())).unwrap_or_default();
+                let map_str = map.as_ref().map(|m| format!(" | {}", m.to_expression_string())).unwrap_or_default();
+                format!("[{} IN {}{}{}]", variable, source_str, filter_str, map_str)
+            }
         }
     }
 }

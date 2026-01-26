@@ -131,6 +131,7 @@ impl OrderByValidator {
             Expression::Unary { operand, .. } => self.expression_is_empty(operand),
             Expression::List(items) => items.is_empty(),
             Expression::Map(pairs) => pairs.is_empty(),
+            Expression::ListComprehension { .. } => false,
             // 其他表达式类型默认不为空
             _ => false,
         }
@@ -274,6 +275,7 @@ impl OrderByValidator {
             Expression::Range { .. } => Ok(ValueType::List),
             Expression::Path(_) => Ok(ValueType::Path),
             Expression::Label(_) => Ok(ValueType::String),
+            Expression::ListComprehension { .. } => Ok(ValueType::List),
         }
     }
 
@@ -360,6 +362,7 @@ impl OrderByValidator {
             Expression::Literal(_) => {},
             Expression::Path(_) => {},
             Expression::Label(_) => {},
+            Expression::ListComprehension { .. } => {},
         }
     }
 
