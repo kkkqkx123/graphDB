@@ -238,11 +238,6 @@ impl ValidationContext {
 
     // ==================== 符号表 ====================
 
-    /// 获取符号表引用
-    pub fn symbol_table(&self) -> Option<&SymbolTable> {
-        self.sym_table.as_deref()
-    }
-
     // ==================== 基本上下文委托 ====================
 
     /// 获取基本验证上下文的引用
@@ -285,8 +280,9 @@ impl ValidationContext {
             .register_variable(var.clone(), cols.clone());
 
         // 同时在符号表中注册
-        if let Some(sym_table) = &self.sym_table {
-            let _ = sym_table.new_variable(&var);
+        if let Some(sym_table) = &mut self.sym_table {
+            let sym_table_mut = Arc::make_mut(sym_table);
+            let _ = sym_table_mut.new_variable(&var);
         }
     }
 
@@ -303,8 +299,9 @@ impl ValidationContext {
     /// 添加变量对象
     pub fn add_variable(&mut self, var: Variable) {
         self.basic_context.add_variable(var.clone());
-        if let Some(sym_table) = &self.sym_table {
-            let _ = sym_table.new_variable(&var.name);
+        if let Some(sym_table) = &mut self.sym_table {
+            let sym_table_mut = Arc::make_mut(sym_table);
+            let _ = sym_table_mut.new_variable(&var.name);
         }
     }
 

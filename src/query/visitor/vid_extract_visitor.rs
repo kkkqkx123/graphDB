@@ -374,6 +374,23 @@ impl ExpressionVisitor for VidExtractVisitor {
         Ok(())
     }
 
+    fn visit_list_comprehension(
+        &mut self,
+        _variable: &str,
+        source: &Expression,
+        filter: Option<&Expression>,
+        map: Option<&Expression>,
+    ) -> Self::Result {
+        self.visit_expression(source)?;
+        if let Some(f) = filter {
+            self.visit_expression(f)?;
+        }
+        if let Some(m) = map {
+            self.visit_expression(m)?;
+        }
+        Ok(())
+    }
+
     fn state(&self) -> &ExpressionVisitorState {
         &self.state
     }

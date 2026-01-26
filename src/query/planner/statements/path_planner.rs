@@ -45,34 +45,34 @@ impl Planner for PathPlanner {
     fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
         let path_ctx = PathContext::new(ast_ctx.clone());
 
-        let arg_node = ArgumentNode::new(0, &path_ctx.traverse.from.user_defined_var_name);
+        let arg_node = ArgumentNode::new(0, &path_ctx.from.user_defined_var_name);
         let arg_node_enum = PlanNodeEnum::Argument(arg_node);
 
-        let direction_str = match path_ctx.traverse.over.direction {
+        let direction_str = match path_ctx.over.direction {
             EdgeDirection::Out => "out",
             EdgeDirection::In => "in",
             EdgeDirection::Both => "both",
         };
 
-        let mut edge_types = path_ctx.traverse.over.edge_types.clone();
-        if path_ctx.traverse.over.direction == EdgeDirection::Both {
+        let mut edge_types = path_ctx.over.edge_types.clone();
+        if path_ctx.over.direction == EdgeDirection::Both {
             let reverse_types: Vec<String> = edge_types
                 .iter()
                 .map(|et| format!("-{}", et))
                 .collect();
             edge_types.extend(reverse_types);
-        } else if path_ctx.traverse.over.direction == EdgeDirection::In {
+        } else if path_ctx.over.direction == EdgeDirection::In {
             edge_types = edge_types
                 .iter()
                 .map(|et| format!("-{}", et))
                 .collect();
         }
 
-        let _min_hops = path_ctx.traverse.steps.m_steps as usize;
-        let max_hops = if path_ctx.traverse.steps.is_m_to_n {
-            path_ctx.traverse.steps.n_steps as usize
+        let _min_hops = path_ctx.steps.m_steps as usize;
+        let max_hops = if path_ctx.steps.is_m_to_n {
+            path_ctx.steps.n_steps as usize
         } else {
-            path_ctx.traverse.steps.m_steps as usize
+            path_ctx.steps.m_steps as usize
         };
 
         let mut expand_all_node = ExpandAllNode::new(
@@ -84,7 +84,7 @@ impl Planner for PathPlanner {
 
         let expand_enum = PlanNodeEnum::ExpandAll(expand_all_node);
 
-        let filter_node = if let Some(ref condition) = path_ctx.traverse.filter {
+        let filter_node = if let Some(ref condition) = path_ctx.filter {
             match FilterNode::new(expand_enum, condition.clone()) {
                 Ok(node) => PlanNodeEnum::Filter(node),
                 Err(e) => {

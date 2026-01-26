@@ -6,7 +6,10 @@ use crate::query::context::request_context::RequestContext;
 use crate::query::context::symbol::SymbolTable;
 use crate::query::context::validate::types::SpaceInfo;
 use crate::query::parser::ast::Stmt;
+use once_cell::sync::Lazy;
 use std::sync::Arc;
+
+static EMPTY_SYMBOL_TABLE: Lazy<SymbolTable> = Lazy::new(SymbolTable::new);
 
 /// 查询类型枚举
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -42,14 +45,14 @@ pub trait AstContextTrait {
 /// 注意：符号表由 QueryContext 持有，AstContext 通过 qctx.sym_table() 访问
 #[derive(Debug, Clone)]
 pub struct AstContext {
-    pub qctx: Arc<QueryContext>,
+    pub qctx: Option<Arc<QueryContext>>,
     pub sentence: Option<Stmt>,
     pub space: SpaceInfo,
     pub query_type: QueryType,
 }
 
 impl AstContext {
-    pub fn new(qctx: Arc<QueryContext>, sentence: Option<Stmt>) -> Self {
+    pub fn new(qctx: Option<Arc<QueryContext>>, sentence: Option<Stmt>) -> Self {
         Self {
             qctx,
             sentence,
@@ -66,7 +69,7 @@ impl AstContext {
         qctx.set_rctx(request_context);
         
         let ctx = Self {
-            qctx: std::sync::Arc::new(qctx),
+            qctx: Some(std::sync::Arc::new(qctx)),
             sentence: None,
             space: SpaceInfo::default(),
             query_type: QueryType::default(),
@@ -79,7 +82,7 @@ impl AstContext {
     }
 
     pub fn with_space(
-        qctx: Arc<QueryContext>,
+        qctx: Option<Arc<QueryContext>>,
         sentence: Option<Stmt>,
         space: SpaceInfo,
     ) -> Self {
@@ -92,7 +95,7 @@ impl AstContext {
     }
 
     pub fn with_query_type(
-        qctx: Arc<QueryContext>,
+        qctx: Option<Arc<QueryContext>>,
         sentence: Option<Stmt>,
         space: SpaceInfo,
         query_type: QueryType,
@@ -105,8 +108,8 @@ impl AstContext {
         }
     }
 
-    pub fn query_context(&self) -> &QueryContext {
-        &self.qctx
+    pub fn query_context(&self) -> Option<&QueryContext> {
+        self.qctx.as_deref()
     }
 
     pub fn sentence(&self) -> Option<&Stmt> {
@@ -126,7 +129,8 @@ impl AstContext {
     }
 
     pub fn symbol_table(&self) -> &SymbolTable {
-        &self.qctx.sym_table()
+        self.qctx.as_ref()
+            .map_or(&*EMPTY_SYMBOL_TABLE, |v| v.sym_table())
     }
 
     pub fn query_type(&self) -> QueryType {
@@ -211,6 +215,16 @@ impl AstContext {
         }
     }
 
+    pub fn set_query_type_from_statement(&mut self) {
+        let stmt_type = self.statement_type().to_uppercase();
+        self.query_type = match stmt_type.as_str() {
+            "MATCH" | "CYPHER" => QueryType::ReadQuery,
+            "CREATE" | "RETURN" | "WHERE" => QueryType::WriteQuery,
+            "GO" | "LOOKUP" | "FETCH" | "FIND" | "SUBGRAPH" => QueryType::ReadQuery,
+            _ => QueryType::default(),
+        };
+    }
+
     pub fn contains_path_query(&self) -> bool {
         matches!(
             &self.sentence,
@@ -247,7 +261,7 @@ impl AstContextTrait for AstContext {
 impl Default for AstContext {
     fn default() -> Self {
         Self {
-            qctx: Arc::new(QueryContext::new()),
+            qctx: Some(Arc::new(QueryContext::new())),
             sentence: None,
             space: SpaceInfo::default(),
             query_type: QueryType::default(),
@@ -258,7 +272,7 @@ impl Default for AstContext {
 impl From<(&str, &str)> for AstContext {
     fn from((_query_type, _query_text): (&str, &str)) -> Self {
         Self {
-            qctx: Arc::new(QueryContext::new()),
+            qctx: Some(Arc::new(QueryContext::new())),
             sentence: None,
             space: SpaceInfo::default(),
             query_type: QueryType::default(),

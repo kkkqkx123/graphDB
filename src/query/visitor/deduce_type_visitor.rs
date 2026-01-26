@@ -535,6 +535,24 @@ impl<'a, S: StorageEngine> ExpressionVisitor for DeduceTypeVisitor<'a, S> {
     fn state_mut(&mut self) -> &mut ExpressionVisitorState {
         &mut self.state
     }
+
+    fn visit_list_comprehension(
+        &mut self,
+        _variable: &str,
+        source: &Expression,
+        filter: Option<&Expression>,
+        map: Option<&Expression>,
+    ) -> Self::Result {
+        self.visit_expression(source)?;
+        if let Some(f) = filter {
+            self.visit_expression(f)?;
+        }
+        if let Some(m) = map {
+            self.visit_expression(m)?;
+        }
+        self.type_ = DataType::List;
+        Ok(())
+    }
 }
 
 #[cfg(test)]

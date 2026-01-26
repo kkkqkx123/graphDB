@@ -231,6 +231,13 @@ impl<'a> ParseContext<'a> {
             }
         }
     }
+
+    pub fn is_identifier_or_in_token(&self) -> bool {
+        matches!(
+            self.current_token.kind,
+            TokenKind::Identifier(_) | TokenKind::In
+        )
+    }
 }
 
 pub struct Parser<'a> {

@@ -362,7 +362,7 @@ impl<'a> ExprParser<'a> {
             }
             TokenKind::LBracket => {
                 ctx.next_token();
-                if ctx.match_token(TokenKind::Identifier(_)) || ctx.match_token(TokenKind::In) {
+                if ctx.is_identifier_or_in_token() {
                     self.parse_list_comprehension(start_pos, ctx)
                 } else {
                     let elements = self.parse_expression_list(ctx)?;
@@ -463,7 +463,7 @@ impl<'a> ExprParser<'a> {
         }
         
         let default = if ctx.match_token(TokenKind::Else) {
-            Some(Box::new(self.parse_expression(ctx)?))
+            Some(Box::new(self.parse_expression(ctx)?.expr))
         } else {
             None
         };
@@ -480,19 +480,19 @@ impl<'a> ExprParser<'a> {
     fn parse_list_comprehension(&mut self, start_pos: Position, ctx: &mut ParseContext<'a>) -> Result<ParseResult, ParseError> {
         let variable = ctx.expect_identifier()?;
         ctx.expect_token(TokenKind::In)?;
-        let source = Box::new(self.parse_expression(ctx)?);
+        let source = self.parse_expression(ctx)?.expr;
         
         let (filter, map) = if ctx.match_token(TokenKind::Pipe) {
             let map_expr = self.parse_expression(ctx)?;
-            (None, Some(Box::new(map_expr.expr)))
+            (None, Some(map_expr.expr))
         } else if ctx.match_token(TokenKind::Where) {
-            let filter_expr = Box::new(self.parse_expression(ctx)?);
+            let filter_expr = self.parse_expression(ctx)?;
             let map_expr = if ctx.match_token(TokenKind::Pipe) {
-                Some(Box::new(self.parse_expression(ctx)?.expr))
+                Some(self.parse_expression(ctx)?.expr)
             } else {
                 None
             };
-            (Some(filter_expr), map_expr)
+            (Some(filter_expr.expr), map_expr)
         } else {
             (None, None)
         };
@@ -501,7 +501,7 @@ impl<'a> ExprParser<'a> {
         
         let span = ctx.merge_span(start_pos, ctx.current_position());
         Ok(ParseResult {
-            expr: Expression::list_comprehension(variable, *source, filter.map(|e| *e), map.map(|e| *e)),
+            expr: Expression::list_comprehension(variable, source, filter, map),
             span,
         })
     }

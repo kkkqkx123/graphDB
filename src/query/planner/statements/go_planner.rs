@@ -45,10 +45,10 @@ impl Planner for GoPlanner {
     fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
         let go_ctx = GoContext::new(ast_ctx.clone());
 
-        let arg_node = ArgumentNode::new(0, &go_ctx.traverse.from.user_defined_var_name);
+        let arg_node = ArgumentNode::new(0, &go_ctx.from.user_defined_var_name);
         let arg_node_enum = PlanNodeEnum::Argument(arg_node);
 
-        let direction_str = match go_ctx.traverse.over.direction {
+        let direction_str = match go_ctx.over.direction {
             EdgeDirection::Out => "out",
             EdgeDirection::In => "in",
             EdgeDirection::Both => "both",
@@ -56,7 +56,7 @@ impl Planner for GoPlanner {
 
         let expand_all_node = ExpandAllNode::new(
             1,
-            go_ctx.traverse.over.edge_types.clone(),
+            go_ctx.over.edge_types.clone(),
             direction_str,
         );
 
@@ -67,7 +67,7 @@ impl Planner for GoPlanner {
             let join_key_right = Expression::Variable("_expandall_vid".to_string());
 
             let left_input =
-                PlanNodeEnum::Argument(ArgumentNode::new(0, &go_ctx.traverse.from.user_defined_var_name));
+                PlanNodeEnum::Argument(ArgumentNode::new(0, &go_ctx.from.user_defined_var_name));
 
             match HashInnerJoinNode::new(
                 left_input,
@@ -87,7 +87,7 @@ impl Planner for GoPlanner {
             PlanNodeEnum::ExpandAll(expand_all_node)
         };
 
-        let filter_node = if let Some(ref condition) = go_ctx.traverse.filter {
+        let filter_node = if let Some(ref condition) = go_ctx.filter {
             match FilterNode::new(input_for_join, condition.clone()) {
                 Ok(filter) => PlanNodeEnum::Filter(filter),
                 Err(e) => {

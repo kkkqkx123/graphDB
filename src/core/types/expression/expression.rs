@@ -278,12 +278,12 @@ mod tests {
         let mut meta1 = ExpressionMeta::new(expr);
         let meta2 = meta1.clone();
 
-        let inner_ref = meta1.inner();
-        assert!(Arc::strong_count(&inner_ref) > 1);
+        let inner_arc = &meta1.inner;
+        assert!(Arc::strong_count(inner_arc) > 1);
 
         let _ = meta1.make_mut();
-        let inner_ref = meta1.inner();
-        assert_eq!(Arc::strong_count(&inner_ref), 1);
+        let inner_arc = &meta1.inner;
+        assert_eq!(Arc::strong_count(inner_arc), 1);
     }
 
     #[test]

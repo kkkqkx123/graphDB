@@ -248,6 +248,23 @@ impl ExpressionVisitor for PropertyTrackerVisitor {
         Ok(())
     }
 
+    fn visit_list_comprehension(
+        &mut self,
+        _variable: &str,
+        source: &Expression,
+        filter: Option<&Expression>,
+        map: Option<&Expression>,
+    ) -> Self::Result {
+        self.visit_expression(source)?;
+        if let Some(f) = filter {
+            self.visit_expression(f)?;
+        }
+        if let Some(m) = map {
+            self.visit_expression(m)?;
+        }
+        Ok(())
+    }
+
     fn visit_map(&mut self, pairs: &[(String, Expression)]) -> Self::Result {
         for (_key, value) in pairs {
             self.visit_expression(value)?;

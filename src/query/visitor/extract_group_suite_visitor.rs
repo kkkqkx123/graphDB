@@ -290,6 +290,24 @@ impl ExpressionVisitor for ExtractGroupSuiteVisitor {
         Ok(())
     }
 
+    fn visit_list_comprehension(
+        &mut self,
+        variable: &str,
+        source: &Expression,
+        filter: Option<&Expression>,
+        map: Option<&Expression>,
+    ) -> Self::Result {
+        self.group_suite.add_group_key(Expression::Variable(variable.to_string()));
+        self.visit_expression(source)?;
+        if let Some(f) = filter {
+            self.visit_expression(f)?;
+        }
+        if let Some(m) = map {
+            self.visit_expression(m)?;
+        }
+        Ok(())
+    }
+
     fn state(&self) -> &ExpressionVisitorState {
         &self.state
     }

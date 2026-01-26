@@ -222,4 +222,26 @@ impl ExpressionVisitor for FindVisitor {
     fn visit_label(&mut self, name: &str) -> Self::Result {
         self.found_exprs.push(Expression::Label(name.to_string()));
     }
+
+    fn visit_list_comprehension(
+        &mut self,
+        variable: &str,
+        source: &Expression,
+        filter: Option<&Expression>,
+        map: Option<&Expression>,
+    ) -> Self::Result {
+        self.found_exprs.push(Expression::ListComprehension {
+            variable: variable.to_string(),
+            source: Box::new(source.clone()),
+            filter: filter.map(|e| Box::new(e.clone())),
+            map: map.map(|e| Box::new(e.clone())),
+        });
+        self.visit_expression(source);
+        if let Some(f) = filter {
+            self.visit_expression(f);
+        }
+        if let Some(m) = map {
+            self.visit_expression(m);
+        }
+    }
 }

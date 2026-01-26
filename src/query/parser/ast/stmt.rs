@@ -731,8 +731,6 @@ pub struct ChangePasswordStmt {
 
 #[cfg(test)]
 mod tests {
-    use crate::query::parser::ast::VariableExpression;
-
     use super::*;
 
     #[test]
@@ -801,7 +799,7 @@ mod tests {
                 span: Span::default(),
                 vertices: vec![],
             },
-            to: Expression::Variable(VariableExpression::new("target".to_string(), Span::default())),
+            to: Expression::Variable("target".to_string()),
             over: None,
             where_clause: None,
             shortest: true,

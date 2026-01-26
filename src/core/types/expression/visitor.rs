@@ -519,9 +519,9 @@ mod tests {
             _op: &BinaryOperator,
             right: &Expression,
         ) -> Self::Result {
-            self.visit_expression(left)?;
-            self.visit_expression(right)?;
-            Ok(self.count)
+            self.visit_expression(left);
+            self.visit_expression(right);
+            self.count
         }
 
         fn visit_unary(&mut self, _op: &UnaryOperator, operand: &Expression) -> Self::Result {
@@ -530,9 +530,9 @@ mod tests {
 
         fn visit_function(&mut self, _name: &str, args: &[Expression]) -> Self::Result {
             for arg in args {
-                self.visit_expression(arg)?;
+                self.visit_expression(arg);
             }
-            Ok(self.count)
+            self.count
         }
 
         fn visit_aggregate(
@@ -546,16 +546,16 @@ mod tests {
 
         fn visit_list(&mut self, items: &[Expression]) -> Self::Result {
             for item in items {
-                self.visit_expression(item)?;
+                self.visit_expression(item);
             }
-            Ok(self.count)
+            self.count
         }
 
         fn visit_map(&mut self, pairs: &[(String, Expression)]) -> Self::Result {
             for (_, value) in pairs {
-                self.visit_expression(value)?;
+                self.visit_expression(value);
             }
-            Ok(self.count)
+            self.count
         }
 
         fn visit_case(
@@ -564,13 +564,13 @@ mod tests {
             default: Option<&Expression>,
         ) -> Self::Result {
             for (when, then) in conditions {
-                self.visit_expression(when)?;
-                self.visit_expression(then)?;
+                self.visit_expression(when);
+                self.visit_expression(then);
             }
             if let Some(default) = default {
-                self.visit_expression(default)?;
+                self.visit_expression(default);
             }
-            Ok(self.count)
+            self.count
         }
 
         fn visit_type_cast(&mut self, expression: &Expression, _target_type: &DataType) -> Self::Result {
@@ -578,7 +578,7 @@ mod tests {
         }
 
         fn visit_subscript(&mut self, collection: &Expression, index: &Expression) -> Self::Result {
-            self.visit_expression(collection)?;
+            self.visit_expression(collection);
             self.visit_expression(index)
         }
 
@@ -588,25 +588,42 @@ mod tests {
             start: Option<&Expression>,
             end: Option<&Expression>,
         ) -> Self::Result {
-            self.visit_expression(collection)?;
+            self.visit_expression(collection);
             if let Some(start) = start {
-                self.visit_expression(start)?;
+                self.visit_expression(start);
             }
             if let Some(end) = end {
-                self.visit_expression(end)?;
+                self.visit_expression(end);
             }
-            Ok(self.count)
+            self.count
         }
 
         fn visit_path(&mut self, items: &[Expression]) -> Self::Result {
             for item in items {
-                self.visit_expression(item)?;
+                self.visit_expression(item);
             }
-            Ok(self.count)
+            self.count
         }
 
         fn visit_label(&mut self, _name: &str) -> Self::Result {
             self.count += 1;
+            self.count
+        }
+
+        fn visit_list_comprehension(
+            &mut self,
+            _variable: &str,
+            source: &Expression,
+            filter: Option<&Expression>,
+            map: Option<&Expression>,
+        ) -> Self::Result {
+            self.visit_expression(source);
+            if let Some(filter) = filter {
+                self.visit_expression(filter);
+            }
+            if let Some(map) = map {
+                self.visit_expression(map);
+            }
             self.count
         }
     }
