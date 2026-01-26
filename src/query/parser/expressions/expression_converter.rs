@@ -71,7 +71,7 @@ use crate::query::parser::ast::{
 /// **注意**: 此函数现在为内部函数，主要由 `convert_ast_to_expression_meta` 调用。
 /// 外部代码应使用 `convert_ast_to_expression_meta` 或 `parse_expression_meta_from_string`。
 #[doc(hidden)]
-pub(crate) fn convert_ast_to_graph_expression(ast_expression: &crate::query::parser::ast::Expression) -> Result<GraphExpression, String> {
+pub fn convert_ast_to_graph_expression(ast_expression: &crate::query::parser::ast::Expression) -> Result<GraphExpression, String> {
     match ast_expression {
         Expression::Constant(expression) => convert_constant_expression(expression),
         Expression::Variable(expression) => convert_variable_expression(expression),
@@ -658,10 +658,11 @@ pub fn convert_ast_to_expression_meta(ast_expression: &crate::query::parser::ast
 /// ```
 pub fn parse_expression_meta_from_string(condition: &str) -> Result<ExpressionMeta, String> {
     let mut parser = crate::query::parser::Parser::new(condition);
-    let ast_expression = parser
+    let core_expression = parser
         .parse_expression()
         .map_err(|e| format!("语法分析错误: {:?}", e))?;
-    convert_ast_to_expression_meta(&ast_expression)
+    // 现在 Parser 直接返回 Core Expression，不需要转换
+    Ok(ExpressionMeta::new(core_expression))
 }
 
 /// 从字符串解析表达式
@@ -805,7 +806,7 @@ mod tests {
         assert!(result.is_ok());
 
         let meta = result.expect("Expected successful parsing of expression from string");
-        assert!(matches!(meta.expression, crate::core::Expression::Binary { .. }));
+        assert!(matches!(meta.inner(), crate::core::types::expression::Expression::Binary { .. }));
     }
 
     #[test]

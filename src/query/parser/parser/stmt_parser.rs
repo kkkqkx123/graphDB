@@ -4,6 +4,7 @@
 
 use crate::core::types::graph_schema::EdgeDirection;
 use crate::core::types::PropertyDef;
+use crate::core::types::expression::Expression as CoreExpression;
 use crate::query::parser::ast::*;
 use crate::query::parser::ast::pattern::{EdgePattern, NodePattern, PathElement, PathPattern};
 use crate::query::parser::core::error::{ParseError, ParseErrorKind};
@@ -20,6 +21,13 @@ impl<'a> StmtParser<'a> {
         Self {
             _phantom: std::marker::PhantomData,
         }
+    }
+
+    /// 解析表达式并返回 Core Expression
+    fn parse_expression(&mut self, ctx: &mut ParseContext<'a>) -> Result<CoreExpression, ParseError> {
+        let mut expr_parser = ExprParser::new(ctx);
+        let result = expr_parser.parse_expression(ctx)?;
+        Ok(result.expr)
     }
 
     pub fn parse_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {
@@ -435,7 +443,7 @@ impl<'a> StmtParser<'a> {
     fn parse_insert_vertex_values(
         &mut self,
         ctx: &mut ParseContext<'a>,
-    ) -> Result<Vec<(Expression, Vec<Expression>)>, ParseError> {
+    ) -> Result<Vec<(CoreExpression, Vec<CoreExpression>)>, ParseError> {
         let mut values = Vec::new();
         loop {
             let vid = self.parse_expression(ctx)?;
@@ -460,7 +468,7 @@ impl<'a> StmtParser<'a> {
     fn parse_insert_edge_values(
         &mut self,
         ctx: &mut ParseContext<'a>,
-    ) -> Result<(Expression, Expression, Option<Expression>, Vec<Expression>), ParseError> {
+    ) -> Result<(CoreExpression, CoreExpression, Option<CoreExpression>, Vec<CoreExpression>), ParseError> {
         let src = self.parse_expression(ctx)?;
         ctx.expect_token(TokenKind::Minus)?;
         ctx.expect_token(TokenKind::Gt)?;
@@ -554,12 +562,7 @@ impl<'a> StmtParser<'a> {
         }))
     }
 
-    fn parse_expression(&mut self, ctx: &mut ParseContext<'a>) -> Result<Expression, ParseError> {
-        let mut expr_parser = ExprParser::new(ctx);
-        expr_parser.parse_expression(ctx)
-    }
-
-    fn parse_expression_list(&mut self, ctx: &mut ParseContext<'a>) -> Result<Vec<Expression>, ParseError> {
+    fn parse_expression_list(&mut self, ctx: &mut ParseContext<'a>) -> Result<Vec<CoreExpression>, ParseError> {
         let mut expressions = Vec::new();
         expressions.push(self.parse_expression(ctx)?);
         while ctx.match_token(TokenKind::Comma) {

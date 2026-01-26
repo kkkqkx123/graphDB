@@ -2,8 +2,9 @@
 //!
 //! 图模式匹配相关的 AST 定义，支持节点、边和路径模式。
 
-use super::expression::{Expression, ExprUtils};
 use super::types::*;
+use crate::core::types::expression::Expression;
+use crate::core::types::expression::utils::CoreExprUtils;
 
 /// 模式枚举 - 图模式匹配
 #[derive(Debug, Clone, PartialEq)]
@@ -200,10 +201,10 @@ impl PatternUtils {
                     variables.push(var.clone());
                 }
                 if let Some(ref props) = p.properties {
-                    variables.extend(ExprUtils::find_variables(props));
+                    variables.extend(CoreExprUtils::find_variables(props));
                 }
                 for predicate in &p.predicates {
-                    variables.extend(ExprUtils::find_variables(predicate));
+                    variables.extend(CoreExprUtils::find_variables(predicate));
                 }
             }
             Pattern::Edge(p) => {
@@ -211,10 +212,10 @@ impl PatternUtils {
                     variables.push(var.clone());
                 }
                 if let Some(ref props) = p.properties {
-                    variables.extend(ExprUtils::find_variables(props));
+                    variables.extend(CoreExprUtils::find_variables(props));
                 }
                 for predicate in &p.predicates {
-                    variables.extend(ExprUtils::find_variables(predicate));
+                    variables.extend(CoreExprUtils::find_variables(predicate));
                 }
             }
             Pattern::Path(p) => {
@@ -235,10 +236,10 @@ impl PatternUtils {
                     variables.push(var.clone());
                 }
                 if let Some(ref props) = p.properties {
-                    variables.extend(ExprUtils::find_variables(props));
+                    variables.extend(CoreExprUtils::find_variables(props));
                 }
                 for predicate in &p.predicates {
-                    variables.extend(ExprUtils::find_variables(predicate));
+                    variables.extend(CoreExprUtils::find_variables(predicate));
                 }
             }
             PathElement::Edge(p) => {
@@ -246,10 +247,10 @@ impl PatternUtils {
                     variables.push(var.clone());
                 }
                 if let Some(ref props) = p.properties {
-                    variables.extend(ExprUtils::find_variables(props));
+                    variables.extend(CoreExprUtils::find_variables(props));
                 }
                 for predicate in &p.predicates {
-                    variables.extend(ExprUtils::find_variables(predicate));
+                    variables.extend(CoreExprUtils::find_variables(predicate));
                 }
             }
             PathElement::Alternative(patterns) => {

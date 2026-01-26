@@ -62,6 +62,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 pub mod expression;
+pub mod utils;
 pub use expression::{ExpressionId, ExpressionMeta};
 
 pub mod visitor;

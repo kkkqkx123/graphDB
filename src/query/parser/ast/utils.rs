@@ -1,10 +1,10 @@
 //! 工具函数和辅助功能
 
-use super::expression::*;
 use super::pattern::*;
 use super::stmt::*;
 use super::types::*;
 use crate::core::Value;
+use crate::core::types::expression::Expression;
 
 /// 表达式工厂 - 用于创建表达式节点
 pub struct ExprFactory;
@@ -12,42 +12,42 @@ pub struct ExprFactory;
 impl ExprFactory {
     /// 创建常量表达式
     pub fn constant(value: Value, span: Span) -> Expression {
-        Expression::Constant(ConstantExpression::new(value, span))
+        Expression::Literal(value)
     }
 
     /// 创建变量表达式
-    pub fn variable(name: String, span: Span) -> Expression {
-        Expression::Variable(VariableExpression::new(name, span))
+    pub fn variable(name: String, _span: Span) -> Expression {
+        Expression::Variable(name)
     }
 
     /// 创建二元表达式
-    pub fn binary(left: Expression, op: BinaryOp, right: Expression, span: Span) -> Expression {
-        Expression::Binary(BinaryExpression::new(left, op, right, span))
+    pub fn binary(left: Expression, op: crate::core::types::operators::BinaryOperator, right: Expression, _span: Span) -> Expression {
+        Expression::Binary { left: Box::new(left), op, right: Box::new(right) }
     }
 
     /// 创建一元表达式
-    pub fn unary(op: UnaryOp, operand: Expression, span: Span) -> Expression {
-        Expression::Unary(UnaryExpression::new(op, operand, span))
+    pub fn unary(op: crate::core::types::operators::UnaryOperator, operand: Expression, _span: Span) -> Expression {
+        Expression::Unary { op, operand: Box::new(operand) }
     }
 
     /// 创建函数调用表达式
-    pub fn function_call(name: String, args: Vec<Expression>, distinct: bool, span: Span) -> Expression {
-        Expression::FunctionCall(FunctionCallExpression::new(name, args, distinct, span))
+    pub fn function_call(name: String, args: Vec<Expression>, _distinct: bool, _span: Span) -> Expression {
+        Expression::Function { name, args }
     }
 
     /// 创建属性访问表达式
-    pub fn property_access(object: Expression, property: String, span: Span) -> Expression {
-        Expression::PropertyAccess(PropertyAccessExpression::new(object, property, span))
+    pub fn property_access(object: Expression, property: String, _span: Span) -> Expression {
+        Expression::Property { object: Box::new(object), property }
     }
 
     /// 创建列表表达式
-    pub fn list(elements: Vec<Expression>, span: Span) -> Expression {
-        Expression::List(ListExpression::new(elements, span))
+    pub fn list(elements: Vec<Expression>, _span: Span) -> Expression {
+        Expression::List(elements)
     }
 
     /// 创建映射表达式
-    pub fn map(pairs: Vec<(String, Expression)>, span: Span) -> Expression {
-        Expression::Map(MapExpression::new(pairs, span))
+    pub fn map(pairs: Vec<(String, Expression)>, _span: Span) -> Expression {
+        Expression::Map(pairs)
     }
 
     /// 创建 CASE 表达式
@@ -55,28 +55,30 @@ impl ExprFactory {
         match_expression: Option<Expression>,
         when_then_pairs: Vec<(Expression, Expression)>,
         default: Option<Expression>,
-        span: Span,
+        _span: Span,
     ) -> Expression {
-        Expression::Case(CaseExpression::new(match_expression, when_then_pairs, default, span))
+        let conditions = when_then_pairs;
+        let default = default.map(Box::new);
+        Expression::Case { conditions, default }
     }
 
     /// 创建下标表达式
-    pub fn subscript(collection: Expression, index: Expression, span: Span) -> Expression {
-        Expression::Subscript(SubscriptExpression::new(collection, index, span))
+    pub fn subscript(collection: Expression, index: Expression, _span: Span) -> Expression {
+        Expression::Subscript { collection: Box::new(collection), index: Box::new(index) }
     }
 
     /// 创建比较表达式
-    pub fn compare(left: Expression, op: BinaryOp, right: Expression, span: Span) -> Expression {
+    pub fn compare(left: Expression, op: crate::core::types::operators::BinaryOperator, right: Expression, span: Span) -> Expression {
         Self::binary(left, op, right, span)
     }
 
     /// 创建逻辑表达式
-    pub fn logical(left: Expression, op: BinaryOp, right: Expression, span: Span) -> Expression {
+    pub fn logical(left: Expression, op: crate::core::types::operators::BinaryOperator, right: Expression, span: Span) -> Expression {
         Self::binary(left, op, right, span)
     }
 
     /// 创建算术表达式
-    pub fn arithmetic(left: Expression, op: BinaryOp, right: Expression, span: Span) -> Expression {
+    pub fn arithmetic(left: Expression, op: crate::core::types::operators::BinaryOperator, right: Expression, span: Span) -> Expression {
         Self::binary(left, op, right, span)
     }
 }
@@ -418,84 +420,50 @@ impl ExprOptimizer {
     /// 常量折叠优化
     pub fn constant_folding(expression: Expression) -> Expression {
         match expression {
-            Expression::Binary(mut e) => {
-                let optimized_left = Self::constant_folding(*e.left);
-                let optimized_right = Self::constant_folding(*e.right);
+            Expression::Binary { left, op, right } => {
+                let optimized_left = Self::constant_folding(*left);
+                let optimized_right = Self::constant_folding(*right);
 
                 // 如果左右操作数都是常量，尝试计算结果
-                if optimized_left.is_constant() && optimized_right.is_constant() {
-                    if let (Expression::Constant(ref left), Expression::Constant(ref right)) =
-                        (&optimized_left, &optimized_right)
+                if let (Expression::Literal(ref left_value), Expression::Literal(ref right_value)) =
+                    (&optimized_left, &optimized_right)
+                {
+                    if let Some(result) =
+                        Self::evaluate_binary_op(left_value, op, right_value)
                     {
-                        if let Some(result) =
-                            Self::evaluate_binary_op(&left.value, e.op, &right.value)
-                        {
-                            return Expression::Constant(ConstantExpression::new(result, e.span));
-                        }
+                        return Expression::Literal(result);
                     }
                 }
 
-                e.left = Box::new(optimized_left);
-                e.right = Box::new(optimized_right);
-                Expression::Binary(e)
+                Expression::Binary { left: Box::new(optimized_left), op, right: Box::new(optimized_right) }
             }
-            Expression::Unary(mut e) => {
-                let optimized_operand = Self::constant_folding(*e.operand);
+            Expression::Unary { op, operand } => {
+                let optimized_operand = Self::constant_folding(*operand);
 
                 // 如果操作数是常量，尝试计算结果
-                if optimized_operand.is_constant() {
-                    if let Expression::Constant(ref operand) = optimized_operand {
-                        if let Some(result) = Self::evaluate_unary_op(e.op, &operand.value) {
-                            return Expression::Constant(ConstantExpression::new(result, e.span));
-                        }
+                if let Expression::Literal(ref operand_value) = optimized_operand {
+                    if let Some(result) = Self::evaluate_unary_op(op, operand_value) {
+                        return Expression::Literal(result);
                     }
                 }
 
-                e.operand = Box::new(optimized_operand);
-                Expression::Unary(e)
+                Expression::Unary { op, operand: Box::new(optimized_operand) }
             }
-            Expression::List(mut e) => {
-                e.elements = e.elements.into_iter().map(Self::constant_folding).collect();
-                Expression::List(e)
+            Expression::List(elements) => {
+                let optimized_elements = elements.into_iter().map(Self::constant_folding).collect();
+                Expression::List(optimized_elements)
             }
-            Expression::Map(mut e) => {
-                e.pairs = e
-                    .pairs
+            Expression::Map(pairs) => {
+                let optimized_pairs = pairs
                     .into_iter()
                     .map(|(key, value)| (key, Self::constant_folding(value)))
                     .collect();
-                Expression::Map(e)
+                Expression::Map(optimized_pairs)
             }
-            Expression::Case(mut e) => {
-                if let Some(ref mut match_expression) = e.match_expression {
-                    let cloned_match_expression = (*match_expression).clone();
-                    *match_expression = Box::new(Self::constant_folding(*cloned_match_expression));
-                }
-
-                e.when_then_pairs = e
-                    .when_then_pairs
-                    .into_iter()
-                    .map(|(when, then)| {
-                        (
-                            Box::new(Self::constant_folding(*when)),
-                            Box::new(Self::constant_folding(*then)),
-                        )
-                    })
-                    .collect();
-
-                if let Some(ref mut default) = e.default {
-                    let cloned_default = (*default).clone();
-                    *default = Box::new(Self::constant_folding(*cloned_default));
-                }
-
-                Expression::Case(e)
-            }
-            Expression::Subscript(mut e) => {
-                let optimized_collection = Self::constant_folding(*e.collection);
-                let optimized_index = Self::constant_folding(*e.index);
-                e.collection = Box::new(optimized_collection);
-                e.index = Box::new(optimized_index);
-                Expression::Subscript(e)
+            Expression::Subscript { collection, index, .. } => {
+                let optimized_collection = Self::constant_folding(*collection);
+                let optimized_index = Self::constant_folding(*index);
+                Expression::Subscript { collection: Box::new(optimized_collection), index: Box::new(optimized_index) }
             }
             _ => expression,
         }
@@ -561,72 +529,60 @@ impl ExprOptimizer {
     /// 移除冗余操作
     fn remove_redundant_operations(expression: Expression) -> Expression {
         match expression {
-            Expression::Binary(e) => {
-                let left = Self::remove_redundant_operations(*e.left);
-                let right = Self::remove_redundant_operations(*e.right);
+            Expression::Binary { left, op, right, .. } => {
+                let left = Self::remove_redundant_operations(*left);
+                let right = Self::remove_redundant_operations(*right);
 
                 // 简化：x + 0 -> x
-                if e.op == BinaryOp::Add {
-                    if let Expression::Constant(constant) = &right {
-                        if matches!(constant.value, Value::Int(0) | Value::Float(0.0)) {
-                            return left;
-                        }
+                if op == crate::core::types::operators::BinaryOperator::Add {
+                    if let Expression::Literal(Value::Int(0) | Value::Float(0.0)) = &right {
+                        return left;
                     }
-                    if let Expression::Constant(constant) = &left {
-                        if matches!(constant.value, Value::Int(0) | Value::Float(0.0)) {
-                            return right;
-                        }
+                    if let Expression::Literal(Value::Int(0) | Value::Float(0.0)) = &left {
+                        return right;
                     }
                 }
 
                 // 简化：x * 1 -> x
-                if e.op == BinaryOp::Multiply {
-                    if let Expression::Constant(constant) = &right {
-                        if matches!(constant.value, Value::Int(1) | Value::Float(1.0)) {
-                            return left;
-                        }
+                if op == crate::core::types::operators::BinaryOperator::Multiply {
+                    if let Expression::Literal(Value::Int(1) | Value::Float(1.0)) = &right {
+                        return left;
                     }
-                    if let Expression::Constant(constant) = &left {
-                        if matches!(constant.value, Value::Int(1) | Value::Float(1.0)) {
-                            return right;
-                        }
+                    if let Expression::Literal(Value::Int(1) | Value::Float(1.0)) = &left {
+                        return right;
                     }
                 }
 
                 // 简化：x * 0 -> 0
-                if e.op == BinaryOp::Multiply {
-                    if let Expression::Constant(constant) = &right {
-                        if matches!(constant.value, Value::Int(0) | Value::Float(0.0)) {
-                            return right;
-                        }
+                if op == crate::core::types::operators::BinaryOperator::Multiply {
+                    if let Expression::Literal(Value::Int(0) | Value::Float(0.0)) = &right {
+                        return right;
                     }
-                    if let Expression::Constant(constant) = &left {
-                        if matches!(constant.value, Value::Int(0) | Value::Float(0.0)) {
-                            return left;
-                        }
+                    if let Expression::Literal(Value::Int(0) | Value::Float(0.0)) = &left {
+                        return left;
                     }
                 }
 
-                Expression::Binary(BinaryExpression::new(left, e.op, right, e.span))
+                Expression::Binary { left: Box::new(left), op, right: Box::new(right) }
             }
-            Expression::Unary(e) => {
-                let operand = Self::remove_redundant_operations(*e.operand);
+            Expression::Unary { op, operand, .. } => {
+                let operand = Self::remove_redundant_operations(*operand);
 
                 // 简化：+x -> x
-                if e.op == UnaryOp::Plus {
+                if op == crate::core::types::operators::UnaryOperator::Plus {
                     return operand;
                 }
 
                 // 简化：!!x -> x
-                if e.op == UnaryOp::Not {
-                    if let Expression::Unary(inner) = &operand {
-                        if inner.op == UnaryOp::Not {
-                            return (*inner.operand).clone();
+                if op == crate::core::types::operators::UnaryOperator::Not {
+                    if let Expression::Unary { op: inner_op, operand: inner_operand, .. } = &operand {
+                        if *inner_op == crate::core::types::operators::UnaryOperator::Not {
+                            return *inner_operand.clone();
                         }
                     }
                 }
 
-                Expression::Unary(UnaryExpression::new(e.op, operand, e.span))
+                Expression::Unary { op, operand: Box::new(operand) }
             }
             _ => expression,
         }
@@ -644,7 +600,7 @@ mod tests {
 
         // 测试常量表达式
         let const_expression = ExprFactory::constant(Value::Int(42), span);
-        assert!(matches!(const_expression, Expression::Constant(_)));
+        assert!(matches!(const_expression, Expression::Literal(_)));
 
         // 测试变量表达式
         let var_expression = ExprFactory::variable("x".to_string(), span);
@@ -653,8 +609,8 @@ mod tests {
         // 测试二元表达式
         let left = ExprFactory::constant(Value::Int(5), span);
         let right = ExprFactory::constant(Value::Int(3), span);
-        let binary_expression = ExprFactory::binary(left, BinaryOp::Add, right, span);
-        assert!(matches!(binary_expression, Expression::Binary(_)));
+        let binary_expression = ExprFactory::binary(left, crate::core::types::operators::BinaryOperator::Add, right, span);
+        assert!(matches!(binary_expression, Expression::Binary { left: _, op: _, right: _ }));
     }
 
     #[test]
@@ -664,23 +620,22 @@ mod tests {
         // 测试 5 + 3 -> 8
         let left = ExprFactory::constant(Value::Int(5), span);
         let right = ExprFactory::constant(Value::Int(3), span);
-        let expression = ExprFactory::binary(left, BinaryOp::Add, right, span);
+        let expression = ExprFactory::binary(left, crate::core::types::operators::BinaryOperator::Add, right, span);
 
         let optimized = ExprOptimizer::constant_folding(expression);
-        assert!(matches!(optimized, Expression::Constant(_)));
-        if let Expression::Constant(e) = optimized {
-            assert_eq!(e.value, Value::Int(8));
-        }
+        assert!(matches!(optimized, Expression::Literal(Value::Int(8))));
+    }
+
+    #[test]
+    fn test_unary_minus() {
+        let span = Span::default();
 
         // 测试 -5 -> -5
         let operand = ExprFactory::constant(Value::Int(5), span);
-        let expression = ExprFactory::unary(UnaryOp::Minus, operand, span);
+        let expression = ExprFactory::unary(crate::core::types::operators::UnaryOperator::Minus, operand, span);
 
         let optimized = ExprOptimizer::constant_folding(expression);
-        assert!(matches!(optimized, Expression::Constant(_)));
-        if let Expression::Constant(e) = optimized {
-            assert_eq!(e.value, Value::Int(-5));
-        }
+        assert!(matches!(optimized, Expression::Literal(Value::Int(-5))));
     }
 
     #[test]
@@ -690,7 +645,7 @@ mod tests {
         // 测试 x + 0 -> x
         let x = ExprFactory::variable("x".to_string(), span);
         let zero = ExprFactory::constant(Value::Int(0), span);
-        let expression = ExprFactory::binary(x.clone(), BinaryOp::Add, zero, span);
+        let expression = ExprFactory::binary(x.clone(), crate::core::types::operators::BinaryOperator::Add, zero, span);
 
         let simplified = ExprOptimizer::simplify(expression);
         assert_eq!(simplified, x);
@@ -698,15 +653,15 @@ mod tests {
         // 测试 x * 1 -> x
         let x = ExprFactory::variable("x".to_string(), span);
         let one = ExprFactory::constant(Value::Int(1), span);
-        let expression = ExprFactory::binary(x.clone(), BinaryOp::Multiply, one, span);
+        let expression = ExprFactory::binary(x.clone(), crate::core::types::operators::BinaryOperator::Multiply, one, span);
 
         let simplified = ExprOptimizer::simplify(expression);
         assert_eq!(simplified, x);
 
         // 测试 !!x -> x
         let x = ExprFactory::variable("x".to_string(), span);
-        let not_expression = ExprFactory::unary(UnaryOp::Not, x.clone(), span);
-        let expression = ExprFactory::unary(UnaryOp::Not, not_expression, span);
+        let not_expression = ExprFactory::unary(crate::core::types::operators::UnaryOperator::Not, x.clone(), span);
+        let expression = ExprFactory::unary(crate::core::types::operators::UnaryOperator::Not, not_expression, span);
 
         let simplified = ExprOptimizer::simplify(expression);
         assert_eq!(simplified, x);
