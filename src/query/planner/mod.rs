@@ -5,6 +5,7 @@
 pub mod plan;
 pub mod planner;
 pub mod connector;
+pub mod operation_kind_support;
 
 // 按功能组织的模块
 pub mod statements;

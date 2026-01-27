@@ -10,7 +10,9 @@ use crate::core::Expression;
 use crate::core::Value;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::{DefaultExpressionContext, ExpressionContext};
-use crate::query::executor::base::{BaseExecutor, InputExecutor};
+use crate::query::executor::base::BaseExecutor;
+use crate::query::executor::base::InputExecutor;
+use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::traits::{ExecutionResult, Executor};
 use crate::storage::StorageEngine;
 
@@ -30,10 +32,10 @@ impl ProjectionColumn {
 /// ProjectExecutor - 投影执行器
 ///
 /// 执行列投影操作，支持表达式求值和列重命名
-pub struct ProjectExecutor<S: StorageEngine> {
+pub struct ProjectExecutor<S: StorageEngine + Send + 'static> {
     base: BaseExecutor<S>,
     columns: Vec<ProjectionColumn>, // 投影列定义
-    input_executor: Option<Box<dyn Executor<S>>>,
+    input_executor: Option<Box<ExecutorEnum<S>>>,
 }
 
 impl<S: StorageEngine> ProjectExecutor<S> {
@@ -189,13 +191,13 @@ impl<S: StorageEngine> ProjectExecutor<S> {
     }
 }
 
-impl<S: StorageEngine> InputExecutor<S> for ProjectExecutor<S> {
-    fn set_input(&mut self, input: Box<dyn Executor<S>>) {
-        self.input_executor = Some(input);
+impl<S: StorageEngine + Send + 'static> InputExecutor<S> for ProjectExecutor<S> {
+    fn set_input(&mut self, input: ExecutorEnum<S>) {
+        self.input_executor = Some(Box::new(input));
     }
 
-    fn get_input(&self) -> Option<&Box<dyn Executor<S>>> {
-        self.input_executor.as_ref()
+    fn get_input(&self) -> Option<&ExecutorEnum<S>> {
+        self.input_executor.as_deref()
     }
 }
 
@@ -316,69 +318,11 @@ mod tests {
     use super::*;
     use crate::core::value::{DataSet, Value};
     use crate::core::{BinaryOperator, Expression};
+    use crate::query::executor::base::BaseExecutor;
+    use crate::query::executor::executor_enum::ExecutorEnum;
     use crate::query::executor::HasStorage;
     use crate::query::executor::traits::{ExecutionResult, Executor, ExecutorStats};
     use crate::storage::test_mock::MockStorage;
-
-    // 模拟输入执行器
-    struct MockInputExecutor {
-        result: ExecutionResult,
-        stats: ExecutorStats,
-    }
-
-    impl MockInputExecutor {
-        fn new(result: ExecutionResult) -> Self {
-            Self {
-                result,
-                stats: ExecutorStats::default(),
-            }
-        }
-    }
-
-    #[async_trait::async_trait]
-    impl Executor<MockStorage> for MockInputExecutor {
-        async fn execute(&mut self) -> DBResult<ExecutionResult> {
-            Ok(self.result.clone())
-        }
-
-        fn open(&mut self) -> DBResult<()> {
-            Ok(())
-        }
-
-        fn close(&mut self) -> DBResult<()> {
-            Ok(())
-        }
-
-        fn is_open(&self) -> bool {
-            true
-        }
-
-        fn id(&self) -> i64 {
-            0
-        }
-
-        fn name(&self) -> &str {
-            "MockInputExecutor"
-        }
-
-        fn description(&self) -> &str {
-            "Mock executor for testing"
-        }
-
-        fn stats(&self) -> &ExecutorStats {
-            &self.stats
-        }
-
-        fn stats_mut(&mut self) -> &mut ExecutorStats {
-            &mut self.stats
-        }
-    }
-
-    impl HasStorage<MockStorage> for MockInputExecutor {
-        fn get_storage(&self) -> &Arc<Mutex<MockStorage>> {
-            unimplemented!("Mock executor doesn't use storage")
-        }
-    }
 
     #[tokio::test]
     async fn test_simple_projection() {
@@ -402,8 +346,8 @@ mod tests {
         ];
 
         // 创建模拟输入执行器
-        let input_executor = MockInputExecutor::new(ExecutionResult::DataSet(input_dataset));
-        executor.set_input(Box::new(input_executor));
+        let input_executor = ExecutorEnum::Base(BaseExecutor::new(0, "MockInputExecutor".to_string(), Arc::new(Mutex::new(MockStorage))));
+        executor.set_input(input_executor);
 
         // 执行投影
         let result = executor
@@ -450,8 +394,8 @@ mod tests {
         ];
 
         // 创建模拟输入执行器
-        let input_executor = MockInputExecutor::new(ExecutionResult::DataSet(input_dataset));
-        executor.set_input(Box::new(input_executor));
+        let input_executor = ExecutorEnum::Base(BaseExecutor::new(0, "MockInputExecutor".to_string(), Arc::new(Mutex::new(MockStorage))));
+        executor.set_input(input_executor);
 
         // 执行投影
         let result = executor
@@ -518,9 +462,8 @@ mod tests {
         };
 
         // 创建模拟输入执行器
-        let input_executor =
-            MockInputExecutor::new(ExecutionResult::Vertices(vec![vertex1, vertex2]));
-        executor.set_input(Box::new(input_executor));
+        let input_executor = ExecutorEnum::Base(BaseExecutor::new(0, "MockInputExecutor".to_string(), Arc::new(Mutex::new(MockStorage))));
+        executor.set_input(input_executor);
 
         // 执行投影
         let result = executor
@@ -591,8 +534,8 @@ mod tests {
         };
 
         // 创建模拟输入执行器
-        let input_executor = MockInputExecutor::new(ExecutionResult::Edges(vec![edge1, edge2]));
-        executor.set_input(Box::new(input_executor));
+        let input_executor = ExecutorEnum::Base(BaseExecutor::new(0, "MockInputExecutor".to_string(), Arc::new(Mutex::new(MockStorage))));
+        executor.set_input(input_executor);
 
         // 执行投影
         let result = executor

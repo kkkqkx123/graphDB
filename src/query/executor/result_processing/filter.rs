@@ -15,6 +15,7 @@ use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::evaluator::traits::ExpressionContext;
 use crate::expression::DefaultExpressionContext;
 use crate::query::executor::base::InputExecutor;
+use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::result_processing::traits::{
     BaseResultProcessor, ResultProcessor, ResultProcessorContext,
 };
@@ -30,7 +31,7 @@ pub struct FilterExecutor<S: StorageEngine + Send + 'static> {
     /// 过滤条件表达式
     condition: Expression,
     /// 输入执行器
-    input_executor: Option<Box<dyn Executor<S>>>,
+    input_executor: Option<Box<ExecutorEnum<S>>>,
 }
 
 impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
@@ -373,12 +374,12 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for FilterExecutor<S>
 }
 
 impl<S: StorageEngine + Send + 'static> InputExecutor<S> for FilterExecutor<S> {
-    fn set_input(&mut self, input: Box<dyn Executor<S>>) {
-        self.input_executor = Some(input);
+    fn set_input(&mut self, input: ExecutorEnum<S>) {
+        self.input_executor = Some(Box::new(input));
     }
 
-    fn get_input(&self) -> Option<&Box<dyn Executor<S>>> {
-        self.input_executor.as_ref()
+    fn get_input(&self) -> Option<&ExecutorEnum<S>> {
+        self.input_executor.as_deref()
     }
 }
 

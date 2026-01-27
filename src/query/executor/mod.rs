@@ -4,6 +4,7 @@ pub mod base;
 pub mod data_access;
 pub mod data_modification;
 pub mod data_processing;
+pub mod executor_enum;
 pub mod factory;
 pub mod graph_query_executor;
 pub mod logic;
@@ -12,6 +13,7 @@ pub mod recursion_detector;
 pub mod result_processing;
 pub mod tag_filter;
 pub mod traits;
+pub mod operation_kind_support;
 
 // Re-export from base module (统一的基础类型)
 pub use base::{

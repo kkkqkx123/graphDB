@@ -8,6 +8,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::core::{Edge, Value, Vertex};
 use crate::query::executor::base::InputExecutor;
+use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::result_processing::traits::{
     BaseResultProcessor, ResultProcessor, ResultProcessorContext,
 };
@@ -34,7 +35,7 @@ pub struct DedupExecutor<S: StorageEngine + Send + 'static> {
     /// 基础处理器
     base: BaseResultProcessor<S>,
     /// 输入执行器
-    input_executor: Option<Box<dyn Executor<S>>>,
+    input_executor: Option<Box<ExecutorEnum<S>>>,
     /// 去重策略
     strategy: DedupStrategy,
     /// 内存限制（字节）
@@ -478,18 +479,20 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for DedupExecutor<S> 
 }
 
 impl<S: StorageEngine + Send + 'static> InputExecutor<S> for DedupExecutor<S> {
-    fn set_input(&mut self, input: Box<dyn Executor<S>>) {
-        self.input_executor = Some(input);
+    fn set_input(&mut self, input: ExecutorEnum<S>) {
+        self.input_executor = Some(Box::new(input));
     }
 
-    fn get_input(&self) -> Option<&Box<dyn Executor<S>>> {
-        self.input_executor.as_ref()
+    fn get_input(&self) -> Option<&ExecutorEnum<S>> {
+        self.input_executor.as_deref()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::query::executor::base::BaseExecutor;
+    use crate::query::executor::executor_enum::ExecutorEnum;
     use crate::storage::test_mock::MockStorage;
     use std::collections::HashMap;
 
@@ -510,67 +513,11 @@ mod tests {
 
         let input_result = ExecutionResult::Values(test_data);
 
-        // 创建模拟输入执行器
-        struct MockInputExecutor {
-            result: ExecutionResult,
-            storage: Arc<Mutex<MockStorage>>,
-            stats: crate::query::executor::traits::ExecutorStats,
-        }
-
-        #[async_trait]
-        impl crate::query::executor::traits::Executor<MockStorage> for MockInputExecutor {
-            async fn execute(&mut self) -> DBResult<ExecutionResult> {
-                Ok(self.result.clone())
-            }
-
-            fn open(&mut self) -> DBResult<()> {
-                Ok(())
-            }
-
-            fn close(&mut self) -> DBResult<()> {
-                Ok(())
-            }
-
-            fn is_open(&self) -> bool {
-                true
-            }
-
-            fn id(&self) -> i64 {
-                0
-            }
-
-            fn name(&self) -> &str {
-                "MockInputExecutor"
-            }
-
-            fn description(&self) -> &str {
-                "Mock input executor for testing"
-            }
-
-            fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
-                &self.stats
-            }
-
-            fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
-                &mut self.stats
-            }
-        }
-
-        impl crate::query::executor::traits::HasStorage<MockStorage> for MockInputExecutor {
-            fn get_storage(&self) -> &Arc<Mutex<MockStorage>> {
-                &self.storage
-            }
-        }
-
-        let input_executor = MockInputExecutor {
-            result: input_result,
-            storage,
-            stats: crate::query::executor::traits::ExecutorStats::default(),
-        };
+        let input_executor = ExecutorEnum::Base(BaseExecutor::new(0, "MockInputExecutor".to_string(), storage));
 
         <DedupExecutor<MockStorage> as InputExecutor<MockStorage>>::set_input(
             &mut executor,
-            Box::new(input_executor),
+            input_executor,
         );
 
         // 执行去重

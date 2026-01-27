@@ -11,6 +11,8 @@ use crate::core::Expression;
 use crate::core::{DataSet, Value};
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::{DefaultExpressionContext, ExpressionContext};
+use crate::query::executor::base::InputExecutor;
+use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::result_processing::traits::{
     BaseResultProcessor, ResultProcessor, ResultProcessorContext,
 };
@@ -81,7 +83,7 @@ pub struct SortExecutor<S: StorageEngine + Send + 'static> {
     /// 限制数量
     limit: Option<usize>,
     /// 输入执行器
-    input_executor: Option<Box<dyn Executor<S>>>,
+    input_executor: Option<Box<ExecutorEnum<S>>>,
     /// 排序配置
     config: SortConfig,
 }
@@ -599,6 +601,16 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for SortExecutor<S> {
 
     fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
         self.base.get_stats_mut()
+    }
+}
+
+impl<S: StorageEngine + Send + 'static> InputExecutor<S> for SortExecutor<S> {
+    fn set_input(&mut self, input: ExecutorEnum<S>) {
+        self.input_executor = Some(Box::new(input));
+    }
+
+    fn get_input(&self) -> Option<&ExecutorEnum<S>> {
+        self.input_executor.as_deref()
     }
 }
 

@@ -6,6 +6,7 @@ use crate::core::error::{DBError, DBResult};
 use crate::core::{Edge, Path, Value, Vertex};
 use crate::core::vertex_edge_path::Step;
 use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
+use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
@@ -15,14 +16,14 @@ use crate::utils::safe_lock;
 ///
 /// 执行完整的图遍历操作，支持多跳和条件过滤
 /// 结合了 ExpandExecutor 的功能，支持更复杂的遍历需求
-pub struct TraverseExecutor<S: StorageEngine> {
+pub struct TraverseExecutor<S: StorageEngine + Send + 'static> {
     base: BaseExecutor<S>,
     pub edge_direction: EdgeDirection,
     pub edge_types: Option<Vec<String>>,
     pub max_depth: Option<usize>,
 
     conditions: Option<String>, // 遍历条件
-    input_executor: Option<Box<dyn Executor<S>>>,
+    input_executor: Option<Box<ExecutorEnum<S>>>,
     // 遍历状态
     current_paths: Vec<Path>,
     completed_paths: Vec<Path>,
@@ -246,13 +247,13 @@ impl<S: StorageEngine> TraverseExecutor<S> {
     }
 }
 
-impl<S: StorageEngine> InputExecutor<S> for TraverseExecutor<S> {
-    fn set_input(&mut self, input: Box<dyn Executor<S>>) {
-        self.input_executor = Some(input);
+impl<S: StorageEngine + Send + 'static> InputExecutor<S> for TraverseExecutor<S> {
+    fn set_input(&mut self, input: ExecutorEnum<S>) {
+        self.input_executor = Some(Box::new(input));
     }
 
-    fn get_input(&self) -> Option<&Box<dyn Executor<S>>> {
-        self.input_executor.as_ref()
+    fn get_input(&self) -> Option<&ExecutorEnum<S>> {
+        self.input_executor.as_deref()
     }
 }
 

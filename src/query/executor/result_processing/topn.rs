@@ -13,6 +13,7 @@ use crate::core::{DataSet, Value};
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::{DefaultExpressionContext, ExpressionContext};
 use crate::query::executor::base::InputExecutor;
+use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::result_processing::traits::{
     BaseResultProcessor, ResultProcessor, ResultProcessorContext,
 };
@@ -75,7 +76,7 @@ pub enum TopNError {
 ///
 /// 返回排序后的前 N 个结果，是 Sort + Limit 的优化版本
 /// 使用堆数据结构实现高效的 TopN 查询
-pub struct TopNExecutor<S: StorageEngine> {
+pub struct TopNExecutor<S: StorageEngine + Send + 'static> {
     /// 基础处理器
     base: BaseResultProcessor<S>,
     /// 返回的结果数量
@@ -85,7 +86,7 @@ pub struct TopNExecutor<S: StorageEngine> {
     /// 排序键列表
     sort_keys: Vec<crate::query::executor::result_processing::sort::SortKey>,
     /// 输入执行器
-    input_executor: Option<Box<dyn Executor<S>>>,
+    input_executor: Option<Box<ExecutorEnum<S>>>,
     /// 排序列定义
     sort_columns: Vec<SortColumn>,
     /// 排序方向
@@ -679,13 +680,13 @@ impl Ord for TopNItemDesc {
     }
 }
 
-impl<S: StorageEngine> InputExecutor<S> for TopNExecutor<S> {
-    fn set_input(&mut self, input: Box<dyn Executor<S>>) {
-        self.input_executor = Some(input);
+impl<S: StorageEngine + Send + 'static> InputExecutor<S> for TopNExecutor<S> {
+    fn set_input(&mut self, input: ExecutorEnum<S>) {
+        self.input_executor = Some(Box::new(input));
     }
 
-    fn get_input(&self) -> Option<&Box<dyn Executor<S>>> {
-        self.input_executor.as_ref()
+    fn get_input(&self) -> Option<&ExecutorEnum<S>> {
+        self.input_executor.as_deref()
     }
 }
 

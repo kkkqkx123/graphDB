@@ -11,6 +11,7 @@ use crate::storage::StorageEngine;
 use super::execution_context::ExecutionContext;
 use super::execution_result::{ExecutionResult, DBResult};
 use super::executor_stats::ExecutorStats;
+use super::super::executor_enum::ExecutorEnum;
 
 /// 统一的执行器 trait
 ///
@@ -68,9 +69,10 @@ pub trait HasInput<S: StorageEngine> {
 /// 输入执行器 trait
 ///
 /// 用于处理来自其他执行器的输入数据。
-pub trait InputExecutor<S: StorageEngine> {
-    fn set_input(&mut self, input: Box<dyn Executor<S>>);
-    fn get_input(&self) -> Option<&Box<dyn Executor<S>>>;
+/// 使用 ExecutorEnum 替代 Box<dyn Executor<S>>，实现静态分发。
+pub trait InputExecutor<S: StorageEngine + Send + 'static> {
+    fn set_input(&mut self, input: ExecutorEnum<S>);
+    fn get_input(&self) -> Option<&ExecutorEnum<S>>;
 }
 
 /// 可链式执行的执行器 trait
@@ -79,13 +81,6 @@ pub trait InputExecutor<S: StorageEngine> {
 pub trait ChainableExecutor<S: StorageEngine + Send + 'static>:
     Executor<S> + InputExecutor<S>
 {
-    fn chain(mut self, next: Box<dyn Executor<S>>) -> Box<dyn Executor<S>>
-    where
-        Self: Sized + 'static,
-    {
-        self.set_input(next);
-        Box::new(self)
-    }
 }
 
 /// 基础执行器

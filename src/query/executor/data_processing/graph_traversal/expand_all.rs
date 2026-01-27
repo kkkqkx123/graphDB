@@ -6,6 +6,7 @@ use crate::core::error::{DBError, DBResult};
 use crate::core::{Edge, Path, Value, Vertex};
 use crate::core::vertex_edge_path::Step;
 use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
+use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
@@ -15,12 +16,12 @@ use crate::utils::safe_lock;
 ///
 /// 返回从当前节点出发的所有可能的路径，而不仅仅是下一跳节点
 /// 通常用于路径探索查询
-pub struct ExpandAllExecutor<S: StorageEngine> {
+pub struct ExpandAllExecutor<S: StorageEngine + Send + 'static> {
     base: BaseExecutor<S>,
     pub edge_direction: EdgeDirection,
     pub edge_types: Option<Vec<String>>,
     pub max_depth: Option<usize>, // 最大扩展深度
-    input_executor: Option<Box<dyn Executor<S>>>,
+    input_executor: Option<Box<ExecutorEnum<S>>>,
     // 路径缓存
     path_cache: Vec<Path>,
     // 已访问节点集合，用于避免循环
@@ -191,13 +192,13 @@ impl<S: StorageEngine + Send> ExpandAllExecutor<S> {
     }
 }
 
-impl<S: StorageEngine> InputExecutor<S> for ExpandAllExecutor<S> {
-    fn set_input(&mut self, input: Box<dyn Executor<S>>) {
-        self.input_executor = Some(input);
+impl<S: StorageEngine + Send + 'static> InputExecutor<S> for ExpandAllExecutor<S> {
+    fn set_input(&mut self, input: ExecutorEnum<S>) {
+        self.input_executor = Some(Box::new(input));
     }
 
-    fn get_input(&self) -> Option<&Box<dyn Executor<S>>> {
-        self.input_executor.as_ref()
+    fn get_input(&self) -> Option<&ExecutorEnum<S>> {
+        self.input_executor.as_deref()
     }
 }
 

@@ -16,6 +16,7 @@ use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::evaluator::traits::ExpressionContext;
 use crate::expression::DefaultExpressionContext;
 use crate::query::executor::base::InputExecutor;
+use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::result_processing::traits::{
     BaseResultProcessor, ResultProcessor, ResultProcessorContext,
 };
@@ -432,7 +433,7 @@ impl GroupAggregateState {
 /// AggregateExecutor - 聚合执行器
 ///
 /// 执行聚合操作，支持 COUNT, SUM, AVG, MAX, MIN 等聚合函数
-pub struct AggregateExecutor<S: StorageEngine> {
+pub struct AggregateExecutor<S: StorageEngine + Send + 'static> {
     /// 基础处理器
     base: BaseResultProcessor<S>,
     /// 聚合函数列表
@@ -440,7 +441,7 @@ pub struct AggregateExecutor<S: StorageEngine> {
     /// 分组键列表
     group_keys: Vec<Expression>,
     /// 输入执行器
-    input_executor: Option<Box<dyn Executor<S>>>,
+    input_executor: Option<Box<ExecutorEnum<S>>>,
 }
 
 impl<S: StorageEngine> AggregateExecutor<S> {
@@ -966,23 +967,23 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for AggregateExecutor
 }
 
 impl<S: StorageEngine + Send + 'static> InputExecutor<S> for AggregateExecutor<S> {
-    fn set_input(&mut self, input: Box<dyn Executor<S>>) {
-        self.input_executor = Some(input);
+    fn set_input(&mut self, input: ExecutorEnum<S>) {
+        self.input_executor = Some(Box::new(input));
     }
 
-    fn get_input(&self) -> Option<&Box<dyn Executor<S>>> {
-        self.input_executor.as_ref()
+    fn get_input(&self) -> Option<&ExecutorEnum<S>> {
+        self.input_executor.as_deref()
     }
 }
 
 /// GroupByExecutor - 分组聚合执行器
 ///
 /// 实现 GROUP BY 操作
-pub struct GroupByExecutor<S: StorageEngine> {
+pub struct GroupByExecutor<S: StorageEngine + Send + 'static> {
     aggregate_executor: AggregateExecutor<S>,
 }
 
-impl<S: StorageEngine> GroupByExecutor<S> {
+impl<S: StorageEngine + Send + 'static> GroupByExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -1000,12 +1001,12 @@ impl<S: StorageEngine> GroupByExecutor<S> {
     }
 }
 
-impl<S: StorageEngine + 'static> InputExecutor<S> for GroupByExecutor<S> {
-    fn set_input(&mut self, input: Box<dyn Executor<S>>) {
+impl<S: StorageEngine + Send + 'static> InputExecutor<S> for GroupByExecutor<S> {
+    fn set_input(&mut self, input: ExecutorEnum<S>) {
         InputExecutor::set_input(&mut self.aggregate_executor, input);
     }
 
-    fn get_input(&self) -> Option<&Box<dyn Executor<S>>> {
+    fn get_input(&self) -> Option<&ExecutorEnum<S>> {
         InputExecutor::get_input(&self.aggregate_executor)
     }
 }
@@ -1052,13 +1053,13 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for GroupByExecutor<S
 /// HavingExecutor - HAVING 子句执行器
 ///
 /// 实现 HAVING 子句，对分组后的结果进行过滤
-pub struct HavingExecutor<S: StorageEngine> {
+pub struct HavingExecutor<S: StorageEngine + Send + 'static> {
     /// 基础处理器
     base: BaseResultProcessor<S>,
     /// HAVING 条件表达式
     condition: Expression,
     /// 输入执行器
-    input_executor: Option<Box<dyn Executor<S>>>,
+    input_executor: Option<Box<ExecutorEnum<S>>>,
 }
 
 impl<S: StorageEngine> HavingExecutor<S> {
@@ -1222,12 +1223,12 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for HavingExecutor<S>
 }
 
 impl<S: StorageEngine + Send + 'static> InputExecutor<S> for HavingExecutor<S> {
-    fn set_input(&mut self, input: Box<dyn Executor<S>>) {
-        self.input_executor = Some(input);
+    fn set_input(&mut self, input: ExecutorEnum<S>) {
+        self.input_executor = Some(Box::new(input));
     }
 
-    fn get_input(&self) -> Option<&Box<dyn Executor<S>>> {
-        self.input_executor.as_ref()
+    fn get_input(&self) -> Option<&ExecutorEnum<S>> {
+        self.input_executor.as_deref()
     }
 }
 

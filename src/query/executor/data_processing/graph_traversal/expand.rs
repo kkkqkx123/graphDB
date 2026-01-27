@@ -6,6 +6,7 @@ use std::time::Instant;
 use crate::core::error::{DBError, DBResult};
 use crate::core::Value;
 use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
+use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
@@ -15,7 +16,7 @@ use crate::utils::safe_lock;
 ///
 /// 从当前节点按照指定的边类型和方向扩展，获取相邻节点
 /// 支持多步扩展和采样，通常用于图遍历和路径查询
-pub struct ExpandExecutor<S: StorageEngine> {
+pub struct ExpandExecutor<S: StorageEngine + Send + 'static> {
     base: BaseExecutor<S>,
     pub edge_direction: EdgeDirection,
     pub edge_types: Option<Vec<String>>,
@@ -23,7 +24,7 @@ pub struct ExpandExecutor<S: StorageEngine> {
     pub step_limits: Option<Vec<usize>>, // 每步的扩展限制
     pub sample: bool, // 是否启用采样
     pub sample_limit: Option<usize>, // 采样限制
-    input_executor: Option<Box<dyn Executor<S>>>,
+    input_executor: Option<Box<ExecutorEnum<S>>>,
     // 缓存已访问的节点，用于避免循环
     pub visited_nodes: HashSet<Value>,
     // 邻接关系缓存
@@ -205,13 +206,13 @@ impl<S: StorageEngine> ExpandExecutor<S> {
     }
 }
 
-impl<S: StorageEngine> InputExecutor<S> for ExpandExecutor<S> {
-    fn set_input(&mut self, input: Box<dyn Executor<S>>) {
-        self.input_executor = Some(input);
+impl<S: StorageEngine + Send + 'static> InputExecutor<S> for ExpandExecutor<S> {
+    fn set_input(&mut self, input: ExecutorEnum<S>) {
+        self.input_executor = Some(Box::new(input));
     }
 
-    fn get_input(&self) -> Option<&Box<dyn Executor<S>>> {
-        self.input_executor.as_ref()
+    fn get_input(&self) -> Option<&ExecutorEnum<S>> {
+        self.input_executor.as_deref()
     }
 }
 

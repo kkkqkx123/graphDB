@@ -7,6 +7,7 @@ use crate::core::error::{DBError, DBResult};
 use crate::core::{Edge, Path, Value, Vertex};
 use crate::core::vertex_edge_path::Step;
 use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
+use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::query::QueryError;
 use crate::storage::StorageEngine;
@@ -76,7 +77,7 @@ pub enum ShortestPathAlgorithmType {
 
 pub type ShortestPathAlgorithm = ShortestPathAlgorithmType;
 
-pub struct ShortestPathExecutor<S: StorageEngine> {
+pub struct ShortestPathExecutor<S: StorageEngine + Send + 'static> {
     base: BaseExecutor<S>,
     start_vertex_ids: Vec<Value>,
     end_vertex_ids: Vec<Value>,
@@ -84,7 +85,7 @@ pub struct ShortestPathExecutor<S: StorageEngine> {
     pub edge_types: Option<Vec<String>>,
     pub max_depth: Option<usize>,
     algorithm: ShortestPathAlgorithmType,
-    input_executor: Option<Box<dyn Executor<S>>>,
+    input_executor: Option<Box<ExecutorEnum<S>>>,
     pub shortest_paths: Vec<Path>,
     pub nodes_visited: usize,
     pub edges_traversed: usize,
@@ -792,13 +793,13 @@ impl<S: StorageEngine> ShortestPathExecutor<S> {
     }
 }
 
-impl<S: StorageEngine> InputExecutor<S> for ShortestPathExecutor<S> {
-    fn set_input(&mut self, input: Box<dyn Executor<S>>) {
-        self.input_executor = Some(input);
+impl<S: StorageEngine + Send + 'static> InputExecutor<S> for ShortestPathExecutor<S> {
+    fn set_input(&mut self, input: ExecutorEnum<S>) {
+        self.input_executor = Some(Box::new(input));
     }
 
-    fn get_input(&self) -> Option<&Box<dyn Executor<S>>> {
-        self.input_executor.as_ref()
+    fn get_input(&self) -> Option<&ExecutorEnum<S>> {
+        self.input_executor.as_deref()
     }
 }
 
@@ -915,7 +916,7 @@ impl<S: StorageEngine + Send> HasStorage<S> for ShortestPathExecutor<S> {
     }
 }
 
-pub struct MultiShortestPathExecutor<S: StorageEngine> {
+pub struct MultiShortestPathExecutor<S: StorageEngine + Send + 'static> {
     base: BaseExecutor<S>,
     left_start_vertices: Vec<Value>,
     right_target_vertices: Vec<Value>,
@@ -923,7 +924,7 @@ pub struct MultiShortestPathExecutor<S: StorageEngine> {
     edge_types: Option<Vec<String>>,
     single_shortest: bool,
     limit: usize,
-    input_executor: Option<Box<dyn Executor<S>>>,
+    input_executor: Option<Box<ExecutorEnum<S>>>,
     left_visited: HashSet<Value>,
     right_visited: HashSet<Value>,
     left_paths: HashMap<Value, Vec<Path>>,
@@ -1190,13 +1191,13 @@ impl<S: StorageEngine> MultiShortestPathExecutor<S> {
     }
 }
 
-impl<S: StorageEngine> InputExecutor<S> for MultiShortestPathExecutor<S> {
-    fn set_input(&mut self, input: Box<dyn Executor<S>>) {
-        self.input_executor = Some(input);
+impl<S: StorageEngine + Send + 'static> InputExecutor<S> for MultiShortestPathExecutor<S> {
+    fn set_input(&mut self, input: ExecutorEnum<S>) {
+        self.input_executor = Some(Box::new(input));
     }
 
-    fn get_input(&self) -> Option<&Box<dyn Executor<S>>> {
-        self.input_executor.as_ref()
+    fn get_input(&self) -> Option<&ExecutorEnum<S>> {
+        self.input_executor.as_deref()
     }
 }
 
