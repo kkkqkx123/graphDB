@@ -12,10 +12,17 @@ pub mod statements;
 // 重新导出主要的类型
 pub use plan::execution_plan::{ExecutionPlan, SubPlan};
 pub use planner::{
-    ConfigurablePlannerRegistry, Planner, PlannerConfig, PlannerError, PlannerRegistry,
-    PlanCache, PlanCacheKey, SequentialPlanner,
+    ConfigurablePlannerRegistry, MatchAndInstantiateEnum, Planner, PlannerConfig, PlannerError,
+    PlannerRegistry, PlanCache, PlanCacheKey, SentenceKind, SequentialPlanner,
 };
 pub use connector::{JoinType, SegmentsConnector};
 pub use statements::{
     MatchStatementPlanner,
+};
+
+// 静态注册相关导出
+pub use planner::{
+    PlannerEnum, StaticConfigurablePlannerRegistry, StaticPlannerRegistry,
+    StaticSequentialPlanner,
+    create_planner, plan,
 };

@@ -149,7 +149,7 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
         result
     }
 
-    async fn execute_select(
+    async fn execute_single_input_executor(
         &self,
         executor_id: i64,
         execution_schedule: &mut ExecutionSchedule<S>,
@@ -158,13 +158,21 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
             .executors
             .remove(&executor_id)
             .ok_or_else(|| {
-                QueryError::InvalidQuery(format!("Select Executor {} not found", executor_id))
+                QueryError::InvalidQuery(format!("Executor {} not found", executor_id))
             })?;
 
         let result = executor.execute().await.map_err(QueryError::from)?;
 
         execution_schedule.executors.insert(executor_id, executor);
         Ok(result)
+    }
+
+    async fn execute_select(
+        &self,
+        executor_id: i64,
+        execution_schedule: &mut ExecutionSchedule<S>,
+    ) -> Result<ExecutionResult, QueryError> {
+        self.execute_single_input_executor(executor_id, execution_schedule).await
     }
 
     async fn execute_loop(
@@ -172,17 +180,7 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
         executor_id: i64,
         execution_schedule: &mut ExecutionSchedule<S>,
     ) -> Result<ExecutionResult, QueryError> {
-        let mut executor = execution_schedule
-            .executors
-            .remove(&executor_id)
-            .ok_or_else(|| {
-                QueryError::InvalidQuery(format!("Loop Executor {} not found", executor_id))
-            })?;
-
-        let result = executor.execute().await.map_err(QueryError::from)?;
-
-        execution_schedule.executors.insert(executor_id, executor);
-        Ok(result)
+        self.execute_single_input_executor(executor_id, execution_schedule).await
     }
 
     async fn execute_argument(
@@ -190,17 +188,7 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
         executor_id: i64,
         execution_schedule: &mut ExecutionSchedule<S>,
     ) -> Result<ExecutionResult, QueryError> {
-        let mut executor = execution_schedule
-            .executors
-            .remove(&executor_id)
-            .ok_or_else(|| {
-                QueryError::InvalidQuery(format!("Argument Executor {} not found", executor_id))
-            })?;
-
-        let result = executor.execute().await.map_err(QueryError::from)?;
-
-        execution_schedule.executors.insert(executor_id, executor);
-        Ok(result)
+        self.execute_single_input_executor(executor_id, execution_schedule).await
     }
 
     fn get_executable_executors(&self, execution_schedule: &ExecutionSchedule<S>) -> Vec<i64> {

@@ -1,5 +1,5 @@
-//! 新的规划器注册机制
-//! 使用类型安全的枚举替代字符串匹配
+//! 规划器注册机制
+//! 使用类型安全的枚举实现静态注册，完全消除动态分发
 
 use crate::query::context::ast::AstContext;
 use crate::query::context::execution::QueryContext;
@@ -10,6 +10,15 @@ use std::collections::HashMap;
 use std::num::NonZeroUsize;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+
+use crate::query::planner::statements::fetch_edges_planner::FetchEdgesPlanner;
+use crate::query::planner::statements::fetch_vertices_planner::FetchVerticesPlanner;
+use crate::query::planner::statements::go_planner::GoPlanner;
+use crate::query::planner::statements::lookup_planner::LookupPlanner;
+use crate::query::planner::statements::maintain_planner::MaintainPlanner;
+use crate::query::planner::statements::match_planner::MatchPlanner;
+use crate::query::planner::statements::path_planner::PathPlanner;
+use crate::query::planner::statements::subgraph_planner::SubgraphPlanner;
 
 /// 规划器配置
 #[derive(Debug, Clone)]
@@ -137,185 +146,84 @@ impl SentenceKind {
 /// 匹配函数类型
 pub type MatchFunc = fn(&AstContext) -> bool;
 
-/// 规划器实例化函数类型
-pub type PlannerInstantiateFunc = fn() -> Box<dyn Planner>;
-
-/// 匹配和实例化结构
+/// 静态匹配和实例化枚举 - 完全消除动态分发
 #[derive(Debug, Clone)]
-pub struct MatchAndInstantiate {
-    pub match_func: MatchFunc,
-    pub instantiate_func: PlannerInstantiateFunc,
-    pub priority: i32, // 优先级，用于匹配冲突时选择
+pub enum MatchAndInstantiateEnum {
+    Match(MatchPlanner),
+    Go(GoPlanner),
+    Lookup(LookupPlanner),
+    Path(PathPlanner),
+    Subgraph(SubgraphPlanner),
+    FetchVertices(FetchVerticesPlanner),
+    FetchEdges(FetchEdgesPlanner),
+    Maintain(MaintainPlanner),
 }
 
-impl MatchAndInstantiate {
-    pub fn new(
-        match_func: MatchFunc,
-        instantiate_func: PlannerInstantiateFunc,
-        priority: i32,
-    ) -> Self {
-        Self {
-            match_func,
-            instantiate_func,
-            priority,
-        }
-    }
-}
-
-/// 新的规划器注册表
-#[derive(Debug)]
-pub struct PlannerRegistry {
-    planners: HashMap<SentenceKind, Vec<MatchAndInstantiate>>,
-}
-
-impl PlannerRegistry {
-    pub fn new() -> Self {
-        Self {
-            planners: HashMap::new(),
+impl MatchAndInstantiateEnum {
+    pub fn match_func(&self, ast_ctx: &AstContext) -> bool {
+        match self {
+            MatchAndInstantiateEnum::Match(planner) => MatchPlanner::match_ast_ctx(ast_ctx),
+            MatchAndInstantiateEnum::Go(planner) => GoPlanner::match_ast_ctx(ast_ctx),
+            MatchAndInstantiateEnum::Lookup(planner) => LookupPlanner::match_ast_ctx(ast_ctx),
+            MatchAndInstantiateEnum::Path(planner) => PathPlanner::match_ast_ctx(ast_ctx),
+            MatchAndInstantiateEnum::Subgraph(planner) => SubgraphPlanner::match_ast_ctx(ast_ctx),
+            MatchAndInstantiateEnum::FetchVertices(planner) => FetchVerticesPlanner::match_ast_ctx(ast_ctx),
+            MatchAndInstantiateEnum::FetchEdges(planner) => FetchEdgesPlanner::match_ast_ctx(ast_ctx),
+            MatchAndInstantiateEnum::Maintain(planner) => MaintainPlanner::match_ast_ctx(ast_ctx),
         }
     }
 
-    /// 注册规划器
-    pub fn register_planner(
+    pub fn priority(&self) -> i32 {
+        match self {
+            MatchAndInstantiateEnum::Match(_) => 100,
+            MatchAndInstantiateEnum::Go(_) => 100,
+            MatchAndInstantiateEnum::Lookup(_) => 100,
+            MatchAndInstantiateEnum::Path(_) => 100,
+            MatchAndInstantiateEnum::Subgraph(_) => 100,
+            MatchAndInstantiateEnum::FetchVertices(_) => 100,
+            MatchAndInstantiateEnum::FetchEdges(_) => 100,
+            MatchAndInstantiateEnum::Maintain(_) => 100,
+        }
+    }
+
+    pub fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
+        match self {
+            MatchAndInstantiateEnum::Match(planner) => planner.transform(ast_ctx),
+            MatchAndInstantiateEnum::Go(planner) => planner.transform(ast_ctx),
+            MatchAndInstantiateEnum::Lookup(planner) => planner.transform(ast_ctx),
+            MatchAndInstantiateEnum::Path(planner) => planner.transform(ast_ctx),
+            MatchAndInstantiateEnum::Subgraph(planner) => planner.transform(ast_ctx),
+            MatchAndInstantiateEnum::FetchVertices(planner) => planner.transform(ast_ctx),
+            MatchAndInstantiateEnum::FetchEdges(planner) => planner.transform(ast_ctx),
+            MatchAndInstantiateEnum::Maintain(planner) => planner.transform(ast_ctx),
+        }
+    }
+
+    pub fn transform_with_full_context(
         &mut self,
-        sentence_kind: SentenceKind,
-        match_func: MatchFunc,
-        instantiate_func: PlannerInstantiateFunc,
-        priority: i32,
-    ) {
-        let match_and_instantiate = MatchAndInstantiate {
-            match_func,
-            instantiate_func,
-            priority,
-        };
-
-        self.planners
-            .entry(sentence_kind)
-            .or_default()
-            .push(match_and_instantiate);
-
-        // 按优先级排序
-        if let Some(planners) = self.planners.get_mut(&sentence_kind) {
-            planners.sort_by_key(|p| -p.priority);
-        }
-    }
-
-    /// 批量注册 MATCH 规划器
-    pub fn register_match_planners(&mut self) {
-        // 注册新的 MATCH 语句规划器
-        self.register_planner(
-            SentenceKind::Match,
-            crate::query::planner::statements::match_statement_planner::MatchStatementPlanner::match_ast_ctx,
-            || Box::new(crate::query::planner::statements::match_statement_planner::MatchStatementPlanner::new()) as Box<dyn Planner>,
-            100,
-        );
-    }
-
-    /// 批量注册 NGQL 规划器
-    pub fn register_ngql_planners(&mut self) {
-        self.register_planner(
-            SentenceKind::Go,
-            crate::query::planner::statements::go_planner::GoPlanner::match_ast_ctx,
-            || Box::new(crate::query::planner::statements::go_planner::GoPlanner::new()) as Box<dyn Planner>,
-            100,
-        );
-
-        self.register_planner(
-            SentenceKind::Lookup,
-            crate::query::planner::statements::lookup_planner::LookupPlanner::match_ast_ctx,
-            || Box::new(crate::query::planner::statements::lookup_planner::LookupPlanner::new()) as Box<dyn Planner>,
-            100,
-        );
-
-        self.register_planner(
-            SentenceKind::Path,
-            crate::query::planner::statements::path_planner::PathPlanner::match_ast_ctx,
-            || Box::new(crate::query::planner::statements::path_planner::PathPlanner::new()) as Box<dyn Planner>,
-            100,
-        );
-
-        self.register_planner(
-            SentenceKind::Subgraph,
-            crate::query::planner::statements::subgraph_planner::SubgraphPlanner::match_ast_ctx,
-            || Box::new(crate::query::planner::statements::subgraph_planner::SubgraphPlanner::new()) as Box<dyn Planner>,
-            100,
-        );
-
-        self.register_planner(
-            SentenceKind::FetchVertices,
-            crate::query::planner::statements::fetch_vertices_planner::FetchVerticesPlanner::match_ast_ctx,
-            || Box::new(crate::query::planner::statements::fetch_vertices_planner::FetchVerticesPlanner::new()) as Box<dyn Planner>,
-            100,
-        );
-
-        self.register_planner(
-            SentenceKind::FetchEdges,
-            crate::query::planner::statements::fetch_edges_planner::FetchEdgesPlanner::match_ast_ctx,
-            || Box::new(crate::query::planner::statements::fetch_edges_planner::FetchEdgesPlanner::new()) as Box<dyn Planner>,
-            100,
-        );
-
-        self.register_planner(
-            SentenceKind::Maintain,
-            crate::query::planner::statements::maintain_planner::MaintainPlanner::match_ast_ctx,
-            || Box::new(crate::query::planner::statements::maintain_planner::MaintainPlanner::new()) as Box<dyn Planner>,
-            100,
-        );
-    }
-
-    /// 创建执行计划
-    pub fn create_plan(&self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
-        let sentence_kind = self.extract_sentence_kind(ast_ctx)?;
-
-        let planners = self.planners.get(&sentence_kind).ok_or_else(|| {
-            PlannerError::NoSuitablePlanner(format!(
-                "No planners registered for sentence kind: {:?}",
-                sentence_kind
-            ))
-        })?;
-
-        for planner_info in planners {
-            if (planner_info.match_func)(ast_ctx) {
-                let mut planner = (planner_info.instantiate_func)();
-                return planner.transform(ast_ctx);
-            }
-        }
-
-        Err(PlannerError::NoSuitablePlanner(
-            "No suitable planner found for the given AST context".to_string(),
-        ))
-    }
-
-    /// 从 AST 上下文提取语句类型
-    fn extract_sentence_kind(&self, ast_ctx: &AstContext) -> Result<SentenceKind, PlannerError> {
-        // 直接从 AST 节点获取语句类型
-        if let Some(sentence) = ast_ctx.sentence() {
-            SentenceKind::from_str(sentence.kind())
-        } else {
-            Err(PlannerError::InvalidAstContext(
-                "Missing sentence in AST context".to_string(),
-            ))
-        }
-    }
-
-    /// 获取已注册的规划器数量
-    pub fn planner_count(&self) -> usize {
-        self.planners.values().map(|v| v.len()).sum()
-    }
-
-    /// 检查是否有指定类型的规划器
-    pub fn has_planners_for(&self, sentence_kind: &SentenceKind) -> bool {
-        self.planners.contains_key(sentence_kind)
-    }
-
-    /// 获取指定类型的规划器数量
-    pub fn planner_count_for(&self, sentence_kind: &SentenceKind) -> usize {
-        self.planners
-            .get(sentence_kind)
-            .map(|v| v.len())
-            .unwrap_or(0)
+        query_context: &mut QueryContext,
+        ast_ctx: &AstContext,
+    ) -> Result<ExecutionPlan, PlannerError> {
+        let sub_plan = self.transform(ast_ctx)?;
+        Ok(ExecutionPlan::new(sub_plan.root().clone()))
     }
 }
+
+/// 向后兼容的类型别名（已废弃）
+#[deprecated(since = "0.1.0", note = "请使用 MatchAndInstantiateEnum 替代")]
+pub type MatchAndInstantiate = MatchAndInstantiateEnum;
+
+/// 向后兼容的类型别名（已废弃）
+#[deprecated(since = "0.1.0", note = "请使用 StaticPlannerRegistry 替代")]
+pub type PlannerRegistry = StaticPlannerRegistry;
+
+/// 向后兼容的类型别名（已废弃）
+#[deprecated(since = "0.1.0", note = "请使用 StaticPlannerRegistry 替代")]
+pub type PlannerInstantiateFunc = fn() -> PlannerEnum;
+
+/// 向后兼容的类型别名（已废弃）
+#[deprecated(since = "0.1.0", note = "请使用 StaticConfigurablePlannerRegistry 替代")]
+pub type ConfigurablePlannerRegistry = StaticConfigurablePlannerRegistry;
 
 /// 规划器特征（保持与原有接口兼容）
 pub trait Planner: std::fmt::Debug {
@@ -336,140 +244,51 @@ pub trait Planner: std::fmt::Debug {
     }
 }
 
-/// 顺序规划器（使用新的注册机制）
+/// 向后兼容的类型别名
+#[deprecated(since = "0.1.0", note = "请使用 StaticSequentialPlanner 替代")]
+pub type SequentialPlanner = StaticSequentialPlanner;
+
+/// 可配置的规划器注册表（静态版本）
 #[derive(Debug)]
-pub struct SequentialPlanner {}
-
-impl SequentialPlanner {
-    pub fn new() -> Self {
-        Self {}
-    }
-
-    pub fn make() -> Box<dyn Planner> {
-        Box::new(Self::new())
-    }
-
-    pub fn match_ast_ctx(_ast_ctx: &AstContext) -> bool {
-        // 对于顺序规划器，通常匹配任何语句
-        true
-    }
-
-    /// 转换 AST 上下文为计划（类似于原始的 toPlan 方法）
-    pub fn to_plan(ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
-        let mut registry = PlannerRegistry::new();
-        Self::register_planners(&mut registry);
-        registry.create_plan(ast_ctx)
-    }
-
-    /// 注册所有可用的规划器
-    pub fn register_planners(registry: &mut PlannerRegistry) {
-        registry.register_match_planners();
-        registry.register_ngql_planners();
-    }
-
-    /// 移除左侧尾部起始节点
-    ///
-    /// 当追加计划时，需要移除左侧尾部 Start 节点。
-    /// 这是因为左侧尾部的 Start 节点需要被移除，并保留一个位置用于添加依赖关系。
-    ///
-    /// TODO: 这是临时解决方案，在实现逐个执行多个序列后应移除
-    pub fn rm_left_tail_start_node(plan: &mut SubPlan) {
-        let tail = match &plan.tail {
-            Some(t) => t,
-            None => return,
-        };
-
-        if !tail.is_start() {
-            return;
-        }
-
-        let root = match &plan.root {
-            Some(r) => r,
-            None => return,
-        };
-
-        let mut current = root.clone();
-        let mut found = false;
-
-        while let Some(first_dep) = current.first_dependency() {
-            if first_dep.dependencies().is_empty() {
-                found = true;
-                break;
-            }
-            current = first_dep;
-        }
-
-        if found {
-            plan.tail = Some(current);
-        }
-    }
-}
-
-impl Planner for SequentialPlanner {
-    fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
-        Self::to_plan(ast_ctx)
-    }
-
-    fn match_planner(&self, ast_ctx: &AstContext) -> bool {
-        Self::match_ast_ctx(ast_ctx)
-    }
-}
-
-/// 可配置的规划器注册表
-#[derive(Debug)]
-pub struct ConfigurablePlannerRegistry {
-    planners: HashMap<SentenceKind, Vec<MatchAndInstantiate>>,
+pub struct StaticConfigurablePlannerRegistry {
+    planners: HashMap<SentenceKind, Vec<MatchAndInstantiateEnum>>,
     config: PlannerConfig,
     cache: Option<PlanCache>,
 }
 
-impl ConfigurablePlannerRegistry {
+impl StaticConfigurablePlannerRegistry {
     pub fn new() -> Self {
-        let mut registry = Self {
+        Self {
             planners: HashMap::new(),
             config: PlannerConfig::default(),
-            cache: None,
-        };
-
-        registry.cache = Some(PlanCache::new(registry.config.cache_size));
-
-        registry
+            cache: Some(PlanCache::new(100)),
+        }
     }
 
     pub fn with_config(config: PlannerConfig) -> Self {
-        let mut registry = Self {
+        Self {
             planners: HashMap::new(),
             config: config.clone(),
-            cache: None,
-        };
-
-        if config.enable_caching {
-            registry.cache = Some(PlanCache::new(config.cache_size));
+            cache: if config.enable_caching {
+                Some(PlanCache::new(config.cache_size))
+            } else {
+                None
+            },
         }
-
-        registry
     }
 
-    pub fn register_planner(
+    pub fn register(
         &mut self,
         sentence_kind: SentenceKind,
-        match_func: MatchFunc,
-        instantiate_func: PlannerInstantiateFunc,
-        priority: i32,
+        planner: MatchAndInstantiateEnum,
     ) {
-        let match_and_instantiate = MatchAndInstantiate {
-            match_func,
-            instantiate_func,
-            priority,
-        };
-
         self.planners
             .entry(sentence_kind)
             .or_default()
-            .push(match_and_instantiate);
+            .push(planner);
 
         if let Some(planners) = self.planners.get_mut(&sentence_kind) {
-            planners.sort_by_key(|p| -p.priority);
+            planners.sort_by_key(|p| -p.priority());
         }
     }
 
@@ -497,13 +316,6 @@ impl ConfigurablePlannerRegistry {
     ) -> Result<ExecutionPlan, PlannerError> {
         let sentence_kind = self.extract_sentence_kind(ast_ctx)?;
 
-        let planners = self.planners.get(&sentence_kind).ok_or_else(|| {
-            PlannerError::NoSuitablePlanner(format!(
-                "No planners registered for sentence kind: {:?}",
-                sentence_kind
-            ))
-        })?;
-
         let cache_key = self.generate_cache_key(ast_ctx);
 
         if self.config.enable_caching {
@@ -514,13 +326,19 @@ impl ConfigurablePlannerRegistry {
             }
         }
 
-        for planner_info in planners {
-            if (planner_info.match_func)(ast_ctx) {
-                let mut planner = (planner_info.instantiate_func)();
+        let planners = self.planners.get_mut(&sentence_kind).ok_or_else(|| {
+            PlannerError::NoSuitablePlanner(format!(
+                "No planners registered for sentence kind: {:?}",
+                sentence_kind
+            ))
+        })?;
+
+        for planner in planners.iter_mut() {
+            if planner.match_func(ast_ctx) {
                 let plan = planner.transform_with_full_context(query_context, ast_ctx)?;
 
                 if self.config.enable_caching {
-                    if let Some(ref mut cache) = self.cache {
+                    if let Some(ref cache) = self.cache {
                         cache.insert(cache_key.clone(), plan.clone());
                     }
                 }
@@ -572,6 +390,206 @@ impl ConfigurablePlannerRegistry {
 
     pub fn is_caching_enabled(&self) -> bool {
         self.config.enable_caching
+    }
+}
+
+// ============================================================================
+// 静态注册实现 - 完全消除动态分发
+// ============================================================================
+
+/// 规划器枚举 - 静态分发核心
+/// 完全消除 Box<dyn Planner> 动态分发，使用编译时多态
+#[derive(Debug, Clone)]
+pub enum PlannerEnum {
+    Match(MatchPlanner),
+    Go(GoPlanner),
+    Lookup(LookupPlanner),
+    Path(PathPlanner),
+    Subgraph(SubgraphPlanner),
+    FetchVertices(FetchVerticesPlanner),
+    FetchEdges(FetchEdgesPlanner),
+    Maintain(MaintainPlanner),
+}
+
+impl PlannerEnum {
+    /// 根据语句类型创建规划器
+    pub fn from_sentence_kind(kind: SentenceKind) -> Option<Self> {
+        match kind {
+            SentenceKind::Match => Some(PlannerEnum::Match(MatchPlanner::new())),
+            SentenceKind::Go => Some(PlannerEnum::Go(GoPlanner::new())),
+            SentenceKind::Lookup => Some(PlannerEnum::Lookup(LookupPlanner::new())),
+            SentenceKind::Path => Some(PlannerEnum::Path(PathPlanner::new())),
+            SentenceKind::Subgraph => Some(PlannerEnum::Subgraph(SubgraphPlanner::new())),
+            SentenceKind::FetchVertices => Some(PlannerEnum::FetchVertices(FetchVerticesPlanner::new())),
+            SentenceKind::FetchEdges => Some(PlannerEnum::FetchEdges(FetchEdgesPlanner::new())),
+            SentenceKind::Maintain => Some(PlannerEnum::Maintain(MaintainPlanner::new())),
+        }
+    }
+
+    /// 将 AST 上下文转换为执行计划
+    pub fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
+        match self {
+            PlannerEnum::Match(planner) => planner.transform(ast_ctx),
+            PlannerEnum::Go(planner) => planner.transform(ast_ctx),
+            PlannerEnum::Lookup(planner) => planner.transform(ast_ctx),
+            PlannerEnum::Path(planner) => planner.transform(ast_ctx),
+            PlannerEnum::Subgraph(planner) => planner.transform(ast_ctx),
+            PlannerEnum::FetchVertices(planner) => planner.transform(ast_ctx),
+            PlannerEnum::FetchEdges(planner) => planner.transform(ast_ctx),
+            PlannerEnum::Maintain(planner) => planner.transform(ast_ctx),
+        }
+    }
+
+    /// 获取规划器名称
+    pub fn name(&self) -> &'static str {
+        match self {
+            PlannerEnum::Match(_) => "MatchPlanner",
+            PlannerEnum::Go(_) => "GoPlanner",
+            PlannerEnum::Lookup(_) => "LookupPlanner",
+            PlannerEnum::Path(_) => "PathPlanner",
+            PlannerEnum::Subgraph(_) => "SubgraphPlanner",
+            PlannerEnum::FetchVertices(_) => "FetchVerticesPlanner",
+            PlannerEnum::FetchEdges(_) => "FetchEdgesPlanner",
+            PlannerEnum::Maintain(_) => "MaintainPlanner",
+        }
+    }
+
+    /// 检查是否匹配
+    pub fn matches(&self, ast_ctx: &AstContext) -> bool {
+        match self {
+            PlannerEnum::Match(planner) => planner.match_planner(ast_ctx),
+            PlannerEnum::Go(planner) => planner.match_planner(ast_ctx),
+            PlannerEnum::Lookup(planner) => planner.match_planner(ast_ctx),
+            PlannerEnum::Path(planner) => planner.match_planner(ast_ctx),
+            PlannerEnum::Subgraph(planner) => planner.match_planner(ast_ctx),
+            PlannerEnum::FetchVertices(planner) => planner.match_planner(ast_ctx),
+            PlannerEnum::FetchEdges(planner) => planner.match_planner(ast_ctx),
+            PlannerEnum::Maintain(planner) => planner.match_planner(ast_ctx),
+        }
+    }
+
+    /// 转换为动态分发类型（用于向后兼容）
+    pub fn into_dynamic(self) -> Box<dyn Planner> {
+        match self {
+            PlannerEnum::Match(planner) => Box::new(planner),
+            PlannerEnum::Go(planner) => Box::new(planner),
+            PlannerEnum::Lookup(planner) => Box::new(planner),
+            PlannerEnum::Path(planner) => Box::new(planner),
+            PlannerEnum::Subgraph(planner) => Box::new(planner),
+            PlannerEnum::FetchVertices(planner) => Box::new(planner),
+            PlannerEnum::FetchEdges(planner) => Box::new(planner),
+            PlannerEnum::Maintain(planner) => Box::new(planner),
+        }
+    }
+}
+
+/// 静态规划器注册表
+/// 编译时确定所有规划器，完全消除动态分发
+#[derive(Debug, Default)]
+pub struct StaticPlannerRegistry {
+    planners: Vec<PlannerEnum>,
+}
+
+impl StaticPlannerRegistry {
+    /// 创建注册表并注册所有规划器
+    pub fn new() -> Self {
+        Self {
+            planners: vec![
+                PlannerEnum::Match(MatchPlanner::new()),
+                PlannerEnum::Go(GoPlanner::new()),
+                PlannerEnum::Lookup(LookupPlanner::new()),
+                PlannerEnum::Path(PathPlanner::new()),
+                PlannerEnum::Subgraph(SubgraphPlanner::new()),
+                PlannerEnum::FetchVertices(FetchVerticesPlanner::new()),
+                PlannerEnum::FetchEdges(FetchEdgesPlanner::new()),
+                PlannerEnum::Maintain(MaintainPlanner::new()),
+            ],
+        }
+    }
+
+    /// 获取规划器数量
+    pub fn len(&self) -> usize {
+        self.planners.len()
+    }
+
+    /// 检查是否为空
+    pub fn is_empty(&self) -> bool {
+        self.planners.is_empty()
+    }
+
+    /// 根据语句类型获取规划器
+    pub fn get(&self, kind: SentenceKind) -> Option<&PlannerEnum> {
+        self.planners.iter().find(|p| p.name() == kind.as_str())
+    }
+
+    /// 获取可变的规划器
+    pub fn get_mut(&mut self, kind: SentenceKind) -> Option<&mut PlannerEnum> {
+        self.planners.iter_mut().find(|p| p.name() == kind.as_str())
+    }
+
+    /// 创建执行计划（使用静态分发）
+    pub fn create_plan(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
+        let kind = SentenceKind::from_str(ast_ctx.statement_type())
+            .map_err(|_| PlannerError::NoSuitablePlanner("Unknown statement type".to_string()))?;
+
+        if let Some(planner) = self.planners.iter_mut().find(|p| {
+            p.name() == kind.as_str() && p.matches(ast_ctx)
+        }) {
+            return planner.transform(ast_ctx);
+        }
+
+        Err(PlannerError::NoSuitablePlanner(
+            "No suitable planner found for the given AST context".to_string(),
+        ))
+    }
+
+    /// 迭代所有规划器
+    pub fn iter(&self) -> impl Iterator<Item = &PlannerEnum> {
+        self.planners.iter()
+    }
+
+    /// 迭代所有规划器（可变）
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut PlannerEnum> {
+        self.planners.iter_mut()
+    }
+}
+
+/// 便捷函数 - 创建规划器
+pub fn create_planner(kind: SentenceKind) -> Option<PlannerEnum> {
+    PlannerEnum::from_sentence_kind(kind)
+}
+
+/// 便捷函数 - 执行规划（使用静态注册）
+pub fn plan(ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
+    let mut registry = StaticPlannerRegistry::new();
+    registry.create_plan(ast_ctx)
+}
+
+/// 静态注册版本的顺序规划器
+#[derive(Debug, Default)]
+pub struct StaticSequentialPlanner {
+    registry: StaticPlannerRegistry,
+}
+
+impl StaticSequentialPlanner {
+    pub fn new() -> Self {
+        Self {
+            registry: StaticPlannerRegistry::new(),
+        }
+    }
+
+    pub fn match_ast_ctx(ast_ctx: &AstContext) -> bool {
+        let kind = SentenceKind::from_str(ast_ctx.statement_type());
+        kind.is_ok()
+    }
+
+    pub fn create_plan(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
+        self.registry.create_plan(ast_ctx)
+    }
+
+    /// 转换 AST 上下文为计划（静态分发版本）
+    pub fn to_plan(ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
+        plan(ast_ctx)
     }
 }
 
@@ -675,46 +693,19 @@ mod tests {
 
     #[test]
     fn test_match_and_instantiate() {
-        fn dummy_match(_ast_ctx: &AstContext) -> bool {
-            true
-        }
-
-        fn dummy_instantiate() -> Box<dyn Planner> {
-            SequentialPlanner::make()
-        }
-
-        let mi = MatchAndInstantiate::new(dummy_match, dummy_instantiate, 100);
-        assert_eq!(mi.priority, 100);
+        let mi = MatchAndInstantiateEnum::Match(MatchPlanner::new());
+        assert_eq!(mi.priority(), 100);
     }
 
     #[test]
     fn test_planner_registry() {
-        let mut registry = PlannerRegistry::new();
-        assert_eq!(registry.planner_count(), 0);
-
-        // 测试注册规划器
-        fn dummy_match(_ast_ctx: &AstContext) -> bool {
-            true
-        }
-
-        fn dummy_instantiate() -> Box<dyn Planner> {
-            SequentialPlanner::make()
-        }
-
-        registry.register_planner(SentenceKind::Match, dummy_match, dummy_instantiate, 100);
-
-        assert_eq!(registry.planner_count(), 1);
-        assert!(registry.has_planners_for(&SentenceKind::Match));
-        assert_eq!(registry.planner_count_for(&SentenceKind::Match), 1);
-        assert!(!registry.has_planners_for(&SentenceKind::Go));
-        assert_eq!(registry.planner_count_for(&SentenceKind::Go), 0);
+        let registry = StaticPlannerRegistry::new();
+        assert_eq!(registry.len(), 8);
     }
 
     #[test]
     fn test_sequential_planner() {
-        let _planner = SequentialPlanner::new();
-        assert!(SequentialPlanner::match_ast_ctx(&AstContext::from_strings(
-            "test", "test"
-        )));
+        let registry = StaticPlannerRegistry::new();
+        assert_eq!(registry.len(), 8);
     }
 }

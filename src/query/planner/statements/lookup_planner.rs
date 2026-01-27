@@ -21,7 +21,7 @@ pub use crate::query::planner::plan::core::PlanNodeEnum;
 
 /// LOOKUP查询规划器
 /// 负责将LOOKUP语句转换为执行计划
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LookupPlanner {}
 
 impl LookupPlanner {

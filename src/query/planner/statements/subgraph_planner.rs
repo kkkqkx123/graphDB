@@ -12,7 +12,7 @@ use crate::query::planner::planner::{Planner, PlannerError};
 
 /// SUBGRAPH查询规划器
 /// 负责将SUBGRAPH查询转换为执行计划
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SubgraphPlanner;
 
 impl SubgraphPlanner {
@@ -31,13 +31,9 @@ impl SubgraphPlanner {
         ast_ctx.statement_type().to_uppercase() == "SUBGRAPH"
     }
 
-    /// 获取匹配和实例化函数
-    pub fn get_match_and_instantiate() -> crate::query::planner::planner::MatchAndInstantiate {
-        crate::query::planner::planner::MatchAndInstantiate {
-            match_func: Self::match_ast_ctx,
-            instantiate_func: Self::make,
-            priority: 100,
-        }
+    /// 获取匹配和实例化函数（静态注册版本）
+    pub fn get_match_and_instantiate() -> crate::query::planner::planner::MatchAndInstantiateEnum {
+        crate::query::planner::planner::MatchAndInstantiateEnum::Subgraph(Self::new())
     }
 }
 

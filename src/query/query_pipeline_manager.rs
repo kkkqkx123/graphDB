@@ -4,7 +4,7 @@ use crate::query::executor::factory::ExecutorFactory;
 use crate::query::executor::traits::ExecutionResult;
 use crate::query::optimizer::Optimizer;
 use crate::query::parser::Parser;
-use crate::query::planner::planner::{ConfigurablePlannerRegistry, Planner, PlannerConfig};
+use crate::query::planner::planner::{StaticConfigurablePlannerRegistry, Planner, PlannerConfig};
 use crate::query::validator::Validator;
 use crate::storage::StorageEngine;
 use std::sync::{Arc, Mutex};
@@ -19,7 +19,7 @@ use std::sync::{Arc, Mutex};
 pub struct QueryPipelineManager<S: StorageEngine + 'static> {
     _storage: Arc<Mutex<S>>,
     validator: Validator,
-    planner: ConfigurablePlannerRegistry,
+    planner: StaticConfigurablePlannerRegistry,
     optimizer: Optimizer,
     executor_factory: ExecutorFactory<S>,
 }
@@ -28,7 +28,7 @@ impl<S: StorageEngine + 'static> QueryPipelineManager<S> {
     /// 创建新的查询管道管理器
     pub fn new(storage: Arc<Mutex<S>>) -> Self {
         let executor_factory = ExecutorFactory::with_storage(storage.clone());
-        let mut planner = ConfigurablePlannerRegistry::new();
+        let mut planner = StaticConfigurablePlannerRegistry::new();
 
         Self::register_planners(&mut planner);
 
@@ -44,7 +44,7 @@ impl<S: StorageEngine + 'static> QueryPipelineManager<S> {
     /// 创建带配置的查询管道管理器
     pub fn with_config(storage: Arc<Mutex<S>>, config: PlannerConfig) -> Self {
         let executor_factory = ExecutorFactory::with_storage(storage.clone());
-        let mut planner = ConfigurablePlannerRegistry::with_config(config);
+        let mut planner = StaticConfigurablePlannerRegistry::with_config(config);
 
         Self::register_planners(&mut planner);
 
@@ -57,13 +57,13 @@ impl<S: StorageEngine + 'static> QueryPipelineManager<S> {
         }
     }
 
-    fn register_planners(planner: &mut ConfigurablePlannerRegistry) {
-        // 注册新的 MATCH 语句规划器 (使用三层架构)
-        planner.register_planner(
+    fn register_planners(planner: &mut StaticConfigurablePlannerRegistry) {
+        // 注册 MATCH 语句规划器
+        planner.register(
             crate::query::planner::planner::SentenceKind::Match,
-            crate::query::planner::statements::match_statement_planner::MatchStatementPlanner::match_ast_ctx,
-            || Box::new(crate::query::planner::statements::match_statement_planner::MatchStatementPlanner::new()) as Box<dyn Planner>,
-            100,
+            crate::query::planner::planner::MatchAndInstantiateEnum::Match(
+                crate::query::planner::statements::match_planner::MatchPlanner::new()
+            ),
         );
     }
 

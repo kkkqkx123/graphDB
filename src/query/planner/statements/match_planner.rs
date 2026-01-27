@@ -28,7 +28,7 @@ use std::collections::HashMap;
 /// MATCH 规划器
 ///
 /// 使用 AstContext 中的语句进行规划，生成可执行的执行计划。
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MatchPlanner {
     config: MatchPlannerConfig,
 }

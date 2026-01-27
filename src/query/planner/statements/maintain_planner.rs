@@ -13,7 +13,7 @@ pub struct MaintainContext {
 
 /// 维护操作规划器
 /// 负责将维护操作转换为执行计划
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MaintainPlanner;
 
 impl MaintainPlanner {
@@ -35,13 +35,9 @@ impl MaintainPlanner {
             || stmt_type.starts_with("DROP")
     }
 
-    /// 获取匹配和实例化函数
-    pub fn get_match_and_instantiate() -> crate::query::planner::planner::MatchAndInstantiate {
-        crate::query::planner::planner::MatchAndInstantiate {
-            match_func: Self::match_ast_ctx,
-            instantiate_func: Self::make,
-            priority: 100,
-        }
+    /// 获取匹配和实例化函数（静态注册版本）
+    pub fn get_match_and_instantiate() -> crate::query::planner::planner::MatchAndInstantiateEnum {
+        crate::query::planner::planner::MatchAndInstantiateEnum::Maintain(Self::new())
     }
 }
 
