@@ -5,7 +5,6 @@ use std::collections::HashMap;
 
 use super::base_validator::Validator;
 use super::strategies::*;
-use super::validation_interface::ValidationStrategyType;
 
 #[derive(Debug, Clone, Default)]
 pub struct ValidatorConfig {

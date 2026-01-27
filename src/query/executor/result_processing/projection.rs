@@ -318,9 +318,8 @@ mod tests {
     use super::*;
     use crate::core::value::{DataSet, Value};
     use crate::core::{BinaryOperator, Expression};
-    use crate::query::executor::base::BaseExecutor;
     use crate::query::executor::executor_enum::ExecutorEnum;
-    use crate::query::executor::HasStorage;
+    use crate::query::executor::base::BaseExecutor;
     use crate::query::executor::traits::{ExecutionResult, Executor, ExecutorStats};
     use crate::storage::test_mock::MockStorage;
 

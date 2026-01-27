@@ -2,7 +2,7 @@
 //!
 //! 基于顶点ID的直接查找策略
 
-use super::seek_strategy::{SeekStrategy, SeekStrategyTraitObject};
+use super::seek_strategy::SeekStrategy;
 use super::seek_strategy_base::{SeekResult, SeekStrategyContext, SeekStrategyType, NodePattern};
 use crate::core::{StorageError, Value, Vertex};
 use crate::storage::StorageEngine;

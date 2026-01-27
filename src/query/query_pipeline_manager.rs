@@ -4,7 +4,7 @@ use crate::query::executor::factory::ExecutorFactory;
 use crate::query::executor::traits::ExecutionResult;
 use crate::query::optimizer::Optimizer;
 use crate::query::parser::Parser;
-use crate::query::planner::planner::{StaticConfigurablePlannerRegistry, Planner, PlannerConfig};
+use crate::query::planner::planner::{StaticConfigurablePlannerRegistry, PlannerConfig};
 use crate::query::validator::Validator;
 use crate::storage::StorageEngine;
 use std::sync::{Arc, Mutex};

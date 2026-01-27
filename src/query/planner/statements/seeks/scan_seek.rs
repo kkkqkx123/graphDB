@@ -4,7 +4,7 @@
 
 use super::seek_strategy::{SeekStrategy, SeekStrategyTraitObject};
 use super::seek_strategy_base::{SeekResult, SeekStrategyContext, SeekStrategyType, NodePattern};
-use crate::core::{StorageError, Value, Vertex};
+use crate::core::{StorageError, Vertex};
 use crate::storage::StorageEngine;
 
 #[derive(Debug, Clone)]

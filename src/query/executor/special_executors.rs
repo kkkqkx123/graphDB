@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
-use crate::core::error::{DBError, DBResult};
+use crate::core::error::DBResult;
 use crate::query::executor::base::{BaseExecutor, InputExecutor};
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};

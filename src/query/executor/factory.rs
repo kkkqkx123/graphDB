@@ -8,6 +8,7 @@ use crate::core::error::QueryError;
 use crate::query::context::execution::QueryContext;
 use crate::query::executor::traits::Executor;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
+use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::{
     BinaryInputNode, JoinNode, MultipleInputNode, PlanNode, SingleInputNode,
 };
@@ -19,7 +20,7 @@ use std::sync::{Arc, Mutex};
 use crate::query::executor::base::{ExecutionContext, StartExecutor};
 use crate::query::executor::data_access::{AllPathsExecutor, GetNeighborsExecutor, GetVerticesExecutor};
 use crate::query::executor::data_processing::{
-    graph_traversal::{ExpandAllExecutor, MultiShortestPathExecutor, ShortestPathExecutor, TraverseExecutor},
+    graph_traversal::{ExpandAllExecutor, TraverseExecutor},
     CrossJoinExecutor, ExpandExecutor, InnerJoinExecutor, LeftJoinExecutor,
 };
 use crate::query::executor::logic::LoopExecutor;
@@ -272,7 +273,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
         &self,
         node: &N,
         storage: Arc<Mutex<S>>,
-    ) -> Result<Box<dyn Executor<S>>, QueryError>
+    ) -> Result<ExecutorEnum<S>, QueryError>
     where
         N: JoinNode,
     {
@@ -286,7 +287,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
             node.probe_keys().to_vec(),
             node.col_names().to_vec(),
         );
-        Ok(Box::new(executor))
+        Ok(ExecutorEnum::InnerJoin(executor))
     }
 
     /// 创建左连接执行器（通用方法）
@@ -294,7 +295,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
         &self,
         node: &N,
         storage: Arc<Mutex<S>>,
-    ) -> Result<Box<dyn Executor<S>>, QueryError>
+    ) -> Result<ExecutorEnum<S>, QueryError>
     where
         N: JoinNode,
     {
@@ -308,7 +309,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
             node.probe_keys().to_vec(),
             node.col_names().to_vec(),
         );
-        Ok(Box::new(executor))
+        Ok(ExecutorEnum::LeftJoin(executor))
     }
 
     /// 验证计划节点的安全性
@@ -342,13 +343,11 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
         plan_node: &PlanNodeEnum,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
-    ) -> Result<Box<dyn Executor<S>>, QueryError> {
-        // 验证执行器类型和配置
+    ) -> Result<ExecutorEnum<S>, QueryError> {
         self.validate_plan_node(plan_node)?;
 
         match plan_node {
-            // 基础执行器
-            PlanNodeEnum::Start(node) => Ok(Box::new(StartExecutor::new(node.id()))),
+            PlanNodeEnum::Start(node) => Ok(ExecutorEnum::Start(StartExecutor::new(node.id()))),
 
             // 数据访问执行器
             PlanNodeEnum::ScanVertices(node) => {
@@ -364,10 +363,9 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     }),
                     node.limit().map(|l| l as usize),
                 );
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::GetVertices(executor))
             }
             PlanNodeEnum::ScanEdges(_) => {
-                // TODO: 需要实现扫描边执行器
                 Err(QueryError::ExecutionError(
                     "扫描边执行器尚未实现".to_string(),
                 ))
@@ -385,7 +383,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     }),
                     node.limit().map(|l| l as usize),
                 );
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::GetVertices(executor))
             }
             PlanNodeEnum::GetNeighbors(node) => {
                 let vertex_ids = vec![crate::core::Value::String(
@@ -404,13 +402,12 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     edge_direction,
                     edge_types,
                 );
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::GetNeighbors(executor))
             }
 
-            // 结果处理执行器
             PlanNodeEnum::Filter(node) => {
                 let executor = FilterExecutor::new(node.id(), storage, node.condition().clone());
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::Filter(executor))
             }
             PlanNodeEnum::Project(node) => {
                 let columns = node
@@ -424,7 +421,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     })
                     .collect();
                 let executor = ProjectExecutor::new(node.id(), storage, columns);
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::Project(executor))
             }
             PlanNodeEnum::Limit(node) => {
                 let executor = LimitExecutor::new(
@@ -433,7 +430,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     Some(node.count() as usize),
                     node.offset() as usize,
                 );
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::Limit(executor))
             }
             PlanNodeEnum::Sort(node) => {
                 let sort_keys = node
@@ -455,7 +452,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     config,
                 )
                 .map_err(|e| QueryError::ExecutionError(e.to_string()))?;
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::Sort(executor))
             }
             PlanNodeEnum::TopN(node) => {
                 let executor = TopNExecutor::new(
@@ -465,7 +462,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     node.sort_items().to_vec(),
                     true,
                 );
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::TopN(executor))
             }
             PlanNodeEnum::Sample(node) => {
                 let executor = SampleExecutor::new(
@@ -475,7 +472,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     node.count() as usize,
                     None,
                 );
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::Sample(executor))
             }
             PlanNodeEnum::Aggregate(node) => {
                 let aggregate_functions = node
@@ -498,7 +495,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     aggregate_functions,
                     group_by_expressions,
                 );
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::Aggregate(executor))
             }
             PlanNodeEnum::Dedup(node) => {
                 let executor = DedupExecutor::new(
@@ -507,7 +504,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     crate::query::executor::result_processing::DedupStrategy::Full,
                     None,
                 );
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::Dedup(executor))
             }
 
             // 数据处理执行器
@@ -532,7 +529,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     vec![left_var, right_var],
                     node.col_names().to_vec(),
                 );
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::CrossJoin(executor))
             }
 
             // 图遍历执行器
@@ -553,10 +550,9 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     },
                     node.step_limit().and_then(|s| usize::try_from(s).ok()),
                 );
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::Expand(executor))
             }
 
-            // ExpandAll执行器 - 支持GO语句的多步扩展
             PlanNodeEnum::ExpandAll(node) => {
                 self.safety_validator
                     .validate_expand_config(node.step_limit().and_then(|s| usize::try_from(s).ok()))
@@ -573,10 +569,9 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     },
                     node.step_limit().and_then(|s| usize::try_from(s).ok()),
                 );
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::ExpandAll(executor))
             }
 
-            // Traverse执行器 - 支持MATCH语句的路径遍历
             PlanNodeEnum::Traverse(node) => {
                 let executor = TraverseExecutor::new(
                     node.id(),
@@ -590,7 +585,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     node.step_limit().and_then(|s| usize::try_from(s).ok()),
                     node.filter().cloned(),
                 );
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::Traverse(executor))
             }
 
             // AllPaths执行器 - 查找所有路径
@@ -617,7 +612,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     },
                     EdgeDirection::Both,
                 );
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::AllPaths(executor))
             }
 
             // 最短路径执行器 - 单对单最短路径
@@ -648,7 +643,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     Some(node.max_step()),
                     crate::query::executor::data_processing::graph_traversal::ShortestPathAlgorithm::BFS,
                 );
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::ShortestPath(executor))
             }
 
             // MultiShortestPath执行器 - 多源最短路径
@@ -682,7 +677,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     None,
                     node.single_shortest(),
                 );
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::MultiShortestPath(executor))
             }
 
             // 数据转换执行器
@@ -700,7 +695,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     node.col_names().to_vec(),
                     false,
                 );
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::Unwind(executor))
             }
             PlanNodeEnum::Assign(node) => {
                 let mut parsed_assignments = Vec::new();
@@ -714,7 +709,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     parsed_assignments.push((var_name.clone(), expression));
                 }
                 let executor = AssignExecutor::new(node.id(), storage, parsed_assignments);
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::Assign(executor))
             }
 
             // AppendVertices执行器 - 追加顶点到路径结果
@@ -738,7 +733,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     node.track_prev_path(),
                     node.need_fetch_prop(),
                 );
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::AppendVertices(executor))
             }
 
             // RollUpApply执行器 - 分组聚合收集
@@ -772,7 +767,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     collect_col,
                     node.col_names().to_vec(),
                 );
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::RollUpApply(executor))
             }
 
             // PatternApply执行器 - 模式匹配应用
@@ -802,7 +797,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     node.col_names().to_vec(),
                     node.is_anti_predicate(),
                 );
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::PatternApply(executor))
             }
 
             // 循环执行器
@@ -828,23 +823,23 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     body_executor,
                     None,
                 );
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::Loop(executor))
             }
 
             // 特殊执行器
             PlanNodeEnum::Argument(node) => {
                 let executor = ArgumentExecutor::new(node.id(), storage, node.var());
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::Argument(executor))
             }
 
             PlanNodeEnum::PassThrough(_) => {
                 let executor = PassThroughExecutor::new(plan_node.id(), storage);
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::PassThrough(executor))
             }
 
             PlanNodeEnum::DataCollect(_) => {
                 let executor = DataCollectExecutor::new(plan_node.id(), storage);
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::DataCollect(executor))
             }
 
             // 搜索执行器
@@ -856,7 +851,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     &node.query,
                     node.limit.map(|l| l as usize),
                 );
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::FulltextIndexScan(executor))
             }
 
             PlanNodeEnum::BFSShortest(node) => {
@@ -885,7 +880,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     end_vertex,
                     Some(node.steps),
                 );
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::BFSShortest(executor))
             }
 
             // ========== 管理执行器 ==========
@@ -898,22 +893,22 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     .with_replica_factor(node.info().replica_factor)
                     .with_vid_type(node.info().vid_type.clone());
                 let executor = CreateSpaceExecutor::new(node.id(), storage, space_info);
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::CreateSpace(executor))
             }
 
             PlanNodeEnum::DropSpace(node) => {
                 let executor = DropSpaceExecutor::new(node.id(), storage, node.space_name().to_string());
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::DropSpace(executor))
             }
 
             PlanNodeEnum::DescSpace(node) => {
                 let executor = DescSpaceExecutor::new(node.id(), storage, node.space_name().to_string());
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::DescSpace(executor))
             }
 
             PlanNodeEnum::ShowSpaces(node) => {
                 let executor = ShowSpacesExecutor::new(node.id(), storage);
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::ShowSpaces(executor))
             }
 
             // 标签管理执行器
@@ -926,11 +921,11 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     comment: None,
                 };
                 let executor = CreateTagExecutor::new(node.id(), storage, tag_info);
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::CreateTag(executor))
             }
 
             PlanNodeEnum::AlterTag(node) => {
-                use crate::query::executor::admin::tag::alter_tag::{AlterTagInfo, AlterTagItem, AlterTagOp};
+                use crate::query::executor::admin::tag::alter_tag::{AlterTagInfo, AlterTagItem};
                 let mut alter_info = AlterTagInfo::new(
                     node.info().space_name.clone(),
                     node.info().tag_name.clone(),
@@ -944,7 +939,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     alter_info = alter_info.with_items(vec![item]);
                 }
                 let executor = AlterTagExecutor::new(node.id(), storage, alter_info);
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::AlterTag(executor))
             }
 
             PlanNodeEnum::DescTag(node) => {
@@ -954,7 +949,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     node.space_name().to_string(),
                     node.tag_name().to_string(),
                 );
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::DescTag(executor))
             }
 
             PlanNodeEnum::DropTag(node) => {
@@ -964,12 +959,12 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     node.space_name().to_string(),
                     node.tag_name().to_string(),
                 );
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::DropTag(executor))
             }
 
             PlanNodeEnum::ShowTags(node) => {
                 let executor = ShowTagsExecutor::new(node.id(), storage, "".to_string());
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::ShowTags(executor))
             }
 
             // 边类型管理执行器
@@ -982,7 +977,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     comment: None,
                 };
                 let executor = CreateEdgeExecutor::new(node.id(), storage, edge_info);
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::CreateEdge(executor))
             }
 
             PlanNodeEnum::AlterEdge(node) => {
@@ -1000,7 +995,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     alter_info = alter_info.with_items(vec![item]);
                 }
                 let executor = AlterEdgeExecutor::new(node.id(), storage, alter_info);
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::AlterEdge(executor))
             }
 
             PlanNodeEnum::DescEdge(node) => {
@@ -1010,7 +1005,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     node.space_name().to_string(),
                     node.edge_name().to_string(),
                 );
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::DescEdge(executor))
             }
 
             PlanNodeEnum::DropEdge(node) => {
@@ -1020,12 +1015,12 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     node.space_name().to_string(),
                     node.edge_name().to_string(),
                 );
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::DropEdge(executor))
             }
 
             PlanNodeEnum::ShowEdges(node) => {
                 let executor = ShowEdgesExecutor::new(node.id(), storage, "".to_string());
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::ShowEdges(executor))
             }
 
             // 标签索引管理执行器
@@ -1040,7 +1035,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     comment: None,
                 };
                 let executor = CreateTagIndexExecutor::new(node.id(), storage, index_info);
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::CreateTagIndex(executor))
             }
 
             PlanNodeEnum::DropTagIndex(node) => {
@@ -1050,7 +1045,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     node.space_name().to_string(),
                     node.index_name().to_string(),
                 );
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::DropTagIndex(executor))
             }
 
             PlanNodeEnum::DescTagIndex(node) => {
@@ -1060,12 +1055,12 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     node.space_name().to_string(),
                     node.index_name().to_string(),
                 );
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::DescTagIndex(executor))
             }
 
             PlanNodeEnum::ShowTagIndexes(node) => {
                 let executor = ShowTagIndexesExecutor::new(node.id(), storage, "".to_string());
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::ShowTagIndexes(executor))
             }
 
             PlanNodeEnum::RebuildTagIndex(node) => {
@@ -1075,7 +1070,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     node.space_name().to_string(),
                     node.index_name().to_string(),
                 );
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::RebuildTagIndex(executor))
             }
 
             // 边索引管理执行器
@@ -1090,7 +1085,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     comment: None,
                 };
                 let executor = CreateEdgeIndexExecutor::new(node.id(), storage, index_info);
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::CreateEdgeIndex(executor))
             }
 
             PlanNodeEnum::DropEdgeIndex(node) => {
@@ -1100,7 +1095,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     node.space_name().to_string(),
                     node.index_name().to_string(),
                 );
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::DropEdgeIndex(executor))
             }
 
             PlanNodeEnum::DescEdgeIndex(node) => {
@@ -1110,12 +1105,12 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     node.space_name().to_string(),
                     node.index_name().to_string(),
                 );
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::DescEdgeIndex(executor))
             }
 
             PlanNodeEnum::ShowEdgeIndexes(node) => {
                 let executor = ShowEdgeIndexesExecutor::new(node.id(), storage, "".to_string());
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::ShowEdgeIndexes(executor))
             }
 
             PlanNodeEnum::RebuildEdgeIndex(node) => {
@@ -1125,7 +1120,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     node.space_name().to_string(),
                     node.index_name().to_string(),
                 );
-                Ok(Box::new(executor))
+                Ok(ExecutorEnum::RebuildEdgeIndex(executor))
             }
 
             _ => Err(QueryError::ExecutionError(format!(
@@ -1185,7 +1180,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
         plan_node: &PlanNodeEnum,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
-    ) -> Result<Box<dyn Executor<S>>, QueryError> {
+    ) -> Result<ExecutorEnum<S>, QueryError> {
         // 先递归构建子节点
         let executor = self.create_executor(plan_node, storage, context)?;
         Ok(executor)

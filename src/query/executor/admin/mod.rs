@@ -10,8 +10,6 @@ pub mod index;
 pub mod data;
 pub mod user;
 
-use crate::storage::StorageEngine;
-
 pub use self::space::{
     CreateSpaceExecutor, DropSpaceExecutor, DescSpaceExecutor, ShowSpacesExecutor,
 };

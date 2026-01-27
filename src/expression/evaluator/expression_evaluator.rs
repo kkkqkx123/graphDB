@@ -4,7 +4,7 @@
 //! 使用GenericExpressionVisitor泛型接口，支持统一的访问者模式
 
 use crate::core::error::ExpressionError;
-use crate::core::types::expression::visitor::{ExpressionVisitor, GenericExpressionVisitor};
+use crate::core::types::expression::visitor::GenericExpressionVisitor;
 use crate::core::types::expression::Expression;
 use crate::core::value::NullType;
 use crate::core::Value;

@@ -2,7 +2,6 @@
 //!
 //! 负责规划 MATCH 查询中的路径模式，生成遍历计划
 
-use crate::core::types::Expression;
 use crate::core::types::graph_schema::EdgeDirection;
 use crate::core::{StorageError, Value};
 use crate::query::planner::statements::seeks::seek_strategy_base::{

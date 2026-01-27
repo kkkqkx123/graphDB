@@ -4,7 +4,6 @@
 
 use crate::query::planner::plan::core::nodes::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
-use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::visitor::PlanNodeVisitor;
 use crate::query::context::validate::types::Variable;
 use std::collections::HashMap;

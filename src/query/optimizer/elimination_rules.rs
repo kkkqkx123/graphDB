@@ -9,7 +9,6 @@ use super::rule_traits::{
 };
 use crate::query::planner::plan::core::nodes::plan_node_traits::{MultipleInputNode, SingleInputNode};
 use crate::query::planner::plan::PlanNodeEnum;
-use crate::query::planner::plan::ProjectNode;
 use crate::query::visitor::PlanNodeVisitor;
 
 /// 消除冗余过滤操作的规则

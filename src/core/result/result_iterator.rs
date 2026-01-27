@@ -1,4 +1,3 @@
-use crate::core::error::DBError;
 use crate::core::value::Value;
 use crate::core::DBResult;
 

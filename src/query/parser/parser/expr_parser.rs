@@ -5,8 +5,7 @@
 
 use crate::core::Value;
 use crate::core::types::expression::Expression;
-use crate::core::types::operators::{BinaryOperator, UnaryOperator, AggregateFunction};
-use crate::query::parser::ast::types::{BinaryOp, UnaryOp};
+use crate::core::types::operators::{BinaryOperator, UnaryOperator};
 use crate::query::parser::core::error::{ParseError, ParseErrorKind};
 use crate::core::types::{Span, Position};
 use crate::query::parser::parser::ParseContext;

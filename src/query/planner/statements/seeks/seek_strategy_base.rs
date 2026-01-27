@@ -3,7 +3,7 @@
 //! 定义查找策略的基础类型和选择器
 
 use crate::core::types::Expression;
-use crate::core::{StorageError, Value};
+use crate::core::Value;
 use crate::storage::StorageEngine;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

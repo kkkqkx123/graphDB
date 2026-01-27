@@ -37,18 +37,14 @@ pub enum LoopState {
 /// 包含递归检测机制，防止循环执行器自引用
 pub struct LoopExecutor<S: StorageEngine + Send + 'static> {
     base: BaseExecutor<S>,
-    condition: Option<Expression>, // 循环条件，None 表示无限循环
-    body_executor: Box<dyn Executor<S>>,
+    condition: Option<Expression>,
+    body_executor: Box<ExecutorEnum<S>>,
     max_iterations: Option<usize>,
     current_iteration: usize,
     loop_state: LoopState,
-    // 循环结果收集
     results: Vec<ExecutionResult>,
-    // 循环变量上下文
     loop_context: DefaultExpressionContext,
-    // 递归检测器
     recursion_detector: RecursionDetector,
-    // 安全验证器
     safety_validator: ExecutorSafetyValidator,
 }
 
@@ -57,7 +53,7 @@ impl<S: StorageEngine> LoopExecutor<S> {
         id: i64,
         storage: Arc<Mutex<S>>,
         condition: Option<Expression>,
-        body_executor: Box<dyn Executor<S>>,
+        body_executor: ExecutorEnum<S>,
         max_iterations: Option<usize>,
     ) -> Self {
         let recursion_detector = RecursionDetector::new(100);
@@ -66,7 +62,7 @@ impl<S: StorageEngine> LoopExecutor<S> {
         Self {
             base: BaseExecutor::new(id, "LoopExecutor".to_string(), storage),
             condition,
-            body_executor,
+            body_executor: Box::new(body_executor),
             max_iterations,
             current_iteration: 0,
             loop_state: LoopState::NotStarted,
@@ -362,7 +358,7 @@ impl<S: StorageEngine + Send + 'static> WhileLoopExecutor<S> {
         id: i64,
         storage: Arc<Mutex<S>>,
         condition: Expression,
-        body_executor: Box<dyn Executor<S>>,
+        body_executor: ExecutorEnum<S>,
         max_iterations: Option<usize>,
     ) -> Self {
         Self {
@@ -435,7 +431,7 @@ impl<S: StorageEngine + Send + 'static> ForLoopExecutor<S> {
         start: i64,
         end: i64,
         step: i64,
-        body_executor: Box<dyn Executor<S>>,
+        body_executor: ExecutorEnum<S>,
     ) -> Self {
         let mut executor = LoopExecutor::new(
             id,
@@ -606,7 +602,7 @@ mod tests {
             Expression::int(3),
         );
 
-        let body_executor: Box<dyn Executor<MockStorage>> = Box::new(BaseExecutor::new(2, "TestExecutor".to_string(), storage_clone));
+        let body_executor = ExecutorEnum::Base(BaseExecutor::new(2, "TestExecutor".to_string(), storage_clone));
 
         let mut executor = WhileLoopExecutor::new(
             1,
@@ -632,7 +628,7 @@ mod tests {
         let storage = Arc::new(Mutex::new(MockStorage));
         let storage_clone = storage.clone();
 
-        let body_executor: Box<dyn Executor<MockStorage>> = Box::new(BaseExecutor::new(2, "TestExecutor".to_string(), storage_clone));
+        let body_executor = ExecutorEnum::Base(BaseExecutor::new(2, "TestExecutor".to_string(), storage_clone));
 
         let mut executor =
             ForLoopExecutor::new(1, storage, "i".to_string(), 1, 3, 1, body_executor);

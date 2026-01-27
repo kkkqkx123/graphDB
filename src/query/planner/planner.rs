@@ -8,7 +8,7 @@ use crate::query::planner::plan::SubPlan;
 use lru::LruCache;
 use std::collections::HashMap;
 use std::num::NonZeroUsize;
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 use std::time::Duration;
 
 use crate::query::planner::statements::fetch_edges_planner::FetchEdgesPlanner;

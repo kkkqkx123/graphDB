@@ -3,7 +3,7 @@
 //! 提供执行器对象池，减少频繁的内存分配和释放
 //! 提高查询执行性能
 
-use crate::query::executor::traits::Executor;
+use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::storage::StorageEngine;
 use crate::utils::error_handling::safe_lock;
 use std::collections::HashMap;
@@ -32,7 +32,7 @@ impl Default for ObjectPoolConfig {
 /// 使用对象池模式重用执行器实例，减少内存分配开销
 pub struct ExecutorObjectPool<S: StorageEngine + 'static> {
     config: ObjectPoolConfig,
-    pools: HashMap<String, Vec<Box<dyn Executor<S>>>>,
+    pools: HashMap<String, Vec<ExecutorEnum<S>>>,
     stats: PoolStats,
 }
 
@@ -68,7 +68,7 @@ impl<S: StorageEngine + 'static> ExecutorObjectPool<S> {
     ///
     /// 如果池中有可用的执行器，则返回缓存的实例
     /// 否则返回None，调用者需要创建新实例
-    pub fn acquire(&mut self, executor_type: &str) -> Option<Box<dyn Executor<S>>> {
+    pub fn acquire(&mut self, executor_type: &str) -> Option<ExecutorEnum<S>> {
         if !self.config.enabled {
             return None;
         }
@@ -91,7 +91,7 @@ impl<S: StorageEngine + 'static> ExecutorObjectPool<S> {
     ///
     /// 如果池未满，则将执行器放回池中
     /// 否则丢弃执行器
-    pub fn release(&mut self, executor_type: &str, executor: Box<dyn Executor<S>>) {
+    pub fn release(&mut self, executor_type: &str, executor: ExecutorEnum<S>) {
         if !self.config.enabled {
             return;
         }
@@ -161,13 +161,13 @@ impl<S: StorageEngine + 'static> ThreadSafeExecutorPool<S> {
     }
 
     /// 从对象池获取执行器
-    pub fn acquire(&self, executor_type: &str) -> Option<Box<dyn Executor<S>>> {
+    pub fn acquire(&self, executor_type: &str) -> Option<ExecutorEnum<S>> {
         let mut pool = safe_lock(&self.inner).ok()?;
         pool.acquire(executor_type)
     }
 
     /// 将执行器释放回对象池
-    pub fn release(&self, executor_type: &str, executor: Box<dyn Executor<S>>) {
+    pub fn release(&self, executor_type: &str, executor: ExecutorEnum<S>) {
         if let Ok(mut pool) = safe_lock(&self.inner) {
             pool.release(executor_type, executor);
         }

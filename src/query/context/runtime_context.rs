@@ -12,7 +12,6 @@ use crate::query::context::managers::{SchemaManager, IndexManager};
 use crate::query::planner::plan::management::ddl::space_ops::Schema;
 use std::sync::Arc;
 use std::time::Instant;
-use std::collections::HashMap;
 use crate::core::{Edge, Vertex};
 
 /// 结果状态枚举

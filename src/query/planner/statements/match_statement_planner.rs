@@ -11,19 +11,17 @@
 use crate::core::Expression;
 use crate::query::context::ast::AstContext;
 use crate::query::context::execution::QueryContext;
-use crate::query::planner::connector::SegmentsConnector;
 use crate::query::planner::plan::ExecutionPlan;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
 use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
 use crate::query::planner::plan::core::nodes::{LimitNode, PlanNodeEnum, ProjectNode, ScanVerticesNode, SortNode};
 use crate::query::planner::planner::{Planner, PlannerError};
-use crate::query::planner::statements::statement_planner::{ClausePlanner, StatementPlanner};
+use crate::query::planner::statements::statement_planner::StatementPlanner;
 use crate::query::validator::OrderByItem;
 use crate::query::planner::statements::match_planner::PaginationInfo;
 use crate::query::validator::YieldColumn;
 use crate::query::validator::structs::CypherClauseKind;
-use std::collections::HashMap;
 
 /// MATCH 语句规划器
 ///

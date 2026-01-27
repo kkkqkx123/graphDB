@@ -2,7 +2,7 @@
 //!
 //! This module provides utilities for working with expressions.
 
-use crate::core::types::expression::{Expression, ExpressionMeta};
+use crate::core::types::expression::ExpressionMeta;
 
 /// 从字符串解析表达式元数据
 ///
