@@ -59,6 +59,10 @@ impl TopNRuleVisitor {
 impl PlanNodeVisitor for TopNRuleVisitor {
     type Result = Self;
 
+    fn visit_default(&mut self) -> Self::Result {
+        self.clone()
+    }
+
     fn visit_limit(&mut self, node: &crate::query::planner::plan::core::nodes::LimitNode) -> Self::Result {
         if self.converted {
             return self.clone();

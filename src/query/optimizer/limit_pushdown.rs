@@ -6,6 +6,125 @@ use super::plan::{OptContext, OptGroupNode, OptRule, Pattern};
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::{BaseOptRule, PushDownRule};
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
+use crate::query::visitor::PlanNodeVisitor;
+
+/// LIMIT下推访问者
+#[derive(Clone)]
+struct LimitPushDownVisitor {
+    pushed_down: bool,
+    new_node: Option<OptGroupNode>,
+    ctx: *const OptContext,
+}
+
+impl LimitPushDownVisitor {
+    fn get_ctx(&self) -> &OptContext {
+        unsafe { &*self.ctx }
+    }
+
+    fn can_push_down_to(&self, child_node: &PlanNodeEnum) -> bool {
+        matches!(
+            child_node.type_name(),
+            "IndexScan" | "GetVertices" | "GetEdges" | "ScanVertices" | "ScanEdges" | "Sort"
+        )
+    }
+}
+
+impl PlanNodeVisitor for LimitPushDownVisitor {
+    type Result = Self;
+
+    fn visit_default(&mut self) -> Self::Result {
+        self.clone()
+    }
+
+    fn visit_limit(&mut self, node: &crate::query::planner::plan::core::nodes::LimitNode) -> Self::Result {
+        let input = node.input();
+        let input_id = input.id() as usize;
+
+        if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(input_id) {
+            if self.can_push_down_to(&child_node.plan_node) {
+                let limit_count = node.count();
+                let output_var = node.output_var().cloned();
+
+                match child_node.plan_node.type_name() {
+                    "GetVertices" => {
+                        if let Some(get_vertices) = child_node.plan_node.as_get_vertices() {
+                            let mut new_get_vertices = get_vertices.clone();
+                            new_get_vertices.set_limit(limit_count);
+                            if let Some(var) = output_var {
+                                new_get_vertices.set_output_var(var);
+                            }
+
+                            let mut new_node = child_node.clone();
+                            new_node.plan_node = PlanNodeEnum::GetVertices(new_get_vertices);
+                            self.pushed_down = true;
+                            self.new_node = Some(new_node);
+                        }
+                    }
+                    "GetEdges" => {
+                        if let Some(get_edges) = child_node.plan_node.as_get_edges() {
+                            let mut new_get_edges = get_edges.clone();
+                            new_get_edges.set_limit(limit_count);
+                            if let Some(var) = output_var {
+                                new_get_edges.set_output_var(var);
+                            }
+
+                            let mut new_node = child_node.clone();
+                            new_node.plan_node = PlanNodeEnum::GetEdges(new_get_edges);
+                            self.pushed_down = true;
+                            self.new_node = Some(new_node);
+                        }
+                    }
+                    "IndexScan" => {
+                        if let Some(index_scan) = child_node.plan_node.as_index_scan() {
+                            let mut new_index_scan = index_scan.clone();
+                            new_index_scan.set_limit(limit_count);
+                            if let Some(var) = output_var {
+                                new_index_scan.set_output_var(var);
+                            }
+
+                            let mut new_node = child_node.clone();
+                            new_node.plan_node = PlanNodeEnum::IndexScan(new_index_scan);
+                            self.pushed_down = true;
+                            self.new_node = Some(new_node);
+                        }
+                    }
+                    "ScanVertices" => {
+                        if let Some(scan_vertices) = child_node.plan_node.as_scan_vertices() {
+                            let mut new_scan_vertices = scan_vertices.clone();
+                            new_scan_vertices.set_limit(limit_count);
+                            if let Some(var) = output_var {
+                                new_scan_vertices.set_output_var(var);
+                            }
+
+                            let mut new_node = child_node.clone();
+                            new_node.plan_node = PlanNodeEnum::ScanVertices(new_scan_vertices);
+                            self.pushed_down = true;
+                            self.new_node = Some(new_node);
+                        }
+                    }
+                    "ScanEdges" => {
+                        if let Some(scan_edges) = child_node.plan_node.as_scan_edges() {
+                            let mut new_scan_edges = scan_edges.clone();
+                            new_scan_edges.set_limit(limit_count);
+                            if let Some(var) = output_var {
+                                new_scan_edges.set_output_var(var);
+                            }
+
+                            let mut new_node = child_node.clone();
+                            new_node.plan_node = PlanNodeEnum::ScanEdges(new_scan_edges);
+                            self.pushed_down = true;
+                            self.new_node = Some(new_node);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        self.clone()
+    }
+}
 
 /// 通用LIMIT下推规则
 #[derive(Debug)]
@@ -21,25 +140,22 @@ impl OptRule for PushLimitDownRule {
         ctx: &mut OptContext,
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        // 检查是否为LIMIT操作
         if !node.plan_node.is_limit() {
             return Ok(None);
         }
 
-        // 检查是否有子节点可以下推LIMIT
-        if node.dependencies.len() >= 1 {
-            let child_dep_id = node.dependencies[0];
-            let child_node_opt = ctx.find_group_node_by_plan_node_id(child_dep_id).cloned();
+        let mut visitor = LimitPushDownVisitor {
+            pushed_down: false,
+            new_node: None,
+            ctx: ctx as *const OptContext,
+        };
 
-            if let Some(child_node) = child_node_opt {
-                // 根据子节点类型决定是否下推LIMIT
-                if self.can_push_down_to(&child_node.plan_node) {
-                    // 创建新的LIMIT下推节点
-                    return self.create_pushed_down_node(ctx, node, &child_node);
-                }
-            }
+        let result = visitor.visit(&node.plan_node);
+        if result.pushed_down {
+            Ok(result.new_node)
+        } else {
+            Ok(None)
         }
-        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -50,143 +166,17 @@ impl OptRule for PushLimitDownRule {
 impl BaseOptRule for PushLimitDownRule {}
 
 impl PushDownRule for PushLimitDownRule {
-    fn can_push_down_to(&self, child_node: &PlanNodeEnum) -> bool {
-        matches!(
-            child_node.type_name(),
-            "IndexScan" | "GetVertices" | "GetEdges" | "ScanVertices" | "ScanEdges" | "Sort"
-        )
+    fn can_push_down_to(&self, _child_node: &PlanNodeEnum) -> bool {
+        true
     }
 
     fn create_pushed_down_node(
         &self,
         _ctx: &mut OptContext,
-        limit_node: &OptGroupNode,
-        child: &OptGroupNode,
+        _node: &OptGroupNode,
+        _child: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        // 获取Limit节点的值
-        if let Some(_limit_plan_node) = limit_node.plan_node.as_limit() {
-            // 根据子节点类型创建新的带有LIMIT的节点
-            match child.plan_node.type_name() {
-                "GetVertices" => {
-                    // 为GetVertices创建带有LIMIT的节点
-                    if let Some(get_vertices_plan_node) = child.plan_node.as_get_vertices() {
-                        // 克隆节点并设置限制和输出变量
-                        let mut new_get_vertices = get_vertices_plan_node.clone();
-                        new_get_vertices.set_limit(_limit_plan_node.count());
-
-                        // 设置输出变量
-                        if let Some(output_var) = limit_node.plan_node.output_var() {
-                            new_get_vertices.set_output_var(output_var.clone());
-                        }
-
-                        let mut new_node = child.clone();
-                        new_node.plan_node = crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::GetVertices(new_get_vertices);
-
-                        // 复制依赖关系
-                        new_node.dependencies = child.dependencies.clone();
-
-                        Ok(Some(new_node))
-                    } else {
-                        Ok(None)
-                    }
-                }
-                "GetEdges" => {
-                    // 为GetEdges创建带有LIMIT的节点
-                    if let Some(get_edges_plan_node) = child.plan_node.as_get_edges() {
-                        // 克隆节点并设置限制和输出变量
-                        let mut new_get_edges = get_edges_plan_node.clone();
-                        new_get_edges.set_limit(_limit_plan_node.count());
-
-                        // 设置输出变量
-                        if let Some(output_var) = limit_node.plan_node.output_var() {
-                            new_get_edges.set_output_var(output_var.clone());
-                        }
-
-                        let mut new_node = child.clone();
-                        new_node.plan_node = crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::GetEdges(new_get_edges);
-
-                        // 复制依赖关系
-                        new_node.dependencies = child.dependencies.clone();
-
-                        Ok(Some(new_node))
-                    } else {
-                        Ok(None)
-                    }
-                }
-                "IndexScan" => {
-                    // 为IndexScan创建带有LIMIT的节点
-                    if let Some(index_scan_plan_node) = child.plan_node.as_index_scan() {
-                        // 克隆节点并设置限制和输出变量
-                        let mut new_index_scan = index_scan_plan_node.clone();
-                        new_index_scan.set_limit(_limit_plan_node.count());
-
-                        // 设置输出变量
-                        if let Some(output_var) = limit_node.plan_node.output_var() {
-                            new_index_scan.set_output_var(output_var.clone());
-                        }
-
-                        let mut new_node = child.clone();
-                        new_node.plan_node = crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::IndexScan(new_index_scan);
-
-                        // 复制依赖关系
-                        new_node.dependencies = child.dependencies.clone();
-
-                        Ok(Some(new_node))
-                    } else {
-                        Ok(None)
-                    }
-                }
-                "ScanVertices" => {
-                    // 为ScanVertices创建带有LIMIT的节点
-                    if let Some(scan_vertices_plan_node) = child.plan_node.as_scan_vertices() {
-                        // 克隆节点并设置限制和输出变量
-                        let mut new_scan_vertices = scan_vertices_plan_node.clone();
-                        new_scan_vertices.set_limit(_limit_plan_node.count());
-
-                        // 设置输出变量
-                        if let Some(output_var) = limit_node.plan_node.output_var() {
-                            new_scan_vertices.set_output_var(output_var.clone());
-                        }
-
-                        let mut new_node = child.clone();
-                        new_node.plan_node = crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::ScanVertices(new_scan_vertices);
-
-                        // 复制依赖关系
-                        new_node.dependencies = child.dependencies.clone();
-
-                        Ok(Some(new_node))
-                    } else {
-                        Ok(None)
-                    }
-                }
-                "ScanEdges" => {
-                    // 为ScanEdges创建带有LIMIT的节点
-                    if let Some(scan_edges_plan_node) = child.plan_node.as_scan_edges() {
-                        // 克隆节点并设置限制和输出变量
-                        let mut new_scan_edges = scan_edges_plan_node.clone();
-                        new_scan_edges.set_limit(_limit_plan_node.count());
-
-                        // 设置输出变量
-                        if let Some(output_var) = limit_node.plan_node.output_var() {
-                            new_scan_edges.set_output_var(output_var.clone());
-                        }
-
-                        let mut new_node = child.clone();
-                        new_node.plan_node = crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::ScanEdges(new_scan_edges);
-
-                        // 复制依赖关系
-                        new_node.dependencies = child.dependencies.clone();
-
-                        Ok(Some(new_node))
-                    } else {
-                        Ok(None)
-                    }
-                }
-                _ => Ok(None), // 对于其他类型，暂时不支持LIMIT下推
-            }
-        } else {
-            Ok(None)
-        }
+        Ok(None)
     }
 }
 

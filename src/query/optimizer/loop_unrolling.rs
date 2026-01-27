@@ -54,6 +54,10 @@ struct LoopUnrollingVisitor {
 impl PlanNodeVisitor for LoopUnrollingVisitor {
     type Result = Self;
 
+    fn visit_default(&mut self) -> Self::Result {
+        self.clone()
+    }
+
     fn visit_loop(&mut self, node: &crate::query::planner::plan::core::nodes::control_flow_node::LoopNode) -> Self::Result {
         let condition = node.condition();
 
@@ -72,10 +76,6 @@ impl PlanNodeVisitor for LoopUnrollingVisitor {
         }
 
         self.clone()
-    }
-
-    fn visit(&mut self, node: &PlanNodeEnum) -> Self::Result {
-        PlanNodeVisitor::visit(self, node)
     }
 
     fn visit_start(&mut self, _node: &crate::query::planner::plan::core::nodes::StartNode) -> Self::Result {

@@ -6,6 +6,57 @@ use super::plan::{OptContext, OptGroupNode, OptRule, Pattern};
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::{BaseOptRule, PushDownRule};
 use crate::query::planner::plan::core::nodes::PlanNodeEnum;
+use crate::query::visitor::PlanNodeVisitor;
+
+/// 投影下推访问者
+#[derive(Clone)]
+struct ProjectionPushDownVisitor {
+    pushed_down: bool,
+    new_node: Option<OptGroupNode>,
+    ctx: *const OptContext,
+}
+
+impl ProjectionPushDownVisitor {
+    fn get_ctx(&self) -> &OptContext {
+        unsafe { &*self.ctx }
+    }
+
+    fn can_push_down_project(node: &crate::query::planner::plan::core::nodes::ProjectNode) -> bool {
+        !node.columns().is_empty()
+    }
+}
+
+impl PlanNodeVisitor for ProjectionPushDownVisitor {
+    type Result = Self;
+
+    fn visit_default(&mut self) -> Self::Result {
+        self.clone()
+    }
+
+    fn visit_project(&mut self, node: &crate::query::planner::plan::core::nodes::ProjectNode) -> Self::Result {
+        let input = node.input();
+        let input_id = input.id() as usize;
+
+        if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(input_id) {
+            let child_name = child_node.plan_node.name();
+
+            match child_name.as_ref() {
+                "ScanVertices" | "ScanEdges" | "GetVertices" | "GetEdges" | "GetNeighbors" => {
+                    if Self::can_push_down_project(node) {
+                        let mut new_child_node = child_node.clone();
+                        new_child_node.plan_node = input.clone();
+
+                        self.pushed_down = true;
+                        self.new_node = Some(new_child_node);
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        self.clone()
+    }
+}
 
 /// 投影下推规则
 #[derive(Debug)]
@@ -18,13 +69,24 @@ impl OptRule for ProjectionPushDownRule {
 
     fn apply(
         &self,
-        _ctx: &mut OptContext,
+        ctx: &mut OptContext,
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        if node.plan_node.is_project() {
-            Ok(Some(node.clone()))
+        if !node.plan_node.is_project() {
+            return Ok(None);
+        }
+
+        let mut visitor = ProjectionPushDownVisitor {
+            pushed_down: false,
+            new_node: None,
+            ctx: ctx as *const OptContext,
+        };
+
+        let result = visitor.visit(&node.plan_node);
+        if result.pushed_down {
+            Ok(result.new_node)
         } else {
-            Ok(None)
+            Ok(Some(node.clone()))
         }
     }
 
@@ -71,15 +133,24 @@ impl OptRule for PushProjectDownRule {
 
     fn apply(
         &self,
-        _ctx: &mut OptContext,
+        ctx: &mut OptContext,
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        // 在完整实现中，这会将投影操作下推
-        // 更接近数据源以减少数据传输
-        if node.plan_node.is_project() {
-            Ok(Some(node.clone()))
+        if !node.plan_node.is_project() {
+            return Ok(None);
+        }
+
+        let mut visitor = ProjectionPushDownVisitor {
+            pushed_down: false,
+            new_node: None,
+            ctx: ctx as *const OptContext,
+        };
+
+        let result = visitor.visit(&node.plan_node);
+        if result.pushed_down {
+            Ok(result.new_node)
         } else {
-            Ok(None)
+            Ok(Some(node.clone()))
         }
     }
 

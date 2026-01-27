@@ -55,6 +55,10 @@ struct ConstantFoldingVisitor {
 impl PlanNodeVisitor for ConstantFoldingVisitor {
     type Result = Self;
 
+    fn visit_default(&mut self) -> Self::Result {
+        self.clone()
+    }
+
     fn visit_filter(&mut self, node: &crate::query::planner::plan::core::nodes::FilterNode) -> Self::Result {
         use crate::core::Expression;
 
@@ -72,10 +76,6 @@ impl PlanNodeVisitor for ConstantFoldingVisitor {
         }
 
         self.clone()
-    }
-
-    fn visit(&mut self, node: &PlanNodeEnum) -> Self::Result {
-        PlanNodeVisitor::visit(self, node)
     }
 
     fn visit_start(&mut self, _node: &crate::query::planner::plan::core::nodes::StartNode) -> Self::Result {

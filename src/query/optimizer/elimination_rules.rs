@@ -7,8 +7,10 @@ use super::rule_patterns::PatternBuilder;
 use super::rule_traits::{
     create_basic_pattern, is_expression_tautology, BaseOptRule, EliminationRule,
 };
+use crate::query::planner::plan::core::nodes::plan_node_traits::{MultipleInputNode, SingleInputNode};
 use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::plan::ProjectNode;
+use crate::query::visitor::PlanNodeVisitor;
 
 /// 消除冗余过滤操作的规则
 #[derive(Debug)]
@@ -24,14 +26,15 @@ impl OptRule for EliminateFilterRule {
         ctx: &mut OptContext,
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        // 检查是否为过滤节点
-        if !node.plan_node.is_filter() {
-            return Ok(None);
-        }
+        let mut visitor = EliminateFilterVisitor {
+            ctx: ctx as *const OptContext,
+            eliminated: false,
+            new_node: None,
+        };
 
-        // 使用 EliminationRule trait 的方法来保持一致性
-        if self.can_eliminate(ctx, node) {
-            self.get_replacement(ctx, node)
+        let result = visitor.visit(&node.plan_node);
+        if result.eliminated {
+            Ok(result.new_node)
         } else {
             Ok(None)
         }
@@ -44,59 +47,52 @@ impl OptRule for EliminateFilterRule {
 
 impl BaseOptRule for EliminateFilterRule {}
 
-impl EliminationRule for EliminateFilterRule {
-    fn can_eliminate(&self, _ctx: &OptContext, node: &OptGroupNode) -> bool {
-        if !node.plan_node.is_filter() {
-            return false;
-        }
+/// 消除过滤访问者
+#[derive(Clone)]
+struct EliminateFilterVisitor {
+    eliminated: bool,
+    new_node: Option<OptGroupNode>,
+    ctx: *const OptContext,
+}
 
-        if let Some(filter_plan_node) = node.plan_node.as_filter() {
-            let condition = filter_plan_node.condition();
-            is_expression_tautology(condition)
-        } else {
-            false
-        }
+impl EliminateFilterVisitor {
+    fn get_ctx(&self) -> &OptContext {
+        unsafe { &*self.ctx }
+    }
+}
+
+impl PlanNodeVisitor for EliminateFilterVisitor {
+    type Result = Self;
+
+    fn visit_default(&mut self) -> Self::Result {
+        self.clone()
     }
 
-    fn get_replacement(
-        &self,
-        ctx: &mut OptContext,
-        node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        if !node.dependencies.is_empty() {
-            let child_dep_id = node.dependencies[0];
-
-            if let Some(child_node) = ctx.find_group_node_by_plan_node_id(child_dep_id) {
-                // 创建一个全新的节点，而不是修改现有的节点
-                let new_plan_node = child_node.plan_node.clone();
-
-                // 创建新的OptGroupNode
-                let mut new_node = OptGroupNode {
-                    id: child_node.id,
-                    plan_node: new_plan_node,
-                    dependencies: child_node.dependencies.clone(),
-                    bodies: child_node.bodies.clone(),
-                    cost: child_node.cost,
-                    properties: child_node.properties.clone(),
-                    explored_rules: child_node.explored_rules.clone(),
-                    group_id: child_node.group_id,
-                };
-
-                // 尝试设置输出变量
-                if let Some(output_var) = node.plan_node.output_var() {
-                    // 创建一个新的计划节点并设置输出变量
-                    // 由于PlanNodeEnum是不可变的，我们需要基于原节点创建一个新节点
-                    // 这需要PlanNode有具体类型才能设置输出变量
-                    let new_plan_node_with_output =
-                        create_plan_node_with_output_var(&child_node.plan_node, output_var.clone());
-                    new_node.plan_node = new_plan_node_with_output;
-                }
-
-                return Ok(Some(new_node));
-            }
+    fn visit_filter(&mut self, node: &crate::query::planner::plan::core::nodes::FilterNode) -> Self::Result {
+        if self.eliminated {
+            return self.clone();
         }
 
-        Ok(None)
+        let condition = node.condition();
+        if !is_expression_tautology(condition) {
+            return self.clone();
+        }
+
+        let input = node.input();
+        let input_id = input.id() as usize;
+
+        if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(input_id) {
+            let mut new_node = child_node.clone();
+
+            if let Some(output_var) = node.output_var() {
+                new_node.plan_node = input.clone();
+            }
+
+            self.eliminated = true;
+            self.new_node = Some(new_node);
+        }
+
+        self.clone()
     }
 }
 
@@ -114,14 +110,15 @@ impl OptRule for DedupEliminationRule {
         ctx: &mut OptContext,
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        // 检查是否为去重操作
-        if !node.plan_node.is_dedup() {
-            return Ok(None);
-        }
+        let mut visitor = DedupEliminationVisitor {
+            ctx: ctx as *const OptContext,
+            eliminated: false,
+            new_node: None,
+        };
 
-        // 使用 EliminationRule trait 的方法来保持一致性
-        if self.can_eliminate(ctx, node) {
-            self.get_replacement(ctx, node)
+        let result = visitor.visit(&node.plan_node);
+        if result.eliminated {
+            Ok(result.new_node)
         } else {
             Ok(None)
         }
@@ -134,74 +131,52 @@ impl OptRule for DedupEliminationRule {
 
 impl BaseOptRule for DedupEliminationRule {}
 
-impl EliminationRule for DedupEliminationRule {
-    fn can_eliminate(&self, ctx: &OptContext, node: &OptGroupNode) -> bool {
-        // 检查是否为去重节点
-        if !node.plan_node.is_dedup() {
-            return false;
-        }
+/// 消除去重访问者
+#[derive(Clone)]
+struct DedupEliminationVisitor {
+    eliminated: bool,
+    new_node: Option<OptGroupNode>,
+    ctx: *const OptContext,
+}
 
-        // 检查是否有且只有一个依赖
-        if node.dependencies.len() != 1 {
-            return false;
-        }
+impl DedupEliminationVisitor {
+    fn get_ctx(&self) -> &OptContext {
+        unsafe { &*self.ctx }
+    }
+}
 
-        // 检查依赖节点的类型
-        let child_dep_id = node.dependencies[0];
-        if let Some(child_node) = ctx.find_group_node_by_plan_node_id(child_dep_id) {
-            // 如果依赖节点已经产生唯一结果（如IndexScan、GetVertices等），则可以消除去重操作
-            child_node.plan_node.is_index_scan()
-                || child_node.plan_node.is_get_vertices()
-                || child_node.plan_node.is_get_edges()
-        } else {
-            false
-        }
+impl PlanNodeVisitor for DedupEliminationVisitor {
+    type Result = Self;
+
+    fn visit_default(&mut self) -> Self::Result {
+        self.clone()
     }
 
-    fn get_replacement(
-        &self,
-        ctx: &mut OptContext,
-        node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        if node.dependencies.len() == 1 {
-            let child_dep_id = node.dependencies[0];
-            if let Some(child_node) = ctx.find_group_node_by_plan_node_id(child_dep_id) {
-                // 检查子节点是否已经是唯一结果的操作
-                if child_node.plan_node.is_index_scan()
-                    || child_node.plan_node.is_get_vertices()
-                    || child_node.plan_node.is_get_edges()
-                {
-                    // 这些操作已经产生唯一结果，可以移除去重
-                    let new_plan_node = child_node.plan_node.clone();
+    fn visit_dedup(&mut self, node: &crate::query::planner::plan::core::nodes::DedupNode) -> Self::Result {
+        if self.eliminated {
+            return self.clone();
+        }
 
-                    // 创建新的OptGroupNode
-                    let mut new_node = OptGroupNode {
-                        id: child_node.id,
-                        plan_node: new_plan_node,
-                        dependencies: child_node.dependencies.clone(),
-                        bodies: child_node.bodies.clone(),
-                        cost: child_node.cost,
-                        properties: child_node.properties.clone(),
-                        explored_rules: child_node.explored_rules.clone(),
-                        group_id: child_node.group_id,
-                    };
+        let input = node.input();
+        let input_id = input.id() as usize;
 
-                    // 保留当前节点的输出变量
-                    if let Some(output_var) = node.plan_node.output_var() {
-                        new_node.plan_node = create_plan_node_with_output_var(
-                            &child_node.plan_node,
-                            output_var.clone(),
-                        );
-                    }
+        if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(input_id) {
+            if child_node.plan_node.is_index_scan()
+                || child_node.plan_node.is_get_vertices()
+                || child_node.plan_node.is_get_edges()
+            {
+                let mut new_node = child_node.clone();
 
-                    return Ok(Some(new_node));
-                } else {
-                    // 其他类型不能移除去重
-                    return Ok(None);
+                if let Some(output_var) = node.output_var() {
+                    new_node.plan_node = input.clone();
                 }
+
+                self.eliminated = true;
+                self.new_node = Some(new_node);
             }
         }
-        Ok(None)
+
+        self.clone()
     }
 }
 
@@ -219,14 +194,15 @@ impl OptRule for RemoveNoopProjectRule {
         ctx: &mut OptContext,
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        // 检查是否为投影操作
-        if !node.plan_node.is_project() {
-            return Ok(None);
-        }
+        let mut visitor = RemoveNoopProjectVisitor {
+            ctx: ctx as *const OptContext,
+            eliminated: false,
+            new_node: None,
+        };
 
-        // 使用 EliminationRule trait 的方法来保持一致性
-        if self.can_eliminate(ctx, node) {
-            self.get_replacement(ctx, node)
+        let result = visitor.visit(&node.plan_node);
+        if result.eliminated {
+            Ok(result.new_node)
         } else {
             Ok(None)
         }
@@ -239,158 +215,111 @@ impl OptRule for RemoveNoopProjectRule {
 
 impl BaseOptRule for RemoveNoopProjectRule {}
 
-impl RemoveNoopProjectRule {
-    /// 检查投影是否为无操作（即投影的列与输入列相同）
+/// 移除无操作投影访问者
+#[derive(Clone)]
+struct RemoveNoopProjectVisitor {
+    eliminated: bool,
+    new_node: Option<OptGroupNode>,
+    ctx: *const OptContext,
+}
+
+impl RemoveNoopProjectVisitor {
+    fn get_ctx(&self) -> &OptContext {
+        unsafe { &*self.ctx }
+    }
+
     fn is_noop_projection(
         &self,
-        project_node: &ProjectNode,
-        child_node: &OptGroupNode,
-    ) -> Result<bool, OptimizerError> {
-        // 获取投影列
-        let columns = project_node.columns();
-
-        // 如果投影列为空，则无法判断，返回false
+        columns: &[crate::query::validator::YieldColumn],
+        child_col_names: &[String],
+    ) -> bool {
         if columns.is_empty() {
-            return Ok(false);
+            return false;
         }
 
-        // 获取子节点的输出列名
-        let child_col_names = child_node.plan_node.col_names();
-
-        // 首先检查投影是否包含通配符 "*"
         if columns.len() == 1 {
             if let crate::core::Expression::Variable(var_name) = &columns[0].expression {
                 if var_name == "*" {
-                    // 投影 "*" 总是无操作投影
-                    return Ok(true);
+                    return true;
                 }
             }
         }
 
-        // 如果子节点没有输出列，则无法判断，返回false
         if child_col_names.is_empty() {
-            // 如果投影列都是简单的变量引用且没有别名，认为是无操作投影
-            return Ok(true);
+            return true;
         }
 
-        // 检查投影列是否包含别名或表达式
-        if self.has_aliases_or_expressions_in_columns(columns)? {
-            return Ok(false);
+        if self.has_aliases_or_expressions_in_columns(columns) {
+            return false;
         }
 
-        // 从投影列中提取列名
         let projected_columns: Vec<String> = columns.iter().map(|col| col.alias.clone()).collect();
 
-        // 如果投影的列与子节点的输出列完全相同，则是无操作投影
         if projected_columns.len() == child_col_names.len() {
             for (i, col_name) in projected_columns.iter().enumerate() {
                 if i < child_col_names.len() && col_name != &child_col_names[i] {
-                    return Ok(false);
+                    return false;
                 }
             }
-            return Ok(true);
+            return true;
         }
 
-        Ok(false)
+        false
     }
 
-    /// 检查投影列是否包含别名或复杂表达式
     fn has_aliases_or_expressions_in_columns(
         &self,
         columns: &[crate::query::validator::YieldColumn],
-    ) -> Result<bool, OptimizerError> {
+    ) -> bool {
         for column in columns {
-            // 检查是否是表达式（不是简单的变量引用）
             match &column.expression {
-                crate::core::Expression::Variable(_) => {
-                    // 简单变量，继续检查
-                }
-                _ => {
-                    // 其他类型的表达式，认为是复杂表达式
-                    return Ok(true);
-                }
+                crate::core::Expression::Variable(_) => {}
+                _ => return true,
             }
 
-            // 检查别名是否与原始表达式不同
             if let crate::core::Expression::Variable(var_name) = &column.expression {
                 if var_name != &column.alias {
-                    // 别名与变量名不同，认为是别名
-                    return Ok(true);
+                    return true;
                 }
             }
         }
 
-        Ok(false)
+        false
     }
 }
 
-impl EliminationRule for RemoveNoopProjectRule {
-    fn can_eliminate(&self, ctx: &OptContext, node: &OptGroupNode) -> bool {
-        // 检查是否为投影节点
-        if !node.plan_node.is_project() {
-            return false;
-        }
+impl PlanNodeVisitor for RemoveNoopProjectVisitor {
+    type Result = Self;
 
-        // 检查是否有且只有一个依赖
-        if node.dependencies.len() != 1 {
-            return false;
-        }
-
-        // 检查投影是否为无操作
-        if let Some(project_plan_node) = node.plan_node.as_project() {
-            let child_dep_id = node.dependencies[0];
-            if let Some(child_node) = ctx.find_group_node_by_plan_node_id(child_dep_id) {
-                // 在实际实现中，需要比较投影表达式和输入列
-                // 这里简化实现，假设投影不是无操作
-                self.is_noop_projection(project_plan_node, child_node)
-                    .unwrap_or(false)
-            } else {
-                false
-            }
-        } else {
-            false
-        }
+    fn visit_default(&mut self) -> Self::Result {
+        self.clone()
     }
 
-    fn get_replacement(
-        &self,
-        ctx: &mut OptContext,
-        node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        if node.dependencies.len() == 1 {
-            let child_dep_id = node.dependencies[0];
-            if let Some(child_node) = ctx.find_group_node_by_plan_node_id(child_dep_id) {
-                // 检查投影是否为无操作
-                if let Some(project_plan_node) = node.plan_node.as_project() {
-                    if self.is_noop_projection(project_plan_node, child_node)? {
-                        let new_plan_node = child_node.plan_node.clone();
+    fn visit_project(&mut self, node: &crate::query::planner::plan::core::nodes::ProjectNode) -> Self::Result {
+        if self.eliminated {
+            return self.clone();
+        }
 
-                        // 创建新的OptGroupNode
-                        let mut new_node = OptGroupNode {
-                            id: child_node.id,
-                            plan_node: new_plan_node,
-                            dependencies: child_node.dependencies.clone(),
-                            bodies: child_node.bodies.clone(),
-                            cost: child_node.cost,
-                            properties: child_node.properties.clone(),
-                            explored_rules: child_node.explored_rules.clone(),
-                            group_id: child_node.group_id,
-                        };
+        let input = node.input();
+        let input_id = input.id() as usize;
 
-                        // 保留当前节点的输出变量
-                        if let Some(output_var) = node.plan_node.output_var() {
-                            new_node.plan_node = create_plan_node_with_output_var(
-                                &child_node.plan_node,
-                                output_var.clone(),
-                            );
-                        }
+        if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(input_id) {
+            let columns = node.columns();
+            let child_col_names = child_node.plan_node.col_names();
 
-                        return Ok(Some(new_node));
-                    }
+            if self.is_noop_projection(&columns, &child_col_names) {
+                let mut new_node = child_node.clone();
+
+                if let Some(output_var) = node.output_var() {
+                    new_node.plan_node = input.clone();
                 }
+
+                self.eliminated = true;
+                self.new_node = Some(new_node);
             }
         }
-        Ok(None)
+
+        self.clone()
     }
 }
 
@@ -408,14 +337,15 @@ impl OptRule for EliminateAppendVerticesRule {
         ctx: &mut OptContext,
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        // 检查是否为添加顶点操作
-        if !node.plan_node.is_append_vertices() {
-            return Ok(None);
-        }
+        let mut visitor = EliminateAppendVerticesVisitor {
+            ctx: ctx as *const OptContext,
+            eliminated: false,
+            new_node: None,
+        };
 
-        // 使用 EliminationRule trait 的方法来保持一致性
-        if self.can_eliminate(ctx, node) {
-            self.get_replacement(ctx, node)
+        let result = visitor.visit(&node.plan_node);
+        if result.eliminated {
+            Ok(result.new_node)
         } else {
             Ok(None)
         }
@@ -428,48 +358,52 @@ impl OptRule for EliminateAppendVerticesRule {
 
 impl BaseOptRule for EliminateAppendVerticesRule {}
 
-impl EliminationRule for EliminateAppendVerticesRule {
-    fn can_eliminate(&self, _ctx: &OptContext, node: &OptGroupNode) -> bool {
-        if !node.plan_node.is_append_vertices() {
-            return false;
-        }
+/// 消除添加顶点访问者
+#[derive(Clone)]
+struct EliminateAppendVerticesVisitor {
+    eliminated: bool,
+    new_node: Option<OptGroupNode>,
+    ctx: *const OptContext,
+}
 
-        // 当添加顶点操作只有一个依赖时，可以移除该操作
-        node.dependencies.len() == 1
+impl EliminateAppendVerticesVisitor {
+    fn get_ctx(&self) -> &OptContext {
+        unsafe { &*self.ctx }
+    }
+}
+
+impl PlanNodeVisitor for EliminateAppendVerticesVisitor {
+    type Result = Self;
+
+    fn visit_default(&mut self) -> Self::Result {
+        self.clone()
     }
 
-    fn get_replacement(
-        &self,
-        ctx: &mut OptContext,
-        node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        if node.dependencies.len() == 1 {
-            let child_dep_id = node.dependencies[0];
-            if let Some(child_node) = ctx.find_group_node_by_plan_node_id(child_dep_id) {
-                let new_plan_node = child_node.plan_node.clone();
-
-                // 创建新的OptGroupNode
-                let mut new_node = OptGroupNode {
-                    id: child_node.id,
-                    plan_node: new_plan_node,
-                    dependencies: child_node.dependencies.clone(),
-                    bodies: child_node.bodies.clone(),
-                    cost: child_node.cost,
-                    properties: child_node.properties.clone(),
-                    explored_rules: child_node.explored_rules.clone(),
-                    group_id: child_node.group_id,
-                };
-
-                // 保留当前节点的输出变量
-                if let Some(output_var) = node.plan_node.output_var() {
-                    new_node.plan_node =
-                        create_plan_node_with_output_var(&child_node.plan_node, output_var.clone());
-                }
-
-                return Ok(Some(new_node));
-            }
+    fn visit_append_vertices(&mut self, node: &crate::query::planner::plan::core::nodes::AppendVerticesNode) -> Self::Result {
+        if self.eliminated {
+            return self.clone();
         }
-        Ok(None)
+
+        let inputs = node.inputs();
+        if inputs.is_empty() {
+            return self.clone();
+        }
+
+        let input = &**inputs.first().unwrap();
+        let input_id = input.id() as usize;
+
+        if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(input_id) {
+            let mut new_node = child_node.clone();
+
+            if let Some(output_var) = node.output_var() {
+                new_node.plan_node = input.clone();
+            }
+
+            self.eliminated = true;
+            self.new_node = Some(new_node);
+        }
+
+        self.clone()
     }
 }
 
@@ -487,14 +421,15 @@ impl OptRule for RemoveAppendVerticesBelowJoinRule {
         ctx: &mut OptContext,
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        // 检查是否为添加顶点操作
-        if !node.plan_node.is_append_vertices() {
-            return Ok(None);
-        }
+        let mut visitor = RemoveAppendVerticesBelowJoinVisitor {
+            ctx: ctx as *const OptContext,
+            eliminated: false,
+            new_node: None,
+        };
 
-        // 使用 EliminationRule trait 的方法来保持一致性
-        if self.can_eliminate(ctx, node) {
-            self.get_replacement(ctx, node)
+        let result = visitor.visit(&node.plan_node);
+        if result.eliminated {
+            Ok(result.new_node)
         } else {
             Ok(None)
         }
@@ -507,59 +442,57 @@ impl OptRule for RemoveAppendVerticesBelowJoinRule {
 
 impl BaseOptRule for RemoveAppendVerticesBelowJoinRule {}
 
-impl EliminationRule for RemoveAppendVerticesBelowJoinRule {
-    fn can_eliminate(&self, ctx: &OptContext, node: &OptGroupNode) -> bool {
-        if !node.plan_node.is_append_vertices() {
-            return false;
-        }
+/// 移除连接下方添加顶点访问者
+#[derive(Clone)]
+struct RemoveAppendVerticesBelowJoinVisitor {
+    eliminated: bool,
+    new_node: Option<OptGroupNode>,
+    ctx: *const OptContext,
+}
 
-        // 检查是否只有一个依赖且依赖是连接操作
-        if node.dependencies.len() == 1 {
-            let child_dep_id = node.dependencies[0];
-            if let Some(child_node) = ctx.find_group_node_by_plan_node_id(child_dep_id) {
-                return child_node.plan_node.is_inner_join()
-                    || child_node.plan_node.is_hash_inner_join()
-                    || child_node.plan_node.is_hash_left_join();
-            }
-        }
+impl RemoveAppendVerticesBelowJoinVisitor {
+    fn get_ctx(&self) -> &OptContext {
+        unsafe { &*self.ctx }
+    }
+}
 
-        false
+impl PlanNodeVisitor for RemoveAppendVerticesBelowJoinVisitor {
+    type Result = Self;
+
+    fn visit_default(&mut self) -> Self::Result {
+        self.clone()
     }
 
-    fn get_replacement(
-        &self,
-        ctx: &mut OptContext,
-        node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        if node.dependencies.len() == 1 {
-            let child_dep_id = node.dependencies[0];
-            if let Some(child_node) = ctx.find_group_node_by_plan_node_id(child_dep_id) {
-                // 在实际实现中，我们可能需要根据具体情况决定如何替换
-                // 目前简单地返回子节点
-                let new_plan_node = child_node.plan_node.clone();
+    fn visit_append_vertices(&mut self, node: &crate::query::planner::plan::core::nodes::AppendVerticesNode) -> Self::Result {
+        if self.eliminated {
+            return self.clone();
+        }
 
-                // 创建新的OptGroupNode
-                let mut new_node = OptGroupNode {
-                    id: child_node.id,
-                    plan_node: new_plan_node,
-                    dependencies: child_node.dependencies.clone(),
-                    bodies: child_node.bodies.clone(),
-                    cost: child_node.cost,
-                    properties: child_node.properties.clone(),
-                    explored_rules: child_node.explored_rules.clone(),
-                    group_id: child_node.group_id,
-                };
+        let inputs = node.inputs();
+        if inputs.is_empty() {
+            return self.clone();
+        }
 
-                // 保留当前节点的输出变量
-                if let Some(output_var) = node.plan_node.output_var() {
-                    new_node.plan_node =
-                        create_plan_node_with_output_var(&child_node.plan_node, output_var.clone());
+        let input = &**inputs.first().unwrap();
+        let input_id = input.id() as usize;
+
+        if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(input_id) {
+            if child_node.plan_node.is_inner_join()
+                || child_node.plan_node.is_hash_inner_join()
+                || child_node.plan_node.is_hash_left_join()
+            {
+                let mut new_node = child_node.clone();
+
+                if let Some(output_var) = node.output_var() {
+                    new_node.plan_node = input.clone();
                 }
 
-                return Ok(Some(new_node));
+                self.eliminated = true;
+                self.new_node = Some(new_node);
             }
         }
-        Ok(None)
+
+        self.clone()
     }
 }
 

@@ -94,6 +94,8 @@ impl Default for ExecutionPlanAnalyzer {
 impl PlanNodeVisitor for ExecutionPlanAnalyzer {
     type Result = ();
 
+    fn visit_default(&mut self) {}
+
     fn visit_start(&mut self, node: &crate::query::planner::plan::core::nodes::StartNode) {
         let id = self.allocate_id();
         self.set_current_id(id);
