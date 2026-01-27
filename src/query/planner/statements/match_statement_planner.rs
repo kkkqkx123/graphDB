@@ -1,15 +1,12 @@
-//! MATCH 规划器
+//! 统一 MATCH 语句规划器
 //!
-//! 负责将 MATCH 查询转换为可执行的执行计划。
-//! 使用 AstContext 中的语句信息进行规划，支持完整的 Cypher MATCH 语法。
-//!
-//! ## 支持的功能
-//!
-//! - 节点模式匹配：(n:Tag)
-//! - 关系模式匹配：-[e:Edge]->
+//! 实现 StatementPlanner 接口，处理完整的 MATCH 查询规划。
+//! 整合了以下功能：
+//! - 节点和边模式匹配
 //! - WHERE 条件过滤
-//! - 属性投影
-//! - ORDER BY / LIMIT / SKIP
+//! - RETURN 投影
+//! - ORDER BY 排序
+//! - LIMIT/SKIP 分页
 
 use crate::core::Expression;
 use crate::query::context::ast::AstContext;
@@ -19,17 +16,21 @@ use crate::query::planner::plan::ExecutionPlan;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
 use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
-use crate::query::planner::plan::core::nodes::{PlanNodeEnum, ProjectNode, ScanVerticesNode};
-use crate::query::planner::plan::core::nodes::{LimitNode, SortNode};
+use crate::query::planner::plan::core::nodes::{LimitNode, PlanNodeEnum, ProjectNode, ScanVerticesNode, SortNode};
 use crate::query::planner::planner::{Planner, PlannerError};
+use crate::query::planner::statements::statement_planner::{ClausePlanner, StatementPlanner};
+use crate::query::validator::OrderByItem;
+use crate::query::planner::statements::match_planner::PaginationInfo;
 use crate::query::validator::YieldColumn;
+use crate::query::validator::structs::CypherClauseKind;
 use std::collections::HashMap;
 
-/// MATCH 规划器
+/// MATCH 语句规划器
 ///
-/// 使用 AstContext 中的语句进行规划，生成可执行的执行计划。
+/// 负责将 MATCH 查询转换为可执行的执行计划。
+/// 实现 StatementPlanner 接口，提供统一的规划入口。
 #[derive(Debug)]
-pub struct MatchPlanner {
+pub struct MatchStatementPlanner {
     config: MatchPlannerConfig,
 }
 
@@ -40,7 +41,7 @@ pub struct MatchPlannerConfig {
     pub enable_index_optimization: bool,
 }
 
-impl MatchPlanner {
+impl MatchStatementPlanner {
     pub fn new() -> Self {
         Self {
             config: MatchPlannerConfig::default(),
@@ -51,15 +52,11 @@ impl MatchPlanner {
         Self { config }
     }
 
-    pub fn make() -> Box<dyn Planner> {
-        Box::new(Self::new())
-    }
-
     pub fn match_ast_ctx(ast_ctx: &AstContext) -> bool {
         ast_ctx.statement_type().to_uppercase() == "MATCH"
     }
 
-    pub fn parse_tag_from_pattern(pattern: &str) -> Option<String> {
+    fn parse_tag_from_pattern(pattern: &str) -> Option<String> {
         let colon_pos = pattern.find(':')?;
         let closing_paren_pos = pattern.find(')')?;
         if colon_pos < closing_paren_pos {
@@ -69,8 +66,23 @@ impl MatchPlanner {
             None
         }
     }
+}
 
-    pub fn transform_with_full_context(
+impl Planner for MatchStatementPlanner {
+    fn match_planner(&self, ast_ctx: &AstContext) -> bool {
+        Self::match_ast_ctx(ast_ctx)
+    }
+
+    fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
+        let stmt = ast_ctx.sentence().ok_or_else(|| {
+            PlannerError::InvalidAstContext("AstContext 中缺少语句".to_string())
+        })?;
+
+        let space_id = ast_ctx.space().space_id.unwrap_or(1) as i32;
+        self.plan_match_pattern(stmt, space_id)
+    }
+
+    fn transform_with_full_context(
         &mut self,
         query_context: &mut QueryContext,
         ast_ctx: &AstContext,
@@ -80,15 +92,14 @@ impl MatchPlanner {
         })?;
 
         let space_id = ast_ctx.space().space_id.unwrap_or(1) as i32;
-
-        let mut current_plan = self.plan_match_pattern(ast_ctx, stmt, space_id)?;
+        let mut current_plan = self.plan_match_pattern(stmt, space_id)?;
 
         if ast_ctx.query_type() == crate::query::context::ast::QueryType::ReadQuery {
             if let Some(where_condition) = self.extract_where_condition(stmt)? {
                 current_plan = self.plan_filter(current_plan, where_condition, space_id)?;
             }
 
-            if let Some(return_columns) = self.extract_return_columns(ast_ctx, stmt)? {
+            if let Some(return_columns) = self.extract_return_columns(stmt)? {
                 current_plan = self.plan_project(current_plan, return_columns, space_id)?;
             }
 
@@ -106,9 +117,72 @@ impl MatchPlanner {
         Ok(plan)
     }
 
+    fn name(&self) -> &'static str {
+        "MatchStatementPlanner"
+    }
+}
+
+impl StatementPlanner for MatchStatementPlanner {
+    fn statement_type(&self) -> &'static str {
+        "MATCH"
+    }
+
+    fn supported_clause_kinds(&self) -> Vec<CypherClauseKind> {
+        vec![
+            CypherClauseKind::Match,
+            CypherClauseKind::Where,
+            CypherClauseKind::Return,
+            CypherClauseKind::OrderBy,
+            CypherClauseKind::Pagination,
+        ]
+    }
+
+    fn extract_clauses(&self, ast_ctx: &AstContext) -> Vec<CypherClauseKind> {
+        let mut clauses = Vec::new();
+        clauses.push(CypherClauseKind::Match);
+
+        let stmt = ast_ctx.sentence();
+        if let Some(crate::query::parser::ast::Stmt::Match(match_stmt)) = stmt {
+            if match_stmt.where_clause.is_some() {
+                clauses.push(CypherClauseKind::Where);
+            }
+            if match_stmt.return_clause.is_some() {
+                clauses.push(CypherClauseKind::Return);
+            }
+            if match_stmt.order_by.is_some() {
+                clauses.push(CypherClauseKind::OrderBy);
+            }
+            if match_stmt.skip.is_some() || match_stmt.limit.is_some() {
+                clauses.push(CypherClauseKind::Pagination);
+            }
+        }
+        clauses
+    }
+
+    fn make_statement_planner() -> Box<dyn StatementPlanner>
+    where
+        Self: Sized,
+    {
+        Box::new(Self::new())
+    }
+
+    fn create_initial_plan(&self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
+        let stmt = ast_ctx.sentence().ok_or_else(|| {
+            PlannerError::InvalidAstContext("AstContext 中缺少语句".to_string())
+        })?;
+        let space_id = ast_ctx.space().space_id.unwrap_or(1) as i32;
+        self.plan_match_pattern(stmt, space_id)
+    }
+
+    fn create_default_plan(&self, ast_ctx: &AstContext) -> Result<ExecutionPlan, PlannerError> {
+        let mut planner = MatchStatementPlanner::new();
+        planner.transform_with_full_context(&mut QueryContext::new(), ast_ctx)
+    }
+}
+
+impl MatchStatementPlanner {
     fn plan_match_pattern(
         &self,
-        _ast_ctx: &AstContext,
         stmt: &crate::query::parser::ast::Stmt,
         space_id: i32,
     ) -> Result<SubPlan, PlannerError> {
@@ -123,10 +197,7 @@ impl MatchPlanner {
         }
     }
 
-    fn plan_node_pattern(
-        &self,
-        space_id: i32,
-    ) -> Result<PlanNodeEnum, PlannerError> {
+    fn plan_node_pattern(&self, space_id: i32) -> Result<PlanNodeEnum, PlannerError> {
         let scan_node = ScanVerticesNode::new(space_id);
         Ok(scan_node.into_enum())
     }
@@ -175,7 +246,7 @@ impl MatchPlanner {
     fn plan_sort(
         &self,
         input_plan: SubPlan,
-        order_by: Vec<crate::query::validator::OrderByItem>,
+        order_by: Vec<OrderByItem>,
         _space_id: i32,
     ) -> Result<SubPlan, PlannerError> {
         let input_node = input_plan.root().as_ref().ok_or_else(|| {
@@ -319,7 +390,6 @@ impl MatchPlanner {
 
     fn extract_return_columns(
         &self,
-        _ast_ctx: &AstContext,
         stmt: &crate::query::parser::ast::Stmt,
     ) -> Result<Option<Vec<YieldColumn>>, PlannerError> {
         match stmt {
@@ -363,12 +433,12 @@ impl MatchPlanner {
     fn extract_order_by(
         &self,
         stmt: &crate::query::parser::ast::Stmt,
-    ) -> Result<Option<Vec<crate::query::validator::OrderByItem>>, PlannerError> {
+    ) -> Result<Option<Vec<OrderByItem>>, PlannerError> {
         match stmt {
             crate::query::parser::ast::Stmt::Match(match_stmt) => {
                 if let Some(order_by_clause) = &match_stmt.order_by {
                     let items = order_by_clause.items.iter().map(|item| {
-                        crate::query::validator::OrderByItem {
+                        OrderByItem {
                             expression: item.expression.clone(),
                             desc: item.direction == crate::query::parser::ast::types::OrderDirection::Desc,
                         }
@@ -390,11 +460,7 @@ impl MatchPlanner {
             crate::query::parser::ast::Stmt::Match(match_stmt) => {
                 let skip = match_stmt.skip.unwrap_or(0);
                 let limit = match_stmt.limit.unwrap_or(self.config.default_limit);
-                if skip > 0 || limit != usize::MAX {
-                    Ok(Some(PaginationInfo { skip, limit }))
-                } else {
-                    Ok(Some(PaginationInfo { skip: 0, limit: self.config.default_limit }))
-                }
+                Ok(Some(PaginationInfo { skip, limit }))
             }
             _ => Ok(None),
         }
@@ -415,54 +481,6 @@ impl MatchPlanner {
         ]);
         plan.set_id(id);
     }
-
-    fn join_plans(
-        &self,
-        left: SubPlan,
-        right: SubPlan,
-    ) -> Result<SubPlan, PlannerError> {
-        SegmentsConnector::cross_join(left, right)
-    }
-}
-
-impl Planner for MatchPlanner {
-    fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
-        let _stmt = ast_ctx.sentence().ok_or_else(|| {
-            PlannerError::InvalidAstContext("AstContext 中缺少语句".to_string())
-        })?;
-
-        let space_id = ast_ctx.space().space_id.unwrap_or(1) as i32;
-
-        let start_node = ScanVerticesNode::new(space_id);
-        let current_plan = SubPlan::from_root(start_node.into_enum());
-
-        if ast_ctx.query_type() == crate::query::context::ast::QueryType::ReadQuery {
-        }
-
-        Ok(current_plan)
-    }
-
-    fn transform_with_full_context(
-        &mut self,
-        query_context: &mut QueryContext,
-        ast_ctx: &AstContext,
-    ) -> Result<ExecutionPlan, PlannerError> {
-        self.transform_with_full_context(query_context, ast_ctx)
-    }
-
-    fn match_planner(&self, ast_ctx: &AstContext) -> bool {
-        Self::match_ast_ctx(ast_ctx)
-    }
-
-    fn name(&self) -> &'static str {
-        "MatchPlanner"
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct PaginationInfo {
-    pub skip: usize,
-    pub limit: usize,
 }
 
 #[cfg(test)]
@@ -471,45 +489,36 @@ mod tests {
     use crate::query::context::ast::AstContext;
 
     #[test]
-    fn test_match_planner_creation() {
-        let planner = MatchPlanner::new();
-        assert!(MatchPlanner::match_ast_ctx(&AstContext::from_strings("MATCH", "MATCH (n)")));
+    fn test_match_statement_planner_creation() {
+        let planner = MatchStatementPlanner::new();
+        assert_eq!(planner.statement_type(), "MATCH");
+        assert_eq!(planner.name(), "MatchStatementPlanner");
     }
 
     #[test]
-    fn test_match_planner_make() {
-        let planner = MatchPlanner::make();
-        assert!(planner.match_planner(&AstContext::from_strings("MATCH", "MATCH (n)")));
-        assert!(!planner.match_planner(&AstContext::from_strings("GO", "GO 1 TO 2")));
+    fn test_supported_clauses() {
+        let planner = MatchStatementPlanner::new();
+        let clauses = planner.supported_clause_kinds();
+        assert!(clauses.contains(&CypherClauseKind::Match));
+        assert!(clauses.contains(&CypherClauseKind::Where));
+        assert!(clauses.contains(&CypherClauseKind::Return));
+        assert!(clauses.contains(&CypherClauseKind::OrderBy));
+        assert!(clauses.contains(&CypherClauseKind::Pagination));
     }
 
     #[test]
-    fn test_match_planner_match_ast_ctx() {
-        assert!(MatchPlanner::match_ast_ctx(&AstContext::from_strings(
-            "MATCH",
-            "MATCH (n)"
-        )));
-        assert!(MatchPlanner::match_ast_ctx(&AstContext::from_strings(
-            "match",
-            "match (n)"
-        )));
-        assert!(!MatchPlanner::match_ast_ctx(&AstContext::from_strings(
-            "GO",
-            "GO 1 TO 2"
-        )));
+    fn test_extract_clauses_simple() {
+        let planner = MatchStatementPlanner::new();
+        let ast_ctx = AstContext::from_strings("MATCH", "MATCH (n)");
+        let clauses = planner.extract_clauses(&ast_ctx);
+        assert_eq!(clauses.len(), 1);
+        assert!(clauses.contains(&CypherClauseKind::Match));
     }
 
     #[test]
     fn test_parse_tag_from_pattern() {
-        assert_eq!(MatchPlanner::parse_tag_from_pattern("(n:Person)"), Some("Person".to_string()));
-        assert_eq!(MatchPlanner::parse_tag_from_pattern("(n:Tag1:Tag2)"), Some("Tag1:Tag2".to_string()));
-        assert_eq!(MatchPlanner::parse_tag_from_pattern("(n)"), None);
-    }
-
-    #[test]
-    fn test_pagination_info() {
-        let pagination = PaginationInfo { skip: 5, limit: 10 };
-        assert_eq!(pagination.skip, 5);
-        assert_eq!(pagination.limit, 10);
+        assert_eq!(MatchStatementPlanner::parse_tag_from_pattern("(n:Person)"), Some("Person".to_string()));
+        assert_eq!(MatchStatementPlanner::parse_tag_from_pattern("(n:Tag1:Tag2)"), Some("Tag1:Tag2".to_string()));
+        assert_eq!(MatchStatementPlanner::parse_tag_from_pattern("(n)"), None);
     }
 }

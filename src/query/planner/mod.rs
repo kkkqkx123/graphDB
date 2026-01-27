@@ -11,9 +11,11 @@ pub mod statements;
 
 // 重新导出主要的类型
 pub use plan::execution_plan::{ExecutionPlan, SubPlan};
-pub use planner::{Planner, PlannerError, PlannerRegistry, SequentialPlanner};
+pub use planner::{
+    ConfigurablePlannerRegistry, Planner, PlannerConfig, PlannerError, PlannerRegistry,
+    PlanCache, PlanCacheKey, SequentialPlanner,
+};
 pub use connector::{JoinType, SegmentsConnector};
 pub use statements::{
-    FetchEdgesPlanner, FetchVerticesPlanner, GoPlanner, LookupPlanner, MatchPlanner,
-    MaintainPlanner, PathPlanner, SubgraphPlanner,
+    MatchStatementPlanner,
 };

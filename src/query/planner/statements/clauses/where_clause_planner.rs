@@ -1,214 +1,105 @@
 //! WHERE 子句规划器
-//! 架构重构：实现统一的 CypherClausePlanner 接口
 //!
-//! ## 重构说明
-//!
-//! ### 删除冗余方法
-//! - 移除 `validate_input`, `can_start_flow`, `requires_input` 等冗余方法
-//! - 通过 `flow_direction()` 统一表达数据流行为
-//!
-//! ### 简化变量管理
-//! - WHERE 子句不产生新变量，只过滤输入
-//! - 移除不必要的 `VariableRequirement` 和 `VariableProvider`
-//!
-//! ### 优化实现逻辑
-//! - 专注于核心的过滤功能
-//! - 简化路径表达式处理
+//! 负责规划 WHERE 子句的执行，过滤输入数据。
+//! 实现了 ClausePlanner 接口，提供完整的过滤功能。
 
-use crate::core::types::expression::Expression;
-use crate::core::types::Span;
-use crate::query::planner::statements::clauses::clause_planner::ClausePlanner;
-use crate::query::planner::statements::core::{
-    ClauseType, CypherClausePlanner, DataFlowNode, FlowDirection, PlanningContext, QueryInfo,
-};
-
+use crate::core::Expression;
+use crate::query::context::ast::AstContext;
+use crate::query::context::execution::QueryContext;
 use crate::query::planner::plan::SubPlan;
+use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
+use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
 use crate::query::planner::planner::PlannerError;
-use crate::query::validator::structs::common_structs::CypherClauseContext;
+use crate::query::planner::statements::statement_planner::ClausePlanner;
 use crate::query::validator::structs::CypherClauseKind;
 
 /// WHERE 子句规划器
 ///
 /// 负责规划 WHERE 子句的执行，过滤输入数据。
-/// WHERE 子句是数据流转换器，需要输入并产生输出。
 #[derive(Debug)]
 pub struct WhereClausePlanner {
     filter_expression: Option<Expression>,
 }
 
 impl WhereClausePlanner {
-    /// 创建新的 WHERE 子句规划器
-    ///
-    /// # 参数
-    /// * `filter_expression` - 过滤表达式，None 表示无条件
-    pub fn new(filter_expression: Option<Expression>) -> Self {
-        Self { filter_expression }
+    pub fn new() -> Self {
+        Self {
+            filter_expression: None,
+        }
     }
 
-    /// 获取过滤表达式
-    pub fn filter_expression(&self) -> Option<&Expression> {
-        self.filter_expression.as_ref()
+    pub fn with_filter(filter_expression: Expression) -> Self {
+        Self {
+            filter_expression: Some(filter_expression),
+        }
+    }
+
+    pub fn from_ast(ast_ctx: &AstContext) -> Self {
+        let filter = extract_where_condition(ast_ctx);
+        Self::with_filter(filter)
     }
 }
 
+fn extract_where_condition(ast_ctx: &AstContext) -> Expression {
+    let stmt = ast_ctx.sentence();
+    if let Some(crate::query::parser::ast::Stmt::Match(match_stmt)) = stmt {
+        if let Some(where_expr) = &match_stmt.where_clause {
+            return where_expr.clone();
+        }
+    }
+    Expression::Variable("true".to_string())
+}
+
 impl ClausePlanner for WhereClausePlanner {
+    fn clause_kind(&self) -> CypherClauseKind {
+        CypherClauseKind::Where
+    }
+
     fn name(&self) -> &'static str {
         "WhereClausePlanner"
     }
 
-    fn supported_clause_kind(&self) -> CypherClauseKind {
-        CypherClauseKind::Where
-    }
-}
-
-impl CypherClausePlanner for WhereClausePlanner {
-    fn clause_type(&self) -> ClauseType {
-        ClauseType::Where
-    }
-
-    fn transform(
+    fn transform_clause(
         &self,
-        _clause_ctx: &CypherClauseContext,
-        input_plan: Option<&SubPlan>,
-        _context: &mut PlanningContext,
+        _query_context: &mut QueryContext,
+        ast_ctx: &AstContext,
+        input_plan: SubPlan,
     ) -> Result<SubPlan, PlannerError> {
-        self.validate_flow(input_plan)?;
+        let condition = self.filter_expression.clone()
+            .or_else(|| extract_where_condition(ast_ctx).into())
+            .unwrap_or_else(|| Expression::Variable("true".to_string()));
 
-        let input_plan = input_plan.ok_or_else(|| {
+        let input_node = input_plan.root().as_ref().ok_or_else(|| {
             PlannerError::PlanGenerationFailed("WHERE 子句需要输入计划".to_string())
         })?;
 
-        Ok(input_plan.clone())
-    }
-}
-
-impl DataFlowNode for WhereClausePlanner {
-    fn flow_direction(&self) -> FlowDirection {
-        FlowDirection::Transform
+        let filter_node = FilterNode::new(input_node.clone(), condition)?;
+        Ok(SubPlan::new(Some(filter_node.into_enum()), input_plan.tail))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::validator::structs::WhereClauseContext;
 
     #[test]
     fn test_where_clause_planner_creation() {
-        let planner = WhereClausePlanner::new(None);
+        let planner = WhereClausePlanner::new();
         assert_eq!(planner.name(), "WhereClausePlanner");
-        assert_eq!(planner.supported_clause_kind(), CypherClauseKind::Where);
+        assert_eq!(planner.clause_kind(), CypherClauseKind::Where);
     }
 
     #[test]
     fn test_where_clause_planner_with_filter() {
-        let expression = Expression::literal(true);
-        let planner = WhereClausePlanner::new(Some(expression));
-        assert!(planner.filter_expression().is_some());
+        let expr = Expression::Variable("age".to_string());
+        let planner = WhereClausePlanner::with_filter(expr);
+        assert!(planner.filter_expression.is_some());
     }
 
     #[test]
-    fn test_where_clause_planner_clause_type() {
-        let planner = WhereClausePlanner::new(None);
-        assert_eq!(planner.clause_type(), ClauseType::Where);
-    }
-
-    #[test]
-    fn test_where_clause_planner_flow_direction() {
-        let planner = WhereClausePlanner::new(None);
-        assert_eq!(DataFlowNode::flow_direction(&planner), FlowDirection::Transform);
-        assert!(DataFlowNode::requires_input(&planner));
-    }
-
-    #[test]
-    fn test_where_clause_planner_validate_context() {
-        let planner = WhereClausePlanner::new(None);
-        let where_ctx = WhereClauseContext {
-            filter: None,
-            aliases_available: std::collections::HashMap::new(),
-            aliases_generated: std::collections::HashMap::new(),
-            paths: vec![],
-            query_parts: vec![],
-            errors: vec![],
-        };
-        let clause_ctx = CypherClauseContext::Where(where_ctx);
-
-        assert!(planner.validate_context(&clause_ctx).is_ok());
-    }
-
-    #[test]
-    fn test_where_clause_planner_validate_context_invalid() {
-        let planner = WhereClausePlanner::new(None);
-        let return_ctx = crate::query::validator::structs::ReturnClauseContext {
-            yield_clause: crate::query::validator::structs::YieldClauseContext {
-                yield_columns: vec![],
-                aliases_available: std::collections::HashMap::new(),
-                aliases_generated: std::collections::HashMap::new(),
-                distinct: false,
-                has_agg: false,
-                group_keys: vec![],
-                group_items: vec![],
-                need_gen_project: false,
-                agg_output_column_names: vec![],
-                proj_output_column_names: vec![],
-                proj_cols: vec![],
-                paths: vec![],
-                query_parts: vec![],
-                errors: vec![],
-            },
-            aliases_available: std::collections::HashMap::new(),
-            aliases_generated: std::collections::HashMap::new(),
-            pagination: None,
-            order_by: None,
-            distinct: false,
-            query_parts: vec![],
-            errors: vec![],
-        };
-        let clause_ctx = CypherClauseContext::Return(return_ctx);
-
-        assert!(planner.validate_context(&clause_ctx).is_err());
-    }
-
-    #[test]
-    fn test_where_clause_planner_transform_with_input() {
-        let planner = WhereClausePlanner::new(None);
-        let input_plan = SubPlan::new(None, None);
-        let where_ctx = WhereClauseContext {
-            filter: None,
-            aliases_available: std::collections::HashMap::new(),
-            aliases_generated: std::collections::HashMap::new(),
-            paths: vec![],
-            query_parts: vec![],
-            errors: vec![],
-        };
-        let clause_ctx = CypherClauseContext::Where(where_ctx);
-        let mut context = PlanningContext::new(QueryInfo {
-            query_id: "test".to_string(),
-            statement_type: "WHERE".to_string(),
-        });
-
-        let result = planner.transform(&clause_ctx, Some(&input_plan), &mut context);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_where_clause_planner_transform_without_input() {
-        let planner = WhereClausePlanner::new(None);
-        let where_ctx = WhereClauseContext {
-            filter: None,
-            aliases_available: std::collections::HashMap::new(),
-            aliases_generated: std::collections::HashMap::new(),
-            paths: vec![],
-            query_parts: vec![],
-            errors: vec![],
-        };
-        let clause_ctx = CypherClauseContext::Where(where_ctx);
-        let mut context = PlanningContext::new(QueryInfo {
-            query_id: "test".to_string(),
-            statement_type: "WHERE".to_string(),
-        });
-
-        let result = planner.transform(&clause_ctx, None, &mut context);
-        assert!(result.is_err());
+    fn test_supports() {
+        let planner = WhereClausePlanner::new();
+        assert!(planner.supports(CypherClauseKind::Where));
+        assert!(!planner.supports(CypherClauseKind::Return));
     }
 }

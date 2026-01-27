@@ -2,8 +2,90 @@
 //! 使用类型安全的枚举替代字符串匹配
 
 use crate::query::context::ast::AstContext;
+use crate::query::context::execution::QueryContext;
+use crate::query::planner::plan::ExecutionPlan;
 use crate::query::planner::plan::SubPlan;
+use lru::LruCache;
 use std::collections::HashMap;
+use std::num::NonZeroUsize;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
+
+/// 规划器配置
+#[derive(Debug, Clone)]
+pub struct PlannerConfig {
+    pub enable_caching: bool,
+    pub max_plan_depth: usize,
+    pub enable_parallel_planning: bool,
+    pub default_timeout: Duration,
+    pub cache_size: usize,
+}
+
+impl Default for PlannerConfig {
+    fn default() -> Self {
+        Self {
+            enable_caching: true,
+            max_plan_depth: 100,
+            enable_parallel_planning: false,
+            default_timeout: Duration::from_secs(30),
+            cache_size: 1000,
+        }
+    }
+}
+
+/// 计划缓存键
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+pub struct PlanCacheKey {
+    query_text: String,
+    space_id: Option<i32>,
+    statement_type: String,
+}
+
+impl PlanCacheKey {
+    pub fn new(query_text: String, space_id: Option<i32>, statement_type: String) -> Self {
+        Self {
+            query_text,
+            space_id,
+            statement_type,
+        }
+    }
+}
+
+/// 计划缓存
+#[derive(Debug)]
+pub struct PlanCache {
+    cache: Mutex<LruCache<PlanCacheKey, ExecutionPlan>>,
+    max_size: usize,
+}
+
+impl PlanCache {
+    pub fn new(max_size: usize) -> Self {
+        Self {
+            cache: Mutex::new(LruCache::new(NonZeroUsize::new(max_size).unwrap())),
+            max_size,
+        }
+    }
+
+    pub fn get(&self, key: &PlanCacheKey) -> Option<ExecutionPlan> {
+        let mut cache = self.cache.lock().unwrap();
+        cache.get(key).cloned()
+    }
+
+    pub fn insert(&self, key: PlanCacheKey, plan: ExecutionPlan) {
+        let mut cache = self.cache.lock().unwrap();
+        cache.push(key, plan);
+    }
+
+    pub fn clear(&self) {
+        let mut cache = self.cache.lock().unwrap();
+        cache.clear();
+    }
+
+    pub fn size(&self) -> usize {
+        let cache = self.cache.lock().unwrap();
+        cache.len()
+    }
+}
 
 /// 语句类型枚举（替代字符串）
 #[derive(Debug, Clone, PartialEq, Hash, Eq, Copy)]
@@ -120,11 +202,11 @@ impl PlannerRegistry {
 
     /// 批量注册 MATCH 规划器
     pub fn register_match_planners(&mut self) {
-        // 注册新的 MATCH 规划器
+        // 注册新的 MATCH 语句规划器
         self.register_planner(
             SentenceKind::Match,
-            crate::query::planner::statements::MatchPlanner::match_ast_ctx,
-            crate::query::planner::statements::MatchPlanner::make,
+            crate::query::planner::statements::match_statement_planner::MatchStatementPlanner::match_ast_ctx,
+            || Box::new(crate::query::planner::statements::match_statement_planner::MatchStatementPlanner::new()) as Box<dyn Planner>,
             100,
         );
     }
@@ -133,50 +215,50 @@ impl PlannerRegistry {
     pub fn register_ngql_planners(&mut self) {
         self.register_planner(
             SentenceKind::Go,
-            crate::query::planner::statements::GoPlanner::match_ast_ctx,
-            crate::query::planner::statements::GoPlanner::make,
+            crate::query::planner::statements::go_planner::GoPlanner::match_ast_ctx,
+            || Box::new(crate::query::planner::statements::go_planner::GoPlanner::new()) as Box<dyn Planner>,
             100,
         );
 
         self.register_planner(
             SentenceKind::Lookup,
-            crate::query::planner::statements::LookupPlanner::match_ast_ctx,
-            crate::query::planner::statements::LookupPlanner::make,
+            crate::query::planner::statements::lookup_planner::LookupPlanner::match_ast_ctx,
+            || Box::new(crate::query::planner::statements::lookup_planner::LookupPlanner::new()) as Box<dyn Planner>,
             100,
         );
 
         self.register_planner(
             SentenceKind::Path,
-            crate::query::planner::statements::PathPlanner::match_ast_ctx,
-            crate::query::planner::statements::PathPlanner::make,
+            crate::query::planner::statements::path_planner::PathPlanner::match_ast_ctx,
+            || Box::new(crate::query::planner::statements::path_planner::PathPlanner::new()) as Box<dyn Planner>,
             100,
         );
 
         self.register_planner(
             SentenceKind::Subgraph,
-            crate::query::planner::statements::SubgraphPlanner::match_ast_ctx,
-            crate::query::planner::statements::SubgraphPlanner::make,
+            crate::query::planner::statements::subgraph_planner::SubgraphPlanner::match_ast_ctx,
+            || Box::new(crate::query::planner::statements::subgraph_planner::SubgraphPlanner::new()) as Box<dyn Planner>,
             100,
         );
 
         self.register_planner(
             SentenceKind::FetchVertices,
-            crate::query::planner::statements::FetchVerticesPlanner::match_ast_ctx,
-            crate::query::planner::statements::FetchVerticesPlanner::make,
+            crate::query::planner::statements::fetch_vertices_planner::FetchVerticesPlanner::match_ast_ctx,
+            || Box::new(crate::query::planner::statements::fetch_vertices_planner::FetchVerticesPlanner::new()) as Box<dyn Planner>,
             100,
         );
 
         self.register_planner(
             SentenceKind::FetchEdges,
-            crate::query::planner::statements::FetchEdgesPlanner::match_ast_ctx,
-            crate::query::planner::statements::FetchEdgesPlanner::make,
+            crate::query::planner::statements::fetch_edges_planner::FetchEdgesPlanner::match_ast_ctx,
+            || Box::new(crate::query::planner::statements::fetch_edges_planner::FetchEdgesPlanner::new()) as Box<dyn Planner>,
             100,
         );
 
         self.register_planner(
             SentenceKind::Maintain,
-            crate::query::planner::statements::MaintainPlanner::match_ast_ctx,
-            crate::query::planner::statements::MaintainPlanner::make,
+            crate::query::planner::statements::maintain_planner::MaintainPlanner::match_ast_ctx,
+            || Box::new(crate::query::planner::statements::maintain_planner::MaintainPlanner::new()) as Box<dyn Planner>,
             100,
         );
     }
@@ -239,6 +321,19 @@ impl PlannerRegistry {
 pub trait Planner: std::fmt::Debug {
     fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError>;
     fn match_planner(&self, ast_ctx: &AstContext) -> bool;
+
+    fn transform_with_full_context(
+        &mut self,
+        _query_context: &mut QueryContext,
+        _ast_ctx: &AstContext,
+    ) -> Result<ExecutionPlan, PlannerError> {
+        let sub_plan = self.transform(_ast_ctx)?;
+        Ok(ExecutionPlan::new(sub_plan.root().clone()))
+    }
+
+    fn name(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
 }
 
 /// 顺序规划器（使用新的注册机制）
@@ -317,6 +412,166 @@ impl Planner for SequentialPlanner {
 
     fn match_planner(&self, ast_ctx: &AstContext) -> bool {
         Self::match_ast_ctx(ast_ctx)
+    }
+}
+
+/// 可配置的规划器注册表
+#[derive(Debug)]
+pub struct ConfigurablePlannerRegistry {
+    planners: HashMap<SentenceKind, Vec<MatchAndInstantiate>>,
+    config: PlannerConfig,
+    cache: Option<PlanCache>,
+}
+
+impl ConfigurablePlannerRegistry {
+    pub fn new() -> Self {
+        let mut registry = Self {
+            planners: HashMap::new(),
+            config: PlannerConfig::default(),
+            cache: None,
+        };
+
+        registry.cache = Some(PlanCache::new(registry.config.cache_size));
+
+        registry
+    }
+
+    pub fn with_config(config: PlannerConfig) -> Self {
+        let mut registry = Self {
+            planners: HashMap::new(),
+            config: config.clone(),
+            cache: None,
+        };
+
+        if config.enable_caching {
+            registry.cache = Some(PlanCache::new(config.cache_size));
+        }
+
+        registry
+    }
+
+    pub fn register_planner(
+        &mut self,
+        sentence_kind: SentenceKind,
+        match_func: MatchFunc,
+        instantiate_func: PlannerInstantiateFunc,
+        priority: i32,
+    ) {
+        let match_and_instantiate = MatchAndInstantiate {
+            match_func,
+            instantiate_func,
+            priority,
+        };
+
+        self.planners
+            .entry(sentence_kind)
+            .or_default()
+            .push(match_and_instantiate);
+
+        if let Some(planners) = self.planners.get_mut(&sentence_kind) {
+            planners.sort_by_key(|p| -p.priority);
+        }
+    }
+
+    pub fn unregister_planners(&mut self, sentence_kind: &SentenceKind) {
+        self.planners.remove(sentence_kind);
+    }
+
+    pub fn set_config(&mut self, config: PlannerConfig) {
+        self.config = config.clone();
+        if config.enable_caching && self.cache.is_none() {
+            self.cache = Some(PlanCache::new(config.cache_size));
+        } else if !config.enable_caching {
+            self.cache = None;
+        }
+    }
+
+    pub fn config(&self) -> &PlannerConfig {
+        &self.config
+    }
+
+    pub fn create_plan(
+        &mut self,
+        query_context: &mut QueryContext,
+        ast_ctx: &AstContext,
+    ) -> Result<ExecutionPlan, PlannerError> {
+        let sentence_kind = self.extract_sentence_kind(ast_ctx)?;
+
+        let planners = self.planners.get(&sentence_kind).ok_or_else(|| {
+            PlannerError::NoSuitablePlanner(format!(
+                "No planners registered for sentence kind: {:?}",
+                sentence_kind
+            ))
+        })?;
+
+        let cache_key = self.generate_cache_key(ast_ctx);
+
+        if self.config.enable_caching {
+            if let Some(ref cache) = self.cache {
+                if let Some(cached_plan) = cache.get(&cache_key) {
+                    return Ok(cached_plan.clone());
+                }
+            }
+        }
+
+        for planner_info in planners {
+            if (planner_info.match_func)(ast_ctx) {
+                let mut planner = (planner_info.instantiate_func)();
+                let plan = planner.transform_with_full_context(query_context, ast_ctx)?;
+
+                if self.config.enable_caching {
+                    if let Some(ref mut cache) = self.cache {
+                        cache.insert(cache_key.clone(), plan.clone());
+                    }
+                }
+
+                return Ok(plan);
+            }
+        }
+
+        Err(PlannerError::NoSuitablePlanner(
+            "No suitable planner found for the given AST context".to_string(),
+        ))
+    }
+
+    fn generate_cache_key(&self, ast_ctx: &AstContext) -> PlanCacheKey {
+        let query_text = ast_ctx.query_text();
+        let space_id = ast_ctx.space().space_id.map(|id| id as i32);
+        let statement_type = ast_ctx.statement_type().to_string();
+
+        PlanCacheKey::new(query_text, space_id, statement_type)
+    }
+
+    fn extract_sentence_kind(&self, ast_ctx: &AstContext) -> Result<SentenceKind, PlannerError> {
+        if let Some(sentence) = ast_ctx.sentence() {
+            SentenceKind::from_str(sentence.kind())
+        } else {
+            Err(PlannerError::InvalidAstContext(
+                "Missing sentence in AST context".to_string(),
+            ))
+        }
+    }
+
+    pub fn planner_count(&self) -> usize {
+        self.planners.values().map(|v| v.len()).sum()
+    }
+
+    pub fn has_planners_for(&self, sentence_kind: &SentenceKind) -> bool {
+        self.planners.contains_key(sentence_kind)
+    }
+
+    pub fn cache_size(&self) -> usize {
+        self.cache.as_ref().map_or(0, |c| c.size())
+    }
+
+    pub fn clear_cache(&mut self) {
+        if let Some(ref mut cache) = self.cache {
+            cache.clear();
+        }
+    }
+
+    pub fn is_caching_enabled(&self) -> bool {
+        self.config.enable_caching
     }
 }
 

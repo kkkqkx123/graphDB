@@ -10,7 +10,7 @@ use crate::query::executor::factory::ExecutorFactory;
 use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::query::parser::ast::stmt::{AlterStmt, ChangePasswordStmt, DescStmt, DropStmt, Stmt};
 use crate::query::planner::planner::Planner;
-use crate::query::planner::statements::MatchPlanner;
+use crate::query::planner::statements::match_statement_planner::MatchStatementPlanner;
 use crate::storage::StorageEngine;
 use crate::common::thread::ThreadPool;
 use async_trait::async_trait;
@@ -140,7 +140,7 @@ impl<S: StorageEngine + 'static> GraphQueryExecutor<S> {
         let mut ast_ctx = AstContext::new(None, Some(Stmt::Match(clause)));
         ast_ctx.set_query_type(crate::query::context::ast::QueryType::ReadQuery);
 
-        let mut planner = MatchPlanner::new();
+        let mut planner = MatchStatementPlanner::new();
         let plan = planner.transform(&ast_ctx)
             .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
 

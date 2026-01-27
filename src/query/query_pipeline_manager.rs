@@ -4,7 +4,7 @@ use crate::query::executor::factory::ExecutorFactory;
 use crate::query::executor::traits::ExecutionResult;
 use crate::query::optimizer::Optimizer;
 use crate::query::parser::Parser;
-use crate::query::planner::Planner;
+use crate::query::planner::planner::{ConfigurablePlannerRegistry, Planner, PlannerConfig};
 use crate::query::validator::Validator;
 use crate::storage::StorageEngine;
 use std::sync::{Arc, Mutex};
@@ -19,7 +19,7 @@ use std::sync::{Arc, Mutex};
 pub struct QueryPipelineManager<S: StorageEngine + 'static> {
     _storage: Arc<Mutex<S>>,
     validator: Validator,
-    planner: Box<dyn Planner>,
+    planner: ConfigurablePlannerRegistry,
     optimizer: Optimizer,
     executor_factory: ExecutorFactory<S>,
 }
@@ -28,14 +28,43 @@ impl<S: StorageEngine + 'static> QueryPipelineManager<S> {
     /// 创建新的查询管道管理器
     pub fn new(storage: Arc<Mutex<S>>) -> Self {
         let executor_factory = ExecutorFactory::with_storage(storage.clone());
+        let mut planner = ConfigurablePlannerRegistry::new();
+
+        Self::register_planners(&mut planner);
 
         Self {
             _storage: storage,
             validator: Validator::new(),
-            planner: Box::new(crate::query::planner::SequentialPlanner::new()),
+            planner,
             optimizer: Optimizer::default(),
             executor_factory,
         }
+    }
+
+    /// 创建带配置的查询管道管理器
+    pub fn with_config(storage: Arc<Mutex<S>>, config: PlannerConfig) -> Self {
+        let executor_factory = ExecutorFactory::with_storage(storage.clone());
+        let mut planner = ConfigurablePlannerRegistry::with_config(config);
+
+        Self::register_planners(&mut planner);
+
+        Self {
+            _storage: storage,
+            validator: Validator::new(),
+            planner,
+            optimizer: Optimizer::default(),
+            executor_factory,
+        }
+    }
+
+    fn register_planners(planner: &mut ConfigurablePlannerRegistry) {
+        // 注册新的 MATCH 语句规划器 (使用三层架构)
+        planner.register_planner(
+            crate::query::planner::planner::SentenceKind::Match,
+            crate::query::planner::statements::match_statement_planner::MatchStatementPlanner::match_ast_ctx,
+            || Box::new(crate::query::planner::statements::match_statement_planner::MatchStatementPlanner::new()) as Box<dyn Planner>,
+            100,
+        );
     }
 
     /// 执行查询的主要入口点
@@ -47,22 +76,11 @@ impl<S: StorageEngine + 'static> QueryPipelineManager<S> {
     /// * `Ok(ExecutionResult)` - 查询执行结果
     /// * `Err(QueryError)` - 查询处理过程中的错误
     pub async fn execute_query(&mut self, query_text: &str) -> DBResult<ExecutionResult> {
-        // 1. 创建查询上下文
         let mut query_context = self.create_query_context(query_text)?;
-
-        // 2. 解析查询并生成 AST 上下文
         let mut ast = self.parse_into_context(query_text)?;
-
-        // 3. 验证查询
         self.validate_query(&mut query_context, &mut ast)?;
-
-        // 4. 生成执行计划
         let execution_plan = self.generate_execution_plan(&mut query_context, &ast)?;
-
-        // 5. 优化执行计划
         let optimized_plan = self.optimize_execution_plan(&mut query_context, execution_plan)?;
-
-        // 6. 执行计划
         self.execute_plan(&mut query_context, optimized_plan).await
     }
 
@@ -72,8 +90,6 @@ impl<S: StorageEngine + 'static> QueryPipelineManager<S> {
     }
 
     /// 解析查询文本为 AST 上下文
-    ///
-    /// 直接生成 AstContext，Parser 输出的 Stmt 会自动设置到上下文中
     fn parse_into_context(
         &mut self,
         query_text: &str,
@@ -108,31 +124,17 @@ impl<S: StorageEngine + 'static> QueryPipelineManager<S> {
     /// 生成执行计划
     fn generate_execution_plan(
         &mut self,
-        _query_context: &mut QueryContext,
+        query_context: &mut QueryContext,
         ast: &crate::query::context::ast::AstContext,
     ) -> DBResult<crate::query::planner::plan::ExecutionPlan> {
-        match self.planner.transform(ast) {
-            Ok(sub_plan) => {
-                let mut plan = crate::query::planner::plan::ExecutionPlan::new(sub_plan.root().clone());
-                let uuid = uuid::Uuid::new_v4();
-                let uuid_bytes = uuid.as_bytes();
-                let id = i64::from_ne_bytes([
-                    uuid_bytes[0],
-                    uuid_bytes[1],
-                    uuid_bytes[2],
-                    uuid_bytes[3],
-                    uuid_bytes[4],
-                    uuid_bytes[5],
-                    uuid_bytes[6],
-                    uuid_bytes[7],
-                ]);
-                plan.set_id(id);
-                Ok(plan)
-            }
-            Err(e) => Err(DBError::Query(crate::core::error::QueryError::PlanningError(
-                format!("规划失败: {}", e),
-            ))),
-        }
+        self.planner
+            .create_plan(query_context, ast)
+            .map_err(|e| {
+                DBError::Query(crate::core::error::QueryError::PlanningError(format!(
+                    "规划失败: {}",
+                    e
+                )))
+            })
     }
 
     /// 优化执行计划
@@ -157,7 +159,6 @@ impl<S: StorageEngine + 'static> QueryPipelineManager<S> {
         query_context: &mut QueryContext,
         plan: crate::query::planner::plan::ExecutionPlan,
     ) -> DBResult<ExecutionResult> {
-        // 调用执行器工厂执行计划
         self.executor_factory
             .execute_plan(query_context, plan)
             .await
@@ -167,5 +168,20 @@ impl<S: StorageEngine + 'static> QueryPipelineManager<S> {
                     e
                 )))
             })
+    }
+
+    /// 获取规划器配置
+    pub fn planner_config(&self) -> &PlannerConfig {
+        self.planner.config()
+    }
+
+    /// 更新规划器配置
+    pub fn set_planner_config(&mut self, config: PlannerConfig) {
+        self.planner.set_config(config);
+    }
+
+    /// 清空计划缓存
+    pub fn clear_plan_cache(&mut self) {
+        self.planner.clear_cache();
     }
 }

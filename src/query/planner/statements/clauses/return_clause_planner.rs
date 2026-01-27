@@ -1,24 +1,24 @@
 //! RETURN 子句规划器
 //!
-//! ## 改进说明
-//!
-//! - 实现真正的投影逻辑
-//! - 添加 DISTINCT 去重支持
-//! - 完善列名设置
+//! 负责规划 RETURN 子句的执行，实现结果投影。
 
-use crate::core::types::expression::Expression;
-use crate::query::planner::statements::clauses::clause_planner::ClausePlanner;
-use crate::query::planner::statements::core::cypher_clause_planner::{
-    ClauseType, CypherClausePlanner, DataFlowNode, PlanningContext,
-};
+use crate::core::Expression;
+use crate::query::context::ast::AstContext;
+use crate::query::context::execution::QueryContext;
 use crate::query::planner::plan::SubPlan;
+use crate::query::planner::plan::core::nodes::data_processing_node::DedupNode;
+use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
+use crate::query::planner::plan::core::nodes::project_node::ProjectNode;
 use crate::query::planner::planner::PlannerError;
-use crate::query::validator::structs::common_structs::CypherClauseContext;
+use crate::query::planner::statements::statement_planner::ClausePlanner;
+use crate::query::validator::YieldColumn;
 use crate::query::validator::structs::CypherClauseKind;
 
-pub use crate::query::planner::plan::core::nodes::{DedupNode, ProjectNode};
 pub use crate::query::planner::plan::core::PlanNodeEnum;
 
+/// RETURN 子句规划器
+///
+/// 负责规划 RETURN 子句的执行，实现结果投影。
 #[derive(Debug)]
 pub struct ReturnClausePlanner {
     distinct: bool,
@@ -38,14 +38,14 @@ impl ReturnClausePlanner {
         }
     }
 
-    /// 从 RETURN 子句上下文创建规划器
-    pub fn from_context(ctx: &CypherClauseContext) -> Self {
-        Self {
-            distinct: false,
-        }
+    pub fn with_distinct(distinct: bool) -> Self {
+        Self { distinct }
     }
 
-    /// 检查是否为聚合表达式
+    pub fn from_ast(ast_ctx: &AstContext) -> Self {
+        Self::new()
+    }
+
     fn is_aggregated_expression(name: &str) -> bool {
         let upper = name.to_uppercase();
         upper.starts_with("COUNT(")
@@ -57,125 +57,108 @@ impl ReturnClausePlanner {
     }
 }
 
+fn extract_return_columns(ast_ctx: &AstContext) -> Vec<YieldColumn> {
+    let mut columns = Vec::new();
+    let stmt = ast_ctx.sentence();
+
+    if let Some(crate::query::parser::ast::Stmt::Match(match_stmt)) = stmt {
+        if let Some(return_clause) = &match_stmt.return_clause {
+            for item in &return_clause.items {
+                match item {
+                    crate::query::parser::ast::stmt::ReturnItem::Expression { expression, alias } => {
+                        columns.push(YieldColumn {
+                            expression: expression.clone(),
+                            alias: alias.clone().unwrap_or_default(),
+                            is_matched: false,
+                        });
+                    }
+                    crate::query::parser::ast::stmt::ReturnItem::All => {
+                        columns.push(YieldColumn {
+                            expression: Expression::Variable("*".to_string()),
+                            alias: "*".to_string(),
+                            is_matched: false,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    if columns.is_empty() {
+        columns.push(YieldColumn {
+            expression: Expression::Variable("*".to_string()),
+            alias: "*".to_string(),
+            is_matched: false,
+        });
+    }
+
+    columns
+}
+
 impl ClausePlanner for ReturnClausePlanner {
+    fn clause_kind(&self) -> CypherClauseKind {
+        CypherClauseKind::Return
+    }
+
     fn name(&self) -> &'static str {
         "ReturnClausePlanner"
     }
 
-    fn supported_clause_kind(&self) -> CypherClauseKind {
-        CypherClauseKind::Return
-    }
-}
-
-impl DataFlowNode for ReturnClausePlanner {
-    fn flow_direction(&self) -> crate::query::planner::statements::core::cypher_clause_planner::FlowDirection {
-        self.clause_type().flow_direction()
-    }
-}
-
-impl CypherClausePlanner for ReturnClausePlanner {
-    fn clause_type(&self) -> ClauseType {
-        ClauseType::Return
-    }
-
-    fn transform(
+    fn transform_clause(
         &self,
-        clause_ctx: &CypherClauseContext,
-        input_plan: Option<&SubPlan>,
-        context: &mut PlanningContext,
+        _query_context: &mut QueryContext,
+        ast_ctx: &AstContext,
+        input_plan: SubPlan,
     ) -> Result<SubPlan, PlannerError> {
-        self.validate_flow(input_plan)?;
+        let yield_columns = extract_return_columns(ast_ctx);
 
-        let input_plan = input_plan.ok_or_else(|| {
+        let input_node = input_plan.root().as_ref().ok_or_else(|| {
             PlannerError::PlanGenerationFailed("RETURN 子句需要输入计划".to_string())
         })?;
 
-        let return_items = Self::extract_return_items(clause_ctx)?;
-
-        let yield_columns = Self::build_yield_columns(&return_items, context)?;
-
-        let input_node = input_plan.root.clone().ok_or_else(|| {
-            PlannerError::PlanGenerationFailed("输入计划没有根节点".to_string())
-        })?;
-
-        let project_node = match ProjectNode::new(input_node, yield_columns) {
-            Ok(project) => PlanNodeEnum::Project(project),
-            Err(e) => {
-                return Err(PlannerError::PlanGenerationFailed(format!(
-                    "创建投影节点失败: {}",
-                    e
-                )));
-            }
-        };
+        let project_node = ProjectNode::new(input_node.clone(), yield_columns)?;
 
         let final_node = if self.distinct {
-            match DedupNode::new(project_node.clone()) {
-                Ok(dedup) => PlanNodeEnum::Dedup(dedup),
-                Err(_) => project_node,
+            match DedupNode::new(project_node.clone().into_enum()) {
+                Ok(dedup) => dedup.into_enum(),
+                Err(_) => project_node.into_enum(),
             }
         } else {
-            project_node
+            project_node.into_enum()
         };
 
-        context.mark_output_variables();
-
-        Ok(SubPlan {
-            root: Some(final_node),
-            tail: input_plan.tail.clone(),
-        })
+        Ok(SubPlan::new(Some(final_node), input_plan.tail))
     }
 }
 
-impl ReturnClausePlanner {
-    /// 从子句上下文提取 RETURN 项
-    fn extract_return_items(
-        clause_ctx: &CypherClauseContext,
-    ) -> Result<Vec<ReturnItem>, PlannerError> {
-        let mut items = Vec::new();
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-        if let CypherClauseContext::Return(return_ctx) = clause_ctx {
-            for item in &return_ctx.yield_clause.yield_columns {
-                let item_name = item.alias.clone();
-                items.push(ReturnItem {
-                    alias: item_name.clone(),
-                    expression: Expression::Variable(item_name.clone()),
-                    is_aggregated: Self::is_aggregated_expression(&item_name),
-                });
-            }
-        }
-
-        Ok(items)
+    #[test]
+    fn test_return_clause_planner_creation() {
+        let planner = ReturnClausePlanner::new();
+        assert_eq!(planner.name(), "ReturnClausePlanner");
+        assert_eq!(planner.clause_kind(), CypherClauseKind::Return);
     }
 
-    /// 构建 YIELD 列
-    fn build_yield_columns(
-        items: &[ReturnItem],
-        context: &PlanningContext,
-    ) -> Result<Vec<crate::query::validator::YieldColumn>, PlannerError> {
-        let mut columns = Vec::new();
+    #[test]
+    fn test_return_clause_planner_with_distinct() {
+        let planner = ReturnClausePlanner::with_distinct(true);
+        assert!(planner.distinct);
+    }
 
-        for item in items {
-            let expression = if context.has_variable(&item.alias) {
-                item.expression.clone()
-            } else {
-                Expression::Variable(item.alias.clone())
-            };
+    #[test]
+    fn test_supports() {
+        let planner = ReturnClausePlanner::new();
+        assert!(planner.supports(CypherClauseKind::Return));
+        assert!(!planner.supports(CypherClauseKind::Where));
+    }
 
-            columns.push(crate::query::validator::YieldColumn {
-                expression,
-                alias: item.alias.clone(),
-                is_matched: false,
-            });
-        }
-
-        if columns.is_empty() {
-            columns.push(crate::query::validator::YieldColumn {
-                expression: Expression::Variable("*".to_string()),
-                alias: "*".to_string(),
-                is_matched: false,
-            });
-        }
-
-        Ok(columns)
+    #[test]
+    fn test_is_aggregated_expression() {
+        assert!(ReturnClausePlanner::is_aggregated_expression("COUNT(*)"));
+        assert!(ReturnClausePlanner::is_aggregated_expression("SUM(x)"));
+        assert!(!ReturnClausePlanner::is_aggregated_expression("name"));
     }
 }

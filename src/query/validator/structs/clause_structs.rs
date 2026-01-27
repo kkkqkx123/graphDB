@@ -109,6 +109,13 @@ pub enum OrderType {
     Desc,
 }
 
+/// 排序项（用于计划阶段）
+#[derive(Debug, Clone)]
+pub struct OrderByItem {
+    pub expression: Expression,
+    pub desc: bool,
+}
+
 /// 输出列
 #[derive(Debug, Clone)]
 pub struct YieldColumn {
