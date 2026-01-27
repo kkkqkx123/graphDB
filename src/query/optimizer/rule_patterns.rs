@@ -99,6 +99,11 @@ impl PatternBuilder {
         Pattern::new("Expand")
     }
 
+    /// 创建循环节点模式
+    pub fn loop_pattern() -> Pattern {
+        Pattern::multi(vec!["Loop", "ForLoop", "WhileLoop"])
+    }
+
     /// 创建排序操作模式
     pub fn sort() -> Pattern {
         Pattern::new("Sort")

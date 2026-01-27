@@ -1,35 +1,38 @@
-//! 转换规则
-//! 这些规则负责将计划节点转换为等效但更高效的节点
+//! 常量折叠优化规则
+//! 将可以在编译时计算的常量表达式折叠为常量值
 
 use super::engine::OptimizerError;
 use super::plan::{OptContext, OptGroupNode, OptRule, Pattern};
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::BaseOptRule;
+use crate::core::{BinaryOperator, Expression, UnaryOperator, Value};
 use crate::query::planner::plan::core::nodes::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::visitor::PlanNodeVisitor;
 
-/// 转换Limit-Sort为TopN的规则
+/// 常量折叠规则
+///
+/// 将可以在编译时计算的常量表达式折叠为常量值。
 #[derive(Debug)]
-pub struct TopNRule;
+pub struct ConstantFoldingRule;
 
-impl OptRule for TopNRule {
+impl OptRule for ConstantFoldingRule {
     fn name(&self) -> &str {
-        "TopNRule"
+        "ConstantFoldingRule"
     }
 
     fn apply(
         &self,
-        ctx: &mut OptContext,
+        _ctx: &mut OptContext,
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        let mut visitor = TopNRuleVisitor {
-            ctx: ctx as *const OptContext,
-            converted: false,
+        let mut visitor = ConstantFoldingVisitor {
+            folded: false,
             new_node: None,
         };
 
         let result = visitor.visit(&node.plan_node);
-        if result.converted {
+        if result.folded {
             Ok(result.new_node)
         } else {
             Ok(None)
@@ -37,68 +40,35 @@ impl OptRule for TopNRule {
     }
 
     fn pattern(&self) -> Pattern {
-        PatternBuilder::with_dependency("Limit", "Sort")
+        Pattern::multi(vec!["Filter", "Project"])
     }
 }
 
-impl BaseOptRule for TopNRule {}
+impl BaseOptRule for ConstantFoldingRule {}
 
-/// TopN 规则访问者
-struct TopNRuleVisitor {
-    converted: bool,
+/// 常量折叠访问者
+struct ConstantFoldingVisitor {
+    folded: bool,
     new_node: Option<OptGroupNode>,
-    ctx: *const OptContext,
 }
 
-impl TopNRuleVisitor {
-    fn get_ctx(&self) -> &OptContext {
-        unsafe { &*self.ctx }
-    }
-}
-
-impl PlanNodeVisitor for TopNRuleVisitor {
+impl PlanNodeVisitor for ConstantFoldingVisitor {
     type Result = Self;
 
-    fn visit_limit(&mut self, node: &crate::query::planner::plan::core::nodes::LimitNode) -> Self::Result {
-        if self.converted {
-            return self.clone();
-        }
+    fn visit_filter(&mut self, node: &crate::query::planner::plan::core::nodes::FilterNode) -> Self::Result {
+        use crate::core::Expression;
 
-        if node.dependencies().is_empty() {
-            return self.clone();
-        }
+        let condition = node.condition();
+        if let Some(folded_condition) = Self::fold_expression(condition) {
+            let mut new_node = node.clone();
+            new_node.set_condition(folded_condition);
 
-        let child_dep_id = node.dependencies()[0].id() as usize;
-        if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(child_dep_id) {
-            if child_node.plan_node.is_sort() {
-                if let Some(sort_plan_node) = child_node.plan_node.as_sort() {
-                    let mut new_node = child_node.clone();
-                    let sort_input = sort_plan_node.dependencies()[0].as_ref().clone();
+            let mut opt_node = OptGroupNode::new(node.id() as usize, PlanNodeEnum::Filter(new_node));
+            let input = node.input();
+            opt_node.dependencies = vec![input.id() as usize];
 
-                    let mut topn_node =
-                        crate::query::planner::plan::core::nodes::TopNNode::new(
-                            sort_input,
-                            sort_plan_node.sort_items().to_vec(),
-                            node.count(),
-                        )
-                        .expect("TopN node should be created successfully");
-
-                    if let Some(output_var) = node.output_var() {
-                        topn_node.set_output_var(output_var.clone());
-                    }
-
-                    new_node.plan_node = PlanNodeEnum::TopN(topn_node);
-
-                    if !child_node.dependencies.is_empty() {
-                        new_node.dependencies = child_node.dependencies.clone();
-                    } else {
-                        new_node.dependencies = vec![];
-                    }
-
-                    self.converted = true;
-                    self.new_node = Some(new_node);
-                }
-            }
+            self.folded = true;
+            self.new_node = Some(opt_node);
         }
 
         self.clone()
@@ -112,15 +82,46 @@ impl PlanNodeVisitor for TopNRuleVisitor {
         self.clone()
     }
 
-    fn visit_filter(&mut self, _node: &crate::query::planner::plan::core::nodes::FilterNode) -> Self::Result {
-        self.clone()
-    }
+    fn visit_project(&mut self, node: &crate::query::planner::plan::core::nodes::ProjectNode) -> Self::Result {
+        use crate::query::validator::YieldColumn;
 
-    fn visit_project(&mut self, _node: &crate::query::planner::plan::core::nodes::ProjectNode) -> Self::Result {
+        let columns = node.columns();
+        let mut new_columns = Vec::new();
+        let mut any_folded = false;
+
+        for column in columns {
+            if let Some(folded_expr) = Self::fold_expression(&column.expression) {
+                new_columns.push(YieldColumn {
+                    expression: folded_expr,
+                    alias: column.alias.clone(),
+                    is_matched: column.is_matched,
+                });
+                any_folded = true;
+            } else {
+                new_columns.push(column.clone());
+            }
+        }
+
+        if any_folded {
+            let mut new_node = node.clone();
+            new_node.set_columns(new_columns);
+
+            let mut opt_node = OptGroupNode::new(node.id() as usize, PlanNodeEnum::Project(new_node));
+            let input = node.input();
+            opt_node.dependencies = vec![input.id() as usize];
+
+            self.folded = true;
+            self.new_node = Some(opt_node);
+        }
+
         self.clone()
     }
 
     fn visit_sort(&mut self, _node: &crate::query::planner::plan::core::nodes::SortNode) -> Self::Result {
+        self.clone()
+    }
+
+    fn visit_limit(&mut self, _node: &crate::query::planner::plan::core::nodes::LimitNode) -> Self::Result {
         self.clone()
     }
 
@@ -357,12 +358,98 @@ impl PlanNodeVisitor for TopNRuleVisitor {
     }
 }
 
-impl Clone for TopNRuleVisitor {
+impl Clone for ConstantFoldingVisitor {
     fn clone(&self) -> Self {
         Self {
-            converted: self.converted,
+            folded: self.folded,
             new_node: self.new_node.clone(),
-            ctx: self.ctx,
+        }
+    }
+}
+
+impl ConstantFoldingVisitor {
+    fn fold_expression(expr: &crate::core::Expression) -> Option<crate::core::Expression> {
+        match expr {
+            Expression::Binary { op, left, right } => {
+                match (left.as_ref(), right.as_ref()) {
+                    (Expression::Literal(l1), Expression::Literal(l2)) => {
+                        Self::fold_binary_operation(op, l1, l2)
+                    }
+                    _ => None,
+                }
+            }
+            Expression::Unary { op, operand } => {
+                match operand.as_ref() {
+                    Expression::Literal(l) => Self::fold_unary_operation(op, l),
+                    _ => None,
+                }
+            }
+            _ => None,
+        }
+    }
+
+    fn fold_binary_operation(op: &BinaryOperator, left: &Value, right: &Value) -> Option<Expression> {
+        match op {
+            BinaryOperator::Add => {
+                if let (Value::Int(l), Value::Int(r)) = (left, right) {
+                    Some(Expression::Literal(Value::Int(l + r)))
+                } else if let (Value::Float(l), Value::Float(r)) = (left, right) {
+                    Some(Expression::Literal(Value::Float(l + r)))
+                } else {
+                    None
+                }
+            }
+            BinaryOperator::Subtract => {
+                if let (Value::Int(l), Value::Int(r)) = (left, right) {
+                    Some(Expression::Literal(Value::Int(l - r)))
+                } else if let (Value::Float(l), Value::Float(r)) = (left, right) {
+                    Some(Expression::Literal(Value::Float(l - r)))
+                } else {
+                    None
+                }
+            }
+            BinaryOperator::Multiply => {
+                if let (Value::Int(l), Value::Int(r)) = (left, right) {
+                    Some(Expression::Literal(Value::Int(l * r)))
+                } else if let (Value::Float(l), Value::Float(r)) = (left, right) {
+                    Some(Expression::Literal(Value::Float(l * r)))
+                } else {
+                    None
+                }
+            }
+            BinaryOperator::Divide => {
+                if let (Value::Int(l), Value::Int(r)) = (left, right) {
+                    if *r != 0 {
+                        Some(Expression::Literal(Value::Int(l / r)))
+                    } else {
+                        None
+                    }
+                } else if let (Value::Float(l), Value::Float(r)) = (left, right) {
+                    if *r != 0.0 {
+                        Some(Expression::Literal(Value::Float(l / r)))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
+
+    fn fold_unary_operation(op: &UnaryOperator, operand: &Value) -> Option<Expression> {
+        match op {
+            UnaryOperator::Minus => {
+                if let Value::Int(n) = operand {
+                    Some(Expression::Literal(Value::Int(-n)))
+                } else if let Value::Float(n) = operand {
+                    Some(Expression::Literal(Value::Float(-n)))
+                } else {
+                    None
+                }
+            }
+            _ => None,
         }
     }
 }
@@ -372,41 +459,33 @@ mod tests {
     use super::*;
     use crate::query::context::execution::QueryContext;
     use crate::query::optimizer::plan::{OptContext, OptGroupNode};
-    use crate::query::planner::plan::core::nodes::SortNode;
+    use crate::query::planner::plan::core::nodes::{FilterNode, StartNode};
+    use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
 
     fn create_test_context() -> OptContext {
-        let _session_info = crate::api::session::session_manager::SessionInfo {
-            session_id: 1,
-            user_name: "test_user".to_string(),
-            space_name: None,
-            graph_addr: None,
-            create_time: std::time::SystemTime::now(),
-            last_access_time: std::time::SystemTime::now(),
-            active_queries: 0,
-            timezone: None,
-        };
         let query_context = QueryContext::new();
         OptContext::new(query_context)
     }
 
     #[test]
-    fn test_top_n_rule() {
-        let rule = TopNRule;
+    fn test_constant_folding_rule() {
+        let rule = ConstantFoldingRule;
         let mut ctx = create_test_context();
 
-        // 创建一个Sort节点
-        let sort_node = PlanNodeEnum::Sort(
-            SortNode::new(
-                PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new()),
-                vec![],
-            )
-            .expect("Sort node should be created successfully"),
-        );
-        let opt_node = OptGroupNode::new(1, sort_node);
+        let filter_node = FilterNode::new(
+            PlanNodeEnum::Start(StartNode::new()),
+            crate::core::Expression::Binary {
+                op: crate::core::BinaryOperator::Add,
+                left: Box::new(crate::core::Expression::Literal(crate::core::Value::String("1".to_string()))),
+                right: Box::new(crate::core::Expression::Literal(crate::core::Value::String("2".to_string()))),
+            },
+        )
+        .expect("Filter node should be created successfully");
+        let opt_node = OptGroupNode::new(1, filter_node.into_enum());
 
         let result = rule
             .apply(&mut ctx, &opt_node)
             .expect("Rule should apply successfully");
-        assert!(result.is_none());
+        assert!(result.is_some());
     }
 }

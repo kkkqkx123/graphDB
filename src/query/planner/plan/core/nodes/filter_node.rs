@@ -42,6 +42,11 @@ impl FilterNode {
         &self.condition
     }
 
+    /// 设置过滤条件
+    pub fn set_condition(&mut self, condition: Expression) {
+        self.condition = condition;
+    }
+
     /// 获取节点的唯一ID
     pub fn id(&self) -> i64 {
         self.id

@@ -18,9 +18,17 @@ pub mod start_node;
 pub mod traversal_node;
 
 pub use aggregate_node::AggregateNode;
+pub use admin_node::{
+    CreateEdgeNode, CreateSpaceNode, CreateTagNode, CreateEdgeIndexNode, CreateTagIndexNode,
+    AlterEdgeNode, AlterTagNode,
+    DescEdgeNode, DescSpaceNode, DescTagNode, DescEdgeIndexNode, DescTagIndexNode,
+    DropEdgeNode, DropSpaceNode, DropTagNode, DropEdgeIndexNode, DropTagIndexNode,
+    ShowEdgesNode, ShowSpacesNode, ShowTagsNode, ShowEdgeIndexesNode, ShowTagIndexesNode,
+    RebuildEdgeIndexNode, RebuildTagIndexNode,
+};
 pub use control_flow_node::{ArgumentNode, LoopNode, PassThroughNode, SelectNode};
 pub use data_processing_node::{
-    DataCollectNode, DedupNode, PatternApplyNode, RollUpApplyNode, UnionNode, UnwindNode,
+    AssignNode, DataCollectNode, DedupNode, PatternApplyNode, RollUpApplyNode, UnionNode, UnwindNode,
 };
 pub use factory::PlanNodeFactory;
 pub use filter_node::FilterNode;

@@ -1,5 +1,5 @@
-//! 转换规则
-//! 这些规则负责将计划节点转换为等效但更高效的节点
+//! 谓词重排序优化规则
+//! 重新排列谓词顺序以优化查询性能
 
 use super::engine::OptimizerError;
 use super::plan::{OptContext, OptGroupNode, OptRule, Pattern};
@@ -8,28 +8,29 @@ use super::rule_traits::BaseOptRule;
 use crate::query::planner::plan::core::nodes::PlanNodeEnum;
 use crate::query::visitor::PlanNodeVisitor;
 
-/// 转换Limit-Sort为TopN的规则
+/// 谓词重排序规则
+///
+/// 将过滤条件按照选择性从高到低排序，尽早过滤掉更多数据。
 #[derive(Debug)]
-pub struct TopNRule;
+pub struct PredicateReorderRule;
 
-impl OptRule for TopNRule {
+impl OptRule for PredicateReorderRule {
     fn name(&self) -> &str {
-        "TopNRule"
+        "PredicateReorderRule"
     }
 
     fn apply(
         &self,
-        ctx: &mut OptContext,
+        _ctx: &mut OptContext,
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        let mut visitor = TopNRuleVisitor {
-            ctx: ctx as *const OptContext,
-            converted: false,
+        let mut visitor = PredicateReorderVisitor {
+            reordered: false,
             new_node: None,
         };
 
         let result = visitor.visit(&node.plan_node);
-        if result.converted {
+        if result.reordered {
             Ok(result.new_node)
         } else {
             Ok(None)
@@ -37,67 +38,45 @@ impl OptRule for TopNRule {
     }
 
     fn pattern(&self) -> Pattern {
-        PatternBuilder::with_dependency("Limit", "Sort")
+        PatternBuilder::filter()
     }
 }
 
-impl BaseOptRule for TopNRule {}
+impl BaseOptRule for PredicateReorderRule {}
 
-/// TopN 规则访问者
-struct TopNRuleVisitor {
-    converted: bool,
+/// 谓词重排序访问者
+struct PredicateReorderVisitor {
+    reordered: bool,
     new_node: Option<OptGroupNode>,
-    ctx: *const OptContext,
 }
 
-impl TopNRuleVisitor {
-    fn get_ctx(&self) -> &OptContext {
-        unsafe { &*self.ctx }
-    }
-}
-
-impl PlanNodeVisitor for TopNRuleVisitor {
+impl PlanNodeVisitor for PredicateReorderVisitor {
     type Result = Self;
 
-    fn visit_limit(&mut self, node: &crate::query::planner::plan::core::nodes::LimitNode) -> Self::Result {
-        if self.converted {
-            return self.clone();
-        }
+    fn visit_filter(&mut self, node: &crate::query::planner::plan::core::nodes::FilterNode) -> Self::Result {
+        use crate::core::Expression;
 
-        if node.dependencies().is_empty() {
-            return self.clone();
-        }
+        let condition = node.condition();
 
-        let child_dep_id = node.dependencies()[0].id() as usize;
-        if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(child_dep_id) {
-            if child_node.plan_node.is_sort() {
-                if let Some(sort_plan_node) = child_node.plan_node.as_sort() {
-                    let mut new_node = child_node.clone();
-                    let sort_input = sort_plan_node.dependencies()[0].as_ref().clone();
+        if let Expression::Binary { op: crate::core::types::operators::BinaryOperator::And, left, right } = condition {
+            let left_selectivity = Self::estimate_selectivity(left);
+            let right_selectivity = Self::estimate_selectivity(right);
 
-                    let mut topn_node =
-                        crate::query::planner::plan::core::nodes::TopNNode::new(
-                            sort_input,
-                            sort_plan_node.sort_items().to_vec(),
-                            node.count(),
-                        )
-                        .expect("TopN node should be created successfully");
+            if left_selectivity < right_selectivity {
+                let reordered_condition = Expression::Binary {
+                    op: crate::core::types::operators::BinaryOperator::And,
+                    left: right.clone(),
+                    right: left.clone(),
+                };
 
-                    if let Some(output_var) = node.output_var() {
-                        topn_node.set_output_var(output_var.clone());
-                    }
+                let mut new_node = node.clone();
+                new_node.set_condition(reordered_condition);
 
-                    new_node.plan_node = PlanNodeEnum::TopN(topn_node);
+                let mut opt_node = OptGroupNode::new(node.id() as usize, PlanNodeEnum::Filter(new_node));
+                opt_node.dependencies = node.dependencies().iter().map(|d| d.id() as usize).collect();
 
-                    if !child_node.dependencies.is_empty() {
-                        new_node.dependencies = child_node.dependencies.clone();
-                    } else {
-                        new_node.dependencies = vec![];
-                    }
-
-                    self.converted = true;
-                    self.new_node = Some(new_node);
-                }
+                self.reordered = true;
+                self.new_node = Some(opt_node);
             }
         }
 
@@ -112,15 +91,15 @@ impl PlanNodeVisitor for TopNRuleVisitor {
         self.clone()
     }
 
-    fn visit_filter(&mut self, _node: &crate::query::planner::plan::core::nodes::FilterNode) -> Self::Result {
-        self.clone()
-    }
-
     fn visit_project(&mut self, _node: &crate::query::planner::plan::core::nodes::ProjectNode) -> Self::Result {
         self.clone()
     }
 
     fn visit_sort(&mut self, _node: &crate::query::planner::plan::core::nodes::SortNode) -> Self::Result {
+        self.clone()
+    }
+
+    fn visit_limit(&mut self, _node: &crate::query::planner::plan::core::nodes::LimitNode) -> Self::Result {
         self.clone()
     }
 
@@ -357,12 +336,51 @@ impl PlanNodeVisitor for TopNRuleVisitor {
     }
 }
 
-impl Clone for TopNRuleVisitor {
+impl Clone for PredicateReorderVisitor {
     fn clone(&self) -> Self {
         Self {
-            converted: self.converted,
+            reordered: self.reordered,
             new_node: self.new_node.clone(),
-            ctx: self.ctx,
+        }
+    }
+}
+
+impl PredicateReorderVisitor {
+    fn estimate_selectivity(expr: &crate::core::Expression) -> f64 {
+        use crate::core::{Expression, types::operators::BinaryOperator};
+
+        match expr {
+            Expression::Binary { op, left, right } => {
+                match op {
+                    BinaryOperator::Equal => {
+                        let left_is_literal = matches!(left.as_ref(), Expression::Literal(_));
+                        let right_is_literal = matches!(right.as_ref(), Expression::Literal(_));
+                        if left_is_literal || right_is_literal {
+                            0.01
+                        } else {
+                            0.1
+                        }
+                    }
+                    BinaryOperator::NotEqual => 0.9,
+                    BinaryOperator::LessThan | BinaryOperator::LessThanOrEqual | 
+                    BinaryOperator::GreaterThan | BinaryOperator::GreaterThanOrEqual => 0.33,
+                    BinaryOperator::And => {
+                        Self::estimate_selectivity(left) * Self::estimate_selectivity(right)
+                    }
+                    BinaryOperator::Or => {
+                        1.0 - (1.0 - Self::estimate_selectivity(left)) * (1.0 - Self::estimate_selectivity(right))
+                    }
+                    _ => 0.5,
+                }
+            }
+            Expression::Function { name, .. } => {
+                match name.to_lowercase().as_str() {
+                    "id" => 0.01,
+                    "exists" => 0.5,
+                    _ => 0.1,
+                }
+            }
+            _ => 0.5,
         }
     }
 }
@@ -372,41 +390,33 @@ mod tests {
     use super::*;
     use crate::query::context::execution::QueryContext;
     use crate::query::optimizer::plan::{OptContext, OptGroupNode};
-    use crate::query::planner::plan::core::nodes::SortNode;
+    use crate::query::planner::plan::core::nodes::{FilterNode, StartNode};
+    use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
 
     fn create_test_context() -> OptContext {
-        let _session_info = crate::api::session::session_manager::SessionInfo {
-            session_id: 1,
-            user_name: "test_user".to_string(),
-            space_name: None,
-            graph_addr: None,
-            create_time: std::time::SystemTime::now(),
-            last_access_time: std::time::SystemTime::now(),
-            active_queries: 0,
-            timezone: None,
-        };
         let query_context = QueryContext::new();
         OptContext::new(query_context)
     }
 
     #[test]
-    fn test_top_n_rule() {
-        let rule = TopNRule;
+    fn test_predicate_reorder_rule() {
+        let rule = PredicateReorderRule;
         let mut ctx = create_test_context();
 
-        // 创建一个Sort节点
-        let sort_node = PlanNodeEnum::Sort(
-            SortNode::new(
-                PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new()),
-                vec![],
-            )
-            .expect("Sort node should be created successfully"),
-        );
-        let opt_node = OptGroupNode::new(1, sort_node);
+        let filter_node = FilterNode::new(
+            PlanNodeEnum::Start(StartNode::new()),
+            crate::core::Expression::Binary {
+                op: crate::core::BinaryOperator::And,
+                left: Box::new(crate::core::Expression::Literal(crate::core::Value::String("value1".to_string()))),
+                right: Box::new(crate::core::Expression::Literal(crate::core::Value::String("value2".to_string()))),
+            },
+        )
+        .expect("Filter node should be created successfully");
+        let opt_node = OptGroupNode::new(1, filter_node.into_enum());
 
         let result = rule
             .apply(&mut ctx, &opt_node)
             .expect("Rule should apply successfully");
-        assert!(result.is_none());
+        assert!(result.is_some());
     }
 }

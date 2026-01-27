@@ -195,15 +195,98 @@ impl PlanNodeEnum {
         matches!(self, PlanNodeEnum::Limit(_))
     }
 
-    pub fn is_sample(&self) -> bool {
-        matches!(self, PlanNodeEnum::Sample(_))
-    }
-
     pub fn is_dedup(&self) -> bool {
         matches!(self, PlanNodeEnum::Dedup(_))
     }
 
-    
+    pub fn is_loop(&self) -> bool {
+        matches!(self, PlanNodeEnum::Loop(_))
+    }
+
+    pub fn is_argument(&self) -> bool {
+        matches!(self, PlanNodeEnum::Argument(_))
+    }
+
+    pub fn is_pass_through(&self) -> bool {
+        matches!(self, PlanNodeEnum::PassThrough(_))
+    }
+
+    pub fn is_data_collect(&self) -> bool {
+        matches!(self, PlanNodeEnum::DataCollect(_))
+    }
+
+    pub fn is_fulltext_index_scan(&self) -> bool {
+        matches!(self, PlanNodeEnum::FulltextIndexScan(_))
+    }
+
+    pub fn is_bfs_shortest(&self) -> bool {
+        matches!(self, PlanNodeEnum::BFSShortest(_))
+    }
+
+    pub fn is_all_paths(&self) -> bool {
+        matches!(self, PlanNodeEnum::AllPaths(_))
+    }
+
+    pub fn is_multi_shortest_path(&self) -> bool {
+        matches!(self, PlanNodeEnum::MultiShortestPath(_))
+    }
+
+    pub fn is_shortest_path(&self) -> bool {
+        matches!(self, PlanNodeEnum::ShortestPath(_))
+    }
+
+    pub fn is_union(&self) -> bool {
+        matches!(self, PlanNodeEnum::Union(_))
+    }
+
+    pub fn is_unwind(&self) -> bool {
+        matches!(self, PlanNodeEnum::Unwind(_))
+    }
+
+    pub fn is_assign(&self) -> bool {
+        matches!(self, PlanNodeEnum::Assign(_))
+    }
+
+    pub fn is_pattern_apply(&self) -> bool {
+        matches!(self, PlanNodeEnum::PatternApply(_))
+    }
+
+    pub fn is_roll_up_apply(&self) -> bool {
+        matches!(self, PlanNodeEnum::RollUpApply(_))
+    }
+
+    pub fn is_sample(&self) -> bool {
+        matches!(self, PlanNodeEnum::Sample(_))
+    }
+
+    pub fn is_topn(&self) -> bool {
+        matches!(self, PlanNodeEnum::TopN(_))
+    }
+
+    pub fn is_hash_inner_join(&self) -> bool {
+        matches!(self, PlanNodeEnum::HashInnerJoin(_))
+    }
+
+    pub fn is_hash_left_join(&self) -> bool {
+        matches!(self, PlanNodeEnum::HashLeftJoin(_))
+    }
+
+    pub fn is_cartesian_product(&self) -> bool {
+        matches!(self, PlanNodeEnum::CartesianProduct(_))
+    }
+
+    pub fn is_index_scan(&self) -> bool {
+        matches!(self, PlanNodeEnum::IndexScan(_))
+    }
+
+    pub fn is_expand_all(&self) -> bool {
+        matches!(self, PlanNodeEnum::ExpandAll(_))
+    }
+
+    pub fn is_select(&self) -> bool {
+        matches!(self, PlanNodeEnum::Select(_))
+    }
+
     pub fn is_get_vertices(&self) -> bool {
         matches!(self, PlanNodeEnum::GetVertices(_))
     }
@@ -222,10 +305,6 @@ impl PlanNodeEnum {
 
     pub fn is_scan_edges(&self) -> bool {
         matches!(self, PlanNodeEnum::ScanEdges(_))
-    }
-
-    pub fn is_index_scan(&self) -> bool {
-        matches!(self, PlanNodeEnum::IndexScan(_))
     }
 
     pub fn is_append_vertices(&self) -> bool {
@@ -250,18 +329,6 @@ impl PlanNodeEnum {
 
     pub fn is_expand(&self) -> bool {
         matches!(self, PlanNodeEnum::Expand(_))
-    }
-
-    pub fn is_hash_inner_join(&self) -> bool {
-        matches!(self, PlanNodeEnum::HashInnerJoin(_))
-    }
-
-    pub fn is_hash_left_join(&self) -> bool {
-        matches!(self, PlanNodeEnum::HashLeftJoin(_))
-    }
-
-    pub fn is_cartesian_product(&self) -> bool {
-        matches!(self, PlanNodeEnum::CartesianProduct(_))
     }
 
     pub fn is_create_space(&self) -> bool {
@@ -753,7 +820,139 @@ impl PlanNodeEnum {
         }
     }
 
-    
+    pub fn as_loop(&self) -> Option<&LoopNode> {
+        match self {
+            PlanNodeEnum::Loop(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_argument(&self) -> Option<&ArgumentNode> {
+        match self {
+            PlanNodeEnum::Argument(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_pass_through(&self) -> Option<&PassThroughNode> {
+        match self {
+            PlanNodeEnum::PassThrough(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_data_collect(&self) -> Option<&DataCollectNode> {
+        match self {
+            PlanNodeEnum::DataCollect(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_fulltext_index_scan(&self) -> Option<&FulltextIndexScan> {
+        match self {
+            PlanNodeEnum::FulltextIndexScan(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_bfs_shortest(&self) -> Option<&BFSShortest> {
+        match self {
+            PlanNodeEnum::BFSShortest(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_all_paths(&self) -> Option<&AllPaths> {
+        match self {
+            PlanNodeEnum::AllPaths(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_multi_shortest_path(&self) -> Option<&MultiShortestPath> {
+        match self {
+            PlanNodeEnum::MultiShortestPath(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_shortest_path(&self) -> Option<&ShortestPath> {
+        match self {
+            PlanNodeEnum::ShortestPath(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_union(&self) -> Option<&UnionNode> {
+        match self {
+            PlanNodeEnum::Union(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_unwind(&self) -> Option<&UnwindNode> {
+        match self {
+            PlanNodeEnum::Unwind(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_assign(&self) -> Option<&AssignNode> {
+        match self {
+            PlanNodeEnum::Assign(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_pattern_apply(&self) -> Option<&PatternApplyNode> {
+        match self {
+            PlanNodeEnum::PatternApply(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_roll_up_apply(&self) -> Option<&RollUpApplyNode> {
+        match self {
+            PlanNodeEnum::RollUpApply(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_topn(&self) -> Option<&TopNNode> {
+        match self {
+            PlanNodeEnum::TopN(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_hash_inner_join(&self) -> Option<&HashInnerJoinNode> {
+        match self {
+            PlanNodeEnum::HashInnerJoin(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_hash_left_join(&self) -> Option<&HashLeftJoinNode> {
+        match self {
+            PlanNodeEnum::HashLeftJoin(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_cartesian_product(&self) -> Option<&CrossJoinNode> {
+        match self {
+            PlanNodeEnum::CartesianProduct(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_select(&self) -> Option<&SelectNode> {
+        match self {
+            PlanNodeEnum::Select(node) => Some(node),
+            _ => None,
+        }
+    }
+
     /// 克隆节点
     pub fn clone_plan_node(&self) -> PlanNodeEnum {
         self.clone()

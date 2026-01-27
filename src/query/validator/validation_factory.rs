@@ -88,6 +88,22 @@ impl ValidationFactory {
         self.register("GET_SUBGRAPH", || Validator::new());
         self.register("SET", || Validator::new());
         self.register("SEQUENTIAL", || Validator::new());
+        
+        self.register("INSERT_VERTICES", || Validator::new());
+        self.register("INSERT_EDGES", || Validator::new());
+        self.register("UPDATE", || Validator::new());
+        self.register("DELETE", || Validator::new());
+        self.register("CREATE_SPACE", || Validator::new());
+        self.register("DROP_SPACE", || Validator::new());
+        self.register("CREATE_TAG", || Validator::new());
+        self.register("ALTER_TAG", || Validator::new());
+        self.register("DROP_TAG", || Validator::new());
+        self.register("CREATE_EDGE", || Validator::new());
+        self.register("ALTER_EDGE", || Validator::new());
+        self.register("DROP_EDGE", || Validator::new());
+        self.register("SHOW_SPACES", || Validator::new());
+        self.register("SHOW_TAGS", || Validator::new());
+        self.register("SHOW_EDGES", || Validator::new());
     }
 
     pub fn register<F>(&mut self, name: &'static str, creator: F)

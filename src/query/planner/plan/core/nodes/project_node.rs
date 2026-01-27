@@ -41,6 +41,12 @@ impl ProjectNode {
         &self.columns
     }
 
+    /// 设置投影列
+    pub fn set_columns(&mut self, columns: Vec<YieldColumn>) {
+        self.columns = columns;
+        self.col_names = self.columns.iter().map(|col| col.alias.clone()).collect();
+    }
+
     pub fn id(&self) -> i64 {
         self.id
     }

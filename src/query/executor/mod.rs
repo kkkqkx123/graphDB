@@ -11,6 +11,8 @@ pub mod logic;
 pub mod object_pool;
 pub mod recursion_detector;
 pub mod result_processing;
+pub mod search_executors;
+pub mod special_executors;
 pub mod tag_filter;
 pub mod traits;
 pub mod operation_kind_support;
@@ -59,3 +61,9 @@ pub use admin::{
     InsertVertexExecutor, InsertEdgeExecutor, DeleteExecutor, UpdateExecutor,
     ChangePasswordExecutor,
 };
+
+// Re-export search executors (搜索执行器)
+pub use search_executors::{BFSShortestExecutor, FulltextIndexScanExecutor};
+
+// Re-export special executors (特殊执行器)
+pub use special_executors::{ArgumentExecutor, DataCollectExecutor, PassThroughExecutor};

@@ -2,24 +2,24 @@
 
 ## Summary
 
-- **Total Errors**: 3
+- **Total Errors**: 2
 - **Total Warnings**: 0
-- **Total Issues**: 3
+- **Total Issues**: 2
 - **Unique Error Patterns**: 1
 - **Unique Warning Patterns**: 0
 - **Files with Issues**: 1
 
 ## Error Statistics
 
-**Total Errors**: 3
+**Total Errors**: 2
 
 ### Error Type Breakdown
 
-- **error[E0308]**: 3 errors
+- **error[E0308]**: 2 errors
 
 ### Files with Errors (Top 10)
 
-- `src\query\planner\operation_kind_support.rs`: 3 errors
+- `src\query\optimizer\subquery_optimization.rs`: 2 errors
 
 ## Warning Statistics
 
@@ -27,14 +27,13 @@
 
 ## Detailed Error Categorization
 
-### error[E0308]: mismatched types: expected `CoreOperationKind`, found `PlanNodeEnum`
+### error[E0308]: mismatched types: expected `Box<Expression>`, found `Expression`
 
-**Total Occurrences**: 3  
+**Total Occurrences**: 2  
 **Unique Files**: 1
 
-#### `src\query\planner\operation_kind_support.rs`: 3 occurrences
+#### `src\query\optimizer\subquery_optimization.rs`: 2 occurrences
 
-- Line 93: mismatched types: expected `CoreOperationKind`, found `PlanNodeEnum`
-- Line 101: mismatched types: expected `CoreOperationKind`, found `PlanNodeEnum`
-- Line 109: mismatched types: expected `CoreOperationKind`, found `PlanNodeEnum`
+- Line 386: mismatched types: expected `Box<Expression>`, found `Expression`
+- Line 387: mismatched types: expected `Box<Expression>`, found `Expression`
 

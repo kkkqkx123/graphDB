@@ -484,6 +484,19 @@ impl std::hash::Hash for Path {
 }
 
 impl Path {
+    /// 创建新的路径
+    pub fn new(src: Vertex) -> Self {
+        Self {
+            src: Box::new(src),
+            steps: Vec::new(),
+        }
+    }
+
+    /// 添加步骤到路径
+    pub fn add_step(&mut self, step: Step) {
+        self.steps.push(step);
+    }
+
     /// 获取路径中的边
     pub fn edges(&self) -> Vec<&Edge> {
         self.steps.iter().map(|step| step.edge.as_ref()).collect()
@@ -497,6 +510,11 @@ impl Path {
     /// 获取路径长度（步骤数）
     pub fn length(&self) -> usize {
         self.steps.len()
+    }
+
+    /// 获取路径中的步骤
+    pub fn steps(&self) -> &[Step] {
+        &self.steps
     }
 
     /// 检查路径是否为空（仅包含源顶点）

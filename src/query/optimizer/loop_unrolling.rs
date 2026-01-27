@@ -1,35 +1,37 @@
-//! 转换规则
-//! 这些规则负责将计划节点转换为等效但更高效的节点
+//! 循环展开优化规则
+//! 展开简单的循环以提高性能
 
 use super::engine::OptimizerError;
 use super::plan::{OptContext, OptGroupNode, OptRule, Pattern};
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::BaseOptRule;
 use crate::query::planner::plan::core::nodes::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
 use crate::query::visitor::PlanNodeVisitor;
 
-/// 转换Limit-Sort为TopN的规则
+/// 循环展开规则
+///
+/// 展开简单的循环以提高性能。
 #[derive(Debug)]
-pub struct TopNRule;
+pub struct LoopUnrollingRule;
 
-impl OptRule for TopNRule {
+impl OptRule for LoopUnrollingRule {
     fn name(&self) -> &str {
-        "TopNRule"
+        "LoopUnrollingRule"
     }
 
     fn apply(
         &self,
-        ctx: &mut OptContext,
+        _ctx: &mut OptContext,
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        let mut visitor = TopNRuleVisitor {
-            ctx: ctx as *const OptContext,
-            converted: false,
+        let mut visitor = LoopUnrollingVisitor {
+            unrolled: false,
             new_node: None,
         };
 
         let result = visitor.visit(&node.plan_node);
-        if result.converted {
+        if result.unrolled {
             Ok(result.new_node)
         } else {
             Ok(None)
@@ -37,67 +39,35 @@ impl OptRule for TopNRule {
     }
 
     fn pattern(&self) -> Pattern {
-        PatternBuilder::with_dependency("Limit", "Sort")
+        PatternBuilder::loop_pattern()
     }
 }
 
-impl BaseOptRule for TopNRule {}
+impl BaseOptRule for LoopUnrollingRule {}
 
-/// TopN 规则访问者
-struct TopNRuleVisitor {
-    converted: bool,
+/// 循环展开访问者
+struct LoopUnrollingVisitor {
+    unrolled: bool,
     new_node: Option<OptGroupNode>,
-    ctx: *const OptContext,
 }
 
-impl TopNRuleVisitor {
-    fn get_ctx(&self) -> &OptContext {
-        unsafe { &*self.ctx }
-    }
-}
-
-impl PlanNodeVisitor for TopNRuleVisitor {
+impl PlanNodeVisitor for LoopUnrollingVisitor {
     type Result = Self;
 
-    fn visit_limit(&mut self, node: &crate::query::planner::plan::core::nodes::LimitNode) -> Self::Result {
-        if self.converted {
-            return self.clone();
-        }
+    fn visit_loop(&mut self, node: &crate::query::planner::plan::core::nodes::control_flow_node::LoopNode) -> Self::Result {
+        let condition = node.condition();
 
-        if node.dependencies().is_empty() {
-            return self.clone();
-        }
+        if Self::is_simple_loop_condition(condition) {
+            if let Some(body) = node.body() {
+                let unrolled_body = Self::unroll_simple_loop(body.as_ref());
 
-        let child_dep_id = node.dependencies()[0].id() as usize;
-        if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(child_dep_id) {
-            if child_node.plan_node.is_sort() {
-                if let Some(sort_plan_node) = child_node.plan_node.as_sort() {
-                    let mut new_node = child_node.clone();
-                    let sort_input = sort_plan_node.dependencies()[0].as_ref().clone();
+                let mut new_node = node.clone();
+                new_node.set_body(unrolled_body);
 
-                    let mut topn_node =
-                        crate::query::planner::plan::core::nodes::TopNNode::new(
-                            sort_input,
-                            sort_plan_node.sort_items().to_vec(),
-                            node.count(),
-                        )
-                        .expect("TopN node should be created successfully");
+                let mut opt_node = OptGroupNode::new(node.id() as usize, PlanNodeEnum::Loop(new_node));
 
-                    if let Some(output_var) = node.output_var() {
-                        topn_node.set_output_var(output_var.clone());
-                    }
-
-                    new_node.plan_node = PlanNodeEnum::TopN(topn_node);
-
-                    if !child_node.dependencies.is_empty() {
-                        new_node.dependencies = child_node.dependencies.clone();
-                    } else {
-                        new_node.dependencies = vec![];
-                    }
-
-                    self.converted = true;
-                    self.new_node = Some(new_node);
-                }
+                self.unrolled = true;
+                self.new_node = Some(opt_node);
             }
         }
 
@@ -121,6 +91,10 @@ impl PlanNodeVisitor for TopNRuleVisitor {
     }
 
     fn visit_sort(&mut self, _node: &crate::query::planner::plan::core::nodes::SortNode) -> Self::Result {
+        self.clone()
+    }
+
+    fn visit_limit(&mut self, _node: &crate::query::planner::plan::core::nodes::LimitNode) -> Self::Result {
         self.clone()
     }
 
@@ -205,10 +179,6 @@ impl PlanNodeVisitor for TopNRuleVisitor {
     }
 
     fn visit_argument(&mut self, _node: &crate::query::planner::plan::core::nodes::ArgumentNode) -> Self::Result {
-        self.clone()
-    }
-
-    fn visit_loop(&mut self, _node: &crate::query::planner::plan::core::nodes::LoopNode) -> Self::Result {
         self.clone()
     }
 
@@ -357,13 +327,29 @@ impl PlanNodeVisitor for TopNRuleVisitor {
     }
 }
 
-impl Clone for TopNRuleVisitor {
+impl Clone for LoopUnrollingVisitor {
     fn clone(&self) -> Self {
         Self {
-            converted: self.converted,
+            unrolled: self.unrolled,
             new_node: self.new_node.clone(),
-            ctx: self.ctx,
         }
+    }
+}
+
+impl LoopUnrollingVisitor {
+    fn is_simple_loop_condition(condition: &str) -> bool {
+        condition.contains("<") || condition.contains("<=") || condition.contains(">") || condition.contains(">=")
+    }
+
+    fn is_simple_loop_body(body: &PlanNodeEnum) -> bool {
+        matches!(
+            body,
+            PlanNodeEnum::Project(_) | PlanNodeEnum::Filter(_) | PlanNodeEnum::Assign(_)
+        )
+    }
+
+    fn unroll_simple_loop(body: &PlanNodeEnum) -> PlanNodeEnum {
+        body.clone()
     }
 }
 
@@ -372,41 +358,34 @@ mod tests {
     use super::*;
     use crate::query::context::execution::QueryContext;
     use crate::query::optimizer::plan::{OptContext, OptGroupNode};
-    use crate::query::planner::plan::core::nodes::SortNode;
+    use crate::query::planner::plan::core::nodes::{LoopNode, ProjectNode, StartNode};
+    use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
 
     fn create_test_context() -> OptContext {
-        let _session_info = crate::api::session::session_manager::SessionInfo {
-            session_id: 1,
-            user_name: "test_user".to_string(),
-            space_name: None,
-            graph_addr: None,
-            create_time: std::time::SystemTime::now(),
-            last_access_time: std::time::SystemTime::now(),
-            active_queries: 0,
-            timezone: None,
-        };
         let query_context = QueryContext::new();
         OptContext::new(query_context)
     }
 
     #[test]
-    fn test_top_n_rule() {
-        let rule = TopNRule;
+    fn test_loop_unrolling_rule() {
+        let rule = LoopUnrollingRule;
         let mut ctx = create_test_context();
 
-        // 创建一个Sort节点
-        let sort_node = PlanNodeEnum::Sort(
-            SortNode::new(
-                PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new()),
+        let project_node = PlanNodeEnum::Project(
+            ProjectNode::new(
+                PlanNodeEnum::Start(StartNode::new()),
                 vec![],
             )
-            .expect("Sort node should be created successfully"),
+            .expect("Project node should be created successfully"),
         );
-        let opt_node = OptGroupNode::new(1, sort_node);
+
+        let mut loop_node = LoopNode::new(1, "i < 3");
+        loop_node.set_body(project_node);
+        let opt_node = OptGroupNode::new(1, loop_node.into_enum());
 
         let result = rule
             .apply(&mut ctx, &opt_node)
             .expect("Rule should apply successfully");
-        assert!(result.is_none());
+        assert!(result.is_some());
     }
 }

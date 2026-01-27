@@ -31,6 +31,8 @@ use crate::query::executor::result_processing::{
     PatternApplyExecutor, ProjectExecutor, RollUpApplyExecutor, SampleExecutor, SampleMethod, SortExecutor,
     TopNExecutor, UnwindExecutor,
 };
+use crate::query::executor::search_executors::{BFSShortestExecutor, FulltextIndexScanExecutor};
+use crate::query::executor::special_executors::{ArgumentExecutor, DataCollectExecutor, PassThroughExecutor};
 
 use crate::query::executor::admin::{
     CreateSpaceExecutor, DropSpaceExecutor, DescSpaceExecutor, ShowSpacesExecutor,
@@ -227,10 +229,21 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
 
             // 循环节点 - 递增循环层级
             PlanNodeEnum::Loop(n) => {
-                // 循环节点的body需要在新的循环层级下分析
-                // 注意：这里简化处理，实际可能需要更复杂的逻辑
                 if let Some(body) = n.body() {
                     self.analyze_plan_node(body, loop_layers)?;
+                }
+            }
+
+            // 特殊节点
+            PlanNodeEnum::Argument(_) => {}
+            PlanNodeEnum::PassThrough(_) => {}
+            PlanNodeEnum::DataCollect(_) => {}
+
+            // 搜索节点
+            PlanNodeEnum::FulltextIndexScan(_) => {}
+            PlanNodeEnum::BFSShortest(n) => {
+                for dep in n.deps.iter() {
+                    self.analyze_plan_node(dep, loop_layers)?;
                 }
             }
 
@@ -244,10 +257,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
             PlanNodeEnum::ScanEdges(_) => {}
 
             _ => {
-                return Err(QueryError::ExecutionError(format!(
-                    "暂不支持分析执行器类型: {:?}",
-                    node.type_name()
-                )));
+                log::warn!("未处理的计划节点类型: {:?}", node.type_name());
             }
         }
 
@@ -817,6 +827,63 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     condition,
                     body_executor,
                     None,
+                );
+                Ok(Box::new(executor))
+            }
+
+            // 特殊执行器
+            PlanNodeEnum::Argument(node) => {
+                let executor = ArgumentExecutor::new(node.id(), storage, node.var());
+                Ok(Box::new(executor))
+            }
+
+            PlanNodeEnum::PassThrough(_) => {
+                let executor = PassThroughExecutor::new(plan_node.id(), storage);
+                Ok(Box::new(executor))
+            }
+
+            PlanNodeEnum::DataCollect(_) => {
+                let executor = DataCollectExecutor::new(plan_node.id(), storage);
+                Ok(Box::new(executor))
+            }
+
+            // 搜索执行器
+            PlanNodeEnum::FulltextIndexScan(node) => {
+                let executor = FulltextIndexScanExecutor::new(
+                    node.id(),
+                    storage,
+                    &node.index_name,
+                    &node.query,
+                    node.limit.map(|l| l as usize),
+                );
+                Ok(Box::new(executor))
+            }
+
+            PlanNodeEnum::BFSShortest(node) => {
+                let start_vertex = if let Some(first_dep) = node.deps.first() {
+                    extract_vertex_ids_from_node(first_dep)
+                        .into_iter()
+                        .next()
+                        .unwrap_or_else(|| Value::from("start"))
+                } else {
+                    Value::from("start")
+                };
+
+                let end_vertex = if let Some(second_dep) = node.deps.get(1) {
+                    extract_vertex_ids_from_node(second_dep)
+                        .into_iter()
+                        .next()
+                        .unwrap_or_else(|| Value::from("end"))
+                } else {
+                    Value::from("end")
+                };
+
+                let executor = BFSShortestExecutor::new(
+                    node.id(),
+                    storage,
+                    start_vertex,
+                    end_vertex,
+                    Some(node.steps),
                 );
                 Ok(Box::new(executor))
             }

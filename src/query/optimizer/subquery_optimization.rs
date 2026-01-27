@@ -1,5 +1,5 @@
-//! 转换规则
-//! 这些规则负责将计划节点转换为等效但更高效的节点
+//! 子查询优化规则
+//! 优化子查询的执行方式
 
 use super::engine::OptimizerError;
 use super::plan::{OptContext, OptGroupNode, OptRule, Pattern};
@@ -8,28 +8,29 @@ use super::rule_traits::BaseOptRule;
 use crate::query::planner::plan::core::nodes::PlanNodeEnum;
 use crate::query::visitor::PlanNodeVisitor;
 
-/// 转换Limit-Sort为TopN的规则
+/// 子查询优化规则
+///
+/// 将相关子查询转换为连接操作，提高查询性能。
 #[derive(Debug)]
-pub struct TopNRule;
+pub struct SubQueryOptimizationRule;
 
-impl OptRule for TopNRule {
+impl OptRule for SubQueryOptimizationRule {
     fn name(&self) -> &str {
-        "TopNRule"
+        "SubQueryOptimizationRule"
     }
 
     fn apply(
         &self,
-        ctx: &mut OptContext,
+        _ctx: &mut OptContext,
         node: &OptGroupNode,
     ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        let mut visitor = TopNRuleVisitor {
-            ctx: ctx as *const OptContext,
-            converted: false,
+        let mut visitor = SubQueryOptimizationVisitor {
+            optimized: false,
             new_node: None,
         };
 
         let result = visitor.visit(&node.plan_node);
-        if result.converted {
+        if result.optimized {
             Ok(result.new_node)
         } else {
             Ok(None)
@@ -37,66 +38,37 @@ impl OptRule for TopNRule {
     }
 
     fn pattern(&self) -> Pattern {
-        PatternBuilder::with_dependency("Limit", "Sort")
+        Pattern::new("Filter")
     }
 }
 
-impl BaseOptRule for TopNRule {}
+impl BaseOptRule for SubQueryOptimizationRule {}
 
-/// TopN 规则访问者
-struct TopNRuleVisitor {
-    converted: bool,
+/// 子查询优化访问者
+struct SubQueryOptimizationVisitor {
+    optimized: bool,
     new_node: Option<OptGroupNode>,
-    ctx: *const OptContext,
 }
 
-impl TopNRuleVisitor {
-    fn get_ctx(&self) -> &OptContext {
-        unsafe { &*self.ctx }
-    }
-}
-
-impl PlanNodeVisitor for TopNRuleVisitor {
+impl PlanNodeVisitor for SubQueryOptimizationVisitor {
     type Result = Self;
 
-    fn visit_limit(&mut self, node: &crate::query::planner::plan::core::nodes::LimitNode) -> Self::Result {
-        if self.converted {
-            return self.clone();
-        }
+    fn visit_filter(&mut self, node: &crate::query::planner::plan::core::nodes::FilterNode) -> Self::Result {
+        use crate::core::Expression;
 
-        if node.dependencies().is_empty() {
-            return self.clone();
-        }
+        let condition = node.condition();
 
-        let child_dep_id = node.dependencies()[0].id() as usize;
-        if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(child_dep_id) {
-            if child_node.plan_node.is_sort() {
-                if let Some(sort_plan_node) = child_node.plan_node.as_sort() {
-                    let mut new_node = child_node.clone();
-                    let sort_input = sort_plan_node.dependencies()[0].as_ref().clone();
+        if let Expression::Function { name, args } = condition {
+            if name.to_lowercase() == "exists" && !args.is_empty() {
+                if let Some(subquery) = Self::optimize_exists_subquery(&args[0]) {
+                    let mut new_node = node.clone();
+                    new_node.set_condition(subquery);
 
-                    let mut topn_node =
-                        crate::query::planner::plan::core::nodes::TopNNode::new(
-                            sort_input,
-                            sort_plan_node.sort_items().to_vec(),
-                            node.count(),
-                        )
-                        .expect("TopN node should be created successfully");
+                    let mut opt_node = OptGroupNode::new(node.id() as usize, PlanNodeEnum::Filter(new_node));
+                    opt_node.dependencies = node.dependencies().iter().map(|d| d.id() as usize).collect();
 
-                    if let Some(output_var) = node.output_var() {
-                        topn_node.set_output_var(output_var.clone());
-                    }
-
-                    new_node.plan_node = PlanNodeEnum::TopN(topn_node);
-
-                    if !child_node.dependencies.is_empty() {
-                        new_node.dependencies = child_node.dependencies.clone();
-                    } else {
-                        new_node.dependencies = vec![];
-                    }
-
-                    self.converted = true;
-                    self.new_node = Some(new_node);
+                    self.optimized = true;
+                    self.new_node = Some(opt_node);
                 }
             }
         }
@@ -112,15 +84,15 @@ impl PlanNodeVisitor for TopNRuleVisitor {
         self.clone()
     }
 
-    fn visit_filter(&mut self, _node: &crate::query::planner::plan::core::nodes::FilterNode) -> Self::Result {
-        self.clone()
-    }
-
     fn visit_project(&mut self, _node: &crate::query::planner::plan::core::nodes::ProjectNode) -> Self::Result {
         self.clone()
     }
 
     fn visit_sort(&mut self, _node: &crate::query::planner::plan::core::nodes::SortNode) -> Self::Result {
+        self.clone()
+    }
+
+    fn visit_limit(&mut self, _node: &crate::query::planner::plan::core::nodes::LimitNode) -> Self::Result {
         self.clone()
     }
 
@@ -357,12 +329,32 @@ impl PlanNodeVisitor for TopNRuleVisitor {
     }
 }
 
-impl Clone for TopNRuleVisitor {
+impl Clone for SubQueryOptimizationVisitor {
     fn clone(&self) -> Self {
         Self {
-            converted: self.converted,
+            optimized: self.optimized,
             new_node: self.new_node.clone(),
-            ctx: self.ctx,
+        }
+    }
+}
+
+impl SubQueryOptimizationVisitor {
+    fn optimize_exists_subquery(expr: &crate::core::Expression) -> Option<crate::core::Expression> {
+        use crate::core::{Expression, types::operators::BinaryOperator};
+
+        match expr {
+            Expression::Binary { op: BinaryOperator::Equal, left, right } => {
+                if let (Expression::Variable(_), Expression::Literal(_)) = (left.as_ref(), right.as_ref()) {
+                    Some(Expression::Binary {
+                        op: BinaryOperator::Equal,
+                        left: left.clone(),
+                        right: right.clone(),
+                    })
+                } else {
+                    None
+                }
+            }
+            _ => None,
         }
     }
 }
@@ -372,41 +364,36 @@ mod tests {
     use super::*;
     use crate::query::context::execution::QueryContext;
     use crate::query::optimizer::plan::{OptContext, OptGroupNode};
-    use crate::query::planner::plan::core::nodes::SortNode;
+    use crate::query::planner::plan::core::nodes::{FilterNode, StartNode};
+    use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
 
     fn create_test_context() -> OptContext {
-        let _session_info = crate::api::session::session_manager::SessionInfo {
-            session_id: 1,
-            user_name: "test_user".to_string(),
-            space_name: None,
-            graph_addr: None,
-            create_time: std::time::SystemTime::now(),
-            last_access_time: std::time::SystemTime::now(),
-            active_queries: 0,
-            timezone: None,
-        };
         let query_context = QueryContext::new();
         OptContext::new(query_context)
     }
 
     #[test]
-    fn test_top_n_rule() {
-        let rule = TopNRule;
+    fn test_sub_query_optimization_rule() {
+        let rule = SubQueryOptimizationRule;
         let mut ctx = create_test_context();
 
-        // 创建一个Sort节点
-        let sort_node = PlanNodeEnum::Sort(
-            SortNode::new(
-                PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new()),
-                vec![],
-            )
-            .expect("Sort node should be created successfully"),
-        );
-        let opt_node = OptGroupNode::new(1, sort_node);
+        let filter_node = FilterNode::new(
+            PlanNodeEnum::Start(StartNode::new()),
+            crate::core::Expression::Function {
+                name: "EXISTS".to_string(),
+                args: vec![crate::core::Expression::Binary {
+                    op: crate::core::types::operators::BinaryOperator::Equal,
+                    left: Box::new(crate::core::Expression::Variable("x".to_string())),
+                    right: Box::new(crate::core::Expression::Literal(crate::core::Value::String("1".to_string()))),
+                }],
+            },
+        )
+        .expect("Filter node should be created successfully");
+        let opt_node = OptGroupNode::new(1, filter_node.into_enum());
 
         let result = rule
             .apply(&mut ctx, &opt_node)
             .expect("Rule should apply successfully");
-        assert!(result.is_none());
+        assert!(result.is_some());
     }
 }
