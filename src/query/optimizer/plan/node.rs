@@ -1,40 +1,15 @@
 //! 优化组节点定义
-//! 定义 OptGroupNode、PlanCandidate、ObjectPool 等核心数据结构
+//! 定义 OptGroupNode、PlanCandidate 等核心数据结构
 
-use std::collections::VecDeque;
 use std::fmt::Debug;
 
 use crate::query::optimizer::core::Cost;
 use crate::query::planner::plan::PlanNodeEnum;
+use crate::utils::ObjectPool;
 
 use super::context::OptContext;
 use super::group::OptGroup;
 use crate::query::optimizer::OptimizerError;
-
-#[derive(Debug)]
-pub struct ObjectPool<T> {
-    objects: VecDeque<T>,
-}
-
-impl<T: Default> ObjectPool<T> {
-    pub fn new() -> Self {
-        Self {
-            objects: VecDeque::new(),
-        }
-    }
-
-    pub fn acquire(&mut self) -> T {
-        self.objects.pop_front().unwrap_or_else(T::default)
-    }
-
-    pub fn release(&mut self, obj: T) {
-        self.objects.push_back(obj);
-    }
-
-    pub fn size(&self) -> usize {
-        self.objects.len()
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct PlanCandidate {

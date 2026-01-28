@@ -630,48 +630,6 @@ pub mod memory_utils {
     }
 }
 
-/// 简单的对象池，用于重用对象并减少分配
-pub struct ObjectPool<T> {
-    pool: Arc<RwLock<Vec<T>>>,
-    factory: Box<dyn Fn() -> T + Send + Sync>,
-    max_size: usize,
-}
-
-impl<T: Clone + 'static> ObjectPool<T> {
-    pub fn new(factory: Box<dyn Fn() -> T + Send + Sync>, max_size: usize) -> Self {
-        Self {
-            pool: Arc::new(RwLock::new(Vec::new())),
-            factory,
-            max_size,
-        }
-    }
-
-    pub fn get(&self) -> T {
-        if let Ok(mut pool) = self.pool.write() {
-            if let Some(obj) = pool.pop() {
-                return obj;
-            }
-        }
-        (self.factory)()
-    }
-
-    pub fn return_obj(&self, obj: T) {
-        if let Ok(mut pool) = self.pool.write() {
-            if pool.len() < self.max_size {
-                pool.push(obj);
-            }
-        }
-    }
-
-    pub fn len(&self) -> usize {
-        self.pool.read().map(|p| p.len()).unwrap_or(0)
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.pool.read().map(|p| p.is_empty()).unwrap_or(true)
-    }
-}
-
 /// 内存泄漏检测器（简化版，用于演示）
 pub struct MemoryLeakDetector {
     allocations: Arc<RwLock<std::collections::HashMap<usize, (Layout, String)>>>,
@@ -812,26 +770,6 @@ mod tests {
         let pool = MemoryPool::new(1024).expect("内存池创建失败");
         let result = pool.allocate(2048);
         assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_object_pool() {
-        let factory = Box::new(|| 0i32);
-        let pool = ObjectPool::new(factory, 10);
-
-        assert!(pool.is_empty());
-
-        let obj = pool.get();
-        assert_eq!(obj, 0);
-        assert!(pool.is_empty());
-
-        pool.return_obj(obj);
-        assert!(!pool.is_empty());
-        assert_eq!(pool.len(), 1);
-
-        let obj2 = pool.get();
-        assert_eq!(obj2, 0);
-        assert!(pool.is_empty());
     }
 
     #[test]

@@ -1,5 +1,5 @@
 use crate::core::error::DBError;
-use crate::utils::{expect_max, expect_min, safe_lock};
+use crate::utils::safe_lock;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
@@ -180,14 +180,8 @@ impl Timer {
         let sum = vals.iter().sum::<Duration>();
         let avg = Duration::from_nanos(sum.as_nanos() as u64 / vals.len() as u64);
 
-        let min = *expect_min(
-            vals.iter(),
-            "Timer values should not be empty when calculating min",
-        )?;
-        let max = *expect_max(
-            vals.iter(),
-            "Timer values should not be empty when calculating max",
-        )?;
+        let min = *vals.iter().min().unwrap();
+        let max = *vals.iter().max().unwrap();
 
         Ok((avg, min, max, vals.len()))
     }

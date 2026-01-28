@@ -5,7 +5,8 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 
 use super::group::OptGroup;
-use super::node::{ObjectPool, OptGroupNode, PlanNodeProperties};
+use super::node::{OptGroupNode, PlanNodeProperties};
+use crate::utils::ObjectPool;
 use crate::query::context::execution::QueryContext;
 use crate::query::optimizer::core::{Cost, OptimizationStats, Statistics};
 use crate::query::planner::plan::PlanNodeEnum;
@@ -32,7 +33,7 @@ impl OptContext {
             plan_node_to_group_node: HashMap::new(),
             group_map: HashMap::new(),
             statistics: Statistics::default(),
-            object_pool: ObjectPool::new(),
+            object_pool: ObjectPool::default(),
         }
     }
 

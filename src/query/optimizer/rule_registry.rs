@@ -77,9 +77,10 @@ macro_rules! register_rule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::optimizer::{BaseOptRule, OptRule};
+    use crate::query::optimizer::{BaseOptRule, OptContext, OptGroupNode, OptimizerError, OptRule};
     use crate::query::optimizer::plan::Pattern;
     
+    #[derive(Debug)]
     struct TestRule;
     
     impl OptRule for TestRule {

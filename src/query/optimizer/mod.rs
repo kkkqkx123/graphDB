@@ -52,9 +52,10 @@ pub use plan_node_visitor::{PlanNodeVisitor, PlanNodeVisitable};
 
 // Re-export plan types
 pub use plan::{
-    OptContext, OptGroup, OptGroupNode, MatchedResult, MatchNode, ObjectPool, OptRule, Pattern,
+    OptContext, OptGroup, OptGroupNode, MatchedResult, MatchNode, OptRule, Pattern,
     PlanCandidate, PlanNodeProperties, TransformResult,
 };
+pub use crate::utils::ObjectPool;
 
 // Re-export engine types
 pub use engine::{ExplorationState, Optimizer, OptimizerError, RuleSet};

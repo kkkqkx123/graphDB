@@ -8,6 +8,8 @@ pub mod node;
 pub use context::OptContext;
 pub use group::OptGroup;
 pub use node::{
-    MatchedResult, MatchNode, ObjectPool, OptGroupNode, OptRule, Pattern, PlanCandidate,
+    MatchedResult, MatchNode, OptGroupNode, OptRule, Pattern, PlanCandidate,
     PlanNodeProperties, TransformResult,
 };
+
+pub use crate::utils::ObjectPool;
