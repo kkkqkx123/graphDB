@@ -27,3 +27,22 @@ pub use planner::{
     StaticSequentialPlanner,
     create_planner, plan,
 };
+
+use std::sync::atomic::{AtomicI64, Ordering};
+
+pub struct PlanIdGenerator {
+    counter: AtomicI64,
+}
+
+impl PlanIdGenerator {
+    pub fn instance() -> &'static Self {
+        static INSTANCE: PlanIdGenerator = PlanIdGenerator {
+            counter: AtomicI64::new(0),
+        };
+        &INSTANCE
+    }
+
+    pub fn next_id(&self) -> i64 {
+        self.counter.fetch_add(1, Ordering::SeqCst)
+    }
+}

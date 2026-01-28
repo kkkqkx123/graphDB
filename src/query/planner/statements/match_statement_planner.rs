@@ -18,6 +18,7 @@ use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
 use crate::query::planner::plan::core::nodes::{LimitNode, PlanNodeEnum, ProjectNode, ScanVerticesNode, SortNode};
 use crate::query::planner::planner::{Planner, PlannerError};
 use crate::query::planner::statements::statement_planner::StatementPlanner;
+use crate::query::planner::PlanIdGenerator;
 use crate::query::validator::OrderByItem;
 use crate::query::planner::statements::match_planner::PaginationInfo;
 use crate::query::validator::YieldColumn;
@@ -465,18 +466,7 @@ impl MatchStatementPlanner {
     }
 
     fn set_plan_id(&self, plan: &mut ExecutionPlan) {
-        let uuid = uuid::Uuid::new_v4();
-        let uuid_bytes = uuid.as_bytes();
-        let id = i64::from_ne_bytes([
-            uuid_bytes[0],
-            uuid_bytes[1],
-            uuid_bytes[2],
-            uuid_bytes[3],
-            uuid_bytes[4],
-            uuid_bytes[5],
-            uuid_bytes[6],
-            uuid_bytes[7],
-        ]);
+        let id = PlanIdGenerator::instance().next_id();
         plan.set_id(id);
     }
 }

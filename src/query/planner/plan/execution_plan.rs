@@ -60,6 +60,20 @@ impl ExecutionPlan {
     pub fn set_format(&mut self, format: String) {
         self.format = format;
     }
+    
+    /// 计算计划中的节点数量（简化版）
+    pub fn node_count(&self) -> usize {
+        fn count_nodes(node: &Option<PlanNodeEnum>) -> usize {
+            match node {
+                Some(n) => {
+                    let mut count = 1;
+                    count
+                }
+                None => 0,
+            }
+        }
+        count_nodes(&self.root)
+    }
 }
 
 /// SubPlan结构

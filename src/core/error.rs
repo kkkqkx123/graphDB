@@ -121,6 +121,39 @@ pub enum QueryError {
     ExpressionError(String),
 }
 
+impl QueryError {
+    pub fn pipeline_parse_error<E: std::error::Error>(e: E) -> Self {
+        QueryError::ParseError(e.to_string())
+    }
+    
+    pub fn pipeline_validation_error<E: std::error::Error>(e: E) -> Self {
+        QueryError::InvalidQuery(e.to_string())
+    }
+    
+    pub fn pipeline_planning_error<E: std::error::Error>(e: E) -> Self {
+        QueryError::PlanningError(e.to_string())
+    }
+    
+    pub fn pipeline_optimization_error<E: std::error::Error>(e: E) -> Self {
+        QueryError::OptimizationError(e.to_string())
+    }
+    
+    pub fn pipeline_execution_error<E: std::error::Error>(e: E) -> Self {
+        QueryError::ExecutionError(e.to_string())
+    }
+    
+    pub fn pipeline_error(phase: &str, message: String) -> Self {
+        match phase {
+            "parse" => QueryError::ParseError(message),
+            "validate" | "validation" => QueryError::InvalidQuery(message),
+            "plan" | "planning" => QueryError::PlanningError(message),
+            "optimize" | "optimization" => QueryError::OptimizationError(message),
+            "execute" | "execution" => QueryError::ExecutionError(message),
+            _ => QueryError::ExecutionError(format!("[{}] {}", phase, message)),
+        }
+    }
+}
+
 impl From<StorageError> for QueryError {
     fn from(e: StorageError) -> Self {
         QueryError::StorageError(e.to_string())

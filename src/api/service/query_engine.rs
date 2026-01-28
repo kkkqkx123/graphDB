@@ -1,6 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use crate::api::session::ClientSession;
+use crate::api::service::StatsManager;
 use crate::query::QueryPipelineManager;
 use crate::storage::StorageEngine;
 
@@ -32,9 +33,10 @@ pub struct QueryEngine<S: StorageEngine + 'static> {
 impl<S: StorageEngine + Clone + 'static> QueryEngine<S> {
     pub fn new(storage: Arc<S>) -> Self {
         let storage_mutex = Arc::new(Mutex::new((*storage).clone()));
+        let stats_manager = Arc::new(StatsManager::new());
         Self {
             storage: Arc::clone(&storage_mutex),
-            pipeline_manager: QueryPipelineManager::new(storage_mutex),
+            pipeline_manager: QueryPipelineManager::new(storage_mutex, stats_manager),
         }
     }
 

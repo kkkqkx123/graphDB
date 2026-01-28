@@ -78,21 +78,29 @@ macro_rules! register_rule {
 mod tests {
     use super::*;
     use crate::query::optimizer::{BaseOptRule, OptRule};
+    use crate::query::optimizer::plan::Pattern;
     
     struct TestRule;
     
-    impl BaseOptRule for TestRule {
+    impl OptRule for TestRule {
         fn name(&self) -> &str {
             "TestRule"
         }
         
-        fn transform(
+        fn apply(
             &self,
-            ctx: &mut dyn crate::query::optimizer::OptContext,
-        ) -> Option<crate::query::optimizer::TransformResult> {
-            None
+            ctx: &mut OptContext,
+            group_node: &OptGroupNode,
+        ) -> Result<Option<OptGroupNode>, OptimizerError> {
+            Ok(None)
+        }
+        
+        fn pattern(&self) -> Pattern {
+            Pattern::new("Test")
         }
     }
+    
+    impl BaseOptRule for TestRule {}
     
     #[test]
     fn test_register_and_get() {

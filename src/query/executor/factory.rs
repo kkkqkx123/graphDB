@@ -22,6 +22,7 @@ use crate::query::executor::data_access::{AllPathsExecutor, GetNeighborsExecutor
 use crate::query::executor::data_processing::{
     graph_traversal::{ExpandAllExecutor, TraverseExecutor},
     CrossJoinExecutor, ExpandExecutor, InnerJoinExecutor, LeftJoinExecutor,
+    UnionExecutor,
 };
 use crate::query::executor::logic::LoopExecutor;
 use crate::query::executor::recursion_detector::{
@@ -227,6 +228,11 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                 self.analyze_plan_node(n.left_input(), loop_layers)?;
                 self.analyze_plan_node(n.right_input(), loop_layers)?;
             }
+            
+            // 并集节点
+            PlanNodeEnum::Union(n) => {
+                self.analyze_plan_node(n.input(), loop_layers)?;
+            }
 
             // 循环节点 - 递增循环层级
             PlanNodeEnum::Loop(n) => {
@@ -256,6 +262,9 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
 
             // 暂不支持的节点
             PlanNodeEnum::ScanEdges(_) => {}
+            PlanNodeEnum::GetEdges(_) => {}
+            PlanNodeEnum::IndexScan(_) => {}
+            PlanNodeEnum::Select(_) => {}
 
             _ => {
                 log::warn!("未处理的计划节点类型: {:?}", node.type_name());
@@ -530,6 +539,22 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     node.col_names().to_vec(),
                 );
                 Ok(ExecutorEnum::CrossJoin(executor))
+            }
+            
+            // 并集执行器
+            PlanNodeEnum::Union(node) => {
+                let input_var = node
+                    .input()
+                    .output_var()
+                    .map(|v| v.name.clone())
+                    .unwrap_or_else(|| format!("union_{}", node.id()));
+                let executor = UnionExecutor::new(
+                    node.id(),
+                    storage,
+                    input_var.clone(),
+                    input_var,
+                );
+                Ok(ExecutorEnum::Union(executor))
             }
 
             // 图遍历执行器

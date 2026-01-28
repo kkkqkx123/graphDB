@@ -1,6 +1,87 @@
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
+use std::time::Duration;
 use std::time::Instant;
+
+#[derive(Debug, Clone)]
+pub struct QueryMetrics {
+    pub parse_time_us: u64,
+    pub validate_time_us: u64,
+    pub plan_time_us: u64,
+    pub optimize_time_us: u64,
+    pub execute_time_us: u64,
+    pub total_time_us: u64,
+    pub plan_node_count: usize,
+    pub result_row_count: usize,
+    pub timestamp: Instant,
+}
+
+impl Default for QueryMetrics {
+    fn default() -> Self {
+        Self {
+            parse_time_us: 0,
+            validate_time_us: 0,
+            plan_time_us: 0,
+            optimize_time_us: 0,
+            execute_time_us: 0,
+            total_time_us: 0,
+            plan_node_count: 0,
+            result_row_count: 0,
+            timestamp: Instant::now(),
+        }
+    }
+}
+
+impl QueryMetrics {
+    pub fn new() -> Self {
+        Self::default()
+    }
+    
+    pub fn record_parse_time(&mut self, duration: Duration) {
+        self.parse_time_us = duration.as_micros() as u64;
+    }
+    
+    pub fn record_validate_time(&mut self, duration: Duration) {
+        self.validate_time_us = duration.as_micros() as u64;
+    }
+    
+    pub fn record_plan_time(&mut self, duration: Duration) {
+        self.plan_time_us = duration.as_micros() as u64;
+    }
+    
+    pub fn record_optimize_time(&mut self, duration: Duration) {
+        self.optimize_time_us = duration.as_micros() as u64;
+    }
+    
+    pub fn record_execute_time(&mut self, duration: Duration) {
+        self.execute_time_us = duration.as_micros() as u64;
+    }
+    
+    pub fn record_total_time(&mut self, duration: Duration) {
+        self.total_time_us = duration.as_micros() as u64;
+    }
+    
+    pub fn set_plan_node_count(&mut self, count: usize) {
+        self.plan_node_count = count;
+    }
+    
+    pub fn set_result_row_count(&mut self, count: usize) {
+        self.result_row_count = count;
+    }
+    
+    pub fn to_map(&self) -> HashMap<String, u64> {
+        let mut map = HashMap::new();
+        map.insert("parse_time_us".to_string(), self.parse_time_us);
+        map.insert("validate_time_us".to_string(), self.validate_time_us);
+        map.insert("plan_time_us".to_string(), self.plan_time_us);
+        map.insert("optimize_time_us".to_string(), self.optimize_time_us);
+        map.insert("execute_time_us".to_string(), self.execute_time_us);
+        map.insert("total_time_us".to_string(), self.total_time_us);
+        map.insert("plan_node_count".to_string(), self.plan_node_count as u64);
+        map.insert("result_row_count".to_string(), self.result_row_count as u64);
+        map
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum MetricType {
@@ -12,6 +93,14 @@ pub enum MetricType {
     NumQueries,
     NumActiveQueries,
     NumKilledQueries,
+    QueryParseTimeUs,
+    QueryValidateTimeUs,
+    QueryPlanTimeUs,
+    QueryOptimizeTimeUs,
+    QueryExecuteTimeUs,
+    QueryTotalTimeUs,
+    QueryPlanNodeCount,
+    QueryResultRowCount,
 }
 
 pub struct MetricValue {
@@ -31,6 +120,7 @@ impl MetricValue {
 pub struct StatsManager {
     metrics: Arc<RwLock<HashMap<MetricType, MetricValue>>>,
     space_metrics: Arc<RwLock<HashMap<String, HashMap<MetricType, MetricValue>>>>,
+    last_query_metrics: Arc<RwLock<Option<QueryMetrics>>>,
 }
 
 impl StatsManager {
@@ -38,6 +128,7 @@ impl StatsManager {
         Self {
             metrics: Arc::new(RwLock::new(HashMap::new())),
             space_metrics: Arc::new(RwLock::new(HashMap::new())),
+            last_query_metrics: Arc::new(RwLock::new(None)),
         }
     }
 
@@ -141,6 +232,54 @@ impl StatsManager {
                 entry.timestamp = Instant::now();
             }
         }
+    }
+    
+    pub fn record_query_metrics(&self, metrics: &QueryMetrics) {
+        let mut last_metrics = self.last_query_metrics.write().expect("获取查询指标写锁失败");
+        *last_metrics = Some(metrics.clone());
+        
+        let mut global_metrics = self.metrics.write().expect("获取指标写锁失败");
+        
+        let entry = global_metrics.entry(MetricType::QueryParseTimeUs).or_insert_with(|| MetricValue::new(0));
+        entry.value = metrics.parse_time_us;
+        entry.timestamp = Instant::now();
+        
+        let entry = global_metrics.entry(MetricType::QueryValidateTimeUs).or_insert_with(|| MetricValue::new(0));
+        entry.value = metrics.validate_time_us;
+        entry.timestamp = Instant::now();
+        
+        let entry = global_metrics.entry(MetricType::QueryPlanTimeUs).or_insert_with(|| MetricValue::new(0));
+        entry.value = metrics.plan_time_us;
+        entry.timestamp = Instant::now();
+        
+        let entry = global_metrics.entry(MetricType::QueryOptimizeTimeUs).or_insert_with(|| MetricValue::new(0));
+        entry.value = metrics.optimize_time_us;
+        entry.timestamp = Instant::now();
+        
+        let entry = global_metrics.entry(MetricType::QueryExecuteTimeUs).or_insert_with(|| MetricValue::new(0));
+        entry.value = metrics.execute_time_us;
+        entry.timestamp = Instant::now();
+        
+        let entry = global_metrics.entry(MetricType::QueryTotalTimeUs).or_insert_with(|| MetricValue::new(0));
+        entry.value = metrics.total_time_us;
+        entry.timestamp = Instant::now();
+        
+        let entry = global_metrics.entry(MetricType::QueryPlanNodeCount).or_insert_with(|| MetricValue::new(0));
+        entry.value = metrics.plan_node_count as u64;
+        entry.timestamp = Instant::now();
+        
+        let entry = global_metrics.entry(MetricType::QueryResultRowCount).or_insert_with(|| MetricValue::new(0));
+        entry.value = metrics.result_row_count as u64;
+        entry.timestamp = Instant::now();
+    }
+    
+    pub fn get_last_query_metrics(&self) -> Option<QueryMetrics> {
+        let last_metrics = self.last_query_metrics.read().expect("获取查询指标读锁失败");
+        last_metrics.clone()
+    }
+    
+    pub fn get_query_metrics(&self) -> Option<QueryMetrics> {
+        self.get_last_query_metrics()
     }
 }
 

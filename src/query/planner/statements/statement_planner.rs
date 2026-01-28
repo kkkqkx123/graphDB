@@ -14,6 +14,7 @@ use crate::query::context::execution::QueryContext;
 use crate::query::planner::plan::ExecutionPlan;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
+use crate::query::planner::PlanIdGenerator;
 use crate::query::validator::structs::CypherClauseKind;
 use std::collections::HashMap;
 
@@ -86,18 +87,7 @@ pub trait StatementPlanner: Planner {
 
     /// 设置计划 ID
     fn set_plan_id(&self, plan: &mut ExecutionPlan) {
-        let uuid = uuid::Uuid::new_v4();
-        let uuid_bytes = uuid.as_bytes();
-        let id = i64::from_ne_bytes([
-            uuid_bytes[0],
-            uuid_bytes[1],
-            uuid_bytes[2],
-            uuid_bytes[3],
-            uuid_bytes[4],
-            uuid_bytes[5],
-            uuid_bytes[6],
-            uuid_bytes[7],
-        ]);
+        let id = PlanIdGenerator::instance().next_id();
         plan.set_id(id);
     }
 }

@@ -51,3 +51,46 @@ pub unsafe fn set_memory(ptr: *mut u8, value: u8, size: usize) {
 2. **灵活性**：支持任意内存地址的操作，不限于slice
 3. **标准实践**：底层内存操作使用unsafe是Rust生态的标准做法
 4. **明确责任**：unsafe标记明确告知调用者需要确保安全性
+
+## UUID 非标准转换使用
+
+### 位置
+- `src/query/planner/statements/statement_planner.rs`
+- `src/query/planner/statements/match_planner.rs`
+- `src/query/planner/statements/match_statement_planner.rs`
+
+### 使用原因
+生成执行计划ID时，需要一个唯一的标识符。当前实现将UUID v4的前8字节转换为i64。
+
+### 代码示例
+```rust
+let uuid = uuid::Uuid::new_v4();
+let uuid_bytes = uuid.as_bytes();
+let id = i64::from_ne_bytes([
+    uuid_bytes[0],
+    uuid_bytes[1],
+    uuid_bytes[2],
+    uuid_bytes[3],
+    uuid_bytes[4],
+    uuid_bytes[5],
+    uuid_bytes[6],
+    uuid_bytes[7],
+]);
+plan.set_id(id);
+```
+
+### 潜在问题
+1. **碰撞风险**：仅使用UUID的8字节（64位），相比完整UUID（128位）碰撞概率增加
+2. **非标准做法**：UUID转换为i64不是标准做法，可能导致兼容性问题
+3. **可预测性**：如果系统需要真正的不可预测ID，这种方式可能不够安全
+
+### 使用场景
+此ID主要用于：
+- 执行计划的内部标识
+- 日志和调试输出
+- 计划缓存的键（如果需要）
+
+### 何时需要修改
+1. 如果需要真正的全局唯一ID，考虑使用完整的UUID字符串
+2. 如果需要更高的安全性，考虑使用加密安全的随机数生成器
+3. 如果需要分布式环境下的唯一性，考虑使用snowflake算法或类似方案
