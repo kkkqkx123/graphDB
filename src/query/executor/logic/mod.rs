@@ -10,4 +10,4 @@
 
 pub mod loops;
 
-pub use loops::{ForLoopExecutor, LoopExecutor, LoopState, WhileLoopExecutor};
+pub use loops::{ForLoopExecutor, LoopExecutor, LoopState, SelectExecutor, WhileLoopExecutor};

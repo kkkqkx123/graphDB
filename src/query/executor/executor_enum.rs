@@ -25,6 +25,7 @@ use super::admin::{
 use super::base::{BaseExecutor, ExecutorStats, StartExecutor, ExecutionResult, DBResult, Executor, InputExecutor};
 use super::data_access::{
     AllPathsExecutor, GetNeighborsExecutor, GetPropExecutor, GetVerticesExecutor,
+    ScanEdgesExecutor,
 };
 use super::data_processing::graph_traversal::{
     ExpandAllExecutor, ExpandExecutor, MultiShortestPathExecutor, ShortestPathExecutor,
@@ -32,7 +33,7 @@ use super::data_processing::graph_traversal::{
 };
 use super::data_processing::join::{CrossJoinExecutor, HashInnerJoinExecutor, HashLeftJoinExecutor, InnerJoinExecutor, LeftJoinExecutor};
 use super::data_processing::set_operations::{IntersectExecutor, MinusExecutor, UnionAllExecutor, UnionExecutor};
-use super::logic::{ForLoopExecutor, LoopExecutor, WhileLoopExecutor};
+use super::logic::{ForLoopExecutor, LoopExecutor, SelectExecutor, WhileLoopExecutor};
 use super::result_processing::{
     AggregateExecutor, DedupExecutor, FilterExecutor, GroupByExecutor, HavingExecutor,
     LimitExecutor, ProjectExecutor, SampleExecutor, SortExecutor, TopNExecutor,
@@ -40,7 +41,7 @@ use super::result_processing::{
 use super::result_processing::transformations::{
     AppendVerticesExecutor, AssignExecutor, PatternApplyExecutor, RollUpApplyExecutor, UnwindExecutor,
 };
-use super::search_executors::{BFSShortestExecutor, FulltextIndexScanExecutor};
+use super::search_executors::{BFSShortestExecutor, FulltextIndexScanExecutor, IndexScanExecutor};
 use super::special_executors::{ArgumentExecutor, DataCollectExecutor, PassThroughExecutor};
 
 pub enum ExecutorEnum<S: StorageEngine + Send + 'static> {
@@ -82,6 +83,9 @@ pub enum ExecutorEnum<S: StorageEngine + Send + 'static> {
     Loop(LoopExecutor<S>),
     ForLoop(ForLoopExecutor<S>),
     WhileLoop(WhileLoopExecutor<S>),
+    Select(SelectExecutor<S>),
+    ScanEdges(ScanEdgesExecutor<S>),
+    IndexScan(IndexScanExecutor<S>),
     Argument(ArgumentExecutor<S>),
     PassThrough(PassThroughExecutor<S>),
     DataCollect(DataCollectExecutor<S>),
@@ -158,6 +162,9 @@ impl<S: StorageEngine + Send + 'static> Debug for ExecutorEnum<S> {
             ExecutorEnum::Loop(exec) => f.write_str(&format!("ExecutorEnum::Loop({})", exec.name())),
             ExecutorEnum::ForLoop(exec) => f.write_str(&format!("ExecutorEnum::ForLoop({})", exec.name())),
             ExecutorEnum::WhileLoop(exec) => f.write_str(&format!("ExecutorEnum::WhileLoop({})", exec.name())),
+            ExecutorEnum::Select(exec) => f.write_str(&format!("ExecutorEnum::Select({})", exec.name())),
+            ExecutorEnum::ScanEdges(exec) => f.write_str(&format!("ExecutorEnum::ScanEdges({})", exec.name())),
+            ExecutorEnum::IndexScan(exec) => f.write_str(&format!("ExecutorEnum::IndexScan({})", exec.name())),
             ExecutorEnum::Argument(exec) => f.write_str(&format!("ExecutorEnum::Argument({})", exec.name())),
             ExecutorEnum::PassThrough(exec) => f.write_str(&format!("ExecutorEnum::PassThrough({})", exec.name())),
             ExecutorEnum::DataCollect(exec) => f.write_str(&format!("ExecutorEnum::DataCollect({})", exec.name())),
@@ -236,6 +243,9 @@ impl<S: StorageEngine + Send + 'static> ExecutorEnum<S> {
             ExecutorEnum::Loop(exec) => exec.id(),
             ExecutorEnum::ForLoop(exec) => exec.id(),
             ExecutorEnum::WhileLoop(exec) => exec.id(),
+            ExecutorEnum::Select(exec) => exec.id(),
+            ExecutorEnum::ScanEdges(exec) => exec.id(),
+            ExecutorEnum::IndexScan(exec) => exec.id(),
             ExecutorEnum::Argument(exec) => exec.id(),
             ExecutorEnum::PassThrough(exec) => exec.id(),
             ExecutorEnum::DataCollect(exec) => exec.id(),
@@ -312,6 +322,9 @@ impl<S: StorageEngine + Send + 'static> ExecutorEnum<S> {
             ExecutorEnum::Loop(exec) => exec.name(),
             ExecutorEnum::ForLoop(exec) => exec.name(),
             ExecutorEnum::WhileLoop(exec) => exec.name(),
+            ExecutorEnum::Select(exec) => exec.name(),
+            ExecutorEnum::ScanEdges(exec) => exec.name(),
+            ExecutorEnum::IndexScan(exec) => exec.name(),
             ExecutorEnum::Argument(exec) => exec.name(),
             ExecutorEnum::PassThrough(exec) => exec.name(),
             ExecutorEnum::DataCollect(exec) => exec.name(),
@@ -388,6 +401,9 @@ impl<S: StorageEngine + Send + 'static> ExecutorEnum<S> {
             ExecutorEnum::Loop(exec) => exec.stats(),
             ExecutorEnum::ForLoop(exec) => exec.stats(),
             ExecutorEnum::WhileLoop(exec) => exec.stats(),
+            ExecutorEnum::Select(exec) => exec.stats(),
+            ExecutorEnum::ScanEdges(exec) => exec.stats(),
+            ExecutorEnum::IndexScan(exec) => exec.stats(),
             ExecutorEnum::Argument(exec) => exec.stats(),
             ExecutorEnum::PassThrough(exec) => exec.stats(),
             ExecutorEnum::DataCollect(exec) => exec.stats(),
@@ -464,6 +480,9 @@ impl<S: StorageEngine + Send + 'static> ExecutorEnum<S> {
             ExecutorEnum::Loop(exec) => exec.stats_mut(),
             ExecutorEnum::ForLoop(exec) => exec.stats_mut(),
             ExecutorEnum::WhileLoop(exec) => exec.stats_mut(),
+            ExecutorEnum::Select(exec) => exec.stats_mut(),
+            ExecutorEnum::ScanEdges(exec) => exec.stats_mut(),
+            ExecutorEnum::IndexScan(exec) => exec.stats_mut(),
             ExecutorEnum::Argument(exec) => exec.stats_mut(),
             ExecutorEnum::PassThrough(exec) => exec.stats_mut(),
             ExecutorEnum::DataCollect(exec) => exec.stats_mut(),
@@ -544,6 +563,9 @@ impl<S: StorageEngine + Send + 'static> super::base::Executor<S> for ExecutorEnu
             ExecutorEnum::Loop(exec) => exec.execute().await,
             ExecutorEnum::ForLoop(exec) => exec.execute().await,
             ExecutorEnum::WhileLoop(exec) => exec.execute().await,
+            ExecutorEnum::Select(exec) => exec.execute().await,
+            ExecutorEnum::ScanEdges(exec) => exec.execute().await,
+            ExecutorEnum::IndexScan(exec) => exec.execute().await,
             ExecutorEnum::Argument(exec) => exec.execute().await,
             ExecutorEnum::PassThrough(exec) => exec.execute().await,
             ExecutorEnum::DataCollect(exec) => exec.execute().await,
@@ -622,6 +644,9 @@ impl<S: StorageEngine + Send + 'static> super::base::Executor<S> for ExecutorEnu
             ExecutorEnum::Loop(exec) => exec.open(),
             ExecutorEnum::ForLoop(exec) => exec.open(),
             ExecutorEnum::WhileLoop(exec) => exec.open(),
+            ExecutorEnum::Select(exec) => exec.open(),
+            ExecutorEnum::ScanEdges(exec) => exec.open(),
+            ExecutorEnum::IndexScan(exec) => exec.open(),
             ExecutorEnum::Argument(exec) => exec.open(),
             ExecutorEnum::PassThrough(exec) => exec.open(),
             ExecutorEnum::DataCollect(exec) => exec.open(),
@@ -698,6 +723,9 @@ impl<S: StorageEngine + Send + 'static> super::base::Executor<S> for ExecutorEnu
             ExecutorEnum::Loop(exec) => exec.close(),
             ExecutorEnum::ForLoop(exec) => exec.close(),
             ExecutorEnum::WhileLoop(exec) => exec.close(),
+            ExecutorEnum::Select(exec) => exec.close(),
+            ExecutorEnum::ScanEdges(exec) => exec.close(),
+            ExecutorEnum::IndexScan(exec) => exec.close(),
             ExecutorEnum::Argument(exec) => exec.close(),
             ExecutorEnum::PassThrough(exec) => exec.close(),
             ExecutorEnum::DataCollect(exec) => exec.close(),
@@ -774,6 +802,9 @@ impl<S: StorageEngine + Send + 'static> super::base::Executor<S> for ExecutorEnu
             ExecutorEnum::Loop(exec) => exec.is_open(),
             ExecutorEnum::ForLoop(exec) => exec.is_open(),
             ExecutorEnum::WhileLoop(exec) => exec.is_open(),
+            ExecutorEnum::Select(exec) => exec.is_open(),
+            ExecutorEnum::ScanEdges(exec) => exec.is_open(),
+            ExecutorEnum::IndexScan(exec) => exec.is_open(),
             ExecutorEnum::Argument(exec) => exec.is_open(),
             ExecutorEnum::PassThrough(exec) => exec.is_open(),
             ExecutorEnum::DataCollect(exec) => exec.is_open(),
@@ -862,6 +893,9 @@ impl<S: StorageEngine + Send + 'static> super::base::Executor<S> for ExecutorEnu
             ExecutorEnum::Loop(exec) => exec.stats(),
             ExecutorEnum::ForLoop(exec) => exec.stats(),
             ExecutorEnum::WhileLoop(exec) => exec.stats(),
+            ExecutorEnum::Select(exec) => exec.stats(),
+            ExecutorEnum::ScanEdges(exec) => exec.stats(),
+            ExecutorEnum::IndexScan(exec) => exec.stats(),
             ExecutorEnum::Argument(exec) => exec.stats(),
             ExecutorEnum::PassThrough(exec) => exec.stats(),
             ExecutorEnum::DataCollect(exec) => exec.stats(),
@@ -938,6 +972,9 @@ impl<S: StorageEngine + Send + 'static> super::base::Executor<S> for ExecutorEnu
             ExecutorEnum::Loop(exec) => exec.stats_mut(),
             ExecutorEnum::ForLoop(exec) => exec.stats_mut(),
             ExecutorEnum::WhileLoop(exec) => exec.stats_mut(),
+            ExecutorEnum::Select(exec) => exec.stats_mut(),
+            ExecutorEnum::ScanEdges(exec) => exec.stats_mut(),
+            ExecutorEnum::IndexScan(exec) => exec.stats_mut(),
             ExecutorEnum::Argument(exec) => exec.stats_mut(),
             ExecutorEnum::PassThrough(exec) => exec.stats_mut(),
             ExecutorEnum::DataCollect(exec) => exec.stats_mut(),
@@ -1001,6 +1038,9 @@ impl<S: StorageEngine + Send + 'static> InputExecutor<S> for ExecutorEnum<S> {
             ExecutorEnum::Loop(_) => {}
             ExecutorEnum::ForLoop(_) => {}
             ExecutorEnum::WhileLoop(_) => {}
+            ExecutorEnum::Select(_) => {}
+            ExecutorEnum::ScanEdges(_) => {}
+            ExecutorEnum::IndexScan(_) => {}
             ExecutorEnum::Argument(_) => {}
             ExecutorEnum::PassThrough(_) => {}
             ExecutorEnum::DataCollect(_) => {}
@@ -1077,6 +1117,9 @@ impl<S: StorageEngine + Send + 'static> InputExecutor<S> for ExecutorEnum<S> {
             ExecutorEnum::Loop(_) => None,
             ExecutorEnum::ForLoop(_) => None,
             ExecutorEnum::WhileLoop(_) => None,
+            ExecutorEnum::Select(_) => None,
+            ExecutorEnum::ScanEdges(_) => None,
+            ExecutorEnum::IndexScan(_) => None,
             ExecutorEnum::Argument(_) => None,
             ExecutorEnum::PassThrough(_) => None,
             ExecutorEnum::DataCollect(_) => None,

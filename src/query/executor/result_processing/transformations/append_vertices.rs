@@ -203,10 +203,6 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
             rows: Vec::new(),
         };
 
-        // 创建表达式上下文
-        let mut expr_context = DefaultExpressionContext::new();
-
-        // 获取输入结果
         let _input_result = self
             .base
             .context

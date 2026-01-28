@@ -260,6 +260,114 @@ impl<S: StorageEngine> HasStorage<S> for GetEdgesExecutor<S> {
     }
 }
 
+// Implementation for ScanEdges executor
+#[derive(Debug)]
+pub struct ScanEdgesExecutor<S: StorageEngine> {
+    base: BaseExecutor<S>,
+    edge_type: Option<String>,
+    filter: Option<crate::core::Expression>,
+    limit: Option<usize>,
+}
+
+impl<S: StorageEngine> ScanEdgesExecutor<S> {
+    pub fn new(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        edge_type: Option<String>,
+        filter: Option<crate::core::Expression>,
+        limit: Option<usize>,
+    ) -> Self {
+        Self {
+            base: BaseExecutor::new(id, "ScanEdgesExecutor".to_string(), storage),
+            edge_type,
+            filter,
+            limit,
+        }
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ScanEdgesExecutor<S> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+        let storage = safe_lock(self.get_storage())
+            .expect("ScanEdgesExecutor storage lock should not be poisoned");
+
+        let mut edges: Vec<crate::core::vertex_edge_path::Edge> = if let Some(ref edge_type) = self.edge_type {
+            storage.scan_edges_by_type(edge_type)?
+        } else {
+            storage.scan_all_edges()?
+        };
+
+        if let Some(ref filter_expr) = self.filter {
+            let mut context = crate::expression::DefaultExpressionContext::new();
+            edges.retain(|edge| {
+                context.set_variable("edge".to_string(), crate::core::Value::Edge(edge.clone()));
+                match crate::expression::evaluator::expression_evaluator::ExpressionEvaluator::evaluate(filter_expr, &mut context) {
+                    Ok(value) => match value {
+                        crate::core::Value::Bool(b) => b,
+                        crate::core::Value::Int(i) => i != 0,
+                        crate::core::Value::Float(f) => f != 0.0,
+                        _ => true,
+                    },
+                    Err(_) => true,
+                }
+            });
+        }
+
+        if let Some(limit) = self.limit {
+            edges.truncate(limit);
+        }
+
+        let values: Vec<crate::core::Value> = edges
+            .into_iter()
+            .map(|e| crate::core::Value::Edge(e))
+            .collect();
+
+        Ok(ExecutionResult::Values(values))
+    }
+
+    fn open(&mut self) -> DBResult<()> {
+        Ok(())
+    }
+
+    fn close(&mut self) -> DBResult<()> {
+        Ok(())
+    }
+
+    fn is_open(&self) -> bool {
+        true
+    }
+
+    fn id(&self) -> i64 {
+        self.base.id
+    }
+
+    fn name(&self) -> &str {
+        &self.base.name
+    }
+
+    fn description(&self) -> &str {
+        "Scan edges executor - scans all edges from storage"
+    }
+
+    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats()
+    }
+
+    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats_mut()
+    }
+}
+
+impl<S: StorageEngine> HasStorage<S> for ScanEdgesExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base
+            .storage
+            .as_ref()
+            .expect("ScanEdgesExecutor storage should be set")
+    }
+}
+
 // Implementation for a basic GetNeighbors executor
 #[derive(Debug)]
 pub struct GetNeighborsExecutor<S: StorageEngine> {
@@ -297,12 +405,20 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for GetNeighborsExecu
 
         let mut neighbors = Vec::new();
 
+        let edge_types_filter = self.edge_types.as_ref();
+
         for vertex_id in &self.vertex_ids {
             let direction = self.edge_direction;
 
             let edges = storage.get_node_edges(vertex_id, direction)?;
 
             for edge in edges {
+                if let Some(ref filter_types) = edge_types_filter {
+                    if !filter_types.contains(&edge.edge_type) {
+                        continue;
+                    }
+                }
+
                 let neighbor_id = if *edge.src == *vertex_id {
                     &edge.dst
                 } else {

@@ -9,6 +9,9 @@ use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageEngine;
 use crate::utils::safe_lock;
 
+use crate::expression::context::traits::VariableContext;
+use crate::expression::evaluator::traits::ExpressionContext;
+
 /// FulltextIndexScanExecutor - 全文索引扫描执行器
 ///
 /// 用于执行全文索引扫描操作
@@ -299,6 +302,136 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for BFSShortestExecutor<S> {
 }
 
 impl<S: StorageEngine + Send + 'static> HasStorage<S> for BFSShortestExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.storage.as_ref().expect("Storage not set")
+    }
+}
+
+/// IndexScanExecutor - 索引扫描执行器
+///
+/// 用于执行基于索引的扫描操作
+pub struct IndexScanExecutor<S: StorageEngine + Send + 'static> {
+    base: BaseExecutor<S>,
+    space_id: i32,
+    tag_id: i32,
+    index_id: i32,
+    scan_type: String,
+    scan_limits: Vec<super::super::planner::plan::algorithms::IndexLimit>,
+    filter: Option<crate::core::Expression>,
+    return_columns: Vec<String>,
+    limit: Option<usize>,
+}
+
+impl<S: StorageEngine> IndexScanExecutor<S> {
+    pub fn new(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        space_id: i32,
+        tag_id: i32,
+        index_id: i32,
+        scan_type: &str,
+        scan_limits: Vec<super::super::planner::plan::algorithms::IndexLimit>,
+        filter: Option<crate::core::Expression>,
+        return_columns: Vec<String>,
+        limit: Option<usize>,
+    ) -> Self {
+        Self {
+            base: BaseExecutor::new(id, "IndexScanExecutor".to_string(), storage),
+            space_id,
+            tag_id,
+            index_id,
+            scan_type: scan_type.to_string(),
+            scan_limits,
+            filter,
+            return_columns,
+            limit,
+        }
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + 'static> Executor<S> for IndexScanExecutor<S> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+        let storage = safe_lock(self.get_storage())
+            .expect("IndexScanExecutor storage lock should not be poisoned");
+
+        let mut vertices = Vec::new();
+
+        let filter_expr = self.filter.as_ref();
+
+        match self.scan_type.as_str() {
+            "RANGE" | "PREFIX" | "UNIQUE" => {
+                vertices = storage.scan_vertices_by_tag(&self.scan_type)?;
+                
+                if let Some(expr) = filter_expr {
+                    let mut context = crate::expression::DefaultExpressionContext::new();
+                    vertices.retain(|vertex| {
+                        VariableContext::set_variable(&mut context, "vertex".to_string(), Value::Vertex(Box::new(vertex.clone())));
+                        match crate::expression::evaluator::expression_evaluator::ExpressionEvaluator::evaluate(expr, &mut context) {
+                            Ok(value) => {
+                                match &value {
+                                    Value::Bool(true) => true,
+                                    Value::Int(i) if *i != 0 => true,
+                                    Value::Float(fl) if *fl != 0.0 => true,
+                                    _ => false,
+                                }
+                            },
+                            Err(_) => true,
+                        }
+                    });
+                }
+            }
+            _ => {
+                vertices = storage.scan_all_vertices()?;
+            }
+        }
+
+        if let Some(limit) = self.limit {
+            vertices.truncate(limit);
+        }
+
+        let rows: Vec<Vec<Value>> = vertices
+            .into_iter()
+            .map(|v| vec![Value::Vertex(Box::new(v))])
+            .collect();
+
+        Ok(ExecutionResult::Values(rows.into_iter().flatten().collect()))
+    }
+
+    fn open(&mut self) -> DBResult<()> {
+        Ok(())
+    }
+
+    fn close(&mut self) -> DBResult<()> {
+        Ok(())
+    }
+
+    fn is_open(&self) -> bool {
+        true
+    }
+
+    fn id(&self) -> i64 {
+        self.base.id
+    }
+
+    fn name(&self) -> &str {
+        &self.base.name
+    }
+
+    fn description(&self) -> &str {
+        "Index scan executor - scans vertices using index"
+    }
+
+    fn stats(&self) -> &crate::query::executor::base::ExecutorStats {
+        self.base.get_stats()
+    }
+
+    fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
+        self.base.get_stats_mut()
+    }
+}
+
+impl<S: StorageEngine + Send + 'static> HasStorage<S> for IndexScanExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.storage.as_ref().expect("Storage not set")
     }

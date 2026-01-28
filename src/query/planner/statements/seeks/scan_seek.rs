@@ -2,7 +2,7 @@
 //!
 //! 全表扫描策略，作为无法使用索引时的回退方案
 
-use super::seek_strategy::{SeekStrategy, SeekStrategyTraitObject};
+use super::seek_strategy::SeekStrategy;
 use super::seek_strategy_base::{SeekResult, SeekStrategyContext, SeekStrategyType, NodePattern};
 use crate::core::{StorageError, Vertex};
 use crate::storage::StorageEngine;

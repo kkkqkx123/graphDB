@@ -25,6 +25,10 @@ pub mod find_path_validator;
 pub mod get_subgraph_validator;
 pub mod set_validator;
 pub mod sequential_validator;
+pub mod insert_vertices_validator;
+pub mod insert_edges_validator;
+pub mod update_validator;
+pub mod delete_validator;
 pub mod validation_factory;
 pub mod validation_interface;
 
@@ -56,6 +60,10 @@ pub use find_path_validator::{FindPathValidator, FindPathConfig, PathPattern, Pa
 pub use get_subgraph_validator::{GetSubgraphValidator, GetSubgraphConfig, EdgeDirection as SubgraphEdgeDirection};
 pub use set_validator::{SetValidator, SetValidator as SetStatementValidator, SetItem, SetStatementType};
 pub use sequential_validator::{SequentialValidator, SequentialStatement};
+pub use insert_vertices_validator::InsertVerticesValidator;
+pub use insert_edges_validator::InsertEdgesValidator;
+pub use update_validator::UpdateValidator;
+pub use delete_validator::DeleteValidator;
 
 pub use validation_factory::{
     ValidationFactory,

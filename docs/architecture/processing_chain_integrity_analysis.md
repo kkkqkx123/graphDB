@@ -222,7 +222,7 @@ pub fn register(&mut self, sentence_kind: SentenceKind, planner: MatchAndInstant
 
 **问题二：计划节点完整**
 
-`PlanNodeEnum`不 虽然定义了约 60 种节点类型，但仍缺失部分重要的节点：
+`PlanNodeEnum`虽然定义了约 60 种节点类型，但仍缺失部分重要的节点：
 
 - **新节点类型缺失**：
   - `FulltextIndexScan`：全文索引扫描
@@ -715,9 +715,82 @@ _ => {
 
 这些问题导致处理链条中存在多个断点，可能导致查询失败、性能下降甚至系统稳定性问题。针对这些问题，本文提出了分优先级的修复建议，为后续的架构优化提供依据。
 
-## 八、参考文档
+## 八、实施进度
 
-- [查询模块操作类型分析](query_operation_type_analysis.md)
-- [改进后的架构设计文档](improved_architecture_design.md)
-- [分阶段修改计划](phased_modification_plan.md)
-- [模块问题与解决方案](modules_issues_and_solutions.md)
+### 8.1 阶段一：验证器实现（已完成）
+
+已实现以下验证器并修复相关问题：
+
+| 验证器 | 文件路径 | 状态 |
+|--------|----------|------|
+| InsertVerticesValidator | `src/query/validator/insert_vertices_validator.rs` | ✅ 完成 |
+| InsertEdgesValidator | `src/query/validator/insert_edges_validator.rs` | ✅ 完成 |
+| UpdateValidator | `src/query/validator/update_validator.rs` | ✅ 完成 |
+| DeleteValidator | `src/query/validator/delete_validator.rs` | ✅ 完成 |
+
+**修复的问题**：
+- Expression 变体名称修复：`Constant` → `Literal`, `FunctionCall` → `Function`, `UnaryOp` → `Unary`, `BinaryOp` → `Binary`
+- DeleteTarget 变体名称修复：`Edge` → `Edges`
+- ValidationFactory 注册修复
+
+**单元测试**：
+- InsertVerticesValidator：15 个测试用例
+- InsertEdgesValidator：16 个测试用例  
+- UpdateValidator：17 个测试用例
+- DeleteValidator：15 个测试用例
+
+**测试结果**：
+```
+test result: ok. 58 passed; 0 failed; 0 ignored; 0 measured; 863 filtered out
+```
+
+### 8.2 阶段二：AST 访问者实现（已完成）
+
+已实现以下 AST 访问者组件：
+
+| 组件 | 文件路径 | 状态 |
+|------|----------|------|
+| StmtVisitor trait | `src/query/visitor/stmt_visitor.rs` | ✅ 完成 |
+| AstTraverser trait | `src/query/visitor/ast_traverser.rs` | ✅ 完成 |
+
+**功能说明**：
+- `StmtVisitor`：语句访问者接口，支持所有 Stmt 类型的访问
+- `AstTraverser`：AST 遍历器，实现深度优先遍历语句 AST
+
+### 8.3 阶段三：AST 转换器实现（已完成）
+
+已实现以下 AST 转换器组件：
+
+| 组件 | 文件路径 | 状态 |
+|------|----------|------|
+| StmtTransformer trait | `src/query/visitor/stmt_transformer.rs` | ✅ 完成 |
+| AstTransformer trait | `src/query/visitor/ast_transformer.rs` | ✅ 完成 |
+
+**功能说明**：
+- `StmtTransformer`：语句转换器接口，支持语句级别的转换
+- `AstTransformer`：AST 转换器，实现表达式的深度优先遍历和转换
+
+### 8.4 后续工作
+
+完成上述三个阶段的实现后，后续建议工作包括：
+
+1. **执行器补充**（高优先级）：
+   - FulltextIndexScanExecutor
+   - DataCollectExecutor
+   - ArgumentExecutor
+   - ScanEdgesExecutor
+
+2. **优化规则补充**（中优先级）：
+   - PredicateReorder
+   - ConstantFolding
+   - SubQueryOptimization
+
+3. **验证器扩展**（中优先级）：
+   - MatchValidator 完善
+   - GoValidator 完善
+   - FetchValidator 完善
+
+4. **测试覆盖**（低优先级）：
+   - 验证器单元测试
+   - 访问者集成测试
+   - 转换器回归测试

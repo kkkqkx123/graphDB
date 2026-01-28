@@ -225,8 +225,6 @@ impl Validator {
             )));
         }
 
-        drop(ctx);
-
         if let Err(e) = self.validate_impl() {
             return Err(DBError::Query(QueryError::InvalidQuery(format!(
                 "验证失败: {}",
@@ -244,8 +242,6 @@ impl Validator {
                 ))));
             }
         }
-
-        drop(ctx);
 
         if let Err(e) = self.check_permission() {
             return Err(DBError::Query(QueryError::InvalidQuery(format!(
@@ -443,4 +439,34 @@ impl Validator {
             _ => ValueType::Unknown,
         }
      }
+}
+
+use super::{InsertVerticesValidator, InsertEdgesValidator, UpdateValidator, DeleteValidator};
+
+impl From<InsertVerticesValidator> for Validator {
+    fn from(_validator: InsertVerticesValidator) -> Self {
+        let mut v = Validator::new();
+        v
+    }
+}
+
+impl From<InsertEdgesValidator> for Validator {
+    fn from(_validator: InsertEdgesValidator) -> Self {
+        let mut v = Validator::new();
+        v
+    }
+}
+
+impl From<UpdateValidator> for Validator {
+    fn from(_validator: UpdateValidator) -> Self {
+        let mut v = Validator::new();
+        v
+    }
+}
+
+impl From<DeleteValidator> for Validator {
+    fn from(_validator: DeleteValidator) -> Self {
+        let mut v = Validator::new();
+        v
+    }
 }

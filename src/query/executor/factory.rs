@@ -18,13 +18,14 @@ use std::sync::{Arc, Mutex};
 
 // 导入已实现的执行器
 use crate::query::executor::base::{ExecutionContext, StartExecutor};
-use crate::query::executor::data_access::{AllPathsExecutor, GetNeighborsExecutor, GetVerticesExecutor};
+use crate::query::executor::data_access::{AllPathsExecutor, GetNeighborsExecutor, GetVerticesExecutor, ScanEdgesExecutor};
 use crate::query::executor::data_processing::{
     graph_traversal::{ExpandAllExecutor, TraverseExecutor},
     CrossJoinExecutor, ExpandExecutor, InnerJoinExecutor, LeftJoinExecutor,
     UnionExecutor,
 };
 use crate::query::executor::logic::LoopExecutor;
+use crate::query::executor::logic::SelectExecutor;
 use crate::query::executor::recursion_detector::{
     ExecutorSafetyConfig, ExecutorSafetyValidator, RecursionDetector,
 };
@@ -33,20 +34,20 @@ use crate::query::executor::result_processing::{
     PatternApplyExecutor, ProjectExecutor, RollUpApplyExecutor, SampleExecutor, SampleMethod, SortExecutor,
     TopNExecutor, UnwindExecutor,
 };
-use crate::query::executor::search_executors::{BFSShortestExecutor, FulltextIndexScanExecutor};
+use crate::query::executor::search_executors::{BFSShortestExecutor, FulltextIndexScanExecutor, IndexScanExecutor};
 use crate::query::executor::special_executors::{ArgumentExecutor, DataCollectExecutor, PassThroughExecutor};
 
 use crate::query::executor::admin::{
     CreateSpaceExecutor, DropSpaceExecutor, DescSpaceExecutor, ShowSpacesExecutor,
     CreateTagExecutor, AlterTagExecutor, DescTagExecutor, DropTagExecutor, ShowTagsExecutor,
-    CreateEdgeExecutor, AlterEdgeExecutor, DescEdgeExecutor, DropEdgeExecutor, ShowEdgesExecutor,
+    CreateEdgeExecutor, DescEdgeExecutor, DropEdgeExecutor, ShowEdgesExecutor,
     CreateTagIndexExecutor, DropTagIndexExecutor, DescTagIndexExecutor, ShowTagIndexesExecutor,
     CreateEdgeIndexExecutor, DropEdgeIndexExecutor, DescEdgeIndexExecutor, ShowEdgeIndexesExecutor,
     RebuildTagIndexExecutor, RebuildEdgeIndexExecutor,
 };
 
 use crate::query::planner::plan::core::nodes::admin_node::{
-    SpaceManageInfo, TagManageInfo, TagAlterInfo, EdgeManageInfo, EdgeAlterInfo, IndexManageInfo,
+    SpaceManageInfo,
 };
 
 /// 从 PlanNode 提取顶点 ID 列表
@@ -374,10 +375,15 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                 );
                 Ok(ExecutorEnum::GetVertices(executor))
             }
-            PlanNodeEnum::ScanEdges(_) => {
-                Err(QueryError::ExecutionError(
-                    "扫描边执行器尚未实现".to_string(),
-                ))
+            PlanNodeEnum::ScanEdges(node) => {
+                let executor = ScanEdgesExecutor::new(
+                    node.id(),
+                    storage,
+                    Some(node.edge_type().to_string()),
+                    node.filter().and_then(|f| parse_expression_safe(f)),
+                    node.limit().map(|l| l as usize),
+                );
+                Ok(ExecutorEnum::ScanEdges(executor))
             }
             PlanNodeEnum::GetVertices(node) => {
                 let executor = GetVerticesExecutor::new(
@@ -906,6 +912,53 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                     Some(node.steps),
                 );
                 Ok(ExecutorEnum::BFSShortest(executor))
+            }
+
+            PlanNodeEnum::IndexScan(node) => {
+                let executor = IndexScanExecutor::new(
+                    node.id(),
+                    storage,
+                    node.space_id,
+                    node.tag_id,
+                    node.index_id,
+                    &node.scan_type,
+                    node.scan_limits.clone(),
+                    node.filter.as_ref().and_then(|f| parse_expression_safe(f)),
+                    node.return_columns.clone(),
+                    node.limit.map(|l| l as usize),
+                );
+                Ok(ExecutorEnum::IndexScan(executor))
+            }
+
+            PlanNodeEnum::Select(node) => {
+                let condition = node.condition()
+                    .is_empty()
+                    .then_some(node.condition().to_string())
+                    .filter(|c| !c.is_empty())
+                    .and_then(|c| parse_expression_safe(&c))
+                    .unwrap_or_else(|| crate::core::Expression::Literal(crate::core::Value::Bool(true)));
+
+                let if_branch = node.if_branch()
+                    .as_ref()
+                    .ok_or_else(|| QueryError::ExecutionError(
+                        "Select节点缺少if_branch".to_string(),
+                    ))?;
+
+                let if_executor = self.create_executor(if_branch, storage.clone(), context)?;
+
+                let else_executor = node.else_branch()
+                    .as_ref()
+                    .map(|branch| self.create_executor(branch, storage.clone(), context))
+                    .transpose()?;
+
+                let executor = SelectExecutor::new(
+                    node.id(),
+                    storage,
+                    condition,
+                    if_executor,
+                    else_executor,
+                );
+                Ok(ExecutorEnum::Select(executor))
             }
 
             // ========== 管理执行器 ==========

@@ -2,7 +2,8 @@ use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use super::base::BaseExecutor;
-use crate::core::{Edge, Value, Vertex};
+use crate::core::{Edge, StorageError, Value, Vertex, DBError};
+use crate::core::types::IndexInfo;
 use crate::expression::context::basic_context::BasicExpressionContext;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::traits::{DBResult, ExecutionResult, Executor, HasStorage};
@@ -76,11 +77,11 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for InsertExecutor<S> {
         Ok(ExecutionResult::Success)
     }
 
-    fn open(&mut self) -> DBResult<()> {
+    fn open(&mut self) -> Result<(), DBError> {
         Ok(())
     }
 
-    fn close(&mut self) -> DBResult<()> {
+    fn close(&mut self) -> Result<(), DBError> {
         Ok(())
     }
 
@@ -106,6 +107,24 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for InsertExecutor<S> {
 
     fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
         self.base.get_stats_mut()
+    }
+}
+
+impl<S: StorageEngine> HasStorage<S> for CreateIndexExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base
+            .storage
+            .as_ref()
+            .expect("CreateIndexExecutor storage should be set")
+    }
+}
+
+impl<S: StorageEngine> HasStorage<S> for DropIndexExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base
+            .storage
+            .as_ref()
+            .expect("DropIndexExecutor storage should be set")
     }
 }
 
@@ -411,17 +430,11 @@ pub struct CreateIndexExecutor<S: StorageEngine> {
 
     index_name: String,
 
-    index_type: IndexType,
+    index_type: crate::index::IndexType,
 
     properties: Vec<String>, // Properties to index
 
     tag_name: Option<String>, // Tag name for vertex indexes
-}
-
-#[derive(Debug, Clone)]
-pub enum IndexType {
-    Vertex,
-    Edge,
 }
 
 impl<S: StorageEngine> CreateIndexExecutor<S> {
@@ -429,7 +442,7 @@ impl<S: StorageEngine> CreateIndexExecutor<S> {
         id: i64,
         storage: Arc<Mutex<S>>,
         index_name: String,
-        index_type: IndexType,
+        index_type: crate::index::IndexType,
         properties: Vec<String>,
         tag_name: Option<String>,
     ) -> Self {
@@ -445,8 +458,44 @@ impl<S: StorageEngine> CreateIndexExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> Executor<S> for CreateIndexExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        Ok(ExecutionResult::Success)
+    async fn execute(&mut self) -> Result<ExecutionResult, DBError> {
+        let mut storage = safe_lock(self.get_storage())
+            .expect("CreateIndexExecutor storage lock should not be poisoned");
+
+        let target_type = match self.index_type {
+            crate::index::IndexType::TagIndex => "tag",
+            crate::index::IndexType::EdgeIndex => "edge",
+            crate::index::IndexType::FulltextIndex => "fulltext",
+        };
+
+        let target_name = self.tag_name.clone()
+            .or_else(|| Some(self.index_name.clone()))
+            .unwrap_or_default();
+
+        let index_info = IndexInfo {
+            name: self.index_name.clone(),
+            space_name: String::new(),
+            target_type: target_type.to_string(),
+            target_name,
+            properties: self.properties.clone(),
+            comment: None,
+        };
+
+        let result = match self.index_type {
+            crate::index::IndexType::TagIndex => {
+                storage.create_tag_index(&index_info)
+            }
+            crate::index::IndexType::EdgeIndex => {
+                storage.create_edge_index(&index_info)
+            }
+            crate::index::IndexType::FulltextIndex => {
+                storage.create_tag_index(&index_info)
+            }
+        };
+
+        result
+            .map(|_| ExecutionResult::Success)
+            .map_err(|e| DBError::from(e))
     }
 
     fn open(&mut self) -> DBResult<()> {
@@ -500,15 +549,26 @@ impl<S: StorageEngine> DropIndexExecutor<S> {
 
 #[async_trait]
 impl<S: StorageEngine + Send + 'static> Executor<S> for DropIndexExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        Ok(ExecutionResult::Success)
+    async fn execute(&mut self) -> Result<ExecutionResult, DBError> {
+        let mut storage = safe_lock(self.get_storage())
+            .expect("DropIndexExecutor storage lock should not be poisoned");
+
+        let result = storage.drop_tag_index("", &self._index_name)?;
+
+        if result {
+            Ok(ExecutionResult::Success)
+        } else {
+            Err(DBError::from(StorageError::DbError(
+                format!("Index '{}' not found", self._index_name)
+            )))
+        }
     }
 
-    fn open(&mut self) -> DBResult<()> {
+    fn open(&mut self) -> Result<(), DBError> {
         Ok(())
     }
 
-    fn close(&mut self) -> DBResult<()> {
+    fn close(&mut self) -> Result<(), DBError> {
         Ok(())
     }
 

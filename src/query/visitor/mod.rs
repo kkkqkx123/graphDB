@@ -15,6 +15,10 @@ mod variable_visitor;
 mod vid_extract_visitor;
 mod fold_constant_expr_visitor;
 mod plan_node_visitor;
+mod stmt_visitor;
+mod ast_traverser;
+mod stmt_transformer;
+mod ast_transformer;
 
 pub use deduce_alias_type_visitor::{AliasType, DeduceAliasTypeVisitor};
 pub use deduce_props_visitor::{DeducePropsVisitor, ExpressionProps};
@@ -30,3 +34,7 @@ pub use validate_pattern_expression_visitor::ValidatePatternExpressionVisitor;
 pub use variable_visitor::VariableVisitor;
 pub use vid_extract_visitor::{VidExtractVisitor, VidPattern};
 pub use plan_node_visitor::{PlanNodeVisitor, DefaultPlanNodeVisitor};
+pub use stmt_visitor::StmtVisitor;
+pub use ast_traverser::AstTraverser;
+pub use stmt_transformer::StmtTransformer;
+pub use ast_transformer::AstTransformer;

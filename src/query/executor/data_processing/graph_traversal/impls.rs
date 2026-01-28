@@ -6,53 +6,6 @@ use crate::query::executor::data_processing::graph_traversal::shortest_path::Sho
 use crate::query::executor::data_processing::graph_traversal::traits::TraversalStats;
 use crate::query::executor::data_processing::graph_traversal::traverse::TraverseExecutor;
 
-/// 宏定义：为图遍历执行器实现通用特征
-macro_rules! impl_graph_traversal_executor {
-    ($executor:ty) => {
-        impl<S: crate::storage::StorageEngine> GraphTraversalExecutor<S> for $executor {
-            fn set_edge_direction(
-                &mut self,
-                direction: crate::query::executor::base::EdgeDirection,
-            ) {
-                self.edge_direction = direction;
-            }
-
-            fn set_edge_types(&mut self, edge_types: Option<Vec<String>>) {
-                self.edge_types = edge_types;
-            }
-
-            fn set_max_depth(&mut self, max_depth: Option<usize>) {
-                self.max_depth = max_depth;
-            }
-
-            fn get_edge_direction(&self) -> crate::query::executor::base::EdgeDirection {
-                self.edge_direction.clone()
-            }
-
-            fn get_edge_types(&self) -> Option<Vec<String>> {
-                self.edge_types.clone()
-            }
-
-            fn get_max_depth(&self) -> Option<usize> {
-                self.max_depth
-            }
-
-            fn validate_config(&self) -> Result<(), String> {
-                if let Some(max_depth) = self.max_depth {
-                    if max_depth == 0 {
-                        return Err("最大深度不能为0".to_string());
-                    }
-                }
-                Ok(())
-            }
-
-            fn get_stats(&self) -> TraversalStats {
-                TraversalStats::default()
-            }
-        }
-    };
-}
-
 /// 宏定义：为具有访问节点统计的执行器实现通用统计信息
 macro_rules! impl_graph_traversal_executor_with_stats {
     ($executor:ty, $visited_nodes_field:ident) => {

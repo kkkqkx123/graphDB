@@ -515,11 +515,125 @@ impl<S: StorageEngine + Send + 'static> HasStorage<S> for ForLoopExecutor<S> {
     }
 }
 
+/// SelectExecutor - 条件分支执行器
+///
+/// 实现条件分支逻辑，根据条件选择执行 if 或 else 分支
+pub struct SelectExecutor<S: StorageEngine + Send + 'static> {
+    base: BaseExecutor<S>,
+    condition: Expression,
+    if_branch: Box<ExecutorEnum<S>>,
+    else_branch: Option<Box<ExecutorEnum<S>>>,
+    current_result: Option<ExecutionResult>,
+}
+
+impl<S: StorageEngine> SelectExecutor<S> {
+    pub fn new(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        condition: Expression,
+        if_branch: ExecutorEnum<S>,
+        else_branch: Option<ExecutorEnum<S>>,
+    ) -> Self {
+        Self {
+            base: BaseExecutor::new(id, "SelectExecutor".to_string(), storage),
+            condition,
+            if_branch: Box::new(if_branch),
+            else_branch: else_branch.map(Box::new),
+            current_result: None,
+        }
+    }
+}
+
+#[async_trait]
+impl<S: StorageEngine + Send + 'static> Executor<S> for SelectExecutor<S> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+        let mut context = crate::expression::DefaultExpressionContext::new();
+
+        let condition_result = ExpressionEvaluator::evaluate(&self.condition, &mut context)
+            .map_err(|e| DBError::Expression(crate::core::error::ExpressionError::function_error(e.to_string())))?;
+
+        let condition_value = match condition_result {
+            Value::Bool(b) => b,
+            Value::Int(i) => i != 0,
+            Value::Float(f) => f != 0.0,
+            Value::String(s) => !s.is_empty(),
+            Value::List(l) => !l.is_empty(),
+            Value::Map(m) => !m.is_empty(),
+            Value::Null(_) => false,
+            Value::Empty => false,
+            _ => true,
+        };
+
+        let branch_to_execute = if condition_value {
+            &mut self.if_branch
+        } else {
+            match self.else_branch {
+                Some(ref mut branch) => branch,
+                None => {
+                    return Ok(ExecutionResult::Success);
+                }
+            }
+        };
+
+        branch_to_execute.open()?;
+        let result = branch_to_execute.execute().await?;
+        branch_to_execute.close()?;
+
+        self.current_result = Some(result.clone());
+        Ok(result)
+    }
+
+    fn open(&mut self) -> DBResult<()> {
+        self.if_branch.open()?;
+        if let Some(ref mut else_branch) = self.else_branch {
+            else_branch.open()?;
+        }
+        Ok(())
+    }
+
+    fn close(&mut self) -> DBResult<()> {
+        self.if_branch.close()?;
+        if let Some(ref mut else_branch) = self.else_branch {
+            else_branch.close()?;
+        }
+        Ok(())
+    }
+
+    fn is_open(&self) -> bool {
+        self.if_branch.is_open()
+    }
+
+    fn id(&self) -> i64 {
+        self.base.id
+    }
+
+    fn name(&self) -> &str {
+        &self.base.name
+    }
+
+    fn description(&self) -> &str {
+        "Select executor - conditional branch execution"
+    }
+
+    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats()
+    }
+
+    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats_mut()
+    }
+}
+
+impl<S: StorageEngine + Send + 'static> HasStorage<S> for SelectExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.storage.as_ref().expect("SelectExecutor storage should be set")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::core::BinaryOperator;
-    use crate::query::executor::traits::ExecutorStats;
     use crate::storage::test_mock::MockStorage;
     use std::sync::{Arc, Mutex};
 

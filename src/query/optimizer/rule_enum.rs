@@ -22,6 +22,12 @@ pub enum OptimizationRule {
     MergeGetVerticesAndDedup,
     MergeGetNbrsAndProject,
     MergeGetNbrsAndDedup,
+
+    // 后优化规则
+    ConstantFolding,
+    SubQueryOptimization,
+    LoopUnrolling,
+    PredicateReorder,
     
     // 物理优化规则
     JoinOptimization,
@@ -53,7 +59,10 @@ impl OptimizationRule {
             Self::EliminateAppendVertices | Self::RemoveAppendVerticesBelowJoin | Self::TopN |
             Self::MergeGetVerticesAndProject | Self::MergeGetVerticesAndDedup |
             Self::MergeGetNbrsAndProject | Self::MergeGetNbrsAndDedup => OptimizationPhase::LogicalOptimization,
-            
+
+            Self::ConstantFolding | Self::SubQueryOptimization |
+            Self::LoopUnrolling | Self::PredicateReorder => OptimizationPhase::PostOptimization,
+
             Self::JoinOptimization | Self::PushLimitDown | Self::PushLimitDownGetVertices |
             Self::PushLimitDownGetNeighbors | Self::PushLimitDownGetEdges |
             Self::PushLimitDownScanVertices | Self::PushLimitDownScanEdges |
@@ -83,7 +92,12 @@ impl OptimizationRule {
             Self::MergeGetVerticesAndDedup => "MergeGetVerticesAndDedupRule",
             Self::MergeGetNbrsAndProject => "MergeGetNbrsAndProjectRule",
             Self::MergeGetNbrsAndDedup => "MergeGetNbrsAndDedupRule",
-            
+
+            Self::ConstantFolding => "ConstantFoldingRule",
+            Self::SubQueryOptimization => "SubQueryOptimizationRule",
+            Self::LoopUnrolling => "LoopUnrollingRule",
+            Self::PredicateReorder => "PredicateReorderRule",
+
             Self::JoinOptimization => "JoinOptimizationRule",
             Self::PushLimitDown => "PushLimitDownRule",
             Self::PushLimitDownGetVertices => "PushLimitDownGetVerticesRule",
@@ -123,7 +137,12 @@ impl OptimizationRule {
             Self::MergeGetVerticesAndDedup => Some(Box::new(super::MergeGetVerticesAndDedupRule)),
             Self::MergeGetNbrsAndProject => Some(Box::new(super::MergeGetNbrsAndProjectRule)),
             Self::MergeGetNbrsAndDedup => Some(Box::new(super::MergeGetNbrsAndDedupRule)),
-            
+
+            Self::ConstantFolding => Some(Box::new(super::ConstantFoldingRule)),
+            Self::SubQueryOptimization => Some(Box::new(super::SubQueryOptimizationRule)),
+            Self::LoopUnrolling => Some(Box::new(super::LoopUnrollingRule)),
+            Self::PredicateReorder => Some(Box::new(super::PredicateReorderRule)),
+
             Self::JoinOptimization => Some(Box::new(super::JoinOptimizationRule)),
             Self::PushLimitDown => Some(Box::new(super::PushLimitDownRule)),
             Self::PushLimitDownGetVertices => Some(Box::new(super::PushLimitDownGetVerticesRule)),
@@ -163,7 +182,12 @@ impl OptimizationRule {
             "MergeGetVerticesAndDedupRule" => Some(Self::MergeGetVerticesAndDedup),
             "MergeGetNbrsAndProjectRule" => Some(Self::MergeGetNbrsAndProject),
             "MergeGetNbrsAndDedupRule" => Some(Self::MergeGetNbrsAndDedup),
-            
+
+            "ConstantFoldingRule" => Some(Self::ConstantFolding),
+            "SubQueryOptimizationRule" => Some(Self::SubQueryOptimization),
+            "LoopUnrollingRule" => Some(Self::LoopUnrolling),
+            "PredicateReorderRule" => Some(Self::PredicateReorder),
+
             "JoinOptimizationRule" => Some(Self::JoinOptimization),
             "PushLimitDownRule" => Some(Self::PushLimitDown),
             "PushLimitDownGetVerticesRule" => Some(Self::PushLimitDownGetVertices),

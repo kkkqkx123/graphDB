@@ -1,7 +1,6 @@
 //! 优化器配置加载
 //! 从配置文件加载优化器配置
 
-use std::collections::HashMap;
 use std::path::Path;
 
 use toml::Value;
