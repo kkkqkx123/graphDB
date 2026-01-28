@@ -1005,24 +1005,6 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
                 Ok(ExecutorEnum::CreateEdge(executor))
             }
 
-            PlanNodeEnum::AlterEdge(node) => {
-                use crate::query::executor::admin::edge::alter_edge::{AlterEdgeInfo, AlterEdgeItem, AlterEdgeOp};
-                let mut alter_info = AlterEdgeInfo::new(
-                    node.info().space_name.clone(),
-                    node.info().edge_name.clone(),
-                );
-                for prop in node.info().additions.iter() {
-                    let item = AlterEdgeItem::add_property(prop.clone());
-                    alter_info = alter_info.with_items(vec![item]);
-                }
-                for prop_name in node.info().deletions.iter() {
-                    let item = AlterEdgeItem::drop_property(prop_name.clone());
-                    alter_info = alter_info.with_items(vec![item]);
-                }
-                let executor = AlterEdgeExecutor::new(node.id(), storage, alter_info);
-                Ok(ExecutorEnum::AlterEdge(executor))
-            }
-
             PlanNodeEnum::DescEdge(node) => {
                 let executor = DescEdgeExecutor::new(
                     node.id(),

@@ -165,11 +165,6 @@ impl LruTracker {
     fn remove_key(&mut self, key: &JoinKey) {
         self.access_order.retain(|k| k != key);
     }
-
-    /// 清空追踪器
-    fn clear(&mut self) {
-        self.access_order.clear();
-    }
 }
 
 /// 溢出文件管理器

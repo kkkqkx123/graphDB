@@ -320,7 +320,7 @@ mod tests {
     use crate::core::{BinaryOperator, Expression};
     use crate::query::executor::executor_enum::ExecutorEnum;
     use crate::query::executor::base::BaseExecutor;
-    use crate::query::executor::traits::{ExecutionResult, Executor, ExecutorStats};
+    use crate::query::executor::traits::{ExecutionResult, Executor};
     use crate::storage::test_mock::MockStorage;
 
     #[tokio::test]

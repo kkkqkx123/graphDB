@@ -82,7 +82,7 @@ fn ensure_rules_initialized() {
         return;
     }
 
-    let mut registry = get_registry().write().unwrap();
+    let registry = get_registry().write().unwrap();
     if registry.is_empty() {
         crate::query::optimizer::rule_registrar::register_all_rules();
     }

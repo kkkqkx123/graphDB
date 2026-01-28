@@ -201,19 +201,6 @@ impl MatchStatementPlanner {
         Ok(scan_node.into_enum())
     }
 
-    fn plan_edge_pattern(
-        &self,
-        _edge: &str,
-        _space_id: i32,
-    ) -> Result<PlanNodeEnum, PlannerError> {
-        let expand_node = crate::query::planner::plan::core::nodes::ExpandAllNode::new(
-            _space_id,
-            vec![],
-            "both",
-        );
-        Ok(expand_node.into_enum())
-    }
-
     fn plan_filter(
         &self,
         input_plan: SubPlan,

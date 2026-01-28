@@ -5,7 +5,6 @@ use std::fmt::Debug;
 
 use crate::query::optimizer::core::Cost;
 use crate::query::planner::plan::PlanNodeEnum;
-use crate::utils::ObjectPool;
 
 use super::context::OptContext;
 use super::group::OptGroup;

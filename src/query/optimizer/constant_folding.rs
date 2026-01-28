@@ -59,7 +59,6 @@ impl PlanNodeVisitor for ConstantFoldingVisitor {
     }
 
     fn visit_filter(&mut self, node: &crate::query::planner::plan::core::nodes::FilterNode) -> Self::Result {
-        use crate::core::Expression;
 
         let condition = node.condition();
         if let Some(folded_condition) = Self::fold_expression(condition) {

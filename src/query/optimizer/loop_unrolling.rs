@@ -341,13 +341,6 @@ impl LoopUnrollingVisitor {
         condition.contains("<") || condition.contains("<=") || condition.contains(">") || condition.contains(">=")
     }
 
-    fn is_simple_loop_body(body: &PlanNodeEnum) -> bool {
-        matches!(
-            body,
-            PlanNodeEnum::Project(_) | PlanNodeEnum::Filter(_) | PlanNodeEnum::Assign(_)
-        )
-    }
-
     fn unroll_simple_loop(body: &PlanNodeEnum) -> PlanNodeEnum {
         body.clone()
     }

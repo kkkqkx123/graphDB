@@ -906,7 +906,7 @@ mod tests {
     #[test]
     fn test_float_literals() {
         let input = "42";  // 测试整数
-        let mut lexer = Lexer::new(input);
+        let lexer = Lexer::new(input);
         assert_eq!(lexer.current_token.kind, Tk::IntegerLiteral(42));
     }
 
@@ -925,7 +925,7 @@ mod tests {
     #[test]
     fn test_operators() {
         let input = "+";
-        let mut lexer = Lexer::new(input);
+        let lexer = Lexer::new(input);
         assert_eq!(lexer.current_token.kind, Tk::Plus);
     }
 

@@ -399,33 +399,6 @@ impl Value {
         }
     }
 
-    // 坐标列表比较辅助函数
-    fn cmp_coordinate_list(a: &[(f64, f64)], b: &[(f64, f64)]) -> CmpOrdering {
-        let min_len = a.len().min(b.len());
-        for i in 0..min_len {
-            match a[i].0.total_cmp(&b[i].0) {
-                CmpOrdering::Equal => match a[i].1.total_cmp(&b[i].1) {
-                    CmpOrdering::Equal => continue,
-                    ord => return ord,
-                },
-                ord => return ord,
-            }
-        }
-        a.len().cmp(&b.len())
-    }
-
-    // 多边形列表比较辅助函数
-    fn cmp_polygon_list(a: &[Vec<(f64, f64)>], b: &[Vec<(f64, f64)>]) -> CmpOrdering {
-        let min_len = a.len().min(b.len());
-        for i in 0..min_len {
-            match Self::cmp_coordinate_list(&a[i], &b[i]) {
-                CmpOrdering::Equal => continue,
-                ord => return ord,
-            }
-        }
-        a.len().cmp(&b.len())
-    }
-
     // 字符串列表比较辅助函数
     fn cmp_string_list(a: &[String], b: &[String]) -> CmpOrdering {
         let min_len = a.len().min(b.len());

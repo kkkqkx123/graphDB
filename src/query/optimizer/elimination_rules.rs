@@ -5,7 +5,7 @@ use super::engine::OptimizerError;
 use super::plan::{OptContext, OptGroupNode, OptRule, Pattern};
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::{
-    create_basic_pattern, is_expression_tautology, BaseOptRule, EliminationRule,
+    create_basic_pattern, is_expression_tautology, BaseOptRule,
 };
 use crate::query::planner::plan::core::nodes::plan_node_traits::{MultipleInputNode, SingleInputNode};
 use crate::query::planner::plan::PlanNodeEnum;

@@ -66,7 +66,7 @@ impl ExecutionPlan {
         fn count_nodes(node: &Option<PlanNodeEnum>) -> usize {
             match node {
                 Some(n) => {
-                    let mut count = 1;
+                    let count = 1;
                     count
                 }
                 None => 0,

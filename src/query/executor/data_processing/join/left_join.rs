@@ -198,12 +198,6 @@ impl<S: StorageEngine> LeftJoinExecutor<S> {
 
         Ok(result)
     }
-
-    /// 创建填充NULL的右侧行
-
-    fn create_null_right_row(&self) -> Vec<Value> {
-        vec![Value::Null(NullType::Null); self.right_col_size]
-    }
 }
 
 #[async_trait]
