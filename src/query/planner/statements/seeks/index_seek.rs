@@ -91,7 +91,7 @@ mod tests {
 
     #[test]
     fn test_index_seek_new() {
-        let seek = IndexSeek::new();
+        let _ = IndexSeek::new();
         assert!(true);
     }
 

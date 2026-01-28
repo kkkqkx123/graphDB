@@ -495,6 +495,95 @@ impl PlanNodeVisitor for RemoveAppendVerticesBelowJoinVisitor {
     }
 }
 
+/// 消除冗余数据收集操作的规则
+/// 当 DataCollect 的 kind 为 kRowBasedMove 且其子节点可以直接返回结果时，消除 DataCollect 节点
+#[derive(Debug)]
+pub struct EliminateRowCollectRule;
+
+impl OptRule for EliminateRowCollectRule {
+    fn name(&self) -> &str {
+        "EliminateRowCollectRule"
+    }
+
+    fn apply(
+        &self,
+        ctx: &mut OptContext,
+        node: &OptGroupNode,
+    ) -> Result<Option<OptGroupNode>, OptimizerError> {
+        let mut visitor = EliminateRowCollectVisitor {
+            ctx: ctx as *const OptContext,
+            eliminated: false,
+            new_node: None,
+        };
+
+        let result = visitor.visit(&node.plan_node);
+        if result.eliminated {
+            Ok(result.new_node)
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn pattern(&self) -> Pattern {
+        create_basic_pattern("DataCollect")
+    }
+}
+
+impl BaseOptRule for EliminateRowCollectRule {}
+
+/// 消除数据收集访问者
+#[derive(Clone)]
+struct EliminateRowCollectVisitor {
+    eliminated: bool,
+    new_node: Option<OptGroupNode>,
+    ctx: *const OptContext,
+}
+
+impl EliminateRowCollectVisitor {
+    fn get_ctx(&self) -> &OptContext {
+        unsafe { &*self.ctx }
+    }
+}
+
+impl PlanNodeVisitor for EliminateRowCollectVisitor {
+    type Result = Self;
+
+    fn visit_default(&mut self) -> Self::Result {
+        self.clone()
+    }
+
+    fn visit_data_collect(&mut self, node: &crate::query::planner::plan::core::nodes::DataCollectNode) -> Self::Result {
+        if self.eliminated {
+            return self.clone();
+        }
+
+        if node.collect_kind() != "kRowBasedMove" {
+            return self.clone();
+        }
+
+        let deps = node.dependencies();
+        if deps.is_empty() {
+            return self.clone();
+        }
+
+        let input = &**deps.first().unwrap();
+        let input_id = input.id() as usize;
+
+        if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(input_id) {
+            let mut new_node = child_node.clone();
+
+            if let Some(output_var) = node.output_var() {
+                new_node.plan_node = input.clone();
+            }
+
+            self.eliminated = true;
+            self.new_node = Some(new_node);
+        }
+
+        self.clone()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

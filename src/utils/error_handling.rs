@@ -57,7 +57,9 @@ macro_rules! db_return_if_err {
 macro_rules! db_assert {
     ($condition:expr, $message:expr) => {
         if !$condition {
-            return Err(DBError::Internal($message.to_string()));
+            Err(DBError::Internal($message.to_string()))
+        } else {
+            Ok(())
         }
     };
 }
@@ -95,23 +97,24 @@ mod tests {
         let result = db_assert!(true, "This should pass");
         assert!(result.is_ok());
 
-        let result: Result<(), DBError> = db_assert!(false, "This should fail");
+        let result = db_assert!(false, "This should fail");
         assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), DBError::Internal(msg) if msg == "This should fail"));
     }
 
     #[test]
     fn test_db_return_if_err_macro() {
         fn test_func() -> Result<i32, DBError> {
             let value = 42;
-            db_return_if_err!(Ok(()));
+            db_return_if_err!(Ok::<i32, DBError>(value));
             Ok(value)
         }
 
         assert_eq!(test_func().unwrap(), 42);
 
         fn test_func_err() -> Result<i32, DBError> {
-            let err: Result<(), DBError> = Err(DBError::Internal("test error"));
-            db_return_if_err!(err);
+            let result: Result<i32, DBError> = Err(DBError::Internal("test error".to_string()));
+            db_return_if_err!(result);
             Ok(0)
         }
 

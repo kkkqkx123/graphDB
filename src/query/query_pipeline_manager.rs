@@ -40,7 +40,7 @@ impl<S: StorageEngine + 'static> QueryPipelineManager<S> {
             _storage: storage,
             validator: Validator::new(),
             planner,
-            optimizer: Optimizer::default(),
+            optimizer: Optimizer::from_registry(),
             executor_factory,
             stats_manager,
         }
@@ -81,7 +81,6 @@ impl<S: StorageEngine + 'static> QueryPipelineManager<S> {
                     enable_multi_plan: config_info.enable_multi_plan,
                     enable_property_pruning: config_info.enable_property_pruning,
                     rule_config: Some(rule_config),
-                    enable_rule_registration: config_info.enable_rule_registration,
                     enable_adaptive_iteration: config_info.enable_adaptive_iteration,
                     stable_threshold: config_info.stable_threshold,
                     min_iteration_rounds: config_info.min_iteration_rounds,
@@ -90,7 +89,7 @@ impl<S: StorageEngine + 'static> QueryPipelineManager<S> {
             }
             Err(_) => {
                 log::warn!("无法加载优化器配置，使用默认配置");
-                Optimizer::default()
+                Optimizer::from_registry()
             }
         };
 

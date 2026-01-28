@@ -77,89 +77,34 @@ impl Optimizer {
     }
 
     pub fn default() -> Self {
-        let mut logical_rules = RuleSet::new("logical");
-        logical_rules.add_rule(Box::new(crate::query::optimizer::FilterPushDownRule));
-        logical_rules.add_rule(Box::new(crate::query::optimizer::PredicatePushDownRule));
-        logical_rules.add_rule(Box::new(crate::query::optimizer::PushFilterDownTraverseRule));
-        logical_rules.add_rule(Box::new(crate::query::optimizer::PushFilterDownExpandRule));
-        logical_rules.add_rule(Box::new(crate::query::optimizer::PushFilterDownInnerJoinRule));
-        logical_rules.add_rule(Box::new(crate::query::optimizer::PushFilterDownHashInnerJoinRule));
-        logical_rules.add_rule(Box::new(crate::query::optimizer::PushFilterDownHashLeftJoinRule));
-
-        logical_rules.add_rule(Box::new(crate::query::optimizer::ProjectionPushDownRule));
-        logical_rules.add_rule(Box::new(crate::query::optimizer::PushProjectDownRule));
-
-        logical_rules.add_rule(Box::new(crate::query::optimizer::CombineFilterRule));
-        logical_rules.add_rule(Box::new(crate::query::optimizer::CollapseProjectRule));
-        logical_rules.add_rule(Box::new(crate::query::optimizer::MergeGetVerticesAndProjectRule));
-        logical_rules.add_rule(Box::new(crate::query::optimizer::MergeGetVerticesAndDedupRule));
-        logical_rules.add_rule(Box::new(crate::query::optimizer::MergeGetNbrsAndDedupRule));
-        logical_rules.add_rule(Box::new(crate::query::optimizer::MergeGetNbrsAndProjectRule));
-
-        logical_rules.add_rule(Box::new(crate::query::optimizer::DedupEliminationRule));
-        logical_rules.add_rule(Box::new(crate::query::optimizer::EliminateFilterRule));
-        logical_rules.add_rule(Box::new(crate::query::optimizer::RemoveNoopProjectRule));
-        logical_rules.add_rule(Box::new(crate::query::optimizer::EliminateAppendVerticesRule));
-        logical_rules.add_rule(Box::new(crate::query::optimizer::RemoveAppendVerticesBelowJoinRule));
-
-        logical_rules.add_rule(Box::new(crate::query::optimizer::TopNRule));
-
-        let mut physical_rules = RuleSet::new("physical");
-        physical_rules.add_rule(Box::new(crate::query::optimizer::JoinOptimizationRule));
-
-        physical_rules.add_rule(Box::new(crate::query::optimizer::PushLimitDownRule));
-        physical_rules.add_rule(Box::new(crate::query::optimizer::PushLimitDownGetVerticesRule));
-        physical_rules.add_rule(Box::new(crate::query::optimizer::PushLimitDownGetNeighborsRule));
-        physical_rules.add_rule(Box::new(crate::query::optimizer::PushLimitDownGetEdgesRule));
-        physical_rules.add_rule(Box::new(crate::query::optimizer::PushLimitDownScanVerticesRule));
-        physical_rules.add_rule(Box::new(crate::query::optimizer::PushLimitDownScanEdgesRule));
-        physical_rules.add_rule(Box::new(crate::query::optimizer::PushLimitDownIndexScanRule));
-        physical_rules.add_rule(Box::new(crate::query::optimizer::PushLimitDownProjectRule));
-
-        physical_rules.add_rule(Box::new(crate::query::optimizer::ScanWithFilterOptimizationRule));
-        physical_rules.add_rule(Box::new(crate::query::optimizer::IndexFullScanRule));
-
-        physical_rules.add_rule(Box::new(crate::query::optimizer::IndexScanRule));
-        physical_rules.add_rule(Box::new(crate::query::optimizer::EdgeIndexFullScanRule));
-        physical_rules.add_rule(Box::new(crate::query::optimizer::TagIndexFullScanRule));
-        physical_rules.add_rule(Box::new(crate::query::optimizer::UnionAllEdgeIndexScanRule));
-        physical_rules.add_rule(Box::new(crate::query::optimizer::UnionAllTagIndexScanRule));
-        physical_rules.add_rule(Box::new(crate::query::optimizer::OptimizeEdgeIndexScanByFilterRule));
-        physical_rules.add_rule(Box::new(crate::query::optimizer::OptimizeTagIndexScanByFilterRule));
-
-        Self::new(vec![logical_rules, physical_rules])
+        Self::from_registry()
     }
 
     pub fn from_registry() -> Self {
         use crate::query::optimizer::{RuleRegistry, OptimizationPhase};
-        
+
         let mut logical_rules = RuleSet::new("logical");
         let mut physical_rules = RuleSet::new("physical");
-        
+
         for rule in RuleRegistry::get_rules_by_phase(OptimizationPhase::LogicalOptimization) {
             if let Some(instance) = RuleRegistry::create_instance(rule) {
                 logical_rules.add_rule(instance);
             }
         }
-        
+
         for rule in RuleRegistry::get_rules_by_phase(OptimizationPhase::PhysicalOptimization) {
             if let Some(instance) = RuleRegistry::create_instance(rule) {
                 physical_rules.add_rule(instance);
             }
         }
-        
+
         for rule in RuleRegistry::get_rules_by_phase(OptimizationPhase::PostOptimization) {
             if let Some(instance) = RuleRegistry::create_instance(rule) {
                 logical_rules.add_rule(instance);
             }
         }
-        
+
         Self::new(vec![logical_rules, physical_rules])
-    }
-    
-    pub fn init_rule_registry() {
-        use crate::query::optimizer::rule_registrar::register_all_rules;
-        register_all_rules();
     }
 
     pub fn find_best_plan(

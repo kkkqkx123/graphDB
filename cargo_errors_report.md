@@ -2,115 +2,241 @@
 
 ## Summary
 
-- **Total Errors**: 4
-- **Total Warnings**: 29
-- **Total Issues**: 33
-- **Unique Error Patterns**: 4
-- **Unique Warning Patterns**: 22
-- **Files with Issues**: 17
+- **Total Errors**: 0
+- **Total Warnings**: 102
+- **Total Issues**: 102
+- **Unique Error Patterns**: 0
+- **Unique Warning Patterns**: 71
+- **Files with Issues**: 52
 
 ## Error Statistics
 
-**Total Errors**: 4
-
-### Error Type Breakdown
-
-- **error[E0407]**: 2 errors
-- **error[E0277]**: 1 errors
-- **error[E0404]**: 1 errors
-
-### Files with Errors (Top 10)
-
-- `src\query\optimizer\rule_registry.rs`: 4 errors
+**Total Errors**: 0
 
 ## Warning Statistics
 
-**Total Warnings**: 29
+**Total Warnings**: 102
 
 ### Warning Type Breakdown
 
-- **warning**: 29 warnings
+- **warning**: 102 warnings
 
 ### Files with Warnings (Top 10)
 
-- `src\query\optimizer\rule_registrar.rs`: 10 warnings
-- `src\query\planner\mod.rs`: 3 warnings
-- `src\query\executor\factory.rs`: 2 warnings
-- `src\query\executor\graph_query_executor.rs`: 2 warnings
-- `src\query\planner\statements\seeks\seek_strategy.rs`: 1 warnings
-- `src\query\context\managers\schema_traits.rs`: 1 warnings
-- `src\common\memory.rs`: 1 warnings
-- `src\query\optimizer\constant_folding.rs`: 1 warnings
-- `src\query\executor\data_processing\graph_traversal\shortest_path.rs`: 1 warnings
-- `src\query\executor\result_processing\projection.rs`: 1 warnings
-
-## Detailed Error Categorization
-
-### error[E0407]: method `name` is not a member of trait `BaseOptRule`: not a member of trait `BaseOptRule`
-
-**Total Occurrences**: 2  
-**Unique Files**: 1
-
-#### `src\query\optimizer\rule_registry.rs`: 2 occurrences
-
-- Line 85: method `name` is not a member of trait `BaseOptRule`: not a member of trait `BaseOptRule`
-- Line 89: method `transform` is not a member of trait `BaseOptRule`: not a member of trait `BaseOptRule`
-
-### error[E0277]: the trait bound `TestRule: node::OptRule` is not satisfied: the trait `node::OptRule` is not implemented for `TestRule`
-
-**Total Occurrences**: 1  
-**Unique Files**: 1
-
-#### `src\query\optimizer\rule_registry.rs`: 1 occurrences
-
-- Line 84: the trait bound `TestRule: node::OptRule` is not satisfied: the trait `node::OptRule` is not implemented for `TestRule`
-
-### error[E0404]: expected trait, found struct `crate::query::optimizer::OptContext`: not a trait
-
-**Total Occurrences**: 1  
-**Unique Files**: 1
-
-#### `src\query\optimizer\rule_registry.rs`: 1 occurrences
-
-- Line 91: expected trait, found struct `crate::query::optimizer::OptContext`: not a trait
+- `src\query\optimizer\rule_registrar.rs`: 13 warnings
+- `src\query\optimizer\elimination_rules.rs`: 7 warnings
+- `src\query\executor\result_processing\projection.rs`: 5 warnings
+- `src\query\planner\statements\match_planner.rs`: 4 warnings
+- `src\query\executor\graph_query_executor.rs`: 4 warnings
+- `src\query\parser\lexer\lexer.rs`: 4 warnings
+- `src\query\planner\statements\paths\match_path_planner.rs`: 3 warnings
+- `src\query\planner\statements\match_statement_planner.rs`: 3 warnings
+- `src\query\planner\statements\paths\shortest_path_planner.rs`: 3 warnings
+- `src\query\planner\planner.rs`: 2 warnings
 
 ## Detailed Warning Categorization
 
-### warning: use of deprecated type alias `query::planner::planner::ConfigurablePlannerRegistry`: 请使用 StaticConfigurablePlannerRegistry 替代
+### warning: unused variable: `test_expr`: help: if this is intentional, prefix it with an underscore: `_test_expr`
 
-**Total Occurrences**: 29  
-**Unique Files**: 16
+**Total Occurrences**: 102  
+**Unique Files**: 52
 
-#### `src\query\optimizer\rule_registrar.rs`: 10 occurrences
+#### `src\query\optimizer\rule_registrar.rs`: 13 occurrences
 
 - Line 7: unexpected `cfg` condition value: `optimizer_registration`
 - Line 14: unexpected `cfg` condition value: `optimizer_registration`
 - Line 55: unexpected `cfg` condition value: `optimizer_registration`
-- ... 7 more occurrences in this file
+- ... 10 more occurrences in this file
 
-#### `src\query\planner\mod.rs`: 3 occurrences
+#### `src\query\optimizer\elimination_rules.rs`: 7 occurrences
 
-- Line 16: use of deprecated type alias `query::planner::planner::ConfigurablePlannerRegistry`: 请使用 StaticConfigurablePlannerRegistry 替代
-- Line 17: use of deprecated type alias `query::planner::planner::PlannerRegistry`: 请使用 StaticPlannerRegistry 替代
-- Line 17: use of deprecated type alias `query::planner::planner::SequentialPlanner`: 请使用 StaticSequentialPlanner 替代
+- Line 8: unused import: `EliminationRule`
+- Line 86: unused variable: `output_var`: help: if this is intentional, prefix it with an underscore: `_output_var`
+- Line 169: unused variable: `output_var`: help: if this is intentional, prefix it with an underscore: `_output_var`
+- ... 4 more occurrences in this file
 
-#### `src\query\executor\graph_query_executor.rs`: 2 occurrences
+#### `src\query\executor\result_processing\projection.rs`: 5 occurrences
+
+- Line 323: unused import: `ExecutorStats`
+- Line 437: unused variable: `vertex1`: help: if this is intentional, prefix it with an underscore: `_vertex1`
+- Line 450: unused variable: `vertex2`: help: if this is intentional, prefix it with an underscore: `_vertex2`
+- ... 2 more occurrences in this file
+
+#### `src\query\executor\graph_query_executor.rs`: 4 occurrences
 
 - Line 138: unused variable: `id`: help: if this is intentional, prefix it with an underscore: `_id`
 - Line 152: variable does not need to be mutable
+- Line 36: field `thread_pool` is never read
+- ... 1 more occurrences in this file
+
+#### `src\query\planner\statements\match_planner.rs`: 4 occurrences
+
+- Line 75: unused variable: `query_context`: help: if this is intentional, prefix it with an underscore: `_query_context`
+- Line 290: unreachable pattern: no value can reach this
+- Line 464: unused variable: `planner`: help: if this is intentional, prefix it with an underscore: `_planner`
+- ... 1 more occurrences in this file
+
+#### `src\query\parser\lexer\lexer.rs`: 4 occurrences
+
+- Line 909: variable does not need to be mutable
+- Line 928: variable does not need to be mutable
+- Line 961: variable does not need to be mutable
+- ... 1 more occurrences in this file
+
+#### `src\query\planner\statements\paths\shortest_path_planner.rs`: 3 occurrences
+
+- Line 23: unused variable: `storage`: help: if this is intentional, prefix it with an underscore: `_storage`
+- Line 461: unused variable: `planner`: help: if this is intentional, prefix it with an underscore: `_planner`
+- Line 467: unused variable: `pattern`: help: if this is intentional, prefix it with an underscore: `_pattern`
+
+#### `src\query\planner\statements\match_statement_planner.rs`: 3 occurrences
+
+- Line 86: unused variable: `query_context`: help: if this is intentional, prefix it with an underscore: `_query_context`
+- Line 360: unreachable pattern: no value can reach this
+- Line 204: method `plan_edge_pattern` is never used
+
+#### `src\query\planner\statements\paths\match_path_planner.rs`: 3 occurrences
+
+- Line 415: unused variable: `planner`: help: if this is intentional, prefix it with an underscore: `_planner`
+- Line 421: unused variable: `pattern`: help: if this is intentional, prefix it with an underscore: `_pattern`
+- Line 443: unused variable: `pattern`: help: if this is intentional, prefix it with an underscore: `_pattern`
+
+#### `src\query\planner\plan\execution_plan.rs`: 2 occurrences
+
+- Line 68: unused variable: `n`: help: if this is intentional, prefix it with an underscore: `_n`
+- Line 69: variable does not need to be mutable
+
+#### `src\query\planner\statements\clauses\pagination_planner.rs`: 2 occurrences
+
+- Line 36: unused variable: `ast_ctx`: help: if this is intentional, prefix it with an underscore: `_ast_ctx`
+- Line 20: field `default_limit` is never read
+
+#### `src\query\validator\base_validator.rs`: 2 occurrences
+
+- Line 228: calls to `std::mem::drop` with a reference instead of an owned value does nothing
+- Line 248: calls to `std::mem::drop` with a reference instead of an owned value does nothing
 
 #### `src\query\executor\factory.rs`: 2 occurrences
 
 - Line 49: unused imports: `EdgeAlterInfo`, `EdgeManageInfo`, `IndexManageInfo`, `SpaceManageInfo`, `TagAlterInfo`, and `TagManageInfo`
 - Line 1009: unused import: `AlterEdgeOp`
 
-#### `src\common\memory.rs`: 1 occurrences
+#### `src\query\executor\logic\loops.rs`: 2 occurrences
 
-- Line 188: unused doc comment: rustdoc does not generate documentation for macro invocations
+- Line 526: struct `CountExecutor` is never constructed
+- Line 534: associated function `new` is never used
 
-#### `src\query\executor\result_processing\projection.rs`: 1 occurrences
+#### `src\query\executor\result_processing\transformations\append_vertices.rs`: 2 occurrences
 
-- Line 323: unused import: `ExecutorStats`
+- Line 207: unused variable: `expr_context`: help: if this is intentional, prefix it with an underscore: `_expr_context`
+- Line 207: variable does not need to be mutable
+
+#### `src\query\planner\planner.rs`: 2 occurrences
+
+- Line 191: unused variable: `query_context`: help: if this is intentional, prefix it with an underscore: `_query_context`
+- Line 67: field `max_size` is never read
+
+#### `src\query\optimizer\rule_registry.rs`: 2 occurrences
+
+- Line 93: unused variable: `ctx`: help: if this is intentional, prefix it with an underscore: `_ctx`
+- Line 94: unused variable: `group_node`: help: if this is intentional, prefix it with an underscore: `_group_node`
+
+#### `src\query\parser\ast\utils.rs`: 2 occurrences
+
+- Line 14: unused variable: `span`: help: if this is intentional, prefix it with an underscore: `_span`
+- Line 55: unused variable: `match_expression`: help: if this is intentional, prefix it with an underscore: `_match_expression`
+
+#### `src\api\service\index_service.rs`: 2 occurrences
+
+- Line 504: unused `std::result::Result` that must be used
+- Line 520: unused `std::result::Result` that must be used
+
+#### `src\query\executor\data_processing\graph_traversal\shortest_path.rs`: 2 occurrences
+
+- Line 7: unused import: `Vertex`
+- Line 192: method `mark_termination` is never used
+
+#### `src\query\optimizer\loop_unrolling.rs`: 2 occurrences
+
+- Line 71: variable does not need to be mutable
+- Line 344: associated function `is_simple_loop_body` is never used
+
+#### `src\query\planner\statements\seeks\scan_seek.rs`: 2 occurrences
+
+- Line 5: unused import: `SeekStrategyTraitObject`
+- Line 82: unused variable: `seek`: help: if this is intentional, prefix it with an underscore: `_seek`
+
+#### `src\query\parser\parser\expr_parser.rs`: 1 occurrences
+
+- Line 450: unused variable: `test_expr`: help: if this is intentional, prefix it with an underscore: `_test_expr`
+
+#### `src\query\executor\result_processing\dedup.rs`: 1 occurrences
+
+- Line 514: unused variable: `input_result`: help: if this is intentional, prefix it with an underscore: `_input_result`
+
+#### `src\core\value\comparison.rs`: 1 occurrences
+
+- Line 403: associated functions `cmp_coordinate_list` and `cmp_polygon_list` are never used
+
+#### `src\index\storage.rs`: 1 occurrences
+
+- Line 376: fields `space_id`, `index_id`, and `index_name` are never read
+
+#### `src\query\executor\data_processing\join\cross_join.rs`: 1 occurrences
+
+- Line 82: method `execute_multi_way_cartesian_product` is never used
+
+#### `src\query\optimizer\plan\node.rs`: 1 occurrences
+
+- Line 8: unused import: `crate::utils::ObjectPool`
+
+#### `src\core\types\expression\expression.rs`: 1 occurrences
+
+- Line 279: unused variable: `meta2`: help: if this is intentional, prefix it with an underscore: `_meta2`
+
+#### `src\query\scheduler\async_scheduler.rs`: 1 occurrences
+
+- Line 74: multiple methods are never used
+
+#### `src\query\executor\data_modification.rs`: 1 occurrences
+
+- Line 412: fields `index_name`, `index_type`, `properties`, and `tag_name` are never read
+
+#### `src\query\optimizer\optimizer_config.rs`: 1 occurrences
+
+- Line 4: unused import: `std::collections::HashMap`
+
+#### `src\query\scheduler\execution_plan_analyzer.rs`: 1 occurrences
+
+- Line 109: unused import: `crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode`
+
+#### `src\query\optimizer\engine\optimizer.rs`: 1 occurrences
+
+- Line 239: value assigned to `last_changes` is never read
+
+#### `src\query\executor\data_processing\join\hash_table.rs`: 1 occurrences
+
+- Line 170: method `clear` is never used
+
+#### `src\query\executor\data_processing\join\base_join.rs`: 1 occurrences
+
+- Line 365: unused variable: `col_name`: help: if this is intentional, prefix it with an underscore: `_col_name`
+
+#### `src\index\cache.rs`: 1 occurrences
+
+- Line 140: method `access_count` is never used
+
+#### `src\query\executor\data_processing\join\left_join.rs`: 1 occurrences
+
+- Line 204: method `create_null_right_row` is never used
+
+#### `src\query\optimizer\transformation_rules.rs`: 1 occurrences
+
+- Line 111: function cannot return without recursing: cannot return without recursing
+
+#### `src\query\executor\data_access.rs`: 1 occurrences
+
+- Line 272: field `edge_types` is never read
 
 #### `src\query\executor\admin\data\update.rs`: 1 occurrences
 
@@ -120,35 +246,43 @@
 
 - Line 247: unexpected `cfg` condition value: `schema-manager-default`
 
-#### `src\query\executor\data_processing\graph_traversal\impls.rs`: 1 occurrences
+#### `src\query\planner\plan\core\nodes\plan_node_operations.rs`: 1 occurrences
 
-- Line 10: unused macro definition: `impl_graph_traversal_executor`
-
-#### `src\query\planner\statements\seeks\seek_strategy.rs`: 1 occurrences
-
-- Line 11: unused imports: `IndexInfo` and `NodePattern`
-
-#### `src\query\optimizer\elimination_rules.rs`: 1 occurrences
-
-- Line 8: unused import: `EliminationRule`
-
-#### `src\query\executor\data_processing\graph_traversal\shortest_path.rs`: 1 occurrences
-
-- Line 7: unused import: `Vertex`
+- Line 348: unnecessary parentheses around function argument
 
 #### `src\query\optimizer\constant_folding.rs`: 1 occurrences
 
 - Line 62: unused import: `crate::core::Expression`
 
-#### `src\query\optimizer\optimizer_config.rs`: 1 occurrences
+#### `src\common\memory.rs`: 1 occurrences
 
-- Line 4: unused import: `std::collections::HashMap`
+- Line 188: unused doc comment: rustdoc does not generate documentation for macro invocations
 
-#### `src\query\planner\statements\seeks\scan_seek.rs`: 1 occurrences
+#### `src\query\parser\parser\stmt_parser.rs`: 1 occurrences
 
-- Line 5: unused import: `SeekStrategyTraitObject`
+- Line 305: unused variable: `tag_name`: help: if this is intentional, prefix it with an underscore: `_tag_name`
 
-#### `src\query\planner\plan\core\nodes\plan_node_operations.rs`: 1 occurrences
+#### `src\query\executor\data_processing\graph_traversal\impls.rs`: 1 occurrences
 
-- Line 348: unnecessary parentheses around function argument
+- Line 10: unused macro definition: `impl_graph_traversal_executor`
+
+#### `src\query\planner\statements\clauses\return_clause_planner.rs`: 1 occurrences
+
+- Line 45: unused variable: `ast_ctx`: help: if this is intentional, prefix it with an underscore: `_ast_ctx`
+
+#### `src\query\executor\result_processing\topn.rs`: 1 occurrences
+
+- Line 398: methods `compare_values`, `extract_sort_values`, `invert_sort_values`, `invert_value_for_sorting`, `optimize_heap_capacity`, and `exceeds_memory_limit` are never used
+
+#### `src\query\executor\operation_kind_support.rs`: 1 occurrences
+
+- Line 97: unused variable: `storage`: help: if this is intentional, prefix it with an underscore: `_storage`
+
+#### `src\expression\evaluator\traits.rs`: 1 occurrences
+
+- Line 55: unused variable: `name`: help: if this is intentional, prefix it with an underscore: `_name`
+
+#### `src\query\optimizer\predicate_pushdown.rs`: 1 occurrences
+
+- Line 180: unused variable: `ctx`: help: if this is intentional, prefix it with an underscore: `_ctx`
 

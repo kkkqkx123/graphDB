@@ -131,7 +131,7 @@ mod tests {
 
     #[test]
     fn test_vertex_seek_new() {
-        let seek = VertexSeek::new();
+        let _ = VertexSeek::new();
         assert!(true);
     }
 

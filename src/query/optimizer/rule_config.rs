@@ -34,6 +34,7 @@ impl RuleConfig {
         self.rule_flags.insert("CollapseProjectRule", true);
         self.rule_flags.insert("DedupEliminationRule", true);
         self.rule_flags.insert("EliminateFilterRule", true);
+        self.rule_flags.insert("EliminateRowCollectRule", true);
         self.rule_flags.insert("RemoveNoopProjectRule", true);
         self.rule_flags.insert("EliminateAppendVerticesRule", true);
         self.rule_flags.insert("RemoveAppendVerticesBelowJoinRule", true);
@@ -61,8 +62,6 @@ impl RuleConfig {
         self.rule_flags.insert("UnionAllTagIndexScanRule", true);
         self.rule_flags.insert("OptimizeEdgeIndexScanByFilterRule", true);
         self.rule_flags.insert("OptimizeTagIndexScanByFilterRule", true);
-        
-        self.rule_flags.insert("RemoveUselessNodeRule", false);
     }
     
     pub fn is_enabled(&self, rule: OptimizationRule) -> bool {
@@ -140,6 +139,7 @@ impl RuleConfig {
             OptimizationRule::CollapseProject,
             OptimizationRule::DedupElimination,
             OptimizationRule::EliminateFilter,
+            OptimizationRule::EliminateRowCollect,
             OptimizationRule::RemoveNoopProject,
             OptimizationRule::EliminateAppendVertices,
             OptimizationRule::RemoveAppendVerticesBelowJoin,
@@ -166,7 +166,6 @@ impl RuleConfig {
             OptimizationRule::UnionAllTagIndexScan,
             OptimizationRule::OptimizeEdgeIndexScanByFilter,
             OptimizationRule::OptimizeTagIndexScanByFilter,
-            OptimizationRule::RemoveUselessNode,
         ].into_iter()
     }
 }
@@ -180,7 +179,6 @@ mod tests {
         let config = RuleConfig::default();
         assert!(config.is_enabled(OptimizationRule::FilterPushDown));
         assert!(config.is_enabled(OptimizationRule::CollapseProject));
-        assert!(!config.is_enabled(OptimizationRule::RemoveUselessNode));
     }
     
     #[test]
@@ -193,8 +191,8 @@ mod tests {
     #[test]
     fn test_enable_rule() {
         let mut config = RuleConfig::default();
-        config.enable(OptimizationRule::RemoveUselessNode);
-        assert!(config.is_enabled(OptimizationRule::RemoveUselessNode));
+        config.enable(OptimizationRule::TopN);
+        assert!(config.is_enabled(OptimizationRule::TopN));
     }
     
     #[test]

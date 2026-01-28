@@ -9,38 +9,42 @@ use crate::query::optimizer::{OptRule, OptimizationRule};
 type RuleCreator = Arc<dyn Fn() -> Box<dyn OptRule> + Send + Sync>;
 
 static RULE_REGISTRY: OnceLock<RwLock<HashMap<OptimizationRule, RuleCreator>>> = OnceLock::new();
+static RULES_INITIALIZED: OnceLock<bool> = OnceLock::new();
 
 pub struct RuleRegistry;
 
 impl RuleRegistry {
-    pub fn register<F>(rule: OptimizationRule, creator: F) 
-    where 
+    pub fn register<F>(rule: OptimizationRule, creator: F)
+    where
         F: Fn() -> Box<dyn OptRule> + Send + Sync + 'static,
     {
         let registry = get_registry();
         let mut writer = registry.write().unwrap();
         writer.insert(rule, Arc::new(creator));
     }
-    
+
     pub fn get(rule: OptimizationRule) -> Option<RuleCreator> {
         let registry = get_registry();
         let reader = registry.read().unwrap();
         reader.get(&rule).cloned()
     }
-    
+
     pub fn create_instance(rule: OptimizationRule) -> Option<Box<dyn OptRule>> {
+        ensure_rules_initialized();
         let registry = get_registry();
         let reader = registry.read().unwrap();
         reader.get(&rule).map(|creator| creator())
     }
-    
+
     pub fn get_all_rules() -> Vec<OptimizationRule> {
+        ensure_rules_initialized();
         let registry = get_registry();
         let reader = registry.read().unwrap();
         reader.keys().copied().collect()
     }
-    
+
     pub fn get_rules_by_phase(phase: crate::query::optimizer::OptimizationPhase) -> Vec<OptimizationRule> {
+        ensure_rules_initialized();
         let registry = get_registry();
         let reader = registry.read().unwrap();
         reader
@@ -49,22 +53,40 @@ impl RuleRegistry {
             .copied()
             .collect()
     }
-    
+
     pub fn is_registered(rule: OptimizationRule) -> bool {
+        ensure_rules_initialized();
         let registry = get_registry();
         let reader = registry.read().unwrap();
         reader.contains_key(&rule)
     }
-    
+
     pub fn count() -> usize {
+        ensure_rules_initialized();
         let registry = get_registry();
         let reader = registry.read().unwrap();
         reader.len()
+    }
+
+    pub fn is_initialized() -> bool {
+        RULES_INITIALIZED.get().copied().unwrap_or(false)
     }
 }
 
 fn get_registry() -> &'static RwLock<HashMap<OptimizationRule, RuleCreator>> {
     RULE_REGISTRY.get_or_init(|| RwLock::new(HashMap::new()))
+}
+
+fn ensure_rules_initialized() {
+    if RULES_INITIALIZED.get().copied().unwrap_or(false) {
+        return;
+    }
+
+    let mut registry = get_registry().write().unwrap();
+    if registry.is_empty() {
+        crate::query::optimizer::rule_registrar::register_all_rules();
+    }
+    RULES_INITIALIZED.set(true).ok();
 }
 
 #[macro_export]
@@ -116,7 +138,7 @@ mod tests {
     
     #[test]
     fn test_get_unregistered() {
-        assert!(RuleRegistry::create_instance(OptimizationRule::RemoveUselessNode).is_none());
+        assert!(RuleRegistry::create_instance(OptimizationRule::TopN).is_none());
     }
     
     #[test]

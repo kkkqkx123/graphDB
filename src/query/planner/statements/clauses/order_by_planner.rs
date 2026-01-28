@@ -23,10 +23,6 @@ impl OrderByClausePlanner {
     pub fn new() -> Self {
         Self {}
     }
-
-    pub fn from_ast(ast_ctx: &AstContext) -> Self {
-        Self {}
-    }
 }
 
 fn extract_order_by_items(ast_ctx: &AstContext) -> Vec<OrderByItem> {

@@ -48,12 +48,6 @@ pub fn load_optimizer_config(config_path: &Path) -> Result<OptimizerConfigInfo, 
             }
         }
         
-        if let Some(enable_reg) = optimizer_table.get("enable_rule_registration") {
-            if let Some(val) = enable_reg.as_bool() {
-                config_info.enable_rule_registration = val;
-            }
-        }
-        
         if let Some(enable_adaptive) = optimizer_table.get("enable_adaptive_iteration") {
             if let Some(val) = enable_adaptive.as_bool() {
                 config_info.enable_adaptive_iteration = val;
@@ -111,7 +105,6 @@ pub struct OptimizerConfigInfo {
     pub enable_cost_model: bool,
     pub enable_multi_plan: bool,
     pub enable_property_pruning: bool,
-    pub enable_rule_registration: bool,
     pub enable_adaptive_iteration: bool,
     pub stable_threshold: usize,
     pub min_iteration_rounds: usize,

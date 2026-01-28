@@ -63,7 +63,7 @@ pub use engine::{ExplorationState, Optimizer, OptimizerError, RuleSet};
 // Re-export all rule structs for convenient access
 pub use elimination_rules::{
     DedupEliminationRule, EliminateAppendVerticesRule, EliminateFilterRule,
-    RemoveAppendVerticesBelowJoinRule, RemoveNoopProjectRule,
+    EliminateRowCollectRule, RemoveAppendVerticesBelowJoinRule, RemoveNoopProjectRule,
 };
 pub use index_optimization::{
     EdgeIndexFullScanRule, IndexScanRule, OptimizeEdgeIndexScanByFilterRule,

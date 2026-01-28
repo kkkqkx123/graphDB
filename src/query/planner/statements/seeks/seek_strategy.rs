@@ -8,7 +8,7 @@ use crate::storage::StorageEngine;
 use super::index_seek::IndexSeek;
 use super::scan_seek::ScanSeek;
 use super::seek_strategy_base::{
-    NodePattern, IndexInfo, SeekResult, SeekStrategyContext,
+    SeekResult, SeekStrategyContext,
     SeekStrategySelector, SeekStrategyType,
 };
 use super::vertex_seek::VertexSeek;

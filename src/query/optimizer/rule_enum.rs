@@ -13,6 +13,7 @@ pub enum OptimizationRule {
     CollapseProject,
     DedupElimination,
     EliminateFilter,
+    EliminateRowCollect,
     RemoveNoopProject,
     EliminateAppendVertices,
     RemoveAppendVerticesBelowJoin,
@@ -41,9 +42,6 @@ pub enum OptimizationRule {
     UnionAllTagIndexScan,
     OptimizeEdgeIndexScanByFilter,
     OptimizeTagIndexScanByFilter,
-    
-    // 后优化规则
-    RemoveUselessNode,
 }
 
 impl OptimizationRule {
@@ -51,10 +49,10 @@ impl OptimizationRule {
         match self {
             Self::FilterPushDown | Self::PredicatePushDown | Self::ProjectionPushDown |
             Self::CombineFilter | Self::CollapseProject | Self::DedupElimination |
-            Self::EliminateFilter | Self::RemoveNoopProject | Self::EliminateAppendVertices |
-            Self::RemoveAppendVerticesBelowJoin | Self::TopN | Self::MergeGetVerticesAndProject |
-            Self::MergeGetVerticesAndDedup | Self::MergeGetNbrsAndProject |
-            Self::MergeGetNbrsAndDedup => OptimizationPhase::LogicalOptimization,
+            Self::EliminateFilter | Self::EliminateRowCollect | Self::RemoveNoopProject |
+            Self::EliminateAppendVertices | Self::RemoveAppendVerticesBelowJoin | Self::TopN |
+            Self::MergeGetVerticesAndProject | Self::MergeGetVerticesAndDedup |
+            Self::MergeGetNbrsAndProject | Self::MergeGetNbrsAndDedup => OptimizationPhase::LogicalOptimization,
             
             Self::JoinOptimization | Self::PushLimitDown | Self::PushLimitDownGetVertices |
             Self::PushLimitDownGetNeighbors | Self::PushLimitDownGetEdges |
@@ -64,8 +62,6 @@ impl OptimizationRule {
             Self::EdgeIndexFullScan | Self::TagIndexFullScan | Self::UnionAllEdgeIndexScan |
             Self::UnionAllTagIndexScan | Self::OptimizeEdgeIndexScanByFilter |
             Self::OptimizeTagIndexScanByFilter => OptimizationPhase::PhysicalOptimization,
-            
-            Self::RemoveUselessNode => OptimizationPhase::PostOptimization,
         }
     }
     
@@ -78,6 +74,7 @@ impl OptimizationRule {
             Self::CollapseProject => "CollapseProjectRule",
             Self::DedupElimination => "DedupEliminationRule",
             Self::EliminateFilter => "EliminateFilterRule",
+            Self::EliminateRowCollect => "EliminateRowCollectRule",
             Self::RemoveNoopProject => "RemoveNoopProjectRule",
             Self::EliminateAppendVertices => "EliminateAppendVerticesRule",
             Self::RemoveAppendVerticesBelowJoin => "RemoveAppendVerticesBelowJoinRule",
@@ -105,8 +102,6 @@ impl OptimizationRule {
             Self::UnionAllTagIndexScan => "UnionAllTagIndexScanRule",
             Self::OptimizeEdgeIndexScanByFilter => "OptimizeEdgeIndexScanByFilterRule",
             Self::OptimizeTagIndexScanByFilter => "OptimizeTagIndexScanByFilterRule",
-            
-            Self::RemoveUselessNode => "RemoveUselessNodeRule",
         }
     }
     
@@ -119,6 +114,7 @@ impl OptimizationRule {
             Self::CollapseProject => Some(Box::new(super::CollapseProjectRule)),
             Self::DedupElimination => Some(Box::new(super::DedupEliminationRule)),
             Self::EliminateFilter => Some(Box::new(super::EliminateFilterRule)),
+            Self::EliminateRowCollect => Some(Box::new(super::EliminateRowCollectRule)),
             Self::RemoveNoopProject => Some(Box::new(super::RemoveNoopProjectRule)),
             Self::EliminateAppendVertices => Some(Box::new(super::EliminateAppendVerticesRule)),
             Self::RemoveAppendVerticesBelowJoin => Some(Box::new(super::RemoveAppendVerticesBelowJoinRule)),
@@ -146,8 +142,6 @@ impl OptimizationRule {
             Self::UnionAllTagIndexScan => Some(Box::new(super::UnionAllTagIndexScanRule)),
             Self::OptimizeEdgeIndexScanByFilter => Some(Box::new(super::OptimizeEdgeIndexScanByFilterRule)),
             Self::OptimizeTagIndexScanByFilter => Some(Box::new(super::OptimizeTagIndexScanByFilterRule)),
-            
-            Self::RemoveUselessNode => None,
         }
     }
     
@@ -160,6 +154,7 @@ impl OptimizationRule {
             "CollapseProjectRule" => Some(Self::CollapseProject),
             "DedupEliminationRule" => Some(Self::DedupElimination),
             "EliminateFilterRule" => Some(Self::EliminateFilter),
+            "EliminateRowCollectRule" => Some(Self::EliminateRowCollect),
             "RemoveNoopProjectRule" => Some(Self::RemoveNoopProject),
             "EliminateAppendVerticesRule" => Some(Self::EliminateAppendVertices),
             "RemoveAppendVerticesBelowJoinRule" => Some(Self::RemoveAppendVerticesBelowJoin),
@@ -187,8 +182,6 @@ impl OptimizationRule {
             "UnionAllTagIndexScanRule" => Some(Self::UnionAllTagIndexScan),
             "OptimizeEdgeIndexScanByFilterRule" => Some(Self::OptimizeEdgeIndexScanByFilter),
             "OptimizeTagIndexScanByFilterRule" => Some(Self::OptimizeTagIndexScanByFilter),
-            
-            "RemoveUselessNodeRule" => Some(Self::RemoveUselessNode),
             
             _ => None,
         }

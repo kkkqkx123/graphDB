@@ -160,19 +160,6 @@ pub enum MatchAndInstantiateEnum {
 }
 
 impl MatchAndInstantiateEnum {
-    pub fn match_func(&self, ast_ctx: &AstContext) -> bool {
-        match self {
-            MatchAndInstantiateEnum::Match(planner) => MatchPlanner::match_ast_ctx(ast_ctx),
-            MatchAndInstantiateEnum::Go(planner) => GoPlanner::match_ast_ctx(ast_ctx),
-            MatchAndInstantiateEnum::Lookup(planner) => LookupPlanner::match_ast_ctx(ast_ctx),
-            MatchAndInstantiateEnum::Path(planner) => PathPlanner::match_ast_ctx(ast_ctx),
-            MatchAndInstantiateEnum::Subgraph(planner) => SubgraphPlanner::match_ast_ctx(ast_ctx),
-            MatchAndInstantiateEnum::FetchVertices(planner) => FetchVerticesPlanner::match_ast_ctx(ast_ctx),
-            MatchAndInstantiateEnum::FetchEdges(planner) => FetchEdgesPlanner::match_ast_ctx(ast_ctx),
-            MatchAndInstantiateEnum::Maintain(planner) => MaintainPlanner::match_ast_ctx(ast_ctx),
-        }
-    }
-
     pub fn priority(&self) -> i32 {
         match self {
             MatchAndInstantiateEnum::Match(_) => 100,
@@ -209,22 +196,6 @@ impl MatchAndInstantiateEnum {
     }
 }
 
-/// 向后兼容的类型别名（已废弃）
-#[deprecated(since = "0.1.0", note = "请使用 MatchAndInstantiateEnum 替代")]
-pub type MatchAndInstantiate = MatchAndInstantiateEnum;
-
-/// 向后兼容的类型别名（已废弃）
-#[deprecated(since = "0.1.0", note = "请使用 StaticPlannerRegistry 替代")]
-pub type PlannerRegistry = StaticPlannerRegistry;
-
-/// 向后兼容的类型别名（已废弃）
-#[deprecated(since = "0.1.0", note = "请使用 StaticPlannerRegistry 替代")]
-pub type PlannerInstantiateFunc = fn() -> PlannerEnum;
-
-/// 向后兼容的类型别名（已废弃）
-#[deprecated(since = "0.1.0", note = "请使用 StaticConfigurablePlannerRegistry 替代")]
-pub type ConfigurablePlannerRegistry = StaticConfigurablePlannerRegistry;
-
 /// 规划器特征（保持与原有接口兼容）
 pub trait Planner: std::fmt::Debug {
     fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError>;
@@ -243,10 +214,6 @@ pub trait Planner: std::fmt::Debug {
         std::any::type_name::<Self>()
     }
 }
-
-/// 向后兼容的类型别名
-#[deprecated(since = "0.1.0", note = "请使用 StaticSequentialPlanner 替代")]
-pub type SequentialPlanner = StaticSequentialPlanner;
 
 /// 可配置的规划器注册表（静态版本）
 #[derive(Debug)]
@@ -333,18 +300,16 @@ impl StaticConfigurablePlannerRegistry {
             ))
         })?;
 
-        for planner in planners.iter_mut() {
-            if planner.match_func(ast_ctx) {
-                let plan = planner.transform_with_full_context(query_context, ast_ctx)?;
+        if let Some(first_planner) = planners.first_mut() {
+            let plan = first_planner.transform_with_full_context(query_context, ast_ctx)?;
 
-                if self.config.enable_caching {
-                    if let Some(ref cache) = self.cache {
-                        cache.insert(cache_key.clone(), plan.clone());
-                    }
+            if self.config.enable_caching {
+                if let Some(ref cache) = self.cache {
+                    cache.insert(cache_key.clone(), plan.clone());
                 }
-
-                return Ok(plan);
             }
+
+            return Ok(plan);
         }
 
         Err(PlannerError::NoSuitablePlanner(
