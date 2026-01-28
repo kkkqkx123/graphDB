@@ -16,8 +16,7 @@ pub use error::{
 };
 
 // Result 系统
-#[allow(deprecated)]
-pub use result::{ResultBuilder, r#Iterator, IteratorType};
+pub use result::{ResultBuilder, DefaultIterator, GetNeighborsIterator, PropIterator};
 
 // 核心数据类型
 pub use value::*;

@@ -1,5 +1,5 @@
 use crate::core::value::Value;
-use crate::core::result::iterator::r#Iterator;
+use crate::core::result::result_iterator::ResultIterator;
 use std::sync::Arc;
 
 /// Result 状态
@@ -45,17 +45,17 @@ pub struct Result {
     rows: Vec<Vec<Value>>,
     col_names: Vec<String>,
     meta: ResultMeta,
-    iterator: Option<Arc<dyn Iterator>>,
+    iterator: Option<Arc<dyn ResultIterator<'static, Vec<Value>, Row = Vec<Value>>>>,
 }
 
 impl Result {
     /// 创建新的空 Result
-    /// 
+    ///
     /// # 示例
-    /// 
+    ///
     /// ```rust
     /// use graphdb::core::result::Result;
-    /// 
+    ///
     /// let result = Result::new();
     /// assert!(result.is_empty());
     /// ```
@@ -68,41 +68,38 @@ impl Result {
         }
     }
 
-    /// 使用指定容量创建 Result
-    /// 
-    /// 用于预先分配内存以提高性能
-    pub fn with_capacity(row_capacity: usize, col_capacity: usize) -> Self {
-        Self {
-            rows: Vec::with_capacity(row_capacity),
-            col_names: Vec::with_capacity(col_capacity),
-            meta: ResultMeta::default(),
-            iterator: None,
-        }
-    }
-
-    /// 使用列名创建 Result
-    pub fn with_col_names(col_names: Vec<String>) -> Self {
+    /// 内部构造函数，供 ResultBuilder 使用
+    pub(crate) fn from_builder(
+        rows: Vec<Vec<Value>>,
+        col_names: Vec<String>,
+        state: ResultState,
+        iterator: Option<Arc<dyn ResultIterator<'static, Vec<Value>, Row = Vec<Value>>>>,
+    ) -> Self {
+        let row_count = rows.len();
         let col_count = col_names.len();
+
         Self {
-            rows: Vec::new(),
+            rows,
             col_names,
             meta: ResultMeta {
+                row_count,
                 col_count,
-                ..Default::default()
+                state,
+                memory_usage: 0,
             },
-            iterator: None,
+            iterator,
         }
     }
 
     /// 从行集合和列名创建 Result
-    /// 
+    ///
     /// 此方法是创建 Result 的推荐方式，自动设置状态为 Completed
     /// 并计算内存使用量
     pub fn from_rows(rows: Vec<Vec<Value>>, col_names: Vec<String>) -> Self {
         let row_count = rows.len();
         let col_count = col_names.len();
-        
-        let mut result = Self {
+
+        Self {
             rows,
             col_names,
             meta: ResultMeta {
@@ -112,74 +109,13 @@ impl Result {
                 ..Default::default()
             },
             iterator: None,
-        };
-        
-        result.update_memory_usage();
-        result
-    }
-
-    /// 从可迭代对象创建 Result
-    /// 
-    /// # 参数
-    /// - `iter`: 可迭代的值行集合
-    /// - `col_names`: 列名列表
-    /// 
-    /// # 示例
-    /// 
-    /// ```rust
-    /// use graphdb::core::result::Result;
-    /// use graphdb::core::Value;
-    /// 
-    /// let rows = vec![
-    ///     vec![Value::Int(1), Value::String("Alice".to_string())],
-    ///     vec![Value::Int(2), Value::String("Bob".to_string())],
-    /// ];
-    /// let result = Result::from_iter(rows, vec!["id".to_string(), "name".to_string()]);
-    /// ```
-    pub fn from_iter<I>(iter: I, col_names: Vec<String>) -> Self
-    where
-        I: IntoIterator<Item = Vec<Value>>,
-    {
-        let rows: Vec<_> = iter.into_iter().collect();
-        Self::from_rows(rows, col_names)
-    }
-
-    /// 创建单行 Result
-    pub fn from_single_row(row: Vec<Value>, col_names: Vec<String>) -> Self {
-        Self::from_rows(vec![row], col_names)
-    }
-
-    /// 获取构建器
-    /// 
-    /// 用于链式构建复杂的 Result 对象
-    /// 
-    /// # 示例
-    /// 
-    /// ```rust
-    /// use graphdb::core::result::Result;
-    /// use graphdb::core::Value;
-    /// 
-    /// let result = Result::builder()
-    ///     .col_names(vec!["id".to_string(), "name".to_string()])
-    ///     .add_row(vec![Value::Int(1), Value::String("Alice".to_string())])
-    ///     .add_row(vec![Value::Int(2), Value::String("Bob".to_string())])
-    ///     .build();
-    /// ```
-    pub fn builder() -> super::ResultBuilder {
-        super::ResultBuilder::new()
-    }
-
-    /// 从构建器创建 Result
-    /// 
-    /// 简化从 ResultBuilder 构建 Result 的流程
-    pub fn from_builder(builder: super::ResultBuilder) -> Self {
-        builder.build()
+        }
     }
 
     /// 创建空结果集（带有指定的列名）
     pub fn empty(col_names: Vec<String>) -> Self {
         let col_count = col_names.len();
-        let mut result = Self {
+        Self {
             rows: Vec::new(),
             col_names,
             meta: ResultMeta {
@@ -189,18 +125,11 @@ impl Result {
                 ..Default::default()
             },
             iterator: None,
-        };
-        result.update_memory_usage();
-        result
+        }
     }
 
     pub fn col_names(&self) -> &[String] {
         &self.col_names
-    }
-
-    pub fn set_col_names(&mut self, col_names: Vec<String>) {
-        self.col_names = col_names;
-        self.meta.col_count = self.col_names.len();
     }
 
     pub fn row_count(&self) -> usize {
@@ -232,40 +161,16 @@ impl Result {
         &self.rows
     }
 
-    pub fn rows_mut(&mut self) -> &mut Vec<Vec<Value>> {
-        &mut self.rows
-    }
-
     pub fn get_row(&self, index: usize) -> Option<&Vec<Value>> {
         self.rows.get(index)
-    }
-
-    pub fn get_row_mut(&mut self, index: usize) -> Option<&mut Vec<Value>> {
-        self.rows.get_mut(index)
     }
 
     pub fn get_value(&self, row: usize, col: usize) -> Option<&Value> {
         self.rows.get(row).and_then(|r| r.get(col))
     }
 
-    pub fn set_value(&mut self, row: usize, col: usize, value: Value) {
-        if let Some(r) = self.rows.get_mut(row) {
-            if col < r.len() {
-                r[col] = value;
-            }
-        }
-    }
-
-    pub fn set_iterator(&mut self, iterator: Arc<dyn Iterator>) {
-        self.iterator = Some(iterator);
-    }
-
-    pub fn iterator(&self) -> Option<&Arc<dyn Iterator>> {
+    pub fn iterator(&self) -> Option<&Arc<dyn ResultIterator<'static, Vec<Value>, Row = Vec<Value>>>> {
         self.iterator.as_ref()
-    }
-
-    pub fn take_iterator(&mut self) -> Option<Arc<dyn Iterator>> {
-        self.iterator.take()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -276,80 +181,8 @@ impl Result {
         self.rows.len()
     }
 
-    pub fn clear(&mut self) {
-        self.rows.clear();
-        self.meta.row_count = 0;
-        self.meta.state = ResultState::NotStarted;
-        self.iterator = None;
-    }
-
-    pub fn shrink_to_fit(&mut self) {
-        self.rows.shrink_to_fit();
-        self.col_names.shrink_to_fit();
-    }
-
-    pub fn reserve(&mut self, additional: usize) {
-        self.rows.reserve(additional);
-    }
-
-    pub fn estimate_memory_usage(&self) -> u64 {
-        let mut total = 0u64;
-        
-        total += (self.rows.len() * std::mem::size_of::<Vec<Value>>()) as u64;
-        
-        for row in &self.rows {
-            total += (row.len() * std::mem::size_of::<Value>()) as u64;
-        }
-        
-        total += (self.col_names.len() * std::mem::size_of::<String>()) as u64;
-        
-        for name in &self.col_names {
-            total += name.capacity() as u64;
-        }
-        
-        total
-    }
-
-    pub fn update_memory_usage(&mut self) {
-        self.meta.memory_usage = self.estimate_memory_usage();
-    }
-
     pub fn meta(&self) -> &ResultMeta {
         &self.meta
-    }
-
-    pub fn meta_mut(&mut self) -> &mut ResultMeta {
-        &mut self.meta
-    }
-
-    pub fn merge(&mut self, other: Result) {
-        self.rows.extend(other.rows);
-        self.meta.row_count = self.rows.len();
-        self.update_memory_usage();
-    }
-
-    pub fn split_at(&mut self, mid: usize) -> Result {
-        let (left_rows, right_rows) = self.rows.split_at(mid);
-        let right_rows = right_rows.to_vec();
-        let right_len = right_rows.len();
-        self.rows = left_rows.to_vec();
-        self.meta.row_count = self.rows.len();
-        
-        let mut result = Self {
-            rows: right_rows,
-            col_names: self.col_names.clone(),
-            meta: ResultMeta {
-                row_count: right_len,
-                col_count: self.meta.col_count,
-                state: self.meta.state,
-                ..Default::default()
-            },
-            iterator: None,
-        };
-        
-        result.update_memory_usage();
-        self.update_memory_usage();
-        result
     }
 }
 
@@ -390,21 +223,6 @@ mod tests {
     }
 
     #[test]
-    fn test_result_with_capacity() {
-        let result = Result::with_capacity(10, 5);
-        assert_eq!(result.row_count(), 0);
-        assert_eq!(result.col_count(), 0);
-    }
-
-    #[test]
-    fn test_result_with_col_names() {
-        let col_names = vec!["id".to_string(), "name".to_string()];
-        let result = Result::with_col_names(col_names.clone());
-        assert_eq!(result.col_names(), &col_names);
-        assert_eq!(result.col_count(), 2);
-    }
-
-    #[test]
     fn test_result_add_row() {
         let mut result = Result::new();
         result.add_row(vec![Value::Int(1), Value::String("Alice".to_string())]);
@@ -435,29 +253,6 @@ mod tests {
     }
 
     #[test]
-    fn test_result_set_value() {
-        let mut result = Result::new();
-        result.add_row(vec![Value::Int(1), Value::String("Alice".to_string())]);
-        
-        result.set_value(0, 1, Value::String("Bob".to_string()));
-        let value = result.get_value(0, 1);
-        assert_eq!(value.unwrap(), &Value::String("Bob".to_string()));
-    }
-
-    #[test]
-    fn test_result_clear() {
-        let mut result = Result::new();
-        result.add_row(vec![Value::Int(1), Value::String("Alice".to_string())]);
-        result.set_state(ResultState::Completed);
-        
-        result.clear();
-        
-        assert_eq!(result.row_count(), 0);
-        assert!(result.is_empty());
-        assert_eq!(result.state(), ResultState::NotStarted);
-    }
-
-    #[test]
     fn test_result_from_rows() {
         let rows = vec![
             vec![Value::Int(1), Value::String("Alice".to_string())],
@@ -473,30 +268,13 @@ mod tests {
     }
 
     #[test]
-    fn test_result_merge() {
-        let mut result1 = Result::new();
-        result1.add_row(vec![Value::Int(1)]);
+    fn test_result_empty() {
+        let col_names = vec!["id".to_string()];
+        let result = Result::empty(col_names.clone());
         
-        let mut result2 = Result::new();
-        result2.add_row(vec![Value::Int(2)]);
-        result2.add_row(vec![Value::Int(3)]);
-        
-        result1.merge(result2);
-        
-        assert_eq!(result1.row_count(), 3);
-    }
-
-    #[test]
-    fn test_result_split_at() {
-        let mut result = Result::new();
-        result.add_row(vec![Value::Int(1)]);
-        result.add_row(vec![Value::Int(2)]);
-        result.add_row(vec![Value::Int(3)]);
-        
-        let result2 = result.split_at(1);
-        
-        assert_eq!(result.row_count(), 1);
-        assert_eq!(result2.row_count(), 2);
+        assert_eq!(result.col_names(), &col_names);
+        assert_eq!(result.row_count(), 0);
+        assert!(result.is_empty());
     }
 
     #[test]

@@ -2,12 +2,10 @@
 //! 用于转换和修改语句（Stmt）及其子节点
 //! 支持深度优先遍历和转换，返回转换后的语句
 
-use crate::core::Expression;
 use crate::query::parser::ast::stmt::{
     Stmt, MatchStmt, DeleteStmt, UpdateStmt, GoStmt, FetchStmt,
     InsertStmt, UseStmt, ShowStmt, CreateStmt, DropStmt, AlterStmt,
-    SetStmt, LookupStmt, Assignment, QueryStmt, CreateTarget, DropTarget,
-    AlterTarget, ShowTarget, LookupTarget, MergeStmt, UnwindStmt,
+    SetStmt, LookupStmt, Assignment, QueryStmt, MergeStmt, UnwindStmt,
     ReturnStmt, WithStmt, RemoveStmt, PipeStmt, DescStmt,
     ExplainStmt, SubgraphStmt, FindPathStmt, ChangePasswordStmt,
 };

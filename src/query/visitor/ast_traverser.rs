@@ -6,8 +6,7 @@ use crate::core::Expression;
 use crate::query::parser::ast::stmt::{
     Stmt, MatchStmt, DeleteStmt, UpdateStmt, GoStmt, FetchStmt,
     InsertStmt, UseStmt, ShowStmt, CreateStmt, DropStmt, AlterStmt,
-    SetStmt, LookupStmt, Assignment, QueryStmt, CreateTarget, DropTarget,
-    AlterTarget, ShowTarget, LookupTarget, MergeStmt, UnwindStmt,
+    SetStmt, LookupStmt, Assignment, QueryStmt, MergeStmt, UnwindStmt,
     ReturnStmt, WithStmt, RemoveStmt, PipeStmt, DescStmt,
     ExplainStmt, SubgraphStmt, FindPathStmt, ChangePasswordStmt,
 };

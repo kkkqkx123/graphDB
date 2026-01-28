@@ -445,28 +445,24 @@ use super::{InsertVerticesValidator, InsertEdgesValidator, UpdateValidator, Dele
 
 impl From<InsertVerticesValidator> for Validator {
     fn from(_validator: InsertVerticesValidator) -> Self {
-        let mut v = Validator::new();
-        v
+        Validator::new()
     }
 }
 
 impl From<InsertEdgesValidator> for Validator {
     fn from(_validator: InsertEdgesValidator) -> Self {
-        let mut v = Validator::new();
-        v
+        Validator::new()
     }
 }
 
 impl From<UpdateValidator> for Validator {
     fn from(_validator: UpdateValidator) -> Self {
-        let mut v = Validator::new();
-        v
+        Validator::new()
     }
 }
 
 impl From<DeleteValidator> for Validator {
     fn from(_validator: DeleteValidator) -> Self {
-        let mut v = Validator::new();
-        v
+        Validator::new()
     }
 }

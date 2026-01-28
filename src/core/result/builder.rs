@@ -1,6 +1,6 @@
 use crate::core::value::Value;
-use crate::core::result::Result;
-use crate::core::result::iterator::{r#Iterator, DefaultIterator, GetNeighborsIterator, PropIterator, IteratorType};
+use crate::core::result::{Result, ResultMeta, ResultState};
+use crate::core::result::result_iterator::ResultIterator;
 use std::sync::Arc;
 
 /// ResultBuilder
@@ -15,7 +15,6 @@ use std::sync::Arc;
 pub struct ResultBuilder {
     col_names: Vec<String>,
     rows: Vec<Vec<Value>>,
-    iterator_type: Option<IteratorType>,
     capacity: Option<usize>,
 }
 
@@ -30,7 +29,6 @@ impl ResultBuilder {
         Self {
             col_names: Vec::new(),
             rows: Vec::new(),
-            iterator_type: None,
             capacity: None,
         }
     }
@@ -39,7 +37,6 @@ impl ResultBuilder {
         Self {
             col_names: Vec::with_capacity(col_capacity),
             rows: Vec::with_capacity(row_capacity),
-            iterator_type: None,
             capacity: Some(row_capacity),
         }
     }
@@ -64,69 +61,16 @@ impl ResultBuilder {
         self
     }
 
-    pub fn iterator_type(mut self, iterator_type: IteratorType) -> Self {
-        self.iterator_type = Some(iterator_type);
-        self
-    }
-
-    pub fn capacity(mut self, capacity: usize) -> Self {
-        self.capacity = Some(capacity);
-        self
-    }
-
     pub fn build(self) -> Result {
-        let mut result = if let Some(cap) = self.capacity {
-            Result::with_capacity(cap, self.col_names.len())
-        } else {
-            Result::new()
-        };
-
-        result.set_col_names(self.col_names);
-        
-        for row in self.rows {
-            result.add_row(row);
-        }
-
-        result.set_state(crate::core::result::result::ResultState::Completed);
-
-        if let Some(iter_type) = self.iterator_type {
-            let iterator: Arc<dyn Iterator> = match iter_type {
-                IteratorType::Default => Arc::new(DefaultIterator::new(result.rows().to_vec())),
-                IteratorType::GetNeighbors => Arc::new(GetNeighborsIterator::new(vec![], vec![])),
-                IteratorType::Prop => Arc::new(PropIterator::new(result.rows().to_vec())),
-            };
-            result.set_iterator(iterator);
-        }
-
-        result.update_memory_usage();
-        result
+        Result::from_rows(self.rows, self.col_names)
     }
 
-    pub fn build_with_iterator(self, iterator: Arc<dyn Iterator>) -> Result {
-        let mut result = if let Some(cap) = self.capacity {
-            Result::with_capacity(cap, self.col_names.len())
-        } else {
-            Result::new()
-        };
-
-        result.set_col_names(self.col_names);
-        
-        for row in self.rows {
-            result.add_row(row);
-        }
-
-        result.set_state(crate::core::result::result::ResultState::Completed);
-        result.set_iterator(iterator);
-        result.update_memory_usage();
-        result
+    pub fn build_with_iterator(self, iterator: Arc<dyn ResultIterator<'static, Vec<Value>, Row = Vec<Value>>>) -> Result {
+        Result::from_builder(self.rows, self.col_names, ResultState::Completed, Some(iterator))
     }
 
     pub fn build_empty(self) -> Result {
-        let mut result = Result::new();
-        result.set_col_names(self.col_names);
-        result.set_state(crate::core::result::result::ResultState::Completed);
-        result.update_memory_usage();
-        result
+        Result::empty(self.col_names)
     }
 
     pub fn build_from_rows(self) -> Result {
@@ -154,7 +98,6 @@ impl ResultBuilder {
     pub fn reset(mut self) -> Self {
         self.rows.clear();
         self.col_names.clear();
-        self.iterator_type = None;
         self
     }
 }
@@ -237,6 +180,7 @@ mod tests {
 
     #[test]
     fn test_result_builder_build_with_iterator() {
+        use crate::core::result::iterator::DefaultIterator;
         let col_names = vec!["id".to_string()];
         let rows = vec![vec![Value::Int(1)]];
         let iterator = Arc::new(DefaultIterator::new(rows.clone()));
@@ -292,7 +236,6 @@ mod tests {
         let builder = ResultBuilder::new()
             .add_col_name("id".to_string())
             .add_row(vec![Value::Int(1)])
-            .iterator_type(IteratorType::Default)
             .reset();
         
         assert_eq!(builder.col_count(), 0);
@@ -306,12 +249,10 @@ mod tests {
             .col_names(vec!["id".to_string(), "name".to_string()])
             .add_row(vec![Value::Int(1), Value::String("Alice".to_string())])
             .add_row(vec![Value::Int(2), Value::String("Bob".to_string())])
-            .iterator_type(IteratorType::Default)
             .build();
         
         assert_eq!(result.row_count(), 2);
         assert_eq!(result.col_count(), 2);
-        assert!(result.iterator().is_some());
     }
 
     #[test]

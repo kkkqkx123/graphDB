@@ -2,12 +2,11 @@
 //! 对应 NebulaGraph InsertEdgesValidator 的功能
 //! 验证 INSERT EDGES 语句的语义正确性
 
-use crate::core::error::{DBError, DBResult, QueryError, ValidationError as CoreValidationError, ValidationErrorType};
-use crate::core::types::PropertyDef;
+use crate::core::error::{DBResult, ValidationError as CoreValidationError, ValidationErrorType};
 use crate::query::context::ast::AstContext;
 use crate::query::context::execution::QueryContext;
 use crate::query::parser::ast::stmt::InsertStmt;
-use crate::query::validator::base_validator::{ColumnDef, Validator, ValueType};
+use crate::query::validator::base_validator::{Validator, ValueType};
 
 pub struct InsertEdgesValidator {
     base: Validator,

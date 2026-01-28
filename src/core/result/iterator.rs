@@ -1,28 +1,6 @@
 use crate::core::value::Value;
 use crate::core::DBResult;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum IteratorType {
-    Default,
-    GetNeighbors,
-    Prop,
-}
-
-#[deprecated(since = "0.1.0", note = "请使用 ResultIterator trait")]
-pub trait Iterator: Send + Sync + std::fmt::Debug {
-    fn iterator_type(&self) -> IteratorType;
-
-    fn next(&mut self) -> DBResult<Option<Vec<Value>>>;
-
-    fn reset(&mut self) -> DBResult<()>;
-
-    fn size(&self) -> usize;
-
-    fn is_empty(&self) -> bool {
-        self.size() == 0
-    }
-}
-
 #[derive(Debug)]
 pub struct DefaultIterator {
     rows: Vec<Vec<Value>>,
@@ -52,30 +30,17 @@ impl DefaultIterator {
     pub fn rows_mut(&mut self) -> &mut Vec<Vec<Value>> {
         &mut self.rows
     }
-}
 
-impl r#Iterator for DefaultIterator {
-    fn iterator_type(&self) -> IteratorType {
-        IteratorType::Default
-    }
-
-    fn next(&mut self) -> DBResult<Option<Vec<Value>>> {
-        if self.index < self.rows.len() {
-            let row = self.rows[self.index].clone();
-            self.index += 1;
-            Ok(Some(row))
-        } else {
-            Ok(None)
-        }
-    }
-
-    fn reset(&mut self) -> DBResult<()> {
-        self.index = 0;
-        Ok(())
-    }
-
-    fn size(&self) -> usize {
+    pub fn size(&self) -> usize {
         self.rows.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.size() == 0
+    }
+
+    pub fn reset(&mut self) {
+        self.index = 0;
     }
 }
 
@@ -129,40 +94,18 @@ impl GetNeighborsIterator {
     pub fn edges_mut(&mut self) -> &mut Vec<Vec<Value>> {
         &mut self.edges
     }
-}
 
-impl r#Iterator for GetNeighborsIterator {
-    fn iterator_type(&self) -> IteratorType {
-        IteratorType::GetNeighbors
+    pub fn size(&self) -> usize {
+        self.vertices.len()
     }
 
-    fn next(&mut self) -> DBResult<Option<Vec<Value>>> {
-        if self.vertex_index < self.vertices.len() {
-            let vertex = self.vertices[self.vertex_index].clone();
-            self.vertex_index += 1;
-
-            let mut row = vec![vertex];
-
-            if self.edge_index < self.edges.len() {
-                let edge = self.edges[self.edge_index].clone();
-                row.extend(edge);
-                self.edge_index += 1;
-            }
-
-            Ok(Some(row))
-        } else {
-            Ok(None)
-        }
+    pub fn is_empty(&self) -> bool {
+        self.size() == 0
     }
 
-    fn reset(&mut self) -> DBResult<()> {
+    pub fn reset(&mut self) {
         self.vertex_index = 0;
         self.edge_index = 0;
-        Ok(())
-    }
-
-    fn size(&self) -> usize {
-        self.vertices.len()
     }
 }
 
@@ -195,14 +138,113 @@ impl PropIterator {
     pub fn props_mut(&mut self) -> &mut Vec<Vec<Value>> {
         &mut self.props
     }
-}
 
-impl r#Iterator for PropIterator {
-    fn iterator_type(&self) -> IteratorType {
-        IteratorType::Prop
+    pub fn size(&self) -> usize {
+        self.props.len()
     }
 
-    fn next(&mut self) -> DBResult<Option<Vec<Value>>> {
+    pub fn is_empty(&self) -> bool {
+        self.size() == 0
+    }
+
+    pub fn reset(&mut self) {
+        self.index = 0;
+    }
+}
+
+impl<'a> crate::core::result::result_iterator::ResultIterator<'a, Vec<Value>> for DefaultIterator {
+    type Row = Vec<Value>;
+
+    fn next(&mut self) -> crate::core::DBResult<Option<Self::Row>> {
+        if self.index < self.rows.len() {
+            let row = self.rows[self.index].clone();
+            self.index += 1;
+            Ok(Some(row))
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn peek(&self) -> crate::core::DBResult<Option<&Self::Row>> {
+        self.rows.first().map(|r| Ok(Some(r))).unwrap_or(Ok(None))
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = self.rows.len().saturating_sub(self.index);
+        (remaining, Some(remaining))
+    }
+
+    fn nth(&mut self, n: usize) -> crate::core::DBResult<Option<Self::Row>> {
+        self.index = self.index.saturating_add(n).min(self.rows.len());
+        self.next()
+    }
+
+    fn last(&mut self) -> crate::core::DBResult<Option<Self::Row>> {
+        if self.rows.is_empty() {
+            return Ok(None);
+        }
+        let last_index = self.rows.len() - 1;
+        self.index = last_index + 1;
+        Ok(Some(self.rows[last_index].clone()))
+    }
+}
+
+impl<'a> crate::core::result::result_iterator::ResultIterator<'a, Vec<Value>> for GetNeighborsIterator {
+    type Row = Vec<Value>;
+
+    fn next(&mut self) -> crate::core::DBResult<Option<Self::Row>> {
+        if self.vertex_index < self.vertices.len() {
+            let vertex = self.vertices[self.vertex_index].clone();
+            self.vertex_index += 1;
+
+            let mut row = vec![vertex];
+
+            if self.edge_index < self.edges.len() {
+                let edge = self.edges[self.edge_index].clone();
+                row.extend(edge);
+                self.edge_index += 1;
+            }
+
+            Ok(Some(row))
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn peek(&self) -> crate::core::DBResult<Option<&Self::Row>> {
+        if self.vertex_index < self.vertices.len() {
+            Ok(None)
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = self.vertices.len().saturating_sub(self.vertex_index);
+        (remaining, Some(remaining))
+    }
+
+    fn nth(&mut self, n: usize) -> crate::core::DBResult<Option<Self::Row>> {
+        self.vertex_index = self.vertex_index.saturating_add(n).min(self.vertices.len());
+        self.edge_index = self.edge_index.saturating_add(n).min(self.edges.len());
+        self.next()
+    }
+
+    fn last(&mut self) -> crate::core::DBResult<Option<Self::Row>> {
+        if self.vertices.is_empty() {
+            return Ok(None);
+        }
+        let last_index = self.vertices.len() - 1;
+        self.vertex_index = last_index + 1;
+        self.edge_index = (last_index + 1).min(self.edges.len());
+        self.next()
+    }
+}
+
+impl<'a> crate::core::result::result_iterator::ResultIterator<'a, Vec<Value>> for PropIterator {
+    type Row = Vec<Value>;
+
+    fn next(&mut self) -> crate::core::DBResult<Option<Self::Row>> {
         if self.index < self.props.len() {
             let prop = self.props[self.index].clone();
             self.index += 1;
@@ -212,13 +254,27 @@ impl r#Iterator for PropIterator {
         }
     }
 
-    fn reset(&mut self) -> DBResult<()> {
-        self.index = 0;
-        Ok(())
+    fn peek(&self) -> crate::core::DBResult<Option<&Self::Row>> {
+        self.props.first().map(|r| Ok(Some(r))).unwrap_or(Ok(None))
     }
 
-    fn size(&self) -> usize {
-        self.props.len()
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = self.props.len().saturating_sub(self.index);
+        (remaining, Some(remaining))
+    }
+
+    fn nth(&mut self, n: usize) -> crate::core::DBResult<Option<Self::Row>> {
+        self.index = self.index.saturating_add(n).min(self.props.len());
+        self.next()
+    }
+
+    fn last(&mut self) -> crate::core::DBResult<Option<Self::Row>> {
+        if self.props.is_empty() {
+            return Ok(None);
+        }
+        let last_index = self.props.len() - 1;
+        self.index = last_index + 1;
+        Ok(Some(self.props[last_index].clone()))
     }
 }
 
@@ -235,7 +291,6 @@ mod tests {
 
         let mut iter = DefaultIterator::new(rows);
 
-        assert_eq!(iter.iterator_type(), IteratorType::Default);
         assert_eq!(iter.size(), 2);
 
         let row1 = iter.next().unwrap();
@@ -258,7 +313,7 @@ mod tests {
         iter.next().unwrap();
         assert_eq!(iter.next().unwrap(), None);
 
-        iter.reset().unwrap();
+        iter.reset();
         assert_eq!(iter.next().unwrap().unwrap()[0], Value::Int(1));
     }
 
@@ -272,7 +327,6 @@ mod tests {
 
         let mut iter = GetNeighborsIterator::new(vertices, edges);
 
-        assert_eq!(iter.iterator_type(), IteratorType::GetNeighbors);
         assert_eq!(iter.size(), 2);
 
         let row1 = iter.next().unwrap().unwrap();
@@ -293,7 +347,6 @@ mod tests {
 
         let mut iter = PropIterator::new(props);
 
-        assert_eq!(iter.iterator_type(), IteratorType::Prop);
         assert_eq!(iter.size(), 2);
 
         let prop1 = iter.next().unwrap().unwrap();
