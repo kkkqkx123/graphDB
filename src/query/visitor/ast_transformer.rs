@@ -149,6 +149,56 @@ pub trait AstTransformer: StmtTransformer {
                     map: transformed_map,
                 }
             }
+            LabelTagProperty { tag, property } => {
+                let transformed_tag = self.transform_expression(tag);
+                LabelTagProperty {
+                    tag: Box::new(transformed_tag),
+                    property: property.clone(),
+                }
+            }
+            TagProperty { tag_name, property } => TagProperty {
+                tag_name: tag_name.clone(),
+                property: property.clone(),
+            },
+            EdgeProperty { edge_name, property } => EdgeProperty {
+                edge_name: edge_name.clone(),
+                property: property.clone(),
+            },
+            Predicate { func, args } => {
+                let transformed_args = args
+                    .iter()
+                    .map(|arg| self.transform_expression(arg))
+                    .collect();
+                Predicate {
+                    func: func.clone(),
+                    args: transformed_args,
+                }
+            }
+            Reduce {
+                accumulator,
+                initial,
+                variable,
+                source,
+                mapping,
+            } => {
+                let transformed_initial = self.transform_expression(initial);
+                let transformed_source = self.transform_expression(source);
+                let transformed_mapping = self.transform_expression(mapping);
+                Reduce {
+                    accumulator: accumulator.clone(),
+                    initial: Box::new(transformed_initial),
+                    variable: variable.clone(),
+                    source: Box::new(transformed_source),
+                    mapping: Box::new(transformed_mapping),
+                }
+            }
+            PathBuild(exprs) => {
+                let transformed = exprs
+                    .iter()
+                    .map(|expr| self.transform_expression(expr))
+                    .collect();
+                PathBuild(transformed)
+            }
         }
     }
 

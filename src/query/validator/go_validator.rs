@@ -383,6 +383,27 @@ impl GoValidator {
                 Ok(())
             }
             Expression::ListComprehension { .. } => Ok(()),
+            Expression::LabelTagProperty { tag, .. } => self.validate_expression(tag),
+            Expression::TagProperty { .. } => Ok(()),
+            Expression::EdgeProperty { .. } => Ok(()),
+            Expression::Predicate { args, .. } => {
+                for arg in args {
+                    self.validate_expression(arg)?;
+                }
+                Ok(())
+            }
+            Expression::Reduce { initial, source, mapping, .. } => {
+                self.validate_expression(initial)?;
+                self.validate_expression(source)?;
+                self.validate_expression(mapping)?;
+                Ok(())
+            }
+            Expression::PathBuild(exprs) => {
+                for expr in exprs {
+                    self.validate_expression(expr)?;
+                }
+                Ok(())
+            }
         }
     }
 
@@ -582,6 +603,12 @@ impl GoValidator {
             Expression::Path(_) => Ok(DataType::Path),
             Expression::Label(_) => Ok(DataType::String),
             Expression::ListComprehension { .. } => Ok(DataType::List),
+            Expression::LabelTagProperty { .. } => Ok(DataType::Empty),
+            Expression::TagProperty { .. } => Ok(DataType::Empty),
+            Expression::EdgeProperty { .. } => Ok(DataType::Empty),
+            Expression::Predicate { .. } => Ok(DataType::Bool),
+            Expression::Reduce { .. } => Ok(DataType::Empty),
+            Expression::PathBuild(_) => Ok(DataType::Path),
         }
     }
 

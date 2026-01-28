@@ -7,7 +7,7 @@ impl Value {
     /// - 空值和 Null 返回 Null
     /// - 布尔值直接返回
     /// - 字符串 "true"/"false" 返回对应布尔值，其他返回 Null
-    /// - 其他类型返回 BadType
+    /// - 其他类型返回 BadData
     pub fn to_bool(&self) -> Value {
         match self {
             Value::Empty | Value::Null(_) => Value::Null(NullType::Null),
@@ -22,7 +22,7 @@ impl Value {
                     Value::Null(NullType::Null)
                 }
             }
-            _ => Value::Null(NullType::BadType),
+            _ => Value::Null(NullType::BadData),
         }
     }
 
@@ -56,7 +56,7 @@ impl Value {
                 }
             }
             Value::Bool(b) => Value::Int(if *b { 1 } else { 0 }),
-            _ => Value::Null(NullType::BadType),
+            _ => Value::Null(NullType::BadData),
         }
     }
 
@@ -79,7 +79,7 @@ impl Value {
                 }
             }
             Value::Bool(b) => Value::Float(if *b { 1.0 } else { 0.0 }),
-            _ => Value::Null(NullType::BadType),
+            _ => Value::Null(NullType::BadData),
         }
     }
 
@@ -140,7 +140,7 @@ impl Value {
         match self {
             Value::List(list) => Value::List(list.clone()),
             Value::Set(set) => Value::List(set.iter().cloned().collect()),
-            _ => Value::Null(NullType::BadType),
+            _ => Value::Null(NullType::BadData),
         }
     }
 
@@ -148,7 +148,7 @@ impl Value {
     pub fn to_map(&self) -> Value {
         match self {
             Value::Map(map) => Value::Map(map.clone()),
-            _ => Value::Null(NullType::BadType),
+            _ => Value::Null(NullType::BadData),
         }
     }
 
@@ -157,7 +157,7 @@ impl Value {
         match self {
             Value::Set(set) => Value::Set(set.clone()),
             Value::List(list) => Value::Set(list.iter().cloned().collect()),
-            _ => Value::Null(NullType::BadType),
+            _ => Value::Null(NullType::BadData),
         }
     }
 

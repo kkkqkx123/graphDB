@@ -1,4 +1,3 @@
-use crate::core::PlanNodeRef;
 use crate::core::DataType;
 use crate::query::context::ast::VariableInfo;
 
@@ -11,8 +10,8 @@ pub struct Symbol {
     pub name: String,
     pub value_type: DataType,
     pub col_names: Vec<String>,
-    pub readers: HashSet<PlanNodeRef>,
-    pub writers: HashSet<PlanNodeRef>,
+    pub readers: HashSet<i64>,
+    pub writers: HashSet<i64>,
     pub source_clause: String,
     pub properties: Vec<String>,
     pub is_aggregated: bool,
@@ -149,35 +148,35 @@ impl SymbolTable {
         self.symbols.len()
     }
 
-    pub fn read_by(&mut self, var_name: &str, node: PlanNodeRef) -> Result<(), String> {
+    pub fn read_by(&mut self, var_name: &str, node_id: i64) -> Result<(), String> {
         if let Some(mut symbol) = self.symbols.get_mut(var_name) {
-            symbol.readers.insert(node);
+            symbol.readers.insert(node_id);
             Ok(())
         } else {
             Err(format!("变量 '{}' 不存在", var_name))
         }
     }
 
-    pub fn written_by(&mut self, var_name: &str, node: PlanNodeRef) -> Result<(), String> {
+    pub fn written_by(&mut self, var_name: &str, node_id: i64) -> Result<(), String> {
         if let Some(mut symbol) = self.symbols.get_mut(var_name) {
-            symbol.writers.insert(node);
+            symbol.writers.insert(node_id);
             Ok(())
         } else {
             Err(format!("变量 '{}' 不存在", var_name))
         }
     }
 
-    pub fn delete_read_by(&mut self, var_name: &str, node: PlanNodeRef) -> Result<bool, String> {
+    pub fn delete_read_by(&mut self, var_name: &str, node_id: i64) -> Result<bool, String> {
         if let Some(mut symbol) = self.symbols.get_mut(var_name) {
-            Ok(symbol.readers.remove(&node))
+            Ok(symbol.readers.remove(&node_id))
         } else {
             Err(format!("变量 '{}' 不存在", var_name))
         }
     }
 
-    pub fn delete_written_by(&mut self, var_name: &str, node: PlanNodeRef) -> Result<bool, String> {
+    pub fn delete_written_by(&mut self, var_name: &str, node_id: i64) -> Result<bool, String> {
         if let Some(mut symbol) = self.symbols.get_mut(var_name) {
-            Ok(symbol.writers.remove(&node))
+            Ok(symbol.writers.remove(&node_id))
         } else {
             Err(format!("变量 '{}' 不存在", var_name))
         }
@@ -187,18 +186,18 @@ impl SymbolTable {
         &mut self,
         old_var: &str,
         new_var: &str,
-        node: PlanNodeRef,
+        node_id: i64,
     ) -> Result<bool, String> {
         let mut success = false;
 
         if let Some(mut symbol) = self.symbols.get_mut(old_var) {
-            if symbol.readers.remove(&node) {
+            if symbol.readers.remove(&node_id) {
                 success = true;
             }
         }
 
         if let Some(mut symbol) = self.symbols.get_mut(new_var) {
-            if symbol.writers.insert(node) {
+            if symbol.writers.insert(node_id) {
                 success = true;
             }
         }
@@ -210,18 +209,18 @@ impl SymbolTable {
         &mut self,
         old_var: &str,
         new_var: &str,
-        node: PlanNodeRef,
+        node_id: i64,
     ) -> Result<bool, String> {
         let mut success = false;
 
         if let Some(mut symbol) = self.symbols.get_mut(old_var) {
-            if symbol.writers.remove(&node) {
+            if symbol.writers.remove(&node_id) {
                 success = true;
             }
         }
 
         if let Some(mut symbol) = self.symbols.get_mut(new_var) {
-            if symbol.writers.insert(node) {
+            if symbol.writers.insert(node_id) {
                 success = true;
             }
         }
@@ -336,8 +335,8 @@ mod tests {
         table.new_variable("var1").expect("创建 var1 变量应该成功");
         table.new_variable("var2").expect("创建 var2 变量应该成功");
 
-        let node1 = PlanNodeRef::new(1);
-        let node2 = PlanNodeRef::new(2);
+        let node1: i64 = 1;
+        let node2: i64 = 2;
 
         table.read_by("var1", node1).expect("标记 var1 的读取者应该成功");
         table.written_by("var1", node2).expect("标记 var1 的写入者应该成功");

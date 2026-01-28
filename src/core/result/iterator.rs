@@ -8,7 +8,8 @@ pub enum IteratorType {
     Prop,
 }
 
-pub trait r#Iterator: Send + Sync + std::fmt::Debug {
+#[deprecated(since = "0.1.0", note = "请使用 ResultIterator trait")]
+pub trait Iterator: Send + Sync + std::fmt::Debug {
     fn iterator_type(&self) -> IteratorType;
 
     fn next(&mut self) -> DBResult<Option<Vec<Value>>>;

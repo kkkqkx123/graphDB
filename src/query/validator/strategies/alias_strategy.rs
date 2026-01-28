@@ -54,6 +54,8 @@ impl AliasValidationStrategy {
             Expression::Variable(name) => Some(name.clone()),
             Expression::Property { property, .. } => Some(property.clone()),
             Expression::Label(name) => Some(name.clone()),
+            Expression::TagProperty { tag_name, property } => Some(format!("{}.{}", tag_name, property)),
+            Expression::EdgeProperty { edge_name, property } => Some(format!("{}.{}", edge_name, property)),
             // 根据实际的表达式类型，可能需要处理其他别名引用
             _ => None,
         }
@@ -110,7 +112,13 @@ impl AliasValidationStrategy {
             | Expression::Property { .. }
             | Expression::Variable(_)
             | Expression::Label(_)
-            | Expression::ListComprehension { .. } => Ok(()),
+            | Expression::ListComprehension { .. }
+            | Expression::TagProperty { .. }
+            | Expression::EdgeProperty { .. }
+            | Expression::LabelTagProperty { .. }
+            | Expression::Predicate { .. }
+            | Expression::Reduce { .. }
+            | Expression::PathBuild(_) => Ok(()),
             Expression::TypeCast { expression, .. } => {
                 // 类型转换表达式需要验证其子表达式
                 self.validate_expression_aliases(expression, aliases)

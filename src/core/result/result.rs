@@ -49,6 +49,16 @@ pub struct Result {
 }
 
 impl Result {
+    /// 创建新的空 Result
+    /// 
+    /// # 示例
+    /// 
+    /// ```rust
+    /// use graphdb::core::result::Result;
+    /// 
+    /// let result = Result::new();
+    /// assert!(result.is_empty());
+    /// ```
     pub fn new() -> Self {
         Self {
             rows: Vec::new(),
@@ -58,6 +68,9 @@ impl Result {
         }
     }
 
+    /// 使用指定容量创建 Result
+    /// 
+    /// 用于预先分配内存以提高性能
     pub fn with_capacity(row_capacity: usize, col_capacity: usize) -> Self {
         Self {
             rows: Vec::with_capacity(row_capacity),
@@ -67,6 +80,7 @@ impl Result {
         }
     }
 
+    /// 使用列名创建 Result
     pub fn with_col_names(col_names: Vec<String>) -> Self {
         let col_count = col_names.len();
         Self {
@@ -78,6 +92,106 @@ impl Result {
             },
             iterator: None,
         }
+    }
+
+    /// 从行集合和列名创建 Result
+    /// 
+    /// 此方法是创建 Result 的推荐方式，自动设置状态为 Completed
+    /// 并计算内存使用量
+    pub fn from_rows(rows: Vec<Vec<Value>>, col_names: Vec<String>) -> Self {
+        let row_count = rows.len();
+        let col_count = col_names.len();
+        
+        let mut result = Self {
+            rows,
+            col_names,
+            meta: ResultMeta {
+                row_count,
+                col_count,
+                state: ResultState::Completed,
+                ..Default::default()
+            },
+            iterator: None,
+        };
+        
+        result.update_memory_usage();
+        result
+    }
+
+    /// 从可迭代对象创建 Result
+    /// 
+    /// # 参数
+    /// - `iter`: 可迭代的值行集合
+    /// - `col_names`: 列名列表
+    /// 
+    /// # 示例
+    /// 
+    /// ```rust
+    /// use graphdb::core::result::Result;
+    /// use graphdb::core::Value;
+    /// 
+    /// let rows = vec![
+    ///     vec![Value::Int(1), Value::String("Alice".to_string())],
+    ///     vec![Value::Int(2), Value::String("Bob".to_string())],
+    /// ];
+    /// let result = Result::from_iter(rows, vec!["id".to_string(), "name".to_string()]);
+    /// ```
+    pub fn from_iter<I>(iter: I, col_names: Vec<String>) -> Self
+    where
+        I: IntoIterator<Item = Vec<Value>>,
+    {
+        let rows: Vec<_> = iter.into_iter().collect();
+        Self::from_rows(rows, col_names)
+    }
+
+    /// 创建单行 Result
+    pub fn from_single_row(row: Vec<Value>, col_names: Vec<String>) -> Self {
+        Self::from_rows(vec![row], col_names)
+    }
+
+    /// 获取构建器
+    /// 
+    /// 用于链式构建复杂的 Result 对象
+    /// 
+    /// # 示例
+    /// 
+    /// ```rust
+    /// use graphdb::core::result::Result;
+    /// use graphdb::core::Value;
+    /// 
+    /// let result = Result::builder()
+    ///     .col_names(vec!["id".to_string(), "name".to_string()])
+    ///     .add_row(vec![Value::Int(1), Value::String("Alice".to_string())])
+    ///     .add_row(vec![Value::Int(2), Value::String("Bob".to_string())])
+    ///     .build();
+    /// ```
+    pub fn builder() -> super::ResultBuilder {
+        super::ResultBuilder::new()
+    }
+
+    /// 从构建器创建 Result
+    /// 
+    /// 简化从 ResultBuilder 构建 Result 的流程
+    pub fn from_builder(builder: super::ResultBuilder) -> Self {
+        builder.build()
+    }
+
+    /// 创建空结果集（带有指定的列名）
+    pub fn empty(col_names: Vec<String>) -> Self {
+        let col_count = col_names.len();
+        let mut result = Self {
+            rows: Vec::new(),
+            col_names,
+            meta: ResultMeta {
+                row_count: 0,
+                col_count,
+                state: ResultState::Completed,
+                ..Default::default()
+            },
+            iterator: None,
+        };
+        result.update_memory_usage();
+        result
     }
 
     pub fn col_names(&self) -> &[String] {
@@ -206,26 +320,6 @@ impl Result {
 
     pub fn meta_mut(&mut self) -> &mut ResultMeta {
         &mut self.meta
-    }
-
-    pub fn from_rows(rows: Vec<Vec<Value>>, col_names: Vec<String>) -> Self {
-        let row_count = rows.len();
-        let col_count = col_names.len();
-        
-        let mut result = Self {
-            rows,
-            col_names,
-            meta: ResultMeta {
-                row_count,
-                col_count,
-                state: ResultState::Completed,
-                ..Default::default()
-            },
-            iterator: None,
-        };
-        
-        result.update_memory_usage();
-        result
     }
 
     pub fn merge(&mut self, other: Result) {

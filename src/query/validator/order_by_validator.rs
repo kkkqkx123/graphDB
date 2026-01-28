@@ -132,6 +132,12 @@ impl OrderByValidator {
             Expression::List(items) => items.is_empty(),
             Expression::Map(pairs) => pairs.is_empty(),
             Expression::ListComprehension { .. } => false,
+            Expression::TagProperty { .. } => false,
+            Expression::EdgeProperty { .. } => false,
+            Expression::LabelTagProperty { .. } => false,
+            Expression::Predicate { .. } => false,
+            Expression::Reduce { .. } => false,
+            Expression::PathBuild(_) => false,
             // 其他表达式类型默认不为空
             _ => false,
         }
@@ -276,6 +282,12 @@ impl OrderByValidator {
             Expression::Path(_) => Ok(ValueType::Path),
             Expression::Label(_) => Ok(ValueType::String),
             Expression::ListComprehension { .. } => Ok(ValueType::List),
+            Expression::LabelTagProperty { .. } => Ok(ValueType::Unknown),
+            Expression::TagProperty { .. } => Ok(ValueType::Unknown),
+            Expression::EdgeProperty { .. } => Ok(ValueType::Unknown),
+            Expression::Predicate { .. } => Ok(ValueType::Bool),
+            Expression::Reduce { .. } => Ok(ValueType::Unknown),
+            Expression::PathBuild(_) => Ok(ValueType::Path),
         }
     }
 
@@ -363,6 +375,26 @@ impl OrderByValidator {
             Expression::Path(_) => {},
             Expression::Label(_) => {},
             Expression::ListComprehension { .. } => {},
+            Expression::LabelTagProperty { tag, .. } => {
+                self.collect_refs(tag, refs);
+            },
+            Expression::TagProperty { .. } => {},
+            Expression::EdgeProperty { .. } => {},
+            Expression::Predicate { args, .. } => {
+                for arg in args {
+                    self.collect_refs(arg, refs);
+                }
+            },
+            Expression::Reduce { initial, source, mapping, .. } => {
+                self.collect_refs(initial, refs);
+                self.collect_refs(source, refs);
+                self.collect_refs(mapping, refs);
+            },
+            Expression::PathBuild(exprs) => {
+                for expr in exprs {
+                    self.collect_refs(expr, refs);
+                }
+            },
         }
     }
 

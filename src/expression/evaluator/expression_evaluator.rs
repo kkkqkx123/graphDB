@@ -86,6 +86,16 @@ impl ExpressionEvaluator {
                     || filter.as_ref().map_or(false, |f| Self::check_requires_context(f))
                     || map.as_ref().map_or(false, |m| Self::check_requires_context(m))
             }
+            Expression::LabelTagProperty { tag, .. } => Self::check_requires_context(tag),
+            Expression::TagProperty { .. } => false,
+            Expression::EdgeProperty { .. } => false,
+            Expression::Predicate { args, .. } => args.iter().any(|arg| Self::check_requires_context(arg)),
+            Expression::Reduce { initial, source, mapping, .. } => {
+                Self::check_requires_context(initial)
+                    || Self::check_requires_context(source)
+                    || Self::check_requires_context(mapping)
+            }
+            Expression::PathBuild(exprs) => exprs.iter().any(|expr| Self::check_requires_context(expr)),
         }
     }
 
@@ -303,8 +313,8 @@ impl ExpressionEvaluator {
             ))),
         };
 
-        // 检查转换结果是否为 Null(BadType)
-        if let Value::Null(NullType::BadType) = result {
+        // 检查转换结果是否为 Null(BadData)
+        if let Value::Null(NullType::BadData) = result {
             Err(ExpressionError::type_error(format!(
                 "无法将 {:?} 转换为 {:?}",
                 value, target_type
@@ -416,6 +426,14 @@ impl GenericExpressionVisitor<Expression> for ExpressionEvaluator {
                 let value = self.visit(expression)?;
                 Self::eval_type_cast(&value, target_type)
             }
+            Expression::Label(_) => Err(ExpressionError::type_error("未求解的标签表达式")),
+            Expression::ListComprehension { .. } => Err(ExpressionError::type_error("列表推导表达式需要运行时上下文")),
+            Expression::LabelTagProperty { .. } => Err(ExpressionError::type_error("标签属性表达式需要运行时上下文")),
+            Expression::TagProperty { .. } => Err(ExpressionError::type_error("标签属性表达式需要运行时上下文")),
+            Expression::EdgeProperty { .. } => Err(ExpressionError::type_error("边属性表达式需要运行时上下文")),
+            Expression::Predicate { .. } => Err(ExpressionError::type_error("谓词表达式需要运行时上下文")),
+            Expression::Reduce { .. } => Err(ExpressionError::type_error("归约表达式需要运行时上下文")),
+            Expression::PathBuild(_) => Err(ExpressionError::type_error("路径构建表达式需要运行时上下文")),
             _ => Err(ExpressionError::type_error("不支持的表达式类型")),
         }
     }

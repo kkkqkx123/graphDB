@@ -51,6 +51,24 @@ pub trait ExpressionVisitor: Send + Sync {
             Expression::ListComprehension { variable, source, filter, map } => {
                 self.visit_list_comprehension(variable, source.as_ref(), filter.as_deref(), map.as_deref())
             }
+            Expression::LabelTagProperty { tag, property } => {
+                self.visit_label_tag_property(tag, property)
+            }
+            Expression::TagProperty { tag_name, property } => {
+                self.visit_tag_property(tag_name, property)
+            }
+            Expression::EdgeProperty { edge_name, property } => {
+                self.visit_edge_property(edge_name, property)
+            }
+            Expression::Predicate { func, args } => {
+                self.visit_predicate(func, args)
+            }
+            Expression::Reduce { accumulator, initial, variable, source, mapping } => {
+                self.visit_reduce(accumulator, initial, variable, source, mapping)
+            }
+            Expression::PathBuild(exprs) => {
+                self.visit_path_build(exprs)
+            }
         }
     }
 
@@ -126,6 +144,53 @@ pub trait ExpressionVisitor: Send + Sync {
         filter: Option<&Expression>,
         map: Option<&Expression>,
     ) -> Self::Result;
+
+    /// 访问标签属性表达式
+    fn visit_label_tag_property(&mut self, tag: &Expression, property: &str) -> Self::Result {
+        self.visit_expression(tag);
+        panic!("visit_label_tag_property must be implemented")
+    }
+
+    /// 访问标签属性表达式（静态）
+    fn visit_tag_property(&mut self, tag_name: &str, property: &str) -> Self::Result {
+        panic!("visit_tag_property must be implemented for tag: {}, property: {}", tag_name, property)
+    }
+
+    /// 访问边属性表达式
+    fn visit_edge_property(&mut self, edge_name: &str, property: &str) -> Self::Result {
+        panic!("visit_edge_property must be implemented for edge: {}, property: {}", edge_name, property)
+    }
+
+    /// 访问谓词表达式
+    fn visit_predicate(&mut self, func: &str, args: &[Expression]) -> Self::Result {
+        for arg in args {
+            self.visit_expression(arg);
+        }
+        panic!("visit_predicate must be implemented for func: {}", func)
+    }
+
+    /// 访问归约表达式
+    fn visit_reduce(
+        &mut self,
+        accumulator: &str,
+        initial: &Expression,
+        variable: &str,
+        source: &Expression,
+        mapping: &Expression,
+    ) -> Self::Result {
+        self.visit_expression(initial);
+        self.visit_expression(source);
+        self.visit_expression(mapping);
+        panic!("visit_reduce must be implemented for accumulator: {}", accumulator)
+    }
+
+    /// 访问路径构建表达式
+    fn visit_path_build(&mut self, exprs: &[Expression]) -> Self::Result {
+        for expr in exprs {
+            self.visit_expression(expr);
+        }
+        panic!("visit_path_build must be implemented")
+    }
 
     /// 获取访问者状态（默认实现）
     fn state(&self) -> &ExpressionVisitorState {
@@ -409,8 +474,39 @@ pub trait ExpressionTransformer: ExpressionVisitor<Result = Expression> {
                     property: property.clone(),
                 }
             }
-            Expression::Literal(_) | Expression::Variable(_) | Expression::Label(_) | Expression::ListComprehension { .. } => {
+            Expression::Literal(_) | Expression::Variable(_) | Expression::Label(_) | Expression::ListComprehension { .. }
+            | Expression::TagProperty { .. } | Expression::EdgeProperty { .. } => {
                 expression.clone()
+            }
+            Expression::LabelTagProperty { tag, property } => {
+                let new_tag = self.transform(tag);
+                Expression::LabelTagProperty {
+                    tag: Box::new(new_tag),
+                    property: property.clone(),
+                }
+            }
+            Expression::Predicate { func, args } => {
+                let new_args: Vec<Expression> = args.iter().map(|a| self.transform(a)).collect();
+                Expression::Predicate {
+                    func: func.clone(),
+                    args: new_args,
+                }
+            }
+            Expression::Reduce { accumulator, initial, variable, source, mapping } => {
+                let new_initial = self.transform(initial);
+                let new_source = self.transform(source);
+                let new_mapping = self.transform(mapping);
+                Expression::Reduce {
+                    accumulator: accumulator.clone(),
+                    initial: Box::new(new_initial),
+                    variable: variable.clone(),
+                    source: Box::new(new_source),
+                    mapping: Box::new(new_mapping),
+                }
+            }
+            Expression::PathBuild(exprs) => {
+                let new_exprs: Vec<Expression> = exprs.iter().map(|e| self.transform(e)).collect();
+                Expression::PathBuild(new_exprs)
             }
         }
     }

@@ -170,6 +170,7 @@ impl Value {
         match (a, b) {
             (NullType::Null, NullType::Null) => CmpOrdering::Equal,
             (NullType::NaN, NullType::NaN) => CmpOrdering::Equal,
+            (NullType::BadData, NullType::BadData) => CmpOrdering::Equal,
             (NullType::BadType, NullType::BadType) => CmpOrdering::Equal,
             _ => {
                 // 不同类型按变体顺序比较
@@ -185,7 +186,12 @@ impl Value {
         match typ {
             NullType::Null => 0,
             NullType::NaN => 1,
+            NullType::BadData => 2,
             NullType::BadType => 2,
+            NullType::ErrOverflow => 3,
+            NullType::UnknownProp => 4,
+            NullType::DivByZero => 5,
+            NullType::OutOfRange => 6,
         }
     }
 

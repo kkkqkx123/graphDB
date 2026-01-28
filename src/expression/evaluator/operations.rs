@@ -135,12 +135,12 @@ impl BinaryOperationEvaluator {
 
     fn eval_like(left: &Value, right: &Value) -> Result<Value, ExpressionError> {
         if left.is_bad_null() || right.is_bad_null() {
-            return Ok(Value::Null(crate::core::value::NullType::BadType));
+            return Ok(Value::Null(crate::core::value::NullType::BadData));
         }
 
         if (!left.is_null() && !left.is_empty() && !matches!(left, Value::String(_))) ||
            (!right.is_null() && !right.is_empty() && !matches!(right, Value::String(_))) {
-            return Ok(Value::Null(crate::core::value::NullType::BadType));
+            return Ok(Value::Null(crate::core::value::NullType::BadData));
         }
 
         if left.is_null() || right.is_null() {
@@ -149,7 +149,7 @@ impl BinaryOperationEvaluator {
 
         match (left, right) {
             (Value::String(l), Value::String(r)) => Self::eval_like_operation(l, r),
-            _ => Ok(Value::Null(crate::core::value::NullType::BadType)),
+            _ => Ok(Value::Null(crate::core::value::NullType::BadData)),
         }
     }
 

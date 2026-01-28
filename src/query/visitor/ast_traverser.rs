@@ -221,6 +221,22 @@ pub trait AstTraverser: StmtVisitor {
                     self.traverse_expression(map);
                 }
             }
+            LabelTagProperty { tag, .. } => {
+                self.traverse_expression(tag);
+            }
+            TagProperty { .. } => {}
+            EdgeProperty { .. } => {}
+            Predicate { args, .. } => {
+                self.collect_expressions(args);
+            }
+            Reduce { initial, source, mapping, .. } => {
+                self.traverse_expression(initial);
+                self.traverse_expression(source);
+                self.traverse_expression(mapping);
+            }
+            PathBuild(exprs) => {
+                self.collect_expressions(exprs);
+            }
         }
     }
 }

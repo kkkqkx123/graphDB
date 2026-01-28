@@ -1,5 +1,4 @@
 pub mod error;
-pub mod plan_node_ref;
 pub mod result;
 pub mod type_system;
 pub mod value;
@@ -17,6 +16,7 @@ pub use error::{
 };
 
 // Result 系统
+#[allow(deprecated)]
 pub use result::{ResultBuilder, r#Iterator, IteratorType};
 
 // 核心数据类型
@@ -33,6 +33,3 @@ pub use types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 
 // 其他核心类型
 pub use type_system::TypeUtils;
-
-// 计划节点引用
-pub use plan_node_ref::*;

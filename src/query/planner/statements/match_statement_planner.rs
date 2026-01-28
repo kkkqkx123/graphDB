@@ -344,6 +344,12 @@ impl MatchStatementPlanner {
             Expression::Label(_) => "<label>".to_string(),
             Expression::ListComprehension { .. } => "<list_comprehension>".to_string(),
             Expression::Aggregate { func, .. } => format!("<aggregate:{:?}>", func),
+            Expression::LabelTagProperty { .. } => "<label_tag_property>".to_string(),
+            Expression::TagProperty { .. } => "<tag_property>".to_string(),
+            Expression::EdgeProperty { .. } => "<edge_property>".to_string(),
+            Expression::Predicate { .. } => "<predicate>".to_string(),
+            Expression::Reduce { .. } => "<reduce>".to_string(),
+            Expression::PathBuild(_) => "<path_build>".to_string(),
             _ => "<?>".to_string(),
         }
     }

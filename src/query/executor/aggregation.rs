@@ -375,7 +375,7 @@ impl<S: StorageEngine> AggregationExecutor<S> {
     }
 
     fn apply_count(agg_data: &mut AggData, val: &Value) {
-        if matches!(agg_data.result(), Value::Null(crate::core::value::NullType::BadType)) {
+        if matches!(agg_data.result(), Value::Null(crate::core::value::NullType::BadData)) {
             return;
         }
 
@@ -396,7 +396,7 @@ impl<S: StorageEngine> AggregationExecutor<S> {
 
     fn apply_sum(agg_data: &mut AggData, val: &Value) {
         if !matches!(val, Value::Int(_) | Value::Float(_)) && !val.is_null() && !val.is_empty_value() {
-            agg_data.set_result(Value::Null(crate::core::value::NullType::BadType));
+            agg_data.set_result(Value::Null(crate::core::value::NullType::BadData));
             return;
         }
 
@@ -417,12 +417,12 @@ impl<S: StorageEngine> AggregationExecutor<S> {
     }
 
     fn apply_avg(agg_data: &mut AggData, val: &Value) {
-        if matches!(agg_data.result(), Value::Null(crate::core::value::NullType::BadType)) {
+        if matches!(agg_data.result(), Value::Null(crate::core::value::NullType::BadData)) {
             return;
         }
 
         if !val.is_numeric_value() && !val.is_null() && !val.is_empty_value() {
-            agg_data.set_result(Value::Null(crate::core::value::NullType::BadType));
+            agg_data.set_result(Value::Null(crate::core::value::NullType::BadData));
             return;
         }
 
@@ -453,7 +453,7 @@ impl<S: StorageEngine> AggregationExecutor<S> {
         }
 
         let res = agg_data.result();
-        if matches!(res, Value::Null(crate::core::value::NullType::BadType)) {
+        if matches!(res, Value::Null(crate::core::value::NullType::BadData)) {
             return;
         }
 
@@ -475,7 +475,7 @@ impl<S: StorageEngine> AggregationExecutor<S> {
         }
 
         let res = agg_data.result();
-        if matches!(res, Value::Null(crate::core::value::NullType::BadType)) {
+        if matches!(res, Value::Null(crate::core::value::NullType::BadData)) {
             return;
         }
 
@@ -551,12 +551,12 @@ impl<S: StorageEngine> AggregationExecutor<S> {
     }
 
     fn apply_std(agg_data: &mut AggData, val: &Value) {
-        if matches!(agg_data.result(), Value::Null(crate::core::value::NullType::BadType)) {
+        if matches!(agg_data.result(), Value::Null(crate::core::value::NullType::BadData)) {
             return;
         }
 
         if !val.is_numeric_value() && !val.is_null() && !val.is_empty_value() {
-            agg_data.set_result(Value::Null(crate::core::value::NullType::BadType));
+            agg_data.set_result(Value::Null(crate::core::value::NullType::BadData));
             return;
         }
 
@@ -598,7 +598,7 @@ impl<S: StorageEngine> AggregationExecutor<S> {
 
     fn apply_bit_and(agg_data: &mut AggData, val: &Value) {
         if !matches!(val, Value::Int(_)) && !val.is_null() && !val.is_empty_value() {
-            agg_data.set_result(Value::Null(crate::core::value::NullType::BadType));
+            agg_data.set_result(Value::Null(crate::core::value::NullType::BadData));
             return;
         }
 
@@ -622,7 +622,7 @@ impl<S: StorageEngine> AggregationExecutor<S> {
 
     fn apply_bit_or(agg_data: &mut AggData, val: &Value) {
         if !matches!(val, Value::Int(_)) && !val.is_null() && !val.is_empty() {
-            agg_data.set_result(Value::Null(crate::core::value::NullType::BadType));
+            agg_data.set_result(Value::Null(crate::core::value::NullType::BadData));
             return;
         }
 
@@ -928,10 +928,10 @@ mod tests {
     }
 
     #[test]
-    fn test_apply_sum_with_bad_type() {
+    fn test_apply_sum_with_bad_data() {
         let mut agg_data = AggData::new();
         AggregationExecutor::<crate::storage::MockStorage>::apply_sum(&mut agg_data, &Value::String("abc".to_string()));
-        assert!(matches!(agg_data.result(), Value::Null(crate::core::value::NullType::BadType)));
+        assert!(matches!(agg_data.result(), Value::Null(crate::core::value::NullType::BadData)));
     }
 
     #[test]

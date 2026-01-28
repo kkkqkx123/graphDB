@@ -161,6 +161,55 @@ pub enum Expression {
         filter: Option<Box<Expression>>,
         map: Option<Box<Expression>>,
     },
+    
+    /// 标签属性动态访问
+    /// 
+    /// 用于动态访问标签属性，如 `tagName.propertyName`
+    /// 其中 tagName 是一个变量或标签表达式
+    LabelTagProperty {
+        tag: Box<Expression>,
+        property: String,
+    },
+    
+    /// 标签属性访问
+    /// 
+    /// 用于访问顶点标签上的属性，如 `tagName.propertyName`
+    TagProperty {
+        tag_name: String,
+        property: String,
+    },
+    
+    /// 边属性访问
+    /// 
+    /// 用于访问边类型上的属性
+    EdgeProperty {
+        edge_name: String,
+        property: String,
+    },
+    
+    /// 谓词表达式
+    /// 
+    /// 用于实现 FILTER、ALL、ANY、EXISTS 等谓词函数
+    Predicate {
+        func: String,
+        args: Vec<Expression>,
+    },
+    
+    /// Reduce 表达式
+    /// 
+    /// 用于实现 REDUCE 函数
+    Reduce {
+        accumulator: String,
+        initial: Box<Expression>,
+        variable: String,
+        source: Box<Expression>,
+        mapping: Box<Expression>,
+    },
+    
+    /// 路径构建表达式
+    /// 
+    /// 用于构建路径，如 `path(v1, e1, v2)`
+    PathBuild(Vec<Expression>),
 }
 
 impl Expression {
@@ -271,6 +320,54 @@ impl Expression {
             map: map.map(Box::new),
         }
     }
+    
+    pub fn label_tag_property(tag: Expression, property: impl Into<String>) -> Self {
+        Expression::LabelTagProperty {
+            tag: Box::new(tag),
+            property: property.into(),
+        }
+    }
+    
+    pub fn tag_property(tag_name: impl Into<String>, property: impl Into<String>) -> Self {
+        Expression::TagProperty {
+            tag_name: tag_name.into(),
+            property: property.into(),
+        }
+    }
+    
+    pub fn edge_property(edge_name: impl Into<String>, property: impl Into<String>) -> Self {
+        Expression::EdgeProperty {
+            edge_name: edge_name.into(),
+            property: property.into(),
+        }
+    }
+    
+    pub fn predicate(func: impl Into<String>, args: Vec<Expression>) -> Self {
+        Expression::Predicate {
+            func: func.into(),
+            args,
+        }
+    }
+    
+    pub fn reduce(
+        accumulator: impl Into<String>,
+        initial: Expression,
+        variable: impl Into<String>,
+        source: Expression,
+        mapping: Expression,
+    ) -> Self {
+        Expression::Reduce {
+            accumulator: accumulator.into(),
+            initial: Box::new(initial),
+            variable: variable.into(),
+            source: Box::new(source),
+            mapping: Box::new(mapping),
+        }
+    }
+    
+    pub fn path_build(items: Vec<Expression>) -> Self {
+        Expression::PathBuild(items)
+    }
 
     pub fn children(&self) -> Vec<&Expression> {
         match self {
@@ -332,6 +429,17 @@ impl Expression {
                 }
                 children
             }
+            Expression::LabelTagProperty { tag, .. } => vec![tag.as_ref()],
+            Expression::TagProperty { .. } => vec![],
+            Expression::EdgeProperty { .. } => vec![],
+            Expression::Predicate { args, .. } => args.iter().collect(),
+            Expression::Reduce {
+                initial,
+                source,
+                mapping,
+                ..
+            } => vec![initial.as_ref(), source.as_ref(), mapping.as_ref()],
+            Expression::PathBuild(items) => items.iter().collect(),
         }
     }
 
@@ -340,6 +448,9 @@ impl Expression {
             Expression::Literal(_) => true,
             Expression::List(items) => items.iter().all(|e| e.is_constant()),
             Expression::Map(pairs) => pairs.iter().all(|(_, e)| e.is_constant()),
+            Expression::TagProperty { .. } => false,
+            Expression::EdgeProperty { .. } => false,
+            Expression::LabelTagProperty { .. } => false,
             _ => false,
         }
     }
@@ -473,6 +584,39 @@ impl Expression {
                 let filter_str = filter.as_ref().map(|f| format!(" WHERE {}", f.to_expression_string())).unwrap_or_default();
                 let map_str = map.as_ref().map(|m| format!(" | {}", m.to_expression_string())).unwrap_or_default();
                 format!("[{} IN {}{}{}]", variable, source_str, filter_str, map_str)
+            }
+            Expression::LabelTagProperty { tag, property } => {
+                format!("{}.{}", tag.to_expression_string(), property)
+            }
+            Expression::TagProperty { tag_name, property } => {
+                format!("{}.{}", tag_name, property)
+            }
+            Expression::EdgeProperty { edge_name, property } => {
+                format!("{}.{}", edge_name, property)
+            }
+            Expression::Predicate { func, args } => {
+                let args_str = args.iter()
+                    .map(|e| e.to_expression_string())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("{}({})", func, args_str)
+            }
+            Expression::Reduce { accumulator, initial, variable, source, mapping } => {
+                format!(
+                    "REDUCE({} = {}, {} IN {} | {})",
+                    accumulator,
+                    initial.to_expression_string(),
+                    variable,
+                    source.to_expression_string(),
+                    mapping.to_expression_string()
+                )
+            }
+            Expression::PathBuild(items) => {
+                let items_str = items.iter()
+                    .map(|e| e.to_expression_string())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("PATH({})", items_str)
             }
         }
     }

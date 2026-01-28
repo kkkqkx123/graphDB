@@ -244,4 +244,63 @@ impl ExpressionVisitor for FindVisitor {
             self.visit_expression(m);
         }
     }
+
+    fn visit_label_tag_property(&mut self, tag: &Expression, property: &str) -> Self::Result {
+        self.found_exprs.push(Expression::LabelTagProperty {
+            tag: Box::new(tag.clone()),
+            property: property.to_string(),
+        });
+        self.visit_expression(tag);
+    }
+
+    fn visit_tag_property(&mut self, tag_name: &str, property: &str) -> Self::Result {
+        self.found_exprs.push(Expression::TagProperty {
+            tag_name: tag_name.to_string(),
+            property: property.to_string(),
+        });
+    }
+
+    fn visit_edge_property(&mut self, edge_name: &str, property: &str) -> Self::Result {
+        self.found_exprs.push(Expression::EdgeProperty {
+            edge_name: edge_name.to_string(),
+            property: property.to_string(),
+        });
+    }
+
+    fn visit_predicate(&mut self, func: &str, args: &[Expression]) -> Self::Result {
+        self.found_exprs.push(Expression::Predicate {
+            func: func.to_string(),
+            args: args.to_vec(),
+        });
+        for arg in args {
+            self.visit_expression(arg);
+        }
+    }
+
+    fn visit_reduce(
+        &mut self,
+        accumulator: &str,
+        initial: &Expression,
+        variable: &str,
+        source: &Expression,
+        mapping: &Expression,
+    ) -> Self::Result {
+        self.found_exprs.push(Expression::Reduce {
+            accumulator: accumulator.to_string(),
+            initial: Box::new(initial.clone()),
+            variable: variable.to_string(),
+            source: Box::new(source.clone()),
+            mapping: Box::new(mapping.clone()),
+        });
+        self.visit_expression(initial);
+        self.visit_expression(source);
+        self.visit_expression(mapping);
+    }
+
+    fn visit_path_build(&mut self, exprs: &[Expression]) -> Self::Result {
+        self.found_exprs.push(Expression::PathBuild(exprs.to_vec()));
+        for expr in exprs {
+            self.visit_expression(expr);
+        }
+    }
 }

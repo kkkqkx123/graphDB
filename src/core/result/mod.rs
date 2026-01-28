@@ -5,6 +5,7 @@ pub mod result;
 pub mod result_iterator;
 
 pub use builder::ResultBuilder;
+#[allow(deprecated)]
 pub use iterator::{r#Iterator, IteratorType};
 pub use result::Result;
 pub use result_iterator::{ColumnAccess, EmptyIterator, IteratorFactories, ResultIterator};

@@ -656,6 +656,12 @@ impl TypeValidator {
             Expression::Path(_) => ValueType::Path,
             Expression::Label(_) => ValueType::String,
             Expression::ListComprehension { .. } => ValueType::List,
+            Expression::LabelTagProperty { .. } => ValueType::Unknown,
+            Expression::TagProperty { .. } => ValueType::Unknown,
+            Expression::EdgeProperty { .. } => ValueType::Unknown,
+            Expression::Predicate { .. } => ValueType::Bool,
+            Expression::Reduce { .. } => ValueType::Unknown,
+            Expression::PathBuild(_) => ValueType::Path,
         }
     }
 

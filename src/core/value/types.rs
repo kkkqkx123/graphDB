@@ -30,17 +30,76 @@ use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
 
-/// Null类型定义 - 简化为单节点图数据库所需的3种类型
+/// Null类型定义
+///
+/// 与 Nebula-Graph 兼容的空值类型定义，包含以下变体：
+/// - **Null**: 标准 null 值
+/// - **NaN**: 非数字结果
+/// - **BadData**: 坏数据（如日期格式错误）
+/// - **BadType**: 类型不匹配错误
+/// - **ErrOverflow**: 数值溢出错误
+/// - **UnknownProp**: 未知属性
+/// - **DivByZero**: 除零错误
+/// - **OutOfRange**: 值超出范围
+///
+/// ## 与 Nebula-Graph 对比
+///
+/// 此实现完全兼容 Nebula-Graph 的 NullType 枚举，确保跨平台数据一致性。
+///
+/// ```rust
+/// use graphdb::core::value::NullType;
+///
+/// let null_val = NullType::Null;
+/// let nan_val = NullType::NaN;
+/// let div_zero = NullType::DivByZero;
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Encode, Decode)]
 pub enum NullType {
-    Null,      // 标准null
-    NaN,       // 非数字
-    BadType,   // 类型转换错误
+    Null,          // 标准null值
+    NaN,           // 非数字结果
+    BadData,       // 坏数据（解析失败）
+    BadType,       // 类型不匹配
+    ErrOverflow,   // 数值溢出
+    UnknownProp,   // 未知属性
+    DivByZero,     // 除零错误
+    OutOfRange,    // 值超出范围
+}
+
+impl NullType {
+    pub fn is_bad(&self) -> bool {
+        matches!(
+            self,
+            NullType::BadData | NullType::BadType | NullType::ErrOverflow | NullType::OutOfRange
+        )
+    }
+
+    pub fn is_computational_error(&self) -> bool {
+        matches!(self, NullType::NaN | NullType::DivByZero | NullType::ErrOverflow)
+    }
+
+    pub fn to_string(&self) -> &str {
+        match self {
+            NullType::Null => "NULL",
+            NullType::NaN => "NaN",
+            NullType::BadData => "BAD_DATA",
+            NullType::BadType => "BAD_TYPE",
+            NullType::ErrOverflow => "ERR_OVERFLOW",
+            NullType::UnknownProp => "UNKNOWN_PROP",
+            NullType::DivByZero => "DIV_BY_ZERO",
+            NullType::OutOfRange => "OUT_OF_RANGE",
+        }
+    }
 }
 
 impl Default for NullType {
     fn default() -> Self {
         NullType::Null
+    }
+}
+
+impl std::fmt::Display for NullType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.to_string())
     }
 }
 
@@ -294,9 +353,9 @@ impl Value {
         matches!(self, Value::Null(_))
     }
 
-    /// 检查值是否为BadNull（BadType）
+    /// 检查值是否为BadNull（BadData 或 BadType）
     pub fn is_bad_null(&self) -> bool {
-        matches!(self, Value::Null(NullType::BadType))
+        matches!(self, Value::Null(NullType::BadData) | Value::Null(NullType::BadType))
     }
 
     /// 检查值是否为空
