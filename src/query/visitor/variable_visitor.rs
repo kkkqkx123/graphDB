@@ -1,16 +1,16 @@
 //! VariableVisitor - 用于收集表达式中变量的访问器
+//!
 //! 对应 NebulaGraph VariableVisitor.h/.cpp 的功能
+//! 优化实现：只重写必要的方法，其他使用默认遍历逻辑
 
 use crate::core::types::expression::visitor::{ExpressionVisitor, ExpressionVisitorState};
+use crate::core::types::expression::Expression;
 use crate::core::Value;
-use crate::core::Expression;
 use std::collections::HashSet;
 
 #[derive(Debug)]
 pub struct VariableVisitor {
-    /// 收集到的变量名集合
     variables: HashSet<String>,
-    /// 访问者状态
     state: ExpressionVisitorState,
 }
 
@@ -22,26 +22,22 @@ impl VariableVisitor {
         }
     }
 
-    /// 收集表达式中使用的所有变量
     pub fn collect_variables(&mut self, expression: &Expression) -> HashSet<String> {
         self.variables.clear();
         let _ = self.visit_expression(expression);
         self.variables.clone()
     }
 
-    /// 检查表达式中是否包含变量
     pub fn has_variables(&mut self, expression: &Expression) -> bool {
         self.variables.clear();
         let _ = self.visit_expression(expression);
         !self.variables.is_empty()
     }
 
-    /// 获取收集到的变量列表
     pub fn get_variables(&self) -> Vec<String> {
         self.variables.iter().cloned().collect()
     }
 
-    /// 清空收集到的变量
     pub fn clear(&mut self) {
         self.variables.clear();
     }
@@ -49,14 +45,6 @@ impl VariableVisitor {
 
 impl ExpressionVisitor for VariableVisitor {
     type Result = ();
-
-    fn state(&self) -> &ExpressionVisitorState {
-        &self.state
-    }
-
-    fn state_mut(&mut self) -> &mut ExpressionVisitorState {
-        &mut self.state
-    }
 
     fn visit_variable(&mut self, name: &str) -> Self::Result {
         self.variables.insert(name.to_string());
@@ -68,21 +56,12 @@ impl ExpressionVisitor for VariableVisitor {
         self.visit_expression(object);
     }
 
-    fn visit_binary(
-        &mut self,
-        left: &Expression,
-        _op: &crate::core::types::operators::BinaryOperator,
-        right: &Expression,
-    ) -> Self::Result {
+    fn visit_binary(&mut self, left: &Expression, _op: &crate::core::types::operators::BinaryOperator, right: &Expression) -> Self::Result {
         self.visit_expression(left);
         self.visit_expression(right);
     }
 
-    fn visit_unary(
-        &mut self,
-        _op: &crate::core::types::operators::UnaryOperator,
-        operand: &Expression,
-    ) -> Self::Result {
+    fn visit_unary(&mut self, _op: &crate::core::types::operators::UnaryOperator, operand: &Expression) -> Self::Result {
         self.visit_expression(operand);
     }
 
@@ -92,12 +71,7 @@ impl ExpressionVisitor for VariableVisitor {
         }
     }
 
-    fn visit_aggregate(
-        &mut self,
-        _func: &crate::core::types::operators::AggregateFunction,
-        arg: &Expression,
-        _distinct: bool,
-    ) -> Self::Result {
+    fn visit_aggregate(&mut self, _func: &crate::core::types::operators::AggregateFunction, arg: &Expression, _distinct: bool) -> Self::Result {
         self.visit_expression(arg);
     }
 
@@ -113,25 +87,17 @@ impl ExpressionVisitor for VariableVisitor {
         }
     }
 
-    fn visit_case(
-        &mut self,
-        conditions: &[(Expression, Expression)],
-        default: Option<&Expression>,
-    ) -> Self::Result {
-        for (condition, value) in conditions {
-            self.visit_expression(condition);
-            self.visit_expression(value);
+    fn visit_case(&mut self, conditions: &[(Expression, Expression)], default: Option<&Expression>) -> Self::Result {
+        for (cond, val) in conditions {
+            self.visit_expression(cond);
+            self.visit_expression(val);
         }
-        if let Some(expression) = default {
-            self.visit_expression(expression);
+        if let Some(expr) = default {
+            self.visit_expression(expr);
         }
     }
 
-    fn visit_type_cast(
-        &mut self,
-        expression: &Expression,
-        _target_type: &crate::core::types::expression::DataType,
-    ) -> Self::Result {
+    fn visit_type_cast(&mut self, expression: &Expression, _target_type: &crate::core::types::expression::DataType) -> Self::Result {
         self.visit_expression(expression);
     }
 
@@ -140,18 +106,13 @@ impl ExpressionVisitor for VariableVisitor {
         self.visit_expression(index);
     }
 
-    fn visit_range(
-        &mut self,
-        collection: &Expression,
-        start: Option<&Expression>,
-        end: Option<&Expression>,
-    ) -> Self::Result {
+    fn visit_range(&mut self, collection: &Expression, start: Option<&Expression>, end: Option<&Expression>) -> Self::Result {
         self.visit_expression(collection);
-        if let Some(expression) = start {
-            self.visit_expression(expression);
+        if let Some(expr) = start {
+            self.visit_expression(expr);
         }
-        if let Some(expression) = end {
-            self.visit_expression(expression);
+        if let Some(expr) = end {
+            self.visit_expression(expr);
         }
     }
 
@@ -163,20 +124,22 @@ impl ExpressionVisitor for VariableVisitor {
 
     fn visit_label(&mut self, _name: &str) -> Self::Result {}
 
-    fn visit_list_comprehension(
-        &mut self,
-        _variable: &str,
-        source: &Expression,
-        filter: Option<&Expression>,
-        map: Option<&Expression>,
-    ) -> Self::Result {
+    fn visit_list_comprehension(&mut self, _variable: &str, source: &Expression, filter: Option<&Expression>, map: Option<&Expression>) -> Self::Result {
         self.visit_expression(source);
-        if let Some(f) = filter {
-            self.visit_expression(f);
+        if let Some(expr) = filter {
+            self.visit_expression(expr);
         }
-        if let Some(m) = map {
-            self.visit_expression(m);
+        if let Some(expr) = map {
+            self.visit_expression(expr);
         }
+    }
+
+    fn state(&self) -> &ExpressionVisitorState {
+        &self.state
+    }
+
+    fn state_mut(&mut self) -> &mut ExpressionVisitorState {
+        &mut self.state
     }
 }
 

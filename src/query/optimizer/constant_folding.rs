@@ -4,7 +4,7 @@
 use super::engine::OptimizerError;
 use super::plan::{OptContext, OptGroupNode, OptRule, Pattern};
 use super::rule_traits::BaseOptRule;
-use crate::core::{BinaryOperator, UnaryOperator, Value};
+use crate::core::{BinaryOperator, Expression, UnaryOperator, Value};
 use crate::query::planner::plan::core::nodes::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::visitor::PlanNodeVisitor;

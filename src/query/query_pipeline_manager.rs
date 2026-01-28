@@ -2,11 +2,12 @@ use crate::query::context::execution::QueryContext;
 use crate::core::error::{DBError, DBResult};
 use crate::query::executor::factory::ExecutorFactory;
 use crate::query::executor::traits::ExecutionResult;
-use crate::query::optimizer::Optimizer;
+use crate::query::optimizer::{Optimizer, OptimizationConfig, RuleConfig};
 use crate::query::parser::Parser;
 use crate::query::planner::planner::{StaticConfigurablePlannerRegistry, PlannerConfig};
 use crate::query::validator::Validator;
 use crate::storage::StorageEngine;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 /// 查询管道管理器 - 负责协调整个查询处理流程
@@ -37,6 +38,64 @@ impl<S: StorageEngine + 'static> QueryPipelineManager<S> {
             validator: Validator::new(),
             planner,
             optimizer: Optimizer::default(),
+            executor_factory,
+        }
+    }
+
+    /// 创建带优化器配置的查询管道管理器
+    pub fn with_optimizer_config(storage: Arc<Mutex<S>>, rule_config: RuleConfig) -> Self {
+        let executor_factory = ExecutorFactory::with_storage(storage.clone());
+        let mut planner = StaticConfigurablePlannerRegistry::new();
+
+        Self::register_planners(&mut planner);
+
+        let config = OptimizationConfig::with_rule_config(rule_config);
+        let optimizer = Optimizer::with_config(vec![], config);
+
+        Self {
+            _storage: storage,
+            validator: Validator::new(),
+            planner,
+            optimizer,
+            executor_factory,
+        }
+    }
+
+    /// 从配置文件创建查询管道管理器
+    pub fn from_config_file(storage: Arc<Mutex<S>>, config_path: &PathBuf) -> Self {
+        let executor_factory = ExecutorFactory::with_storage(storage.clone());
+        let mut planner = StaticConfigurablePlannerRegistry::new();
+
+        Self::register_planners(&mut planner);
+
+        let optimizer = match crate::query::optimizer::load_optimizer_config(config_path) {
+            Ok(config_info) => {
+                let rule_config = config_info.to_rule_config();
+                let opt_config = OptimizationConfig {
+                    max_iteration_rounds: config_info.max_iteration_rounds,
+                    max_exploration_rounds: config_info.max_exploration_rounds,
+                    enable_cost_model: config_info.enable_cost_model,
+                    enable_multi_plan: config_info.enable_multi_plan,
+                    enable_property_pruning: config_info.enable_property_pruning,
+                    rule_config: Some(rule_config),
+                    enable_rule_registration: config_info.enable_rule_registration,
+                    enable_adaptive_iteration: config_info.enable_adaptive_iteration,
+                    stable_threshold: config_info.stable_threshold,
+                    min_iteration_rounds: config_info.min_iteration_rounds,
+                };
+                Optimizer::with_config(vec![], opt_config)
+            }
+            Err(_) => {
+                log::warn!("无法加载优化器配置，使用默认配置");
+                Optimizer::default()
+            }
+        };
+
+        Self {
+            _storage: storage,
+            validator: Validator::new(),
+            planner,
+            optimizer,
             executor_factory,
         }
     }
@@ -183,5 +242,20 @@ impl<S: StorageEngine + 'static> QueryPipelineManager<S> {
     /// 清空计划缓存
     pub fn clear_plan_cache(&mut self) {
         self.planner.clear_cache();
+    }
+
+    /// 启用优化规则
+    pub fn enable_optimizer_rule(&mut self, rule: crate::query::optimizer::OptimizationRule) {
+        self.optimizer.enable_rule(rule);
+    }
+
+    /// 禁用优化规则
+    pub fn disable_optimizer_rule(&mut self, rule: crate::query::optimizer::OptimizationRule) {
+        self.optimizer.disable_rule(rule);
+    }
+
+    /// 检查优化规则是否启用
+    pub fn is_optimizer_rule_enabled(&self, rule: crate::query::optimizer::OptimizationRule) -> bool {
+        self.optimizer.is_rule_enabled(rule)
     }
 }

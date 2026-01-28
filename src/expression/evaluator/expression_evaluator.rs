@@ -41,8 +41,52 @@ impl ExpressionEvaluator {
     }
 
     /// 检查表达式是否可以求值（泛型版本）
-    pub fn can_evaluate<C: ExpressionContext>(_expression: &Expression, _context: &C) -> bool {
-        true
+    ///
+    /// 检查表达式是否可以在没有运行时上下文的情况下求值
+    /// 即表达式只包含常量，不包含变量或属性访问
+    pub fn can_evaluate(expression: &Expression) -> bool {
+        !Self::requires_runtime_context(expression)
+    }
+
+    /// 检查表达式是否需要运行时上下文才能求值
+    fn requires_runtime_context(expression: &Expression) -> bool {
+        Self::check_requires_context(expression)
+    }
+
+    fn check_requires_context(expression: &Expression) -> bool {
+        match expression {
+            Expression::Literal(_) => false,
+            Expression::Variable(_) => true,
+            Expression::Property { .. } => true,
+            Expression::Binary { left, right, .. } => {
+                Self::check_requires_context(left) || Self::check_requires_context(right)
+            }
+            Expression::Unary { operand, .. } => Self::check_requires_context(operand),
+            Expression::Function { args, .. } => args.iter().any(|arg| Self::check_requires_context(arg)),
+            Expression::Aggregate { arg, .. } => Self::check_requires_context(arg),
+            Expression::List(items) => items.iter().any(|arg| Self::check_requires_context(arg)),
+            Expression::Map(pairs) => pairs.iter().any(|(_, val)| Self::check_requires_context(val)),
+            Expression::Case { conditions, default } => {
+                conditions.iter().any(|(cond, val)| Self::check_requires_context(cond) || Self::check_requires_context(val))
+                    || default.as_ref().map_or(false, |d| Self::check_requires_context(d))
+            }
+            Expression::TypeCast { expression, .. } => Self::check_requires_context(expression),
+            Expression::Subscript { collection, index } => {
+                Self::check_requires_context(collection) || Self::check_requires_context(index)
+            }
+            Expression::Range { collection, start, end } => {
+                Self::check_requires_context(collection)
+                    || start.as_ref().map_or(false, |s| Self::check_requires_context(s))
+                    || end.as_ref().map_or(false, |e| Self::check_requires_context(e))
+            }
+            Expression::Path(items) => items.iter().any(|item| Self::check_requires_context(item)),
+            Expression::Label(_) => false,
+            Expression::ListComprehension { source, filter, map, .. } => {
+                Self::check_requires_context(source)
+                    || filter.as_ref().map_or(false, |f| Self::check_requires_context(f))
+                    || map.as_ref().map_or(false, |m| Self::check_requires_context(m))
+            }
+        }
     }
 
     /// 在上下文中访问表达式

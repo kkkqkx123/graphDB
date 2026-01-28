@@ -10,7 +10,7 @@ use crate::query::optimizer::plan::{
 };
 use crate::query::optimizer::property_tracker::PropertyTracker;
 use crate::query::planner::plan::{ExecutionPlan, PlanNodeEnum};
-use crate::query::optimizer::PlanValidator;
+use crate::query::optimizer::{OptimizationRule, PlanValidator};
 
 #[derive(Debug)]
 pub struct RuleSet {
@@ -39,6 +39,7 @@ impl RuleSet {
 pub struct Optimizer {
     rule_sets: Vec<RuleSet>,
     pub config: OptimizationConfig,
+    enabled_rules: Vec<OptimizationRule>,
 }
 
 impl Optimizer {
@@ -46,6 +47,7 @@ impl Optimizer {
         Self {
             rule_sets,
             config: OptimizationConfig::default(),
+            enabled_rules: Vec::new(),
         }
     }
 
@@ -53,7 +55,25 @@ impl Optimizer {
         Self {
             rule_sets,
             config,
+            enabled_rules: Vec::new(),
         }
+    }
+
+    pub fn enable_rule(&mut self, rule: OptimizationRule) {
+        if !self.enabled_rules.contains(&rule) {
+            self.enabled_rules.push(rule);
+        }
+    }
+
+    pub fn disable_rule(&mut self, rule: OptimizationRule) {
+        self.enabled_rules.retain(|r| r != &rule);
+    }
+
+    pub fn is_rule_enabled(&self, rule: OptimizationRule) -> bool {
+        if self.enabled_rules.is_empty() {
+            return self.config.is_rule_enabled(rule);
+        }
+        self.enabled_rules.contains(&rule)
     }
 
     pub fn default() -> Self {
@@ -108,6 +128,38 @@ impl Optimizer {
         physical_rules.add_rule(Box::new(crate::query::optimizer::OptimizeTagIndexScanByFilterRule));
 
         Self::new(vec![logical_rules, physical_rules])
+    }
+
+    pub fn from_registry() -> Self {
+        use crate::query::optimizer::{RuleRegistry, OptimizationPhase};
+        
+        let mut logical_rules = RuleSet::new("logical");
+        let mut physical_rules = RuleSet::new("physical");
+        
+        for rule in RuleRegistry::get_rules_by_phase(OptimizationPhase::LogicalOptimization) {
+            if let Some(instance) = RuleRegistry::create_instance(rule) {
+                logical_rules.add_rule(instance);
+            }
+        }
+        
+        for rule in RuleRegistry::get_rules_by_phase(OptimizationPhase::PhysicalOptimization) {
+            if let Some(instance) = RuleRegistry::create_instance(rule) {
+                physical_rules.add_rule(instance);
+            }
+        }
+        
+        for rule in RuleRegistry::get_rules_by_phase(OptimizationPhase::PostOptimization) {
+            if let Some(instance) = RuleRegistry::create_instance(rule) {
+                logical_rules.add_rule(instance);
+            }
+        }
+        
+        Self::new(vec![logical_rules, physical_rules])
+    }
+    
+    pub fn init_rule_registry() {
+        use crate::query::optimizer::rule_registrar::register_all_rules;
+        register_all_rules();
     }
 
     pub fn find_best_plan(
@@ -178,9 +230,17 @@ impl Optimizer {
         let phase_rules = self.get_rules_for_phase(&phase);
 
         let max_rounds = self.config.max_iteration_rounds;
+        let min_rounds = self.config.min_iteration_rounds;
+        let stable_threshold = self.config.stable_threshold;
+        let enable_adaptive = self.config.enable_adaptive_iteration;
+        
         let mut round = 0;
+        let mut stable_count = 0;
+        let mut last_changes = 0usize;
 
-        while ctx.changed && round < max_rounds {
+        while round < max_rounds {
+            let before_nodes = root_group.nodes.len();
+            
             ctx.changed = false;
 
             for rule in &phase_rules {
@@ -189,6 +249,22 @@ impl Optimizer {
 
             round += 1;
             ctx.stats.total_iterations += 1;
+            
+            if ctx.changed {
+                stable_count = 0;
+            } else {
+                stable_count += 1;
+            }
+            
+            last_changes = root_group.nodes.len() - before_nodes;
+            
+            if enable_adaptive 
+                && round >= min_rounds 
+                && stable_count >= stable_threshold 
+                && last_changes == 0 
+            {
+                break;
+            }
         }
 
         Ok(())
@@ -199,29 +275,12 @@ impl Optimizer {
 
         for rule_set in &self.rule_sets {
             for rule in &rule_set.rules {
-                let rule_name = rule.name();
-                let matches_phase = match phase {
-                    OptimizationPhase::LogicalOptimization => {
-                        matches!(rule_name,
-                            "FilterPushDownRule" | "PredicatePushDownRule" | "PushFilterDownTraverseRule"
-                            | "ProjectionPushDownRule" | "PushProjectDownRule" | "CombineFilterRule"
-                            | "CollapseProjectRule" | "EliminateFilterRule" | "RemoveNoopProjectRule"
-                            | "TopNRule")
+                let rule_enum = OptimizationRule::from_name(rule.name());
+                
+                if let Some(enum_rule) = rule_enum {
+                    if enum_rule.phase() == *phase && self.is_rule_enabled(enum_rule) {
+                        rules.push(rule.as_ref());
                     }
-                    OptimizationPhase::PhysicalOptimization => {
-                        matches!(rule_name,
-                            "JoinOptimizationRule" | "PushLimitDownRule" | "PushLimitDownGetVerticesRule"
-                            | "PushLimitDownGetNeighborsRule" | "PushLimitDownGetEdgesRule"
-                            | "ScanWithFilterOptimizationRule" | "IndexFullScanRule" | "IndexScanRule"
-                            | "EdgeIndexFullScanRule" | "TagIndexFullScanRule")
-                    }
-                    OptimizationPhase::PostOptimization => {
-                        matches!(rule_name, "TopNRule")
-                    }
-                };
-
-                if matches_phase {
-                    rules.push(rule.as_ref());
                 }
             }
         }

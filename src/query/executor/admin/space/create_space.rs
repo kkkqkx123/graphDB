@@ -5,6 +5,7 @@
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
+use crate::core::types::DataType;
 use crate::core::types::metadata::SpaceInfo;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageEngine;

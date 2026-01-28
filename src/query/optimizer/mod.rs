@@ -8,6 +8,14 @@ pub mod rule_traits;
 // 核心类型模块
 pub mod core;
 
+// 规则枚举和配置模块
+pub mod rule_enum;
+pub mod rule_config;
+pub mod rule_registry;
+pub mod rule_registrar;
+pub mod optimizer_config;
+pub mod plan_node_visitor;
+
 // 执行计划表示模块
 pub mod plan;
 
@@ -34,6 +42,13 @@ pub mod loop_unrolling;
 
 // Re-export core types
 pub use core::{Cost, OptimizationConfig, OptimizationPhase, OptimizationStats, Statistics};
+
+// Re-export rule enum and config
+pub use rule_enum::OptimizationRule;
+pub use rule_config::RuleConfig;
+pub use rule_registry::RuleRegistry;
+pub use optimizer_config::{load_optimizer_config, OptimizerConfigInfo};
+pub use plan_node_visitor::{PlanNodeVisitor, PlanNodeVisitable};
 
 // Re-export plan types
 pub use plan::{

@@ -52,10 +52,9 @@ impl PaginationValidationStrategy {
         expression: &Expression,
         clause_name: &str,
     ) -> Result<(), ValidationError> {
-        use crate::query::visitor::EvaluableExprVisitor;
+        use crate::query::visitor::FoldConstantExprVisitor;
 
-        let mut visitor = EvaluableExprVisitor::new();
-        if !visitor.is_evaluable(expression) {
+        if !FoldConstantExprVisitor::is_evaluable(expression) {
             return Err(ValidationError::new(
                 format!("{}表达式必须是可立即计算的常量表达式", clause_name),
                 ValidationErrorType::PaginationError,

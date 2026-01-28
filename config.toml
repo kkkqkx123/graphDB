@@ -7,3 +7,21 @@ enable_cache = true
 max_connections = 10
 transaction_timeout = 30
 log_level = "info"
+
+[optimizer]
+max_iteration_rounds = 5
+max_exploration_rounds = 128
+enable_cost_model = true
+enable_multi_plan = true
+enable_property_pruning = true
+enable_rule_registration = false
+enable_adaptive_iteration = true
+stable_threshold = 2
+min_iteration_rounds = 1
+
+[optimizer.disabled_rules]
+FilterPushDownRule = false
+PredicatePushDownRule = false
+
+[optimizer.enabled_rules]
+RemoveUselessNodeRule = true
