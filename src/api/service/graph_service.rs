@@ -435,11 +435,13 @@ impl<S: StorageEngine + Clone + 'static> GraphService<S> {
 mod tests {
     use super::*;
     use crate::config::Config;
+    use crate::query::optimizer::rule_registry::RuleRegistry;
     use crate::storage::MemoryStorage;
     use std::sync::Arc;
 
     #[tokio::test]
     async fn test_graph_service_creation() {
+        RuleRegistry::initialize();
         let config = Config {
             host: "127.0.0.1".to_string(),
             port: 9669,
@@ -461,6 +463,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_authentication_success() {
+        RuleRegistry::initialize();
         let config = Config {
             host: "127.0.0.1".to_string(),
             port: 9669,
@@ -482,6 +485,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_authentication_failure() {
+        RuleRegistry::initialize();
         let config = Config {
             host: "127.0.0.1".to_string(),
             port: 9669,
@@ -509,6 +513,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_signout() {
+        RuleRegistry::initialize();
         let config = Config {
             host: "127.0.0.1".to_string(),
             port: 9669,
@@ -539,6 +544,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_execute_query() {
+        RuleRegistry::initialize();
         let config = Config {
             host: "127.0.0.1".to_string(),
             port: 9669,
@@ -565,6 +571,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_invalid_session_execute() {
+        RuleRegistry::initialize();
         let config = Config {
             host: "127.0.0.1".to_string(),
             port: 9669,
@@ -586,6 +593,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_permission_extraction() {
+        RuleRegistry::initialize();
         let config = Config {
             host: "127.0.0.1".to_string(),
             port: 9669,
