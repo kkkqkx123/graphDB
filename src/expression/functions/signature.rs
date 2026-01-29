@@ -162,14 +162,47 @@ impl FunctionSignature {
         arity >= self.min_arity && (self.is_variadic() || arity <= self.max_arity)
     }
 
-    pub fn check_types(&self, args: &[Value]) -> bool {
+    pub fn check_exact_types(&self, args: &[Value]) -> bool {
         if args.len() != self.arg_types.len() {
             return false;
         }
         args.iter().zip(&self.arg_types).all(|(arg, expected)| {
             let actual = ValueType::from_value(arg);
-            expected.compatible_with(&actual)
+            actual == *expected
         })
+    }
+
+    pub fn check_compatible_types(&self, args: &[Value]) -> bool {
+        if !self.is_variadic() && args.len() != self.arg_types.len() {
+            return false;
+        }
+        args.iter().zip(&self.arg_types).all(|(arg, expected)| {
+            if expected == &ValueType::Any {
+                return true;
+            }
+            let actual = ValueType::from_value(arg);
+            actual.compatible_with(expected)
+        })
+    }
+
+    pub fn type_matching_score(&self, args: &[Value]) -> i32 {
+        if !self.check_arity(args.len()) {
+            return i32::MIN;
+        }
+        let mut score = 0;
+        for (arg, expected) in args.iter().zip(&self.arg_types) {
+            let actual = ValueType::from_value(arg);
+            if actual == *expected {
+                score += 10;
+            } else if *expected == ValueType::Any {
+                score += 1;
+            } else if actual.compatible_with(expected) {
+                score += 5;
+            } else {
+                return i32::MIN;
+            }
+        }
+        score
     }
 }
 

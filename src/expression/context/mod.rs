@@ -6,7 +6,6 @@ pub mod basic_context;
 pub mod cache_manager;
 pub mod default_context;
 pub mod evaluation;
-pub mod function_registry;
 pub mod query_expression_context;
 pub mod row_context;
 pub mod traits;
@@ -15,7 +14,7 @@ pub mod version_manager;
 // 重新导出默认上下文类型
 pub use default_context::{DefaultExpressionContext, StorageExpressionContext};
 
-// 重新导出统一的ExpressionContext trait
+// 重新导出 ExpressionContext trait（来自 evaluator::traits）
 pub use crate::expression::evaluator::traits::ExpressionContext;
 
 // 重新导出基础上下文相关类型
@@ -27,10 +26,9 @@ pub use row_context::{RowExpressionContext, RowContextRef, RowExpressionContextB
 // 重新导出查询表达式上下文
 pub use query_expression_context::QueryExpressionContext;
 
-// 重新导出新组件
+// 重新导出组件
 pub use cache_manager::CacheManager;
-pub use function_registry::FunctionRegistry;
 pub use version_manager::VersionManager;
 
-// 重新导出拆分的trait
-pub use traits::*;
+// 重新导出基础 trait
+pub use traits::{VariableContext, FunctionContext, CacheContext, GraphContext, ScopedContext};

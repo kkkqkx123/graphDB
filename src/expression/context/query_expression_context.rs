@@ -8,9 +8,9 @@ use crate::core::error::{ExpressionError, ExpressionErrorType};
 use crate::expression::context::traits::*;
 use crate::expression::context::{
     cache_manager::CacheManager,
-    function_registry::FunctionRegistry,
     version_manager::VersionManager,
 };
+use crate::expression::functions::registry::FunctionRegistry;
 use crate::query::context::CoreQueryContext;
 use std::collections::HashMap;
 
@@ -31,7 +31,7 @@ use std::collections::HashMap;
 /// // 设置顶点（用于 $^.tag.prop 访问）
 /// expr_ctx.set_vertex(vertex);
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct QueryExpressionContext {
     version_manager: VersionManager,
     function_registry: FunctionRegistry,
@@ -52,7 +52,7 @@ impl QueryExpressionContext {
 
         // 继承执行上下文的变量
         for (name, value) in qctx.ectx().variables() {
-            ctx.set_variable(name.clone(), value.clone());
+            VariableContext::set_variable(&mut ctx, name.clone(), value.clone());
         }
 
         ctx
@@ -383,8 +383,8 @@ impl GraphContext for QueryExpressionContext {
 }
 
 impl FunctionContext for QueryExpressionContext {
-    fn get_function(&self, name: &str) -> Option<crate::expression::functions::FunctionRef> {
-        self.function_registry.get(name)
+    fn get_function(&self, _name: &str) -> Option<crate::expression::functions::FunctionRef> {
+        None
     }
 
     fn get_function_names(&self) -> Vec<&str> {
@@ -403,20 +403,8 @@ impl ScopedContext for QueryExpressionContext {
         0
     }
 
-    fn create_child_context(&self) -> Box<dyn ExpressionContext> {
+    fn create_child_context(&self) -> Box<dyn crate::expression::evaluator::traits::ExpressionContext> {
         Box::new(Self::new())
-    }
-}
-
-impl ExpressionContext for QueryExpressionContext {
-    fn is_empty(&self) -> bool {
-        self.version_manager.variable_names().is_empty()
-            && self.inner_variables.is_empty()
-            && self.current_row.is_none()
-    }
-
-    fn clear(&mut self) {
-        self.clear();
     }
 }
 

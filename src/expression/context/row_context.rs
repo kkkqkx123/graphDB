@@ -208,21 +208,8 @@ impl ScopedContext for RowExpressionContext {
         0
     }
 
-    fn create_child_context(&self) -> Box<dyn ExpressionContext> {
+    fn create_child_context(&self) -> Box<dyn crate::expression::evaluator::traits::ExpressionContext> {
         Box::new(Self::new(self.row.clone(), self.col_names.clone()))
-    }
-}
-
-impl ExpressionContext for RowExpressionContext {
-    fn is_empty(&self) -> bool {
-        self.row.is_empty() && self.variables.is_empty()
-    }
-
-    fn clear(&mut self) {
-        self.row.clear();
-        self.col_names.clear();
-        self.col_name_index.clear();
-        self.variables.clear();
     }
 }
 

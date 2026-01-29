@@ -5,13 +5,13 @@
 
 use crate::core::Value;
 use crate::core::error::{ExpressionError, ExpressionErrorType};
-use crate::expression::functions::{BuiltinFunction, CustomFunction, FunctionRef};
 use crate::expression::context::{
     cache_manager::CacheManager,
-    function_registry::FunctionRegistry,
     version_manager::VersionManager,
     traits::*,
 };
+use crate::expression::functions::registry::FunctionRegistry;
+use crate::expression::functions::{BuiltinFunction, CustomFunction, FunctionRef};
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -93,7 +93,7 @@ impl BasicExpressionContext {
 
     /// 注册自定义函数
     pub fn register_custom_function(&mut self, function: CustomFunction) {
-        self.function_registry.register_custom(function);
+        self.function_registry.register_custom_full(function);
     }
 
     /// 获取内置函数
@@ -143,7 +143,7 @@ impl BasicExpressionContext {
 
     /// 获取变量属性值
     pub fn get_var_prop(&self, var: &str, prop: &str) -> Option<Value> {
-        if let Some(var_value) = self.get_variable(var) {
+        if let Some(var_value) = VariableContext::get_variable(self, var) {
             if let Value::Map(map) = var_value {
                 map.get(prop).cloned()
             } else {
@@ -172,7 +172,7 @@ impl BasicExpressionContext {
 
     /// 获取变量值（带错误处理）
     pub fn get_var(&self, name: &str) -> Result<Value, ExpressionError> {
-        self.get_variable(name)
+        VariableContext::get_variable(self, name)
             .ok_or_else(|| ExpressionError::new(
                 ExpressionErrorType::UndefinedVariable,
                 format!("变量 '{}' 未定义", name)
@@ -381,7 +381,7 @@ impl Clone for BasicExpressionContext {
     fn clone(&self) -> Self {
         Self {
             version_manager: self.version_manager.clone(),
-            function_registry: self.function_registry.clone(),
+            function_registry: FunctionRegistry::new(),
             cache_manager: self.cache_manager.clone(),
             parent: self.parent.clone(),
             depth: self.get_depth(),
@@ -405,7 +405,7 @@ impl VariableContext for BasicExpressionContext {
 
         // 如果在当前上下文中找不到，则在父上下文中查找
         if let Some(parent) = &self.parent {
-            parent.get_variable(name)
+            VariableContext::get_variable(parent, name)
         } else {
             None
         }
@@ -421,7 +421,7 @@ impl VariableContext for BasicExpressionContext {
 
         // 添加父上下文中的变量名（去重）
         if let Some(parent) = &self.parent {
-            let parent_names = parent.get_variable_names();
+            let parent_names = VariableContext::get_variable_names(parent);
             for name in parent_names {
                 if !names.contains(&name) {
                     names.push(name);
@@ -435,7 +435,7 @@ impl VariableContext for BasicExpressionContext {
     fn variable_count(&self) -> usize {
         let mut count = self.version_manager.variable_names().len() + self.inner_variables.len();
         if let Some(parent) = &self.parent {
-            count += parent.variable_count();
+            count += VariableContext::variable_count(parent);
         }
         count
     }
@@ -457,7 +457,7 @@ impl VariableContext for BasicExpressionContext {
 
         // 收集父上下文的变量
         if let Some(parent) = &self.parent {
-            if let Some(parent_vars) = parent.get_all_variables() {
+            if let Some(parent_vars) = VariableContext::get_all_variables(parent) {
                 for (name, value) in parent_vars {
                     if !all_vars.contains_key(&name) {
                         all_vars.insert(name, value);
@@ -507,18 +507,8 @@ impl GraphContext for BasicExpressionContext {
 }
 
 impl FunctionContext for BasicExpressionContext {
-    fn get_function(&self, name: &str) -> Option<FunctionRef> {
-        // 在当前上下文中查找函数
-        if let Some(function) = self.function_registry.get(name) {
-            return Some(function);
-        }
-
-        // 如果在当前上下文中找不到，则在父上下文中查找
-        if let Some(parent) = &self.parent {
-            parent.get_function(name)
-        } else {
-            None
-        }
+    fn get_function(&self, _name: &str) -> Option<FunctionRef> {
+        None
     }
 
     fn get_function_names(&self) -> Vec<&str> {
@@ -526,7 +516,7 @@ impl FunctionContext for BasicExpressionContext {
 
         // 添加父上下文中的函数名（去重）
         if let Some(parent) = &self.parent {
-            let parent_names = parent.get_function_names();
+            let parent_names = FunctionContext::get_function_names(parent);
             for name in parent_names {
                 if !names.contains(&name) {
                     names.push(name);
@@ -549,7 +539,7 @@ impl ScopedContext for BasicExpressionContext {
         self.depth
     }
 
-    fn create_child_context(&self) -> Box<dyn ExpressionContext> {
+    fn create_child_context(&self) -> Box<dyn crate::expression::evaluator::traits::ExpressionContext> {
         Box::new(BasicExpressionContext {
             version_manager: VersionManager::new(),
             function_registry: FunctionRegistry::new(),
@@ -562,22 +552,6 @@ impl ScopedContext for BasicExpressionContext {
     }
 }
 
-impl ExpressionContext for BasicExpressionContext {
-    fn is_empty(&self) -> bool {
-        self.version_manager.variable_names().is_empty()
-            && self.inner_variables.is_empty()
-            && self.paths.is_empty()
-    }
-
-    fn clear(&mut self) {
-        self.version_manager.clear();
-        self.function_registry.clear();
-        self.cache_manager.clear();
-        self.inner_variables.clear();
-        self.paths.clear();
-    }
-}
-
 impl crate::expression::evaluator::traits::ExpressionContext for BasicExpressionContext {
     fn get_variable(&self, name: &str) -> Option<crate::core::Value> {
         VariableContext::get_variable(self, name)
@@ -587,8 +561,8 @@ impl crate::expression::evaluator::traits::ExpressionContext for BasicExpression
         VariableContext::set_variable(self, name, value);
     }
 
-    fn get_function(&self, name: &str) -> Option<crate::expression::functions::FunctionRef> {
-        self.function_registry.get(name)
+    fn get_function(&self, _name: &str) -> Option<crate::expression::functions::FunctionRef> {
+        None
     }
 
     fn get_vertex(&self) -> Option<&crate::core::Vertex> {
@@ -636,5 +610,41 @@ impl crate::expression::evaluator::traits::ExpressionContext for BasicExpression
 
     fn clear(&mut self) {
         ExpressionContext::clear(self);
+    }
+}
+
+impl VariableContext for Box<BasicExpressionContext> {
+    fn get_variable(&self, name: &str) -> Option<Value> {
+        VariableContext::get_variable(&**self, name)
+    }
+
+    fn set_variable(&mut self, name: String, value: Value) {
+        VariableContext::set_variable(&mut **self, name, value);
+    }
+
+    fn get_variable_names(&self) -> Vec<&str> {
+        VariableContext::get_variable_names(&**self)
+    }
+
+    fn variable_count(&self) -> usize {
+        VariableContext::variable_count(&**self)
+    }
+
+    fn get_all_variables(&self) -> Option<HashMap<String, Value>> {
+        VariableContext::get_all_variables(&**self)
+    }
+
+    fn clear_variables(&mut self) {
+        VariableContext::clear_variables(&mut **self);
+    }
+}
+
+impl FunctionContext for Box<BasicExpressionContext> {
+    fn get_function(&self, name: &str) -> Option<FunctionRef> {
+        FunctionContext::get_function(&**self, name)
+    }
+
+    fn get_function_names(&self) -> Vec<&str> {
+        FunctionContext::get_function_names(&**self)
     }
 }

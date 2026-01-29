@@ -8,19 +8,32 @@ use chrono::{Datelike, NaiveDate, Utc};
 use std::collections::HashMap;
 use std::sync::Arc;
 use super::signature::{FunctionSignature, RegisteredFunction, ValueType};
+use super::BuiltinFunction;
+use super::CustomFunction;
+use super::ExpressionFunction;
 
 /// 函数注册表
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct FunctionRegistry {
     functions: HashMap<String, Vec<RegisteredFunction>>,
+    builtin_functions: HashMap<String, BuiltinFunction>,
+    custom_functions: HashMap<String, CustomFunction>,
+}
+
+impl Default for FunctionRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl FunctionRegistry {
     pub fn new() -> Self {
         let mut registry = Self {
             functions: HashMap::new(),
+            builtin_functions: HashMap::new(),
+            custom_functions: HashMap::new(),
         };
-        registry.register_builtin_functions();
+        registry.register_all_builtin_functions();
         registry
     }
 
@@ -46,7 +59,7 @@ impl FunctionRegistry {
         })
     }
 
-    /// 执行函数
+    /// 执行函数（支持函数重载）
     pub fn execute(&self, name: &str, args: &[Value]) -> Result<Value, ExpressionError> {
         let funcs = self.functions.get(name).ok_or_else(|| {
             ExpressionError::new(
@@ -55,14 +68,23 @@ impl FunctionRegistry {
             )
         })?;
 
-        // 查找匹配的函数签名
+        let mut best_match: Option<&RegisteredFunction> = None;
+        let mut best_score = i32::MIN;
+
         for registered in funcs {
-            if registered.signature.check_arity(args.len()) && registered.signature.check_types(args) {
+            let score = registered.signature.type_matching_score(args);
+            if score > best_score {
+                best_score = score;
+                best_match = Some(registered);
+            }
+        }
+
+        if let Some(registered) = best_match {
+            if best_score > i32::MIN {
                 return (registered.body)(args);
             }
         }
 
-        // 如果没有找到精确匹配，尝试找到最接近的签名
         let signatures: Vec<_> = funcs.iter()
             .map(|f| format!("{}", f.signature.arg_types.iter().map(|t| t.to_string()).collect::<Vec<_>>().join(", ")))
             .collect();
@@ -98,8 +120,46 @@ impl FunctionRegistry {
         self.functions.keys().map(|s| s.as_str()).collect()
     }
 
+    /// 获取函数（根据名称）
+    pub fn get(&self, name: &str) -> Option<&Vec<RegisteredFunction>> {
+        self.functions.get(name)
+    }
+
+    /// 重新注册所有内置函数
+    pub fn reregister_all_builtins(&mut self) {
+        self.register_all_builtin_functions();
+    }
+
+    /// 注册自定义函数
+    pub fn register_custom<F>(&mut self, name: &str, signature: FunctionSignature, func: F)
+    where
+        F: Fn(&[Value]) -> Result<Value, ExpressionError> + 'static + Send + Sync,
+    {
+        self.register(name, signature, func);
+    }
+
     /// 注册内置函数
-    fn register_builtin_functions(&mut self) {
+    pub fn register_builtin(&mut self, function: BuiltinFunction) {
+        self.builtin_functions.insert(function.name().to_string(), function);
+    }
+
+    /// 获取内置函数
+    pub fn get_builtin(&self, name: &str) -> Option<&BuiltinFunction> {
+        self.builtin_functions.get(name)
+    }
+
+    /// 注册自定义函数（完整形式）
+    pub fn register_custom_full(&mut self, function: CustomFunction) {
+        self.custom_functions.insert(function.name.clone(), function);
+    }
+
+    /// 获取自定义函数
+    pub fn get_custom(&self, name: &str) -> Option<&CustomFunction> {
+        self.custom_functions.get(name)
+    }
+
+    /// 注册所有内置函数
+    fn register_all_builtin_functions(&mut self) {
         self.register_math_functions();
         self.register_string_functions();
         self.register_regex_functions();
@@ -110,13 +170,13 @@ impl FunctionRegistry {
     fn register_math_functions(&mut self) {
         let registry = self;
 
-        // abs
+        // abs - INT 版本
         registry.register(
             "abs",
             FunctionSignature::new(
                 "abs",
-                vec![ValueType::Any],
-                ValueType::Any,
+                vec![ValueType::Int],
+                ValueType::Int,
                 1,
                 1,
                 true,
@@ -125,19 +185,39 @@ impl FunctionRegistry {
             |args| {
                 match &args[0] {
                     Value::Int(i) => Ok(Value::Int(i.abs())),
-                    Value::Float(f) => Ok(Value::Float(f.abs())),
                     Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
-                    _ => Err(ExpressionError::type_error("abs函数需要数值类型")),
+                    _ => Err(ExpressionError::type_error("abs函数需要整数类型")),
                 }
             },
         );
 
-        // ceil
+        // abs - FLOAT 版本
+        registry.register(
+            "abs",
+            FunctionSignature::new(
+                "abs",
+                vec![ValueType::Float],
+                ValueType::Float,
+                1,
+                1,
+                true,
+                "计算绝对值",
+            ),
+            |args| {
+                match &args[0] {
+                    Value::Float(f) => Ok(Value::Float(f.abs())),
+                    Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
+                    _ => Err(ExpressionError::type_error("abs函数需要浮点数类型")),
+                }
+            },
+        );
+
+        // ceil - INT 版本
         registry.register(
             "ceil",
             FunctionSignature::new(
                 "ceil",
-                vec![ValueType::Any],
+                vec![ValueType::Int],
                 ValueType::Float,
                 1,
                 1,
@@ -147,19 +227,39 @@ impl FunctionRegistry {
             |args| {
                 match &args[0] {
                     Value::Int(i) => Ok(Value::Float(*i as f64)),
-                    Value::Float(f) => Ok(Value::Float(f.ceil())),
                     Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
-                    _ => Err(ExpressionError::type_error("ceil函数需要数值类型")),
+                    _ => Err(ExpressionError::type_error("ceil函数需要整数类型")),
                 }
             },
         );
 
-        // floor
+        // ceil - FLOAT 版本
+        registry.register(
+            "ceil",
+            FunctionSignature::new(
+                "ceil",
+                vec![ValueType::Float],
+                ValueType::Float,
+                1,
+                1,
+                true,
+                "向上取整",
+            ),
+            |args| {
+                match &args[0] {
+                    Value::Float(f) => Ok(Value::Float(f.ceil())),
+                    Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
+                    _ => Err(ExpressionError::type_error("ceil函数需要浮点数类型")),
+                }
+            },
+        );
+
+        // floor - INT 版本
         registry.register(
             "floor",
             FunctionSignature::new(
                 "floor",
-                vec![ValueType::Any],
+                vec![ValueType::Int],
                 ValueType::Float,
                 1,
                 1,
@@ -169,20 +269,40 @@ impl FunctionRegistry {
             |args| {
                 match &args[0] {
                     Value::Int(i) => Ok(Value::Float(*i as f64)),
-                    Value::Float(f) => Ok(Value::Float(f.floor())),
                     Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
-                    _ => Err(ExpressionError::type_error("floor函数需要数值类型")),
+                    _ => Err(ExpressionError::type_error("floor函数需要整数类型")),
                 }
             },
         );
 
-        // round
+        // floor - FLOAT 版本
+        registry.register(
+            "floor",
+            FunctionSignature::new(
+                "floor",
+                vec![ValueType::Float],
+                ValueType::Float,
+                1,
+                1,
+                true,
+                "向下取整",
+            ),
+            |args| {
+                match &args[0] {
+                    Value::Float(f) => Ok(Value::Float(f.floor())),
+                    Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
+                    _ => Err(ExpressionError::type_error("floor函数需要浮点数类型")),
+                }
+            },
+        );
+
+        // round - INT 版本
         registry.register(
             "round",
             FunctionSignature::new(
                 "round",
-                vec![ValueType::Any],
-                ValueType::Any,
+                vec![ValueType::Int],
+                ValueType::Int,
                 1,
                 1,
                 true,
@@ -191,19 +311,39 @@ impl FunctionRegistry {
             |args| {
                 match &args[0] {
                     Value::Int(i) => Ok(Value::Int(*i)),
-                    Value::Float(f) => Ok(Value::Float(f.round())),
                     Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
-                    _ => Err(ExpressionError::type_error("round函数需要数值类型")),
+                    _ => Err(ExpressionError::type_error("round函数需要整数类型")),
                 }
             },
         );
 
-        // sqrt
+        // round - FLOAT 版本
+        registry.register(
+            "round",
+            FunctionSignature::new(
+                "round",
+                vec![ValueType::Float],
+                ValueType::Float,
+                1,
+                1,
+                true,
+                "四舍五入",
+            ),
+            |args| {
+                match &args[0] {
+                    Value::Float(f) => Ok(Value::Float(f.round())),
+                    Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
+                    _ => Err(ExpressionError::type_error("round函数需要浮点数类型")),
+                }
+            },
+        );
+
+        // sqrt - INT 版本
         registry.register(
             "sqrt",
             FunctionSignature::new(
                 "sqrt",
-                vec![ValueType::Any],
+                vec![ValueType::Int],
                 ValueType::Float,
                 1,
                 1,
@@ -213,27 +353,47 @@ impl FunctionRegistry {
             |args| {
                 match &args[0] {
                     Value::Int(i) if *i >= 0 => Ok(Value::Float(((*i) as f64).sqrt())),
-                    Value::Float(f) if *f >= 0.0 => Ok(Value::Float(f.sqrt())),
                     Value::Int(i) if *i < 0 => Err(ExpressionError::new(
                         ExpressionErrorType::InvalidOperation,
                         "sqrt of negative number".to_string(),
                     )),
+                    Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
+                    _ => Err(ExpressionError::type_error("sqrt函数需要整数类型")),
+                }
+            },
+        );
+
+        // sqrt - FLOAT 版本
+        registry.register(
+            "sqrt",
+            FunctionSignature::new(
+                "sqrt",
+                vec![ValueType::Float],
+                ValueType::Float,
+                1,
+                1,
+                true,
+                "计算平方根",
+            ),
+            |args| {
+                match &args[0] {
+                    Value::Float(f) if *f >= 0.0 => Ok(Value::Float(f.sqrt())),
                     Value::Float(f) if *f < 0.0 => Err(ExpressionError::new(
                         ExpressionErrorType::InvalidOperation,
                         "sqrt of negative number".to_string(),
                     )),
                     Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
-                    _ => Err(ExpressionError::type_error("sqrt函数需要非负数值类型")),
+                    _ => Err(ExpressionError::type_error("sqrt函数需要浮点数类型")),
                 }
             },
         );
 
-        // pow
+        // pow - INT, INT 版本
         registry.register(
             "pow",
             FunctionSignature::new(
                 "pow",
-                vec![ValueType::Any, ValueType::Any],
+                vec![ValueType::Int, ValueType::Int],
                 ValueType::Float,
                 2,
                 2,
@@ -245,29 +405,95 @@ impl FunctionRegistry {
                     (Value::Int(base), Value::Int(exp)) => {
                         Ok(Value::Float(((*base) as f64).powf(*exp as f64)))
                     }
+                    (Value::Null(_), _) | (_, Value::Null(_)) => {
+                        Ok(Value::Null(crate::core::value::NullType::Null))
+                    }
+                    _ => Err(ExpressionError::type_error("pow函数需要整数类型")),
+                }
+            },
+        );
+
+        // pow - FLOAT, FLOAT 版本
+        registry.register(
+            "pow",
+            FunctionSignature::new(
+                "pow",
+                vec![ValueType::Float, ValueType::Float],
+                ValueType::Float,
+                2,
+                2,
+                true,
+                "计算幂",
+            ),
+            |args| {
+                match (&args[0], &args[1]) {
                     (Value::Float(base), Value::Float(exp)) => {
                         Ok(Value::Float(base.powf(*exp)))
                     }
+                    (Value::Null(_), _) | (_, Value::Null(_)) => {
+                        Ok(Value::Null(crate::core::value::NullType::Null))
+                    }
+                    _ => Err(ExpressionError::type_error("pow函数需要浮点数类型")),
+                }
+            },
+        );
+
+        // pow - INT, FLOAT 版本
+        registry.register(
+            "pow",
+            FunctionSignature::new(
+                "pow",
+                vec![ValueType::Int, ValueType::Float],
+                ValueType::Float,
+                2,
+                2,
+                true,
+                "计算幂",
+            ),
+            |args| {
+                match (&args[0], &args[1]) {
                     (Value::Int(base), Value::Float(exp)) => {
                         Ok(Value::Float(((*base) as f64).powf(*exp)))
                     }
+                    (Value::Null(_), _) | (_, Value::Null(_)) => {
+                        Ok(Value::Null(crate::core::value::NullType::Null))
+                    }
+                    _ => Err(ExpressionError::type_error("pow函数需要整数和浮点数类型")),
+                }
+            },
+        );
+
+        // pow - FLOAT, INT 版本
+        registry.register(
+            "pow",
+            FunctionSignature::new(
+                "pow",
+                vec![ValueType::Float, ValueType::Int],
+                ValueType::Float,
+                2,
+                2,
+                true,
+                "计算幂",
+            ),
+            |args| {
+                match (&args[0], &args[1]) {
                     (Value::Float(base), Value::Int(exp)) => {
                         Ok(Value::Float(base.powf(*exp as f64)))
                     }
                     (Value::Null(_), _) | (_, Value::Null(_)) => {
                         Ok(Value::Null(crate::core::value::NullType::Null))
                     }
-                    _ => Err(ExpressionError::type_error("pow函数需要数值类型")),
+                    _ => Err(ExpressionError::type_error("pow函数需要浮点数和整数类型")),
                 }
             },
         );
 
-        // exp
+        // exp - INT 版本
         registry.register(
             "exp",
             FunctionSignature::new(
                 "exp",
-                vec![ValueType::Any],
+                vec![ValueType::Int],
                 ValueType::Float,
                 1,
                 1,
@@ -277,19 +503,39 @@ impl FunctionRegistry {
             |args| {
                 match &args[0] {
                     Value::Int(i) => Ok(Value::Float(((*i) as f64).exp())),
-                    Value::Float(f) => Ok(Value::Float(f.exp())),
                     Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
-                    _ => Err(ExpressionError::type_error("exp函数需要数值类型")),
+                    _ => Err(ExpressionError::type_error("exp函数需要整数类型")),
                 }
             },
         );
 
-        // log
+        // exp - FLOAT 版本
+        registry.register(
+            "exp",
+            FunctionSignature::new(
+                "exp",
+                vec![ValueType::Float],
+                ValueType::Float,
+                1,
+                1,
+                true,
+                "计算指数",
+            ),
+            |args| {
+                match &args[0] {
+                    Value::Float(f) => Ok(Value::Float(f.exp())),
+                    Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
+                    _ => Err(ExpressionError::type_error("exp函数需要浮点数类型")),
+                }
+            },
+        );
+
+        // log - INT 版本
         registry.register(
             "log",
             FunctionSignature::new(
                 "log",
-                vec![ValueType::Any],
+                vec![ValueType::Int],
                 ValueType::Float,
                 1,
                 1,
@@ -299,27 +545,47 @@ impl FunctionRegistry {
             |args| {
                 match &args[0] {
                     Value::Int(i) if *i > 0 => Ok(Value::Float(((*i) as f64).ln())),
-                    Value::Float(f) if *f > 0.0 => Ok(Value::Float(f.ln())),
                     Value::Int(i) if *i <= 0 => Err(ExpressionError::new(
                         ExpressionErrorType::InvalidOperation,
                         "log of non-positive number".to_string(),
                     )),
+                    Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
+                    _ => Err(ExpressionError::type_error("log函数需要整数类型")),
+                }
+            },
+        );
+
+        // log - FLOAT 版本
+        registry.register(
+            "log",
+            FunctionSignature::new(
+                "log",
+                vec![ValueType::Float],
+                ValueType::Float,
+                1,
+                1,
+                true,
+                "计算自然对数",
+            ),
+            |args| {
+                match &args[0] {
+                    Value::Float(f) if *f > 0.0 => Ok(Value::Float(f.ln())),
                     Value::Float(f) if *f <= 0.0 => Err(ExpressionError::new(
                         ExpressionErrorType::InvalidOperation,
                         "log of non-positive number".to_string(),
                     )),
                     Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
-                    _ => Err(ExpressionError::type_error("log函数需要正数值类型")),
+                    _ => Err(ExpressionError::type_error("log函数需要浮点数类型")),
                 }
             },
         );
 
-        // log10
+        // log10 - INT 版本
         registry.register(
             "log10",
             FunctionSignature::new(
                 "log10",
-                vec![ValueType::Any],
+                vec![ValueType::Int],
                 ValueType::Float,
                 1,
                 1,
@@ -329,27 +595,47 @@ impl FunctionRegistry {
             |args| {
                 match &args[0] {
                     Value::Int(i) if *i > 0 => Ok(Value::Float(((*i) as f64).log10())),
-                    Value::Float(f) if *f > 0.0 => Ok(Value::Float(f.log10())),
                     Value::Int(i) if *i <= 0 => Err(ExpressionError::new(
                         ExpressionErrorType::InvalidOperation,
                         "log10 of non-positive number".to_string(),
                     )),
+                    Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
+                    _ => Err(ExpressionError::type_error("log10函数需要整数类型")),
+                }
+            },
+        );
+
+        // log10 - FLOAT 版本
+        registry.register(
+            "log10",
+            FunctionSignature::new(
+                "log10",
+                vec![ValueType::Float],
+                ValueType::Float,
+                1,
+                1,
+                true,
+                "计算以10为底的对数",
+            ),
+            |args| {
+                match &args[0] {
+                    Value::Float(f) if *f > 0.0 => Ok(Value::Float(f.log10())),
                     Value::Float(f) if *f <= 0.0 => Err(ExpressionError::new(
                         ExpressionErrorType::InvalidOperation,
                         "log10 of non-positive number".to_string(),
                     )),
                     Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
-                    _ => Err(ExpressionError::type_error("log10函数需要正数值类型")),
+                    _ => Err(ExpressionError::type_error("log10函数需要浮点数类型")),
                 }
             },
         );
 
-        // sin
+        // sin - INT 版本
         registry.register(
             "sin",
             FunctionSignature::new(
                 "sin",
-                vec![ValueType::Any],
+                vec![ValueType::Int],
                 ValueType::Float,
                 1,
                 1,
@@ -359,19 +645,39 @@ impl FunctionRegistry {
             |args| {
                 match &args[0] {
                     Value::Int(i) => Ok(Value::Float(((*i) as f64).sin())),
-                    Value::Float(f) => Ok(Value::Float(f.sin())),
                     Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
-                    _ => Err(ExpressionError::type_error("sin函数需要数值类型")),
+                    _ => Err(ExpressionError::type_error("sin函数需要整数类型")),
                 }
             },
         );
 
-        // cos
+        // sin - FLOAT 版本
+        registry.register(
+            "sin",
+            FunctionSignature::new(
+                "sin",
+                vec![ValueType::Float],
+                ValueType::Float,
+                1,
+                1,
+                true,
+                "计算正弦",
+            ),
+            |args| {
+                match &args[0] {
+                    Value::Float(f) => Ok(Value::Float(f.sin())),
+                    Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
+                    _ => Err(ExpressionError::type_error("sin函数需要浮点数类型")),
+                }
+            },
+        );
+
+        // cos - INT 版本
         registry.register(
             "cos",
             FunctionSignature::new(
                 "cos",
-                vec![ValueType::Any],
+                vec![ValueType::Int],
                 ValueType::Float,
                 1,
                 1,
@@ -381,19 +687,39 @@ impl FunctionRegistry {
             |args| {
                 match &args[0] {
                     Value::Int(i) => Ok(Value::Float(((*i) as f64).cos())),
-                    Value::Float(f) => Ok(Value::Float(f.cos())),
                     Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
-                    _ => Err(ExpressionError::type_error("cos函数需要数值类型")),
+                    _ => Err(ExpressionError::type_error("cos函数需要整数类型")),
                 }
             },
         );
 
-        // tan
+        // cos - FLOAT 版本
+        registry.register(
+            "cos",
+            FunctionSignature::new(
+                "cos",
+                vec![ValueType::Float],
+                ValueType::Float,
+                1,
+                1,
+                true,
+                "计算余弦",
+            ),
+            |args| {
+                match &args[0] {
+                    Value::Float(f) => Ok(Value::Float(f.cos())),
+                    Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
+                    _ => Err(ExpressionError::type_error("cos函数需要浮点数类型")),
+                }
+            },
+        );
+
+        // tan - INT 版本
         registry.register(
             "tan",
             FunctionSignature::new(
                 "tan",
-                vec![ValueType::Any],
+                vec![ValueType::Int],
                 ValueType::Float,
                 1,
                 1,
@@ -403,9 +729,29 @@ impl FunctionRegistry {
             |args| {
                 match &args[0] {
                     Value::Int(i) => Ok(Value::Float(((*i) as f64).tan())),
+                    Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
+                    _ => Err(ExpressionError::type_error("tan函数需要整数类型")),
+                }
+            },
+        );
+
+        // tan - FLOAT 版本
+        registry.register(
+            "tan",
+            FunctionSignature::new(
+                "tan",
+                vec![ValueType::Float],
+                ValueType::Float,
+                1,
+                1,
+                true,
+                "计算正切",
+            ),
+            |args| {
+                match &args[0] {
                     Value::Float(f) => Ok(Value::Float(f.tan())),
                     Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
-                    _ => Err(ExpressionError::type_error("tan函数需要数值类型")),
+                    _ => Err(ExpressionError::type_error("tan函数需要浮点数类型")),
                 }
             },
         );
@@ -804,12 +1150,12 @@ impl FunctionRegistry {
     fn register_conversion_functions(&mut self) {
         let registry = self;
 
-        // to_string
+        // to_string - STRING 版本
         registry.register(
             "to_string",
             FunctionSignature::new(
                 "to_string",
-                vec![ValueType::Any],
+                vec![ValueType::String],
                 ValueType::String,
                 1,
                 1,
@@ -819,22 +1165,82 @@ impl FunctionRegistry {
             |args| {
                 match &args[0] {
                     Value::String(s) => Ok(Value::String(s.clone())),
-                    Value::Int(i) => Ok(Value::String(i.to_string())),
-                    Value::Float(f) => Ok(Value::String(f.to_string())),
-                    Value::Bool(b) => Ok(Value::String(b.to_string())),
                     Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
-                    _ => Err(ExpressionError::type_error("to_string函数不支持此类型")),
+                    _ => Err(ExpressionError::type_error("to_string函数需要字符串类型")),
                 }
             },
         );
 
-        // to_int / to_integer
+        // to_string - INT 版本
+        registry.register(
+            "to_string",
+            FunctionSignature::new(
+                "to_string",
+                vec![ValueType::Int],
+                ValueType::String,
+                1,
+                1,
+                true,
+                "转换为字符串",
+            ),
+            |args| {
+                match &args[0] {
+                    Value::Int(i) => Ok(Value::String(i.to_string())),
+                    Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
+                    _ => Err(ExpressionError::type_error("to_string函数需要整数类型")),
+                }
+            },
+        );
+
+        // to_string - FLOAT 版本
+        registry.register(
+            "to_string",
+            FunctionSignature::new(
+                "to_string",
+                vec![ValueType::Float],
+                ValueType::String,
+                1,
+                1,
+                true,
+                "转换为字符串",
+            ),
+            |args| {
+                match &args[0] {
+                    Value::Float(f) => Ok(Value::String(f.to_string())),
+                    Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
+                    _ => Err(ExpressionError::type_error("to_string函数需要浮点数类型")),
+                }
+            },
+        );
+
+        // to_string - BOOL 版本
+        registry.register(
+            "to_string",
+            FunctionSignature::new(
+                "to_string",
+                vec![ValueType::Bool],
+                ValueType::String,
+                1,
+                1,
+                true,
+                "转换为字符串",
+            ),
+            |args| {
+                match &args[0] {
+                    Value::Bool(b) => Ok(Value::String(b.to_string())),
+                    Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
+                    _ => Err(ExpressionError::type_error("to_string函数需要布尔类型")),
+                }
+            },
+        );
+
+        // to_int - INT 版本
         for name in ["to_int", "to_integer"] {
             registry.register(
                 name,
                 FunctionSignature::new(
                     name,
-                    vec![ValueType::Any],
+                    vec![ValueType::Int],
                     ValueType::Int,
                     1,
                     1,
@@ -844,26 +1250,92 @@ impl FunctionRegistry {
                 |args| {
                     match &args[0] {
                         Value::Int(i) => Ok(Value::Int(*i)),
-                        Value::Float(f) => Ok(Value::Int(*f as i64)),
-                        Value::String(s) => {
-                            s.parse::<i64>()
-                                .map(Value::Int)
-                                .map_err(|_| ExpressionError::type_error("无法将字符串转换为整数"))
-                        }
-                        Value::Bool(b) => Ok(Value::Int(if *b { 1 } else { 0 })),
                         Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
-                        _ => Err(ExpressionError::type_error("to_int函数不支持此类型")),
+                        _ => Err(ExpressionError::type_error("to_int函数需要整数类型")),
                     }
                 },
             );
         }
 
-        // to_float
+        // to_int - FLOAT 版本
+        for name in ["to_int", "to_integer"] {
+            registry.register(
+                name,
+                FunctionSignature::new(
+                    name,
+                    vec![ValueType::Float],
+                    ValueType::Int,
+                    1,
+                    1,
+                    true,
+                    "转换为整数",
+                ),
+                |args| {
+                    match &args[0] {
+                        Value::Float(f) => Ok(Value::Int(*f as i64)),
+                        Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
+                        _ => Err(ExpressionError::type_error("to_int函数需要浮点数类型")),
+                    }
+                },
+            );
+        }
+
+        // to_int - STRING 版本
+        for name in ["to_int", "to_integer"] {
+            registry.register(
+                name,
+                FunctionSignature::new(
+                    name,
+                    vec![ValueType::String],
+                    ValueType::Int,
+                    1,
+                    1,
+                    true,
+                    "转换为整数",
+                ),
+                |args| {
+                    match &args[0] {
+                        Value::String(s) => {
+                            s.parse::<i64>()
+                                .map(Value::Int)
+                                .map_err(|_| ExpressionError::type_error("无法将字符串转换为整数"))
+                        }
+                        Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
+                        _ => Err(ExpressionError::type_error("to_int函数需要字符串类型")),
+                    }
+                },
+            );
+        }
+
+        // to_int - BOOL 版本
+        for name in ["to_int", "to_integer"] {
+            registry.register(
+                name,
+                FunctionSignature::new(
+                    name,
+                    vec![ValueType::Bool],
+                    ValueType::Int,
+                    1,
+                    1,
+                    true,
+                    "转换为整数",
+                ),
+                |args| {
+                    match &args[0] {
+                        Value::Bool(b) => Ok(Value::Int(if *b { 1 } else { 0 })),
+                        Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
+                        _ => Err(ExpressionError::type_error("to_int函数需要布尔类型")),
+                    }
+                },
+            );
+        }
+
+        // to_float - FLOAT 版本
         registry.register(
             "to_float",
             FunctionSignature::new(
                 "to_float",
-                vec![ValueType::Any],
+                vec![ValueType::Float],
                 ValueType::Float,
                 1,
                 1,
@@ -873,26 +1345,65 @@ impl FunctionRegistry {
             |args| {
                 match &args[0] {
                     Value::Float(f) => Ok(Value::Float(*f)),
+                    Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
+                    _ => Err(ExpressionError::type_error("to_float函数需要浮点数类型")),
+                }
+            },
+        );
+
+        // to_float - INT 版本
+        registry.register(
+            "to_float",
+            FunctionSignature::new(
+                "to_float",
+                vec![ValueType::Int],
+                ValueType::Float,
+                1,
+                1,
+                true,
+                "转换为浮点数",
+            ),
+            |args| {
+                match &args[0] {
                     Value::Int(i) => Ok(Value::Float(*i as f64)),
+                    Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
+                    _ => Err(ExpressionError::type_error("to_float函数需要整数类型")),
+                }
+            },
+        );
+
+        // to_float - STRING 版本
+        registry.register(
+            "to_float",
+            FunctionSignature::new(
+                "to_float",
+                vec![ValueType::String],
+                ValueType::Float,
+                1,
+                1,
+                true,
+                "转换为浮点数",
+            ),
+            |args| {
+                match &args[0] {
                     Value::String(s) => {
                         s.parse::<f64>()
                             .map(Value::Float)
                             .map_err(|_| ExpressionError::type_error("无法将字符串转换为浮点数"))
                     }
-                    Value::Bool(b) => Ok(Value::Float(if *b { 1.0 } else { 0.0 })),
                     Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
-                    _ => Err(ExpressionError::type_error("to_float函数不支持此类型")),
+                    _ => Err(ExpressionError::type_error("to_float函数需要字符串类型")),
                 }
             },
         );
 
-        // to_bool / toboolean
+        // to_bool - BOOL 版本
         for name in ["to_bool", "toboolean"] {
             registry.register(
                 name,
                 FunctionSignature::new(
                     name,
-                    vec![ValueType::Any],
+                    vec![ValueType::Bool],
                     ValueType::Bool,
                     1,
                     1,
@@ -902,7 +1413,74 @@ impl FunctionRegistry {
                 |args| {
                     match &args[0] {
                         Value::Bool(b) => Ok(Value::Bool(*b)),
+                        Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
+                        _ => Err(ExpressionError::type_error("to_bool函数需要布尔类型")),
+                    }
+                },
+            );
+        }
+
+        // to_bool - INT 版本
+        for name in ["to_bool", "toboolean"] {
+            registry.register(
+                name,
+                FunctionSignature::new(
+                    name,
+                    vec![ValueType::Int],
+                    ValueType::Bool,
+                    1,
+                    1,
+                    true,
+                    "转换为布尔值",
+                ),
+                |args| {
+                    match &args[0] {
                         Value::Int(i) => Ok(Value::Bool(*i != 0)),
+                        Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
+                        _ => Err(ExpressionError::type_error("to_bool函数需要整数类型")),
+                    }
+                },
+            );
+        }
+
+        // to_bool - FLOAT 版本
+        for name in ["to_bool", "toboolean"] {
+            registry.register(
+                name,
+                FunctionSignature::new(
+                    name,
+                    vec![ValueType::Float],
+                    ValueType::Bool,
+                    1,
+                    1,
+                    true,
+                    "转换为布尔值",
+                ),
+                |args| {
+                    match &args[0] {
+                        Value::Float(f) => Ok(Value::Bool(*f != 0.0)),
+                        Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
+                        _ => Err(ExpressionError::type_error("to_bool函数需要浮点数类型")),
+                    }
+                },
+            );
+        }
+
+        // to_bool - STRING 版本
+        for name in ["to_bool", "toboolean"] {
+            registry.register(
+                name,
+                FunctionSignature::new(
+                    name,
+                    vec![ValueType::String],
+                    ValueType::Bool,
+                    1,
+                    1,
+                    true,
+                    "转换为布尔值",
+                ),
+                |args| {
+                    match &args[0] {
                         Value::String(s) => {
                             let lower = s.to_lowercase();
                             if lower == "true" || lower == "1" {
@@ -913,9 +1491,8 @@ impl FunctionRegistry {
                                 Ok(Value::Null(crate::core::value::NullType::Null))
                             }
                         }
-                        Value::Float(f) => Ok(Value::Bool(*f != 0.0)),
                         Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
-                        _ => Err(ExpressionError::type_error("to_bool函数不支持此类型")),
+                        _ => Err(ExpressionError::type_error("to_bool函数需要字符串类型")),
                     }
                 },
             );

@@ -6,10 +6,10 @@ use crate::core::{Edge, Value, Vertex};
 use crate::core::error::ExpressionError;
 use crate::expression::context::{
     cache_manager::CacheManager,
-    function_registry::FunctionRegistry,
     traits::*,
     version_manager::VersionManager,
 };
+use crate::expression::functions::registry::FunctionRegistry;
 use std::collections::HashMap;
 
 /// 存储层表达式上下文trait
@@ -68,7 +68,7 @@ pub trait StorageExpressionContext: ExpressionContext {
 /// 使用 VersionManager 管理变量，支持版本控制
 /// 使用 FunctionRegistry 管理函数，支持自定义函数
 /// 使用 CacheManager 管理缓存，提升性能
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct DefaultExpressionContext {
     /// 版本管理器
     version_manager: VersionManager,
@@ -153,7 +153,7 @@ impl DefaultExpressionContext {
 
     /// 注册自定义函数
     pub fn register_function(&mut self, function: crate::expression::functions::CustomFunction) {
-        self.function_registry.register_custom(function);
+        self.function_registry.register_custom_full(function);
     }
 
     /// 获取函数注册表引用
@@ -304,8 +304,8 @@ impl GraphContext for DefaultExpressionContext {
 }
 
 impl FunctionContext for DefaultExpressionContext {
-    fn get_function(&self, name: &str) -> Option<crate::expression::functions::FunctionRef> {
-        self.function_registry.get(name)
+    fn get_function(&self, _name: &str) -> Option<crate::expression::functions::FunctionRef> {
+        None
     }
 
     fn get_function_names(&self) -> Vec<&str> {
@@ -324,18 +324,8 @@ impl ScopedContext for DefaultExpressionContext {
         0
     }
 
-    fn create_child_context(&self) -> Box<dyn ExpressionContext> {
+    fn create_child_context(&self) -> Box<dyn crate::expression::evaluator::traits::ExpressionContext> {
         Box::new(Self::new())
-    }
-}
-
-impl ExpressionContext for DefaultExpressionContext {
-    fn is_empty(&self) -> bool {
-        self.is_empty()
-    }
-
-    fn clear(&mut self) {
-        self.clear();
     }
 }
 
