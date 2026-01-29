@@ -5,9 +5,7 @@ use crate::core::types::{
     PasswordInfo,
 };
 use crate::expression::storage::{RowReaderWrapper, Schema};
-
-/// Transaction identifier
-pub type TransactionId = u64;
+use crate::storage::transaction::TransactionId;
 
 /// Storage engine trait defining the interface for graph storage
 pub trait StorageEngine: Send + Sync {
@@ -38,7 +36,7 @@ pub trait StorageEngine: Send + Sync {
         &self,
         node_id: &Value,
         direction: EdgeDirection,
-        filter: Option<Box<dyn Fn(&Edge) -> bool + Send + Sync>>,
+        filter: Option<Box<dyn Fn(&Edge) -> bool + Send + Sync + 'static>>,
     ) -> Result<Vec<Edge>, StorageError>;
     fn delete_edge(
         &mut self,

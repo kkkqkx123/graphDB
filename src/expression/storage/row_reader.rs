@@ -62,7 +62,7 @@ impl RowReaderWrapper {
         Ok((offset, len))
     }
 
-    fn read_fixed_data(&self, data: &[u8], type_name: &str, size: usize) -> Result<&[u8], ExpressionError> {
+    fn read_fixed_data<'a>(&self, data: &'a [u8], type_name: &str, size: usize) -> Result<&'a [u8], ExpressionError> {
         self.check_length(data, size, type_name)?;
         Ok(&data[..size])
     }

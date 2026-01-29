@@ -859,6 +859,7 @@ impl StorageEngine for RedbStorage {
             .duration_since(UNIX_EPOCH)
             .expect("Time went backwards")
             .as_nanos() as u64;
+        let tx_id = TransactionId::new(tx_id);
 
         let mut active_transactions = self.active_transactions.lock().expect("Failed to lock active transactions");
         active_transactions.insert(tx_id, ());
@@ -869,7 +870,7 @@ impl StorageEngine for RedbStorage {
     fn commit_transaction(&mut self, tx_id: TransactionId) -> Result<(), StorageError> {
         let mut active_transactions = self.active_transactions.lock().expect("Failed to lock active transactions");
         if !active_transactions.contains_key(&tx_id) {
-            return Err(StorageError::TransactionNotFound(tx_id));
+            return Err(StorageError::TransactionNotFound(tx_id.as_u64()));
         }
 
         active_transactions.remove(&tx_id);
@@ -880,7 +881,7 @@ impl StorageEngine for RedbStorage {
     fn rollback_transaction(&mut self, tx_id: TransactionId) -> Result<(), StorageError> {
         let mut active_transactions = self.active_transactions.lock().expect("Failed to lock active transactions");
         if !active_transactions.contains_key(&tx_id) {
-            return Err(StorageError::TransactionNotFound(tx_id));
+            return Err(StorageError::TransactionNotFound(tx_id.as_u64()));
         }
 
         active_transactions.remove(&tx_id);

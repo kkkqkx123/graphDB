@@ -7,16 +7,28 @@
 //! - SequentialIter: 顺序迭代器（DataSet行级）
 //! - GetNeighborsIter: 邻居查询迭代器（图遍历）
 //! - PropIter: 属性查询迭代器
+//!
+//! 新增（Phase 4）：
+//! - StorageIterator: 存储引擎迭代器接口
+//! - CompositeIter: 组合迭代器
+//! - Predicate: 谓词下推支持
 
 pub mod default_iter;
 pub mod get_neighbors_iter;
 pub mod prop_iter;
 pub mod sequential_iter;
+pub mod storage_iter;
+pub mod composite;
+pub mod predicate;
 
 pub use default_iter::DefaultIter;
 pub use get_neighbors_iter::GetNeighborsIter;
 pub use prop_iter::PropIter;
 pub use sequential_iter::SequentialIter;
+// 存储迭代器类型（待实现）
+// pub use storage_iter::{StorageIterator, VertexIter, EdgeIter, PropIter as StoragePropIter};
+pub use composite::{CompositeIter, FilterIter, MapIter, TakeIter, SkipIter};
+pub use predicate::{Predicate, Expression, SimplePredicate, CompoundPredicate, PredicateOptimizer, PushdownResult};
 
 use crate::core::Value;
 use std::fmt::Debug;

@@ -97,6 +97,7 @@ impl TransactionManager {
 
     pub fn begin_transaction(&mut self) -> TransactionId {
         let tx_id = self.current_tx_id.fetch_add(1, Ordering::SeqCst);
+        let tx_id = TransactionId::new(tx_id);
         let transaction = Transaction::new(tx_id);
         self.active_transactions.insert(tx_id, transaction);
         tx_id

@@ -1,4 +1,4 @@
-use super::{StorageEngine, TransactionId, EdgeReader, EdgeWriter, ScanResult, VertexReader, VertexWriter};
+use super::{StorageEngine, TransactionId, EdgeReader, EdgeWriter, ScanResult, VertexReader, VertexWriter, SchemaManager, MemorySchemaManager};
 use crate::core::{Edge, StorageError, Value, Vertex, EdgeDirection};
 use crate::core::vertex_edge_path::Tag;
 use crate::core::types::{
@@ -32,6 +32,7 @@ pub struct MemoryStorage {
     tag_indexes: Arc<Mutex<HashMap<String, HashMap<String, IndexInfo>>>>,
     edge_indexes: Arc<Mutex<HashMap<String, HashMap<String, IndexInfo>>>>,
     users: Arc<Mutex<HashMap<String, String>>>,
+    pub schema_manager: Arc<MemorySchemaManager>,
 }
 
 impl std::fmt::Debug for MemoryStorage {
@@ -61,6 +62,7 @@ impl MemoryStorage {
     pub fn new() -> Result<Self, StorageError> {
         let memory_pool = Arc::new(MemoryPool::new(100 * 1024 * 1024).map_err(|e| StorageError::DbError(e))?); // 100MB
         let id_generator = Arc::new(Mutex::new(IdGenerator::new()));
+        let schema_manager = Arc::new(MemorySchemaManager::new());
 
         Ok(Self {
             vertices: Arc::new(Mutex::new(HashMap::new())),
@@ -68,7 +70,7 @@ impl MemoryStorage {
             vertex_tags: Arc::new(Mutex::new(HashMap::new())),
             edge_types: Arc::new(Mutex::new(HashMap::new())),
             active_transactions: Arc::new(Mutex::new(HashMap::new())),
-            next_tx_id: Arc::new(Mutex::new(1)),
+            next_tx_id: Arc::new(Mutex::new(TransactionId::new(1))),
             _vertex_props: Arc::new(Mutex::new(HashMap::new())),
             _memory_pool: memory_pool,
             id_generator,
@@ -78,6 +80,7 @@ impl MemoryStorage {
             tag_indexes: Arc::new(Mutex::new(HashMap::new())),
             edge_indexes: Arc::new(Mutex::new(HashMap::new())),
             users: Arc::new(Mutex::new(HashMap::new())),
+            schema_manager,
         })
     }
 
@@ -925,6 +928,7 @@ impl EdgeReader for MemoryStorage {
         edge_type: Option<&str>,
     ) -> Result<ScanResult<Edge>, StorageError> {
         let filter = edge_type.map(|et| {
+            let et = et.to_string();
             move |e: &Edge| e.edge_type == et
         });
         let edges = <Self as StorageEngine>::get_node_edges_filtered(self, node_id, direction, filter.map(|f| Box::new(f) as _))?;

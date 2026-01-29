@@ -92,6 +92,12 @@ pub enum StorageError {
     TransactionNotFound(u64),
     #[error("操作不支持: {0}")]
     NotSupported(String),
+    #[error("冲突错误: {0}")]
+    Conflict(String),
+    #[error("锁超时: {0}")]
+    LockTimeout(String),
+    #[error("死锁检测")]
+    Deadlock,
 }
 
 /// 查询层错误类型
