@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::core::types::metadata::PropertyDef;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 /// 边类型修改操作类型
 #[derive(Debug, Clone)]
@@ -77,12 +77,12 @@ impl AlterEdgeInfo {
 ///
 /// 该执行器负责修改已存在边类型的属性定义。
 #[derive(Debug)]
-pub struct AlterEdgeExecutor<S: StorageEngine> {
+pub struct AlterEdgeExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     alter_info: AlterEdgeInfo,
 }
 
-impl<S: StorageEngine> AlterEdgeExecutor<S> {
+impl<S: StorageClient> AlterEdgeExecutor<S> {
     /// 创建新的 AlterEdgeExecutor
     pub fn new(id: i64, storage: Arc<Mutex<S>>, alter_info: AlterEdgeInfo) -> Self {
         Self {
@@ -93,7 +93,7 @@ impl<S: StorageEngine> AlterEdgeExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for AlterEdgeExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AlterEdgeExecutor<S> {
     async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let mut storage_guard = storage.lock().map_err(|e| {
@@ -153,7 +153,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for AlterEdgeExecutor
     }
 }
 
-impl<S: StorageEngine> crate::query::executor::base::HasStorage<S> for AlterEdgeExecutor<S> {
+impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for AlterEdgeExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.get_storage()
     }

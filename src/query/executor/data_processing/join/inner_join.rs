@@ -13,17 +13,17 @@ use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::data_processing::join::base_join::BaseJoinExecutor;
 use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::query::QueryError;
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 /// 内连接执行器
-pub struct InnerJoinExecutor<S: StorageEngine> {
+pub struct InnerJoinExecutor<S: StorageClient> {
     base_executor: BaseJoinExecutor<S>,
     single_key_hash_table: Option<HashMap<Value, Vec<Vec<Value>>>>,
     multi_key_hash_table: Option<HashMap<Vec<Value>, Vec<Vec<Value>>>>,
     use_multi_key: bool,
 }
 
-impl<S: StorageEngine> std::fmt::Debug for InnerJoinExecutor<S> {
+impl<S: StorageClient> std::fmt::Debug for InnerJoinExecutor<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("InnerJoinExecutor")
             .field("base_executor", &"BaseJoinExecutor<S>")
@@ -34,7 +34,7 @@ impl<S: StorageEngine> std::fmt::Debug for InnerJoinExecutor<S> {
     }
 }
 
-impl<S: StorageEngine> InnerJoinExecutor<S> {
+impl<S: StorageClient> InnerJoinExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -243,7 +243,7 @@ impl<S: StorageEngine> InnerJoinExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for InnerJoinExecutor<S> {
+impl<S: StorageClient + Send + 'static> Executor<S> for InnerJoinExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let (left_dataset, right_dataset) = self
             .base_executor
@@ -309,7 +309,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for InnerJoinExecutor<S> {
     }
 }
 
-impl<S: StorageEngine + Send + 'static> HasStorage<S> for InnerJoinExecutor<S> {
+impl<S: StorageClient + Send + 'static> HasStorage<S> for InnerJoinExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base_executor
             .get_base()
@@ -320,11 +320,11 @@ impl<S: StorageEngine + Send + 'static> HasStorage<S> for InnerJoinExecutor<S> {
 }
 
 #[derive(Debug)]
-pub struct HashInnerJoinExecutor<S: StorageEngine> {
+pub struct HashInnerJoinExecutor<S: StorageClient> {
     inner: InnerJoinExecutor<S>,
 }
 
-impl<S: StorageEngine> HashInnerJoinExecutor<S> {
+impl<S: StorageClient> HashInnerJoinExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -343,7 +343,7 @@ impl<S: StorageEngine> HashInnerJoinExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for HashInnerJoinExecutor<S> {
+impl<S: StorageClient + Send + 'static> Executor<S> for HashInnerJoinExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         self.inner.execute().await
     }
@@ -381,7 +381,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for HashInnerJoinExecutor<S>
     }
 }
 
-impl<S: StorageEngine + Send + 'static> HasStorage<S> for HashInnerJoinExecutor<S> {
+impl<S: StorageClient + Send + 'static> HasStorage<S> for HashInnerJoinExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.inner.get_storage()
     }

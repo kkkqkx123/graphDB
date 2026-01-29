@@ -9,15 +9,15 @@ use crate::query::executor::data_processing::join::{
     hash_table::{build_hash_table, extract_key_values, JoinKey},
 };
 use crate::query::executor::traits::{ExecutionResult, Executor};
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 /// 全外连接执行器
 /// 实现全外连接操作：保留左右表的所有记录，没有匹配的部分用NULL填充
-pub struct FullOuterJoinExecutor<S: StorageEngine + Send + 'static> {
+pub struct FullOuterJoinExecutor<S: StorageClient + Send + 'static> {
     base: BaseJoinExecutor<S>,
 }
 
-impl<S: StorageEngine + Send + 'static> FullOuterJoinExecutor<S> {
+impl<S: StorageClient + Send + 'static> FullOuterJoinExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -223,7 +223,7 @@ impl<S: StorageEngine + Send + 'static> FullOuterJoinExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for FullOuterJoinExecutor<S> {
+impl<S: StorageClient + Send + 'static> Executor<S> for FullOuterJoinExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         self.execute_full_outer_join().await
     }
@@ -261,7 +261,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for FullOuterJoinExecutor<S>
     }
 }
 
-impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S>
+impl<S: StorageClient + Send + 'static> crate::query::executor::traits::HasStorage<S>
     for FullOuterJoinExecutor<S>
 {
     fn get_storage(&self) -> &Arc<Mutex<S>> {

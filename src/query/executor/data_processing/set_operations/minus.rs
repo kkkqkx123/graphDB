@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 use crate::core::error::QueryError;
 use crate::core::{DataSet, Value};
 use crate::query::executor::traits::{DBResult, ExecutionResult, Executor};
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 use super::base::SetExecutor;
 
@@ -17,11 +17,11 @@ use super::base::SetExecutor;
 /// 实现MINUS操作，返回左数据集中存在但右数据集中不存在的行
 /// 类似于SQL的EXCEPT或MINUS
 #[derive(Debug)]
-pub struct MinusExecutor<S: StorageEngine> {
+pub struct MinusExecutor<S: StorageClient> {
     pub set_executor: SetExecutor<S>,
 }
 
-impl<S: StorageEngine> MinusExecutor<S> {
+impl<S: StorageClient> MinusExecutor<S> {
     /// 创建新的Minus执行器
     pub fn new(
         id: i64,
@@ -96,7 +96,7 @@ impl<S: StorageEngine> MinusExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for MinusExecutor<S> {
+impl<S: StorageClient + Send + 'static> Executor<S> for MinusExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let dataset = self.execute_minus().await.map_err(|e| {
             crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(

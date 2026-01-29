@@ -21,7 +21,7 @@ use crate::query::executor::result_processing::traits::{
     BaseResultProcessor, ResultProcessor, ResultProcessorContext,
 };
 use crate::query::executor::traits::{DBResult, ExecutionResult, Executor, ExecutorStats};
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 /// 聚合函数规范
 /// 包含聚合函数类型和可选的字段名参数
@@ -433,7 +433,7 @@ impl GroupAggregateState {
 /// AggregateExecutor - 聚合执行器
 ///
 /// 执行聚合操作，支持 COUNT, SUM, AVG, MAX, MIN 等聚合函数
-pub struct AggregateExecutor<S: StorageEngine + Send + 'static> {
+pub struct AggregateExecutor<S: StorageClient + Send + 'static> {
     /// 基础处理器
     base: BaseResultProcessor<S>,
     /// 聚合函数列表
@@ -444,7 +444,7 @@ pub struct AggregateExecutor<S: StorageEngine + Send + 'static> {
     input_executor: Option<Box<ExecutorEnum<S>>>,
 }
 
-impl<S: StorageEngine> AggregateExecutor<S> {
+impl<S: StorageClient> AggregateExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -880,7 +880,7 @@ impl<S: StorageEngine> AggregateExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> ResultProcessor<S> for AggregateExecutor<S> {
+impl<S: StorageClient + Send + 'static> ResultProcessor<S> for AggregateExecutor<S> {
     async fn process(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult> {
         ResultProcessor::set_input(self, input);
         let dataset = self.process_input().await?;
@@ -913,7 +913,7 @@ impl<S: StorageEngine + Send + 'static> ResultProcessor<S> for AggregateExecutor
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for AggregateExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AggregateExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
             input_exec.execute().await?
@@ -966,7 +966,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for AggregateExecutor
     }
 }
 
-impl<S: StorageEngine + Send + 'static> InputExecutor<S> for AggregateExecutor<S> {
+impl<S: StorageClient + Send + 'static> InputExecutor<S> for AggregateExecutor<S> {
     fn set_input(&mut self, input: ExecutorEnum<S>) {
         self.input_executor = Some(Box::new(input));
     }
@@ -979,11 +979,11 @@ impl<S: StorageEngine + Send + 'static> InputExecutor<S> for AggregateExecutor<S
 /// GroupByExecutor - 分组聚合执行器
 ///
 /// 实现 GROUP BY 操作
-pub struct GroupByExecutor<S: StorageEngine + Send + 'static> {
+pub struct GroupByExecutor<S: StorageClient + Send + 'static> {
     aggregate_executor: AggregateExecutor<S>,
 }
 
-impl<S: StorageEngine + Send + 'static> GroupByExecutor<S> {
+impl<S: StorageClient + Send + 'static> GroupByExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -1001,7 +1001,7 @@ impl<S: StorageEngine + Send + 'static> GroupByExecutor<S> {
     }
 }
 
-impl<S: StorageEngine + Send + 'static> InputExecutor<S> for GroupByExecutor<S> {
+impl<S: StorageClient + Send + 'static> InputExecutor<S> for GroupByExecutor<S> {
     fn set_input(&mut self, input: ExecutorEnum<S>) {
         InputExecutor::set_input(&mut self.aggregate_executor, input);
     }
@@ -1012,7 +1012,7 @@ impl<S: StorageEngine + Send + 'static> InputExecutor<S> for GroupByExecutor<S> 
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for GroupByExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for GroupByExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         self.aggregate_executor.execute().await
     }
@@ -1053,7 +1053,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for GroupByExecutor<S
 /// HavingExecutor - HAVING 子句执行器
 ///
 /// 实现 HAVING 子句，对分组后的结果进行过滤
-pub struct HavingExecutor<S: StorageEngine + Send + 'static> {
+pub struct HavingExecutor<S: StorageClient + Send + 'static> {
     /// 基础处理器
     base: BaseResultProcessor<S>,
     /// HAVING 条件表达式
@@ -1062,7 +1062,7 @@ pub struct HavingExecutor<S: StorageEngine + Send + 'static> {
     input_executor: Option<Box<ExecutorEnum<S>>>,
 }
 
-impl<S: StorageEngine> HavingExecutor<S> {
+impl<S: StorageClient> HavingExecutor<S> {
     pub fn new(id: i64, storage: Arc<Mutex<S>>, condition: Expression) -> Self {
         let base = BaseResultProcessor::new(
             id,
@@ -1136,7 +1136,7 @@ impl<S: StorageEngine> HavingExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> ResultProcessor<S> for HavingExecutor<S> {
+impl<S: StorageClient + Send + 'static> ResultProcessor<S> for HavingExecutor<S> {
     async fn process(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult> {
         ResultProcessor::set_input(self, input);
         let dataset = self.process_input().await?;
@@ -1169,7 +1169,7 @@ impl<S: StorageEngine + Send + 'static> ResultProcessor<S> for HavingExecutor<S>
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for HavingExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for HavingExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
             input_exec.execute().await?
@@ -1222,7 +1222,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for HavingExecutor<S>
     }
 }
 
-impl<S: StorageEngine + Send + 'static> InputExecutor<S> for HavingExecutor<S> {
+impl<S: StorageClient + Send + 'static> InputExecutor<S> for HavingExecutor<S> {
     fn set_input(&mut self, input: ExecutorEnum<S>) {
         self.input_executor = Some(Box::new(input));
     }

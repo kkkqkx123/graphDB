@@ -9,14 +9,14 @@ use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::query::QueryError;
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 use crate::utils::safe_lock;
 
 /// TraverseExecutor - 完整图遍历执行器
 ///
 /// 执行完整的图遍历操作，支持多跳和条件过滤
 /// 结合了 ExpandExecutor 的功能，支持更复杂的遍历需求
-pub struct TraverseExecutor<S: StorageEngine + Send + 'static> {
+pub struct TraverseExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
     pub edge_direction: EdgeDirection,
     pub edge_types: Option<Vec<String>>,
@@ -34,7 +34,7 @@ pub struct TraverseExecutor<S: StorageEngine + Send + 'static> {
 }
 
 // Manual Debug implementation for TraverseExecutor to avoid requiring Debug trait for Executor trait object
-impl<S: StorageEngine> std::fmt::Debug for TraverseExecutor<S> {
+impl<S: StorageClient> std::fmt::Debug for TraverseExecutor<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("TraverseExecutor")
             .field("base", &"BaseExecutor")
@@ -52,7 +52,7 @@ impl<S: StorageEngine> std::fmt::Debug for TraverseExecutor<S> {
     }
 }
 
-impl<S: StorageEngine> TraverseExecutor<S> {
+impl<S: StorageClient> TraverseExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -247,7 +247,7 @@ impl<S: StorageEngine> TraverseExecutor<S> {
     }
 }
 
-impl<S: StorageEngine + Send + 'static> InputExecutor<S> for TraverseExecutor<S> {
+impl<S: StorageClient + Send + 'static> InputExecutor<S> for TraverseExecutor<S> {
     fn set_input(&mut self, input: ExecutorEnum<S>) {
         self.input_executor = Some(Box::new(input));
     }
@@ -258,7 +258,7 @@ impl<S: StorageEngine + Send + 'static> InputExecutor<S> for TraverseExecutor<S>
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for TraverseExecutor<S> {
+impl<S: StorageClient + Send + 'static> Executor<S> for TraverseExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         // 首先执行输入执行器（如果存在）
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
@@ -392,7 +392,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for TraverseExecutor<S> {
     }
 }
 
-impl<S: StorageEngine + Send> HasStorage<S> for TraverseExecutor<S> {
+impl<S: StorageClient + Send> HasStorage<S> for TraverseExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base
             .storage

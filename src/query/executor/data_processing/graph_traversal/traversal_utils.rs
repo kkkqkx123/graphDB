@@ -3,10 +3,10 @@ use std::sync::{Arc, Mutex};
 use crate::core::error::{DBError, DBResult, StorageError};
 use crate::core::{Edge, Value};
 use crate::query::executor::base::EdgeDirection;
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 use crate::utils::safe_lock;
 
-pub async fn get_neighbors<S: StorageEngine>(
+pub async fn get_neighbors<S: StorageClient>(
     storage: &Arc<Mutex<S>>,
     node_id: &Value,
     edge_direction: EdgeDirection,
@@ -60,7 +60,7 @@ pub async fn get_neighbors<S: StorageEngine>(
     Ok(neighbors)
 }
 
-pub async fn get_neighbors_with_edges<S: StorageEngine>(
+pub async fn get_neighbors_with_edges<S: StorageClient>(
     storage: &Arc<Mutex<S>>,
     node_id: &Value,
     edge_direction: EdgeDirection,

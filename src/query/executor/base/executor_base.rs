@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 use super::execution_context::ExecutionContext;
 use super::execution_result::{ExecutionResult, DBResult};
@@ -17,7 +17,7 @@ use super::super::executor_enum::ExecutorEnum;
 ///
 /// 所有执行器必须实现的核心 trait，包含执行、生命周期和元数据功能。
 #[async_trait]
-pub trait Executor<S: StorageEngine>: Send + Sync {
+pub trait Executor<S: StorageClient>: Send + Sync {
     /// 执行查询
     async fn execute(&mut self) -> DBResult<ExecutionResult>;
 
@@ -54,14 +54,14 @@ pub trait Executor<S: StorageEngine>: Send + Sync {
 /// 存储访问 trait
 ///
 /// 只需要存储访问能力的执行器可以实现此 trait。
-pub trait HasStorage<S: StorageEngine> {
+pub trait HasStorage<S: StorageClient> {
     fn get_storage(&self) -> &Arc<Mutex<S>>;
 }
 
 /// 输入访问 trait - 统一输入处理机制
 ///
 /// 需要访问输入数据的执行器应实现此 trait。
-pub trait HasInput<S: StorageEngine> {
+pub trait HasInput<S: StorageClient> {
     fn get_input(&self) -> Option<&ExecutionResult>;
     fn set_input(&mut self, input: ExecutionResult);
 }
@@ -70,7 +70,7 @@ pub trait HasInput<S: StorageEngine> {
 ///
 /// 用于处理来自其他执行器的输入数据。
 /// 使用 ExecutorEnum 替代 Box<dyn Executor<S>>，实现静态分发。
-pub trait InputExecutor<S: StorageEngine + Send + 'static> {
+pub trait InputExecutor<S: StorageClient + Send + 'static> {
     fn set_input(&mut self, input: ExecutorEnum<S>);
     fn get_input(&self) -> Option<&ExecutorEnum<S>>;
 }
@@ -78,7 +78,7 @@ pub trait InputExecutor<S: StorageEngine + Send + 'static> {
 /// 可链式执行的执行器 trait
 ///
 /// 支持链式组合的执行器可以实现此 trait。
-pub trait ChainableExecutor<S: StorageEngine + Send + 'static>:
+pub trait ChainableExecutor<S: StorageClient + Send + 'static>:
     Executor<S> + InputExecutor<S>
 {
 }
@@ -87,7 +87,7 @@ pub trait ChainableExecutor<S: StorageEngine + Send + 'static>:
 ///
 /// 提供执行器的通用功能，包括存储访问、统计信息、生命周期管理等。
 #[derive(Clone, Debug)]
-pub struct BaseExecutor<S: StorageEngine> {
+pub struct BaseExecutor<S: StorageClient> {
     /// 执行器 ID
     pub id: i64,
     /// 执行器名称
@@ -104,7 +104,7 @@ pub struct BaseExecutor<S: StorageEngine> {
     stats: ExecutorStats,
 }
 
-impl<S: StorageEngine> BaseExecutor<S> {
+impl<S: StorageClient> BaseExecutor<S> {
     /// 创建新的基础执行器（带存储）
     pub fn new(id: i64, name: String, storage: Arc<Mutex<S>>) -> Self {
         Self {
@@ -187,14 +187,14 @@ impl<S: StorageEngine> BaseExecutor<S> {
     }
 }
 
-impl<S: StorageEngine> HasStorage<S> for BaseExecutor<S> {
+impl<S: StorageClient> HasStorage<S> for BaseExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.storage.as_ref().expect("Storage not set")
     }
 }
 
 #[async_trait]
-impl<S: StorageEngine> Executor<S> for BaseExecutor<S> {
+impl<S: StorageClient> Executor<S> for BaseExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let start = Instant::now();
         let result = Ok(ExecutionResult::Success);
@@ -241,11 +241,11 @@ impl<S: StorageEngine> Executor<S> for BaseExecutor<S> {
 ///
 /// 表示查询执行的起始点，不产生实际数据。
 #[derive(Debug)]
-pub struct StartExecutor<S: StorageEngine> {
+pub struct StartExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
 }
 
-impl<S: StorageEngine> StartExecutor<S> {
+impl<S: StorageClient> StartExecutor<S> {
     /// 创建新的开始执行器
     pub fn new(id: i64) -> Self {
         Self {
@@ -255,7 +255,7 @@ impl<S: StorageEngine> StartExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for StartExecutor<S> {
+impl<S: StorageClient + Send + 'static> Executor<S> for StartExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let start = Instant::now();
         let result = Ok(ExecutionResult::Success);

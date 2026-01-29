@@ -1,6 +1,6 @@
 use crate::core::error::DBError;
 use crate::core::{Edge, Path, Value, Vertex};
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 use crate::utils::safe_lock;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -8,7 +8,7 @@ use std::time::Duration;
 use tokio::time;
 
 /// Global context for the graph database
-pub struct GraphContext<S: StorageEngine> {
+pub struct GraphContext<S: StorageClient> {
     pub config: crate::config::Config,
     pub storage: Arc<Mutex<S>>,
     /// Session-specific variables
@@ -125,7 +125,7 @@ impl ExecutionContext {
     }
 }
 
-impl<S: StorageEngine> GraphContext<S> {
+impl<S: StorageClient> GraphContext<S> {
     pub fn new(config: crate::config::Config, storage: S) -> Self {
         Self {
             config,

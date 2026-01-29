@@ -18,7 +18,7 @@ use crate::query::executor::result_processing::traits::{
     BaseResultProcessor, ResultProcessor, ResultProcessorContext,
 };
 use crate::query::executor::traits::{ExecutionResult, Executor};
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 /// 排序方向枚举
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -76,7 +76,7 @@ pub enum TopNError {
 ///
 /// 返回排序后的前 N 个结果，是 Sort + Limit 的优化版本
 /// 使用堆数据结构实现高效的 TopN 查询
-pub struct TopNExecutor<S: StorageEngine + Send + 'static> {
+pub struct TopNExecutor<S: StorageClient + Send + 'static> {
     /// 基础处理器
     base: BaseResultProcessor<S>,
     /// 返回的结果数量
@@ -101,7 +101,7 @@ pub struct TopNExecutor<S: StorageEngine + Send + 'static> {
     processed_count: usize,
 }
 
-impl<S: StorageEngine> TopNExecutor<S> {
+impl<S: StorageClient> TopNExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -680,7 +680,7 @@ impl Ord for TopNItemDesc {
     }
 }
 
-impl<S: StorageEngine + Send + 'static> InputExecutor<S> for TopNExecutor<S> {
+impl<S: StorageClient + Send + 'static> InputExecutor<S> for TopNExecutor<S> {
     fn set_input(&mut self, input: ExecutorEnum<S>) {
         self.input_executor = Some(Box::new(input));
     }
@@ -691,7 +691,7 @@ impl<S: StorageEngine + Send + 'static> InputExecutor<S> for TopNExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> ResultProcessor<S> for TopNExecutor<S> {
+impl<S: StorageClient + Send + 'static> ResultProcessor<S> for TopNExecutor<S> {
     async fn process(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult> {
         self.base.input = Some(input.clone());
         self.process_input().await
@@ -723,7 +723,7 @@ impl<S: StorageEngine + Send + 'static> ResultProcessor<S> for TopNExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for TopNExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for TopNExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
             input_exec.execute().await?
@@ -804,7 +804,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for TopNExecutor<S> {
     }
 }
 
-impl<S: StorageEngine + Send + Sync + 'static> TopNExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> TopNExecutor<S> {
     /// 带错误恢复的执行方法
     pub async fn execute_with_recovery(&mut self) -> DBResult<ExecutionResult> {
         match self.execute().await {

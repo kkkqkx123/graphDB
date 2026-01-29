@@ -13,17 +13,17 @@ use crate::expression::evaluator::traits::ExpressionContext;
 use crate::expression::DefaultExpressionContext;
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{ExecutionResult, Executor};
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 /// Assign执行器
 /// 用于将表达式的结果赋值给变量
-pub struct AssignExecutor<S: StorageEngine + Send + 'static> {
+pub struct AssignExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
     /// 赋值项列表 (变量名, 表达式)
     assign_items: Vec<(String, Expression)>,
 }
 
-impl<S: StorageEngine + Send + 'static> AssignExecutor<S> {
+impl<S: StorageClient + Send + 'static> AssignExecutor<S> {
     /// 创建新的AssignExecutor
     pub fn new(id: i64, storage: Arc<Mutex<S>>, assign_items: Vec<(String, Expression)>) -> Self {
         Self {
@@ -102,7 +102,7 @@ impl<S: StorageEngine + Send + 'static> AssignExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for AssignExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AssignExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         self.execute_assign()?;
         Ok(ExecutionResult::Success)
@@ -141,7 +141,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for AssignExecutor<S>
     }
 }
 
-impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S>
+impl<S: StorageClient + Send + 'static> crate::query::executor::traits::HasStorage<S>
     for AssignExecutor<S>
 {
     fn get_storage(&self) -> &Arc<Mutex<S>> {

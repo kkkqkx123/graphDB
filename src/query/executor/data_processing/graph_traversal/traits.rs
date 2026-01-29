@@ -1,11 +1,11 @@
 use crate::query::executor::base::EdgeDirection;
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 /// 图遍历执行器的通用特征
 ///
 /// 这个trait为图遍历执行器提供统一的配置接口，
 /// 所有图遍历执行器都应该实现这个trait来提供一致的配置管理
-pub trait GraphTraversalExecutor<S: StorageEngine> {
+pub trait GraphTraversalExecutor<S: StorageClient> {
     /// 设置边方向
     fn set_edge_direction(&mut self, direction: EdgeDirection);
 

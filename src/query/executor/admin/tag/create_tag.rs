@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 use crate::core::types::metadata::{TagInfo, PropertyDef};
 use crate::core::types::graph_schema::PropertyType;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 impl TagInfo {
     pub fn from_executor(executor_info: &ExecutorTagInfo) -> Self {
@@ -64,13 +64,13 @@ impl ExecutorTagInfo {
 ///
 /// 该执行器负责在指定图空间中创建新的标签。
 #[derive(Debug)]
-pub struct CreateTagExecutor<S: StorageEngine> {
+pub struct CreateTagExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     tag_info: ExecutorTagInfo,
     if_not_exists: bool,
 }
 
-impl<S: StorageEngine> CreateTagExecutor<S> {
+impl<S: StorageClient> CreateTagExecutor<S> {
     /// 创建新的 CreateTagExecutor
     pub fn new(id: i64, storage: Arc<Mutex<S>>, tag_info: ExecutorTagInfo) -> Self {
         Self {
@@ -91,7 +91,7 @@ impl<S: StorageEngine> CreateTagExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for CreateTagExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateTagExecutor<S> {
     async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let mut storage_guard = storage.lock().map_err(|e| {
@@ -150,7 +150,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for CreateTagExecutor
     }
 }
 
-impl<S: StorageEngine> crate::query::executor::base::HasStorage<S> for CreateTagExecutor<S> {
+impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for CreateTagExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.get_storage()
     }

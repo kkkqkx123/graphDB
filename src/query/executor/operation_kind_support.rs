@@ -3,11 +3,11 @@
 //! 此模块提供 ExecutorEnum 到 CoreOperationKind 的类型转换功能。
 
 use crate::query::core::{CoreOperationKind, IntoOperationKind};
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 use super::executor_enum::ExecutorEnum;
 
-impl<S: StorageEngine + Send + 'static> IntoOperationKind for ExecutorEnum<S> {
+impl<S: StorageClient + Send + 'static> IntoOperationKind for ExecutorEnum<S> {
     fn into_operation_kind(&self) -> CoreOperationKind {
         match self {
             ExecutorEnum::Start(_) => CoreOperationKind::Project,

@@ -12,10 +12,10 @@ use crate::query::executor::data_processing::join::hash_table::JoinKey;
 use crate::query::executor::data_processing::join::join_key_evaluator::JoinKeyEvaluator;
 use crate::query::executor::traits::ExecutionResult;
 use crate::query::QueryError;
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 /// Join执行器的基础结构
-pub struct BaseJoinExecutor<S: StorageEngine> {
+pub struct BaseJoinExecutor<S: StorageClient> {
     pub base: BaseExecutor<S>,
     /// 左侧输入变量名
     left_var: String,
@@ -35,7 +35,7 @@ pub struct BaseJoinExecutor<S: StorageEngine> {
     rhs_output_col_idxs: Option<Vec<usize>>,
 }
 
-impl<S: StorageEngine> BaseJoinExecutor<S> {
+impl<S: StorageClient> BaseJoinExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -529,7 +529,7 @@ impl<S: StorageEngine> BaseJoinExecutor<S> {
     }
 }
 
-impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S>
+impl<S: StorageClient + Send + 'static> crate::query::executor::traits::HasStorage<S>
     for BaseJoinExecutor<S>
 {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
@@ -541,7 +541,7 @@ impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStora
 }
 
 /// Join操作的通用trait
-pub trait JoinOperation<S: StorageEngine> {
+pub trait JoinOperation<S: StorageClient> {
     /// 执行join操作
     fn execute_join(
         &mut self,
@@ -559,7 +559,7 @@ impl InnerJoinOperation {
     }
 }
 
-impl<S: StorageEngine> JoinOperation<S> for InnerJoinOperation {
+impl<S: StorageClient> JoinOperation<S> for InnerJoinOperation {
     fn execute_join(
         &mut self,
         _left_dataset: &DataSet,
@@ -583,7 +583,7 @@ impl LeftJoinOperation {
     }
 }
 
-impl<S: StorageEngine> JoinOperation<S> for LeftJoinOperation {
+impl<S: StorageClient> JoinOperation<S> for LeftJoinOperation {
     fn execute_join(
         &mut self,
         _left_dataset: &DataSet,
@@ -607,7 +607,7 @@ impl CartesianProductOperation {
     }
 }
 
-impl<S: StorageEngine> JoinOperation<S> for CartesianProductOperation {
+impl<S: StorageClient> JoinOperation<S> for CartesianProductOperation {
     fn execute_join(
         &mut self,
         left_dataset: &DataSet,

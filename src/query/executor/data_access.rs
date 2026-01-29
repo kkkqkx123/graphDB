@@ -5,12 +5,12 @@ use super::base::BaseExecutor;
 use crate::core::Value;
 use crate::expression::ExpressionContext;
 use crate::query::executor::traits::{DBResult, ExecutionResult, Executor, HasStorage};
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 use crate::utils::safe_lock;
 
 // Implementation for a basic GetVertices executor
 #[derive(Debug)]
-pub struct GetVerticesExecutor<S: StorageEngine> {
+pub struct GetVerticesExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     vertex_ids: Option<Vec<Value>>,
     tag_filter: Option<crate::core::Expression>,
@@ -18,7 +18,7 @@ pub struct GetVerticesExecutor<S: StorageEngine> {
     limit: Option<usize>,
 }
 
-impl<S: StorageEngine> GetVerticesExecutor<S> {
+impl<S: StorageClient> GetVerticesExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -38,7 +38,7 @@ impl<S: StorageEngine> GetVerticesExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for GetVerticesExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for GetVerticesExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let vertices = match &self.vertex_ids {
             Some(ids) => {
@@ -172,7 +172,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for GetVerticesExecut
     }
 }
 
-impl<S: StorageEngine> HasStorage<S> for GetVerticesExecutor<S> {
+impl<S: StorageClient> HasStorage<S> for GetVerticesExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base
             .storage
@@ -183,13 +183,13 @@ impl<S: StorageEngine> HasStorage<S> for GetVerticesExecutor<S> {
 
 // Implementation for a basic GetEdges executor
 #[derive(Debug)]
-pub struct GetEdgesExecutor<S: StorageEngine> {
+pub struct GetEdgesExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
 
     edge_type: Option<String>,
 }
 
-impl<S: StorageEngine> GetEdgesExecutor<S> {
+impl<S: StorageClient> GetEdgesExecutor<S> {
     pub fn new(id: i64, storage: Arc<Mutex<S>>, edge_type: Option<String>) -> Self {
         Self {
             base: BaseExecutor::new(id, "GetEdgesExecutor".to_string(), storage),
@@ -199,7 +199,7 @@ impl<S: StorageEngine> GetEdgesExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for GetEdgesExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for GetEdgesExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let storage = safe_lock(self.get_storage())
             .expect("GetEdgesExecutor storage lock should not be poisoned");
@@ -251,7 +251,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for GetEdgesExecutor<
     }
 }
 
-impl<S: StorageEngine> HasStorage<S> for GetEdgesExecutor<S> {
+impl<S: StorageClient> HasStorage<S> for GetEdgesExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base
             .storage
@@ -262,14 +262,14 @@ impl<S: StorageEngine> HasStorage<S> for GetEdgesExecutor<S> {
 
 // Implementation for ScanEdges executor
 #[derive(Debug)]
-pub struct ScanEdgesExecutor<S: StorageEngine> {
+pub struct ScanEdgesExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     edge_type: Option<String>,
     filter: Option<crate::core::Expression>,
     limit: Option<usize>,
 }
 
-impl<S: StorageEngine> ScanEdgesExecutor<S> {
+impl<S: StorageClient> ScanEdgesExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -287,7 +287,7 @@ impl<S: StorageEngine> ScanEdgesExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ScanEdgesExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ScanEdgesExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let storage = safe_lock(self.get_storage())
             .expect("ScanEdgesExecutor storage lock should not be poisoned");
@@ -359,7 +359,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ScanEdgesExecutor
     }
 }
 
-impl<S: StorageEngine> HasStorage<S> for ScanEdgesExecutor<S> {
+impl<S: StorageClient> HasStorage<S> for ScanEdgesExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base
             .storage
@@ -370,7 +370,7 @@ impl<S: StorageEngine> HasStorage<S> for ScanEdgesExecutor<S> {
 
 // Implementation for a basic GetNeighbors executor
 #[derive(Debug)]
-pub struct GetNeighborsExecutor<S: StorageEngine> {
+pub struct GetNeighborsExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
 
     vertex_ids: Vec<Value>,
@@ -380,7 +380,7 @@ pub struct GetNeighborsExecutor<S: StorageEngine> {
     edge_types: Option<Vec<String>>,
 }
 
-impl<S: StorageEngine> GetNeighborsExecutor<S> {
+impl<S: StorageClient> GetNeighborsExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -398,7 +398,7 @@ impl<S: StorageEngine> GetNeighborsExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for GetNeighborsExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for GetNeighborsExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let storage = safe_lock(self.get_storage())
             .expect("GetNeighborsExecutor storage lock should not be poisoned");
@@ -467,7 +467,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for GetNeighborsExecu
     }
 }
 
-impl<S: StorageEngine> HasStorage<S> for GetNeighborsExecutor<S> {
+impl<S: StorageClient> HasStorage<S> for GetNeighborsExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base
             .storage
@@ -478,7 +478,7 @@ impl<S: StorageEngine> HasStorage<S> for GetNeighborsExecutor<S> {
 
 // Implementation for GetPropExecutor
 #[derive(Debug)]
-pub struct GetPropExecutor<S: StorageEngine> {
+pub struct GetPropExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
 
     vertex_ids: Option<Vec<Value>>,
@@ -488,7 +488,7 @@ pub struct GetPropExecutor<S: StorageEngine> {
     prop_names: Vec<String>, // List of property names to retrieve
 }
 
-impl<S: StorageEngine> GetPropExecutor<S> {
+impl<S: StorageClient> GetPropExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -506,7 +506,7 @@ impl<S: StorageEngine> GetPropExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for GetPropExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for GetPropExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let storage = safe_lock(self.get_storage())
             .expect("GetPropExecutor storage lock should not be poisoned");
@@ -585,7 +585,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for GetPropExecutor<S
     }
 }
 
-impl<S: StorageEngine> HasStorage<S> for GetPropExecutor<S> {
+impl<S: StorageClient> HasStorage<S> for GetPropExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base
             .storage
@@ -599,7 +599,7 @@ use crate::core::vertex_edge_path::{Path, Step};
 use super::base::EdgeDirection;
 
 #[derive(Debug)]
-pub struct IndexScanExecutor<S: StorageEngine> {
+pub struct IndexScanExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     index_name: String,
     index_condition: Option<(String, Value)>,
@@ -607,7 +607,7 @@ pub struct IndexScanExecutor<S: StorageEngine> {
     limit: Option<usize>,
 }
 
-impl<S: StorageEngine> IndexScanExecutor<S> {
+impl<S: StorageClient> IndexScanExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -627,7 +627,7 @@ impl<S: StorageEngine> IndexScanExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for IndexScanExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for IndexScanExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let storage = safe_lock(self.get_storage())
             .expect("IndexScanExecutor storage lock should not be poisoned");
@@ -700,7 +700,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for IndexScanExecutor
     }
 }
 
-impl<S: StorageEngine> HasStorage<S> for IndexScanExecutor<S> {
+impl<S: StorageClient> HasStorage<S> for IndexScanExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base
             .storage
@@ -710,7 +710,7 @@ impl<S: StorageEngine> HasStorage<S> for IndexScanExecutor<S> {
 }
 
 #[derive(Debug)]
-pub struct AllPathsExecutor<S: StorageEngine> {
+pub struct AllPathsExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     start_vertex: Value,
     end_vertex: Option<Value>,
@@ -719,7 +719,7 @@ pub struct AllPathsExecutor<S: StorageEngine> {
     direction: EdgeDirection,
 }
 
-impl<S: StorageEngine> AllPathsExecutor<S> {
+impl<S: StorageClient> AllPathsExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -741,7 +741,7 @@ impl<S: StorageEngine> AllPathsExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for AllPathsExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AllPathsExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let storage = safe_lock(self.get_storage())
             .expect("AllPathsExecutor storage lock should not be poisoned");
@@ -835,7 +835,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for AllPathsExecutor<
     }
 }
 
-impl<S: StorageEngine> HasStorage<S> for AllPathsExecutor<S> {
+impl<S: StorageClient> HasStorage<S> for AllPathsExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base
             .storage

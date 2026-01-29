@@ -12,14 +12,14 @@ use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::{DefaultExpressionContext, ExpressionContext};
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{ExecutionResult, Executor};
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 #[cfg(test)]
 use crate::config::test_config::test_config;
 
 /// Unwind执行器
 /// 用于将列表中的每个元素展开为单独的行
-pub struct UnwindExecutor<S: StorageEngine + Send + 'static> {
+pub struct UnwindExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
     /// 输入变量名
     input_var: String,
@@ -31,7 +31,7 @@ pub struct UnwindExecutor<S: StorageEngine + Send + 'static> {
     from_pipe: bool,
 }
 
-impl<S: StorageEngine + Send + 'static> UnwindExecutor<S> {
+impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
     /// 创建新的UnwindExecutor
     pub fn new(
         id: i64,
@@ -305,7 +305,7 @@ impl<S: StorageEngine + Send + 'static> UnwindExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for UnwindExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for UnwindExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let dataset = self.execute_unwind()?;
         Ok(ExecutionResult::Values(
@@ -346,7 +346,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for UnwindExecutor<S>
     }
 }
 
-impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S>
+impl<S: StorageClient + Send + 'static> crate::query::executor::traits::HasStorage<S>
     for UnwindExecutor<S>
 {
     fn get_storage(&self) -> &Arc<Mutex<S>> {

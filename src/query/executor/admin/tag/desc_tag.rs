@@ -9,7 +9,7 @@ use crate::core::{DataSet, Value};
 use crate::storage::iterator::Row;
 use crate::core::types::graph_schema::PropertyType;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 /// 标签描述信息
 #[derive(Debug, Clone)]
@@ -28,13 +28,13 @@ pub struct TagDesc {
 ///
 /// 该执行器负责返回指定标签的详细信息。
 #[derive(Debug)]
-pub struct DescTagExecutor<S: StorageEngine> {
+pub struct DescTagExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     space_name: String,
     tag_name: String,
 }
 
-impl<S: StorageEngine> DescTagExecutor<S> {
+impl<S: StorageClient> DescTagExecutor<S> {
     /// 创建新的 DescTagExecutor
     pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String, tag_name: String) -> Self {
         Self {
@@ -46,7 +46,7 @@ impl<S: StorageEngine> DescTagExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for DescTagExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DescTagExecutor<S> {
     async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let storage_guard = storage.lock().map_err(|e| {
@@ -123,7 +123,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for DescTagExecutor<S
     }
 }
 
-impl<S: StorageEngine> crate::query::executor::base::HasStorage<S> for DescTagExecutor<S> {
+impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for DescTagExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.get_storage()
     }

@@ -13,10 +13,10 @@ use crate::query::executor::result_processing::traits::{
     BaseResultProcessor, ResultProcessor, ResultProcessorContext,
 };
 use crate::query::executor::traits::{ExecutionResult, Executor};
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 /// 限制执行器 - 实现LIMIT和OFFSET功能
-pub struct LimitExecutor<S: StorageEngine + Send + 'static> {
+pub struct LimitExecutor<S: StorageClient + Send + 'static> {
     /// 基础处理器
     base: BaseResultProcessor<S>,
     /// 限制数量
@@ -27,7 +27,7 @@ pub struct LimitExecutor<S: StorageEngine + Send + 'static> {
     input_executor: Option<Box<ExecutorEnum<S>>>,
 }
 
-impl<S: StorageEngine + Send + 'static> LimitExecutor<S> {
+impl<S: StorageClient + Send + 'static> LimitExecutor<S> {
     pub fn new(id: i64, storage: Arc<Mutex<S>>, limit: Option<usize>, offset: usize) -> Self {
         let base = BaseResultProcessor::new(
             id,
@@ -196,7 +196,7 @@ impl<S: StorageEngine + Send + 'static> LimitExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> ResultProcessor<S> for LimitExecutor<S> {
+impl<S: StorageClient + Send + 'static> ResultProcessor<S> for LimitExecutor<S> {
     async fn process(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult> {
         // 如果 input_executor 为空且 base.input 未设置，则设置 base.input
         if self.input_executor.is_none() && self.base.input.is_none() {
@@ -232,7 +232,7 @@ impl<S: StorageEngine + Send + 'static> ResultProcessor<S> for LimitExecutor<S> 
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for LimitExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for LimitExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
             input_exec.execute().await?
@@ -285,7 +285,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for LimitExecutor<S> 
     }
 }
 
-impl<S: StorageEngine + Send + 'static> InputExecutor<S> for LimitExecutor<S> {
+impl<S: StorageClient + Send + 'static> InputExecutor<S> for LimitExecutor<S> {
     fn set_input(&mut self, input: ExecutorEnum<S>) {
         self.input_executor = Some(Box::new(input));
     }

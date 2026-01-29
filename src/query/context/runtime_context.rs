@@ -10,6 +10,8 @@ use crate::core::Value;
 use crate::core::EdgeDirection;
 use crate::query::context::managers::{SchemaManager, IndexManager};
 use crate::query::planner::plan::management::ddl::space_ops::Schema;
+use crate::storage::StorageClient;
+use crate::core::StorageError;
 use std::sync::Arc;
 use std::time::Instant;
 use crate::core::{Edge, Vertex};
@@ -72,48 +74,11 @@ pub struct PlanContext {
 #[derive(Debug, Clone)]
 pub struct StorageEnv {
     /// 存储引擎
-    pub storage_engine: Arc<dyn StorageEngine>,
+    pub storage_engine: Arc<dyn StorageClient>,
     /// Schema管理器
     pub schema_manager: Arc<dyn SchemaManager>,
     /// 索引管理器
     pub index_manager: Arc<dyn IndexManager>,
-}
-
-/// 存储引擎trait
-pub trait StorageEngine: Send + Sync + std::fmt::Debug {
-    fn insert_node(&mut self, vertex: Vertex) -> Result<Value, StorageError>;
-    fn get_node(&self, id: &Value) -> Result<Option<Vertex>, StorageError>;
-    fn update_node(&mut self, vertex: Vertex) -> Result<(), StorageError>;
-    fn delete_node(&mut self, id: &Value) -> Result<(), StorageError>;
-    fn scan_all_vertices(&self) -> Result<Vec<Vertex>, StorageError>;
-    fn scan_vertices_by_tag(&self, tag: &str) -> Result<Vec<Vertex>, StorageError>;
-    fn insert_edge(&mut self, edge: Edge) -> Result<(), StorageError>;
-    fn get_edge(&self, src: &Value, dst: &Value, edge_type: &str) -> Result<Option<Edge>, StorageError>;
-    fn get_node_edges(&self, node_id: &Value, direction: EdgeDirection) -> Result<Vec<Edge>, StorageError>;
-    fn delete_edge(&mut self, src: &Value, dst: &Value, edge_type: &str) -> Result<(), StorageError>;
-}
-
-/// 存储错误
-#[derive(Debug, Clone)]
-pub struct StorageError {
-    pub message: String,
-    pub code: i32,
-}
-
-impl std::fmt::Display for StorageError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "StorageError[{}]: {}", self.code, self.message)
-    }
-}
-
-impl std::error::Error for StorageError {}
-
-/// 存储Schema管理器trait
-pub trait StorageSchemaManager: Send + Sync + std::fmt::Debug {
-    fn get_schema(&self, name: &str) -> Option<Schema>;
-    fn get_all_schemas(&self) -> Vec<Schema>;
-    fn add_schema(&mut self, name: String, schema: Schema);
-    fn remove_schema(&mut self, name: &str) -> bool;
 }
 
 /// 运行时上下文（简化版本）

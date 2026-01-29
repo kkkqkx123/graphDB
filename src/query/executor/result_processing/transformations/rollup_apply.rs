@@ -13,11 +13,11 @@ use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::{DefaultExpressionContext, ExpressionContext};
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{ExecutionResult, Executor};
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 /// RollUpApply执行器
 /// 用于将右输入中的值根据左输入的键进行聚合
-pub struct RollUpApplyExecutor<S: StorageEngine + Send + 'static> {
+pub struct RollUpApplyExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
     left_input_var: String,
     right_input_var: String,
@@ -27,7 +27,7 @@ pub struct RollUpApplyExecutor<S: StorageEngine + Send + 'static> {
     movable: bool,
 }
 
-impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
+impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -413,7 +413,7 @@ impl<S: StorageEngine + Send + 'static> RollUpApplyExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for RollUpApplyExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for RollUpApplyExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let dataset = self.execute_rollup_apply()?;
 
@@ -459,7 +459,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for RollUpApplyExecut
     }
 }
 
-impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S>
+impl<S: StorageClient + Send + 'static> crate::query::executor::traits::HasStorage<S>
     for RollUpApplyExecutor<S>
 {
     fn get_storage(&self) -> &Arc<Mutex<S>> {

@@ -10,17 +10,17 @@ use crate::core::{DataSet, Value};
 use crate::query::executor::data_processing::join::base_join::BaseJoinExecutor;
 use crate::query::executor::traits::{ExecutionResult, Executor};
 use crate::query::QueryError;
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 /// 笛卡尔积执行器
-pub struct CrossJoinExecutor<S: StorageEngine> {
+pub struct CrossJoinExecutor<S: StorageClient> {
     base_executor: BaseJoinExecutor<S>,
     /// 输入变量列表（支持多表）
     input_vars: Vec<String>,
 }
 
 // Manual Debug implementation for CrossJoinExecutor to avoid requiring Debug trait for BaseJoinExecutor
-impl<S: StorageEngine> std::fmt::Debug for CrossJoinExecutor<S> {
+impl<S: StorageClient> std::fmt::Debug for CrossJoinExecutor<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("CrossJoinExecutor")
             .field("base_executor", &"BaseJoinExecutor<S>")
@@ -29,7 +29,7 @@ impl<S: StorageEngine> std::fmt::Debug for CrossJoinExecutor<S> {
     }
 }
 
-impl<S: StorageEngine> CrossJoinExecutor<S> {
+impl<S: StorageClient> CrossJoinExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -167,7 +167,7 @@ impl<S: StorageEngine> CrossJoinExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
+impl<S: StorageClient + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         // 根据输入数量选择实现方式
         let result = if self.input_vars.len() == 2 {
@@ -285,7 +285,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
     }
 }
 
-impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S>
+impl<S: StorageClient + Send + 'static> crate::query::executor::traits::HasStorage<S>
     for CrossJoinExecutor<S>
 {
     fn get_storage(&self) -> &Arc<Mutex<S>> {

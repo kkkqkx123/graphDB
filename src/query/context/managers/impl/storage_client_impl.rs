@@ -8,7 +8,6 @@ use crate::core::error::{ManagerError, ManagerResult};
 use crate::core::{Edge, Value, Vertex, EdgeDirection};
 use crate::core::vertex_edge_path::Tag;
 use crate::storage::MemoryStorage;
-use crate::storage::storage_engine::StorageEngine;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};

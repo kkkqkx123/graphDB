@@ -5,7 +5,7 @@
 use super::seek_strategy::SeekStrategy;
 use super::seek_strategy_base::{SeekResult, SeekStrategyContext, SeekStrategyType, NodePattern};
 use crate::core::{StorageError, Value, Vertex};
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 #[derive(Debug, Clone)]
 pub struct VertexSeek;
@@ -19,7 +19,7 @@ impl VertexSeek {
 impl SeekStrategy for VertexSeek {
     fn execute(
         &self,
-        storage: &dyn StorageEngine,
+        storage: &dyn StorageClient,
         context: &SeekStrategyContext,
     ) -> Result<SeekResult, StorageError> {
         let mut vertex_ids = Vec::new();

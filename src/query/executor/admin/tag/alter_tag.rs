@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::core::types::metadata::PropertyDef;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 /// 标签修改操作类型
 #[derive(Debug, Clone)]
@@ -77,12 +77,12 @@ impl AlterTagInfo {
 ///
 /// 该执行器负责修改已存在标签的属性定义。
 #[derive(Debug)]
-pub struct AlterTagExecutor<S: StorageEngine> {
+pub struct AlterTagExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     alter_info: AlterTagInfo,
 }
 
-impl<S: StorageEngine> AlterTagExecutor<S> {
+impl<S: StorageClient> AlterTagExecutor<S> {
     /// 创建新的 AlterTagExecutor
     pub fn new(id: i64, storage: Arc<Mutex<S>>, alter_info: AlterTagInfo) -> Self {
         Self {
@@ -93,7 +93,7 @@ impl<S: StorageEngine> AlterTagExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for AlterTagExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AlterTagExecutor<S> {
     async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let mut storage_guard = storage.lock().map_err(|e| {
@@ -153,7 +153,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for AlterTagExecutor<
     }
 }
 
-impl<S: StorageEngine> crate::query::executor::base::HasStorage<S> for AlterTagExecutor<S> {
+impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for AlterTagExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.get_storage()
     }

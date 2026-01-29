@@ -10,20 +10,20 @@ use std::sync::{Arc, Mutex};
 use crate::core::{DataSet, Value};
 use crate::query::executor::{BaseExecutor, ExecutionResult};
 use crate::query::QueryError;
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 /// 集合操作执行器基类
 ///
 /// 提供所有集合操作（Union、Intersect、Minus等）的通用功能
 #[derive(Debug)]
-pub struct SetExecutor<S: StorageEngine> {
+pub struct SetExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     left_input_var: String,
     right_input_var: String,
     col_names: Vec<String>,
 }
 
-impl<S: StorageEngine> SetExecutor<S> {
+impl<S: StorageClient> SetExecutor<S> {
     /// 创建新的集合操作执行器
     pub fn new(
         id: i64,
@@ -197,7 +197,7 @@ impl<S: StorageEngine> SetExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::Executor<S>
+impl<S: StorageClient + Send + 'static> crate::query::executor::traits::Executor<S>
     for SetExecutor<S>
 {
     async fn execute(

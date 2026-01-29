@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 use crate::core::types::DataType;
 use crate::core::types::metadata::SpaceInfo;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 impl SpaceInfo {
     pub fn from_executor(executor_info: &ExecutorSpaceInfo) -> Self {
@@ -69,12 +69,12 @@ impl ExecutorSpaceInfo {
 ///
 /// 该执行器负责在存储层创建新的图空间。
 #[derive(Debug)]
-pub struct CreateSpaceExecutor<S: StorageEngine> {
+pub struct CreateSpaceExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     space_info: ExecutorSpaceInfo,
 }
 
-impl<S: StorageEngine> CreateSpaceExecutor<S> {
+impl<S: StorageClient> CreateSpaceExecutor<S> {
     /// 创建新的 CreateSpaceExecutor
     pub fn new(id: i64, storage: Arc<Mutex<S>>, space_info: ExecutorSpaceInfo) -> Self {
         Self {
@@ -85,7 +85,7 @@ impl<S: StorageEngine> CreateSpaceExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for CreateSpaceExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateSpaceExecutor<S> {
     async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let mut storage_guard = storage.lock().map_err(|e| {
@@ -136,7 +136,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for CreateSpaceExecut
     }
 }
 
-impl<S: StorageEngine> crate::query::executor::base::HasStorage<S> for CreateSpaceExecutor<S> {
+impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for CreateSpaceExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.get_storage()
     }

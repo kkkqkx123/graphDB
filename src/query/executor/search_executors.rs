@@ -6,7 +6,7 @@ use crate::core::error::{DBError, DBResult};
 use crate::core::{Path, Value};
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 use crate::utils::safe_lock;
 
 use crate::expression::context::traits::VariableContext;
@@ -15,14 +15,14 @@ use crate::expression::evaluator::traits::ExpressionContext;
 /// FulltextIndexScanExecutor - 全文索引扫描执行器
 ///
 /// 用于执行全文索引扫描操作
-pub struct FulltextIndexScanExecutor<S: StorageEngine + Send + 'static> {
+pub struct FulltextIndexScanExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
     index_name: String,
     pattern: String,
     limit: Option<usize>,
 }
 
-impl<S: StorageEngine> FulltextIndexScanExecutor<S> {
+impl<S: StorageClient + Send + 'static> FulltextIndexScanExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -52,7 +52,7 @@ impl<S: StorageEngine> FulltextIndexScanExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for FulltextIndexScanExecutor<S> {
+impl<S: StorageClient + Send + 'static> Executor<S> for FulltextIndexScanExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let storage = safe_lock(self.get_storage())
             .expect("FulltextIndexScanExecutor storage lock should not be poisoned");
@@ -118,7 +118,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for FulltextIndexScanExecuto
     }
 }
 
-impl<S: StorageEngine + Send + 'static> HasStorage<S> for FulltextIndexScanExecutor<S> {
+impl<S: StorageClient + Send + 'static> HasStorage<S> for FulltextIndexScanExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.storage.as_ref().expect("Storage not set")
     }
@@ -127,7 +127,7 @@ impl<S: StorageEngine + Send + 'static> HasStorage<S> for FulltextIndexScanExecu
 /// BFSShortestExecutor - BFS最短路径执行器
 ///
 /// 使用广度优先搜索算法查找最短路径
-pub struct BFSShortestExecutor<S: StorageEngine + Send + 'static> {
+pub struct BFSShortestExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
     start_vertex_id: Value,
     end_vertex_id: Value,
@@ -139,7 +139,7 @@ pub struct BFSShortestExecutor<S: StorageEngine + Send + 'static> {
     max_depth_reached: usize,
 }
 
-impl<S: StorageEngine> BFSShortestExecutor<S> {
+impl<S: StorageClient> BFSShortestExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -246,7 +246,7 @@ impl<S: StorageEngine> BFSShortestExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for BFSShortestExecutor<S> {
+impl<S: StorageClient + Send + 'static> Executor<S> for BFSShortestExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let start_time = std::time::Instant::now();
 
@@ -301,7 +301,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for BFSShortestExecutor<S> {
     }
 }
 
-impl<S: StorageEngine + Send + 'static> HasStorage<S> for BFSShortestExecutor<S> {
+impl<S: StorageClient + Send + 'static> HasStorage<S> for BFSShortestExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.storage.as_ref().expect("Storage not set")
     }
@@ -310,7 +310,7 @@ impl<S: StorageEngine + Send + 'static> HasStorage<S> for BFSShortestExecutor<S>
 /// IndexScanExecutor - 索引扫描执行器
 ///
 /// 用于执行基于索引的扫描操作
-pub struct IndexScanExecutor<S: StorageEngine + Send + 'static> {
+pub struct IndexScanExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
     space_id: i32,
     tag_id: i32,
@@ -322,7 +322,7 @@ pub struct IndexScanExecutor<S: StorageEngine + Send + 'static> {
     limit: Option<usize>,
 }
 
-impl<S: StorageEngine> IndexScanExecutor<S> {
+impl<S: StorageClient> IndexScanExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -350,7 +350,7 @@ impl<S: StorageEngine> IndexScanExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for IndexScanExecutor<S> {
+impl<S: StorageClient + Send + 'static> Executor<S> for IndexScanExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let storage = safe_lock(self.get_storage())
             .expect("IndexScanExecutor storage lock should not be poisoned");
@@ -431,7 +431,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for IndexScanExecutor<S> {
     }
 }
 
-impl<S: StorageEngine + Send + 'static> HasStorage<S> for IndexScanExecutor<S> {
+impl<S: StorageClient + Send + 'static> HasStorage<S> for IndexScanExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.storage.as_ref().expect("Storage not set")
     }

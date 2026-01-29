@@ -1,4 +1,61 @@
 use crate::core::StorageError;
+use crate::storage::transaction::TransactionId;
+
+pub mod memory_engine;
+pub mod redb_engine;
+
+pub use memory_engine::MemoryEngine;
+pub use redb_engine::RedbEngine;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct SnapshotId(pub u64);
+
+impl SnapshotId {
+    pub fn new(id: u64) -> Self {
+        SnapshotId(id)
+    }
+
+    pub fn as_u64(&self) -> u64 {
+        self.0
+    }
+}
+
+impl Default for SnapshotId {
+    fn default() -> Self {
+        SnapshotId(rand::random())
+    }
+}
+
+impl std::fmt::Display for SnapshotId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl From<u64> for SnapshotId {
+    fn from(val: u64) -> Self {
+        SnapshotId(val)
+    }
+}
+
+impl From<SnapshotId> for u64 {
+    fn from(val: SnapshotId) -> Self {
+        val.0
+    }
+}
+
+impl std::ops::AddAssign<u64> for SnapshotId {
+    fn add_assign(&mut self, rhs: u64) {
+        self.0 += rhs;
+    }
+}
+
+impl std::ops::Add<u64> for SnapshotId {
+    type Output = Self;
+    fn add(self, rhs: u64) -> Self {
+        SnapshotId(self.0 + rhs)
+    }
+}
 
 pub trait Engine: Send + Sync {
     fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>, StorageError>;
@@ -6,6 +63,14 @@ pub trait Engine: Send + Sync {
     fn delete(&mut self, key: &[u8]) -> Result<(), StorageError>;
     fn scan(&self, prefix: &[u8]) -> Result<Box<dyn StorageIterator>, StorageError>;
     fn batch(&mut self, ops: Vec<Operation>) -> Result<(), StorageError>;
+
+    fn begin_transaction(&mut self) -> Result<TransactionId, StorageError>;
+    fn commit_transaction(&mut self, tx_id: TransactionId) -> Result<(), StorageError>;
+    fn rollback_transaction(&mut self, tx_id: TransactionId) -> Result<(), StorageError>;
+
+    fn create_snapshot(&self) -> Result<SnapshotId, StorageError>;
+    fn get_snapshot(&self, snap_id: SnapshotId) -> Result<Option<Box<dyn StorageIterator>>, StorageError>;
+    fn delete_snapshot(&self, snap_id: SnapshotId) -> Result<(), StorageError>;
 }
 
 pub enum Operation {

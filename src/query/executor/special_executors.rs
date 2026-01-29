@@ -5,18 +5,18 @@ use crate::core::error::DBResult;
 use crate::query::executor::base::{BaseExecutor, InputExecutor};
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 /// ArgumentExecutor - 参数执行器
 ///
 /// 用于从另一个已执行的操作中获取命名别名
-pub struct ArgumentExecutor<S: StorageEngine + Send + 'static> {
+pub struct ArgumentExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
     var: String,
     input_executor: Option<Box<ExecutorEnum<S>>>,
 }
 
-impl<S: StorageEngine> ArgumentExecutor<S> {
+impl<S: StorageClient> ArgumentExecutor<S> {
     pub fn new(id: i64, storage: Arc<Mutex<S>>, var: &str) -> Self {
         Self {
             base: BaseExecutor::new(id, "ArgumentExecutor".to_string(), storage),
@@ -31,7 +31,7 @@ impl<S: StorageEngine> ArgumentExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for ArgumentExecutor<S> {
+impl<S: StorageClient + Send + 'static> Executor<S> for ArgumentExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         if let Some(input) = &mut self.input_executor {
             input.open()?;
@@ -76,7 +76,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for ArgumentExecutor<S> {
     }
 }
 
-impl<S: StorageEngine + Send + 'static> InputExecutor<S> for ArgumentExecutor<S> {
+impl<S: StorageClient + Send + 'static> InputExecutor<S> for ArgumentExecutor<S> {
     fn set_input(&mut self, input: ExecutorEnum<S>) {
         self.input_executor = Some(Box::new(input));
     }
@@ -86,7 +86,7 @@ impl<S: StorageEngine + Send + 'static> InputExecutor<S> for ArgumentExecutor<S>
     }
 }
 
-impl<S: StorageEngine + Send + 'static> HasStorage<S> for ArgumentExecutor<S> {
+impl<S: StorageClient + Send + 'static> HasStorage<S> for ArgumentExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.storage.as_ref().expect("Storage not set")
     }
@@ -95,12 +95,12 @@ impl<S: StorageEngine + Send + 'static> HasStorage<S> for ArgumentExecutor<S> {
 /// PassThroughExecutor - 直通执行器
 ///
 /// 用于透传情况的节点，直接传递输入数据
-pub struct PassThroughExecutor<S: StorageEngine + Send + 'static> {
+pub struct PassThroughExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
     input_executor: Option<Box<ExecutorEnum<S>>>,
 }
 
-impl<S: StorageEngine> PassThroughExecutor<S> {
+impl<S: StorageClient> PassThroughExecutor<S> {
     pub fn new(id: i64, storage: Arc<Mutex<S>>) -> Self {
         Self {
             base: BaseExecutor::new(id, "PassThroughExecutor".to_string(), storage),
@@ -110,7 +110,7 @@ impl<S: StorageEngine> PassThroughExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for PassThroughExecutor<S> {
+impl<S: StorageClient + Send + 'static> Executor<S> for PassThroughExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         if let Some(input) = &mut self.input_executor {
             input.open()?;
@@ -155,7 +155,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for PassThroughExecutor<S> {
     }
 }
 
-impl<S: StorageEngine + Send + 'static> InputExecutor<S> for PassThroughExecutor<S> {
+impl<S: StorageClient + Send + 'static> InputExecutor<S> for PassThroughExecutor<S> {
     fn set_input(&mut self, input: ExecutorEnum<S>) {
         self.input_executor = Some(Box::new(input));
     }
@@ -165,7 +165,7 @@ impl<S: StorageEngine + Send + 'static> InputExecutor<S> for PassThroughExecutor
     }
 }
 
-impl<S: StorageEngine + Send + 'static> HasStorage<S> for PassThroughExecutor<S> {
+impl<S: StorageClient + Send + 'static> HasStorage<S> for PassThroughExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.storage.as_ref().expect("Storage not set")
     }
@@ -174,13 +174,13 @@ impl<S: StorageEngine + Send + 'static> HasStorage<S> for PassThroughExecutor<S>
 /// DataCollectExecutor - 数据收集执行器
 ///
 /// 用于收集和聚合数据
-pub struct DataCollectExecutor<S: StorageEngine + Send + 'static> {
+pub struct DataCollectExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
     input_executor: Option<Box<ExecutorEnum<S>>>,
     collected_data: Vec<ExecutionResult>,
 }
 
-impl<S: StorageEngine> DataCollectExecutor<S> {
+impl<S: StorageClient> DataCollectExecutor<S> {
     pub fn new(id: i64, storage: Arc<Mutex<S>>) -> Self {
         Self {
             base: BaseExecutor::new(id, "DataCollectExecutor".to_string(), storage),
@@ -195,7 +195,7 @@ impl<S: StorageEngine> DataCollectExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for DataCollectExecutor<S> {
+impl<S: StorageClient + Send + 'static> Executor<S> for DataCollectExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         self.collected_data.clear();
 
@@ -243,7 +243,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for DataCollectExecutor<S> {
     }
 }
 
-impl<S: StorageEngine + Send + 'static> InputExecutor<S> for DataCollectExecutor<S> {
+impl<S: StorageClient + Send + 'static> InputExecutor<S> for DataCollectExecutor<S> {
     fn set_input(&mut self, input: ExecutorEnum<S>) {
         self.input_executor = Some(Box::new(input));
     }
@@ -253,7 +253,7 @@ impl<S: StorageEngine + Send + 'static> InputExecutor<S> for DataCollectExecutor
     }
 }
 
-impl<S: StorageEngine + Send + 'static> HasStorage<S> for DataCollectExecutor<S> {
+impl<S: StorageClient + Send + 'static> HasStorage<S> for DataCollectExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.storage.as_ref().expect("Storage not set")
     }

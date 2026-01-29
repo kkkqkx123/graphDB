@@ -10,7 +10,7 @@
 
 use crate::core::{Edge, StorageError, Value, Vertex};
 use crate::index::{Index, IndexBinaryEncoder, IndexField, IndexQueryStats, QueryType};
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 use bincode;
 use dashmap::DashMap;
 use redb::{Database, ReadableTable, TableDefinition, TypeName};
@@ -304,7 +304,7 @@ impl IndexPersistence for RedbIndexPersistence {
     }
 }
 
-pub type StorageRef = Arc<Mutex<dyn StorageEngine + Send + Sync>>;
+pub type StorageRef = Arc<Mutex<dyn StorageClient + Send + Sync>>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IndexEntryType {

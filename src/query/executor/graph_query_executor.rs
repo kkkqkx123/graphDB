@@ -11,7 +11,7 @@ use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::query::parser::ast::stmt::{AlterStmt, ChangePasswordStmt, DescStmt, DropStmt, Stmt};
 use crate::query::planner::planner::Planner;
 use crate::query::planner::statements::match_statement_planner::MatchStatementPlanner;
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 use crate::common::thread::ThreadPool;
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
@@ -23,7 +23,7 @@ use std::sync::{Arc, Mutex};
 /// - 语句分发
 /// - 错误处理
 /// - 资源管理
-pub struct GraphQueryExecutor<S: StorageEngine> {
+pub struct GraphQueryExecutor<S: StorageClient> {
     /// 执行器ID
     id: i64,
     /// 执行器名称
@@ -40,7 +40,7 @@ pub struct GraphQueryExecutor<S: StorageEngine> {
     stats: crate::query::executor::traits::ExecutorStats,
 }
 
-impl<S: StorageEngine> std::fmt::Debug for GraphQueryExecutor<S> {
+impl<S: StorageClient> std::fmt::Debug for GraphQueryExecutor<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("GraphQueryExecutor")
             .field("id", &self.id)
@@ -52,7 +52,7 @@ impl<S: StorageEngine> std::fmt::Debug for GraphQueryExecutor<S> {
     }
 }
 
-impl<S: StorageEngine + 'static> GraphQueryExecutor<S> {
+impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
     /// 创建新的图查询执行器
     pub fn new(id: i64, storage: Arc<Mutex<S>>) -> Self {
         let thread_pool = Some(Arc::new(ThreadPool::new(4)));
@@ -346,7 +346,7 @@ impl<S: StorageEngine + 'static> GraphQueryExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine> Executor<S> for GraphQueryExecutor<S> {
+impl<S: StorageClient> Executor<S> for GraphQueryExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         Err(DBError::Query(QueryError::ExecutionError("需要先设置要执行的语句".to_string())))
     }
@@ -387,7 +387,7 @@ impl<S: StorageEngine> Executor<S> for GraphQueryExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine> HasStorage<S> for GraphQueryExecutor<S> {
+impl<S: StorageClient> HasStorage<S> for GraphQueryExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         &self.storage
     }

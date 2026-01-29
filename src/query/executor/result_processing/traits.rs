@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 use crate::core::error::{DBError, DBResult};
 use crate::core::value::DataSet;
 use crate::query::executor::traits::ExecutionResult;
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 /// 结果处理器上下文
 ///
@@ -43,7 +43,7 @@ impl Default for ResultProcessorContext {
 ///
 /// 所有结果处理执行器都应该实现此接口
 #[async_trait]
-pub trait ResultProcessor<S: StorageEngine> {
+pub trait ResultProcessor<S: StorageClient> {
     /// 处理输入数据并返回结果
     async fn process(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult>;
 
@@ -84,7 +84,7 @@ pub trait ResultProcessor<S: StorageEngine> {
 /// 结果处理器基础实现
 ///
 /// 提供通用的结果处理器功能，其他执行器可以继承此基础实现
-pub struct BaseResultProcessor<S: StorageEngine> {
+pub struct BaseResultProcessor<S: StorageClient> {
     /// 执行器ID
     pub id: i64,
     /// 执行器名称
@@ -103,7 +103,7 @@ pub struct BaseResultProcessor<S: StorageEngine> {
     pub stats: crate::query::executor::traits::ExecutorStats,
 }
 
-impl<S: StorageEngine> BaseResultProcessor<S> {
+impl<S: StorageClient> BaseResultProcessor<S> {
     /// 创建新的基础结果处理器
     pub fn new(id: i64, name: String, description: String, storage: Arc<Mutex<S>>) -> Self {
         Self {
@@ -212,7 +212,7 @@ impl<S: StorageEngine> BaseResultProcessor<S> {
 ///
 /// 支持流式处理大数据集，避免一次性加载所有数据到内存
 #[async_trait]
-pub trait StreamableResultProcessor<S: StorageEngine>: ResultProcessor<S> {
+pub trait StreamableResultProcessor<S: StorageClient>: ResultProcessor<S> {
     /// 流式处理数据集
     async fn process_stream(
         &mut self,
@@ -230,7 +230,7 @@ pub trait StreamableResultProcessor<S: StorageEngine>: ResultProcessor<S> {
 ///
 /// 支持多线程并行处理以提高性能
 #[async_trait]
-pub trait ParallelResultProcessor<S: StorageEngine>: ResultProcessor<S> {
+pub trait ParallelResultProcessor<S: StorageClient>: ResultProcessor<S> {
     /// 并行处理数据集
     async fn process_parallel(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult>;
 
@@ -248,7 +248,7 @@ pub struct ResultProcessorFactory;
 
 impl ResultProcessorFactory {
     /// 创建投影处理器
-    pub fn create_projector<S: StorageEngine>(
+    pub fn create_projector<S: StorageClient>(
         id: i64,
         storage: Arc<Mutex<S>>,
         columns: Vec<crate::query::executor::result_processing::projection::ProjectionColumn>,
@@ -259,7 +259,7 @@ impl ResultProcessorFactory {
     }
 
     /// 创建排序处理器
-    pub fn create_sorter<S: StorageEngine>(
+    pub fn create_sorter<S: StorageClient>(
         id: i64,
         storage: Arc<Mutex<S>>,
         sort_keys: Vec<crate::query::executor::result_processing::sort::SortKey>,
@@ -272,7 +272,7 @@ impl ResultProcessorFactory {
     }
 
     /// 创建限制处理器
-    pub fn create_limiter<S: StorageEngine>(
+    pub fn create_limiter<S: StorageClient>(
         id: i64,
         storage: Arc<Mutex<S>>,
         limit: Option<usize>,
@@ -284,7 +284,7 @@ impl ResultProcessorFactory {
     }
 
     /// 创建聚合处理器
-    pub fn create_aggregator<S: StorageEngine>(
+    pub fn create_aggregator<S: StorageClient>(
         id: i64,
         storage: Arc<Mutex<S>>,
         aggregate_functions: Vec<crate::core::types::operators::AggregateFunction>,
@@ -301,7 +301,7 @@ impl ResultProcessorFactory {
     }
 
     /// 创建去重处理器
-    pub fn create_deduper<S: StorageEngine>(
+    pub fn create_deduper<S: StorageClient>(
         id: i64,
         storage: Arc<Mutex<S>>,
         strategy: crate::query::executor::result_processing::dedup::DedupStrategy,
@@ -316,7 +316,7 @@ impl ResultProcessorFactory {
     }
 
     /// 创建过滤处理器
-    pub fn create_filter<S: StorageEngine>(
+    pub fn create_filter<S: StorageClient>(
         id: i64,
         storage: Arc<Mutex<S>>,
         condition: crate::core::Expression,
@@ -327,7 +327,7 @@ impl ResultProcessorFactory {
     }
 
     /// 创建采样处理器
-    pub fn create_sampler<S: StorageEngine>(
+    pub fn create_sampler<S: StorageClient>(
         id: i64,
         storage: Arc<Mutex<S>>,
         method: crate::query::executor::result_processing::sample::SampleMethod,
@@ -340,7 +340,7 @@ impl ResultProcessorFactory {
     }
 
     /// 创建TopN处理器
-    pub fn create_topn<S: StorageEngine>(
+    pub fn create_topn<S: StorageClient>(
         id: i64,
         storage: Arc<Mutex<S>>,
         n: usize,

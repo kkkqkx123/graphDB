@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 use crate::core::error::QueryError;
 use crate::core::{DataSet, Value};
 use crate::query::executor::traits::{DBResult, ExecutionResult, Executor};
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 use super::base::SetExecutor;
 
@@ -17,11 +17,11 @@ use super::base::SetExecutor;
 /// 实现INTERSECT操作，返回两个数据集的交集
 /// 只返回同时存在于左右两个数据集中的行
 #[derive(Debug)]
-pub struct IntersectExecutor<S: StorageEngine> {
+pub struct IntersectExecutor<S: StorageClient> {
     pub set_executor: SetExecutor<S>,
 }
 
-impl<S: StorageEngine> IntersectExecutor<S> {
+impl<S: StorageClient> IntersectExecutor<S> {
     /// 创建新的Intersect执行器
     pub fn new(
         id: i64,
@@ -88,7 +88,7 @@ impl<S: StorageEngine> IntersectExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for IntersectExecutor<S> {
+impl<S: StorageClient + Send + 'static> Executor<S> for IntersectExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let dataset = self.execute_intersect().await.map_err(|e| {
             crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(

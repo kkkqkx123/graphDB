@@ -17,7 +17,7 @@ use crate::query::executor::result_processing::traits::{
     BaseResultProcessor, ResultProcessor, ResultProcessorContext,
 };
 use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 /// 排序顺序枚举
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -75,7 +75,7 @@ impl Default for SortConfig {
 }
 
 /// 优化的排序执行器
-pub struct SortExecutor<S: StorageEngine + Send + 'static> {
+pub struct SortExecutor<S: StorageClient + Send + 'static> {
     /// 基础处理器
     base: BaseResultProcessor<S>,
     /// 排序键列表
@@ -88,7 +88,7 @@ pub struct SortExecutor<S: StorageEngine + Send + 'static> {
     config: SortConfig,
 }
 
-impl<S: StorageEngine + Send + 'static> SortExecutor<S> {
+impl<S: StorageClient + Send + 'static> SortExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -518,7 +518,7 @@ impl<S: StorageEngine + Send + 'static> SortExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> ResultProcessor<S> for SortExecutor<S> {
+impl<S: StorageClient + Send + 'static> ResultProcessor<S> for SortExecutor<S> {
     async fn process(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult> {
         ResultProcessor::set_input(self, input);
         let dataset = self.process_input().await?;
@@ -551,7 +551,7 @@ impl<S: StorageEngine + Send + 'static> ResultProcessor<S> for SortExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for SortExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for SortExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
             input_exec.execute().await?
@@ -604,7 +604,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for SortExecutor<S> {
     }
 }
 
-impl<S: StorageEngine + Send + 'static> InputExecutor<S> for SortExecutor<S> {
+impl<S: StorageClient + Send + 'static> InputExecutor<S> for SortExecutor<S> {
     fn set_input(&mut self, input: ExecutorEnum<S>) {
         self.input_executor = Some(Box::new(input));
     }
@@ -614,7 +614,7 @@ impl<S: StorageEngine + Send + 'static> InputExecutor<S> for SortExecutor<S> {
     }
 }
 
-impl<S: StorageEngine + Send + 'static> HasStorage<S> for SortExecutor<S> {
+impl<S: StorageClient + Send + 'static> HasStorage<S> for SortExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         &self.base.storage
     }

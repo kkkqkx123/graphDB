@@ -5,7 +5,7 @@
 use super::seek_strategy::SeekStrategy;
 use super::seek_strategy_base::{SeekResult, SeekStrategyContext, SeekStrategyType, NodePattern};
 use crate::core::{StorageError, Vertex};
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 #[derive(Debug, Clone)]
 pub struct ScanSeek;
@@ -19,7 +19,7 @@ impl ScanSeek {
 impl SeekStrategy for ScanSeek {
     fn execute(
         &self,
-        storage: &dyn StorageEngine,
+        storage: &dyn StorageClient,
         context: &SeekStrategyContext,
     ) -> Result<SeekResult, StorageError> {
         let vertices = storage.scan_all_vertices()?;

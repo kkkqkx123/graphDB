@@ -7,15 +7,13 @@ use crate::core::{
     TypeUtils, DataType, BinaryOperator, UnaryOperator, Value,
 };
 use crate::query::validator::ValidationContext;
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 use thiserror::Error;
 
 #[cfg(test)]
 use crate::core::{Edge, Vertex};
 #[cfg(test)]
 use crate::core::EdgeDirection;
-#[cfg(test)]
-use crate::storage::StorageError;
 
 #[derive(Error, Debug, Clone)]
 pub enum TypeDeductionError {
@@ -29,7 +27,7 @@ pub enum TypeDeductionError {
 
 /// 类型推导访问器
 /// 用于递归遍历表达式树，推导表达式的结果类型
-pub struct DeduceTypeVisitor<'a, S: StorageEngine> {
+pub struct DeduceTypeVisitor<'a, S: StorageClient> {
     /// 存储引擎
     _storage: &'a S,
     /// 验证上下文
@@ -48,7 +46,7 @@ pub struct DeduceTypeVisitor<'a, S: StorageEngine> {
     state: ExpressionVisitorState,
 }
 
-impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
+impl<'a, S: StorageClient> DeduceTypeVisitor<'a, S> {
     pub fn new(
         storage: &'a S,
         validate_context: &'a ValidationContext,
@@ -327,7 +325,7 @@ impl<'a, S: StorageEngine> DeduceTypeVisitor<'a, S> {
     }
 }
 
-impl<'a, S: StorageEngine> std::fmt::Debug for DeduceTypeVisitor<'a, S> {
+impl<'a, S: StorageClient> std::fmt::Debug for DeduceTypeVisitor<'a, S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DeduceTypeVisitor")
             .field("status", &self.status)
@@ -337,7 +335,7 @@ impl<'a, S: StorageEngine> std::fmt::Debug for DeduceTypeVisitor<'a, S> {
     }
 }
 
-impl<'a, S: StorageEngine> ExpressionVisitor for DeduceTypeVisitor<'a, S> {
+impl<'a, S: StorageClient> ExpressionVisitor for DeduceTypeVisitor<'a, S> {
     type Result = Result<(), TypeDeductionError>;
 
     fn visit_literal(&mut self, value: &Value) -> Self::Result {
@@ -563,36 +561,36 @@ mod tests {
     #[derive(Debug)]
     struct MockStorageEngine;
 
-    impl StorageEngine for MockStorageEngine {
-        fn insert_node(&mut self, _vertex: Vertex) -> Result<Value, StorageError> {
+    impl StorageClient for MockStorageEngine {
+        fn insert_node(&mut self, _vertex: Vertex) -> Result<Value, DBError> {
             Ok(Value::Int(0))
         }
 
-        fn get_node(&self, _id: &Value) -> Result<Option<Vertex>, StorageError> {
+        fn get_node(&self, _id: &Value) -> Result<Option<Vertex>, DBError> {
             Ok(None)
         }
 
-        fn update_node(&mut self, _vertex: Vertex) -> Result<(), StorageError> {
+        fn update_node(&mut self, _vertex: Vertex) -> Result<(), DBError> {
             Ok(())
         }
 
-        fn delete_node(&mut self, _id: &Value) -> Result<(), StorageError> {
+        fn delete_node(&mut self, _id: &Value) -> Result<(), DBError> {
             Ok(())
         }
 
-        fn scan_all_vertices(&self) -> Result<Vec<Vertex>, StorageError> {
+        fn scan_all_vertices(&self) -> Result<Vec<Vertex>, DBError> {
             Ok(Vec::new())
         }
         
-        fn scan_all_edges(&self) -> Result<Vec<Edge>, StorageError> {
+        fn scan_all_edges(&self) -> Result<Vec<Edge>, DBError> {
             Ok(Vec::new())
         }
 
-        fn scan_vertices_by_tag(&self, _tag: &str) -> Result<Vec<Vertex>, StorageError> {
+        fn scan_vertices_by_tag(&self, _tag: &str) -> Result<Vec<Vertex>, DBError> {
             Ok(Vec::new())
         }
 
-        fn insert_edge(&mut self, _edge: Edge) -> Result<(), StorageError> {
+        fn insert_edge(&mut self, _edge: Edge) -> Result<(), DBError> {
             Ok(())
         }
 
@@ -601,7 +599,7 @@ mod tests {
             _src: &Value,
             _dst: &Value,
             _edge_type: &str,
-        ) -> Result<Option<Edge>, StorageError> {
+        ) -> Result<Option<Edge>, DBError> {
             Ok(None)
         }
 
@@ -609,7 +607,7 @@ mod tests {
             &self,
             _node_id: &Value,
             _direction: EdgeDirection,
-        ) -> Result<Vec<Edge>, StorageError> {
+        ) -> Result<Vec<Edge>, DBError> {
             Ok(Vec::new())
         }
 
@@ -618,27 +616,27 @@ mod tests {
             _src: &Value,
             _dst: &Value,
             _edge_type: &str,
-        ) -> Result<(), StorageError> {
+        ) -> Result<(), DBError> {
             Ok(())
         }
 
-        fn begin_transaction(&mut self) -> Result<u64, StorageError> {
+        fn begin_transaction(&mut self) -> Result<u64, DBError> {
             Ok(1)
         }
 
-        fn commit_transaction(&mut self, _tx_id: u64) -> Result<(), StorageError> {
+        fn commit_transaction(&mut self, _tx_id: u64) -> Result<(), DBError> {
             Ok(())
         }
 
-        fn rollback_transaction(&mut self, _tx_id: u64) -> Result<(), StorageError> {
+        fn rollback_transaction(&mut self, _tx_id: u64) -> Result<(), DBError> {
             Ok(())
         }
 
-        fn scan_edges_by_type(&self, _edge_type: &str) -> Result<Vec<Edge>, StorageError> {
+        fn scan_edges_by_type(&self, _edge_type: &str) -> Result<Vec<Edge>, DBError> {
             Ok(Vec::new())
         }
 
-        fn scan_vertices_by_prop(&self, _tag: &str, _prop: &str, _value: &Value) -> Result<Vec<Vertex>, StorageError> {
+        fn scan_vertices_by_prop(&self, _tag: &str, _prop: &str, _value: &Value) -> Result<Vec<Vertex>, DBError> {
             Ok(Vec::new())
         }
 
@@ -647,161 +645,119 @@ mod tests {
             _node_id: &Value,
             _direction: EdgeDirection,
             _filter: Option<Box<dyn Fn(&Edge) -> bool + Send + Sync>>,
-        ) -> Result<Vec<Edge>, StorageError> {
+        ) -> Result<Vec<Edge>, DBError> {
             Ok(Vec::new())
         }
 
-        fn batch_insert_nodes(&mut self, _vertices: Vec<Vertex>) -> Result<Vec<Value>, StorageError> {
+        fn batch_insert_nodes(&mut self, _vertices: Vec<Vertex>) -> Result<Vec<Value>, DBError> {
             Ok(Vec::new())
         }
 
-        fn batch_insert_edges(&mut self, _edges: Vec<Edge>) -> Result<(), StorageError> {
+        fn batch_insert_edges(&mut self, _edges: Vec<Edge>) -> Result<(), DBError> {
             Ok(())
         }
 
-        fn get_input(&self, _input_var: &str) -> Result<Option<Vec<Value>>, StorageError> {
+        fn get_input(&self, _input_var: &str) -> Result<Option<Vec<Value>>, DBError> {
             Ok(None)
         }
 
         // ========== 空间管理 ==========
-        fn create_space(&mut self, _space: &crate::core::types::SpaceInfo) -> Result<bool, StorageError> {
+        fn create_space(&mut self, _space: &crate::core::types::SpaceInfo) -> Result<bool, DBError> {
             Ok(true)
         }
 
-        fn drop_space(&mut self, _space_name: &str) -> Result<bool, StorageError> {
+        fn drop_space(&mut self, _space_name: &str) -> Result<bool, DBError> {
             Ok(true)
         }
 
-        fn get_space(&self, _space_name: &str) -> Result<Option<crate::core::types::SpaceInfo>, StorageError> {
+        fn get_space(&self, _space_name: &str) -> Result<Option<crate::core::types::SpaceInfo>, DBError> {
             Ok(None)
         }
 
-        fn list_spaces(&self) -> Result<Vec<crate::core::types::SpaceInfo>, StorageError> {
+        fn list_spaces(&self) -> Result<Vec<crate::core::types::SpaceInfo>, DBError> {
             Ok(Vec::new())
         }
 
         // ========== 标签管理 ==========
-        fn create_tag(&mut self, _info: &crate::core::types::TagInfo) -> Result<bool, StorageError> {
+        fn create_tag(&mut self, _info: &crate::core::types::TagInfo) -> Result<bool, DBError> {
             Ok(true)
         }
 
-        fn alter_tag(&mut self, _space_name: &str, _tag_name: &str, _additions: Vec<crate::core::types::PropertyDef>, _deletions: Vec<String>) -> Result<bool, StorageError> {
+        fn alter_tag(&mut self, _space_name: &str, _tag_name: &str, _additions: Vec<crate::core::types::PropertyDef>, _deletions: Vec<String>) -> Result<bool, DBError> {
             Ok(true)
         }
 
-        fn get_tag(&self, _space_name: &str, _tag_name: &str) -> Result<Option<crate::core::types::TagInfo>, StorageError> {
+        fn get_tag(&self, _space_name: &str, _tag_name: &str) -> Result<Option<crate::core::types::TagInfo>, DBError> {
             Ok(None)
         }
 
-        fn drop_tag(&mut self, _space_name: &str, _tag_name: &str) -> Result<bool, StorageError> {
+        fn drop_tag(&mut self, _space_name: &str, _tag_name: &str) -> Result<bool, DBError> {
             Ok(true)
         }
 
-        fn list_tags(&self, _space_name: &str) -> Result<Vec<crate::core::types::TagInfo>, StorageError> {
+        fn list_tags(&self, _space_name: &str) -> Result<Vec<crate::core::types::TagInfo>, DBError> {
             Ok(Vec::new())
         }
 
         // ========== 边类型管理 ==========
-        fn create_edge_type(&mut self, _info: &crate::core::types::EdgeTypeSchema) -> Result<bool, StorageError> {
+        fn create_edge_type(&mut self, _info: &crate::core::types::EdgeTypeSchema) -> Result<bool, DBError> {
             Ok(true)
         }
 
-        fn alter_edge_type(&mut self, _space_name: &str, _edge_type_name: &str, _additions: Vec<crate::core::types::PropertyDef>, _deletions: Vec<String>) -> Result<bool, StorageError> {
+        fn alter_edge_type(&mut self, _space_name: &str, _edge_type_name: &str, _additions: Vec<crate::core::types::PropertyDef>, _deletions: Vec<String>) -> Result<bool, DBError> {
             Ok(true)
         }
 
-        fn get_edge_type(&self, _space_name: &str, _edge_type_name: &str) -> Result<Option<crate::core::types::EdgeTypeSchema>, StorageError> {
+        fn get_edge_type(&self, _space_name: &str, _edge_type_name: &str) -> Result<Option<crate::core::types::EdgeTypeSchema>, DBError> {
             Ok(None)
         }
 
-        fn drop_edge_type(&mut self, _space_name: &str, _edge_type_name: &str) -> Result<bool, StorageError> {
+        fn drop_edge_type(&mut self, _space_name: &str, _edge_type_name: &str) -> Result<bool, DBError> {
             Ok(true)
         }
 
-        fn list_edge_types(&self, _space_name: &str) -> Result<Vec<crate::core::types::EdgeTypeSchema>, StorageError> {
+        fn list_edge_types(&self, _space_name: &str) -> Result<Vec<crate::core::types::EdgeTypeSchema>, DBError> {
             Ok(Vec::new())
         }
 
         // ========== 索引管理 ==========
-        fn create_tag_index(&mut self, _info: &crate::core::types::IndexInfo) -> Result<bool, StorageError> {
+        fn create_index(&mut self, _space_name: &str, _index_info: &crate::core::types::IndexInfo) -> Result<bool, DBError> {
             Ok(true)
         }
 
-        fn drop_tag_index(&mut self, _space_name: &str, _index_name: &str) -> Result<bool, StorageError> {
+        fn drop_index(&mut self, _space_name: &str, _index_name: &str, _is_edge: bool) -> Result<bool, DBError> {
             Ok(true)
         }
 
-        fn get_tag_index(&self, _space_name: &str, _index_name: &str) -> Result<Option<crate::core::types::IndexInfo>, StorageError> {
+        fn rebuild_index(&mut self, _space_name: &str, _index_name: &str) -> Result<bool, DBError> {
+            Ok(true)
+        }
+
+        fn get_index(&self, _space_name: &str, _index_name: &str) -> Result<Option<crate::core::types::IndexInfo>, DBError> {
             Ok(None)
         }
 
-        fn list_tag_indexes(&self, _space_name: &str) -> Result<Vec<crate::core::types::IndexInfo>, StorageError> {
+        fn list_indexes(&self, _space_name: &str) -> Result<Vec<crate::core::types::IndexInfo>, DBError> {
             Ok(Vec::new())
         }
 
-        fn rebuild_tag_index(&mut self, _space_name: &str, _index_name: &str) -> Result<bool, StorageError> {
-            Ok(true)
-        }
-
-        fn create_edge_index(&mut self, _info: &crate::core::types::IndexInfo) -> Result<bool, StorageError> {
-            Ok(true)
-        }
-
-        fn drop_edge_index(&mut self, _space_name: &str, _index_name: &str) -> Result<bool, StorageError> {
-            Ok(true)
-        }
-
-        fn get_edge_index(&self, _space_name: &str, _index_name: &str) -> Result<Option<crate::core::types::IndexInfo>, StorageError> {
-            Ok(None)
-        }
-
-        fn list_edge_indexes(&self, _space_name: &str) -> Result<Vec<crate::core::types::IndexInfo>, StorageError> {
+        fn lookup_index(&self, _space_name: &str, _index_name: &str, _value: &Value) -> Result<Vec<Value>, DBError> {
             Ok(Vec::new())
         }
 
-        fn rebuild_edge_index(&mut self, _space_name: &str, _index_name: &str) -> Result<bool, StorageError> {
-            Ok(true)
-        }
-
-        // ========== 数据变更 ==========
-        fn insert_vertex_data(&mut self, _info: &crate::core::types::InsertVertexInfo) -> Result<bool, StorageError> {
-            Ok(true)
-        }
-
-        fn insert_edge_data(&mut self, _info: &crate::core::types::InsertEdgeInfo) -> Result<bool, StorageError> {
-            Ok(true)
-        }
-
-        fn delete_vertex_data(&mut self, _space_name: &str, _vertex_id: &str) -> Result<bool, StorageError> {
-            Ok(true)
-        }
-
-        fn delete_edge_data(&mut self, _space_name: &str, _src: &str, _dst: &str, _rank: i64) -> Result<bool, StorageError> {
-            Ok(true)
-        }
-
-        fn update_data(&mut self, _info: &crate::core::types::UpdateInfo) -> Result<bool, StorageError> {
-            Ok(true)
-        }
-
-        // ========== 用户管理 ==========
-        fn change_password(&mut self, _info: &crate::core::types::PasswordInfo) -> Result<bool, StorageError> {
-            Ok(true)
-        }
-
-        fn get_vertex_with_schema(&self, _space_name: &str, _tag_name: &str, _id: &crate::core::Value) -> Result<Option<(crate::expression::storage::Schema, Vec<u8>)>, StorageError> {
+        fn get_vertex_with_schema(&self, _space_name: &str, _tag_name: &str, _id: &crate::core::Value) -> Result<Option<(crate::expression::storage::Schema, Vec<u8>)>, DBError> {
             Ok(None)
         }
 
-        fn get_edge_with_schema(&self, _space_name: &str, _edge_type_name: &str, _src: &crate::core::Value, _dst: &crate::core::Value) -> Result<Option<(crate::expression::storage::Schema, Vec<u8>)>, StorageError> {
+        fn get_edge_with_schema(&self, _space_name: &str, _edge_type_name: &str, _src: &crate::core::Value, _dst: &crate::core::Value) -> Result<Option<(crate::expression::storage::Schema, Vec<u8>)>, DBError> {
             Ok(None)
         }
 
-        fn scan_vertices_with_schema(&self, _space_name: &str, _tag_name: &str) -> Result<Vec<(crate::expression::storage::Schema, Vec<u8>)>, StorageError> {
+        fn scan_vertices_with_schema(&self, _space_name: &str, _tag_name: &str) -> Result<Vec<(crate::expression::storage::Schema, Vec<u8>)>, DBError> {
             Ok(Vec::new())
         }
 
-        fn scan_edges_with_schema(&self, _space_name: &str, _edge_type_name: &str) -> Result<Vec<(crate::expression::storage::Schema, Vec<u8>)>, StorageError> {
+        fn scan_edges_with_schema(&self, _space_name: &str, _edge_type_name: &str) -> Result<Vec<(crate::expression::storage::Schema, Vec<u8>)>, DBError> {
             Ok(Vec::new())
         }
     }
@@ -879,7 +835,7 @@ mod tests {
 
 /// 为DeduceTypeVisitor实现GenericExpressionVisitor<Expression>
 /// 提供统一的泛型访问接口
-impl<'a, S: StorageEngine> GenericExpressionVisitor<Expression> for DeduceTypeVisitor<'a, S> {
+impl<'a, S: StorageClient> GenericExpressionVisitor<Expression> for DeduceTypeVisitor<'a, S> {
     type Result = Result<(), TypeDeductionError>;
 
     fn visit(&mut self, expression: &Expression) -> <Self as GenericExpressionVisitor<Expression>>::Result {

@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 use crate::core::types::metadata::{EdgeTypeSchema, PropertyDef};
 use crate::core::types::graph_schema::PropertyType;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 impl EdgeTypeSchema {
     pub fn from_executor(executor_info: &ExecutorEdgeInfo) -> Self {
@@ -64,13 +64,13 @@ impl ExecutorEdgeInfo {
 ///
 /// 该执行器负责在指定图空间中创建新的边类型。
 #[derive(Debug)]
-pub struct CreateEdgeExecutor<S: StorageEngine> {
+pub struct CreateEdgeExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     edge_info: ExecutorEdgeInfo,
     if_not_exists: bool,
 }
 
-impl<S: StorageEngine> CreateEdgeExecutor<S> {
+impl<S: StorageClient> CreateEdgeExecutor<S> {
     /// 创建新的 CreateEdgeExecutor
     pub fn new(id: i64, storage: Arc<Mutex<S>>, edge_info: ExecutorEdgeInfo) -> Self {
         Self {
@@ -91,7 +91,7 @@ impl<S: StorageEngine> CreateEdgeExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for CreateEdgeExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateEdgeExecutor<S> {
     async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let mut storage_guard = storage.lock().map_err(|e| {
@@ -150,7 +150,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for CreateEdgeExecuto
     }
 }
 
-impl<S: StorageEngine> crate::query::executor::base::HasStorage<S> for CreateEdgeExecutor<S> {
+impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for CreateEdgeExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.get_storage()
     }

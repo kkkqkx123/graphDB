@@ -8,17 +8,17 @@ use crate::expression::context::basic_context::BasicExpressionContext;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::traits::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::parser::expressions::parse_expression_meta_from_string;
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 use crate::utils::safe_lock;
 
 // Executor for inserting new vertices/edges
-pub struct InsertExecutor<S: StorageEngine> {
+pub struct InsertExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     vertex_data: Option<Vec<Vertex>>, // Data to be inserted
     edge_data: Option<Vec<Edge>>,
 }
 
-impl<S: StorageEngine> InsertExecutor<S> {
+impl<S: StorageClient> InsertExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -50,7 +50,7 @@ impl<S: StorageEngine> InsertExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for InsertExecutor<S> {
+impl<S: StorageClient + Send + 'static> Executor<S> for InsertExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let mut _total_inserted = 0;
 
@@ -110,7 +110,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for InsertExecutor<S> {
     }
 }
 
-impl<S: StorageEngine> HasStorage<S> for CreateIndexExecutor<S> {
+impl<S: StorageClient> HasStorage<S> for CreateIndexExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base
             .storage
@@ -119,7 +119,7 @@ impl<S: StorageEngine> HasStorage<S> for CreateIndexExecutor<S> {
     }
 }
 
-impl<S: StorageEngine> HasStorage<S> for DropIndexExecutor<S> {
+impl<S: StorageClient> HasStorage<S> for DropIndexExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base
             .storage
@@ -128,7 +128,7 @@ impl<S: StorageEngine> HasStorage<S> for DropIndexExecutor<S> {
     }
 }
 
-impl<S: StorageEngine> HasStorage<S> for InsertExecutor<S> {
+impl<S: StorageClient> HasStorage<S> for InsertExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base
             .storage
@@ -138,7 +138,7 @@ impl<S: StorageEngine> HasStorage<S> for InsertExecutor<S> {
 }
 
 // Executor for updating existing vertices/edges
-pub struct UpdateExecutor<S: StorageEngine> {
+pub struct UpdateExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     vertex_updates: Option<Vec<VertexUpdate>>, // Updates to apply to vertices
     edge_updates: Option<Vec<EdgeUpdate>>,     // Updates to apply to edges
@@ -162,7 +162,7 @@ pub struct EdgeUpdate {
     pub properties: std::collections::HashMap<String, Value>,
 }
 
-impl<S: StorageEngine> UpdateExecutor<S> {
+impl<S: StorageClient> UpdateExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -180,7 +180,7 @@ impl<S: StorageEngine> UpdateExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for UpdateExecutor<S> {
+impl<S: StorageClient + Send + 'static> Executor<S> for UpdateExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let mut _total_updated = 0;
 
@@ -323,7 +323,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for UpdateExecutor<S> {
     }
 }
 
-impl<S: StorageEngine> HasStorage<S> for UpdateExecutor<S> {
+impl<S: StorageClient> HasStorage<S> for UpdateExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base
             .storage
@@ -332,7 +332,7 @@ impl<S: StorageEngine> HasStorage<S> for UpdateExecutor<S> {
     }
 }
 
-impl<S: StorageEngine> HasStorage<S> for DeleteExecutor<S> {
+impl<S: StorageClient> HasStorage<S> for DeleteExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base
             .storage
@@ -342,7 +342,7 @@ impl<S: StorageEngine> HasStorage<S> for DeleteExecutor<S> {
 }
 
 // Executor for deleting vertices/edges
-pub struct DeleteExecutor<S: StorageEngine> {
+pub struct DeleteExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     vertex_ids: Option<Vec<Value>>, // IDs of vertices to delete
     edge_ids: Option<Vec<Value>>,   // IDs of edges to delete
@@ -350,7 +350,7 @@ pub struct DeleteExecutor<S: StorageEngine> {
     _condition: Option<String>, // Condition for selecting items to delete
 }
 
-impl<S: StorageEngine> DeleteExecutor<S> {
+impl<S: StorageClient> DeleteExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -368,7 +368,7 @@ impl<S: StorageEngine> DeleteExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for DeleteExecutor<S> {
+impl<S: StorageClient + Send + 'static> Executor<S> for DeleteExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let mut _total_deleted = 0;
 
@@ -425,7 +425,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for DeleteExecutor<S> {
 }
 
 // Executor for creating indexes
-pub struct CreateIndexExecutor<S: StorageEngine> {
+pub struct CreateIndexExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
 
     index_name: String,
@@ -437,7 +437,7 @@ pub struct CreateIndexExecutor<S: StorageEngine> {
     tag_name: Option<String>, // Tag name for vertex indexes
 }
 
-impl<S: StorageEngine> CreateIndexExecutor<S> {
+impl<S: StorageClient> CreateIndexExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -457,7 +457,7 @@ impl<S: StorageEngine> CreateIndexExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for CreateIndexExecutor<S> {
+impl<S: StorageClient + Send + 'static> Executor<S> for CreateIndexExecutor<S> {
     async fn execute(&mut self) -> Result<ExecutionResult, DBError> {
         let mut storage = safe_lock(self.get_storage())
             .expect("CreateIndexExecutor storage lock should not be poisoned");
@@ -532,13 +532,13 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for CreateIndexExecutor<S> {
 }
 
 // Executor for dropping indexes
-pub struct DropIndexExecutor<S: StorageEngine> {
+pub struct DropIndexExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
 
     _index_name: String,
 }
 
-impl<S: StorageEngine> DropIndexExecutor<S> {
+impl<S: StorageClient> DropIndexExecutor<S> {
     pub fn new(id: i64, storage: Arc<Mutex<S>>, _index_name: String) -> Self {
         Self {
             base: BaseExecutor::new(id, "DropIndexExecutor".to_string(), storage),
@@ -548,7 +548,7 @@ impl<S: StorageEngine> DropIndexExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for DropIndexExecutor<S> {
+impl<S: StorageClient + Send + 'static> Executor<S> for DropIndexExecutor<S> {
     async fn execute(&mut self) -> Result<ExecutionResult, DBError> {
         let mut storage = safe_lock(self.get_storage())
             .expect("DropIndexExecutor storage lock should not be poisoned");

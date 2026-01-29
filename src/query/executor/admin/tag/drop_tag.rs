@@ -6,20 +6,20 @@ use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 /// 删除标签执行器
 ///
 /// 该执行器负责删除指定的标签及其所有数据。
 #[derive(Debug)]
-pub struct DropTagExecutor<S: StorageEngine> {
+pub struct DropTagExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     space_name: String,
     tag_name: String,
     if_exists: bool,
 }
 
-impl<S: StorageEngine> DropTagExecutor<S> {
+impl<S: StorageClient> DropTagExecutor<S> {
     /// 创建新的 DropTagExecutor
     pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String, tag_name: String) -> Self {
         Self {
@@ -42,7 +42,7 @@ impl<S: StorageEngine> DropTagExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for DropTagExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DropTagExecutor<S> {
     async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let mut storage_guard = storage.lock().map_err(|e| {
@@ -100,7 +100,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for DropTagExecutor<S
     }
 }
 
-impl<S: StorageEngine> crate::query::executor::base::HasStorage<S> for DropTagExecutor<S> {
+impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for DropTagExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.get_storage()
     }

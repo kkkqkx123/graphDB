@@ -7,7 +7,7 @@
 use super::super::{Index, IndexManager, IndexStatus, IndexType, IndexStats, IndexOptimization};
 use crate::core::error::{ManagerError, ManagerResult};
 use crate::core::{Edge, Value, Vertex};
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 use std::path::PathBuf;
@@ -280,7 +280,7 @@ pub struct MemoryIndexManager {
     next_index_id: Arc<RwLock<i32>>,
     storage_path: PathBuf,
     index_data: Arc<RwLock<HashMap<i32, IndexData>>>,
-    storage_engine: Option<Arc<dyn StorageEngine>>,
+    storage_engine: Option<Arc<dyn StorageClient>>,
     index_stats: Arc<RwLock<HashMap<i32, IndexStats>>>,
 }
 
@@ -315,7 +315,7 @@ impl MemoryIndexManager {
     /// 创建新的内存索引管理器并设置存储引擎
     pub fn with_storage_engine(
         storage_path: PathBuf,
-        storage_engine: Arc<dyn StorageEngine>,
+        storage_engine: Arc<dyn StorageClient>,
     ) -> Self {
         let manager = Self {
             indexes: Arc::new(RwLock::new(HashMap::new())),
@@ -330,7 +330,7 @@ impl MemoryIndexManager {
     }
 
     /// 设置存储引擎
-    pub fn set_storage_engine(&mut self, storage_engine: Arc<dyn StorageEngine>) {
+    pub fn set_storage_engine(&mut self, storage_engine: Arc<dyn StorageClient>) {
         self.storage_engine = Some(storage_engine);
     }
 

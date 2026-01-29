@@ -8,18 +8,18 @@ use std::sync::{Arc, Mutex};
 use crate::core::{DataSet, Value};
 use crate::storage::iterator::Row;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 /// 列出边类型执行器
 ///
 /// 该执行器负责返回指定图空间中所有边类型的列表。
 #[derive(Debug)]
-pub struct ShowEdgesExecutor<S: StorageEngine> {
+pub struct ShowEdgesExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     space_name: String,
 }
 
-impl<S: StorageEngine> ShowEdgesExecutor<S> {
+impl<S: StorageClient> ShowEdgesExecutor<S> {
     /// 创建新的 ShowEdgesExecutor
     pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String) -> Self {
         Self {
@@ -30,7 +30,7 @@ impl<S: StorageEngine> ShowEdgesExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ShowEdgesExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowEdgesExecutor<S> {
     async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let storage_guard = storage.lock().map_err(|e| {
@@ -93,7 +93,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ShowEdgesExecutor
     }
 }
 
-impl<S: StorageEngine> crate::query::executor::base::HasStorage<S> for ShowEdgesExecutor<S> {
+impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for ShowEdgesExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.get_storage()
     }

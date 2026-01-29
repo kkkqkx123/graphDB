@@ -4,7 +4,7 @@
 //! 注意：基础类型（ExecutorStats、ExecutionResult、BaseExecutor 等）已迁移到 base/ 模块。
 //! 本模块主要保留 ResultProcessor 等结果处理相关的 trait。
 
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 // 从 base 模块重新导出基础类型
 pub use crate::query::executor::base::{
@@ -14,7 +14,7 @@ pub use crate::query::executor::base::{
 /// 结果处理器 trait
 ///
 /// 用于处理查询结果的执行器应实现此 trait。
-pub trait ResultProcessor<S: StorageEngine>: Executor<S> {
+pub trait ResultProcessor<S: StorageClient>: Executor<S> {
     /// 获取处理器上下文
     fn get_context(&self) -> &ResultProcessorContext<S>;
 
@@ -26,14 +26,14 @@ pub trait ResultProcessor<S: StorageEngine>: Executor<S> {
 ///
 /// 为结果处理器提供必要的上下文信息。
 #[derive(Debug, Clone)]
-pub struct ResultProcessorContext<S: StorageEngine> {
+pub struct ResultProcessorContext<S: StorageClient> {
     /// 存储引擎引用
     pub storage: Option<std::sync::Arc<std::sync::Mutex<S>>>,
     /// 输入数据
     pub input: Option<ExecutionResult>,
 }
 
-impl<S: StorageEngine> ResultProcessorContext<S> {
+impl<S: StorageClient> ResultProcessorContext<S> {
     /// 创建新的上下文
     pub fn new(storage: std::sync::Arc<std::sync::Mutex<S>>) -> Self {
         Self {
@@ -55,7 +55,7 @@ impl<S: StorageEngine> ResultProcessorContext<S> {
 ///
 /// 提供结果处理器的通用功能。
 #[derive(Debug, Clone)]
-pub struct BaseResultProcessor<S: StorageEngine> {
+pub struct BaseResultProcessor<S: StorageClient> {
     /// 处理器 ID
     pub id: i64,
     /// 处理器名称
@@ -66,7 +66,7 @@ pub struct BaseResultProcessor<S: StorageEngine> {
     pub context: ResultProcessorContext<S>,
 }
 
-impl<S: StorageEngine> BaseResultProcessor<S> {
+impl<S: StorageClient> BaseResultProcessor<S> {
     /// 创建新的基础结果处理器
     pub fn new(id: i64, name: String, description: String, storage: std::sync::Arc<std::sync::Mutex<S>>) -> Self {
         Self {

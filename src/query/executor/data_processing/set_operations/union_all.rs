@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 use crate::core::{DataSet, Value};
 use crate::query::executor::traits::{DBResult, ExecutionResult, Executor};
 use crate::query::QueryError;
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 use super::base::SetExecutor;
 
@@ -17,11 +17,11 @@ use super::base::SetExecutor;
 /// 实现UNION ALL操作，合并两个数据集但保留重复行
 /// 类似于SQL的UNION ALL
 #[derive(Debug)]
-pub struct UnionAllExecutor<S: StorageEngine> {
+pub struct UnionAllExecutor<S: StorageClient> {
     pub set_executor: SetExecutor<S>,
 }
 
-impl<S: StorageEngine> UnionAllExecutor<S> {
+impl<S: StorageClient> UnionAllExecutor<S> {
     /// 创建新的UnionAll执行器
     pub fn new(
         id: i64,
@@ -64,7 +64,7 @@ impl<S: StorageEngine> UnionAllExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for UnionAllExecutor<S> {
+impl<S: StorageClient + Send + 'static> Executor<S> for UnionAllExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let dataset = self.execute_union_all().await.map_err(|e| {
             crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(

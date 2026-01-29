@@ -20,12 +20,12 @@ use crate::query::executor::result_processing::traits::{
     BaseResultProcessor, ResultProcessor, ResultProcessorContext,
 };
 use crate::query::executor::traits::{ExecutionResult, Executor};
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 /// FilterExecutor - 过滤执行器
 ///
 /// 实现对查询结果的条件过滤功能
-pub struct FilterExecutor<S: StorageEngine + Send + 'static> {
+pub struct FilterExecutor<S: StorageClient + Send + 'static> {
     /// 基础处理器
     base: BaseResultProcessor<S>,
     /// 过滤条件表达式
@@ -34,7 +34,7 @@ pub struct FilterExecutor<S: StorageEngine + Send + 'static> {
     input_executor: Option<Box<ExecutorEnum<S>>>,
 }
 
-impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
+impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
     pub fn new(id: i64, storage: Arc<Mutex<S>>, condition: Expression) -> Self {
         let base = BaseResultProcessor::new(
             id,
@@ -278,7 +278,7 @@ impl<S: StorageEngine + Send + 'static> FilterExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> ResultProcessor<S> for FilterExecutor<S> {
+impl<S: StorageClient + Send + 'static> ResultProcessor<S> for FilterExecutor<S> {
     async fn process(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult> {
         // 如果 input_executor 为空且 base.input 未设置，则设置 base.input
         if self.input_executor.is_none() && self.base.input.is_none() {
@@ -313,7 +313,7 @@ impl<S: StorageEngine + Send + 'static> ResultProcessor<S> for FilterExecutor<S>
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for FilterExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for FilterExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
             input_exec.execute().await?
@@ -373,7 +373,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for FilterExecutor<S>
     }
 }
 
-impl<S: StorageEngine + Send + 'static> InputExecutor<S> for FilterExecutor<S> {
+impl<S: StorageClient + Send + 'static> InputExecutor<S> for FilterExecutor<S> {
     fn set_input(&mut self, input: ExecutorEnum<S>) {
         self.input_executor = Some(Box::new(input));
     }

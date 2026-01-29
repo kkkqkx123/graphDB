@@ -5,7 +5,7 @@
 use super::seek_strategy::SeekStrategy;
 use super::seek_strategy_base::{SeekResult, SeekStrategyContext, SeekStrategyType, NodePattern, IndexInfo};
 use crate::core::{StorageError, Vertex};
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 #[derive(Debug, Clone)]
 pub struct IndexSeek;
@@ -19,7 +19,7 @@ impl IndexSeek {
 impl SeekStrategy for IndexSeek {
     fn execute(
         &self,
-        storage: &dyn StorageEngine,
+        storage: &dyn StorageClient,
         context: &SeekStrategyContext,
     ) -> Result<SeekResult, StorageError> {
         let mut vertex_ids = Vec::new();

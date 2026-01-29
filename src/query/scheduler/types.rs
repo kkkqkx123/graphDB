@@ -2,7 +2,7 @@ use async_trait::async_trait;
 
 use crate::query::executor::ExecutionResult;
 use crate::query::QueryError;
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 #[derive(Debug, Clone)]
 pub struct ExecutorDep {
@@ -51,7 +51,7 @@ pub enum ExecutorType {
 }
 
 #[async_trait]
-pub trait QueryScheduler<S: StorageEngine> {
+pub trait QueryScheduler<S: StorageClient> {
     async fn schedule(
         &mut self,
         execution_schedule: super::execution_schedule::ExecutionSchedule<S>,

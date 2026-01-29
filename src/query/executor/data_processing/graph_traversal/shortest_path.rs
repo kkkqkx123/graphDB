@@ -10,7 +10,7 @@ use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::query::QueryError;
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 use crate::utils::safe_lock;
 
 #[derive(Debug, Clone)]
@@ -77,7 +77,7 @@ pub enum ShortestPathAlgorithmType {
 
 pub type ShortestPathAlgorithm = ShortestPathAlgorithmType;
 
-pub struct ShortestPathExecutor<S: StorageEngine + Send + 'static> {
+pub struct ShortestPathExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
     start_vertex_ids: Vec<Value>,
     end_vertex_ids: Vec<Value>,
@@ -96,7 +96,7 @@ pub struct ShortestPathExecutor<S: StorageEngine + Send + 'static> {
     termination_map: HashMap<(Value, Value), bool>,
 }
 
-impl<S: StorageEngine> std::fmt::Debug for ShortestPathExecutor<S> {
+impl<S: StorageClient> std::fmt::Debug for ShortestPathExecutor<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ShortestPathExecutor")
             .field("base", &"BaseExecutor")
@@ -115,7 +115,7 @@ impl<S: StorageEngine> std::fmt::Debug for ShortestPathExecutor<S> {
     }
 }
 
-impl<S: StorageEngine> ShortestPathExecutor<S> {
+impl<S: StorageClient> ShortestPathExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -793,7 +793,7 @@ impl<S: StorageEngine> ShortestPathExecutor<S> {
     }
 }
 
-impl<S: StorageEngine + Send + 'static> InputExecutor<S> for ShortestPathExecutor<S> {
+impl<S: StorageClient + Send + 'static> InputExecutor<S> for ShortestPathExecutor<S> {
     fn set_input(&mut self, input: ExecutorEnum<S>) {
         self.input_executor = Some(Box::new(input));
     }
@@ -804,7 +804,7 @@ impl<S: StorageEngine + Send + 'static> InputExecutor<S> for ShortestPathExecuto
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for ShortestPathExecutor<S> {
+impl<S: StorageClient + Send + 'static> Executor<S> for ShortestPathExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
             input_exec.execute().await?
@@ -910,13 +910,13 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for ShortestPathExecutor<S> 
     }
 }
 
-impl<S: StorageEngine + Send> HasStorage<S> for ShortestPathExecutor<S> {
+impl<S: StorageClient + Send> HasStorage<S> for ShortestPathExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.storage.as_ref().expect("ShortestPathExecutor storage should be set")
     }
 }
 
-pub struct MultiShortestPathExecutor<S: StorageEngine + Send + 'static> {
+pub struct MultiShortestPathExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
     left_start_vertices: Vec<Value>,
     right_target_vertices: Vec<Value>,
@@ -937,7 +937,7 @@ pub struct MultiShortestPathExecutor<S: StorageEngine + Send + 'static> {
     edges_traversed: usize,
 }
 
-impl<S: StorageEngine> std::fmt::Debug for MultiShortestPathExecutor<S> {
+impl<S: StorageClient> std::fmt::Debug for MultiShortestPathExecutor<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("MultiShortestPathExecutor")
             .field("base", &"BaseExecutor")
@@ -952,7 +952,7 @@ impl<S: StorageEngine> std::fmt::Debug for MultiShortestPathExecutor<S> {
     }
 }
 
-impl<S: StorageEngine> MultiShortestPathExecutor<S> {
+impl<S: StorageClient> MultiShortestPathExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -1191,7 +1191,7 @@ impl<S: StorageEngine> MultiShortestPathExecutor<S> {
     }
 }
 
-impl<S: StorageEngine + Send + 'static> InputExecutor<S> for MultiShortestPathExecutor<S> {
+impl<S: StorageClient + Send + 'static> InputExecutor<S> for MultiShortestPathExecutor<S> {
     fn set_input(&mut self, input: ExecutorEnum<S>) {
         self.input_executor = Some(Box::new(input));
     }
@@ -1202,7 +1202,7 @@ impl<S: StorageEngine + Send + 'static> InputExecutor<S> for MultiShortestPathEx
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for MultiShortestPathExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for MultiShortestPathExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         if self.left_start_vertices.is_empty() || self.right_target_vertices.is_empty() {
             return Ok(ExecutionResult::Paths(vec![]));
@@ -1279,7 +1279,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for MultiShortestPath
     }
 }
 
-impl<S: StorageEngine + Send> HasStorage<S> for MultiShortestPathExecutor<S> {
+impl<S: StorageClient + Send> HasStorage<S> for MultiShortestPathExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.storage.as_ref().expect("MultiShortestPathExecutor storage should be set")
     }

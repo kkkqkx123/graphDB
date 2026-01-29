@@ -3,9 +3,9 @@ use std::collections::{HashMap, HashSet};
 use super::types::{ExecutorDep, ExecutorType, VariableLifetime};
 use crate::query::executor::{ExecutionResult, Executor};
 use crate::query::QueryError;
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
-pub struct ExecutionSchedule<S: StorageEngine> {
+pub struct ExecutionSchedule<S: StorageClient> {
     pub executors: HashMap<i64, Box<dyn Executor<S>>>,
     pub dependencies: HashMap<i64, ExecutorDep>,
     pub root_executor_id: i64,
@@ -15,7 +15,7 @@ pub struct ExecutionSchedule<S: StorageEngine> {
     pub output_variables: HashMap<i64, String>,
 }
 
-impl<S: StorageEngine + Send + 'static> ExecutionSchedule<S> {
+impl<S: StorageClient + Send + 'static> ExecutionSchedule<S> {
     pub fn new(root_id: i64) -> Self {
         Self {
             executors: HashMap::new(),

@@ -20,7 +20,7 @@ use crate::query::executor::recursion_detector::{
     ExecutorSafetyConfig, ExecutorSafetyValidator, RecursionDetector,
 };
 use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 /// 循环状态
 #[derive(Debug, Clone, PartialEq)]
@@ -35,7 +35,7 @@ pub enum LoopState {
 ///
 /// 实现循环控制逻辑，支持条件循环和计数循环
 /// 包含递归检测机制，防止循环执行器自引用
-pub struct LoopExecutor<S: StorageEngine + Send + 'static> {
+pub struct LoopExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
     condition: Option<Expression>,
     body_executor: Box<ExecutorEnum<S>>,
@@ -48,7 +48,7 @@ pub struct LoopExecutor<S: StorageEngine + Send + 'static> {
     safety_validator: ExecutorSafetyValidator,
 }
 
-impl<S: StorageEngine> LoopExecutor<S> {
+impl<S: StorageClient> LoopExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -74,7 +74,7 @@ impl<S: StorageEngine> LoopExecutor<S> {
     }
 }
 
-impl<S: StorageEngine + Send + 'static> LoopExecutor<S> {
+impl<S: StorageClient + Send + 'static> LoopExecutor<S> {
     /// 验证循环执行器是否存在自引用
     pub fn validate_no_self_reference(&self) -> Result<(), DBError> {
         if self.body_executor.id() == self.base.id {
@@ -269,7 +269,7 @@ impl<S: StorageEngine + Send + 'static> LoopExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for LoopExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for LoopExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         self.validate_no_self_reference()?;
 
@@ -367,7 +367,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for LoopExecutor<S> {
     }
 }
 
-impl<S: StorageEngine + Send + 'static> HasStorage<S> for LoopExecutor<S> {
+impl<S: StorageClient + Send + 'static> HasStorage<S> for LoopExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.get_storage()
     }
@@ -376,11 +376,11 @@ impl<S: StorageEngine + Send + 'static> HasStorage<S> for LoopExecutor<S> {
 /// WhileLoopExecutor - 条件循环执行器
 ///
 /// 专门用于实现 WHILE 循环
-pub struct WhileLoopExecutor<S: StorageEngine + Send + 'static> {
+pub struct WhileLoopExecutor<S: StorageClient + Send + 'static> {
     inner: LoopExecutor<S>,
 }
 
-impl<S: StorageEngine + Send + 'static> WhileLoopExecutor<S> {
+impl<S: StorageClient + Send + 'static> WhileLoopExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -395,7 +395,7 @@ impl<S: StorageEngine + Send + 'static> WhileLoopExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for WhileLoopExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for WhileLoopExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         self.inner.execute().await
     }
@@ -433,7 +433,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for WhileLoopExecutor
     }
 }
 
-impl<S: StorageEngine + Send + 'static> HasStorage<S> for WhileLoopExecutor<S> {
+impl<S: StorageClient + Send + 'static> HasStorage<S> for WhileLoopExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.inner.get_storage()
     }
@@ -442,7 +442,7 @@ impl<S: StorageEngine + Send + 'static> HasStorage<S> for WhileLoopExecutor<S> {
 /// ForLoopExecutor - 计数循环执行器
 ///
 /// 专门用于实现 FOR 循环
-pub struct ForLoopExecutor<S: StorageEngine + Send + 'static> {
+pub struct ForLoopExecutor<S: StorageClient + Send + 'static> {
     inner: LoopExecutor<S>,
     start: i64,
     end: i64,
@@ -450,7 +450,7 @@ pub struct ForLoopExecutor<S: StorageEngine + Send + 'static> {
     loop_var: String,
 }
 
-impl<S: StorageEngine + Send + 'static> ForLoopExecutor<S> {
+impl<S: StorageClient + Send + 'static> ForLoopExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -481,7 +481,7 @@ impl<S: StorageEngine + Send + 'static> ForLoopExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ForLoopExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ForLoopExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         self.inner.open()?;
 
@@ -538,7 +538,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ForLoopExecutor<S
     }
 }
 
-impl<S: StorageEngine + Send + 'static> HasStorage<S> for ForLoopExecutor<S> {
+impl<S: StorageClient + Send + 'static> HasStorage<S> for ForLoopExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.inner.get_storage()
     }
@@ -547,7 +547,7 @@ impl<S: StorageEngine + Send + 'static> HasStorage<S> for ForLoopExecutor<S> {
 /// SelectExecutor - 条件分支执行器
 ///
 /// 实现条件分支逻辑，根据条件选择执行 if 或 else 分支
-pub struct SelectExecutor<S: StorageEngine + Send + 'static> {
+pub struct SelectExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
     condition: Expression,
     if_branch: Box<ExecutorEnum<S>>,
@@ -555,7 +555,7 @@ pub struct SelectExecutor<S: StorageEngine + Send + 'static> {
     current_result: Option<ExecutionResult>,
 }
 
-impl<S: StorageEngine> SelectExecutor<S> {
+impl<S: StorageClient> SelectExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -574,7 +574,7 @@ impl<S: StorageEngine> SelectExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for SelectExecutor<S> {
+impl<S: StorageClient + Send + 'static> Executor<S> for SelectExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let mut context = crate::expression::DefaultExpressionContext::new();
 
@@ -653,7 +653,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for SelectExecutor<S> {
     }
 }
 
-impl<S: StorageEngine + Send + 'static> HasStorage<S> for SelectExecutor<S> {
+impl<S: StorageClient + Send + 'static> HasStorage<S> for SelectExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.storage.as_ref().expect("SelectExecutor storage should be set")
     }

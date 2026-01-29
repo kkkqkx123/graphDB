@@ -12,10 +12,10 @@ use crate::query::executor::data_processing::join::{
     hash_table::{build_hash_table, extract_key_values, JoinKey},
 };
 use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 /// 左外连接执行器
-pub struct LeftJoinExecutor<S: StorageEngine> {
+pub struct LeftJoinExecutor<S: StorageClient> {
     base_executor: BaseJoinExecutor<S>,
     /// 右侧数据集的列数（用于填充NULL值）
     right_col_size: usize,
@@ -23,7 +23,7 @@ pub struct LeftJoinExecutor<S: StorageEngine> {
     use_multi_key: bool,
 }
 
-impl<S: StorageEngine> LeftJoinExecutor<S> {
+impl<S: StorageClient> LeftJoinExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -201,7 +201,7 @@ impl<S: StorageEngine> LeftJoinExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for LeftJoinExecutor<S> {
+impl<S: StorageClient + Send + 'static> Executor<S> for LeftJoinExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let (left_dataset, right_dataset) = self.base_executor.check_input_datasets()?;
 
@@ -271,7 +271,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for LeftJoinExecutor<S> {
     }
 }
 
-impl<S: StorageEngine + Send + 'static> HasStorage<S> for LeftJoinExecutor<S> {
+impl<S: StorageClient + Send + 'static> HasStorage<S> for LeftJoinExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base_executor
             .get_base()
@@ -282,11 +282,11 @@ impl<S: StorageEngine + Send + 'static> HasStorage<S> for LeftJoinExecutor<S> {
 }
 
 /// 哈希左外连接执行器（并行版本）
-pub struct HashLeftJoinExecutor<S: StorageEngine> {
+pub struct HashLeftJoinExecutor<S: StorageClient> {
     inner: LeftJoinExecutor<S>,
 }
 
-impl<S: StorageEngine> HashLeftJoinExecutor<S> {
+impl<S: StorageClient> HashLeftJoinExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -305,7 +305,7 @@ impl<S: StorageEngine> HashLeftJoinExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for HashLeftJoinExecutor<S> {
+impl<S: StorageClient + Send + 'static> Executor<S> for HashLeftJoinExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         // 目前与普通左连接相同，后续可以添加并行处理逻辑
         self.inner.execute().await
@@ -344,7 +344,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for HashLeftJoinExecutor<S> 
     }
 }
 
-impl<S: StorageEngine + Send + 'static> HasStorage<S> for HashLeftJoinExecutor<S> {
+impl<S: StorageClient + Send + 'static> HasStorage<S> for HashLeftJoinExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.inner.get_storage()
     }

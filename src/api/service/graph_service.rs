@@ -3,13 +3,13 @@ use crate::api::service::{
 };
 use crate::api::session::{ClientSession, GraphSessionManager};
 use crate::config::Config;
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 use crate::core::error::{SessionError, SessionResult};
 use crate::graph::{BatchOperation, GraphResponse, TransactionManager};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-pub struct GraphService<S: StorageEngine + Clone + 'static> {
+pub struct GraphService<S: StorageClient + Clone + 'static> {
     session_manager: Arc<GraphSessionManager>,
     query_engine: Arc<Mutex<QueryEngine<S>>>,
     authenticator: Arc<PasswordAuthenticator>,
@@ -19,7 +19,7 @@ pub struct GraphService<S: StorageEngine + Clone + 'static> {
     transaction_manager: Arc<Mutex<TransactionManager>>,
 }
 
-impl<S: StorageEngine + Clone + 'static> GraphService<S> {
+impl<S: StorageClient + Clone + 'static> GraphService<S> {
     pub fn new(config: Config, storage: Arc<S>) -> Arc<Self> {
         let session_idle_timeout = Duration::from_secs(config.transaction_timeout * 10);
         let session_manager = GraphSessionManager::new(

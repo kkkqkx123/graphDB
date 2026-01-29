@@ -3,7 +3,7 @@
 //! 定义顶点查找策略和选择器，用于 MATCH 查询中确定起始顶点的查找方式
 
 use crate::core::StorageError;
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 use super::index_seek::IndexSeek;
 use super::scan_seek::ScanSeek;
@@ -18,7 +18,7 @@ pub type SeekStrategyTraitObject = dyn SeekStrategy + Send + Sync;
 pub trait SeekStrategy: Send + Sync {
     fn execute(
         &self,
-        storage: &dyn StorageEngine,
+        storage: &dyn StorageClient,
         context: &SeekStrategyContext,
     ) -> Result<SeekResult, StorageError>;
 
@@ -46,7 +46,7 @@ impl Clone for AnySeekStrategy {
 impl SeekStrategy for AnySeekStrategy {
     fn execute(
         &self,
-        storage: &dyn StorageEngine,
+        storage: &dyn StorageClient,
         context: &SeekStrategyContext,
     ) -> Result<SeekResult, StorageError> {
         match self {
@@ -87,7 +87,7 @@ impl SeekStrategySelector {
 
     pub fn find(
         &self,
-        storage: &dyn StorageEngine,
+        storage: &dyn StorageClient,
         context: &SeekStrategyContext,
     ) -> Result<SeekResult, StorageError> {
         let strategy_type = self.select_strategy(storage, context);

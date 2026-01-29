@@ -10,7 +10,7 @@ use std::fmt;
 use std::fmt::{Debug, Formatter};
 use std::time::Instant;
 
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 use super::admin::{
     AlterEdgeExecutor, AlterTagExecutor, ChangePasswordExecutor, CreateEdgeExecutor,
@@ -44,7 +44,7 @@ use super::result_processing::transformations::{
 use super::search_executors::{BFSShortestExecutor, FulltextIndexScanExecutor, IndexScanExecutor};
 use super::special_executors::{ArgumentExecutor, DataCollectExecutor, PassThroughExecutor};
 
-pub enum ExecutorEnum<S: StorageEngine + Send + 'static> {
+pub enum ExecutorEnum<S: StorageClient + Send + 'static> {
     Start(StartExecutor<S>),
     Base(BaseExecutor<S>),
     GetVertices(GetVerticesExecutor<S>),
@@ -121,7 +121,7 @@ pub enum ExecutorEnum<S: StorageEngine + Send + 'static> {
     ChangePassword(ChangePasswordExecutor<S>),
 }
 
-impl<S: StorageEngine + Send + 'static> Debug for ExecutorEnum<S> {
+impl<S: StorageClient + Send + 'static> Debug for ExecutorEnum<S> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             ExecutorEnum::Start(exec) => f.write_str(&format!("ExecutorEnum::Start({})", exec.name())),
@@ -202,7 +202,7 @@ impl<S: StorageEngine + Send + 'static> Debug for ExecutorEnum<S> {
     }
 }
 
-impl<S: StorageEngine + Send + 'static> ExecutorEnum<S> {
+impl<S: StorageClient + Send + 'static> ExecutorEnum<S> {
     pub fn id(&self) -> i64 {
         match self {
             ExecutorEnum::Start(exec) => exec.id(),
@@ -521,7 +521,7 @@ impl<S: StorageEngine + Send + 'static> ExecutorEnum<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> super::base::Executor<S> for ExecutorEnum<S> {
+impl<S: StorageClient + Send + 'static> super::base::Executor<S> for ExecutorEnum<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let start = Instant::now();
         let result = match self {
@@ -1012,7 +1012,7 @@ impl<S: StorageEngine + Send + 'static> super::base::Executor<S> for ExecutorEnu
     }
 }
 
-impl<S: StorageEngine + Send + 'static> InputExecutor<S> for ExecutorEnum<S> {
+impl<S: StorageClient + Send + 'static> InputExecutor<S> for ExecutorEnum<S> {
     fn set_input(&mut self, input: ExecutorEnum<S>) {
         match self {
             ExecutorEnum::Filter(exec) => exec.set_input(input),
@@ -1172,7 +1172,7 @@ impl<S: StorageEngine + Send + 'static> InputExecutor<S> for ExecutorEnum<S> {
     }
 }
 
-pub trait ChainableExecutor<S: StorageEngine + Send + 'static>:
+pub trait ChainableExecutor<S: StorageClient + Send + 'static>:
     super::base::Executor<S> + InputExecutor<S>
 {
     fn into_executor_enum(self) -> ExecutorEnum<S>
@@ -1180,7 +1180,7 @@ pub trait ChainableExecutor<S: StorageEngine + Send + 'static>:
         Self: Sized + 'static;
 }
 
-impl<S: StorageEngine + Send + 'static> ChainableExecutor<S> for ExecutorEnum<S> {
+impl<S: StorageClient + Send + 'static> ChainableExecutor<S> for ExecutorEnum<S> {
     fn into_executor_enum(self) -> ExecutorEnum<S> {
         self
     }

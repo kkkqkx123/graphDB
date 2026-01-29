@@ -13,11 +13,11 @@ use crate::expression::evaluator::traits::ExpressionContext;
 use crate::expression::DefaultExpressionContext;
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 /// AppendVertices执行器
 /// 用于根据顶点ID获取顶点信息并追加到结果中
-pub struct AppendVerticesExecutor<S: StorageEngine + Send + 'static> {
+pub struct AppendVerticesExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
     /// 输入变量名
     input_var: String,
@@ -35,7 +35,7 @@ pub struct AppendVerticesExecutor<S: StorageEngine + Send + 'static> {
     need_fetch_prop: bool,
 }
 
-impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
+impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
     /// 创建新的AppendVerticesExecutor
     pub fn new(
         id: i64,
@@ -319,7 +319,7 @@ impl<S: StorageEngine + Send + 'static> AppendVerticesExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for AppendVerticesExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AppendVerticesExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let dataset = self.execute_append_vertices().await?;
 
@@ -365,7 +365,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for AppendVerticesExe
     }
 }
 
-impl<S: StorageEngine + Send> HasStorage<S> for AppendVerticesExecutor<S> {
+impl<S: StorageClient + Send> HasStorage<S> for AppendVerticesExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base
             .storage

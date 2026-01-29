@@ -13,7 +13,7 @@ use crate::query::planner::plan::core::nodes::plan_node_traits::{
     BinaryInputNode, JoinNode, MultipleInputNode, PlanNode, SingleInputNode,
 };
 
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 use std::sync::{Arc, Mutex};
 
 // 导入已实现的执行器
@@ -88,13 +88,13 @@ fn parse_expression_safe(expr_str: &str) -> Option<crate::core::Expression> {
 /// 负责根据计划节点类型创建对应的执行器实例
 /// 采用直接匹配模式，避免过度抽象
 /// 包含递归检测和安全验证机制
-pub struct ExecutorFactory<S: StorageEngine + 'static> {
+pub struct ExecutorFactory<S: StorageClient + 'static> {
     storage: Option<Arc<Mutex<S>>>,
     recursion_detector: RecursionDetector,
     safety_validator: ExecutorSafetyValidator,
 }
 
-impl<S: StorageEngine + 'static> ExecutorFactory<S> {
+impl<S: StorageClient + 'static> ExecutorFactory<S> {
     /// 创建新的执行器工厂
     pub fn new() -> Self {
         let recursion_detector = RecursionDetector::new(100);
@@ -1247,7 +1247,7 @@ impl<S: StorageEngine + 'static> ExecutorFactory<S> {
     }
 }
 
-impl<S: StorageEngine + 'static> Default for ExecutorFactory<S> {
+impl<S: StorageClient + 'static> Default for ExecutorFactory<S> {
     fn default() -> Self {
         Self::new()
     }

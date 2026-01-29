@@ -8,7 +8,7 @@ use super::execution_schedule::ExecutionSchedule;
 use super::types::{ExecutorType, QueryScheduler, SchedulerConfig};
 use crate::query::executor::ExecutionResult;
 use crate::query::QueryError;
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 use crate::utils::safe_lock;
 
 #[derive(Debug)]
@@ -45,14 +45,14 @@ impl ExecutionState {
 }
 
 #[derive(Debug, Clone)]
-pub struct AsyncMsgNotifyBasedScheduler<S: StorageEngine> {
+pub struct AsyncMsgNotifyBasedScheduler<S: StorageClient> {
     execution_state: Arc<Mutex<ExecutionState>>,
     completion_notifier: Arc<(Mutex<bool>, Condvar)>,
     config: SchedulerConfig,
     _phantom: PhantomData<S>,
 }
 
-impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
+impl<S: StorageClient + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
     pub fn new() -> Self {
         Self {
             execution_state: Arc::new(Mutex::new(ExecutionState::new())),
@@ -335,7 +335,7 @@ impl<S: StorageEngine + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> QueryScheduler<S> for AsyncMsgNotifyBasedScheduler<S> {
+impl<S: StorageClient + Send + 'static> QueryScheduler<S> for AsyncMsgNotifyBasedScheduler<S> {
     async fn schedule(
         &mut self,
         mut execution_schedule: ExecutionSchedule<S>,

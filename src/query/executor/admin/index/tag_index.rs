@@ -9,7 +9,7 @@ use crate::core::{DataSet, Value};
 use crate::storage::iterator::Row;
 use crate::core::types::metadata::IndexInfo;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 /// 标签索引描述信息
 #[derive(Debug, Clone)]
@@ -48,13 +48,13 @@ impl From<&TagIndexDesc> for IndexInfo {
 
 /// 创建标签索引执行器
 #[derive(Debug)]
-pub struct CreateTagIndexExecutor<S: StorageEngine> {
+pub struct CreateTagIndexExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     index_info: IndexInfo,
     if_not_exists: bool,
 }
 
-impl<S: StorageEngine> CreateTagIndexExecutor<S> {
+impl<S: StorageClient> CreateTagIndexExecutor<S> {
     pub fn new(id: i64, storage: Arc<Mutex<S>>, index_info: IndexInfo) -> Self {
         Self {
             base: BaseExecutor::new(id, "CreateTagIndexExecutor".to_string(), storage),
@@ -73,7 +73,7 @@ impl<S: StorageEngine> CreateTagIndexExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for CreateTagIndexExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateTagIndexExecutor<S> {
     async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let mut storage_guard = storage.lock().map_err(|e| {
@@ -107,13 +107,13 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for CreateTagIndexExe
     fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats { self.base.get_stats_mut() }
 }
 
-impl<S: StorageEngine> crate::query::executor::base::HasStorage<S> for ShowTagIndexesExecutor<S> {
+impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for ShowTagIndexesExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.get_storage()
     }
 }
 
-impl<S: StorageEngine> crate::query::executor::base::HasStorage<S> for CreateTagIndexExecutor<S> {
+impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for CreateTagIndexExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.get_storage()
     }
@@ -121,14 +121,14 @@ impl<S: StorageEngine> crate::query::executor::base::HasStorage<S> for CreateTag
 
 /// 删除标签索引执行器
 #[derive(Debug)]
-pub struct DropTagIndexExecutor<S: StorageEngine> {
+pub struct DropTagIndexExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     space_name: String,
     index_name: String,
     if_exists: bool,
 }
 
-impl<S: StorageEngine> DropTagIndexExecutor<S> {
+impl<S: StorageClient> DropTagIndexExecutor<S> {
     pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String, index_name: String) -> Self {
         Self {
             base: BaseExecutor::new(id, "DropTagIndexExecutor".to_string(), storage),
@@ -149,7 +149,7 @@ impl<S: StorageEngine> DropTagIndexExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for DropTagIndexExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DropTagIndexExecutor<S> {
     async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let mut storage_guard = storage.lock().map_err(|e| {
@@ -183,7 +183,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for DropTagIndexExecu
     fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats { self.base.get_stats_mut() }
 }
 
-impl<S: StorageEngine> crate::query::executor::base::HasStorage<S> for DropTagIndexExecutor<S> {
+impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for DropTagIndexExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.get_storage()
     }
@@ -191,13 +191,13 @@ impl<S: StorageEngine> crate::query::executor::base::HasStorage<S> for DropTagIn
 
 /// 描述标签索引执行器
 #[derive(Debug)]
-pub struct DescTagIndexExecutor<S: StorageEngine> {
+pub struct DescTagIndexExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     space_name: String,
     index_name: String,
 }
 
-impl<S: StorageEngine> DescTagIndexExecutor<S> {
+impl<S: StorageClient> DescTagIndexExecutor<S> {
     pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String, index_name: String) -> Self {
         Self {
             base: BaseExecutor::new(id, "DescTagIndexExecutor".to_string(), storage),
@@ -208,7 +208,7 @@ impl<S: StorageEngine> DescTagIndexExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for DescTagIndexExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DescTagIndexExecutor<S> {
     async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let storage_guard = storage.lock().map_err(|e| {
@@ -252,7 +252,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for DescTagIndexExecu
     fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats { self.base.get_stats_mut() }
 }
 
-impl<S: StorageEngine> crate::query::executor::base::HasStorage<S> for DescTagIndexExecutor<S> {
+impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for DescTagIndexExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.get_storage()
     }
@@ -260,12 +260,12 @@ impl<S: StorageEngine> crate::query::executor::base::HasStorage<S> for DescTagIn
 
 /// 列出标签索引执行器
 #[derive(Debug)]
-pub struct ShowTagIndexesExecutor<S: StorageEngine> {
+pub struct ShowTagIndexesExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     space_name: String,
 }
 
-impl<S: StorageEngine> ShowTagIndexesExecutor<S> {
+impl<S: StorageClient> ShowTagIndexesExecutor<S> {
     pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String) -> Self {
         Self {
             base: BaseExecutor::new(id, "ShowTagIndexesExecutor".to_string(), storage),
@@ -275,7 +275,7 @@ impl<S: StorageEngine> ShowTagIndexesExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ShowTagIndexesExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowTagIndexesExecutor<S> {
     async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let storage_guard = storage.lock().map_err(|e| {

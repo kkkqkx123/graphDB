@@ -6,20 +6,20 @@ use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 /// 删除边类型执行器
 ///
 /// 该执行器负责删除指定的边类型及其所有数据。
 #[derive(Debug)]
-pub struct DropEdgeExecutor<S: StorageEngine> {
+pub struct DropEdgeExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     space_name: String,
     edge_name: String,
     if_exists: bool,
 }
 
-impl<S: StorageEngine> DropEdgeExecutor<S> {
+impl<S: StorageClient> DropEdgeExecutor<S> {
     /// 创建新的 DropEdgeExecutor
     pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String, edge_name: String) -> Self {
         Self {
@@ -42,7 +42,7 @@ impl<S: StorageEngine> DropEdgeExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for DropEdgeExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DropEdgeExecutor<S> {
     async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let mut storage_guard = storage.lock().map_err(|e| {
@@ -100,7 +100,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for DropEdgeExecutor<
     }
 }
 
-impl<S: StorageEngine> crate::query::executor::base::HasStorage<S> for DropEdgeExecutor<S> {
+impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for DropEdgeExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.get_storage()
     }

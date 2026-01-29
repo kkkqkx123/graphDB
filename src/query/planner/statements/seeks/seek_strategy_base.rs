@@ -4,7 +4,7 @@
 
 use crate::core::types::Expression;
 use crate::core::Value;
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SeekStrategyType {
@@ -108,7 +108,7 @@ impl SeekStrategySelector {
         self
     }
 
-    pub fn select_strategy<S: StorageEngine + ?Sized>(
+    pub fn select_strategy<S: StorageClient + ?Sized>(
         &self,
         _storage: &S,
         context: &SeekStrategyContext,

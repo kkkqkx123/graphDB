@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 use crate::api::session::ClientSession;
 use crate::api::service::StatsManager;
 use crate::query::QueryPipelineManager;
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 #[derive(Debug)]
 pub struct RequestContext {
@@ -25,12 +25,12 @@ pub struct AuthResponse {
     pub result: Result<(), String>,
 }
 
-pub struct QueryEngine<S: StorageEngine + 'static> {
+pub struct QueryEngine<S: StorageClient + 'static> {
     storage: Arc<Mutex<S>>,
     pipeline_manager: QueryPipelineManager<S>,
 }
 
-impl<S: StorageEngine + Clone + 'static> QueryEngine<S> {
+impl<S: StorageClient + Clone + 'static> QueryEngine<S> {
     pub fn new(storage: Arc<S>) -> Self {
         let storage_mutex = Arc::new(Mutex::new((*storage).clone()));
         let stats_manager = Arc::new(StatsManager::new());

@@ -6,19 +6,19 @@ use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 /// 删除图空间执行器
 ///
 /// 该执行器负责删除指定的图空间及其所有数据。
 #[derive(Debug)]
-pub struct DropSpaceExecutor<S: StorageEngine> {
+pub struct DropSpaceExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     space_name: String,
     if_exists: bool,
 }
 
-impl<S: StorageEngine> DropSpaceExecutor<S> {
+impl<S: StorageClient> DropSpaceExecutor<S> {
     /// 创建新的 DropSpaceExecutor
     pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String) -> Self {
         Self {
@@ -39,7 +39,7 @@ impl<S: StorageEngine> DropSpaceExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for DropSpaceExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DropSpaceExecutor<S> {
     async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let mut storage_guard = storage.lock().map_err(|e| {
@@ -96,7 +96,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for DropSpaceExecutor
     }
 }
 
-impl<S: StorageEngine> crate::query::executor::base::HasStorage<S> for DropSpaceExecutor<S> {
+impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for DropSpaceExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.get_storage()
     }

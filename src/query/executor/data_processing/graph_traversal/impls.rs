@@ -9,7 +9,7 @@ use crate::query::executor::data_processing::graph_traversal::traverse::Traverse
 /// 宏定义：为具有访问节点统计的执行器实现通用统计信息
 macro_rules! impl_graph_traversal_executor_with_stats {
     ($executor:ty, $visited_nodes_field:ident) => {
-        impl<S: crate::storage::StorageEngine> GraphTraversalExecutor<S> for $executor {
+        impl<S: crate::storage::StorageClient> GraphTraversalExecutor<S> for $executor {
             fn set_edge_direction(
                 &mut self,
                 direction: crate::query::executor::base::EdgeDirection,
@@ -64,7 +64,7 @@ impl_graph_traversal_executor_with_stats!(ExpandAllExecutor<S>, visited_nodes);
 impl_graph_traversal_executor_with_stats!(TraverseExecutor<S>, visited_nodes);
 
 /// 为ShortestPathExecutor提供特殊实现
-impl<S: crate::storage::StorageEngine> GraphTraversalExecutor<S> for ShortestPathExecutor<S> {
+impl<S: crate::storage::StorageClient> GraphTraversalExecutor<S> for ShortestPathExecutor<S> {
     fn set_edge_direction(&mut self, direction: crate::query::executor::base::EdgeDirection) {
         self.edge_direction = direction;
     }

@@ -4,7 +4,7 @@
 //! 提高查询执行性能
 
 use crate::query::executor::executor_enum::ExecutorEnum;
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 use crate::utils::error_handling::safe_lock;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -30,7 +30,7 @@ impl Default for ObjectPoolConfig {
 /// 对象池 - 缓存执行器实例
 ///
 /// 使用对象池模式重用执行器实例，减少内存分配开销
-pub struct ExecutorObjectPool<S: StorageEngine + 'static> {
+pub struct ExecutorObjectPool<S: StorageClient + 'static> {
     config: ObjectPoolConfig,
     pools: HashMap<String, Vec<ExecutorEnum<S>>>,
     stats: PoolStats,
@@ -49,7 +49,7 @@ pub struct PoolStats {
     pub cache_misses: usize,
 }
 
-impl<S: StorageEngine + 'static> ExecutorObjectPool<S> {
+impl<S: StorageClient + 'static> ExecutorObjectPool<S> {
     /// 创建新的对象池
     pub fn new(config: ObjectPoolConfig) -> Self {
         Self {
@@ -143,11 +143,11 @@ impl<S: StorageEngine + 'static> ExecutorObjectPool<S> {
 }
 
 /// 对象池包装器 - 提供线程安全的对象池
-pub struct ThreadSafeExecutorPool<S: StorageEngine + 'static> {
+pub struct ThreadSafeExecutorPool<S: StorageClient + 'static> {
     inner: Arc<Mutex<ExecutorObjectPool<S>>>,
 }
 
-impl<S: StorageEngine + 'static> ThreadSafeExecutorPool<S> {
+impl<S: StorageClient + 'static> ThreadSafeExecutorPool<S> {
     /// 创建新的线程安全对象池
     pub fn new(config: ObjectPoolConfig) -> Self {
         Self {
@@ -216,7 +216,7 @@ impl<S: StorageEngine + 'static> ThreadSafeExecutorPool<S> {
     }
 }
 
-impl<S: StorageEngine + 'static> Clone for ThreadSafeExecutorPool<S> {
+impl<S: StorageClient + 'static> Clone for ThreadSafeExecutorPool<S> {
     fn clone(&self) -> Self {
         Self {
             inner: Arc::clone(&self.inner),

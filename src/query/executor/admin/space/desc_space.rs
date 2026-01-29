@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 use crate::core::{DataSet, Value};
 use crate::storage::iterator::Row;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 /// 图空间详情
 #[derive(Debug, Clone)]
@@ -40,12 +40,12 @@ impl SpaceDesc {
 ///
 /// 该执行器负责返回指定图空间的详细信息。
 #[derive(Debug)]
-pub struct DescSpaceExecutor<S: StorageEngine> {
+pub struct DescSpaceExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     space_name: String,
 }
 
-impl<S: StorageEngine> DescSpaceExecutor<S> {
+impl<S: StorageClient> DescSpaceExecutor<S> {
     /// 创建新的 DescSpaceExecutor
     pub fn new(id: i64, storage: Arc<Mutex<S>>, space_name: String) -> Self {
         Self {
@@ -56,7 +56,7 @@ impl<S: StorageEngine> DescSpaceExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for DescSpaceExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DescSpaceExecutor<S> {
     async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let storage_guard = storage.lock().map_err(|e| {
@@ -129,7 +129,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for DescSpaceExecutor
     }
 }
 
-impl<S: StorageEngine> crate::query::executor::base::HasStorage<S> for DescSpaceExecutor<S> {
+impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for DescSpaceExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.get_storage()
     }

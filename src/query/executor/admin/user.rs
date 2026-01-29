@@ -7,18 +7,18 @@ use std::sync::{Arc, Mutex};
 
 use crate::core::types::metadata::PasswordInfo;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 /// 变更密码执行器
 ///
 /// 该执行器负责变更用户密码。
 #[derive(Debug)]
-pub struct ChangePasswordExecutor<S: StorageEngine> {
+pub struct ChangePasswordExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     password_info: PasswordInfo,
 }
 
-impl<S: StorageEngine> ChangePasswordExecutor<S> {
+impl<S: StorageClient> ChangePasswordExecutor<S> {
     /// 创建新的 ChangePasswordExecutor
     pub fn new(id: i64, storage: Arc<Mutex<S>>, password_info: PasswordInfo) -> Self {
         Self {
@@ -29,7 +29,7 @@ impl<S: StorageEngine> ChangePasswordExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ChangePasswordExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ChangePasswordExecutor<S> {
     async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let mut storage_guard = storage.lock().map_err(|e| {
@@ -80,7 +80,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ChangePasswordExe
     }
 }
 
-impl<S: StorageEngine> crate::query::executor::base::HasStorage<S> for ChangePasswordExecutor<S> {
+impl<S: StorageClient> crate::query::executor::base::HasStorage<S> for ChangePasswordExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.get_storage()
     }

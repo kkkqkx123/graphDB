@@ -13,7 +13,7 @@ use crate::query::executor::result_processing::traits::{
     BaseResultProcessor, ResultProcessor, ResultProcessorContext,
 };
 use crate::query::executor::traits::{DBResult, ExecutionResult, Executor};
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 /// 去重策略
 #[derive(Debug, Clone, PartialEq)]
@@ -31,7 +31,7 @@ pub enum DedupStrategy {
 /// DedupExecutor - 去重执行器
 ///
 /// 实现数据去重功能，支持多种去重策略
-pub struct DedupExecutor<S: StorageEngine + Send + 'static> {
+pub struct DedupExecutor<S: StorageClient + Send + 'static> {
     /// 基础处理器
     base: BaseResultProcessor<S>,
     /// 输入执行器
@@ -44,7 +44,7 @@ pub struct DedupExecutor<S: StorageEngine + Send + 'static> {
     current_memory_usage: usize,
 }
 
-impl<S: StorageEngine + Send + 'static> DedupExecutor<S> {
+impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -372,7 +372,7 @@ impl<S: StorageEngine + Send + 'static> DedupExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> ResultProcessor<S> for DedupExecutor<S> {
+impl<S: StorageClient + Send + 'static> ResultProcessor<S> for DedupExecutor<S> {
     async fn process(&mut self, _input: ExecutionResult) -> DBResult<ExecutionResult> {
         // 重置内存使用量
         self.reset_memory_usage();
@@ -421,7 +421,7 @@ impl<S: StorageEngine + Send + 'static> ResultProcessor<S> for DedupExecutor<S> 
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for DedupExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DedupExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
             input_exec.execute().await?
@@ -478,7 +478,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for DedupExecutor<S> 
     }
 }
 
-impl<S: StorageEngine + Send + 'static> InputExecutor<S> for DedupExecutor<S> {
+impl<S: StorageClient + Send + 'static> InputExecutor<S> for DedupExecutor<S> {
     fn set_input(&mut self, input: ExecutorEnum<S>) {
         self.input_executor = Some(Box::new(input));
     }

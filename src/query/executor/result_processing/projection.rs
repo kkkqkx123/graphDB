@@ -14,7 +14,7 @@ use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::base::InputExecutor;
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::traits::{ExecutionResult, Executor};
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 /// 投影列定义
 #[derive(Debug, Clone)]
@@ -32,13 +32,13 @@ impl ProjectionColumn {
 /// ProjectExecutor - 投影执行器
 ///
 /// 执行列投影操作，支持表达式求值和列重命名
-pub struct ProjectExecutor<S: StorageEngine + Send + 'static> {
+pub struct ProjectExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
     columns: Vec<ProjectionColumn>, // 投影列定义
     input_executor: Option<Box<ExecutorEnum<S>>>,
 }
 
-impl<S: StorageEngine> ProjectExecutor<S> {
+impl<S: StorageClient> ProjectExecutor<S> {
     pub fn new(id: i64, storage: Arc<Mutex<S>>, columns: Vec<ProjectionColumn>) -> Self {
         Self {
             base: BaseExecutor::new(id, "ProjectExecutor".to_string(), storage),
@@ -191,7 +191,7 @@ impl<S: StorageEngine> ProjectExecutor<S> {
     }
 }
 
-impl<S: StorageEngine + Send + 'static> InputExecutor<S> for ProjectExecutor<S> {
+impl<S: StorageClient + Send + 'static> InputExecutor<S> for ProjectExecutor<S> {
     fn set_input(&mut self, input: ExecutorEnum<S>) {
         self.input_executor = Some(Box::new(input));
     }
@@ -202,7 +202,7 @@ impl<S: StorageEngine + Send + 'static> InputExecutor<S> for ProjectExecutor<S> 
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ProjectExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ProjectExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
             input_exec.execute().await?

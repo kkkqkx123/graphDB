@@ -6,7 +6,7 @@ use super::base::BaseExecutor;
 use crate::core::types::operators::AggregateFunction;
 use crate::core::Value;
 use crate::query::executor::traits::{DBResult, ExecutionResult, Executor, HasStorage, HasInput};
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 use crate::utils::safe_lock;
 
 #[derive(Debug, Clone)]
@@ -230,7 +230,7 @@ impl<'a> Default for ExpressionContext<'a> {
 }
 
 #[derive(Debug)]
-pub struct AggregationExecutor<S: StorageEngine> {
+pub struct AggregationExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     input_var: String,
     aggregation_functions: Vec<AggregateFunction>,
@@ -239,7 +239,7 @@ pub struct AggregationExecutor<S: StorageEngine> {
     output_var: String,
 }
 
-impl<S: StorageEngine> AggregationExecutor<S> {
+impl<S: StorageClient> AggregationExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -780,7 +780,7 @@ impl ValueUtils for Value {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for AggregationExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AggregationExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let storage_clone = self.get_storage().clone();
         let storage = safe_lock(&storage_clone)
@@ -823,7 +823,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for AggregationExecut
     }
 }
 
-impl<S: StorageEngine> AggregationExecutor<S> {
+impl<S: StorageClient> AggregationExecutor<S> {
     fn get_input_data(&self, storage: &S) -> DBResult<Vec<Value>> {
         let input_result = storage.get_input(&self.input_var)?;
 
@@ -842,7 +842,7 @@ impl<S: StorageEngine> AggregationExecutor<S> {
     }
 }
 
-impl<S: StorageEngine> HasStorage<S> for AggregationExecutor<S> {
+impl<S: StorageClient> HasStorage<S> for AggregationExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base
             .storage

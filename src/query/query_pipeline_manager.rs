@@ -15,12 +15,12 @@ use crate::query::optimizer::{Optimizer, OptimizationConfig, RuleConfig};
 use crate::query::parser::Parser;
 use crate::query::planner::planner::{StaticConfigurablePlannerRegistry, PlannerConfig};
 use crate::query::validator::Validator;
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-pub struct QueryPipelineManager<S: StorageEngine + 'static> {
+pub struct QueryPipelineManager<S: StorageClient + 'static> {
     _storage: Arc<Mutex<S>>,
     validator: Validator,
     planner: StaticConfigurablePlannerRegistry,
@@ -29,7 +29,7 @@ pub struct QueryPipelineManager<S: StorageEngine + 'static> {
     stats_manager: Arc<StatsManager>,
 }
 
-impl<S: StorageEngine + 'static> QueryPipelineManager<S> {
+impl<S: StorageClient + 'static> QueryPipelineManager<S> {
     pub fn new(storage: Arc<Mutex<S>>, stats_manager: Arc<StatsManager>) -> Self {
         let executor_factory = ExecutorFactory::with_storage(storage.clone());
         let mut planner = StaticConfigurablePlannerRegistry::new();

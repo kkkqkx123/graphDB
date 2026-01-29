@@ -15,7 +15,7 @@ use crate::expression::DefaultExpressionContext;
 use crate::expression::ExpressionContext;
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{ExecutionResult, Executor};
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 
 fn execution_result_to_values(result: &ExecutionResult) -> Result<Vec<Value>, DBError> {
     match result {
@@ -36,7 +36,7 @@ fn execution_result_to_values(result: &ExecutionResult) -> Result<Vec<Value>, DB
     }
 }
 
-pub struct PatternApplyExecutor<S: StorageEngine + Send + 'static> {
+pub struct PatternApplyExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
     left_input_var: String,
     right_input_var: String,
@@ -45,7 +45,7 @@ pub struct PatternApplyExecutor<S: StorageEngine + Send + 'static> {
     is_anti_predicate: bool,
 }
 
-impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
+impl<S: StorageClient + Send + 'static> PatternApplyExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -292,7 +292,7 @@ impl<S: StorageEngine + Send + 'static> PatternApplyExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for PatternApplyExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for PatternApplyExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let dataset = self.execute_pattern_apply()?;
 
@@ -338,7 +338,7 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for PatternApplyExecu
     }
 }
 
-impl<S: StorageEngine + Send + 'static> crate::query::executor::traits::HasStorage<S>
+impl<S: StorageClient + Send + 'static> crate::query::executor::traits::HasStorage<S>
     for PatternApplyExecutor<S>
 {
     fn get_storage(&self) -> &Arc<Mutex<S>> {

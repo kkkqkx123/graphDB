@@ -9,14 +9,14 @@ use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::query::QueryError;
-use crate::storage::StorageEngine;
+use crate::storage::StorageClient;
 use crate::utils::safe_lock;
 
 /// ExpandExecutor - 路径扩展执行器
 ///
 /// 从当前节点按照指定的边类型和方向扩展，获取相邻节点
 /// 支持多步扩展和采样，通常用于图遍历和路径查询
-pub struct ExpandExecutor<S: StorageEngine + Send + 'static> {
+pub struct ExpandExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
     pub edge_direction: EdgeDirection,
     pub edge_types: Option<Vec<String>>,
@@ -34,7 +34,7 @@ pub struct ExpandExecutor<S: StorageEngine + Send + 'static> {
 }
 
 // Manual Debug implementation for ExpandExecutor to avoid requiring Debug trait for Executor trait object
-impl<S: StorageEngine> std::fmt::Debug for ExpandExecutor<S> {
+impl<S: StorageClient> std::fmt::Debug for ExpandExecutor<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ExpandExecutor")
             .field("base", &"BaseExecutor")
@@ -48,7 +48,7 @@ impl<S: StorageEngine> std::fmt::Debug for ExpandExecutor<S> {
     }
 }
 
-impl<S: StorageEngine> ExpandExecutor<S> {
+impl<S: StorageClient> ExpandExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -206,7 +206,7 @@ impl<S: StorageEngine> ExpandExecutor<S> {
     }
 }
 
-impl<S: StorageEngine + Send + 'static> InputExecutor<S> for ExpandExecutor<S> {
+impl<S: StorageClient + Send + 'static> InputExecutor<S> for ExpandExecutor<S> {
     fn set_input(&mut self, input: ExecutorEnum<S>) {
         self.input_executor = Some(Box::new(input));
     }
@@ -217,7 +217,7 @@ impl<S: StorageEngine + Send + 'static> InputExecutor<S> for ExpandExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageEngine + Send + 'static> Executor<S> for ExpandExecutor<S> {
+impl<S: StorageClient + Send + 'static> Executor<S> for ExpandExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
         let start = Instant::now();
 
@@ -324,7 +324,7 @@ impl<S: StorageEngine + Send + 'static> Executor<S> for ExpandExecutor<S> {
     }
 }
 
-impl<S: StorageEngine + Send> HasStorage<S> for ExpandExecutor<S> {
+impl<S: StorageClient + Send> HasStorage<S> for ExpandExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base
             .storage

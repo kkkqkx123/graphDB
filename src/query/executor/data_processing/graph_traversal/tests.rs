@@ -6,7 +6,7 @@ mod tests {
     use crate::query::executor::data_processing::graph_traversal::shortest_path::ShortestPathAlgorithm;
     use crate::query::executor::data_processing::graph_traversal::traits::GraphTraversalExecutor;
     use crate::query::executor::traits::Executor;
-    use crate::storage::{MockStorage, StorageEngine};
+    use crate::storage::{MockStorage, StorageClient};
     use std::sync::{Arc, Mutex};
 
     async fn create_test_graph(_test_name: &str) -> Arc<Mutex<MockStorage>> {
