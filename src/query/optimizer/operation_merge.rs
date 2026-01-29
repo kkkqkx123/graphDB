@@ -15,6 +15,7 @@ struct CombineFilterVisitor {
     merged: bool,
     new_node: Option<OptGroupNode>,
     ctx: *const OptContext,
+    node_dependencies: Vec<usize>,
 }
 
 impl CombineFilterVisitor {
@@ -31,36 +32,35 @@ impl PlanNodeVisitor for CombineFilterVisitor {
     }
 
     fn visit_filter(&mut self, node: &crate::query::planner::plan::core::nodes::FilterNode) -> Self::Result {
-        let input = node.input();
-        let input_id = input.id() as usize;
+        if let Some(dep_id) = self.node_dependencies.first() {
+            if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(*dep_id) {
+                if child_node.plan_node.is_filter() {
+                    if let Some(child_filter) = child_node.plan_node.as_filter() {
+                        let top_condition = node.condition();
+                        let child_condition = child_filter.condition();
 
-        if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(input_id) {
-            if child_node.plan_node.is_filter() {
-                if let Some(child_filter) = child_node.plan_node.as_filter() {
-                    let top_condition = node.condition();
-                    let child_condition = child_filter.condition();
+                        let combined_condition_str = combine_conditions(
+                            &format!("{:?}", top_condition),
+                            &format!("{:?}", child_condition),
+                        );
 
-                    let combined_condition_str = combine_conditions(
-                        &format!("{:?}", top_condition),
-                        &format!("{:?}", child_condition),
-                    );
+                        let child_input = child_filter.input().clone();
+                        let combined_filter_node = match FilterPlanNode::new(
+                            child_input,
+                            crate::core::Expression::Variable(combined_condition_str),
+                        ) {
+                            Ok(filter_node) => filter_node,
+                            Err(_) => return self.clone(),
+                        };
 
-                    let child_input = child_filter.input().clone();
-                    let combined_filter_node = match FilterPlanNode::new(
-                        child_input,
-                        crate::core::Expression::Variable(combined_condition_str),
-                    ) {
-                        Ok(filter_node) => filter_node,
-                        Err(_) => return self.clone(),
-                    };
+                        let combined_opt_node = OptGroupNode::new(
+                            node.id() as usize,
+                            crate::query::planner::plan::PlanNodeEnum::Filter(combined_filter_node),
+                        );
 
-                    let combined_opt_node = OptGroupNode::new(
-                        node.id() as usize,
-                        crate::query::planner::plan::PlanNodeEnum::Filter(combined_filter_node),
-                    );
-
-                    self.merged = true;
-                    self.new_node = Some(combined_opt_node);
+                        self.merged = true;
+                        self.new_node = Some(combined_opt_node);
+                    }
                 }
             }
         }
@@ -91,6 +91,7 @@ impl OptRule for CombineFilterRule {
             merged: false,
             new_node: None,
             ctx: ctx as *const OptContext,
+            node_dependencies: node.dependencies.clone(),
         };
 
         let result = visitor.visit(&node.plan_node);

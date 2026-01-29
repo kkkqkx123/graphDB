@@ -29,6 +29,7 @@ impl OptRule for EliminateFilterRule {
             ctx: ctx as *const OptContext,
             eliminated: false,
             new_node: None,
+            node_dependencies: node.dependencies.clone(),
         };
 
         let result = visitor.visit(&node.plan_node);
@@ -52,6 +53,7 @@ struct EliminateFilterVisitor {
     eliminated: bool,
     new_node: Option<OptGroupNode>,
     ctx: *const OptContext,
+    node_dependencies: Vec<usize>,
 }
 
 impl EliminateFilterVisitor {
@@ -77,18 +79,18 @@ impl PlanNodeVisitor for EliminateFilterVisitor {
             return self.clone();
         }
 
-        let input = node.input();
-        let input_id = input.id() as usize;
+        // 使用依赖关系查找子节点
+        if let Some(dep_id) = self.node_dependencies.first() {
+            if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(*dep_id) {
+                let mut new_node = child_node.clone();
 
-        if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(input_id) {
-            let mut new_node = child_node.clone();
+                if let Some(output_var) = node.output_var() {
+                    new_node.plan_node = node.input().clone();
+                }
 
-            if let Some(output_var) = node.output_var() {
-                new_node.plan_node = input.clone();
+                self.eliminated = true;
+                self.new_node = Some(new_node);
             }
-
-            self.eliminated = true;
-            self.new_node = Some(new_node);
         }
 
         self.clone()
@@ -197,6 +199,7 @@ impl OptRule for RemoveNoopProjectRule {
             ctx: ctx as *const OptContext,
             eliminated: false,
             new_node: None,
+            node_dependencies: node.dependencies.clone(),
         };
 
         let result = visitor.visit(&node.plan_node);
@@ -220,6 +223,7 @@ struct RemoveNoopProjectVisitor {
     eliminated: bool,
     new_node: Option<OptGroupNode>,
     ctx: *const OptContext,
+    node_dependencies: Vec<usize>,
 }
 
 impl RemoveNoopProjectVisitor {
@@ -300,21 +304,22 @@ impl PlanNodeVisitor for RemoveNoopProjectVisitor {
         }
 
         let input = node.input();
-        let input_id = input.id() as usize;
 
-        if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(input_id) {
-            let columns = node.columns();
-            let child_col_names = child_node.plan_node.col_names();
+        if let Some(dep_id) = self.node_dependencies.first() {
+            if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(*dep_id) {
+                let columns = node.columns();
+                let child_col_names = child_node.plan_node.col_names();
 
-            if self.is_noop_projection(&columns, &child_col_names) {
-                let mut new_node = child_node.clone();
+                if self.is_noop_projection(&columns, &child_col_names) {
+                    let mut new_node = child_node.clone();
 
-                if let Some(output_var) = node.output_var() {
-                    new_node.plan_node = input.clone();
+                    if let Some(output_var) = node.output_var() {
+                        new_node.plan_node = input.clone();
+                    }
+
+                    self.eliminated = true;
+                    self.new_node = Some(new_node);
                 }
-
-                self.eliminated = true;
-                self.new_node = Some(new_node);
             }
         }
 
@@ -340,6 +345,7 @@ impl OptRule for EliminateAppendVerticesRule {
             ctx: ctx as *const OptContext,
             eliminated: false,
             new_node: None,
+            node_dependencies: node.dependencies.clone(),
         };
 
         let result = visitor.visit(&node.plan_node);
@@ -363,6 +369,7 @@ struct EliminateAppendVerticesVisitor {
     eliminated: bool,
     new_node: Option<OptGroupNode>,
     ctx: *const OptContext,
+    node_dependencies: Vec<usize>,
 }
 
 impl EliminateAppendVerticesVisitor {
@@ -383,24 +390,32 @@ impl PlanNodeVisitor for EliminateAppendVerticesVisitor {
             return self.clone();
         }
 
-        let inputs = node.inputs();
-        if inputs.is_empty() {
+        if !node.vids().is_empty() || !node.tag_ids().is_empty() {
             return self.clone();
         }
 
-        let input = &**inputs.first().unwrap();
-        let input_id = input.id() as usize;
+        let input = if let Some(dep_id) = self.node_dependencies.first() {
+            if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(*dep_id) {
+                let mut new_node = child_node.clone();
 
-        if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(input_id) {
-            let mut new_node = child_node.clone();
+                if let Some(output_var) = node.output_var() {
+                    let inputs = node.inputs();
+                    if let Some(input) = inputs.first() {
+                        new_node.plan_node = (**input).clone();
+                    }
+                }
 
-            if let Some(output_var) = node.output_var() {
-                new_node.plan_node = input.clone();
+                self.eliminated = true;
+                self.new_node = Some(new_node);
             }
-
-            self.eliminated = true;
-            self.new_node = Some(new_node);
-        }
+            None
+        } else {
+            let inputs = node.inputs();
+            if inputs.is_empty() {
+                return self.clone();
+            }
+            Some(&**inputs.first().unwrap())
+        };
 
         self.clone()
     }
@@ -424,6 +439,7 @@ impl OptRule for RemoveAppendVerticesBelowJoinRule {
             ctx: ctx as *const OptContext,
             eliminated: false,
             new_node: None,
+            node_dependencies: node.dependencies.clone(),
         };
 
         let result = visitor.visit(&node.plan_node);
@@ -447,6 +463,7 @@ struct RemoveAppendVerticesBelowJoinVisitor {
     eliminated: bool,
     new_node: Option<OptGroupNode>,
     ctx: *const OptContext,
+    node_dependencies: Vec<usize>,
 }
 
 impl RemoveAppendVerticesBelowJoinVisitor {
@@ -467,27 +484,29 @@ impl PlanNodeVisitor for RemoveAppendVerticesBelowJoinVisitor {
             return self.clone();
         }
 
-        let inputs = node.inputs();
-        if inputs.is_empty() {
-            return self.clone();
-        }
+        if let Some(dep_id) = self.node_dependencies.first() {
+            if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(*dep_id) {
+                if child_node.plan_node.is_inner_join()
+                    || child_node.plan_node.is_hash_inner_join()
+                    || child_node.plan_node.is_hash_left_join()
+                {
+                    let mut new_node = child_node.clone();
 
-        let input = &**inputs.first().unwrap();
-        let input_id = input.id() as usize;
+                    if let Some(output_var) = node.output_var() {
+                        let inputs = node.inputs();
+                        if let Some(input) = inputs.first() {
+                            new_node.plan_node = (**input).clone();
+                        }
+                    }
 
-        if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(input_id) {
-            if child_node.plan_node.is_inner_join()
-                || child_node.plan_node.is_hash_inner_join()
-                || child_node.plan_node.is_hash_left_join()
-            {
-                let mut new_node = child_node.clone();
-
-                if let Some(output_var) = node.output_var() {
-                    new_node.plan_node = input.clone();
+                    self.eliminated = true;
+                    self.new_node = Some(new_node);
                 }
-
-                self.eliminated = true;
-                self.new_node = Some(new_node);
+            }
+        } else {
+            let inputs = node.inputs();
+            if inputs.is_empty() {
+                return self.clone();
             }
         }
 
@@ -608,10 +627,17 @@ mod tests {
         use crate::core::types::expression::Expression;
         use crate::core::types::operators::BinaryOperator;
 
-        let start_node = PlanNodeEnum::Start(StartNode::new());
+        // 创建一个 ScanVertices 作为子节点
+        let child_node = PlanNodeEnum::ScanVertices(
+            crate::query::planner::plan::core::nodes::ScanVerticesNode::new(1),
+        );
+        let child_opt_node = OptGroupNode::new(2, child_node);
+        ctx.add_plan_node_and_group_node(2, &child_opt_node);
+
+        // 创建过滤节点，使用 ScanVertices 作为输入
         let filter_node = PlanNodeEnum::Filter(
             FilterNode::new(
-                start_node,
+                child_opt_node.plan_node.clone(),
                 Expression::Binary {
                     left: Box::new(Expression::Literal(crate::core::Value::Int(1))),
                     op: BinaryOperator::Equal,
@@ -621,12 +647,6 @@ mod tests {
             .expect("Filter node should be created successfully"),
         );
         let mut opt_node = OptGroupNode::new(1, filter_node);
-
-        let child_node = PlanNodeEnum::ScanVertices(
-            crate::query::planner::plan::core::nodes::ScanVerticesNode::new(1),
-        );
-        let child_opt_node = OptGroupNode::new(2, child_node);
-        ctx.add_plan_node_and_group_node(2, &child_opt_node);
         opt_node.dependencies.push(2);
 
         let result = rule
@@ -640,17 +660,16 @@ mod tests {
         let rule = DedupEliminationRule;
         let mut ctx = create_test_context();
 
-        // 创建一个去重节点
-        let start_node = PlanNodeEnum::Start(StartNode::new());
-        let dedup_node = PlanNodeEnum::Dedup(
-            DedupNode::new(start_node).expect("Dedup node should be created successfully"),
-        );
-        let mut opt_node = OptGroupNode::new(1, dedup_node);
-
-        // 添加一个IndexScan子节点作为依赖（IndexScan产生唯一结果）
+        // 创建一个 IndexScan 作为子节点
         let child_node = PlanNodeEnum::IndexScan(IndexScan::new(2, 1, 1, 1, "UNIQUE"));
         let child_opt_node = OptGroupNode::new(2, child_node);
         ctx.add_plan_node_and_group_node(2, &child_opt_node);
+
+        // 创建一个去重节点，使用 IndexScan 作为输入
+        let dedup_node = PlanNodeEnum::Dedup(
+            DedupNode::new(child_opt_node.plan_node.clone()).expect("Dedup node should be created successfully"),
+        );
+        let mut opt_node = OptGroupNode::new(1, dedup_node);
         opt_node.dependencies.push(2);
 
         let result = rule

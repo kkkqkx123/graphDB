@@ -336,6 +336,7 @@ impl Default for RowExpressionContextBuilder {
 mod tests {
     use super::*;
     use crate::core::Value;
+    use crate::expression::context::traits::VariableContext;
 
     #[test]
     fn test_row_context_basic() {
@@ -365,11 +366,10 @@ mod tests {
 
         let ctx = RowExpressionContext::new(row, col_names);
 
-        // 测试ExpressionContext接口
-        assert_eq!(ctx.get_variable("id"), Some(Value::Int(1)));
-        assert_eq!(ctx.get_variable("name"), Some(Value::String("Alice".to_string())));
-        assert!(ctx.has_variable("id"));
-        assert!(!ctx.has_variable("nonexistent"));
+        assert_eq!(VariableContext::get_variable(&ctx, "id"), Some(Value::Int(1)));
+        assert_eq!(VariableContext::get_variable(&ctx, "name"), Some(Value::String("Alice".to_string())));
+        assert!(VariableContext::has_variable(&ctx, "id"));
+        assert!(!VariableContext::has_variable(&ctx, "nonexistent"));
     }
 
     #[test]
@@ -380,8 +380,8 @@ mod tests {
         let mut ctx = RowExpressionContext::new(row, col_names);
         ctx.add_variable("computed".to_string(), Value::Float(3.14));
 
-        assert_eq!(ctx.get_variable("computed"), Some(Value::Float(3.14)));
-        assert_eq!(ctx.get_variable("id"), Some(Value::Int(1)));
+        assert_eq!(VariableContext::get_variable(&ctx, "computed"), Some(Value::Float(3.14)));
+        assert_eq!(VariableContext::get_variable(&ctx, "id"), Some(Value::Int(1)));
     }
 
     #[test]

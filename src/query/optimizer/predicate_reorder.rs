@@ -159,8 +159,16 @@ mod tests {
             PlanNodeEnum::Start(StartNode::new()),
             crate::core::Expression::Binary {
                 op: crate::core::BinaryOperator::And,
-                left: Box::new(crate::core::Expression::Literal(crate::core::Value::String("value1".to_string()))),
-                right: Box::new(crate::core::Expression::Literal(crate::core::Value::String("value2".to_string()))),
+                left: Box::new(crate::core::Expression::Binary {
+                    op: crate::core::BinaryOperator::Equal,
+                    left: Box::new(crate::core::Expression::Literal(crate::core::Value::String("value1".to_string()))),
+                    right: Box::new(crate::core::Expression::Variable("col1".to_string())),
+                }),
+                right: Box::new(crate::core::Expression::Binary {
+                    op: crate::core::BinaryOperator::LessThan,
+                    left: Box::new(crate::core::Expression::Variable("col2".to_string())),
+                    right: Box::new(crate::core::Expression::Literal(crate::core::Value::Int(100))),
+                }),
             },
         )
         .expect("Filter node should be created successfully");

@@ -513,11 +513,10 @@ mod tests {
 
         let input_result = ExecutionResult::Values(test_data);
 
-        let input_executor = ExecutorEnum::Base(BaseExecutor::new(0, "MockInputExecutor".to_string(), storage));
-
-        <DedupExecutor<MockStorage> as InputExecutor<MockStorage>>::set_input(
+        // 使用 ResultProcessor trait 的 set_input 方法
+        <DedupExecutor<MockStorage> as crate::query::executor::result_processing::traits::ResultProcessor<MockStorage>>::set_input(
             &mut executor,
-            input_executor,
+            input_result,
         );
 
         // 执行去重

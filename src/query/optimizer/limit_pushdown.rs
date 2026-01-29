@@ -15,6 +15,7 @@ struct LimitPushDownVisitor {
     pushed_down: bool,
     new_node: Option<OptGroupNode>,
     ctx: *const OptContext,
+    node_dependencies: Vec<usize>,
 }
 
 impl LimitPushDownVisitor {
@@ -41,83 +42,85 @@ impl PlanNodeVisitor for LimitPushDownVisitor {
         let input = node.input();
         let input_id = input.id() as usize;
 
-        if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(input_id) {
-            if self.can_push_down_to(&child_node.plan_node) {
-                let limit_count = node.count();
-                let output_var = node.output_var().cloned();
+        if let Some(dep_id) = self.node_dependencies.first() {
+            if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(*dep_id) {
+                if self.can_push_down_to(&child_node.plan_node) {
+                    let limit_count = node.count();
+                    let output_var = node.output_var().cloned();
 
-                match child_node.plan_node.type_name() {
-                    "GetVertices" => {
-                        if let Some(get_vertices) = child_node.plan_node.as_get_vertices() {
-                            let mut new_get_vertices = get_vertices.clone();
-                            new_get_vertices.set_limit(limit_count);
-                            if let Some(var) = output_var {
-                                new_get_vertices.set_output_var(var);
+                    match child_node.plan_node.type_name() {
+                        "GetVertices" => {
+                            if let Some(get_vertices) = child_node.plan_node.as_get_vertices() {
+                                let mut new_get_vertices = get_vertices.clone();
+                                new_get_vertices.set_limit(limit_count);
+                                if let Some(var) = output_var {
+                                    new_get_vertices.set_output_var(var);
+                                }
+
+                                let mut new_node = child_node.clone();
+                                new_node.plan_node = PlanNodeEnum::GetVertices(new_get_vertices);
+                                self.pushed_down = true;
+                                self.new_node = Some(new_node);
                             }
-
-                            let mut new_node = child_node.clone();
-                            new_node.plan_node = PlanNodeEnum::GetVertices(new_get_vertices);
-                            self.pushed_down = true;
-                            self.new_node = Some(new_node);
                         }
-                    }
-                    "GetEdges" => {
-                        if let Some(get_edges) = child_node.plan_node.as_get_edges() {
-                            let mut new_get_edges = get_edges.clone();
-                            new_get_edges.set_limit(limit_count);
-                            if let Some(var) = output_var {
-                                new_get_edges.set_output_var(var);
+                        "GetEdges" => {
+                            if let Some(get_edges) = child_node.plan_node.as_get_edges() {
+                                let mut new_get_edges = get_edges.clone();
+                                new_get_edges.set_limit(limit_count);
+                                if let Some(var) = output_var {
+                                    new_get_edges.set_output_var(var);
+                                }
+
+                                let mut new_node = child_node.clone();
+                                new_node.plan_node = PlanNodeEnum::GetEdges(new_get_edges);
+                                self.pushed_down = true;
+                                self.new_node = Some(new_node);
                             }
-
-                            let mut new_node = child_node.clone();
-                            new_node.plan_node = PlanNodeEnum::GetEdges(new_get_edges);
-                            self.pushed_down = true;
-                            self.new_node = Some(new_node);
                         }
-                    }
-                    "IndexScan" => {
-                        if let Some(index_scan) = child_node.plan_node.as_index_scan() {
-                            let mut new_index_scan = index_scan.clone();
-                            new_index_scan.set_limit(limit_count);
-                            if let Some(var) = output_var {
-                                new_index_scan.set_output_var(var);
+                        "IndexScan" => {
+                            if let Some(index_scan) = child_node.plan_node.as_index_scan() {
+                                let mut new_index_scan = index_scan.clone();
+                                new_index_scan.set_limit(limit_count);
+                                if let Some(var) = output_var {
+                                    new_index_scan.set_output_var(var);
+                                }
+
+                                let mut new_node = child_node.clone();
+                                new_node.plan_node = PlanNodeEnum::IndexScan(new_index_scan);
+                                self.pushed_down = true;
+                                self.new_node = Some(new_node);
                             }
-
-                            let mut new_node = child_node.clone();
-                            new_node.plan_node = PlanNodeEnum::IndexScan(new_index_scan);
-                            self.pushed_down = true;
-                            self.new_node = Some(new_node);
                         }
-                    }
-                    "ScanVertices" => {
-                        if let Some(scan_vertices) = child_node.plan_node.as_scan_vertices() {
-                            let mut new_scan_vertices = scan_vertices.clone();
-                            new_scan_vertices.set_limit(limit_count);
-                            if let Some(var) = output_var {
-                                new_scan_vertices.set_output_var(var);
+                        "ScanVertices" => {
+                            if let Some(scan_vertices) = child_node.plan_node.as_scan_vertices() {
+                                let mut new_scan_vertices = scan_vertices.clone();
+                                new_scan_vertices.set_limit(limit_count);
+                                if let Some(var) = output_var {
+                                    new_scan_vertices.set_output_var(var);
+                                }
+
+                                let mut new_node = child_node.clone();
+                                new_node.plan_node = PlanNodeEnum::ScanVertices(new_scan_vertices);
+                                self.pushed_down = true;
+                                self.new_node = Some(new_node);
                             }
-
-                            let mut new_node = child_node.clone();
-                            new_node.plan_node = PlanNodeEnum::ScanVertices(new_scan_vertices);
-                            self.pushed_down = true;
-                            self.new_node = Some(new_node);
                         }
-                    }
-                    "ScanEdges" => {
-                        if let Some(scan_edges) = child_node.plan_node.as_scan_edges() {
-                            let mut new_scan_edges = scan_edges.clone();
-                            new_scan_edges.set_limit(limit_count);
-                            if let Some(var) = output_var {
-                                new_scan_edges.set_output_var(var);
+                        "ScanEdges" => {
+                            if let Some(scan_edges) = child_node.plan_node.as_scan_edges() {
+                                let mut new_scan_edges = scan_edges.clone();
+                                new_scan_edges.set_limit(limit_count);
+                                if let Some(var) = output_var {
+                                    new_scan_edges.set_output_var(var);
+                                }
+
+                                let mut new_node = child_node.clone();
+                                new_node.plan_node = PlanNodeEnum::ScanEdges(new_scan_edges);
+                                self.pushed_down = true;
+                                self.new_node = Some(new_node);
                             }
-
-                            let mut new_node = child_node.clone();
-                            new_node.plan_node = PlanNodeEnum::ScanEdges(new_scan_edges);
-                            self.pushed_down = true;
-                            self.new_node = Some(new_node);
                         }
+                        _ => {}
                     }
-                    _ => {}
                 }
             }
         }
@@ -148,6 +151,7 @@ impl OptRule for PushLimitDownRule {
             pushed_down: false,
             new_node: None,
             ctx: ctx as *const OptContext,
+            node_dependencies: node.dependencies.clone(),
         };
 
         let result = visitor.visit(&node.plan_node);

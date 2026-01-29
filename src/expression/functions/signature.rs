@@ -3,7 +3,6 @@
 //! 定义函数的类型签名，用于类型检查和函数重载解析
 
 use crate::core::Value;
-use crate::core::types::DataType;
 use std::fmt;
 
 /// 值类型枚举（用于函数签名）
@@ -53,29 +52,6 @@ impl ValueType {
         }
     }
 
-    pub fn from_data_type(data_type: &DataType) -> Self {
-        match data_type {
-            DataType::Null => ValueType::Null,
-            DataType::Bool => ValueType::Bool,
-            DataType::Int | DataType::Int8 | DataType::Int16 | DataType::Int32 | DataType::Int64 => ValueType::Int,
-            DataType::Float | DataType::Double => ValueType::Float,
-            DataType::String => ValueType::String,
-            DataType::Date => ValueType::Date,
-            DataType::Time => ValueType::Time,
-            DataType::DateTime => ValueType::DateTime,
-            DataType::Vertex => ValueType::Vertex,
-            DataType::Edge => ValueType::Edge,
-            DataType::Path => ValueType::Path,
-            DataType::List => ValueType::List,
-            DataType::Map => ValueType::Map,
-            DataType::Set => ValueType::Set,
-            DataType::Geography => ValueType::Geography,
-            DataType::Duration => ValueType::Duration,
-            DataType::DataSet => ValueType::DataSet,
-            DataType::Empty => ValueType::Any,
-        }
-    }
-
     pub fn is_numeric(&self) -> bool {
         matches!(self, ValueType::Int | ValueType::Float)
     }
@@ -89,10 +65,7 @@ impl ValueType {
     }
 
     pub fn compatible_with(&self, other: &ValueType) -> bool {
-        if self == &ValueType::Any || other == &ValueType::Any {
-            return true;
-        }
-        self == other
+        self == &ValueType::Any || other == &ValueType::Any || self == other
     }
 }
 

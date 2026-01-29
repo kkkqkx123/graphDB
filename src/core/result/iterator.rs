@@ -281,6 +281,7 @@ impl<'a> crate::core::result::result_iterator::ResultIterator<'a, Vec<Value>> fo
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::result::result_iterator::ResultIterator;
 
     #[test]
     fn test_default_iterator() {

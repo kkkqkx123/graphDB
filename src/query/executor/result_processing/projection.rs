@@ -336,7 +336,7 @@ mod tests {
         let mut executor = ProjectExecutor::new(1, storage, columns);
 
         // 创建测试数据集
-        let mut input_dataset = DataSet::new();
+        let mut input_dataset = crate::core::value::DataSet::new();
         input_dataset.col_names = vec!["col1".to_string(), "col2".to_string()];
         input_dataset.rows = vec![
             vec![Value::Int(1), Value::String("Alice".to_string())],
@@ -344,27 +344,15 @@ mod tests {
             vec![Value::Int(3), Value::String("Charlie".to_string())],
         ];
 
-        // 创建模拟输入执行器
-        let input_executor = ExecutorEnum::Base(BaseExecutor::new(0, "MockInputExecutor".to_string(), Arc::new(Mutex::new(MockStorage))));
-        executor.set_input(input_executor);
-
-        // 执行投影
-        let result = executor
-            .execute()
-            .await
-            .expect("Projection executor should execute successfully");
+        // 不设置 input_executor，直接调用 project_dataset 方法测试
+        let projected_dataset = executor.project_dataset(input_dataset).expect("Projection should succeed");
 
         // 验证结果
-        match result {
-            ExecutionResult::DataSet(dataset) => {
-                assert_eq!(dataset.col_names, vec!["projected_col1"]);
-                assert_eq!(dataset.rows.len(), 3);
-                assert_eq!(dataset.rows[0], vec![Value::Int(1)]);
-                assert_eq!(dataset.rows[1], vec![Value::Int(2)]);
-                assert_eq!(dataset.rows[2], vec![Value::Int(3)]);
-            }
-            _ => panic!("期望DataSet结果"),
-        }
+        assert_eq!(projected_dataset.col_names, vec!["projected_col1"]);
+        assert_eq!(projected_dataset.rows.len(), 3);
+        assert_eq!(projected_dataset.rows[0], vec![Value::Int(1)]);
+        assert_eq!(projected_dataset.rows[1], vec![Value::Int(2)]);
+        assert_eq!(projected_dataset.rows[2], vec![Value::Int(3)]);
     }
 
     #[tokio::test]
@@ -384,7 +372,7 @@ mod tests {
         let mut executor = ProjectExecutor::new(1, storage, columns);
 
         // 创建测试数据集
-        let mut input_dataset = DataSet::new();
+        let mut input_dataset = crate::core::value::DataSet::new();
         input_dataset.col_names = vec!["col1".to_string(), "col2".to_string()];
         input_dataset.rows = vec![
             vec![Value::Int(1), Value::Int(10)],
@@ -392,27 +380,15 @@ mod tests {
             vec![Value::Int(3), Value::Int(30)],
         ];
 
-        // 创建模拟输入执行器
-        let input_executor = ExecutorEnum::Base(BaseExecutor::new(0, "MockInputExecutor".to_string(), Arc::new(Mutex::new(MockStorage))));
-        executor.set_input(input_executor);
-
-        // 执行投影
-        let result = executor
-            .execute()
-            .await
-            .expect("Projection executor should execute successfully");
+        // 直接调用 project_dataset 方法测试
+        let projected_dataset = executor.project_dataset(input_dataset).expect("Projection should succeed");
 
         // 验证结果
-        match result {
-            ExecutionResult::DataSet(dataset) => {
-                assert_eq!(dataset.col_names, vec!["sum"]);
-                assert_eq!(dataset.rows.len(), 3);
-                assert_eq!(dataset.rows[0], vec![Value::Int(11)]);
-                assert_eq!(dataset.rows[1], vec![Value::Int(22)]);
-                assert_eq!(dataset.rows[2], vec![Value::Int(33)]);
-            }
-            _ => panic!("期望DataSet结果"),
-        }
+        assert_eq!(projected_dataset.col_names, vec!["sum"]);
+        assert_eq!(projected_dataset.rows.len(), 3);
+        assert_eq!(projected_dataset.rows[0], vec![Value::Int(11)]);
+        assert_eq!(projected_dataset.rows[1], vec![Value::Int(22)]);
+        assert_eq!(projected_dataset.rows[2], vec![Value::Int(33)]);
     }
 
     #[tokio::test]
@@ -460,32 +436,22 @@ mod tests {
             ]),
         };
 
-        // 创建模拟输入执行器
-        let input_executor = ExecutorEnum::Base(BaseExecutor::new(0, "MockInputExecutor".to_string(), Arc::new(Mutex::new(MockStorage))));
-        executor.set_input(input_executor);
+        let vertices = vec![vertex1, vertex2];
 
-        // 执行投影
-        let result = executor
-            .execute()
-            .await
-            .expect("Projection executor should execute successfully");
+        // 直接调用 project_vertices 方法测试
+        let projected_dataset = executor.project_vertices(vertices).expect("Projection should succeed");
 
         // 验证结果
-        match result {
-            ExecutionResult::DataSet(dataset) => {
-                assert_eq!(dataset.col_names, vec!["vertex_id", "name"]);
-                assert_eq!(dataset.rows.len(), 2);
-                assert_eq!(
-                    dataset.rows[0],
-                    vec![Value::Int(1), Value::String("Alice".to_string())]
-                );
-                assert_eq!(
-                    dataset.rows[1],
-                    vec![Value::Int(2), Value::String("Bob".to_string())]
-                );
-            }
-            _ => panic!("期望DataSet结果"),
-        }
+        assert_eq!(projected_dataset.col_names, vec!["vertex_id", "name"]);
+        assert_eq!(projected_dataset.rows.len(), 2);
+        assert_eq!(
+            projected_dataset.rows[0],
+            vec![Value::Int(1), Value::String("Alice".to_string())]
+        );
+        assert_eq!(
+            projected_dataset.rows[1],
+            vec![Value::Int(2), Value::String("Bob".to_string())]
+        );
     }
 
     #[tokio::test]
@@ -532,39 +498,29 @@ mod tests {
             )]),
         };
 
-        // 创建模拟输入执行器
-        let input_executor = ExecutorEnum::Base(BaseExecutor::new(0, "MockInputExecutor".to_string(), Arc::new(Mutex::new(MockStorage))));
-        executor.set_input(input_executor);
+        let edges = vec![edge1, edge2];
 
-        // 执行投影
-        let result = executor
-            .execute()
-            .await
-            .expect("Projection executor should execute successfully");
+        // 直接调用 project_edges 方法测试
+        let projected_dataset = executor.project_edges(edges).expect("Projection should succeed");
 
         // 验证结果
-        match result {
-            ExecutionResult::DataSet(dataset) => {
-                assert_eq!(dataset.col_names, vec!["src_id", "dst_id", "edge_type"]);
-                assert_eq!(dataset.rows.len(), 2);
-                assert_eq!(
-                    dataset.rows[0],
-                    vec![
-                        Value::Int(1),
-                        Value::Int(2),
-                        Value::String("knows".to_string())
-                    ]
-                );
-                assert_eq!(
-                    dataset.rows[1],
-                    vec![
-                        Value::Int(2),
-                        Value::Int(3),
-                        Value::String("works_with".to_string())
-                    ]
-                );
-            }
-            _ => panic!("期望DataSet结果"),
-        }
+        assert_eq!(projected_dataset.col_names, vec!["src_id", "dst_id", "edge_type"]);
+        assert_eq!(projected_dataset.rows.len(), 2);
+        assert_eq!(
+            projected_dataset.rows[0],
+            vec![
+                Value::Int(1),
+                Value::Int(2),
+                Value::String("knows".to_string())
+            ]
+        );
+        assert_eq!(
+            projected_dataset.rows[1],
+            vec![
+                Value::Int(2),
+                Value::Int(3),
+                Value::String("works_with".to_string())
+            ]
+        );
     }
 }

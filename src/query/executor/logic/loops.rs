@@ -159,19 +159,46 @@ impl<S: StorageEngine + Send + 'static> LoopExecutor<S> {
         let mut all_edges = Vec::new();
         let mut all_paths = Vec::new();
         let mut all_datasets = Vec::new();
+        let mut has_success_only = true;
 
         for result in &self.results {
             match result {
-                ExecutionResult::Values(values) => all_values.extend(values.clone()),
-                ExecutionResult::Vertices(vertices) => all_vertices.extend(vertices.clone()),
-                ExecutionResult::Edges(edges) => all_edges.extend(edges.clone()),
-                ExecutionResult::Paths(paths) => all_paths.extend(paths.clone()),
-                ExecutionResult::DataSet(dataset) => all_datasets.push(dataset.clone()),
-                ExecutionResult::Count(count) => all_values.push(Value::Int(*count as i64)),
+                ExecutionResult::Values(values) => {
+                    all_values.extend(values.clone());
+                    has_success_only = false;
+                }
+                ExecutionResult::Vertices(vertices) => {
+                    all_vertices.extend(vertices.clone());
+                    has_success_only = false;
+                }
+                ExecutionResult::Edges(edges) => {
+                    all_edges.extend(edges.clone());
+                    has_success_only = false;
+                }
+                ExecutionResult::Paths(paths) => {
+                    all_paths.extend(paths.clone());
+                    has_success_only = false;
+                }
+                ExecutionResult::DataSet(dataset) => {
+                    all_datasets.push(dataset.clone());
+                    has_success_only = false;
+                }
+                ExecutionResult::Count(count) => {
+                    all_values.push(Value::Int(*count as i64));
+                    has_success_only = false;
+                }
                 ExecutionResult::Success => {}
-                ExecutionResult::Error(_) => {}
-                ExecutionResult::Result(_) => {}
+                ExecutionResult::Error(_) => {
+                    has_success_only = false;
+                }
+                ExecutionResult::Result(_) => {
+                    has_success_only = false;
+                }
             }
+        }
+
+        if has_success_only {
+            return ExecutionResult::Success;
         }
 
         if !all_values.is_empty()
@@ -473,6 +500,8 @@ impl<S: StorageEngine + Send + Sync + 'static> Executor<S> for ForLoopExecutor<S
         self.inner.close()?;
 
         self.inner.results = results;
+        self.inner.loop_state = LoopState::Finished;
+        self.inner.current_iteration = ((self.end - self.start).abs() / self.step.abs() + 1) as usize;
         Ok(self.inner.collect_results())
     }
 
