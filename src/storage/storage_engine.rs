@@ -4,6 +4,7 @@ use crate::core::types::{
     PropertyDef, InsertVertexInfo, InsertEdgeInfo, UpdateInfo,
     PasswordInfo,
 };
+use crate::expression::storage::{RowReaderWrapper, Schema};
 
 /// Transaction identifier
 pub type TransactionId = u64;
@@ -101,4 +102,10 @@ pub trait StorageEngine: Send + Sync {
 
     // ========== 用户管理 ==========
     fn change_password(&mut self, info: &PasswordInfo) -> Result<bool, StorageError>;
+
+    // ========== 二进制数据接口（用于 expression::storage 集成） ==========
+    fn get_vertex_with_schema(&self, space_name: &str, tag_name: &str, id: &Value) -> Result<Option<(Schema, Vec<u8>)>, StorageError>;
+    fn get_edge_with_schema(&self, space_name: &str, edge_type_name: &str, src: &Value, dst: &Value) -> Result<Option<(Schema, Vec<u8>)>, StorageError>;
+    fn scan_vertices_with_schema(&self, space_name: &str, tag_name: &str) -> Result<Vec<(Schema, Vec<u8>)>, StorageError>;
+    fn scan_edges_with_schema(&self, space_name: &str, edge_type_name: &str) -> Result<Vec<(Schema, Vec<u8>)>, StorageError>;
 }

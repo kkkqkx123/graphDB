@@ -306,6 +306,22 @@ impl StorageEngine for DummyStorage {
     fn update_data(&mut self, _info: &crate::core::types::UpdateInfo) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
+
+    fn get_vertex_with_schema(&self, _space_name: &str, _tag_name: &str, _id: &crate::core::Value) -> Result<Option<(crate::expression::storage::Schema, Vec<u8>)>, crate::core::StorageError> {
+        Ok(None)
+    }
+
+    fn get_edge_with_schema(&self, _space_name: &str, _edge_type_name: &str, _src: &crate::core::Value, _dst: &crate::core::Value) -> Result<Option<(crate::expression::storage::Schema, Vec<u8>)>, crate::core::StorageError> {
+        Ok(None)
+    }
+
+    fn scan_vertices_with_schema(&self, _space_name: &str, _tag_name: &str) -> Result<Vec<(crate::expression::storage::Schema, Vec<u8>)>, crate::core::StorageError> {
+        Ok(Vec::new())
+    }
+
+    fn scan_edges_with_schema(&self, _space_name: &str, _edge_type_name: &str) -> Result<Vec<(crate::expression::storage::Schema, Vec<u8>)>, crate::core::StorageError> {
+        Ok(Vec::new())
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

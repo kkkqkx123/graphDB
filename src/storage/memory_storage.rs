@@ -1,4 +1,4 @@
-use super::{StorageEngine, TransactionId};
+use super::{StorageEngine, TransactionId, EdgeReader, EdgeWriter, ScanResult, VertexReader, VertexWriter};
 use crate::core::{Edge, StorageError, Value, Vertex, EdgeDirection};
 use crate::core::vertex_edge_path::Tag;
 use crate::core::types::{
@@ -6,6 +6,7 @@ use crate::core::types::{
     PropertyDef, InsertVertexInfo, InsertEdgeInfo, UpdateInfo,
     PasswordInfo,
 };
+use crate::expression::storage::{FieldDef, FieldType, RowReaderWrapper, Schema};
 use crate::common::memory::MemoryPool;
 use crate::common::id::IdGenerator;
 use std::collections::HashMap;
@@ -105,6 +106,107 @@ impl MemoryStorage {
             Self::serialize_value(dst),
             edge_type.to_string(),
         )
+    }
+
+    fn tag_info_to_schema(tag_name: &str, tag_info: &TagInfo) -> Schema {
+        let fields: Vec<FieldDef> = tag_info.properties.iter().map(|prop| {
+            let field_type = Self::data_type_to_field_type(&prop.type_def);
+            FieldDef {
+                name: prop.name.clone(),
+                field_type,
+                nullable: prop.is_nullable,
+                default_value: None,
+                fixed_length: None,
+                offset: 0,
+                null_flag_pos: None,
+                geo_shape: None,
+            }
+        }).collect();
+
+        Schema {
+            name: tag_name.to_string(),
+            version: 1,
+            fields: fields.into_iter().map(|f| (f.name.clone(), f)).collect(),
+        }
+    }
+
+    fn edge_type_schema_to_schema(edge_type_name: &str, edge_schema: &EdgeTypeSchema) -> Schema {
+        let fields: Vec<FieldDef> = edge_schema.properties.iter().map(|prop| {
+            let field_type = Self::data_type_to_field_type(&prop.type_def);
+            FieldDef {
+                name: prop.name.clone(),
+                field_type,
+                nullable: prop.is_nullable,
+                default_value: None,
+                fixed_length: None,
+                offset: 0,
+                null_flag_pos: None,
+                geo_shape: None,
+            }
+        }).collect();
+
+        Schema {
+            name: edge_type_name.to_string(),
+            version: 1,
+            fields: fields.into_iter().map(|f| (f.name.clone(), f)).collect(),
+        }
+    }
+
+    fn data_type_to_field_type(data_type: &crate::core::DataType) -> FieldType {
+        match data_type {
+            crate::core::DataType::Bool => FieldType::Bool,
+            crate::core::DataType::Int8 => FieldType::Int8,
+            crate::core::DataType::Int16 => FieldType::Int16,
+            crate::core::DataType::Int32 => FieldType::Int32,
+            crate::core::DataType::Int64 => FieldType::Int64,
+            crate::core::DataType::Float => FieldType::Float,
+            crate::core::DataType::Double => FieldType::Double,
+            crate::core::DataType::String => FieldType::String,
+            crate::core::DataType::Date => FieldType::Date,
+            crate::core::DataType::Time => FieldType::Time,
+            crate::core::DataType::DateTime => FieldType::DateTime,
+            crate::core::DataType::List => FieldType::List,
+            crate::core::DataType::Map => FieldType::Map,
+            crate::core::DataType::Set => FieldType::Set,
+            crate::core::DataType::Geography => FieldType::Geography,
+            crate::core::DataType::Duration => FieldType::Duration,
+            _ => FieldType::String,
+        }
+    }
+
+    fn serialize_vertex(vertex: &Vertex) -> Vec<u8> {
+        let mut data = Vec::new();
+        if let Some(vid) = Self::value_to_bytes(&vertex.vid) {
+            data.extend_from_slice(&vid);
+        } else {
+            data.extend_from_slice(&[0u8; 8]);
+        }
+        data
+    }
+
+    fn serialize_edge(edge: &Edge) -> Vec<u8> {
+        let mut data = Vec::new();
+        if let Some(src) = Self::value_to_bytes(&edge.src) {
+            data.extend_from_slice(&src);
+        } else {
+            data.extend_from_slice(&[0u8; 8]);
+        }
+        if let Some(dst) = Self::value_to_bytes(&edge.dst) {
+            data.extend_from_slice(&dst);
+        } else {
+            data.extend_from_slice(&[0u8; 8]);
+        }
+        data
+    }
+
+    fn value_to_bytes(value: &Value) -> Option<Vec<u8>> {
+        match value {
+            Value::String(s) => Some(s.as_bytes().to_vec()),
+            Value::Int(i) => Some(i.to_le_bytes().to_vec()),
+            Value::Float(f) => Some(f.to_le_bytes().to_vec()),
+            Value::Bool(b) => Some(vec![*b as u8]),
+            _ => None,
+        }
     }
 }
 
@@ -236,7 +338,7 @@ impl StorageEngine for MemoryStorage {
         direction: EdgeDirection,
         filter: Option<Box<dyn Fn(&Edge) -> bool + Send + Sync>>,
     ) -> Result<Vec<Edge>, StorageError> {
-        let edges = self.get_node_edges(node_id, direction)?;
+        let edges = <Self as StorageEngine>::get_node_edges(self, node_id, direction)?;
         if let Some(filter_fn) = filter {
             Ok(edges.into_iter().filter(|e| filter_fn(e)).collect())
         } else {
@@ -286,7 +388,7 @@ impl StorageEngine for MemoryStorage {
 
     fn batch_insert_edges(&mut self, edges: Vec<Edge>) -> Result<(), StorageError> {
         for edge in edges {
-            self.insert_edge(edge)?;
+            <Self as StorageEngine>::insert_edge(self, edge)?;
         }
         Ok(())
     }
@@ -701,6 +803,183 @@ impl StorageEngine for MemoryStorage {
             return Ok(false);
         }
         Ok(false)
+    }
+
+    // ========== 二进制数据接口实现 ==========
+    fn get_vertex_with_schema(&self, space_name: &str, tag_name: &str, id: &Value) -> Result<Option<(Schema, Vec<u8>)>, StorageError> {
+        let tags = self.tags.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let tag_info = match tags.get(space_name)
+            .and_then(|space_tags| space_tags.get(tag_name))
+            .cloned() {
+            Some(info) => info,
+            None => return Ok(None),
+        };
+
+        let vertex = self.get_node(id)?;
+        vertex.as_ref().map(|v| {
+            let schema = Self::tag_info_to_schema(&tag_name, &tag_info);
+            let binary_data = Self::serialize_vertex(v);
+            Ok((schema, binary_data))
+        }).transpose()
+    }
+
+    fn get_edge_with_schema(&self, space_name: &str, edge_type_name: &str, src: &Value, dst: &Value) -> Result<Option<(Schema, Vec<u8>)>, StorageError> {
+        let edge_types = self.edge_type_infos.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let edge_schema = match edge_types.get(space_name)
+            .and_then(|space_edges| space_edges.get(edge_type_name))
+            .cloned() {
+            Some(info) => info,
+            None => return Ok(None),
+        };
+
+        let edge = <Self as StorageEngine>::get_edge(self, src, dst, edge_type_name)?;
+        edge.as_ref().map(|e| {
+            let schema = Self::edge_type_schema_to_schema(&edge_type_name, &edge_schema);
+            let binary_data = Self::serialize_edge(e);
+            Ok((schema, binary_data))
+        }).transpose()
+    }
+
+    fn scan_vertices_with_schema(&self, space_name: &str, tag_name: &str) -> Result<Vec<(Schema, Vec<u8>)>, StorageError> {
+        let vertices = <Self as StorageEngine>::scan_vertices_by_tag(self, tag_name)?;
+        let tags = self.tags.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let tag_info = tags.get(space_name)
+            .and_then(|space_tags| space_tags.get(tag_name))
+            .cloned()
+            .unwrap_or_else(|| TagInfo::new(space_name.to_string(), tag_name.to_string()));
+
+        let schema = Self::tag_info_to_schema(&tag_name, &tag_info);
+        let binary_data_list: Vec<Vec<u8>> = vertices.iter().map(|v| Self::serialize_vertex(v)).collect();
+
+        Ok(binary_data_list.into_iter().map(|data| (schema.clone(), data)).collect())
+    }
+
+    fn scan_edges_with_schema(&self, space_name: &str, edge_type_name: &str) -> Result<Vec<(Schema, Vec<u8>)>, StorageError> {
+        let edges = <Self as StorageEngine>::scan_edges_by_type(self, edge_type_name)?;
+        let edge_types = self.edge_type_infos.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let edge_schema = edge_types.get(space_name)
+            .and_then(|space_edges| space_edges.get(edge_type_name))
+            .cloned()
+            .unwrap_or_else(|| EdgeTypeSchema::new(space_name.to_string(), edge_type_name.to_string()));
+
+        let schema = Self::edge_type_schema_to_schema(&edge_type_name, &edge_schema);
+        let binary_data_list: Vec<Vec<u8>> = edges.iter().map(|e| Self::serialize_edge(e)).collect();
+
+        Ok(binary_data_list.into_iter().map(|data| (schema.clone(), data)).collect())
+    }
+}
+
+impl VertexReader for MemoryStorage {
+    fn get_vertex(&self, _space: &str, id: &Value) -> Result<Option<Vertex>, StorageError> {
+        <Self as StorageEngine>::get_node(self, id)
+    }
+
+    fn scan_vertices(&self, _space: &str) -> Result<ScanResult<Vertex>, StorageError> {
+        let vertices = <Self as StorageEngine>::scan_all_vertices(self)?;
+        Ok(ScanResult::new(vertices))
+    }
+
+    fn scan_vertices_by_tag(&self, _space: &str, tag_name: &str) -> Result<ScanResult<Vertex>, StorageError> {
+        let vertices = <Self as StorageEngine>::scan_vertices_by_tag(self, tag_name)?;
+        Ok(ScanResult::new(vertices))
+    }
+
+    fn scan_vertices_by_prop(
+        &self,
+        _space: &str,
+        tag_name: &str,
+        prop_name: &str,
+        value: &Value,
+    ) -> Result<ScanResult<Vertex>, StorageError> {
+        let vertices = <Self as StorageEngine>::scan_vertices_by_prop(self, tag_name, prop_name, value)?;
+        Ok(ScanResult::new(vertices))
+    }
+}
+
+impl EdgeReader for MemoryStorage {
+    fn get_edge(
+        &self,
+        _space: &str,
+        src: &Value,
+        dst: &Value,
+        edge_type: &str,
+    ) -> Result<Option<Edge>, StorageError> {
+        <Self as StorageEngine>::get_edge(self, src, dst, edge_type)
+    }
+
+    fn get_node_edges(
+        &self,
+        _space: &str,
+        node_id: &Value,
+        direction: EdgeDirection,
+    ) -> Result<ScanResult<Edge>, StorageError> {
+        let edges = <Self as StorageEngine>::get_node_edges(self, node_id, direction)?;
+        Ok(ScanResult::new(edges))
+    }
+
+    fn get_node_edges_filtered(
+        &self,
+        _space: &str,
+        node_id: &Value,
+        direction: EdgeDirection,
+        edge_type: Option<&str>,
+    ) -> Result<ScanResult<Edge>, StorageError> {
+        let filter = edge_type.map(|et| {
+            move |e: &Edge| e.edge_type == et
+        });
+        let edges = <Self as StorageEngine>::get_node_edges_filtered(self, node_id, direction, filter.map(|f| Box::new(f) as _))?;
+        Ok(ScanResult::new(edges))
+    }
+
+    fn scan_edges_by_type(
+        &self,
+        _space: &str,
+        edge_type: &str,
+    ) -> Result<ScanResult<Edge>, StorageError> {
+        let edges = <Self as StorageEngine>::scan_edges_by_type(self, edge_type)?;
+        Ok(ScanResult::new(edges))
+    }
+
+    fn scan_all_edges(&self, _space: &str) -> Result<ScanResult<Edge>, StorageError> {
+        let edges = <Self as StorageEngine>::scan_all_edges(self)?;
+        Ok(ScanResult::new(edges))
+    }
+}
+
+impl VertexWriter for MemoryStorage {
+    fn insert_vertex(&mut self, vertex: Vertex) -> Result<Value, StorageError> {
+        <Self as StorageEngine>::insert_node(self, vertex)
+    }
+
+    fn update_vertex(&mut self, vertex: Vertex) -> Result<(), StorageError> {
+        <Self as StorageEngine>::update_node(self, vertex)
+    }
+
+    fn delete_vertex(&mut self, id: &Value) -> Result<(), StorageError> {
+        <Self as StorageEngine>::delete_node(self, id)
+    }
+
+    fn batch_insert_vertices(&mut self, vertices: Vec<Vertex>) -> Result<Vec<Value>, StorageError> {
+        <Self as StorageEngine>::batch_insert_nodes(self, vertices)
+    }
+}
+
+impl EdgeWriter for MemoryStorage {
+    fn insert_edge(&mut self, edge: Edge) -> Result<(), StorageError> {
+        <Self as StorageEngine>::insert_edge(self, edge)
+    }
+
+    fn delete_edge(
+        &mut self,
+        src: &Value,
+        dst: &Value,
+        edge_type: &str,
+    ) -> Result<(), StorageError> {
+        <Self as StorageEngine>::delete_edge(self, src, dst, edge_type)
+    }
+
+    fn batch_insert_edges(&mut self, edges: Vec<Edge>) -> Result<(), StorageError> {
+        <Self as StorageEngine>::batch_insert_edges(self, edges)
     }
 }
 

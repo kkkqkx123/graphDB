@@ -1017,4 +1017,21 @@ impl StorageEngine for RedbStorage {
     fn change_password(&mut self, _info: &PasswordInfo) -> Result<bool, StorageError> {
         Err(StorageError::NotSupported("change_password not supported in RedbStorage".to_string()))
     }
+
+    // ========== 二进制数据接口（用于 expression::storage 集成） ==========
+    fn get_vertex_with_schema(&self, _space_name: &str, _tag_name: &str, _id: &Value) -> Result<Option<(crate::expression::storage::Schema, Vec<u8>)>, StorageError> {
+        Err(StorageError::NotSupported("get_vertex_with_schema not supported in RedbStorage".to_string()))
+    }
+
+    fn get_edge_with_schema(&self, _space_name: &str, _edge_type_name: &str, _src: &Value, _dst: &Value) -> Result<Option<(crate::expression::storage::Schema, Vec<u8>)>, StorageError> {
+        Err(StorageError::NotSupported("get_edge_with_schema not supported in RedbStorage".to_string()))
+    }
+
+    fn scan_vertices_with_schema(&self, _space_name: &str, _tag_name: &str) -> Result<Vec<(crate::expression::storage::Schema, Vec<u8>)>, StorageError> {
+        Err(StorageError::NotSupported("scan_vertices_with_schema not supported in RedbStorage".to_string()))
+    }
+
+    fn scan_edges_with_schema(&self, _space_name: &str, _edge_type_name: &str) -> Result<Vec<(crate::expression::storage::Schema, Vec<u8>)>, StorageError> {
+        Err(StorageError::NotSupported("scan_edges_with_schema not supported in RedbStorage".to_string()))
+    }
 }

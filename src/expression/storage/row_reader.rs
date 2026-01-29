@@ -31,6 +31,46 @@ impl RowReaderWrapper {
         Ok(wrapper)
     }
 
+    fn check_length(&self, data: &[u8], required: usize, type_name: &str) -> Result<(), ExpressionError> {
+        if data.len() < required {
+            Err(ExpressionError::type_error(format!(
+                "{} 数据长度不足，需要{}字节，实际{}字节",
+                type_name, required, data.len()
+            )))
+        } else {
+            Ok(())
+        }
+    }
+
+    fn read_offset_data(&self, data: &[u8], type_name: &str) -> Result<(usize, usize), ExpressionError> {
+        if data.len() < 8 {
+            return Err(ExpressionError::type_error(format!(
+                "{} 数据头部不足，需要8字节，实际{}字节",
+                type_name, data.len()
+            )));
+        }
+        let offset = u32::from_le_bytes([data[0], data[1], data[2], data[3]]) as usize;
+        let len = u32::from_le_bytes([data[4], data[5], data[6], data[7]]) as usize;
+
+        if self.data.len() < offset || self.data.len() < offset + len {
+            return Err(ExpressionError::type_error(format!(
+                "{} 数据偏移量越界：offset={}, len={}, data_len={}",
+                type_name, offset, len, self.data.len()
+            )));
+        }
+
+        Ok((offset, len))
+    }
+
+    fn read_fixed_data(&self, data: &[u8], type_name: &str, size: usize) -> Result<&[u8], ExpressionError> {
+        self.check_length(data, size, type_name)?;
+        Ok(&data[..size])
+    }
+
+    fn bytes_to_string(&self, bytes: &[u8]) -> String {
+        String::from_utf8_lossy(bytes).to_string()
+    }
+
     fn calculate_field_offsets(&mut self) -> Result<(), ExpressionError> {
         let mut offset = 0;
 
@@ -48,55 +88,43 @@ impl RowReaderWrapper {
         match field_def.field_type {
             // 基本类型
             super::types::FieldType::Bool => Ok(1),
-            super::types::FieldType::Int => Ok(8),
+            super::types::FieldType::Int8 => Ok(1),
+            super::types::FieldType::Int16 => Ok(2),
+            super::types::FieldType::Int32 => Ok(4),
+            super::types::FieldType::Int64 => Ok(8),
             super::types::FieldType::Float => Ok(4),
             super::types::FieldType::Double => Ok(8),
 
-            // 字符串类型
-            super::types::FieldType::String => {
-                // 字符串类型：4字节长度前缀 + 可变长度数据
-                // 这里返回最小大小，实际大小取决于数据
-                Ok(4) // 仅长度前缀
-            }
+            // 字符串类型 - String 和 Blob 使用 8字节（4字节偏移 + 4字节长度）
+            super::types::FieldType::String => Ok(8),
             super::types::FieldType::FixedString(len) => Ok(len),
 
+            // VID 类型 - 8字节顶点ID
+            super::types::FieldType::VID => Ok(8),
+
             // 时间类型
-            super::types::FieldType::Timestamp => Ok(8), // 8字节Unix时间戳
-            super::types::FieldType::Date => Ok(4),      // 4字节天数
-            super::types::FieldType::DateTime => Ok(8),  // 8字节时间戳
+            super::types::FieldType::Timestamp => Ok(8),
+            super::types::FieldType::Date => Ok(4),
+            super::types::FieldType::Time => Ok(8),
+            super::types::FieldType::DateTime => Ok(10),
 
-            // 图类型
-            super::types::FieldType::Vertex => {
-                // 顶点：顶点ID(8字节) + 标签数量(4字节) + 属性数量(4字节)
-                // 这里返回基本大小，实际大小取决于标签和属性
-                Ok(16)
-            }
-            super::types::FieldType::Edge => {
-                // 边：源顶点ID(8字节) + 目标顶点ID(8字节) + 边类型(4字节) + 排名(8字节)
-                Ok(28)
-            }
-            super::types::FieldType::Path => {
-                // 路径：源顶点ID(8字节) + 步骤数量(4字节)
-                // 这里返回基本大小，实际大小取决于步骤
-                Ok(12)
-            }
+            // 图类型 - 这些类型需要更复杂的处理，这里返回占位大小
+            super::types::FieldType::Vertex => Ok(16),
+            super::types::FieldType::Edge => Ok(32),
+            super::types::FieldType::Path => Ok(24),
 
-            // 集合类型
-            super::types::FieldType::List | super::types::FieldType::Set => {
-                // 列表/集合：元素数量(4字节) + 元素大小(可变)
-                // 这里返回基本大小，实际大小取决于元素
-                Ok(4)
-            }
-            super::types::FieldType::Map => {
-                // 映射：键值对数量(4字节) + 键值对大小(可变)
-                // 这里返回基本大小，实际大小取决于键值对
-                Ok(4)
-            }
-            super::types::FieldType::Blob => {
-                // 二进制数据：4字节长度前缀 + 可变长度数据
-                // 这里返回最小大小，实际大小取决于数据
-                Ok(4)
-            }
+            // 集合类型 - 使用 8字节（4字节偏移 + 4字节长度）
+            super::types::FieldType::List | super::types::FieldType::Set => Ok(8),
+            super::types::FieldType::Map => Ok(8),
+
+            // Blob 类型 - 使用 8字节（4字节偏移 + 4字节长度）
+            super::types::FieldType::Blob => Ok(8),
+
+            // Geography 类型 - 使用 8字节（4字节偏移 + 4字节长度），存储 WKB
+            super::types::FieldType::Geography => Ok(8),
+
+            // Duration 类型 - 固定 16字节（8字节 seconds + 4字节 microseconds + 4字节 months）
+            super::types::FieldType::Duration => Ok(16),
         }
     }
 
@@ -118,101 +146,135 @@ impl RowReaderWrapper {
     fn parse_value_by_type(&self, data: &[u8], field_def: &FieldDef) -> Result<Value, ExpressionError> {
         match field_def.field_type {
             super::types::FieldType::Bool => {
-                if data.len() < 1 {
-                    return Err(ExpressionError::type_error("数据长度不足"));
-                }
+                self.check_length(data, 1, "Bool")?;
                 Ok(Value::Bool(data[0] != 0))
             }
-            super::types::FieldType::Int => {
-                if data.len() < 8 {
-                    return Err(ExpressionError::type_error("数据长度不足"));
-                }
+            super::types::FieldType::Int8 => {
+                self.check_length(data, 1, "Int8")?;
+                Ok(Value::Int(data[0] as i8 as i64))
+            }
+            super::types::FieldType::Int16 => {
+                self.check_length(data, 2, "Int16")?;
+                let value = i16::from_le_bytes([data[0], data[1]]);
+                Ok(Value::Int(value as i64))
+            }
+            super::types::FieldType::Int32 => {
+                self.check_length(data, 4, "Int32")?;
+                let value = i32::from_le_bytes([data[0], data[1], data[2], data[3]]);
+                Ok(Value::Int(value as i64))
+            }
+            super::types::FieldType::Int64 => {
+                self.check_length(data, 8, "Int64")?;
                 let value = i64::from_le_bytes([
                     data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
                 ]);
                 Ok(Value::Int(value))
             }
             super::types::FieldType::Float => {
-                if data.len() < 4 {
-                    return Err(ExpressionError::type_error("数据长度不足"));
-                }
+                self.check_length(data, 4, "Float")?;
                 let value = f32::from_le_bytes([data[0], data[1], data[2], data[3]]);
                 Ok(Value::Float(value as f64))
             }
             super::types::FieldType::Double => {
-                if data.len() < 8 {
-                    return Err(ExpressionError::type_error("数据长度不足"));
-                }
+                self.check_length(data, 8, "Double")?;
                 let value = f64::from_le_bytes([
                     data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
                 ]);
                 Ok(Value::Float(value))
             }
             super::types::FieldType::String => {
-                if data.len() < 4 {
-                    return Err(ExpressionError::type_error("数据长度不足"));
+                let (offset, len) = self.read_offset_data(data, "String")?;
+                if len == 0 {
+                    return Ok(Value::String(String::new()));
                 }
-                let len = u32::from_be_bytes([data[0], data[1], data[2], data[3]]) as usize;
-                if data.len() < 4 + len {
-                    return Err(ExpressionError::type_error(format!(
-                        "字符串数据长度不足，需要 {} 字节，实际 {} 字节",
-                        4 + len,
-                        data.len()
-                    )));
-                }
-                let string_bytes = &data[4..4 + len];
+                let string_bytes = &self.data[offset..offset + len];
                 String::from_utf8(string_bytes.to_vec())
                     .map(Value::String)
-                    .map_err(|e| ExpressionError::type_error(format!("字符串解析失败: {}", e)))
+                    .map_err(|e| ExpressionError::type_error(format!("String 解析失败: {}", e)))
             }
             super::types::FieldType::FixedString(fixed_len) => {
-                if data.len() < fixed_len {
-                    return Err(ExpressionError::type_error("数据长度不足"));
-                }
+                self.check_length(data, fixed_len, "FixedString")?;
                 let actual_len = data.iter().position(|&b| b == 0).unwrap_or(fixed_len);
                 String::from_utf8(data[..actual_len].to_vec())
                     .map(Value::String)
-                    .map_err(|e| ExpressionError::type_error(format!("固定字符串解析失败: {}", e)))
+                    .map_err(|e| ExpressionError::type_error(format!("FixedString 解析失败: {}", e)))
+            }
+            super::types::FieldType::VID => {
+                let vid_data = self.read_fixed_data(data, "VID", 8)?;
+                Ok(Value::String(self.bytes_to_string(vid_data)))
+            }
+            super::types::FieldType::Blob => {
+                let (offset, len) = self.read_offset_data(data, "Blob")?;
+                if len == 0 {
+                    return Ok(Value::String(String::new()));
+                }
+                let blob_data = &self.data[offset..offset + len];
+                Ok(Value::String(self.bytes_to_string(blob_data)))
+            }
+            super::types::FieldType::Geography => {
+                let (offset, len) = self.read_offset_data(data, "Geography")?;
+                if len == 0 {
+                    return Ok(Value::String(String::new()));
+                }
+                let wkb_data = &self.data[offset..offset + len];
+                Ok(Value::String(self.bytes_to_string(wkb_data)))
+            }
+            super::types::FieldType::Duration => {
+                if data.len() < 16 {
+                    return Err(ExpressionError::type_error("Duration 数据长度不足，需要16字节"));
+                }
+                let seconds = i64::from_le_bytes([
+                    data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
+                ]);
+                let microseconds = i32::from_le_bytes([data[8], data[9], data[10], data[11]]);
+                let months = i32::from_le_bytes([data[12], data[13], data[14], data[15]]);
+                Ok(Value::Duration(crate::core::value::DurationValue {
+                    seconds,
+                    microseconds,
+                    months,
+                }))
+            }
+            super::types::FieldType::Vertex => {
+                let vid_data = self.read_fixed_data(data, "Vertex", 16)?;
+                let vid_slice = &vid_data[..8];
+                let vertex = crate::core::vertex_edge_path::Vertex {
+                    vid: Box::new(Value::String(self.bytes_to_string(vid_slice))),
+                    id: 0,
+                    tags: std::default::Default::default(),
+                    properties: std::default::Default::default(),
+                };
+                Ok(Value::Vertex(Box::new(vertex)))
+            }
+            super::types::FieldType::Edge => {
+                let edge_data = self.read_fixed_data(data, "Edge", 32)?;
+                let src_slice = &edge_data[..8];
+                let dst_slice = &edge_data[8..16];
+                let edge_type = i32::from_le_bytes([edge_data[16], edge_data[17], edge_data[18], edge_data[19]]);
+                let rank = i64::from_le_bytes([
+                    edge_data[20], edge_data[21], edge_data[22], edge_data[23], edge_data[24], edge_data[25], edge_data[26], edge_data[27],
+                ]);
+                let edge = crate::core::vertex_edge_path::Edge {
+                    src: Box::new(Value::String(self.bytes_to_string(src_slice))),
+                    dst: Box::new(Value::String(self.bytes_to_string(dst_slice))),
+                    edge_type: format!("{}", edge_type),
+                    ranking: rank,
+                    id: 0,
+                    props: std::default::Default::default(),
+                };
+                Ok(Value::Edge(edge))
+            }
+            super::types::FieldType::Path => {
+                Err(ExpressionError::unsupported_operation(
+                    "Path 类型解析",
+                    "Path 类型暂不支持"
+                ))
             }
             super::types::FieldType::Timestamp => {
-                if data.len() < 8 {
-                    return Err(ExpressionError::type_error("数据长度不足"));
-                }
+                self.check_length(data, 8, "Timestamp")?;
                 let timestamp = i64::from_le_bytes([
                     data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
                 ]);
-                let _seconds = timestamp / 1000;
-                let nanos = ((timestamp % 1000) * 1_000_000) as u32;
-                Ok(Value::DateTime(crate::core::value::DateTimeValue {
-                    year: 1970,
-                    month: 1,
-                    day: 1,
-                    hour: 0,
-                    minute: 0,
-                    sec: 0,
-                    microsec: nanos / 1000,
-                }))
-            }
-            super::types::FieldType::Date => {
-                if data.len() < 4 {
-                    return Err(ExpressionError::type_error("数据长度不足"));
-                }
-                let days = u32::from_le_bytes([data[0], data[1], data[2], data[3]]) as i64;
-                let (year, month, day) = super::date_utils::days_to_date(days);
-                Ok(Value::Date(crate::core::value::DateValue {
-                    year,
-                    month,
-                    day,
-                }))
-            }
-            super::types::FieldType::DateTime => {
-                if data.len() < 8 {
-                    return Err(ExpressionError::type_error("数据长度不足"));
-                }
-                let timestamp = i64::from_le_bytes([
-                    data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
-                ]);
-                let (year, month, day, hour, minute, second, microsecond) = super::date_utils::timestamp_to_datetime(timestamp);
+                let (year, month, day, hour, minute, second, microsec) = super::date_utils::timestamp_to_datetime(timestamp);
                 Ok(Value::DateTime(crate::core::value::DateTimeValue {
                     year,
                     month,
@@ -220,8 +282,70 @@ impl RowReaderWrapper {
                     hour,
                     minute,
                     sec: second,
-                    microsec: microsecond,
+                    microsec,
                 }))
+            }
+            super::types::FieldType::Date => {
+                self.check_length(data, 4, "Date")?;
+                let year = i16::from_le_bytes([data[0], data[1]]);
+                let month = data[2];
+                let day = data[3];
+                Ok(Value::Date(crate::core::value::DateValue {
+                    year: year as i32,
+                    month: month as u32,
+                    day: day as u32,
+                }))
+            }
+            super::types::FieldType::Time => {
+                self.check_length(data, 8, "Time")?;
+                let hour = data[0];
+                let minute = data[1];
+                let sec = data[2];
+                let _padding = data[3];
+                let microsec = u32::from_le_bytes([data[4], data[5], data[6], data[7]]);
+                Ok(Value::Time(crate::core::value::TimeValue {
+                    hour: hour as u32,
+                    minute: minute as u32,
+                    sec: sec as u32,
+                    microsec,
+                }))
+            }
+            super::types::FieldType::Duration => {
+                self.check_length(data, 16, "Duration")?;
+                let seconds = i64::from_le_bytes([
+                    data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
+                ]);
+                let microseconds = i32::from_le_bytes([data[8], data[9], data[10], data[11]]);
+                let months = i32::from_le_bytes([data[12], data[13], data[14], data[15]]);
+                Ok(Value::Duration(crate::core::value::DurationValue {
+                    seconds,
+                    microseconds,
+                    months,
+                }))
+            }
+            super::types::FieldType::Path => {
+                Err(ExpressionError::unsupported_operation(
+                    "Path 类型解析",
+                    "Path 类型暂不支持"
+                ))
+            }
+            super::types::FieldType::List => {
+                Err(ExpressionError::unsupported_operation(
+                    "List 类型解析",
+                    "List 类型暂不支持"
+                ))
+            }
+            super::types::FieldType::Set => {
+                Err(ExpressionError::unsupported_operation(
+                    "Set 类型解析",
+                    "Set 类型暂不支持"
+                ))
+            }
+            super::types::FieldType::Map => {
+                Err(ExpressionError::unsupported_operation(
+                    "Map 类型解析",
+                    "Map 类型暂不支持"
+                ))
             }
             _ => Err(ExpressionError::unsupported_operation(
                 format!("类型解析: {:?}", field_def.field_type),
