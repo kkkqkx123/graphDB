@@ -16,7 +16,7 @@ pub async fn get_neighbors<S: StorageClient>(
         .expect("Storage lock should not be poisoned");
 
     let edges = storage_guard
-        .get_node_edges(node_id, EdgeDirection::Both)
+        .get_node_edges("default", node_id, EdgeDirection::Both)
         .map_err(|e| DBError::Storage(StorageError::DbError(e.to_string())))?;
 
     let filtered_edges: Vec<Edge> = if let Some(ref edge_types) = edge_types {
@@ -70,7 +70,7 @@ pub async fn get_neighbors_with_edges<S: StorageClient>(
         .expect("Storage lock should not be poisoned");
 
     let edges = storage_guard
-        .get_node_edges(node_id, EdgeDirection::Both)
+        .get_node_edges("default", node_id, EdgeDirection::Both)
         .map_err(|e| DBError::Storage(StorageError::DbError(e.to_string())))?;
 
     let filtered_edges: Vec<Edge> = if let Some(ref edge_types) = edge_types {

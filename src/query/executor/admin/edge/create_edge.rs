@@ -101,7 +101,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateEdgeExecuto
         })?;
 
         let metadata_edge_info = EdgeTypeSchema::from_executor(&self.edge_info);
-        let result = storage_guard.create_edge_type(&metadata_edge_info);
+        let result = storage_guard.create_edge_type("default", &metadata_edge_info);
 
         match result {
             Ok(true) => Ok(ExecutionResult::Success),

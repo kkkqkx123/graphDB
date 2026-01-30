@@ -26,7 +26,7 @@ impl SeekStrategy for IndexSeek {
         let mut rows_scanned = 0;
 
         if let Some(index_info) = context.get_index_for_labels(&context.node_pattern.labels) {
-            let vertices = storage.scan_vertices_by_tag(&index_info.target_name)?;
+            let vertices = storage.scan_vertices_by_tag("default", &index_info.target_name)?;
             rows_scanned = vertices.len();
             for vertex in vertices {
                 if self.vertex_matches_pattern(&vertex, &context.node_pattern) {

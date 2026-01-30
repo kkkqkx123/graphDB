@@ -135,7 +135,7 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
                     let storage = safe_lock(&*self.get_storage())
                         .expect("ExpandAllExecutor storage lock should not be poisoned");
                     storage
-                        .get_node(&neighbor_id)
+                        .get_vertex("default", &neighbor_id)
                         .map_err(|e| QueryError::StorageError(e.to_string()))?
                 };
 
@@ -223,12 +223,12 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
                     .expect("ExpandAllExecutor storage lock should not be poisoned");
                 let mut visited = HashSet::new();
                 for edge in edges {
-                    if let Ok(Some(src_vertex)) = storage.get_node(&edge.src) {
+                    if let Ok(Some(src_vertex)) = storage.get_vertex("default", &edge.src) {
                         if visited.insert(src_vertex.vid.clone()) {
                             nodes.push(src_vertex);
                         }
                     }
-                    if let Ok(Some(dst_vertex)) = storage.get_node(&edge.dst) {
+                    if let Ok(Some(dst_vertex)) = storage.get_vertex("default", &edge.dst) {
                         if visited.insert(dst_vertex.vid.clone()) {
                             nodes.push(dst_vertex);
                         }
@@ -247,7 +247,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
                         Value::String(id_str) => {
                             // 尝试将字符串作为节点ID获取节点
                             let node_id = Value::String(id_str);
-                            if let Ok(Some(vertex)) = storage.get_node(&node_id) {
+                            if let Ok(Some(vertex)) = storage.get_vertex("default", &node_id) {
                                 vertices.push(vertex);
                             }
                         }

@@ -22,7 +22,7 @@ impl SeekStrategy for ScanSeek {
         storage: &dyn StorageClient,
         context: &SeekStrategyContext,
     ) -> Result<SeekResult, StorageError> {
-        let vertices = storage.scan_all_vertices()?;
+        let vertices = storage.scan_vertices("default")?;
         let mut vertex_ids = Vec::new();
         let mut rows_scanned = 0;
 

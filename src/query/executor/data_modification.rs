@@ -59,7 +59,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for InsertExecutor<S> {
             let mut storage = safe_lock(self.get_storage())
                 .expect("InsertExecutor storage lock should not be poisoned");
             for vertex in vertices {
-                storage.insert_node(vertex.clone())?;
+                storage.insert_vertex("default", vertex.clone())?;
                 _total_inserted += 1;
             }
         }
@@ -69,7 +69,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for InsertExecutor<S> {
             let mut storage = safe_lock(self.get_storage())
                 .expect("InsertExecutor storage lock should not be poisoned");
             for edge in edges {
-                storage.insert_edge(edge.clone())?;
+                storage.insert_edge("default", edge.clone())?;
                 _total_inserted += 1;
             }
         }
@@ -218,21 +218,21 @@ impl<S: StorageClient + Send + 'static> Executor<S> for UpdateExecutor<S> {
 
                     if let Value::Bool(true) = result {
                         if let Value::String(_id_str) = &update.vertex_id {
-                            if let Some(mut vertex) = storage.get_node(&update.vertex_id)? {
+                            if let Some(mut vertex) = storage.get_vertex("default", &update.vertex_id)? {
                                 for (key, value) in &update.properties {
                                     vertex.properties.insert(key.clone(), value.clone());
                                 }
-                                storage.update_node(vertex)?;
+                                storage.update_vertex("default", vertex)?;
                                 _total_updated += 1;
                             }
                         }
                     }
                 } else {
-                    if let Some(mut vertex) = storage.get_node(&update.vertex_id)? {
+                    if let Some(mut vertex) = storage.get_vertex("default", &update.vertex_id)? {
                         for (key, value) in &update.properties {
                             vertex.properties.insert(key.clone(), value.clone());
                         }
-                        storage.update_node(vertex)?;
+                        storage.update_vertex("default", vertex)?;
                         _total_updated += 1;
                     }
                 }
@@ -262,25 +262,25 @@ impl<S: StorageClient + Send + 'static> Executor<S> for UpdateExecutor<S> {
 
                     if let Value::Bool(true) = result {
                         if let Some(mut edge) =
-                            storage.get_edge(&update.src, &update.dst, &update.edge_type)?
+                            storage.get_edge("default", &update.src, &update.dst, &update.edge_type)?
                         {
                             for (key, value) in &update.properties {
                                 edge.props.insert(key.clone(), value.clone());
                             }
-                            storage.delete_edge(&update.src, &update.dst, &update.edge_type)?;
-                            storage.insert_edge(edge)?;
+                            storage.delete_edge("default", &update.src, &update.dst, &update.edge_type)?;
+                            storage.insert_edge("default", edge)?;
                             _total_updated += 1;
                         }
                     }
                 } else {
                     if let Some(mut edge) =
-                        storage.get_edge(&update.src, &update.dst, &update.edge_type)?
+                        storage.get_edge("default", &update.src, &update.dst, &update.edge_type)?
                     {
                         for (key, value) in &update.properties {
                             edge.props.insert(key.clone(), value.clone());
                         }
-                        storage.delete_edge(&update.src, &update.dst, &update.edge_type)?;
-                        storage.insert_edge(edge)?;
+                        storage.delete_edge("default", &update.src, &update.dst, &update.edge_type)?;
+                        storage.insert_edge("default", edge)?;
                         _total_updated += 1;
                     }
                 }
@@ -483,13 +483,13 @@ impl<S: StorageClient + Send + 'static> Executor<S> for CreateIndexExecutor<S> {
 
         let result = match self.index_type {
             crate::index::IndexType::TagIndex => {
-                storage.create_tag_index(&index_info)
+                storage.create_tag_index("default", &index_info)
             }
             crate::index::IndexType::EdgeIndex => {
-                storage.create_edge_index(&index_info)
+                storage.create_edge_index("default", &index_info)
             }
             crate::index::IndexType::FulltextIndex => {
-                storage.create_tag_index(&index_info)
+                storage.create_tag_index("default", &index_info)
             }
         };
 

@@ -895,8 +895,8 @@ impl IndexManager for MemoryIndexManager {
 
         match index.index_type {
             IndexType::TagIndex => {
-                let vertices = storage_engine
-                    .scan_vertices_by_tag(&index.schema_name)
+            let vertices = storage_engine
+                    .scan_vertices_by_tag("default", &index.schema_name)
                     .map_err(|e| ManagerError::StorageError(e.to_string()))?;
                 
                 for vertex in vertices {
@@ -916,7 +916,7 @@ impl IndexManager for MemoryIndexManager {
             }
             IndexType::EdgeIndex => {
                 let edges = storage_engine
-                    .scan_edges_by_type(&index.schema_name)
+                    .scan_edges_by_type("default", &index.schema_name)
                     .map_err(|e| ManagerError::StorageError(e.to_string()))?;
                 
                 for edge in edges {
@@ -1144,7 +1144,7 @@ impl IndexManager for MemoryIndexManager {
             IndexType::TagIndex => {
                 for (_key, vertices) in &data.vertex_by_tag_property {
                     for vertex in vertices {
-                        if let Ok(Some(stored_vertex)) = storage_engine.get_node(vertex.vid()) {
+                        if let Ok(Some(stored_vertex)) = storage_engine.get_vertex("default", vertex.vid()) {
                             if stored_vertex.id() != vertex.id() {
                                 return Ok(false);
                             }
@@ -1157,7 +1157,7 @@ impl IndexManager for MemoryIndexManager {
             IndexType::EdgeIndex => {
                 for (_key, edges) in &data.edge_by_type_property {
                     for edge in edges {
-                        if let Ok(Some(stored_edge)) = storage_engine.get_edge(&edge.src, &edge.dst, &edge.edge_type) {
+                        if let Ok(Some(stored_edge)) = storage_engine.get_edge("default", &edge.src, &edge.dst, &edge.edge_type) {
                             if stored_edge.id != edge.id {
                                 return Ok(false);
                             }

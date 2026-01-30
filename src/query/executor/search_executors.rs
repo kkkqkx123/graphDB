@@ -57,7 +57,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for FulltextIndexScanExecuto
         let storage = safe_lock(self.get_storage())
             .expect("FulltextIndexScanExecutor storage lock should not be poisoned");
 
-        let vertices = storage.scan_all_vertices()?;
+        let vertices = storage.scan_vertices("default")?;
 
         let pattern_lower = self.pattern.to_lowercase();
         let mut matched_vertices = Vec::new();
@@ -200,7 +200,7 @@ impl<S: StorageClient> BFSShortestExecutor<S> {
         let mut queue: VecDeque<(Value, Path)> = VecDeque::new();
         let mut visited: HashMap<Value, bool> = HashMap::new();
 
-        let start_vertex = storage.get_node(&self.start_vertex_id)?;
+        let start_vertex = storage.get_vertex("default", &self.start_vertex_id)?;
         if let Some(vertex) = start_vertex {
             queue.push_back((self.start_vertex_id.clone(), Path::new(vertex)));
             visited.insert(self.start_vertex_id.clone(), true);
@@ -219,7 +219,7 @@ impl<S: StorageClient> BFSShortestExecutor<S> {
                 }
             }
 
-            let edges = storage.get_node_edges(&current_vertex_id, crate::core::EdgeDirection::Both)?;
+            let edges = storage.get_node_edges("default", &current_vertex_id, crate::core::EdgeDirection::Both)?;
             for edge in edges {
                 self.edges_traversed +=1;
                 let neighbor_id = *edge.dst.clone();
@@ -227,7 +227,7 @@ impl<S: StorageClient> BFSShortestExecutor<S> {
                 if !visited.contains_key(&neighbor_id) {
                     visited.insert(neighbor_id.clone(), true);
 
-                    if let Some(neighbor_vertex) = storage.get_node(&neighbor_id)? {
+                    if let Some(neighbor_vertex) = storage.get_vertex("default", &neighbor_id)? {
                         let mut new_path = current_path.clone();
                         new_path.add_step(crate::core::vertex_edge_path::Step {
                             dst: Box::new(neighbor_vertex),
@@ -361,7 +361,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for IndexScanExecutor<S> {
 
         match self.scan_type.as_str() {
             "RANGE" | "PREFIX" | "UNIQUE" => {
-                vertices = storage.scan_vertices_by_tag(&self.scan_type)?;
+                vertices = storage.scan_vertices_by_tag("default", &self.scan_type)?;
                 
                 if let Some(expr) = filter_expr {
                     let mut context = crate::expression::DefaultExpressionContext::new();
@@ -382,7 +382,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for IndexScanExecutor<S> {
                 }
             }
             _ => {
-                vertices = storage.scan_all_vertices()?;
+                vertices = storage.scan_vertices("default")?;
             }
         }
 

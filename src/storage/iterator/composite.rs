@@ -737,17 +737,19 @@ mod tests {
     fn test_composite_iter() {
         let data = create_test_data();
         let inner = super::super::SequentialIter::new(data).unwrap();
-        let iter = CompositeIter::new(inner)
-            .filter(|row| {
-                if let Some(Value::Int(age)) = row.get(1) {
-                    *age >= 30
-                } else {
-                    false
-                }
-            })
-            .take(1)
-            .skip(0);
+        let filtered = FilterIter::new(CompositeIter::new(inner), |row| {
+            if let Some(Value::Int(age)) = row.get(1) {
+                *age >= 30
+            } else {
+                false
+            }
+        });
 
-        assert_eq!(iter.size(), 1);
+        assert_eq!(filtered.size(), 2);
+
+        let taken = TakeIter::new(filtered, 1);
+        let skipped = SkipIter::new(taken, 0);
+
+        assert_eq!(skipped.size(), 1);
     }
 }

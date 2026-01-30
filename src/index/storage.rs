@@ -462,12 +462,12 @@ impl ConcurrentIndexStorage {
                     found = true;
                     match entry.entry_type {
                         IndexEntryType::Vertex(id) => {
-                            if let Ok(Some(vertex)) = storage.get_node(&Value::Int(id)) {
+                            if let Ok(Some(vertex)) = storage.get_vertex("default", &Value::Int(id)) {
                                 vertices.push(vertex);
                             }
                         }
                         IndexEntryType::Edge(id) => {
-                            if let Ok(Some(edge)) = storage.get_edge(&Value::Int(id), &Value::Int(0), "") {
+                            if let Ok(Some(edge)) = storage.get_edge("default", &Value::Int(id), &Value::Int(0), "") {
                                 edges.push(edge);
                             }
                         }
@@ -505,12 +505,12 @@ impl ConcurrentIndexStorage {
                         found = true;
                         match entry.entry_type {
                             IndexEntryType::Vertex(id) => {
-                                if let Ok(Some(vertex)) = storage.get_node(&Value::Int(id)) {
+                                if let Ok(Some(vertex)) = storage.get_vertex("default", &Value::Int(id)) {
                                     vertices.push(vertex);
                                 }
                             }
                             IndexEntryType::Edge(id) => {
-                                if let Ok(Some(edge)) = storage.get_edge(&Value::Int(id), &Value::Int(0), "") {
+                                if let Ok(Some(edge)) = storage.get_edge("default", &Value::Int(id), &Value::Int(0), "") {
                                     edges.push(edge);
                                 }
                             }
@@ -555,12 +555,12 @@ impl ConcurrentIndexStorage {
                         found = true;
                         match entry.entry_type {
                             IndexEntryType::Vertex(id) => {
-                                if let Ok(Some(vertex)) = storage.get_node(&Value::Int(id)) {
+                                if let Ok(Some(vertex)) = storage.get_vertex("default", &Value::Int(id)) {
                                     vertices.push(vertex);
                                 }
                             }
                             IndexEntryType::Edge(id) => {
-                                if let Ok(Some(edge)) = storage.get_edge(&Value::Int(id), &Value::Int(0), "") {
+                                if let Ok(Some(edge)) = storage.get_edge("default", &Value::Int(id), &Value::Int(0), "") {
                                     edges.push(edge);
                                 }
                             }
@@ -819,11 +819,12 @@ mod tests {
 
     #[test]
     fn test_concurrent_index_storage_insert() {
+        let space = "test";
         let storage = Arc::new(Mutex::new(MemoryStorage::new().expect("Failed to create MemoryStorage in test")));
         let index_storage = ConcurrentIndexStorage::new(1, 1, "test".to_string(), storage.clone());
 
         let vertex = create_test_vertex(1, "Alice", 30);
-        storage.lock().expect("Failed to acquire lock in test").insert_node(vertex.clone()).expect("Failed to insert node in test");
+        storage.lock().expect("Failed to acquire lock in test").insert_vertex(space, vertex.clone()).expect("Failed to insert node in test");
         index_storage.insert_vertex("name", &Value::String("Alice".to_string()), &vertex);
 
         assert_eq!(index_storage.get_entry_count(), 1);
@@ -835,6 +836,7 @@ mod tests {
 
     #[test]
     fn test_concurrent_index_storage_prefix_lookup() {
+        let space = "test";
         let storage = Arc::new(Mutex::new(MemoryStorage::new().expect("Failed to create MemoryStorage in test")));
         let index_storage = ConcurrentIndexStorage::new(1, 1, "test".to_string(), storage.clone());
 
@@ -842,9 +844,9 @@ mod tests {
         let vertex2 = create_test_vertex(2, "Bob", 25);
         let vertex3 = create_test_vertex(3, "Alex", 35);
 
-        storage.lock().expect("Failed to acquire lock in test").insert_node(vertex1.clone()).expect("Failed to insert node in test");
-        storage.lock().expect("Failed to acquire lock in test").insert_node(vertex2.clone()).expect("Failed to insert node in test");
-        storage.lock().expect("Failed to acquire lock in test").insert_node(vertex3.clone()).expect("Failed to insert node in test");
+        storage.lock().expect("Failed to acquire lock in test").insert_vertex(space, vertex1.clone()).expect("Failed to insert node in test");
+        storage.lock().expect("Failed to acquire lock in test").insert_vertex(space, vertex2.clone()).expect("Failed to insert node in test");
+        storage.lock().expect("Failed to acquire lock in test").insert_vertex(space, vertex3.clone()).expect("Failed to insert node in test");
 
         index_storage.insert_vertex("name", &Value::String("Alice".to_string()), &vertex1);
         index_storage.insert_vertex("name", &Value::String("Bob".to_string()), &vertex2);
@@ -858,6 +860,7 @@ mod tests {
 
     #[test]
     fn test_concurrent_index_storage_range_lookup() {
+        let space = "test";
         let storage = Arc::new(Mutex::new(MemoryStorage::new().expect("Failed to create MemoryStorage in test")));
         let index_storage = ConcurrentIndexStorage::new(1, 1, "test".to_string(), storage.clone());
 
@@ -865,9 +868,9 @@ mod tests {
         let vertex2 = create_test_vertex(2, "Bob", 30);
         let vertex3 = create_test_vertex(3, "Charlie", 40);
 
-        storage.lock().expect("Failed to acquire lock in test").insert_node(vertex1.clone()).expect("Failed to insert node in test");
-        storage.lock().expect("Failed to acquire lock in test").insert_node(vertex2.clone()).expect("Failed to insert node in test");
-        storage.lock().expect("Failed to acquire lock in test").insert_node(vertex3.clone()).expect("Failed to insert node in test");
+        storage.lock().expect("Failed to acquire lock in test").insert_vertex(space, vertex1.clone()).expect("Failed to insert node in test");
+        storage.lock().expect("Failed to acquire lock in test").insert_vertex(space, vertex2.clone()).expect("Failed to insert node in test");
+        storage.lock().expect("Failed to acquire lock in test").insert_vertex(space, vertex3.clone()).expect("Failed to insert node in test");
 
         index_storage.insert_vertex("age", &Value::Int(20), &vertex1);
         index_storage.insert_vertex("age", &Value::Int(30), &vertex2);
@@ -881,6 +884,7 @@ mod tests {
 
     #[test]
     fn test_concurrent_index_manager() {
+        let space = "test";
         let storage = Arc::new(Mutex::new(MemoryStorage::new().expect("Failed to create MemoryStorage in test")));
         let manager = ConcurrentIndexManager::new(1, storage.clone());
 
@@ -895,7 +899,7 @@ mod tests {
         let index_id = manager.create_index("person_name", "person", fields, false).expect("Failed to create index in test");
 
         let vertex = create_test_vertex(1, "Alice", 30);
-        storage.lock().expect("Failed to acquire lock in test").insert_node(vertex.clone()).expect("Failed to insert node in test");
+        storage.lock().expect("Failed to acquire lock in test").insert_vertex(space, vertex.clone()).expect("Failed to insert node in test");
         manager.insert_vertex(index_id, "name", &Value::String("Alice".to_string()), &vertex).expect("Failed to insert vertex in test");
 
         let (vertices, _) = manager.exact_lookup(index_id, "name", &Value::String("Alice".to_string())).expect("Failed to perform exact lookup in test");
@@ -904,10 +908,12 @@ mod tests {
 
     #[test]
     fn test_concurrent_edge_index() {
+        let space = "test";
         let storage = Arc::new(Mutex::new(MemoryStorage::new().expect("Failed to create MemoryStorage in test")));
         let index_storage = ConcurrentIndexStorage::new(1, 1, "test".to_string(), storage.clone());
 
         let edge = create_test_edge(1, "friend", 0.9);
+        storage.lock().expect("Failed to acquire lock in test").insert_edge(space, edge.clone()).expect("Failed to insert edge in test");
         index_storage.insert_edge("weight", &Value::Float(0.9), &edge);
 
         assert_eq!(index_storage.get_entry_count(), 1);
@@ -915,11 +921,12 @@ mod tests {
 
     #[test]
     fn test_query_stats() {
+        let space = "test";
         let storage = Arc::new(Mutex::new(MemoryStorage::new().expect("Failed to create MemoryStorage in test")));
         let index_storage = ConcurrentIndexStorage::new(1, 1, "test".to_string(), storage.clone());
 
         let vertex = create_test_vertex(1, "Alice", 30);
-        storage.lock().expect("Failed to acquire lock in test").insert_node(vertex.clone()).expect("Failed to insert node in test");
+        storage.lock().expect("Failed to acquire lock in test").insert_vertex(space, vertex.clone()).expect("Failed to insert node in test");
         index_storage.insert_vertex("name", &Value::String("Alice".to_string()), &vertex);
 
         let _ = index_storage.exact_lookup("name", &Value::String("Alice".to_string())).expect("Failed to perform exact lookup in test");

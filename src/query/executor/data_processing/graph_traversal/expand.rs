@@ -197,7 +197,7 @@ impl<S: StorageClient> ExpandExecutor<S> {
             .expect("ExpandExecutor storage lock should not be poisoned");
 
         for node_id in expanded_nodes {
-            if let Ok(Some(vertex)) = storage.get_node(&node_id) {
+            if let Ok(Some(vertex)) = storage.get_vertex("default", &node_id) {
                 vertices.push(vertex);
             }
         }

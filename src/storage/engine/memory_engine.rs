@@ -293,7 +293,7 @@ mod tests {
 
     #[test]
     fn test_snapshot() {
-        let engine = MemoryEngine::new();
+        let mut engine = MemoryEngine::new();
         engine.put(b"k1", b"v1").unwrap();
 
         let snap_id = engine.create_snapshot().unwrap();
@@ -317,6 +317,6 @@ mod tests {
         assert_eq!(snapshot_items[0], (b"k1".to_vec(), b"v1".to_vec()));
 
         engine.delete_snapshot(snap_id).unwrap();
-        assert_eq!(engine.get_snapshot(snap_id).unwrap(), None);
+        assert!(engine.get_snapshot(snap_id).unwrap().is_none());
     }
 }

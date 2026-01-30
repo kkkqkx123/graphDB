@@ -376,7 +376,7 @@ mod tests {
     #[test]
     fn test_base_result_processor() {
         // 这里需要模拟存储引擎，暂时跳过具体实现
-        // let storage = Arc::new(Mutex::new(MockStorageEngine::new()));
+        // let storage = Arc::new(Mutex::new(MockStorageClient::new()));
         // let processor = BaseResultProcessor::new(
         //     1,
         //     "test".to_string(),

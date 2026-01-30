@@ -26,7 +26,7 @@ impl SeekStrategy for VertexSeek {
         let mut rows_scanned = 0;
 
         if let Some(ref vid) = context.node_pattern.vid {
-            if let Some(vertex) = storage.get_node(vid)? {
+            if let Some(vertex) = storage.get_vertex("default", vid)? {
                 rows_scanned = 1;
                 if self.vertex_matches_pattern(&vertex, &context.node_pattern) {
                     vertex_ids.push(vid.clone());
@@ -34,7 +34,7 @@ impl SeekStrategy for VertexSeek {
             }
         } else {
             for vid in &self.resolve_vertex_ids(context)? {
-                if let Some(vertex) = storage.get_node(vid)? {
+                if let Some(vertex) = storage.get_vertex("default", vid)? {
                     rows_scanned += 1;
                     if self.vertex_matches_pattern(&vertex, &context.node_pattern) {
                         vertex_ids.push(vid.clone());

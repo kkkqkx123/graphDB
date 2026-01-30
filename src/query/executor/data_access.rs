@@ -50,7 +50,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for GetVerticesExecut
                     Vec::with_capacity(capacity);
 
                 for id in ids {
-                    if let Some(vertex) = storage.get_node(id)? {
+                    if let Some(vertex) = storage.get_vertex("default", id)? {
                         let include_vertex = if let Some(ref tag_filter_expression) = self.tag_filter {
                             crate::query::executor::tag_filter::TagFilterProcessor
                                 ::process_tag_filter(tag_filter_expression, &vertex)
@@ -75,7 +75,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for GetVerticesExecut
                 let storage = safe_lock(self.get_storage())
                     .expect("GetVerticesExecutor storage lock should not be poisoned");
 
-                storage.scan_all_vertices()?
+                storage.scan_vertices("default")?
                     .into_iter()
                     .filter(|vertex| {
                         if let Some(ref tag_filter_expression) = self.tag_filter {
@@ -205,9 +205,9 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for GetEdgesExecutor<
             .expect("GetEdgesExecutor storage lock should not be poisoned");
 
         let edges = if let Some(ref edge_type) = self.edge_type {
-            storage.scan_edges_by_type(edge_type)?
+            storage.scan_edges_by_type("default", edge_type)?
         } else {
-            storage.scan_all_edges()?
+            storage.scan_all_edges("default")?
         };
 
         let values: Vec<crate::core::Value> = edges
@@ -293,9 +293,9 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ScanEdgesExecutor
             .expect("ScanEdgesExecutor storage lock should not be poisoned");
 
         let mut edges: Vec<crate::core::vertex_edge_path::Edge> = if let Some(ref edge_type) = self.edge_type {
-            storage.scan_edges_by_type(edge_type)?
+            storage.scan_edges_by_type("default", edge_type)?
         } else {
-            storage.scan_all_edges()?
+            storage.scan_all_edges("default")?
         };
 
         if let Some(ref filter_expr) = self.filter {
@@ -410,7 +410,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for GetNeighborsExecu
         for vertex_id in &self.vertex_ids {
             let direction = self.edge_direction;
 
-            let edges = storage.get_node_edges(vertex_id, direction)?;
+            let edges = storage.get_node_edges("default", vertex_id, direction)?;
 
             for edge in edges {
                 if let Some(ref filter_types) = edge_types_filter {
@@ -425,7 +425,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for GetNeighborsExecu
                     &edge.src
                 };
 
-                if let Some(vertex) = storage.get_node(neighbor_id)? {
+                if let Some(vertex) = storage.get_vertex("default", neighbor_id)? {
                     neighbors.push(crate::core::Value::Vertex(Box::new(vertex)));
                 }
             }
@@ -518,7 +518,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for GetPropExecutor<S
             props.reserve(total_props);
 
             for vertex_id in vertex_ids {
-                if let Some(vertex) = storage.get_node(vertex_id)? {
+                if let Some(vertex) = storage.get_vertex("default", vertex_id)? {
                     for prop_name in &self.prop_names {
                         if let Some(value) = vertex.get_property_any(prop_name) {
                             props.push(value.clone());
@@ -635,7 +635,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for IndexScanExecutor
         let mut results = Vec::new();
 
         if let Some((prop_name, prop_value)) = &self.index_condition {
-            let scan_results = storage.scan_vertices_by_prop(&self.index_name, prop_name, prop_value)?;
+            let scan_results = storage.scan_vertices_by_prop("default", &self.index_name, prop_name, prop_value)?;
 
             for vertex in scan_results {
                 results.push(crate::core::Value::Vertex(Box::new(vertex)));
@@ -648,9 +648,9 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for IndexScanExecutor
             }
         } else {
             let scan_results = if self.scan_forward {
-                storage.scan_vertices_by_tag(&self.index_name)?
+                storage.scan_vertices_by_tag("default", &self.index_name)?
             } else {
-                storage.scan_all_vertices()?
+                storage.scan_vertices("default")?
             };
 
             for vertex in scan_results {
@@ -748,7 +748,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AllPathsExecutor<
 
         let mut all_paths: Vec<Path> = Vec::new();
 
-        let start_vertex_obj = if let Some(vertex) = storage.get_node(&self.start_vertex)? {
+        let start_vertex_obj = if let Some(vertex) = storage.get_vertex("default", &self.start_vertex)? {
             vertex
         } else {
             return Ok(ExecutionResult::Values(vec![]));
@@ -765,7 +765,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AllPathsExecutor<
             for path in &current_paths {
                 let direction = self.direction;
 
-                let edges = storage.get_node_edges(&self.start_vertex, direction)?;
+                let edges = storage.get_node_edges("default", &self.start_vertex, direction)?;
 
                 for edge in edges {
                     let neighbor_id = edge.dst.clone();
@@ -780,7 +780,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AllPathsExecutor<
                         }
                     }
 
-                    if let Some(neighbor) = storage.get_node(&neighbor_id)? {
+                    if let Some(neighbor) = storage.get_vertex("default", &neighbor_id)? {
                         let mut new_path = path.clone();
                         new_path.steps.push(Step {
                             dst: Box::new(neighbor),

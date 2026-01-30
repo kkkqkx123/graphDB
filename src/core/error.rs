@@ -98,6 +98,8 @@ pub enum StorageError {
     LockTimeout(String),
     #[error("死锁检测")]
     Deadlock,
+    #[error("连接错误: {0}")]
+    ConnectionError(String),
 }
 
 /// 查询层错误类型

@@ -488,7 +488,7 @@ mod tests {
         chain.add_version(v2.clone());
 
         assert_eq!(chain.versions.len(), 2);
-        assert_eq!(chain.latest_version(), Some(&v2));
+        assert_eq!(chain.latest_version().map(|v| v.version), Some(Version::new(2)));
 
         chain.add_version(Arc::new(VersionRecord::new(Version::new(3), TransactionId::new(3), VersionType::Write)));
         assert_eq!(chain.versions.len(), 3);

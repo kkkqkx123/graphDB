@@ -203,7 +203,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
             .expect("ShortestPathExecutor storage lock should not be poisoned");
 
         let edges = storage
-            .get_node_edges(node_id, EdgeDirection::Both)
+            .get_node_edges("default", node_id, EdgeDirection::Both)
             .map_err(|e| QueryError::StorageError(e.to_string()))?;
 
         let filtered_edges = if let Some(ref edge_types) = self.edge_types {
@@ -279,7 +279,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
         for start_id in start_ids {
             let storage = safe_lock(&*self.get_storage())
                 .expect("ShortestPathExecutor storage lock should not be poisoned");
-            if let Ok(Some(start_vertex)) = storage.get_node(start_id) {
+            if let Ok(Some(start_vertex)) = storage.get_vertex("default", start_id) {
                 let initial_path = Path {
                     src: Box::new(start_vertex),
                     steps: Vec::new(),
@@ -292,7 +292,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
         for end_id in end_ids {
             let storage = safe_lock(&*self.get_storage())
                 .expect("ShortestPathExecutor storage lock should not be poisoned");
-            if let Ok(Some(end_vertex)) = storage.get_node(end_id) {
+            if let Ok(Some(end_vertex)) = storage.get_vertex("default", end_id) {
                 let initial_path = Path {
                     src: Box::new(end_vertex),
                     steps: Vec::new(),
@@ -349,7 +349,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
 
                     let storage = safe_lock(&*self.get_storage())
                         .expect("ShortestPathExecutor storage lock should not be poisoned");
-                    if let Ok(Some(neighbor_vertex)) = storage.get_node(&neighbor_id) {
+                    if let Ok(Some(neighbor_vertex)) = storage.get_vertex("default", &neighbor_id) {
                         let mut new_path = current_path.clone();
                         new_path.steps.push(Step {
                             dst: Box::new(neighbor_vertex),
@@ -397,7 +397,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
 
                     let storage = safe_lock(&*self.get_storage())
                         .expect("ShortestPathExecutor storage lock should not be poisoned");
-                    if let Ok(Some(neighbor_vertex)) = storage.get_node(&neighbor_id) {
+                    if let Ok(Some(neighbor_vertex)) = storage.get_vertex("default", &neighbor_id) {
                         let mut new_path = current_path.clone();
                         new_path.steps.push(Step {
                             dst: Box::new(neighbor_vertex),
@@ -639,7 +639,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
         while let Some((prev_id, edge)) = previous_map.get(&current_id) {
             let storage = safe_lock(&*self.get_storage())
                 .expect("ShortestPathExecutor storage lock should not be poisoned");
-            if let Ok(Some(current_vertex)) = storage.get_node(&current_id) {
+            if let Ok(Some(current_vertex)) = storage.get_vertex("default", &current_id) {
                 path_steps.push(Step {
                     dst: Box::new(current_vertex),
                     edge: Box::new(edge.clone()),
@@ -654,7 +654,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
 
         let storage = safe_lock(&*self.get_storage())
             .expect("ShortestPathExecutor storage lock should not be poisoned");
-        if let Ok(Some(start_vertex)) = storage.get_node(&current_id) {
+        if let Ok(Some(start_vertex)) = storage.get_vertex("default", &current_id) {
             path_steps.reverse();
 
             Ok(Some(Path {
@@ -678,7 +678,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
         for start_id in start_ids {
             let storage = safe_lock(&*self.get_storage())
                 .expect("ShortestPathExecutor storage lock should not be poisoned");
-            if let Ok(Some(start_vertex)) = storage.get_node(start_id) {
+            if let Ok(Some(start_vertex)) = storage.get_vertex("default", start_id) {
                 let initial_path = Path {
                     src: Box::new(start_vertex),
                     steps: Vec::new(),
@@ -716,7 +716,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
 
                 let storage = safe_lock(&*self.get_storage())
                     .expect("ShortestPathExecutor storage lock should not be poisoned");
-                if let Ok(Some(neighbor_vertex)) = storage.get_node(&neighbor_id) {
+                if let Ok(Some(neighbor_vertex)) = storage.get_vertex("default", &neighbor_id) {
                     let mut new_path = current_path.clone();
                     new_path.steps.push(Step {
                         dst: Box::new(neighbor_vertex),
@@ -1008,7 +1008,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
             .expect("MultiShortestPathExecutor storage lock should not be poisoned");
 
         let edges = storage
-            .get_node_edges(node_id, EdgeDirection::Both)
+            .get_node_edges("default", node_id, EdgeDirection::Both)
             .map_err(|e| QueryError::StorageError(e.to_string()))?;
 
         let filtered_edges = if let Some(ref edge_types) = self.edge_types {
@@ -1034,7 +1034,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
             let storage = safe_lock(&*self.get_storage())
                 .expect("MultiShortestPathExecutor storage lock should not be poisoned");
 
-            if let Ok(Some(vertex)) = storage.get_node(start_vertex) {
+            if let Ok(Some(vertex)) = storage.get_vertex("default", start_vertex) {
                 let path = Path {
                     src: Box::new(vertex),
                     steps: Vec::new(),
@@ -1066,7 +1066,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
                     let storage = safe_lock(&*self.get_storage())
                         .expect("MultiShortestPathExecutor storage lock should not be poisoned");
 
-                    if let Ok(Some(dst_vertex)) = storage.get_node(&neighbor_id) {
+                    if let Ok(Some(dst_vertex)) = storage.get_vertex("default", &neighbor_id) {
                         let mut new_path = path.clone();
                         new_path.steps.push(Step {
                             dst: Box::new(dst_vertex),
@@ -1096,7 +1096,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
             let storage = safe_lock(&*self.get_storage())
                 .expect("MultiShortestPathExecutor storage lock should not be poisoned");
 
-            if let Ok(Some(vertex)) = storage.get_node(target_vertex) {
+            if let Ok(Some(vertex)) = storage.get_vertex("default", target_vertex) {
                 let path = Path {
                     src: Box::new(vertex),
                     steps: Vec::new(),
@@ -1128,7 +1128,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
                     let storage = safe_lock(&*self.get_storage())
                         .expect("MultiShortestPathExecutor storage lock should not be poisoned");
 
-                    if let Ok(Some(dst_vertex)) = storage.get_node(&neighbor_id) {
+                    if let Ok(Some(dst_vertex)) = storage.get_vertex("default", &neighbor_id) {
                         let mut new_path = path.clone();
                         new_path.steps.push(Step {
                             dst: Box::new(dst_vertex),

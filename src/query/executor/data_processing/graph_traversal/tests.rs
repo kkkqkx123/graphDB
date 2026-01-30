@@ -11,6 +11,7 @@ mod tests {
 
     async fn create_test_graph(_test_name: &str) -> Arc<Mutex<MockStorage>> {
         let storage = Arc::new(Mutex::new(MockStorage));
+        let space = "default";
 
         // 创建测试图：A -> B -> C, A -> D
         {
@@ -25,16 +26,16 @@ mod tests {
             let vertex_d = Vertex::new(Value::String("D".to_string()), vec![]);
 
             let id_a = storage_lock
-                .insert_node(vertex_a)
+                .insert_vertex(space, vertex_a)
                 .expect("Failed to insert test vertex A");
             let id_b = storage_lock
-                .insert_node(vertex_b)
+                .insert_vertex(space, vertex_b)
                 .expect("Failed to insert test vertex B");
             let id_c = storage_lock
-                .insert_node(vertex_c)
+                .insert_vertex(space, vertex_c)
                 .expect("Failed to insert test vertex C");
             let id_d = storage_lock
-                .insert_node(vertex_d)
+                .insert_vertex(space, vertex_d)
                 .expect("Failed to insert test vertex D");
 
             // 创建边
@@ -61,13 +62,13 @@ mod tests {
             );
 
             storage_lock
-                .insert_edge(edge_ab)
+                .insert_edge(space, edge_ab)
                 .expect("Failed to insert test edge AB");
             storage_lock
-                .insert_edge(edge_bc)
+                .insert_edge(space, edge_bc)
                 .expect("Failed to insert test edge BC");
             storage_lock
-                .insert_edge(edge_ad)
+                .insert_edge(space, edge_ad)
                 .expect("Failed to insert test edge AD");
         }
 

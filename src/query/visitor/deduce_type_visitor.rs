@@ -8,12 +8,15 @@ use crate::core::{
 };
 use crate::query::validator::ValidationContext;
 use crate::storage::StorageClient;
+use crate::storage::transaction::TransactionId;
 use thiserror::Error;
 
 #[cfg(test)]
 use crate::core::{Edge, Vertex};
 #[cfg(test)]
 use crate::core::EdgeDirection;
+#[cfg(test)]
+use crate::core::error::StorageError;
 
 #[derive(Error, Debug, Clone)]
 pub enum TypeDeductionError {
@@ -556,208 +559,325 @@ impl<'a, S: StorageClient> ExpressionVisitor for DeduceTypeVisitor<'a, S> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::types::{
+        EdgeTypeSchema, IndexInfo, InsertEdgeInfo, InsertVertexInfo, PasswordInfo,
+        PropertyDef, SpaceInfo, TagInfo, UpdateInfo,
+    };
+    use crate::expression::storage::Schema;
 
     /// Mock 存储引擎用于测试
     #[derive(Debug)]
     struct MockStorageEngine;
 
     impl StorageClient for MockStorageEngine {
-        fn insert_node(&mut self, _vertex: Vertex) -> Result<Value, DBError> {
-            Ok(Value::Int(0))
-        }
-
-        fn get_node(&self, _id: &Value) -> Result<Option<Vertex>, DBError> {
+        fn get_vertex(&self, _space: &str, _id: &Value) -> Result<Option<Vertex>, StorageError> {
             Ok(None)
         }
 
-        fn update_node(&mut self, _vertex: Vertex) -> Result<(), DBError> {
-            Ok(())
-        }
-
-        fn delete_node(&mut self, _id: &Value) -> Result<(), DBError> {
-            Ok(())
-        }
-
-        fn scan_all_vertices(&self) -> Result<Vec<Vertex>, DBError> {
-            Ok(Vec::new())
-        }
-        
-        fn scan_all_edges(&self) -> Result<Vec<Edge>, DBError> {
+        fn scan_vertices(&self, _space: &str) -> Result<Vec<Vertex>, StorageError> {
             Ok(Vec::new())
         }
 
-        fn scan_vertices_by_tag(&self, _tag: &str) -> Result<Vec<Vertex>, DBError> {
+        fn scan_vertices_by_tag(&self, _space: &str, _tag: &str) -> Result<Vec<Vertex>, StorageError> {
             Ok(Vec::new())
         }
 
-        fn insert_edge(&mut self, _edge: Edge) -> Result<(), DBError> {
-            Ok(())
+        fn scan_vertices_by_prop(
+            &self,
+            _space: &str,
+            _tag: &str,
+            _prop: &str,
+            _value: &Value,
+        ) -> Result<Vec<Vertex>, StorageError> {
+            Ok(Vec::new())
         }
 
         fn get_edge(
             &self,
+            _space: &str,
             _src: &Value,
             _dst: &Value,
             _edge_type: &str,
-        ) -> Result<Option<Edge>, DBError> {
+        ) -> Result<Option<Edge>, StorageError> {
             Ok(None)
         }
 
         fn get_node_edges(
             &self,
+            _space: &str,
             _node_id: &Value,
             _direction: EdgeDirection,
-        ) -> Result<Vec<Edge>, DBError> {
-            Ok(Vec::new())
-        }
-
-        fn delete_edge(
-            &mut self,
-            _src: &Value,
-            _dst: &Value,
-            _edge_type: &str,
-        ) -> Result<(), DBError> {
-            Ok(())
-        }
-
-        fn begin_transaction(&mut self) -> Result<u64, DBError> {
-            Ok(1)
-        }
-
-        fn commit_transaction(&mut self, _tx_id: u64) -> Result<(), DBError> {
-            Ok(())
-        }
-
-        fn rollback_transaction(&mut self, _tx_id: u64) -> Result<(), DBError> {
-            Ok(())
-        }
-
-        fn scan_edges_by_type(&self, _edge_type: &str) -> Result<Vec<Edge>, DBError> {
-            Ok(Vec::new())
-        }
-
-        fn scan_vertices_by_prop(&self, _tag: &str, _prop: &str, _value: &Value) -> Result<Vec<Vertex>, DBError> {
+        ) -> Result<Vec<Edge>, StorageError> {
             Ok(Vec::new())
         }
 
         fn get_node_edges_filtered(
             &self,
+            _space: &str,
             _node_id: &Value,
             _direction: EdgeDirection,
             _filter: Option<Box<dyn Fn(&Edge) -> bool + Send + Sync>>,
-        ) -> Result<Vec<Edge>, DBError> {
+        ) -> Result<Vec<Edge>, StorageError> {
             Ok(Vec::new())
         }
 
-        fn batch_insert_nodes(&mut self, _vertices: Vec<Vertex>) -> Result<Vec<Value>, DBError> {
+        fn scan_edges_by_type(&self, _space: &str, _edge_type: &str) -> Result<Vec<Edge>, StorageError> {
             Ok(Vec::new())
         }
 
-        fn batch_insert_edges(&mut self, _edges: Vec<Edge>) -> Result<(), DBError> {
+        fn scan_all_edges(&self, _space: &str) -> Result<Vec<Edge>, StorageError> {
+            Ok(Vec::new())
+        }
+
+        fn insert_vertex(&mut self, _space: &str, _vertex: Vertex) -> Result<Value, StorageError> {
+            Ok(Value::Int(0))
+        }
+
+        fn update_vertex(&mut self, _space: &str, _vertex: Vertex) -> Result<(), StorageError> {
             Ok(())
         }
 
-        fn get_input(&self, _input_var: &str) -> Result<Option<Vec<Value>>, DBError> {
-            Ok(None)
+        fn delete_vertex(&mut self, _space: &str, _id: &Value) -> Result<(), StorageError> {
+            Ok(())
         }
 
-        // ========== 空间管理 ==========
-        fn create_space(&mut self, _space: &crate::core::types::SpaceInfo) -> Result<bool, DBError> {
-            Ok(true)
-        }
-
-        fn drop_space(&mut self, _space_name: &str) -> Result<bool, DBError> {
-            Ok(true)
-        }
-
-        fn get_space(&self, _space_name: &str) -> Result<Option<crate::core::types::SpaceInfo>, DBError> {
-            Ok(None)
-        }
-
-        fn list_spaces(&self) -> Result<Vec<crate::core::types::SpaceInfo>, DBError> {
+        fn batch_insert_vertices(
+            &mut self,
+            _space: &str,
+            _vertices: Vec<Vertex>,
+        ) -> Result<Vec<Value>, StorageError> {
             Ok(Vec::new())
         }
 
-        // ========== 标签管理 ==========
-        fn create_tag(&mut self, _info: &crate::core::types::TagInfo) -> Result<bool, DBError> {
+        fn insert_edge(&mut self, _space: &str, _edge: Edge) -> Result<(), StorageError> {
+            Ok(())
+        }
+
+        fn delete_edge(
+            &mut self,
+            _space: &str,
+            _src: &Value,
+            _dst: &Value,
+            _edge_type: &str,
+        ) -> Result<(), StorageError> {
+            Ok(())
+        }
+
+        fn batch_insert_edges(&mut self, _space: &str, _edges: Vec<Edge>) -> Result<(), StorageError> {
+            Ok(())
+        }
+
+        fn begin_transaction(&mut self, _space: &str) -> Result<TransactionId, StorageError> {
+            Ok(TransactionId::new(1))
+        }
+
+        fn commit_transaction(&mut self, _space: &str, _tx_id: TransactionId) -> Result<(), StorageError> {
+            Ok(())
+        }
+
+        fn rollback_transaction(&mut self, _space: &str, _tx_id: TransactionId) -> Result<(), StorageError> {
+            Ok(())
+        }
+
+        fn create_space(&mut self, _space: &SpaceInfo) -> Result<bool, StorageError> {
             Ok(true)
         }
 
-        fn alter_tag(&mut self, _space_name: &str, _tag_name: &str, _additions: Vec<crate::core::types::PropertyDef>, _deletions: Vec<String>) -> Result<bool, DBError> {
+        fn drop_space(&mut self, _space: &str) -> Result<bool, StorageError> {
             Ok(true)
         }
 
-        fn get_tag(&self, _space_name: &str, _tag_name: &str) -> Result<Option<crate::core::types::TagInfo>, DBError> {
+        fn get_space(&self, _space: &str) -> Result<Option<SpaceInfo>, StorageError> {
             Ok(None)
         }
 
-        fn drop_tag(&mut self, _space_name: &str, _tag_name: &str) -> Result<bool, DBError> {
-            Ok(true)
-        }
-
-        fn list_tags(&self, _space_name: &str) -> Result<Vec<crate::core::types::TagInfo>, DBError> {
+        fn list_spaces(&self) -> Result<Vec<SpaceInfo>, StorageError> {
             Ok(Vec::new())
         }
 
-        // ========== 边类型管理 ==========
-        fn create_edge_type(&mut self, _info: &crate::core::types::EdgeTypeSchema) -> Result<bool, DBError> {
+        fn create_tag(&mut self, _space: &str, _info: &TagInfo) -> Result<bool, StorageError> {
             Ok(true)
         }
 
-        fn alter_edge_type(&mut self, _space_name: &str, _edge_type_name: &str, _additions: Vec<crate::core::types::PropertyDef>, _deletions: Vec<String>) -> Result<bool, DBError> {
+        fn alter_tag(
+            &mut self,
+            _space: &str,
+            _tag: &str,
+            _additions: Vec<PropertyDef>,
+            _deletions: Vec<String>,
+        ) -> Result<bool, StorageError> {
             Ok(true)
         }
 
-        fn get_edge_type(&self, _space_name: &str, _edge_type_name: &str) -> Result<Option<crate::core::types::EdgeTypeSchema>, DBError> {
+        fn get_tag(&self, _space: &str, _tag: &str) -> Result<Option<TagInfo>, StorageError> {
             Ok(None)
         }
 
-        fn drop_edge_type(&mut self, _space_name: &str, _edge_type_name: &str) -> Result<bool, DBError> {
+        fn drop_tag(&mut self, _space: &str, _tag: &str) -> Result<bool, StorageError> {
             Ok(true)
         }
 
-        fn list_edge_types(&self, _space_name: &str) -> Result<Vec<crate::core::types::EdgeTypeSchema>, DBError> {
+        fn list_tags(&self, _space: &str) -> Result<Vec<TagInfo>, StorageError> {
             Ok(Vec::new())
         }
 
-        // ========== 索引管理 ==========
-        fn create_index(&mut self, _space_name: &str, _index_info: &crate::core::types::IndexInfo) -> Result<bool, DBError> {
+        fn create_edge_type(
+            &mut self,
+            _space: &str,
+            _info: &EdgeTypeSchema,
+        ) -> Result<bool, StorageError> {
             Ok(true)
         }
 
-        fn drop_index(&mut self, _space_name: &str, _index_name: &str, _is_edge: bool) -> Result<bool, DBError> {
+        fn alter_edge_type(
+            &mut self,
+            _space: &str,
+            _edge_type: &str,
+            _additions: Vec<PropertyDef>,
+            _deletions: Vec<String>,
+        ) -> Result<bool, StorageError> {
             Ok(true)
         }
 
-        fn rebuild_index(&mut self, _space_name: &str, _index_name: &str) -> Result<bool, DBError> {
-            Ok(true)
-        }
-
-        fn get_index(&self, _space_name: &str, _index_name: &str) -> Result<Option<crate::core::types::IndexInfo>, DBError> {
+        fn get_edge_type(
+            &self,
+            _space: &str,
+            _edge_type: &str,
+        ) -> Result<Option<EdgeTypeSchema>, StorageError> {
             Ok(None)
         }
 
-        fn list_indexes(&self, _space_name: &str) -> Result<Vec<crate::core::types::IndexInfo>, DBError> {
+        fn drop_edge_type(&mut self, _space: &str, _edge_type: &str) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn list_edge_types(&self, _space: &str) -> Result<Vec<EdgeTypeSchema>, StorageError> {
             Ok(Vec::new())
         }
 
-        fn lookup_index(&self, _space_name: &str, _index_name: &str, _value: &Value) -> Result<Vec<Value>, DBError> {
-            Ok(Vec::new())
+        fn create_tag_index(&mut self, _space: &str, _info: &IndexInfo) -> Result<bool, StorageError> {
+            Ok(true)
         }
 
-        fn get_vertex_with_schema(&self, _space_name: &str, _tag_name: &str, _id: &crate::core::Value) -> Result<Option<(crate::expression::storage::Schema, Vec<u8>)>, DBError> {
+        fn drop_tag_index(&mut self, _space: &str, _index: &str) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn get_tag_index(
+            &self,
+            _space: &str,
+            _index: &str,
+        ) -> Result<Option<IndexInfo>, StorageError> {
             Ok(None)
         }
 
-        fn get_edge_with_schema(&self, _space_name: &str, _edge_type_name: &str, _src: &crate::core::Value, _dst: &crate::core::Value) -> Result<Option<(crate::expression::storage::Schema, Vec<u8>)>, DBError> {
-            Ok(None)
-        }
-
-        fn scan_vertices_with_schema(&self, _space_name: &str, _tag_name: &str) -> Result<Vec<(crate::expression::storage::Schema, Vec<u8>)>, DBError> {
+        fn list_tag_indexes(&self, _space: &str) -> Result<Vec<IndexInfo>, StorageError> {
             Ok(Vec::new())
         }
 
-        fn scan_edges_with_schema(&self, _space_name: &str, _edge_type_name: &str) -> Result<Vec<(crate::expression::storage::Schema, Vec<u8>)>, DBError> {
+        fn rebuild_tag_index(&mut self, _space: &str, _index: &str) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn create_edge_index(&mut self, _space: &str, _info: &IndexInfo) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn drop_edge_index(&mut self, _space: &str, _index: &str) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn get_edge_index(
+            &self,
+            _space: &str,
+            _index: &str,
+        ) -> Result<Option<IndexInfo>, StorageError> {
+            Ok(None)
+        }
+
+        fn list_edge_indexes(&self, _space: &str) -> Result<Vec<IndexInfo>, StorageError> {
+            Ok(Vec::new())
+        }
+
+        fn rebuild_edge_index(&mut self, _space: &str, _index: &str) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn lookup_index(
+            &self,
+            _space: &str,
+            _index: &str,
+            _value: &Value,
+        ) -> Result<Vec<Value>, StorageError> {
+            Ok(Vec::new())
+        }
+
+        fn insert_vertex_data(
+            &mut self,
+            _space: &str,
+            _info: &InsertVertexInfo,
+        ) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn insert_edge_data(&mut self, _space: &str, _info: &InsertEdgeInfo) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn delete_vertex_data(&mut self, _space: &str, _vertex_id: &str) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn delete_edge_data(
+            &mut self,
+            _space: &str,
+            _src: &str,
+            _dst: &str,
+            _rank: i64,
+        ) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn update_data(&mut self, _space: &str, _info: &UpdateInfo) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn change_password(&mut self, _info: &PasswordInfo) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn get_vertex_with_schema(
+            &self,
+            _space: &str,
+            _tag: &str,
+            _id: &Value,
+        ) -> Result<Option<(Schema, Vec<u8>)>, StorageError> {
+            Ok(None)
+        }
+
+        fn get_edge_with_schema(
+            &self,
+            _space: &str,
+            _edge_type: &str,
+            _src: &Value,
+            _dst: &Value,
+        ) -> Result<Option<(Schema, Vec<u8>)>, StorageError> {
+            Ok(None)
+        }
+
+        fn scan_vertices_with_schema(
+            &self,
+            _space: &str,
+            _tag: &str,
+        ) -> Result<Vec<(Schema, Vec<u8>)>, StorageError> {
+            Ok(Vec::new())
+        }
+
+        fn scan_edges_with_schema(
+            &self,
+            _space: &str,
+            _edge_type: &str,
+        ) -> Result<Vec<(Schema, Vec<u8>)>, StorageError> {
             Ok(Vec::new())
         }
     }

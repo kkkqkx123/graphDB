@@ -1,4 +1,4 @@
-use super::{StorageEngine, TransactionId};
+use super::{StorageClient, TransactionId};
 use crate::common::fs::FileLock;
 use crate::core::{Edge, StorageError, Value, Vertex, EdgeDirection};
 use crate::core::types::{
@@ -445,8 +445,8 @@ impl RedbStorage {
     }
 }
 
-impl StorageEngine for RedbStorage {
-    fn insert_node(&mut self, vertex: Vertex) -> Result<Value, StorageError> {
+impl StorageClient for RedbStorage {
+    fn insert_vertex(&mut self, _space: &str, vertex: Vertex) -> Result<Value, StorageError> {
         let id = self.generate_id();
         let vertex_with_id = Vertex::new(id.clone(), vertex.tags);
 
@@ -473,7 +473,7 @@ impl StorageEngine for RedbStorage {
         Ok(id)
     }
 
-    fn get_node(&self, id: &Value) -> Result<Option<Vertex>, StorageError> {
+    fn get_vertex(&self, _space: &str, id: &Value) -> Result<Option<Vertex>, StorageError> {
         let id_bytes = self.value_to_bytes(id)?;
 
         {
@@ -495,7 +495,7 @@ impl StorageEngine for RedbStorage {
         }
     }
 
-    fn update_node(&mut self, vertex: Vertex) -> Result<(), StorageError> {
+    fn update_vertex(&mut self, _space: &str, vertex: Vertex) -> Result<(), StorageError> {
         if matches!(*vertex.vid, Value::Null(_)) {
             return Err(StorageError::NodeNotFound(Value::Null(Default::default())));
         }
@@ -528,10 +528,10 @@ impl StorageEngine for RedbStorage {
         Ok(())
     }
 
-    fn delete_node(&mut self, id: &Value) -> Result<(), StorageError> {
-        let edges_to_delete = self.get_node_edges(id, EdgeDirection::Both)?;
+    fn delete_vertex(&mut self, _space: &str, id: &Value) -> Result<(), StorageError> {
+        let edges_to_delete = self.get_node_edges(_space, id, EdgeDirection::Both)?;
         for edge in edges_to_delete {
-            self.delete_edge(&edge.src, &edge.dst, &edge.edge_type)?;
+            self.delete_edge(_space, &edge.src, &edge.dst, &edge.edge_type)?;
         }
 
         let id_bytes = self.value_to_bytes(id)?;
@@ -571,7 +571,7 @@ impl StorageEngine for RedbStorage {
         Ok(())
     }
 
-    fn scan_all_vertices(&self) -> Result<Vec<Vertex>, StorageError> {
+    fn scan_vertices(&self, _space: &str) -> Result<Vec<Vertex>, StorageError> {
         let read_txn = self
             .db
             .begin_read()
@@ -592,8 +592,8 @@ impl StorageEngine for RedbStorage {
         Ok(vertices)
     }
 
-    fn scan_vertices_by_tag(&self, tag: &str) -> Result<Vec<Vertex>, StorageError> {
-        let all_vertices = self.scan_all_vertices()?;
+    fn scan_vertices_by_tag(&self, _space: &str, tag: &str) -> Result<Vec<Vertex>, StorageError> {
+        let all_vertices = self.scan_vertices(_space)?;
         let filtered_vertices = all_vertices
             .into_iter()
             .filter(|vertex| vertex.tags.iter().any(|vertex_tag| vertex_tag.name == tag))
@@ -602,11 +602,20 @@ impl StorageEngine for RedbStorage {
         Ok(filtered_vertices)
     }
 
-    fn scan_vertices_by_prop(&self, tag: &str, prop: &str, value: &Value) -> Result<Vec<Vertex>, StorageError> {
-        self.get_vertices_by_prop(tag, prop, value)
+    fn scan_vertices_by_prop(&self, _space: &str, tag: &str, prop: &str, value: &Value) -> Result<Vec<Vertex>, StorageError> {
+        let all_vertices = self.scan_vertices(_space)?;
+        let filtered_vertices = all_vertices
+            .into_iter()
+            .filter(|vertex| {
+                vertex.tags.iter().any(|vertex_tag| vertex_tag.name == tag)
+                    && vertex.properties.get(prop).map_or(false, |p| p == value)
+            })
+            .collect();
+
+        Ok(filtered_vertices)
     }
 
-    fn insert_edge(&mut self, edge: Edge) -> Result<(), StorageError> {
+    fn insert_edge(&mut self, _space: &str, edge: Edge) -> Result<(), StorageError> {
         let edge_key = format!("{:?}_{:?}_{}", edge.src, edge.dst, edge.edge_type);
         let edge_key_bytes = edge_key.as_bytes().to_vec();
 
@@ -642,6 +651,7 @@ impl StorageEngine for RedbStorage {
 
     fn get_edge(
         &self,
+        _space: &str,
         src: &Value,
         dst: &Value,
         edge_type: &str,
@@ -670,14 +680,16 @@ impl StorageEngine for RedbStorage {
 
     fn get_node_edges(
         &self,
+        _space: &str,
         node_id: &Value,
         direction: EdgeDirection,
     ) -> Result<Vec<Edge>, StorageError> {
-        self.get_node_edges_filtered(node_id, direction, None)
+        self.get_node_edges_filtered(_space, node_id, direction, None)
     }
 
     fn get_node_edges_filtered(
         &self,
+        _space: &str,
         node_id: &Value,
         direction: EdgeDirection,
         filter: Option<Box<dyn Fn(&Edge) -> bool + Send + Sync>>,
@@ -709,6 +721,7 @@ impl StorageEngine for RedbStorage {
 
     fn delete_edge(
         &mut self,
+        _space: &str,
         src: &Value,
         dst: &Value,
         edge_type: &str,
@@ -745,7 +758,7 @@ impl StorageEngine for RedbStorage {
         Ok(())
     }
 
-    fn scan_edges_by_type(&self, edge_type: &str) -> Result<Vec<Edge>, StorageError> {
+    fn scan_edges_by_type(&self, _space: &str, edge_type: &str) -> Result<Vec<Edge>, StorageError> {
         let edge_keys = self.get_edge_keys_by_type(edge_type)?;
         let mut edges = Vec::new();
 
@@ -758,7 +771,7 @@ impl StorageEngine for RedbStorage {
         Ok(edges)
     }
 
-    fn scan_all_edges(&self) -> Result<Vec<Edge>, StorageError> {
+    fn scan_all_edges(&self, _space: &str) -> Result<Vec<Edge>, StorageError> {
         let read_txn = self
             .db
             .begin_read()
@@ -779,7 +792,7 @@ impl StorageEngine for RedbStorage {
         Ok(edges)
     }
 
-    fn batch_insert_nodes(&mut self, vertices: Vec<Vertex>) -> Result<Vec<Value>, StorageError> {
+    fn batch_insert_vertices(&mut self, _space: &str, vertices: Vec<Vertex>) -> Result<Vec<Value>, StorageError> {
         let mut ids = Vec::new();
 
         let write_txn = self
@@ -812,7 +825,7 @@ impl StorageEngine for RedbStorage {
         Ok(ids)
     }
 
-    fn batch_insert_edges(&mut self, edges: Vec<Edge>) -> Result<(), StorageError> {
+    fn batch_insert_edges(&mut self, _space: &str, edges: Vec<Edge>) -> Result<(), StorageError> {
         let write_txn = self
             .db
             .begin_write()
@@ -852,7 +865,7 @@ impl StorageEngine for RedbStorage {
         Ok(())
     }
 
-    fn begin_transaction(&mut self) -> Result<TransactionId, StorageError> {
+    fn begin_transaction(&mut self, _space: &str) -> Result<TransactionId, StorageError> {
         let _lock = self.acquire_exclusive_lock()?;
 
         let tx_id = SystemTime::now()
@@ -867,7 +880,7 @@ impl StorageEngine for RedbStorage {
         Ok(tx_id)
     }
 
-    fn commit_transaction(&mut self, tx_id: TransactionId) -> Result<(), StorageError> {
+    fn commit_transaction(&mut self, _space: &str, tx_id: TransactionId) -> Result<(), StorageError> {
         let mut active_transactions = self.active_transactions.lock().expect("Failed to lock active transactions");
         if !active_transactions.contains_key(&tx_id) {
             return Err(StorageError::TransactionNotFound(tx_id.as_u64()));
@@ -878,7 +891,7 @@ impl StorageEngine for RedbStorage {
         Ok(())
     }
 
-    fn rollback_transaction(&mut self, tx_id: TransactionId) -> Result<(), StorageError> {
+    fn rollback_transaction(&mut self, _space: &str, tx_id: TransactionId) -> Result<(), StorageError> {
         let mut active_transactions = self.active_transactions.lock().expect("Failed to lock active transactions");
         if !active_transactions.contains_key(&tx_id) {
             return Err(StorageError::TransactionNotFound(tx_id.as_u64()));
@@ -887,10 +900,6 @@ impl StorageEngine for RedbStorage {
         active_transactions.remove(&tx_id);
 
         Ok(())
-    }
-
-    fn get_input(&self, _input_var: &str) -> Result<Option<Vec<Value>>, StorageError> {
-        Ok(None)
     }
 
     // ========== 空间管理 ==========
@@ -902,7 +911,7 @@ impl StorageEngine for RedbStorage {
         Err(StorageError::NotSupported("drop_space not supported in RedbStorage".to_string()))
     }
 
-    fn get_space(&self, _space_name: &str) -> Result<Option<SpaceInfo>, StorageError> {
+    fn get_space(&self, _space: &str) -> Result<Option<SpaceInfo>, StorageError> {
         Err(StorageError::NotSupported("get_space not supported in RedbStorage".to_string()))
     }
 
@@ -911,11 +920,11 @@ impl StorageEngine for RedbStorage {
     }
 
     // ========== 标签管理 ==========
-    fn create_tag(&mut self, _info: &TagInfo) -> Result<bool, StorageError> {
+    fn create_tag(&mut self, _space: &str, _info: &TagInfo) -> Result<bool, StorageError> {
         Err(StorageError::NotSupported("create_tag not supported in RedbStorage".to_string()))
     }
 
-    fn alter_tag(&mut self, _space_name: &str, _tag_name: &str, _additions: Vec<PropertyDef>, _deletions: Vec<String>) -> Result<bool, StorageError> {
+    fn alter_tag(&mut self, _space: &str, _tag: &str, _additions: Vec<PropertyDef>, _deletions: Vec<String>) -> Result<bool, StorageError> {
         Err(StorageError::NotSupported("alter_tag not supported in RedbStorage".to_string()))
     }
 
@@ -923,7 +932,7 @@ impl StorageEngine for RedbStorage {
         Err(StorageError::NotSupported("get_tag not supported in RedbStorage".to_string()))
     }
 
-    fn drop_tag(&mut self, _space_name: &str, _tag_name: &str) -> Result<bool, StorageError> {
+    fn drop_tag(&mut self, _space: &str, _tag: &str) -> Result<bool, StorageError> {
         Err(StorageError::NotSupported("drop_tag not supported in RedbStorage".to_string()))
     }
 
@@ -932,11 +941,11 @@ impl StorageEngine for RedbStorage {
     }
 
     // ========== 边类型管理 ==========
-    fn create_edge_type(&mut self, _info: &EdgeTypeSchema) -> Result<bool, StorageError> {
+    fn create_edge_type(&mut self, _space: &str, _info: &EdgeTypeSchema) -> Result<bool, StorageError> {
         Err(StorageError::NotSupported("create_edge_type not supported in RedbStorage".to_string()))
     }
 
-    fn alter_edge_type(&mut self, _space_name: &str, _edge_type_name: &str, _additions: Vec<PropertyDef>, _deletions: Vec<String>) -> Result<bool, StorageError> {
+    fn alter_edge_type(&mut self, _space: &str, _edge_type: &str, _additions: Vec<PropertyDef>, _deletions: Vec<String>) -> Result<bool, StorageError> {
         Err(StorageError::NotSupported("alter_edge_type not supported in RedbStorage".to_string()))
     }
 
@@ -948,20 +957,20 @@ impl StorageEngine for RedbStorage {
         Err(StorageError::NotSupported("drop_edge_type not supported in RedbStorage".to_string()))
     }
 
-    fn list_edge_types(&self, _space_name: &str) -> Result<Vec<EdgeTypeSchema>, StorageError> {
+    fn list_edge_types(&self, _space: &str) -> Result<Vec<EdgeTypeSchema>, StorageError> {
         Err(StorageError::NotSupported("list_edge_types not supported in RedbStorage".to_string()))
     }
 
     // ========== 索引管理 ==========
-    fn create_tag_index(&mut self, _info: &IndexInfo) -> Result<bool, StorageError> {
+    fn create_tag_index(&mut self, _space: &str, _info: &IndexInfo) -> Result<bool, StorageError> {
         Err(StorageError::NotSupported("create_tag_index not supported in RedbStorage".to_string()))
     }
 
-    fn drop_tag_index(&mut self, _space_name: &str, _index_name: &str) -> Result<bool, StorageError> {
+    fn drop_tag_index(&mut self, _space: &str, _index: &str) -> Result<bool, StorageError> {
         Err(StorageError::NotSupported("drop_tag_index not supported in RedbStorage".to_string()))
     }
 
-    fn get_tag_index(&self, _space_name: &str, _index_name: &str) -> Result<Option<IndexInfo>, StorageError> {
+    fn get_tag_index(&self, _space: &str, _index: &str) -> Result<Option<IndexInfo>, StorageError> {
         Err(StorageError::NotSupported("get_tag_index not supported in RedbStorage".to_string()))
     }
 
@@ -969,11 +978,11 @@ impl StorageEngine for RedbStorage {
         Err(StorageError::NotSupported("list_tag_indexes not supported in RedbStorage".to_string()))
     }
 
-    fn rebuild_tag_index(&mut self, _space_name: &str, _index_name: &str) -> Result<bool, StorageError> {
+    fn rebuild_tag_index(&mut self, _space: &str, _index: &str) -> Result<bool, StorageError> {
         Err(StorageError::NotSupported("rebuild_tag_index not supported in RedbStorage".to_string()))
     }
 
-    fn create_edge_index(&mut self, _info: &IndexInfo) -> Result<bool, StorageError> {
+    fn create_edge_index(&mut self, _space: &str, _info: &IndexInfo) -> Result<bool, StorageError> {
         Err(StorageError::NotSupported("create_edge_index not supported in RedbStorage".to_string()))
     }
 
@@ -985,7 +994,7 @@ impl StorageEngine for RedbStorage {
         Err(StorageError::NotSupported("get_edge_index not supported in RedbStorage".to_string()))
     }
 
-    fn list_edge_indexes(&self, _space_name: &str) -> Result<Vec<IndexInfo>, StorageError> {
+    fn list_edge_indexes(&self, _space: &str) -> Result<Vec<IndexInfo>, StorageError> {
         Err(StorageError::NotSupported("list_edge_indexes not supported in RedbStorage".to_string()))
     }
 
@@ -994,23 +1003,23 @@ impl StorageEngine for RedbStorage {
     }
 
     // ========== 数据变更 ==========
-    fn insert_vertex_data(&mut self, _info: &InsertVertexInfo) -> Result<bool, StorageError> {
+    fn insert_vertex_data(&mut self, _space: &str, _info: &InsertVertexInfo) -> Result<bool, StorageError> {
         Err(StorageError::NotSupported("insert_vertex_data not supported in RedbStorage".to_string()))
     }
 
-    fn insert_edge_data(&mut self, _info: &InsertEdgeInfo) -> Result<bool, StorageError> {
+    fn insert_edge_data(&mut self, _space: &str, _info: &InsertEdgeInfo) -> Result<bool, StorageError> {
         Err(StorageError::NotSupported("insert_edge_data not supported in RedbStorage".to_string()))
     }
 
-    fn delete_vertex_data(&mut self, _space_name: &str, _vertex_id: &str) -> Result<bool, StorageError> {
+    fn delete_vertex_data(&mut self, _space: &str, _vertex_id: &str) -> Result<bool, StorageError> {
         Err(StorageError::NotSupported("delete_vertex_data not supported in RedbStorage".to_string()))
     }
 
-    fn delete_edge_data(&mut self, _space_name: &str, _src: &str, _dst: &str, _rank: i64) -> Result<bool, StorageError> {
+    fn delete_edge_data(&mut self, _space: &str, _src: &str, _dst: &str, _rank: i64) -> Result<bool, StorageError> {
         Err(StorageError::NotSupported("delete_edge_data not supported in RedbStorage".to_string()))
     }
 
-    fn update_data(&mut self, _info: &UpdateInfo) -> Result<bool, StorageError> {
+    fn update_data(&mut self, _space: &str, _info: &UpdateInfo) -> Result<bool, StorageError> {
         Err(StorageError::NotSupported("update_data not supported in RedbStorage".to_string()))
     }
 
@@ -1024,7 +1033,7 @@ impl StorageEngine for RedbStorage {
         Err(StorageError::NotSupported("get_vertex_with_schema not supported in RedbStorage".to_string()))
     }
 
-    fn get_edge_with_schema(&self, _space_name: &str, _edge_type_name: &str, _src: &Value, _dst: &Value) -> Result<Option<(crate::expression::storage::Schema, Vec<u8>)>, StorageError> {
+    fn get_edge_with_schema(&self, _space: &str, _edge_type_name: &str, _src: &Value, _dst: &Value) -> Result<Option<(crate::expression::storage::Schema, Vec<u8>)>, StorageError> {
         Err(StorageError::NotSupported("get_edge_with_schema not supported in RedbStorage".to_string()))
     }
 
@@ -1032,7 +1041,11 @@ impl StorageEngine for RedbStorage {
         Err(StorageError::NotSupported("scan_vertices_with_schema not supported in RedbStorage".to_string()))
     }
 
-    fn scan_edges_with_schema(&self, _space_name: &str, _edge_type_name: &str) -> Result<Vec<(crate::expression::storage::Schema, Vec<u8>)>, StorageError> {
+    fn scan_edges_with_schema(&self, _space: &str, _edge_type: &str) -> Result<Vec<(crate::expression::storage::Schema, Vec<u8>)>, StorageError> {
         Err(StorageError::NotSupported("scan_edges_with_schema not supported in RedbStorage".to_string()))
+    }
+
+    fn lookup_index(&self, _space: &str, _index: &str, _value: &Value) -> Result<Vec<Value>, StorageError> {
+        Ok(Vec::new())
     }
 }

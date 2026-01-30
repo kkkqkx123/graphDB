@@ -6,7 +6,6 @@ pub mod plan;
 pub mod transaction;
 pub mod memory_storage;
 pub mod redb_storage;
-pub mod storage_engine;
 pub mod storage_client;
 
 #[cfg(test)]
@@ -20,7 +19,6 @@ pub use operations::*;
 pub use plan::*;
 pub use redb_storage::*;
 pub use storage_client::*;
-pub use storage_engine::*;
 pub use transaction::*;
 
 pub use crate::core::StorageError;

@@ -627,7 +627,7 @@ mod tests {
 
         let request2 = LockRequest::new(key.clone(), LockType::Exclusive).no_wait();
         let result = manager.try_lock(tx2, request2);
-        assert!(result.is_failure());
+        assert!(result != LockResult::Acquired);
     }
 
     #[test]

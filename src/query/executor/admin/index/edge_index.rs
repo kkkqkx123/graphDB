@@ -82,7 +82,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateEdgeIndexEx
             )
         })?;
 
-        let result = storage_guard.create_edge_index(&self.index_info);
+        let result = storage_guard.create_edge_index("default", &self.index_info);
 
         match result {
             Ok(true) => Ok(ExecutionResult::Success),

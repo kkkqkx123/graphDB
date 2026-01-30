@@ -71,7 +71,7 @@ pub struct PlanContext {
 }
 
 /// 存储环境
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct StorageEnv {
     /// 存储引擎
     pub storage_engine: Arc<dyn StorageClient>,
@@ -79,6 +79,16 @@ pub struct StorageEnv {
     pub schema_manager: Arc<dyn SchemaManager>,
     /// 索引管理器
     pub index_manager: Arc<dyn IndexManager>,
+}
+
+impl std::fmt::Debug for StorageEnv {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StorageEnv")
+            .field("storage_engine", &"<dyn StorageClient>")
+            .field("schema_manager", &"<dyn SchemaManager>")
+            .field("index_manager", &"<dyn IndexManager>")
+            .finish()
+    }
 }
 
 /// 运行时上下文（简化版本）

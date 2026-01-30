@@ -358,7 +358,7 @@ mod tests {
     #[test]
     fn test_snapshot() {
         let temp_dir = TempDir::new().unwrap();
-        let engine = RedbEngine::new(temp_dir.path().join("test.db")).unwrap();
+        let mut engine = RedbEngine::new(temp_dir.path().join("test.db")).unwrap();
         engine.put(b"k1", b"v1").unwrap();
 
         let snap_id = engine.create_snapshot().unwrap();
@@ -382,6 +382,6 @@ mod tests {
         assert_eq!(snapshot_items[0], (b"k1".to_vec(), b"v1".to_vec()));
 
         engine.delete_snapshot(snap_id).unwrap();
-        assert_eq!(engine.get_snapshot(snap_id).unwrap(), None);
+        assert!(engine.get_snapshot(snap_id).unwrap().is_none());
     }
 }

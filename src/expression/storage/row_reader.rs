@@ -389,8 +389,8 @@ mod tests {
     fn test_row_reader_wrapper() {
         // 创建测试Schema - 简化版本，只测试基本功能
         let mut schema = Schema::new("player".to_string(), 1);
-        schema = schema.add_field(FieldDef::new("age".to_string(), FieldType::Int));
-        schema = schema.add_field(FieldDef::new("score".to_string(), FieldType::Float));
+        schema = schema.add_field(FieldDef::new("age".to_string(), FieldType::Int64));
+        schema = schema.add_field(FieldDef::new("score".to_string(), FieldType::Double));
 
         // 创建测试数据 - 简化版本
         let mut test_data = Vec::new();

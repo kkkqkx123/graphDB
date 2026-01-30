@@ -1,4 +1,4 @@
-use super::{StorageEngine, TransactionId, EdgeReader, EdgeWriter, ScanResult, VertexReader, VertexWriter, SchemaManager, MemorySchemaManager};
+use super::{StorageClient, TransactionId, EdgeReader, EdgeWriter, ScanResult, VertexReader, VertexWriter, SchemaManager, MemorySchemaManager};
 use crate::core::{Edge, StorageError, Value, Vertex, EdgeDirection};
 use crate::core::vertex_edge_path::Tag;
 use crate::core::types::{
@@ -213,8 +213,8 @@ impl MemoryStorage {
     }
 }
 
-impl StorageEngine for MemoryStorage {
-    fn insert_node(&mut self, vertex: Vertex) -> Result<Value, StorageError> {
+impl StorageClient for MemoryStorage {
+    fn insert_vertex(&mut self, _space: &str, vertex: Vertex) -> Result<Value, StorageError> {
         let id = vertex.vid.clone();
         let key = Self::serialize_vertex_key(&id);
         let tag = vertex.tags.first().map(|t| t.name.clone()).unwrap_or_default();
@@ -228,13 +228,13 @@ impl StorageEngine for MemoryStorage {
         Ok(*id)
     }
 
-    fn get_node(&self, id: &Value) -> Result<Option<Vertex>, StorageError> {
+    fn get_vertex(&self, _space: &str, id: &Value) -> Result<Option<Vertex>, StorageError> {
         let key = Self::serialize_vertex_key(id);
         let vertices = self.vertices.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         Ok(vertices.get(&key).cloned())
     }
 
-    fn update_node(&mut self, vertex: Vertex) -> Result<(), StorageError> {
+    fn update_vertex(&mut self, _space: &str, vertex: Vertex) -> Result<(), StorageError> {
         let id = vertex.vid.clone();
         let key = Self::serialize_vertex_key(&id);
 
@@ -244,7 +244,7 @@ impl StorageEngine for MemoryStorage {
         Ok(())
     }
 
-    fn delete_node(&mut self, id: &Value) -> Result<(), StorageError> {
+    fn delete_vertex(&mut self, _space: &str, id: &Value) -> Result<(), StorageError> {
         let key = Self::serialize_vertex_key(id);
 
         let mut vertices = self.vertices.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
@@ -259,12 +259,12 @@ impl StorageEngine for MemoryStorage {
         Ok(())
     }
 
-    fn scan_all_vertices(&self) -> Result<Vec<Vertex>, StorageError> {
+    fn scan_vertices(&self, _space: &str) -> Result<Vec<Vertex>, StorageError> {
         let vertices = self.vertices.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         Ok(vertices.values().cloned().collect())
     }
 
-    fn scan_vertices_by_tag(&self, tag: &str) -> Result<Vec<Vertex>, StorageError> {
+    fn scan_vertices_by_tag(&self, _space: &str, tag: &str) -> Result<Vec<Vertex>, StorageError> {
         let vertex_tags = self.vertex_tags.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         let vertices = self.vertices.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
 
@@ -277,7 +277,7 @@ impl StorageEngine for MemoryStorage {
         Ok(result)
     }
 
-    fn scan_vertices_by_prop(&self, tag: &str, prop: &str, value: &Value) -> Result<Vec<Vertex>, StorageError> {
+    fn scan_vertices_by_prop(&self, _space: &str, tag: &str, prop: &str, value: &Value) -> Result<Vec<Vertex>, StorageError> {
         let vertices = self.vertices.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         let result: Vec<Vertex> = vertices
             .values()
@@ -291,7 +291,7 @@ impl StorageEngine for MemoryStorage {
         Ok(result)
     }
 
-    fn insert_edge(&mut self, edge: Edge) -> Result<(), StorageError> {
+    fn insert_edge(&mut self, _space: &str, edge: Edge) -> Result<(), StorageError> {
         let edge_type = edge.edge_type.clone();
         let _edge_id = {
             let generator = self.id_generator.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
@@ -309,13 +309,13 @@ impl StorageEngine for MemoryStorage {
         Ok(())
     }
 
-    fn get_edge(&self, src: &Value, dst: &Value, edge_type: &str) -> Result<Option<Edge>, StorageError> {
+    fn get_edge(&self, _space: &str, src: &Value, dst: &Value, edge_type: &str) -> Result<Option<Edge>, StorageError> {
         let key = Self::serialize_edge_key(src, dst, edge_type);
         let edges = self.edges.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         Ok(edges.get(&key).cloned())
     }
 
-    fn get_node_edges(&self, node_id: &Value, direction: EdgeDirection) -> Result<Vec<Edge>, StorageError> {
+    fn get_node_edges(&self, _space: &str, node_id: &Value, direction: EdgeDirection) -> Result<Vec<Edge>, StorageError> {
         let node_key = Self::serialize_vertex_key(node_id);
         let edges = self.edges.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
 
@@ -337,11 +337,12 @@ impl StorageEngine for MemoryStorage {
 
     fn get_node_edges_filtered(
         &self,
+        _space: &str,
         node_id: &Value,
         direction: EdgeDirection,
         filter: Option<Box<dyn Fn(&Edge) -> bool + Send + Sync>>,
     ) -> Result<Vec<Edge>, StorageError> {
-        let edges = <Self as StorageEngine>::get_node_edges(self, node_id, direction)?;
+        let edges = <Self as StorageClient>::get_node_edges(self, _space, node_id, direction)?;
         if let Some(filter_fn) = filter {
             Ok(edges.into_iter().filter(|e| filter_fn(e)).collect())
         } else {
@@ -349,7 +350,7 @@ impl StorageEngine for MemoryStorage {
         }
     }
 
-    fn delete_edge(&mut self, src: &Value, dst: &Value, edge_type: &str) -> Result<(), StorageError> {
+    fn delete_edge(&mut self, _space: &str, src: &Value, dst: &Value, edge_type: &str) -> Result<(), StorageError> {
         let key = Self::serialize_edge_key(src, dst, edge_type);
 
         let mut edges = self.edges.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
@@ -363,7 +364,7 @@ impl StorageEngine for MemoryStorage {
         Ok(())
     }
 
-    fn scan_edges_by_type(&self, edge_type: &str) -> Result<Vec<Edge>, StorageError> {
+    fn scan_edges_by_type(&self, _space: &str, edge_type: &str) -> Result<Vec<Edge>, StorageError> {
         let edge_types = self.edge_types.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         let edges = self.edges.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
 
@@ -376,27 +377,27 @@ impl StorageEngine for MemoryStorage {
         Ok(result)
     }
 
-    fn scan_all_edges(&self) -> Result<Vec<Edge>, StorageError> {
+    fn scan_all_edges(&self, _space: &str) -> Result<Vec<Edge>, StorageError> {
         let edges = self.edges.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         Ok(edges.values().cloned().collect())
     }
 
-    fn batch_insert_nodes(&mut self, vertices: Vec<Vertex>) -> Result<Vec<Value>, StorageError> {
+    fn batch_insert_vertices(&mut self, _space: &str, vertices: Vec<Vertex>) -> Result<Vec<Value>, StorageError> {
         let mut ids = Vec::new();
         for vertex in vertices {
-            ids.push(self.insert_node(vertex)?);
+            ids.push(<Self as StorageClient>::insert_vertex(self, _space, vertex)?);
         }
         Ok(ids)
     }
 
-    fn batch_insert_edges(&mut self, edges: Vec<Edge>) -> Result<(), StorageError> {
+    fn batch_insert_edges(&mut self, _space: &str, edges: Vec<Edge>) -> Result<(), StorageError> {
         for edge in edges {
-            <Self as StorageEngine>::insert_edge(self, edge)?;
+            <Self as StorageClient>::insert_edge(self, _space, edge)?;
         }
         Ok(())
     }
 
-    fn begin_transaction(&mut self) -> Result<TransactionId, StorageError> {
+    fn begin_transaction(&mut self, _space: &str) -> Result<TransactionId, StorageError> {
         let mut next_tx_id = self.next_tx_id.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         let tx_id = *next_tx_id;
         *next_tx_id += 1;
@@ -413,7 +414,7 @@ impl StorageEngine for MemoryStorage {
         Ok(tx_id)
     }
 
-    fn commit_transaction(&mut self, tx_id: TransactionId) -> Result<(), StorageError> {
+    fn commit_transaction(&mut self, _space: &str, tx_id: TransactionId) -> Result<(), StorageError> {
         let mut active_transactions = self.active_transactions.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         if let Some(tx_state) = active_transactions.remove(&tx_id) {
             let mut vertices = self.vertices.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
@@ -443,14 +444,10 @@ impl StorageEngine for MemoryStorage {
         Ok(())
     }
 
-    fn rollback_transaction(&mut self, tx_id: TransactionId) -> Result<(), StorageError> {
+    fn rollback_transaction(&mut self, _space: &str, tx_id: TransactionId) -> Result<(), StorageError> {
         let mut active_transactions = self.active_transactions.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         active_transactions.remove(&tx_id);
         Ok(())
-    }
-
-    fn get_input(&self, _input_var: &str) -> Result<Option<Vec<Value>>, StorageError> {
-        Ok(None)
     }
 
     // ========== 空间管理 ==========
@@ -509,7 +506,7 @@ impl StorageEngine for MemoryStorage {
     }
 
     // ========== 标签管理 ==========
-    fn create_tag(&mut self, info: &TagInfo) -> Result<bool, StorageError> {
+    fn create_tag(&mut self, _space: &str, info: &TagInfo) -> Result<bool, StorageError> {
         let mut tags = self.tags.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         if let Some(space_tags) = tags.get_mut(&info.space_name) {
             if space_tags.contains_key(&info.name) {
@@ -575,7 +572,7 @@ impl StorageEngine for MemoryStorage {
     }
 
     // ========== 边类型管理 ==========
-    fn create_edge_type(&mut self, info: &EdgeTypeSchema) -> Result<bool, StorageError> {
+    fn create_edge_type(&mut self, _space: &str, info: &EdgeTypeSchema) -> Result<bool, StorageError> {
         let mut edge_type_infos = self.edge_type_infos.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         if let Some(space_edge_types) = edge_type_infos.get_mut(&info.space_name) {
             if space_edge_types.contains_key(&info.name) {
@@ -641,7 +638,7 @@ impl StorageEngine for MemoryStorage {
     }
 
     // ========== 索引管理 ==========
-    fn create_tag_index(&mut self, info: &IndexInfo) -> Result<bool, StorageError> {
+    fn create_tag_index(&mut self, _space: &str, info: &IndexInfo) -> Result<bool, StorageError> {
         let mut tag_indexes = self.tag_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         if let Some(space_indexes) = tag_indexes.get_mut(&info.space_name) {
             if space_indexes.contains_key(&info.name) {
@@ -685,7 +682,7 @@ impl StorageEngine for MemoryStorage {
         Ok(true)
     }
 
-    fn create_edge_index(&mut self, info: &IndexInfo) -> Result<bool, StorageError> {
+    fn create_edge_index(&mut self, _space: &str, info: &IndexInfo) -> Result<bool, StorageError> {
         let mut edge_indexes = self.edge_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         if let Some(space_indexes) = edge_indexes.get_mut(&info.space_name) {
             if space_indexes.contains_key(&info.name) {
@@ -730,7 +727,7 @@ impl StorageEngine for MemoryStorage {
     }
 
     // ========== 数据变更 ==========
-    fn insert_vertex_data(&mut self, info: &InsertVertexInfo) -> Result<bool, StorageError> {
+    fn insert_vertex_data(&mut self, _space: &str, info: &InsertVertexInfo) -> Result<bool, StorageError> {
         let mut vertices = self.vertices.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         let vertex_key = Self::serialize_value(&Value::String(info.vertex_id.clone()));
         
@@ -748,7 +745,7 @@ impl StorageEngine for MemoryStorage {
         Ok(true)
     }
 
-    fn insert_edge_data(&mut self, info: &InsertEdgeInfo) -> Result<bool, StorageError> {
+    fn insert_edge_data(&mut self, _space: &str, info: &InsertEdgeInfo) -> Result<bool, StorageError> {
         let mut edges = self.edges.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         
         let edge_key = (
@@ -773,7 +770,7 @@ impl StorageEngine for MemoryStorage {
         Ok(true)
     }
 
-    fn delete_vertex_data(&mut self, _space_name: &str, vertex_id: &str) -> Result<bool, StorageError> {
+    fn delete_vertex_data(&mut self, _space: &str, vertex_id: &str) -> Result<bool, StorageError> {
         let mut vertices = self.vertices.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         let vertex_key = Self::serialize_value(&Value::String(vertex_id.to_string()));
         Ok(vertices.remove(&vertex_key).is_some())
@@ -791,7 +788,7 @@ impl StorageEngine for MemoryStorage {
         Ok(edges.remove(&edge_key).is_some())
     }
 
-    fn update_data(&mut self, _info: &UpdateInfo) -> Result<bool, StorageError> {
+    fn update_data(&mut self, _space: &str, _info: &UpdateInfo) -> Result<bool, StorageError> {
         Ok(true)
     }
 
@@ -818,7 +815,7 @@ impl StorageEngine for MemoryStorage {
             None => return Ok(None),
         };
 
-        let vertex = self.get_node(id)?;
+        let vertex = <Self as StorageClient>::get_vertex(self, space_name, id)?;
         vertex.as_ref().map(|v| {
             let schema = Self::tag_info_to_schema(&tag_name, &tag_info);
             let binary_data = Self::serialize_vertex(v);
@@ -835,7 +832,7 @@ impl StorageEngine for MemoryStorage {
             None => return Ok(None),
         };
 
-        let edge = <Self as StorageEngine>::get_edge(self, src, dst, edge_type_name)?;
+        let edge = <Self as StorageClient>::get_edge(self, space_name, src, dst, edge_type_name)?;
         edge.as_ref().map(|e| {
             let schema = Self::edge_type_schema_to_schema(&edge_type_name, &edge_schema);
             let binary_data = Self::serialize_edge(e);
@@ -844,7 +841,7 @@ impl StorageEngine for MemoryStorage {
     }
 
     fn scan_vertices_with_schema(&self, space_name: &str, tag_name: &str) -> Result<Vec<(Schema, Vec<u8>)>, StorageError> {
-        let vertices = <Self as StorageEngine>::scan_vertices_by_tag(self, tag_name)?;
+        let vertices = <Self as StorageClient>::scan_vertices_by_tag(self, space_name, tag_name)?;
         let tags = self.tags.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         let tag_info = tags.get(space_name)
             .and_then(|space_tags| space_tags.get(tag_name))
@@ -858,7 +855,7 @@ impl StorageEngine for MemoryStorage {
     }
 
     fn scan_edges_with_schema(&self, space_name: &str, edge_type_name: &str) -> Result<Vec<(Schema, Vec<u8>)>, StorageError> {
-        let edges = <Self as StorageEngine>::scan_edges_by_type(self, edge_type_name)?;
+        let edges = <Self as StorageClient>::scan_edges_by_type(self, space_name, edge_type_name)?;
         let edge_types = self.edge_type_infos.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         let edge_schema = edge_types.get(space_name)
             .and_then(|space_edges| space_edges.get(edge_type_name))
@@ -870,20 +867,24 @@ impl StorageEngine for MemoryStorage {
 
         Ok(binary_data_list.into_iter().map(|data| (schema.clone(), data)).collect())
     }
+
+    fn lookup_index(&self, _space: &str, _index: &str, _value: &Value) -> Result<Vec<Value>, StorageError> {
+        Ok(Vec::new())
+    }
 }
 
 impl VertexReader for MemoryStorage {
     fn get_vertex(&self, _space: &str, id: &Value) -> Result<Option<Vertex>, StorageError> {
-        <Self as StorageEngine>::get_node(self, id)
+        <Self as StorageClient>::get_vertex(self, _space, id)
     }
 
     fn scan_vertices(&self, _space: &str) -> Result<ScanResult<Vertex>, StorageError> {
-        let vertices = <Self as StorageEngine>::scan_all_vertices(self)?;
+        let vertices = <Self as StorageClient>::scan_vertices(self, _space)?;
         Ok(ScanResult::new(vertices))
     }
 
     fn scan_vertices_by_tag(&self, _space: &str, tag_name: &str) -> Result<ScanResult<Vertex>, StorageError> {
-        let vertices = <Self as StorageEngine>::scan_vertices_by_tag(self, tag_name)?;
+        let vertices = <Self as StorageClient>::scan_vertices_by_tag(self, _space, tag_name)?;
         Ok(ScanResult::new(vertices))
     }
 
@@ -894,7 +895,7 @@ impl VertexReader for MemoryStorage {
         prop_name: &str,
         value: &Value,
     ) -> Result<ScanResult<Vertex>, StorageError> {
-        let vertices = <Self as StorageEngine>::scan_vertices_by_prop(self, tag_name, prop_name, value)?;
+        let vertices = <Self as StorageClient>::scan_vertices_by_prop(self, _space, tag_name, prop_name, value)?;
         Ok(ScanResult::new(vertices))
     }
 }
@@ -907,7 +908,7 @@ impl EdgeReader for MemoryStorage {
         dst: &Value,
         edge_type: &str,
     ) -> Result<Option<Edge>, StorageError> {
-        <Self as StorageEngine>::get_edge(self, src, dst, edge_type)
+        <Self as StorageClient>::get_edge(self, _space, src, dst, edge_type)
     }
 
     fn get_node_edges(
@@ -916,7 +917,7 @@ impl EdgeReader for MemoryStorage {
         node_id: &Value,
         direction: EdgeDirection,
     ) -> Result<ScanResult<Edge>, StorageError> {
-        let edges = <Self as StorageEngine>::get_node_edges(self, node_id, direction)?;
+        let edges = <Self as StorageClient>::get_node_edges(self, _space, node_id, direction)?;
         Ok(ScanResult::new(edges))
     }
 
@@ -931,7 +932,7 @@ impl EdgeReader for MemoryStorage {
             let et = et.to_string();
             move |e: &Edge| e.edge_type == et
         });
-        let edges = <Self as StorageEngine>::get_node_edges_filtered(self, node_id, direction, filter.map(|f| Box::new(f) as _))?;
+        let edges = <Self as StorageClient>::get_node_edges_filtered(self, _space, node_id, direction, filter.map(|f| Box::new(f) as _))?;
         Ok(ScanResult::new(edges))
     }
 
@@ -940,37 +941,37 @@ impl EdgeReader for MemoryStorage {
         _space: &str,
         edge_type: &str,
     ) -> Result<ScanResult<Edge>, StorageError> {
-        let edges = <Self as StorageEngine>::scan_edges_by_type(self, edge_type)?;
+        let edges = <Self as StorageClient>::scan_edges_by_type(self, _space, edge_type)?;
         Ok(ScanResult::new(edges))
     }
 
     fn scan_all_edges(&self, _space: &str) -> Result<ScanResult<Edge>, StorageError> {
-        let edges = <Self as StorageEngine>::scan_all_edges(self)?;
+        let edges = <Self as StorageClient>::scan_all_edges(self, _space)?;
         Ok(ScanResult::new(edges))
     }
 }
 
 impl VertexWriter for MemoryStorage {
     fn insert_vertex(&mut self, vertex: Vertex) -> Result<Value, StorageError> {
-        <Self as StorageEngine>::insert_node(self, vertex)
+        <Self as StorageClient>::insert_vertex(self, "", vertex)
     }
 
     fn update_vertex(&mut self, vertex: Vertex) -> Result<(), StorageError> {
-        <Self as StorageEngine>::update_node(self, vertex)
+        <Self as StorageClient>::update_vertex(self, "", vertex)
     }
 
     fn delete_vertex(&mut self, id: &Value) -> Result<(), StorageError> {
-        <Self as StorageEngine>::delete_node(self, id)
+        <Self as StorageClient>::delete_vertex(self, "", id)
     }
 
     fn batch_insert_vertices(&mut self, vertices: Vec<Vertex>) -> Result<Vec<Value>, StorageError> {
-        <Self as StorageEngine>::batch_insert_nodes(self, vertices)
+        <Self as StorageClient>::batch_insert_vertices(self, "", vertices)
     }
 }
 
 impl EdgeWriter for MemoryStorage {
     fn insert_edge(&mut self, edge: Edge) -> Result<(), StorageError> {
-        <Self as StorageEngine>::insert_edge(self, edge)
+        <Self as StorageClient>::insert_edge(self, "", edge)
     }
 
     fn delete_edge(
@@ -979,11 +980,11 @@ impl EdgeWriter for MemoryStorage {
         dst: &Value,
         edge_type: &str,
     ) -> Result<(), StorageError> {
-        <Self as StorageEngine>::delete_edge(self, src, dst, edge_type)
+        <Self as StorageClient>::delete_edge(self, "", src, dst, edge_type)
     }
 
     fn batch_insert_edges(&mut self, edges: Vec<Edge>) -> Result<(), StorageError> {
-        <Self as StorageEngine>::batch_insert_edges(self, edges)
+        <Self as StorageClient>::batch_insert_edges(self, "", edges)
     }
 }
 
@@ -1012,10 +1013,10 @@ mod tests {
             HashMap::new(),
         );
 
-        let id = storage.insert_node(vertex.clone()).expect("insert_node should succeed");
+        let id = <MemoryStorage as crate::storage::operations::writer::VertexWriter>::insert_vertex(&mut storage, vertex.clone()).expect("insert_node should succeed");
         assert_eq!(id, Value::String("user1".to_string()));
 
-        let retrieved = storage.get_node(&id).expect("get_node should succeed");
+        let retrieved = <MemoryStorage as crate::storage::operations::reader::VertexReader>::get_vertex(&storage, "", &id).expect("get_node should succeed");
         assert_eq!(retrieved, Some(vertex));
     }
 
@@ -1030,9 +1031,9 @@ mod tests {
             HashMap::new(),
         );
 
-        storage.insert_edge(edge.clone()).expect("insert_edge should succeed");
+        <MemoryStorage as crate::storage::operations::writer::EdgeWriter>::insert_edge(&mut storage, edge.clone()).expect("insert_edge should succeed");
 
-        let retrieved = storage.get_edge(&edge.src, &edge.dst, &edge.edge_type).expect("get_edge should succeed");
+        let retrieved = <MemoryStorage as crate::storage::operations::reader::EdgeReader>::get_edge(&storage, "", &edge.src, &edge.dst, &edge.edge_type).expect("get_edge should succeed");
         assert_eq!(retrieved, Some(edge));
     }
 
@@ -1040,28 +1041,29 @@ mod tests {
     fn test_scan_vertices_by_tag() {
         let mut storage = MemoryStorage::new().expect("MemoryStorage::new should succeed");
 
-        storage.insert_node(Vertex::new_with_properties(
+        <MemoryStorage as crate::storage::operations::writer::VertexWriter>::insert_vertex(&mut storage, Vertex::new_with_properties(
             Value::String("user1".to_string()),
             vec![Tag::new("user".to_string(), HashMap::new())],
             HashMap::new(),
         )).expect("insert_node should succeed");
 
-        storage.insert_node(Vertex::new_with_properties(
+        <MemoryStorage as crate::storage::operations::writer::VertexWriter>::insert_vertex(&mut storage, Vertex::new_with_properties(
             Value::String("post1".to_string()),
             vec![Tag::new("post".to_string(), HashMap::new())],
             HashMap::new(),
         )).expect("insert_node should succeed");
 
-        let users = storage.scan_vertices_by_tag("user").expect("scan_vertices_by_tag should succeed");
-        assert_eq!(users.len(), 1);
-        assert_eq!(*users[0].vid, Value::String("user1".to_string()));
+        let users = <MemoryStorage as crate::storage::operations::reader::VertexReader>::scan_vertices_by_tag(&storage, "", "user").expect("scan_vertices_by_tag should succeed");
+        let users_vec = users.into_vec();
+        assert_eq!(users_vec.len(), 1);
+        assert_eq!(*users_vec[0].vid, Value::String("user1".to_string()));
     }
 
     #[test]
     fn test_transaction() {
         let mut storage = MemoryStorage::new().expect("MemoryStorage::new should succeed");
 
-        let tx_id = storage.begin_transaction().expect("begin_transaction should succeed");
+        let tx_id = <MemoryStorage as crate::storage::StorageClient>::begin_transaction(&mut storage, "").expect("begin_transaction should succeed");
 
         let vertex = Vertex::new_with_properties(
             Value::String("user1".to_string()),
@@ -1069,11 +1071,11 @@ mod tests {
             HashMap::new(),
         );
 
-        storage.insert_node(vertex).expect("insert_node should succeed");
+        <MemoryStorage as crate::storage::operations::writer::VertexWriter>::insert_vertex(&mut storage, vertex).expect("insert_node should succeed");
 
-        storage.commit_transaction(tx_id).expect("commit_transaction should succeed");
+        <MemoryStorage as crate::storage::StorageClient>::commit_transaction(&mut storage, "", tx_id).expect("commit_transaction should succeed");
 
-        let retrieved = storage.get_node(&Value::String("user1".to_string())).expect("get_node should succeed");
+        let retrieved = <MemoryStorage as crate::storage::operations::reader::VertexReader>::get_vertex(&storage, "", &Value::String("user1".to_string())).expect("get_node should succeed");
         assert!(retrieved.is_some());
     }
 }
