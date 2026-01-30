@@ -479,653 +479,19 @@ impl Default for QueryContext {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::error::ManagerResult;
-    use crate::query::context::managers::{Index, Schema};
-    use std::collections::HashMap;
-
-    // Mock实现用于测试
-    #[derive(Debug)]
-    struct MockSchemaManager {
-        schemas: HashMap<String, Schema>,
-    }
-
-    impl MockSchemaManager {
-        fn new() -> Self {
-            let mut schemas = HashMap::new();
-            schemas.insert(
-                "test_schema".to_string(),
-                Schema {
-                    name: "test_schema".to_string(),
-                    fields: HashMap::new(),
-                    is_vertex: true,
-                },
-            );
-            Self { schemas }
-        }
-    }
-
-    impl SchemaManager for MockSchemaManager {
-        fn get_schema(&self, name: &str) -> Option<Schema> {
-            self.schemas.get(name).cloned()
-        }
-
-        fn list_schemas(&self) -> Vec<String> {
-            self.schemas.keys().cloned().collect()
-        }
-
-        fn has_schema(&self, name: &str) -> bool {
-            self.schemas.contains_key(name)
-        }
-
-        fn create_tag(
-            &self,
-            _space_id: i32,
-            _tag_name: &str,
-            _fields: Vec<crate::query::context::managers::FieldDef>,
-        ) -> ManagerResult<i32> {
-            Ok(1)
-        }
-
-        fn drop_tag(&self, _space_id: i32, _tag_id: i32) -> ManagerResult<()> {
-            Ok(())
-        }
-
-        fn get_tag(
-            &self,
-            _space_id: i32,
-            _tag_id: i32,
-        ) -> Option<crate::query::context::managers::TagDefWithId> {
-            None
-        }
-
-        fn list_tags(
-            &self,
-            _space_id: i32,
-        ) -> ManagerResult<Vec<crate::query::context::managers::TagDefWithId>> {
-            Ok(Vec::new())
-        }
-
-        fn has_tag(&self, _space_id: i32, _tag_id: i32) -> bool {
-            false
-        }
-
-        fn create_edge_type(
-            &self,
-            _space_id: i32,
-            _edge_type_name: &str,
-            _fields: Vec<crate::query::context::managers::FieldDef>,
-        ) -> ManagerResult<i32> {
-            Ok(1)
-        }
-
-        fn drop_edge_type(&self, _space_id: i32, _edge_type_id: i32) -> ManagerResult<()> {
-            Ok(())
-        }
-
-        fn get_edge_type(
-            &self,
-            _space_id: i32,
-            _edge_type_id: i32,
-        ) -> Option<crate::query::context::managers::EdgeTypeDefWithId> {
-            None
-        }
-
-        fn list_edge_types(
-            &self,
-            _space_id: i32,
-        ) -> ManagerResult<Vec<crate::query::context::managers::EdgeTypeDefWithId>> {
-            Ok(Vec::new())
-        }
-
-        fn has_edge_type(&self, _space_id: i32, _edge_type_id: i32) -> bool {
-            false
-        }
-
-        fn load_from_disk(&self) -> ManagerResult<()> {
-            Ok(())
-        }
-
-        fn save_to_disk(&self) -> ManagerResult<()> {
-            Ok(())
-        }
-
-        fn create_schema_version(
-            &self,
-            _space_id: i32,
-            _comment: Option<String>,
-        ) -> ManagerResult<i32> {
-            Ok(1)
-        }
-
-        fn get_schema_version(
-            &self,
-            _space_id: i32,
-            _version: i32,
-        ) -> Option<crate::query::context::managers::SchemaVersion> {
-            None
-        }
-
-        fn get_latest_schema_version(&self, _space_id: i32) -> Option<i32> {
-            Some(1)
-        }
-
-        fn get_schema_history(
-            &self,
-            _space_id: i32,
-        ) -> ManagerResult<crate::query::context::managers::SchemaHistory> {
-            Ok(crate::query::context::managers::SchemaHistory {
-                space_id: _space_id,
-                versions: Vec::new(),
-                current_version: 1,
-            })
-        }
-
-        fn rollback_schema(&self, _space_id: i32, _version: i32) -> ManagerResult<()> {
-            Ok(())
-        }
-
-        fn get_current_version(&self, _space_id: i32) -> Option<i32> {
-            Some(1)
-        }
-
-        fn add_tag_field(&self, _space_id: i32, _tag_name: &str, _field: crate::query::context::managers::FieldDef) -> ManagerResult<()> {
-            Ok(())
-        }
-
-        fn drop_tag_field(&self, _space_id: i32, _tag_name: &str, _field_name: &str) -> ManagerResult<()> {
-            Ok(())
-        }
-
-        fn alter_tag_field(&self, _space_id: i32, _tag_name: &str, _field_name: &str, _new_field: crate::query::context::managers::FieldDef) -> ManagerResult<()> {
-            Ok(())
-        }
-
-        fn add_edge_type_field(&self, _space_id: i32, _edge_type_name: &str, _field: crate::query::context::managers::FieldDef) -> ManagerResult<()> {
-            Ok(())
-        }
-
-        fn drop_edge_type_field(&self, _space_id: i32, _edge_type_name: &str, _field_name: &str) -> ManagerResult<()> {
-            Ok(())
-        }
-
-        fn alter_edge_type_field(&self, _space_id: i32, _edge_type_name: &str, _field_name: &str, _new_field: crate::query::context::managers::FieldDef) -> ManagerResult<()> {
-            Ok(())
-        }
-
-        fn record_schema_change(&self, _space_id: i32, _change: crate::query::context::managers::SchemaChange) -> ManagerResult<()> {
-            Ok(())
-        }
-
-        fn get_schema_changes(&self, _space_id: i32) -> ManagerResult<Vec<crate::query::context::managers::SchemaChange>> {
-            Ok(Vec::new())
-        }
-
-        fn clear_schema_changes(&self, _space_id: i32) -> ManagerResult<()> {
-            Ok(())
-        }
-
-        fn export_schema(&self, _space_id: i32, _config: crate::query::context::managers::SchemaExportConfig) -> ManagerResult<String> {
-            Ok(String::new())
-        }
-
-        fn import_schema(&self, _space_id: i32, _schema_data: &str) -> ManagerResult<crate::query::context::managers::SchemaImportResult> {
-            Ok(crate::query::context::managers::SchemaImportResult {
-                imported_tags: Vec::new(),
-                imported_edge_types: Vec::new(),
-                skipped_items: Vec::new(),
-                errors: Vec::new(),
-            })
-        }
-
-        fn validate_schema_compatibility(&self, _space_id: i32, _target_version: i32) -> ManagerResult<bool> {
-            Ok(true)
-        }
-    }
-
-    #[derive(Debug)]
-    struct MockIndexManager {
-        indexes: HashMap<String, Index>,
-    }
-
-    impl MockIndexManager {
-        fn new() -> Self {
-            let mut indexes = HashMap::new();
-            indexes.insert(
-                "test_index".to_string(),
-                Index {
-                    id: 1,
-                    name: "test_index".to_string(),
-                    space_id: 1,
-                    schema_name: "test_schema".to_string(),
-                    fields: vec!["id".to_string()],
-                    index_type: crate::query::context::managers::IndexType::TagIndex,
-                    status: crate::query::context::managers::IndexStatus::Active,
-                    is_unique: true,
-                    comment: None,
-                },
-            );
-            Self { indexes }
-        }
-    }
-
-    impl IndexManager for MockIndexManager {
-        fn get_index(&self, name: &str) -> Option<Index> {
-            self.indexes.get(name).cloned()
-        }
-
-        fn list_indexes(&self) -> Vec<String> {
-            self.indexes.keys().cloned().collect()
-        }
-
-        fn has_index(&self, name: &str) -> bool {
-            self.indexes.contains_key(name)
-        }
-
-        fn create_index(&self, _space_id: i32, _index: Index) -> ManagerResult<i32> {
-            Ok(1)
-        }
-
-        fn drop_index(&self, _space_id: i32, _index_id: i32) -> ManagerResult<()> {
-            Ok(())
-        }
-
-        fn get_index_status(
-            &self,
-            _space_id: i32,
-            _index_id: i32,
-        ) -> Option<crate::query::context::managers::IndexStatus> {
-            Some(crate::query::context::managers::IndexStatus::Active)
-        }
-
-        fn list_indexes_by_space(&self, _space_id: i32) -> ManagerResult<Vec<Index>> {
-            Ok(self.indexes.values().cloned().collect())
-        }
-
-        fn lookup_vertex_by_index(
-            &self,
-            _space_id: i32,
-            _index_name: &str,
-            _values: &[crate::core::Value],
-        ) -> ManagerResult<Vec<crate::core::Vertex>> {
-            Ok(Vec::new())
-        }
-
-        fn lookup_edge_by_index(
-            &self,
-            _space_id: i32,
-            _index_name: &str,
-            _values: &[crate::core::Value],
-        ) -> ManagerResult<Vec<crate::core::Edge>> {
-            Ok(Vec::new())
-        }
-
-        fn range_lookup_vertex(
-            &self,
-            _space_id: i32,
-            _index_name: &str,
-            _start: &crate::core::Value,
-            _end: &crate::core::Value,
-        ) -> ManagerResult<Vec<crate::core::Vertex>> {
-            Ok(Vec::new())
-        }
-
-        fn range_lookup_edge(
-            &self,
-            _space_id: i32,
-            _index_name: &str,
-            _start: &crate::core::Value,
-            _end: &crate::core::Value,
-        ) -> ManagerResult<Vec<crate::core::Edge>> {
-            Ok(Vec::new())
-        }
-
-        fn insert_vertex_to_index(
-            &self,
-            _space_id: i32,
-            _vertex: &crate::core::Vertex,
-        ) -> ManagerResult<()> {
-            Ok(())
-        }
-
-        fn delete_vertex_from_index(
-            &self,
-            _space_id: i32,
-            _vertex: &crate::core::Vertex,
-        ) -> ManagerResult<()> {
-            Ok(())
-        }
-
-        fn update_vertex_in_index(
-            &self,
-            _space_id: i32,
-            _old_vertex: &crate::core::Vertex,
-            _new_vertex: &crate::core::Vertex,
-        ) -> ManagerResult<()> {
-            Ok(())
-        }
-
-        fn insert_edge_to_index(
-            &self,
-            _space_id: i32,
-            _edge: &crate::core::Edge,
-        ) -> ManagerResult<()> {
-            Ok(())
-        }
-
-        fn delete_edge_from_index(
-            &self,
-            _space_id: i32,
-            _edge: &crate::core::Edge,
-        ) -> ManagerResult<()> {
-            Ok(())
-        }
-
-        fn update_edge_in_index(
-            &self,
-            _space_id: i32,
-            _old_edge: &crate::core::Edge,
-            _new_edge: &crate::core::Edge,
-        ) -> ManagerResult<()> {
-            Ok(())
-        }
-
-        fn load_from_disk(&self) -> ManagerResult<()> {
-            Ok(())
-        }
-
-        fn save_to_disk(&self) -> ManagerResult<()> {
-            Ok(())
-        }
-
-        fn rebuild_index(&self, _space_id: i32, _index_id: i32) -> ManagerResult<()> {
-            Ok(())
-        }
-
-        fn rebuild_all_indexes(&self, _space_id: i32) -> ManagerResult<()> {
-            Ok(())
-        }
-
-        fn get_index_stats(&self, _space_id: i32, _index_id: i32) -> ManagerResult<crate::query::context::managers::IndexStats> {
-            Ok(crate::query::context::managers::IndexStats {
-                index_id: _index_id,
-                index_name: String::new(),
-                total_entries: 0,
-                unique_entries: 0,
-                last_updated: 0,
-                memory_usage_bytes: 0,
-                query_count: 0,
-                avg_query_time_ms: 0.0,
-            })
-        }
-
-        fn get_all_index_stats(&self, _space_id: i32) -> ManagerResult<Vec<crate::query::context::managers::IndexStats>> {
-            Ok(Vec::new())
-        }
-
-        fn analyze_index(&self, _space_id: i32, _index_id: i32) -> ManagerResult<crate::query::context::managers::IndexOptimization> {
-            Ok(crate::query::context::managers::IndexOptimization {
-                index_id: _index_id,
-                index_name: String::new(),
-                suggestions: Vec::new(),
-                priority: String::new(),
-            })
-        }
-
-        fn analyze_all_indexes(&self, _space_id: i32) -> ManagerResult<Vec<crate::query::context::managers::IndexOptimization>> {
-            Ok(Vec::new())
-        }
-
-        fn check_index_consistency(&self, _space_id: i32, _index_id: i32) -> ManagerResult<bool> {
-            Ok(true)
-        }
-
-        fn repair_index(&self, _space_id: i32, _index_id: i32) -> ManagerResult<()> {
-            Ok(())
-        }
-
-        fn cleanup_index(&self, _space_id: i32, _index_id: i32) -> ManagerResult<()> {
-            Ok(())
-        }
-
-        fn batch_insert_vertices(&self, _space_id: i32, _vertices: &[crate::core::Vertex]) -> ManagerResult<()> {
-            Ok(())
-        }
-
-        fn batch_delete_vertices(&self, _space_id: i32, _vertices: &[crate::core::Vertex]) -> ManagerResult<()> {
-            Ok(())
-        }
-
-        fn batch_insert_edges(&self, _space_id: i32, _edges: &[crate::core::Edge]) -> ManagerResult<()> {
-            Ok(())
-        }
-
-        fn batch_delete_edges(&self, _space_id: i32, _edges: &[crate::core::Edge]) -> ManagerResult<()> {
-            Ok(())
-        }
-    }
-
-    #[derive(Debug)]
-    struct MockStorageClient;
-
-    impl StorageClient for MockStorageClient {
-        fn execute(
-            &self,
-            _operation: crate::query::context::managers::StorageOperation,
-        ) -> ManagerResult<crate::query::context::managers::StorageResponse> {
-            Ok(crate::query::context::managers::StorageResponse {
-                success: true,
-                data: None,
-                error_message: None,
-            })
-        }
-
-        fn is_connected(&self) -> bool {
-            true
-        }
-
-        fn add_vertex(
-            &self,
-            _space_id: i32,
-            _vertex: crate::core::Vertex,
-        ) -> ManagerResult<crate::query::context::managers::ExecResponse> {
-            Ok(crate::query::context::managers::ExecResponse::ok())
-        }
-
-        fn add_vertices(
-            &self,
-            _space_id: i32,
-            _vertices: Vec<crate::query::context::managers::NewVertex>,
-        ) -> ManagerResult<crate::query::context::managers::ExecResponse> {
-            Ok(crate::query::context::managers::ExecResponse::ok())
-        }
-
-        fn get_vertex(
-            &self,
-            _space_id: i32,
-            _vid: &crate::core::Value,
-        ) -> ManagerResult<Option<crate::core::Vertex>> {
-            Ok(None)
-        }
-
-        fn get_vertices(
-            &self,
-            _space_id: i32,
-            _vids: &[crate::core::Value],
-        ) -> ManagerResult<Vec<Option<crate::core::Vertex>>> {
-            Ok(Vec::new())
-        }
-
-        fn delete_vertex(
-            &self,
-            _space_id: i32,
-            _vid: &crate::core::Value,
-        ) -> ManagerResult<crate::query::context::managers::ExecResponse> {
-            Ok(crate::query::context::managers::ExecResponse::ok())
-        }
-
-        fn delete_vertices(
-            &self,
-            _space_id: i32,
-            _vids: &[crate::core::Value],
-        ) -> ManagerResult<crate::query::context::managers::ExecResponse> {
-            Ok(crate::query::context::managers::ExecResponse::ok())
-        }
-
-        fn delete_tags(
-            &self,
-            _space_id: i32,
-            _del_tags: Vec<crate::query::context::managers::DelTags>,
-        ) -> ManagerResult<crate::query::context::managers::ExecResponse> {
-            Ok(crate::query::context::managers::ExecResponse::ok())
-        }
-
-        fn update_vertex(
-            &self,
-            _space_id: i32,
-            _vid: &crate::core::Value,
-            _tag_id: i32,
-            _updated_props: Vec<crate::query::context::managers::UpdatedProp>,
-            _insertable: bool,
-            _return_props: Vec<String>,
-            _condition: Option<String>,
-        ) -> ManagerResult<crate::query::context::managers::UpdateResponse> {
-            Ok(crate::query::context::managers::UpdateResponse::ok(
-                false, None,
-            ))
-        }
-
-        fn add_edge(
-            &self,
-            _space_id: i32,
-            _edge: crate::core::Edge,
-        ) -> ManagerResult<crate::query::context::managers::ExecResponse> {
-            Ok(crate::query::context::managers::ExecResponse::ok())
-        }
-
-        fn add_edges(
-            &self,
-            _space_id: i32,
-            _edges: Vec<crate::query::context::managers::NewEdge>,
-        ) -> ManagerResult<crate::query::context::managers::ExecResponse> {
-            Ok(crate::query::context::managers::ExecResponse::ok())
-        }
-
-        fn get_edge(
-            &self,
-            _space_id: i32,
-            _edge_key: &crate::query::context::managers::EdgeKey,
-        ) -> ManagerResult<Option<crate::core::Edge>> {
-            Ok(None)
-        }
-
-        fn get_edges(
-            &self,
-            _space_id: i32,
-            _edge_keys: &[crate::query::context::managers::EdgeKey],
-        ) -> ManagerResult<Vec<Option<crate::core::Edge>>> {
-            Ok(Vec::new())
-        }
-
-        fn delete_edge(
-            &self,
-            _space_id: i32,
-            _edge_key: &crate::query::context::managers::EdgeKey,
-        ) -> ManagerResult<crate::query::context::managers::ExecResponse> {
-            Ok(crate::query::context::managers::ExecResponse::ok())
-        }
-
-        fn delete_edges(
-            &self,
-            _space_id: i32,
-            _edge_keys: &[crate::query::context::managers::EdgeKey],
-        ) -> ManagerResult<crate::query::context::managers::ExecResponse> {
-            Ok(crate::query::context::managers::ExecResponse::ok())
-        }
-
-        fn update_edge(
-            &self,
-            _space_id: i32,
-            _edge_key: &crate::query::context::managers::EdgeKey,
-            _updated_props: Vec<crate::query::context::managers::UpdatedProp>,
-            _insertable: bool,
-            _return_props: Vec<String>,
-            _condition: Option<String>,
-        ) -> ManagerResult<crate::query::context::managers::UpdateResponse> {
-            Ok(crate::query::context::managers::UpdateResponse::ok(
-                false, None,
-            ))
-        }
-
-        fn scan_vertices(
-            &self,
-            _space_id: i32,
-            _limit: Option<usize>,
-        ) -> ManagerResult<Vec<crate::core::Vertex>> {
-            Ok(Vec::new())
-        }
-
-        fn scan_vertices_by_tag(
-            &self,
-            _space_id: i32,
-            _tag_id: i32,
-            _limit: Option<usize>,
-        ) -> ManagerResult<Vec<crate::core::Vertex>> {
-            Ok(Vec::new())
-        }
-
-        fn scan_edges(
-            &self,
-            _space_id: i32,
-            _limit: Option<usize>,
-        ) -> ManagerResult<Vec<crate::core::Edge>> {
-            Ok(Vec::new())
-        }
-
-        fn scan_edges_by_type(
-            &self,
-            _space_id: i32,
-            _edge_type: &str,
-            _limit: Option<usize>,
-        ) -> ManagerResult<Vec<crate::core::Edge>> {
-            Ok(Vec::new())
-        }
-
-        fn scan_edges_by_src(
-            &self,
-            _space_id: i32,
-            _src: &crate::core::Value,
-            _limit: Option<usize>,
-        ) -> ManagerResult<Vec<crate::core::Edge>> {
-            Ok(Vec::new())
-        }
-
-        fn scan_edges_by_dst(
-            &self,
-            _space_id: i32,
-            _dst: &crate::core::Value,
-            _limit: Option<usize>,
-        ) -> ManagerResult<Vec<crate::core::Edge>> {
-            Ok(Vec::new())
-        }
-    }
+    use crate::storage::MemorySchemaManager;
+    use crate::storage::index::MemoryIndexManager;
+    use crate::storage::MemoryStorage;
 
     #[test]
     fn test_query_context_creation() {
         let ctx = QueryContext::new();
 
-        // 测试ID生成
-        let id1 = ctx.gen_id();
-        let id2 = ctx.gen_id();
-        assert_eq!(id2, id1 + 1);
+        assert_eq!(ctx.gen_id(), 0);
+        assert_eq!(ctx.gen_id(), 1);
 
-        // 测试验证上下文
-        // ValidationContext不管理空间信息，已删除 switch_to_space 和 current_space 方法
-        // ValidationContext 不再提供 error_count() 方法
-
-        // 测试存在参数检查（参数不存在）
         assert!(!ctx.exist_parameter("non_existent_param"));
 
-        // 测试终止标记
         assert!(!ctx.is_killed());
         ctx.mark_killed();
         assert!(ctx.is_killed());
@@ -1135,68 +501,46 @@ mod tests {
     fn test_context_access() {
         let mut ctx = QueryContext::new();
 
-        // 测试符号表
         ctx.sym_table_mut()
             .new_variable("test_var")
             .expect("Failed to create new variable");
         assert!(ctx.sym_table().has_variable("test_var"));
 
-        // 测试执行上下文
         let value = crate::core::Value::Int(42);
         ctx.ectx_mut().set_value("test_val".to_string(), value.clone());
-        let retrieved = ctx
-            .ectx()
-            .get_value("test_val")
-            .expect("Failed to get value");
-        assert_eq!(*retrieved, value);
+        assert_eq!(ctx.ectx().get_value("test_val"), Some(&value));
     }
 
     #[test]
     fn test_managers() {
         let mut ctx = QueryContext::new();
 
-        // 设置Schema管理器
-        let schema_manager = Arc::new(MockSchemaManager::new());
+        let schema_manager = Arc::new(MemorySchemaManager::new());
         ctx.set_schema_manager(schema_manager.clone());
         assert!(ctx.schema_manager().is_some());
-        assert!(ctx
-            .schema_manager()
-            .expect("Schema manager should exist")
-            .has_schema("test_schema"));
 
-        // 设置索引管理器
-        let index_manager = Arc::new(MockIndexManager::new());
+        let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
+        let index_manager = Arc::new(MemoryIndexManager::new(temp_dir.path().to_path_buf()));
         ctx.set_index_manager(index_manager.clone());
         assert!(ctx.index_manager().is_some());
-        assert!(ctx
-            .index_manager()
-            .expect("Index manager should exist")
-            .has_index("test_index"));
 
-        // 设置存储客户端
-        let storage_client = Arc::new(MockStorageClient);
+        let storage = MemoryStorage::new().expect("Failed to create memory storage");
+        let storage_client: Arc<dyn crate::storage::StorageClient> = Arc::new(storage);
         ctx.set_storage_client(storage_client.clone());
         assert!(ctx.get_storage_client().is_some());
-        assert!(ctx
-            .get_storage_client()
-            .expect("Storage client should exist")
-            .is_connected());
     }
 
     #[test]
     fn test_execution_plan() {
         let mut ctx = QueryContext::new();
 
-        // 创建执行计划
         let plan = ExecutionPlan::new(ctx.gen_id());
         ctx.set_plan(plan);
 
-        // 检查执行计划
         assert!(ctx.plan().is_some());
         assert_eq!(ctx.plan().expect("Plan should exist").id(), 0);
         assert!(!ctx.plan().expect("Plan should exist").is_profile_enabled());
 
-        // 启用性能分析
         ctx.plan_mut()
             .as_mut()
             .expect("Plan should exist")
@@ -1208,25 +552,19 @@ mod tests {
     fn test_charset_info() {
         let mut ctx = QueryContext::new();
 
-        // 设置字符集信息
         let charset_info = crate::core::types::CharsetInfo {
             charset: "utf8mb4".to_string(),
             collation: "utf8mb4_general_ci".to_string(),
         };
         ctx.set_charset_info(charset_info.clone());
 
-        // 检查字符集信息
         assert!(ctx.get_charset_info().is_some());
         assert_eq!(
-            ctx.get_charset_info()
-                .expect("Charset info should exist")
-                .charset,
+            ctx.get_charset_info().expect("Charset info should exist").charset,
             charset_info.charset
         );
         assert_eq!(
-            ctx.get_charset_info()
-                .expect("Charset info should exist")
-                .collation,
+            ctx.get_charset_info().expect("Charset info should exist").collation,
             charset_info.collation
         );
     }
@@ -1235,7 +573,6 @@ mod tests {
     fn test_status_info() {
         let mut ctx = QueryContext::new();
 
-        // 获取初始状态
         let status = ctx.get_status_info();
         assert!(!status.has_request_context);
         assert!(!status.has_schema_manager);
@@ -1245,42 +582,35 @@ mod tests {
         assert!(!status.has_execution_plan);
         assert!(!status.is_killed);
         assert_eq!(status.current_id, 0);
-        assert_eq!(status.variable_count, 0); // 初始变量数量应为0
+        assert_eq!(status.variable_count, 0);
 
-        // 设置一些组件
-        ctx.set_schema_manager(Arc::new(MockSchemaManager::new()));
+        ctx.set_schema_manager(Arc::new(MemorySchemaManager::new()));
         ctx.set_plan(ExecutionPlan::new(ctx.gen_id()));
 
-        // 添加一些变量到执行上下文
         ctx.ectx_mut()
             .set_value("test_var1".to_string(), crate::core::Value::Int(42));
         ctx.ectx_mut()
             .set_value("test_var2".to_string(), crate::core::Value::String("hello".to_string()));
 
-        // 检查更新后的状态
         let status = ctx.get_status_info();
         assert!(status.has_schema_manager);
         assert!(status.has_execution_plan);
         assert_eq!(status.current_id, 1);
-        assert_eq!(status.variable_count, 2); // 现在应该有2个变量
+        assert_eq!(status.variable_count, 2);
     }
 
     #[test]
     fn test_reset() {
         let mut ctx = QueryContext::new();
 
-        // 设置一些状态
         ctx.set_plan(ExecutionPlan::new(ctx.gen_id()));
         ctx.mark_killed();
 
-        // 检查状态
         assert!(ctx.plan().is_some());
         assert!(ctx.is_killed());
 
-        // 重置
         ctx.reset();
 
-        // 检查重置后的状态
         assert!(ctx.plan().is_none());
         assert!(!ctx.is_killed());
         assert_eq!(ctx.current_id(), 0);
@@ -1288,7 +618,6 @@ mod tests {
 
     #[test]
     fn test_with_request_context() {
-        // 创建请求上下文
         let request_ctx = Arc::new(RequestContext::with_session(
             "MATCH (n) RETURN n".to_string(),
             "test_session",
@@ -1297,10 +626,8 @@ mod tests {
             0,
         ));
 
-        // 使用请求上下文创建查询上下文
         let ctx = QueryContext::with_request_context(request_ctx.clone());
 
-        // 检查请求上下文是否正确设置
         assert!(ctx.rctx().is_some());
         assert_eq!(
             ctx.rctx().expect("Request context should exist").query(),
@@ -1312,7 +639,6 @@ mod tests {
     fn test_query_execution_context() {
         let mut ctx = QueryExecutionContext::new();
 
-        // 测试设置和获取值
         let value = Value::Int(42);
         ctx.set_value("test_var".to_string(), value.clone());
         assert_eq!(ctx.get_value("test_var"), Some(&value));
@@ -1322,21 +648,17 @@ mod tests {
     fn test_variable_operations() {
         let mut ctx = QueryExecutionContext::new();
 
-        // 添加变量
         ctx.set_value("var1".to_string(), Value::Int(1));
         ctx.set_value("var2".to_string(), Value::String("test".to_string()));
         assert_eq!(ctx.variable_count(), 2);
 
-        // 检查存在性
         assert!(ctx.exists("var1"));
         assert!(!ctx.exists("non_existent"));
 
-        // 移除变量
         let removed = ctx.remove_value("var1");
         assert_eq!(removed, Some(Value::Int(1)));
         assert_eq!(ctx.variable_count(), 1);
 
-        // 获取变量名
         let names = ctx.variable_names();
         assert_eq!(names.len(), 1);
         assert!(names.contains(&"var2".to_string()));
@@ -1353,4 +675,35 @@ mod tests {
         ctx.clear();
         assert_eq!(ctx.variable_count(), 0);
     }
+
+    #[test]
+    fn test_execution_response() {
+        let response = ExecutionResponse::new(true);
+        assert!(response.success);
+        assert!(response.data.is_none());
+        assert!(response.error_message.is_none());
+
+        let data = Value::String("test".to_string());
+        let response = ExecutionResponse::new(true).with_data(data.clone());
+        assert_eq!(response.data, Some(data));
+
+        let response = ExecutionResponse::new(false).with_error(100, "error message".to_string());
+        assert!(!response.success);
+        assert_eq!(response.error_code, Some(100));
+        assert_eq!(response.error_message, Some("error message".to_string()));
+    }
+
+    #[test]
+    fn test_plan_node() {
+        let node = PlanNode {
+            node_id: 1,
+            node_type: "GetNeighbors".to_string(),
+            children: Vec::new(),
+        };
+
+        assert_eq!(node.node_id, 1);
+        assert_eq!(node.node_type, "GetNeighbors");
+        assert!(node.children.is_empty());
+    }
 }
+
