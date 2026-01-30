@@ -13,6 +13,7 @@ use crate::core::{Expression, Value};
 use crate::query::context::ast::AstContext;
 use crate::query::context::execution::QueryContext;
 use crate::query::context::validate::ValidationContext;
+use crate::query::parser::ast::Stmt;
 
 pub struct Validator {
     context: Option<ValidationContext>,
@@ -181,7 +182,53 @@ impl Validator {
     fn validate_impl_with_ast(
         &mut self,
         _query_context: Option<&QueryContext>,
-        _ast: &mut AstContext,
+        ast: &mut AstContext,
+    ) -> Result<(), CoreValidationError> {
+        if let Some(ref stmt) = ast.sentence() {
+            self.validate_statement_with_ast(stmt, ast)?;
+        }
+        Ok(())
+    }
+
+    fn validate_statement_with_ast(
+        &mut self,
+        stmt: &Stmt,
+        _ast: &AstContext,
+    ) -> Result<(), CoreValidationError> {
+        use crate::query::parser::ast::Stmt::*;
+        match stmt {
+            Match(match_stmt) => {
+                self.validate_match_stmt(match_stmt)?;
+            }
+            Go(go_stmt) => {
+                self.validate_go_stmt(go_stmt)?;
+            }
+            Fetch(fetch_stmt) => {
+                self.validate_fetch_stmt(fetch_stmt)?;
+            }
+            _ => {
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_match_stmt(
+        &mut self,
+        _match_stmt: &crate::query::parser::ast::stmt::MatchStmt,
+    ) -> Result<(), CoreValidationError> {
+        Ok(())
+    }
+
+    fn validate_go_stmt(
+        &mut self,
+        _go_stmt: &crate::query::parser::ast::stmt::GoStmt,
+    ) -> Result<(), CoreValidationError> {
+        Ok(())
+    }
+
+    fn validate_fetch_stmt(
+        &mut self,
+        _fetch_stmt: &crate::query::parser::ast::stmt::FetchStmt,
     ) -> Result<(), CoreValidationError> {
         Ok(())
     }

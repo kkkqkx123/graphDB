@@ -1,7 +1,9 @@
 //! GO查询上下文
 
 use crate::core::types::expression::Expression;
+use crate::core::types::EdgeDirection as CoreEdgeDirection;
 use crate::query::context::ast::{AstContext, ExpressionProps, FromType, Over, Starts, StepClause, YieldColumns};
+use crate::query::validator::structs::clause_structs::YieldColumn;
 
 /// GO查询上下文
 ///
@@ -61,5 +63,74 @@ impl GoContext {
             src_vid_col_name: String::new(),
             dst_vid_col_name: String::new(),
         }
+    }
+
+    pub fn from_sentence(
+        base: AstContext,
+        go_stmt: &crate::query::parser::ast::stmt::GoStmt,
+    ) -> Self {
+        let mut ctx = Self::new(base);
+
+        ctx.from = Starts::new(FromType::InstantExpression);
+        ctx.from.user_defined_var_name = match &go_stmt.from {
+            crate::query::parser::ast::stmt::FromClause { vertices, .. } => {
+                vertices.first().map_or(String::new(), |expr| extract_var_name(expr))
+            }
+        };
+
+        ctx.steps = StepClause::new();
+        match &go_stmt.steps {
+            crate::query::parser::ast::stmt::Steps::Fixed(n) => {
+                ctx.steps.m_steps = *n;
+                ctx.steps.n_steps = *n;
+            }
+            crate::query::parser::ast::stmt::Steps::Range { min, max } => {
+                ctx.steps.m_steps = *min;
+                ctx.steps.n_steps = *max;
+                ctx.steps.is_m_to_n = true;
+            }
+            crate::query::parser::ast::stmt::Steps::Variable(name) => {
+                ctx.steps.m_steps = 1;
+                ctx.steps.n_steps = 1;
+            }
+        };
+
+        ctx.filter = go_stmt.where_clause.clone();
+
+        if let Some(ref over) = go_stmt.over {
+            ctx.over.edge_types = over.edge_types.clone();
+            ctx.over.direction = match over.direction {
+                crate::query::parser::ast::types::EdgeDirection::Out => {
+                    CoreEdgeDirection::Out
+                }
+                crate::query::parser::ast::types::EdgeDirection::In => {
+                    CoreEdgeDirection::In
+                }
+                crate::query::parser::ast::types::EdgeDirection::Both => {
+                    CoreEdgeDirection::Both
+                }
+            };
+        }
+
+        if let Some(ref yield_clause) = go_stmt.yield_clause {
+            ctx.yield_expression = Some(YieldColumns {
+                columns: yield_clause.items.iter().map(|item| {
+                    YieldColumn {
+                        expression: item.expression.clone(),
+                        alias: item.alias.clone().unwrap_or_default(),
+                        is_matched: false,
+                    }
+                }).collect(),
+            });
+        }
+
+        ctx
+    }
+}
+
+fn extract_var_name(expr: &crate::core::Expression) -> String {
+    match expr {
+        crate::core::Expression::Variable(name) => name.clone(),
+        _ => String::new(),
     }
 }

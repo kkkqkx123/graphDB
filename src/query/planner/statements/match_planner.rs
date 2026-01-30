@@ -114,8 +114,7 @@ impl MatchPlanner {
     ) -> Result<SubPlan, PlannerError> {
         match stmt {
             crate::query::parser::ast::Stmt::Match(_match_stmt) => {
-                let start_node = self.plan_node_pattern(space_id)?;
-                Ok(SubPlan::from_root(start_node))
+                self.plan_node_pattern(space_id)
             }
             _ => Err(PlannerError::InvalidOperation(
                 "Expected MATCH statement".to_string()
@@ -126,22 +125,30 @@ impl MatchPlanner {
     fn plan_node_pattern(
         &self,
         space_id: i32,
-    ) -> Result<PlanNodeEnum, PlannerError> {
+    ) -> Result<SubPlan, PlannerError> {
         let scan_node = ScanVerticesNode::new(space_id);
-        Ok(scan_node.into_enum())
+        let node_enum = scan_node.into_enum();
+        Ok(SubPlan::new(Some(node_enum), None))
     }
 
     fn plan_edge_pattern(
         &self,
-        _edge: &str,
+        edge_type: &str,
+        _alias: Option<&str>,
         _space_id: i32,
-    ) -> Result<PlanNodeEnum, PlannerError> {
+    ) -> Result<SubPlan, PlannerError> {
+        let edge_types = if edge_type.is_empty() {
+            vec![]
+        } else {
+            vec![edge_type.to_string()]
+        };
+        let direction = "both";
         let expand_node = crate::query::planner::plan::core::nodes::ExpandAllNode::new(
             _space_id,
-            vec![],
-            "both",
+            edge_types,
+            direction,
         );
-        Ok(expand_node.into_enum())
+        Ok(SubPlan::new(Some(expand_node.into_enum()), None))
     }
 
     fn plan_filter(
@@ -411,6 +418,52 @@ impl MatchPlanner {
         plan.set_id(id);
     }
 
+    fn extract_return_columns_from_clause(
+        &self,
+        return_clause: &crate::query::parser::ast::stmt::ReturnClause,
+    ) -> Result<Vec<YieldColumn>, PlannerError> {
+        let mut columns = Vec::new();
+        for item in &return_clause.items {
+            match item {
+                crate::query::parser::ast::stmt::ReturnItem::Expression { expression, alias } => {
+                    columns.push(YieldColumn {
+                        expression: expression.clone(),
+                        alias: alias.clone().unwrap_or_default(),
+                        is_matched: false,
+                    });
+                }
+                crate::query::parser::ast::stmt::ReturnItem::All => {
+                    columns.push(YieldColumn {
+                        expression: crate::core::Expression::Variable("*".to_string()),
+                        alias: "*".to_string(),
+                        is_matched: false,
+                    });
+                }
+            }
+        }
+        if columns.is_empty() {
+            columns.push(YieldColumn {
+                expression: crate::core::Expression::Variable("*".to_string()),
+                alias: "*".to_string(),
+                is_matched: false,
+            });
+        }
+        Ok(columns)
+    }
+
+    fn extract_order_by_items(
+        &self,
+        order_by: &crate::query::parser::ast::stmt::OrderByClause,
+    ) -> Result<Vec<crate::query::validator::OrderByItem>, PlannerError> {
+        let items = order_by.items.iter().map(|item| {
+            crate::query::validator::OrderByItem {
+                expression: item.expression.clone(),
+                desc: item.direction == crate::query::parser::ast::types::OrderDirection::Desc,
+            }
+        }).collect();
+        Ok(items)
+    }
+
     fn join_plans(
         &self,
         left: SubPlan,
@@ -422,27 +475,20 @@ impl MatchPlanner {
 
 impl Planner for MatchPlanner {
     fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
-        let _stmt = ast_ctx.sentence().ok_or_else(|| {
+        let stmt = ast_ctx.sentence().ok_or_else(|| {
             PlannerError::InvalidAstContext("AstContext 中缺少语句".to_string())
         })?;
 
         let space_id = ast_ctx.space().space_id.unwrap_or(1) as i32;
 
-        let start_node = ScanVerticesNode::new(space_id);
-        let current_plan = SubPlan::from_root(start_node.into_enum());
-
-        if ast_ctx.query_type() == crate::query::context::ast::QueryType::ReadQuery {
+        match &stmt {
+            crate::query::parser::ast::Stmt::Match(match_stmt) => {
+                self.transform_match_stmt(match_stmt, space_id)
+            }
+            _ => Err(PlannerError::InvalidOperation(
+                "MatchPlanner 需要 Match 语句".to_string()
+            ))
         }
-
-        Ok(current_plan)
-    }
-
-    fn transform_with_full_context(
-        &mut self,
-        query_context: &mut QueryContext,
-        ast_ctx: &AstContext,
-    ) -> Result<ExecutionPlan, PlannerError> {
-        self.transform_with_full_context(query_context, ast_ctx)
     }
 
     fn match_planner(&self, ast_ctx: &AstContext) -> bool {
@@ -451,6 +497,58 @@ impl Planner for MatchPlanner {
 
     fn name(&self) -> &'static str {
         "MatchPlanner"
+    }
+}
+
+impl MatchPlanner {
+    fn transform_match_stmt(
+        &mut self,
+        match_stmt: &crate::query::parser::ast::stmt::MatchStmt,
+        space_id: i32,
+    ) -> Result<SubPlan, PlannerError> {
+        let mut current_plan = self.plan_node_pattern(space_id)?;
+
+        if !match_stmt.patterns.is_empty() {
+            for pattern in &match_stmt.patterns {
+                if let crate::query::parser::ast::pattern::Pattern::Path(path_pattern) = pattern {
+                    for element in &path_pattern.elements {
+                        if let crate::query::parser::ast::pattern::PathElement::Edge(edge) = element {
+                            let edge_type = edge.edge_types.first().cloned().unwrap_or_default();
+                            let alias = edge.variable.as_deref();
+                            let edge_plan = self.plan_edge_pattern(&edge_type, alias, space_id)?;
+                            current_plan = self.join_plans(current_plan, edge_plan)?;
+                        }
+                    }
+                }
+            }
+        }
+
+        if let Some(where_cond) = &match_stmt.where_clause {
+            let filter_plan = self.plan_filter(current_plan, where_cond.clone(), space_id)?;
+            current_plan = filter_plan;
+        }
+
+        if let Some(return_clause) = &match_stmt.return_clause {
+            let columns = self.extract_return_columns_from_clause(return_clause)?;
+            let project_plan = self.plan_project(current_plan, columns, space_id)?;
+            current_plan = project_plan;
+        }
+
+        if let Some(order_by) = &match_stmt.order_by {
+            let order_items = self.extract_order_by_items(order_by)?;
+            let sort_plan = self.plan_sort(current_plan, order_items, space_id)?;
+            current_plan = sort_plan;
+        }
+
+        let limit = match_stmt.limit.unwrap_or(self.config.default_limit);
+        let skip = match_stmt.skip.unwrap_or(0);
+        if limit < usize::MAX || skip > 0 {
+            let pagination = PaginationInfo { skip, limit };
+            let limit_plan = self.plan_limit(current_plan, pagination)?;
+            current_plan = limit_plan;
+        }
+
+        Ok(current_plan)
     }
 }
 

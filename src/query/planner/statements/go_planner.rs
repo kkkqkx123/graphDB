@@ -43,7 +43,20 @@ impl GoPlanner {
 
 impl Planner for GoPlanner {
     fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
-        let go_ctx = GoContext::new(ast_ctx.clone());
+        let stmt = ast_ctx.sentence().ok_or_else(|| {
+            PlannerError::InvalidAstContext("AstContext 中缺少语句".to_string())
+        })?;
+
+        let go_stmt = match &stmt {
+            crate::query::parser::ast::Stmt::Go(go_stmt) => go_stmt,
+            _ => {
+                return Err(PlannerError::InvalidOperation(
+                    "GoPlanner 需要 Go 语句".to_string()
+                ));
+            }
+        };
+
+        let go_ctx = GoContext::from_sentence(ast_ctx.clone(), go_stmt);
 
         let arg_node = ArgumentNode::new(0, &go_ctx.from.user_defined_var_name);
         let arg_node_enum = PlanNodeEnum::Argument(arg_node);

@@ -41,8 +41,20 @@ impl FetchVerticesPlanner {
 
 impl Planner for FetchVerticesPlanner {
     fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
-        // 从ast_ctx创建FetchVerticesContext
-        let fetch_ctx = FetchVerticesContext::new(ast_ctx.clone());
+        let stmt = ast_ctx.sentence().ok_or_else(|| {
+            PlannerError::InvalidAstContext("AstContext 中缺少语句".to_string())
+        })?;
+
+        let fetch_stmt = match &stmt {
+            crate::query::parser::ast::Stmt::Fetch(fetch_stmt) => fetch_stmt,
+            _ => {
+                return Err(PlannerError::InvalidOperation(
+                    "FetchVerticesPlanner 需要 Fetch 语句".to_string()
+                ));
+            }
+        };
+
+        let fetch_ctx = FetchVerticesContext::from_sentence(ast_ctx.clone(), fetch_stmt);
 
         // 实现FETCH VERTICES查询的规划逻辑
         println!("Processing FETCH VERTICES query planning: {:?}", fetch_ctx);
