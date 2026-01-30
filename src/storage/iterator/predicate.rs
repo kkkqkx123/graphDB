@@ -7,8 +7,6 @@
 //! - PredicateOptimizer: 谓词优化器
 
 use crate::core::Value;
-use std::any::Any;
-use std::collections::HashMap;
 use std::fmt;
 
 /// 比较操作符

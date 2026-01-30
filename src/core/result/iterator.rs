@@ -1,5 +1,4 @@
 use crate::core::value::Value;
-use crate::core::DBResult;
 
 #[derive(Debug)]
 pub struct DefaultIterator {

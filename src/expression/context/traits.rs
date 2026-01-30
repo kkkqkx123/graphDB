@@ -2,7 +2,6 @@
 //!
 //! 提供表达式上下文的基础特征定义
 
-use crate::core::error::ExpressionError;
 use crate::core::Value;
 use crate::expression::functions::FunctionRef;
 

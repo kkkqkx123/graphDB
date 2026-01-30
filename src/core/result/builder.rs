@@ -1,5 +1,5 @@
 use crate::core::value::Value;
-use crate::core::result::{Result, ResultMeta, ResultState};
+use crate::core::result::{Result, ResultState};
 use crate::core::result::result_iterator::ResultIterator;
 use std::sync::Arc;
 

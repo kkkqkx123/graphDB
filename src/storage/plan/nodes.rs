@@ -12,12 +12,11 @@ pub enum ScanTarget {
 #[derive(Clone)]
 pub struct ScanNode {
     target: ScanTarget,
-    schema: ResultSetSchema,
 }
 
 impl ScanNode {
-    pub fn new(target: ScanTarget, schema: ResultSetSchema) -> Self {
-        Self { target, schema }
+    pub fn new(target: ScanTarget) -> Self {
+        Self { target }
     }
 
     pub fn target(&self) -> &ScanTarget {
@@ -29,15 +28,13 @@ impl ScanNode {
 pub struct FilterNode {
     condition: String,
     input_schema: ResultSetSchema,
-    output_schema: ResultSetSchema,
 }
 
 impl FilterNode {
-    pub fn new(condition: String, input_schema: ResultSetSchema, output_schema: ResultSetSchema) -> Self {
+    pub fn new(condition: String, input_schema: ResultSetSchema) -> Self {
         Self {
             condition,
             input_schema,
-            output_schema,
         }
     }
 

@@ -7,8 +7,7 @@
 //! - EdgeIter: 边迭代器
 //! - PropIter: 属性迭代器
 
-use crate::core::{StorageError, Value, Vertex, Edge};
-use std::sync::Arc;
+use crate::core::StorageError;
 
 /// 迭代器错误类型
 #[derive(Debug, Clone, PartialEq)]

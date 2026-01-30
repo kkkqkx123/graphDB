@@ -1,6 +1,6 @@
-use super::{ColumnSchema, DataSet, ExecutionContext, ExecutionError, Plan, ResultRow, ResultSetSchema, VecDataSet};
-use crate::core::{StorageError, Value, Vertex, EdgeDirection};
-use crate::storage::{MemoryStorage, VertexReader, EdgeReader, ScanResult};
+use super::{DataSet, ExecutionContext, ExecutionError, Plan, ResultRow, ResultSetSchema, VecDataSet};
+use crate::core::{Value, EdgeDirection};
+use crate::storage::{MemoryStorage, VertexReader, EdgeReader};
 use std::sync::Arc;
 
 pub trait StorageReader: VertexReader + EdgeReader {}
