@@ -6,8 +6,9 @@
 //! 对应原C++版本中的RuntimeContext结构
 
 use crate::common::id::{EdgeType, TagId};
-use crate::query::context::managers::{SchemaManager, IndexManager};
 use crate::storage::StorageClient;
+use crate::storage::metadata::SchemaManager;
+use crate::storage::index::IndexManager;
 use crate::core::StorageError;
 use std::sync::Arc;
 use std::time::Instant;

@@ -21,10 +21,14 @@ impl SpaceInfo {
         };
         
         Self {
-            name: executor_info.space_name.clone(),
+            space_id: 0,
+            space_name: executor_info.space_name.clone(),
             partition_num: executor_info.partition_num as i32,
             replica_factor: executor_info.replica_factor as i32,
             vid_type,
+            tags: Vec::new(),
+            edge_types: Vec::new(),
+            version: crate::core::types::MetadataVersion::default(),
             comment: None,
         }
     }

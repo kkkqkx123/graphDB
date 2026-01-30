@@ -1,18 +1,11 @@
-// 核心类型系统模块
-//
-// 包含图数据库的核心类型定义，包括统一的数据类型、表达式、操作符、查询类型等
-
-use serde::{Deserialize, Serialize};
-
 pub mod expression;
 pub mod graph_schema;
 pub mod operators;
 pub mod metadata;
 pub mod span;
 
-/// 统一的数据类型枚举
-///
-/// 用于表示运行时值类型和查询语法层类型
+use serde::{Deserialize, Serialize};
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DataType {
     Empty,
@@ -40,13 +33,18 @@ pub enum DataType {
     DataSet,
 }
 
-// 重新导出常用类型
-pub use expression::{Expression, ExpressionMeta};
-pub use graph_schema::{EdgeDirection, GraphTypeInference, VertexType, EdgeTypeInfo, PathInfo, PropertyType};
-pub use operators::{AggregateFunction, BinaryOperator, UnaryOperator};
-pub use metadata::{
-    SpaceInfo, TagInfo, EdgeTypeSchema, IndexInfo,
-    PropertyDef, InsertVertexInfo, InsertEdgeInfo, UpdateInfo,
-    UpdateTarget, UpdateOp, PasswordInfo,
+pub use self::metadata::{
+    SpaceInfo, TagInfo, EdgeTypeInfo, IndexInfo, PropertyDef,
+    MetadataVersion, SchemaVersion, SchemaHistory, SchemaChange, SchemaChangeType,
+    ClusterInfo, CharsetInfo,
+    InsertVertexInfo, InsertEdgeInfo, UpdateTarget, UpdateOp, UpdateInfo,
+    PasswordInfo, IndexStatus, IndexTargetType,
+    SchemaExportConfig, SchemaImportResult, ExportFormat,
 };
-pub use span::{Position, Span, ToSpan};
+
+pub use self::expression::{Expression, ExpressionMeta};
+pub use self::graph_schema::{EdgeDirection, GraphTypeInference, VertexType, PathInfo, PropertyType};
+pub use self::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
+pub use self::span::{Position, Span, ToSpan};
+
+pub use EdgeTypeInfo as EdgeTypeSchema;

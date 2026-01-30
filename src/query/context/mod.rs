@@ -1,7 +1,6 @@
 //! 查询上下文模块 - 重构版本
 //!
 //! 新的模块结构：
-//! - managers/: 管理器接口
 //! - execution/: 执行相关上下文
 //! - validate/: 验证上下文（保持现有结构）
 //! - symbol/: 符号表管理
@@ -17,7 +16,6 @@ pub mod validate;
 
 // 新的模块结构
 pub mod execution;
-pub mod managers;
 pub mod symbol;
 
 // 新的重构模块

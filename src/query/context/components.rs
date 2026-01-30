@@ -1,11 +1,12 @@
 //! 组件访问器模块
 //!
 //! 提供对查询所需的各种管理器和客户端组件的访问接口。
-//! 将SchemaManager、IndexManager、StorageClient、MetaClient等集中管理。
+//! 将SchemaManager、IndexManager、StorageClient等集中管理。
 
-use crate::query::context::managers::{
-    CharsetInfo, IndexManager, MetaClient, SchemaManager, StorageClient,
-};
+use crate::core::types::CharsetInfo;
+use crate::storage::StorageClient;
+use crate::storage::metadata::SchemaManager;
+use crate::storage::index::IndexManager;
 use std::sync::Arc;
 
 /// 组件访问器
@@ -26,7 +27,6 @@ pub struct QueryComponents {
     schema_manager: Option<Arc<dyn SchemaManager>>,
     index_manager: Option<Arc<dyn IndexManager>>,
     storage_client: Option<Arc<dyn StorageClient>>,
-    meta_client: Option<Arc<dyn MetaClient>>,
     charset_info: Option<Box<CharsetInfo>>,
 }
 
@@ -37,7 +37,6 @@ impl QueryComponents {
             schema_manager: None,
             index_manager: None,
             storage_client: None,
-            meta_client: None,
             charset_info: None,
         }
     }
@@ -57,12 +56,6 @@ impl QueryComponents {
     /// 设置存储客户端
     pub fn with_storage_client(mut self, storage_client: Arc<dyn StorageClient>) -> Self {
         self.storage_client = Some(storage_client);
-        self
-    }
-
-    /// 设置元数据客户端
-    pub fn with_meta_client(mut self, meta_client: Arc<dyn MetaClient>) -> Self {
-        self.meta_client = Some(meta_client);
         self
     }
 
@@ -87,11 +80,6 @@ impl QueryComponents {
         self.storage_client.as_ref()
     }
 
-    /// 获取元数据客户端
-    pub fn meta_client(&self) -> Option<&Arc<dyn MetaClient>> {
-        self.meta_client.as_ref()
-    }
-
     /// 获取字符集信息
     pub fn charset_info(&self) -> Option<&CharsetInfo> {
         self.charset_info.as_ref().map(|c| c.as_ref())
@@ -102,7 +90,6 @@ impl QueryComponents {
         self.schema_manager.is_some()
             && self.index_manager.is_some()
             && self.storage_client.is_some()
-            && self.meta_client.is_some()
     }
 
     /// 获取缺失的必需组件
@@ -116,9 +103,6 @@ impl QueryComponents {
         }
         if self.storage_client.is_none() {
             missing.push("storage_client");
-        }
-        if self.meta_client.is_none() {
-            missing.push("meta_client");
         }
         missing
     }
@@ -138,7 +122,6 @@ pub trait ComponentAccessor {
     fn schema_manager(&self) -> Option<&Arc<dyn SchemaManager>>;
     fn index_manager(&self) -> Option<&Arc<dyn IndexManager>>;
     fn storage_client(&self) -> Option<&Arc<dyn StorageClient>>;
-    fn meta_client(&self) -> Option<&Arc<dyn MetaClient>>;
     fn charset_info(&self) -> Option<&CharsetInfo>;
 }
 
@@ -153,10 +136,6 @@ impl ComponentAccessor for QueryComponents {
 
     fn storage_client(&self) -> Option<&Arc<dyn StorageClient>> {
         self.storage_client()
-    }
-
-    fn meta_client(&self) -> Option<&Arc<dyn MetaClient>> {
-        self.meta_client()
     }
 
     fn charset_info(&self) -> Option<&CharsetInfo> {

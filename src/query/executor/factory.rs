@@ -1083,15 +1083,13 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
 
             // 标签索引管理执行器
             PlanNodeEnum::CreateTagIndex(node) => {
-                use crate::core::types::metadata::IndexInfo;
-                let index_info = IndexInfo {
-                    space_name: node.info().space_name.clone(),
-                    name: node.info().index_name.clone(),
-                    target_type: node.info().target_type.clone(),
-                    target_name: node.info().target_name.clone(),
-                    properties: node.info().properties.clone(),
-                    comment: None,
-                };
+                use crate::core::types::{IndexInfo, IndexTargetType};
+                let target_type = IndexTargetType::Tag;
+                let index_info = IndexInfo::new(
+                    node.info().index_name.clone(),
+                    target_type,
+                    node.info().target_name.clone(),
+                ).with_properties(node.info().properties.clone());
                 let executor = CreateTagIndexExecutor::new(node.id(), storage, index_info);
                 Ok(ExecutorEnum::CreateTagIndex(executor))
             }
@@ -1133,15 +1131,13 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
 
             // 边索引管理执行器
             PlanNodeEnum::CreateEdgeIndex(node) => {
-                use crate::core::types::metadata::IndexInfo;
-                let index_info = IndexInfo {
-                    space_name: node.info().space_name.clone(),
-                    name: node.info().index_name.clone(),
-                    target_type: node.info().target_type.clone(),
-                    target_name: node.info().target_name.clone(),
-                    properties: node.info().properties.clone(),
-                    comment: None,
-                };
+                use crate::core::types::{IndexInfo, IndexTargetType};
+                let target_type = IndexTargetType::EdgeType;
+                let index_info = IndexInfo::new(
+                    node.info().index_name.clone(),
+                    target_type,
+                    node.info().target_name.clone(),
+                ).with_properties(node.info().properties.clone());
                 let executor = CreateEdgeIndexExecutor::new(node.id(), storage, index_info);
                 Ok(ExecutorEnum::CreateEdgeIndex(executor))
             }

@@ -46,7 +46,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowEdgesExecutor
                 let rows: Vec<Row> = edge_schemas
                     .iter()
                     .map(|schema| {
-                        vec![Value::String(schema.name.clone())]
+                        vec![Value::String(schema.edge_type_name.clone())]
                     })
                     .collect();
 

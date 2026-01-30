@@ -12,7 +12,7 @@ pub mod concurrency;
 // 错误和结果类型
 pub use error::{
     DBError, DBResult, ExpressionError, ExpressionErrorType, ExpressionPosition, QueryError,
-    StorageError, SessionError, PermissionError, SessionResult, PermissionResult, QueryResult,
+    StorageError, StorageResult, SessionError, PermissionError, SessionResult, PermissionResult, QueryResult,
 };
 
 // Result 系统

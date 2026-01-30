@@ -7,6 +7,7 @@ pub mod transaction;
 pub mod memory_storage;
 pub mod redb_storage;
 pub mod storage_client;
+pub mod index;
 
 #[cfg(test)]
 pub mod test_mock;
@@ -20,8 +21,10 @@ pub use plan::*;
 pub use redb_storage::*;
 pub use storage_client::*;
 pub use transaction::*;
+pub use index::*;
 
 pub use crate::core::StorageError;
+pub use crate::core::StorageResult;
 
 #[cfg(test)]
 pub use test_mock::*;

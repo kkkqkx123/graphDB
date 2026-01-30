@@ -1,12 +1,12 @@
 use crate::core::{Edge, EdgeDirection, StorageError, Value, Vertex};
 use crate::core::types::{
-    EdgeTypeSchema, IndexInfo, InsertEdgeInfo, InsertVertexInfo, PasswordInfo,
+    EdgeTypeInfo, IndexInfo, InsertEdgeInfo, InsertVertexInfo, PasswordInfo,
     PropertyDef, SpaceInfo, TagInfo, UpdateInfo,
 };
 use crate::expression::storage::Schema;
 use crate::storage::transaction::TransactionId;
 
-pub trait StorageClient: Send + Sync {
+pub trait StorageClient: Send + Sync + std::fmt::Debug {
     fn get_vertex(&self, space: &str, id: &Value) -> Result<Option<Vertex>, StorageError>;
     fn scan_vertices(&self, space: &str) -> Result<Vec<Vertex>, StorageError>;
     fn scan_vertices_by_tag(&self, space: &str, tag: &str) -> Result<Vec<Vertex>, StorageError>;
@@ -59,17 +59,17 @@ pub trait StorageClient: Send + Sync {
     fn get_space(&self, space: &str) -> Result<Option<SpaceInfo>, StorageError>;
     fn list_spaces(&self) -> Result<Vec<SpaceInfo>, StorageError>;
 
-    fn create_tag(&mut self, space: &str, info: &TagInfo) -> Result<bool, StorageError>;
+    fn create_tag(&mut self, space: &str, tag: &TagInfo) -> Result<bool, StorageError>;
     fn alter_tag(&mut self, space: &str, tag: &str, additions: Vec<PropertyDef>, deletions: Vec<String>) -> Result<bool, StorageError>;
     fn get_tag(&self, space: &str, tag: &str) -> Result<Option<TagInfo>, StorageError>;
     fn drop_tag(&mut self, space: &str, tag: &str) -> Result<bool, StorageError>;
     fn list_tags(&self, space: &str) -> Result<Vec<TagInfo>, StorageError>;
 
-    fn create_edge_type(&mut self, space: &str, info: &EdgeTypeSchema) -> Result<bool, StorageError>;
+    fn create_edge_type(&mut self, space: &str, edge: &EdgeTypeInfo) -> Result<bool, StorageError>;
     fn alter_edge_type(&mut self, space: &str, edge_type: &str, additions: Vec<PropertyDef>, deletions: Vec<String>) -> Result<bool, StorageError>;
-    fn get_edge_type(&self, space: &str, edge_type: &str) -> Result<Option<EdgeTypeSchema>, StorageError>;
+    fn get_edge_type(&self, space: &str, edge_type: &str) -> Result<Option<EdgeTypeInfo>, StorageError>;
     fn drop_edge_type(&mut self, space: &str, edge_type: &str) -> Result<bool, StorageError>;
-    fn list_edge_types(&self, space: &str) -> Result<Vec<EdgeTypeSchema>, StorageError>;
+    fn list_edge_types(&self, space: &str) -> Result<Vec<EdgeTypeInfo>, StorageError>;
 
     fn create_tag_index(&mut self, space: &str, info: &IndexInfo) -> Result<bool, StorageError>;
     fn drop_tag_index(&mut self, space: &str, index: &str) -> Result<bool, StorageError>;
@@ -101,4 +101,3 @@ pub trait StorageClient: Send + Sync {
     fn load_from_disk(&mut self) -> Result<(), StorageError>;
     fn save_to_disk(&self) -> Result<(), StorageError>;
 }
-

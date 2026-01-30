@@ -793,6 +793,7 @@ impl<'a> StmtParser<'a> {
                     data_type: dtype,
                     nullable: true,
                     default: None,
+                    comment: None,
                 });
                 if !ctx.match_token(TokenKind::Comma) {
                     break;

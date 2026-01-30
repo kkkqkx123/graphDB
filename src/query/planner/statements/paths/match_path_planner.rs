@@ -154,6 +154,7 @@ impl MatchPathPlanner {
     }
 }
 
+#[derive(Debug)]
 struct DummyStorage;
 
 impl StorageClient for DummyStorage {

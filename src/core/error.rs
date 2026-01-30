@@ -73,6 +73,9 @@ pub type DBResult<T> = Result<T, DBError>;
 /// Manager操作结果类型
 pub type ManagerResult<T> = Result<T, ManagerError>;
 
+/// 存储层结果类型
+pub type StorageResult<T> = Result<T, StorageError>;
+
 /// 存储层错误类型
 ///
 /// 涵盖数据库底层存储操作相关的错误
@@ -80,8 +83,15 @@ pub type ManagerResult<T> = Result<T, ManagerError>;
 pub enum StorageError {
     #[error("数据库错误: {0}")]
     DbError(String),
+    #[error("存储错误: {0}")]
+    StorageError(String),
     #[error("序列化错误: {0}")]
+    SerializeError(String),
+    #[error("序列化错误: {0}")]
+    #[deprecated(note = "请使用 SerializeError")]
     SerializationError(String),
+    #[error("反序列化错误: {0}")]
+    DeserializeError(String),
     #[error("节点未找到: {0:?}")]
     NodeNotFound(crate::core::Value),
     #[error("边未找到: {0:?}")]
@@ -94,12 +104,35 @@ pub enum StorageError {
     NotSupported(String),
     #[error("冲突错误: {0}")]
     Conflict(String),
+    #[error("锁错误: {0}")]
+    LockError(String),
     #[error("锁超时: {0}")]
     LockTimeout(String),
     #[error("死锁检测")]
     Deadlock,
     #[error("连接错误: {0}")]
     ConnectionError(String),
+    #[error("IO错误: {0}")]
+    IOError(String),
+    #[error("未找到: {0}")]
+    NotFound(String),
+    #[error("已存在: {0}")]
+    AlreadyExists(String),
+    #[error("无效输入: {0}")]
+    InvalidInput(String),
+    #[error("索引错误: {0}")]
+    IndexError(String),
+    #[error("解析错误: {0}")]
+    ParseError(String),
+}
+
+impl StorageError {
+    pub fn is_retryable(&self) -> bool {
+        matches!(
+            self,
+            StorageError::LockTimeout(_) | StorageError::Deadlock | StorageError::ConnectionError(_)
+        )
+    }
 }
 
 /// 查询层错误类型

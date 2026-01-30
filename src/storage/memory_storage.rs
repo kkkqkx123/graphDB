@@ -2,7 +2,7 @@ use super::{StorageClient, TransactionId, EdgeReader, EdgeWriter, ScanResult, Ve
 use crate::core::{Edge, StorageError, Value, Vertex, EdgeDirection};
 use crate::core::vertex_edge_path::Tag;
 use crate::core::types::{
-    SpaceInfo, TagInfo, EdgeTypeSchema, IndexInfo,
+    SpaceInfo, TagInfo, EdgeTypeInfo, EdgeTypeSchema, IndexInfo,
     PropertyDef, InsertVertexInfo, InsertEdgeInfo, UpdateInfo,
     PasswordInfo,
 };
@@ -124,12 +124,12 @@ impl MemoryStorage {
 
     fn tag_info_to_schema(tag_name: &str, tag_info: &TagInfo) -> Schema {
         let fields: Vec<FieldDef> = tag_info.properties.iter().map(|prop| {
-            let field_type = Self::data_type_to_field_type(&prop.type_def);
+            let field_type = Self::data_type_to_field_type(&prop.data_type);
             FieldDef {
                 name: prop.name.clone(),
                 field_type,
-                nullable: prop.is_nullable,
-                default_value: None,
+                nullable: prop.nullable,
+                default_value: prop.default.clone(),
                 fixed_length: None,
                 offset: 0,
                 null_flag_pos: None,
@@ -146,12 +146,12 @@ impl MemoryStorage {
 
     fn edge_type_schema_to_schema(edge_type_name: &str, edge_schema: &EdgeTypeSchema) -> Schema {
         let fields: Vec<FieldDef> = edge_schema.properties.iter().map(|prop| {
-            let field_type = Self::data_type_to_field_type(&prop.type_def);
+            let field_type = Self::data_type_to_field_type(&prop.data_type);
             FieldDef {
                 name: prop.name.clone(),
                 field_type,
-                nullable: prop.is_nullable,
-                default_value: None,
+                nullable: prop.nullable,
+                default_value: prop.default.clone(),
                 fixed_length: None,
                 offset: 0,
                 null_flag_pos: None,
@@ -464,22 +464,22 @@ impl StorageClient for MemoryStorage {
     // ========== 空间管理 ==========
     fn create_space(&mut self, space: &SpaceInfo) -> Result<bool, StorageError> {
         let mut spaces = self.spaces.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        if spaces.contains_key(&space.name) {
+        if spaces.contains_key(&space.space_name) {
             return Ok(false);
         }
-        spaces.insert(space.name.clone(), space.clone());
+        spaces.insert(space.space_name.clone(), space.clone());
         
         let mut tags = self.tags.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        tags.insert(space.name.clone(), HashMap::new());
+        tags.insert(space.space_name.clone(), HashMap::new());
         
         let mut edge_type_infos = self.edge_type_infos.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        edge_type_infos.insert(space.name.clone(), HashMap::new());
+        edge_type_infos.insert(space.space_name.clone(), HashMap::new());
         
         let mut tag_indexes = self.tag_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        tag_indexes.insert(space.name.clone(), HashMap::new());
+        tag_indexes.insert(space.space_name.clone(), HashMap::new());
         
         let mut edge_indexes = self.edge_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        edge_indexes.insert(space.name.clone(), HashMap::new());
+        edge_indexes.insert(space.space_name.clone(), HashMap::new());
         
         Ok(true)
     }
@@ -519,14 +519,14 @@ impl StorageClient for MemoryStorage {
     // ========== 标签管理 ==========
     fn create_tag(&mut self, _space: &str, info: &TagInfo) -> Result<bool, StorageError> {
         let mut tags = self.tags.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        if let Some(space_tags) = tags.get_mut(&info.space_name) {
-            if space_tags.contains_key(&info.name) {
+        if let Some(space_tags) = tags.get_mut(_space) {
+            if space_tags.contains_key(&info.tag_name) {
                 return Ok(false);
             }
-            space_tags.insert(info.name.clone(), info.clone());
+            space_tags.insert(info.tag_name.clone(), info.clone());
             Ok(true)
         } else {
-            Err(StorageError::DbError(format!("Space '{}' not found", info.space_name)))
+            Err(StorageError::DbError(format!("Space '{}' not found", _space)))
         }
     }
 
@@ -535,13 +535,8 @@ impl StorageClient for MemoryStorage {
         if let Some(space_tags) = tags.get_mut(space_name) {
             if let Some(tag_info) = space_tags.get_mut(tag_name) {
                 for prop in additions {
-                    let new_prop = super::super::core::types::PropertyType {
-                        name: prop.name,
-                        type_def: prop.data_type,
-                        is_nullable: prop.nullable,
-                    };
-                    tag_info.properties.retain(|p| p.name != new_prop.name);
-                    tag_info.properties.push(new_prop);
+                    tag_info.properties.retain(|p| p.name != prop.name);
+                    tag_info.properties.push(prop);
                 }
                 for prop_name in deletions {
                     tag_info.properties.retain(|p| p.name != prop_name);
@@ -585,14 +580,14 @@ impl StorageClient for MemoryStorage {
     // ========== 边类型管理 ==========
     fn create_edge_type(&mut self, _space: &str, info: &EdgeTypeSchema) -> Result<bool, StorageError> {
         let mut edge_type_infos = self.edge_type_infos.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        if let Some(space_edge_types) = edge_type_infos.get_mut(&info.space_name) {
-            if space_edge_types.contains_key(&info.name) {
+        if let Some(space_edge_types) = edge_type_infos.get_mut(_space) {
+            if space_edge_types.contains_key(&info.edge_type_name) {
                 return Ok(false);
             }
-            space_edge_types.insert(info.name.clone(), info.clone());
+            space_edge_types.insert(info.edge_type_name.clone(), info.clone());
             Ok(true)
         } else {
-            Err(StorageError::DbError(format!("Space '{}' not found", info.space_name)))
+            Err(StorageError::DbError(format!("Space '{}' not found", _space)))
         }
     }
 
@@ -601,13 +596,8 @@ impl StorageClient for MemoryStorage {
         if let Some(space_edge_types) = edge_type_infos.get_mut(space_name) {
             if let Some(edge_type_info) = space_edge_types.get_mut(edge_type_name) {
                 for prop in additions {
-                    let new_prop = super::super::core::types::PropertyType {
-                        name: prop.name,
-                        type_def: prop.data_type,
-                        is_nullable: prop.nullable,
-                    };
-                    edge_type_info.properties.retain(|p| p.name != new_prop.name);
-                    edge_type_info.properties.push(new_prop);
+                    edge_type_info.properties.retain(|p| p.name != prop.name);
+                    edge_type_info.properties.push(prop);
                 }
                 for prop_name in deletions {
                     edge_type_info.properties.retain(|p| p.name != prop_name);
@@ -651,14 +641,14 @@ impl StorageClient for MemoryStorage {
     // ========== 索引管理 ==========
     fn create_tag_index(&mut self, _space: &str, info: &IndexInfo) -> Result<bool, StorageError> {
         let mut tag_indexes = self.tag_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        if let Some(space_indexes) = tag_indexes.get_mut(&info.space_name) {
-            if space_indexes.contains_key(&info.name) {
+        if let Some(space_indexes) = tag_indexes.get_mut(_space) {
+            if space_indexes.contains_key(&info.index_name) {
                 return Ok(false);
             }
-            space_indexes.insert(info.name.clone(), info.clone());
+            space_indexes.insert(info.index_name.clone(), info.clone());
             Ok(true)
         } else {
-            Err(StorageError::DbError(format!("Space '{}' not found", info.space_name)))
+            Err(StorageError::DbError(format!("Space '{}' not found", _space)))
         }
     }
 
@@ -695,14 +685,14 @@ impl StorageClient for MemoryStorage {
 
     fn create_edge_index(&mut self, _space: &str, info: &IndexInfo) -> Result<bool, StorageError> {
         let mut edge_indexes = self.edge_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        if let Some(space_indexes) = edge_indexes.get_mut(&info.space_name) {
-            if space_indexes.contains_key(&info.name) {
+        if let Some(space_indexes) = edge_indexes.get_mut(_space) {
+            if space_indexes.contains_key(&info.index_name) {
                 return Ok(false);
             }
-            space_indexes.insert(info.name.clone(), info.clone());
+            space_indexes.insert(info.index_name.clone(), info.clone());
             Ok(true)
         } else {
-            Err(StorageError::DbError(format!("Space '{}' not found", info.space_name)))
+            Err(StorageError::DbError(format!("Space '{}' not found", _space)))
         }
     }
 
@@ -740,14 +730,14 @@ impl StorageClient for MemoryStorage {
     // ========== 数据变更 ==========
     fn insert_vertex_data(&mut self, _space: &str, info: &InsertVertexInfo) -> Result<bool, StorageError> {
         let mut vertices = self.vertices.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        let vertex_key = Self::serialize_value(&Value::String(info.vertex_id.clone()));
+        let vertex_key = Self::serialize_value(&info.vertex_id);
         
         if vertices.contains_key(&vertex_key) {
             return Ok(false);
         }
         
         let vertex = Vertex::new_with_properties(
-            Value::String(info.vertex_id.clone()),
+            info.vertex_id.clone(),
             vec![Tag::new(info.tag_name.clone(), HashMap::new())],
             info.properties.iter().cloned().collect(),
         );
@@ -760,8 +750,8 @@ impl StorageClient for MemoryStorage {
         let mut edges = self.edges.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         
         let edge_key = (
-            Self::serialize_value(&Value::String(info.src_vertex_id.clone())),
-            Self::serialize_value(&Value::String(info.dst_vertex_id.clone())),
+            Self::serialize_value(&info.src_vertex_id),
+            Self::serialize_value(&info.dst_vertex_id),
             info.edge_name.clone(),
         );
         
@@ -770,8 +760,8 @@ impl StorageClient for MemoryStorage {
         }
         
         let edge = Edge::new(
-            Value::String(info.src_vertex_id.clone()),
-            Value::String(info.dst_vertex_id.clone()),
+            info.src_vertex_id.clone(),
+            info.dst_vertex_id.clone(),
             info.edge_name.clone(),
             info.rank,
             info.properties.iter().cloned().collect(),
@@ -857,7 +847,7 @@ impl StorageClient for MemoryStorage {
         let tag_info = tags.get(space_name)
             .and_then(|space_tags| space_tags.get(tag_name))
             .cloned()
-            .unwrap_or_else(|| TagInfo::new(space_name.to_string(), tag_name.to_string()));
+            .unwrap_or_else(|| TagInfo::new(tag_name.to_string()));
 
         let schema = Self::tag_info_to_schema(&tag_name, &tag_info);
         let binary_data_list: Vec<Vec<u8>> = vertices.iter().map(|v| Self::serialize_vertex(v)).collect();
@@ -871,7 +861,7 @@ impl StorageClient for MemoryStorage {
         let edge_schema = edge_types.get(space_name)
             .and_then(|space_edges| space_edges.get(edge_type_name))
             .cloned()
-            .unwrap_or_else(|| EdgeTypeSchema::new(space_name.to_string(), edge_type_name.to_string()));
+            .unwrap_or_else(|| EdgeTypeInfo::new(edge_type_name.to_string()));
 
         let schema = Self::edge_type_schema_to_schema(&edge_type_name, &edge_schema);
         let binary_data_list: Vec<Vec<u8>> = edges.iter().map(|e| Self::serialize_edge(e)).collect();

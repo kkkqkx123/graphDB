@@ -5,25 +5,26 @@
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
-use crate::core::types::metadata::{EdgeTypeSchema, PropertyDef};
-use crate::core::types::graph_schema::PropertyType;
+use crate::core::types::{EdgeTypeInfo, EdgeTypeSchema, PropertyDef};
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
 
 impl EdgeTypeSchema {
     pub fn from_executor(executor_info: &ExecutorEdgeInfo) -> Self {
-        let properties: Vec<PropertyType> = executor_info.properties
+        let properties: Vec<PropertyDef> = executor_info.properties
             .iter()
-            .map(|p| PropertyType {
+            .map(|p| PropertyDef {
                 name: p.name.clone(),
-                type_def: p.data_type.clone(),
-                is_nullable: p.nullable,
+                data_type: p.data_type.clone(),
+                nullable: p.nullable,
+                default: None,
+                comment: None,
             })
             .collect();
         
         Self {
-            space_name: executor_info.space_name.clone(),
-            name: executor_info.edge_name.clone(),
+            edge_type_id: 0,
+            edge_type_name: executor_info.edge_name.clone(),
             properties,
             comment: executor_info.comment.clone(),
         }

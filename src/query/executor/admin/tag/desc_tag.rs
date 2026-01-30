@@ -64,8 +64,8 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DescTagExecutor<S
                     .map(|field| {
                         vec![
                             Value::String(field.name.clone()),
-                            Value::String(format!("{:?}", field.type_def)),
-                            Value::Bool(field.is_nullable),
+                            Value::String(format!("{:?}", field.data_type)),
+                            Value::Bool(field.nullable),
                             Value::String("".to_string()),
                             Value::String("".to_string()),
                         ]

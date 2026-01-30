@@ -12,18 +12,20 @@ use crate::storage::StorageClient;
 
 impl TagInfo {
     pub fn from_executor(executor_info: &ExecutorTagInfo) -> Self {
-        let properties: Vec<PropertyType> = executor_info.properties
+        let properties: Vec<PropertyDef> = executor_info.properties
             .iter()
-            .map(|p| PropertyType {
+            .map(|p| PropertyDef {
                 name: p.name.clone(),
-                type_def: p.data_type.clone(),
-                is_nullable: p.nullable,
+                data_type: p.data_type.clone(),
+                nullable: p.nullable,
+                default: None,
+                comment: None,
             })
             .collect();
         
         Self {
-            space_name: executor_info.space_name.clone(),
-            name: executor_info.tag_name.clone(),
+            tag_id: 0,
+            tag_name: executor_info.tag_name.clone(),
             properties,
             comment: executor_info.comment.clone(),
         }

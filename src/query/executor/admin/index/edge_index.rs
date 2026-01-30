@@ -24,8 +24,8 @@ pub struct EdgeIndexDesc {
 impl EdgeIndexDesc {
     pub fn from_metadata(info: &IndexInfo) -> Self {
         Self {
-            index_id: 0,
-            index_name: info.name.clone(),
+            index_id: info.index_id,
+            index_name: info.index_name.clone(),
             edge_name: info.target_name.clone(),
             fields: info.properties.clone(),
             comment: info.comment.clone(),
@@ -36,11 +36,14 @@ impl EdgeIndexDesc {
 impl From<&EdgeIndexDesc> for IndexInfo {
     fn from(desc: &EdgeIndexDesc) -> Self {
         IndexInfo {
-            space_name: String::new(),
-            name: desc.index_name.clone(),
-            target_type: "edge".to_string(),
+            index_id: 0,
+            index_name: desc.index_name.clone(),
+            space_id: 0,
+            target_type: crate::core::types::IndexTargetType::EdgeType,
             target_name: desc.edge_name.clone(),
             properties: desc.fields.clone(),
+            is_unique: false,
+            status: crate::core::types::IndexStatus::Creating,
             comment: desc.comment.clone(),
         }
     }
@@ -90,7 +93,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateEdgeIndexEx
                 if self.if_not_exists {
                     Ok(ExecutionResult::Success)
                 } else {
-                    Ok(ExecutionResult::Error(format!("Index '{}' already exists", self.index_info.name)))
+                    Ok(ExecutionResult::Error(format!("Index '{}' already exists", self.index_info.index_name)))
                 }
             }
             Err(e) => Ok(ExecutionResult::Error(format!("Failed to create edge index: {}", e))),

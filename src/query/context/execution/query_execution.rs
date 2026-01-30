@@ -5,9 +5,10 @@ use crate::query::context::validate::ValidationContext;
 use crate::query::context::SymbolTable;
 use crate::core::Value;
 use crate::graph::utils::IdGenerator;
-use crate::query::context::managers::{
-    CharsetInfo, IndexManager, MetaClient, SchemaManager, StorageClient,
-};
+use crate::core::types::CharsetInfo;
+use crate::storage::StorageClient;
+use crate::storage::metadata::SchemaManager;
+use crate::storage::index::IndexManager;
 use crate::query::context::request_context::RequestContext;
 use crate::utils::ObjectPool;
 use std::collections::HashMap;
@@ -179,9 +180,6 @@ pub struct QueryContext {
     // 存储客户端 - 使用Arc共享所有权
     storage_client: Option<Arc<dyn StorageClient>>,
 
-    // 元数据客户端 - 使用Arc共享所有权
-    meta_client: Option<Arc<dyn MetaClient>>,
-
     // 字符集信息
     charset_info: Option<Box<CharsetInfo>>,
 
@@ -209,7 +207,6 @@ impl QueryContext {
             schema_manager: None,
             index_manager: None,
             storage_client: None,
-            meta_client: None,
             charset_info: None,
             obj_pool: ObjectPool::new(1000), // 提供默认容量
             id_gen: IdGenerator::new(0),
@@ -251,11 +248,6 @@ impl QueryContext {
     /// 设置存储客户端
     pub fn set_storage_client(&mut self, storage: Arc<dyn StorageClient>) {
         self.storage_client = Some(storage);
-    }
-
-    /// 设置元数据客户端
-    pub fn set_meta_client(&mut self, meta_client: Arc<dyn MetaClient>) {
-        self.meta_client = Some(meta_client);
     }
 
     /// 设置字符集信息
@@ -316,11 +308,6 @@ impl QueryContext {
     /// 获取存储客户端
     pub fn get_storage_client(&self) -> Option<&Arc<dyn StorageClient>> {
         self.storage_client.as_ref()
-    }
-
-    /// 获取元数据客户端
-    pub fn get_meta_client(&self) -> Option<&Arc<dyn MetaClient>> {
-        self.meta_client.as_ref()
     }
 
     /// 获取字符集信息
@@ -407,7 +394,6 @@ impl QueryContext {
             has_schema_manager: self.schema_manager.is_some(),
             has_index_manager: self.index_manager.is_some(),
             has_storage_client: self.storage_client.is_some(),
-            has_meta_client: self.meta_client.is_some(),
             has_charset_info: self.charset_info.is_some(),
             has_execution_plan: self.plan.is_some(),
             is_killed: self.is_killed(),
@@ -438,7 +424,6 @@ pub struct QueryContextStatus {
     pub has_schema_manager: bool,
     pub has_index_manager: bool,
     pub has_storage_client: bool,
-    pub has_meta_client: bool,
     pub has_charset_info: bool,
     pub has_execution_plan: bool,
     pub is_killed: bool,
@@ -457,7 +442,6 @@ impl Clone for QueryContext {
             schema_manager: self.schema_manager.clone(),
             index_manager: self.index_manager.clone(),
             storage_client: self.storage_client.clone(),
-            meta_client: self.meta_client.clone(),
             charset_info: self.charset_info.clone(),
             obj_pool: self.obj_pool.clone(),
             id_gen: IdGenerator::new(self.id_gen.current_value()),
@@ -477,7 +461,6 @@ impl std::fmt::Debug for QueryContext {
             .field("schema_manager", &self.schema_manager.is_some())
             .field("index_manager", &self.index_manager.is_some())
             .field("storage_client", &self.storage_client.is_some())
-            .field("meta_client", &self.meta_client.is_some())
             .field("charset_info", &self.charset_info.is_some())
             .field("obj_pool", &self.obj_pool)
             .field("id_gen", &self.id_gen)
@@ -1126,118 +1109,6 @@ mod tests {
         }
     }
 
-    #[derive(Debug)]
-    struct MockMetaClient;
-
-    impl MetaClient for MockMetaClient {
-        fn get_cluster_info(&self) -> ManagerResult<crate::query::context::managers::ClusterInfo> {
-            Ok(crate::query::context::managers::ClusterInfo {
-                cluster_id: "test_cluster".to_string(),
-                meta_servers: vec!["127.0.0.1:9559".to_string()],
-                storage_servers: vec!["127.0.0.1:9779".to_string()],
-                version: crate::query::context::managers::MetadataVersion::default(),
-            })
-        }
-
-        fn get_space_info(
-            &self,
-            space_id: i32,
-        ) -> ManagerResult<crate::query::context::managers::SpaceInfo> {
-            Ok(crate::query::context::managers::SpaceInfo {
-                space_id,
-                space_name: "test_space".to_string(),
-                partition_num: 10,
-                replica_factor: 1,
-                tags: vec![],
-                edge_types: vec![],
-                version: crate::query::context::managers::MetadataVersion::default(),
-            })
-        }
-
-        fn is_connected(&self) -> bool {
-            true
-        }
-
-        fn create_space(
-            &self,
-            _space_name: &str,
-            _partition_num: i32,
-            _replica_factor: i32,
-        ) -> ManagerResult<i32> {
-            Ok(1)
-        }
-
-        fn drop_space(&self, _space_id: i32) -> ManagerResult<()> {
-            Ok(())
-        }
-
-        fn list_spaces(&self) -> ManagerResult<Vec<crate::query::context::managers::SpaceInfo>> {
-            Ok(Vec::new())
-        }
-
-        fn has_space(&self, _space_id: i32) -> bool {
-            false
-        }
-
-        fn load_from_disk(&self) -> ManagerResult<()> {
-            Ok(())
-        }
-
-        fn save_to_disk(&self) -> ManagerResult<()> {
-            Ok(())
-        }
-
-        fn create_tag(&self, _space_id: i32, _tag_def: crate::query::context::managers::TagDef) -> ManagerResult<()> {
-            Ok(())
-        }
-
-        fn drop_tag(&self, _space_id: i32, _tag_name: &str) -> ManagerResult<()> {
-            Ok(())
-        }
-
-        fn get_tag(&self, _space_id: i32, _tag_name: &str) -> ManagerResult<crate::query::context::managers::TagDef> {
-            Ok(crate::query::context::managers::TagDef {
-                tag_name: String::new(),
-                properties: Vec::new(),
-            })
-        }
-
-        fn list_tags(&self, _space_id: i32) -> ManagerResult<Vec<crate::query::context::managers::TagDef>> {
-            Ok(Vec::new())
-        }
-
-        fn create_edge_type(&self, _space_id: i32, _edge_type_def: crate::query::context::managers::EdgeTypeDef) -> ManagerResult<()> {
-            Ok(())
-        }
-
-        fn drop_edge_type(&self, _space_id: i32, _edge_name: &str) -> ManagerResult<()> {
-            Ok(())
-        }
-
-        fn get_edge_type(&self, _space_id: i32, _edge_name: &str) -> ManagerResult<crate::query::context::managers::EdgeTypeDef> {
-            Ok(crate::query::context::managers::EdgeTypeDef {
-                edge_name: String::new(),
-                properties: Vec::new(),
-            })
-        }
-
-        fn list_edge_types(&self, _space_id: i32) -> ManagerResult<Vec<crate::query::context::managers::EdgeTypeDef>> {
-            Ok(Vec::new())
-        }
-
-        fn get_metadata_version(&self, _space_id: i32) -> ManagerResult<crate::query::context::managers::MetadataVersion> {
-            Ok(crate::query::context::managers::MetadataVersion {
-                version: 1,
-                timestamp: 0,
-                description: String::new(),
-            })
-        }
-
-        fn update_metadata_version(&self, _space_id: i32, _description: &str) -> ManagerResult<()> {
-            Ok(())
-        }
-    }
-
     #[test]
     fn test_query_context_creation() {
         let ctx = QueryContext::new();
@@ -1310,15 +1181,6 @@ mod tests {
             .get_storage_client()
             .expect("Storage client should exist")
             .is_connected());
-
-        // 设置元数据客户端
-        let meta_client = Arc::new(MockMetaClient);
-        ctx.set_meta_client(meta_client.clone());
-        assert!(ctx.get_meta_client().is_some());
-        assert!(ctx
-            .get_meta_client()
-            .expect("Meta client should exist")
-            .is_connected());
     }
 
     #[test]
@@ -1347,7 +1209,7 @@ mod tests {
         let mut ctx = QueryContext::new();
 
         // 设置字符集信息
-        let charset_info = crate::query::context::managers::CharsetInfo {
+        let charset_info = crate::core::types::CharsetInfo {
             charset: "utf8mb4".to_string(),
             collation: "utf8mb4_general_ci".to_string(),
         };
@@ -1379,7 +1241,6 @@ mod tests {
         assert!(!status.has_schema_manager);
         assert!(!status.has_index_manager);
         assert!(!status.has_storage_client);
-        assert!(!status.has_meta_client);
         assert!(!status.has_charset_info);
         assert!(!status.has_execution_plan);
         assert!(!status.is_killed);

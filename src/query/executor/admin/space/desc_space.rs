@@ -71,7 +71,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DescSpaceExecutor
             Ok(Some(space_info)) => {
                 let rows = vec![
                     vec![
-                        Value::String(space_info.name.clone()),
+                        Value::String(space_info.space_name.clone()),
                         Value::Int(space_info.partition_num as i64),
                         Value::Int(space_info.replica_factor as i64),
                         Value::String(format!("{:?}", space_info.vid_type)),

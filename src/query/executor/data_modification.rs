@@ -472,14 +472,14 @@ impl<S: StorageClient + Send + 'static> Executor<S> for CreateIndexExecutor<S> {
             .or_else(|| Some(self.index_name.clone()))
             .unwrap_or_default();
 
-        let index_info = IndexInfo {
-            name: self.index_name.clone(),
-            space_name: String::new(),
-            target_type: target_type.to_string(),
-            target_name,
-            properties: self.properties.clone(),
-            comment: None,
+        let target_type = if self.index_type == crate::index::IndexType::EdgeIndex {
+            crate::core::types::IndexTargetType::EdgeType
+        } else {
+            crate::core::types::IndexTargetType::Tag
         };
+
+        let index_info = IndexInfo::new(self.index_name.clone(), target_type, target_name)
+            .with_properties(self.properties.clone());
 
         let result = match self.index_type {
             crate::index::IndexType::TagIndex => {

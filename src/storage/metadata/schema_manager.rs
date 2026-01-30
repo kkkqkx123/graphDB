@@ -1,11 +1,12 @@
 use crate::core::StorageError;
+use crate::core::types::{
+    EdgeTypeInfo, SpaceInfo, TagInfo,
+};
 use crate::expression::storage::{FieldDef, FieldType, Schema};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use super::types::{EdgeTypeSchema, IndexInfo, SpaceInfo, TagInfo};
-
-pub trait SchemaManager: Send + Sync {
+pub trait SchemaManager: Send + Sync + std::fmt::Debug {
     fn create_space(&self, space: &SpaceInfo) -> Result<bool, StorageError>;
     fn drop_space(&self, space_name: &str) -> Result<bool, StorageError>;
     fn get_space(&self, space_name: &str) -> Result<Option<SpaceInfo>, StorageError>;
@@ -16,9 +17,9 @@ pub trait SchemaManager: Send + Sync {
     fn list_tags(&self, space: &str) -> Result<Vec<TagInfo>, StorageError>;
     fn drop_tag(&self, space: &str, tag_name: &str) -> Result<bool, StorageError>;
 
-    fn create_edge_type(&self, space: &str, edge: &EdgeTypeSchema) -> Result<bool, StorageError>;
-    fn get_edge_type(&self, space: &str, edge_type_name: &str) -> Result<Option<EdgeTypeSchema>, StorageError>;
-    fn list_edge_types(&self, space: &str) -> Result<Vec<EdgeTypeSchema>, StorageError>;
+    fn create_edge_type(&self, space: &str, edge: &EdgeTypeInfo) -> Result<bool, StorageError>;
+    fn get_edge_type(&self, space: &str, edge_type_name: &str) -> Result<Option<EdgeTypeInfo>, StorageError>;
+    fn list_edge_types(&self, space: &str) -> Result<Vec<EdgeTypeInfo>, StorageError>;
     fn drop_edge_type(&self, space: &str, edge_type_name: &str) -> Result<bool, StorageError>;
 
     fn get_tag_schema(&self, space: &str, tag: &str) -> Result<Schema, StorageError>;
@@ -28,7 +29,17 @@ pub trait SchemaManager: Send + Sync {
 pub struct MemorySchemaManager {
     spaces: Arc<Mutex<HashMap<String, SpaceInfo>>>,
     tags: Arc<Mutex<HashMap<String, HashMap<String, TagInfo>>>>,
-    edge_types: Arc<Mutex<HashMap<String, HashMap<String, EdgeTypeSchema>>>>,
+    edge_types: Arc<Mutex<HashMap<String, HashMap<String, EdgeTypeInfo>>>>,
+}
+
+impl std::fmt::Debug for MemorySchemaManager {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MemorySchemaManager")
+            .field("spaces_count", &self.spaces.lock().map(|s| s.len()).unwrap_or(0))
+            .field("tags_count", &self.tags.lock().map(|t| t.len()).unwrap_or(0))
+            .field("edge_types_count", &self.edge_types.lock().map(|e| e.len()).unwrap_or(0))
+            .finish()
+    }
 }
 
 impl MemorySchemaManager {
@@ -64,12 +75,12 @@ impl MemorySchemaManager {
 
     fn tag_info_to_schema(tag_name: &str, tag_info: &TagInfo) -> Schema {
         let fields: Vec<FieldDef> = tag_info.properties.iter().map(|prop| {
-            let field_type = Self::data_type_to_field_type(&prop.type_def);
+            let field_type = Self::data_type_to_field_type(&prop.data_type);
             FieldDef {
                 name: prop.name.clone(),
                 field_type,
-                nullable: prop.is_nullable,
-                default_value: None,
+                nullable: prop.nullable,
+                default_value: prop.default.clone(),
                 fixed_length: None,
                 offset: 0,
                 null_flag_pos: None,
@@ -84,14 +95,14 @@ impl MemorySchemaManager {
         }
     }
 
-    fn edge_type_schema_to_schema(edge_type_name: &str, edge_schema: &EdgeTypeSchema) -> Schema {
-        let fields: Vec<FieldDef> = edge_schema.properties.iter().map(|prop| {
-            let field_type = Self::data_type_to_field_type(&prop.type_def);
+    fn edge_type_info_to_schema(edge_type_name: &str, edge_info: &EdgeTypeInfo) -> Schema {
+        let fields: Vec<FieldDef> = edge_info.properties.iter().map(|prop| {
+            let field_type = Self::data_type_to_field_type(&prop.data_type);
             FieldDef {
                 name: prop.name.clone(),
                 field_type,
-                nullable: prop.is_nullable,
-                default_value: None,
+                nullable: prop.nullable,
+                default_value: prop.default.clone(),
                 fixed_length: None,
                 offset: 0,
                 null_flag_pos: None,
@@ -110,16 +121,16 @@ impl MemorySchemaManager {
 impl SchemaManager for MemorySchemaManager {
     fn create_space(&self, space: &SpaceInfo) -> Result<bool, StorageError> {
         let mut spaces = self.spaces.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        if spaces.contains_key(&space.name) {
+        if spaces.contains_key(&space.space_name) {
             return Ok(false);
         }
-        spaces.insert(space.name.clone(), space.clone());
+        spaces.insert(space.space_name.clone(), space.clone());
 
         let mut tags = self.tags.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        tags.insert(space.name.clone(), HashMap::new());
+        tags.insert(space.space_name.clone(), HashMap::new());
 
         let mut edge_types = self.edge_types.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        edge_types.insert(space.name.clone(), HashMap::new());
+        edge_types.insert(space.space_name.clone(), HashMap::new());
 
         Ok(true)
     }
@@ -153,10 +164,10 @@ impl SchemaManager for MemorySchemaManager {
     fn create_tag(&self, space: &str, tag: &TagInfo) -> Result<bool, StorageError> {
         let mut tags = self.tags.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         if let Some(space_tags) = tags.get_mut(space) {
-            if space_tags.contains_key(&tag.name) {
+            if space_tags.contains_key(&tag.tag_name) {
                 return Ok(false);
             }
-            space_tags.insert(tag.name.clone(), tag.clone());
+            space_tags.insert(tag.tag_name.clone(), tag.clone());
             Ok(true)
         } else {
             Err(StorageError::DbError(format!("Space '{}' not found", space)))
@@ -190,20 +201,20 @@ impl SchemaManager for MemorySchemaManager {
         }
     }
 
-    fn create_edge_type(&self, space: &str, edge: &EdgeTypeSchema) -> Result<bool, StorageError> {
+    fn create_edge_type(&self, space: &str, edge: &EdgeTypeInfo) -> Result<bool, StorageError> {
         let mut edge_types = self.edge_types.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         if let Some(space_edges) = edge_types.get_mut(space) {
-            if space_edges.contains_key(&edge.name) {
+            if space_edges.contains_key(&edge.edge_type_name) {
                 return Ok(false);
             }
-            space_edges.insert(edge.name.clone(), edge.clone());
+            space_edges.insert(edge.edge_type_name.clone(), edge.clone());
             Ok(true)
         } else {
             Err(StorageError::DbError(format!("Space '{}' not found", space)))
         }
     }
 
-    fn get_edge_type(&self, space: &str, edge_type_name: &str) -> Result<Option<EdgeTypeSchema>, StorageError> {
+    fn get_edge_type(&self, space: &str, edge_type_name: &str) -> Result<Option<EdgeTypeInfo>, StorageError> {
         let edge_types = self.edge_types.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         if let Some(space_edges) = edge_types.get(space) {
             Ok(space_edges.get(edge_type_name).cloned())
@@ -212,7 +223,7 @@ impl SchemaManager for MemorySchemaManager {
         }
     }
 
-    fn list_edge_types(&self, space: &str) -> Result<Vec<EdgeTypeSchema>, StorageError> {
+    fn list_edge_types(&self, space: &str) -> Result<Vec<EdgeTypeInfo>, StorageError> {
         let edge_types = self.edge_types.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         if let Some(space_edges) = edge_types.get(space) {
             Ok(space_edges.values().cloned().collect())
@@ -246,8 +257,8 @@ impl SchemaManager for MemorySchemaManager {
     fn get_edge_type_schema(&self, space: &str, edge: &str) -> Result<Schema, StorageError> {
         let edge_types = self.edge_types.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         if let Some(space_edges) = edge_types.get(space) {
-            if let Some(edge_schema) = space_edges.get(edge) {
-                Ok(Self::edge_type_schema_to_schema(edge, edge_schema))
+            if let Some(edge_info) = space_edges.get(edge) {
+                Ok(Self::edge_type_info_to_schema(edge, edge_info))
             } else {
                 Err(StorageError::DbError(format!("Edge type '{}' not found in space '{}'", edge, space)))
             }

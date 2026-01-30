@@ -46,7 +46,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowTagsExecutor<
                 let rows: Vec<Row> = tag_schemas
                     .iter()
                     .map(|schema| {
-                        vec![Value::String(schema.name.clone())]
+                        vec![Value::String(schema.tag_name.clone())]
                     })
                     .collect();
 
