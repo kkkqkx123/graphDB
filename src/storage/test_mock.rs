@@ -342,4 +342,12 @@ impl StorageClient for MockStorage {
     ) -> Result<Vec<(Schema, Vec<u8>)>, StorageError> {
         Ok(Vec::new())
     }
+
+    fn load_from_disk(&mut self) -> Result<(), StorageError> {
+        Ok(())
+    }
+
+    fn save_to_disk(&self) -> Result<(), StorageError> {
+        Ok(())
+    }
 }

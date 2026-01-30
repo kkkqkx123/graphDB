@@ -324,6 +324,14 @@ impl StorageClient for DummyStorage {
     fn lookup_index(&self, _space: &str, _index: &str, _value: &crate::core::Value) -> Result<Vec<crate::core::Value>, crate::core::StorageError> {
         Ok(Vec::new())
     }
+
+    fn load_from_disk(&mut self) -> Result<(), crate::core::StorageError> {
+        Ok(())
+    }
+
+    fn save_to_disk(&self) -> Result<(), crate::core::StorageError> {
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

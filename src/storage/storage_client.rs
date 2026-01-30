@@ -97,5 +97,8 @@ pub trait StorageClient: Send + Sync {
     fn get_edge_with_schema(&self, space: &str, edge_type: &str, src: &Value, dst: &Value) -> Result<Option<(Schema, Vec<u8>)>, StorageError>;
     fn scan_vertices_with_schema(&self, space: &str, tag: &str) -> Result<Vec<(Schema, Vec<u8>)>, StorageError>;
     fn scan_edges_with_schema(&self, space: &str, edge_type: &str) -> Result<Vec<(Schema, Vec<u8>)>, StorageError>;
+
+    fn load_from_disk(&mut self) -> Result<(), StorageError>;
+    fn save_to_disk(&self) -> Result<(), StorageError>;
 }
 

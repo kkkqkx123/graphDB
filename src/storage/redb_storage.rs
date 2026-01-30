@@ -1048,4 +1048,18 @@ impl StorageClient for RedbStorage {
     fn lookup_index(&self, _space: &str, _index: &str, _value: &Value) -> Result<Vec<Value>, StorageError> {
         Ok(Vec::new())
     }
+
+    fn load_from_disk(&mut self) -> Result<(), StorageError> {
+        self.vertex_cache.lock()
+            .map_err(|e| StorageError::DbError(e.to_string()))?
+            .clear();
+        self.edge_cache.lock()
+            .map_err(|e| StorageError::DbError(e.to_string()))?
+            .clear();
+        Ok(())
+    }
+
+    fn save_to_disk(&self) -> Result<(), StorageError> {
+        Ok(())
+    }
 }

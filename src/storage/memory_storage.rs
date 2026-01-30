@@ -9,7 +9,10 @@ use crate::core::types::{
 use crate::expression::storage::{FieldDef, FieldType, RowReaderWrapper, Schema};
 use crate::common::memory::MemoryPool;
 use crate::common::id::IdGenerator;
+use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
+use std::fs;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 type VertexKey = Vec<u8>;
@@ -33,6 +36,7 @@ pub struct MemoryStorage {
     edge_indexes: Arc<Mutex<HashMap<String, HashMap<String, IndexInfo>>>>,
     users: Arc<Mutex<HashMap<String, String>>>,
     pub schema_manager: Arc<MemorySchemaManager>,
+    storage_path: PathBuf,
 }
 
 impl std::fmt::Debug for MemoryStorage {
@@ -60,9 +64,15 @@ struct TransactionState {
 
 impl MemoryStorage {
     pub fn new() -> Result<Self, StorageError> {
-        let memory_pool = Arc::new(MemoryPool::new(100 * 1024 * 1024).map_err(|e| StorageError::DbError(e))?); // 100MB
+        Self::new_with_path(PathBuf::from("data/memory"))
+    }
+
+    pub fn new_with_path(path: PathBuf) -> Result<Self, StorageError> {
+        let memory_pool = Arc::new(MemoryPool::new(100 * 1024 * 1024).map_err(|e| StorageError::DbError(e))?);
         let id_generator = Arc::new(Mutex::new(IdGenerator::new()));
         let schema_manager = Arc::new(MemorySchemaManager::new());
+
+        fs::create_dir_all(&path).map_err(|e| StorageError::DbError(e.to_string()))?;
 
         Ok(Self {
             vertices: Arc::new(Mutex::new(HashMap::new())),
@@ -81,6 +91,7 @@ impl MemoryStorage {
             edge_indexes: Arc::new(Mutex::new(HashMap::new())),
             users: Arc::new(Mutex::new(HashMap::new())),
             schema_manager,
+            storage_path: path,
         })
     }
 
@@ -870,6 +881,159 @@ impl StorageClient for MemoryStorage {
 
     fn lookup_index(&self, _space: &str, _index: &str, _value: &Value) -> Result<Vec<Value>, StorageError> {
         Ok(Vec::new())
+    }
+
+    fn load_from_disk(&mut self) -> Result<(), StorageError> {
+        let path = &self.storage_path;
+        if !path.exists() {
+            return Ok(());
+        }
+
+        let vertices_file = path.join("vertices.json");
+        if vertices_file.exists() {
+            let content = fs::read_to_string(&vertices_file)
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+            let vertices_map: HashMap<VertexKey, Vertex> = serde_json::from_str(&content)
+                .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+            *self.vertices.lock().map_err(|e| StorageError::DbError(e.to_string()))? = vertices_map;
+        }
+
+        let edges_file = path.join("edges.json");
+        if edges_file.exists() {
+            let content = fs::read_to_string(&edges_file)
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+            let edges_map: HashMap<EdgeKey, Edge> = serde_json::from_str(&content)
+                .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+            *self.edges.lock().map_err(|e| StorageError::DbError(e.to_string()))? = edges_map;
+        }
+
+        let vertex_tags_file = path.join("vertex_tags.json");
+        if vertex_tags_file.exists() {
+            let content = fs::read_to_string(&vertex_tags_file)
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+            let tags_map: HashMap<String, Vec<VertexKey>> = serde_json::from_str(&content)
+                .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+            *self.vertex_tags.lock().map_err(|e| StorageError::DbError(e.to_string()))? = tags_map;
+        }
+
+        let edge_types_file = path.join("edge_types.json");
+        if edge_types_file.exists() {
+            let content = fs::read_to_string(&edge_types_file)
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+            let types_map: HashMap<String, Vec<EdgeKey>> = serde_json::from_str(&content)
+                .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+            *self.edge_types.lock().map_err(|e| StorageError::DbError(e.to_string()))? = types_map;
+        }
+
+        let spaces_file = path.join("spaces.json");
+        if spaces_file.exists() {
+            let content = fs::read_to_string(&spaces_file)
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+            let spaces_map: HashMap<String, SpaceInfo> = serde_json::from_str(&content)
+                .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+            *self.spaces.lock().map_err(|e| StorageError::DbError(e.to_string()))? = spaces_map;
+        }
+
+        let tags_file = path.join("tags.json");
+        if tags_file.exists() {
+            let content = fs::read_to_string(&tags_file)
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+            let tags_map: HashMap<String, HashMap<String, TagInfo>> = serde_json::from_str(&content)
+                .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+            *self.tags.lock().map_err(|e| StorageError::DbError(e.to_string()))? = tags_map;
+        }
+
+        let edge_type_infos_file = path.join("edge_type_infos.json");
+        if edge_type_infos_file.exists() {
+            let content = fs::read_to_string(&edge_type_infos_file)
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+            let infos_map: HashMap<String, HashMap<String, EdgeTypeSchema>> = serde_json::from_str(&content)
+                .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+            *self.edge_type_infos.lock().map_err(|e| StorageError::DbError(e.to_string()))? = infos_map;
+        }
+
+        let tag_indexes_file = path.join("tag_indexes.json");
+        if tag_indexes_file.exists() {
+            let content = fs::read_to_string(&tag_indexes_file)
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+            let indexes_map: HashMap<String, HashMap<String, IndexInfo>> = serde_json::from_str(&content)
+                .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+            *self.tag_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))? = indexes_map;
+        }
+
+        let edge_indexes_file = path.join("edge_indexes.json");
+        if edge_indexes_file.exists() {
+            let content = fs::read_to_string(&edge_indexes_file)
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+            let indexes_map: HashMap<String, HashMap<String, IndexInfo>> = serde_json::from_str(&content)
+                .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+            *self.edge_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))? = indexes_map;
+        }
+
+        Ok(())
+    }
+
+    fn save_to_disk(&self) -> Result<(), StorageError> {
+        let path = &self.storage_path;
+        if !path.exists() {
+            fs::create_dir_all(path).map_err(|e| StorageError::DbError(e.to_string()))?;
+        }
+
+        let vertices = self.vertices.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let vertices_content = serde_json::to_string_pretty(&*vertices)
+            .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+        fs::write(path.join("vertices.json"), vertices_content)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        let edges = self.edges.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let edges_content = serde_json::to_string_pretty(&*edges)
+            .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+        fs::write(path.join("edges.json"), edges_content)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        let vertex_tags = self.vertex_tags.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let tags_content = serde_json::to_string_pretty(&*vertex_tags)
+            .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+        fs::write(path.join("vertex_tags.json"), tags_content)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        let edge_types = self.edge_types.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let types_content = serde_json::to_string_pretty(&*edge_types)
+            .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+        fs::write(path.join("edge_types.json"), types_content)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        let spaces = self.spaces.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let spaces_content = serde_json::to_string_pretty(&*spaces)
+            .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+        fs::write(path.join("spaces.json"), spaces_content)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        let tags = self.tags.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let tags_content = serde_json::to_string_pretty(&*tags)
+            .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+        fs::write(path.join("tags.json"), tags_content)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        let edge_type_infos = self.edge_type_infos.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let infos_content = serde_json::to_string_pretty(&*edge_type_infos)
+            .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+        fs::write(path.join("edge_type_infos.json"), infos_content)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        let tag_indexes = self.tag_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let indexes_content = serde_json::to_string_pretty(&*tag_indexes)
+            .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+        fs::write(path.join("tag_indexes.json"), indexes_content)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        let edge_indexes = self.edge_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let indexes_content = serde_json::to_string_pretty(&*edge_indexes)
+            .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+        fs::write(path.join("edge_indexes.json"), indexes_content)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        Ok(())
     }
 }
 
