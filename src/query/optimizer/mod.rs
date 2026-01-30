@@ -33,6 +33,7 @@ pub mod predicate_pushdown;
 pub mod projection_pushdown;
 pub mod property_tracker;
 pub mod prune_properties_visitor;
+pub mod push_filter_down_aggregate;
 pub mod scan_optimization;
 pub mod transformation_rules;
 pub mod predicate_reorder;
@@ -86,6 +87,9 @@ pub use predicate_pushdown::{
     PushFilterDownTraverseRule,
 };
 pub use projection_pushdown::{ProjectionPushDownRule, PushProjectDownRule};
+pub use property_tracker::PropertyTracker;
+pub use prune_properties_visitor::PrunePropertiesVisitor;
+pub use push_filter_down_aggregate::PushFilterDownAggregateRule;
 pub use rule_traits::{BaseOptRule, EliminationRule, MergeRule, PushDownRule};
 pub use scan_optimization::{IndexFullScanRule, ScanWithFilterOptimizationRule};
 pub use transformation_rules::TopNRule;

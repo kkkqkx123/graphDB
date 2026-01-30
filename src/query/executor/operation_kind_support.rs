@@ -50,6 +50,7 @@ impl<S: StorageClient + Send + 'static> IntoOperationKind for ExecutorEnum<S> {
             ExecutorEnum::WhileLoop(_) => CoreOperationKind::WhileLoop,
             ExecutorEnum::Select(_) => CoreOperationKind::Select,
             ExecutorEnum::ScanEdges(_) => CoreOperationKind::ScanEdges,
+            ExecutorEnum::ScanVertices(_) => CoreOperationKind::ScanVertices,
             ExecutorEnum::IndexScan(_) => CoreOperationKind::IndexScan,
             ExecutorEnum::Argument(_) => CoreOperationKind::Argument,
             ExecutorEnum::PassThrough(_) => CoreOperationKind::PassThrough,

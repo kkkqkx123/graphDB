@@ -22,6 +22,7 @@ fn register_logical_rules() {
     RuleRegistry::register(OptimizationRule::RemoveNoopProject, || Box::new(crate::query::optimizer::RemoveNoopProjectRule));
     RuleRegistry::register(OptimizationRule::EliminateAppendVertices, || Box::new(crate::query::optimizer::EliminateAppendVerticesRule));
     RuleRegistry::register(OptimizationRule::RemoveAppendVerticesBelowJoin, || Box::new(crate::query::optimizer::RemoveAppendVerticesBelowJoinRule));
+    RuleRegistry::register(OptimizationRule::PushFilterDownAggregate, || Box::new(crate::query::optimizer::PushFilterDownAggregateRule));
     RuleRegistry::register(OptimizationRule::TopN, || Box::new(crate::query::optimizer::TopNRule));
     RuleRegistry::register(OptimizationRule::MergeGetVerticesAndProject, || Box::new(crate::query::optimizer::MergeGetVerticesAndProjectRule));
     RuleRegistry::register(OptimizationRule::MergeGetVerticesAndDedup, || Box::new(crate::query::optimizer::MergeGetVerticesAndDedupRule));

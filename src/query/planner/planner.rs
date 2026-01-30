@@ -68,31 +68,50 @@ pub struct PlanCache {
 }
 
 impl PlanCache {
-    pub fn new(max_size: usize) -> Self {
-        Self {
-            cache: Mutex::new(LruCache::new(NonZeroUsize::new(max_size).unwrap())),
-            max_size,
+    pub fn new(max_size: usize) -> Result<Self, PlannerError> {
+        if max_size == 0 {
+            return Err(PlannerError::InvalidOperation(
+                "Plan cache size must be greater than 0".to_string(),
+            ));
         }
+        let cache_size = NonZeroUsize::new(max_size)
+            .ok_or_else(|| PlannerError::InvalidOperation(
+                "Failed to create plan cache with size".to_string(),
+            ))?;
+        Ok(Self {
+            cache: Mutex::new(LruCache::new(cache_size)),
+            max_size,
+        })
     }
 
-    pub fn get(&self, key: &PlanCacheKey) -> Option<ExecutionPlan> {
-        let mut cache = self.cache.lock().unwrap();
-        cache.get(key).cloned()
+    pub fn get(&self, key: &PlanCacheKey) -> Result<Option<ExecutionPlan>, PlannerError> {
+        let mut cache = self.cache.lock().map_err(|e| {
+            PlannerError::PlanGenerationFailed(format!("Failed to lock plan cache: {}", e))
+        })?;
+        Ok(cache.get(key).cloned())
     }
 
-    pub fn insert(&self, key: PlanCacheKey, plan: ExecutionPlan) {
-        let mut cache = self.cache.lock().unwrap();
+    pub fn insert(&self, key: PlanCacheKey, plan: ExecutionPlan) -> Result<(), PlannerError> {
+        let mut cache = self.cache.lock().map_err(|e| {
+            PlannerError::PlanGenerationFailed(format!("Failed to lock plan cache: {}", e))
+        })?;
         cache.push(key, plan);
+        Ok(())
     }
 
-    pub fn clear(&self) {
-        let mut cache = self.cache.lock().unwrap();
+    pub fn clear(&self) -> Result<(), PlannerError> {
+        let mut cache = self.cache.lock().map_err(|e| {
+            PlannerError::PlanGenerationFailed(format!("Failed to lock plan cache: {}", e))
+        })?;
         cache.clear();
+        Ok(())
     }
 
-    pub fn size(&self) -> usize {
-        let cache = self.cache.lock().unwrap();
-        cache.len()
+    pub fn size(&self) -> Result<usize, PlannerError> {
+        let cache = self.cache.lock().map_err(|e| {
+            PlannerError::PlanGenerationFailed(format!("Failed to lock plan cache: {}", e))
+        })?;
+        Ok(cache.len())
     }
 }
 
@@ -225,22 +244,27 @@ pub struct StaticConfigurablePlannerRegistry {
 
 impl StaticConfigurablePlannerRegistry {
     pub fn new() -> Self {
+        let cache = PlanCache::new(100)
+            .unwrap_or_else(|_| PlanCache::new(1).expect("Failed to create plan cache with minimum size"));
         Self {
             planners: HashMap::new(),
             config: PlannerConfig::default(),
-            cache: Some(PlanCache::new(100)),
+            cache: Some(cache),
         }
     }
 
     pub fn with_config(config: PlannerConfig) -> Self {
+        let cache = if config.enable_caching {
+            Some(PlanCache::new(config.cache_size)
+                .unwrap_or_else(|_| PlanCache::new(100)
+                    .expect("Failed to create plan cache with default size")))
+        } else {
+            None
+        };
         Self {
             planners: HashMap::new(),
             config: config.clone(),
-            cache: if config.enable_caching {
-                Some(PlanCache::new(config.cache_size))
-            } else {
-                None
-            },
+            cache,
         }
     }
 
@@ -266,7 +290,9 @@ impl StaticConfigurablePlannerRegistry {
     pub fn set_config(&mut self, config: PlannerConfig) {
         self.config = config.clone();
         if config.enable_caching && self.cache.is_none() {
-            self.cache = Some(PlanCache::new(config.cache_size));
+            self.cache = Some(PlanCache::new(config.cache_size)
+                .unwrap_or_else(|_| PlanCache::new(100)
+                    .expect("Failed to create plan cache in set_config")));
         } else if !config.enable_caching {
             self.cache = None;
         }
@@ -287,7 +313,7 @@ impl StaticConfigurablePlannerRegistry {
 
         if self.config.enable_caching {
             if let Some(ref cache) = self.cache {
-                if let Some(cached_plan) = cache.get(&cache_key) {
+                if let Ok(Some(cached_plan)) = cache.get(&cache_key) {
                     return Ok(cached_plan.clone());
                 }
             }
@@ -305,7 +331,7 @@ impl StaticConfigurablePlannerRegistry {
 
             if self.config.enable_caching {
                 if let Some(ref cache) = self.cache {
-                    cache.insert(cache_key.clone(), plan.clone());
+                    let _ = cache.insert(cache_key.clone(), plan.clone());
                 }
             }
 
@@ -344,12 +370,12 @@ impl StaticConfigurablePlannerRegistry {
     }
 
     pub fn cache_size(&self) -> usize {
-        self.cache.as_ref().map_or(0, |c| c.size())
+        self.cache.as_ref().map_or(0, |c| c.size().unwrap_or(0))
     }
 
     pub fn clear_cache(&mut self) {
         if let Some(ref mut cache) = self.cache {
-            cache.clear();
+            let _ = cache.clear();
         }
     }
 

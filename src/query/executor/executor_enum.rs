@@ -24,8 +24,8 @@ use super::admin::{
 
 use super::base::{BaseExecutor, ExecutorStats, StartExecutor, ExecutionResult, DBResult, Executor, InputExecutor};
 use super::data_access::{
-    AllPathsExecutor, GetNeighborsExecutor, GetPropExecutor, GetVerticesExecutor,
-    ScanEdgesExecutor,
+    AllPathsExecutor, GetEdgesExecutor, GetNeighborsExecutor, GetPropExecutor, GetVerticesExecutor,
+    ScanEdgesExecutor, ScanVerticesExecutor,
 };
 use super::data_processing::graph_traversal::{
     ExpandAllExecutor, ExpandExecutor, MultiShortestPathExecutor, ShortestPathExecutor,
@@ -85,6 +85,7 @@ pub enum ExecutorEnum<S: StorageClient + Send + 'static> {
     WhileLoop(WhileLoopExecutor<S>),
     Select(SelectExecutor<S>),
     ScanEdges(ScanEdgesExecutor<S>),
+    ScanVertices(ScanVerticesExecutor<S>),
     IndexScan(IndexScanExecutor<S>),
     Argument(ArgumentExecutor<S>),
     PassThrough(PassThroughExecutor<S>),
@@ -164,6 +165,7 @@ impl<S: StorageClient + Send + 'static> Debug for ExecutorEnum<S> {
             ExecutorEnum::WhileLoop(exec) => f.write_str(&format!("ExecutorEnum::WhileLoop({})", exec.name())),
             ExecutorEnum::Select(exec) => f.write_str(&format!("ExecutorEnum::Select({})", exec.name())),
             ExecutorEnum::ScanEdges(exec) => f.write_str(&format!("ExecutorEnum::ScanEdges({})", exec.name())),
+            ExecutorEnum::ScanVertices(exec) => f.write_str(&format!("ExecutorEnum::ScanVertices({})", exec.name())),
             ExecutorEnum::IndexScan(exec) => f.write_str(&format!("ExecutorEnum::IndexScan({})", exec.name())),
             ExecutorEnum::Argument(exec) => f.write_str(&format!("ExecutorEnum::Argument({})", exec.name())),
             ExecutorEnum::PassThrough(exec) => f.write_str(&format!("ExecutorEnum::PassThrough({})", exec.name())),
@@ -245,6 +247,7 @@ impl<S: StorageClient + Send + 'static> ExecutorEnum<S> {
             ExecutorEnum::WhileLoop(exec) => exec.id(),
             ExecutorEnum::Select(exec) => exec.id(),
             ExecutorEnum::ScanEdges(exec) => exec.id(),
+            ExecutorEnum::ScanVertices(exec) => exec.id(),
             ExecutorEnum::IndexScan(exec) => exec.id(),
             ExecutorEnum::Argument(exec) => exec.id(),
             ExecutorEnum::PassThrough(exec) => exec.id(),
@@ -324,6 +327,7 @@ impl<S: StorageClient + Send + 'static> ExecutorEnum<S> {
             ExecutorEnum::WhileLoop(exec) => exec.name(),
             ExecutorEnum::Select(exec) => exec.name(),
             ExecutorEnum::ScanEdges(exec) => exec.name(),
+            ExecutorEnum::ScanVertices(exec) => exec.name(),
             ExecutorEnum::IndexScan(exec) => exec.name(),
             ExecutorEnum::Argument(exec) => exec.name(),
             ExecutorEnum::PassThrough(exec) => exec.name(),
@@ -403,6 +407,7 @@ impl<S: StorageClient + Send + 'static> ExecutorEnum<S> {
             ExecutorEnum::WhileLoop(exec) => exec.stats(),
             ExecutorEnum::Select(exec) => exec.stats(),
             ExecutorEnum::ScanEdges(exec) => exec.stats(),
+            ExecutorEnum::ScanVertices(exec) => exec.stats(),
             ExecutorEnum::IndexScan(exec) => exec.stats(),
             ExecutorEnum::Argument(exec) => exec.stats(),
             ExecutorEnum::PassThrough(exec) => exec.stats(),
@@ -482,6 +487,7 @@ impl<S: StorageClient + Send + 'static> ExecutorEnum<S> {
             ExecutorEnum::WhileLoop(exec) => exec.stats_mut(),
             ExecutorEnum::Select(exec) => exec.stats_mut(),
             ExecutorEnum::ScanEdges(exec) => exec.stats_mut(),
+            ExecutorEnum::ScanVertices(exec) => exec.stats_mut(),
             ExecutorEnum::IndexScan(exec) => exec.stats_mut(),
             ExecutorEnum::Argument(exec) => exec.stats_mut(),
             ExecutorEnum::PassThrough(exec) => exec.stats_mut(),
@@ -565,6 +571,7 @@ impl<S: StorageClient + Send + 'static> super::base::Executor<S> for ExecutorEnu
             ExecutorEnum::WhileLoop(exec) => exec.execute().await,
             ExecutorEnum::Select(exec) => exec.execute().await,
             ExecutorEnum::ScanEdges(exec) => exec.execute().await,
+            ExecutorEnum::ScanVertices(exec) => exec.execute().await,
             ExecutorEnum::IndexScan(exec) => exec.execute().await,
             ExecutorEnum::Argument(exec) => exec.execute().await,
             ExecutorEnum::PassThrough(exec) => exec.execute().await,
@@ -646,6 +653,7 @@ impl<S: StorageClient + Send + 'static> super::base::Executor<S> for ExecutorEnu
             ExecutorEnum::WhileLoop(exec) => exec.open(),
             ExecutorEnum::Select(exec) => exec.open(),
             ExecutorEnum::ScanEdges(exec) => exec.open(),
+            ExecutorEnum::ScanVertices(exec) => exec.open(),
             ExecutorEnum::IndexScan(exec) => exec.open(),
             ExecutorEnum::Argument(exec) => exec.open(),
             ExecutorEnum::PassThrough(exec) => exec.open(),
@@ -725,6 +733,7 @@ impl<S: StorageClient + Send + 'static> super::base::Executor<S> for ExecutorEnu
             ExecutorEnum::WhileLoop(exec) => exec.close(),
             ExecutorEnum::Select(exec) => exec.close(),
             ExecutorEnum::ScanEdges(exec) => exec.close(),
+            ExecutorEnum::ScanVertices(exec) => exec.close(),
             ExecutorEnum::IndexScan(exec) => exec.close(),
             ExecutorEnum::Argument(exec) => exec.close(),
             ExecutorEnum::PassThrough(exec) => exec.close(),
@@ -804,6 +813,7 @@ impl<S: StorageClient + Send + 'static> super::base::Executor<S> for ExecutorEnu
             ExecutorEnum::WhileLoop(exec) => exec.is_open(),
             ExecutorEnum::Select(exec) => exec.is_open(),
             ExecutorEnum::ScanEdges(exec) => exec.is_open(),
+            ExecutorEnum::ScanVertices(exec) => exec.is_open(),
             ExecutorEnum::IndexScan(exec) => exec.is_open(),
             ExecutorEnum::Argument(exec) => exec.is_open(),
             ExecutorEnum::PassThrough(exec) => exec.is_open(),
@@ -895,6 +905,7 @@ impl<S: StorageClient + Send + 'static> super::base::Executor<S> for ExecutorEnu
             ExecutorEnum::WhileLoop(exec) => exec.stats(),
             ExecutorEnum::Select(exec) => exec.stats(),
             ExecutorEnum::ScanEdges(exec) => exec.stats(),
+            ExecutorEnum::ScanVertices(exec) => exec.stats(),
             ExecutorEnum::IndexScan(exec) => exec.stats(),
             ExecutorEnum::Argument(exec) => exec.stats(),
             ExecutorEnum::PassThrough(exec) => exec.stats(),
@@ -974,6 +985,7 @@ impl<S: StorageClient + Send + 'static> super::base::Executor<S> for ExecutorEnu
             ExecutorEnum::WhileLoop(exec) => exec.stats_mut(),
             ExecutorEnum::Select(exec) => exec.stats_mut(),
             ExecutorEnum::ScanEdges(exec) => exec.stats_mut(),
+            ExecutorEnum::ScanVertices(exec) => exec.stats_mut(),
             ExecutorEnum::IndexScan(exec) => exec.stats_mut(),
             ExecutorEnum::Argument(exec) => exec.stats_mut(),
             ExecutorEnum::PassThrough(exec) => exec.stats_mut(),
@@ -1040,6 +1052,7 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for ExecutorEnum<S> {
             ExecutorEnum::WhileLoop(_) => {}
             ExecutorEnum::Select(_) => {}
             ExecutorEnum::ScanEdges(_) => {}
+            ExecutorEnum::ScanVertices(_) => {}
             ExecutorEnum::IndexScan(_) => {}
             ExecutorEnum::Argument(_) => {}
             ExecutorEnum::PassThrough(_) => {}
@@ -1119,6 +1132,7 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for ExecutorEnum<S> {
             ExecutorEnum::WhileLoop(_) => None,
             ExecutorEnum::Select(_) => None,
             ExecutorEnum::ScanEdges(_) => None,
+            ExecutorEnum::ScanVertices(_) => None,
             ExecutorEnum::IndexScan(_) => None,
             ExecutorEnum::Argument(_) => None,
             ExecutorEnum::PassThrough(_) => None,

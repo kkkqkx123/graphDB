@@ -17,6 +17,7 @@ pub enum OptimizationRule {
     RemoveNoopProject,
     EliminateAppendVertices,
     RemoveAppendVerticesBelowJoin,
+    PushFilterDownAggregate,
     TopN,
     MergeGetVerticesAndProject,
     MergeGetVerticesAndDedup,
@@ -56,7 +57,8 @@ impl OptimizationRule {
             Self::FilterPushDown | Self::PredicatePushDown | Self::ProjectionPushDown |
             Self::CombineFilter | Self::CollapseProject | Self::DedupElimination |
             Self::EliminateFilter | Self::EliminateRowCollect | Self::RemoveNoopProject |
-            Self::EliminateAppendVertices | Self::RemoveAppendVerticesBelowJoin | Self::TopN |
+            Self::EliminateAppendVertices | Self::RemoveAppendVerticesBelowJoin |
+            Self::PushFilterDownAggregate | Self::TopN |
             Self::MergeGetVerticesAndProject | Self::MergeGetVerticesAndDedup |
             Self::MergeGetNbrsAndProject | Self::MergeGetNbrsAndDedup => OptimizationPhase::LogicalOptimization,
 
@@ -87,6 +89,7 @@ impl OptimizationRule {
             Self::RemoveNoopProject => "RemoveNoopProjectRule",
             Self::EliminateAppendVertices => "EliminateAppendVerticesRule",
             Self::RemoveAppendVerticesBelowJoin => "RemoveAppendVerticesBelowJoinRule",
+            Self::PushFilterDownAggregate => "PushFilterDownAggregateRule",
             Self::TopN => "TopNRule",
             Self::MergeGetVerticesAndProject => "MergeGetVerticesAndProjectRule",
             Self::MergeGetVerticesAndDedup => "MergeGetVerticesAndDedupRule",
@@ -132,6 +135,7 @@ impl OptimizationRule {
             Self::RemoveNoopProject => Some(Box::new(super::RemoveNoopProjectRule)),
             Self::EliminateAppendVertices => Some(Box::new(super::EliminateAppendVerticesRule)),
             Self::RemoveAppendVerticesBelowJoin => Some(Box::new(super::RemoveAppendVerticesBelowJoinRule)),
+            Self::PushFilterDownAggregate => Some(Box::new(super::PushFilterDownAggregateRule)),
             Self::TopN => Some(Box::new(super::TopNRule)),
             Self::MergeGetVerticesAndProject => Some(Box::new(super::MergeGetVerticesAndProjectRule)),
             Self::MergeGetVerticesAndDedup => Some(Box::new(super::MergeGetVerticesAndDedupRule)),

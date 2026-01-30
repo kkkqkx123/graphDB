@@ -8,6 +8,8 @@ pub mod graph_scan_node;
 pub mod join_node;
 pub mod management_node_enum;
 pub mod management_node_traits;
+pub mod plan_node_category;
+pub mod plan_node_cost;
 pub mod plan_node_enum;
 pub mod plan_node_operations;
 pub mod plan_node_traits;
@@ -38,6 +40,10 @@ pub use graph_scan_node::{
 pub use join_node::{CrossJoinNode, HashInnerJoinNode, HashLeftJoinNode, InnerJoinNode, JoinConnector, LeftJoinNode};
 pub use management_node_enum::ManagementNodeEnum;
 pub use management_node_traits::*;
+pub use plan_node_category::PlanNodeCategory;
+pub use plan_node_cost::{
+    CostEstimate, CostModelConfig, NodeStatistics, SelectivityEstimate,
+};
 pub use plan_node_enum::{PlanNodeEnum, PlanNodeVisitor};
 pub use plan_node_traits::*;
 pub use project_node::ProjectNode;

@@ -26,7 +26,7 @@ pub use base::{
 // Re-export data access executors
 pub use data_access::{
     AllPathsExecutor, GetEdgesExecutor, GetNeighborsExecutor, GetPropExecutor, GetVerticesExecutor,
-    IndexScanExecutor,
+    IndexScanExecutor, ScanVerticesExecutor,
 };
 
 // Re-export result processing executors

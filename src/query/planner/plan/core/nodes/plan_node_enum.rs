@@ -3,6 +3,7 @@
 //!
 
 use super::plan_node_traits::PlanNode;
+use super::plan_node_category::PlanNodeCategory;
 use super::admin_node::{
     CreateSpaceNode, DropSpaceNode, DescSpaceNode, ShowSpacesNode,
     CreateTagNode, AlterTagNode, DescTagNode, DropTagNode, ShowTagsNode,
@@ -427,6 +428,118 @@ impl PlanNodeEnum {
         matches!(self, PlanNodeEnum::RebuildEdgeIndex(_))
     }
 
+    pub fn is_access(&self) -> bool {
+        matches!(
+            self,
+            PlanNodeEnum::Start(_)
+                | PlanNodeEnum::ScanVertices(_)
+                | PlanNodeEnum::ScanEdges(_)
+                | PlanNodeEnum::GetVertices(_)
+                | PlanNodeEnum::GetEdges(_)
+                | PlanNodeEnum::GetNeighbors(_)
+                | PlanNodeEnum::IndexScan(_)
+                | PlanNodeEnum::FulltextIndexScan(_)
+        )
+    }
+
+    pub fn is_operation(&self) -> bool {
+        matches!(
+            self,
+            PlanNodeEnum::Filter(_)
+                | PlanNodeEnum::Project(_)
+                | PlanNodeEnum::Aggregate(_)
+                | PlanNodeEnum::Sort(_)
+                | PlanNodeEnum::Limit(_)
+                | PlanNodeEnum::TopN(_)
+                | PlanNodeEnum::Sample(_)
+                | PlanNodeEnum::Dedup(_)
+        )
+    }
+
+    pub fn is_join(&self) -> bool {
+        matches!(
+            self,
+            PlanNodeEnum::InnerJoin(_)
+                | PlanNodeEnum::LeftJoin(_)
+                | PlanNodeEnum::CrossJoin(_)
+                | PlanNodeEnum::HashInnerJoin(_)
+                | PlanNodeEnum::HashLeftJoin(_)
+                | PlanNodeEnum::CartesianProduct(_)
+        )
+    }
+
+    pub fn is_traversal(&self) -> bool {
+        matches!(
+            self,
+            PlanNodeEnum::Expand(_)
+                | PlanNodeEnum::ExpandAll(_)
+                | PlanNodeEnum::Traverse(_)
+                | PlanNodeEnum::AppendVertices(_)
+        )
+    }
+
+    pub fn is_control_flow(&self) -> bool {
+        matches!(
+            self,
+            PlanNodeEnum::Argument(_)
+                | PlanNodeEnum::Loop(_)
+                | PlanNodeEnum::PassThrough(_)
+                | PlanNodeEnum::Select(_)
+        )
+    }
+
+    pub fn is_data_processing(&self) -> bool {
+        matches!(
+            self,
+            PlanNodeEnum::DataCollect(_)
+                | PlanNodeEnum::Union(_)
+                | PlanNodeEnum::Unwind(_)
+                | PlanNodeEnum::Assign(_)
+                | PlanNodeEnum::PatternApply(_)
+                | PlanNodeEnum::RollUpApply(_)
+        )
+    }
+
+    pub fn is_algorithm(&self) -> bool {
+        matches!(
+            self,
+            PlanNodeEnum::ShortestPath(_)
+                | PlanNodeEnum::AllPaths(_)
+                | PlanNodeEnum::MultiShortestPath(_)
+                | PlanNodeEnum::BFSShortest(_)
+        )
+    }
+
+    pub fn is_management(&self) -> bool {
+        matches!(
+            self,
+            PlanNodeEnum::CreateSpace(_)
+                | PlanNodeEnum::DropSpace(_)
+                | PlanNodeEnum::DescSpace(_)
+                | PlanNodeEnum::ShowSpaces(_)
+                | PlanNodeEnum::CreateTag(_)
+                | PlanNodeEnum::AlterTag(_)
+                | PlanNodeEnum::DescTag(_)
+                | PlanNodeEnum::DropTag(_)
+                | PlanNodeEnum::ShowTags(_)
+                | PlanNodeEnum::CreateEdge(_)
+                | PlanNodeEnum::AlterEdge(_)
+                | PlanNodeEnum::DescEdge(_)
+                | PlanNodeEnum::DropEdge(_)
+                | PlanNodeEnum::ShowEdges(_)
+                | PlanNodeEnum::CreateTagIndex(_)
+                | PlanNodeEnum::DropTagIndex(_)
+                | PlanNodeEnum::DescTagIndex(_)
+                | PlanNodeEnum::ShowTagIndexes(_)
+                | PlanNodeEnum::CreateEdgeIndex(_)
+                | PlanNodeEnum::DropEdgeIndex(_)
+                | PlanNodeEnum::DescEdgeIndex(_)
+                | PlanNodeEnum::ShowEdgeIndexes(_)
+                | PlanNodeEnum::RebuildTagIndex(_)
+                | PlanNodeEnum::RebuildEdgeIndex(_)
+        )
+    }
+
     pub fn type_name(&self) -> &'static str {
         match self {
             PlanNodeEnum::Start(_) => "Start",
@@ -493,6 +606,76 @@ impl PlanNodeEnum {
             PlanNodeEnum::ShowEdgeIndexes(_) => "ShowEdgeIndexes",
             PlanNodeEnum::RebuildTagIndex(_) => "RebuildTagIndex",
             PlanNodeEnum::RebuildEdgeIndex(_) => "RebuildEdgeIndex",
+        }
+    }
+
+    /// 获取节点所属分类
+    pub fn category(&self) -> PlanNodeCategory {
+        match self {
+            PlanNodeEnum::Start(_) => PlanNodeCategory::Access,
+            PlanNodeEnum::Project(_) => PlanNodeCategory::Operation,
+            PlanNodeEnum::Sort(_) => PlanNodeCategory::Operation,
+            PlanNodeEnum::Limit(_) => PlanNodeCategory::Operation,
+            PlanNodeEnum::TopN(_) => PlanNodeCategory::Operation,
+            PlanNodeEnum::Sample(_) => PlanNodeCategory::Operation,
+            PlanNodeEnum::InnerJoin(_) => PlanNodeCategory::Join,
+            PlanNodeEnum::LeftJoin(_) => PlanNodeCategory::Join,
+            PlanNodeEnum::CrossJoin(_) => PlanNodeCategory::Join,
+            PlanNodeEnum::GetVertices(_) => PlanNodeCategory::Access,
+            PlanNodeEnum::GetEdges(_) => PlanNodeCategory::Access,
+            PlanNodeEnum::GetNeighbors(_) => PlanNodeCategory::Access,
+            PlanNodeEnum::ScanVertices(_) => PlanNodeCategory::Access,
+            PlanNodeEnum::ScanEdges(_) => PlanNodeCategory::Access,
+            PlanNodeEnum::HashInnerJoin(_) => PlanNodeCategory::Join,
+            PlanNodeEnum::HashLeftJoin(_) => PlanNodeCategory::Join,
+            PlanNodeEnum::CartesianProduct(_) => PlanNodeCategory::Join,
+            PlanNodeEnum::IndexScan(_) => PlanNodeCategory::Access,
+            PlanNodeEnum::FulltextIndexScan(_) => PlanNodeCategory::Access,
+            PlanNodeEnum::Expand(_) => PlanNodeCategory::Traversal,
+            PlanNodeEnum::ExpandAll(_) => PlanNodeCategory::Traversal,
+            PlanNodeEnum::Traverse(_) => PlanNodeCategory::Traversal,
+            PlanNodeEnum::AppendVertices(_) => PlanNodeCategory::Traversal,
+            PlanNodeEnum::Filter(_) => PlanNodeCategory::Operation,
+            PlanNodeEnum::Aggregate(_) => PlanNodeCategory::Operation,
+            PlanNodeEnum::Argument(_) => PlanNodeCategory::ControlFlow,
+            PlanNodeEnum::Loop(_) => PlanNodeCategory::ControlFlow,
+            PlanNodeEnum::PassThrough(_) => PlanNodeCategory::ControlFlow,
+            PlanNodeEnum::Select(_) => PlanNodeCategory::ControlFlow,
+            PlanNodeEnum::DataCollect(_) => PlanNodeCategory::DataProcessing,
+            PlanNodeEnum::Dedup(_) => PlanNodeCategory::Operation,
+            PlanNodeEnum::PatternApply(_) => PlanNodeCategory::DataProcessing,
+            PlanNodeEnum::RollUpApply(_) => PlanNodeCategory::DataProcessing,
+            PlanNodeEnum::Union(_) => PlanNodeCategory::DataProcessing,
+            PlanNodeEnum::Unwind(_) => PlanNodeCategory::DataProcessing,
+            PlanNodeEnum::Assign(_) => PlanNodeCategory::DataProcessing,
+            PlanNodeEnum::MultiShortestPath(_) => PlanNodeCategory::Algorithm,
+            PlanNodeEnum::BFSShortest(_) => PlanNodeCategory::Algorithm,
+            PlanNodeEnum::AllPaths(_) => PlanNodeCategory::Algorithm,
+            PlanNodeEnum::ShortestPath(_) => PlanNodeCategory::Algorithm,
+            PlanNodeEnum::CreateSpace(_) => PlanNodeCategory::Management,
+            PlanNodeEnum::DropSpace(_) => PlanNodeCategory::Management,
+            PlanNodeEnum::DescSpace(_) => PlanNodeCategory::Management,
+            PlanNodeEnum::ShowSpaces(_) => PlanNodeCategory::Management,
+            PlanNodeEnum::CreateTag(_) => PlanNodeCategory::Management,
+            PlanNodeEnum::AlterTag(_) => PlanNodeCategory::Management,
+            PlanNodeEnum::DescTag(_) => PlanNodeCategory::Management,
+            PlanNodeEnum::DropTag(_) => PlanNodeCategory::Management,
+            PlanNodeEnum::ShowTags(_) => PlanNodeCategory::Management,
+            PlanNodeEnum::CreateEdge(_) => PlanNodeCategory::Management,
+            PlanNodeEnum::AlterEdge(_) => PlanNodeCategory::Management,
+            PlanNodeEnum::DescEdge(_) => PlanNodeCategory::Management,
+            PlanNodeEnum::DropEdge(_) => PlanNodeCategory::Management,
+            PlanNodeEnum::ShowEdges(_) => PlanNodeCategory::Management,
+            PlanNodeEnum::CreateTagIndex(_) => PlanNodeCategory::Management,
+            PlanNodeEnum::DropTagIndex(_) => PlanNodeCategory::Management,
+            PlanNodeEnum::DescTagIndex(_) => PlanNodeCategory::Management,
+            PlanNodeEnum::ShowTagIndexes(_) => PlanNodeCategory::Management,
+            PlanNodeEnum::CreateEdgeIndex(_) => PlanNodeCategory::Management,
+            PlanNodeEnum::DropEdgeIndex(_) => PlanNodeCategory::Management,
+            PlanNodeEnum::DescEdgeIndex(_) => PlanNodeCategory::Management,
+            PlanNodeEnum::ShowEdgeIndexes(_) => PlanNodeCategory::Management,
+            PlanNodeEnum::RebuildTagIndex(_) => PlanNodeCategory::Management,
+            PlanNodeEnum::RebuildEdgeIndex(_) => PlanNodeCategory::Management,
         }
     }
 

@@ -843,3 +843,121 @@ impl<S: StorageClient> HasStorage<S> for AllPathsExecutor<S> {
             .expect("AllPathsExecutor storage should be set")
     }
 }
+
+#[derive(Debug)]
+pub struct ScanVerticesExecutor<S: StorageClient> {
+    base: BaseExecutor<S>,
+    tag_filter: Option<crate::core::Expression>,
+    vertex_filter: Option<crate::core::Expression>,
+    limit: Option<usize>,
+}
+
+impl<S: StorageClient> ScanVerticesExecutor<S> {
+    pub fn new(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        tag_filter: Option<crate::core::Expression>,
+        vertex_filter: Option<crate::core::Expression>,
+        limit: Option<usize>,
+    ) -> Self {
+        Self {
+            base: BaseExecutor::new(id, "ScanVerticesExecutor".to_string(), storage),
+            tag_filter,
+            vertex_filter,
+            limit,
+        }
+    }
+}
+
+#[async_trait]
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ScanVerticesExecutor<S> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+        let storage = safe_lock(self.get_storage())
+            .expect("ScanVerticesExecutor storage lock should not be poisoned");
+
+        let mut vertices: Vec<crate::core::vertex_edge_path::Vertex> = storage.scan_vertices("default")?
+            .into_iter()
+            .filter(|vertex| {
+                if let Some(ref tag_filter_expression) = self.tag_filter {
+                    crate::query::executor::tag_filter::TagFilterProcessor
+                        ::process_tag_filter(tag_filter_expression, vertex)
+                } else {
+                    true
+                }
+            })
+            .filter(|vertex| {
+                if let Some(ref filter_expression) = self.vertex_filter {
+                    let mut context = crate::expression::DefaultExpressionContext::new();
+                    context.set_variable(
+                        "vertex".to_string(),
+                        crate::core::Value::Vertex(Box::new(vertex.clone())),
+                    );
+
+                    match crate::expression::evaluator::expression_evaluator::ExpressionEvaluator::evaluate(filter_expression, &mut context) {
+                        Ok(value) => {
+                            match value {
+                                crate::core::Value::Bool(b) => b,
+                                _ => false,
+                            }
+                        }
+                        Err(_) => false,
+                    }
+                } else {
+                    true
+                }
+            })
+            .collect();
+
+        if let Some(limit) = self.limit {
+            vertices.truncate(limit);
+        }
+
+        let values: Vec<crate::core::Value> = vertices
+            .into_iter()
+            .map(|v| crate::core::Value::Vertex(Box::new(v)))
+            .collect();
+
+        Ok(ExecutionResult::Values(values))
+    }
+
+    fn open(&mut self) -> DBResult<()> {
+        Ok(())
+    }
+
+    fn close(&mut self) -> DBResult<()> {
+        Ok(())
+    }
+
+    fn is_open(&self) -> bool {
+        true
+    }
+
+    fn id(&self) -> i64 {
+        self.base.id
+    }
+
+    fn name(&self) -> &str {
+        &self.base.name
+    }
+
+    fn description(&self) -> &str {
+        "Scan vertices executor - scans all vertices from storage"
+    }
+
+    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats()
+    }
+
+    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats_mut()
+    }
+}
+
+impl<S: StorageClient> HasStorage<S> for ScanVerticesExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base
+            .storage
+            .as_ref()
+            .expect("ScanVerticesExecutor storage should be set")
+    }
+}

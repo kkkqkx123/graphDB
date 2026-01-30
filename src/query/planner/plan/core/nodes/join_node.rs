@@ -1051,22 +1051,22 @@ impl JoinConnector {
         left: &SubPlan,
         right: &SubPlan,
     ) -> Result<SubPlan, crate::query::planner::planner::PlannerError> {
-        if left.root.is_none() || right.root.is_none() {
-            return Ok(if left.root.is_some() { left.clone() } else { right.clone() });
+        match (left.root.as_ref(), right.root.as_ref()) {
+            (None, None) => Ok(SubPlan::new(None, None)),
+            (Some(l), None) => Ok(left.clone()),
+            (None, Some(r)) => Ok(right.clone()),
+            (Some(left_root), Some(right_root)) => {
+                let cross_join_node = CrossJoinNode::new(left_root.clone(), right_root.clone())
+                    .map_err(|e| crate::query::planner::planner::PlannerError::PlanGenerationFailed(format!("Failed to create cross join node: {}", e)))?;
+
+                let cross_join_enum = super::plan_node_enum::PlanNodeEnum::CrossJoin(cross_join_node);
+
+                Ok(SubPlan::new(
+                    Some(cross_join_enum.clone()),
+                    Some(cross_join_enum),
+                ))
+            }
         }
-
-        let left_root = left.root.as_ref().expect("Left plan root should exist");
-        let right_root = right.root.as_ref().expect("Right plan root should exist");
-
-        let cross_join_node = CrossJoinNode::new(left_root.clone(), right_root.clone())
-            .map_err(|e| crate::query::planner::planner::PlannerError::PlanGenerationFailed(format!("Failed to create cross join node: {}", e)))?;
-
-        let cross_join_enum = super::plan_node_enum::PlanNodeEnum::CrossJoin(cross_join_node);
-
-        Ok(SubPlan::new(
-            Some(cross_join_enum.clone()),
-            Some(cross_join_enum),
-        ))
     }
 }
 

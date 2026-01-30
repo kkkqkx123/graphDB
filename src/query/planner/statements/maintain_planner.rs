@@ -68,7 +68,10 @@ impl Planner for MaintainPlanner {
 
         let project_node =
             ProjectNode::new(PlanNodeEnum::Argument(arg_node.clone()), yield_columns)
-                .expect("ProjectNode creation should succeed with valid input");
+                .map_err(|e| PlannerError::PlanGenerationFailed(format!(
+                    "Failed to create ProjectNode: {}",
+                    e
+                )))?;
 
         // 3. 不同类型的操作可能需要不同处理
         let final_node = if stmt_type == "SUBMIT JOB" {

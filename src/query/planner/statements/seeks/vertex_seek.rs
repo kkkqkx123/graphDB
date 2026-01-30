@@ -79,7 +79,9 @@ impl VertexSeek {
         }
 
         if ids.is_empty() && context.node_pattern.vid.is_some() {
-            ids.push(context.node_pattern.vid.as_ref().unwrap().clone());
+            if let Some(vid) = context.node_pattern.vid.as_ref() {
+                ids.push(vid.clone());
+            }
         }
 
         Ok(ids)
