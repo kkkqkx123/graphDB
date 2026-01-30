@@ -50,7 +50,7 @@ impl InsertEdgesValidator {
     pub fn validate_with_ast(
         &mut self,
         stmt: &InsertStmt,
-        query_context: Option<&QueryContext>,
+        _query_context: Option<&QueryContext>,
         ast: &mut AstContext,
     ) -> DBResult<()> {
         self.validate_space_chosen(ast)?;
@@ -81,7 +81,7 @@ impl InsertEdgesValidator {
 
     fn validate_property_names(
         &self,
-        edge_name: &str,
+        _edge_name: &str,
         prop_names: &[String],
     ) -> Result<(), CoreValidationError> {
         let mut seen = std::collections::HashSet::new();

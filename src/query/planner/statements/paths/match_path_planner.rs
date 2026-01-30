@@ -439,13 +439,13 @@ mod tests {
 
     #[test]
     fn test_match_path_planner_new() {
-        let planner = MatchPathPlanner::new();
+        let _planner = MatchPathPlanner::new();
         assert!(true);
     }
 
     #[test]
     fn test_path_pattern_simple() {
-        let pattern = PathPattern::simple(
+        let _pattern = PathPattern::simple(
             NodePattern {
                 vid: Some(Value::String("start".to_string())),
                 labels: vec![],
@@ -467,7 +467,7 @@ mod tests {
 
     #[test]
     fn test_path_pattern_variable_length() {
-        let pattern = PathPattern::variable_length(
+        let _pattern = PathPattern::variable_length(
             NodePattern {
                 vid: None,
                 labels: vec!["person".to_string()],

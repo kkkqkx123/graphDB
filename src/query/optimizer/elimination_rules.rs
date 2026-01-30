@@ -84,7 +84,7 @@ impl PlanNodeVisitor for EliminateFilterVisitor {
             if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(*dep_id) {
                 let mut new_node = child_node.clone();
 
-                if let Some(output_var) = node.output_var() {
+                if let Some(_output_var) = node.output_var() {
                     new_node.plan_node = node.input().clone();
                 }
 
@@ -168,7 +168,7 @@ impl PlanNodeVisitor for DedupEliminationVisitor {
             {
                 let mut new_node = child_node.clone();
 
-                if let Some(output_var) = node.output_var() {
+                if let Some(_output_var) = node.output_var() {
                     new_node.plan_node = input.clone();
                 }
 
@@ -398,7 +398,7 @@ impl PlanNodeVisitor for EliminateAppendVerticesVisitor {
             if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(*dep_id) {
                 let mut new_node = child_node.clone();
 
-                if let Some(output_var) = node.output_var() {
+                if let Some(_output_var) = node.output_var() {
                     let inputs = node.inputs();
                     if let Some(input) = inputs.first() {
                         new_node.plan_node = (**input).clone();
@@ -492,7 +492,7 @@ impl PlanNodeVisitor for RemoveAppendVerticesBelowJoinVisitor {
                 {
                     let mut new_node = child_node.clone();
 
-                    if let Some(output_var) = node.output_var() {
+                    if let Some(_output_var) = node.output_var() {
                         let inputs = node.inputs();
                         if let Some(input) = inputs.first() {
                             new_node.plan_node = (**input).clone();
@@ -591,7 +591,7 @@ impl PlanNodeVisitor for EliminateRowCollectVisitor {
         if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(input_id) {
             let mut new_node = child_node.clone();
 
-            if let Some(output_var) = node.output_var() {
+            if let Some(_output_var) = node.output_var() {
                 new_node.plan_node = input.clone();
             }
 

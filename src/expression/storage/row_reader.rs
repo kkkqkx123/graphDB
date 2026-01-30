@@ -219,21 +219,6 @@ impl RowReaderWrapper {
                 let wkb_data = &self.data[offset..offset + len];
                 Ok(Value::String(self.bytes_to_string(wkb_data)))
             }
-            super::types::FieldType::Duration => {
-                if data.len() < 16 {
-                    return Err(ExpressionError::type_error("Duration 数据长度不足，需要16字节"));
-                }
-                let seconds = i64::from_le_bytes([
-                    data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
-                ]);
-                let microseconds = i32::from_le_bytes([data[8], data[9], data[10], data[11]]);
-                let months = i32::from_le_bytes([data[12], data[13], data[14], data[15]]);
-                Ok(Value::Duration(crate::core::value::DurationValue {
-                    seconds,
-                    microseconds,
-                    months,
-                }))
-            }
             super::types::FieldType::Vertex => {
                 let vid_data = self.read_fixed_data(data, "Vertex", 16)?;
                 let vid_slice = &vid_data[..8];
@@ -262,12 +247,6 @@ impl RowReaderWrapper {
                     props: std::default::Default::default(),
                 };
                 Ok(Value::Edge(edge))
-            }
-            super::types::FieldType::Path => {
-                Err(ExpressionError::unsupported_operation(
-                    "Path 类型解析",
-                    "Path 类型暂不支持"
-                ))
             }
             super::types::FieldType::Timestamp => {
                 self.check_length(data, 8, "Timestamp")?;

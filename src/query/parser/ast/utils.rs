@@ -52,7 +52,7 @@ impl ExprFactory {
 
     /// 创建 CASE 表达式
     pub fn case(
-        match_expression: Option<Expression>,
+        _match_expression: Option<Expression>,
         when_then_pairs: Vec<(Expression, Expression)>,
         default: Option<Expression>,
         _span: Span,

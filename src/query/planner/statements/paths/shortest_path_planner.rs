@@ -21,7 +21,7 @@ impl ShortestPathPlanner {
 
     pub fn plan_shortest_path<S: StorageClient>(
         &self,
-        storage: &S,
+        _storage: &S,
         start: &NodePattern,
         end: &NodePattern,
         edge_pattern: &EdgePattern,
@@ -485,13 +485,13 @@ mod tests {
 
     #[test]
     fn test_shortest_path_planner_new() {
-        let planner = ShortestPathPlanner::new();
+        let _planner = ShortestPathPlanner::new();
         assert!(true);
     }
 
     #[test]
     fn test_edge_pattern() {
-        let pattern = EdgePattern {
+        let _pattern = EdgePattern {
             types: Some(vec!["follows".to_string()]),
             direction: Some(EdgeDirection::Out),
             properties: vec![],

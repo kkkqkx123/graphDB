@@ -318,7 +318,7 @@ impl TransactionLog {
         if let Some(ref mut writer) = *log_file {
             for record in &records {
                 let bytes = bincode::serde::encode_to_vec(record, bincode::config::standard())
-                    .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+                    .map_err(|e| StorageError::SerializeError(e.to_string()))?;
 
                 let len_bytes = (bytes.len() as u32).to_le_bytes();
                 writer.write_all(&len_bytes).map_err(|e| {

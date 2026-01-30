@@ -45,7 +45,7 @@ impl InsertVerticesValidator {
     pub fn validate_with_ast(
         &mut self,
         stmt: &InsertStmt,
-        query_context: Option<&QueryContext>,
+        _query_context: Option<&QueryContext>,
         ast: &mut AstContext,
     ) -> DBResult<()> {
         self.validate_space_chosen(ast)?;
@@ -76,7 +76,7 @@ impl InsertVerticesValidator {
 
     fn validate_property_names(
         &self,
-        tag_name: &str,
+        _tag_name: &str,
         prop_names: &[String],
     ) -> Result<(), CoreValidationError> {
         let mut seen = std::collections::HashSet::new();

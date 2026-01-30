@@ -97,13 +97,13 @@ impl RedbIndexPersistence {
 
     fn value_to_bytes<T: serde::Serialize + bincode::Encode>(&self, value: &T) -> Result<Vec<u8>, StorageError> {
         bincode::encode_to_vec(value, bincode::config::standard())
-            .map_err(|e| StorageError::SerializationError(e.to_string()))
+            .map_err(|e| StorageError::SerializeError(e.to_string()))
     }
 
     fn value_from_bytes<'a, T: serde::Deserialize<'a> + bincode::Decode<()>>(&self, bytes: &'a [u8]) -> Result<T, StorageError> {
         let (value, _): (T, usize) =
             bincode::decode_from_slice(bytes, bincode::config::standard())
-                .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+                .map_err(|e| StorageError::SerializeError(e.to_string()))?;
         Ok(value)
     }
 

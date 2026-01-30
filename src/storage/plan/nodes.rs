@@ -1,5 +1,5 @@
 use super::{ColumnSchema, ResultSetSchema};
-use crate::core::{DataType, Edge, Vertex};
+use crate::core::DataType;
 
 #[derive(Clone)]
 pub enum ScanTarget {

@@ -31,7 +31,7 @@ impl UpdateValidator {
     pub fn validate_with_ast(
         &mut self,
         stmt: &UpdateStmt,
-        query_context: Option<&QueryContext>,
+        _query_context: Option<&QueryContext>,
         ast: &mut AstContext,
     ) -> DBResult<()> {
         self.validate_space_chosen(ast)?;
@@ -165,7 +165,7 @@ impl UpdateValidator {
                 self.validate_function_args(args)?;
                 Ok(())
             }
-            Expression::Unary { op, operand } => {
+            Expression::Unary { op: _, operand } => {
                 self.validate_property_value(operand)?;
                 Ok(())
             }

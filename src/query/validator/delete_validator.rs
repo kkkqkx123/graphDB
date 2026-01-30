@@ -29,7 +29,7 @@ impl DeleteValidator {
     pub fn validate_with_ast(
         &mut self,
         stmt: &DeleteStmt,
-        query_context: Option<&QueryContext>,
+        _query_context: Option<&QueryContext>,
         ast: &mut AstContext,
     ) -> DBResult<()> {
         self.validate_space_chosen(ast)?;

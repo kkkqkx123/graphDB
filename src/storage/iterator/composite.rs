@@ -117,7 +117,7 @@ impl<I: Iterator> Iterator for FilterIter<I> {
 
     fn select(&mut self, offset: usize, count: usize) {
         let mut temp = Vec::new();
-        let mut idx = 0;
+        let idx = 0;
         let mut offset_remaining = offset;
         let mut count_remaining = count;
 

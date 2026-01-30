@@ -68,7 +68,7 @@ impl PlanNodeVisitor for LoopUnrollingVisitor {
                 let mut new_node = node.clone();
                 new_node.set_body(unrolled_body);
 
-                let mut opt_node = OptGroupNode::new(node.id() as usize, PlanNodeEnum::Loop(new_node));
+                let opt_node = OptGroupNode::new(node.id() as usize, PlanNodeEnum::Loop(new_node));
 
                 self.unrolled = true;
                 self.new_node = Some(opt_node);

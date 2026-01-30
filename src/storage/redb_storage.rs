@@ -105,30 +105,30 @@ impl RedbStorage {
 
     fn value_to_bytes(&self, value: &Value) -> Result<Vec<u8>, StorageError> {
         bincode::encode_to_vec(value, bincode::config::standard())
-            .map_err(|e| StorageError::SerializationError(e.to_string()))
+            .map_err(|e| StorageError::SerializeError(e.to_string()))
     }
 
     fn vertex_to_bytes(&self, vertex: &Vertex) -> Result<Vec<u8>, StorageError> {
         bincode::encode_to_vec(vertex, bincode::config::standard())
-            .map_err(|e| StorageError::SerializationError(e.to_string()))
+            .map_err(|e| StorageError::SerializeError(e.to_string()))
     }
 
     fn vertex_from_bytes(&self, bytes: &[u8]) -> Result<Vertex, StorageError> {
         let (vertex, _): (Vertex, usize) =
             bincode::decode_from_slice(bytes, bincode::config::standard())
-                .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+                .map_err(|e| StorageError::SerializeError(e.to_string()))?;
         Ok(vertex)
     }
 
     fn edge_to_bytes(&self, edge: &Edge) -> Result<Vec<u8>, StorageError> {
         bincode::encode_to_vec(edge, bincode::config::standard())
-            .map_err(|e| StorageError::SerializationError(e.to_string()))
+            .map_err(|e| StorageError::SerializeError(e.to_string()))
     }
 
     fn edge_from_bytes(&self, bytes: &[u8]) -> Result<Edge, StorageError> {
         let (edge, _): (Edge, usize) =
             bincode::decode_from_slice(bytes, bincode::config::standard())
-                .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+                .map_err(|e| StorageError::SerializeError(e.to_string()))?;
         Ok(edge)
     }
 
@@ -208,7 +208,7 @@ impl RedbStorage {
                     let list_bytes = value.value();
                     let (result, _): (Vec<Vec<u8>>, usize) =
                         bincode::decode_from_slice(&list_bytes.0, bincode::config::standard())
-                            .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+                            .map_err(|e| StorageError::SerializeError(e.to_string()))?;
                     result
                 }
                 None => Vec::new(),
@@ -224,7 +224,7 @@ impl RedbStorage {
 
             let list_bytes =
                 bincode::encode_to_vec(&edge_list, bincode::config::standard())
-                    .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+                    .map_err(|e| StorageError::SerializeError(e.to_string()))?;
 
             table
                 .insert(ByteKey(index_key_bytes.to_vec()), ByteKey(list_bytes))
@@ -258,7 +258,7 @@ impl RedbStorage {
                     let list_bytes = value.value();
                     let (edge_key_list, _): (Vec<Vec<u8>>, usize) =
                         bincode::decode_from_slice(&list_bytes.0, bincode::config::standard())
-                            .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+                            .map_err(|e| StorageError::SerializeError(e.to_string()))?;
                     Ok(edge_key_list)
                 }
                 None => Ok(Vec::new()),
@@ -291,7 +291,7 @@ impl RedbStorage {
                     let list_bytes = value.value();
                     let (result, _): (Vec<Vec<u8>>, usize) =
                         bincode::decode_from_slice(&list_bytes.0, bincode::config::standard())
-                            .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+                            .map_err(|e| StorageError::SerializeError(e.to_string()))?;
                     result
                 }
                 None => Vec::new(),
@@ -307,7 +307,7 @@ impl RedbStorage {
 
             let list_bytes =
                 bincode::encode_to_vec(&edge_list, bincode::config::standard())
-                    .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+                    .map_err(|e| StorageError::SerializeError(e.to_string()))?;
 
             table
                 .insert(ByteKey(index_key_bytes.to_vec()), ByteKey(list_bytes))
@@ -340,7 +340,7 @@ impl RedbStorage {
                 let list_bytes = value.value();
                 let (edge_key_list, _): (Vec<Vec<u8>>, usize) =
                     bincode::decode_from_slice(&list_bytes.0, bincode::config::standard())
-                        .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+                        .map_err(|e| StorageError::SerializeError(e.to_string()))?;
                 Ok(edge_key_list)
             }
             None => Ok(Vec::new()),
@@ -376,7 +376,7 @@ impl RedbStorage {
                     let list_bytes = value.value();
                     let (result, _): (Vec<Vec<u8>>, usize) =
                         bincode::decode_from_slice(&list_bytes.0, bincode::config::standard())
-                            .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+                            .map_err(|e| StorageError::SerializeError(e.to_string()))?;
                     result
                 }
                 None => Vec::new(),
@@ -392,7 +392,7 @@ impl RedbStorage {
 
             let list_bytes =
                 bincode::encode_to_vec(&vertex_list, bincode::config::standard())
-                    .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+                    .map_err(|e| StorageError::SerializeError(e.to_string()))?;
 
             table
                 .insert(ByteKey(index_key_bytes.to_vec()), ByteKey(list_bytes))
@@ -430,7 +430,7 @@ impl RedbStorage {
                 let list_bytes = value.value();
                 let (vertex_id_list, _): (Vec<Vec<u8>>, usize) =
                     bincode::decode_from_slice(&list_bytes.0, bincode::config::standard())
-                        .map_err(|e| StorageError::SerializationError(e.to_string()))?;
+                        .map_err(|e| StorageError::SerializeError(e.to_string()))?;
 
                 let mut vertices = Vec::new();
                 for vertex_id_bytes in vertex_id_list {

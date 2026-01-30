@@ -302,7 +302,7 @@ impl<'a> StmtParser<'a> {
         ctx.expect_token(TokenKind::Fetch)?;
 
         let target = if ctx.match_token(TokenKind::Tag) {
-            let tag_name = ctx.expect_identifier()?;
+            let _tag_name = ctx.expect_identifier()?;
             let ids = self.parse_expression_list(ctx)?;
             FetchTarget::Vertices {
                 ids,
