@@ -1,7 +1,7 @@
 use crate::core::DataType;
 use crate::query::context::ast::VariableInfo;
 
-use dashmap::DashMap;
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::sync::Arc;
 
@@ -65,13 +65,13 @@ impl Symbol {
 }
 
 pub struct SymbolTable {
-    symbols: Arc<DashMap<String, Symbol>>,
+    symbols: Arc<HashMap<String, Symbol>>,
 }
 
 impl Clone for SymbolTable {
     fn clone(&self) -> Self {
         Self {
-            symbols: Arc::new(self.symbols.iter().map(|e| (e.key().clone(), e.value().clone())).collect()),
+            symbols: Arc::clone(&self.symbols),
         }
     }
 }
@@ -87,7 +87,7 @@ impl std::fmt::Debug for SymbolTable {
 impl SymbolTable {
     pub fn new() -> Self {
         Self {
-            symbols: Arc::new(DashMap::new()),
+            symbols: Arc::new(HashMap::new()),
         }
     }
 
@@ -97,7 +97,9 @@ impl SymbolTable {
         }
 
         let symbol = Symbol::new(name.to_string(), DataType::DataSet);
-        self.symbols.insert(name.to_string(), symbol.clone());
+        let mut new_symbols = (*self.symbols).clone();
+        new_symbols.insert(name.to_string(), symbol.clone());
+        self.symbols = Arc::new(new_symbols);
         
         Ok(symbol)
     }
@@ -111,7 +113,9 @@ impl SymbolTable {
             .with_source_clause(info.source_clause)
             .with_properties(info.properties)
             .with_aggregated(info.is_aggregated);
-        self.symbols.insert(name.to_string(), symbol.clone());
+        let mut new_symbols = (*self.symbols).clone();
+        new_symbols.insert(name.to_string(), symbol.clone());
+        self.symbols = Arc::new(new_symbols);
         
         Ok(symbol)
     }
@@ -123,7 +127,9 @@ impl SymbolTable {
 
         let symbol = Symbol::new(name.to_string(), DataType::DataSet)
             .with_col_names(col_names);
-        self.symbols.insert(name.to_string(), symbol.clone());
+        let mut new_symbols = (*self.symbols).clone();
+        new_symbols.insert(name.to_string(), symbol.clone());
+        self.symbols = Arc::new(new_symbols);
         
         Ok(symbol)
     }
@@ -133,7 +139,7 @@ impl SymbolTable {
     }
 
     pub fn get_variable(&self, name: &str) -> Option<Symbol> {
-        self.symbols.get(name).map(|v| v.clone())
+        self.symbols.get(name).cloned()
     }
 
     pub fn get_variable_info(&self, name: &str) -> Option<VariableInfo> {
@@ -141,7 +147,10 @@ impl SymbolTable {
     }
 
     pub fn remove_variable(&mut self, name: &str) -> Result<bool, String> {
-        Ok(self.symbols.remove(name).is_some())
+        let mut new_symbols = (*self.symbols).clone();
+        let result = new_symbols.remove(name).is_some();
+        self.symbols = Arc::new(new_symbols);
+        Ok(result)
     }
 
     pub fn size(&self) -> usize {
@@ -149,37 +158,47 @@ impl SymbolTable {
     }
 
     pub fn read_by(&mut self, var_name: &str, node_id: i64) -> Result<(), String> {
-        if let Some(mut symbol) = self.symbols.get_mut(var_name) {
-            symbol.readers.insert(node_id);
-            Ok(())
-        } else {
-            Err(format!("变量 '{}' 不存在", var_name))
+        if let Some(symbol) = self.symbols.get(var_name) {
+            let mut new_symbols = (*self.symbols).clone();
+            if let Some(mut symbol) = new_symbols.get_mut(var_name) {
+                symbol.readers.insert(node_id);
+                self.symbols = Arc::new(new_symbols);
+                return Ok(());
+            }
         }
+        Err(format!("变量 '{}' 不存在", var_name))
     }
 
     pub fn written_by(&mut self, var_name: &str, node_id: i64) -> Result<(), String> {
-        if let Some(mut symbol) = self.symbols.get_mut(var_name) {
-            symbol.writers.insert(node_id);
-            Ok(())
-        } else {
-            Err(format!("变量 '{}' 不存在", var_name))
+        if let Some(symbol) = self.symbols.get(var_name) {
+            let mut new_symbols = (*self.symbols).clone();
+            if let Some(mut symbol) = new_symbols.get_mut(var_name) {
+                symbol.writers.insert(node_id);
+                self.symbols = Arc::new(new_symbols);
+                return Ok(());
+            }
         }
+        Err(format!("变量 '{}' 不存在", var_name))
     }
 
     pub fn delete_read_by(&mut self, var_name: &str, node_id: i64) -> Result<bool, String> {
-        if let Some(mut symbol) = self.symbols.get_mut(var_name) {
-            Ok(symbol.readers.remove(&node_id))
-        } else {
-            Err(format!("变量 '{}' 不存在", var_name))
+        let mut new_symbols = (*self.symbols).clone();
+        if let Some(mut symbol) = new_symbols.get_mut(var_name) {
+            let result = symbol.readers.remove(&node_id);
+            self.symbols = Arc::new(new_symbols);
+            return Ok(result);
         }
+        Err(format!("变量 '{}' 不存在", var_name))
     }
 
     pub fn delete_written_by(&mut self, var_name: &str, node_id: i64) -> Result<bool, String> {
-        if let Some(mut symbol) = self.symbols.get_mut(var_name) {
-            Ok(symbol.writers.remove(&node_id))
-        } else {
-            Err(format!("变量 '{}' 不存在", var_name))
+        let mut new_symbols = (*self.symbols).clone();
+        if let Some(mut symbol) = new_symbols.get_mut(var_name) {
+            let result = symbol.writers.remove(&node_id);
+            self.symbols = Arc::new(new_symbols);
+            return Ok(result);
         }
+        Err(format!("变量 '{}' 不存在", var_name))
     }
 
     pub fn update_read_by(
@@ -189,19 +208,21 @@ impl SymbolTable {
         node_id: i64,
     ) -> Result<bool, String> {
         let mut success = false;
+        let mut new_symbols = (*self.symbols).clone();
 
-        if let Some(mut symbol) = self.symbols.get_mut(old_var) {
+        if let Some(mut symbol) = new_symbols.get_mut(old_var) {
             if symbol.readers.remove(&node_id) {
                 success = true;
             }
         }
 
-        if let Some(mut symbol) = self.symbols.get_mut(new_var) {
+        if let Some(mut symbol) = new_symbols.get_mut(new_var) {
             if symbol.writers.insert(node_id) {
                 success = true;
             }
         }
 
+        self.symbols = Arc::new(new_symbols);
         Ok(success)
     }
 
@@ -212,19 +233,21 @@ impl SymbolTable {
         node_id: i64,
     ) -> Result<bool, String> {
         let mut success = false;
+        let mut new_symbols = (*self.symbols).clone();
 
-        if let Some(mut symbol) = self.symbols.get_mut(old_var) {
+        if let Some(mut symbol) = new_symbols.get_mut(old_var) {
             if symbol.writers.remove(&node_id) {
                 success = true;
             }
         }
 
-        if let Some(mut symbol) = self.symbols.get_mut(new_var) {
+        if let Some(mut symbol) = new_symbols.get_mut(new_var) {
             if symbol.writers.insert(node_id) {
                 success = true;
             }
         }
 
+        self.symbols = Arc::new(new_symbols);
         Ok(success)
     }
 
@@ -233,11 +256,10 @@ impl SymbolTable {
         result.push_str("SymbolTable {\n");
         result.push_str(&format!("  symbols: {}\n", self.symbols.len()));
 
-        for entry in self.symbols.iter() {
-            let symbol = entry.value();
+        for (name, symbol) in self.symbols.iter() {
             result.push_str(&format!(
                 "  {}: type={:?}, readers={}, writers={}\n",
-                entry.key(),
+                name,
                 symbol.value_type,
                 symbol.readers.len(),
                 symbol.writers.len()
@@ -251,25 +273,29 @@ impl SymbolTable {
     pub fn get_variables_by_type(&self, var_type: &str) -> Vec<VariableInfo> {
         self.symbols
             .iter()
-            .filter(|s| format!("{:?}", s.value_type).to_lowercase().contains(&var_type.to_lowercase()))
-            .map(|s| s.to_variable_info())
+            .filter(|(_, s)| format!("{:?}", s.value_type).to_lowercase().contains(&var_type.to_lowercase()))
+            .map(|(_, s)| s.to_variable_info())
             .collect()
     }
 
     pub fn get_variables_by_source(&self, source: &str) -> Vec<VariableInfo> {
         self.symbols
             .iter()
-            .filter(|s| s.source_clause == source)
-            .map(|s| s.to_variable_info())
+            .filter(|(_, s)| s.source_clause == source)
+            .map(|(_, s)| s.to_variable_info())
             .collect()
     }
 
     pub fn get_aggregated_variables(&self) -> Vec<VariableInfo> {
         self.symbols
             .iter()
-            .filter(|s| s.is_aggregated)
-            .map(|s| s.to_variable_info())
+            .filter(|(_, s)| s.is_aggregated)
+            .map(|(_, s)| s.to_variable_info())
             .collect()
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = (&String, &Symbol)> {
+        self.symbols.iter()
     }
 }
 

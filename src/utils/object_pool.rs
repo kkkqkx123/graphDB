@@ -11,18 +11,17 @@ use std::collections::VecDeque;
 use std::sync::{Arc, RwLock};
 use std::fmt::Debug;
 
-/// 统一的轻量级对象池
-///
-/// 适用于单线程场景，要求对象实现 Default trait
-/// 使用 VecDeque 实现高效的 push/pop
 #[derive(Debug, Clone)]
-pub struct ObjectPool<T: Default> {
+pub struct ObjectPool<T> {
     pool: VecDeque<T>,
     max_size: usize,
 }
 
-impl<T: Default> ObjectPool<T> {
-    pub fn new(max_size: usize) -> Self {
+impl<T> ObjectPool<T> {
+    pub fn new(max_size: usize) -> Self
+    where
+        T: Default,
+    {
         Self {
             pool: VecDeque::new(),
             max_size,
@@ -36,7 +35,10 @@ impl<T: Default> ObjectPool<T> {
         }
     }
 
-    pub fn acquire(&mut self) -> T {
+    pub fn acquire(&mut self) -> T
+    where
+        T: Default,
+    {
         self.pool.pop_front().unwrap_or_default()
     }
 
@@ -60,6 +62,24 @@ impl<T: Default> ObjectPool<T> {
 
     pub fn clear(&mut self) {
         self.pool.clear();
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &T> {
+        self.pool.iter()
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> {
+        self.pool.iter_mut()
+    }
+
+    pub fn pop(&mut self) -> Option<T> {
+        self.pool.pop_front()
+    }
+
+    pub fn push(&mut self, obj: T) {
+        if self.pool.len() < self.max_size {
+            self.pool.push_back(obj);
+        }
     }
 }
 
@@ -158,8 +178,24 @@ mod tests {
 
         pool.release("1".to_string());
         pool.release("2".to_string());
-        pool.release("3".to_string()); // 超过 max_size，应被丢弃
+        pool.release("3".to_string());
 
+        assert_eq!(pool.size(), 2);
+    }
+
+    #[test]
+    fn test_object_pool_non_default() {
+        let mut pool: ObjectPool<String> = ObjectPool::with_capacity(10, 100);
+
+        pool.release("test1".to_string());
+        pool.release("test2".to_string());
+
+        assert_eq!(pool.size(), 2);
+
+        let obj = pool.pop();
+        assert_eq!(obj, Some("test1".to_string()));
+
+        pool.push("test3".to_string());
         assert_eq!(pool.size(), 2);
     }
 
