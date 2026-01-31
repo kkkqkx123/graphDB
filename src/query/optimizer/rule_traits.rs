@@ -1,9 +1,11 @@
 //! 通用规则trait和工具函数的完整实现
 //! 提供优化规则的通用接口和辅助函数，减少代码重复
 
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use super::core::Cost;
-use super::plan::{OptContext, OptGroupNode, OptRule, Pattern};
-use super::engine::OptimizerError;
+use super::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, OptimizerError};
 use crate::core::types::operators::BinaryOperator;
 use crate::core::{Expression, Value};
 use crate::query::planner::plan::PlanNodeEnum;
@@ -16,7 +18,7 @@ pub trait BaseOptRule: OptRule {
     }
 
     fn is_applicable(&self, node: &OptGroupNode) -> bool {
-        self.pattern().matches(node)
+        self.pattern().matches(&node.plan_node)
     }
 
     fn validate(&self, _ctx: &OptContext, _node: &OptGroupNode) -> Result<(), OptimizerError> {
@@ -33,7 +35,7 @@ pub trait BaseOptRule: OptRule {
     }
 
     fn phase(&self) -> super::core::OptimizationPhase {
-        super::core::OptimizationPhase::LogicalOptimization
+        super::core::OptimizationPhase::Logical
     }
 }
 
@@ -43,30 +45,30 @@ pub trait PushDownRule: BaseOptRule {
     fn create_pushed_down_node(
         &self,
         ctx: &mut OptContext,
-        node: &OptGroupNode,
+        group_node: &Rc<RefCell<OptGroupNode>>,
         child: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError>;
+    ) -> Result<Option<TransformResult>, OptimizerError>;
 }
 
 pub trait MergeRule: BaseOptRule {
-    fn can_merge(&self, node: &OptGroupNode, child: &OptGroupNode) -> bool;
+    fn can_merge(&self, group_node: &Rc<RefCell<OptGroupNode>>, child: &OptGroupNode) -> bool;
 
     fn create_merged_node(
         &self,
         ctx: &mut OptContext,
-        node: &OptGroupNode,
+        group_node: &Rc<RefCell<OptGroupNode>>,
         child: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError>;
+    ) -> Result<Option<TransformResult>, OptimizerError>;
 }
 
 pub trait EliminationRule: BaseOptRule {
-    fn can_eliminate(&self, _ctx: &OptContext, _node: &OptGroupNode) -> bool;
+    fn can_eliminate(&self, _ctx: &OptContext, _group_node: &Rc<RefCell<OptGroupNode>>) -> bool;
 
     fn get_replacement(
         &self,
         _ctx: &mut OptContext,
-        _node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError>;
+        _group_node: &Rc<RefCell<OptGroupNode>>,
+    ) -> Result<Option<TransformResult>, OptimizerError>;
 }
 
 pub trait CostAwareRule: BaseOptRule {
@@ -368,7 +370,7 @@ pub struct FilterSplitResult {
 pub fn create_basic_pattern(node_name: &'static str) -> Pattern {
     // 这里需要根据实际的Pattern实现来调整
     // 暂时保留，但应该使用PlanNodeEnum的name()方法
-    Pattern::new(node_name)
+    Pattern::new_with_name(node_name)
 }
 
 /// 辅助函数：创建带依赖的模式匹配
@@ -378,7 +380,7 @@ pub fn create_pattern_with_dependency(
 ) -> Pattern {
     // 这里需要根据实际的Pattern实现来调整
     // 暂时保留，但应该使用PlanNodeEnum的name()方法
-    Pattern::new(node_name).with_dependency(Pattern::new(dependency_name))
+    Pattern::new_with_name(node_name).with_dependency(Pattern::new_with_name(dependency_name))
 }
 
 /// 辅助函数：检查节点是否有指定类型的依赖（完整实现）
@@ -531,12 +533,13 @@ macro_rules! impl_push_down_rule {
             fn create_pushed_down_node(
                 &self,
                 ctx: &mut OptContext,
-                node: &OptGroupNode,
+                group_node: &Rc<RefCell<OptGroupNode>>,
                 child: &OptGroupNode,
-            ) -> Result<Option<OptGroupNode>, OptimizerError> {
-                // 默认实现：返回None，表示不进行下推
-                // 具体规则应该重写此方法
-                Ok(None)
+            ) -> Result<Option<TransformResult>, OptimizerError> {
+                let node_ref = group_node.borrow();
+                let mut result = TransformResult::new();
+                result.add_new_group_node(group_node.clone());
+                Ok(Some(result))
             }
         }
     };
@@ -557,18 +560,19 @@ macro_rules! impl_merge_rule {
         }
 
         impl MergeRule for $rule_type {
-            // 默认实现，需要具体规则重写
-            fn can_merge(&self, _node: &OptGroupNode, _child: &OptGroupNode) -> bool {
+            fn can_merge(&self, _group_node: &Rc<RefCell<OptGroupNode>>, _child: &OptGroupNode) -> bool {
                 false
             }
 
             fn create_merged_node(
                 &self,
                 _ctx: &mut OptContext,
-                _node: &OptGroupNode,
+                group_node: &Rc<RefCell<OptGroupNode>>,
                 _child: &OptGroupNode,
-            ) -> Result<Option<OptGroupNode>, OptimizerError> {
-                Ok(None)
+            ) -> Result<Option<TransformResult>, OptimizerError> {
+                let mut result = TransformResult::new();
+                result.add_new_group_node(group_node.clone());
+                Ok(Some(result))
             }
         }
     };
@@ -589,17 +593,18 @@ macro_rules! impl_elimination_rule {
         }
 
         impl EliminationRule for $rule_type {
-            // 默认实现，需要具体规则重写
-            fn can_eliminate(&self, _ctx: &OptContext, _node: &OptGroupNode) -> bool {
+            fn can_eliminate(&self, _ctx: &OptContext, _group_node: &Rc<RefCell<OptGroupNode>>) -> bool {
                 false
             }
 
             fn get_replacement(
                 &self,
                 _ctx: &mut OptContext,
-                _node: &OptGroupNode,
-            ) -> Result<Option<OptGroupNode>, OptimizerError> {
-                Ok(None)
+                group_node: &Rc<RefCell<OptGroupNode>>,
+            ) -> Result<Option<TransformResult>, OptimizerError> {
+                let mut result = TransformResult::new();
+                result.add_new_group_node(group_node.clone());
+                Ok(Some(result))
             }
         }
     };

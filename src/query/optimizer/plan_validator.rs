@@ -4,6 +4,7 @@
 
 use super::engine::OptimizerError;
 use super::plan::{OptContext, OptGroup, OptGroupNode};
+use super::node::OptimizerError;
 use crate::core::types::expression::Expression;
 use std::collections::HashMap;
 
@@ -59,25 +60,24 @@ impl PlanValidator {
         boundary: &[&OptGroup],
     ) -> Result<(), OptimizerError> {
         for node in &group.nodes {
+            let node_ref = node.borrow();
             // 验证节点的数据流
-            if !ctx.validate_data_flow(node, boundary) {
-                return Err(OptimizerError::Validation {
-                    message: format!(
-                        "数据流验证失败：节点 {} 的依赖关系不正确",
-                        node.id
-                    ),
-                });
+            if !ctx.validate_data_flow(&node_ref, boundary) {
+                return Err(OptimizerError::validation(format!(
+                    "数据流验证失败：节点 {} 的依赖关系不正确",
+                    node_ref.id
+                )));
             }
 
             // 递归验证依赖组
-            for dep_id in &node.dependencies {
+            for dep_id in &node_ref.dependencies {
                 if let Some(dep_group) = Self::find_group_by_id(ctx, *dep_id) {
                     Self::validate_data_flow_recursive(ctx, dep_group, boundary)?;
                 }
             }
 
             // 递归验证主体组
-            for body_id in &node.bodies {
+            for body_id in &node_ref.bodies {
                 if let Some(body_group) = Self::find_group_by_id(ctx, *body_id) {
                     Self::validate_data_flow_recursive(ctx, body_group, boundary)?;
                 }
@@ -105,41 +105,38 @@ impl PlanValidator {
         defined_vars: &mut HashMap<String, usize>,
     ) -> Result<(), OptimizerError> {
         for node in &group.nodes {
+            let node_ref = node.borrow();
             // 验证输出变量是否已定义
-            if let Some(output_var) = node.plan_node.output_var() {
+            if let Some(output_var) = node_ref.plan_node.output_var() {
                 let var_name = &output_var.name;
                 if defined_vars.contains_key(var_name) {
-                    return Err(OptimizerError::Validation {
-                        message: format!(
-                            "变量使用验证失败：变量 {} 被多次定义",
-                            var_name
-                        ),
-                    });
+                    return Err(OptimizerError::validation(format!(
+                        "变量使用验证失败：变量 {} 被多次定义",
+                        var_name
+                    )));
                 }
-                defined_vars.insert(var_name.to_string(), node.id);
+                defined_vars.insert(var_name.to_string(), node_ref.id);
             }
 
             // 验证输入变量是否已定义
-            for input_var in &node.properties.input_vars {
+            for input_var in &node_ref.properties.input_vars {
                 if !defined_vars.contains_key(input_var) {
-                    return Err(OptimizerError::Validation {
-                        message: format!(
-                            "变量使用验证失败：变量 {} 未定义就被使用",
-                            input_var
-                        ),
-                    });
+                    return Err(OptimizerError::validation(format!(
+                        "变量使用验证失败：变量 {} 未定义就被使用",
+                        input_var
+                    )));
                 }
             }
 
             // 递归验证依赖组
-            for dep_id in &node.dependencies {
+            for dep_id in &node_ref.dependencies {
                 if let Some(dep_group) = Self::find_group_by_id(ctx, *dep_id) {
                     Self::validate_variable_usage_recursive(ctx, dep_group, defined_vars)?;
                 }
             }
 
             // 递归验证主体组
-            for body_id in &node.bodies {
+            for body_id in &node_ref.bodies {
                 if let Some(body_group) = Self::find_group_by_id(ctx, *body_id) {
                     Self::validate_variable_usage_recursive(ctx, body_group, defined_vars)?;
                 }
@@ -165,18 +162,19 @@ impl PlanValidator {
         group: &OptGroup,
     ) -> Result<(), OptimizerError> {
         for node in &group.nodes {
+            let node_ref = node.borrow();
             // 验证节点中的表达式
-            Self::validate_node_expressions(node)?;
+            Self::validate_node_expressions(&node_ref)?;
 
             // 递归验证依赖组
-            for dep_id in &node.dependencies {
+            for dep_id in &node_ref.dependencies {
                 if let Some(dep_group) = Self::find_group_by_id(ctx, *dep_id) {
                     Self::validate_expressions_recursive(ctx, dep_group)?;
                 }
             }
 
             // 递归验证主体组
-            for body_id in &node.bodies {
+            for body_id in &node_ref.bodies {
                 if let Some(body_group) = Self::find_group_by_id(ctx, *body_id) {
                     Self::validate_expressions_recursive(ctx, body_group)?;
                 }
@@ -200,11 +198,9 @@ impl PlanValidator {
             crate::query::planner::plan::PlanNodeEnum::Aggregate(aggregate_node) => {
                 for group_key in aggregate_node.group_keys() {
                     if group_key.is_empty() {
-                        return Err(OptimizerError::Validation {
-                            message: format!(
-                                "聚合节点验证失败：分组键为空"
-                            ),
-                        });
+                        return Err(OptimizerError::validation(format!(
+                            "聚合节点验证失败：分组键为空"
+                        )));
                     }
                 }
                 for agg_func in aggregate_node.aggregation_functions() {
@@ -213,11 +209,9 @@ impl PlanValidator {
                         }
                         crate::core::types::operators::AggregateFunction::Count(Some(field)) => {
                             if field.is_empty() {
-                                return Err(OptimizerError::Validation {
-                                    message: format!(
-                                        "聚合节点验证失败：COUNT 函数字段名为空"
-                                    ),
-                                });
+                                return Err(OptimizerError::validation(format!(
+                                    "聚合节点验证失败：COUNT 函数字段名为空"
+                                )));
                             }
                         }
                         crate::core::types::operators::AggregateFunction::Sum(field)
@@ -227,21 +221,17 @@ impl PlanValidator {
                         | crate::core::types::operators::AggregateFunction::Collect(field)
                         | crate::core::types::operators::AggregateFunction::Distinct(field) => {
                             if field.is_empty() {
-                                return Err(OptimizerError::Validation {
-                                    message: format!(
-                                        "聚合节点验证失败：{} 函数字段名为空",
-                                        agg_func.name()
-                                    ),
-                                });
+                                return Err(OptimizerError::validation(format!(
+                                    "聚合节点验证失败：{} 函数字段名为空",
+                                    agg_func.name()
+                                )));
                             }
                         }
                         crate::core::types::operators::AggregateFunction::Percentile(field, _) => {
                             if field.is_empty() {
-                                return Err(OptimizerError::Validation {
-                                    message: format!(
-                                        "聚合节点验证失败：PERCENTILE 函数字段名为空"
-                                    ),
-                                });
+                                return Err(OptimizerError::validation(format!(
+                                    "聚合节点验证失败：PERCENTILE 函数字段名为空"
+                                )));
                             }
                         }
                         crate::core::types::operators::AggregateFunction::Std(field)
@@ -249,12 +239,10 @@ impl PlanValidator {
                         | crate::core::types::operators::AggregateFunction::BitOr(field)
                         | crate::core::types::operators::AggregateFunction::GroupConcat(field, _) => {
                             if field.is_empty() {
-                                return Err(OptimizerError::Validation {
-                                    message: format!(
-                                        "聚合节点验证失败：{} 函数字段名为空",
-                                        agg_func.name()
-                                    ),
-                                });
+                                return Err(OptimizerError::validation(format!(
+                                    "聚合节点验证失败：{} 函数字段名为空",
+                                    agg_func.name()
+                                )));
                             }
                         }
                     }
@@ -263,35 +251,27 @@ impl PlanValidator {
             crate::query::planner::plan::PlanNodeEnum::Select(select_node) => {
                 let condition = select_node.condition();
                 if condition.is_empty() {
-                    return Err(OptimizerError::Validation {
-                        message: format!(
-                            "Select 节点验证失败：条件为空"
-                        ),
-                    });
+                    return Err(OptimizerError::validation(format!(
+                        "Select 节点验证失败：条件为空"
+                    )));
                 }
                 if select_node.if_branch().is_none() && select_node.else_branch().is_none() {
-                    return Err(OptimizerError::Validation {
-                        message: format!(
-                            "Select 节点验证失败：至少需要一个分支（if 或 else）"
-                        ),
-                    });
+                    return Err(OptimizerError::validation(format!(
+                        "Select 节点验证失败：至少需要一个分支（if 或 else）"
+                    )));
                 }
             }
             crate::query::planner::plan::PlanNodeEnum::Loop(loop_node) => {
                 let condition = loop_node.condition();
                 if condition.is_empty() {
-                    return Err(OptimizerError::Validation {
-                        message: format!(
-                            "Loop 节点验证失败：条件为空"
-                        ),
-                    });
+                    return Err(OptimizerError::validation(format!(
+                        "Loop 节点验证失败：条件为空"
+                    )));
                 }
                 if loop_node.body().is_none() {
-                    return Err(OptimizerError::Validation {
-                        message: format!(
-                            "Loop 节点验证失败：缺少循环体"
-                        ),
-                    });
+                    return Err(OptimizerError::validation(format!(
+                        "Loop 节点验证失败：缺少循环体"
+                    )));
                 }
             }
             _ => {}
@@ -377,18 +357,19 @@ impl PlanValidator {
         group: &OptGroup,
     ) -> Result<(), OptimizerError> {
         for node in &group.nodes {
+            let node_ref = node.borrow();
             // 验证节点的属性
-            Self::validate_node_properties(node)?;
+            Self::validate_node_properties(&node_ref)?;
 
             // 递归验证依赖组
-            for dep_id in &node.dependencies {
+            for dep_id in &node_ref.dependencies {
                 if let Some(dep_group) = Self::find_group_by_id(ctx, *dep_id) {
                     Self::validate_plan_node_properties_recursive(ctx, dep_group)?;
                 }
             }
 
             // 递归验证主体组
-            for body_id in &node.bodies {
+            for body_id in &node_ref.bodies {
                 if let Some(body_group) = Self::find_group_by_id(ctx, *body_id) {
                     Self::validate_plan_node_properties_recursive(ctx, body_group)?;
                 }
@@ -402,23 +383,19 @@ impl PlanValidator {
     fn validate_node_properties(node: &OptGroupNode) -> Result<(), OptimizerError> {
         // 验证成本非负
         if node.cost.total() < 0.0 {
-            return Err(OptimizerError::Validation {
-                message: format!(
-                    "节点属性验证失败：节点 {} 的成本为负数 {}",
-                    node.id, node.cost
-                ),
-            });
+            return Err(OptimizerError::validation(format!(
+                "节点属性验证失败：节点 {} 的成本为负数 {}",
+                node.id, node.cost
+            )));
         }
 
         // 验证输出变量
         if let Some(output_var) = node.plan_node.output_var() {
             if output_var.name.is_empty() {
-                return Err(OptimizerError::Validation {
-                    message: format!(
-                        "节点属性验证失败：节点 {} 的输出变量名为空",
-                        node.id
-                    ),
-                });
+                return Err(OptimizerError::validation(format!(
+                    "节点属性验证失败：节点 {} 的输出变量名为空",
+                    node.id
+                )));
             }
         }
 
@@ -426,12 +403,10 @@ impl PlanValidator {
         if node.plan_node.output_var().is_some() {
             let col_names = node.plan_node.col_names();
             if col_names.is_empty() {
-                return Err(OptimizerError::Validation {
-                    message: format!(
-                        "节点属性验证失败：节点 {} 的列名为空",
-                        node.id
-                    ),
-                });
+                return Err(OptimizerError::validation(format!(
+                    "节点属性验证失败：节点 {} 的列名为空",
+                    node.id
+                )));
             }
         }
 

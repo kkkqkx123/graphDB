@@ -2,12 +2,14 @@
 //! 这些规则负责将LIMIT操作下推到计划树的底层，以减少数据处理量
 
 use super::engine::OptimizerError;
-use super::plan::{OptContext, OptGroupNode, OptRule, Pattern};
+use super::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult};
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::{BaseOptRule, PushDownRule};
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::visitor::PlanNodeVisitor;
+use std::rc::Rc;
+use std::cell::RefCell;
 
 /// LIMIT下推访问者
 #[derive(Clone)]
@@ -141,25 +143,31 @@ impl OptRule for PushLimitDownRule {
     fn apply(
         &self,
         ctx: &mut OptContext,
-        node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        if !node.plan_node.is_limit() {
-            return Ok(None);
+        group_node: &Rc<RefCell<OptGroupNode>>,
+    ) -> Result<Option<TransformResult>, OptimizerError> {
+        let node_ref = group_node.borrow();
+        if !node_ref.plan_node.is_limit() {
+            return Ok(Some(TransformResult::unchanged()));
         }
 
         let mut visitor = LimitPushDownVisitor {
             pushed_down: false,
             new_node: None,
             ctx: ctx as *const OptContext,
-            node_dependencies: node.dependencies.clone(),
+            node_dependencies: node_ref.dependencies.clone(),
         };
 
-        let result = visitor.visit(&node.plan_node);
+        let result = visitor.visit(&node_ref.plan_node);
+        drop(node_ref);
+
         if result.pushed_down {
-            Ok(result.new_node)
-        } else {
-            Ok(None)
+            if let Some(new_node) = result.new_node {
+                let mut transform_result = TransformResult::new();
+                transform_result.add_new_group_node(Rc::new(RefCell::new(new_node)));
+                return Ok(Some(transform_result));
+            }
         }
+        Ok(Some(TransformResult::unchanged()))
     }
 
     fn pattern(&self) -> Pattern {
@@ -176,11 +184,14 @@ impl PushDownRule for PushLimitDownRule {
 
     fn create_pushed_down_node(
         &self,
-        _ctx: &mut OptContext,
-        _node: &OptGroupNode,
-        _child: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        Ok(None)
+        ctx: &mut OptContext,
+        group_node: &Rc<RefCell<OptGroupNode>>,
+        child: &OptGroupNode,
+    ) -> Result<Option<TransformResult>, OptimizerError> {
+        let node_ref = group_node.borrow();
+        let mut result = TransformResult::new();
+        result.add_new_group_node(group_node.clone());
+        Ok(Some(result))
     }
 }
 
@@ -196,26 +207,27 @@ impl OptRule for PushLimitDownGetVerticesRule {
     fn apply(
         &self,
         ctx: &mut OptContext,
-        node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
+        group_node: &Rc<RefCell<OptGroupNode>>,
+    ) -> Result<Option<TransformResult>, OptimizerError> {
+        let node_ref = group_node.borrow();
         // 检查是否为LIMIT操作
-        if !node.plan_node.is_limit() {
-            return Ok(None);
+        if !node_ref.plan_node.is_limit() {
+            return Ok(Some(TransformResult::unchanged()));
         }
 
         // 检查是否有GetVertices子节点
-        if node.dependencies.len() >= 1 {
-            let child_dep_id = node.dependencies[0];
+        if node_ref.dependencies.len() >= 1 {
+            let child_dep_id = node_ref.dependencies[0];
             let child_node_opt = ctx.find_group_node_by_plan_node_id(child_dep_id).cloned();
 
             if let Some(child_node) = child_node_opt {
                 if child_node.plan_node.is_get_vertices() {
                     // 将LIMIT下推到GetVertices操作
-                    return self.create_pushed_down_node(ctx, node, &child_node);
+                    return self.create_pushed_down_node(ctx, group_node, &child_node);
                 }
             }
         }
-        Ok(None)
+        Ok(Some(TransformResult::unchanged()))
     }
 
     fn pattern(&self) -> Pattern {
@@ -232,14 +244,15 @@ impl PushDownRule for PushLimitDownGetVerticesRule {
 
     fn create_pushed_down_node(
         &self,
-        _ctx: &mut OptContext,
-        limit_node: &OptGroupNode,
+        ctx: &mut OptContext,
+        group_node: &Rc<RefCell<OptGroupNode>>,
         child: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
+    ) -> Result<Option<TransformResult>, OptimizerError> {
         // 根据参考的NebulaGraph PushLimitDownGetVerticesRule实现
         // 我们需要将LIMIT的值应用到GetVertices操作上
 
-        if let Some(_limit_plan_node) = limit_node.plan_node.as_limit() {
+        let node_ref = group_node.borrow();
+        if let Some(limit_plan_node) = node_ref.plan_node.as_limit() {
             if let Some(get_vertices_plan_node) = child.plan_node.as_get_vertices() {
                 // 检查LIMIT的计数是否是可计算的
                 // 在实际实现中，我们需要验证limit表达式是否可评估
@@ -248,11 +261,11 @@ impl PushDownRule for PushLimitDownGetVerticesRule {
                 let mut new_get_vertices = get_vertices_plan_node.clone();
 
                 // 设置GetVertices的limit值为LIMIT操作的计数值
-                let limit_value = _limit_plan_node.count(); // 这是LIMIT操作的计数值
+                let limit_value = limit_plan_node.count(); // 这是LIMIT操作的计数值
                 new_get_vertices.set_limit(limit_value);
 
                 // 设置输出变量
-                if let Some(output_var) = limit_node.plan_node.output_var() {
+                if let Some(output_var) = node_ref.plan_node.output_var() {
                     new_get_vertices.set_output_var(output_var.clone());
                 }
 
@@ -263,11 +276,12 @@ impl PushDownRule for PushLimitDownGetVerticesRule {
                 // 复制子节点依赖
                 new_node.dependencies = child.dependencies.clone();
 
-                return Ok(Some(new_node));
+                let mut result = TransformResult::new();
+                result.add_new_group_node(Rc::new(RefCell::new(new_node)));
+                return Ok(Some(result));
             }
         }
-
-        Ok(None)
+        Ok(Some(TransformResult::unchanged()))
     }
 }
 
@@ -283,26 +297,27 @@ impl OptRule for PushLimitDownGetNeighborsRule {
     fn apply(
         &self,
         ctx: &mut OptContext,
-        node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
+        group_node: &Rc<RefCell<OptGroupNode>>,
+    ) -> Result<Option<TransformResult>, OptimizerError> {
+        let node_ref = group_node.borrow();
         // 检查是否为LIMIT操作
-        if !node.plan_node.is_limit() {
-            return Ok(None);
+        if !node_ref.plan_node.is_limit() {
+            return Ok(Some(TransformResult::unchanged()));
         }
 
         // 检查是否有GetNeighbors子节点
-        if node.dependencies.len() >= 1 {
-            let child_dep_id = node.dependencies[0];
+        if node_ref.dependencies.len() >= 1 {
+            let child_dep_id = node_ref.dependencies[0];
             let child_node_opt = ctx.find_group_node_by_plan_node_id(child_dep_id).cloned();
 
             if let Some(child_node) = child_node_opt {
                 if child_node.plan_node.is_get_neighbors() {
                     // 将LIMIT下推到GetNeighbors操作
-                    return self.create_pushed_down_node(ctx, node, &child_node);
+                    return self.create_pushed_down_node(ctx, group_node, &child_node);
                 }
             }
         }
-        Ok(None)
+        Ok(Some(TransformResult::unchanged()))
     }
 
     fn pattern(&self) -> Pattern {
@@ -319,21 +334,22 @@ impl PushDownRule for PushLimitDownGetNeighborsRule {
 
     fn create_pushed_down_node(
         &self,
-        _ctx: &mut OptContext,
-        limit_node: &OptGroupNode,
+        ctx: &mut OptContext,
+        group_node: &Rc<RefCell<OptGroupNode>>,
         child: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        if let Some(_limit_plan_node) = limit_node.plan_node.as_limit() {
+    ) -> Result<Option<TransformResult>, OptimizerError> {
+        let node_ref = group_node.borrow();
+        if let Some(limit_plan_node) = node_ref.plan_node.as_limit() {
             if let Some(get_neighbors_plan_node) = child.plan_node.as_get_neighbors() {
                 // 创建新的带有限制的GetNeighbors节点
                 let mut new_get_neighbors = get_neighbors_plan_node.clone();
 
                 // 设置GetNeighbors的limit值为LIMIT操作的计数值
-                let limit_value = _limit_plan_node.count();
+                let limit_value = limit_plan_node.count();
                 new_get_neighbors.set_limit(limit_value);
 
                 // 设置输出变量
-                if let Some(output_var) = limit_node.plan_node.output_var() {
+                if let Some(output_var) = node_ref.plan_node.output_var() {
                     new_get_neighbors.set_output_var(output_var.clone());
                 }
 
@@ -344,11 +360,13 @@ impl PushDownRule for PushLimitDownGetNeighborsRule {
                 // 复制子节点依赖
                 new_node.dependencies = child.dependencies.clone();
 
-                return Ok(Some(new_node));
+                let mut result = TransformResult::new();
+                result.add_new_group_node(Rc::new(RefCell::new(new_node)));
+                return Ok(Some(result));
             }
         }
 
-        Ok(None)
+        Ok(Some(TransformResult::unchanged()))
     }
 }
 
@@ -364,26 +382,27 @@ impl OptRule for PushLimitDownGetEdgesRule {
     fn apply(
         &self,
         ctx: &mut OptContext,
-        node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
+        group_node: &Rc<RefCell<OptGroupNode>>,
+    ) -> Result<Option<TransformResult>, OptimizerError> {
+        let node_ref = group_node.borrow();
         // 检查是否为LIMIT操作
-        if !node.plan_node.is_limit() {
-            return Ok(None);
+        if !node_ref.plan_node.is_limit() {
+            return Ok(Some(TransformResult::unchanged()));
         }
 
         // 检查是否有GetEdges子节点
-        if node.dependencies.len() >= 1 {
-            let child_dep_id = node.dependencies[0];
+        if node_ref.dependencies.len() >= 1 {
+            let child_dep_id = node_ref.dependencies[0];
             let child_node_opt = ctx.find_group_node_by_plan_node_id(child_dep_id).cloned();
 
             if let Some(child_node) = child_node_opt {
                 if child_node.plan_node.is_get_edges() {
                     // 将LIMIT下推到GetEdges操作
-                    return self.create_pushed_down_node(ctx, node, &child_node);
+                    return self.create_pushed_down_node(ctx, group_node, &child_node);
                 }
             }
         }
-        Ok(None)
+        Ok(Some(TransformResult::unchanged()))
     }
 
     fn pattern(&self) -> Pattern {
@@ -400,21 +419,22 @@ impl PushDownRule for PushLimitDownGetEdgesRule {
 
     fn create_pushed_down_node(
         &self,
-        _ctx: &mut OptContext,
-        limit_node: &OptGroupNode,
+        ctx: &mut OptContext,
+        group_node: &Rc<RefCell<OptGroupNode>>,
         child: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        if let Some(_limit_plan_node) = limit_node.plan_node.as_limit() {
+    ) -> Result<Option<TransformResult>, OptimizerError> {
+        let node_ref = group_node.borrow();
+        if let Some(limit_plan_node) = node_ref.plan_node.as_limit() {
             if let Some(get_edges_plan_node) = child.plan_node.as_get_edges() {
                 // 创建新的带有限制的GetEdges节点
                 let mut new_get_edges = get_edges_plan_node.clone();
 
                 // 设置GetEdges的limit值为LIMIT操作的计数值
-                let limit_value = _limit_plan_node.count();
+                let limit_value = limit_plan_node.count();
                 new_get_edges.set_limit(limit_value);
 
                 // 设置输出变量
-                if let Some(output_var) = limit_node.plan_node.output_var() {
+                if let Some(output_var) = node_ref.plan_node.output_var() {
                     new_get_edges.set_output_var(output_var.clone());
                 }
 
@@ -425,11 +445,15 @@ impl PushDownRule for PushLimitDownGetEdgesRule {
                 // 复制子节点依赖
                 new_node.dependencies = child.dependencies.clone();
 
-                return Ok(Some(new_node));
+                let mut result = TransformResult::new();
+                result.add_new_group_node(Rc::new(RefCell::new(new_node)));
+                return Ok(Some(result));
             }
         }
 
-        Ok(None)
+        let mut result = TransformResult::new();
+        result.add_new_group_node(group_node.clone());
+        Ok(Some(result))
     }
 }
 
@@ -445,26 +469,27 @@ impl OptRule for PushLimitDownScanVerticesRule {
     fn apply(
         &self,
         ctx: &mut OptContext,
-        node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
+        group_node: &Rc<RefCell<OptGroupNode>>,
+    ) -> Result<Option<TransformResult>, OptimizerError> {
+        let node_ref = group_node.borrow();
         // 检查是否为LIMIT操作
-        if !node.plan_node.is_limit() {
-            return Ok(None);
+        if !node_ref.plan_node.is_limit() {
+            return Ok(Some(TransformResult::unchanged()));
         }
 
         // 检查是否有ScanVertices子节点
-        if node.dependencies.len() >= 1 {
-            let child_dep_id = node.dependencies[0];
+        if node_ref.dependencies.len() >= 1 {
+            let child_dep_id = node_ref.dependencies[0];
             let child_node_opt = ctx.find_group_node_by_plan_node_id(child_dep_id).cloned();
 
             if let Some(child_node) = child_node_opt {
                 if child_node.plan_node.is_scan_vertices() {
                     // 将LIMIT下推到ScanVertices操作
-                    return self.create_pushed_down_node(ctx, node, &child_node);
+                    return self.create_pushed_down_node(ctx, group_node, &child_node);
                 }
             }
         }
-        Ok(None)
+        Ok(Some(TransformResult::unchanged()))
     }
 
     fn pattern(&self) -> Pattern {
@@ -481,21 +506,22 @@ impl PushDownRule for PushLimitDownScanVerticesRule {
 
     fn create_pushed_down_node(
         &self,
-        _ctx: &mut OptContext,
-        limit_node: &OptGroupNode,
+        ctx: &mut OptContext,
+        group_node: &Rc<RefCell<OptGroupNode>>,
         child: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        if let Some(_limit_plan_node) = limit_node.plan_node.as_limit() {
+    ) -> Result<Option<TransformResult>, OptimizerError> {
+        let node_ref = group_node.borrow();
+        if let Some(limit_plan_node) = node_ref.plan_node.as_limit() {
             if let Some(scan_vertices_plan_node) = child.plan_node.as_scan_vertices() {
                 // 创建新的带有限制的ScanVertices节点
                 let mut new_scan_vertices = scan_vertices_plan_node.clone();
 
                 // 设置ScanVertices的limit值为LIMIT操作的计数值
-                let limit_value = _limit_plan_node.count();
+                let limit_value = limit_plan_node.count();
                 new_scan_vertices.set_limit(limit_value);
 
                 // 设置输出变量
-                if let Some(output_var) = limit_node.plan_node.output_var() {
+                if let Some(output_var) = node_ref.plan_node.output_var() {
                     new_scan_vertices.set_output_var(output_var.clone());
                 }
 
@@ -506,11 +532,15 @@ impl PushDownRule for PushLimitDownScanVerticesRule {
                 // 复制子节点依赖
                 new_node.dependencies = child.dependencies.clone();
 
-                return Ok(Some(new_node));
+                let mut result = TransformResult::new();
+                result.add_new_group_node(Rc::new(RefCell::new(new_node)));
+                return Ok(Some(result));
             }
         }
 
-        Ok(None)
+        let mut result = TransformResult::new();
+        result.add_new_group_node(group_node.clone());
+        Ok(Some(result))
     }
 }
 
@@ -526,26 +556,27 @@ impl OptRule for PushLimitDownScanEdgesRule {
     fn apply(
         &self,
         ctx: &mut OptContext,
-        node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
+        group_node: &Rc<RefCell<OptGroupNode>>,
+    ) -> Result<Option<TransformResult>, OptimizerError> {
+        let node_ref = group_node.borrow();
         // 检查是否为LIMIT操作
-        if !node.plan_node.is_limit() {
-            return Ok(None);
+        if !node_ref.plan_node.is_limit() {
+            return Ok(Some(TransformResult::unchanged()));
         }
 
         // 检查是否有ScanEdges子节点
-        if node.dependencies.len() >= 1 {
-            let child_dep_id = node.dependencies[0];
+        if node_ref.dependencies.len() >= 1 {
+            let child_dep_id = node_ref.dependencies[0];
             let child_node_opt = ctx.find_group_node_by_plan_node_id(child_dep_id).cloned();
 
             if let Some(child_node) = child_node_opt {
                 if child_node.plan_node.is_scan_edges() {
                     // 将LIMIT下推到ScanEdges操作
-                    return self.create_pushed_down_node(ctx, node, &child_node);
+                    return self.create_pushed_down_node(ctx, group_node, &child_node);
                 }
             }
         }
-        Ok(None)
+        Ok(Some(TransformResult::unchanged()))
     }
 
     fn pattern(&self) -> Pattern {
@@ -562,21 +593,22 @@ impl PushDownRule for PushLimitDownScanEdgesRule {
 
     fn create_pushed_down_node(
         &self,
-        _ctx: &mut OptContext,
-        limit_node: &OptGroupNode,
+        ctx: &mut OptContext,
+        group_node: &Rc<RefCell<OptGroupNode>>,
         child: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        if let Some(_limit_plan_node) = limit_node.plan_node.as_limit() {
+    ) -> Result<Option<TransformResult>, OptimizerError> {
+        let node_ref = group_node.borrow();
+        if let Some(limit_plan_node) = node_ref.plan_node.as_limit() {
             if let Some(scan_edges_plan_node) = child.plan_node.as_scan_edges() {
                 // 创建新的带有限制的ScanEdges节点
                 let mut new_scan_edges = scan_edges_plan_node.clone();
 
                 // 设置ScanEdges的limit值为LIMIT操作的计数值
-                let limit_value = _limit_plan_node.count();
+                let limit_value = limit_plan_node.count();
                 new_scan_edges.set_limit(limit_value);
 
                 // 设置输出变量
-                if let Some(output_var) = limit_node.plan_node.output_var() {
+                if let Some(output_var) = node_ref.plan_node.output_var() {
                     new_scan_edges.set_output_var(output_var.clone());
                 }
 
@@ -587,11 +619,15 @@ impl PushDownRule for PushLimitDownScanEdgesRule {
                 // 复制子节点依赖
                 new_node.dependencies = child.dependencies.clone();
 
-                return Ok(Some(new_node));
+                let mut result = TransformResult::new();
+                result.add_new_group_node(Rc::new(RefCell::new(new_node)));
+                return Ok(Some(result));
             }
         }
 
-        Ok(None)
+        let mut result = TransformResult::new();
+        result.add_new_group_node(group_node.clone());
+        Ok(Some(result))
     }
 }
 
@@ -607,26 +643,27 @@ impl OptRule for PushLimitDownIndexScanRule {
     fn apply(
         &self,
         ctx: &mut OptContext,
-        node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
+        group_node: &Rc<RefCell<OptGroupNode>>,
+    ) -> Result<Option<TransformResult>, OptimizerError> {
+        let node_ref = group_node.borrow();
         // 检查是否为LIMIT操作
-        if !node.plan_node.is_limit() {
-            return Ok(None);
+        if !node_ref.plan_node.is_limit() {
+            return Ok(Some(TransformResult::unchanged()));
         }
 
         // 检查是否有IndexScan子节点
-        if node.dependencies.len() >= 1 {
-            let child_dep_id = node.dependencies[0];
+        if node_ref.dependencies.len() >= 1 {
+            let child_dep_id = node_ref.dependencies[0];
             let child_node_opt = ctx.find_group_node_by_plan_node_id(child_dep_id).cloned();
 
             if let Some(child_node) = child_node_opt {
                 if child_node.plan_node.is_index_scan() {
                     // 将LIMIT下推到IndexScan操作
-                    return self.create_pushed_down_node(ctx, node, &child_node);
+                    return self.create_pushed_down_node(ctx, group_node, &child_node);
                 }
             }
         }
-        Ok(None)
+        Ok(Some(TransformResult::unchanged()))
     }
 
     fn pattern(&self) -> Pattern {
@@ -643,21 +680,22 @@ impl PushDownRule for PushLimitDownIndexScanRule {
 
     fn create_pushed_down_node(
         &self,
-        _ctx: &mut OptContext,
-        limit_node: &OptGroupNode,
+        ctx: &mut OptContext,
+        group_node: &Rc<RefCell<OptGroupNode>>,
         child: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        if let Some(_limit_plan_node) = limit_node.plan_node.as_limit() {
+    ) -> Result<Option<TransformResult>, OptimizerError> {
+        let node_ref = group_node.borrow();
+        if let Some(limit_plan_node) = node_ref.plan_node.as_limit() {
             if let Some(index_scan_plan_node) = child.plan_node.as_index_scan() {
                 // 创建新的带有限制的IndexScan节点
                 let mut new_index_scan = index_scan_plan_node.clone();
 
                 // 设置IndexScan的limit值为LIMIT操作的计数值
-                let limit_value = _limit_plan_node.count();
+                let limit_value = limit_plan_node.count();
                 new_index_scan.set_limit(limit_value);
 
                 // 设置输出变量
-                if let Some(output_var) = limit_node.plan_node.output_var() {
+                if let Some(output_var) = node_ref.plan_node.output_var() {
                     new_index_scan.set_output_var(output_var.clone());
                 }
 
@@ -668,11 +706,15 @@ impl PushDownRule for PushLimitDownIndexScanRule {
                 // 复制子节点依赖
                 new_node.dependencies = child.dependencies.clone();
 
-                return Ok(Some(new_node));
+                let mut result = TransformResult::new();
+                result.add_new_group_node(Rc::new(RefCell::new(new_node)));
+                return Ok(Some(result));
             }
         }
 
-        Ok(None)
+        let mut result = TransformResult::new();
+        result.add_new_group_node(group_node.clone());
+        Ok(Some(result))
     }
 }
 
@@ -688,26 +730,27 @@ impl OptRule for PushLimitDownProjectRule {
     fn apply(
         &self,
         ctx: &mut OptContext,
-        node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
+        group_node: &Rc<RefCell<OptGroupNode>>,
+    ) -> Result<Option<TransformResult>, OptimizerError> {
+        let node_ref = group_node.borrow();
         // 检查是否为LIMIT操作
-        if !node.plan_node.is_limit() {
-            return Ok(None);
+        if !node_ref.plan_node.is_limit() {
+            return Ok(Some(TransformResult::unchanged()));
         }
 
         // 检查是否有Project子节点
-        if node.dependencies.len() >= 1 {
-            let child_dep_id = node.dependencies[0];
+        if node_ref.dependencies.len() >= 1 {
+            let child_dep_id = node_ref.dependencies[0];
             let child_node_opt = ctx.find_group_node_by_plan_node_id(child_dep_id).cloned();
 
             if let Some(child_node) = child_node_opt {
                 if child_node.plan_node.is_project() {
                     // 将LIMIT下推到Project操作
-                    return self.create_pushed_down_node(ctx, node, &child_node);
+                    return self.create_pushed_down_node(ctx, group_node, &child_node);
                 }
             }
         }
-        Ok(None)
+        Ok(Some(TransformResult::unchanged()))
     }
 
     fn pattern(&self) -> Pattern {
@@ -724,11 +767,12 @@ impl PushDownRule for PushLimitDownProjectRule {
 
     fn create_pushed_down_node(
         &self,
-        _ctx: &mut OptContext,
-        limit_node: &OptGroupNode,
+        ctx: &mut OptContext,
+        group_node: &Rc<RefCell<OptGroupNode>>,
         child: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        if let Some(_limit_plan_node) = limit_node.plan_node.as_limit() {
+    ) -> Result<Option<TransformResult>, OptimizerError> {
+        let node_ref = group_node.borrow();
+        if let Some(limit_plan_node) = node_ref.plan_node.as_limit() {
             if let Some(project_plan_node) = child.plan_node.as_project() {
                 // 对于Project操作，我们不能直接在Project节点上设置limit
                 // 而是创建一个新的计划结构，将LIMIT应用到Project的输入上
@@ -738,7 +782,7 @@ impl PushDownRule for PushLimitDownProjectRule {
                 let mut new_project = project_plan_node.clone();
 
                 // 设置输出变量
-                if let Some(output_var) = limit_node.plan_node.output_var() {
+                if let Some(output_var) = node_ref.plan_node.output_var() {
                     new_project.set_output_var(output_var.clone());
                 }
 
@@ -751,11 +795,15 @@ impl PushDownRule for PushLimitDownProjectRule {
 
                 // 在实际实现中，我们需要更复杂地处理Project上的LIMIT下推
                 // 可能需要在Project的输入上添加LIMIT操作
-                return Ok(Some(new_node));
+                let mut result = TransformResult::new();
+                result.add_new_group_node(Rc::new(RefCell::new(new_node)));
+                return Ok(Some(result));
             }
         }
 
-        Ok(None)
+        let mut result = TransformResult::new();
+        result.add_new_group_node(group_node.clone());
+        Ok(Some(result))
     }
 }
 
@@ -770,29 +818,32 @@ impl OptRule for PushLimitDownAllPathsRule {
         "PushLimitDownAllPathsRule"
     }
 
-    fn apply(&self, ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(&self, ctx: &mut OptContext, group_node: &Rc<RefCell<OptGroupNode>>) -> Result<Option<TransformResult>, OptimizerError> {
+        let node_ref = group_node.borrow();
         // 检查是否为LIMIT操作
-        if !node.plan_node.is_limit() {
-            return Ok(None);
+        if !node_ref.plan_node.is_limit() {
+            return Ok(Some(TransformResult::unchanged()));
         }
 
         // 匹配模式以查看是否为LIMIT后跟全路径
-        if let Some(matched) = self.match_pattern(ctx, node)? {
+        if let Some(matched) = self.match_pattern(ctx, group_node)? {
             if matched.dependencies.len() >= 1 {
                 let child = &matched.dependencies[0];
 
-                if child.plan_node().type_name() == "AllPaths" {
+                if child.borrow().plan_node.type_name() == "AllPaths" {
                     // 在完整实现中，我们会将LIMIT下推到全路径操作
                     // 以限制计算的路径数量
-                    Ok(Some(node.clone()))
+                    let mut result = TransformResult::new();
+                    result.add_new_group_node(group_node.clone());
+                    return Ok(Some(result));
                 } else {
-                    Ok(None)
+                    Ok(Some(TransformResult::unchanged()))
                 }
             } else {
-                Ok(None)
+                Ok(Some(TransformResult::unchanged()))
             }
         } else {
-            Ok(None)
+            Ok(Some(TransformResult::unchanged()))
         }
     }
 
@@ -808,10 +859,12 @@ impl PushDownRule for PushLimitDownAllPathsRule {
         child_node.type_name() == "AllPaths"
     }
 
-    fn create_pushed_down_node(&self, _ctx: &mut OptContext, _node: &OptGroupNode, _child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn create_pushed_down_node(&self, _ctx: &mut OptContext, _group_node: &Rc<RefCell<OptGroupNode>>, _child: &OptGroupNode) -> Result<Option<TransformResult>, OptimizerError> {
         // 在完整实现中，这里会创建带有LIMIT的全路径节点
-        // 目前简化实现，返回None
-        Ok(None)
+        // 目前简化实现，返回unchanged
+        Ok(Some(TransformResult::unchanged()))
+    }
+}
     }
 }
 
@@ -824,29 +877,32 @@ impl OptRule for PushLimitDownExpandAllRule {
         "PushLimitDownExpandAllRule"
     }
 
-    fn apply(&self, ctx: &mut OptContext, node: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn apply(&self, ctx: &mut OptContext, group_node: &Rc<RefCell<OptGroupNode>>) -> Result<Option<TransformResult>, OptimizerError> {
+        let node_ref = group_node.borrow();
         // 检查是否为LIMIT操作
-        if !node.plan_node.is_limit() {
-            return Ok(None);
+        if !node_ref.plan_node.is_limit() {
+            return Ok(Some(TransformResult::unchanged()));
         }
 
         // 匹配模式以查看是否为LIMIT后跟全展开
-        if let Some(matched) = self.match_pattern(ctx, node)? {
+        if let Some(matched) = self.match_pattern(ctx, group_node)? {
             if matched.dependencies.len() >= 1 {
                 let child = &matched.dependencies[0];
 
-                if child.plan_node().type_name() == "ExpandAll" {
+                if child.borrow().plan_node.type_name() == "ExpandAll" {
                     // 在完整实现中，我们会将LIMIT下推到全展开操作
                     // 以限制扩展的数量
-                    Ok(Some(node.clone()))
+                    let mut result = TransformResult::new();
+                    result.add_new_group_node(group_node.clone());
+                    return Ok(Some(result));
                 } else {
-                    Ok(None)
+                    Ok(Some(TransformResult::unchanged()))
                 }
             } else {
-                Ok(None)
+                Ok(Some(TransformResult::unchanged()))
             }
         } else {
-            Ok(None)
+            Ok(Some(TransformResult::unchanged()))
         }
     }
 
@@ -862,10 +918,10 @@ impl PushDownRule for PushLimitDownExpandAllRule {
         child_node.type_name() == "ExpandAll"
     }
 
-    fn create_pushed_down_node(&self, _ctx: &mut OptContext, _node: &OptGroupNode, _child: &OptGroupNode) -> Result<Option<OptGroupNode>, OptimizerError> {
+    fn create_pushed_down_node(&self, _ctx: &mut OptContext, _group_node: &Rc<RefCell<OptGroupNode>>, _child: &OptGroupNode) -> Result<Option<TransformResult>, OptimizerError> {
         // 在完整实现中，这里会创建带有LIMIT的全展开节点
-        // 目前简化实现，返回None
-        Ok(None)
+        // 目前简化实现，返回unchanged
+        Ok(Some(TransformResult::unchanged()))
     }
 }
 */

@@ -1,16 +1,23 @@
 //! 优化器引擎核心实现
 //! 提供 Optimizer 结构体及其优化逻辑实现
+//!
+//! Optimizer 是优化器的主类，负责协调整个优化过程：
+//! 1. 将执行计划转换为 OptGroup 结构
+//! 2. 按阶段执行优化规则
+//! 3. 生成最终的执行计划
+
+use std::cell::RefCell;
+use std::rc::Rc;
 
 use crate::query::context::execution::QueryContext;
-use crate::query::optimizer::core::{
-    Cost, OptimizationConfig, OptimizationPhase, OptimizationStats,
-};
+use crate::query::optimizer::core::config::{OptimizationConfig, OptimizationStats};
+use crate::query::optimizer::core::{Cost, OptimizationPhase};
 use crate::query::optimizer::plan::{
-    OptContext, OptGroup, OptGroupNode, OptRule,
+    OptContext, OptGroup, OptGroupNode, OptRule, TransformResult,
 };
 use crate::query::optimizer::property_tracker::PropertyTracker;
 use crate::query::planner::plan::{ExecutionPlan, PlanNodeEnum};
-use crate::query::optimizer::{OptimizationRule, PlanValidator};
+use crate::query::optimizer::{OptimizationRule, OptimizerError, PlanValidator};
 
 #[derive(Debug)]
 pub struct RuleSet {
@@ -30,147 +37,420 @@ impl RuleSet {
         self.rules.push(rule);
     }
 
-    pub fn rules(&self) -> &Vec<Box<dyn OptRule>> {
-        &self.rules
+    pub fn is_empty(&self) -> bool {
+        self.rules.is_empty()
     }
 }
 
 #[derive(Debug)]
 pub struct Optimizer {
-    rule_sets: Vec<RuleSet>,
     pub config: OptimizationConfig,
-    enabled_rules: Vec<OptimizationRule>,
+    pub rule_sets: Vec<RuleSet>,
+    pub enable_cost_model: bool,
+    pub enable_rule_based: bool,
+}
+
+impl Default for Optimizer {
+    fn default() -> Self {
+        Self::new(OptimizationConfig::default())
+    }
 }
 
 impl Optimizer {
-    pub fn new(rule_sets: Vec<RuleSet>) -> Self {
-        Self {
-            rule_sets,
-            config: OptimizationConfig::default(),
-            enabled_rules: Vec::new(),
-        }
-    }
-
-    pub fn with_config(rule_sets: Vec<RuleSet>, config: OptimizationConfig) -> Self {
-        Self {
-            rule_sets,
+    pub fn new(config: OptimizationConfig) -> Self {
+        let mut optimizer = Self {
             config,
-            enabled_rules: Vec::new(),
-        }
-    }
+            rule_sets: Vec::new(),
+            enable_cost_model: true,
+            enable_rule_based: true,
+        };
 
-    pub fn enable_rule(&mut self, rule: OptimizationRule) {
-        if !self.enabled_rules.contains(&rule) {
-            self.enabled_rules.push(rule);
-        }
-    }
-
-    pub fn disable_rule(&mut self, rule: OptimizationRule) {
-        self.enabled_rules.retain(|r| r != &rule);
-    }
-
-    pub fn is_rule_enabled(&self, rule: OptimizationRule) -> bool {
-        if self.enabled_rules.is_empty() {
-            return self.config.is_rule_enabled(rule);
-        }
-        self.enabled_rules.contains(&rule)
-    }
-
-    pub fn default() -> Self {
-        Self::from_registry()
+        optimizer.setup_default_rule_sets();
+        optimizer
     }
 
     pub fn from_registry() -> Self {
-        use crate::query::optimizer::{RuleRegistry, OptimizationPhase};
+        let config = OptimizationConfig::default();
+        Self::new(config)
+    }
 
-        let mut logical_rules = RuleSet::new("logical");
-        let mut physical_rules = RuleSet::new("physical");
+    pub fn with_config(rule_sets: Vec<RuleSet>, config: OptimizationConfig) -> Self {
+        let mut optimizer = Self {
+            config,
+            rule_sets,
+            enable_cost_model: true,
+            enable_rule_based: true,
+        };
 
-        for rule in RuleRegistry::get_rules_by_phase(OptimizationPhase::LogicalOptimization) {
-            if let Some(instance) = RuleRegistry::create_instance(rule) {
-                logical_rules.add_rule(instance);
-            }
+        if optimizer.rule_sets.is_empty() {
+            optimizer.setup_default_rule_sets();
         }
 
-        for rule in RuleRegistry::get_rules_by_phase(OptimizationPhase::PhysicalOptimization) {
-            if let Some(instance) = RuleRegistry::create_instance(rule) {
-                physical_rules.add_rule(instance);
-            }
-        }
-
-        for rule in RuleRegistry::get_rules_by_phase(OptimizationPhase::PostOptimization) {
-            if let Some(instance) = RuleRegistry::create_instance(rule) {
-                logical_rules.add_rule(instance);
-            }
-        }
-
-        Self::new(vec![logical_rules, physical_rules])
+        optimizer
     }
 
     pub fn find_best_plan(
         &mut self,
-        qctx: &mut QueryContext,
+        query_context: &mut QueryContext,
         plan: ExecutionPlan,
     ) -> Result<ExecutionPlan, OptimizerError> {
-        let mut opt_ctx = OptContext::new(qctx.clone());
+        self.optimize(plan, query_context)
+    }
+
+    fn setup_default_rule_sets(&mut self) {
+        let mut rewrite_rules = RuleSet::new("rewrite");
+        if let Some(rule) = OptimizationRule::PushFilterDownAggregate.create_instance() {
+            rewrite_rules.add_rule(rule);
+        }
+        if let Some(rule) = OptimizationRule::PushLimitDown.create_instance() {
+            rewrite_rules.add_rule(rule);
+        }
+        if let Some(rule) = OptimizationRule::PredicatePushDown.create_instance() {
+            rewrite_rules.add_rule(rule);
+        }
+        if let Some(rule) = OptimizationRule::FilterPushDown.create_instance() {
+            rewrite_rules.add_rule(rule);
+        }
+        self.rule_sets.push(rewrite_rules);
+
+        let mut logical_rules = RuleSet::new("logical");
+        if let Some(rule) = OptimizationRule::CollapseProject.create_instance() {
+            logical_rules.add_rule(rule);
+        }
+        if let Some(rule) = OptimizationRule::CombineFilter.create_instance() {
+            logical_rules.add_rule(rule);
+        }
+        if let Some(rule) = OptimizationRule::DedupElimination.create_instance() {
+            logical_rules.add_rule(rule);
+        }
+        if let Some(rule) = OptimizationRule::RemoveNoopProject.create_instance() {
+            logical_rules.add_rule(rule);
+        }
+        self.rule_sets.push(logical_rules);
+
+        let mut physical_rules = RuleSet::new("physical");
+        if let Some(rule) = OptimizationRule::IndexScan.create_instance() {
+            physical_rules.add_rule(rule);
+        }
+        if let Some(rule) = OptimizationRule::JoinOptimization.create_instance() {
+            physical_rules.add_rule(rule);
+        }
+        if let Some(rule) = OptimizationRule::PushLimitDownGetVertices.create_instance() {
+            physical_rules.add_rule(rule);
+        }
+        if let Some(rule) = OptimizationRule::PushLimitDownGetNeighbors.create_instance() {
+            physical_rules.add_rule(rule);
+        }
+        self.rule_sets.push(physical_rules);
+    }
+
+    pub fn optimize(
+        &mut self,
+        plan: ExecutionPlan,
+        query_context: &mut QueryContext,
+    ) -> Result<ExecutionPlan, OptimizerError> {
+        let mut opt_ctx = OptContext::new(query_context.clone());
 
         opt_ctx.stats.plan_nodes_before = self.count_nodes(&plan);
 
-        let mut root_group = self.plan_to_group(&plan)?;
-        root_group.root_group = true;
+        let root_opt_node = self.build_initial_opt_group(&plan, &mut opt_ctx)?;
 
-        self.execute_phase_optimization(&mut opt_ctx, &mut root_group, OptimizationPhase::LogicalOptimization)?;
-        self.execute_phase_optimization(&mut opt_ctx, &mut root_group, OptimizationPhase::PhysicalOptimization)?;
-        self.execute_phase_optimization(&mut opt_ctx, &mut root_group, OptimizationPhase::PostOptimization)?;
+        let root_group = opt_ctx
+            .find_group_by_id(root_opt_node.borrow().id)
+            .ok_or(OptimizerError::group_not_found(root_opt_node.borrow().id))?
+            .clone();
 
-        self.post_process(&mut opt_ctx, &mut root_group)?;
+        self.execute_optimization(&mut opt_ctx, &mut root_group)?;
 
-        let optimized_plan = self.group_to_plan(&root_group)?;
+        let optimized_plan = self.extract_execution_plan(&root_group, &mut opt_ctx)?;
 
         opt_ctx.stats.plan_nodes_after = self.count_nodes(&optimized_plan);
-
-        if let Some(best_node) = root_group.get_min_cost_group_node() {
-            opt_ctx.stats.finalize_phase(best_node.cost.total());
-        }
 
         Ok(optimized_plan)
     }
 
-    pub fn find_best_plan_with_stats(
+    pub fn optimize_with_stats(
         &mut self,
-        qctx: &mut QueryContext,
         plan: ExecutionPlan,
+        query_context: &mut QueryContext,
     ) -> Result<(ExecutionPlan, OptimizationStats), OptimizerError> {
-        let mut opt_ctx = OptContext::new(qctx.clone());
+        let mut opt_ctx = OptContext::new(query_context.clone());
+
         opt_ctx.stats.plan_nodes_before = self.count_nodes(&plan);
 
-        let mut root_group = self.plan_to_group(&plan)?;
-        root_group.root_group = true;
+        let root_opt_node = self.build_initial_opt_group(&plan, &mut opt_ctx)?;
 
-        self.execute_phase_optimization(&mut opt_ctx, &mut root_group, OptimizationPhase::LogicalOptimization)?;
-        self.execute_phase_optimization(&mut opt_ctx, &mut root_group, OptimizationPhase::PhysicalOptimization)?;
-        self.execute_phase_optimization(&mut opt_ctx, &mut root_group, OptimizationPhase::PostOptimization)?;
+        let root_group = opt_ctx
+            .find_group_by_id(root_opt_node.borrow().id)
+            .ok_or(OptimizerError::group_not_found(root_opt_node.borrow().id))?
+            .clone();
 
-        self.post_process(&mut opt_ctx, &mut root_group)?;
+        self.execute_optimization(&mut opt_ctx, &mut root_group)?;
 
-        let optimized_plan = self.group_to_plan(&root_group)?;
+        let optimized_plan = self.extract_execution_plan(&root_group, &mut opt_ctx)?;
+
         opt_ctx.stats.plan_nodes_after = self.count_nodes(&optimized_plan);
 
-        if let Some(best_node) = root_group.get_min_cost_group_node() {
-            opt_ctx.stats.finalize_phase(best_node.cost.total());
+        Ok((optimized_plan, opt_ctx.stats))
+    }
+
+    fn count_nodes(&self, plan: &ExecutionPlan) -> usize {
+        fn count_recursive(node: &PlanNodeEnum) -> usize {
+            let mut count = 1;
+            count_recursive_node(node, &mut count);
+            count
         }
 
-        Ok((optimized_plan, opt_ctx.stats))
+        fn count_recursive_node(node: &PlanNodeEnum, count: &mut usize) {
+            use crate::query::planner::plan::core::nodes::{SingleInputNode, BinaryInputNode};
+
+            match node {
+                PlanNodeEnum::Project(node) => {
+                    count_recursive_node(node.input(), count);
+                }
+                PlanNodeEnum::Filter(node) => {
+                    count_recursive_node(node.input(), count);
+                }
+                PlanNodeEnum::Sort(node) => {
+                    count_recursive_node(node.input(), count);
+                }
+                PlanNodeEnum::Limit(node) => {
+                    count_recursive_node(node.input(), count);
+                }
+                PlanNodeEnum::TopN(node) => {
+                    count_recursive_node(node.input(), count);
+                }
+                PlanNodeEnum::Aggregate(node) => {
+                    count_recursive_node(node.input(), count);
+                }
+                PlanNodeEnum::InnerJoin(node) => {
+                    count_recursive_node(node.left_input(), count);
+                    count_recursive_node(node.right_input(), count);
+                }
+                PlanNodeEnum::LeftJoin(node) => {
+                    count_recursive_node(node.left_input(), count);
+                    count_recursive_node(node.right_input(), count);
+                }
+                PlanNodeEnum::HashInnerJoin(node) => {
+                    count_recursive_node(node.left_input(), count);
+                    count_recursive_node(node.right_input(), count);
+                }
+                PlanNodeEnum::HashLeftJoin(node) => {
+                    count_recursive_node(node.left_input(), count);
+                    count_recursive_node(node.right_input(), count);
+                }
+                PlanNodeEnum::GetNeighbors(_) | PlanNodeEnum::GetVertices(_) | PlanNodeEnum::GetEdges(_) => {
+                }
+                PlanNodeEnum::Expand(_) | PlanNodeEnum::ExpandAll(_) | PlanNodeEnum::AppendVertices(_) | PlanNodeEnum::Traverse(_) | PlanNodeEnum::Dedup(_) | PlanNodeEnum::Unwind(_) => {
+                }
+                PlanNodeEnum::Union(node) => {
+                    for input in node.dependencies().iter() {
+                        count_recursive_node(input, count);
+                    }
+                }
+                PlanNodeEnum::CrossJoin(node) => {
+                    count_recursive_node(node.left_input(), count);
+                    count_recursive_node(node.right_input(), count);
+                }
+                PlanNodeEnum::CartesianProduct(node) => {
+                    count_recursive_node(node.left_input(), count);
+                    count_recursive_node(node.right_input(), count);
+                }
+                PlanNodeEnum::ScanVertices(_) | PlanNodeEnum::ScanEdges(_) | PlanNodeEnum::Start(_) => {
+                }
+                _ => {}
+            }
+        }
+
+        if let Some(root) = plan.root() {
+            count_recursive(root)
+        } else {
+            0
+        }
+    }
+
+    fn build_initial_opt_group(
+        &mut self,
+        plan: &ExecutionPlan,
+        ctx: &mut OptContext,
+    ) -> Result<Rc<RefCell<OptGroupNode>>, OptimizerError> {
+        if let Some(root) = plan.root() {
+            self.build_opt_group_recursive(root, ctx, vec![])
+        } else {
+            Err(OptimizerError::no_viable_plan())
+        }
+    }
+
+    fn build_opt_group_recursive(
+        &mut self,
+        plan_node: &PlanNodeEnum,
+        ctx: &mut OptContext,
+        _current_dependencies: Vec<usize>,
+    ) -> Result<Rc<RefCell<OptGroupNode>>, OptimizerError> {
+        let node_id = ctx.allocate_node_id();
+        let group_node = ctx.get_group_node_from_pool(node_id, plan_node.clone());
+
+        let group_node_rc = Rc::new(RefCell::new(group_node));
+        ctx.add_group_node(group_node_rc.clone())?;
+
+        self.build_inputs_recursive(plan_node, ctx, node_id)?;
+
+        Ok(group_node_rc)
+    }
+
+    fn build_inputs_recursive(
+        &mut self,
+        plan_node: &PlanNodeEnum,
+        ctx: &mut OptContext,
+        parent_id: usize,
+    ) -> Result<(), OptimizerError> {
+        use crate::query::planner::plan::core::nodes::{SingleInputNode, BinaryInputNode};
+
+        match plan_node {
+            PlanNodeEnum::Project(node) => {
+                let input_id = self.build_single_input(node.input(), ctx)?;
+                if let Some(group_node) = ctx.find_group_node_by_id(parent_id) {
+                    group_node.borrow_mut().add_dependency(input_id);
+                }
+                self.build_inputs_recursive(node.input(), ctx, input_id)?;
+            }
+            PlanNodeEnum::Filter(node) => {
+                let input_id = self.build_single_input(node.input(), ctx)?;
+                if let Some(group_node) = ctx.find_group_node_by_id(parent_id) {
+                    group_node.borrow_mut().add_dependency(input_id);
+                }
+                self.build_inputs_recursive(node.input(), ctx, input_id)?;
+            }
+            PlanNodeEnum::Sort(node) => {
+                let input_id = self.build_single_input(node.input(), ctx)?;
+                if let Some(group_node) = ctx.find_group_node_by_id(parent_id) {
+                    group_node.borrow_mut().add_dependency(input_id);
+                }
+                self.build_inputs_recursive(node.input(), ctx, input_id)?;
+            }
+            PlanNodeEnum::Limit(node) => {
+                let input_id = self.build_single_input(node.input(), ctx)?;
+                if let Some(group_node) = ctx.find_group_node_by_id(parent_id) {
+                    group_node.borrow_mut().add_dependency(input_id);
+                }
+                self.build_inputs_recursive(node.input(), ctx, input_id)?;
+            }
+            PlanNodeEnum::Aggregate(node) => {
+                let input_id = self.build_single_input(node.input(), ctx)?;
+                if let Some(group_node) = ctx.find_group_node_by_id(parent_id) {
+                    group_node.borrow_mut().add_dependency(input_id);
+                }
+                self.build_inputs_recursive(node.input(), ctx, input_id)?;
+            }
+            PlanNodeEnum::InnerJoin(node) => {
+                let left_id = self.build_single_input(node.left_input(), ctx)?;
+                let right_id = self.build_single_input(node.right_input(), ctx)?;
+                if let Some(group_node) = ctx.find_group_node_by_id(parent_id) {
+                    group_node.borrow_mut().add_dependency(left_id);
+                    group_node.borrow_mut().add_dependency(right_id);
+                }
+                self.build_inputs_recursive(node.left_input(), ctx, left_id)?;
+                self.build_inputs_recursive(node.right_input(), ctx, right_id)?;
+            }
+            PlanNodeEnum::LeftJoin(node) => {
+                let left_id = self.build_single_input(node.left_input(), ctx)?;
+                let right_id = self.build_single_input(node.right_input(), ctx)?;
+                if let Some(group_node) = ctx.find_group_node_by_id(parent_id) {
+                    group_node.borrow_mut().add_dependency(left_id);
+                    group_node.borrow_mut().add_dependency(right_id);
+                }
+                self.build_inputs_recursive(node.left_input(), ctx, left_id)?;
+                self.build_inputs_recursive(node.right_input(), ctx, right_id)?;
+            }
+            PlanNodeEnum::HashInnerJoin(node) => {
+                let left_id = self.build_single_input(node.left_input(), ctx)?;
+                let right_id = self.build_single_input(node.right_input(), ctx)?;
+                if let Some(group_node) = ctx.find_group_node_by_id(parent_id) {
+                    group_node.borrow_mut().add_dependency(left_id);
+                    group_node.borrow_mut().add_dependency(right_id);
+                }
+                self.build_inputs_recursive(node.left_input(), ctx, left_id)?;
+                self.build_inputs_recursive(node.right_input(), ctx, right_id)?;
+            }
+            PlanNodeEnum::HashLeftJoin(node) => {
+                let left_id = self.build_single_input(node.left_input(), ctx)?;
+                let right_id = self.build_single_input(node.right_input(), ctx)?;
+                if let Some(group_node) = ctx.find_group_node_by_id(parent_id) {
+                    group_node.borrow_mut().add_dependency(left_id);
+                    group_node.borrow_mut().add_dependency(right_id);
+                }
+                self.build_inputs_recursive(node.left_input(), ctx, left_id)?;
+                self.build_inputs_recursive(node.right_input(), ctx, right_id)?;
+            }
+            PlanNodeEnum::GetNeighbors(_) => {}
+            PlanNodeEnum::GetVertices(_) => {}
+            PlanNodeEnum::GetEdges(_) => {}
+            PlanNodeEnum::Union(node) => {
+                for dep in node.dependencies().iter() {
+                    let dep_id = self.build_single_input(dep, ctx)?;
+                    if let Some(group_node) = ctx.find_group_node_by_id(parent_id) {
+                        group_node.borrow_mut().add_dependency(dep_id);
+                    }
+                    self.build_inputs_recursive(dep, ctx, dep_id)?;
+                }
+            }
+            PlanNodeEnum::CrossJoin(node) => {
+                let left_id = self.build_single_input(node.left_input(), ctx)?;
+                let right_id = self.build_single_input(node.right_input(), ctx)?;
+                if let Some(group_node) = ctx.find_group_node_by_id(parent_id) {
+                    group_node.borrow_mut().add_dependency(left_id);
+                    group_node.borrow_mut().add_dependency(right_id);
+                }
+                self.build_inputs_recursive(node.left_input(), ctx, left_id)?;
+                self.build_inputs_recursive(node.right_input(), ctx, right_id)?;
+            }
+            PlanNodeEnum::CartesianProduct(node) => {
+                let left_id = self.build_single_input(node.left_input(), ctx)?;
+                let right_id = self.build_single_input(node.right_input(), ctx)?;
+                if let Some(group_node) = ctx.find_group_node_by_id(parent_id) {
+                    group_node.borrow_mut().add_dependency(left_id);
+                    group_node.borrow_mut().add_dependency(right_id);
+                }
+                self.build_inputs_recursive(node.left_input(), ctx, left_id)?;
+                self.build_inputs_recursive(node.right_input(), ctx, right_id)?;
+            }
+            _ => {}
+        }
+
+        Ok(())
+    }
+
+    fn build_single_input(
+        &mut self,
+        input: &PlanNodeEnum,
+        ctx: &mut OptContext,
+    ) -> Result<usize, OptimizerError> {
+        let node_id = ctx.allocate_node_id();
+        let group_node = ctx.get_group_node_from_pool(node_id, input.clone());
+        let group_node_rc = Rc::new(RefCell::new(group_node));
+        ctx.add_group_node(group_node_rc.clone())?;
+        Ok(node_id)
+    }
+
+    fn execute_optimization(
+        &mut self,
+        ctx: &mut OptContext,
+        root_group: &mut Rc<RefCell<OptGroup>>,
+    ) -> Result<(), OptimizerError> {
+        self.execute_phase_optimization(ctx, root_group, OptimizationPhase::Rewrite)?;
+        self.execute_phase_optimization(ctx, root_group, OptimizationPhase::Logical)?;
+        self.execute_phase_optimization(ctx, root_group, OptimizationPhase::Physical)?;
+
+        Ok(())
     }
 
     fn execute_phase_optimization(
         &mut self,
         ctx: &mut OptContext,
-        root_group: &mut OptGroup,
+        root_group: &mut Rc<RefCell<OptGroup>>,
         phase: OptimizationPhase,
     ) -> Result<(), OptimizerError> {
         ctx.stats.start_phase(phase.clone());
-        root_group.set_phase(phase.clone());
 
         let phase_rules = self.get_rules_for_phase(&phase);
 
@@ -178,468 +458,260 @@ impl Optimizer {
         let min_rounds = self.config.min_iteration_rounds;
         let stable_threshold = self.config.stable_threshold;
         let enable_adaptive = self.config.enable_adaptive_iteration;
-        
+
         let mut round = 0;
         let mut stable_count = 0;
         let mut last_changes = 0usize;
 
         while round < max_rounds {
-            let before_nodes = root_group.nodes.len();
-            
-            ctx.changed = false;
+            let before_nodes = root_group.borrow().nodes.len();
+
+            ctx.set_changed(false);
 
             for rule in &phase_rules {
-                self.apply_rule(ctx, root_group, *rule)?;
+                self.apply_rule(ctx, root_group, rule.as_ref())?;
             }
 
             round += 1;
             ctx.stats.total_iterations += 1;
-            
+
             if ctx.changed {
                 stable_count = 0;
             } else {
                 stable_count += 1;
             }
-            
-            last_changes = root_group.nodes.len() - before_nodes;
-            
-            if enable_adaptive 
-                && round >= min_rounds 
-                && stable_count >= stable_threshold 
-                && last_changes == 0 
+
+            last_changes = root_group.borrow().nodes.len() - before_nodes;
+
+            if enable_adaptive
+                && round >= min_rounds
+                && stable_count >= stable_threshold
+                && last_changes == 0
             {
                 break;
             }
         }
 
-        Ok(())
-    }
-
-    fn get_rules_for_phase(&self, phase: &OptimizationPhase) -> Vec<&dyn OptRule> {
-        let mut rules = Vec::new();
-
-        for rule_set in &self.rule_sets {
-            for rule in &rule_set.rules {
-                let rule_enum = OptimizationRule::from_name(rule.name());
-                
-                if let Some(enum_rule) = rule_enum {
-                    if enum_rule.phase() == *phase && self.is_rule_enabled(enum_rule) {
-                        rules.push(rule.as_ref());
-                    }
-                }
-            }
-        }
-
-        rules
-    }
-
-    fn post_process(
-        &self,
-        ctx: &mut OptContext,
-        root_group: &mut OptGroup,
-    ) -> Result<(), OptimizerError> {
-        self.prune_properties(ctx, root_group)?;
-        self.rewrite_arguments(ctx, root_group)?;
-        PlanValidator::validate_plan(ctx, root_group)?;
-
-        for node in &root_group.nodes {
-            for &dep_id in &node.dependencies {
-                if !root_group.nodes.iter().any(|n| n.id == dep_id) {
-                    return Err(OptimizerError::OptimizationFailed(format!(
-                        "无效的依赖：节点 {} 依赖于不存在的节点 {}",
-                        node.id, dep_id
-                    )));
-                }
-            }
-
-            let boundary = vec![&*root_group];
-            if !ctx.validate_data_flow(node, &boundary) {
-                return Err(OptimizerError::OptimizationFailed(format!(
-                    "节点 {} 的数据流验证失败",
-                    node.id
-                )));
-            }
-        }
+        ctx.stats.end_phase(phase);
 
         Ok(())
     }
 
-    fn prune_properties(
-        &self,
-        ctx: &mut OptContext,
-        root_group: &mut OptGroup,
-    ) -> Result<(), OptimizerError> {
-        let mut property_tracker = PropertyTracker::new();
-        self.collect_required_properties(ctx, root_group, &mut property_tracker)?;
-        self.apply_property_pruning(ctx, root_group, &property_tracker)?;
-        Ok(())
-    }
+    fn get_rules_for_phase(&self, phase: &OptimizationPhase) -> Vec<&Box<dyn OptRule>> {
+        let phase_rule_names = match phase {
+            OptimizationPhase::Rewrite => vec![
+                "ExpandGetNeighborsRule",
+                "AddVertexIdRule",
+                "PushFilterDownAggregateRule",
+                "LimitPushDownRule",
+                "PredicatePushDownRule",
+            ],
+            OptimizationPhase::Logical => vec![
+                "UnionEdgeTypeGroupRule",
+                "GetNodeRule",
+                "GetEdgeRule",
+                "DedupNodeRule",
+                "SortRule",
+                "CollapseProjectRule",
+                "CollapseFilterRule",
+                "BinaryJoinRule",
+            ],
+            OptimizationPhase::Physical => vec![
+                "IndexScanRule",
+                "VertexIndexScanRule",
+                "EdgeIndexScanRule",
+                "HashJoinRule",
+                "SortRule",
+                "LimitRule",
+            ],
+            _ => Vec::new(),
+        };
 
-    fn collect_required_properties(
-        &self,
-        ctx: &OptContext,
-        group: &OptGroup,
-        property_tracker: &mut PropertyTracker,
-    ) -> Result<(), OptimizerError> {
-        for node in &group.nodes {
-            self.collect_node_properties(ctx, node, property_tracker)?;
-
-            for dep_id in &node.dependencies {
-                if let Some(dep_group) = Self::find_group_by_id(ctx, *dep_id) {
-                    self.collect_required_properties(ctx, dep_group, property_tracker)?;
-                }
-            }
-
-            for body_id in &node.bodies {
-                if let Some(body_group) = Self::find_group_by_id(ctx, *body_id) {
-                    self.collect_required_properties(ctx, body_group, property_tracker)?;
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    fn collect_node_properties(
-        &self,
-        _ctx: &OptContext,
-        node: &OptGroupNode,
-        property_tracker: &mut PropertyTracker,
-    ) -> Result<(), OptimizerError> {
-        match node.plan_node.name() {
-            "Project" => {
-                if let Some(project_node) = node.plan_node.as_project() {
-                    for column in project_node.columns() {
-                        self.collect_expression_properties(&column.expression, property_tracker);
-                    }
-                }
-            }
-            "Filter" => {
-                if let Some(filter_node) = node.plan_node.as_filter() {
-                    self.collect_expression_properties(&filter_node.condition(), property_tracker);
-                }
-            }
-            "Aggregate" => {
-                if let Some(aggregate_node) = node.plan_node.as_aggregate() {
-                    for group_key in aggregate_node.group_keys() {
-                        self.collect_expression_properties(
-                            &crate::core::Expression::Variable(group_key.clone()),
-                            property_tracker,
-                        );
-                    }
-                    for item in aggregate_node.aggregation_functions() {
-                        self.collect_expression_properties(
-                            &crate::core::Expression::Variable(item.name().to_string()),
-                            property_tracker,
-                        );
-                    }
-                }
-            }
-            _ => {}
-        }
-
-        Ok(())
-    }
-
-    fn collect_expression_properties(
-        &self,
-        expression: &crate::core::Expression,
-        property_tracker: &mut PropertyTracker,
-    ) {
-        use crate::core::Expression;
-
-        match expression {
-            Expression::Property { object, property } => {
-                if let Expression::Variable(var_name) = object.as_ref() {
-                    property_tracker.track_property(var_name, &property);
-                }
-            }
-            Expression::Binary { left, right, .. } => {
-                self.collect_expression_properties(left, property_tracker);
-                self.collect_expression_properties(right, property_tracker);
-            }
-            Expression::Unary { operand, .. } => {
-                self.collect_expression_properties(operand, property_tracker);
-            }
-            Expression::Function { args, .. } => {
-                for arg in args {
-                    self.collect_expression_properties(arg, property_tracker);
-                }
-            }
-            Expression::Aggregate { arg, .. } => {
-                self.collect_expression_properties(arg, property_tracker);
-            }
-            Expression::List(items) => {
-                for item in items {
-                    self.collect_expression_properties(item, property_tracker);
-                }
-            }
-            Expression::Map(pairs) => {
-                for (_, value) in pairs {
-                    self.collect_expression_properties(value, property_tracker);
-                }
-            }
-            Expression::Case { conditions, default } => {
-                for (condition, value) in conditions {
-                    self.collect_expression_properties(condition, property_tracker);
-                    self.collect_expression_properties(value, property_tracker);
-                }
-                if let Some(default_expression) = default {
-                    self.collect_expression_properties(default_expression, property_tracker);
-                }
-            }
-            Expression::TypeCast { expression, .. } => {
-                self.collect_expression_properties(expression, property_tracker);
-            }
-            Expression::Subscript { collection, index } => {
-                self.collect_expression_properties(collection, property_tracker);
-                self.collect_expression_properties(index, property_tracker);
-            }
-            Expression::Range { collection, start, end } => {
-                self.collect_expression_properties(collection, property_tracker);
-                if let Some(start_expression) = start {
-                    self.collect_expression_properties(start_expression, property_tracker);
-                }
-                if let Some(end_expression) = end {
-                    self.collect_expression_properties(end_expression, property_tracker);
-                }
-            }
-            Expression::Path(items) => {
-                for item in items {
-                    self.collect_expression_properties(item, property_tracker);
-                }
-            }
-            _ => {}
-        }
-    }
-
-    fn apply_property_pruning(
-        &self,
-        _ctx: &mut OptContext,
-        _group: &mut OptGroup,
-        _property_tracker: &PropertyTracker,
-    ) -> Result<(), OptimizerError> {
-        Ok(())
-    }
-
-    fn rewrite_arguments(
-        &self,
-        ctx: &mut OptContext,
-        group: &mut OptGroup,
-    ) -> Result<(), OptimizerError> {
-        let mut groups_to_process: Vec<usize> = Vec::new();
-
-        for node in &mut group.nodes {
-            self.rewrite_node_arguments(node)?;
-            groups_to_process.extend(node.dependencies.iter());
-            groups_to_process.extend(node.bodies.iter());
-        }
-
-        while let Some(group_id) = groups_to_process.pop() {
-            if let Some(dep_group) = ctx.group_map.get_mut(&group_id) {
-                let mut new_groups: Vec<usize> = Vec::new();
-
-                for node in &mut dep_group.nodes {
-                    self.rewrite_node_arguments(node)?;
-                    new_groups.extend(node.dependencies.iter());
-                    new_groups.extend(node.bodies.iter());
-                }
-
-                groups_to_process.extend(new_groups);
-            }
-        }
-
-        Ok(())
-    }
-
-    fn rewrite_node_arguments(
-        &self,
-        _node: &mut OptGroupNode,
-    ) -> Result<(), OptimizerError> {
-        Ok(())
-    }
-
-    fn find_group_by_id(ctx: &OptContext, group_id: usize) -> Option<&OptGroup> {
-        ctx.group_map.get(&group_id)
-    }
-
-    fn plan_to_group(&self, plan: &ExecutionPlan) -> Result<OptGroup, OptimizerError> {
-        if let Some(root_node) = &plan.root {
-            let mut group = OptGroup::new(0, false);
-            self.convert_node_to_group(root_node, &mut group, 0)?;
-            Ok(group)
-        } else {
-            Err(OptimizerError::PlanConversionError(
-                "Cannot convert empty plan to group".to_string(),
-            ))
-        }
-    }
-
-    fn convert_node_to_group(
-        &self,
-        node: &PlanNodeEnum,
-        group: &mut OptGroup,
-        node_id: usize,
-    ) -> Result<(), OptimizerError> {
-        let opt_node = OptGroupNode::new(node_id, node.clone());
-        group.nodes.push(opt_node);
-
-        for (i, dep) in node.dependencies().iter().enumerate() {
-            self.convert_node_to_group(dep, group, node_id + i + 1)?;
-        }
-
-        Ok(())
-    }
-
-    fn group_to_plan(&self, group: &OptGroup) -> Result<ExecutionPlan, OptimizerError> {
-        if let Some(opt_node) = group.nodes.first() {
-            let root = Some(opt_node.plan_node.clone());
-            Ok(ExecutionPlan::new(root))
-        } else {
-            Err(OptimizerError::PlanConversionError(
-                "Cannot convert empty group to plan".to_string(),
-            ))
-        }
+        self.rule_sets
+            .iter()
+            .flat_map(|rs| rs.rules.iter())
+            .filter(|rule| phase_rule_names.contains(&rule.name().as_str()))
+            .collect()
     }
 
     fn apply_rule(
-        &self,
+        &mut self,
         ctx: &mut OptContext,
-        group: &mut OptGroup,
+        root_group: &Rc<RefCell<OptGroup>>,
         rule: &dyn OptRule,
     ) -> Result<(), OptimizerError> {
-        if group.is_explored(rule.name()) {
-            return Ok(());
-        }
+        let rule_name = rule.name();
 
-        self.explore_rule(ctx, group, rule)?;
-        group.set_explored(rule);
+        let group_ids: Vec<usize> = {
+            let group_map = &ctx.group_map;
+            group_map.keys().cloned().collect()
+        };
 
-        Ok(())
-    }
+        for group_id in group_ids {
+            let group = {
+                let g = ctx.find_group_by_id(group_id);
+                if g.is_none() {
+                    continue;
+                }
+                g.unwrap().clone()
+            };
 
-    fn explore_rule(
-        &self,
-        ctx: &mut OptContext,
-        group: &mut OptGroup,
-        rule: &dyn OptRule,
-    ) -> Result<(), OptimizerError> {
-        const MAX_EXPLORATION_ROUNDS: usize = 128;
-        let mut round = 0;
+            let nodes: Vec<Rc<RefCell<OptGroupNode>>> = {
+                let g = group.borrow();
+                g.nodes.iter().cloned().collect()
+            };
 
-        while round < MAX_EXPLORATION_ROUNDS {
-            let mut changed = false;
+            for node_rc in nodes {
+                let node_id = node_rc.borrow().id;
 
-            for node_idx in 0..group.nodes.len() {
-                if group.nodes[node_idx].is_explored(rule.name()) {
+                if self.has_explored_rule(&node_rc.borrow(), rule_name) {
                     continue;
                 }
 
-                if let Ok(Some(_matched)) = rule.match_pattern(ctx, &group.nodes[node_idx]) {
-                    if let Some(new_node) = rule.apply(ctx, &group.nodes[node_idx])? {
-                        if !self.node_exists_in_group(&new_node, group) {
-                            group.nodes.push(new_node);
-                            changed = true;
-                            ctx.stats.rules_applied += 1;
+                self.explore_node(ctx, &node_rc, rule)?;
 
-                            if let Some(node) = group.nodes.last_mut() {
-                                node.set_explored(rule);
-                            }
-                        }
-                    }
+                if ctx.changed {
+                    ctx.stats.rules_applied += 1;
                 }
-
-                group.nodes[node_idx].set_explored(rule);
             }
 
-            if !changed {
-                break;
-            }
+            let mut group_mut = group.borrow_mut();
+            group_mut.explored_rules.clear();
+        }
 
-            round += 1;
+        if ctx.changed {
+            ctx.stats.total_changes += 1;
         }
 
         Ok(())
     }
 
-    fn node_exists_in_group(&self, node: &OptGroupNode, group: &OptGroup) -> bool {
-        group.nodes.iter().any(|n| n.id == node.id)
+    fn explore_node(
+        &mut self,
+        ctx: &mut OptContext,
+        node: &Rc<RefCell<OptGroupNode>>,
+        rule: &dyn OptRule,
+    ) -> Result<(), OptimizerError> {
+        let node_borrowed = node.borrow();
+        if !rule.pattern().matches(&node_borrowed.plan_node) {
+            return Ok(());
+        }
+
+        let node_id = node.borrow().id;
+        let node_dependencies = node.borrow().dependencies.clone();
+
+        drop(node_borrowed);
+
+        ctx.plan_node_to_group_node.insert(node_id, node.borrow().clone());
+
+        match rule.apply(ctx, node) {
+            Ok(Some(result)) => {
+                if result.erase_curr || result.erase_all {
+                    if let Some(group) = ctx.find_group_by_id_mut(node_id) {
+                        group.nodes.retain(|n| n.borrow().id != node_id);
+                    }
+                }
+
+                for new_node in result.new_group_nodes {
+                    if let Some(group) = ctx.find_group_by_id_mut(new_node.borrow().id) {
+                        if !group.nodes.iter().any(|n| n.borrow().id == new_node.borrow().id) {
+                            group.add_node(new_node);
+                        }
+                    } else {
+                        let mut new_group = OptGroup::new(new_node.borrow().id);
+                        new_group.add_node(new_node);
+                        ctx.register_group(new_group);
+                    }
+                }
+
+                for &new_dep in &result.new_dependencies {
+                    if !node_dependencies.contains(&new_dep) {
+                        let mut node_mut = node.borrow_mut();
+                        node_mut.dependencies.push(new_dep);
+                    }
+                }
+
+                ctx.set_changed(true);
+            }
+            Ok(None) => {
+                let mut node_mut = node.borrow_mut();
+                node_mut.explored_rules.insert(rule.name().to_string());
+            }
+            Err(e) => return Err(e),
+        }
+
+        Ok(())
     }
 
-    fn count_nodes(&self, plan: &ExecutionPlan) -> usize {
-        let mut count = 0;
-        self.count_nodes_recursive(plan.root.as_ref(), &mut count);
-        count
+    fn has_explored_rule(&self, node: &OptGroupNode, rule_name: &str) -> bool {
+        node.explored_rules.contains(rule_name)
     }
 
-    fn count_nodes_recursive(&self, node: Option<&PlanNodeEnum>, count: &mut usize) {
-        if let Some(n) = node {
-            *count += 1;
-            for dep in n.dependencies() {
-                self.count_nodes_recursive(Some(dep.as_ref()), count);
+    fn extract_execution_plan(
+        &self,
+        root_group: &OptGroup,
+        ctx: &mut OptContext,
+    ) -> Result<ExecutionPlan, OptimizerError> {
+        let root_node = root_group
+            .get_min_cost_group_node()
+            .ok_or(OptimizerError::NoViablePlan)?;
+
+        self.build_execution_plan_recursive(&root_node, ctx)
+    }
+
+    fn build_execution_plan_recursive(
+        &self,
+        opt_node: &Rc<RefCell<OptGroupNode>>,
+        ctx: &mut OptContext,
+    ) -> Result<ExecutionPlan, OptimizerError> {
+        let opt_node_borrowed = opt_node.borrow();
+
+        let mut inputs: Vec<ExecutionPlan> = Vec::new();
+
+        for &dep_id in &opt_node_borrowed.dependencies {
+            if let Some(dep_group) = ctx.find_group_by_id(dep_id) {
+                if let Some(dep_node) = dep_group.get_min_cost_group_node() {
+                    let input_plan = self.build_execution_plan_recursive(&dep_node, ctx)?;
+                    inputs.push(input_plan);
+                }
             }
         }
+
+        let plan_node = opt_node_borrowed.plan_node.clone();
+
+        drop(opt_node_borrowed);
+
+        for input_plan in &inputs {
+            let input_node = input_plan.root().clone();
+            plan_node.add_input(input_node);
+        }
+
+        let root_plan_node = plan_node;
+
+        let plan = ExecutionPlan::new(root_plan_node);
+
+        Ok(plan)
     }
 
-    pub fn estimate_cost(&self, ctx: &OptContext, node: &OptGroupNode) -> Cost {
-        let base_cost = match node.plan_node.name() {
-            "ScanVertices" => Cost::new(10.0, 100.0, 50.0, 0.0),
-            "ScanEdges" => Cost::new(10.0, 100.0, 50.0, 0.0),
-            "IndexScan" => Cost::new(5.0, 20.0, 30.0, 0.0),
-            "GetVertices" => Cost::new(5.0, 30.0, 20.0, 0.0),
-            "GetEdges" => Cost::new(5.0, 30.0, 20.0, 0.0),
-            "GetNeighbors" => Cost::new(20.0, 50.0, 40.0, 0.0),
-            "Filter" => Cost::new(15.0, 0.0, 10.0, 0.0),
-            "Project" => Cost::new(5.0, 0.0, 5.0, 0.0),
-            "Aggregate" => Cost::new(30.0, 0.0, 25.0, 0.0),
-            "Sort" => Cost::new(25.0, 0.0, 20.0, 0.0),
-            "Limit" => Cost::new(2.0, 0.0, 5.0, 0.0),
-            "InnerJoin" | "HashInnerJoin" => Cost::new(50.0, 10.0, 40.0, 0.0),
-            "HashLeftJoin" => Cost::new(45.0, 10.0, 35.0, 0.0),
-            "Traverse" => Cost::new(100.0, 20.0, 60.0, 0.0),
-            "Expand" => Cost::new(80.0, 15.0, 50.0, 0.0),
-            "Dedup" => Cost::new(10.0, 0.0, 15.0, 0.0),
-            "Start" => Cost::new(1.0, 0.0, 1.0, 0.0),
-            _ => Cost::new(10.0, 5.0, 10.0, 0.0),
-        };
-
-        let dependency_cost = node.dependencies.iter().fold(Cost::default(), |acc, dep_id| {
-            if let Some(dep_node) = ctx.find_group_node_by_plan_node_id(*dep_id) {
-                let dep_cost = self.estimate_cost(ctx, dep_node);
-                Cost::new(
-                    acc.cpu_cost + dep_cost.cpu_cost,
-                    acc.io_cost + dep_cost.io_cost,
-                    acc.memory_cost + dep_cost.memory_cost,
-                    acc.network_cost + dep_cost.network_cost,
-                )
-            } else {
-                acc
-            }
-        });
-
-        Cost::new(
-            base_cost.cpu_cost + dependency_cost.cpu_cost,
-            base_cost.io_cost + dependency_cost.io_cost,
-            base_cost.memory_cost + dependency_cost.memory_cost,
-            base_cost.network_cost + dependency_cost.network_cost,
-        )
+    pub fn add_rule_set(&mut self, rule_set: RuleSet) {
+        self.rule_sets.push(rule_set);
     }
 }
 
-#[derive(Debug, thiserror::Error)]
-pub enum OptimizerError {
-    #[error("Plan conversion error: {0}")]
-    PlanConversionError(String),
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    #[error("Rule application error: {0}")]
-    RuleApplicationError(String),
+    #[test]
+    fn test_optimizer_creation() {
+        let optimizer = Optimizer::default();
+        assert!(!optimizer.rule_sets.is_empty());
+    }
 
-    #[error("Optimization failed: {0}")]
-    OptimizationFailed(String),
-
-    #[error("Invalid optimization context: {0}")]
-    InvalidOptContext(String),
-
-    #[error("Validation error: {message}")]
-    Validation { message: String },
+    #[test]
+    fn test_rule_set_creation() {
+        let rule_set = RuleSet::new("test");
+        assert_eq!(rule_set.name, "test");
+        assert!(rule_set.is_empty());
+    }
 }

@@ -2,7 +2,7 @@
 //! 这些规则负责消除冗余的操作，如永真式过滤、无操作投影、不必要的去重等
 
 use super::engine::OptimizerError;
-use super::plan::{OptContext, OptGroupNode, OptRule, Pattern};
+use super::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult};
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::{
     create_basic_pattern, is_expression_tautology, BaseOptRule,
@@ -10,6 +10,8 @@ use super::rule_traits::{
 use crate::query::planner::plan::core::nodes::plan_node_traits::{MultipleInputNode, SingleInputNode};
 use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::visitor::PlanNodeVisitor;
+use std::rc::Rc;
+use std::cell::RefCell;
 
 /// 消除冗余过滤操作的规则
 #[derive(Debug)]
@@ -23,21 +25,27 @@ impl OptRule for EliminateFilterRule {
     fn apply(
         &self,
         ctx: &mut OptContext,
-        node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
+        group_node: &Rc<RefCell<OptGroupNode>>,
+    ) -> Result<Option<TransformResult>, OptimizerError> {
+        let node_ref = group_node.borrow();
         let mut visitor = EliminateFilterVisitor {
             ctx: ctx as *const OptContext,
             eliminated: false,
             new_node: None,
-            node_dependencies: node.dependencies.clone(),
+            node_dependencies: node_ref.dependencies.clone(),
         };
 
-        let result = visitor.visit(&node.plan_node);
+        let result = visitor.visit(&node_ref.plan_node);
+        drop(node_ref);
+
         if result.eliminated {
-            Ok(result.new_node)
-        } else {
-            Ok(None)
+            if let Some(new_node) = result.new_node {
+                let mut result = TransformResult::new();
+                result.add_new_group_node(Rc::new(RefCell::new(new_node)));
+                return Ok(Some(result));
+            }
         }
+        Ok(Some(TransformResult::unchanged()))
     }
 
     fn pattern(&self) -> Pattern {
@@ -109,20 +117,26 @@ impl OptRule for DedupEliminationRule {
     fn apply(
         &self,
         ctx: &mut OptContext,
-        node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
+        group_node: &Rc<RefCell<OptGroupNode>>,
+    ) -> Result<Option<TransformResult>, OptimizerError> {
+        let node_ref = group_node.borrow();
         let mut visitor = DedupEliminationVisitor {
             ctx: ctx as *const OptContext,
             eliminated: false,
             new_node: None,
         };
 
-        let result = visitor.visit(&node.plan_node);
+        let result = visitor.visit(&node_ref.plan_node);
+        drop(node_ref);
+
         if result.eliminated {
-            Ok(result.new_node)
-        } else {
-            Ok(None)
+            if let Some(new_node) = result.new_node {
+                let mut result = TransformResult::new();
+                result.add_new_group_node(Rc::new(RefCell::new(new_node)));
+                return Ok(Some(result));
+            }
         }
+        Ok(Some(TransformResult::unchanged()))
     }
 
     fn pattern(&self) -> Pattern {
@@ -193,21 +207,27 @@ impl OptRule for RemoveNoopProjectRule {
     fn apply(
         &self,
         ctx: &mut OptContext,
-        node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
+        group_node: &Rc<RefCell<OptGroupNode>>,
+    ) -> Result<Option<TransformResult>, OptimizerError> {
+        let node_ref = group_node.borrow();
         let mut visitor = RemoveNoopProjectVisitor {
             ctx: ctx as *const OptContext,
             eliminated: false,
             new_node: None,
-            node_dependencies: node.dependencies.clone(),
+            node_dependencies: node_ref.dependencies.clone(),
         };
 
-        let result = visitor.visit(&node.plan_node);
+        let result = visitor.visit(&node_ref.plan_node);
+        drop(node_ref);
+
         if result.eliminated {
-            Ok(result.new_node)
-        } else {
-            Ok(None)
+            if let Some(new_node) = result.new_node {
+                let mut result = TransformResult::new();
+                result.add_new_group_node(Rc::new(RefCell::new(new_node)));
+                return Ok(Some(result));
+            }
         }
+        Ok(Some(TransformResult::unchanged()))
     }
 
     fn pattern(&self) -> Pattern {
@@ -313,7 +333,7 @@ impl PlanNodeVisitor for RemoveNoopProjectVisitor {
                 if self.is_noop_projection(&columns, &child_col_names) {
                     let mut new_node = child_node.clone();
 
-                    if let Some(output_var) = node.output_var() {
+                    if let Some(_output_var) = node.output_var() {
                         new_node.plan_node = input.clone();
                     }
 
@@ -339,21 +359,27 @@ impl OptRule for EliminateAppendVerticesRule {
     fn apply(
         &self,
         ctx: &mut OptContext,
-        node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
+        group_node: &Rc<RefCell<OptGroupNode>>,
+    ) -> Result<Option<TransformResult>, OptimizerError> {
+        let node_ref = group_node.borrow();
         let mut visitor = EliminateAppendVerticesVisitor {
             ctx: ctx as *const OptContext,
             eliminated: false,
             new_node: None,
-            node_dependencies: node.dependencies.clone(),
+            node_dependencies: node_ref.dependencies.clone(),
         };
 
-        let result = visitor.visit(&node.plan_node);
+        let result = visitor.visit(&node_ref.plan_node);
+        drop(node_ref);
+
         if result.eliminated {
-            Ok(result.new_node)
-        } else {
-            Ok(None)
+            if let Some(new_node) = result.new_node {
+                let mut result = TransformResult::new();
+                result.add_new_group_node(Rc::new(RefCell::new(new_node)));
+                return Ok(Some(result));
+            }
         }
+        Ok(Some(TransformResult::unchanged()))
     }
 
     fn pattern(&self) -> Pattern {
@@ -394,7 +420,7 @@ impl PlanNodeVisitor for EliminateAppendVerticesVisitor {
             return self.clone();
         }
 
-        let input = if let Some(dep_id) = self.node_dependencies.first() {
+        if let Some(dep_id) = self.node_dependencies.first() {
             if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(*dep_id) {
                 let mut new_node = child_node.clone();
 
@@ -433,21 +459,27 @@ impl OptRule for RemoveAppendVerticesBelowJoinRule {
     fn apply(
         &self,
         ctx: &mut OptContext,
-        node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
+        group_node: &Rc<RefCell<OptGroupNode>>,
+    ) -> Result<Option<TransformResult>, OptimizerError> {
+        let node_ref = group_node.borrow();
         let mut visitor = RemoveAppendVerticesBelowJoinVisitor {
             ctx: ctx as *const OptContext,
             eliminated: false,
             new_node: None,
-            node_dependencies: node.dependencies.clone(),
+            node_dependencies: node_ref.dependencies.clone(),
         };
 
-        let result = visitor.visit(&node.plan_node);
+        let result = visitor.visit(&node_ref.plan_node);
+        drop(node_ref);
+
         if result.eliminated {
-            Ok(result.new_node)
-        } else {
-            Ok(None)
+            if let Some(new_node) = result.new_node {
+                let mut result = TransformResult::new();
+                result.add_new_group_node(Rc::new(RefCell::new(new_node)));
+                return Ok(Some(result));
+            }
         }
+        Ok(Some(TransformResult::unchanged()))
     }
 
     fn pattern(&self) -> Pattern {
@@ -527,20 +559,26 @@ impl OptRule for EliminateRowCollectRule {
     fn apply(
         &self,
         ctx: &mut OptContext,
-        node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
+        group_node: &Rc<RefCell<OptGroupNode>>,
+    ) -> Result<Option<TransformResult>, OptimizerError> {
+        let node_ref = group_node.borrow();
         let mut visitor = EliminateRowCollectVisitor {
             ctx: ctx as *const OptContext,
             eliminated: false,
             new_node: None,
         };
 
-        let result = visitor.visit(&node.plan_node);
+        let result = visitor.visit(&node_ref.plan_node);
+        drop(node_ref);
+
         if result.eliminated {
-            Ok(result.new_node)
-        } else {
-            Ok(None)
+            if let Some(new_node) = result.new_node {
+                let mut result = TransformResult::new();
+                result.add_new_group_node(Rc::new(RefCell::new(new_node)));
+                return Ok(Some(result));
+            }
         }
+        Ok(Some(TransformResult::unchanged()))
     }
 
     fn pattern(&self) -> Pattern {
@@ -620,24 +658,22 @@ mod tests {
     }
 
     #[test]
-    fn test_eliminate_filter_rule() {
+    fn test_eliminate_filter_rule() -> Result<(), OptimizerError> {
         let rule = EliminateFilterRule;
         let mut ctx = create_test_context();
 
         use crate::core::types::expression::Expression;
         use crate::core::types::operators::BinaryOperator;
 
-        // 创建一个 ScanVertices 作为子节点
         let child_node = PlanNodeEnum::ScanVertices(
             crate::query::planner::plan::core::nodes::ScanVerticesNode::new(1),
         );
-        let child_opt_node = OptGroupNode::new(2, child_node);
-        ctx.add_plan_node_and_group_node(2, &child_opt_node);
+        let child_opt_node = OptGroupNode::new(2, child_node.clone());
+        ctx.add_group_node(Rc::new(RefCell::new(child_opt_node)))?;
 
-        // 创建过滤节点，使用 ScanVertices 作为输入
         let filter_node = PlanNodeEnum::Filter(
             FilterNode::new(
-                child_opt_node.plan_node.clone(),
+                child_node,
                 Expression::Binary {
                     left: Box::new(Expression::Literal(crate::core::Value::Int(1))),
                     op: BinaryOperator::Equal,
@@ -649,54 +685,51 @@ mod tests {
         let mut opt_node = OptGroupNode::new(1, filter_node);
         opt_node.dependencies.push(2);
 
-        let result = rule
-            .apply(&mut ctx, &opt_node)
-            .expect("Rule should apply successfully");
+        let opt_node_rc = Rc::new(RefCell::new(opt_node));
+        let result = rule.apply(&mut ctx, &opt_node_rc)?;
         assert!(result.is_some());
+        Ok(())
     }
 
     #[test]
-    fn test_dedup_elimination_rule() {
+    fn test_dedup_elimination_rule() -> Result<(), OptimizerError> {
         let rule = DedupEliminationRule;
         let mut ctx = create_test_context();
 
-        // 创建一个 IndexScan 作为子节点
         let child_node = PlanNodeEnum::IndexScan(IndexScan::new(2, 1, 1, 1, "UNIQUE"));
         let child_opt_node = OptGroupNode::new(2, child_node);
-        ctx.add_plan_node_and_group_node(2, &child_opt_node);
+        ctx.add_group_node(Rc::new(RefCell::new(child_opt_node)))?;
 
-        // 创建一个去重节点，使用 IndexScan 作为输入
         let dedup_node = PlanNodeEnum::Dedup(
-            DedupNode::new(child_opt_node.plan_node.clone()).expect("Dedup node should be created successfully"),
+            DedupNode::new(
+                ctx.find_group_node_by_id(2).expect("Child node should exist").borrow().plan_node.clone()
+            ).expect("Dedup node should be created successfully"),
         );
         let mut opt_node = OptGroupNode::new(1, dedup_node);
         opt_node.dependencies.push(2);
 
-        let result = rule
-            .apply(&mut ctx, &opt_node)
-            .expect("Rule should apply successfully");
+        let opt_node_rc = Rc::new(RefCell::new(opt_node));
+        let result = rule.apply(&mut ctx, &opt_node_rc)?;
         assert!(result.is_some());
+        Ok(())
     }
 
     #[test]
-    fn test_remove_noop_project_rule() {
+    fn test_remove_noop_project_rule() -> Result<(), OptimizerError> {
         let rule = RemoveNoopProjectRule;
         let mut ctx = create_test_context();
 
-        // 创建一个子节点，设置输出列
         let mut child_node = PlanNodeEnum::ScanVertices(
             crate::query::planner::plan::core::nodes::ScanVerticesNode::new(1),
         );
-        // 注意：需要使用 PlanNode trait 中的 set_col_names 方法
         child_node.set_col_names(vec![
             "id".to_string(),
             "name".to_string(),
             "age".to_string(),
         ]);
-        let child_opt_node = OptGroupNode::new(2, child_node);
-        ctx.add_plan_node_and_group_node(2, &child_opt_node);
+        let child_opt_node = OptGroupNode::new(2, child_node.clone());
+        ctx.add_group_node(Rc::new(RefCell::new(child_opt_node)))?;
 
-        // 测试1: 创建一个投影所有列的投影节点（应该被消除）
         let columns_all = vec![crate::query::validator::YieldColumn {
             expression: crate::core::Expression::Variable("*".to_string()),
             alias: "*".to_string(),
@@ -705,7 +738,6 @@ mod tests {
         let mut scan_node = PlanNodeEnum::ScanVertices(
             crate::query::planner::plan::core::nodes::ScanVerticesNode::new(1),
         );
-        // 给投影节点的子节点也设置列名
         scan_node.set_col_names(vec![
             "id".to_string(),
             "name".to_string(),
@@ -718,12 +750,10 @@ mod tests {
         let mut opt_node_all = OptGroupNode::new(1, project_node_all);
         opt_node_all.dependencies.push(2);
 
-        let result_all = rule
-            .apply(&mut ctx, &opt_node_all)
-            .expect("Failed to apply rule");
+        let opt_node_all_rc = Rc::new(RefCell::new(opt_node_all));
+        let result_all = rule.apply(&mut ctx, &opt_node_all_rc)?;
         assert!(result_all.is_some(), "投影所有列的节点应该被消除");
 
-        // 测试2: 创建一个投影相同列的投影节点（应该被消除）
         let columns_same = vec![
             crate::query::validator::YieldColumn {
                 expression: crate::core::Expression::Variable("id".to_string()),
@@ -744,7 +774,6 @@ mod tests {
         let mut scan_node = PlanNodeEnum::ScanVertices(
             crate::query::planner::plan::core::nodes::ScanVerticesNode::new(1),
         );
-        // 给投影节点的子节点也设置列名
         scan_node.set_col_names(vec![
             "id".to_string(),
             "name".to_string(),
@@ -757,12 +786,10 @@ mod tests {
         let mut opt_node_same = OptGroupNode::new(3, project_node_same);
         opt_node_same.dependencies.push(2);
 
-        let result_same = rule
-            .apply(&mut ctx, &opt_node_same)
-            .expect("Failed to apply rule");
+        let opt_node_same_rc = Rc::new(RefCell::new(opt_node_same));
+        let result_same = rule.apply(&mut ctx, &opt_node_same_rc)?;
         assert!(result_same.is_some(), "投影相同列的节点应该被消除");
 
-        // 测试3: 创建一个投影不同列的投影节点（不应该被消除）
         let columns_diff = vec![
             crate::query::validator::YieldColumn {
                 expression: crate::core::Expression::Variable("id".to_string()),
@@ -778,7 +805,6 @@ mod tests {
         let mut scan_node = PlanNodeEnum::ScanVertices(
             crate::query::planner::plan::core::nodes::ScanVerticesNode::new(1),
         );
-        // 给投影节点的子节点也设置列名
         scan_node.set_col_names(vec![
             "id".to_string(),
             "name".to_string(),
@@ -791,12 +817,10 @@ mod tests {
         let mut opt_node_diff = OptGroupNode::new(4, project_node_diff);
         opt_node_diff.dependencies.push(2);
 
-        let result_diff = rule
-            .apply(&mut ctx, &opt_node_diff)
-            .expect("Failed to apply rule");
+        let opt_node_diff_rc = Rc::new(RefCell::new(opt_node_diff));
+        let result_diff = rule.apply(&mut ctx, &opt_node_diff_rc)?;
         assert!(result_diff.is_none(), "投影不同列的节点不应该被消除");
 
-        // 测试4: 创建一个投影带别名的节点（不应该被消除）
         let columns_alias = vec![
             crate::query::validator::YieldColumn {
                 expression: crate::core::Expression::Variable("id".to_string()),
@@ -824,12 +848,10 @@ mod tests {
         let mut opt_node_alias = OptGroupNode::new(5, project_node_alias);
         opt_node_alias.dependencies.push(2);
 
-        let result_alias = rule
-            .apply(&mut ctx, &opt_node_alias)
-            .expect("Failed to apply rule");
+        let opt_node_alias_rc = Rc::new(RefCell::new(opt_node_alias));
+        let result_alias = rule.apply(&mut ctx, &opt_node_alias_rc)?;
         assert!(result_alias.is_none(), "投影带别名的节点不应该被消除");
 
-        // 测试5: 创建一个投影包含表达式的节点（不应该被消除）
         let columns_expression = vec![
             crate::query::validator::YieldColumn {
                 expression: crate::core::Expression::Variable("id".to_string()),
@@ -861,47 +883,43 @@ mod tests {
         let mut opt_node_expression = OptGroupNode::new(6, project_node_expression);
         opt_node_expression.dependencies.push(2);
 
-        let result_expression = rule
-            .apply(&mut ctx, &opt_node_expression)
-            .expect("Failed to apply rule");
+        let opt_node_expression_rc = Rc::new(RefCell::new(opt_node_expression));
+        let result_expression = rule.apply(&mut ctx, &opt_node_expression_rc)?;
         assert!(result_expression.is_none(), "投影包含表达式的节点不应该被消除");
+        Ok(())
     }
 
     #[test]
-    fn test_eliminate_append_vertices_rule() {
+    fn test_eliminate_append_vertices_rule() -> Result<(), OptimizerError> {
         let rule = EliminateAppendVerticesRule;
         let mut ctx = create_test_context();
 
-        // 创建一个添加顶点节点
         let append_vertices_node =
             PlanNodeEnum::AppendVertices(AppendVerticesNode::new(1, vec![], vec![]));
         let mut opt_node = OptGroupNode::new(1, append_vertices_node);
 
-        // 添加一个子节点作为依赖
         let child_node = PlanNodeEnum::ScanVertices(
             crate::query::planner::plan::core::nodes::ScanVerticesNode::new(1),
         );
         let child_opt_node = OptGroupNode::new(2, child_node);
-        ctx.add_plan_node_and_group_node(2, &child_opt_node);
+        ctx.add_group_node(Rc::new(RefCell::new(child_opt_node)))?;
         opt_node.dependencies.push(2);
 
-        let result = rule
-            .apply(&mut ctx, &opt_node)
-            .expect("Rule should apply successfully");
+        let opt_node_rc = Rc::new(RefCell::new(opt_node));
+        let result = rule.apply(&mut ctx, &opt_node_rc)?;
         assert!(result.is_some());
+        Ok(())
     }
 
     #[test]
-    fn test_remove_append_vertices_below_join_rule() {
+    fn test_remove_append_vertices_below_join_rule() -> Result<(), OptimizerError> {
         let rule = RemoveAppendVerticesBelowJoinRule;
         let mut ctx = create_test_context();
 
-        // 创建一个添加顶点节点
         let append_vertices_node =
             PlanNodeEnum::AppendVertices(AppendVerticesNode::new(1, vec![], vec![]));
         let mut opt_node = OptGroupNode::new(1, append_vertices_node);
 
-        // 添加一个HashInnerJoin子节点作为依赖
         let start_node1 = PlanNodeEnum::Start(StartNode::new());
         let start_node2 = PlanNodeEnum::Start(StartNode::new());
         let child_node = PlanNodeEnum::InnerJoin(
@@ -914,13 +932,13 @@ mod tests {
             .expect("InnerJoin node should be created successfully"),
         );
         let child_opt_node = OptGroupNode::new(2, child_node);
-        ctx.add_plan_node_and_group_node(2, &child_opt_node);
+        ctx.add_group_node(Rc::new(RefCell::new(child_opt_node)))?;
         opt_node.dependencies.push(2);
 
-        let result = rule
-            .apply(&mut ctx, &opt_node)
-            .expect("Rule should apply successfully");
+        let opt_node_rc = Rc::new(RefCell::new(opt_node));
+        let result = rule.apply(&mut ctx, &opt_node_rc)?;
         assert!(result.is_some());
+        Ok(())
     }
 
     #[test]

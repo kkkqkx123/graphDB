@@ -87,11 +87,6 @@ Use it instead of `cargo test --lib` or `cargo check`.
 analyze_cargo
 ```
 
-**Options**
-- `--output <file>`: Specify output file path (default: cargo_errors_report.md)
-- `--filter-warnings`: Filter warnings, only show errors
-- `--filter-paths <paths>`: Filter errors by file paths (comma-separated)
-
 **Examples**
 
 ```bash

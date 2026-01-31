@@ -9,7 +9,7 @@ pub struct PatternBuilder;
 impl PatternBuilder {
     /// 创建基本的单节点模式
     pub fn single(node_name: &'static str) -> Pattern {
-        Pattern::new(node_name)
+        Pattern::new_with_name(node_name)
     }
 
     /// 创建多节点模式（匹配任一）
@@ -19,7 +19,7 @@ impl PatternBuilder {
 
     /// 创建带单个依赖的模式
     pub fn with_dependency(node_name: &'static str, dependency_name: &'static str) -> Pattern {
-        Pattern::new(node_name).with_dependency(Pattern::new(dependency_name))
+        Pattern::new_with_name(node_name).with_dependency(Pattern::new_with_name(dependency_name))
     }
 
     /// 创建带多个依赖的模式
@@ -27,16 +27,16 @@ impl PatternBuilder {
         node_name: &'static str,
         dependency_names: Vec<&'static str>,
     ) -> Pattern {
-        let mut pattern = Pattern::new(node_name);
+        let mut pattern = Pattern::new_with_name(node_name);
         for dep_name in dependency_names {
-            pattern = pattern.with_dependency(Pattern::new(dep_name));
+            pattern = pattern.with_dependency(Pattern::new_with_name(dep_name));
         }
         pattern
     }
 
     /// 创建过滤操作模式
     pub fn filter() -> Pattern {
-        Pattern::new("Filter")
+        Pattern::new_with_name("Filter")
     }
 
     /// 创建过滤操作带特定依赖的模式
@@ -46,7 +46,7 @@ impl PatternBuilder {
 
     /// 创建限制操作模式
     pub fn limit() -> Pattern {
-        Pattern::new("Limit")
+        Pattern::new_with_name("Limit")
     }
 
     /// 创建限制操作带特定依赖的模式
@@ -56,7 +56,7 @@ impl PatternBuilder {
 
     /// 创建投影操作模式
     pub fn project() -> Pattern {
-        Pattern::new("Project")
+        Pattern::new_with_name("Project")
     }
 
     /// 创建投影操作带特定依赖的模式
@@ -71,7 +71,7 @@ impl PatternBuilder {
 
     /// 创建索引扫描操作模式
     pub fn index_scan() -> Pattern {
-        Pattern::new("IndexScan")
+        Pattern::new_with_name("IndexScan")
     }
 
     /// 创建连接操作模式
@@ -86,17 +86,17 @@ impl PatternBuilder {
 
     /// 创建去重操作模式
     pub fn dedup() -> Pattern {
-        Pattern::new("Dedup")
+        Pattern::new_with_name("Dedup")
     }
 
     /// 创建遍历操作模式
     pub fn traverse() -> Pattern {
-        Pattern::new("Traverse")
+        Pattern::new_with_name("Traverse")
     }
 
     /// 创建扩展操作模式
     pub fn expand() -> Pattern {
-        Pattern::new("Expand")
+        Pattern::new_with_name("Expand")
     }
 
     /// 创建循环节点模式
@@ -106,7 +106,7 @@ impl PatternBuilder {
 
     /// 创建排序操作模式
     pub fn sort() -> Pattern {
-        Pattern::new("Sort")
+        Pattern::new_with_name("Sort")
     }
 }
 
@@ -177,9 +177,9 @@ impl PatternMatcher {
     /// 检查是否为下推候选模式（过滤操作在数据访问操作之上）
     pub fn is_push_down_candidate(pattern: &Pattern) -> bool {
         match &pattern.node {
-            MatchNode::Single("Filter") => true,
-            MatchNode::Single("Limit") => true,
-            MatchNode::Single("Project") => true,
+            Some(MatchNode::Single("Filter")) => true,
+            Some(MatchNode::Single("Limit")) => true,
+            Some(MatchNode::Single("Project")) => true,
             _ => false,
         }
     }
@@ -187,15 +187,13 @@ impl PatternMatcher {
     /// 检查是否为合并候选模式（相同类型的连续操作）
     pub fn is_merge_candidate(pattern: &Pattern) -> bool {
         match &pattern.node {
-            MatchNode::Single("Filter") => {
-                // 检查依赖是否也是过滤操作
+            Some(MatchNode::Single("Filter")) => {
                 !pattern.dependencies.is_empty()
-                    && matches!(&pattern.dependencies[0].node, MatchNode::Single("Filter"))
+                    && matches!(&pattern.dependencies[0].node, Some(MatchNode::Single("Filter")))
             }
-            MatchNode::Single("Project") => {
-                // 检查依赖是否也是投影操作
+            Some(MatchNode::Single("Project")) => {
                 !pattern.dependencies.is_empty()
-                    && matches!(&pattern.dependencies[0].node, MatchNode::Single("Project"))
+                    && matches!(&pattern.dependencies[0].node, Some(MatchNode::Single("Project")))
             }
             _ => false,
         }
@@ -204,9 +202,9 @@ impl PatternMatcher {
     /// 检查是否为消除候选模式（可能冗余的操作）
     pub fn is_elimination_candidate(pattern: &Pattern) -> bool {
         match &pattern.node {
-            MatchNode::Single("Dedup") => true,
-            MatchNode::Single("Filter") => true,
-            MatchNode::Single("Project") => true,
+            Some(MatchNode::Single("Dedup")) => true,
+            Some(MatchNode::Single("Filter")) => true,
+            Some(MatchNode::Single("Project")) => true,
             _ => false,
         }
     }
@@ -218,16 +216,17 @@ pub struct PatternValidator;
 impl PatternValidator {
     /// 验证模式是否有效
     pub fn validate(pattern: &Pattern) -> Result<(), String> {
-        // 检查模式是否有有效的节点类型
         match &pattern.node {
-            MatchNode::Single(_) => Ok(()),
-            MatchNode::Multi(kinds) => {
+            Some(MatchNode::Single(_)) => Ok(()),
+            Some(MatchNode::Multi(kinds)) => {
                 if kinds.is_empty() {
                     Err("Multi pattern must have at least one kind".to_string())
                 } else {
                     Ok(())
                 }
             }
+            Some(MatchNode::Any) => Ok(()),
+            None => Ok(()),
         }
     }
 

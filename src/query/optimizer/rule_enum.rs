@@ -1,7 +1,7 @@
 //! 优化规则枚举定义
 //! 使用枚举替代字符串匹配规则，提高类型安全性和可维护性
 
-use crate::query::optimizer::core::phase::OptimizationPhase;
+use crate::query::optimizer::core::OptimizationPhase;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum OptimizationRule {
@@ -60,10 +60,10 @@ impl OptimizationRule {
             Self::EliminateAppendVertices | Self::RemoveAppendVerticesBelowJoin |
             Self::PushFilterDownAggregate | Self::TopN |
             Self::MergeGetVerticesAndProject | Self::MergeGetVerticesAndDedup |
-            Self::MergeGetNbrsAndProject | Self::MergeGetNbrsAndDedup => OptimizationPhase::LogicalOptimization,
+            Self::MergeGetNbrsAndProject | Self::MergeGetNbrsAndDedup => OptimizationPhase::Logical,
 
             Self::ConstantFolding | Self::SubQueryOptimization |
-            Self::LoopUnrolling | Self::PredicateReorder => OptimizationPhase::PostOptimization,
+            Self::LoopUnrolling | Self::PredicateReorder => OptimizationPhase::Unknown,
 
             Self::JoinOptimization | Self::PushLimitDown | Self::PushLimitDownGetVertices |
             Self::PushLimitDownGetNeighbors | Self::PushLimitDownGetEdges |
@@ -72,7 +72,7 @@ impl OptimizationRule {
             Self::ScanWithFilterOptimization | Self::IndexFullScan | Self::IndexScan |
             Self::EdgeIndexFullScan | Self::TagIndexFullScan | Self::UnionAllEdgeIndexScan |
             Self::UnionAllTagIndexScan | Self::OptimizeEdgeIndexScanByFilter |
-            Self::OptimizeTagIndexScanByFilter => OptimizationPhase::PhysicalOptimization,
+            Self::OptimizeTagIndexScanByFilter => OptimizationPhase::Physical,
         }
     }
     

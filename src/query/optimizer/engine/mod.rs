@@ -5,4 +5,5 @@ pub mod exploration;
 pub mod optimizer;
 
 pub use exploration::ExplorationState;
-pub use optimizer::{Optimizer, OptimizerError, RuleSet};
+pub use optimizer::{Optimizer, RuleSet};
+pub use crate::query::optimizer::OptimizerError;

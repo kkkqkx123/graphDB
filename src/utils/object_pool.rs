@@ -81,6 +81,10 @@ impl<T> ObjectPool<T> {
             self.pool.push_back(obj);
         }
     }
+
+    pub fn release_inner(&mut self, obj: T) {
+        self.release(obj);
+    }
 }
 
 impl<T: Default> Default for ObjectPool<T> {

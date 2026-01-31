@@ -70,7 +70,7 @@ impl OptRule for ScanWithFilterOptimizationRule {
             if matched.dependencies.len() >= 1 {
                 // 在依赖中查找可以推入扫描的过滤操作
                 for dep in &matched.dependencies {
-                    if dep.plan_node().is_filter() {
+                    if dep.borrow().plan_node.is_filter() {
                         // 在完整实现中，我们会将过滤条件合并到扫描中
                         // 以减少处理的行数
                         break; // 只检查是否有过滤

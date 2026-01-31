@@ -110,3 +110,50 @@ impl Statistics {
         self.estimated_row_counts.insert(node_id, rows);
     }
 }
+
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct PlanNodeProperties {
+    pub output_vars: Vec<String>,
+    pub required_props: Vec<String>,
+    pub input_vars: Vec<String>,
+    pub output_cols: Vec<String>,
+    pub is_agg: bool,
+    pub group_keys: Vec<String>,
+}
+
+impl PlanNodeProperties {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn with_output_vars(output_vars: Vec<String>) -> Self {
+        Self {
+            output_vars,
+            ..Self::default()
+        }
+    }
+
+    pub fn add_output_var(&mut self, var: String) {
+        self.output_vars.push(var);
+    }
+
+    pub fn add_required_prop(&mut self, prop: String) {
+        self.required_props.push(prop);
+    }
+
+    pub fn add_input_var(&mut self, var: String) {
+        self.input_vars.push(var);
+    }
+
+    pub fn add_output_col(&mut self, col: String) {
+        self.output_cols.push(col);
+    }
+
+    pub fn set_agg(&mut self, is_agg: bool) {
+        self.is_agg = is_agg;
+    }
+
+    pub fn add_group_key(&mut self, key: String) {
+        self.group_keys.push(key);
+    }
+}

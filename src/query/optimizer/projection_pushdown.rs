@@ -2,11 +2,13 @@
 //! 这些规则负责将投影操作下推到计划树的底层，以减少数据传输量
 
 use super::engine::OptimizerError;
-use super::plan::{OptContext, OptGroupNode, OptRule, Pattern};
+use super::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult};
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::{BaseOptRule, PushDownRule};
 use crate::query::planner::plan::core::nodes::PlanNodeEnum;
 use crate::query::visitor::PlanNodeVisitor;
+use std::rc::Rc;
+use std::cell::RefCell;
 
 /// 投影下推访问者
 #[derive(Clone)]
@@ -112,13 +114,14 @@ impl PushDownRule for ProjectionPushDownRule {
 
     fn create_pushed_down_node(
         &self,
-        _ctx: &mut OptContext,
-        _node: &OptGroupNode,
-        _child: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        // 在完整实现中，这里会创建下推后的节点
-        // 目前简化实现，返回None
-        Ok(None)
+        ctx: &mut OptContext,
+        group_node: &Rc<RefCell<OptGroupNode>>,
+        child: &OptGroupNode,
+    ) -> Result<Option<TransformResult>, OptimizerError> {
+        let node_ref = group_node.borrow();
+        let mut result = TransformResult::new();
+        result.add_new_group_node(group_node.clone());
+        Ok(Some(result))
     }
 }
 
@@ -174,13 +177,14 @@ impl PushDownRule for PushProjectDownRule {
 
     fn create_pushed_down_node(
         &self,
-        _ctx: &mut OptContext,
-        _node: &OptGroupNode,
-        _child: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        // 在完整实现中，这里会创建下推后的节点
-        // 目前简化实现，返回None
-        Ok(None)
+        ctx: &mut OptContext,
+        group_node: &Rc<RefCell<OptGroupNode>>,
+        child: &OptGroupNode,
+    ) -> Result<Option<TransformResult>, OptimizerError> {
+        let node_ref = group_node.borrow();
+        let mut result = TransformResult::new();
+        result.add_new_group_node(group_node.clone());
+        Ok(Some(result))
     }
 }
 

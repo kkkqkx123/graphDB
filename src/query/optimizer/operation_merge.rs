@@ -2,12 +2,14 @@
 //! 这些规则负责合并多个连续的相同类型操作，以减少中间结果和执行开销
 
 use super::engine::OptimizerError;
-use super::plan::{OptContext, OptGroupNode, OptRule, Pattern};
+use super::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult};
 use super::rule_patterns::{CommonPatterns, PatternBuilder};
 use super::rule_traits::{combine_conditions, BaseOptRule, MergeRule};
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::planner::plan::FilterNode as FilterPlanNode;
 use crate::query::visitor::PlanNodeVisitor;
+use std::rc::Rc;
+use std::cell::RefCell;
 
 /// 合并过滤访问者
 #[derive(Clone)]
@@ -110,18 +112,20 @@ impl OptRule for CombineFilterRule {
 impl BaseOptRule for CombineFilterRule {}
 
 impl MergeRule for CombineFilterRule {
-    fn can_merge(&self, node: &OptGroupNode, child: &OptGroupNode) -> bool {
-        node.plan_node.is_filter() && child.plan_node.is_filter()
+    fn can_merge(&self, group_node: &Rc<RefCell<OptGroupNode>>, child: &OptGroupNode) -> bool {
+        let node_ref = group_node.borrow();
+        node_ref.plan_node.is_filter() && child.plan_node.is_filter()
     }
 
     fn create_merged_node(
         &self,
-        _ctx: &mut OptContext,
-        node: &OptGroupNode,
+        ctx: &mut OptContext,
+        group_node: &Rc<RefCell<OptGroupNode>>,
         child: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
+    ) -> Result<Option<TransformResult>, OptimizerError> {
+        let node_ref = group_node.borrow();
         if let (Some(top_filter), Some(child_filter)) =
-            (node.plan_node.as_filter(), child.plan_node.as_filter())
+            (node_ref.plan_node.as_filter(), child.plan_node.as_filter())
         {
             let top_condition = top_filter.condition();
             let child_condition = child_filter.condition();
@@ -131,8 +135,6 @@ impl MergeRule for CombineFilterRule {
                 &format!("{:?}", child_condition),
             );
 
-            // 由于FilterNode没有set_condition方法，我们需要创建一个新节点
-            // 这里简化处理，直接返回原节点
             let input = top_filter
                 .dependencies()
                 .first()
@@ -146,18 +148,21 @@ impl MergeRule for CombineFilterRule {
                 Ok(node) => node,
                 Err(_) => top_filter.clone(),
             };
-            // combined_filter_node.deps = child_filter.deps.clone();
 
-            let mut combined_filter_opt_node = node.clone();
+            let mut combined_filter_opt_node = node_ref.clone();
             combined_filter_opt_node.plan_node =
                 crate::query::planner::plan::PlanNodeEnum::Filter(combined_filter_node);
 
-            combined_filter_opt_node.dependencies = node.dependencies.clone();
+            combined_filter_opt_node.dependencies = node_ref.dependencies.clone();
 
-            Ok(Some(combined_filter_opt_node))
-        } else {
-            Ok(None)
+            let mut result = TransformResult::new();
+            result.add_new_group_node(Rc::new(RefCell::new(combined_filter_opt_node)));
+            return Ok(Some(result));
         }
+
+        let mut result = TransformResult::new();
+        result.add_new_group_node(group_node.clone());
+        Ok(Some(result))
     }
 }
 
@@ -185,7 +190,7 @@ impl OptRule for CollapseProjectRule {
             if matched.dependencies.len() == 1 {
                 let child = &matched.dependencies[0];
 
-                if child.plan_node().is_project() {
+                if child.borrow().plan_node.is_project() {
                     // 在完整实现中，我们会合并这两个投影操作
                     // 以减少中间数据存储
                     Ok(Some(node.clone()))
@@ -208,19 +213,21 @@ impl OptRule for CollapseProjectRule {
 impl BaseOptRule for CollapseProjectRule {}
 
 impl MergeRule for CollapseProjectRule {
-    fn can_merge(&self, node: &OptGroupNode, child: &OptGroupNode) -> bool {
-        node.plan_node.is_project() && child.plan_node.is_project()
+    fn can_merge(&self, group_node: &Rc<RefCell<OptGroupNode>>, child: &OptGroupNode) -> bool {
+        let node_ref = group_node.borrow();
+        node_ref.plan_node.is_project() && child.plan_node.is_project()
     }
 
     fn create_merged_node(
         &self,
-        _ctx: &mut OptContext,
-        node: &OptGroupNode,
-        _child: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        // 在完整实现中，这里会创建合并后的投影节点
-        // 目前简化实现，返回原始节点
-        Ok(Some(node.clone()))
+        ctx: &mut OptContext,
+        group_node: &Rc<RefCell<OptGroupNode>>,
+        child: &OptGroupNode,
+    ) -> Result<Option<TransformResult>, OptimizerError> {
+        let node_ref = group_node.borrow();
+        let mut result = TransformResult::new();
+        result.add_new_group_node(group_node.clone());
+        Ok(Some(result))
     }
 }
 
@@ -248,7 +255,7 @@ impl OptRule for MergeGetVerticesAndProjectRule {
             if matched.dependencies.len() >= 1 {
                 // 检查子节点是否为可以合并的投影操作
                 let child = &matched.dependencies[0];
-                if child.plan_node().is_project() {
+                if child.borrow().plan_node.is_project() {
                     // 在完整实现中，我们会合并这些操作
                     // 以减少中间步骤并直接获取所需的属性
                     Ok(Some(node.clone()))
@@ -271,19 +278,21 @@ impl OptRule for MergeGetVerticesAndProjectRule {
 impl BaseOptRule for MergeGetVerticesAndProjectRule {}
 
 impl MergeRule for MergeGetVerticesAndProjectRule {
-    fn can_merge(&self, node: &OptGroupNode, child: &OptGroupNode) -> bool {
-        node.plan_node.is_get_vertices() && child.plan_node.is_project()
+    fn can_merge(&self, group_node: &Rc<RefCell<OptGroupNode>>, child: &OptGroupNode) -> bool {
+        let node_ref = group_node.borrow();
+        node_ref.plan_node.is_get_vertices() && child.plan_node.is_project()
     }
 
     fn create_merged_node(
         &self,
-        _ctx: &mut OptContext,
-        node: &OptGroupNode,
-        _child: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        // 在完整实现中，这里会创建合并后的获取顶点节点
-        // 包含投影信息，以直接获取所需的属性
-        Ok(Some(node.clone()))
+        ctx: &mut OptContext,
+        group_node: &Rc<RefCell<OptGroupNode>>,
+        child: &OptGroupNode,
+    ) -> Result<Option<TransformResult>, OptimizerError> {
+        let node_ref = group_node.borrow();
+        let mut result = TransformResult::new();
+        result.add_new_group_node(group_node.clone());
+        Ok(Some(result))
     }
 }
 
@@ -311,7 +320,7 @@ impl OptRule for MergeGetVerticesAndDedupRule {
             if matched.dependencies.len() >= 1 {
                 let child = &matched.dependencies[0];
 
-                if child.plan_node().is_dedup() {
+                if child.borrow().plan_node.is_dedup() {
                     // 在完整实现中，我们会合并这些操作
                     // 以避免中间数据存储并使执行更高效
                     Ok(Some(node.clone()))
@@ -334,19 +343,21 @@ impl OptRule for MergeGetVerticesAndDedupRule {
 impl BaseOptRule for MergeGetVerticesAndDedupRule {}
 
 impl MergeRule for MergeGetVerticesAndDedupRule {
-    fn can_merge(&self, node: &OptGroupNode, child: &OptGroupNode) -> bool {
-        node.plan_node.is_get_vertices() && child.plan_node.is_dedup()
+    fn can_merge(&self, group_node: &Rc<RefCell<OptGroupNode>>, child: &OptGroupNode) -> bool {
+        let node_ref = group_node.borrow();
+        node_ref.plan_node.is_get_vertices() && child.plan_node.is_dedup()
     }
 
     fn create_merged_node(
         &self,
-        _ctx: &mut OptContext,
-        node: &OptGroupNode,
-        _child: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        // 在完整实现中，这里会创建合并后的获取顶点节点
-        // 包含去重信息，以直接获取唯一的结果
-        Ok(Some(node.clone()))
+        ctx: &mut OptContext,
+        group_node: &Rc<RefCell<OptGroupNode>>,
+        child: &OptGroupNode,
+    ) -> Result<Option<TransformResult>, OptimizerError> {
+        let node_ref = group_node.borrow();
+        let mut result = TransformResult::new();
+        result.add_new_group_node(group_node.clone());
+        Ok(Some(result))
     }
 }
 
@@ -374,7 +385,7 @@ impl OptRule for MergeGetNbrsAndDedupRule {
             if matched.dependencies.len() >= 1 {
                 let child = &matched.dependencies[0];
 
-                if child.plan_node().is_dedup() {
+                if child.borrow().plan_node.is_dedup() {
                     // 在完整实现中，我们会合并这些操作
                     // 以避免中间数据存储并使执行更高效
                     Ok(Some(node.clone()))
@@ -397,19 +408,21 @@ impl OptRule for MergeGetNbrsAndDedupRule {
 impl BaseOptRule for MergeGetNbrsAndDedupRule {}
 
 impl MergeRule for MergeGetNbrsAndDedupRule {
-    fn can_merge(&self, node: &OptGroupNode, child: &OptGroupNode) -> bool {
-        node.plan_node.is_get_neighbors() && child.plan_node.is_dedup()
+    fn can_merge(&self, group_node: &Rc<RefCell<OptGroupNode>>, child: &OptGroupNode) -> bool {
+        let node_ref = group_node.borrow();
+        node_ref.plan_node.is_get_neighbors() && child.plan_node.is_dedup()
     }
 
     fn create_merged_node(
         &self,
-        _ctx: &mut OptContext,
-        node: &OptGroupNode,
-        _child: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        // 在完整实现中，这里会创建合并后的获取邻居节点
-        // 包含去重信息，以直接获取唯一的结果
-        Ok(Some(node.clone()))
+        ctx: &mut OptContext,
+        group_node: &Rc<RefCell<OptGroupNode>>,
+        child: &OptGroupNode,
+    ) -> Result<Option<TransformResult>, OptimizerError> {
+        let node_ref = group_node.borrow();
+        let mut result = TransformResult::new();
+        result.add_new_group_node(group_node.clone());
+        Ok(Some(result))
     }
 }
 
@@ -437,7 +450,7 @@ impl OptRule for MergeGetNbrsAndProjectRule {
             if matched.dependencies.len() >= 1 {
                 let child = &matched.dependencies[0];
 
-                if child.plan_node().is_project() {
+                if child.borrow().plan_node.is_project() {
                     // 在完整实现中，我们会合并这些操作
                     // 以避免中间数据存储并直接获取所需的属性
                     Ok(Some(node.clone()))
@@ -460,19 +473,21 @@ impl OptRule for MergeGetNbrsAndProjectRule {
 impl BaseOptRule for MergeGetNbrsAndProjectRule {}
 
 impl MergeRule for MergeGetNbrsAndProjectRule {
-    fn can_merge(&self, node: &OptGroupNode, child: &OptGroupNode) -> bool {
-        node.plan_node.is_get_neighbors() && child.plan_node.is_project()
+    fn can_merge(&self, group_node: &Rc<RefCell<OptGroupNode>>, child: &OptGroupNode) -> bool {
+        let node_ref = group_node.borrow();
+        node_ref.plan_node.is_get_neighbors() && child.plan_node.is_project()
     }
 
     fn create_merged_node(
         &self,
-        _ctx: &mut OptContext,
-        node: &OptGroupNode,
-        _child: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        // 在完整实现中，这里会创建合并后的获取邻居节点
-        // 包含投影信息，以直接获取所需的属性
-        Ok(Some(node.clone()))
+        ctx: &mut OptContext,
+        group_node: &Rc<RefCell<OptGroupNode>>,
+        child: &OptGroupNode,
+    ) -> Result<Option<TransformResult>, OptimizerError> {
+        let node_ref = group_node.borrow();
+        let mut result = TransformResult::new();
+        result.add_new_group_node(group_node.clone());
+        Ok(Some(result))
     }
 }
 

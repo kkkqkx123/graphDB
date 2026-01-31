@@ -37,7 +37,7 @@ impl OptRule for SubQueryOptimizationRule {
     }
 
     fn pattern(&self) -> Pattern {
-        Pattern::new("Filter")
+        Pattern::new_with_name("Filter")
     }
 }
 
