@@ -24,7 +24,7 @@ use super::admin::{
 
 use super::base::{BaseExecutor, ExecutorStats, StartExecutor, ExecutionResult, DBResult, Executor, InputExecutor};
 use super::data_access::{
-    AllPathsExecutor, GetEdgesExecutor, GetNeighborsExecutor, GetPropExecutor, GetVerticesExecutor,
+    AllPathsExecutor, GetNeighborsExecutor, GetPropExecutor, GetVerticesExecutor,
     ScanEdgesExecutor, ScanVerticesExecutor,
 };
 use super::data_processing::graph_traversal::{

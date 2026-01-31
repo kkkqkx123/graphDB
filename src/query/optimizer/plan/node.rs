@@ -173,12 +173,6 @@ impl TransformResult {
         self.new_dependencies.push(dep_id);
     }
 
-    pub fn with_replacement(mut self, node: Rc<RefCell<OptGroupNode>>) -> Self {
-        self.erase_curr = true;
-        self.new_group_nodes.push(node);
-        self
-    }
-
     pub fn with_erased(mut self) -> Self {
         self.erase_curr = true;
         self
@@ -218,12 +212,6 @@ pub trait OptRule: fmt::Debug {
     }
     fn transform(&self, _ctx: &mut OptContext, _group_node: &Rc<RefCell<OptGroupNode>>) -> Result<Option<TransformResult>> {
         Ok(None)
-    }
-    fn is_rule_expired(&self, _ctx: &OptContext, _group_node: &Rc<RefCell<OptGroupNode>>) -> bool {
-        false
-    }
-    fn get_match_plan(&self, _group_node: &Rc<RefCell<OptGroupNode>>) -> PlanNodeEnum {
-        _group_node.borrow().plan_node.clone()
     }
     fn require(&self, _ctx: &OptContext, _group_node: &Rc<RefCell<OptGroupNode>>) -> bool {
         true
@@ -586,7 +574,7 @@ mod tests {
     fn test_opt_group_node_cost() {
         let plan_node = PlanNodeEnum::default();
         let mut group_node = OptGroupNode::new(1, plan_node);
-        let cost = Cost::new(10.0, 100.0);
+        let cost = Cost::new(10.0, 100.0, 0.0, 0.0);
         group_node.set_cost(cost.clone());
         assert_eq!(group_node.get_cost(), cost);
     }
@@ -604,13 +592,23 @@ mod tests {
 
     #[test]
     fn test_pattern_matches() {
-        let mut pattern = Pattern::new();
-        pattern.add_matcher(PlanNodeMatcher::MatchNode("Project"));
+        let pattern = Pattern::new_with_name("Project");
+        let input_node = PlanNodeEnum::ScanVertices(
+            crate::query::planner::plan::core::nodes::graph_scan_node::ScanVerticesNode::new(1)
+        );
         let project_node = PlanNodeEnum::Project(
-            crate::query::planner::plan::core::nodes::project::Project::default(),
+            crate::query::planner::plan::core::nodes::project_node::ProjectNode::new(
+                input_node.clone(),
+                Vec::new(),
+            ).unwrap()
         );
         let filter_node = PlanNodeEnum::Filter(
-            crate::query::planner::plan::core::nodes::filter::Filter::default(),
+            crate::query::planner::plan::core::nodes::filter_node::FilterNode::new(
+                input_node,
+                crate::core::types::expression::Expression::Literal(
+                    crate::core::Value::Bool(true)
+                ),
+            ).unwrap()
         );
         assert!(pattern.matches(&project_node));
         assert!(!pattern.matches(&filter_node));

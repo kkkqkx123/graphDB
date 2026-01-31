@@ -1,16 +1,13 @@
 //! 循环展开优化规则
 //! 展开简单的循环以提高性能
 
-use super::engine::OptimizerError;
 use super::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, Result as OptResult};
-use super::rule_patterns::PatternBuilder;
 use super::rule_traits::BaseOptRule;
 use crate::query::planner::plan::core::nodes::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
 use crate::query::visitor::PlanNodeVisitor;
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::result::Result as StdResult;
 
 /// 循环展开规则
 ///
@@ -386,7 +383,7 @@ mod tests {
         let opt_node = OptGroupNode::new(1, loop_node.into_enum());
 
         let result = rule
-            .apply(&mut ctx, &opt_node)
+            .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
             .expect("Rule should apply successfully");
         assert!(result.is_some());
     }

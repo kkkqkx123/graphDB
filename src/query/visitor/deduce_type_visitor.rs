@@ -8,7 +8,6 @@ use crate::core::{
 };
 use crate::query::validator::ValidationContext;
 use crate::storage::StorageClient;
-use crate::storage::transaction::TransactionId;
 use thiserror::Error;
 
 #[cfg(test)]
@@ -17,6 +16,8 @@ use crate::core::{Edge, Vertex};
 use crate::core::EdgeDirection;
 #[cfg(test)]
 use crate::core::error::StorageError;
+#[cfg(test)]
+use crate::storage::transaction::TransactionId;
 
 #[derive(Error, Debug, Clone)]
 pub enum TypeDeductionError {

@@ -977,9 +977,9 @@ mod tests {
 
         let get_vertices_node = GetVerticesNode::new(1, "test_vids");
         let get_vertices_opt_node = OptGroupNode::new(2, get_vertices_node.into_enum());
-        ctx.add_plan_node_and_group_node(2, get_vertices_opt_node);
+        ctx.add_plan_node_and_group_node(2, Rc::new(RefCell::new(get_vertices_opt_node)));
 
-        let limit_node = LimitNode::new(ctx.find_group_node_by_plan_node_id(2).expect("Child node not found").plan_node.clone(), 0, 10)
+        let limit_node = LimitNode::new(ctx.find_group_node_by_plan_node_id(2).expect("Child node not found").borrow().plan_node.clone(), 0, 10)
             .expect("Limit node should be created successfully");
         let mut opt_node = OptGroupNode::new(1, limit_node.into_enum());
         opt_node.dependencies = vec![2];
@@ -997,9 +997,9 @@ mod tests {
 
         let get_vertices_node = GetVerticesNode::new(1, "test_vids");
         let get_vertices_opt_node = OptGroupNode::new(2, get_vertices_node.into_enum());
-        ctx.add_plan_node_and_group_node(2, get_vertices_opt_node);
+        ctx.add_plan_node_and_group_node(2, Rc::new(RefCell::new(get_vertices_opt_node)));
 
-        let limit_node = LimitNode::new(ctx.find_group_node_by_plan_node_id(2).expect("Child node not found").plan_node.clone(), 0, 10)
+        let limit_node = LimitNode::new(ctx.find_group_node_by_plan_node_id(2).expect("Child node not found").borrow().plan_node.clone(), 0, 10)
             .expect("Limit node should be created successfully");
         let mut opt_node = OptGroupNode::new(1, limit_node.into_enum());
         opt_node.dependencies = vec![2];
@@ -1017,9 +1017,9 @@ mod tests {
 
         let get_neighbors_node = GetNeighborsNode::new(1, "test_src");
         let get_neighbors_opt_node = OptGroupNode::new(2, get_neighbors_node.into_enum());
-        ctx.add_plan_node_and_group_node(2, get_neighbors_opt_node);
+        ctx.add_plan_node_and_group_node(2, Rc::new(RefCell::new(get_neighbors_opt_node)));
 
-        let limit_node = LimitNode::new(ctx.find_group_node_by_plan_node_id(2).expect("Child node not found").plan_node.clone(), 0, 10)
+        let limit_node = LimitNode::new(ctx.find_group_node_by_plan_node_id(2).expect("Child node not found").borrow().plan_node.clone(), 0, 10)
             .expect("Limit node should be created successfully");
         let mut opt_node = OptGroupNode::new(1, limit_node.into_enum());
         opt_node.dependencies = vec![2];
@@ -1037,9 +1037,9 @@ mod tests {
 
         let get_edges_node = GetEdgesNode::new(1, "src", "edge_type", "0", "dst");
         let get_edges_opt_node = OptGroupNode::new(2, get_edges_node.into_enum());
-        ctx.add_plan_node_and_group_node(2, get_edges_opt_node);
+        ctx.add_plan_node_and_group_node(2, Rc::new(RefCell::new(get_edges_opt_node)));
 
-        let limit_node = LimitNode::new(ctx.find_group_node_by_plan_node_id(2).expect("Child node not found").plan_node.clone(), 0, 10)
+        let limit_node = LimitNode::new(ctx.find_group_node_by_plan_node_id(2).expect("Child node not found").borrow().plan_node.clone(), 0, 10)
             .expect("Limit node should be created successfully");
         let mut opt_node = OptGroupNode::new(1, limit_node.into_enum());
         opt_node.dependencies = vec![2];
@@ -1057,9 +1057,9 @@ mod tests {
 
         let scan_vertices_node = ScanVerticesNode::new(1);
         let scan_vertices_opt_node = OptGroupNode::new(2, scan_vertices_node.into_enum());
-        ctx.add_plan_node_and_group_node(2, scan_vertices_opt_node);
+        ctx.add_plan_node_and_group_node(2, Rc::new(RefCell::new(scan_vertices_opt_node)));
 
-        let limit_node = LimitNode::new(ctx.find_group_node_by_plan_node_id(2).expect("Child node not found").plan_node.clone(), 0, 10)
+        let limit_node = LimitNode::new(ctx.find_group_node_by_plan_node_id(2).expect("Child node not found").borrow().plan_node.clone(), 0, 10)
             .expect("Limit node should be created successfully");
         let mut opt_node = OptGroupNode::new(1, limit_node.into_enum());
         opt_node.dependencies = vec![2];
@@ -1077,9 +1077,9 @@ mod tests {
 
         let scan_edges_node = ScanEdgesNode::new(1, "edge_type");
         let scan_edges_opt_node = OptGroupNode::new(2, scan_edges_node.into_enum());
-        ctx.add_plan_node_and_group_node(2, scan_edges_opt_node);
+        ctx.add_plan_node_and_group_node(2, Rc::new(RefCell::new(scan_edges_opt_node)));
 
-        let limit_node = LimitNode::new(ctx.find_group_node_by_plan_node_id(2).expect("Child node not found").plan_node.clone(), 0, 10)
+        let limit_node = LimitNode::new(ctx.find_group_node_by_plan_node_id(2).expect("Child node not found").borrow().plan_node.clone(), 0, 10)
             .expect("Limit node should be created successfully");
         let mut opt_node = OptGroupNode::new(1, limit_node.into_enum());
         opt_node.dependencies = vec![2];
@@ -1097,9 +1097,9 @@ mod tests {
 
         let index_scan_node = IndexScan::new(-1, 1, 1, 1, "RANGE");
         let index_scan_opt_node = OptGroupNode::new(2, index_scan_node.into_enum());
-        ctx.add_plan_node_and_group_node(2, index_scan_opt_node);
+        ctx.add_plan_node_and_group_node(2, Rc::new(RefCell::new(index_scan_opt_node)));
 
-        let limit_node = LimitNode::new(ctx.find_group_node_by_plan_node_id(2).expect("Child node not found").plan_node.clone(), 0, 10)
+        let limit_node = LimitNode::new(ctx.find_group_node_by_plan_node_id(2).expect("Child node not found").borrow().plan_node.clone(), 0, 10)
             .expect("Limit node should be created successfully");
         let mut opt_node = OptGroupNode::new(1, limit_node.into_enum());
         opt_node.dependencies = vec![2];
@@ -1117,24 +1117,26 @@ mod tests {
 
         let start_node = StartNode::new();
         let start_opt_node = OptGroupNode::new(2, start_node.into_enum());
-        ctx.add_plan_node_and_group_node(2, &start_opt_node);
+        let start_plan_node = start_opt_node.plan_node.clone();
+        ctx.add_plan_node_and_group_node(2, Rc::new(RefCell::new(start_opt_node)));
 
         let columns = vec![YieldColumn::new(
             Expression::Variable("test_var".to_string()),
             "test_alias".to_string(),
         )];
-        let project_node = ProjectNode::new(start_opt_node.plan_node.clone(), columns)
+        let project_node = ProjectNode::new(start_plan_node, columns)
             .expect("Project node should be created successfully");
         let project_opt_node = OptGroupNode::new(3, project_node.into_enum());
-        ctx.add_plan_node_and_group_node(3, &project_opt_node);
+        let project_plan_node = project_opt_node.plan_node.clone();
+        ctx.add_plan_node_and_group_node(3, Rc::new(RefCell::new(project_opt_node)));
 
-        let limit_node = LimitNode::new(project_opt_node.plan_node.clone(), 0, 10)
+        let limit_node = LimitNode::new(project_plan_node, 0, 10)
             .expect("Limit node should be created successfully");
         let mut opt_node = OptGroupNode::new(1, limit_node.into_enum());
         opt_node.dependencies = vec![3];
 
         let result = rule
-            .apply(&mut ctx, &opt_node)
+            .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
             .expect("Rule should apply successfully");
         assert!(result.is_some());
     }
@@ -1150,7 +1152,7 @@ mod tests {
         let limit_node = Box::new(Limit::new(1, 10, 0));
         let opt_node = OptGroupNode::new(1, limit_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
+        let result = rule.apply(&mut ctx, &Rc::new(RefCell::new(opt_node))).expect("Rule should apply successfully");
         // 规则应该匹配LIMIT节点并尝试下推到全路径操作
         assert!(result.is_some());
     }
@@ -1164,7 +1166,7 @@ mod tests {
         let limit_node = Box::new(Limit::new(1, 10, 0));
         let opt_node = OptGroupNode::new(1, limit_node);
 
-        let result = rule.apply(&mut ctx, &opt_node).expect("Rule should apply successfully");
+        let result = rule.apply(&mut ctx, &Rc::new(RefCell::new(opt_node))).expect("Rule should apply successfully");
         // 规则应该匹配LIMIT节点并尝试下推到全展开操作
         assert!(result.is_some());
     }

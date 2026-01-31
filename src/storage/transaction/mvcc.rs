@@ -8,7 +8,7 @@
 //! - 垃圾回收
 
 use serde::{Deserialize, Serialize};
-use super::{TransactionId, TransactionState};
+use super::TransactionId;
 use crate::core::{StorageError, Value};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};

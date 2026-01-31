@@ -6,7 +6,7 @@
 //! - 读写冲突检测
 //! - 版本可见性判断
 
-use super::{TransactionId, MvccManager, LockManager, LockType, Version, VersionVec, LockKey};
+use super::{TransactionId, MvccManager, LockManager, Version, VersionVec, LockKey};
 use crate::core::StorageError;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

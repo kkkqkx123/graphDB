@@ -10,7 +10,6 @@ use crate::query::planner::plan::algorithms::IndexScan;
 use crate::query::planner::plan::core::nodes::PlanNodeEnum;
 use std::rc::Rc;
 use std::cell::RefCell;
-use std::result::Result as StdResult;
 
 /// 基于过滤条件优化边索引扫描的规则
 #[derive(Debug)]
@@ -939,11 +938,11 @@ mod tests {
         index_scan_opt_node.dependencies.push(2);
 
         // 将节点添加到上下文
-        ctx.add_plan_node_and_group_node(1, &index_scan_opt_node);
-        ctx.add_plan_node_and_group_node(2, &filter_opt_node);
+        ctx.add_plan_node_and_group_node(1, Rc::new(RefCell::new(index_scan_opt_node.clone())));
+        ctx.add_plan_node_and_group_node(2, Rc::new(RefCell::new(filter_opt_node)));
 
         let result = rule
-            .apply(&mut ctx, &index_scan_opt_node)
+            .apply(&mut ctx, &Rc::new(RefCell::new(index_scan_opt_node)))
             .expect("Failed to apply rule");
         assert!(result.is_some());
     }
@@ -971,11 +970,11 @@ mod tests {
         index_scan_opt_node.dependencies.push(2);
 
         // 将节点添加到上下文
-        ctx.add_plan_node_and_group_node(1, &index_scan_opt_node);
-        ctx.add_plan_node_and_group_node(2, &filter_opt_node);
+        ctx.add_plan_node_and_group_node(1, Rc::new(RefCell::new(index_scan_opt_node.clone())));
+        ctx.add_plan_node_and_group_node(2, Rc::new(RefCell::new(filter_opt_node)));
 
         let result = rule
-            .apply(&mut ctx, &index_scan_opt_node)
+            .apply(&mut ctx, &Rc::new(RefCell::new(index_scan_opt_node)))
             .expect("Failed to apply rule");
         assert!(result.is_some());
     }
@@ -990,7 +989,7 @@ mod tests {
         let opt_node = OptGroupNode::new(1, index_scan_node);
 
         let result = rule
-            .apply(&mut ctx, &opt_node)
+            .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
             .expect("Failed to apply rule");
         assert!(result.is_some());
     }
@@ -1005,7 +1004,7 @@ mod tests {
         let opt_node = OptGroupNode::new(1, index_scan_node);
 
         let result = rule
-            .apply(&mut ctx, &opt_node)
+            .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
             .expect("Failed to apply rule");
         assert!(result.is_some());
     }
@@ -1020,7 +1019,7 @@ mod tests {
         let opt_node = OptGroupNode::new(1, index_scan_node);
 
         let result = rule
-            .apply(&mut ctx, &opt_node)
+            .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
             .expect("Failed to apply rule");
         assert!(result.is_some());
     }
@@ -1035,7 +1034,7 @@ mod tests {
         let opt_node = OptGroupNode::new(1, index_scan_node);
 
         let result = rule
-            .apply(&mut ctx, &opt_node)
+            .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
             .expect("Failed to apply rule");
         assert!(result.is_some());
     }
@@ -1050,7 +1049,7 @@ mod tests {
         let opt_node = OptGroupNode::new(1, index_scan_node);
 
         let result = rule
-            .apply(&mut ctx, &opt_node)
+            .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
             .expect("Failed to apply rule");
         assert!(result.is_some());
     }
@@ -1145,8 +1144,8 @@ mod tests {
         let opt_node2 = OptGroupNode::new(2, index_scan2);
 
         // 添加到上下文
-        ctx.add_plan_node_and_group_node(1, &opt_node1);
-        ctx.add_plan_node_and_group_node(2, &opt_node2);
+        ctx.add_plan_node_and_group_node(1, Rc::new(RefCell::new(opt_node1)));
+        ctx.add_plan_node_and_group_node(2, Rc::new(RefCell::new(opt_node2)));
 
         // 创建一个有多个依赖的节点
         let mut union_node = OptGroupNode::new(
@@ -1156,7 +1155,7 @@ mod tests {
         union_node.dependencies = vec![1, 2];
 
         let result = rule
-            .apply(&mut ctx, &union_node)
+            .apply(&mut ctx, &Rc::new(RefCell::new(union_node)))
             .expect("Failed to apply rule");
         assert!(result.is_some());
     }

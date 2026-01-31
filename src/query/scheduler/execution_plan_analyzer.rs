@@ -107,8 +107,6 @@ impl PlanNodeVisitor for ExecutionPlanAnalyzer {
     }
 
     fn visit_project(&mut self, node: &crate::query::planner::plan::core::nodes::ProjectNode) {
-        use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
-
         let id = self.allocate_id();
         self.set_current_id(id);
         self.analysis.add_executor(id, crate::query::scheduler::types::ExecutorType::Normal);
@@ -126,8 +124,6 @@ impl PlanNodeVisitor for ExecutionPlanAnalyzer {
     }
 
     fn visit_filter(&mut self, node: &crate::query::planner::plan::core::nodes::FilterNode) {
-        use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
-
         let id = self.allocate_id();
         self.set_current_id(id);
         self.analysis.add_executor(id, crate::query::scheduler::types::ExecutorType::Normal);
@@ -164,8 +160,6 @@ impl PlanNodeVisitor for ExecutionPlanAnalyzer {
     }
 
     fn visit_limit(&mut self, node: &crate::query::planner::plan::core::nodes::LimitNode) {
-        use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
-
         let id = self.allocate_id();
         self.set_current_id(id);
         self.analysis.add_executor(id, crate::query::scheduler::types::ExecutorType::Normal);
@@ -202,8 +196,6 @@ impl PlanNodeVisitor for ExecutionPlanAnalyzer {
     }
 
     fn visit_aggregate(&mut self, node: &crate::query::planner::plan::core::nodes::AggregateNode) {
-        use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
-
         let id = self.allocate_id();
         self.set_current_id(id);
         self.analysis.add_executor(id, crate::query::scheduler::types::ExecutorType::Normal);

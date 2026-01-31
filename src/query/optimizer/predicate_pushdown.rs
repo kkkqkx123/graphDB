@@ -1,11 +1,10 @@
 //! 谓词下推优化规则
 //! 这些规则负责将过滤条件下推到计划树的底层，以减少数据处理量
 
-use super::engine::OptimizerError;
 use super::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, Result as OptResult};
 use super::rule_patterns::{CommonPatterns, PatternBuilder};
 use super::rule_traits::{
-    combine_conditions, combine_expression_list, BaseOptRule, FilterSplitResult, PushDownRule,
+    combine_expression_list, BaseOptRule, FilterSplitResult, PushDownRule,
 };
 use crate::core::Expression;
 use crate::query::planner::plan::PlanNodeEnum;
@@ -1028,7 +1027,7 @@ mod tests {
         // 设置列名以便 get_tag_alias_for_node 可以工作
         scan_node.set_col_names(vec!["v".to_string()]);
         let scan_opt_node = OptGroupNode::new(2, scan_node.clone());
-        ctx.add_plan_node_and_group_node(2, &scan_opt_node);
+        ctx.add_plan_node_and_group_node(2, Rc::new(RefCell::new(scan_opt_node)));
 
         // 创建过滤条件 - 使用属性表达式
         let filter_condition = crate::core::Expression::Binary {
@@ -1050,7 +1049,7 @@ mod tests {
         opt_node.dependencies.push(2);
 
         let result = rule
-            .apply(&mut ctx, &opt_node)
+            .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
             .expect("Rule should apply successfully");
         // 规则应该匹配过滤节点并尝试下推条件
         assert!(result.is_some());
@@ -1068,7 +1067,7 @@ mod tests {
         // 设置列名以便 get_edge_alias_for_node 可以工作
         traverse_node.set_col_names(vec!["e".to_string()]);
         let traverse_opt_node = OptGroupNode::new(2, traverse_node.clone());
-        ctx.add_plan_node_and_group_node(2, &traverse_opt_node);
+        ctx.add_plan_node_and_group_node(2, Rc::new(RefCell::new(traverse_opt_node)));
 
         // 创建过滤条件 - 使用属性表达式
         let filter_condition = crate::core::Expression::Binary {
@@ -1090,7 +1089,7 @@ mod tests {
         opt_node.dependencies.push(2);
 
         let result = rule
-            .apply(&mut ctx, &opt_node)
+            .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
             .expect("Rule should apply successfully");
         // 规则应该匹配过滤节点并尝试下推到遍历操作
         assert!(result.is_some());
@@ -1104,7 +1103,7 @@ mod tests {
         // 创建起始节点
         let start_node = PlanNodeEnum::Start(StartNode::new());
         let start_opt_node = OptGroupNode::new(2, start_node.clone());
-        ctx.add_plan_node_and_group_node(2, &start_opt_node);
+        ctx.add_plan_node_and_group_node(2, Rc::new(RefCell::new(start_opt_node)));
 
         // 创建扩展节点
         let expand_node = crate::query::planner::plan::core::nodes::ExpandNode::new(
@@ -1113,11 +1112,12 @@ mod tests {
             crate::core::types::EdgeDirection::Out,
         );
         let expand_opt_node = OptGroupNode::new(3, expand_node.into_enum());
-        ctx.add_plan_node_and_group_node(3, &expand_opt_node);
+        let expand_plan_node = expand_opt_node.plan_node.clone();
+        ctx.add_plan_node_and_group_node(3, Rc::new(RefCell::new(expand_opt_node)));
 
         // 创建过滤节点
         let filter_node = FilterNode::new(
-            expand_opt_node.plan_node.clone(),
+            expand_plan_node,
             crate::core::Expression::Variable("col1 > 100".to_string()),
         )
         .expect("Filter node should be created successfully");
@@ -1125,7 +1125,7 @@ mod tests {
         filter_opt_node.dependencies.push(3);
 
         let result = rule
-            .apply(&mut ctx, &filter_opt_node)
+            .apply(&mut ctx, &Rc::new(RefCell::new(filter_opt_node)))
             .expect("Rule should apply successfully");
         // 规则应该匹配过滤节点并尝试下推到扩展操作
         assert!(result.is_some());
@@ -1139,12 +1139,12 @@ mod tests {
         // 创建左子节点
         let left_node = PlanNodeEnum::Start(StartNode::new());
         let left_opt_node = OptGroupNode::new(3, left_node.clone());
-        ctx.add_plan_node_and_group_node(3, &left_opt_node);
+        ctx.add_plan_node_and_group_node(3, Rc::new(RefCell::new(left_opt_node)));
 
         // 创建右子节点
         let right_node = PlanNodeEnum::Start(StartNode::new());
         let right_opt_node = OptGroupNode::new(4, right_node.clone());
-        ctx.add_plan_node_and_group_node(4, &right_opt_node);
+        ctx.add_plan_node_and_group_node(4, Rc::new(RefCell::new(right_opt_node)));
 
         // 创建哈希内连接节点
         let hash_inner_join_node = crate::query::planner::plan::core::nodes::HashInnerJoinNode::new(
@@ -1154,11 +1154,12 @@ mod tests {
             vec![crate::core::Expression::Variable("id".to_string())],
         ).expect("HashInnerJoin node should be created successfully");
         let hash_inner_join_opt_node = OptGroupNode::new(2, hash_inner_join_node.into_enum());
-        ctx.add_plan_node_and_group_node(2, &hash_inner_join_opt_node);
+        let hash_inner_join_plan_node = hash_inner_join_opt_node.plan_node.clone();
+        ctx.add_plan_node_and_group_node(2, Rc::new(RefCell::new(hash_inner_join_opt_node)));
 
         // 创建过滤节点
         let filter_node = FilterNode::new(
-            hash_inner_join_opt_node.plan_node.clone(),
+            hash_inner_join_plan_node,
             crate::core::Expression::Variable("col1 > 100".to_string()),
         )
         .expect("Filter node should be created successfully");
@@ -1166,7 +1167,7 @@ mod tests {
         filter_opt_node.dependencies.push(2);
 
         let result = rule
-            .apply(&mut ctx, &filter_opt_node)
+            .apply(&mut ctx, &Rc::new(RefCell::new(filter_opt_node)))
             .expect("Rule should apply successfully");
         // 规则应该匹配过滤节点并尝试下推到哈希内连接
         assert!(result.is_some());
@@ -1180,12 +1181,12 @@ mod tests {
         // 创建左子节点
         let left_node = PlanNodeEnum::Start(StartNode::new());
         let left_opt_node = OptGroupNode::new(3, left_node.clone());
-        ctx.add_plan_node_and_group_node(3, &left_opt_node);
+        ctx.add_plan_node_and_group_node(3, Rc::new(RefCell::new(left_opt_node)));
 
         // 创建右子节点
         let right_node = PlanNodeEnum::Start(StartNode::new());
         let right_opt_node = OptGroupNode::new(4, right_node.clone());
-        ctx.add_plan_node_and_group_node(4, &right_opt_node);
+        ctx.add_plan_node_and_group_node(4, Rc::new(RefCell::new(right_opt_node)));
 
         // 创建哈希左连接节点
         let hash_left_join_node = crate::query::planner::plan::core::nodes::HashLeftJoinNode::new(
@@ -1195,11 +1196,12 @@ mod tests {
             vec![crate::core::Expression::Variable("id".to_string())],
         ).expect("HashLeftJoin node should be created successfully");
         let hash_left_join_opt_node = OptGroupNode::new(2, hash_left_join_node.into_enum());
-        ctx.add_plan_node_and_group_node(2, &hash_left_join_opt_node);
+        let hash_left_join_plan_node = hash_left_join_opt_node.plan_node.clone();
+        ctx.add_plan_node_and_group_node(2, Rc::new(RefCell::new(hash_left_join_opt_node)));
 
         // 创建过滤节点
         let filter_node = FilterNode::new(
-            hash_left_join_opt_node.plan_node.clone(),
+            hash_left_join_plan_node,
             crate::core::Expression::Variable("col1 > 100".to_string()),
         )
         .expect("Filter node should be created successfully");
@@ -1207,7 +1209,7 @@ mod tests {
         filter_opt_node.dependencies.push(2);
 
         let result = rule
-            .apply(&mut ctx, &filter_opt_node)
+            .apply(&mut ctx, &Rc::new(RefCell::new(filter_opt_node)))
             .expect("Rule should apply successfully");
         // 规则应该匹配过滤节点并尝试下推到哈希左连接
         assert!(result.is_some());
@@ -1221,12 +1223,12 @@ mod tests {
         // 创建左子节点
         let left_node = PlanNodeEnum::Start(StartNode::new());
         let left_opt_node = OptGroupNode::new(3, left_node.clone());
-        ctx.add_plan_node_and_group_node(3, &left_opt_node);
+        ctx.add_plan_node_and_group_node(3, Rc::new(RefCell::new(left_opt_node)));
 
         // 创建右子节点
         let right_node = PlanNodeEnum::Start(StartNode::new());
         let right_opt_node = OptGroupNode::new(4, right_node.clone());
-        ctx.add_plan_node_and_group_node(4, &right_opt_node);
+        ctx.add_plan_node_and_group_node(4, Rc::new(RefCell::new(right_opt_node)));
 
         // 创建内连接节点
         let inner_join_node = crate::query::planner::plan::core::nodes::InnerJoinNode::new(
@@ -1236,11 +1238,12 @@ mod tests {
             vec![crate::core::Expression::Variable("id".to_string())],
         ).expect("InnerJoin node should be created successfully");
         let inner_join_opt_node = OptGroupNode::new(2, inner_join_node.into_enum());
-        ctx.add_plan_node_and_group_node(2, &inner_join_opt_node);
+        let inner_join_plan_node = inner_join_opt_node.plan_node.clone();
+        ctx.add_plan_node_and_group_node(2, Rc::new(RefCell::new(inner_join_opt_node)));
 
         // 创建过滤节点
         let filter_node = FilterNode::new(
-            inner_join_opt_node.plan_node.clone(),
+            inner_join_plan_node,
             crate::core::Expression::Variable("col1 > 100".to_string()),
         )
         .expect("Filter node should be created successfully");
@@ -1248,7 +1251,7 @@ mod tests {
         filter_opt_node.dependencies.push(2);
 
         let result = rule
-            .apply(&mut ctx, &filter_opt_node)
+            .apply(&mut ctx, &Rc::new(RefCell::new(filter_opt_node)))
             .expect("Rule should apply successfully");
         // 规则应该匹配过滤节点并尝试下推到内连接
         assert!(result.is_some());
@@ -1265,7 +1268,7 @@ mod tests {
         );
         scan_node.set_col_names(vec!["v".to_string()]);
         let scan_opt_node = OptGroupNode::new(2, scan_node.clone());
-        ctx.add_plan_node_and_group_node(2, &scan_opt_node);
+        ctx.add_plan_node_and_group_node(2, Rc::new(RefCell::new(scan_opt_node)));
 
         // 创建过滤条件 - 使用属性表达式
         let filter_condition = crate::core::Expression::Binary {
@@ -1287,7 +1290,7 @@ mod tests {
         opt_node.dependencies.push(2);
 
         let result = rule
-            .apply(&mut ctx, &opt_node)
+            .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
             .expect("Rule should apply successfully");
         
         // 调试信息

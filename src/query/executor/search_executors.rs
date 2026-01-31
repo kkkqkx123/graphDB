@@ -10,7 +10,6 @@ use crate::storage::StorageClient;
 use crate::utils::safe_lock;
 
 use crate::expression::context::traits::VariableContext;
-use crate::expression::evaluator::traits::ExpressionContext;
 
 /// FulltextIndexScanExecutor - 全文索引扫描执行器
 ///

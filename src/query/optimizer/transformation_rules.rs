@@ -1,7 +1,6 @@
 //! 转换规则
 //! 这些规则负责将计划节点转换为等效但更高效的节点
 
-use super::engine::OptimizerError;
 use super::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, Result as OptResult};
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::BaseOptRule;
@@ -9,7 +8,6 @@ use crate::query::planner::plan::core::nodes::PlanNodeEnum;
 use crate::query::visitor::PlanNodeVisitor;
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::result::Result as StdResult;
 
 /// 转换Limit-Sort为TopN的规则
 #[derive(Debug)]
@@ -486,7 +484,7 @@ mod tests {
         let opt_node = OptGroupNode::new(1, sort_node);
 
         let result = rule
-            .apply(&mut ctx, &opt_node)
+            .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
             .expect("Rule should apply successfully");
         assert!(result.is_none());
     }

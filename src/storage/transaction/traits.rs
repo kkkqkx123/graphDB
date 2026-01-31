@@ -7,8 +7,8 @@
 //! - TransactionState: 事务状态
 //! - TransactionResult: 事务结果
 use serde::{Deserialize, Serialize};
-use crate::core::{StorageError, Value};
-use crate::storage::transaction::{IsolationLevel, VersionVec, LockManager, TransactionLog, LogRecord};
+use crate::core::StorageError;
+use super::IsolationLevel;
 use std::sync::Arc;
 
 /// 事务标识符

@@ -1,13 +1,11 @@
 //! 扫描优化规则
 //! 这些规则负责优化扫描操作，如带过滤条件的扫描和索引全扫描优化
 
-use super::engine::OptimizerError;
 use super::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, Result as OptResult};
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::BaseOptRule;
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::result::Result as StdResult;
 
 /// 优化索引全扫描为更高效的全表扫描的规则
 #[derive(Debug)]
@@ -106,7 +104,7 @@ mod tests {
         let opt_node = OptGroupNode::new(1, index_scan_enum);
 
         let result = rule
-            .apply(&mut ctx, &opt_node)
+            .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
             .expect("Rule should apply successfully");
         assert!(result.is_some());
     }
@@ -132,10 +130,10 @@ mod tests {
         let mut opt_node = OptGroupNode::new(1, scan_node);
         opt_node.dependencies = vec![2];
 
-        ctx.add_plan_node_and_group_node(2, &filter_opt_node);
+        ctx.add_plan_node_and_group_node(2, Rc::new(RefCell::new(filter_opt_node)));
 
         let result = rule
-            .apply(&mut ctx, &opt_node)
+            .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
             .expect("Rule should apply successfully");
         assert!(result.is_some());
     }

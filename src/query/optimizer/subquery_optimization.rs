@@ -1,14 +1,12 @@
 //! 子查询优化规则
 //! 优化子查询的执行方式
 
-use super::engine::OptimizerError;
 use super::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, Result as OptResult};
 use super::rule_traits::BaseOptRule;
 use crate::query::planner::plan::core::nodes::PlanNodeEnum;
 use crate::query::visitor::PlanNodeVisitor;
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::result::Result as StdResult;
 
 /// 子查询优化规则
 ///
@@ -152,7 +150,7 @@ mod tests {
         let opt_node = OptGroupNode::new(1, filter_node.into_enum());
 
         let result = rule
-            .apply(&mut ctx, &opt_node)
+            .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
             .expect("Rule should apply successfully");
         assert!(result.is_some());
     }

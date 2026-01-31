@@ -19,7 +19,7 @@ use crate::query::planner::plan::ExecutionPlan;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
 use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
-use crate::query::planner::plan::core::nodes::{PlanNodeEnum, ProjectNode, ScanVerticesNode};
+use crate::query::planner::plan::core::nodes::{ProjectNode, ScanVerticesNode};
 use crate::query::planner::plan::core::nodes::{LimitNode, SortNode};
 use crate::query::planner::planner::{Planner, PlannerError};
 use crate::query::planner::PlanIdGenerator;

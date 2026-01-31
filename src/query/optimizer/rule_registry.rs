@@ -102,10 +102,11 @@ macro_rules! register_rule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::optimizer::{BaseOptRule, OptContext, OptGroupNode, OptimizerError, OptRule, Result, TransformResult};
+    use crate::query::optimizer::{BaseOptRule, OptContext, OptGroupNode, OptimizerError, OptRule, TransformResult};
     use crate::query::optimizer::plan::Pattern;
     use std::cell::RefCell;
     use std::rc::Rc;
+    use std::result::Result as StdResult;
 
     #[derive(Debug)]
     struct TestRule;
@@ -119,7 +120,7 @@ mod tests {
             &self,
             _ctx: &mut OptContext,
             _group_node: &Rc<RefCell<OptGroupNode>>,
-        ) -> Result<Option<TransformResult>> {
+        ) -> StdResult<Option<TransformResult>, OptimizerError> {
             Ok(Some(TransformResult::unchanged()))
         }
 

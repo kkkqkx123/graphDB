@@ -2,17 +2,14 @@
 //!
 //! 此规则将过滤操作下推到聚合节点之前执行，以减少进入聚合的数据量
 
-use super::engine::OptimizerError;
 use super::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, Result as OptResult};
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::BaseOptRule;
 use crate::core::Expression;
-use crate::query::planner::plan::core::nodes::aggregate_node::AggregateNode;
 use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
 use crate::query::planner::plan::PlanNodeEnum;
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::result::Result as StdResult;
 
 /// 将过滤下推到聚合之前的规则
 ///

@@ -8,7 +8,6 @@
 //! - 死锁检测
 
 use super::TransactionId;
-use crate::core::StorageError;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, SystemTime};

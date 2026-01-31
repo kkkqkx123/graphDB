@@ -12,7 +12,6 @@ use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::visitor::PlanNodeVisitor;
 use std::rc::Rc;
 use std::cell::RefCell;
-use std::result::Result as StdResult;
 
 /// 消除冗余过滤操作的规则
 #[derive(Debug)]

@@ -2,7 +2,6 @@
 //! 提供优化规则的通用接口和辅助函数，减少代码重复
 
 use std::cell::RefCell;
-use std::ops::Deref;
 use std::rc::Rc;
 
 use super::core::Cost;
@@ -491,121 +490,6 @@ pub fn clone_with_new_plan_node(node: &OptGroupNode, plan_node: PlanNodeEnum) ->
     new_node
 }
 
-/// 宏：简化规则实现的重复代码
-#[macro_export]
-macro_rules! impl_basic_rule {
-    ($rule_type:ty, $name:expr) => {
-        impl OptRule for $rule_type {
-            fn name(&self) -> &str {
-                $name
-            }
-        }
-
-        impl BaseOptRule for $rule_type {
-            // 使用默认实现
-        }
-    };
-}
-
-/// 宏：简化下推规则的实现
-#[macro_export]
-macro_rules! impl_push_down_rule {
-    ($rule_type:ty, $name:expr, $target_kind:expr) => {
-        impl OptRule for $rule_type {
-            fn name(&self) -> &str {
-                $name
-            }
-        }
-
-        impl BaseOptRule for $rule_type {
-            // 使用默认实现
-        }
-
-        impl PushDownRule for $rule_type {
-            fn can_push_down_to(&self, child_node: &PlanNodeEnum) -> bool {
-                child_node.name() == $target_kind
-            }
-
-            fn create_pushed_down_node(
-                &self,
-                ctx: &mut OptContext,
-                group_node: &Rc<RefCell<OptGroupNode>>,
-                child: &OptGroupNode,
-            ) -> StdResult<Option<TransformResult>, OptimizerError> {
-                let node_ref = group_node.borrow();
-                let mut result = TransformResult::new();
-                result.add_new_group_node(group_node.clone());
-                Ok(Some(result))
-            }
-        }
-    };
-}
-
-/// 宏：简化合并规则的实现
-#[macro_export]
-macro_rules! impl_merge_rule {
-    ($rule_type:ty, $name:expr) => {
-        impl OptRule for $rule_type {
-            fn name(&self) -> &str {
-                $name
-            }
-        }
-
-        impl BaseOptRule for $rule_type {
-            // 使用默认实现
-        }
-
-        impl MergeRule for $rule_type {
-            fn can_merge(&self, _group_node: &Rc<RefCell<OptGroupNode>>, _child: &OptGroupNode) -> bool {
-                false
-            }
-
-            fn create_merged_node(
-                &self,
-                _ctx: &mut OptContext,
-                group_node: &Rc<RefCell<OptGroupNode>>,
-                _child: &OptGroupNode,
-            ) -> Result<Option<TransformResult>, OptimizerError> {
-                let mut result = TransformResult::new();
-                result.add_new_group_node(group_node.clone());
-                Ok(Some(result))
-            }
-        }
-    };
-}
-
-/// 宏：简化消除规则的实现
-#[macro_export]
-macro_rules! impl_elimination_rule {
-    ($rule_type:ty, $name:expr) => {
-        impl OptRule for $rule_type {
-            fn name(&self) -> &str {
-                $name
-            }
-        }
-
-        impl BaseOptRule for $rule_type {
-            // 使用默认实现
-        }
-
-        impl EliminationRule for $rule_type {
-            fn can_eliminate(&self, _ctx: &OptContext, _group_node: &Rc<RefCell<OptGroupNode>>) -> bool {
-                false
-            }
-
-            fn get_replacement(
-                &self,
-                _ctx: &mut OptContext,
-                group_node: &Rc<RefCell<OptGroupNode>>,
-            ) -> Result<Option<TransformResult>, OptimizerError> {
-                let mut result = TransformResult::new();
-                result.add_new_group_node(group_node.clone());
-                Ok(Some(result))
-            }
-        }
-    };
-}
-
 /// 新增宏：实现带有自定义验证的规则
 #[macro_export]
 macro_rules! impl_rule_with_validation {
@@ -747,9 +631,9 @@ mod tests {
         node3.id = 3;
 
         // 添加节点到上下文
-        opt_ctx.add_plan_node_and_group_node(1, &node1);
-        opt_ctx.add_plan_node_and_group_node(2, &node2);
-        opt_ctx.add_plan_node_and_group_node(3, &node3);
+        opt_ctx.add_plan_node_and_group_node(1, Rc::new(RefCell::new(node1)));
+        opt_ctx.add_plan_node_and_group_node(2, Rc::new(RefCell::new(node2)));
+        opt_ctx.add_plan_node_and_group_node(3, Rc::new(RefCell::new(node3)));
 
         // 创建一个有依赖的节点
         let mut node_with_deps = OptGroupNode::default();

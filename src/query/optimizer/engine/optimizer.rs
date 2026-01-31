@@ -11,13 +11,12 @@ use std::rc::Rc;
 
 use crate::query::context::execution::QueryContext;
 use crate::query::optimizer::core::config::{OptimizationConfig, OptimizationStats};
-use crate::query::optimizer::core::{Cost, OptimizationPhase};
+use crate::query::optimizer::core::OptimizationPhase;
 use crate::query::optimizer::plan::{
-    OptContext, OptGroup, OptGroupNode, OptRule, TransformResult,
+    OptContext, OptGroup, OptGroupNode, OptRule,
 };
-use crate::query::optimizer::property_tracker::PropertyTracker;
 use crate::query::planner::plan::{ExecutionPlan, PlanNodeEnum};
-use crate::query::optimizer::{OptimizationRule, OptimizerError, PlanValidator};
+use crate::query::optimizer::{OptimizationRule, OptimizerError};
 
 #[derive(Debug)]
 pub struct RuleSet {
@@ -414,7 +413,14 @@ impl Optimizer {
                 self.build_inputs_recursive(node.left_input(), ctx, left_id)?;
                 self.build_inputs_recursive(node.right_input(), ctx, right_id)?;
             }
-            _ => {}
+            PlanNodeEnum::GetNeighbors(_) | PlanNodeEnum::GetVertices(_) | PlanNodeEnum::GetEdges(_) => {
+                unimplemented!("GetNeighbors/GetVertices/GetEdges handling not implemented")
+            }
+            PlanNodeEnum::Expand(_) | PlanNodeEnum::ExpandAll(_) | PlanNodeEnum::AppendVertices(_) 
+            | PlanNodeEnum::Traverse(_) | PlanNodeEnum::Dedup(_) | PlanNodeEnum::Unwind(_) => {
+                unimplemented!("Expand/AppendVertices/Traverse/Dedup/Unwind handling not implemented")
+            }
+            _ => unimplemented!("Unhandled node type in build_inputs_recursive"),
         }
 
         Ok(())

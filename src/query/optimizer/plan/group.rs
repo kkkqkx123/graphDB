@@ -10,8 +10,7 @@
 use std::collections::HashSet;
 use std::fmt;
 
-use super::node::{OptGroupNode, PlanCandidate};
-use super::Pattern;
+use super::node::OptGroupNode;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum OptimizationPhase {
@@ -48,7 +47,6 @@ pub struct OptGroup {
     pub output_var: Option<String>,
     pub bodies: Vec<usize>,
     pub group_nodes_referenced: HashSet<usize>,
-    pub candidates: Vec<PlanCandidate>,
     pub phase: OptimizationPhase,
 }
 
@@ -63,7 +61,6 @@ impl OptGroup {
             output_var: None,
             bodies: Vec::new(),
             group_nodes_referenced: HashSet::new(),
-            candidates: Vec::new(),
             phase: OptimizationPhase::Unknown,
         }
     }
@@ -138,18 +135,6 @@ impl OptGroup {
         &self.group_nodes_referenced
     }
 
-    pub fn add_candidate(&mut self, candidate: PlanCandidate) {
-        self.candidates.push(candidate);
-    }
-
-    pub fn get_candidates(&self) -> &[PlanCandidate] {
-        &self.candidates
-    }
-
-    pub fn clear_candidates(&mut self) {
-        self.candidates.clear();
-    }
-
     pub fn set_phase(&mut self, phase: OptimizationPhase) {
         self.phase = phase;
     }
@@ -201,7 +186,6 @@ impl Clone for OptGroup {
         new_group.output_var = self.output_var.clone();
         new_group.bodies = self.bodies.clone();
         new_group.group_nodes_referenced = self.group_nodes_referenced.clone();
-        new_group.candidates = self.candidates.clone();
         new_group.phase = self.phase.clone();
 
         for node_rc in &self.nodes {

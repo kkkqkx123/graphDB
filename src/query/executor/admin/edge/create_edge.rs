@@ -5,7 +5,7 @@
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
-use crate::core::types::{EdgeTypeInfo, EdgeTypeSchema, PropertyDef};
+use crate::core::types::{EdgeTypeSchema, PropertyDef};
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
 

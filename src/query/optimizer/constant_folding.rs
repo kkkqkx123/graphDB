@@ -1,7 +1,6 @@
 //! 常量折叠优化规则
 //! 将可以在编译时计算的常量表达式折叠为常量值
 
-use super::engine::OptimizerError;
 use super::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, Result as OptResult};
 use super::rule_traits::BaseOptRule;
 use crate::core::{BinaryOperator, Expression, UnaryOperator, Value};
@@ -10,7 +9,6 @@ use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::visitor::PlanNodeVisitor;
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::result::Result as StdResult;
 
 /// 常量折叠规则
 ///
@@ -491,7 +489,7 @@ mod tests {
         let opt_node = OptGroupNode::new(1, filter_node.into_enum());
 
         let result = rule
-            .apply(&mut ctx, &opt_node)
+            .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
             .expect("Rule should apply successfully");
         assert!(result.is_some());
     }

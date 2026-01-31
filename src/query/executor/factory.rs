@@ -46,8 +46,6 @@ use crate::query::executor::admin::{
     RebuildTagIndexExecutor, RebuildEdgeIndexExecutor,
 };
 
-use crate::query::planner::plan::core::nodes::admin_node;
-
 /// 从 PlanNode 提取顶点 ID 列表
 /// 用于多源最短路径等算法获取起始和目标顶点
 fn extract_vertex_ids_from_node(node: &PlanNodeEnum) -> Vec<Value> {

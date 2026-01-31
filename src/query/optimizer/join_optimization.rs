@@ -1,13 +1,11 @@
 //! 连接优化规则
 //! 这些规则负责优化连接操作，专注于连接算法和策略优化
 
-use super::engine::OptimizerError;
 use super::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, Result as OptResult};
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::BaseOptRule;
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::result::Result as StdResult;
 
 /// 转换连接以获得更好性能的规则
 #[derive(Debug)]
@@ -129,11 +127,11 @@ mod tests {
             right_node_id,
             PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new()),
         );
-        ctx.add_plan_node_and_group_node(left_node_id, &left_group_node);
-        ctx.add_plan_node_and_group_node(right_node_id, &right_group_node);
+        ctx.add_plan_node_and_group_node(left_node_id, Rc::new(RefCell::new(left_group_node)));
+        ctx.add_plan_node_and_group_node(right_node_id, Rc::new(RefCell::new(right_group_node)));
 
         let result = rule
-            .apply(&mut ctx, &opt_node)
+            .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
             .expect("Rule should apply successfully");
         assert!(result.is_some());
     }

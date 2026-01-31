@@ -61,10 +61,6 @@ impl OptContext {
         self.plan_node_to_group_node.get(&plan_node_id)
     }
 
-    pub fn find_group_node_by_plan_node_id_mut(&mut self, plan_node_id: usize) -> Option<&mut Rc<RefCell<OptGroupNode>>> {
-        self.plan_node_to_group_node.get_mut(&plan_node_id)
-    }
-
     pub fn find_group_node_by_id(&self, id: usize) -> Option<&Rc<RefCell<OptGroupNode>>> {
         self.group_nodes_by_id.get(&id)
     }
@@ -229,10 +225,6 @@ impl OptContext {
 
     pub fn get_query_context_mut(&mut self) -> &mut QueryContext {
         &mut self.query_context
-    }
-
-    pub fn get_pool(&mut self) -> &mut ObjectPool<OptGroupNode> {
-        &mut self.pool
     }
 }
 

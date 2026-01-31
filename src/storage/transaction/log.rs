@@ -6,13 +6,14 @@
 //! - LogType: 日志类型
 //! - 日志恢复
 
-use super::{TransactionId, TransactionState};
+use super::TransactionId;
+use super::TransactionState;
 use crate::core::StorageError;
 use bincode;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
-use std::io::{self, BufReader, BufWriter, Read, Write};
+use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, SystemTime};

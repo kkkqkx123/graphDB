@@ -4,7 +4,7 @@
 
 use crate::core::{Edge, Value, Vertex};
 use crate::core::StorageResult;
-use crate::index::{Index, IndexStatus, IndexType, IndexInfo, IndexOptimization};
+use crate::index::{Index, IndexStatus, IndexInfo, IndexOptimization};
 
 pub trait IndexManager: Send + Sync + std::fmt::Debug {
     fn get_index(&self, name: &str) -> Option<Index>;

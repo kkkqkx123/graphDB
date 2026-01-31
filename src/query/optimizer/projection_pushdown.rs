@@ -1,7 +1,6 @@
 //! 投影下推优化规则
 //! 这些规则负责将投影操作下推到计划树的底层，以减少数据传输量
 
-use super::engine::OptimizerError;
 use super::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, Result as OptResult};
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::{BaseOptRule, PushDownRule};
@@ -9,7 +8,6 @@ use crate::query::planner::plan::core::nodes::PlanNodeEnum;
 use crate::query::visitor::PlanNodeVisitor;
 use std::rc::Rc;
 use std::cell::RefCell;
-use std::result::Result as StdResult;
 
 /// 投影下推访问者
 #[derive(Clone)]
@@ -132,7 +130,6 @@ impl PushDownRule for ProjectionPushDownRule {
         group_node: &Rc<RefCell<OptGroupNode>>,
         child: &OptGroupNode,
     ) -> OptResult<Option<TransformResult>> {
-        let node_ref = group_node.borrow();
         let mut result = TransformResult::new();
         result.add_new_group_node(group_node.clone());
         Ok(Some(result))
@@ -234,7 +231,7 @@ mod tests {
         let opt_node = OptGroupNode::new(1, project_node);
 
         let result = rule
-            .apply(&mut ctx, &opt_node)
+            .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
             .expect("Rule should apply successfully");
         // 规则应该匹配投影节点并尝试下推
         assert!(result.is_some());
@@ -256,7 +253,7 @@ mod tests {
         let opt_node = OptGroupNode::new(1, project_node);
 
         let result = rule
-            .apply(&mut ctx, &opt_node)
+            .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
             .expect("Rule should apply successfully");
         // 规则应该匹配投影节点并尝试下推到数据源
         assert!(result.is_some());
