@@ -2,11 +2,14 @@
 //! 重新排列谓词顺序以优化查询性能
 
 use super::engine::OptimizerError;
-use super::plan::{OptContext, OptGroupNode, OptRule, Pattern};
+use super::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, Result as OptResult};
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::BaseOptRule;
 use crate::query::planner::plan::core::nodes::PlanNodeEnum;
 use crate::query::visitor::PlanNodeVisitor;
+use std::cell::RefCell;
+use std::rc::Rc;
+use std::result::Result as StdResult;
 
 /// 谓词重排序规则
 ///
@@ -22,18 +25,24 @@ impl OptRule for PredicateReorderRule {
     fn apply(
         &self,
         _ctx: &mut OptContext,
-        node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
+        node: &Rc<RefCell<OptGroupNode>>,
+    ) -> OptResult<Option<TransformResult>> {
+        let node_ref = node.borrow();
         let mut visitor = PredicateReorderVisitor {
             reordered: false,
             new_node: None,
         };
-
-        let result = visitor.visit(&node.plan_node);
+        let result = visitor.visit(&node_ref.plan_node);
         if result.reordered {
-            Ok(result.new_node)
+            if let Some(new_node) = result.new_node {
+                let mut transform_result = TransformResult::new();
+                transform_result.add_new_group_node(Rc::new(RefCell::new(new_node)));
+                Ok(Some(transform_result))
+            } else {
+                Ok(Some(TransformResult::unchanged()))
+            }
         } else {
-            Ok(None)
+            Ok(Some(TransformResult::unchanged()))
         }
     }
 

@@ -2,13 +2,14 @@
 //! 这些规则负责将投影操作下推到计划树的底层，以减少数据传输量
 
 use super::engine::OptimizerError;
-use super::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult};
+use super::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, Result as OptResult};
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::{BaseOptRule, PushDownRule};
 use crate::query::planner::plan::core::nodes::PlanNodeEnum;
 use crate::query::visitor::PlanNodeVisitor;
 use std::rc::Rc;
 use std::cell::RefCell;
+use std::result::Result as StdResult;
 
 /// 投影下推访问者
 #[derive(Clone)]
@@ -40,19 +41,27 @@ impl PlanNodeVisitor for ProjectionPushDownVisitor {
         let input_id = input.id() as usize;
 
         if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(input_id) {
-            let child_name = child_node.plan_node.name();
+            let child_node_ref = child_node.borrow();
+            let child_name = child_node_ref.plan_node.name();
 
-            match child_name.as_ref() {
+            let (pushed_down, new_node) = match child_name.as_ref() {
                 "ScanVertices" | "ScanEdges" | "GetVertices" | "GetEdges" | "GetNeighbors" => {
                     if Self::can_push_down_project(node) {
-                        let mut new_child_node = child_node.clone();
+                        let mut new_child_node = child_node_ref.clone();
                         new_child_node.plan_node = input.clone();
-
-                        self.pushed_down = true;
-                        self.new_node = Some(new_child_node);
+                        (true, Some(new_child_node))
+                    } else {
+                        (false, None)
                     }
                 }
-                _ => {}
+                _ => (false, None),
+            };
+
+            drop(child_node_ref);
+
+            if pushed_down {
+                self.pushed_down = true;
+                self.new_node = new_node;
             }
         }
 
@@ -72,23 +81,28 @@ impl OptRule for ProjectionPushDownRule {
     fn apply(
         &self,
         ctx: &mut OptContext,
-        node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        if !node.plan_node.is_project() {
-            return Ok(None);
+        node: &Rc<RefCell<OptGroupNode>>,
+    ) -> OptResult<Option<TransformResult>> {
+        let node_ref = node.borrow();
+        if !node_ref.plan_node.is_project() {
+            return Ok(Some(TransformResult::unchanged()));
         }
-
         let mut visitor = ProjectionPushDownVisitor {
             pushed_down: false,
             new_node: None,
             ctx: ctx as *const OptContext,
         };
-
-        let result = visitor.visit(&node.plan_node);
+        let result = visitor.visit(&node_ref.plan_node);
         if result.pushed_down {
-            Ok(result.new_node)
+            if let Some(new_node) = result.new_node {
+                let mut transform_result = TransformResult::new();
+                transform_result.add_new_group_node(Rc::new(RefCell::new(new_node)));
+                Ok(Some(transform_result))
+            } else {
+                Ok(Some(TransformResult::unchanged()))
+            }
         } else {
-            Ok(Some(node.clone()))
+            Ok(Some(TransformResult::unchanged()))
         }
     }
 
@@ -117,7 +131,7 @@ impl PushDownRule for ProjectionPushDownRule {
         ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
         child: &OptGroupNode,
-    ) -> Result<Option<TransformResult>, OptimizerError> {
+    ) -> OptResult<Option<TransformResult>> {
         let node_ref = group_node.borrow();
         let mut result = TransformResult::new();
         result.add_new_group_node(group_node.clone());
@@ -137,23 +151,28 @@ impl OptRule for PushProjectDownRule {
     fn apply(
         &self,
         ctx: &mut OptContext,
-        node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        if !node.plan_node.is_project() {
-            return Ok(None);
+        node: &Rc<RefCell<OptGroupNode>>,
+    ) -> OptResult<Option<TransformResult>> {
+        let node_ref = node.borrow();
+        if !node_ref.plan_node.is_project() {
+            return Ok(Some(TransformResult::unchanged()));
         }
-
         let mut visitor = ProjectionPushDownVisitor {
             pushed_down: false,
             new_node: None,
             ctx: ctx as *const OptContext,
         };
-
-        let result = visitor.visit(&node.plan_node);
+        let result = visitor.visit(&node_ref.plan_node);
         if result.pushed_down {
-            Ok(result.new_node)
+            if let Some(new_node) = result.new_node {
+                let mut transform_result = TransformResult::new();
+                transform_result.add_new_group_node(Rc::new(RefCell::new(new_node)));
+                Ok(Some(transform_result))
+            } else {
+                Ok(Some(TransformResult::unchanged()))
+            }
         } else {
-            Ok(Some(node.clone()))
+            Ok(Some(TransformResult::unchanged()))
         }
     }
 
@@ -180,7 +199,7 @@ impl PushDownRule for PushProjectDownRule {
         ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
         child: &OptGroupNode,
-    ) -> Result<Option<TransformResult>, OptimizerError> {
+    ) -> OptResult<Option<TransformResult>> {
         let node_ref = group_node.borrow();
         let mut result = TransformResult::new();
         result.add_new_group_node(group_node.clone());

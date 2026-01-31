@@ -1,6 +1,8 @@
 //! 优化规则枚举定义
 //! 使用枚举替代字符串匹配规则，提高类型安全性和可维护性
 
+use std::rc::Rc;
+
 use crate::query::optimizer::core::OptimizationPhase;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -122,49 +124,49 @@ impl OptimizationRule {
         }
     }
     
-    pub fn create_instance(&self) -> Option<Box<dyn super::OptRule>> {
+    pub fn create_instance(&self) -> Option<Rc<dyn super::OptRule>> {
         match self {
-            Self::FilterPushDown => Some(Box::new(super::FilterPushDownRule)),
-            Self::PredicatePushDown => Some(Box::new(super::PredicatePushDownRule)),
-            Self::ProjectionPushDown => Some(Box::new(super::ProjectionPushDownRule)),
-            Self::CombineFilter => Some(Box::new(super::CombineFilterRule)),
-            Self::CollapseProject => Some(Box::new(super::CollapseProjectRule)),
-            Self::DedupElimination => Some(Box::new(super::DedupEliminationRule)),
-            Self::EliminateFilter => Some(Box::new(super::EliminateFilterRule)),
-            Self::EliminateRowCollect => Some(Box::new(super::EliminateRowCollectRule)),
-            Self::RemoveNoopProject => Some(Box::new(super::RemoveNoopProjectRule)),
-            Self::EliminateAppendVertices => Some(Box::new(super::EliminateAppendVerticesRule)),
-            Self::RemoveAppendVerticesBelowJoin => Some(Box::new(super::RemoveAppendVerticesBelowJoinRule)),
-            Self::PushFilterDownAggregate => Some(Box::new(super::PushFilterDownAggregateRule)),
-            Self::TopN => Some(Box::new(super::TopNRule)),
-            Self::MergeGetVerticesAndProject => Some(Box::new(super::MergeGetVerticesAndProjectRule)),
-            Self::MergeGetVerticesAndDedup => Some(Box::new(super::MergeGetVerticesAndDedupRule)),
-            Self::MergeGetNbrsAndProject => Some(Box::new(super::MergeGetNbrsAndProjectRule)),
-            Self::MergeGetNbrsAndDedup => Some(Box::new(super::MergeGetNbrsAndDedupRule)),
+            Self::FilterPushDown => Some(Rc::new(super::FilterPushDownRule)),
+            Self::PredicatePushDown => Some(Rc::new(super::PredicatePushDownRule)),
+            Self::ProjectionPushDown => Some(Rc::new(super::ProjectionPushDownRule)),
+            Self::CombineFilter => Some(Rc::new(super::CombineFilterRule)),
+            Self::CollapseProject => Some(Rc::new(super::CollapseProjectRule)),
+            Self::DedupElimination => Some(Rc::new(super::DedupEliminationRule)),
+            Self::EliminateFilter => Some(Rc::new(super::EliminateFilterRule)),
+            Self::EliminateRowCollect => Some(Rc::new(super::EliminateRowCollectRule)),
+            Self::RemoveNoopProject => Some(Rc::new(super::RemoveNoopProjectRule)),
+            Self::EliminateAppendVertices => Some(Rc::new(super::EliminateAppendVerticesRule)),
+            Self::RemoveAppendVerticesBelowJoin => Some(Rc::new(super::RemoveAppendVerticesBelowJoinRule)),
+            Self::PushFilterDownAggregate => Some(Rc::new(super::PushFilterDownAggregateRule)),
+            Self::TopN => Some(Rc::new(super::TopNRule)),
+            Self::MergeGetVerticesAndProject => Some(Rc::new(super::MergeGetVerticesAndProjectRule)),
+            Self::MergeGetVerticesAndDedup => Some(Rc::new(super::MergeGetVerticesAndDedupRule)),
+            Self::MergeGetNbrsAndProject => Some(Rc::new(super::MergeGetNbrsAndProjectRule)),
+            Self::MergeGetNbrsAndDedup => Some(Rc::new(super::MergeGetNbrsAndDedupRule)),
 
-            Self::ConstantFolding => Some(Box::new(super::ConstantFoldingRule)),
-            Self::SubQueryOptimization => Some(Box::new(super::SubQueryOptimizationRule)),
-            Self::LoopUnrolling => Some(Box::new(super::LoopUnrollingRule)),
-            Self::PredicateReorder => Some(Box::new(super::PredicateReorderRule)),
+            Self::ConstantFolding => Some(Rc::new(super::ConstantFoldingRule)),
+            Self::SubQueryOptimization => Some(Rc::new(super::SubQueryOptimizationRule)),
+            Self::LoopUnrolling => Some(Rc::new(super::LoopUnrollingRule)),
+            Self::PredicateReorder => Some(Rc::new(super::PredicateReorderRule)),
 
-            Self::JoinOptimization => Some(Box::new(super::JoinOptimizationRule)),
-            Self::PushLimitDown => Some(Box::new(super::PushLimitDownRule)),
-            Self::PushLimitDownGetVertices => Some(Box::new(super::PushLimitDownGetVerticesRule)),
-            Self::PushLimitDownGetNeighbors => Some(Box::new(super::PushLimitDownGetNeighborsRule)),
-            Self::PushLimitDownGetEdges => Some(Box::new(super::PushLimitDownGetEdgesRule)),
-            Self::PushLimitDownScanVertices => Some(Box::new(super::PushLimitDownScanVerticesRule)),
-            Self::PushLimitDownScanEdges => Some(Box::new(super::PushLimitDownScanEdgesRule)),
-            Self::PushLimitDownIndexScan => Some(Box::new(super::PushLimitDownIndexScanRule)),
-            Self::PushLimitDownProjectRule => Some(Box::new(super::PushLimitDownProjectRule)),
-            Self::ScanWithFilterOptimization => Some(Box::new(super::ScanWithFilterOptimizationRule)),
-            Self::IndexFullScan => Some(Box::new(super::IndexFullScanRule)),
-            Self::IndexScan => Some(Box::new(super::IndexScanRule)),
-            Self::EdgeIndexFullScan => Some(Box::new(super::EdgeIndexFullScanRule)),
-            Self::TagIndexFullScan => Some(Box::new(super::TagIndexFullScanRule)),
-            Self::UnionAllEdgeIndexScan => Some(Box::new(super::UnionAllEdgeIndexScanRule)),
-            Self::UnionAllTagIndexScan => Some(Box::new(super::UnionAllTagIndexScanRule)),
-            Self::OptimizeEdgeIndexScanByFilter => Some(Box::new(super::OptimizeEdgeIndexScanByFilterRule)),
-            Self::OptimizeTagIndexScanByFilter => Some(Box::new(super::OptimizeTagIndexScanByFilterRule)),
+            Self::JoinOptimization => Some(Rc::new(super::JoinOptimizationRule)),
+            Self::PushLimitDown => Some(Rc::new(super::PushLimitDownRule)),
+            Self::PushLimitDownGetVertices => Some(Rc::new(super::PushLimitDownGetVerticesRule)),
+            Self::PushLimitDownGetNeighbors => Some(Rc::new(super::PushLimitDownGetNeighborsRule)),
+            Self::PushLimitDownGetEdges => Some(Rc::new(super::PushLimitDownGetEdgesRule)),
+            Self::PushLimitDownScanVertices => Some(Rc::new(super::PushLimitDownScanVerticesRule)),
+            Self::PushLimitDownScanEdges => Some(Rc::new(super::PushLimitDownScanEdgesRule)),
+            Self::PushLimitDownIndexScan => Some(Rc::new(super::PushLimitDownIndexScanRule)),
+            Self::PushLimitDownProjectRule => Some(Rc::new(super::PushLimitDownProjectRule)),
+            Self::ScanWithFilterOptimization => Some(Rc::new(super::ScanWithFilterOptimizationRule)),
+            Self::IndexFullScan => Some(Rc::new(super::IndexFullScanRule)),
+            Self::IndexScan => Some(Rc::new(super::IndexScanRule)),
+            Self::EdgeIndexFullScan => Some(Rc::new(super::EdgeIndexFullScanRule)),
+            Self::TagIndexFullScan => Some(Rc::new(super::TagIndexFullScanRule)),
+            Self::UnionAllEdgeIndexScan => Some(Rc::new(super::UnionAllEdgeIndexScanRule)),
+            Self::UnionAllTagIndexScan => Some(Rc::new(super::UnionAllTagIndexScanRule)),
+            Self::OptimizeEdgeIndexScanByFilter => Some(Rc::new(super::OptimizeEdgeIndexScanByFilterRule)),
+            Self::OptimizeTagIndexScanByFilter => Some(Rc::new(super::OptimizeTagIndexScanByFilterRule)),
         }
     }
     

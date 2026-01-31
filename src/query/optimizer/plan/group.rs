@@ -21,6 +21,12 @@ pub enum OptimizationPhase {
     Unknown,
 }
 
+impl Default for OptimizationPhase {
+    fn default() -> Self {
+        OptimizationPhase::Unknown
+    }
+}
+
 impl fmt::Display for OptimizationPhase {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {

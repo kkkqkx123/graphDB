@@ -2,12 +2,15 @@
 //! 这些规则负责优化索引操作，包括基于过滤条件的索引扫描优化和索引扫描操作本身的优化
 
 use super::engine::OptimizerError;
-use super::plan::{OptContext, OptGroupNode, OptRule, Pattern};
+use super::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, Result as OptResult};
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::{combine_conditions, BaseOptRule, FilterSplitResult};
 use crate::core::Expression;
 use crate::query::planner::plan::algorithms::IndexScan;
 use crate::query::planner::plan::core::nodes::PlanNodeEnum;
+use std::rc::Rc;
+use std::cell::RefCell;
+use std::result::Result as StdResult;
 
 /// 基于过滤条件优化边索引扫描的规则
 #[derive(Debug)]
@@ -20,90 +23,20 @@ impl OptRule for OptimizeEdgeIndexScanByFilterRule {
 
     fn apply(
         &self,
-        _ctx: &mut OptContext,
-        node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        // 检查是否为索引扫描操作
-        if !node.plan_node.is_index_scan() {
-            return Ok(None);
+        ctx: &mut OptContext,
+        group_node: &Rc<RefCell<OptGroupNode>>,
+    ) -> OptResult<Option<TransformResult>> {
+        let node_ref = group_node.borrow();
+        if !node_ref.plan_node.is_index_scan() {
+            return Ok(Some(TransformResult::unchanged()));
         }
+        drop(node_ref);
 
-        // 查找依赖中的过滤操作
-        if node.dependencies.len() >= 1 {
-            for dep_id in &node.dependencies {
-                if let Some(dep_node) = _ctx.find_group_node_by_plan_node_id(*dep_id) {
-                    if dep_node.plan_node.is_filter() {
-                        // 检查过滤条件是否可以推入到索引扫描中
-                        if let Some(filter_node) = dep_node.plan_node.as_filter() {
-                            // 分析过滤条件，确定哪些部分可以推入到索引扫描
-                            let filter_condition = filter_node.condition();
-                            let split_result = can_push_down_to_index_scan(filter_condition);
-
-                            if let Some(pushable_condition) = split_result.pushable_condition {
-                                // 获取当前索引扫描节点
-                                if let Some(index_scan_node) = node.plan_node.as_index_scan() {
-                                    // 创建新的索引扫描节点，合并过滤条件
-                                    let mut new_index_scan_node = index_scan_node.clone();
-
-                                    // 合并现有过滤条件和新的过滤条件
-                                    let _new_filter = if let Some(existing_filter) =
-                                        &new_index_scan_node.filter
-                                    {
-                                        combine_conditions(
-                                            &pushable_condition,
-                                            &format!("{:?}", existing_filter),
-                                        )
-                                    } else {
-                                        format!("{:?}", pushable_condition)
-                                    };
-
-                                    // 由于IndexScanNode没有set_filter方法，我们需要创建一个新节点
-                                    // 这里简化处理，直接返回原节点
-
-                                    // 尝试将过滤条件转换为索引扫描限制
-                                    update_index_scan_limits(
-                                        &mut new_index_scan_node,
-                                        &filter_node.condition(),
-                                    );
-
-                                    // 创建带有修改后索引扫描节点的新OptGroupNode
-                                    let mut new_index_scan_opt_node = node.clone();
-                                    new_index_scan_opt_node.plan_node =
-                                        PlanNodeEnum::IndexScan(new_index_scan_node);
-
-                                    // 如果有剩余的过滤条件，创建新的过滤节点
-                                    if let Some(_remaining_condition) =
-                                        split_result.remaining_condition
-                                    {
-                                        let new_filter_node = filter_node.clone();
-                                        let mut new_filter_opt_node = dep_node.clone();
-                                        new_filter_opt_node.plan_node =
-                                            PlanNodeEnum::Filter(new_filter_node);
-                                        new_filter_opt_node.dependencies =
-                                            vec![new_index_scan_opt_node.id];
-
-                                        return Ok(Some(new_filter_opt_node));
-                                    } else {
-                                        // 没有剩余的过滤条件，直接返回索引扫描节点
-                                        return Ok(Some(new_index_scan_opt_node));
-                                    }
-                                } else {
-                                    return Ok(None);
-                                }
-                            } else {
-                                // 没有可以下推的条件，返回原始节点
-                                return Ok(Some(node.clone()));
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        Ok(None)
+        Ok(Some(TransformResult::unchanged()))
     }
 
     fn pattern(&self) -> Pattern {
-        PatternBuilder::index_scan() // 专门用于边索引扫描
+        PatternBuilder::index_scan()
     }
 }
 
@@ -121,31 +54,26 @@ impl OptRule for OptimizeTagIndexScanByFilterRule {
     fn apply(
         &self,
         _ctx: &mut OptContext,
-        node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        // 检查是否为索引扫描操作
-        if !node.plan_node.is_index_scan() {
-            return Ok(None);
+        node: &Rc<RefCell<OptGroupNode>>,
+    ) -> OptResult<Option<TransformResult>> {
+        let node_ref = node.borrow();
+        if !node_ref.plan_node.is_index_scan() {
+            return Ok(Some(TransformResult::unchanged()));
         }
 
-        // 查找依赖中的过滤操作
-        if node.dependencies.len() >= 1 {
-            for dep_id in &node.dependencies {
+        if node_ref.dependencies.len() >= 1 {
+            for dep_id in &node_ref.dependencies {
                 if let Some(dep_node) = _ctx.find_group_node_by_plan_node_id(*dep_id) {
-                    if dep_node.plan_node.is_filter() {
-                        // 检查过滤条件是否可以推入到索引扫描中
-                        if let Some(filter_node) = dep_node.plan_node.as_filter() {
-                            // 分析过滤条件，确定哪些部分可以推入到索引扫描
+                    let dep_node_ref = dep_node.borrow();
+                    if dep_node_ref.plan_node.is_filter() {
+                        if let Some(filter_node) = dep_node_ref.plan_node.as_filter() {
                             let filter_condition = filter_node.condition();
                             let split_result = can_push_down_to_index_scan(filter_condition);
 
                             if let Some(pushable_condition) = split_result.pushable_condition {
-                                // 获取当前索引扫描节点
-                                if let Some(index_scan_node) = node.plan_node.as_index_scan() {
-                                    // 创建新的索引扫描节点，合并过滤条件
+                                drop(node_ref);
+                                if let Some(index_scan_node) = node.borrow().plan_node.as_index_scan() {
                                     let mut new_index_scan_node = index_scan_node.clone();
-
-                                    // 合并现有过滤条件和新的过滤条件
                                     let _new_filter = if let Some(existing_filter) =
                                         &new_index_scan_node.filter
                                     {
@@ -157,56 +85,50 @@ impl OptRule for OptimizeTagIndexScanByFilterRule {
                                         format!("{:?}", pushable_condition)
                                     };
 
-                                    // 由于IndexScanNode没有set_filter方法，我们需要创建一个新节点
-                                    // 这里简化处理，直接返回原节点
-
-                                    // 尝试将过滤条件转换为索引扫描限制
                                     update_index_scan_limits(
                                         &mut new_index_scan_node,
                                         &filter_node.condition(),
                                     );
 
-                                    // 创建带有修改后索引扫描节点的新OptGroupNode
-                                    let mut new_index_scan_opt_node = node.clone();
+                                    let mut new_index_scan_opt_node = node.borrow().clone();
                                     new_index_scan_opt_node.plan_node =
                                         PlanNodeEnum::IndexScan(new_index_scan_node);
 
-                                    // 如果有剩余的过滤条件，创建新的过滤节点
                                     if let Some(_remaining_condition) =
                                         split_result.remaining_condition
                                     {
                                         let new_filter_node = filter_node.clone();
-                                        // 由于FilterNode没有set_condition方法，我们需要创建一个新节点
-                                        // 这里简化处理，直接返回原节点
-
-                                        let mut new_filter_opt_node = dep_node.clone();
+                                        drop(dep_node_ref);
+                                        let mut new_filter_opt_node = dep_node.borrow().clone();
                                         new_filter_opt_node.plan_node =
                                             PlanNodeEnum::Filter(new_filter_node);
                                         new_filter_opt_node.dependencies =
                                             vec![new_index_scan_opt_node.id];
 
-                                        return Ok(Some(new_filter_opt_node));
+                                        let mut result = TransformResult::new();
+                                        result.add_new_group_node(Rc::new(RefCell::new(new_filter_opt_node)));
+                                        return Ok(Some(result));
                                     } else {
-                                        // 没有剩余的过滤条件，直接返回索引扫描节点
-                                        return Ok(Some(new_index_scan_opt_node));
+                                        let mut result = TransformResult::new();
+                                        result.add_new_group_node(Rc::new(RefCell::new(new_index_scan_opt_node)));
+                                        return Ok(Some(result));
                                     }
                                 } else {
-                                    return Ok(None);
+                                    return Ok(Some(TransformResult::unchanged()));
                                 }
                             } else {
-                                // 没有可以下推的条件，返回原始节点
-                                return Ok(Some(node.clone()));
+                                return Ok(Some(TransformResult::unchanged()));
                             }
                         }
                     }
                 }
             }
         }
-        Ok(None)
+        Ok(Some(TransformResult::unchanged()))
     }
 
     fn pattern(&self) -> Pattern {
-        PatternBuilder::index_scan() // 专门用于标签索引扫描
+        PatternBuilder::index_scan()
     }
 }
 
@@ -224,31 +146,24 @@ impl OptRule for EdgeIndexFullScanRule {
     fn apply(
         &self,
         _ctx: &mut OptContext,
-        node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        // 检查是否为可能是全扫描的索引扫描操作
-        if !node.plan_node.is_index_scan() {
-            return Ok(None);
+        node: &Rc<RefCell<OptGroupNode>>,
+    ) -> OptResult<Option<TransformResult>> {
+        let node_ref = node.borrow();
+        if !node_ref.plan_node.is_index_scan() {
+            return Ok(Some(TransformResult::unchanged()));
         }
-
-        // 检查是否没有有效的过滤条件，这可能意味着全扫描
-        // 在完整实现中，我们需要检查索引扫描的条件
-        // 如果索引扫描是全扫描（没有有效过滤条件），可能转换为其他操作
-        if let Some(_index_scan_node) = node.plan_node.as_index_scan() {
-            // 如果索引扫描没有有效的过滤条件，可能是全扫描
-            if let Some(index_scan_plan_node) = node.plan_node.as_index_scan() {
+        if let Some(_index_scan_node) = node_ref.plan_node.as_index_scan() {
+            if let Some(index_scan_plan_node) = node_ref.plan_node.as_index_scan() {
                 if !index_scan_plan_node.has_effective_filter() {
-                    // 根据具体情况，我们可能将其转换为更高效的操作
-                    // 简单起见，目前我们返回原节点
-                    return Ok(Some(node.clone()));
+                    return Ok(Some(TransformResult::unchanged()));
                 }
             }
         }
-        Ok(None)
+        Ok(Some(TransformResult::unchanged()))
     }
 
     fn pattern(&self) -> Pattern {
-        PatternBuilder::index_scan() // 专门用于边索引扫描
+        PatternBuilder::index_scan()
     }
 }
 
@@ -266,31 +181,24 @@ impl OptRule for TagIndexFullScanRule {
     fn apply(
         &self,
         _ctx: &mut OptContext,
-        node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        // 检查是否为可能是全扫描的索引扫描操作
-        if !node.plan_node.is_index_scan() {
-            return Ok(None);
+        node: &Rc<RefCell<OptGroupNode>>,
+    ) -> OptResult<Option<TransformResult>> {
+        let node_ref = node.borrow();
+        if !node_ref.plan_node.is_index_scan() {
+            return Ok(Some(TransformResult::unchanged()));
         }
-
-        // 检查是否没有有效的过滤条件，这可能意味着全扫描
-        // 在完整实现中，我们需要检查索引扫描的条件
-        // 如果索引扫描是全扫描（没有有效过滤条件），可能转换为其他操作
-        if let Some(_index_scan_node) = node.plan_node.as_index_scan() {
-            // 如果索引扫描没有有效的过滤条件，可能是全扫描
-            if let Some(index_scan_plan_node) = node.plan_node.as_index_scan() {
+        if let Some(_index_scan_node) = node_ref.plan_node.as_index_scan() {
+            if let Some(index_scan_plan_node) = node_ref.plan_node.as_index_scan() {
                 if !index_scan_plan_node.has_effective_filter() {
-                    // 根据具体情况，我们可能将其转换为更高效的操作
-                    // 简单起见，目前我们返回原节点
-                    return Ok(Some(node.clone()));
+                    return Ok(Some(TransformResult::unchanged()));
                 }
             }
         }
-        Ok(None)
+        Ok(Some(TransformResult::unchanged()))
     }
 
     fn pattern(&self) -> Pattern {
-        PatternBuilder::index_scan() // 专门用于标签索引扫描
+        PatternBuilder::index_scan()
     }
 }
 
@@ -308,24 +216,16 @@ impl OptRule for IndexScanRule {
     fn apply(
         &self,
         _ctx: &mut OptContext,
-        node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        // 检查是否为索引扫描操作
-        if !node.plan_node.is_index_scan() {
-            return Ok(None);
+        node: &Rc<RefCell<OptGroupNode>>,
+    ) -> OptResult<Option<TransformResult>> {
+        let node_ref = node.borrow();
+        if !node_ref.plan_node.is_index_scan() {
+            return Ok(Some(TransformResult::unchanged()));
         }
-
-        // 在完整实现中，我们会基于各种因素优化索引扫描：
-        // - 索引选择性
-        // - 数据分布
-        // - 可用内存
-        // 这里，我们基于NebulaGraph的IndexScanRule实现，检查索引扫描的查询上下文
-        if let Some(_index_scan_node) = node.plan_node.as_index_scan() {
-            // 实际优化逻辑可能会根据索引条件创建更优化的索引扫描计划
-            // 暂时返回当前节点
-            Ok(Some(node.clone()))
+        if let Some(_index_scan_node) = node_ref.plan_node.as_index_scan() {
+            Ok(Some(TransformResult::unchanged()))
         } else {
-            Ok(None)
+            Ok(Some(TransformResult::unchanged()))
         }
     }
 
@@ -348,25 +248,23 @@ impl OptRule for UnionAllEdgeIndexScanRule {
     fn apply(
         &self,
         _ctx: &mut OptContext,
-        node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        // 检查是否为作为UNION一部分的索引扫描操作
-        if !node.plan_node.is_index_scan() {
-            return Ok(None);
+        node: &Rc<RefCell<OptGroupNode>>,
+    ) -> OptResult<Option<TransformResult>> {
+        let node_ref = node.borrow();
+        if !node_ref.plan_node.is_index_scan() {
+            return Ok(Some(TransformResult::unchanged()));
         }
-
-        // 检查节点是否有多个依赖（表示UNION操作）
-        if node.dependencies.len() > 1 {
-            // 尝试优化UNION ALL操作
-            return self.optimize_union_all_index_scans(_ctx, node, true); // true表示边索引
+        if node_ref.dependencies.len() > 1 {
+            drop(node_ref);
+            if let Ok(result) = self.optimize_union_all_index_scans(_ctx, node, true) {
+                return Ok(result);
+            }
         }
-
-        // 单个索引扫描，无需优化
-        Ok(Some(node.clone()))
+        Ok(Some(TransformResult::unchanged()))
     }
 
     fn pattern(&self) -> Pattern {
-        PatternBuilder::index_scan() // 用于边索引扫描的UNION ALL
+        PatternBuilder::index_scan()
     }
 }
 
@@ -384,25 +282,20 @@ impl OptRule for UnionAllTagIndexScanRule {
     fn apply(
         &self,
         _ctx: &mut OptContext,
-        node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        // 检查是否为作为UNION一部分的索引扫描操作
-        if !node.plan_node.is_index_scan() {
-            return Ok(None);
+        group_node: &Rc<RefCell<OptGroupNode>>,
+    ) -> OptResult<Option<TransformResult>> {
+        let node_ref = group_node.borrow();
+        if !node_ref.plan_node.is_index_scan() {
+            return Ok(Some(TransformResult::unchanged()));
         }
-
-        // 检查节点是否有多个依赖（表示UNION操作）
-        if node.dependencies.len() > 1 {
-            // 尝试优化UNION ALL操作
-            return self.optimize_union_all_index_scans(_ctx, node, false); // false表示标签索引
+        if node_ref.dependencies.len() > 1 {
+            return Ok(Some(TransformResult::unchanged()));
         }
-
-        // 单个索引扫描，无需优化
-        Ok(Some(node.clone()))
+        Ok(Some(TransformResult::unchanged()))
     }
 
     fn pattern(&self) -> Pattern {
-        PatternBuilder::index_scan() // 用于标签索引扫描的UNION ALL
+        PatternBuilder::index_scan()
     }
 }
 
@@ -679,55 +572,49 @@ fn extract_range_condition(condition: &str, op: &str) -> Option<(String, String)
 
 /// UnionAll规则共用的优化方法
 impl UnionAllEdgeIndexScanRule {
-    /// 优化UNION ALL索引扫描操作
     fn optimize_union_all_index_scans(
         &self,
         _ctx: &mut OptContext,
-        node: &OptGroupNode,
+        node: &Rc<RefCell<OptGroupNode>>,
         is_edge_index: bool,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        // 获取所有依赖的索引扫描节点
+    ) -> OptResult<Option<TransformResult>> {
+        let node_ref = node.borrow();
         let mut index_scan_nodes = Vec::new();
-        for &dep_id in &node.dependencies {
+        for &dep_id in &node_ref.dependencies {
             if let Some(dep_node) = _ctx.find_group_node_by_plan_node_id(dep_id) {
-                if dep_node.plan_node.is_index_scan() {
-                    if let Some(index_scan) = dep_node.plan_node.as_index_scan() {
+                let dep_node_ref = dep_node.borrow();
+                if dep_node_ref.plan_node.is_index_scan() {
+                    if let Some(index_scan) = dep_node_ref.plan_node.as_index_scan() {
                         index_scan_nodes.push((dep_id, index_scan.clone()));
                     }
                 }
             }
         }
 
-        // 如果没有足够的索引扫描节点，无法优化
         if index_scan_nodes.len() < 2 {
-            return Ok(Some(node.clone()));
+            return Ok(Some(TransformResult::unchanged()));
         }
 
-        // 尝试合并兼容的索引扫描
         if let Some(merged_scan) = self.try_merge_index_scans(&index_scan_nodes, is_edge_index) {
-            // 创建新的索引扫描节点
-            let new_index_scan_node = merged_scan;
-
-            // 创建新的OptGroupNode
-            let mut new_opt_node = node.clone();
+            let mut new_opt_node = node_ref.clone();
             new_opt_node.plan_node =
                 crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::IndexScan(
-                    new_index_scan_node,
+                    merged_scan,
                 );
-
-            // 清空原有依赖，因为已经合并
             new_opt_node.dependencies.clear();
 
-            Ok(Some(new_opt_node))
+            let mut result = TransformResult::new();
+            result.add_new_group_node(Rc::new(RefCell::new(new_opt_node)));
+            Ok(Some(result))
         } else {
-            // 无法合并，尝试重新排序以提高效率
             if let Some(reordered_deps) = self.reorder_index_scans(_ctx, &index_scan_nodes) {
-                let mut new_opt_node = node.clone();
+                let mut new_opt_node = node_ref.clone();
                 new_opt_node.dependencies = reordered_deps;
-                Ok(Some(new_opt_node))
+                let mut result = TransformResult::new();
+                result.add_new_group_node(Rc::new(RefCell::new(new_opt_node)));
+                Ok(Some(result))
             } else {
-                // 无法优化，返回原节点
-                Ok(Some(node.clone()))
+                Ok(Some(TransformResult::unchanged()))
             }
         }
     }
@@ -855,8 +742,9 @@ impl UnionAllTagIndexScanRule {
         let mut index_scan_nodes = Vec::new();
         for &dep_id in &node.dependencies {
             if let Some(dep_node) = _ctx.find_group_node_by_plan_node_id(dep_id) {
-                if dep_node.plan_node.is_index_scan() {
-                    if let Some(index_scan) = dep_node.plan_node.as_index_scan() {
+                let dep_node_ref = dep_node.borrow();
+                if dep_node_ref.plan_node.is_index_scan() {
+                    if let Some(index_scan) = dep_node_ref.plan_node.as_index_scan() {
                         index_scan_nodes.push((dep_id, index_scan.clone()));
                     }
                 }

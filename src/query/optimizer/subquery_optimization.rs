@@ -2,10 +2,13 @@
 //! 优化子查询的执行方式
 
 use super::engine::OptimizerError;
-use super::plan::{OptContext, OptGroupNode, OptRule, Pattern};
+use super::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, Result as OptResult};
 use super::rule_traits::BaseOptRule;
 use crate::query::planner::plan::core::nodes::PlanNodeEnum;
 use crate::query::visitor::PlanNodeVisitor;
+use std::cell::RefCell;
+use std::rc::Rc;
+use std::result::Result as StdResult;
 
 /// 子查询优化规则
 ///
@@ -21,18 +24,24 @@ impl OptRule for SubQueryOptimizationRule {
     fn apply(
         &self,
         _ctx: &mut OptContext,
-        node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
+        node: &Rc<RefCell<OptGroupNode>>,
+    ) -> OptResult<Option<TransformResult>> {
+        let node_ref = node.borrow();
         let mut visitor = SubQueryOptimizationVisitor {
             optimized: false,
             new_node: None,
         };
-
-        let result = visitor.visit(&node.plan_node);
+        let result = visitor.visit(&node_ref.plan_node);
         if result.optimized {
-            Ok(result.new_node)
+            if let Some(new_node) = result.new_node {
+                let mut transform_result = TransformResult::new();
+                transform_result.add_new_group_node(Rc::new(RefCell::new(new_node)));
+                Ok(Some(transform_result))
+            } else {
+                Ok(Some(TransformResult::unchanged()))
+            }
         } else {
-            Ok(None)
+            Ok(Some(TransformResult::unchanged()))
         }
     }
 

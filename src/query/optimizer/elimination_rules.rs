@@ -12,6 +12,7 @@ use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::visitor::PlanNodeVisitor;
 use std::rc::Rc;
 use std::cell::RefCell;
+use std::result::Result as StdResult;
 
 /// 消除冗余过滤操作的规则
 #[derive(Debug)]
@@ -93,11 +94,12 @@ impl PlanNodeVisitor for EliminateFilterVisitor {
                 let mut new_node = child_node.clone();
 
                 if let Some(_output_var) = node.output_var() {
-                    new_node.plan_node = node.input().clone();
+                    let mut new_node_borrowed = new_node.borrow_mut();
+                    new_node_borrowed.plan_node = node.input().clone();
                 }
 
                 self.eliminated = true;
-                self.new_node = Some(new_node);
+                self.new_node = Some(new_node.borrow().clone());
             }
         }
 
@@ -176,18 +178,23 @@ impl PlanNodeVisitor for DedupEliminationVisitor {
         let input_id = input.id() as usize;
 
         if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(input_id) {
-            if child_node.plan_node.is_index_scan()
-                || child_node.plan_node.is_get_vertices()
-                || child_node.plan_node.is_get_edges()
+            let child_node_ref = child_node.borrow();
+            if child_node_ref.plan_node.is_index_scan()
+                || child_node_ref.plan_node.is_get_vertices()
+                || child_node_ref.plan_node.is_get_edges()
             {
-                let mut new_node = child_node.clone();
+                let mut new_node = child_node_ref.clone();
 
                 if let Some(_output_var) = node.output_var() {
                     new_node.plan_node = input.clone();
                 }
 
+                drop(child_node_ref);
+
                 self.eliminated = true;
                 self.new_node = Some(new_node);
+            } else {
+                drop(child_node_ref);
             }
         }
 
@@ -327,18 +334,23 @@ impl PlanNodeVisitor for RemoveNoopProjectVisitor {
 
         if let Some(dep_id) = self.node_dependencies.first() {
             if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(*dep_id) {
+                let child_node_ref = child_node.borrow();
                 let columns = node.columns();
-                let child_col_names = child_node.plan_node.col_names();
+                let child_col_names = child_node_ref.plan_node.col_names();
 
                 if self.is_noop_projection(&columns, &child_col_names) {
-                    let mut new_node = child_node.clone();
+                    let mut new_node = child_node_ref.clone();
 
                     if let Some(_output_var) = node.output_var() {
                         new_node.plan_node = input.clone();
                     }
 
+                    drop(child_node_ref);
+
                     self.eliminated = true;
                     self.new_node = Some(new_node);
+                } else {
+                    drop(child_node_ref);
                 }
             }
         }
@@ -427,12 +439,13 @@ impl PlanNodeVisitor for EliminateAppendVerticesVisitor {
                 if let Some(_output_var) = node.output_var() {
                     let inputs = node.inputs();
                     if let Some(input) = inputs.first() {
-                        new_node.plan_node = (**input).clone();
+                        let mut new_node_borrowed = new_node.borrow_mut();
+                        new_node_borrowed.plan_node = (**input).clone();
                     }
                 }
 
                 self.eliminated = true;
-                self.new_node = Some(new_node);
+                self.new_node = Some(new_node.borrow().clone());
             }
             None
         } else {
@@ -518,11 +531,12 @@ impl PlanNodeVisitor for RemoveAppendVerticesBelowJoinVisitor {
 
         if let Some(dep_id) = self.node_dependencies.first() {
             if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(*dep_id) {
-                if child_node.plan_node.is_inner_join()
-                    || child_node.plan_node.is_hash_inner_join()
-                    || child_node.plan_node.is_hash_left_join()
+                let child_node_ref = child_node.borrow();
+                if child_node_ref.plan_node.is_inner_join()
+                    || child_node_ref.plan_node.is_hash_inner_join()
+                    || child_node_ref.plan_node.is_hash_left_join()
                 {
-                    let mut new_node = child_node.clone();
+                    let mut new_node = child_node_ref.clone();
 
                     if let Some(_output_var) = node.output_var() {
                         let inputs = node.inputs();
@@ -531,8 +545,12 @@ impl PlanNodeVisitor for RemoveAppendVerticesBelowJoinVisitor {
                         }
                     }
 
+                    drop(child_node_ref);
+
                     self.eliminated = true;
                     self.new_node = Some(new_node);
+                } else {
+                    drop(child_node_ref);
                 }
             }
         } else {
@@ -630,11 +648,12 @@ impl PlanNodeVisitor for EliminateRowCollectVisitor {
             let mut new_node = child_node.clone();
 
             if let Some(_output_var) = node.output_var() {
-                new_node.plan_node = input.clone();
+                let mut new_node_borrowed = new_node.borrow_mut();
+                new_node_borrowed.plan_node = input.clone();
             }
 
             self.eliminated = true;
-            self.new_node = Some(new_node);
+            self.new_node = Some(new_node.borrow().clone());
         }
 
         self.clone()

@@ -2,6 +2,7 @@
 //! 提供优化规则的通用接口和辅助函数，减少代码重复
 
 use std::cell::RefCell;
+use std::ops::Deref;
 use std::rc::Rc;
 
 use super::core::Cost;
@@ -11,6 +12,7 @@ use crate::core::{Expression, Value};
 use crate::query::planner::plan::PlanNodeEnum;
 
 use std::collections::HashMap;
+use std::result::Result as StdResult;
 
 pub trait BaseOptRule: OptRule {
     fn priority(&self) -> u32 {
@@ -47,7 +49,7 @@ pub trait PushDownRule: BaseOptRule {
         ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
         child: &OptGroupNode,
-    ) -> Result<Option<TransformResult>, OptimizerError>;
+    ) -> StdResult<Option<TransformResult>, OptimizerError>;
 }
 
 pub trait MergeRule: BaseOptRule {
@@ -402,7 +404,7 @@ pub fn has_dependency_of_kind(
         // 使用OptContext查找依赖节点
         if let Some(dep_node) = ctx.find_group_node_by_plan_node_id(dep_id) {
             // 检查依赖节点的计划节点类型
-            if dep_node.plan_node.name() == node_name {
+            if dep_node.borrow().plan_node.name() == node_name {
                 return true;
             }
         }
@@ -419,20 +421,18 @@ pub fn has_dependency_of_kind(
 ///
 /// # 返回值
 /// 如果节点有依赖，返回第一个依赖节点的引用；否则返回None
-pub fn get_first_dependency<'a>(
-    ctx: &'a OptContext,
+pub fn get_first_dependency(
+    ctx: &OptContext,
     node: &OptGroupNode,
-) -> Option<&'a OptGroupNode> {
-    // 检查是否有依赖
+) -> Option<OptGroupNode> {
     if node.dependencies.is_empty() {
         return None;
     }
 
-    // 获取第一个依赖的ID
     let first_dep_id = node.dependencies[0];
 
-    // 使用OptContext查找依赖节点
     ctx.find_group_node_by_plan_node_id(first_dep_id)
+        .map(|n| n.borrow().clone())
 }
 
 /// 辅助函数：获取节点的所有依赖（完整实现）
@@ -443,14 +443,12 @@ pub fn get_first_dependency<'a>(
 ///
 /// # 返回值
 /// 返回包含所有依赖节点引用的向量
-pub fn get_all_dependencies<'a>(ctx: &'a OptContext, node: &OptGroupNode) -> Vec<&'a OptGroupNode> {
+pub fn get_all_dependencies(ctx: &OptContext, node: &OptGroupNode) -> Vec<OptGroupNode> {
     let mut dependencies = Vec::new();
 
-    // 遍历节点的依赖列表
     for &dep_id in &node.dependencies {
-        // 使用OptContext查找依赖节点
         if let Some(dep_node) = ctx.find_group_node_by_plan_node_id(dep_id) {
-            dependencies.push(dep_node);
+            dependencies.push(dep_node.borrow().clone());
         }
     }
 
@@ -466,21 +464,19 @@ pub fn get_all_dependencies<'a>(ctx: &'a OptContext, node: &OptGroupNode) -> Vec
 ///
 /// # 返回值
 /// 如果索引有效，返回对应依赖节点的引用；否则返回None
-pub fn get_dependency_at<'a>(
-    ctx: &'a OptContext,
+pub fn get_dependency_at(
+    ctx: &OptContext,
     node: &OptGroupNode,
     index: usize,
-) -> Option<&'a OptGroupNode> {
-    // 检查索引是否有效
+) -> Option<OptGroupNode> {
     if index >= node.dependencies.len() {
         return None;
     }
 
-    // 获取指定索引的依赖ID
     let dep_id = node.dependencies[index];
 
-    // 使用OptContext查找依赖节点
     ctx.find_group_node_by_plan_node_id(dep_id)
+        .map(|n| n.borrow().clone())
 }
 
 /// 辅助函数：创建新的OptGroupNode
@@ -535,7 +531,7 @@ macro_rules! impl_push_down_rule {
                 ctx: &mut OptContext,
                 group_node: &Rc<RefCell<OptGroupNode>>,
                 child: &OptGroupNode,
-            ) -> Result<Option<TransformResult>, OptimizerError> {
+            ) -> StdResult<Option<TransformResult>, OptimizerError> {
                 let node_ref = group_node.borrow();
                 let mut result = TransformResult::new();
                 result.add_new_group_node(group_node.clone());

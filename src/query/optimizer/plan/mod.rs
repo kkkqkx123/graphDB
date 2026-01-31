@@ -9,7 +9,7 @@ pub use context::OptContext;
 pub use group::OptGroup;
 pub use node::{
     MatchedResult, MatchNode, OptGroupNode, OptRule, Pattern, PlanCandidate,
-    TransformResult, OptimizerError,
+    Result, TransformResult, OptimizerError,
 };
 pub use crate::query::optimizer::core::PlanNodeProperties;
 

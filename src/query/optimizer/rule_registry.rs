@@ -102,8 +102,10 @@ macro_rules! register_rule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::optimizer::{BaseOptRule, OptContext, OptGroupNode, OptimizerError, OptRule};
+    use crate::query::optimizer::{BaseOptRule, OptContext, OptGroupNode, OptimizerError, OptRule, Result, TransformResult};
     use crate::query::optimizer::plan::Pattern;
+    use std::cell::RefCell;
+    use std::rc::Rc;
 
     #[derive(Debug)]
     struct TestRule;
@@ -116,9 +118,9 @@ mod tests {
         fn apply(
             &self,
             _ctx: &mut OptContext,
-            _group_node: &OptGroupNode,
-        ) -> Result<Option<OptGroupNode>, OptimizerError> {
-            Ok(None)
+            _group_node: &Rc<RefCell<OptGroupNode>>,
+        ) -> Result<Option<TransformResult>> {
+            Ok(Some(TransformResult::unchanged()))
         }
 
         fn pattern(&self) -> Pattern {

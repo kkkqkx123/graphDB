@@ -2,11 +2,14 @@
 //! 这些规则负责将计划节点转换为等效但更高效的节点
 
 use super::engine::OptimizerError;
-use super::plan::{OptContext, OptGroupNode, OptRule, Pattern};
+use super::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, Result as OptResult};
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::BaseOptRule;
 use crate::query::planner::plan::core::nodes::PlanNodeEnum;
 use crate::query::visitor::PlanNodeVisitor;
+use std::cell::RefCell;
+use std::rc::Rc;
+use std::result::Result as StdResult;
 
 /// 转换Limit-Sort为TopN的规则
 #[derive(Debug)]
@@ -20,19 +23,25 @@ impl OptRule for TopNRule {
     fn apply(
         &self,
         ctx: &mut OptContext,
-        node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
+        node: &Rc<RefCell<OptGroupNode>>,
+    ) -> OptResult<Option<TransformResult>> {
+        let node_ref = node.borrow();
         let mut visitor = TopNRuleVisitor {
             ctx: ctx as *const OptContext,
             converted: false,
             new_node: None,
         };
-
-        let result = visitor.visit(&node.plan_node);
+        let result = visitor.visit(&node_ref.plan_node);
         if result.converted {
-            Ok(result.new_node)
+            if let Some(new_node) = result.new_node {
+                let mut transform_result = TransformResult::new();
+                transform_result.add_new_group_node(Rc::new(RefCell::new(new_node)));
+                Ok(Some(transform_result))
+            } else {
+                Ok(Some(TransformResult::unchanged()))
+            }
         } else {
-            Ok(None)
+            Ok(Some(TransformResult::unchanged()))
         }
     }
 
@@ -74,9 +83,10 @@ impl PlanNodeVisitor for TopNRuleVisitor {
 
         let child_dep_id = node.dependencies()[0].id() as usize;
         if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(child_dep_id) {
-            if child_node.plan_node.is_sort() {
-                if let Some(sort_plan_node) = child_node.plan_node.as_sort() {
-                    let mut new_node = child_node.clone();
+            let child_node_ref = child_node.borrow();
+            if child_node_ref.plan_node.is_sort() {
+                if let Some(sort_plan_node) = child_node_ref.plan_node.as_sort() {
+                    let mut new_node = child_node_ref.clone();
                     let sort_input = sort_plan_node.dependencies()[0].as_ref().clone();
 
                     let mut topn_node =
@@ -93,11 +103,13 @@ impl PlanNodeVisitor for TopNRuleVisitor {
 
                     new_node.plan_node = PlanNodeEnum::TopN(topn_node);
 
-                    if !child_node.dependencies.is_empty() {
-                        new_node.dependencies = child_node.dependencies.clone();
+                    if !child_node_ref.dependencies.is_empty() {
+                        new_node.dependencies = child_node_ref.dependencies.clone();
                     } else {
                         new_node.dependencies = vec![];
                     }
+
+                    drop(child_node_ref);
 
                     self.converted = true;
                     self.new_node = Some(new_node);

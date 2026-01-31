@@ -2,7 +2,7 @@
 //! 这些规则负责将过滤条件下推到计划树的底层，以减少数据处理量
 
 use super::engine::OptimizerError;
-use super::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult};
+use super::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, Result as OptResult};
 use super::rule_patterns::{CommonPatterns, PatternBuilder};
 use super::rule_traits::{
     combine_conditions, combine_expression_list, BaseOptRule, FilterSplitResult, PushDownRule,
@@ -13,6 +13,7 @@ use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::visitor::PlanNodeVisitor;
 use std::rc::Rc;
 use std::cell::RefCell;
+use std::result::Result as StdResult;
 
 /// 谓词下推访问者
 #[derive(Clone)]
@@ -84,27 +85,37 @@ impl PlanNodeVisitor for PredicatePushDownVisitor {
         let input_id = input.id() as usize;
 
         if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(input_id) {
-            let child_name = child_node.plan_node.name();
+            let child_node_ref = child_node.borrow();
+            let child_name = child_node_ref.plan_node.name();
 
-            match child_name.as_ref() {
+            let (pushed_down, new_node) = match child_name.as_ref() {
                 "ScanVertices" | "ScanEdges" | "IndexScan" | "Traverse" => {
                     if Self::can_push_down_condition(condition) {
-                        let mut new_child_node = child_node.clone();
-
                         let new_filter_condition = Self::split_condition_for_pushdown(condition);
 
                         if !new_filter_condition.is_pushable_is_empty() && new_filter_condition.remaining().is_some() {
+                            let mut new_child_node = child_node_ref.clone();
                             new_child_node.plan_node = input.clone();
-                            self.pushed_down = true;
-                            self.new_node = Some(new_child_node);
+                            (true, Some(new_child_node))
                         } else if !new_filter_condition.is_pushable_is_empty() {
+                            let mut new_child_node = child_node_ref.clone();
                             new_child_node.plan_node = input.clone();
-                            self.pushed_down = true;
-                            self.new_node = Some(new_child_node);
+                            (true, Some(new_child_node))
+                        } else {
+                            (false, None)
                         }
+                    } else {
+                        (false, None)
                     }
                 }
-                _ => {}
+                _ => (false, None),
+            };
+
+            drop(child_node_ref);
+
+            if pushed_down {
+                self.pushed_down = true;
+                self.new_node = new_node;
             }
         }
 
@@ -150,7 +161,7 @@ impl OptRule for FilterPushDownRule {
         &self,
         ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
-    ) -> Result<Option<TransformResult>, OptimizerError> {
+    ) -> OptResult<Option<TransformResult>> {
         let node_ref = group_node.borrow();
         // 检查是否为过滤节点
         if !node_ref.plan_node.is_filter() {
@@ -187,8 +198,10 @@ impl FilterPushDownRule {
         &self,
         ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
-    ) -> Result<Option<TransformResult>, OptimizerError> {
-        Ok(Some(TransformResult::with_replacement(group_node.clone())))
+    ) -> OptResult<Option<TransformResult>> {
+        let mut result = TransformResult::new();
+        result.add_new_group_node(group_node.clone());
+        Ok(Some(result))
     }
 }
 
@@ -209,11 +222,11 @@ impl PushDownRule for FilterPushDownRule {
 
     fn create_pushed_down_node(
         &self,
-        ctx: &mut OptContext,
+        _ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
-        child: &OptGroupNode,
-    ) -> Result<Option<TransformResult>, OptimizerError> {
-        let node_ref = group_node.borrow();
+        _child: &OptGroupNode,
+    ) -> OptResult<Option<TransformResult>> {
+        let _node_ref = group_node.borrow();
         let mut result = TransformResult::new();
         result.add_new_group_node(group_node.clone());
         Ok(Some(result))
@@ -233,7 +246,7 @@ impl OptRule for PushFilterDownTraverseRule {
         &self,
         ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
-    ) -> Result<Option<TransformResult>, OptimizerError> {
+    ) -> OptResult<Option<TransformResult>> {
         let node_ref = group_node.borrow();
         // 检查是否为过滤节点
         if !node_ref.plan_node.is_filter() {
@@ -382,11 +395,11 @@ impl PushDownRule for PushFilterDownTraverseRule {
 
     fn create_pushed_down_node(
         &self,
-        ctx: &mut OptContext,
+        _ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
-        child: &OptGroupNode,
-    ) -> Result<Option<TransformResult>, OptimizerError> {
-        let node_ref = group_node.borrow();
+        _child: &OptGroupNode,
+    ) -> OptResult<Option<TransformResult>> {
+        let _node_ref = group_node.borrow();
         // 在完整实现中，这里会创建下推后的节点
         // 目前简化实现，返回带有替换的TransformResult
         let mut result = TransformResult::new();
@@ -408,7 +421,7 @@ impl OptRule for PushFilterDownExpandRule {
         &self,
         ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
-    ) -> Result<Option<TransformResult>, OptimizerError> {
+    ) -> OptResult<Option<TransformResult>> {
         let node_ref = group_node.borrow();
         // 检查是否为过滤节点后跟扩展操作
         if !node_ref.plan_node.is_filter() {
@@ -445,7 +458,7 @@ impl OptRule for PushFilterDownExpandRule {
                                 let mut new_filter_opt_node = node_ref.clone();
                                 new_filter_opt_node.plan_node =
                                     PlanNodeEnum::Filter(_new_filter_node);
-                                new_filter_opt_node.dependencies = vec![child_ref.node.id];
+                                new_filter_opt_node.dependencies = vec![child_ref.id];
 
                                 // 如果有剩余的过滤条件，创建另一个过滤节点
                                 if let Some(_remaining_condition) = split_result.remaining_condition
@@ -507,11 +520,11 @@ impl PushDownRule for PushFilterDownExpandRule {
 
     fn create_pushed_down_node(
         &self,
-        ctx: &mut OptContext,
+        _ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
-        child: &OptGroupNode,
-    ) -> Result<Option<TransformResult>, OptimizerError> {
-        let node_ref = group_node.borrow();
+        _child: &OptGroupNode,
+    ) -> OptResult<Option<TransformResult>> {
+        let _node_ref = group_node.borrow();
         let mut result = TransformResult::new();
         result.add_new_group_node(group_node.clone());
         Ok(Some(result))
@@ -531,7 +544,7 @@ impl OptRule for PushFilterDownHashInnerJoinRule {
         &self,
         ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
-    ) -> Result<Option<TransformResult>, OptimizerError> {
+    ) -> OptResult<Option<TransformResult>> {
         let node_ref = group_node.borrow();
         // 检查是否为过滤操作在哈希内连接之上
         if !node_ref.plan_node.is_filter() {
@@ -574,11 +587,11 @@ impl PushDownRule for PushFilterDownHashInnerJoinRule {
 
     fn create_pushed_down_node(
         &self,
-        ctx: &mut OptContext,
+        _ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
-        child: &OptGroupNode,
-    ) -> Result<Option<TransformResult>, OptimizerError> {
-        let node_ref = group_node.borrow();
+        _child: &OptGroupNode,
+    ) -> OptResult<Option<TransformResult>> {
+        let _node_ref = group_node.borrow();
         let mut result = TransformResult::new();
         result.add_new_group_node(group_node.clone());
         Ok(Some(result))
@@ -598,7 +611,7 @@ impl OptRule for PushFilterDownHashLeftJoinRule {
         &self,
         ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
-    ) -> Result<Option<TransformResult>, OptimizerError> {
+    ) -> OptResult<Option<TransformResult>> {
         let node_ref = group_node.borrow();
         // 检查是否为过滤操作在哈希左连接之上
         if !node_ref.plan_node.is_filter() {
@@ -641,11 +654,11 @@ impl PushDownRule for PushFilterDownHashLeftJoinRule {
 
     fn create_pushed_down_node(
         &self,
-        ctx: &mut OptContext,
+        _ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
-        child: &OptGroupNode,
-    ) -> Result<Option<TransformResult>, OptimizerError> {
-        let node_ref = group_node.borrow();
+        _child: &OptGroupNode,
+    ) -> OptResult<Option<TransformResult>> {
+        let _node_ref = group_node.borrow();
         let mut result = TransformResult::new();
         result.add_new_group_node(group_node.clone());
         Ok(Some(result))
@@ -665,7 +678,7 @@ impl OptRule for PushFilterDownInnerJoinRule {
         &self,
         ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
-    ) -> Result<Option<TransformResult>, OptimizerError> {
+    ) -> OptResult<Option<TransformResult>> {
         let node_ref = group_node.borrow();
         // 检查是否为过滤操作在内连接之上
         if !node_ref.plan_node.is_filter() {
@@ -711,7 +724,7 @@ impl PushDownRule for PushFilterDownInnerJoinRule {
         ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
         child: &OptGroupNode,
-    ) -> Result<Option<TransformResult>, OptimizerError> {
+    ) -> OptResult<Option<TransformResult>> {
         let node_ref = group_node.borrow();
         let mut result = TransformResult::new();
         result.add_new_group_node(group_node.clone());
@@ -732,7 +745,7 @@ impl OptRule for PredicatePushDownRule {
         &self,
         ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
-    ) -> Result<Option<TransformResult>, OptimizerError> {
+    ) -> OptResult<Option<TransformResult>> {
         let node_ref = group_node.borrow();
         // 检查是否为可以下推到存储的过滤节点
         if !node_ref.plan_node.is_filter() {
@@ -788,7 +801,7 @@ impl PushDownRule for PredicatePushDownRule {
         ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
         child: &OptGroupNode,
-    ) -> Result<Option<TransformResult>, OptimizerError> {
+    ) -> OptResult<Option<TransformResult>> {
         let node_ref = group_node.borrow();
         let mut result = TransformResult::new();
         result.add_new_group_node(group_node.clone());
@@ -874,7 +887,7 @@ fn can_push_down_to_traverse(condition: &Expression) -> FilterSplitResult {
 
 // 尝试解析过滤条件为表达式
 #[allow(unused_variables)]
-fn parse_filter_condition(condition: &Expression) -> Result<crate::core::Expression, String> {
+fn parse_filter_condition(condition: &Expression) -> StdResult<crate::core::Expression, String> {
     // 这里应该使用表达式解析器，但为了简化，我们使用一个简单的实现
     // 在实际实现中，应该使用完整的表达式解析器
     Ok(condition.clone())

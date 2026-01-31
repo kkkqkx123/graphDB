@@ -25,7 +25,7 @@ pub struct OptContext {
     pub stats: OptimizationStats,
     pub changed: bool,
     pub visited_groups: HashSet<usize>,
-    pub plan_node_to_group_node: HashMap<usize, OptGroupNode>,
+    pub plan_node_to_group_node: HashMap<usize, Rc<RefCell<OptGroupNode>>>,
     pub group_nodes_by_id: HashMap<usize, Rc<RefCell<OptGroupNode>>>,
     pub group_map: HashMap<usize, OptGroup>,
     pub statistics: Statistics,
@@ -53,15 +53,15 @@ impl OptContext {
         self.changed = changed;
     }
 
-    pub fn add_plan_node_and_group_node(&mut self, plan_node_id: usize, group_node: OptGroupNode) {
+    pub fn add_plan_node_and_group_node(&mut self, plan_node_id: usize, group_node: Rc<RefCell<OptGroupNode>>) {
         self.plan_node_to_group_node.insert(plan_node_id, group_node);
     }
 
-    pub fn find_group_node_by_plan_node_id(&self, plan_node_id: usize) -> Option<&OptGroupNode> {
+    pub fn find_group_node_by_plan_node_id(&self, plan_node_id: usize) -> Option<&Rc<RefCell<OptGroupNode>>> {
         self.plan_node_to_group_node.get(&plan_node_id)
     }
 
-    pub fn find_group_node_by_plan_node_id_mut(&mut self, plan_node_id: usize) -> Option<&mut OptGroupNode> {
+    pub fn find_group_node_by_plan_node_id_mut(&mut self, plan_node_id: usize) -> Option<&mut Rc<RefCell<OptGroupNode>>> {
         self.plan_node_to_group_node.get_mut(&plan_node_id)
     }
 
@@ -142,9 +142,10 @@ impl OptContext {
 
     pub fn get_edge_alias_for_node(&self, node_id: usize) -> Option<String> {
         if let Some(group_node) = self.find_group_node_by_plan_node_id(node_id) {
-            match group_node.plan_node.name() {
+            let group_node_ref = group_node.borrow();
+            match group_node_ref.plan_node.name() {
                 "Traverse" | "Expand" => {
-                    let col_names = group_node.plan_node.col_names();
+                    let col_names = group_node_ref.plan_node.col_names();
                     if !col_names.is_empty() {
                         return Some(col_names[0].clone());
                     }
@@ -158,9 +159,10 @@ impl OptContext {
 
     pub fn get_tag_alias_for_node(&self, node_id: usize) -> Option<String> {
         if let Some(group_node) = self.find_group_node_by_plan_node_id(node_id) {
-            match group_node.plan_node.name() {
+            let group_node_ref = group_node.borrow();
+            match group_node_ref.plan_node.name() {
                 "ScanVertices" | "IndexScan" => {
-                    let col_names = group_node.plan_node.col_names();
+                    let col_names = group_node_ref.plan_node.col_names();
                     if !col_names.is_empty() {
                         return Some(col_names[0].clone());
                     }
@@ -185,7 +187,8 @@ impl OptContext {
         stack.insert(start_node);
 
         if let Some(group_node) = self.find_group_node_by_plan_node_id(start_node) {
-            for &dep_id in &group_node.dependencies {
+            let group_node_ref = group_node.borrow();
+            for &dep_id in &group_node_ref.dependencies {
                 if self.check_cycle(dep_id, visited, stack) {
                     return true;
                 }

@@ -22,7 +22,7 @@ use crate::query::optimizer::{OptimizationRule, OptimizerError, PlanValidator};
 #[derive(Debug)]
 pub struct RuleSet {
     pub name: String,
-    pub rules: Vec<Box<dyn OptRule>>,
+    pub rules: Vec<Rc<dyn OptRule>>,
 }
 
 impl RuleSet {
@@ -33,7 +33,7 @@ impl RuleSet {
         }
     }
 
-    pub fn add_rule(&mut self, rule: Box<dyn OptRule>) {
+    pub fn add_rule(&mut self, rule: Rc<dyn OptRule>) {
         self.rules.push(rule);
     }
 
@@ -155,7 +155,7 @@ impl Optimizer {
 
         let root_opt_node = self.build_initial_opt_group(&plan, &mut opt_ctx)?;
 
-        let root_group = opt_ctx
+        let mut root_group = opt_ctx
             .find_group_by_id(root_opt_node.borrow().id)
             .ok_or(OptimizerError::group_not_found(root_opt_node.borrow().id))?
             .clone();
@@ -180,7 +180,7 @@ impl Optimizer {
 
         let root_opt_node = self.build_initial_opt_group(&plan, &mut opt_ctx)?;
 
-        let root_group = opt_ctx
+        let mut root_group = opt_ctx
             .find_group_by_id(root_opt_node.borrow().id)
             .ok_or(OptimizerError::group_not_found(root_opt_node.borrow().id))?
             .clone();
@@ -435,7 +435,7 @@ impl Optimizer {
     fn execute_optimization(
         &mut self,
         ctx: &mut OptContext,
-        root_group: &mut Rc<RefCell<OptGroup>>,
+        root_group: &mut OptGroup,
     ) -> Result<(), OptimizerError> {
         self.execute_phase_optimization(ctx, root_group, OptimizationPhase::Rewrite)?;
         self.execute_phase_optimization(ctx, root_group, OptimizationPhase::Logical)?;
@@ -447,12 +447,12 @@ impl Optimizer {
     fn execute_phase_optimization(
         &mut self,
         ctx: &mut OptContext,
-        root_group: &mut Rc<RefCell<OptGroup>>,
+        root_group: &mut OptGroup,
         phase: OptimizationPhase,
     ) -> Result<(), OptimizerError> {
         ctx.stats.start_phase(phase.clone());
 
-        let phase_rules = self.get_rules_for_phase(&phase);
+        let phase_rule_names = self.get_rule_names_for_phase(&phase);
 
         let max_rounds = self.config.max_iteration_rounds;
         let min_rounds = self.config.min_iteration_rounds;
@@ -464,12 +464,15 @@ impl Optimizer {
         let mut last_changes = 0usize;
 
         while round < max_rounds {
-            let before_nodes = root_group.borrow().nodes.len();
+            let before_nodes = root_group.nodes.len();
 
             ctx.set_changed(false);
 
-            for rule in &phase_rules {
-                self.apply_rule(ctx, root_group, rule.as_ref())?;
+            for rule_name in &phase_rule_names {
+                let rule = self.find_rule(rule_name);
+                if let Some(rule) = rule {
+                    self.apply_rule(ctx, root_group, &*rule)?;
+                }
             }
 
             round += 1;
@@ -481,7 +484,7 @@ impl Optimizer {
                 stable_count += 1;
             }
 
-            last_changes = root_group.borrow().nodes.len() - before_nodes;
+            last_changes = root_group.nodes.len() - before_nodes;
 
             if enable_adaptive
                 && round >= min_rounds
@@ -492,13 +495,13 @@ impl Optimizer {
             }
         }
 
-        ctx.stats.end_phase(phase);
+        ctx.stats.finalize_phase(0.0);
 
         Ok(())
     }
 
-    fn get_rules_for_phase(&self, phase: &OptimizationPhase) -> Vec<&Box<dyn OptRule>> {
-        let phase_rule_names = match phase {
+    fn get_rule_names_for_phase(&self, phase: &OptimizationPhase) -> Vec<&'static str> {
+        match phase {
             OptimizationPhase::Rewrite => vec![
                 "ExpandGetNeighborsRule",
                 "AddVertexIdRule",
@@ -525,19 +528,24 @@ impl Optimizer {
                 "LimitRule",
             ],
             _ => Vec::new(),
-        };
+        }
+    }
 
-        self.rule_sets
-            .iter()
-            .flat_map(|rs| rs.rules.iter())
-            .filter(|rule| phase_rule_names.contains(&rule.name().as_str()))
-            .collect()
+    fn find_rule(&self, name: &str) -> Option<Rc<dyn OptRule>> {
+        for rs in &self.rule_sets {
+            for rule in &rs.rules {
+                if rule.name() == name {
+                    return Some(Rc::clone(rule));
+                }
+            }
+        }
+        None
     }
 
     fn apply_rule(
         &mut self,
         ctx: &mut OptContext,
-        root_group: &Rc<RefCell<OptGroup>>,
+        root_group: &OptGroup,
         rule: &dyn OptRule,
     ) -> Result<(), OptimizerError> {
         let rule_name = rule.name();
@@ -548,17 +556,14 @@ impl Optimizer {
         };
 
         for group_id in group_ids {
-            let group = {
-                let g = ctx.find_group_by_id(group_id);
-                if g.is_none() {
-                    continue;
-                }
-                g.unwrap().clone()
-            };
+            let group_opt = ctx.find_group_by_id(group_id);
+            if group_opt.is_none() {
+                continue;
+            }
 
             let nodes: Vec<Rc<RefCell<OptGroupNode>>> = {
-                let g = group.borrow();
-                g.nodes.iter().cloned().collect()
+                let group_ref = group_opt.unwrap();
+                group_ref.nodes.iter().cloned().collect()
             };
 
             for node_rc in nodes {
@@ -575,12 +580,15 @@ impl Optimizer {
                 }
             }
 
-            let mut group_mut = group.borrow_mut();
-            group_mut.explored_rules.clear();
+            {
+                if let Some(group) = ctx.find_group_by_id_mut(group_id) {
+                    group.explored_rules.clear();
+                }
+            }
         }
 
         if ctx.changed {
-            ctx.stats.total_changes += 1;
+            ctx.stats.record_rule_application();
         }
 
         Ok(())
@@ -602,7 +610,7 @@ impl Optimizer {
 
         drop(node_borrowed);
 
-        ctx.plan_node_to_group_node.insert(node_id, node.borrow().clone());
+        ctx.plan_node_to_group_node.insert(node_id, node.clone());
 
         match rule.apply(ctx, node) {
             Ok(Some(result)) => {
@@ -613,12 +621,13 @@ impl Optimizer {
                 }
 
                 for new_node in result.new_group_nodes {
-                    if let Some(group) = ctx.find_group_by_id_mut(new_node.borrow().id) {
-                        if !group.nodes.iter().any(|n| n.borrow().id == new_node.borrow().id) {
+                    let new_node_id = new_node.borrow().id;
+                    if let Some(group) = ctx.find_group_by_id_mut(new_node_id) {
+                        if !group.nodes.iter().any(|n| n.borrow().id == new_node_id) {
                             group.add_node(new_node);
                         }
                     } else {
-                        let mut new_group = OptGroup::new(new_node.borrow().id);
+                        let mut new_group = OptGroup::new(new_node_id);
                         new_group.add_node(new_node);
                         ctx.register_group(new_group);
                     }
@@ -635,7 +644,7 @@ impl Optimizer {
             }
             Ok(None) => {
                 let mut node_mut = node.borrow_mut();
-                node_mut.explored_rules.insert(rule.name().to_string());
+                node_mut.explored_rules.insert(rule.name().to_string(), true);
             }
             Err(e) => return Err(e),
         }
@@ -644,7 +653,7 @@ impl Optimizer {
     }
 
     fn has_explored_rule(&self, node: &OptGroupNode, rule_name: &str) -> bool {
-        node.explored_rules.contains(rule_name)
+        node.explored_rules.contains_key(rule_name)
     }
 
     fn extract_execution_plan(
@@ -654,7 +663,7 @@ impl Optimizer {
     ) -> Result<ExecutionPlan, OptimizerError> {
         let root_node = root_group
             .get_min_cost_group_node()
-            .ok_or(OptimizerError::NoViablePlan)?;
+            .ok_or(OptimizerError::no_viable_plan())?;
 
         self.build_execution_plan_recursive(&root_node, ctx)
     }
@@ -681,14 +690,9 @@ impl Optimizer {
 
         drop(opt_node_borrowed);
 
-        for input_plan in &inputs {
-            let input_node = input_plan.root().clone();
-            plan_node.add_input(input_node);
-        }
-
         let root_plan_node = plan_node;
 
-        let plan = ExecutionPlan::new(root_plan_node);
+        let plan = ExecutionPlan::new(Some(root_plan_node));
 
         Ok(plan)
     }

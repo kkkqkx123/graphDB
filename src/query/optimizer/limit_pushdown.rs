@@ -10,6 +10,7 @@ use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::visitor::PlanNodeVisitor;
 use std::rc::Rc;
 use std::cell::RefCell;
+use std::result::Result as StdResult;
 
 /// LIMIT下推访问者
 #[derive(Clone)]
@@ -45,77 +46,84 @@ impl PlanNodeVisitor for LimitPushDownVisitor {
         let input_id = input.id() as usize;
 
         if let Some(dep_id) = self.node_dependencies.first() {
-            if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(*dep_id) {
-                if self.can_push_down_to(&child_node.plan_node) {
+            let ctx_ref = self.get_ctx();
+            let child_node_opt = ctx_ref.find_group_node_by_plan_node_id(*dep_id);
+            if let Some(child_node) = child_node_opt {
+                let child_node_ref = child_node.borrow();
+                if self.can_push_down_to(&child_node_ref.plan_node) {
                     let limit_count = node.count();
                     let output_var = node.output_var().cloned();
+                    let child_node_type = child_node_ref.plan_node.type_name().to_string();
+                    let child_node_clone = child_node_ref.clone();
+                    drop(child_node_ref);
+                    drop(ctx_ref);
 
-                    match child_node.plan_node.type_name() {
+                    match child_node_type.as_str() {
                         "GetVertices" => {
-                            if let Some(get_vertices) = child_node.plan_node.as_get_vertices() {
+                            if let Some(get_vertices) = child_node_clone.plan_node.as_get_vertices() {
                                 let mut new_get_vertices = get_vertices.clone();
                                 new_get_vertices.set_limit(limit_count);
                                 if let Some(var) = output_var {
                                     new_get_vertices.set_output_var(var);
                                 }
 
-                                let mut new_node = child_node.clone();
+                                let mut new_node = child_node_clone;
                                 new_node.plan_node = PlanNodeEnum::GetVertices(new_get_vertices);
                                 self.pushed_down = true;
                                 self.new_node = Some(new_node);
                             }
                         }
                         "GetEdges" => {
-                            if let Some(get_edges) = child_node.plan_node.as_get_edges() {
+                            if let Some(get_edges) = child_node_clone.plan_node.as_get_edges() {
                                 let mut new_get_edges = get_edges.clone();
                                 new_get_edges.set_limit(limit_count);
                                 if let Some(var) = output_var {
                                     new_get_edges.set_output_var(var);
                                 }
 
-                                let mut new_node = child_node.clone();
+                                let mut new_node = child_node_clone;
                                 new_node.plan_node = PlanNodeEnum::GetEdges(new_get_edges);
                                 self.pushed_down = true;
                                 self.new_node = Some(new_node);
                             }
                         }
                         "IndexScan" => {
-                            if let Some(index_scan) = child_node.plan_node.as_index_scan() {
+                            if let Some(index_scan) = child_node_clone.plan_node.as_index_scan() {
                                 let mut new_index_scan = index_scan.clone();
                                 new_index_scan.set_limit(limit_count);
                                 if let Some(var) = output_var {
                                     new_index_scan.set_output_var(var);
                                 }
 
-                                let mut new_node = child_node.clone();
+                                let mut new_node = child_node_clone;
                                 new_node.plan_node = PlanNodeEnum::IndexScan(new_index_scan);
                                 self.pushed_down = true;
                                 self.new_node = Some(new_node);
                             }
                         }
                         "ScanVertices" => {
-                            if let Some(scan_vertices) = child_node.plan_node.as_scan_vertices() {
+                            if let Some(scan_vertices) = child_node_clone.plan_node.as_scan_vertices() {
                                 let mut new_scan_vertices = scan_vertices.clone();
                                 new_scan_vertices.set_limit(limit_count);
                                 if let Some(var) = output_var {
                                     new_scan_vertices.set_output_var(var);
                                 }
 
-                                let mut new_node = child_node.clone();
+                                let mut new_node = child_node_clone;
                                 new_node.plan_node = PlanNodeEnum::ScanVertices(new_scan_vertices);
                                 self.pushed_down = true;
                                 self.new_node = Some(new_node);
                             }
                         }
                         "ScanEdges" => {
-                            if let Some(scan_edges) = child_node.plan_node.as_scan_edges() {
+                            if let Some(scan_edges) = child_node_clone.plan_node.as_scan_edges() {
                                 let mut new_scan_edges = scan_edges.clone();
                                 new_scan_edges.set_limit(limit_count);
                                 if let Some(var) = output_var {
                                     new_scan_edges.set_output_var(var);
                                 }
 
-                                let mut new_node = child_node.clone();
+                                let mut new_node = child_node_clone;
                                 new_node.plan_node = PlanNodeEnum::ScanEdges(new_scan_edges);
                                 self.pushed_down = true;
                                 self.new_node = Some(new_node);
@@ -144,7 +152,7 @@ impl OptRule for PushLimitDownRule {
         &self,
         ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
-    ) -> Result<Option<TransformResult>, OptimizerError> {
+    ) -> StdResult<Option<TransformResult>, OptimizerError> {
         let node_ref = group_node.borrow();
         if !node_ref.plan_node.is_limit() {
             return Ok(Some(TransformResult::unchanged()));
@@ -187,7 +195,7 @@ impl PushDownRule for PushLimitDownRule {
         ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
         child: &OptGroupNode,
-    ) -> Result<Option<TransformResult>, OptimizerError> {
+    ) -> StdResult<Option<TransformResult>, OptimizerError> {
         let node_ref = group_node.borrow();
         let mut result = TransformResult::new();
         result.add_new_group_node(group_node.clone());
@@ -208,7 +216,7 @@ impl OptRule for PushLimitDownGetVerticesRule {
         &self,
         ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
-    ) -> Result<Option<TransformResult>, OptimizerError> {
+    ) -> StdResult<Option<TransformResult>, OptimizerError> {
         let node_ref = group_node.borrow();
         // 检查是否为LIMIT操作
         if !node_ref.plan_node.is_limit() {
@@ -221,9 +229,11 @@ impl OptRule for PushLimitDownGetVerticesRule {
             let child_node_opt = ctx.find_group_node_by_plan_node_id(child_dep_id).cloned();
 
             if let Some(child_node) = child_node_opt {
-                if child_node.plan_node.is_get_vertices() {
-                    // 将LIMIT下推到GetVertices操作
-                    return self.create_pushed_down_node(ctx, group_node, &child_node);
+                let child_node_ref = child_node.borrow();
+                if child_node_ref.plan_node.is_get_vertices() {
+                    let child_clone = child_node_ref.clone();
+                    drop(child_node_ref);
+                    return self.create_pushed_down_node(ctx, group_node, &child_clone);
                 }
             }
         }
@@ -311,9 +321,11 @@ impl OptRule for PushLimitDownGetNeighborsRule {
             let child_node_opt = ctx.find_group_node_by_plan_node_id(child_dep_id).cloned();
 
             if let Some(child_node) = child_node_opt {
-                if child_node.plan_node.is_get_neighbors() {
-                    // 将LIMIT下推到GetNeighbors操作
-                    return self.create_pushed_down_node(ctx, group_node, &child_node);
+                let child_node_ref = child_node.borrow();
+                if child_node_ref.plan_node.is_get_neighbors() {
+                    let child_clone = child_node_ref.clone();
+                    drop(child_node_ref);
+                    return self.create_pushed_down_node(ctx, group_node, &child_clone);
                 }
             }
         }
@@ -396,9 +408,11 @@ impl OptRule for PushLimitDownGetEdgesRule {
             let child_node_opt = ctx.find_group_node_by_plan_node_id(child_dep_id).cloned();
 
             if let Some(child_node) = child_node_opt {
-                if child_node.plan_node.is_get_edges() {
-                    // 将LIMIT下推到GetEdges操作
-                    return self.create_pushed_down_node(ctx, group_node, &child_node);
+                let child_node_ref = child_node.borrow();
+                if child_node_ref.plan_node.is_get_edges() {
+                    let child_clone = child_node_ref.clone();
+                    drop(child_node_ref);
+                    return self.create_pushed_down_node(ctx, group_node, &child_clone);
                 }
             }
         }
@@ -483,9 +497,11 @@ impl OptRule for PushLimitDownScanVerticesRule {
             let child_node_opt = ctx.find_group_node_by_plan_node_id(child_dep_id).cloned();
 
             if let Some(child_node) = child_node_opt {
-                if child_node.plan_node.is_scan_vertices() {
-                    // 将LIMIT下推到ScanVertices操作
-                    return self.create_pushed_down_node(ctx, group_node, &child_node);
+                let child_node_ref = child_node.borrow();
+                if child_node_ref.plan_node.is_scan_vertices() {
+                    let child_clone = child_node_ref.clone();
+                    drop(child_node_ref);
+                    return self.create_pushed_down_node(ctx, group_node, &child_clone);
                 }
             }
         }
@@ -570,9 +586,11 @@ impl OptRule for PushLimitDownScanEdgesRule {
             let child_node_opt = ctx.find_group_node_by_plan_node_id(child_dep_id).cloned();
 
             if let Some(child_node) = child_node_opt {
-                if child_node.plan_node.is_scan_edges() {
-                    // 将LIMIT下推到ScanEdges操作
-                    return self.create_pushed_down_node(ctx, group_node, &child_node);
+                let child_node_ref = child_node.borrow();
+                if child_node_ref.plan_node.is_scan_edges() {
+                    let child_clone = child_node_ref.clone();
+                    drop(child_node_ref);
+                    return self.create_pushed_down_node(ctx, group_node, &child_clone);
                 }
             }
         }
@@ -657,9 +675,11 @@ impl OptRule for PushLimitDownIndexScanRule {
             let child_node_opt = ctx.find_group_node_by_plan_node_id(child_dep_id).cloned();
 
             if let Some(child_node) = child_node_opt {
-                if child_node.plan_node.is_index_scan() {
-                    // 将LIMIT下推到IndexScan操作
-                    return self.create_pushed_down_node(ctx, group_node, &child_node);
+                let child_node_ref = child_node.borrow();
+                if child_node_ref.plan_node.is_index_scan() {
+                    let child_clone = child_node_ref.clone();
+                    drop(child_node_ref);
+                    return self.create_pushed_down_node(ctx, group_node, &child_clone);
                 }
             }
         }
@@ -744,9 +764,12 @@ impl OptRule for PushLimitDownProjectRule {
             let child_node_opt = ctx.find_group_node_by_plan_node_id(child_dep_id).cloned();
 
             if let Some(child_node) = child_node_opt {
-                if child_node.plan_node.is_project() {
+                let child_node_ref = child_node.borrow();
+                if child_node_ref.plan_node.is_project() {
                     // 将LIMIT下推到Project操作
-                    return self.create_pushed_down_node(ctx, group_node, &child_node);
+                    let child_clone = child_node_ref.clone();
+                    drop(child_node_ref);
+                    return self.create_pushed_down_node(ctx, group_node, &child_clone);
                 }
             }
         }
@@ -954,15 +977,15 @@ mod tests {
 
         let get_vertices_node = GetVerticesNode::new(1, "test_vids");
         let get_vertices_opt_node = OptGroupNode::new(2, get_vertices_node.into_enum());
-        ctx.add_plan_node_and_group_node(2, &get_vertices_opt_node);
+        ctx.add_plan_node_and_group_node(2, get_vertices_opt_node);
 
-        let limit_node = LimitNode::new(get_vertices_opt_node.plan_node.clone(), 0, 10)
+        let limit_node = LimitNode::new(ctx.find_group_node_by_plan_node_id(2).expect("Child node not found").plan_node.clone(), 0, 10)
             .expect("Limit node should be created successfully");
         let mut opt_node = OptGroupNode::new(1, limit_node.into_enum());
         opt_node.dependencies = vec![2];
 
         let result = rule
-            .apply(&mut ctx, &opt_node)
+            .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
             .expect("Rule should apply successfully");
         assert!(result.is_some());
     }
@@ -974,15 +997,15 @@ mod tests {
 
         let get_vertices_node = GetVerticesNode::new(1, "test_vids");
         let get_vertices_opt_node = OptGroupNode::new(2, get_vertices_node.into_enum());
-        ctx.add_plan_node_and_group_node(2, &get_vertices_opt_node);
+        ctx.add_plan_node_and_group_node(2, get_vertices_opt_node);
 
-        let limit_node = LimitNode::new(get_vertices_opt_node.plan_node.clone(), 0, 10)
+        let limit_node = LimitNode::new(ctx.find_group_node_by_plan_node_id(2).expect("Child node not found").plan_node.clone(), 0, 10)
             .expect("Limit node should be created successfully");
         let mut opt_node = OptGroupNode::new(1, limit_node.into_enum());
         opt_node.dependencies = vec![2];
 
         let result = rule
-            .apply(&mut ctx, &opt_node)
+            .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
             .expect("Rule should apply successfully");
         assert!(result.is_some());
     }
@@ -994,15 +1017,15 @@ mod tests {
 
         let get_neighbors_node = GetNeighborsNode::new(1, "test_src");
         let get_neighbors_opt_node = OptGroupNode::new(2, get_neighbors_node.into_enum());
-        ctx.add_plan_node_and_group_node(2, &get_neighbors_opt_node);
+        ctx.add_plan_node_and_group_node(2, get_neighbors_opt_node);
 
-        let limit_node = LimitNode::new(get_neighbors_opt_node.plan_node.clone(), 0, 10)
+        let limit_node = LimitNode::new(ctx.find_group_node_by_plan_node_id(2).expect("Child node not found").plan_node.clone(), 0, 10)
             .expect("Limit node should be created successfully");
         let mut opt_node = OptGroupNode::new(1, limit_node.into_enum());
         opt_node.dependencies = vec![2];
 
         let result = rule
-            .apply(&mut ctx, &opt_node)
+            .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
             .expect("Rule should apply successfully");
         assert!(result.is_some());
     }
@@ -1014,15 +1037,15 @@ mod tests {
 
         let get_edges_node = GetEdgesNode::new(1, "src", "edge_type", "0", "dst");
         let get_edges_opt_node = OptGroupNode::new(2, get_edges_node.into_enum());
-        ctx.add_plan_node_and_group_node(2, &get_edges_opt_node);
+        ctx.add_plan_node_and_group_node(2, get_edges_opt_node);
 
-        let limit_node = LimitNode::new(get_edges_opt_node.plan_node.clone(), 0, 10)
+        let limit_node = LimitNode::new(ctx.find_group_node_by_plan_node_id(2).expect("Child node not found").plan_node.clone(), 0, 10)
             .expect("Limit node should be created successfully");
         let mut opt_node = OptGroupNode::new(1, limit_node.into_enum());
         opt_node.dependencies = vec![2];
 
         let result = rule
-            .apply(&mut ctx, &opt_node)
+            .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
             .expect("Rule should apply successfully");
         assert!(result.is_some());
     }
@@ -1034,15 +1057,15 @@ mod tests {
 
         let scan_vertices_node = ScanVerticesNode::new(1);
         let scan_vertices_opt_node = OptGroupNode::new(2, scan_vertices_node.into_enum());
-        ctx.add_plan_node_and_group_node(2, &scan_vertices_opt_node);
+        ctx.add_plan_node_and_group_node(2, scan_vertices_opt_node);
 
-        let limit_node = LimitNode::new(scan_vertices_opt_node.plan_node.clone(), 0, 10)
+        let limit_node = LimitNode::new(ctx.find_group_node_by_plan_node_id(2).expect("Child node not found").plan_node.clone(), 0, 10)
             .expect("Limit node should be created successfully");
         let mut opt_node = OptGroupNode::new(1, limit_node.into_enum());
         opt_node.dependencies = vec![2];
 
         let result = rule
-            .apply(&mut ctx, &opt_node)
+            .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
             .expect("Rule should apply successfully");
         assert!(result.is_some());
     }
@@ -1054,15 +1077,15 @@ mod tests {
 
         let scan_edges_node = ScanEdgesNode::new(1, "edge_type");
         let scan_edges_opt_node = OptGroupNode::new(2, scan_edges_node.into_enum());
-        ctx.add_plan_node_and_group_node(2, &scan_edges_opt_node);
+        ctx.add_plan_node_and_group_node(2, scan_edges_opt_node);
 
-        let limit_node = LimitNode::new(scan_edges_opt_node.plan_node.clone(), 0, 10)
+        let limit_node = LimitNode::new(ctx.find_group_node_by_plan_node_id(2).expect("Child node not found").plan_node.clone(), 0, 10)
             .expect("Limit node should be created successfully");
         let mut opt_node = OptGroupNode::new(1, limit_node.into_enum());
         opt_node.dependencies = vec![2];
 
         let result = rule
-            .apply(&mut ctx, &opt_node)
+            .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
             .expect("Rule should apply successfully");
         assert!(result.is_some());
     }
@@ -1074,15 +1097,15 @@ mod tests {
 
         let index_scan_node = IndexScan::new(-1, 1, 1, 1, "RANGE");
         let index_scan_opt_node = OptGroupNode::new(2, index_scan_node.into_enum());
-        ctx.add_plan_node_and_group_node(2, &index_scan_opt_node);
+        ctx.add_plan_node_and_group_node(2, index_scan_opt_node);
 
-        let limit_node = LimitNode::new(index_scan_opt_node.plan_node.clone(), 0, 10)
+        let limit_node = LimitNode::new(ctx.find_group_node_by_plan_node_id(2).expect("Child node not found").plan_node.clone(), 0, 10)
             .expect("Limit node should be created successfully");
         let mut opt_node = OptGroupNode::new(1, limit_node.into_enum());
         opt_node.dependencies = vec![2];
 
         let result = rule
-            .apply(&mut ctx, &opt_node)
+            .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
             .expect("Rule should apply successfully");
         assert!(result.is_some());
     }

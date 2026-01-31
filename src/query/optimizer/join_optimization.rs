@@ -2,9 +2,12 @@
 //! 这些规则负责优化连接操作，专注于连接算法和策略优化
 
 use super::engine::OptimizerError;
-use super::plan::{OptContext, OptGroupNode, OptRule, Pattern};
+use super::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, Result as OptResult};
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::BaseOptRule;
+use std::cell::RefCell;
+use std::rc::Rc;
+use std::result::Result as StdResult;
 
 /// 转换连接以获得更好性能的规则
 #[derive(Debug)]
@@ -18,65 +21,44 @@ impl OptRule for JoinOptimizationRule {
     fn apply(
         &self,
         ctx: &mut OptContext,
-        node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        // 检查是否为连接操作
-        if !node.plan_node.is_hash_inner_join()
-            && !node.plan_node.is_hash_left_join()
-            && !node.plan_node.is_inner_join()
+        node: &Rc<RefCell<OptGroupNode>>,
+    ) -> OptResult<Option<TransformResult>> {
+        let node_ref = node.borrow();
+        if !node_ref.plan_node.is_hash_inner_join()
+            && !node_ref.plan_node.is_hash_left_join()
+            && !node_ref.plan_node.is_inner_join()
         {
-            return Ok(None);
+            return Ok(Some(TransformResult::unchanged()));
         }
-
-        // 分析连接并可能基于数据特征将其转换为更高效的连接算法
-        if node.dependencies.len() >= 2 {
-            // 获取连接的左右子节点
-            let left_dep_id = node.dependencies[0];
-            let right_dep_id = node.dependencies[1];
-
+        if node_ref.dependencies.len() >= 2 {
+            let left_dep_id = node_ref.dependencies[0];
+            let right_dep_id = node_ref.dependencies[1];
             if let (Some(left_node), Some(right_node)) = (
                 ctx.find_group_node_by_plan_node_id(left_dep_id),
                 ctx.find_group_node_by_plan_node_id(right_dep_id),
             ) {
-                // 在实际实现中，我们会评估左右子树的大小
-                // 以决定是否需要更改连接算法
-                // 例如，如果右表很小，我们可能希望转换为HashJoin
-                // 或者如果左表很小，可以考虑SwapJoin并转为HashJoin
-
-                // 简单的启发式：如果右子树有GetVertices或IndexScan等操作，
-                // 而且看起来结果集较小，我们可能考虑哈希连接
+                let left_node_ref = left_node.borrow();
+                let right_node_ref = right_node.borrow();
                 match (
-                    left_node.plan_node.type_name(),
-                    right_node.plan_node.type_name(),
+                    left_node_ref.plan_node.type_name(),
+                    right_node_ref.plan_node.type_name(),
                 ) {
-                    ("IndexScan", _) | (_, "IndexScan") => {
-                        // 如果任一侧是索引扫描，这可能意味着较小的结果集
-                        // 根据具体情况，我们可以优化连接策略
-                    }
-                    ("ScanVertices", _) | (_, "ScanVertices") => {
-                        // 类似地，ScanVertices可能返回较小结果集
-                    }
-                    _ => {
-                        // 其他情况，保持原连接计划
-                    }
+                    ("IndexScan", _) | (_, "IndexScan") => {}
+                    ("ScanVertices", _) | (_, "ScanVertices") => {}
+                    _ => {}
                 }
-
-                // 基于子节点类型决定是否优化连接算法
-                let should_optimize = self.should_optimize_join(left_node, right_node);
-
+                let should_optimize = self.should_optimize_join(&left_node_ref, &right_node_ref);
                 if should_optimize {
-                    // 在实际实现中，我们可能会根据估计的行数选择最合适的连接算法
-                    // 例如，如果一侧非常小，使用哈希连接；如果两侧都很大，使用嵌套循环或排序合并连接
-                    // 这里我们只是示例，返回当前节点
-                    Ok(Some(node.clone()))
+                    drop(node_ref);
+                    Ok(Some(TransformResult::unchanged()))
                 } else {
-                    Ok(Some(node.clone())) // 不需要优化，返回原节点
+                    Ok(Some(TransformResult::unchanged()))
                 }
             } else {
-                Ok(None)
+                Ok(Some(TransformResult::unchanged()))
             }
         } else {
-            Ok(None)
+            Ok(Some(TransformResult::unchanged()))
         }
     }
 

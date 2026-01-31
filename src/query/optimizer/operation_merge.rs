@@ -10,6 +10,7 @@ use crate::query::planner::plan::FilterNode as FilterPlanNode;
 use crate::query::visitor::PlanNodeVisitor;
 use std::rc::Rc;
 use std::cell::RefCell;
+use std::result::Result as StdResult;
 
 /// 合并过滤访问者
 #[derive(Clone)]
@@ -36,8 +37,9 @@ impl PlanNodeVisitor for CombineFilterVisitor {
     fn visit_filter(&mut self, node: &crate::query::planner::plan::core::nodes::FilterNode) -> Self::Result {
         if let Some(dep_id) = self.node_dependencies.first() {
             if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(*dep_id) {
-                if child_node.plan_node.is_filter() {
-                    if let Some(child_filter) = child_node.plan_node.as_filter() {
+                let child_node_ref = child_node.borrow();
+                if child_node_ref.plan_node.is_filter() {
+                    if let Some(child_filter) = child_node_ref.plan_node.as_filter() {
                         let top_condition = node.condition();
                         let child_condition = child_filter.condition();
 
@@ -59,6 +61,8 @@ impl PlanNodeVisitor for CombineFilterVisitor {
                             node.id() as usize,
                             crate::query::planner::plan::PlanNodeEnum::Filter(combined_filter_node),
                         );
+
+                        drop(child_node_ref);
 
                         self.merged = true;
                         self.new_node = Some(combined_opt_node);
@@ -83,25 +87,31 @@ impl OptRule for CombineFilterRule {
     fn apply(
         &self,
         ctx: &mut OptContext,
-        node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        if !node.plan_node.is_filter() {
-            return Ok(None);
+        group_node: &Rc<RefCell<OptGroupNode>>,
+    ) -> Result<Option<TransformResult>, OptimizerError> {
+        let node_ref = group_node.borrow();
+        if !node_ref.plan_node.is_filter() {
+            return Ok(Some(TransformResult::unchanged()));
         }
 
         let mut visitor = CombineFilterVisitor {
             merged: false,
             new_node: None,
             ctx: ctx as *const OptContext,
-            node_dependencies: node.dependencies.clone(),
+            node_dependencies: node_ref.dependencies.clone(),
         };
 
-        let result = visitor.visit(&node.plan_node);
+        let result = visitor.visit(&node_ref.plan_node);
+        drop(node_ref);
+
         if result.merged {
-            Ok(result.new_node)
-        } else {
-            Ok(None)
+            if let Some(new_node) = result.new_node {
+                let mut transform_result = TransformResult::new();
+                transform_result.add_new_group_node(Rc::new(RefCell::new(new_node)));
+                return Ok(Some(transform_result));
+            }
         }
+        Ok(Some(TransformResult::unchanged()))
     }
 
     fn pattern(&self) -> Pattern {
@@ -178,31 +188,26 @@ impl OptRule for CollapseProjectRule {
     fn apply(
         &self,
         ctx: &mut OptContext,
-        node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        // 检查是否为投影节点
-        if !node.plan_node.is_project() {
-            return Ok(None);
+        group_node: &Rc<RefCell<OptGroupNode>>,
+    ) -> Result<Option<TransformResult>, OptimizerError> {
+        let node_ref = group_node.borrow();
+        if !node_ref.plan_node.is_project() {
+            return Ok(Some(TransformResult::unchanged()));
         }
 
-        // 匹配模式以查看是否为投影后跟另一个投影
-        if let Some(matched) = self.match_pattern(ctx, node)? {
+        if let Some(matched) = self.match_pattern(ctx, group_node)? {
             if matched.dependencies.len() == 1 {
                 let child = &matched.dependencies[0];
 
                 if child.borrow().plan_node.is_project() {
-                    // 在完整实现中，我们会合并这两个投影操作
-                    // 以减少中间数据存储
-                    Ok(Some(node.clone()))
-                } else {
-                    Ok(None)
+                    drop(node_ref);
+                    let mut result = TransformResult::new();
+                    result.add_new_group_node(group_node.clone());
+                    return Ok(Some(result));
                 }
-            } else {
-                Ok(None)
             }
-        } else {
-            Ok(None)
         }
+        Ok(Some(TransformResult::unchanged()))
     }
 
     fn pattern(&self) -> Pattern {
@@ -243,31 +248,25 @@ impl OptRule for MergeGetVerticesAndProjectRule {
     fn apply(
         &self,
         ctx: &mut OptContext,
-        node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        // 检查是否为获取顶点操作
-        if !node.plan_node.is_get_vertices() {
-            return Ok(None);
+        group_node: &Rc<RefCell<OptGroupNode>>,
+    ) -> Result<Option<TransformResult>, OptimizerError> {
+        let node_ref = group_node.borrow();
+        if !node_ref.plan_node.is_get_vertices() {
+            return Ok(Some(TransformResult::unchanged()));
         }
 
-        // 匹配模式以查看是否可以合并
-        if let Some(matched) = self.match_pattern(ctx, node)? {
+        if let Some(matched) = self.match_pattern(ctx, group_node)? {
             if matched.dependencies.len() >= 1 {
-                // 检查子节点是否为可以合并的投影操作
                 let child = &matched.dependencies[0];
                 if child.borrow().plan_node.is_project() {
-                    // 在完整实现中，我们会合并这些操作
-                    // 以减少中间步骤并直接获取所需的属性
-                    Ok(Some(node.clone()))
-                } else {
-                    Ok(None)
+                    drop(node_ref);
+                    let mut result = TransformResult::new();
+                    result.add_new_group_node(group_node.clone());
+                    return Ok(Some(result));
                 }
-            } else {
-                Ok(None)
             }
-        } else {
-            Ok(None)
         }
+        Ok(Some(TransformResult::unchanged()))
     }
 
     fn pattern(&self) -> Pattern {
@@ -308,31 +307,26 @@ impl OptRule for MergeGetVerticesAndDedupRule {
     fn apply(
         &self,
         ctx: &mut OptContext,
-        node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        // 检查是否为获取顶点操作
-        if !node.plan_node.is_get_vertices() {
-            return Ok(None);
+        group_node: &Rc<RefCell<OptGroupNode>>,
+    ) -> Result<Option<TransformResult>, OptimizerError> {
+        let node_ref = group_node.borrow();
+        if !node_ref.plan_node.is_get_vertices() {
+            return Ok(Some(TransformResult::unchanged()));
         }
 
-        // 匹配模式以查看是否为获取顶点后跟去重
-        if let Some(matched) = self.match_pattern(ctx, node)? {
+        if let Some(matched) = self.match_pattern(ctx, group_node)? {
             if matched.dependencies.len() >= 1 {
                 let child = &matched.dependencies[0];
 
                 if child.borrow().plan_node.is_dedup() {
-                    // 在完整实现中，我们会合并这些操作
-                    // 以避免中间数据存储并使执行更高效
-                    Ok(Some(node.clone()))
-                } else {
-                    Ok(None)
+                    drop(node_ref);
+                    let mut result = TransformResult::new();
+                    result.add_new_group_node(group_node.clone());
+                    return Ok(Some(result));
                 }
-            } else {
-                Ok(None)
             }
-        } else {
-            Ok(None)
         }
+        Ok(Some(TransformResult::unchanged()))
     }
 
     fn pattern(&self) -> Pattern {
@@ -373,31 +367,26 @@ impl OptRule for MergeGetNbrsAndDedupRule {
     fn apply(
         &self,
         ctx: &mut OptContext,
-        node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        // 检查是否为获取邻居操作
-        if !node.plan_node.is_get_neighbors() {
-            return Ok(None);
+        group_node: &Rc<RefCell<OptGroupNode>>,
+    ) -> Result<Option<TransformResult>, OptimizerError> {
+        let node_ref = group_node.borrow();
+        if !node_ref.plan_node.is_get_neighbors() {
+            return Ok(Some(TransformResult::unchanged()));
         }
 
-        // 匹配模式以查看是否为获取邻居后跟去重
-        if let Some(matched) = self.match_pattern(ctx, node)? {
+        if let Some(matched) = self.match_pattern(ctx, group_node)? {
             if matched.dependencies.len() >= 1 {
                 let child = &matched.dependencies[0];
 
                 if child.borrow().plan_node.is_dedup() {
-                    // 在完整实现中，我们会合并这些操作
-                    // 以避免中间数据存储并使执行更高效
-                    Ok(Some(node.clone()))
-                } else {
-                    Ok(None)
+                    drop(node_ref);
+                    let mut result = TransformResult::new();
+                    result.add_new_group_node(group_node.clone());
+                    return Ok(Some(result));
                 }
-            } else {
-                Ok(None)
             }
-        } else {
-            Ok(None)
         }
+        Ok(Some(TransformResult::unchanged()))
     }
 
     fn pattern(&self) -> Pattern {
@@ -438,31 +427,26 @@ impl OptRule for MergeGetNbrsAndProjectRule {
     fn apply(
         &self,
         ctx: &mut OptContext,
-        node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        // 检查是否为获取邻居操作
-        if !node.plan_node.is_get_neighbors() {
-            return Ok(None);
+        group_node: &Rc<RefCell<OptGroupNode>>,
+    ) -> Result<Option<TransformResult>, OptimizerError> {
+        let node_ref = group_node.borrow();
+        if !node_ref.plan_node.is_get_neighbors() {
+            return Ok(Some(TransformResult::unchanged()));
         }
 
-        // 匹配模式以查看是否为获取邻居后跟投影
-        if let Some(matched) = self.match_pattern(ctx, node)? {
+        if let Some(matched) = self.match_pattern(ctx, group_node)? {
             if matched.dependencies.len() >= 1 {
                 let child = &matched.dependencies[0];
 
                 if child.borrow().plan_node.is_project() {
-                    // 在完整实现中，我们会合并这些操作
-                    // 以避免中间数据存储并直接获取所需的属性
-                    Ok(Some(node.clone()))
-                } else {
-                    Ok(None)
+                    drop(node_ref);
+                    let mut result = TransformResult::new();
+                    result.add_new_group_node(group_node.clone());
+                    return Ok(Some(result));
                 }
-            } else {
-                Ok(None)
             }
-        } else {
-            Ok(None)
         }
+        Ok(Some(TransformResult::unchanged()))
     }
 
     fn pattern(&self) -> Pattern {

@@ -174,6 +174,12 @@ pub enum PlanNodeEnum {
     RebuildEdgeIndex(RebuildEdgeIndexNode),
 }
 
+impl Default for PlanNodeEnum {
+    fn default() -> Self {
+        PlanNodeEnum::Start(StartNode::new())
+    }
+}
+
 impl PlanNodeEnum {
     /// 零成本类型检查 - 直接使用模式匹配
     pub fn is_start(&self) -> bool {

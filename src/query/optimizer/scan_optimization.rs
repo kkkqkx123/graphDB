@@ -2,9 +2,12 @@
 //! 这些规则负责优化扫描操作，如带过滤条件的扫描和索引全扫描优化
 
 use super::engine::OptimizerError;
-use super::plan::{OptContext, OptGroupNode, OptRule, Pattern};
+use super::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, Result as OptResult};
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::BaseOptRule;
+use std::cell::RefCell;
+use std::rc::Rc;
+use std::result::Result as StdResult;
 
 /// 优化索引全扫描为更高效的全表扫描的规则
 #[derive(Debug)]
@@ -18,24 +21,16 @@ impl OptRule for IndexFullScanRule {
     fn apply(
         &self,
         ctx: &mut OptContext,
-        node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        // 检查是否为索引扫描操作
-        if !node.plan_node.is_index_scan() {
-            return Ok(None);
+        node: &Rc<RefCell<OptGroupNode>>,
+    ) -> OptResult<Option<TransformResult>> {
+        let node_ref = node.borrow();
+        if !node_ref.plan_node.is_index_scan() {
+            return Ok(Some(TransformResult::unchanged()));
         }
-
-        // 在完整实现中，这会确定何时从索引扫描切换到全扫描
-        // 基于估计的选择性、数据分布等
         if let Some(_matched) = self.match_pattern(ctx, node)? {
-            // 从索引扫描切换到全扫描的决策将基于：
-            // - 索引条件的选择性
-            // - 表的大小
-            // - 索引查找的成本与全扫描的成本
-            // 目前，我们只返回原始节点
-            Ok(Some(node.clone()))
+            Ok(Some(TransformResult::unchanged()))
         } else {
-            Ok(None)
+            Ok(Some(TransformResult::unchanged()))
         }
     }
 
@@ -58,30 +53,25 @@ impl OptRule for ScanWithFilterOptimizationRule {
     fn apply(
         &self,
         ctx: &mut OptContext,
-        node: &OptGroupNode,
-    ) -> Result<Option<OptGroupNode>, OptimizerError> {
-        // 检查是否为扫描操作
-        if !node.plan_node.is_scan_vertices() && !node.plan_node.is_scan_edges() {
-            return Ok(None);
+        node: &Rc<RefCell<OptGroupNode>>,
+    ) -> OptResult<Option<TransformResult>> {
+        let node_ref = node.borrow();
+        if !node_ref.plan_node.is_scan_vertices() && !node_ref.plan_node.is_scan_edges() {
+            return Ok(Some(TransformResult::unchanged()));
         }
-
-        // 匹配模式以检查我们是否有扫描上方的过滤
         if let Some(matched) = self.match_pattern(ctx, node)? {
             if matched.dependencies.len() >= 1 {
-                // 在依赖中查找可以推入扫描的过滤操作
                 for dep in &matched.dependencies {
                     if dep.borrow().plan_node.is_filter() {
-                        // 在完整实现中，我们会将过滤条件合并到扫描中
-                        // 以减少处理的行数
-                        break; // 只检查是否有过滤
+                        break;
                     }
                 }
-                Ok(Some(node.clone()))
+                Ok(Some(TransformResult::unchanged()))
             } else {
-                Ok(None)
+                Ok(Some(TransformResult::unchanged()))
             }
         } else {
-            Ok(None)
+            Ok(Some(TransformResult::unchanged()))
         }
     }
 

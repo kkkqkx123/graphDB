@@ -195,13 +195,13 @@ pub trait OptRule: fmt::Debug {
         &self,
         ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
-    ) -> Result<Option<TransformResult>, OptimizerError>;
+    ) -> Result<Option<TransformResult>>;
     fn pattern(&self) -> Pattern;
     fn match_pattern(
         &self,
         ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
-    ) -> Result<Option<MatchedResult>, OptimizerError> {
+    ) -> Result<Option<MatchedResult>> {
         let node_ref = group_node.borrow();
         if self.pattern().matches(&node_ref.plan_node) {
             let mut result = MatchedResult::new();
@@ -216,7 +216,7 @@ pub trait OptRule: fmt::Debug {
             Ok(None)
         }
     }
-    fn transform(&self, _ctx: &mut OptContext, _group_node: &Rc<RefCell<OptGroupNode>>) -> Result<Option<TransformResult>, OptimizerError> {
+    fn transform(&self, _ctx: &mut OptContext, _group_node: &Rc<RefCell<OptGroupNode>>) -> Result<Option<TransformResult>> {
         Ok(None)
     }
     fn is_rule_expired(&self, _ctx: &OptContext, _group_node: &Rc<RefCell<OptGroupNode>>) -> bool {

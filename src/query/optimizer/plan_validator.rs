@@ -4,7 +4,6 @@
 
 use super::engine::OptimizerError;
 use super::plan::{OptContext, OptGroup, OptGroupNode};
-use super::node::OptimizerError;
 use crate::core::types::expression::Expression;
 use std::collections::HashMap;
 
