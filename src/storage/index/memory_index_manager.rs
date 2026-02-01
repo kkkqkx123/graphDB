@@ -3,12 +3,14 @@
 //! 采用 BTreeMap + HashMap 混合索引策略：
 //! - BTreeMap: 支持范围查询和排序
 //! - HashMap: 支持精确匹配的快速查找
+//!
+//! 使用 RedbIndexPersistence 进行索引元数据的持久化存储
 
 use crate::core::error::StorageError;
 use crate::core::{Edge, Value, Vertex};
 use crate::index::{Index, IndexStatus, IndexType, IndexInfo, IndexOptimization};
 use crate::storage::{StorageClient, StorageResult};
-use crate::storage::index::IndexManager;
+use crate::storage::index::{IndexManager, RedbIndexPersistence, IndexPersistence};
 use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 use std::path::PathBuf;
@@ -189,6 +191,7 @@ pub struct MemoryIndexManager {
     index_data: Arc<RwLock<HashMap<i32, IndexData>>>,
     storage_engine: Option<Arc<dyn StorageClient>>,
     index_stats: Arc<RwLock<HashMap<i32, IndexInfo>>>,
+    persistence: Option<RedbIndexPersistence>,
 }
 
 impl fmt::Debug for MemoryIndexManager {
@@ -206,6 +209,7 @@ impl fmt::Debug for MemoryIndexManager {
 
 impl MemoryIndexManager {
     pub fn new(storage_path: PathBuf) -> Self {
+        let persistence = RedbIndexPersistence::new(&storage_path).ok();
         let manager = Self {
             indexes: Arc::new(RwLock::new(HashMap::new())),
             next_index_id: Arc::new(RwLock::new(1)),
@@ -213,12 +217,14 @@ impl MemoryIndexManager {
             index_data: Arc::new(RwLock::new(HashMap::new())),
             storage_engine: None,
             index_stats: Arc::new(RwLock::new(HashMap::new())),
+            persistence,
         };
         let _ = manager.load_from_disk();
         manager
     }
 
     pub fn with_storage_engine(storage_path: PathBuf, storage_engine: Arc<dyn StorageClient>) -> Self {
+        let persistence = RedbIndexPersistence::new(&storage_path).ok();
         let manager = Self {
             indexes: Arc::new(RwLock::new(HashMap::new())),
             next_index_id: Arc::new(RwLock::new(1)),
@@ -226,6 +232,7 @@ impl MemoryIndexManager {
             index_data: Arc::new(RwLock::new(HashMap::new())),
             storage_engine: Some(storage_engine),
             index_stats: Arc::new(RwLock::new(HashMap::new())),
+            persistence,
         };
         let _ = manager.load_from_disk();
         manager
@@ -344,52 +351,28 @@ impl IndexManager for MemoryIndexManager {
     }
 
     fn load_from_disk(&self) -> StorageResult<()> {
-        use std::fs;
+        if let Some(ref persistence) = self.persistence {
+            let indexes = persistence.list_indexes().map_err(|e| StorageError::DbError(e.to_string()))?;
+            let mut indexes_map = self.indexes.write().map_err(|e| StorageError::LockError(e.to_string()))?;
+            let mut next_id = self.next_index_id.write().map_err(|e| StorageError::LockError(e.to_string()))?;
 
-        if !self.storage_path.exists() {
-            fs::create_dir_all(&self.storage_path).map_err(|e| StorageError::IOError(e.to_string()))?;
-            return Ok(());
-        }
-
-        let index_file = self.storage_path.join("indexes.json");
-        if !index_file.exists() {
-            return Ok(());
-        }
-
-        let content = fs::read_to_string(&index_file).map_err(|e| StorageError::IOError(e.to_string()))?;
-
-        let loaded_indexes: Vec<Index> = serde_json::from_str(&content)
-            .map_err(|e| StorageError::ParseError(format!("反序列化索引失败: {}", e)))?;
-
-        let mut indexes = self.indexes.write().map_err(|e| StorageError::LockError(e.to_string()))?;
-        let mut next_id = self.next_index_id.write().map_err(|e| StorageError::LockError(e.to_string()))?;
-
-        for index in loaded_indexes {
-            if index.id >= *next_id {
-                *next_id = index.id + 1;
+            for index in indexes {
+                if index.id >= *next_id {
+                    *next_id = index.id + 1;
+                }
+                indexes_map.insert(index.name.clone(), index);
             }
-            indexes.insert(index.name.clone(), index);
         }
-
         Ok(())
     }
 
     fn save_to_disk(&self) -> StorageResult<()> {
-        use std::fs;
-
-        if !self.storage_path.exists() {
-            fs::create_dir_all(&self.storage_path).map_err(|e| StorageError::IOError(e.to_string()))?;
+        if let Some(ref persistence) = self.persistence {
+            let indexes = self.indexes.read().map_err(|e| StorageError::LockError(e.to_string()))?;
+            for index in indexes.values() {
+                persistence.save_index(index).map_err(|e| StorageError::DbError(e.to_string()))?;
+            }
         }
-
-        let indexes = self.indexes.read().map_err(|e| StorageError::LockError(e.to_string()))?;
-        let index_list: Vec<Index> = indexes.values().cloned().collect();
-
-        let content = serde_json::to_string_pretty(&index_list)
-            .map_err(|e| StorageError::SerializeError(format!("序列化索引失败: {}", e)))?;
-
-        let index_file = self.storage_path.join("indexes.json");
-        fs::write(&index_file, content).map_err(|e| StorageError::IOError(e.to_string()))?;
-
         Ok(())
     }
 
