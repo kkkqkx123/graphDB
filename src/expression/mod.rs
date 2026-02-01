@@ -16,7 +16,7 @@ pub use crate::core::types::operators::{AggregateFunction, BinaryOperator, Unary
 pub use crate::core::TypeUtils;
 
 // Re-export evaluator module
-pub use evaluator::{Evaluator, ExpressionContext, ExpressionEvaluator};
+pub use evaluator::{ExpressionContext, ExpressionEvaluator};
 
 // Re-export context module types
 pub use context::{

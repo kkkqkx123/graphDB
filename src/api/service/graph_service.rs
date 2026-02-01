@@ -104,7 +104,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
                 .add_space_metric(name, MetricType::NumActiveQueries);
         }
 
-        let request_context = crate::api::service::query_engine::RequestContext {
+        let request_context = crate::api::service::query_processor::RequestContext {
             session_id,
             statement: stmt.to_string(),
             parameters: std::collections::HashMap::new(),
@@ -154,7 +154,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             }
         }
 
-        let request_context = crate::api::service::query_engine::RequestContext {
+        let request_context = crate::api::service::query_processor::RequestContext {
             session_id,
             statement: stmt.to_string(),
             parameters: std::collections::HashMap::new(),
@@ -395,7 +395,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
                 .add_space_metric(name, MetricType::NumActiveQueries);
         }
 
-        let request_context = crate::api::service::query_engine::RequestContext {
+        let request_context = crate::api::service::query_processor::RequestContext {
             session_id,
             statement: stmt.to_string(),
             parameters: std::collections::HashMap::new(),

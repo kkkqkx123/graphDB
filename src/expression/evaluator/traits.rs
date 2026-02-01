@@ -1,45 +1,9 @@
-//! 表达式求值器特征定义
+//! 表达式上下文特征定义
 //!
-//! 定义表达式求值器的核心接口和特征
+//! 为图数据库表达式求值提供统一的上下文接口
 
-use crate::core::error::ExpressionError;
 use crate::core::Value;
-use crate::core::Expression;
-
-/// 表达式求值器核心特征
-///
-/// 使用泛型约束避免动态分发，提高性能
-pub trait Evaluator<C: ExpressionContext> {
-    /// 求值表达式
-    fn evaluate(&self, expression: &Expression, context: &mut C) -> Result<Value, ExpressionError>;
-
-    /// 批量求值表达式
-    fn evaluate_batch(
-        &self,
-        expressions: &[Expression],
-        context: &mut C,
-    ) -> Result<Vec<Value>, ExpressionError> {
-        let mut results = Vec::with_capacity(expressions.len());
-        for expression in expressions {
-            results.push(self.evaluate(expression, context)?);
-        }
-        Ok(results)
-    }
-
-    /// 检查表达式是否可以求值
-    fn can_evaluate(&self, _expression: &Expression, _context: &C) -> bool {
-        true // 默认实现：所有表达式都可以求值
-    }
-
-    /// 获取求值器名称
-    fn name(&self) -> &str;
-
-    /// 获取求值器描述
-    fn description(&self) -> &str;
-
-    /// 获取求值器版本
-    fn version(&self) -> &str;
-}
+use crate::expression::functions::FunctionRef;
 
 /// 表达式上下文特征
 ///
@@ -52,7 +16,7 @@ pub trait ExpressionContext {
     fn set_variable(&mut self, name: String, value: Value);
 
     /// 获取函数引用
-    fn get_function(&self, name: &str) -> Option<crate::expression::functions::FunctionRef> {
+    fn get_function(&self, name: &str) -> Option<FunctionRef> {
         None
     }
 
@@ -63,20 +27,18 @@ pub trait ExpressionContext {
 
     /// 获取上下文深度
     fn get_depth(&self) -> usize {
-        0 // 默认实现
+        0
     }
 
     /// 检查上下文是否支持缓存
     fn supports_cache(&self) -> bool {
-        false // 默认实现：不支持缓存
+        false
     }
 
     /// 获取缓存管理器（如果支持）
     fn get_cache(&mut self) -> Option<&mut crate::expression::context::cache_manager::CacheManager> {
-        None // 默认实现：无缓存
+        None
     }
-
-    // 图数据库特有功能
 
     /// 获取顶点引用
     fn get_vertex(&self) -> Option<&crate::core::Vertex>;
@@ -102,7 +64,7 @@ pub trait ExpressionContext {
     /// 获取变量数量
     fn variable_count(&self) -> usize;
 
-    /// 获取所有变量名（返回String类型）
+    /// 获取所有变量名
     fn variable_names(&self) -> Vec<String>;
 
     /// 获取所有变量

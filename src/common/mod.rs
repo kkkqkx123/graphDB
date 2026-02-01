@@ -4,15 +4,12 @@
 //! - 基础工具和ID生成
 //! - 内存管理
 //! - 线程管理
-//! - 日志系统
 
 pub mod id;
-pub mod log;
 pub mod memory;
 pub mod thread;
 
 // 重新导出常用的类型和函数，方便其他模块使用
 pub use id::*;
-pub use log::*;
 pub use memory::*;
 pub use thread::*;

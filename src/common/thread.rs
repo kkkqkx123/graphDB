@@ -1,14 +1,13 @@
 use std::collections::VecDeque;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 use std::time::Duration;
-use tokio::sync::Notify;
 
 /// A thread pool for executing tasks concurrently
 pub struct ThreadPool {
     workers: Vec<Worker>,
     tasks: Arc<Mutex<VecDeque<Box<dyn FnOnce() + Send>>>>,
-    notifier: Arc<Notify>,
+    notifier: Arc<Condvar>,
     shutdown: Arc<Mutex<bool>>,
 }
 
@@ -16,19 +15,13 @@ impl ThreadPool {
     pub fn new(size: usize) -> Self {
         assert!(size > 0, "Thread pool size must be greater than zero");
 
-        let mut workers = Vec::with_capacity(size);
         let tasks = Arc::new(Mutex::new(VecDeque::new()));
-        let notifier = Arc::new(Notify::new());
+        let notifier = Arc::new(Condvar::new());
         let shutdown = Arc::new(Mutex::new(false));
 
-        for id in 0..size {
-            workers.push(Worker::new(
-                id,
-                Arc::clone(&tasks),
-                Arc::clone(&notifier),
-                Arc::clone(&shutdown),
-            ));
-        }
+        let workers = (0..size)
+            .map(|id| Worker::new(id, Arc::clone(&tasks), Arc::clone(&notifier), Arc::clone(&shutdown)))
+            .collect();
 
         Self {
             workers,
@@ -42,14 +35,8 @@ impl ThreadPool {
     where
         F: FnOnce() + Send + 'static,
     {
-        {
-            let mut tasks = self
-                .tasks
-                .lock()
-                .expect("Thread pool tasks lock should not be poisoned");
-            tasks.push_back(Box::new(f));
-        }
-
+        let mut tasks = self.tasks.lock().expect("Thread pool tasks lock should not be poisoned");
+        tasks.push_back(Box::new(f));
         self.notifier.notify_one();
     }
 
@@ -58,11 +45,11 @@ impl ThreadPool {
     }
 
     pub fn shutdown(&self) {
-        let mut shutdown = self.shutdown.lock().expect("Shutdown lock should not be poisoned");
-        *shutdown = true;
-        drop(shutdown);
-
-        self.notifier.notify_waiters();
+        {
+            let mut shutdown = self.shutdown.lock().expect("Shutdown lock should not be poisoned");
+            *shutdown = true;
+        }
+        self.notifier.notify_all();
     }
 
     pub fn wait_for_completion(&mut self) {
@@ -80,47 +67,51 @@ impl Drop for ThreadPool {
 }
 
 struct Worker {
-    _thread: Option<thread::JoinHandle<()>>,
-    _notifier: Arc<Notify>,
+    thread: Option<thread::JoinHandle<()>>,
 }
 
 impl Worker {
     fn new(
         _id: usize,
         tasks: Arc<Mutex<VecDeque<Box<dyn FnOnce() + Send>>>>,
-        notifier: Arc<Notify>,
+        notifier: Arc<Condvar>,
         shutdown: Arc<Mutex<bool>>,
     ) -> Self {
-        let _notifier = Arc::clone(&notifier);
-        let _thread = thread::spawn(move || {
+        let thread = thread::spawn(move || {
             loop {
                 let task = {
                     let mut tasks = tasks.lock().expect("Worker tasks lock should not be poisoned");
-                    tasks.pop_front()
+
+                    let mut shutdown_guard = shutdown.lock().expect("Shutdown lock should not be poisoned");
+
+                    if *shutdown_guard {
+                        break;
+                    }
+
+                    if let Some(task) = tasks.pop_front() {
+                        drop(shutdown_guard);
+                        Some(task)
+                    } else {
+                        let result = notifier.wait_while(shutdown_guard, |s| *s == false).unwrap();
+                        shutdown_guard = result;
+                        if *shutdown_guard {
+                            break;
+                        }
+                        continue;
+                    }
                 };
 
                 if let Some(task) = task {
                     task();
-                } else {
-                    let should_shutdown = {
-                        let shutdown = shutdown.lock().expect("Shutdown lock should not be poisoned");
-                        *shutdown
-                    };
-
-                    if should_shutdown {
-                        break;
-                    }
-
-                    std::thread::sleep(Duration::from_millis(10));
                 }
             }
         });
 
-        Self { _thread: Some(_thread), _notifier }
+        Self { thread: Some(thread) }
     }
 
     fn wait(&mut self) {
-        if let Some(handle) = self._thread.take() {
+        if let Some(handle) = self.thread.take() {
             let _ = handle.join();
         }
     }

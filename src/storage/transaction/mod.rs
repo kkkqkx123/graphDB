@@ -10,11 +10,11 @@
 pub mod traits;
 pub mod mvcc;
 pub mod lock;
-pub mod log;
+pub mod wal;
 pub mod snapshot;
 
 pub use traits::{Transaction, TransactionId, TransactionState, TransactionResult};
 pub use mvcc::{MvccManager, Version, VersionVec};
 pub use lock::{LockManager, LockType, LockRequest, LockResult, LockKey};
-pub use log::{TransactionLog, LogRecord, LogType};
+pub use wal::{TransactionLog, LogRecord, LogType};
 pub use snapshot::{Snapshot, IsolationLevel};
