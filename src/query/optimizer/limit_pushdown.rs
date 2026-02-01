@@ -1201,7 +1201,7 @@ mod tests {
 
         let start_node = StartNode::new();
         let start_opt_node = OptGroupNode::new(2, start_node.into_enum());
-        ctx.add_plan_node_and_group_node(2, Rc::new(RefCell::new(start_opt_node)));
+        ctx.add_plan_node_and_group_node(2, Rc::new(RefCell::new(start_opt_node.clone())));
 
         let limit_node = LimitNode::new(start_opt_node.plan_node.clone(), 0, 10)
             .expect("Limit node should be created successfully");
@@ -1220,7 +1220,7 @@ mod tests {
 
         let start_node = StartNode::new();
         let start_opt_node = OptGroupNode::new(2, start_node.into_enum());
-        ctx.add_plan_node_and_group_node(2, Rc::new(RefCell::new(start_opt_node)));
+        ctx.add_plan_node_and_group_node(2, Rc::new(RefCell::new(start_opt_node.clone())));
 
         let limit_node = LimitNode::new(start_opt_node.plan_node.clone(), 0, 10)
             .expect("Limit node should be created successfully");

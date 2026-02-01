@@ -81,6 +81,16 @@ impl MemoryConfig {
         self.limit_ratio = ratio;
         self
     }
+
+    pub fn with_spill_threshold(mut self, threshold: u8) -> Self {
+        self.spill_threshold = threshold.clamp(50, 100);
+        self
+    }
+
+    pub fn with_spill_enabled(mut self, enabled: bool) -> Self {
+        self.spill_enabled = enabled;
+        self
+    }
 }
 
 /// 全局内存管理器
@@ -113,15 +123,39 @@ impl GlobalMemoryManager {
         Self::new(limit)
     }
 
+    pub fn adjust_limit_based_on_system(&self, available_memory: u64, ratio: f64) {
+        let new_limit = (available_memory as f64 * ratio) as u64;
+        self.set_limit(new_limit);
+    }
+
+    pub fn is_memory_pressure(&self, threshold: u8) -> bool {
+        let limit_val = self.limit();
+        let utilization = if limit_val > 0 {
+            (self.current_usage() * 100) / limit_val
+        } else {
+            0
+        };
+        utilization >= threshold as u64
+    }
+
+    pub fn can_allocate(&self, size: u64) -> bool {
+        self.current_usage() + size <= self.limit()
+    }
+
+    pub fn remaining_capacity(&self) -> u64 {
+        self.limit().saturating_sub(self.current_usage())
+    }
+
     pub fn alloc(&self, size: u64, _throw_if_exceeded: bool) -> Result<(), String> {
         let old_used = self.used.fetch_add(size, Ordering::Relaxed);
         let new_used = old_used + size;
 
-        if new_used > self.limit.load(Ordering::Relaxed) {
+        let limit = self.limit.load(Ordering::Relaxed);
+        if new_used > limit {
             self.used.fetch_sub(size, Ordering::Relaxed);
             return Err(format!(
                 "Memory limit exceeded: {} + {} > {}",
-                old_used, size, self.limit.load(Ordering::Relaxed)
+                old_used, size, limit
             ));
         }
 

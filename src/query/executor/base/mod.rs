@@ -7,6 +7,7 @@
 //! - execution_result.rs  - 执行结果类型
 //! - execution_context.rs - 执行上下文
 //! - executor_base.rs     - 基础执行器实现
+//! - storage_processor_executor.rs - 存储处理器执行器
 
 pub mod executor_stats;
 pub mod execution_result;
@@ -15,7 +16,7 @@ pub mod executor_base;
 pub mod storage_processor_executor;
 
 pub use executor_stats::ExecutorStats;
-pub use execution_result::{ExecutionResult, DBResult};
+pub use execution_result::{ExecutionResult, DBResult, IntoExecutionResult};
 pub use execution_context::ExecutionContext;
 pub use executor_base::{
     BaseExecutor, ChainableExecutor, Executor, HasStorage, HasInput, InputExecutor, StartExecutor

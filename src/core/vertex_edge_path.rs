@@ -258,6 +258,24 @@ impl PartialOrd for Vertex {
     }
 }
 
+impl Vertex {
+    /// 估算顶点的内存使用大小
+    pub fn estimated_size(&self) -> usize {
+        let mut size = std::mem::size_of::<Self>();
+        size += std::mem::size_of_val(&*self.vid);
+        for tag in &self.tags {
+            size += std::mem::size_of::<String>() + tag.name.len();
+            for (k, v) in &tag.properties {
+                size += std::mem::size_of::<String>() + k.len() + std::mem::size_of::<Value>();
+            }
+        }
+        for (k, v) in &self.properties {
+            size += std::mem::size_of::<String>() + k.len() + std::mem::size_of::<Value>();
+        }
+        size
+    }
+}
+
 /// Represents an edge in the graph, similar to Nebula's Edge structure
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Encode, Decode)]
 pub struct Edge {
@@ -349,6 +367,18 @@ impl Edge {
             "Edge({:?} -> {:?}, type: {}, ranking: {})",
             self.src, self.dst, self.edge_type, self.ranking
         )
+    }
+
+    /// 估算边的内存使用大小
+    pub fn estimated_size(&self) -> usize {
+        let mut size = std::mem::size_of::<Self>();
+        size += std::mem::size_of_val(&*self.src);
+        size += std::mem::size_of_val(&*self.dst);
+        size += std::mem::size_of::<String>() + self.edge_type.len();
+        for (k, v) in &self.props {
+            size += std::mem::size_of::<String>() + k.len() + std::mem::size_of::<Value>();
+        }
+        size
     }
 }
 

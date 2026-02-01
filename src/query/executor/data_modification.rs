@@ -1,11 +1,14 @@
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
-use super::base::BaseExecutor;
+use super::base::storage_processor_executor::{
+    StorageProcessorExecutor, StorageProcessorExecutorImpl,
+};
 use crate::core::{Edge, StorageError, Value, Vertex, DBError};
 use crate::core::types::IndexInfo;
 use crate::expression::context::basic_context::BasicExpressionContext;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
+use crate::query::context::runtime_context::RuntimeContext;
 use crate::query::executor::traits::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::parser::expressions::parse_expression_meta_from_string;
 use crate::storage::StorageClient;
@@ -13,8 +16,8 @@ use crate::utils::safe_lock;
 
 // Executor for inserting new vertices/edges
 pub struct InsertExecutor<S: StorageClient> {
-    base: BaseExecutor<S>,
-    vertex_data: Option<Vec<Vertex>>, // Data to be inserted
+    processor: StorageProcessorExecutor<S, usize>,
+    vertex_data: Option<Vec<Vertex>>,
     edge_data: Option<Vec<Edge>>,
 }
 
@@ -25,24 +28,42 @@ impl<S: StorageClient> InsertExecutor<S> {
         vertex_data: Option<Vec<Vertex>>,
         edge_data: Option<Vec<Edge>>,
     ) -> Self {
+        let context = RuntimeContext::new_simple();
         Self {
-            base: BaseExecutor::new(id, "InsertExecutor".to_string(), storage),
+            processor: StorageProcessorExecutor::new(
+                id,
+                "InsertExecutor".to_string(),
+                storage,
+                context,
+            ),
             vertex_data,
             edge_data,
         }
     }
 
     pub fn with_vertices(id: i64, storage: Arc<Mutex<S>>, vertex_data: Vec<Vertex>) -> Self {
+        let context = RuntimeContext::new_simple();
         Self {
-            base: BaseExecutor::new(id, "InsertExecutor".to_string(), storage),
+            processor: StorageProcessorExecutor::new(
+                id,
+                "InsertExecutor".to_string(),
+                storage,
+                context,
+            ),
             vertex_data: Some(vertex_data),
             edge_data: None,
         }
     }
 
     pub fn with_edges(id: i64, storage: Arc<Mutex<S>>, edge_data: Vec<Edge>) -> Self {
+        let context = RuntimeContext::new_simple();
         Self {
-            base: BaseExecutor::new(id, "InsertExecutor".to_string(), storage),
+            processor: StorageProcessorExecutor::new(
+                id,
+                "InsertExecutor".to_string(),
+                storage,
+                context,
+            ),
             vertex_data: None,
             edge_data: Some(edge_data),
         }
@@ -50,31 +71,9 @@ impl<S: StorageClient> InsertExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageClient + Send + 'static> Executor<S> for InsertExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for InsertExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        let mut _total_inserted = 0;
-
-        // Insert vertices if provided
-        if let Some(vertices) = &self.vertex_data {
-            let mut storage = safe_lock(self.get_storage())
-                .expect("InsertExecutor storage lock should not be poisoned");
-            for vertex in vertices {
-                storage.insert_vertex("default", vertex.clone())?;
-                _total_inserted += 1;
-            }
-        }
-
-        // Insert edges if provided
-        if let Some(edges) = &self.edge_data {
-            let mut storage = safe_lock(self.get_storage())
-                .expect("InsertExecutor storage lock should not be poisoned");
-            for edge in edges {
-                storage.insert_edge("default", edge.clone())?;
-                _total_inserted += 1;
-            }
-        }
-
-        Ok(ExecutionResult::Success)
+        <InsertExecutor<S> as StorageProcessorExecutorImpl<S, usize>>::execute(self).await
     }
 
     fn open(&mut self) -> Result<(), DBError> {
@@ -90,11 +89,11 @@ impl<S: StorageClient + Send + 'static> Executor<S> for InsertExecutor<S> {
     }
 
     fn id(&self) -> i64 {
-        self.base.id
+        RuntimeContext::arc_plan_id(self.processor.processor().context())
     }
 
     fn name(&self) -> &str {
-        &self.base.name
+        "InsertExecutor"
     }
 
     fn description(&self) -> &str {
@@ -102,48 +101,57 @@ impl<S: StorageClient + Send + 'static> Executor<S> for InsertExecutor<S> {
     }
 
     fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
-        self.base.get_stats()
+        self.processor.stats()
     }
 
     fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
-        self.base.get_stats_mut()
-    }
-}
-
-impl<S: StorageClient> HasStorage<S> for CreateIndexExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base
-            .storage
-            .as_ref()
-            .expect("CreateIndexExecutor storage should be set")
-    }
-}
-
-impl<S: StorageClient> HasStorage<S> for DropIndexExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base
-            .storage
-            .as_ref()
-            .expect("DropIndexExecutor storage should be set")
+        self.processor.stats_mut()
     }
 }
 
 impl<S: StorageClient> HasStorage<S> for InsertExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base
-            .storage
-            .as_ref()
-            .expect("InsertExecutor storage should be set")
+        self.processor.get_storage()
+    }
+}
+
+#[async_trait]
+impl<S: StorageClient + Send + Sync + 'static> StorageProcessorExecutorImpl<S, usize> for InsertExecutor<S> {
+    fn get_executor(&mut self) -> &mut StorageProcessorExecutor<S, usize> {
+        &mut self.processor
+    }
+
+    async fn do_execute(&mut self) -> DBResult<usize> {
+        let mut total_inserted = 0;
+
+        if let Some(vertices) = &self.vertex_data {
+            let mut storage = safe_lock(self.get_storage())
+                .expect("InsertExecutor storage lock should not be poisoned");
+            for vertex in vertices {
+                storage.insert_vertex("default", vertex.clone())?;
+                total_inserted += 1;
+            }
+        }
+
+        if let Some(edges) = &self.edge_data {
+            let mut storage = safe_lock(self.get_storage())
+                .expect("InsertExecutor storage lock should not be poisoned");
+            for edge in edges {
+                storage.insert_edge("default", edge.clone())?;
+                total_inserted += 1;
+            }
+        }
+
+        Ok(total_inserted)
     }
 }
 
 // Executor for updating existing vertices/edges
 pub struct UpdateExecutor<S: StorageClient> {
-    base: BaseExecutor<S>,
-    vertex_updates: Option<Vec<VertexUpdate>>, // Updates to apply to vertices
-    edge_updates: Option<Vec<EdgeUpdate>>,     // Updates to apply to edges
-
-    condition: Option<String>, // Condition for selecting items to update
+    processor: StorageProcessorExecutor<S, usize>,
+    vertex_updates: Option<Vec<VertexUpdate>>,
+    edge_updates: Option<Vec<EdgeUpdate>>,
+    condition: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -170,8 +178,14 @@ impl<S: StorageClient> UpdateExecutor<S> {
         edge_updates: Option<Vec<EdgeUpdate>>,
         condition: Option<String>,
     ) -> Self {
+        let context = RuntimeContext::new_simple();
         Self {
-            base: BaseExecutor::new(id, "UpdateExecutor".to_string(), storage),
+            processor: StorageProcessorExecutor::new(
+                id,
+                "UpdateExecutor".to_string(),
+                storage,
+                context,
+            ),
             vertex_updates,
             edge_updates,
             condition,
@@ -180,9 +194,52 @@ impl<S: StorageClient> UpdateExecutor<S> {
 }
 
 #[async_trait]
-impl<S: StorageClient + Send + 'static> Executor<S> for UpdateExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for UpdateExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        let mut _total_updated = 0;
+        <UpdateExecutor<S> as StorageProcessorExecutorImpl<S, usize>>::execute(self).await
+    }
+
+    fn open(&mut self) -> DBResult<()> {
+        Ok(())
+    }
+
+    fn close(&mut self) -> DBResult<()> {
+        Ok(())
+    }
+
+    fn is_open(&self) -> bool {
+        true
+    }
+
+    fn id(&self) -> i64 {
+        RuntimeContext::arc_plan_id(self.processor.processor().context())
+    }
+
+    fn name(&self) -> &str {
+        "UpdateExecutor"
+    }
+
+    fn description(&self) -> &str {
+        "Update executor - updates vertices and edges in storage"
+    }
+
+    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+        self.processor.stats()
+    }
+
+    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+        self.processor.stats_mut()
+    }
+}
+
+#[async_trait]
+impl<S: StorageClient + Send + Sync + 'static> StorageProcessorExecutorImpl<S, usize> for UpdateExecutor<S> {
+    fn get_executor(&mut self) -> &mut StorageProcessorExecutor<S, usize> {
+        &mut self.processor
+    }
+
+    async fn do_execute(&mut self) -> DBResult<usize> {
+        let mut total_updated = 0;
 
         let condition_expression = if let Some(ref condition_str) = self.condition {
             Some(parse_expression_meta_from_string(condition_str).map(|meta| meta.into()).map_err(|e| {
@@ -194,7 +251,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for UpdateExecutor<S> {
             None
         };
 
-        let mut storage = safe_lock(self.get_storage())
+        let mut storage: std::sync::MutexGuard<'_, S> = safe_lock(self.get_storage())
             .expect("UpdateExecutor storage lock should not be poisoned");
 
         if let Some(updates) = &self.vertex_updates {
@@ -223,7 +280,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for UpdateExecutor<S> {
                                     vertex.properties.insert(key.clone(), value.clone());
                                 }
                                 storage.update_vertex("default", vertex)?;
-                                _total_updated += 1;
+                                total_updated += 1;
                             }
                         }
                     }
@@ -233,7 +290,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for UpdateExecutor<S> {
                             vertex.properties.insert(key.clone(), value.clone());
                         }
                         storage.update_vertex("default", vertex)?;
-                        _total_updated += 1;
+                        total_updated += 1;
                     }
                 }
             }
@@ -269,7 +326,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for UpdateExecutor<S> {
                             }
                             storage.delete_edge("default", &update.src, &update.dst, &update.edge_type)?;
                             storage.insert_edge("default", edge)?;
-                            _total_updated += 1;
+                            total_updated += 1;
                         }
                     }
                 } else {
@@ -281,73 +338,28 @@ impl<S: StorageClient + Send + 'static> Executor<S> for UpdateExecutor<S> {
                         }
                         storage.delete_edge("default", &update.src, &update.dst, &update.edge_type)?;
                         storage.insert_edge("default", edge)?;
-                        _total_updated += 1;
+                        total_updated += 1;
                     }
                 }
             }
         }
 
-        Ok(ExecutionResult::Success)
-    }
-
-    fn open(&mut self) -> DBResult<()> {
-        Ok(())
-    }
-
-    fn close(&mut self) -> DBResult<()> {
-        Ok(())
-    }
-
-    fn is_open(&self) -> bool {
-        true
-    }
-
-    fn id(&self) -> i64 {
-        self.base.id
-    }
-
-    fn name(&self) -> &str {
-        &self.base.name
-    }
-
-    fn description(&self) -> &str {
-        "Update executor - updates vertices and edges in storage"
-    }
-
-    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
-        self.base.get_stats()
-    }
-
-    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
-        self.base.get_stats_mut()
+        Ok(total_updated)
     }
 }
 
 impl<S: StorageClient> HasStorage<S> for UpdateExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base
-            .storage
-            .as_ref()
-            .expect("UpdateExecutor storage should be set")
-    }
-}
-
-impl<S: StorageClient> HasStorage<S> for DeleteExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base
-            .storage
-            .as_ref()
-            .expect("DeleteExecutor storage should be set")
+        self.processor.get_storage()
     }
 }
 
 // Executor for deleting vertices/edges
 pub struct DeleteExecutor<S: StorageClient> {
-    base: BaseExecutor<S>,
-    vertex_ids: Option<Vec<Value>>, // IDs of vertices to delete
-    edge_ids: Option<Vec<Value>>,   // IDs of edges to delete
-
-    _condition: Option<String>, // Condition for selecting items to delete
+    processor: StorageProcessorExecutor<S, usize>,
+    vertex_ids: Option<Vec<Value>>,
+    edge_ids: Option<Vec<(Value, Value, String)>>,
+    condition: Option<String>,
 }
 
 impl<S: StorageClient> DeleteExecutor<S> {
@@ -355,40 +367,28 @@ impl<S: StorageClient> DeleteExecutor<S> {
         id: i64,
         storage: Arc<Mutex<S>>,
         vertex_ids: Option<Vec<Value>>,
-        edge_ids: Option<Vec<Value>>,
-        _condition: Option<String>,
+        edge_ids: Option<Vec<(Value, Value, String)>>,
+        condition: Option<String>,
     ) -> Self {
+        let context = RuntimeContext::new_simple();
         Self {
-            base: BaseExecutor::new(id, "DeleteExecutor".to_string(), storage),
+            processor: StorageProcessorExecutor::new(
+                id,
+                "DeleteExecutor".to_string(),
+                storage,
+                context,
+            ),
             vertex_ids,
             edge_ids,
-            _condition,
+            condition,
         }
     }
 }
 
 #[async_trait]
-impl<S: StorageClient + Send + 'static> Executor<S> for DeleteExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DeleteExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        let mut _total_deleted = 0;
-
-        if let Some(ids) = &self.vertex_ids {
-            let _storage = safe_lock(&*self.get_storage())
-                .expect("DeleteExecutor storage lock should not be poisoned");
-            for _id in ids {
-                _total_deleted += 1;
-            }
-        }
-
-        if let Some(ids) = &self.edge_ids {
-            let _storage = safe_lock(&*self.get_storage())
-                .expect("DeleteExecutor storage lock should not be poisoned");
-            for _id in ids {
-                _total_deleted += 1;
-            }
-        }
-
-        Ok(ExecutionResult::Success)
+        <DeleteExecutor<S> as StorageProcessorExecutorImpl<S, usize>>::execute(self).await
     }
 
     fn open(&mut self) -> DBResult<()> {
@@ -404,11 +404,11 @@ impl<S: StorageClient + Send + 'static> Executor<S> for DeleteExecutor<S> {
     }
 
     fn id(&self) -> i64 {
-        self.base.id
+        RuntimeContext::arc_plan_id(self.processor.processor().context())
     }
 
     fn name(&self) -> &str {
-        &self.base.name
+        "DeleteExecutor"
     }
 
     fn description(&self) -> &str {
@@ -416,17 +416,56 @@ impl<S: StorageClient + Send + 'static> Executor<S> for DeleteExecutor<S> {
     }
 
     fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
-        self.base.get_stats()
+        self.processor.stats()
     }
 
     fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
-        self.base.get_stats_mut()
+        self.processor.stats_mut()
+    }
+}
+
+impl<S: StorageClient> HasStorage<S> for DeleteExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.processor.get_storage()
+    }
+}
+
+#[async_trait]
+impl<S: StorageClient + Send + Sync + 'static> StorageProcessorExecutorImpl<S, usize> for DeleteExecutor<S> {
+    fn get_executor(&mut self) -> &mut StorageProcessorExecutor<S, usize> {
+        &mut self.processor
+    }
+
+    async fn do_execute(&mut self) -> DBResult<usize> {
+        let mut total_deleted = 0;
+
+        if let Some(ids) = &self.vertex_ids {
+            let mut storage = safe_lock(self.get_storage())
+                .expect("DeleteExecutor storage lock should not be poisoned");
+            for id in ids {
+                if storage.delete_vertex("default", id).is_ok() {
+                    total_deleted += 1;
+                }
+            }
+        }
+
+        if let Some(edges) = &self.edge_ids {
+            let mut storage = safe_lock(self.get_storage())
+                .expect("DeleteExecutor storage lock should not be poisoned");
+            for (src, dst, edge_type) in edges {
+                if storage.delete_edge("default", src, dst, edge_type).is_ok() {
+                    total_deleted += 1;
+                }
+            }
+        }
+
+        Ok(total_deleted)
     }
 }
 
 // Executor for creating indexes
 pub struct CreateIndexExecutor<S: StorageClient> {
-    base: BaseExecutor<S>,
+    processor: StorageProcessorExecutor<S, ()>,
 
     index_name: String,
 
@@ -446,8 +485,14 @@ impl<S: StorageClient> CreateIndexExecutor<S> {
         properties: Vec<String>,
         tag_name: Option<String>,
     ) -> Self {
+        let context = RuntimeContext::new_simple();
         Self {
-            base: BaseExecutor::new(id, "CreateIndexExecutor".to_string(), storage),
+            processor: StorageProcessorExecutor::new(
+                id,
+                "CreateIndexExecutor".to_string(),
+                storage,
+                context,
+            ),
             index_name,
             index_type,
             properties,
@@ -456,46 +501,16 @@ impl<S: StorageClient> CreateIndexExecutor<S> {
     }
 }
 
+impl<S: StorageClient> HasStorage<S> for CreateIndexExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.processor.get_storage()
+    }
+}
+
 #[async_trait]
-impl<S: StorageClient + Send + 'static> Executor<S> for CreateIndexExecutor<S> {
-    async fn execute(&mut self) -> Result<ExecutionResult, DBError> {
-        let mut storage = safe_lock(self.get_storage())
-            .expect("CreateIndexExecutor storage lock should not be poisoned");
-
-        let target_type = match self.index_type {
-            crate::index::IndexType::TagIndex => "tag",
-            crate::index::IndexType::EdgeIndex => "edge",
-            crate::index::IndexType::FulltextIndex => "fulltext",
-        };
-
-        let target_name = self.tag_name.clone()
-            .or_else(|| Some(self.index_name.clone()))
-            .unwrap_or_default();
-
-        let target_type = if self.index_type == crate::index::IndexType::EdgeIndex {
-            crate::core::types::IndexTargetType::EdgeType
-        } else {
-            crate::core::types::IndexTargetType::Tag
-        };
-
-        let index_info = IndexInfo::new(self.index_name.clone(), target_type, target_name)
-            .with_properties(self.properties.clone());
-
-        let result = match self.index_type {
-            crate::index::IndexType::TagIndex => {
-                storage.create_tag_index("default", &index_info)
-            }
-            crate::index::IndexType::EdgeIndex => {
-                storage.create_edge_index("default", &index_info)
-            }
-            crate::index::IndexType::FulltextIndex => {
-                storage.create_tag_index("default", &index_info)
-            }
-        };
-
-        result
-            .map(|_| ExecutionResult::Success)
-            .map_err(|e| DBError::from(e))
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateIndexExecutor<S> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+        <CreateIndexExecutor<S> as StorageProcessorExecutorImpl<S, ()>>::execute(self).await
     }
 
     fn open(&mut self) -> DBResult<()> {
@@ -511,11 +526,11 @@ impl<S: StorageClient + Send + 'static> Executor<S> for CreateIndexExecutor<S> {
     }
 
     fn id(&self) -> i64 {
-        self.base.id
+        RuntimeContext::arc_plan_id(self.processor.processor().context())
     }
 
     fn name(&self) -> &str {
-        &self.base.name
+        "CreateIndexExecutor"
     }
 
     fn description(&self) -> &str {
@@ -523,52 +538,92 @@ impl<S: StorageClient + Send + 'static> Executor<S> for CreateIndexExecutor<S> {
     }
 
     fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
-        self.base.get_stats()
+        self.processor.stats()
     }
 
     fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
-        self.base.get_stats_mut()
+        self.processor.stats_mut()
+    }
+}
+
+#[async_trait]
+impl<S: StorageClient + Send + Sync + 'static> StorageProcessorExecutorImpl<S, ()> for CreateIndexExecutor<S> {
+    fn get_executor(&mut self) -> &mut StorageProcessorExecutor<S, ()> {
+        &mut self.processor
+    }
+
+    async fn do_execute(&mut self) -> DBResult<()> {
+        let mut storage = safe_lock(self.get_storage())
+            .expect("CreateIndexExecutor storage lock should not be poisoned");
+
+        let target_name = self.tag_name.clone()
+            .or_else(|| Some(self.index_name.clone()))
+            .unwrap_or_default();
+
+        let target_type = if self.index_type == crate::index::IndexType::EdgeIndex {
+            crate::core::types::IndexTargetType::EdgeType
+        } else {
+            crate::core::types::IndexTargetType::Tag
+        };
+
+        let index_info = IndexInfo::new(self.index_name.clone(), target_type, target_name)
+            .with_properties(self.properties.clone());
+
+        match self.index_type {
+            crate::index::IndexType::TagIndex => {
+                storage.create_tag_index("default", &index_info)?;
+            }
+            crate::index::IndexType::EdgeIndex => {
+                storage.create_edge_index("default", &index_info)?;
+            }
+            crate::index::IndexType::FulltextIndex => {
+                storage.create_tag_index("default", &index_info)?;
+            }
+        }
+
+        Ok(())
     }
 }
 
 // Executor for dropping indexes
 pub struct DropIndexExecutor<S: StorageClient> {
-    base: BaseExecutor<S>,
+    processor: StorageProcessorExecutor<S, ()>,
 
     _index_name: String,
 }
 
 impl<S: StorageClient> DropIndexExecutor<S> {
     pub fn new(id: i64, storage: Arc<Mutex<S>>, _index_name: String) -> Self {
+        let context = RuntimeContext::new_simple();
         Self {
-            base: BaseExecutor::new(id, "DropIndexExecutor".to_string(), storage),
+            processor: StorageProcessorExecutor::new(
+                id,
+                "DropIndexExecutor".to_string(),
+                storage,
+                context,
+            ),
             _index_name,
         }
     }
 }
 
+impl<S: StorageClient> HasStorage<S> for DropIndexExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.processor.get_storage()
+    }
+}
+
 #[async_trait]
-impl<S: StorageClient + Send + 'static> Executor<S> for DropIndexExecutor<S> {
-    async fn execute(&mut self) -> Result<ExecutionResult, DBError> {
-        let mut storage = safe_lock(self.get_storage())
-            .expect("DropIndexExecutor storage lock should not be poisoned");
-
-        let result = storage.drop_tag_index("", &self._index_name)?;
-
-        if result {
-            Ok(ExecutionResult::Success)
-        } else {
-            Err(DBError::from(StorageError::DbError(
-                format!("Index '{}' not found", self._index_name)
-            )))
-        }
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DropIndexExecutor<S> {
+    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+        <DropIndexExecutor<S> as StorageProcessorExecutorImpl<S, ()>>::execute(self).await
     }
 
-    fn open(&mut self) -> Result<(), DBError> {
+    fn open(&mut self) -> DBResult<()> {
         Ok(())
     }
 
-    fn close(&mut self) -> Result<(), DBError> {
+    fn close(&mut self) -> DBResult<()> {
         Ok(())
     }
 
@@ -577,11 +632,11 @@ impl<S: StorageClient + Send + 'static> Executor<S> for DropIndexExecutor<S> {
     }
 
     fn id(&self) -> i64 {
-        self.base.id
+        RuntimeContext::arc_plan_id(self.processor.processor().context())
     }
 
     fn name(&self) -> &str {
-        &self.base.name
+        "DropIndexExecutor"
     }
 
     fn description(&self) -> &str {
@@ -589,10 +644,26 @@ impl<S: StorageClient + Send + 'static> Executor<S> for DropIndexExecutor<S> {
     }
 
     fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
-        self.base.get_stats()
+        self.processor.stats()
     }
 
     fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
-        self.base.get_stats_mut()
+        self.processor.stats_mut()
+    }
+}
+
+#[async_trait]
+impl<S: StorageClient + Send + Sync + 'static> StorageProcessorExecutorImpl<S, ()> for DropIndexExecutor<S> {
+    fn get_executor(&mut self) -> &mut StorageProcessorExecutor<S, ()> {
+        &mut self.processor
+    }
+
+    async fn do_execute(&mut self) -> DBResult<()> {
+        let mut storage = safe_lock(self.get_storage())
+            .expect("DropIndexExecutor storage lock should not be poisoned");
+
+        storage.drop_tag_index("default", &self._index_name)?;
+
+        Ok(())
     }
 }

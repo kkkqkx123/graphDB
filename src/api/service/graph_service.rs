@@ -5,6 +5,7 @@ use crate::api::session::{ClientSession, GraphSessionManager};
 use crate::config::Config;
 use crate::storage::{StorageClient, TransactionId};
 use crate::core::error::{SessionError, SessionResult};
+use crate::utils::safe_lock;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -106,7 +107,6 @@ impl TransactionManager {
         states.get(&tx_id).cloned()
     }
 }
-}
 
 impl Default for TransactionManager {
     fn default() -> Self {
@@ -122,7 +122,7 @@ pub struct GraphService<S: StorageClient + Clone + 'static> {
     stats_manager: Arc<StatsManager>,
     config: Config,
     transaction_manager: Arc<Mutex<TransactionManager>>,
-    storage: Arc<S>,
+    storage: Arc<Mutex<S>>,
 }
 
 impl<S: StorageClient + Clone + 'static> GraphService<S> {
@@ -147,7 +147,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             stats_manager,
             config,
             transaction_manager,
-            storage,
+            storage: Arc::new(Mutex::new(storage.as_ref().clone())),
         })
     }
 
@@ -340,10 +340,12 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         let tx_id = tx_manager.begin_transaction();
 
         // 同时在存储层开始事务
-        self.storage
+        let mut storage = self.storage.lock().unwrap();
+        storage
             .begin_transaction("")  // 使用默认空间名
             .map_err(|e| format!("在存储层开始事务失败: {:?}", e))?;
 
+        drop(storage);
         Ok(tx_id)
     }
 
@@ -362,9 +364,12 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         drop(tx_manager);
 
         // 在存储层提交事务
-        let result = self.storage
+        let mut storage = self.storage.lock().unwrap();
+        let result = storage
             .commit_transaction("", tx_id)  // 使用默认空间名
             .map_err(|e| format!("在存储层提交事务失败: {:?}", e));
+
+        drop(storage);
 
         // 更新服务层事务状态
         let mut tx_manager = self.transaction_manager
@@ -398,9 +403,12 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         drop(tx_manager);
 
         // 在存储层回滚事务
-        let result = self.storage
+        let mut storage = self.storage.lock().unwrap();
+        let result = storage
             .rollback_transaction("", tx_id)  // 使用默认空间名
             .map_err(|e| format!("在存储层回滚事务失败: {:?}", e));
+
+        drop(storage);
 
         // 更新服务层事务状态
         let mut tx_manager = self.transaction_manager

@@ -1,6 +1,7 @@
 // Re-export all executor modules
 pub mod admin;
 pub mod base;
+pub mod batch;
 pub mod data_access;
 pub mod data_modification;
 pub mod data_processing;
@@ -17,10 +18,16 @@ pub mod tag_filter;
 pub mod traits;
 pub mod operation_kind_support;
 
-// Re-export from base module (统一的基础类型)
+// Re-export from base module (基础类型从 base 模块统一导出)
 pub use base::{
-    BaseExecutor, ChainableExecutor, ExecutionContext, ExecutionResult, Executor,
-    ExecutorStats, HasInput, HasStorage, InputExecutor, StartExecutor,
+    BaseExecutor, ExecutionContext, ExecutionResult, Executor, ExecutorStats,
+    HasInput, HasStorage, StartExecutor,
+};
+
+// Re-export batch module (批量操作优化)
+pub use batch::{
+    BatchConfig, BatchOptimizer, BatchReadResult,
+    ConcurrencyConfig, ConcurrencyController, ConcurrencyStats,
 };
 
 // Re-export data access executors

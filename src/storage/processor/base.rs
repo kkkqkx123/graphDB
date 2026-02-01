@@ -1,4 +1,4 @@
-use crate::core::error::{DBError, DBResult, StorageError};
+use crate::core::error::{DBError, DBResult, StorageError, StorageResult};
 use crate::query::context::runtime_context::RuntimeContext;
 use crate::storage::StorageClient;
 use std::sync::{Arc, Mutex};
@@ -42,10 +42,8 @@ pub trait StorageProcessor<RESP>: Send {
     }
 }
 
-pub struct ProcessorBase<RESP, S>
-where
-    S: StorageClient,
-{
+#[derive(Debug)]
+pub struct ProcessorBase<RESP, S: StorageClient + std::fmt::Debug> {
     context: Arc<RuntimeContext>,
     resp: Option<RESP>,
     duration: Duration,
@@ -53,10 +51,7 @@ where
     storage: Arc<Mutex<S>>,
 }
 
-impl<RESP, S> ProcessorBase<RESP, S>
-where
-    S: StorageClient,
-{
+impl<RESP, S: StorageClient + std::fmt::Debug> ProcessorBase<RESP, S>{
     pub fn new(context: Arc<RuntimeContext>, storage: Arc<Mutex<S>>) -> Self {
         Self {
             context,
@@ -136,39 +131,356 @@ impl<RESP> ProcessorFuture<RESP> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::{Edge, EdgeDirection, Value, Vertex};
+    use crate::core::types::metadata::{SpaceInfo, TagInfo, EdgeTypeInfo, PropertyDef, InsertVertexInfo, InsertEdgeInfo, UpdateInfo, PasswordInfo, IndexInfo as CoreIndexInfo};
+    use crate::storage::transaction::TransactionId;
+    use crate::storage::Schema;
     use crate::query::context::runtime_context::{PlanContext, RuntimeContext, StorageEnv};
-    use crate::storage::metadata::SchemaManager;
     use crate::storage::index::IndexManager;
+    use crate::storage::metadata::SchemaManager;
+    use crate::storage::StorageClient;
+    use crate::storage::index::IndexType;
+    use crate::core::value::NullType;
     use std::sync::Mutex;
+    use crate::index::{Index, IndexStatus, IndexInfo, IndexOptimization};
 
+    #[derive(Debug)]
     struct DummySchemaManager;
-    impl SchemaManager for DummySchemaManager {}
 
+    impl SchemaManager for DummySchemaManager {
+        fn create_space(&self, _space: &SpaceInfo) -> Result<bool, StorageError> { Ok(true) }
+        fn drop_space(&self, _space_name: &str) -> Result<bool, StorageError> { Ok(true) }
+        fn get_space(&self, _space_name: &str) -> Result<Option<SpaceInfo>, StorageError> { Ok(None) }
+        fn list_spaces(&self) -> Result<Vec<SpaceInfo>, StorageError> { Ok(Vec::new()) }
+        fn create_tag(&self, _space: &str, _tag: &TagInfo) -> Result<bool, StorageError> { Ok(true) }
+        fn get_tag(&self, _space: &str, _tag_name: &str) -> Result<Option<TagInfo>, StorageError> { Ok(None) }
+        fn list_tags(&self, _space: &str) -> Result<Vec<TagInfo>, StorageError> { Ok(Vec::new()) }
+        fn drop_tag(&self, _space: &str, _tag_name: &str) -> Result<bool, StorageError> { Ok(true) }
+        fn create_edge_type(&self, _space: &str, _edge: &EdgeTypeInfo) -> Result<bool, StorageError> { Ok(true) }
+        fn get_edge_type(&self, _space: &str, _edge_type_name: &str) -> Result<Option<EdgeTypeInfo>, StorageError> { Ok(None) }
+        fn list_edge_types(&self, _space: &str) -> Result<Vec<EdgeTypeInfo>, StorageError> { Ok(Vec::new()) }
+        fn drop_edge_type(&self, _space: &str, _edge_type_name: &str) -> Result<bool, StorageError> { Ok(true) }
+        fn get_tag_schema(&self, _space: &str, _tag: &str) -> Result<Schema, StorageError> { Ok(Schema::default()) }
+        fn get_edge_type_schema(&self, _space: &str, _edge: &str) -> Result<Schema, StorageError> { Ok(Schema::default()) }
+    }
+
+    #[derive(Debug)]
     struct DummyIndexManager;
-    impl IndexManager for DummyIndexManager {}
 
+    impl IndexManager for DummyIndexManager {
+        fn get_index(&self, _name: &str) -> Option<Index> { None }
+        fn list_indexes(&self) -> Vec<String> { Vec::new() }
+        fn has_index(&self, _name: &str) -> bool { false }
+        fn create_index(&self, _space_id: i32, _index: Index) -> StorageResult<i32> { Ok(0) }
+        fn drop_index(&self, _space_id: i32, _index_id: i32) -> StorageResult<()> { Ok(()) }
+        fn get_index_status(&self, _space_id: i32, _index_id: i32) -> Option<IndexStatus> { None }
+        fn list_indexes_by_space(&self, _space_id: i32) -> StorageResult<Vec<Index>> { Ok(Vec::new()) }
+        fn lookup_vertex_by_index(&self, _space_id: i32, _index_name: &str, _values: &[Value]) -> StorageResult<Vec<Vertex>> { Ok(Vec::new()) }
+        fn lookup_edge_by_index(&self, _space_id: i32, _index_name: &str, _values: &[Value]) -> StorageResult<Vec<Edge>> { Ok(Vec::new()) }
+        fn range_lookup_vertex(&self, _space_id: i32, _index_name: &str, _start: &Value, _end: &Value) -> StorageResult<Vec<Vertex>> { Ok(Vec::new()) }
+        fn range_lookup_edge(&self, _space_id: i32, _index_name: &str, _start: &Value, _end: &Value) -> StorageResult<Vec<Edge>> { Ok(Vec::new()) }
+        fn insert_vertex_to_index(&self, _space_id: i32, _vertex: &Vertex) -> StorageResult<()> { Ok(()) }
+        fn delete_vertex_from_index(&self, _space_id: i32, _vertex: &Vertex) -> StorageResult<()> { Ok(()) }
+        fn update_vertex_in_index(&self, _space_id: i32, _old_vertex: &Vertex, _new_vertex: &Vertex) -> StorageResult<()> { Ok(()) }
+        fn insert_edge_to_index(&self, _space_id: i32, _edge: &Edge) -> StorageResult<()> { Ok(()) }
+        fn delete_edge_from_index(&self, _space_id: i32, _edge: &Edge) -> StorageResult<()> { Ok(()) }
+        fn update_edge_in_index(&self, _space_id: i32, _old_edge: &Edge, _new_edge: &Edge) -> StorageResult<()> { Ok(()) }
+        fn load_from_disk(&self) -> StorageResult<()> { Ok(()) }
+        fn save_to_disk(&self) -> StorageResult<()> { Ok(()) }
+        fn rebuild_index(&self, _space_id: i32, _index_id: i32) -> StorageResult<()> { Ok(()) }
+        fn rebuild_all_indexes(&self, _space_id: i32) -> StorageResult<()> { Ok(()) }
+        fn get_index_stats(&self, _space_id: i32, _index_id: i32) -> StorageResult<IndexInfo> { Ok(IndexInfo::default()) }
+        fn get_all_index_stats(&self, _space_id: i32) -> StorageResult<Vec<IndexInfo>> { Ok(Vec::new()) }
+        fn analyze_index(&self, _space_id: i32, _index_id: i32) -> StorageResult<IndexOptimization> { Ok(IndexOptimization::default()) }
+        fn analyze_all_indexes(&self, _space_id: i32) -> StorageResult<Vec<IndexOptimization>> { Ok(Vec::new()) }
+        fn check_index_consistency(&self, _space_id: i32, _index_id: i32) -> StorageResult<bool> { Ok(true) }
+        fn repair_index(&self, _space_id: i32, _index_id: i32) -> StorageResult<()> { Ok(()) }
+        fn cleanup_index(&self, _space_id: i32, _index_id: i32) -> StorageResult<()> { Ok(()) }
+        fn batch_insert_vertices(&self, _space_id: i32, _vertices: &[Vertex]) -> StorageResult<()> { Ok(()) }
+        fn batch_delete_vertices(&self, _space_id: i32, _vertices: &[Vertex]) -> StorageResult<()> { Ok(()) }
+        fn batch_insert_edges(&self, _space_id: i32, _edges: &[Edge]) -> StorageResult<()> { Ok(()) }
+        fn batch_delete_edges(&self, _space_id: i32, _edges: &[Edge]) -> StorageResult<()> { Ok(()) }
+    }
+
+    #[derive(Debug)]
     struct DummyStorage;
+
     impl StorageClient for DummyStorage {
-        fn get(&self, _space: u32, _part: u32, _key: &[u8]) -> StorageResult<Option<Vec<u8>>> {
+        fn get_vertex(&self, _space: &str, _id: &Value) -> Result<Option<Vertex>, StorageError> {
             Ok(None)
         }
 
-        fn put(&self, _space: u32, _part: u32, _key: &[u8], _value: &[u8]) -> StorageResult<()> {
-            Ok(())
+        fn scan_vertices(&self, _space: &str) -> Result<Vec<Vertex>, StorageError> {
+            Ok(Vec::new())
         }
 
-        fn delete(&self, _space: u32, _part: u32, _key: &[u8]) -> StorageResult<()> {
-            Ok(())
+        fn scan_vertices_by_tag(&self, _space: &str, _tag: &str) -> Result<Vec<Vertex>, StorageError> {
+            Ok(Vec::new())
         }
 
-        fn scan(
+        fn scan_vertices_by_prop(
             &self,
-            _space: u32,
-            _part: u32,
-            _start: &[u8],
-            _end: &[u8],
-        ) -> StorageResult<Box<dyn crate::storage::StorageIter>> {
-            Ok(Box::new(crate::storage::DefaultIter::default()))
+            _space: &str,
+            _tag: &str,
+            _prop: &str,
+            _value: &Value,
+        ) -> Result<Vec<Vertex>, StorageError> {
+            Ok(Vec::new())
+        }
+
+        fn get_edge(
+            &self,
+            _space: &str,
+            _src: &Value,
+            _dst: &Value,
+            _edge_type: &str,
+        ) -> Result<Option<Edge>, StorageError> {
+            Ok(None)
+        }
+
+        fn get_node_edges(
+            &self,
+            _space: &str,
+            _node_id: &Value,
+            _direction: EdgeDirection,
+        ) -> Result<Vec<Edge>, StorageError> {
+            Ok(Vec::new())
+        }
+
+        fn get_node_edges_filtered(
+            &self,
+            _space: &str,
+            _node_id: &Value,
+            _direction: EdgeDirection,
+            _filter: Option<Box<dyn Fn(&Edge) -> bool + Send + Sync>>,
+        ) -> Result<Vec<Edge>, StorageError> {
+            Ok(Vec::new())
+        }
+
+        fn scan_edges_by_type(&self, _space: &str, _edge_type: &str) -> Result<Vec<Edge>, StorageError> {
+            Ok(Vec::new())
+        }
+
+        fn scan_all_edges(&self, _space: &str) -> Result<Vec<Edge>, StorageError> {
+            Ok(Vec::new())
+        }
+
+        fn insert_vertex(&mut self, _space: &str, _vertex: Vertex) -> Result<Value, StorageError> {
+            Ok(Value::Null(NullType::NaN))
+        }
+
+        fn update_vertex(&mut self, _space: &str, _vertex: Vertex) -> Result<(), StorageError> {
+            Ok(())
+        }
+
+        fn delete_vertex(&mut self, _space: &str, _id: &Value) -> Result<(), StorageError> {
+            Ok(())
+        }
+
+        fn batch_insert_vertices(
+            &mut self,
+            _space: &str,
+            _vertices: Vec<Vertex>,
+        ) -> Result<Vec<Value>, StorageError> {
+            Ok(Vec::new())
+        }
+
+        fn insert_edge(&mut self, _space: &str, _edge: Edge) -> Result<(), StorageError> {
+            Ok(())
+        }
+
+        fn delete_edge(
+            &mut self,
+            _space: &str,
+            _src: &Value,
+            _dst: &Value,
+            _edge_type: &str,
+        ) -> Result<(), StorageError> {
+            Ok(())
+        }
+
+        fn batch_insert_edges(&mut self, _space: &str, _edges: Vec<Edge>) -> Result<(), StorageError> {
+            Ok(())
+        }
+
+        fn begin_transaction(&mut self, _space: &str) -> Result<TransactionId, StorageError> {
+            Ok(TransactionId::new(1))
+        }
+
+        fn commit_transaction(&mut self, _space: &str, _tx_id: TransactionId) -> Result<(), StorageError> {
+            Ok(())
+        }
+
+        fn rollback_transaction(&mut self, _space: &str, _tx_id: TransactionId) -> Result<(), StorageError> {
+            Ok(())
+        }
+
+        fn create_space(&mut self, _space: &SpaceInfo) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn drop_space(&mut self, _space: &str) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn get_space(&self, _space: &str) -> Result<Option<SpaceInfo>, StorageError> {
+            Ok(None)
+        }
+
+        fn list_spaces(&self) -> Result<Vec<SpaceInfo>, StorageError> {
+            Ok(Vec::new())
+        }
+
+        fn create_tag(&mut self, _space: &str, _info: &TagInfo) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn alter_tag(
+            &mut self,
+            _space: &str,
+            _tag: &str,
+            _additions: Vec<PropertyDef>,
+            _deletions: Vec<String>,
+        ) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn get_tag(&self, _space: &str, _tag: &str) -> Result<Option<TagInfo>, StorageError> {
+            Ok(None)
+        }
+
+        fn drop_tag(&mut self, _space: &str, _tag: &str) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn list_tags(&self, _space: &str) -> Result<Vec<TagInfo>, StorageError> {
+            Ok(Vec::new())
+        }
+
+        fn create_edge_type(
+            &mut self,
+            _space: &str,
+            _info: &EdgeTypeInfo,
+        ) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn alter_edge_type(
+            &mut self,
+            _space: &str,
+            _edge_type: &str,
+            _additions: Vec<PropertyDef>,
+            _deletions: Vec<String>,
+        ) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn get_edge_type(
+            &self,
+            _space: &str,
+            _edge_type: &str,
+        ) -> Result<Option<EdgeTypeInfo>, StorageError> {
+            Ok(None)
+        }
+
+        fn drop_edge_type(&mut self, _space: &str, _edge_type: &str) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn list_edge_types(&self, _space: &str) -> Result<Vec<EdgeTypeInfo>, StorageError> {
+            Ok(Vec::new())
+        }
+
+        fn create_tag_index(&mut self, _space: &str, _info: &CoreIndexInfo) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn drop_tag_index(&mut self, _space: &str, _index: &str) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn get_tag_index(&self, _space: &str, _index: &str) -> Result<Option<CoreIndexInfo>, StorageError> {
+            Ok(None)
+        }
+
+        fn list_tag_indexes(&self, _space: &str) -> Result<Vec<CoreIndexInfo>, StorageError> {
+            Ok(Vec::new())
+        }
+
+        fn rebuild_tag_index(&mut self, _space: &str, _index: &str) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn create_edge_index(&mut self, _space: &str, _info: &CoreIndexInfo) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn drop_edge_index(&mut self, _space: &str, _index: &str) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn get_edge_index(&self, _space: &str, _index: &str) -> Result<Option<CoreIndexInfo>, StorageError> {
+            Ok(None)
+        }
+
+        fn list_edge_indexes(&self, _space: &str) -> Result<Vec<CoreIndexInfo>, StorageError> {
+            Ok(Vec::new())
+        }
+
+        fn rebuild_edge_index(&mut self, _space: &str, _index: &str) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn lookup_index(&self, _space: &str, _index: &str, _value: &Value) -> Result<Vec<Value>, StorageError> {
+            Ok(Vec::new())
+        }
+
+        fn insert_vertex_data(&mut self, _space: &str, _info: &InsertVertexInfo) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn insert_edge_data(&mut self, _space: &str, _info: &InsertEdgeInfo) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn delete_vertex_data(&mut self, _space: &str, _vertex_id: &str) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn delete_edge_data(&mut self, _space: &str, _src: &str, _dst: &str, _rank: i64) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn update_data(&mut self, _space: &str, _info: &UpdateInfo) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn change_password(&mut self, _info: &PasswordInfo) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn get_vertex_with_schema(&self, _space: &str, _tag: &str, _id: &Value) -> Result<Option<(Schema, Vec<u8>)>, StorageError> {
+            Ok(None)
+        }
+
+        fn get_edge_with_schema(&self, _space: &str, _edge_type: &str, _src: &Value, _dst: &Value) -> Result<Option<(Schema, Vec<u8>)>, StorageError> {
+            Ok(None)
+        }
+
+        fn scan_vertices_with_schema(&self, _space: &str, _tag: &str) -> Result<Vec<(Schema, Vec<u8>)>, StorageError> {
+            Ok(Vec::new())
+        }
+
+        fn scan_edges_with_schema(&self, _space: &str, _edge_type: &str) -> Result<Vec<(Schema, Vec<u8>)>, StorageError> {
+            Ok(Vec::new())
+        }
+
+        fn load_from_disk(&mut self) -> Result<(), StorageError> {
+            Ok(())
+        }
+
+        fn save_to_disk(&self) -> Result<(), StorageError> {
+            Ok(())
         }
     }
 
@@ -210,7 +522,7 @@ mod tests {
         let ctx = create_test_runtime_context();
         let storage: Arc<Mutex<DummyStorage>> = Arc::new(Mutex::new(DummyStorage));
 
-        let base = ProcessorBase::new(ctx, storage);
+        let base: ProcessorBase<(), DummyStorage> = ProcessorBase::new(ctx, storage);
 
         assert!(!base.has_errors());
         assert!(base.failed_parts().is_empty());
@@ -221,7 +533,7 @@ mod tests {
     fn test_processor_push_code() {
         let ctx = create_test_runtime_context();
         let storage: Arc<Mutex<DummyStorage>> = Arc::new(Mutex::new(DummyStorage));
-        let mut base = ProcessorBase::new(ctx, storage);
+        let mut base: ProcessorBase<(), DummyStorage> = ProcessorBase::new(ctx, storage);
 
         let error = DBError::Storage(StorageError::NotFound("test".to_string()));
         base.push_code(error.clone(), 100);

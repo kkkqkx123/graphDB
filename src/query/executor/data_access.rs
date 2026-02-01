@@ -104,26 +104,25 @@ impl<S: StorageClient + Send + Sync + 'static> StorageProcessorExecutorImpl<S, V
     async fn do_execute(
         &mut self,
     ) -> DBResult<Vec<crate::core::vertex_edge_path::Vertex>> {
-        let storage = safe_lock(self.get_storage())
-            .expect("GetVerticesExecutor storage lock should not be poisoned");
-
         match &self.vertex_ids {
-            Some(ids) => {
-                let capacity = self.limit.map_or(ids.len(), |limit| limit.min(ids.len()));
-                let mut result_vertices: Vec<crate::core::vertex_edge_path::Vertex> =
-                    Vec::with_capacity(capacity);
-
-                for id in ids {
-                    if let Some(vertex) = storage.get_vertex("default", id)? {
+            Some(ids) if ids.len() > 1 => {
+                let batch_result = self.processor.batch_optimizer()
+                    .batch_get_vertices(ids)
+                    .await;
+                
+                let mut result_vertices: Vec<crate::core::vertex_edge_path::Vertex> = Vec::new();
+                
+                for vertex_opt in batch_result.items {
+                    if let Some(ref vertex) = vertex_opt {
                         let include_vertex = if let Some(ref tag_filter_expression) = self.tag_filter {
                             crate::query::executor::tag_filter::TagFilterProcessor
-                                ::process_tag_filter(tag_filter_expression, &vertex)
+                                ::process_tag_filter(tag_filter_expression, vertex)
                         } else {
                             true
                         };
 
                         if include_vertex {
-                            result_vertices.push(vertex);
+                            result_vertices.push(vertex.clone());
                         }
                     }
 
@@ -133,9 +132,28 @@ impl<S: StorageClient + Send + Sync + 'static> StorageProcessorExecutorImpl<S, V
                         }
                     }
                 }
+
+                if !batch_result.failed_keys.is_empty() {
+                    log::warn!("批量获取顶点失败: {} 个", batch_result.failed_keys.len());
+                }
+
                 Ok(result_vertices)
             }
+            Some(ids) if ids.len() == 1 => {
+                let storage = safe_lock(self.get_storage())
+                    .expect("GetVerticesExecutor storage lock should not be poisoned");
+
+                if let Some(vertex) = storage.get_vertex("default", &ids[0])? {
+                    Ok(vec![vertex])
+                } else {
+                    Ok(Vec::new())
+                }
+            }
+            Some(ids) => Ok(Vec::new()),
             None => {
+                let storage = safe_lock(self.get_storage())
+                    .expect("GetVerticesExecutor storage lock should not be poisoned");
+
                 let vertices = storage.scan_vertices("default")?
                     .into_iter()
                     .filter(|vertex| {
@@ -498,35 +516,66 @@ impl<S: StorageClient + Send + Sync + 'static> StorageProcessorExecutorImpl<S, V
     }
 
     async fn do_execute(&mut self) -> DBResult<Vec<Value>> {
-        let storage = safe_lock(self.get_storage())
-            .expect("GetNeighborsExecutor storage lock should not be poisoned");
+        if self.vertex_ids.is_empty() {
+            return Ok(Vec::new());
+        }
 
-        let mut neighbors = Vec::new();
+        let batch_result = self.processor.batch_optimizer()
+            .batch_get_vertices(&self.vertex_ids)
+            .await;
 
+        let mut neighbor_ids: Vec<Value> = Vec::new();
         let edge_types_filter = self.edge_types.as_ref();
+        let direction = self.edge_direction;
 
-        for vertex_id in &self.vertex_ids {
-            let direction = self.edge_direction;
+        for (idx, vertex_opt) in batch_result.items.iter().enumerate() {
+            if let Some(ref vertex) = vertex_opt {
+                let vertex_id = &vertex.vid;
 
-            let edges = storage.get_node_edges("default", vertex_id, direction)?;
+                let storage = safe_lock(self.get_storage())
+                    .expect("GetNeighborsExecutor storage lock should not be poisoned");
 
-            for edge in edges {
-                if let Some(ref filter_types) = edge_types_filter {
-                    if !filter_types.contains(&edge.edge_type) {
-                        continue;
+                let edges = storage.get_node_edges("default", vertex_id, direction)?;
+
+                for edge in edges {
+                    if let Some(ref filter_types) = edge_types_filter {
+                        if !filter_types.contains(&edge.edge_type) {
+                            continue;
+                        }
                     }
-                }
 
-                let neighbor_id = if *edge.src == *vertex_id {
-                    &edge.dst
-                } else {
-                    &edge.src
-                };
+                    let neighbor_id = if *edge.src == **vertex_id {
+                        *edge.dst
+                    } else {
+                        *edge.src
+                    };
 
-                if let Some(vertex) = storage.get_vertex("default", neighbor_id)? {
-                    neighbors.push(crate::core::Value::Vertex(Box::new(vertex)));
+                    neighbor_ids.push(neighbor_id);
                 }
             }
+        }
+
+        neighbor_ids.sort();
+        neighbor_ids.dedup();
+
+        if neighbor_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let neighbor_batch_result = self.processor.batch_optimizer()
+            .batch_get_vertices(&neighbor_ids)
+            .await;
+
+        let mut neighbors: Vec<Value> = Vec::new();
+
+        for vertex_opt in neighbor_batch_result.items {
+            if let Some(vertex) = vertex_opt {
+                neighbors.push(crate::core::Value::Vertex(Box::new(vertex)));
+            }
+        }
+
+        if !neighbor_batch_result.failed_keys.is_empty() {
+            log::warn!("批量获取邻居顶点失败: {} 个", neighbor_batch_result.failed_keys.len());
         }
 
         Ok(neighbors)
@@ -536,13 +585,10 @@ impl<S: StorageClient + Send + Sync + 'static> StorageProcessorExecutorImpl<S, V
 // Implementation for GetPropExecutor
 #[derive(Debug)]
 pub struct GetPropExecutor<S: StorageClient> {
-    base: BaseExecutor<S>,
-
+    processor: StorageProcessorExecutor<S, Vec<Value>>,
     vertex_ids: Option<Vec<Value>>,
-
     edge_ids: Option<Vec<Value>>,
-
-    prop_names: Vec<String>, // List of property names to retrieve
+    prop_names: Vec<String>,
 }
 
 impl<S: StorageClient> GetPropExecutor<S> {
@@ -553,8 +599,14 @@ impl<S: StorageClient> GetPropExecutor<S> {
         edge_ids: Option<Vec<Value>>,
         prop_names: Vec<String>,
     ) -> Self {
+        let context = RuntimeContext::new_simple();
         Self {
-            base: BaseExecutor::new(id, "GetPropExecutor".to_string(), storage),
+            processor: StorageProcessorExecutor::new(
+                id,
+                "GetPropExecutor".to_string(),
+                storage,
+                context,
+            ),
             vertex_ids,
             edge_ids,
             prop_names,
@@ -565,6 +617,55 @@ impl<S: StorageClient> GetPropExecutor<S> {
 #[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for GetPropExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
+        <GetPropExecutor<S> as StorageProcessorExecutorImpl<S, Vec<Value>>>::execute(self).await
+    }
+
+    fn open(&mut self) -> DBResult<()> {
+        Ok(())
+    }
+
+    fn close(&mut self) -> DBResult<()> {
+        Ok(())
+    }
+
+    fn is_open(&self) -> bool {
+        true
+    }
+
+    fn id(&self) -> i64 {
+        RuntimeContext::arc_plan_id(self.processor.processor().context())
+    }
+
+    fn name(&self) -> &str {
+        "GetPropExecutor"
+    }
+
+    fn description(&self) -> &str {
+        "Get property executor - retrieves properties from vertices or edges"
+    }
+
+    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+        self.processor.stats()
+    }
+
+    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+        self.processor.stats_mut()
+    }
+}
+
+impl<S: StorageClient> HasStorage<S> for GetPropExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.processor.get_storage()
+    }
+}
+
+#[async_trait]
+impl<S: StorageClient + Send + Sync + 'static> StorageProcessorExecutorImpl<S, Vec<Value>> for GetPropExecutor<S> {
+    fn get_executor(&mut self) -> &mut StorageProcessorExecutor<S, Vec<Value>> {
+        &mut self.processor
+    }
+
+    async fn do_execute(&mut self) -> DBResult<Vec<Value>> {
         let storage = safe_lock(self.get_storage())
             .expect("GetPropExecutor storage lock should not be poisoned");
 
@@ -580,8 +681,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for GetPropExecutor<S
                         if let Some(value) = vertex.get_property_any(prop_name) {
                             props.push(value.clone());
                         } else {
-                            props
-                                .push(crate::core::Value::Null(crate::core::value::NullType::Null));
+                            props.push(crate::core::Value::Null(crate::core::value::NullType::Null));
                         }
                     }
                 }
@@ -598,56 +698,14 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for GetPropExecutor<S
                         if let Some(value) = edge.get_property(prop_name) {
                             props.push(value.clone());
                         } else {
-                            props
-                                .push(crate::core::Value::Null(crate::core::value::NullType::Null));
+                            props.push(crate::core::Value::Null(crate::core::value::NullType::Null));
                         }
                     }
                 }
             }
         }
 
-        Ok(ExecutionResult::Values(props))
-    }
-
-    fn open(&mut self) -> DBResult<()> {
-        Ok(())
-    }
-
-    fn close(&mut self) -> DBResult<()> {
-        Ok(())
-    }
-
-    fn is_open(&self) -> bool {
-        true
-    }
-
-    fn id(&self) -> i64 {
-        self.base.id
-    }
-
-    fn name(&self) -> &str {
-        &self.base.name
-    }
-
-    fn description(&self) -> &str {
-        "Get property executor - retrieves properties from vertices or edges"
-    }
-
-    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
-        self.base.get_stats()
-    }
-
-    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
-        self.base.get_stats_mut()
-    }
-}
-
-impl<S: StorageClient> HasStorage<S> for GetPropExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base
-            .storage
-            .as_ref()
-            .expect("GetPropExecutor storage should be set")
+        Ok(props)
     }
 }
 
@@ -657,7 +715,7 @@ use super::base::EdgeDirection;
 
 #[derive(Debug)]
 pub struct IndexScanExecutor<S: StorageClient> {
-    base: BaseExecutor<S>,
+    processor: StorageProcessorExecutor<S, Vec<Value>>,
     index_name: String,
     index_condition: Option<(String, Value)>,
     scan_forward: bool,
@@ -673,8 +731,14 @@ impl<S: StorageClient> IndexScanExecutor<S> {
         scan_forward: bool,
         limit: Option<usize>,
     ) -> Self {
+        let context = RuntimeContext::new_simple();
         Self {
-            base: BaseExecutor::new(id, "IndexScanExecutor".to_string(), storage),
+            processor: StorageProcessorExecutor::new(
+                id,
+                "IndexScanExecutor".to_string(),
+                storage,
+                context,
+            ),
             index_name,
             index_condition,
             scan_forward,
@@ -686,6 +750,55 @@ impl<S: StorageClient> IndexScanExecutor<S> {
 #[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for IndexScanExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
+        <IndexScanExecutor<S> as StorageProcessorExecutorImpl<S, Vec<Value>>>::execute(self).await
+    }
+
+    fn open(&mut self) -> DBResult<()> {
+        Ok(())
+    }
+
+    fn close(&mut self) -> DBResult<()> {
+        Ok(())
+    }
+
+    fn is_open(&self) -> bool {
+        true
+    }
+
+    fn id(&self) -> i64 {
+        RuntimeContext::arc_plan_id(self.processor.processor().context())
+    }
+
+    fn name(&self) -> &str {
+        "IndexScanExecutor"
+    }
+
+    fn description(&self) -> &str {
+        "Index scan executor - retrieves vertices using index"
+    }
+
+    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+        self.processor.stats()
+    }
+
+    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+        self.processor.stats_mut()
+    }
+}
+
+impl<S: StorageClient> HasStorage<S> for IndexScanExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.processor.get_storage()
+    }
+}
+
+#[async_trait]
+impl<S: StorageClient + Send + Sync + 'static> StorageProcessorExecutorImpl<S, Vec<Value>> for IndexScanExecutor<S> {
+    fn get_executor(&mut self) -> &mut StorageProcessorExecutor<S, Vec<Value>> {
+        &mut self.processor
+    }
+
+    async fn do_execute(&mut self) -> DBResult<Vec<Value>> {
         let storage = safe_lock(self.get_storage())
             .expect("IndexScanExecutor storage lock should not be poisoned");
 
@@ -721,48 +834,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for IndexScanExecutor
             }
         }
 
-        Ok(ExecutionResult::Values(results))
-    }
-
-    fn open(&mut self) -> DBResult<()> {
-        Ok(())
-    }
-
-    fn close(&mut self) -> DBResult<()> {
-        Ok(())
-    }
-
-    fn is_open(&self) -> bool {
-        true
-    }
-
-    fn id(&self) -> i64 {
-        self.base.id
-    }
-
-    fn name(&self) -> &str {
-        &self.base.name
-    }
-
-    fn description(&self) -> &str {
-        "Index scan executor - retrieves vertices using index"
-    }
-
-    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
-        self.base.get_stats()
-    }
-
-    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
-        self.base.get_stats_mut()
-    }
-}
-
-impl<S: StorageClient> HasStorage<S> for IndexScanExecutor<S> {
-    fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base
-            .storage
-            .as_ref()
-            .expect("IndexScanExecutor storage should be set")
+        Ok(results)
     }
 }
 

@@ -7,7 +7,7 @@ use super::types::FieldDef;
 use std::collections::BTreeMap;
 
 /// Schema定义
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Schema {
     pub name: String,
     pub fields: BTreeMap<String, FieldDef>,

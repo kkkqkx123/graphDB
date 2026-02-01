@@ -82,7 +82,7 @@ impl Index {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct IndexInfo {
     pub index_id: i32,
     pub index_name: String,
@@ -109,7 +109,7 @@ impl IndexInfo {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct IndexOptimization {
     pub index_id: i32,
     pub index_name: String,

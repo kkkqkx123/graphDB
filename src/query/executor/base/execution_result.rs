@@ -62,3 +62,44 @@ impl ExecutionResult {
 
 /// 结果类型别名
 pub type DBResult<T> = Result<T, DBError>;
+
+/// 支持转换为执行结果的 trait
+pub trait IntoExecutionResult {
+    fn into_execution_result(self) -> ExecutionResult;
+}
+
+impl IntoExecutionResult for Vec<crate::core::Value> {
+    fn into_execution_result(self) -> ExecutionResult {
+        ExecutionResult::Values(self)
+    }
+}
+
+impl IntoExecutionResult for Vec<crate::core::Vertex> {
+    fn into_execution_result(self) -> ExecutionResult {
+        ExecutionResult::Vertices(self)
+    }
+}
+
+impl IntoExecutionResult for Vec<crate::core::Edge> {
+    fn into_execution_result(self) -> ExecutionResult {
+        ExecutionResult::Edges(self)
+    }
+}
+
+impl IntoExecutionResult for crate::core::DataSet {
+    fn into_execution_result(self) -> ExecutionResult {
+        ExecutionResult::DataSet(self)
+    }
+}
+
+impl IntoExecutionResult for () {
+    fn into_execution_result(self) -> ExecutionResult {
+        ExecutionResult::Success
+    }
+}
+
+impl IntoExecutionResult for usize {
+    fn into_execution_result(self) -> ExecutionResult {
+        ExecutionResult::Count(self)
+    }
+}

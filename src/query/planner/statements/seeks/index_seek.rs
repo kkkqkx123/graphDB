@@ -3,7 +3,7 @@
 //! 使用标签或属性索引进行高效查找
 
 use super::seek_strategy::SeekStrategy;
-use super::seek_strategy_base::{SeekResult, SeekStrategyContext, SeekStrategyType, NodePattern};
+use super::seek_strategy_base::{SeekResult, SeekStrategyContext, SeekStrategyType, NodePattern, IndexInfo};
 use crate::core::{StorageError, Vertex};
 use crate::storage::StorageClient;
 
