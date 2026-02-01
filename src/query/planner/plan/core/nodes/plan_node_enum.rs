@@ -1058,6 +1058,13 @@ impl PlanNodeEnum {
         }
     }
 
+    pub fn as_all_paths_mut(&mut self) -> Option<&mut AllPaths> {
+        match self {
+            PlanNodeEnum::AllPaths(node) => Some(node),
+            _ => None,
+        }
+    }
+
     pub fn as_multi_shortest_path(&self) -> Option<&MultiShortestPath> {
         match self {
             PlanNodeEnum::MultiShortestPath(node) => Some(node),

@@ -439,7 +439,7 @@ impl PlanNodeVisitor for EliminateAppendVerticesVisitor {
                     let inputs = node.inputs();
                     if let Some(input) = inputs.first() {
                         let mut new_node_borrowed = new_node.borrow_mut();
-                        new_node_borrowed.plan_node = (**input).clone();
+                        new_node_borrowed.plan_node = *(*input).clone();
                     }
                 }
 
@@ -540,7 +540,7 @@ impl PlanNodeVisitor for RemoveAppendVerticesBelowJoinVisitor {
                     if let Some(_output_var) = node.output_var() {
                         let inputs = node.inputs();
                         if let Some(input) = inputs.first() {
-                            new_node.plan_node = (**input).clone();
+                            new_node.plan_node = *(*input).clone();
                         }
                     }
 

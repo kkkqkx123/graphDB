@@ -6,7 +6,7 @@ use super::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult};
 use super::rule_patterns::PatternBuilder;
 use super::rule_traits::{BaseOptRule, PushDownRule};
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
-use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
+use crate::query::planner::plan::core::nodes::plan_node_traits::{PlanNode, SingleInputNode};
 use crate::query::visitor::PlanNodeVisitor;
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -830,8 +830,6 @@ impl PushDownRule for PushLimitDownProjectRule {
     }
 }
 
-// 注释掉使用不存在的 AllPaths 和 ExpandAll 类型的规则
-/*
 /// 将LIMIT下推到全路径操作的规则
 #[derive(Debug)]
 pub struct PushLimitDownAllPathsRule;
@@ -843,31 +841,24 @@ impl OptRule for PushLimitDownAllPathsRule {
 
     fn apply(&self, ctx: &mut OptContext, group_node: &Rc<RefCell<OptGroupNode>>) -> Result<Option<TransformResult>, OptimizerError> {
         let node_ref = group_node.borrow();
-        // 检查是否为LIMIT操作
         if !node_ref.plan_node.is_limit() {
             return Ok(Some(TransformResult::unchanged()));
         }
 
-        // 匹配模式以查看是否为LIMIT后跟全路径
-        if let Some(matched) = self.match_pattern(ctx, group_node)? {
-            if matched.dependencies.len() >= 1 {
-                let child = &matched.dependencies[0];
+        if node_ref.dependencies.len() >= 1 {
+            let child_dep_id = node_ref.dependencies[0];
+            let child_node_opt = ctx.find_group_node_by_plan_node_id(child_dep_id).cloned();
 
-                if child.borrow().plan_node.type_name() == "AllPaths" {
-                    // 在完整实现中，我们会将LIMIT下推到全路径操作
-                    // 以限制计算的路径数量
-                    let mut result = TransformResult::new();
-                    result.add_new_group_node(group_node.clone());
-                    return Ok(Some(result));
-                } else {
-                    Ok(Some(TransformResult::unchanged()))
+            if let Some(child_node) = child_node_opt {
+                let child_node_ref = child_node.borrow();
+                if child_node_ref.plan_node.is_all_paths() {
+                    let child_clone = child_node_ref.clone();
+                    drop(child_node_ref);
+                    return self.create_pushed_down_node(ctx, group_node, &child_clone);
                 }
-            } else {
-                Ok(Some(TransformResult::unchanged()))
             }
-        } else {
-            Ok(Some(TransformResult::unchanged()))
         }
+        Ok(Some(TransformResult::unchanged()))
     }
 
     fn pattern(&self) -> Pattern {
@@ -882,12 +873,45 @@ impl PushDownRule for PushLimitDownAllPathsRule {
         child_node.type_name() == "AllPaths"
     }
 
-    fn create_pushed_down_node(&self, _ctx: &mut OptContext, _group_node: &Rc<RefCell<OptGroupNode>>, _child: &OptGroupNode) -> Result<Option<TransformResult>, OptimizerError> {
-        // 在完整实现中，这里会创建带有LIMIT的全路径节点
-        // 目前简化实现，返回unchanged
-        Ok(Some(TransformResult::unchanged()))
-    }
-}
+    fn create_pushed_down_node(
+        &self,
+        ctx: &mut OptContext,
+        group_node: &Rc<RefCell<OptGroupNode>>,
+        child: &OptGroupNode,
+    ) -> Result<Option<TransformResult>, OptimizerError> {
+        let group_node_borrowed = group_node.borrow();
+        let limit_node = group_node_borrowed.plan_node.as_limit().ok_or_else(|| {
+            OptimizerError::InvalidPlanNode("Expected Limit node".to_string())
+        })?;
+
+        let all_paths_node = child.plan_node.as_all_paths().ok_or_else(|| {
+            OptimizerError::InvalidPlanNode("Expected AllPaths node".to_string())
+        })?;
+
+        let limit_rows = limit_node.offset() + limit_node.count();
+
+        if all_paths_node.limit() >= 0 && limit_rows >= all_paths_node.limit() {
+            return Ok(Some(TransformResult::unchanged()));
+        }
+
+        let mut new_all_paths = all_paths_node.clone();
+        new_all_paths.set_limit(limit_rows);
+        if let Some(output_var) = limit_node.output_var() {
+            new_all_paths.set_output_var(output_var.clone());
+        }
+
+        drop(group_node_borrowed);
+
+        let new_all_paths_node = PlanNodeEnum::AllPaths(new_all_paths);
+
+        let mut result = TransformResult::new();
+        result.erase_all = true;
+
+        let mut new_group_node = OptGroupNode::new(ctx.allocate_node_id(), new_all_paths_node);
+        new_group_node.dependencies = child.dependencies.clone();
+        result.add_new_group_node(Rc::new(RefCell::new(new_group_node)));
+
+        Ok(Some(result))
     }
 }
 
@@ -902,31 +926,24 @@ impl OptRule for PushLimitDownExpandAllRule {
 
     fn apply(&self, ctx: &mut OptContext, group_node: &Rc<RefCell<OptGroupNode>>) -> Result<Option<TransformResult>, OptimizerError> {
         let node_ref = group_node.borrow();
-        // 检查是否为LIMIT操作
         if !node_ref.plan_node.is_limit() {
             return Ok(Some(TransformResult::unchanged()));
         }
 
-        // 匹配模式以查看是否为LIMIT后跟全展开
-        if let Some(matched) = self.match_pattern(ctx, group_node)? {
-            if matched.dependencies.len() >= 1 {
-                let child = &matched.dependencies[0];
+        if node_ref.dependencies.len() >= 1 {
+            let child_dep_id = node_ref.dependencies[0];
+            let child_node_opt = ctx.find_group_node_by_plan_node_id(child_dep_id).cloned();
 
-                if child.borrow().plan_node.type_name() == "ExpandAll" {
-                    // 在完整实现中，我们会将LIMIT下推到全展开操作
-                    // 以限制扩展的数量
-                    let mut result = TransformResult::new();
-                    result.add_new_group_node(group_node.clone());
-                    return Ok(Some(result));
-                } else {
-                    Ok(Some(TransformResult::unchanged()))
+            if let Some(child_node) = child_node_opt {
+                let child_node_ref = child_node.borrow();
+                if child_node_ref.plan_node.is_expand_all() {
+                    let child_clone = child_node_ref.clone();
+                    drop(child_node_ref);
+                    return self.create_pushed_down_node(ctx, group_node, &child_clone);
                 }
-            } else {
-                Ok(Some(TransformResult::unchanged()))
             }
-        } else {
-            Ok(Some(TransformResult::unchanged()))
         }
+        Ok(Some(TransformResult::unchanged()))
     }
 
     fn pattern(&self) -> Pattern {
@@ -941,13 +958,49 @@ impl PushDownRule for PushLimitDownExpandAllRule {
         child_node.type_name() == "ExpandAll"
     }
 
-    fn create_pushed_down_node(&self, _ctx: &mut OptContext, _group_node: &Rc<RefCell<OptGroupNode>>, _child: &OptGroupNode) -> Result<Option<TransformResult>, OptimizerError> {
-        // 在完整实现中，这里会创建带有LIMIT的全展开节点
-        // 目前简化实现，返回unchanged
-        Ok(Some(TransformResult::unchanged()))
+    fn create_pushed_down_node(
+        &self,
+        ctx: &mut OptContext,
+        group_node: &Rc<RefCell<OptGroupNode>>,
+        child: &OptGroupNode,
+    ) -> Result<Option<TransformResult>, OptimizerError> {
+        let group_node_borrowed = group_node.borrow();
+        let limit_node = group_node_borrowed.plan_node.as_limit().ok_or_else(|| {
+            OptimizerError::InvalidPlanNode("Expected Limit node".to_string())
+        })?;
+
+        let expand_all_node = child.plan_node.as_expand_all().ok_or_else(|| {
+            OptimizerError::InvalidPlanNode("Expected ExpandAll node".to_string())
+        })?;
+
+        let limit_rows = limit_node.offset() + limit_node.count();
+
+        if let Some(existing_limit) = expand_all_node.step_limit() {
+            if limit_rows >= existing_limit as i64 {
+                return Ok(Some(TransformResult::unchanged()));
+            }
+        }
+
+        let mut new_expand_all = expand_all_node.clone();
+        new_expand_all.set_step_limit(limit_rows as u32);
+        if let Some(output_var) = limit_node.output_var() {
+            new_expand_all.set_output_var(output_var.clone());
+        }
+
+        drop(group_node_borrowed);
+
+        let new_expand_all_node = PlanNodeEnum::ExpandAll(new_expand_all);
+
+        let mut result = TransformResult::new();
+        result.erase_all = true;
+
+        let mut new_group_node = OptGroupNode::new(ctx.allocate_node_id(), new_expand_all_node);
+        new_group_node.dependencies = child.dependencies.clone();
+        result.add_new_group_node(Rc::new(RefCell::new(new_group_node)));
+
+        Ok(Some(result))
     }
 }
-*/
 
 #[cfg(test)]
 mod tests {
@@ -1141,19 +1194,22 @@ mod tests {
         assert!(result.is_some());
     }
 
-    // 注释掉使用不存在的 AllPaths 和 ExpandAll 类型的测试
-    /*
     #[test]
     fn test_push_limit_down_all_paths_rule() {
         let rule = PushLimitDownAllPathsRule;
         let mut ctx = create_test_context();
 
-        // 创建一个LIMIT节点
-        let limit_node = Box::new(Limit::new(1, 10, 0));
-        let opt_node = OptGroupNode::new(1, limit_node);
+        let start_node = StartNode::new();
+        let start_opt_node = OptGroupNode::new(2, start_node.into_enum());
+        ctx.add_plan_node_and_group_node(2, Rc::new(RefCell::new(start_opt_node)));
 
-        let result = rule.apply(&mut ctx, &Rc::new(RefCell::new(opt_node))).expect("Rule should apply successfully");
-        // 规则应该匹配LIMIT节点并尝试下推到全路径操作
+        let limit_node = LimitNode::new(start_opt_node.plan_node.clone(), 0, 10)
+            .expect("Limit node should be created successfully");
+        let mut opt_node = OptGroupNode::new(1, limit_node.into_enum());
+        opt_node.dependencies = vec![2];
+
+        let result = rule.apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
+            .expect("Rule should apply successfully");
         assert!(result.is_some());
     }
 
@@ -1162,13 +1218,17 @@ mod tests {
         let rule = PushLimitDownExpandAllRule;
         let mut ctx = create_test_context();
 
-        // 创建一个LIMIT节点
-        let limit_node = Box::new(Limit::new(1, 10, 0));
-        let opt_node = OptGroupNode::new(1, limit_node);
+        let start_node = StartNode::new();
+        let start_opt_node = OptGroupNode::new(2, start_node.into_enum());
+        ctx.add_plan_node_and_group_node(2, Rc::new(RefCell::new(start_opt_node)));
 
-        let result = rule.apply(&mut ctx, &Rc::new(RefCell::new(opt_node))).expect("Rule should apply successfully");
-        // 规则应该匹配LIMIT节点并尝试下推到全展开操作
+        let limit_node = LimitNode::new(start_opt_node.plan_node.clone(), 0, 10)
+            .expect("Limit node should be created successfully");
+        let mut opt_node = OptGroupNode::new(1, limit_node.into_enum());
+        opt_node.dependencies = vec![2];
+
+        let result = rule.apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
+            .expect("Rule should apply successfully");
         assert!(result.is_some());
     }
-    */
 }

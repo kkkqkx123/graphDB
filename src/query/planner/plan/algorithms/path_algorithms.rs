@@ -83,6 +83,11 @@ impl MultiShortestPath {
         self.output_var.as_ref()
     }
 
+    /// 设置节点的输出变量
+    pub fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+
     /// 获取列名列表
     pub fn col_names(&self) -> &[String] {
         &self.col_names
@@ -212,6 +217,11 @@ impl BFSShortest {
         self.output_var.as_ref()
     }
 
+    /// 设置节点的输出变量
+    pub fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+
     /// 获取列名列表
     pub fn col_names(&self) -> &[String] {
         &self.col_names
@@ -285,10 +295,12 @@ pub struct AllPaths {
     pub cost: f64,
     pub steps: usize,
     pub edge_types: Vec<String>,
-    pub min_hop: usize,       // 最小跳数
-    pub max_hop: usize,       // 最大跳数
-    pub acyclic: bool,        // 是否无环
-    pub has_step_limit: bool, // 是否有步数限制
+    pub min_hop: usize,
+    pub max_hop: usize,
+    pub acyclic: bool,
+    pub has_step_limit: bool,
+    pub limit: i64,
+    pub offset: i64,
 }
 
 impl AllPaths {
@@ -314,6 +326,8 @@ impl AllPaths {
             max_hop,
             acyclic,
             has_step_limit: true,
+            limit: -1,
+            offset: 0,
         }
     }
 
@@ -327,6 +341,22 @@ impl AllPaths {
 
     pub fn is_acyclic(&self) -> bool {
         self.acyclic
+    }
+
+    pub fn limit(&self) -> i64 {
+        self.limit
+    }
+
+    pub fn offset(&self) -> i64 {
+        self.offset
+    }
+
+    pub fn set_limit(&mut self, limit: i64) {
+        self.limit = limit;
+    }
+
+    pub fn set_offset(&mut self, offset: i64) {
+        self.offset = offset;
     }
 
     /// 获取节点的唯一ID

@@ -1,7 +1,7 @@
 use std::alloc::Layout;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::ptr;
-use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, OnceLock, RwLock};
 use std::thread_local;
 
@@ -630,39 +630,243 @@ pub mod memory_utils {
     }
 }
 
-/// 内存泄漏检测器（简化版，用于演示）
+/// 分配类型枚举
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum AllocationType {
+    Malloc,
+    Arena,
+    Pool,
+    Vec,
+    String,
+    Box,
+    Other(String),
+}
+
+impl From<&str> for AllocationType {
+    fn from(s: &str) -> Self {
+        match s {
+            "malloc" => AllocationType::Malloc,
+            "arena" => AllocationType::Arena,
+            "pool" => AllocationType::Pool,
+            "vec" => AllocationType::Vec,
+            "string" => AllocationType::String,
+            "box" => AllocationType::Box,
+            _ => AllocationType::Other(s.to_string()),
+        }
+    }
+}
+
+/// 分配信息结构体
+#[derive(Debug, Clone)]
+pub struct AllocationInfo {
+    pub ptr: usize,
+    pub size: usize,
+    pub align: usize,
+    pub location: String,
+    pub allocation_type: AllocationType,
+    pub timestamp: std::time::Instant,
+}
+
+impl AllocationInfo {
+    pub fn new(ptr: usize, layout: Layout, location: String, allocation_type: AllocationType) -> Self {
+        Self {
+            ptr,
+            size: layout.size(),
+            align: layout.align(),
+            location,
+            allocation_type,
+            timestamp: std::time::Instant::now(),
+        }
+    }
+
+    pub fn layout(&self) -> Layout {
+        Layout::from_size_align(self.size, self.align).unwrap()
+    }
+}
+
+/// 泄漏统计信息
+#[derive(Debug, Default, Clone)]
+pub struct LeakStats {
+    pub total_leaks: usize,
+    pub total_leaked_bytes: usize,
+    pub leaks_by_type: HashMap<AllocationType, usize>,
+    pub leaks_by_size: BTreeMap<usize, usize>,
+}
+
+impl LeakStats {
+    pub fn from_allocations(allocations: &HashMap<usize, AllocationInfo>) -> Self {
+        let mut stats = Self::default();
+        stats.total_leaks = allocations.len();
+
+        for info in allocations.values() {
+            stats.total_leaked_bytes += info.size;
+
+            *stats.leaks_by_type.entry(info.allocation_type.clone()).or_insert(0) += 1;
+
+            let size_bucket = if info.size < 64 {
+                64
+            } else if info.size < 256 {
+                256
+            } else if info.size < 1024 {
+                1024
+            } else if info.size < 4096 {
+                4096
+            } else if info.size < 16384 {
+                16384
+            } else {
+                usize::MAX
+            };
+            *stats.leaks_by_size.entry(size_bucket).or_insert(0) += 1;
+        }
+
+        stats
+    }
+
+    pub fn format_report(&self) -> String {
+        let mut lines = Vec::new();
+        lines.push("=== 内存泄漏统计 ===".to_string());
+        lines.push(format!("泄漏总数: {} 处", self.total_leaks));
+        lines.push(format!("泄漏总大小: {} 字节", self.total_leaked_bytes));
+        lines.push("按类型分布:".to_string());
+        for (alloc_type, count) in &self.leaks_by_type {
+            lines.push(format!("  {:?}: {} 处", alloc_type, count));
+        }
+        lines.push("按大小分布:".to_string());
+        for (size, count) in &self.leaks_by_size {
+            let size_str = if *size == usize::MAX {
+                "> 16KB".to_string()
+            } else {
+                format!("<= {}B", size)
+            };
+            lines.push(format!("  {}: {} 处", size_str, count));
+        }
+        lines.join("\n")
+    }
+}
+
+/// 内存泄漏检测器（增强版）
 pub struct MemoryLeakDetector {
-    allocations: Arc<RwLock<std::collections::HashMap<usize, (Layout, String)>>>,
+    enabled: AtomicBool,
+    allocations: Arc<RwLock<HashMap<usize, AllocationInfo>>>,
+    allocation_count: AtomicUsize,
+    deallocation_count: AtomicUsize,
+    leaked_bytes: AtomicUsize,
 }
 
 impl MemoryLeakDetector {
     pub fn new() -> Self {
         Self {
-            allocations: Arc::new(RwLock::new(std::collections::HashMap::new())),
+            enabled: AtomicBool::new(true),
+            allocations: Arc::new(RwLock::new(HashMap::new())),
+            allocation_count: AtomicUsize::new(0),
+            deallocation_count: AtomicUsize::new(0),
+            leaked_bytes: AtomicUsize::new(0),
         }
+    }
+
+    pub fn enable(&self) {
+        self.enabled.store(true, Ordering::Relaxed);
+    }
+
+    pub fn disable(&self) {
+        self.enabled.store(false, Ordering::Relaxed);
+    }
+
+    pub fn is_enabled(&self) -> bool {
+        self.enabled.load(Ordering::Relaxed)
     }
 
     pub fn record_allocation(&self, ptr: usize, layout: Layout, location: String) {
+        if !self.enabled.load(Ordering::Relaxed) {
+            return;
+        }
+
         if let Ok(mut allocations) = self.allocations.write() {
-            allocations.insert(ptr, (layout, location));
+            let allocation_type = self.infer_allocation_type(&location);
+            allocations.insert(
+                ptr,
+                AllocationInfo::new(ptr, layout, location, allocation_type),
+            );
+            self.allocation_count.fetch_add(1, Ordering::Relaxed);
         }
     }
 
-    pub fn record_deallocation(&self, ptr: usize) {
+    pub fn record_allocation_with_type(
+        &self,
+        ptr: usize,
+        layout: Layout,
+        location: String,
+        allocation_type: AllocationType,
+    ) {
+        if !self.enabled.load(Ordering::Relaxed) {
+            return;
+        }
+
         if let Ok(mut allocations) = self.allocations.write() {
-            allocations.remove(&ptr);
+            allocations.insert(
+                ptr,
+                AllocationInfo::new(ptr, layout, location, allocation_type),
+            );
+            self.allocation_count.fetch_add(1, Ordering::Relaxed);
         }
     }
 
-    pub fn report_leaks(&self) -> Vec<(usize, Layout, String)> {
+    pub fn record_deallocation(&self, ptr: usize) -> Result<(), String> {
+        if !self.enabled.load(Ordering::Relaxed) {
+            return Ok(());
+        }
+
+        if let Ok(mut allocations) = self.allocations.write() {
+            if allocations.remove(&ptr).is_some() {
+                self.deallocation_count.fetch_add(1, Ordering::Relaxed);
+                return Ok(());
+            }
+            return Err(format!("尝试释放未记录的内存地址: 0x{:x}", ptr));
+        }
+        Ok(())
+    }
+
+    pub fn report_leaks(&self) -> Vec<AllocationInfo> {
         if let Ok(allocations) = self.allocations.read() {
-            allocations
-                .iter()
-                .map(|(&ptr, (layout, location))| (ptr, *layout, location.clone()))
-                .collect()
+            allocations.values().cloned().collect()
         } else {
             Vec::new()
         }
+    }
+
+    pub fn stats(&self) -> LeakStats {
+        if let Ok(allocations) = self.allocations.read() {
+            LeakStats::from_allocations(&allocations)
+        } else {
+            LeakStats::default()
+        }
+    }
+
+    pub fn detailed_report(&self) -> String {
+        let leaks = self.report_leaks();
+        let mut lines = Vec::new();
+        lines.push("=== 详细内存泄漏报告".to_string());
+        lines.push(format!("泄漏数量: {}", leaks.len()));
+        lines.push(String::new());
+
+        for (i, info) in leaks.iter().enumerate() {
+            lines.push(format!(
+                "泄漏 #{}: 地址=0x{:x}, 大小={} 字节, 对齐={}",
+                i + 1, info.ptr, info.size, info.align
+            ));
+            lines.push(format!("  类型: {:?}", info.allocation_type));
+            lines.push(format!("  位置: {}", info.location));
+            lines.push(format!(
+                "  分配时间: {} 秒前",
+                info.timestamp.elapsed().as_secs()
+            ));
+        }
+
+        lines.push(String::new());
+        lines.push("=== 统计摘要 ===".to_string());
+        lines.push(self.stats().format_report());
+
+        lines.join("\n")
     }
 
     pub fn has_leaks(&self) -> bool {
@@ -670,6 +874,46 @@ impl MemoryLeakDetector {
             .read()
             .map(|allocations| !allocations.is_empty())
             .unwrap_or(false)
+    }
+
+    pub fn allocation_count(&self) -> usize {
+        self.allocation_count.load(Ordering::Relaxed)
+    }
+
+    pub fn deallocation_count(&self) -> usize {
+        self.deallocation_count.load(Ordering::Relaxed)
+    }
+
+    pub fn leaked_bytes(&self) -> usize {
+        self.leaked_bytes.load(Ordering::Relaxed)
+    }
+
+    pub fn clear(&self) {
+        if let Ok(mut allocations) = self.allocations.write() {
+            self.leaked_bytes.fetch_add(
+                allocations.values().map(|a| a.size).sum(),
+                Ordering::Relaxed,
+            );
+            allocations.clear();
+        }
+    }
+
+    fn infer_allocation_type(&self, location: &str) -> AllocationType {
+        if location.contains("Vec::with_capacity") || location.contains("vec!") {
+            AllocationType::Vec
+        } else if location.contains("String::from") || location.contains("to_string") {
+            AllocationType::String
+        } else if location.contains("Box::new") {
+            AllocationType::Box
+        } else if location.contains("arena") || location.contains("Arena") {
+            AllocationType::Arena
+        } else if location.contains("pool") || location.contains("Pool") {
+            AllocationType::Pool
+        } else if location.contains("malloc") || location.contains("alloc") {
+            AllocationType::Malloc
+        } else {
+            AllocationType::Other(location.to_string())
+        }
     }
 }
 
@@ -792,13 +1036,122 @@ mod tests {
         let detector = MemoryLeakDetector::new();
 
         assert!(!detector.has_leaks());
+        assert!(detector.is_enabled());
 
         let layout = Layout::from_size_align(100, 8).expect("布局创建失败");
         detector.record_allocation(0x1000, layout, "test_location".to_string());
 
         assert!(detector.has_leaks());
+        assert_eq!(detector.allocation_count(), 1);
 
-        detector.record_deallocation(0x1000);
+        let result = detector.record_deallocation(0x1000);
+        assert!(result.is_ok());
+
+        assert!(!detector.has_leaks());
+    }
+
+    #[test]
+    fn test_leak_detector_enable_disable() {
+        let detector = MemoryLeakDetector::new();
+
+        let layout = Layout::from_size_align(100, 8).expect("布局创建失败");
+        detector.record_allocation(0x1000, layout, "test_location".to_string());
+        assert!(detector.has_leaks());
+
+        detector.disable();
+        assert!(!detector.is_enabled());
+
+        let layout2 = Layout::from_size_align(200, 8).expect("布局创建失败");
+        detector.record_allocation(0x2000, layout2, "test_location2".to_string());
+
+        let leaks = detector.report_leaks();
+        assert_eq!(leaks.len(), 1);
+
+        detector.enable();
+        assert!(detector.is_enabled());
+    }
+
+    #[test]
+    fn test_leak_detector_stats() {
+        let detector = MemoryLeakDetector::new();
+
+        let layout1 = Layout::from_size_align(100, 8).expect("布局创建失败");
+        detector.record_allocation(0x1000, layout1, "vec![1, 2, 3]".to_string());
+
+        let layout2 = Layout::from_size_align(50, 8).expect("布局创建失败");
+        detector.record_allocation(0x2000, layout2, "String::from".to_string());
+
+        let stats = detector.stats();
+        assert_eq!(stats.total_leaks, 2);
+        assert_eq!(stats.total_leaked_bytes, 150);
+
+        let report = stats.format_report();
+        assert!(report.contains("泄漏总数: 2"));
+        assert!(report.contains("泄漏总大小: 150"));
+
+        detector.record_deallocation(0x1000).unwrap();
+        detector.record_deallocation(0x2000).unwrap();
+
+        let stats2 = detector.stats();
+        assert_eq!(stats2.total_leaks, 0);
+    }
+
+    #[test]
+    fn test_leak_detector_detailed_report() {
+        let detector = MemoryLeakDetector::new();
+
+        let layout = Layout::from_size_align(100, 8).expect("布局创建失败");
+        detector.record_allocation(0x1000, layout, "Box::new".to_string());
+
+        let report = detector.detailed_report();
+        assert!(report.contains("详细内存泄漏报告"));
+        assert!(report.contains("Box"));
+
+        detector.record_deallocation(0x1000).unwrap();
+    }
+
+    #[test]
+    fn test_leak_detector_double_free() {
+        let detector = MemoryLeakDetector::new();
+
+        let layout = Layout::from_size_align(100, 8).expect("布局创建失败");
+        detector.record_allocation(0x1000, layout, "test".to_string());
+
+        detector.record_deallocation(0x1000).unwrap();
+
+        let result = detector.record_deallocation(0x1000);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_leak_detector_allocation_type_inference() {
+        let detector = MemoryLeakDetector::new();
+
+        let layout = Layout::from_size_align(100, 8).expect("布局创建失败");
+        detector.record_allocation(0x1000, layout, "vec![1, 2, 3]".to_string());
+        let leaks = detector.report_leaks();
+        assert_eq!(leaks[0].allocation_type, AllocationType::Vec);
+
+        detector.record_deallocation(0x1000).unwrap();
+
+        let layout2 = Layout::from_size_align(100, 8).expect("布局创建失败");
+        detector.record_allocation(0x2000, layout2, "String::from".to_string());
+        let leaks2 = detector.report_leaks();
+        assert_eq!(leaks2[0].allocation_type, AllocationType::String);
+
+        detector.record_deallocation(0x2000).unwrap();
+    }
+
+    #[test]
+    fn test_leak_detector_clear() {
+        let detector = MemoryLeakDetector::new();
+
+        let layout = Layout::from_size_align(100, 8).expect("布局创建失败");
+        detector.record_allocation(0x1000, layout, "test".to_string());
+
+        assert!(detector.has_leaks());
+
+        detector.clear();
 
         assert!(!detector.has_leaks());
     }

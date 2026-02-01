@@ -1,5 +1,4 @@
 use super::{StorageClient, TransactionId};
-use crate::common::fs::FileLock;
 use crate::core::{Edge, StorageError, Value, Vertex, EdgeDirection};
 use crate::core::types::{
     SpaceInfo, TagInfo, EdgeTypeSchema, IndexInfo,
@@ -51,7 +50,6 @@ const INDEXES_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefinition::new("i
 pub struct RedbStorage {
     db: Database,
     db_path: String,
-    lock_file_path: String,
     vertex_cache: Arc<Mutex<LruCache<Vec<u8>, Vertex>>>,
     edge_cache: Arc<Mutex<LruCache<Vec<u8>, Edge>>>,
     active_transactions: Arc<Mutex<HashMap<TransactionId, ()>>>,
@@ -78,8 +76,6 @@ impl RedbStorage {
         let db = Database::create(path.as_ref())
             .map_err(|e| StorageError::DbError(e.to_string()))?;
 
-        let lock_file_path = format!("{}.lock", db_path);
-
         let vertex_cache_size = std::num::NonZeroUsize::new(1000)
             .expect("Failed to create NonZeroUsize for vertex cache");
         let edge_cache_size = std::num::NonZeroUsize::new(1000)
@@ -91,16 +87,10 @@ impl RedbStorage {
         Ok(Self {
             db,
             db_path,
-            lock_file_path,
             vertex_cache,
             edge_cache,
             active_transactions,
         })
-    }
-
-    fn acquire_exclusive_lock(&self) -> Result<FileLock, StorageError> {
-        FileLock::acquire_exclusive(&self.lock_file_path)
-            .map_err(|e| StorageError::DbError(format!("获取文件锁失败: {}", e)))
     }
 
     fn value_to_bytes(&self, value: &Value) -> Result<Vec<u8>, StorageError> {
@@ -866,8 +856,6 @@ impl StorageClient for RedbStorage {
     }
 
     fn begin_transaction(&mut self, _space: &str) -> Result<TransactionId, StorageError> {
-        let _lock = self.acquire_exclusive_lock()?;
-
         let tx_id = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("Time went backwards")

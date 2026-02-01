@@ -277,6 +277,13 @@ impl OptimizerError {
             code: 2000,
         }
     }
+
+    pub fn InvalidPlanNode(message: String) -> Self {
+        Self {
+            message,
+            code: 1007,
+        }
+    }
 }
 
 impl fmt::Display for OptimizerError {

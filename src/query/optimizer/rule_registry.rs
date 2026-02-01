@@ -133,7 +133,6 @@ mod tests {
 
     #[test]
     fn test_register_and_get() {
-        RuleRegistry::initialize();
         RuleRegistry::register(
             OptimizationRule::FilterPushDown,
             || Box::new(TestRule) as Box<dyn OptRule>,
@@ -145,13 +144,11 @@ mod tests {
 
     #[test]
     fn test_get_unregistered() {
-        RuleRegistry::initialize();
         assert!(RuleRegistry::create_instance(OptimizationRule::ConstantFolding).is_none());
     }
 
     #[test]
     fn test_get_all_rules() {
-        RuleRegistry::initialize();
         let rules = RuleRegistry::get_all_rules();
         assert!(!rules.is_empty());
     }

@@ -741,12 +741,6 @@ impl From<crate::graph::TransactionError> for DBError {
     }
 }
 
-impl From<crate::common::FsError> for DBError {
-    fn from(err: crate::common::FsError) -> Self {
-        DBError::Internal(err.to_string())
-    }
-}
-
 impl From<serde_json::Error> for DBError {
     fn from(err: serde_json::Error) -> Self {
         DBError::Serialization(err.to_string())
