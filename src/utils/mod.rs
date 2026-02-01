@@ -1,5 +1,9 @@
 // 工具模块 - 仅用于导出各个子模块，不包含具体实现
 
+// ID生成模块
+pub mod id_gen;
+pub use id_gen::{EPIdGenerator, IdGenerator, generate_id, is_valid_id, INVALID_ID};
+
 // 对象池模块
 pub mod object_pool;
 pub use object_pool::ObjectPool;

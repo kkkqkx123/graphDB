@@ -4,7 +4,7 @@
 use crate::query::context::validate::ValidationContext;
 use crate::query::context::SymbolTable;
 use crate::core::Value;
-use crate::graph::utils::IdGenerator;
+use crate::utils::IdGenerator;
 use crate::core::types::CharsetInfo;
 use crate::storage::StorageClient;
 use crate::storage::metadata::SchemaManager;

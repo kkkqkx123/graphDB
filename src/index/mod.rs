@@ -10,6 +10,7 @@
 
 pub mod binary;
 pub mod cache;
+pub mod config;
 pub mod error;
 pub mod stats;
 pub mod storage;
@@ -17,6 +18,7 @@ pub mod types;
 
 pub use binary::*;
 pub use cache::*;
+pub use config::*;
 pub use error::*;
 pub use stats::*;
 pub use storage::*;

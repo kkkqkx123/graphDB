@@ -8,7 +8,6 @@ pub mod common;
 pub mod config;
 pub mod core;
 pub mod expression;
-pub mod graph;
 pub mod index;
 pub mod query;
 pub mod services;

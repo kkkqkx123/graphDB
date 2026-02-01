@@ -1,9 +1,15 @@
-//! ID生成器模块 - 提供ID生成功能
-//! 对应原C++中的IdGenerator.h/cpp
+//! ID生成器模块 - 提供唯一ID生成功能
+//!
+//! 提供两种ID生成策略：
+//! - IdGenerator: 基于原子计数器的顺序ID生成
+//! - generate_id: 基于时间戳的唯一ID生成
 
 use std::sync::atomic::{AtomicI64, Ordering};
+use std::time::{SystemTime, UNIX_EPOCH};
 
-/// ID生成器
+/// 基于原子计数器的ID生成器
+///
+/// 线程安全的顺序ID生成器，适用于需要递增ID的场景
 #[derive(Debug)]
 pub struct IdGenerator {
     counter: AtomicI64,
@@ -48,6 +54,8 @@ impl Default for IdGenerator {
 }
 
 /// 执行计划ID生成器 - 单例实现
+///
+/// 用于生成执行计划相关的唯一ID
 pub struct EPIdGenerator {
     generator: IdGenerator,
 }
@@ -71,6 +79,23 @@ impl EPIdGenerator {
     pub fn reset(&self, value: i64) {
         self.generator.reset(value);
     }
+}
+
+/// 基于时间戳的唯一ID生成
+///
+/// 使用纳秒级时间戳生成唯一ID，适用于分布式场景或需要全局唯一的ID
+pub fn generate_id() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("Time went backwards")
+        .as_nanos() as u64
+}
+
+/// 验证ID是否有效
+///
+/// 有效ID必须大于0
+pub fn is_valid_id(id: u64) -> bool {
+    id != 0
 }
 
 /// 无效ID常量
@@ -101,5 +126,23 @@ mod tests {
         let second_id = gen.id();
 
         assert_eq!(second_id, first_id + 1);
+    }
+
+    #[test]
+    fn test_generate_id() {
+        let id1 = generate_id();
+        let id2 = generate_id();
+
+        assert_ne!(id1, id2);
+        assert!(is_valid_id(id1));
+        assert!(is_valid_id(id2));
+    }
+
+    #[test]
+    fn test_is_valid_id() {
+        assert!(is_valid_id(1));
+        assert!(is_valid_id(42));
+        assert!(is_valid_id(u64::MAX));
+        assert!(!is_valid_id(0));
     }
 }

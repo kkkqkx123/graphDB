@@ -9,7 +9,7 @@ use crate::query::context::SymbolTable;
 use crate::query::context::components::QueryComponents;
 use crate::query::context::request_context::RequestContext;
 use crate::core::Value;
-use crate::graph::utils::IdGenerator;
+use crate::utils::IdGenerator;
 use crate::utils::ObjectPool;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;

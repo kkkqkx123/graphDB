@@ -3,11 +3,45 @@ use crate::api::service::{
 };
 use crate::api::session::{ClientSession, GraphSessionManager};
 use crate::config::Config;
-use crate::storage::StorageClient;
+use crate::storage::{StorageClient, TransactionId};
 use crate::core::error::{SessionError, SessionResult};
-use crate::graph::{BatchOperation, GraphResponse, TransactionManager};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+
+/// 简单的事务管理器
+#[derive(Debug)]
+pub struct TransactionManager {
+    next_tx_id: Arc<Mutex<u64>>,
+}
+
+impl TransactionManager {
+    pub fn new() -> Self {
+        Self {
+            next_tx_id: Arc::new(Mutex::new(1)),
+        }
+    }
+
+    pub fn begin_transaction(&self) -> TransactionId {
+        let mut id = self.next_tx_id.lock().unwrap();
+        let tx_id = *id;
+        *id += 1;
+        TransactionId(tx_id)
+    }
+
+    pub fn commit_transaction(&self, _tx_id: TransactionId) -> Result<(), String> {
+        Ok(())
+    }
+
+    pub fn rollback_transaction(&self, _tx_id: TransactionId) -> Result<(), String> {
+        Ok(())
+    }
+}
+
+impl Default for TransactionManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 pub struct GraphService<S: StorageClient + Clone + 'static> {
     session_manager: Arc<GraphSessionManager>,
@@ -91,42 +125,9 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             .find_session(session_id)
             .ok_or_else(|| "无效的会话 ID".to_string())?;
 
-        session.charge();
+        let space_id = session.space().map(|s| s.id).unwrap_or(0);
 
-        self.stats_manager.add_value(MetricType::NumQueries);
-        self.stats_manager.add_value(MetricType::NumActiveQueries);
-
-        let space_name = session.space_name();
-        if let Some(ref name) = space_name {
-            self.stats_manager
-                .add_space_metric(name, MetricType::NumQueries);
-            self.stats_manager
-                .add_space_metric(name, MetricType::NumActiveQueries);
-        }
-
-        let request_context = crate::api::service::query_processor::RequestContext {
-            session_id,
-            statement: stmt.to_string(),
-            parameters: std::collections::HashMap::new(),
-            client_session: Some(session),
-        };
-
-        let mut query_engine = self
-            .query_engine
-            .lock()
-            .expect("查询引擎锁被污染");
-        let response = query_engine.execute(request_context).await;
-
-        self.stats_manager.dec_value(MetricType::NumActiveQueries);
-        if let Some(ref name) = space_name {
-            self.stats_manager
-                .dec_space_metric(name, MetricType::NumActiveQueries);
-        }
-
-        match response.result {
-            Ok(result) => Ok(result),
-            Err(e) => Err(e),
-        }
+        self.execute_with_permission(session_id, stmt, space_id).await
     }
 
     pub async fn execute_with_permission(
@@ -258,7 +259,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
     }
 
     /// 开始新事务
-    pub fn begin_transaction(&self, _session_id: i64) -> Result<crate::storage::TransactionId, String> {
+    pub fn begin_transaction(&self, _session_id: i64) -> Result<TransactionId, String> {
         let mut tx_manager = self.transaction_manager
             .lock()
             .map_err(|e| format!("获取事务管理器锁失败: {}", e))?;
@@ -268,7 +269,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
     }
 
     /// 提交事务
-    pub fn commit_transaction(&self, tx_id: crate::storage::TransactionId) -> Result<(), String> {
+    pub fn commit_transaction(&self, tx_id: TransactionId) -> Result<(), String> {
         let mut tx_manager = self.transaction_manager
             .lock()
             .map_err(|e| format!("获取事务管理器锁失败: {}", e))?;
@@ -278,156 +279,13 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
     }
 
     /// 回滚事务
-    pub fn rollback_transaction(&self, tx_id: crate::storage::TransactionId) -> Result<(), String> {
+    pub fn rollback_transaction(&self, tx_id: TransactionId) -> Result<(), String> {
         let mut tx_manager = self.transaction_manager
             .lock()
             .map_err(|e| format!("获取事务管理器锁失败: {}", e))?;
         
         tx_manager.rollback_transaction(tx_id)
             .map_err(|e| format!("回滚事务失败: {}", e))
-    }
-
-    /// 执行批量操作
-    pub async fn execute_batch(&self, batch: BatchOperation) -> Result<GraphResponse, String> {
-        let start_time = std::time::Instant::now();
-
-        let mut tx_manager = self.transaction_manager
-            .lock()
-            .map_err(|e| format!("获取事务管理器锁失败: {}", e))?;
-
-        let tx_id = tx_manager.begin_transaction();
-
-        let result = if batch.atomic {
-            self.execute_atomic_batch(&mut tx_manager, tx_id, &batch.operations)
-        } else {
-            self.execute_non_atomic_batch(&mut tx_manager, tx_id, &batch.operations)
-        };
-
-        match result {
-            Ok(data) => Ok(GraphResponse {
-                data,
-                execution_time_ms: start_time.elapsed().as_millis() as u64,
-                message: Some("批量操作成功".to_string()),
-                success: true,
-            }),
-            Err(e) => {
-                let _ = tx_manager.rollback_transaction(tx_id);
-                Err(format!("批量操作失败: {}", e))
-            }
-        }
-    }
-
-    /// 执行原子性批量操作
-    fn execute_atomic_batch(
-        &self,
-        tx_manager: &mut TransactionManager,
-        tx_id: crate::storage::TransactionId,
-        operations: &[crate::graph::GraphOperation],
-    ) -> Result<crate::graph::GraphData, String> {
-        for op in operations {
-            self.apply_operation(tx_manager, tx_id, op)?;
-        }
-        
-        tx_manager.commit_transaction(tx_id)
-            .map_err(|e| format!("提交事务失败: {}", e))?;
-        
-        Ok(crate::graph::GraphData::Empty)
-    }
-
-    /// 执行非原子性批量操作
-    fn execute_non_atomic_batch(
-        &self,
-        tx_manager: &mut TransactionManager,
-        tx_id: crate::storage::TransactionId,
-        operations: &[crate::graph::GraphOperation],
-    ) -> Result<crate::graph::GraphData, String> {
-        let mut succeeded = 0;
-        let mut failed = 0;
-
-        for op in operations {
-            match self.apply_operation(tx_manager, tx_id, op) {
-                Ok(_) => succeeded += 1,
-                Err(_) => failed += 1,
-            }
-        }
-
-        tx_manager.commit_transaction(tx_id)
-            .map_err(|e| format!("提交事务失败: {}", e))?;
-
-        Ok(crate::graph::GraphData::Scalar(crate::core::Value::String(
-            format!("成功: {}, 失败: {}", succeeded, failed)
-        )))
-    }
-
-    /// 应用单个操作
-    fn apply_operation(
-        &self,
-        _tx_manager: &mut TransactionManager,
-        _tx_id: crate::storage::TransactionId,
-        _operation: &crate::graph::GraphOperation,
-    ) -> Result<(), String> {
-        Ok(())
-    }
-
-    /// 执行查询并返回标准化响应
-    pub async fn execute_with_response(
-        &self,
-        session_id: i64,
-        stmt: &str,
-    ) -> Result<GraphResponse, String> {
-        let start_time = std::time::Instant::now();
-
-        let session = self
-            .session_manager
-            .find_session(session_id)
-            .ok_or_else(|| "无效的会话 ID".to_string())?;
-
-        session.charge();
-
-        self.stats_manager.add_value(MetricType::NumQueries);
-        self.stats_manager.add_value(MetricType::NumActiveQueries);
-
-        let space_name = session.space_name();
-        if let Some(ref name) = space_name {
-            self.stats_manager
-                .add_space_metric(name, MetricType::NumQueries);
-            self.stats_manager
-                .add_space_metric(name, MetricType::NumActiveQueries);
-        }
-
-        let request_context = crate::api::service::query_processor::RequestContext {
-            session_id,
-            statement: stmt.to_string(),
-            parameters: std::collections::HashMap::new(),
-            client_session: Some(session),
-        };
-
-        let mut query_engine = self
-            .query_engine
-            .lock()
-            .expect("查询引擎锁被污染");
-        let response = query_engine.execute(request_context).await;
-
-        self.stats_manager.dec_value(MetricType::NumActiveQueries);
-        if let Some(ref name) = space_name {
-            self.stats_manager
-                .dec_space_metric(name, MetricType::NumActiveQueries);
-        }
-
-        match response.result {
-            Ok(result) => Ok(GraphResponse {
-                data: crate::graph::GraphData::Scalar(crate::core::Value::String(result)),
-                execution_time_ms: start_time.elapsed().as_millis() as u64,
-                message: Some("查询执行成功".to_string()),
-                success: true,
-            }),
-            Err(e) => Ok(GraphResponse {
-                data: crate::graph::GraphData::Empty,
-                execution_time_ms: start_time.elapsed().as_millis() as u64,
-                message: Some(format!("查询执行失败: {}", e)),
-                success: false,
-            }),
-        }
     }
 }
 

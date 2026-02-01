@@ -8,7 +8,7 @@
 //! - 缓存统计和监控
 
 use crate::core::Value;
-use crate::api::service::index_service::IndexServiceConfig;
+use crate::index::IndexServiceConfig;
 use dashmap::DashMap;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
