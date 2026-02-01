@@ -12,6 +12,7 @@ pub mod executor_stats;
 pub mod execution_result;
 pub mod execution_context;
 pub mod executor_base;
+pub mod storage_processor_executor;
 
 pub use executor_stats::ExecutorStats;
 pub use execution_result::{ExecutionResult, DBResult};
@@ -19,5 +20,6 @@ pub use execution_context::ExecutionContext;
 pub use executor_base::{
     BaseExecutor, ChainableExecutor, Executor, HasStorage, HasInput, InputExecutor, StartExecutor
 };
+pub use storage_processor_executor::{StorageProcessorExecutor, StorageProcessorExecutorImpl, ProcessorExecutorCounters};
 
 pub use crate::core::types::EdgeDirection;

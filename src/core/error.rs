@@ -19,7 +19,7 @@ use thiserror::Error;
 pub use crate::core::types::DataType;
 
 /// 统一的数据库错误类型
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone)]
 pub enum DBError {
     #[error("存储错误: {0}")]
     Storage(#[from] StorageError),
@@ -43,7 +43,7 @@ pub enum DBError {
     Validation(String),
 
     #[error("IO错误: {0}")]
-    Io(#[from] std::io::Error),
+    Io(String),
 
     #[error("类型推导错误: {0}")]
     TypeDeduction(String),

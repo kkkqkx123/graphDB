@@ -186,7 +186,7 @@ impl SpillManager {
         let spill_dir = spill_dir.as_ref().to_path_buf();
 
         // 创建溢出目录
-        std::fs::create_dir_all(&spill_dir).map_err(|e| DBError::Io(e))?;
+        std::fs::create_dir_all(&spill_dir).map_err(|e| DBError::Io(e.to_string()))?;
 
         Ok(Self {
             spill_dir,
@@ -216,10 +216,10 @@ impl SpillManager {
             // 写入大小前缀
             writer
                 .write_all(&(data_size as u32).to_le_bytes())
-                .map_err(|e| DBError::Io(e))?;
+                .map_err(|e| DBError::Io(e.to_string()))?;
 
             // 写入数据
-            writer.write_all(&serialized).map_err(|e| DBError::Io(e))?;
+            writer.write_all(&serialized).map_err(|e| DBError::Io(e.to_string()))?;
 
             self.current_file_size += data_size + 4; // +4 for size prefix
         }
@@ -231,7 +231,7 @@ impl SpillManager {
     fn rotate_file(&mut self) -> DBResult<()> {
         // 关闭当前文件
         if let Some(mut writer) = self.current_file.take() {
-            writer.flush().map_err(|e| DBError::Io(e))?;
+            writer.flush().map_err(|e| DBError::Io(e.to_string()))?;
         }
 
         // 创建新文件
@@ -245,7 +245,7 @@ impl SpillManager {
             .write(true)
             .truncate(true)
             .open(&file_path)
-            .map_err(|e| DBError::Io(e))?;
+            .map_err(|e| DBError::Io(e.to_string()))?;
 
         self.current_file = Some(BufWriter::new(file));
         self.current_file_size = 0;
@@ -260,7 +260,7 @@ impl SpillManager {
         for i in 0..self.file_counter {
             let file_path = self.spill_dir.join(format!("spill_{}.dat", i));
             if file_path.exists() {
-                let file = File::open(&file_path).map_err(|e| DBError::Io(e))?;
+                let file = File::open(&file_path).map_err(|e| DBError::Io(e.to_string()))?;
                 let mut reader = BufReader::new(file);
 
                 loop {
@@ -272,7 +272,7 @@ impl SpillManager {
 
                             // 读取数据
                             let mut data = vec![0u8; data_size];
-                            reader.read_exact(&mut data).map_err(|e| DBError::Io(e))?;
+                            reader.read_exact(&mut data).map_err(|e| DBError::Io(e.to_string()))?;
 
                             // 反序列化
                             let (key, entries): (JoinKey, Vec<HashTableEntry>) =
@@ -301,7 +301,7 @@ impl SpillManager {
         for i in 0..self.file_counter {
             let file_path = self.spill_dir.join(format!("spill_{}.dat", i));
             if file_path.exists() {
-                std::fs::remove_file(&file_path).map_err(|e| DBError::Io(e))?;
+                std::fs::remove_file(&file_path).map_err(|e| DBError::Io(e.to_string()))?;
             }
         }
 

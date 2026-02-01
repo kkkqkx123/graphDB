@@ -94,6 +94,9 @@ pub struct RuntimeContext {
     /// 计划上下文引用
     pub plan_context: Arc<PlanContext>,
 
+    /// 分区ID（用于分布式查询）
+    pub part_id: Option<u32>,
+
     /// 标签信息
     pub tag_id: Option<TagId>,
     pub tag_name: Option<String>,
@@ -118,6 +121,7 @@ impl RuntimeContext {
     pub fn new(plan_context: Arc<PlanContext>) -> Self {
         Self {
             plan_context,
+            part_id: None,
             tag_id: None,
             tag_name: None,
             edge_type: None,
@@ -131,9 +135,41 @@ impl RuntimeContext {
         }
     }
 
+    /// 创建简单的运行时上下文（用于不需要完整PlanContext的场景）
+    pub fn new_simple() -> Arc<Self> {
+        use std::path::PathBuf;
+
+        let storage_env = Arc::new(StorageEnv {
+            storage_engine: Arc::new(crate::storage::MemoryStorage::new().unwrap_or_default()),
+            schema_manager: Arc::new(crate::storage::metadata::MemorySchemaManager::new()),
+            index_manager: Arc::new(crate::storage::index::MemoryIndexManager::new(PathBuf::from("."))),
+        });
+
+        let plan_context = Arc::new(PlanContext {
+            storage_env,
+            space_id: 0,
+            plan_id: 0,
+            v_id_len: 8,
+            is_int_id: true,
+            is_edge: false,
+        });
+
+        Arc::new(Self::new(plan_context))
+    }
+
     /// 获取存储环境
     pub fn env(&self) -> &Arc<StorageEnv> {
         &self.plan_context.storage_env
+    }
+
+    /// 获取计划ID
+    pub fn plan_id(&self) -> i64 {
+        self.plan_context.plan_id
+    }
+
+    /// 获取计划ID（用于Arc包装的类型）
+    pub fn arc_plan_id(ctx: &Arc<Self>) -> i64 {
+        ctx.plan_context.plan_id
     }
 
     /// 获取空间ID
