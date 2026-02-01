@@ -306,19 +306,19 @@ impl StorageClient for DummyStorage {
         Ok(true)
     }
 
-    fn get_vertex_with_schema(&self, _space: &str, _tag_name: &str, _id: &crate::core::Value) -> Result<Option<(crate::expression::storage::Schema, Vec<u8>)>, crate::core::StorageError> {
+    fn get_vertex_with_schema(&self, _space: &str, _tag_name: &str, _id: &crate::core::Value) -> Result<Option<(crate::storage::Schema, Vec<u8>)>, crate::core::StorageError> {
         Ok(None)
     }
 
-    fn get_edge_with_schema(&self, _space: &str, _edge_type_name: &str, _src: &crate::core::Value, _dst: &crate::core::Value) -> Result<Option<(crate::expression::storage::Schema, Vec<u8>)>, crate::core::StorageError> {
+    fn get_edge_with_schema(&self, _space: &str, _edge_type_name: &str, _src: &crate::core::Value, _dst: &crate::core::Value) -> Result<Option<(crate::storage::Schema, Vec<u8>)>, crate::core::StorageError> {
         Ok(None)
     }
 
-    fn scan_vertices_with_schema(&self, _space: &str, _tag_name: &str) -> Result<Vec<(crate::expression::storage::Schema, Vec<u8>)>, crate::core::StorageError> {
+    fn scan_vertices_with_schema(&self, _space: &str, _tag_name: &str) -> Result<Vec<(crate::storage::Schema, Vec<u8>)>, crate::core::StorageError> {
         Ok(Vec::new())
     }
 
-    fn scan_edges_with_schema(&self, _space: &str, _edge_type_name: &str) -> Result<Vec<(crate::expression::storage::Schema, Vec<u8>)>, crate::core::StorageError> {
+    fn scan_edges_with_schema(&self, _space: &str, _edge_type_name: &str) -> Result<Vec<(crate::storage::Schema, Vec<u8>)>, crate::core::StorageError> {
         Ok(Vec::new())
     }
 

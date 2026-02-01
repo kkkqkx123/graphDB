@@ -3,7 +3,7 @@ use crate::core::types::{
     EdgeTypeInfo, IndexInfo, InsertEdgeInfo, InsertVertexInfo, PasswordInfo,
     PropertyDef, SpaceInfo, TagInfo, UpdateInfo,
 };
-use crate::expression::storage::Schema;
+use crate::storage::Schema;
 use crate::storage::transaction::TransactionId;
 
 pub trait StorageClient: Send + Sync + std::fmt::Debug {

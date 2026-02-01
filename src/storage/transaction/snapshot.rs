@@ -6,7 +6,7 @@
 //! - 读写冲突检测
 //! - 版本可见性判断
 
-use super::{TransactionId, MvccManager, LockManager, Version, VersionVec, LockKey};
+use super::{TransactionId, MvccManager, Version, VersionVec};
 use crate::core::StorageError;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -179,8 +179,6 @@ impl ConflictInfo {
 pub struct SnapshotManager {
     /// MVCC 管理器
     mvcc: Arc<MvccManager>,
-    /// 锁管理器
-    lock_manager: Arc<LockManager>,
     /// 当前活跃快照
     snapshots: RwLock<HashMap<TransactionId, Snapshot>>,
     /// 配置
@@ -192,12 +190,10 @@ pub struct SnapshotManager {
 impl SnapshotManager {
     pub fn new(
         mvcc: Arc<MvccManager>,
-        lock_manager: Arc<LockManager>,
         config: SnapshotConfig,
     ) -> Self {
         Self {
             mvcc,
-            lock_manager,
             snapshots: RwLock::new(HashMap::new()),
             config,
             stats: Arc::new(Mutex::new(SnapshotStats::default())),
@@ -276,36 +272,6 @@ impl SnapshotManager {
     fn is_active(&self, tx_id: TransactionId) -> bool {
         let snapshots = self.snapshots.read().unwrap();
         snapshots.contains_key(&tx_id)
-    }
-
-    /// 检测读写冲突
-    pub fn detect_conflict(
-        &self,
-        snapshot: &Snapshot,
-        key: &str,
-        is_write: bool,
-    ) -> Option<ConflictInfo> {
-        for active_tx_id in &snapshot.active_transactions {
-            let locks = self.lock_manager.get_locks_held_by(*active_tx_id);
-            let key_lock = LockKey::new("data", key);
-
-            for lock in locks {
-                if lock.resource_name == key {
-                    return Some(ConflictInfo::new(
-                        if is_write {
-                            ReadWriteConflict::WriteAfterRead
-                        } else {
-                            ReadWriteConflict::ReadAfterWrite
-                        },
-                        snapshot.tx_id,
-                        *active_tx_id,
-                        key.to_string(),
-                    ));
-                }
-            }
-        }
-
-        None
     }
 
     /// 清理过期快照

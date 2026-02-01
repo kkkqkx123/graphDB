@@ -8,6 +8,10 @@ pub mod memory_storage;
 pub mod redb_storage;
 pub mod storage_client;
 pub mod index;
+pub mod types;
+pub mod schema;
+pub mod row_reader;
+pub mod date_utils;
 
 #[cfg(test)]
 pub mod test_mock;
@@ -29,5 +33,8 @@ pub use crate::core::StorageResult;
 #[cfg(test)]
 pub use test_mock::*;
 
-// 从 expression::storage 重新导出，使 storage 模块对数据解析类型统一访问
-pub use crate::expression::storage::{FieldDef, FieldType, RowReaderWrapper, Schema};
+// 导出数据编码相关类型
+pub use date_utils::*;
+pub use row_reader::RowReaderWrapper;
+pub use schema::Schema;
+pub use types::{ColumnDef, FieldDef, FieldType};

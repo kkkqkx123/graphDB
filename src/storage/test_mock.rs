@@ -23,7 +23,7 @@ use crate::core::types::{
     PropertyDef, SpaceInfo, TagInfo, UpdateInfo,
 };
 #[cfg(test)]
-use crate::expression::storage::Schema;
+use crate::storage::Schema;
 
 /// 测试用Mock存储引擎
 #[cfg(test)]

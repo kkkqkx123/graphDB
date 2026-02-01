@@ -564,7 +564,7 @@ mod tests {
         EdgeTypeSchema, IndexInfo, InsertEdgeInfo, InsertVertexInfo, PasswordInfo,
         PropertyDef, SpaceInfo, TagInfo, UpdateInfo,
     };
-    use crate::expression::storage::Schema;
+    use crate::storage::Schema;
 
     /// Mock 存储引擎用于测试
     #[derive(Debug)]

@@ -2,7 +2,6 @@ pub mod aggregate_functions;
 pub mod context;
 pub mod evaluator;
 pub mod functions;
-pub mod storage;
 
 // 重新导出expression模块的访问器
 pub use crate::core::types::expression::visitor::{
@@ -25,6 +24,3 @@ pub use context::{
 
 // Re-export error types
 pub use crate::core::error::{ExpressionError, ExpressionErrorType, ExpressionPosition};
-
-// Re-export storage module types for convenience
-pub use storage::{ColumnDef, FieldDef, FieldType, RowReaderWrapper, Schema};

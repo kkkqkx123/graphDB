@@ -241,9 +241,6 @@ pub trait Transaction: Send + Sync {
     /// 获取快照版本
     fn snapshot_version(&self) -> Option<super::VersionVec>;
 
-    /// 获取锁管理器
-    fn lock_manager(&self) -> Option<&super::LockManager>;
-
     /// 获取事务日志
     fn transaction_log(&self) -> Option<&super::TransactionLog>;
 

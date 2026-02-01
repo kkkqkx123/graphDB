@@ -2,7 +2,7 @@ use crate::core::StorageError;
 use crate::core::types::{
     EdgeTypeInfo, SpaceInfo, TagInfo,
 };
-use crate::expression::storage::{FieldDef, FieldType, Schema};
+use crate::storage::{FieldDef, FieldType, Schema};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 

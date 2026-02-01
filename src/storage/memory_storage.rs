@@ -6,7 +6,7 @@ use crate::core::types::{
     PropertyDef, InsertVertexInfo, InsertEdgeInfo, UpdateInfo,
     PasswordInfo,
 };
-use crate::expression::storage::{FieldDef, FieldType, Schema};
+use crate::storage::{FieldDef, FieldType, Schema};
 use crate::common::memory::MemoryPool;
 use crate::common::id::IdGenerator;
 use serde_json;

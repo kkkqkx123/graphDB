@@ -2,7 +2,7 @@
 //!
 //! 负责从二进制数据中解析字段值
 
-use super::schema_def::Schema;
+use super::schema::Schema;
 use super::types::FieldDef;
 use crate::core::error::ExpressionError;
 use crate::core::Value;
