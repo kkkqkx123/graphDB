@@ -6,9 +6,11 @@
 pub mod index_manager;
 pub mod memory_index_manager;
 pub mod redb_persistence;
+pub mod redb_index_manager;
 
 pub use index_manager::*;
 pub use memory_index_manager::*;
 pub use redb_persistence::*;
+pub use redb_index_manager::*;
 
 pub use crate::index::{Index, IndexStatus, IndexType, IndexInfo, IndexOptimization};

@@ -25,13 +25,13 @@ impl OptRule for TopNRule {
     ) -> OptResult<Option<TransformResult>> {
         let node_ref = node.borrow();
         let mut visitor = TopNRuleVisitor {
-            ctx: ctx as *const OptContext,
-            converted: false,
-            new_node: None,
+            ctx: &ctx,
+            is_converted: false,
+            converted_node: None,
         };
         let result = visitor.visit(&node_ref.plan_node);
-        if result.converted {
-            if let Some(new_node) = result.new_node {
+        if result.is_converted {
+            if let Some(new_node) = result.converted_node {
                 let mut transform_result = TransformResult::new();
                 transform_result.add_new_group_node(Rc::new(RefCell::new(new_node)));
                 Ok(Some(transform_result))
@@ -51,19 +51,18 @@ impl OptRule for TopNRule {
 impl BaseOptRule for TopNRule {}
 
 /// TopN 规则访问者
-struct TopNRuleVisitor {
-    converted: bool,
-    new_node: Option<OptGroupNode>,
-    ctx: *const OptContext,
+///
+/// 状态不变量：
+/// - `is_converted` 为 true 时，`converted_node` 必须为 Some
+/// - `is_converted` 为 false 时，`converted_node` 必须为 None
+#[derive(Clone)]
+struct TopNRuleVisitor<'a> {
+    is_converted: bool,
+    converted_node: Option<OptGroupNode>,
+    ctx: &'a OptContext,
 }
 
-impl TopNRuleVisitor {
-    fn get_ctx(&self) -> &OptContext {
-        unsafe { &*self.ctx }
-    }
-}
-
-impl PlanNodeVisitor for TopNRuleVisitor {
+impl<'a> PlanNodeVisitor for TopNRuleVisitor<'a> {
     type Result = Self;
 
     fn visit_default(&mut self) -> Self::Result {
@@ -71,7 +70,7 @@ impl PlanNodeVisitor for TopNRuleVisitor {
     }
 
     fn visit_limit(&mut self, node: &crate::query::planner::plan::core::nodes::LimitNode) -> Self::Result {
-        if self.converted {
+        if self.is_converted {
             return self.clone();
         }
 
@@ -80,7 +79,7 @@ impl PlanNodeVisitor for TopNRuleVisitor {
         }
 
         let child_dep_id = node.dependencies()[0].id() as usize;
-        if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(child_dep_id) {
+        if let Some(child_node) = self.ctx.find_group_node_by_plan_node_id(child_dep_id) {
             let child_node_ref = child_node.borrow();
             if child_node_ref.plan_node.is_sort() {
                 if let Some(sort_plan_node) = child_node_ref.plan_node.as_sort() {
@@ -109,8 +108,8 @@ impl PlanNodeVisitor for TopNRuleVisitor {
 
                     drop(child_node_ref);
 
-                    self.converted = true;
-                    self.new_node = Some(new_node);
+                    self.is_converted = true;
+                    self.converted_node = Some(new_node);
                 }
             }
         }
@@ -433,16 +432,6 @@ impl PlanNodeVisitor for TopNRuleVisitor {
 
     fn visit_rebuild_edge_index(&mut self, _node: &crate::query::planner::plan::core::nodes::RebuildEdgeIndexNode) -> Self::Result {
         self.clone()
-    }
-}
-
-impl Clone for TopNRuleVisitor {
-    fn clone(&self) -> Self {
-        Self {
-            converted: self.converted,
-            new_node: self.new_node.clone(),
-            ctx: self.ctx,
-        }
     }
 }
 

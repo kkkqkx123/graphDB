@@ -12,21 +12,19 @@ use std::rc::Rc;
 use std::cell::RefCell;
 
 /// 合并过滤访问者
+///
+/// 状态不变量：
+/// - `is_merged` 为 true 时，`merged_node` 必须为 Some
+/// - `is_merged` 为 false 时，`merged_node` 必须为 None
 #[derive(Clone)]
-struct CombineFilterVisitor {
-    merged: bool,
-    new_node: Option<OptGroupNode>,
-    ctx: *const OptContext,
+struct CombineFilterVisitor<'a> {
+    is_merged: bool,
+    merged_node: Option<OptGroupNode>,
+    ctx: &'a OptContext,
     node_dependencies: Vec<usize>,
 }
 
-impl CombineFilterVisitor {
-    fn get_ctx(&self) -> &OptContext {
-        unsafe { &*self.ctx }
-    }
-}
-
-impl PlanNodeVisitor for CombineFilterVisitor {
+impl<'a> PlanNodeVisitor for CombineFilterVisitor<'a> {
     type Result = Self;
 
     fn visit_default(&mut self) -> Self::Result {
@@ -35,7 +33,7 @@ impl PlanNodeVisitor for CombineFilterVisitor {
 
     fn visit_filter(&mut self, node: &crate::query::planner::plan::core::nodes::FilterNode) -> Self::Result {
         if let Some(dep_id) = self.node_dependencies.first() {
-            if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(*dep_id) {
+            if let Some(child_node) = self.ctx.find_group_node_by_plan_node_id(*dep_id) {
                 let child_node_ref = child_node.borrow();
                 if child_node_ref.plan_node.is_filter() {
                     if let Some(child_filter) = child_node_ref.plan_node.as_filter() {
@@ -63,8 +61,8 @@ impl PlanNodeVisitor for CombineFilterVisitor {
 
                         drop(child_node_ref);
 
-                        self.merged = true;
-                        self.new_node = Some(combined_opt_node);
+                        self.is_merged = true;
+                        self.merged_node = Some(combined_opt_node);
                     }
                 }
             }
@@ -94,17 +92,17 @@ impl OptRule for CombineFilterRule {
         }
 
         let mut visitor = CombineFilterVisitor {
-            merged: false,
-            new_node: None,
-            ctx: ctx as *const OptContext,
+            is_merged: false,
+            merged_node: None,
+            ctx: &ctx,
             node_dependencies: node_ref.dependencies.clone(),
         };
 
         let result = visitor.visit(&node_ref.plan_node);
         drop(node_ref);
 
-        if result.merged {
-            if let Some(new_node) = result.new_node {
+        if result.is_merged {
+            if let Some(new_node) = result.merged_node {
                 let mut transform_result = TransformResult::new();
                 transform_result.add_new_group_node(Rc::new(RefCell::new(new_node)));
                 return Ok(Some(transform_result));

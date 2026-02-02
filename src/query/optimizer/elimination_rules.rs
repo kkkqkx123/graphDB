@@ -29,17 +29,17 @@ impl OptRule for EliminateFilterRule {
     ) -> Result<Option<TransformResult>, OptimizerError> {
         let node_ref = group_node.borrow();
         let mut visitor = EliminateFilterVisitor {
-            ctx: ctx as *const OptContext,
-            eliminated: false,
-            new_node: None,
+            ctx: &ctx,
+            is_eliminated: false,
+            eliminated_node: None,
             node_dependencies: node_ref.dependencies.clone(),
         };
 
         let result = visitor.visit(&node_ref.plan_node);
         drop(node_ref);
 
-        if result.eliminated {
-            if let Some(new_node) = result.new_node {
+        if result.is_eliminated {
+            if let Some(new_node) = result.eliminated_node {
                 let mut result = TransformResult::new();
                 result.add_new_group_node(Rc::new(RefCell::new(new_node)));
                 return Ok(Some(result));
@@ -56,21 +56,19 @@ impl OptRule for EliminateFilterRule {
 impl BaseOptRule for EliminateFilterRule {}
 
 /// 消除过滤访问者
+///
+/// 状态不变量：
+/// - `is_eliminated` 为 true 时，`eliminated_node` 必须为 Some
+/// - `is_eliminated` 为 false 时，`eliminated_node` 必须为 None
 #[derive(Clone)]
-struct EliminateFilterVisitor {
-    eliminated: bool,
-    new_node: Option<OptGroupNode>,
-    ctx: *const OptContext,
+struct EliminateFilterVisitor<'a> {
+    is_eliminated: bool,
+    eliminated_node: Option<OptGroupNode>,
+    ctx: &'a OptContext,
     node_dependencies: Vec<usize>,
 }
 
-impl EliminateFilterVisitor {
-    fn get_ctx(&self) -> &OptContext {
-        unsafe { &*self.ctx }
-    }
-}
-
-impl PlanNodeVisitor for EliminateFilterVisitor {
+impl<'a> PlanNodeVisitor for EliminateFilterVisitor<'a> {
     type Result = Self;
 
     fn visit_default(&mut self) -> Self::Result {
@@ -78,7 +76,7 @@ impl PlanNodeVisitor for EliminateFilterVisitor {
     }
 
     fn visit_filter(&mut self, node: &crate::query::planner::plan::core::nodes::FilterNode) -> Self::Result {
-        if self.eliminated {
+        if self.is_eliminated {
             return self.clone();
         }
 
@@ -87,9 +85,8 @@ impl PlanNodeVisitor for EliminateFilterVisitor {
             return self.clone();
         }
 
-        // 使用依赖关系查找子节点
         if let Some(dep_id) = self.node_dependencies.first() {
-            if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(*dep_id) {
+            if let Some(child_node) = self.ctx.find_group_node_by_plan_node_id(*dep_id) {
                 let mut new_node = child_node.clone();
 
                 if let Some(_output_var) = node.output_var() {
@@ -97,8 +94,8 @@ impl PlanNodeVisitor for EliminateFilterVisitor {
                     new_node_borrowed.plan_node = node.input().clone();
                 }
 
-                self.eliminated = true;
-                self.new_node = Some(new_node.borrow().clone());
+                self.is_eliminated = true;
+                self.eliminated_node = Some(new_node.borrow().clone());
             }
         }
 
@@ -122,16 +119,16 @@ impl OptRule for DedupEliminationRule {
     ) -> Result<Option<TransformResult>, OptimizerError> {
         let node_ref = group_node.borrow();
         let mut visitor = DedupEliminationVisitor {
-            ctx: ctx as *const OptContext,
-            eliminated: false,
-            new_node: None,
+            ctx: &ctx,
+            is_eliminated: false,
+            eliminated_node: None,
         };
 
         let result = visitor.visit(&node_ref.plan_node);
         drop(node_ref);
 
-        if result.eliminated {
-            if let Some(new_node) = result.new_node {
+        if result.is_eliminated {
+            if let Some(new_node) = result.eliminated_node {
                 let mut result = TransformResult::new();
                 result.add_new_group_node(Rc::new(RefCell::new(new_node)));
                 return Ok(Some(result));
@@ -148,20 +145,18 @@ impl OptRule for DedupEliminationRule {
 impl BaseOptRule for DedupEliminationRule {}
 
 /// 消除去重访问者
+///
+/// 状态不变量：
+/// - `is_eliminated` 为 true 时，`eliminated_node` 必须为 Some
+/// - `is_eliminated` 为 false 时，`eliminated_node` 必须为 None
 #[derive(Clone)]
-struct DedupEliminationVisitor {
-    eliminated: bool,
-    new_node: Option<OptGroupNode>,
-    ctx: *const OptContext,
+struct DedupEliminationVisitor<'a> {
+    is_eliminated: bool,
+    eliminated_node: Option<OptGroupNode>,
+    ctx: &'a OptContext,
 }
 
-impl DedupEliminationVisitor {
-    fn get_ctx(&self) -> &OptContext {
-        unsafe { &*self.ctx }
-    }
-}
-
-impl PlanNodeVisitor for DedupEliminationVisitor {
+impl<'a> PlanNodeVisitor for DedupEliminationVisitor<'a> {
     type Result = Self;
 
     fn visit_default(&mut self) -> Self::Result {
@@ -169,14 +164,14 @@ impl PlanNodeVisitor for DedupEliminationVisitor {
     }
 
     fn visit_dedup(&mut self, node: &crate::query::planner::plan::core::nodes::DedupNode) -> Self::Result {
-        if self.eliminated {
+        if self.is_eliminated {
             return self.clone();
         }
 
         let input = node.input();
         let input_id = input.id() as usize;
 
-        if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(input_id) {
+        if let Some(child_node) = self.ctx.find_group_node_by_plan_node_id(input_id) {
             let child_node_ref = child_node.borrow();
             if child_node_ref.plan_node.is_index_scan()
                 || child_node_ref.plan_node.is_get_vertices()
@@ -190,8 +185,8 @@ impl PlanNodeVisitor for DedupEliminationVisitor {
 
                 drop(child_node_ref);
 
-                self.eliminated = true;
-                self.new_node = Some(new_node);
+                self.is_eliminated = true;
+                self.eliminated_node = Some(new_node);
             } else {
                 drop(child_node_ref);
             }
@@ -217,17 +212,17 @@ impl OptRule for RemoveNoopProjectRule {
     ) -> Result<Option<TransformResult>, OptimizerError> {
         let node_ref = group_node.borrow();
         let mut visitor = RemoveNoopProjectVisitor {
-            ctx: ctx as *const OptContext,
-            eliminated: false,
-            new_node: None,
+            ctx: &ctx,
+            is_eliminated: false,
+            eliminated_node: None,
             node_dependencies: node_ref.dependencies.clone(),
         };
 
         let result = visitor.visit(&node_ref.plan_node);
         drop(node_ref);
 
-        if result.eliminated {
-            if let Some(new_node) = result.new_node {
+        if result.is_eliminated {
+            if let Some(new_node) = result.eliminated_node {
                 let mut result = TransformResult::new();
                 result.add_new_group_node(Rc::new(RefCell::new(new_node)));
                 return Ok(Some(result));
@@ -244,19 +239,60 @@ impl OptRule for RemoveNoopProjectRule {
 impl BaseOptRule for RemoveNoopProjectRule {}
 
 /// 移除无操作投影访问者
+///
+/// 状态不变量：
+/// - `is_eliminated` 为 true 时，`eliminated_node` 必须为 Some
+/// - `is_eliminated` 为 false 时，`eliminated_node` 必须为 None
 #[derive(Clone)]
-struct RemoveNoopProjectVisitor {
-    eliminated: bool,
-    new_node: Option<OptGroupNode>,
-    ctx: *const OptContext,
+struct RemoveNoopProjectVisitor<'a> {
+    is_eliminated: bool,
+    eliminated_node: Option<OptGroupNode>,
+    ctx: &'a OptContext,
     node_dependencies: Vec<usize>,
 }
 
-impl RemoveNoopProjectVisitor {
-    fn get_ctx(&self) -> &OptContext {
-        unsafe { &*self.ctx }
+impl<'a> PlanNodeVisitor for RemoveNoopProjectVisitor<'a> {
+    type Result = Self;
+
+    fn visit_default(&mut self) -> Self::Result {
+        self.clone()
     }
 
+    fn visit_project(&mut self, node: &crate::query::planner::plan::core::nodes::ProjectNode) -> Self::Result {
+        if self.is_eliminated {
+            return self.clone();
+        }
+
+        let input = node.input();
+
+        if let Some(dep_id) = self.node_dependencies.first() {
+            if let Some(child_node) = self.ctx.find_group_node_by_plan_node_id(*dep_id) {
+                let child_node_ref = child_node.borrow();
+                let columns = node.columns();
+                let child_col_names = child_node_ref.plan_node.col_names();
+
+                if self.is_noop_projection(&columns, &child_col_names) {
+                    let mut new_node = child_node_ref.clone();
+
+                    if let Some(_output_var) = node.output_var() {
+                        new_node.plan_node = input.clone();
+                    }
+
+                    drop(child_node_ref);
+
+                    self.is_eliminated = true;
+                    self.eliminated_node = Some(new_node);
+                } else {
+                    drop(child_node_ref);
+                }
+            }
+        }
+
+        self.clone()
+    }
+}
+
+impl<'a> RemoveNoopProjectVisitor<'a> {
     fn is_noop_projection(
         &self,
         columns: &[crate::query::validator::YieldColumn],
@@ -317,47 +353,6 @@ impl RemoveNoopProjectVisitor {
     }
 }
 
-impl PlanNodeVisitor for RemoveNoopProjectVisitor {
-    type Result = Self;
-
-    fn visit_default(&mut self) -> Self::Result {
-        self.clone()
-    }
-
-    fn visit_project(&mut self, node: &crate::query::planner::plan::core::nodes::ProjectNode) -> Self::Result {
-        if self.eliminated {
-            return self.clone();
-        }
-
-        let input = node.input();
-
-        if let Some(dep_id) = self.node_dependencies.first() {
-            if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(*dep_id) {
-                let child_node_ref = child_node.borrow();
-                let columns = node.columns();
-                let child_col_names = child_node_ref.plan_node.col_names();
-
-                if self.is_noop_projection(&columns, &child_col_names) {
-                    let mut new_node = child_node_ref.clone();
-
-                    if let Some(_output_var) = node.output_var() {
-                        new_node.plan_node = input.clone();
-                    }
-
-                    drop(child_node_ref);
-
-                    self.eliminated = true;
-                    self.new_node = Some(new_node);
-                } else {
-                    drop(child_node_ref);
-                }
-            }
-        }
-
-        self.clone()
-    }
-}
-
 /// 消除冗余添加顶点操作的规则
 #[derive(Debug)]
 pub struct EliminateAppendVerticesRule;
@@ -374,17 +369,17 @@ impl OptRule for EliminateAppendVerticesRule {
     ) -> Result<Option<TransformResult>, OptimizerError> {
         let node_ref = group_node.borrow();
         let mut visitor = EliminateAppendVerticesVisitor {
-            ctx: ctx as *const OptContext,
-            eliminated: false,
-            new_node: None,
+            ctx: &ctx,
+            is_eliminated: false,
+            eliminated_node: None,
             node_dependencies: node_ref.dependencies.clone(),
         };
 
         let result = visitor.visit(&node_ref.plan_node);
         drop(node_ref);
 
-        if result.eliminated {
-            if let Some(new_node) = result.new_node {
+        if result.is_eliminated {
+            if let Some(new_node) = result.eliminated_node {
                 let mut result = TransformResult::new();
                 result.add_new_group_node(Rc::new(RefCell::new(new_node)));
                 return Ok(Some(result));
@@ -401,21 +396,19 @@ impl OptRule for EliminateAppendVerticesRule {
 impl BaseOptRule for EliminateAppendVerticesRule {}
 
 /// 消除添加顶点访问者
+///
+/// 状态不变量：
+/// - `is_eliminated` 为 true 时，`eliminated_node` 必须为 Some
+/// - `is_eliminated` 为 false 时，`eliminated_node` 必须为 None
 #[derive(Clone)]
-struct EliminateAppendVerticesVisitor {
-    eliminated: bool,
-    new_node: Option<OptGroupNode>,
-    ctx: *const OptContext,
+struct EliminateAppendVerticesVisitor<'a> {
+    is_eliminated: bool,
+    eliminated_node: Option<OptGroupNode>,
+    ctx: &'a OptContext,
     node_dependencies: Vec<usize>,
 }
 
-impl EliminateAppendVerticesVisitor {
-    fn get_ctx(&self) -> &OptContext {
-        unsafe { &*self.ctx }
-    }
-}
-
-impl PlanNodeVisitor for EliminateAppendVerticesVisitor {
+impl<'a> PlanNodeVisitor for EliminateAppendVerticesVisitor<'a> {
     type Result = Self;
 
     fn visit_default(&mut self) -> Self::Result {
@@ -423,7 +416,7 @@ impl PlanNodeVisitor for EliminateAppendVerticesVisitor {
     }
 
     fn visit_append_vertices(&mut self, node: &crate::query::planner::plan::core::nodes::AppendVerticesNode) -> Self::Result {
-        if self.eliminated {
+        if self.is_eliminated {
             return self.clone();
         }
 
@@ -432,7 +425,7 @@ impl PlanNodeVisitor for EliminateAppendVerticesVisitor {
         }
 
         if let Some(dep_id) = self.node_dependencies.first() {
-            if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(*dep_id) {
+            if let Some(child_node) = self.ctx.find_group_node_by_plan_node_id(*dep_id) {
                 let mut new_node = child_node.clone();
 
                 if let Some(_output_var) = node.output_var() {
@@ -443,17 +436,10 @@ impl PlanNodeVisitor for EliminateAppendVerticesVisitor {
                     }
                 }
 
-                self.eliminated = true;
-                self.new_node = Some(new_node.borrow().clone());
+                self.is_eliminated = true;
+                self.eliminated_node = Some(new_node.borrow().clone());
             }
-            None
-        } else {
-            let inputs = node.inputs();
-            if inputs.is_empty() {
-                return self.clone();
-            }
-            Some(&**inputs.first().unwrap())
-        };
+        }
 
         self.clone()
     }
@@ -475,17 +461,17 @@ impl OptRule for RemoveAppendVerticesBelowJoinRule {
     ) -> Result<Option<TransformResult>, OptimizerError> {
         let node_ref = group_node.borrow();
         let mut visitor = RemoveAppendVerticesBelowJoinVisitor {
-            ctx: ctx as *const OptContext,
-            eliminated: false,
-            new_node: None,
+            ctx: &ctx,
+            is_eliminated: false,
+            eliminated_node: None,
             node_dependencies: node_ref.dependencies.clone(),
         };
 
         let result = visitor.visit(&node_ref.plan_node);
         drop(node_ref);
 
-        if result.eliminated {
-            if let Some(new_node) = result.new_node {
+        if result.is_eliminated {
+            if let Some(new_node) = result.eliminated_node {
                 let mut result = TransformResult::new();
                 result.add_new_group_node(Rc::new(RefCell::new(new_node)));
                 return Ok(Some(result));
@@ -502,21 +488,19 @@ impl OptRule for RemoveAppendVerticesBelowJoinRule {
 impl BaseOptRule for RemoveAppendVerticesBelowJoinRule {}
 
 /// 移除连接下方添加顶点访问者
+///
+/// 状态不变量：
+/// - `is_eliminated` 为 true 时，`eliminated_node` 必须为 Some
+/// - `is_eliminated` 为 false 时，`eliminated_node` 必须为 None
 #[derive(Clone)]
-struct RemoveAppendVerticesBelowJoinVisitor {
-    eliminated: bool,
-    new_node: Option<OptGroupNode>,
-    ctx: *const OptContext,
+struct RemoveAppendVerticesBelowJoinVisitor<'a> {
+    is_eliminated: bool,
+    eliminated_node: Option<OptGroupNode>,
+    ctx: &'a OptContext,
     node_dependencies: Vec<usize>,
 }
 
-impl RemoveAppendVerticesBelowJoinVisitor {
-    fn get_ctx(&self) -> &OptContext {
-        unsafe { &*self.ctx }
-    }
-}
-
-impl PlanNodeVisitor for RemoveAppendVerticesBelowJoinVisitor {
+impl<'a> PlanNodeVisitor for RemoveAppendVerticesBelowJoinVisitor<'a> {
     type Result = Self;
 
     fn visit_default(&mut self) -> Self::Result {
@@ -524,12 +508,12 @@ impl PlanNodeVisitor for RemoveAppendVerticesBelowJoinVisitor {
     }
 
     fn visit_append_vertices(&mut self, node: &crate::query::planner::plan::core::nodes::AppendVerticesNode) -> Self::Result {
-        if self.eliminated {
+        if self.is_eliminated {
             return self.clone();
         }
 
         if let Some(dep_id) = self.node_dependencies.first() {
-            if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(*dep_id) {
+            if let Some(child_node) = self.ctx.find_group_node_by_plan_node_id(*dep_id) {
                 let child_node_ref = child_node.borrow();
                 if child_node_ref.plan_node.is_inner_join()
                     || child_node_ref.plan_node.is_hash_inner_join()
@@ -546,16 +530,11 @@ impl PlanNodeVisitor for RemoveAppendVerticesBelowJoinVisitor {
 
                     drop(child_node_ref);
 
-                    self.eliminated = true;
-                    self.new_node = Some(new_node);
+                    self.is_eliminated = true;
+                    self.eliminated_node = Some(new_node);
                 } else {
                     drop(child_node_ref);
                 }
-            }
-        } else {
-            let inputs = node.inputs();
-            if inputs.is_empty() {
-                return self.clone();
             }
         }
 
@@ -580,16 +559,16 @@ impl OptRule for EliminateRowCollectRule {
     ) -> Result<Option<TransformResult>, OptimizerError> {
         let node_ref = group_node.borrow();
         let mut visitor = EliminateRowCollectVisitor {
-            ctx: ctx as *const OptContext,
-            eliminated: false,
-            new_node: None,
+            ctx: &ctx,
+            is_eliminated: false,
+            eliminated_node: None,
         };
 
         let result = visitor.visit(&node_ref.plan_node);
         drop(node_ref);
 
-        if result.eliminated {
-            if let Some(new_node) = result.new_node {
+        if result.is_eliminated {
+            if let Some(new_node) = result.eliminated_node {
                 let mut result = TransformResult::new();
                 result.add_new_group_node(Rc::new(RefCell::new(new_node)));
                 return Ok(Some(result));
@@ -606,20 +585,18 @@ impl OptRule for EliminateRowCollectRule {
 impl BaseOptRule for EliminateRowCollectRule {}
 
 /// 消除数据收集访问者
+///
+/// 状态不变量：
+/// - `is_eliminated` 为 true 时，`eliminated_node` 必须为 Some
+/// - `is_eliminated` 为 false 时，`eliminated_node` 必须为 None
 #[derive(Clone)]
-struct EliminateRowCollectVisitor {
-    eliminated: bool,
-    new_node: Option<OptGroupNode>,
-    ctx: *const OptContext,
+struct EliminateRowCollectVisitor<'a> {
+    is_eliminated: bool,
+    eliminated_node: Option<OptGroupNode>,
+    ctx: &'a OptContext,
 }
 
-impl EliminateRowCollectVisitor {
-    fn get_ctx(&self) -> &OptContext {
-        unsafe { &*self.ctx }
-    }
-}
-
-impl PlanNodeVisitor for EliminateRowCollectVisitor {
+impl<'a> PlanNodeVisitor for EliminateRowCollectVisitor<'a> {
     type Result = Self;
 
     fn visit_default(&mut self) -> Self::Result {
@@ -627,7 +604,7 @@ impl PlanNodeVisitor for EliminateRowCollectVisitor {
     }
 
     fn visit_data_collect(&mut self, node: &crate::query::planner::plan::core::nodes::DataCollectNode) -> Self::Result {
-        if self.eliminated {
+        if self.is_eliminated {
             return self.clone();
         }
 
@@ -643,7 +620,7 @@ impl PlanNodeVisitor for EliminateRowCollectVisitor {
         let input = &**deps.first().unwrap();
         let input_id = input.id() as usize;
 
-        if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(input_id) {
+        if let Some(child_node) = self.ctx.find_group_node_by_plan_node_id(input_id) {
             let mut new_node = child_node.clone();
 
             if let Some(_output_var) = node.output_var() {
@@ -651,8 +628,8 @@ impl PlanNodeVisitor for EliminateRowCollectVisitor {
                 new_node_borrowed.plan_node = input.clone();
             }
 
-            self.eliminated = true;
-            self.new_node = Some(new_node.borrow().clone());
+            self.is_eliminated = true;
+            self.eliminated_node = Some(new_node.borrow().clone());
         }
 
         self.clone()

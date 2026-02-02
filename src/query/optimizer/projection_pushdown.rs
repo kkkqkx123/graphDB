@@ -10,24 +10,24 @@ use std::rc::Rc;
 use std::cell::RefCell;
 
 /// 投影下推访问者
+///
+/// 状态不变量：
+/// - `is_pushed_down` 为 true 时，`pushed_node` 必须为 Some
+/// - `is_pushed_down` 为 false 时，`pushed_node` 必须为 None
 #[derive(Clone)]
-struct ProjectionPushDownVisitor {
-    pushed_down: bool,
-    new_node: Option<OptGroupNode>,
-    ctx: *const OptContext,
+struct ProjectionPushDownVisitor<'a> {
+    is_pushed_down: bool,
+    pushed_node: Option<OptGroupNode>,
+    ctx: &'a OptContext,
 }
 
-impl ProjectionPushDownVisitor {
-    fn get_ctx(&self) -> &OptContext {
-        unsafe { &*self.ctx }
-    }
-
+impl<'a> ProjectionPushDownVisitor<'a> {
     fn can_push_down_project(node: &crate::query::planner::plan::core::nodes::ProjectNode) -> bool {
         !node.columns().is_empty()
     }
 }
 
-impl PlanNodeVisitor for ProjectionPushDownVisitor {
+impl<'a> PlanNodeVisitor for ProjectionPushDownVisitor<'a> {
     type Result = Self;
 
     fn visit_default(&mut self) -> Self::Result {
@@ -38,7 +38,7 @@ impl PlanNodeVisitor for ProjectionPushDownVisitor {
         let input = node.input();
         let input_id = input.id() as usize;
 
-        if let Some(child_node) = self.get_ctx().find_group_node_by_plan_node_id(input_id) {
+        if let Some(child_node) = self.ctx.find_group_node_by_plan_node_id(input_id) {
             let child_node_ref = child_node.borrow();
             let child_name = child_node_ref.plan_node.name();
 
@@ -58,8 +58,8 @@ impl PlanNodeVisitor for ProjectionPushDownVisitor {
             drop(child_node_ref);
 
             if pushed_down {
-                self.pushed_down = true;
-                self.new_node = new_node;
+                self.is_pushed_down = true;
+                self.pushed_node = new_node;
             }
         }
 
@@ -86,13 +86,13 @@ impl OptRule for ProjectionPushDownRule {
             return Ok(Some(TransformResult::unchanged()));
         }
         let mut visitor = ProjectionPushDownVisitor {
-            pushed_down: false,
-            new_node: None,
-            ctx: ctx as *const OptContext,
+            is_pushed_down: false,
+            pushed_node: None,
+            ctx: &ctx,
         };
         let result = visitor.visit(&node_ref.plan_node);
-        if result.pushed_down {
-            if let Some(new_node) = result.new_node {
+        if result.is_pushed_down {
+            if let Some(new_node) = result.pushed_node {
                 let mut transform_result = TransformResult::new();
                 transform_result.add_new_group_node(Rc::new(RefCell::new(new_node)));
                 Ok(Some(transform_result))
@@ -155,13 +155,13 @@ impl OptRule for PushProjectDownRule {
             return Ok(Some(TransformResult::unchanged()));
         }
         let mut visitor = ProjectionPushDownVisitor {
-            pushed_down: false,
-            new_node: None,
-            ctx: ctx as *const OptContext,
+            is_pushed_down: false,
+            pushed_node: None,
+            ctx: &ctx,
         };
         let result = visitor.visit(&node_ref.plan_node);
-        if result.pushed_down {
-            if let Some(new_node) = result.new_node {
+        if result.is_pushed_down {
+            if let Some(new_node) = result.pushed_node {
                 let mut transform_result = TransformResult::new();
                 transform_result.add_new_group_node(Rc::new(RefCell::new(new_node)));
                 Ok(Some(transform_result))

@@ -149,7 +149,7 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
             .ok_or_else(|| DBError::Query(QueryError::ExecutionError("执行计划为空".to_string())))?
             .clone();
 
-        let executor_factory = ExecutorFactory::with_storage(self.storage.clone());
+        let mut executor_factory = ExecutorFactory::with_storage(self.storage.clone());
         let mut executor = executor_factory.create_executor(&root_node, self.storage.clone(), &Default::default())
             .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
 

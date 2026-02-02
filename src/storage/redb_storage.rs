@@ -1,17 +1,78 @@
 use super::{StorageClient, TransactionId};
 use crate::core::{Edge, StorageError, Value, Vertex, EdgeDirection};
+use crate::core::vertex_edge_path::Tag;
 use crate::core::types::{
-    SpaceInfo, TagInfo, EdgeTypeSchema, IndexInfo,
+    SpaceInfo, TagInfo, IndexInfo, DataType,
     PropertyDef, InsertVertexInfo, InsertEdgeInfo, UpdateInfo,
-    PasswordInfo,
+    PasswordInfo, EdgeTypeInfo, UpdateTarget, UpdateOp,
 };
-use bincode;
-use lru::LruCache;
-use redb::{Database, ReadableTable, TableDefinition, TypeName};
-use std::collections::HashMap;
+use crate::storage::{FieldDef, FieldType, Schema};
+use crate::storage::operations::{RedbReader, RedbWriter, ScanResult, VertexReader, EdgeReader, VertexWriter, EdgeWriter};
+use crate::storage::metadata::{RedbSchemaManager, SchemaManager};
+use crate::storage::index::RedbIndexManager;
+use crate::storage::serializer::{index_to_bytes, index_from_bytes, value_to_bytes, vertex_to_bytes};
+use redb::{Database, ReadableTable, TableDefinition};
+use serde_json;
 use std::cmp::Ordering;
+use std::collections::{HashMap, BTreeMap};
 use std::sync::{Arc, Mutex};
-use std::time::{SystemTime, UNIX_EPOCH};
+
+fn data_type_to_field_type(data_type: &DataType) -> FieldType {
+    match data_type {
+        DataType::Empty => FieldType::String,
+        DataType::Null => FieldType::String,
+        DataType::Bool => FieldType::Bool,
+        DataType::Int => FieldType::Int64,
+        DataType::Int8 => FieldType::Int8,
+        DataType::Int16 => FieldType::Int16,
+        DataType::Int32 => FieldType::Int32,
+        DataType::Int64 => FieldType::Int64,
+        DataType::Float => FieldType::Float,
+        DataType::Double => FieldType::Double,
+        DataType::String => FieldType::String,
+        DataType::Date => FieldType::Date,
+        DataType::Time => FieldType::Timestamp,
+        DataType::DateTime => FieldType::DateTime,
+        DataType::Vertex => FieldType::String,
+        DataType::Edge => FieldType::String,
+        DataType::Path => FieldType::String,
+        DataType::List => FieldType::String,
+        DataType::Map => FieldType::String,
+        DataType::Set => FieldType::String,
+        DataType::Geography => FieldType::String,
+        DataType::Duration => FieldType::Int64,
+        DataType::DataSet => FieldType::String,
+    }
+}
+
+fn property_defs_to_fields(properties: &[PropertyDef]) -> BTreeMap<String, FieldDef> {
+    let mut fields = BTreeMap::new();
+    for prop in properties {
+        let field_type = data_type_to_field_type(&prop.data_type);
+        let field = FieldDef {
+            name: prop.name.clone(),
+            field_type,
+            nullable: prop.nullable,
+            default_value: prop.default.clone(),
+            fixed_length: None,
+            offset: 0,
+            null_flag_pos: None,
+            geo_shape: None,
+        };
+        fields.insert(prop.name.clone(), field);
+    }
+    fields
+}
+
+fn property_defs_to_hashmap(properties: &[PropertyDef]) -> HashMap<String, Value> {
+    let mut map = HashMap::new();
+    for prop in properties {
+        if let Some(default_value) = &prop.default {
+            map.insert(prop.name.clone(), default_value.clone());
+        }
+    }
+    map
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ByteKey(pub Vec<u8>);
@@ -38,20 +99,25 @@ impl redb::Value for ByteKey {
         value.0.clone()
     }
 
-    fn type_name() -> TypeName {
-        TypeName::new("graphdb::ByteKey")
+    fn type_name() -> redb::TypeName {
+        redb::TypeName::new("graphdb::ByteKey")
     }
 }
 
-const NODES_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefinition::new("nodes");
-const EDGES_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefinition::new("edges");
-const INDEXES_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefinition::new("indexes");
+const TAG_INDEXES_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefinition::new("tag_indexes");
+const EDGE_INDEXES_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefinition::new("edge_indexes");
+const INDEX_DATA_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefinition::new("index_data");
+const VERTEX_DATA_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefinition::new("vertex_data");
+const EDGE_DATA_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefinition::new("edge_data");
+const PASSWORDS_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefinition::new("passwords");
 
 pub struct RedbStorage {
     db: Database,
     db_path: String,
-    vertex_cache: Arc<Mutex<LruCache<Vec<u8>, Vertex>>>,
-    edge_cache: Arc<Mutex<LruCache<Vec<u8>, Edge>>>,
+    vertex_reader: Arc<Mutex<RedbReader>>,
+    vertex_writer: Arc<Mutex<RedbWriter>>,
+    schema_manager: Arc<Mutex<RedbSchemaManager>>,
+    index_manager: Arc<Mutex<RedbIndexManager>>,
     active_transactions: Arc<Mutex<HashMap<TransactionId, ()>>>,
 }
 
@@ -76,791 +142,125 @@ impl RedbStorage {
         let db = Database::create(path.as_ref())
             .map_err(|e| StorageError::DbError(e.to_string()))?;
 
-        let vertex_cache_size = std::num::NonZeroUsize::new(1000)
-            .expect("Failed to create NonZeroUsize for vertex cache");
-        let edge_cache_size = std::num::NonZeroUsize::new(1000)
-            .expect("Failed to create NonZeroUsize for edge cache");
-        let vertex_cache = Arc::new(Mutex::new(LruCache::new(vertex_cache_size)));
-        let edge_cache = Arc::new(Mutex::new(LruCache::new(edge_cache_size)));
+        let vertex_reader = Arc::new(Mutex::new(RedbReader::new(&db_path)?));
+        let vertex_writer = Arc::new(Mutex::new(RedbWriter::new(&db_path)?));
+        let schema_manager = Arc::new(Mutex::new(RedbSchemaManager::new(&db_path)?));
+        let index_manager = Arc::new(Mutex::new(RedbIndexManager::new(&db_path)?));
         let active_transactions = Arc::new(Mutex::new(HashMap::new()));
 
         Ok(Self {
             db,
             db_path,
-            vertex_cache,
-            edge_cache,
+            vertex_reader,
+            vertex_writer,
+            schema_manager,
+            index_manager,
             active_transactions,
         })
-    }
-
-    fn value_to_bytes(&self, value: &Value) -> Result<Vec<u8>, StorageError> {
-        bincode::encode_to_vec(value, bincode::config::standard())
-            .map_err(|e| StorageError::SerializeError(e.to_string()))
-    }
-
-    fn vertex_to_bytes(&self, vertex: &Vertex) -> Result<Vec<u8>, StorageError> {
-        bincode::encode_to_vec(vertex, bincode::config::standard())
-            .map_err(|e| StorageError::SerializeError(e.to_string()))
-    }
-
-    fn vertex_from_bytes(&self, bytes: &[u8]) -> Result<Vertex, StorageError> {
-        let (vertex, _): (Vertex, usize) =
-            bincode::decode_from_slice(bytes, bincode::config::standard())
-                .map_err(|e| StorageError::SerializeError(e.to_string()))?;
-        Ok(vertex)
-    }
-
-    fn edge_to_bytes(&self, edge: &Edge) -> Result<Vec<u8>, StorageError> {
-        bincode::encode_to_vec(edge, bincode::config::standard())
-            .map_err(|e| StorageError::SerializeError(e.to_string()))
-    }
-
-    fn edge_from_bytes(&self, bytes: &[u8]) -> Result<Edge, StorageError> {
-        let (edge, _): (Edge, usize) =
-            bincode::decode_from_slice(bytes, bincode::config::standard())
-                .map_err(|e| StorageError::SerializeError(e.to_string()))?;
-        Ok(edge)
-    }
-
-    fn generate_id(&self) -> Value {
-        let id = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("Time went backwards")
-            .as_nanos() as u64;
-        Value::Int(id as i64)
-    }
-
-    fn get_node_from_bytes(&self, id_bytes: &[u8]) -> Result<Option<Vertex>, StorageError> {
-        let read_txn = self
-            .db
-            .begin_read()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        let table = read_txn
-            .open_table(NODES_TABLE)
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-        match table.get(ByteKey(id_bytes.to_vec())).map_err(|e| StorageError::DbError(e.to_string()))? {
-            Some(value) => {
-                let vertex_bytes = value.value();
-                let vertex: Vertex = self.vertex_from_bytes(&vertex_bytes.0)?;
-                Ok(Some(vertex))
-            }
-            None => Ok(None),
-        }
-    }
-
-    fn get_edge_from_bytes(&self, edge_key_bytes: &[u8]) -> Result<Option<Edge>, StorageError> {
-        let read_txn = self
-            .db
-            .begin_read()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        let table = read_txn
-            .open_table(EDGES_TABLE)
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-        match table
-            .get(ByteKey(edge_key_bytes.to_vec()))
-            .map_err(|e| StorageError::DbError(e.to_string()))?
-        {
-            Some(value) => {
-                let edge_bytes = value.value();
-                let edge: Edge = self.edge_from_bytes(&edge_bytes.0)?;
-                Ok(Some(edge))
-            }
-            None => Ok(None),
-        }
-    }
-
-    fn update_node_edge_index(
-        &self,
-        node_id: &Value,
-        edge_key: &[u8],
-        add: bool,
-    ) -> Result<(), StorageError> {
-        let write_txn = self
-            .db
-            .begin_write()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        {
-            let mut table = write_txn
-                .open_table(INDEXES_TABLE)
-                .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-            let _node_id_bytes = self.value_to_bytes(node_id)?;
-            let index_key = format!("node_edge_index:{:?}", node_id);
-            let index_key_bytes = index_key.as_bytes();
-
-            let mut edge_list: Vec<Vec<u8>> = match table
-                .get(ByteKey(index_key_bytes.to_vec()))
-                .map_err(|e| StorageError::DbError(e.to_string()))?
-            {
-                Some(value) => {
-                    let list_bytes = value.value();
-                    let (result, _): (Vec<Vec<u8>>, usize) =
-                        bincode::decode_from_slice(&list_bytes.0, bincode::config::standard())
-                            .map_err(|e| StorageError::SerializeError(e.to_string()))?;
-                    result
-                }
-                None => Vec::new(),
-            };
-
-            if add {
-                if !edge_list.contains(&edge_key.to_vec()) {
-                    edge_list.push(edge_key.to_vec());
-                }
-            } else {
-                edge_list.retain(|key| key != edge_key);
-            }
-
-            let list_bytes =
-                bincode::encode_to_vec(&edge_list, bincode::config::standard())
-                    .map_err(|e| StorageError::SerializeError(e.to_string()))?;
-
-            table
-                .insert(ByteKey(index_key_bytes.to_vec()), ByteKey(list_bytes))
-                .map_err(|e| StorageError::DbError(e.to_string()))?;
-        }
-        write_txn
-            .commit()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-        Ok(())
-    }
-
-    fn get_node_edge_keys(&self, node_id: &Value) -> Result<Vec<Vec<u8>>, StorageError> {
-        let read_txn = self
-            .db
-            .begin_read()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        let table = read_txn
-            .open_table(INDEXES_TABLE)
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-        let _node_id_bytes = self.value_to_bytes(node_id)?;
-        let index_key = format!("node_edge_index:{:?}", node_id);
-        let index_key_bytes = index_key.as_bytes();
-
-        match table
-            .get(ByteKey(index_key_bytes.to_vec()))
-            .map_err(|e| StorageError::DbError(e.to_string()))?
-            {
-                Some(value) => {
-                    let list_bytes = value.value();
-                    let (edge_key_list, _): (Vec<Vec<u8>>, usize) =
-                        bincode::decode_from_slice(&list_bytes.0, bincode::config::standard())
-                            .map_err(|e| StorageError::SerializeError(e.to_string()))?;
-                    Ok(edge_key_list)
-                }
-                None => Ok(Vec::new()),
-            }
-        }
-
-    fn update_edge_type_index(
-        &self,
-        edge_type: &str,
-        edge_key: &[u8],
-        add: bool,
-    ) -> Result<(), StorageError> {
-        let write_txn = self
-            .db
-            .begin_write()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        {
-            let mut table = write_txn
-                .open_table(INDEXES_TABLE)
-                .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-            let index_key = format!("edge_type_index:{}", edge_type);
-            let index_key_bytes = index_key.as_bytes();
-
-            let mut edge_list: Vec<Vec<u8>> = match table
-                .get(ByteKey(index_key_bytes.to_vec()))
-                .map_err(|e| StorageError::DbError(e.to_string()))?
-            {
-                Some(value) => {
-                    let list_bytes = value.value();
-                    let (result, _): (Vec<Vec<u8>>, usize) =
-                        bincode::decode_from_slice(&list_bytes.0, bincode::config::standard())
-                            .map_err(|e| StorageError::SerializeError(e.to_string()))?;
-                    result
-                }
-                None => Vec::new(),
-            };
-
-            if add {
-                if !edge_list.contains(&edge_key.to_vec()) {
-                    edge_list.push(edge_key.to_vec());
-                }
-            } else {
-                edge_list.retain(|key| key != edge_key);
-            }
-
-            let list_bytes =
-                bincode::encode_to_vec(&edge_list, bincode::config::standard())
-                    .map_err(|e| StorageError::SerializeError(e.to_string()))?;
-
-            table
-                .insert(ByteKey(index_key_bytes.to_vec()), ByteKey(list_bytes))
-                .map_err(|e| StorageError::DbError(e.to_string()))?;
-        }
-        write_txn
-            .commit()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-        Ok(())
-    }
-
-    fn get_edge_keys_by_type(&self, edge_type: &str) -> Result<Vec<Vec<u8>>, StorageError> {
-        let read_txn = self
-            .db
-            .begin_read()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        let table = read_txn
-            .open_table(INDEXES_TABLE)
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-        let index_key = format!("edge_type_index:{}", edge_type);
-        let index_key_bytes = index_key.as_bytes();
-
-        match table
-            .get(ByteKey(index_key_bytes.to_vec()))
-            .map_err(|e| StorageError::DbError(e.to_string()))?
-        {
-            Some(value) => {
-                let list_bytes = value.value();
-                let (edge_key_list, _): (Vec<Vec<u8>>, usize) =
-                    bincode::decode_from_slice(&list_bytes.0, bincode::config::standard())
-                        .map_err(|e| StorageError::SerializeError(e.to_string()))?;
-                Ok(edge_key_list)
-            }
-            None => Ok(Vec::new()),
-        }
-    }
-
-    fn update_prop_index(
-        &self,
-        tag: &str,
-        prop: &str,
-        value: &Value,
-        vertex_id: &Value,
-        add: bool,
-    ) -> Result<(), StorageError> {
-        let write_txn = self
-            .db
-            .begin_write()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        {
-            let mut table = write_txn
-                .open_table(INDEXES_TABLE)
-                .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-            let index_key = format!("prop_index:{}:{}:{:?}", tag, prop, value);
-            let index_key_bytes = index_key.as_bytes();
-            let vertex_id_bytes = self.value_to_bytes(vertex_id)?;
-
-            let mut vertex_list: Vec<Vec<u8>> = match table
-                .get(ByteKey(index_key_bytes.to_vec()))
-                .map_err(|e| StorageError::DbError(e.to_string()))?
-            {
-                Some(value) => {
-                    let list_bytes = value.value();
-                    let (result, _): (Vec<Vec<u8>>, usize) =
-                        bincode::decode_from_slice(&list_bytes.0, bincode::config::standard())
-                            .map_err(|e| StorageError::SerializeError(e.to_string()))?;
-                    result
-                }
-                None => Vec::new(),
-            };
-
-            if add {
-                if !vertex_list.contains(&vertex_id_bytes) {
-                    vertex_list.push(vertex_id_bytes);
-                }
-            } else {
-                vertex_list.retain(|id| id != &vertex_id_bytes);
-            }
-
-            let list_bytes =
-                bincode::encode_to_vec(&vertex_list, bincode::config::standard())
-                    .map_err(|e| StorageError::SerializeError(e.to_string()))?;
-
-            table
-                .insert(ByteKey(index_key_bytes.to_vec()), ByteKey(list_bytes))
-                .map_err(|e| StorageError::DbError(e.to_string()))?;
-        }
-        write_txn
-            .commit()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-        Ok(())
-    }
-
-    fn get_vertices_by_prop(
-        &self,
-        tag: &str,
-        prop: &str,
-        value: &Value,
-    ) -> Result<Vec<Vertex>, StorageError> {
-        let read_txn = self
-            .db
-            .begin_read()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        let table = read_txn
-            .open_table(INDEXES_TABLE)
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-        let index_key = format!("prop_index:{}:{}:{:?}", tag, prop, value);
-        let index_key_bytes = index_key.as_bytes();
-
-        match table
-            .get(ByteKey(index_key_bytes.to_vec()))
-            .map_err(|e| StorageError::DbError(e.to_string()))?
-        {
-            Some(value) => {
-                let list_bytes = value.value();
-                let (vertex_id_list, _): (Vec<Vec<u8>>, usize) =
-                    bincode::decode_from_slice(&list_bytes.0, bincode::config::standard())
-                        .map_err(|e| StorageError::SerializeError(e.to_string()))?;
-
-                let mut vertices = Vec::new();
-                for vertex_id_bytes in vertex_id_list {
-                    if let Some(vertex) = self.get_node_from_bytes(&vertex_id_bytes)? {
-                        vertices.push(vertex);
-                    }
-                }
-                Ok(vertices)
-            }
-            None => Ok(Vec::new()),
-        }
     }
 }
 
 impl StorageClient for RedbStorage {
-    fn insert_vertex(&mut self, _space: &str, vertex: Vertex) -> Result<Value, StorageError> {
-        let id = self.generate_id();
-        let vertex_with_id = Vertex::new(id.clone(), vertex.tags);
-
-        let vertex_bytes = self.vertex_to_bytes(&vertex_with_id)?;
-        let id_bytes = self.value_to_bytes(&id)?;
-
-        let write_txn = self
-            .db
-            .begin_write()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        {
-            let mut table = write_txn
-                .open_table(NODES_TABLE)
-                .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-            table
-                .insert(ByteKey(id_bytes), ByteKey(vertex_bytes))
-                .map_err(|e| StorageError::DbError(e.to_string()))?;
-        }
-        write_txn
-            .commit()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-        Ok(id)
+    fn get_vertex(&self, space: &str, id: &Value) -> Result<Option<Vertex>, StorageError> {
+        (*self.vertex_reader.lock().unwrap()).get_vertex(space, id)
     }
 
-    fn get_vertex(&self, _space: &str, id: &Value) -> Result<Option<Vertex>, StorageError> {
-        let id_bytes = self.value_to_bytes(id)?;
-
-        {
-            let mut cache = self.vertex_cache.lock().expect("Failed to lock vertex cache");
-            if let Some(vertex) = cache.get(&id_bytes) {
-                return Ok(Some(vertex.clone()));
-            }
-        }
-
-        match self.get_node_from_bytes(&id_bytes)? {
-            Some(vertex) => {
-                {
-                    let mut cache = self.vertex_cache.lock().expect("Failed to lock vertex cache");
-                    cache.put(id_bytes.clone(), vertex.clone());
-                }
-                Ok(Some(vertex))
-            }
-            None => Ok(None),
-        }
+    fn scan_vertices(&self, space: &str) -> Result<Vec<Vertex>, StorageError> {
+        Ok((*self.vertex_reader.lock().unwrap()).scan_vertices(space)?.into_vec())
     }
 
-    fn update_vertex(&mut self, _space: &str, vertex: Vertex) -> Result<(), StorageError> {
-        if matches!(*vertex.vid, Value::Null(_)) {
-            return Err(StorageError::NodeNotFound(Value::Null(Default::default())));
-        }
-
-        let vertex_bytes = self.vertex_to_bytes(&vertex)?;
-        let id_bytes = self.value_to_bytes(&vertex.vid)?;
-
-        let write_txn = self
-            .db
-            .begin_write()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        {
-            let mut table = write_txn
-                .open_table(NODES_TABLE)
-                .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-            table
-                .insert(ByteKey(id_bytes.clone()), ByteKey(vertex_bytes))
-                .map_err(|e| StorageError::DbError(e.to_string()))?;
-        }
-        write_txn
-            .commit()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-        {
-            let mut cache = self.vertex_cache.lock().expect("Failed to lock vertex cache");
-            cache.put(id_bytes, vertex);
-        }
-
-        Ok(())
+    fn scan_vertices_by_tag(&self, space: &str, tag: &str) -> Result<Vec<Vertex>, StorageError> {
+        Ok((*self.vertex_reader.lock().unwrap()).scan_vertices_by_tag(space, tag)?.into_vec())
     }
 
-    fn delete_vertex(&mut self, _space: &str, id: &Value) -> Result<(), StorageError> {
-        let edges_to_delete = self.get_node_edges(_space, id, EdgeDirection::Both)?;
-        for edge in edges_to_delete {
-            self.delete_edge(_space, &edge.src, &edge.dst, &edge.edge_type)?;
-        }
-
-        let id_bytes = self.value_to_bytes(id)?;
-
-        let write_txn = self
-            .db
-            .begin_write()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        {
-            let mut table = write_txn
-                .open_table(NODES_TABLE)
-                .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-            table
-                .remove(ByteKey(id_bytes.clone()))
-                .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-            let mut index_table = write_txn
-                .open_table(INDEXES_TABLE)
-                .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-            let index_key = format!("node_edge_index:{:?}", id);
-            let index_key_bytes = index_key.as_bytes().to_vec();
-            index_table
-                .remove(ByteKey(index_key_bytes))
-                .map_err(|e| StorageError::DbError(e.to_string()))?;
-        }
-        write_txn
-            .commit()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-        {
-            let mut cache = self.vertex_cache.lock().expect("Failed to lock vertex cache");
-            cache.pop(&id_bytes);
-        }
-
-        Ok(())
-    }
-
-    fn scan_vertices(&self, _space: &str) -> Result<Vec<Vertex>, StorageError> {
-        let read_txn = self
-            .db
-            .begin_read()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        let table = read_txn
-            .open_table(NODES_TABLE)
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-        let mut vertices = Vec::new();
-        for result in table.iter()
-             .map_err(|e| StorageError::DbError(e.to_string()))?
-         {
-             let (_, vertex_bytes) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
-             let vertex: Vertex = self.vertex_from_bytes(&vertex_bytes.value().0)?;
-             vertices.push(vertex);
-         }
-
-        Ok(vertices)
-    }
-
-    fn scan_vertices_by_tag(&self, _space: &str, tag: &str) -> Result<Vec<Vertex>, StorageError> {
-        let all_vertices = self.scan_vertices(_space)?;
-        let filtered_vertices = all_vertices
-            .into_iter()
-            .filter(|vertex| vertex.tags.iter().any(|vertex_tag| vertex_tag.name == tag))
-            .collect();
-
-        Ok(filtered_vertices)
-    }
-
-    fn scan_vertices_by_prop(&self, _space: &str, tag: &str, prop: &str, value: &Value) -> Result<Vec<Vertex>, StorageError> {
-        let all_vertices = self.scan_vertices(_space)?;
-        let filtered_vertices = all_vertices
-            .into_iter()
-            .filter(|vertex| {
-                vertex.tags.iter().any(|vertex_tag| vertex_tag.name == tag)
-                    && vertex.properties.get(prop).map_or(false, |p| p == value)
-            })
-            .collect();
-
-        Ok(filtered_vertices)
-    }
-
-    fn insert_edge(&mut self, _space: &str, edge: Edge) -> Result<(), StorageError> {
-        let edge_key = format!("{:?}_{:?}_{}", edge.src, edge.dst, edge.edge_type);
-        let edge_key_bytes = edge_key.as_bytes().to_vec();
-
-        let edge_bytes = self.edge_to_bytes(&edge)?;
-
-        let write_txn = self
-            .db
-            .begin_write()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        {
-            let mut table = write_txn
-                .open_table(EDGES_TABLE)
-                .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-            table
-                .insert(ByteKey(edge_key_bytes.clone()), ByteKey(edge_bytes))
-                .map_err(|e| StorageError::DbError(e.to_string()))?;
-        }
-        write_txn
-            .commit()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-        self.update_node_edge_index(&edge.src, &edge_key_bytes, true)?;
-        self.update_node_edge_index(&edge.dst, &edge_key_bytes, true)?;
-        self.update_edge_type_index(&edge.edge_type, &edge_key_bytes, true)?;
-
-        for (prop_name, prop_value) in &edge.props {
-            self.update_prop_index(&edge.edge_type, prop_name, prop_value, &edge.src, true)?;
-        }
-
-        Ok(())
+    fn scan_vertices_by_prop(
+        &self,
+        space: &str,
+        tag: &str,
+        prop: &str,
+        value: &Value,
+    ) -> Result<Vec<Vertex>, StorageError> {
+        Ok((*self.vertex_reader.lock().unwrap()).scan_vertices_by_prop(space, tag, prop, value)?.into_vec())
     }
 
     fn get_edge(
         &self,
-        _space: &str,
+        space: &str,
         src: &Value,
         dst: &Value,
         edge_type: &str,
     ) -> Result<Option<Edge>, StorageError> {
-        let edge_key = format!("{:?}_{:?}_{}", src, dst, edge_type);
-        let edge_key_bytes = edge_key.as_bytes().to_vec();
-
-        {
-            let mut cache = self.edge_cache.lock().expect("Failed to lock edge cache");
-            if let Some(edge) = cache.get(&edge_key_bytes) {
-                return Ok(Some(edge.clone()));
-            }
-        }
-
-        match self.get_edge_from_bytes(&edge_key_bytes)? {
-            Some(edge) => {
-                {
-                    let mut cache = self.edge_cache.lock().expect("Failed to lock edge cache");
-                    cache.put(edge_key_bytes.clone(), edge.clone());
-                }
-                Ok(Some(edge))
-            }
-            None => Ok(None),
-        }
+        (*self.vertex_reader.lock().unwrap()).get_edge(space, src, dst, edge_type)
     }
 
     fn get_node_edges(
         &self,
-        _space: &str,
+        space: &str,
         node_id: &Value,
         direction: EdgeDirection,
     ) -> Result<Vec<Edge>, StorageError> {
-        self.get_node_edges_filtered(_space, node_id, direction, None)
+        Ok((*self.vertex_reader.lock().unwrap()).get_node_edges(space, node_id, direction)?.into_vec())
     }
 
     fn get_node_edges_filtered(
         &self,
-        _space: &str,
+        space: &str,
         node_id: &Value,
         direction: EdgeDirection,
-        filter: Option<Box<dyn Fn(&Edge) -> bool + Send + Sync>>,
+        filter: Option<Box<dyn Fn(&Edge) -> bool + Send + Sync + 'static>>,
     ) -> Result<Vec<Edge>, StorageError> {
-        let edge_keys = self.get_node_edge_keys(node_id)?;
-        let mut edges = Vec::new();
+        Ok((*self.vertex_reader.lock().unwrap()).get_node_edges_filtered(space, node_id, direction, filter)?.into_vec())
+    }
 
-        for edge_key_bytes in edge_keys {
-            if let Some(edge) = self.get_edge_from_bytes(&edge_key_bytes)? {
-                let matches_direction = match direction {
-                    EdgeDirection::Out => *edge.src == *node_id,
-                    EdgeDirection::In => *edge.dst == *node_id,
-                    EdgeDirection::Both => *edge.src == *node_id || *edge.dst == *node_id,
-                };
+    fn scan_edges_by_type(&self, space: &str, edge_type: &str) -> Result<Vec<Edge>, StorageError> {
+        Ok((*self.vertex_reader.lock().unwrap()).scan_edges_by_type(space, edge_type)?.into_vec())
+    }
 
-                if matches_direction {
-                    if let Some(ref f) = filter {
-                        if !f(&edge) {
-                            continue;
-                        }
-                    }
-                    edges.push(edge);
-                }
-            }
-        }
+    fn scan_all_edges(&self, space: &str) -> Result<Vec<Edge>, StorageError> {
+        Ok((*self.vertex_reader.lock().unwrap()).scan_all_edges(space)?.into_vec())
+    }
 
-        Ok(edges)
+    fn insert_vertex(&mut self, space: &str, vertex: Vertex) -> Result<Value, StorageError> {
+        (*self.vertex_writer.lock().unwrap()).insert_vertex(space, vertex)
+    }
+
+    fn update_vertex(&mut self, space: &str, vertex: Vertex) -> Result<(), StorageError> {
+        (*self.vertex_writer.lock().unwrap()).update_vertex(space, vertex)
+    }
+
+    fn delete_vertex(&mut self, space: &str, id: &Value) -> Result<(), StorageError> {
+        (*self.vertex_writer.lock().unwrap()).delete_vertex(space, id)
+    }
+
+    fn batch_insert_vertices(&mut self, space: &str, vertices: Vec<Vertex>) -> Result<Vec<Value>, StorageError> {
+        (*self.vertex_writer.lock().unwrap()).batch_insert_vertices(space, vertices)
+    }
+
+    fn insert_edge(&mut self, space: &str, edge: Edge) -> Result<(), StorageError> {
+        (*self.vertex_writer.lock().unwrap()).insert_edge(space, edge)
     }
 
     fn delete_edge(
         &mut self,
-        _space: &str,
+        space: &str,
         src: &Value,
         dst: &Value,
         edge_type: &str,
     ) -> Result<(), StorageError> {
-        let edge_key = format!("{:?}_{:?}_{}", src, dst, edge_type);
-        let edge_key_bytes = edge_key.as_bytes().to_vec();
-
-        let write_txn = self
-            .db
-            .begin_write()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        {
-            let mut table = write_txn
-                .open_table(EDGES_TABLE)
-                .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-            table
-                .remove(ByteKey(edge_key_bytes.clone()))
-                .map_err(|e| StorageError::DbError(e.to_string()))?;
-        }
-        write_txn
-            .commit()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-        self.update_node_edge_index(src, &edge_key_bytes, false)?;
-        self.update_node_edge_index(dst, &edge_key_bytes, false)?;
-        self.update_edge_type_index(edge_type, &edge_key_bytes, false)?;
-
-        {
-            let mut cache = self.edge_cache.lock().expect("Failed to lock edge cache");
-            cache.pop(&edge_key_bytes);
-        }
-
-        Ok(())
+        (*self.vertex_writer.lock().unwrap()).delete_edge(space, src, dst, edge_type)
     }
 
-    fn scan_edges_by_type(&self, _space: &str, edge_type: &str) -> Result<Vec<Edge>, StorageError> {
-        let edge_keys = self.get_edge_keys_by_type(edge_type)?;
-        let mut edges = Vec::new();
-
-        for edge_key_bytes in edge_keys {
-            if let Some(edge) = self.get_edge_from_bytes(&edge_key_bytes)? {
-                edges.push(edge);
-            }
-        }
-
-        Ok(edges)
+    fn batch_insert_edges(&mut self, space: &str, edges: Vec<Edge>) -> Result<(), StorageError> {
+        (*self.vertex_writer.lock().unwrap()).batch_insert_edges(space, edges)
     }
 
-    fn scan_all_edges(&self, _space: &str) -> Result<Vec<Edge>, StorageError> {
-        let read_txn = self
-            .db
-            .begin_read()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        let table = read_txn
-            .open_table(EDGES_TABLE)
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-        let mut edges = Vec::new();
-        for result in table.iter()
-            .map_err(|e| StorageError::DbError(e.to_string()))?
-        {
-            let (_, edge_bytes) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
-            let edge: Edge = self.edge_from_bytes(&edge_bytes.value().0)?;
-            edges.push(edge);
-        }
-
-        Ok(edges)
-    }
-
-    fn batch_insert_vertices(&mut self, _space: &str, vertices: Vec<Vertex>) -> Result<Vec<Value>, StorageError> {
-        let mut ids = Vec::new();
-
-        let write_txn = self
-            .db
-            .begin_write()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        {
-            let mut table = write_txn
-                .open_table(NODES_TABLE)
-                .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-            for vertex in vertices {
-                let id = self.generate_id();
-                let vertex_with_id = Vertex::new(id.clone(), vertex.tags);
-
-                let vertex_bytes = self.vertex_to_bytes(&vertex_with_id)?;
-                let id_bytes = self.value_to_bytes(&id)?;
-
-                table
-                    .insert(ByteKey(id_bytes), ByteKey(vertex_bytes))
-                    .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-                ids.push(id);
-            }
-        }
-        write_txn
-            .commit()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-        Ok(ids)
-    }
-
-    fn batch_insert_edges(&mut self, _space: &str, edges: Vec<Edge>) -> Result<(), StorageError> {
-        let write_txn = self
-            .db
-            .begin_write()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        {
-            let mut table = write_txn
-                .open_table(EDGES_TABLE)
-                .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-            for edge in &edges {
-                let edge_key = format!("{:?}_{:?}_{}", edge.src, edge.dst, edge.edge_type);
-                let edge_key_bytes = edge_key.as_bytes().to_vec();
-                let edge_bytes = self.edge_to_bytes(edge)?;
-
-                table
-                    .insert(ByteKey(edge_key_bytes), ByteKey(edge_bytes))
-                    .map_err(|e| StorageError::DbError(e.to_string()))?;
-            }
-        }
-        write_txn
-            .commit()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-        for edge in edges {
-            let edge_key = format!("{:?}_{:?}_{}", edge.src, edge.dst, edge.edge_type);
-            let edge_key_bytes = edge_key.as_bytes().to_vec();
-
-            self.update_node_edge_index(&edge.src, &edge_key_bytes, true)?;
-            self.update_node_edge_index(&edge.dst, &edge_key_bytes, true)?;
-            self.update_edge_type_index(&edge.edge_type, &edge_key_bytes, true)?;
-
-            for (prop_name, prop_value) in &edge.props {
-                self.update_prop_index(&edge.edge_type, prop_name, prop_value, &edge.src, true)?;
-            }
-        }
-
-        Ok(())
-    }
-
-    fn begin_transaction(&mut self, _space: &str) -> Result<TransactionId, StorageError> {
-        let tx_id = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("Time went backwards")
-            .as_nanos() as u64;
-        let tx_id = TransactionId::new(tx_id);
+    fn begin_transaction(&mut self, space: &str) -> Result<TransactionId, StorageError> {
+        let tx_id = TransactionId::new(
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("Time went backwards")
+                .as_nanos() as u64,
+        );
 
         let mut active_transactions = self.active_transactions.lock().expect("Failed to lock active transactions");
         active_transactions.insert(tx_id, ());
@@ -868,7 +268,7 @@ impl StorageClient for RedbStorage {
         Ok(tx_id)
     }
 
-    fn commit_transaction(&mut self, _space: &str, tx_id: TransactionId) -> Result<(), StorageError> {
+    fn commit_transaction(&mut self, space: &str, tx_id: TransactionId) -> Result<(), StorageError> {
         let mut active_transactions = self.active_transactions.lock().expect("Failed to lock active transactions");
         if !active_transactions.contains_key(&tx_id) {
             return Err(StorageError::TransactionNotFound(tx_id.as_u64()));
@@ -879,7 +279,7 @@ impl StorageClient for RedbStorage {
         Ok(())
     }
 
-    fn rollback_transaction(&mut self, _space: &str, tx_id: TransactionId) -> Result<(), StorageError> {
+    fn rollback_transaction(&mut self, space: &str, tx_id: TransactionId) -> Result<(), StorageError> {
         let mut active_transactions = self.active_transactions.lock().expect("Failed to lock active transactions");
         if !active_transactions.contains_key(&tx_id) {
             return Err(StorageError::TransactionNotFound(tx_id.as_u64()));
@@ -890,164 +290,836 @@ impl StorageClient for RedbStorage {
         Ok(())
     }
 
-    // ========== 空间管理 ==========
-    fn create_space(&mut self, _space: &SpaceInfo) -> Result<bool, StorageError> {
-        Err(StorageError::NotSupported("create_space not supported in RedbStorage".to_string()))
+    fn create_space(&mut self, space: &SpaceInfo) -> Result<bool, StorageError> {
+        (*self.schema_manager.lock().unwrap()).create_space(space)
     }
 
-    fn drop_space(&mut self, _space_name: &str) -> Result<bool, StorageError> {
-        Err(StorageError::NotSupported("drop_space not supported in RedbStorage".to_string()))
+    fn drop_space(&mut self, space_name: &str) -> Result<bool, StorageError> {
+        (*self.schema_manager.lock().unwrap()).drop_space(space_name)
     }
 
-    fn get_space(&self, _space: &str) -> Result<Option<SpaceInfo>, StorageError> {
-        Err(StorageError::NotSupported("get_space not supported in RedbStorage".to_string()))
+    fn get_space(&self, space_name: &str) -> Result<Option<SpaceInfo>, StorageError> {
+        (*self.schema_manager.lock().unwrap()).get_space(space_name)
     }
 
     fn list_spaces(&self) -> Result<Vec<SpaceInfo>, StorageError> {
-        Err(StorageError::NotSupported("list_spaces not supported in RedbStorage".to_string()))
+        (*self.schema_manager.lock().unwrap()).list_spaces()
     }
 
-    // ========== 标签管理 ==========
-    fn create_tag(&mut self, _space: &str, _info: &TagInfo) -> Result<bool, StorageError> {
-        Err(StorageError::NotSupported("create_tag not supported in RedbStorage".to_string()))
+    fn create_tag(&mut self, space: &str, tag: &TagInfo) -> Result<bool, StorageError> {
+        (*self.schema_manager.lock().unwrap()).create_tag(space, tag)
     }
 
-    fn alter_tag(&mut self, _space: &str, _tag: &str, _additions: Vec<PropertyDef>, _deletions: Vec<String>) -> Result<bool, StorageError> {
-        Err(StorageError::NotSupported("alter_tag not supported in RedbStorage".to_string()))
+    fn alter_tag(&mut self, space: &str, tag: &str, additions: Vec<PropertyDef>, deletions: Vec<String>) -> Result<bool, StorageError> {
+        let tag_info = match (*self.schema_manager.lock().unwrap()).get_tag(space, tag)? {
+            Some(t) => t,
+            None => return Err(StorageError::NotFound(format!("Tag {} not found in space {}", tag, space))),
+        };
+
+        let mut updated_info = tag_info;
+        for prop in additions {
+            updated_info.properties.retain(|p| p.name != prop.name);
+            updated_info.properties.push(prop);
+        }
+
+        for prop_name in deletions {
+            updated_info.properties.retain(|p| p.name != prop_name);
+        }
+
+        (*self.schema_manager.lock().unwrap()).drop_tag(space, tag)?;
+        (*self.schema_manager.lock().unwrap()).create_tag(space, &updated_info)?;
+
+        Ok(true)
     }
 
-    fn get_tag(&self, _space_name: &str, _tag_name: &str) -> Result<Option<TagInfo>, StorageError> {
-        Err(StorageError::NotSupported("get_tag not supported in RedbStorage".to_string()))
+    fn get_tag(&self, space: &str, tag_name: &str) -> Result<Option<TagInfo>, StorageError> {
+        (*self.schema_manager.lock().unwrap()).get_tag(space, tag_name)
     }
 
-    fn drop_tag(&mut self, _space: &str, _tag: &str) -> Result<bool, StorageError> {
-        Err(StorageError::NotSupported("drop_tag not supported in RedbStorage".to_string()))
+    fn drop_tag(&mut self, space: &str, tag_name: &str) -> Result<bool, StorageError> {
+        (*self.schema_manager.lock().unwrap()).drop_tag(space, tag_name)
     }
 
-    fn list_tags(&self, _space_name: &str) -> Result<Vec<TagInfo>, StorageError> {
-        Err(StorageError::NotSupported("list_tags not supported in RedbStorage".to_string()))
+    fn list_tags(&self, space: &str) -> Result<Vec<TagInfo>, StorageError> {
+        (*self.schema_manager.lock().unwrap()).list_tags(space)
     }
 
-    // ========== 边类型管理 ==========
-    fn create_edge_type(&mut self, _space: &str, _info: &EdgeTypeSchema) -> Result<bool, StorageError> {
-        Err(StorageError::NotSupported("create_edge_type not supported in RedbStorage".to_string()))
+    fn create_edge_type(&mut self, space: &str, edge: &EdgeTypeInfo) -> Result<bool, StorageError> {
+        (*self.schema_manager.lock().unwrap()).create_edge_type(space, edge)
     }
 
-    fn alter_edge_type(&mut self, _space: &str, _edge_type: &str, _additions: Vec<PropertyDef>, _deletions: Vec<String>) -> Result<bool, StorageError> {
-        Err(StorageError::NotSupported("alter_edge_type not supported in RedbStorage".to_string()))
+    fn alter_edge_type(&mut self, space: &str, edge_type: &str, additions: Vec<PropertyDef>, deletions: Vec<String>) -> Result<bool, StorageError> {
+        let edge_info = match (*self.schema_manager.lock().unwrap()).get_edge_type(space, edge_type)? {
+            Some(e) => e,
+            None => return Err(StorageError::NotFound(format!("Edge type {} not found in space {}", edge_type, space))),
+        };
+
+        let mut updated_info = edge_info;
+        for prop in additions {
+            updated_info.properties.retain(|p| p.name != prop.name);
+            updated_info.properties.push(prop);
+        }
+
+        for prop_name in deletions {
+            updated_info.properties.retain(|p| p.name != prop_name);
+        }
+
+        (*self.schema_manager.lock().unwrap()).drop_edge_type(space, edge_type)?;
+        (*self.schema_manager.lock().unwrap()).create_edge_type(space, &updated_info)?;
+
+        Ok(true)
     }
 
-    fn get_edge_type(&self, _space_name: &str, _edge_type_name: &str) -> Result<Option<EdgeTypeSchema>, StorageError> {
-        Err(StorageError::NotSupported("get_edge_type not supported in RedbStorage".to_string()))
+    fn get_edge_type(&self, space: &str, edge_type_name: &str) -> Result<Option<EdgeTypeInfo>, StorageError> {
+        (*self.schema_manager.lock().unwrap()).get_edge_type(space, edge_type_name)
     }
 
-    fn drop_edge_type(&mut self, _space_name: &str, _edge_type_name: &str) -> Result<bool, StorageError> {
-        Err(StorageError::NotSupported("drop_edge_type not supported in RedbStorage".to_string()))
+    fn drop_edge_type(&mut self, space: &str, edge_type_name: &str) -> Result<bool, StorageError> {
+        (*self.schema_manager.lock().unwrap()).drop_edge_type(space, edge_type_name)
     }
 
-    fn list_edge_types(&self, _space: &str) -> Result<Vec<EdgeTypeSchema>, StorageError> {
-        Err(StorageError::NotSupported("list_edge_types not supported in RedbStorage".to_string()))
+    fn list_edge_types(&self, space: &str) -> Result<Vec<EdgeTypeInfo>, StorageError> {
+        (*self.schema_manager.lock().unwrap()).list_edge_types(space)
     }
 
-    // ========== 索引管理 ==========
-    fn create_tag_index(&mut self, _space: &str, _info: &IndexInfo) -> Result<bool, StorageError> {
-        Err(StorageError::NotSupported("create_tag_index not supported in RedbStorage".to_string()))
+    fn create_tag_index(&mut self, space: &str, info: &IndexInfo) -> Result<bool, StorageError> {
+        let index_key = format!("{}:{}", space, info.index_name);
+        let index_bytes = index_to_bytes(info)?;
+
+        let write_txn = self.db.begin_write()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        {
+            let mut table = write_txn.open_table(TAG_INDEXES_TABLE)
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+            if table.get(ByteKey(index_key.as_bytes().to_vec()))
+                .map_err(|e| StorageError::DbError(e.to_string()))?
+                .is_some() {
+                return Ok(false);
+            }
+
+            table.insert(ByteKey(index_key.as_bytes().to_vec()), ByteKey(index_bytes))
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+        }
+        write_txn.commit()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        Ok(true)
     }
 
-    fn drop_tag_index(&mut self, _space: &str, _index: &str) -> Result<bool, StorageError> {
-        Err(StorageError::NotSupported("drop_tag_index not supported in RedbStorage".to_string()))
+    fn drop_tag_index(&mut self, space: &str, index: &str) -> Result<bool, StorageError> {
+        let index_key = format!("{}:{}", space, index);
+
+        let write_txn = self.db.begin_write()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        {
+            let mut table = write_txn.open_table(TAG_INDEXES_TABLE)
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+            if table.get(ByteKey(index_key.as_bytes().to_vec()))
+                .map_err(|e| StorageError::DbError(e.to_string()))?
+                .is_none() {
+                return Ok(false);
+            }
+
+            table.remove(ByteKey(index_key.as_bytes().to_vec()))
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+        }
+        write_txn.commit()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        Ok(true)
     }
 
-    fn get_tag_index(&self, _space: &str, _index: &str) -> Result<Option<IndexInfo>, StorageError> {
-        Err(StorageError::NotSupported("get_tag_index not supported in RedbStorage".to_string()))
+    fn get_tag_index(&self, space: &str, index: &str) -> Result<Option<IndexInfo>, StorageError> {
+        let index_key = format!("{}:{}", space, index);
+
+        let read_txn = self.db.begin_read()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        let table = read_txn.open_table(TAG_INDEXES_TABLE)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        match table.get(ByteKey(index_key.as_bytes().to_vec()))
+            .map_err(|e| StorageError::DbError(e.to_string()))?
+        {
+            Some(value) => {
+                let index_bytes = value.value();
+                let index_info = index_from_bytes(&index_bytes.0)?;
+                Ok(Some(index_info))
+            }
+            None => Ok(None),
+        }
     }
 
-    fn list_tag_indexes(&self, _space_name: &str) -> Result<Vec<IndexInfo>, StorageError> {
-        Err(StorageError::NotSupported("list_tag_indexes not supported in RedbStorage".to_string()))
+    fn list_tag_indexes(&self, space: &str) -> Result<Vec<IndexInfo>, StorageError> {
+        let read_txn = self.db.begin_read()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        let table = read_txn.open_table(TAG_INDEXES_TABLE)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        let mut indexes = Vec::new();
+        for result in table.iter()
+            .map_err(|e| StorageError::DbError(e.to_string()))?
+        {
+            let (key_bytes, index_bytes) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
+            let key_data = key_bytes.value().0.clone();
+            let key_str = String::from_utf8_lossy(&key_data);
+            if key_str.starts_with(&format!("{}:", space)) {
+                let index_info = index_from_bytes(&index_bytes.value().0)?;
+                indexes.push(index_info);
+            }
+        }
+
+        Ok(indexes)
     }
 
-    fn rebuild_tag_index(&mut self, _space: &str, _index: &str) -> Result<bool, StorageError> {
-        Err(StorageError::NotSupported("rebuild_tag_index not supported in RedbStorage".to_string()))
+    fn rebuild_tag_index(&mut self, space: &str, index: &str) -> Result<bool, StorageError> {
+        let index_key = format!("{}:{}", space, index);
+
+        let read_txn = self.db.begin_read()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        let tag_indexes_table = read_txn.open_table(TAG_INDEXES_TABLE)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        if tag_indexes_table.get(ByteKey(index_key.as_bytes().to_vec()))
+            .map_err(|e| StorageError::DbError(e.to_string()))?
+            .is_none() {
+            return Err(StorageError::NotFound(format!("Tag index {} not found in space {}", index, space)));
+        }
+
+        drop(tag_indexes_table);
+        drop(read_txn);
+
+        let vertex_reader = self.vertex_reader.lock().unwrap();
+        let vertices = vertex_reader.scan_vertices(space)?;
+
+        for vertex in vertices.into_vec() {
+            for tag in &vertex.tags {
+                if tag.name == index {
+                    let value_bytes = vertex_to_bytes(&vertex)?;
+                    let index_data_key = format!("{}:{}:{:?}", space, index, vertex.id);
+
+                    let write_txn = self.db.begin_write()
+                        .map_err(|e| StorageError::DbError(e.to_string()))?;
+                    {
+                        let mut index_data_table = write_txn.open_table(INDEX_DATA_TABLE)
+                            .map_err(|e| StorageError::DbError(e.to_string()))?;
+                        index_data_table.insert(
+                            ByteKey(index_data_key.as_bytes().to_vec()),
+                            ByteKey(value_bytes)
+                        ).map_err(|e| StorageError::DbError(e.to_string()))?;
+                    }
+                    write_txn.commit()
+                        .map_err(|e| StorageError::DbError(e.to_string()))?;
+                }
+            }
+        }
+
+        Ok(true)
     }
 
-    fn create_edge_index(&mut self, _space: &str, _info: &IndexInfo) -> Result<bool, StorageError> {
-        Err(StorageError::NotSupported("create_edge_index not supported in RedbStorage".to_string()))
+    fn create_edge_index(&mut self, space: &str, info: &IndexInfo) -> Result<bool, StorageError> {
+        let index_key = format!("{}:{}", space, info.index_name);
+        let index_bytes = index_to_bytes(info)?;
+
+        let write_txn = self.db.begin_write()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        {
+            let mut table = write_txn.open_table(EDGE_INDEXES_TABLE)
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+            if table.get(ByteKey(index_key.as_bytes().to_vec()))
+                .map_err(|e| StorageError::DbError(e.to_string()))?
+                .is_some() {
+                return Ok(false);
+            }
+
+            table.insert(ByteKey(index_key.as_bytes().to_vec()), ByteKey(index_bytes))
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+        }
+        write_txn.commit()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        Ok(true)
     }
 
-    fn drop_edge_index(&mut self, _space_name: &str, _index_name: &str) -> Result<bool, StorageError> {
-        Err(StorageError::NotSupported("drop_edge_index not supported in RedbStorage".to_string()))
+    fn drop_edge_index(&mut self, space: &str, index: &str) -> Result<bool, StorageError> {
+        let index_key = format!("{}:{}", space, index);
+
+        let write_txn = self.db.begin_write()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        {
+            let mut table = write_txn.open_table(EDGE_INDEXES_TABLE)
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+            if table.get(ByteKey(index_key.as_bytes().to_vec()))
+                .map_err(|e| StorageError::DbError(e.to_string()))?
+                .is_none() {
+                return Ok(false);
+            }
+
+            table.remove(ByteKey(index_key.as_bytes().to_vec()))
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+        }
+        write_txn.commit()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        Ok(true)
     }
 
-    fn get_edge_index(&self, _space_name: &str, _index_name: &str) -> Result<Option<IndexInfo>, StorageError> {
-        Err(StorageError::NotSupported("get_edge_index not supported in RedbStorage".to_string()))
+    fn get_edge_index(&self, space: &str, index: &str) -> Result<Option<IndexInfo>, StorageError> {
+        let index_key = format!("{}:{}", space, index);
+
+        let read_txn = self.db.begin_read()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        let table = read_txn.open_table(EDGE_INDEXES_TABLE)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        match table.get(ByteKey(index_key.as_bytes().to_vec()))
+            .map_err(|e| StorageError::DbError(e.to_string()))?
+        {
+            Some(value) => {
+                let index_bytes = value.value();
+                let index_info = index_from_bytes(&index_bytes.0)?;
+                Ok(Some(index_info))
+            }
+            None => Ok(None),
+        }
     }
 
-    fn list_edge_indexes(&self, _space: &str) -> Result<Vec<IndexInfo>, StorageError> {
-        Err(StorageError::NotSupported("list_edge_indexes not supported in RedbStorage".to_string()))
+    fn list_edge_indexes(&self, space: &str) -> Result<Vec<IndexInfo>, StorageError> {
+        let read_txn = self.db.begin_read()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        let table = read_txn.open_table(EDGE_INDEXES_TABLE)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        let mut indexes = Vec::new();
+        for result in table.iter()
+            .map_err(|e| StorageError::DbError(e.to_string()))?
+        {
+            let (key_bytes, index_bytes) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
+            let key_data = key_bytes.value().0.clone();
+            let key_str = String::from_utf8_lossy(&key_data);
+            if key_str.starts_with(&format!("{}:", space)) {
+                let index_info = index_from_bytes(&index_bytes.value().0)?;
+                indexes.push(index_info);
+            }
+        }
+
+        Ok(indexes)
     }
 
-    fn rebuild_edge_index(&mut self, _space_name: &str, _index_name: &str) -> Result<bool, StorageError> {
-        Err(StorageError::NotSupported("rebuild_edge_index not supported in RedbStorage".to_string()))
+    fn rebuild_edge_index(&mut self, space: &str, index: &str) -> Result<bool, StorageError> {
+        let index_key = format!("{}:{}", space, index);
+
+        let read_txn = self.db.begin_read()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        let edge_indexes_table = read_txn.open_table(EDGE_INDEXES_TABLE)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        if edge_indexes_table.get(ByteKey(index_key.as_bytes().to_vec()))
+            .map_err(|e| StorageError::DbError(e.to_string()))?
+            .is_none() {
+            return Err(StorageError::NotFound(format!("Edge index {} not found in space {}", index, space)));
+        }
+
+        drop(edge_indexes_table);
+        drop(read_txn);
+
+        let vertex_reader = self.vertex_reader.lock().unwrap();
+        let edges = vertex_reader.scan_all_edges(space)?;
+
+        for edge in edges.into_vec() {
+            if edge.edge_type == index {
+                let edge_key = format!("{:?}_{:?}_{}", edge.src, edge.dst, edge.edge_type);
+                let edge_data_key = format!("{}:{}:{}", space, index, edge_key);
+
+                let write_txn = self.db.begin_write()
+                    .map_err(|e| StorageError::DbError(e.to_string()))?;
+                {
+                    let mut index_data_table = write_txn.open_table(INDEX_DATA_TABLE)
+                        .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+                    let edge_bytes = serde_json::to_vec(&edge)
+                        .map_err(|e| StorageError::SerializeError(e.to_string()))?;
+                    index_data_table.insert(
+                        ByteKey(edge_data_key.as_bytes().to_vec()),
+                        ByteKey(edge_bytes)
+                    ).map_err(|e| StorageError::DbError(e.to_string()))?;
+                }
+                write_txn.commit()
+                    .map_err(|e| StorageError::DbError(e.to_string()))?;
+            }
+        }
+
+        Ok(true)
     }
 
-    // ========== 数据变更 ==========
-    fn insert_vertex_data(&mut self, _space: &str, _info: &InsertVertexInfo) -> Result<bool, StorageError> {
-        Err(StorageError::NotSupported("insert_vertex_data not supported in RedbStorage".to_string()))
+    fn insert_vertex_data(&mut self, space: &str, info: &InsertVertexInfo) -> Result<bool, StorageError> {
+        let tag_info = match (*self.schema_manager.lock().unwrap()).get_tag(space, &info.tag_name)? {
+            Some(t) => t,
+            None => return Err(StorageError::NotFound(format!("Tag {} not found in space {}", info.tag_name, space))),
+        };
+
+        let tag_properties = property_defs_to_hashmap(&tag_info.properties);
+        let vertex = Vertex {
+            vid: Box::new(info.vertex_id.clone()),
+            id: 0,
+            tags: vec![Tag { name: info.tag_name.clone(), properties: tag_properties }],
+            properties: info.properties.iter().cloned().collect(),
+        };
+
+        let vertex_id = (*self.vertex_writer.lock().unwrap()).insert_vertex(space, vertex)?;
+
+        let write_txn = self.db.begin_write()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        {
+            let mut vertex_data_table = write_txn.open_table(VERTEX_DATA_TABLE)
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+            let vertex_data_key = format!("{}:{}:{:?}", space, info.tag_name, vertex_id);
+            let vertex_bytes = serde_json::to_vec(&info.properties)
+                .map_err(|e| StorageError::SerializeError(e.to_string()))?;
+            vertex_data_table.insert(
+                ByteKey(vertex_data_key.as_bytes().to_vec()),
+                ByteKey(vertex_bytes)
+            ).map_err(|e| StorageError::DbError(e.to_string()))?;
+        }
+        write_txn.commit()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        Ok(true)
     }
 
-    fn insert_edge_data(&mut self, _space: &str, _info: &InsertEdgeInfo) -> Result<bool, StorageError> {
-        Err(StorageError::NotSupported("insert_edge_data not supported in RedbStorage".to_string()))
+    fn insert_edge_data(&mut self, space: &str, info: &InsertEdgeInfo) -> Result<bool, StorageError> {
+        let _edge_type_info = match (*self.schema_manager.lock().unwrap()).get_edge_type(space, &info.edge_name)? {
+            Some(e) => e,
+            None => return Err(StorageError::NotFound(format!("Edge type {} not found in space {}", info.edge_name, space))),
+        };
+
+        let edge = Edge {
+            src: Box::new(info.src_vertex_id.clone()),
+            dst: Box::new(info.dst_vertex_id.clone()),
+            edge_type: info.edge_name.clone(),
+            ranking: info.rank,
+            id: 0,
+            props: info.properties.iter().cloned().collect(),
+        };
+
+        (*self.vertex_writer.lock().unwrap()).insert_edge(space, edge)?;
+
+        let write_txn = self.db.begin_write()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        {
+            let mut edge_data_table = write_txn.open_table(EDGE_DATA_TABLE)
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+            let edge_data_key = format!("{}:{}:{:?}:{:?}:{}", space, info.edge_name, info.src_vertex_id, info.dst_vertex_id, info.rank);
+            let edge_bytes = serde_json::to_vec(&info.properties)
+                .map_err(|e| StorageError::SerializeError(e.to_string()))?;
+            edge_data_table.insert(
+                ByteKey(edge_data_key.as_bytes().to_vec()),
+                ByteKey(edge_bytes)
+            ).map_err(|e| StorageError::DbError(e.to_string()))?;
+        }
+        write_txn.commit()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        Ok(true)
     }
 
-    fn delete_vertex_data(&mut self, _space: &str, _vertex_id: &str) -> Result<bool, StorageError> {
-        Err(StorageError::NotSupported("delete_vertex_data not supported in RedbStorage".to_string()))
+    fn delete_vertex_data(&mut self, space: &str, vertex_id: &str) -> Result<bool, StorageError> {
+        let vertex_id_value = Value::String(vertex_id.to_string());
+        (*self.vertex_writer.lock().unwrap()).delete_vertex(space, &vertex_id_value)?;
+
+        let write_txn = self.db.begin_write()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        {
+            let mut vertex_data_table = write_txn.open_table(VERTEX_DATA_TABLE)
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+            let keys_to_remove: Vec<Vec<u8>> = vertex_data_table.iter()
+                .map_err(|e| StorageError::DbError(e.to_string()))?
+                .filter_map(|result| {
+                    let (key_bytes, _) = result.ok()?;
+                    let key_data = key_bytes.value().0.clone();
+                    let key_str = String::from_utf8_lossy(&key_data);
+                    if key_str.starts_with(&format!("{}:", space)) && key_str.contains(&format!(":{:?}:", vertex_id_value)) {
+                        Some(key_data)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+
+            for key in keys_to_remove {
+                vertex_data_table.remove(ByteKey(key))
+                    .map_err(|e| StorageError::DbError(e.to_string()))?;
+            }
+        }
+        write_txn.commit()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        Ok(true)
     }
 
-    fn delete_edge_data(&mut self, _space: &str, _src: &str, _dst: &str, _rank: i64) -> Result<bool, StorageError> {
-        Err(StorageError::NotSupported("delete_edge_data not supported in RedbStorage".to_string()))
+    fn delete_edge_data(&mut self, space: &str, src: &str, dst: &str, rank: i64) -> Result<bool, StorageError> {
+        let src_value = Value::String(src.to_string());
+        let dst_value = Value::String(dst.to_string());
+
+        let read_txn = self.db.begin_read()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        let edge_data_table = read_txn.open_table(EDGE_DATA_TABLE)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        let edge_types: Vec<String> = edge_data_table.iter()
+            .map_err(|e| StorageError::DbError(e.to_string()))?
+            .filter_map(|result| {
+                let (key_bytes, _) = result.ok()?;
+                let key_data = key_bytes.value().0.clone();
+                let key_str = String::from_utf8_lossy(&key_data);
+                if key_str.starts_with(&format!("{}:", space)) &&
+                   key_str.contains(&format!(":{:?}:", src_value)) &&
+                   key_str.contains(&format!(":{:?}:", dst_value)) &&
+                   key_str.ends_with(&format!(":{}", rank)) {
+                    let parts: Vec<&str> = key_str.split(':').collect();
+                    if parts.len() >= 3 {
+                        Some(parts[1].to_string())
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        drop(edge_data_table);
+        drop(read_txn);
+
+        for edge_type in edge_types {
+            (*self.vertex_writer.lock().unwrap()).delete_edge(space, &src_value, &dst_value, &edge_type)?;
+        }
+
+        let write_txn = self.db.begin_write()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        {
+            let mut edge_data_table = write_txn.open_table(EDGE_DATA_TABLE)
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+            let keys_to_remove: Vec<Vec<u8>> = edge_data_table.iter()
+                .map_err(|e| StorageError::DbError(e.to_string()))?
+                .filter_map(|result| {
+                    let (key_bytes, _) = result.ok()?;
+                    let key_data = key_bytes.value().0.clone();
+                    let key_str = String::from_utf8_lossy(&key_data);
+                    if key_str.starts_with(&format!("{}:", space)) &&
+                       key_str.contains(&format!(":{:?}:", src_value)) &&
+                       key_str.contains(&format!(":{:?}:", dst_value)) &&
+                       key_str.ends_with(&format!(":{}", rank)) {
+                        Some(key_data)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+
+            for key in keys_to_remove {
+                edge_data_table.remove(ByteKey(key))
+                    .map_err(|e| StorageError::DbError(e.to_string()))?;
+            }
+        }
+        write_txn.commit()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        Ok(true)
     }
 
-    fn update_data(&mut self, _space: &str, _info: &UpdateInfo) -> Result<bool, StorageError> {
-        Err(StorageError::NotSupported("update_data not supported in RedbStorage".to_string()))
+    fn update_data(&mut self, space: &str, info: &UpdateInfo) -> Result<bool, StorageError> {
+        match &info.target {
+            UpdateTarget::Vertex { vertex_id, tag_name: _ } => {
+                let vertex_id_value = vertex_id.clone();
+                let vertex = match (*self.vertex_reader.lock().unwrap()).get_vertex(space, &vertex_id_value)? {
+                    Some(v) => v,
+                    None => return Err(StorageError::NotFound(format!("Vertex {:?} not found in space {}", vertex_id, space))),
+                };
+
+                let mut updated_props = vertex.properties.clone();
+                for op in &info.operations {
+                    match op {
+                        UpdateOp::Set { property, value } => {
+                            updated_props.insert(property.clone(), value.clone());
+                        }
+                        UpdateOp::Delete { property } => {
+                            updated_props.remove(property);
+                        }
+                    }
+                }
+
+                let updated_vertex = Vertex {
+                    vid: vertex.vid,
+                    id: vertex.id,
+                    tags: vertex.tags,
+                    properties: updated_props,
+                };
+                (*self.vertex_writer.lock().unwrap()).update_vertex(space, updated_vertex)?;
+            }
+            UpdateTarget::Edge { src_vertex_id, dst_vertex_id, rank: _, edge_name } => {
+                let src_value = src_vertex_id.clone();
+                let dst_value = dst_vertex_id.clone();
+                let edge = match (*self.vertex_reader.lock().unwrap()).get_edge(space, &src_value, &dst_value, edge_name)? {
+                    Some(e) => e,
+                    None => return Err(StorageError::NotFound(format!("Edge from {:?} to {:?} with type {} not found", src_vertex_id, dst_vertex_id, edge_name))),
+                };
+
+                let mut updated_props = edge.props.clone();
+                for op in &info.operations {
+                    match op {
+                        UpdateOp::Set { property, value } => {
+                            updated_props.insert(property.clone(), value.clone());
+                        }
+                        UpdateOp::Delete { property } => {
+                            updated_props.remove(property);
+                        }
+                    }
+                }
+
+                let updated_edge = Edge {
+                    src: edge.src,
+                    dst: edge.dst,
+                    edge_type: edge.edge_type,
+                    ranking: edge.ranking,
+                    id: edge.id,
+                    props: updated_props,
+                };
+                (*self.vertex_writer.lock().unwrap()).insert_edge(space, updated_edge)?;
+                (*self.vertex_writer.lock().unwrap()).delete_edge(space, &src_value, &dst_value, edge_name)?;
+            }
+        }
+
+        Ok(true)
     }
 
-    // ========== 用户管理 ==========
-    fn change_password(&mut self, _info: &PasswordInfo) -> Result<bool, StorageError> {
-        Err(StorageError::NotSupported("change_password not supported in RedbStorage".to_string()))
+    fn change_password(&mut self, info: &PasswordInfo) -> Result<bool, StorageError> {
+        let username_key = info.username.as_bytes();
+        let password_bytes = serde_json::to_vec(info)
+            .map_err(|e| StorageError::SerializeError(e.to_string()))?;
+
+        let write_txn = self.db.begin_write()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        {
+            let mut table = write_txn.open_table(PASSWORDS_TABLE)
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+            match table.get(ByteKey(username_key.to_vec()))
+                .map_err(|e| StorageError::DbError(e.to_string()))?
+            {
+                Some(existing) => {
+                    let existing_info: PasswordInfo = serde_json::from_slice(&existing.value().0)
+                        .map_err(|e| StorageError::SerializeError(e.to_string()))?;
+                    if existing_info.old_password != info.old_password {
+                        return Err(StorageError::InvalidInput("Old password does not match".to_string()));
+                    }
+                }
+                None => {
+                    return Err(StorageError::NotFound(format!("User {} not found", info.username)));
+                }
+            }
+
+            table.insert(ByteKey(username_key.to_vec()), ByteKey(password_bytes))
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+        }
+        write_txn.commit()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        Ok(true)
     }
 
-    // ========== 二进制数据接口（用于数据编码集成） ==========
-    fn get_vertex_with_schema(&self, _space_name: &str, _tag_name: &str, _id: &Value) -> Result<Option<(crate::storage::Schema, Vec<u8>)>, StorageError> {
-        Err(StorageError::NotSupported("get_vertex_with_schema not supported in RedbStorage".to_string()))
+    fn lookup_index(&self, space: &str, index: &str, value: &Value) -> Result<Vec<Value>, StorageError> {
+        let _index_key = format!("{}:{}:{:?}", space, index, value);
+
+        let read_txn = self.db.begin_read()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        let index_data_table = read_txn.open_table(INDEX_DATA_TABLE)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        let mut results = Vec::new();
+        for result in index_data_table.iter()
+            .map_err(|e| StorageError::DbError(e.to_string()))?
+        {
+            let (key_bytes, value_bytes) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
+            let key_data = key_bytes.value().0.clone();
+            let key_str = String::from_utf8_lossy(&key_data);
+
+            if key_str.starts_with(&format!("{}:{}:", space, index)) {
+                if key_str.ends_with(&format!(":{:?}", value)) || key_str.contains(&format!(":{:?}:", value)) {
+                    let vertex_data: Vec<(String, Value)> = serde_json::from_slice(&value_bytes.value().0)
+                        .map_err(|e| StorageError::SerializeError(e.to_string()))?;
+
+                    for (_, prop_value) in vertex_data {
+                        if prop_value == *value {
+                            results.push(prop_value);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(results)
     }
 
-    fn get_edge_with_schema(&self, _space: &str, _edge_type_name: &str, _src: &Value, _dst: &Value) -> Result<Option<(crate::storage::Schema, Vec<u8>)>, StorageError> {
-        Err(StorageError::NotSupported("get_edge_with_schema not supported in RedbStorage".to_string()))
+    fn get_vertex_with_schema(&self, space: &str, tag: &str, id: &Value) -> Result<Option<(Schema, Vec<u8>)>, StorageError> {
+        let vertex = (*self.vertex_reader.lock().unwrap()).get_vertex(space, id)?;
+
+        match vertex {
+            Some(v) => {
+                let tag_info = match (*self.schema_manager.lock().unwrap()).get_tag(space, tag)? {
+                    Some(t) => t,
+                    None => return Err(StorageError::NotFound(format!("Tag {} not found in space {}", tag, space))),
+                };
+
+                let fields = property_defs_to_fields(&tag_info.properties);
+                let schema = Schema {
+                    name: tag.to_string(),
+                    fields,
+                    version: tag_info.tag_id as i32,
+                };
+
+                let vertex_bytes = serde_json::to_vec(&v)
+                    .map_err(|e| StorageError::SerializeError(e.to_string()))?;
+
+                Ok(Some((schema, vertex_bytes)))
+            }
+            None => Ok(None),
+        }
     }
 
-    fn scan_vertices_with_schema(&self, _space_name: &str, _tag_name: &str) -> Result<Vec<(crate::storage::Schema, Vec<u8>)>, StorageError> {
-        Err(StorageError::NotSupported("scan_vertices_with_schema not supported in RedbStorage".to_string()))
+    fn get_edge_with_schema(&self, space: &str, edge_type: &str, src: &Value, dst: &Value) -> Result<Option<(Schema, Vec<u8>)>, StorageError> {
+        let edge = (*self.vertex_reader.lock().unwrap()).get_edge(space, src, dst, edge_type)?;
+
+        match edge {
+            Some(e) => {
+                let edge_type_info = match (*self.schema_manager.lock().unwrap()).get_edge_type(space, edge_type)? {
+                    Some(et) => et,
+                    None => return Err(StorageError::NotFound(format!("Edge type {} not found in space {}", edge_type, space))),
+                };
+
+                let fields = property_defs_to_fields(&edge_type_info.properties);
+                let schema = Schema {
+                    name: edge_type.to_string(),
+                    fields,
+                    version: edge_type_info.edge_type_id as i32,
+                };
+
+                let edge_bytes = serde_json::to_vec(&e)
+                    .map_err(|e| StorageError::SerializeError(e.to_string()))?;
+
+                Ok(Some((schema, edge_bytes)))
+            }
+            None => Ok(None),
+        }
     }
 
-    fn scan_edges_with_schema(&self, _space: &str, _edge_type: &str) -> Result<Vec<(crate::storage::Schema, Vec<u8>)>, StorageError> {
-        Err(StorageError::NotSupported("scan_edges_with_schema not supported in RedbStorage".to_string()))
+    fn scan_vertices_with_schema(&self, space: &str, tag: &str) -> Result<Vec<(Schema, Vec<u8>)>, StorageError> {
+        let tag_info = match (*self.schema_manager.lock().unwrap()).get_tag(space, tag)? {
+            Some(t) => t,
+            None => return Err(StorageError::NotFound(format!("Tag {} not found in space {}", tag, space))),
+        };
+
+        let fields = property_defs_to_fields(&tag_info.properties);
+        let schema = Schema {
+            name: tag.to_string(),
+            fields,
+            version: tag_info.tag_id as i32,
+        };
+
+        let vertices = (*self.vertex_reader.lock().unwrap()).scan_vertices_by_tag(space, tag)?;
+
+        let mut results = Vec::new();
+        for vertex in vertices.into_vec() {
+            let vertex_bytes = serde_json::to_vec(&vertex)
+                .map_err(|e| StorageError::SerializeError(e.to_string()))?;
+            results.push((schema.clone(), vertex_bytes));
+        }
+
+        Ok(results)
     }
 
-    fn lookup_index(&self, _space: &str, _index: &str, _value: &Value) -> Result<Vec<Value>, StorageError> {
-        Ok(Vec::new())
+    fn scan_edges_with_schema(&self, space: &str, edge_type: &str) -> Result<Vec<(Schema, Vec<u8>)>, StorageError> {
+        let edge_type_info = match (*self.schema_manager.lock().unwrap()).get_edge_type(space, edge_type)? {
+            Some(et) => et,
+            None => return Err(StorageError::NotFound(format!("Edge type {} not found in space {}", edge_type, space))),
+        };
+
+        let fields = property_defs_to_fields(&edge_type_info.properties);
+        let schema = Schema {
+            name: edge_type.to_string(),
+            fields,
+            version: edge_type_info.edge_type_id as i32,
+        };
+
+        let edges = (*self.vertex_reader.lock().unwrap()).scan_edges_by_type(space, edge_type)?;
+
+        let mut results = Vec::new();
+        for edge in edges.into_vec() {
+            let edge_bytes = serde_json::to_vec(&edge)
+                .map_err(|e| StorageError::SerializeError(e.to_string()))?;
+            results.push((schema.clone(), edge_bytes));
+        }
+
+        Ok(results)
     }
 
     fn load_from_disk(&mut self) -> Result<(), StorageError> {
-        self.vertex_cache.lock()
-            .map_err(|e| StorageError::DbError(e.to_string()))?
-            .clear();
-        self.edge_cache.lock()
-            .map_err(|e| StorageError::DbError(e.to_string()))?
-            .clear();
+        let read_txn = self.db.begin_read()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        let _tag_indexes_table = read_txn.open_table(TAG_INDEXES_TABLE)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        let _edge_indexes_table = read_txn.open_table(EDGE_INDEXES_TABLE)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        let _index_data_table = read_txn.open_table(INDEX_DATA_TABLE)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        let _vertex_data_table = read_txn.open_table(VERTEX_DATA_TABLE)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        let _edge_data_table = read_txn.open_table(EDGE_DATA_TABLE)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        let _passwords_table = read_txn.open_table(PASSWORDS_TABLE)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
         Ok(())
     }
 
     fn save_to_disk(&self) -> Result<(), StorageError> {
+        let read_txn = self.db.begin_read()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        let _tag_indexes_table = read_txn.open_table(TAG_INDEXES_TABLE)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        let _edge_indexes_table = read_txn.open_table(EDGE_INDEXES_TABLE)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        let _index_data_table = read_txn.open_table(INDEX_DATA_TABLE)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        let _vertex_data_table = read_txn.open_table(VERTEX_DATA_TABLE)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        let _edge_data_table = read_txn.open_table(EDGE_DATA_TABLE)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        let _passwords_table = read_txn.open_table(PASSWORDS_TABLE)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        log::info!("Successfully saved to disk");
+
         Ok(())
     }
 }

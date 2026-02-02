@@ -7,7 +7,6 @@ use crate::core::types::{
     PasswordInfo,
 };
 use crate::storage::{FieldDef, FieldType, Schema};
-use crate::common::memory::MemoryPool;
 use crate::common::id::IdGenerator;
 use serde_json;
 use std::collections::HashMap;
@@ -26,8 +25,6 @@ pub struct MemoryStorage {
     edge_types: Arc<Mutex<HashMap<String, Vec<EdgeKey>>>>,
     active_transactions: Arc<Mutex<HashMap<TransactionId, TransactionState>>>,
     next_tx_id: Arc<Mutex<TransactionId>>,
-    _vertex_props: Arc<Mutex<HashMap<(String, String, Vec<u8>), Vec<VertexKey>>>>,
-    _memory_pool: Arc<MemoryPool>,
     id_generator: Arc<Mutex<IdGenerator>>,
     spaces: Arc<Mutex<HashMap<String, SpaceInfo>>>,
     tags: Arc<Mutex<HashMap<String, HashMap<String, TagInfo>>>>,
@@ -68,7 +65,6 @@ impl MemoryStorage {
     }
 
     pub fn new_with_path(path: PathBuf) -> Result<Self, StorageError> {
-        let memory_pool = Arc::new(MemoryPool::new(100 * 1024 * 1024).map_err(|e| StorageError::DbError(e))?);
         let id_generator = Arc::new(Mutex::new(IdGenerator::new()));
         let schema_manager = Arc::new(MemorySchemaManager::new());
 
@@ -81,8 +77,6 @@ impl MemoryStorage {
             edge_types: Arc::new(Mutex::new(HashMap::new())),
             active_transactions: Arc::new(Mutex::new(HashMap::new())),
             next_tx_id: Arc::new(Mutex::new(TransactionId::new(1))),
-            _vertex_props: Arc::new(Mutex::new(HashMap::new())),
-            _memory_pool: memory_pool,
             id_generator,
             spaces: Arc::new(Mutex::new(HashMap::new())),
             tags: Arc::new(Mutex::new(HashMap::new())),
@@ -1080,13 +1074,9 @@ impl EdgeReader for MemoryStorage {
         _space: &str,
         node_id: &Value,
         direction: EdgeDirection,
-        edge_type: Option<&str>,
+        filter: Option<Box<dyn Fn(&Edge) -> bool + Send + Sync>>,
     ) -> Result<ScanResult<Edge>, StorageError> {
-        let filter = edge_type.map(|et| {
-            let et = et.to_string();
-            move |e: &Edge| e.edge_type == et
-        });
-        let edges = <Self as StorageClient>::get_node_edges_filtered(self, _space, node_id, direction, filter.map(|f| Box::new(f) as _))?;
+        let edges = <Self as StorageClient>::get_node_edges_filtered(self, _space, node_id, direction, filter)?;
         Ok(ScanResult::new(edges))
     }
 
@@ -1106,39 +1096,40 @@ impl EdgeReader for MemoryStorage {
 }
 
 impl VertexWriter for MemoryStorage {
-    fn insert_vertex(&mut self, vertex: Vertex) -> Result<Value, StorageError> {
-        <Self as StorageClient>::insert_vertex(self, "", vertex)
+    fn insert_vertex(&mut self, _space: &str, vertex: Vertex) -> Result<Value, StorageError> {
+        <Self as StorageClient>::insert_vertex(self, _space, vertex)
     }
 
-    fn update_vertex(&mut self, vertex: Vertex) -> Result<(), StorageError> {
-        <Self as StorageClient>::update_vertex(self, "", vertex)
+    fn update_vertex(&mut self, _space: &str, vertex: Vertex) -> Result<(), StorageError> {
+        <Self as StorageClient>::update_vertex(self, _space, vertex)
     }
 
-    fn delete_vertex(&mut self, id: &Value) -> Result<(), StorageError> {
-        <Self as StorageClient>::delete_vertex(self, "", id)
+    fn delete_vertex(&mut self, _space: &str, id: &Value) -> Result<(), StorageError> {
+        <Self as StorageClient>::delete_vertex(self, _space, id)
     }
 
-    fn batch_insert_vertices(&mut self, vertices: Vec<Vertex>) -> Result<Vec<Value>, StorageError> {
-        <Self as StorageClient>::batch_insert_vertices(self, "", vertices)
+    fn batch_insert_vertices(&mut self, _space: &str, vertices: Vec<Vertex>) -> Result<Vec<Value>, StorageError> {
+        <Self as StorageClient>::batch_insert_vertices(self, _space, vertices)
     }
 }
 
 impl EdgeWriter for MemoryStorage {
-    fn insert_edge(&mut self, edge: Edge) -> Result<(), StorageError> {
-        <Self as StorageClient>::insert_edge(self, "", edge)
+    fn insert_edge(&mut self, _space: &str, edge: Edge) -> Result<(), StorageError> {
+        <Self as StorageClient>::insert_edge(self, _space, edge)
     }
 
     fn delete_edge(
         &mut self,
+        _space: &str,
         src: &Value,
         dst: &Value,
         edge_type: &str,
     ) -> Result<(), StorageError> {
-        <Self as StorageClient>::delete_edge(self, "", src, dst, edge_type)
+        <Self as StorageClient>::delete_edge(self, _space, src, dst, edge_type)
     }
 
-    fn batch_insert_edges(&mut self, edges: Vec<Edge>) -> Result<(), StorageError> {
-        <Self as StorageClient>::batch_insert_edges(self, "", edges)
+    fn batch_insert_edges(&mut self, _space: &str, edges: Vec<Edge>) -> Result<(), StorageError> {
+        <Self as StorageClient>::batch_insert_edges(self, _space, edges)
     }
 }
 

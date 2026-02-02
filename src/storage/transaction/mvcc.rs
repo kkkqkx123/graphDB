@@ -219,25 +219,16 @@ pub struct MvccManager {
     version_chains: RwLock<HashMap<String, VersionChain>>,
     /// 活跃事务的读取时间戳
     active_reads: RwLock<HashMap<TransactionId, u64>>,
-    /// 垃圾回收配置
-    gc_config: GcConfig,
     /// 统计信息
     stats: Arc<Mutex<MvccStats>>,
 }
 
-impl Default for MvccManager {
-    fn default() -> Self {
-        Self::new(GcConfig::default())
-    }
-}
-
 impl MvccManager {
-    pub fn new(gc_config: GcConfig) -> Self {
+    pub fn new() -> Self {
         Self {
             global_version: Arc::new(Mutex::new(0)),
             version_chains: RwLock::new(HashMap::new()),
             active_reads: RwLock::new(HashMap::new()),
-            gc_config,
             stats: Arc::new(Mutex::new(MvccStats::default())),
         }
     }

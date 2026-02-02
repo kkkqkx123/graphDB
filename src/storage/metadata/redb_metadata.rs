@@ -1,0 +1,429 @@
+use crate::core::StorageError;
+use crate::core::types::{EdgeTypeInfo, SpaceInfo, TagInfo};
+use crate::storage::{FieldDef, FieldType, Schema};
+use crate::storage::serializer::{space_to_bytes, space_from_bytes, tag_to_bytes, tag_from_bytes, edge_type_to_bytes, edge_type_from_bytes};
+use redb::{Database, ReadableTable, TableDefinition};
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+use std::cmp::Ordering;
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ByteKey(pub Vec<u8>);
+
+impl redb::Key for ByteKey {
+    fn compare(data1: &[u8], data2: &[u8]) -> Ordering {
+        data1.cmp(data2)
+    }
+}
+
+impl redb::Value for ByteKey {
+    type SelfType<'a> = ByteKey where Self: 'a;
+    type AsBytes<'a> = Vec<u8> where Self: 'a;
+
+    fn fixed_width() -> Option<usize> {
+        None
+    }
+
+    fn from_bytes<'a>(data: &'a [u8]) -> ByteKey where Self: 'a {
+        ByteKey(data.to_vec())
+    }
+
+    fn as_bytes<'a, 'b: 'a>(value: &'a Self::SelfType<'b>) -> Vec<u8> where Self: 'b {
+        value.0.clone()
+    }
+
+    fn type_name() -> redb::TypeName {
+        redb::TypeName::new("graphdb::ByteKey")
+    }
+}
+
+const SPACES_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefinition::new("spaces");
+const TAGS_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefinition::new("tags");
+const EDGE_TYPES_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefinition::new("edge_types");
+
+pub struct RedbSchemaManager {
+    db: Database,
+}
+
+impl std::fmt::Debug for RedbSchemaManager {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RedbSchemaManager").finish()
+    }
+}
+
+impl RedbSchemaManager {
+    pub fn new<P: AsRef<std::path::Path>>(path: P) -> Result<Self, StorageError> {
+        let db = Database::create(path.as_ref())
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        Ok(Self { db })
+    }
+}
+
+fn data_type_to_field_type(data_type: &crate::core::DataType) -> FieldType {
+    match data_type {
+        crate::core::DataType::Bool => FieldType::Bool,
+        crate::core::DataType::Int8 => FieldType::Int8,
+        crate::core::DataType::Int16 => FieldType::Int16,
+        crate::core::DataType::Int32 => FieldType::Int32,
+        crate::core::DataType::Int64 => FieldType::Int64,
+        crate::core::DataType::Float => FieldType::Float,
+        crate::core::DataType::Double => FieldType::Double,
+        crate::core::DataType::String => FieldType::String,
+        crate::core::DataType::Date => FieldType::Date,
+        crate::core::DataType::Time => FieldType::Time,
+        crate::core::DataType::DateTime => FieldType::DateTime,
+        crate::core::DataType::List => FieldType::List,
+        crate::core::DataType::Map => FieldType::Map,
+        crate::core::DataType::Set => FieldType::Set,
+        crate::core::DataType::Geography => FieldType::Geography,
+        crate::core::DataType::Duration => FieldType::Duration,
+        _ => FieldType::String,
+    }
+}
+
+fn tag_info_to_schema(tag_name: &str, tag_info: &TagInfo) -> Schema {
+    let fields: Vec<FieldDef> = tag_info.properties.iter().map(|prop| {
+        let field_type = data_type_to_field_type(&prop.data_type);
+        FieldDef {
+            name: prop.name.clone(),
+            field_type,
+            nullable: prop.nullable,
+            default_value: prop.default.clone(),
+            fixed_length: None,
+            offset: 0,
+            null_flag_pos: None,
+            geo_shape: None,
+        }
+    }).collect();
+
+    Schema {
+        name: tag_name.to_string(),
+        version: 1,
+        fields: fields.into_iter().map(|f| (f.name.clone(), f)).collect(),
+    }
+}
+
+fn edge_type_info_to_schema(edge_type_name: &str, edge_info: &EdgeTypeInfo) -> Schema {
+    let fields: Vec<FieldDef> = edge_info.properties.iter().map(|prop| {
+        let field_type = data_type_to_field_type(&prop.data_type);
+        FieldDef {
+            name: prop.name.clone(),
+            field_type,
+            nullable: prop.nullable,
+            default_value: prop.default.clone(),
+            fixed_length: None,
+            offset: 0,
+            null_flag_pos: None,
+            geo_shape: None,
+        }
+    }).collect();
+
+    Schema {
+        name: edge_type_name.to_string(),
+        version: 1,
+        fields: fields.into_iter().map(|f| (f.name.clone(), f)).collect(),
+    }
+}
+
+impl crate::storage::metadata::SchemaManager for RedbSchemaManager {
+    fn create_space(&self, space: &SpaceInfo) -> Result<bool, StorageError> {
+        let key = space.space_name.as_bytes();
+        let space_bytes = space_to_bytes(space)?;
+
+        let write_txn = self.db.begin_write()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        {
+            let mut table = write_txn.open_table(SPACES_TABLE)
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+            if table.get(ByteKey(key.to_vec()))
+                .map_err(|e| StorageError::DbError(e.to_string()))?
+                .is_some() {
+                return Ok(false);
+            }
+
+            table.insert(ByteKey(key.to_vec()), ByteKey(space_bytes))
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+        }
+        write_txn.commit()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        Ok(true)
+    }
+
+    fn drop_space(&self, space_name: &str) -> Result<bool, StorageError> {
+        let key = space_name.as_bytes();
+
+        let write_txn = self.db.begin_write()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        {
+            let mut table = write_txn.open_table(SPACES_TABLE)
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+            if table.get(ByteKey(key.to_vec()))
+                .map_err(|e| StorageError::DbError(e.to_string()))?
+                .is_none() {
+                return Ok(false);
+            }
+
+            table.remove(ByteKey(key.to_vec()))
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+        }
+        write_txn.commit()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        Ok(true)
+    }
+
+    fn get_space(&self, space_name: &str) -> Result<Option<SpaceInfo>, StorageError> {
+        let key = space_name.as_bytes();
+
+        let read_txn = self.db.begin_read()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        let table = read_txn.open_table(SPACES_TABLE)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        match table.get(ByteKey(key.to_vec()))
+            .map_err(|e| StorageError::DbError(e.to_string()))? {
+            Some(value) => {
+                let space_bytes = value.value().0;
+                let space: SpaceInfo = space_from_bytes(&space_bytes)?;
+                Ok(Some(space))
+            }
+            None => Ok(None),
+        }
+    }
+
+    fn list_spaces(&self) -> Result<Vec<SpaceInfo>, StorageError> {
+        let read_txn = self.db.begin_read()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        let table = read_txn.open_table(SPACES_TABLE)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        let mut spaces = Vec::new();
+        for result in table.iter()
+            .map_err(|e| StorageError::DbError(e.to_string()))? {
+            let (_, space_bytes) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
+            let space: SpaceInfo = space_from_bytes(&space_bytes.value().0)?;
+            spaces.push(space);
+        }
+
+        Ok(spaces)
+    }
+
+    fn create_tag(&self, space: &str, tag: &TagInfo) -> Result<bool, StorageError> {
+        let key = format!("{}:{}", space, tag.tag_name);
+        let tag_bytes = tag_to_bytes(tag)?;
+
+        let write_txn = self.db.begin_write()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        {
+            let mut table = write_txn.open_table(TAGS_TABLE)
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+            if table.get(ByteKey(key.as_bytes().to_vec()))
+                .map_err(|e| StorageError::DbError(e.to_string()))?
+                .is_some() {
+                return Ok(false);
+            }
+
+            table.insert(ByteKey(key.as_bytes().to_vec()), ByteKey(tag_bytes))
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+        }
+        write_txn.commit()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        Ok(true)
+    }
+
+    fn get_tag(&self, space: &str, tag_name: &str) -> Result<Option<TagInfo>, StorageError> {
+        let key = format!("{}:{}", space, tag_name);
+
+        let read_txn = self.db.begin_read()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        let table = read_txn.open_table(TAGS_TABLE)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        match table.get(ByteKey(key.as_bytes().to_vec()))
+            .map_err(|e| StorageError::DbError(e.to_string()))? {
+            Some(value) => {
+                let tag_bytes = value.value().0;
+                let tag: TagInfo = tag_from_bytes(&tag_bytes)?;
+                Ok(Some(tag))
+            }
+            None => Ok(None),
+        }
+    }
+
+    fn list_tags(&self, space: &str) -> Result<Vec<TagInfo>, StorageError> {
+        let read_txn = self.db.begin_read()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        let table = read_txn.open_table(TAGS_TABLE)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        let mut tags = Vec::new();
+        for result in table.iter()
+            .map_err(|e| StorageError::DbError(e.to_string()))? {
+            let (key_bytes, tag_bytes) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
+            let key_data = key_bytes.value().0.clone();
+            let key_str = String::from_utf8_lossy(&key_data);
+            if key_str.starts_with(&format!("{}:", space)) {
+                let tag: TagInfo = tag_from_bytes(&tag_bytes.value().0)?;
+                tags.push(tag);
+            }
+        }
+
+        Ok(tags)
+    }
+
+    fn drop_tag(&self, space: &str, tag_name: &str) -> Result<bool, StorageError> {
+        let key = format!("{}:{}", space, tag_name);
+
+        let write_txn = self.db.begin_write()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        {
+            let mut table = write_txn.open_table(TAGS_TABLE)
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+            if table.get(ByteKey(key.as_bytes().to_vec()))
+                .map_err(|e| StorageError::DbError(e.to_string()))?
+                .is_none() {
+                return Ok(false);
+            }
+
+            table.remove(ByteKey(key.as_bytes().to_vec()))
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+        }
+        write_txn.commit()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        Ok(true)
+    }
+
+    fn create_edge_type(&self, space: &str, edge: &EdgeTypeInfo) -> Result<bool, StorageError> {
+        let key = format!("{}:{}", space, edge.edge_type_name);
+        let edge_bytes = edge_type_to_bytes(edge)?;
+
+        let write_txn = self.db.begin_write()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        {
+            let mut table = write_txn.open_table(EDGE_TYPES_TABLE)
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+            if table.get(ByteKey(key.as_bytes().to_vec()))
+                .map_err(|e| StorageError::DbError(e.to_string()))?
+                .is_some() {
+                return Ok(false);
+            }
+
+            table.insert(ByteKey(key.as_bytes().to_vec()), ByteKey(edge_bytes))
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+        }
+        write_txn.commit()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        Ok(true)
+    }
+
+    fn get_edge_type(&self, space: &str, edge_type_name: &str) -> Result<Option<EdgeTypeInfo>, StorageError> {
+        let key = format!("{}:{}", space, edge_type_name);
+
+        let read_txn = self.db.begin_read()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        let table = read_txn.open_table(EDGE_TYPES_TABLE)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        match table.get(ByteKey(key.as_bytes().to_vec()))
+            .map_err(|e| StorageError::DbError(e.to_string()))? {
+            Some(value) => {
+                let edge_bytes = value.value().0;
+                let edge: EdgeTypeInfo = edge_type_from_bytes(&edge_bytes)?;
+                Ok(Some(edge))
+            }
+            None => Ok(None),
+        }
+    }
+
+    fn list_edge_types(&self, space: &str) -> Result<Vec<EdgeTypeInfo>, StorageError> {
+        let read_txn = self.db.begin_read()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        let table = read_txn.open_table(EDGE_TYPES_TABLE)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        let mut edges = Vec::new();
+        for result in table.iter()
+            .map_err(|e| StorageError::DbError(e.to_string()))? {
+            let (key_bytes, edge_bytes) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
+            let key_data = key_bytes.value().0.clone();
+            let key_str = String::from_utf8_lossy(&key_data);
+            if key_str.starts_with(&format!("{}:", space)) {
+                let edge: EdgeTypeInfo = edge_type_from_bytes(&edge_bytes.value().0)?;
+                edges.push(edge);
+            }
+        }
+
+        Ok(edges)
+    }
+
+    fn drop_edge_type(&self, space: &str, edge_type_name: &str) -> Result<bool, StorageError> {
+        let key = format!("{}:{}", space, edge_type_name);
+
+        let write_txn = self.db.begin_write()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        {
+            let mut table = write_txn.open_table(EDGE_TYPES_TABLE)
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+            if table.get(ByteKey(key.as_bytes().to_vec()))
+                .map_err(|e| StorageError::DbError(e.to_string()))?
+                .is_none() {
+                return Ok(false);
+            }
+
+            table.remove(ByteKey(key.as_bytes().to_vec()))
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+        }
+        write_txn.commit()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        Ok(true)
+    }
+
+    fn get_tag_schema(&self, space: &str, tag: &str) -> Result<Schema, StorageError> {
+        let key = format!("{}:{}", space, tag);
+
+        let read_txn = self.db.begin_read()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        let table = read_txn.open_table(TAGS_TABLE)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        match table.get(ByteKey(key.as_bytes().to_vec()))
+            .map_err(|e| StorageError::DbError(e.to_string()))? {
+            Some(value) => {
+                let tag_bytes = value.value().0;
+                let tag_info: TagInfo = tag_from_bytes(&tag_bytes)?;
+                Ok(tag_info_to_schema(tag, &tag_info))
+            }
+            None => Err(StorageError::DbError(format!("Tag '{}' not found in space '{}'", tag, space))),
+        }
+    }
+
+    fn get_edge_type_schema(&self, space: &str, edge: &str) -> Result<Schema, StorageError> {
+        let key = format!("{}:{}", space, edge);
+
+        let read_txn = self.db.begin_read()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        let table = read_txn.open_table(EDGE_TYPES_TABLE)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        match table.get(ByteKey(key.as_bytes().to_vec()))
+            .map_err(|e| StorageError::DbError(e.to_string()))? {
+            Some(value) => {
+                let edge_bytes = value.value().0;
+                let edge_info: EdgeTypeInfo = edge_type_from_bytes(&edge_bytes)?;
+                Ok(edge_type_info_to_schema(edge, &edge_info))
+            }
+            None => Err(StorageError::DbError(format!("Edge type '{}' not found in space '{}'", edge, space))),
+        }
+    }
+}

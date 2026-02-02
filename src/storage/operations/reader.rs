@@ -36,7 +36,7 @@ pub trait EdgeReader: Send + Sync {
         space: &str,
         node_id: &Value,
         direction: EdgeDirection,
-        edge_type: Option<&str>,
+        filter: Option<Box<dyn Fn(&Edge) -> bool + Send + Sync>>,
     ) -> Result<ScanResult<Edge>, StorageError>;
     fn scan_edges_by_type(
         &self,

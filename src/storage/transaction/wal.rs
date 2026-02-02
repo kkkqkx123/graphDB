@@ -157,15 +157,19 @@ pub struct TransactionLog {
     stats: Arc<Mutex<LogStats>>,
 }
 
+const MAX_BUFFER_SIZE: usize = 1000;
+const MAX_LOG_RECORD_SIZE: usize = 1024 * 1024;
+
 impl Default for TransactionLog {
     fn default() -> Self {
         Self::new(PathBuf::from("transaction_logs"), LogConfig::default())
+            .expect("Failed to create default TransactionLog")
     }
 }
 
 impl TransactionLog {
-    pub fn new(log_dir: PathBuf, config: LogConfig) -> Self {
-        std::fs::create_dir_all(&log_dir).ok();
+    pub fn new(log_dir: PathBuf, config: LogConfig) -> Result<Self, StorageError> {
+        std::fs::create_dir_all(&log_dir).map_err(|e| StorageError::DbError(e.to_string()))?;
 
         let mut log_files = Vec::new();
         if let Ok(entries) = std::fs::read_dir(&log_dir) {
@@ -177,7 +181,7 @@ impl TransactionLog {
         }
         log_files.sort();
 
-        Self {
+        Ok(Self {
             log_dir,
             current_log: Arc::new(Mutex::new(None)),
             log_files: RwLock::new(log_files),
@@ -186,7 +190,7 @@ impl TransactionLog {
             buffer: Arc::new(Mutex::new(Vec::new())),
             config,
             stats: Arc::new(Mutex::new(LogStats::default())),
-        }
+        })
     }
 
     /// 分配 LSN
@@ -198,6 +202,14 @@ impl TransactionLog {
 
     /// 写入日志记录
     pub fn write(&self, record: LogRecord) -> Result<u64, StorageError> {
+        let record_size = record.size();
+        if record_size > MAX_LOG_RECORD_SIZE {
+            return Err(StorageError::DbError(format!(
+                "Log record size {} exceeds maximum allowed {}",
+                record_size, MAX_LOG_RECORD_SIZE
+            )));
+        }
+
         let lsn = self.allocate_lsn();
         let mut record = record;
         record.lsn = lsn;
@@ -207,6 +219,9 @@ impl TransactionLog {
         }
 
         let mut buffer = self.buffer.lock().unwrap();
+        if buffer.len() >= MAX_BUFFER_SIZE {
+            self.flush_buffer()?;
+        }
         buffer.push(record.clone());
 
         if buffer.len() >= self.config.buffer_size || record.log_type == LogType::Commit {
@@ -214,7 +229,7 @@ impl TransactionLog {
         }
 
         let mut stats = self.stats.lock().unwrap();
-        stats.bytes_written += record.size() as u64;
+        stats.bytes_written += record_size as u64;
         stats.records_written += 1;
 
         Ok(lsn)
@@ -595,7 +610,7 @@ mod tests {
             ..Default::default()
         };
 
-        let log = TransactionLog::new(log_dir, config);
+        let log = TransactionLog::new(log_dir, config).unwrap();
         let tx_id = TransactionId::new(1);
 
         let lsn = log.write_begin(tx_id).unwrap();

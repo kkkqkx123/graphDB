@@ -13,19 +13,19 @@ use std::cell::RefCell;
 use std::result::Result as StdResult;
 
 /// LIMIT下推访问者
+///
+/// 状态不变量：
+/// - `is_pushed_down` 为 true 时，`pushed_node` 必须为 Some
+/// - `is_pushed_down` 为 false 时，`pushed_node` 必须为 None
 #[derive(Clone)]
-struct LimitPushDownVisitor {
-    pushed_down: bool,
-    new_node: Option<OptGroupNode>,
-    ctx: *const OptContext,
+struct LimitPushDownVisitor<'a> {
+    is_pushed_down: bool,
+    pushed_node: Option<OptGroupNode>,
+    ctx: &'a OptContext,
     node_dependencies: Vec<usize>,
 }
 
-impl LimitPushDownVisitor {
-    fn get_ctx(&self) -> &OptContext {
-        unsafe { &*self.ctx }
-    }
-
+impl<'a> LimitPushDownVisitor<'a> {
     fn can_push_down_to(&self, child_node: &PlanNodeEnum) -> bool {
         matches!(
             child_node.type_name(),
@@ -34,7 +34,7 @@ impl LimitPushDownVisitor {
     }
 }
 
-impl PlanNodeVisitor for LimitPushDownVisitor {
+impl<'a> PlanNodeVisitor for LimitPushDownVisitor<'a> {
     type Result = Self;
 
     fn visit_default(&mut self) -> Self::Result {
@@ -46,8 +46,7 @@ impl PlanNodeVisitor for LimitPushDownVisitor {
         let input_id = input.id() as usize;
 
         if let Some(dep_id) = self.node_dependencies.first() {
-            let ctx_ref = self.get_ctx();
-            let child_node_opt = ctx_ref.find_group_node_by_plan_node_id(*dep_id);
+            let child_node_opt = self.ctx.find_group_node_by_plan_node_id(*dep_id);
             if let Some(child_node) = child_node_opt {
                 let child_node_ref = child_node.borrow();
                 if self.can_push_down_to(&child_node_ref.plan_node) {
@@ -56,7 +55,6 @@ impl PlanNodeVisitor for LimitPushDownVisitor {
                     let child_node_type = child_node_ref.plan_node.type_name().to_string();
                     let child_node_clone = child_node_ref.clone();
                     drop(child_node_ref);
-                    drop(ctx_ref);
 
                     match child_node_type.as_str() {
                         "GetVertices" => {
@@ -69,8 +67,8 @@ impl PlanNodeVisitor for LimitPushDownVisitor {
 
                                 let mut new_node = child_node_clone;
                                 new_node.plan_node = PlanNodeEnum::GetVertices(new_get_vertices);
-                                self.pushed_down = true;
-                                self.new_node = Some(new_node);
+                                self.is_pushed_down = true;
+                                self.pushed_node = Some(new_node);
                             }
                         }
                         "GetEdges" => {
@@ -83,8 +81,8 @@ impl PlanNodeVisitor for LimitPushDownVisitor {
 
                                 let mut new_node = child_node_clone;
                                 new_node.plan_node = PlanNodeEnum::GetEdges(new_get_edges);
-                                self.pushed_down = true;
-                                self.new_node = Some(new_node);
+                                self.is_pushed_down = true;
+                                self.pushed_node = Some(new_node);
                             }
                         }
                         "IndexScan" => {
@@ -97,8 +95,8 @@ impl PlanNodeVisitor for LimitPushDownVisitor {
 
                                 let mut new_node = child_node_clone;
                                 new_node.plan_node = PlanNodeEnum::IndexScan(new_index_scan);
-                                self.pushed_down = true;
-                                self.new_node = Some(new_node);
+                                self.is_pushed_down = true;
+                                self.pushed_node = Some(new_node);
                             }
                         }
                         "ScanVertices" => {
@@ -111,8 +109,8 @@ impl PlanNodeVisitor for LimitPushDownVisitor {
 
                                 let mut new_node = child_node_clone;
                                 new_node.plan_node = PlanNodeEnum::ScanVertices(new_scan_vertices);
-                                self.pushed_down = true;
-                                self.new_node = Some(new_node);
+                                self.is_pushed_down = true;
+                                self.pushed_node = Some(new_node);
                             }
                         }
                         "ScanEdges" => {
@@ -125,8 +123,8 @@ impl PlanNodeVisitor for LimitPushDownVisitor {
 
                                 let mut new_node = child_node_clone;
                                 new_node.plan_node = PlanNodeEnum::ScanEdges(new_scan_edges);
-                                self.pushed_down = true;
-                                self.new_node = Some(new_node);
+                                self.is_pushed_down = true;
+                                self.pushed_node = Some(new_node);
                             }
                         }
                         _ => {}
@@ -159,17 +157,17 @@ impl OptRule for PushLimitDownRule {
         }
 
         let mut visitor = LimitPushDownVisitor {
-            pushed_down: false,
-            new_node: None,
-            ctx: ctx as *const OptContext,
+            is_pushed_down: false,
+            pushed_node: None,
+            ctx,
             node_dependencies: node_ref.dependencies.clone(),
         };
 
         let result = visitor.visit(&node_ref.plan_node);
         drop(node_ref);
 
-        if result.pushed_down {
-            if let Some(new_node) = result.new_node {
+        if result.is_pushed_down {
+            if let Some(new_node) = result.pushed_node {
                 let mut transform_result = TransformResult::new();
                 transform_result.add_new_group_node(Rc::new(RefCell::new(new_node)));
                 return Ok(Some(transform_result));

@@ -12,6 +12,7 @@ pub mod types;
 pub mod schema;
 pub mod row_reader;
 pub mod date_utils;
+pub mod serializer;
 
 #[cfg(test)]
 pub mod test_mock;

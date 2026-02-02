@@ -125,7 +125,7 @@ mod tests {
         }
 
         fn pattern(&self) -> Pattern {
-            Pattern::new("Test")
+            Pattern::new()
         }
     }
 

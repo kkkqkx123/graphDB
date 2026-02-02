@@ -1,32 +1,48 @@
 use super::{Engine, Operation, StorageIterator, TransactionId, SnapshotId};
 use crate::core::StorageError;
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
+
+const MAX_SNAPSHOTS: usize = 10;
+const MAX_SNAPSHOT_SIZE: usize = 1000;
 
 #[derive(Clone)]
 pub struct MemoryEngine {
-    data: Arc<Mutex<HashMap<Vec<u8>, Vec<u8>>>>,
-    snapshots: Arc<Mutex<HashMap<SnapshotId, HashMap<Vec<u8>, Vec<u8>>>>>,
-    active_transactions: Arc<Mutex<HashMap<TransactionId, TransactionData>>>,
-    next_tx_id: Arc<Mutex<TransactionId>>,
-    next_snapshot_id: Arc<Mutex<SnapshotId>>,
+    data: Arc<RwLock<HashMap<Vec<u8>, Vec<u8>>>>,
+    snapshots: Arc<RwLock<HashMap<SnapshotId, Arc<HashMap<Vec<u8>, Vec<u8>>>>>>,
+    active_transactions: Arc<RwLock<HashMap<TransactionId, TransactionData>>>,
+    next_tx_id: Arc<RwLock<TransactionId>>,
+    next_snapshot_id: Arc<RwLock<SnapshotId>>,
 }
 
 #[derive(Debug, Clone)]
 struct TransactionData {
     writes: HashMap<Vec<u8>, Vec<u8>>,
     deletes: Vec<Vec<u8>>,
-    snapshot: HashMap<Vec<u8>, Vec<u8>>,
+    snapshot: Arc<HashMap<Vec<u8>, Vec<u8>>>,
 }
 
 impl MemoryEngine {
     pub fn new() -> Self {
         Self {
-            data: Arc::new(Mutex::new(HashMap::new())),
-            snapshots: Arc::new(Mutex::new(HashMap::new())),
-            active_transactions: Arc::new(Mutex::new(HashMap::new())),
-            next_tx_id: Arc::new(Mutex::new(TransactionId::new(1))),
-            next_snapshot_id: Arc::new(Mutex::new(SnapshotId::new(1))),
+            data: Arc::new(RwLock::new(HashMap::new())),
+            snapshots: Arc::new(RwLock::new(HashMap::new())),
+            active_transactions: Arc::new(RwLock::new(HashMap::new())),
+            next_tx_id: Arc::new(RwLock::new(TransactionId::new(1))),
+            next_snapshot_id: Arc::new(RwLock::new(SnapshotId::new(1))),
+        }
+    }
+
+    fn cleanup_old_snapshots(snapshots: &mut HashMap<SnapshotId, Arc<HashMap<Vec<u8>, Vec<u8>>>>) {
+        if snapshots.len() <= MAX_SNAPSHOTS {
+            return;
+        }
+        let to_remove: Vec<_> = snapshots.keys()
+            .take(snapshots.len() - MAX_SNAPSHOTS)
+            .cloned()
+            .collect();
+        for key in to_remove {
+            snapshots.remove(&key);
         }
     }
 }
@@ -39,24 +55,24 @@ impl Default for MemoryEngine {
 
 impl Engine for MemoryEngine {
     fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>, StorageError> {
-        let data = self.data.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let data = self.data.read().map_err(|e| StorageError::DbError(e.to_string()))?;
         Ok(data.get(key).cloned())
     }
 
     fn put(&mut self, key: &[u8], value: &[u8]) -> Result<(), StorageError> {
-        let mut data = self.data.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let mut data = self.data.write().map_err(|e| StorageError::DbError(e.to_string()))?;
         data.insert(key.to_vec(), value.to_vec());
         Ok(())
     }
 
     fn delete(&mut self, key: &[u8]) -> Result<(), StorageError> {
-        let mut data = self.data.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let mut data = self.data.write().map_err(|e| StorageError::DbError(e.to_string()))?;
         data.remove(key);
         Ok(())
     }
 
     fn scan(&self, prefix: &[u8]) -> Result<Box<dyn StorageIterator>, StorageError> {
-        let data = self.data.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let data = self.data.read().map_err(|e| StorageError::DbError(e.to_string()))?;
         let mut results: Vec<(Vec<u8>, Vec<u8>)> = data
             .iter()
             .filter(|(k, _)| k.starts_with(prefix))
@@ -77,7 +93,7 @@ impl Engine for MemoryEngine {
     }
 
     fn batch(&mut self, ops: Vec<Operation>) -> Result<(), StorageError> {
-        let mut data = self.data.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let mut data = self.data.write().map_err(|e| StorageError::DbError(e.to_string()))?;
         for op in ops {
             match op {
                 Operation::Put { key, value } => {
@@ -92,14 +108,18 @@ impl Engine for MemoryEngine {
     }
 
     fn begin_transaction(&mut self) -> Result<TransactionId, StorageError> {
-        let mut next_tx_id = self.next_tx_id.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let mut next_tx_id = self.next_tx_id.write().map_err(|e| StorageError::DbError(e.to_string()))?;
         let tx_id = *next_tx_id;
         *next_tx_id += 1;
 
-        let data = self.data.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        let snapshot: HashMap<Vec<u8>, Vec<u8>> = data.clone();
+        let data = self.data.read().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let snapshot_data: HashMap<Vec<u8>, Vec<u8>> = data.iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect();
+        drop(data);
+        let snapshot: Arc<HashMap<Vec<u8>, Vec<u8>>> = Arc::new(snapshot_data);
 
-        let mut active_transactions = self.active_transactions.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let mut active_transactions = self.active_transactions.write().map_err(|e| StorageError::DbError(e.to_string()))?;
         active_transactions.insert(tx_id, TransactionData {
             writes: HashMap::new(),
             deletes: Vec::new(),
@@ -110,9 +130,9 @@ impl Engine for MemoryEngine {
     }
 
     fn commit_transaction(&mut self, tx_id: TransactionId) -> Result<(), StorageError> {
-        let mut active_transactions = self.active_transactions.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let mut active_transactions = self.active_transactions.write().map_err(|e| StorageError::DbError(e.to_string()))?;
         if let Some(tx_data) = active_transactions.remove(&tx_id) {
-            let mut data = self.data.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+            let mut data = self.data.write().map_err(|e| StorageError::DbError(e.to_string()))?;
 
             for key in tx_data.deletes {
                 data.remove(&key);
@@ -126,29 +146,38 @@ impl Engine for MemoryEngine {
     }
 
     fn rollback_transaction(&mut self, tx_id: TransactionId) -> Result<(), StorageError> {
-        let mut active_transactions = self.active_transactions.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let mut active_transactions = self.active_transactions.write().map_err(|e| StorageError::DbError(e.to_string()))?;
         active_transactions.remove(&tx_id);
         Ok(())
     }
 
     fn create_snapshot(&self) -> Result<SnapshotId, StorageError> {
-        let mut next_snapshot_id = self.next_snapshot_id.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let mut next_snapshot_id = self.next_snapshot_id.write().map_err(|e| StorageError::DbError(e.to_string()))?;
         let snap_id = *next_snapshot_id;
         *next_snapshot_id += 1;
 
-        let data = self.data.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        let snapshot_data: HashMap<Vec<u8>, Vec<u8>> = data.clone();
+        let data = self.data.read().map_err(|e| StorageError::DbError(e.to_string()))?;
+        if data.len() > MAX_SNAPSHOT_SIZE {
+            return Err(StorageError::DbError("Snapshot exceeds maximum size".to_string()));
+        }
+        let snapshot_data: HashMap<Vec<u8>, Vec<u8>> = data.iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect();
+        drop(data);
+        let snapshot: Arc<HashMap<Vec<u8>, Vec<u8>>> = Arc::new(snapshot_data);
 
-        let mut snapshots = self.snapshots.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        snapshots.insert(snap_id, snapshot_data);
+        let mut snapshots = self.snapshots.write().map_err(|e| StorageError::DbError(e.to_string()))?;
+        Self::cleanup_old_snapshots(&mut snapshots);
+        snapshots.insert(snap_id, snapshot);
 
         Ok(snap_id)
     }
 
     fn get_snapshot(&self, snap_id: SnapshotId) -> Result<Option<Box<dyn StorageIterator>>, StorageError> {
-        let snapshots = self.snapshots.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let snapshots = self.snapshots.read().map_err(|e| StorageError::DbError(e.to_string()))?;
         if let Some(snapshot_data) = snapshots.get(&snap_id) {
-            let mut results: Vec<(Vec<u8>, Vec<u8>)> = snapshot_data
+            let snapshot_ref: &HashMap<Vec<u8>, Vec<u8>> = &**snapshot_data;
+            let mut results: Vec<(Vec<u8>, Vec<u8>)> = snapshot_ref
                 .iter()
                 .map(|(k, v)| (k.clone(), v.clone()))
                 .collect();
@@ -170,7 +199,7 @@ impl Engine for MemoryEngine {
     }
 
     fn delete_snapshot(&self, snap_id: SnapshotId) -> Result<(), StorageError> {
-        let mut snapshots = self.snapshots.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let mut snapshots = self.snapshots.write().map_err(|e| StorageError::DbError(e.to_string()))?;
         snapshots.remove(&snap_id);
         Ok(())
     }

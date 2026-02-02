@@ -86,6 +86,7 @@ fn parse_expression_safe(expr_str: &str) -> Option<crate::core::Expression> {
 /// 包含递归检测和安全验证机制
 pub struct ExecutorFactory<S: StorageClient + 'static> {
     storage: Option<Arc<Mutex<S>>>,
+    config: ExecutorSafetyConfig,
     recursion_detector: RecursionDetector,
     safety_validator: ExecutorSafetyValidator,
 }
@@ -93,11 +94,13 @@ pub struct ExecutorFactory<S: StorageClient + 'static> {
 impl<S: StorageClient + 'static> ExecutorFactory<S> {
     /// 创建新的执行器工厂
     pub fn new() -> Self {
-        let recursion_detector = RecursionDetector::new(100);
-        let safety_validator = ExecutorSafetyValidator::new(ExecutorSafetyConfig::default());
+        let config = ExecutorSafetyConfig::default();
+        let recursion_detector = RecursionDetector::new(config.max_recursion_depth);
+        let safety_validator = ExecutorSafetyValidator::new(config.clone());
 
         Self {
             storage: None,
+            config,
             recursion_detector,
             safety_validator,
         }
@@ -105,11 +108,13 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
 
     /// 设置存储引擎
     pub fn with_storage(storage: Arc<Mutex<S>>) -> Self {
-        let recursion_detector = RecursionDetector::new(100);
-        let safety_validator = ExecutorSafetyValidator::new(ExecutorSafetyConfig::default());
+        let config = ExecutorSafetyConfig::default();
+        let recursion_detector = RecursionDetector::new(config.max_recursion_depth);
+        let safety_validator = ExecutorSafetyValidator::new(config.clone());
 
         Self {
             storage: Some(storage),
+            config,
             recursion_detector,
             safety_validator,
         }
@@ -345,12 +350,18 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
 
     /// 根据计划节点创建执行器
     pub fn create_executor(
-        &self,
+        &mut self,
         plan_node: &PlanNodeEnum,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
     ) -> Result<ExecutorEnum<S>, QueryError> {
         self.validate_plan_node(plan_node)?;
+
+        if self.config.enable_recursion_detection {
+            self.recursion_detector
+                .validate_executor(plan_node.id(), plan_node.name())
+                .map_err(|e| QueryError::ExecutionError(e.to_string()))?;
+        }
 
         match plan_node {
             PlanNodeEnum::Start(node) => Ok(ExecutorEnum::Start(StartExecutor::new(node.id()))),
@@ -1228,7 +1239,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
 
     /// 递归构建执行器树
     fn build_and_create_executor(
-        &self,
+        &mut self,
         plan_node: &PlanNodeEnum,
         storage: Arc<Mutex<S>>,
         context: &ExecutionContext,
@@ -1257,7 +1268,7 @@ mod tests {
 
     #[test]
     fn test_recursion_detector_basic() {
-        let factory = ExecutorFactory::<MockStorage>::new();
+        let mut factory = ExecutorFactory::<MockStorage>::new();
         let storage = Arc::new(Mutex::new(MockStorage));
         let context = ExecutionContext::new();
 
