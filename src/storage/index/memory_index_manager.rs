@@ -955,6 +955,7 @@ mod tests {
             1,
             "person".to_string(),
             vec![],
+            vec![],
             IndexType::TagIndex,
             false,
         );
@@ -972,8 +973,8 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let manager = MemoryIndexManager::new(temp_dir.path().to_path_buf());
         
-        let index1 = Index::new(0, "index1".to_string(), 1, "person".to_string(), vec![], IndexType::TagIndex, false);
-        let index2 = Index::new(0, "index2".to_string(), 2, "company".to_string(), vec![], IndexType::TagIndex, false);
+        let index1 = Index::new(0, "index1".to_string(), 1, "person".to_string(), vec![], vec![], IndexType::TagIndex, false);
+        let index2 = Index::new(0, "index2".to_string(), 2, "company".to_string(), vec![], vec![], IndexType::TagIndex, false);
         
         manager.create_index(1, index1).unwrap();
         manager.create_index(2, index2).unwrap();

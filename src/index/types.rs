@@ -187,6 +187,7 @@ mod tests {
             1,
             "person".to_string(),
             fields,
+            vec![],
             IndexType::TagIndex,
             false,
         );

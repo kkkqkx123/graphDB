@@ -2,7 +2,8 @@ use crate::core::StorageError;
 use crate::core::types::{
     EdgeTypeInfo, SpaceInfo, TagInfo,
 };
-use crate::storage::{FieldDef, FieldType, Schema};
+use crate::storage::{FieldDef, Schema};
+use crate::storage::utils::{tag_info_to_schema, edge_type_info_to_schema};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -51,70 +52,12 @@ impl MemorySchemaManager {
         }
     }
 
-    fn data_type_to_field_type(data_type: &crate::core::DataType) -> FieldType {
-        match data_type {
-            crate::core::DataType::Bool => FieldType::Bool,
-            crate::core::DataType::Int8 => FieldType::Int8,
-            crate::core::DataType::Int16 => FieldType::Int16,
-            crate::core::DataType::Int32 => FieldType::Int32,
-            crate::core::DataType::Int64 => FieldType::Int64,
-            crate::core::DataType::Float => FieldType::Float,
-            crate::core::DataType::Double => FieldType::Double,
-            crate::core::DataType::String => FieldType::String,
-            crate::core::DataType::Date => FieldType::Date,
-            crate::core::DataType::Time => FieldType::Time,
-            crate::core::DataType::DateTime => FieldType::DateTime,
-            crate::core::DataType::List => FieldType::List,
-            crate::core::DataType::Map => FieldType::Map,
-            crate::core::DataType::Set => FieldType::Set,
-            crate::core::DataType::Geography => FieldType::Geography,
-            crate::core::DataType::Duration => FieldType::Duration,
-            _ => FieldType::String,
-        }
-    }
-
     fn tag_info_to_schema(tag_name: &str, tag_info: &TagInfo) -> Schema {
-        let fields: Vec<FieldDef> = tag_info.properties.iter().map(|prop| {
-            let field_type = Self::data_type_to_field_type(&prop.data_type);
-            FieldDef {
-                name: prop.name.clone(),
-                field_type,
-                nullable: prop.nullable,
-                default_value: prop.default.clone(),
-                fixed_length: None,
-                offset: 0,
-                null_flag_pos: None,
-                geo_shape: None,
-            }
-        }).collect();
-
-        Schema {
-            name: tag_name.to_string(),
-            version: 1,
-            fields: fields.into_iter().map(|f| (f.name.clone(), f)).collect(),
-        }
+        tag_info_to_schema(tag_name, tag_info)
     }
 
     fn edge_type_info_to_schema(edge_type_name: &str, edge_info: &EdgeTypeInfo) -> Schema {
-        let fields: Vec<FieldDef> = edge_info.properties.iter().map(|prop| {
-            let field_type = Self::data_type_to_field_type(&prop.data_type);
-            FieldDef {
-                name: prop.name.clone(),
-                field_type,
-                nullable: prop.nullable,
-                default_value: prop.default.clone(),
-                fixed_length: None,
-                offset: 0,
-                null_flag_pos: None,
-                geo_shape: None,
-            }
-        }).collect();
-
-        Schema {
-            name: edge_type_name.to_string(),
-            version: 1,
-            fields: fields.into_iter().map(|f| (f.name.clone(), f)).collect(),
-        }
+        edge_type_info_to_schema(edge_type_name, edge_info)
     }
 }
 

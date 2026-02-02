@@ -313,15 +313,19 @@ impl<'a, S: StorageClient> DeduceTypeVisitor<'a, S> {
             DataType::Int | DataType::Int8 | DataType::Int16 | DataType::Int32 | DataType::Int64 => DataType::Int,
             DataType::Float | DataType::Double => DataType::Float,
             DataType::String => DataType::String,
+            DataType::FixedString(_) => DataType::String,
             DataType::Date => DataType::Date,
             DataType::Time => DataType::Time,
+            DataType::Timestamp => DataType::Time,
             DataType::DateTime => DataType::DateTime,
+            DataType::VID => DataType::String,
             DataType::Vertex => DataType::Vertex,
             DataType::Edge => DataType::Edge,
             DataType::Path => DataType::Path,
             DataType::List => DataType::List,
             DataType::Map => DataType::Map,
             DataType::Set => DataType::Set,
+            DataType::Blob => DataType::String,
             DataType::Geography => DataType::Geography,
             DataType::Duration => DataType::Duration,
             DataType::DataSet => DataType::DataSet,
@@ -561,9 +565,11 @@ impl<'a, S: StorageClient> ExpressionVisitor for DeduceTypeVisitor<'a, S> {
 mod tests {
     use super::*;
     use crate::core::types::{
-        EdgeTypeSchema, IndexInfo, InsertEdgeInfo, InsertVertexInfo, PasswordInfo,
+        EdgeTypeSchema, InsertEdgeInfo, InsertVertexInfo, PasswordInfo,
         PropertyDef, SpaceInfo, TagInfo, UpdateInfo,
     };
+    use crate::query::planner::statements::seeks::IndexInfo;
+    use crate::index::Index;
     use crate::storage::Schema;
 
     /// Mock 存储引擎用于测试
@@ -756,7 +762,7 @@ mod tests {
             Ok(Vec::new())
         }
 
-        fn create_tag_index(&mut self, _space: &str, _info: &IndexInfo) -> Result<bool, StorageError> {
+        fn create_tag_index(&mut self, _space: &str, _info: &Index) -> Result<bool, StorageError> {
             Ok(true)
         }
 
@@ -768,11 +774,11 @@ mod tests {
             &self,
             _space: &str,
             _index: &str,
-        ) -> Result<Option<IndexInfo>, StorageError> {
+        ) -> Result<Option<Index>, StorageError> {
             Ok(None)
         }
 
-        fn list_tag_indexes(&self, _space: &str) -> Result<Vec<IndexInfo>, StorageError> {
+        fn list_tag_indexes(&self, _space: &str) -> Result<Vec<Index>, StorageError> {
             Ok(Vec::new())
         }
 
@@ -780,7 +786,7 @@ mod tests {
             Ok(true)
         }
 
-        fn create_edge_index(&mut self, _space: &str, _info: &IndexInfo) -> Result<bool, StorageError> {
+        fn create_edge_index(&mut self, _space: &str, _info: &Index) -> Result<bool, StorageError> {
             Ok(true)
         }
 
@@ -792,11 +798,11 @@ mod tests {
             &self,
             _space: &str,
             _index: &str,
-        ) -> Result<Option<IndexInfo>, StorageError> {
+        ) -> Result<Option<Index>, StorageError> {
             Ok(None)
         }
 
-        fn list_edge_indexes(&self, _space: &str) -> Result<Vec<IndexInfo>, StorageError> {
+        fn list_edge_indexes(&self, _space: &str) -> Result<Vec<Index>, StorageError> {
             Ok(Vec::new())
         }
 

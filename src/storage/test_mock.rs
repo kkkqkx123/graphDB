@@ -19,9 +19,13 @@ use crate::storage::StorageClient;
 use crate::storage::transaction::TransactionId;
 #[cfg(test)]
 use crate::core::types::{
-    EdgeTypeSchema, IndexInfo, InsertEdgeInfo, InsertVertexInfo, PasswordInfo,
+    EdgeTypeSchema, InsertEdgeInfo, InsertVertexInfo, PasswordInfo,
     PropertyDef, SpaceInfo, TagInfo, UpdateInfo,
 };
+#[cfg(test)]
+use crate::query::planner::statements::seeks::IndexInfo;
+#[cfg(test)]
+use crate::index::Index;
 #[cfg(test)]
 use crate::storage::Schema;
 
@@ -217,7 +221,7 @@ impl StorageClient for MockStorage {
         Ok(Vec::new())
     }
 
-    fn create_tag_index(&mut self, _space: &str, _info: &IndexInfo) -> Result<bool, StorageError> {
+    fn create_tag_index(&mut self, _space: &str, _info: &Index) -> Result<bool, StorageError> {
         Ok(true)
     }
 
@@ -229,11 +233,11 @@ impl StorageClient for MockStorage {
         &self,
         _space: &str,
         _index: &str,
-    ) -> Result<Option<IndexInfo>, StorageError> {
+    ) -> Result<Option<Index>, StorageError> {
         Ok(None)
     }
 
-    fn list_tag_indexes(&self, _space: &str) -> Result<Vec<IndexInfo>, StorageError> {
+    fn list_tag_indexes(&self, _space: &str) -> Result<Vec<Index>, StorageError> {
         Ok(Vec::new())
     }
 
@@ -241,7 +245,7 @@ impl StorageClient for MockStorage {
         Ok(true)
     }
 
-    fn create_edge_index(&mut self, _space: &str, _info: &IndexInfo) -> Result<bool, StorageError> {
+    fn create_edge_index(&mut self, _space: &str, _info: &Index) -> Result<bool, StorageError> {
         Ok(true)
     }
 
@@ -253,11 +257,11 @@ impl StorageClient for MockStorage {
         &self,
         _space: &str,
         _index: &str,
-    ) -> Result<Option<IndexInfo>, StorageError> {
+    ) -> Result<Option<Index>, StorageError> {
         Ok(None)
     }
 
-    fn list_edge_indexes(&self, _space: &str) -> Result<Vec<IndexInfo>, StorageError> {
+    fn list_edge_indexes(&self, _space: &str) -> Result<Vec<Index>, StorageError> {
         Ok(Vec::new())
     }
 

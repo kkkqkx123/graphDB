@@ -31,6 +31,10 @@ pub enum DataType {
     Geography,
     Duration,
     DataSet,
+    FixedString(usize),
+    VID,
+    Blob,
+    Timestamp,
 }
 
 pub use self::metadata::{

@@ -14,6 +14,7 @@ pub mod schema;
 pub mod row_reader;
 pub mod date_utils;
 pub mod serializer;
+pub mod utils;
 
 #[cfg(test)]
 pub mod test_mock;
@@ -39,4 +40,4 @@ pub use test_mock::*;
 pub use date_utils::*;
 pub use row_reader::RowReaderWrapper;
 pub use schema::Schema;
-pub use types::{ColumnDef, FieldDef, FieldType};
+pub use types::{ColumnDef, DataType, FieldDef, FieldType};

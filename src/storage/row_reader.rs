@@ -86,45 +86,29 @@ impl RowReaderWrapper {
 
     fn calculate_field_size(&self, field_def: &FieldDef) -> Result<usize, ExpressionError> {
         match field_def.field_type {
-            // 基本类型
-            super::types::FieldType::Bool => Ok(1),
-            super::types::FieldType::Int8 => Ok(1),
-            super::types::FieldType::Int16 => Ok(2),
-            super::types::FieldType::Int32 => Ok(4),
-            super::types::FieldType::Int64 => Ok(8),
-            super::types::FieldType::Float => Ok(4),
-            super::types::FieldType::Double => Ok(8),
-
-            // 字符串类型 - String 和 Blob 使用 8字节（4字节偏移 + 4字节长度）
-            super::types::FieldType::String => Ok(8),
-            super::types::FieldType::FixedString(len) => Ok(len),
-
-            // VID 类型 - 8字节顶点ID
-            super::types::FieldType::VID => Ok(8),
-
-            // 时间类型
-            super::types::FieldType::Timestamp => Ok(8),
-            super::types::FieldType::Date => Ok(4),
-            super::types::FieldType::Time => Ok(8),
-            super::types::FieldType::DateTime => Ok(10),
-
-            // 图类型 - 这些类型需要更复杂的处理，这里返回占位大小
-            super::types::FieldType::Vertex => Ok(16),
-            super::types::FieldType::Edge => Ok(32),
-            super::types::FieldType::Path => Ok(24),
-
-            // 集合类型 - 使用 8字节（4字节偏移 + 4字节长度）
-            super::types::FieldType::List | super::types::FieldType::Set => Ok(8),
-            super::types::FieldType::Map => Ok(8),
-
-            // Blob 类型 - 使用 8字节（4字节偏移 + 4字节长度）
-            super::types::FieldType::Blob => Ok(8),
-
-            // Geography 类型 - 使用 8字节（4字节偏移 + 4字节长度），存储 WKB
-            super::types::FieldType::Geography => Ok(8),
-
-            // Duration 类型 - 固定 16字节（8字节 seconds + 4字节 microseconds + 4字节 months）
-            super::types::FieldType::Duration => Ok(16),
+            crate::core::DataType::Bool => Ok(1),
+            crate::core::DataType::Int8 => Ok(1),
+            crate::core::DataType::Int16 => Ok(2),
+            crate::core::DataType::Int32 => Ok(4),
+            crate::core::DataType::Int64 => Ok(8),
+            crate::core::DataType::Float => Ok(4),
+            crate::core::DataType::Double => Ok(8),
+            crate::core::DataType::String => Ok(8),
+            crate::core::DataType::FixedString(len) => Ok(len),
+            crate::core::DataType::VID => Ok(8),
+            crate::core::DataType::Timestamp => Ok(8),
+            crate::core::DataType::Date => Ok(4),
+            crate::core::DataType::Time => Ok(8),
+            crate::core::DataType::DateTime => Ok(10),
+            crate::core::DataType::Vertex => Ok(16),
+            crate::core::DataType::Edge => Ok(32),
+            crate::core::DataType::Path => Ok(24),
+            crate::core::DataType::List | crate::core::DataType::Set => Ok(8),
+            crate::core::DataType::Map => Ok(8),
+            crate::core::DataType::Blob => Ok(8),
+            crate::core::DataType::Geography => Ok(8),
+            crate::core::DataType::Duration => Ok(16),
+            _ => Err(ExpressionError::type_error(format!("不支持的类型: {:?}", field_def.field_type))),
         }
     }
 
@@ -145,44 +129,44 @@ impl RowReaderWrapper {
 
     fn parse_value_by_type(&self, data: &[u8], field_def: &FieldDef) -> Result<Value, ExpressionError> {
         match field_def.field_type {
-            super::types::FieldType::Bool => {
+            crate::core::DataType::Bool => {
                 self.check_length(data, 1, "Bool")?;
                 Ok(Value::Bool(data[0] != 0))
             }
-            super::types::FieldType::Int8 => {
+            crate::core::DataType::Int8 => {
                 self.check_length(data, 1, "Int8")?;
                 Ok(Value::Int(data[0] as i8 as i64))
             }
-            super::types::FieldType::Int16 => {
+            crate::core::DataType::Int16 => {
                 self.check_length(data, 2, "Int16")?;
                 let value = i16::from_le_bytes([data[0], data[1]]);
                 Ok(Value::Int(value as i64))
             }
-            super::types::FieldType::Int32 => {
+            crate::core::DataType::Int32 => {
                 self.check_length(data, 4, "Int32")?;
                 let value = i32::from_le_bytes([data[0], data[1], data[2], data[3]]);
                 Ok(Value::Int(value as i64))
             }
-            super::types::FieldType::Int64 => {
+            crate::core::DataType::Int64 => {
                 self.check_length(data, 8, "Int64")?;
                 let value = i64::from_le_bytes([
                     data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
                 ]);
                 Ok(Value::Int(value))
             }
-            super::types::FieldType::Float => {
+            crate::core::DataType::Float => {
                 self.check_length(data, 4, "Float")?;
                 let value = f32::from_le_bytes([data[0], data[1], data[2], data[3]]);
                 Ok(Value::Float(value as f64))
             }
-            super::types::FieldType::Double => {
+            crate::core::DataType::Double => {
                 self.check_length(data, 8, "Double")?;
                 let value = f64::from_le_bytes([
                     data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
                 ]);
                 Ok(Value::Float(value))
             }
-            super::types::FieldType::String => {
+            crate::core::DataType::String => {
                 let (offset, len) = self.read_offset_data(data, "String")?;
                 if len == 0 {
                     return Ok(Value::String(String::new()));
@@ -192,18 +176,18 @@ impl RowReaderWrapper {
                     .map(Value::String)
                     .map_err(|e| ExpressionError::type_error(format!("String 解析失败: {}", e)))
             }
-            super::types::FieldType::FixedString(fixed_len) => {
+            crate::core::DataType::FixedString(fixed_len) => {
                 self.check_length(data, fixed_len, "FixedString")?;
                 let actual_len = data.iter().position(|&b| b == 0).unwrap_or(fixed_len);
                 String::from_utf8(data[..actual_len].to_vec())
                     .map(Value::String)
                     .map_err(|e| ExpressionError::type_error(format!("FixedString 解析失败: {}", e)))
             }
-            super::types::FieldType::VID => {
+            crate::core::DataType::VID => {
                 let vid_data = self.read_fixed_data(data, "VID", 8)?;
                 Ok(Value::String(self.bytes_to_string(vid_data)))
             }
-            super::types::FieldType::Blob => {
+            crate::core::DataType::Blob => {
                 let (offset, len) = self.read_offset_data(data, "Blob")?;
                 if len == 0 {
                     return Ok(Value::String(String::new()));
@@ -211,7 +195,7 @@ impl RowReaderWrapper {
                 let blob_data = &self.data[offset..offset + len];
                 Ok(Value::String(self.bytes_to_string(blob_data)))
             }
-            super::types::FieldType::Geography => {
+            crate::core::DataType::Geography => {
                 let (offset, len) = self.read_offset_data(data, "Geography")?;
                 if len == 0 {
                     return Ok(Value::String(String::new()));
@@ -219,7 +203,7 @@ impl RowReaderWrapper {
                 let wkb_data = &self.data[offset..offset + len];
                 Ok(Value::String(self.bytes_to_string(wkb_data)))
             }
-            super::types::FieldType::Vertex => {
+            crate::core::DataType::Vertex => {
                 let vid_data = self.read_fixed_data(data, "Vertex", 16)?;
                 let vid_slice = &vid_data[..8];
                 let vertex = crate::core::vertex_edge_path::Vertex {
@@ -230,7 +214,7 @@ impl RowReaderWrapper {
                 };
                 Ok(Value::Vertex(Box::new(vertex)))
             }
-            super::types::FieldType::Edge => {
+            crate::core::DataType::Edge => {
                 let edge_data = self.read_fixed_data(data, "Edge", 32)?;
                 let src_slice = &edge_data[..8];
                 let dst_slice = &edge_data[8..16];
@@ -248,7 +232,7 @@ impl RowReaderWrapper {
                 };
                 Ok(Value::Edge(edge))
             }
-            super::types::FieldType::Timestamp => {
+            crate::core::DataType::Timestamp => {
                 self.check_length(data, 8, "Timestamp")?;
                 let timestamp = i64::from_le_bytes([
                     data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
@@ -264,7 +248,7 @@ impl RowReaderWrapper {
                     microsec,
                 }))
             }
-            super::types::FieldType::Date => {
+            crate::core::DataType::Date => {
                 self.check_length(data, 4, "Date")?;
                 let year = i16::from_le_bytes([data[0], data[1]]);
                 let month = data[2];
@@ -275,7 +259,7 @@ impl RowReaderWrapper {
                     day: day as u32,
                 }))
             }
-            super::types::FieldType::Time => {
+            crate::core::DataType::Time => {
                 self.check_length(data, 8, "Time")?;
                 let hour = data[0];
                 let minute = data[1];
@@ -289,7 +273,7 @@ impl RowReaderWrapper {
                     microsec,
                 }))
             }
-            super::types::FieldType::Duration => {
+            crate::core::DataType::Duration => {
                 self.check_length(data, 16, "Duration")?;
                 let seconds = i64::from_le_bytes([
                     data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
@@ -302,25 +286,25 @@ impl RowReaderWrapper {
                     months,
                 }))
             }
-            super::types::FieldType::Path => {
+            crate::core::DataType::Path => {
                 Err(ExpressionError::unsupported_operation(
                     "Path 类型解析",
                     "Path 类型暂不支持"
                 ))
             }
-            super::types::FieldType::List => {
+            crate::core::DataType::List => {
                 Err(ExpressionError::unsupported_operation(
                     "List 类型解析",
                     "List 类型暂不支持"
                 ))
             }
-            super::types::FieldType::Set => {
+            crate::core::DataType::Set => {
                 Err(ExpressionError::unsupported_operation(
                     "Set 类型解析",
                     "Set 类型暂不支持"
                 ))
             }
-            super::types::FieldType::Map => {
+            crate::core::DataType::Map => {
                 Err(ExpressionError::unsupported_operation(
                     "Map 类型解析",
                     "Map 类型暂不支持"
@@ -361,15 +345,15 @@ impl RowReaderWrapper {
 
 #[cfg(test)]
 mod tests {
-    use super::super::types::FieldType;
+    use super::super::types::DataType;
     use super::*;
 
     #[test]
     fn test_row_reader_wrapper() {
         // 创建测试Schema - 简化版本，只测试基本功能
         let mut schema = Schema::new("player".to_string(), 1);
-        schema = schema.add_field(FieldDef::new("age".to_string(), FieldType::Int64));
-        schema = schema.add_field(FieldDef::new("score".to_string(), FieldType::Double));
+        schema = schema.add_field(FieldDef::new("age".to_string(), DataType::Int64));
+        schema = schema.add_field(FieldDef::new("score".to_string(), DataType::Double));
 
         // 创建测试数据 - 简化版本
         let mut test_data = Vec::new();

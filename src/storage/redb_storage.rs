@@ -2,78 +2,22 @@ use super::{StorageClient, TransactionId};
 use crate::core::{Edge, StorageError, Value, Vertex, EdgeDirection};
 use crate::core::vertex_edge_path::Tag;
 use crate::core::types::{
-    SpaceInfo, TagInfo, DataType,
+    SpaceInfo, TagInfo,
     PropertyDef, InsertVertexInfo, InsertEdgeInfo, UpdateInfo,
     PasswordInfo, EdgeTypeInfo, UpdateTarget, UpdateOp,
 };
 use crate::index::Index;
-use crate::storage::{FieldDef, FieldType, Schema};
+use crate::storage::{FieldDef, DataType, Schema};
 use crate::storage::operations::{RedbReader, RedbWriter, ScanResult, VertexReader, EdgeReader, VertexWriter, EdgeWriter};
 use crate::storage::metadata::{RedbSchemaManager, SchemaManager};
 use crate::storage::index::MemoryIndexManager;
 use crate::storage::redb_types::{ByteKey, TAG_INDEXES_TABLE, EDGE_INDEXES_TABLE, INDEX_DATA_TABLE, VERTEX_DATA_TABLE, EDGE_DATA_TABLE, PASSWORDS_TABLE};
 use crate::storage::serializer::{serializer_index_to_bytes, serializer_index_from_bytes, value_to_bytes, vertex_to_bytes};
+use crate::storage::utils::{property_defs_to_fields, property_defs_to_hashmap};
 use redb::{Database, ReadableTable};
 use std::collections::{HashMap, BTreeMap};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-
-fn data_type_to_field_type(data_type: &DataType) -> FieldType {
-    match data_type {
-        DataType::Empty => FieldType::String,
-        DataType::Null => FieldType::String,
-        DataType::Bool => FieldType::Bool,
-        DataType::Int => FieldType::Int64,
-        DataType::Int8 => FieldType::Int8,
-        DataType::Int16 => FieldType::Int16,
-        DataType::Int32 => FieldType::Int32,
-        DataType::Int64 => FieldType::Int64,
-        DataType::Float => FieldType::Float,
-        DataType::Double => FieldType::Double,
-        DataType::String => FieldType::String,
-        DataType::Date => FieldType::Date,
-        DataType::Time => FieldType::Timestamp,
-        DataType::DateTime => FieldType::DateTime,
-        DataType::Vertex => FieldType::String,
-        DataType::Edge => FieldType::String,
-        DataType::Path => FieldType::String,
-        DataType::List => FieldType::String,
-        DataType::Map => FieldType::String,
-        DataType::Set => FieldType::String,
-        DataType::Geography => FieldType::String,
-        DataType::Duration => FieldType::Int64,
-        DataType::DataSet => FieldType::String,
-    }
-}
-
-fn property_defs_to_fields(properties: &[PropertyDef]) -> BTreeMap<String, FieldDef> {
-    let mut fields = BTreeMap::new();
-    for prop in properties {
-        let field_type = data_type_to_field_type(&prop.data_type);
-        let field = FieldDef {
-            name: prop.name.clone(),
-            field_type,
-            nullable: prop.nullable,
-            default_value: prop.default.clone(),
-            fixed_length: None,
-            offset: 0,
-            null_flag_pos: None,
-            geo_shape: None,
-        };
-        fields.insert(prop.name.clone(), field);
-    }
-    fields
-}
-
-fn property_defs_to_hashmap(properties: &[PropertyDef]) -> HashMap<String, Value> {
-    let mut map = HashMap::new();
-    for prop in properties {
-        if let Some(default_value) = &prop.default {
-            map.insert(prop.name.clone(), default_value.clone());
-        }
-    }
-    map
-}
 
 pub struct RedbStorage {
     db: Arc<Database>,

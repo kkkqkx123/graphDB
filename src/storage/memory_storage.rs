@@ -2,12 +2,14 @@ use super::{StorageClient, TransactionId, EdgeReader, EdgeWriter, ScanResult, Ve
 use crate::core::{Edge, StorageError, Value, Vertex, EdgeDirection};
 use crate::core::vertex_edge_path::Tag;
 use crate::core::types::{
-    SpaceInfo, TagInfo, EdgeTypeInfo, EdgeTypeSchema,
+    SpaceInfo, TagInfo, EdgeTypeInfo,
     PropertyDef, InsertVertexInfo, InsertEdgeInfo, UpdateInfo,
     PasswordInfo,
 };
+pub use crate::core::types::EdgeTypeInfo as EdgeTypeSchema;
 use crate::index::Index;
-use crate::storage::{FieldDef, FieldType, Schema};
+use crate::storage::{FieldDef, Schema};
+use crate::storage::utils::{tag_info_to_schema, edge_type_info_to_schema};
 use crate::common::id::IdGenerator;
 use serde_json;
 use std::collections::HashMap;
@@ -118,69 +120,11 @@ impl MemoryStorage {
     }
 
     fn tag_info_to_schema(tag_name: &str, tag_info: &TagInfo) -> Schema {
-        let fields: Vec<FieldDef> = tag_info.properties.iter().map(|prop| {
-            let field_type = Self::data_type_to_field_type(&prop.data_type);
-            FieldDef {
-                name: prop.name.clone(),
-                field_type,
-                nullable: prop.nullable,
-                default_value: prop.default.clone(),
-                fixed_length: None,
-                offset: 0,
-                null_flag_pos: None,
-                geo_shape: None,
-            }
-        }).collect();
-
-        Schema {
-            name: tag_name.to_string(),
-            version: 1,
-            fields: fields.into_iter().map(|f| (f.name.clone(), f)).collect(),
-        }
+        tag_info_to_schema(tag_name, tag_info)
     }
 
-    fn edge_type_schema_to_schema(edge_type_name: &str, edge_schema: &EdgeTypeSchema) -> Schema {
-        let fields: Vec<FieldDef> = edge_schema.properties.iter().map(|prop| {
-            let field_type = Self::data_type_to_field_type(&prop.data_type);
-            FieldDef {
-                name: prop.name.clone(),
-                field_type,
-                nullable: prop.nullable,
-                default_value: prop.default.clone(),
-                fixed_length: None,
-                offset: 0,
-                null_flag_pos: None,
-                geo_shape: None,
-            }
-        }).collect();
-
-        Schema {
-            name: edge_type_name.to_string(),
-            version: 1,
-            fields: fields.into_iter().map(|f| (f.name.clone(), f)).collect(),
-        }
-    }
-
-    fn data_type_to_field_type(data_type: &crate::core::DataType) -> FieldType {
-        match data_type {
-            crate::core::DataType::Bool => FieldType::Bool,
-            crate::core::DataType::Int8 => FieldType::Int8,
-            crate::core::DataType::Int16 => FieldType::Int16,
-            crate::core::DataType::Int32 => FieldType::Int32,
-            crate::core::DataType::Int64 => FieldType::Int64,
-            crate::core::DataType::Float => FieldType::Float,
-            crate::core::DataType::Double => FieldType::Double,
-            crate::core::DataType::String => FieldType::String,
-            crate::core::DataType::Date => FieldType::Date,
-            crate::core::DataType::Time => FieldType::Time,
-            crate::core::DataType::DateTime => FieldType::DateTime,
-            crate::core::DataType::List => FieldType::List,
-            crate::core::DataType::Map => FieldType::Map,
-            crate::core::DataType::Set => FieldType::Set,
-            crate::core::DataType::Geography => FieldType::Geography,
-            crate::core::DataType::Duration => FieldType::Duration,
-            _ => FieldType::String,
-        }
+    fn edge_type_schema_to_schema(edge_type_name: &str, edge_schema: &EdgeTypeInfo) -> Schema {
+        edge_type_info_to_schema(edge_type_name, edge_schema)
     }
 
     fn serialize_vertex(vertex: &Vertex) -> Vec<u8> {
@@ -1159,7 +1103,7 @@ mod tests {
             HashMap::new(),
         );
 
-        let id = <MemoryStorage as crate::storage::operations::writer::VertexWriter>::insert_vertex(&mut storage, vertex.clone()).expect("insert_node should succeed");
+        let id = <MemoryStorage as crate::storage::operations::writer::VertexWriter>::insert_vertex(&mut storage, "", vertex.clone()).expect("insert_node should succeed");
         assert_eq!(id, Value::String("user1".to_string()));
 
         let retrieved = <MemoryStorage as crate::storage::operations::reader::VertexReader>::get_vertex(&storage, "", &id).expect("get_node should succeed");
@@ -1177,7 +1121,7 @@ mod tests {
             HashMap::new(),
         );
 
-        <MemoryStorage as crate::storage::operations::writer::EdgeWriter>::insert_edge(&mut storage, edge.clone()).expect("insert_edge should succeed");
+        <MemoryStorage as crate::storage::operations::writer::EdgeWriter>::insert_edge(&mut storage, "", edge.clone()).expect("insert_edge should succeed");
 
         let retrieved = <MemoryStorage as crate::storage::operations::reader::EdgeReader>::get_edge(&storage, "", &edge.src, &edge.dst, &edge.edge_type).expect("get_edge should succeed");
         assert_eq!(retrieved, Some(edge));
@@ -1187,7 +1131,7 @@ mod tests {
     fn test_scan_vertices_by_tag() {
         let mut storage = MemoryStorage::new().expect("MemoryStorage::new should succeed");
 
-        <MemoryStorage as crate::storage::operations::writer::VertexWriter>::insert_vertex(&mut storage, Vertex::new_with_properties(
+        <MemoryStorage as crate::storage::operations::writer::VertexWriter>::insert_vertex(&mut storage, "", Vertex::new_with_properties(
             Value::String("user1".to_string()),
             vec![Tag::new("user".to_string(), HashMap::new())],
             HashMap::new(),
