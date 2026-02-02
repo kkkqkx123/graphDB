@@ -136,5 +136,6 @@ mod tests {
 
         std::thread::sleep(Duration::from_millis(100));
         assert_eq!(counter.load(std::sync::atomic::Ordering::SeqCst), 8);
+        drop(pool);
     }
 }

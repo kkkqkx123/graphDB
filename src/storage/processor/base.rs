@@ -27,6 +27,12 @@ pub struct PartCode {
     pub part_id: u32,
 }
 
+/// 存储处理器 trait
+///
+/// 定义了存储层处理器的基本接口。此 trait 为底层存储操作提供基础执行框架，
+/// 并可通过 ProcessorBase 实现。上层的 StorageProcessorExecutorImpl trait
+/// 通过 StorageProcessorExecutor 结构体复用了此 trait 的功能，
+/// 提供了更高级的异步执行、统计和内存管理功能。
 pub trait StorageProcessor<RESP>: Send {
     fn context(&self) -> &Arc<RuntimeContext>;
     fn context_mut(&mut self) -> &mut RuntimeContext;
@@ -42,6 +48,11 @@ pub trait StorageProcessor<RESP>: Send {
     }
 }
 
+/// 处理器基类
+///
+/// 实现了 StorageProcessor trait，为存储操作提供基础功能实现。
+/// 此结构体被上层的 StorageProcessorExecutor 结构体所使用，
+/// 从而使得 StorageProcessorExecutorImpl trait 能够复用 StorageProcessor 的功能。
 #[derive(Debug)]
 pub struct ProcessorBase<RESP, S: StorageClient + std::fmt::Debug> {
     context: Arc<RuntimeContext>,

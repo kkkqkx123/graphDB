@@ -31,8 +31,22 @@ use crate::storage::Schema;
 
 /// 测试用Mock存储引擎
 #[cfg(test)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MockStorage;
+
+#[cfg(test)]
+impl MockStorage {
+    pub fn new() -> Result<Self, StorageError> {
+        Ok(Self)
+    }
+}
+
+#[cfg(test)]
+impl Default for MockStorage {
+    fn default() -> Self {
+        Self::new().unwrap()
+    }
+}
 
 #[cfg(test)]
 impl StorageClient for MockStorage {

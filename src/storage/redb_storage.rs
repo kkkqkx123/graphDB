@@ -17,6 +17,9 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
+use crate::storage::{RowWriter, RowReader, KeyUtils, FormatVersion};
+use crate::core::CodecError as CoreCodecError;
+
 #[derive(Clone)]
 pub struct RedbStorage<E: Engine> {
     engine: Arc<Mutex<E>>,
@@ -109,6 +112,17 @@ impl<E: Engine> RedbStorage<E> {
 
     fn deserialize_edge(data: &[u8]) -> Result<Edge, StorageError> {
         serde_json::from_slice(data).map_err(|e| StorageError::DbError(e.to_string()))
+    }
+
+    fn detect_format(data: &[u8]) -> FormatVersion {
+        if data.is_empty() {
+            return FormatVersion::Unknown;
+        }
+        if (data[0] & 0x08) != 0 {
+            FormatVersion::V2
+        } else {
+            FormatVersion::V1
+        }
     }
 }
 

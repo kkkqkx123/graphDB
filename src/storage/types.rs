@@ -64,6 +64,35 @@ impl FieldDef {
         self.geo_shape = Some(shape);
         self
     }
+
+    pub fn estimated_size(&self) -> usize {
+        match self.field_type {
+            DataType::Bool => 1,
+            DataType::Int8 => 1,
+            DataType::Int16 => 2,
+            DataType::Int32 => 4,
+            DataType::Int64 => 8,
+            DataType::Float => 4,
+            DataType::Double => 8,
+            DataType::String => 8,
+            DataType::FixedString(len) => len,
+            DataType::VID => 8,
+            DataType::Timestamp => 8,
+            DataType::Date => 4,
+            DataType::Time => 8,
+            DataType::DateTime => 10,
+            DataType::Vertex => 16,
+            DataType::Edge => 32,
+            DataType::Path => 24,
+            DataType::List => 8,
+            DataType::Set => 8,
+            DataType::Map => 8,
+            DataType::Blob => 8,
+            DataType::Geography => 8,
+            DataType::Duration => 16,
+            _ => 8,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

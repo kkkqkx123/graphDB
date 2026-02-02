@@ -40,7 +40,10 @@ pub struct ProcessorExecutorCounters {
 
 /// 存储处理器执行器
 ///
-/// 结合了 ProcessorBase 的功能，提供统一的执行接口
+/// 结合了 ProcessorBase 的功能，提供统一的执行接口。此结构体是连接
+/// 底层 StorageProcessor trait 和上层 StorageProcessorExecutorImpl trait 的桥梁，
+/// 通过包含 ProcessorBase 实例实现了对 StorageProcessor 功能的复用，
+/// 同时提供了异步执行、统计监控和内存管理等高级功能。
 /// 注意：此结构体不实现 Clone，因为 StorageClient 不支持 Clone
 #[derive(Debug)]
 pub struct StorageProcessorExecutor<S: StorageClient + std::fmt::Debug, RESP> {
@@ -253,7 +256,9 @@ impl<S: StorageClient + Send + Sync + std::fmt::Debug, RESP> StorageProcessorExe
 
 /// 通用存储处理器执行 trait
 ///
-/// 为具体的处理器执行器提供通用实现
+/// 为具体的处理器执行器提供通用实现。此 trait 通过 StorageProcessorExecutor
+/// 结构体重用了 StorageProcessor trait 的功能（通过其中的 ProcessorBase 实现），
+/// 提供了异步执行、统计监控和内存管理等高级功能。
 #[async_trait]
 pub trait StorageProcessorExecutorImpl<S, RESP>
 where

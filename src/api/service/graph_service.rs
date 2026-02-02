@@ -433,7 +433,7 @@ mod tests {
     use super::*;
     use crate::config::Config;
     use crate::query::optimizer::rule_registry::RuleRegistry;
-    use crate::storage::redb_storage::DefaultStorage;
+    use crate::storage::test_mock::MockStorage;
     use std::sync::Arc;
 
     #[tokio::test]
@@ -451,8 +451,8 @@ mod tests {
             max_log_files: 5,
         };
 
-        let storage = Arc::new(DefaultStorage::new().expect("Failed to create Memory storage"));
-        let graph_service = GraphService::<DefaultStorage>::new(config, storage);
+        let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
+        let graph_service = GraphService::<MockStorage>::new(config, storage);
 
         assert_eq!(graph_service.config.host, "127.0.0.1");
         assert_eq!(graph_service.config.port, 9669);
@@ -473,8 +473,8 @@ mod tests {
             max_log_files: 5,
         };
 
-        let storage = Arc::new(DefaultStorage::new().expect("Failed to create Memory storage"));
-        let graph_service = GraphService::<DefaultStorage>::new(config, storage);
+        let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
+        let graph_service = GraphService::<MockStorage>::new(config, storage);
 
         let session = graph_service.authenticate("root", "root").await;
         assert!(session.is_ok());
@@ -495,8 +495,8 @@ mod tests {
             max_log_files: 5,
         };
 
-        let storage = Arc::new(DefaultStorage::new().expect("Failed to create Memory storage"));
-        let graph_service = GraphService::<DefaultStorage>::new(config, storage);
+        let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
+        let graph_service = GraphService::<MockStorage>::new(config, storage);
 
         let session = graph_service.authenticate("root", "wrong_password").await;
         assert!(session.is_err());
@@ -523,8 +523,8 @@ mod tests {
             max_log_files: 5,
         };
 
-        let storage = Arc::new(DefaultStorage::new().expect("Failed to create Memory storage"));
-        let graph_service = GraphService::<DefaultStorage>::new(config, storage);
+        let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
+        let graph_service = GraphService::<MockStorage>::new(config, storage);
 
         let session = graph_service
             .authenticate("root", "root")
@@ -554,8 +554,8 @@ mod tests {
             max_log_files: 5,
         };
 
-        let storage = Arc::new(MemoryStorage::new().expect("Failed to create Memory storage"));
-        let graph_service = GraphService::<MemoryStorage>::new(config, storage);
+        let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
+        let graph_service = GraphService::<MockStorage>::new(config, storage);
 
         let session = graph_service
             .authenticate("root", "root")
@@ -581,8 +581,8 @@ mod tests {
             max_log_files: 5,
         };
 
-        let storage = Arc::new(MemoryStorage::new().expect("Failed to create Memory storage"));
-        let graph_service = GraphService::<MemoryStorage>::new(config, storage);
+        let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
+        let graph_service = GraphService::<MockStorage>::new(config, storage);
 
         let result = graph_service.execute(999999, "SHOW SPACES").await;
         assert!(result.is_err());
@@ -603,8 +603,8 @@ mod tests {
             max_log_files: 5,
         };
 
-        let storage = Arc::new(MemoryStorage::new().expect("Failed to create Memory storage"));
-        let graph_service = GraphService::<MemoryStorage>::new(config, storage);
+        let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
+        let graph_service = GraphService::<MockStorage>::new(config, storage);
 
         assert_eq!(
             graph_service.extract_permission_from_statement("SELECT * FROM users"),

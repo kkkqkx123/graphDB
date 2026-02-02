@@ -3,6 +3,7 @@
 //! 定义了存储层的Schema结构和相关操作
 
 use super::types::FieldDef;
+use super::DataType;
 
 use std::collections::BTreeMap;
 
@@ -34,5 +35,39 @@ impl Schema {
 
     pub fn has_field(&self, name: &str) -> bool {
         self.fields.contains_key(name)
+    }
+
+    pub fn get_field_index(&self, name: &str) -> Option<usize> {
+        self.fields.keys().position(|k| k == name)
+    }
+
+    pub fn get_field_by_index(&self, index: usize) -> Option<&FieldDef> {
+        self.fields.values().nth(index)
+    }
+
+    pub fn field_name(&self, index: usize) -> Option<String> {
+        self.fields.keys().nth(index).cloned()
+    }
+
+    pub fn num_fields(&self) -> usize {
+        self.fields.len()
+    }
+
+    pub fn num_nullable_fields(&self) -> usize {
+        self.fields.values().filter(|f| f.nullable).count()
+    }
+
+    pub fn estimated_data_size(&self) -> usize {
+        self.fields.values().map(|f| f.estimated_size()).sum()
+    }
+
+    pub fn estimated_row_size(&self) -> usize {
+        let header_size = 1;
+        let null_bytes = if self.num_nullable_fields() > 0 {
+            ((self.num_nullable_fields() - 1) >> 3) + 1
+        } else {
+            0
+        };
+        header_size + null_bytes + self.estimated_data_size() + 128
     }
 }
