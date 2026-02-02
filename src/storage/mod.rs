@@ -6,6 +6,7 @@ pub mod transaction;
 pub mod processor;
 pub mod memory_storage;
 pub mod redb_storage;
+pub mod redb_types;
 pub mod storage_client;
 pub mod index;
 pub mod types;

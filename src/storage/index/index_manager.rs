@@ -4,7 +4,7 @@
 
 use crate::core::{Edge, Value, Vertex};
 use crate::core::StorageResult;
-use crate::index::{Index, IndexStatus, IndexInfo, IndexOptimization};
+use crate::index::{Index, IndexStatus, IndexStats, IndexOptimization};
 
 pub trait IndexManager: Send + Sync + std::fmt::Debug {
     fn get_index(&self, name: &str) -> Option<Index>;
@@ -69,8 +69,8 @@ pub trait IndexManager: Send + Sync + std::fmt::Debug {
 
     fn rebuild_index(&self, space_id: i32, index_id: i32) -> StorageResult<()>;
     fn rebuild_all_indexes(&self, space_id: i32) -> StorageResult<()>;
-    fn get_index_stats(&self, space_id: i32, index_id: i32) -> StorageResult<IndexInfo>;
-    fn get_all_index_stats(&self, space_id: i32) -> StorageResult<Vec<IndexInfo>>;
+    fn get_index_stats(&self, space_id: i32, index_id: i32) -> StorageResult<IndexStats>;
+    fn get_all_index_stats(&self, space_id: i32) -> StorageResult<Vec<IndexStats>>;
     fn analyze_index(&self, space_id: i32, index_id: i32) -> StorageResult<IndexOptimization>;
     fn analyze_all_indexes(&self, space_id: i32) -> StorageResult<Vec<IndexOptimization>>;
     fn check_index_consistency(&self, space_id: i32, index_id: i32) -> StorageResult<bool>;

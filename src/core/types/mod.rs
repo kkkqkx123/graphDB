@@ -34,11 +34,11 @@ pub enum DataType {
 }
 
 pub use self::metadata::{
-    SpaceInfo, TagInfo, EdgeTypeInfo, IndexInfo, PropertyDef,
+    SpaceInfo, TagInfo, EdgeTypeInfo, PropertyDef,
     MetadataVersion, SchemaVersion, SchemaHistory, SchemaChange, SchemaChangeType,
     ClusterInfo, CharsetInfo,
     InsertVertexInfo, InsertEdgeInfo, UpdateTarget, UpdateOp, UpdateInfo,
-    PasswordInfo, IndexStatus, IndexTargetType,
+    PasswordInfo,
     SchemaExportConfig, SchemaImportResult, ExportFormat,
 };
 

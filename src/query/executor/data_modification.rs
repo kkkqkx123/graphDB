@@ -5,7 +5,7 @@ use super::base::storage_processor_executor::{
     StorageProcessorExecutor, StorageProcessorExecutorImpl,
 };
 use crate::core::{Edge, StorageError, Value, Vertex, DBError};
-use crate::core::types::IndexInfo;
+use crate::index::Index;
 use crate::expression::context::basic_context::BasicExpressionContext;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::context::runtime_context::RuntimeContext;
@@ -560,24 +560,27 @@ impl<S: StorageClient + Send + Sync + 'static> StorageProcessorExecutorImpl<S, (
             .or_else(|| Some(self.index_name.clone()))
             .unwrap_or_default();
 
-        let target_type = if self.index_type == crate::index::IndexType::EdgeIndex {
-            crate::core::types::IndexTargetType::EdgeType
-        } else {
-            crate::core::types::IndexTargetType::Tag
-        };
+        let index_type = self.index_type.clone();
+        let index = Index::new(
+            0,
+            self.index_name.clone(),
+            0,
+            target_name,
+            Vec::new(),
+            self.properties.clone(),
+            index_type.clone(),
+            false,
+        );
 
-        let index_info = IndexInfo::new(self.index_name.clone(), target_type, target_name)
-            .with_properties(self.properties.clone());
-
-        match self.index_type {
+        match index_type {
             crate::index::IndexType::TagIndex => {
-                storage.create_tag_index("default", &index_info)?;
+                storage.create_tag_index("default", &index)?;
             }
             crate::index::IndexType::EdgeIndex => {
-                storage.create_edge_index("default", &index_info)?;
+                storage.create_edge_index("default", &index)?;
             }
             crate::index::IndexType::FulltextIndex => {
-                storage.create_tag_index("default", &index_info)?;
+                storage.create_tag_index("default", &index)?;
             }
         }
 

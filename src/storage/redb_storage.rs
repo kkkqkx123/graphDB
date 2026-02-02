@@ -2,19 +2,20 @@ use super::{StorageClient, TransactionId};
 use crate::core::{Edge, StorageError, Value, Vertex, EdgeDirection};
 use crate::core::vertex_edge_path::Tag;
 use crate::core::types::{
-    SpaceInfo, TagInfo, IndexInfo, DataType,
+    SpaceInfo, TagInfo, DataType,
     PropertyDef, InsertVertexInfo, InsertEdgeInfo, UpdateInfo,
     PasswordInfo, EdgeTypeInfo, UpdateTarget, UpdateOp,
 };
+use crate::index::Index;
 use crate::storage::{FieldDef, FieldType, Schema};
 use crate::storage::operations::{RedbReader, RedbWriter, ScanResult, VertexReader, EdgeReader, VertexWriter, EdgeWriter};
 use crate::storage::metadata::{RedbSchemaManager, SchemaManager};
-use crate::storage::index::RedbIndexManager;
-use crate::storage::serializer::{index_to_bytes, index_from_bytes, value_to_bytes, vertex_to_bytes};
-use redb::{Database, ReadableTable, TableDefinition};
-use serde_json;
-use std::cmp::Ordering;
+use crate::storage::index::MemoryIndexManager;
+use crate::storage::redb_types::{ByteKey, TAG_INDEXES_TABLE, EDGE_INDEXES_TABLE, INDEX_DATA_TABLE, VERTEX_DATA_TABLE, EDGE_DATA_TABLE, PASSWORDS_TABLE};
+use crate::storage::serializer::{serializer_index_to_bytes, serializer_index_from_bytes, value_to_bytes, vertex_to_bytes};
+use redb::{Database, ReadableTable};
 use std::collections::{HashMap, BTreeMap};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 fn data_type_to_field_type(data_type: &DataType) -> FieldType {
@@ -74,50 +75,13 @@ fn property_defs_to_hashmap(properties: &[PropertyDef]) -> HashMap<String, Value
     map
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct ByteKey(pub Vec<u8>);
-
-impl redb::Key for ByteKey {
-    fn compare(data1: &[u8], data2: &[u8]) -> Ordering {
-        data1.cmp(data2)
-    }
-}
-
-impl redb::Value for ByteKey {
-    type SelfType<'a> = ByteKey where Self: 'a;
-    type AsBytes<'a> = Vec<u8> where Self: 'a;
-
-    fn fixed_width() -> Option<usize> {
-        None
-    }
-
-    fn from_bytes<'a>(data: &'a [u8]) -> ByteKey where Self: 'a {
-        ByteKey(data.to_vec())
-    }
-
-    fn as_bytes<'a, 'b: 'a>(value: &'a Self::SelfType<'b>) -> Vec<u8> where Self: 'b {
-        value.0.clone()
-    }
-
-    fn type_name() -> redb::TypeName {
-        redb::TypeName::new("graphdb::ByteKey")
-    }
-}
-
-const TAG_INDEXES_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefinition::new("tag_indexes");
-const EDGE_INDEXES_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefinition::new("edge_indexes");
-const INDEX_DATA_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefinition::new("index_data");
-const VERTEX_DATA_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefinition::new("vertex_data");
-const EDGE_DATA_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefinition::new("edge_data");
-const PASSWORDS_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefinition::new("passwords");
-
 pub struct RedbStorage {
-    db: Database,
+    db: Arc<Database>,
     db_path: String,
     vertex_reader: Arc<Mutex<RedbReader>>,
     vertex_writer: Arc<Mutex<RedbWriter>>,
     schema_manager: Arc<Mutex<RedbSchemaManager>>,
-    index_manager: Arc<Mutex<RedbIndexManager>>,
+    index_manager: Arc<Mutex<MemoryIndexManager>>,
     active_transactions: Arc<Mutex<HashMap<TransactionId, ()>>>,
 }
 
@@ -139,17 +103,19 @@ impl RedbStorage {
     pub fn new<P: AsRef<std::path::Path>>(path: P) -> Result<Self, StorageError> {
         let db_path = path.as_ref().to_string_lossy().to_string();
 
-        let db = Database::create(path.as_ref())
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        let db = Arc::new(
+            Database::create(path.as_ref())
+                .map_err(|e| StorageError::DbError(e.to_string()))?
+        );
 
-        let vertex_reader = Arc::new(Mutex::new(RedbReader::new(&db_path)?));
-        let vertex_writer = Arc::new(Mutex::new(RedbWriter::new(&db_path)?));
-        let schema_manager = Arc::new(Mutex::new(RedbSchemaManager::new(&db_path)?));
-        let index_manager = Arc::new(Mutex::new(RedbIndexManager::new(&db_path)?));
+        let vertex_reader = Arc::new(Mutex::new(RedbReader::new(db.clone())?));
+        let vertex_writer = Arc::new(Mutex::new(RedbWriter::new(db.clone())?));
+        let schema_manager = Arc::new(Mutex::new(RedbSchemaManager::new(db.clone())));
+        let index_manager = Arc::new(Mutex::new(MemoryIndexManager::new(PathBuf::from(&db_path))));
         let active_transactions = Arc::new(Mutex::new(HashMap::new()));
 
         Ok(Self {
-            db,
+            db: db.clone(),
             db_path,
             vertex_reader,
             vertex_writer,
@@ -382,9 +348,9 @@ impl StorageClient for RedbStorage {
         (*self.schema_manager.lock().unwrap()).list_edge_types(space)
     }
 
-    fn create_tag_index(&mut self, space: &str, info: &IndexInfo) -> Result<bool, StorageError> {
-        let index_key = format!("{}:{}", space, info.index_name);
-        let index_bytes = index_to_bytes(info)?;
+    fn create_tag_index(&mut self, space: &str, info: &Index) -> Result<bool, StorageError> {
+        let index_key = format!("{}:{}", space, info.name);
+        let index_bytes = serializer_index_to_bytes(info)?;
 
         let write_txn = self.db.begin_write()
             .map_err(|e| StorageError::DbError(e.to_string()))?;
@@ -431,7 +397,7 @@ impl StorageClient for RedbStorage {
         Ok(true)
     }
 
-    fn get_tag_index(&self, space: &str, index: &str) -> Result<Option<IndexInfo>, StorageError> {
+    fn get_tag_index(&self, space: &str, index: &str) -> Result<Option<Index>, StorageError> {
         let index_key = format!("{}:{}", space, index);
 
         let read_txn = self.db.begin_read()
@@ -444,14 +410,14 @@ impl StorageClient for RedbStorage {
         {
             Some(value) => {
                 let index_bytes = value.value();
-                let index_info = index_from_bytes(&index_bytes.0)?;
+                let index_info = serializer_index_from_bytes(&index_bytes.0)?;
                 Ok(Some(index_info))
             }
             None => Ok(None),
         }
     }
 
-    fn list_tag_indexes(&self, space: &str) -> Result<Vec<IndexInfo>, StorageError> {
+    fn list_tag_indexes(&self, space: &str) -> Result<Vec<Index>, StorageError> {
         let read_txn = self.db.begin_read()
             .map_err(|e| StorageError::DbError(e.to_string()))?;
         let table = read_txn.open_table(TAG_INDEXES_TABLE)
@@ -465,7 +431,7 @@ impl StorageClient for RedbStorage {
             let key_data = key_bytes.value().0.clone();
             let key_str = String::from_utf8_lossy(&key_data);
             if key_str.starts_with(&format!("{}:", space)) {
-                let index_info = index_from_bytes(&index_bytes.value().0)?;
+                let index_info = serializer_index_from_bytes(&index_bytes.value().0)?;
                 indexes.push(index_info);
             }
         }
@@ -518,9 +484,9 @@ impl StorageClient for RedbStorage {
         Ok(true)
     }
 
-    fn create_edge_index(&mut self, space: &str, info: &IndexInfo) -> Result<bool, StorageError> {
-        let index_key = format!("{}:{}", space, info.index_name);
-        let index_bytes = index_to_bytes(info)?;
+    fn create_edge_index(&mut self, space: &str, info: &Index) -> Result<bool, StorageError> {
+        let index_key = format!("{}:{}", space, info.name);
+        let index_bytes = serializer_index_to_bytes(info)?;
 
         let write_txn = self.db.begin_write()
             .map_err(|e| StorageError::DbError(e.to_string()))?;
@@ -567,7 +533,7 @@ impl StorageClient for RedbStorage {
         Ok(true)
     }
 
-    fn get_edge_index(&self, space: &str, index: &str) -> Result<Option<IndexInfo>, StorageError> {
+    fn get_edge_index(&self, space: &str, index: &str) -> Result<Option<Index>, StorageError> {
         let index_key = format!("{}:{}", space, index);
 
         let read_txn = self.db.begin_read()
@@ -580,14 +546,14 @@ impl StorageClient for RedbStorage {
         {
             Some(value) => {
                 let index_bytes = value.value();
-                let index_info = index_from_bytes(&index_bytes.0)?;
+                let index_info = serializer_index_from_bytes(&index_bytes.0)?;
                 Ok(Some(index_info))
             }
             None => Ok(None),
         }
     }
 
-    fn list_edge_indexes(&self, space: &str) -> Result<Vec<IndexInfo>, StorageError> {
+    fn list_edge_indexes(&self, space: &str) -> Result<Vec<Index>, StorageError> {
         let read_txn = self.db.begin_read()
             .map_err(|e| StorageError::DbError(e.to_string()))?;
         let table = read_txn.open_table(EDGE_INDEXES_TABLE)
@@ -601,7 +567,7 @@ impl StorageClient for RedbStorage {
             let key_data = key_bytes.value().0.clone();
             let key_str = String::from_utf8_lossy(&key_data);
             if key_str.starts_with(&format!("{}:", space)) {
-                let index_info = index_from_bytes(&index_bytes.value().0)?;
+                let index_info = serializer_index_from_bytes(&index_bytes.value().0)?;
                 indexes.push(index_info);
             }
         }

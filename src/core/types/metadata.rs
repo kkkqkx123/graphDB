@@ -210,60 +210,6 @@ impl EdgeTypeInfo {
     }
 }
 
-/// 索引信息
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct IndexInfo {
-    pub index_id: i32,
-    pub index_name: String,
-    pub space_id: i32,
-    pub target_type: IndexTargetType,
-    pub target_name: String,
-    pub properties: Vec<String>,
-    pub is_unique: bool,
-    pub status: IndexStatus,
-    pub comment: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum IndexTargetType {
-    Tag,
-    EdgeType,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum IndexStatus {
-    Creating,
-    Active,
-    Dropped,
-    Failed,
-}
-
-impl IndexInfo {
-    pub fn new(index_name: String, target_type: IndexTargetType, target_name: String) -> Self {
-        Self {
-            index_id: 0,
-            index_name,
-            space_id: 0,
-            target_type,
-            target_name,
-            properties: Vec::new(),
-            is_unique: false,
-            status: IndexStatus::Creating,
-            comment: None,
-        }
-    }
-
-    pub fn with_properties(mut self, properties: Vec<String>) -> Self {
-        self.properties = properties;
-        self
-    }
-
-    pub fn with_unique(mut self, is_unique: bool) -> Self {
-        self.is_unique = is_unique;
-        self
-    }
-}
-
 /// 集群信息
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ClusterInfo {

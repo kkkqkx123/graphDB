@@ -8,6 +8,7 @@
 //! - PropIter: 属性迭代器
 
 use crate::core::StorageError;
+use crate::storage::engine::StorageIterator;
 
 /// 迭代器错误类型
 #[derive(Debug, Clone, PartialEq)]
@@ -90,6 +91,42 @@ impl Default for IterConfig {
             cache_size: 10000,
             parallel_scan: false,
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct VecPairIterator {
+    pub keys: Vec<Vec<u8>>,
+    pub values: Vec<Vec<u8>>,
+    pub index: usize,
+}
+
+impl VecPairIterator {
+    pub fn new(keys: Vec<Vec<u8>>, values: Vec<Vec<u8>>) -> Self {
+        Self { keys, values, index: 0 }
+    }
+}
+
+impl StorageIterator for VecPairIterator {
+    fn key(&self) -> Option<&[u8]> {
+        self.keys.get(self.index).map(|v| v.as_slice())
+    }
+
+    fn value(&self) -> Option<&[u8]> {
+        self.values.get(self.index).map(|v| v.as_slice())
+    }
+
+    fn next(&mut self) -> bool {
+        if self.index < self.keys.len() {
+            self.index += 1;
+            true
+        } else {
+            false
+        }
+    }
+
+    fn estimate_remaining(&self) -> Option<usize> {
+        Some(self.keys.len().saturating_sub(self.index))
     }
 }
 

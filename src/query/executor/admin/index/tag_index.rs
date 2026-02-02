@@ -6,8 +6,8 @@ use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::core::{DataSet, Value};
+use crate::index::{Index, IndexStatus, IndexType};
 use crate::storage::iterator::Row;
-use crate::core::types::metadata::IndexInfo;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
 
@@ -22,30 +22,29 @@ pub struct TagIndexDesc {
 }
 
 impl TagIndexDesc {
-    pub fn from_metadata(info: &IndexInfo) -> Self {
+    pub fn from_metadata(info: &Index) -> Self {
         Self {
-            index_id: info.index_id,
-            index_name: info.index_name.clone(),
-            tag_name: info.target_name.clone(),
+            index_id: info.id,
+            index_name: info.name.clone(),
+            tag_name: info.schema_name.clone(),
             fields: info.properties.clone(),
             comment: info.comment.clone(),
         }
     }
 }
 
-impl From<&TagIndexDesc> for IndexInfo {
+impl From<&TagIndexDesc> for Index {
     fn from(desc: &TagIndexDesc) -> Self {
-        IndexInfo {
-            index_id: 0,
-            index_name: desc.index_name.clone(),
-            space_id: 0,
-            target_type: crate::core::types::IndexTargetType::Tag,
-            target_name: desc.tag_name.clone(),
-            properties: desc.fields.clone(),
-            is_unique: false,
-            status: crate::core::types::IndexStatus::Creating,
-            comment: desc.comment.clone(),
-        }
+        Index::new(
+            0,
+            desc.index_name.clone(),
+            0,
+            desc.tag_name.clone(),
+            Vec::new(),
+            desc.fields.clone(),
+            IndexType::TagIndex,
+            false,
+        )
     }
 }
 
@@ -53,12 +52,12 @@ impl From<&TagIndexDesc> for IndexInfo {
 #[derive(Debug)]
 pub struct CreateTagIndexExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
-    index_info: IndexInfo,
+    index_info: Index,
     if_not_exists: bool,
 }
 
 impl<S: StorageClient> CreateTagIndexExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, index_info: IndexInfo) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, index_info: Index) -> Self {
         Self {
             base: BaseExecutor::new(id, "CreateTagIndexExecutor".to_string(), storage),
             index_info,
@@ -66,7 +65,7 @@ impl<S: StorageClient> CreateTagIndexExecutor<S> {
         }
     }
 
-    pub fn with_if_not_exists(id: i64, storage: Arc<Mutex<S>>, index_info: IndexInfo) -> Self {
+    pub fn with_if_not_exists(id: i64, storage: Arc<Mutex<S>>, index_info: Index) -> Self {
         Self {
             base: BaseExecutor::new(id, "CreateTagIndexExecutor".to_string(), storage),
             index_info,
@@ -93,7 +92,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateTagIndexExe
                 if self.if_not_exists {
                     Ok(ExecutionResult::Success)
                 } else {
-                    Ok(ExecutionResult::Error(format!("Index '{}' already exists", self.index_info.index_name)))
+                    Ok(ExecutionResult::Error(format!("Index '{}' already exists", self.index_info.name)))
                 }
             }
             Err(e) => Ok(ExecutionResult::Error(format!("Failed to create tag index: {}", e))),

@@ -1,48 +1,14 @@
 use crate::core::{Edge, EdgeDirection, Value, Vertex, StorageError};
 use crate::storage::operations::{VertexReader, EdgeReader, VertexWriter, EdgeWriter, ScanResult};
-use crate::storage::serializer::{vertex_to_bytes, vertex_from_bytes, edge_to_bytes, edge_from_bytes, value_to_bytes, generate_id};
-use redb::{Database, ReadableTable, TableDefinition};
+use crate::storage::redb_types::{ByteKey, NODES_TABLE, EDGES_TABLE, INDEXES_TABLE};
+use crate::storage::serializer::{vertex_to_bytes, vertex_from_bytes, edge_to_bytes, edge_from_bytes, value_to_bytes};
+use crate::utils::id_gen::generate_id;
+use redb::{Database, ReadableTable};
 use lru::LruCache;
-use serde_json;
-use std::cmp::Ordering;
 use std::sync::{Arc, Mutex};
 
-const NODES_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefinition::new("nodes");
-const EDGES_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefinition::new("edges");
-const INDEXES_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefinition::new("indexes");
-
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct ByteKey(pub Vec<u8>);
-
-impl redb::Key for ByteKey {
-    fn compare(data1: &[u8], data2: &[u8]) -> Ordering {
-        data1.cmp(data2)
-    }
-}
-
-impl redb::Value for ByteKey {
-    type SelfType<'a> = ByteKey where Self: 'a;
-    type AsBytes<'a> = Vec<u8> where Self: 'a;
-
-    fn fixed_width() -> Option<usize> {
-        None
-    }
-
-    fn from_bytes<'a>(data: &'a [u8]) -> ByteKey where Self: 'a {
-        ByteKey(data.to_vec())
-    }
-
-    fn as_bytes<'a, 'b: 'a>(value: &'a Self::SelfType<'b>) -> Vec<u8> where Self: 'b {
-        value.0.clone()
-    }
-
-    fn type_name() -> redb::TypeName {
-        redb::TypeName::new("graphdb::ByteKey")
-    }
-}
-
 pub struct RedbReader {
-    db: Database,
+    db: Arc<Database>,
     vertex_cache: Arc<Mutex<LruCache<Vec<u8>, Vertex>>>,
     edge_cache: Arc<Mutex<LruCache<Vec<u8>, Edge>>>,
 }
@@ -54,10 +20,7 @@ impl std::fmt::Debug for RedbReader {
 }
 
 impl RedbReader {
-    pub fn new<P: AsRef<std::path::Path>>(path: P) -> Result<Self, StorageError> {
-        let db = Database::create(path.as_ref())
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-
+    pub fn new(db: Arc<Database>) -> Result<Self, StorageError> {
         let vertex_cache_size = std::num::NonZeroUsize::new(1000)
             .expect("Failed to create NonZeroUsize for vertex cache");
         let edge_cache_size = std::num::NonZeroUsize::new(1000)
@@ -110,60 +73,6 @@ impl RedbReader {
                 Ok(Some(edge))
             }
             None => Ok(None),
-        }
-    }
-
-    fn get_node_edge_keys(&self, node_id: &Value) -> Result<Vec<Vec<u8>>, StorageError> {
-        let read_txn = self
-            .db
-            .begin_read()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        let table = read_txn
-            .open_table(INDEXES_TABLE)
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-        let index_key = format!("node_edge_index:{:?}", node_id);
-        let index_key_bytes = index_key.as_bytes();
-
-        match table
-            .get(ByteKey(index_key_bytes.to_vec()))
-            .map_err(|e| StorageError::DbError(e.to_string()))?
-            {
-                Some(value) => {
-                    let list_bytes = value.value();
-                    let edge_key_list: Vec<Vec<u8>> =
-                        serde_json::from_slice(&list_bytes.0)
-                            .map_err(|e| StorageError::SerializeError(e.to_string()))?;
-                    Ok(edge_key_list)
-                }
-                None => Ok(Vec::new()),
-            }
-    }
-
-    fn get_edge_keys_by_type(&self, edge_type: &str) -> Result<Vec<Vec<u8>>, StorageError> {
-        let read_txn = self
-            .db
-            .begin_read()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        let table = read_txn
-            .open_table(INDEXES_TABLE)
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-        let index_key = format!("edge_type_index:{}", edge_type);
-        let index_key_bytes = index_key.as_bytes();
-
-        match table
-            .get(ByteKey(index_key_bytes.to_vec()))
-            .map_err(|e| StorageError::DbError(e.to_string()))?
-        {
-            Some(value) => {
-                let list_bytes = value.value();
-                let edge_key_list: Vec<Vec<u8>> =
-                    serde_json::from_slice(&list_bytes.0)
-                        .map_err(|e| StorageError::SerializeError(e.to_string()))?;
-                Ok(edge_key_list)
-            }
-            None => Ok(Vec::new()),
         }
     }
 }
@@ -294,25 +203,34 @@ impl EdgeReader for RedbReader {
         direction: EdgeDirection,
         filter: Option<Box<dyn Fn(&Edge) -> bool + Send + Sync>>,
     ) -> Result<ScanResult<Edge>, StorageError> {
-        let edge_keys = self.get_node_edge_keys(node_id)?;
+        let read_txn = self
+            .db
+            .begin_read()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        let table = read_txn
+            .open_table(EDGES_TABLE)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
         let mut edges = Vec::new();
+        for result in table.iter()
+            .map_err(|e| StorageError::DbError(e.to_string()))?
+        {
+            let (_, edge_bytes) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
+            let edge: Edge = edge_from_bytes(&edge_bytes.value().0)?;
 
-        for edge_key_bytes in edge_keys {
-            if let Some(edge) = self.get_edge_from_bytes(&edge_key_bytes)? {
-                let matches_direction = match direction {
-                    EdgeDirection::Out => *edge.src == *node_id,
-                    EdgeDirection::In => *edge.dst == *node_id,
-                    EdgeDirection::Both => *edge.src == *node_id || *edge.dst == *node_id,
-                };
+            let matches_direction = match direction {
+                EdgeDirection::Out => *edge.src == *node_id,
+                EdgeDirection::In => *edge.dst == *node_id,
+                EdgeDirection::Both => *edge.src == *node_id || *edge.dst == *node_id,
+            };
 
-                if matches_direction {
-                    if let Some(ref f) = filter {
-                        if !f(&edge) {
-                            continue;
-                        }
+            if matches_direction {
+                if let Some(ref f) = filter {
+                    if !f(&edge) {
+                        continue;
                     }
-                    edges.push(edge);
                 }
+                edges.push(edge);
             }
         }
 
@@ -324,16 +242,28 @@ impl EdgeReader for RedbReader {
         _space: &str,
         edge_type: &str,
     ) -> Result<ScanResult<Edge>, StorageError> {
-        let edge_keys = self.get_edge_keys_by_type(edge_type)?;
-        let mut edges = Vec::new();
+        let read_txn = self
+            .db
+            .begin_read()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        let table = read_txn
+            .open_table(EDGES_TABLE)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
 
-        for edge_key_bytes in edge_keys {
-            if let Some(edge) = self.get_edge_from_bytes(&edge_key_bytes)? {
-                edges.push(edge);
-            }
+        let mut edges = Vec::new();
+        for result in table.iter()
+            .map_err(|e| StorageError::DbError(e.to_string()))?
+        {
+            let (_, edge_bytes) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
+            let edge: Edge = edge_from_bytes(&edge_bytes.value().0)?;
+            edges.push(edge);
         }
 
-        Ok(ScanResult::new(edges))
+        let filtered_edges: Vec<Edge> = edges.into_iter()
+            .filter(|e| e.edge_type == edge_type)
+            .collect();
+
+        Ok(ScanResult::new(filtered_edges))
     }
 
     fn scan_all_edges(&self, _space: &str) -> Result<ScanResult<Edge>, StorageError> {
@@ -359,7 +289,7 @@ impl EdgeReader for RedbReader {
 }
 
 pub struct RedbWriter {
-    db: Database,
+    db: Arc<Database>,
     vertex_cache: Arc<Mutex<LruCache<Vec<u8>, Vertex>>>,
     edge_cache: Arc<Mutex<LruCache<Vec<u8>, Edge>>>,
 }
@@ -371,10 +301,7 @@ impl std::fmt::Debug for RedbWriter {
 }
 
 impl RedbWriter {
-    pub fn new<P: AsRef<std::path::Path>>(path: P) -> Result<Self, StorageError> {
-        let db = Database::create(path.as_ref())
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-
+    pub fn new(db: Arc<Database>) -> Result<Self, StorageError> {
         let vertex_cache_size = std::num::NonZeroUsize::new(1000)
             .expect("Failed to create NonZeroUsize for vertex cache");
         let edge_cache_size = std::num::NonZeroUsize::new(1000)
@@ -388,179 +315,11 @@ impl RedbWriter {
             edge_cache,
         })
     }
-
-    fn update_node_edge_index(
-        &self,
-        node_id: &Value,
-        edge_key: &[u8],
-        add: bool,
-    ) -> Result<(), StorageError> {
-        let write_txn = self
-            .db
-            .begin_write()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        {
-            let mut table = write_txn
-                .open_table(INDEXES_TABLE)
-                .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-            let index_key = format!("node_edge_index:{:?}", node_id);
-            let index_key_bytes = index_key.as_bytes();
-
-            let mut edge_list: Vec<Vec<u8>> = match table
-                .get(ByteKey(index_key_bytes.to_vec()))
-                .map_err(|e| StorageError::DbError(e.to_string()))?
-            {
-                Some(value) => {
-                    let list_bytes = value.value();
-                    let result: Vec<Vec<u8>> =
-                        serde_json::from_slice(&list_bytes.0)
-                            .map_err(|e| StorageError::SerializeError(e.to_string()))?;
-                    result
-                }
-                None => Vec::new(),
-            };
-
-            if add {
-                if !edge_list.contains(&edge_key.to_vec()) {
-                    edge_list.push(edge_key.to_vec());
-                }
-            } else {
-                edge_list.retain(|key| key != edge_key);
-            }
-
-            let list_bytes =
-                serde_json::to_vec(&edge_list)
-                    .map_err(|e| StorageError::SerializeError(e.to_string()))?;
-
-            table
-                .insert(ByteKey(index_key_bytes.to_vec()), ByteKey(list_bytes))
-                .map_err(|e| StorageError::DbError(e.to_string()))?;
-        }
-        write_txn
-            .commit()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-        Ok(())
-    }
-
-    fn update_edge_type_index(
-        &self,
-        edge_type: &str,
-        edge_key: &[u8],
-        add: bool,
-    ) -> Result<(), StorageError> {
-        let write_txn = self
-            .db
-            .begin_write()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        {
-            let mut table = write_txn
-                .open_table(INDEXES_TABLE)
-                .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-            let index_key = format!("edge_type_index:{}", edge_type);
-            let index_key_bytes = index_key.as_bytes();
-
-            let mut edge_list: Vec<Vec<u8>> = match table
-                .get(ByteKey(index_key_bytes.to_vec()))
-                .map_err(|e| StorageError::DbError(e.to_string()))?
-            {
-                Some(value) => {
-                    let list_bytes = value.value();
-                    let result: Vec<Vec<u8>> =
-                        serde_json::from_slice(&list_bytes.0)
-                            .map_err(|e| StorageError::SerializeError(e.to_string()))?;
-                    result
-                }
-                None => Vec::new(),
-            };
-
-            if add {
-                if !edge_list.contains(&edge_key.to_vec()) {
-                    edge_list.push(edge_key.to_vec());
-                }
-            } else {
-                edge_list.retain(|key| key != edge_key);
-            }
-
-            let list_bytes =
-                serde_json::to_vec(&edge_list)
-                    .map_err(|e| StorageError::SerializeError(e.to_string()))?;
-
-            table
-                .insert(ByteKey(index_key_bytes.to_vec()), ByteKey(list_bytes))
-                .map_err(|e| StorageError::DbError(e.to_string()))?;
-        }
-        write_txn
-            .commit()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-        Ok(())
-    }
-
-    fn update_prop_index(
-        &self,
-        tag: &str,
-        prop: &str,
-        value: &Value,
-        vertex_id: &Value,
-        add: bool,
-    ) -> Result<(), StorageError> {
-        let write_txn = self
-            .db
-            .begin_write()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        {
-            let mut table = write_txn
-                .open_table(INDEXES_TABLE)
-                .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-            let index_key = format!("prop_index:{}:{}:{:?}", tag, prop, value);
-            let index_key_bytes = index_key.as_bytes();
-            let vertex_id_bytes = value_to_bytes(vertex_id)?;
-
-            let mut vertex_list: Vec<Vec<u8>> = match table
-                .get(ByteKey(index_key_bytes.to_vec()))
-                .map_err(|e| StorageError::DbError(e.to_string()))?
-            {
-                Some(value) => {
-                    let list_bytes = value.value();
-                    let result: Vec<Vec<u8>> =
-                        serde_json::from_slice(&list_bytes.0)
-                            .map_err(|e| StorageError::SerializeError(e.to_string()))?;
-                    result
-                }
-                None => Vec::new(),
-            };
-
-            if add {
-                if !vertex_list.contains(&vertex_id_bytes) {
-                    vertex_list.push(vertex_id_bytes);
-                }
-            } else {
-                vertex_list.retain(|id| id != &vertex_id_bytes);
-            }
-
-            let list_bytes =
-                serde_json::to_vec(&vertex_list)
-                    .map_err(|e| StorageError::SerializeError(e.to_string()))?;
-
-            table
-                .insert(ByteKey(index_key_bytes.to_vec()), ByteKey(list_bytes))
-                .map_err(|e| StorageError::DbError(e.to_string()))?;
-        }
-        write_txn
-            .commit()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-        Ok(())
-    }
 }
 
 impl VertexWriter for RedbWriter {
     fn insert_vertex(&mut self, _space: &str, vertex: Vertex) -> Result<Value, StorageError> {
-        let id = generate_id();
+        let id = Value::Int(generate_id() as i64);
         let vertex_with_id = Vertex::new(id.clone(), vertex.tags);
 
         let vertex_bytes = vertex_to_bytes(&vertex_with_id)?;
@@ -604,17 +363,12 @@ impl VertexWriter for RedbWriter {
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
 
             table
-                .insert(ByteKey(id_bytes.clone()), ByteKey(vertex_bytes))
+                .insert(ByteKey(id_bytes), ByteKey(vertex_bytes))
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
         }
         write_txn
             .commit()
             .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-        {
-            let mut cache = self.vertex_cache.lock().expect("Failed to lock vertex cache");
-            cache.put(id_bytes, vertex);
-        }
 
         Ok(())
     }
@@ -631,28 +385,18 @@ impl VertexWriter for RedbWriter {
                 .open_table(NODES_TABLE)
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
 
-            table
-                .remove(ByteKey(id_bytes.clone()))
-                .map_err(|e| StorageError::DbError(e.to_string()))?;
+            if table.get(ByteKey(id_bytes.to_vec()))
+                .map_err(|e| StorageError::DbError(e.to_string()))?
+                .is_none() {
+                return Err(StorageError::NodeNotFound(id.clone()));
+            }
 
-            let mut index_table = write_txn
-                .open_table(INDEXES_TABLE)
-                .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-            let index_key = format!("node_edge_index:{:?}", id);
-            let index_key_bytes = index_key.as_bytes().to_vec();
-            index_table
-                .remove(ByteKey(index_key_bytes))
+            table.remove(ByteKey(id_bytes.to_vec()))
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
         }
         write_txn
             .commit()
             .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-        {
-            let mut cache = self.vertex_cache.lock().expect("Failed to lock vertex cache");
-            cache.pop(&id_bytes);
-        }
 
         Ok(())
     }
@@ -670,21 +414,17 @@ impl VertexWriter for RedbWriter {
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
 
             for vertex in vertices {
-                let id = generate_id();
+                let id = Value::Int(generate_id() as i64);
                 let vertex_with_id = Vertex::new(id.clone(), vertex.tags);
-
                 let vertex_bytes = vertex_to_bytes(&vertex_with_id)?;
                 let id_bytes = value_to_bytes(&id)?;
 
-                table
-                    .insert(ByteKey(id_bytes), ByteKey(vertex_bytes))
+                table.insert(ByteKey(id_bytes), ByteKey(vertex_bytes))
                     .map_err(|e| StorageError::DbError(e.to_string()))?;
-
                 ids.push(id);
             }
         }
-        write_txn
-            .commit()
+        write_txn.commit()
             .map_err(|e| StorageError::DbError(e.to_string()))?;
 
         Ok(ids)
@@ -695,7 +435,6 @@ impl EdgeWriter for RedbWriter {
     fn insert_edge(&mut self, _space: &str, edge: Edge) -> Result<(), StorageError> {
         let edge_key = format!("{:?}_{:?}_{}", edge.src, edge.dst, edge.edge_type);
         let edge_key_bytes = edge_key.as_bytes().to_vec();
-
         let edge_bytes = edge_to_bytes(&edge)?;
 
         let write_txn = self
@@ -708,20 +447,12 @@ impl EdgeWriter for RedbWriter {
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
 
             table
-                .insert(ByteKey(edge_key_bytes.clone()), ByteKey(edge_bytes))
+                .insert(ByteKey(edge_key_bytes), ByteKey(edge_bytes))
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
         }
         write_txn
             .commit()
             .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-        self.update_node_edge_index(&edge.src, &edge_key_bytes, true)?;
-        self.update_node_edge_index(&edge.dst, &edge_key_bytes, true)?;
-        self.update_edge_type_index(&edge.edge_type, &edge_key_bytes, true)?;
-
-        for (prop_name, prop_value) in &edge.props {
-            self.update_prop_index(&edge.edge_type, prop_name, prop_value, &edge.src, true)?;
-        }
 
         Ok(())
     }
@@ -745,22 +476,18 @@ impl EdgeWriter for RedbWriter {
                 .open_table(EDGES_TABLE)
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
 
-            table
-                .remove(ByteKey(edge_key_bytes.clone()))
+            if table.get(ByteKey(edge_key_bytes.to_vec()))
+                .map_err(|e| StorageError::DbError(e.to_string()))?
+                .is_none() {
+                return Err(StorageError::EdgeNotFound(Value::String(format!("{:?}_{:?}_{}", src, dst, edge_type))));
+            }
+
+            table.remove(ByteKey(edge_key_bytes.to_vec()))
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
         }
         write_txn
             .commit()
             .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-        self.update_node_edge_index(src, &edge_key_bytes, false)?;
-        self.update_node_edge_index(dst, &edge_key_bytes, false)?;
-        self.update_edge_type_index(edge_type, &edge_key_bytes, false)?;
-
-        {
-            let mut cache = self.edge_cache.lock().expect("Failed to lock edge cache");
-            cache.pop(&edge_key_bytes);
-        }
 
         Ok(())
     }
@@ -775,32 +502,17 @@ impl EdgeWriter for RedbWriter {
                 .open_table(EDGES_TABLE)
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
 
-            for edge in &edges {
+            for edge in edges {
                 let edge_key = format!("{:?}_{:?}_{}", edge.src, edge.dst, edge.edge_type);
                 let edge_key_bytes = edge_key.as_bytes().to_vec();
-                let edge_bytes = edge_to_bytes(edge)?;
+                let edge_bytes = edge_to_bytes(&edge)?;
 
-                table
-                    .insert(ByteKey(edge_key_bytes), ByteKey(edge_bytes))
+                table.insert(ByteKey(edge_key_bytes), ByteKey(edge_bytes))
                     .map_err(|e| StorageError::DbError(e.to_string()))?;
             }
         }
-        write_txn
-            .commit()
+        write_txn.commit()
             .map_err(|e| StorageError::DbError(e.to_string()))?;
-
-        for edge in edges {
-            let edge_key = format!("{:?}_{:?}_{}", edge.src, edge.dst, edge.edge_type);
-            let edge_key_bytes = edge_key.as_bytes().to_vec();
-
-            self.update_node_edge_index(&edge.src, &edge_key_bytes, true)?;
-            self.update_node_edge_index(&edge.dst, &edge_key_bytes, true)?;
-            self.update_edge_type_index(&edge.edge_type, &edge_key_bytes, true)?;
-
-            for (prop_name, prop_value) in &edge.props {
-                self.update_prop_index(&edge.edge_type, prop_name, prop_value, &edge.src, true)?;
-            }
-        }
 
         Ok(())
     }

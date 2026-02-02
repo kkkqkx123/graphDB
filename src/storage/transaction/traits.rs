@@ -7,12 +7,13 @@
 //! - TransactionState: 事务状态
 //! - TransactionResult: 事务结果
 use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use crate::core::StorageError;
 use super::IsolationLevel;
 use std::sync::Arc;
 
 /// 事务标识符
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Encode, Decode)]
 pub struct TransactionId(pub u64);
 
 impl TransactionId {

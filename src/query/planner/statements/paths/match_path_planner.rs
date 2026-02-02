@@ -257,31 +257,31 @@ impl StorageClient for DummyStorage {
     fn list_edge_types(&self, _space: &str) -> Result<Vec<crate::core::types::EdgeTypeSchema>, crate::core::StorageError> {
         Ok(Vec::new())
     }
-    fn create_tag_index(&mut self, _space: &str, _info: &crate::core::types::IndexInfo) -> Result<bool, crate::core::StorageError> {
+    fn create_tag_index(&mut self, _space: &str, _info: &crate::index::Index) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
     fn drop_tag_index(&mut self, _space: &str, _index_name: &str) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
-    fn get_tag_index(&self, _space: &str, _index_name: &str) -> Result<Option<crate::core::types::IndexInfo>, crate::core::StorageError> {
+    fn get_tag_index(&self, _space: &str, _index_name: &str) -> Result<Option<crate::index::Index>, crate::core::StorageError> {
         Ok(None)
     }
-    fn list_tag_indexes(&self, _space: &str) -> Result<Vec<crate::core::types::IndexInfo>, crate::core::StorageError> {
+    fn list_tag_indexes(&self, _space: &str) -> Result<Vec<crate::index::Index>, crate::core::StorageError> {
         Ok(Vec::new())
     }
     fn rebuild_tag_index(&mut self, _space: &str, _index_name: &str) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
-    fn create_edge_index(&mut self, _space: &str, _info: &crate::core::types::IndexInfo) -> Result<bool, crate::core::StorageError> {
+    fn create_edge_index(&mut self, _space: &str, _info: &crate::index::Index) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
     fn drop_edge_index(&mut self, _space_name: &str, _index_name: &str) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
-    fn get_edge_index(&self, _space_name: &str, _index_name: &str) -> Result<Option<crate::core::types::IndexInfo>, crate::core::StorageError> {
+    fn get_edge_index(&self, _space_name: &str, _index_name: &str) -> Result<Option<crate::index::Index>, crate::core::StorageError> {
         Ok(None)
     }
-    fn list_edge_indexes(&self, _space: &str) -> Result<Vec<crate::core::types::IndexInfo>, crate::core::StorageError> {
+    fn list_edge_indexes(&self, _space: &str) -> Result<Vec<crate::index::Index>, crate::core::StorageError> {
         Ok(Vec::new())
     }
     fn rebuild_edge_index(&mut self, _space: &str, _index_name: &str) -> Result<bool, crate::core::StorageError> {

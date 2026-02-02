@@ -1,8 +1,9 @@
 use crate::core::{Edge, EdgeDirection, StorageError, Value, Vertex};
 use crate::core::types::{
-    EdgeTypeInfo, IndexInfo, InsertEdgeInfo, InsertVertexInfo, PasswordInfo,
+    EdgeTypeInfo, InsertEdgeInfo, InsertVertexInfo, PasswordInfo,
     PropertyDef, SpaceInfo, TagInfo, UpdateInfo,
 };
+use crate::index::Index;
 use crate::storage::Schema;
 use crate::storage::transaction::TransactionId;
 
@@ -71,16 +72,16 @@ pub trait StorageClient: Send + Sync + std::fmt::Debug {
     fn drop_edge_type(&mut self, space: &str, edge_type: &str) -> Result<bool, StorageError>;
     fn list_edge_types(&self, space: &str) -> Result<Vec<EdgeTypeInfo>, StorageError>;
 
-    fn create_tag_index(&mut self, space: &str, info: &IndexInfo) -> Result<bool, StorageError>;
+    fn create_tag_index(&mut self, space: &str, info: &Index) -> Result<bool, StorageError>;
     fn drop_tag_index(&mut self, space: &str, index: &str) -> Result<bool, StorageError>;
-    fn get_tag_index(&self, space: &str, index: &str) -> Result<Option<IndexInfo>, StorageError>;
-    fn list_tag_indexes(&self, space: &str) -> Result<Vec<IndexInfo>, StorageError>;
+    fn get_tag_index(&self, space: &str, index: &str) -> Result<Option<Index>, StorageError>;
+    fn list_tag_indexes(&self, space: &str) -> Result<Vec<Index>, StorageError>;
     fn rebuild_tag_index(&mut self, space: &str, index: &str) -> Result<bool, StorageError>;
 
-    fn create_edge_index(&mut self, space: &str, info: &IndexInfo) -> Result<bool, StorageError>;
+    fn create_edge_index(&mut self, space: &str, info: &Index) -> Result<bool, StorageError>;
     fn drop_edge_index(&mut self, space: &str, index: &str) -> Result<bool, StorageError>;
-    fn get_edge_index(&self, space: &str, index: &str) -> Result<Option<IndexInfo>, StorageError>;
-    fn list_edge_indexes(&self, space: &str) -> Result<Vec<IndexInfo>, StorageError>;
+    fn get_edge_index(&self, space: &str, index: &str) -> Result<Option<Index>, StorageError>;
+    fn list_edge_indexes(&self, space: &str) -> Result<Vec<Index>, StorageError>;
     fn rebuild_edge_index(&mut self, space: &str, index: &str) -> Result<bool, StorageError>;
 
     fn insert_vertex_data(&mut self, space: &str, info: &InsertVertexInfo) -> Result<bool, StorageError>;

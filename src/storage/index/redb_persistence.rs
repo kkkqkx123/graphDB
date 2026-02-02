@@ -4,6 +4,7 @@
 
 use crate::core::StorageError;
 use crate::index::Index;
+use crate::storage::serializer::{serializer_index_to_bytes, serializer_index_from_bytes, index_id_to_bytes, index_id_from_bytes};
 use bincode::{Decode, Encode};
 use redb::{Database, ReadableTable, TableDefinition, TypeName};
 use serde::{Deserialize, Serialize};
@@ -81,18 +82,6 @@ impl RedbIndexPersistence {
         Ok(Self { db, db_path })
     }
 
-    fn value_to_bytes<T: serde::Serialize + bincode::Encode>(&self, value: &T) -> Result<Vec<u8>, StorageError> {
-        bincode::encode_to_vec(value, bincode::config::standard())
-            .map_err(|e| StorageError::SerializeError(e.to_string()))
-    }
-
-    fn value_from_bytes<'a, T: serde::Deserialize<'a> + bincode::Decode<()>>(&self, bytes: &'a [u8]) -> Result<T, StorageError> {
-        let (value, _): (T, usize) =
-            bincode::decode_from_slice(bytes, bincode::config::standard())
-                .map_err(|e| StorageError::SerializeError(e.to_string()))?;
-        Ok(value)
-    }
-
     fn make_meta_key(index_id: i32) -> Vec<u8> {
         format!("index_meta:{}", index_id).as_bytes().to_vec()
     }
@@ -117,7 +106,7 @@ impl IndexPersistence for RedbIndexPersistence {
                 .open_table(INDEX_META_TABLE)
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
 
-            let index_bytes = self.value_to_bytes(index)?;
+            let index_bytes = serializer_index_to_bytes(index)?;
             let key = Self::make_meta_key(index.id);
             table.insert(ByteKey(key), ByteKey(index_bytes))
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
@@ -138,7 +127,7 @@ impl IndexPersistence for RedbIndexPersistence {
         match table.get(ByteKey(key)).map_err(|e| StorageError::DbError(e.to_string()))? {
             Some(value) => {
                 let index_bytes = value.value().0;
-                let index: Index = self.value_from_bytes(&index_bytes)?;
+                let index: Index = serializer_index_from_bytes(&index_bytes)?;
                 Ok(Some(index))
             }
             None => Ok(None),
@@ -187,7 +176,7 @@ impl IndexPersistence for RedbIndexPersistence {
         {
             let (_, value) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
             let index_bytes = value.value().0;
-            let index: Index = self.value_from_bytes(&index_bytes)?;
+            let index: Index = serializer_index_from_bytes(&index_bytes)?;
             indexes.push(index);
         }
         Ok(indexes)
@@ -255,7 +244,7 @@ impl IndexPersistence for RedbIndexPersistence {
         let key = Self::make_counter_key();
         match table.get(ByteKey(key)).map_err(|e| StorageError::DbError(e.to_string()))? {
             Some(value) => {
-                let id: i32 = self.value_from_bytes(&value.value().0)?;
+                let id: i32 = index_id_from_bytes(&value.value().0)?;
                 Ok(id)
             }
             None => Ok(1),
@@ -276,12 +265,12 @@ impl IndexPersistence for RedbIndexPersistence {
             let current_id: i32 = match table.get(ByteKey(key.clone()))
                 .map_err(|e| StorageError::DbError(e.to_string()))?
             {
-                Some(value) => self.value_from_bytes(&value.value().0)?,
+                Some(value) => index_id_from_bytes(&value.value().0)?,
                 None => 1,
             };
 
             let new_id = current_id + 1;
-            let new_id_bytes = self.value_to_bytes(&new_id)?;
+            let new_id_bytes = index_id_to_bytes(&new_id)?;
             table.insert(ByteKey(key), ByteKey(new_id_bytes))
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
             new_id

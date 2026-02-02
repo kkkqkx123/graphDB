@@ -9,7 +9,8 @@
 use super::TransactionId;
 use super::TransactionState;
 use crate::core::StorageError;
-use bincode;
+use crate::storage::serializer::{log_record_to_bytes, log_record_from_bytes};
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
@@ -19,7 +20,7 @@ use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, SystemTime};
 
 /// 日志类型
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
 pub enum LogType {
     /// 开始日志
     Begin,
@@ -50,7 +51,7 @@ impl LogType {
 }
 
 /// 日志记录
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
 pub struct LogRecord {
     /// 日志序列号（LSN）
     pub lsn: u64,
@@ -333,8 +334,7 @@ impl TransactionLog {
 
         if let Some(ref mut writer) = *log_file {
             for record in &records {
-                let bytes = bincode::serde::encode_to_vec(record, bincode::config::standard())
-                    .map_err(|e| StorageError::SerializeError(e.to_string()))?;
+                let bytes = log_record_to_bytes(record)?;
 
                 let len_bytes = (bytes.len() as u32).to_le_bytes();
                 writer.write_all(&len_bytes).map_err(|e| {
@@ -392,7 +392,7 @@ impl TransactionLog {
                                     }
                                 }
 
-                                if let Ok((record, _)) = bincode::serde::decode_from_slice::<LogRecord, _>(&bytes, bincode::config::standard()) {
+                                if let Ok(record) = log_record_from_bytes(&bytes) {
                                     self.process_recovery_record(
                                         &record,
                                         &mut transactions,

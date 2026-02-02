@@ -2,10 +2,11 @@ use super::{StorageClient, TransactionId, EdgeReader, EdgeWriter, ScanResult, Ve
 use crate::core::{Edge, StorageError, Value, Vertex, EdgeDirection};
 use crate::core::vertex_edge_path::Tag;
 use crate::core::types::{
-    SpaceInfo, TagInfo, EdgeTypeInfo, EdgeTypeSchema, IndexInfo,
+    SpaceInfo, TagInfo, EdgeTypeInfo, EdgeTypeSchema,
     PropertyDef, InsertVertexInfo, InsertEdgeInfo, UpdateInfo,
     PasswordInfo,
 };
+use crate::index::Index;
 use crate::storage::{FieldDef, FieldType, Schema};
 use crate::common::id::IdGenerator;
 use serde_json;
@@ -29,8 +30,8 @@ pub struct MemoryStorage {
     spaces: Arc<Mutex<HashMap<String, SpaceInfo>>>,
     tags: Arc<Mutex<HashMap<String, HashMap<String, TagInfo>>>>,
     edge_type_infos: Arc<Mutex<HashMap<String, HashMap<String, EdgeTypeSchema>>>>,
-    tag_indexes: Arc<Mutex<HashMap<String, HashMap<String, IndexInfo>>>>,
-    edge_indexes: Arc<Mutex<HashMap<String, HashMap<String, IndexInfo>>>>,
+    tag_indexes: Arc<Mutex<HashMap<String, HashMap<String, Index>>>>,
+    edge_indexes: Arc<Mutex<HashMap<String, HashMap<String, Index>>>>,
     users: Arc<Mutex<HashMap<String, String>>>,
     pub schema_manager: Arc<MemorySchemaManager>,
     storage_path: PathBuf,
@@ -633,13 +634,13 @@ impl StorageClient for MemoryStorage {
     }
 
     // ========== 索引管理 ==========
-    fn create_tag_index(&mut self, _space: &str, info: &IndexInfo) -> Result<bool, StorageError> {
+    fn create_tag_index(&mut self, _space: &str, info: &Index) -> Result<bool, StorageError> {
         let mut tag_indexes = self.tag_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         if let Some(space_indexes) = tag_indexes.get_mut(_space) {
-            if space_indexes.contains_key(&info.index_name) {
+            if space_indexes.contains_key(&info.name) {
                 return Ok(false);
             }
-            space_indexes.insert(info.index_name.clone(), info.clone());
+            space_indexes.insert(info.name.clone(), info.clone());
             Ok(true)
         } else {
             Err(StorageError::DbError(format!("Space '{}' not found", _space)))
@@ -655,7 +656,7 @@ impl StorageClient for MemoryStorage {
         }
     }
 
-    fn get_tag_index(&self, space_name: &str, index_name: &str) -> Result<Option<IndexInfo>, StorageError> {
+    fn get_tag_index(&self, space_name: &str, index_name: &str) -> Result<Option<Index>, StorageError> {
         let tag_indexes = self.tag_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         if let Some(space_indexes) = tag_indexes.get(space_name) {
             Ok(space_indexes.get(index_name).cloned())
@@ -664,7 +665,7 @@ impl StorageClient for MemoryStorage {
         }
     }
 
-    fn list_tag_indexes(&self, space_name: &str) -> Result<Vec<IndexInfo>, StorageError> {
+    fn list_tag_indexes(&self, space_name: &str) -> Result<Vec<Index>, StorageError> {
         let tag_indexes = self.tag_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         if let Some(space_indexes) = tag_indexes.get(space_name) {
             Ok(space_indexes.values().cloned().collect())
@@ -677,13 +678,13 @@ impl StorageClient for MemoryStorage {
         Ok(true)
     }
 
-    fn create_edge_index(&mut self, _space: &str, info: &IndexInfo) -> Result<bool, StorageError> {
+    fn create_edge_index(&mut self, _space: &str, info: &Index) -> Result<bool, StorageError> {
         let mut edge_indexes = self.edge_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         if let Some(space_indexes) = edge_indexes.get_mut(_space) {
-            if space_indexes.contains_key(&info.index_name) {
+            if space_indexes.contains_key(&info.name) {
                 return Ok(false);
             }
-            space_indexes.insert(info.index_name.clone(), info.clone());
+            space_indexes.insert(info.name.clone(), info.clone());
             Ok(true)
         } else {
             Err(StorageError::DbError(format!("Space '{}' not found", _space)))
@@ -699,7 +700,7 @@ impl StorageClient for MemoryStorage {
         }
     }
 
-    fn get_edge_index(&self, space_name: &str, index_name: &str) -> Result<Option<IndexInfo>, StorageError> {
+    fn get_edge_index(&self, space_name: &str, index_name: &str) -> Result<Option<Index>, StorageError> {
         let edge_indexes = self.edge_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         if let Some(space_indexes) = edge_indexes.get(space_name) {
             Ok(space_indexes.get(index_name).cloned())
@@ -708,7 +709,7 @@ impl StorageClient for MemoryStorage {
         }
     }
 
-    fn list_edge_indexes(&self, space_name: &str) -> Result<Vec<IndexInfo>, StorageError> {
+    fn list_edge_indexes(&self, space_name: &str) -> Result<Vec<Index>, StorageError> {
         let edge_indexes = self.edge_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         if let Some(space_indexes) = edge_indexes.get(space_name) {
             Ok(space_indexes.values().cloned().collect())
@@ -936,21 +937,21 @@ impl StorageClient for MemoryStorage {
             *self.edge_type_infos.lock().map_err(|e| StorageError::DbError(e.to_string()))? = infos_map;
         }
 
-        let tag_indexes_file = path.join("tag_indexes.json");
+        let tag_indexes_file = path.join("tag_indexes.bin");
         if tag_indexes_file.exists() {
-            let content = fs::read_to_string(&tag_indexes_file)
+            let content = fs::read(&tag_indexes_file)
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
-            let indexes_map: HashMap<String, HashMap<String, IndexInfo>> = serde_json::from_str(&content)
-                .map_err(|e| StorageError::SerializeError(e.to_string()))?;
+            let indexes_map: HashMap<String, HashMap<String, Index>> = bincode::decode_from_slice(&content, bincode::config::standard())
+                .map_err(|e| StorageError::SerializeError(e.to_string()))?.0;
             *self.tag_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))? = indexes_map;
         }
 
-        let edge_indexes_file = path.join("edge_indexes.json");
+        let edge_indexes_file = path.join("edge_indexes.bin");
         if edge_indexes_file.exists() {
-            let content = fs::read_to_string(&edge_indexes_file)
+            let content = fs::read(&edge_indexes_file)
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
-            let indexes_map: HashMap<String, HashMap<String, IndexInfo>> = serde_json::from_str(&content)
-                .map_err(|e| StorageError::SerializeError(e.to_string()))?;
+            let indexes_map: HashMap<String, HashMap<String, Index>> = bincode::decode_from_slice(&content, bincode::config::standard())
+                .map_err(|e| StorageError::SerializeError(e.to_string()))?.0;
             *self.edge_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))? = indexes_map;
         }
 
@@ -1006,15 +1007,15 @@ impl StorageClient for MemoryStorage {
             .map_err(|e| StorageError::DbError(e.to_string()))?;
 
         let tag_indexes = self.tag_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        let indexes_content = serde_json::to_string_pretty(&*tag_indexes)
+        let indexes_content = bincode::encode_to_vec(&*tag_indexes, bincode::config::standard())
             .map_err(|e| StorageError::SerializeError(e.to_string()))?;
-        fs::write(path.join("tag_indexes.json"), indexes_content)
+        fs::write(path.join("tag_indexes.bin"), indexes_content)
             .map_err(|e| StorageError::DbError(e.to_string()))?;
 
         let edge_indexes = self.edge_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        let indexes_content = serde_json::to_string_pretty(&*edge_indexes)
+        let indexes_content = bincode::encode_to_vec(&*edge_indexes, bincode::config::standard())
             .map_err(|e| StorageError::SerializeError(e.to_string()))?;
-        fs::write(path.join("edge_indexes.json"), indexes_content)
+        fs::write(path.join("edge_indexes.bin"), indexes_content)
             .map_err(|e| StorageError::DbError(e.to_string()))?;
 
         Ok(())

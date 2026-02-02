@@ -8,7 +8,7 @@
 
 use crate::core::error::StorageError;
 use crate::core::{Edge, Value, Vertex};
-use crate::index::{Index, IndexStatus, IndexType, IndexInfo, IndexOptimization};
+use crate::index::{Index, IndexStatus, IndexType, IndexStats, IndexOptimization};
 use crate::storage::{StorageClient, StorageResult};
 use crate::storage::index::{IndexManager, RedbIndexPersistence, IndexPersistence};
 use std::collections::{BTreeMap, HashMap};
@@ -190,7 +190,7 @@ pub struct MemoryIndexManager {
     storage_path: PathBuf,
     index_data: Arc<RwLock<HashMap<i32, IndexData>>>,
     storage_engine: Option<Arc<dyn StorageClient>>,
-    index_stats: Arc<RwLock<HashMap<i32, IndexInfo>>>,
+    index_stats: Arc<RwLock<HashMap<i32, IndexStats>>>,
     persistence: Option<RedbIndexPersistence>,
 }
 
@@ -643,7 +643,7 @@ impl IndexManager for MemoryIndexManager {
         Ok(())
     }
 
-    fn get_index_stats(&self, space_id: i32, index_id: i32) -> StorageResult<IndexInfo> {
+    fn get_index_stats(&self, space_id: i32, index_id: i32) -> StorageResult<IndexStats> {
         let indexes = self.indexes.read().map_err(|e| StorageError::LockError(e.to_string()))?;
         let index = indexes.values()
             .find(|idx| idx.id == index_id)
@@ -663,7 +663,7 @@ impl IndexManager for MemoryIndexManager {
             0.0
         };
 
-        let stats = IndexInfo {
+        let stats = IndexStats {
             index_id,
             index_name: index.name.clone(),
             total_entries: data.get_total_entries(),
@@ -677,7 +677,7 @@ impl IndexManager for MemoryIndexManager {
         Ok(stats)
     }
 
-    fn get_all_index_stats(&self, space_id: i32) -> StorageResult<Vec<IndexInfo>> {
+    fn get_all_index_stats(&self, space_id: i32) -> StorageResult<Vec<IndexStats>> {
         let indexes = self.indexes.read().map_err(|e| StorageError::LockError(e.to_string()))?;
         let space_indexes: Vec<Index> = indexes.values().filter(|idx| idx.space_id == space_id).cloned().collect();
         drop(indexes);

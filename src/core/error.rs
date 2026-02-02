@@ -87,9 +87,6 @@ pub enum StorageError {
     StorageError(String),
     #[error("序列化错误: {0}")]
     SerializeError(String),
-    #[error("序列化错误: {0}")]
-    #[deprecated(note = "请使用 SerializeError")]
-    SerializationError(String),
     #[error("反序列化错误: {0}")]
     DeserializeError(String),
     #[error("节点未找到: {0:?}")]
@@ -132,6 +129,36 @@ impl StorageError {
             self,
             StorageError::LockTimeout(_) | StorageError::Deadlock | StorageError::ConnectionError(_)
         )
+    }
+}
+
+impl From<std::io::Error> for StorageError {
+    fn from(e: std::io::Error) -> Self {
+        StorageError::DbError(e.to_string())
+    }
+}
+
+impl From<redb::Error> for StorageError {
+    fn from(e: redb::Error) -> Self {
+        StorageError::DbError(e.to_string())
+    }
+}
+
+impl From<String> for StorageError {
+    fn from(s: String) -> Self {
+        StorageError::DbError(s)
+    }
+}
+
+impl From<&str> for StorageError {
+    fn from(s: &str) -> Self {
+        StorageError::DbError(s.to_string())
+    }
+}
+
+impl<T> From<std::sync::PoisonError<T>> for StorageError {
+    fn from(e: std::sync::PoisonError<T>) -> Self {
+        StorageError::LockError(e.to_string())
     }
 }
 

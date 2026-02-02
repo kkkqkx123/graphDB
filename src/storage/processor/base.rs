@@ -132,7 +132,7 @@ impl<RESP> ProcessorFuture<RESP> {
 mod tests {
     use super::*;
     use crate::core::{Edge, EdgeDirection, Value, Vertex};
-    use crate::core::types::metadata::{SpaceInfo, TagInfo, EdgeTypeInfo, PropertyDef, InsertVertexInfo, InsertEdgeInfo, UpdateInfo, PasswordInfo, IndexInfo as CoreIndexInfo};
+    use crate::core::types::metadata::{SpaceInfo, TagInfo, EdgeTypeInfo, PropertyDef, InsertVertexInfo, InsertEdgeInfo, UpdateInfo, PasswordInfo};
     use crate::storage::transaction::TransactionId;
     use crate::storage::Schema;
     use crate::query::context::runtime_context::{PlanContext, RuntimeContext, StorageEnv};
@@ -142,7 +142,7 @@ mod tests {
     use crate::storage::index::IndexType;
     use crate::core::value::NullType;
     use std::sync::Mutex;
-    use crate::index::{Index, IndexStatus, IndexInfo, IndexOptimization};
+    use crate::index::{Index, IndexStatus, IndexStats, IndexOptimization};
 
     #[derive(Debug)]
     struct DummySchemaManager;
@@ -189,8 +189,8 @@ mod tests {
         fn save_to_disk(&self) -> StorageResult<()> { Ok(()) }
         fn rebuild_index(&self, _space_id: i32, _index_id: i32) -> StorageResult<()> { Ok(()) }
         fn rebuild_all_indexes(&self, _space_id: i32) -> StorageResult<()> { Ok(()) }
-        fn get_index_stats(&self, _space_id: i32, _index_id: i32) -> StorageResult<IndexInfo> { Ok(IndexInfo::default()) }
-        fn get_all_index_stats(&self, _space_id: i32) -> StorageResult<Vec<IndexInfo>> { Ok(Vec::new()) }
+        fn get_index_stats(&self, _space_id: i32, _index_id: i32) -> StorageResult<IndexStats> { Ok(IndexStats::default()) }
+        fn get_all_index_stats(&self, _space_id: i32) -> StorageResult<Vec<IndexStats>> { Ok(Vec::new()) }
         fn analyze_index(&self, _space_id: i32, _index_id: i32) -> StorageResult<IndexOptimization> { Ok(IndexOptimization::default()) }
         fn analyze_all_indexes(&self, _space_id: i32) -> StorageResult<Vec<IndexOptimization>> { Ok(Vec::new()) }
         fn check_index_consistency(&self, _space_id: i32, _index_id: i32) -> StorageResult<bool> { Ok(true) }
@@ -391,7 +391,7 @@ mod tests {
             Ok(Vec::new())
         }
 
-        fn create_tag_index(&mut self, _space: &str, _info: &CoreIndexInfo) -> Result<bool, StorageError> {
+        fn create_tag_index(&mut self, _space: &str, _info: &Index) -> Result<bool, StorageError> {
             Ok(true)
         }
 
@@ -399,11 +399,11 @@ mod tests {
             Ok(true)
         }
 
-        fn get_tag_index(&self, _space: &str, _index: &str) -> Result<Option<CoreIndexInfo>, StorageError> {
+        fn get_tag_index(&self, _space: &str, _index: &str) -> Result<Option<Index>, StorageError> {
             Ok(None)
         }
 
-        fn list_tag_indexes(&self, _space: &str) -> Result<Vec<CoreIndexInfo>, StorageError> {
+        fn list_tag_indexes(&self, _space: &str) -> Result<Vec<Index>, StorageError> {
             Ok(Vec::new())
         }
 
@@ -411,7 +411,7 @@ mod tests {
             Ok(true)
         }
 
-        fn create_edge_index(&mut self, _space: &str, _info: &CoreIndexInfo) -> Result<bool, StorageError> {
+        fn create_edge_index(&mut self, _space: &str, _info: &Index) -> Result<bool, StorageError> {
             Ok(true)
         }
 
@@ -419,11 +419,11 @@ mod tests {
             Ok(true)
         }
 
-        fn get_edge_index(&self, _space: &str, _index: &str) -> Result<Option<CoreIndexInfo>, StorageError> {
+        fn get_edge_index(&self, _space: &str, _index: &str) -> Result<Option<Index>, StorageError> {
             Ok(None)
         }
 
-        fn list_edge_indexes(&self, _space: &str) -> Result<Vec<CoreIndexInfo>, StorageError> {
+        fn list_edge_indexes(&self, _space: &str) -> Result<Vec<Index>, StorageError> {
             Ok(Vec::new())
         }
 

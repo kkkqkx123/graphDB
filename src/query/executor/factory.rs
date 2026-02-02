@@ -1092,14 +1092,18 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
 
             // 标签索引管理执行器
             PlanNodeEnum::CreateTagIndex(node) => {
-                use crate::core::types::{IndexInfo, IndexTargetType};
-                let target_type = IndexTargetType::Tag;
-                let index_info = IndexInfo::new(
+                use crate::index::{Index, IndexType};
+                let index = Index::new(
+                    0,
                     node.info().index_name.clone(),
-                    target_type,
+                    0,
                     node.info().target_name.clone(),
-                ).with_properties(node.info().properties.clone());
-                let executor = CreateTagIndexExecutor::new(node.id(), storage, index_info);
+                    Vec::new(),
+                    node.info().properties.clone(),
+                    IndexType::TagIndex,
+                    false,
+                );
+                let executor = CreateTagIndexExecutor::new(node.id(), storage, index);
                 Ok(ExecutorEnum::CreateTagIndex(executor))
             }
 
@@ -1140,14 +1144,18 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
 
             // 边索引管理执行器
             PlanNodeEnum::CreateEdgeIndex(node) => {
-                use crate::core::types::{IndexInfo, IndexTargetType};
-                let target_type = IndexTargetType::EdgeType;
-                let index_info = IndexInfo::new(
+                use crate::index::{Index, IndexType};
+                let index = Index::new(
+                    0,
                     node.info().index_name.clone(),
-                    target_type,
+                    0,
                     node.info().target_name.clone(),
-                ).with_properties(node.info().properties.clone());
-                let executor = CreateEdgeIndexExecutor::new(node.id(), storage, index_info);
+                    Vec::new(),
+                    node.info().properties.clone(),
+                    IndexType::EdgeIndex,
+                    false,
+                );
+                let executor = CreateEdgeIndexExecutor::new(node.id(), storage, index);
                 Ok(ExecutorEnum::CreateEdgeIndex(executor))
             }
 

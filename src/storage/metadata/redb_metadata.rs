@@ -1,63 +1,10 @@
 use crate::core::StorageError;
 use crate::core::types::{EdgeTypeInfo, SpaceInfo, TagInfo};
 use crate::storage::{FieldDef, FieldType, Schema};
+use crate::storage::redb_types::{ByteKey, SPACES_TABLE, TAGS_TABLE, EDGE_TYPES_TABLE};
 use crate::storage::serializer::{space_to_bytes, space_from_bytes, tag_to_bytes, tag_from_bytes, edge_type_to_bytes, edge_type_from_bytes};
-use redb::{Database, ReadableTable, TableDefinition};
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-use std::cmp::Ordering;
-
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct ByteKey(pub Vec<u8>);
-
-impl redb::Key for ByteKey {
-    fn compare(data1: &[u8], data2: &[u8]) -> Ordering {
-        data1.cmp(data2)
-    }
-}
-
-impl redb::Value for ByteKey {
-    type SelfType<'a> = ByteKey where Self: 'a;
-    type AsBytes<'a> = Vec<u8> where Self: 'a;
-
-    fn fixed_width() -> Option<usize> {
-        None
-    }
-
-    fn from_bytes<'a>(data: &'a [u8]) -> ByteKey where Self: 'a {
-        ByteKey(data.to_vec())
-    }
-
-    fn as_bytes<'a, 'b: 'a>(value: &'a Self::SelfType<'b>) -> Vec<u8> where Self: 'b {
-        value.0.clone()
-    }
-
-    fn type_name() -> redb::TypeName {
-        redb::TypeName::new("graphdb::ByteKey")
-    }
-}
-
-const SPACES_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefinition::new("spaces");
-const TAGS_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefinition::new("tags");
-const EDGE_TYPES_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefinition::new("edge_types");
-
-pub struct RedbSchemaManager {
-    db: Database,
-}
-
-impl std::fmt::Debug for RedbSchemaManager {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("RedbSchemaManager").finish()
-    }
-}
-
-impl RedbSchemaManager {
-    pub fn new<P: AsRef<std::path::Path>>(path: P) -> Result<Self, StorageError> {
-        let db = Database::create(path.as_ref())
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        Ok(Self { db })
-    }
-}
+use redb::{Database, ReadableTable};
+use std::sync::Arc;
 
 fn data_type_to_field_type(data_type: &crate::core::DataType) -> FieldType {
     match data_type {
@@ -122,6 +69,22 @@ fn edge_type_info_to_schema(edge_type_name: &str, edge_info: &EdgeTypeInfo) -> S
         name: edge_type_name.to_string(),
         version: 1,
         fields: fields.into_iter().map(|f| (f.name.clone(), f)).collect(),
+    }
+}
+
+pub struct RedbSchemaManager {
+    db: Arc<Database>,
+}
+
+impl std::fmt::Debug for RedbSchemaManager {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RedbSchemaManager").finish()
+    }
+}
+
+impl RedbSchemaManager {
+    pub fn new(db: Arc<Database>) -> Self {
+        Self { db }
     }
 }
 

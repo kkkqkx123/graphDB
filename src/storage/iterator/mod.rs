@@ -25,8 +25,7 @@ pub use default_iter::DefaultIter;
 pub use get_neighbors_iter::GetNeighborsIter;
 pub use prop_iter::PropIter;
 pub use sequential_iter::SequentialIter;
-// 存储迭代器类型（待实现）
-// pub use storage_iter::{StorageIterator, VertexIter, EdgeIter, PropIter as StoragePropIter};
+pub use storage_iter::VecPairIterator;
 pub use composite::{CompositeIter, FilterIter, MapIter, TakeIter, SkipIter};
 pub use predicate::{Predicate, Expression, SimplePredicate, CompoundPredicate, PredicateOptimizer, PushdownResult};
 

@@ -1,4 +1,5 @@
 use super::{Engine, Operation, StorageIterator, TransactionId, SnapshotId};
+use crate::storage::iterator::VecPairIterator;
 use crate::core::StorageError;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -89,7 +90,7 @@ impl Engine for MemoryEngine {
             values.push(v);
         }
 
-        Ok(Box::new(PairIterator { keys, values, index: 0 }))
+        Ok(Box::new(VecPairIterator::new(keys, values)))
     }
 
     fn batch(&mut self, ops: Vec<Operation>) -> Result<(), StorageError> {
@@ -192,7 +193,7 @@ impl Engine for MemoryEngine {
                 values.push(v);
             }
 
-            Ok(Some(Box::new(PairIterator { keys, values, index: 0 })))
+            Ok(Some(Box::new(VecPairIterator::new(keys, values))))
         } else {
             Ok(None)
         }
@@ -202,35 +203,6 @@ impl Engine for MemoryEngine {
         let mut snapshots = self.snapshots.write().map_err(|e| StorageError::DbError(e.to_string()))?;
         snapshots.remove(&snap_id);
         Ok(())
-    }
-}
-
-struct PairIterator {
-    keys: Vec<Vec<u8>>,
-    values: Vec<Vec<u8>>,
-    index: usize,
-}
-
-impl StorageIterator for PairIterator {
-    fn key(&self) -> Option<&[u8]> {
-        self.keys.get(self.index).map(|v| v.as_slice())
-    }
-
-    fn value(&self) -> Option<&[u8]> {
-        self.values.get(self.index).map(|v| v.as_slice())
-    }
-
-    fn next(&mut self) -> bool {
-        if self.index < self.keys.len() {
-            self.index += 1;
-            true
-        } else {
-            false
-        }
-    }
-
-    fn estimate_remaining(&self) -> Option<usize> {
-        Some(self.keys.len().saturating_sub(self.index))
     }
 }
 

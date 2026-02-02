@@ -52,6 +52,7 @@ pub struct Index {
     pub space_id: i32,
     pub schema_name: String,
     pub fields: Vec<IndexField>,
+    pub properties: Vec<String>,
     pub index_type: IndexType,
     pub status: IndexStatus,
     pub is_unique: bool,
@@ -65,6 +66,7 @@ impl Index {
         space_id: i32,
         schema_name: String,
         fields: Vec<IndexField>,
+        properties: Vec<String>,
         index_type: IndexType,
         is_unique: bool,
     ) -> Self {
@@ -74,6 +76,7 @@ impl Index {
             space_id,
             schema_name,
             fields,
+            properties,
             index_type,
             status: IndexStatus::Active,
             is_unique,
@@ -83,7 +86,7 @@ impl Index {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct IndexInfo {
+pub struct IndexStats {
     pub index_id: i32,
     pub index_name: String,
     pub total_entries: usize,
@@ -94,7 +97,7 @@ pub struct IndexInfo {
     pub avg_query_time_ms: f64,
 }
 
-impl IndexInfo {
+impl IndexStats {
     pub fn new(index_id: i32, index_name: String) -> Self {
         Self {
             index_id,
@@ -196,8 +199,8 @@ mod tests {
     }
 
     #[test]
-    fn test_index_info_creation() {
-        let info = IndexInfo::new(1, "test_index".to_string());
+    fn test_index_stats_creation() {
+        let info = IndexStats::new(1, "test_index".to_string());
 
         assert_eq!(info.index_id, 1);
         assert_eq!(info.index_name, "test_index");
