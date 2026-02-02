@@ -140,7 +140,7 @@ impl RuntimeContext {
         use std::path::PathBuf;
 
         let storage_env = Arc::new(StorageEnv {
-            storage_engine: Arc::new(crate::storage::MemoryStorage::new().unwrap_or_default()),
+            storage_engine: Arc::new(crate::storage::redb_storage::DefaultStorage::new().expect("Failed to create DefaultStorage")),
             schema_manager: Arc::new(crate::storage::metadata::MemorySchemaManager::new()),
             index_manager: Arc::new(crate::storage::index::MemoryIndexManager::new(PathBuf::from("."))),
         });

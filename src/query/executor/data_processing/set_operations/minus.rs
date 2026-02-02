@@ -152,8 +152,8 @@ mod tests {
     use crate::core::Value;
 
     // 创建测试用的存储引擎
-    fn create_test_storage() -> Arc<Mutex<crate::storage::MemoryStorage>> {
-        let storage = crate::storage::MemoryStorage::new()
+    fn create_test_storage() -> Arc<Mutex<crate::storage::redb_storage::DefaultStorage>> {
+        let storage = crate::storage::redb_storage::DefaultStorage::new()
             .expect("Failed to create test storage");
         Arc::new(Mutex::new(storage))
     }

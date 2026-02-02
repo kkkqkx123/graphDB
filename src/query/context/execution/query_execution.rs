@@ -481,7 +481,7 @@ mod tests {
     use super::*;
     use crate::storage::MemorySchemaManager;
     use crate::storage::index::MemoryIndexManager;
-    use crate::storage::MemoryStorage;
+    use crate::storage::redb_storage::DefaultStorage;
 
     #[test]
     fn test_query_context_creation() {
@@ -524,7 +524,7 @@ mod tests {
         ctx.set_index_manager(index_manager.clone());
         assert!(ctx.index_manager().is_some());
 
-        let storage = MemoryStorage::new().expect("Failed to create memory storage");
+        let storage = DefaultStorage::new().expect("Failed to create memory storage");
         let storage_client: Arc<dyn crate::storage::StorageClient> = Arc::new(storage);
         ctx.set_storage_client(storage_client.clone());
         assert!(ctx.get_storage_client().is_some());

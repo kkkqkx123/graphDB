@@ -1,10 +1,8 @@
 use crate::core::StorageError;
 use crate::storage::transaction::TransactionId;
 
-pub mod memory_engine;
 pub mod redb_engine;
 
-pub use memory_engine::MemoryEngine;
 pub use redb_engine::RedbEngine;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -67,10 +65,6 @@ pub trait Engine: Send + Sync {
     fn begin_transaction(&mut self) -> Result<TransactionId, StorageError>;
     fn commit_transaction(&mut self, tx_id: TransactionId) -> Result<(), StorageError>;
     fn rollback_transaction(&mut self, tx_id: TransactionId) -> Result<(), StorageError>;
-
-    fn create_snapshot(&self) -> Result<SnapshotId, StorageError>;
-    fn get_snapshot(&self, snap_id: SnapshotId) -> Result<Option<Box<dyn StorageIterator>>, StorageError>;
-    fn delete_snapshot(&self, snap_id: SnapshotId) -> Result<(), StorageError>;
 }
 
 pub enum Operation {

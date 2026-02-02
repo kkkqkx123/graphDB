@@ -4,7 +4,6 @@ pub mod operations;
 pub mod metadata;
 pub mod transaction;
 pub mod processor;
-pub mod memory_storage;
 pub mod redb_storage;
 pub mod redb_types;
 pub mod storage_client;
@@ -21,7 +20,6 @@ pub mod test_mock;
 
 pub use engine::*;
 pub use iterator::*;
-pub use memory_storage::*;
 pub use metadata::*;
 pub use operations::*;
 pub use processor::*;

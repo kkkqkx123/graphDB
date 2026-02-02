@@ -8,7 +8,7 @@ pub mod session;
 
 use crate::api::service::GraphService;
 use crate::config::Config;
-use crate::storage::MemoryStorage;
+use crate::storage::redb_storage::DefaultStorage;
 
 pub async fn start_service(config_path: String) -> Result<()> {
     println!("Initializing GraphDB service...");
@@ -27,10 +27,10 @@ pub async fn start_service(config_path: String) -> Result<()> {
 
     info!("Logger initialized: {}", config.log_file);
 
-    let storage = Arc::new(MemoryStorage::new()?);
+    let storage = Arc::new(DefaultStorage::new()?);
     println!("Storage initialized (memory mode)");
 
-    let _graph_service = GraphService::<MemoryStorage>::new(config.clone(), storage);
+    let _graph_service = GraphService::<DefaultStorage>::new(config.clone(), storage);
     println!("Graph service initialized with session management");
 
     println!("Starting HTTP server on {}:{}", config.host, config.port);
@@ -45,9 +45,9 @@ pub async fn execute_query(query_str: &str) -> Result<()> {
     println!("Executing query: {}", query_str);
 
     let config = crate::config::Config::default();
-    let storage = Arc::new(MemoryStorage::new()?);
+    let storage = Arc::new(DefaultStorage::new()?);
 
-    let graph_service = GraphService::<MemoryStorage>::new(config, storage);
+    let graph_service = GraphService::<DefaultStorage>::new(config, storage);
 
     let session = match graph_service
         .get_session_manager()

@@ -65,13 +65,13 @@ mod tests {
     use super::*;
     use crate::api::session::client_session::{ClientSession, Session};
     use crate::query::optimizer::rule_registry::RuleRegistry;
-    use crate::storage::MemoryStorage;
+    use crate::storage::redb_storage::DefaultStorage;
     use std::sync::Arc;
 
     #[tokio::test]
     async fn test_query_engine_creation() {
         RuleRegistry::initialize();
-        let storage = Arc::new(MemoryStorage::new().expect("Failed to create Memory storage"));
+        let storage = Arc::new(DefaultStorage::new().expect("Failed to create Memory storage"));
         let _query_engine = QueryEngine::new(storage);
 
         assert!(true);
@@ -80,7 +80,7 @@ mod tests {
     #[tokio::test]
     async fn test_query_engine_execute() {
         RuleRegistry::initialize();
-        let storage = Arc::new(MemoryStorage::new().expect("Failed to create Memory storage"));
+        let storage = Arc::new(DefaultStorage::new().expect("Failed to create Memory storage"));
         let mut query_engine = QueryEngine::new(storage);
 
         let session = Session {
