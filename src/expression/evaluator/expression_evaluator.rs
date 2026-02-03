@@ -434,7 +434,6 @@ impl GenericExpressionVisitor<Expression> for ExpressionEvaluator {
             Expression::Predicate { .. } => Err(ExpressionError::type_error("谓词表达式需要运行时上下文")),
             Expression::Reduce { .. } => Err(ExpressionError::type_error("归约表达式需要运行时上下文")),
             Expression::PathBuild(_) => Err(ExpressionError::type_error("路径构建表达式需要运行时上下文")),
-            _ => Err(ExpressionError::type_error("不支持的表达式类型")),
         }
     }
 }

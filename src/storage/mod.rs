@@ -37,6 +37,3 @@ pub use test_mock::*;
 pub use date_utils::*;
 pub use schema::Schema;
 pub use types::{ColumnDef, DataType, FieldDef, FieldType};
-
-// 导出 codec 模块类型
-pub use crate::core::codec::{RowWriter, RowReader, KeyUtils, CodecError, CodecResult, FormatVersion};

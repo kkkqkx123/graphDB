@@ -442,7 +442,9 @@ impl crate::expression::evaluator::traits::ExpressionContext for QueryExpression
     }
 
     fn is_empty(&self) -> bool {
-        ExpressionContext::is_empty(self)
+        self.current_vertex.is_none()
+            && self.current_edge.is_none()
+            && VariableContext::variable_count(self) == 0
     }
 
     fn variable_count(&self) -> usize {
@@ -461,7 +463,7 @@ impl crate::expression::evaluator::traits::ExpressionContext for QueryExpression
     }
 
     fn clear(&mut self) {
-        ExpressionContext::clear(self);
+        VariableContext::clear_variables(self);
     }
 
     fn get_function(&self, name: &str) -> Option<crate::expression::functions::FunctionRef> {

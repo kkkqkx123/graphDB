@@ -354,13 +354,11 @@ impl<S: StorageClient + Send + 'static> Executor<S> for IndexScanExecutor<S> {
         let storage = safe_lock(self.get_storage())
             .expect("IndexScanExecutor storage lock should not be poisoned");
 
-        let mut vertices = Vec::new();
-
         let filter_expr = self.filter.as_ref();
 
-        match self.scan_type.as_str() {
+        let vertices = match self.scan_type.as_str() {
             "RANGE" | "PREFIX" | "UNIQUE" => {
-                vertices = storage.scan_vertices_by_tag("default", &self.scan_type)?;
+                let mut vertices = storage.scan_vertices_by_tag("default", &self.scan_type)?;
                 
                 if let Some(expr) = filter_expr {
                     let mut context = crate::expression::DefaultExpressionContext::new();
@@ -379,11 +377,10 @@ impl<S: StorageClient + Send + 'static> Executor<S> for IndexScanExecutor<S> {
                         }
                     });
                 }
+                vertices
             }
-            _ => {
-                vertices = storage.scan_vertices("default")?;
-            }
-        }
+            _ => storage.scan_vertices("default")?,
+        };
 
         if let Some(limit) = self.limit {
             vertices.truncate(limit);

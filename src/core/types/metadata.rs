@@ -4,13 +4,217 @@
 //! 此模块定义了所有 Schema 相关的核心类型，作为系统统一的类型定义来源
 
 use crate::core::{DataType, Value};
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
-/// 统一的 SpaceInfo 结构
-///
-/// 代表图数据库中的一个图空间（Graph Space），
-/// 包含空间的基本信息和关联的 Schema 定义
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
+pub struct MetadataVersion {
+    pub version: i32,
+    pub timestamp: i64,
+    pub description: String,
+}
+
+impl Default for MetadataVersion {
+    fn default() -> Self {
+        Self {
+            version: 1,
+            timestamp: chrono::Utc::now().timestamp_millis(),
+            description: String::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
+pub struct SchemaVersion {
+    pub version: i32,
+    pub space_id: i32,
+    pub tags: Vec<TagInfo>,
+    pub edge_types: Vec<EdgeTypeInfo>,
+    pub created_at: i64,
+    pub comment: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
+pub struct SchemaHistory {
+    pub space_id: i32,
+    pub versions: Vec<SchemaVersion>,
+    pub current_version: i64,
+    pub timestamp: i64,
+}
+
+impl Default for SchemaHistory {
+    fn default() -> Self {
+        Self {
+            space_id: 0,
+            versions: Vec::new(),
+            current_version: 0,
+            timestamp: chrono::Utc::now().timestamp_millis(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
+pub enum SchemaChangeType {
+    AddProperty,
+    DropProperty,
+    ModifyProperty,
+    AddIndex,
+    DropIndex,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
+pub struct SchemaChange {
+    pub change_type: SchemaChangeType,
+    pub target: String,
+    pub property: Option<PropertyDef>,
+    pub timestamp: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
+pub struct PropertyDef {
+    pub name: String,
+    pub data_type: DataType,
+    pub nullable: bool,
+    pub default: Option<Value>,
+    pub comment: Option<String>,
+}
+
+impl PropertyDef {
+    pub fn new(name: String, data_type: DataType) -> Self {
+        Self {
+            name,
+            data_type,
+            nullable: false,
+            default: None,
+            comment: None,
+        }
+    }
+
+    pub fn with_nullable(mut self, nullable: bool) -> Self {
+        self.nullable = nullable;
+        self
+    }
+
+    pub fn with_default(mut self, default: Option<Value>) -> Self {
+        self.default = default;
+        self
+    }
+
+    pub fn with_comment(mut self, comment: Option<String>) -> Self {
+        self.comment = comment;
+        self
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
+pub struct InsertVertexInfo {
+    pub space_id: i32,
+    pub vertex_id: Value,
+    pub tag_name: String,
+    pub props: Vec<(String, Value)>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
+pub struct InsertEdgeInfo {
+    pub space_id: i32,
+    pub src_vertex_id: Value,
+    pub dst_vertex_id: Value,
+    pub edge_name: String,
+    pub rank: i64,
+    pub props: Vec<(String, Value)>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
+pub struct UpdateTarget {
+    pub space_name: String,
+    pub label: String,
+    pub id: Value,
+    pub prop: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
+pub enum UpdateOp {
+    Set,
+    Add,
+    Subtract,
+    Append,
+    Remove,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
+pub struct UpdateInfo {
+    pub update_target: UpdateTarget,
+    pub update_op: UpdateOp,
+    pub value: Value,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
+pub struct PasswordInfo {
+    pub username: String,
+    pub old_password: String,
+    pub new_password: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
+pub struct ClusterInfo {
+    pub cluster_id: i32,
+    pub nodes: Vec<String>,
+    pub total_space: i64,
+    pub used_space: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
+pub struct CharsetInfo {
+    pub charset: String,
+    pub collation: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
+pub struct SchemaExportConfig {
+    pub space_id: Option<i32>,
+    pub format: ExportFormat,
+    pub include_comments: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
+pub enum ExportFormat {
+    JSON,
+    YAML,
+    Rust,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
+pub struct SchemaImportResult {
+    pub success: bool,
+    pub space_name: String,
+    pub imported_items: i32,
+    pub imported_tags: Vec<String>,
+    pub imported_edge_types: Vec<String>,
+    pub skipped_items: Vec<String>,
+    pub errors: Vec<String>,
+}
+
+impl Default for SchemaImportResult {
+    fn default() -> Self {
+        Self {
+            success: false,
+            space_name: String::new(),
+            imported_items: 0,
+            imported_tags: Vec::new(),
+            imported_edge_types: Vec::new(),
+            skipped_items: Vec::new(),
+            errors: Vec::new(),
+        }
+    }
+}
+
+impl SchemaImportResult {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
 pub struct SpaceInfo {
     pub space_id: i32,
     pub space_name: String,
@@ -57,101 +261,9 @@ impl SpaceInfo {
         self.comment = comment;
         self
     }
-
-    pub fn with_tags(mut self, tags: Vec<TagInfo>) -> Self {
-        self.tags = tags;
-        self
-    }
-
-    pub fn with_edge_types(mut self, edge_types: Vec<EdgeTypeInfo>) -> Self {
-        self.edge_types = edge_types;
-        self
-    }
 }
 
-/// 元数据版本信息
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct MetadataVersion {
-    pub version: i32,
-    pub timestamp: i64,
-    pub description: String,
-}
-
-impl Default for MetadataVersion {
-    fn default() -> Self {
-        Self {
-            version: 1,
-            timestamp: 0,
-            description: String::new(),
-        }
-    }
-}
-
-impl MetadataVersion {
-    pub fn new(description: String) -> Self {
-        let timestamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .expect("Time went backwards")
-            .as_secs() as i64;
-        Self {
-            version: 1,
-            timestamp,
-            description,
-        }
-    }
-
-    pub fn increment(&self, description: String) -> Self {
-        let timestamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .expect("Time went backwards")
-            .as_secs() as i64;
-        Self {
-            version: self.version + 1,
-            timestamp,
-            description,
-        }
-    }
-}
-
-/// 属性定义
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct PropertyDef {
-    pub name: String,
-    pub data_type: DataType,
-    pub nullable: bool,
-    pub default: Option<Value>,
-    pub comment: Option<String>,
-}
-
-impl PropertyDef {
-    pub fn new(name: String, data_type: DataType) -> Self {
-        Self {
-            name,
-            data_type,
-            nullable: true,
-            default: None,
-            comment: None,
-        }
-    }
-
-    pub fn with_nullable(mut self, nullable: bool) -> Self {
-        self.nullable = nullable;
-        self
-    }
-
-    pub fn with_default(mut self, default: Option<Value>) -> Self {
-        self.default = default;
-        self
-    }
-
-    pub fn with_comment(mut self, comment: Option<String>) -> Self {
-        self.comment = comment;
-        self
-    }
-}
-
-/// 标签信息
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
 pub struct TagInfo {
     pub tag_id: i32,
     pub tag_name: String,
@@ -180,8 +292,7 @@ impl TagInfo {
     }
 }
 
-/// 边类型信息
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
 pub struct EdgeTypeInfo {
     pub edge_type_id: i32,
     pub edge_type_name: String,
@@ -210,216 +321,20 @@ impl EdgeTypeInfo {
     }
 }
 
-/// 集群信息
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ClusterInfo {
-    pub cluster_id: String,
-    pub meta_servers: Vec<String>,
-    pub storage_servers: Vec<String>,
-    pub version: MetadataVersion,
-}
-
-impl ClusterInfo {
-    pub fn new(cluster_id: String) -> Self {
-        Self {
-            cluster_id,
-            meta_servers: Vec::new(),
-            storage_servers: Vec::new(),
-            version: MetadataVersion::default(),
-        }
-    }
-
-    pub fn with_meta_servers(mut self, servers: Vec<String>) -> Self {
-        self.meta_servers = servers;
-        self
-    }
-
-    pub fn with_storage_servers(mut self, servers: Vec<String>) -> Self {
-        self.storage_servers = servers;
-        self
-    }
-}
-
-/// Schema 版本快照
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct SchemaVersion {
-    pub version: i32,
-    pub space_id: i32,
-    pub tags: Vec<TagInfo>,
-    pub edge_types: Vec<EdgeTypeInfo>,
-    pub created_at: i64,
-    pub comment: Option<String>,
-}
-
-/// Schema 历史记录
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct SchemaHistory {
-    pub space_id: i32,
-    pub versions: Vec<SchemaVersion>,
-    pub current_version: i32,
-}
-
-/// Schema 变更类型
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum SchemaChangeType {
-    CreateTag,
-    DropTag,
-    AlterTag,
-    CreateEdgeType,
-    DropEdgeType,
-    AlterEdgeType,
-    CreateIndex,
-    DropIndex,
-}
-
-/// Schema 变更记录
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct SchemaChange {
-    pub change_type: SchemaChangeType,
-    pub target_name: String,
-    pub description: String,
-    pub timestamp: i64,
-}
-
-impl SchemaChange {
-    pub fn new(change_type: SchemaChangeType, target_name: String, description: String) -> Self {
-        let timestamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .expect("Time went backwards")
-            .as_secs() as i64;
-        Self {
-            change_type,
-            target_name,
-            description,
-            timestamp,
-        }
-    }
-}
-
-/// Schema 导出配置
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct SchemaExportConfig {
-    pub include_versions: bool,
-    pub include_comments: bool,
-    pub format: ExportFormat,
-    pub space_id: Option<i32>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum ExportFormat {
-    Json,
-   Yaml,
-    Sql,
-}
-
-impl Default for SchemaExportConfig {
+impl Default for SpaceInfo {
     fn default() -> Self {
-        Self {
-            include_versions: false,
-            include_comments: true,
-            format: ExportFormat::Json,
-            space_id: None,
-        }
+        SpaceInfo::new("default".to_string())
     }
 }
 
-/// Schema 导入结果
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct SchemaImportResult {
-    pub imported_tags: Vec<String>,
-    pub imported_edge_types: Vec<String>,
-    pub imported_indexes: Vec<String>,
-    pub skipped_items: Vec<String>,
-    pub errors: Vec<String>,
-}
-
-impl SchemaImportResult {
-    pub fn new() -> Self {
-        Self {
-            imported_tags: Vec::new(),
-            imported_edge_types: Vec::new(),
-            imported_indexes: Vec::new(),
-            skipped_items: Vec::new(),
-            errors: Vec::new(),
-        }
-    }
-}
-
-/// 字符集信息
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct CharsetInfo {
-    pub charset: String,
-    pub collation: String,
-}
-
-impl Default for CharsetInfo {
+impl Default for TagInfo {
     fn default() -> Self {
-        Self {
-            charset: "utf8mb4".to_string(),
-            collation: "utf8mb4_general_ci".to_string(),
-        }
+        TagInfo::new("default".to_string())
     }
 }
 
-/// 插入顶点信息
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct InsertVertexInfo {
-    pub space_name: String,
-    pub tag_name: String,
-    pub vertex_id: Value,
-    pub properties: Vec<(String, Value)>,
-}
-
-/// 插入边信息
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct InsertEdgeInfo {
-    pub space_name: String,
-    pub edge_name: String,
-    pub src_vertex_id: Value,
-    pub dst_vertex_id: Value,
-    pub rank: i64,
-    pub properties: Vec<(String, Value)>,
-}
-
-/// 更新目标
-#[derive(Debug, Clone, PartialEq)]
-pub enum UpdateTarget {
-    Vertex {
-        vertex_id: Value,
-        tag_name: String,
-    },
-    Edge {
-        src_vertex_id: Value,
-        dst_vertex_id: Value,
-        rank: i64,
-        edge_name: String,
-    },
-}
-
-/// 更新操作
-#[derive(Debug, Clone, PartialEq)]
-pub enum UpdateOp {
-    Set {
-        property: String,
-        value: Value,
-    },
-    Delete {
-        property: String,
-    },
-}
-
-/// 更新信息
-#[derive(Debug, Clone, PartialEq)]
-pub struct UpdateInfo {
-    pub space_name: String,
-    pub target: UpdateTarget,
-    pub operations: Vec<UpdateOp>,
-}
-
-/// 密码信息
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct PasswordInfo {
-    pub username: String,
-    pub old_password: String,
-    pub new_password: String,
+impl Default for EdgeTypeInfo {
+    fn default() -> Self {
+        EdgeTypeInfo::new("default".to_string())
+    }
 }

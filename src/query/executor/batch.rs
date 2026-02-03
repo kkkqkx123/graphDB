@@ -2,10 +2,9 @@
 //!
 //! 提供高效的批量读取和批量操作接口，减少I/O次数，提高性能。
 
-use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use tokio::sync::{mpsc, Semaphore};
+use tokio::sync::Semaphore;
 use tokio::time::timeout;
 
 use crate::core::{DBResult, Edge, Value, Vertex};

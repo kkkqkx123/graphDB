@@ -3,7 +3,6 @@ use crate::storage::iterator::VecPairIterator;
 use crate::core::StorageError;
 use redb::{Database, ReadableTable, TableDefinition, TypeName};
 use std::cmp::Ordering;
-use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]

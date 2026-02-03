@@ -568,7 +568,6 @@ mod tests {
         EdgeTypeSchema, InsertEdgeInfo, InsertVertexInfo, PasswordInfo,
         PropertyDef, SpaceInfo, TagInfo, UpdateInfo,
     };
-    use crate::query::planner::statements::seeks::IndexInfo;
     use crate::index::Index;
     use crate::storage::Schema;
 

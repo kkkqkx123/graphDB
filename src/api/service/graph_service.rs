@@ -340,7 +340,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         let tx_id = tx_manager.begin_transaction();
 
         // 同时在存储层开始事务
-        let mut storage = self.storage.lock().unwrap();
+        let storage = self.storage.lock().unwrap();
         storage
             .begin_transaction("")  // 使用默认空间名
             .map_err(|e| format!("在存储层开始事务失败: {:?}", e))?;
@@ -364,7 +364,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         drop(tx_manager);
 
         // 在存储层提交事务
-        let mut storage = self.storage.lock().unwrap();
+        let storage = self.storage.lock().unwrap();
         let result = storage
             .commit_transaction("", tx_id)  // 使用默认空间名
             .map_err(|e| format!("在存储层提交事务失败: {:?}", e));

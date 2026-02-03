@@ -1,6 +1,6 @@
 use crate::core::{Edge, EdgeDirection, Value, Vertex, StorageError};
 use crate::storage::operations::{VertexReader, EdgeReader, VertexWriter, EdgeWriter, ScanResult};
-use crate::storage::redb_types::{ByteKey, NODES_TABLE, EDGES_TABLE, INDEXES_TABLE};
+use crate::storage::redb_types::{ByteKey, NODES_TABLE, EDGES_TABLE};
 use crate::storage::serializer::{vertex_to_bytes, vertex_from_bytes, edge_to_bytes, edge_from_bytes, value_to_bytes};
 use crate::utils::id_gen::generate_id;
 use redb::{Database, ReadableTable};

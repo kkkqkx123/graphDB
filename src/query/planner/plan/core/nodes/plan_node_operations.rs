@@ -345,7 +345,7 @@ impl PlanNodeEnum {
         if deps.is_empty() {
             None
         } else {
-            Some((*(deps[0].clone())))
+            Some(*deps[0].clone())
         }
     }
 

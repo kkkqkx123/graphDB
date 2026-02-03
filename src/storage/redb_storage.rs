@@ -1,24 +1,19 @@
 use super::{StorageClient, TransactionId, VertexReader, VertexWriter, EdgeReader, EdgeWriter, ScanResult, MemorySchemaManager};
 use crate::core::{Edge, StorageError, Value, Vertex, EdgeDirection};
-use crate::core::vertex_edge_path::Tag;
 use crate::core::types::{
     SpaceInfo, TagInfo, EdgeTypeInfo,
-    PropertyDef, InsertVertexInfo, InsertEdgeInfo, UpdateInfo,
+    InsertVertexInfo, InsertEdgeInfo, UpdateInfo,
     PasswordInfo,
 };
 pub use crate::core::types::EdgeTypeInfo as EdgeTypeSchema;
 use crate::index::Index;
-use crate::storage::{FieldDef, Schema};
-use crate::storage::utils::{tag_info_to_schema, edge_type_info_to_schema};
+use crate::storage::Schema;
+use crate::storage::serializer::{vertex_to_bytes, vertex_from_bytes, edge_to_bytes, edge_from_bytes};
 use crate::common::id::IdGenerator;
 use crate::storage::engine::{Engine, RedbEngine};
-use serde_json;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-
-use crate::storage::{RowWriter, RowReader, KeyUtils, FormatVersion};
-use crate::core::CodecError as CoreCodecError;
 
 #[derive(Clone)]
 pub struct RedbStorage<E: Engine> {
@@ -99,30 +94,23 @@ impl<E: Engine> RedbStorage<E> {
     }
 
     fn serialize_vertex(vertex: &Vertex) -> Result<Vec<u8>, StorageError> {
-        serde_json::to_vec(vertex).map_err(|e| StorageError::DbError(e.to_string()))
+        vertex_to_bytes(vertex)
     }
 
     fn deserialize_vertex(data: &[u8]) -> Result<Vertex, StorageError> {
-        serde_json::from_slice(data).map_err(|e| StorageError::DbError(e.to_string()))
+        vertex_from_bytes(data)
     }
 
     fn serialize_edge(edge: &Edge) -> Result<Vec<u8>, StorageError> {
-        serde_json::to_vec(edge).map_err(|e| StorageError::DbError(e.to_string()))
+        edge_to_bytes(edge)
     }
 
     fn deserialize_edge(data: &[u8]) -> Result<Edge, StorageError> {
-        serde_json::from_slice(data).map_err(|e| StorageError::DbError(e.to_string()))
+        edge_from_bytes(data)
     }
 
-    fn detect_format(data: &[u8]) -> FormatVersion {
-        if data.is_empty() {
-            return FormatVersion::Unknown;
-        }
-        if (data[0] & 0x08) != 0 {
-            FormatVersion::V2
-        } else {
-            FormatVersion::V1
-        }
+    fn detect_format(_data: &[u8]) -> bool {
+        false
     }
 }
 

@@ -491,8 +491,6 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for DedupExecutor<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::executor::base::BaseExecutor;
-    use crate::query::executor::executor_enum::ExecutorEnum;
     use crate::storage::test_mock::MockStorage;
     use std::collections::HashMap;
 

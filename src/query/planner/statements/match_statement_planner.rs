@@ -350,7 +350,6 @@ impl MatchStatementPlanner {
             Expression::Predicate { .. } => "<predicate>".to_string(),
             Expression::Reduce { .. } => "<reduce>".to_string(),
             Expression::PathBuild(_) => "<path_build>".to_string(),
-            _ => "<?>".to_string(),
         }
     }
 

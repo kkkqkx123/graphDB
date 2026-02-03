@@ -590,7 +590,9 @@ impl crate::expression::evaluator::traits::ExpressionContext for BasicExpression
     }
 
     fn is_empty(&self) -> bool {
-        ExpressionContext::is_empty(self)
+        self.get_vertex_internal().is_none()
+            && self.get_edge_internal().is_none()
+            && VariableContext::variable_count(self) == 0
     }
 
     fn variable_count(&self) -> usize {
@@ -609,7 +611,7 @@ impl crate::expression::evaluator::traits::ExpressionContext for BasicExpression
     }
 
     fn clear(&mut self) {
-        ExpressionContext::clear(self);
+        VariableContext::clear_variables(self);
     }
 }
 

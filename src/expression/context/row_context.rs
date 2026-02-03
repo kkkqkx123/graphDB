@@ -247,7 +247,9 @@ impl crate::expression::evaluator::traits::ExpressionContext for RowExpressionCo
     }
 
     fn is_empty(&self) -> bool {
-        ExpressionContext::is_empty(self)
+        self.variables.is_empty()
+            && self.row.is_empty()
+            && self.col_names.is_empty()
     }
 
     fn variable_count(&self) -> usize {
@@ -266,7 +268,7 @@ impl crate::expression::evaluator::traits::ExpressionContext for RowExpressionCo
     }
 
     fn clear(&mut self) {
-        ExpressionContext::clear(self);
+        VariableContext::clear_variables(self);
     }
 }
 

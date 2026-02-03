@@ -481,7 +481,6 @@ mod tests {
     use super::*;
     use crate::storage::MemorySchemaManager;
     use crate::storage::index::MemoryIndexManager;
-    use crate::storage::redb_storage::DefaultStorage;
 
     #[test]
     fn test_query_context_creation() {

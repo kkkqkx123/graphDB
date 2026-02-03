@@ -4,9 +4,10 @@ pub mod operators;
 pub mod metadata;
 pub mod span;
 
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
 pub enum DataType {
     Empty,
     Null,

@@ -4,7 +4,7 @@
 
 use crate::core::StorageError;
 use crate::index::Index;
-use crate::storage::serializer::{serializer_index_to_bytes, serializer_index_from_bytes, index_id_to_bytes, index_id_from_bytes};
+use crate::storage::serializer::{storage_index_to_bytes, storage_index_from_bytes, index_id_to_bytes, index_id_from_bytes};
 use bincode::{Decode, Encode};
 use redb::{Database, ReadableTable, TableDefinition, TypeName};
 use serde::{Deserialize, Serialize};
@@ -106,7 +106,7 @@ impl IndexPersistence for RedbIndexPersistence {
                 .open_table(INDEX_META_TABLE)
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
 
-            let index_bytes = serializer_index_to_bytes(index)?;
+            let index_bytes = storage_index_to_bytes(index)?;
             let key = Self::make_meta_key(index.id);
             table.insert(ByteKey(key), ByteKey(index_bytes))
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
@@ -127,7 +127,7 @@ impl IndexPersistence for RedbIndexPersistence {
         match table.get(ByteKey(key)).map_err(|e| StorageError::DbError(e.to_string()))? {
             Some(value) => {
                 let index_bytes = value.value().0;
-                let index: Index = serializer_index_from_bytes(&index_bytes)?;
+                let index: Index = storage_index_from_bytes(&index_bytes)?;
                 Ok(Some(index))
             }
             None => Ok(None),
@@ -176,7 +176,7 @@ impl IndexPersistence for RedbIndexPersistence {
         {
             let (_, value) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
             let index_bytes = value.value().0;
-            let index: Index = serializer_index_from_bytes(&index_bytes)?;
+            let index: Index = storage_index_from_bytes(&index_bytes)?;
             indexes.push(index);
         }
         Ok(indexes)

@@ -337,7 +337,6 @@ mod tests {
     use crate::storage::index::IndexManager;
     use crate::storage::metadata::SchemaManager;
     use crate::storage::StorageClient;
-    use crate::storage::index::IndexType;
     use crate::core::value::NullType;
     use std::sync::Mutex;
     use crate::index::{Index, IndexStatus, IndexStats, IndexOptimization};

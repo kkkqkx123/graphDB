@@ -297,7 +297,8 @@ impl SchemaVersionManager {
                 created_at: timestamp,
                 comment: Some(description),
             }],
-            current_version: new_version,
+            current_version: new_version as i64,
+            timestamp,
         };
 
         let mut histories = self

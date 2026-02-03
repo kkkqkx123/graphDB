@@ -263,7 +263,7 @@ pub struct DurationValue {
 }
 
 /// 简单列表表示
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Encode, Decode)]
 pub struct List {
     pub values: Vec<Value>,
 }

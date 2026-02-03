@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 use super::base::storage_processor_executor::{
     StorageProcessorExecutor, StorageProcessorExecutorImpl,
 };
-use crate::core::{Edge, StorageError, Value, Vertex, DBError};
+use crate::core::{Edge, Value, Vertex, DBError};
 use crate::index::Index;
 use crate::expression::context::basic_context::BasicExpressionContext;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;

@@ -413,14 +413,10 @@ impl Optimizer {
                 self.build_inputs_recursive(node.left_input(), ctx, left_id)?;
                 self.build_inputs_recursive(node.right_input(), ctx, right_id)?;
             }
-            PlanNodeEnum::GetNeighbors(_) | PlanNodeEnum::GetVertices(_) | PlanNodeEnum::GetEdges(_) => {
-                unimplemented!("GetNeighbors/GetVertices/GetEdges handling not implemented")
-            }
             PlanNodeEnum::Expand(_) | PlanNodeEnum::ExpandAll(_) | PlanNodeEnum::AppendVertices(_) 
             | PlanNodeEnum::Traverse(_) | PlanNodeEnum::Dedup(_) | PlanNodeEnum::Unwind(_) => {
                 unimplemented!("Expand/AppendVertices/Traverse/Dedup/Unwind handling not implemented")
             }
-            _ => unimplemented!("Unhandled node type in build_inputs_recursive"),
         }
 
         Ok(())

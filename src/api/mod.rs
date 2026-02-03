@@ -1,5 +1,5 @@
 use anyhow::Result;
-use log::{info, warn, error};
+use log::info;
 use std::sync::Arc;
 use tokio::signal;
 

@@ -8,7 +8,6 @@ pub mod vertex_edge_path;
 pub mod expression_utils;
 pub mod types;
 pub mod concurrency;
-pub mod codec;
 
 // 错误和结果类型
 pub use error::{
@@ -30,9 +29,6 @@ pub use types::DataType;
 pub use types::graph_schema::EdgeDirection;
 
 pub use types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
-
-// Codec 模块导出
-pub use codec::{CodecError, CodecResult, RowWriter, RowReader, KeyUtils, FormatVersion};
 
 // 其他核心类型
 pub use type_system::TypeUtils;

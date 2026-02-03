@@ -316,10 +316,8 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ProjectExecutor<S
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::value::{DataSet, Value};
+    use crate::core::value::Value;
     use crate::core::{BinaryOperator, Expression};
-    use crate::query::executor::executor_enum::ExecutorEnum;
-    use crate::query::executor::base::BaseExecutor;
     use crate::query::executor::traits::{ExecutionResult, Executor};
     use crate::storage::test_mock::MockStorage;
 

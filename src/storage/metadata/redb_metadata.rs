@@ -1,6 +1,6 @@
 use crate::core::StorageError;
 use crate::core::types::{EdgeTypeInfo, SpaceInfo, TagInfo};
-use crate::storage::{FieldDef, DataType, Schema};
+use crate::storage::Schema;
 use crate::storage::redb_types::{ByteKey, SPACES_TABLE, TAGS_TABLE, EDGE_TYPES_TABLE};
 use crate::storage::serializer::{space_to_bytes, space_from_bytes, tag_to_bytes, tag_from_bytes, edge_type_to_bytes, edge_type_from_bytes};
 use crate::storage::utils::{tag_info_to_schema, edge_type_info_to_schema};
