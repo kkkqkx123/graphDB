@@ -37,10 +37,10 @@ impl OptRule for LoopUnrollingRule {
                 transform_result.add_new_group_node(Rc::new(RefCell::new(new_node)));
                 Ok(Some(transform_result))
             } else {
-                Ok(Some(TransformResult::unchanged()))
+                Ok(None)
             }
         } else {
-            Ok(Some(TransformResult::unchanged()))
+            Ok(None)
         }
     }
 

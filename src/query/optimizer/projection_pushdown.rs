@@ -61,6 +61,13 @@ impl<'a> PlanNodeVisitor for ProjectionPushDownVisitor<'a> {
                 self.is_pushed_down = true;
                 self.pushed_node = new_node;
             }
+        } else if input.is_start() {
+            if Self::can_push_down_project(node) {
+                let start_node = input.clone();
+                let new_opt_node = OptGroupNode::new(input_id, start_node);
+                self.is_pushed_down = true;
+                self.pushed_node = Some(new_opt_node);
+            }
         }
 
         self.clone()
@@ -83,7 +90,7 @@ impl OptRule for ProjectionPushDownRule {
     ) -> OptResult<Option<TransformResult>> {
         let node_ref = node.borrow();
         if !node_ref.plan_node.is_project() {
-            return Ok(Some(TransformResult::unchanged()));
+            return Ok(None);
         }
         let mut visitor = ProjectionPushDownVisitor {
             is_pushed_down: false,
@@ -97,10 +104,10 @@ impl OptRule for ProjectionPushDownRule {
                 transform_result.add_new_group_node(Rc::new(RefCell::new(new_node)));
                 Ok(Some(transform_result))
             } else {
-                Ok(Some(TransformResult::unchanged()))
+                Ok(None)
             }
         } else {
-            Ok(Some(TransformResult::unchanged()))
+            Ok(None)
         }
     }
 
@@ -152,7 +159,7 @@ impl OptRule for PushProjectDownRule {
     ) -> OptResult<Option<TransformResult>> {
         let node_ref = node.borrow();
         if !node_ref.plan_node.is_project() {
-            return Ok(Some(TransformResult::unchanged()));
+            return Ok(None);
         }
         let mut visitor = ProjectionPushDownVisitor {
             is_pushed_down: false,
@@ -166,10 +173,10 @@ impl OptRule for PushProjectDownRule {
                 transform_result.add_new_group_node(Rc::new(RefCell::new(new_node)));
                 Ok(Some(transform_result))
             } else {
-                Ok(Some(TransformResult::unchanged()))
+                Ok(None)
             }
         } else {
-            Ok(Some(TransformResult::unchanged()))
+            Ok(None)
         }
     }
 
@@ -220,11 +227,19 @@ mod tests {
         let rule = ProjectionPushDownRule;
         let mut ctx = create_test_context();
 
-        // 创建一个投影节点
         let project_node = PlanNodeEnum::Project(
             crate::query::planner::plan::core::nodes::ProjectNode::new(
                 PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new()),
-                vec![],
+                vec![
+                    crate::query::validator::YieldColumn::new(
+                        crate::core::Expression::Variable("col1".to_string()),
+                        "col1".to_string(),
+                    ),
+                    crate::query::validator::YieldColumn::new(
+                        crate::core::Expression::Variable("col2".to_string()),
+                        "col2".to_string(),
+                    ),
+                ],
             )
             .expect("Node should be created successfully"),
         );
@@ -233,7 +248,6 @@ mod tests {
         let result = rule
             .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
             .expect("Rule should apply successfully");
-        // 规则应该匹配投影节点并尝试下推
         assert!(result.is_some());
     }
 
@@ -242,11 +256,13 @@ mod tests {
         let rule = PushProjectDownRule;
         let mut ctx = create_test_context();
 
-        // 创建一个投影节点
         let project_node = PlanNodeEnum::Project(
             crate::query::planner::plan::core::nodes::ProjectNode::new(
                 PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new()),
-                vec![],
+                vec![crate::query::validator::YieldColumn::new(
+                    crate::core::Expression::Variable("col1".to_string()),
+                    "col1".to_string(),
+                )],
             )
             .expect("Node should be created successfully"),
         );
@@ -255,7 +271,6 @@ mod tests {
         let result = rule
             .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
             .expect("Rule should apply successfully");
-        // 规则应该匹配投影节点并尝试下推到数据源
         assert!(result.is_some());
     }
 }

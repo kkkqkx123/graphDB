@@ -17,7 +17,7 @@ impl KeyUtils {
         part_id: u32,
         vid: &[u8],
     ) -> Vec<u8> {
-        let mut key = Vec::with_capacity(4 + 4 + vid_len);
+        let mut key = Vec::with_capacity(4 + vid_len);
 
         let item = (part_id << 8) | Self::KEY_TYPE_VERTEX;
         key.extend_from_slice(&item.to_le_bytes());
@@ -86,7 +86,7 @@ impl KeyUtils {
     }
 
     pub fn decode_vertex_key(key: &[u8], vid_len: usize) -> Result<(u32, Vec<u8>)> {
-        if key.len() < 8 + vid_len {
+        if key.len() < 4 + vid_len {
             return Err(CodecError::InvalidData("Key too short".to_string()));
         }
 
@@ -192,9 +192,9 @@ mod tests {
         let vid = b"player100";
         let key = KeyUtils::encode_vertex_key(16, 1, 1, vid);
 
-        assert_eq!(key.len(), 4 + 4 + 16);
-        assert_eq!(key[0], 0x01);
-        assert_eq!(key[1], 0x00);
+        assert_eq!(key.len(), 4 + 16);
+        assert_eq!(key[0], 0x03);
+        assert_eq!(key[1], 0x01);
         assert_eq!(key[2], 0x00);
         assert_eq!(key[3], 0x00);
 
@@ -209,7 +209,7 @@ mod tests {
         let dst_vid = b"team200";
         let key = KeyUtils::encode_edge_key(16, 1, 1, src_vid, 1, 0, dst_vid);
 
-        assert!(key.len() >= 4 + 4 + 16 + 4 + 8 + 16 + 1);
+        assert_eq!(key.len(), 4 + 16 + 4 + 8 + 16 + 1);
         assert_eq!(key[0], 0x02);
     }
 

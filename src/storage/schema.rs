@@ -25,7 +25,16 @@ impl Schema {
     }
 
     pub fn add_field(mut self, field: FieldDef) -> Self {
-        self.fields.insert(field.name.clone(), field);
+        let offset = self.fields.values()
+            .map(|f| f.estimated_size())
+            .sum::<usize>();
+        
+        let field_with_offset = FieldDef {
+            offset,
+            ..field
+        };
+        
+        self.fields.insert(field_with_offset.name.clone(), field_with_offset);
         self
     }
 

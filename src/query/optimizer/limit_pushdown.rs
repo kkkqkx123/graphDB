@@ -153,7 +153,7 @@ impl OptRule for PushLimitDownRule {
     ) -> StdResult<Option<TransformResult>, OptimizerError> {
         let node_ref = group_node.borrow();
         if !node_ref.plan_node.is_limit() {
-            return Ok(Some(TransformResult::unchanged()));
+            return Ok(None);
         }
 
         let mut visitor = LimitPushDownVisitor {
@@ -173,7 +173,7 @@ impl OptRule for PushLimitDownRule {
                 return Ok(Some(transform_result));
             }
         }
-        Ok(Some(TransformResult::unchanged()))
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -218,7 +218,7 @@ impl OptRule for PushLimitDownGetVerticesRule {
         let node_ref = group_node.borrow();
         // 检查是否为LIMIT操作
         if !node_ref.plan_node.is_limit() {
-            return Ok(Some(TransformResult::unchanged()));
+            return Ok(None);
         }
 
         // 检查是否有GetVertices子节点
@@ -235,7 +235,7 @@ impl OptRule for PushLimitDownGetVerticesRule {
                 }
             }
         }
-        Ok(Some(TransformResult::unchanged()))
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -289,7 +289,7 @@ impl PushDownRule for PushLimitDownGetVerticesRule {
                 return Ok(Some(result));
             }
         }
-        Ok(Some(TransformResult::unchanged()))
+        Ok(None)
     }
 }
 
@@ -310,7 +310,7 @@ impl OptRule for PushLimitDownGetNeighborsRule {
         let node_ref = group_node.borrow();
         // 检查是否为LIMIT操作
         if !node_ref.plan_node.is_limit() {
-            return Ok(Some(TransformResult::unchanged()));
+            return Ok(None);
         }
 
         // 检查是否有GetNeighbors子节点
@@ -327,7 +327,7 @@ impl OptRule for PushLimitDownGetNeighborsRule {
                 }
             }
         }
-        Ok(Some(TransformResult::unchanged()))
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -376,7 +376,7 @@ impl PushDownRule for PushLimitDownGetNeighborsRule {
             }
         }
 
-        Ok(Some(TransformResult::unchanged()))
+        Ok(None)
     }
 }
 
@@ -397,7 +397,7 @@ impl OptRule for PushLimitDownGetEdgesRule {
         let node_ref = group_node.borrow();
         // 检查是否为LIMIT操作
         if !node_ref.plan_node.is_limit() {
-            return Ok(Some(TransformResult::unchanged()));
+            return Ok(None);
         }
 
         // 检查是否有GetEdges子节点
@@ -414,7 +414,7 @@ impl OptRule for PushLimitDownGetEdgesRule {
                 }
             }
         }
-        Ok(Some(TransformResult::unchanged()))
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -486,7 +486,7 @@ impl OptRule for PushLimitDownScanVerticesRule {
         let node_ref = group_node.borrow();
         // 检查是否为LIMIT操作
         if !node_ref.plan_node.is_limit() {
-            return Ok(Some(TransformResult::unchanged()));
+            return Ok(None);
         }
 
         // 检查是否有ScanVertices子节点
@@ -503,7 +503,7 @@ impl OptRule for PushLimitDownScanVerticesRule {
                 }
             }
         }
-        Ok(Some(TransformResult::unchanged()))
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -575,7 +575,7 @@ impl OptRule for PushLimitDownScanEdgesRule {
         let node_ref = group_node.borrow();
         // 检查是否为LIMIT操作
         if !node_ref.plan_node.is_limit() {
-            return Ok(Some(TransformResult::unchanged()));
+            return Ok(None);
         }
 
         // 检查是否有ScanEdges子节点
@@ -592,7 +592,7 @@ impl OptRule for PushLimitDownScanEdgesRule {
                 }
             }
         }
-        Ok(Some(TransformResult::unchanged()))
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -664,7 +664,7 @@ impl OptRule for PushLimitDownIndexScanRule {
         let node_ref = group_node.borrow();
         // 检查是否为LIMIT操作
         if !node_ref.plan_node.is_limit() {
-            return Ok(Some(TransformResult::unchanged()));
+            return Ok(None);
         }
 
         // 检查是否有IndexScan子节点
@@ -681,7 +681,7 @@ impl OptRule for PushLimitDownIndexScanRule {
                 }
             }
         }
-        Ok(Some(TransformResult::unchanged()))
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -753,7 +753,7 @@ impl OptRule for PushLimitDownProjectRule {
         let node_ref = group_node.borrow();
         // 检查是否为LIMIT操作
         if !node_ref.plan_node.is_limit() {
-            return Ok(Some(TransformResult::unchanged()));
+            return Ok(None);
         }
 
         // 检查是否有Project子节点
@@ -771,7 +771,7 @@ impl OptRule for PushLimitDownProjectRule {
                 }
             }
         }
-        Ok(Some(TransformResult::unchanged()))
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -840,7 +840,7 @@ impl OptRule for PushLimitDownAllPathsRule {
     fn apply(&self, ctx: &mut OptContext, group_node: &Rc<RefCell<OptGroupNode>>) -> Result<Option<TransformResult>, OptimizerError> {
         let node_ref = group_node.borrow();
         if !node_ref.plan_node.is_limit() {
-            return Ok(Some(TransformResult::unchanged()));
+            return Ok(None);
         }
 
         if node_ref.dependencies.len() >= 1 {
@@ -856,7 +856,7 @@ impl OptRule for PushLimitDownAllPathsRule {
                 }
             }
         }
-        Ok(Some(TransformResult::unchanged()))
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -889,7 +889,7 @@ impl PushDownRule for PushLimitDownAllPathsRule {
         let limit_rows = limit_node.offset() + limit_node.count();
 
         if all_paths_node.limit() >= 0 && limit_rows >= all_paths_node.limit() {
-            return Ok(Some(TransformResult::unchanged()));
+            return Ok(None);
         }
 
         let mut new_all_paths = all_paths_node.clone();
@@ -925,7 +925,7 @@ impl OptRule for PushLimitDownExpandAllRule {
     fn apply(&self, ctx: &mut OptContext, group_node: &Rc<RefCell<OptGroupNode>>) -> Result<Option<TransformResult>, OptimizerError> {
         let node_ref = group_node.borrow();
         if !node_ref.plan_node.is_limit() {
-            return Ok(Some(TransformResult::unchanged()));
+            return Ok(None);
         }
 
         if node_ref.dependencies.len() >= 1 {
@@ -941,7 +941,7 @@ impl OptRule for PushLimitDownExpandAllRule {
                 }
             }
         }
-        Ok(Some(TransformResult::unchanged()))
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -975,7 +975,7 @@ impl PushDownRule for PushLimitDownExpandAllRule {
 
         if let Some(existing_limit) = expand_all_node.step_limit() {
             if limit_rows >= existing_limit as i64 {
-                return Ok(Some(TransformResult::unchanged()));
+                return Ok(None);
             }
         }
 
@@ -1193,13 +1193,13 @@ mod tests {
     }
 
     #[test]
-    fn test_push_limit_down_all_paths_rule() {
+    fn test_push_limit_down_all_paths_rule() -> Result<(), OptimizerError> {
         let rule = PushLimitDownAllPathsRule;
         let mut ctx = create_test_context();
 
         let start_node = StartNode::new();
         let start_opt_node = OptGroupNode::new(2, start_node.into_enum());
-        ctx.add_plan_node_and_group_node(2, Rc::new(RefCell::new(start_opt_node.clone())));
+        ctx.add_group_node(Rc::new(RefCell::new(start_opt_node.clone())))?;
 
         let limit_node = LimitNode::new(start_opt_node.plan_node.clone(), 0, 10)
             .expect("Limit node should be created successfully");
@@ -1208,17 +1208,19 @@ mod tests {
 
         let result = rule.apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
             .expect("Rule should apply successfully");
-        assert!(result.is_some());
+        // 当前规则实现返回 Ok(None)，因为子节点是 StartNode 不是 AllPaths
+        assert!(result.is_none());
+        Ok(())
     }
 
     #[test]
-    fn test_push_limit_down_expand_all_rule() {
+    fn test_push_limit_down_expand_all_rule() -> Result<(), OptimizerError> {
         let rule = PushLimitDownExpandAllRule;
         let mut ctx = create_test_context();
 
         let start_node = StartNode::new();
         let start_opt_node = OptGroupNode::new(2, start_node.into_enum());
-        ctx.add_plan_node_and_group_node(2, Rc::new(RefCell::new(start_opt_node.clone())));
+        ctx.add_group_node(Rc::new(RefCell::new(start_opt_node.clone())))?;
 
         let limit_node = LimitNode::new(start_opt_node.plan_node.clone(), 0, 10)
             .expect("Limit node should be created successfully");
@@ -1227,6 +1229,8 @@ mod tests {
 
         let result = rule.apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
             .expect("Rule should apply successfully");
-        assert!(result.is_some());
+        // 当前规则实现返回 Ok(None)，因为子节点是 StartNode 不是 ExpandAll
+        assert!(result.is_none());
+        Ok(())
     }
 }

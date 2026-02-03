@@ -32,37 +32,37 @@ impl OptRule for PushFilterDownAggregateRule {
         let plan_node = &node_ref.plan_node;
 
         if !plan_node.is_filter() {
-            return Ok(Some(TransformResult::unchanged()));
+            return Ok(None);
         }
 
         let filter_node = match plan_node {
             PlanNodeEnum::Filter(n) => n,
-            _ => return Ok(Some(TransformResult::unchanged())),
+            _ => return Ok(None),
         };
 
         let filter_condition = filter_node.condition();
 
         if Self::has_aggregate_function_reference(filter_condition) {
-            return Ok(Some(TransformResult::unchanged()));
+            return Ok(None);
         }
 
         if node_ref.dependencies.is_empty() {
-            return Ok(Some(TransformResult::unchanged()));
+            return Ok(None);
         }
 
         let agg_child_id = node_ref.dependencies[0];
         let Some(agg_child) = ctx.find_group_node_by_plan_node_id(agg_child_id) else {
-            return Ok(Some(TransformResult::unchanged()));
+            return Ok(None);
         };
 
         let agg_child_ref = agg_child.borrow();
         let _agg_node = match &agg_child_ref.plan_node {
             PlanNodeEnum::Aggregate(n) => n,
-            _ => return Ok(Some(TransformResult::unchanged())),
+            _ => return Ok(None),
         };
 
         if agg_child_ref.dependencies.is_empty() {
-            return Ok(Some(TransformResult::unchanged()));
+            return Ok(None);
         }
 
         let input_id = agg_child_ref.dependencies[0];
@@ -72,7 +72,7 @@ impl OptRule for PushFilterDownAggregateRule {
             .map(|p| p.as_ref().clone());
 
         if input_plan_node.is_none() {
-            return Ok(Some(TransformResult::unchanged()));
+            return Ok(None);
         }
 
         let input_plan_node = input_plan_node.unwrap();
@@ -83,7 +83,7 @@ impl OptRule for PushFilterDownAggregateRule {
         ) {
             Ok(n) => n,
             Err(_) => {
-                return Ok(Some(TransformResult::unchanged()));
+                return Ok(None);
             }
         };
 

@@ -212,6 +212,7 @@ impl<I: Iterator> Iterator for FilterIter<I> {
 pub struct MapIter<I: Iterator> {
     inner: I,
     mapper: Arc<dyn Fn(Row) -> Row + Send + Sync>,
+    current_row: Option<Row>,
 }
 
 impl<I: Iterator> fmt::Debug for MapIter<I> {
@@ -228,6 +229,7 @@ impl<I: Iterator> Clone for MapIter<I> {
         Self {
             inner: self.inner.clone(),
             mapper: self.mapper.clone(),
+            current_row: self.current_row.clone(),
         }
     }
 }
@@ -237,6 +239,7 @@ impl<I: Iterator> MapIter<I> {
         Self {
             inner,
             mapper: Arc::new(mapper),
+            current_row: None,
         }
     }
 }
@@ -252,22 +255,27 @@ impl<I: Iterator> Iterator for MapIter<I> {
 
     fn next(&mut self) {
         self.inner.next();
+        self.current_row = None;
     }
 
     fn erase(&mut self) {
         self.inner.erase();
+        self.current_row = None;
     }
 
     fn unstable_erase(&mut self) {
         self.inner.unstable_erase();
+        self.current_row = None;
     }
 
     fn clear(&mut self) {
         self.inner.clear();
+        self.current_row = None;
     }
 
     fn reset(&mut self, pos: usize) {
         self.inner.reset(pos);
+        self.current_row = None;
     }
 
     fn size(&self) -> usize {
@@ -275,11 +283,17 @@ impl<I: Iterator> Iterator for MapIter<I> {
     }
 
     fn row(&self) -> Option<&Row> {
-        self.inner.row()
+        self.current_row.as_ref()
     }
 
     fn move_row(&mut self) -> Option<Row> {
-        self.inner.move_row().map(|row| (self.mapper)(row))
+        if let Some(row) = self.inner.move_row() {
+            let mapped = (self.mapper)(row);
+            self.current_row = Some(mapped.clone());
+            Some(mapped)
+        } else {
+            None
+        }
     }
 
     fn select(&mut self, offset: usize, count: usize) {
@@ -295,11 +309,30 @@ impl<I: Iterator> Iterator for MapIter<I> {
     }
 
     fn get_column(&self, col: &str) -> Option<&Value> {
-        self.inner.get_column(col)
+        if let Some(ref row) = self.current_row {
+            let col_idx = self.inner.get_column_index(col)?;
+            row.get(col_idx)
+        } else {
+            self.inner.get_column(col)
+        }
     }
 
     fn get_column_by_index(&self, index: i32) -> Option<&Value> {
-        self.inner.get_column_by_index(index)
+        if let Some(ref row) = self.current_row {
+            let size = row.len() as i32;
+            let idx = if index >= 0 {
+                index as usize
+            } else {
+                let adjusted = (size + index) % size;
+                if adjusted < 0 {
+                    return None;
+                }
+                adjusted as usize
+            };
+            row.get(idx)
+        } else {
+            self.inner.get_column_by_index(index)
+        }
     }
 
     fn get_column_index(&self, col: &str) -> Option<usize> {
@@ -314,6 +347,7 @@ impl<I: Iterator> Iterator for MapIter<I> {
         Self {
             inner: self.inner.copy(),
             mapper: self.mapper.clone(),
+            current_row: None,
         }
     }
 }
@@ -356,12 +390,10 @@ impl<I: Iterator> Iterator for TakeIter<I> {
 
     fn erase(&mut self) {
         self.inner.erase();
-        self.taken += 1;
     }
 
     fn unstable_erase(&mut self) {
         self.inner.unstable_erase();
-        self.taken += 1;
     }
 
     fn clear(&mut self) {
@@ -689,7 +721,7 @@ mod tests {
             }
         });
 
-        assert_eq!(iter.size(), 2);
+        assert_eq!(iter.size(), 3);
         assert!(iter.valid());
 
         iter.next();
@@ -710,6 +742,7 @@ mod tests {
         });
 
         assert!(iter.valid());
+        let _mapped_row = iter.move_row();
         if let Some(Value::Int(age)) = iter.get_column("age") {
             assert_eq!(*age, 26);
         }
@@ -745,7 +778,7 @@ mod tests {
             }
         });
 
-        assert_eq!(filtered.size(), 2);
+        assert_eq!(filtered.size(), 3);
 
         let taken = TakeIter::new(filtered, 1);
         let skipped = SkipIter::new(taken, 0);

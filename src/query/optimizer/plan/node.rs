@@ -177,10 +177,6 @@ impl TransformResult {
         self.erase_curr = true;
         self
     }
-
-    pub fn unchanged() -> Self {
-        Self::default()
-    }
 }
 
 pub trait OptRule: fmt::Debug {

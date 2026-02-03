@@ -27,11 +27,11 @@ impl OptRule for OptimizeEdgeIndexScanByFilterRule {
     ) -> OptResult<Option<TransformResult>> {
         let node_ref = group_node.borrow();
         if !node_ref.plan_node.is_index_scan() {
-            return Ok(Some(TransformResult::unchanged()));
+            return Ok(None);
         }
         drop(node_ref);
 
-        Ok(Some(TransformResult::unchanged()))
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -57,7 +57,7 @@ impl OptRule for OptimizeTagIndexScanByFilterRule {
     ) -> OptResult<Option<TransformResult>> {
         let node_ref = node.borrow();
         if !node_ref.plan_node.is_index_scan() {
-            return Ok(Some(TransformResult::unchanged()));
+            return Ok(None);
         }
 
         if node_ref.dependencies.len() >= 1 {
@@ -113,17 +113,17 @@ impl OptRule for OptimizeTagIndexScanByFilterRule {
                                         return Ok(Some(result));
                                     }
                                 } else {
-                                    return Ok(Some(TransformResult::unchanged()));
+                                    return Ok(None);
                                 }
                             } else {
-                                return Ok(Some(TransformResult::unchanged()));
+                                return Ok(None);
                             }
                         }
                     }
                 }
             }
         }
-        Ok(Some(TransformResult::unchanged()))
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -149,16 +149,16 @@ impl OptRule for EdgeIndexFullScanRule {
     ) -> OptResult<Option<TransformResult>> {
         let node_ref = node.borrow();
         if !node_ref.plan_node.is_index_scan() {
-            return Ok(Some(TransformResult::unchanged()));
+            return Ok(None);
         }
         if let Some(_index_scan_node) = node_ref.plan_node.as_index_scan() {
             if let Some(index_scan_plan_node) = node_ref.plan_node.as_index_scan() {
                 if !index_scan_plan_node.has_effective_filter() {
-                    return Ok(Some(TransformResult::unchanged()));
+                    return Ok(None);
                 }
             }
         }
-        Ok(Some(TransformResult::unchanged()))
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -184,16 +184,16 @@ impl OptRule for TagIndexFullScanRule {
     ) -> OptResult<Option<TransformResult>> {
         let node_ref = node.borrow();
         if !node_ref.plan_node.is_index_scan() {
-            return Ok(Some(TransformResult::unchanged()));
+            return Ok(None);
         }
         if let Some(_index_scan_node) = node_ref.plan_node.as_index_scan() {
             if let Some(index_scan_plan_node) = node_ref.plan_node.as_index_scan() {
                 if !index_scan_plan_node.has_effective_filter() {
-                    return Ok(Some(TransformResult::unchanged()));
+                    return Ok(None);
                 }
             }
         }
-        Ok(Some(TransformResult::unchanged()))
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -219,12 +219,12 @@ impl OptRule for IndexScanRule {
     ) -> OptResult<Option<TransformResult>> {
         let node_ref = node.borrow();
         if !node_ref.plan_node.is_index_scan() {
-            return Ok(Some(TransformResult::unchanged()));
+            return Ok(None);
         }
         if let Some(_index_scan_node) = node_ref.plan_node.as_index_scan() {
-            Ok(Some(TransformResult::unchanged()))
+            Ok(None)
         } else {
-            Ok(Some(TransformResult::unchanged()))
+            Ok(None)
         }
     }
 
@@ -251,7 +251,7 @@ impl OptRule for UnionAllEdgeIndexScanRule {
     ) -> OptResult<Option<TransformResult>> {
         let node_ref = node.borrow();
         if !node_ref.plan_node.is_index_scan() {
-            return Ok(Some(TransformResult::unchanged()));
+            return Ok(None);
         }
         if node_ref.dependencies.len() > 1 {
             drop(node_ref);
@@ -259,7 +259,7 @@ impl OptRule for UnionAllEdgeIndexScanRule {
                 return Ok(result);
             }
         }
-        Ok(Some(TransformResult::unchanged()))
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -285,12 +285,12 @@ impl OptRule for UnionAllTagIndexScanRule {
     ) -> OptResult<Option<TransformResult>> {
         let node_ref = group_node.borrow();
         if !node_ref.plan_node.is_index_scan() {
-            return Ok(Some(TransformResult::unchanged()));
+            return Ok(None);
         }
         if node_ref.dependencies.len() > 1 {
-            return Ok(Some(TransformResult::unchanged()));
+            return Ok(None);
         }
-        Ok(Some(TransformResult::unchanged()))
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -591,7 +591,7 @@ impl UnionAllEdgeIndexScanRule {
         }
 
         if index_scan_nodes.len() < 2 {
-            return Ok(Some(TransformResult::unchanged()));
+            return Ok(None);
         }
 
         if let Some(merged_scan) = self.try_merge_index_scans(&index_scan_nodes, is_edge_index) {
@@ -613,7 +613,7 @@ impl UnionAllEdgeIndexScanRule {
                 result.add_new_group_node(Rc::new(RefCell::new(new_opt_node)));
                 Ok(Some(result))
             } else {
-                Ok(Some(TransformResult::unchanged()))
+                Ok(None)
             }
         }
     }
@@ -897,6 +897,7 @@ impl BaseOptRule for UnionAllTagIndexScanRule {}
 mod tests {
     use super::*;
     use crate::query::context::execution::QueryContext;
+    use crate::query::optimizer::engine::OptimizerError;
     use crate::query::optimizer::plan::{OptContext, OptGroupNode};
     use crate::query::planner::plan::algorithms::IndexScan;
 
@@ -916,15 +917,13 @@ mod tests {
     }
 
     #[test]
-    fn test_optimize_edge_index_scan_by_filter_rule() {
+    fn test_optimize_edge_index_scan_by_filter_rule() -> Result<(), OptimizerError> {
         let rule = OptimizeEdgeIndexScanByFilterRule;
         let mut ctx = create_test_context();
 
-        // 创建一个索引扫描节点
         let index_scan_node = PlanNodeEnum::IndexScan(IndexScan::new(1, 1, 2, 3, "RANGE"));
         let mut index_scan_opt_node = OptGroupNode::new(1, index_scan_node);
 
-        // 创建一个过滤节点作为依赖
         let filter_node = PlanNodeEnum::Filter(
             crate::query::planner::plan::core::nodes::FilterNode::new(
                 PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new()),
@@ -934,29 +933,26 @@ mod tests {
         );
         let filter_opt_node = OptGroupNode::new(2, filter_node);
 
-        // 设置依赖关系：索引扫描依赖于过滤节点
         index_scan_opt_node.dependencies.push(2);
 
-        // 将节点添加到上下文
-        ctx.add_plan_node_and_group_node(1, Rc::new(RefCell::new(index_scan_opt_node.clone())));
-        ctx.add_plan_node_and_group_node(2, Rc::new(RefCell::new(filter_opt_node)));
+        ctx.add_group_node(Rc::new(RefCell::new(index_scan_opt_node.clone())))?;
+        ctx.add_group_node(Rc::new(RefCell::new(filter_opt_node)))?;
 
         let result = rule
             .apply(&mut ctx, &Rc::new(RefCell::new(index_scan_opt_node)))
             .expect("Failed to apply rule");
-        assert!(result.is_some());
+        assert!(result.is_none());
+        Ok(())
     }
 
     #[test]
-    fn test_optimize_tag_index_scan_by_filter_rule() {
+    fn test_optimize_tag_index_scan_by_filter_rule() -> Result<(), OptimizerError> {
         let rule = OptimizeTagIndexScanByFilterRule;
         let mut ctx = create_test_context();
 
-        // 创建一个索引扫描节点
         let index_scan_node = PlanNodeEnum::IndexScan(IndexScan::new(1, 1, 2, 3, "RANGE"));
         let mut index_scan_opt_node = OptGroupNode::new(1, index_scan_node);
 
-        // 创建一个过滤节点作为依赖
         let filter_node = PlanNodeEnum::Filter(
             crate::query::planner::plan::core::nodes::FilterNode::new(
                 PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new()),
@@ -966,17 +962,16 @@ mod tests {
         );
         let filter_opt_node = OptGroupNode::new(2, filter_node);
 
-        // 设置依赖关系：索引扫描依赖于过滤节点
         index_scan_opt_node.dependencies.push(2);
 
-        // 将节点添加到上下文
-        ctx.add_plan_node_and_group_node(1, Rc::new(RefCell::new(index_scan_opt_node.clone())));
-        ctx.add_plan_node_and_group_node(2, Rc::new(RefCell::new(filter_opt_node)));
+        ctx.add_group_node(Rc::new(RefCell::new(index_scan_opt_node.clone())))?;
+        ctx.add_group_node(Rc::new(RefCell::new(filter_opt_node)))?;
 
         let result = rule
             .apply(&mut ctx, &Rc::new(RefCell::new(index_scan_opt_node)))
             .expect("Failed to apply rule");
-        assert!(result.is_some());
+        assert!(result.is_none());
+        Ok(())
     }
 
     #[test]
@@ -984,14 +979,27 @@ mod tests {
         let rule = EdgeIndexFullScanRule;
         let mut ctx = create_test_context();
 
-        // 创建一个索引扫描节点
         let index_scan_node = PlanNodeEnum::IndexScan(IndexScan::new(1, 1, 2, 3, "RANGE"));
-        let opt_node = OptGroupNode::new(1, index_scan_node);
+        let mut index_scan_opt_node = OptGroupNode::new(1, index_scan_node);
+
+        let filter_node = PlanNodeEnum::Filter(
+            crate::query::planner::plan::core::nodes::FilterNode::new(
+                PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new()),
+                crate::core::Expression::Variable("age > 18".to_string()),
+            )
+            .expect("Failed to create filter node"),
+        );
+        let filter_opt_node = OptGroupNode::new(2, filter_node);
+
+        index_scan_opt_node.dependencies.push(2);
+
+        ctx.add_plan_node_and_group_node(1, Rc::new(RefCell::new(index_scan_opt_node.clone())));
+        ctx.add_plan_node_and_group_node(2, Rc::new(RefCell::new(filter_opt_node)));
 
         let result = rule
-            .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
+            .apply(&mut ctx, &Rc::new(RefCell::new(index_scan_opt_node)))
             .expect("Failed to apply rule");
-        assert!(result.is_some());
+        assert!(result.is_none());
     }
 
     #[test]
@@ -999,14 +1007,27 @@ mod tests {
         let rule = TagIndexFullScanRule;
         let mut ctx = create_test_context();
 
-        // 创建一个索引扫描节点
         let index_scan_node = PlanNodeEnum::IndexScan(IndexScan::new(1, 1, 2, 3, "RANGE"));
-        let opt_node = OptGroupNode::new(1, index_scan_node);
+        let mut index_scan_opt_node = OptGroupNode::new(1, index_scan_node);
+
+        let filter_node = PlanNodeEnum::Filter(
+            crate::query::planner::plan::core::nodes::FilterNode::new(
+                PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new()),
+                crate::core::Expression::Variable("age > 18".to_string()),
+            )
+            .expect("Failed to create filter node"),
+        );
+        let filter_opt_node = OptGroupNode::new(2, filter_node);
+
+        index_scan_opt_node.dependencies.push(2);
+
+        ctx.add_plan_node_and_group_node(1, Rc::new(RefCell::new(index_scan_opt_node.clone())));
+        ctx.add_plan_node_and_group_node(2, Rc::new(RefCell::new(filter_opt_node)));
 
         let result = rule
-            .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
+            .apply(&mut ctx, &Rc::new(RefCell::new(index_scan_opt_node)))
             .expect("Failed to apply rule");
-        assert!(result.is_some());
+        assert!(result.is_none());
     }
 
     #[test]
@@ -1014,14 +1035,13 @@ mod tests {
         let rule = IndexScanRule;
         let mut ctx = create_test_context();
 
-        // 创建一个索引扫描节点
         let index_scan_node = PlanNodeEnum::IndexScan(IndexScan::new(1, 1, 2, 3, "RANGE"));
         let opt_node = OptGroupNode::new(1, index_scan_node);
 
         let result = rule
             .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
             .expect("Failed to apply rule");
-        assert!(result.is_some());
+        assert!(result.is_none());
     }
 
     #[test]
@@ -1029,14 +1049,37 @@ mod tests {
         let rule = UnionAllEdgeIndexScanRule;
         let mut ctx = create_test_context();
 
-        // 创建一个索引扫描节点
         let index_scan_node = PlanNodeEnum::IndexScan(IndexScan::new(1, 1, 2, 3, "RANGE"));
-        let opt_node = OptGroupNode::new(1, index_scan_node);
+        let mut index_scan_opt_node = OptGroupNode::new(1, index_scan_node);
+
+        let filter_node1 = PlanNodeEnum::Filter(
+            crate::query::planner::plan::core::nodes::FilterNode::new(
+                PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new()),
+                crate::core::Expression::Variable("age > 18".to_string()),
+            )
+            .expect("Failed to create filter node"),
+        );
+        let filter_node2 = PlanNodeEnum::Filter(
+            crate::query::planner::plan::core::nodes::FilterNode::new(
+                PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new()),
+                crate::core::Expression::Variable("name = 'test'".to_string()),
+            )
+            .expect("Failed to create filter node"),
+        );
+        let filter_opt_node1 = OptGroupNode::new(2, filter_node1);
+        let filter_opt_node2 = OptGroupNode::new(3, filter_node2);
+
+        index_scan_opt_node.dependencies.push(2);
+        index_scan_opt_node.dependencies.push(3);
+
+        ctx.add_plan_node_and_group_node(1, Rc::new(RefCell::new(index_scan_opt_node.clone())));
+        ctx.add_plan_node_and_group_node(2, Rc::new(RefCell::new(filter_opt_node1)));
+        ctx.add_plan_node_and_group_node(3, Rc::new(RefCell::new(filter_opt_node2)));
 
         let result = rule
-            .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
+            .apply(&mut ctx, &Rc::new(RefCell::new(index_scan_opt_node)))
             .expect("Failed to apply rule");
-        assert!(result.is_some());
+        assert!(result.is_none());
     }
 
     #[test]
@@ -1044,14 +1087,37 @@ mod tests {
         let rule = UnionAllTagIndexScanRule;
         let mut ctx = create_test_context();
 
-        // 创建一个索引扫描节点
         let index_scan_node = PlanNodeEnum::IndexScan(IndexScan::new(1, 1, 2, 3, "RANGE"));
-        let opt_node = OptGroupNode::new(1, index_scan_node);
+        let mut index_scan_opt_node = OptGroupNode::new(1, index_scan_node);
+
+        let filter_node1 = PlanNodeEnum::Filter(
+            crate::query::planner::plan::core::nodes::FilterNode::new(
+                PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new()),
+                crate::core::Expression::Variable("age > 18".to_string()),
+            )
+            .expect("Failed to create filter node"),
+        );
+        let filter_node2 = PlanNodeEnum::Filter(
+            crate::query::planner::plan::core::nodes::FilterNode::new(
+                PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new()),
+                crate::core::Expression::Variable("name = 'test'".to_string()),
+            )
+            .expect("Failed to create filter node"),
+        );
+        let filter_opt_node1 = OptGroupNode::new(2, filter_node1);
+        let filter_opt_node2 = OptGroupNode::new(3, filter_node2);
+
+        index_scan_opt_node.dependencies.push(2);
+        index_scan_opt_node.dependencies.push(3);
+
+        ctx.add_plan_node_and_group_node(1, Rc::new(RefCell::new(index_scan_opt_node.clone())));
+        ctx.add_plan_node_and_group_node(2, Rc::new(RefCell::new(filter_opt_node1)));
+        ctx.add_plan_node_and_group_node(3, Rc::new(RefCell::new(filter_opt_node2)));
 
         let result = rule
-            .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
+            .apply(&mut ctx, &Rc::new(RefCell::new(index_scan_opt_node)))
             .expect("Failed to apply rule");
-        assert!(result.is_some());
+        assert!(result.is_none());
     }
 
     #[test]

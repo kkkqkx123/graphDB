@@ -71,7 +71,9 @@ impl OptContext {
 
     pub fn add_group_node(&mut self, group_node: Rc<RefCell<OptGroupNode>>) -> Result<(), super::node::OptimizerError> {
         let id = group_node.borrow().id;
-        self.group_nodes_by_id.insert(id, group_node);
+        let plan_node_id = group_node.borrow().plan_node.id() as usize;
+        self.group_nodes_by_id.insert(id, group_node.clone());
+        self.plan_node_to_group_node.insert(plan_node_id, group_node);
         Ok(())
     }
 

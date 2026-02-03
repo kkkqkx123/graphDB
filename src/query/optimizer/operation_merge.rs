@@ -33,7 +33,7 @@ impl<'a> PlanNodeVisitor for CombineFilterVisitor<'a> {
 
     fn visit_filter(&mut self, node: &crate::query::planner::plan::core::nodes::FilterNode) -> Self::Result {
         if let Some(dep_id) = self.node_dependencies.first() {
-            if let Some(child_node) = self.ctx.find_group_node_by_plan_node_id(*dep_id) {
+            if let Some(child_node) = self.ctx.find_group_node_by_id(*dep_id) {
                 let child_node_ref = child_node.borrow();
                 if child_node_ref.plan_node.is_filter() {
                     if let Some(child_filter) = child_node_ref.plan_node.as_filter() {
@@ -88,7 +88,7 @@ impl OptRule for CombineFilterRule {
     ) -> Result<Option<TransformResult>, OptimizerError> {
         let node_ref = group_node.borrow();
         if !node_ref.plan_node.is_filter() {
-            return Ok(Some(TransformResult::unchanged()));
+            return Ok(None);
         }
 
         let mut visitor = CombineFilterVisitor {
@@ -108,7 +108,7 @@ impl OptRule for CombineFilterRule {
                 return Ok(Some(transform_result));
             }
         }
-        Ok(Some(TransformResult::unchanged()))
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -189,7 +189,7 @@ impl OptRule for CollapseProjectRule {
     ) -> Result<Option<TransformResult>, OptimizerError> {
         let node_ref = group_node.borrow();
         if !node_ref.plan_node.is_project() {
-            return Ok(Some(TransformResult::unchanged()));
+            return Ok(None);
         }
 
         if let Some(matched) = self.match_pattern(ctx, group_node)? {
@@ -204,7 +204,7 @@ impl OptRule for CollapseProjectRule {
                 }
             }
         }
-        Ok(Some(TransformResult::unchanged()))
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -249,7 +249,7 @@ impl OptRule for MergeGetVerticesAndProjectRule {
     ) -> Result<Option<TransformResult>, OptimizerError> {
         let node_ref = group_node.borrow();
         if !node_ref.plan_node.is_get_vertices() {
-            return Ok(Some(TransformResult::unchanged()));
+            return Ok(None);
         }
 
         if let Some(matched) = self.match_pattern(ctx, group_node)? {
@@ -263,7 +263,7 @@ impl OptRule for MergeGetVerticesAndProjectRule {
                 }
             }
         }
-        Ok(Some(TransformResult::unchanged()))
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -308,7 +308,7 @@ impl OptRule for MergeGetVerticesAndDedupRule {
     ) -> Result<Option<TransformResult>, OptimizerError> {
         let node_ref = group_node.borrow();
         if !node_ref.plan_node.is_get_vertices() {
-            return Ok(Some(TransformResult::unchanged()));
+            return Ok(None);
         }
 
         if let Some(matched) = self.match_pattern(ctx, group_node)? {
@@ -323,7 +323,7 @@ impl OptRule for MergeGetVerticesAndDedupRule {
                 }
             }
         }
-        Ok(Some(TransformResult::unchanged()))
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -368,7 +368,7 @@ impl OptRule for MergeGetNbrsAndDedupRule {
     ) -> Result<Option<TransformResult>, OptimizerError> {
         let node_ref = group_node.borrow();
         if !node_ref.plan_node.is_get_neighbors() {
-            return Ok(Some(TransformResult::unchanged()));
+            return Ok(None);
         }
 
         if let Some(matched) = self.match_pattern(ctx, group_node)? {
@@ -383,7 +383,7 @@ impl OptRule for MergeGetNbrsAndDedupRule {
                 }
             }
         }
-        Ok(Some(TransformResult::unchanged()))
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -428,7 +428,7 @@ impl OptRule for MergeGetNbrsAndProjectRule {
     ) -> Result<Option<TransformResult>, OptimizerError> {
         let node_ref = group_node.borrow();
         if !node_ref.plan_node.is_get_neighbors() {
-            return Ok(Some(TransformResult::unchanged()));
+            return Ok(None);
         }
 
         if let Some(matched) = self.match_pattern(ctx, group_node)? {
@@ -443,7 +443,7 @@ impl OptRule for MergeGetNbrsAndProjectRule {
                 }
             }
         }
-        Ok(Some(TransformResult::unchanged()))
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -490,7 +490,7 @@ mod tests {
     }
 
     #[test]
-    fn test_combine_filter_rule() {
+    fn test_combine_filter_rule() -> Result<(), OptimizerError> {
         let rule = CombineFilterRule;
         let mut ctx = create_test_context();
 
@@ -500,7 +500,7 @@ mod tests {
             crate::core::Expression::Variable("col1 > 100".to_string()),
         ) {
             Ok(node) => node,
-            Err(_) => return,
+            Err(_) => return Err(OptimizerError::new("Failed to create child filter node".to_string(), 0)),
         };
         let child_opt_node = OptGroupNode::new(2, child_filter_node.into_enum());
 
@@ -509,22 +509,23 @@ mod tests {
             crate::core::Expression::Variable("col2 > 200".to_string()),
         ) {
             Ok(node) => node,
-            Err(_) => return,
+            Err(_) => return Err(OptimizerError::new("Failed to create filter node".to_string(), 0)),
         };
         let mut opt_node = OptGroupNode::new(1, filter_node.into_enum());
         opt_node.dependencies = vec![2];
 
-        ctx.add_plan_node_and_group_node(2, Rc::new(RefCell::new(child_opt_node)));
+        ctx.add_group_node(Rc::new(RefCell::new(child_opt_node)))?;
 
         let result = rule
             .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
             .expect("Rule should apply successfully");
         // 规则应该匹配过滤节点并尝试合并连续的过滤操作
         assert!(result.is_some());
+        Ok(())
     }
 
     #[test]
-    fn test_collapse_project_rule() {
+    fn test_collapse_project_rule() -> Result<(), OptimizerError> {
         let rule = CollapseProjectRule;
         let mut ctx = create_test_context();
 
@@ -537,7 +538,7 @@ mod tests {
             )],
         ) {
             Ok(node) => node,
-            Err(_) => return,
+            Err(_) => return Err(OptimizerError::new("Failed to create child project node".to_string(), 0)),
         };
         let child_opt_node = OptGroupNode::new(2, child_project_node.into_enum());
 
@@ -549,22 +550,23 @@ mod tests {
             )],
         ) {
             Ok(node) => node,
-            Err(_) => return,
+            Err(_) => return Err(OptimizerError::new("Failed to create project node".to_string(), 0)),
         };
         let mut opt_node = OptGroupNode::new(1, project_node.into_enum());
         opt_node.dependencies = vec![2];
 
-        ctx.add_plan_node_and_group_node(2, Rc::new(RefCell::new(child_opt_node)));
+        ctx.add_group_node(Rc::new(RefCell::new(child_opt_node)))?;
 
         let result = rule
             .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
             .expect("Rule should apply successfully");
         // 规则应该匹配投影节点并尝试折叠连续的投影操作
         assert!(result.is_some());
+        Ok(())
     }
 
     #[test]
-    fn test_merge_get_vertices_and_project_rule() {
+    fn test_merge_get_vertices_and_project_rule() -> Result<(), OptimizerError> {
         let rule = MergeGetVerticesAndProjectRule;
         let mut ctx = create_test_context();
 
@@ -577,7 +579,7 @@ mod tests {
             )],
         ) {
             Ok(node) => node,
-            Err(_) => return,
+            Err(_) => return Err(OptimizerError::new("Failed to create project node".to_string(), 0)),
         };
         let child_opt_node = OptGroupNode::new(2, project_node.into_enum());
 
@@ -585,24 +587,25 @@ mod tests {
         let mut opt_node = OptGroupNode::new(1, get_vertices_node);
         opt_node.dependencies = vec![2];
 
-        ctx.add_plan_node_and_group_node(2, Rc::new(RefCell::new(child_opt_node)));
+        ctx.add_group_node(Rc::new(RefCell::new(child_opt_node)))?;
 
         let result = rule
             .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
             .expect("Rule should apply successfully");
         // 规则应该匹配获取顶点节点并尝试与投影操作合并
         assert!(result.is_some());
+        Ok(())
     }
 
     #[test]
-    fn test_merge_get_vertices_and_dedup_rule() {
+    fn test_merge_get_vertices_and_dedup_rule() -> Result<(), OptimizerError> {
         let rule = MergeGetVerticesAndDedupRule;
         let mut ctx = create_test_context();
 
         let start_node = PlanNodeEnum::Start(StartNode::new());
         let dedup_node = match Dedup::new(start_node) {
             Ok(node) => node,
-            Err(_) => return,
+            Err(_) => return Err(OptimizerError::new("Failed to create dedup node".to_string(), 0)),
         };
         let child_opt_node = OptGroupNode::new(2, dedup_node.into_enum());
 
@@ -610,24 +613,25 @@ mod tests {
         let mut opt_node = OptGroupNode::new(1, get_vertices_node);
         opt_node.dependencies = vec![2];
 
-        ctx.add_plan_node_and_group_node(2, Rc::new(RefCell::new(child_opt_node)));
+        ctx.add_group_node(Rc::new(RefCell::new(child_opt_node)))?;
 
         let result = rule
             .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
             .expect("Rule should apply successfully");
         // 规则应该匹配获取顶点节点并尝试与去重操作合并
         assert!(result.is_some());
+        Ok(())
     }
 
     #[test]
-    fn test_merge_get_nbrs_and_dedup_rule() {
+    fn test_merge_get_nbrs_and_dedup_rule() -> Result<(), OptimizerError> {
         let rule = MergeGetNbrsAndDedupRule;
         let mut ctx = create_test_context();
 
         let start_node = PlanNodeEnum::Start(StartNode::new());
         let dedup_node = match Dedup::new(start_node) {
             Ok(node) => node,
-            Err(_) => return,
+            Err(_) => return Err(OptimizerError::new("Failed to create dedup node".to_string(), 0)),
         };
         let child_opt_node = OptGroupNode::new(2, dedup_node.into_enum());
 
@@ -635,17 +639,18 @@ mod tests {
         let mut opt_node = OptGroupNode::new(1, get_nbrs_node);
         opt_node.dependencies = vec![2];
 
-        ctx.add_plan_node_and_group_node(2, Rc::new(RefCell::new(child_opt_node)));
+        ctx.add_group_node(Rc::new(RefCell::new(child_opt_node)))?;
 
         let result = rule
             .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
             .expect("Rule should apply successfully");
         // 规则应该匹配获取邻居节点并尝试与去重操作合并
         assert!(result.is_some());
+        Ok(())
     }
 
     #[test]
-    fn test_merge_get_nbrs_and_project_rule() {
+    fn test_merge_get_nbrs_and_project_rule() -> Result<(), OptimizerError> {
         let rule = MergeGetNbrsAndProjectRule;
         let mut ctx = create_test_context();
 
@@ -658,7 +663,7 @@ mod tests {
             )],
         ) {
             Ok(node) => node,
-            Err(_) => return,
+            Err(_) => return Err(OptimizerError::new("Failed to create project node".to_string(), 0)),
         };
         let child_opt_node = OptGroupNode::new(2, project_node.into_enum());
 
@@ -666,13 +671,14 @@ mod tests {
         let mut opt_node = OptGroupNode::new(1, get_nbrs_node);
         opt_node.dependencies = vec![2];
 
-        ctx.add_plan_node_and_group_node(2, Rc::new(RefCell::new(child_opt_node)));
+        ctx.add_group_node(Rc::new(RefCell::new(child_opt_node)))?;
 
         let result = rule
             .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
             .expect("Rule should apply successfully");
         // 规则应该匹配获取邻居节点并尝试与投影操作合并
         assert!(result.is_some());
+        Ok(())
     }
 
     #[test]

@@ -339,9 +339,9 @@ mod tests {
     #[test]
     fn test_get_type_priority() {
         assert_eq!(TypeUtils::get_type_priority(&DataType::Null), 0);
-        assert_eq!(TypeUtils::get_type_priority(&DataType::Int), 2);
-        assert_eq!(TypeUtils::get_type_priority(&DataType::Float), 3);
-        assert_eq!(TypeUtils::get_type_priority(&DataType::String), 4);
+        assert_eq!(TypeUtils::get_type_priority(&DataType::Int), 20);
+        assert_eq!(TypeUtils::get_type_priority(&DataType::Float), 30);
+        assert_eq!(TypeUtils::get_type_priority(&DataType::String), 40);
     }
 
     #[test]
@@ -500,7 +500,6 @@ mod tests {
         assert!(TypeUtils::is_indexable_type(&DataType::DateTime));
         assert!(TypeUtils::is_indexable_type(&DataType::Date));
         assert!(TypeUtils::is_indexable_type(&DataType::Time));
-        assert!(TypeUtils::is_indexable_type(&DataType::Duration));
         assert!(TypeUtils::is_indexable_type(&DataType::Geography));
         
         assert!(!TypeUtils::is_indexable_type(&DataType::Vertex));

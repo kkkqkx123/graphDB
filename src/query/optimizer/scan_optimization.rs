@@ -23,13 +23,9 @@ impl OptRule for IndexFullScanRule {
     ) -> OptResult<Option<TransformResult>> {
         let node_ref = node.borrow();
         if !node_ref.plan_node.is_index_scan() {
-            return Ok(Some(TransformResult::unchanged()));
+            return Ok(None);
         }
-        if let Some(_matched) = self.match_pattern(ctx, node)? {
-            Ok(Some(TransformResult::unchanged()))
-        } else {
-            Ok(Some(TransformResult::unchanged()))
-        }
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -55,7 +51,7 @@ impl OptRule for ScanWithFilterOptimizationRule {
     ) -> OptResult<Option<TransformResult>> {
         let node_ref = node.borrow();
         if !node_ref.plan_node.is_scan_vertices() && !node_ref.plan_node.is_scan_edges() {
-            return Ok(Some(TransformResult::unchanged()));
+            return Ok(None);
         }
         if let Some(matched) = self.match_pattern(ctx, node)? {
             if matched.dependencies.len() >= 1 {
@@ -64,13 +60,9 @@ impl OptRule for ScanWithFilterOptimizationRule {
                         break;
                     }
                 }
-                Ok(Some(TransformResult::unchanged()))
-            } else {
-                Ok(Some(TransformResult::unchanged()))
             }
-        } else {
-            Ok(Some(TransformResult::unchanged()))
         }
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -84,6 +76,7 @@ impl BaseOptRule for ScanWithFilterOptimizationRule {}
 mod tests {
     use super::*;
     use crate::query::context::execution::QueryContext;
+    use crate::query::optimizer::engine::OptimizerError;
     use crate::query::optimizer::plan::{OptContext, OptGroupNode};
     use crate::query::planner::plan::PlanNodeEnum;
 
@@ -106,11 +99,12 @@ mod tests {
         let result = rule
             .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
             .expect("Rule should apply successfully");
-        assert!(result.is_some());
+        // 当前规则实现返回 Ok(None)，因为规则还没有完整实现
+        assert!(result.is_none());
     }
 
     #[test]
-    fn test_scan_with_filter_optimization_rule() {
+    fn test_scan_with_filter_optimization_rule() -> Result<(), OptimizerError> {
         let rule = ScanWithFilterOptimizationRule;
         let mut ctx = create_test_context();
 
@@ -130,11 +124,13 @@ mod tests {
         let mut opt_node = OptGroupNode::new(1, scan_node);
         opt_node.dependencies = vec![2];
 
-        ctx.add_plan_node_and_group_node(2, Rc::new(RefCell::new(filter_opt_node)));
+        ctx.add_group_node(Rc::new(RefCell::new(filter_opt_node)))?;
 
         let result = rule
             .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
             .expect("Rule should apply successfully");
-        assert!(result.is_some());
+        // 当前规则实现返回 Ok(None)，因为规则还没有完整实现
+        assert!(result.is_none());
+        Ok(())
     }
 }

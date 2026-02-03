@@ -121,7 +121,7 @@ mod tests {
             _ctx: &mut OptContext,
             _group_node: &Rc<RefCell<OptGroupNode>>,
         ) -> StdResult<Option<TransformResult>, OptimizerError> {
-            Ok(Some(TransformResult::unchanged()))
+            Ok(None)
         }
 
         fn pattern(&self) -> Pattern {
@@ -149,6 +149,7 @@ mod tests {
 
     #[test]
     fn test_get_all_rules() {
+        RuleRegistry::initialize();
         let rules = RuleRegistry::get_all_rules();
         assert!(!rules.is_empty());
     }

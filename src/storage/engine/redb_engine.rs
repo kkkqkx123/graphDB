@@ -50,6 +50,18 @@ impl RedbEngine {
         let db = Database::create(path.as_ref())
             .map_err(|e| StorageError::DbError(e.to_string()))?;
 
+        let write_txn = db
+            .begin_write()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        {
+            write_txn
+                .open_table(DATA_TABLE)
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+        }
+        write_txn
+            .commit()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
         Ok(Self {
             db,
             db_path,

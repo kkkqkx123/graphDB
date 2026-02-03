@@ -45,7 +45,7 @@ impl OptRule for EliminateFilterRule {
                 return Ok(Some(result));
             }
         }
-        Ok(Some(TransformResult::unchanged()))
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -86,7 +86,7 @@ impl<'a> PlanNodeVisitor for EliminateFilterVisitor<'a> {
         }
 
         if let Some(dep_id) = self.node_dependencies.first() {
-            if let Some(child_node) = self.ctx.find_group_node_by_plan_node_id(*dep_id) {
+            if let Some(child_node) = self.ctx.find_group_node_by_id(*dep_id) {
                 let mut new_node = child_node.clone();
 
                 if let Some(_output_var) = node.output_var() {
@@ -134,7 +134,7 @@ impl OptRule for DedupEliminationRule {
                 return Ok(Some(result));
             }
         }
-        Ok(Some(TransformResult::unchanged()))
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -228,7 +228,7 @@ impl OptRule for RemoveNoopProjectRule {
                 return Ok(Some(result));
             }
         }
-        Ok(Some(TransformResult::unchanged()))
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -266,7 +266,7 @@ impl<'a> PlanNodeVisitor for RemoveNoopProjectVisitor<'a> {
         let input = node.input();
 
         if let Some(dep_id) = self.node_dependencies.first() {
-            if let Some(child_node) = self.ctx.find_group_node_by_plan_node_id(*dep_id) {
+            if let Some(child_node) = self.ctx.find_group_node_by_id(*dep_id) {
                 let child_node_ref = child_node.borrow();
                 let columns = node.columns();
                 let child_col_names = child_node_ref.plan_node.col_names();
@@ -385,7 +385,7 @@ impl OptRule for EliminateAppendVerticesRule {
                 return Ok(Some(result));
             }
         }
-        Ok(Some(TransformResult::unchanged()))
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -477,7 +477,7 @@ impl OptRule for RemoveAppendVerticesBelowJoinRule {
                 return Ok(Some(result));
             }
         }
-        Ok(Some(TransformResult::unchanged()))
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -574,7 +574,7 @@ impl OptRule for EliminateRowCollectRule {
                 return Ok(Some(result));
             }
         }
-        Ok(Some(TransformResult::unchanged()))
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -896,9 +896,10 @@ mod tests {
         let child_node = PlanNodeEnum::ScanVertices(
             crate::query::planner::plan::core::nodes::ScanVerticesNode::new(1),
         );
+        let child_plan_node_id = child_node.id() as usize;
         let child_opt_node = OptGroupNode::new(2, child_node);
         ctx.add_group_node(Rc::new(RefCell::new(child_opt_node)))?;
-        opt_node.dependencies.push(2);
+        opt_node.dependencies.push(child_plan_node_id);
 
         let opt_node_rc = Rc::new(RefCell::new(opt_node));
         let result = rule.apply(&mut ctx, &opt_node_rc)?;
@@ -926,9 +927,10 @@ mod tests {
             )
             .expect("InnerJoin node should be created successfully"),
         );
+        let child_plan_node_id = child_node.id() as usize;
         let child_opt_node = OptGroupNode::new(2, child_node);
         ctx.add_group_node(Rc::new(RefCell::new(child_opt_node)))?;
-        opt_node.dependencies.push(2);
+        opt_node.dependencies.push(child_plan_node_id);
 
         let opt_node_rc = Rc::new(RefCell::new(opt_node));
         let result = rule.apply(&mut ctx, &opt_node_rc)?;

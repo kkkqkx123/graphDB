@@ -26,7 +26,7 @@ impl OptRule for JoinOptimizationRule {
             && !node_ref.plan_node.is_hash_left_join()
             && !node_ref.plan_node.is_inner_join()
         {
-            return Ok(Some(TransformResult::unchanged()));
+            return Ok(None);
         }
         if node_ref.dependencies.len() >= 2 {
             let left_dep_id = node_ref.dependencies[0];
@@ -48,16 +48,11 @@ impl OptRule for JoinOptimizationRule {
                 let should_optimize = self.should_optimize_join(&left_node_ref, &right_node_ref);
                 if should_optimize {
                     drop(node_ref);
-                    Ok(Some(TransformResult::unchanged()))
-                } else {
-                    Ok(Some(TransformResult::unchanged()))
+                    return Ok(None);
                 }
-            } else {
-                Ok(Some(TransformResult::unchanged()))
             }
-        } else {
-            Ok(Some(TransformResult::unchanged()))
         }
+        Ok(None)
     }
 
     fn pattern(&self) -> Pattern {
@@ -86,6 +81,7 @@ impl JoinOptimizationRule {
 mod tests {
     use super::*;
     use crate::query::context::execution::QueryContext;
+    use crate::query::optimizer::engine::OptimizerError;
     use crate::query::optimizer::plan::{OptContext, OptGroupNode};
     use crate::query::planner::plan::PlanNodeEnum;
 
@@ -95,7 +91,7 @@ mod tests {
     }
 
     #[test]
-    fn test_join_optimization_rule() {
+    fn test_join_optimization_rule() -> Result<(), OptimizerError> {
         let rule = JoinOptimizationRule;
         let mut ctx = create_test_context();
 
@@ -127,12 +123,14 @@ mod tests {
             right_node_id,
             PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new()),
         );
-        ctx.add_plan_node_and_group_node(left_node_id, Rc::new(RefCell::new(left_group_node)));
-        ctx.add_plan_node_and_group_node(right_node_id, Rc::new(RefCell::new(right_group_node)));
+        ctx.add_group_node(Rc::new(RefCell::new(left_group_node)))?;
+        ctx.add_group_node(Rc::new(RefCell::new(right_group_node)))?;
 
         let result = rule
             .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
             .expect("Rule should apply successfully");
-        assert!(result.is_some());
+        // 当前规则实现返回 Ok(None)，因为 Start 节点不是 IndexScan 或 ScanVertices
+        assert!(result.is_none());
+        Ok(())
     }
 }

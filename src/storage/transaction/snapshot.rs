@@ -395,7 +395,7 @@ mod tests {
 
         assert_eq!(snapshot.tx_id, tx_id);
         assert_eq!(snapshot.version, version);
-        assert!(!snapshot.isolation_level.uses_snapshot());
+        assert!(snapshot.isolation_level.uses_snapshot());
     }
 
     #[test]

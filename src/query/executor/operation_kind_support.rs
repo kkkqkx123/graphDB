@@ -94,15 +94,15 @@ mod tests {
     use super::*;
     use crate::query::executor::StartExecutor;
     use std::sync::{Arc, Mutex};
-    use crate::storage::redb_storage::DefaultStorage;
+    use crate::storage::test_mock::MockStorage;
     
     #[test]
     fn test_executor_enum_to_operation_kind() {
-        let storage = Arc::new(Mutex::new(DefaultStorage::new().expect("Failed to create MemoryStorage")));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         
         let start_executor = StartExecutor::new(1);
         
-        let executor_enum: ExecutorEnum<DefaultStorage> = ExecutorEnum::Start(start_executor);
+        let executor_enum: ExecutorEnum<MockStorage> = ExecutorEnum::Start(start_executor);
         
         assert_eq!(executor_enum.into_operation_kind(), CoreOperationKind::Project);
     }

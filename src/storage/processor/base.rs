@@ -58,6 +58,7 @@ pub struct ProcessorBase<RESP, S: StorageClient + std::fmt::Debug> {
     context: Arc<RuntimeContext>,
     resp: Option<RESP>,
     duration: Duration,
+    start_time: Option<std::time::Instant>,
     codes: Vec<PartCode>,
     storage: Arc<Mutex<S>>,
 }
@@ -68,6 +69,7 @@ impl<RESP, S: StorageClient + std::fmt::Debug> ProcessorBase<RESP, S>{
             context,
             resp: None,
             duration: Duration::ZERO,
+            start_time: None,
             codes: Vec::new(),
             storage,
         }
@@ -116,10 +118,14 @@ impl<RESP, S: StorageClient + std::fmt::Debug> ProcessorBase<RESP, S>{
     }
 
     pub fn start_timer(&mut self) {
-        self.duration = Duration::ZERO;
+        self.start_time = Some(std::time::Instant::now());
     }
 
     pub fn stop_timer(&mut self) {
+        if let Some(start) = self.start_time {
+            self.duration = start.elapsed();
+            self.start_time = None;
+        }
     }
 }
 

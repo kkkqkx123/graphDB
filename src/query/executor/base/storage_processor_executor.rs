@@ -100,6 +100,7 @@ impl<S: StorageClient + std::fmt::Debug, RESP> StorageProcessorExecutor<S, RESP>
 
     /// 结束执行计时并更新统计
     pub fn finish_execute(&mut self) {
+        self.processor.stop_timer();
         let duration = self.processor.duration();
         self.counters.num_calls += 1;
         self.counters.total_latency_us += duration.as_micros() as i64;

@@ -178,7 +178,7 @@ mod tests {
         let result = retry_with_backoff(&config, || {
             count += 1;
             if count < 2 {
-                Err::<i32, StorageError>(StorageError::IOError("模拟错误".to_string()))
+                Err::<i32, StorageError>(StorageError::LockTimeout("模拟锁超时".to_string()))
             } else {
                 Ok(42)
             }
@@ -198,7 +198,7 @@ mod tests {
         let mut count = 0;
         let result = retry_with_backoff(&config, || {
             count += 1;
-            Err::<i32, StorageError>(StorageError::IOError("模拟错误".to_string()))
+            Err::<i32, StorageError>(StorageError::LockTimeout("模拟锁超时".to_string()))
         });
 
         assert!(result.is_err());
@@ -233,7 +233,7 @@ mod tests {
         let result = retry_with_strategy(&config, RetryStrategy::Exponential, || {
             count += 1;
             if count < 3 {
-                Err::<i32, StorageError>(StorageError::IOError("模拟错误".to_string()))
+                Err::<i32, StorageError>(StorageError::LockTimeout("模拟锁超时".to_string()))
             } else {
                 Ok(42)
             }

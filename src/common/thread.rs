@@ -1,7 +1,6 @@
 use std::collections::VecDeque;
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
-use std::time::Duration;
 
 /// A thread pool for executing tasks concurrently
 pub struct ThreadPool {
@@ -82,22 +81,25 @@ impl Worker {
                 let task = {
                     let mut tasks = tasks.lock().expect("Worker tasks lock should not be poisoned");
 
-                    let mut shutdown_guard = shutdown.lock().expect("Shutdown lock should not be poisoned");
-
-                    if *shutdown_guard {
-                        break;
-                    }
+                    let is_shutdown = *shutdown.lock().expect("Shutdown lock should not be poisoned");
 
                     if let Some(task) = tasks.pop_front() {
-                        drop(shutdown_guard);
                         Some(task)
+                    } else if is_shutdown {
+                        break;
                     } else {
-                        let result = notifier.wait_while(shutdown_guard, |s| *s == false).unwrap();
-                        shutdown_guard = result;
-                        if *shutdown_guard {
-                            break;
+                        loop {
+                            tasks = notifier.wait(tasks).expect("Condition variable wait should not fail");
+
+                            if let Some(task) = tasks.pop_front() {
+                                break Some(task);
+                            }
+
+                            let new_shutdown = *shutdown.lock().expect("Shutdown lock should not be poisoned");
+                            if new_shutdown {
+                                break None;
+                            }
                         }
-                        continue;
                     }
                 };
 
@@ -134,8 +136,8 @@ mod tests {
             });
         }
 
-        std::thread::sleep(Duration::from_millis(100));
-        assert_eq!(counter.load(std::sync::atomic::Ordering::SeqCst), 8);
+        pool.shutdown();
         drop(pool);
+        assert_eq!(counter.load(std::sync::atomic::Ordering::SeqCst), 8);
     }
 }

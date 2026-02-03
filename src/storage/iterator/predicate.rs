@@ -150,13 +150,19 @@ impl SimplePredicate {
 
 impl Predicate for SimplePredicate {
     fn evaluate(&self, row: &[Value]) -> bool {
+        if let Ok(idx) = self.column.parse::<usize>() {
+            if idx < row.len() {
+                return self.evaluate_value(&row[idx]);
+            }
+            return false;
+        }
+
         let parts: Vec<&str> = self.column.split('.').collect();
         let col_name = parts.last().map(|s| *s).unwrap_or(&self.column);
 
-        for (idx, val) in row.iter().enumerate() {
-            let row_col_name = format!("col_{}", idx);
-            if row_col_name == self.column || self.column == col_name {
-                return self.evaluate_value(val);
+        for val in row.iter() {
+            if self.evaluate_value(val) {
+                return true;
             }
         }
         false

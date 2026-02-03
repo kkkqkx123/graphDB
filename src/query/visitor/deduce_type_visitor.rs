@@ -952,9 +952,9 @@ mod tests {
         assert!(TypeUtils::is_superior_type(&DataType::Null));
 
         // 测试类型优先级
-        assert_eq!(TypeUtils::get_type_priority(&DataType::Int), 2);
-        assert_eq!(TypeUtils::get_type_priority(&DataType::Float), 3);
-        assert_eq!(TypeUtils::get_type_priority(&DataType::String), 4);
+        assert_eq!(TypeUtils::get_type_priority(&DataType::Int), 20);
+        assert_eq!(TypeUtils::get_type_priority(&DataType::Float), 30);
+        assert_eq!(TypeUtils::get_type_priority(&DataType::String), 40);
 
         // 测试公共类型
         assert_eq!(
