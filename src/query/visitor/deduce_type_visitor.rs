@@ -439,10 +439,15 @@ impl<'a, S: StorageClient> ExpressionVisitor for DeduceTypeVisitor<'a, S> {
 
     fn visit_case(
         &mut self,
+        test_expr: Option<&Expression>,
         conditions: &[(Expression, Expression)],
         default: Option<&Expression>,
     ) -> Self::Result {
         let mut result_type: Option<DataType> = None;
+
+        if let Some(expr) = test_expr {
+            self.visit_expression(expr)?;
+        }
 
         for (condition_expression, then_expression) in conditions {
             self.visit_expression(condition_expression)?;

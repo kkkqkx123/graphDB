@@ -23,8 +23,6 @@ use crate::core::types::{
     PropertyDef, SpaceInfo, TagInfo, UpdateInfo,
 };
 #[cfg(test)]
-use crate::query::planner::statements::seeks::IndexInfo;
-#[cfg(test)]
 use crate::index::Index;
 #[cfg(test)]
 use crate::storage::Schema;

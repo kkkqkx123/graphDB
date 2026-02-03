@@ -36,7 +36,7 @@ pub trait ExpressionVisitor: Send + Sync {
             }
             Expression::List(items) => self.visit_list(items),
             Expression::Map(pairs) => self.visit_map(pairs),
-            Expression::Case { conditions, default } => self.visit_case(conditions, default.as_deref()),
+            Expression::Case { test_expr, conditions, default } => self.visit_case(test_expr.as_deref(), conditions, default.as_deref()),
             Expression::TypeCast { expression, target_type } => {
                 self.visit_type_cast(expression, target_type)
             }
@@ -112,6 +112,7 @@ pub trait ExpressionVisitor: Send + Sync {
     /// 访问 CASE 表达式
     fn visit_case(
         &mut self,
+        test_expr: Option<&Expression>,
         conditions: &[(Expression, Expression)],
         default: Option<&Expression>,
     ) -> Self::Result;
@@ -421,15 +422,18 @@ pub trait ExpressionTransformer: ExpressionVisitor<Result = Expression> {
                 Expression::Map(new_pairs)
             }
             Expression::Case {
+                test_expr,
                 conditions,
                 default,
             } => {
+                let new_test_expr = test_expr.as_ref().map(|expr| Box::new(self.transform(expr)));
                 let new_conditions: Vec<(Expression, Expression)> = conditions
                     .iter()
                     .map(|(c, v)| (self.transform(c), self.transform(v)))
                     .collect();
                 let new_default = default.as_ref().map(|d| Box::new(self.transform(d)));
                 Expression::Case {
+                    test_expr: new_test_expr,
                     conditions: new_conditions,
                     default: new_default,
                 }
@@ -656,9 +660,13 @@ mod tests {
 
         fn visit_case(
             &mut self,
+            test_expr: Option<&Expression>,
             conditions: &[(Expression, Expression)],
             default: Option<&Expression>,
         ) -> Self::Result {
+            if let Some(expr) = test_expr {
+                self.visit_expression(expr);
+            }
             for (when, then) in conditions {
                 self.visit_expression(when);
                 self.visit_expression(then);

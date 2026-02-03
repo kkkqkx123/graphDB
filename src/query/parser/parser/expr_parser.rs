@@ -448,7 +448,7 @@ impl<'a> ExprParser<'a> {
         ctx.expect_token(TokenKind::Case)?;
         
         let test_expr = if ctx.peek_token().kind != TokenKind::When {
-            Some(Box::new(self.parse_expression(ctx)?))
+            Some(self.parse_expression(ctx)?.expr)
         } else {
             None
         };
@@ -462,7 +462,7 @@ impl<'a> ExprParser<'a> {
         }
         
         let default = if ctx.match_token(TokenKind::Else) {
-            Some(Box::new(self.parse_expression(ctx)?.expr))
+            Some(self.parse_expression(ctx)?.expr)
         } else {
             None
         };
@@ -471,7 +471,7 @@ impl<'a> ExprParser<'a> {
         
         let span = ctx.merge_span(start_pos, ctx.current_position());
         Ok(ParseResult {
-            expr: Expression::case(conditions, default.map(|e| *e)),
+            expr: Expression::case(test_expr, conditions, default),
             span,
         })
     }

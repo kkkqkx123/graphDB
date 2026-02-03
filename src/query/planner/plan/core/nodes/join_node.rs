@@ -1053,8 +1053,10 @@ impl JoinConnector {
     ) -> Result<SubPlan, crate::query::planner::planner::PlannerError> {
         match (left.root.as_ref(), right.root.as_ref()) {
             (None, None) => Ok(SubPlan::new(None, None)),
-            (Some(l), None) => Ok(left.clone()),
-            (None, Some(r)) => Ok(right.clone()),
+            (Some(_l), None) | (None, Some(_r)) => {
+                // 对于笛卡尔积，如果任一操作数为空，则结果为空
+                Ok(SubPlan::new(None, None))
+            },
             (Some(left_root), Some(right_root)) => {
                 let cross_join_node = CrossJoinNode::new(left_root.clone(), right_root.clone())
                     .map_err(|e| crate::query::planner::planner::PlannerError::PlanGenerationFailed(format!("Failed to create cross join node: {}", e)))?;
@@ -1064,6 +1066,142 @@ impl JoinConnector {
                 Ok(SubPlan::new(
                     Some(cross_join_enum.clone()),
                     Some(cross_join_enum),
+                ))
+            }
+        }
+    }
+
+    /// 内连接
+    pub fn inner_join(
+        _qctx: &crate::query::context::ast::base::AstContext,
+        left: &SubPlan,
+        right: &SubPlan,
+        hash_keys: Vec<Expression>,
+        probe_keys: Vec<Expression>,
+    ) -> Result<SubPlan, crate::query::planner::planner::PlannerError> {
+        match (left.root.as_ref(), right.root.as_ref()) {
+            (None, _) | (_, None) => {
+                Err(crate::query::planner::planner::PlannerError::PlanGenerationFailed(
+                    "左右子计划不能为None".to_string()
+                ))
+            }
+            (Some(left_root), Some(right_root)) => {
+                let inner_join_node = InnerJoinNode::new(
+                    left_root.clone(),
+                    right_root.clone(),
+                    hash_keys,
+                    probe_keys,
+                ).map_err(|e| crate::query::planner::planner::PlannerError::PlanGenerationFailed(
+                    format!("Failed to create inner join node: {}", e)
+                ))?;
+
+                let inner_join_enum = super::plan_node_enum::PlanNodeEnum::InnerJoin(inner_join_node);
+
+                Ok(SubPlan::new(
+                    Some(inner_join_enum.clone()),
+                    Some(inner_join_enum),
+                ))
+            }
+        }
+    }
+
+    /// 左连接
+    pub fn left_join(
+        _qctx: &crate::query::context::ast::base::AstContext,
+        left: &SubPlan,
+        right: &SubPlan,
+        hash_keys: Vec<Expression>,
+        probe_keys: Vec<Expression>,
+    ) -> Result<SubPlan, crate::query::planner::planner::PlannerError> {
+        match (left.root.as_ref(), right.root.as_ref()) {
+            (None, _) | (_, None) => {
+                Err(crate::query::planner::planner::PlannerError::PlanGenerationFailed(
+                    "左右子计划不能为None".to_string()
+                ))
+            }
+            (Some(left_root), Some(right_root)) => {
+                let left_join_node = LeftJoinNode::new(
+                    left_root.clone(),
+                    right_root.clone(),
+                    hash_keys,
+                    probe_keys,
+                ).map_err(|e| crate::query::planner::planner::PlannerError::PlanGenerationFailed(
+                    format!("Failed to create left join node: {}", e)
+                ))?;
+
+                let left_join_enum = super::plan_node_enum::PlanNodeEnum::LeftJoin(left_join_node);
+
+                Ok(SubPlan::new(
+                    Some(left_join_enum.clone()),
+                    Some(left_join_enum),
+                ))
+            }
+        }
+    }
+
+    /// 哈希内连接
+    pub fn hash_inner_join(
+        _qctx: &crate::query::context::ast::base::AstContext,
+        left: &SubPlan,
+        right: &SubPlan,
+        hash_keys: Vec<Expression>,
+        probe_keys: Vec<Expression>,
+    ) -> Result<SubPlan, crate::query::planner::planner::PlannerError> {
+        match (left.root.as_ref(), right.root.as_ref()) {
+            (None, _) | (_, None) => {
+                Err(crate::query::planner::planner::PlannerError::PlanGenerationFailed(
+                    "左右子计划不能为None".to_string()
+                ))
+            }
+            (Some(left_root), Some(right_root)) => {
+                let hash_inner_join_node = HashInnerJoinNode::new(
+                    left_root.clone(),
+                    right_root.clone(),
+                    hash_keys,
+                    probe_keys,
+                ).map_err(|e| crate::query::planner::planner::PlannerError::PlanGenerationFailed(
+                    format!("Failed to create hash inner join node: {}", e)
+                ))?;
+
+                let hash_inner_join_enum = super::plan_node_enum::PlanNodeEnum::HashInnerJoin(hash_inner_join_node);
+
+                Ok(SubPlan::new(
+                    Some(hash_inner_join_enum.clone()),
+                    Some(hash_inner_join_enum),
+                ))
+            }
+        }
+    }
+
+    /// 哈希左连接
+    pub fn hash_left_join(
+        _qctx: &crate::query::context::ast::base::AstContext,
+        left: &SubPlan,
+        right: &SubPlan,
+        hash_keys: Vec<Expression>,
+        probe_keys: Vec<Expression>,
+    ) -> Result<SubPlan, crate::query::planner::planner::PlannerError> {
+        match (left.root.as_ref(), right.root.as_ref()) {
+            (None, _) | (_, None) => {
+                Err(crate::query::planner::planner::PlannerError::PlanGenerationFailed(
+                    "左右子计划不能为None".to_string()
+                ))
+            }
+            (Some(left_root), Some(right_root)) => {
+                let hash_left_join_node = HashLeftJoinNode::new(
+                    left_root.clone(),
+                    right_root.clone(),
+                    hash_keys,
+                    probe_keys,
+                ).map_err(|e| crate::query::planner::planner::PlannerError::PlanGenerationFailed(
+                    format!("Failed to create hash left join node: {}", e)
+                ))?;
+
+                let hash_left_join_enum = super::plan_node_enum::PlanNodeEnum::HashLeftJoin(hash_left_join_node);
+
+                Ok(SubPlan::new(
+                    Some(hash_left_join_enum.clone()),
+                    Some(hash_left_join_enum),
                 ))
             }
         }
@@ -1119,5 +1257,145 @@ mod tests {
 
         // 测试依赖管理
         assert_eq!(join_node.dependencies().len(), 2);
+    }
+
+    #[test]
+    fn test_join_connector_cartesian_product() {
+        let left_node =
+            crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(
+                StartNode::new(),
+            );
+        let right_node =
+            crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(
+                StartNode::new(),
+            );
+
+        let left_subplan = SubPlan::new(Some(left_node.clone()), Some(left_node));
+        let right_subplan = SubPlan::new(Some(right_node.clone()), Some(right_node));
+
+        let qctx = crate::query::context::ast::base::AstContext::default();
+        let result = JoinConnector::cartesian_product(&qctx, &left_subplan, &right_subplan);
+
+        assert!(result.is_ok());
+        let subplan = result.unwrap();
+        assert!(subplan.root.is_some());
+    }
+
+    #[test]
+    fn test_join_connector_cartesian_product_with_none() {
+        let left_node =
+            crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(
+                StartNode::new(),
+            );
+        let left_subplan = SubPlan::new(Some(left_node.clone()), Some(left_node));
+        let right_subplan = SubPlan::new(None, None);
+
+        let qctx = crate::query::context::ast::base::AstContext::default();
+        // 当其中一个子计划为空时，笛卡尔积结果也应为空
+        let result = JoinConnector::cartesian_product(&qctx, &left_subplan, &right_subplan);
+
+        assert!(result.is_ok());
+        let subplan = result.unwrap();
+        assert!(subplan.root.is_none());
+    }
+
+    #[test]
+    fn test_join_connector_inner_join() {
+        let left_node =
+            crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(
+                StartNode::new(),
+            );
+        let right_node =
+            crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(
+                StartNode::new(),
+            );
+
+        let left_subplan = SubPlan::new(Some(left_node.clone()), Some(left_node));
+        let right_subplan = SubPlan::new(Some(right_node.clone()), Some(right_node));
+
+        let hash_keys = vec![Expression::Variable("key".to_string())];
+        let probe_keys = vec![Expression::Variable("key".to_string())];
+
+        let qctx = crate::query::context::ast::base::AstContext::default();
+        let result = JoinConnector::inner_join(&qctx, &left_subplan, &right_subplan, hash_keys, probe_keys);
+
+        assert!(result.is_ok());
+        let subplan = result.unwrap();
+        assert!(subplan.root.is_some());
+    }
+
+    #[test]
+    fn test_join_connector_left_join() {
+        let left_node =
+            crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(
+                StartNode::new(),
+            );
+        let right_node =
+            crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(
+                StartNode::new(),
+            );
+
+        let left_subplan = SubPlan::new(Some(left_node.clone()), Some(left_node));
+        let right_subplan = SubPlan::new(Some(right_node.clone()), Some(right_node));
+
+        let hash_keys = vec![Expression::Variable("key".to_string())];
+        let probe_keys = vec![Expression::Variable("key".to_string())];
+
+        let qctx = crate::query::context::ast::base::AstContext::default();
+        let result = JoinConnector::left_join(&qctx, &left_subplan, &right_subplan, hash_keys, probe_keys);
+
+        assert!(result.is_ok());
+        let subplan = result.unwrap();
+        assert!(subplan.root.is_some());
+    }
+
+    #[test]
+    fn test_join_connector_hash_inner_join() {
+        let left_node =
+            crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(
+                StartNode::new(),
+            );
+        let right_node =
+            crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(
+                StartNode::new(),
+            );
+
+        let left_subplan = SubPlan::new(Some(left_node.clone()), Some(left_node));
+        let right_subplan = SubPlan::new(Some(right_node.clone()), Some(right_node));
+
+        let hash_keys = vec![Expression::Variable("key".to_string())];
+        let probe_keys = vec![Expression::Variable("key".to_string())];
+
+        let qctx = crate::query::context::ast::base::AstContext::default();
+        let result = JoinConnector::hash_inner_join(&qctx, &left_subplan, &right_subplan, hash_keys, probe_keys);
+
+        assert!(result.is_ok());
+        let subplan = result.unwrap();
+        assert!(subplan.root.is_some());
+    }
+
+    #[test]
+    fn test_join_connector_hash_left_join() {
+        let left_node =
+            crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(
+                StartNode::new(),
+            );
+        let right_node =
+            crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum::Start(
+                StartNode::new(),
+            );
+
+        let left_subplan = SubPlan::new(Some(left_node.clone()), Some(left_node));
+        let right_subplan = SubPlan::new(Some(right_node.clone()), Some(right_node));
+
+        let hash_keys = vec![Expression::Variable("key".to_string())];
+        let probe_keys = vec![Expression::Variable("key".to_string())];
+
+        let qctx = crate::query::context::ast::base::AstContext::default();
+        let result = JoinConnector::hash_left_join(&qctx, &left_subplan, &right_subplan, hash_keys, probe_keys);
+
+        assert!(result.is_ok());
+        let subplan = result.unwrap();
+        assert!(subplan.root.is_some());
     }
 }

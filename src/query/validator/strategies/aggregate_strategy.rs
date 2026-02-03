@@ -32,14 +32,15 @@ impl AggregateValidationStrategy {
                 .iter()
                 .any(|(_, value)| self.has_aggregate_expression(value)),
             Expression::Case {
+                test_expr,
                 conditions,
                 default,
             } => {
-                conditions.iter().any(|(cond, val)| {
-                    self.has_aggregate_expression(cond) || self.has_aggregate_expression(val)
-                }) || default
-                    .as_ref()
-                    .map_or(false, |d| self.has_aggregate_expression(d))
+                test_expr.as_ref().map_or(false, |expr| self.has_aggregate_expression(expr))
+                    || conditions.iter().any(|(cond, val)| {
+                        self.has_aggregate_expression(cond) || self.has_aggregate_expression(val)
+                    })
+                    || default.as_ref().map_or(false, |d| self.has_aggregate_expression(d))
             }
             _ => false,
         }
@@ -131,14 +132,15 @@ impl AggregateValidationStrategy {
                 .iter()
                 .any(|(_, value)| self.has_wildcard_property(value)),
             Expression::Case {
+                test_expr,
                 conditions,
                 default,
             } => {
-                conditions.iter().any(|(cond, val)| {
-                    self.has_wildcard_property(cond) || self.has_wildcard_property(val)
-                }) || default
-                    .as_ref()
-                    .map_or(false, |d| self.has_wildcard_property(d))
+                test_expr.as_ref().map_or(false, |expr| self.has_wildcard_property(expr))
+                    || conditions.iter().any(|(cond, val)| {
+                        self.has_wildcard_property(cond) || self.has_wildcard_property(val)
+                    })
+                    || default.as_ref().map_or(false, |d| self.has_wildcard_property(d))
             }
             _ => false,
         }
@@ -193,9 +195,13 @@ impl AggregateValidationStrategy {
 
             // 递归检查CASE表达式
             Expression::Case {
+                test_expr,
                 conditions,
                 default,
             } => {
+                if let Some(expr) = test_expr {
+                    self.validate_expression_in_aggregate(expr)?;
+                }
                 for (cond, val) in conditions {
                     self.validate_expression_in_aggregate(cond)?;
                     self.validate_expression_in_aggregate(val)?;

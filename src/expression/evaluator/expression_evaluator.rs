@@ -66,8 +66,9 @@ impl ExpressionEvaluator {
             Expression::Aggregate { arg, .. } => Self::check_requires_context(arg),
             Expression::List(items) => items.iter().any(|arg| Self::check_requires_context(arg)),
             Expression::Map(pairs) => pairs.iter().any(|(_, val)| Self::check_requires_context(val)),
-            Expression::Case { conditions, default } => {
-                conditions.iter().any(|(cond, val)| Self::check_requires_context(cond) || Self::check_requires_context(val))
+            Expression::Case { test_expr, conditions, default } => {
+                test_expr.as_ref().map_or(false, |expr| Self::check_requires_context(expr))
+                    || conditions.iter().any(|(cond, val)| Self::check_requires_context(cond) || Self::check_requires_context(val))
                     || default.as_ref().map_or(false, |d| Self::check_requires_context(d))
             }
             Expression::TypeCast { expression, .. } => Self::check_requires_context(expression),
@@ -172,20 +173,28 @@ impl ExpressionEvaluator {
 
             // CASE 表达式 - 短路求值
             Expression::Case {
+                test_expr,
                 conditions,
                 default,
             } => {
-                for (condition, value) in conditions {
-                    let condition_result = self.visit_with_context(condition, context)?;
-                    match condition_result {
-                        Value::Bool(true) => {
+                if let Some(expr) = test_expr {
+                    let test_value = self.visit_with_context(expr, context)?;
+                    for (condition, value) in conditions {
+                        let condition_result = self.visit_with_context(condition, context)?;
+                        if test_value == condition_result {
                             return self.visit_with_context(value, context);
                         }
-                        Value::Bool(false) => continue,
-                        _ => return Err(ExpressionError::type_error("CASE条件必须是布尔值")),
+                    }
+                } else {
+                    for (condition, value) in conditions {
+                        let condition_result = self.visit_with_context(condition, context)?;
+                        match condition_result {
+                            Value::Bool(true) => return self.visit_with_context(value, context),
+                            Value::Bool(false) => continue,
+                            _ => return Err(ExpressionError::type_error("CASE条件必须是布尔值")),
+                        }
                     }
                 }
-
                 match default {
                     Some(default_expression) => self.visit_with_context(default_expression, context),
                     None => Ok(Value::Null(crate::core::NullType::Null)),
@@ -367,13 +376,23 @@ impl GenericExpressionVisitor<Expression> for ExpressionEvaluator {
                 let arg_value = self.visit(arg)?;
                 FunctionEvaluator.eval_aggregate_function(func, &[arg_value], *distinct)
             }
-            Expression::Case { conditions, default } => {
-                for (condition, value) in conditions {
-                    let condition_result = self.visit(condition)?;
-                    match condition_result {
-                        Value::Bool(true) => return self.visit(value),
-                        Value::Bool(false) => continue,
-                        _ => return Err(ExpressionError::type_error("CASE条件必须是布尔值")),
+            Expression::Case { test_expr, conditions, default } => {
+                if let Some(expr) = test_expr {
+                    let test_value = self.visit(expr)?;
+                    for (condition, value) in conditions {
+                        let condition_result = self.visit(condition)?;
+                        if test_value == condition_result {
+                            return self.visit(value);
+                        }
+                    }
+                } else {
+                    for (condition, value) in conditions {
+                        let condition_result = self.visit(condition)?;
+                        match condition_result {
+                            Value::Bool(true) => return self.visit(value),
+                            Value::Bool(false) => continue,
+                            _ => return Err(ExpressionError::type_error("CASE条件必须是布尔值")),
+                        }
                     }
                 }
                 match default {

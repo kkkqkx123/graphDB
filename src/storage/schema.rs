@@ -3,7 +3,6 @@
 //! 定义了存储层的Schema结构和相关操作
 
 use super::types::FieldDef;
-use super::DataType;
 
 use std::collections::BTreeMap;
 

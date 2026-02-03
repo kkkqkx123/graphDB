@@ -125,6 +125,7 @@ pub enum Expression {
     
     /// 条件表达式
     Case {
+        test_expr: Option<Box<Expression>>,
         conditions: Vec<(Expression, Expression)>,
         default: Option<Box<Expression>>,
     },
@@ -266,8 +267,9 @@ impl Expression {
         Expression::Map(pairs.into_iter().map(|(k, v)| (k.into(), v)).collect())
     }
 
-    pub fn case(conditions: Vec<(Expression, Expression)>, default: Option<Expression>) -> Self {
+    pub fn case(test_expr: Option<Expression>, conditions: Vec<(Expression, Expression)>, default: Option<Expression>) -> Self {
         Expression::Case {
+            test_expr: test_expr.map(Box::new),
             conditions,
             default: default.map(Box::new),
         }
@@ -381,23 +383,27 @@ impl Expression {
             Expression::List(items) => items.iter().collect(),
             Expression::Map(pairs) => pairs.iter().map(|(_, expression)| expression).collect(),
             Expression::Case {
-                conditions,
-                default,
-            } => {
-                let mut children = Vec::new();
-                for (cond, value) in conditions {
-                    children.push(cond);
-                    children.push(value);
-                }
-                if let Some(def) = default {
-                    children.push(def);
-                }
-                children
-            }
-            Expression::TypeCast { expression, .. } => vec![expression.as_ref()],
-            Expression::Subscript { collection, index } => {
-                vec![collection.as_ref(), index.as_ref()]
-            }
+                 test_expr,
+                 conditions,
+                 default,
+             } => {
+                 let mut children = Vec::new();
+                 if let Some(expr) = test_expr {
+                     children.push((*expr).clone());
+                 }
+                 for (cond, value) in conditions {
+                     children.push(cond.clone());
+                     children.push(value.clone());
+                 }
+                 if let Some(def) = default {
+                     children.push((*def).clone());
+                 }
+                 children
+             }
+            Expression::TypeCast { expression, .. } => vec![(*expression).clone()],
+              Expression::Subscript { collection, index } => {
+                  vec![(*collection).clone(), (*index).clone()]
+              }
             Expression::Range {
                 collection,
                 start,
@@ -549,8 +555,11 @@ impl Expression {
                     .join(", ");
                 format!("{{{}}}", pairs_str)
             }
-            Expression::Case { conditions, default } => {
+            Expression::Case { test_expr, conditions, default } => {
                 let mut result = String::from("CASE ");
+                if let Some(expr) = test_expr {
+                    result.push_str(&format!("{} ", expr.to_expression_string()));
+                }
                 for (cond, value) in conditions {
                     result.push_str(&format!("WHEN {} THEN {} ", cond.to_expression_string(), value.to_expression_string()));
                 }
