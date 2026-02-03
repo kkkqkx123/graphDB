@@ -61,12 +61,16 @@ impl ExecutionPlan {
         self.format = format;
     }
     
-    /// 计算计划中的节点数量（简化版）
+    /// 计算计划中的节点数量
+    /// 递归遍历整个执行计划树，统计所有节点
     pub fn node_count(&self) -> usize {
         fn count_nodes(node: &Option<PlanNodeEnum>) -> usize {
             match node {
                 Some(n) => {
-                    let count = 1;
+                    let mut count = 1;
+                    for child in n.children() {
+                        count += count_nodes(&Some(child.clone()));
+                    }
                     count
                 }
                 None => 0,

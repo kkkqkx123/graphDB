@@ -78,6 +78,10 @@ impl Iterator for DefaultIter {
         None
     }
 
+    fn add_row(&mut self, _row: Row) {
+        // DefaultIter 不支持添加行
+    }
+
     fn select(&mut self, offset: usize, count: usize) {
         if offset > 0 || count == 0 {
             self.clear();

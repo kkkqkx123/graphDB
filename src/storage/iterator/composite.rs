@@ -115,9 +115,12 @@ impl<I: Iterator> Iterator for FilterIter<I> {
         self.inner.move_row()
     }
 
+    fn add_row(&mut self, row: Row) {
+        self.inner.add_row(row)
+    }
+
     fn select(&mut self, offset: usize, count: usize) {
         let mut temp = Vec::new();
-        let idx = 0;
         let mut offset_remaining = offset;
         let mut count_remaining = count;
 
@@ -139,7 +142,7 @@ impl<I: Iterator> Iterator for FilterIter<I> {
         self.inner.clear();
         self.inner.reset(0);
         for row in temp {
-            self.inner.move_row();
+            self.inner.add_row(row);
         }
     }
 
@@ -296,6 +299,10 @@ impl<I: Iterator> Iterator for MapIter<I> {
         }
     }
 
+    fn add_row(&mut self, row: Row) {
+        self.inner.add_row(row)
+    }
+
     fn select(&mut self, offset: usize, count: usize) {
         self.inner.select(offset, count);
     }
@@ -428,6 +435,10 @@ impl<I: Iterator> Iterator for TakeIter<I> {
         }
     }
 
+    fn add_row(&mut self, row: Row) {
+        self.inner.add_row(row)
+    }
+
     fn select(&mut self, offset: usize, count: usize) {
         let actual_offset = self.taken + offset;
         self.inner.select(actual_offset, count);
@@ -543,6 +554,10 @@ impl<I: Iterator> Iterator for SkipIter<I> {
         self.inner.move_row()
     }
 
+    fn add_row(&mut self, row: Row) {
+        self.inner.add_row(row)
+    }
+
     fn select(&mut self, offset: usize, count: usize) {
         self.inner.select(self.skipped + offset, count);
     }
@@ -656,6 +671,10 @@ impl<I: Iterator> Iterator for CompositeIter<I> {
         self.inner.move_row()
     }
 
+    fn add_row(&mut self, row: Row) {
+        self.inner.add_row(row)
+    }
+
     fn select(&mut self, offset: usize, count: usize) {
         self.inner.select(offset, count)
     }
@@ -742,7 +761,7 @@ mod tests {
         });
 
         assert!(iter.valid());
-        let _mapped_row = iter.move_row();
+        iter.move_row();
         if let Some(Value::Int(age)) = iter.get_column("age") {
             assert_eq!(*age, 26);
         }

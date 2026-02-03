@@ -157,9 +157,6 @@ impl Predicate for SimplePredicate {
             return false;
         }
 
-        let parts: Vec<&str> = self.column.split('.').collect();
-        let col_name = parts.last().map(|s| *s).unwrap_or(&self.column);
-
         for val in row.iter() {
             if self.evaluate_value(val) {
                 return true;
@@ -489,7 +486,6 @@ mod tests {
     #[test]
     fn test_optimizer() {
         let pred1 = SimplePredicate::new("age", CompareOp::Equal, Value::Int(25));
-        let pred2 = SimplePredicate::new("name", CompareOp::Like, Value::String("%".to_string()));
         let optimizer = PredicateOptimizer::new();
 
         let (pushdown, filter) = optimizer.optimize(&pred1);

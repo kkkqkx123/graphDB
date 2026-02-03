@@ -43,7 +43,8 @@ impl ReturnClausePlanner {
     }
 
     pub fn from_ast(ast_ctx: &AstContext) -> Self {
-        Self::new()
+        let distinct = extract_distinct_flag(ast_ctx);
+        Self::with_distinct(distinct)
     }
 
     fn is_aggregated_expression(name: &str) -> bool {
@@ -55,6 +56,16 @@ impl ReturnClausePlanner {
             || upper.starts_with("MIN(")
             || upper.starts_with("COLLECT(")
     }
+}
+
+fn extract_distinct_flag(ast_ctx: &AstContext) -> bool {
+    let stmt = ast_ctx.sentence();
+    if let Some(crate::query::parser::ast::Stmt::Match(match_stmt)) = stmt {
+        if let Some(return_clause) = &match_stmt.return_clause {
+            return return_clause.distinct;
+        }
+    }
+    false
 }
 
 fn extract_return_columns(ast_ctx: &AstContext) -> Vec<YieldColumn> {

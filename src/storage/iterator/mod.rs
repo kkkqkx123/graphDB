@@ -95,6 +95,9 @@ pub trait Iterator: Send + Sync + Debug + Clone {
     /// 移动当前行（消费所有权）
     fn move_row(&mut self) -> Option<Row>;
 
+    /// 添加一行到迭代器末尾
+    fn add_row(&mut self, row: Row);
+
     /// 选择范围内的行 [offset, offset + count)
     fn select(&mut self, offset: usize, count: usize);
 

@@ -211,6 +211,10 @@ impl Iterator for PropIter {
         }
     }
 
+    fn add_row(&mut self, row: Row) {
+        self.rows.push(row);
+    }
+
     fn select(&mut self, offset: usize, count: usize) {
         if offset >= self.rows.len() {
             self.rows.clear();

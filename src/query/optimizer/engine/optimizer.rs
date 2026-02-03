@@ -240,7 +240,34 @@ impl Optimizer {
                 }
                 PlanNodeEnum::GetNeighbors(_) | PlanNodeEnum::GetVertices(_) | PlanNodeEnum::GetEdges(_) => {
                 }
-                PlanNodeEnum::Expand(_) | PlanNodeEnum::ExpandAll(_) | PlanNodeEnum::AppendVertices(_) | PlanNodeEnum::Traverse(_) | PlanNodeEnum::Dedup(_) | PlanNodeEnum::Unwind(_) => {
+                PlanNodeEnum::Sample(node) => {
+                    count_recursive_node(node.input(), count);
+                }
+                PlanNodeEnum::Dedup(node) => {
+                    count_recursive_node(node.input(), count);
+                }
+                PlanNodeEnum::Unwind(node) => {
+                    count_recursive_node(node.input(), count);
+                }
+                PlanNodeEnum::Expand(node) => {
+                    for dep in node.dependencies().iter() {
+                        count_recursive_node(dep, count);
+                    }
+                }
+                PlanNodeEnum::ExpandAll(node) => {
+                    for dep in node.dependencies().iter() {
+                        count_recursive_node(dep, count);
+                    }
+                }
+                PlanNodeEnum::Traverse(node) => {
+                    for dep in node.dependencies().iter() {
+                        count_recursive_node(dep, count);
+                    }
+                }
+                PlanNodeEnum::AppendVertices(node) => {
+                    for dep in node.dependencies().iter() {
+                        count_recursive_node(dep, count);
+                    }
                 }
                 PlanNodeEnum::Union(node) => {
                     for input in node.dependencies().iter() {
@@ -413,9 +440,87 @@ impl Optimizer {
                 self.build_inputs_recursive(node.left_input(), ctx, left_id)?;
                 self.build_inputs_recursive(node.right_input(), ctx, right_id)?;
             }
-            PlanNodeEnum::Expand(_) | PlanNodeEnum::ExpandAll(_) | PlanNodeEnum::AppendVertices(_) 
-            | PlanNodeEnum::Traverse(_) | PlanNodeEnum::Dedup(_) | PlanNodeEnum::Unwind(_) => {
-                unimplemented!("Expand/AppendVertices/Traverse/Dedup/Unwind handling not implemented")
+            PlanNodeEnum::TopN(node) => {
+                let input_id = self.build_single_input(node.input(), ctx)?;
+                if let Some(group_node) = ctx.find_group_node_by_id(parent_id) {
+                    group_node.borrow_mut().add_dependency(input_id);
+                }
+                self.build_inputs_recursive(node.input(), ctx, input_id)?;
+            }
+            PlanNodeEnum::Sample(node) => {
+                let input_id = self.build_single_input(node.input(), ctx)?;
+                if let Some(group_node) = ctx.find_group_node_by_id(parent_id) {
+                    group_node.borrow_mut().add_dependency(input_id);
+                }
+                self.build_inputs_recursive(node.input(), ctx, input_id)?;
+            }
+            PlanNodeEnum::Dedup(node) => {
+                let input_id = self.build_single_input(node.input(), ctx)?;
+                if let Some(group_node) = ctx.find_group_node_by_id(parent_id) {
+                    group_node.borrow_mut().add_dependency(input_id);
+                }
+                self.build_inputs_recursive(node.input(), ctx, input_id)?;
+            }
+            PlanNodeEnum::Unwind(node) => {
+                let input_id = self.build_single_input(node.input(), ctx)?;
+                if let Some(group_node) = ctx.find_group_node_by_id(parent_id) {
+                    group_node.borrow_mut().add_dependency(input_id);
+                }
+                self.build_inputs_recursive(node.input(), ctx, input_id)?;
+            }
+            PlanNodeEnum::Expand(node) => {
+                for dep in node.dependencies().iter() {
+                    let dep_id = self.build_single_input(dep, ctx)?;
+                    if let Some(group_node) = ctx.find_group_node_by_id(parent_id) {
+                        group_node.borrow_mut().add_dependency(dep_id);
+                    }
+                    self.build_inputs_recursive(dep, ctx, dep_id)?;
+                }
+            }
+            PlanNodeEnum::ExpandAll(node) => {
+                for dep in node.dependencies().iter() {
+                    let dep_id = self.build_single_input(dep, ctx)?;
+                    if let Some(group_node) = ctx.find_group_node_by_id(parent_id) {
+                        group_node.borrow_mut().add_dependency(dep_id);
+                    }
+                    self.build_inputs_recursive(dep, ctx, dep_id)?;
+                }
+            }
+            PlanNodeEnum::Traverse(node) => {
+                for dep in node.dependencies().iter() {
+                    let dep_id = self.build_single_input(dep, ctx)?;
+                    if let Some(group_node) = ctx.find_group_node_by_id(parent_id) {
+                        group_node.borrow_mut().add_dependency(dep_id);
+                    }
+                    self.build_inputs_recursive(dep, ctx, dep_id)?;
+                }
+            }
+            PlanNodeEnum::AppendVertices(node) => {
+                for dep in node.dependencies().iter() {
+                    let dep_id = self.build_single_input(dep, ctx)?;
+                    if let Some(group_node) = ctx.find_group_node_by_id(parent_id) {
+                        group_node.borrow_mut().add_dependency(dep_id);
+                    }
+                    self.build_inputs_recursive(dep, ctx, dep_id)?;
+                }
+            }
+            PlanNodeEnum::Start(_) | PlanNodeEnum::IndexScan(_) | PlanNodeEnum::FulltextIndexScan(_)
+            | PlanNodeEnum::ScanVertices(_) | PlanNodeEnum::ScanEdges(_)
+            | PlanNodeEnum::Argument(_) | PlanNodeEnum::Loop(_) | PlanNodeEnum::PassThrough(_)
+            | PlanNodeEnum::Select(_) | PlanNodeEnum::DataCollect(_) | PlanNodeEnum::PatternApply(_)
+            | PlanNodeEnum::RollUpApply(_) | PlanNodeEnum::Assign(_)
+            | PlanNodeEnum::MultiShortestPath(_) | PlanNodeEnum::BFSShortest(_) 
+            | PlanNodeEnum::AllPaths(_) | PlanNodeEnum::ShortestPath(_)
+            | PlanNodeEnum::CreateSpace(_) | PlanNodeEnum::DropSpace(_) | PlanNodeEnum::DescSpace(_)
+            | PlanNodeEnum::ShowSpaces(_) | PlanNodeEnum::CreateTag(_) | PlanNodeEnum::AlterTag(_)
+            | PlanNodeEnum::DescTag(_) | PlanNodeEnum::DropTag(_) | PlanNodeEnum::ShowTags(_)
+            | PlanNodeEnum::CreateEdge(_) | PlanNodeEnum::AlterEdge(_) | PlanNodeEnum::DescEdge(_)
+            | PlanNodeEnum::DropEdge(_) | PlanNodeEnum::ShowEdges(_)
+            | PlanNodeEnum::CreateTagIndex(_) | PlanNodeEnum::DropTagIndex(_) | PlanNodeEnum::DescTagIndex(_)
+            | PlanNodeEnum::ShowTagIndexes(_) | PlanNodeEnum::CreateEdgeIndex(_) | PlanNodeEnum::DropEdgeIndex(_)
+            | PlanNodeEnum::DescEdgeIndex(_) | PlanNodeEnum::ShowEdgeIndexes(_)
+            | PlanNodeEnum::RebuildTagIndex(_) | PlanNodeEnum::RebuildEdgeIndex(_) => {
+                // These nodes don't have inputs to process in the current context
             }
         }
 

@@ -34,7 +34,8 @@ impl PaginationPlanner {
     }
 
     pub fn from_ast(ast_ctx: &AstContext) -> Self {
-        Self::new()
+        let pagination = extract_pagination_info(ast_ctx);
+        Self::with_default_limit(pagination.limit)
     }
 }
 
