@@ -519,6 +519,7 @@ mod tests {
 
         // 测试CASE表达式在聚合参数中的验证
         let expression = Expression::Case {
+            test_expr: None,
             conditions: vec![(
                 Expression::Binary {
                     left: Box::new(Expression::Property {

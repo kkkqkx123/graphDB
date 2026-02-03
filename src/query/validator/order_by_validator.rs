@@ -339,7 +339,10 @@ impl OrderByValidator {
                     self.collect_refs(value, refs);
                 }
             },
-            Expression::Case { conditions, default } => {
+            Expression::Case { test_expr, conditions, default } => {
+                if let Some(test_expression) = test_expr {
+                    self.collect_refs(test_expression, refs);
+                }
                 for (condition, value) in conditions {
                     self.collect_refs(condition, refs);
                     self.collect_refs(value, refs);

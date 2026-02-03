@@ -506,9 +506,11 @@ impl TypeValidator {
                 pairs.iter().any(|(_, value)| self.has_aggregate_expression(value))
             }
             Expression::Case {
+                test_expr,
                 conditions,
                 default,
             } => {
+                test_expr.as_ref().map_or(false, |test| self.has_aggregate_expression(test)) ||
                 conditions.iter().any(|(when_expression, then_expression)| {
                     self.has_aggregate_expression(when_expression) || self.has_aggregate_expression(then_expression)
                 }) || default.as_ref().map_or(false, |d| self.has_aggregate_expression(d))
@@ -632,7 +634,13 @@ impl TypeValidator {
                 ValueType::List
             }
             Expression::Map(_) => ValueType::Map,
-            Expression::Case { conditions, default } => {
+            Expression::Case { test_expr, conditions, default } => {
+                if let Some(test_expression) = test_expr {
+                    let test_type = self.deduce_expr_type(test_expression);
+                    if test_type != ValueType::Unknown {
+                        return test_type;
+                    }
+                }
                 for (_, then_expression) in conditions {
                     let then_type = self.deduce_expr_type(then_expression);
                     if then_type != ValueType::Unknown {

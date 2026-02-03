@@ -92,9 +92,13 @@ impl AliasValidationStrategy {
                 Ok(())
             }
             Expression::Case {
+                test_expr,
                 conditions,
                 default,
             } => {
+                if let Some(test_expression) = test_expr {
+                    self.validate_expression_aliases(test_expression, aliases)?;
+                }
                 for (condition, value) in conditions {
                     self.validate_expression_aliases(condition, aliases)?;
                     self.validate_expression_aliases(value, aliases)?;

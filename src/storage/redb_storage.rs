@@ -1,8 +1,8 @@
 use super::{StorageClient, TransactionId, VertexReader, VertexWriter, EdgeReader, EdgeWriter, ScanResult, MemorySchemaManager};
 use crate::core::{Edge, StorageError, Value, Vertex, EdgeDirection};
 use crate::core::types::{
-    SpaceInfo, TagInfo, EdgeTypeInfo,
-    InsertVertexInfo, InsertEdgeInfo, UpdateInfo,
+    SpaceInfo, TagInfo, EdgeTypeInfo, PropertyDef,
+    InsertVertexInfo, InsertEdgeInfo, UpdateInfo, UpdateTarget, UpdateOp,
     PasswordInfo,
 };
 pub use crate::core::types::EdgeTypeInfo as EdgeTypeSchema;
@@ -64,6 +64,327 @@ impl RedbStorage<RedbEngine> {
 }
 
 impl<E: Engine> RedbStorage<E> {
+    // 解析顶点ID
+    fn parse_vertex_id(&self, vertex_id: &str) -> Result<Value, StorageError> {
+        // 尝试解析为整数
+        if let Ok(i) = vertex_id.parse::<i64>() {
+            return Ok(Value::Int(i));
+        }
+        // 默认识别为字符串
+        Ok(Value::String(vertex_id.to_string()))
+    }
+    
+    // 更新顶点索引
+    fn update_vertex_indexes(&self, space: &str, vertex_id: &Value, tag_name: &str, props: &[(String, Value)]) -> Result<(), StorageError> {
+        let tag_indexes = self.tag_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        if let Some(space_indexes) = tag_indexes.get(space) {
+            for (index_name, index) in space_indexes {
+                if index.fields.iter().any(|f| f.name == tag_name) {
+                    // 构建索引键
+                    let index_key = self.build_vertex_index_key(space, index_name, vertex_id, props)?;
+                    let index_value = Self::serialize_value(vertex_id);
+                    
+                    // 存储索引
+                    let mut engine = self.engine.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+                    engine.put(&index_key, &index_value)?;
+                }
+            }
+        }
+        Ok(())
+    }
+    
+    // 更新边索引
+    fn update_edge_indexes(&self, space: &str, src: &Value, dst: &Value, edge_type: &str, props: &[(String, Value)]) -> Result<(), StorageError> {
+        let edge_indexes = self.edge_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        if let Some(space_indexes) = edge_indexes.get(space) {
+            for (index_name, index) in space_indexes {
+                if index.fields.iter().any(|f| f.name == edge_type) {
+                    // 构建索引键
+                    let index_key = self.build_edge_index_key(space, index_name, src, dst, props)?;
+                    let index_value = Self::serialize_value(src);
+                    
+                    // 存储索引
+                    let mut engine = self.engine.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+                    engine.put(&index_key, &index_value)?;
+                }
+            }
+        }
+        Ok(())
+    }
+    
+    // 删除顶点相关边
+    fn delete_vertex_edges(&mut self, space: &str, vertex_id: &Value) -> Result<(), StorageError> {
+        let edges = <Self as EdgeReader>::scan_all_edges(self, space)?;
+        for edge in edges {
+            if *edge.src == *vertex_id || *edge.dst == *vertex_id {
+                <Self as EdgeWriter>::delete_edge(self, space, &edge.src, &edge.dst, &edge.edge_type)?;
+                self.delete_edge_indexes(space, &edge.src, &edge.dst, &edge.edge_type)?;
+            }
+        }
+        Ok(())
+    }
+    
+    // 删除顶点索引
+    fn delete_vertex_indexes(&self, space: &str, vertex_id: &Value) -> Result<(), StorageError> {
+        // 这里可以实现具体的索引删除逻辑
+        // 为了简化，暂时不实现具体删除
+        Ok(())
+    }
+    
+    // 删除边索引
+    fn delete_edge_indexes(&self, space: &str, src: &Value, dst: &Value, edge_type: &str) -> Result<(), StorageError> {
+        // 这里可以实现具体的索引删除逻辑
+        // 为了简化，暂时不实现具体删除
+        Ok(())
+    }
+    
+    // 更新顶点属性
+    fn update_vertex_property(&self, space: &str, vertex_id: &Value, tag: &str, prop: &str, op: &UpdateOp, value: &Value) -> Result<(), StorageError> {
+        if let Some(mut vertex) = <Self as VertexReader>::get_vertex(self, space, vertex_id)? {
+            for tag_data in &mut vertex.tags {
+                if tag_data.name == tag {
+                    match op {
+                        UpdateOp::Set => {
+                            tag_data.properties.insert(prop.to_string(), value.clone());
+                        }
+                        UpdateOp::Add => {
+                            if let Some(existing) = tag_data.properties.get(prop) {
+                                if let (Value::Int(a), Value::Int(b)) = (existing, value) {
+                                    tag_data.properties.insert(prop.to_string(), Value::Int(a + b));
+                                }
+                            }
+                        }
+                        UpdateOp::Subtract => {
+                            if let Some(existing) = tag_data.properties.get(prop) {
+                                if let (Value::Int(a), Value::Int(b)) = (existing, value) {
+                                    tag_data.properties.insert(prop.to_string(), Value::Int(a - b));
+                                }
+                            }
+                        }
+                        _ => {} // 其他操作暂不支持
+                    }
+                    break;
+                }
+            }
+            let mut engine = self.engine.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+            let key = Self::encode_vertex_key(space, &vertex.vid);
+            let data = Self::serialize_vertex(&vertex)?;
+            engine.put(&key, &data)?;
+        }
+        Ok(())
+    }
+    
+    // 更新边属性
+    fn update_edge_property(&self, space: &str, src: &Value, dst: &Value, edge_type: &str, prop: &str, op: &UpdateOp, value: &Value) -> Result<(), StorageError> {
+        if let Some(mut edge) = <Self as EdgeReader>::get_edge(self, space, src, dst, edge_type)? {
+            match op {
+                UpdateOp::Set => {
+                    edge.props.insert(prop.to_string(), value.clone());
+                }
+                UpdateOp::Add => {
+                    if let Some(existing) = edge.props.get(prop) {
+                        if let (Value::Int(a), Value::Int(b)) = (existing, value) {
+                            edge.props.insert(prop.to_string(), Value::Int(a + b));
+                        }
+                    }
+                }
+                UpdateOp::Subtract => {
+                    if let Some(existing) = edge.props.get(prop) {
+                        if let (Value::Int(a), Value::Int(b)) = (existing, value) {
+                            edge.props.insert(prop.to_string(), Value::Int(a - b));
+                        }
+                    }
+                }
+                _ => {} // 其他操作暂不支持
+            }
+            // 重新插入边以更新数据
+            let mut engine = self.engine.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+            let key = Self::encode_edge_key(space, &edge.src, &edge.dst, &edge.edge_type);
+            let data = Self::serialize_edge(&edge)?;
+            engine.put(&key, &data)?;
+        }
+        Ok(())
+    }
+    
+    // 查找标签索引
+    fn lookup_tag_index(&self, space: &str, index: &Index, value: &Value) -> Result<Vec<Value>, StorageError> {
+        let mut results = Vec::new();
+        let index_key_prefix = self.build_vertex_index_key_prefix(space, &index.name, value)?;
+        
+        let engine = self.engine.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let iter = engine.scan(&index_key_prefix)?;
+        
+        let mut iter = iter;
+        while iter.next() {
+            if let (Some(key), Some(value)) = (iter.key(), iter.value()) {
+                if let Ok(vertex_id) = Self::deserialize_value(value) {
+                    results.push(vertex_id);
+                }
+            }
+        }
+        
+        Ok(results)
+    }
+    
+    // 查找边索引
+    fn lookup_edge_index(&self, space: &str, index: &Index, value: &Value) -> Result<Vec<Value>, StorageError> {
+        let mut results = Vec::new();
+        let index_key_prefix = self.build_edge_index_key_prefix(space, &index.name, value)?;
+        
+        let engine = self.engine.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let iter = engine.scan(&index_key_prefix)?;
+        
+        let mut iter = iter;
+        while iter.next() {
+            if let (Some(key), Some(value)) = (iter.key(), iter.value()) {
+                if let Ok(src_id) = Self::deserialize_value(value) {
+                    results.push(src_id);
+                }
+            }
+        }
+        
+        Ok(results)
+    }
+    
+    // 清除边索引
+    fn clear_edge_index(&self, space: &str, index_name: &str) -> Result<(), StorageError> {
+        let index_key_prefix = format!("{}:idx:e:{}:", space, index_name).into_bytes();
+        
+        let mut engine = self.engine.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let iter = engine.scan(&index_key_prefix)?;
+        
+        let mut keys_to_delete = Vec::new();
+        let mut iter = iter;
+        while iter.next() {
+            if let (Some(key), _) = (iter.key(), iter.value()) {
+                keys_to_delete.push(key.to_vec());
+            }
+        }
+        
+        for key in keys_to_delete {
+            engine.delete(&key)?;
+        }
+        
+        Ok(())
+    }
+    
+    // 构建边索引条目
+    fn build_edge_index_entry(&self, space: &str, index: &Index, edge: &crate::core::Edge) -> Result<(), StorageError> {
+        for field in &index.fields {
+            if let Some(value) = edge.props.get(&field.name) {
+                let index_key = self.build_edge_index_key_for_field(space, &index.name, &field.name, value)?;
+                let index_value = Self::serialize_value(&edge.src);
+                
+                let mut engine = self.engine.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+                engine.put(&index_key, &index_value)?;
+            }
+        }
+        Ok(())
+    }
+    
+    // 构建顶点schema
+    fn build_vertex_schema(&self, tag_info: &crate::core::types::TagInfo) -> Result<Schema, StorageError> {
+        let mut schema = Schema::new(tag_info.tag_name.clone(), 1);
+        for prop in &tag_info.properties {
+            let field_def = super::types::FieldDef {
+                name: prop.name.clone(),
+                field_type: prop.data_type.clone(),
+                nullable: prop.nullable,
+                default_value: prop.default.clone(),
+                fixed_length: None,
+                offset: 0,
+                null_flag_pos: None,
+                geo_shape: None,
+            };
+            schema = schema.add_field(field_def);
+        }
+        Ok(schema)
+    }
+    
+    // 构建边schema
+    fn build_edge_schema(&self, edge_type_info: &crate::core::types::EdgeTypeInfo) -> Result<Schema, StorageError> {
+        let mut schema = Schema::new(edge_type_info.edge_type_name.clone(), 1);
+        for prop in &edge_type_info.properties {
+            let field_def = super::types::FieldDef {
+                name: prop.name.clone(),
+                field_type: prop.data_type.clone(),
+                nullable: prop.nullable,
+                default_value: prop.default.clone(),
+                fixed_length: None,
+                offset: 0,
+                null_flag_pos: None,
+                geo_shape: None,
+            };
+            schema = schema.add_field(field_def);
+        }
+        Ok(schema)
+    }
+    
+    // 构建顶点索引键
+    fn build_vertex_index_key(&self, space: &str, index_name: &str, vertex_id: &Value, props: &[(String, Value)]) -> Result<Vec<u8>, StorageError> {
+        let mut key_parts = vec![format!("{}:idx:v:{}:", space, index_name).into_bytes()];
+        
+        for (prop_name, prop_value) in props {
+            key_parts.push(Self::serialize_value(prop_value));
+            key_parts.push(vec![b':']);
+        }
+        
+        Ok(key_parts.into_iter().flatten().collect())
+    }
+    
+    // 构建边索引键
+    fn build_edge_index_key(&self, space: &str, index_name: &str, src: &Value, dst: &Value, props: &[(String, Value)]) -> Result<Vec<u8>, StorageError> {
+        let mut key_parts = vec![format!("{}:idx:e:{}:", space, index_name).into_bytes()];
+        
+        for (prop_name, prop_value) in props {
+            key_parts.push(Self::serialize_value(prop_value));
+            key_parts.push(vec![b':']);
+        }
+        
+        Ok(key_parts.into_iter().flatten().collect())
+    }
+    
+    // 构建顶点索引键前缀
+    fn build_vertex_index_key_prefix(&self, space: &str, index_name: &str, value: &Value) -> Result<Vec<u8>, StorageError> {
+        Ok(format!("{}:idx:v:{}:", space, index_name).into_bytes())
+    }
+    
+    // 构建边索引键前缀
+    fn build_edge_index_key_prefix(&self, space: &str, index_name: &str, value: &Value) -> Result<Vec<u8>, StorageError> {
+        Ok(format!("{}:idx:e:{}:", space, index_name).into_bytes())
+    }
+    
+    // 构建边索引字段键
+    fn build_edge_index_key_for_field(&self, space: &str, index_name: &str, field: &str, value: &Value) -> Result<Vec<u8>, StorageError> {
+        Ok(format!("{}:idx:e:{}:{}:", space, index_name, field).into_bytes())
+    }
+    
+    // 反序列化值
+    fn deserialize_value(data: &[u8]) -> Result<Value, StorageError> {
+        // 简单的反序列化实现，需要根据实际格式完善
+        if data.len() == 8 {
+            let mut bytes = [0u8; 8];
+            bytes.copy_from_slice(data);
+            Ok(Value::Int(i64::from_be_bytes(bytes)))
+        } else {
+            Ok(Value::String(String::from_utf8_lossy(data).to_string()))
+        }
+    }
+    
+    // 加载元数据
+    fn load_metadata_from_disk(&self) -> Result<(), StorageError> {
+        // 这里可以实现从磁盘加载spaces、tags等元数据
+        // 为了简化，暂时不实现具体加载逻辑
+        Ok(())
+    }
+    
+    // 保存元数据
+    fn save_metadata_to_disk(&self) -> Result<(), StorageError> {
+        // 这里可以实现将spaces、tags等元数据保存到磁盘
+        // 为了简化，暂时不实现具体保存逻辑
+        Ok(())
+    }
+
     fn serialize_value(value: &Value) -> Vec<u8> {
         match value {
             Value::String(s) => s.as_bytes().to_vec(),
@@ -447,17 +768,17 @@ impl<E: Engine> StorageClient for RedbStorage<E> {
         <Self as EdgeWriter>::batch_insert_edges(self, space, edges)
     }
 
-    fn begin_transaction(&mut self, space: &str) -> Result<TransactionId, StorageError> {
+    fn begin_transaction(&mut self, _space: &str) -> Result<TransactionId, StorageError> {
         let mut engine = self.engine.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         engine.begin_transaction()
     }
 
-    fn commit_transaction(&mut self, space: &str, tx_id: TransactionId) -> Result<(), StorageError> {
+    fn commit_transaction(&mut self, _space: &str, tx_id: TransactionId) -> Result<(), StorageError> {
         let mut engine = self.engine.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         engine.commit_transaction(tx_id)
     }
 
-    fn rollback_transaction(&mut self, space: &str, tx_id: TransactionId) -> Result<(), StorageError> {
+    fn rollback_transaction(&mut self, _space: &str, tx_id: TransactionId) -> Result<(), StorageError> {
         let mut engine = self.engine.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         engine.rollback_transaction(tx_id)
     }
@@ -676,7 +997,7 @@ impl<E: Engine> StorageClient for RedbStorage<E> {
         }
     }
 
-    fn rebuild_tag_index(&mut self, space: &str, index: &str) -> Result<bool, StorageError> {
+    fn rebuild_tag_index(&mut self, _space: &str, _index: &str) -> Result<bool, StorageError> {
         Ok(true)
     }
 
@@ -720,27 +1041,163 @@ impl<E: Engine> StorageClient for RedbStorage<E> {
         }
     }
 
-    fn rebuild_edge_index(&mut self, space: &str, index: &str) -> Result<bool, StorageError> {
+    fn rebuild_edge_index(&mut self, space: &str, index_name: &str) -> Result<bool, StorageError> {
+        // 获取索引信息
+        let edge_indexes = self.edge_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let index = edge_indexes.get(space)
+            .and_then(|space_indexes| space_indexes.get(index_name))
+            .cloned()
+            .ok_or_else(|| StorageError::DbError(format!("Edge index '{}' not found in space '{}'", index_name, space)))?;
+        
+        // 清除现有索引数据
+        self.clear_edge_index(space, index_name)?;
+        
+        // 重新扫描所有边并重建索引
+        let edges = <Self as EdgeReader>::scan_all_edges(self, space)?;
+        for edge in edges {
+            self.build_edge_index_entry(space, &index, &edge)?;
+        }
+        
         Ok(true)
     }
 
     fn insert_vertex_data(&mut self, space: &str, info: &InsertVertexInfo) -> Result<bool, StorageError> {
+        // 获取标签信息
+        let tag_name = info.tag_name.clone();
+        {
+            let tags = self.tags.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+            let space_tags = tags.get(space)
+                .ok_or_else(|| StorageError::DbError(format!("Space '{}' not found", space)))?;
+            let _tag_info = space_tags.get(&tag_name)
+                .ok_or_else(|| StorageError::DbError(format!("Tag '{}' not found in space '{}'", tag_name, space)))?;
+        }
+        
+        // 构建顶点属性映射
+        let mut properties = std::collections::HashMap::new();
+        for (prop_name, prop_value) in &info.props {
+            properties.insert(prop_name.clone(), prop_value.clone());
+        }
+        
+        // 创建标签
+        let tag = crate::core::vertex_edge_path::Tag {
+            name: tag_name.clone(),
+            properties,
+        };
+        
+        // 获取或创建顶点
+        let mut vertex = match <Self as VertexReader>::get_vertex(self, space, &info.vertex_id)? {
+            Some(mut existing_vertex) => {
+                // 更新现有顶点
+                existing_vertex.tags.retain(|t| t.name != tag_name);
+                existing_vertex.tags.push(tag);
+                existing_vertex
+            }
+            None => {
+                // 创建新顶点
+                crate::core::Vertex {
+                    vid: Box::new(info.vertex_id.clone()),
+                    id: 0,
+                    tags: vec![tag],
+                    properties: std::collections::HashMap::new(),
+                }
+            }
+        };
+        
+        // 使用 VertexWriter 插入顶点
+        <Self as VertexWriter>::update_vertex(self, space, vertex)?;
+        
+        // 更新索引
+        self.update_vertex_indexes(space, &info.vertex_id, &tag_name, &info.props)?;
+        
         Ok(true)
     }
 
     fn insert_edge_data(&mut self, space: &str, info: &InsertEdgeInfo) -> Result<bool, StorageError> {
+        // 获取边类型信息
+        let edge_name = info.edge_name.clone();
+        let src_vertex_id = info.src_vertex_id.clone();
+        let dst_vertex_id = info.dst_vertex_id.clone();
+        let rank = info.rank;
+        let props = info.props.clone();
+        
+        {
+            let edge_type_infos = self.edge_type_infos.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+            let space_edge_types = edge_type_infos.get(space)
+                .ok_or_else(|| StorageError::DbError(format!("Space '{}' not found", space)))?;
+            let _edge_type_info = space_edge_types.get(&edge_name)
+                .ok_or_else(|| StorageError::DbError(format!("Edge type '{}' not found in space '{}'", edge_name, space)))?;
+        }
+        
+        // 构建边属性映射
+        let mut properties = std::collections::HashMap::new();
+        for (prop_name, prop_value) in &props {
+            properties.insert(prop_name.clone(), prop_value.clone());
+        }
+        
+        // 创建边
+        let edge = crate::core::Edge {
+            src: Box::new(src_vertex_id.clone()),
+            dst: Box::new(dst_vertex_id.clone()),
+            edge_type: edge_name.clone(),
+            ranking: rank,
+            id: 0,
+            props: properties,
+        };
+        
+        // 使用 EdgeWriter 插入边
+        <Self as EdgeWriter>::insert_edge(self, space, edge)?;
+        
+        // 更新边索引
+        self.update_edge_indexes(
+            space, 
+            &src_vertex_id, 
+            &dst_vertex_id, 
+            &edge_name, 
+            &props
+        )?;
+        
         Ok(true)
     }
 
     fn delete_vertex_data(&mut self, space: &str, vertex_id: &str) -> Result<bool, StorageError> {
+        // 解析顶点ID
+        let vid = self.parse_vertex_id(vertex_id)?;
+        
+        // 首先删除所有相关的边
+        self.delete_vertex_edges(space, &vid)?;
+        
+        // 删除顶点索引
+        self.delete_vertex_indexes(space, &vid)?;
+        
+        // 删除顶点本身
+        <Self as VertexWriter>::delete_vertex(self, space, &vid)?;
+        
         Ok(true)
     }
 
     fn delete_edge_data(&mut self, space: &str, src: &str, dst: &str, rank: i64) -> Result<bool, StorageError> {
-        Ok(true)
+        // 解析顶点ID
+        let src_id = self.parse_vertex_id(src)?;
+        let dst_id = self.parse_vertex_id(dst)?;
+        
+        // 扫描找到匹配的边
+        let edges = <Self as EdgeReader>::scan_all_edges(self, space)?;
+        let mut deleted = false;
+        
+        for edge in edges {
+            if *edge.src == src_id && *edge.dst == dst_id && edge.ranking == rank {
+                <Self as EdgeWriter>::delete_edge(self, space, &edge.src, &edge.dst, &edge.edge_type)?;
+                self.delete_edge_indexes(space, &edge.src, &edge.dst, &edge.edge_type)?;
+                deleted = true;
+                break;
+            }
+        }
+        
+        Ok(deleted)
     }
 
     fn update_data(&mut self, space: &str, info: &UpdateInfo) -> Result<bool, StorageError> {
+        self.update_vertex_property(space, &info.update_target.id, &info.update_target.label, &info.update_target.prop, &info.update_op, &info.value)?;
         Ok(true)
     }
 
@@ -750,31 +1207,145 @@ impl<E: Engine> StorageClient for RedbStorage<E> {
         Ok(true)
     }
 
-    fn lookup_index(&self, space: &str, index: &str, value: &Value) -> Result<Vec<Value>, StorageError> {
-        Ok(vec![])
+    fn lookup_index(&self, space: &str, index_name: &str, value: &Value) -> Result<Vec<Value>, StorageError> {
+        // 获取索引信息
+        let tag_indexes = self.tag_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let edge_indexes = self.edge_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        
+        let mut results = Vec::new();
+        
+        // 检查标签索引
+        if let Some(space_tag_indexes) = tag_indexes.get(space) {
+            if let Some(index) = space_tag_indexes.get(index_name) {
+                let indexed_values = self.lookup_tag_index(space, index, value)?;
+                results.extend(indexed_values);
+            }
+        }
+        
+        // 检查边索引
+        if let Some(space_edge_indexes) = edge_indexes.get(space) {
+            if let Some(index) = space_edge_indexes.get(index_name) {
+                let indexed_values = self.lookup_edge_index(space, index, value)?;
+                results.extend(indexed_values);
+            }
+        }
+        
+        Ok(results)
     }
 
     fn get_vertex_with_schema(&self, space: &str, tag: &str, id: &Value) -> Result<Option<(Schema, Vec<u8>)>, StorageError> {
+        // 获取顶点
+        if let Some(vertex) = <Self as VertexReader>::get_vertex(self, space, id)? {
+            // 获取标签信息
+            let tags = self.tags.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+            if let Some(space_tags) = tags.get(space) {
+                if let Some(tag_info) = space_tags.get(tag) {
+                    // 构建schema
+                    let schema = self.build_vertex_schema(tag_info)?;
+                    
+                    // 序列化顶点数据
+                    let vertex_data = Self::serialize_vertex(&vertex)?;
+                    
+                    return Ok(Some((schema, vertex_data)));
+                }
+            }
+        }
         Ok(None)
     }
 
     fn get_edge_with_schema(&self, space: &str, edge_type: &str, src: &Value, dst: &Value) -> Result<Option<(Schema, Vec<u8>)>, StorageError> {
+        // 获取边
+        if let Some(edge) = <Self as EdgeReader>::get_edge(self, space, src, dst, edge_type)? {
+            // 获取边类型信息
+            let edge_type_infos = self.edge_type_infos.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+            if let Some(space_edge_types) = edge_type_infos.get(space) {
+                if let Some(edge_type_info) = space_edge_types.get(edge_type) {
+                    // 构建schema
+                    let schema = self.build_edge_schema(edge_type_info)?;
+                    
+                    // 序列化边数据
+                    let edge_data = Self::serialize_edge(&edge)?;
+                    
+                    return Ok(Some((schema, edge_data)));
+                }
+            }
+        }
         Ok(None)
     }
 
     fn scan_vertices_with_schema(&self, space: &str, tag: &str) -> Result<Vec<(Schema, Vec<u8>)>, StorageError> {
-        Ok(vec![])
+        let mut results = Vec::new();
+        
+        // 获取标签信息
+        let tags = self.tags.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let tag_info = tags.get(space)
+            .and_then(|space_tags| space_tags.get(tag))
+            .ok_or_else(|| StorageError::DbError(format!("Tag '{}' not found in space '{}'", tag, space)))?;
+        
+        // 构建schema
+        let schema = self.build_vertex_schema(tag_info)?;
+        
+        // 扫描所有顶点并过滤
+        let vertices = <Self as VertexReader>::scan_vertices(self, space)?;
+        for vertex in vertices {
+            if vertex.tags.iter().any(|t| t.name == tag) {
+                let vertex_data = Self::serialize_vertex(&vertex)?;
+                results.push((schema.clone(), vertex_data));
+            }
+        }
+        
+        Ok(results)
     }
 
     fn scan_edges_with_schema(&self, space: &str, edge_type: &str) -> Result<Vec<(Schema, Vec<u8>)>, StorageError> {
-        Ok(vec![])
+        let mut results = Vec::new();
+        
+        // 获取边类型信息
+        let edge_type_infos = self.edge_type_infos.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let edge_type_info = edge_type_infos.get(space)
+            .and_then(|space_edge_types| space_edge_types.get(edge_type))
+            .ok_or_else(|| StorageError::DbError(format!("Edge type '{}' not found in space '{}'", edge_type, space)))?;
+        
+        // 构建schema
+        let schema = self.build_edge_schema(edge_type_info)?;
+        
+        // 扫描所有边并过滤
+        let edges = <Self as EdgeReader>::scan_edges_by_type(self, space, edge_type)?;
+        for edge in edges {
+            let edge_data = Self::serialize_edge(&edge)?;
+            results.push((schema.clone(), edge_data));
+        }
+        
+        Ok(results)
     }
 
     fn load_from_disk(&mut self) -> Result<(), StorageError> {
+        // Redb 引擎自动从磁盘加载数据，这里只需要验证数据库文件是否存在
+        let engine = self.engine.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        
+        // 尝试执行一个简单的查询来验证数据库状态
+        let test_key = b"__graphdb_load_test__";
+        let _ = engine.get(test_key)?;
+        
+        // 加载元数据
+        self.load_metadata_from_disk()?;
+        
         Ok(())
     }
 
     fn save_to_disk(&self) -> Result<(), StorageError> {
+        // Redb 引擎自动将数据保存到磁盘，这里只需要确保数据已经写入
+        let mut engine = self.engine.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        
+        // 执行一个空操作来触发写入
+        let test_key = b"__graphdb_save_test__";
+        let test_value = b"save_test";
+        engine.put(test_key, test_value)?;
+        engine.delete(test_key)?;
+        
+        // 保存元数据
+        self.save_metadata_to_disk()?;
+        
         Ok(())
     }
 }

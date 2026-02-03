@@ -1053,7 +1053,11 @@ impl JoinConnector {
     ) -> Result<SubPlan, crate::query::planner::planner::PlannerError> {
         match (left.root.as_ref(), right.root.as_ref()) {
             (None, None) => Ok(SubPlan::new(None, None)),
-            (Some(_l), None) | (None, Some(_r)) => {
+            (Some(_l), None) => {
+                // 对于笛卡尔积，如果任一操作数为空，则结果为空
+                Ok(SubPlan::new(None, None))
+            },
+            (None, Some(_r)) => {
                 // 对于笛卡尔积，如果任一操作数为空，则结果为空
                 Ok(SubPlan::new(None, None))
             },

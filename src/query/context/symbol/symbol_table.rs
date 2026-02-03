@@ -159,7 +159,7 @@ impl SymbolTable {
 
     pub fn read_by(&mut self, var_name: &str, node_id: i64) -> Result<(), String> {
         if let Some(symbol) = self.symbols.get(var_name) {
-            let new_symbols = (*self.symbols).clone();
+            let mut new_symbols = (*self.symbols).clone();
             if let Some(symbol) = new_symbols.get_mut(var_name) {
                 symbol.readers.insert(node_id);
                 self.symbols = Arc::new(new_symbols);
@@ -171,7 +171,7 @@ impl SymbolTable {
 
     pub fn written_by(&mut self, var_name: &str, node_id: i64) -> Result<(), String> {
         if let Some(symbol) = self.symbols.get(var_name) {
-            let new_symbols = (*self.symbols).clone();
+            let mut new_symbols = (*self.symbols).clone();
             if let Some(symbol) = new_symbols.get_mut(var_name) {
                 symbol.writers.insert(node_id);
                 self.symbols = Arc::new(new_symbols);
@@ -182,7 +182,7 @@ impl SymbolTable {
     }
 
     pub fn delete_read_by(&mut self, var_name: &str, node_id: i64) -> Result<bool, String> {
-        let new_symbols = (*self.symbols).clone();
+        let mut new_symbols = (*self.symbols).clone();
         if let Some(symbol) = new_symbols.get_mut(var_name) {
             let result = symbol.readers.remove(&node_id);
             self.symbols = Arc::new(new_symbols);

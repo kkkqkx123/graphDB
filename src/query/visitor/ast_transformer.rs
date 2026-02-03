@@ -66,7 +66,10 @@ pub trait AstTransformer: StmtTransformer {
                     .collect();
                 Map(transformed)
             }
-            Case { conditions, default } => {
+            Case { test_expr, conditions, default } => {
+                let transformed_test_expr = test_expr
+                    .as_ref()
+                    .map(|expr| Box::new(self.transform_expression(expr)));
                 let transformed_conditions = conditions
                     .iter()
                     .map(|(when, then)| {
@@ -80,6 +83,7 @@ pub trait AstTransformer: StmtTransformer {
                     .as_ref()
                     .map(|expr| Box::new(self.transform_expression(expr)));
                 Case {
+                    test_expr: transformed_test_expr,
                     conditions: transformed_conditions,
                     default: transformed_default,
                 }

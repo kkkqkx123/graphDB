@@ -337,8 +337,11 @@ impl GoValidator {
                 }
                 Ok(())
             }
-            Expression::Case { conditions, default } => {
+            Expression::Case { test_expr, conditions, default } => {
                 // 验证条件和默认值
+                if let Some(test_expression) = test_expr {
+                    self.validate_expression(test_expression)?;
+                }
                 for (condition, result) in conditions {
                     self.validate_expression(condition)?;
                     self.validate_expression(result)?;

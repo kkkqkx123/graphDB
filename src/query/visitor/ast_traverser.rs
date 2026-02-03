@@ -182,7 +182,10 @@ pub trait AstTraverser: StmtVisitor {
                     self.traverse_expression(value);
                 }
             }
-            Case { conditions, default } => {
+            Case { test_expr, conditions, default } => {
+                if let Some(test) = test_expr {
+                    self.traverse_expression(test);
+                }
                 for (when, then) in conditions {
                     self.traverse_expression(when);
                     self.traverse_expression(then);

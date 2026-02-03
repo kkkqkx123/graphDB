@@ -648,9 +648,13 @@ impl ExpressionVisitor for FoldConstantExprVisitor {
 
     fn visit_case(
         &mut self,
+        test_expr: Option<&Expression>,
         conditions: &[(Expression, Expression)],
         default: Option<&Expression>,
     ) -> Self::Result {
+        if let Some(test) = test_expr {
+            self.visit_expression(test)?;
+        }
         let mut all_constant = true;
         let mut folded_conditions = Vec::new();
         let mut folded_default = None;

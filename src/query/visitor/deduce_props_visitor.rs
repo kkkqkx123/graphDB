@@ -371,9 +371,13 @@ impl ExpressionVisitor for DeducePropsVisitor {
 
     fn visit_case(
         &mut self,
+        test_expr: Option<&Expression>,
         conditions: &[(Expression, Expression)],
         default: Option<&Expression>,
     ) -> Self::Result {
+        if let Some(test) = test_expr {
+            self.visit_expression(test)?;
+        }
         for (cond, expression) in conditions {
             self.visit_expression(cond)?;
             self.visit_expression(expression)?;

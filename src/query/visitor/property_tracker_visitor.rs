@@ -272,7 +272,10 @@ impl ExpressionVisitor for PropertyTrackerVisitor {
         Ok(())
     }
 
-    fn visit_case(&mut self, conditions: &[(Expression, Expression)], default: Option<&Expression>) -> Self::Result {
+    fn visit_case(&mut self, test_expr: Option<&Expression>, conditions: &[(Expression, Expression)], default: Option<&Expression>) -> Self::Result {
+        if let Some(test) = test_expr {
+            self.visit_expression(test)?;
+        }
         for (when_expression, then_expression) in conditions {
             self.visit_expression(when_expression)?;
             self.visit_expression(then_expression)?;

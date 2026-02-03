@@ -62,11 +62,12 @@ impl ExpressionOperationsValidator {
                 self.validate_map_expression(pairs, depth)?;
             }
             Expression::Case {
+                test_expr,
                 conditions: when_clauses,
                 default: else_clause,
             } => {
                 // 验证条件表达式
-                self.validate_case_expression(&None, when_clauses, else_clause, depth)?;
+                self.validate_case_expression(&test_expr, when_clauses, else_clause, depth)?;
             }
             _ => {
                 // 其他表达式类型无需特殊验证
@@ -456,10 +457,15 @@ impl ExpressionOperationsValidator {
                 1 + max_value_depth
             }
             Expression::Case {
+                test_expr,
                 conditions,
                 default,
             } => {
                 let mut depths = Vec::new();
+                
+                if let Some(test_expression) = test_expr {
+                    depths.push(self.calculate_expression_depth(test_expression));
+                }
                 
                 for (when_expression, then_expression) in conditions {
                     depths.push(self.calculate_expression_depth(when_expression));

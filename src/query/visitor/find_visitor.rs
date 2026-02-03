@@ -159,13 +159,18 @@ impl ExpressionVisitor for FindVisitor {
 
     fn visit_case(
         &mut self,
+        test_expr: Option<&Expression>,
         conditions: &[(Expression, Expression)],
         default: Option<&Expression>,
     ) -> Self::Result {
         self.found_exprs.push(Expression::Case {
+            test_expr: test_expr.map(|e| Box::new(e.clone())),
             conditions: conditions.to_vec(),
             default: default.map(|e| Box::new(e.clone())),
         });
+        if let Some(test) = test_expr {
+            self.visit_expression(test);
+        }
         for (cond, expression) in conditions {
             self.visit_expression(cond);
             self.visit_expression(expression);

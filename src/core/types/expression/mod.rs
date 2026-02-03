@@ -389,20 +389,20 @@ impl Expression {
              } => {
                  let mut children = Vec::new();
                  if let Some(expr) = test_expr {
-                     children.push((*expr).clone());
+                     children.push(expr.as_ref());
                  }
                  for (cond, value) in conditions {
-                     children.push(cond.clone());
-                     children.push(value.clone());
+                     children.push(cond);
+                     children.push(value);
                  }
                  if let Some(def) = default {
-                     children.push((*def).clone());
+                     children.push(def.as_ref());
                  }
                  children
              }
-            Expression::TypeCast { expression, .. } => vec![(*expression).clone()],
+            Expression::TypeCast { expression, .. } => vec![expression.as_ref()],
               Expression::Subscript { collection, index } => {
-                  vec![(*collection).clone(), (*index).clone()]
+                  vec![collection.as_ref(), index.as_ref()]
               }
             Expression::Range {
                 collection,

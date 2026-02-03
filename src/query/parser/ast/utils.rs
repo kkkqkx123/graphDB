@@ -59,7 +59,7 @@ impl ExprFactory {
     ) -> Expression {
         let conditions = when_then_pairs;
         let default = default.map(Box::new);
-        Expression::Case { conditions, default }
+        Expression::Case { test_expr: _match_expression.map(Box::new), conditions, default }
     }
 
     /// 创建下标表达式

@@ -155,9 +155,13 @@ impl VariableValidator {
                 }
             }
             Expression::Case {
+                test_expr,
                 conditions,
                 default,
             } => {
+                if let Some(test_expression) = test_expr {
+                    self.collect_variables(test_expression, variables);
+                }
                 for (when_expression, then_expression) in conditions {
                     self.collect_variables(when_expression, variables);
                     self.collect_variables(then_expression, variables);
@@ -191,10 +195,14 @@ impl VariableValidator {
                 pairs.iter().any(|(_, value)| self.contains_variable(value, var))
             }
             Expression::Case {
+                test_expr,
                 conditions,
                 default,
             } => {
                 let mut has_var = false;
+                if let Some(test_expression) = test_expr {
+                    has_var = has_var || self.contains_variable(test_expression, var);
+                }
                 for (when_expression, then_expression) in conditions {
                     has_var = has_var || self.contains_variable(when_expression, var);
                     has_var = has_var || self.contains_variable(then_expression, var);

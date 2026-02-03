@@ -356,7 +356,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for IndexScanExecutor<S> {
 
         let filter_expr = self.filter.as_ref();
 
-        let vertices = match self.scan_type.as_str() {
+        let mut vertices = match self.scan_type.as_str() {
             "RANGE" | "PREFIX" | "UNIQUE" => {
                 let mut vertices = storage.scan_vertices_by_tag("default", &self.scan_type)?;
                 
