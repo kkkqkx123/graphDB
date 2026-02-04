@@ -546,6 +546,11 @@ impl Iterator for GetNeighborsIter {
         None
     }
 
+    fn add_row(&mut self, _row: Row) {
+        // GetNeighborsIter 不支持直接添加行
+        // 它的数据结构是复杂的树状结构
+    }
+
     fn select(&mut self, offset: usize, count: usize) {
         // 实现真正的选择逻辑：选择指定范围的边
         if self.no_edge || offset >= self.size() {

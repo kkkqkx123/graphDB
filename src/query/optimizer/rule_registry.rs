@@ -134,17 +134,17 @@ mod tests {
     #[test]
     fn test_register_and_get() {
         RuleRegistry::register(
-            OptimizationRule::FilterPushDown,
+            OptimizationRule::PushFilterDownScanVertices,
             || Box::new(TestRule) as Box<dyn OptRule>,
         );
 
-        assert!(RuleRegistry::is_registered(OptimizationRule::FilterPushDown));
-        assert!(RuleRegistry::create_instance(OptimizationRule::FilterPushDown).is_some());
+        assert!(RuleRegistry::is_registered(OptimizationRule::PushFilterDownScanVertices));
+        assert!(RuleRegistry::create_instance(OptimizationRule::PushFilterDownScanVertices).is_some());
     }
 
     #[test]
     fn test_get_unregistered() {
-        assert!(RuleRegistry::create_instance(OptimizationRule::ConstantFolding).is_none());
+        assert!(RuleRegistry::create_instance(OptimizationRule::PushFilterDownScanVertices).is_none());
     }
 
     #[test]

@@ -207,7 +207,7 @@ impl MatchAndInstantiateEnum {
 
     pub fn transform_with_full_context(
         &mut self,
-        query_context: &mut QueryContext,
+        _query_context: &mut QueryContext,
         ast_ctx: &AstContext,
     ) -> Result<ExecutionPlan, PlannerError> {
         let sub_plan = self.transform(ast_ctx)?;

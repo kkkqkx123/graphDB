@@ -27,7 +27,6 @@ impl Default for RuleConfig {
 
 impl RuleConfig {
     fn init_default_flags(&mut self) {
-        self.rule_flags.insert("FilterPushDownRule", true);
         self.rule_flags.insert("PredicatePushDownRule", true);
         self.rule_flags.insert("ProjectionPushDownRule", true);
         self.rule_flags.insert("CombineFilterRule", true);
@@ -141,6 +140,8 @@ impl RuleConfig {
             OptimizationRule::RemoveNoopProject,
             OptimizationRule::EliminateAppendVertices,
             OptimizationRule::RemoveAppendVerticesBelowJoin,
+            OptimizationRule::PushFilterDownAggregate,
+            OptimizationRule::PushFilterDownScanVertices,
             OptimizationRule::TopN,
             OptimizationRule::MergeGetVerticesAndProject,
             OptimizationRule::MergeGetVerticesAndDedup,

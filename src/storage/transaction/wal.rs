@@ -471,9 +471,9 @@ impl TransactionLog {
     }
 
     /// 清理旧日志文件
-    pub fn cleanup_old_logs(&self, min_lsn: u64) {
+    pub fn cleanup_old_logs(&self, _min_lsn: u64) {
         let mut log_files = self.log_files.write().unwrap();
-        let flushed = self.flushed_lsn.lock().unwrap();
+        let _flushed = self.flushed_lsn.lock().unwrap();
 
         log_files.retain(|path| {
             if let Ok(metadata) = path.metadata() {

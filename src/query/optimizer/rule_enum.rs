@@ -18,18 +18,23 @@ pub enum OptimizationRule {
     EliminateAppendVertices,
     RemoveAppendVerticesBelowJoin,
     PushFilterDownAggregate,
+    PushFilterDownScanVertices,
     TopN,
     MergeGetVerticesAndProject,
     MergeGetVerticesAndDedup,
     MergeGetNbrsAndProject,
     MergeGetNbrsAndDedup,
+    PushFilterDownNode,
+    PushEFilterDown,
+    PushVFilterDownScanVertices,
+    PushFilterDownInnerJoin,
+    PushFilterDownHashInnerJoin,
+    PushFilterDownHashLeftJoin,
+    PushFilterDownCrossJoin,
+    PushFilterDownGetNbrs,
+    PushFilterDownExpandAll,
+    PushFilterDownAllPaths,
 
-    // 后优化规则
-    ConstantFolding,
-    SubQueryOptimization,
-    LoopUnrolling,
-    PredicateReorder,
-    
     // 物理优化规则
     JoinOptimization,
     PushLimitDownGetVertices,
@@ -55,12 +60,14 @@ impl OptimizationRule {
             Self::CombineFilter | Self::CollapseProject | Self::DedupElimination |
             Self::EliminateFilter | Self::EliminateRowCollect | Self::RemoveNoopProject |
             Self::EliminateAppendVertices | Self::RemoveAppendVerticesBelowJoin |
-            Self::PushFilterDownAggregate | Self::TopN |
+            Self::PushFilterDownAggregate | Self::PushFilterDownScanVertices | Self::TopN |
             Self::MergeGetVerticesAndProject | Self::MergeGetVerticesAndDedup |
-            Self::MergeGetNbrsAndProject | Self::MergeGetNbrsAndDedup => OptimizationPhase::Logical,
-
-            Self::ConstantFolding | Self::SubQueryOptimization |
-            Self::LoopUnrolling | Self::PredicateReorder => OptimizationPhase::Unknown,
+            Self::MergeGetNbrsAndProject | Self::MergeGetNbrsAndDedup |
+            Self::PushFilterDownNode | Self::PushEFilterDown | Self::PushVFilterDownScanVertices |
+            Self::PushFilterDownInnerJoin | Self::PushFilterDownHashInnerJoin |
+            Self::PushFilterDownHashLeftJoin | Self::PushFilterDownCrossJoin |
+            Self::PushFilterDownGetNbrs | Self::PushFilterDownExpandAll |
+            Self::PushFilterDownAllPaths => OptimizationPhase::Logical,
 
             Self::JoinOptimization | Self::PushLimitDownGetVertices |
             Self::PushLimitDownGetEdges |
@@ -87,15 +94,22 @@ impl OptimizationRule {
             Self::EliminateAppendVertices => "EliminateAppendVerticesRule",
             Self::RemoveAppendVerticesBelowJoin => "RemoveAppendVerticesBelowJoinRule",
             Self::PushFilterDownAggregate => "PushFilterDownAggregateRule",
+            Self::PushFilterDownScanVertices => "PushFilterDownScanVerticesRule",
             Self::TopN => "TopNRule",
             Self::MergeGetVerticesAndProject => "MergeGetVerticesAndProjectRule",
             Self::MergeGetVerticesAndDedup => "MergeGetVerticesAndDedupRule",
             Self::MergeGetNbrsAndProject => "MergeGetNbrsAndProjectRule",
             Self::MergeGetNbrsAndDedup => "MergeGetNbrsAndDedupRule",
-            Self::ConstantFolding => "ConstantFoldingRule",
-            Self::SubQueryOptimization => "SubQueryOptimizationRule",
-            Self::LoopUnrolling => "LoopUnrollingRule",
-            Self::PredicateReorder => "PredicateReorderRule",
+            Self::PushFilterDownNode => "PushFilterDownNodeRule",
+            Self::PushEFilterDown => "PushEFilterDownRule",
+            Self::PushVFilterDownScanVertices => "PushVFilterDownScanVerticesRule",
+            Self::PushFilterDownInnerJoin => "PushFilterDownInnerJoinRule",
+            Self::PushFilterDownHashInnerJoin => "PushFilterDownHashInnerJoinRule",
+            Self::PushFilterDownHashLeftJoin => "PushFilterDownHashLeftJoinRule",
+            Self::PushFilterDownCrossJoin => "PushFilterDownCrossJoinRule",
+            Self::PushFilterDownGetNbrs => "PushFilterDownGetNbrsRule",
+            Self::PushFilterDownExpandAll => "PushFilterDownExpandAllRule",
+            Self::PushFilterDownAllPaths => "PushFilterDownAllPathsRule",
             Self::JoinOptimization => "JoinOptimizationRule",
             Self::PushLimitDownGetVertices => "PushLimitDownGetVerticesRule",
             Self::PushLimitDownGetEdges => "PushLimitDownGetEdgesRule",
@@ -127,16 +141,22 @@ impl OptimizationRule {
             Self::EliminateAppendVertices => Some(Rc::new(super::EliminateAppendVerticesRule)),
             Self::RemoveAppendVerticesBelowJoin => Some(Rc::new(super::RemoveAppendVerticesBelowJoinRule)),
             Self::PushFilterDownAggregate => Some(Rc::new(super::PushFilterDownAggregateRule)),
+            Self::PushFilterDownScanVertices => Some(Rc::new(super::PushFilterDownScanVerticesRule)),
             Self::TopN => Some(Rc::new(super::TopNRule)),
             Self::MergeGetVerticesAndProject => Some(Rc::new(super::MergeGetVerticesAndProjectRule)),
             Self::MergeGetVerticesAndDedup => Some(Rc::new(super::MergeGetVerticesAndDedupRule)),
             Self::MergeGetNbrsAndProject => Some(Rc::new(super::MergeGetNbrsAndProjectRule)),
             Self::MergeGetNbrsAndDedup => Some(Rc::new(super::MergeGetNbrsAndDedupRule)),
-
-            Self::ConstantFolding => Some(Rc::new(super::ConstantFoldingRule)),
-            Self::SubQueryOptimization => Some(Rc::new(super::SubQueryOptimizationRule)),
-            Self::LoopUnrolling => Some(Rc::new(super::LoopUnrollingRule)),
-            Self::PredicateReorder => Some(Rc::new(super::PredicateReorderRule)),
+            Self::PushFilterDownNode => Some(Rc::new(super::PushFilterDownNodeRule)),
+            Self::PushEFilterDown => Some(Rc::new(super::PushEFilterDownRule)),
+            Self::PushVFilterDownScanVertices => Some(Rc::new(super::PushVFilterDownScanVerticesRule)),
+            Self::PushFilterDownInnerJoin => Some(Rc::new(super::PushFilterDownInnerJoinRule)),
+            Self::PushFilterDownHashInnerJoin => Some(Rc::new(super::PushFilterDownHashInnerJoinRule)),
+            Self::PushFilterDownHashLeftJoin => Some(Rc::new(super::PushFilterDownHashLeftJoinRule)),
+            Self::PushFilterDownCrossJoin => Some(Rc::new(super::PushFilterDownCrossJoinRule)),
+            Self::PushFilterDownGetNbrs => Some(Rc::new(super::PushFilterDownGetNbrsRule)),
+            Self::PushFilterDownExpandAll => Some(Rc::new(super::PushFilterDownExpandAllRule)),
+            Self::PushFilterDownAllPaths => Some(Rc::new(super::PushFilterDownAllPathsRule)),
 
             Self::JoinOptimization => Some(Rc::new(super::JoinOptimizationRule)),
             Self::PushLimitDownGetVertices => Some(Rc::new(super::PushLimitDownGetVerticesRule)),
@@ -168,16 +188,22 @@ impl OptimizationRule {
             "RemoveNoopProjectRule" => Some(Self::RemoveNoopProject),
             "EliminateAppendVerticesRule" => Some(Self::EliminateAppendVertices),
             "RemoveAppendVerticesBelowJoinRule" => Some(Self::RemoveAppendVerticesBelowJoin),
+            "PushFilterDownAggregateRule" => Some(Self::PushFilterDownAggregate),
             "TopNRule" => Some(Self::TopN),
             "MergeGetVerticesAndProjectRule" => Some(Self::MergeGetVerticesAndProject),
             "MergeGetVerticesAndDedupRule" => Some(Self::MergeGetVerticesAndDedup),
             "MergeGetNbrsAndProjectRule" => Some(Self::MergeGetNbrsAndProject),
             "MergeGetNbrsAndDedupRule" => Some(Self::MergeGetNbrsAndDedup),
-
-            "ConstantFoldingRule" => Some(Self::ConstantFolding),
-            "SubQueryOptimizationRule" => Some(Self::SubQueryOptimization),
-            "LoopUnrollingRule" => Some(Self::LoopUnrolling),
-            "PredicateReorderRule" => Some(Self::PredicateReorder),
+            "PushFilterDownNodeRule" => Some(Self::PushFilterDownNode),
+            "PushEFilterDownRule" => Some(Self::PushEFilterDown),
+            "PushVFilterDownScanVerticesRule" => Some(Self::PushVFilterDownScanVertices),
+            "PushFilterDownInnerJoinRule" => Some(Self::PushFilterDownInnerJoin),
+            "PushFilterDownHashInnerJoinRule" => Some(Self::PushFilterDownHashInnerJoin),
+            "PushFilterDownHashLeftJoinRule" => Some(Self::PushFilterDownHashLeftJoin),
+            "PushFilterDownCrossJoinRule" => Some(Self::PushFilterDownCrossJoin),
+            "PushFilterDownGetNbrsRule" => Some(Self::PushFilterDownGetNbrs),
+            "PushFilterDownExpandAllRule" => Some(Self::PushFilterDownExpandAll),
+            "PushFilterDownAllPathsRule" => Some(Self::PushFilterDownAllPaths),
 
             "JoinOptimizationRule" => Some(Self::JoinOptimization),
             "PushLimitDownGetVerticesRule" => Some(Self::PushLimitDownGetVertices),

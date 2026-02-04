@@ -36,10 +36,6 @@ pub mod prune_properties_visitor;
 pub mod push_filter_down_aggregate;
 pub mod scan_optimization;
 pub mod transformation_rules;
-pub mod predicate_reorder;
-pub mod constant_folding;
-pub mod subquery_optimization;
-pub mod loop_unrolling;
 
 // Re-export core types
 pub use core::{Cost, OptimizationConfig, OptimizationPhase, OptimizationStats, Statistics};
@@ -86,6 +82,16 @@ pub use predicate_pushdown::{
     PushFilterDownTraverseRule,
     PushFilterDownScanVerticesRule,
     PushFilterDownJoinRule,
+    PushFilterDownNodeRule,
+    PushEFilterDownRule,
+    PushVFilterDownScanVerticesRule,
+    PushFilterDownInnerJoinRule,
+    PushFilterDownHashInnerJoinRule,
+    PushFilterDownHashLeftJoinRule,
+    PushFilterDownCrossJoinRule,
+    PushFilterDownGetNbrsRule,
+    PushFilterDownExpandAllRule,
+    PushFilterDownAllPathsRule,
 };
 pub use projection_pushdown::{ProjectionPushDownRule, PushProjectDownRule};
 pub use property_tracker::PropertyTracker;
@@ -94,10 +100,6 @@ pub use push_filter_down_aggregate::PushFilterDownAggregateRule;
 pub use rule_traits::{BaseOptRule, EliminationRule, MergeRule, PushDownRule};
 pub use scan_optimization::{IndexFullScanRule, ScanWithFilterOptimizationRule};
 pub use transformation_rules::TopNRule;
-pub use predicate_reorder::PredicateReorderRule;
-pub use constant_folding::ConstantFoldingRule;
-pub use subquery_optimization::SubQueryOptimizationRule;
-pub use loop_unrolling::LoopUnrollingRule;
 
 // Re-export PlanValidator
 pub use plan_validator::PlanValidator;

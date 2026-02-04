@@ -450,6 +450,8 @@ pub struct TraverseNode {
     direction: String,
     step_limit: Option<u32>,
     filter: Option<String>,
+    v_filter: Option<Expression>,
+    e_filter: Option<Expression>,
     track_prev_path: bool,
     output_var: Option<Variable>,
     col_names: Vec<String>,
@@ -467,6 +469,8 @@ impl Clone for TraverseNode {
             direction: self.direction.clone(),
             step_limit: self.step_limit,
             filter: self.filter.clone(),
+            v_filter: self.v_filter.clone(),
+            e_filter: self.e_filter.clone(),
             track_prev_path: self.track_prev_path,
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
@@ -485,6 +489,8 @@ impl TraverseNode {
             direction: direction.to_string(),
             step_limit: None,
             filter: None,
+            v_filter: None,
+            e_filter: None,
             track_prev_path: false,
             output_var: None,
             col_names: Vec::new(),
@@ -526,6 +532,26 @@ impl TraverseNode {
     /// 设置过滤条件
     pub fn set_filter(&mut self, filter: String) {
         self.filter = Some(filter);
+    }
+
+    /// 获取顶点过滤表达式
+    pub fn v_filter(&self) -> Option<&Expression> {
+        self.v_filter.as_ref()
+    }
+
+    /// 设置顶点过滤表达式
+    pub fn set_v_filter(&mut self, v_filter: Expression) {
+        self.v_filter = Some(v_filter);
+    }
+
+    /// 获取边过滤表达式
+    pub fn e_filter(&self) -> Option<&Expression> {
+        self.e_filter.as_ref()
+    }
+
+    /// 设置边过滤表达式
+    pub fn set_e_filter(&mut self, e_filter: Expression) {
+        self.e_filter = Some(e_filter);
     }
 }
 

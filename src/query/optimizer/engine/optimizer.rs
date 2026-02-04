@@ -101,15 +101,6 @@ impl Optimizer {
         if let Some(rule) = OptimizationRule::PushFilterDownAggregate.create_instance() {
             rewrite_rules.add_rule(rule);
         }
-        if let Some(rule) = OptimizationRule::PushLimitDown.create_instance() {
-            rewrite_rules.add_rule(rule);
-        }
-        if let Some(rule) = OptimizationRule::PredicatePushDown.create_instance() {
-            rewrite_rules.add_rule(rule);
-        }
-        if let Some(rule) = OptimizationRule::FilterPushDown.create_instance() {
-            rewrite_rules.add_rule(rule);
-        }
         self.rule_sets.push(rewrite_rules);
 
         let mut logical_rules = RuleSet::new("logical");
@@ -137,9 +128,6 @@ impl Optimizer {
         if let Some(rule) = OptimizationRule::PushLimitDownGetVertices.create_instance() {
             physical_rules.add_rule(rule);
         }
-        if let Some(rule) = OptimizationRule::PushLimitDownGetNeighbors.create_instance() {
-            physical_rules.add_rule(rule);
-        }
         self.rule_sets.push(physical_rules);
     }
 
@@ -150,8 +138,6 @@ impl Optimizer {
     ) -> Result<ExecutionPlan, OptimizerError> {
         let mut opt_ctx = OptContext::new(query_context.clone());
 
-        opt_ctx.stats.plan_nodes_before = self.count_nodes(&plan);
-
         let root_opt_node = self.build_initial_opt_group(&plan, &mut opt_ctx)?;
 
         let mut root_group = opt_ctx
@@ -162,8 +148,6 @@ impl Optimizer {
         self.execute_optimization(&mut opt_ctx, &mut root_group)?;
 
         let optimized_plan = self.extract_execution_plan(&root_group, &mut opt_ctx)?;
-
-        opt_ctx.stats.plan_nodes_after = self.count_nodes(&optimized_plan);
 
         Ok(optimized_plan)
     }
@@ -174,8 +158,9 @@ impl Optimizer {
         query_context: &mut QueryContext,
     ) -> Result<(ExecutionPlan, OptimizationStats), OptimizerError> {
         let mut opt_ctx = OptContext::new(query_context.clone());
-
-        opt_ctx.stats.plan_nodes_before = self.count_nodes(&plan);
+        let mut stats = OptimizationStats::default();
+        
+        stats.plan_nodes_before = self.count_nodes(&plan);
 
         let root_opt_node = self.build_initial_opt_group(&plan, &mut opt_ctx)?;
 
@@ -188,9 +173,9 @@ impl Optimizer {
 
         let optimized_plan = self.extract_execution_plan(&root_group, &mut opt_ctx)?;
 
-        opt_ctx.stats.plan_nodes_after = self.count_nodes(&optimized_plan);
+        stats.plan_nodes_after = self.count_nodes(&optimized_plan);
 
-        Ok((optimized_plan, opt_ctx.stats))
+        Ok((optimized_plan, stats))
     }
 
     fn count_nodes(&self, plan: &ExecutionPlan) -> usize {
@@ -557,8 +542,6 @@ impl Optimizer {
         root_group: &mut OptGroup,
         phase: OptimizationPhase,
     ) -> Result<(), OptimizerError> {
-        ctx.stats.start_phase(phase.clone());
-
         let phase_rule_names = self.get_rule_names_for_phase(&phase);
 
         let max_rounds = self.config.max_iteration_rounds;
@@ -583,9 +566,8 @@ impl Optimizer {
             }
 
             round += 1;
-            ctx.stats.total_iterations += 1;
 
-            if ctx.changed {
+            if ctx.changed() {
                 stable_count = 0;
             } else {
                 stable_count += 1;
@@ -601,8 +583,6 @@ impl Optimizer {
                 break;
             }
         }
-
-        ctx.stats.finalize_phase(0.0);
 
         Ok(())
     }
@@ -658,7 +638,7 @@ impl Optimizer {
         let rule_name = rule.name();
 
         let group_ids: Vec<usize> = {
-            let group_map = &ctx.group_map;
+            let group_map = ctx.group_map_mut();
             group_map.keys().cloned().collect()
         };
 
@@ -681,21 +661,14 @@ impl Optimizer {
                 }
 
                 self.explore_node(ctx, &node_rc, rule)?;
-
-                if ctx.changed {
-                    ctx.stats.rules_applied += 1;
-                }
             }
 
             {
-                if let Some(group) = ctx.find_group_by_id_mut(group_id) {
+                if let Some(mut group) = ctx.find_group_by_id_mut(group_id) {
                     group.explored_rules.clear();
+                    ctx.register_group(group);
                 }
             }
-        }
-
-        if ctx.changed {
-            ctx.stats.record_rule_application();
         }
 
         Ok(())
@@ -717,22 +690,22 @@ impl Optimizer {
 
         drop(node_borrowed);
 
-        ctx.plan_node_to_group_node.insert(node_id, node.clone());
-
         match rule.apply(ctx, node) {
             Ok(Some(result)) => {
                 if result.erase_curr || result.erase_all {
-                    if let Some(group) = ctx.find_group_by_id_mut(node_id) {
+                    if let Some(mut group) = ctx.find_group_by_id_mut(node_id) {
                         group.nodes.retain(|n| n.borrow().id != node_id);
+                        ctx.register_group(group);
                     }
                 }
 
                 for new_node in result.new_group_nodes {
                     let new_node_id = new_node.borrow().id;
-                    if let Some(group) = ctx.find_group_by_id_mut(new_node_id) {
+                    if let Some(mut group) = ctx.find_group_by_id_mut(new_node_id) {
                         if !group.nodes.iter().any(|n| n.borrow().id == new_node_id) {
                             group.add_node(new_node);
                         }
+                        ctx.register_group(group);
                     } else {
                         let mut new_group = OptGroup::new(new_node_id);
                         new_group.add_node(new_node);

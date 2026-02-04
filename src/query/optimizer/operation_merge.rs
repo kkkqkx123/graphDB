@@ -126,7 +126,7 @@ impl MergeRule for CombineFilterRule {
 
     fn create_merged_node(
         &self,
-        ctx: &mut OptContext,
+        _ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
         child: &OptGroupNode,
     ) -> Result<Option<TransformResult>, OptimizerError> {
@@ -222,11 +222,11 @@ impl MergeRule for CollapseProjectRule {
 
     fn create_merged_node(
         &self,
-        ctx: &mut OptContext,
+        _ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
-        child: &OptGroupNode,
+        _child: &OptGroupNode,
     ) -> Result<Option<TransformResult>, OptimizerError> {
-        let node_ref = group_node.borrow();
+        let _node_ref = group_node.borrow();
         let mut result = TransformResult::new();
         result.add_new_group_node(group_node.clone());
         Ok(Some(result))
@@ -281,11 +281,11 @@ impl MergeRule for MergeGetVerticesAndProjectRule {
 
     fn create_merged_node(
         &self,
-        ctx: &mut OptContext,
+        _ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
-        child: &OptGroupNode,
+        _child: &OptGroupNode,
     ) -> Result<Option<TransformResult>, OptimizerError> {
-        let node_ref = group_node.borrow();
+        let _node_ref = group_node.borrow();
         let mut result = TransformResult::new();
         result.add_new_group_node(group_node.clone());
         Ok(Some(result))
@@ -341,11 +341,11 @@ impl MergeRule for MergeGetVerticesAndDedupRule {
 
     fn create_merged_node(
         &self,
-        ctx: &mut OptContext,
+        _ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
-        child: &OptGroupNode,
+        _child: &OptGroupNode,
     ) -> Result<Option<TransformResult>, OptimizerError> {
-        let node_ref = group_node.borrow();
+        let _node_ref = group_node.borrow();
         let mut result = TransformResult::new();
         result.add_new_group_node(group_node.clone());
         Ok(Some(result))
@@ -401,11 +401,11 @@ impl MergeRule for MergeGetNbrsAndDedupRule {
 
     fn create_merged_node(
         &self,
-        ctx: &mut OptContext,
+        _ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
-        child: &OptGroupNode,
+        _child: &OptGroupNode,
     ) -> Result<Option<TransformResult>, OptimizerError> {
-        let node_ref = group_node.borrow();
+        let _node_ref = group_node.borrow();
         let mut result = TransformResult::new();
         result.add_new_group_node(group_node.clone());
         Ok(Some(result))
@@ -461,11 +461,11 @@ impl MergeRule for MergeGetNbrsAndProjectRule {
 
     fn create_merged_node(
         &self,
-        ctx: &mut OptContext,
+        _ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
-        child: &OptGroupNode,
+        _child: &OptGroupNode,
     ) -> Result<Option<TransformResult>, OptimizerError> {
-        let node_ref = group_node.borrow();
+        let _node_ref = group_node.borrow();
         let mut result = TransformResult::new();
         result.add_new_group_node(group_node.clone());
         Ok(Some(result))

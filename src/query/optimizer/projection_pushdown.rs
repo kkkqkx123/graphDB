@@ -133,9 +133,9 @@ impl PushDownRule for ProjectionPushDownRule {
 
     fn create_pushed_down_node(
         &self,
-        ctx: &mut OptContext,
+        _ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
-        child: &OptGroupNode,
+        _child: &OptGroupNode,
     ) -> OptResult<Option<TransformResult>> {
         let mut result = TransformResult::new();
         result.add_new_group_node(group_node.clone());
@@ -200,11 +200,11 @@ impl PushDownRule for PushProjectDownRule {
 
     fn create_pushed_down_node(
         &self,
-        ctx: &mut OptContext,
+        _ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
-        child: &OptGroupNode,
+        _child: &OptGroupNode,
     ) -> OptResult<Option<TransformResult>> {
-        let node_ref = group_node.borrow();
+        let _node_ref = group_node.borrow();
         let mut result = TransformResult::new();
         result.add_new_group_node(group_node.clone());
         Ok(Some(result))
