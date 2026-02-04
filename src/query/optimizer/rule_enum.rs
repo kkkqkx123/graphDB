@@ -8,8 +8,6 @@ use crate::query::optimizer::core::OptimizationPhase;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum OptimizationRule {
     // 逻辑优化规则
-    FilterPushDown,
-    PredicatePushDown,
     ProjectionPushDown,
     CombineFilter,
     CollapseProject,
@@ -34,14 +32,11 @@ pub enum OptimizationRule {
     
     // 物理优化规则
     JoinOptimization,
-    PushLimitDown,
     PushLimitDownGetVertices,
-    PushLimitDownGetNeighbors,
     PushLimitDownGetEdges,
     PushLimitDownScanVertices,
     PushLimitDownScanEdges,
     PushLimitDownIndexScan,
-    PushLimitDownProjectRule,
     ScanWithFilterOptimization,
     IndexFullScan,
     IndexScan,
@@ -56,7 +51,7 @@ pub enum OptimizationRule {
 impl OptimizationRule {
     pub fn phase(&self) -> OptimizationPhase {
         match self {
-            Self::FilterPushDown | Self::PredicatePushDown | Self::ProjectionPushDown |
+            Self::ProjectionPushDown |
             Self::CombineFilter | Self::CollapseProject | Self::DedupElimination |
             Self::EliminateFilter | Self::EliminateRowCollect | Self::RemoveNoopProject |
             Self::EliminateAppendVertices | Self::RemoveAppendVerticesBelowJoin |
@@ -67,21 +62,21 @@ impl OptimizationRule {
             Self::ConstantFolding | Self::SubQueryOptimization |
             Self::LoopUnrolling | Self::PredicateReorder => OptimizationPhase::Unknown,
 
-            Self::JoinOptimization | Self::PushLimitDown | Self::PushLimitDownGetVertices |
-            Self::PushLimitDownGetNeighbors | Self::PushLimitDownGetEdges |
+            Self::JoinOptimization | Self::PushLimitDownGetVertices |
+            Self::PushLimitDownGetEdges |
             Self::PushLimitDownScanVertices | Self::PushLimitDownScanEdges |
-            Self::PushLimitDownIndexScan | Self::PushLimitDownProjectRule |
+            Self::PushLimitDownIndexScan |
             Self::ScanWithFilterOptimization | Self::IndexFullScan | Self::IndexScan |
             Self::EdgeIndexFullScan | Self::TagIndexFullScan | Self::UnionAllEdgeIndexScan |
             Self::UnionAllTagIndexScan | Self::OptimizeEdgeIndexScanByFilter |
             Self::OptimizeTagIndexScanByFilter => OptimizationPhase::Physical,
+
+            _ => OptimizationPhase::Unknown,
         }
     }
     
     pub fn name(&self) -> &'static str {
         match self {
-            Self::FilterPushDown => "FilterPushDownRule",
-            Self::PredicatePushDown => "PredicatePushDownRule",
             Self::ProjectionPushDown => "ProjectionPushDownRule",
             Self::CombineFilter => "CombineFilterRule",
             Self::CollapseProject => "CollapseProjectRule",
@@ -97,21 +92,16 @@ impl OptimizationRule {
             Self::MergeGetVerticesAndDedup => "MergeGetVerticesAndDedupRule",
             Self::MergeGetNbrsAndProject => "MergeGetNbrsAndProjectRule",
             Self::MergeGetNbrsAndDedup => "MergeGetNbrsAndDedupRule",
-
             Self::ConstantFolding => "ConstantFoldingRule",
             Self::SubQueryOptimization => "SubQueryOptimizationRule",
             Self::LoopUnrolling => "LoopUnrollingRule",
             Self::PredicateReorder => "PredicateReorderRule",
-
             Self::JoinOptimization => "JoinOptimizationRule",
-            Self::PushLimitDown => "PushLimitDownRule",
             Self::PushLimitDownGetVertices => "PushLimitDownGetVerticesRule",
-            Self::PushLimitDownGetNeighbors => "PushLimitDownGetNeighborsRule",
             Self::PushLimitDownGetEdges => "PushLimitDownGetEdgesRule",
             Self::PushLimitDownScanVertices => "PushLimitDownScanVerticesRule",
             Self::PushLimitDownScanEdges => "PushLimitDownScanEdgesRule",
             Self::PushLimitDownIndexScan => "PushLimitDownIndexScanRule",
-            Self::PushLimitDownProjectRule => "PushLimitDownProjectRule",
             Self::ScanWithFilterOptimization => "ScanWithFilterOptimizationRule",
             Self::IndexFullScan => "IndexFullScanRule",
             Self::IndexScan => "IndexScanRule",
@@ -121,13 +111,12 @@ impl OptimizationRule {
             Self::UnionAllTagIndexScan => "UnionAllTagIndexScanRule",
             Self::OptimizeEdgeIndexScanByFilter => "OptimizeEdgeIndexScanByFilterRule",
             Self::OptimizeTagIndexScanByFilter => "OptimizeTagIndexScanByFilterRule",
+            _ => "UnknownRule",
         }
     }
     
     pub fn create_instance(&self) -> Option<Rc<dyn super::OptRule>> {
         match self {
-            Self::FilterPushDown => Some(Rc::new(super::FilterPushDownRule)),
-            Self::PredicatePushDown => Some(Rc::new(super::PredicatePushDownRule)),
             Self::ProjectionPushDown => Some(Rc::new(super::ProjectionPushDownRule)),
             Self::CombineFilter => Some(Rc::new(super::CombineFilterRule)),
             Self::CollapseProject => Some(Rc::new(super::CollapseProjectRule)),
@@ -150,14 +139,11 @@ impl OptimizationRule {
             Self::PredicateReorder => Some(Rc::new(super::PredicateReorderRule)),
 
             Self::JoinOptimization => Some(Rc::new(super::JoinOptimizationRule)),
-            Self::PushLimitDown => Some(Rc::new(super::PushLimitDownRule)),
             Self::PushLimitDownGetVertices => Some(Rc::new(super::PushLimitDownGetVerticesRule)),
-            Self::PushLimitDownGetNeighbors => Some(Rc::new(super::PushLimitDownGetNeighborsRule)),
             Self::PushLimitDownGetEdges => Some(Rc::new(super::PushLimitDownGetEdgesRule)),
             Self::PushLimitDownScanVertices => Some(Rc::new(super::PushLimitDownScanVerticesRule)),
             Self::PushLimitDownScanEdges => Some(Rc::new(super::PushLimitDownScanEdgesRule)),
             Self::PushLimitDownIndexScan => Some(Rc::new(super::PushLimitDownIndexScanRule)),
-            Self::PushLimitDownProjectRule => Some(Rc::new(super::PushLimitDownProjectRule)),
             Self::ScanWithFilterOptimization => Some(Rc::new(super::ScanWithFilterOptimizationRule)),
             Self::IndexFullScan => Some(Rc::new(super::IndexFullScanRule)),
             Self::IndexScan => Some(Rc::new(super::IndexScanRule)),
@@ -167,13 +153,12 @@ impl OptimizationRule {
             Self::UnionAllTagIndexScan => Some(Rc::new(super::UnionAllTagIndexScanRule)),
             Self::OptimizeEdgeIndexScanByFilter => Some(Rc::new(super::OptimizeEdgeIndexScanByFilterRule)),
             Self::OptimizeTagIndexScanByFilter => Some(Rc::new(super::OptimizeTagIndexScanByFilterRule)),
+            _ => None,
         }
     }
     
     pub fn from_name(name: &str) -> Option<Self> {
         match name {
-            "FilterPushDownRule" => Some(Self::FilterPushDown),
-            "PredicatePushDownRule" => Some(Self::PredicatePushDown),
             "ProjectionPushDownRule" => Some(Self::ProjectionPushDown),
             "CombineFilterRule" => Some(Self::CombineFilter),
             "CollapseProjectRule" => Some(Self::CollapseProject),
@@ -195,14 +180,11 @@ impl OptimizationRule {
             "PredicateReorderRule" => Some(Self::PredicateReorder),
 
             "JoinOptimizationRule" => Some(Self::JoinOptimization),
-            "PushLimitDownRule" => Some(Self::PushLimitDown),
             "PushLimitDownGetVerticesRule" => Some(Self::PushLimitDownGetVertices),
-            "PushLimitDownGetNeighborsRule" => Some(Self::PushLimitDownGetNeighbors),
             "PushLimitDownGetEdgesRule" => Some(Self::PushLimitDownGetEdges),
             "PushLimitDownScanVerticesRule" => Some(Self::PushLimitDownScanVertices),
             "PushLimitDownScanEdgesRule" => Some(Self::PushLimitDownScanEdges),
             "PushLimitDownIndexScanRule" => Some(Self::PushLimitDownIndexScan),
-            "PushLimitDownProjectRule" => Some(Self::PushLimitDownProjectRule),
             "ScanWithFilterOptimizationRule" => Some(Self::ScanWithFilterOptimization),
             "IndexFullScanRule" => Some(Self::IndexFullScan),
             "IndexScanRule" => Some(Self::IndexScan),

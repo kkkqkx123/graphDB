@@ -73,8 +73,8 @@ pub use index_optimization::{
 };
 pub use join_optimization::JoinOptimizationRule;
 pub use limit_pushdown::{
-    PushLimitDownGetEdgesRule, PushLimitDownGetNeighborsRule, PushLimitDownGetVerticesRule,
-    PushLimitDownIndexScanRule, PushLimitDownProjectRule, PushLimitDownRule,
+    PushLimitDownGetEdgesRule, PushLimitDownGetVerticesRule,
+    PushLimitDownIndexScanRule,
     PushLimitDownScanEdgesRule, PushLimitDownScanVerticesRule,
 };
 pub use operation_merge::{
@@ -82,9 +82,10 @@ pub use operation_merge::{
     MergeGetVerticesAndDedupRule, MergeGetVerticesAndProjectRule,
 };
 pub use predicate_pushdown::{
-    FilterPushDownRule, PredicatePushDownRule, PushFilterDownExpandRule,
-    PushFilterDownHashInnerJoinRule, PushFilterDownHashLeftJoinRule, PushFilterDownInnerJoinRule,
+    PushFilterDownExpandRule,
     PushFilterDownTraverseRule,
+    PushFilterDownScanVerticesRule,
+    PushFilterDownJoinRule,
 };
 pub use projection_pushdown::{ProjectionPushDownRule, PushProjectDownRule};
 pub use property_tracker::PropertyTracker;

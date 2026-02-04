@@ -132,8 +132,6 @@ impl RuleConfig {
     
     fn iter_all_rules(&self) -> impl Iterator<Item = OptimizationRule> {
         [
-            OptimizationRule::FilterPushDown,
-            OptimizationRule::PredicatePushDown,
             OptimizationRule::ProjectionPushDown,
             OptimizationRule::CombineFilter,
             OptimizationRule::CollapseProject,
@@ -149,14 +147,11 @@ impl RuleConfig {
             OptimizationRule::MergeGetNbrsAndProject,
             OptimizationRule::MergeGetNbrsAndDedup,
             OptimizationRule::JoinOptimization,
-            OptimizationRule::PushLimitDown,
             OptimizationRule::PushLimitDownGetVertices,
-            OptimizationRule::PushLimitDownGetNeighbors,
             OptimizationRule::PushLimitDownGetEdges,
             OptimizationRule::PushLimitDownScanVertices,
             OptimizationRule::PushLimitDownScanEdges,
             OptimizationRule::PushLimitDownIndexScan,
-            OptimizationRule::PushLimitDownProjectRule,
             OptimizationRule::ScanWithFilterOptimization,
             OptimizationRule::IndexFullScan,
             OptimizationRule::IndexScan,
@@ -177,15 +172,15 @@ mod tests {
     #[test]
     fn test_default_enabled() {
         let config = RuleConfig::default();
-        assert!(config.is_enabled(OptimizationRule::FilterPushDown));
+        assert!(config.is_enabled(OptimizationRule::ProjectionPushDown));
         assert!(config.is_enabled(OptimizationRule::CollapseProject));
     }
     
     #[test]
     fn test_disable_rule() {
         let mut config = RuleConfig::default();
-        config.disable(OptimizationRule::FilterPushDown);
-        assert!(!config.is_enabled(OptimizationRule::FilterPushDown));
+        config.disable(OptimizationRule::ProjectionPushDown);
+        assert!(!config.is_enabled(OptimizationRule::ProjectionPushDown));
     }
     
     #[test]
@@ -198,11 +193,11 @@ mod tests {
     #[test]
     fn test_enabled_rules() {
         let mut config = RuleConfig::default();
-        config.disable(OptimizationRule::FilterPushDown);
+        config.disable(OptimizationRule::ProjectionPushDown);
         config.disable(OptimizationRule::TopN);
         
         let enabled = config.get_enabled_rules();
-        assert!(!enabled.contains(&OptimizationRule::FilterPushDown));
+        assert!(!enabled.contains(&OptimizationRule::ProjectionPushDown));
         assert!(!enabled.contains(&OptimizationRule::TopN));
     }
 }

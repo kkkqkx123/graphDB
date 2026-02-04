@@ -11,8 +11,6 @@ pub fn register_all_rules() {
 }
 
 fn register_logical_rules() {
-    RuleRegistry::register(OptimizationRule::FilterPushDown, || Box::new(crate::query::optimizer::FilterPushDownRule));
-    RuleRegistry::register(OptimizationRule::PredicatePushDown, || Box::new(crate::query::optimizer::PredicatePushDownRule));
     RuleRegistry::register(OptimizationRule::ProjectionPushDown, || Box::new(crate::query::optimizer::ProjectionPushDownRule));
     RuleRegistry::register(OptimizationRule::CombineFilter, || Box::new(crate::query::optimizer::CombineFilterRule));
     RuleRegistry::register(OptimizationRule::CollapseProject, || Box::new(crate::query::optimizer::CollapseProjectRule));
@@ -32,14 +30,11 @@ fn register_logical_rules() {
 
 fn register_physical_rules() {
     RuleRegistry::register(OptimizationRule::JoinOptimization, || Box::new(crate::query::optimizer::JoinOptimizationRule));
-    RuleRegistry::register(OptimizationRule::PushLimitDown, || Box::new(crate::query::optimizer::PushLimitDownRule));
     RuleRegistry::register(OptimizationRule::PushLimitDownGetVertices, || Box::new(crate::query::optimizer::PushLimitDownGetVerticesRule));
-    RuleRegistry::register(OptimizationRule::PushLimitDownGetNeighbors, || Box::new(crate::query::optimizer::PushLimitDownGetNeighborsRule));
     RuleRegistry::register(OptimizationRule::PushLimitDownGetEdges, || Box::new(crate::query::optimizer::PushLimitDownGetEdgesRule));
     RuleRegistry::register(OptimizationRule::PushLimitDownScanVertices, || Box::new(crate::query::optimizer::PushLimitDownScanVerticesRule));
     RuleRegistry::register(OptimizationRule::PushLimitDownScanEdges, || Box::new(crate::query::optimizer::PushLimitDownScanEdgesRule));
     RuleRegistry::register(OptimizationRule::PushLimitDownIndexScan, || Box::new(crate::query::optimizer::PushLimitDownIndexScanRule));
-    RuleRegistry::register(OptimizationRule::PushLimitDownProjectRule, || Box::new(crate::query::optimizer::PushLimitDownProjectRule));
     RuleRegistry::register(OptimizationRule::ScanWithFilterOptimization, || Box::new(crate::query::optimizer::ScanWithFilterOptimizationRule));
     RuleRegistry::register(OptimizationRule::IndexFullScan, || Box::new(crate::query::optimizer::IndexFullScanRule));
     RuleRegistry::register(OptimizationRule::IndexScan, || Box::new(crate::query::optimizer::IndexScanRule));
