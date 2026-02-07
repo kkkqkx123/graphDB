@@ -642,6 +642,16 @@ impl ScanVerticesNode {
         &self.vertex_filter
     }
 
+    /// 设置标签过滤器
+    pub fn set_tag_filter(&mut self, tag_filter: String) {
+        self.tag_filter = Some(tag_filter);
+    }
+
+    /// 设置顶点过滤器
+    pub fn set_vertex_filter(&mut self, vertex_filter: String) {
+        self.vertex_filter = Some(vertex_filter);
+    }
+
     /// 获取限制
     pub fn limit(&self) -> Option<i64> {
         self.limit

@@ -16,6 +16,7 @@ pub struct ExpandNode {
     edge_types: Vec<String>,
     direction: EdgeDirection,
     step_limit: Option<u32>,
+    filter: Option<String>,
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
@@ -31,6 +32,7 @@ impl Clone for ExpandNode {
             edge_types: self.edge_types.clone(),
             direction: self.direction,
             step_limit: self.step_limit,
+            filter: self.filter.clone(),
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
@@ -47,6 +49,7 @@ impl ExpandNode {
             edge_types,
             direction,
             step_limit: None,
+            filter: None,
             output_var: None,
             col_names: Vec::new(),
             cost: 0.0,
@@ -69,6 +72,16 @@ impl ExpandNode {
     /// 获取步数限制
     pub fn step_limit(&self) -> Option<u32> {
         self.step_limit
+    }
+
+    /// 获取过滤条件
+    pub fn filter(&self) -> Option<&String> {
+        self.filter.as_ref()
+    }
+
+    /// 设置过滤条件
+    pub fn set_filter(&mut self, filter: String) {
+        self.filter = Some(filter);
     }
 }
 
@@ -215,6 +228,7 @@ pub struct ExpandAllNode {
     edge_props: Vec<EdgeProp>,
 
     vertex_props: Vec<TagProp>,
+    filter: Option<String>,
     output_var: Option<Variable>,
     col_names: Vec<String>,
     cost: f64,
@@ -235,6 +249,7 @@ impl Clone for ExpandAllNode {
             sample: self.sample,
             edge_props: self.edge_props.clone(),
             vertex_props: self.vertex_props.clone(),
+            filter: self.filter.clone(),
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
             cost: self.cost,
@@ -256,6 +271,7 @@ impl ExpandAllNode {
             sample: false,
             edge_props: Vec::new(),
             vertex_props: Vec::new(),
+            filter: None,
             output_var: None,
             col_names: Vec::new(),
             cost: 0.0,
@@ -524,6 +540,16 @@ impl TraverseNode {
         self.step_limit
     }
 
+    /// 检查是否为单步遍历
+    pub fn is_one_step(&self) -> bool {
+        self.step_limit == Some(1)
+    }
+
+    /// 检查是否为零步遍历
+    pub fn is_zero_step(&self) -> bool {
+        self.step_limit == Some(0)
+    }
+
     /// 获取过滤条件
     pub fn filter(&self) -> Option<&String> {
         self.filter.as_ref()
@@ -552,6 +578,27 @@ impl TraverseNode {
     /// 设置边过滤表达式
     pub fn set_e_filter(&mut self, e_filter: Expression) {
         self.e_filter = Some(e_filter);
+    }
+
+    /// 获取边别名
+    /// 参考 nebula-graph 的 edgeAlias() 实现
+    pub fn edge_alias(&self) -> Option<&str> {
+        let col_names = &self.col_names;
+        if col_names.is_empty() {
+            return None;
+        }
+        let n = col_names.len();
+        Some(&col_names[n - 1])
+    }
+
+    /// 获取节点别名
+    /// 参考 nebula-graph 的 nodeAlias() 实现
+    pub fn node_alias(&self) -> Option<&str> {
+        let col_names = &self.col_names;
+        if col_names.len() < 2 {
+            return None;
+        }
+        Some(&col_names[col_names.len() - 2])
     }
 }
 
@@ -837,6 +884,11 @@ impl AppendVerticesNode {
     /// 设置是否需要获取属性
     pub fn set_need_fetch_prop(&mut self, need_fetch_prop: bool) {
         self.need_fetch_prop = need_fetch_prop;
+    }
+
+    /// 设置过滤条件
+    pub fn set_filter(&mut self, filter: String) {
+        self.filter = Some(filter);
     }
 }
 

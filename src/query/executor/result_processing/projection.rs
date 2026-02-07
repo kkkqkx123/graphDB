@@ -11,8 +11,10 @@ use crate::core::Value;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::{DefaultExpressionContext, ExpressionContext};
 use crate::query::executor::base::BaseExecutor;
+use crate::query::executor::base::Executor;
 use crate::query::executor::base::InputExecutor;
 use crate::query::executor::executor_enum::ExecutorEnum;
+use crate::query::ExecutionResult;
 use crate::storage::StorageClient;
 
 /// 投影列定义

@@ -3,6 +3,7 @@
 //! 定义图数据库中使用的各种操作符类型
 
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 /// 二元操作符实现
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -131,6 +132,12 @@ impl BinaryOperator {
     }
 }
 
+impl fmt::Display for BinaryOperator {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.name())
+    }
+}
+
 /// 一元操作符实现
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum UnaryOperator {
@@ -169,6 +176,12 @@ impl UnaryOperator {
 
     pub fn arity(&self) -> usize {
         1
+    }
+}
+
+impl fmt::Display for UnaryOperator {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.name())
     }
 }
 

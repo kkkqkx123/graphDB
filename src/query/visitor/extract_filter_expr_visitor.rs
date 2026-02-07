@@ -6,25 +6,45 @@ use crate::core::types::expression::visitor::{ExpressionVisitor, ExpressionVisit
 use crate::core::Value;
 use crate::core::{AggregateFunction, BinaryOperator, DataType, UnaryOperator};
 
+/// 推送目标类型
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum PushTarget {
+    /// 推送到 GetVertices
+    GetVertices,
+    /// 推送到 GetNeighbors
+    GetNeighbors,
+    /// 不推送（仅提取）
+    None,
+}
+
 #[derive(Debug)]
 pub struct ExtractFilterExprVisitor {
     /// 提取到的过滤表达式
     filter_exprs: Vec<Expression>,
+    /// 剩余的不能下推的表达式
+    remained_expr: Option<Expression>,
     /// 是否只提取顶层的过滤条件
     top_level_only: bool,
     /// 当前是否在顶层
     is_top_level: bool,
+    /// 推送目标
+    push_target: PushTarget,
     /// 访问者状态
     state: ExpressionVisitorState,
+    /// 是否成功
+    ok: bool,
 }
 
 impl Clone for ExtractFilterExprVisitor {
     fn clone(&self) -> Self {
         Self {
             filter_exprs: self.filter_exprs.clone(),
+            remained_expr: self.remained_expr.clone(),
             top_level_only: self.top_level_only,
             is_top_level: self.is_top_level,
+            push_target: self.push_target,
             state: self.state.clone(),
+            ok: self.ok,
         }
     }
 }
@@ -33,15 +53,45 @@ impl ExtractFilterExprVisitor {
     pub fn new(top_level_only: bool) -> Self {
         Self {
             filter_exprs: Vec::new(),
+            remained_expr: None,
             top_level_only,
             is_top_level: true,
+            push_target: PushTarget::None,
             state: ExpressionVisitorState::new(),
+            ok: true,
+        }
+
+    }
+
+    pub fn make_push_get_vertices() -> Self {
+        Self {
+            filter_exprs: Vec::new(),
+            remained_expr: None,
+            top_level_only: false,
+            is_top_level: true,
+            push_target: PushTarget::GetVertices,
+            state: ExpressionVisitorState::new(),
+            ok: true,
+        }
+    }
+
+    pub fn make_push_get_neighbors() -> Self {
+        Self {
+            filter_exprs: Vec::new(),
+            remained_expr: None,
+            top_level_only: false,
+            is_top_level: true,
+            push_target: PushTarget::GetNeighbors,
+            state: ExpressionVisitorState::new(),
+            ok: true,
         }
     }
 
     pub fn extract(&mut self, expression: &Expression) -> Result<Vec<Expression>, String> {
         self.filter_exprs.clear();
+        self.remained_expr = None;
         self.is_top_level = true;
+        self.ok = true;
         let result = self.visit_expression(expression);
         result?;
         Ok(self.filter_exprs.clone())
@@ -57,6 +107,54 @@ impl ExtractFilterExprVisitor {
 
     pub fn get_filter_exprs(&self) -> &Vec<Expression> {
         &self.filter_exprs
+    }
+
+    pub fn remained_expr(&self) -> Option<Expression> {
+        self.remained_expr.clone()
+    }
+
+    pub fn ok(&self) -> bool {
+        self.ok
+    }
+
+    fn can_push(&self, expr: &Expression) -> bool {
+        match self.push_target {
+            PushTarget::GetVertices => self.can_push_to_get_vertices(expr),
+            PushTarget::GetNeighbors => self.can_push_to_get_neighbors(expr),
+            PushTarget::None => false,
+        }
+    }
+
+    fn can_push_to_get_vertices(&self, expr: &Expression) -> bool {
+        match expr {
+            Expression::Property { object, .. } => {
+                matches!(object.as_ref(), Expression::Variable(_))
+            }
+            Expression::Binary { left, op, right } => {
+                self.can_push_to_get_vertices(left) && self.can_push_to_get_vertices(right)
+            }
+            Expression::Unary { operand, .. } => self.can_push_to_get_vertices(operand),
+            Expression::Function { name, args } => {
+                is_filter_function(name) && args.iter().all(|a| self.can_push_to_get_vertices(a))
+            }
+            _ => false,
+        }
+    }
+
+    fn can_push_to_get_neighbors(&self, expr: &Expression) -> bool {
+        match expr {
+            Expression::Property { object, .. } => {
+                matches!(object.as_ref(), Expression::Variable(_))
+            }
+            Expression::Binary { left, op, right } => {
+                self.can_push_to_get_neighbors(left) && self.can_push_to_get_neighbors(right)
+            }
+            Expression::Unary { operand, .. } => self.can_push_to_get_neighbors(operand),
+            Expression::Function { name, args } => {
+                is_filter_function(name) && args.iter().all(|a| self.can_push_to_get_neighbors(a))
+            }
+            _ => false,
+        }
     }
 }
 
@@ -95,15 +193,68 @@ impl ExpressionVisitor for ExtractFilterExprVisitor {
         op: &BinaryOperator,
         right: &Expression,
     ) -> Self::Result {
-        if self.is_top_level || !self.top_level_only {
-            self.visit_with_updated_level(left)?;
-            self.visit_with_updated_level(right)?;
+        if self.push_target == PushTarget::None {
+            if self.is_top_level || !self.top_level_only {
+                self.visit_with_updated_level(left)?;
+                self.visit_with_updated_level(right)?;
+            } else {
+                self.filter_exprs.push(Expression::Binary {
+                    left: Box::new(left.clone()),
+                    op: op.clone(),
+                    right: Box::new(right.clone()),
+                });
+            }
         } else {
-            self.filter_exprs.push(Expression::Binary {
-                left: Box::new(left.clone()),
-                op: op.clone(),
-                right: Box::new(right.clone()),
-            });
+            let left_can_push = self.can_push(left);
+            let right_can_push = self.can_push(right);
+
+            if left_can_push && right_can_push {
+                self.filter_exprs.push(Expression::Binary {
+                    left: Box::new(left.clone()),
+                    op: op.clone(),
+                    right: Box::new(right.clone()),
+                });
+            } else if left_can_push {
+                self.filter_exprs.push(left.clone());
+                if self.remained_expr.is_none() {
+                    self.remained_expr = Some(right.clone());
+                } else {
+                    self.remained_expr = Some(Expression::Binary {
+                        left: Box::new(self.remained_expr.take().unwrap()),
+                        op: op.clone(),
+                        right: Box::new(right.clone()),
+                    });
+                }
+            } else if right_can_push {
+                self.filter_exprs.push(right.clone());
+                if self.remained_expr.is_none() {
+                    self.remained_expr = Some(left.clone());
+                } else {
+                    self.remained_expr = Some(Expression::Binary {
+                        left: Box::new(self.remained_expr.take().unwrap()),
+                        op: op.clone(),
+                        right: Box::new(left.clone()),
+                    });
+                }
+            } else {
+                if self.remained_expr.is_none() {
+                    self.remained_expr = Some(Expression::Binary {
+                        left: Box::new(left.clone()),
+                        op: op.clone(),
+                        right: Box::new(right.clone()),
+                    });
+                } else {
+                    self.remained_expr = Some(Expression::Binary {
+                        left: Box::new(self.remained_expr.take().unwrap()),
+                        op: op.clone(),
+                        right: Box::new(Expression::Binary {
+                            left: Box::new(left.clone()),
+                            op: op.clone(),
+                            right: Box::new(right.clone()),
+                        }),
+                    });
+                }
+            }
         }
         Ok(())
     }
@@ -228,5 +379,44 @@ impl ExpressionVisitor for ExtractFilterExprVisitor {
 
     fn state_mut(&mut self) -> &mut ExpressionVisitorState {
         &mut self.state
+    }
+
+    fn visit_label_tag_property(&mut self, tag: &Expression, _property: &str) -> Self::Result {
+        self.visit_expression(tag)
+    }
+
+    fn visit_tag_property(&mut self, _tag_name: &str, _property: &str) -> Self::Result {
+        Ok(())
+    }
+
+    fn visit_edge_property(&mut self, _edge_name: &str, _property: &str) -> Self::Result {
+        Ok(())
+    }
+
+    fn visit_predicate(&mut self, _func: &str, args: &[Expression]) -> Self::Result {
+        for arg in args {
+            self.visit_expression(arg)?;
+        }
+        Ok(())
+    }
+
+    fn visit_reduce(
+        &mut self,
+        _accumulator: &str,
+        initial: &Expression,
+        _variable: &str,
+        source: &Expression,
+        mapping: &Expression,
+    ) -> Self::Result {
+        self.visit_expression(initial)?;
+        self.visit_expression(source)?;
+        self.visit_expression(mapping)
+    }
+
+    fn visit_path_build(&mut self, exprs: &[Expression]) -> Self::Result {
+        for expr in exprs {
+            self.visit_expression(expr)?;
+        }
+        Ok(())
     }
 }

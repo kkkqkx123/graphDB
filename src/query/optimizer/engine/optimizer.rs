@@ -563,7 +563,7 @@ impl Optimizer {
             for rule_name in &phase_rule_names {
                 let rule = self.find_rule(rule_name);
                 if let Some(rule) = rule {
-                    self.apply_rule(ctx, root_group, rule)?;
+                    self.apply_rule(ctx, &*root_group, &*rule)?;
                 }
             }
 

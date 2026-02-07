@@ -5,6 +5,9 @@
 pub mod rule_patterns;
 pub mod rule_traits;
 
+// 表达式工具模块
+pub mod expression_utils;
+
 // 核心类型模块
 pub mod core;
 
@@ -22,7 +25,10 @@ pub mod plan;
 // 优化引擎模块
 pub mod engine;
 
-// 优化策略模块
+// 优化规则模块（新结构）
+pub mod rules;
+
+// 优化策略模块（旧结构，待迁移）
 pub mod elimination_rules;
 pub mod index_optimization;
 pub mod join_optimization;
@@ -57,7 +63,10 @@ pub use crate::utils::ObjectPool;
 // Re-export engine types
 pub use engine::{ExplorationState, Optimizer, RuleSet};
 
-// Re-export all rule structs for convenient access
+// Re-export all rule structs for convenient access (from new rules module)
+pub use rules::*;
+
+// Re-export all rule structs for convenient access (from old modules, for backward compatibility)
 pub use elimination_rules::{
     DedupEliminationRule, EliminateAppendVerticesRule, EliminateFilterRule,
     EliminateRowCollectRule, RemoveAppendVerticesBelowJoinRule, RemoveNoopProjectRule,

@@ -2,7 +2,7 @@ use super::{StorageClient, TransactionId, VertexReader, VertexWriter, EdgeReader
 use crate::core::{Edge, StorageError, Value, Vertex, EdgeDirection};
 use crate::core::types::{
     SpaceInfo, TagInfo, EdgeTypeInfo, PropertyDef,
-    InsertVertexInfo, InsertEdgeInfo, UpdateInfo, UpdateTarget, UpdateOp,
+    InsertVertexInfo, InsertEdgeInfo, UpdateInfo, UpdateOp,
     PasswordInfo,
 };
 use crate::core::types::metadata::{UserInfo, UserAlterInfo};
@@ -126,14 +126,14 @@ impl<E: Engine> RedbStorage<E> {
     }
     
     // 删除顶点索引
-    fn delete_vertex_indexes(&self, space: &str, vertex_id: &Value) -> Result<(), StorageError> {
+    fn delete_vertex_indexes(&self, _space: &str, _vertex_id: &Value) -> Result<(), StorageError> {
         // 这里可以实现具体的索引删除逻辑
         // 为了简化，暂时不实现具体删除
         Ok(())
     }
     
     // 删除边索引
-    fn delete_edge_indexes(&self, space: &str, src: &Value, dst: &Value, edge_type: &str) -> Result<(), StorageError> {
+    fn delete_edge_indexes(&self, _space: &str, _src: &Value, _dst: &Value, _edge_type: &str) -> Result<(), StorageError> {
         // 这里可以实现具体的索引删除逻辑
         // 为了简化，暂时不实现具体删除
         Ok(())
@@ -208,16 +208,16 @@ impl<E: Engine> RedbStorage<E> {
     }
     
     // 查找标签索引
-    fn lookup_tag_index(&self, space: &str, index: &Index, value: &Value) -> Result<Vec<Value>, StorageError> {
+    fn lookup_tag_index(&self, space: &str, index: &Index, _value: &Value) -> Result<Vec<Value>, StorageError> {
         let mut results = Vec::new();
-        let index_key_prefix = self.build_vertex_index_key_prefix(space, &index.name, value)?;
+        let index_key_prefix = self.build_vertex_index_key_prefix(space, &index.name, _value)?;
         
         let engine = self.engine.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         let iter = engine.scan(&index_key_prefix)?;
         
         let mut iter = iter;
         while iter.next() {
-            if let (Some(key), Some(value)) = (iter.key(), iter.value()) {
+            if let (Some(_key), Some(value)) = (iter.key(), iter.value()) {
                 if let Ok(vertex_id) = Self::deserialize_value(value) {
                     results.push(vertex_id);
                 }
@@ -228,16 +228,16 @@ impl<E: Engine> RedbStorage<E> {
     }
     
     // 查找边索引
-    fn lookup_edge_index(&self, space: &str, index: &Index, value: &Value) -> Result<Vec<Value>, StorageError> {
+    fn lookup_edge_index(&self, space: &str, index: &Index, _value: &Value) -> Result<Vec<Value>, StorageError> {
         let mut results = Vec::new();
-        let index_key_prefix = self.build_edge_index_key_prefix(space, &index.name, value)?;
+        let index_key_prefix = self.build_edge_index_key_prefix(space, &index.name, _value)?;
         
         let engine = self.engine.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         let iter = engine.scan(&index_key_prefix)?;
         
         let mut iter = iter;
         while iter.next() {
-            if let (Some(key), Some(value)) = (iter.key(), iter.value()) {
+            if let (Some(_key), Some(value)) = (iter.key(), iter.value()) {
                 if let Ok(src_id) = Self::deserialize_value(value) {
                     results.push(src_id);
                 }
@@ -322,10 +322,10 @@ impl<E: Engine> RedbStorage<E> {
     }
     
     // 构建顶点索引键
-    fn build_vertex_index_key(&self, space: &str, index_name: &str, vertex_id: &Value, props: &[(String, Value)]) -> Result<Vec<u8>, StorageError> {
+    fn build_vertex_index_key(&self, space: &str, index_name: &str, _vertex_id: &Value, props: &[(String, Value)]) -> Result<Vec<u8>, StorageError> {
         let mut key_parts = vec![format!("{}:idx:v:{}:", space, index_name).into_bytes()];
         
-        for (prop_name, prop_value) in props {
+        for (_prop_name, prop_value) in props {
             key_parts.push(Self::serialize_value(prop_value));
             key_parts.push(vec![b':']);
         }
@@ -334,10 +334,10 @@ impl<E: Engine> RedbStorage<E> {
     }
     
     // 构建边索引键
-    fn build_edge_index_key(&self, space: &str, index_name: &str, src: &Value, dst: &Value, props: &[(String, Value)]) -> Result<Vec<u8>, StorageError> {
+    fn build_edge_index_key(&self, space: &str, index_name: &str, _src: &Value, _dst: &Value, props: &[(String, Value)]) -> Result<Vec<u8>, StorageError> {
         let mut key_parts = vec![format!("{}:idx:e:{}:", space, index_name).into_bytes()];
         
-        for (prop_name, prop_value) in props {
+        for (_prop_name, prop_value) in props {
             key_parts.push(Self::serialize_value(prop_value));
             key_parts.push(vec![b':']);
         }
@@ -346,12 +346,12 @@ impl<E: Engine> RedbStorage<E> {
     }
     
     // 构建顶点索引键前缀
-    fn build_vertex_index_key_prefix(&self, space: &str, index_name: &str, value: &Value) -> Result<Vec<u8>, StorageError> {
+    fn build_vertex_index_key_prefix(&self, space: &str, index_name: &str, _value: &Value) -> Result<Vec<u8>, StorageError> {
         Ok(format!("{}:idx:v:{}:", space, index_name).into_bytes())
     }
     
     // 构建边索引键前缀
-    fn build_edge_index_key_prefix(&self, space: &str, index_name: &str, value: &Value) -> Result<Vec<u8>, StorageError> {
+    fn build_edge_index_key_prefix(&self, space: &str, index_name: &str, _value: &Value) -> Result<Vec<u8>, StorageError> {
         Ok(format!("{}:idx:e:{}:", space, index_name).into_bytes())
     }
     
