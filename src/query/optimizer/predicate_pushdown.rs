@@ -515,7 +515,7 @@ impl OptRule for PushFilterDownJoinRule {
         let child_ref = child_node.borrow();
         
         // 检查子节点是否为连接操作
-        if !matches!(child_ref.plan_node.name(), "HashInnerJoin" | "HashLeftJoin" | "HashRightJoin") {
+        if !matches!(child_ref.plan_node.name(), "HashInnerJoin" | "HashLeftJoin") {
             return Ok(None);
         }
 
@@ -526,10 +526,10 @@ impl OptRule for PushFilterDownJoinRule {
         };
 
         // 获取左子节点的列名
+        use crate::query::planner::plan::core::nodes::plan_node_traits::BinaryInputNode;
         let left_col_names = match &child_ref.plan_node {
-            PlanNodeEnum::HashInnerJoin(join) => join.left_input().col_names().to_vec(),
-            PlanNodeEnum::HashLeftJoin(join) => join.left_input().col_names().to_vec(),
-            PlanNodeEnum::HashRightJoin(join) => join.left_input().col_names().to_vec(),
+            PlanNodeEnum::HashInnerJoin(join) => BinaryInputNode::left_input(join).col_names().to_vec(),
+            PlanNodeEnum::HashLeftJoin(join) => BinaryInputNode::left_input(join).col_names().to_vec(),
             _ => return Ok(None),
         };
 
@@ -1067,8 +1067,9 @@ impl OptRule for PushFilterDownInnerJoinRule {
         };
 
         // 获取左子节点的列名
+        use crate::query::planner::plan::core::nodes::plan_node_traits::BinaryInputNode;
         let left_col_names = match &child_ref.plan_node {
-            PlanNodeEnum::InnerJoin(join) => join.left_input().col_names().to_vec(),
+            PlanNodeEnum::InnerJoin(join) => BinaryInputNode::left_input(join).col_names().to_vec(),
             _ => return Ok(None),
         };
 
@@ -1186,8 +1187,9 @@ impl OptRule for PushFilterDownHashInnerJoinRule {
         };
 
         // 获取左子节点的列名
+        use crate::query::planner::plan::core::nodes::plan_node_traits::BinaryInputNode;
         let left_col_names = match &child_ref.plan_node {
-            PlanNodeEnum::HashInnerJoin(join) => join.left_input().col_names().to_vec(),
+            PlanNodeEnum::HashInnerJoin(join) => BinaryInputNode::left_input(join).col_names().to_vec(),
             _ => return Ok(None),
         };
 
@@ -1305,8 +1307,9 @@ impl OptRule for PushFilterDownHashLeftJoinRule {
         };
 
         // 获取左子节点的列名
+        use crate::query::planner::plan::core::nodes::plan_node_traits::BinaryInputNode;
         let left_col_names = match &child_ref.plan_node {
-            PlanNodeEnum::HashLeftJoin(join) => join.left_input().col_names().to_vec(),
+            PlanNodeEnum::HashLeftJoin(join) => BinaryInputNode::left_input(join).col_names().to_vec(),
             _ => return Ok(None),
         };
 
@@ -1424,8 +1427,9 @@ impl OptRule for PushFilterDownCrossJoinRule {
         };
 
         // 获取左子节点的列名
+        use crate::query::planner::plan::core::nodes::plan_node_traits::BinaryInputNode;
         let left_col_names = match &child_ref.plan_node {
-            PlanNodeEnum::CrossJoin(join) => join.left_input().col_names().to_vec(),
+            PlanNodeEnum::CrossJoin(join) => BinaryInputNode::left_input(join).col_names().to_vec(),
             _ => return Ok(None),
         };
 

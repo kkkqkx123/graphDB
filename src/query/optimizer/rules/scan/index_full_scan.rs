@@ -61,7 +61,7 @@ impl OptRule for IndexFullScanRule {
 
         let mut transform_result = TransformResult::new();
         transform_result.add_new_group_node(Rc::new(RefCell::new(new_group_node)));
-        transform_result.set_erase_curr(true);
+        transform_result.erase_curr = true;
 
         Ok(Some(transform_result))
     }
@@ -75,16 +75,16 @@ impl BaseOptRule for IndexFullScanRule {}
 
 impl IndexFullScanRule {
     fn find_best_index(&self, ctx: &OptContext, space_id: i32, tag_id: i32) -> Option<i32> {
-        let meta_client = ctx.query_context().meta_client();
+        let index_manager = ctx.qctx().index_manager()?;
 
-        let indexes = match meta_client.get_tag_indexes(space_id) {
+        let indexes = match index_manager.list_indexes_by_space(space_id) {
             Ok(indexes) => indexes,
             Err(_) => return None,
         };
 
         let schema_indexes: Vec<_> = indexes
             .into_iter()
-            .filter(|idx| idx.schema_id == tag_id)
+            .filter(|idx| idx.id == tag_id)
             .collect();
 
         if schema_indexes.is_empty() {
@@ -95,7 +95,7 @@ impl IndexFullScanRule {
             .iter()
             .min_by_key(|idx| idx.fields.len())?;
 
-        Some(best_index.index_id)
+        Some(best_index.id)
     }
 }
 

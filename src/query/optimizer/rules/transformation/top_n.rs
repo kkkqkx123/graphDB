@@ -31,6 +31,7 @@ use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, 
 use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::query::optimizer::rule_traits::BaseOptRule;
 use crate::query::planner::plan::core::nodes::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -88,7 +89,7 @@ impl OptRule for TopNRule {
         };
 
         let sort_items = sort_node.sort_items().to_vec();
-        let sort_input = sort_node.input().clone();
+        let sort_input = SingleInputNode::input(sort_node).clone();
 
         let mut topn_node = PlanNodeEnum::TopN(
             crate::query::planner::plan::core::nodes::TopNNode::new(
@@ -98,13 +99,6 @@ impl OptRule for TopNRule {
             )
             .expect("TopN node should be created successfully"),
         );
-
-        if let Some(topn) = topn_node.as_topn_mut() {
-            if let Some(output_var) = limit_node.output_var() {
-                topn.set_output_var(output_var.clone());
-            }
-            topn.set_col_names(sort_node.col_names().to_vec());
-        }
 
         let mut new_group_node = child_node_ref.clone();
         new_group_node.plan_node = topn_node;
@@ -119,7 +113,7 @@ impl OptRule for TopNRule {
 
         let mut transform_result = TransformResult::new();
         transform_result.add_new_group_node(Rc::new(RefCell::new(new_group_node)));
-        transform_result.set_erase_all(true);
+        transform_result.erase_all = true;
 
         Ok(Some(transform_result))
     }
