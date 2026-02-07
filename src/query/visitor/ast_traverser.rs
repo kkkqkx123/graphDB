@@ -9,6 +9,7 @@ use crate::query::parser::ast::stmt::{
     SetStmt, LookupStmt, Assignment, QueryStmt, MergeStmt, UnwindStmt,
     ReturnStmt, WithStmt, RemoveStmt, PipeStmt, DescStmt,
     ExplainStmt, SubgraphStmt, FindPathStmt, ChangePasswordStmt,
+    CreateUserStmt, AlterUserStmt, DropUserStmt,
 };
 use crate::query::visitor::stmt_visitor::StmtVisitor;
 
@@ -40,6 +41,9 @@ pub trait AstTraverser: StmtVisitor {
             Stmt::Pipe(s) => self.traverse_pipe_stmt(s),
             Stmt::Desc(s) => self.traverse_desc_stmt(s),
             Stmt::ChangePassword(s) => self.traverse_change_password_stmt(s),
+            Stmt::CreateUser(s) => self.traverse_create_user_stmt(s),
+            Stmt::AlterUser(s) => self.traverse_alter_user_stmt(s),
+            Stmt::DropUser(s) => self.traverse_drop_user_stmt(s),
         }
     }
 
@@ -141,6 +145,18 @@ pub trait AstTraverser: StmtVisitor {
 
     fn traverse_change_password_stmt(&mut self, stmt: &ChangePasswordStmt) {
         self.visit_change_password_stmt(stmt);
+    }
+
+    fn traverse_create_user_stmt(&mut self, stmt: &CreateUserStmt) {
+        self.visit_create_user_stmt(stmt);
+    }
+
+    fn traverse_alter_user_stmt(&mut self, stmt: &AlterUserStmt) {
+        self.visit_alter_user_stmt(stmt);
+    }
+
+    fn traverse_drop_user_stmt(&mut self, stmt: &DropUserStmt) {
+        self.visit_drop_user_stmt(stmt);
     }
 
     fn traverse_assignment(&mut self, assignment: &Assignment) {

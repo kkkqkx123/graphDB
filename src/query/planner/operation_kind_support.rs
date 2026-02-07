@@ -75,6 +75,7 @@ impl IntoOperationKind for PlanNodeEnum {
             PlanNodeEnum::CreateUser(_) => CoreOperationKind::CreateUser,
             PlanNodeEnum::AlterUser(_) => CoreOperationKind::AlterUser,
             PlanNodeEnum::DropUser(_) => CoreOperationKind::DropUser,
+            PlanNodeEnum::ChangePassword(_) => CoreOperationKind::ChangePassword,
         }
     }
 }

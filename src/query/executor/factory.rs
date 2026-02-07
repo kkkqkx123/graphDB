@@ -1246,6 +1246,18 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                 Ok(ExecutorEnum::DropUser(executor))
             }
 
+            PlanNodeEnum::ChangePassword(node) => {
+                let password_info = node.password_info().clone();
+                let executor = ChangePasswordExecutor::new(
+                    node.id(),
+                    storage,
+                    password_info.username.clone(),
+                    password_info.old_password.clone(),
+                    password_info.new_password.clone(),
+                );
+                Ok(ExecutorEnum::ChangePassword(executor))
+            }
+
             _ => Err(QueryError::ExecutionError(format!(
                 "暂不支持执行器类型: {:?}",
                 plan_node.type_name()

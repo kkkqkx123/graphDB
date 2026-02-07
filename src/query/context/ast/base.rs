@@ -186,6 +186,9 @@ impl AstContext {
                 Stmt::Drop(_) => "DROP",
                 Stmt::Desc(_) => "DESC",
                 Stmt::Alter(_) => "ALTER",
+                Stmt::CreateUser(_) => "CREATE_USER",
+                Stmt::AlterUser(_) => "ALTER_USER",
+                Stmt::DropUser(_) => "DROP_USER",
                 Stmt::ChangePassword(_) => "CHANGE_PASSWORD",
             },
             None => {

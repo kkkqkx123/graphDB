@@ -12,6 +12,7 @@ use crate::query::planner::plan::core::nodes::{
     ShowEdgesNode, ShowSpacesNode, ShowTagsNode, ShowTagIndexesNode, ShowEdgeIndexesNode,
     SortNode, StartNode, TopNNode, TraverseNode, UnwindNode, UnionNode, AppendVerticesNode,
     RebuildEdgeIndexNode, RebuildTagIndexNode,
+    CreateUserNode, AlterUserNode, DropUserNode, ChangePasswordNode,
 };
 use crate::query::planner::plan::algorithms::{
     AllPaths, BFSShortest, FulltextIndexScan, IndexScan, MultiShortestPath, ShortestPath,
@@ -84,6 +85,10 @@ pub trait PlanNodeVisitor {
     fn visit_show_edge_indexes(&mut self, node: &ShowEdgeIndexesNode) -> Self::Result;
     fn visit_rebuild_tag_index(&mut self, node: &RebuildTagIndexNode) -> Self::Result;
     fn visit_rebuild_edge_index(&mut self, node: &RebuildEdgeIndexNode) -> Self::Result;
+    fn visit_create_user(&mut self, node: &CreateUserNode) -> Self::Result;
+    fn visit_alter_user(&mut self, node: &AlterUserNode) -> Self::Result;
+    fn visit_drop_user(&mut self, node: &DropUserNode) -> Self::Result;
+    fn visit_change_password(&mut self, node: &ChangePasswordNode) -> Self::Result;
 
     fn visit(&mut self, node: &PlanNodeEnum) -> Self::Result {
         match node {
@@ -150,9 +155,10 @@ pub trait PlanNodeVisitor {
             PlanNodeEnum::ShowEdgeIndexes(n) => self.visit_show_edge_indexes(n),
             PlanNodeEnum::RebuildTagIndex(n) => self.visit_rebuild_tag_index(n),
             PlanNodeEnum::RebuildEdgeIndex(n) => self.visit_rebuild_edge_index(n),
-            PlanNodeEnum::CreateUser(_) => self.visit_start(&StartNode::new()),
-            PlanNodeEnum::AlterUser(_) => self.visit_start(&StartNode::new()),
-            PlanNodeEnum::DropUser(_) => self.visit_start(&StartNode::new()),
+            PlanNodeEnum::CreateUser(n) => self.visit_create_user(n),
+            PlanNodeEnum::AlterUser(n) => self.visit_alter_user(n),
+            PlanNodeEnum::DropUser(n) => self.visit_drop_user(n),
+            PlanNodeEnum::ChangePassword(n) => self.visit_change_password(n),
             PlanNodeEnum::CartesianProduct(n) => self.visit_cross_join(n),
         }
     }
@@ -250,6 +256,10 @@ mod tests {
         fn visit_show_edge_indexes(&mut self, _node: &ShowEdgeIndexesNode) -> Self::Result { self.count += 1; self.count }
         fn visit_rebuild_tag_index(&mut self, _node: &RebuildTagIndexNode) -> Self::Result { self.count += 1; self.count }
         fn visit_rebuild_edge_index(&mut self, _node: &RebuildEdgeIndexNode) -> Self::Result { self.count += 1; self.count }
+        fn visit_create_user(&mut self, _node: &CreateUserNode) -> Self::Result { self.count += 1; self.count }
+        fn visit_alter_user(&mut self, _node: &AlterUserNode) -> Self::Result { self.count += 1; self.count }
+        fn visit_drop_user(&mut self, _node: &DropUserNode) -> Self::Result { self.count += 1; self.count }
+        fn visit_change_password(&mut self, _node: &ChangePasswordNode) -> Self::Result { self.count += 1; self.count }
     }
     
     #[test]

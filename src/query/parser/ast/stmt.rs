@@ -35,6 +35,9 @@ pub enum Stmt {
     Drop(DropStmt),
     Desc(DescStmt),
     Alter(AlterStmt),
+    CreateUser(CreateUserStmt),
+    AlterUser(AlterUserStmt),
+    DropUser(DropUserStmt),
     ChangePassword(ChangePasswordStmt),
 }
 
@@ -66,6 +69,9 @@ impl Stmt {
             Stmt::Drop(s) => s.span,
             Stmt::Desc(s) => s.span,
             Stmt::Alter(s) => s.span,
+            Stmt::CreateUser(s) => s.span,
+            Stmt::AlterUser(s) => s.span,
+            Stmt::DropUser(s) => s.span,
             Stmt::ChangePassword(s) => s.span,
         }
     }
@@ -97,6 +103,9 @@ impl Stmt {
             Stmt::Drop(_) => "DROP",
             Stmt::Desc(_) => "DESC",
             Stmt::Alter(_) => "ALTER",
+            Stmt::CreateUser(_) => "CREATE_USER",
+            Stmt::AlterUser(_) => "ALTER_USER",
+            Stmt::DropUser(_) => "DROP_USER",
             Stmt::ChangePassword(_) => "CHANGE_PASSWORD",
         }
     }
@@ -718,6 +727,33 @@ pub enum AlterTarget {
         additions: Vec<PropertyDef>,
         deletions: Vec<String>,
     },
+}
+
+/// CREATE USER 语句
+#[derive(Debug, Clone, PartialEq)]
+pub struct CreateUserStmt {
+    pub span: Span,
+    pub username: String,
+    pub password: String,
+    pub role: Option<String>,
+    pub if_not_exists: bool,
+}
+
+/// ALTER USER 语句
+#[derive(Debug, Clone, PartialEq)]
+pub struct AlterUserStmt {
+    pub span: Span,
+    pub username: String,
+    pub new_role: Option<String>,
+    pub is_locked: Option<bool>,
+}
+
+/// DROP USER 语句
+#[derive(Debug, Clone, PartialEq)]
+pub struct DropUserStmt {
+    pub span: Span,
+    pub username: String,
+    pub if_exists: bool,
 }
 
 /// CHANGE PASSWORD 语句

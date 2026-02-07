@@ -27,6 +27,7 @@ pub use admin_node::{
     DropEdgeNode, DropSpaceNode, DropTagNode, DropEdgeIndexNode, DropTagIndexNode,
     ShowEdgesNode, ShowSpacesNode, ShowTagsNode, ShowEdgeIndexesNode, ShowTagIndexesNode,
     RebuildEdgeIndexNode, RebuildTagIndexNode,
+    CreateUserNode, AlterUserNode, DropUserNode, ChangePasswordNode,
 };
 pub use control_flow_node::{ArgumentNode, LoopNode, PassThroughNode, SelectNode};
 pub use data_processing_node::{

@@ -54,6 +54,9 @@ impl<'a> StmtParser<'a> {
             TokenKind::Drop => self.parse_drop_statement(ctx),
             TokenKind::Desc => self.parse_desc_statement(ctx),
             TokenKind::Alter => self.parse_alter_statement(ctx),
+            TokenKind::CreateUser => self.parse_create_user_statement(ctx),
+            TokenKind::AlterUser => self.parse_alter_user_statement(ctx),
+            TokenKind::DropUser => self.parse_drop_user_statement(ctx),
             TokenKind::ChangePassword => self.parse_change_password_statement(ctx),
             _ => Err(ParseError::new(
                 ParseErrorKind::UnexpectedToken,
@@ -1001,6 +1004,92 @@ impl<'a> StmtParser<'a> {
             }
         }
         Ok(deletions)
+    }
+
+    fn parse_create_user_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::CreateUser)?;
+
+        let mut if_not_exists = false;
+        if ctx.match_token(TokenKind::If) {
+            ctx.expect_token(TokenKind::Not)?;
+            ctx.expect_token(TokenKind::Exists)?;
+            if_not_exists = true;
+        }
+
+        let username = ctx.expect_identifier()?;
+        ctx.expect_token(TokenKind::Password)?;
+        let password = ctx.expect_string_literal()?;
+
+        let mut role = None;
+        if ctx.match_token(TokenKind::With) {
+            ctx.expect_token(TokenKind::Role)?;
+            role = Some(ctx.expect_identifier()?);
+        }
+
+        let end_span = ctx.current_span();
+        let span = ctx.merge_span(start_span.start, end_span.end);
+
+        Ok(Stmt::CreateUser(CreateUserStmt {
+            span,
+            username,
+            password,
+            role,
+            if_not_exists,
+        }))
+    }
+
+    fn parse_alter_user_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::AlterUser)?;
+
+        let username = ctx.expect_identifier()?;
+
+        let mut new_role = None;
+        let mut is_locked = None;
+
+        while ctx.match_token(TokenKind::Set) {
+            if ctx.match_token(TokenKind::Role) {
+                ctx.expect_token(TokenKind::Eq)?;
+                new_role = Some(ctx.expect_identifier()?);
+            } else if ctx.match_token(TokenKind::Locked) {
+                ctx.expect_token(TokenKind::Eq)?;
+                let value = ctx.expect_identifier()?;
+                is_locked = Some(value.to_lowercase() == "true");
+            }
+        }
+
+        let end_span = ctx.current_span();
+        let span = ctx.merge_span(start_span.start, end_span.end);
+
+        Ok(Stmt::AlterUser(AlterUserStmt {
+            span,
+            username,
+            new_role,
+            is_locked,
+        }))
+    }
+
+    fn parse_drop_user_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::DropUser)?;
+
+        let mut if_exists = false;
+        if ctx.match_token(TokenKind::If) {
+            ctx.expect_token(TokenKind::Exists)?;
+            if_exists = true;
+        }
+
+        let username = ctx.expect_identifier()?;
+
+        let end_span = ctx.current_span();
+        let span = ctx.merge_span(start_span.start, end_span.end);
+
+        Ok(Stmt::DropUser(DropUserStmt {
+            span,
+            username,
+            if_exists,
+        }))
     }
 
     fn parse_change_password_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {

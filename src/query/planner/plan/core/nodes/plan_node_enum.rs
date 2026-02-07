@@ -11,7 +11,7 @@ use super::admin_node::{
     CreateTagIndexNode, DropTagIndexNode, DescTagIndexNode, ShowTagIndexesNode,
     CreateEdgeIndexNode, DropEdgeIndexNode, DescEdgeIndexNode, ShowEdgeIndexesNode,
     RebuildTagIndexNode, RebuildEdgeIndexNode,
-    CreateUserNode, AlterUserNode, DropUserNode,
+    CreateUserNode, AlterUserNode, DropUserNode, ChangePasswordNode,
 };
 use crate::query::planner::plan::core::explain::PlanNodeDescription;
 
@@ -179,6 +179,8 @@ pub enum PlanNodeEnum {
     AlterUser(AlterUserNode),
     /// 删除用户
     DropUser(DropUserNode),
+    /// 修改密码
+    ChangePassword(ChangePasswordNode),
 }
 
 impl Default for PlanNodeEnum {
@@ -553,6 +555,7 @@ impl PlanNodeEnum {
                 | PlanNodeEnum::CreateUser(_)
                 | PlanNodeEnum::AlterUser(_)
                 | PlanNodeEnum::DropUser(_)
+                | PlanNodeEnum::ChangePassword(_)
         )
     }
 
@@ -625,6 +628,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::CreateUser(_) => "CreateUser",
             PlanNodeEnum::AlterUser(_) => "AlterUser",
             PlanNodeEnum::DropUser(_) => "DropUser",
+            PlanNodeEnum::ChangePassword(_) => "ChangePassword",
         }
     }
 
@@ -698,6 +702,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::CreateUser(_) => PlanNodeCategory::Management,
             PlanNodeEnum::AlterUser(_) => PlanNodeCategory::Management,
             PlanNodeEnum::DropUser(_) => PlanNodeCategory::Management,
+            PlanNodeEnum::ChangePassword(_) => PlanNodeCategory::Management,
         }
     }
 
@@ -1756,6 +1761,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::CreateUser(_) => vec![],
             PlanNodeEnum::AlterUser(_) => vec![],
             PlanNodeEnum::DropUser(_) => vec![],
+            PlanNodeEnum::ChangePassword(_) => vec![],
             PlanNodeEnum::IndexScan(_) => vec![],
             PlanNodeEnum::FulltextIndexScan(_) => vec![],
             PlanNodeEnum::ScanVertices(_) => vec![],

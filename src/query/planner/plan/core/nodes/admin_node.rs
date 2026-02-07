@@ -1566,3 +1566,52 @@ impl PlanNode for DropUserNode {
         PlanNodeEnum::DropUser(self)
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct ChangePasswordNode {
+    id: i64,
+    password_info: crate::core::types::metadata::PasswordInfo,
+}
+
+impl ChangePasswordNode {
+    pub fn new(id: i64, password_info: crate::core::types::metadata::PasswordInfo) -> Self {
+        Self {
+            id,
+            password_info,
+        }
+    }
+
+    pub fn password_info(&self) -> &crate::core::types::metadata::PasswordInfo {
+        &self.password_info
+    }
+}
+
+impl PlanNode for ChangePasswordNode {
+    fn id(&self) -> i64 {
+        self.id
+    }
+
+    fn name(&self) -> &'static str {
+        "ChangePassword"
+    }
+
+    fn output_var(&self) -> Option<&Variable> {
+        None
+    }
+
+    fn col_names(&self) -> &[String] {
+        &[]
+    }
+
+    fn cost(&self) -> f64 {
+        1.0
+    }
+
+    fn set_output_var(&mut self, _var: Variable) {}
+
+    fn set_col_names(&mut self, _names: Vec<String>) {}
+
+    fn into_enum(self) -> PlanNodeEnum {
+        PlanNodeEnum::ChangePassword(self)
+    }
+}

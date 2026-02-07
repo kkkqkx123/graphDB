@@ -413,6 +413,7 @@ pub trait PlanNodeVisitor {
             PlanNodeEnum::CreateUser(n) => self.visit_default(),
             PlanNodeEnum::AlterUser(n) => self.visit_default(),
             PlanNodeEnum::DropUser(n) => self.visit_default(),
+            PlanNodeEnum::ChangePassword(n) => self.visit_default(),
         }
     }
 }

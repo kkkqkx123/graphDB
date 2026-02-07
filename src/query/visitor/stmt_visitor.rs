@@ -8,6 +8,7 @@ use crate::query::parser::ast::stmt::{
     SetStmt, LookupStmt, Assignment, QueryStmt, MergeStmt, UnwindStmt,
     ReturnStmt, WithStmt, RemoveStmt, PipeStmt, DescStmt,
     ExplainStmt, SubgraphStmt, FindPathStmt, ChangePasswordStmt,
+    CreateUserStmt, AlterUserStmt, DropUserStmt,
 };
 
 pub trait StmtVisitor {
@@ -113,6 +114,18 @@ pub trait StmtVisitor {
 
     fn visit_change_password_stmt(&mut self, stmt: &ChangePasswordStmt) -> Self::Result {
         self.visit_stmt(&Stmt::ChangePassword(stmt.clone()))
+    }
+
+    fn visit_create_user_stmt(&mut self, stmt: &CreateUserStmt) -> Self::Result {
+        self.visit_stmt(&Stmt::CreateUser(stmt.clone()))
+    }
+
+    fn visit_alter_user_stmt(&mut self, stmt: &AlterUserStmt) -> Self::Result {
+        self.visit_stmt(&Stmt::AlterUser(stmt.clone()))
+    }
+
+    fn visit_drop_user_stmt(&mut self, stmt: &DropUserStmt) -> Self::Result {
+        self.visit_stmt(&Stmt::DropUser(stmt.clone()))
     }
 
     fn visit_assignment(&mut self, assignment: &Assignment) -> Self::Result;

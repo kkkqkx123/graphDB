@@ -41,6 +41,9 @@ impl IntoOperationKind for Stmt {
             Stmt::Drop(_) => CoreOperationKind::DropSpace,
             Stmt::Desc(_) => CoreOperationKind::DescribeSpace,
             Stmt::Alter(_) => CoreOperationKind::AlterTag,
+            Stmt::CreateUser(_) => CoreOperationKind::CreateUser,
+            Stmt::AlterUser(_) => CoreOperationKind::AlterUser,
+            Stmt::DropUser(_) => CoreOperationKind::DropUser,
             Stmt::ChangePassword(_) => CoreOperationKind::ChangePassword,
         }
     }

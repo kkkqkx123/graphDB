@@ -8,7 +8,8 @@ use crate::query::context::ast::AstContext;
 use crate::query::executor::admin as admin_executor;
 use crate::query::executor::factory::ExecutorFactory;
 use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
-use crate::query::parser::ast::stmt::{AlterStmt, ChangePasswordStmt, DescStmt, DropStmt, Stmt};
+use crate::query::parser::ast::stmt::{AlterStmt, ChangePasswordStmt, CreateUserStmt, AlterUserStmt, DropUserStmt, DescStmt, DropStmt, Stmt};
+use crate::core::types::metadata::{UserInfo, UserAlterInfo};
 use crate::query::planner::planner::Planner;
 use crate::query::planner::statements::match_statement_planner::MatchStatementPlanner;
 use crate::storage::StorageClient;
@@ -130,6 +131,9 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
             Stmt::Drop(clause) => self.execute_drop(clause).await,
             Stmt::Desc(clause) => self.execute_desc(clause).await,
             Stmt::Alter(clause) => self.execute_alter(clause).await,
+            Stmt::CreateUser(clause) => self.execute_create_user(clause).await,
+            Stmt::AlterUser(clause) => self.execute_alter_user(clause).await,
+            Stmt::DropUser(clause) => self.execute_drop_user(clause).await,
             Stmt::ChangePassword(clause) => self.execute_change_password(clause).await,
         }
     }
@@ -328,6 +332,41 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                 executor.execute().await.map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
             }
         }
+    }
+
+    async fn execute_create_user(&mut self, clause: CreateUserStmt) -> Result<ExecutionResult, DBError> {
+        use admin_executor::CreateUserExecutor;
+        let id = self.id;
+
+        let user_info = UserInfo::new(clause.username, clause.password);
+        let mut executor = CreateUserExecutor::new(id, self.storage.clone(), user_info);
+        executor.open()?;
+        executor.execute().await.map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
+    }
+
+    async fn execute_alter_user(&mut self, clause: AlterUserStmt) -> Result<ExecutionResult, DBError> {
+        use admin_executor::AlterUserExecutor;
+        let id = self.id;
+
+        let mut alter_info = UserAlterInfo::new(clause.username);
+        if let Some(role) = clause.new_role {
+            alter_info = alter_info.with_role(role);
+        }
+        if let Some(is_locked) = clause.is_locked {
+            alter_info = alter_info.with_locked(is_locked);
+        }
+        let mut executor = AlterUserExecutor::new(id, self.storage.clone(), alter_info);
+        executor.open()?;
+        executor.execute().await.map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
+    }
+
+    async fn execute_drop_user(&mut self, clause: DropUserStmt) -> Result<ExecutionResult, DBError> {
+        use admin_executor::DropUserExecutor;
+        let id = self.id;
+
+        let mut executor = DropUserExecutor::new(id, self.storage.clone(), clause.username);
+        executor.open()?;
+        executor.execute().await.map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
     }
 
     async fn execute_change_password(&mut self, clause: ChangePasswordStmt) -> Result<ExecutionResult, DBError> {
