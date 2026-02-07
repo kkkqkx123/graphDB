@@ -15,8 +15,7 @@ use crate::storage::StorageClient;
 use super::admin::{
     AlterEdgeExecutor, AlterTagExecutor, ChangePasswordExecutor, CreateEdgeExecutor,
     CreateSpaceExecutor, CreateTagExecutor, DescEdgeExecutor, DescSpaceExecutor, DescTagExecutor,
-    DropEdgeExecutor, DropSpaceExecutor, DropTagExecutor, InsertEdgeExecutor, InsertVertexExecutor,
-    UpdateExecutor, ShowSpacesExecutor, ShowTagsExecutor, ShowEdgesExecutor,
+    DropEdgeExecutor, DropSpaceExecutor, DropTagExecutor, ShowSpacesExecutor, ShowTagsExecutor, ShowEdgesExecutor,
     CreateTagIndexExecutor, DropTagIndexExecutor, DescTagIndexExecutor, ShowTagIndexesExecutor,
     RebuildTagIndexExecutor, CreateEdgeIndexExecutor, DropEdgeIndexExecutor, DescEdgeIndexExecutor,
     ShowEdgeIndexesExecutor, RebuildEdgeIndexExecutor,
@@ -116,9 +115,6 @@ pub enum ExecutorEnum<S: StorageClient + Send + 'static> {
     AlterEdge(AlterEdgeExecutor<S>),
     DescEdge(DescEdgeExecutor<S>),
     DropEdge(DropEdgeExecutor<S>),
-    InsertVertex(InsertVertexExecutor<S>),
-    InsertEdge(InsertEdgeExecutor<S>),
-    Update(UpdateExecutor<S>),
     ChangePassword(ChangePasswordExecutor<S>),
 }
 
@@ -196,9 +192,6 @@ impl<S: StorageClient + Send + 'static> Debug for ExecutorEnum<S> {
             ExecutorEnum::AlterEdge(exec) => f.write_str(&format!("ExecutorEnum::AlterEdge({})", exec.name())),
             ExecutorEnum::DescEdge(exec) => f.write_str(&format!("ExecutorEnum::DescEdge({})", exec.name())),
             ExecutorEnum::DropEdge(exec) => f.write_str(&format!("ExecutorEnum::DropEdge({})", exec.name())),
-            ExecutorEnum::InsertVertex(exec) => f.write_str(&format!("ExecutorEnum::InsertVertex({})", exec.name())),
-            ExecutorEnum::InsertEdge(exec) => f.write_str(&format!("ExecutorEnum::InsertEdge({})", exec.name())),
-            ExecutorEnum::Update(exec) => f.write_str(&format!("ExecutorEnum::Update({})", exec.name())),
             ExecutorEnum::ChangePassword(exec) => f.write_str(&format!("ExecutorEnum::ChangePassword({})", exec.name())),
         }
     }
@@ -278,9 +271,6 @@ impl<S: StorageClient + Send + 'static> ExecutorEnum<S> {
             ExecutorEnum::AlterEdge(exec) => exec.id(),
             ExecutorEnum::DescEdge(exec) => exec.id(),
             ExecutorEnum::DropEdge(exec) => exec.id(),
-            ExecutorEnum::InsertVertex(exec) => exec.id(),
-            ExecutorEnum::InsertEdge(exec) => exec.id(),
-            ExecutorEnum::Update(exec) => exec.id(),
             ExecutorEnum::ChangePassword(exec) => exec.id(),
         }
     }
@@ -358,9 +348,6 @@ impl<S: StorageClient + Send + 'static> ExecutorEnum<S> {
             ExecutorEnum::AlterEdge(exec) => exec.name(),
             ExecutorEnum::DescEdge(exec) => exec.name(),
             ExecutorEnum::DropEdge(exec) => exec.name(),
-            ExecutorEnum::InsertVertex(exec) => exec.name(),
-            ExecutorEnum::InsertEdge(exec) => exec.name(),
-            ExecutorEnum::Update(exec) => exec.name(),
             ExecutorEnum::ChangePassword(exec) => exec.name(),
         }
     }
@@ -438,9 +425,6 @@ impl<S: StorageClient + Send + 'static> ExecutorEnum<S> {
             ExecutorEnum::AlterEdge(exec) => exec.stats(),
             ExecutorEnum::DescEdge(exec) => exec.stats(),
             ExecutorEnum::DropEdge(exec) => exec.stats(),
-            ExecutorEnum::InsertVertex(exec) => exec.stats(),
-            ExecutorEnum::InsertEdge(exec) => exec.stats(),
-            ExecutorEnum::Update(exec) => exec.stats(),
             ExecutorEnum::ChangePassword(exec) => exec.stats(),
         }
     }
@@ -518,9 +502,6 @@ impl<S: StorageClient + Send + 'static> ExecutorEnum<S> {
             ExecutorEnum::AlterEdge(exec) => exec.stats_mut(),
             ExecutorEnum::DescEdge(exec) => exec.stats_mut(),
             ExecutorEnum::DropEdge(exec) => exec.stats_mut(),
-            ExecutorEnum::InsertVertex(exec) => exec.stats_mut(),
-            ExecutorEnum::InsertEdge(exec) => exec.stats_mut(),
-            ExecutorEnum::Update(exec) => exec.stats_mut(),
             ExecutorEnum::ChangePassword(exec) => exec.stats_mut(),
         }
     }
@@ -602,9 +583,6 @@ impl<S: StorageClient + Send + 'static> super::base::Executor<S> for ExecutorEnu
             ExecutorEnum::AlterEdge(exec) => exec.execute().await,
             ExecutorEnum::DescEdge(exec) => exec.execute().await,
             ExecutorEnum::DropEdge(exec) => exec.execute().await,
-            ExecutorEnum::InsertVertex(exec) => exec.execute().await,
-            ExecutorEnum::InsertEdge(exec) => exec.execute().await,
-            ExecutorEnum::Update(exec) => exec.execute().await,
             ExecutorEnum::ChangePassword(exec) => exec.execute().await,
         };
         self.stats_mut().add_total_time(start.elapsed());
@@ -684,9 +662,6 @@ impl<S: StorageClient + Send + 'static> super::base::Executor<S> for ExecutorEnu
             ExecutorEnum::AlterEdge(exec) => exec.open(),
             ExecutorEnum::DescEdge(exec) => exec.open(),
             ExecutorEnum::DropEdge(exec) => exec.open(),
-            ExecutorEnum::InsertVertex(exec) => exec.open(),
-            ExecutorEnum::InsertEdge(exec) => exec.open(),
-            ExecutorEnum::Update(exec) => exec.open(),
             ExecutorEnum::ChangePassword(exec) => exec.open(),
         }
     }
@@ -764,9 +739,6 @@ impl<S: StorageClient + Send + 'static> super::base::Executor<S> for ExecutorEnu
             ExecutorEnum::AlterEdge(exec) => exec.close(),
             ExecutorEnum::DescEdge(exec) => exec.close(),
             ExecutorEnum::DropEdge(exec) => exec.close(),
-            ExecutorEnum::InsertVertex(exec) => exec.close(),
-            ExecutorEnum::InsertEdge(exec) => exec.close(),
-            ExecutorEnum::Update(exec) => exec.close(),
             ExecutorEnum::ChangePassword(exec) => exec.close(),
         }
     }
@@ -844,9 +816,6 @@ impl<S: StorageClient + Send + 'static> super::base::Executor<S> for ExecutorEnu
             ExecutorEnum::AlterEdge(exec) => exec.is_open(),
             ExecutorEnum::DescEdge(exec) => exec.is_open(),
             ExecutorEnum::DropEdge(exec) => exec.is_open(),
-            ExecutorEnum::InsertVertex(exec) => exec.is_open(),
-            ExecutorEnum::InsertEdge(exec) => exec.is_open(),
-            ExecutorEnum::Update(exec) => exec.is_open(),
             ExecutorEnum::ChangePassword(exec) => exec.is_open(),
         }
     }
@@ -936,9 +905,6 @@ impl<S: StorageClient + Send + 'static> super::base::Executor<S> for ExecutorEnu
             ExecutorEnum::AlterEdge(exec) => exec.stats(),
             ExecutorEnum::DescEdge(exec) => exec.stats(),
             ExecutorEnum::DropEdge(exec) => exec.stats(),
-            ExecutorEnum::InsertVertex(exec) => exec.stats(),
-            ExecutorEnum::InsertEdge(exec) => exec.stats(),
-            ExecutorEnum::Update(exec) => exec.stats(),
             ExecutorEnum::ChangePassword(exec) => exec.stats(),
         }
     }
@@ -1016,9 +982,6 @@ impl<S: StorageClient + Send + 'static> super::base::Executor<S> for ExecutorEnu
             ExecutorEnum::AlterEdge(exec) => exec.stats_mut(),
             ExecutorEnum::DescEdge(exec) => exec.stats_mut(),
             ExecutorEnum::DropEdge(exec) => exec.stats_mut(),
-            ExecutorEnum::InsertVertex(exec) => exec.stats_mut(),
-            ExecutorEnum::InsertEdge(exec) => exec.stats_mut(),
-            ExecutorEnum::Update(exec) => exec.stats_mut(),
             ExecutorEnum::ChangePassword(exec) => exec.stats_mut(),
         }
     }
@@ -1098,9 +1061,6 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for ExecutorEnum<S> {
             ExecutorEnum::AlterEdge(_) => {}
             ExecutorEnum::DescEdge(_) => {}
             ExecutorEnum::DropEdge(_) => {}
-            ExecutorEnum::InsertVertex(_) => {}
-            ExecutorEnum::InsertEdge(_) => {}
-            ExecutorEnum::Update(_) => {}
             ExecutorEnum::ChangePassword(_) => {}
         }
     }
@@ -1178,9 +1138,6 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for ExecutorEnum<S> {
             ExecutorEnum::AlterEdge(_) => None,
             ExecutorEnum::DescEdge(_) => None,
             ExecutorEnum::DropEdge(_) => None,
-            ExecutorEnum::InsertVertex(_) => None,
-            ExecutorEnum::InsertEdge(_) => None,
-            ExecutorEnum::Update(_) => None,
             ExecutorEnum::ChangePassword(_) => None,
         }
     }

@@ -7,7 +7,6 @@ pub mod space;
 pub mod tag;
 pub mod edge;
 pub mod index;
-pub mod data;
 pub mod user;
 
 pub use self::space::{
@@ -30,10 +29,6 @@ pub use self::index::{
     CreateTagIndexExecutor, DropTagIndexExecutor, DescTagIndexExecutor, ShowTagIndexesExecutor,
     CreateEdgeIndexExecutor, DropEdgeIndexExecutor, DescEdgeIndexExecutor, ShowEdgeIndexesExecutor,
     RebuildTagIndexExecutor, RebuildEdgeIndexExecutor,
-};
-
-pub use self::data::{
-    InsertVertexExecutor, InsertEdgeExecutor, DeleteExecutor, UpdateExecutor,
 };
 
 pub use self::user::{

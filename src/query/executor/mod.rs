@@ -65,8 +65,6 @@ pub use admin::{
     CreateTagIndexExecutor, DropTagIndexExecutor, DescTagIndexExecutor, ShowTagIndexesExecutor,
     CreateEdgeIndexExecutor, DropEdgeIndexExecutor, DescEdgeIndexExecutor, ShowEdgeIndexesExecutor,
     RebuildTagIndexExecutor, RebuildEdgeIndexExecutor,
-    InsertVertexExecutor, InsertEdgeExecutor, DeleteExecutor, UpdateExecutor,
-    ChangePasswordExecutor,
 };
 
 // Re-export search executors (搜索执行器)
