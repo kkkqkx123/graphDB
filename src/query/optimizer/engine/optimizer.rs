@@ -553,7 +553,6 @@ impl Optimizer {
 
         let mut round = 0;
         let mut stable_count = 0;
-        let mut last_changes = 0usize;
 
         while round < max_rounds {
             let before_nodes = root_group.nodes.len();
@@ -564,6 +563,7 @@ impl Optimizer {
                 let rule = self.find_rule(rule_name);
                 if let Some(rule) = rule {
                     self.apply_rule(ctx, &*root_group, &*rule)?;
+                    self.clear_visited(ctx);
                 }
             }
 
@@ -587,6 +587,20 @@ impl Optimizer {
         }
 
         Ok(())
+    }
+
+    fn clear_visited(&mut self, ctx: &mut OptContext) {
+        let group_ids: Vec<usize> = {
+            let group_map = ctx.group_map_mut();
+            group_map.keys().cloned().collect()
+        };
+
+        for group_id in group_ids {
+            if let Some(mut group) = ctx.find_group_by_id_mut(group_id) {
+                group.set_visited(false);
+                ctx.register_group(group);
+            }
+        }
     }
 
     fn get_rule_names_for_phase(&self, phase: &OptimizationPhase) -> Vec<&'static str> {
@@ -637,43 +651,194 @@ impl Optimizer {
         root_group: &OptGroup,
         rule: &dyn OptRule,
     ) -> Result<(), OptimizerError> {
-        let rule_name = rule.name();
+        let root_group_id = root_group.id;
+        self.explore_until_max_round(ctx, root_group_id, rule)
+    }
 
-        let group_ids: Vec<usize> = {
-            let group_map = ctx.group_map_mut();
-            group_map.keys().cloned().collect()
+    fn explore_until_max_round(
+        &mut self,
+        ctx: &mut OptContext,
+        group_id: usize,
+        rule: &dyn OptRule,
+    ) -> Result<(), OptimizerError> {
+        const MAX_EXPLORATION_ROUND: i32 = 128;
+        let mut max_round = MAX_EXPLORATION_ROUND;
+        
+        while !self.is_group_explored(ctx, group_id, rule) {
+            if max_round <= 0 {
+                break;
+            }
+            max_round -= 1;
+            self.explore_group(ctx, group_id, rule)?;
+        }
+        
+        Ok(())
+    }
+
+    fn is_group_explored(&self, ctx: &OptContext, group_id: usize, rule: &dyn OptRule) -> bool {
+        if let Some(group) = ctx.find_group_by_id(group_id) {
+            group.is_explored(rule.name())
+        } else {
+            true
+        }
+    }
+
+    fn explore_group(
+        &mut self,
+        ctx: &mut OptContext,
+        group_id: usize,
+        rule: &dyn OptRule,
+    ) -> Result<(), OptimizerError> {
+        if self.is_group_explored(ctx, group_id, rule) {
+            return Ok(());
+        }
+
+        if let Some(mut group) = ctx.find_group_by_id_mut(group_id) {
+            group.set_explored(rule.name());
+            ctx.register_group(group);
+        }
+
+        if let Some(mut group) = ctx.find_group_by_id_mut(group_id) {
+            if group.is_visited() {
+                return Ok(());
+            }
+            group.set_visited(true);
+            ctx.register_group(group);
+        }
+
+        let nodes: Vec<Rc<RefCell<OptGroupNode>>> = {
+            if let Some(group) = ctx.find_group_by_id(group_id) {
+                group.nodes.iter().cloned().collect()
+            } else {
+                return Ok(());
+            }
         };
 
-        for group_id in group_ids {
-            let group_opt = ctx.find_group_by_id(group_id);
-            if group_opt.is_none() {
+        for node_rc in nodes {
+            if self.is_node_explored(&node_rc.borrow(), rule) {
                 continue;
             }
 
-            let nodes: Vec<Rc<RefCell<OptGroupNode>>> = {
-                let group_ref = group_opt.unwrap();
-                group_ref.nodes.iter().cloned().collect()
-            };
+            self.explore_group_node(ctx, &node_rc, rule)?;
 
-            for node_rc in nodes {
-                let node_id = node_rc.borrow().id;
-
-                if self.has_explored_rule(&node_rc.borrow(), rule_name) {
-                    continue;
-                }
-
-                self.explore_node(ctx, &node_rc, rule)?;
+            if !rule.pattern().matches(&node_rc.borrow().plan_node) {
+                continue;
             }
 
-            {
-                if let Some(mut group) = ctx.find_group_by_id_mut(group_id) {
-                    group.explored_rules.clear();
-                    ctx.register_group(group);
+            match rule.apply(ctx, &node_rc) {
+                Ok(Some(result)) => {
+                    let node_id = node_rc.borrow().id;
+                    let node_dependencies = node_rc.borrow().dependencies.clone();
+                    let has_new_nodes = !result.new_group_nodes.is_empty();
+
+                    if result.erase_curr || result.erase_all {
+                        if let Some(mut group) = ctx.find_group_by_id_mut(node_id) {
+                            group.nodes.retain(|n| n.borrow().id != node_id);
+                            ctx.register_group(group);
+                        }
+                    }
+
+                    for new_node in result.new_group_nodes {
+                        let new_node_id = new_node.borrow().id;
+                        if let Some(mut group) = ctx.find_group_by_id_mut(new_node_id) {
+                            if !group.nodes.iter().any(|n| n.borrow().id == new_node_id) {
+                                group.add_node(new_node);
+                            }
+                            ctx.register_group(group);
+                        } else {
+                            let mut new_group = OptGroup::new(new_node_id);
+                            new_group.add_node(new_node);
+                            ctx.register_group(new_group);
+                        }
+                    }
+
+                    for &new_dep in &result.new_dependencies {
+                        if !node_dependencies.contains(&new_dep) {
+                            let mut node_mut = node_rc.borrow_mut();
+                            node_mut.dependencies.push(new_dep);
+                        }
+                    }
+
+                    ctx.set_changed(true);
+
+                    if has_new_nodes {
+                        self.set_group_unexplored(ctx, group_id, rule);
+                    }
                 }
+                Ok(None) => {
+                    let mut node_mut = node_rc.borrow_mut();
+                    node_mut.set_explored(rule.name());
+                }
+                Err(e) => return Err(e),
             }
         }
 
         Ok(())
+    }
+
+    fn explore_group_node(
+        &mut self,
+        ctx: &mut OptContext,
+        node: &Rc<RefCell<OptGroupNode>>,
+        rule: &dyn OptRule,
+    ) -> Result<(), OptimizerError> {
+        if self.is_node_explored(&node.borrow(), rule) {
+            return Ok(());
+        }
+
+        let mut node_mut = node.borrow_mut();
+        node_mut.set_explored(rule.name());
+        drop(node_mut);
+
+        let dependencies: Vec<usize> = node.borrow().dependencies.clone();
+        let bodies: Vec<usize> = node.borrow().bodies.clone();
+
+        for dep_id in dependencies {
+            self.explore_until_max_round(ctx, dep_id, rule)?;
+        }
+
+        for body_id in bodies {
+            self.explore_until_max_round(ctx, body_id, rule)?;
+        }
+
+        Ok(())
+    }
+
+    fn is_node_explored(&self, node: &OptGroupNode, rule: &dyn OptRule) -> bool {
+        node.is_explored(rule.name())
+    }
+
+    fn set_group_unexplored(&mut self, ctx: &mut OptContext, group_id: usize, rule: &dyn OptRule) {
+        if let Some(mut group) = ctx.find_group_by_id_mut(group_id) {
+            if group.is_visited() {
+                return;
+            }
+            group.set_visited(true);
+            group.set_unexplored(rule.name());
+
+            let node_ids: Vec<usize> = group.nodes.iter().map(|n| n.borrow().id).collect();
+            let dependencies = group.get_all_dependencies();
+            let bodies = group.get_all_bodies();
+
+            ctx.register_group(group);
+
+            for node_id in node_ids {
+                if let Some(node_group) = ctx.find_group_by_id(node_id) {
+                    if let Some(node_rc) = node_group.get_node_by_id(node_id) {
+                        let mut node_mut = node_rc.borrow_mut();
+                        node_mut.set_unexplored(rule.name());
+                    }
+                }
+            }
+
+            for dep_id in dependencies {
+                self.set_group_unexplored(ctx, dep_id, rule);
+            }
+
+            for body_id in bodies {
+                self.set_group_unexplored(ctx, body_id, rule);
+            }
+        }
     }
 
     fn explore_node(
@@ -732,10 +897,6 @@ impl Optimizer {
         }
 
         Ok(())
-    }
-
-    fn has_explored_rule(&self, node: &OptGroupNode, rule_name: &str) -> bool {
-        node.explored_rules.contains_key(rule_name)
     }
 
     fn extract_execution_plan(

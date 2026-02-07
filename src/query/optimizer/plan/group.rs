@@ -48,6 +48,7 @@ pub struct OptGroup {
     pub bodies: Vec<usize>,
     pub group_nodes_referenced: HashSet<usize>,
     pub phase: OptimizationPhase,
+    pub visited: bool,
 }
 
 impl OptGroup {
@@ -62,6 +63,7 @@ impl OptGroup {
             bodies: Vec::new(),
             group_nodes_referenced: HashSet::new(),
             phase: OptimizationPhase::Unknown,
+            visited: false,
         }
     }
 
@@ -176,6 +178,26 @@ impl OptGroup {
         }
         bodies
     }
+
+    pub fn is_explored(&self, rule_name: &str) -> bool {
+        self.explored_rules.contains(rule_name)
+    }
+
+    pub fn set_explored(&mut self, rule_name: &str) {
+        self.explored_rules.insert(rule_name.to_string());
+    }
+
+    pub fn set_unexplored(&mut self, rule_name: &str) {
+        self.explored_rules.remove(rule_name);
+    }
+
+    pub fn is_visited(&self) -> bool {
+        self.visited
+    }
+
+    pub fn set_visited(&mut self, visited: bool) {
+        self.visited = visited;
+    }
 }
 
 impl Clone for OptGroup {
@@ -187,6 +209,7 @@ impl Clone for OptGroup {
         new_group.bodies = self.bodies.clone();
         new_group.group_nodes_referenced = self.group_nodes_referenced.clone();
         new_group.phase = self.phase.clone();
+        new_group.visited = self.visited;
 
         for node_rc in &self.nodes {
             new_group.nodes.push(std::rc::Rc::clone(node_rc));

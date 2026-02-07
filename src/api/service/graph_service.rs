@@ -332,7 +332,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
 
     /// 开始新事务
     pub fn begin_transaction(&self, _session_id: i64) -> Result<TransactionId, String> {
-        let mut tx_manager = self.transaction_manager
+        let tx_manager = self.transaction_manager
             .lock()
             .map_err(|e| format!("获取事务管理器锁失败: {}", e))?;
 
@@ -371,7 +371,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         drop(storage);
 
         // 更新服务层事务状态
-        let mut tx_manager = self.transaction_manager
+        let tx_manager = self.transaction_manager
             .lock()
             .map_err(|e| format!("获取事务管理器锁失败: {}", e))?;
 
@@ -410,7 +410,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         drop(storage);
 
         // 更新服务层事务状态
-        let mut tx_manager = self.transaction_manager
+        let tx_manager = self.transaction_manager
             .lock()
             .map_err(|e| format!("获取事务管理器锁失败: {}", e))?;
 

@@ -121,6 +121,18 @@ impl OptGroupNode {
     pub fn get_bodies(&self) -> &[usize] {
         &self.bodies
     }
+
+    pub fn is_explored(&self, rule_name: &str) -> bool {
+        self.explored_rules.contains_key(rule_name)
+    }
+
+    pub fn set_explored(&mut self, rule_name: &str) {
+        self.explored_rules.insert(rule_name.to_string(), true);
+    }
+
+    pub fn set_unexplored(&mut self, rule_name: &str) {
+        self.explored_rules.remove(rule_name);
+    }
 }
 
 impl Clone for OptGroupNode {

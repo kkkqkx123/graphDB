@@ -1086,7 +1086,7 @@ impl<E: Engine> StorageClient for RedbStorage<E> {
         };
         
         // 获取或创建顶点
-        let mut vertex = match <Self as VertexReader>::get_vertex(self, space, &info.vertex_id)? {
+        let vertex = match <Self as VertexReader>::get_vertex(self, space, &info.vertex_id)? {
             Some(mut existing_vertex) => {
                 // 更新现有顶点
                 existing_vertex.tags.retain(|t| t.name != tag_name);

@@ -319,7 +319,6 @@ mod tests {
     use super::*;
     use crate::core::value::Value;
     use crate::core::{BinaryOperator, Expression};
-    use crate::query::executor::traits::{ExecutionResult, Executor};
     use crate::storage::test_mock::MockStorage;
 
     #[tokio::test]
@@ -332,7 +331,7 @@ mod tests {
             Expression::Variable("col1".to_string()),
         )];
 
-        let mut executor = ProjectExecutor::new(1, storage, columns);
+        let executor = ProjectExecutor::new(1, storage, columns);
 
         // 创建测试数据集
         let mut input_dataset = crate::core::value::DataSet::new();
@@ -368,7 +367,7 @@ mod tests {
             },
         )];
 
-        let mut executor = ProjectExecutor::new(1, storage, columns);
+        let executor = ProjectExecutor::new(1, storage, columns);
 
         // 创建测试数据集
         let mut input_dataset = crate::core::value::DataSet::new();
@@ -406,7 +405,7 @@ mod tests {
             ),
         ];
 
-        let mut executor = ProjectExecutor::new(1, storage, columns);
+        let executor = ProjectExecutor::new(1, storage, columns);
 
         // 创建测试顶点
         let vertex1 = crate::core::Vertex {
