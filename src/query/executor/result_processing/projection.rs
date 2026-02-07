@@ -13,7 +13,6 @@ use crate::expression::{DefaultExpressionContext, ExpressionContext};
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::base::InputExecutor;
 use crate::query::executor::executor_enum::ExecutorEnum;
-use crate::query::executor::traits::{ExecutionResult, Executor};
 use crate::storage::StorageClient;
 
 /// 投影列定义

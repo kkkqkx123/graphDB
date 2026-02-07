@@ -563,7 +563,7 @@ impl Optimizer {
             for rule_name in &phase_rule_names {
                 let rule = self.find_rule(rule_name);
                 if let Some(rule) = rule {
-                    self.apply_rule(ctx, root_group, &*rule)?;
+                    self.apply_rule(ctx, root_group, rule)?;
                 }
             }
 
@@ -575,12 +575,12 @@ impl Optimizer {
                 stable_count += 1;
             }
 
-            last_changes = root_group.nodes.len() - before_nodes;
+            let _last_changes = root_group.nodes.len() - before_nodes;
 
             if enable_adaptive
                 && round >= min_rounds
                 && stable_count >= stable_threshold
-                && last_changes == 0
+                && _last_changes == 0
             {
                 break;
             }

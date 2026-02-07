@@ -5,7 +5,6 @@ use crate::api::session::{ClientSession, GraphSessionManager};
 use crate::config::Config;
 use crate::storage::{StorageClient, TransactionId};
 use crate::core::error::{SessionError, SessionResult};
-use crate::utils::safe_lock;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;

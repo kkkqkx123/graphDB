@@ -158,7 +158,7 @@ impl SymbolTable {
     }
 
     pub fn read_by(&mut self, var_name: &str, node_id: i64) -> Result<(), String> {
-        if let Some(symbol) = self.symbols.get(var_name) {
+        if self.symbols.contains_key(var_name) {
             let mut new_symbols = (*self.symbols).clone();
             if let Some(symbol) = new_symbols.get_mut(var_name) {
                 symbol.readers.insert(node_id);
@@ -170,7 +170,7 @@ impl SymbolTable {
     }
 
     pub fn written_by(&mut self, var_name: &str, node_id: i64) -> Result<(), String> {
-        if let Some(symbol) = self.symbols.get(var_name) {
+        if self.symbols.contains_key(var_name) {
             let mut new_symbols = (*self.symbols).clone();
             if let Some(symbol) = new_symbols.get_mut(var_name) {
                 symbol.writers.insert(node_id);
@@ -193,7 +193,7 @@ impl SymbolTable {
 
     pub fn delete_written_by(&mut self, var_name: &str, node_id: i64) -> Result<bool, String> {
         let mut new_symbols = (*self.symbols).clone();
-        if let Some(mut symbol) = new_symbols.get_mut(var_name) {
+        if let Some(symbol) = new_symbols.get_mut(var_name) {
             let result = symbol.writers.remove(&node_id);
             self.symbols = Arc::new(new_symbols);
             return Ok(result);
@@ -210,13 +210,13 @@ impl SymbolTable {
         let mut success = false;
         let mut new_symbols = (*self.symbols).clone();
 
-        if let Some(mut symbol) = new_symbols.get_mut(old_var) {
+        if let Some(symbol) = new_symbols.get_mut(old_var) {
             if symbol.readers.remove(&node_id) {
                 success = true;
             }
         }
 
-        if let Some(mut symbol) = new_symbols.get_mut(new_var) {
+        if let Some(symbol) = new_symbols.get_mut(new_var) {
             if symbol.writers.insert(node_id) {
                 success = true;
             }
@@ -235,13 +235,13 @@ impl SymbolTable {
         let mut success = false;
         let mut new_symbols = (*self.symbols).clone();
 
-        if let Some(mut symbol) = new_symbols.get_mut(old_var) {
+        if let Some(symbol) = new_symbols.get_mut(old_var) {
             if symbol.writers.remove(&node_id) {
                 success = true;
             }
         }
 
-        if let Some(mut symbol) = new_symbols.get_mut(new_var) {
+        if let Some(symbol) = new_symbols.get_mut(new_var) {
             if symbol.writers.insert(node_id) {
                 success = true;
             }

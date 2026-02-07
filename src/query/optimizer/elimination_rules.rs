@@ -87,7 +87,7 @@ impl<'a> PlanNodeVisitor for EliminateFilterVisitor<'a> {
 
         if let Some(dep_id) = self.node_dependencies.first() {
             if let Some(child_node) = self.ctx.find_group_node_by_id(*dep_id) {
-                let mut new_node = child_node.clone();
+                let new_node = child_node.clone();
 
                 if let Some(_output_var) = node.output_var() {
                     let mut new_node_borrowed = new_node.borrow_mut();
@@ -118,8 +118,8 @@ impl OptRule for DedupEliminationRule {
         group_node: &Rc<RefCell<OptGroupNode>>,
     ) -> Result<Option<TransformResult>, OptimizerError> {
         let node_ref = group_node.borrow();
-        let mut visitor = DedupEliminationVisitor {
-            ctx: &ctx,
+        let visitor = DedupEliminationVisitor {
+            ctx,
             is_eliminated: false,
             eliminated_node: None,
         };
@@ -129,7 +129,7 @@ impl OptRule for DedupEliminationRule {
 
         if result.is_eliminated {
             if let Some(new_node) = result.eliminated_node {
-                let mut result = TransformResult::new();
+                let result = TransformResult::new();
                 result.add_new_group_node(Rc::new(RefCell::new(new_node)));
                 return Ok(Some(result));
             }
@@ -426,13 +426,13 @@ impl<'a> PlanNodeVisitor for EliminateAppendVerticesVisitor<'a> {
 
         if let Some(dep_id) = self.node_dependencies.first() {
             if let Some(child_node) = self.ctx.find_group_node_by_plan_node_id(*dep_id) {
-                let mut new_node = child_node.clone();
+                let new_node = child_node.clone();
 
                 if let Some(_output_var) = node.output_var() {
                     let inputs = node.inputs();
                     if let Some(input) = inputs.first() {
                         let mut new_node_borrowed = new_node.borrow_mut();
-                        new_node_borrowed.plan_node = *(*input).clone();
+                        new_node_borrowed.plan_node = (*input).clone();
                     }
                 }
 
@@ -460,8 +460,8 @@ impl OptRule for RemoveAppendVerticesBelowJoinRule {
         group_node: &Rc<RefCell<OptGroupNode>>,
     ) -> Result<Option<TransformResult>, OptimizerError> {
         let node_ref = group_node.borrow();
-        let mut visitor = RemoveAppendVerticesBelowJoinVisitor {
-            ctx: &ctx,
+        let visitor = RemoveAppendVerticesBelowJoinVisitor {
+            ctx,
             is_eliminated: false,
             eliminated_node: None,
             node_dependencies: node_ref.dependencies.clone(),
@@ -617,11 +617,11 @@ impl<'a> PlanNodeVisitor for EliminateRowCollectVisitor<'a> {
             return self.clone();
         }
 
-        let input = &**deps.first().unwrap();
+        let input = **deps.first().unwrap();
         let input_id = input.id() as usize;
 
         if let Some(child_node) = self.ctx.find_group_node_by_plan_node_id(input_id) {
-            let mut new_node = child_node.clone();
+            let new_node = child_node.clone();
 
             if let Some(_output_var) = node.output_var() {
                 let mut new_node_borrowed = new_node.borrow_mut();
