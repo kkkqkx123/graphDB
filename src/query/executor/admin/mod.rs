@@ -32,7 +32,7 @@ pub use self::index::{
 };
 
 pub use self::user::{
-    ChangePasswordExecutor,
+    CreateUserExecutor, AlterUserExecutor, DropUserExecutor, ChangePasswordExecutor,
 };
 
 pub use crate::core::types::metadata::PasswordInfo;

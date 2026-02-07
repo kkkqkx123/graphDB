@@ -5,6 +5,7 @@ use crate::core::types::{
     InsertVertexInfo, InsertEdgeInfo, UpdateInfo, UpdateTarget, UpdateOp,
     PasswordInfo,
 };
+use crate::core::types::metadata::{UserInfo, UserAlterInfo};
 pub use crate::core::types::EdgeTypeInfo as EdgeTypeSchema;
 use crate::index::Index;
 use crate::storage::Schema;
@@ -1204,6 +1205,31 @@ impl<E: Engine> StorageClient for RedbStorage<E> {
     fn change_password(&mut self, info: &PasswordInfo) -> Result<bool, StorageError> {
         let mut users = self.users.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         users.insert(info.username.clone(), info.new_password.clone());
+        Ok(true)
+    }
+
+    fn create_user(&mut self, info: &UserInfo) -> Result<bool, StorageError> {
+        let mut users = self.users.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        users.insert(info.username.clone(), info.password.clone());
+        Ok(true)
+    }
+
+    fn alter_user(&mut self, info: &UserAlterInfo) -> Result<bool, StorageError> {
+        let mut users = self.users.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        if let Some(password) = users.get_mut(&info.username) {
+            if let Some(new_role) = &info.new_role {
+            }
+            if let Some(is_locked) = info.is_locked {
+            }
+            Ok(true)
+        } else {
+            Err(StorageError::DbError(format!("User {} not found", info.username)))
+        }
+    }
+
+    fn drop_user(&mut self, username: &str) -> Result<bool, StorageError> {
+        let mut users = self.users.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        users.remove(username);
         Ok(true)
     }
 

@@ -11,6 +11,7 @@ use super::admin_node::{
     CreateTagIndexNode, DropTagIndexNode, DescTagIndexNode, ShowTagIndexesNode,
     CreateEdgeIndexNode, DropEdgeIndexNode, DescEdgeIndexNode, ShowEdgeIndexesNode,
     RebuildTagIndexNode, RebuildEdgeIndexNode,
+    CreateUserNode, AlterUserNode, DropUserNode,
 };
 use crate::query::planner::plan::core::explain::PlanNodeDescription;
 
@@ -172,6 +173,12 @@ pub enum PlanNodeEnum {
     RebuildTagIndex(RebuildTagIndexNode),
     /// 重建边索引
     RebuildEdgeIndex(RebuildEdgeIndexNode),
+    /// 创建用户
+    CreateUser(CreateUserNode),
+    /// 修改用户
+    AlterUser(AlterUserNode),
+    /// 删除用户
+    DropUser(DropUserNode),
 }
 
 impl Default for PlanNodeEnum {
@@ -543,6 +550,9 @@ impl PlanNodeEnum {
                 | PlanNodeEnum::ShowEdgeIndexes(_)
                 | PlanNodeEnum::RebuildTagIndex(_)
                 | PlanNodeEnum::RebuildEdgeIndex(_)
+                | PlanNodeEnum::CreateUser(_)
+                | PlanNodeEnum::AlterUser(_)
+                | PlanNodeEnum::DropUser(_)
         )
     }
 
@@ -612,6 +622,9 @@ impl PlanNodeEnum {
             PlanNodeEnum::ShowEdgeIndexes(_) => "ShowEdgeIndexes",
             PlanNodeEnum::RebuildTagIndex(_) => "RebuildTagIndex",
             PlanNodeEnum::RebuildEdgeIndex(_) => "RebuildEdgeIndex",
+            PlanNodeEnum::CreateUser(_) => "CreateUser",
+            PlanNodeEnum::AlterUser(_) => "AlterUser",
+            PlanNodeEnum::DropUser(_) => "DropUser",
         }
     }
 
@@ -682,6 +695,9 @@ impl PlanNodeEnum {
             PlanNodeEnum::ShowEdgeIndexes(_) => PlanNodeCategory::Management,
             PlanNodeEnum::RebuildTagIndex(_) => PlanNodeCategory::Management,
             PlanNodeEnum::RebuildEdgeIndex(_) => PlanNodeCategory::Management,
+            PlanNodeEnum::CreateUser(_) => PlanNodeCategory::Management,
+            PlanNodeEnum::AlterUser(_) => PlanNodeCategory::Management,
+            PlanNodeEnum::DropUser(_) => PlanNodeCategory::Management,
         }
     }
 
@@ -1737,6 +1753,9 @@ impl PlanNodeEnum {
             PlanNodeEnum::ShowEdgeIndexes(_) => vec![],
             PlanNodeEnum::RebuildTagIndex(_) => vec![],
             PlanNodeEnum::RebuildEdgeIndex(_) => vec![],
+            PlanNodeEnum::CreateUser(_) => vec![],
+            PlanNodeEnum::AlterUser(_) => vec![],
+            PlanNodeEnum::DropUser(_) => vec![],
             PlanNodeEnum::IndexScan(_) => vec![],
             PlanNodeEnum::FulltextIndexScan(_) => vec![],
             PlanNodeEnum::ScanVertices(_) => vec![],

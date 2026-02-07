@@ -410,6 +410,9 @@ pub trait PlanNodeVisitor {
             PlanNodeEnum::ShowEdgeIndexes(n) => self.visit_show_edge_indexes(n),
             PlanNodeEnum::RebuildTagIndex(n) => self.visit_rebuild_tag_index(n),
             PlanNodeEnum::RebuildEdgeIndex(n) => self.visit_rebuild_edge_index(n),
+            PlanNodeEnum::CreateUser(n) => self.visit_default(),
+            PlanNodeEnum::AlterUser(n) => self.visit_default(),
+            PlanNodeEnum::DropUser(n) => self.visit_default(),
         }
     }
 }

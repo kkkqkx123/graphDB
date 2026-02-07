@@ -8,6 +8,9 @@ pub mod desc_edge;
 pub mod drop_edge;
 pub mod show_edges;
 
+#[cfg(test)]
+mod tests;
+
 pub use create_edge::CreateEdgeExecutor;
 pub use alter_edge::AlterEdgeExecutor;
 pub use desc_edge::DescEdgeExecutor;

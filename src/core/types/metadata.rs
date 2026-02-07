@@ -156,6 +156,62 @@ pub struct PasswordInfo {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
+pub struct UserInfo {
+    pub username: String,
+    pub password: String,
+    pub role: String,
+    pub is_locked: bool,
+}
+
+impl UserInfo {
+    pub fn new(username: String, password: String) -> Self {
+        Self {
+            username,
+            password,
+            role: "user".to_string(),
+            is_locked: false,
+        }
+    }
+
+    pub fn with_role(mut self, role: String) -> Self {
+        self.role = role;
+        self
+    }
+
+    pub fn with_locked(mut self, is_locked: bool) -> Self {
+        self.is_locked = is_locked;
+        self
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
+pub struct UserAlterInfo {
+    pub username: String,
+    pub new_role: Option<String>,
+    pub is_locked: Option<bool>,
+}
+
+impl UserAlterInfo {
+    pub fn new(username: String) -> Self {
+        Self {
+            username,
+            new_role: None,
+            is_locked: None,
+        }
+    }
+
+    pub fn with_role(mut self, role: String) -> Self {
+        self.new_role = Some(role);
+        self
+    }
+
+    pub fn with_locked(mut self, is_locked: bool) -> Self {
+        self.is_locked = Some(is_locked);
+        self
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
 pub struct ClusterInfo {
     pub cluster_id: i32,
     pub nodes: Vec<String>,

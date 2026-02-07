@@ -84,7 +84,7 @@ pub trait PlanNodeVisitor {
     fn visit_show_edge_indexes(&mut self, node: &ShowEdgeIndexesNode) -> Self::Result;
     fn visit_rebuild_tag_index(&mut self, node: &RebuildTagIndexNode) -> Self::Result;
     fn visit_rebuild_edge_index(&mut self, node: &RebuildEdgeIndexNode) -> Self::Result;
-    
+
     fn visit(&mut self, node: &PlanNodeEnum) -> Self::Result {
         match node {
             PlanNodeEnum::Start(n) => self.visit_start(n),
@@ -150,6 +150,9 @@ pub trait PlanNodeVisitor {
             PlanNodeEnum::ShowEdgeIndexes(n) => self.visit_show_edge_indexes(n),
             PlanNodeEnum::RebuildTagIndex(n) => self.visit_rebuild_tag_index(n),
             PlanNodeEnum::RebuildEdgeIndex(n) => self.visit_rebuild_edge_index(n),
+            PlanNodeEnum::CreateUser(_) => self.visit_start(&StartNode::new()),
+            PlanNodeEnum::AlterUser(_) => self.visit_start(&StartNode::new()),
+            PlanNodeEnum::DropUser(_) => self.visit_start(&StartNode::new()),
             PlanNodeEnum::CartesianProduct(n) => self.visit_cross_join(n),
         }
     }

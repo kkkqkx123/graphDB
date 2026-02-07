@@ -1,4 +1,5 @@
 use crate::core::error::{DBError, DBResult, StorageError, StorageResult};
+use crate::core::types::metadata::{UserInfo, UserAlterInfo};
 use crate::query::context::runtime_context::RuntimeContext;
 use crate::storage::StorageClient;
 use std::sync::{Arc, Mutex};
@@ -472,6 +473,18 @@ mod tests {
         }
 
         fn change_password(&mut self, _info: &PasswordInfo) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn create_user(&mut self, _info: &UserInfo) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn alter_user(&mut self, _info: &UserAlterInfo) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn drop_user(&mut self, _username: &str) -> Result<bool, StorageError> {
             Ok(true)
         }
 

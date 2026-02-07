@@ -656,6 +656,18 @@ mod tests {
             Ok(true)
         }
 
+        fn create_user(&mut self, _info: &crate::core::types::metadata::UserInfo) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn alter_user(&mut self, _info: &crate::core::types::metadata::UserAlterInfo) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn drop_user(&mut self, _username: &str) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
         fn get_vertex_with_schema(&self, _space: &str, _tag: &str, _id: &Value) -> Result<Option<(Schema, Vec<u8>)>, StorageError> {
             Ok(None)
         }

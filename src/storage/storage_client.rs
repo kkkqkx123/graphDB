@@ -3,6 +3,7 @@ use crate::core::types::{
     EdgeTypeInfo, InsertEdgeInfo, InsertVertexInfo, PasswordInfo,
     PropertyDef, SpaceInfo, TagInfo, UpdateInfo,
 };
+use crate::core::types::metadata::{UserInfo, UserAlterInfo};
 use crate::index::Index;
 use crate::storage::Schema;
 use crate::storage::transaction::TransactionId;
@@ -91,6 +92,10 @@ pub trait StorageClient: Send + Sync + std::fmt::Debug {
     fn update_data(&mut self, space: &str, info: &UpdateInfo) -> Result<bool, StorageError>;
 
     fn change_password(&mut self, info: &PasswordInfo) -> Result<bool, StorageError>;
+
+    fn create_user(&mut self, info: &UserInfo) -> Result<bool, StorageError>;
+    fn alter_user(&mut self, info: &UserAlterInfo) -> Result<bool, StorageError>;
+    fn drop_user(&mut self, username: &str) -> Result<bool, StorageError>;
 
     fn lookup_index(&self, space: &str, index: &str, value: &Value) -> Result<Vec<Value>, StorageError>;
 

@@ -72,6 +72,9 @@ impl IntoOperationKind for PlanNodeEnum {
             PlanNodeEnum::ShowEdgeIndexes(_) => CoreOperationKind::Show,
             PlanNodeEnum::RebuildTagIndex(_) => CoreOperationKind::RebuildIndex,
             PlanNodeEnum::RebuildEdgeIndex(_) => CoreOperationKind::RebuildIndex,
+            PlanNodeEnum::CreateUser(_) => CoreOperationKind::CreateUser,
+            PlanNodeEnum::AlterUser(_) => CoreOperationKind::AlterUser,
+            PlanNodeEnum::DropUser(_) => CoreOperationKind::DropUser,
         }
     }
 }

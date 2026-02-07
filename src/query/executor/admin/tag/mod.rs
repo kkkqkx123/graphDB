@@ -8,6 +8,9 @@ pub mod desc_tag;
 pub mod drop_tag;
 pub mod show_tags;
 
+#[cfg(test)]
+mod tests;
+
 pub use create_tag::CreateTagExecutor;
 pub use alter_tag::AlterTagExecutor;
 pub use desc_tag::DescTagExecutor;

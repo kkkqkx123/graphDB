@@ -504,7 +504,8 @@ impl Optimizer {
             | PlanNodeEnum::CreateTagIndex(_) | PlanNodeEnum::DropTagIndex(_) | PlanNodeEnum::DescTagIndex(_)
             | PlanNodeEnum::ShowTagIndexes(_) | PlanNodeEnum::CreateEdgeIndex(_) | PlanNodeEnum::DropEdgeIndex(_)
             | PlanNodeEnum::DescEdgeIndex(_) | PlanNodeEnum::ShowEdgeIndexes(_)
-            | PlanNodeEnum::RebuildTagIndex(_) | PlanNodeEnum::RebuildEdgeIndex(_) => {
+            | PlanNodeEnum::RebuildTagIndex(_) | PlanNodeEnum::RebuildEdgeIndex(_)
+            | PlanNodeEnum::CreateUser(_) | PlanNodeEnum::AlterUser(_) | PlanNodeEnum::DropUser(_) => {
                 // These nodes don't have inputs to process in the current context
             }
         }

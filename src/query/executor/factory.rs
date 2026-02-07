@@ -44,6 +44,7 @@ use crate::query::executor::admin::{
     CreateTagIndexExecutor, DropTagIndexExecutor, DescTagIndexExecutor, ShowTagIndexesExecutor,
     CreateEdgeIndexExecutor, DropEdgeIndexExecutor, DescEdgeIndexExecutor, ShowEdgeIndexesExecutor,
     RebuildTagIndexExecutor, RebuildEdgeIndexExecutor,
+    CreateUserExecutor, AlterUserExecutor, DropUserExecutor, ChangePasswordExecutor,
 };
 
 /// 从 PlanNode 提取顶点 ID 列表
@@ -1210,6 +1211,39 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     node.index_name().to_string(),
                 );
                 Ok(ExecutorEnum::RebuildEdgeIndex(executor))
+            }
+
+            // 用户管理执行器
+            PlanNodeEnum::CreateUser(node) => {
+                use crate::core::types::metadata::UserInfo;
+                let user_info = UserInfo::new(
+                    node.username().to_string(),
+                    node.password().to_string(),
+                ).with_role(node.role().to_string());
+                let executor = CreateUserExecutor::new(node.id(), storage, user_info);
+                Ok(ExecutorEnum::CreateUser(executor))
+            }
+
+            PlanNodeEnum::AlterUser(node) => {
+                use crate::core::types::metadata::UserAlterInfo;
+                let mut alter_info = UserAlterInfo::new(node.username().to_string());
+                if let Some(role) = node.new_role() {
+                    alter_info = alter_info.with_role(role.clone());
+                }
+                if let Some(locked) = node.is_locked() {
+                    alter_info = alter_info.with_locked(locked);
+                }
+                let executor = AlterUserExecutor::new(node.id(), storage, alter_info);
+                Ok(ExecutorEnum::AlterUser(executor))
+            }
+
+            PlanNodeEnum::DropUser(node) => {
+                let executor = DropUserExecutor::new(
+                    node.id(),
+                    storage,
+                    node.username().to_string(),
+                );
+                Ok(ExecutorEnum::DropUser(executor))
             }
 
             _ => Err(QueryError::ExecutionError(format!(

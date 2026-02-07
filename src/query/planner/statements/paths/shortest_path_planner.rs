@@ -199,6 +199,19 @@ impl StorageClient for DummyStorage {
     fn change_password(&mut self, _info: &crate::core::types::PasswordInfo) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
+
+    fn create_user(&mut self, _info: &crate::core::types::metadata::UserInfo) -> Result<bool, crate::core::StorageError> {
+        Ok(true)
+    }
+
+    fn alter_user(&mut self, _info: &crate::core::types::metadata::UserAlterInfo) -> Result<bool, crate::core::StorageError> {
+        Ok(true)
+    }
+
+    fn drop_user(&mut self, _username: &str) -> Result<bool, crate::core::StorageError> {
+        Ok(true)
+    }
+
     fn insert_vertex_data(&mut self, _space: &str, _info: &crate::core::types::InsertVertexInfo) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }

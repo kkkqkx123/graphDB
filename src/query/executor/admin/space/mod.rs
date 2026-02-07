@@ -7,6 +7,9 @@ pub mod drop_space;
 pub mod desc_space;
 pub mod show_spaces;
 
+#[cfg(test)]
+mod tests;
+
 pub use create_space::CreateSpaceExecutor;
 pub use drop_space::DropSpaceExecutor;
 pub use desc_space::DescSpaceExecutor;

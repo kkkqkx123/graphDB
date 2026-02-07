@@ -23,6 +23,8 @@ use crate::core::types::{
     PropertyDef, SpaceInfo, TagInfo, UpdateInfo,
 };
 #[cfg(test)]
+use crate::core::types::metadata::{UserInfo, UserAlterInfo};
+#[cfg(test)]
 use crate::index::Index;
 #[cfg(test)]
 use crate::storage::Schema;
@@ -321,6 +323,18 @@ impl StorageClient for MockStorage {
     }
 
     fn change_password(&mut self, _info: &PasswordInfo) -> Result<bool, StorageError> {
+        Ok(true)
+    }
+
+    fn create_user(&mut self, _info: &UserInfo) -> Result<bool, StorageError> {
+        Ok(true)
+    }
+
+    fn alter_user(&mut self, _info: &UserAlterInfo) -> Result<bool, StorageError> {
+        Ok(true)
+    }
+
+    fn drop_user(&mut self, _username: &str) -> Result<bool, StorageError> {
         Ok(true)
     }
 

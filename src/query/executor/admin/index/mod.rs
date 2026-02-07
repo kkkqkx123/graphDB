@@ -6,6 +6,9 @@ pub mod tag_index;
 pub mod edge_index;
 pub mod rebuild_index;
 
+#[cfg(test)]
+mod tests;
+
 pub use tag_index::{
     CreateTagIndexExecutor, DropTagIndexExecutor, DescTagIndexExecutor, ShowTagIndexesExecutor,
 };

@@ -81,6 +81,9 @@ impl<S: StorageClient + Send + 'static> IntoOperationKind for ExecutorEnum<S> {
             ExecutorEnum::AlterEdge(_) => CoreOperationKind::AlterEdge,
             ExecutorEnum::DescEdge(_) => CoreOperationKind::DescribeEdge,
             ExecutorEnum::DropEdge(_) => CoreOperationKind::DropEdge,
+            ExecutorEnum::CreateUser(_) => CoreOperationKind::CreateUser,
+            ExecutorEnum::AlterUser(_) => CoreOperationKind::AlterUser,
+            ExecutorEnum::DropUser(_) => CoreOperationKind::DropUser,
             ExecutorEnum::ChangePassword(_) => CoreOperationKind::ChangePassword,
         }
     }

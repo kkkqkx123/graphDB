@@ -334,12 +334,13 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
         use admin_executor::{ChangePasswordExecutor, PasswordInfo};
         let id = self.id;
 
-        let password_info = PasswordInfo {
-            username: clause.username,
-            old_password: clause.old_password,
-            new_password: clause.new_password,
-        };
-        let mut executor = ChangePasswordExecutor::new(id, self.storage.clone(), password_info);
+        let mut executor = ChangePasswordExecutor::new(
+            id,
+            self.storage.clone(),
+            clause.username,
+            clause.old_password,
+            clause.new_password,
+        );
         executor.open()?;
         executor.execute().await.map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
     }
