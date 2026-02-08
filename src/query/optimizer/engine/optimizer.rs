@@ -827,64 +827,6 @@ impl Optimizer {
         }
     }
 
-    fn explore_node(
-        &mut self,
-        ctx: &mut OptContext,
-        node: &Rc<RefCell<OptGroupNode>>,
-        rule: &dyn OptRule,
-    ) -> Result<(), OptimizerError> {
-        let node_borrowed = node.borrow();
-        if !rule.pattern().matches(&node_borrowed.plan_node) {
-            return Ok(());
-        }
-
-        let node_id = node.borrow().id;
-        let node_dependencies = node.borrow().dependencies.clone();
-
-        drop(node_borrowed);
-
-        match rule.apply(ctx, node) {
-            Ok(Some(result)) => {
-                if result.erase_curr || result.erase_all {
-                    if let Some(mut group) = ctx.find_group_by_id_mut(node_id) {
-                        group.nodes.retain(|n| n.borrow().id != node_id);
-                        ctx.register_group(group);
-                    }
-                }
-
-                for new_node in result.new_group_nodes {
-                    let new_node_id = new_node.borrow().id;
-                    if let Some(mut group) = ctx.find_group_by_id_mut(new_node_id) {
-                        if !group.nodes.iter().any(|n| n.borrow().id == new_node_id) {
-                            group.add_node(new_node);
-                        }
-                        ctx.register_group(group);
-                    } else {
-                        let mut new_group = OptGroup::new(new_node_id);
-                        new_group.add_node(new_node);
-                        ctx.register_group(new_group);
-                    }
-                }
-
-                for &new_dep in &result.new_dependencies {
-                    if !node_dependencies.contains(&new_dep) {
-                        let mut node_mut = node.borrow_mut();
-                        node_mut.dependencies.push(new_dep);
-                    }
-                }
-
-                ctx.set_changed(true);
-            }
-            Ok(None) => {
-                let mut node_mut = node.borrow_mut();
-                node_mut.explored_rules.insert(rule.name().to_string(), true);
-            }
-            Err(e) => return Err(e),
-        }
-
-        Ok(())
-    }
-
     fn extract_execution_plan(
         &self,
         root_group: &OptGroup,

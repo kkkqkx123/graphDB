@@ -92,9 +92,9 @@ impl OptRule for PushFilterDownHashInnerJoinRule {
             check_col_name(&left_col_names, expr)
         };
 
-        let (left_filter_picked, remaining_after_left) = split_filter(&filter_condition, left_picker);
+        let (_left_filter_picked, remaining_after_left) = split_filter(&filter_condition, left_picker);
 
-        let left_filter_picked = match left_filter_picked {
+        let _left_filter_picked = match _left_filter_picked {
             Some(expr) => expr,
             None => return Ok(None),
         };
@@ -103,12 +103,12 @@ impl OptRule for PushFilterDownHashInnerJoinRule {
             check_col_name(&right_col_names, expr)
         };
 
-        let (right_filter_picked, remaining_after_right) = match remaining_after_left {
+        let (_right_filter_picked, _remaining_after_right) = match remaining_after_left {
             Some(expr) => split_filter(&expr, right_picker),
             None => (None, None),
         };
 
-        let right_filter_picked = match right_filter_picked {
+        let _right_filter_picked = match _right_filter_picked {
             Some(expr) => expr,
             None => return Ok(None),
         };

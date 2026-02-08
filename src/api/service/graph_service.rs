@@ -11,7 +11,7 @@ use std::time::Duration;
 
 /// 事务状态枚举
 #[derive(Debug, Clone, PartialEq)]
-enum TxState {
+pub enum TxState {
     Active,
     Committed,
     RolledBack,

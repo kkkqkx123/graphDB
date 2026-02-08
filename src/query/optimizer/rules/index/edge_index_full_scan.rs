@@ -72,7 +72,7 @@ impl BaseOptRule for EdgeIndexFullScanRule {}
 /// 优化边索引扫描
 fn optimize_edge_index_scan(
     index_scan: &IndexScan,
-    ctx: &mut OptContext,
+    _ctx: &mut OptContext,
     group_node: &Rc<RefCell<OptGroupNode>>,
 ) -> Result<Option<TransformResult>, crate::query::optimizer::engine::OptimizerError> {
     if index_scan.scan_limits.is_empty() {

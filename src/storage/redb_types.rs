@@ -48,3 +48,6 @@ pub const VERTEX_DATA_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefinition
 pub const EDGE_DATA_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefinition::new("edge_data");
 pub const PASSWORDS_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefinition::new("passwords");
 pub const INDEX_COUNTER_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefinition::new("index_counter");
+pub const SCHEMA_VERSIONS_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefinition::new("schema_versions");
+pub const SCHEMA_CHANGES_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefinition::new("schema_changes");
+pub const CURRENT_VERSIONS_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefinition::new("current_versions");

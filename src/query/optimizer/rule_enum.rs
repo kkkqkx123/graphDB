@@ -73,8 +73,6 @@ impl OptimizationRule {
             Self::ScanWithFilterOptimization | Self::IndexFullScan | Self::IndexScan |
             Self::EdgeIndexFullScan | Self::TagIndexFullScan | Self::UnionAllEdgeIndexScan |
             Self::UnionAllTagIndexScan => OptimizationPhase::Physical,
-
-            _ => OptimizationPhase::Unknown,
         }
     }
     
@@ -163,7 +161,6 @@ impl OptimizationRule {
             Self::TagIndexFullScan => Some(Rc::new(super::TagIndexFullScanRule)),
             Self::UnionAllEdgeIndexScan => Some(Rc::new(super::UnionAllEdgeIndexScanRule)),
             Self::UnionAllTagIndexScan => Some(Rc::new(super::UnionAllTagIndexScanRule)),
-            _ => None,
         }
     }
     
@@ -208,7 +205,6 @@ impl OptimizationRule {
             "TagIndexFullScanRule" => Some(Self::TagIndexFullScan),
             "UnionAllEdgeIndexScanRule" => Some(Self::UnionAllEdgeIndexScan),
             "UnionAllTagIndexScanRule" => Some(Self::UnionAllTagIndexScan),
-            
             _ => None,
         }
     }

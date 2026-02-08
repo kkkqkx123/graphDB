@@ -3,16 +3,18 @@ use crate::core::{Edge, StorageError, Value, Vertex, EdgeDirection};
 use crate::core::types::{
     SpaceInfo, TagInfo, EdgeTypeInfo, PropertyDef,
     InsertVertexInfo, InsertEdgeInfo, UpdateInfo, UpdateOp,
-    PasswordInfo,
+    PasswordInfo, SchemaChange, SchemaChangeType,
 };
 use crate::core::types::metadata::{UserInfo, UserAlterInfo};
 pub use crate::core::types::EdgeTypeInfo as EdgeTypeSchema;
 use crate::index::Index;
 use crate::storage::Schema;
 use crate::storage::serializer::{vertex_to_bytes, vertex_from_bytes, edge_to_bytes, edge_from_bytes};
+use crate::storage::metadata::{RedbExtendedSchemaManager, ExtendedSchemaManager};
 use crate::common::id::IdGenerator;
 use crate::storage::engine::{Engine, RedbEngine};
 use crate::api::service::permission_manager::RoleType;
+use redb::Database;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -20,7 +22,7 @@ use std::sync::{Arc, Mutex};
 #[derive(Clone)]
 pub struct RedbStorage<E: Engine> {
     engine: Arc<Mutex<E>>,
-    id_generator: Arc<Mutex<IdGenerator>>,
+    _id_generator: Arc<Mutex<IdGenerator>>,
     spaces: Arc<Mutex<HashMap<String, SpaceInfo>>>,
     tags: Arc<Mutex<HashMap<String, HashMap<String, TagInfo>>>>,
     edge_type_infos: Arc<Mutex<HashMap<String, HashMap<String, EdgeTypeSchema>>>>,
@@ -28,6 +30,8 @@ pub struct RedbStorage<E: Engine> {
     edge_indexes: Arc<Mutex<HashMap<String, HashMap<String, Index>>>>,
     users: Arc<Mutex<HashMap<String, UserInfo>>>,
     pub schema_manager: Arc<MemorySchemaManager>,
+    pub extended_schema_manager: Arc<RedbExtendedSchemaManager>,
+    db: Arc<Database>,
     db_path: PathBuf,
 }
 
@@ -45,14 +49,15 @@ impl RedbStorage<RedbEngine> {
     }
 
     pub fn new_with_path(path: PathBuf) -> Result<Self, StorageError> {
-        let id_generator = Arc::new(Mutex::new(IdGenerator::new()));
+        let _id_generator = Arc::new(Mutex::new(IdGenerator::new()));
         let schema_manager = Arc::new(MemorySchemaManager::new());
+        let extended_schema_manager = Arc::new(MemoryExtendedSchemaManager::new(schema_manager.clone()));
 
         let engine = Arc::new(Mutex::new(RedbEngine::new(&path)?));
 
         Ok(Self {
             engine,
-            id_generator,
+            _id_generator,
             spaces: Arc::new(Mutex::new(HashMap::new())),
             tags: Arc::new(Mutex::new(HashMap::new())),
             edge_type_infos: Arc::new(Mutex::new(HashMap::new())),
@@ -60,6 +65,7 @@ impl RedbStorage<RedbEngine> {
             edge_indexes: Arc::new(Mutex::new(HashMap::new())),
             users: Arc::new(Mutex::new(HashMap::new())),
             schema_manager,
+            extended_schema_manager,
             db_path: path,
         })
     }
@@ -1027,6 +1033,31 @@ impl<E: Engine> StorageClient for RedbStorage<E> {
                 return Ok(false);
             }
             space_tags.insert(info.tag_name.clone(), info.clone());
+            drop(tags);
+
+            // 保存 schema 快照
+            if let Ok(space_info) = self.get_space(space) {
+                if let Some(space_id) = space_info.map(|s| s.space_id) {
+                    let tags_list = self.list_tags(space).unwrap_or_default();
+                    let edge_types = self.list_edge_types(space).unwrap_or_default();
+                    let _ = self.extended_schema_manager.save_schema_snapshot(
+                        space_id,
+                        tags_list,
+                        edge_types,
+                        Some(format!("创建标签: {}", info.tag_name)),
+                    );
+
+                    // 记录 schema 变更
+                    let change = SchemaChange {
+                        change_type: SchemaChangeType::AddProperty,
+                        target: info.tag_name.clone(),
+                        property: None,
+                        timestamp: chrono::Utc::now().timestamp_millis(),
+                    };
+                    let _ = self.extended_schema_manager.record_schema_change(space_id, change);
+                }
+            }
+
             Ok(true)
         } else {
             Err(StorageError::DbError(format!("Space '{}' not found", space)))
@@ -1037,13 +1068,51 @@ impl<E: Engine> StorageClient for RedbStorage<E> {
         let mut tags = self.tags.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         if let Some(space_tags) = tags.get_mut(space_name) {
             if let Some(tag_info) = space_tags.get_mut(tag_name) {
-                for prop in additions {
+                for prop in &additions {
                     tag_info.properties.retain(|p| p.name != prop.name);
-                    tag_info.properties.push(prop);
+                    tag_info.properties.push(prop.clone());
                 }
-                for prop_name in deletions {
-                    tag_info.properties.retain(|p| p.name != prop_name);
+                for prop_name in &deletions {
+                    tag_info.properties.retain(|p| p.name != *prop_name);
                 }
+                drop(tags);
+
+                // 保存 schema 快照
+                if let Ok(space_info) = self.get_space(space_name) {
+                    if let Some(space_id) = space_info.map(|s| s.space_id) {
+                        let tags_list = self.list_tags(space_name).unwrap_or_default();
+                        let edge_types = self.list_edge_types(space_name).unwrap_or_default();
+                        let _ = self.extended_schema_manager.save_schema_snapshot(
+                            space_id,
+                            tags_list,
+                            edge_types,
+                            Some(format!("修改标签: {}", tag_name)),
+                        );
+
+                        // 记录属性添加变更
+                        for prop in additions {
+                            let change = SchemaChange {
+                                change_type: SchemaChangeType::AddProperty,
+                                target: format!("{}.{}", tag_name, prop.name),
+                                property: Some(prop),
+                                timestamp: chrono::Utc::now().timestamp_millis(),
+                            };
+                            let _ = self.extended_schema_manager.record_schema_change(space_id, change);
+                        }
+
+                        // 记录属性删除变更
+                        for prop_name in deletions {
+                            let change = SchemaChange {
+                                change_type: SchemaChangeType::DropProperty,
+                                target: format!("{}.{}", tag_name, prop_name),
+                                property: None,
+                                timestamp: chrono::Utc::now().timestamp_millis(),
+                            };
+                            let _ = self.extended_schema_manager.record_schema_change(space_id, change);
+                        }
+                    }
+                }
+
                 Ok(true)
             } else {
                 Ok(false)
@@ -1065,7 +1134,35 @@ impl<E: Engine> StorageClient for RedbStorage<E> {
     fn drop_tag(&mut self, space_name: &str, tag_name: &str) -> Result<bool, StorageError> {
         let mut tags = self.tags.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         if let Some(space_tags) = tags.get_mut(space_name) {
-            Ok(space_tags.remove(tag_name).is_some())
+            let removed = space_tags.remove(tag_name).is_some();
+            drop(tags);
+
+            // 保存 schema 快照
+            if removed {
+                if let Ok(space_info) = self.get_space(space_name) {
+                    if let Some(space_id) = space_info.map(|s| s.space_id) {
+                        let tags_list = self.list_tags(space_name).unwrap_or_default();
+                        let edge_types = self.list_edge_types(space_name).unwrap_or_default();
+                        let _ = self.extended_schema_manager.save_schema_snapshot(
+                            space_id,
+                            tags_list,
+                            edge_types,
+                            Some(format!("删除标签: {}", tag_name)),
+                        );
+
+                        // 记录 schema 变更
+                        let change = SchemaChange {
+                            change_type: SchemaChangeType::DropProperty,
+                            target: tag_name.to_string(),
+                            property: None,
+                            timestamp: chrono::Utc::now().timestamp_millis(),
+                        };
+                        let _ = self.extended_schema_manager.record_schema_change(space_id, change);
+                    }
+                }
+            }
+
+            Ok(removed)
         } else {
             Err(StorageError::DbError(format!("Space '{}' not found", space_name)))
         }
@@ -1087,6 +1184,31 @@ impl<E: Engine> StorageClient for RedbStorage<E> {
                 return Ok(false);
             }
             space_edge_types.insert(edge.edge_type_name.clone(), edge.clone());
+            drop(edge_type_infos);
+
+            // 保存 schema 快照
+            if let Ok(space_info) = self.get_space(space) {
+                if let Some(space_id) = space_info.map(|s| s.space_id) {
+                    let tags_list = self.list_tags(space).unwrap_or_default();
+                    let edge_types = self.list_edge_types(space).unwrap_or_default();
+                    let _ = self.extended_schema_manager.save_schema_snapshot(
+                        space_id,
+                        tags_list,
+                        edge_types,
+                        Some(format!("创建边类型: {}", edge.edge_type_name)),
+                    );
+
+                    // 记录 schema 变更
+                    let change = SchemaChange {
+                        change_type: SchemaChangeType::AddProperty,
+                        target: edge.edge_type_name.clone(),
+                        property: None,
+                        timestamp: chrono::Utc::now().timestamp_millis(),
+                    };
+                    let _ = self.extended_schema_manager.record_schema_change(space_id, change);
+                }
+            }
+
             Ok(true)
         } else {
             Err(StorageError::DbError(format!("Space '{}' not found", space)))
@@ -1097,13 +1219,51 @@ impl<E: Engine> StorageClient for RedbStorage<E> {
         let mut edge_type_infos = self.edge_type_infos.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         if let Some(space_edge_types) = edge_type_infos.get_mut(space_name) {
             if let Some(edge_type_info) = space_edge_types.get_mut(edge_type_name) {
-                for prop in additions {
+                for prop in &additions {
                     edge_type_info.properties.retain(|p| p.name != prop.name);
-                    edge_type_info.properties.push(prop);
+                    edge_type_info.properties.push(prop.clone());
                 }
-                for prop_name in deletions {
-                    edge_type_info.properties.retain(|p| p.name != prop_name);
+                for prop_name in &deletions {
+                    edge_type_info.properties.retain(|p| p.name != *prop_name);
                 }
+                drop(edge_type_infos);
+
+                // 保存 schema 快照
+                if let Ok(space_info) = self.get_space(space_name) {
+                    if let Some(space_id) = space_info.map(|s| s.space_id) {
+                        let tags_list = self.list_tags(space_name).unwrap_or_default();
+                        let edge_types = self.list_edge_types(space_name).unwrap_or_default();
+                        let _ = self.extended_schema_manager.save_schema_snapshot(
+                            space_id,
+                            tags_list,
+                            edge_types,
+                            Some(format!("修改边类型: {}", edge_type_name)),
+                        );
+
+                        // 记录属性添加变更
+                        for prop in additions {
+                            let change = SchemaChange {
+                                change_type: SchemaChangeType::AddProperty,
+                                target: format!("{}.{}", edge_type_name, prop.name),
+                                property: Some(prop),
+                                timestamp: chrono::Utc::now().timestamp_millis(),
+                            };
+                            let _ = self.extended_schema_manager.record_schema_change(space_id, change);
+                        }
+
+                        // 记录属性删除变更
+                        for prop_name in deletions {
+                            let change = SchemaChange {
+                                change_type: SchemaChangeType::DropProperty,
+                                target: format!("{}.{}", edge_type_name, prop_name),
+                                property: None,
+                                timestamp: chrono::Utc::now().timestamp_millis(),
+                            };
+                            let _ = self.extended_schema_manager.record_schema_change(space_id, change);
+                        }
+                    }
+                }
+
                 Ok(true)
             } else {
                 Ok(false)
@@ -1125,7 +1285,35 @@ impl<E: Engine> StorageClient for RedbStorage<E> {
     fn drop_edge_type(&mut self, space_name: &str, edge_type_name: &str) -> Result<bool, StorageError> {
         let mut edge_type_infos = self.edge_type_infos.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         if let Some(space_edge_types) = edge_type_infos.get_mut(space_name) {
-            Ok(space_edge_types.remove(edge_type_name).is_some())
+            let removed = space_edge_types.remove(edge_type_name).is_some();
+            drop(edge_type_infos);
+
+            // 保存 schema 快照
+            if removed {
+                if let Ok(space_info) = self.get_space(space_name) {
+                    if let Some(space_id) = space_info.map(|s| s.space_id) {
+                        let tags_list = self.list_tags(space_name).unwrap_or_default();
+                        let edge_types = self.list_edge_types(space_name).unwrap_or_default();
+                        let _ = self.extended_schema_manager.save_schema_snapshot(
+                            space_id,
+                            tags_list,
+                            edge_types,
+                            Some(format!("删除边类型: {}", edge_type_name)),
+                        );
+
+                        // 记录 schema 变更
+                        let change = SchemaChange {
+                            change_type: SchemaChangeType::DropProperty,
+                            target: edge_type_name.to_string(),
+                            property: None,
+                            timestamp: chrono::Utc::now().timestamp_millis(),
+                        };
+                        let _ = self.extended_schema_manager.record_schema_change(space_id, change);
+                    }
+                }
+            }
+
+            Ok(removed)
         } else {
             Err(StorageError::DbError(format!("Space '{}' not found", space_name)))
         }

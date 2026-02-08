@@ -962,7 +962,7 @@ mod tests {
     #[test]
     fn test_arrows() {
         let input = "<";
-        let mut lexer = Lexer::new(input);
+        let lexer = Lexer::new(input);
         assert_eq!(lexer.current_token.kind, Tk::Lt);
     }
 
@@ -1010,7 +1010,7 @@ mod tests {
     #[test]
     fn test_aggregate_functions() {
         let input = "COUNT";
-        let mut lexer = Lexer::new(input);
+        let lexer = Lexer::new(input);
         assert_eq!(lexer.current_token.kind, Tk::Count);
     }
 }

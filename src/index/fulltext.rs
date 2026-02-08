@@ -315,13 +315,7 @@ impl FulltextIndexEngine for SimpleFulltextEngine {
             .collect();
 
         search_results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
-        search_results
-            .truncate(query.limit);
-        search_results
-            .iter()
-            .skip(query.offset)
-            .cloned()
-            .collect::<Vec<_>>();
+        search_results.truncate(query.limit);
 
         let end = std::cmp::min(query.offset + query.limit, search_results.len());
         Ok(search_results[query.offset..end].to_vec())
@@ -411,7 +405,7 @@ impl FulltextIndexManager {
         engine.index_document(&doc)
     }
 
-    pub fn delete_document(&self, index_name: &str, doc_id: &str) -> DBResult<()> {
+    pub fn delete_document(&self, _index_name: &str, doc_id: &str) -> DBResult<()> {
         let mut engine = self.engine.lock().map_err(|e| {
             DBError::FulltextIndex(FulltextIndexError::EngineError(e.to_string()))
         })?;

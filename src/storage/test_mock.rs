@@ -189,15 +189,15 @@ impl StorageClient for MockStorage {
         Ok(true)
     }
 
-    fn alter_space_partition_num(&mut self, space_id: i32, partition_num: usize) -> Result<bool, StorageError> {
+    fn alter_space_partition_num(&mut self, _space_id: i32, _partition_num: usize) -> Result<bool, StorageError> {
         Ok(true)
     }
 
-    fn alter_space_replica_factor(&mut self, space_id: i32, replica_factor: usize) -> Result<bool, StorageError> {
+    fn alter_space_replica_factor(&mut self, _space_id: i32, _replica_factor: usize) -> Result<bool, StorageError> {
         Ok(true)
     }
 
-    fn alter_space_comment(&mut self, space_id: i32, comment: String) -> Result<bool, StorageError> {
+    fn alter_space_comment(&mut self, _space_id: i32, _comment: String) -> Result<bool, StorageError> {
         Ok(true)
     }
 

@@ -65,7 +65,6 @@ impl PlanCacheKey {
 #[derive(Debug)]
 pub struct PlanCache {
     cache: Mutex<LruCache<PlanCacheKey, ExecutionPlan>>,
-    max_size: usize,
 }
 
 impl PlanCache {
@@ -81,7 +80,6 @@ impl PlanCache {
             ))?;
         Ok(Self {
             cache: Mutex::new(LruCache::new(cache_size)),
-            max_size,
         })
     }
 
