@@ -201,7 +201,6 @@ impl Default for InsertVerticesValidator {
 mod tests {
     use super::*;
     use crate::core::Expression;
-    use crate::core::Value;
     use crate::query::parser::ast::stmt::{InsertStmt, InsertTarget};
     use crate::query::parser::ast::Span;
 

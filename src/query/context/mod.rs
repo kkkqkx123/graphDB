@@ -34,3 +34,9 @@ pub use symbol::{Symbol, SymbolTable};
 // 导出重构的模块
 pub use core_query_context::CoreQueryContext;
 pub use components::{ComponentAccessor, QueryComponents};
+
+// 导出运行时上下文类型（已废弃，请使用 crate::query::core 中的类型）
+pub use runtime_context::{ExecutionState, ResultStatus};
+
+// 导出核心执行状态类型（推荐）
+pub use crate::query::core::{ExecutorState, RowStatus};

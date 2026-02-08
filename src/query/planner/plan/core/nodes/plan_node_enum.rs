@@ -4,6 +4,7 @@
 
 use super::plan_node_traits::PlanNode;
 use super::plan_node_category::PlanNodeCategory;
+use crate::query::core::CoreOperationKind;
 use super::admin_node::{
     CreateSpaceNode, DropSpaceNode, DescSpaceNode, ShowSpacesNode,
     CreateTagNode, AlterTagNode, DescTagNode, DropTagNode, ShowTagsNode,
@@ -401,6 +402,98 @@ impl PlanNodeEnum {
 
     pub fn is_show_edges(&self) -> bool {
         matches!(self, PlanNodeEnum::ShowEdges(_))
+    }
+
+    /// 转换为 CoreOperationKind
+    ///
+    /// 建立 PlanNode 到 CoreOperationKind 的显式映射，用于优化器和执行器
+    pub fn into_operation_kind(&self) -> CoreOperationKind {
+        match self {
+            // 数据访问操作
+            PlanNodeEnum::Start(_) => CoreOperationKind::ScanVertices,
+            PlanNodeEnum::ScanVertices(_) => CoreOperationKind::ScanVertices,
+            PlanNodeEnum::ScanEdges(_) => CoreOperationKind::ScanEdges,
+            PlanNodeEnum::GetVertices(_) => CoreOperationKind::GetVertices,
+            PlanNodeEnum::GetEdges(_) => CoreOperationKind::GetEdges,
+            PlanNodeEnum::GetNeighbors(_) => CoreOperationKind::GetNeighbors,
+            PlanNodeEnum::IndexScan(_) => CoreOperationKind::ScanVertices,
+            PlanNodeEnum::FulltextIndexScan(_) => CoreOperationKind::ScanVertices,
+
+            // 数据转换操作
+            PlanNodeEnum::Project(_) => CoreOperationKind::Project,
+            PlanNodeEnum::Filter(_) => CoreOperationKind::Filter,
+            PlanNodeEnum::Sort(_) => CoreOperationKind::Sort,
+            PlanNodeEnum::Limit(_) => CoreOperationKind::Limit,
+            PlanNodeEnum::TopN(_) => CoreOperationKind::TopN,
+            PlanNodeEnum::Sample(_) => CoreOperationKind::Sample,
+            PlanNodeEnum::Unwind(_) => CoreOperationKind::Unwind,
+            PlanNodeEnum::Dedup(_) => CoreOperationKind::Dedup,
+
+            // 聚合操作
+            PlanNodeEnum::Aggregate(_) => CoreOperationKind::Aggregate,
+
+            // 连接操作
+            PlanNodeEnum::InnerJoin(_) => CoreOperationKind::InnerJoin,
+            PlanNodeEnum::LeftJoin(_) => CoreOperationKind::LeftJoin,
+            PlanNodeEnum::CrossJoin(_) | PlanNodeEnum::CartesianProduct(_) => CoreOperationKind::CrossJoin,
+            PlanNodeEnum::HashInnerJoin(_) => CoreOperationKind::HashJoin,
+            PlanNodeEnum::HashLeftJoin(_) => CoreOperationKind::HashJoin,
+
+            // 图遍历操作
+            PlanNodeEnum::Expand(_) => CoreOperationKind::Expand,
+            PlanNodeEnum::ExpandAll(_) => CoreOperationKind::ExpandAll,
+            PlanNodeEnum::Traverse(_) => CoreOperationKind::Traverse,
+            PlanNodeEnum::AppendVertices(_) => CoreOperationKind::AppendVertices,
+
+            // 控制流操作
+            PlanNodeEnum::Argument(_) => CoreOperationKind::Project,
+            PlanNodeEnum::Loop(_) => CoreOperationKind::Loop,
+            PlanNodeEnum::PassThrough(_) => CoreOperationKind::Project,
+            PlanNodeEnum::Select(_) => CoreOperationKind::Project,
+
+            // 数据处理操作
+            PlanNodeEnum::DataCollect(_) => CoreOperationKind::Project,
+            PlanNodeEnum::Union(_) => CoreOperationKind::Project,
+            PlanNodeEnum::Assign(_) => CoreOperationKind::Assignment,
+            PlanNodeEnum::PatternApply(_) => CoreOperationKind::PatternApply,
+            PlanNodeEnum::RollUpApply(_) => CoreOperationKind::RollUpApply,
+
+            // 算法操作
+            PlanNodeEnum::ShortestPath(_) => CoreOperationKind::ShortestPath,
+            PlanNodeEnum::AllPaths(_) => CoreOperationKind::AllPaths,
+            PlanNodeEnum::MultiShortestPath(_) => CoreOperationKind::MultiShortestPath,
+            PlanNodeEnum::BFSShortest(_) => CoreOperationKind::BFSShortest,
+
+            // 管理操作
+            PlanNodeEnum::CreateSpace(_) => CoreOperationKind::CreateSpace,
+            PlanNodeEnum::DropSpace(_) => CoreOperationKind::DropSpace,
+            PlanNodeEnum::DescSpace(_) => CoreOperationKind::DescribeSpace,
+            PlanNodeEnum::ShowSpaces(_) => CoreOperationKind::ShowSpaces,
+            PlanNodeEnum::CreateTag(_) => CoreOperationKind::CreateTag,
+            PlanNodeEnum::AlterTag(_) => CoreOperationKind::AlterTag,
+            PlanNodeEnum::DescTag(_) => CoreOperationKind::DescribeTag,
+            PlanNodeEnum::DropTag(_) => CoreOperationKind::DropTag,
+            PlanNodeEnum::ShowTags(_) => CoreOperationKind::ShowTags,
+            PlanNodeEnum::CreateEdge(_) => CoreOperationKind::CreateEdge,
+            PlanNodeEnum::AlterEdge(_) => CoreOperationKind::AlterEdge,
+            PlanNodeEnum::DescEdge(_) => CoreOperationKind::DescribeEdge,
+            PlanNodeEnum::DropEdge(_) => CoreOperationKind::DropEdge,
+            PlanNodeEnum::ShowEdges(_) => CoreOperationKind::ShowEdges,
+            PlanNodeEnum::CreateTagIndex(_) => CoreOperationKind::CreateTagIndex,
+            PlanNodeEnum::DropTagIndex(_) => CoreOperationKind::DropTagIndex,
+            PlanNodeEnum::DescTagIndex(_) => CoreOperationKind::DescribeTagIndex,
+            PlanNodeEnum::ShowTagIndexes(_) => CoreOperationKind::ShowTagIndexes,
+            PlanNodeEnum::CreateEdgeIndex(_) => CoreOperationKind::CreateEdgeIndex,
+            PlanNodeEnum::DropEdgeIndex(_) => CoreOperationKind::DropEdgeIndex,
+            PlanNodeEnum::DescEdgeIndex(_) => CoreOperationKind::DescribeEdgeIndex,
+            PlanNodeEnum::ShowEdgeIndexes(_) => CoreOperationKind::ShowEdgeIndexes,
+            PlanNodeEnum::RebuildTagIndex(_) => CoreOperationKind::RebuildTagIndex,
+            PlanNodeEnum::RebuildEdgeIndex(_) => CoreOperationKind::RebuildEdgeIndex,
+            PlanNodeEnum::CreateUser(_) => CoreOperationKind::CreateUser,
+            PlanNodeEnum::AlterUser(_) => CoreOperationKind::AlterUser,
+            PlanNodeEnum::DropUser(_) => CoreOperationKind::DropUser,
+            PlanNodeEnum::ChangePassword(_) => CoreOperationKind::ChangePassword,
+        }
     }
 
     pub fn is_create_tag_index(&self) -> bool {

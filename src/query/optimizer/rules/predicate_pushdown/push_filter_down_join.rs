@@ -92,7 +92,7 @@ impl OptRule for PushFilterDownJoinRule {
             check_col_name(&left_col_names, expr)
         };
 
-        let (filter_picked, filter_unpicked) = split_filter(&filter_condition, picker);
+        let (filter_picked, _filter_unpicked) = split_filter(&filter_condition, picker);
 
         let filter_picked = match filter_picked {
             Some(expr) => expr,

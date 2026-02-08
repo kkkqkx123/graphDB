@@ -258,7 +258,7 @@ mod tests {
         ];
 
         let valid_context = OrderByClauseContext {
-            indexed_order_factors: vec![(0, OrderType::Asc), (1, OrderType::Desc)],
+            indexed_order_factors: vec![(0, crate::core::types::OrderDirection::Asc), (1, crate::core::types::OrderDirection::Desc)],
         };
 
         assert!(strategy
@@ -267,7 +267,7 @@ mod tests {
 
         // 测试无效的索引
         let invalid_context = OrderByClauseContext {
-            indexed_order_factors: vec![(5, OrderType::Asc)], // 索引超出范围
+            indexed_order_factors: vec![(5, crate::core::types::OrderDirection::Asc)], // 索引超出范围
         };
 
         assert!(strategy

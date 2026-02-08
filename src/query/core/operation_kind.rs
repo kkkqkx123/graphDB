@@ -220,6 +220,36 @@ pub enum CoreOperationKind {
     /// 索引扫描 - INDEX SCAN
     IndexScan,
     
+    /// 创建标签索引 - CREATE TAG INDEX
+    CreateTagIndex,
+    
+    /// 删除标签索引 - DROP TAG INDEX
+    DropTagIndex,
+    
+    /// 描述标签索引 - DESCRIBE TAG INDEX
+    DescribeTagIndex,
+    
+    /// 显示标签索引 - SHOW TAG INDEXES
+    ShowTagIndexes,
+    
+    /// 重建标签索引 - REBUILD TAG INDEX
+    RebuildTagIndex,
+    
+    /// 创建边索引 - CREATE EDGE INDEX
+    CreateEdgeIndex,
+    
+    /// 删除边索引 - DROP EDGE INDEX
+    DropEdgeIndex,
+    
+    /// 描述边索引 - DESCRIBE EDGE INDEX
+    DescribeEdgeIndex,
+    
+    /// 显示边索引 - SHOW EDGE INDEXES
+    ShowEdgeIndexes,
+    
+    /// 重建边索引 - REBUILD EDGE INDEX
+    RebuildEdgeIndex,
+    
     // ==================== 用户管理操作 ====================
     
     /// 创建用户 - CREATE USER
@@ -331,7 +361,9 @@ impl CoreOperationKind {
             Self::CreateEdge | Self::AlterEdge | Self::DropEdge | Self::DescribeEdge | Self::ShowEdges => "EDGE_MANAGEMENT",
             
             // 索引管理
-            Self::CreateIndex | Self::DropIndex | Self::DescribeIndex | Self::RebuildIndex | Self::FulltextIndexScan | Self::IndexScan => "INDEX_MANAGEMENT",
+            Self::CreateIndex | Self::DropIndex | Self::DescribeIndex | Self::RebuildIndex | Self::FulltextIndexScan | Self::IndexScan
+                | Self::CreateTagIndex | Self::DropTagIndex | Self::DescribeTagIndex | Self::ShowTagIndexes | Self::RebuildTagIndex
+                | Self::CreateEdgeIndex | Self::DropEdgeIndex | Self::DescribeEdgeIndex | Self::ShowEdgeIndexes | Self::RebuildEdgeIndex => "INDEX_MANAGEMENT",
             
             // 用户管理
             Self::CreateUser | Self::AlterUser | Self::DropUser | Self::ChangePassword => "USER_MANAGEMENT",
@@ -370,6 +402,8 @@ impl CoreOperationKind {
                 | Self::CreateTag | Self::AlterTag | Self::DropTag | Self::DescribeTag | Self::ShowTags
                 | Self::CreateEdge | Self::AlterEdge | Self::DropEdge | Self::DescribeEdge | Self::ShowEdges
                 | Self::CreateIndex | Self::DropIndex | Self::DescribeIndex | Self::RebuildIndex
+                | Self::CreateTagIndex | Self::DropTagIndex | Self::DescribeTagIndex | Self::ShowTagIndexes | Self::RebuildTagIndex
+                | Self::CreateEdgeIndex | Self::DropEdgeIndex | Self::DescribeEdgeIndex | Self::ShowEdgeIndexes | Self::RebuildEdgeIndex
                 | Self::CreateUser | Self::AlterUser | Self::DropUser | Self::ChangePassword
                 | Self::Show | Self::Explain
         )
@@ -390,6 +424,8 @@ impl CoreOperationKind {
             Self::CreateSpace | Self::DropSpace | Self::CreateTag | Self::AlterTag | Self::DropTag
                 | Self::CreateEdge | Self::AlterEdge | Self::DropEdge
                 | Self::CreateIndex | Self::DropIndex | Self::RebuildIndex
+                | Self::CreateTagIndex | Self::DropTagIndex | Self::RebuildTagIndex
+                | Self::CreateEdgeIndex | Self::DropEdgeIndex | Self::RebuildEdgeIndex
         )
     }
     
@@ -458,6 +494,16 @@ impl CoreOperationKind {
             Self::RebuildIndex => "REBUILD_INDEX",
             Self::FulltextIndexScan => "FULLTEXT_INDEX_SCAN",
             Self::IndexScan => "INDEX_SCAN",
+            Self::CreateTagIndex => "CREATE_TAG_INDEX",
+            Self::DropTagIndex => "DROP_TAG_INDEX",
+            Self::DescribeTagIndex => "DESCRIBE_TAG_INDEX",
+            Self::ShowTagIndexes => "SHOW_TAG_INDEXES",
+            Self::RebuildTagIndex => "REBUILD_TAG_INDEX",
+            Self::CreateEdgeIndex => "CREATE_EDGE_INDEX",
+            Self::DropEdgeIndex => "DROP_EDGE_INDEX",
+            Self::DescribeEdgeIndex => "DESCRIBE_EDGE_INDEX",
+            Self::ShowEdgeIndexes => "SHOW_EDGE_INDEXES",
+            Self::RebuildEdgeIndex => "REBUILD_EDGE_INDEX",
             Self::CreateUser => "CREATE_USER",
             Self::AlterUser => "ALTER_USER",
             Self::DropUser => "DROP_USER",

@@ -11,14 +11,17 @@ use crate::query::QueryError;
 use crate::storage::StorageClient;
 use crate::utils::safe_lock;
 
+/// 调度器执行状态跟踪
+/// 
+/// 用于调度器内部跟踪执行状态，与 `crate::query::core::ExecutorState` 枚举区分
 #[derive(Debug)]
-pub struct ExecutionState {
+pub struct SchedulerExecutionState {
     pub executing_count: AtomicUsize,
     pub execution_results: HashMap<i64, ExecutionResult>,
     pub failed_status: Option<QueryError>,
 }
 
-impl ExecutionState {
+impl SchedulerExecutionState {
     pub fn new() -> Self {
         Self {
             executing_count: AtomicUsize::new(0),
@@ -44,9 +47,13 @@ impl ExecutionState {
     }
 }
 
+/// 已废弃：请使用 `SchedulerExecutionState`
+#[deprecated(since = "0.1.0", note = "请使用 SchedulerExecutionState")]
+pub type ExecutionState = SchedulerExecutionState;
+
 #[derive(Debug, Clone)]
 pub struct AsyncMsgNotifyBasedScheduler<S: StorageClient> {
-    execution_state: Arc<Mutex<ExecutionState>>,
+    execution_state: Arc<Mutex<SchedulerExecutionState>>,
     completion_notifier: Arc<(Mutex<bool>, Condvar)>,
     config: SchedulerConfig,
     _phantom: PhantomData<S>,
@@ -55,7 +62,7 @@ pub struct AsyncMsgNotifyBasedScheduler<S: StorageClient> {
 impl<S: StorageClient + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
     pub fn new() -> Self {
         Self {
-            execution_state: Arc::new(Mutex::new(ExecutionState::new())),
+            execution_state: Arc::new(Mutex::new(SchedulerExecutionState::new())),
             completion_notifier: Arc::new((Mutex::new(false), Condvar::new())),
             config: SchedulerConfig::default(),
             _phantom: PhantomData,
@@ -64,7 +71,7 @@ impl<S: StorageClient + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
 
     pub fn with_config(config: SchedulerConfig) -> Self {
         Self {
-            execution_state: Arc::new(Mutex::new(ExecutionState::new())),
+            execution_state: Arc::new(Mutex::new(SchedulerExecutionState::new())),
             completion_notifier: Arc::new((Mutex::new(false), Condvar::new())),
             config,
             _phantom: PhantomData,

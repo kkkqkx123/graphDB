@@ -6,4 +6,4 @@ pub mod config;
 
 pub use cost::{Cost, Statistics, TableStats, ColumnStats, PlanNodeProperties};
 pub use config::{OptimizationConfig, OptimizationStats};
-pub use crate::query::optimizer::plan::group::OptimizationPhase;
+pub use crate::query::core::OptimizationPhase;

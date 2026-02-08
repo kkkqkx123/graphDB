@@ -1,7 +1,6 @@
 //! 消除冗余数据收集操作的规则
 
 use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult};
-use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::query::optimizer::rule_traits::{create_basic_pattern, BaseOptRule};
 use crate::query::visitor::PlanNodeVisitor;
 use std::rc::Rc;

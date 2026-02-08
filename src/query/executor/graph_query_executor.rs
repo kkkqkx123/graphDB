@@ -385,7 +385,7 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
     }
 
     async fn execute_change_password(&mut self, clause: ChangePasswordStmt) -> Result<ExecutionResult, DBError> {
-        use admin_executor::{ChangePasswordExecutor, PasswordInfo};
+        use admin_executor::ChangePasswordExecutor;
         let id = self.id;
 
         let mut executor = ChangePasswordExecutor::new(

@@ -51,13 +51,13 @@ pub use fetch_vertices_validator::{FetchVerticesValidator, FetchVerticesContext,
 pub use fetch_edges_validator::{FetchEdgesValidator, FetchEdgesContext, FetchEdgeKey};
 pub use pipe_validator::{PipeValidator, ColumnInfo};
 pub use yield_validator::YieldValidator;
-pub use order_by_validator::{OrderByValidator, OrderColumn, SortDirection};
+pub use order_by_validator::{OrderByValidator, OrderColumn};
 pub use limit_validator::LimitValidator;
 pub use use_validator::UseValidator;
 pub use unwind_validator::UnwindValidator;
 pub use lookup_validator::LookupValidator;
 pub use find_path_validator::{FindPathValidator, FindPathConfig, PathPattern, PathEdgeDirection};
-pub use get_subgraph_validator::{GetSubgraphValidator, GetSubgraphConfig, EdgeDirection as SubgraphEdgeDirection};
+pub use get_subgraph_validator::{GetSubgraphValidator, GetSubgraphConfig};
 pub use set_validator::{SetValidator, SetValidator as SetStatementValidator, SetItem, SetStatementType};
 pub use sequential_validator::{SequentialValidator, SequentialStatement};
 pub use insert_vertices_validator::InsertVerticesValidator;

@@ -6,7 +6,6 @@
 use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult};
 use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::query::optimizer::rule_traits::BaseOptRule;
-use crate::query::planner::plan::core::nodes::PlanNodeEnum;
 use std::rc::Rc;
 use std::cell::RefCell;
 

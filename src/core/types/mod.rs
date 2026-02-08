@@ -48,7 +48,7 @@ pub use self::metadata::{
 };
 
 pub use self::expression::{Expression, ExpressionMeta};
-pub use self::graph_schema::{EdgeDirection, GraphTypeInference, VertexType, PathInfo, PropertyType};
+pub use self::graph_schema::{EdgeDirection, JoinType, OrderDirection, GraphTypeInference, VertexType, PathInfo, PropertyType};
 pub use self::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 pub use self::span::{Position, Span, ToSpan};
 

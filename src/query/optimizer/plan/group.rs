@@ -8,34 +8,9 @@
 //! - 追踪探索规则：避免重复应用相同规则
 
 use std::collections::HashSet;
-use std::fmt;
 
 use super::node::OptGroupNode;
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum OptimizationPhase {
-    Rewrite,
-    Logical,
-    Physical,
-    Unknown,
-}
-
-impl Default for OptimizationPhase {
-    fn default() -> Self {
-        OptimizationPhase::Unknown
-    }
-}
-
-impl fmt::Display for OptimizationPhase {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            OptimizationPhase::Rewrite => write!(f, "Rewrite"),
-            OptimizationPhase::Logical => write!(f, "Logical"),
-            OptimizationPhase::Physical => write!(f, "Physical"),
-            OptimizationPhase::Unknown => write!(f, "Unknown"),
-        }
-    }
-}
+use crate::query::core::OptimizationPhase;
 
 #[derive(Debug)]
 pub struct OptGroup {

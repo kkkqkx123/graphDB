@@ -3,6 +3,7 @@
 use super::alias_structs::AliasType;
 use super::path_structs::Path;
 use crate::core::Expression;
+use crate::core::types::OrderDirection;
 use crate::query::validator::{ValidationError, QueryPart};
 use std::collections::HashMap;
 
@@ -99,14 +100,7 @@ pub struct PaginationContext {
 /// 排序子句上下文
 #[derive(Debug, Clone)]
 pub struct OrderByClauseContext {
-    pub indexed_order_factors: Vec<(usize, OrderType)>,
-}
-
-/// 排序类型
-#[derive(Debug, Clone)]
-pub enum OrderType {
-    Asc,
-    Desc,
+    pub indexed_order_factors: Vec<(usize, OrderDirection)>,
 }
 
 /// 排序项（用于计划阶段）

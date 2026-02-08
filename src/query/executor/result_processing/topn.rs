@@ -9,6 +9,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::Expression;
+use crate::core::types::OrderDirection;
 use crate::core::{DataSet, Value};
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::{DefaultExpressionContext, ExpressionContext};
@@ -19,15 +20,6 @@ use crate::query::executor::result_processing::traits::{
 };
 use crate::query::executor::traits::{ExecutionResult, Executor};
 use crate::storage::StorageClient;
-
-/// 排序方向枚举
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SortDirection {
-    /// 升序
-    Ascending,
-    /// 降序
-    Descending,
-}
 
 /// 排序列定义
 #[derive(Debug, Clone)]
@@ -90,7 +82,7 @@ pub struct TopNExecutor<S: StorageClient + Send + 'static> {
     /// 排序列定义
     sort_columns: Vec<SortColumn>,
     /// 排序方向
-    sort_direction: SortDirection,
+    sort_direction: OrderDirection,
     /// 堆数据结构（最大堆或最小堆）
     heap: Option<BinaryHeap<TopNItem>>,
     /// 是否已打开
@@ -140,9 +132,9 @@ impl<S: StorageClient> TopNExecutor<S> {
             input_executor: None,
             sort_columns: Vec::new(),
             sort_direction: if ascending {
-                SortDirection::Ascending
+                OrderDirection::Asc
             } else {
-                SortDirection::Descending
+                OrderDirection::Desc
             },
             heap: None,
             is_open: false,
@@ -157,7 +149,7 @@ impl<S: StorageClient> TopNExecutor<S> {
         storage: Arc<Mutex<S>>,
         n: usize,
         sort_columns: Vec<SortColumn>,
-        sort_direction: SortDirection,
+        sort_direction: OrderDirection,
     ) -> Self {
         let base = BaseResultProcessor::new(
             id,
@@ -169,7 +161,7 @@ impl<S: StorageClient> TopNExecutor<S> {
         let sort_keys = sort_columns
             .iter()
             .map(|col| {
-                let order = if sort_direction == SortDirection::Ascending {
+                let order = if sort_direction == OrderDirection::Asc {
                     crate::query::executor::result_processing::sort::SortOrder::Asc
                 } else {
                     crate::query::executor::result_processing::sort::SortOrder::Desc
@@ -586,7 +578,7 @@ impl<S: StorageClient> TopNExecutor<S> {
     pub fn configure_sorting(
         &mut self,
         sort_columns: Vec<SortColumn>,
-        sort_direction: SortDirection,
+        sort_direction: OrderDirection,
     ) -> Result<(), TopNError> {
         if self.is_open {
             return Err(TopNError::ExecutorAlreadyOpen);

@@ -14,6 +14,7 @@ use crate::core::Value;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::evaluator::traits::ExpressionContext;
 use crate::expression::DefaultExpressionContext;
+use crate::query::core::LoopExecutionState;
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::recursion_detector::{
@@ -23,13 +24,10 @@ use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
 
 /// 循环状态
-#[derive(Debug, Clone, PartialEq)]
-pub enum LoopState {
-    NotStarted,
-    Running,
-    Finished,
-    Error(String),
-}
+///
+/// 已废弃：请使用 `crate::query::core::LoopExecutionState`
+#[deprecated(since = "0.1.0", note = "请使用 crate::query::core::LoopExecutionState")]
+pub type LoopState = LoopExecutionState;
 
 /// LoopExecutor - 循环控制执行器
 ///
@@ -41,7 +39,7 @@ pub struct LoopExecutor<S: StorageClient + Send + 'static> {
     body_executor: Box<ExecutorEnum<S>>,
     max_iterations: Option<usize>,
     current_iteration: usize,
-    loop_state: LoopState,
+    loop_state: LoopExecutionState,
     results: Vec<ExecutionResult>,
     loop_context: DefaultExpressionContext,
     recursion_detector: RecursionDetector,
@@ -65,7 +63,7 @@ impl<S: StorageClient> LoopExecutor<S> {
             body_executor: Box::new(body_executor),
             max_iterations,
             current_iteration: 0,
-            loop_state: LoopState::NotStarted,
+            loop_state: LoopExecutionState::NotStarted,
             results: Vec::new(),
             loop_context: DefaultExpressionContext::new(),
             recursion_detector,
@@ -118,7 +116,7 @@ impl<S: StorageClient + Send + 'static> LoopExecutor<S> {
 
     /// 检查是否应该继续循环
     fn should_continue(&self) -> bool {
-        if let LoopState::Error(_) = self.loop_state {
+        if let LoopExecutionState::Error(_) = self.loop_state {
             return false;
         }
 
@@ -133,8 +131,7 @@ impl<S: StorageClient + Send + 'static> LoopExecutor<S> {
 
     /// 执行单次循环
     async fn execute_iteration(&mut self) -> DBResult<ExecutionResult> {
-        self.current_iteration += 1;
-
+        // 注意：current_iteration 已经在 execute() 方法中递增
         self.loop_context.set_variable(
             "__iteration".to_string(),
             Value::Int(self.current_iteration as i64),
@@ -278,13 +275,16 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for LoopExecutor<S> {
 
         self.recursion_detector.validate_executor(self.body_executor.id(), self.body_executor.name())?;
 
-        self.loop_state = LoopState::Running;
+        self.loop_state = LoopExecutionState::Running { iteration: 0 };
         self.results.clear();
         self.current_iteration = 0;
 
         self.body_executor.open()?;
 
         while self.should_continue() {
+            self.current_iteration += 1;
+            self.loop_state = LoopExecutionState::Running { iteration: self.current_iteration };
+
             self.loop_context.set_variable(
                 "__iteration".to_string(),
                 Value::Int(self.current_iteration as i64),
@@ -293,7 +293,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for LoopExecutor<S> {
             let should_continue = match self.evaluate_condition().await {
                 Ok(continue_flag) => continue_flag,
                 Err(e) => {
-                    self.loop_state = LoopState::Error(e.to_string());
+                    self.loop_state = LoopExecutionState::Error(e.to_string());
                     break;
                 }
             };
@@ -307,7 +307,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for LoopExecutor<S> {
                     self.results.push(result);
                 }
                 Err(e) => {
-                    self.loop_state = LoopState::Error(e.to_string());
+                    self.loop_state = LoopExecutionState::Error(e.to_string());
                     break;
                 }
             }
@@ -317,15 +317,15 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for LoopExecutor<S> {
 
         self.recursion_detector.leave_executor();
 
-        if !matches!(self.loop_state, LoopState::Error(_)) {
-            self.loop_state = LoopState::Finished;
+        if !matches!(self.loop_state, LoopExecutionState::Error(_)) {
+            self.loop_state = LoopExecutionState::Finished;
         }
 
         Ok(self.collect_results())
     }
 
     fn open(&mut self) -> DBResult<()> {
-        self.loop_state = LoopState::NotStarted;
+        self.loop_state = LoopExecutionState::NotStarted;
         self.current_iteration = 0;
         self.results.clear();
         self.loop_context = DefaultExpressionContext::new();

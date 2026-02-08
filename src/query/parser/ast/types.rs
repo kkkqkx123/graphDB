@@ -4,7 +4,7 @@
 //! 同时重导出 core 模块的类型以方便使用。
 
 pub use crate::core::types::operators::AggregateFunction as CoreAggregateFunction;
-pub use crate::core::types::EdgeDirection;
+pub use crate::core::types::{EdgeDirection, OrderDirection};
 
 pub use crate::core::types::Span;
 
@@ -21,12 +21,6 @@ pub struct Label {
 #[derive(Debug, Clone, PartialEq)]
 pub struct PropertyRef {
     pub name: String,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum OrderDirection {
-    Asc,
-    Desc,
 }
 
 #[derive(Debug, Clone, PartialEq)]

@@ -32,7 +32,6 @@ use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::query::optimizer::rule_traits::BaseOptRule;
 use crate::core::Expression;
 use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
-use crate::query::planner::plan::core::nodes::aggregate_node::AggregateNode;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::planner::plan::PlanNodeEnum;
 use std::cell::RefCell;

@@ -4,8 +4,13 @@
 //! 此模块定义了 `CoreOperationKind` 枚举和各模块间的类型转换 trait。
 
 mod operation_kind;
+mod execution_state;
 
 pub use operation_kind::{CoreOperationKind};
+pub use execution_state::{
+    QueryExecutionState, ExecutorState, LoopExecutionState,
+    RowStatus, OptimizationState, OptimizationPhase,
+};
 
 use crate::query::parser::ast::Stmt;
 use crate::query::validator::validation_factory::StatementType;

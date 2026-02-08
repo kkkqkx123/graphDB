@@ -6,6 +6,7 @@
 //! 对应原C++版本中的RuntimeContext结构
 
 use crate::common::id::{EdgeType, TagId};
+use crate::query::core::{ExecutorState, RowStatus};
 use crate::storage::StorageClient;
 use crate::storage::metadata::SchemaManager;
 use crate::storage::index::IndexManager;
@@ -13,32 +14,16 @@ use std::sync::Arc;
 use std::time::Instant;
 
 /// 结果状态枚举
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ResultStatus {
-    /// 正常结果
-    Normal = 0,
-    /// 非法数据
-    IllegalData = -1,
-    /// 被过滤掉的结果
-    FilterOut = -2,
-    /// 标签被过滤掉
-    TagFilterOut = -3,
-}
+/// 
+/// 已废弃：请使用 `crate::query::core::RowStatus`
+#[deprecated(since = "0.1.0", note = "请使用 crate::query::core::RowStatus")]
+pub type ResultStatus = RowStatus;
 
 /// 执行状态
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ExecutionState {
-    /// 初始化
-    Initialized,
-    /// 执行中
-    Executing,
-    /// 已完成
-    Completed,
-    /// 已失败
-    Failed,
-    /// 已取消
-    Cancelled,
-}
+///
+/// 已废弃：请使用 `crate::query::core::ExecutorState`
+#[deprecated(since = "0.1.0", note = "请使用 crate::query::core::ExecutorState")]
+pub type ExecutionState = ExecutorState;
 
 /// 属性上下文
 #[derive(Debug, Clone)]

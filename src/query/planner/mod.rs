@@ -16,7 +16,10 @@ pub use planner::{
     MatchAndInstantiateEnum, Planner, PlannerConfig, PlannerError,
     PlanCache, PlanCacheKey, SentenceKind,
 };
-pub use connector::{JoinType, SegmentsConnector};
+pub use connector::SegmentsConnector;
+
+// 从 core 模块重新导出 JoinType
+pub use crate::core::types::JoinType;
 pub use statements::{
     MatchStatementPlanner,
 };

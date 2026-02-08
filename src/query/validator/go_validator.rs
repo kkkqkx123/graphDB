@@ -7,6 +7,7 @@ use super::validation_interface::{ValidationError, ValidationErrorType};
 use crate::core::{
     AggregateFunction, BinaryOperator, DataType, Expression, UnaryOperator, Value,
 };
+use crate::core::types::EdgeDirection;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
@@ -46,13 +47,6 @@ pub struct OverEdge {
     pub props: Vec<EdgeProperty>,
     pub is_reversible: bool,
     pub is_all: bool,
-}
-
-#[derive(Debug, Clone)]
-pub enum EdgeDirection {
-    Forward,
-    Backward,
-    Both,
 }
 
 #[derive(Debug, Clone)]
@@ -197,11 +191,8 @@ impl GoValidator {
             }
 
             // 验证边方向
-            match edge.direction {
-                EdgeDirection::Forward | EdgeDirection::Backward | EdgeDirection::Both => {
-                    // 方向有效
-                }
-            }
+            // EdgeDirection 已统一为 core::types::EdgeDirection (Out, In, Both)
+            // 所有变体都是有效的
 
             // 验证边属性
             for prop in &edge.props {

@@ -5,6 +5,108 @@
 use crate::core::DataType;
 use serde::{Deserialize, Serialize};
 
+/// 连接类型枚举
+///
+/// 用于表示 SQL/图查询中的连接操作类型
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum JoinType {
+    /// 内连接
+    Inner,
+    /// 左外连接
+    Left,
+    /// 右外连接
+    Right,
+    /// 全外连接
+    Full,
+    /// 笛卡尔积（交叉连接）
+    Cross,
+}
+
+impl JoinType {
+    /// 获取连接类型的名称
+    pub fn name(&self) -> &'static str {
+        match self {
+            JoinType::Inner => "INNER",
+            JoinType::Left => "LEFT",
+            JoinType::Right => "RIGHT",
+            JoinType::Full => "FULL",
+            JoinType::Cross => "CROSS",
+        }
+    }
+
+    /// 判断是否为外连接（Left/Right/Full）
+    pub fn is_outer(&self) -> bool {
+        matches!(self, JoinType::Left | JoinType::Right | JoinType::Full)
+    }
+
+    /// 判断是否为内连接
+    pub fn is_inner(&self) -> bool {
+        matches!(self, JoinType::Inner)
+    }
+}
+
+impl From<&str> for JoinType {
+    fn from(s: &str) -> Self {
+        match s.to_uppercase().as_str() {
+            "INNER" => JoinType::Inner,
+            "LEFT" => JoinType::Left,
+            "RIGHT" => JoinType::Right,
+            "FULL" => JoinType::Full,
+            "CROSS" => JoinType::Cross,
+            _ => JoinType::Inner,
+        }
+    }
+}
+
+/// 排序方向枚举
+///
+/// 用于表示 ORDER BY 子句中的排序方向
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum OrderDirection {
+    /// 升序
+    Asc,
+    /// 降序
+    Desc,
+}
+
+impl OrderDirection {
+    /// 获取排序方向的名称
+    pub fn name(&self) -> &'static str {
+        match self {
+            OrderDirection::Asc => "ASC",
+            OrderDirection::Desc => "DESC",
+        }
+    }
+
+    /// 获取反向排序方向
+    pub fn reverse(&self) -> Self {
+        match self {
+            OrderDirection::Asc => OrderDirection::Desc,
+            OrderDirection::Desc => OrderDirection::Asc,
+        }
+    }
+}
+
+impl From<&str> for OrderDirection {
+    fn from(s: &str) -> Self {
+        match s.to_uppercase().as_str() {
+            "ASC" | "ASCENDING" => OrderDirection::Asc,
+            "DESC" | "DESCENDING" => OrderDirection::Desc,
+            _ => OrderDirection::Asc,
+        }
+    }
+}
+
+impl From<bool> for OrderDirection {
+    fn from(desc: bool) -> Self {
+        if desc {
+            OrderDirection::Desc
+        } else {
+            OrderDirection::Asc
+        }
+    }
+}
+
 /// 边的方向类型
 ///
 /// 用于表示边的遍历方向，支持出边、入边和双向遍历
@@ -37,13 +139,25 @@ impl EdgeDirection {
             EdgeDirection::Both => EdgeDirection::Both,
         }
     }
+
+    /// 判断是否为正向（出边）
+    /// 用于与 Forward/Backward 命名兼容
+    pub fn is_forward(&self) -> bool {
+        matches!(self, EdgeDirection::Out | EdgeDirection::Both)
+    }
+
+    /// 判断是否为反向（入边）
+    /// 用于与 Forward/Backward 命名兼容
+    pub fn is_backward(&self) -> bool {
+        matches!(self, EdgeDirection::In | EdgeDirection::Both)
+    }
 }
 
 impl From<&str> for EdgeDirection {
     fn from(s: &str) -> Self {
         match s.to_lowercase().as_str() {
-            "out" | "outgoing" => EdgeDirection::Out,
-            "in" | "incoming" => EdgeDirection::In,
+            "out" | "outgoing" | "forward" => EdgeDirection::Out,
+            "in" | "incoming" | "backward" => EdgeDirection::In,
             "both" | "bidirectional" => EdgeDirection::Both,
             _ => EdgeDirection::Both,
         }

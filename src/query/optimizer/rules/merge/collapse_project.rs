@@ -1,7 +1,7 @@
 //! 折叠多个投影操作的规则
 
 use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult};
-use crate::query::optimizer::rule_patterns::{CommonPatterns, PatternBuilder};
+use crate::query::optimizer::rule_patterns::CommonPatterns;
 use crate::query::optimizer::rule_traits::{BaseOptRule, MergeRule};
 use std::rc::Rc;
 use std::cell::RefCell;

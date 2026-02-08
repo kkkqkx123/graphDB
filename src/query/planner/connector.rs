@@ -7,15 +7,6 @@ use crate::query::planner::plan::{PlanNodeEnum, SubPlan};
 use crate::query::planner::planner::PlannerError;
 use std::collections::HashSet;
 
-/// 连接类型枚举
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum JoinType {
-    Inner,
-    Left,
-    Right,
-    Full,
-}
-
 /// 计划连接器
 ///
 /// 用于连接两个子计划，类似于 C++ 实现中的 SegmentsConnector

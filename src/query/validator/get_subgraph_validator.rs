@@ -5,6 +5,7 @@
 use super::base_validator::{Validator, ValueType};
 use super::ValidationContext;
 use crate::core::Expression;
+use crate::core::types::EdgeDirection;
 use crate::query::validator::ValidationError;
 use crate::query::validator::ValidationErrorType;
 use std::collections::HashMap;
@@ -18,13 +19,6 @@ pub struct GetSubgraphConfig {
     pub direction: EdgeDirection,
     pub yield_columns: Vec<super::structs::YieldColumn>,
     pub yield_stats: bool,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum EdgeDirection {
-    Forward,
-    Backward,
-    Both,
 }
 
 pub struct GetSubgraphValidator {

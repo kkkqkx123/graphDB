@@ -5,6 +5,7 @@
 use super::base_validator::{Validator, ValueType};
 use super::ValidationContext;
 use crate::core::Expression;
+use crate::core::types::OrderDirection;
 use crate::query::validator::ValidationError;
 use crate::query::validator::ValidationErrorType;
 use std::collections::HashMap;
@@ -19,14 +20,7 @@ pub struct OrderByValidator {
 pub struct OrderColumn {
     pub expression: Expression,
     pub alias: Option<String>,
-    pub direction: SortDirection,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum SortDirection {
-    Ascending,
-    Descending,
-    Default,
+    pub direction: OrderDirection,
 }
 
 impl OrderByValidator {

@@ -39,20 +39,8 @@ pub use join_key_evaluator::JoinKeyEvaluator;
 pub use left_join::{HashLeftJoinExecutor, LeftJoinExecutor};
 pub use right_join::RightJoinExecutor;
 
-/// Join操作的类型枚举
-#[derive(Debug, Clone, PartialEq)]
-pub enum JoinType {
-    /// 内连接
-    Inner,
-    /// 左外连接
-    Left,
-    /// 右外连接
-    Right,
-    /// 全外连接
-    Full,
-    /// 笛卡尔积
-    Cross,
-}
+// 从 core 模块导入 JoinType
+pub use crate::core::types::JoinType;
 
 /// Join操作的配置
 #[derive(Debug, Clone)]
