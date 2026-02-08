@@ -263,7 +263,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                 self.analyze_plan_node(n.left_input(), loop_layers)?;
                 self.analyze_plan_node(n.right_input(), loop_layers)?;
             }
-            PlanNodeEnum::CrossJoin(n) | PlanNodeEnum::CartesianProduct(n) => {
+            PlanNodeEnum::CrossJoin(n) => {
                 self.analyze_plan_node(n.left_input(), loop_layers)?;
                 self.analyze_plan_node(n.right_input(), loop_layers)?;
             }
@@ -591,7 +591,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             PlanNodeEnum::HashInnerJoin(node) => self.create_inner_join_executor(&node, storage),
             PlanNodeEnum::LeftJoin(node) => self.create_left_join_executor(&node, storage),
             PlanNodeEnum::HashLeftJoin(node) => self.create_left_join_executor(&node, storage),
-            PlanNodeEnum::CrossJoin(node) | PlanNodeEnum::CartesianProduct(node) => {
+            PlanNodeEnum::CrossJoin(node) => {
                 let left_var = node
                     .left_input()
                     .output_var()

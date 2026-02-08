@@ -159,7 +159,6 @@ pub trait PlanNodeVisitor {
             PlanNodeEnum::AlterUser(n) => self.visit_alter_user(n),
             PlanNodeEnum::DropUser(n) => self.visit_drop_user(n),
             PlanNodeEnum::ChangePassword(n) => self.visit_change_password(n),
-            PlanNodeEnum::CartesianProduct(n) => self.visit_cross_join(n),
         }
     }
 }

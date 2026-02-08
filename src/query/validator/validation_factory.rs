@@ -5,6 +5,7 @@ use std::collections::HashMap;
 
 use super::base_validator::Validator;
 use super::strategies::*;
+use crate::query::planner::planner::SentenceKind;
 
 #[derive(Debug, Clone, Default)]
 pub struct ValidatorConfig {
@@ -186,6 +187,65 @@ pub enum StatementType {
     Pipe,
     Sequential,
     Explain,
+}
+
+impl StatementType {
+    /// 从 SentenceKind 转换到 StatementType
+    /// 建立规划层到验证层的显式映射关系
+    /// 注意：由于 SentenceKind 是粗粒度分类，转换结果可能丢失部分信息
+    pub fn from_sentence_kind(kind: &SentenceKind) -> Vec<Self> {
+        match kind {
+            SentenceKind::Match => vec![StatementType::Match],
+            SentenceKind::Go => vec![StatementType::Go],
+            SentenceKind::Lookup => vec![StatementType::Lookup],
+            SentenceKind::Path => vec![StatementType::FindPath],
+            SentenceKind::Subgraph => vec![StatementType::GetSubgraph],
+            SentenceKind::FetchVertices => vec![StatementType::FetchVertices],
+            SentenceKind::FetchEdges => vec![StatementType::FetchEdges],
+            SentenceKind::Maintain => vec![
+                StatementType::InsertVertices,
+                StatementType::InsertEdges,
+                StatementType::Update,
+                StatementType::Delete,
+                StatementType::CreateSpace,
+                StatementType::CreateTag,
+                StatementType::CreateEdge,
+                StatementType::AlterTag,
+                StatementType::AlterEdge,
+                StatementType::DropSpace,
+                StatementType::DropTag,
+                StatementType::DropEdge,
+                StatementType::DescribeSpace,
+                StatementType::DescribeTag,
+                StatementType::DescribeEdge,
+                StatementType::ShowSpaces,
+                StatementType::ShowTags,
+                StatementType::ShowEdges,
+            ],
+        }
+    }
+
+    /// 获取语句类型的分类名称
+    pub fn category(&self) -> &'static str {
+        match self {
+            StatementType::Match | StatementType::Go | StatementType::Lookup |
+            StatementType::FindPath | StatementType::GetSubgraph |
+            StatementType::FetchVertices | StatementType::FetchEdges => "QUERY",
+            StatementType::InsertVertices | StatementType::InsertEdges |
+            StatementType::Update | StatementType::Delete => "DML",
+            StatementType::CreateSpace | StatementType::CreateTag | StatementType::CreateEdge |
+            StatementType::AlterTag | StatementType::AlterEdge |
+            StatementType::DropSpace | StatementType::DropTag | StatementType::DropEdge => "DDL",
+            StatementType::DescribeSpace | StatementType::DescribeTag | StatementType::DescribeEdge |
+            StatementType::ShowSpaces | StatementType::ShowTags | StatementType::ShowEdges => "DESCRIBE",
+            StatementType::Unwind | StatementType::Yield | StatementType::OrderBy |
+            StatementType::Limit | StatementType::GroupBy => "CLAUSE",
+            StatementType::Use => "CONTROL",
+            StatementType::Assignment | StatementType::Set | StatementType::Pipe |
+            StatementType::Sequential => "UTILITY",
+            StatementType::Explain => "META",
+        }
+    }
 }
 
 /// 验证器构建器特质

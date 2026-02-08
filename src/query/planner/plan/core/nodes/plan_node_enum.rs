@@ -1,10 +1,9 @@
 //! PlanNode 枚举定义
 //!
-//!
 
 use super::plan_node_traits::PlanNode;
 use super::plan_node_category::PlanNodeCategory;
-use crate::query::core::CoreOperationKind;
+use crate::query::core::{CoreOperationKind, NodeType, NodeCategory, NodeTypeMapping};
 use super::admin_node::{
     CreateSpaceNode, DropSpaceNode, DescSpaceNode, ShowSpacesNode,
     CreateTagNode, AlterTagNode, DescTagNode, DropTagNode, ShowTagsNode,
@@ -76,8 +75,6 @@ pub enum PlanNodeEnum {
     HashInnerJoin(HashInnerJoinNode),
     /// 哈希左连接节点
     HashLeftJoin(HashLeftJoinNode),
-    /// 笛卡尔积节点
-    CartesianProduct(CrossJoinNode),
     /// 索引扫描节点
     IndexScan(IndexScan),
     /// 全文索引扫描节点
@@ -288,10 +285,6 @@ impl PlanNodeEnum {
         matches!(self, PlanNodeEnum::HashLeftJoin(_))
     }
 
-    pub fn is_cartesian_product(&self) -> bool {
-        matches!(self, PlanNodeEnum::CartesianProduct(_))
-    }
-
     pub fn is_index_scan(&self) -> bool {
         matches!(self, PlanNodeEnum::IndexScan(_))
     }
@@ -435,7 +428,7 @@ impl PlanNodeEnum {
             // 连接操作
             PlanNodeEnum::InnerJoin(_) => CoreOperationKind::InnerJoin,
             PlanNodeEnum::LeftJoin(_) => CoreOperationKind::LeftJoin,
-            PlanNodeEnum::CrossJoin(_) | PlanNodeEnum::CartesianProduct(_) => CoreOperationKind::CrossJoin,
+            PlanNodeEnum::CrossJoin(_) => CoreOperationKind::CrossJoin,
             PlanNodeEnum::HashInnerJoin(_) => CoreOperationKind::HashJoin,
             PlanNodeEnum::HashLeftJoin(_) => CoreOperationKind::HashJoin,
 
@@ -572,7 +565,6 @@ impl PlanNodeEnum {
                 | PlanNodeEnum::CrossJoin(_)
                 | PlanNodeEnum::HashInnerJoin(_)
                 | PlanNodeEnum::HashLeftJoin(_)
-                | PlanNodeEnum::CartesianProduct(_)
         )
     }
 
@@ -670,7 +662,6 @@ impl PlanNodeEnum {
             PlanNodeEnum::ScanEdges(_) => "ScanEdges",
             PlanNodeEnum::HashInnerJoin(_) => "HashInnerJoin",
             PlanNodeEnum::HashLeftJoin(_) => "HashLeftJoin",
-            PlanNodeEnum::CartesianProduct(_) => "CartesianProduct",
             PlanNodeEnum::IndexScan(_) => "IndexScan",
             PlanNodeEnum::FulltextIndexScan(_) => "FulltextIndexScan",
             PlanNodeEnum::Expand(_) => "Expand",
@@ -744,7 +735,6 @@ impl PlanNodeEnum {
             PlanNodeEnum::ScanEdges(_) => PlanNodeCategory::Access,
             PlanNodeEnum::HashInnerJoin(_) => PlanNodeCategory::Join,
             PlanNodeEnum::HashLeftJoin(_) => PlanNodeCategory::Join,
-            PlanNodeEnum::CartesianProduct(_) => PlanNodeCategory::Join,
             PlanNodeEnum::IndexScan(_) => PlanNodeCategory::Access,
             PlanNodeEnum::FulltextIndexScan(_) => PlanNodeCategory::Access,
             PlanNodeEnum::Expand(_) => PlanNodeCategory::Traversal,
@@ -1249,13 +1239,6 @@ impl PlanNodeEnum {
         }
     }
 
-    pub fn as_cartesian_product(&self) -> Option<&CrossJoinNode> {
-        match self {
-            PlanNodeEnum::CartesianProduct(node) => Some(node),
-            _ => None,
-        }
-    }
-
     pub fn as_select(&self) -> Option<&SelectNode> {
         match self {
             PlanNodeEnum::Select(node) => Some(node),
@@ -1578,14 +1561,6 @@ impl PlanNodeEnum {
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
-            PlanNodeEnum::CartesianProduct(node) => {
-                let mut desc = PlanNodeDescription::new("CartesianProduct", node.id());
-                if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
-                }
-                desc.add_description("cost", format!("{:.2}", node.cost()));
-                desc
-            }
             PlanNodeEnum::IndexScan(node) => {
                 let mut desc = PlanNodeDescription::new("IndexScan", node.id());
                 if let Some(var) = node.output_var() {
@@ -1888,7 +1863,6 @@ impl PlanNodeEnum {
             PlanNodeEnum::CrossJoin(node) => vec![super::plan_node_traits::BinaryInputNode::left_input(node), super::plan_node_traits::BinaryInputNode::right_input(node)],
             PlanNodeEnum::HashInnerJoin(node) => vec![super::plan_node_traits::BinaryInputNode::left_input(node), super::plan_node_traits::BinaryInputNode::right_input(node)],
             PlanNodeEnum::HashLeftJoin(node) => vec![super::plan_node_traits::BinaryInputNode::left_input(node), super::plan_node_traits::BinaryInputNode::right_input(node)],
-            PlanNodeEnum::CartesianProduct(node) => vec![super::plan_node_traits::BinaryInputNode::left_input(node), super::plan_node_traits::BinaryInputNode::right_input(node)],
 
             // MultipleInputNode: 有多个子节点
             PlanNodeEnum::Expand(node) => node.dependencies().iter().map(|b| b.as_ref()).collect(),
@@ -1904,6 +1878,304 @@ impl PlanNodeEnum {
             PlanNodeEnum::Loop(_) => vec![],
             PlanNodeEnum::PassThrough(_) => vec![],
             PlanNodeEnum::Select(_) => vec![],
+        }
+    }
+}
+
+/// PlanNodeEnum 的 NodeType trait 实现
+///
+/// 为每个变体提供统一的类型标识和分类
+impl NodeType for PlanNodeEnum {
+    fn node_type_id(&self) -> &'static str {
+        match self {
+            PlanNodeEnum::Start(_) => "start",
+            PlanNodeEnum::Project(_) => "project",
+            PlanNodeEnum::Sort(_) => "sort",
+            PlanNodeEnum::Limit(_) => "limit",
+            PlanNodeEnum::TopN(_) => "topn",
+            PlanNodeEnum::Sample(_) => "sample",
+            PlanNodeEnum::InnerJoin(_) => "inner_join",
+            PlanNodeEnum::LeftJoin(_) => "left_join",
+            PlanNodeEnum::CrossJoin(_) => "cross_join",
+            PlanNodeEnum::GetVertices(_) => "get_vertices",
+            PlanNodeEnum::GetEdges(_) => "get_edges",
+            PlanNodeEnum::GetNeighbors(_) => "get_neighbors",
+            PlanNodeEnum::ScanVertices(_) => "scan_vertices",
+            PlanNodeEnum::ScanEdges(_) => "scan_edges",
+            PlanNodeEnum::HashInnerJoin(_) => "hash_inner_join",
+            PlanNodeEnum::HashLeftJoin(_) => "hash_left_join",
+            PlanNodeEnum::IndexScan(_) => "index_scan",
+            PlanNodeEnum::FulltextIndexScan(_) => "fulltext_index_scan",
+            PlanNodeEnum::Expand(_) => "expand",
+            PlanNodeEnum::ExpandAll(_) => "expand_all",
+            PlanNodeEnum::Traverse(_) => "traverse",
+            PlanNodeEnum::AppendVertices(_) => "append_vertices",
+            PlanNodeEnum::Filter(_) => "filter",
+            PlanNodeEnum::Aggregate(_) => "aggregate",
+            PlanNodeEnum::Argument(_) => "argument",
+            PlanNodeEnum::Loop(_) => "loop",
+            PlanNodeEnum::PassThrough(_) => "pass_through",
+            PlanNodeEnum::Select(_) => "select",
+            PlanNodeEnum::DataCollect(_) => "data_collect",
+            PlanNodeEnum::Dedup(_) => "dedup",
+            PlanNodeEnum::PatternApply(_) => "pattern_apply",
+            PlanNodeEnum::RollUpApply(_) => "rollup_apply",
+            PlanNodeEnum::Union(_) => "union",
+            PlanNodeEnum::Unwind(_) => "unwind",
+            PlanNodeEnum::Assign(_) => "assign",
+            PlanNodeEnum::MultiShortestPath(_) => "multi_shortest_path",
+            PlanNodeEnum::BFSShortest(_) => "bfs_shortest",
+            PlanNodeEnum::AllPaths(_) => "all_paths",
+            PlanNodeEnum::ShortestPath(_) => "shortest_path",
+            PlanNodeEnum::CreateSpace(_) => "create_space",
+            PlanNodeEnum::DropSpace(_) => "drop_space",
+            PlanNodeEnum::DescSpace(_) => "desc_space",
+            PlanNodeEnum::ShowSpaces(_) => "show_spaces",
+            PlanNodeEnum::CreateTag(_) => "create_tag",
+            PlanNodeEnum::AlterTag(_) => "alter_tag",
+            PlanNodeEnum::DescTag(_) => "desc_tag",
+            PlanNodeEnum::DropTag(_) => "drop_tag",
+            PlanNodeEnum::ShowTags(_) => "show_tags",
+            PlanNodeEnum::CreateEdge(_) => "create_edge",
+            PlanNodeEnum::AlterEdge(_) => "alter_edge",
+            PlanNodeEnum::DescEdge(_) => "desc_edge",
+            PlanNodeEnum::DropEdge(_) => "drop_edge",
+            PlanNodeEnum::ShowEdges(_) => "show_edges",
+            PlanNodeEnum::CreateTagIndex(_) => "create_tag_index",
+            PlanNodeEnum::DropTagIndex(_) => "drop_tag_index",
+            PlanNodeEnum::DescTagIndex(_) => "desc_tag_index",
+            PlanNodeEnum::ShowTagIndexes(_) => "show_tag_indexes",
+            PlanNodeEnum::CreateEdgeIndex(_) => "create_edge_index",
+            PlanNodeEnum::DropEdgeIndex(_) => "drop_edge_index",
+            PlanNodeEnum::DescEdgeIndex(_) => "desc_edge_index",
+            PlanNodeEnum::ShowEdgeIndexes(_) => "show_edge_indexes",
+            PlanNodeEnum::RebuildTagIndex(_) => "rebuild_tag_index",
+            PlanNodeEnum::RebuildEdgeIndex(_) => "rebuild_edge_index",
+            PlanNodeEnum::CreateUser(_) => "create_user",
+            PlanNodeEnum::AlterUser(_) => "alter_user",
+            PlanNodeEnum::DropUser(_) => "drop_user",
+            PlanNodeEnum::ChangePassword(_) => "change_password",
+        }
+    }
+
+    fn node_type_name(&self) -> &'static str {
+        match self {
+            PlanNodeEnum::Start(_) => "Start",
+            PlanNodeEnum::Project(_) => "Project",
+            PlanNodeEnum::Sort(_) => "Sort",
+            PlanNodeEnum::Limit(_) => "Limit",
+            PlanNodeEnum::TopN(_) => "TopN",
+            PlanNodeEnum::Sample(_) => "Sample",
+            PlanNodeEnum::InnerJoin(_) => "Inner Join",
+            PlanNodeEnum::LeftJoin(_) => "Left Join",
+            PlanNodeEnum::CrossJoin(_) => "Cross Join",
+            PlanNodeEnum::GetVertices(_) => "Get Vertices",
+            PlanNodeEnum::GetEdges(_) => "Get Edges",
+            PlanNodeEnum::GetNeighbors(_) => "Get Neighbors",
+            PlanNodeEnum::ScanVertices(_) => "Scan Vertices",
+            PlanNodeEnum::ScanEdges(_) => "Scan Edges",
+            PlanNodeEnum::HashInnerJoin(_) => "Hash Inner Join",
+            PlanNodeEnum::HashLeftJoin(_) => "Hash Left Join",
+            PlanNodeEnum::IndexScan(_) => "Index Scan",
+            PlanNodeEnum::FulltextIndexScan(_) => "Fulltext Index Scan",
+            PlanNodeEnum::Expand(_) => "Expand",
+            PlanNodeEnum::ExpandAll(_) => "Expand All",
+            PlanNodeEnum::Traverse(_) => "Traverse",
+            PlanNodeEnum::AppendVertices(_) => "Append Vertices",
+            PlanNodeEnum::Filter(_) => "Filter",
+            PlanNodeEnum::Aggregate(_) => "Aggregate",
+            PlanNodeEnum::Argument(_) => "Argument",
+            PlanNodeEnum::Loop(_) => "Loop",
+            PlanNodeEnum::PassThrough(_) => "Pass Through",
+            PlanNodeEnum::Select(_) => "Select",
+            PlanNodeEnum::DataCollect(_) => "Data Collect",
+            PlanNodeEnum::Dedup(_) => "Dedup",
+            PlanNodeEnum::PatternApply(_) => "Pattern Apply",
+            PlanNodeEnum::RollUpApply(_) => "RollUp Apply",
+            PlanNodeEnum::Union(_) => "Union",
+            PlanNodeEnum::Unwind(_) => "Unwind",
+            PlanNodeEnum::Assign(_) => "Assign",
+            PlanNodeEnum::MultiShortestPath(_) => "Multi Shortest Path",
+            PlanNodeEnum::BFSShortest(_) => "BFS Shortest",
+            PlanNodeEnum::AllPaths(_) => "All Paths",
+            PlanNodeEnum::ShortestPath(_) => "Shortest Path",
+            PlanNodeEnum::CreateSpace(_) => "Create Space",
+            PlanNodeEnum::DropSpace(_) => "Drop Space",
+            PlanNodeEnum::DescSpace(_) => "Describe Space",
+            PlanNodeEnum::ShowSpaces(_) => "Show Spaces",
+            PlanNodeEnum::CreateTag(_) => "Create Tag",
+            PlanNodeEnum::AlterTag(_) => "Alter Tag",
+            PlanNodeEnum::DescTag(_) => "Describe Tag",
+            PlanNodeEnum::DropTag(_) => "Drop Tag",
+            PlanNodeEnum::ShowTags(_) => "Show Tags",
+            PlanNodeEnum::CreateEdge(_) => "Create Edge",
+            PlanNodeEnum::AlterEdge(_) => "Alter Edge",
+            PlanNodeEnum::DescEdge(_) => "Describe Edge",
+            PlanNodeEnum::DropEdge(_) => "Drop Edge",
+            PlanNodeEnum::ShowEdges(_) => "Show Edges",
+            PlanNodeEnum::CreateTagIndex(_) => "Create Tag Index",
+            PlanNodeEnum::DropTagIndex(_) => "Drop Tag Index",
+            PlanNodeEnum::DescTagIndex(_) => "Describe Tag Index",
+            PlanNodeEnum::ShowTagIndexes(_) => "Show Tag Indexes",
+            PlanNodeEnum::CreateEdgeIndex(_) => "Create Edge Index",
+            PlanNodeEnum::DropEdgeIndex(_) => "Drop Edge Index",
+            PlanNodeEnum::DescEdgeIndex(_) => "Describe Edge Index",
+            PlanNodeEnum::ShowEdgeIndexes(_) => "Show Edge Indexes",
+            PlanNodeEnum::RebuildTagIndex(_) => "Rebuild Tag Index",
+            PlanNodeEnum::RebuildEdgeIndex(_) => "Rebuild Edge Index",
+            PlanNodeEnum::CreateUser(_) => "Create User",
+            PlanNodeEnum::AlterUser(_) => "Alter User",
+            PlanNodeEnum::DropUser(_) => "Drop User",
+            PlanNodeEnum::ChangePassword(_) => "Change Password",
+        }
+    }
+
+    fn category(&self) -> NodeCategory {
+        match self {
+            PlanNodeEnum::Start(_) => NodeCategory::Scan,
+            PlanNodeEnum::Project(_) => NodeCategory::Project,
+            PlanNodeEnum::Sort(_) => NodeCategory::Sort,
+            PlanNodeEnum::Limit(_) => NodeCategory::Sort,
+            PlanNodeEnum::TopN(_) => NodeCategory::Sort,
+            PlanNodeEnum::Sample(_) => NodeCategory::Other,
+            PlanNodeEnum::InnerJoin(_) => NodeCategory::Join,
+            PlanNodeEnum::LeftJoin(_) => NodeCategory::Join,
+            PlanNodeEnum::CrossJoin(_) => NodeCategory::Join,
+            PlanNodeEnum::GetVertices(_) => NodeCategory::Scan,
+            PlanNodeEnum::GetEdges(_) => NodeCategory::Scan,
+            PlanNodeEnum::GetNeighbors(_) => NodeCategory::Scan,
+            PlanNodeEnum::ScanVertices(_) => NodeCategory::Scan,
+            PlanNodeEnum::ScanEdges(_) => NodeCategory::Scan,
+            PlanNodeEnum::HashInnerJoin(_) => NodeCategory::Join,
+            PlanNodeEnum::HashLeftJoin(_) => NodeCategory::Join,
+            PlanNodeEnum::IndexScan(_) => NodeCategory::Scan,
+            PlanNodeEnum::FulltextIndexScan(_) => NodeCategory::Scan,
+            PlanNodeEnum::Expand(_) => NodeCategory::Traversal,
+            PlanNodeEnum::ExpandAll(_) => NodeCategory::Traversal,
+            PlanNodeEnum::Traverse(_) => NodeCategory::Traversal,
+            PlanNodeEnum::AppendVertices(_) => NodeCategory::Traversal,
+            PlanNodeEnum::Filter(_) => NodeCategory::Filter,
+            PlanNodeEnum::Aggregate(_) => NodeCategory::Aggregate,
+            PlanNodeEnum::Argument(_) => NodeCategory::Control,
+            PlanNodeEnum::Loop(_) => NodeCategory::Control,
+            PlanNodeEnum::PassThrough(_) => NodeCategory::Control,
+            PlanNodeEnum::Select(_) => NodeCategory::Control,
+            PlanNodeEnum::DataCollect(_) => NodeCategory::DataCollect,
+            PlanNodeEnum::Dedup(_) => NodeCategory::Aggregate,
+            PlanNodeEnum::PatternApply(_) => NodeCategory::DataCollect,
+            PlanNodeEnum::RollUpApply(_) => NodeCategory::DataCollect,
+            PlanNodeEnum::Union(_) => NodeCategory::SetOp,
+            PlanNodeEnum::Unwind(_) => NodeCategory::DataCollect,
+            PlanNodeEnum::Assign(_) => NodeCategory::DataCollect,
+            PlanNodeEnum::MultiShortestPath(_) => NodeCategory::Path,
+            PlanNodeEnum::BFSShortest(_) => NodeCategory::Path,
+            PlanNodeEnum::AllPaths(_) => NodeCategory::Path,
+            PlanNodeEnum::ShortestPath(_) => NodeCategory::Path,
+            PlanNodeEnum::CreateSpace(_) => NodeCategory::Admin,
+            PlanNodeEnum::DropSpace(_) => NodeCategory::Admin,
+            PlanNodeEnum::DescSpace(_) => NodeCategory::Admin,
+            PlanNodeEnum::ShowSpaces(_) => NodeCategory::Admin,
+            PlanNodeEnum::CreateTag(_) => NodeCategory::Admin,
+            PlanNodeEnum::AlterTag(_) => NodeCategory::Admin,
+            PlanNodeEnum::DescTag(_) => NodeCategory::Admin,
+            PlanNodeEnum::DropTag(_) => NodeCategory::Admin,
+            PlanNodeEnum::ShowTags(_) => NodeCategory::Admin,
+            PlanNodeEnum::CreateEdge(_) => NodeCategory::Admin,
+            PlanNodeEnum::AlterEdge(_) => NodeCategory::Admin,
+            PlanNodeEnum::DescEdge(_) => NodeCategory::Admin,
+            PlanNodeEnum::DropEdge(_) => NodeCategory::Admin,
+            PlanNodeEnum::ShowEdges(_) => NodeCategory::Admin,
+            PlanNodeEnum::CreateTagIndex(_) => NodeCategory::Admin,
+            PlanNodeEnum::DropTagIndex(_) => NodeCategory::Admin,
+            PlanNodeEnum::DescTagIndex(_) => NodeCategory::Admin,
+            PlanNodeEnum::ShowTagIndexes(_) => NodeCategory::Admin,
+            PlanNodeEnum::CreateEdgeIndex(_) => NodeCategory::Admin,
+            PlanNodeEnum::DropEdgeIndex(_) => NodeCategory::Admin,
+            PlanNodeEnum::DescEdgeIndex(_) => NodeCategory::Admin,
+            PlanNodeEnum::ShowEdgeIndexes(_) => NodeCategory::Admin,
+            PlanNodeEnum::RebuildTagIndex(_) => NodeCategory::Admin,
+            PlanNodeEnum::RebuildEdgeIndex(_) => NodeCategory::Admin,
+            PlanNodeEnum::CreateUser(_) => NodeCategory::Admin,
+            PlanNodeEnum::AlterUser(_) => NodeCategory::Admin,
+            PlanNodeEnum::DropUser(_) => NodeCategory::Admin,
+            PlanNodeEnum::ChangePassword(_) => NodeCategory::Admin,
+        }
+    }
+}
+
+/// NodeTypeMapping trait 实现
+///
+/// 提供 PlanNodeEnum 到 ExecutorEnum 的映射
+impl NodeTypeMapping for PlanNodeEnum {
+    fn corresponding_executor_type(&self) -> Option<&'static str> {
+        match self {
+            PlanNodeEnum::Start(_) => Some("start"),
+            PlanNodeEnum::Project(_) => Some("project"),
+            PlanNodeEnum::Sort(_) => Some("sort"),
+            PlanNodeEnum::Limit(_) => Some("limit"),
+            PlanNodeEnum::TopN(_) => Some("topn"),
+            PlanNodeEnum::Sample(_) => Some("sample"),
+            PlanNodeEnum::InnerJoin(_) => Some("inner_join"),
+            PlanNodeEnum::LeftJoin(_) => Some("left_join"),
+            PlanNodeEnum::CrossJoin(_) => Some("cross_join"),
+            PlanNodeEnum::GetVertices(_) => Some("get_vertices"),
+            PlanNodeEnum::GetEdges(_) => Some("get_edges"),
+            PlanNodeEnum::GetNeighbors(_) => Some("get_neighbors"),
+            PlanNodeEnum::ScanVertices(_) => Some("scan_vertices"),
+            PlanNodeEnum::ScanEdges(_) => Some("scan_edges"),
+            PlanNodeEnum::HashInnerJoin(_) => Some("hash_inner_join"),
+            PlanNodeEnum::HashLeftJoin(_) => Some("hash_left_join"),
+            PlanNodeEnum::IndexScan(_) => Some("index_scan"),
+            PlanNodeEnum::FulltextIndexScan(_) => Some("fulltext_index_scan"),
+            PlanNodeEnum::Expand(_) => Some("expand"),
+            PlanNodeEnum::ExpandAll(_) => Some("expand_all"),
+            PlanNodeEnum::Traverse(_) => Some("traverse"),
+            PlanNodeEnum::AppendVertices(_) => Some("append_vertices"),
+            PlanNodeEnum::Filter(_) => Some("filter"),
+            PlanNodeEnum::Aggregate(_) => Some("aggregate"),
+            PlanNodeEnum::Argument(_) => Some("argument"),
+            PlanNodeEnum::Loop(_) => Some("loop"),
+            PlanNodeEnum::PassThrough(_) => Some("pass_through"),
+            PlanNodeEnum::Select(_) => Some("select"),
+            PlanNodeEnum::DataCollect(_) => Some("data_collect"),
+            PlanNodeEnum::Dedup(_) => Some("dedup"),
+            PlanNodeEnum::PatternApply(_) => Some("pattern_apply"),
+            PlanNodeEnum::RollUpApply(_) => Some("rollup_apply"),
+            PlanNodeEnum::Union(_) => Some("union"),
+            PlanNodeEnum::Unwind(_) => Some("unwind"),
+            PlanNodeEnum::Assign(_) => Some("assign"),
+            PlanNodeEnum::MultiShortestPath(_) => Some("multi_shortest_path"),
+            PlanNodeEnum::BFSShortest(_) => Some("bfs_shortest"),
+            PlanNodeEnum::AllPaths(_) => Some("all_paths"),
+            PlanNodeEnum::ShortestPath(_) => Some("shortest_path"),
+            PlanNodeEnum::CreateSpace(_) => Some("create_space"),
+            PlanNodeEnum::DropSpace(_) => Some("drop_space"),
+            PlanNodeEnum::DescSpace(_) => Some("desc_space"),
+            PlanNodeEnum::ShowSpaces(_) => Some("show_spaces"),
+            PlanNodeEnum::CreateTag(_) => Some("create_tag"),
+            PlanNodeEnum::AlterTag(_) => Some("alter_tag"),
+            PlanNodeEnum::DescTag(_) => Some("desc_tag"),
+            PlanNodeEnum::DropTag(_) => Some("drop_tag"),
+            PlanNodeEnum::ShowTags(_) => Some("show_tags"),
+            PlanNodeEnum::CreateEdge(_) => Some("create_edge"),
+            PlanNodeEnum::AlterEdge(_) => Some("alter_edge"),
+            PlanNodeEnum::DescEdge(_) => Some("desc_edge"),
+            PlanNodeEnum::DropEdge(_) => Some("drop_edge"),
+            PlanNodeEnum::ShowEdges(_) => Some("show_edges"),
+            PlanNodeEnum::CreateTagIndex(_) => Some("create_tag_index"),
+            PlanNodeEnum::DropTagIndex(_) => Some("drop_tag_index"),
+            PlanNodeEnum::DescTagIndex(_) => Some("desc_tag_index"),
+            PlanNodeEnum::ShowTagIndexes(_) => Some("show_tag_indexes"),
+            PlanNodeEnum::CreateEdgeIndex(_) => Some("create_edge_index"),
+            PlanNodeEnum::DropEdgeIndex(_) => Some("drop_edge_index"),
+            PlanNodeEnum::DescEdgeIndex(_) => Some("desc_edge_index"),
+            PlanNodeEnum::ShowEdgeIndexes(_) => Some("show_edge_indexes"),
+            PlanNodeEnum::RebuildTagIndex(_) => Some("rebuild_tag_index"),
+            PlanNodeEnum::RebuildEdgeIndex(_) => Some("rebuild_edge_index"),
+            PlanNodeEnum::CreateUser(_) => Some("create_user"),
+            PlanNodeEnum::AlterUser(_) => Some("alter_user"),
+            PlanNodeEnum::DropUser(_) => Some("drop_user"),
+            PlanNodeEnum::ChangePassword(_) => Some("change_password"),
         }
     }
 }

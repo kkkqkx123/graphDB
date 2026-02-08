@@ -5,6 +5,7 @@ use crate::query::context::ast::AstContext;
 use crate::query::context::execution::QueryContext;
 use crate::query::planner::plan::ExecutionPlan;
 use crate::query::planner::plan::SubPlan;
+use crate::query::validator::validation_factory::StatementType;
 use lru::LruCache;
 use std::collections::HashMap;
 use std::num::NonZeroUsize;
@@ -158,6 +159,51 @@ impl SentenceKind {
             SentenceKind::FetchVertices => "FETCH VERTICES",
             SentenceKind::FetchEdges => "FETCH EDGES",
             SentenceKind::Maintain => "MAINTAIN",
+        }
+    }
+
+    /// 从 StatementType 转换到 SentenceKind
+    /// 建立验证层和规划层之间的显式映射关系
+    pub fn from_statement_type(stmt_type: &StatementType) -> Option<Self> {
+        match stmt_type {
+            StatementType::Match => Some(SentenceKind::Match),
+            StatementType::Go => Some(SentenceKind::Go),
+            StatementType::Lookup => Some(SentenceKind::Lookup),
+            StatementType::FindPath => Some(SentenceKind::Path),
+            StatementType::GetSubgraph => Some(SentenceKind::Subgraph),
+            StatementType::FetchVertices => Some(SentenceKind::FetchVertices),
+            StatementType::FetchEdges => Some(SentenceKind::FetchEdges),
+            // 所有DDL和DML操作都映射到 Maintain
+            StatementType::InsertVertices |
+            StatementType::InsertEdges |
+            StatementType::Update |
+            StatementType::Delete |
+            StatementType::CreateSpace |
+            StatementType::CreateTag |
+            StatementType::CreateEdge |
+            StatementType::AlterTag |
+            StatementType::AlterEdge |
+            StatementType::DropSpace |
+            StatementType::DropTag |
+            StatementType::DropEdge |
+            StatementType::DescribeSpace |
+            StatementType::DescribeTag |
+            StatementType::DescribeEdge |
+            StatementType::ShowSpaces |
+            StatementType::ShowTags |
+            StatementType::ShowEdges => Some(SentenceKind::Maintain),
+            // 以下类型没有对应的规划器，返回 None
+            StatementType::Unwind |
+            StatementType::Yield |
+            StatementType::OrderBy |
+            StatementType::Limit |
+            StatementType::GroupBy |
+            StatementType::Use |
+            StatementType::Assignment |
+            StatementType::Set |
+            StatementType::Pipe |
+            StatementType::Sequential |
+            StatementType::Explain => None,
         }
     }
 }

@@ -5,11 +5,16 @@
 
 mod operation_kind;
 mod execution_state;
+mod node_type;
 
 pub use operation_kind::{CoreOperationKind};
 pub use execution_state::{
     QueryExecutionState, ExecutorState, LoopExecutionState,
     RowStatus, OptimizationState, OptimizationPhase,
+};
+pub use node_type::{
+    NodeType, NodeCategory, NodeTypeRegistry,
+    NodeTypeMapping,
 };
 
 use crate::query::parser::ast::Stmt;

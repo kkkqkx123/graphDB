@@ -47,7 +47,6 @@ impl IntoOperationKind for PlanNodeEnum {
             PlanNodeEnum::PassThrough(_) => CoreOperationKind::PassThrough,
             PlanNodeEnum::Select(_) => CoreOperationKind::Select,
             PlanNodeEnum::DataCollect(_) => CoreOperationKind::DataCollect,
-            PlanNodeEnum::CartesianProduct(_) => CoreOperationKind::CrossJoin,
             PlanNodeEnum::CreateSpace(_) => CoreOperationKind::CreateSpace,
             PlanNodeEnum::DropSpace(_) => CoreOperationKind::DropSpace,
             PlanNodeEnum::DescSpace(_) => CoreOperationKind::DescribeSpace,

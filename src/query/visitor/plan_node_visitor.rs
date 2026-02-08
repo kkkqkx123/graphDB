@@ -370,7 +370,6 @@ pub trait PlanNodeVisitor {
             PlanNodeEnum::CrossJoin(n) => self.visit_cross_join(n),
             PlanNodeEnum::HashInnerJoin(n) => self.visit_hash_inner_join(n),
             PlanNodeEnum::HashLeftJoin(n) => self.visit_hash_left_join(n),
-            PlanNodeEnum::CartesianProduct(n) => self.visit_cross_join(n),
             PlanNodeEnum::Aggregate(n) => self.visit_aggregate(n),
             PlanNodeEnum::Argument(n) => self.visit_argument(n),
             PlanNodeEnum::Loop(n) => self.visit_loop(n),

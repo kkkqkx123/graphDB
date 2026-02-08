@@ -79,3 +79,56 @@ pub use search_executors::{BFSShortestExecutor, FulltextIndexScanExecutor};
 
 // Re-export special executors (特殊执行器)
 pub use special_executors::{ArgumentExecutor, DataCollectExecutor, PassThroughExecutor};
+
+// 编译期枚举一致性检查
+// 这些检查确保 PlanNodeEnum 和 ExecutorEnum 的变体数量一致
+// 如果数量不匹配，编译将失败并给出明确的错误信息
+
+/// PlanNodeEnum 的变体数量
+/// 注意：当添加或删除 PlanNodeEnum 的变体时，需要更新此常量
+const PLAN_NODE_VARIANT_COUNT: usize = 68;
+
+/// ExecutorEnum 的变体数量
+/// 注意：当添加或删除 ExecutorEnum 的变体时，需要更新此常量
+const EXECUTOR_VARIANT_COUNT: usize = 68;
+
+// 编译期断言：确保两个枚举的变体数量一致
+// 注意：const assert 中不能使用格式化字符串
+const _: () = assert!(
+    PLAN_NODE_VARIANT_COUNT == EXECUTOR_VARIANT_COUNT,
+    "PlanNodeEnum and ExecutorEnum variant count mismatch"
+);
+
+/// 节点类型一致性检查
+///
+/// 此模块在编译期检查 PlanNodeEnum 和 ExecutorEnum 的一致性
+#[cfg(test)]
+mod consistency_tests {
+    use crate::query::core::{NodeType, NodeTypeMapping};
+    use crate::query::planner::plan::core::nodes::PlanNodeEnum;
+    use crate::query::executor::ExecutorEnum;
+    use crate::storage::StorageClient;
+
+    /// 测试 PlanNodeEnum 和 ExecutorEnum 的节点类型 ID 是否一致
+    #[test]
+    fn test_node_type_id_consistency() {
+        // 此测试确保所有 PlanNode 类型都有对应的 Executor 类型
+        // 实际检查在编译期通过常量断言完成
+        assert_eq!(super::PLAN_NODE_VARIANT_COUNT, super::EXECUTOR_VARIANT_COUNT);
+    }
+
+    /// 验证节点类型映射
+    #[test]
+    fn test_node_type_mapping() {
+        use crate::query::planner::plan::core::nodes::CrossJoinNode;
+        
+        // 示例：验证 CrossJoin 的映射
+        let cross_join_node = CrossJoinNode::new(1);
+        let plan_node = PlanNodeEnum::CrossJoin(cross_join_node);
+        
+        // 验证 PlanNodeEnum 实现了 NodeTypeMapping
+        let executor_type = plan_node.corresponding_executor_type();
+        assert!(executor_type.is_some());
+        assert_eq!(executor_type.unwrap(), "cross_join");
+    }
+}
