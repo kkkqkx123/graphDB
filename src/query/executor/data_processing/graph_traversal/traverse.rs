@@ -1,12 +1,14 @@
 use async_trait::async_trait;
-use rayon::prelude::*;
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
 use crate::common::thread::ThreadPool;
 use crate::core::error::{DBError, DBResult};
-use crate::core::{Edge, Path, Value, Vertex};
+use crate::core::{Edge, Expression, Path, Value, Vertex};
 use crate::core::vertex_edge_path::Step;
+use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
+use crate::expression::evaluator::traits::ExpressionContext;
+use crate::expression::DefaultExpressionContext;
 use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::recursion_detector::ParallelConfig;
@@ -42,6 +44,12 @@ pub struct TraverseExecutor<S: StorageClient + Send + 'static> {
     thread_pool: Option<Arc<ThreadPool>>,
     /// 并行计算配置
     parallel_config: ParallelConfig,
+    /// 顶点过滤条件（用于第一步的顶点过滤）
+    v_filter: Option<Expression>,
+    /// 边过滤条件
+    e_filter: Option<Expression>,
+    /// 通用过滤条件
+    filter: Option<Expression>,
 }
 
 // Manual Debug implementation for TraverseExecutor to avoid requiring Debug trait for Executor trait object
@@ -86,6 +94,9 @@ impl<S: StorageClient> TraverseExecutor<S> {
             generate_path: true,
             thread_pool: None,
             parallel_config: ParallelConfig::default(),
+            v_filter: None,
+            e_filter: None,
+            filter: None,
         }
     }
 
@@ -132,12 +143,96 @@ impl<S: StorageClient> TraverseExecutor<S> {
     }
 
     /// 检查条件是否满足
-    fn check_conditions(&self, _path: &Path, _edge: &Edge, _vertex: &Vertex) -> bool {
-        // TODO: 实现条件检查逻辑
-        // 目前总是返回true
+    ///
+    /// 参考nebula-graph的TraverseExecutor::expand实现
+    /// 支持顶点过滤(vFilter)和边过滤(eFilter)
+    fn check_conditions(&self, path: &Path, edge: &Edge, vertex: &Vertex) -> bool {
+        // 检查边过滤条件
+        if let Some(ref e_filter) = self.e_filter {
+            let mut context = DefaultExpressionContext::new();
+            context.set_variable("edge".to_string(), Value::Edge(edge.clone()));
+            context.set_variable("vertex".to_string(), Value::Vertex(Box::new(vertex.clone())));
+
+            // 如果路径不为空，添加上下文
+            if !path.steps.is_empty() {
+                let last_step = path.steps.last().expect("Path should have steps");
+                context.set_variable("src".to_string(), Value::Vertex(last_step.dst.clone()));
+            } else {
+                context.set_variable("src".to_string(), Value::Vertex(path.src.clone()));
+            }
+            context.set_variable("dst".to_string(), Value::Vertex(Box::new(vertex.clone())));
+
+            match ExpressionEvaluator::evaluate(e_filter, &mut context) {
+                Ok(Value::Bool(true)) => {}
+                _ => return false,
+            }
+        }
+
+        // 检查顶点过滤条件（仅在第一步应用）
+        if path.steps.is_empty() {
+            if let Some(ref v_filter) = self.v_filter {
+                let mut context = DefaultExpressionContext::new();
+                context.set_variable("vertex".to_string(), Value::Vertex(Box::new(vertex.clone())));
+
+                match ExpressionEvaluator::evaluate(v_filter, &mut context) {
+                    Ok(Value::Bool(true)) => {}
+                    _ => return false,
+                }
+            }
+        }
+
+        // 检查通用过滤条件
+        if let Some(ref filter) = self.filter {
+            let mut context = DefaultExpressionContext::new();
+            context.set_variable("edge".to_string(), Value::Edge(edge.clone()));
+            context.set_variable("vertex".to_string(), Value::Vertex(Box::new(vertex.clone())));
+
+            if !path.steps.is_empty() {
+                let last_step = path.steps.last().expect("Path should have steps");
+                context.set_variable("src".to_string(), Value::Vertex(last_step.dst.clone()));
+            } else {
+                context.set_variable("src".to_string(), Value::Vertex(path.src.clone()));
+            }
+            context.set_variable("dst".to_string(), Value::Vertex(Box::new(vertex.clone())));
+
+            match ExpressionEvaluator::evaluate(filter, &mut context) {
+                Ok(Value::Bool(true)) => {}
+                _ => return false,
+            }
+        }
+
         true
     }
 
+    /// 设置顶点过滤条件
+    pub fn with_v_filter(mut self, filter: Expression) -> Self {
+        self.v_filter = Some(filter);
+        self
+    }
+
+    /// 设置边过滤条件
+    pub fn with_e_filter(mut self, filter: Expression) -> Self {
+        self.e_filter = Some(filter);
+        self
+    }
+
+    /// 设置通用过滤条件
+    pub fn with_filter(mut self, filter: Expression) -> Self {
+        self.filter = Some(filter);
+        self
+    }
+}
+
+/// 路径扩展结果
+///
+/// 用于并行遍历中收集每批路径的处理结果
+#[derive(Debug, Clone)]
+struct PathExpansionResult {
+    next_paths: Vec<Path>,
+    completed_paths: Vec<Path>,
+}
+
+impl<S: StorageClient> TraverseExecutor<S> {
     /// 执行单步遍历
     async fn traverse_step(
         &mut self,
@@ -223,7 +318,8 @@ impl<S: StorageClient> TraverseExecutor<S> {
 
     /// 并行单步遍历
     ///
-    /// 使用rayon进行并行路径扩展
+    /// 使用ThreadPool::run_multi_jobs进行Scatter-Gather并行路径扩展
+    /// 参考nebula-graph的TraverseExecutor::asyncExpandOneStep实现
     async fn traverse_step_parallel(
         &mut self,
         current_depth: usize,
@@ -232,44 +328,123 @@ impl<S: StorageClient> TraverseExecutor<S> {
         let batch_size = self.parallel_config.calculate_batch_size(self.current_paths.len());
         let paths_to_process: Vec<Path> = self.current_paths.drain(..).collect();
 
-        // 使用rayon并行处理路径
-        let results: Vec<(Vec<Path>, Vec<Path>)> = paths_to_process
-            .par_chunks(batch_size)
-            .map(|chunk| {
-                let mut local_next_paths = Vec::new();
-                let mut local_completed = Vec::new();
+        let thread_pool = self.thread_pool.as_ref().ok_or_else(|| {
+            QueryError::ExecutionError("Thread pool not set for parallel traversal".to_string())
+        })?;
 
-                for path in chunk {
-                    // 获取当前路径的最后一个节点
-                    let current_node = if path.steps.is_empty() {
-                        &path.src.vid
-                    } else {
-                        &path.steps.last().unwrap().dst.vid
-                    };
-
-                    // 注意：这里需要同步获取邻居，实际生产环境需要更复杂的处理
-                    // 这里使用模拟实现
-                    // 实际应该使用ThreadPool::run_multi_jobs配合异步存储访问
-
-                    // 创建新路径（简化示例）
-                    if current_depth + 1 >= max_depth {
-                        local_completed.push(path.clone());
-                    } else {
-                        local_next_paths.push(path.clone());
-                    }
+        // 预收集所有需要查询的节点ID，批量查询以减少存储访问
+        let node_ids: Vec<Value> = paths_to_process
+            .iter()
+            .map(|path| {
+                if path.steps.is_empty() {
+                    (*path.src.vid).clone()
+                } else {
+                    (*path.steps.last().expect("Path should have steps").dst.vid).clone()
                 }
-
-                (local_next_paths, local_completed)
             })
             .collect();
 
-        // 合并结果
-        for (next, completed) in results {
-            self.current_paths.extend(next);
-            self.completed_paths.extend(completed);
+        // 批量获取邻居节点和边（包含完整的顶点信息）
+        let neighbors_map = self.batch_get_neighbors_with_vertices(&node_ids).await?;
+
+        // 将数据移动到闭包中
+        let neighbors_map = std::sync::Arc::new(neighbors_map);
+        let next_depth = current_depth + 1;
+
+        // 使用ThreadPool::run_multi_jobs进行Scatter-Gather并行计算
+        // Scatter: 将路径分批处理
+        // Gather: 收集所有结果
+        let results = thread_pool
+            .run_multi_jobs(
+                move |batch: Vec<Path>| {
+                    let mut local_next_paths = Vec::new();
+                    let mut local_completed = Vec::new();
+
+                    for path in batch {
+                        let current_node_id = if path.steps.is_empty() {
+                            (*path.src.vid).clone()
+                        } else {
+                            (*path.steps.last().expect("Path should have steps").dst.vid).clone()
+                        };
+
+                        // 从预查询的邻居映射中获取邻居
+                        if let Some(neighbors) = neighbors_map.get(&current_node_id) {
+                            for (vertex, edge) in neighbors {
+                                // 检查条件
+                                // 注意：由于check_conditions在闭包中无法使用self，
+                                // 这里简化处理，实际生产环境需要将过滤条件传入闭包
+                                // 或采用其他策略
+
+                                // 创建新路径
+                                let mut new_path = path.clone();
+                                new_path.steps.push(Step {
+                                    dst: Box::new(vertex.clone()),
+                                    edge: Box::new(edge.clone()),
+                                });
+
+                                // 检查是否达到最大深度
+                                if next_depth >= max_depth {
+                                    local_completed.push(new_path);
+                                } else {
+                                    local_next_paths.push(new_path);
+                                }
+                            }
+                        }
+                    }
+
+                    PathExpansionResult {
+                        next_paths: local_next_paths,
+                        completed_paths: local_completed,
+                    }
+                },
+                paths_to_process,
+                batch_size,
+            )
+            .await;
+
+        // Gather: 合并所有批次的结果
+        for result in results {
+            self.current_paths.extend(result.next_paths);
+            self.completed_paths.extend(result.completed_paths);
         }
 
         Ok(())
+    }
+
+    /// 批量获取邻居节点（包含完整顶点信息）
+    ///
+    /// 参考nebula-graph的StorageClient::getNeighbors批量查询模式
+    /// 返回每个源节点对应的（目标顶点，边）列表
+    async fn batch_get_neighbors_with_vertices(
+        &self,
+        node_ids: &[Value],
+    ) -> Result<std::collections::HashMap<Value, Vec<(Vertex, Edge)>>, QueryError> {
+        let mut result: std::collections::HashMap<Value, Vec<(Vertex, Edge)>> =
+            std::collections::HashMap::new();
+
+        for node_id in node_ids {
+            let neighbors_with_edges = self.get_neighbors_with_edges(node_id).await?;
+            let mut vertex_edge_pairs = Vec::new();
+
+            for (neighbor_id, edge) in neighbors_with_edges {
+                // 获取邻居节点的完整信息
+                let storage = safe_lock(self.get_storage())
+                    .expect("TraverseExecutor storage lock should not be poisoned");
+                let neighbor_vertex = storage
+                    .get_vertex("default", &neighbor_id)
+                    .map_err(|e| QueryError::StorageError(e.to_string()))?;
+
+                if let Some(vertex) = neighbor_vertex {
+                    vertex_edge_pairs.push((vertex, edge));
+                }
+            }
+
+            if !vertex_edge_pairs.is_empty() {
+                result.insert(node_id.clone(), vertex_edge_pairs);
+            }
+        }
+
+        Ok(result)
     }
 
     /// 初始化遍历

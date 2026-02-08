@@ -362,7 +362,7 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
         let mut result = Vec::new();
 
         if left_col_names.is_empty() && right_col_names.is_empty() {
-            for (i, col_name) in self.col_names.iter().enumerate() {
+            for (i, _col_name) in self.col_names.iter().enumerate() {
                 if i < left_row.len() {
                     result.push(left_row[i].clone());
                 } else if i - left_row.len() < right_row.len() {

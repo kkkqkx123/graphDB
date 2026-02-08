@@ -550,7 +550,7 @@ mod tests {
             ),
         ];
 
-        let mut executor = ProjectExecutor::new(1, storage, columns);
+        let executor = ProjectExecutor::new(1, storage, columns);
 
         // 创建测试边
         let edge1 = crate::core::Edge {

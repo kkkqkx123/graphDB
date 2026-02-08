@@ -15,27 +15,12 @@ use crate::query::validator::structs::CypherClauseKind;
 /// LIMIT/SKIP 子句规划器
 ///
 /// 负责规划 LIMIT 和 SKIP 子句的执行，实现结果分页。
-#[derive(Debug)]
-pub struct PaginationPlanner {
-    default_limit: usize,
-}
+#[derive(Debug, Default)]
+pub struct PaginationPlanner;
 
 impl PaginationPlanner {
     pub fn new() -> Self {
-        Self {
-            default_limit: 100,
-        }
-    }
-
-    pub fn with_default_limit(limit: usize) -> Self {
-        Self {
-            default_limit: limit,
-        }
-    }
-
-    pub fn from_ast(ast_ctx: &AstContext) -> Self {
-        let pagination = extract_pagination_info(ast_ctx);
-        Self::with_default_limit(pagination.limit)
+        Self
     }
 }
 

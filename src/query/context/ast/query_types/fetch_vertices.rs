@@ -45,6 +45,29 @@ impl FetchVerticesContext {
 
         match &fetch_stmt.target {
             crate::query::parser::ast::stmt::FetchTarget::Vertices { ids, properties } => {
+                // 处理顶点ID列表，类似于nebula-graph中的validateStarts函数
+                ctx.from.vids = ids.iter()
+                    .map(|expr| {
+                        // 将Expression转换为字符串表示
+                        // 在实际实现中，这里应该对表达式进行求值，类似于nebula-graph中的expr->eval(ctx(nullptr))
+                        // 但现在我们暂时简单地将其转换为字符串
+                        match expr {
+                            crate::core::Expression::Literal(value) => {
+                                // 如果是常量，直接转换为字符串
+                                format!("{}", value)
+                            }
+                            crate::core::Expression::Variable(var_name) => {
+                                // 如果是变量，返回变量名
+                                var_name.clone()
+                            }
+                            _ => {
+                                // 其他情况，使用调试格式
+                                format!("{:?}", expr)
+                            }
+                        }
+                    })
+                    .collect();
+                
                 ctx.from.user_defined_var_name = String::from("FETCH_VERTICES_INPUT");
                 ctx.col_names = vec!["vid".to_string()];
                 ctx.yield_expression = Some(YieldColumns {

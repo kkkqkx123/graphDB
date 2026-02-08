@@ -582,7 +582,7 @@ mod tests {
 
     #[test]
     fn test_processor_context_with_counters() {
-        let counters = ProcessorCounters::default();
+        let _counters = ProcessorCounters::default();
         let _ctx = create_test_runtime_context();
         assert!(true);
     }

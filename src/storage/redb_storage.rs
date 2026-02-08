@@ -51,7 +51,11 @@ impl RedbStorage<RedbEngine> {
     pub fn new_with_path(path: PathBuf) -> Result<Self, StorageError> {
         let _id_generator = Arc::new(Mutex::new(IdGenerator::new()));
         let schema_manager = Arc::new(MemorySchemaManager::new());
-        let extended_schema_manager = Arc::new(MemoryExtendedSchemaManager::new(schema_manager.clone()));
+
+        // 创建或打开 redb 数据库
+        let db = Arc::new(Database::create(&path)
+            .map_err(|e| StorageError::DbError(format!("创建数据库失败: {}", e)))?);
+        let extended_schema_manager = Arc::new(RedbExtendedSchemaManager::new(db.clone()));
 
         let engine = Arc::new(Mutex::new(RedbEngine::new(&path)?));
 
@@ -66,6 +70,7 @@ impl RedbStorage<RedbEngine> {
             users: Arc::new(Mutex::new(HashMap::new())),
             schema_manager,
             extended_schema_manager,
+            db,
             db_path: path,
         })
     }

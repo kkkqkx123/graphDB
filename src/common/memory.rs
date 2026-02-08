@@ -219,8 +219,8 @@ pub fn global_memory_manager() -> &'static Arc<GlobalMemoryManager> {
     })
 }
 
-/// 线程本地预留
 thread_local! {
+    /// 线程本地预留
     static LOCAL_RESERVED: std::cell::RefCell<u64> = const { std::cell::RefCell::new(0) };
 }
 

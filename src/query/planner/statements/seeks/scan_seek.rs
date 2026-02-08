@@ -79,7 +79,7 @@ mod tests {
 
     #[test]
     fn test_scan_seek_new() {
-        let seek = ScanSeek::new();
+        let _seek = ScanSeek::new();
         assert!(true);
     }
 

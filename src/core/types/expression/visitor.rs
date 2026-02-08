@@ -147,7 +147,7 @@ pub trait ExpressionVisitor: Send + Sync {
     ) -> Self::Result;
 
     /// 访问标签属性表达式
-    fn visit_label_tag_property(&mut self, tag: &Expression, property: &str) -> Self::Result {
+    fn visit_label_tag_property(&mut self, tag: &Expression, _property: &str) -> Self::Result {
         self.visit_expression(tag);
         panic!("visit_label_tag_property must be implemented")
     }
@@ -175,7 +175,7 @@ pub trait ExpressionVisitor: Send + Sync {
         &mut self,
         accumulator: &str,
         initial: &Expression,
-        variable: &str,
+        _variable: &str,
         source: &Expression,
         mapping: &Expression,
     ) -> Self::Result {

@@ -341,18 +341,18 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
 
                 if should_update {
                     let edge_key = (update.src.clone(), update.dst.clone(), update.edge_type.clone());
-                    if let Some(mut edge) = storage.get_edge(&self.space_name, &update.src, &update.dst, &update.edge_type)? {
+                    if let Some(mut edge) = storage.get_edge(&self.space_name, &edge_key.0, &edge_key.1, &edge_key.2)? {
                         for (key, value) in &update.properties {
                             edge.props.insert(key.clone(), value.clone());
                         }
-                        storage.delete_edge(&self.space_name, &update.src, &update.dst, &update.edge_type)?;
+                        storage.delete_edge(&self.space_name, &edge_key.0, &edge_key.1, &edge_key.2)?;
                         storage.insert_edge(&self.space_name, edge)?;
                         update_result.returned_props = update.properties.clone();
                     } else if self.insertable {
                         let new_edge = crate::core::Edge::new(
-                            update.src.clone(),
-                            update.dst.clone(),
-                            update.edge_type.clone(),
+                            edge_key.0.clone(),
+                            edge_key.1.clone(),
+                            edge_key.2.clone(),
                             update.rank.unwrap_or(0),
                             update.properties.clone(),
                         );

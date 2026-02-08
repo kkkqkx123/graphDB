@@ -98,12 +98,9 @@ mod tests {
     
     #[test]
     fn test_executor_enum_to_operation_kind() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
-        
+        let _storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let start_executor = StartExecutor::new(1);
-        
         let executor_enum: ExecutorEnum<MockStorage> = ExecutorEnum::Start(start_executor);
-        
         assert_eq!(executor_enum.into_operation_kind(), CoreOperationKind::Project);
     }
 }

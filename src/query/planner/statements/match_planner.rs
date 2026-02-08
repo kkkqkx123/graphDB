@@ -564,7 +564,7 @@ mod tests {
 
     #[test]
     fn test_match_planner_creation() {
-        let planner = MatchPlanner::new();
+        let _planner = MatchPlanner::new();
         assert!(MatchPlanner::match_ast_ctx(&AstContext::from_strings("MATCH", "MATCH (n)")));
     }
 

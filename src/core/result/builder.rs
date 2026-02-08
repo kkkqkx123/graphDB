@@ -4,9 +4,9 @@ use crate::core::result::result_iterator::ResultIterator;
 use std::sync::Arc;
 
 /// ResultBuilder
-/// 
+///
 /// 用于构建 Result 对象的构建器模式实现
-/// 
+///
 /// # 特性
 /// - 链式调用：支持流畅的 API 调用
 /// - 类型安全：编译时类型检查
@@ -15,7 +15,6 @@ use std::sync::Arc;
 pub struct ResultBuilder {
     col_names: Vec<String>,
     rows: Vec<Vec<Value>>,
-    capacity: Option<usize>,
 }
 
 impl Default for ResultBuilder {
@@ -29,7 +28,6 @@ impl ResultBuilder {
         Self {
             col_names: Vec::new(),
             rows: Vec::new(),
-            capacity: None,
         }
     }
 
@@ -37,7 +35,6 @@ impl ResultBuilder {
         Self {
             col_names: Vec::with_capacity(col_capacity),
             rows: Vec::with_capacity(row_capacity),
-            capacity: Some(row_capacity),
         }
     }
 

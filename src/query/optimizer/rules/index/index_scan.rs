@@ -41,7 +41,7 @@ impl OptRule for IndexScanRule {
 
     fn apply(
         &self,
-        ctx: &mut OptContext,
+        _ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
     ) -> Result<Option<TransformResult>, crate::query::optimizer::engine::OptimizerError> {
         let node_ref = group_node.borrow();

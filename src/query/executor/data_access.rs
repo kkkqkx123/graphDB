@@ -501,7 +501,7 @@ impl<S: StorageClient + Send + Sync + 'static> GetNeighborsExecutor<S> {
         let edge_types_filter = self.edge_types.as_ref();
         let direction = self.edge_direction;
 
-        for (idx, vertex_opt) in batch_result.items.iter().enumerate() {
+        for vertex_opt in batch_result.items.iter() {
             if let Some(ref vertex) = vertex_opt {
                 let vertex_id = &vertex.vid;
 

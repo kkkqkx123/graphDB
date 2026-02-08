@@ -1,8 +1,8 @@
 use crate::core::error::ManagerError;
 use crate::core::types::{
-    ClusterInfo, EdgeTypeInfo, PropertyDef, SchemaChange,
+    PropertyDef, SchemaChange,
     SchemaExportConfig, SchemaHistory, SchemaImportResult,
-    SchemaVersion, SpaceInfo, TagInfo,
+    SchemaVersion,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

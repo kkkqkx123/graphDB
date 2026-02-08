@@ -11,75 +11,74 @@ pub struct ExprFactory;
 
 impl ExprFactory {
     /// 创建常量表达式
-    pub fn constant(value: Value, span: Span) -> Expression {
+    pub fn constant(value: Value) -> Expression {
         Expression::Literal(value)
     }
 
     /// 创建变量表达式
-    pub fn variable(name: String, _span: Span) -> Expression {
+    pub fn variable(name: String) -> Expression {
         Expression::Variable(name)
     }
 
     /// 创建二元表达式
-    pub fn binary(left: Expression, op: crate::core::types::operators::BinaryOperator, right: Expression, _span: Span) -> Expression {
+    pub fn binary(left: Expression, op: crate::core::types::operators::BinaryOperator, right: Expression) -> Expression {
         Expression::Binary { left: Box::new(left), op, right: Box::new(right) }
     }
 
     /// 创建一元表达式
-    pub fn unary(op: crate::core::types::operators::UnaryOperator, operand: Expression, _span: Span) -> Expression {
+    pub fn unary(op: crate::core::types::operators::UnaryOperator, operand: Expression) -> Expression {
         Expression::Unary { op, operand: Box::new(operand) }
     }
 
     /// 创建函数调用表达式
-    pub fn function_call(name: String, args: Vec<Expression>, _distinct: bool, _span: Span) -> Expression {
+    pub fn function_call(name: String, args: Vec<Expression>, _distinct: bool) -> Expression {
         Expression::Function { name, args }
     }
 
     /// 创建属性访问表达式
-    pub fn property_access(object: Expression, property: String, _span: Span) -> Expression {
+    pub fn property_access(object: Expression, property: String) -> Expression {
         Expression::Property { object: Box::new(object), property }
     }
 
     /// 创建列表表达式
-    pub fn list(elements: Vec<Expression>, _span: Span) -> Expression {
+    pub fn list(elements: Vec<Expression>) -> Expression {
         Expression::List(elements)
     }
 
     /// 创建映射表达式
-    pub fn map(pairs: Vec<(String, Expression)>, _span: Span) -> Expression {
+    pub fn map(pairs: Vec<(String, Expression)>) -> Expression {
         Expression::Map(pairs)
     }
 
     /// 创建 CASE 表达式
     pub fn case(
-        _match_expression: Option<Expression>,
+        match_expression: Option<Expression>,
         when_then_pairs: Vec<(Expression, Expression)>,
         default: Option<Expression>,
-        _span: Span,
     ) -> Expression {
         let conditions = when_then_pairs;
         let default = default.map(Box::new);
-        Expression::Case { test_expr: _match_expression.map(Box::new), conditions, default }
+        Expression::Case { test_expr: match_expression.map(Box::new), conditions, default }
     }
 
     /// 创建下标表达式
-    pub fn subscript(collection: Expression, index: Expression, _span: Span) -> Expression {
+    pub fn subscript(collection: Expression, index: Expression) -> Expression {
         Expression::Subscript { collection: Box::new(collection), index: Box::new(index) }
     }
 
     /// 创建比较表达式
-    pub fn compare(left: Expression, op: crate::core::types::operators::BinaryOperator, right: Expression, span: Span) -> Expression {
-        Self::binary(left, op, right, span)
+    pub fn compare(left: Expression, op: crate::core::types::operators::BinaryOperator, right: Expression) -> Expression {
+        Self::binary(left, op, right)
     }
 
     /// 创建逻辑表达式
-    pub fn logical(left: Expression, op: crate::core::types::operators::BinaryOperator, right: Expression, span: Span) -> Expression {
-        Self::binary(left, op, right, span)
+    pub fn logical(left: Expression, op: crate::core::types::operators::BinaryOperator, right: Expression) -> Expression {
+        Self::binary(left, op, right)
     }
 
     /// 创建算术表达式
-    pub fn arithmetic(left: Expression, op: crate::core::types::operators::BinaryOperator, right: Expression, span: Span) -> Expression {
-        Self::binary(left, op, right, span)
+    pub fn arithmetic(left: Expression, op: crate::core::types::operators::BinaryOperator, right: Expression) -> Expression {
+        Self::binary(left, op, right)
     }
 }
 
@@ -596,31 +595,27 @@ mod tests {
 
     #[test]
     fn test_expr_factory() {
-        let span = Span::default();
-
         // 测试常量表达式
-        let const_expression = ExprFactory::constant(Value::Int(42), span);
+        let const_expression = ExprFactory::constant(Value::Int(42));
         assert!(matches!(const_expression, Expression::Literal(_)));
 
         // 测试变量表达式
-        let var_expression = ExprFactory::variable("x".to_string(), span);
+        let var_expression = ExprFactory::variable("x".to_string());
         assert!(matches!(var_expression, Expression::Variable(_)));
 
         // 测试二元表达式
-        let left = ExprFactory::constant(Value::Int(5), span);
-        let right = ExprFactory::constant(Value::Int(3), span);
-        let binary_expression = ExprFactory::binary(left, crate::core::types::operators::BinaryOperator::Add, right, span);
+        let left = ExprFactory::constant(Value::Int(5));
+        let right = ExprFactory::constant(Value::Int(3));
+        let binary_expression = ExprFactory::binary(left, crate::core::types::operators::BinaryOperator::Add, right);
         assert!(matches!(binary_expression, Expression::Binary { left: _, op: _, right: _ }));
     }
 
     #[test]
     fn test_constant_folding() {
-        let span = Span::default();
-
         // 测试 5 + 3 -> 8
-        let left = ExprFactory::constant(Value::Int(5), span);
-        let right = ExprFactory::constant(Value::Int(3), span);
-        let expression = ExprFactory::binary(left, crate::core::types::operators::BinaryOperator::Add, right, span);
+        let left = ExprFactory::constant(Value::Int(5));
+        let right = ExprFactory::constant(Value::Int(3));
+        let expression = ExprFactory::binary(left, crate::core::types::operators::BinaryOperator::Add, right);
 
         let optimized = ExprOptimizer::constant_folding(expression);
         assert!(matches!(optimized, Expression::Literal(Value::Int(8))));
@@ -628,11 +623,9 @@ mod tests {
 
     #[test]
     fn test_unary_minus() {
-        let span = Span::default();
-
         // 测试 -5 -> -5
-        let operand = ExprFactory::constant(Value::Int(5), span);
-        let expression = ExprFactory::unary(crate::core::types::operators::UnaryOperator::Minus, operand, span);
+        let operand = ExprFactory::constant(Value::Int(5));
+        let expression = ExprFactory::unary(crate::core::types::operators::UnaryOperator::Minus, operand);
 
         let optimized = ExprOptimizer::constant_folding(expression);
         assert!(matches!(optimized, Expression::Literal(Value::Int(-5))));
@@ -640,28 +633,26 @@ mod tests {
 
     #[test]
     fn test_expression_simplification() {
-        let span = Span::default();
-
         // 测试 x + 0 -> x
-        let x = ExprFactory::variable("x".to_string(), span);
-        let zero = ExprFactory::constant(Value::Int(0), span);
-        let expression = ExprFactory::binary(x.clone(), crate::core::types::operators::BinaryOperator::Add, zero, span);
+        let x = ExprFactory::variable("x".to_string());
+        let zero = ExprFactory::constant(Value::Int(0));
+        let expression = ExprFactory::binary(x.clone(), crate::core::types::operators::BinaryOperator::Add, zero);
 
         let simplified = ExprOptimizer::simplify(expression);
         assert_eq!(simplified, x);
 
         // 测试 x * 1 -> x
-        let x = ExprFactory::variable("x".to_string(), span);
-        let one = ExprFactory::constant(Value::Int(1), span);
-        let expression = ExprFactory::binary(x.clone(), crate::core::types::operators::BinaryOperator::Multiply, one, span);
+        let x = ExprFactory::variable("x".to_string());
+        let one = ExprFactory::constant(Value::Int(1));
+        let expression = ExprFactory::binary(x.clone(), crate::core::types::operators::BinaryOperator::Multiply, one);
 
         let simplified = ExprOptimizer::simplify(expression);
         assert_eq!(simplified, x);
 
         // 测试 !!x -> x
-        let x = ExprFactory::variable("x".to_string(), span);
-        let not_expression = ExprFactory::unary(crate::core::types::operators::UnaryOperator::Not, x.clone(), span);
-        let expression = ExprFactory::unary(crate::core::types::operators::UnaryOperator::Not, not_expression, span);
+        let x = ExprFactory::variable("x".to_string());
+        let not_expression = ExprFactory::unary(crate::core::types::operators::UnaryOperator::Not, x.clone());
+        let expression = ExprFactory::unary(crate::core::types::operators::UnaryOperator::Not, not_expression);
 
         let simplified = ExprOptimizer::simplify(expression);
         assert_eq!(simplified, x);

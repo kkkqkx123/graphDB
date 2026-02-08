@@ -276,7 +276,7 @@ mod tests {
     fn test_expression_meta_make_mut_shared() {
         let expr = Expression::variable("a");
         let mut meta1 = ExpressionMeta::new(expr);
-        let meta2 = meta1.clone();
+        let _meta2 = meta1.clone();
 
         let inner_arc = &meta1.inner;
         assert!(Arc::strong_count(inner_arc) > 1);

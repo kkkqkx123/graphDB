@@ -113,7 +113,7 @@ mod tests {
     #[test]
     fn test_index_full_scan_rule_without_index_id() {
         let rule = IndexFullScanRule;
-        let ctx = create_test_context();
+        let mut ctx = create_test_context();
 
         let index_scan_node =
             crate::query::planner::plan::algorithms::IndexScan::new(1, 1, 1, 0, "RANGE");
@@ -122,7 +122,7 @@ mod tests {
         let opt_node = OptGroupNode::new(1, index_scan_enum);
 
         let result = rule
-            .apply(&ctx, &Rc::new(RefCell::new(opt_node)))
+            .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
             .expect("Rule should apply successfully");
         // 当前规则实现返回 Ok(None)，因为元数据客户端没有可用的索引
         assert!(result.is_none());
@@ -131,7 +131,7 @@ mod tests {
     #[test]
     fn test_index_full_scan_rule_with_index_id() {
         let rule = IndexFullScanRule;
-        let ctx = create_test_context();
+        let mut ctx = create_test_context();
 
         let index_scan_node =
             crate::query::planner::plan::algorithms::IndexScan::new(1, 1, 1, 5, "RANGE");

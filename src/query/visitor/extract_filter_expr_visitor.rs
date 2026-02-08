@@ -130,7 +130,7 @@ impl ExtractFilterExprVisitor {
             Expression::Property { object, .. } => {
                 matches!(object.as_ref(), Expression::Variable(_))
             }
-            Expression::Binary { left, op, right } => {
+            Expression::Binary { left, op: _, right } => {
                 self.can_push_to_get_vertices(left) && self.can_push_to_get_vertices(right)
             }
             Expression::Unary { operand, .. } => self.can_push_to_get_vertices(operand),
@@ -146,7 +146,7 @@ impl ExtractFilterExprVisitor {
             Expression::Property { object, .. } => {
                 matches!(object.as_ref(), Expression::Variable(_))
             }
-            Expression::Binary { left, op, right } => {
+            Expression::Binary { left, op: _, right } => {
                 self.can_push_to_get_neighbors(left) && self.can_push_to_get_neighbors(right)
             }
             Expression::Unary { operand, .. } => self.can_push_to_get_neighbors(operand),

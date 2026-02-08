@@ -89,7 +89,7 @@ impl GoContext {
                 ctx.steps.n_steps = *max;
                 ctx.steps.is_m_to_n = true;
             }
-            crate::query::parser::ast::stmt::Steps::Variable(name) => {
+            crate::query::parser::ast::stmt::Steps::Variable(_) => {
                 ctx.steps.m_steps = 1;
                 ctx.steps.n_steps = 1;
             }

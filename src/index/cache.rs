@@ -136,10 +136,7 @@ impl<V> CacheEntry<V> {
         self.last_accessed.store(nanos, Ordering::Relaxed);
         self.access_count.fetch_add(1, Ordering::Relaxed);
     }
-
-    fn access_count(&self) -> u64 {
-        self.access_count.load(Ordering::Relaxed)
-    }
+    
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]

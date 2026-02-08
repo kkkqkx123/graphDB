@@ -116,7 +116,6 @@ impl OptimizationRule {
             Self::TagIndexFullScan => "TagIndexFullScanRule",
             Self::UnionAllEdgeIndexScan => "UnionAllEdgeIndexScanRule",
             Self::UnionAllTagIndexScan => "UnionAllTagIndexScanRule",
-            _ => "UnknownRule",
         }
     }
     

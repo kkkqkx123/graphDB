@@ -16,7 +16,7 @@ pub trait ExpressionContext {
     fn set_variable(&mut self, name: String, value: Value);
 
     /// 获取函数引用
-    fn get_function(&self, name: &str) -> Option<FunctionRef> {
+    fn get_function(&self, _name: &str) -> Option<FunctionRef> {
         None
     }
 

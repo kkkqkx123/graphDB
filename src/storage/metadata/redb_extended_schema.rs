@@ -1,10 +1,10 @@
 use crate::core::error::ManagerError;
-use crate::core::types::{ClusterInfo, EdgeTypeInfo, PropertyDef, SchemaChange, SchemaExportConfig, SchemaHistory, SchemaImportResult, SchemaVersion, SpaceInfo, TagInfo};
+use crate::core::types::{SchemaChange, SchemaExportConfig, SchemaImportResult, SchemaVersion, TagInfo, EdgeTypeInfo};
 use crate::storage::metadata::ExtendedSchemaManager;
 use crate::storage::redb_types::{ByteKey, SCHEMA_VERSIONS_TABLE, SCHEMA_CHANGES_TABLE, CURRENT_VERSIONS_TABLE};
 use bincode::{encode_to_vec, decode_from_slice};
 use redb::{Database, ReadableTable};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 pub struct RedbExtendedSchemaManager {
     db: Arc<Database>,
@@ -242,7 +242,6 @@ impl ExtendedSchemaManager for RedbExtendedSchemaManager {
 mod tests {
     use super::*;
     use crate::core::types::{SchemaChangeType, TagInfo, PropertyDef, DataType};
-    use std::path::PathBuf;
     use tempfile::TempDir;
 
     fn create_test_manager() -> RedbExtendedSchemaManager {
