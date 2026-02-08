@@ -6,6 +6,8 @@
 
 use std::fmt;
 
+use super::{NodeType, NodeCategory};
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum CoreOperationKind {
     // ==================== 数据查询操作 ====================
@@ -532,5 +534,159 @@ impl CoreOperationKind {
 impl fmt::Display for CoreOperationKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.name())
+    }
+}
+
+impl NodeType for CoreOperationKind {
+    fn node_type_id(&self) -> &'static str {
+        self.name().to_lowercase().leak()
+    }
+
+    fn node_type_name(&self) -> &'static str {
+        match self {
+            Self::Match => "Match",
+            Self::Go => "Go",
+            Self::Lookup => "Lookup",
+            Self::FindPath => "Find Path",
+            Self::GetSubgraph => "Get Subgraph",
+            Self::ScanVertices => "Scan Vertices",
+            Self::ScanEdges => "Scan Edges",
+            Self::GetVertices => "Get Vertices",
+            Self::GetEdges => "Get Edges",
+            Self::GetNeighbors => "Get Neighbors",
+            Self::Project => "Project",
+            Self::Filter => "Filter",
+            Self::Sort => "Sort",
+            Self::Limit => "Limit",
+            Self::TopN => "TopN",
+            Self::Sample => "Sample",
+            Self::Unwind => "Unwind",
+            Self::Aggregate => "Aggregate",
+            Self::GroupBy => "Group By",
+            Self::Having => "Having",
+            Self::Dedup => "Dedup",
+            Self::InnerJoin => "Inner Join",
+            Self::LeftJoin => "Left Join",
+            Self::CrossJoin => "Cross Join",
+            Self::HashJoin => "Hash Join",
+            Self::Traverse => "Traverse",
+            Self::Expand => "Expand",
+            Self::ExpandAll => "Expand All",
+            Self::ShortestPath => "Shortest Path",
+            Self::AllPaths => "All Paths",
+            Self::MultiShortestPath => "Multi Shortest Path",
+            Self::BFSShortest => "BFS Shortest",
+            Self::Insert => "Insert",
+            Self::Update => "Update",
+            Self::Delete => "Delete",
+            Self::Merge => "Merge",
+            Self::PatternApply => "Pattern Apply",
+            Self::RollUpApply => "RollUp Apply",
+            Self::Loop => "Loop",
+            Self::ForLoop => "For Loop",
+            Self::WhileLoop => "While Loop",
+            Self::CreateSpace => "Create Space",
+            Self::DropSpace => "Drop Space",
+            Self::DescribeSpace => "Describe Space",
+            Self::UseSpace => "Use Space",
+            Self::ShowSpaces => "Show Spaces",
+            Self::CreateTag => "Create Tag",
+            Self::AlterTag => "Alter Tag",
+            Self::DropTag => "Drop Tag",
+            Self::DescribeTag => "Describe Tag",
+            Self::ShowTags => "Show Tags",
+            Self::CreateEdge => "Create Edge",
+            Self::AlterEdge => "Alter Edge",
+            Self::DropEdge => "Drop Edge",
+            Self::DescribeEdge => "Describe Edge",
+            Self::ShowEdges => "Show Edges",
+            Self::CreateIndex => "Create Index",
+            Self::DropIndex => "Drop Index",
+            Self::DescribeIndex => "Describe Index",
+            Self::RebuildIndex => "Rebuild Index",
+            Self::FulltextIndexScan => "Fulltext Index Scan",
+            Self::IndexScan => "Index Scan",
+            Self::CreateTagIndex => "Create Tag Index",
+            Self::DropTagIndex => "Drop Tag Index",
+            Self::DescribeTagIndex => "Describe Tag Index",
+            Self::ShowTagIndexes => "Show Tag Indexes",
+            Self::RebuildTagIndex => "Rebuild Tag Index",
+            Self::CreateEdgeIndex => "Create Edge Index",
+            Self::DropEdgeIndex => "Drop Edge Index",
+            Self::DescribeEdgeIndex => "Describe Edge Index",
+            Self::ShowEdgeIndexes => "Show Edge Indexes",
+            Self::RebuildEdgeIndex => "Rebuild Edge Index",
+            Self::CreateUser => "Create User",
+            Self::AlterUser => "Alter User",
+            Self::DropUser => "Drop User",
+            Self::ChangePassword => "Change Password",
+            Self::Set => "Set",
+            Self::Assignment => "Assignment",
+            Self::Pipe => "Pipe",
+            Self::Explain => "Explain",
+            Self::Show => "Show",
+            Self::Sequential => "Sequential",
+            Self::Argument => "Argument",
+            Self::PassThrough => "Pass Through",
+            Self::Select => "Select",
+            Self::DataCollect => "Data Collect",
+            Self::Minus => "Minus",
+            Self::Intersect => "Intersect",
+            Self::Union => "Union",
+            Self::UnionAll => "Union All",
+            Self::AppendVertices => "Append Vertices",
+            Self::Assign => "Assign",
+            Self::Remove => "Remove",
+        }
+    }
+
+    fn category(&self) -> NodeCategory {
+        match self {
+            // 扫描操作
+            Self::ScanVertices | Self::ScanEdges | Self::GetVertices | Self::GetEdges | Self::GetNeighbors | Self::IndexScan | Self::FulltextIndexScan => NodeCategory::Scan,
+            
+            // 连接操作
+            Self::InnerJoin | Self::LeftJoin | Self::CrossJoin | Self::HashJoin => NodeCategory::Join,
+            
+            // 过滤操作
+            Self::Filter | Self::Having => NodeCategory::Filter,
+            
+            // 投影操作
+            Self::Project => NodeCategory::Project,
+            
+            // 聚合操作
+            Self::Aggregate | Self::GroupBy | Self::Dedup => NodeCategory::Aggregate,
+            
+            // 排序操作
+            Self::Sort | Self::Limit | Self::TopN | Self::Sample => NodeCategory::Sort,
+            
+            // 控制流操作
+            Self::Loop | Self::ForLoop | Self::WhileLoop | Self::Argument | Self::PassThrough | Self::Select => NodeCategory::Control,
+            
+            // 数据收集操作
+            Self::DataCollect | Self::Unwind | Self::Assign | Self::RollUpApply | Self::PatternApply | Self::AppendVertices => NodeCategory::DataCollect,
+            
+            // 遍历操作
+            Self::Traverse | Self::Expand | Self::ExpandAll => NodeCategory::Traversal,
+            
+            // 集合操作
+            Self::Union | Self::UnionAll | Self::Minus | Self::Intersect => NodeCategory::SetOp,
+            
+            // 路径算法
+            Self::ShortestPath | Self::AllPaths | Self::MultiShortestPath | Self::BFSShortest | Self::FindPath => NodeCategory::Path,
+            
+            // 管理操作
+            Self::CreateSpace | Self::DropSpace | Self::DescribeSpace | Self::UseSpace | Self::ShowSpaces
+                | Self::CreateTag | Self::AlterTag | Self::DropTag | Self::DescribeTag | Self::ShowTags
+                | Self::CreateEdge | Self::AlterEdge | Self::DropEdge | Self::DescribeEdge | Self::ShowEdges
+                | Self::CreateIndex | Self::DropIndex | Self::DescribeIndex | Self::RebuildIndex
+                | Self::CreateTagIndex | Self::DropTagIndex | Self::DescribeTagIndex | Self::ShowTagIndexes | Self::RebuildTagIndex
+                | Self::CreateEdgeIndex | Self::DropEdgeIndex | Self::DescribeEdgeIndex | Self::ShowEdgeIndexes | Self::RebuildEdgeIndex
+                | Self::CreateUser | Self::AlterUser | Self::DropUser | Self::ChangePassword
+                | Self::Set | Self::Explain | Self::Show | Self::Sequential | Self::Pipe | Self::Remove => NodeCategory::Admin,
+            
+            // 其他操作
+            Self::Match | Self::Go | Self::Lookup | Self::GetSubgraph | Self::Insert | Self::Update | Self::Delete | Self::Merge | Self::Assignment => NodeCategory::Other,
+        }
     }
 }
