@@ -25,7 +25,7 @@ pub struct RedbStorage<E: Engine> {
     edge_type_infos: Arc<Mutex<HashMap<String, HashMap<String, EdgeTypeSchema>>>>,
     tag_indexes: Arc<Mutex<HashMap<String, HashMap<String, Index>>>>,
     edge_indexes: Arc<Mutex<HashMap<String, HashMap<String, Index>>>>,
-    users: Arc<Mutex<HashMap<String, String>>>,
+    users: Arc<Mutex<HashMap<String, UserInfo>>>,
     pub schema_manager: Arc<MemorySchemaManager>,
     db_path: PathBuf,
 }
@@ -126,16 +126,64 @@ impl<E: Engine> RedbStorage<E> {
     }
     
     // 删除顶点索引
-    fn delete_vertex_indexes(&self, _space: &str, _vertex_id: &Value) -> Result<(), StorageError> {
-        // 这里可以实现具体的索引删除逻辑
-        // 为了简化，暂时不实现具体删除
+    fn delete_vertex_indexes(&self, space: &str, vertex_id: &Value) -> Result<(), StorageError> {
+        let tag_indexes = self.tag_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        if let Some(space_indexes) = tag_indexes.get(space) {
+            let mut keys_to_delete = Vec::new();
+            {
+                let engine = self.engine.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+                for (index_name, _index) in space_indexes {
+                    let index_key_prefix = format!("{}:idx:v:{}:", space, index_name).into_bytes();
+                    let iter = engine.scan(&index_key_prefix)?;
+                    let mut iter = iter;
+                    while iter.next() {
+                        if let (Some(key), Some(value)) = (iter.key(), iter.value()) {
+                            if let Ok(id) = Self::deserialize_value(value) {
+                                if id == *vertex_id {
+                                    keys_to_delete.push(key.to_vec());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            drop(tag_indexes);
+            let mut engine = self.engine.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+            for key in keys_to_delete {
+                engine.delete(&key)?;
+            }
+        }
         Ok(())
     }
-    
+
     // 删除边索引
-    fn delete_edge_indexes(&self, _space: &str, _src: &Value, _dst: &Value, _edge_type: &str) -> Result<(), StorageError> {
-        // 这里可以实现具体的索引删除逻辑
-        // 为了简化，暂时不实现具体删除
+    fn delete_edge_indexes(&self, space: &str, src: &Value, _dst: &Value, _edge_type: &str) -> Result<(), StorageError> {
+        let edge_indexes = self.edge_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        if let Some(space_indexes) = edge_indexes.get(space) {
+            let mut keys_to_delete = Vec::new();
+            {
+                let engine = self.engine.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+                for (index_name, _index) in space_indexes {
+                    let index_key_prefix = format!("{}:idx:e:{}:", space, index_name).into_bytes();
+                    let iter = engine.scan(&index_key_prefix)?;
+                    let mut iter = iter;
+                    while iter.next() {
+                        if let (Some(key), Some(value)) = (iter.key(), iter.value()) {
+                            if let Ok(id) = Self::deserialize_value(value) {
+                                if id == *src {
+                                    keys_to_delete.push(key.to_vec());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            drop(edge_indexes);
+            let mut engine = self.engine.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+            for key in keys_to_delete {
+                engine.delete(&key)?;
+            }
+        }
         Ok(())
     }
     
@@ -356,7 +404,7 @@ impl<E: Engine> RedbStorage<E> {
     }
     
     // 构建边索引字段键
-    fn build_edge_index_key_for_field(&self, space: &str, index_name: &str, field: &str, value: &Value) -> Result<Vec<u8>, StorageError> {
+    fn build_edge_index_key_for_field(&self, space: &str, index_name: &str, field: &str, _value: &Value) -> Result<Vec<u8>, StorageError> {
         Ok(format!("{}:idx:e:{}:{}:", space, index_name, field).into_bytes())
     }
     
@@ -374,15 +422,83 @@ impl<E: Engine> RedbStorage<E> {
     
     // 加载元数据
     fn load_metadata_from_disk(&self) -> Result<(), StorageError> {
-        // 这里可以实现从磁盘加载spaces、tags等元数据
-        // 为了简化，暂时不实现具体加载逻辑
+        let engine = self.engine.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        // 加载 spaces
+        let spaces_key = b"__metadata:spaces";
+        if let Some(data) = engine.get(spaces_key)? {
+            let spaces: HashMap<String, SpaceInfo> = bincode::decode_from_slice(&data, bincode::config::standard())
+                .map_err(|e| StorageError::DbError(format!("解析 spaces 元数据失败: {}", e)))?
+                .0;
+            let mut spaces_lock = self.spaces.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+            *spaces_lock = spaces;
+        }
+
+        // 加载 tags
+        let tags_key = b"__metadata:tags";
+        if let Some(data) = engine.get(tags_key)? {
+            let tags: HashMap<String, HashMap<String, TagInfo>> = bincode::decode_from_slice(&data, bincode::config::standard())
+                .map_err(|e| StorageError::DbError(format!("解析 tags 元数据失败: {}", e)))?
+                .0;
+            let mut tags_lock = self.tags.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+            *tags_lock = tags;
+        }
+
+        // 加载 edge_types
+        let edge_types_key = b"__metadata:edge_types";
+        if let Some(data) = engine.get(edge_types_key)? {
+            let edge_types: HashMap<String, HashMap<String, EdgeTypeSchema>> = bincode::decode_from_slice(&data, bincode::config::standard())
+                .map_err(|e| StorageError::DbError(format!("解析 edge_types 元数据失败: {}", e)))?
+                .0;
+            let mut edge_types_lock = self.edge_type_infos.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+            *edge_types_lock = edge_types;
+        }
+
+        // 加载 users
+        let users_key = b"__metadata:users";
+        if let Some(data) = engine.get(users_key)? {
+            let users: HashMap<String, UserInfo> = bincode::decode_from_slice(&data, bincode::config::standard())
+                .map_err(|e| StorageError::DbError(format!("解析 users 元数据失败: {}", e)))?
+                .0;
+            let mut users_lock = self.users.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+            *users_lock = users;
+        }
+
         Ok(())
     }
-    
+
     // 保存元数据
     fn save_metadata_to_disk(&self) -> Result<(), StorageError> {
-        // 这里可以实现将spaces、tags等元数据保存到磁盘
-        // 为了简化，暂时不实现具体保存逻辑
+        let mut engine = self.engine.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        // 保存 spaces
+        let spaces = self.spaces.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let spaces_data = bincode::encode_to_vec(&*spaces, bincode::config::standard())
+            .map_err(|e| StorageError::DbError(format!("序列化 spaces 失败: {}", e)))?;
+        engine.put(b"__metadata:spaces", &spaces_data)?;
+        drop(spaces);
+
+        // 保存 tags
+        let tags = self.tags.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let tags_data = bincode::encode_to_vec(&*tags, bincode::config::standard())
+            .map_err(|e| StorageError::DbError(format!("序列化 tags 失败: {}", e)))?;
+        engine.put(b"__metadata:tags", &tags_data)?;
+        drop(tags);
+
+        // 保存 edge_types
+        let edge_types = self.edge_type_infos.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let edge_types_data = bincode::encode_to_vec(&*edge_types, bincode::config::standard())
+            .map_err(|e| StorageError::DbError(format!("序列化 edge_types 失败: {}", e)))?;
+        engine.put(b"__metadata:edge_types", &edge_types_data)?;
+        drop(edge_types);
+
+        // 保存 users
+        let users = self.users.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let users_data = bincode::encode_to_vec(&*users, bincode::config::standard())
+            .map_err(|e| StorageError::DbError(format!("序列化 users 失败: {}", e)))?;
+        engine.put(b"__metadata:users", &users_data)?;
+        drop(users);
+
         Ok(())
     }
 
@@ -1204,26 +1320,35 @@ impl<E: Engine> StorageClient for RedbStorage<E> {
 
     fn change_password(&mut self, info: &PasswordInfo) -> Result<bool, StorageError> {
         let mut users = self.users.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        users.insert(info.username.clone(), info.new_password.clone());
-        Ok(true)
+        if let Some(user) = users.get_mut(&info.username) {
+            user.password = info.new_password.clone();
+            Ok(true)
+        } else {
+            Err(StorageError::DbError(format!("用户 {} 不存在", info.username)))
+        }
     }
 
     fn create_user(&mut self, info: &UserInfo) -> Result<bool, StorageError> {
         let mut users = self.users.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        users.insert(info.username.clone(), info.password.clone());
+        if users.contains_key(&info.username) {
+            return Err(StorageError::DbError(format!("用户 {} 已存在", info.username)));
+        }
+        users.insert(info.username.clone(), info.clone());
         Ok(true)
     }
 
     fn alter_user(&mut self, info: &UserAlterInfo) -> Result<bool, StorageError> {
         let mut users = self.users.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        if let Some(password) = users.get_mut(&info.username) {
+        if let Some(user) = users.get_mut(&info.username) {
             if let Some(new_role) = &info.new_role {
+                user.role = new_role.clone();
             }
             if let Some(is_locked) = info.is_locked {
+                user.is_locked = is_locked;
             }
             Ok(true)
         } else {
-            Err(StorageError::DbError(format!("User {} not found", info.username)))
+            Err(StorageError::DbError(format!("用户 {} 不存在", info.username)))
         }
     }
 

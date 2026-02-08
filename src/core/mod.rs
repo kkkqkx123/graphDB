@@ -5,7 +5,6 @@ pub mod value;
 pub mod vertex_edge_path;
 
 // 新增的子模块
-pub mod expression_utils;
 pub mod types;
 pub mod concurrency;
 

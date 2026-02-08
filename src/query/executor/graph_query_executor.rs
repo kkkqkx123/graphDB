@@ -19,11 +19,10 @@ use std::sync::{Arc, Mutex};
 
 /// 图查询执行器
 ///
-/// 提供图查询执行的基础功能，包括：
-/// - 执行上下文管理
-/// - 语句分发
-/// - 错误处理
-/// - 资源管理
+/// 提供图查询语言（Cypher/NGQL）的执行功能
+/// 支持MATCH、CREATE、DELETE等图操作语句
+/// 
+/// 参考nebula-graph的QueryEngine实现，使用线程池支持并行查询执行
 pub struct GraphQueryExecutor<S: StorageClient> {
     /// 执行器ID
     id: i64,
@@ -34,7 +33,9 @@ pub struct GraphQueryExecutor<S: StorageClient> {
     /// 存储引擎引用
     storage: Arc<Mutex<S>>,
     /// 线程池用于并行执行查询
-    thread_pool: Option<Arc<ThreadPool>>,
+    /// 
+    /// 参考nebula-graph的folly::Executor，用于支持runMultiJobs并行计算
+    thread_pool: Arc<ThreadPool>,
     /// 是否已打开
     is_open: bool,
     /// 执行统计信息
@@ -55,8 +56,10 @@ impl<S: StorageClient> std::fmt::Debug for GraphQueryExecutor<S> {
 
 impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
     /// 创建新的图查询执行器
+    /// 
+    /// 默认创建4线程的线程池用于并行查询执行
     pub fn new(id: i64, storage: Arc<Mutex<S>>) -> Self {
-        let thread_pool = Some(Arc::new(ThreadPool::new(4)));
+        let thread_pool = Arc::new(ThreadPool::new(4));
         Self {
             id,
             name: "GraphQueryExecutor".to_string(),
@@ -70,7 +73,7 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
 
     /// 带名称创建执行器
     pub fn with_name(id: i64, name: String, storage: Arc<Mutex<S>>) -> Self {
-        let thread_pool = Some(Arc::new(ThreadPool::new(4)));
+        let thread_pool = Arc::new(ThreadPool::new(4));
         Self {
             id,
             name,
@@ -89,7 +92,7 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
         description: String,
         storage: Arc<Mutex<S>>,
     ) -> Self {
-        let thread_pool = Some(Arc::new(ThreadPool::new(4)));
+        let thread_pool = Arc::new(ThreadPool::new(4));
         Self {
             id,
             name,
@@ -99,6 +102,13 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
             is_open: false,
             stats: crate::query::executor::traits::ExecutorStats::new(),
         }
+    }
+
+    /// 获取线程池引用
+    /// 
+    /// 用于在执行器中实现并行计算（Scatter-Gather模式）
+    pub fn thread_pool(&self) -> &Arc<ThreadPool> {
+        &self.thread_pool
     }
 
     /// 执行具体的语句
@@ -139,7 +149,7 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
     }
 
     async fn execute_match(&mut self, clause: crate::query::parser::ast::stmt::MatchStmt) -> Result<ExecutionResult, DBError> {
-        let id = self.id;
+        let _id = self.id;
 
         let mut ast_ctx = AstContext::new(None, Some(Stmt::Match(clause)));
         ast_ctx.set_query_type(crate::query::context::ast::QueryType::ReadQuery);
@@ -153,7 +163,12 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
             .ok_or_else(|| DBError::Query(QueryError::ExecutionError("执行计划为空".to_string())))?
             .clone();
 
-        let mut executor_factory = ExecutorFactory::with_storage(self.storage.clone());
+        // 创建执行器工厂，传入存储引擎和线程池
+        // 参考nebula-graph的QueryEngine::init，线程池用于支持并行查询执行
+        let mut executor_factory = ExecutorFactory::with_storage_and_thread_pool(
+            self.storage.clone(),
+            self.thread_pool.clone()
+        );
         let mut executor = executor_factory.create_executor(&root_node, self.storage.clone(), &Default::default())
             .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
 

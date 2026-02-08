@@ -279,7 +279,7 @@ mod tests {
         assert!(PushFilterDownAggregateRule::has_aggregate_function_reference(
             &condition,
             &[],
-            &[AggregateFunction::Sum(None)]
+            &[AggregateFunction::Sum("amount".to_string())]
         ));
     }
 

@@ -1,4 +1,4 @@
-use crate::core::error::{DBError, DBResult, StorageError, StorageResult};
+use crate::core::error::{DBError, DBResult};
 use crate::core::types::metadata::{UserInfo, UserAlterInfo};
 use crate::query::context::runtime_context::RuntimeContext;
 use crate::storage::StorageClient;
@@ -149,7 +149,7 @@ impl<RESP> ProcessorFuture<RESP> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::{Edge, EdgeDirection, Value, Vertex};
+    use crate::core::{Edge, EdgeDirection, StorageError, StorageResult, Value, Vertex};
     use crate::core::types::metadata::{SpaceInfo, TagInfo, EdgeTypeInfo, PropertyDef, InsertVertexInfo, InsertEdgeInfo, UpdateInfo, PasswordInfo};
     use crate::storage::transaction::TransactionId;
     use crate::storage::Schema;

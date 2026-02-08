@@ -1,10 +1,14 @@
 //! 列投影执行器
 //!
 //! ProjectExecutor - 选择和投影输出列
+//!
+//! 参考nebula-graph的ProjectExecutor实现，支持Scatter-Gather并行计算模式
 
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
+use rayon::prelude::*;
 
+use crate::common::thread::ThreadPool;
 use crate::core::error::{DBError, DBResult};
 use crate::core::Expression;
 use crate::core::Value;
@@ -14,6 +18,7 @@ use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::base::Executor;
 use crate::query::executor::base::InputExecutor;
 use crate::query::executor::executor_enum::ExecutorEnum;
+use crate::query::executor::recursion_detector::ParallelConfig;
 use crate::query::ExecutionResult;
 use crate::storage::StorageClient;
 
@@ -33,10 +38,18 @@ impl ProjectionColumn {
 /// ProjectExecutor - 投影执行器
 ///
 /// 执行列投影操作，支持表达式求值和列重命名
+///
+/// 参考nebula-graph的ProjectExecutor实现，支持Scatter-Gather并行计算模式
 pub struct ProjectExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
     columns: Vec<ProjectionColumn>, // 投影列定义
     input_executor: Option<Box<ExecutorEnum<S>>>,
+    /// 线程池用于并行执行
+    ///
+    /// 参考nebula-graph的Executor::runMultiJobs，用于Scatter-Gather并行计算
+    thread_pool: Option<Arc<ThreadPool>>,
+    /// 并行计算配置
+    parallel_config: ParallelConfig,
 }
 
 impl<S: StorageClient> ProjectExecutor<S> {
@@ -45,7 +58,23 @@ impl<S: StorageClient> ProjectExecutor<S> {
             base: BaseExecutor::new(id, "ProjectExecutor".to_string(), storage),
             columns,
             input_executor: None,
+            thread_pool: None,
+            parallel_config: ParallelConfig::default(),
         }
+    }
+
+    /// 设置线程池
+    ///
+    /// 参考nebula-graph的Executor::runMultiJobs，用于Scatter-Gather并行计算
+    pub fn with_thread_pool(mut self, thread_pool: Arc<ThreadPool>) -> Self {
+        self.thread_pool = Some(thread_pool);
+        self
+    }
+
+    /// 设置并行计算配置
+    pub fn with_parallel_config(mut self, config: ParallelConfig) -> Self {
+        self.parallel_config = config;
+        self
     }
 
     /// 处理单行数据的投影
@@ -81,6 +110,10 @@ impl<S: StorageClient> ProjectExecutor<S> {
     }
 
     /// 处理数据集投影
+    ///
+    /// 根据数据量选择处理方式：
+    /// - 数据量小于single_thread_limit：单线程处理
+    /// - 数据量大：使用rayon并行处理
     fn project_dataset(
         &self,
         dataset: crate::core::value::DataSet,
@@ -90,10 +123,54 @@ impl<S: StorageClient> ProjectExecutor<S> {
         // 设置新的列名
         result_dataset.col_names = self.columns.iter().map(|c| c.name.clone()).collect();
 
-        // 对每一行进行投影
-        for row in dataset.rows {
-            let projected_row = self.project_row(&row, &dataset.col_names)?;
-            result_dataset.rows.push(projected_row);
+        let total_size = dataset.rows.len();
+
+        // 根据并行配置判断是否使用并行计算
+        if !self.parallel_config.should_use_parallel(total_size) {
+            // 数据量小或禁用并行，使用单线程处理
+            for row in dataset.rows {
+                let projected_row = self.project_row(&row, &dataset.col_names)?;
+                result_dataset.rows.push(projected_row);
+            }
+        } else {
+            // 数据量大，使用rayon并行处理
+            let batch_size = self.parallel_config.calculate_batch_size(total_size);
+            let columns = self.columns.clone();
+            let col_names = dataset.col_names.clone();
+
+            // 使用rayon的par_chunks进行并行处理
+            let projected_rows: Vec<Vec<Value>> = dataset
+                .rows
+                .par_chunks(batch_size)
+                .flat_map(|chunk| {
+                    chunk
+                        .iter()
+                        .filter_map(|row| {
+                            let mut context = DefaultExpressionContext::new();
+
+                            // 将当前行的值设置为上下文变量
+                            for (i, col_name) in col_names.iter().enumerate() {
+                                if i < row.len() {
+                                    context.set_variable(col_name.clone(), row[i].clone());
+                                }
+                            }
+
+                            // 对每个投影列进行求值
+                            let mut projected_row = Vec::new();
+                            for column in &columns {
+                                match ExpressionEvaluator::evaluate(&column.expression, &mut context)
+                                {
+                                    Ok(value) => projected_row.push(value),
+                                    Err(_) => return None, // 跳过求值失败的行
+                                }
+                            }
+                            Some(projected_row)
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .collect();
+
+            result_dataset.rows = projected_rows;
         }
 
         Ok(result_dataset)

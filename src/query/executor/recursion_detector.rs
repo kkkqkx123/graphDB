@@ -93,6 +93,76 @@ pub trait ExecutorValidator {
     fn validate_no_recursion(&self, detector: &mut RecursionDetector) -> DBResult<()>;
 }
 
+/// 并行计算配置
+///
+/// 参考nebula-graph的FLAGS_max_job_size和FLAGS_min_batch_size
+#[derive(Debug, Clone)]
+pub struct ParallelConfig {
+    /// 最大并行任务数（参考nebula-graph的FLAGS_max_job_size）
+    pub max_job_size: usize,
+    /// 最小批处理大小（参考nebula-graph的FLAGS_min_batch_size）
+    pub min_batch_size: usize,
+    /// 是否启用并行计算
+    pub enable_parallel: bool,
+    /// 并行计算阈值：数据量超过此值才使用并行（参考nebula-graph的traverse_parallel_threshold_rows）
+    pub parallel_threshold: usize,
+    /// 单线程处理的最大数据量
+    pub single_thread_limit: usize,
+}
+
+impl Default for ParallelConfig {
+    fn default() -> Self {
+        Self {
+            max_job_size: 4,              // 默认4个并行任务
+            min_batch_size: 1000,         // 最小批处理1000行
+            enable_parallel: true,        // 默认启用并行
+            parallel_threshold: 10000,    // 数据量超过10000行才并行
+            single_thread_limit: 1000,    // 少于1000行使用单线程
+        }
+    }
+}
+
+impl ParallelConfig {
+    /// 计算批处理大小
+    ///
+    /// 参考nebula-graph的Executor::getBatchSize实现
+    /// batch size = max(min_batch_size, ceil(total_size / max_job_size))
+    pub fn calculate_batch_size(&self, total_size: usize) -> usize {
+        if total_size == 0 {
+            return 0;
+        }
+        let batch_size_tmp = (total_size + self.max_job_size - 1) / self.max_job_size;
+        batch_size_tmp.max(self.min_batch_size)
+    }
+
+    /// 判断是否使用并行计算
+    pub fn should_use_parallel(&self, total_size: usize) -> bool {
+        self.enable_parallel && total_size >= self.parallel_threshold
+    }
+
+    /// 创建适合小数据量的配置
+    pub fn for_small_data() -> Self {
+        Self {
+            max_job_size: 2,
+            min_batch_size: 100,
+            enable_parallel: true,
+            parallel_threshold: 500,
+            single_thread_limit: 100,
+        }
+    }
+
+    /// 创建适合大数据量的配置
+    pub fn for_large_data() -> Self {
+        Self {
+            max_job_size: 8,
+            min_batch_size: 1000,
+            enable_parallel: true,
+            parallel_threshold: 50000,
+            single_thread_limit: 1000,
+        }
+    }
+}
+
 /// 执行器安全配置
 #[derive(Debug, Clone)]
 pub struct ExecutorSafetyConfig {
@@ -100,6 +170,8 @@ pub struct ExecutorSafetyConfig {
     pub max_loop_iterations: usize,
     pub max_expand_depth: usize,
     pub enable_recursion_detection: bool,
+    /// 并行计算配置
+    pub parallel_config: ParallelConfig,
 }
 
 impl Default for ExecutorSafetyConfig {
@@ -109,6 +181,7 @@ impl Default for ExecutorSafetyConfig {
             max_loop_iterations: 10000,
             max_expand_depth: 100,
             enable_recursion_detection: true,
+            parallel_config: ParallelConfig::default(),
         }
     }
 }

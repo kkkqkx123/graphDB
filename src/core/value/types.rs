@@ -216,6 +216,13 @@ impl Default for GeographyValue {
     }
 }
 
+impl GeographyValue {
+    /// 估算地理值的内存使用大小
+    pub fn estimated_size(&self) -> usize {
+        std::mem::size_of::<Self>()
+    }
+}
+
 /// 简单持续时间表示
 ///
 /// ## 用途
@@ -262,6 +269,13 @@ pub struct DurationValue {
     pub months: i32,
 }
 
+impl DurationValue {
+    /// 估算持续时间的内存使用大小
+    pub fn estimated_size(&self) -> usize {
+        std::mem::size_of::<Self>()
+    }
+}
+
 /// 简单列表表示
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Encode, Decode)]
 pub struct List {
@@ -290,6 +304,28 @@ impl DataSet {
             col_names: Vec::new(),
             rows: Vec::new(),
         }
+    }
+
+    /// 估算数据集的内存使用大小
+    pub fn estimated_size(&self) -> usize {
+        let mut size = std::mem::size_of::<Self>();
+        
+        // 计算 col_names 的容量开销
+        size += self.col_names.capacity() * std::mem::size_of::<String>();
+        for col_name in &self.col_names {
+            size += col_name.capacity();
+        }
+        
+        // 计算 rows 的容量开销
+        size += self.rows.capacity() * std::mem::size_of::<Vec<Value>>();
+        for row in &self.rows {
+            size += row.capacity() * std::mem::size_of::<Value>();
+            for value in row {
+                size += value.estimated_size();
+            }
+        }
+        
+        size
     }
 }
 
@@ -407,6 +443,53 @@ impl Value {
             Value::Set(set) => Ok(Value::Int(set.len() as i64)),
             Value::Path(p) => Ok(Value::Int(p.length() as i64)),
             _ => Err(format!("无法计算 {:?} 的长度", self.get_type())),
+        }
+    }
+
+    /// 估算值的内存使用大小
+    pub fn estimated_size(&self) -> usize {
+        let base_size = std::mem::size_of::<Value>();
+        match self {
+            Value::Empty => base_size,
+            Value::Null(_) => base_size,
+            Value::Bool(_) => base_size,
+            Value::Int(_) => base_size,
+            Value::Float(_) => base_size,
+            Value::String(s) => base_size + std::mem::size_of::<String>() + s.capacity(),
+            Value::Date(_) => base_size,
+            Value::Time(_) => base_size,
+            Value::DateTime(_) => base_size,
+            Value::Vertex(v) => base_size + std::mem::size_of::<Box<crate::core::vertex_edge_path::Vertex>>() + v.estimated_size(),
+            Value::Edge(e) => base_size + std::mem::size_of::<crate::core::vertex_edge_path::Edge>() + e.estimated_size(),
+            Value::Path(p) => base_size + std::mem::size_of::<crate::core::vertex_edge_path::Path>() + p.estimated_size(),
+            Value::List(vec) => {
+                let mut size = base_size + std::mem::size_of::<Vec<Value>>();
+                size += vec.capacity() * std::mem::size_of::<Value>();
+                for v in vec {
+                    size += v.estimated_size();
+                }
+                size
+            }
+            Value::Map(map) => {
+                let mut size = base_size + std::mem::size_of::<std::collections::HashMap<String, Value>>();
+                size += map.capacity() * (std::mem::size_of::<String>() + std::mem::size_of::<Value>());
+                for (k, v) in map {
+                    size += k.capacity();
+                    size += v.estimated_size();
+                }
+                size
+            }
+            Value::Set(set) => {
+                let mut size = base_size + std::mem::size_of::<std::collections::HashSet<Value>>();
+                size += set.capacity() * std::mem::size_of::<Value>();
+                for v in set {
+                    size += v.estimated_size();
+                }
+                size
+            }
+            Value::Geography(g) => base_size + g.estimated_size(),
+            Value::Duration(d) => base_size + d.estimated_size(),
+            Value::DataSet(ds) => base_size + ds.estimated_size(),
         }
     }
 }

@@ -2,8 +2,264 @@
 //! 对应 NebulaGraph ExpressionUtils.h/.cpp 的功能
 
 use crate::core::types::expression::Expression;
-use crate::core::BinaryOperator;
+use crate::core::types::operators::{BinaryOperator, UnaryOperator};
 use std::collections::HashSet;
+
+/// 检查表达式中是否包含指定类型的表达式
+pub fn find_any(expr: &Expression, kinds: &[ExpressionKind]) -> bool {
+    if kinds.contains(&expr.kind()) {
+        return true;
+    }
+    match expr {
+        Expression::Binary { left, right, .. } => {
+            find_any(left, kinds) || find_any(right, kinds)
+        }
+        Expression::Unary { operand, .. } => find_any(operand, kinds),
+        Expression::Function { args, .. } => args.iter().any(|arg| find_any(arg, kinds)),
+        Expression::List(items) => items.iter().any(|item| find_any(item, kinds)),
+        Expression::Map(pairs) => pairs.iter().any(|(_, value)| find_any(value, kinds)),
+        Expression::Case {
+            test_expr,
+            conditions,
+            default,
+        } => {
+            test_expr.as_ref().map_or(false, |e| find_any(e, kinds))
+                || conditions
+                    .iter()
+                    .any(|(cond, value)| find_any(cond, kinds) || find_any(value, kinds))
+                || default.as_ref().map_or(false, |e| find_any(e, kinds))
+        }
+        Expression::TypeCast { expression, .. } => find_any(expression, kinds),
+        Expression::Subscript { collection, index } => {
+            find_any(collection, kinds) || find_any(index, kinds)
+        }
+        Expression::Range {
+            collection,
+            start,
+            end,
+        } => {
+            find_any(collection, kinds)
+                || start.as_ref().map_or(false, |e| find_any(e, kinds))
+                || end.as_ref().map_or(false, |e| find_any(e, kinds))
+        }
+        Expression::Path(items) => items.iter().any(|item| find_any(item, kinds)),
+        Expression::ListComprehension {
+            source,
+            filter,
+            map,
+            ..
+        } => {
+            find_any(source, kinds)
+                || filter.as_ref().map_or(false, |e| find_any(e, kinds))
+                || map.as_ref().map_or(false, |e| find_any(e, kinds))
+        }
+        Expression::LabelTagProperty { tag, .. } => find_any(tag, kinds),
+        Expression::Predicate { args, .. } => args.iter().any(|arg| find_any(arg, kinds)),
+        Expression::Reduce {
+            initial,
+            source,
+            mapping,
+            ..
+        } => {
+            find_any(initial, kinds)
+                || find_any(source, kinds)
+                || find_any(mapping, kinds)
+        }
+        Expression::PathBuild(exprs) => exprs.iter().any(|expr| find_any(expr, kinds)),
+        _ => false,
+    }
+}
+
+/// 检查表达式中是否包含NOT操作符
+pub fn contains_not(expr: &Expression) -> bool {
+    match expr {
+        Expression::Unary {
+            op: UnaryOperator::Not,
+            operand: _,
+        } => true,
+        Expression::Binary { left, right, .. } => {
+            contains_not(left) || contains_not(right)
+        }
+        Expression::Unary { operand, .. } => contains_not(operand),
+        Expression::Function { args, .. } => args.iter().any(|arg| contains_not(arg)),
+        Expression::List(items) => items.iter().any(|item| contains_not(item)),
+        Expression::Map(pairs) => pairs.iter().any(|(_, value)| contains_not(value)),
+        Expression::Case {
+            test_expr,
+            conditions,
+            default,
+        } => {
+            test_expr.as_ref().map_or(false, |e| contains_not(e))
+                || conditions
+                    .iter()
+                    .any(|(cond, value)| contains_not(cond) || contains_not(value))
+                || default.as_ref().map_or(false, |e| contains_not(e))
+        }
+        Expression::TypeCast { expression, .. } => contains_not(expression),
+        Expression::Subscript { collection, index } => {
+            contains_not(collection) || contains_not(index)
+        }
+        Expression::Range {
+            collection,
+            start,
+            end,
+        } => {
+            contains_not(collection)
+                || start.as_ref().map_or(false, |e| contains_not(e))
+                || end.as_ref().map_or(false, |e| contains_not(e))
+        }
+        Expression::Path(items) => items.iter().any(|item| contains_not(item)),
+        Expression::ListComprehension {
+            source,
+            filter,
+            map,
+            ..
+        } => {
+            contains_not(source)
+                || filter.as_ref().map_or(false, |e| contains_not(e))
+                || map.as_ref().map_or(false, |e| contains_not(e))
+        }
+        Expression::LabelTagProperty { tag, .. } => contains_not(tag),
+        Expression::Predicate { args, .. } => args.iter().any(|arg| contains_not(arg)),
+        Expression::Reduce {
+            initial,
+            source,
+            mapping,
+            ..
+        } => {
+            contains_not(initial)
+                || contains_not(source)
+                || contains_not(mapping)
+        }
+        Expression::PathBuild(exprs) => exprs.iter().any(|expr| contains_not(expr)),
+        _ => false,
+    }
+}
+
+/// 扁平化嵌套的逻辑AND表达式
+/// 例如：(A AND (B AND C)) AND D => (A AND B AND C AND D)
+fn flatten_inner_logical_and_expr(expr: &Expression) -> Expression {
+    match expr {
+        Expression::Binary {
+            left,
+            op: BinaryOperator::And,
+            right,
+        } => {
+            let left_flattened = flatten_inner_logical_and_expr(left);
+            let right_flattened = flatten_inner_logical_and_expr(right);
+            
+            let mut operands = Vec::new();
+            collect_and_operands(&left_flattened, &mut operands);
+            collect_and_operands(&right_flattened, &mut operands);
+            
+            if operands.len() == 1 {
+                operands.into_iter().next().unwrap()
+            } else {
+                let mut result = None;
+                for operand in operands {
+                    result = Some(match result {
+                        None => operand,
+                        Some(acc) => Expression::Binary {
+                            left: Box::new(acc),
+                            op: BinaryOperator::And,
+                            right: Box::new(operand),
+                        },
+                    });
+                }
+                result.unwrap()
+            }
+        }
+        _ => expr.clone(),
+    }
+}
+
+/// 扁平化嵌套的逻辑OR表达式
+fn flatten_inner_logical_or_expr(expr: &Expression) -> Expression {
+    match expr {
+        Expression::Binary {
+            left,
+            op: BinaryOperator::Or,
+            right,
+        } => {
+            let left_flattened = flatten_inner_logical_or_expr(left);
+            let right_flattened = flatten_inner_logical_or_expr(right);
+            
+            let mut operands = Vec::new();
+            collect_or_operands(&left_flattened, &mut operands);
+            collect_or_operands(&right_flattened, &mut operands);
+            
+            if operands.len() == 1 {
+                operands.into_iter().next().unwrap()
+            } else {
+                let mut result = None;
+                for operand in operands {
+                    result = Some(match result {
+                        None => operand,
+                        Some(acc) => Expression::Binary {
+                            left: Box::new(acc),
+                            op: BinaryOperator::Or,
+                            right: Box::new(operand),
+                        },
+                    });
+                }
+                result.unwrap()
+            }
+        }
+        _ => expr.clone(),
+    }
+}
+
+/// 收集AND表达式的所有操作数
+fn collect_and_operands(expr: &Expression, operands: &mut Vec<Expression>) {
+    match expr {
+        Expression::Binary {
+            left,
+            op: BinaryOperator::And,
+            right,
+        } => {
+            collect_and_operands(left, operands);
+            collect_and_operands(right, operands);
+        }
+        _ => operands.push(expr.clone()),
+    }
+}
+
+/// 收集OR表达式的所有操作数
+fn collect_or_operands(expr: &Expression, operands: &mut Vec<Expression>) {
+    match expr {
+        Expression::Binary {
+            left,
+            op: BinaryOperator::Or,
+            right,
+        } => {
+            collect_or_operands(left, operands);
+            collect_or_operands(right, operands);
+        }
+        _ => operands.push(expr.clone()),
+    }
+}
+
+/// 扁平化嵌套的逻辑表达式
+/// 先扁平化AND，再扁平化OR
+fn flatten_inner_logical_expr(expr: &Expression) -> Expression {
+    let and_flattened = flatten_inner_logical_and_expr(expr);
+    flatten_inner_logical_or_expr(&and_flattened)
+}
+
+/// 收集AND表达式的所有操作数到向量中
+fn collect_and_operands_vec(expr: &Expression, operands: &mut Vec<Expression>) {
+    match expr {
+        Expression::Binary {
+            left,
+            op: BinaryOperator::And,
+            right,
+        } => {
+            collect_and_operands_vec(left, operands);
+            collect_and_operands_vec(right, operands);
+        }
+        _ => operands.push(expr.clone()),
+    }
+}
 
 /// 分离过滤器表达式
 /// 
@@ -13,88 +269,48 @@ use std::collections::HashSet;
 /// 
 /// # 返回
 /// 返回一个元组：(被提取的表达式, 剩余的表达式)
+/// 
+/// 参考 nebula-graph ExpressionUtils::splitFilter 实现
+/// 
+/// # 算法说明
+/// 1. 如果表达式不是LogicalAnd，直接应用picker
+/// 2. 如果是LogicalAnd，先flatten嵌套的逻辑表达式
+/// 3. 遍历所有操作数，检查是否包含NOT表达式
+/// 4. 如果包含NOT，放入filterUnpicked
+/// 5. 否则应用picker判断：true放入filterPicked，false放入filterUnpicked
+/// 6. 最后fold逻辑表达式，简化结果
 pub fn split_filter(
     condition: &Expression,
     picker: impl Fn(&Expression) -> bool + Copy,
 ) -> (Option<Expression>, Option<Expression>) {
     match condition {
-        Expression::Binary { left, op, right } => {
-            let (left_picked, left_remained) = split_filter(left, picker);
-            let (right_picked, right_remained) = split_filter(right, picker);
-
-            match (left_picked, right_picked) {
-                (Some(lp), Some(rp)) => {
-                    let picked = Some(Expression::Binary {
-                        left: Box::new(lp),
-                        op: op.clone(),
-                        right: Box::new(rp),
-                    });
-                    let remained = match (left_remained, right_remained) {
-                        (Some(lr), Some(rr)) => Some(Expression::Binary {
-                            left: Box::new(lr),
-                            op: op.clone(),
-                            right: Box::new(rr),
-                        }),
-                        (Some(lr), None) => Some(lr),
-                        (None, Some(rr)) => Some(rr),
-                        (None, None) => None,
-                    };
-                    (picked, remained)
-                }
-                (Some(lp), None) => {
-                    let remained = match (left_remained, right_remained) {
-                        (Some(lr), Some(rr)) => Some(Expression::Binary {
-                            left: Box::new(lr),
-                            op: op.clone(),
-                            right: Box::new(rr),
-                        }),
-                        (Some(lr), None) => Some(lr),
-                        (None, Some(rr)) => Some(rr),
-                        (None, None) => None,
-                    };
-                    (Some(lp), remained)
-                }
-                (None, Some(rp)) => {
-                    let remained = match (left_remained, right_remained) {
-                        (Some(lr), Some(rr)) => Some(Expression::Binary {
-                            left: Box::new(lr),
-                            op: op.clone(),
-                            right: Box::new(rr),
-                        }),
-                        (Some(lr), None) => Some(lr),
-                        (None, Some(rr)) => Some(rr),
-                        (None, None) => None,
-                    };
-                    (Some(rp), remained)
-                }
-                (None, None) => {
-                    let remained = match (left_remained, right_remained) {
-                        (Some(lr), Some(rr)) => Some(Expression::Binary {
-                            left: Box::new(lr),
-                            op: op.clone(),
-                            right: Box::new(rr),
-                        }),
-                        (Some(lr), None) => Some(lr),
-                        (None, Some(rr)) => Some(rr),
-                        (None, None) => None,
-                    };
-                    (None, remained)
+        Expression::Binary {
+            left: _,
+            op: BinaryOperator::And,
+            right: _,
+        } => {
+            let flatten_expr = flatten_inner_logical_expr(condition);
+            
+            let mut picked_operands = Vec::new();
+            let mut unpicked_operands = Vec::new();
+            
+            let mut all_operands = Vec::new();
+            collect_and_operands_vec(&flatten_expr, &mut all_operands);
+            
+            for operand in all_operands {
+                if contains_not(&operand) {
+                    unpicked_operands.push(operand);
+                } else if picker(&operand) {
+                    picked_operands.push(operand);
+                } else {
+                    unpicked_operands.push(operand);
                 }
             }
-        }
-        Expression::Unary { op, operand } => {
-            if picker(condition) {
-                (Some(condition.clone()), None)
-            } else {
-                (None, Some(condition.clone()))
-            }
-        }
-        Expression::Function { name, args } => {
-            if picker(condition) {
-                (Some(condition.clone()), None)
-            } else {
-                (None, Some(condition.clone()))
-            }
+            
+            let filter_picked = fold_logical_expr(&picked_operands, BinaryOperator::And);
+            let filter_unpicked = fold_logical_expr(&unpicked_operands, BinaryOperator::And);
+            
+            (filter_picked, filter_unpicked)
         }
         _ => {
             if picker(condition) {
@@ -102,6 +318,29 @@ pub fn split_filter(
             } else {
                 (None, Some(condition.clone()))
             }
+        }
+    }
+}
+
+/// 折叠逻辑表达式
+/// 根据操作数数量决定返回单个表达式、组合表达式或None
+fn fold_logical_expr(operands: &[Expression], op: BinaryOperator) -> Option<Expression> {
+    match operands.len() {
+        0 => None,
+        1 => Some(operands[0].clone()),
+        _ => {
+            let mut result = None;
+            for operand in operands {
+                result = Some(match result {
+                    None => operand.clone(),
+                    Some(acc) => Expression::Binary {
+                        left: Box::new(acc),
+                        op: op.clone(),
+                        right: Box::new(operand.clone()),
+                    },
+                });
+            }
+            result
         }
     }
 }
@@ -129,7 +368,7 @@ pub fn make_or(left: Expression, right: Expression) -> Expression {
 /// 单步边属性表达式是指形如 `e.prop` 的表达式，其中 `e` 是边别名
 pub fn is_one_step_edge_prop(edge_alias: &str, expr: &Expression) -> bool {
     match expr {
-        Expression::Property { object, property } => {
+        Expression::Property { object, property: _ } => {
             if let Expression::Variable(name) = object.as_ref() {
                 name == edge_alias
             } else {
@@ -370,12 +609,31 @@ impl Expression {
     }
 }
 
+/// 将多个表达式用 AND 连接成一个表达式
+pub fn and_all(mut exprs: Vec<Expression>) -> Expression {
+    match exprs.len() {
+        0 => Expression::Literal(crate::core::Value::Bool(true)),
+        1 => exprs.pop().expect("Should have one element"),
+        _ => {
+            let mut result = exprs.pop().expect("Should have elements");
+            while let Some(expression) = exprs.pop() {
+                result = Expression::Binary {
+                    left: Box::new(expression),
+                    op: BinaryOperator::And,
+                    right: Box::new(result),
+                };
+            }
+            result
+        }
+    }
+}
+
 /// 检查表达式中的变量名是否在给定的列名列表中
-/// 
+///
 /// # 参数
 /// * `col_names` - 列名列表
 /// * `expr` - 要检查的表达式
-/// 
+///
 /// # 返回
 /// 如果表达式中的所有变量名都在列名列表中，则返回 true
 pub fn check_col_name(col_names: &[String], expr: &Expression) -> bool {

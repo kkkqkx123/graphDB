@@ -29,6 +29,25 @@ impl Tag {
     pub fn new(name: String, properties: HashMap<String, Value>) -> Self {
         Self { name, properties }
     }
+
+    /// 估算标签的内存使用大小
+    pub fn estimated_size(&self) -> usize {
+        let mut size = std::mem::size_of::<Self>();
+        
+        // 计算 name 的实际大小（包括堆分配）
+        size += std::mem::size_of::<String>() + self.name.capacity();
+        
+        // 计算 HashMap 的容量开销
+        size += self.properties.capacity() * 
+               (std::mem::size_of::<String>() + std::mem::size_of::<Value>());
+        
+        for (k, v) in &self.properties {
+            size += k.capacity();
+            size += v.estimated_size();
+        }
+        
+        size
+    }
 }
 
 /// Represents a vertex in the graph, similar to Nebula's Vertex structure
@@ -262,16 +281,36 @@ impl Vertex {
     /// 估算顶点的内存使用大小
     pub fn estimated_size(&self) -> usize {
         let mut size = std::mem::size_of::<Self>();
-        size += std::mem::size_of_val(&*self.vid);
+        
+        // 计算 vid 的实际大小（包括 Box 的堆分配和 Value 的内容）
+        size += std::mem::size_of::<Box<Value>>() + self.vid.estimated_size();
+        
+        // 计算 Vec<Tag> 的容量开销
+        size += self.tags.capacity() * std::mem::size_of::<Tag>();
+        
         for tag in &self.tags {
-            size += std::mem::size_of::<String>() + tag.name.len();
+            // 计算 String 的实际大小（包括堆分配）
+            size += std::mem::size_of::<String>() + tag.name.capacity();
+            
+            // 计算 HashMap 的容量开销
+            size += tag.properties.capacity() * 
+                   (std::mem::size_of::<String>() + std::mem::size_of::<Value>());
+            
             for (k, v) in &tag.properties {
-                size += std::mem::size_of::<String>() + k.len() + std::mem::size_of::<Value>();
+                size += k.capacity();
+                size += v.estimated_size();
             }
         }
+        
+        // 计算 HashMap<String, Value> 的容量开销
+        size += self.properties.capacity() * 
+               (std::mem::size_of::<String>() + std::mem::size_of::<Value>());
+        
         for (k, v) in &self.properties {
-            size += std::mem::size_of::<String>() + k.len() + std::mem::size_of::<Value>();
+            size += k.capacity();
+            size += v.estimated_size();
         }
+        
         size
     }
 }
@@ -372,12 +411,23 @@ impl Edge {
     /// 估算边的内存使用大小
     pub fn estimated_size(&self) -> usize {
         let mut size = std::mem::size_of::<Self>();
-        size += std::mem::size_of_val(&*self.src);
-        size += std::mem::size_of_val(&*self.dst);
-        size += std::mem::size_of::<String>() + self.edge_type.len();
+        
+        // 计算 src 和 dst 的实际大小（包括 Box 的堆分配和 Value 的内容）
+        size += std::mem::size_of::<Box<Value>>() + self.src.estimated_size();
+        size += std::mem::size_of::<Box<Value>>() + self.dst.estimated_size();
+        
+        // 计算 edge_type 的实际大小（包括堆分配）
+        size += std::mem::size_of::<String>() + self.edge_type.capacity();
+        
+        // 计算 HashMap 的容量开销
+        size += self.props.capacity() * 
+               (std::mem::size_of::<String>() + std::mem::size_of::<Value>());
+        
         for (k, v) in &self.props {
-            size += std::mem::size_of::<String>() + k.len() + std::mem::size_of::<Value>();
+            size += k.capacity();
+            size += v.estimated_size();
         }
+        
         size
     }
 }
@@ -466,6 +516,19 @@ impl PartialOrd for Step {
     }
 }
 
+impl Step {
+    /// 估算步骤的内存使用大小
+    pub fn estimated_size(&self) -> usize {
+        let mut size = std::mem::size_of::<Self>();
+        
+        // 计算 dst 和 edge 的实际大小（包括 Box 的堆分配和内容）
+        size += std::mem::size_of::<Box<Vertex>>() + self.dst.estimated_size();
+        size += std::mem::size_of::<Box<Edge>>() + self.edge.estimated_size();
+        
+        size
+    }
+}
+
 /// Represents a path in the graph
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Encode, Decode)]
 pub struct Path {
@@ -520,6 +583,23 @@ impl Path {
             src: Box::new(src),
             steps: Vec::new(),
         }
+    }
+
+    /// 估算路径的内存使用大小
+    pub fn estimated_size(&self) -> usize {
+        let mut size = std::mem::size_of::<Self>();
+        
+        // 计算 src 的实际大小（包括 Box 的堆分配和 Vertex 的内容）
+        size += std::mem::size_of::<Box<Vertex>>() + self.src.estimated_size();
+        
+        // 计算 Vec<Step> 的容量开销
+        size += self.steps.capacity() * std::mem::size_of::<Step>();
+        
+        for step in &self.steps {
+            size += step.estimated_size();
+        }
+        
+        size
     }
 
     /// 添加步骤到路径
