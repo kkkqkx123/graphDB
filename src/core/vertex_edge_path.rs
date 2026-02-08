@@ -631,6 +631,65 @@ impl Path {
     pub fn is_empty(&self) -> bool {
         self.steps.is_empty()
     }
+
+    /// 检查路径中是否有重复的边
+    pub fn has_duplicate_edges(&self) -> bool {
+        let mut seen_edges: std::collections::HashSet<(Value, Value, String)> = std::collections::HashSet::new();
+        
+        for step in &self.steps {
+            let edge_key = (
+                (*step.edge.src).clone(),
+                (*step.edge.dst).clone(),
+                step.edge.edge_type.clone(),
+            );
+            
+            if !seen_edges.insert(edge_key) {
+                return true;
+            }
+        }
+        
+        false
+    }
+
+    /// 反转路径
+    pub fn reverse(&mut self) {
+        if self.steps.is_empty() {
+            return;
+        }
+
+        // 将步骤反转
+        self.steps.reverse();
+        
+        // 更新每一步的边方向
+        for step in &mut self.steps {
+            // 交换边的src和dst
+            std::mem::swap(&mut step.edge.src, &mut step.edge.dst);
+        }
+
+        // 更新源顶点为最后一个步骤的目标顶点
+        if let Some(last_step) = self.steps.first() {
+            self.src = Box::new(Vertex::new((*last_step.edge.src).clone(), vec![]));
+        }
+    }
+
+    /// 追加反向路径（用于双向BFS路径拼接）
+    /// 将另一条路径的反向追加到当前路径
+    pub fn append_reverse(&mut self, other: Path) {
+        if other.steps.is_empty() {
+            return;
+        }
+
+        // 获取other路径的反向步骤
+        let mut other_steps: Vec<Step> = other.steps.into_iter().rev().collect();
+        
+        // 反转每条边的方向
+        for step in &mut other_steps {
+            std::mem::swap(&mut step.edge.src, &mut step.edge.dst);
+        }
+
+        // 追加到当前路径
+        self.steps.extend(other_steps);
+    }
 }
 
 impl Default for Path {

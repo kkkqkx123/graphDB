@@ -244,16 +244,30 @@ mod tests {
     use crate::core::types::{SchemaChangeType, TagInfo, PropertyDef, DataType};
     use tempfile::TempDir;
 
-    fn create_test_manager() -> RedbExtendedSchemaManager {
+    fn create_test_manager() -> (RedbExtendedSchemaManager, TempDir) {
         let temp_dir = TempDir::new().unwrap();
         let db_path = temp_dir.path().join("test.db");
         let db = Arc::new(Database::create(db_path).unwrap());
-        RedbExtendedSchemaManager::new(db)
+        
+        // 初始化所需的表
+        let write_txn = db.begin_write().unwrap();
+        {
+            let _ = write_txn.open_table(SCHEMA_VERSIONS_TABLE).unwrap();
+        }
+        {
+            let _ = write_txn.open_table(SCHEMA_CHANGES_TABLE).unwrap();
+        }
+        {
+            let _ = write_txn.open_table(CURRENT_VERSIONS_TABLE).unwrap();
+        }
+        write_txn.commit().unwrap();
+        
+        (RedbExtendedSchemaManager::new(db), temp_dir)
     }
 
     #[test]
     fn test_schema_version() {
-        let manager = create_test_manager();
+        let (manager, _temp_dir) = create_test_manager();
         let space_id = 1;
 
         // 初始版本为 0
@@ -270,7 +284,7 @@ mod tests {
 
     #[test]
     fn test_save_schema_snapshot() {
-        let manager = create_test_manager();
+        let (manager, _temp_dir) = create_test_manager();
         let space_id = 1;
 
         let tags = vec![TagInfo {
@@ -306,7 +320,7 @@ mod tests {
 
     #[test]
     fn test_record_schema_change() {
-        let manager = create_test_manager();
+        let (manager, _temp_dir) = create_test_manager();
         let space_id = 1;
 
         let change = SchemaChange {

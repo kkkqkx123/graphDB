@@ -354,7 +354,7 @@ mod tests {
 
     #[test]
     fn test_query_execution_state_transitions() {
-        assert!(!QueryExecutionState::Completed.is_terminal());
+        assert!(!QueryExecutionState::Running.is_terminal());
         assert!(QueryExecutionState::Completed.is_terminal());
         assert!(QueryExecutionState::Pending.can_cancel());
         assert!(!QueryExecutionState::Completed.can_cancel());

@@ -947,9 +947,12 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                 let executor = FulltextIndexScanExecutor::new(
                     node.id(),
                     storage,
+                    node.space_id,
                     &node.index_name,
                     &node.query,
                     node.limit.map(|l| l as usize),
+                    node.is_edge,
+                    node.schema_id,
                 );
                 Ok(ExecutorEnum::FulltextIndexScan(executor))
             }
@@ -976,9 +979,12 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                 let executor = BFSShortestExecutor::new(
                     node.id(),
                     storage,
-                    start_vertex,
-                    end_vertex,
+                    node.steps,
+                    node.edge_types.clone(),
+                    node.no_loop,
                     Some(node.steps),
+                    false, // single_shortest
+                    usize::MAX, // limit
                 );
                 Ok(ExecutorEnum::BFSShortest(executor))
             }
@@ -995,6 +1001,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     node.filter.as_ref().and_then(|f| parse_expression_safe(f)),
                     node.return_columns.clone(),
                     node.limit.map(|l| l as usize),
+                    false, // is_edge - 简化实现，默认为false
                 );
                 Ok(ExecutorEnum::IndexScan(executor))
             }

@@ -145,19 +145,31 @@ mod tests {
         let start_node = PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new());
 
         let sort_node = PlanNodeEnum::Sort(
+            SortNode::new(start_node.clone(), vec!["name".to_string()])
+                .expect("Sort node should be created successfully"),
+        );
+        let sort_node_id = sort_node.id() as usize;
+
+        // 注册 Sort 节点到上下文（使用克隆的节点）
+        let sort_opt_node = Rc::new(RefCell::new(OptGroupNode::new(2, sort_node)));
+        ctx.add_group_node(sort_opt_node).expect("Failed to add sort node");
+
+        // 创建 Limit 节点
+        let sort_node_for_limit = PlanNodeEnum::Sort(
             SortNode::new(start_node, vec!["name".to_string()])
                 .expect("Sort node should be created successfully"),
         );
-
         let limit_node = PlanNodeEnum::Limit(
-            LimitNode::new(sort_node, 0, 10)
+            LimitNode::new(sort_node_for_limit, 0, 10)
                 .expect("Limit node should be created successfully"),
         );
 
-        let opt_node = OptGroupNode::new(1, limit_node);
+        // 创建 Limit 节点并设置依赖
+        let mut limit_opt_node = OptGroupNode::new(1, limit_node);
+        limit_opt_node.dependencies = vec![sort_node_id];
 
         let result = rule
-            .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
+            .apply(&mut ctx, &Rc::new(RefCell::new(limit_opt_node)))
             .expect("Rule should apply successfully");
 
         assert!(result.is_some());
@@ -171,19 +183,31 @@ mod tests {
         let start_node = PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new());
 
         let sort_node = PlanNodeEnum::Sort(
+            SortNode::new(start_node.clone(), vec!["name".to_string()])
+                .expect("Sort node should be created successfully"),
+        );
+        let sort_node_id = sort_node.id() as usize;
+
+        // 注册 Sort 节点到上下文
+        let sort_opt_node = Rc::new(RefCell::new(OptGroupNode::new(2, sort_node)));
+        ctx.add_group_node(sort_opt_node).expect("Failed to add sort node");
+
+        // 创建 Limit 节点
+        let sort_node_for_limit = PlanNodeEnum::Sort(
             SortNode::new(start_node, vec!["name".to_string()])
                 .expect("Sort node should be created successfully"),
         );
-
         let limit_node = PlanNodeEnum::Limit(
-            LimitNode::new(sort_node, 5, 10)
+            LimitNode::new(sort_node_for_limit, 5, 10)
                 .expect("Limit node should be created successfully"),
         );
 
-        let opt_node = OptGroupNode::new(1, limit_node);
+        // 创建 Limit 节点并设置依赖
+        let mut limit_opt_node = OptGroupNode::new(1, limit_node);
+        limit_opt_node.dependencies = vec![sort_node_id];
 
         let result = rule
-            .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
+            .apply(&mut ctx, &Rc::new(RefCell::new(limit_opt_node)))
             .expect("Rule should apply successfully");
 
         assert!(result.is_none());
@@ -195,16 +219,23 @@ mod tests {
         let mut ctx = create_test_context();
 
         let start_node = PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new());
+        let start_node_id = start_node.id() as usize;
 
         let limit_node = PlanNodeEnum::Limit(
             LimitNode::new(start_node, 0, 10)
                 .expect("Limit node should be created successfully"),
         );
 
-        let opt_node = OptGroupNode::new(1, limit_node);
+        // 注册 Start 节点到上下文
+        let start_opt_node = Rc::new(RefCell::new(OptGroupNode::new(2, PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new()))));
+        ctx.add_group_node(start_opt_node).expect("Failed to add start node");
+
+        // 创建 Limit 节点并设置依赖
+        let mut limit_opt_node = OptGroupNode::new(1, limit_node);
+        limit_opt_node.dependencies = vec![start_node_id];
 
         let result = rule
-            .apply(&mut ctx, &Rc::new(RefCell::new(opt_node)))
+            .apply(&mut ctx, &Rc::new(RefCell::new(limit_opt_node)))
             .expect("Rule should apply successfully");
 
         assert!(result.is_none());

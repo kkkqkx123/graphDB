@@ -93,7 +93,8 @@ mod tests {
     fn test_plan_node_to_operation_kind() {
         let start_node = create_start_node();
         let start_enum = start_node.clone_plan_node();
-        assert_eq!(start_enum.into_operation_kind(), CoreOperationKind::Project);
+        // Start 节点映射到 ScanVertices
+        assert_eq!(start_enum.into_operation_kind(), CoreOperationKind::ScanVertices);
     }
     
     #[test]

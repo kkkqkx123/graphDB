@@ -170,6 +170,8 @@ pub struct FulltextIndexScan {
     pub index_name: String,
     pub query: String, // 全文检索查询
     pub limit: Option<i64>,
+    pub is_edge: bool,   // 是否扫描边索引
+    pub schema_id: i32,  // schema ID（tag_id或edge_type_id）
 }
 
 impl FulltextIndexScan {
@@ -184,6 +186,8 @@ impl FulltextIndexScan {
             index_name: index_name.to_string(),
             query: query.to_string(),
             limit: None,
+            is_edge: false,
+            schema_id: 0,
         }
     }
 

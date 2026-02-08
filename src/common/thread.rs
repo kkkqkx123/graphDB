@@ -300,5 +300,7 @@ mod tests {
         assert_eq!(pool.calculate_batch_size(99), 25);
         assert_eq!(pool.calculate_batch_size(4), 1);
         assert_eq!(pool.calculate_batch_size(3), 1);
+        
+        pool.shutdown();
     }
 }
