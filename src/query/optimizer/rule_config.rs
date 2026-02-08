@@ -141,7 +141,6 @@ impl RuleConfig {
             OptimizationRule::EliminateAppendVertices,
             OptimizationRule::RemoveAppendVerticesBelowJoin,
             OptimizationRule::PushFilterDownAggregate,
-            OptimizationRule::PushFilterDownScanVertices,
             OptimizationRule::TopN,
             OptimizationRule::MergeGetVerticesAndProject,
             OptimizationRule::MergeGetVerticesAndDedup,
@@ -160,8 +159,6 @@ impl RuleConfig {
             OptimizationRule::TagIndexFullScan,
             OptimizationRule::UnionAllEdgeIndexScan,
             OptimizationRule::UnionAllTagIndexScan,
-            OptimizationRule::OptimizeEdgeIndexScanByFilter,
-            OptimizationRule::OptimizeTagIndexScanByFilter,
         ].into_iter()
     }
 }

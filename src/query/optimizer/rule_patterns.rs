@@ -99,6 +99,16 @@ impl PatternBuilder {
         Pattern::new_with_name("Expand")
     }
 
+    /// 创建节点模式
+    pub fn node(node_name: &'static str) -> Pattern {
+        Pattern::new_with_name(node_name)
+    }
+
+    /// 创建联合模式
+    pub fn union(node_names: Vec<&'static str>) -> Pattern {
+        Pattern::multi(node_names)
+    }
+
     /// 创建循环节点模式
     pub fn loop_pattern() -> Pattern {
         Pattern::multi(vec!["Loop", "ForLoop", "WhileLoop"])

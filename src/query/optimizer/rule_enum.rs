@@ -18,7 +18,6 @@ pub enum OptimizationRule {
     EliminateAppendVertices,
     RemoveAppendVerticesBelowJoin,
     PushFilterDownAggregate,
-    PushFilterDownScanVertices,
     TopN,
     MergeGetVerticesAndProject,
     MergeGetVerticesAndDedup,
@@ -49,8 +48,6 @@ pub enum OptimizationRule {
     TagIndexFullScan,
     UnionAllEdgeIndexScan,
     UnionAllTagIndexScan,
-    OptimizeEdgeIndexScanByFilter,
-    OptimizeTagIndexScanByFilter,
 }
 
 impl OptimizationRule {
@@ -60,7 +57,7 @@ impl OptimizationRule {
             Self::CombineFilter | Self::CollapseProject | Self::DedupElimination |
             Self::EliminateFilter | Self::EliminateRowCollect | Self::RemoveNoopProject |
             Self::EliminateAppendVertices | Self::RemoveAppendVerticesBelowJoin |
-            Self::PushFilterDownAggregate | Self::PushFilterDownScanVertices | Self::TopN |
+            Self::PushFilterDownAggregate | Self::TopN |
             Self::MergeGetVerticesAndProject | Self::MergeGetVerticesAndDedup |
             Self::MergeGetNbrsAndProject | Self::MergeGetNbrsAndDedup |
             Self::PushFilterDownNode | Self::PushEFilterDown | Self::PushVFilterDownScanVertices |
@@ -75,8 +72,7 @@ impl OptimizationRule {
             Self::PushLimitDownIndexScan |
             Self::ScanWithFilterOptimization | Self::IndexFullScan | Self::IndexScan |
             Self::EdgeIndexFullScan | Self::TagIndexFullScan | Self::UnionAllEdgeIndexScan |
-            Self::UnionAllTagIndexScan | Self::OptimizeEdgeIndexScanByFilter |
-            Self::OptimizeTagIndexScanByFilter => OptimizationPhase::Physical,
+            Self::UnionAllTagIndexScan => OptimizationPhase::Physical,
 
             _ => OptimizationPhase::Unknown,
         }
@@ -94,7 +90,6 @@ impl OptimizationRule {
             Self::EliminateAppendVertices => "EliminateAppendVerticesRule",
             Self::RemoveAppendVerticesBelowJoin => "RemoveAppendVerticesBelowJoinRule",
             Self::PushFilterDownAggregate => "PushFilterDownAggregateRule",
-            Self::PushFilterDownScanVertices => "PushFilterDownScanVerticesRule",
             Self::TopN => "TopNRule",
             Self::MergeGetVerticesAndProject => "MergeGetVerticesAndProjectRule",
             Self::MergeGetVerticesAndDedup => "MergeGetVerticesAndDedupRule",
@@ -123,8 +118,6 @@ impl OptimizationRule {
             Self::TagIndexFullScan => "TagIndexFullScanRule",
             Self::UnionAllEdgeIndexScan => "UnionAllEdgeIndexScanRule",
             Self::UnionAllTagIndexScan => "UnionAllTagIndexScanRule",
-            Self::OptimizeEdgeIndexScanByFilter => "OptimizeEdgeIndexScanByFilterRule",
-            Self::OptimizeTagIndexScanByFilter => "OptimizeTagIndexScanByFilterRule",
             _ => "UnknownRule",
         }
     }
@@ -141,7 +134,6 @@ impl OptimizationRule {
             Self::EliminateAppendVertices => Some(Rc::new(super::EliminateAppendVerticesRule)),
             Self::RemoveAppendVerticesBelowJoin => Some(Rc::new(super::RemoveAppendVerticesBelowJoinRule)),
             Self::PushFilterDownAggregate => Some(Rc::new(super::PushFilterDownAggregateRule)),
-            Self::PushFilterDownScanVertices => Some(Rc::new(super::PushFilterDownScanVerticesRule)),
             Self::TopN => Some(Rc::new(super::TopNRule)),
             Self::MergeGetVerticesAndProject => Some(Rc::new(super::MergeGetVerticesAndProjectRule)),
             Self::MergeGetVerticesAndDedup => Some(Rc::new(super::MergeGetVerticesAndDedupRule)),
@@ -171,8 +163,6 @@ impl OptimizationRule {
             Self::TagIndexFullScan => Some(Rc::new(super::TagIndexFullScanRule)),
             Self::UnionAllEdgeIndexScan => Some(Rc::new(super::UnionAllEdgeIndexScanRule)),
             Self::UnionAllTagIndexScan => Some(Rc::new(super::UnionAllTagIndexScanRule)),
-            Self::OptimizeEdgeIndexScanByFilter => Some(Rc::new(super::OptimizeEdgeIndexScanByFilterRule)),
-            Self::OptimizeTagIndexScanByFilter => Some(Rc::new(super::OptimizeTagIndexScanByFilterRule)),
             _ => None,
         }
     }
@@ -218,8 +208,6 @@ impl OptimizationRule {
             "TagIndexFullScanRule" => Some(Self::TagIndexFullScan),
             "UnionAllEdgeIndexScanRule" => Some(Self::UnionAllEdgeIndexScan),
             "UnionAllTagIndexScanRule" => Some(Self::UnionAllTagIndexScan),
-            "OptimizeEdgeIndexScanByFilterRule" => Some(Self::OptimizeEdgeIndexScanByFilter),
-            "OptimizeTagIndexScanByFilterRule" => Some(Self::OptimizeTagIndexScanByFilter),
             
             _ => None,
         }

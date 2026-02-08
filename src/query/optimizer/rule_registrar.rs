@@ -42,8 +42,6 @@ fn register_physical_rules() {
     RuleRegistry::register(OptimizationRule::TagIndexFullScan, || Box::new(crate::query::optimizer::TagIndexFullScanRule));
     RuleRegistry::register(OptimizationRule::UnionAllEdgeIndexScan, || Box::new(crate::query::optimizer::UnionAllEdgeIndexScanRule));
     RuleRegistry::register(OptimizationRule::UnionAllTagIndexScan, || Box::new(crate::query::optimizer::UnionAllTagIndexScanRule));
-    RuleRegistry::register(OptimizationRule::OptimizeEdgeIndexScanByFilter, || Box::new(crate::query::optimizer::OptimizeEdgeIndexScanByFilterRule));
-    RuleRegistry::register(OptimizationRule::OptimizeTagIndexScanByFilter, || Box::new(crate::query::optimizer::OptimizeTagIndexScanByFilterRule));
 }
 
 fn register_post_rules() {

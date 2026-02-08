@@ -30,12 +30,10 @@ pub mod rules;
 
 // 优化策略模块（旧结构，待迁移）
 pub mod elimination_rules;
-pub mod index_optimization;
 pub mod join_optimization;
 pub mod limit_pushdown;
 pub mod operation_merge;
 pub mod plan_validator;
-pub mod predicate_pushdown;
 pub mod projection_pushdown;
 pub mod property_tracker;
 pub mod prune_properties_visitor;
@@ -71,11 +69,6 @@ pub use elimination_rules::{
     DedupEliminationRule, EliminateAppendVerticesRule, EliminateFilterRule,
     EliminateRowCollectRule, RemoveAppendVerticesBelowJoinRule, RemoveNoopProjectRule,
 };
-pub use index_optimization::{
-    EdgeIndexFullScanRule, IndexScanRule, OptimizeEdgeIndexScanByFilterRule,
-    OptimizeTagIndexScanByFilterRule, TagIndexFullScanRule, UnionAllEdgeIndexScanRule,
-    UnionAllTagIndexScanRule,
-};
 pub use join_optimization::JoinOptimizationRule;
 pub use limit_pushdown::{
     PushLimitDownGetEdgesRule, PushLimitDownGetVerticesRule,
@@ -85,22 +78,6 @@ pub use limit_pushdown::{
 pub use operation_merge::{
     CollapseProjectRule, CombineFilterRule, MergeGetNbrsAndDedupRule, MergeGetNbrsAndProjectRule,
     MergeGetVerticesAndDedupRule, MergeGetVerticesAndProjectRule,
-};
-pub use predicate_pushdown::{
-    PushFilterDownExpandRule,
-    PushFilterDownTraverseRule,
-    PushFilterDownScanVerticesRule,
-    PushFilterDownJoinRule,
-    PushFilterDownNodeRule,
-    PushEFilterDownRule,
-    PushVFilterDownScanVerticesRule,
-    PushFilterDownInnerJoinRule,
-    PushFilterDownHashInnerJoinRule,
-    PushFilterDownHashLeftJoinRule,
-    PushFilterDownCrossJoinRule,
-    PushFilterDownGetNbrsRule,
-    PushFilterDownExpandAllRule,
-    PushFilterDownAllPathsRule,
 };
 pub use projection_pushdown::{ProjectionPushDownRule, PushProjectDownRule};
 pub use property_tracker::PropertyTracker;

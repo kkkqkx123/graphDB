@@ -59,6 +59,18 @@ impl IndexScan {
         self.filter.is_some() || !self.scan_limits.is_empty()
     }
 
+    pub fn is_tag_scan(&self) -> bool {
+        self.tag_id > 0
+    }
+
+    pub fn is_edge_scan(&self) -> bool {
+        self.tag_id <= 0
+    }
+
+    pub fn index_name(&self) -> String {
+        format!("index_{}", self.index_id)
+    }
+
     /// 获取节点的唯一ID
     pub fn id(&self) -> i64 {
         self.id
