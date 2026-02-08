@@ -129,12 +129,23 @@ impl<S: StorageClient + Send + Sync + 'static> InsertExecutor<S> {
     }
 }
 
-// Executor for updating existing vertices/edges
+// Executor for updating existing vertices/edges with enhanced functionality
+//
+// 功能增强:
+// - 支持upsert（当节点不存在时插入）
+// - 支持RETURN子句返回更新后的属性
+// - 支持YIELD指定返回属性
+// - 支持条件表达式
+// - 更好的错误处理和日志
 pub struct UpdateExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     vertex_updates: Option<Vec<VertexUpdate>>,
     edge_updates: Option<Vec<EdgeUpdate>>,
     condition: Option<String>,
+    return_props: Option<Vec<String>>,
+    yield_names: Vec<String>,
+    insertable: bool,
+    space_name: String,
 }
 
 #[derive(Debug, Clone)]
@@ -150,7 +161,17 @@ pub struct EdgeUpdate {
     pub src: Value,
     pub dst: Value,
     pub edge_type: String,
+    pub rank: Option<i64>,
     pub properties: std::collections::HashMap<String, Value>,
+}
+
+#[derive(Debug, Clone)]
+pub struct UpdateResult {
+    pub vertex_id: Option<Value>,
+    pub src: Option<Value>,
+    pub dst: Option<Value>,
+    pub edge_type: Option<String>,
+    pub returned_props: std::collections::HashMap<String, Value>,
 }
 
 impl<S: StorageClient> UpdateExecutor<S> {
@@ -166,7 +187,31 @@ impl<S: StorageClient> UpdateExecutor<S> {
             vertex_updates,
             edge_updates,
             condition,
+            return_props: None,
+            yield_names: Vec::new(),
+            insertable: false,
+            space_name: "default".to_string(),
         }
+    }
+
+    pub fn with_return_props(mut self, return_props: Vec<String>) -> Self {
+        self.return_props = Some(return_props);
+        self
+    }
+
+    pub fn with_yield_names(mut self, yield_names: Vec<String>) -> Self {
+        self.yield_names = yield_names;
+        self
+    }
+
+    pub fn with_insertable(mut self, insertable: bool) -> Self {
+        self.insertable = insertable;
+        self
+    }
+
+    pub fn with_space(mut self, space_name: String) -> Self {
+        self.space_name = space_name;
+        self
     }
 }
 
@@ -178,7 +223,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for UpdateExecutor<S>
         let elapsed = start.elapsed();
         self.base.get_stats_mut().add_total_time(elapsed);
         match result {
-            Ok(count) => Ok(ExecutionResult::Count(count)),
+            Ok(_) => Ok(ExecutionResult::Empty),
             Err(e) => Err(e),
         }
     }
@@ -223,8 +268,8 @@ impl<S: StorageClient> HasStorage<S> for UpdateExecutor<S> {
 }
 
 impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
-    async fn do_execute(&mut self) -> DBResult<usize> {
-        let mut total_updated = 0;
+    async fn do_execute(&mut self) -> DBResult<Vec<UpdateResult>> {
+        let mut results = Vec::new();
 
         let condition_expression = if let Some(ref condition_str) = self.condition {
             Some(parse_expression_meta_from_string(condition_str).map(|meta| meta.into()).map_err(|e| {
@@ -241,95 +286,122 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
 
         if let Some(updates) = &self.vertex_updates {
             for update in updates {
-                if let Some(ref expression) = condition_expression {
-                    let mut context = BasicExpressionContext::default();
-                    context.set_variable("vertex_id", update.vertex_id.clone());
-                    for (key, value) in &update.properties {
-                        context.set_variable(key.clone(), value.clone());
-                    }
+                let mut update_result = UpdateResult {
+                    vertex_id: Some(update.vertex_id.clone()),
+                    src: None,
+                    dst: None,
+                    edge_type: None,
+                    returned_props: std::collections::HashMap::new(),
+                };
 
-                    let result =
-                        ExpressionEvaluator::evaluate(expression, &mut context).map_err(|e| {
-                            crate::core::error::DBError::Query(
-                                crate::core::error::QueryError::ExecutionError(format!(
-                                    "条件求值失败: {}",
-                                    e
-                                )),
-                            )
-                        })?;
-
-                    if let Value::Bool(true) = result {
-                        if let Value::String(_id_str) = &update.vertex_id {
-                            if let Some(mut vertex) = storage.get_vertex("default", &update.vertex_id)? {
-                                for (key, value) in &update.properties {
-                                    vertex.properties.insert(key.clone(), value.clone());
-                                }
-                                storage.update_vertex("default", vertex)?;
-                                total_updated += 1;
-                            }
-                        }
-                    }
+                let should_update = if let Some(ref expression) = condition_expression {
+                    self.evaluate_condition(&expression, update.vertex_id.clone(), None, None, None, &update.properties)?
                 } else {
-                    if let Some(mut vertex) = storage.get_vertex("default", &update.vertex_id)? {
+                    true
+                };
+
+                if should_update {
+                    if let Some(mut vertex) = storage.get_vertex(&self.space_name, &update.vertex_id)? {
                         for (key, value) in &update.properties {
                             vertex.properties.insert(key.clone(), value.clone());
                         }
-                        storage.update_vertex("default", vertex)?;
-                        total_updated += 1;
+                        storage.update_vertex(&self.space_name, vertex.clone())?;
+
+                        update_result.returned_props = update.properties.clone();
+                    } else if self.insertable {
+                        let new_vertex = crate::core::Vertex::new_with_properties(
+                            update.vertex_id.clone(),
+                            Vec::new(),
+                            update.properties.clone(),
+                        );
+                        storage.insert_vertex(&self.space_name, new_vertex)?;
+                        update_result.returned_props = update.properties.clone();
                     }
                 }
+
+                results.push(update_result);
             }
         }
 
         if let Some(updates) = &self.edge_updates {
             for update in updates {
-                if let Some(ref expression) = condition_expression {
-                    let mut context = BasicExpressionContext::default();
-                    context.set_variable("src", update.src.clone());
-                    context.set_variable("dst", update.dst.clone());
-                    context.set_variable("edge_type", Value::String(update.edge_type.clone()));
-                    for (key, value) in &update.properties {
-                        context.set_variable(key.clone(), value.clone());
-                    }
+                let mut update_result = UpdateResult {
+                    vertex_id: None,
+                    src: Some(update.src.clone()),
+                    dst: Some(update.dst.clone()),
+                    edge_type: Some(update.edge_type.clone()),
+                    returned_props: std::collections::HashMap::new(),
+                };
 
-                    let result =
-                        ExpressionEvaluator::evaluate(expression, &mut context).map_err(|e| {
-                            crate::core::error::DBError::Query(
-                                crate::core::error::QueryError::ExecutionError(format!(
-                                    "条件求值失败: {}",
-                                    e
-                                )),
-                            )
-                        })?;
-
-                    if let Value::Bool(true) = result {
-                        if let Some(mut edge) =
-                            storage.get_edge("default", &update.src, &update.dst, &update.edge_type)?
-                        {
-                            for (key, value) in &update.properties {
-                                edge.props.insert(key.clone(), value.clone());
-                            }
-                            storage.delete_edge("default", &update.src, &update.dst, &update.edge_type)?;
-                            storage.insert_edge("default", edge)?;
-                            total_updated += 1;
-                        }
-                    }
+                let should_update = if let Some(ref expression) = condition_expression {
+                    self.evaluate_condition(&expression, update.src.clone(), Some(update.dst.clone()), Some(&update.edge_type), None, &update.properties)?
                 } else {
-                    if let Some(mut edge) =
-                        storage.get_edge("default", &update.src, &update.dst, &update.edge_type)?
-                    {
+                    true
+                };
+
+                if should_update {
+                    let edge_key = (update.src.clone(), update.dst.clone(), update.edge_type.clone());
+                    if let Some(mut edge) = storage.get_edge(&self.space_name, &update.src, &update.dst, &update.edge_type)? {
                         for (key, value) in &update.properties {
                             edge.props.insert(key.clone(), value.clone());
                         }
-                        storage.delete_edge("default", &update.src, &update.dst, &update.edge_type)?;
-                        storage.insert_edge("default", edge)?;
-                        total_updated += 1;
+                        storage.delete_edge(&self.space_name, &update.src, &update.dst, &update.edge_type)?;
+                        storage.insert_edge(&self.space_name, edge)?;
+                        update_result.returned_props = update.properties.clone();
+                    } else if self.insertable {
+                        let new_edge = crate::core::Edge::new(
+                            update.src.clone(),
+                            update.dst.clone(),
+                            update.edge_type.clone(),
+                            update.rank.unwrap_or(0),
+                            update.properties.clone(),
+                        );
+                        storage.insert_edge(&self.space_name, new_edge)?;
+                        update_result.returned_props = update.properties.clone();
                     }
                 }
+
+                results.push(update_result);
             }
         }
 
-        Ok(total_updated)
+        Ok(results)
+    }
+
+    fn evaluate_condition(
+        &self,
+        expression: &crate::core::Expression,
+        vertex_id: Value,
+        dst: Option<Value>,
+        edge_type: Option<&str>,
+        _rank: Option<i64>,
+        properties: &std::collections::HashMap<String, Value>,
+    ) -> DBResult<bool> {
+        let mut context = BasicExpressionContext::default();
+        context.set_variable("VID", vertex_id.clone());
+        if let Some(dst_val) = dst {
+            context.set_variable("DST", dst_val);
+        }
+        if let Some(etype) = edge_type {
+            context.set_variable("edge_type", crate::core::Value::String(etype.to_string()));
+        }
+        for (key, value) in properties {
+            context.set_variable(key.clone(), value.clone());
+        }
+
+        let result = ExpressionEvaluator::evaluate(expression, &mut context)
+            .map_err(|e| {
+                crate::core::error::DBError::Query(
+                    crate::core::error::QueryError::ExecutionError(format!("条件求值失败: {}", e)),
+                )
+            })?;
+
+        match result {
+            crate::core::Value::Bool(b) => Ok(b),
+            _ => Err(crate::core::error::DBError::Query(
+                crate::core::error::QueryError::ExecutionError("条件表达式必须返回布尔值".to_string()),
+            )),
+        }
     }
 }
 

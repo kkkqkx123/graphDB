@@ -345,6 +345,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ProjectExecutor<S
                 ExecutionResult::DataSet(dataset)
             }
             ExecutionResult::Success => ExecutionResult::Success,
+            ExecutionResult::Empty => ExecutionResult::Empty,
             ExecutionResult::Error(_) => input_result,
             ExecutionResult::Result(_) => input_result,
         };

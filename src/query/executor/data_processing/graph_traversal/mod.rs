@@ -5,9 +5,11 @@
 //! - 全路径扩展（ExpandAll）
 //! - 完整遍历（Traverse）
 //! - 最短路径（ShortestPath）
-//! - 所有路径（AllPaths）
-//! - 子图提取（Sub图）
+//! - 所有路径（AllPaths）- 新增
+//! - 多最短路径（MultiShortestPath）- 新增
+//! - 子图提取（Subgraph）
 
+pub mod all_paths;
 pub mod expand;
 pub mod expand_all;
 pub mod factory;
@@ -21,8 +23,12 @@ pub mod traversal_utils;
 // 重新导出主要类型
 pub use expand::ExpandExecutor;
 pub use expand_all::ExpandAllExecutor;
+pub use all_paths::{
+    AllPathsExecutor,
+};
 pub use shortest_path::{
     MultiShortestPathExecutor,
+    MultiShortestPathExecutor as AllPathsMultiShortestPathExecutor,
     ShortestPathAlgorithm,
     ShortestPathAlgorithmType,
     ShortestPathExecutor,

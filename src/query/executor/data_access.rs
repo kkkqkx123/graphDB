@@ -2,8 +2,10 @@ use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-use super::base::{BaseExecutor, BatchOptimizer, ExecutorStats};
+use super::base::{BaseExecutor, ExecutorStats};
+use super::batch::BatchOptimizer;
 use crate::core::{Value, vertex_edge_path};
+use crate::expression::context::traits::VariableContext;
 use crate::query::executor::traits::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
 use crate::utils::safe_lock;

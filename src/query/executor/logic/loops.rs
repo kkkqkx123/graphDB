@@ -188,6 +188,7 @@ impl<S: StorageClient + Send + 'static> LoopExecutor<S> {
                     has_success_only = false;
                 }
                 ExecutionResult::Success => {}
+                ExecutionResult::Empty => {}
                 ExecutionResult::Error(_) => {
                     has_success_only = false;
                 }

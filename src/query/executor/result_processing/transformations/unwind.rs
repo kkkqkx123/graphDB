@@ -217,6 +217,7 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
                     dataset.rows.push(row);
                 }
             }
+            ExecutionResult::Empty => {}
             ExecutionResult::Paths(paths) => {
                 // 处理路径列表
                 for path in paths {

@@ -21,6 +21,8 @@ pub enum ExecutionResult {
     /// 成功执行，返回内部 Result 对象
     Result(CoreResult),
     /// 成功执行，无数据返回
+    Empty,
+    /// 成功执行，无数据返回（别名）
     Success,
     /// 执行错误
     Error(String),
@@ -41,6 +43,7 @@ impl ExecutionResult {
             ExecutionResult::Result(r) => r.row_count(),
             ExecutionResult::Count(c) => *c,
             ExecutionResult::Success => 0,
+            ExecutionResult::Empty => 0,
             ExecutionResult::Error(_) => 0,
             ExecutionResult::Paths(p) => p.len(),
         }

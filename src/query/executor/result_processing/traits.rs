@@ -75,6 +75,7 @@ pub trait ResultProcessor<S: StorageClient> {
             ExecutionResult::Paths(_) => Ok(()),
             ExecutionResult::Count(_) => Ok(()),
             ExecutionResult::Success => Ok(()),
+            ExecutionResult::Empty => Ok(()),
             ExecutionResult::Error(_) => Ok(()),
             ExecutionResult::Result(_) => Ok(()),
         }
