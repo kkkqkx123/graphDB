@@ -28,19 +28,6 @@ pub mod engine;
 // 优化规则模块（新结构）
 pub mod rules;
 
-// 优化策略模块（旧结构，待迁移）
-pub mod elimination_rules;
-pub mod join_optimization;
-pub mod limit_pushdown;
-pub mod operation_merge;
-pub mod plan_validator;
-pub mod projection_pushdown;
-pub mod property_tracker;
-pub mod prune_properties_visitor;
-pub mod push_filter_down_aggregate;
-pub mod scan_optimization;
-pub mod transformation_rules;
-
 // Re-export core types
 pub use core::{Cost, OptimizationConfig, OptimizationPhase, OptimizationStats, Statistics};
 
@@ -64,28 +51,5 @@ pub use engine::{ExplorationState, Optimizer, RuleSet};
 // Re-export all rule structs for convenient access (from new rules module)
 pub use rules::*;
 
-// Re-export all rule structs for convenient access (from old modules, for backward compatibility)
-pub use elimination_rules::{
-    DedupEliminationRule, EliminateAppendVerticesRule, EliminateFilterRule,
-    EliminateRowCollectRule, RemoveAppendVerticesBelowJoinRule, RemoveNoopProjectRule,
-};
-pub use join_optimization::JoinOptimizationRule;
-pub use limit_pushdown::{
-    PushLimitDownGetEdgesRule, PushLimitDownGetVerticesRule,
-    PushLimitDownIndexScanRule,
-    PushLimitDownScanEdgesRule, PushLimitDownScanVerticesRule,
-};
-pub use operation_merge::{
-    CollapseProjectRule, CombineFilterRule, MergeGetNbrsAndDedupRule, MergeGetNbrsAndProjectRule,
-    MergeGetVerticesAndDedupRule, MergeGetVerticesAndProjectRule,
-};
-pub use projection_pushdown::{ProjectionPushDownRule, PushProjectDownRule};
-pub use property_tracker::PropertyTracker;
-pub use prune_properties_visitor::PrunePropertiesVisitor;
-pub use push_filter_down_aggregate::PushFilterDownAggregateRule;
+// Re-export rule traits
 pub use rule_traits::{BaseOptRule, EliminationRule, MergeRule, PushDownRule};
-pub use scan_optimization::{IndexFullScanRule, ScanWithFilterOptimizationRule};
-pub use transformation_rules::TopNRule;
-
-// Re-export PlanValidator
-pub use plan_validator::PlanValidator;
