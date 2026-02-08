@@ -24,6 +24,9 @@ pub use base::{
     HasInput, HasStorage, StartExecutor,
 };
 
+// Re-export ExecutorEnum (执行器枚举)
+pub use executor_enum::ExecutorEnum;
+
 // Re-export batch module (批量操作优化)
 pub use batch::{
     BatchConfig, BatchOptimizer, BatchReadResult,
@@ -104,10 +107,8 @@ const _: () = assert!(
 /// 此模块在编译期检查 PlanNodeEnum 和 ExecutorEnum 的一致性
 #[cfg(test)]
 mod consistency_tests {
-    use crate::query::core::{NodeType, NodeTypeMapping};
+    use crate::query::core::NodeTypeMapping;
     use crate::query::planner::plan::core::nodes::PlanNodeEnum;
-    use crate::query::executor::ExecutorEnum;
-    use crate::storage::StorageClient;
 
     /// 测试 PlanNodeEnum 和 ExecutorEnum 的节点类型 ID 是否一致
     #[test]
@@ -120,10 +121,16 @@ mod consistency_tests {
     /// 验证节点类型映射
     #[test]
     fn test_node_type_mapping() {
-        use crate::query::planner::plan::core::nodes::CrossJoinNode;
+        use crate::query::planner::plan::core::nodes::{CrossJoinNode, ArgumentNode, PlanNodeEnum as NodeEnum};
         
         // 示例：验证 CrossJoin 的映射
-        let cross_join_node = CrossJoinNode::new(1);
+        // 创建两个 ArgumentNode 作为 CrossJoin 的输入
+        let left = ArgumentNode::new(1, "left_var");
+        let right = ArgumentNode::new(2, "right_var");
+        let cross_join_node = CrossJoinNode::new(
+            NodeEnum::Argument(left),
+            NodeEnum::Argument(right)
+        ).expect("创建 CrossJoinNode 失败");
         let plan_node = PlanNodeEnum::CrossJoin(cross_join_node);
         
         // 验证 PlanNodeEnum 实现了 NodeTypeMapping

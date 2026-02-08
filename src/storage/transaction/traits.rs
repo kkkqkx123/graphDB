@@ -9,7 +9,6 @@
 use serde::{Deserialize, Serialize};
 use bincode::{Decode, Encode};
 use crate::core::StorageError;
-use super::IsolationLevel;
 use std::sync::Arc;
 
 /// 事务标识符
@@ -336,6 +335,7 @@ impl TransactionStatistics {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::storage::transaction::IsolationLevel;
 
     #[test]
     fn test_transaction_id() {
@@ -362,7 +362,7 @@ mod tests {
     #[test]
     fn test_transaction_config_default() {
         let config = TransactionConfig::default();
-        assert_eq!(config.isolation_level, super::IsolationLevel::Snapshot);
+        assert_eq!(config.isolation_level, IsolationLevel::Snapshot);
         assert_eq!(config.timeout_ms, 30000);
         assert_eq!(config.max_retries, 3);
     }

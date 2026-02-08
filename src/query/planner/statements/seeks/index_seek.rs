@@ -3,7 +3,7 @@
 //! 使用标签或属性索引进行高效查找
 
 use super::seek_strategy::SeekStrategy;
-use super::seek_strategy_base::{SeekResult, SeekStrategyContext, SeekStrategyType, NodePattern, IndexInfo};
+use super::seek_strategy_base::{SeekResult, SeekStrategyContext, SeekStrategyType, NodePattern};
 use crate::core::{StorageError, Vertex};
 use crate::storage::StorageClient;
 
@@ -88,6 +88,7 @@ impl IndexSeek {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::super::seek_strategy_base::IndexInfo;
 
     #[test]
     fn test_index_seek_new() {

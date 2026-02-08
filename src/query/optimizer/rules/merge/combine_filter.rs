@@ -1,7 +1,7 @@
 //! 合并多个过滤操作的规则
 
 use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult};
-use crate::query::optimizer::rule_patterns::{CommonPatterns, PatternBuilder};
+use crate::query::optimizer::rule_patterns::CommonPatterns;
 use crate::query::optimizer::rule_traits::{combine_conditions, BaseOptRule, MergeRule};
 use crate::query::planner::plan::FilterNode as FilterPlanNode;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;

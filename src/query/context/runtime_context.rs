@@ -6,24 +6,14 @@
 //! 对应原C++版本中的RuntimeContext结构
 
 use crate::common::id::{EdgeType, TagId};
-use crate::query::core::{ExecutorState, RowStatus};
 use crate::storage::StorageClient;
 use crate::storage::metadata::SchemaManager;
 use crate::storage::index::IndexManager;
 use std::sync::Arc;
 use std::time::Instant;
 
-/// 结果状态枚举
-/// 
-/// 已废弃：请使用 `crate::query::core::RowStatus`
-#[deprecated(since = "0.1.0", note = "请使用 crate::query::core::RowStatus")]
-pub type ResultStatus = RowStatus;
-
-/// 执行状态
-///
-/// 已废弃：请使用 `crate::query::core::ExecutorState`
-#[deprecated(since = "0.1.0", note = "请使用 crate::query::core::ExecutorState")]
-pub type ExecutionState = ExecutorState;
+// 使用新的类型别名
+use crate::query::core::{ExecutorState as ExecutionState, RowStatus as ResultStatus};
 
 /// 属性上下文
 #[derive(Debug, Clone)]

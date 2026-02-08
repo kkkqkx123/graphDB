@@ -177,15 +177,15 @@ impl StorageClient for MockStorage {
         Ok(Vec::new())
     }
 
-    fn get_space_id(&self, space: &str) -> Result<i32, StorageError> {
+    fn get_space_id(&self, _space: &str) -> Result<i32, StorageError> {
         Ok(1)
     }
 
-    fn space_exists(&self, space: &str) -> bool {
+    fn space_exists(&self, _space: &str) -> bool {
         false
     }
 
-    fn clear_space(&mut self, space: &str) -> Result<bool, StorageError> {
+    fn clear_space(&mut self, _space: &str) -> Result<bool, StorageError> {
         Ok(true)
     }
 

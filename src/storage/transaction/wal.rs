@@ -7,7 +7,6 @@
 //! - 日志恢复
 
 use super::TransactionId;
-use super::TransactionState;
 use crate::core::StorageError;
 use crate::storage::serializer::{log_record_to_bytes, log_record_from_bytes};
 use bincode::{Decode, Encode};
@@ -575,6 +574,7 @@ impl LogStats {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::storage::transaction::TransactionState;
     use tempfile::TempDir;
 
     #[test]

@@ -10,7 +10,4 @@
 
 pub mod loops;
 
-pub use loops::{ForLoopExecutor, LoopExecutor, SelectExecutor, WhileLoopExecutor};
-
-// Re-export LoopState (已废弃，请使用 crate::query::core::LoopExecutionState)
-pub use loops::LoopState;
+pub use loops::{ForLoopExecutor, LoopExecutor, LoopState, SelectExecutor, WhileLoopExecutor};

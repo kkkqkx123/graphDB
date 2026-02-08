@@ -91,7 +91,7 @@ impl OptRule for TopNRule {
         let sort_items = sort_node.sort_items().to_vec();
         let sort_input = SingleInputNode::input(sort_node).clone();
 
-        let mut topn_node = PlanNodeEnum::TopN(
+        let topn_node = PlanNodeEnum::TopN(
             crate::query::planner::plan::core::nodes::TopNNode::new(
                 sort_input,
                 sort_items,

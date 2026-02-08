@@ -1,5 +1,4 @@
 use crate::core::error::{DBError, DBResult};
-use crate::core::types::metadata::{UserInfo, UserAlterInfo};
 use crate::query::context::runtime_context::RuntimeContext;
 use crate::storage::StorageClient;
 use std::sync::{Arc, Mutex};
@@ -150,7 +149,7 @@ impl<RESP> ProcessorFuture<RESP> {
 mod tests {
     use super::*;
     use crate::core::{Edge, EdgeDirection, StorageError, StorageResult, Value, Vertex};
-    use crate::core::types::metadata::{SpaceInfo, TagInfo, EdgeTypeInfo, PropertyDef, InsertVertexInfo, InsertEdgeInfo, UpdateInfo, PasswordInfo};
+    use crate::core::types::metadata::{SpaceInfo, TagInfo, EdgeTypeInfo, PropertyDef, InsertVertexInfo, InsertEdgeInfo, UpdateInfo, PasswordInfo, UserInfo, UserAlterInfo};
     use crate::storage::transaction::TransactionId;
     use crate::storage::Schema;
     use crate::query::context::runtime_context::{PlanContext, RuntimeContext, StorageEnv};

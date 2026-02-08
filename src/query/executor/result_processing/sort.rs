@@ -577,7 +577,7 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
             .collect();
 
         // 并行排序每个块
-        let mut sorted_chunks: Vec<Vec<Vec<Value>>> = if all_use_column_index {
+        let sorted_chunks: Vec<Vec<Vec<Value>>> = if all_use_column_index {
             // 使用列索引排序（更快）
             chunks
                 .into_par_iter()
@@ -609,7 +609,7 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
             // 使用表达式排序（较慢，需要计算排序值）
             chunks
                 .into_par_iter()
-                .map(|mut chunk| {
+                .map(|chunk| {
                     let col_names: Vec<String> =
                         (0..chunk[0].len()).map(|i| format!("col_{}", i)).collect();
 

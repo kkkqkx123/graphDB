@@ -23,11 +23,8 @@ use crate::query::executor::recursion_detector::{
 use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
 
-/// 循环状态
-///
-/// 已废弃：请使用 `crate::query::core::LoopExecutionState`
-#[deprecated(since = "0.1.0", note = "请使用 crate::query::core::LoopExecutionState")]
-pub type LoopState = LoopExecutionState;
+// 使用新的类型别名（LoopState 是 LoopExecutionState 的别名，用于向后兼容）
+pub use crate::query::core::LoopExecutionState as LoopState;
 
 /// LoopExecutor - 循环控制执行器
 ///
