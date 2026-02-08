@@ -12,6 +12,7 @@ use crate::storage::Schema;
 use crate::storage::serializer::{vertex_to_bytes, vertex_from_bytes, edge_to_bytes, edge_from_bytes};
 use crate::common::id::IdGenerator;
 use crate::storage::engine::{Engine, RedbEngine};
+use crate::api::service::permission_manager::RoleType;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -954,6 +955,71 @@ impl<E: Engine> StorageClient for RedbStorage<E> {
         Ok(spaces.values().cloned().collect())
     }
 
+    fn get_space_id(&self, space_name: &str) -> Result<i32, StorageError> {
+        let spaces = self.spaces.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        if let Some(space) = spaces.get(space_name) {
+            Ok(space.space_id)
+        } else {
+            Err(StorageError::DbError(format!("Space '{}' not found", space_name)))
+        }
+    }
+
+    fn space_exists(&self, space_name: &str) -> bool {
+        let spaces = self.spaces.lock().unwrap();
+        spaces.contains_key(space_name)
+    }
+
+    fn clear_space(&mut self, space_name: &str) -> Result<bool, StorageError> {
+        let mut tags = self.tags.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let mut edge_types = self.edge_type_infos.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let mut tag_indexes = self.tag_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let mut edge_indexes = self.edge_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        if !tags.contains_key(space_name) {
+            return Err(StorageError::DbError(format!("Space '{}' not found", space_name)));
+        }
+
+        tags.insert(space_name.to_string(), HashMap::new());
+        edge_types.insert(space_name.to_string(), HashMap::new());
+        tag_indexes.insert(space_name.to_string(), HashMap::new());
+        edge_indexes.insert(space_name.to_string(), HashMap::new());
+
+        Ok(true)
+    }
+
+    fn alter_space_partition_num(&mut self, space_id: i32, partition_num: usize) -> Result<bool, StorageError> {
+        let mut spaces = self.spaces.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        for space in spaces.values_mut() {
+            if space.space_id == space_id {
+                space.partition_num = partition_num as i32;
+                return Ok(true);
+            }
+        }
+        Err(StorageError::DbError(format!("Space with ID {} not found", space_id)))
+    }
+
+    fn alter_space_replica_factor(&mut self, space_id: i32, replica_factor: usize) -> Result<bool, StorageError> {
+        let mut spaces = self.spaces.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        for space in spaces.values_mut() {
+            if space.space_id == space_id {
+                space.replica_factor = replica_factor as i32;
+                return Ok(true);
+            }
+        }
+        Err(StorageError::DbError(format!("Space with ID {} not found", space_id)))
+    }
+
+    fn alter_space_comment(&mut self, space_id: i32, comment: String) -> Result<bool, StorageError> {
+        let mut spaces = self.spaces.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        for space in spaces.values_mut() {
+            if space.space_id == space_id {
+                space.comment = Some(comment);
+                return Ok(true);
+            }
+        }
+        Err(StorageError::DbError(format!("Space with ID {} not found", space_id)))
+    }
+
     fn create_tag(&mut self, space: &str, info: &TagInfo) -> Result<bool, StorageError> {
         let mut tags = self.tags.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         if let Some(space_tags) = tags.get_mut(space) {
@@ -1358,6 +1424,33 @@ impl<E: Engine> StorageClient for RedbStorage<E> {
         Ok(true)
     }
 
+    fn grant_role(&mut self, username: &str, space_id: i32, role: RoleType) -> Result<bool, StorageError> {
+        let mut users = self.users.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        if let Some(user) = users.get_mut(username) {
+            if !user.roles.contains_key(&space_id) {
+                user.roles.insert(space_id, format!("{:?}", role));
+                Ok(true)
+            } else {
+                Err(StorageError::DbError(format!("User {} already has a role in space {}", username, space_id)))
+            }
+        } else {
+            Err(StorageError::DbError(format!("User {} not found", username)))
+        }
+    }
+
+    fn revoke_role(&mut self, username: &str, space_id: i32) -> Result<bool, StorageError> {
+        let mut users = self.users.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        if let Some(user) = users.get_mut(username) {
+            if user.roles.remove(&space_id).is_some() {
+                Ok(true)
+            } else {
+                Err(StorageError::DbError(format!("User {} does not have a role in space {}", username, space_id)))
+            }
+        } else {
+            Err(StorageError::DbError(format!("User {} not found", username)))
+        }
+    }
+
     fn lookup_index(&self, space: &str, index_name: &str, value: &Value) -> Result<Vec<Value>, StorageError> {
         // 获取索引信息
         let tag_indexes = self.tag_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
@@ -1498,6 +1591,38 @@ impl<E: Engine> StorageClient for RedbStorage<E> {
         self.save_metadata_to_disk()?;
         
         Ok(())
+    }
+
+    fn get_storage_stats(&self) -> crate::storage::storage_client::StorageStats {
+        let total_spaces = self.spaces.lock().map(|s| s.len()).unwrap_or(0);
+        let mut total_tags = 0;
+        let mut total_edge_types = 0;
+        
+        if let Ok(tags) = self.tags.lock() {
+            for space_tags in tags.values() {
+                total_tags += space_tags.len();
+            }
+        }
+        
+        if let Ok(edge_types) = self.edge_type_infos.lock() {
+            for space_edge_types in edge_types.values() {
+                total_edge_types += space_edge_types.len();
+            }
+        }
+        
+        let engine_guard = self.engine.lock().unwrap_or_else(|e| {
+            panic!("Failed to lock engine: {}", e)
+        });
+        let total_vertices = (*engine_guard).count_keys(b"vertex_").unwrap_or(0);
+        let total_edges = (*engine_guard).count_keys(b"edge_").unwrap_or(0);
+        
+        crate::storage::storage_client::StorageStats {
+            total_vertices,
+            total_edges,
+            total_spaces,
+            total_tags,
+            total_edge_types,
+        }
     }
 }
 

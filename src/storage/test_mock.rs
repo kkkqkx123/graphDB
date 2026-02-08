@@ -18,6 +18,8 @@ use crate::storage::StorageClient;
 #[cfg(test)]
 use crate::storage::transaction::TransactionId;
 #[cfg(test)]
+use crate::api::service::permission_manager::RoleType;
+#[cfg(test)]
 use crate::core::types::{
     EdgeTypeSchema, InsertEdgeInfo, InsertVertexInfo, PasswordInfo,
     PropertyDef, SpaceInfo, TagInfo, UpdateInfo,
@@ -173,6 +175,30 @@ impl StorageClient for MockStorage {
 
     fn list_spaces(&self) -> Result<Vec<SpaceInfo>, StorageError> {
         Ok(Vec::new())
+    }
+
+    fn get_space_id(&self, space: &str) -> Result<i32, StorageError> {
+        Ok(1)
+    }
+
+    fn space_exists(&self, space: &str) -> bool {
+        false
+    }
+
+    fn clear_space(&mut self, space: &str) -> Result<bool, StorageError> {
+        Ok(true)
+    }
+
+    fn alter_space_partition_num(&mut self, space_id: i32, partition_num: usize) -> Result<bool, StorageError> {
+        Ok(true)
+    }
+
+    fn alter_space_replica_factor(&mut self, space_id: i32, replica_factor: usize) -> Result<bool, StorageError> {
+        Ok(true)
+    }
+
+    fn alter_space_comment(&mut self, space_id: i32, comment: String) -> Result<bool, StorageError> {
+        Ok(true)
     }
 
     fn create_tag(&mut self, _space: &str, _info: &TagInfo) -> Result<bool, StorageError> {
@@ -338,6 +364,14 @@ impl StorageClient for MockStorage {
         Ok(true)
     }
 
+    fn grant_role(&mut self, _username: &str, _space_id: i32, _role: RoleType) -> Result<bool, StorageError> {
+        Ok(true)
+    }
+
+    fn revoke_role(&mut self, _username: &str, _space_id: i32) -> Result<bool, StorageError> {
+        Ok(true)
+    }
+
     fn get_vertex_with_schema(
         &self,
         _space: &str,
@@ -379,5 +413,15 @@ impl StorageClient for MockStorage {
 
     fn save_to_disk(&self) -> Result<(), StorageError> {
         Ok(())
+    }
+
+    fn get_storage_stats(&self) -> crate::storage::storage_client::StorageStats {
+        crate::storage::storage_client::StorageStats {
+            total_vertices: 0,
+            total_edges: 0,
+            total_spaces: 0,
+            total_tags: 0,
+            total_edge_types: 0,
+        }
     }
 }

@@ -161,6 +161,7 @@ pub struct UserInfo {
     pub password: String,
     pub role: String,
     pub is_locked: bool,
+    pub roles: std::collections::HashMap<i32, String>,
 }
 
 impl UserInfo {
@@ -170,6 +171,7 @@ impl UserInfo {
             password,
             role: "user".to_string(),
             is_locked: false,
+            roles: std::collections::HashMap::new(),
         }
     }
 

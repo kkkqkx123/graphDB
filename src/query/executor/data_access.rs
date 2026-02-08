@@ -1,24 +1,20 @@
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
-use super::base::BaseExecutor;
-use crate::core::Value;
-use crate::expression::ExpressionContext;
-use crate::query::executor::base::storage_processor_executor::{
-    StorageProcessorExecutor, StorageProcessorExecutorImpl,
-};
-use crate::query::context::runtime_context::RuntimeContext;
+use super::base::{BaseExecutor, BatchOptimizer, ExecutorStats};
+use crate::core::{Value, vertex_edge_path};
 use crate::query::executor::traits::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
 use crate::utils::safe_lock;
 
-// Implementation for a GetVertices executor using StorageProcessorExecutor
-pub struct GetVerticesExecutor<S: StorageClient> {
-    processor: StorageProcessorExecutor<S, Vec<crate::core::vertex_edge_path::Vertex>>,
+pub struct GetVerticesExecutor<S: StorageClient + Send + Sync + 'static> {
+    base: BaseExecutor<S>,
     vertex_ids: Option<Vec<Value>>,
     tag_filter: Option<crate::core::Expression>,
     vertex_filter: Option<crate::core::Expression>,
     limit: Option<usize>,
+    batch_optimizer: Option<BatchOptimizer<S>>,
 }
 
 impl<S: StorageClient> GetVerticesExecutor<S> {
@@ -30,18 +26,13 @@ impl<S: StorageClient> GetVerticesExecutor<S> {
         vertex_filter: Option<crate::core::Expression>,
         limit: Option<usize>,
     ) -> Self {
-        let context = super::super::context::runtime_context::RuntimeContext::new_simple();
         Self {
-            processor: StorageProcessorExecutor::new(
-                id,
-                "GetVerticesExecutor".to_string(),
-                storage,
-                context,
-            ),
+            base: BaseExecutor::new(id, "GetVerticesExecutor".to_string(), storage),
             vertex_ids,
             tag_filter,
             vertex_filter,
             limit,
+            batch_optimizer: None,
         }
     }
 }
@@ -49,23 +40,37 @@ impl<S: StorageClient> GetVerticesExecutor<S> {
 #[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for GetVerticesExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        <GetVerticesExecutor<S> as StorageProcessorExecutorImpl<S, Vec<crate::core::vertex_edge_path::Vertex>>>::execute(&mut self).await
+        let start = Instant::now();
+        
+        let result = self.do_execute().await;
+        
+        let elapsed = start.elapsed();
+        self.base.get_stats_mut().add_total_time(elapsed);
+        
+        match result {
+            Ok(vertices) => Ok(ExecutionResult::Vertices(vertices)),
+            Err(e) => Err(e),
+        }
     }
 
     fn open(&mut self) -> DBResult<()> {
+        self.batch_optimizer = Some(BatchOptimizer::with_default_config(
+            self.base.storage.clone().unwrap()
+        ));
         Ok(())
     }
 
     fn close(&mut self) -> DBResult<()> {
+        self.batch_optimizer = None;
         Ok(())
     }
 
     fn is_open(&self) -> bool {
-        true
+        self.batch_optimizer.is_some()
     }
 
     fn id(&self) -> i64 {
-        RuntimeContext::arc_plan_id(self.processor.processor().context())
+        self.base.id
     }
 
     fn name(&self) -> &str {
@@ -76,41 +81,32 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for GetVerticesExecut
         "Get vertices executor - retrieves vertices from storage"
     }
 
-    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
-        self.processor.stats()
+    fn stats(&self) -> &ExecutorStats {
+        self.base.get_stats()
     }
 
-    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
-        self.processor.stats_mut()
+    fn stats_mut(&mut self) -> &mut ExecutorStats {
+        self.base.get_stats_mut()
     }
 }
 
 impl<S: StorageClient> HasStorage<S> for GetVerticesExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.processor.get_storage()
+        self.base.get_storage()
     }
 }
 
-#[async_trait]
-impl<S: StorageClient + Send + Sync + 'static> StorageProcessorExecutorImpl<S, Vec<crate::core::vertex_edge_path::Vertex>>
-    for GetVerticesExecutor<S>
-{
-    fn get_executor(
-        &mut self,
-    ) -> &mut StorageProcessorExecutor<S, Vec<crate::core::vertex_edge_path::Vertex>> {
-        &mut self.processor
-    }
-
-    async fn do_execute(
-        &mut self,
-    ) -> DBResult<Vec<crate::core::vertex_edge_path::Vertex>> {
+impl<S: StorageClient + Send + Sync + 'static> GetVerticesExecutor<S> {
+    async fn do_execute(&mut self) -> DBResult<Vec<vertex_edge_path::Vertex>> {
         match &self.vertex_ids {
             Some(ids) if ids.len() > 1 => {
-                let batch_result = self.processor.batch_optimizer()
+                let batch_result = self.batch_optimizer
+                    .as_ref()
+                    .expect("Executor not opened")
                     .batch_get_vertices(ids)
                     .await;
                 
-                let mut result_vertices: Vec<crate::core::vertex_edge_path::Vertex> = Vec::new();
+                let mut result_vertices: Vec<vertex_edge_path::Vertex> = Vec::new();
                 
                 for vertex_opt in batch_result.items {
                     if let Some(ref vertex) = vertex_opt {
@@ -149,7 +145,7 @@ impl<S: StorageClient + Send + Sync + 'static> StorageProcessorExecutorImpl<S, V
                     Ok(Vec::new())
                 }
             }
-            Some(ids) => Ok(Vec::new()),
+            Some(_) => Ok(Vec::new()),
             None => {
                 let storage = safe_lock(self.get_storage())
                     .expect("GetVerticesExecutor storage lock should not be poisoned");
@@ -213,23 +209,15 @@ impl<S: StorageClient + Send + Sync + 'static> StorageProcessorExecutorImpl<S, V
     }
 }
 
-// Implementation for a GetEdges executor using StorageProcessorExecutor
 pub struct GetEdgesExecutor<S: StorageClient> {
-    processor: StorageProcessorExecutor<S, Vec<crate::core::vertex_edge_path::Edge>>,
-
+    base: BaseExecutor<S>,
     edge_type: Option<String>,
 }
 
 impl<S: StorageClient> GetEdgesExecutor<S> {
     pub fn new(id: i64, storage: Arc<Mutex<S>>, edge_type: Option<String>) -> Self {
-        let context = RuntimeContext::new_simple();
         Self {
-            processor: StorageProcessorExecutor::new(
-                id,
-                "GetEdgesExecutor".to_string(),
-                storage,
-                context,
-            ),
+            base: BaseExecutor::new(id, "GetEdgesExecutor".to_string(), storage),
             edge_type,
         }
     }
@@ -238,7 +226,14 @@ impl<S: StorageClient> GetEdgesExecutor<S> {
 #[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for GetEdgesExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        <GetEdgesExecutor<S> as StorageProcessorExecutorImpl<S, Vec<crate::core::vertex_edge_path::Edge>>>::execute(&mut self).await
+        let start = Instant::now();
+        let result = self.do_execute().await;
+        let elapsed = start.elapsed();
+        self.base.get_stats_mut().add_total_time(elapsed);
+        match result {
+            Ok(edges) => Ok(ExecutionResult::Edges(edges)),
+            Err(e) => Err(e),
+        }
     }
 
     fn open(&mut self) -> DBResult<()> {
@@ -254,7 +249,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for GetEdgesExecutor<
     }
 
     fn id(&self) -> i64 {
-        RuntimeContext::arc_plan_id(self.processor.processor().context())
+        self.base.id
     }
 
     fn name(&self) -> &str {
@@ -265,34 +260,23 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for GetEdgesExecutor<
         "Get edges executor - retrieves edges from storage"
     }
 
-    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
-        self.processor.stats()
+    fn stats(&self) -> &ExecutorStats {
+        self.base.get_stats()
     }
 
-    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
-        self.processor.stats_mut()
+    fn stats_mut(&mut self) -> &mut ExecutorStats {
+        self.base.get_stats_mut()
     }
 }
 
 impl<S: StorageClient> HasStorage<S> for GetEdgesExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.processor.get_storage()
+        self.base.get_storage()
     }
 }
 
-#[async_trait]
-impl<S: StorageClient + Send + Sync + 'static> StorageProcessorExecutorImpl<S, Vec<crate::core::vertex_edge_path::Edge>>
-    for GetEdgesExecutor<S>
-{
-    fn get_executor(
-        &mut self,
-    ) -> &mut StorageProcessorExecutor<S, Vec<crate::core::vertex_edge_path::Edge>> {
-        &mut self.processor
-    }
-
-    async fn do_execute(
-        &mut self,
-    ) -> DBResult<Vec<crate::core::vertex_edge_path::Edge>> {
+impl<S: StorageClient + Send + Sync + 'static> GetEdgesExecutor<S> {
+    async fn do_execute(&mut self) -> DBResult<Vec<vertex_edge_path::Edge>> {
         let storage = safe_lock(self.get_storage())
             .expect("GetEdgesExecutor storage lock should not be poisoned");
 
@@ -306,9 +290,8 @@ impl<S: StorageClient + Send + Sync + 'static> StorageProcessorExecutorImpl<S, V
     }
 }
 
-// Implementation for a ScanEdges executor using StorageProcessorExecutor
 pub struct ScanEdgesExecutor<S: StorageClient> {
-    processor: StorageProcessorExecutor<S, Vec<crate::core::vertex_edge_path::Edge>>,
+    base: BaseExecutor<S>,
     edge_type: Option<String>,
     filter: Option<crate::core::Expression>,
     limit: Option<usize>,
@@ -322,14 +305,8 @@ impl<S: StorageClient> ScanEdgesExecutor<S> {
         filter: Option<crate::core::Expression>,
         limit: Option<usize>,
     ) -> Self {
-        let context = RuntimeContext::new_simple();
         Self {
-            processor: StorageProcessorExecutor::new(
-                id,
-                "ScanEdgesExecutor".to_string(),
-                storage,
-                context,
-            ),
+            base: BaseExecutor::new(id, "ScanEdgesExecutor".to_string(), storage),
             edge_type,
             filter,
             limit,
@@ -340,7 +317,14 @@ impl<S: StorageClient> ScanEdgesExecutor<S> {
 #[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ScanEdgesExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        <ScanEdgesExecutor<S> as StorageProcessorExecutorImpl<S, Vec<crate::core::vertex_edge_path::Edge>>>::execute(&mut self).await
+        let start = Instant::now();
+        let result = self.do_execute().await;
+        let elapsed = start.elapsed();
+        self.base.get_stats_mut().add_total_time(elapsed);
+        match result {
+            Ok(edges) => Ok(ExecutionResult::Edges(edges)),
+            Err(e) => Err(e),
+        }
     }
 
     fn open(&mut self) -> DBResult<()> {
@@ -356,7 +340,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ScanEdgesExecutor
     }
 
     fn id(&self) -> i64 {
-        RuntimeContext::arc_plan_id(self.processor.processor().context())
+        self.base.id
     }
 
     fn name(&self) -> &str {
@@ -367,38 +351,27 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ScanEdgesExecutor
         "Scan edges executor - scans all edges from storage"
     }
 
-    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
-        self.processor.stats()
+    fn stats(&self) -> &ExecutorStats {
+        self.base.get_stats()
     }
 
-    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
-        self.processor.stats_mut()
+    fn stats_mut(&mut self) -> &mut ExecutorStats {
+        self.base.get_stats_mut()
     }
 }
 
 impl<S: StorageClient> HasStorage<S> for ScanEdgesExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.processor.get_storage()
+        self.base.get_storage()
     }
 }
 
-#[async_trait]
-impl<S: StorageClient + Send + Sync + 'static> StorageProcessorExecutorImpl<S, Vec<crate::core::vertex_edge_path::Edge>>
-    for ScanEdgesExecutor<S>
-{
-    fn get_executor(
-        &mut self,
-    ) -> &mut StorageProcessorExecutor<S, Vec<crate::core::vertex_edge_path::Edge>> {
-        &mut self.processor
-    }
-
-    async fn do_execute(
-        &mut self,
-    ) -> DBResult<Vec<crate::core::vertex_edge_path::Edge>> {
+impl<S: StorageClient + Send + Sync + 'static> ScanEdgesExecutor<S> {
+    async fn do_execute(&mut self) -> DBResult<Vec<vertex_edge_path::Edge>> {
         let storage = safe_lock(self.get_storage())
             .expect("ScanEdgesExecutor storage lock should not be poisoned");
 
-        let mut edges: Vec<crate::core::vertex_edge_path::Edge> = if let Some(ref edge_type) = self.edge_type {
+        let mut edges: Vec<vertex_edge_path::Edge> = if let Some(ref edge_type) = self.edge_type {
             storage.scan_edges_by_type("default", edge_type)?
         } else {
             storage.scan_all_edges("default")?
@@ -428,15 +401,12 @@ impl<S: StorageClient + Send + Sync + 'static> StorageProcessorExecutorImpl<S, V
     }
 }
 
-// Implementation for a GetNeighbors executor using StorageProcessorExecutor
-pub struct GetNeighborsExecutor<S: StorageClient> {
-    processor: StorageProcessorExecutor<S, Vec<Value>>,
-
+pub struct GetNeighborsExecutor<S: StorageClient + Send + Sync + 'static> {
+    base: BaseExecutor<S>,
     vertex_ids: Vec<Value>,
-
     edge_direction: super::base::EdgeDirection,
-
     edge_types: Option<Vec<String>>,
+    batch_optimizer: Option<BatchOptimizer<S>>,
 }
 
 impl<S: StorageClient> GetNeighborsExecutor<S> {
@@ -447,17 +417,12 @@ impl<S: StorageClient> GetNeighborsExecutor<S> {
         edge_direction: super::base::EdgeDirection,
         edge_types: Option<Vec<String>>,
     ) -> Self {
-        let context = super::super::context::runtime_context::RuntimeContext::new_simple();
         Self {
-            processor: StorageProcessorExecutor::new(
-                id,
-                "GetNeighborsExecutor".to_string(),
-                storage,
-                context,
-            ),
+            base: BaseExecutor::new(id, "GetNeighborsExecutor".to_string(), storage),
             vertex_ids,
             edge_direction,
             edge_types,
+            batch_optimizer: None,
         }
     }
 }
@@ -465,23 +430,34 @@ impl<S: StorageClient> GetNeighborsExecutor<S> {
 #[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for GetNeighborsExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        <GetNeighborsExecutor<S> as StorageProcessorExecutorImpl<S, Vec<Value>>>::execute(&mut self).await
+        let start = Instant::now();
+        let result = self.do_execute().await;
+        let elapsed = start.elapsed();
+        self.base.get_stats_mut().add_total_time(elapsed);
+        match result {
+            Ok(values) => Ok(ExecutionResult::Values(values)),
+            Err(e) => Err(e),
+        }
     }
 
     fn open(&mut self) -> DBResult<()> {
+        self.batch_optimizer = Some(BatchOptimizer::with_default_config(
+            self.base.storage.clone().unwrap()
+        ));
         Ok(())
     }
 
     fn close(&mut self) -> DBResult<()> {
+        self.batch_optimizer = None;
         Ok(())
     }
 
     fn is_open(&self) -> bool {
-        true
+        self.batch_optimizer.is_some()
     }
 
     fn id(&self) -> i64 {
-        RuntimeContext::arc_plan_id(self.processor.processor().context())
+        self.base.id
     }
 
     fn name(&self) -> &str {
@@ -492,35 +468,30 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for GetNeighborsExecu
         "Get neighbors executor - retrieves neighboring vertices"
     }
 
-    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
-        self.processor.stats()
+    fn stats(&self) -> &ExecutorStats {
+        self.base.get_stats()
     }
 
-    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
-        self.processor.stats_mut()
+    fn stats_mut(&mut self) -> &mut ExecutorStats {
+        self.base.get_stats_mut()
     }
 }
 
 impl<S: StorageClient> HasStorage<S> for GetNeighborsExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.processor.get_storage()
+        self.base.get_storage()
     }
 }
 
-#[async_trait]
-impl<S: StorageClient + Send + Sync + 'static> StorageProcessorExecutorImpl<S, Vec<Value>>
-    for GetNeighborsExecutor<S>
-{
-    fn get_executor(&mut self) -> &mut StorageProcessorExecutor<S, Vec<Value>> {
-        &mut self.processor
-    }
-
+impl<S: StorageClient + Send + Sync + 'static> GetNeighborsExecutor<S> {
     async fn do_execute(&mut self) -> DBResult<Vec<Value>> {
         if self.vertex_ids.is_empty() {
             return Ok(Vec::new());
         }
 
-        let batch_result = self.processor.batch_optimizer()
+        let batch_result = self.batch_optimizer
+            .as_ref()
+            .expect("Executor not opened")
             .batch_get_vertices(&self.vertex_ids)
             .await;
 
@@ -562,7 +533,9 @@ impl<S: StorageClient + Send + Sync + 'static> StorageProcessorExecutorImpl<S, V
             return Ok(Vec::new());
         }
 
-        let neighbor_batch_result = self.processor.batch_optimizer()
+        let neighbor_batch_result = self.batch_optimizer
+            .as_ref()
+            .expect("Executor not opened")
             .batch_get_vertices(&neighbor_ids)
             .await;
 
@@ -582,10 +555,9 @@ impl<S: StorageClient + Send + Sync + 'static> StorageProcessorExecutorImpl<S, V
     }
 }
 
-// Implementation for GetPropExecutor
 #[derive(Debug)]
 pub struct GetPropExecutor<S: StorageClient> {
-    processor: StorageProcessorExecutor<S, Vec<Value>>,
+    base: BaseExecutor<S>,
     vertex_ids: Option<Vec<Value>>,
     edge_ids: Option<Vec<Value>>,
     prop_names: Vec<String>,
@@ -599,14 +571,8 @@ impl<S: StorageClient> GetPropExecutor<S> {
         edge_ids: Option<Vec<Value>>,
         prop_names: Vec<String>,
     ) -> Self {
-        let context = RuntimeContext::new_simple();
         Self {
-            processor: StorageProcessorExecutor::new(
-                id,
-                "GetPropExecutor".to_string(),
-                storage,
-                context,
-            ),
+            base: BaseExecutor::new(id, "GetPropExecutor".to_string(), storage),
             vertex_ids,
             edge_ids,
             prop_names,
@@ -617,7 +583,14 @@ impl<S: StorageClient> GetPropExecutor<S> {
 #[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for GetPropExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        <GetPropExecutor<S> as StorageProcessorExecutorImpl<S, Vec<Value>>>::execute(self).await
+        let start = Instant::now();
+        let result = self.do_execute().await;
+        let elapsed = start.elapsed();
+        self.base.get_stats_mut().add_total_time(elapsed);
+        match result {
+            Ok(values) => Ok(ExecutionResult::Values(values)),
+            Err(e) => Err(e),
+        }
     }
 
     fn open(&mut self) -> DBResult<()> {
@@ -633,7 +606,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for GetPropExecutor<S
     }
 
     fn id(&self) -> i64 {
-        RuntimeContext::arc_plan_id(self.processor.processor().context())
+        self.base.id
     }
 
     fn name(&self) -> &str {
@@ -644,27 +617,22 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for GetPropExecutor<S
         "Get property executor - retrieves properties from vertices or edges"
     }
 
-    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
-        self.processor.stats()
+    fn stats(&self) -> &ExecutorStats {
+        self.base.get_stats()
     }
 
-    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
-        self.processor.stats_mut()
+    fn stats_mut(&mut self) -> &mut ExecutorStats {
+        self.base.get_stats_mut()
     }
 }
 
 impl<S: StorageClient> HasStorage<S> for GetPropExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.processor.get_storage()
+        self.base.get_storage()
     }
 }
 
-#[async_trait]
-impl<S: StorageClient + Send + Sync + 'static> StorageProcessorExecutorImpl<S, Vec<Value>> for GetPropExecutor<S> {
-    fn get_executor(&mut self) -> &mut StorageProcessorExecutor<S, Vec<Value>> {
-        &mut self.processor
-    }
-
+impl<S: StorageClient + Send + Sync + 'static> GetPropExecutor<S> {
     async fn do_execute(&mut self) -> DBResult<Vec<Value>> {
         let storage = safe_lock(self.get_storage())
             .expect("GetPropExecutor storage lock should not be poisoned");
@@ -715,7 +683,7 @@ use super::base::EdgeDirection;
 
 #[derive(Debug)]
 pub struct IndexScanExecutor<S: StorageClient> {
-    processor: StorageProcessorExecutor<S, Vec<Value>>,
+    base: BaseExecutor<S>,
     index_name: String,
     index_condition: Option<(String, Value)>,
     scan_forward: bool,
@@ -731,14 +699,8 @@ impl<S: StorageClient> IndexScanExecutor<S> {
         scan_forward: bool,
         limit: Option<usize>,
     ) -> Self {
-        let context = RuntimeContext::new_simple();
         Self {
-            processor: StorageProcessorExecutor::new(
-                id,
-                "IndexScanExecutor".to_string(),
-                storage,
-                context,
-            ),
+            base: BaseExecutor::new(id, "IndexScanExecutor".to_string(), storage),
             index_name,
             index_condition,
             scan_forward,
@@ -750,7 +712,14 @@ impl<S: StorageClient> IndexScanExecutor<S> {
 #[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for IndexScanExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        <IndexScanExecutor<S> as StorageProcessorExecutorImpl<S, Vec<Value>>>::execute(self).await
+        let start = Instant::now();
+        let result = self.do_execute().await;
+        let elapsed = start.elapsed();
+        self.base.get_stats_mut().add_total_time(elapsed);
+        match result {
+            Ok(values) => Ok(ExecutionResult::Values(values)),
+            Err(e) => Err(e),
+        }
     }
 
     fn open(&mut self) -> DBResult<()> {
@@ -766,7 +735,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for IndexScanExecutor
     }
 
     fn id(&self) -> i64 {
-        RuntimeContext::arc_plan_id(self.processor.processor().context())
+        self.base.id
     }
 
     fn name(&self) -> &str {
@@ -777,27 +746,22 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for IndexScanExecutor
         "Index scan executor - retrieves vertices using index"
     }
 
-    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
-        self.processor.stats()
+    fn stats(&self) -> &ExecutorStats {
+        self.base.get_stats()
     }
 
-    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
-        self.processor.stats_mut()
+    fn stats_mut(&mut self) -> &mut ExecutorStats {
+        self.base.get_stats_mut()
     }
 }
 
 impl<S: StorageClient> HasStorage<S> for IndexScanExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.processor.get_storage()
+        self.base.get_storage()
     }
 }
 
-#[async_trait]
-impl<S: StorageClient + Send + Sync + 'static> StorageProcessorExecutorImpl<S, Vec<Value>> for IndexScanExecutor<S> {
-    fn get_executor(&mut self) -> &mut StorageProcessorExecutor<S, Vec<Value>> {
-        &mut self.processor
-    }
-
+impl<S: StorageClient + Send + Sync + 'static> IndexScanExecutor<S> {
     async fn do_execute(&mut self) -> DBResult<Vec<Value>> {
         let storage = safe_lock(self.get_storage())
             .expect("IndexScanExecutor storage lock should not be poisoned");
@@ -955,11 +919,11 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AllPathsExecutor<
         "All paths executor - finds all paths between vertices"
     }
 
-    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+    fn stats(&self) -> &ExecutorStats {
         self.base.get_stats()
     }
 
-    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+    fn stats_mut(&mut self) -> &mut ExecutorStats {
         self.base.get_stats_mut()
     }
 }
@@ -973,9 +937,9 @@ impl<S: StorageClient> HasStorage<S> for AllPathsExecutor<S> {
     }
 }
 
-// Implementation for a ScanVertices executor using StorageProcessorExecutor
+// Implementation for a ScanVertices executor
 pub struct ScanVerticesExecutor<S: StorageClient> {
-    processor: StorageProcessorExecutor<S, Vec<crate::core::vertex_edge_path::Vertex>>,
+    base: BaseExecutor<S>,
     tag_filter: Option<crate::core::Expression>,
     vertex_filter: Option<crate::core::Expression>,
     limit: Option<usize>,
@@ -989,14 +953,8 @@ impl<S: StorageClient> ScanVerticesExecutor<S> {
         vertex_filter: Option<crate::core::Expression>,
         limit: Option<usize>,
     ) -> Self {
-        let context = RuntimeContext::new_simple();
         Self {
-            processor: StorageProcessorExecutor::new(
-                id,
-                "ScanVerticesExecutor".to_string(),
-                storage,
-                context,
-            ),
+            base: BaseExecutor::new(id, "ScanVerticesExecutor".to_string(), storage),
             tag_filter,
             vertex_filter,
             limit,
@@ -1007,7 +965,14 @@ impl<S: StorageClient> ScanVerticesExecutor<S> {
 #[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ScanVerticesExecutor<S> {
     async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        <ScanVerticesExecutor<S> as StorageProcessorExecutorImpl<S, Vec<crate::core::vertex_edge_path::Vertex>>>::execute(&mut self).await
+        let start = Instant::now();
+        let result = self.do_execute().await;
+        let elapsed = start.elapsed();
+        self.base.get_stats_mut().add_total_time(elapsed);
+        match result {
+            Ok(vertices) => Ok(ExecutionResult::Vertices(vertices)),
+            Err(e) => Err(e),
+        }
     }
 
     fn open(&mut self) -> DBResult<()> {
@@ -1023,7 +988,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ScanVerticesExecu
     }
 
     fn id(&self) -> i64 {
-        RuntimeContext::arc_plan_id(self.processor.processor().context())
+        self.base.id
     }
 
     fn name(&self) -> &str {
@@ -1034,38 +999,27 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ScanVerticesExecu
         "Scan vertices executor - scans all vertices from storage"
     }
 
-    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
-        self.processor.stats()
+    fn stats(&self) -> &ExecutorStats {
+        self.base.get_stats()
     }
 
-    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
-        self.processor.stats_mut()
+    fn stats_mut(&mut self) -> &mut ExecutorStats {
+        self.base.get_stats_mut()
     }
 }
 
 impl<S: StorageClient> HasStorage<S> for ScanVerticesExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.processor.get_storage()
+        self.base.get_storage()
     }
 }
 
-#[async_trait]
-impl<S: StorageClient + Send + Sync + 'static> StorageProcessorExecutorImpl<S, Vec<crate::core::vertex_edge_path::Vertex>>
-    for ScanVerticesExecutor<S>
-{
-    fn get_executor(
-        &mut self,
-    ) -> &mut StorageProcessorExecutor<S, Vec<crate::core::vertex_edge_path::Vertex>> {
-        &mut self.processor
-    }
-
-    async fn do_execute(
-        &mut self,
-    ) -> DBResult<Vec<crate::core::vertex_edge_path::Vertex>> {
+impl<S: StorageClient + Send + Sync + 'static> ScanVerticesExecutor<S> {
+    async fn do_execute(&mut self) -> DBResult<Vec<vertex_edge_path::Vertex>> {
         let storage = safe_lock(self.get_storage())
             .expect("ScanVerticesExecutor storage lock should not be poisoned");
 
-        let mut vertices: Vec<crate::core::vertex_edge_path::Vertex> = storage.scan_vertices("default")?
+        let mut vertices: Vec<vertex_edge_path::Vertex> = storage.scan_vertices("default")?
             .into_iter()
             .filter(|vertex| {
                 if let Some(ref tag_filter_expression) = self.tag_filter {

@@ -196,6 +196,31 @@ impl Engine for RedbEngine {
         Ok(())
     }
 
+    fn count_keys(&self, prefix: &[u8]) -> Result<usize, StorageError> {
+        let read_txn = self
+            .db
+            .begin_read()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        let table = read_txn
+            .open_table(DATA_TABLE)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        let mut count = 0;
+        let iter = table
+            .iter()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        for item in iter {
+            let (key, _) = item.map_err(|e| StorageError::DbError(e.to_string()))?;
+            let key_bytes = key.value().0;
+            if key_bytes.starts_with(prefix) {
+                count += 1;
+            }
+        }
+
+        Ok(count)
+    }
+
     fn begin_transaction(&mut self) -> Result<TransactionId, StorageError> {
         let tx_id = TransactionId::new(
             SystemTime::now()

@@ -869,6 +869,38 @@ mod tests {
             Ok(true)
         }
 
+        fn get_space_id(&self, _space: &str) -> Result<i32, StorageError> {
+            Ok(1)
+        }
+
+        fn space_exists(&self, _space: &str) -> bool {
+            false
+        }
+
+        fn clear_space(&mut self, _space: &str) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn alter_space_partition_num(&mut self, _space_id: i32, _partition_num: usize) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn alter_space_replica_factor(&mut self, _space_id: i32, _replica_factor: usize) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn alter_space_comment(&mut self, _space_id: i32, _comment: String) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn grant_role(&mut self, _username: &str, _space_id: i32, _role: crate::api::service::permission_manager::RoleType) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
+        fn revoke_role(&mut self, _username: &str, _space_id: i32) -> Result<bool, StorageError> {
+            Ok(true)
+        }
+
         fn get_vertex_with_schema(
             &self,
             _space: &str,
@@ -910,6 +942,16 @@ mod tests {
 
         fn save_to_disk(&self) -> Result<(), StorageError> {
             Ok(())
+        }
+
+        fn get_storage_stats(&self) -> crate::storage::storage_client::StorageStats {
+            crate::storage::storage_client::StorageStats {
+                total_vertices: 0,
+                total_edges: 0,
+                total_spaces: 0,
+                total_tags: 0,
+                total_edge_types: 0,
+            }
         }
     }
 
