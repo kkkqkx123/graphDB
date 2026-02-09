@@ -25,6 +25,7 @@ use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, 
 use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::query::optimizer::rule_traits::{BaseOptRule, PushDownRule};
 use crate::query::planner::plan::core::nodes::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::visitor::PlanNodeVisitor;
 use std::rc::Rc;
 use std::cell::RefCell;

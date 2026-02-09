@@ -3,6 +3,7 @@
 use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult};
 use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::query::optimizer::rule_traits::BaseOptRule;
+use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::validator::YieldColumn;
 use crate::query::visitor::PlanNodeVisitor;
 use std::rc::Rc;

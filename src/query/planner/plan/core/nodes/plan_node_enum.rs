@@ -1856,6 +1856,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::Assign(node) => vec![super::plan_node_traits::SingleInputNode::input(node)],
             PlanNodeEnum::PatternApply(node) => vec![super::plan_node_traits::SingleInputNode::input(node)],
             PlanNodeEnum::RollUpApply(node) => vec![super::plan_node_traits::SingleInputNode::input(node)],
+            PlanNodeEnum::Traverse(node) => vec![super::plan_node_traits::SingleInputNode::input(node)],
 
             // BinaryInputNode: 有两个子节点
             PlanNodeEnum::InnerJoin(node) => vec![super::plan_node_traits::BinaryInputNode::left_input(node), super::plan_node_traits::BinaryInputNode::right_input(node)],
@@ -1867,7 +1868,6 @@ impl PlanNodeEnum {
             // MultipleInputNode: 有多个子节点
             PlanNodeEnum::Expand(node) => node.dependencies().iter().map(|b| b.as_ref()).collect(),
             PlanNodeEnum::ExpandAll(node) => node.dependencies().iter().map(|b| b.as_ref()).collect(),
-            PlanNodeEnum::Traverse(node) => node.dependencies().into_iter().collect(),
             PlanNodeEnum::AppendVertices(node) => node.dependencies().iter().map(|b| b.as_ref()).collect(),
 
             // UnionNode: 使用 dependencies() 获取所有子节点
