@@ -212,6 +212,7 @@ mod tests {
         fn visit_get_neighbors(&mut self, _node: &GetNeighborsNode) -> Self::Result { self.count += 1; self.count }
         fn visit_scan_vertices(&mut self, _node: &ScanVerticesNode) -> Self::Result { self.count += 1; self.count }
         fn visit_scan_edges(&mut self, _node: &ScanEdgesNode) -> Self::Result { self.count += 1; self.count }
+        fn visit_edge_index_scan(&mut self, _node: &EdgeIndexScanNode) -> Self::Result { self.count += 1; self.count }
         fn visit_hash_inner_join(&mut self, _node: &HashInnerJoinNode) -> Self::Result { self.count += 1; self.count }
         fn visit_hash_left_join(&mut self, _node: &HashLeftJoinNode) -> Self::Result { self.count += 1; self.count }
         fn visit_index_scan(&mut self, _node: &IndexScan) -> Self::Result { self.count += 1; self.count }
@@ -231,6 +232,8 @@ mod tests {
         fn visit_pattern_apply(&mut self, _node: &PatternApplyNode) -> Self::Result { self.count += 1; self.count }
         fn visit_roll_up_apply(&mut self, _node: &RollUpApplyNode) -> Self::Result { self.count += 1; self.count }
         fn visit_union(&mut self, _node: &UnionNode) -> Self::Result { self.count += 1; self.count }
+        fn visit_minus(&mut self, _node: &MinusNode) -> Self::Result { self.count += 1; self.count }
+        fn visit_intersect(&mut self, _node: &IntersectNode) -> Self::Result { self.count += 1; self.count }
         fn visit_unwind(&mut self, _node: &UnwindNode) -> Self::Result { self.count += 1; self.count }
         fn visit_assign(&mut self, _node: &AssignNode) -> Self::Result { self.count += 1; self.count }
         fn visit_multi_shortest_path(&mut self, _node: &MultiShortestPath) -> Self::Result { self.count += 1; self.count }

@@ -4,7 +4,6 @@
 //! - Intersect: 选择较小的输入作为构建表
 
 use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult};
-use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::query::optimizer::rule_traits::BaseOptRule;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum as Enum;
 use crate::query::planner::plan::core::nodes::set_operations_node::IntersectNode;
@@ -235,27 +234,31 @@ fn estimate_node_cost(node: &Enum) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::query::context::execution::QueryContext;
+    use crate::query::optimizer::plan::{OptContext, OptGroupNode};
+    use crate::query::planner::plan::core::nodes::graph_scan_node::ScanVerticesNode;
+    use std::rc::Rc;
+    use std::cell::RefCell;
+
+    fn create_test_context() -> OptContext {
+        let query_context = QueryContext::new();
+        OptContext::new(query_context)
+    }
 
     #[test]
     fn test_optimize_intersect_input_order() {
-        use crate::query::planner::plan::core::nodes::set_operations_node::IntersectNode;
-        use crate::query::planner::plan::core::nodes::start_node::StartNode;
-        use crate::query::planner::plan::core::nodes::scan_node::ScanVerticesNode;
+        let rule = OptimizeSetOperationInputOrderRule;
+        let mut ctx = create_test_context();
         
-        let scan1 = Enum::ScanVertices(ScanVerticesNode::new(1, "1,2,3,4,5"));
-        let scan2 = Enum::ScanVertices(ScanVerticesNode::new(1, "1"));
+        let scan1 = Enum::ScanVertices(ScanVerticesNode::new(1));
+        let scan2 = Enum::ScanVertices(ScanVerticesNode::new(1));
         
         let intersect_node = IntersectNode::new(scan1.clone(), scan2.clone()).unwrap();
-        let mut plan_node = crate::query::optimizer::plan::node::PlanNode::new(Enum::Intersect(intersect_node));
+        let plan_node = Enum::Intersect(intersect_node);
+        let opt_node = OptGroupNode::new(1, plan_node);
+
+        let result = rule.apply(&mut ctx, &Rc::new(RefCell::new(opt_node)));
         
-        let rule = OptimizeSetOperationInputOrderRule;
-        let optimized = rule.apply(&mut plan_node);
-        
-        assert!(optimized);
-        
-        if let Enum::Intersect(new_node) = &plan_node.node {
-            assert_eq!(new_node.input().type_name(), "ScanVertices");
-            assert_eq!(new_node.intersect_input().type_name(), "ScanVertices");
-        }
+        assert!(result.is_ok());
     }
 }

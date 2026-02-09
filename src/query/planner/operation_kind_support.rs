@@ -85,7 +85,7 @@ impl IntoOperationKind for PlanNodeEnum {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::planner::plan::core::nodes::{StartNode, FilterNode, ProjectNode, PlanNodeClonable};
+    use crate::query::planner::plan::core::nodes::{StartNode, FilterNode, ProjectNode};
     use crate::core::Expression;
     
     fn create_start_node() -> StartNode {

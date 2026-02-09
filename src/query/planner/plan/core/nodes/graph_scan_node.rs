@@ -3,7 +3,6 @@
 //! 包含获取顶点、边和邻居节点的计划节点
 
 use super::super::common::{EdgeProp, TagProp};
-use super::plan_node_traits::ZeroInputNode;
 use crate::core::Expression;
 use crate::define_plan_node;
 use crate::query::planner::plan::core::node_id_generator::next_node_id;

@@ -3,7 +3,6 @@
 //! 提供集合操作相关的计划节点定义
 
 use crate::define_plan_node_with_deps;
-use crate::query::context::validate::types::Variable;
 
 define_plan_node_with_deps! {
     pub struct MinusNode {

@@ -15,7 +15,6 @@ use super::sort_node::{LimitNode, SortNode};
 use super::start_node::StartNode;
 use super::traversal_node::{AppendVerticesNode, ExpandAllNode, ExpandNode, TraverseNode};
 use crate::core::types::EdgeDirection;
-use crate::core::Value;
 use crate::core::types::operators::AggregateFunction;
 use crate::core::types::expression::Expression;
 use crate::query::planner::plan::PlanNodeEnum;

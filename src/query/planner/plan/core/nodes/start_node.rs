@@ -3,8 +3,6 @@
 //! StartNode 用于表示执行计划的起始点
 
 use crate::define_plan_node;
-use crate::query::planner::plan::ZeroInputNode;
-use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
 
 define_plan_node! {
     pub struct StartNode {

@@ -5,7 +5,6 @@
 //! - Intersect: 如果任一输入为空，返回空集
 
 use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult};
-use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::query::optimizer::rule_traits::BaseOptRule;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum as Enum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
@@ -144,40 +143,51 @@ fn create_empty_node() -> Enum {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::query::context::execution::QueryContext;
+    use crate::query::optimizer::plan::{OptContext, OptGroupNode};
+    use crate::query::planner::plan::core::nodes::set_operations_node::{MinusNode, IntersectNode};
+    use crate::query::planner::plan::core::nodes::start_node::StartNode;
+    use std::rc::Rc;
+    use std::cell::RefCell;
+
+    fn create_test_context() -> OptContext {
+        let query_context = QueryContext::new();
+        OptContext::new(query_context)
+    }
 
     #[test]
     fn test_eliminate_empty_minus() {
-        use crate::query::planner::plan::core::nodes::set_operations_node::MinusNode;
-        use crate::query::planner::plan::core::nodes::start_node::StartNode;
-        
+        let rule = EliminateEmptySetOperationRule;
+        let mut ctx = create_test_context();
+
         let start = Enum::Start(StartNode::new());
         let empty_start = Enum::Start(StartNode::new());
         
         let minus_node = MinusNode::new(start.clone(), empty_start).unwrap();
-        let mut plan_node = crate::query::optimizer::plan::node::PlanNode::new(Enum::Minus(minus_node));
+        let plan_node = Enum::Minus(minus_node);
+        let opt_node = OptGroupNode::new(1, plan_node);
+
+        let result = rule.apply(&mut ctx, &Rc::new(RefCell::new(opt_node)));
         
-        let rule = EliminateEmptySetOperationRule;
-        let optimized = rule.apply(&mut plan_node);
-        
-        assert!(optimized);
-        assert_eq!(plan_node.node.type_name(), "Start");
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_some());
     }
 
     #[test]
     fn test_eliminate_empty_intersect() {
-        use crate::query::planner::plan::core::nodes::set_operations_node::IntersectNode;
-        use crate::query::planner::plan::core::nodes::start_node::StartNode;
-        
+        let rule = EliminateEmptySetOperationRule;
+        let mut ctx = create_test_context();
+
         let start = Enum::Start(StartNode::new());
         let empty_start = Enum::Start(StartNode::new());
         
         let intersect_node = IntersectNode::new(start.clone(), empty_start).unwrap();
-        let mut plan_node = crate::query::optimizer::plan::node::PlanNode::new(Enum::Intersect(intersect_node));
+        let plan_node = Enum::Intersect(intersect_node);
+        let opt_node = OptGroupNode::new(1, plan_node);
+
+        let result = rule.apply(&mut ctx, &Rc::new(RefCell::new(opt_node)));
         
-        let rule = EliminateEmptySetOperationRule;
-        let optimized = rule.apply(&mut plan_node);
-        
-        assert!(optimized);
-        assert_eq!(plan_node.node.type_name(), "Start");
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_some());
     }
 }

@@ -20,7 +20,6 @@ use crate::query::planner::plan::core::nodes::space_nodes::*;
 use crate::query::planner::plan::core::nodes::start_node::*;
 use crate::query::planner::plan::core::nodes::tag_nodes::*;
 use crate::query::planner::plan::core::nodes::traversal_node::*;
-use crate::query::planner::plan::core::nodes::user_nodes::*;
 
 /// PlanNode 访问者 trait
 ///
