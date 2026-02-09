@@ -1034,8 +1034,10 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     node.edge_types.clone(),
                     node.no_loop,
                     Some(node.steps),
-                    false, // single_shortest
-                    usize::MAX, // limit
+                    false,
+                    usize::MAX,
+                    start_vertex,
+                    end_vertex,
                 );
                 Ok(ExecutorEnum::BFSShortest(executor))
             }

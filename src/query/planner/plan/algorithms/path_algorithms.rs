@@ -4,7 +4,7 @@
 use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::{
-    BinaryInputNode, PlanNode, SingleInputNode,
+    BinaryInputNode, PlanNode,
 };
 
 /// 多源最短路径计划节点
@@ -176,14 +176,15 @@ pub struct BFSShortest {
 impl BFSShortest {
     pub fn new(
         id: i64,
-        dep: PlanNodeEnum,
+        left: PlanNodeEnum,
+        right: PlanNodeEnum,
         steps: usize,
         edge_types: Vec<String>,
         no_loop: bool,
     ) -> Self {
         Self {
             id,
-            deps: vec![dep],
+            deps: vec![left, right],
             output_var: None,
             col_names: vec!["path".to_string()],
             cost: 0.0,
@@ -241,13 +242,21 @@ impl BFSShortest {
     }
 }
 
-impl SingleInputNode for BFSShortest {
-    fn input(&self) -> &PlanNodeEnum {
+impl BinaryInputNode for BFSShortest {
+    fn left_input(&self) -> &PlanNodeEnum {
         &self.deps[0]
     }
 
-    fn set_input(&mut self, input: PlanNodeEnum) {
+    fn right_input(&self) -> &PlanNodeEnum {
+        &self.deps[1]
+    }
+
+    fn set_left_input(&mut self, input: PlanNodeEnum) {
         self.deps[0] = input;
+    }
+
+    fn set_right_input(&mut self, input: PlanNodeEnum) {
+        self.deps[1] = input;
     }
 }
 
