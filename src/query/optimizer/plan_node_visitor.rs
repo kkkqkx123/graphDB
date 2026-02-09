@@ -5,9 +5,9 @@ use crate::query::planner::plan::core::nodes::{
     AggregateNode, ArgumentNode, AssignNode, CreateEdgeNode, CreateEdgeIndexNode,
     CreateSpaceNode, CreateTagNode, CreateTagIndexNode, CrossJoinNode, DataCollectNode,
     DedupNode, DescEdgeNode, DescSpaceNode, DescTagNode, DescTagIndexNode, DropEdgeNode,
-    DropSpaceNode, DropTagNode, DropTagIndexNode, DropEdgeIndexNode, ExpandAllNode, ExpandNode,
+    DropSpaceNode, DropTagNode, DropTagIndexNode, DropEdgeIndexNode, EdgeIndexScanNode, ExpandAllNode, ExpandNode,
     FilterNode, GetEdgesNode, GetNeighborsNode, GetVerticesNode, HashInnerJoinNode, HashLeftJoinNode,
-    InnerJoinNode, LeftJoinNode, LimitNode, LoopNode, PassThroughNode, PatternApplyNode,
+    InnerJoinNode, IntersectNode, LeftJoinNode, LimitNode, LoopNode, MinusNode, PassThroughNode, PatternApplyNode,
     ProjectNode, RollUpApplyNode, SampleNode, ScanEdgesNode, ScanVerticesNode, SelectNode,
     ShowEdgesNode, ShowSpacesNode, ShowTagsNode, ShowTagIndexesNode, ShowEdgeIndexesNode,
     SortNode, StartNode, TopNNode, TraverseNode, UnwindNode, UnionNode, AppendVerticesNode,
@@ -36,6 +36,7 @@ pub trait PlanNodeVisitor {
     fn visit_get_neighbors(&mut self, node: &GetNeighborsNode) -> Self::Result;
     fn visit_scan_vertices(&mut self, node: &ScanVerticesNode) -> Self::Result;
     fn visit_scan_edges(&mut self, node: &ScanEdgesNode) -> Self::Result;
+    fn visit_edge_index_scan(&mut self, node: &EdgeIndexScanNode) -> Self::Result;
     fn visit_hash_inner_join(&mut self, node: &HashInnerJoinNode) -> Self::Result;
     fn visit_hash_left_join(&mut self, node: &HashLeftJoinNode) -> Self::Result;
     fn visit_index_scan(&mut self, node: &IndexScan) -> Self::Result;
@@ -55,6 +56,8 @@ pub trait PlanNodeVisitor {
     fn visit_pattern_apply(&mut self, node: &PatternApplyNode) -> Self::Result;
     fn visit_roll_up_apply(&mut self, node: &RollUpApplyNode) -> Self::Result;
     fn visit_union(&mut self, node: &UnionNode) -> Self::Result;
+    fn visit_minus(&mut self, node: &MinusNode) -> Self::Result;
+    fn visit_intersect(&mut self, node: &IntersectNode) -> Self::Result;
     fn visit_unwind(&mut self, node: &UnwindNode) -> Self::Result;
     fn visit_assign(&mut self, node: &AssignNode) -> Self::Result;
     fn visit_multi_shortest_path(&mut self, node: &MultiShortestPath) -> Self::Result;
@@ -106,6 +109,7 @@ pub trait PlanNodeVisitor {
             PlanNodeEnum::GetNeighbors(n) => self.visit_get_neighbors(n),
             PlanNodeEnum::ScanVertices(n) => self.visit_scan_vertices(n),
             PlanNodeEnum::ScanEdges(n) => self.visit_scan_edges(n),
+            PlanNodeEnum::EdgeIndexScan(n) => self.visit_edge_index_scan(n),
             PlanNodeEnum::HashInnerJoin(n) => self.visit_hash_inner_join(n),
             PlanNodeEnum::HashLeftJoin(n) => self.visit_hash_left_join(n),
             PlanNodeEnum::IndexScan(n) => self.visit_index_scan(n),
@@ -125,6 +129,8 @@ pub trait PlanNodeVisitor {
             PlanNodeEnum::PatternApply(n) => self.visit_pattern_apply(n),
             PlanNodeEnum::RollUpApply(n) => self.visit_roll_up_apply(n),
             PlanNodeEnum::Union(n) => self.visit_union(n),
+            PlanNodeEnum::Minus(n) => self.visit_minus(n),
+            PlanNodeEnum::Intersect(n) => self.visit_intersect(n),
             PlanNodeEnum::Unwind(n) => self.visit_unwind(n),
             PlanNodeEnum::Assign(n) => self.visit_assign(n),
             PlanNodeEnum::MultiShortestPath(n) => self.visit_multi_shortest_path(n),

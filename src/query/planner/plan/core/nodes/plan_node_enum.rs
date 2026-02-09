@@ -24,8 +24,9 @@ pub use super::data_processing_node::{
 };
 pub use super::filter_node::FilterNode;
 pub use super::graph_scan_node::{
-    GetEdgesNode, GetNeighborsNode, GetVerticesNode, ScanEdgesNode, ScanVerticesNode,
+    EdgeIndexScanNode, GetEdgesNode, GetNeighborsNode, GetVerticesNode, ScanEdgesNode, ScanVerticesNode,
 };
+pub use super::set_operations_node::{IntersectNode, MinusNode};
 pub use super::join_node::{
     CrossJoinNode, HashInnerJoinNode, HashLeftJoinNode, InnerJoinNode, LeftJoinNode,
 };
@@ -71,6 +72,8 @@ pub enum PlanNodeEnum {
     ScanVertices(ScanVerticesNode),
     /// 扫描边节点
     ScanEdges(ScanEdgesNode),
+    /// 边索引扫描节点
+    EdgeIndexScan(EdgeIndexScanNode),
     /// 哈希内连接节点
     HashInnerJoin(HashInnerJoinNode),
     /// 哈希左连接节点
@@ -109,6 +112,10 @@ pub enum PlanNodeEnum {
     RollUpApply(RollUpApplyNode),
     /// 并集节点
     Union(UnionNode),
+    /// 差集节点
+    Minus(MinusNode),
+    /// 交集节点
+    Intersect(IntersectNode),
     /// 展开节点
     Unwind(UnwindNode),
     /// 赋值节点
@@ -397,6 +404,22 @@ impl PlanNodeEnum {
         matches!(self, PlanNodeEnum::ShowEdges(_))
     }
 
+    pub fn is_create_user(&self) -> bool {
+        matches!(self, PlanNodeEnum::CreateUser(_))
+    }
+
+    pub fn is_alter_user(&self) -> bool {
+        matches!(self, PlanNodeEnum::AlterUser(_))
+    }
+
+    pub fn is_drop_user(&self) -> bool {
+        matches!(self, PlanNodeEnum::DropUser(_))
+    }
+
+    pub fn is_change_password(&self) -> bool {
+        matches!(self, PlanNodeEnum::ChangePassword(_))
+    }
+
     /// 转换为 CoreOperationKind
     ///
     /// 建立 PlanNode 到 CoreOperationKind 的显式映射，用于优化器和执行器
@@ -406,6 +429,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::Start(_) => CoreOperationKind::ScanVertices,
             PlanNodeEnum::ScanVertices(_) => CoreOperationKind::ScanVertices,
             PlanNodeEnum::ScanEdges(_) => CoreOperationKind::ScanEdges,
+            PlanNodeEnum::EdgeIndexScan(_) => CoreOperationKind::ScanEdges,
             PlanNodeEnum::GetVertices(_) => CoreOperationKind::GetVertices,
             PlanNodeEnum::GetEdges(_) => CoreOperationKind::GetEdges,
             PlanNodeEnum::GetNeighbors(_) => CoreOperationKind::GetNeighbors,
@@ -447,6 +471,8 @@ impl PlanNodeEnum {
             // 数据处理操作
             PlanNodeEnum::DataCollect(_) => CoreOperationKind::Project,
             PlanNodeEnum::Union(_) => CoreOperationKind::Project,
+            PlanNodeEnum::Minus(_) => CoreOperationKind::Project,
+            PlanNodeEnum::Intersect(_) => CoreOperationKind::Project,
             PlanNodeEnum::Assign(_) => CoreOperationKind::Assignment,
             PlanNodeEnum::PatternApply(_) => CoreOperationKind::PatternApply,
             PlanNodeEnum::RollUpApply(_) => CoreOperationKind::RollUpApply,
@@ -535,6 +561,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::Start(_)
                 | PlanNodeEnum::ScanVertices(_)
                 | PlanNodeEnum::ScanEdges(_)
+                | PlanNodeEnum::EdgeIndexScan(_)
                 | PlanNodeEnum::GetVertices(_)
                 | PlanNodeEnum::GetEdges(_)
                 | PlanNodeEnum::GetNeighbors(_)
@@ -593,6 +620,8 @@ impl PlanNodeEnum {
             self,
             PlanNodeEnum::DataCollect(_)
                 | PlanNodeEnum::Union(_)
+                | PlanNodeEnum::Minus(_)
+                | PlanNodeEnum::Intersect(_)
                 | PlanNodeEnum::Unwind(_)
                 | PlanNodeEnum::Assign(_)
                 | PlanNodeEnum::PatternApply(_)
@@ -660,6 +689,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::GetNeighbors(_) => "GetNeighbors",
             PlanNodeEnum::ScanVertices(_) => "ScanVertices",
             PlanNodeEnum::ScanEdges(_) => "ScanEdges",
+            PlanNodeEnum::EdgeIndexScan(_) => "EdgeIndexScan",
             PlanNodeEnum::HashInnerJoin(_) => "HashInnerJoin",
             PlanNodeEnum::HashLeftJoin(_) => "HashLeftJoin",
             PlanNodeEnum::IndexScan(_) => "IndexScan",
@@ -679,6 +709,8 @@ impl PlanNodeEnum {
             PlanNodeEnum::PatternApply(_) => "PatternApply",
             PlanNodeEnum::RollUpApply(_) => "RollUpApply",
             PlanNodeEnum::Union(_) => "Union",
+            PlanNodeEnum::Minus(_) => "Minus",
+            PlanNodeEnum::Intersect(_) => "Intersect",
             PlanNodeEnum::Unwind(_) => "Unwind",
             PlanNodeEnum::Assign(_) => "Assign",
             PlanNodeEnum::MultiShortestPath(_) => "MultiShortestPath",
@@ -733,6 +765,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::GetNeighbors(_) => PlanNodeCategory::Access,
             PlanNodeEnum::ScanVertices(_) => PlanNodeCategory::Access,
             PlanNodeEnum::ScanEdges(_) => PlanNodeCategory::Access,
+            PlanNodeEnum::EdgeIndexScan(_) => PlanNodeCategory::Access,
             PlanNodeEnum::HashInnerJoin(_) => PlanNodeCategory::Join,
             PlanNodeEnum::HashLeftJoin(_) => PlanNodeCategory::Join,
             PlanNodeEnum::IndexScan(_) => PlanNodeCategory::Access,
@@ -752,6 +785,8 @@ impl PlanNodeEnum {
             PlanNodeEnum::PatternApply(_) => PlanNodeCategory::DataProcessing,
             PlanNodeEnum::RollUpApply(_) => PlanNodeCategory::DataProcessing,
             PlanNodeEnum::Union(_) => PlanNodeCategory::DataProcessing,
+            PlanNodeEnum::Minus(_) => PlanNodeCategory::DataProcessing,
+            PlanNodeEnum::Intersect(_) => PlanNodeCategory::DataProcessing,
             PlanNodeEnum::Unwind(_) => PlanNodeCategory::DataProcessing,
             PlanNodeEnum::Assign(_) => PlanNodeCategory::DataProcessing,
             PlanNodeEnum::MultiShortestPath(_) => PlanNodeCategory::Algorithm,
@@ -875,6 +910,34 @@ impl PlanNodeEnum {
         }
     }
 
+    pub fn as_create_user_mut(&mut self) -> Option<&mut CreateUserNode> {
+        match self {
+            PlanNodeEnum::CreateUser(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_alter_user_mut(&mut self) -> Option<&mut AlterUserNode> {
+        match self {
+            PlanNodeEnum::AlterUser(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_drop_user_mut(&mut self) -> Option<&mut DropUserNode> {
+        match self {
+            PlanNodeEnum::DropUser(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_change_password_mut(&mut self) -> Option<&mut ChangePasswordNode> {
+        match self {
+            PlanNodeEnum::ChangePassword(node) => Some(node),
+            _ => None,
+        }
+    }
+
     pub fn as_get_vertices(&self) -> Option<&GetVerticesNode> {
         match self {
             PlanNodeEnum::GetVertices(node) => Some(node),
@@ -906,6 +969,13 @@ impl PlanNodeEnum {
     pub fn as_scan_edges(&self) -> Option<&ScanEdgesNode> {
         match self {
             PlanNodeEnum::ScanEdges(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_edge_index_scan(&self) -> Option<&EdgeIndexScanNode> {
+        match self {
+            PlanNodeEnum::EdgeIndexScan(node) => Some(node),
             _ => None,
         }
     }
@@ -1039,6 +1109,34 @@ impl PlanNodeEnum {
     pub fn as_show_edges(&self) -> Option<&ShowEdgesNode> {
         match self {
             PlanNodeEnum::ShowEdges(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_create_user(&self) -> Option<&CreateUserNode> {
+        match self {
+            PlanNodeEnum::CreateUser(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_alter_user(&self) -> Option<&AlterUserNode> {
+        match self {
+            PlanNodeEnum::AlterUser(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_drop_user(&self) -> Option<&DropUserNode> {
+        match self {
+            PlanNodeEnum::DropUser(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_change_password(&self) -> Option<&ChangePasswordNode> {
+        match self {
+            PlanNodeEnum::ChangePassword(node) => Some(node),
             _ => None,
         }
     }
@@ -1186,6 +1284,20 @@ impl PlanNodeEnum {
     pub fn as_union(&self) -> Option<&UnionNode> {
         match self {
             PlanNodeEnum::Union(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_minus(&self) -> Option<&MinusNode> {
+        match self {
+            PlanNodeEnum::Minus(node) => Some(node),
+            _ => None,
+        }
+    }
+
+    pub fn as_intersect(&self) -> Option<&IntersectNode> {
+        match self {
+            PlanNodeEnum::Intersect(node) => Some(node),
             _ => None,
         }
     }
@@ -1834,6 +1946,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::FulltextIndexScan(_) => vec![],
             PlanNodeEnum::ScanVertices(_) => vec![],
             PlanNodeEnum::ScanEdges(_) => vec![],
+            PlanNodeEnum::EdgeIndexScan(_) => vec![],
             PlanNodeEnum::GetVertices(_) => vec![],
             PlanNodeEnum::GetEdges(_) => vec![],
             PlanNodeEnum::GetNeighbors(_) => vec![],
@@ -1872,6 +1985,8 @@ impl PlanNodeEnum {
 
             // UnionNode: 使用 dependencies() 获取所有子节点
             PlanNodeEnum::Union(node) => node.dependencies().iter().map(|b| b.as_ref()).collect(),
+            PlanNodeEnum::Minus(node) => node.dependencies().iter().map(|b| b.as_ref()).collect(),
+            PlanNodeEnum::Intersect(node) => node.dependencies().iter().map(|b| b.as_ref()).collect(),
 
             // ControlFlowNode
             PlanNodeEnum::Argument(_) => vec![],
@@ -1902,6 +2017,7 @@ impl NodeType for PlanNodeEnum {
             PlanNodeEnum::GetNeighbors(_) => "get_neighbors",
             PlanNodeEnum::ScanVertices(_) => "scan_vertices",
             PlanNodeEnum::ScanEdges(_) => "scan_edges",
+            PlanNodeEnum::EdgeIndexScan(_) => "edge_index_scan",
             PlanNodeEnum::HashInnerJoin(_) => "hash_inner_join",
             PlanNodeEnum::HashLeftJoin(_) => "hash_left_join",
             PlanNodeEnum::IndexScan(_) => "index_scan",
@@ -1921,6 +2037,8 @@ impl NodeType for PlanNodeEnum {
             PlanNodeEnum::PatternApply(_) => "pattern_apply",
             PlanNodeEnum::RollUpApply(_) => "rollup_apply",
             PlanNodeEnum::Union(_) => "union",
+            PlanNodeEnum::Minus(_) => "minus",
+            PlanNodeEnum::Intersect(_) => "intersect",
             PlanNodeEnum::Unwind(_) => "unwind",
             PlanNodeEnum::Assign(_) => "assign",
             PlanNodeEnum::MultiShortestPath(_) => "multi_shortest_path",
@@ -1974,6 +2092,7 @@ impl NodeType for PlanNodeEnum {
             PlanNodeEnum::GetNeighbors(_) => "Get Neighbors",
             PlanNodeEnum::ScanVertices(_) => "Scan Vertices",
             PlanNodeEnum::ScanEdges(_) => "Scan Edges",
+            PlanNodeEnum::EdgeIndexScan(_) => "Edge Index Scan",
             PlanNodeEnum::HashInnerJoin(_) => "Hash Inner Join",
             PlanNodeEnum::HashLeftJoin(_) => "Hash Left Join",
             PlanNodeEnum::IndexScan(_) => "Index Scan",
@@ -1993,6 +2112,8 @@ impl NodeType for PlanNodeEnum {
             PlanNodeEnum::PatternApply(_) => "Pattern Apply",
             PlanNodeEnum::RollUpApply(_) => "RollUp Apply",
             PlanNodeEnum::Union(_) => "Union",
+            PlanNodeEnum::Minus(_) => "Minus",
+            PlanNodeEnum::Intersect(_) => "Intersect",
             PlanNodeEnum::Unwind(_) => "Unwind",
             PlanNodeEnum::Assign(_) => "Assign",
             PlanNodeEnum::MultiShortestPath(_) => "Multi Shortest Path",
@@ -2046,6 +2167,7 @@ impl NodeType for PlanNodeEnum {
             PlanNodeEnum::GetNeighbors(_) => NodeCategory::Scan,
             PlanNodeEnum::ScanVertices(_) => NodeCategory::Scan,
             PlanNodeEnum::ScanEdges(_) => NodeCategory::Scan,
+            PlanNodeEnum::EdgeIndexScan(_) => NodeCategory::Scan,
             PlanNodeEnum::HashInnerJoin(_) => NodeCategory::Join,
             PlanNodeEnum::HashLeftJoin(_) => NodeCategory::Join,
             PlanNodeEnum::IndexScan(_) => NodeCategory::Scan,
@@ -2065,6 +2187,8 @@ impl NodeType for PlanNodeEnum {
             PlanNodeEnum::PatternApply(_) => NodeCategory::DataCollect,
             PlanNodeEnum::RollUpApply(_) => NodeCategory::DataCollect,
             PlanNodeEnum::Union(_) => NodeCategory::SetOp,
+            PlanNodeEnum::Minus(_) => NodeCategory::SetOp,
+            PlanNodeEnum::Intersect(_) => NodeCategory::SetOp,
             PlanNodeEnum::Unwind(_) => NodeCategory::DataCollect,
             PlanNodeEnum::Assign(_) => NodeCategory::DataCollect,
             PlanNodeEnum::MultiShortestPath(_) => NodeCategory::Path,
@@ -2123,6 +2247,7 @@ impl NodeTypeMapping for PlanNodeEnum {
             PlanNodeEnum::GetNeighbors(_) => Some("get_neighbors"),
             PlanNodeEnum::ScanVertices(_) => Some("scan_vertices"),
             PlanNodeEnum::ScanEdges(_) => Some("scan_edges"),
+            PlanNodeEnum::EdgeIndexScan(_) => Some("edge_index_scan"),
             PlanNodeEnum::HashInnerJoin(_) => Some("hash_inner_join"),
             PlanNodeEnum::HashLeftJoin(_) => Some("hash_left_join"),
             PlanNodeEnum::IndexScan(_) => Some("index_scan"),
@@ -2142,6 +2267,8 @@ impl NodeTypeMapping for PlanNodeEnum {
             PlanNodeEnum::PatternApply(_) => Some("pattern_apply"),
             PlanNodeEnum::RollUpApply(_) => Some("rollup_apply"),
             PlanNodeEnum::Union(_) => Some("union"),
+            PlanNodeEnum::Minus(_) => Some("minus"),
+            PlanNodeEnum::Intersect(_) => Some("intersect"),
             PlanNodeEnum::Unwind(_) => Some("unwind"),
             PlanNodeEnum::Assign(_) => Some("assign"),
             PlanNodeEnum::MultiShortestPath(_) => Some("multi_shortest_path"),

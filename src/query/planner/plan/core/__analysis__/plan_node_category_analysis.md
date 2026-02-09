@@ -6,11 +6,11 @@
 
 ## 当前节点清单
 
-GraphDB 当前共有 **66** 个 PlanNode 类型，按功能分为 8 个类别。
+GraphDB 当前共有 **69** 个 PlanNode 类型，按功能分为 8 个类别。
 
 ## 分类体系
 
-### 1. 访问层（Access Layer）- 8 个节点
+### 1. 访问层（Access Layer）- 9 个节点
 
 **职责**：从存储层读取数据，是执行计划的起始点。
 
@@ -23,6 +23,7 @@ GraphDB 当前共有 **66** 个 PlanNode 类型，按功能分为 8 个类别。
 | GetEdgesNode | 按ID/属性获取边 | 索引 | GetEdges |
 | GetNeighborsNode | 获取顶点的邻居节点 | 顶点 | GetNeighbors |
 | IndexScan | 索引扫描节点 | 索引 | IndexScan |
+| EdgeIndexScan | 边索引扫描节点 | 索引 | EdgeIndexScan |
 | FulltextIndexScan | 全文索引扫描 | 索引 | FulltextIndexScan |
 
 ### 2. 操作层（Operation Layer）- 8 个节点
@@ -76,7 +77,7 @@ GraphDB 当前共有 **66** 个 PlanNode 类型，按功能分为 8 个类别。
 | PassThroughNode | 直通传递 | 输入流 | PassThrough |
 | SelectNode | 条件选择 | 多分支 | Select |
 
-### 6. 数据处理层（Data Processing Layer）- 6 个节点
+### 6. 数据处理层（Data Processing Layer）- 8 个节点
 
 **职责**：复杂数据操作和转换。
 
@@ -84,6 +85,8 @@ GraphDB 当前共有 **66** 个 PlanNode 类型，按功能分为 8 个类别。
 |---------|------|-----|------------------|
 | DataCollectNode | 数据收集 | 多输入流 | DataCollect |
 | UnionNode | 并集操作 | 多输入流 | Union |
+| MinusNode | 差集操作 | 两个输入流 | Minus |
+| IntersectNode | 交集操作 | 两个输入流 | Intersect |
 | UnwindNode | 展开数组 | 输入数据流 | Unwind |
 | AssignNode | 变量赋值 | 输入数据流 | Assign |
 | PatternApplyNode | 模式应用 | 模式匹配 | PatternApply |
@@ -163,20 +166,19 @@ GraphDB 当前共有 **66** 个 PlanNode 类型，按功能分为 8 个类别。
 
 | 类别 | GraphDB | nebula-graph | 差异说明 |
 |-----|---------|-------------|---------|
-| 访问层 | 8 | 10+ | nebula-graph 有更多扫描变体 |
+| 访问层 | 9 | 10+ | nebula-graph 有 TagIndexFullScan |
 | 操作层 | 8 | 10+ | nebula-graph 有更多聚合函数 |
 | 连接层 | 5 | 8+ | nebula-graph 支持更多连接类型 |
 | 遍历层 | 4 | 6+ | nebula-graph 有更复杂的遍历节点 |
 | 控制流层 | 4 | 6+ | nebula-graph 有更多控制节点 |
-| 数据处理层 | 6 | 8+ | nebula-graph 有更多数据处理节点 |
+| 数据处理层 | 8 | 8+ | 基本对齐 |
 | 算法层 | 4 | 6+ | nebula-graph 支持更多图算法 |
 | 管理/DDL层 | 27 | 30+ | nebula-graph 有更完整的DDL支持 |
-| **总计** | **66** | **80+** | GraphDB 精简了部分节点 |
+| **总计** | **69** | **80+** | GraphDB 精简了部分节点 |
 
 ### nebula-graph 有但 GraphDB 暂未实现的节点
 
 #### 访问层
-- **EdgeIndexScan**: 边索引扫描
 - **TagIndexFullScan**: 标签索引全扫描
 
 #### 连接层
@@ -192,10 +194,6 @@ GraphDB 当前共有 **66** 个 PlanNode 类型，按功能分为 8 个类别。
 #### 控制流层
 - **BiLeftJoin**: 双向左连接
 - **BiInnerJoin**: 双向内连接
-
-#### 数据处理层
-- **Minus**: 差集操作
-- **Intersect**: 交集操作
 
 #### 算法层
 - **ProduceSemiShortestPath**: 生成半最短路径
@@ -238,7 +236,7 @@ GraphDB 当前共有 **66** 个 PlanNode 类型，按功能分为 8 个类别。
 
 **nebula-graph**: 支持完整的集合操作（Union, Minus, Intersect）。
 
-**GraphDB**: 目前只实现了 Union，Minus 和 Intersect 暂未实现。
+**GraphDB**: 已实现完整的集合操作（Union, Minus, Intersect）。
 
 #### 4. 连接类型
 
@@ -265,6 +263,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::GetEdges(_) => PlanNodeCategory::Access,
             PlanNodeEnum::GetNeighbors(_) => PlanNodeCategory::Access,
             PlanNodeEnum::IndexScan(_) => PlanNodeCategory::Access,
+            PlanNodeEnum::EdgeIndexScan(_) => PlanNodeCategory::Access,
             PlanNodeEnum::FulltextIndexScan(_) => PlanNodeCategory::Access,
 
             // 操作层
@@ -297,53 +296,46 @@ impl PlanNodeEnum {
 | 分类 | 前缀 | 示例 |
 |-----|------|-----|
 | 访问层 | Scan/Get | ScanVertices, GetNeighbors |
-| 操作层 | 动词+名词 | Filter, Project, Aggregate |
-| 连接层 | Join/Product | InnerJoin, CrossJoin |
+| 操作层 | Filter/Project/Aggregate | Filter, Project, Aggregate |
+| 连接层 | Join | InnerJoin, LeftJoin |
 | 遍历层 | Expand/Traverse | Expand, Traverse |
-| 控制流 | 描述性名称 | Argument, PassThrough |
-| 数据处理 | 描述性名称 | Union, Unwind |
-| 算法层 | 算法名称 | ShortestPath, BFSShortest |
-| 管理/DDL | 操作+对象 | CreateSpace, DropTag |
+| 控制流 | Loop/Select/Argument | Loop, Select |
+| 数据处理 | Union/Minus/Intersect | Union, Minus, Intersect |
+| 算法层 | ShortestPath/AllPaths | ShortestPath, AllPaths |
+| 管理/DDL | Create/Drop/Alter/Show | CreateSpace, DropTag |
 
-### 命名规范指南
+## 文件组织
 
-#### 1. 节点命名规则
+### 节点文件分布
 
-| 分类 | 推荐后缀 | 示例 |
+| 文件 | 包含节点 | 数量 |
 |-----|---------|-----|
-| 访问层 | Scan/Get | `ScanVerticesNode`, `GetNeighborsNode` |
-| 操作层 | 动词+名词 | `FilterNode`, `ProjectNode`, `AggregateNode` |
-| 连接层 | Join/Product | `InnerJoinNode`, `CrossJoinNode` |
-| 遍历层 | Expand/Traverse | `ExpandNode`, `TraverseNode` |
-| 控制流 | 描述性名称 | `ArgumentNode`, `PassThroughNode` |
-| 数据处理 | 描述性名称 | `UnionNode`, `UnwindNode` |
-| 算法层 | 算法名称+Node | `ShortestPathNode`, `BFSShortestNode` |
-| 管理/DDL | 操作+对象+Node | `CreateSpaceNode`, `DropTagNode` |
+| start_node.rs | StartNode | 1 |
+| graph_scan_node.rs | ScanVerticesNode, ScanEdgesNode, GetVerticesNode, GetEdgesNode, GetNeighborsNode, IndexScanNode, EdgeIndexScanNode, FulltextIndexScanNode | 8 |
+| filter_node.rs | FilterNode | 1 |
+| project_node.rs | ProjectNode | 1 |
+| aggregate_node.rs | AggregateNode | 1 |
+| sort_node.rs | SortNode, LimitNode, TopNNode | 3 |
+| sample_node.rs | SampleNode | 1 |
+| join_node.rs | InnerJoinNode, LeftJoinNode, CrossJoinNode, HashInnerJoinNode, HashLeftJoinNode | 5 |
+| traversal_node.rs | ExpandNode, ExpandAllNode, TraverseNode, AppendVerticesNode | 4 |
+| control_flow_node.rs | ArgumentNode, LoopNode, PassThroughNode, SelectNode | 4 |
+| data_processing_node.rs | DataCollectNode, UnionNode, UnwindNode, AssignNode, PatternApplyNode, RollUpApplyNode | 6 |
+| set_operations_node.rs | MinusNode, IntersectNode | 2 |
+| space_nodes.rs | CreateSpaceNode, DropSpaceNode, DescSpaceNode, ShowSpacesNode | 4 |
+| tag_nodes.rs | CreateTagNode, AlterTagNode, DescTagNode, DropTagNode, ShowTagsNode | 5 |
+| edge_nodes.rs | CreateEdgeNode, AlterEdgeNode, DescEdgeNode, DropEdgeNode, ShowEdgesNode | 5 |
+| index_nodes.rs | CreateTagIndexNode, DropTagIndexNode, DescTagIndexNode, ShowTagIndexesNode, CreateEdgeIndexNode, DropEdgeIndexNode, DescEdgeIndexNode, ShowEdgeIndexesNode, RebuildTagIndexNode, RebuildEdgeIndexNode | 10 |
+| user_nodes.rs | CreateUserNode, AlterUserNode, DropUserNode, ChangePasswordNode | 4 |
 
-#### 2. 命名一致性原则
+## 总结
 
-- **避免同义多名**：如果两个名称表示相同概念，选择一个作为标准
-- **向后兼容**：如果已有代码使用某名称，考虑保留别名
-- **语义清晰**：名称应能表达节点的功能
-- **遵循惯例**：参考 SQL 标准语法（如 `CROSS JOIN` 而非 `CartesianProduct`）
+GraphDB 的 PlanNode 分类体系设计遵循以下原则：
 
-## 未来扩展建议
+1. **职责单一**：每个节点只负责一种操作
+2. **分类清晰**：按功能分为 8 个层次
+3. **命名统一**：遵循统一的命名规范
+4. **文件分离**：按功能分组到不同文件
+5. **与 nebula-graph 对齐**：保持与原始设计的兼容性
 
-### 高优先级
-
-1. **Minus/Intersect 节点**：实现完整的集合操作支持
-2. **EdgeIndexScan**：边索引扫描支持
-
-### 中优先级
-
-1. **RightJoin/FullOuterJoin**：完整的 SQL 连接支持
-2. **SemiJoin/AntiJoin**：子查询优化
-
-### 低优先级
-
-1. **双向遍历节点**：BiExpand, BiTraverse 等
-2. **更多图算法**：如 PageRank, Connected Components 等
-
-### 不考虑实现
-
-- 所有分布式相关节点（AddHosts, Balance, Job 相关等），因为 GraphDB 定位为单机图数据库
+当前 69 个节点覆盖了查询执行、数据处理和元数据管理的主要场景，能够满足大部分图数据库查询需求。

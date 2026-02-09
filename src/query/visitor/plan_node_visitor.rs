@@ -14,6 +14,7 @@ use crate::query::planner::plan::core::nodes::index_nodes::*;
 use crate::query::planner::plan::core::nodes::join_node::*;
 use crate::query::planner::plan::core::nodes::project_node::*;
 use crate::query::planner::plan::core::nodes::sample_node::*;
+use crate::query::planner::plan::core::nodes::set_operations_node::*;
 use crate::query::planner::plan::core::nodes::sort_node::*;
 use crate::query::planner::plan::core::nodes::space_nodes::*;
 use crate::query::planner::plan::core::nodes::start_node::*;
@@ -91,6 +92,11 @@ pub trait PlanNodeVisitor {
 
     /// 访问扫描边节点
     fn visit_scan_edges(&mut self, _node: &ScanEdgesNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问边索引扫描节点
+    fn visit_edge_index_scan(&mut self, _node: &EdgeIndexScanNode) -> Self::Result {
         self.visit_default()
     }
 
@@ -191,6 +197,16 @@ pub trait PlanNodeVisitor {
 
     /// 访问并集节点
     fn visit_union(&mut self, _node: &UnionNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问差集节点
+    fn visit_minus(&mut self, _node: &MinusNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问交集节点
+    fn visit_intersect(&mut self, _node: &IntersectNode) -> Self::Result {
         self.visit_default()
     }
 
@@ -363,6 +379,7 @@ pub trait PlanNodeVisitor {
             PlanNodeEnum::GetNeighbors(n) => self.visit_get_neighbors(n),
             PlanNodeEnum::ScanVertices(n) => self.visit_scan_vertices(n),
             PlanNodeEnum::ScanEdges(n) => self.visit_scan_edges(n),
+            PlanNodeEnum::EdgeIndexScan(n) => self.visit_edge_index_scan(n),
             PlanNodeEnum::IndexScan(n) => self.visit_index_scan(n),
             PlanNodeEnum::FulltextIndexScan(n) => self.visit_fulltext_index_scan(n),
             PlanNodeEnum::Expand(n) => self.visit_expand(n),
@@ -383,6 +400,8 @@ pub trait PlanNodeVisitor {
             PlanNodeEnum::PatternApply(n) => self.visit_pattern_apply(n),
             PlanNodeEnum::RollUpApply(n) => self.visit_rollup_apply(n),
             PlanNodeEnum::Union(n) => self.visit_union(n),
+            PlanNodeEnum::Minus(n) => self.visit_minus(n),
+            PlanNodeEnum::Intersect(n) => self.visit_intersect(n),
             PlanNodeEnum::Unwind(n) => self.visit_unwind(n),
             PlanNodeEnum::Assign(n) => self.visit_assign(n),
             PlanNodeEnum::MultiShortestPath(n) => self.visit_multi_shortest_path(n),

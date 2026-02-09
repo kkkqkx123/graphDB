@@ -15,6 +15,7 @@ pub mod plan_node_operations;
 pub mod plan_node_traits;
 pub mod project_node;
 pub mod sample_node;
+pub mod set_operations_node;
 pub mod sort_node;
 pub mod space_nodes;
 pub mod start_node;
@@ -27,6 +28,7 @@ pub use control_flow_node::{ArgumentNode, LoopNode, PassThroughNode, SelectNode}
 pub use data_processing_node::{
     AssignNode, DataCollectNode, DedupNode, PatternApplyNode, RollUpApplyNode, UnionNode, UnwindNode,
 };
+pub use set_operations_node::{IntersectNode, MinusNode};
 pub use edge_nodes::{
     AlterEdgeNode, CreateEdgeNode, DescEdgeNode, DropEdgeNode, EdgeAlterInfo, EdgeManageInfo,
     ShowEdgesNode,
@@ -34,7 +36,7 @@ pub use edge_nodes::{
 pub use factory::PlanNodeFactory;
 pub use filter_node::FilterNode;
 pub use graph_scan_node::{
-    GetEdgesNode, GetNeighborsNode, GetVerticesNode, ScanEdgesNode, ScanVerticesNode,
+    EdgeIndexScanNode, GetEdgesNode, GetNeighborsNode, GetVerticesNode, ScanEdgesNode, ScanVerticesNode,
 };
 pub use index_nodes::{
     CreateEdgeIndexNode, CreateTagIndexNode, DescEdgeIndexNode, DescTagIndexNode,

@@ -8,7 +8,7 @@
 
 根据节点的输入特性，PlanNode 分为以下几类：
 
-### 1. 零输入节点（ZeroInputNode）- 3 个
+### 1. 零输入节点（ZeroInputNode）- 4 个
 
 **定义**：没有输入依赖的节点，作为执行计划的起始点。
 
@@ -18,6 +18,7 @@
 | StartNode | 执行计划入口 | 无 | start_node.rs |
 | ScanVerticesNode | 全表扫描顶点 | 无 | graph_scan_node.rs |
 | ScanEdgesNode | 全表扫描边 | 无 | graph_scan_node.rs |
+| EdgeIndexScanNode | 边索引扫描 | 无 | graph_scan_node.rs |
 
 **特点**：
 - 作为叶子节点出现在执行计划中
@@ -34,7 +35,7 @@ define_plan_node! {
 }
 ```
 
-### 2. 单输入节点（SingleInputNode）- 17 个
+### 2. 单输入节点（SingleInputNode）- 19 个
 
 **定义**：只有一个上游输入节点的节点。
 
@@ -58,6 +59,9 @@ define_plan_node! {
 | UnwindNode | 展开数组 | 输入数据流 | data_processing_node.rs |
 | AssignNode | 变量赋值 | 输入数据流 | data_processing_node.rs |
 | RollUpApplyNode | 上卷应用 | 聚合模式 | data_processing_node.rs |
+| GetVerticesNode | 按ID获取顶点 | 需要输入提供ID | graph_scan_node.rs |
+| GetEdgesNode | 按ID获取边 | 需要输入提供ID | graph_scan_node.rs |
+| GetNeighborsNode | 获取邻居 | 需要输入提供顶点 | graph_scan_node.rs |
 
 **特点**：
 - 构成执行计划的主体
@@ -76,9 +80,9 @@ define_plan_node_with_deps! {
 }
 ```
 
-### 3. 双输入节点（BinaryInputNode）- 5 个
+### 3. 双输入节点（BinaryInputNode）- 7 个
 
-**定义**：有两个上游输入节点的节点，通常用于连接操作。
+**定义**：有两个上游输入节点的节点，通常用于连接操作和集合操作。
 
 **节点列表**：
 | 节点类型 | 说明 | 输入依赖 | 文件位置 |
@@ -88,6 +92,8 @@ define_plan_node_with_deps! {
 | CrossJoinNode | 交叉连接 | 两个输入流 | join_node.rs |
 | HashInnerJoinNode | 哈希内连接 | 两个输入流 | join_node.rs |
 | HashLeftJoinNode | 哈希左连接 | 两个输入流 | join_node.rs |
+| MinusNode | 差集操作 | 两个输入流 | set_operations_node.rs |
+| IntersectNode | 交集操作 | 两个输入流 | set_operations_node.rs |
 
 **特点**：
 - 需要协调两个输入流
@@ -102,6 +108,38 @@ define_binary_plan_node! {
         join_keys: Vec<Expression>,
     }
     enum: InnerJoin
+}
+```
+
+**MinusNode 特殊依赖**：
+```rust
+pub struct MinusNode {
+    id: i64,
+    input: Option<Box<PlanNodeEnum>>,      // 主输入
+    deps: Vec<Box<PlanNodeEnum>>,          // 依赖列表 [主输入, 减输入]
+    // ...
+}
+
+impl MinusNode {
+    pub fn minus_input(&self) -> &PlanNodeEnum {
+        &self.deps[1]  // 第二个输入是要减去的集合
+    }
+}
+```
+
+**IntersectNode 特殊依赖**：
+```rust
+pub struct IntersectNode {
+    id: i64,
+    input: Option<Box<PlanNodeEnum>>,      // 主输入
+    deps: Vec<Box<PlanNodeEnum>>,          // 依赖列表 [主输入, 交输入]
+    // ...
+}
+
+impl IntersectNode {
+    pub fn intersect_input(&self) -> &PlanNodeEnum {
+        &self.deps[1]  // 第二个输入是求交的集合
+    }
 }
 ```
 
@@ -141,9 +179,9 @@ define_plan_node_with_deps! {
 | LoopNode | 循环执行 | 包含循环体依赖 | control_flow_node.rs |
 | SelectNode | 条件选择 | 包含多分支依赖 | control_flow_node.rs |
 | PatternApplyNode | 模式应用 | 模式匹配依赖 | data_processing_node.rs |
-| GetVerticesNode | 按ID获取顶点 | 需要输入提供ID | graph_scan_node.rs |
-| GetEdgesNode | 按ID获取边 | 需要输入提供ID | graph_scan_node.rs |
-| GetNeighborsNode | 获取邻居 | 需要输入提供顶点 | graph_scan_node.rs |
+| IndexScanNode | 索引扫描 | 依赖索引 | graph_scan_node.rs |
+| FulltextIndexScanNode | 全文索引扫描 | 依赖索引 | graph_scan_node.rs |
+| EdgeIndexScanNode | 边索引扫描 | 依赖索引 | graph_scan_node.rs |
 
 **LoopNode 特殊依赖**：
 ```rust
@@ -244,6 +282,50 @@ MATCH (n) RETURN n UNION MATCH (m) RETURN m
             │
             ▼
     ProjectNode [SingleInputNode] ───┘
+```
+
+### Minus 查询结构
+
+```
+MATCH (n) RETURN n MINUS MATCH (m) RETURN m
+│
+├── ScanVerticesNode (n) [ZeroInputNode]
+│       │
+│       ▼
+├── ProjectNode [SingleInputNode]
+│       │
+│       ▼
+├── MinusNode [BinaryInputNode] ◄────┐
+│       │                            │
+│       └── 主输入                    │
+│                                     │
+│   ScanVerticesNode (m) [ZeroInputNode]
+│           │
+│           ▼
+│   ProjectNode [SingleInputNode] ───┘
+│       (减输入)
+```
+
+### Intersect 查询结构
+
+```
+MATCH (n) RETURN n INTERSECT MATCH (m) RETURN m
+│
+├── ScanVerticesNode (n) [ZeroInputNode]
+│       │
+│       ▼
+├── ProjectNode [SingleInputNode]
+│       │
+│       ▼
+├── IntersectNode [BinaryInputNode] ◄──┐
+│       │                              │
+│       └── 主输入                      │
+│                                       │
+│   ScanVerticesNode (m) [ZeroInputNode]
+│           │
+│           ▼
+│   ProjectNode [SingleInputNode] ─────┘
+│       (交输入)
 ```
 
 ### 循环查询结构
@@ -375,6 +457,38 @@ impl UnionNode {
 }
 ```
 
+### 规则4：集合操作模式兼容
+
+```rust
+impl MinusNode {
+    pub fn new(
+        input: PlanNodeEnum,
+        minus_input: PlanNodeEnum,
+    ) -> Result<Self, PlannerError> {
+        // 验证两个输入的模式兼容
+        let input_schema = input.output_schema()?;
+        let minus_schema = minus_input.output_schema()?;
+        
+        if !schemas_compatible(&input_schema, &minus_schema) {
+            return Err(PlannerError::SchemaMismatch(
+                "Minus inputs must have compatible schemas".to_string()
+            ));
+        }
+        
+        let col_names = input.col_names().to_vec();
+        
+        Ok(Self {
+            id: -1,
+            input: Some(Box::new(input.clone())),
+            deps: vec![Box::new(input), Box::new(minus_input)],
+            output_var: None,
+            col_names,
+            cost: 0.0,
+        })
+    }
+}
+```
+
 ## 与 nebula-graph 的依赖关系对比
 
 ### 依赖类型支持对比
@@ -486,6 +600,31 @@ pub fn can_pipeline(node: &PlanNodeEnum) -> bool {
 }
 ```
 
+### 5. 集合操作优化
+
+```rust
+pub fn optimize_set_operations(plan: &mut ExecutionPlan) {
+    match plan.root() {
+        PlanNodeEnum::Minus(minus) => {
+            // 如果减输入为空，直接返回主输入
+            if is_empty_input(minus.minus_input()) {
+                *plan.root_mut() = minus.input().clone();
+            }
+        }
+        PlanNodeEnum::Intersect(intersect) => {
+            // 选择较小的输入作为构建表
+            let input_size = estimate_size(intersect.input());
+            let intersect_size = estimate_size(intersect.intersect_input());
+            
+            if intersect_size < input_size {
+                // 交换输入顺序以优化性能
+            }
+        }
+        _ => {}
+    }
+}
+```
+
 ## 依赖关系文件组织
 
 当前节点文件按依赖类型和功能组织：
@@ -498,8 +637,9 @@ src/query/planner/plan/core/nodes/
 ├── plan_node_enum.rs         # 节点枚举
 │
 ├── start_node.rs             # ZeroInputNode: Start
-├── graph_scan_node.rs        # ZeroInputNode: ScanVertices, ScanEdges
+├── graph_scan_node.rs        # ZeroInputNode: ScanVertices, ScanEdges, EdgeIndexScan
 │                              # SingleInputNode: GetVertices, GetEdges, GetNeighbors
+│                              # Special: IndexScan, FulltextIndexScan
 ├── space_nodes.rs            # ZeroInputNode: 4 个空间管理节点
 ├── tag_nodes.rs              # ZeroInputNode: 5 个标签管理节点
 ├── edge_nodes.rs             # ZeroInputNode: 5 个边类型管理节点
@@ -518,12 +658,23 @@ src/query/planner/plan/core/nodes/
 │                              # MultipleInputNode: Union, DataCollect
 │                              # 特殊: PatternApply
 ├── join_node.rs              # BinaryInputNode: 5 个连接节点
+├── set_operations_node.rs    # BinaryInputNode: Minus, Intersect
 │
 └── algorithms/               # 算法节点
     ├── mod.rs
-    ├── index_scan.rs         # IndexScan, FulltextIndexScan
     └── path_algorithms.rs    # ShortestPath, AllPaths, MultiShortestPath, BFSShortest
 ```
+
+## 依赖关系统计
+
+| 依赖类型 | 节点数量 | 占比 | 主要用途 |
+|---------|---------|-----|---------|
+| ZeroInputNode | 31 | 44.9% | 数据访问起点、DDL操作 |
+| SingleInputNode | 19 | 27.5% | 数据转换、过滤、排序 |
+| BinaryInputNode | 7 | 10.1% | 连接操作、集合操作 |
+| MultipleInputNode | 2 | 2.9% | 并集、数据收集 |
+| 特殊节点 | 10 | 14.5% | 控制流、索引扫描、算法 |
+| **总计** | **69** | **100%** | - |
 
 ## 未来优化建议
 
@@ -563,5 +714,39 @@ pub fn analyze_dependencies_parallel(node: &PlanNodeEnum) -> DependencyGraph {
         }
         // ...
     }
+}
+```
+
+### 4. 集合操作优化
+
+针对 Minus 和 Intersect 节点，可以实现更多优化策略：
+
+```rust
+pub fn optimize_minus(node: &MinusNode) -> PlanNodeEnum {
+    // 如果减输入是空集，直接返回主输入
+    if is_empty(node.minus_input()) {
+        return node.input().clone();
+    }
+    
+    // 如果两个输入相同，返回空集
+    if node.input() == node.minus_input() {
+        return PlanNodeEnum::Start(StartNode::new());
+    }
+    
+    PlanNodeEnum::Minus(node.clone())
+}
+
+pub fn optimize_intersect(node: &IntersectNode) -> PlanNodeEnum {
+    // 如果交输入是空集，返回空集
+    if is_empty(node.intersect_input()) {
+        return PlanNodeEnum::Start(StartNode::new());
+    }
+    
+    // 如果两个输入相同，返回任意一个
+    if node.input() == node.intersect_input() {
+        return node.input().clone();
+    }
+    
+    PlanNodeEnum::Intersect(node.clone())
 }
 ```

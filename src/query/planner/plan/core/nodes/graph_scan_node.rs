@@ -70,6 +70,58 @@ impl GetVerticesNode {
 }
 
 define_plan_node! {
+    pub struct EdgeIndexScanNode {
+        space_id: i32,
+        edge_type: String,
+        index_name: String,
+        expression: Option<String>,
+        limit: Option<i64>,
+    }
+    enum: EdgeIndexScan
+    input: ZeroInputNode
+}
+
+impl EdgeIndexScanNode {
+    pub fn new(space_id: i32, edge_type: &str, index_name: &str) -> Self {
+        Self {
+            id: next_node_id(),
+            space_id,
+            edge_type: edge_type.to_string(),
+            index_name: index_name.to_string(),
+            expression: None,
+            limit: None,
+            output_var: None,
+            col_names: Vec::new(),
+            cost: 0.0,
+        }
+    }
+
+    pub fn set_limit(&mut self, limit: i64) {
+        self.limit = Some(limit);
+    }
+
+    pub fn space_id(&self) -> i32 {
+        self.space_id
+    }
+
+    pub fn edge_type(&self) -> &str {
+        &self.edge_type
+    }
+
+    pub fn index_name(&self) -> &str {
+        &self.index_name
+    }
+
+    pub fn filter(&self) -> Option<&String> {
+        self.expression.as_ref()
+    }
+
+    pub fn limit(&self) -> Option<i64> {
+        self.limit
+    }
+}
+
+define_plan_node! {
     pub struct GetEdgesNode {
         space_id: i32,
         edge_ref: Expression,
