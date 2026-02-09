@@ -313,7 +313,7 @@ impl PlanNodeEnum {
                 node.inputs().iter().map(|input| input.clone()).collect()
             }
             PlanNodeEnum::Traverse(node) => {
-                node.inputs().iter().map(|input| input.clone()).collect()
+                vec![Box::new(node.input().clone())]
             }
             PlanNodeEnum::AppendVertices(node) => {
                 node.inputs().iter().map(|input| input.clone()).collect()

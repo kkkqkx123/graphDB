@@ -6,6 +6,7 @@ pub mod factory;
 pub mod filter_node;
 pub mod graph_scan_node;
 pub mod join_node;
+pub mod macros;
 pub mod management_node_enum;
 pub mod management_node_traits;
 pub mod plan_node_category;

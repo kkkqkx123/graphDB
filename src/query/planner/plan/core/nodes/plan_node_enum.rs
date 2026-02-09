@@ -1867,7 +1867,7 @@ impl PlanNodeEnum {
             // MultipleInputNode: 有多个子节点
             PlanNodeEnum::Expand(node) => node.dependencies().iter().map(|b| b.as_ref()).collect(),
             PlanNodeEnum::ExpandAll(node) => node.dependencies().iter().map(|b| b.as_ref()).collect(),
-            PlanNodeEnum::Traverse(node) => node.dependencies().iter().map(|b| b.as_ref()).collect(),
+            PlanNodeEnum::Traverse(node) => node.dependencies().into_iter().collect(),
             PlanNodeEnum::AppendVertices(node) => node.dependencies().iter().map(|b| b.as_ref()).collect(),
 
             // UnionNode: 使用 dependencies() 获取所有子节点

@@ -423,7 +423,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                 let executor = ScanEdgesExecutor::new(
                     node.id(),
                     storage,
-                    Some(node.edge_type().to_string()),
+                    node.edge_type(),
                     node.filter().and_then(|f| parse_expression_safe(f)),
                     node.limit().map(|l| l as usize),
                 );
@@ -815,7 +815,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             // AppendVertices执行器 - 追加顶点到路径结果
             PlanNodeEnum::AppendVertices(node) => {
                 let input_var = node.input_var()
-                    .cloned()
+                    .map(|v| v.name.clone())
                     .unwrap_or_else(|| format!("input_{}", node.id()));
 
                 let src_expression = node.src_expression()
@@ -827,7 +827,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     storage,
                     input_var,
                     src_expression,
-                    node.v_filter().cloned(),
+                    None,
                     node.col_names().to_vec(),
                     node.dedup(),
                     node.track_prev_path(),

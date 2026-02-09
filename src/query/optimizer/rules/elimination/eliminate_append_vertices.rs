@@ -2,7 +2,7 @@
 
 use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult};
 use crate::query::optimizer::rule_traits::{create_basic_pattern, BaseOptRule};
-use crate::query::planner::plan::core::nodes::plan_node_traits::MultipleInputNode;
+use crate::query::planner::plan::core::nodes::plan_node_traits::{MultipleInputNode, PlanNode};
 use crate::query::visitor::PlanNodeVisitor;
 use std::rc::Rc;
 use std::cell::RefCell;

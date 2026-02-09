@@ -177,22 +177,22 @@ impl PlanNodeFactory {
     /// 创建遍历节点
     pub fn create_traverse(
         space_id: i32,
-        edge_types: Vec<String>,
-        direction: &str,
+        start_vids: &str,
+        min_steps: u32,
+        max_steps: u32,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
         Ok(PlanNodeEnum::Traverse(TraverseNode::new(
-            space_id, edge_types, direction,
+            space_id, start_vids, min_steps, max_steps,
         )))
     }
 
     /// 创建追加顶点节点
     pub fn create_append_vertices(
         space_id: i32,
-        vids: Vec<Value>,
-        tag_ids: Vec<i32>,
+        vertex_tag: &str,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
         Ok(PlanNodeEnum::AppendVertices(AppendVerticesNode::new(
-            space_id, vids, tag_ids,
+            space_id, vertex_tag,
         )))
     }
 
