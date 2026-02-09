@@ -27,6 +27,7 @@ use crate::query::executor::data_processing::{
     CrossJoinExecutor, ExpandExecutor, InnerJoinExecutor, LeftJoinExecutor,
     UnionExecutor,
 };
+use crate::query::executor::data_processing::set_operations::{IntersectExecutor, MinusExecutor};
 use crate::query::executor::logic::LoopExecutor;
 use crate::query::executor::logic::SelectExecutor;
 use crate::query::executor::recursion_detector::{
@@ -270,6 +271,16 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             
             // 并集节点
             PlanNodeEnum::Union(n) => {
+                self.analyze_plan_node(n.input(), loop_layers)?;
+            }
+
+            // 差集节点
+            PlanNodeEnum::Minus(n) => {
+                self.analyze_plan_node(n.input(), loop_layers)?;
+            }
+
+            // 交集节点
+            PlanNodeEnum::Intersect(n) => {
                 self.analyze_plan_node(n.input(), loop_layers)?;
             }
 
@@ -625,6 +636,46 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     input_var,
                 );
                 Ok(ExecutorEnum::Union(executor))
+            }
+
+            PlanNodeEnum::Minus(node) => {
+                let left_var = node
+                    .input()
+                    .output_var()
+                    .map(|v| v.name.clone())
+                    .unwrap_or_else(|| format!("left_{}", node.id()));
+                let right_var = node
+                    .minus_input()
+                    .output_var()
+                    .map(|v| v.name.clone())
+                    .unwrap_or_else(|| format!("right_{}", node.id()));
+                let executor = MinusExecutor::new(
+                    node.id(),
+                    storage,
+                    left_var,
+                    right_var,
+                );
+                Ok(ExecutorEnum::Minus(executor))
+            }
+
+            PlanNodeEnum::Intersect(node) => {
+                let left_var = node
+                    .input()
+                    .output_var()
+                    .map(|v| v.name.clone())
+                    .unwrap_or_else(|| format!("left_{}", node.id()));
+                let right_var = node
+                    .intersect_input()
+                    .output_var()
+                    .map(|v| v.name.clone())
+                    .unwrap_or_else(|| format!("right_{}", node.id()));
+                let executor = IntersectExecutor::new(
+                    node.id(),
+                    storage,
+                    left_var,
+                    right_var,
+                );
+                Ok(ExecutorEnum::Intersect(executor))
             }
 
             // 图遍历执行器
@@ -1002,6 +1053,23 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     node.return_columns.clone(),
                     node.limit.map(|l| l as usize),
                     false, // is_edge - 简化实现，默认为false
+                );
+                Ok(ExecutorEnum::IndexScan(executor))
+            }
+
+            PlanNodeEnum::EdgeIndexScan(node) => {
+                let executor = IndexScanExecutor::new(
+                    node.id(),
+                    storage,
+                    node.space_id(),
+                    0, // tag_id - 边类型ID，简化为0
+                    0, // index_id - 索引ID，简化为0
+                    "EDGE_INDEX", // scan_type
+                    vec![], // scan_limits
+                    node.filter().and_then(|f| parse_expression_safe(f)),
+                    vec![], // return_columns
+                    node.limit().map(|l| l as usize),
+                    true, // is_edge - 边索引扫描
                 );
                 Ok(ExecutorEnum::IndexScan(executor))
             }

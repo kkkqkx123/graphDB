@@ -3,5 +3,7 @@
 //! 这些规则负责转换计划节点
 
 pub mod top_n;
+pub mod optimize_set_operation_input_order;
 
 pub use top_n::TopNRule;
+pub use optimize_set_operation_input_order::OptimizeSetOperationInputOrderRule;

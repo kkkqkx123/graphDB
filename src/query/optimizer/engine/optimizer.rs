@@ -116,6 +116,12 @@ impl Optimizer {
         if let Some(rule) = OptimizationRule::RemoveNoopProject.create_instance() {
             logical_rules.add_rule(rule);
         }
+        if let Some(rule) = OptimizationRule::EliminateEmptySetOperation.create_instance() {
+            logical_rules.add_rule(rule);
+        }
+        if let Some(rule) = OptimizationRule::OptimizeSetOperationInputOrder.create_instance() {
+            logical_rules.add_rule(rule);
+        }
         self.rule_sets.push(logical_rules);
 
         let mut physical_rules = RuleSet::new("physical");

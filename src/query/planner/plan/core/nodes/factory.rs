@@ -236,6 +236,26 @@ impl PlanNodeFactory {
         Ok(PlanNodeEnum::Union(union_node))
     }
 
+    /// 创建差集节点
+    pub fn create_minus(
+        input: PlanNodeEnum,
+        minus_input: PlanNodeEnum,
+    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+        use super::set_operations_node::MinusNode;
+        let minus_node = MinusNode::new(input, minus_input)?;
+        Ok(PlanNodeEnum::Minus(minus_node))
+    }
+
+    /// 创建交集节点
+    pub fn create_intersect(
+        input: PlanNodeEnum,
+        intersect_input: PlanNodeEnum,
+    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+        use super::set_operations_node::IntersectNode;
+        let intersect_node = IntersectNode::new(input, intersect_input)?;
+        Ok(PlanNodeEnum::Intersect(intersect_node))
+    }
+
     /// 创建展开节点
     pub fn create_unwind(
         input: PlanNodeEnum,
@@ -297,6 +317,17 @@ impl PlanNodeFactory {
         // 创建 IndexScan 节点
         let index_scan_node = IndexScan::new(-1, space_id, tag_id, index_id, scan_type);
         Ok(PlanNodeEnum::IndexScan(index_scan_node))
+    }
+
+    /// 创建边索引扫描节点
+    pub fn create_edge_index_scan(
+        space_id: i32,
+        edge_type: &str,
+        index_name: &str,
+    ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
+        use super::graph_scan_node::EdgeIndexScanNode;
+        let edge_index_scan_node = EdgeIndexScanNode::new(space_id, edge_type, index_name);
+        Ok(PlanNodeEnum::EdgeIndexScan(edge_index_scan_node))
     }
 }
 

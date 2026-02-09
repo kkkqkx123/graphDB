@@ -74,6 +74,7 @@ pub enum TokenKind {
     End,
     Union,
     Intersect,
+    SetMinus,
     Group,
     Between,
     Admin,

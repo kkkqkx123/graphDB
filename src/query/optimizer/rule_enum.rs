@@ -33,6 +33,8 @@ pub enum OptimizationRule {
     PushFilterDownGetNbrs,
     PushFilterDownExpandAll,
     PushFilterDownAllPaths,
+    EliminateEmptySetOperation,
+    OptimizeSetOperationInputOrder,
 
     // 物理优化规则
     JoinOptimization,
@@ -64,7 +66,8 @@ impl OptimizationRule {
             Self::PushFilterDownInnerJoin | Self::PushFilterDownHashInnerJoin |
             Self::PushFilterDownHashLeftJoin | Self::PushFilterDownCrossJoin |
             Self::PushFilterDownGetNbrs | Self::PushFilterDownExpandAll |
-            Self::PushFilterDownAllPaths => OptimizationPhase::Logical,
+            Self::PushFilterDownAllPaths | Self::EliminateEmptySetOperation |
+            Self::OptimizeSetOperationInputOrder => OptimizationPhase::Logical,
 
             Self::JoinOptimization | Self::PushLimitDownGetVertices |
             Self::PushLimitDownGetEdges |
@@ -103,6 +106,8 @@ impl OptimizationRule {
             Self::PushFilterDownGetNbrs => "PushFilterDownGetNbrsRule",
             Self::PushFilterDownExpandAll => "PushFilterDownExpandAllRule",
             Self::PushFilterDownAllPaths => "PushFilterDownAllPathsRule",
+            Self::EliminateEmptySetOperation => "EliminateEmptySetOperationRule",
+            Self::OptimizeSetOperationInputOrder => "OptimizeSetOperationInputOrderRule",
             Self::JoinOptimization => "JoinOptimizationRule",
             Self::PushLimitDownGetVertices => "PushLimitDownGetVerticesRule",
             Self::PushLimitDownGetEdges => "PushLimitDownGetEdgesRule",
@@ -146,6 +151,8 @@ impl OptimizationRule {
             Self::PushFilterDownGetNbrs => Some(Rc::new(super::PushFilterDownGetNbrsRule)),
             Self::PushFilterDownExpandAll => Some(Rc::new(super::PushFilterDownExpandAllRule)),
             Self::PushFilterDownAllPaths => Some(Rc::new(super::PushFilterDownAllPathsRule)),
+            Self::EliminateEmptySetOperation => Some(Rc::new(super::EliminateEmptySetOperationRule)),
+            Self::OptimizeSetOperationInputOrder => Some(Rc::new(super::OptimizeSetOperationInputOrderRule)),
 
             Self::JoinOptimization => Some(Rc::new(super::JoinOptimizationRule)),
             Self::PushLimitDownGetVertices => Some(Rc::new(super::PushLimitDownGetVerticesRule)),
@@ -190,6 +197,8 @@ impl OptimizationRule {
             "PushFilterDownGetNbrsRule" => Some(Self::PushFilterDownGetNbrs),
             "PushFilterDownExpandAllRule" => Some(Self::PushFilterDownExpandAll),
             "PushFilterDownAllPathsRule" => Some(Self::PushFilterDownAllPaths),
+            "EliminateEmptySetOperationRule" => Some(Self::EliminateEmptySetOperation),
+            "OptimizeSetOperationInputOrderRule" => Some(Self::OptimizeSetOperationInputOrder),
 
             "JoinOptimizationRule" => Some(Self::JoinOptimization),
             "PushLimitDownGetVerticesRule" => Some(Self::PushLimitDownGetVertices),
