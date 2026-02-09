@@ -4,15 +4,15 @@
 use super::plan_node_traits::PlanNode;
 use super::plan_node_category::PlanNodeCategory;
 use crate::query::core::{CoreOperationKind, NodeType, NodeCategory, NodeTypeMapping};
-use super::admin_node::{
-    CreateSpaceNode, DropSpaceNode, DescSpaceNode, ShowSpacesNode,
-    CreateTagNode, AlterTagNode, DescTagNode, DropTagNode, ShowTagsNode,
-    CreateEdgeNode, AlterEdgeNode, DescEdgeNode, DropEdgeNode, ShowEdgesNode,
-    CreateTagIndexNode, DropTagIndexNode, DescTagIndexNode, ShowTagIndexesNode,
-    CreateEdgeIndexNode, DropEdgeIndexNode, DescEdgeIndexNode, ShowEdgeIndexesNode,
-    RebuildTagIndexNode, RebuildEdgeIndexNode,
-    CreateUserNode, AlterUserNode, DropUserNode, ChangePasswordNode,
+use super::space_nodes::{CreateSpaceNode, DescSpaceNode, DropSpaceNode, ShowSpacesNode};
+use super::tag_nodes::{AlterTagNode, CreateTagNode, DescTagNode, DropTagNode, ShowTagsNode};
+use super::edge_nodes::{AlterEdgeNode, CreateEdgeNode, DescEdgeNode, DropEdgeNode, ShowEdgesNode};
+use super::index_nodes::{
+    CreateEdgeIndexNode, CreateTagIndexNode, DescEdgeIndexNode, DescTagIndexNode,
+    DropEdgeIndexNode, DropTagIndexNode, RebuildEdgeIndexNode, RebuildTagIndexNode,
+    ShowEdgeIndexesNode, ShowTagIndexesNode,
 };
+use super::user_nodes::{AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode};
 use crate::query::planner::plan::core::explain::PlanNodeDescription;
 
 // 导入并重新导出所有具体的节点类型

@@ -4,18 +4,22 @@
 //! 访问者模式使得可以在不修改节点结构的情况下对节点进行操作。
 
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
-use crate::query::planner::plan::core::nodes::admin_node::*;
 use crate::query::planner::plan::core::nodes::aggregate_node::*;
 use crate::query::planner::plan::core::nodes::control_flow_node::*;
 use crate::query::planner::plan::core::nodes::data_processing_node::*;
+use crate::query::planner::plan::core::nodes::edge_nodes::*;
 use crate::query::planner::plan::core::nodes::filter_node::*;
 use crate::query::planner::plan::core::nodes::graph_scan_node::*;
+use crate::query::planner::plan::core::nodes::index_nodes::*;
 use crate::query::planner::plan::core::nodes::join_node::*;
 use crate::query::planner::plan::core::nodes::project_node::*;
 use crate::query::planner::plan::core::nodes::sample_node::*;
 use crate::query::planner::plan::core::nodes::sort_node::*;
+use crate::query::planner::plan::core::nodes::space_nodes::*;
 use crate::query::planner::plan::core::nodes::start_node::*;
+use crate::query::planner::plan::core::nodes::tag_nodes::*;
 use crate::query::planner::plan::core::nodes::traversal_node::*;
+use crate::query::planner::plan::core::nodes::user_nodes::*;
 
 /// PlanNode 访问者 trait
 ///
