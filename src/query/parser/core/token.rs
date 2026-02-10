@@ -4,7 +4,7 @@
 
 use std::fmt;
 
-use super::position::Position;
+use crate::core::types::Position;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Token {

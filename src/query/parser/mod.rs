@@ -10,7 +10,8 @@ pub mod expressions;
 pub mod parser;
 
 // 重新导出 core 模块的常用类型
-pub use core::{ParseError, ParseErrors, Token, TokenKind, Position, Span};
+pub use core::{ParseError, ParseErrors, Token, TokenKind};
+pub use crate::core::types::{Position, Span};
 
 // 重新导出 AST 中的类型
 pub use ast::{

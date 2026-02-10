@@ -8,7 +8,7 @@ use crate::query::QueryError;
 use std::fmt;
 use std::error::Error;
 
-use super::position::Position;
+use crate::core::types::Position;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ParseErrorKind {

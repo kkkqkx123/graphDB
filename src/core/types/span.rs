@@ -1,7 +1,6 @@
 //! 源码位置类型定义
 //!
 //! 本模块定义通用的源码位置类型，用于表示 token 和 AST 节点在源码中的位置。
-//! 这些类型被设计为可在整个项目中通用使用，而不仅限于 parser 模块。
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
