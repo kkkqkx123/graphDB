@@ -13,6 +13,7 @@ use crate::query::executor::result_processing::traits::{
 };
 use crate::query::executor::traits::{DBResult, ExecutionResult, Executor};
 use crate::storage::StorageClient;
+use crate::storage::iterator::Row;
 
 /// 去重策略
 #[derive(Debug, Clone, PartialEq)]
@@ -167,7 +168,7 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
     }
 
     /// 数据集去重
-    async fn dedup_dataset(
+    fn dedup_dataset(
         &mut self,
         dataset: &mut crate::core::value::DataSet,
     ) -> Result<(), crate::query::QueryError> {
@@ -227,12 +228,12 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
             }
             DedupStrategy::ByKeys(keys) => {
                 let keys = Arc::new(keys);
+                let col_names = dataset.col_names.clone();
                 self.hash_based_dedup_dataset(dataset, move |row| {
                     let key_parts: Vec<String> = keys
                         .iter()
                         .filter_map(|key| {
-                            dataset
-                                .col_names
+                            col_names
                                 .iter()
                                 .position(|name| name == key)
                                 .and_then(|idx| row.get(idx))
@@ -281,6 +282,41 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
 
         self.current_memory_usage += memory_usage;
         Ok(result)
+    }
+
+    fn hash_based_dedup_dataset<F>(
+        &mut self,
+        dataset: &mut crate::core::value::DataSet,
+        key_extractor: F,
+    ) -> Result<(), crate::query::QueryError>
+    where
+        F: Fn(&Row) -> String + Send + Sync,
+    {
+        let mut seen = HashSet::new();
+        let mut unique_rows = Vec::new();
+        let mut memory_usage = 0;
+
+        for row in &dataset.rows {
+            let key = key_extractor(row);
+
+            if !seen.contains(&key) {
+                let row_size = std::mem::size_of::<Row>() + key.len();
+                memory_usage += row_size;
+
+                if self.current_memory_usage + memory_usage > self.memory_limit {
+                    return Err(crate::query::QueryError::ExecutionError(
+                        "内存限制超出".to_string(),
+                    ));
+                }
+
+                seen.insert(key);
+                unique_rows.push(row.clone());
+            }
+        }
+
+        dataset.rows = unique_rows;
+        self.current_memory_usage += memory_usage;
+        Ok(())
     }
 
     /// 从值中提取键（静态方法）

@@ -23,7 +23,7 @@ mod tests {
 
         let mut executor = CreateTagExecutor::new(1, storage, tag_info);
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
         match result.unwrap() {
             crate::query::executor::base::ExecutionResult::Success => {}
@@ -55,7 +55,7 @@ mod tests {
 
         let mut executor = AlterTagExecutor::new(3, storage, alter_info);
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
     }
 
@@ -86,7 +86,7 @@ mod tests {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let mut executor = DescTagExecutor::new(6, storage, "test_space".to_string(), "person".to_string());
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
     }
 
@@ -95,7 +95,7 @@ mod tests {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let mut executor = ShowTagsExecutor::new(7, storage, "test_space".to_string());
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
     }
 

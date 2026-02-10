@@ -341,11 +341,11 @@ impl<S: StorageClient> TraverseExecutor<S> {
         let neighbors_map = std::sync::Arc::new(neighbors_map);
         let next_depth = current_depth + 1;
 
-        // 使用ThreadPool::run_multi_jobs进行Scatter-Gather并行计算
+        // 使用ThreadPool::run_multi_jobs_sync进行Scatter-Gather并行计算
         // Scatter: 将路径分批处理
         // Gather: 收集所有结果
         let results = thread_pool
-            .run_multi_jobs(
+            .run_multi_jobs_sync(
                 move |batch: Vec<Path>| {
                     let mut local_next_paths = Vec::new();
                     let mut local_completed = Vec::new();

@@ -9,13 +9,13 @@ use crate::storage::StorageClient;
 /// ArgumentExecutor - 参数执行器
 ///
 /// 用于从另一个已执行的操作中获取命名别名
-pub struct ArgumentExecutor<S: StorageClient> {
+pub struct ArgumentExecutor<S: StorageClient + 'static> {
     base: BaseExecutor<S>,
     var: String,
     input_executor: Option<Box<ExecutorEnum<S>>>,
 }
 
-impl<S: StorageClient> ArgumentExecutor<S> {
+impl<S: StorageClient + 'static> ArgumentExecutor<S> {
     pub fn new(id: i64, storage: Arc<Mutex<S>>, var: &str) -> Self {
         Self {
             base: BaseExecutor::new(id, "ArgumentExecutor".to_string(), storage),

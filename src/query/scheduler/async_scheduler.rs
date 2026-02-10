@@ -266,7 +266,7 @@ impl<S: StorageClient + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
                             .expect("AsyncScheduler execution_state lock should not be poisoned");
                         state_guard.executing_count.fetch_add(1, Ordering::SeqCst);
                     }
-                    let result = executor.execute().await.map_err(QueryError::from);
+                    let result = executor.execute().map_err(QueryError::from);
                     (executor_id, executor, result)
                 });
 

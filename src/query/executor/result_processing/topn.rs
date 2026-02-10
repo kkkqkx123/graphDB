@@ -194,7 +194,7 @@ impl<S: StorageClient> TopNExecutor<S> {
     }
 
     /// 处理输入数据并执行 TopN
-    async fn process_input(&mut self) -> DBResult<ExecutionResult> {
+    fn process_input(&mut self) -> DBResult<ExecutionResult> {
         if let Some(input) = self.base.input.take() {
             match input {
                 ExecutionResult::DataSet(dataset) => {

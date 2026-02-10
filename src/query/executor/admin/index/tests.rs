@@ -27,7 +27,7 @@ mod tests {
 
         let mut executor = CreateTagIndexExecutor::new(1, storage, index);
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
         match result.unwrap() {
             crate::query::executor::base::ExecutionResult::Success => {}
@@ -65,7 +65,7 @@ mod tests {
             "person_name_index".to_string(),
         );
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
         match result.unwrap() {
             crate::query::executor::base::ExecutionResult::Success => {}
@@ -83,7 +83,7 @@ mod tests {
             "person_name_index".to_string(),
         );
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
     }
 
@@ -120,7 +120,7 @@ mod tests {
             "person_name_index".to_string(),
         );
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
         match result.unwrap() {
             crate::query::executor::base::ExecutionResult::Success => {}
@@ -182,7 +182,7 @@ mod tests {
             "knows_weight_index".to_string(),
         );
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
         match result.unwrap() {
             crate::query::executor::base::ExecutionResult::Success => {}
@@ -237,7 +237,7 @@ mod tests {
             "knows_weight_index".to_string(),
         );
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
         match result.unwrap() {
             crate::query::executor::base::ExecutionResult::Success => {}

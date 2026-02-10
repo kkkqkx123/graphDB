@@ -920,7 +920,7 @@ impl<S: StorageClient> AggregateExecutor<S> {
     /// 使用Scatter-Gather模式：
     /// - Scatter: 将数据分批，每批在一个线程中计算局部聚合结果
     /// - Gather: 合并所有局部聚合结果
-    async fn aggregate_dataset_parallel(
+    fn aggregate_dataset_parallel(
         &mut self,
         dataset: crate::core::value::DataSet,
     ) -> DBResult<crate::core::value::DataSet> {

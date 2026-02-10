@@ -9,7 +9,7 @@ use crate::query::executor::traits::{DBResult, ExecutionResult, Executor, HasSto
 use crate::storage::StorageClient;
 use crate::utils::safe_lock;
 
-pub struct GetVerticesExecutor<S: StorageClient> {
+pub struct GetVerticesExecutor<S: StorageClient + 'static> {
     base: BaseExecutor<S>,
     vertex_ids: Option<Vec<Value>>,
     tag_filter: Option<crate::core::Expression>,
@@ -18,7 +18,7 @@ pub struct GetVerticesExecutor<S: StorageClient> {
     batch_optimizer: Option<BatchOptimizer<S>>,
 }
 
-impl<S: StorageClient> GetVerticesExecutor<S> {
+impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,

@@ -31,7 +31,7 @@ mod tests {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let mut executor = DropSpaceExecutor::new(2, storage, "test_space".to_string());
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
         match result.unwrap() {
             crate::query::executor::base::ExecutionResult::Success => {}
@@ -53,7 +53,7 @@ mod tests {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let mut executor = ShowSpacesExecutor::new(4, storage);
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
     }
 

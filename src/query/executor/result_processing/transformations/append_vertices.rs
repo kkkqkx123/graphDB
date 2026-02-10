@@ -236,7 +236,7 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
     }
 
     /// 从存储中获取顶点属性
-    async fn fetch_vertices(&mut self, vids: Vec<Value>) -> DBResult<Vec<Vertex>> {
+    fn fetch_vertices(&mut self, vids: Vec<Value>) -> DBResult<Vec<Vertex>> {
         let mut vertices = Vec::new();
 
         let storage = self.get_storage().lock().map_err(|_| {

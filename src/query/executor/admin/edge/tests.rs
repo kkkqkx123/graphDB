@@ -38,7 +38,7 @@ mod tests {
 
         let mut executor = CreateEdgeExecutor::with_if_not_exists(2, storage, edge_info);
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
     }
 
@@ -64,7 +64,7 @@ mod tests {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let mut executor = DropEdgeExecutor::new(4, storage, "test_space".to_string(), "knows".to_string());
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
         match result.unwrap() {
             crate::query::executor::base::ExecutionResult::Success => {}
@@ -86,7 +86,7 @@ mod tests {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let mut executor = DescEdgeExecutor::new(6, storage, "test_space".to_string(), "knows".to_string());
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
     }
 
@@ -95,7 +95,7 @@ mod tests {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let mut executor = ShowEdgesExecutor::new(7, storage, "test_space".to_string());
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
     }
 
