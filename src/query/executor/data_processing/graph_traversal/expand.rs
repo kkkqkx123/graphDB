@@ -83,8 +83,7 @@ impl<S: StorageClient> ExpandExecutor<S> {
         self
     }
 
-    /// 执行多步扩展
-    async fn expand_multi_step(&mut self, input_nodes: Vec<Value>) -> Result<Vec<Value>, QueryError> {
+    fn expand_multi_step(&mut self, input_nodes: Vec<Value>) -> Result<Vec<Value>, QueryError> {
         let max_steps = self.max_depth.unwrap_or(1);
         let mut current_nodes = input_nodes;
         let mut all_expanded = HashSet::new();

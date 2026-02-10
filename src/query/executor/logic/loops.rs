@@ -79,8 +79,7 @@ impl<S: StorageClient + Send + 'static> LoopExecutor<S> {
         Ok(())
     }
 
-    /// 评估循环条件
-    async fn evaluate_condition(&mut self) -> DBResult<bool> {
+    fn evaluate_condition(&mut self) -> DBResult<bool> {
         match &self.condition {
             Some(expression) => {
                 let result =
@@ -125,8 +124,7 @@ impl<S: StorageClient + Send + 'static> LoopExecutor<S> {
         true
     }
 
-    /// 执行单次循环
-    async fn execute_iteration(&mut self) -> DBResult<ExecutionResult> {
+    fn execute_iteration(&mut self) -> DBResult<ExecutionResult> {
         // 注意：current_iteration 已经在 execute() 方法中递增
         self.loop_context.set_variable(
             "__iteration".to_string(),

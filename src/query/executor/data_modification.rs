@@ -101,7 +101,7 @@ impl<S: StorageClient> HasStorage<S> for InsertExecutor<S> {
 }
 
 impl<S: StorageClient + Send + Sync + 'static> InsertExecutor<S> {
-    async fn do_execute(&mut self) -> DBResult<usize> {
+    fn do_execute(&mut self) -> DBResult<usize> {
         let mut total_inserted = 0;
 
         if let Some(vertices) = &self.vertex_data {
@@ -264,7 +264,7 @@ impl<S: StorageClient> HasStorage<S> for UpdateExecutor<S> {
 }
 
 impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
-    async fn do_execute(&mut self) -> DBResult<Vec<UpdateResult>> {
+    fn do_execute(&mut self) -> DBResult<Vec<UpdateResult>> {
         let mut results = Vec::new();
 
         let condition_expression = if let Some(ref condition_str) = self.condition {
@@ -478,7 +478,7 @@ impl<S: StorageClient> HasStorage<S> for DeleteExecutor<S> {
 }
 
 impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
-    async fn do_execute(&mut self) -> DBResult<usize> {
+    fn do_execute(&mut self) -> DBResult<usize> {
         let mut total_deleted = 0;
 
         let condition_expression = if let Some(ref condition_str) = self.condition {
@@ -649,7 +649,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateIndexExecut
 }
 
 impl<S: StorageClient + Send + Sync + 'static> CreateIndexExecutor<S> {
-    async fn do_execute(&mut self) -> DBResult<()> {
+    fn do_execute(&mut self) -> DBResult<()> {
         let mut storage = safe_lock(self.get_storage())
             .expect("CreateIndexExecutor storage lock should not be poisoned");
 
@@ -752,7 +752,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DropIndexExecutor
 }
 
 impl<S: StorageClient + Send + Sync + 'static> DropIndexExecutor<S> {
-    async fn do_execute(&mut self) -> DBResult<()> {
+    fn do_execute(&mut self) -> DBResult<()> {
         let mut storage = safe_lock(self.get_storage())
             .expect("DropIndexExecutor storage lock should not be poisoned");
 

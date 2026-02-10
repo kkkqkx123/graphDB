@@ -44,9 +44,7 @@ impl<S: StorageClient> UnionAllExecutor<S> {
     /// 算法步骤：
     /// 1. 获取左右两个输入数据集
     /// 2. 验证列名是否一致
-    /// 3. 合并两个数据集的所有行（不去重）
-    /// 4. 返回结果
-    async fn execute_union_all(&mut self) -> Result<DataSet, QueryError> {
+    fn execute_union_all(&mut self) -> Result<DataSet, QueryError> {
         // 获取左右输入数据集
         let left_dataset = self.set_executor.get_left_input_data()?;
         let right_dataset = self.set_executor.get_right_input_data()?;

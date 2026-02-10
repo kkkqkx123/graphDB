@@ -129,7 +129,7 @@ impl<S: StorageClient + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
                 self.execute_argument(executor_id, execution_schedule).await
             }
             _ => {
-                executor.execute().await.map_err(QueryError::from)
+                executor.execute().map_err(QueryError::from)
             }
         };
 
@@ -168,7 +168,7 @@ impl<S: StorageClient + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
                 QueryError::InvalidQuery(format!("Executor {} not found", executor_id))
             })?;
 
-        let result = executor.execute().await.map_err(QueryError::from)?;
+        let result = executor.execute().map_err(QueryError::from)?;
 
         execution_schedule.executors.insert(executor_id, executor);
         Ok(result)

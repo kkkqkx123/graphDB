@@ -194,7 +194,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
         }
     }
 
-    async fn get_neighbors_with_edges(
+    fn get_neighbors_with_edges(
         &self,
         node_id: &Value,
     ) -> Result<Vec<(Value, Edge, f64)>, QueryError> {
@@ -263,7 +263,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
         false
     }
 
-    pub async fn bidirectional_bfs(
+    pub fn bidirectional_bfs(
         &mut self,
         start_ids: &[Value],
         end_ids: &[Value],
@@ -342,7 +342,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
                     }
                 }
 
-                let neighbors = self.get_neighbors_with_edges(&current_id).await?;
+                let neighbors = self.get_neighbors_with_edges(&current_id)?;
                 self.edges_traversed += neighbors.len();
 
                 for (neighbor_id, edge, _weight) in neighbors {
@@ -390,7 +390,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
                     }
                 }
 
-                let neighbors = self.get_neighbors_with_edges(&current_id).await?;
+                let neighbors = self.get_neighbors_with_edges(&current_id)?;
                 self.edges_traversed += neighbors.len();
 
                 for (neighbor_id, edge, _weight) in neighbors {
@@ -435,7 +435,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
         Ok(result_paths)
     }
 
-    pub async fn dijkstra_with_binary_heap(
+    pub fn dijkstra_with_binary_heap(
         &mut self,
         start_ids: &[Value],
         end_ids: &[Value],
@@ -485,7 +485,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
                 }
             }
 
-            let neighbors = self.get_neighbors_with_edges(&current.vertex_id).await?;
+            let neighbors = self.get_neighbors_with_edges(&current.vertex_id)?;
             self.edges_traversed += neighbors.len();
 
             for (neighbor_id, edge, weight) in neighbors {
@@ -523,7 +523,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
         Ok(result_paths)
     }
 
-    pub async fn a_star(
+    pub fn a_star(
         &mut self,
         start_ids: &[Value],
         end_ids: &[Value],
@@ -532,10 +532,10 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
             0.0f64
         };
 
-        self.dijkstra_with_heuristic(start_ids, end_ids, &heuristic).await
+        self.dijkstra_with_heuristic(start_ids, end_ids, &heuristic)
     }
 
-    pub async fn dijkstra_with_heuristic<F>(
+    pub fn dijkstra_with_heuristic<F>(
         &mut self,
         start_ids: &[Value],
         end_ids: &[Value],
@@ -589,7 +589,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
                 }
             }
 
-            let neighbors = self.get_neighbors_with_edges(&current.vertex_id).await?;
+            let neighbors = self.get_neighbors_with_edges(&current.vertex_id)?;
             self.edges_traversed += neighbors.len();
 
             for (neighbor_id, edge, weight) in neighbors {
@@ -673,7 +673,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
         }
     }
 
-    pub async fn bfs_shortest_path(
+    pub fn bfs_shortest_path(
         &mut self,
         start_ids: &[Value],
         end_ids: &[Value],
@@ -713,7 +713,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
                 }
             }
 
-            let neighbors = self.get_neighbors_with_edges(&current_id).await?;
+            let neighbors = self.get_neighbors_with_edges(&current_id)?;
             self.edges_traversed += neighbors.len();
 
             for (neighbor_id, edge, _weight) in neighbors {
@@ -748,7 +748,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
         Ok(result_paths)
     }
 
-    pub async fn compute_shortest_paths(&mut self) -> Result<(), QueryError> {
+    pub fn compute_shortest_paths(&mut self) -> Result<(), QueryError> {
         self.init_termination_map();
 
         let start_time = std::time::Instant::now();
@@ -758,13 +758,13 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
 
         match self.algorithm {
             ShortestPathAlgorithmType::BFS => {
-                self.shortest_paths = self.bfs_shortest_path(&start_ids, &end_ids).await?;
+                self.shortest_paths = self.bfs_shortest_path(&start_ids, &end_ids)?;
             }
             ShortestPathAlgorithmType::Dijkstra => {
-                self.shortest_paths = self.dijkstra_with_binary_heap(&start_ids, &end_ids).await?;
+                self.shortest_paths = self.dijkstra_with_binary_heap(&start_ids, &end_ids)?;
             }
             ShortestPathAlgorithmType::AStar => {
-                self.shortest_paths = self.a_star(&start_ids, &end_ids).await?;
+                self.shortest_paths = self.a_star(&start_ids, &end_ids)?;
             }
         }
 

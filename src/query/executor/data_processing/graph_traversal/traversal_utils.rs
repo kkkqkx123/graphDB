@@ -6,7 +6,7 @@ use crate::query::executor::base::EdgeDirection;
 use crate::storage::StorageClient;
 use crate::utils::safe_lock;
 
-pub async fn get_neighbors<S: StorageClient>(
+pub fn get_neighbors<S: StorageClient>(
     storage: &Arc<Mutex<S>>,
     node_id: &Value,
     edge_direction: EdgeDirection,
@@ -60,7 +60,7 @@ pub async fn get_neighbors<S: StorageClient>(
     Ok(neighbors)
 }
 
-pub async fn get_neighbors_with_edges<S: StorageClient>(
+pub fn get_neighbors_with_edges<S: StorageClient>(
     storage: &Arc<Mutex<S>>,
     node_id: &Value,
     edge_direction: EdgeDirection,

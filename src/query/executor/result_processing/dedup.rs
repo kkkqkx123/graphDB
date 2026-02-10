@@ -66,26 +66,25 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
         }
     }
 
-    /// 执行去重操作
-    async fn execute_dedup(
+    fn execute_dedup(
         &mut self,
         input: ExecutionResult,
     ) -> Result<ExecutionResult, crate::query::QueryError> {
         match input {
             ExecutionResult::Values(values) => {
-                let deduped_values = self.dedup_values(values).await?;
+                let deduped_values = self.dedup_values(values)?;
                 Ok(ExecutionResult::Values(deduped_values))
             }
             ExecutionResult::Vertices(vertices) => {
-                let deduped_vertices = self.dedup_vertices(vertices).await?;
+                let deduped_vertices = self.dedup_vertices(vertices)?;
                 Ok(ExecutionResult::Vertices(deduped_vertices))
             }
             ExecutionResult::Edges(edges) => {
-                let deduped_edges = self.dedup_edges(edges).await?;
+                let deduped_edges = self.dedup_edges(edges)?;
                 Ok(ExecutionResult::Edges(deduped_edges))
             }
             ExecutionResult::DataSet(mut dataset) => {
-                self.dedup_dataset(&mut dataset).await?;
+                self.dedup_dataset(&mut dataset)?;
                 Ok(ExecutionResult::DataSet(dataset))
             }
             _ => Ok(input),
@@ -93,43 +92,37 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
     }
 
     /// 值去重
-    async fn dedup_values(
+    fn dedup_values(
         &mut self,
         values: Vec<Value>,
     ) -> Result<Vec<Value>, crate::query::QueryError> {
         match self.strategy.clone() {
             DedupStrategy::Full => {
                 self.hash_based_dedup(values, |value| format!("{:?}", value))
-                    .await
             }
             DedupStrategy::ByKeys(keys) => {
                 let keys = Arc::new(keys);
                 let keys_clone = keys.clone();
                 let key_extractor =
                     move |value: &Value| Self::extract_keys_from_value_static(value, &keys_clone);
-                self.hash_based_dedup(values, key_extractor).await
+                self.hash_based_dedup(values, key_extractor)
             }
             _ => {
-                // 对于值，其他策略退化为完全去重
                 self.hash_based_dedup(values, |value| format!("{:?}", value))
-                    .await
             }
         }
     }
 
-    /// 顶点去重
-    async fn dedup_vertices(
+    fn dedup_vertices(
         &mut self,
         vertices: Vec<Vertex>,
     ) -> Result<Vec<Vertex>, crate::query::QueryError> {
         match self.strategy.clone() {
             DedupStrategy::Full => {
                 self.hash_based_dedup(vertices, |vertex| format!("{:?}", vertex))
-                    .await
             }
             DedupStrategy::ByVertexId => {
                 self.hash_based_dedup(vertices, |vertex| format!("{:?}", vertex.vid))
-                    .await
             }
             DedupStrategy::ByKeys(keys) => {
                 let keys = Arc::new(keys);
@@ -137,45 +130,38 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
                 let key_extractor = move |vertex: &Vertex| {
                     Self::extract_keys_from_vertex_static(vertex, &keys_clone)
                 };
-                self.hash_based_dedup(vertices, key_extractor).await
+                self.hash_based_dedup(vertices, key_extractor)
             }
             _ => {
-                // 默认基于顶点ID去重
                 self.hash_based_dedup(vertices, |vertex| format!("{:?}", vertex.vid))
-                    .await
             }
         }
     }
 
-    /// 边去重
-    async fn dedup_edges(
+    fn dedup_edges(
         &mut self,
         edges: Vec<Edge>,
     ) -> Result<Vec<Edge>, crate::query::QueryError> {
         match self.strategy.clone() {
             DedupStrategy::Full => {
                 self.hash_based_dedup(edges, |edge| format!("{:?}", edge))
-                    .await
             }
             DedupStrategy::ByEdgeKey => {
                 self.hash_based_dedup(edges, |edge| {
                     format!("{:?}-{}-{:?}", edge.src, edge.edge_type, edge.dst)
                 })
-                .await
             }
             DedupStrategy::ByKeys(keys) => {
                 let keys = Arc::new(keys);
                 let keys_clone = keys.clone();
                 let key_extractor =
                     move |edge: &Edge| Self::extract_keys_from_edge_static(edge, &keys_clone);
-                self.hash_based_dedup(edges, key_extractor).await
+                self.hash_based_dedup(edges, key_extractor)
             }
             _ => {
-                // 默认基于边的关键信息去重
                 self.hash_based_dedup(edges, |edge| {
                     format!("{:?}-{}-{:?}", edge.src, edge.edge_type, edge.dst)
                 })
-                .await
             }
         }
     }
@@ -226,40 +212,41 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
                 Ok(())
             }
             _ => {
-                // 对于数据集，默认使用完全去重
-                self.dedup_dataset_with_strategy(dataset, DedupStrategy::Full)
-                    .await
+                self.dedup_dataset_with_strategy(dataset)
             }
         }
     }
 
-    /// 使用指定策略对数据集去重
-    async fn dedup_dataset_with_strategy(
+    fn dedup_dataset_with_strategy(
         &mut self,
         dataset: &mut crate::core::value::DataSet,
-        strategy: DedupStrategy,
     ) -> Result<(), crate::query::QueryError> {
-        match strategy {
+        match self.strategy.clone() {
             DedupStrategy::Full => {
-                let mut seen = HashSet::new();
-                let mut unique_rows = Vec::new();
-
-                for row in &dataset.rows {
-                    let key = format!("{:?}", row);
-                    if seen.insert(key) {
-                        unique_rows.push(row.clone());
-                    }
-                }
-
-                dataset.rows = unique_rows;
-                Ok(())
+                self.hash_based_dedup_dataset(dataset, |row| format!("{:?}", row))
             }
-            _ => Ok(()), // 其他策略在 dedup_dataset 中已处理
+            DedupStrategy::ByKeys(keys) => {
+                let keys = Arc::new(keys);
+                self.hash_based_dedup_dataset(dataset, move |row| {
+                    let key_parts: Vec<String> = keys
+                        .iter()
+                        .filter_map(|key| {
+                            dataset
+                                .col_names
+                                .iter()
+                                .position(|name| name == key)
+                                .and_then(|idx| row.get(idx))
+                                .map(|v| format!("{:?}", v))
+                        })
+                        .collect();
+                    key_parts.join("|")
+                })
+            }
+            _ => Ok(()),
         }
     }
 
-    /// 基于哈希的去重
-    async fn hash_based_dedup<T, F>(
+    fn hash_based_dedup<T, F>(
         &mut self,
         items: Vec<T>,
         key_extractor: F,

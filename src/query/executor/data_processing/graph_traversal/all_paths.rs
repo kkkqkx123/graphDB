@@ -379,11 +379,11 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AllPathsExecutor<
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         let start = Instant::now();
 
-        let result = self.do_execute();
+        let result = self.do_execute()?;
 
         self.base.get_stats_mut().add_total_time(start.elapsed());
 
-        result.map(ExecutionResult::Paths)
+        Ok(ExecutionResult::Paths(result))
     }
 
     fn open(&mut self) -> DBResult<()> {
@@ -420,7 +420,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AllPathsExecutor<
 }
 
 impl<S: StorageClient + Send + Sync + 'static> AllPathsExecutor<S> {
-    async fn do_execute(&mut self) -> DBResult<Vec<Path>> {
+    fn do_execute(&mut self) -> DBResult<Vec<Path>> {
         if self.left_start_ids.is_empty() || self.right_start_ids.is_empty() {
             return Ok(Vec::new());
         }

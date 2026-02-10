@@ -45,9 +45,7 @@ impl<S: StorageClient> MinusExecutor<S> {
     /// 1. 获取左右两个输入数据集
     /// 2. 验证列名是否一致
     /// 3. 创建右数据集的行哈希集合
-    /// 4. 遍历左数据集，只保留在右数据集中不存在的行
-    /// 5. 返回结果
-    async fn execute_minus(&mut self) -> Result<DataSet, QueryError> {
+    fn execute_minus(&mut self) -> Result<DataSet, QueryError> {
         // 获取左右输入数据集
         let left_dataset = self.set_executor.get_left_input_data()?;
         let right_dataset = self.set_executor.get_right_input_data()?;

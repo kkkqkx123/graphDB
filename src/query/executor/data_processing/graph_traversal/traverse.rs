@@ -125,8 +125,7 @@ impl<S: StorageClient> TraverseExecutor<S> {
         self
     }
 
-    /// 获取节点的邻居节点和对应的边
-    async fn get_neighbors_with_edges(
+    fn get_neighbors_with_edges(
         &self,
         node_id: &Value,
     ) -> Result<Vec<(Value, Edge)>, QueryError> {
@@ -137,7 +136,6 @@ impl<S: StorageClient> TraverseExecutor<S> {
             self.edge_direction,
             &self.edge_types,
         )
-        .await
         .map_err(|e| QueryError::StorageError(e.to_string()))
     }
 
@@ -233,29 +231,26 @@ struct PathExpansionResult {
 
 impl<S: StorageClient> TraverseExecutor<S> {
     /// 执行单步遍历
-    async fn traverse_step(
+    fn traverse_step(
         &mut self,
         current_depth: usize,
         max_depth: usize,
     ) -> Result<(), QueryError> {
         if current_depth >= max_depth {
-            // 达到最大深度，将当前路径标记为完成
             self.completed_paths.extend(self.current_paths.clone());
             self.current_paths.clear();
             return Ok(());
         }
 
-        // 根据路径数量决定是否使用并行遍历
         let path_count = self.current_paths.len();
         if self.parallel_config.should_use_parallel(path_count) && self.thread_pool.is_some() {
-            self.traverse_step_parallel(current_depth, max_depth).await
+            self.traverse_step_parallel(current_depth, max_depth)
         } else {
-            self.traverse_step_serial(current_depth, max_depth).await
+            self.traverse_step_serial(current_depth, max_depth)
         }
     }
 
-    /// 串行单步遍历
-    async fn traverse_step_serial(
+    fn traverse_step_serial(
         &mut self,
         current_depth: usize,
         max_depth: usize,
@@ -277,7 +272,7 @@ impl<S: StorageClient> TraverseExecutor<S> {
             };
 
             // 获取邻居节点和边
-            let neighbors_with_edges = self.get_neighbors_with_edges(current_node).await?;
+            let neighbors_with_edges = self.get_neighbors_with_edges(current_node)?;
 
             for (neighbor_id, edge) in neighbors_with_edges {
                 // 获取邻居节点的完整信息
@@ -315,11 +310,7 @@ impl<S: StorageClient> TraverseExecutor<S> {
         Ok(())
     }
 
-    /// 并行单步遍历
-    ///
-    /// 使用ThreadPool::run_multi_jobs进行Scatter-Gather并行路径扩展
-    /// 参考nebula-graph的TraverseExecutor::asyncExpandOneStep实现
-    async fn traverse_step_parallel(
+    fn traverse_step_parallel(
         &mut self,
         current_depth: usize,
         max_depth: usize,
@@ -344,7 +335,7 @@ impl<S: StorageClient> TraverseExecutor<S> {
             .collect();
 
         // 批量获取邻居节点和边（包含完整的顶点信息）
-        let neighbors_map = self.batch_get_neighbors_with_vertices(&node_ids).await?;
+        let neighbors_map = self.batch_get_neighbors_with_vertices(&node_ids)?;
 
         // 将数据移动到闭包中
         let neighbors_map = std::sync::Arc::new(neighbors_map);
@@ -398,8 +389,7 @@ impl<S: StorageClient> TraverseExecutor<S> {
                 },
                 paths_to_process,
                 batch_size,
-            )
-            .await;
+            );
 
         // Gather: 合并所有批次的结果
         for result in results {
@@ -411,10 +401,7 @@ impl<S: StorageClient> TraverseExecutor<S> {
     }
 
     /// 批量获取邻居节点（包含完整顶点信息）
-    ///
-    /// 参考nebula-graph的StorageClient::getNeighbors批量查询模式
-    /// 返回每个源节点对应的（目标顶点，边）列表
-    async fn batch_get_neighbors_with_vertices(
+    fn batch_get_neighbors_with_vertices(
         &self,
         node_ids: &[Value],
     ) -> Result<std::collections::HashMap<Value, Vec<(Vertex, Edge)>>, QueryError> {
@@ -422,11 +409,10 @@ impl<S: StorageClient> TraverseExecutor<S> {
             std::collections::HashMap::new();
 
         for node_id in node_ids {
-            let neighbors_with_edges = self.get_neighbors_with_edges(node_id).await?;
+            let neighbors_with_edges = self.get_neighbors_with_edges(node_id)?;
             let mut vertex_edge_pairs = Vec::new();
 
             for (neighbor_id, edge) in neighbors_with_edges {
-                // 获取邻居节点的完整信息
                 let storage = safe_lock(self.get_storage())
                     .expect("TraverseExecutor storage lock should not be poisoned");
                 let neighbor_vertex = storage
@@ -446,8 +432,7 @@ impl<S: StorageClient> TraverseExecutor<S> {
         Ok(result)
     }
 
-    /// 初始化遍历
-    async fn initialize_traversal(&mut self, input_nodes: Vec<Vertex>) -> Result<(), QueryError> {
+    fn initialize_traversal(&mut self, input_nodes: Vec<Vertex>) -> Result<(), QueryError> {
         self.current_paths.clear();
         self.completed_paths.clear();
         self.visited_nodes.clear();
@@ -586,7 +571,6 @@ impl<S: StorageClient + Send + 'static> Executor<S> for TraverseExecutor<S> {
 
         // 初始化遍历
         self.initialize_traversal(input_nodes)
-            .await
             .map_err(DBError::from)?;
 
         // 确定最大深度
@@ -595,7 +579,6 @@ impl<S: StorageClient + Send + 'static> Executor<S> for TraverseExecutor<S> {
         // 执行遍历
         for current_depth in 0..max_depth {
             self.traverse_step(current_depth, max_depth)
-                .await
                 .map_err(DBError::from)?;
 
             // 如果没有更多路径可以扩展，提前结束

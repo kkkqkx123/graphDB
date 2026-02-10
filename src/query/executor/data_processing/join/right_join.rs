@@ -43,8 +43,7 @@ impl<S: StorageClient + Send + 'static> RightJoinExecutor<S> {
         }
     }
 
-    /// 执行右外连接
-    async fn execute_right_join(&mut self) -> DBResult<ExecutionResult> {
+    fn execute_right_join(&mut self) -> DBResult<ExecutionResult> {
         // 获取左右输入结果
         let left_result = self
             .base

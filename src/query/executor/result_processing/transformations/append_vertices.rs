@@ -260,8 +260,7 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
         Ok(vertices)
     }
 
-    /// 执行追加顶点操作
-    async fn execute_append_vertices(&mut self) -> DBResult<DataSet> {
+    fn execute_append_vertices(&mut self) -> DBResult<DataSet> {
         if !self.need_fetch_prop {
             let vids = self.build_request_dataset()?;
             return self.handle_null_prop(vids);
@@ -276,7 +275,7 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
             });
         }
 
-        let vertices = self.fetch_vertices(vids).await?;
+        let vertices = self.fetch_vertices(vids)?;
 
         let _expr_context = DefaultExpressionContext::new();
 

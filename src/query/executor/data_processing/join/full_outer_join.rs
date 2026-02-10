@@ -43,8 +43,7 @@ impl<S: StorageClient + Send + 'static> FullOuterJoinExecutor<S> {
         }
     }
 
-    /// 执行全外连接
-    async fn execute_full_outer_join(&mut self) -> DBResult<ExecutionResult> {
+    fn execute_full_outer_join(&mut self) -> DBResult<ExecutionResult> {
         // 获取左右输入结果
         let left_result = self
             .base

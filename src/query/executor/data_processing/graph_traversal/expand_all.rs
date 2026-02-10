@@ -61,8 +61,7 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
         }
     }
 
-    /// 获取节点的邻居节点和对应的边
-    async fn get_neighbors_with_edges(
+    fn get_neighbors_with_edges(
         &self,
         node_id: &Value,
     ) -> Result<Vec<(Value, Edge)>, QueryError> {
@@ -73,7 +72,6 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
             self.edge_direction,
             &self.edge_types,
         )
-        .await
         .map_err(|e| QueryError::StorageError(e.to_string()))
     }
 
@@ -106,7 +104,7 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
             }
 
             // 获取邻居节点和边
-            let neighbors_with_edges = self.get_neighbors_with_edges(current_node).await?;
+            let neighbors_with_edges = self.get_neighbors_with_edges(current_node)?;
 
             if neighbors_with_edges.is_empty() {
                 // 没有更多邻居，返回当前路径
