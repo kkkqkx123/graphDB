@@ -185,6 +185,27 @@ use crate::query::planner::plan::algorithms::{
 };
 use crate::query::planner::plan::core::nodes::plan_node_enum::*;
 use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
+use crate::query::planner::plan::core::nodes::{
+    SampleNode, EdgeIndexScanNode, HashInnerJoinNode, HashLeftJoinNode,
+    MinusNode, IntersectNode,
+};
+use crate::query::planner::plan::core::nodes::space_nodes::{
+    CreateSpaceNode, DescSpaceNode, DropSpaceNode, ShowSpacesNode,
+};
+use crate::query::planner::plan::core::nodes::tag_nodes::{
+    AlterTagNode, CreateTagNode, DescTagNode, DropTagNode, ShowTagsNode,
+};
+use crate::query::planner::plan::core::nodes::edge_nodes::{
+    AlterEdgeNode, CreateEdgeNode, DescEdgeNode, DropEdgeNode, ShowEdgesNode,
+};
+use crate::query::planner::plan::core::nodes::index_nodes::{
+    CreateEdgeIndexNode, CreateTagIndexNode, DescEdgeIndexNode, DescTagIndexNode,
+    DropEdgeIndexNode, DropTagIndexNode, RebuildEdgeIndexNode, RebuildTagIndexNode,
+    ShowEdgeIndexesNode, ShowTagIndexesNode,
+};
+use crate::query::planner::plan::core::nodes::user_nodes::{
+    AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode,
+};
 
 /// DescribeVisitor - 计划节点描述访问者
 ///
@@ -243,6 +264,10 @@ impl PlanNodeVisitor for DescribeVisitor {
         self.create_description("TopN", node);
     }
 
+    fn visit_sample(&mut self, node: &SampleNode) {
+        self.create_description("Sample", node);
+    }
+
     fn visit_inner_join(&mut self, node: &InnerJoinNode) {
         self.create_description("InnerJoin", node);
     }
@@ -253,6 +278,14 @@ impl PlanNodeVisitor for DescribeVisitor {
 
     fn visit_cross_join(&mut self, node: &CrossJoinNode) {
         self.create_description("CrossJoin", node);
+    }
+
+    fn visit_hash_inner_join(&mut self, node: &HashInnerJoinNode) {
+        self.create_description("HashInnerJoin", node);
+    }
+
+    fn visit_hash_left_join(&mut self, node: &HashLeftJoinNode) {
+        self.create_description("HashLeftJoin", node);
     }
 
     fn visit_get_vertices(&mut self, node: &GetVerticesNode) {
@@ -273,6 +306,10 @@ impl PlanNodeVisitor for DescribeVisitor {
 
     fn visit_scan_edges(&mut self, node: &ScanEdgesNode) {
         self.create_description("ScanEdges", node);
+    }
+
+    fn visit_edge_index_scan(&mut self, node: &EdgeIndexScanNode) {
+        self.create_description("EdgeIndexScan", node);
     }
 
     fn visit_expand(&mut self, node: &ExpandNode) {
@@ -335,6 +372,14 @@ impl PlanNodeVisitor for DescribeVisitor {
         self.create_description("Union", node);
     }
 
+    fn visit_minus(&mut self, node: &MinusNode) {
+        self.create_description("Minus", node);
+    }
+
+    fn visit_intersect(&mut self, node: &IntersectNode) {
+        self.create_description("Intersect", node);
+    }
+
     fn visit_unwind(&mut self, node: &UnwindNode) {
         self.create_description("Unwind", node);
     }
@@ -365,5 +410,117 @@ impl PlanNodeVisitor for DescribeVisitor {
 
     fn visit_shortest_path(&mut self, node: &ShortestPath) {
         self.create_description("ShortestPath", node);
+    }
+
+    fn visit_create_space(&mut self, node: &CreateSpaceNode) {
+        self.create_description("CreateSpace", node);
+    }
+
+    fn visit_drop_space(&mut self, node: &DropSpaceNode) {
+        self.create_description("DropSpace", node);
+    }
+
+    fn visit_desc_space(&mut self, node: &DescSpaceNode) {
+        self.create_description("DescSpace", node);
+    }
+
+    fn visit_show_spaces(&mut self, node: &ShowSpacesNode) {
+        self.create_description("ShowSpaces", node);
+    }
+
+    fn visit_create_tag(&mut self, node: &CreateTagNode) {
+        self.create_description("CreateTag", node);
+    }
+
+    fn visit_alter_tag(&mut self, node: &AlterTagNode) {
+        self.create_description("AlterTag", node);
+    }
+
+    fn visit_desc_tag(&mut self, node: &DescTagNode) {
+        self.create_description("DescTag", node);
+    }
+
+    fn visit_drop_tag(&mut self, node: &DropTagNode) {
+        self.create_description("DropTag", node);
+    }
+
+    fn visit_show_tags(&mut self, node: &ShowTagsNode) {
+        self.create_description("ShowTags", node);
+    }
+
+    fn visit_create_edge(&mut self, node: &CreateEdgeNode) {
+        self.create_description("CreateEdge", node);
+    }
+
+    fn visit_alter_edge(&mut self, node: &AlterEdgeNode) {
+        self.create_description("AlterEdge", node);
+    }
+
+    fn visit_desc_edge(&mut self, node: &DescEdgeNode) {
+        self.create_description("DescEdge", node);
+    }
+
+    fn visit_drop_edge(&mut self, node: &DropEdgeNode) {
+        self.create_description("DropEdge", node);
+    }
+
+    fn visit_show_edges(&mut self, node: &ShowEdgesNode) {
+        self.create_description("ShowEdges", node);
+    }
+
+    fn visit_create_tag_index(&mut self, node: &CreateTagIndexNode) {
+        self.create_description("CreateTagIndex", node);
+    }
+
+    fn visit_drop_tag_index(&mut self, node: &DropTagIndexNode) {
+        self.create_description("DropTagIndex", node);
+    }
+
+    fn visit_desc_tag_index(&mut self, node: &DescTagIndexNode) {
+        self.create_description("DescTagIndex", node);
+    }
+
+    fn visit_show_tag_indexes(&mut self, node: &ShowTagIndexesNode) {
+        self.create_description("ShowTagIndexes", node);
+    }
+
+    fn visit_create_edge_index(&mut self, node: &CreateEdgeIndexNode) {
+        self.create_description("CreateEdgeIndex", node);
+    }
+
+    fn visit_drop_edge_index(&mut self, node: &DropEdgeIndexNode) {
+        self.create_description("DropEdgeIndex", node);
+    }
+
+    fn visit_desc_edge_index(&mut self, node: &DescEdgeIndexNode) {
+        self.create_description("DescEdgeIndex", node);
+    }
+
+    fn visit_show_edge_indexes(&mut self, node: &ShowEdgeIndexesNode) {
+        self.create_description("ShowEdgeIndexes", node);
+    }
+
+    fn visit_rebuild_tag_index(&mut self, node: &RebuildTagIndexNode) {
+        self.create_description("RebuildTagIndex", node);
+    }
+
+    fn visit_rebuild_edge_index(&mut self, node: &RebuildEdgeIndexNode) {
+        self.create_description("RebuildEdgeIndex", node);
+    }
+
+    fn visit_create_user(&mut self, node: &CreateUserNode) {
+        self.create_description("CreateUser", node);
+    }
+
+    fn visit_alter_user(&mut self, node: &AlterUserNode) {
+        self.create_description("AlterUser", node);
+    }
+
+    fn visit_drop_user(&mut self, node: &DropUserNode) {
+        self.create_description("DropUser", node);
+    }
+
+    fn visit_change_password(&mut self, node: &ChangePasswordNode) {
+        self.create_description("ChangePassword", node);
     }
 }

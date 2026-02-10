@@ -16,7 +16,6 @@ pub mod search_executors;
 pub mod special_executors;
 pub mod tag_filter;
 pub mod traits;
-pub mod operation_kind_support;
 
 // Re-export from base module (基础类型从 base 模块统一导出)
 pub use base::{
