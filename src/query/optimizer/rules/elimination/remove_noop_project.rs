@@ -1,8 +1,7 @@
 //! 移除无操作投影的规则
 
-use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult};
+use crate::query::optimizer::plan::{OptContext, OptGroupNode};
 use crate::query::optimizer::rule_patterns::PatternBuilder;
-use crate::query::optimizer::rule_traits::BaseOptRule;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::validator::YieldColumn;
 use crate::query::visitor::PlanNodeVisitor;
@@ -29,46 +28,14 @@ use std::cell::RefCell;
 ///
 /// - Project 节点的输出列与子节点的输出列完全相同
 /// - Project 节点不包含别名或表达式
-#[derive(Debug)]
-pub struct RemoveNoopProjectRule;
-
-impl OptRule for RemoveNoopProjectRule {
-    fn name(&self) -> &str {
-        "RemoveNoopProjectRule"
+crate::define_elimination_rule! {
+    pub struct RemoveNoopProjectRule {
+        target: Project,
+        target_check: is_project,
+        pattern: PatternBuilder::project()
     }
-
-    fn apply(
-        &self,
-        ctx: &mut OptContext,
-        group_node: &Rc<RefCell<OptGroupNode>>,
-    ) -> Result<Option<TransformResult>, crate::query::optimizer::engine::OptimizerError> {
-        let node_ref = group_node.borrow();
-        let mut visitor = RemoveNoopProjectVisitor {
-            ctx: &ctx,
-            is_eliminated: false,
-            eliminated_node: None,
-            node_dependencies: node_ref.dependencies.clone(),
-        };
-
-        let result = visitor.visit(&node_ref.plan_node);
-        drop(node_ref);
-
-        if result.is_eliminated {
-            if let Some(new_node) = result.eliminated_node {
-                let mut result = TransformResult::new();
-                result.add_new_group_node(Rc::new(RefCell::new(new_node)));
-                return Ok(Some(result));
-            }
-        }
-        Ok(None)
-    }
-
-    fn pattern(&self) -> Pattern {
-        PatternBuilder::project()
-    }
+    visitor: RemoveNoopProjectVisitor
 }
-
-impl BaseOptRule for RemoveNoopProjectRule {}
 
 /// 移除无操作投影访问者
 ///

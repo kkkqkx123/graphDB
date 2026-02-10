@@ -1,8 +1,7 @@
 //! 消除重复操作的规则
 
-use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult};
+use crate::query::optimizer::plan::{OptContext, OptGroupNode};
 use crate::query::optimizer::rule_patterns::PatternBuilder;
-use crate::query::optimizer::rule_traits::BaseOptRule;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::visitor::PlanNodeVisitor;
 use std::rc::Rc;
@@ -28,45 +27,14 @@ use std::cell::RefCell;
 ///
 /// - Dedup 节点的子节点为 IndexScan、GetVertices 或 GetEdges
 /// - 这些操作本身就保证结果的唯一性
-#[derive(Debug)]
-pub struct DedupEliminationRule;
-
-impl OptRule for DedupEliminationRule {
-    fn name(&self) -> &str {
-        "DedupEliminationRule"
+crate::define_elimination_rule! {
+    pub struct DedupEliminationRule {
+        target: Dedup,
+        target_check: is_dedup,
+        pattern: PatternBuilder::dedup()
     }
-
-    fn apply(
-        &self,
-        ctx: &mut OptContext,
-        group_node: &Rc<RefCell<OptGroupNode>>,
-    ) -> Result<Option<TransformResult>, crate::query::optimizer::engine::OptimizerError> {
-        let node_ref = group_node.borrow();
-        let mut visitor = DedupEliminationVisitor {
-            ctx,
-            is_eliminated: false,
-            eliminated_node: None,
-        };
-
-        let result = visitor.visit(&node_ref.plan_node);
-        drop(node_ref);
-
-        if result.is_eliminated {
-            if let Some(new_node) = result.eliminated_node {
-                let mut result = TransformResult::new();
-                result.add_new_group_node(Rc::new(RefCell::new(new_node)));
-                return Ok(Some(result));
-            }
-        }
-        Ok(None)
-    }
-
-    fn pattern(&self) -> Pattern {
-        PatternBuilder::dedup()
-    }
+    visitor: DedupEliminationVisitor
 }
-
-impl BaseOptRule for DedupEliminationRule {}
 
 /// 消除去重访问者
 ///
@@ -78,6 +46,7 @@ struct DedupEliminationVisitor<'a> {
     is_eliminated: bool,
     eliminated_node: Option<OptGroupNode>,
     ctx: &'a OptContext,
+    node_dependencies: Vec<usize>,
 }
 
 impl<'a> PlanNodeVisitor for DedupEliminationVisitor<'a> {

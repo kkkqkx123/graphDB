@@ -1,7 +1,8 @@
 //! 消除冗余数据收集操作的规则
 
-use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult};
-use crate::query::optimizer::rule_traits::{create_basic_pattern, BaseOptRule};
+use crate::query::optimizer::plan::{OptContext, OptGroupNode};
+use crate::query::optimizer::rule_traits::create_basic_pattern;
+use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::visitor::PlanNodeVisitor;
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -26,45 +27,14 @@ use std::cell::RefCell;
 ///
 /// - DataCollect 节点的 kind 为 kRowBasedMove
 /// - 子节点可以直接返回结果
-#[derive(Debug)]
-pub struct EliminateRowCollectRule;
-
-impl OptRule for EliminateRowCollectRule {
-    fn name(&self) -> &str {
-        "EliminateRowCollectRule"
+crate::define_elimination_rule! {
+    pub struct EliminateRowCollectRule {
+        target: DataCollect,
+        target_check: is_data_collect,
+        pattern: create_basic_pattern("DataCollect")
     }
-
-    fn apply(
-        &self,
-        ctx: &mut OptContext,
-        group_node: &Rc<RefCell<OptGroupNode>>,
-    ) -> Result<Option<TransformResult>, crate::query::optimizer::engine::OptimizerError> {
-        let node_ref = group_node.borrow();
-        let mut visitor = EliminateRowCollectVisitor {
-            ctx: &ctx,
-            is_eliminated: false,
-            eliminated_node: None,
-        };
-
-        let result = visitor.visit(&node_ref.plan_node);
-        drop(node_ref);
-
-        if result.is_eliminated {
-            if let Some(new_node) = result.eliminated_node {
-                let mut result = TransformResult::new();
-                result.add_new_group_node(Rc::new(RefCell::new(new_node)));
-                return Ok(Some(result));
-            }
-        }
-        Ok(None)
-    }
-
-    fn pattern(&self) -> Pattern {
-        create_basic_pattern("DataCollect")
-    }
+    visitor: EliminateRowCollectVisitor
 }
-
-impl BaseOptRule for EliminateRowCollectRule {}
 
 /// 消除数据收集访问者
 ///
@@ -76,6 +46,7 @@ struct EliminateRowCollectVisitor<'a> {
     is_eliminated: bool,
     eliminated_node: Option<OptGroupNode>,
     ctx: &'a OptContext,
+    node_dependencies: Vec<usize>,
 }
 
 impl<'a> PlanNodeVisitor for EliminateRowCollectVisitor<'a> {

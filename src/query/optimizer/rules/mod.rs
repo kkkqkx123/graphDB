@@ -2,6 +2,9 @@
 //!
 //! 所有优化规则按功能分类组织，每个规则独立一个文件
 
+// 宏定义
+pub mod macros;
+
 // 谓词下推规则
 pub mod predicate_pushdown;
 
