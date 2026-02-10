@@ -5,28 +5,14 @@
 use super::plan_node_enum::PlanNodeEnum;
 use super::plan_node_traits::{PlanNode, PlanNodeClonable};
 use crate::query::context::validate::types::Variable;
+use crate::define_plan_node;
 
-/// Argument节点 - 用于从另一个已执行的操作中获取命名别名
-#[derive(Debug)]
-pub struct ArgumentNode {
-    id: i64,
-    var: String,
-    output_var: Option<Variable>,
-    col_names: Vec<String>,
-    cost: f64,
-}
-
-// 为 ArgumentNode 实现 Clone
-impl Clone for ArgumentNode {
-    fn clone(&self) -> Self {
-        ArgumentNode {
-            id: self.id,
-            var: self.var.clone(),
-            output_var: self.output_var.clone(),
-            col_names: self.col_names.clone(),
-            cost: self.cost,
-        }
+define_plan_node! {
+    pub struct ArgumentNode {
+        var: String,
     }
+    enum: Argument
+    input: ZeroInputNode
 }
 
 impl ArgumentNode {
@@ -43,55 +29,23 @@ impl ArgumentNode {
     pub fn var(&self) -> &str {
         &self.var
     }
-
-    pub fn type_name(&self) -> &'static str {
-        "Argument"
-    }
 }
 
-impl PlanNode for ArgumentNode {
-    fn id(&self) -> i64 {
-        self.id
+define_plan_node! {
+    pub struct PassThroughNode {
     }
-
-    fn name(&self) -> &'static str {
-        "Argument"
-    }
-
-    fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
-    }
-
-    fn col_names(&self) -> &[String] {
-        &self.col_names
-    }
-
-    fn cost(&self) -> f64 {
-        self.cost
-    }
-
-    fn set_output_var(&mut self, var: Variable) {
-        self.output_var = Some(var);
-    }
-
-    fn set_col_names(&mut self, names: Vec<String>) {
-        self.col_names = names;
-    }
-
-    fn into_enum(self) -> PlanNodeEnum {
-        PlanNodeEnum::Argument(self)
-    }
+    enum: PassThrough
+    input: ZeroInputNode
 }
 
-impl PlanNodeClonable for ArgumentNode {
-    fn clone_plan_node(&self) -> PlanNodeEnum {
-        PlanNodeEnum::Argument(self.clone())
-    }
-
-    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
-        let mut cloned = self.clone();
-        cloned.id = new_id;
-        PlanNodeEnum::Argument(cloned)
+impl PassThroughNode {
+    pub fn new(id: i64) -> Self {
+        Self {
+            id,
+            output_var: None,
+            col_names: Vec::new(),
+            cost: 0.0,
+        }
     }
 }
 
@@ -107,7 +61,6 @@ pub struct SelectNode {
     cost: f64,
 }
 
-// 为 SelectNode 实现 Clone
 impl Clone for SelectNode {
     fn clone(&self) -> Self {
         SelectNode {
@@ -158,11 +111,45 @@ impl SelectNode {
     pub fn type_name(&self) -> &'static str {
         "Select"
     }
+
+    pub fn id(&self) -> i64 {
+        self.id
+    }
+
+    pub fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+
+    pub fn col_names(&self) -> &[String] {
+        &self.col_names
+    }
+
+    pub fn cost(&self) -> f64 {
+        self.cost
+    }
+
+    pub fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+
+    pub fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
+
+    pub fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
+        super::plan_node_enum::PlanNodeEnum::Select(self.clone())
+    }
+
+    pub fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
+        let mut cloned = self.clone();
+        cloned.id = new_id;
+        super::plan_node_enum::PlanNodeEnum::Select(cloned)
+    }
 }
 
 impl PlanNode for SelectNode {
     fn id(&self) -> i64 {
-        self.id
+        self.id()
     }
 
     fn name(&self) -> &'static str {
@@ -170,23 +157,23 @@ impl PlanNode for SelectNode {
     }
 
     fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
+        self.output_var()
     }
 
     fn col_names(&self) -> &[String] {
-        &self.col_names
+        self.col_names()
     }
 
     fn cost(&self) -> f64 {
-        self.cost
+        self.cost()
     }
 
     fn set_output_var(&mut self, var: Variable) {
-        self.output_var = Some(var);
+        self.set_output_var(var);
     }
 
     fn set_col_names(&mut self, names: Vec<String>) {
-        self.col_names = names;
+        self.set_col_names(names);
     }
 
     fn into_enum(self) -> PlanNodeEnum {
@@ -196,13 +183,11 @@ impl PlanNode for SelectNode {
 
 impl PlanNodeClonable for SelectNode {
     fn clone_plan_node(&self) -> PlanNodeEnum {
-        PlanNodeEnum::Select(self.clone())
+        self.clone_plan_node()
     }
 
     fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
-        let mut cloned = self.clone();
-        cloned.id = new_id;
-        PlanNodeEnum::Select(cloned)
+        self.clone_with_new_id(new_id)
     }
 }
 
@@ -217,7 +202,6 @@ pub struct LoopNode {
     cost: f64,
 }
 
-// 为 LoopNode 实现 Clone
 impl Clone for LoopNode {
     fn clone(&self) -> Self {
         LoopNode {
@@ -258,11 +242,45 @@ impl LoopNode {
     pub fn type_name(&self) -> &'static str {
         "Loop"
     }
+
+    pub fn id(&self) -> i64 {
+        self.id
+    }
+
+    pub fn output_var(&self) -> Option<&Variable> {
+        self.output_var.as_ref()
+    }
+
+    pub fn col_names(&self) -> &[String] {
+        &self.col_names
+    }
+
+    pub fn cost(&self) -> f64 {
+        self.cost
+    }
+
+    pub fn set_output_var(&mut self, var: Variable) {
+        self.output_var = Some(var);
+    }
+
+    pub fn set_col_names(&mut self, names: Vec<String>) {
+        self.col_names = names;
+    }
+
+    pub fn clone_plan_node(&self) -> super::plan_node_enum::PlanNodeEnum {
+        super::plan_node_enum::PlanNodeEnum::Loop(self.clone())
+    }
+
+    pub fn clone_with_new_id(&self, new_id: i64) -> super::plan_node_enum::PlanNodeEnum {
+        let mut cloned = self.clone();
+        cloned.id = new_id;
+        super::plan_node_enum::PlanNodeEnum::Loop(cloned)
+    }
 }
 
 impl PlanNode for LoopNode {
     fn id(&self) -> i64 {
-        self.id
+        self.id()
     }
 
     fn name(&self) -> &'static str {
@@ -270,23 +288,23 @@ impl PlanNode for LoopNode {
     }
 
     fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
+        self.output_var()
     }
 
     fn col_names(&self) -> &[String] {
-        &self.col_names
+        self.col_names()
     }
 
     fn cost(&self) -> f64 {
-        self.cost
+        self.cost()
     }
 
     fn set_output_var(&mut self, var: Variable) {
-        self.output_var = Some(var);
+        self.set_output_var(var);
     }
 
     fn set_col_names(&mut self, names: Vec<String>) {
-        self.col_names = names;
+        self.set_col_names(names);
     }
 
     fn into_enum(self) -> PlanNodeEnum {
@@ -296,95 +314,11 @@ impl PlanNode for LoopNode {
 
 impl PlanNodeClonable for LoopNode {
     fn clone_plan_node(&self) -> PlanNodeEnum {
-        PlanNodeEnum::Loop(self.clone())
+        self.clone_plan_node()
     }
 
     fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
-        let mut cloned = self.clone();
-        cloned.id = new_id;
-        PlanNodeEnum::Loop(cloned)
-    }
-}
-
-/// PassThrough节点 - 用于透传情况的节点
-#[derive(Debug)]
-pub struct PassThroughNode {
-    id: i64,
-    output_var: Option<Variable>,
-    col_names: Vec<String>,
-    cost: f64,
-}
-
-// 为 PassThroughNode 实现 Clone
-impl Clone for PassThroughNode {
-    fn clone(&self) -> Self {
-        PassThroughNode {
-            id: self.id,
-            output_var: self.output_var.clone(),
-            col_names: self.col_names.clone(),
-            cost: self.cost,
-        }
-    }
-}
-
-impl PassThroughNode {
-    pub fn new(id: i64) -> Self {
-        Self {
-            id,
-            output_var: None,
-            col_names: Vec::new(),
-            cost: 0.0,
-        }
-    }
-
-    pub fn type_name(&self) -> &'static str {
-        "PassThrough"
-    }
-}
-
-impl PlanNode for PassThroughNode {
-    fn id(&self) -> i64 {
-        self.id
-    }
-
-    fn name(&self) -> &'static str {
-        "PassThrough"
-    }
-
-    fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
-    }
-
-    fn col_names(&self) -> &[String] {
-        &self.col_names
-    }
-
-    fn cost(&self) -> f64 {
-        self.cost
-    }
-
-    fn set_output_var(&mut self, var: Variable) {
-        self.output_var = Some(var);
-    }
-
-    fn set_col_names(&mut self, names: Vec<String>) {
-        self.col_names = names;
-    }
-
-    fn into_enum(self) -> PlanNodeEnum {
-        PlanNodeEnum::PassThrough(self)
-    }
-}
-
-impl PlanNodeClonable for PassThroughNode {
-    fn clone_plan_node(&self) -> PlanNodeEnum {
-        PlanNodeEnum::PassThrough(self.clone())
-    }
-
-    fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum {
-        let mut cloned = self.clone();
-        cloned.id = new_id;
-        PlanNodeEnum::PassThrough(cloned)
+        self.clone_with_new_id(new_id)
     }
 }
 
@@ -395,7 +329,7 @@ mod tests {
     #[test]
     fn test_argument_node_creation() {
         let node = ArgumentNode::new(1, "var_name");
-        assert_eq!(node.type_name(), "Argument");
+        assert_eq!(node.type_name(), "ArgumentNode");
         assert_eq!(node.id(), 1);
         assert_eq!(node.var(), "var_name");
     }
@@ -422,7 +356,7 @@ mod tests {
     #[test]
     fn test_pass_through_node_creation() {
         let node = PassThroughNode::new(1);
-        assert_eq!(node.type_name(), "PassThrough");
+        assert_eq!(node.type_name(), "PassThroughNode");
         assert_eq!(node.id(), 1);
     }
 }

@@ -43,7 +43,7 @@ pub use index_nodes::{
     DropEdgeIndexNode, DropTagIndexNode, IndexManageInfo, RebuildEdgeIndexNode, RebuildTagIndexNode,
     ShowEdgeIndexesNode, ShowTagIndexesNode,
 };
-pub use join_node::{CrossJoinNode, HashInnerJoinNode, HashLeftJoinNode, InnerJoinNode, JoinConnector, LeftJoinNode};
+pub use join_node::{CrossJoinNode, HashInnerJoinNode, HashLeftJoinNode, InnerJoinNode, LeftJoinNode};
 pub use plan_node_category::PlanNodeCategory;
 pub use plan_node_cost::{
     CostEstimate, CostModelConfig, NodeStatistics, SelectivityEstimate,

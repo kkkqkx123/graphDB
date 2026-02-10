@@ -2,18 +2,17 @@
 //!
 //! 提供用户管理相关的计划节点定义
 
-use super::plan_node_enum::PlanNodeEnum;
-use super::plan_node_traits::PlanNode;
+use crate::define_plan_node;
 use crate::core::types::metadata::PasswordInfo;
-use crate::query::context::validate::types::Variable;
 
-/// 创建用户计划节点
-#[derive(Debug, Clone)]
-pub struct CreateUserNode {
-    id: i64,
-    username: String,
-    password: String,
-    role: String,
+define_plan_node! {
+    pub struct CreateUserNode {
+        username: String,
+        password: String,
+        role: String,
+    }
+    enum: CreateUser
+    input: ZeroInputNode
 }
 
 impl CreateUserNode {
@@ -23,6 +22,9 @@ impl CreateUserNode {
             username,
             password,
             role: "user".to_string(),
+            output_var: None,
+            col_names: Vec::new(),
+            cost: 1.0,
         }
     }
 
@@ -44,43 +46,14 @@ impl CreateUserNode {
     }
 }
 
-impl PlanNode for CreateUserNode {
-    fn id(&self) -> i64 {
-        self.id
+define_plan_node! {
+    pub struct AlterUserNode {
+        username: String,
+        new_role: Option<String>,
+        is_locked: Option<bool>,
     }
-
-    fn name(&self) -> &'static str {
-        "CreateUser"
-    }
-
-    fn output_var(&self) -> Option<&Variable> {
-        None
-    }
-
-    fn col_names(&self) -> &[String] {
-        &[]
-    }
-
-    fn cost(&self) -> f64 {
-        1.0
-    }
-
-    fn set_output_var(&mut self, _var: Variable) {}
-
-    fn set_col_names(&mut self, _names: Vec<String>) {}
-
-    fn into_enum(self) -> PlanNodeEnum {
-        PlanNodeEnum::CreateUser(self)
-    }
-}
-
-/// 修改用户计划节点
-#[derive(Debug, Clone)]
-pub struct AlterUserNode {
-    id: i64,
-    username: String,
-    new_role: Option<String>,
-    is_locked: Option<bool>,
+    enum: AlterUser
+    input: ZeroInputNode
 }
 
 impl AlterUserNode {
@@ -90,6 +63,9 @@ impl AlterUserNode {
             username,
             new_role: None,
             is_locked: None,
+            output_var: None,
+            col_names: Vec::new(),
+            cost: 1.0,
         }
     }
 
@@ -116,46 +92,23 @@ impl AlterUserNode {
     }
 }
 
-impl PlanNode for AlterUserNode {
-    fn id(&self) -> i64 {
-        self.id
+define_plan_node! {
+    pub struct DropUserNode {
+        username: String,
     }
-
-    fn name(&self) -> &'static str {
-        "AlterUser"
-    }
-
-    fn output_var(&self) -> Option<&Variable> {
-        None
-    }
-
-    fn col_names(&self) -> &[String] {
-        &[]
-    }
-
-    fn cost(&self) -> f64 {
-        1.0
-    }
-
-    fn set_output_var(&mut self, _var: Variable) {}
-
-    fn set_col_names(&mut self, _names: Vec<String>) {}
-
-    fn into_enum(self) -> PlanNodeEnum {
-        PlanNodeEnum::AlterUser(self)
-    }
-}
-
-/// 删除用户计划节点
-#[derive(Debug, Clone)]
-pub struct DropUserNode {
-    id: i64,
-    username: String,
+    enum: DropUser
+    input: ZeroInputNode
 }
 
 impl DropUserNode {
     pub fn new(id: i64, username: String) -> Self {
-        Self { id, username }
+        Self {
+            id,
+            username,
+            output_var: None,
+            col_names: Vec::new(),
+            cost: 1.0,
+        }
     }
 
     pub fn username(&self) -> &str {
@@ -163,41 +116,12 @@ impl DropUserNode {
     }
 }
 
-impl PlanNode for DropUserNode {
-    fn id(&self) -> i64 {
-        self.id
+define_plan_node! {
+    pub struct ChangePasswordNode {
+        password_info: PasswordInfo,
     }
-
-    fn name(&self) -> &'static str {
-        "DropUser"
-    }
-
-    fn output_var(&self) -> Option<&Variable> {
-        None
-    }
-
-    fn col_names(&self) -> &[String] {
-        &[]
-    }
-
-    fn cost(&self) -> f64 {
-        1.0
-    }
-
-    fn set_output_var(&mut self, _var: Variable) {}
-
-    fn set_col_names(&mut self, _names: Vec<String>) {}
-
-    fn into_enum(self) -> PlanNodeEnum {
-        PlanNodeEnum::DropUser(self)
-    }
-}
-
-/// 修改密码计划节点
-#[derive(Debug, Clone)]
-pub struct ChangePasswordNode {
-    id: i64,
-    password_info: PasswordInfo,
+    enum: ChangePassword
+    input: ZeroInputNode
 }
 
 impl ChangePasswordNode {
@@ -205,40 +129,13 @@ impl ChangePasswordNode {
         Self {
             id,
             password_info,
+            output_var: None,
+            col_names: Vec::new(),
+            cost: 1.0,
         }
     }
 
     pub fn password_info(&self) -> &PasswordInfo {
         &self.password_info
-    }
-}
-
-impl PlanNode for ChangePasswordNode {
-    fn id(&self) -> i64 {
-        self.id
-    }
-
-    fn name(&self) -> &'static str {
-        "ChangePassword"
-    }
-
-    fn output_var(&self) -> Option<&Variable> {
-        None
-    }
-
-    fn col_names(&self) -> &[String] {
-        &[]
-    }
-
-    fn cost(&self) -> f64 {
-        1.0
-    }
-
-    fn set_output_var(&mut self, _var: Variable) {}
-
-    fn set_col_names(&mut self, _names: Vec<String>) {}
-
-    fn into_enum(self) -> PlanNodeEnum {
-        PlanNodeEnum::ChangePassword(self)
     }
 }
