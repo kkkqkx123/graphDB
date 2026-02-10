@@ -2,8 +2,6 @@
 //!
 //! 负责根据执行计划创建对应的执行器实例
 //! 采用直接匹配模式，简单高效，易于维护
-//! 
-//! 参考nebula-graph的Executor::runMultiJobs实现，支持并行查询执行
 
 use crate::core::{EdgeDirection, Value};
 use crate::core::error::QueryError;
@@ -14,7 +12,6 @@ use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::{
     BinaryInputNode, JoinNode, MultipleInputNode, PlanNode, SingleInputNode,
 };
-use crate::common::thread::ThreadPool;
 
 use crate::storage::StorageClient;
 use std::sync::{Arc, Mutex};
@@ -89,14 +86,8 @@ fn parse_expression_safe(expr_str: &str) -> Option<crate::core::Expression> {
 /// 负责根据计划节点类型创建对应的执行器实例
 /// 采用直接匹配模式，避免过度抽象
 /// 包含递归检测和安全验证机制
-/// 
-/// 参考nebula-graph的QueryEngine实现，线程池用于支持并行查询执行
 pub struct ExecutorFactory<S: StorageClient + 'static> {
     storage: Option<Arc<Mutex<S>>>,
-    /// 线程池用于并行执行查询
-    /// 
-    /// 参考nebula-graph的folly::Executor，用于支持runMultiJobs并行计算
-    thread_pool: Option<Arc<ThreadPool>>,
     config: ExecutorSafetyConfig,
     recursion_detector: RecursionDetector,
     safety_validator: ExecutorSafetyValidator,
@@ -111,7 +102,6 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
 
         Self {
             storage: None,
-            thread_pool: None,
             config,
             recursion_detector,
             safety_validator,
@@ -126,36 +116,10 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
 
         Self {
             storage: Some(storage),
-            thread_pool: None,
             config,
             recursion_detector,
             safety_validator,
         }
-    }
-
-    /// 设置存储引擎和线程池
-    /// 
-    /// 参考nebula-graph的QueryEngine::init，线程池用于支持并行查询执行
-    pub fn with_storage_and_thread_pool(
-        storage: Arc<Mutex<S>>,
-        thread_pool: Arc<ThreadPool>,
-    ) -> Self {
-        let config = ExecutorSafetyConfig::default();
-        let recursion_detector = RecursionDetector::new(config.max_recursion_depth);
-        let safety_validator = ExecutorSafetyValidator::new(config.clone());
-
-        Self {
-            storage: Some(storage),
-            thread_pool: Some(thread_pool),
-            config,
-            recursion_detector,
-            safety_validator,
-        }
-    }
-
-    /// 获取线程池引用
-    pub fn thread_pool(&self) -> Option<&Arc<ThreadPool>> {
-        self.thread_pool.as_ref()
     }
 
     /// 提取连接操作的变量名
@@ -477,10 +441,6 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
 
             PlanNodeEnum::Filter(node) => {
                 let mut executor = FilterExecutor::new(node.id(), storage, node.condition().clone());
-                // 传递线程池和并行配置，支持Scatter-Gather并行计算
-                if let Some(thread_pool) = &self.thread_pool {
-                    executor = executor.with_thread_pool(thread_pool.clone());
-                }
                 executor = executor.with_parallel_config(self.config.parallel_config.clone());
                 Ok(ExecutorEnum::Filter(executor))
             }
@@ -495,12 +455,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                         )
                     })
                     .collect();
-                let mut executor = ProjectExecutor::new(node.id(), storage, columns);
-                // 传递线程池和并行配置，支持Scatter-Gather并行计算
-                if let Some(thread_pool) = &self.thread_pool {
-                    executor = executor.with_thread_pool(thread_pool.clone());
-                }
-                executor = executor.with_parallel_config(self.config.parallel_config.clone());
+                let executor = ProjectExecutor::new(node.id(), storage, columns);
                 Ok(ExecutorEnum::Project(executor))
             }
             PlanNodeEnum::Limit(node) => {
@@ -524,7 +479,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     })
                     .collect();
                 let config = crate::query::executor::result_processing::SortConfig::default();
-                let mut executor = SortExecutor::new(
+                let executor = SortExecutor::new(
                     node.id(),
                     storage,
                     sort_keys,
@@ -532,11 +487,6 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     config,
                 )
                 .map_err(|e| QueryError::ExecutionError(e.to_string()))?;
-                // 传递线程池和并行配置，支持Scatter-Gather并行计算
-                if let Some(thread_pool) = &self.thread_pool {
-                    executor = executor.with_thread_pool(thread_pool.clone());
-                }
-                executor = executor.with_parallel_config(self.config.parallel_config.clone());
                 Ok(ExecutorEnum::Sort(executor))
             }
             PlanNodeEnum::TopN(node) => {
@@ -574,17 +524,12 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     .iter()
                     .map(|key| crate::core::Expression::Variable(key.clone()))
                     .collect();
-                let mut executor = AggregateExecutor::new(
+                let executor = AggregateExecutor::new(
                     node.id(),
                     storage,
                     aggregate_functions,
                     group_by_expressions,
                 );
-                // 传递线程池和并行配置，支持Scatter-Gather并行计算
-                if let Some(thread_pool) = &self.thread_pool {
-                    executor = executor.with_thread_pool(thread_pool.clone());
-                }
-                executor = executor.with_parallel_config(self.config.parallel_config.clone());
                 Ok(ExecutorEnum::Aggregate(executor))
             }
             PlanNodeEnum::Dedup(node) => {
@@ -719,7 +664,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             }
 
             PlanNodeEnum::Traverse(node) => {
-                let mut executor = TraverseExecutor::new(
+                let executor = TraverseExecutor::new(
                     node.id(),
                     storage,
                     node.direction().into(),
@@ -731,11 +676,6 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     node.step_limit().and_then(|s| usize::try_from(s).ok()),
                     node.filter().cloned(),
                 );
-                // 传递线程池和并行配置，支持Scatter-Gather并行计算
-                if let Some(thread_pool) = &self.thread_pool {
-                    executor = executor.with_thread_pool(thread_pool.clone());
-                }
-                executor = executor.with_parallel_config(self.config.parallel_config.clone());
                 Ok(ExecutorEnum::Traverse(executor))
             }
 

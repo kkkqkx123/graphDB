@@ -11,8 +11,8 @@ mod tests {
     use crate::storage::test_mock::MockStorage;
     use crate::query::executor::Executor;
 
-    #[tokio::test]
-    async fn test_create_tag_executor() {
+    #[test]
+    fn test_create_tag_executor() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let properties = vec![
             PropertyDef::new("name".to_string(), DataType::String),
@@ -31,19 +31,19 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_create_tag_executor_with_if_not_exists() {
+    #[test]
+    fn test_create_tag_executor_with_if_not_exists() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let tag_info = ExecutorTagInfo::new("test_space".to_string(), "person".to_string());
 
         let mut executor = CreateTagExecutor::with_if_not_exists(2, storage, tag_info);
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
     }
 
-    #[tokio::test]
-    async fn test_alter_tag_executor() {
+    #[test]
+    fn test_alter_tag_executor() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let new_prop = PropertyDef::new("email".to_string(), DataType::String);
         let items = vec![
@@ -59,12 +59,12 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    #[tokio::test]
-    async fn test_drop_tag_executor() {
+    #[test]
+    fn test_drop_tag_executor() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let mut executor = DropTagExecutor::new(4, storage, "test_space".to_string(), "person".to_string());
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
         match result.unwrap() {
             crate::query::executor::base::ExecutionResult::Success => {}
@@ -72,17 +72,17 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_drop_tag_executor_with_if_exists() {
+    #[test]
+    fn test_drop_tag_executor_with_if_exists() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let mut executor = DropTagExecutor::with_if_exists(5, storage, "test_space".to_string(), "person".to_string());
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
     }
 
-    #[tokio::test]
-    async fn test_desc_tag_executor() {
+    #[test]
+    fn test_desc_tag_executor() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let mut executor = DescTagExecutor::new(6, storage, "test_space".to_string(), "person".to_string());
 
@@ -90,8 +90,8 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    #[tokio::test]
-    async fn test_show_tags_executor() {
+    #[test]
+    fn test_show_tags_executor() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let mut executor = ShowTagsExecutor::new(7, storage, "test_space".to_string());
 

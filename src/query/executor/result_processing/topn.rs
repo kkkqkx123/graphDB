@@ -1,10 +1,13 @@
 //! TopN 执行器
 //!
 //! 实现高效的 TopN 查询，使用堆数据结构优化性能
+//! CPU 密集型操作，使用 Rayon 进行并行化
 
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 use std::sync::{Arc, Mutex};
+
+use rayon::prelude::*;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::Expression;
@@ -14,6 +17,7 @@ use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::{DefaultExpressionContext, ExpressionContext};
 use crate::query::executor::base::InputExecutor;
 use crate::query::executor::executor_enum::ExecutorEnum;
+use crate::query::executor::recursion_detector::ParallelConfig;
 use crate::query::executor::result_processing::traits::{
     BaseResultProcessor, ResultProcessor, ResultProcessorContext,
 };
@@ -67,6 +71,7 @@ pub enum TopNError {
 ///
 /// 返回排序后的前 N 个结果，是 Sort + Limit 的优化版本
 /// 使用堆数据结构实现高效的 TopN 查询
+/// CPU 密集型操作，使用 Rayon 进行并行化
 pub struct TopNExecutor<S: StorageClient + Send + 'static> {
     /// 基础处理器
     base: BaseResultProcessor<S>,
@@ -90,6 +95,8 @@ pub struct TopNExecutor<S: StorageClient + Send + 'static> {
     is_closed: bool,
     /// 已处理记录数
     processed_count: usize,
+    /// 并行计算配置
+    parallel_config: ParallelConfig,
 }
 
 impl<S: StorageClient> TopNExecutor<S> {
@@ -139,6 +146,7 @@ impl<S: StorageClient> TopNExecutor<S> {
             is_open: false,
             is_closed: false,
             processed_count: 0,
+            parallel_config: ParallelConfig::default(),
         }
     }
 
@@ -184,7 +192,14 @@ impl<S: StorageClient> TopNExecutor<S> {
             is_open: false,
             is_closed: false,
             processed_count: 0,
+            parallel_config: ParallelConfig::default(),
         }
+    }
+
+    /// 设置并行计算配置
+    pub fn with_parallel_config(mut self, config: ParallelConfig) -> Self {
+        self.parallel_config = config;
+        self
     }
 
     /// 设置偏移量
@@ -255,24 +270,137 @@ impl<S: StorageClient> TopNExecutor<S> {
     }
 
     /// 对数据集执行 TopN
+    ///
+    /// 根据数据量选择执行方式：
+    /// - 数据量小于阈值：单线程堆排序
+    /// - 数据量大：使用 Rayon 并行处理
     fn execute_topn_dataset(&self, mut dataset: DataSet) -> DBResult<DataSet> {
         if self.sort_keys.is_empty() {
-            // 如果没有排序键，直接应用限制
             return self.apply_limit_and_offset(dataset);
         }
 
-        // 统一使用堆排序算法
+        let total_size = dataset.rows.len();
+
+        if self.parallel_config.should_use_parallel(total_size) {
+            self.execute_topn_dataset_parallel(dataset)
+        } else {
+            self.execute_topn_dataset_sequential(dataset)
+        }
+    }
+
+    /// 顺序执行的 TopN（使用堆排序）
+    fn execute_topn_dataset_sequential(&self, mut dataset: DataSet) -> DBResult<DataSet> {
         let heap_size = self.n + self.offset;
         
         if self.is_ascending() {
-            // 升序：使用最大堆，保留最小的N个元素
             self.heap_ascending(&mut dataset, heap_size)?;
         } else {
-            // 降序：使用最小堆，保留最大的N个元素
             self.heap_descending(&mut dataset, heap_size)?;
         }
 
         Ok(dataset)
+    }
+
+    /// 并行执行的 TopN（使用 Rayon）
+    ///
+    /// 使用两阶段策略：
+    /// 1. 并行计算每行的排序键值
+    /// 2. 使用 Rayon 分区排序 + 选择 N 个元素
+    fn execute_topn_dataset_parallel(&self, mut dataset: DataSet) -> DBResult<DataSet> {
+        let heap_size = self.n + self.offset;
+        let sort_keys = self.sort_keys.clone();
+        let col_names = dataset.col_names.clone();
+        let is_ascending = self.is_ascending();
+
+        let rows_with_values: Vec<(Vec<Value>, Vec<Value>)> = dataset
+            .rows
+            .into_par_iter()
+            .map(|row| {
+                let sort_value = Self::calculate_sort_value_parallel(&row, &col_names, &sort_keys);
+                (sort_value, row)
+            })
+            .collect();
+
+        let target_count = self.n + self.offset;
+
+        if is_ascending {
+            let mut items: Vec<TopNItemParallel> = rows_with_values
+                .into_iter()
+                .map(|(sort_value, row)| TopNItemParallel {
+                    sort_value,
+                    row,
+                })
+                .collect();
+
+            if items.len() > target_count {
+                items.select_nth_unstable_by(target_count, |a, b| {
+                    a.sort_value.partial_cmp(&b.sort_value).unwrap_or(Ordering::Equal)
+                });
+                items.truncate(target_count);
+            }
+
+            items.sort_by(|a, b| {
+                a.sort_value.partial_cmp(&b.sort_value).unwrap_or(Ordering::Equal)
+            });
+            items.truncate(self.n);
+
+            dataset.rows = items.into_iter().skip(self.offset).map(|item| item.row).collect();
+        } else {
+            let mut items: Vec<TopNItemParallel> = rows_with_values
+                .into_iter()
+                .map(|(sort_value, row)| TopNItemParallel {
+                    sort_value,
+                    row,
+                })
+                .collect();
+
+            if items.len() > target_count {
+                items.select_nth_unstable_by(target_count, |a, b| {
+                    b.sort_value.partial_cmp(&a.sort_value).unwrap_or(Ordering::Equal)
+                });
+                items.truncate(target_count);
+            }
+
+            items.sort_by(|a, b| {
+                b.sort_value.partial_cmp(&a.sort_value).unwrap_or(Ordering::Equal)
+            });
+            items.truncate(self.n);
+
+            dataset.rows = items.into_iter().skip(self.offset).map(|item| item.row).collect();
+        }
+
+        Ok(dataset)
+    }
+
+    /// 并行计算行的排序值
+    fn calculate_sort_value_parallel(
+        row: &[Value],
+        col_names: &[String],
+        sort_keys: &[crate::query::executor::result_processing::sort::SortKey],
+    ) -> Vec<Value> {
+        let mut context = DefaultExpressionContext::new();
+        for (i, col_name) in col_names.iter().enumerate() {
+            if i < row.len() {
+                context.set_variable(col_name.clone(), row[i].clone());
+            }
+        }
+
+        let mut sort_values = Vec::new();
+        for sort_key in sort_keys {
+            if let Some(column_index) = sort_key.column_index {
+                if column_index < row.len() {
+                    sort_values.push(row[column_index].clone());
+                    continue;
+                }
+            }
+
+            match ExpressionEvaluator::evaluate(&sort_key.expression, &mut context) {
+                Ok(value) => sort_values.push(value),
+                Err(_) => sort_values.push(Value::Null(crate::core::value::NullType::Null)),
+            }
+        }
+
+        sort_values
     }
 
     /// 升序排序的堆实现
@@ -663,11 +791,34 @@ impl PartialOrd for TopNItemDesc {
 
 impl Ord for TopNItemDesc {
     fn cmp(&self, other: &Self) -> Ordering {
-        // 对于降序TopN（取最大的N个元素），我们需要最小堆
-        // 所以比较时让较小的元素排在前面（在BinaryHeap中，较大的元素会排在堆顶）
-        // 但我们需要的是最小堆效果，所以应该让较小的元素有更高的优先级
-        // 正确的实现：让较小的元素排在前面，这样在最大堆中，较小的元素会被放在堆顶
         other.sort_value.cmp(&self.sort_value)
+    }
+}
+
+/// 并行 TopN 使用的项（支持 partial_cmp）
+#[derive(Debug, Clone)]
+struct TopNItemParallel {
+    sort_value: Vec<Value>,
+    row: Vec<Value>,
+}
+
+impl PartialEq for TopNItemParallel {
+    fn eq(&self, other: &Self) -> bool {
+        self.sort_value == other.sort_value
+    }
+}
+
+impl Eq for TopNItemParallel {}
+
+impl PartialOrd for TopNItemParallel {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.sort_value.partial_cmp(&other.sort_value)
+    }
+}
+
+impl Ord for TopNItemParallel {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.sort_value.cmp(&other.sort_value)
     }
 }
 
@@ -944,7 +1095,6 @@ mod tests {
         // 执行 TopN
         let result = executor
             .process(ExecutionResult::DataSet(dataset))
-            .await
             .expect("TopN executor should process successfully");
 
         // 验证结果
@@ -974,7 +1124,6 @@ mod tests {
         // 执行 TopN
         let result = executor
             .process(ExecutionResult::Values(values))
-            .await
             .expect("TopN executor should process successfully");
 
         // 验证结果

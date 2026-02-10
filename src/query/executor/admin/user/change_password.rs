@@ -97,8 +97,8 @@ mod tests {
     use crate::storage::test_mock::MockStorage;
     use crate::query::executor::Executor;
 
-    #[tokio::test]
-    async fn test_change_password_executor() {
+    #[test]
+    fn test_change_password_executor() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let mut executor = ChangePasswordExecutor::new(
             1,
@@ -108,7 +108,7 @@ mod tests {
             "new_password".to_string(),
         );
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
         match result.unwrap() {
             ExecutionResult::Success => {}

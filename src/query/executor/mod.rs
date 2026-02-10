@@ -30,7 +30,6 @@ pub use executor_enum::ExecutorEnum;
 // Re-export batch module (批量操作优化)
 pub use batch::{
     BatchConfig, BatchOptimizer, BatchReadResult,
-    ConcurrencyConfig, ConcurrencyController, ConcurrencyStats,
 };
 
 // Re-export data access executors

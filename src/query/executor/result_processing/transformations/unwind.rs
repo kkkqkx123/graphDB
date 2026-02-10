@@ -393,7 +393,6 @@ mod tests {
         // 执行展开
         let result = executor
             .execute()
-            .await
             .expect("Executor should execute successfully");
 
         // 检查结果

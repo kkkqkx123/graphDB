@@ -118,8 +118,8 @@ mod tests {
     use crate::storage::test_mock::MockStorage;
     use crate::query::executor::Executor;
 
-    #[tokio::test]
-    async fn test_alter_space_executor() {
+    #[test]
+    fn test_alter_space_executor() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let options = vec![
             SpaceAlterOption::PartitionNum(2),
@@ -132,7 +132,7 @@ mod tests {
             options,
         );
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
     }
 

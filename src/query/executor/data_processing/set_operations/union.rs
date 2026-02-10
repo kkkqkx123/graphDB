@@ -256,7 +256,7 @@ mod tests {
         );
 
         // 执行应该失败
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_err());
 
         if let Err(crate::core::error::DBError::Query(

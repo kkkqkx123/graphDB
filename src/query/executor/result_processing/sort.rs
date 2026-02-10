@@ -2,14 +2,13 @@
 //!
 //! 提供高性能排序功能，支持多列排序和Top-N优化
 //!
-//! 参考nebula-graph的SortExecutor实现，支持Scatter-Gather并行计算模式
+//! CPU 密集型操作，使用 Rayon 进行并行化
 
 use rayon::prelude::*;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 use std::sync::{Arc, Mutex};
 
-use crate::common::thread::ThreadPool;
 use crate::core::error::{DBError, DBResult};
 use crate::core::Expression;
 use crate::core::{DataSet, Value};
@@ -93,10 +92,6 @@ pub struct SortExecutor<S: StorageClient + Send + 'static> {
     input_executor: Option<Box<ExecutorEnum<S>>>,
     /// 排序配置
     config: SortConfig,
-    /// 线程池用于并行排序
-    ///
-    /// 参考nebula-graph的Executor::runMultiJobs，用于Scatter-Gather并行计算
-    thread_pool: Option<Arc<ThreadPool>>,
     /// 并行计算配置
     parallel_config: ParallelConfig,
 }
@@ -122,17 +117,8 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
             limit,
             input_executor: None,
             config,
-            thread_pool: None,
             parallel_config: ParallelConfig::default(),
         })
-    }
-
-    /// 设置线程池
-    ///
-    /// 参考nebula-graph的Executor::runMultiJobs，用于Scatter-Gather并行计算
-    pub fn with_thread_pool(mut self, thread_pool: Arc<ThreadPool>) -> Self {
-        self.thread_pool = Some(thread_pool);
-        self
     }
 
     /// 设置并行计算配置

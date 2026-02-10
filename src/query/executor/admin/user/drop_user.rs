@@ -103,12 +103,12 @@ mod tests {
     use crate::storage::test_mock::MockStorage;
     use crate::query::executor::Executor;
 
-    #[tokio::test]
-    async fn test_drop_user_executor() {
+    #[test]
+    fn test_drop_user_executor() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let mut executor = DropUserExecutor::new(1, storage, "test_user".to_string());
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
         match result.unwrap() {
             ExecutionResult::Success => {}
@@ -116,12 +116,12 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_drop_user_executor_if_exists() {
+    #[test]
+    fn test_drop_user_executor_if_exists() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let mut executor = DropUserExecutor::with_if_exists(2, storage, "test_user".to_string());
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
     }
 

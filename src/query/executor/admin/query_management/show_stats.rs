@@ -250,21 +250,21 @@ mod tests {
     use crate::storage::test_mock::MockStorage;
     use crate::query::executor::Executor;
 
-    #[tokio::test]
-    async fn test_show_stats_executor() {
+    #[test]
+    fn test_show_stats_executor() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let mut executor = ShowStatsExecutor::new(1, storage);
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
     }
 
-    #[tokio::test]
-    async fn test_show_stats_executor_with_type() {
+    #[test]
+    fn test_show_stats_executor_with_type() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let mut executor = ShowStatsExecutor::with_type(2, storage, "query".to_string());
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
     }
 

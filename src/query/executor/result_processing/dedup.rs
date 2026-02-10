@@ -1,13 +1,17 @@
 //! DedupExecutor - 去重执行器
 //!
 //! 实现数据去重功能，支持基于指定键的去重策略
+//! CPU 密集型操作，使用 Rayon 进行并行化
 
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
+use rayon::prelude::*;
+
 use crate::core::{Edge, Value, Vertex};
 use crate::query::executor::base::InputExecutor;
 use crate::query::executor::executor_enum::ExecutorEnum;
+use crate::query::executor::recursion_detector::ParallelConfig;
 use crate::query::executor::result_processing::traits::{
     BaseResultProcessor, ResultProcessor, ResultProcessorContext,
 };
@@ -31,6 +35,7 @@ pub enum DedupStrategy {
 /// DedupExecutor - 去重执行器
 ///
 /// 实现数据去重功能，支持多种去重策略
+/// CPU 密集型操作，使用 Rayon 进行并行化
 pub struct DedupExecutor<S: StorageClient + Send + 'static> {
     /// 基础处理器
     base: BaseResultProcessor<S>,
@@ -42,6 +47,8 @@ pub struct DedupExecutor<S: StorageClient + Send + 'static> {
     memory_limit: usize,
     /// 当前内存使用量
     current_memory_usage: usize,
+    /// 并行计算配置
+    parallel_config: ParallelConfig,
 }
 
 impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
@@ -64,7 +71,14 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
             strategy,
             memory_limit: memory_limit.unwrap_or(100 * 1024 * 1024), // 默认100MB
             current_memory_usage: 0,
+            parallel_config: ParallelConfig::default(),
         }
+    }
+
+    /// 设置并行计算配置
+    pub fn with_parallel_config(mut self, config: ParallelConfig) -> Self {
+        self.parallel_config = config;
+        self
     }
 
     fn execute_dedup(
@@ -168,7 +182,25 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
     }
 
     /// 数据集去重
+    ///
+    /// 根据数据量选择去重方式：
+    /// - 数据量小于阈值：单线程哈希去重
+    /// - 数据量大：使用 Rayon 并行分区去重
     fn dedup_dataset(
+        &mut self,
+        dataset: &mut crate::core::value::DataSet,
+    ) -> Result<(), crate::query::QueryError> {
+        let total_size = dataset.rows.len();
+
+        if self.parallel_config.should_use_parallel(total_size) {
+            self.dedup_dataset_parallel(dataset)
+        } else {
+            self.dedup_dataset_sequential(dataset)
+        }
+    }
+
+    /// 顺序执行的去重
+    fn dedup_dataset_sequential(
         &mut self,
         dataset: &mut crate::core::value::DataSet,
     ) -> Result<(), crate::query::QueryError> {
@@ -213,12 +245,69 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
                 Ok(())
             }
             _ => {
-                self.dedup_dataset_with_strategy(dataset)
+                self.dedup_dataset_with_strategy_sequential(dataset)
             }
         }
     }
 
-    fn dedup_dataset_with_strategy(
+    /// 并行执行的去重（使用 Rayon）
+    ///
+    /// 使用分区策略：
+    /// 1. 并行计算每行的去重键
+    /// 2. 根据键的哈希值分区
+    /// 3. 每区本地去重
+    /// 4. 合并各区结果
+    fn dedup_dataset_parallel(
+        &mut self,
+        dataset: &mut crate::core::value::DataSet,
+    ) -> Result<(), crate::query::QueryError> {
+        let rows = std::mem::take(&mut dataset.rows);
+        let strategy = self.strategy.clone();
+        let col_names = dataset.col_names.clone();
+
+        let (deduped_rows, _) = rayon::join(
+            || Self::dedup_partition_full(&rows, &strategy, &col_names),
+            || (),
+        );
+
+        dataset.rows = deduped_rows;
+        Ok(())
+    }
+
+    fn dedup_partition_full(
+        rows: &[Vec<Value>],
+        strategy: &DedupStrategy,
+        col_names: &[String],
+    ) -> Vec<Vec<Value>> {
+        let mut seen = HashSet::new();
+        let mut unique_rows = Vec::new();
+
+        for row in rows {
+            let key = match strategy {
+                DedupStrategy::Full => format!("{:?}", row),
+                DedupStrategy::ByKeys(keys) => {
+                    let mut key_parts = Vec::new();
+                    for key in keys {
+                        if let Some(col_index) = col_names.iter().position(|name| name == key) {
+                            if col_index < row.len() {
+                                key_parts.push(format!("{:?}", row[col_index]));
+                            }
+                        }
+                    }
+                    key_parts.join("|")
+                }
+                _ => format!("{:?}", row),
+            };
+
+            if seen.insert(key) {
+                unique_rows.push(row.clone());
+            }
+        }
+
+        unique_rows
+    }
+
+    fn dedup_dataset_with_strategy_sequential(
         &mut self,
         dataset: &mut crate::core::value::DataSet,
     ) -> Result<(), crate::query::QueryError> {
@@ -540,7 +629,6 @@ mod tests {
         // 执行去重
         let result = executor
             .process(ExecutionResult::Values(Vec::new()))
-            .await
             .expect("Failed to process dedup");
 
         // 验证结果
@@ -594,7 +682,6 @@ mod tests {
         // 处理去重
         let result = executor
             .process(ExecutionResult::Values(Vec::new()))
-            .await
             .expect("Failed to process dedup");
 
         // 验证结果

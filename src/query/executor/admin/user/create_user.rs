@@ -104,13 +104,13 @@ mod tests {
     use crate::storage::test_mock::MockStorage;
     use crate::query::executor::Executor;
 
-    #[tokio::test]
-    async fn test_create_user_executor() {
+    #[test]
+    fn test_create_user_executor() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let user_info = UserInfo::new("test_user".to_string(), "password123".to_string());
         let mut executor = CreateUserExecutor::new(1, storage, user_info);
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
         match result.unwrap() {
             ExecutionResult::Success => {}
@@ -118,13 +118,13 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_create_user_executor_if_not_exists() {
+    #[test]
+    fn test_create_user_executor_if_not_exists() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let user_info = UserInfo::new("test_user".to_string(), "password123".to_string());
         let mut executor = CreateUserExecutor::with_if_not_exists(2, storage, user_info);
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
     }
 

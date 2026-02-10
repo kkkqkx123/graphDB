@@ -2,11 +2,14 @@ use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
 use std::cmp::Reverse;
 use std::sync::{Arc, Mutex};
 
+use rayon::prelude::*;
+
 use crate::core::error::{DBError, DBResult};
 use crate::core::{Edge, Path, Value};
 use crate::core::vertex_edge_path::Step;
 use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
 use crate::query::executor::executor_enum::ExecutorEnum;
+use crate::query::executor::recursion_detector::ParallelConfig;
 use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::query::QueryError;
 use crate::storage::StorageClient;
@@ -93,6 +96,7 @@ pub struct ShortestPathExecutor<S: StorageClient + Send + 'static> {
     pub single_shortest: bool,
     pub limit: usize,
     termination_map: HashMap<(Value, Value), bool>,
+    parallel_config: ParallelConfig,
 }
 
 impl<S: StorageClient> std::fmt::Debug for ShortestPathExecutor<S> {
@@ -142,7 +146,14 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
             single_shortest: false,
             limit: std::usize::MAX,
             termination_map: HashMap::new(),
+            parallel_config: ParallelConfig::default(),
         }
+    }
+
+    /// 设置并行计算配置
+    pub fn with_parallel_config(mut self, config: ParallelConfig) -> Self {
+        self.parallel_config = config;
+        self
     }
 
     pub fn with_limits(mut self, single_shortest: bool, limit: usize) -> Self {
@@ -941,6 +952,7 @@ pub struct MultiShortestPathExecutor<S: StorageClient + Send + 'static> {
     result_paths: Vec<Path>,
     nodes_visited: usize,
     edges_traversed: usize,
+    parallel_config: ParallelConfig,
 }
 
 impl<S: StorageClient> std::fmt::Debug for MultiShortestPathExecutor<S> {
@@ -987,7 +999,14 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
             result_paths: Vec::new(),
             nodes_visited: 0,
             edges_traversed: 0,
+            parallel_config: ParallelConfig::default(),
         }
+    }
+
+    /// 设置并行计算配置
+    pub fn with_parallel_config(mut self, config: ParallelConfig) -> Self {
+        self.parallel_config = config;
+        self
     }
 
     pub fn with_limit(mut self, limit: usize) -> Self {
@@ -1173,6 +1192,17 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
             })
             .collect();
 
+        if self.parallel_config.should_use_parallel(meet_points.len()) {
+            self.conjunct_paths_parallel(meet_points);
+        } else {
+            self.conjunct_paths_sequential(meet_points);
+        }
+    }
+
+    fn conjunct_paths_sequential(
+        &mut self,
+        meet_points: Vec<(Value, Vec<Path>, Vec<Path>)>,
+    ) {
         for (_meet_vid, left_list, right_list) in meet_points {
             for left_path in left_list {
                 for right_path in &right_list {
@@ -1194,6 +1224,40 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
                 }
             }
         }
+    }
+
+    fn conjunct_paths_parallel(
+        &mut self,
+        meet_points: Vec<(Value, Vec<Path>, Vec<Path>)>,
+    ) {
+        let parallel_paths: Vec<Path> = meet_points
+            .par_iter()
+            .flat_map(|(_meet_vid, left_list, right_list)| {
+                let mut paths = Vec::new();
+                for left_path in left_list {
+                    for right_path in right_list {
+                        if self.has_duplicate_edges(left_path) {
+                            continue;
+                        }
+                        if self.has_duplicate_edges(right_path) {
+                            continue;
+                        }
+
+                        let mut combined_path = left_path.clone();
+                        for step in right_path.steps.iter().rev() {
+                            combined_path.steps.push(step.clone());
+                        }
+                        
+                        if !self.has_duplicate_edges(&combined_path) {
+                            paths.push(combined_path);
+                        }
+                    }
+                }
+                paths
+            })
+            .collect();
+
+        self.result_paths.extend(parallel_paths);
     }
 }
 

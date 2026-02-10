@@ -396,7 +396,7 @@ mod tests {
         );
 
         // 执行连接
-        let result = executor.execute().await.expect("Failed to execute");
+        let result = executor.execute().expect("Failed to execute");
 
         // 验证结果
         match result {
@@ -436,8 +436,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_left_join_empty_right() {
+    #[test]
+    fn test_left_join_empty_right() {
         let storage = Arc::new(Mutex::new(MockStorage));
 
         // 创建执行器
@@ -476,7 +476,7 @@ mod tests {
         );
 
         // 执行连接
-        let result = executor.execute().await.expect("Failed to execute");
+        let result = executor.execute().expect("Failed to execute");
 
         // 验证结果
         match result {

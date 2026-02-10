@@ -9,15 +9,19 @@
 //! - 支持 withProp 返回路径属性
 //! - 使用两阶段扩展（左扩展和右扩展）
 //! - 当节点数量超过阈值时使用启发式扩展
+//! - CPU 密集型操作，使用 Rayon 进行并行化
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
+use rayon::prelude::*;
+
 use crate::core::error::DBResult;
 use crate::core::{Edge, Path, Value, Vertex};
 use crate::core::vertex_edge_path::Step;
 use crate::query::executor::base::{BaseExecutor, EdgeDirection, ExecutorStats};
+use crate::query::executor::recursion_detector::ParallelConfig;
 use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
 use crate::utils::safe_lock;
@@ -47,6 +51,7 @@ pub struct AllPathsExecutor<S: StorageClient + Send + 'static> {
     result_paths: Vec<Path>,
     nodes_visited: usize,
     edges_traversed: usize,
+    parallel_config: ParallelConfig,
 }
 
 impl<S: StorageClient> AllPathsExecutor<S> {
@@ -83,7 +88,14 @@ impl<S: StorageClient> AllPathsExecutor<S> {
             result_paths: Vec::new(),
             nodes_visited: 0,
             edges_traversed: 0,
+            parallel_config: ParallelConfig::default(),
         }
+    }
+
+    /// 设置并行计算配置
+    pub fn with_parallel_config(mut self, config: ParallelConfig) -> Self {
+        self.parallel_config = config;
+        self
     }
 
     pub fn with_config(
@@ -510,7 +522,59 @@ impl<S: StorageClient + Send + Sync + 'static> AllPathsExecutor<S> {
         }
 
         if self.right_steps == 0 {
-            for (left_vertex, left_edges) in &self.left_adj_list {
+            if self.parallel_config.should_use_parallel(self.left_adj_list.len()) {
+                self.build_right_paths_parallel()?;
+            } else {
+                self.build_right_paths_sequential()?;
+            }
+        }
+
+        if self.result_paths.len() > self.limit {
+            self.result_paths.truncate(self.limit);
+        }
+
+        if self.offset > 0 && self.result_paths.len() > self.offset {
+            self.result_paths = self.result_paths[self.offset..].to_vec();
+        }
+
+        Ok(self.result_paths.clone())
+    }
+
+    fn build_right_paths_sequential(&mut self) -> DBResult<()> {
+        for (left_vertex, left_edges) in &self.left_adj_list {
+            for (left_edge, left_intermediate) in left_edges {
+                let src_vertex = Vertex::new(
+                    left_vertex.clone(),
+                    Vec::new(),
+                );
+                let dst_vertex = Vertex::new(
+                    left_intermediate.clone(),
+                    Vec::new(),
+                );
+
+                let mut path = Path {
+                    src: Box::new(src_vertex),
+                    steps: Vec::new(),
+                };
+
+                path.steps.push(Step {
+                    dst: Box::new(dst_vertex),
+                    edge: Box::new(left_edge.clone()),
+                });
+
+                self.result_paths.push(path);
+            }
+        }
+        Ok(())
+    }
+
+    fn build_right_paths_parallel(&mut self) -> DBResult<()> {
+        let left_adj_list = std::mem::take(&mut self.left_adj_list);
+
+        let parallel_paths: Vec<Path> = left_adj_list
+            .par_iter()
+            .flat_map(|(left_vertex, left_edges)| {
+                let mut paths = Vec::new();
                 for (left_edge, left_intermediate) in left_edges {
                     let src_vertex = Vertex::new(
                         left_vertex.clone(),
@@ -531,19 +595,13 @@ impl<S: StorageClient + Send + Sync + 'static> AllPathsExecutor<S> {
                         edge: Box::new(left_edge.clone()),
                     });
 
-                    self.result_paths.push(path);
+                    paths.push(path);
                 }
-            }
-        }
+                paths
+            })
+            .collect();
 
-        if self.result_paths.len() > self.limit {
-            self.result_paths.truncate(self.limit);
-        }
-
-        if self.offset > 0 && self.result_paths.len() > self.offset {
-            self.result_paths = self.result_paths[self.offset..].to_vec();
-        }
-
-        Ok(self.result_paths.clone())
+        self.result_paths.extend(parallel_paths);
+        Ok(())
     }
 }

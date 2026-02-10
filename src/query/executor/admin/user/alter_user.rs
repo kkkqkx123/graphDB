@@ -88,13 +88,13 @@ mod tests {
     use crate::storage::test_mock::MockStorage;
     use crate::query::executor::Executor;
 
-    #[tokio::test]
-    async fn test_alter_user_executor() {
+    #[test]
+    fn test_alter_user_executor() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let alter_info = UserAlterInfo::new("test_user".to_string());
         let mut executor = AlterUserExecutor::new(1, storage, alter_info);
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
         match result.unwrap() {
             ExecutionResult::Success => {}

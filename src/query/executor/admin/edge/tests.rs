@@ -11,8 +11,8 @@ mod tests {
     use crate::storage::test_mock::MockStorage;
     use crate::query::executor::Executor;
 
-    #[tokio::test]
-    async fn test_create_edge_executor() {
+    #[test]
+    fn test_create_edge_executor() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let properties = vec![
             PropertyDef::new("weight".to_string(), DataType::Double),
@@ -23,7 +23,7 @@ mod tests {
 
         let mut executor = CreateEdgeExecutor::new(1, storage, edge_info);
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
         match result.unwrap() {
             crate::query::executor::base::ExecutionResult::Success => {}
@@ -31,8 +31,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_create_edge_executor_with_if_not_exists() {
+    #[test]
+    fn test_create_edge_executor_with_if_not_exists() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let edge_info = ExecutorEdgeInfo::new("test_space".to_string(), "knows".to_string());
 
@@ -42,8 +42,8 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    #[tokio::test]
-    async fn test_alter_edge_executor() {
+    #[test]
+    fn test_alter_edge_executor() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let new_prop = PropertyDef::new("label".to_string(), DataType::String);
         let items = vec![
@@ -55,12 +55,12 @@ mod tests {
 
         let mut executor = AlterEdgeExecutor::new(3, storage, alter_info);
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
     }
 
-    #[tokio::test]
-    async fn test_drop_edge_executor() {
+    #[test]
+    fn test_drop_edge_executor() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let mut executor = DropEdgeExecutor::new(4, storage, "test_space".to_string(), "knows".to_string());
 
@@ -72,17 +72,17 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_drop_edge_executor_with_if_exists() {
+    #[test]
+    fn test_drop_edge_executor_with_if_exists() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let mut executor = DropEdgeExecutor::with_if_exists(5, storage, "test_space".to_string(), "knows".to_string());
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
     }
 
-    #[tokio::test]
-    async fn test_desc_edge_executor() {
+    #[test]
+    fn test_desc_edge_executor() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let mut executor = DescEdgeExecutor::new(6, storage, "test_space".to_string(), "knows".to_string());
 
@@ -90,8 +90,8 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    #[tokio::test]
-    async fn test_show_edges_executor() {
+    #[test]
+    fn test_show_edges_executor() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let mut executor = ShowEdgesExecutor::new(7, storage, "test_space".to_string());
 

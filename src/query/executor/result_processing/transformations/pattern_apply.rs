@@ -382,7 +382,7 @@ mod tests {
             context,
         );
 
-        let result = executor.execute().await.unwrap();
+        let result = executor.execute().unwrap();
         if let ExecutionResult::Values(values) = result {
             assert_eq!(values.len(), 1);
             assert_eq!(values[0], Value::Int(2));
@@ -420,7 +420,7 @@ mod tests {
             context,
         );
 
-        let result = executor.execute().await.unwrap();
+        let result = executor.execute().unwrap();
         if let ExecutionResult::Values(values) = result {
             assert_eq!(values.len(), 2);
             assert!(values.contains(&Value::Int(1)));
@@ -458,7 +458,7 @@ mod tests {
             context,
         );
 
-        let result = executor.execute().await.unwrap();
+        let result = executor.execute().unwrap();
         if let ExecutionResult::Values(values) = result {
             assert_eq!(values.len(), 2);
         } else {
@@ -466,8 +466,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_pattern_apply_zero_key_not_exists() {
+    #[test]
+    fn test_pattern_apply_zero_key_not_exists() {
         let storage = Arc::new(Mutex::new(MockStorage));
         let mut context = crate::query::executor::base::ExecutionContext::new();
 
@@ -494,7 +494,7 @@ mod tests {
             context,
         );
 
-        let result = executor.execute().await.unwrap();
+        let result = executor.execute().unwrap();
         if let ExecutionResult::Values(values) = result {
             assert!(values.is_empty());
         } else {

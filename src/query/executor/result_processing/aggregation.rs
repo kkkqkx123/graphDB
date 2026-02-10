@@ -5,13 +5,12 @@
 //! - Aggregate（整体聚合）
 //! - Having（分组后过滤）
 //!
-//! 参考nebula-graph的AggregateExecutor实现，支持Scatter-Gather并行计算模式
+//! CPU 密集型操作，使用 Rayon 进行并行化
 
 use rayon::prelude::*;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use crate::common::thread::ThreadPool;
 use crate::core::types::operators::AggregateFunction;
 use crate::core::Expression;
 use crate::core::Value;
@@ -437,8 +436,7 @@ impl GroupAggregateState {
 /// AggregateExecutor - 聚合执行器
 ///
 /// 执行聚合操作，支持 COUNT, SUM, AVG, MAX, MIN 等聚合函数
-///
-/// 参考nebula-graph的AggregateExecutor实现，支持Scatter-Gather并行计算模式
+/// CPU 密集型操作，使用 Rayon 进行并行化
 pub struct AggregateExecutor<S: StorageClient + Send + 'static> {
     /// 基础处理器
     base: BaseResultProcessor<S>,
@@ -448,10 +446,6 @@ pub struct AggregateExecutor<S: StorageClient + Send + 'static> {
     group_keys: Vec<Expression>,
     /// 输入执行器
     input_executor: Option<Box<ExecutorEnum<S>>>,
-    /// 线程池用于并行聚合
-    ///
-    /// 参考nebula-graph的Executor::runMultiJobs，用于Scatter-Gather并行计算
-    thread_pool: Option<Arc<ThreadPool>>,
     /// 并行计算配置
     parallel_config: ParallelConfig,
 }
@@ -475,17 +469,8 @@ impl<S: StorageClient> AggregateExecutor<S> {
             aggregate_functions,
             group_keys,
             input_executor: None,
-            thread_pool: None,
             parallel_config: ParallelConfig::default(),
         }
-    }
-
-    /// 设置线程池
-    ///
-    /// 参考nebula-graph的Executor::runMultiJobs，用于Scatter-Gather并行计算
-    pub fn with_thread_pool(mut self, thread_pool: Arc<ThreadPool>) -> Self {
-        self.thread_pool = Some(thread_pool);
-        self
     }
 
     /// 设置并行计算配置
@@ -1487,7 +1472,6 @@ mod tests {
         // 执行聚合
         let result = executor
             .process(ExecutionResult::DataSet(dataset))
-            .await
             .expect("Failed to process aggregation");
 
         // 验证结果

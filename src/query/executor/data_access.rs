@@ -103,7 +103,7 @@ impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
                 let batch_result = self.batch_optimizer
                     .as_ref()
                     .expect("Executor not opened")
-                    .batch_get_vertices_sync(ids);
+                    .batch_get_vertices(ids);
 
                 let mut result_vertices: Vec<vertex_edge_path::Vertex> = Vec::new();
 
@@ -488,7 +488,7 @@ impl<S: StorageClient + 'static> GetNeighborsExecutor<S> {
         let batch_result = self.batch_optimizer
             .as_ref()
             .expect("Executor not opened")
-            .batch_get_vertices_sync(&self.vertex_ids);
+            .batch_get_vertices(&self.vertex_ids);
 
         let mut neighbor_ids: Vec<Value> = Vec::new();
         let edge_types_filter = self.edge_types.as_ref();
@@ -531,7 +531,7 @@ impl<S: StorageClient + 'static> GetNeighborsExecutor<S> {
         let neighbor_batch_result = self.batch_optimizer
             .as_ref()
             .expect("Executor not opened")
-            .batch_get_vertices_sync(&neighbor_ids);
+            .batch_get_vertices(&neighbor_ids);
 
         let mut neighbors: Vec<Value> = Vec::new();
 

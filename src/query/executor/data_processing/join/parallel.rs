@@ -2,10 +2,8 @@
 //!
 //! 提供并行化的join算法，利用多核CPU提升大表连接的性能
 
+use rayon::prelude::*;
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-use std::thread;
-use std::thread::JoinHandle;
 
 use crate::core::{Value, DataSet};
 use crate::query::executor::data_processing::join::hash_table::{JoinKey, SingleKeyHashTable, MultiKeyHashTable};
@@ -13,22 +11,22 @@ use crate::query::executor::data_processing::join::hash_table::{JoinKey, SingleK
 /// 并行处理的配置
 #[derive(Debug, Clone)]
 pub struct ParallelConfig {
-    /// 并行度（线程数）
     pub parallelism: usize,
-    /// 每个线程处理的最小行数
     pub min_rows_per_thread: usize,
-    /// 是否启用工作窃取
-    pub enable_work_stealing: bool,
 }
 
 impl Default for ParallelConfig {
     fn default() -> Self {
-        let num_cpus = num_cpus::get();
         Self {
-            parallelism: num_cpus,
+            parallelism: rayon::current_num_threads(),
             min_rows_per_thread: 1000,
-            enable_work_stealing: true,
         }
+    }
+}
+
+impl ParallelConfig {
+    pub fn should_use_parallel(&self, data_size: usize) -> bool {
+        data_size >= self.min_rows_per_thread && self.parallelism > 1
     }
 }
 
@@ -42,48 +40,28 @@ impl ParallelHashTableBuilder {
         key_index: usize,
         config: &ParallelConfig,
     ) -> Result<SingleKeyHashTable, String> {
-        if dataset.rows.len() < config.min_rows_per_thread || config.parallelism == 1 {
-            // 数据量小，使用单线程
+        if !config.should_use_parallel(dataset.rows.len()) {
             return crate::query::executor::data_processing::join::hash_table::HashTableBuilder::build_single_key_table(dataset, key_index);
         }
 
-        // 计算每个线程处理的行数
-        let rows_per_thread = (dataset.rows.len() + config.parallelism - 1) / config.parallelism;
-        let mut handles = Vec::new();
-
-        // 分割数据并创建线程
-        for i in 0..config.parallelism {
-            let start = i * rows_per_thread;
-            let end = std::cmp::min(start + rows_per_thread, dataset.rows.len());
-            
-            if start >= dataset.rows.len() {
-                break;
-            }
-
-            let chunk = dataset.rows[start..end].to_vec();
-            let key_idx = key_index;
-
-            let handle = thread::spawn(move || {
+        let rows: Vec<Vec<Value>> = dataset.rows.clone();
+        
+        let local_tables: Vec<HashMap<Value, Vec<Vec<Value>>>> = rows
+            .par_chunks(config.parallelism)
+            .map(|chunk| {
                 let mut local_hash_table = HashMap::new();
-                
                 for row in chunk {
-                    if key_idx < row.len() {
-                        let key = row[key_idx].clone();
-                        local_hash_table.entry(key).or_insert_with(Vec::new).push(row);
+                    if key_index < row.len() {
+                        let key = row[key_index].clone();
+                        local_hash_table.entry(key).or_insert_with(Vec::new).push(row.clone());
                     }
                 }
-                
                 local_hash_table
-            });
+            })
+            .collect();
 
-            handles.push(handle);
-        }
-
-        // 合并结果
         let mut global_hash_table = HashMap::new();
-        for handle in handles {
-            let local_table = handle.join().map_err(|e| format!("线程执行失败: {:?}", e))?;
-            
+        for local_table in local_tables {
             for (key, rows) in local_table {
                 global_hash_table.entry(key).or_insert_with(Vec::new).extend(rows);
             }
@@ -98,35 +76,22 @@ impl ParallelHashTableBuilder {
         key_indices: &[usize],
         config: &ParallelConfig,
     ) -> Result<MultiKeyHashTable, String> {
-        if dataset.rows.len() < config.min_rows_per_thread || config.parallelism == 1 {
-            // 数据量小，使用单线程
+        if !config.should_use_parallel(dataset.rows.len()) {
             return crate::query::executor::data_processing::join::hash_table::HashTableBuilder::build_multi_key_table(dataset, key_indices);
         }
 
-        // 计算每个线程处理的行数
-        let rows_per_thread = (dataset.rows.len() + config.parallelism - 1) / config.parallelism;
-        let mut handles = Vec::new();
-
-        // 分割数据并创建线程
-        for i in 0..config.parallelism {
-            let start = i * rows_per_thread;
-            let end = std::cmp::min(start + rows_per_thread, dataset.rows.len());
-            
-            if start >= dataset.rows.len() {
-                break;
-            }
-
-            let chunk = dataset.rows[start..end].to_vec();
-            let key_idxs = key_indices.to_vec();
-
-            let handle = thread::spawn(move || {
+        let rows: Vec<Vec<Value>> = dataset.rows.clone();
+        let key_indices = key_indices.to_vec();
+        
+        let local_tables: Vec<HashMap<JoinKey, Vec<Vec<Value>>>> = rows
+            .par_chunks(config.parallelism)
+            .map(|chunk| {
                 let mut local_hash_table = HashMap::new();
-                
                 for row in chunk {
                     let mut key_values = Vec::new();
                     let mut valid_row = true;
                     
-                    for &key_idx in &key_idxs {
+                    for &key_idx in &key_indices {
                         if key_idx < row.len() {
                             key_values.push(row[key_idx].clone());
                         } else {
@@ -137,21 +102,15 @@ impl ParallelHashTableBuilder {
                     
                     if valid_row {
                         let join_key = JoinKey::new(key_values);
-                        local_hash_table.entry(join_key).or_insert_with(Vec::new).push(row);
+                        local_hash_table.entry(join_key).or_insert_with(Vec::new).push(row.clone());
                     }
                 }
-                
                 local_hash_table
-            });
+            })
+            .collect();
 
-            handles.push(handle);
-        }
-
-        // 合并结果
         let mut global_hash_table = HashMap::new();
-        for handle in handles {
-            let local_table = handle.join().map_err(|e| format!("线程执行失败: {:?}", e))?;
-            
+        for local_table in local_tables {
             for (key, rows) in local_table {
                 global_hash_table.entry(key).or_insert_with(Vec::new).extend(rows);
             }
@@ -172,56 +131,32 @@ impl ParallelHashTableProbe {
         key_index: usize,
         config: &ParallelConfig,
     ) -> Vec<(Vec<Value>, Vec<Vec<Value>>)> {
-        if probe_dataset.rows.len() < config.min_rows_per_thread || config.parallelism == 1 {
-            // 数据量小，使用单线程
+        if !config.should_use_parallel(probe_dataset.rows.len()) {
             return crate::query::executor::data_processing::join::hash_table::HashTableProbe::probe_single_key(hash_table, probe_dataset, key_index);
         }
 
-        // 创建共享的哈希表引用
-        let hash_table_arc = Arc::new(hash_table);
+        let hash_table_ref = hash_table;
+        let probe_rows: Vec<Vec<Value>> = probe_dataset.rows.clone();
         
-        // 计算每个线程处理的行数
-        let rows_per_thread = (probe_dataset.rows.len() + config.parallelism - 1) / config.parallelism;
-        let mut handles = Vec::new();
-
-        // 分割数据并创建线程
-        for i in 0..config.parallelism {
-            let start = i * rows_per_thread;
-            let end = std::cmp::min(start + rows_per_thread, probe_dataset.rows.len());
-            
-            if start >= probe_dataset.rows.len() {
-                break;
-            }
-
-            let chunk = probe_dataset.rows[start..end].to_vec();
-            let key_idx = key_index;
-            let hash_table_ref = Arc::clone(&hash_table_arc);
-
-            let handle = thread::spawn(move || {
-                let mut local_results = Vec::new();
-                
+        let local_results: Vec<Vec<(Vec<Value>, Vec<Vec<Value>>)>> = probe_rows
+            .par_chunks(config.parallelism)
+            .map(|chunk| {
+                let mut results = Vec::new();
                 for probe_row in chunk {
-                    if key_idx < probe_row.len() {
-                        let key = probe_row[key_idx].clone();
+                    if key_index < probe_row.len() {
+                        let key = probe_row[key_index].clone();
                         if let Some(matching_rows) = hash_table_ref.get(&key) {
-                            local_results.push((probe_row, matching_rows.clone()));
+                            results.push((probe_row.clone(), matching_rows.clone()));
                         }
                     }
                 }
-                
-                local_results
-            });
+                results
+            })
+            .collect();
 
-            handles.push(handle);
-        }
-
-        // 合并结果
         let mut global_results = Vec::new();
-        for handle in handles {
-            match handle.join() {
-                Ok(local_results) => global_results.extend(local_results),
-                Err(e) => eprintln!("线程执行失败: {:?}", e),
-            }
+        for local in local_results {
+            global_results.extend(local);
         }
 
         global_results
@@ -234,39 +169,23 @@ impl ParallelHashTableProbe {
         key_indices: &[usize],
         config: &ParallelConfig,
     ) -> Vec<(Vec<Value>, Vec<Vec<Value>>)> {
-        if probe_dataset.rows.len() < config.min_rows_per_thread || config.parallelism == 1 {
-            // 数据量小，使用单线程
+        if !config.should_use_parallel(probe_dataset.rows.len()) {
             return crate::query::executor::data_processing::join::hash_table::HashTableProbe::probe_multi_key(hash_table, probe_dataset, key_indices);
         }
 
-        // 创建共享的哈希表引用
-        let hash_table_arc = Arc::new(hash_table);
+        let hash_table_ref = hash_table;
+        let probe_rows: Vec<Vec<Value>> = probe_dataset.rows.clone();
+        let key_indices = key_indices.to_vec();
         
-        // 计算每个线程处理的行数
-        let rows_per_thread = (probe_dataset.rows.len() + config.parallelism - 1) / config.parallelism;
-        let mut handles = Vec::new();
-
-        // 分割数据并创建线程
-        for i in 0..config.parallelism {
-            let start = i * rows_per_thread;
-            let end = std::cmp::min(start + rows_per_thread, probe_dataset.rows.len());
-            
-            if start >= probe_dataset.rows.len() {
-                break;
-            }
-
-            let chunk = probe_dataset.rows[start..end].to_vec();
-            let key_idxs = key_indices.to_vec();
-            let hash_table_ref = Arc::clone(&hash_table_arc);
-
-            let handle = thread::spawn(move || {
-                let mut local_results = Vec::new();
-                
+        let local_results: Vec<Vec<(Vec<Value>, Vec<Vec<Value>>)>> = probe_rows
+            .par_chunks(config.parallelism)
+            .map(|chunk| {
+                let mut results = Vec::new();
                 for probe_row in chunk {
                     let mut key_values = Vec::new();
                     let mut valid_row = true;
                     
-                    for &key_idx in &key_idxs {
+                    for &key_idx in &key_indices {
                         if key_idx < probe_row.len() {
                             key_values.push(probe_row[key_idx].clone());
                         } else {
@@ -278,130 +197,20 @@ impl ParallelHashTableProbe {
                     if valid_row {
                         let join_key = JoinKey::new(key_values);
                         if let Some(matching_rows) = hash_table_ref.get(&join_key) {
-                            local_results.push((probe_row, matching_rows.clone()));
+                            results.push((probe_row.clone(), matching_rows.clone()));
                         }
                     }
                 }
-                
-                local_results
-            });
+                results
+            })
+            .collect();
 
-            handles.push(handle);
-        }
-
-        // 合并结果
         let mut global_results = Vec::new();
-        for handle in handles {
-            match handle.join() {
-                Ok(local_results) => global_results.extend(local_results),
-                Err(e) => eprintln!("线程执行失败: {:?}", e),
-            }
+        for local in local_results {
+            global_results.extend(local);
         }
 
         global_results
-    }
-}
-
-/// 并行笛卡尔积处理器
-pub struct ParallelCartesianProduct;
-
-impl ParallelCartesianProduct {
-    /// 并行执行笛卡尔积
-    pub fn execute_parallel(
-        left_dataset: &DataSet,
-        right_dataset: &DataSet,
-        config: &ParallelConfig,
-    ) -> DataSet {
-        if left_dataset.rows.len() < config.min_rows_per_thread || config.parallelism == 1 {
-            // 数据量小，使用单线程
-            let mut result = DataSet::new();
-            for left_row in &left_dataset.rows {
-                for right_row in &right_dataset.rows {
-                    let mut new_row = left_row.clone();
-                    new_row.extend(right_row.clone());
-                    result.rows.push(new_row);
-                }
-            }
-            return result;
-        }
-
-        // 创建共享的右表引用
-        let right_dataset_arc = Arc::new(right_dataset);
-        
-        // 计算每个线程处理的行数
-        let rows_per_thread = (left_dataset.rows.len() + config.parallelism - 1) / config.parallelism;
-        let mut handles = Vec::new();
-
-        // 分割左表数据并创建线程
-        for i in 0..config.parallelism {
-            let start = i * rows_per_thread;
-            let end = std::cmp::min(start + rows_per_thread, left_dataset.rows.len());
-            
-            if start >= left_dataset.rows.len() {
-                break;
-            }
-
-            let chunk = left_dataset.rows[start..end].to_vec();
-            let right_ref = Arc::clone(&right_dataset_arc);
-
-            let handle = thread::spawn(move || {
-                let mut local_results = Vec::new();
-                
-                for left_row in chunk {
-                    for right_row in &right_ref.rows {
-                        let mut new_row = left_row.clone();
-                        new_row.extend(right_row.clone());
-                        local_results.push(new_row);
-                    }
-                }
-                
-                local_results
-            });
-
-            handles.push(handle);
-        }
-
-        // 合并结果
-        let mut result = DataSet::new();
-        for handle in handles {
-            match handle.join() {
-                Ok(local_results) => result.rows.extend(local_results),
-                Err(e) => eprintln!("线程执行失败: {:?}", e),
-            }
-        }
-
-        result
-    }
-}
-
-/// 工作窃取队列（用于负载均衡）
-pub struct WorkStealingQueue<T> {
-    tasks: Arc<Mutex<Vec<T>>>,
-}
-
-impl<T> WorkStealingQueue<T> {
-    pub fn new() -> Self {
-        Self {
-            tasks: Arc::new(Mutex::new(Vec::new())),
-        }
-    }
-
-    pub fn push(&self, task: T) {
-        let mut tasks = self.tasks.lock()
-            .expect("WorkStealingQueue tasks lock should not be poisoned");
-        tasks.push(task);
-    }
-
-    pub fn try_steal(&self) -> Option<T> {
-        let mut tasks = self.tasks.lock()
-            .expect("WorkStealingQueue tasks lock should not be poisoned");
-        tasks.pop()
-    }
-
-    pub fn len(&self) -> usize {
-        let tasks = self.tasks.lock()
-            .expect("WorkStealingQueue tasks lock should not be poisoned");
-        tasks.len()
     }
 }
 
@@ -415,7 +224,6 @@ mod tests {
         let config = ParallelConfig::default();
         assert!(config.parallelism > 0);
         assert_eq!(config.min_rows_per_thread, 1000);
-        assert!(config.enable_work_stealing);
     }
 
     #[test]
@@ -434,7 +242,6 @@ mod tests {
         let config = ParallelConfig {
             parallelism: 2,
             min_rows_per_thread: 1000,
-            enable_work_stealing: false,
         };
 
         let result = ParallelHashTableBuilder::build_single_key_table_parallel(&dataset, 0, &config);

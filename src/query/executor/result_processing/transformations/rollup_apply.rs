@@ -510,7 +510,6 @@ mod tests {
 
         let result = executor
             .execute()
-            .await
             .expect("Executor should execute successfully");
 
         if let ExecutionResult::Values(values) = result {
@@ -553,7 +552,6 @@ mod tests {
 
         let result = executor
             .execute()
-            .await
             .expect("Executor should execute successfully");
 
         if let ExecutionResult::Values(values) = result {
@@ -617,7 +615,6 @@ mod tests {
 
         let result = executor
             .execute()
-            .await
             .expect("Executor should execute successfully");
 
         if let ExecutionResult::Values(values) = result {
@@ -661,7 +658,6 @@ mod tests {
 
         let result = executor
             .execute()
-            .await
             .expect("Executor should execute successfully");
 
         if let ExecutionResult::Values(values) = result {
@@ -708,7 +704,6 @@ mod tests {
 
         let result = executor
             .execute()
-            .await
             .expect("Executor should execute successfully");
 
         if let ExecutionResult::Values(values) = result {

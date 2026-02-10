@@ -135,17 +135,17 @@ mod tests {
     use crate::storage::test_mock::MockStorage;
     use crate::query::executor::Executor;
 
-    #[tokio::test]
-    async fn test_show_tag_index_status_executor() {
+    #[test]
+    fn test_show_tag_index_status_executor() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let mut executor = ShowTagIndexStatusExecutor::new(1, storage, "test_space".to_string());
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
     }
 
-    #[tokio::test]
-    async fn test_show_tag_index_status_executor_with_name() {
+    #[test]
+    fn test_show_tag_index_status_executor_with_name() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let mut executor = ShowTagIndexStatusExecutor::with_index_name(
             2,
@@ -154,7 +154,7 @@ mod tests {
             "test_index".to_string(),
         );
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
     }
 

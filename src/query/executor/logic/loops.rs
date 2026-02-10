@@ -678,7 +678,7 @@ mod tests {
             Some(5),
         );
 
-        let result = executor.execute().await.expect("Failed to execute");
+        let result = executor.execute().expect("Failed to execute");
 
         match result {
             ExecutionResult::Success => {
@@ -689,8 +689,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_for_loop_executor() {
+    #[test]
+    fn test_for_loop_executor() {
         let storage = Arc::new(Mutex::new(MockStorage));
         let storage_clone = storage.clone();
 
@@ -699,7 +699,7 @@ mod tests {
         let mut executor =
             ForLoopExecutor::new(1, storage, "i".to_string(), 1, 3, 1, body_executor);
 
-        let result = executor.execute().await.expect("Failed to execute");
+        let result = executor.execute().expect("Failed to execute");
 
         match result {
             ExecutionResult::Success => {

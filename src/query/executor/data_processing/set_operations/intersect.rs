@@ -200,8 +200,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_intersect_no_common_rows() {
+    #[test]
+    fn test_intersect_no_common_rows() {
         let storage = create_test_storage();
         let mut executor = IntersectExecutor::new(
             2,
@@ -238,7 +238,7 @@ mod tests {
         );
 
         // 执行INTERSECT操作
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
 
         if let Ok(ExecutionResult::Values(values)) = result {
@@ -247,8 +247,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_intersect_empty_left() {
+    #[test]
+    fn test_intersect_empty_left() {
         let storage = create_test_storage();
         let mut executor = IntersectExecutor::new(
             3,
@@ -282,7 +282,7 @@ mod tests {
         );
 
         // 测试左数据集为空的INTERSECT
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
 
         if let Ok(ExecutionResult::Values(values)) = result {
@@ -326,7 +326,7 @@ mod tests {
         );
 
         // 测试右数据集为空的INTERSECT
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
 
         if let Ok(ExecutionResult::Values(values)) = result {
@@ -410,7 +410,7 @@ mod tests {
         );
 
         // 执行INTERSECT操作
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
 
         if let Ok(ExecutionResult::Values(values)) = result {
@@ -454,7 +454,7 @@ mod tests {
         );
 
         // 执行应该失败
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_err());
 
         if let Err(crate::core::error::DBError::Query(

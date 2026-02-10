@@ -8,8 +8,8 @@ mod tests {
     use crate::storage::test_mock::MockStorage;
     use crate::query::executor::Executor;
 
-    #[tokio::test]
-    async fn test_create_space_executor() {
+    #[test]
+    fn test_create_space_executor() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let space_info = ExecutorSpaceInfo::new("test_space".to_string())
             .with_partition_num(3)
@@ -18,7 +18,7 @@ mod tests {
 
         let mut executor = CreateSpaceExecutor::new(1, storage, space_info);
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
         match result.unwrap() {
             crate::query::executor::base::ExecutionResult::Success => {}
@@ -26,8 +26,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_drop_space_executor() {
+    #[test]
+    fn test_drop_space_executor() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let mut executor = DropSpaceExecutor::new(2, storage, "test_space".to_string());
 
@@ -39,17 +39,17 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_desc_space_executor() {
+    #[test]
+    fn test_desc_space_executor() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let mut executor = DescSpaceExecutor::new(3, storage, "test_space".to_string());
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
     }
 
-    #[tokio::test]
-    async fn test_show_spaces_executor() {
+    #[test]
+    fn test_show_spaces_executor() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let mut executor = ShowSpacesExecutor::new(4, storage);
 

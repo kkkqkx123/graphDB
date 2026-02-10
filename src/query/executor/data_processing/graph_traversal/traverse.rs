@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
-use crate::common::thread::ThreadPool;
 use crate::core::error::{DBError, DBResult};
 use crate::core::{Edge, Expression, Path, Value, Vertex};
 use crate::core::vertex_edge_path::Step;
@@ -10,7 +9,6 @@ use crate::expression::evaluator::traits::ExpressionContext;
 use crate::expression::DefaultExpressionContext;
 use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
 use crate::query::executor::executor_enum::ExecutorEnum;
-use crate::query::executor::recursion_detector::ParallelConfig;
 use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::query::QueryError;
 use crate::storage::StorageClient;
@@ -20,34 +18,21 @@ use crate::utils::safe_lock;
 ///
 /// 执行完整的图遍历操作，支持多跳和条件过滤
 /// 结合了 ExpandExecutor 的功能，支持更复杂的遍历需求
-///
-/// 参考nebula-graph的TraverseExecutor实现，支持Scatter-Gather并行计算模式
 pub struct TraverseExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
     pub edge_direction: EdgeDirection,
     pub edge_types: Option<Vec<String>>,
     pub max_depth: Option<usize>,
 
-    conditions: Option<String>, // 遍历条件
+    conditions: Option<String>,
     input_executor: Option<Box<ExecutorEnum<S>>>,
-    // 遍历状态
     current_paths: Vec<Path>,
     completed_paths: Vec<Path>,
     pub visited_nodes: HashSet<Value>,
-    // 遍历配置
     track_prev_path: bool,
     generate_path: bool,
-    /// 线程池用于并行遍历
-    ///
-    /// 参考nebula-graph的Executor::runMultiJobs，用于Scatter-Gather并行计算
-    thread_pool: Option<Arc<ThreadPool>>,
-    /// 并行计算配置
-    parallel_config: ParallelConfig,
-    /// 顶点过滤条件（用于第一步的顶点过滤）
     v_filter: Option<Expression>,
-    /// 边过滤条件
     e_filter: Option<Expression>,
-    /// 通用过滤条件
     filter: Option<Expression>,
 }
 
@@ -91,8 +76,6 @@ impl<S: StorageClient> TraverseExecutor<S> {
             visited_nodes: HashSet::new(),
             track_prev_path: true,
             generate_path: true,
-            thread_pool: None,
-            parallel_config: ParallelConfig::default(),
             v_filter: None,
             e_filter: None,
             filter: None,
@@ -108,20 +91,6 @@ impl<S: StorageClient> TraverseExecutor<S> {
     /// 设置是否生成路径
     pub fn with_generate_path(mut self, generate_path: bool) -> Self {
         self.generate_path = generate_path;
-        self
-    }
-
-    /// 设置线程池
-    ///
-    /// 参考nebula-graph的Executor::runMultiJobs，用于Scatter-Gather并行计算
-    pub fn with_thread_pool(mut self, thread_pool: Arc<ThreadPool>) -> Self {
-        self.thread_pool = Some(thread_pool);
-        self
-    }
-
-    /// 设置并行计算配置
-    pub fn with_parallel_config(mut self, config: ParallelConfig) -> Self {
-        self.parallel_config = config;
         self
     }
 
@@ -220,15 +189,6 @@ impl<S: StorageClient> TraverseExecutor<S> {
     }
 }
 
-/// 路径扩展结果
-///
-/// 用于并行遍历中收集每批路径的处理结果
-#[derive(Debug, Clone)]
-struct PathExpansionResult {
-    next_paths: Vec<Path>,
-    completed_paths: Vec<Path>,
-}
-
 impl<S: StorageClient> TraverseExecutor<S> {
     /// 执行单步遍历
     fn traverse_step(
@@ -242,12 +202,7 @@ impl<S: StorageClient> TraverseExecutor<S> {
             return Ok(());
         }
 
-        let path_count = self.current_paths.len();
-        if self.parallel_config.should_use_parallel(path_count) && self.thread_pool.is_some() {
-            self.traverse_step_parallel(current_depth, max_depth)
-        } else {
-            self.traverse_step_serial(current_depth, max_depth)
-        }
+        self.traverse_step_serial(current_depth, max_depth)
     }
 
     fn traverse_step_serial(
@@ -307,96 +262,6 @@ impl<S: StorageClient> TraverseExecutor<S> {
 
         self.completed_paths.extend(completed_this_step);
         self.current_paths = next_paths;
-        Ok(())
-    }
-
-    fn traverse_step_parallel(
-        &mut self,
-        current_depth: usize,
-        max_depth: usize,
-    ) -> Result<(), QueryError> {
-        let batch_size = self.parallel_config.calculate_batch_size(self.current_paths.len());
-        let paths_to_process: Vec<Path> = self.current_paths.drain(..).collect();
-
-        let thread_pool = self.thread_pool.as_ref().ok_or_else(|| {
-            QueryError::ExecutionError("Thread pool not set for parallel traversal".to_string())
-        })?;
-
-        // 预收集所有需要查询的节点ID，批量查询以减少存储访问
-        let node_ids: Vec<Value> = paths_to_process
-            .iter()
-            .map(|path| {
-                if path.steps.is_empty() {
-                    (*path.src.vid).clone()
-                } else {
-                    (*path.steps.last().expect("Path should have steps").dst.vid).clone()
-                }
-            })
-            .collect();
-
-        // 批量获取邻居节点和边（包含完整的顶点信息）
-        let neighbors_map = self.batch_get_neighbors_with_vertices(&node_ids)?;
-
-        // 将数据移动到闭包中
-        let neighbors_map = std::sync::Arc::new(neighbors_map);
-        let next_depth = current_depth + 1;
-
-        // 使用ThreadPool::run_multi_jobs_sync进行Scatter-Gather并行计算
-        // Scatter: 将路径分批处理
-        // Gather: 收集所有结果
-        let results = thread_pool
-            .run_multi_jobs_sync(
-                move |batch: Vec<Path>| {
-                    let mut local_next_paths = Vec::new();
-                    let mut local_completed = Vec::new();
-
-                    for path in batch {
-                        let current_node_id = if path.steps.is_empty() {
-                            (*path.src.vid).clone()
-                        } else {
-                            (*path.steps.last().expect("Path should have steps").dst.vid).clone()
-                        };
-
-                        // 从预查询的邻居映射中获取邻居
-                        if let Some(neighbors) = neighbors_map.get(&current_node_id) {
-                            for (vertex, edge) in neighbors {
-                                // 检查条件
-                                // 注意：由于check_conditions在闭包中无法使用self，
-                                // 这里简化处理，实际生产环境需要将过滤条件传入闭包
-                                // 或采用其他策略
-
-                                // 创建新路径
-                                let mut new_path = path.clone();
-                                new_path.steps.push(Step {
-                                    dst: Box::new(vertex.clone()),
-                                    edge: Box::new(edge.clone()),
-                                });
-
-                                // 检查是否达到最大深度
-                                if next_depth >= max_depth {
-                                    local_completed.push(new_path);
-                                } else {
-                                    local_next_paths.push(new_path);
-                                }
-                            }
-                        }
-                    }
-
-                    PathExpansionResult {
-                        next_paths: local_next_paths,
-                        completed_paths: local_completed,
-                    }
-                },
-                paths_to_process,
-                batch_size,
-            );
-
-        // Gather: 合并所有批次的结果
-        for result in results {
-            self.current_paths.extend(result.next_paths);
-            self.completed_paths.extend(result.completed_paths);
-        }
-
         Ok(())
     }
 

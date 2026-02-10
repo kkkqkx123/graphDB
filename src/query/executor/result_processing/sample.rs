@@ -560,7 +560,6 @@ mod tests {
         // 执行采样
         let result = executor
             .process(ExecutionResult::DataSet(DataSet::new()))
-            .await
             .expect("Failed to process sample");
 
         // 验证结果

@@ -11,8 +11,8 @@ mod tests {
     use crate::storage::test_mock::MockStorage;
     use crate::query::executor::Executor;
 
-    #[tokio::test]
-    async fn test_create_tag_index_executor() {
+    #[test]
+    fn test_create_tag_index_executor() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let index = Index::new(
             0,
@@ -35,8 +35,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_create_tag_index_executor_with_if_not_exists() {
+    #[test]
+    fn test_create_tag_index_executor_with_if_not_exists() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let index = Index::new(
             0,
@@ -51,12 +51,12 @@ mod tests {
 
         let mut executor = CreateTagIndexExecutor::with_if_not_exists(2, storage, index);
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
     }
 
-    #[tokio::test]
-    async fn test_drop_tag_index_executor() {
+    #[test]
+    fn test_drop_tag_index_executor() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let mut executor = DropTagIndexExecutor::new(
             3,
@@ -73,8 +73,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_drop_tag_index_executor_with_if_exists() {
+    #[test]
+    fn test_drop_tag_index_executor_with_if_exists() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let mut executor = DropTagIndexExecutor::with_if_exists(
             4,
@@ -87,8 +87,8 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    #[tokio::test]
-    async fn test_desc_tag_index_executor() {
+    #[test]
+    fn test_desc_tag_index_executor() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let mut executor = DescTagIndexExecutor::new(
             5,
@@ -97,21 +97,21 @@ mod tests {
             "person_name_index".to_string(),
         );
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
     }
 
-    #[tokio::test]
-    async fn test_show_tag_indexes_executor() {
+    #[test]
+    fn test_show_tag_indexes_executor() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let mut executor = ShowTagIndexesExecutor::new(6, storage, "test_space".to_string());
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
     }
 
-    #[tokio::test]
-    async fn test_rebuild_tag_index_executor() {
+    #[test]
+    fn test_rebuild_tag_index_executor() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let mut executor = RebuildTagIndexExecutor::new(
             7,
@@ -128,8 +128,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_create_edge_index_executor() {
+    #[test]
+    fn test_create_edge_index_executor() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let index = Index::new(
             0,
@@ -144,7 +144,7 @@ mod tests {
 
         let mut executor = CreateEdgeIndexExecutor::new(8, storage, index);
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
         match result.unwrap() {
             crate::query::executor::base::ExecutionResult::Success => {}
@@ -152,8 +152,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_create_edge_index_executor_with_if_not_exists() {
+    #[test]
+    fn test_create_edge_index_executor_with_if_not_exists() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let index = Index::new(
             0,
@@ -168,12 +168,12 @@ mod tests {
 
         let mut executor = CreateEdgeIndexExecutor::with_if_not_exists(9, storage, index);
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
     }
 
-    #[tokio::test]
-    async fn test_drop_edge_index_executor() {
+    #[test]
+    fn test_drop_edge_index_executor() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let mut executor = DropEdgeIndexExecutor::new(
             10,
@@ -190,8 +190,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_drop_edge_index_executor_with_if_exists() {
+    #[test]
+    fn test_drop_edge_index_executor_with_if_exists() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let mut executor = DropEdgeIndexExecutor::with_if_exists(
             11,
@@ -200,12 +200,12 @@ mod tests {
             "knows_weight_index".to_string(),
         );
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
     }
 
-    #[tokio::test]
-    async fn test_desc_edge_index_executor() {
+    #[test]
+    fn test_desc_edge_index_executor() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let mut executor = DescEdgeIndexExecutor::new(
             12,
@@ -214,21 +214,21 @@ mod tests {
             "knows_weight_index".to_string(),
         );
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
     }
 
-    #[tokio::test]
-    async fn test_show_edge_indexes_executor() {
+    #[test]
+    fn test_show_edge_indexes_executor() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let mut executor = ShowEdgeIndexesExecutor::new(13, storage, "test_space".to_string());
 
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
     }
 
-    #[tokio::test]
-    async fn test_rebuild_edge_index_executor() {
+    #[test]
+    fn test_rebuild_edge_index_executor() {
         let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
         let mut executor = RebuildEdgeIndexExecutor::new(
             14,

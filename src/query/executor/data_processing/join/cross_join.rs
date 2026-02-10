@@ -301,8 +301,8 @@ pub mod tests {
     use crate::core::Value;
     use crate::storage::test_mock::MockStorage;
 
-    #[tokio::test]
-    async fn test_cross_join_two_tables() {
+    #[test]
+    fn test_cross_join_two_tables() {
         let storage = Arc::new(Mutex::new(MockStorage));
 
         // 创建执行器
@@ -346,7 +346,7 @@ pub mod tests {
         );
 
         // 执行连接
-        let result = executor.execute().await.expect("Failed to execute");
+        let result = executor.execute().expect("Failed to execute");
 
         // 验证结果
         match result {
@@ -417,7 +417,7 @@ pub mod tests {
         );
 
         // 执行连接
-        let result = executor.execute().await.expect("Failed to execute");
+        let result = executor.execute().expect("Failed to execute");
 
         // 验证结果
         match result {
@@ -487,7 +487,7 @@ pub mod tests {
         );
 
         // 执行连接
-        let result = executor.execute().await.expect("Failed to execute");
+        let result = executor.execute().expect("Failed to execute");
 
         // 验证结果
         match result {

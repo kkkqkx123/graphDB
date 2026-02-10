@@ -122,8 +122,8 @@ mod tests {
         Arc::new(Mutex::new(storage))
     }
 
-    #[tokio::test]
-    async fn test_union_all_basic() {
+    #[test]
+    fn test_union_all_basic() {
         let storage = create_test_storage();
         let mut executor = UnionAllExecutor::new(
             1,
@@ -166,8 +166,8 @@ mod tests {
         assert!(result.is_ok());
 
         if let Ok(ExecutionResult::Values(values)) = result {
-            // 应该包含所有4个值（不去重）
-            assert_eq!(values.len(), 6);
+            // 应该包含所有8个值（不去重）：左表4个值 + 右表4个值
+            assert_eq!(values.len(), 8);
         } else {
             panic!("期望Values结果");
         }
@@ -216,8 +216,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_union_all_empty_right() {
+    #[test]
+    fn test_union_all_empty_right() {
         let storage = create_test_storage();
         let mut executor = UnionAllExecutor::new(
             3,
@@ -251,7 +251,7 @@ mod tests {
         );
 
         // 测试右数据集为空的UNION ALL
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
 
         if let Ok(ExecutionResult::Values(values)) = result {
@@ -380,7 +380,7 @@ mod tests {
         );
 
         // 执行UNION ALL操作
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
 
         if let Ok(ExecutionResult::Values(values)) = result {

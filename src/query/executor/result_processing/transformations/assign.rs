@@ -175,7 +175,6 @@ mod tests {
         // 执行赋值
         let result = executor
             .execute()
-            .await
             .expect("Executor should execute successfully");
         assert!(matches!(result, ExecutionResult::Success));
 

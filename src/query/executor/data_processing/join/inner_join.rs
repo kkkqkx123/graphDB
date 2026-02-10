@@ -437,7 +437,7 @@ mod tests {
             ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
         );
 
-        let result = executor.execute().await.expect("执行失败");
+        let result = executor.execute().expect("执行失败");
 
         match result {
             ExecutionResult::Values(values) => {
@@ -463,8 +463,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_inner_join_multi_key() {
+    #[test]
+    fn test_inner_join_multi_key() {
         let storage = Arc::new(Mutex::new(MockStorage));
 
         let left_dataset = DataSet {
@@ -515,7 +515,7 @@ mod tests {
             ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
         );
 
-        let result = executor.execute().await.expect("执行失败");
+        let result = executor.execute().expect("执行失败");
 
         match result {
             ExecutionResult::Values(values) => {
@@ -533,8 +533,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_inner_join_empty_dataset() {
+    #[test]
+    fn test_inner_join_empty_dataset() {
         let storage = Arc::new(Mutex::new(MockStorage));
 
         let left_dataset = DataSet {
@@ -567,7 +567,7 @@ mod tests {
             ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
         );
 
-        let result = executor.execute().await.expect("执行失败");
+        let result = executor.execute().expect("执行失败");
 
         match result {
             ExecutionResult::Values(values) => {
@@ -607,7 +607,7 @@ mod tests {
             ExecutionResult::Values(vec![Value::DataSet(right_dataset)]),
         );
 
-        let result = executor.execute().await.expect("执行失败");
+        let result = executor.execute().expect("执行失败");
 
         match result {
             ExecutionResult::Values(values) => {

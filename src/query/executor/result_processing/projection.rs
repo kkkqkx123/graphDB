@@ -2,12 +2,11 @@
 //!
 //! ProjectExecutor - 选择和投影输出列
 //!
-//! 参考nebula-graph的ProjectExecutor实现，支持Scatter-Gather并行计算模式
+//! CPU 密集型操作，使用 Rayon 进行并行化
 
 use std::sync::{Arc, Mutex};
 use rayon::prelude::*;
 
-use crate::common::thread::ThreadPool;
 use crate::core::error::{DBError, DBResult};
 use crate::core::Expression;
 use crate::core::Value;
@@ -38,15 +37,11 @@ impl ProjectionColumn {
 ///
 /// 执行列投影操作，支持表达式求值和列重命名
 ///
-/// 参考nebula-graph的ProjectExecutor实现，支持Scatter-Gather并行计算模式
+/// CPU 密集型操作，使用 Rayon 进行并行化
 pub struct ProjectExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
-    columns: Vec<ProjectionColumn>, // 投影列定义
+    columns: Vec<ProjectionColumn>,
     input_executor: Option<Box<ExecutorEnum<S>>>,
-    /// 线程池用于并行执行
-    ///
-    /// 参考nebula-graph的Executor::runMultiJobs，用于Scatter-Gather并行计算
-    thread_pool: Option<Arc<ThreadPool>>,
     /// 并行计算配置
     parallel_config: ParallelConfig,
 }
@@ -57,17 +52,8 @@ impl<S: StorageClient> ProjectExecutor<S> {
             base: BaseExecutor::new(id, "ProjectExecutor".to_string(), storage),
             columns,
             input_executor: None,
-            thread_pool: None,
             parallel_config: ParallelConfig::default(),
         }
-    }
-
-    /// 设置线程池
-    ///
-    /// 参考nebula-graph的Executor::runMultiJobs，用于Scatter-Gather并行计算
-    pub fn with_thread_pool(mut self, thread_pool: Arc<ThreadPool>) -> Self {
-        self.thread_pool = Some(thread_pool);
-        self
     }
 
     /// 设置并行计算配置
