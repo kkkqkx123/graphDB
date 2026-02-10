@@ -2,7 +2,6 @@
 //!
 //! 负责列出所有已创建的图空间。
 
-use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::core::{DataSet, Value};
@@ -27,9 +26,8 @@ impl<S: StorageClient> ShowSpacesExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowSpacesExecutor<S> {
-    async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
+    fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let storage_guard = storage.lock().map_err(|e| {
             crate::core::error::DBError::Storage(

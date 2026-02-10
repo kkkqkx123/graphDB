@@ -2,7 +2,6 @@
 //!
 //! 负责修改已存在标签的属性定义。
 
-use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::core::types::metadata::PropertyDef;
@@ -92,9 +91,8 @@ impl<S: StorageClient> AlterTagExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AlterTagExecutor<S> {
-    async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
+    fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let mut storage_guard = storage.lock().map_err(|e| {
             crate::core::error::DBError::Storage(

@@ -286,7 +286,7 @@ impl OptimizerError {
         }
     }
 
-    pub fn InvalidPlanNode(message: String) -> Self {
+    pub fn invalid_plan_node(message: String) -> Self {
         Self {
             message,
             code: 1007,

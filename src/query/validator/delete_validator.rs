@@ -169,8 +169,8 @@ impl DeleteValidator {
         }
     }
 
-    fn generate_output_columns(&self, ast: &mut AstContext) {
-        ast.add_output("DELETED".to_string(), ValueType::Bool);
+    fn generate_output_columns(&mut self, _ast: &mut AstContext) {
+        self.base.add_output("DELETED".to_string(), ValueType::Bool);
     }
 }
 

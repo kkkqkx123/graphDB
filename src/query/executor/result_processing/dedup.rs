@@ -2,7 +2,6 @@
 //!
 //! 实现数据去重功能，支持基于指定键的去重策略
 
-use async_trait::async_trait;
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
@@ -371,15 +370,14 @@ impl<S: StorageClient + Send + 'static> DedupExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + 'static> ResultProcessor<S> for DedupExecutor<S> {
-    async fn process(&mut self, _input: ExecutionResult) -> DBResult<ExecutionResult> {
+    fn process(&mut self, _input: ExecutionResult) -> DBResult<ExecutionResult> {
         // 重置内存使用量
         self.reset_memory_usage();
 
         // 从 input_executor 或 base.input 获取输入
         let input = if let Some(ref mut input_exec) = self.input_executor {
-            input_exec.execute().await?
+            input_exec.execute()?
         } else if let Some(input) = &self.base.input {
             input.clone()
         } else {
@@ -387,7 +385,7 @@ impl<S: StorageClient + Send + 'static> ResultProcessor<S> for DedupExecutor<S> 
         };
 
         // 执行去重操作
-        self.execute_dedup(input).await.map_err(|e| {
+        self.execute_dedup(input).map_err(|e| {
             crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(
                 e.to_string(),
             ))
@@ -420,11 +418,10 @@ impl<S: StorageClient + Send + 'static> ResultProcessor<S> for DedupExecutor<S> 
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DedupExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
-            input_exec.execute().await?
+            input_exec.execute()?
         } else {
             self.base
                 .input
@@ -432,7 +429,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DedupExecutor<S> 
                 .unwrap_or(ExecutionResult::Values(Vec::new()))
         };
 
-        self.process(input_result).await
+        self.process(input_result)
     }
 
     fn open(&mut self) -> DBResult<()> {

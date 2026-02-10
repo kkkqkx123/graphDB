@@ -2,7 +2,6 @@
 //!
 //! 负责清空指定空间的所有数据。
 
-use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
@@ -26,9 +25,8 @@ impl<S: StorageClient> ClearSpaceExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ClearSpaceExecutor<S> {
-    async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
+    fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let mut storage_guard = storage.lock().map_err(|e| {
             crate::core::error::DBError::Storage(

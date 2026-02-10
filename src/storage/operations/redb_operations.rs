@@ -290,8 +290,6 @@ impl EdgeReader for RedbReader {
 
 pub struct RedbWriter {
     db: Arc<Database>,
-    vertex_cache: Arc<Mutex<LruCache<Vec<u8>, Vertex>>>,
-    edge_cache: Arc<Mutex<LruCache<Vec<u8>, Edge>>>,
 }
 
 impl std::fmt::Debug for RedbWriter {
@@ -302,17 +300,8 @@ impl std::fmt::Debug for RedbWriter {
 
 impl RedbWriter {
     pub fn new(db: Arc<Database>) -> Result<Self, StorageError> {
-        let vertex_cache_size = std::num::NonZeroUsize::new(1000)
-            .expect("Failed to create NonZeroUsize for vertex cache");
-        let edge_cache_size = std::num::NonZeroUsize::new(1000)
-            .expect("Failed to create NonZeroUsize for edge cache");
-        let vertex_cache = Arc::new(Mutex::new(LruCache::new(vertex_cache_size)));
-        let edge_cache = Arc::new(Mutex::new(LruCache::new(edge_cache_size)));
-
         Ok(Self {
             db,
-            vertex_cache,
-            edge_cache,
         })
     }
 }

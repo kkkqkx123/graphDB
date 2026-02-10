@@ -2,7 +2,6 @@
 //!
 //! 实现对查询结果的数量限制和偏移功能，支持 LIMIT 和 OFFSET 操作
 
-use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
@@ -55,10 +54,10 @@ impl<S: StorageClient + Send + 'static> LimitExecutor<S> {
     }
 
     /// 处理输入数据并应用限制
-    async fn process_input(&mut self) -> DBResult<DataSet> {
+    fn process_input(&mut self) -> DBResult<DataSet> {
         // 优先使用 input_executor
         if let Some(ref mut input_exec) = self.input_executor {
-            let input_result = input_exec.execute().await?;
+            let input_result = input_exec.execute()?;
             self.apply_limits_to_input(input_result)
         } else if let Some(input) = &self.base.input {
             // 使用 base.input 作为备选
@@ -195,14 +194,12 @@ impl<S: StorageClient + Send + 'static> LimitExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + 'static> ResultProcessor<S> for LimitExecutor<S> {
-    async fn process(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult> {
-        // 如果 input_executor 为空且 base.input 未设置，则设置 base.input
+    fn process(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult> {
         if self.input_executor.is_none() && self.base.input.is_none() {
             ResultProcessor::set_input(self, input);
         }
-        let dataset = self.process_input().await?;
+        let dataset = self.process_input()?;
         Ok(ExecutionResult::DataSet(dataset))
     }
 
@@ -231,11 +228,10 @@ impl<S: StorageClient + Send + 'static> ResultProcessor<S> for LimitExecutor<S> 
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for LimitExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
-            input_exec.execute().await?
+            input_exec.execute()?
         } else {
             self.base
                 .input
@@ -243,7 +239,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for LimitExecutor<S> 
                 .unwrap_or(ExecutionResult::DataSet(DataSet::new()))
         };
 
-        self.process(input_result).await
+        self.process(input_result)
     }
 
     fn open(&mut self) -> DBResult<()> {
@@ -323,7 +319,6 @@ mod tests {
         // 执行限制
         let result = executor
             .process(ExecutionResult::DataSet(DataSet::new()))
-            .await
             .expect("Failed to process limit");
 
         // 验证结果
@@ -354,7 +349,6 @@ mod tests {
         // 执行限制
         let result = executor
             .process(ExecutionResult::DataSet(DataSet::new()))
-            .await
             .expect("Failed to process limit");
 
         // 验证结果

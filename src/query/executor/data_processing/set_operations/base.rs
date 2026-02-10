@@ -2,7 +2,6 @@
 //!
 //! 提供所有集合操作执行器的通用功能和接口
 
-use async_trait::async_trait;
 use std::collections::HashSet;
 use std::hash::Hash;
 use std::sync::{Arc, Mutex};
@@ -196,11 +195,10 @@ impl<S: StorageClient> SetExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + 'static> crate::query::executor::traits::Executor<S>
     for SetExecutor<S>
 {
-    async fn execute(
+    fn execute(
         &mut self,
     ) -> crate::query::executor::traits::DBResult<crate::query::executor::traits::ExecutionResult>
     {

@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
@@ -202,12 +201,11 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for ExpandAllExecutor<S
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
         // 首先执行输入执行器（如果存在）
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
-            input_exec.execute().await?
+            input_exec.execute()?
         } else {
             // 如果没有输入执行器，返回空结果
             ExecutionResult::Vertices(Vec::new())
@@ -277,7 +275,6 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
             // 递归扩展路径
             let mut expanded_paths = self
                 .expand_paths_recursive(&mut initial_path, 0, max_depth)
-                .await
                 .map_err(DBError::from)?;
             self.path_cache.append(&mut expanded_paths);
         }

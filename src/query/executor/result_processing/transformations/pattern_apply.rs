@@ -3,7 +3,6 @@
 //! 负责处理模式匹配操作，支持 EXISTS 和 NOT EXISTS 语义
 //! 将左输入数据与右输入数据进行键匹配
 
-use async_trait::async_trait;
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
@@ -291,9 +290,8 @@ impl<S: StorageClient + Send + 'static> PatternApplyExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for PatternApplyExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
         let dataset = self.execute_pattern_apply()?;
 
         let values: Vec<Value> = dataset

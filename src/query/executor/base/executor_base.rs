@@ -2,7 +2,6 @@
 //!
 //! 提供执行器的基础结构和通用功能，包括 Executor trait、HasStorage trait、HasInput trait 等。
 
-use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
@@ -16,10 +15,9 @@ use super::super::executor_enum::ExecutorEnum;
 /// 统一的执行器 trait
 ///
 /// 所有执行器必须实现的核心 trait，包含执行、生命周期和元数据功能。
-#[async_trait]
-pub trait Executor<S: StorageClient>: Send + Sync {
+pub trait Executor<S: StorageClient>: Send {
     /// 执行查询
-    async fn execute(&mut self) -> DBResult<ExecutionResult>;
+    fn execute(&mut self) -> DBResult<ExecutionResult>;
 
     /// 打开执行器
     fn open(&mut self) -> DBResult<()>;
@@ -193,9 +191,8 @@ impl<S: StorageClient> HasStorage<S> for BaseExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient> Executor<S> for BaseExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
         let start = Instant::now();
         let result = Ok(ExecutionResult::Success);
         self.stats_mut().add_total_time(start.elapsed());
@@ -254,9 +251,8 @@ impl<S: StorageClient> StartExecutor<S> {
     }
 }
 
-#[async_trait]
-impl<S: StorageClient + Send + 'static> Executor<S> for StartExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+impl<S: StorageClient> Executor<S> for StartExecutor<S> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
         let start = Instant::now();
         let result = Ok(ExecutionResult::Success);
         self.base.get_stats_mut().add_total_time(start.elapsed());

@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -158,10 +157,9 @@ impl<S: StorageClient + Send + 'static> RightJoinExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + 'static> Executor<S> for RightJoinExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        self.execute_right_join().await
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
+        self.execute_right_join()
     }
 
     fn open(&mut self) -> DBResult<()> {

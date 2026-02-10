@@ -2,7 +2,6 @@
 //!
 //! 负责修改用户密码。
 
-use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::core::types::metadata::PasswordInfo;
@@ -31,9 +30,8 @@ impl<S: StorageClient> ChangePasswordExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ChangePasswordExecutor<S> {
-    async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
+    fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let mut storage = storage.lock().map_err(|e| crate::core::error::DBError::Storage(
             crate::core::StorageError::DbError(e.to_string())

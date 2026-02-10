@@ -2,7 +2,6 @@
 //!
 //! 实现MINUS操作，返回左数据集中存在但右数据集中不存在的行
 
-use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::core::error::QueryError;
@@ -95,10 +94,9 @@ impl<S: StorageClient> MinusExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + 'static> Executor<S> for MinusExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        let dataset = self.execute_minus().await.map_err(|e| {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
+        let dataset = self.execute_minus().map_err(|e| {
             crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(
                 e.to_string(),
             ))
@@ -199,7 +197,7 @@ mod tests {
         );
 
         // 执行MINUS操作
-        let result = executor.execute().await;
+        let result = executor.execute();
 
         // 验证结果
         assert!(result.is_ok());
@@ -251,7 +249,7 @@ mod tests {
         );
 
         // 执行MINUS操作
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
 
         if let Ok(ExecutionResult::Values(values)) = result {
@@ -299,7 +297,7 @@ mod tests {
         );
 
         // 执行MINUS操作
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
 
         if let Ok(ExecutionResult::Values(values)) = result {
@@ -343,7 +341,7 @@ mod tests {
         );
 
         // 测试左数据集为空的MINUS
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
 
         if let Ok(ExecutionResult::Values(values)) = result {
@@ -387,7 +385,7 @@ mod tests {
         );
 
         // 测试右数据集为空的MINUS
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
 
         if let Ok(ExecutionResult::Values(values)) = result {
@@ -429,7 +427,7 @@ mod tests {
         );
 
         // 测试两个数据集都为空的MINUS
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
 
         if let Ok(ExecutionResult::Values(values)) = result {
@@ -473,7 +471,7 @@ mod tests {
         );
 
         // 执行MINUS操作
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
 
         if let Ok(ExecutionResult::Values(values)) = result {
@@ -517,7 +515,7 @@ mod tests {
         );
 
         // 执行应该失败
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_err());
 
         if let Err(crate::core::error::DBError::Query(

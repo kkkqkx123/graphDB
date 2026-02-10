@@ -5,7 +5,6 @@
 //! NebulaGraph 对应实现：
 //! nebula-3.8.0/src/graph/executor/logic/LoopExecutor.cpp
 
-use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
@@ -134,7 +133,7 @@ impl<S: StorageClient + Send + 'static> LoopExecutor<S> {
             Value::Int(self.current_iteration as i64),
         );
 
-        let result = self.body_executor.execute().await?;
+        let result = self.body_executor.execute()?;
 
         self.body_executor.close()?;
         self.body_executor.open()?;
@@ -263,9 +262,8 @@ impl<S: StorageClient + Send + 'static> LoopExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for LoopExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
         self.validate_no_self_reference()?;
 
         self.safety_validator.validate_loop_config(self.max_iterations)?;
@@ -287,7 +285,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for LoopExecutor<S> {
                 Value::Int(self.current_iteration as i64),
             );
 
-            let should_continue = match self.evaluate_condition().await {
+            let should_continue = match self.evaluate_condition() {
                 Ok(continue_flag) => continue_flag,
                 Err(e) => {
                     self.loop_state = LoopExecutionState::Error(e.to_string());
@@ -299,7 +297,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for LoopExecutor<S> {
                 break;
             }
 
-            match self.execute_iteration().await {
+            match self.execute_iteration() {
                 Ok(result) => {
                     self.results.push(result);
                 }
@@ -392,10 +390,9 @@ impl<S: StorageClient + Send + 'static> WhileLoopExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for WhileLoopExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        self.inner.execute().await
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
+        self.inner.execute()
     }
 
     fn open(&mut self) -> DBResult<()> {
@@ -478,9 +475,8 @@ impl<S: StorageClient + Send + 'static> ForLoopExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ForLoopExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
         self.inner.open()?;
 
         let mut current = self.start;
@@ -489,7 +485,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ForLoopExecutor<S
         while (self.step > 0 && current <= self.end) || (self.step < 0 && current >= self.end) {
             self.inner.set_loop_variable(self.loop_var.clone(), Value::Int(current));
 
-            let result = self.inner.execute_iteration().await?;
+            let result = self.inner.execute_iteration()?;
             results.push(result);
 
             current += self.step;
@@ -571,9 +567,8 @@ impl<S: StorageClient> SelectExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + 'static> Executor<S> for SelectExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
         let mut context = crate::expression::DefaultExpressionContext::new();
 
         let condition_result = ExpressionEvaluator::evaluate(&self.condition, &mut context)
@@ -603,7 +598,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for SelectExecutor<S> {
         };
 
         branch_to_execute.open()?;
-        let result = branch_to_execute.execute().await?;
+        let result = branch_to_execute.execute()?;
         branch_to_execute.close()?;
 
         self.current_result = Some(result.clone());

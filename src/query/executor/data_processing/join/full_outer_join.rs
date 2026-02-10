@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -222,10 +221,9 @@ impl<S: StorageClient + Send + 'static> FullOuterJoinExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + 'static> Executor<S> for FullOuterJoinExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        self.execute_full_outer_join().await
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
+        self.execute_full_outer_join()
     }
 
     fn open(&mut self) -> DBResult<()> {

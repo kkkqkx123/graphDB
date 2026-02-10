@@ -4,7 +4,6 @@
 //!
 //! 参考nebula-graph的SortExecutor实现，支持Scatter-Gather并行计算模式
 
-use async_trait::async_trait;
 use rayon::prelude::*;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
@@ -143,16 +142,13 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
     }
 
     /// 处理输入数据并排序
-    async fn process_input(&mut self) -> DBResult<DataSet> {
+    fn process_input(&mut self) -> DBResult<DataSet> {
         if let Some(ref mut input_exec) = self.input_executor {
-            let input_result = input_exec.execute().await?;
+            let input_result = input_exec.execute()?;
 
             match input_result {
                 ExecutionResult::DataSet(mut data_set) => {
-                    // 优化排序键（将表达式解析为列索引）
                     self.optimize_sort_keys(&data_set.col_names)?;
-
-                    // 根据数据集大小和配置选择合适的排序算法
                     self.execute_sort(&mut data_set)?;
                     Ok(data_set)
                 }
@@ -728,11 +724,10 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + 'static> ResultProcessor<S> for SortExecutor<S> {
-    async fn process(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult> {
+    fn process(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult> {
         ResultProcessor::set_input(self, input);
-        let dataset = self.process_input().await?;
+        let dataset = self.process_input()?;
         Ok(ExecutionResult::DataSet(dataset))
     }
 
@@ -761,11 +756,10 @@ impl<S: StorageClient + Send + 'static> ResultProcessor<S> for SortExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for SortExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
-            input_exec.execute().await?
+            input_exec.execute()?
         } else {
             self.base
                 .input
@@ -773,7 +767,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for SortExecutor<S> {
                 .unwrap_or(ExecutionResult::DataSet(DataSet::new()))
         };
 
-        self.process(input_result).await
+        self.process(input_result)
     }
 
     fn open(&mut self) -> DBResult<()> {

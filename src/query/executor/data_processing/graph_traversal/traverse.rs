@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
@@ -525,12 +524,11 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for TraverseExecutor<S>
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + 'static> Executor<S> for TraverseExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
         // 首先执行输入执行器（如果存在）
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
-            input_exec.execute().await?
+            input_exec.execute()?
         } else {
             // 如果没有输入执行器，返回空结果
             ExecutionResult::Vertices(Vec::new())

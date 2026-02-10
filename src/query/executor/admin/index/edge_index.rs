@@ -2,7 +2,6 @@
 //!
 //! 提供边索引的创建、删除、描述和列出功能。
 
-use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::core::{DataSet, Value};
@@ -74,9 +73,8 @@ impl<S: StorageClient> CreateEdgeIndexExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateEdgeIndexExecutor<S> {
-    async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
+    fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let mut storage_guard = storage.lock().map_err(|e| {
             crate::core::error::DBError::Storage(
@@ -150,9 +148,8 @@ impl<S: StorageClient> DropEdgeIndexExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DropEdgeIndexExecutor<S> {
-    async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
+    fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let mut storage_guard = storage.lock().map_err(|e| {
             crate::core::error::DBError::Storage(
@@ -209,9 +206,8 @@ impl<S: StorageClient> DescEdgeIndexExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DescEdgeIndexExecutor<S> {
-    async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
+    fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let storage_guard = storage.lock().map_err(|e| {
             crate::core::error::DBError::Storage(
@@ -276,9 +272,8 @@ impl<S: StorageClient> ShowEdgeIndexesExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowEdgeIndexesExecutor<S> {
-    async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
+    fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let storage_guard = storage.lock().map_err(|e| {
             crate::core::error::DBError::Storage(

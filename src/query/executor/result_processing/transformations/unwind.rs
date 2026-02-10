@@ -2,7 +2,6 @@
 //!
 //! 负责处理列表展开操作，将列表中的每个元素展开为单独的行
 
-use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
@@ -305,9 +304,8 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for UnwindExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
         let dataset = self.execute_unwind()?;
         Ok(ExecutionResult::Values(
             dataset.rows.into_iter().flatten().collect(),

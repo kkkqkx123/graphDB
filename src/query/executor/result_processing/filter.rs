@@ -5,7 +5,6 @@
 //! 
 //! 参考nebula-graph的FilterExecutor::runMultiJobs实现，使用Scatter-Gather模式进行并行计算
 
-use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 use rayon::prelude::*;
 
@@ -90,7 +89,7 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
     /// 
     /// # 返回
     /// 过滤后的数据集
-    async fn apply_filter_with_thread_pool(
+    fn apply_filter_with_thread_pool(
         &self,
         dataset: &mut DataSet,
         batch_size: usize,
@@ -105,48 +104,43 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
         let condition = self.condition.clone();
         let rows: Vec<Vec<Value>> = dataset.rows.clone();
 
-        // 使用ThreadPool的run_multi_jobs进行Scatter-Gather并行计算
-        let results = thread_pool
-            .run_multi_jobs(
-                move |batch: Vec<Vec<Value>>| {
-                    batch
-                        .into_iter()
-                        .filter_map(|row| {
-                            let mut context = DefaultExpressionContext::new();
-                            for (i, col_name) in col_names.iter().enumerate() {
-                                if i < row.len() {
-                                    context.set_variable(col_name.clone(), row[i].clone());
-                                }
+        let results = thread_pool.run_multi_jobs_sync(
+            move |batch: Vec<Vec<Value>>| {
+                batch
+                    .into_iter()
+                    .filter_map(|row| {
+                        let mut context = DefaultExpressionContext::new();
+                        for (i, col_name) in col_names.iter().enumerate() {
+                            if i < row.len() {
+                                context.set_variable(col_name.clone(), row[i].clone());
                             }
+                        }
 
-                            // 设置 row 变量
-                            let row_map: std::collections::HashMap<String, crate::core::Value> =
-                                col_names
-                                    .iter()
-                                    .enumerate()
-                                    .filter_map(|(i, name)| {
-                                        if i < row.len() {
-                                            Some((name.clone(), row[i].clone()))
-                                        } else {
-                                            None
-                                        }
-                                    })
-                                    .collect();
-                            context.set_variable("row".to_string(), crate::core::Value::Map(row_map));
+                        let row_map: std::collections::HashMap<String, crate::core::Value> =
+                            col_names
+                                .iter()
+                                .enumerate()
+                                .filter_map(|(i, name)| {
+                                    if i < row.len() {
+                                        Some((name.clone(), row[i].clone()))
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .collect();
+                        context.set_variable("row".to_string(), crate::core::Value::Map(row_map));
 
-                            match ExpressionEvaluator::evaluate(&condition, &mut context) {
-                                Ok(crate::core::Value::Bool(true)) => Some(row),
-                                _ => None,
-                            }
-                        })
-                        .collect::<Vec<_>>()
-                },
-                rows,
-                batch_size,
-            )
-            .await;
+                        match ExpressionEvaluator::evaluate(&condition, &mut context) {
+                            Ok(crate::core::Value::Bool(true)) => Some(row),
+                            _ => None,
+                        }
+                    })
+                    .collect::<Vec<_>>()
+            },
+            rows,
+            batch_size,
+        );
 
-        // Gather: 合并所有批次的结果
         let filtered_rows: Vec<Vec<Value>> = results.into_iter().flatten().collect();
         dataset.rows = filtered_rows;
 
@@ -154,13 +148,11 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
     }
 
     /// 处理输入数据并应用过滤条件
-    async fn process_input(&mut self) -> DBResult<ExecutionResult> {
-        // 优先使用 input_executor
+    fn process_input(&mut self) -> DBResult<ExecutionResult> {
         if let Some(ref mut input_exec) = self.input_executor {
-            let input_result = input_exec.execute().await?;
+            let input_result = input_exec.execute()?;
             self.filter_input(input_result)
         } else if let Some(input) = &self.base.input {
-            // 使用 base.input 作为备选
             self.filter_input(input.clone())
         } else {
             Err(DBError::Query(
@@ -403,14 +395,12 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + 'static> ResultProcessor<S> for FilterExecutor<S> {
-    async fn process(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult> {
-        // 如果 input_executor 为空且 base.input 未设置，则设置 base.input
+    fn process(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult> {
         if self.input_executor.is_none() && self.base.input.is_none() {
             <Self as ResultProcessor<S>>::set_input(self, input.clone());
         }
-        self.process_input().await
+        self.process_input()
     }
 
     fn set_input(&mut self, input: ExecutionResult) {
@@ -438,11 +428,10 @@ impl<S: StorageClient + Send + 'static> ResultProcessor<S> for FilterExecutor<S>
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for FilterExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
-            input_exec.execute().await?
+            input_exec.execute()?
         } else {
             self.base
                 .input
@@ -450,9 +439,8 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for FilterExecutor<S>
                 .unwrap_or(ExecutionResult::DataSet(crate::core::value::DataSet::new()))
         };
 
-        let result = self.process(input_result).await;
+        let result = self.process(input_result);
         
-        // 更新统计信息
         if let Ok(ref exec_result) = result {
             self.base.get_stats_mut().add_row(exec_result.count());
         }

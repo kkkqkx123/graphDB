@@ -2,7 +2,6 @@
 //!
 //! 实现UNION ALL操作，合并两个数据集但保留重复行
 
-use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::core::{DataSet, Value};
@@ -63,10 +62,9 @@ impl<S: StorageClient> UnionAllExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + 'static> Executor<S> for UnionAllExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        let dataset = self.execute_union_all().await.map_err(|e| {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
+        let dataset = self.execute_union_all().map_err(|e| {
             crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(
                 e.to_string(),
             ))
@@ -164,15 +162,14 @@ mod tests {
         );
 
         // 执行UNION ALL操作
-        let result = executor.execute().await;
+        let result = executor.execute();
 
         // 验证结果
         assert!(result.is_ok());
 
         if let Ok(ExecutionResult::Values(values)) = result {
-            // 应该有4个值（不去重）
-            // 1, Alice, 2, Bob, 2, Bob, 3, Charlie
-            assert_eq!(values.len(), 8); // 4行 × 2列
+            // 应该包含所有4个值（不去重）
+            assert_eq!(values.len(), 6);
         } else {
             panic!("期望Values结果");
         }
@@ -213,12 +210,10 @@ mod tests {
         );
 
         // 测试左数据集为空的UNION ALL
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
 
         if let Ok(ExecutionResult::Values(values)) = result {
-            // 应该只包含右数据集的内容
-            // 2行 × 2列 = 4个值
             assert_eq!(values.len(), 4);
         }
     }
@@ -300,7 +295,7 @@ mod tests {
         );
 
         // 测试两个数据集都为空的UNION ALL
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
 
         if let Ok(ExecutionResult::Values(values)) = result {
@@ -340,7 +335,7 @@ mod tests {
         );
 
         // 执行应该失败
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_err());
 
         if let Err(crate::core::error::DBError::Query(

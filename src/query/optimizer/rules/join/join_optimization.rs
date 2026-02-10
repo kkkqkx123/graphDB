@@ -73,11 +73,6 @@ impl OptRule for JoinOptimizationRule {
                 // 这里只是标记，实际转换由其他规则处理
                 return Ok(None);
             }
-            JoinStrategy::NestedLoopJoin => {
-                // 对于小数据集，嵌套循环可能更优
-                // 这里只是标记，实际转换由其他规则处理
-                return Ok(None);
-            }
         }
     }
 
@@ -136,8 +131,6 @@ enum JoinStrategy {
     HashJoin,
     /// 索引连接：利用索引加速连接
     IndexJoin,
-    /// 嵌套循环连接：适合小表连接
-    NestedLoopJoin,
 }
 
 #[cfg(test)]

@@ -2,7 +2,6 @@
 //!
 //! 负责创建新的图空间，配置分片数和副本数（单节点简化版）。
 
-use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::core::types::DataType;
@@ -88,9 +87,8 @@ impl<S: StorageClient> CreateSpaceExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateSpaceExecutor<S> {
-    async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
+    fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let mut storage_guard = storage.lock().map_err(|e| {
             crate::core::error::DBError::Storage(

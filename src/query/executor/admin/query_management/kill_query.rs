@@ -2,7 +2,6 @@
 //!
 //! 负责终止正在运行的查询。
 
-use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::api::session::GLOBAL_QUERY_MANAGER;
@@ -27,9 +26,8 @@ impl<S: StorageClient> KillQueryExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for KillQueryExecutor<S> {
-    async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
+    fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let killed = GLOBAL_QUERY_MANAGER.get().map(|qm| qm.kill_query(self.query_id)).unwrap_or(false);
 
         if killed {

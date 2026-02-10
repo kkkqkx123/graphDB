@@ -7,7 +7,6 @@
 //!
 //! 参考nebula-graph的AggregateExecutor实现，支持Scatter-Gather并行计算模式
 
-use async_trait::async_trait;
 use rayon::prelude::*;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -495,14 +494,12 @@ impl<S: StorageClient> AggregateExecutor<S> {
         self
     }
 
-    /// 处理输入数据并执行聚合
-    async fn process_input(&mut self) -> DBResult<crate::core::value::DataSet> {
-        // 优先使用 input_executor
+    fn process_input(&mut self) -> DBResult<crate::core::value::DataSet> {
         if let Some(ref mut input_exec) = self.input_executor {
-            let input_result = input_exec.execute().await?;
+            let input_result = input_exec.execute()?;
 
             match input_result {
-                ExecutionResult::DataSet(dataset) => self.aggregate_dataset(dataset).await,
+                ExecutionResult::DataSet(dataset) => self.aggregate_dataset(dataset),
                 _ => Err(crate::core::error::DBError::Query(
                     crate::core::error::QueryError::ExecutionError(
                         "Aggregate executor expects DataSet input".to_string(),
@@ -510,9 +507,8 @@ impl<S: StorageClient> AggregateExecutor<S> {
                 )),
             }
         } else if let Some(input) = &self.base.input {
-            // 使用 base.input 作为备选
             match input {
-                ExecutionResult::DataSet(dataset) => self.aggregate_dataset(dataset.clone()).await,
+                ExecutionResult::DataSet(dataset) => self.aggregate_dataset(dataset.clone()),
                 _ => Err(crate::core::error::DBError::Query(
                     crate::core::error::QueryError::ExecutionError(
                         "Aggregate executor expects DataSet input".to_string(),
@@ -528,27 +524,20 @@ impl<S: StorageClient> AggregateExecutor<S> {
         }
     }
 
-    /// 对数据集执行聚合
-    ///
-    /// 根据数据量选择处理方式：
-    /// - 数据量小于parallel_threshold：单线程处理
-    /// - 数据量大：使用Scatter-Gather并行聚合
-    async fn aggregate_dataset(
+    fn aggregate_dataset(
         &mut self,
         dataset: crate::core::value::DataSet,
     ) -> DBResult<crate::core::value::DataSet> {
         let total_size = dataset.rows.len();
 
-        // 根据并行配置判断是否使用并行计算
         if self.parallel_config.should_use_parallel(total_size) {
-            self.aggregate_dataset_parallel(dataset).await
+            self.aggregate_dataset_parallel(dataset)
         } else {
-            self.aggregate_dataset_serial(dataset).await
+            self.aggregate_dataset_serial(dataset)
         }
     }
 
-    /// 串行聚合
-    async fn aggregate_dataset_serial(
+    fn aggregate_dataset_serial(
         &mut self,
         dataset: crate::core::value::DataSet,
     ) -> DBResult<crate::core::value::DataSet> {
@@ -1017,11 +1006,10 @@ impl<S: StorageClient> AggregateExecutor<S> {
         }
 
         // 构建结果数据集（复用串行逻辑）
-        self.build_result_dataset(global_state).await
+        self.build_result_dataset(global_state)
     }
 
-    /// 构建结果数据集
-    async fn build_result_dataset(
+    fn build_result_dataset(
         &self,
         group_state: GroupAggregateState,
     ) -> DBResult<crate::core::value::DataSet> {
@@ -1118,11 +1106,10 @@ impl<S: StorageClient> AggregateExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + 'static> ResultProcessor<S> for AggregateExecutor<S> {
-    async fn process(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult> {
+    fn process(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult> {
         ResultProcessor::set_input(self, input);
-        let dataset = self.process_input().await?;
+        let dataset = self.process_input()?;
         Ok(ExecutionResult::DataSet(dataset))
     }
 
@@ -1151,11 +1138,10 @@ impl<S: StorageClient + Send + 'static> ResultProcessor<S> for AggregateExecutor
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AggregateExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
-            input_exec.execute().await?
+            input_exec.execute()?
         } else {
             self.base
                 .input
@@ -1163,7 +1149,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AggregateExecutor
                 .unwrap_or(ExecutionResult::DataSet(crate::core::value::DataSet::new()))
         };
 
-        self.process(input_result).await
+        self.process(input_result)
     }
 
     fn open(&mut self) -> DBResult<()> {
@@ -1250,10 +1236,9 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for GroupByExecutor<S> 
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for GroupByExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        self.aggregate_executor.execute().await
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
+        self.aggregate_executor.execute()
     }
 
     fn open(&mut self) -> DBResult<()> {
@@ -1317,10 +1302,9 @@ impl<S: StorageClient> HavingExecutor<S> {
         }
     }
 
-    /// 处理输入数据并应用 HAVING 条件
-    async fn process_input(&mut self) -> DBResult<crate::core::value::DataSet> {
+    fn process_input(&mut self) -> DBResult<crate::core::value::DataSet> {
         if let Some(ref mut input_exec) = self.input_executor {
-            let input_result = input_exec.execute().await?;
+            let input_result = input_exec.execute()?;
 
             match input_result {
                 ExecutionResult::DataSet(mut dataset) => {
@@ -1374,11 +1358,10 @@ impl<S: StorageClient> HavingExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + 'static> ResultProcessor<S> for HavingExecutor<S> {
-    async fn process(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult> {
+    fn process(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult> {
         ResultProcessor::set_input(self, input);
-        let dataset = self.process_input().await?;
+        let dataset = self.process_input()?;
         Ok(ExecutionResult::DataSet(dataset))
     }
 
@@ -1407,11 +1390,10 @@ impl<S: StorageClient + Send + 'static> ResultProcessor<S> for HavingExecutor<S>
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for HavingExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
-            input_exec.execute().await?
+            input_exec.execute()?
         } else {
             self.base
                 .input
@@ -1419,7 +1401,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for HavingExecutor<S>
                 .unwrap_or(ExecutionResult::DataSet(crate::core::value::DataSet::new()))
         };
 
-        self.process(input_result).await
+        self.process(input_result)
     }
 
     fn open(&mut self) -> DBResult<()> {

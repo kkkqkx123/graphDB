@@ -5,7 +5,6 @@
 //! - DROP FULLTEXT INDEX
 //! - SHOW FULLTEXT INDEXES
 //! - REBUILD FULLTEXT INDEX
-use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
@@ -49,10 +48,9 @@ impl<S: StorageClient> CreateFTIndexExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateFTIndexExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        let result = self.do_execute().await;
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
+        let result = self.do_execute();
         result.map(|_| ExecutionResult::Empty)
     }
 
@@ -121,10 +119,9 @@ impl<S: StorageClient> DropFTIndexExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DropFTIndexExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        let result = self.do_execute().await;
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
+        let result = self.do_execute();
         result.map(|_| ExecutionResult::Empty)
     }
 
@@ -185,10 +182,9 @@ impl<S: StorageClient> ShowFTIndexesExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowFTIndexesExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        let result = self.do_execute().await?;
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
+        let result = self.do_execute()?;
         Ok(ExecutionResult::DataSet(result))
     }
 
@@ -290,10 +286,9 @@ impl<S: StorageClient> FulltextIndexScanExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for FulltextIndexScanExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        let result = self.do_execute().await?;
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
+        let result = self.do_execute()?;
         Ok(ExecutionResult::DataSet(result))
     }
 

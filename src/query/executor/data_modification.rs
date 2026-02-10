@@ -1,8 +1,6 @@
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-use async_trait::async_trait;
-
 use super::base::{BaseExecutor, ExecutorStats};
 use crate::core::{Edge, Value, Vertex};
 use crate::index::Index;
@@ -51,11 +49,10 @@ impl<S: StorageClient> InsertExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for InsertExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
         let start = Instant::now();
-        let result = self.do_execute().await;
+        let result = self.do_execute();
         let elapsed = start.elapsed();
         self.base.get_stats_mut().add_total_time(elapsed);
         match result {
@@ -215,11 +212,10 @@ impl<S: StorageClient> UpdateExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for UpdateExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
         let start = Instant::now();
-        let result = self.do_execute().await;
+        let result = self.do_execute();
         let elapsed = start.elapsed();
         self.base.get_stats_mut().add_total_time(elapsed);
         match result {
@@ -430,11 +426,10 @@ impl<S: StorageClient> DeleteExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DeleteExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
         let start = Instant::now();
-        let result = self.do_execute().await;
+        let result = self.do_execute();
         let elapsed = start.elapsed();
         self.base.get_stats_mut().add_total_time(elapsed);
         match result {
@@ -486,11 +481,47 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
     async fn do_execute(&mut self) -> DBResult<usize> {
         let mut total_deleted = 0;
 
+        let condition_expression = if let Some(ref condition_str) = self.condition {
+            Some(parse_expression_meta_from_string(condition_str).map(|meta| meta.into()).map_err(|e| {
+                crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(
+                    format!("条件解析失败: {}", e),
+                ))
+            })?)
+        } else {
+            None
+        };
+
         if let Some(ids) = &self.vertex_ids {
             let mut storage = safe_lock(self.get_storage())
                 .expect("DeleteExecutor storage lock should not be poisoned");
             for id in ids {
-                if storage.delete_vertex("default", id).is_ok() {
+                let should_delete = if let Some(ref expression) = condition_expression {
+                    if let Ok(Some(vertex)) = storage.get_vertex("default", id) {
+                        let mut context = BasicExpressionContext::default();
+                        context.set_variable("VID", id.clone());
+                        for (key, value) in &vertex.properties {
+                            context.set_variable(key.clone(), value.clone());
+                        }
+
+                        let result = ExpressionEvaluator::evaluate(expression, &mut context)
+                            .map_err(|e| {
+                                crate::core::error::DBError::Query(
+                                    crate::core::error::QueryError::ExecutionError(format!("条件求值失败: {}", e)),
+                                )
+                            })?;
+
+                        match result {
+                            crate::core::Value::Bool(b) => b,
+                            _ => true,
+                        }
+                    } else {
+                        true
+                    }
+                } else {
+                    true
+                };
+
+                if should_delete && storage.delete_vertex("default", id).is_ok() {
                     total_deleted += 1;
                 }
             }
@@ -500,7 +531,35 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
             let mut storage = safe_lock(self.get_storage())
                 .expect("DeleteExecutor storage lock should not be poisoned");
             for (src, dst, edge_type) in edges {
-                if storage.delete_edge("default", src, dst, edge_type).is_ok() {
+                let should_delete = if let Some(ref expression) = condition_expression {
+                    if let Ok(Some(edge)) = storage.get_edge("default", src, dst, edge_type) {
+                        let mut context = BasicExpressionContext::default();
+                        context.set_variable("SRC", src.clone());
+                        context.set_variable("DST", dst.clone());
+                        context.set_variable("edge_type", crate::core::Value::String(edge_type.clone()));
+                        for (key, value) in &edge.props {
+                            context.set_variable(key.clone(), value.clone());
+                        }
+
+                        let result = ExpressionEvaluator::evaluate(expression, &mut context)
+                            .map_err(|e| {
+                                crate::core::error::DBError::Query(
+                                    crate::core::error::QueryError::ExecutionError(format!("条件求值失败: {}", e)),
+                                )
+                            })?;
+
+                        match result {
+                            crate::core::Value::Bool(b) => b,
+                            _ => true,
+                        }
+                    } else {
+                        true
+                    }
+                } else {
+                    true
+                };
+
+                if should_delete && storage.delete_edge("default", src, dst, edge_type).is_ok() {
                     total_deleted += 1;
                 }
             }
@@ -544,11 +603,10 @@ impl<S: StorageClient> HasStorage<S> for CreateIndexExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateIndexExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
         let start = Instant::now();
-        let result = self.do_execute().await;
+        let result = self.do_execute();
         let elapsed = start.elapsed();
         self.base.get_stats_mut().add_total_time(elapsed);
         match result {
@@ -648,11 +706,10 @@ impl<S: StorageClient> HasStorage<S> for DropIndexExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DropIndexExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
         let start = Instant::now();
-        let result = self.do_execute().await;
+        let result = self.do_execute();
         let elapsed = start.elapsed();
         self.base.get_stats_mut().add_total_time(elapsed);
         match result {

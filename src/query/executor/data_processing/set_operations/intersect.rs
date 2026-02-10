@@ -2,7 +2,6 @@
 //!
 //! 实现INTERSECT操作，返回两个数据集的交集（只存在于两个数据集中的行）
 
-use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::core::error::QueryError;
@@ -87,10 +86,9 @@ impl<S: StorageClient> IntersectExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + 'static> Executor<S> for IntersectExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        let dataset = self.execute_intersect().await.map_err(|e| {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
+        let dataset = self.execute_intersect().map_err(|e| {
             crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(
                 e.to_string(),
             ))
@@ -190,7 +188,7 @@ mod tests {
         );
 
         // 执行INTERSECT操作
-        let result = executor.execute().await;
+        let result = executor.execute();
 
         // 验证结果
         assert!(result.is_ok());
@@ -371,7 +369,7 @@ mod tests {
         );
 
         // 测试两个数据集都为空的INTERSECT
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
 
         if let Ok(ExecutionResult::Values(values)) = result {

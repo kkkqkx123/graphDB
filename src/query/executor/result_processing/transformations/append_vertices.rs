@@ -2,7 +2,6 @@
 //!
 //! 负责处理追加顶点操作，根据给定的顶点ID获取顶点信息并追加到结果中
 
-use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
@@ -318,10 +317,9 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AppendVerticesExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        let dataset = self.execute_append_vertices().await?;
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
+        let dataset = self.execute_append_vertices()?;
 
         let values: Vec<Value> = dataset
             .rows

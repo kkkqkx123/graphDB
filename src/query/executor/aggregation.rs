@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 
@@ -779,9 +778,8 @@ impl ValueUtils for Value {
     }
 }
 
-#[async_trait]
-impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AggregationExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+impl<S: StorageClient> Executor<S> for AggregationExecutor<S> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
         let storage_clone = self.get_storage().clone();
         let storage = safe_lock(&storage_clone)
             .expect("AggregationExecutor storage lock should not be poisoned");

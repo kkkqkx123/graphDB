@@ -364,21 +364,33 @@ impl FulltextIndexManager {
         fields: Vec<String>,
         analyzer: Option<String>,
     ) -> DBResult<()> {
-        let config = FulltextIndexConfig {
-            name: name.clone(),
-            schema_type,
-            schema_name,
-            fields,
-            analyzer,
-            case_sensitive: false,
-            created_at: chrono::Utc::now(),
+        let mut config = self.config.write().map_err(|e| {
+            DBError::FulltextIndex(FulltextIndexError::EngineError(e.to_string()))
+        })?;
+        
+        config.name = name.clone();
+        config.schema_type = schema_type.clone();
+        config.schema_name = schema_name.clone();
+        config.fields = fields.clone();
+        config.analyzer = analyzer.clone();
+        config.case_sensitive = false;
+        config.created_at = chrono::Utc::now();
+
+        let index_config = FulltextIndexConfig {
+            name: config.name.clone(),
+            schema_type: config.schema_type.clone(),
+            schema_name: config.schema_name.clone(),
+            fields: config.fields.clone(),
+            analyzer: config.analyzer.clone(),
+            case_sensitive: config.case_sensitive,
+            created_at: config.created_at,
         };
 
         let mut engine = self.engine.lock().map_err(|e| {
             DBError::FulltextIndex(FulltextIndexError::EngineError(e.to_string()))
         })?;
 
-        engine.create_index(&config)
+        engine.create_index(&index_config)
     }
 
     pub fn drop_fulltext_index(&mut self, name: &str) -> DBResult<()> {

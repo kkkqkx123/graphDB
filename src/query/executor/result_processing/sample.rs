@@ -2,7 +2,6 @@
 //!
 //! 实现对查询结果的随机采样功能，支持多种采样方法
 
-use async_trait::async_trait;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use std::collections::HashSet;
@@ -69,14 +68,11 @@ impl<S: StorageClient + Send + 'static> SampleExecutor<S> {
         }
     }
 
-    /// 处理输入数据并执行采样
-    async fn process_input(&mut self) -> DBResult<ExecutionResult> {
-        // 优先使用 input_executor
+    fn process_input(&mut self) -> DBResult<ExecutionResult> {
         if let Some(ref mut input_exec) = self.input_executor {
-            let input_result = input_exec.execute().await?;
+            let input_result = input_exec.execute()?;
             self.sample_input(input_result)
         } else if let Some(input) = &self.base.input {
-            // 使用 base.input 作为备选
             self.sample_input(input.clone())
         } else {
             Err(DBError::Query(
@@ -403,14 +399,12 @@ impl<S: StorageClient + Send + 'static> SampleExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + 'static> ResultProcessor<S> for SampleExecutor<S> {
-    async fn process(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult> {
-        // 如果 input_executor 为空且 base.input 未设置，则设置 base.input
+    fn process(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult> {
         if self.input_executor.is_none() && self.base.input.is_none() {
             <Self as ResultProcessor<S>>::set_input(self, input.clone());
         }
-        self.process_input().await
+        self.process_input()
     }
 
     fn set_input(&mut self, input: ExecutionResult) {
@@ -438,11 +432,10 @@ impl<S: StorageClient + Send + 'static> ResultProcessor<S> for SampleExecutor<S>
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for SampleExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
-            input_exec.execute().await?
+            input_exec.execute()?
         } else {
             self.base
                 .input
@@ -450,7 +443,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for SampleExecutor<S>
                 .unwrap_or(ExecutionResult::DataSet(crate::core::value::DataSet::new()))
         };
 
-        self.process(input_result).await
+        self.process(input_result)
     }
 
     fn open(&mut self) -> DBResult<()> {
@@ -527,7 +520,6 @@ mod tests {
         // 执行采样
         let result = executor
             .process(ExecutionResult::DataSet(DataSet::new()))
-            .await
             .expect("Failed to process sample");
 
         // 验证结果

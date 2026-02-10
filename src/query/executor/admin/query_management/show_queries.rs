@@ -2,7 +2,6 @@
 //!
 //! 负责显示正在运行的查询列表。
 
-use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::api::session::GLOBAL_QUERY_MANAGER;
@@ -35,9 +34,8 @@ impl<S: StorageClient> ShowQueriesExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowQueriesExecutor<S> {
-    async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
+    fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let queries = if self.show_all {
             GLOBAL_QUERY_MANAGER.get().map(|qm| qm.get_all_queries()).unwrap_or_default()
         } else {

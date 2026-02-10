@@ -2,7 +2,6 @@
 //!
 //! 负责处理聚合操作，将右输入中的值根据左输入的键进行聚合
 
-use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -412,9 +411,8 @@ impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for RollUpApplyExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
         let dataset = self.execute_rollup_apply()?;
 
         let values: Vec<Value> = dataset

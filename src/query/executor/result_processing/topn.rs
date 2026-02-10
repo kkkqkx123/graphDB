@@ -2,7 +2,6 @@
 //!
 //! 实现高效的 TopN 查询，使用堆数据结构优化性能
 
-use async_trait::async_trait;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 use std::sync::{Arc, Mutex};
@@ -221,7 +220,7 @@ impl<S: StorageClient> TopNExecutor<S> {
                 )),
             }
         } else if let Some(ref mut input_exec) = self.input_executor {
-            let input_result = input_exec.execute().await?;
+            let input_result = input_exec.execute()?;
 
             match input_result {
                 ExecutionResult::DataSet(dataset) => {
@@ -682,11 +681,10 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for TopNExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + 'static> ResultProcessor<S> for TopNExecutor<S> {
-    async fn process(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult> {
+    fn process(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult> {
         self.base.input = Some(input.clone());
-        self.process_input().await
+        self.process_input()
     }
 
     fn set_input(&mut self, input: ExecutionResult) {
@@ -714,19 +712,40 @@ impl<S: StorageClient + Send + 'static> ResultProcessor<S> for TopNExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for TopNExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
-            input_exec.execute().await?
+            input_exec.execute()?
         } else {
             self.base
                 .input
                 .clone()
-                .unwrap_or(ExecutionResult::DataSet(crate::core::value::DataSet::new()))
+                .unwrap_or(ExecutionResult::DataSet(DataSet::new()))
         };
 
-        self.process(input_result).await
+        match input_result {
+            ExecutionResult::DataSet(dataset) => {
+                let topn_result = self.execute_topn_dataset(dataset)?;
+                Ok(ExecutionResult::DataSet(topn_result))
+            }
+            ExecutionResult::Vertices(vertices) => {
+                let topn_result = self.execute_topn_vertices(vertices)?;
+                Ok(ExecutionResult::Vertices(topn_result))
+            }
+            ExecutionResult::Edges(edges) => {
+                let topn_result = self.execute_topn_edges(edges)?;
+                Ok(ExecutionResult::Edges(topn_result))
+            }
+            ExecutionResult::Values(values) => {
+                let topn_result = self.execute_topn_values(values)?;
+                Ok(ExecutionResult::Values(topn_result))
+            }
+            _ => Err(DBError::Query(
+                crate::core::error::QueryError::ExecutionError(
+                    "TopN executor expects supported input type".to_string(),
+                ),
+            )),
+        }
     }
 
     fn open(&mut self) -> DBResult<()> {
@@ -797,30 +816,27 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for TopNExecutor<S> {
 }
 
 impl<S: StorageClient + Send + Sync + 'static> TopNExecutor<S> {
-    /// 带错误恢复的执行方法
-    pub async fn execute_with_recovery(&mut self) -> DBResult<ExecutionResult> {
-        match self.execute().await {
+    pub fn execute_with_recovery(&mut self) -> DBResult<ExecutionResult> {
+        match self.execute() {
             Ok(result) => Ok(result),
             Err(DBError::Query(crate::core::error::QueryError::ExecutionError(ref msg)))
                 if msg.contains("memory") || msg.contains("limit") =>
             {
-                self.fallback_to_external_sort().await
+                self.fallback_to_external_sort()
             }
             Err(e) => Err(e),
         }
     }
 
-    /// 外部排序降级方案
-    async fn fallback_to_external_sort(&mut self) -> DBResult<ExecutionResult> {
+    fn fallback_to_external_sort(&mut self) -> DBResult<ExecutionResult> {
         Err(DBError::Query(crate::core::error::QueryError::ExecutionError(
             "Memory limit exceeded, consider reducing the dataset size or N value".to_string(),
         )))
     }
 
-    /// 批量处理输入数据
-    pub async fn process_input_batch(&mut self, batch_size: usize) -> DBResult<ExecutionResult> {
+    fn process_input_batch(&mut self, batch_size: usize) -> DBResult<ExecutionResult> {
         if let Some(ref mut input_exec) = self.input_executor {
-            let input_result = input_exec.execute().await?;
+            let input_result = input_exec.execute()?;
 
             match input_result {
                 ExecutionResult::DataSet(dataset) => {

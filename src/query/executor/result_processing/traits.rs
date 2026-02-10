@@ -2,7 +2,6 @@
 //!
 //! 定义了所有结果处理执行器的统一接口和公共行为
 
-use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
@@ -42,10 +41,9 @@ impl Default for ResultProcessorContext {
 /// 结果处理器统一接口
 ///
 /// 所有结果处理执行器都应该实现此接口
-#[async_trait]
 pub trait ResultProcessor<S: StorageClient> {
     /// 处理输入数据并返回结果
-    async fn process(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult>;
+    fn process(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult>;
 
     /// 设置输入数据
     fn set_input(&mut self, input: ExecutionResult);
@@ -212,12 +210,11 @@ impl<S: StorageClient> BaseResultProcessor<S> {
 /// 可流式处理的结果处理器
 ///
 /// 支持流式处理大数据集，避免一次性加载所有数据到内存
-#[async_trait]
 pub trait StreamableResultProcessor<S: StorageClient>: ResultProcessor<S> {
     /// 流式处理数据集
-    async fn process_stream(
+    fn process_stream(
         &mut self,
-        input_stream: Box<dyn futures::Stream<Item = DBResult<ExecutionResult>> + Send + Unpin>,
+        input_stream: Box<dyn Iterator<Item = DBResult<ExecutionResult>>>,
     ) -> DBResult<ExecutionResult>;
 
     /// 设置批处理大小
@@ -230,10 +227,9 @@ pub trait StreamableResultProcessor<S: StorageClient>: ResultProcessor<S> {
 /// 可并行处理的结果处理器
 ///
 /// 支持多线程并行处理以提高性能
-#[async_trait]
 pub trait ParallelResultProcessor<S: StorageClient>: ResultProcessor<S> {
     /// 并行处理数据集
-    async fn process_parallel(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult>;
+    fn process_parallel(&mut self, input: ExecutionResult) -> DBResult<ExecutionResult>;
 
     /// 设置并行度
     fn set_parallel_degree(&mut self, degree: usize);

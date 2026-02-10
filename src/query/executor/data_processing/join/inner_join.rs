@@ -2,7 +2,6 @@
 //!
 //! 实现基于哈希的内连接算法，支持单键和多键连接
 
-use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -242,9 +241,8 @@ impl<S: StorageClient> InnerJoinExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + 'static> Executor<S> for InnerJoinExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
         let (left_dataset, right_dataset) = self
             .base_executor
             .check_input_datasets()
@@ -342,10 +340,9 @@ impl<S: StorageClient> HashInnerJoinExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + 'static> Executor<S> for HashInnerJoinExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        self.inner.execute().await
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
+        self.inner.execute()
     }
 
     fn open(&mut self) -> DBResult<()> {

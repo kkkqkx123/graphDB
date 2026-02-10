@@ -200,11 +200,8 @@ impl InsertEdgesValidator {
         }
     }
 
-    fn generate_output_columns(&self, ast: &mut AstContext) {
-        ast.add_output(
-            "INSERTED_EDGES".to_string(),
-            ValueType::List,
-        );
+    fn generate_output_columns(&mut self, _ast: &mut AstContext) {
+        self.base.add_output("INSERTED_EDGES".to_string(), ValueType::List);
     }
 }
 

@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::core::error::DBResult;
@@ -10,7 +9,7 @@ use crate::storage::StorageClient;
 /// ArgumentExecutor - 参数执行器
 ///
 /// 用于从另一个已执行的操作中获取命名别名
-pub struct ArgumentExecutor<S: StorageClient + Send + 'static> {
+pub struct ArgumentExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     var: String,
     input_executor: Option<Box<ExecutorEnum<S>>>,
@@ -30,12 +29,11 @@ impl<S: StorageClient> ArgumentExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + 'static> Executor<S> for ArgumentExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
         if let Some(input) = &mut self.input_executor {
             input.open()?;
-            let result = input.execute().await?;
+            let result = input.execute()?;
             input.close()?;
             Ok(result)
         } else {
@@ -109,12 +107,11 @@ impl<S: StorageClient> PassThroughExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + 'static> Executor<S> for PassThroughExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
         if let Some(input) = &mut self.input_executor {
             input.open()?;
-            let result = input.execute().await?;
+            let result = input.execute()?;
             input.close()?;
             Ok(result)
         } else {
@@ -194,14 +191,13 @@ impl<S: StorageClient> DataCollectExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + 'static> Executor<S> for DataCollectExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
         self.collected_data.clear();
 
         if let Some(input) = &mut self.input_executor {
             input.open()?;
-            let result = input.execute().await?;
+            let result = input.execute()?;
             input.close()?;
             self.collected_data.push(result);
         }

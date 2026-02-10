@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
 use std::cmp::Reverse;
 use std::sync::{Arc, Mutex};
@@ -324,7 +323,15 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
                     combined_path.steps.extend(right_path.steps);
                     
                     if !self.has_duplicate_edges(&combined_path) {
-                        result_paths.push(combined_path);
+                        result_paths.push(combined_path.clone());
+                        
+                        if self.single_shortest {
+                            for start_id in start_ids {
+                                for end_id in end_ids {
+                                    self.mark_termination(start_id, end_id);
+                                }
+                            }
+                        }
                     }
                     continue;
                 }
@@ -803,11 +810,10 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for ShortestPathExecuto
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + 'static> Executor<S> for ShortestPathExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
-            input_exec.execute().await?
+            input_exec.execute()?
         } else {
             ExecutionResult::Vertices(Vec::new())
         };
@@ -857,7 +863,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ShortestPathExecutor<S> 
         self.start_vertex_ids = start_nodes;
         self.end_vertex_ids = end_nodes;
 
-        self.compute_shortest_paths().await.map_err(DBError::from)?;
+        self.compute_shortest_paths().map_err(DBError::from)?;
 
         Ok(self.build_result())
     }
@@ -1201,9 +1207,8 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for MultiShortestPathEx
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for MultiShortestPathExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
         if self.left_start_vertices.is_empty() || self.right_target_vertices.is_empty() {
             return Ok(ExecutionResult::Paths(vec![]));
         }

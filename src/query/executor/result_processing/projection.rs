@@ -4,7 +4,6 @@
 //!
 //! 参考nebula-graph的ProjectExecutor实现，支持Scatter-Gather并行计算模式
 
-use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 use rayon::prelude::*;
 
@@ -279,11 +278,10 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for ProjectExecutor<S> 
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ProjectExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
-            input_exec.execute().await?
+            input_exec.execute()?
         } else {
             ExecutionResult::DataSet(crate::core::value::DataSet::new())
         };

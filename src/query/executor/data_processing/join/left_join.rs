@@ -2,7 +2,6 @@
 //!
 //! 实现基于哈希的左外连接算法，支持单键和多键连接
 
-use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
@@ -200,9 +199,8 @@ impl<S: StorageClient> LeftJoinExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + 'static> Executor<S> for LeftJoinExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
         let (left_dataset, right_dataset) = self.base_executor.check_input_datasets()?;
 
         if left_dataset.rows.is_empty() {
@@ -304,11 +302,9 @@ impl<S: StorageClient> HashLeftJoinExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + 'static> Executor<S> for HashLeftJoinExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        // 目前与普通左连接相同，后续可以添加并行处理逻辑
-        self.inner.execute().await
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
+        self.inner.execute()
     }
 
     fn open(&mut self) -> DBResult<()> {

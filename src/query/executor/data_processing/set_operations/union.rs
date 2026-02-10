@@ -2,7 +2,6 @@
 //!
 //! 实现UNION操作，合并两个数据集并去除重复行
 
-use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::core::{DataSet, Value};
@@ -73,10 +72,9 @@ impl<S: StorageClient> UnionExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + 'static> Executor<S> for UnionExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
-        let dataset = self.execute_union().await.map_err(|e| {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
+        let dataset = self.execute_union().map_err(|e| {
             crate::core::error::DBError::Query(crate::core::error::QueryError::ExecutionError(
                 e.to_string(),
             ))
@@ -174,7 +172,7 @@ mod tests {
         );
 
         // 执行UNION操作
-        let result = executor.execute().await;
+        let result = executor.execute();
 
         // 验证结果
         assert!(result.is_ok());
@@ -220,7 +218,7 @@ mod tests {
         );
 
         // 测试空数据集的UNION
-        let result = executor.execute().await;
+        let result = executor.execute();
         assert!(result.is_ok());
 
         if let Ok(ExecutionResult::Values(values)) = result {

@@ -2,7 +2,6 @@
 //!
 //! 负责处理变量赋值操作，将表达式的结果赋值给变量
 
-use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
@@ -101,9 +100,8 @@ impl<S: StorageClient + Send + 'static> AssignExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AssignExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
         self.execute_assign()?;
         Ok(ExecutionResult::Success)
     }

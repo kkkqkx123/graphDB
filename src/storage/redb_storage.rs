@@ -77,6 +77,10 @@ impl RedbStorage<RedbEngine> {
 }
 
 impl<E: Engine> RedbStorage<E> {
+    pub fn get_db(&self) -> &Arc<Database> {
+        &self.db
+    }
+
     // 解析顶点ID
     fn parse_vertex_id(&self, vertex_id: &str) -> Result<Value, StorageError> {
         // 尝试解析为整数
@@ -234,39 +238,7 @@ impl<E: Engine> RedbStorage<E> {
         }
         Ok(())
     }
-    
-    // 更新边属性
-    fn update_edge_property(&self, space: &str, src: &Value, dst: &Value, edge_type: &str, prop: &str, op: &UpdateOp, value: &Value) -> Result<(), StorageError> {
-        if let Some(mut edge) = <Self as EdgeReader>::get_edge(self, space, src, dst, edge_type)? {
-            match op {
-                UpdateOp::Set => {
-                    edge.props.insert(prop.to_string(), value.clone());
-                }
-                UpdateOp::Add => {
-                    if let Some(existing) = edge.props.get(prop) {
-                        if let (Value::Int(a), Value::Int(b)) = (existing, value) {
-                            edge.props.insert(prop.to_string(), Value::Int(a + b));
-                        }
-                    }
-                }
-                UpdateOp::Subtract => {
-                    if let Some(existing) = edge.props.get(prop) {
-                        if let (Value::Int(a), Value::Int(b)) = (existing, value) {
-                            edge.props.insert(prop.to_string(), Value::Int(a - b));
-                        }
-                    }
-                }
-                _ => {} // 其他操作暂不支持
-            }
-            // 重新插入边以更新数据
-            let mut engine = self.engine.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-            let key = Self::encode_edge_key(space, &edge.src, &edge.dst, &edge.edge_type);
-            let data = Self::serialize_edge(&edge)?;
-            engine.put(&key, &data)?;
-        }
-        Ok(())
-    }
-    
+
     // 查找标签索引
     fn lookup_tag_index(&self, space: &str, index: &Index, _value: &Value) -> Result<Vec<Value>, StorageError> {
         let mut results = Vec::new();
@@ -557,10 +529,6 @@ impl<E: Engine> RedbStorage<E> {
 
     fn deserialize_edge(data: &[u8]) -> Result<Edge, StorageError> {
         edge_from_bytes(data)
-    }
-
-    fn detect_format(_data: &[u8]) -> bool {
-        false
     }
 }
 

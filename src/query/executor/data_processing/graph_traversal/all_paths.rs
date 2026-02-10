@@ -1,4 +1,4 @@
-//! AllPaths 执行器 - 找到所有满足条件的路径
+//! AllPaths 执行器
 //!
 //! 基于 Nebula 3.8.0 的 AllPathsExecutor 实现
 //! 功能特点：
@@ -10,7 +10,6 @@
 //! - 使用两阶段扩展（左扩展和右扩展）
 //! - 当节点数量超过阈值时使用启发式扩展
 
-use async_trait::async_trait;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
@@ -376,12 +375,11 @@ impl<S: StorageClient> AllPathsExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AllPathsExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
         let start = Instant::now();
 
-        let result = self.do_execute().await;
+        let result = self.do_execute();
 
         self.base.get_stats_mut().add_total_time(start.elapsed());
 

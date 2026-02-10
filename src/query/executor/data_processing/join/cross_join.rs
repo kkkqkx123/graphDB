@@ -2,7 +2,6 @@
 //!
 //! 实现笛卡尔积（交叉连接）算法，支持多表连接
 
-use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
@@ -166,9 +165,8 @@ impl<S: StorageClient> CrossJoinExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
         // 根据输入数量选择实现方式
         let result = if self.input_vars.len() == 2 {
             // 两表笛卡尔积

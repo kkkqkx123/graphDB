@@ -2,7 +2,6 @@
 //!
 //! 负责在指定图空间中创建新的标签。
 
-use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::core::types::metadata::{TagInfo, PropertyDef};
@@ -91,9 +90,8 @@ impl<S: StorageClient> CreateTagExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateTagExecutor<S> {
-    async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
+    fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let mut storage_guard = storage.lock().map_err(|e| {
             crate::core::error::DBError::Storage(

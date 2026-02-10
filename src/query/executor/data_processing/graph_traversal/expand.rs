@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
@@ -102,7 +101,7 @@ impl<S: StorageClient> ExpandExecutor<S> {
             }
 
             // 执行单步扩展
-            current_nodes = self.expand_step(current_nodes).await?;
+            current_nodes = self.expand_step(current_nodes)?;
 
             // 检查是否还有节点可以扩展
             if current_nodes.is_empty() {
@@ -145,8 +144,7 @@ impl<S: StorageClient> ExpandExecutor<S> {
         Ok(sampled)
     }
 
-    /// 获取节点的邻居节点
-    async fn get_neighbors(&self, node_id: &Value) -> Result<Vec<Value>, QueryError> {
+    fn get_neighbors(&self, node_id: &Value) -> Result<Vec<Value>, QueryError> {
         let storage = self.base.get_storage().clone();
         super::traversal_utils::get_neighbors(
             &storage,
@@ -154,12 +152,11 @@ impl<S: StorageClient> ExpandExecutor<S> {
             self.edge_direction,
             &self.edge_types,
         )
-        .await
         .map_err(|e| QueryError::StorageError(e.to_string()))
     }
 
     /// 执行单步扩展
-    async fn expand_step(&mut self, input_nodes: Vec<Value>) -> Result<Vec<Value>, QueryError> {
+    fn expand_step(&mut self, input_nodes: Vec<Value>) -> Result<Vec<Value>, QueryError> {
         let mut expanded_nodes = Vec::new();
 
         for node_id in input_nodes {
@@ -172,7 +169,7 @@ impl<S: StorageClient> ExpandExecutor<S> {
             self.visited_nodes.insert(node_id.clone());
 
             // 获取邻居节点
-            let neighbors = self.get_neighbors(&node_id).await?;
+            let neighbors = self.get_neighbors(&node_id)?;
 
             // 缓存邻接关系
             self.adjacency_cache
@@ -216,14 +213,13 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for ExpandExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + 'static> Executor<S> for ExpandExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
         let start = Instant::now();
 
         // 首先执行输入执行器（如果存在）
         let input_result = if let Some(ref mut input_exec) = self.input_executor {
-            input_exec.execute().await?
+            input_exec.execute()?
         } else {
             // 如果没有输入执行器，返回空结果
             ExecutionResult::Vertices(Vec::new())
@@ -257,11 +253,9 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandExecutor<S> {
 
         // 执行扩展操作
         let expanded_nodes = if self.max_depth.unwrap_or(1) > 1 {
-            // 多步扩展
-            self.expand_multi_step(input_nodes).await.map_err(DBError::from)?
+            self.expand_multi_step(input_nodes).map_err(DBError::from)?
         } else {
-            // 单步扩展
-            self.expand_step(input_nodes).await.map_err(DBError::from)?
+            self.expand_step(input_nodes).map_err(DBError::from)?
         };
 
         // 构建结果

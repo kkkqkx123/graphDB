@@ -1,11 +1,10 @@
-use async_trait::async_trait;
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 
-use crate::core::error::{DBError, DBResult, QueryError};
+use crate::core::error::DBError;
 use crate::core::{Edge, EdgeDirection, NullType, Path, Value, Vertex};
 use crate::query::executor::base::BaseExecutor;
-use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
+use crate::query::executor::traits::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
 use crate::utils::safe_lock;
 
@@ -14,7 +13,7 @@ use crate::expression::context::traits::VariableContext;
 /// FulltextIndexScanExecutor - 全文索引扫描执行器
 ///
 /// 用于执行全文索引扫描操作，基于索引名称查找匹配的顶点
-pub struct FulltextIndexScanExecutor<S: StorageClient + Send + 'static> {
+pub struct FulltextIndexScanExecutor<S: StorageClient + Send + Sync + 'static> {
     base: BaseExecutor<S>,
     space_id: i32,
     index_name: String,
@@ -24,7 +23,7 @@ pub struct FulltextIndexScanExecutor<S: StorageClient + Send + 'static> {
     schema_id: i32,
 }
 
-impl<S: StorageClient + Send + 'static> FulltextIndexScanExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> FulltextIndexScanExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -101,9 +100,8 @@ impl<S: StorageClient + Send + 'static> FulltextIndexScanExecutor<S> {
     }
 }
 
-#[async_trait]
-impl<S: StorageClient + Send + 'static> Executor<S> for FulltextIndexScanExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for FulltextIndexScanExecutor<S> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
         let storage = safe_lock(self.get_storage())
             .expect("FulltextIndexScanExecutor storage lock should not be poisoned");
 
@@ -217,7 +215,7 @@ impl<S: StorageClient + Send + 'static> HasStorage<S> for FulltextIndexScanExecu
 ///
 /// 使用双向广度优先搜索算法查找最短路径
 /// 参考nebula-graph实现，支持双向BFS和路径拼接
-pub struct BFSShortestExecutor<S: StorageClient + Send + 'static> {
+pub struct BFSShortestExecutor<S: StorageClient + 'static> {
     base: BaseExecutor<S>,
     steps: usize,
     max_depth: Option<usize>,
@@ -243,7 +241,7 @@ pub struct BFSShortestExecutor<S: StorageClient + Send + 'static> {
     execution_time_ms: u64,
 }
 
-impl<S: StorageClient> BFSShortestExecutor<S> {
+impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
@@ -543,77 +541,10 @@ impl<S: StorageClient> BFSShortestExecutor<S> {
 
         Some(path)
     }
-
-    /// 执行单次BFS最短路径查找（简化版本，用于单起点单终点场景）
-    fn bfs_shortest_path_single(
-        &mut self,
-        storage: &S,
-        start_vertex_id: &Value,
-        end_vertex_id: &Value,
-    ) -> DBResult<Path> {
-        let mut queue: VecDeque<(Value, Path)> = VecDeque::new();
-        let mut visited: HashSet<Value> = HashSet::new();
-
-        let start_vertex = storage.get_vertex("default", start_vertex_id)?;
-        if let Some(vertex) = start_vertex {
-            queue.push_back((start_vertex_id.clone(), Path::new(vertex)));
-            visited.insert(start_vertex_id.clone());
-        } else {
-            return Err(DBError::Query(QueryError::ExecutionError(
-                "起始顶点不存在".to_string(),
-            )));
-        }
-
-        while let Some((current_vertex_id, current_path)) = queue.pop_front() {
-            self.nodes_visited += 1;
-
-            if &current_vertex_id == end_vertex_id {
-                return Ok(current_path);
-            }
-
-            // 检查深度限制
-            if let Some(max_depth) = self.max_depth {
-                if current_path.len() >= max_depth {
-                    continue;
-                }
-            }
-
-            // 获取邻居边
-            let edges = if self.edge_types.is_empty() {
-                storage.get_node_edges("default", &current_vertex_id, EdgeDirection::Out)?
-            } else {
-                // 简化实现，不过滤边类型
-                storage.get_node_edges("default", &current_vertex_id, EdgeDirection::Out)?
-            };
-
-            for edge in edges {
-                self.edges_traversed += 1;
-                let neighbor_id = (*edge.dst).clone();
-
-                if !visited.contains(&neighbor_id) {
-                    visited.insert(neighbor_id.clone());
-
-                    if let Some(neighbor_vertex) = storage.get_vertex("default", &neighbor_id)? {
-                        let mut new_path = current_path.clone();
-                        new_path.add_step(crate::core::vertex_edge_path::Step {
-                            dst: Box::new(neighbor_vertex),
-                            edge: Box::new(edge),
-                        });
-                        queue.push_back((neighbor_id, new_path));
-                    }
-                }
-            }
-        }
-
-        Err(DBError::Query(QueryError::ExecutionError(
-            "未找到路径".to_string(),
-        )))
-    }
 }
 
-#[async_trait]
-impl<S: StorageClient + Send + 'static> Executor<S> for BFSShortestExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+impl<S: StorageClient + 'static> Executor<S> for BFSShortestExecutor<S> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
         let start_time = std::time::Instant::now();
 
         // 重置状态
@@ -634,7 +565,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for BFSShortestExecutor<S> {
         let start_vertex = self.start_vertex.clone();
         let end_vertex = self.end_vertex.clone();
         let mut terminate_early = false;
-        
+
         for current_step in 1..=max_steps {
             if terminate_early {
                 break;
@@ -751,7 +682,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for BFSShortestExecutor<S> {
     }
 }
 
-impl<S: StorageClient + Send + 'static> HasStorage<S> for BFSShortestExecutor<S> {
+impl<S: StorageClient + 'static> HasStorage<S> for BFSShortestExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
         self.base.storage.as_ref().expect("Storage not set")
     }
@@ -969,9 +900,8 @@ impl<S: StorageClient> IndexScanExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + 'static> Executor<S> for IndexScanExecutor<S> {
-    async fn execute(&mut self) -> DBResult<ExecutionResult> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
         let storage = safe_lock(self.get_storage())
             .expect("IndexScanExecutor storage lock should not be poisoned");
 

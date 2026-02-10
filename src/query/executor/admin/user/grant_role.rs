@@ -2,7 +2,6 @@
 //!
 //! 负责授予用户在指定空间的角色权限。
 
-use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 
 use crate::api::service::permission_manager::RoleType;
@@ -31,9 +30,8 @@ impl<S: StorageClient> GrantRoleExecutor<S> {
     }
 }
 
-#[async_trait]
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for GrantRoleExecutor<S> {
-    async fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
+    fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
         let mut storage_guard = storage.lock().map_err(|e| {
             crate::core::error::DBError::Storage(
