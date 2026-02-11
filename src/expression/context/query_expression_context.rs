@@ -11,7 +11,7 @@ use crate::expression::context::{
     version_manager::VersionManager,
 };
 use crate::expression::functions::registry::FunctionRegistry;
-use crate::query::context::CoreQueryContext;
+use crate::query::context::QueryContext;
 use std::collections::HashMap;
 
 /// 查询表达式上下文
@@ -22,7 +22,7 @@ use std::collections::HashMap;
 /// # 与 QueryContext 的集成
 ///
 /// ```ignore
-/// let qctx = CoreQueryContext::new();
+/// let qctx = QueryContext::new();
 /// let mut expr_ctx = QueryExpressionContext::from_query_context(&qctx);
 ///
 /// // 设置当前行（用于 $-.prop 访问）
@@ -47,12 +47,14 @@ impl QueryExpressionContext {
     /// 从查询上下文创建表达式上下文
     ///
     /// 继承查询上下文中的变量
-    pub fn from_query_context(qctx: &CoreQueryContext) -> Self {
+    pub fn from_query_context(qctx: &QueryContext) -> Self {
         let mut ctx = Self::new();
 
         // 继承执行上下文的变量
-        for (name, value) in qctx.ectx().variables() {
-            VariableContext::set_variable(&mut ctx, name.clone(), value.clone());
+        for name in qctx.ectx().variable_names() {
+            if let Some(value) = qctx.ectx().get_value(&name) {
+                VariableContext::set_variable(&mut ctx, name, value.clone());
+            }
         }
 
         ctx

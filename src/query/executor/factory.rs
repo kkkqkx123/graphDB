@@ -81,6 +81,46 @@ fn parse_expression_safe(expr_str: &str) -> Option<crate::core::Expression> {
         .ok()
 }
 
+/// 解析顶点ID字符串为 Value 列表
+/// 支持逗号分隔的多个ID
+fn parse_vertex_ids(src_vids: &str) -> Vec<Value> {
+    src_vids
+        .split(',')
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .map(|s| Value::String(s.to_string()))
+        .collect()
+}
+
+/// 解析排序项字符串为排序键和方向
+/// 支持格式: "column" 或 "column ASC" 或 "column DESC"
+fn parse_sort_item(sort_item: &str) -> (String, crate::query::executor::result_processing::SortOrder) {
+    let parts: Vec<&str> = sort_item
+        .split_whitespace()
+        .collect();
+
+    match parts.as_slice() {
+        [column] => (column.to_string(), crate::query::executor::result_processing::SortOrder::Asc),
+        [column, direction] => {
+            let order = match direction.to_uppercase().as_str() {
+                "DESC" => crate::query::executor::result_processing::SortOrder::Desc,
+                _ => crate::query::executor::result_processing::SortOrder::Asc,
+            };
+            (column.to_string(), order)
+        }
+        _ => (sort_item.to_string(), crate::query::executor::result_processing::SortOrder::Asc),
+    }
+}
+
+/// 解析边方向字符串为 EdgeDirection 枚举
+fn parse_edge_direction(direction_str: &str) -> crate::core::EdgeDirection {
+    match direction_str.to_uppercase().as_str() {
+        "OUT" => crate::core::EdgeDirection::Out,
+        "IN" => crate::core::EdgeDirection::In,
+        _ => crate::core::EdgeDirection::Both,
+    }
+}
+
 /// 执行器工厂
 ///
 /// 负责根据计划节点类型创建对应的执行器实例
@@ -405,12 +445,11 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                 Ok(ExecutorEnum::ScanEdges(executor))
             }
             PlanNodeEnum::GetVertices(node) => {
+                let vertex_ids = parse_vertex_ids(node.src_vids());
                 let executor = GetVerticesExecutor::new(
                     node.id(),
                     storage,
-                    Some(vec![crate::core::Value::String(
-                        node.src_vids().to_string(),
-                    )]),
+                    if vertex_ids.is_empty() { None } else { Some(vertex_ids) },
                     None,
                     node.expression().and_then(|e| {
                         parse_expression_safe(e)
@@ -420,10 +459,8 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                 Ok(ExecutorEnum::GetVertices(executor))
             }
             PlanNodeEnum::GetNeighbors(node) => {
-                let vertex_ids = vec![crate::core::Value::String(
-                    node.src_vids().to_string(),
-                )];
-                let edge_direction = super::base::EdgeDirection::Both;
+                let vertex_ids = parse_vertex_ids(node.src_vids());
+                let edge_direction = parse_edge_direction(node.direction());
                 let edge_types = if node.edge_types().is_empty() {
                     None
                 } else {
@@ -472,9 +509,10 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     .sort_items()
                     .iter()
                     .map(|item| {
+                        let (column, order) = parse_sort_item(item);
                         crate::query::executor::result_processing::SortKey::new(
-                            crate::core::Expression::Variable(item.clone()),
-                            crate::query::executor::result_processing::SortOrder::Asc,
+                            crate::core::Expression::Variable(column),
+                            order,
                         )
                     })
                     .collect();
@@ -513,9 +551,9 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                 let aggregate_functions = node
                     .agg_exprs()
                     .iter()
-                    .map(|_expression| {
-                        crate::query::executor::result_processing::AggregateFunctionSpec::new(
-                            crate::core::types::operators::AggregateFunction::Count(None),
+                    .map(|agg_func| {
+                        crate::query::executor::result_processing::AggregateFunctionSpec::from_agg_function(
+                            agg_func.clone()
                         )
                     })
                     .collect();
@@ -994,7 +1032,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     node.filter.as_ref().and_then(|f| parse_expression_safe(f)),
                     node.return_columns.clone(),
                     node.limit.map(|l| l as usize),
-                    false, // is_edge - 简化实现，默认为false
+                    node.is_edge_scan(),
                 );
                 Ok(ExecutorEnum::IndexScan(executor))
             }
@@ -1004,12 +1042,12 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     node.id(),
                     storage,
                     node.space_id(),
-                    0, // tag_id - 边类型ID，简化为0
-                    0, // index_id - 索引ID，简化为0
-                    "EDGE_INDEX", // scan_type
-                    vec![], // scan_limits
+                    node.edge_type().chars().fold(0, |acc, c| acc.wrapping_mul(31).wrapping_add(c as i32)), // 将 edge_type 转换为 tag_id
+                    node.index_name().chars().fold(0, |acc, c| acc.wrapping_mul(31).wrapping_add(c as i32)), // 将 index_name 转换为 index_id
+                    "EDGE_INDEX",
+                    vec![], // EdgeIndexScanNode 没有 scan_limits 字段
                     node.filter().and_then(|f| parse_expression_safe(f)),
-                    vec![], // return_columns
+                    vec![], // EdgeIndexScanNode 没有 return_columns 字段
                     node.limit().map(|l| l as usize),
                     true, // is_edge - 边索引扫描
                 );

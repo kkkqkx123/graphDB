@@ -173,6 +173,10 @@ impl StorageClient for MockStorage {
         Ok(None)
     }
 
+    fn get_space_by_id(&self, _space_id: i32) -> Result<Option<SpaceInfo>, StorageError> {
+        Ok(None)
+    }
+
     fn list_spaces(&self) -> Result<Vec<SpaceInfo>, StorageError> {
         Ok(Vec::new())
     }
@@ -315,6 +319,15 @@ impl StorageClient for MockStorage {
         _index: &str,
         _value: &Value,
     ) -> Result<Vec<Value>, StorageError> {
+        Ok(Vec::new())
+    }
+
+    fn lookup_index_with_score(
+        &self,
+        _space: &str,
+        _index: &str,
+        _value: &Value,
+    ) -> Result<Vec<(Value, f32)>, StorageError> {
         Ok(Vec::new())
     }
 

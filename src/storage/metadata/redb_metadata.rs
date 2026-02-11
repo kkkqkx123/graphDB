@@ -92,6 +92,11 @@ impl crate::storage::metadata::SchemaManager for RedbSchemaManager {
         }
     }
 
+    fn get_space_by_id(&self, space_id: i32) -> Result<Option<SpaceInfo>, StorageError> {
+        let spaces = self.list_spaces()?;
+        Ok(spaces.into_iter().find(|s| s.space_id == space_id))
+    }
+
     fn list_spaces(&self) -> Result<Vec<SpaceInfo>, StorageError> {
         let read_txn = self.db.begin_read()
             .map_err(|e| StorageError::DbError(e.to_string()))?;

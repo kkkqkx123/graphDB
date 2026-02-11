@@ -70,33 +70,26 @@ impl<S: StorageClient + Send + Sync + 'static> FulltextIndexScanExecutor<S> {
     }
 
     /// 执行全文索引搜索
-    /// 首先获取索引配置，然后使用存储层的lookup_index方法查找匹配的顶点ID
+    /// 首先获取索引配置，然后使用存储层的lookup_index_with_score方法查找匹配的顶点ID和分数
     fn search_fulltext_index(&self, storage: &S) -> DBResult<Vec<(Value, f32)>> {
         // 获取空间名称
         let space_name = self.get_space_name(storage)?;
 
         // 使用存储层的全文索引查找功能
         // 这里返回的是匹配文档的ID列表和相似度分数
-        let index_results = storage.lookup_index(&space_name, &self.index_name, &Value::String(self.query.clone()))
+        let index_results = storage.lookup_index_with_score(&space_name, &self.index_name, &Value::String(self.query.clone()))
             .map_err(|e| DBError::Storage(e))?;
 
-        // 将结果转换为 (Value, score) 格式
-        // 注意：当前存储层返回的是Value列表，我们需要扩展它以支持分数
-        // 这里暂时使用默认分数1.0
-        let results: Vec<(Value, f32)> = index_results
-            .into_iter()
-            .map(|v| (v, 1.0f32))
-            .collect();
-
-        Ok(results)
+        Ok(index_results)
     }
 
     /// 根据space_id获取空间名称
-    fn get_space_name(&self, _storage: &S) -> DBResult<String> {
-        // 尝试通过ID查找空间
-        // 由于StorageClient没有直接通过ID获取空间的方法，我们使用默认空间
-        // 在实际实现中，应该添加通过ID获取空间的方法
-        Ok("default".to_string())
+    fn get_space_name(&self, storage: &S) -> DBResult<String> {
+        if let Ok(Some(space_info)) = storage.get_space_by_id(self.space_id) {
+            Ok(space_info.space_name)
+        } else {
+            Ok("default".to_string())
+        }
     }
 }
 
@@ -124,18 +117,33 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for FulltextIndexScan
             limited_results
                 .into_iter()
                 .filter_map(|(id, score)| {
-                    // 尝试解析边ID (格式: src_dst_ranking 或复杂结构)
-                    // 这里简化处理，假设ID可以直接用于查找
-                    if let Value::String(edge_key) = &id {
-                        // 尝试解析边键 (src:dst:ranking格式)
-                        let parts: Vec<&str> = edge_key.split(':').collect();
-                        if parts.len() >= 2 {
-                            let src = Value::String(parts[0].to_string());
-                            let dst = Value::String(parts[1].to_string());
-                            let edge_type = self.get_schema_name(&*storage).ok()?;
+                    // 尝试解析边ID，支持多种格式
+                    // 格式1: "src:dst:ranking" (字符串格式)
+                    // 格式2: "src:dst" (简化格式)
+                    // 格式3: 直接使用ID作为边标识
+                    let edge_key = match &id {
+                        Value::String(s) => s.clone(),
+                        _ => return Some(vec![id, Value::Float(score as f64)]),
+                    };
 
-                            if let Ok(Some(edge)) = storage.get_edge(&space_name, &src, &dst, &edge_type) {
-                                return Some(vec![Value::Edge(edge), Value::Float(score as f64)]);
+                    // 尝试解析边键 (支持 src:dst:ranking 和 src:dst 格式)
+                    let parts: Vec<&str> = edge_key.split(':').collect();
+                    if parts.len() >= 2 {
+                        let src = Value::String(parts[0].to_string());
+                        let dst = Value::String(parts[1].to_string());
+                        let edge_type = self.get_schema_name(&*storage).ok()?;
+
+                        // 尝试获取边对象
+                        if let Ok(Some(edge)) = storage.get_edge(&space_name, &src, &dst, &edge_type) {
+                            return Some(vec![Value::Edge(edge), Value::Float(score as f64)]);
+                        }
+
+                        // 如果找不到边，尝试遍历所有边类型
+                        if let Ok(edge_types) = storage.list_edge_types(&space_name) {
+                            for edge_type_info in edge_types {
+                                if let Ok(Some(edge)) = storage.get_edge(&space_name, &src, &dst, &edge_type_info.edge_type_name) {
+                                    return Some(vec![Value::Edge(edge), Value::Float(score as f64)]);
+                                }
                             }
                         }
                     }
@@ -198,10 +206,27 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for FulltextIndexScan
 
 impl<S: StorageClient + Send + 'static> FulltextIndexScanExecutor<S> {
     /// 根据schema_id获取schema名称
-    fn get_schema_name(&self, _storage: &S) -> DBResult<String> {
-        // 在实际实现中，应该通过schema_id查询元数据获取名称
-        // 这里简化处理
-        Ok(format!("schema_{}", self.schema_id))
+    /// 如果is_edge为true，则查询edge_type；否则查询tag
+    fn get_schema_name(&self, storage: &S) -> DBResult<String> {
+        let space_name = self.get_space_name(storage)?;
+
+        if self.is_edge {
+            let edge_types = storage.list_edge_types(&space_name)
+                .map_err(|e| DBError::Storage(e))?;
+            if let Some(edge_type_info) = edge_types.iter().find(|e| e.edge_type_id == self.schema_id) {
+                Ok(edge_type_info.edge_type_name.clone())
+            } else {
+                Ok(format!("edge_{}", self.schema_id))
+            }
+        } else {
+            let tags = storage.list_tags(&space_name)
+                .map_err(|e| DBError::Storage(e))?;
+            if let Some(tag_info) = tags.iter().find(|t| t.tag_id == self.schema_id) {
+                Ok(tag_info.tag_name.clone())
+            } else {
+                Ok(format!("tag_{}", self.schema_id))
+            }
+        }
     }
 }
 
@@ -343,12 +368,16 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
                     storage.get_node_edges("default", start_vid, EdgeDirection::Out)?
                 }
             } else {
-                // 根据边类型过滤 - 简化实现，不过滤
-                if reverse {
+                // 根据边类型过滤
+                let all_edges = if reverse {
                     storage.get_node_edges("default", start_vid, EdgeDirection::In)?
                 } else {
                     storage.get_node_edges("default", start_vid, EdgeDirection::Out)?
-                }
+                };
+                // 过滤出指定类型的边
+                all_edges.into_iter()
+                    .filter(|edge| self.edge_types.contains(&edge.edge_type))
+                    .collect()
             };
 
             for edge in edges {

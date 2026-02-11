@@ -164,7 +164,7 @@ impl Hash for Value {
 }
 
 impl Value {
-    // Null类型比较辅助函数 - 简化版本
+    // Null类型比较辅助函数
     fn cmp_null(a: &NullType, b: &NullType) -> CmpOrdering {
         // 基于枚举变体的顺序比较
         match (a, b) {
@@ -181,7 +181,7 @@ impl Value {
         }
     }
 
-    // Null类型优先级映射函数 - 简化版本
+    // Null类型优先级映射函数
     fn null_type_priority(typ: &NullType) -> u8 {
         match typ {
             NullType::Null => 0,
@@ -337,7 +337,7 @@ impl Value {
         }
     }
 
-    // 地理信息比较辅助函数 - 简化版本
+    // 地理信息比较辅助函数 - 版本
     fn cmp_geography(a: &GeographyValue, b: &GeographyValue) -> CmpOrdering {
         // 比较纬度和经度
         match a.latitude.total_cmp(&b.latitude) {

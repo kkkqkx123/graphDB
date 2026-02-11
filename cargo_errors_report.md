@@ -2,94 +2,42 @@
 
 ## Summary
 
-- **Total Errors**: 0
-- **Total Warnings**: 13
-- **Total Issues**: 13
-- **Unique Error Patterns**: 0
-- **Unique Warning Patterns**: 1
-- **Files with Issues**: 13
+- **Total Errors**: 2
+- **Total Warnings**: 0
+- **Total Issues**: 2
+- **Unique Error Patterns**: 1
+- **Unique Warning Patterns**: 0
+- **Files with Issues**: 2
 
 ## Error Statistics
 
-**Total Errors**: 0
+**Total Errors**: 2
+
+### Error Type Breakdown
+
+- **error[E0046]**: 2 errors
+
+### Files with Errors (Top 10)
+
+- `src\query\planner\statements\paths\shortest_path_planner.rs`: 1 errors
+- `src\query\planner\statements\paths\match_path_planner.rs`: 1 errors
 
 ## Warning Statistics
 
-**Total Warnings**: 13
+**Total Warnings**: 0
 
-### Warning Type Breakdown
+## Detailed Error Categorization
 
-- **warning**: 13 warnings
+### error[E0046]: not all trait items implemented, missing: `get_space_by_id`: missing `get_space_by_id` in implementation
 
-### Files with Warnings (Top 10)
+**Total Occurrences**: 2  
+**Unique Files**: 2
 
-- `src\query\optimizer\rules\limit_pushdown\push_limit_down_get_vertices.rs`: 1 warnings
-- `src\query\optimizer\rules\merge\merge_get_nbrs_and_dedup.rs`: 1 warnings
-- `src\query\optimizer\rules\elimination\remove_noop_project.rs`: 1 warnings
-- `src\query\optimizer\rules\elimination\dedup_elimination.rs`: 1 warnings
-- `src\query\optimizer\rules\limit_pushdown\push_limit_down_scan_edges.rs`: 1 warnings
-- `src\query\optimizer\rules\elimination\eliminate_row_collect.rs`: 1 warnings
-- `src\query\optimizer\rules\limit_pushdown\push_limit_down_scan_vertices.rs`: 1 warnings
-- `src\query\optimizer\rules\limit_pushdown\push_limit_down_get_edges.rs`: 1 warnings
-- `src\query\optimizer\rules\limit_pushdown\push_limit_down_index_scan.rs`: 1 warnings
-- `src\query\optimizer\rules\merge\merge_get_vertices_and_project.rs`: 1 warnings
+#### `src\query\planner\statements\paths\shortest_path_planner.rs`: 1 occurrences
 
-## Detailed Warning Categorization
+- Line 69: not all trait items implemented, missing: `get_space_by_id`: missing `get_space_by_id` in implementation
 
-### warning: unused doc comment
+#### `src\query\planner\statements\paths\match_path_planner.rs`: 1 occurrences
 
-**Total Occurrences**: 13  
-**Unique Files**: 13
-
-#### `src\query\optimizer\rules\merge\merge_get_vertices_and_project.rs`: 1 occurrences
-
-- Line 5: unused doc comment
-
-#### `src\query\optimizer\rules\merge\merge_get_vertices_and_dedup.rs`: 1 occurrences
-
-- Line 5: unused doc comment
-
-#### `src\query\optimizer\rules\merge\merge_get_nbrs_and_dedup.rs`: 1 occurrences
-
-- Line 5: unused doc comment
-
-#### `src\query\optimizer\rules\elimination\remove_noop_project.rs`: 1 occurrences
-
-- Line 8: unused doc comment
-
-#### `src\query\optimizer\rules\limit_pushdown\push_limit_down_get_vertices.rs`: 1 occurrences
-
-- Line 8: unused doc comment
-
-#### `src\query\optimizer\rules\limit_pushdown\push_limit_down_get_edges.rs`: 1 occurrences
-
-- Line 8: unused doc comment
-
-#### `src\query\optimizer\rules\limit_pushdown\push_limit_down_index_scan.rs`: 1 occurrences
-
-- Line 8: unused doc comment
-
-#### `src\query\optimizer\rules\elimination\dedup_elimination.rs`: 1 occurrences
-
-- Line 8: unused doc comment
-
-#### `src\query\optimizer\rules\merge\merge_get_nbrs_and_project.rs`: 1 occurrences
-
-- Line 5: unused doc comment
-
-#### `src\query\optimizer\rules\limit_pushdown\push_limit_down_scan_vertices.rs`: 1 occurrences
-
-- Line 8: unused doc comment
-
-#### `src\query\optimizer\rules\elimination\eliminate_row_collect.rs`: 1 occurrences
-
-- Line 7: unused doc comment
-
-#### `src\query\optimizer\rules\limit_pushdown\push_limit_down_scan_edges.rs`: 1 occurrences
-
-- Line 8: unused doc comment
-
-#### `src\query\optimizer\rules\elimination\eliminate_filter.rs`: 1 occurrences
-
-- Line 8: unused doc comment
+- Line 160: not all trait items implemented, missing: `get_space_by_id`: missing `get_space_by_id` in implementation
 

@@ -272,7 +272,7 @@ impl crate::expression::evaluator::traits::ExpressionContext for RowExpressionCo
     }
 }
 
-/// 简化的行上下文引用
+/// 行上下文引用
 ///
 /// 避免克隆的轻量级上下文引用，适用于只需要读取的场景
 #[derive(Debug, Clone)]

@@ -11,6 +11,7 @@ pub trait SchemaManager: Send + Sync + std::fmt::Debug {
     fn create_space(&self, space: &SpaceInfo) -> Result<bool, StorageError>;
     fn drop_space(&self, space_name: &str) -> Result<bool, StorageError>;
     fn get_space(&self, space_name: &str) -> Result<Option<SpaceInfo>, StorageError>;
+    fn get_space_by_id(&self, space_id: i32) -> Result<Option<SpaceInfo>, StorageError>;
     fn list_spaces(&self) -> Result<Vec<SpaceInfo>, StorageError>;
 
     fn create_tag(&self, space: &str, tag: &TagInfo) -> Result<bool, StorageError>;
@@ -97,6 +98,11 @@ impl SchemaManager for MemorySchemaManager {
     fn get_space(&self, space_name: &str) -> Result<Option<SpaceInfo>, StorageError> {
         let spaces = self.spaces.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         Ok(spaces.get(space_name).cloned())
+    }
+
+    fn get_space_by_id(&self, space_id: i32) -> Result<Option<SpaceInfo>, StorageError> {
+        let spaces = self.spaces.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        Ok(spaces.values().find(|s| s.space_id == space_id).cloned())
     }
 
     fn list_spaces(&self) -> Result<Vec<SpaceInfo>, StorageError> {

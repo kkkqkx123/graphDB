@@ -929,6 +929,11 @@ impl<E: Engine> StorageClient for RedbStorage<E> {
         Ok(spaces.get(space_name).cloned())
     }
 
+    fn get_space_by_id(&self, space_id: i32) -> Result<Option<SpaceInfo>, StorageError> {
+        let spaces = self.spaces.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        Ok(spaces.values().find(|s| s.space_id == space_id).cloned())
+    }
+
     fn list_spaces(&self) -> Result<Vec<SpaceInfo>, StorageError> {
         let spaces = self.spaces.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         Ok(spaces.values().cloned().collect())
@@ -1613,6 +1618,11 @@ impl<E: Engine> StorageClient for RedbStorage<E> {
     }
 
     fn lookup_index(&self, space: &str, index_name: &str, value: &Value) -> Result<Vec<Value>, StorageError> {
+        let results = self.lookup_index_with_score(space, index_name, value)?;
+        Ok(results.into_iter().map(|(v, _)| v).collect())
+    }
+
+    fn lookup_index_with_score(&self, space: &str, index_name: &str, value: &Value) -> Result<Vec<(Value, f32)>, StorageError> {
         // 获取索引信息
         let tag_indexes = self.tag_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
         let edge_indexes = self.edge_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
@@ -1623,7 +1633,7 @@ impl<E: Engine> StorageClient for RedbStorage<E> {
         if let Some(space_tag_indexes) = tag_indexes.get(space) {
             if let Some(index) = space_tag_indexes.get(index_name) {
                 let indexed_values = self.lookup_tag_index(space, index, value)?;
-                results.extend(indexed_values);
+                results.extend(indexed_values.into_iter().map(|v| (v, 1.0f32)));
             }
         }
         
@@ -1631,7 +1641,7 @@ impl<E: Engine> StorageClient for RedbStorage<E> {
         if let Some(space_edge_indexes) = edge_indexes.get(space) {
             if let Some(index) = space_edge_indexes.get(index_name) {
                 let indexed_values = self.lookup_edge_index(space, index, value)?;
-                results.extend(indexed_values);
+                results.extend(indexed_values.into_iter().map(|v| (v, 1.0f32)));
             }
         }
         

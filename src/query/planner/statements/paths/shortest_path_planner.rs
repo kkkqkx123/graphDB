@@ -133,6 +133,9 @@ impl StorageClient for DummyStorage {
     fn get_space(&self, _space: &str) -> Result<Option<crate::core::types::SpaceInfo>, crate::core::StorageError> {
         Ok(None)
     }
+    fn get_space_by_id(&self, _space_id: i32) -> Result<Option<crate::core::types::SpaceInfo>, crate::core::StorageError> {
+        Ok(None)
+    }
     fn list_spaces(&self) -> Result<Vec<crate::core::types::SpaceInfo>, crate::core::StorageError> {
         Ok(Vec::new())
     }
@@ -277,6 +280,10 @@ impl StorageClient for DummyStorage {
     }
 
     fn lookup_index(&self, _space: &str, _index: &str, _value: &crate::core::Value) -> Result<Vec<crate::core::Value>, crate::core::StorageError> {
+        Ok(Vec::new())
+    }
+
+    fn lookup_index_with_score(&self, _space: &str, _index: &str, _value: &crate::core::Value) -> Result<Vec<(crate::core::Value, f32)>, crate::core::StorageError> {
         Ok(Vec::new())
     }
 

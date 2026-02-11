@@ -60,6 +60,7 @@ pub trait StorageClient: Send + Sync + std::fmt::Debug {
     fn create_space(&mut self, space: &SpaceInfo) -> Result<bool, StorageError>;
     fn drop_space(&mut self, space: &str) -> Result<bool, StorageError>;
     fn get_space(&self, space: &str) -> Result<Option<SpaceInfo>, StorageError>;
+    fn get_space_by_id(&self, space_id: i32) -> Result<Option<SpaceInfo>, StorageError>;
     fn list_spaces(&self) -> Result<Vec<SpaceInfo>, StorageError>;
     fn get_space_id(&self, space: &str) -> Result<i32, StorageError>;
     fn space_exists(&self, space: &str) -> bool;
@@ -107,6 +108,7 @@ pub trait StorageClient: Send + Sync + std::fmt::Debug {
     fn revoke_role(&mut self, username: &str, space_id: i32) -> Result<bool, StorageError>;
 
     fn lookup_index(&self, space: &str, index: &str, value: &Value) -> Result<Vec<Value>, StorageError>;
+    fn lookup_index_with_score(&self, space: &str, index: &str, value: &Value) -> Result<Vec<(Value, f32)>, StorageError>;
 
     fn get_vertex_with_schema(&self, space: &str, tag: &str, id: &Value) -> Result<Option<(Schema, Vec<u8>)>, StorageError>;
     fn get_edge_with_schema(&self, space: &str, edge_type: &str, src: &Value, dst: &Value) -> Result<Option<(Schema, Vec<u8>)>, StorageError>;
