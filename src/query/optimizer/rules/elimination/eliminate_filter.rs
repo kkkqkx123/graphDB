@@ -5,26 +5,26 @@ use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::query::optimizer::rule_traits::is_expression_tautology;
 use crate::query::visitor::PlanNodeVisitor;
 
-/// 消除冗余过滤操作的规则
-///
-/// # 转换示例
-///
-/// Before:
-/// ```text
-///   Filter(TRUE)
-///       |
-///   ScanVertices
-/// ```
-///
-/// After:
-/// ```text
-///   ScanVertices
-/// ```
-///
-/// # 适用条件
-///
-/// - 过滤条件为永真式（如 TRUE、1=1 等）
 crate::define_elimination_rule! {
+    /// 消除冗余过滤操作的规则
+    ///
+    /// # 转换示例
+    ///
+    /// Before:
+    /// ```text
+    ///   Filter(TRUE)
+    ///       |
+    ///   ScanVertices
+    /// ```
+    ///
+    /// After:
+    /// ```text
+    ///   ScanVertices
+    /// ```
+    ///
+    /// # 适用条件
+    ///
+    /// - 过滤条件为永真式（如 TRUE、1=1 等）
     pub struct EliminateFilterRule {
         target: Filter,
         target_check: is_filter,

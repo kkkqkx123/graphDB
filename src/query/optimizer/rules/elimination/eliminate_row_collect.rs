@@ -4,27 +4,27 @@ use crate::query::optimizer::plan::{OptContext, OptGroupNode};
 use crate::query::optimizer::rule_traits::create_basic_pattern;
 use crate::query::visitor::PlanNodeVisitor;
 
-/// 消除冗余数据收集操作的规则
-///
-/// # 转换示例
-///
-/// Before:
-/// ```text
-///   DataCollect(kind=kRowBasedMove)
-///       |
-///   ScanVertices
-/// ```
-///
-/// After:
-/// ```text
-///   ScanVertices
-/// ```
-///
-/// # 适用条件
-///
-/// - DataCollect 节点的 kind 为 kRowBasedMove
-/// - 子节点可以直接返回结果
 crate::define_elimination_rule! {
+    /// 消除冗余数据收集操作的规则
+    ///
+    /// # 转换示例
+    ///
+    /// Before:
+    /// ```text
+    ///   DataCollect(kind=kRowBasedMove)
+    ///       |
+    ///   ScanVertices
+    /// ```
+    ///
+    /// After:
+    /// ```text
+    ///   ScanVertices
+    /// ```
+    ///
+    /// # 适用条件
+    ///
+    /// - DataCollect 节点的 kind 为 kRowBasedMove
+    /// - 子节点可以直接返回结果
     pub struct EliminateRowCollectRule {
         target: DataCollect,
         target_check: is_data_collect,

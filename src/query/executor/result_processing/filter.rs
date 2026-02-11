@@ -118,13 +118,6 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
         }
     }
 
-    /// 计算批量大小
-    ///
-    /// 使用并行配置的 calculate_batch_size 方法
-    fn calculate_batch_size(&self, total_size: usize) -> usize {
-        self.parallel_config.calculate_batch_size(total_size)
-    }
-
     /// 单线程过滤
     fn apply_filter_single(&self, dataset: &mut DataSet) -> DBResult<()> {
         let mut filtered_rows = Vec::new();

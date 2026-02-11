@@ -118,18 +118,6 @@ impl<S: StorageClient> AllPathsExecutor<S> {
         self
     }
 
-    fn get_edge_direction(&self) -> EdgeDirection {
-        self.edge_direction.clone()
-    }
-
-    fn get_edge_types(&self) -> Option<Vec<String>> {
-        self.edge_types.clone()
-    }
-
-    fn get_max_steps(&self) -> usize {
-        self.max_steps
-    }
-
     fn get_neighbors(
         &self,
         node_id: &Value,
@@ -305,18 +293,6 @@ impl<S: StorageClient> AllPathsExecutor<S> {
             vertices.insert(step.dst.vid.clone());
         }
         vertices.contains(&edge.dst)
-    }
-
-    fn has_same_edge(&self, path: &Path, edge: &Edge) -> bool {
-        for step in &path.steps {
-            if step.edge.src == edge.src
-                && step.edge.dst == edge.dst
-                && step.edge.ranking == edge.ranking
-            {
-                return true;
-            }
-        }
-        false
     }
 
     fn build_conjunct_paths(

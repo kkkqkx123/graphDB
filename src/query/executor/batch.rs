@@ -89,19 +89,15 @@ impl<T> BatchReadResult<T> {
 /// - 内存限制
 pub struct BatchOptimizer<S: StorageClient + Send + 'static> {
     storage: Arc<Mutex<S>>,
-    config: BatchConfig,
 }
 
 impl<S: StorageClient + Send + 'static> BatchOptimizer<S> {
-    pub fn new(storage: Arc<Mutex<S>>, config: BatchConfig) -> Self {
-        Self { storage, config }
+    pub fn new(storage: Arc<Mutex<S>>, _config: BatchConfig) -> Self {
+        Self { storage }
     }
 
     pub fn with_default_config(storage: Arc<Mutex<S>>) -> Self {
-        Self {
-            storage,
-            config: BatchConfig::default(),
-        }
+        Self { storage }
     }
 
     pub fn batch_get_vertices(

@@ -5,27 +5,27 @@ use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::visitor::PlanNodeVisitor;
 
-/// 消除重复操作的规则
-///
-/// # 转换示例
-///
-/// Before:
-/// ```text
-///   Dedup
-///       |
-///   IndexScan (索引扫描保证唯一性)
-/// ```
-///
-/// After:
-/// ```text
-///   IndexScan
-/// ```
-///
-/// # 适用条件
-///
-/// - Dedup 节点的子节点为 IndexScan、GetVertices 或 GetEdges
-/// - 这些操作本身就保证结果的唯一性
 crate::define_elimination_rule! {
+    /// 消除重复操作的规则
+    ///
+    /// # 转换示例
+    ///
+    /// Before:
+    /// ```text
+    ///   Dedup
+    ///       |
+    ///   IndexScan (索引扫描保证唯一性)
+    /// ```
+    ///
+    /// After:
+    /// ```text
+    ///   IndexScan
+    /// ```
+    ///
+    /// # 适用条件
+    ///
+    /// - Dedup 节点的子节点为 IndexScan、GetVertices 或 GetEdges
+    /// - 这些操作本身就保证结果的唯一性
     pub struct DedupEliminationRule {
         target: Dedup,
         target_check: is_dedup,

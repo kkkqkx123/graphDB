@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 
 use super::execution_schedule::ExecutionSchedule;
-use super::types::{ExecutorType, QueryScheduler, SchedulerConfig};
+use super::types::{QueryScheduler, SchedulerConfig};
 use crate::query::executor::ExecutionResult;
 use crate::query::QueryError;
 use crate::storage::StorageClient;
@@ -78,19 +78,6 @@ impl<S: StorageClient + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
         }
     }
 
-    fn check_status(&self, statuses: &[Result<(), QueryError>]) -> Result<(), QueryError> {
-        for status in statuses {
-            if let Err(e) = status {
-                return Err(e.clone());
-            }
-        }
-        Ok(())
-    }
-
-    fn format_pretty_id(&self, executor_id: i64) -> String {
-        format!("[id:{}]", executor_id)
-    }
-
     pub fn format_dependency_tree(&self, execution_schedule: &ExecutionSchedule<S>) -> String {
         execution_schedule.format_dependency_tree(execution_schedule.root_executor_id)
     }
@@ -99,113 +86,10 @@ impl<S: StorageClient + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
         execution_schedule.to_graphviz(execution_schedule.root_executor_id)
     }
 
-    async fn execute_executor(
-        &self,
-        executor_id: i64,
-        execution_schedule: &mut ExecutionSchedule<S>,
-    ) -> Result<ExecutionResult, QueryError> {
-        let mut executor = execution_schedule
-            .executors
-            .remove(&executor_id)
-            .ok_or_else(|| {
-                QueryError::InvalidQuery(format!("Executor {} not found", executor_id))
-            })?;
-
-        {
-            let state = safe_lock(&self.execution_state)
-                .expect("AsyncScheduler execution_state lock should not be poisoned");
-            state.executing_count.fetch_add(1, Ordering::SeqCst);
-        }
-
-        let exec_type = execution_schedule.get_executor_type(executor_id);
-        let result = match exec_type {
-            ExecutorType::Select => {
-                self.execute_select(executor_id, execution_schedule).await
-            }
-            ExecutorType::Loop => {
-                self.execute_loop(executor_id, execution_schedule).await
-            }
-            ExecutorType::Argument => {
-                self.execute_argument(executor_id, execution_schedule).await
-            }
-            _ => {
-                executor.execute().map_err(QueryError::from)
-            }
-        };
-
-        {
-            let state = safe_lock(&self.execution_state)
-                .expect("AsyncScheduler execution_state lock should not be poisoned");
-            state.executing_count.fetch_sub(1, Ordering::SeqCst);
-        }
-
-        {
-            let mut state = safe_lock(&self.execution_state)
-                .expect("AsyncScheduler execution_state lock should not be poisoned");
-            match &result {
-                Ok(res) => {
-                    state.execution_results.insert(executor_id, res.clone());
-                }
-                Err(e) => {
-                    state.set_failure(e.clone());
-                }
-            }
-        }
-
-        execution_schedule.executors.insert(executor_id, executor);
-        result
-    }
-
-    async fn execute_single_input_executor(
-        &self,
-        executor_id: i64,
-        execution_schedule: &mut ExecutionSchedule<S>,
-    ) -> Result<ExecutionResult, QueryError> {
-        let mut executor = execution_schedule
-            .executors
-            .remove(&executor_id)
-            .ok_or_else(|| {
-                QueryError::InvalidQuery(format!("Executor {} not found", executor_id))
-            })?;
-
-        let result = executor.execute().map_err(QueryError::from)?;
-
-        execution_schedule.executors.insert(executor_id, executor);
-        Ok(result)
-    }
-
-    async fn execute_select(
-        &self,
-        executor_id: i64,
-        execution_schedule: &mut ExecutionSchedule<S>,
-    ) -> Result<ExecutionResult, QueryError> {
-        self.execute_single_input_executor(executor_id, execution_schedule).await
-    }
-
-    async fn execute_loop(
-        &self,
-        executor_id: i64,
-        execution_schedule: &mut ExecutionSchedule<S>,
-    ) -> Result<ExecutionResult, QueryError> {
-        self.execute_single_input_executor(executor_id, execution_schedule).await
-    }
-
-    async fn execute_argument(
-        &self,
-        executor_id: i64,
-        execution_schedule: &mut ExecutionSchedule<S>,
-    ) -> Result<ExecutionResult, QueryError> {
-        self.execute_single_input_executor(executor_id, execution_schedule).await
-    }
-
-    fn get_executable_executors(&self, execution_schedule: &ExecutionSchedule<S>) -> Vec<i64> {
+    fn all_executors_completed(&self) -> bool {
         let state = safe_lock(&self.execution_state)
             .expect("AsyncScheduler execution_state lock should not be poisoned");
-        execution_schedule
-            .get_executable_executors(&state.execution_results)
-            .into_iter()
-            .filter(|id| !state.is_executor_executing(*id))
-            .collect()
+        state.executing_count.load(Ordering::SeqCst) == 0
     }
 
     fn notify_completion(&self) {
@@ -214,12 +98,6 @@ impl<S: StorageClient + Send + 'static> AsyncMsgNotifyBasedScheduler<S> {
             .expect("AsyncScheduler completion_notifier lock should not be poisoned");
         *completed = true;
         cvar.notify_all();
-    }
-
-    fn all_executors_completed(&self) -> bool {
-        let state = safe_lock(&self.execution_state)
-            .expect("AsyncScheduler execution_state lock should not be poisoned");
-        state.executing_count.load(Ordering::SeqCst) == 0
     }
 
     fn has_failure(&self) -> bool {

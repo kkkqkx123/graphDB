@@ -265,38 +265,6 @@ impl<S: StorageClient> TraverseExecutor<S> {
         Ok(())
     }
 
-    /// 批量获取邻居节点（包含完整顶点信息）
-    fn batch_get_neighbors_with_vertices(
-        &self,
-        node_ids: &[Value],
-    ) -> Result<std::collections::HashMap<Value, Vec<(Vertex, Edge)>>, QueryError> {
-        let mut result: std::collections::HashMap<Value, Vec<(Vertex, Edge)>> =
-            std::collections::HashMap::new();
-
-        for node_id in node_ids {
-            let neighbors_with_edges = self.get_neighbors_with_edges(node_id)?;
-            let mut vertex_edge_pairs = Vec::new();
-
-            for (neighbor_id, edge) in neighbors_with_edges {
-                let storage = safe_lock(self.get_storage())
-                    .expect("TraverseExecutor storage lock should not be poisoned");
-                let neighbor_vertex = storage
-                    .get_vertex("default", &neighbor_id)
-                    .map_err(|e| QueryError::StorageError(e.to_string()))?;
-
-                if let Some(vertex) = neighbor_vertex {
-                    vertex_edge_pairs.push((vertex, edge));
-                }
-            }
-
-            if !vertex_edge_pairs.is_empty() {
-                result.insert(node_id.clone(), vertex_edge_pairs);
-            }
-        }
-
-        Ok(result)
-    }
-
     fn initialize_traversal(&mut self, input_nodes: Vec<Vertex>) -> Result<(), QueryError> {
         self.current_paths.clear();
         self.completed_paths.clear();

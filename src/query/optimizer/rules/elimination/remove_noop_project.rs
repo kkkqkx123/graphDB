@@ -5,27 +5,27 @@ use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::query::validator::YieldColumn;
 use crate::query::visitor::PlanNodeVisitor;
 
-/// 移除无操作投影的规则
-///
-/// # 转换示例
-///
-/// Before:
-/// ```text
-///   Project(v1, v2, v3)
-///       |
-///   ScanVertices (输出 v1, v2, v3)
-/// ```
-///
-/// After:
-/// ```text
-///   ScanVertices
-/// ```
-///
-/// # 适用条件
-///
-/// - Project 节点的输出列与子节点的输出列完全相同
-/// - Project 节点不包含别名或表达式
 crate::define_elimination_rule! {
+    /// 移除无操作投影的规则
+    ///
+    /// # 转换示例
+    ///
+    /// Before:
+    /// ```text
+    ///   Project(v1, v2, v3)
+    ///       |
+    ///   ScanVertices (输出 v1, v2, v3)
+    /// ```
+    ///
+    /// After:
+    /// ```text
+    ///   ScanVertices
+    /// ```
+    ///
+    /// # 适用条件
+    ///
+    /// - Project 节点的输出列与子节点的输出列完全相同
+    /// - Project 节点不包含别名或表达式
     pub struct RemoveNoopProjectRule {
         target: Project,
         target_check: is_project,
