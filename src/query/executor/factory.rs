@@ -10,7 +10,7 @@ use crate::query::executor::traits::Executor;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::{
-    BinaryInputNode, JoinNode, MultipleInputNode, PlanNode, SingleInputNode,
+    JoinNode, MultipleInputNode, SingleInputNode,
 };
 
 use crate::storage::StorageClient;

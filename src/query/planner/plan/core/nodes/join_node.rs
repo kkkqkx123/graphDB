@@ -169,7 +169,7 @@ mod tests {
     use crate::query::planner::plan::core::nodes::start_node::StartNode;
     use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 
-    fn create_test_start_node(id: i64) -> PlanNodeEnum {
+    fn create_test_start_node(_id: i64) -> PlanNodeEnum {
         PlanNodeEnum::Start(StartNode::new())
     }
 

@@ -3,7 +3,7 @@
 //! 实现 PlanNodeEnum 的各种操作方法
 
 use super::plan_node_enum::PlanNodeEnum;
-use super::plan_node_traits::{BinaryInputNode, MultipleInputNode, PlanNode, SingleInputNode};
+use super::plan_node_traits::{MultipleInputNode, PlanNode, SingleInputNode};
 use crate::query::context::validate::types::Variable;
 
 impl PlanNodeEnum {

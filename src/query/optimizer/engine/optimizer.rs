@@ -192,7 +192,7 @@ impl Optimizer {
         }
 
         fn count_recursive_node(node: &PlanNodeEnum, count: &mut usize) {
-            use crate::query::planner::plan::core::nodes::{SingleInputNode, BinaryInputNode};
+            use crate::query::planner::plan::core::nodes::SingleInputNode;
 
             match node {
                 PlanNodeEnum::Project(node) => {
@@ -317,7 +317,7 @@ impl Optimizer {
         ctx: &mut OptContext,
         parent_id: usize,
     ) -> Result<(), OptimizerError> {
-        use crate::query::planner::plan::core::nodes::{SingleInputNode, BinaryInputNode};
+        use crate::query::planner::plan::core::nodes::SingleInputNode;
 
         match plan_node {
             PlanNodeEnum::Project(node) => {

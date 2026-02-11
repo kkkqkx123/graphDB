@@ -6,7 +6,7 @@
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
-use rayon::prelude::*;
+use rayon;
 
 use crate::core::{Edge, Value, Vertex};
 use crate::query::executor::base::InputExecutor;

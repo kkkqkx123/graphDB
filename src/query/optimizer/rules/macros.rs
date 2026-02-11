@@ -229,7 +229,6 @@ macro_rules! define_elimination_rule {
                     ctx,
                     is_eliminated: false,
                     eliminated_node: None,
-                    node_dependencies: node_ref.dependencies.clone(),
                 };
 
                 let result = visitor.visit(&node_ref.plan_node);

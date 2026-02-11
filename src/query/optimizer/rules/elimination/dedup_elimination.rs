@@ -4,8 +4,6 @@ use crate::query::optimizer::plan::{OptContext, OptGroupNode};
 use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::visitor::PlanNodeVisitor;
-use std::rc::Rc;
-use std::cell::RefCell;
 
 /// 消除重复操作的规则
 ///
@@ -46,7 +44,6 @@ struct DedupEliminationVisitor<'a> {
     is_eliminated: bool,
     eliminated_node: Option<OptGroupNode>,
     ctx: &'a OptContext,
-    node_dependencies: Vec<usize>,
 }
 
 impl<'a> PlanNodeVisitor for DedupEliminationVisitor<'a> {

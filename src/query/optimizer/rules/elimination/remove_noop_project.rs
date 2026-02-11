@@ -2,11 +2,8 @@
 
 use crate::query::optimizer::plan::{OptContext, OptGroupNode};
 use crate::query::optimizer::rule_patterns::PatternBuilder;
-use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::validator::YieldColumn;
 use crate::query::visitor::PlanNodeVisitor;
-use std::rc::Rc;
-use std::cell::RefCell;
 
 /// 移除无操作投影的规则
 ///
@@ -47,7 +44,6 @@ struct RemoveNoopProjectVisitor<'a> {
     is_eliminated: bool,
     eliminated_node: Option<OptGroupNode>,
     ctx: &'a OptContext,
-    node_dependencies: Vec<usize>,
 }
 
 impl<'a> PlanNodeVisitor for RemoveNoopProjectVisitor<'a> {
@@ -62,28 +58,32 @@ impl<'a> PlanNodeVisitor for RemoveNoopProjectVisitor<'a> {
             return self.clone();
         }
 
-        let input = node.input();
+        let deps = node.dependencies();
+        if deps.is_empty() {
+            return self.clone();
+        }
 
-        if let Some(dep_id) = self.node_dependencies.first() {
-            if let Some(child_node) = self.ctx.find_group_node_by_id(*dep_id) {
-                let child_node_ref = child_node.borrow();
-                let columns = node.columns();
-                let child_col_names = child_node_ref.plan_node.col_names();
+        let input = deps.first().unwrap();
+        let input_id = input.id() as usize;
 
-                if self.is_noop_projection(&columns, &child_col_names) {
-                    let mut new_node = child_node_ref.clone();
+        if let Some(child_node) = self.ctx.find_group_node_by_plan_node_id(input_id) {
+            let child_node_ref = child_node.borrow();
+            let columns = node.columns();
+            let child_col_names = child_node_ref.plan_node.col_names();
 
-                    if let Some(_output_var) = node.output_var() {
-                        new_node.plan_node = input.clone();
-                    }
+            if self.is_noop_projection(&columns, &child_col_names) {
+                let mut new_node = child_node_ref.clone();
 
-                    drop(child_node_ref);
-
-                    self.is_eliminated = true;
-                    self.eliminated_node = Some(new_node);
-                } else {
-                    drop(child_node_ref);
+                if let Some(_output_var) = node.output_var() {
+                    new_node.plan_node = (**input).clone();
                 }
+
+                drop(child_node_ref);
+
+                self.is_eliminated = true;
+                self.eliminated_node = Some(new_node);
+            } else {
+                drop(child_node_ref);
             }
         }
 

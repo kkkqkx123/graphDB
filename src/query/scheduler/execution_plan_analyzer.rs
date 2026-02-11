@@ -3,7 +3,6 @@
 //! 使用访问者模式分析执行计划，生成执行器调度信息。
 
 use crate::query::planner::plan::core::nodes::PlanNodeEnum;
-use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::visitor::PlanNodeVisitor;
 use crate::query::context::validate::types::Variable;
@@ -309,8 +308,6 @@ impl PlanNodeVisitor for ExecutionPlanAnalyzer {
     }
 
     fn visit_inner_join(&mut self, node: &crate::query::planner::plan::core::nodes::InnerJoinNode) {
-        use crate::query::planner::plan::core::nodes::plan_node_traits::BinaryInputNode;
-
         let id = self.allocate_id();
         self.set_current_id(id);
         self.analysis.add_executor(id, crate::query::scheduler::types::ExecutorType::Normal);
@@ -333,8 +330,6 @@ impl PlanNodeVisitor for ExecutionPlanAnalyzer {
     }
 
     fn visit_left_join(&mut self, node: &crate::query::planner::plan::core::nodes::LeftJoinNode) {
-        use crate::query::planner::plan::core::nodes::plan_node_traits::BinaryInputNode;
-
         let id = self.allocate_id();
         self.set_current_id(id);
         self.analysis.add_executor(id, crate::query::scheduler::types::ExecutorType::Normal);
@@ -357,8 +352,6 @@ impl PlanNodeVisitor for ExecutionPlanAnalyzer {
     }
 
     fn visit_hash_inner_join(&mut self, node: &crate::query::planner::plan::core::nodes::HashInnerJoinNode) {
-        use crate::query::planner::plan::core::nodes::plan_node_traits::BinaryInputNode;
-
         let id = self.allocate_id();
         self.set_current_id(id);
         self.analysis.add_executor(id, crate::query::scheduler::types::ExecutorType::Normal);
@@ -381,8 +374,6 @@ impl PlanNodeVisitor for ExecutionPlanAnalyzer {
     }
 
     fn visit_hash_left_join(&mut self, node: &crate::query::planner::plan::core::nodes::HashLeftJoinNode) {
-        use crate::query::planner::plan::core::nodes::plan_node_traits::BinaryInputNode;
-
         let id = self.allocate_id();
         self.set_current_id(id);
         self.analysis.add_executor(id, crate::query::scheduler::types::ExecutorType::Normal);
@@ -405,8 +396,6 @@ impl PlanNodeVisitor for ExecutionPlanAnalyzer {
     }
 
     fn visit_cross_join(&mut self, node: &crate::query::planner::plan::core::nodes::CrossJoinNode) {
-        use crate::query::planner::plan::core::nodes::plan_node_traits::BinaryInputNode;
-
         let id = self.allocate_id();
         self.set_current_id(id);
         self.analysis.add_executor(id, crate::query::scheduler::types::ExecutorType::Normal);

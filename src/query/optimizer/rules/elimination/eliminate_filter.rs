@@ -3,10 +3,7 @@
 use crate::query::optimizer::plan::{OptContext, OptGroupNode};
 use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::query::optimizer::rule_traits::is_expression_tautology;
-use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::visitor::PlanNodeVisitor;
-use std::rc::Rc;
-use std::cell::RefCell;
 
 /// 消除冗余过滤操作的规则
 ///
@@ -46,7 +43,6 @@ struct EliminateFilterVisitor<'a> {
     is_eliminated: bool,
     eliminated_node: Option<OptGroupNode>,
     ctx: &'a OptContext,
-    node_dependencies: Vec<usize>,
 }
 
 impl<'a> PlanNodeVisitor for EliminateFilterVisitor<'a> {
@@ -66,18 +62,24 @@ impl<'a> PlanNodeVisitor for EliminateFilterVisitor<'a> {
             return self.clone();
         }
 
-        if let Some(dep_id) = self.node_dependencies.first() {
-            if let Some(child_node) = self.ctx.find_group_node_by_id(*dep_id) {
-                let new_node = child_node.clone();
+        let deps = node.dependencies();
+        if deps.is_empty() {
+            return self.clone();
+        }
 
-                if let Some(_output_var) = node.output_var() {
-                    let mut new_node_borrowed = new_node.borrow_mut();
-                    new_node_borrowed.plan_node = SingleInputNode::input(node).clone();
-                }
+        let input = deps.first().unwrap();
+        let input_id = input.id() as usize;
 
-                self.is_eliminated = true;
-                self.eliminated_node = Some(new_node.borrow().clone());
+        if let Some(child_node) = self.ctx.find_group_node_by_plan_node_id(input_id) {
+            let new_node = child_node.clone();
+
+            if let Some(_output_var) = node.output_var() {
+                let mut new_node_borrowed = new_node.borrow_mut();
+                new_node_borrowed.plan_node = (**input).clone();
             }
+
+            self.is_eliminated = true;
+            self.eliminated_node = Some(new_node.borrow().clone());
         }
 
         self.clone()

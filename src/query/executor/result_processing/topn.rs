@@ -274,7 +274,7 @@ impl<S: StorageClient> TopNExecutor<S> {
     /// 根据数据量选择执行方式：
     /// - 数据量小于阈值：单线程堆排序
     /// - 数据量大：使用 Rayon 并行处理
-    fn execute_topn_dataset(&self, mut dataset: DataSet) -> DBResult<DataSet> {
+    fn execute_topn_dataset(&self, dataset: DataSet) -> DBResult<DataSet> {
         if self.sort_keys.is_empty() {
             return self.apply_limit_and_offset(dataset);
         }
@@ -290,12 +290,10 @@ impl<S: StorageClient> TopNExecutor<S> {
 
     /// 顺序执行的 TopN（使用堆排序）
     fn execute_topn_dataset_sequential(&self, mut dataset: DataSet) -> DBResult<DataSet> {
-        let heap_size = self.n + self.offset;
-        
         if self.is_ascending() {
-            self.heap_ascending(&mut dataset, heap_size)?;
+            self.heap_ascending(&mut dataset, self.n + self.offset)?;
         } else {
-            self.heap_descending(&mut dataset, heap_size)?;
+            self.heap_descending(&mut dataset, self.n + self.offset)?;
         }
 
         Ok(dataset)
@@ -307,7 +305,7 @@ impl<S: StorageClient> TopNExecutor<S> {
     /// 1. 并行计算每行的排序键值
     /// 2. 使用 Rayon 分区排序 + 选择 N 个元素
     fn execute_topn_dataset_parallel(&self, mut dataset: DataSet) -> DBResult<DataSet> {
-        let heap_size = self.n + self.offset;
+        let _heap_size = self.n + self.offset;
         let sort_keys = self.sort_keys.clone();
         let col_names = dataset.col_names.clone();
         let is_ascending = self.is_ascending();
@@ -514,6 +512,7 @@ impl<S: StorageClient> TopNExecutor<S> {
     }
 
     /// 比较两个值
+    #[allow(dead_code)]
     fn compare_values(
         &self,
         a: &Value,
@@ -615,6 +614,7 @@ impl<S: StorageClient> TopNExecutor<S> {
     }
 
     /// 提取排序值
+    #[allow(dead_code)]
     fn extract_sort_values(&self, row: &[Value]) -> Result<Vec<Value>, TopNError> {
         let mut sort_values = Vec::with_capacity(self.sort_columns.len());
 
@@ -643,6 +643,7 @@ impl<S: StorageClient> TopNExecutor<S> {
     }
 
     /// 反转排序值（用于最大堆）
+    #[allow(dead_code)]
     fn invert_sort_values(&self, mut sort_values: Vec<Value>) -> Result<Vec<Value>, TopNError> {
         for value in &mut sort_values {
             if !value.is_null() {
@@ -653,6 +654,7 @@ impl<S: StorageClient> TopNExecutor<S> {
     }
 
     /// 反转单个值的比较逻辑
+    #[allow(dead_code)]
     fn invert_value_for_sorting(&self, value: &Value) -> Result<Value, TopNError> {
         match value {
             Value::Int(i) => Ok(Value::Int(-i)),
@@ -667,6 +669,7 @@ impl<S: StorageClient> TopNExecutor<S> {
     }
 
     /// 动态调整堆容量
+    #[allow(dead_code)]
     fn optimize_heap_capacity(&mut self) {
         if let Some(ref mut heap) = self.heap {
             let current_capacity = heap.capacity();
@@ -686,6 +689,7 @@ impl<S: StorageClient> TopNExecutor<S> {
     }
 
     /// 检查是否超出内存限制
+    #[allow(dead_code)]
     fn exceeds_memory_limit(&self) -> bool {
         let estimated_memory = self.heap.as_ref().map_or(0, |h| h.len()) * 100;
         estimated_memory > 100 * 1024 * 1024

@@ -1,7 +1,6 @@
 //! PlanNode 枚举定义
 //!
 
-use super::plan_node_traits::PlanNode;
 use super::plan_node_category::PlanNodeCategory;
 use crate::query::core::{NodeType, NodeCategory, NodeTypeMapping};
 use super::space_nodes::{CreateSpaceNode, DescSpaceNode, DropSpaceNode, ShowSpacesNode};
