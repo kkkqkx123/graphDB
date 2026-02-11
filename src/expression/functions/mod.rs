@@ -420,6 +420,7 @@ impl AggregateFunction {
             AggregateFunction::Min(_) => "最小值",
             AggregateFunction::Max(_) => "最大值",
             AggregateFunction::Collect(_) => "收集",
+            AggregateFunction::CollectSet(_) => "收集去重",
             AggregateFunction::Distinct(_) => "去重",
             AggregateFunction::Percentile(_, _) => "百分位数",
             AggregateFunction::Std(_) => "标准差",

@@ -193,6 +193,9 @@ impl ExpressionOperationsValidator {
             crate::core::AggregateFunction::Collect(_) => {
                 // COLLECT 可以接受任意类型参数
             }
+            crate::core::AggregateFunction::CollectSet(_) => {
+                // COLLECT_SET 可以接受任意类型参数
+            }
             crate::core::AggregateFunction::Distinct(_) => {
                 // DISTINCT 可以接受任意类型参数
             }

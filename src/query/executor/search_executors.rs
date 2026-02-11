@@ -790,21 +790,34 @@ impl<S: StorageClient> IndexScanExecutor<S> {
     }
 
     /// 获取空间名称
-    fn get_space_name(&self, _storage: &S) -> DBResult<String> {
-        // 简化实现，实际应该通过space_id查询
-        Ok("default".to_string())
+    fn get_space_name(&self, storage: &S) -> DBResult<String> {
+        if let Ok(Some(space_info)) = storage.get_space_by_id(self.space_id) {
+            Ok(space_info.space_name)
+        } else {
+            Ok("default".to_string())
+        }
     }
 
     /// 获取schema名称（tag或edge类型名称）
-    fn get_schema_name(&self, _storage: &S) -> DBResult<String> {
+    fn get_schema_name(&self, storage: &S) -> DBResult<String> {
+        let space_name = self.get_space_name(storage)?;
+
         if self.is_edge {
-            // 通过edge_type ID获取名称
-            // 简化实现
-            Ok(format!("edge_type_{}", self.tag_id.abs()))
+            let edge_types = storage.list_edge_types(&space_name)
+                .map_err(|e| DBError::Storage(e))?;
+            if let Some(edge_type_info) = edge_types.iter().find(|e| e.edge_type_id == self.tag_id) {
+                Ok(edge_type_info.edge_type_name.clone())
+            } else {
+                Ok(format!("edge_type_{}", self.tag_id.abs()))
+            }
         } else {
-            // 通过tag ID获取名称
-            // 简化实现
-            Ok(format!("tag_{}", self.tag_id))
+            let tags = storage.list_tags(&space_name)
+                .map_err(|e| DBError::Storage(e))?;
+            if let Some(tag_info) = tags.iter().find(|t| t.tag_id == self.tag_id) {
+                Ok(tag_info.tag_name.clone())
+            } else {
+                Ok(format!("tag_{}", self.tag_id))
+            }
         }
     }
 
@@ -842,13 +855,68 @@ impl<S: StorageClient> IndexScanExecutor<S> {
             }
             "RANGE" => {
                 // 范围索引查找
-                // 这里简化处理，实际应该支持范围查询
+                // 参考 nebula-graph 的 RangePath 实现：
+                // 1. 使用 begin_value 作为前缀进行初步查找
+                // 2. 使用 end_value 进行范围过滤
+                // 3. 支持包含/不包含边界控制
                 if let Some(first_limit) = self.scan_limits.first() {
+                    let column_name = &first_limit.column;
+                    
+                    // 获取起始值和结束值
                     let start_value = first_limit.begin_value.as_ref()
-                        .map(|v| Value::String(v.clone()))
-                        .unwrap_or(Value::Null(NullType::Null));
-                    storage.lookup_index(&space_name, &index_name, &start_value)
-                        .map_err(|e| DBError::Storage(e))
+                        .map(|v| Value::String(v.clone()));
+                    let end_value = first_limit.end_value.as_ref()
+                        .map(|v| Value::String(v.clone()));
+                    
+                    // 如果没有起始值，返回空结果
+                    let start_val = match start_value {
+                        Some(v) => v,
+                        None => return Ok(Vec::new()),
+                    };
+                    
+                    // 使用起始值进行前缀查找获取候选结果
+                    let candidates = storage.lookup_index(&space_name, &index_name, &start_val)
+                        .map_err(|e| DBError::Storage(e))?;
+                    
+                    // 如果有结束值，进行范围过滤
+                    if let Some(end_val) = end_value {
+                        let filtered: Vec<Value> = candidates
+                            .into_iter()
+                            .filter(|id| {
+                                // 获取实体的属性值进行比较
+                                match self.get_entity_property_for_filter(storage, id, column_name) {
+                                    Some(prop_value) => {
+                                        // 比较属性值是否在范围内 [start, end]
+                                        // 注意：这里假设属性值和范围值都是可比较的字符串
+                                        let start_str = match &start_val {
+                                            Value::String(s) => s.as_str(),
+                                            _ => return false,
+                                        };
+                                        let end_str = match &end_val {
+                                            Value::String(s) => s.as_str(),
+                                            _ => return false,
+                                        };
+                                        let prop_str = match &prop_value {
+                                            Value::String(s) => s.as_str(),
+                                            Value::Int(i) => return *i >= start_str.parse::<i64>().unwrap_or(i64::MIN) 
+                                                && *i <= end_str.parse::<i64>().unwrap_or(i64::MAX),
+                                            Value::Float(f) => return *f >= start_str.parse::<f64>().unwrap_or(f64::NEG_INFINITY) 
+                                                && *f <= end_str.parse::<f64>().unwrap_or(f64::INFINITY),
+                                            _ => return false,
+                                        };
+                                        
+                                        // 字符串范围比较
+                                        prop_str >= start_str && prop_str <= end_str
+                                    }
+                                    None => false,
+                                }
+                            })
+                            .collect();
+                        Ok(filtered)
+                    } else {
+                        // 没有结束值，返回所有候选结果（从起始值到无穷大）
+                        Ok(candidates)
+                    }
                 } else {
                     Ok(Vec::new())
                 }
@@ -858,6 +926,67 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                 Ok(Vec::new())
             }
         }
+    }
+
+    /// 获取实体的属性值用于范围过滤
+    /// 根据ID获取实体的指定属性值
+    fn get_entity_property_for_filter(&self, storage: &S, id: &Value, column_name: &str) -> Option<Value> {
+        let space_name = match self.get_space_name(storage) {
+            Ok(name) => name,
+            Err(_) => return None,
+        };
+        
+        if self.is_edge {
+            // 边类型：ID格式应该是 src:dst:ranking
+            if let Value::String(edge_key) = id {
+                let parts: Vec<&str> = edge_key.split(':').collect();
+                if parts.len() >= 2 {
+                    let src = Value::String(parts[0].to_string());
+                    let dst = Value::String(parts[1].to_string());
+                    let schema_name = match self.get_schema_name(storage) {
+                        Ok(name) => name,
+                        Err(_) => return None,
+                    };
+                    
+                    if let Ok(Some(edge)) = storage.get_edge(&space_name, &src, &dst, &schema_name) {
+                        // 从边的属性中查找
+                        if let Some(value) = edge.props.get(column_name) {
+                            return Some(value.clone());
+                        }
+                        // 特殊字段
+                        match column_name {
+                            "src" => return Some((*edge.src).clone()),
+                            "dst" => return Some((*edge.dst).clone()),
+                            "edge_type" => return Some(Value::String(edge.edge_type.clone())),
+                            "ranking" => return Some(Value::Int(edge.ranking)),
+                            _ => return None,
+                        }
+                    }
+                }
+            }
+        } else {
+            // 顶点类型
+            if let Ok(Some(vertex)) = storage.get_vertex(&space_name, id) {
+                // 从顶点的属性中查找
+                if let Some(value) = vertex.properties.get(column_name) {
+                    return Some(value.clone());
+                }
+                // 从tag的属性中查找
+                for tag in &vertex.tags {
+                    if let Some(value) = tag.properties.get(column_name) {
+                        return Some(value.clone());
+                    }
+                }
+                // 特殊字段
+                match column_name {
+                    "vid" => return Some((*vertex.vid).clone()),
+                    "id" => return Some(Value::Int(vertex.id)),
+                    _ => return None,
+                }
+            }
+        }
+        
+        None
     }
 
     /// 根据ID列表获取完整顶点或边
@@ -923,9 +1052,68 @@ impl<S: StorageClient> IndexScanExecutor<S> {
             return entities;
         }
 
-        // 简化实现：实际应该根据return_columns过滤属性
-        // 这里直接返回原实体
         entities
+            .into_iter()
+            .map(|entity| {
+                match entity {
+                    Value::Vertex(vertex) => {
+                        let mut props = std::collections::HashMap::new();
+                        for col in &self.return_columns {
+                            match col.as_str() {
+                                "vid" => {
+                                    props.insert(col.clone(), (*vertex.vid).clone());
+                                }
+                                "id" => {
+                                    props.insert(col.clone(), Value::Int(vertex.id));
+                                }
+                                "*" => {
+                                    for (k, v) in &vertex.properties {
+                                        props.insert(k.clone(), v.clone());
+                                    }
+                                }
+                                _ => {
+                                    if let Some(v) = vertex.properties.get(col) {
+                                        props.insert(col.clone(), v.clone());
+                                    }
+                                }
+                            }
+                        }
+                        Value::Map(props)
+                    }
+                    Value::Edge(edge) => {
+                        let mut props = std::collections::HashMap::new();
+                        for col in &self.return_columns {
+                            match col.as_str() {
+                                "src" => {
+                                    props.insert(col.clone(), (*edge.src).clone());
+                                }
+                                "dst" => {
+                                    props.insert(col.clone(), (*edge.dst).clone());
+                                }
+                                "edge_type" => {
+                                    props.insert(col.clone(), Value::String(edge.edge_type.clone()));
+                                }
+                                "ranking" => {
+                                    props.insert(col.clone(), Value::Int(edge.ranking));
+                                }
+                                "*" => {
+                                    for (k, v) in &edge.props {
+                                        props.insert(k.clone(), v.clone());
+                                    }
+                                }
+                                _ => {
+                                    if let Some(v) = edge.props.get(col) {
+                                        props.insert(col.clone(), v.clone());
+                                    }
+                                }
+                            }
+                        }
+                        Value::Map(props)
+                    }
+                    _ => entity,
+                }
+            })
+            .collect()
     }
 }
 

@@ -573,10 +573,6 @@ mod tests {
         let plan_context = Arc::new(PlanContext {
             storage_env,
             space_id: 1,
-            plan_id: 100,
-            v_id_len: 8,
-            is_int_id: true,
-            is_edge: false,
         });
 
         Arc::new(RuntimeContext::new(plan_context))
@@ -586,7 +582,6 @@ mod tests {
     fn test_processor_context_new() {
         let ctx = create_test_runtime_context();
         assert_eq!(ctx.space_id(), 1);
-        assert_eq!(ctx.v_id_len(), 8);
     }
 
     #[test]

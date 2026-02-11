@@ -389,6 +389,11 @@ impl Value {
         matches!(self, Value::Null(_))
     }
 
+    /// 检查值是否为数值类型（Int 或 Float）
+    pub fn is_numeric(&self) -> bool {
+        matches!(self, Value::Int(_) | Value::Float(_))
+    }
+
     /// 检查值是否为BadNull（BadData 或 BadType）
     pub fn is_bad_null(&self) -> bool {
         matches!(self, Value::Null(NullType::BadData) | Value::Null(NullType::BadType))

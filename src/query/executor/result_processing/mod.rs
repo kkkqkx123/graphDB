@@ -13,6 +13,14 @@
 //! - `topn` - 排序优化（TOP N）
 //! - `transformations` - 数据转换（Assign、Unwind、AppendVertices等）
 
+// 聚合数据状态（参考 nebula-graph AggData）
+pub mod agg_data;
+pub use agg_data::AggData;
+
+// 聚合函数管理器（参考 nebula-graph AggFunctionManager）
+pub mod agg_function_manager;
+pub use agg_function_manager::AggFunctionManager;
+
 // 列投影
 pub mod projection;
 pub use projection::{ProjectExecutor, ProjectionColumn};
@@ -28,7 +36,7 @@ pub use limit::LimitExecutor;
 // 聚合执行器
 pub mod aggregation;
 pub use aggregation::{
-    AggregateExecutor, AggregateFunctionSpec, AggregateState, GroupAggregateState, GroupByExecutor,
+    AggregateExecutor, AggregateFunctionSpec, GroupAggregateState, GroupByExecutor,
     HavingExecutor,
 };
 

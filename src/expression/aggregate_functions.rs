@@ -153,14 +153,19 @@ impl AggregateExpression {
                 }
             }
             AggregateFunction::Collect(_) => Ok(Value::List(state.values.clone())),
-            AggregateFunction::Distinct(_) => Ok(Value::List(
+            AggregateFunction::CollectSet(_) => Ok(Value::Set(
                 state
                     .values
                     .iter()
                     .cloned()
                     .collect::<std::collections::HashSet<_>>()
-                    .into_iter()
-                    .collect(),
+            )),
+            AggregateFunction::Distinct(_) => Ok(Value::Set(
+                state
+                    .values
+                    .iter()
+                    .cloned()
+                    .collect::<std::collections::HashSet<_>>()
             )),
             AggregateFunction::Percentile(_, _) => state.calculate_percentile(50.0),
             AggregateFunction::Std(_) => state.calculate_std(),

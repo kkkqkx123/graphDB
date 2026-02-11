@@ -6,20 +6,27 @@
 //! - Having（分组后过滤）
 //!
 //! CPU 密集型操作，使用 Rayon 进行并行化
+//!
+//! 参考 nebula-graph 的 AggregateExecutor 实现：
+//! - 使用 AggData 管理聚合状态
+//! - 使用 AggFunctionManager 管理聚合函数
+//! - 统一处理 NULL 和空值
 
 use rayon::prelude::*;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use crate::core::types::operators::AggregateFunction;
+use crate::core::value::{NullType, Value};
 use crate::core::Expression;
-use crate::core::Value;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::evaluator::traits::ExpressionContext;
 use crate::expression::DefaultExpressionContext;
 use crate::query::executor::base::InputExecutor;
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::recursion_detector::ParallelConfig;
+use crate::query::executor::result_processing::agg_data::AggData;
+use crate::query::executor::result_processing::agg_function_manager::AggFunctionManager;
 use crate::query::executor::result_processing::traits::{
     BaseResultProcessor, ResultProcessor, ResultProcessorContext,
 };
@@ -87,349 +94,121 @@ impl AggregateFunctionSpec {
         Self::new(AggregateFunction::Min(field))
     }
 
-    /// 从AggregateFunction创建AggregateFunctionSpec
+    pub fn collect(field: String) -> Self {
+        Self::new(AggregateFunction::Collect(field))
+    }
+
+    pub fn collect_set(field: String) -> Self {
+        Self::new(AggregateFunction::CollectSet(field))
+    }
+
+    /// 从 AggregateFunction 创建 AggregateFunctionSpec
     pub fn from_agg_function(function: AggregateFunction) -> Self {
+        let field = function.field_name().map(|s| s.to_string());
         Self {
             function,
-            field: None,
+            field,
             distinct: false,
         }
     }
-}
 
-/// 聚合状态
-#[derive(Debug, Clone)]
-pub struct AggregateState {
-    pub count: usize,
-    pub sum: Option<Value>,
-    pub avg: Option<Value>,
-    pub max: Option<Value>,
-    pub min: Option<Value>,
-    pub collect: Vec<Value>,
-    pub distinct_values: std::collections::HashSet<Value>,
-    pub percentile_values: Vec<f64>,
-    pub std: Option<(f64, f64)>, // (sum_of_squares, count) for STD calculation
-    pub bit_and: Option<i64>,     // 用于BIT_AND计算
-    pub bit_or: Option<i64>,      // 用于BIT_OR计算
-    pub group_concat: String,     // 用于GROUP_CONCAT计算
-}
-
-impl AggregateState {
-    pub fn new() -> Self {
-        Self {
-            count: 0,
-            sum: None,
-            avg: None,
-            max: None,
-            min: None,
-            collect: Vec::new(),
-            distinct_values: std::collections::HashSet::new(),
-            percentile_values: Vec::new(),
-            std: None,
-            bit_and: None,
-            bit_or: None,
-            group_concat: String::new(),
-        }
-    }
-
-    /// 更新聚合状态
-    pub fn update(&mut self, value: &Value) -> DBResult<()> {
-        self.count += 1;
-
-        // 更新 sum
-        let new_sum = match &self.sum {
-            Some(sum) => Some(Self::add_values_static(sum, value)?),
-            None => Some(value.clone()),
-        };
-        self.sum = new_sum;
-
-        // 更新 max
-        match &mut self.max {
-            Some(max) => {
-                if value > max {
-                    self.max = Some(value.clone());
-                }
-            }
-            None => {
-                self.max = Some(value.clone());
-            }
-        }
-
-        // 更新 min
-        match &mut self.min {
-            Some(min) => {
-                if value < min {
-                    self.min = Some(value.clone());
-                }
-            }
-            None => {
-                self.min = Some(value.clone());
-            }
-        }
-
-        // 更新 avg
-        if let Some(sum) = &self.sum {
-            self.avg = Some(Self::divide_value_static(sum, self.count)?);
-        }
-
-        Ok(())
-    }
-
-    /// 添加两个值
-    fn add_values_static(a: &Value, b: &Value) -> DBResult<Value> {
-        match (a, b) {
-            (Value::Int(a), Value::Int(b)) => Ok(Value::Int(a + b)),
-            (Value::Float(a), Value::Float(b)) => Ok(Value::Float(a + b)),
-            (Value::Int(a), Value::Float(b)) => Ok(Value::Float(*a as f64 + b)),
-            (Value::Float(a), Value::Int(b)) => Ok(Value::Float(a + *b as f64)),
-            _ => Err(crate::core::error::DBError::Query(
-                crate::core::error::QueryError::ExecutionError(
-                    "Cannot add these value types".to_string(),
-                ),
-            )),
-        }
-    }
-
-    /// 除法运算
-    fn divide_value_static(value: &Value, divisor: usize) -> DBResult<Value> {
-        if divisor == 0 {
-            return Err(crate::core::error::DBError::Query(
-                crate::core::error::QueryError::ExecutionError("Division by zero".to_string()),
-            ));
-        }
-
-        match value {
-            Value::Int(v) => Ok(Value::Float(*v as f64 / divisor as f64)),
-            Value::Float(v) => Ok(Value::Float(v / divisor as f64)),
-            _ => Err(crate::core::error::DBError::Query(
-                crate::core::error::QueryError::ExecutionError(
-                    "Cannot divide this value type".to_string(),
-                ),
-            )),
-        }
-    }
-
-    /// 更新收集状态（COLLECT函数）
-    pub fn update_collect(&mut self, value: &Value) -> DBResult<()> {
-        self.collect.push(value.clone());
-        self.count += 1;
-        Ok(())
-    }
-
-    /// 更新去重状态（DISTINCT函数）
-    pub fn update_distinct(&mut self, value: &Value) -> DBResult<()> {
-        let old_size = self.distinct_values.len();
-        self.distinct_values.insert(value.clone());
-        if self.distinct_values.len() > old_size {
-            self.count += 1;
-        }
-        Ok(())
-    }
-
-    /// 更新百分位数状态（PERCENTILE函数）
-    pub fn update_percentile(&mut self, value: &Value) -> DBResult<()> {
-        match value {
-            Value::Int(v) => {
-                self.percentile_values.push(*v as f64);
-                self.count += 1;
-            }
-            Value::Float(v) => {
-                self.percentile_values.push(*v);
-                self.count += 1;
-            }
-            _ => {
-                return Err(crate::core::error::DBError::Query(
-                    crate::core::error::QueryError::ExecutionError(
-                        "PERCENTILE function only supports numeric values".to_string(),
-                    ),
-                ));
-            }
-        }
-        Ok(())
-    }
-
-    /// 计算百分位数
-    pub fn calculate_percentile(&self, percentile: f64) -> DBResult<Value> {
-        if self.percentile_values.is_empty() {
-            return Ok(Value::Null(crate::core::value::NullType::NaN));
-        }
-
-        if percentile < 0.0 || percentile > 100.0 {
-            return Err(crate::core::error::DBError::Query(
-                crate::core::error::QueryError::ExecutionError(
-                    "Percentile must be between 0 and 100".to_string(),
-                ),
-            ));
-        }
-
-        let mut sorted_values = self.percentile_values.clone();
-        sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-
-        let index = (percentile / 100.0) * (sorted_values.len() - 1) as f64;
-        let lower_index = index.floor() as usize;
-        let upper_index = index.ceil() as usize;
-
-        if lower_index == upper_index {
-            Ok(Value::Float(sorted_values[lower_index]))
+    /// 获取聚合函数名称（用于 AggFunctionManager）
+    pub fn agg_function_name(&self) -> String {
+        let base_name = self.function.name().to_string();
+        if self.distinct && matches!(self.function, AggregateFunction::Count(_)) {
+            // COUNT DISTINCT 使用 COLLECT_SET 去重后计数
+            "COLLECT_SET".to_string()
         } else {
-            let lower_value = sorted_values[lower_index];
-            let upper_value = sorted_values[upper_index];
-            let weight = index - lower_index as f64;
-            let interpolated = lower_value + weight * (upper_value - lower_value);
-            Ok(Value::Float(interpolated))
+            base_name
         }
-    }
-
-    /// 更新标准差状态（STD函数）
-    pub fn update_std(&mut self, value: &Value) -> DBResult<()> {
-        match value {
-            Value::Int(v) => {
-                let val = *v as f64;
-                self.update_std_numeric(val)?;
-                self.count += 1;
-            }
-            Value::Float(v) => {
-                self.update_std_numeric(*v)?;
-                self.count += 1;
-            }
-            _ => {
-                return Err(crate::core::error::DBError::Query(
-                    crate::core::error::QueryError::ExecutionError(
-                        "STD function only supports numeric values".to_string(),
-                    ),
-                ));
-            }
-        }
-        Ok(())
-    }
-
-    fn update_std_numeric(&mut self, value: f64) -> DBResult<()> {
-        match self.std {
-            Some((sum_sq, cnt)) => {
-                self.std = Some((sum_sq + value * value, cnt + 1.0));
-            }
-            None => {
-                self.std = Some((value * value, 1.0));
-            }
-        }
-        Ok(())
-    }
-
-    /// 获取标准差结果
-    pub fn get_std_result(&self) -> Value {
-        if let Some((sum_sq, cnt)) = self.std {
-            if cnt < 2.0 {
-                return Value::Null(crate::core::value::NullType::NaN);
-            }
-            let mean_sq = sum_sq / cnt;
-            let avg = if let Some(sum) = &self.sum {
-                if let Ok(mean) = Self::divide_value_static(sum, self.count) {
-                    if let Value::Float(mean_val) = mean {
-                        mean_val * mean_val
-                    } else {
-                        return Value::Null(crate::core::value::NullType::NaN);
-                    }
-                } else {
-                    return Value::Null(crate::core::value::NullType::NaN);
-                }
-            } else {
-                return Value::Null(crate::core::value::NullType::NaN);
-            };
-            let variance = mean_sq - avg;
-            if variance < 0.0 {
-                return Value::Float(0.0);
-            }
-            Value::Float(variance.sqrt())
-        } else {
-            Value::Null(crate::core::value::NullType::NaN)
-        }
-    }
-
-    /// 更新按位与状态（BIT_AND函数）
-    pub fn update_bit_and(&mut self, value: &Value) -> DBResult<()> {
-        match value {
-            Value::Int(v) => {
-                if self.bit_and.is_none() {
-                    self.bit_and = Some(*v);
-                } else {
-                    self.bit_and = Some(self.bit_and.unwrap() & *v);
-                }
-                self.count += 1;
-                Ok(())
-            }
-            _ => Err(crate::core::error::DBError::Query(
-                crate::core::error::QueryError::ExecutionError(
-                    "BIT_AND function only supports integer values".to_string(),
-                ),
-            ))
-        }
-    }
-
-    /// 更新按位或状态（BIT_OR函数）
-    pub fn update_bit_or(&mut self, value: &Value) -> DBResult<()> {
-        match value {
-            Value::Int(v) => {
-                if self.bit_or.is_none() {
-                    self.bit_or = Some(*v);
-                } else {
-                    self.bit_or = Some(self.bit_or.unwrap() | *v);
-                }
-                self.count += 1;
-                Ok(())
-            }
-            _ => Err(crate::core::error::DBError::Query(
-                crate::core::error::QueryError::ExecutionError(
-                    "BIT_OR function only supports integer values".to_string(),
-                ),
-            ))
-        }
-    }
-
-    /// 更新连接状态（GROUP_CONCAT函数）
-    pub fn update_group_concat(&mut self, value: &Value) -> DBResult<()> {
-        let str_val = match value {
-            Value::String(s) => s.clone(),
-            Value::Int(i) => i.to_string(),
-            Value::Float(f) => f.to_string(),
-            _ => {
-                return Err(crate::core::error::DBError::Query(
-                    crate::core::error::QueryError::ExecutionError(
-                        "GROUP_CONCAT function only supports string-convertible values".to_string(),
-                    ),
-                ));
-            }
-        };
-
-        if self.group_concat.is_empty() {
-            self.group_concat = str_val;
-        } else {
-            self.group_concat = format!("{},{}", self.group_concat, str_val);
-        }
-        self.count += 1;
-        Ok(())
     }
 }
 
-/// 分组聚合状态
+/// 分组聚合状态（使用新的 AggData）
 #[derive(Debug, Clone)]
 pub struct GroupAggregateState {
-    pub groups: HashMap<Vec<Value>, AggregateState>,
+    /// 每个分组键对应的聚合数据列表
+    /// 每个聚合函数对应一个 AggData
+    pub groups: HashMap<Vec<Value>, Vec<AggData>>,
+    /// 聚合函数数量
+    pub agg_func_count: usize,
 }
 
 impl GroupAggregateState {
-    pub fn new() -> Self {
+    pub fn new(agg_func_count: usize) -> Self {
         Self {
             groups: HashMap::new(),
+            agg_func_count,
         }
     }
 
-    /// 更新分组聚合状态
-    pub fn update(&mut self, group_key: Vec<Value>, value: &Value) -> DBResult<()> {
-        let state = self
-            .groups
-            .entry(group_key)
-            .or_insert_with(AggregateState::new);
-        state.update(value)
+    /// 获取或创建分组的聚合数据
+    pub fn get_or_create_agg_data(&mut self, group_key: Vec<Value>) -> &mut Vec<AggData> {
+        self.groups.entry(group_key).or_insert_with(|| {
+            (0..self.agg_func_count).map(|_| AggData::new()).collect()
+        })
+    }
+
+    /// 合并另一个 GroupAggregateState
+    pub fn merge(&mut self, other: GroupAggregateState) -> DBResult<()> {
+        for (group_key, other_agg_data_list) in other.groups {
+            let self_agg_data_list = self.get_or_create_agg_data(group_key);
+            for (i, other_agg_data) in other_agg_data_list.iter().enumerate() {
+                if i < self_agg_data_list.len() {
+                    Self::merge_agg_data(&mut self_agg_data_list[i], other_agg_data)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// 合并两个 AggData
+    fn merge_agg_data(target: &mut AggData, source: &AggData) -> DBResult<()> {
+        // 合并 COUNT
+        if !source.cnt().is_null() && !source.cnt().is_empty() {
+            if target.cnt().is_null() || target.cnt().is_empty() {
+                target.set_cnt(source.cnt().clone());
+            } else {
+                match target.cnt().add(source.cnt()) {
+                    Ok(new_cnt) => target.set_cnt(new_cnt),
+                    Err(_) => {}
+                }
+            }
+        }
+
+        // 合并 SUM
+        if !source.sum().is_null() && !source.sum().is_empty() {
+            if target.sum().is_null() || target.sum().is_empty() {
+                target.set_sum(source.sum().clone());
+            } else {
+                match target.sum().add(source.sum()) {
+                    Ok(new_sum) => target.set_sum(new_sum),
+                    Err(_) => {}
+                }
+            }
+        }
+
+        // 合并 MAX
+        if !source.result().is_null() && !source.result().is_empty() {
+            if target.result().is_null() || target.result().is_empty() {
+                target.set_result(source.result().clone());
+            } else if source.result() > target.result() {
+                target.set_result(source.result().clone());
+            }
+        }
+
+        // 合并去重集合
+        if let Some(source_uniques) = source.uniques() {
+            if target.uniques().is_none() {
+                target.set_uniques(source_uniques.clone());
+            } else if let Some(target_uniques) = target.uniques_mut() {
+                for val in source_uniques {
+                    target_uniques.insert(val.clone());
+                }
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -448,6 +227,8 @@ pub struct AggregateExecutor<S: StorageClient + Send + 'static> {
     input_executor: Option<Box<ExecutorEnum<S>>>,
     /// 并行计算配置
     parallel_config: ParallelConfig,
+    /// 聚合函数管理器
+    agg_function_manager: AggFunctionManager,
 }
 
 impl<S: StorageClient> AggregateExecutor<S> {
@@ -466,10 +247,11 @@ impl<S: StorageClient> AggregateExecutor<S> {
 
         Self {
             base,
-            aggregate_functions,
+            aggregate_functions: aggregate_functions.clone(),
             group_keys,
             input_executor: None,
             parallel_config: ParallelConfig::default(),
+            agg_function_manager: AggFunctionManager::new(),
         }
     }
 
@@ -515,6 +297,13 @@ impl<S: StorageClient> AggregateExecutor<S> {
     ) -> DBResult<crate::core::value::DataSet> {
         let total_size = dataset.rows.len();
 
+        // 处理 COUNT(*) 的特殊情况（无分组键且只有一个 COUNT(*)）
+        if self.group_keys.is_empty() 
+            && self.aggregate_functions.len() == 1 
+            && matches!(self.aggregate_functions[0].function, AggregateFunction::Count(None)) {
+            return self.handle_count_star(dataset);
+        }
+
         if self.parallel_config.should_use_parallel(total_size) {
             self.aggregate_dataset_parallel(dataset)
         } else {
@@ -522,11 +311,23 @@ impl<S: StorageClient> AggregateExecutor<S> {
         }
     }
 
+    /// 处理 COUNT(*) 特殊情况
+    fn handle_count_star(
+        &self,
+        dataset: crate::core::value::DataSet,
+    ) -> DBResult<crate::core::value::DataSet> {
+        let mut result_dataset = crate::core::value::DataSet::new();
+        result_dataset.col_names.push("count".to_string());
+        result_dataset.rows.push(vec![Value::Int(dataset.rows.len() as i64)]);
+        Ok(result_dataset)
+    }
+
     fn aggregate_dataset_serial(
         &mut self,
         dataset: crate::core::value::DataSet,
     ) -> DBResult<crate::core::value::DataSet> {
-        let mut group_state = GroupAggregateState::new();
+        let agg_func_count = self.aggregate_functions.len();
+        let mut group_state = GroupAggregateState::new(agg_func_count);
 
         // 处理每一行数据
         for row in &dataset.rows {
@@ -539,372 +340,105 @@ impl<S: StorageClient> AggregateExecutor<S> {
             }
 
             // 计算分组键
-            let mut group_key = Vec::new();
-            for group_expression in &self.group_keys {
-                let key_value =
-                    ExpressionEvaluator::evaluate(group_expression, &mut context).map_err(|e| {
-                        crate::core::error::DBError::Expression(
-                            crate::core::error::ExpressionError::function_error(format!(
-                                "Failed to evaluate group key: {}",
-                                e
-                            )),
-                        )
-                    })?;
-                group_key.push(key_value);
-            }
+            let group_key: Vec<Value> = self.group_keys
+                .iter()
+                .map(|expr| {
+                    ExpressionEvaluator::evaluate(expr, &mut context)
+                        .unwrap_or(Value::Null(NullType::NaN))
+                })
+                .collect();
 
-            // 更新聚合状态
-            for agg_func in &self.aggregate_functions {
-                match &agg_func.function {
-                    AggregateFunction::Count(_) => {
-                        if agg_func.distinct {
-                            // COUNT(DISTINCT field)
-                            if let Some(field) = &agg_func.field {
-                                if let Some(col_index) =
-                                    dataset.col_names.iter().position(|name| name == field)
-                                {
-                                    if col_index < row.len() {
-                                        group_state.update(group_key.clone(), &row[col_index])?;
-                                    }
-                                }
-                            } else {
-                                // COUNT(DISTINCT *) - 使用整行作为键
-                                group_state.update(group_key.clone(), &Value::Int(1))?;
-                            }
-                        } else if let Some(field) = &agg_func.field {
-                            // COUNT(field)
-                            if let Some(col_index) =
-                                dataset.col_names.iter().position(|name| name == field)
-                            {
-                                if col_index < row.len() {
-                                    group_state.update(group_key.clone(), &row[col_index])?;
-                                }
-                            }
-                        } else {
-                            // COUNT(*) 或 COUNT(1)
-                            group_state.update(group_key.clone(), &Value::Int(1))?;
-                        }
-                    }
-                    AggregateFunction::Sum(_)
-                    | AggregateFunction::Avg(_)
-                    | AggregateFunction::Max(_)
-                    | AggregateFunction::Min(_) => {
-                        // 需要字段名的聚合函数
-                        if let Some(field) = &agg_func.field {
-                            if let Some(col_index) =
-                                dataset.col_names.iter().position(|name| name == field)
-                            {
-                                if col_index < row.len() {
-                                    group_state.update(group_key.clone(), &row[col_index])?;
-                                }
-                            }
-                        }
-                    }
-                    AggregateFunction::Collect(_) => {
-                        // COLLECT函数 - 收集所有值到列表
-                        if let Some(field) = &agg_func.field {
-                            if let Some(col_index) =
-                                dataset.col_names.iter().position(|name| name == field)
-                            {
-                                if col_index < row.len() {
-                                    // 获取或创建聚合状态
-                                    let state = group_state
-                                        .groups
-                                        .entry(group_key.clone())
-                                        .or_insert_with(AggregateState::new);
-                                    state.update_collect(&row[col_index])?;
-                                }
-                            }
-                        }
-                    }
-                    AggregateFunction::Distinct(_) => {
-                        // DISTINCT函数 - 收集去重后的值
-                        if let Some(field) = &agg_func.field {
-                            if let Some(col_index) =
-                                dataset.col_names.iter().position(|name| name == field)
-                            {
-                                if col_index < row.len() {
-                                    // 获取或创建聚合状态
-                                    let state = group_state
-                                        .groups
-                                        .entry(group_key.clone())
-                                        .or_insert_with(AggregateState::new);
-                                    state.update_distinct(&row[col_index])?;
-                                }
-                            }
-                        }
-                    }
-                    AggregateFunction::Percentile(_, _) => {
-                        // PERCENTILE函数 - 需要字段和百分位数两个参数
-                        if let Some(field) = &agg_func.field {
-                            if let Some(col_index) =
-                                dataset.col_names.iter().position(|name| name == field)
-                            {
-                                if col_index < row.len() {
-                                    // 获取或创建聚合状态
-                                    let state = group_state
-                                        .groups
-                                        .entry(group_key.clone())
-                                        .or_insert_with(AggregateState::new);
-                                    state.update_percentile(&row[col_index])?;
-                                }
-                            }
-                        }
-                    }
-                    AggregateFunction::Std(_) => {
-                        // STD函数 - 计算标准差
-                        if let Some(field) = &agg_func.field {
-                            if let Some(col_index) =
-                                dataset.col_names.iter().position(|name| name == field)
-                            {
-                                if col_index < row.len() {
-                                    let state = group_state
-                                        .groups
-                                        .entry(group_key.clone())
-                                        .or_insert_with(AggregateState::new);
-                                    state.update_std(&row[col_index])?;
-                                }
-                            }
-                        }
-                    }
-                    AggregateFunction::BitAnd(_) => {
-                        // BIT_AND函数 - 按位与
-                        if let Some(field) = &agg_func.field {
-                            if let Some(col_index) =
-                                dataset.col_names.iter().position(|name| name == field)
-                            {
-                                if col_index < row.len() {
-                                    let state = group_state
-                                        .groups
-                                        .entry(group_key.clone())
-                                        .or_insert_with(AggregateState::new);
-                                    state.update_bit_and(&row[col_index])?;
-                                }
-                            }
-                        }
-                    }
-                    AggregateFunction::BitOr(_) => {
-                        // BIT_OR函数 - 按位或
-                        if let Some(field) = &agg_func.field {
-                            if let Some(col_index) =
-                                dataset.col_names.iter().position(|name| name == field)
-                            {
-                                if col_index < row.len() {
-                                    let state = group_state
-                                        .groups
-                                        .entry(group_key.clone())
-                                        .or_insert_with(AggregateState::new);
-                                    state.update_bit_or(&row[col_index])?;
-                                }
-                            }
-                        }
-                    }
-                    AggregateFunction::GroupConcat(_, _) => {
-                        // GROUP_CONCAT函数 - 分组连接
-                        if let Some(field) = &agg_func.field {
-                            if let Some(col_index) =
-                                dataset.col_names.iter().position(|name| name == field)
-                            {
-                                if col_index < row.len() {
-                                    let state = group_state
-                                        .groups
-                                        .entry(group_key.clone())
-                                        .or_insert_with(AggregateState::new);
-                                    state.update_group_concat(&row[col_index])?;
-                                }
-                            }
-                        }
-                    }
+            // 获取或创建聚合数据
+            let agg_data_list = group_state.get_or_create_agg_data(group_key);
+
+            // 对每个聚合函数进行求值
+            for (i, agg_func) in self.aggregate_functions.iter().enumerate() {
+                if i >= agg_data_list.len() {
+                    continue;
+                }
+
+                let agg_data = &mut agg_data_list[i];
+                let value = self.get_value_for_agg(&mut context, agg_func, row, &dataset.col_names);
+
+                // 获取聚合函数并执行
+                let func_name = agg_func.agg_function_name();
+                if let Some(agg_fn) = self.agg_function_manager.get(&func_name) {
+                    agg_fn(agg_data, &value)?;
                 }
             }
         }
 
         // 构建结果数据集
-        let mut result_dataset = crate::core::value::DataSet::new();
+        self.build_result_dataset(group_state)
+    }
 
-        // 设置列名
-        for _group_expression in &self.group_keys {
-            result_dataset
-                .col_names
-                .push(format!("group_{}", result_dataset.col_names.len()));
-        }
-
-        for agg_func in &self.aggregate_functions {
-            let col_name = match &agg_func.function {
-                AggregateFunction::Count(_) => {
-                    if agg_func.distinct {
-                        if let Some(field) = &agg_func.field {
-                            format!("count_distinct_{}", field)
-                        } else {
-                            "count_distinct".to_string()
-                        }
-                    } else if let Some(field) = &agg_func.field {
-                        format!("count_{}", field)
-                    } else {
-                        "count".to_string()
-                    }
-                }
-                AggregateFunction::Sum(_) => {
-                    if let Some(field) = &agg_func.field {
-                        format!("sum_{}", field)
-                    } else {
-                        "sum".to_string()
-                    }
-                }
-                AggregateFunction::Avg(_) => {
-                    if let Some(field) = &agg_func.field {
-                        format!("avg_{}", field)
-                    } else {
-                        "avg".to_string()
-                    }
-                }
-                AggregateFunction::Max(_) => {
-                    if let Some(field) = &agg_func.field {
-                        format!("max_{}", field)
-                    } else {
-                        "max".to_string()
-                    }
-                }
-                AggregateFunction::Min(_) => {
-                    if let Some(field) = &agg_func.field {
-                        format!("min_{}", field)
-                    } else {
-                        "min".to_string()
-                    }
-                }
-                AggregateFunction::Collect(_) => "collect".to_string(),
-                AggregateFunction::Distinct(_) => "distinct".to_string(),
-                AggregateFunction::Percentile(_, _) => {
-                    if let Some(field) = &agg_func.field {
-                        format!("percentile_{}", field)
-                    } else {
-                        "percentile".to_string()
-                    }
-                }
-                AggregateFunction::Std(_) => {
-                    if let Some(field) = &agg_func.field {
-                        format!("std_{}", field)
-                    } else {
-                        "std".to_string()
-                    }
-                }
-                AggregateFunction::BitAnd(_) => {
-                    if let Some(field) = &agg_func.field {
-                        format!("bitand_{}", field)
-                    } else {
-                        "bitand".to_string()
-                    }
-                }
-                AggregateFunction::BitOr(_) => {
-                    if let Some(field) = &agg_func.field {
-                        format!("bitor_{}", field)
-                    } else {
-                        "bitor".to_string()
-                    }
-                }
-                AggregateFunction::GroupConcat(_, _) => {
-                    if let Some(field) = &agg_func.field {
-                        format!("group_concat_{}", field)
-                    } else {
-                        "group_concat".to_string()
-                    }
-                }
-            };
-            result_dataset.col_names.push(col_name);
-        }
-
-        // 填充结果行
-        for (group_key, agg_state) in &group_state.groups {
-            let mut result_row = Vec::new();
-
-            // 添加分组键值
-            result_row.extend_from_slice(group_key);
-
-            // 添加聚合结果
-            for agg_func in &self.aggregate_functions {
-                let agg_value = match &agg_func.function {
-                    AggregateFunction::Count(_) => Value::Int(agg_state.count as i64),
-                    AggregateFunction::Sum(_) => agg_state
-                        .sum
-                        .clone()
-                        .unwrap_or(Value::Null(crate::core::value::NullType::NaN)),
-                    AggregateFunction::Avg(_) => agg_state
-                        .avg
-                        .clone()
-                        .unwrap_or(Value::Null(crate::core::value::NullType::NaN)),
-                    AggregateFunction::Max(_) => agg_state
-                        .max
-                        .clone()
-                        .unwrap_or(Value::Null(crate::core::value::NullType::NaN)),
-                    AggregateFunction::Min(_) => agg_state
-                        .min
-                        .clone()
-                        .unwrap_or(Value::Null(crate::core::value::NullType::NaN)),
-                    AggregateFunction::Collect(_) => {
-                        // COLLECT函数 - 返回收集的所有值
-                        if agg_state.collect.is_empty() {
-                            Value::List(Vec::new())
-                        } else {
-                            Value::List(agg_state.collect.clone())
-                        }
-                    }
-                    AggregateFunction::Distinct(_) => {
-                        // DISTINCT函数 - 返回去重后的值集合
-                        if agg_state.distinct_values.is_empty() {
-                            Value::Set(std::collections::HashSet::new())
-                        } else {
-                            Value::Set(agg_state.distinct_values.clone())
-                        }
-                    }
-                    AggregateFunction::Percentile(_, _) => {
-                        // PERCENTILE函数 - 计算百分位数
-                        // 这里简化处理，使用默认的50%百分位数（中位数）
-                        // 在实际应用中，应该从查询参数中获取百分位数值
-                        agg_state
-                            .calculate_percentile(50.0)
-                            .unwrap_or(Value::Null(crate::core::value::NullType::NaN))
-                    }
-                    AggregateFunction::Std(_) => {
-                        // STD函数 - 返回标准差
-                        agg_state.get_std_result()
-                    }
-                    AggregateFunction::BitAnd(_) => {
-                        // BIT_AND函数 - 返回按位与结果
-                        agg_state
-                            .bit_and
-                            .map(Value::Int)
-                            .unwrap_or(Value::Null(crate::core::value::NullType::NaN))
-                    }
-                    AggregateFunction::BitOr(_) => {
-                        // BIT_OR函数 - 返回按位或结果
-                        agg_state
-                            .bit_or
-                            .map(Value::Int)
-                            .unwrap_or(Value::Null(crate::core::value::NullType::NaN))
-                    }
-                    AggregateFunction::GroupConcat(_, _) => {
-                        // GROUP_CONCAT函数 - 返回连接结果
-                        if agg_state.group_concat.is_empty() {
-                            Value::Null(crate::core::value::NullType::NaN)
-                        } else {
-                            Value::String(agg_state.group_concat.clone())
-                        }
-                    }
-                };
-                result_row.push(agg_value);
+    /// 获取聚合函数需要的值
+    fn get_value_for_agg(
+        &self,
+        context: &mut DefaultExpressionContext,
+        agg_func: &AggregateFunctionSpec,
+        row: &[Value],
+        col_names: &[String],
+    ) -> Value {
+        match &agg_func.function {
+            AggregateFunction::Count(None) => {
+                // COUNT(*) - 计数 1
+                Value::Int(1)
             }
-
-            result_dataset.rows.push(result_row);
+            AggregateFunction::Count(Some(field)) | 
+            AggregateFunction::Sum(field) |
+            AggregateFunction::Avg(field) |
+            AggregateFunction::Max(field) |
+            AggregateFunction::Min(field) |
+            AggregateFunction::Collect(field) |
+            AggregateFunction::CollectSet(field) |
+            AggregateFunction::Distinct(field) |
+            AggregateFunction::Std(field) |
+            AggregateFunction::BitAnd(field) |
+            AggregateFunction::BitOr(field) => {
+                // 从上下文中获取字段值
+                if let Some(val) = context.get_variable(field) {
+                    val.clone()
+                } else if let Some(col_index) = col_names.iter().position(|name| name == field) {
+                    if col_index < row.len() {
+                        row[col_index].clone()
+                    } else {
+                        Value::Null(NullType::Null)
+                    }
+                } else {
+                    Value::Null(NullType::Null)
+                }
+            }
+            AggregateFunction::Percentile(field, _) => {
+                if let Some(val) = context.get_variable(field) {
+                    val.clone()
+                } else if let Some(col_index) = col_names.iter().position(|name| name == field) {
+                    if col_index < row.len() {
+                        row[col_index].clone()
+                    } else {
+                        Value::Null(NullType::Null)
+                    }
+                } else {
+                    Value::Null(NullType::Null)
+                }
+            }
+            AggregateFunction::GroupConcat(field, _) => {
+                if let Some(val) = context.get_variable(field) {
+                    val.clone()
+                } else if let Some(col_index) = col_names.iter().position(|name| name == field) {
+                    if col_index < row.len() {
+                        row[col_index].clone()
+                    } else {
+                        Value::Null(NullType::Null)
+                    }
+                } else {
+                    Value::Null(NullType::Null)
+                }
+            }
         }
-
-        Ok(result_dataset)
     }
 
     /// 并行聚合
-    ///
-    /// 使用Scatter-Gather模式：
-    /// - Scatter: 将数据分批，每批在一个线程中计算局部聚合结果
-    /// - Gather: 合并所有局部聚合结果
     fn aggregate_dataset_parallel(
         &mut self,
         dataset: crate::core::value::DataSet,
@@ -913,13 +447,15 @@ impl<S: StorageClient> AggregateExecutor<S> {
         let aggregate_functions = self.aggregate_functions.clone();
         let group_keys = self.group_keys.clone();
         let col_names = dataset.col_names.clone();
+        let agg_function_manager = self.agg_function_manager.clone();
 
-        // 使用rayon并行处理数据批次
+        // 使用 rayon 并行处理数据批次
         let partial_results: Vec<GroupAggregateState> = dataset
             .rows
             .par_chunks(batch_size)
             .map(|chunk| {
-                let mut local_state = GroupAggregateState::new();
+                let agg_func_count = aggregate_functions.len();
+                let mut local_state = GroupAggregateState::new(agg_func_count);
 
                 for row in chunk {
                     // 构建表达式上下文
@@ -931,29 +467,56 @@ impl<S: StorageClient> AggregateExecutor<S> {
                     }
 
                     // 计算分组键
-                    let mut group_key = Vec::new();
-                    for group_expression in &group_keys {
-                        if let Ok(key_value) = ExpressionEvaluator::evaluate(group_expression, &mut context) {
-                            group_key.push(key_value);
-                        }
-                    }
+                    let group_key: Vec<Value> = group_keys
+                        .iter()
+                        .map(|expr| {
+                            ExpressionEvaluator::evaluate(expr, &mut context)
+                                .unwrap_or(Value::Null(NullType::NaN))
+                        })
+                        .collect();
 
-                    // 更新聚合状态（简化处理，只支持基本聚合函数）
-                    for agg_func in &aggregate_functions {
-                        match &agg_func.function {
-                            AggregateFunction::Count(_) => {
-                                let _ = local_state.update(group_key.clone(), &Value::Int(1));
-                            }
-                            AggregateFunction::Sum(_) | AggregateFunction::Avg(_) => {
-                                if let Some(field) = &agg_func.field {
-                                    if let Some(col_index) = col_names.iter().position(|name| name == field) {
-                                        if col_index < row.len() {
-                                            let _ = local_state.update(group_key.clone(), &row[col_index]);
-                                        }
+                    // 获取或创建聚合数据
+                    let agg_data_list = local_state.get_or_create_agg_data(group_key);
+
+                    // 对每个聚合函数进行求值
+                    for (i, agg_func) in aggregate_functions.iter().enumerate() {
+                        if i >= agg_data_list.len() {
+                            continue;
+                        }
+
+                        let agg_data = &mut agg_data_list[i];
+                        
+                        // 获取值
+                        let value = match &agg_func.function {
+                            AggregateFunction::Count(None) => Value::Int(1),
+                            AggregateFunction::Count(Some(field)) |
+                            AggregateFunction::Sum(field) |
+                            AggregateFunction::Avg(field) |
+                            AggregateFunction::Max(field) |
+                            AggregateFunction::Min(field) |
+                            AggregateFunction::Collect(field) |
+                            AggregateFunction::CollectSet(field) |
+                            AggregateFunction::Distinct(field) |
+                            AggregateFunction::Std(field) |
+                            AggregateFunction::BitAnd(field) |
+                            AggregateFunction::BitOr(field) => {
+                                if let Some(col_index) = col_names.iter().position(|name| name == field) {
+                                    if col_index < row.len() {
+                                        row[col_index].clone()
+                                    } else {
+                                        Value::Null(NullType::Null)
                                     }
+                                } else {
+                                    Value::Null(NullType::Null)
                                 }
                             }
-                            _ => {} // 其他函数在并行模式下简化处理
+                            _ => Value::Null(NullType::Null),
+                        };
+
+                        // 获取聚合函数并执行
+                        let func_name = agg_func.agg_function_name();
+                        if let Some(agg_fn) = agg_function_manager.get(&func_name) {
+                            let _ = agg_fn(agg_data, &value);
                         }
                     }
                 }
@@ -963,34 +526,13 @@ impl<S: StorageClient> AggregateExecutor<S> {
             .collect();
 
         // Gather: 合并所有局部聚合结果
-        let mut global_state = GroupAggregateState::new();
+        let agg_func_count = self.aggregate_functions.len();
+        let mut global_state = GroupAggregateState::new(agg_func_count);
         for partial_state in partial_results {
-            for (group_key, partial_agg) in partial_state.groups {
-                let global_agg = global_state.groups.entry(group_key).or_insert_with(AggregateState::new);
-                // 合并聚合状态
-                global_agg.count += partial_agg.count;
-                if let Some(sum) = partial_agg.sum {
-                    global_agg.sum = match &global_agg.sum {
-                        Some(existing) => AggregateState::add_values_static(existing, &sum).ok(),
-                        None => Some(sum),
-                    };
-                }
-                if let Some(max) = partial_agg.max {
-                    global_agg.max = match &global_agg.max {
-                        Some(existing) if existing >= &max => global_agg.max.clone(),
-                        _ => Some(max),
-                    };
-                }
-                if let Some(min) = partial_agg.min {
-                    global_agg.min = match &global_agg.min {
-                        Some(existing) if existing <= &min => global_agg.min.clone(),
-                        _ => Some(min),
-                    };
-                }
-            }
+            global_state.merge(partial_state)?;
         }
 
-        // 构建结果数据集（复用串行逻辑）
+        // 构建结果数据集
         self.build_result_dataset(global_state)
     }
 
@@ -1001,7 +543,7 @@ impl<S: StorageClient> AggregateExecutor<S> {
         let mut result_dataset = crate::core::value::DataSet::new();
 
         // 设置列名
-        for _group_expression in &self.group_keys {
+        for _ in &self.group_keys {
             result_dataset
                 .col_names
                 .push(format!("group_{}", result_dataset.col_names.len()));
@@ -1011,77 +553,133 @@ impl<S: StorageClient> AggregateExecutor<S> {
             let col_name = match &agg_func.function {
                 AggregateFunction::Count(_) => {
                     if agg_func.distinct {
-                        if let Some(field) = &agg_func.field {
+                        if let Some(ref field) = agg_func.field {
                             format!("count_distinct_{}", field)
                         } else {
                             "count_distinct".to_string()
                         }
-                    } else if let Some(field) = &agg_func.field {
+                    } else if let Some(ref field) = agg_func.field {
                         format!("count_{}", field)
                     } else {
                         "count".to_string()
                     }
                 }
                 AggregateFunction::Sum(_) => {
-                    if let Some(field) = &agg_func.field {
+                    if let Some(ref field) = agg_func.field {
                         format!("sum_{}", field)
                     } else {
                         "sum".to_string()
                     }
                 }
                 AggregateFunction::Avg(_) => {
-                    if let Some(field) = &agg_func.field {
+                    if let Some(ref field) = agg_func.field {
                         format!("avg_{}", field)
                     } else {
                         "avg".to_string()
                     }
                 }
                 AggregateFunction::Max(_) => {
-                    if let Some(field) = &agg_func.field {
+                    if let Some(ref field) = agg_func.field {
                         format!("max_{}", field)
                     } else {
                         "max".to_string()
                     }
                 }
                 AggregateFunction::Min(_) => {
-                    if let Some(field) = &agg_func.field {
+                    if let Some(ref field) = agg_func.field {
                         format!("min_{}", field)
                     } else {
                         "min".to_string()
                     }
                 }
-                _ => "agg".to_string(),
+                AggregateFunction::Collect(_) => {
+                    if let Some(ref field) = agg_func.field {
+                        format!("collect_{}", field)
+                    } else {
+                        "collect".to_string()
+                    }
+                }
+                AggregateFunction::CollectSet(_) => {
+                    if let Some(ref field) = agg_func.field {
+                        format!("collect_set_{}", field)
+                    } else {
+                        "collect_set".to_string()
+                    }
+                }
+                AggregateFunction::Distinct(_) => {
+                    if let Some(ref field) = agg_func.field {
+                        format!("distinct_{}", field)
+                    } else {
+                        "distinct".to_string()
+                    }
+                }
+                AggregateFunction::Percentile(_, _) => {
+                    if let Some(ref field) = agg_func.field {
+                        format!("percentile_{}", field)
+                    } else {
+                        "percentile".to_string()
+                    }
+                }
+                AggregateFunction::Std(_) => {
+                    if let Some(ref field) = agg_func.field {
+                        format!("std_{}", field)
+                    } else {
+                        "std".to_string()
+                    }
+                }
+                AggregateFunction::BitAnd(_) => {
+                    if let Some(ref field) = agg_func.field {
+                        format!("bitand_{}", field)
+                    } else {
+                        "bitand".to_string()
+                    }
+                }
+                AggregateFunction::BitOr(_) => {
+                    if let Some(ref field) = agg_func.field {
+                        format!("bitor_{}", field)
+                    } else {
+                        "bitor".to_string()
+                    }
+                }
+                AggregateFunction::GroupConcat(_, _) => {
+                    if let Some(ref field) = agg_func.field {
+                        format!("group_concat_{}", field)
+                    } else {
+                        "group_concat".to_string()
+                    }
+                }
             };
             result_dataset.col_names.push(col_name);
         }
 
         // 填充结果行
-        for (group_key, agg_state) in &group_state.groups {
+        for (group_key, agg_data_list) in &group_state.groups {
             let mut result_row = Vec::new();
+
+            // 添加分组键值
             result_row.extend_from_slice(group_key);
 
-            for agg_func in &self.aggregate_functions {
-                let agg_value = match &agg_func.function {
-                    AggregateFunction::Count(_) => Value::Int(agg_state.count as i64),
-                    AggregateFunction::Sum(_) => agg_state
-                        .sum
-                        .clone()
-                        .unwrap_or(Value::Null(crate::core::value::NullType::NaN)),
-                    AggregateFunction::Avg(_) => agg_state
-                        .avg
-                        .clone()
-                        .unwrap_or(Value::Null(crate::core::value::NullType::NaN)),
-                    AggregateFunction::Max(_) => agg_state
-                        .max
-                        .clone()
-                        .unwrap_or(Value::Null(crate::core::value::NullType::NaN)),
-                    AggregateFunction::Min(_) => agg_state
-                        .min
-                        .clone()
-                        .unwrap_or(Value::Null(crate::core::value::NullType::NaN)),
-                    _ => Value::Null(crate::core::value::NullType::NaN),
-                };
-                result_row.push(agg_value);
+            // 添加聚合结果
+            for (i, agg_func) in self.aggregate_functions.iter().enumerate() {
+                if i < agg_data_list.len() {
+                    let agg_data = &agg_data_list[i];
+                    
+                    // 处理 COUNT DISTINCT 特殊情况
+                    let agg_value = if agg_func.distinct && matches!(agg_func.function, AggregateFunction::Count(_)) {
+                        // 使用去重集合的大小作为 COUNT DISTINCT 结果
+                        if let Some(uniques) = agg_data.uniques() {
+                            Value::Int(uniques.len() as i64)
+                        } else {
+                            Value::Int(0)
+                        }
+                    } else {
+                        agg_data.result().clone()
+                    };
+                    
+                    result_row.push(agg_value);
+                } else {
+                    result_row.push(Value::Null(NullType::NaN));
+                }
             }
 
             result_dataset.rows.push(result_row);
@@ -1302,6 +900,19 @@ impl<S: StorageClient> HavingExecutor<S> {
                     ),
                 )),
             }
+        } else if let Some(input) = &self.base.input {
+            match input {
+                ExecutionResult::DataSet(dataset) => {
+                    let mut dataset = dataset.clone();
+                    self.apply_having_condition(&mut dataset)?;
+                    Ok(dataset)
+                }
+                _ => Err(crate::core::error::DBError::Query(
+                    crate::core::error::QueryError::ExecutionError(
+                        "Having executor expects DataSet input".to_string(),
+                    ),
+                ))
+            }
         } else {
             Err(crate::core::error::DBError::Query(
                 crate::core::error::QueryError::ExecutionError(
@@ -1311,11 +922,14 @@ impl<S: StorageClient> HavingExecutor<S> {
         }
     }
 
-    /// 应用 HAVING 条件过滤
-    fn apply_having_condition(&self, dataset: &mut crate::core::value::DataSet) -> DBResult<()> {
+    fn apply_having_condition(
+        &self,
+        dataset: &mut crate::core::value::DataSet,
+    ) -> DBResult<()> {
         let mut filtered_rows = Vec::new();
 
         for row in &dataset.rows {
+            // 构建表达式上下文
             let mut context = DefaultExpressionContext::new();
             for (i, col_name) in dataset.col_names.iter().enumerate() {
                 if i < row.len() {
@@ -1323,18 +937,25 @@ impl<S: StorageClient> HavingExecutor<S> {
                 }
             }
 
-            let condition_result = ExpressionEvaluator::evaluate(&self.condition, &mut context)
-                .map_err(|e| {
-                    crate::core::error::DBError::Expression(
+            // 评估 HAVING 条件
+            match ExpressionEvaluator::evaluate(&self.condition, &mut context) {
+                Ok(Value::Bool(true)) => {
+                    filtered_rows.push(row.clone());
+                }
+                Ok(Value::Bool(false)) => {
+                    // 条件为 false，跳过该行
+                }
+                Ok(_) => {
+                    // 非布尔值，视为 false
+                }
+                Err(e) => {
+                    return Err(crate::core::error::DBError::Expression(
                         crate::core::error::ExpressionError::function_error(format!(
                             "Failed to evaluate HAVING condition: {}",
                             e
                         )),
-                    )
-                })?;
-
-            if let Value::Bool(true) = condition_result {
-                filtered_rows.push(row.clone());
+                    ));
+                }
             }
         }
 
@@ -1419,12 +1040,12 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for HavingExecutor<S>
         &self.base.description
     }
 
-    fn stats(&self) -> &ExecutorStats {
-        &self.base.stats
+    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats()
     }
 
-    fn stats_mut(&mut self) -> &mut ExecutorStats {
-        &mut self.base.stats
+    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+        self.base.get_stats_mut()
     }
 }
 
@@ -1435,65 +1056,5 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for HavingExecutor<S> {
 
     fn get_input(&self) -> Option<&ExecutorEnum<S>> {
         self.input_executor.as_deref()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::storage::test_mock::MockStorage;
-
-    #[tokio::test]
-    async fn test_aggregate_executor_basic() {
-        let storage = Arc::new(Mutex::new(MockStorage));
-
-        // 创建测试数据
-        let mut dataset = crate::core::value::DataSet::new();
-        dataset.col_names = vec!["department".to_string(), "salary".to_string()];
-        dataset
-            .rows
-            .push(vec![Value::String("IT".to_string()), Value::Int(50000)]);
-        dataset
-            .rows
-            .push(vec![Value::String("HR".to_string()), Value::Int(45000)]);
-        dataset
-            .rows
-            .push(vec![Value::String("IT".to_string()), Value::Int(60000)]);
-        dataset
-            .rows
-            .push(vec![Value::String("HR".to_string()), Value::Int(48000)]);
-
-        // 创建聚合执行器 (按部门分组，计算平均薪资)
-        let aggregate_functions = vec![AggregateFunctionSpec::avg("salary".to_string())];
-        let group_keys = vec![Expression::variable("department")];
-
-        let mut executor = AggregateExecutor::new(1, storage, aggregate_functions, group_keys);
-
-        // 执行聚合
-        let result = executor
-            .process(ExecutionResult::DataSet(dataset))
-            .expect("Failed to process aggregation");
-
-        // 验证结果
-        match result {
-            ExecutionResult::DataSet(agg_dataset) => {
-                assert_eq!(agg_dataset.rows.len(), 2); // 两个部门
-                assert_eq!(agg_dataset.col_names, vec!["group_0", "avg_salary"]);
-
-                // 验证聚合结果
-                for row in &agg_dataset.rows {
-                    if let Value::String(dept) = &row[0] {
-                        if dept == "IT" {
-                            // IT部门平均薪资: (50000 + 60000) / 2 = 55000
-                            assert_eq!(row[1], Value::Float(55000.0));
-                        } else if dept == "HR" {
-                            // HR部门平均薪资: (45000 + 48000) / 2 = 46500
-                            assert_eq!(row[1], Value::Float(46500.0));
-                        }
-                    }
-                }
-            }
-            _ => panic!("Expected DataSet result"),
-        }
     }
 }

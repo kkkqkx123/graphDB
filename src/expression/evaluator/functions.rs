@@ -145,6 +145,11 @@ impl FunctionEvaluator {
                 }
             }
             AggregateFunction::Collect(_) => Ok(Value::List(vec![arg.clone()])),
+            AggregateFunction::CollectSet(_) => {
+                let mut set = std::collections::HashSet::new();
+                set.insert(arg.clone());
+                Ok(Value::Set(set))
+            }
             AggregateFunction::Distinct(_) => Ok(Value::List(vec![arg.clone()])),
             AggregateFunction::Percentile(_, _) => {
                 if arg.is_null() {
@@ -247,9 +252,13 @@ impl FunctionEvaluator {
                     Ok(Value::List(args.to_vec()))
                 }
             }
+            AggregateFunction::CollectSet(_) => {
+                let unique_values: std::collections::HashSet<_> = args.iter().cloned().collect();
+                Ok(Value::Set(unique_values))
+            }
             AggregateFunction::Distinct(_) => {
                 let unique_values: std::collections::HashSet<_> = args.iter().cloned().collect();
-                Ok(Value::List(unique_values.into_iter().collect()))
+                Ok(Value::Set(unique_values))
             }
             AggregateFunction::Percentile(_, _) => {
                 if args.len() < 2 {

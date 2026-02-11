@@ -194,6 +194,7 @@ pub enum AggregateFunction {
     Min(String),
     Max(String),
     Collect(String),
+    CollectSet(String),
     Distinct(String),
     Percentile(String, f64),
     Std(String),
@@ -211,6 +212,7 @@ impl AggregateFunction {
             AggregateFunction::Min(_) => "MIN",
             AggregateFunction::Max(_) => "MAX",
             AggregateFunction::Collect(_) => "COLLECT",
+            AggregateFunction::CollectSet(_) => "COLLECT_SET",
             AggregateFunction::Distinct(_) => "DISTINCT",
             AggregateFunction::Percentile(_, _) => "PERCENTILE",
             AggregateFunction::Std(_) => "STD",
@@ -237,6 +239,7 @@ impl AggregateFunction {
             | AggregateFunction::Min(_)
             | AggregateFunction::Max(_)
             | AggregateFunction::Collect(_)
+            | AggregateFunction::CollectSet(_)
             | AggregateFunction::Distinct(_)
             | AggregateFunction::Std(_)
             | AggregateFunction::BitAnd(_)
@@ -267,7 +270,7 @@ impl AggregateFunction {
     pub fn is_collection(&self) -> bool {
         matches!(
             self,
-            AggregateFunction::Count(_) | AggregateFunction::Collect(_) | AggregateFunction::Distinct(_)
+            AggregateFunction::Count(_) | AggregateFunction::Collect(_) | AggregateFunction::CollectSet(_) | AggregateFunction::Distinct(_)
         )
     }
 
@@ -287,6 +290,7 @@ impl AggregateFunction {
             AggregateFunction::Min(field) => Some(field),
             AggregateFunction::Max(field) => Some(field),
             AggregateFunction::Collect(field) => Some(field),
+            AggregateFunction::CollectSet(field) => Some(field),
             AggregateFunction::Distinct(field) => Some(field),
             AggregateFunction::Percentile(field, _) => Some(field),
             AggregateFunction::Std(field) => Some(field),

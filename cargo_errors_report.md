@@ -2,25 +2,24 @@
 
 ## Summary
 
-- **Total Errors**: 2
+- **Total Errors**: 4
 - **Total Warnings**: 0
-- **Total Issues**: 2
+- **Total Issues**: 4
 - **Unique Error Patterns**: 1
 - **Unique Warning Patterns**: 0
-- **Files with Issues**: 2
+- **Files with Issues**: 1
 
 ## Error Statistics
 
-**Total Errors**: 2
+**Total Errors**: 4
 
 ### Error Type Breakdown
 
-- **error[E0046]**: 2 errors
+- **error[E0599]**: 4 errors
 
 ### Files with Errors (Top 10)
 
-- `src\query\planner\statements\paths\shortest_path_planner.rs`: 1 errors
-- `src\query\planner\statements\paths\match_path_planner.rs`: 1 errors
+- `src\query\executor\data_processing\join\inner_join.rs`: 4 errors
 
 ## Warning Statistics
 
@@ -28,16 +27,15 @@
 
 ## Detailed Error Categorization
 
-### error[E0046]: not all trait items implemented, missing: `get_space_by_id`: missing `get_space_by_id` in implementation
+### error[E0599]: no method named `execute` found for struct `inner_join::InnerJoinExecutor` in the current scope
 
-**Total Occurrences**: 2  
-**Unique Files**: 2
+**Total Occurrences**: 4  
+**Unique Files**: 1
 
-#### `src\query\planner\statements\paths\shortest_path_planner.rs`: 1 occurrences
+#### `src\query\executor\data_processing\join\inner_join.rs`: 4 occurrences
 
-- Line 69: not all trait items implemented, missing: `get_space_by_id`: missing `get_space_by_id` in implementation
-
-#### `src\query\planner\statements\paths\match_path_planner.rs`: 1 occurrences
-
-- Line 160: not all trait items implemented, missing: `get_space_by_id`: missing `get_space_by_id` in implementation
+- Line 337: no method named `execute` found for struct `inner_join::InnerJoinExecutor` in the current scope
+- Line 415: no method named `execute` found for struct `inner_join::InnerJoinExecutor` in the current scope
+- Line 467: no method named `execute` found for struct `inner_join::InnerJoinExecutor` in the current scope
+- ... 1 more occurrences in this file
 

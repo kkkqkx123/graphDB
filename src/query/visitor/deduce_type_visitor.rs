@@ -283,7 +283,8 @@ impl<'a, S: StorageClient> DeduceTypeVisitor<'a, S> {
                 self.type_.clone()
             }
             AggregateFunction::Collect(_) => DataType::List,
-            AggregateFunction::Distinct(_) => DataType::List,
+            AggregateFunction::CollectSet(_) => DataType::Set,
+            AggregateFunction::Distinct(_) => DataType::Set,
             AggregateFunction::Percentile(_, _) => DataType::Float,
             AggregateFunction::Std(_) => DataType::Float,
             AggregateFunction::BitAnd(_) | AggregateFunction::BitOr(_) => DataType::Int,

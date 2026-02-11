@@ -39,7 +39,7 @@ pub use data_access::{
 
 // Re-export result processing executors
 pub use result_processing::{
-    AggregateExecutor, AggregateFunction, AggregateState, DedupExecutor, DedupStrategy,
+    AggregateExecutor, AggregateFunction, DedupExecutor, DedupStrategy,
     FilterExecutor, GroupAggregateState, GroupByExecutor, HavingExecutor, LimitExecutor,
     ProjectExecutor, ResultProcessor, ResultProcessorContext, SampleExecutor, SampleMethod,
     SortExecutor, SortKey, SortOrder, TopNExecutor,

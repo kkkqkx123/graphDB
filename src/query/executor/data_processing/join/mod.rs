@@ -24,10 +24,7 @@ pub mod right_join;
 // pub mod parallel;
 
 // 重新导出主要类型
-pub use base_join::{
-    BaseJoinExecutor, CartesianProductOperation, InnerJoinOperation, JoinOperation,
-    LeftJoinOperation,
-};
+pub use base_join::BaseJoinExecutor;
 pub use cross_join::CrossJoinExecutor;
 pub use full_outer_join::FullOuterJoinExecutor;
 pub use hash_table::{
