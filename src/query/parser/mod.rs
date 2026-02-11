@@ -6,7 +6,6 @@
 pub mod core;
 pub mod lexer;
 pub mod ast;
-pub mod expressions;
 pub mod parser;
 
 // 重新导出 core 模块的常用类型
@@ -23,3 +22,4 @@ pub use ast::{
 pub use parser::Parser;
 pub use parser::ExprParser;
 pub use parser::StmtParser;
+pub use parser::parse_expression_meta_from_string;

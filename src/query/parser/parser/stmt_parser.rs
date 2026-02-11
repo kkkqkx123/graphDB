@@ -9,7 +9,7 @@ use crate::query::parser::ast::*;
 use crate::query::parser::ast::pattern::{EdgePattern, NodePattern, PathElement, PathPattern};
 use crate::query::parser::core::error::{ParseError, ParseErrorKind};
 use crate::query::parser::parser::ExprParser;
-use crate::query::parser::parser::ParseContext;
+use crate::query::parser::parser::parse_context::ParseContext;
 use crate::query::parser::TokenKind;
 
 pub struct StmtParser<'a> {

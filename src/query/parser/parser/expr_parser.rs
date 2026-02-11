@@ -8,7 +8,7 @@ use crate::core::types::expression::Expression;
 use crate::core::types::operators::{BinaryOperator, UnaryOperator};
 use crate::query::parser::core::error::{ParseError, ParseErrorKind};
 use crate::core::types::{Span, Position};
-use crate::query::parser::parser::ParseContext;
+use crate::query::parser::parser::parse_context::ParseContext;
 use crate::query::parser::TokenKind;
 
 /// 表达式解析结果，包含表达式和位置信息

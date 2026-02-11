@@ -7,7 +7,7 @@ use crate::index::Index;
 use crate::expression::context::basic_context::BasicExpressionContext;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::traits::{DBResult, ExecutionResult, Executor, HasStorage};
-use crate::query::parser::expressions::parse_expression_meta_from_string;
+use crate::query::parser::parser::parse_expression_meta_from_string;
 use crate::storage::StorageClient;
 use crate::utils::safe_lock;
 
