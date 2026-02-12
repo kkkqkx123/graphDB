@@ -103,10 +103,10 @@ impl Stmt {
             Stmt::Drop(_) => "DROP",
             Stmt::Desc(_) => "DESC",
             Stmt::Alter(_) => "ALTER",
-            Stmt::CreateUser(_) => "CREATE_USER",
-            Stmt::AlterUser(_) => "ALTER_USER",
-            Stmt::DropUser(_) => "DROP_USER",
-            Stmt::ChangePassword(_) => "CHANGE_PASSWORD",
+            Stmt::CreateUser(_) => "CREATE USER",
+            Stmt::AlterUser(_) => "ALTER USER",
+            Stmt::DropUser(_) => "DROP USER",
+            Stmt::ChangePassword(_) => "CHANGE PASSWORD",
         }
     }
 }
@@ -745,6 +745,7 @@ pub struct CreateUserStmt {
 pub struct AlterUserStmt {
     pub span: Span,
     pub username: String,
+    pub password: Option<String>,
     pub new_role: Option<String>,
     pub is_locked: Option<bool>,
 }
@@ -761,7 +762,7 @@ pub struct DropUserStmt {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ChangePasswordStmt {
     pub span: Span,
-    pub username: String,
+    pub username: Option<String>,
     pub old_password: String,
     pub new_password: String,
 }

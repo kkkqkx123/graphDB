@@ -9,6 +9,7 @@ use crate::query::parser::ast::*;
 use crate::query::parser::ast::pattern::{EdgePattern, NodePattern, PathElement, PathPattern};
 use crate::query::parser::ast::stmt::PropertyChange;
 use crate::query::parser::core::error::{ParseError, ParseErrorKind};
+use crate::query::parser::core::token::TokenKindExt;
 use crate::query::parser::parser::ExprParser;
 use crate::query::parser::parser::parse_context::ParseContext;
 use crate::query::parser::TokenKind;
@@ -59,6 +60,7 @@ impl<'a> StmtParser<'a> {
             TokenKind::AlterUser => self.parse_alter_user_statement(ctx),
             TokenKind::DropUser => self.parse_drop_user_statement(ctx),
             TokenKind::ChangePassword => self.parse_change_password_statement(ctx),
+            TokenKind::Change => self.parse_change_statement(ctx),
             TokenKind::Find => self.parse_find_path_statement(ctx),
             TokenKind::Get => self.parse_subgraph_statement(ctx),
             _ => Err(ParseError::new(
@@ -181,10 +183,39 @@ impl<'a> StmtParser<'a> {
                 target: CreateTarget::EdgeType { name, properties },
                 if_not_exists,
             }))
+        } else if ctx.match_token(TokenKind::User) {
+            // 解析 CREATE USER
+            let mut if_not_exists = false;
+            if ctx.match_token(TokenKind::If) {
+                ctx.expect_token(TokenKind::Not)?;
+                ctx.expect_token(TokenKind::Exists)?;
+                if_not_exists = true;
+            }
+            let username = ctx.expect_identifier()?;
+            ctx.expect_token(TokenKind::With)?;
+            ctx.expect_token(TokenKind::Password)?;
+            let password = ctx.expect_string_literal()?;
+
+            let mut role = None;
+            if ctx.match_token(TokenKind::With) {
+                ctx.expect_token(TokenKind::Role)?;
+                role = Some(ctx.expect_identifier()?);
+            }
+
+            let end_span = ctx.current_span();
+            let span = ctx.merge_span(start_span.start, end_span.end);
+
+            Ok(Stmt::CreateUser(CreateUserStmt {
+                span,
+                username,
+                password,
+                role,
+                if_not_exists,
+            }))
         } else {
             Err(ParseError::new(
                 ParseErrorKind::UnexpectedToken,
-                "Expected TAG or EDGE after CREATE".to_string(),
+                "Expected TAG, EDGE, or USER after CREATE".to_string(),
                 ctx.current_position(),
             ))
         }
@@ -1049,10 +1080,27 @@ impl<'a> StmtParser<'a> {
                 space_name: space_name.unwrap_or_default(),
                 index_name,
             }
+        } else if ctx.match_token(TokenKind::User) {
+            // 解析 DROP USER
+            let mut if_exists = false;
+            if ctx.match_token(TokenKind::If) {
+                ctx.expect_token(TokenKind::Exists)?;
+                if_exists = true;
+            }
+            let username = ctx.expect_identifier()?;
+
+            let end_span = ctx.current_span();
+            let span = ctx.merge_span(start_span.start, end_span.end);
+
+            return Ok(Stmt::DropUser(DropUserStmt {
+                span,
+                username,
+                if_exists,
+            }));
         } else {
             return Err(ParseError::new(
                 ParseErrorKind::UnexpectedToken,
-                "Expected SPACE, TAG, EDGE, or INDEX".to_string(),
+                "Expected SPACE, TAG, EDGE, INDEX, or USER".to_string(),
                 ctx.current_position(),
             ));
         };
@@ -1109,6 +1157,11 @@ impl<'a> StmtParser<'a> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Alter)?;
 
+        // 检查是否是 ALTER USER
+        if ctx.check_token(TokenKind::User) {
+            return self.parse_alter_user_statement_internal(ctx, start_span);
+        }
+
         let (is_tag, name, additions, deletions, changes) = if ctx.match_token(TokenKind::Tag) {
             let tag_name = ctx.expect_identifier()?;
             let (additions, deletions, changes) = self.parse_alter_operations(ctx)?;
@@ -1120,7 +1173,7 @@ impl<'a> StmtParser<'a> {
         } else {
             return Err(ParseError::new(
                 ParseErrorKind::UnexpectedToken,
-                "Expected TAG or EDGE".to_string(),
+                "Expected TAG, EDGE, or USER".to_string(),
                 ctx.current_position(),
             ));
         };
@@ -1229,12 +1282,32 @@ impl<'a> StmtParser<'a> {
     fn parse_alter_user_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::AlterUser)?;
+        self.parse_alter_user_statement_internal(ctx, start_span)
+    }
+
+    fn parse_alter_user_statement_internal(
+        &mut self,
+        ctx: &mut ParseContext<'a>,
+        start_span: Span,
+    ) -> Result<Stmt, ParseError> {
+        ctx.expect_token(TokenKind::User)?;
 
         let username = ctx.expect_identifier()?;
 
+        let mut password = None;
         let mut new_role = None;
         let mut is_locked = None;
 
+        // 解析 WITH PASSWORD 或 SET 子句
+        if ctx.match_token(TokenKind::With) {
+            if ctx.match_token(TokenKind::Password) {
+                password = Some(ctx.expect_string_literal()?);
+            } else if ctx.match_token(TokenKind::Role) {
+                new_role = Some(ctx.expect_identifier()?);
+            }
+        }
+
+        // 也支持 SET ROLE = ... 和 SET LOCKED = ... 语法
         while ctx.match_token(TokenKind::Set) {
             if ctx.match_token(TokenKind::Role) {
                 ctx.expect_token(TokenKind::Eq)?;
@@ -1252,6 +1325,7 @@ impl<'a> StmtParser<'a> {
         Ok(Stmt::AlterUser(AlterUserStmt {
             span,
             username,
+            password,
             new_role,
             is_locked,
         }))
@@ -1283,9 +1357,24 @@ impl<'a> StmtParser<'a> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::ChangePassword)?;
 
-        let username = ctx.expect_identifier()?;
-        ctx.expect_token(TokenKind::Password)?;
+        self.parse_change_password_internal(ctx, start_span)
+    }
+
+    fn parse_change_password_internal(
+        &mut self,
+        ctx: &mut ParseContext<'a>,
+        start_span: Span,
+    ) -> Result<Stmt, ParseError> {
+        // 解析可选的用户名（如果下一个 token 是标识符）
+        // 注意：此时 PASSWORD 关键字已经被消费
+        let username = if ctx.current_token().kind.is_identifier() {
+            Some(ctx.expect_identifier()?)
+        } else {
+            None
+        };
+
         let old_password = ctx.expect_string_literal()?;
+        ctx.expect_token(TokenKind::To)?;
         let new_password = ctx.expect_string_literal()?;
 
         let end_span = ctx.current_span();
@@ -1297,6 +1386,22 @@ impl<'a> StmtParser<'a> {
             old_password,
             new_password,
         }))
+    }
+
+    fn parse_change_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::Change)?;
+
+        // 检查是否是 CHANGE PASSWORD
+        if ctx.match_token(TokenKind::Password) {
+            return self.parse_change_password_internal(ctx, start_span);
+        }
+
+        Err(ParseError::new(
+            ParseErrorKind::UnexpectedToken,
+            "Expected PASSWORD after CHANGE".to_string(),
+            ctx.current_position(),
+        ))
     }
 
     fn parse_find_path_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {

@@ -150,7 +150,7 @@ pub struct UpdateInfo {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
 pub struct PasswordInfo {
-    pub username: String,
+    pub username: Option<String>,
     pub old_password: String,
     pub new_password: String,
 }

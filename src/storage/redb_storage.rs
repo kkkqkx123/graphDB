@@ -1554,11 +1554,12 @@ impl<E: Engine> StorageClient for RedbStorage<E> {
 
     fn change_password(&mut self, info: &PasswordInfo) -> Result<bool, StorageError> {
         let mut users = self.users.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        if let Some(user) = users.get_mut(&info.username) {
+        let username = info.username.clone().ok_or_else(|| StorageError::DbError("用户名不能为空".to_string()))?;
+        if let Some(user) = users.get_mut(&username) {
             user.password = info.new_password.clone();
             Ok(true)
         } else {
-            Err(StorageError::DbError(format!("用户 {} 不存在", info.username)))
+            Err(StorageError::DbError(format!("用户 {} 不存在", username)))
         }
     }
 

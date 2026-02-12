@@ -1844,7 +1844,8 @@ impl PlanNodeEnum {
             PlanNodeEnum::ChangePassword(node) => {
                 let mut desc = PlanNodeDescription::new("ChangePassword", node.id());
                 let info = node.password_info();
-                desc.add_description("username", info.username.clone());
+                let username_str = info.username.clone().unwrap_or_else(|| "current_user".to_string());
+                desc.add_description("username", username_str);
                 desc.add_description("password", "******");
                 desc.add_description("newPassword", "******");
                 desc

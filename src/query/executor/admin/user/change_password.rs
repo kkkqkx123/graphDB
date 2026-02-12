@@ -14,13 +14,13 @@ use crate::storage::StorageClient;
 #[derive(Debug)]
 pub struct ChangePasswordExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
-    username: String,
+    username: Option<String>,
     old_password: String,
     new_password: String,
 }
 
 impl<S: StorageClient> ChangePasswordExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, username: String, old_password: String, new_password: String) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, username: Option<String>, old_password: String, new_password: String) -> Self {
         Self {
             base: BaseExecutor::new(id, "ChangePasswordExecutor".to_string(), storage),
             username,
