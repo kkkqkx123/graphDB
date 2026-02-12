@@ -2,8 +2,8 @@ use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
 use crate::core::error::DBResult;
-use crate::core::{Edge, Path, Value, Vertex};
-use crate::core::vertex_edge_path::Step;
+use crate::core::{Edge, NPath, Path, Value, Vertex};
+
 use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
@@ -21,7 +21,9 @@ pub struct ExpandAllExecutor<S: StorageClient + Send + 'static> {
     pub edge_types: Option<Vec<String>>,
     pub max_depth: Option<usize>, // 最大扩展深度
     input_executor: Option<Box<ExecutorEnum<S>>>,
-    // 路径缓存
+    // 使用 NPath 缓存中间结果，减少内存复制
+    npath_cache: Vec<Arc<NPath>>,
+    // 路径缓存（最终输出时转换）
     path_cache: Vec<Path>,
     // 已访问节点集合，用于避免循环
     pub visited_nodes: HashSet<Value>,
@@ -56,6 +58,7 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
             edge_types,
             max_depth,
             input_executor: None,
+            npath_cache: Vec::new(),
             path_cache: Vec::new(),
             visited_nodes: HashSet::new(),
         }
@@ -78,26 +81,17 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
     /// 递归扩展路径（同步版本）
     fn expand_paths_recursive(
         &mut self,
-        current_path: &mut Path,
+        current_npath: &Arc<NPath>,
         current_depth: usize,
         max_depth: usize,
-    ) -> Result<Vec<Path>, QueryError> {
+    ) -> Result<Vec<Arc<NPath>>, QueryError> {
         // 获取当前路径的最后一个节点
-        let current_node = if current_path.steps.is_empty() {
-            &current_path.src.vid
-        } else {
-            &current_path
-                .steps
-                .last()
-                .expect("Path should have at least one step if steps is not empty")
-                .dst
-                .vid
-        };
+        let current_node = &current_npath.vertex().vid;
 
         // 检查是否达到最大深度
         if current_depth >= max_depth {
             // 返回当前路径
-            return Ok(vec![current_path.clone()]);
+            return Ok(vec![current_npath.clone()]);
         }
 
         // 获取邻居节点和边
@@ -105,22 +99,22 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
 
         if neighbors_with_edges.is_empty() {
             // 没有更多邻居，返回当前路径
-            return Ok(vec![current_path.clone()]);
+            return Ok(vec![current_npath.clone()]);
         }
 
-        let mut all_paths = Vec::new();
+        let mut all_npaths: Vec<Arc<NPath>> = Vec::new();
 
         // 为每个邻居创建新路径
         for (neighbor_id, edge) in neighbors_with_edges {
             // 检查是否已访问过该节点（避免循环）
             if self.visited_nodes.contains(&neighbor_id) {
                 // 创建包含循环的路径
-                let mut path_with_cycle = current_path.clone();
-                path_with_cycle.steps.push(Step {
-                    dst: Box::new(Vertex::new(neighbor_id.clone(), Vec::new())),
-                    edge: Box::new(edge),
-                });
-                all_paths.push(path_with_cycle);
+                let path_with_cycle = Arc::new(NPath::extend(
+                    current_npath.clone(),
+                    Arc::new(edge),
+                    Arc::new(Vertex::new(neighbor_id.clone(), Vec::new())),
+                ));
+                all_npaths.push(path_with_cycle);
                 continue;
             }
 
@@ -134,19 +128,19 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
             };
 
             if let Some(vertex) = neighbor_vertex {
-                // 创建新路径
-                let mut new_path = current_path.clone();
-                new_path.steps.push(Step {
-                    dst: Box::new(vertex),
-                    edge: Box::new(edge),
-                });
+                // 使用 NPath 扩展，O(1) 操作
+                let new_npath = Arc::new(NPath::extend(
+                    current_npath.clone(),
+                    Arc::new(edge),
+                    Arc::new(vertex),
+                ));
 
                 // 标记为已访问
                 self.visited_nodes.insert(neighbor_id.clone());
 
                 // 递归扩展
-                let mut expanded_paths = self.expand_paths_recursive(&mut new_path, current_depth + 1, max_depth)?;
-                all_paths.append(&mut expanded_paths);
+                let mut expanded_npaths = self.expand_paths_recursive(&new_npath, current_depth + 1, max_depth)?;
+                all_npaths.append(&mut expanded_npaths);
 
                 // 取消标记（允许在其他路径中访问）
                 self.visited_nodes.remove(&neighbor_id);
@@ -154,17 +148,20 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
         }
 
         // 添加当前路径
-        all_paths.push(current_path.clone());
+        all_npaths.push(current_npath.clone());
 
-        Ok(all_paths)
+        Ok(all_npaths)
     }
 
     /// 构建扩展结果
     fn build_expansion_result(&self) -> ExecutionResult {
+        // 将 NPath 转换为 Path 用于输出
+        let paths: Vec<Path> = self.npath_cache.iter().map(|np| np.to_path()).collect();
+
         // 将路径转换为值列表
         let mut path_values = Vec::new();
 
-        for path in &self.path_cache {
+        for path in &paths {
             let mut path_value = Vec::new();
 
             // 添加起始节点
@@ -258,16 +255,13 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
             self.visited_nodes.clear();
             self.visited_nodes.insert((*vertex.vid).clone());
 
-            // 创建初始路径
-            let mut initial_path = Path {
-                src: Box::new(vertex),
-                steps: Vec::new(),
-            };
+            // 创建初始 NPath
+            let initial_npath = Arc::new(NPath::new(Arc::new(vertex)));
 
             // 递归扩展路径
-            let mut expanded_paths = self
-                .expand_paths_recursive(&mut initial_path, 0, max_depth)?;
-            self.path_cache.append(&mut expanded_paths);
+            let mut expanded_npaths = self
+                .expand_paths_recursive(&initial_npath, 0, max_depth)?;
+            self.npath_cache.append(&mut expanded_npaths);
         }
 
         // 构建结果
@@ -275,6 +269,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
     }
 
     fn open(&mut self) -> DBResult<()> {
+        self.npath_cache.clear();
         self.path_cache.clear();
         self.visited_nodes.clear();
 
@@ -285,6 +280,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
     }
 
     fn close(&mut self) -> DBResult<()> {
+        self.npath_cache.clear();
         self.path_cache.clear();
         self.visited_nodes.clear();
 

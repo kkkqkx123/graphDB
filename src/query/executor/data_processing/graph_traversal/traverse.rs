@@ -2,8 +2,8 @@ use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
 use crate::core::error::{DBError, DBResult};
-use crate::core::{Edge, Expression, Path, Value, Vertex};
-use crate::core::vertex_edge_path::Step;
+use crate::core::{Edge, Expression, NPath, Path, Value, Vertex};
+
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::evaluator::traits::ExpressionContext;
 use crate::expression::DefaultExpressionContext;
@@ -26,6 +26,11 @@ pub struct TraverseExecutor<S: StorageClient + Send + 'static> {
 
     conditions: Option<String>,
     input_executor: Option<Box<ExecutorEnum<S>>>,
+    /// 使用 NPath 存储当前遍历路径，减少内存复制
+    current_npaths: Vec<Arc<NPath>>,
+    /// 使用 NPath 存储已完成路径
+    completed_npaths: Vec<Arc<NPath>>,
+    /// 最终输出时转换为 Path
     current_paths: Vec<Path>,
     completed_paths: Vec<Path>,
     pub visited_nodes: HashSet<Value>,
@@ -71,6 +76,8 @@ impl<S: StorageClient> TraverseExecutor<S> {
             max_depth,
             conditions,
             input_executor: None,
+            current_npaths: Vec::new(),
+            completed_npaths: Vec::new(),
             current_paths: Vec::new(),
             completed_paths: Vec::new(),
             visited_nodes: HashSet::new(),
@@ -197,8 +204,9 @@ impl<S: StorageClient> TraverseExecutor<S> {
         max_depth: usize,
     ) -> Result<(), QueryError> {
         if current_depth >= max_depth {
-            self.completed_paths.extend(self.current_paths.clone());
-            self.current_paths.clear();
+            // 将剩余的 current_npaths 移到 completed_npaths
+            self.completed_npaths.extend(self.current_npaths.clone());
+            self.current_npaths.clear();
             return Ok(());
         }
 
@@ -210,21 +218,12 @@ impl<S: StorageClient> TraverseExecutor<S> {
         current_depth: usize,
         max_depth: usize,
     ) -> Result<(), QueryError> {
-        let mut next_paths = Vec::new();
-        let mut completed_this_step = Vec::new();
+        let mut next_npaths: Vec<Arc<NPath>> = Vec::new();
+        let mut completed_this_step: Vec<Arc<NPath>> = Vec::new();
 
-        for path in &self.current_paths {
+        for npath in &self.current_npaths {
             // 获取当前路径的最后一个节点
-            let current_node = if path.steps.is_empty() {
-                &path.src.vid
-            } else {
-                &path
-                    .steps
-                    .last()
-                    .expect("Path should have at least one step if steps is not empty")
-                    .dst
-                    .vid
-            };
+            let current_node = &npath.vertex().vid;
 
             // 获取邻居节点和边
             let neighbors_with_edges = self.get_neighbors_with_edges(current_node)?;
@@ -238,46 +237,47 @@ impl<S: StorageClient> TraverseExecutor<S> {
                     .map_err(|e| QueryError::StorageError(e.to_string()))?;
 
                 if let Some(vertex) = neighbor_vertex {
+                    // 将 NPath 转换为 Path 用于条件检查
+                    let path = npath.to_path();
                     // 检查条件
-                    if !self.check_conditions(path, &edge, &vertex) {
+                    if !self.check_conditions(&path, &edge, &vertex) {
                         continue;
                     }
 
-                    // 创建新路径
-                    let mut new_path = path.clone();
-                    new_path.steps.push(Step {
-                        dst: Box::new(vertex),
-                        edge: Box::new(edge),
-                    });
+                    // 使用 NPath 扩展，O(1) 操作
+                    let new_npath = Arc::new(NPath::extend(
+                        npath.clone(),
+                        Arc::new(edge),
+                        Arc::new(vertex),
+                    ));
 
                     // 检查是否达到最大深度
                     if current_depth + 1 >= max_depth {
-                        completed_this_step.push(new_path);
+                        completed_this_step.push(new_npath);
                     } else {
-                        next_paths.push(new_path);
+                        next_npaths.push(new_npath);
                     }
                 }
             }
         }
 
-        self.completed_paths.extend(completed_this_step);
-        self.current_paths = next_paths;
+        self.completed_npaths.extend(completed_this_step);
+        self.current_npaths = next_npaths;
         Ok(())
     }
 
     fn initialize_traversal(&mut self, input_nodes: Vec<Vertex>) -> Result<(), QueryError> {
+        self.current_npaths.clear();
+        self.completed_npaths.clear();
         self.current_paths.clear();
         self.completed_paths.clear();
         self.visited_nodes.clear();
 
-        // 为每个输入节点创建初始路径
+        // 为每个输入节点创建初始 NPath
         for vertex in input_nodes {
             let vid = vertex.vid.clone();
-            let initial_path = Path {
-                src: Box::new(vertex),
-                steps: Vec::new(),
-            };
-            self.current_paths.push(initial_path);
+            let initial_npath = Arc::new(NPath::new(Arc::new(vertex)));
+            self.current_npaths.push(initial_npath);
             self.visited_nodes.insert(*vid);
         }
 
@@ -286,11 +286,14 @@ impl<S: StorageClient> TraverseExecutor<S> {
 
     /// 构建遍历结果
     fn build_traversal_result(&self) -> ExecutionResult {
+        // 将 NPath 转换为 Path 用于输出
+        let completed_paths: Vec<Path> = self.completed_npaths.iter().map(|np| np.to_path()).collect();
+
         if self.generate_path {
             // 返回路径结果
             let mut path_values = Vec::new();
 
-            for path in &self.completed_paths {
+            for path in &completed_paths {
                 let mut path_value = Vec::new();
 
                 // 添加起始节点
@@ -311,7 +314,7 @@ impl<S: StorageClient> TraverseExecutor<S> {
             let mut vertices = Vec::new();
             let mut visited_vertices = HashSet::new();
 
-            for path in &self.completed_paths {
+            for path in &completed_paths {
                 // 添加起始节点
                 if !visited_vertices.contains(&path.src.vid) {
                     vertices.push((*path.src).clone());

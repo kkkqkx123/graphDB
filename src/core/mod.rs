@@ -3,6 +3,7 @@ pub mod result;
 pub mod type_system;
 pub mod value;
 pub mod vertex_edge_path;
+pub mod npath;
 
 // 新增的子模块
 pub mod types;
@@ -20,6 +21,7 @@ pub use result::{ResultBuilder, DefaultIterator, GetNeighborsIterator, PropItera
 // 核心数据类型
 pub use value::*;
 pub use vertex_edge_path::{Edge, Path, Vertex};
+pub use npath::{NPath, NPathIter, NPathVertexIter, NPathEdgeIter};
 
 // 表达式系统类型
 pub use crate::core::types::expression::Expression;

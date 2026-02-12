@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 use rayon::prelude::*;
 
 use crate::core::error::{DBError, DBResult};
-use crate::core::{Edge, Path, Value};
+use crate::core::{Edge, NPath, Path, Value};
 use crate::core::vertex_edge_path::Step;
 use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
 use crate::query::executor::executor_enum::ExecutorEnum;
@@ -71,10 +71,12 @@ impl PartialOrd for DistanceNode {
 
 #[derive(Debug, Clone)]
 pub struct BidirectionalBFSState {
-    pub left_queue: VecDeque<(Value, Path)>,
-    pub right_queue: VecDeque<(Value, Path)>,
-    pub left_visited: HashMap<Value, (Path, f64)>,
-    pub right_visited: HashMap<Value, (Path, f64)>,
+    /// 使用 NPath 替代 Path 存储中间结果，减少内存复制
+    pub left_queue: VecDeque<(Value, Arc<NPath>)>,
+    pub right_queue: VecDeque<(Value, Arc<NPath>)>,
+    /// 使用 NPath 缓存访问过的路径
+    pub left_visited: HashMap<Value, (Arc<NPath>, f64)>,
+    pub right_visited: HashMap<Value, (Arc<NPath>, f64)>,
     pub left_edges: Vec<HashMap<Value, Vec<(Edge, Value)>>>,
     pub right_edges: Vec<HashMap<Value, Vec<(Edge, Value)>>>,
 }
@@ -313,34 +315,30 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
     ) -> Result<Vec<Path>, QueryError> {
         let mut state = BidirectionalBFSState::new();
         let mut result_paths = Vec::new();
-        let mut visited_left: HashMap<Value, Path> = HashMap::new();
-        let mut visited_right: HashMap<Value, Path> = HashMap::new();
+        let mut visited_left: HashMap<Value, Arc<NPath>> = HashMap::new();
+        let mut visited_right: HashMap<Value, Arc<NPath>> = HashMap::new();
         let mut left_edges: Vec<HashMap<Value, Vec<(Edge, Value)>>> = Vec::new();
         let mut right_edges: Vec<HashMap<Value, Vec<(Edge, Value)>>> = Vec::new();
 
+        // 初始化左向队列（从起点开始）
         for start_id in start_ids {
             let storage = safe_lock(&*self.get_storage())
                 .expect("ShortestPathExecutor storage lock should not be poisoned");
             if let Ok(Some(start_vertex)) = storage.get_vertex("default", start_id) {
-                let initial_path = Path {
-                    src: Box::new(start_vertex),
-                    steps: Vec::new(),
-                };
-                state.left_queue.push_back((start_id.clone(), initial_path.clone()));
-                visited_left.insert(start_id.clone(), initial_path);
+                let initial_npath = Arc::new(NPath::new(Arc::new(start_vertex)));
+                state.left_queue.push_back((start_id.clone(), initial_npath.clone()));
+                visited_left.insert(start_id.clone(), initial_npath);
             }
         }
 
+        // 初始化右向队列（从终点开始）
         for end_id in end_ids {
             let storage = safe_lock(&*self.get_storage())
                 .expect("ShortestPathExecutor storage lock should not be poisoned");
             if let Ok(Some(end_vertex)) = storage.get_vertex("default", end_id) {
-                let initial_path = Path {
-                    src: Box::new(end_vertex),
-                    steps: Vec::new(),
-                };
-                state.right_queue.push_back((end_id.clone(), initial_path.clone()));
-                visited_right.insert(end_id.clone(), initial_path);
+                let initial_npath = Arc::new(NPath::new(Arc::new(end_vertex)));
+                state.right_queue.push_back((end_id.clone(), initial_npath.clone()));
+                visited_right.insert(end_id.clone(), initial_npath);
             }
         }
 
@@ -355,23 +353,23 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
 
             left_edges.push(HashMap::new());
             let left_step_edges = left_edges.last_mut().unwrap();
-            
-            while let Some((current_id, current_path)) = state.left_queue.pop_front() {
+
+            // 左向扩展
+            while let Some((current_id, current_npath)) = state.left_queue.pop_front() {
                 self.nodes_visited += 1;
 
-                if let Some(right_path) = visited_right.get(&current_id) {
-                    let mut combined_path = current_path.clone();
-                    let mut right_path = right_path.clone();
-                    right_path.steps.reverse();
-                    combined_path.steps.extend(right_path.steps);
-                    
-                    if !self.has_duplicate_edges(&combined_path) {
-                        result_paths.push(combined_path.clone());
-                        
-                        if self.single_shortest {
-                            for start_id in start_ids {
-                                for end_id in end_ids {
-                                    self.mark_termination(start_id, end_id);
+                // 检查是否与右向路径交汇
+                if let Some(right_npath) = visited_right.get(&current_id) {
+                    // 拼接路径：左路径 + 反转的右路径
+                    if let Some(combined_path) = Self::combine_npaths(&current_npath, right_npath) {
+                        if !self.has_duplicate_edges(&combined_path) {
+                            result_paths.push(combined_path);
+
+                            if self.single_shortest {
+                                for start_id in start_ids {
+                                    for end_id in end_ids {
+                                        self.mark_termination(start_id, end_id);
+                                    }
                                 }
                             }
                         }
@@ -379,8 +377,9 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
                     continue;
                 }
 
+                // 检查深度限制
                 if let Some(max_depth) = self.max_depth {
-                    if current_path.steps.len() >= max_depth {
+                    if current_npath.len() >= max_depth {
                         continue;
                     }
                 }
@@ -389,10 +388,6 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
                 self.edges_traversed += neighbors.len();
 
                 for (neighbor_id, edge, _weight) in neighbors {
-                    let neighbor_id = neighbor_id.clone();
-                    let edge = edge.clone();
-                    let current_id = current_id.clone();
-
                     if visited_left.contains_key(&neighbor_id) {
                         continue;
                     }
@@ -400,15 +395,16 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
                     let storage = safe_lock(&*self.get_storage())
                         .expect("ShortestPathExecutor storage lock should not be poisoned");
                     if let Ok(Some(neighbor_vertex)) = storage.get_vertex("default", &neighbor_id) {
-                        let mut new_path = current_path.clone();
-                        new_path.steps.push(Step {
-                            dst: Box::new(neighbor_vertex),
-                            edge: Box::new(edge.clone()),
-                        });
+                        // 使用 NPath 扩展，O(1) 操作
+                        let new_npath = Arc::new(NPath::extend(
+                            current_npath.clone(),
+                            Arc::new(edge.clone()),
+                            Arc::new(neighbor_vertex),
+                        ));
 
-                        state.left_queue.push_back((neighbor_id.clone(), new_path.clone()));
-                        visited_left.insert(neighbor_id.clone(), new_path);
-                        left_step_edges.insert(neighbor_id.clone(), vec![(edge, current_id)]);
+                        state.left_queue.push_back((neighbor_id.clone(), new_npath.clone()));
+                        visited_left.insert(neighbor_id.clone(), new_npath);
+                        left_step_edges.insert(neighbor_id.clone(), vec![(edge, current_id.clone())]);
                     }
                 }
             }
@@ -419,8 +415,9 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
 
             right_edges.push(HashMap::new());
             let right_step_edges = right_edges.last_mut().unwrap();
-            
-            while let Some((current_id, current_path)) = state.right_queue.pop_front() {
+
+            // 右向扩展
+            while let Some((current_id, current_npath)) = state.right_queue.pop_front() {
                 self.nodes_visited += 1;
 
                 if visited_left.contains_key(&current_id) {
@@ -428,7 +425,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
                 }
 
                 if let Some(max_depth) = self.max_depth {
-                    if current_path.steps.len() >= max_depth {
+                    if current_npath.len() >= max_depth {
                         continue;
                     }
                 }
@@ -437,10 +434,6 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
                 self.edges_traversed += neighbors.len();
 
                 for (neighbor_id, edge, _weight) in neighbors {
-                    let neighbor_id = neighbor_id.clone();
-                    let edge = edge.clone();
-                    let current_id = current_id.clone();
-
                     if visited_right.contains_key(&neighbor_id) {
                         continue;
                     }
@@ -448,15 +441,16 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
                     let storage = safe_lock(&*self.get_storage())
                         .expect("ShortestPathExecutor storage lock should not be poisoned");
                     if let Ok(Some(neighbor_vertex)) = storage.get_vertex("default", &neighbor_id) {
-                        let mut new_path = current_path.clone();
-                        new_path.steps.push(Step {
-                            dst: Box::new(neighbor_vertex),
-                            edge: Box::new(edge.clone()),
-                        });
+                        // 使用 NPath 扩展，O(1) 操作
+                        let new_npath = Arc::new(NPath::extend(
+                            current_npath.clone(),
+                            Arc::new(edge.clone()),
+                            Arc::new(neighbor_vertex),
+                        ));
 
-                        state.right_queue.push_back((neighbor_id.clone(), new_path.clone()));
-                        visited_right.insert(neighbor_id.clone(), new_path);
-                        right_step_edges.insert(neighbor_id.clone(), vec![(edge, current_id)]);
+                        state.right_queue.push_back((neighbor_id.clone(), new_npath.clone()));
+                        visited_right.insert(neighbor_id.clone(), new_npath);
+                        right_step_edges.insert(neighbor_id.clone(), vec![(edge, current_id.clone())]);
                     }
                 }
             }
@@ -476,6 +470,28 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
         }
 
         Ok(result_paths)
+    }
+
+    /// 拼接两条 NPath 为 Path
+    /// 左路径从起点到中间，右路径从终点到中间
+    fn combine_npaths(left: &Arc<NPath>, right: &Arc<NPath>) -> Option<Path> {
+        // 检查两条路径是否在同一个顶点交汇
+        if left.vertex().vid.as_ref() != right.vertex().vid.as_ref() {
+            return None;
+        }
+
+        // 构建从左起点到交汇点的路径
+        let left_path = left.to_path();
+
+        // 构建从右起点到交汇点的路径，然后反转
+        let mut right_path = right.to_path();
+        right_path.reverse();
+
+        // 合并两条路径
+        let mut combined = left_path;
+        combined.steps.extend(right_path.steps);
+
+        Some(combined)
     }
 
     pub fn dijkstra_with_binary_heap(
