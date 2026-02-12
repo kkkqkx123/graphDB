@@ -378,10 +378,7 @@ mod tests {
             target: InsertTarget::Edge {
                 edge_name: "friend".to_string(),
                 prop_names: vec![],
-                src: Expression::literal("v1"),
-                dst: Expression::literal("v2"),
-                rank: None,
-                values: vec![],
+                edges: vec![(Expression::literal("v1"), Expression::literal("v2"), None, vec![])],
             },
         };
         let result = validator.validate(&stmt);

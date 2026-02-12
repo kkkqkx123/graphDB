@@ -178,6 +178,27 @@ impl<'a> StmtParser<'a> {
         let target = if ctx.match_token(TokenKind::Vertex) {
             let ids = self.parse_expression_list(ctx)?;
             DeleteTarget::Vertices(ids)
+        } else if ctx.match_token(TokenKind::Edge) {
+            let edge_type = ctx.expect_identifier()?;
+            let mut edges = Vec::new();
+            loop {
+                let src = self.parse_expression(ctx)?;
+                ctx.expect_token(TokenKind::Arrow)?;
+                let dst = self.parse_expression(ctx)?;
+                let rank = if ctx.match_token(TokenKind::At) {
+                    Some(self.parse_expression(ctx)?)
+                } else {
+                    None
+                };
+                edges.push((src, dst, rank));
+                if !ctx.match_token(TokenKind::Comma) {
+                    break;
+                }
+            }
+            DeleteTarget::Edges {
+                edge_type: Some(edge_type),
+                edges,
+            }
         } else {
             DeleteTarget::Vertices(self.parse_expression_list(ctx)?)
         };
@@ -411,14 +432,11 @@ impl<'a> StmtParser<'a> {
                 Vec::new()
             };
             ctx.expect_token(TokenKind::Values)?;
-            let values = self.parse_insert_edge_values(ctx)?;
+            let edges = self.parse_insert_edge_values(ctx)?;
             InsertTarget::Edge {
                 edge_name,
                 prop_names,
-                src: values.0,
-                dst: values.1,
-                rank: values.2,
-                values: values.3,
+                edges,
             }
         } else {
             return Err(ParseError::new(
@@ -478,27 +496,36 @@ impl<'a> StmtParser<'a> {
     fn parse_insert_edge_values(
         &mut self,
         ctx: &mut ParseContext<'a>,
-    ) -> Result<(CoreExpression, CoreExpression, Option<CoreExpression>, Vec<CoreExpression>), ParseError> {
-        let src = self.parse_expression(ctx)?;
-        ctx.expect_token(TokenKind::Minus)?;
-        ctx.expect_token(TokenKind::Gt)?;
-        let dst = self.parse_expression(ctx)?;
-        let rank = if ctx.match_token(TokenKind::At) {
-            Some(self.parse_expression(ctx)?)
-        } else {
-            None
-        };
-        ctx.expect_token(TokenKind::Colon)?;
-        ctx.expect_token(TokenKind::LParen)?;
-        let mut values = Vec::new();
+    ) -> Result<Vec<(CoreExpression, CoreExpression, Option<CoreExpression>, Vec<CoreExpression>)>, ParseError> {
+        let mut edges = Vec::new();
         loop {
-            values.push(self.parse_expression(ctx)?);
+            let src = self.parse_expression(ctx)?;
+            ctx.expect_token(TokenKind::Arrow)?;
+            let dst = self.parse_expression(ctx)?;
+            let rank = if ctx.match_token(TokenKind::At) {
+                Some(self.parse_expression(ctx)?)
+            } else {
+                None
+            };
+            ctx.expect_token(TokenKind::Colon)?;
+            ctx.expect_token(TokenKind::LParen)?;
+            let mut values = Vec::new();
+            // 如果下一个 token 不是 RParen，则解析属性值
+            if ctx.current_token().kind != TokenKind::RParen {
+                loop {
+                    values.push(self.parse_expression(ctx)?);
+                    if !ctx.match_token(TokenKind::Comma) {
+                        break;
+                    }
+                }
+            }
+            ctx.expect_token(TokenKind::RParen)?;
+            edges.push((src, dst, rank, values));
             if !ctx.match_token(TokenKind::Comma) {
                 break;
             }
         }
-        ctx.expect_token(TokenKind::RParen)?;
-        Ok((src, dst, rank, values))
+        Ok(edges)
     }
 
     fn parse_return_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {
@@ -879,9 +906,22 @@ impl<'a> StmtParser<'a> {
     fn parse_set_assignments(&mut self, ctx: &mut ParseContext<'a>) -> Result<Vec<Assignment>, ParseError> {
         let mut assignments = Vec::new();
         loop {
-            let property = ctx.expect_identifier()?;
+            let property_expr = self.parse_expression(ctx)?;
             ctx.expect_token(TokenKind::Assign)?;
             let value = self.parse_expression(ctx)?;
+            
+            let property = match &property_expr {
+                CoreExpression::Property { property, .. } => property.clone(),
+                CoreExpression::Variable(name) => name.clone(),
+                _ => {
+                    return Err(ParseError::new(
+                        ParseErrorKind::SyntaxError,
+                        "SET assignment requires a property path (e.g., p.age)".to_string(),
+                        ctx.current_position(),
+                    ));
+                }
+            };
+            
             assignments.push(Assignment { property, value });
             if !ctx.match_token(TokenKind::Comma) {
                 break;

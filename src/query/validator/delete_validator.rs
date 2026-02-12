@@ -64,11 +64,13 @@ impl DeleteValidator {
                     self.validate_vertex_id(vid, idx + 1)?;
                 }
             }
-            crate::query::parser::ast::stmt::DeleteTarget::Edges { src, dst, edge_type, rank } => {
-                self.validate_vertex_id(src, 0)?;
-                self.validate_vertex_id(dst, 1)?;
-                if let Some(rank_expr) = rank {
-                    self.validate_rank(rank_expr)?;
+            crate::query::parser::ast::stmt::DeleteTarget::Edges { edge_type, edges } => {
+                for (idx, (src, dst, rank)) in edges.iter().enumerate() {
+                    self.validate_vertex_id(src, idx * 2)?;
+                    self.validate_vertex_id(dst, idx * 2 + 1)?;
+                    if let Some(rank_expr) = rank {
+                        self.validate_rank(rank_expr)?;
+                    }
                 }
                 if let Some(et) = edge_type {
                     if et.is_empty() {
@@ -251,10 +253,8 @@ mod tests {
         let mut validator = DeleteValidator::new();
         let stmt = create_delete_stmt(
             DeleteTarget::Edges {
-                src: Expression::literal("v1"),
-                dst: Expression::literal("v2"),
                 edge_type: Some("friend".to_string()),
-                rank: None,
+                edges: vec![(Expression::literal("v1"), Expression::literal("v2"), None)],
             },
             None,
         );
@@ -267,10 +267,8 @@ mod tests {
         let mut validator = DeleteValidator::new();
         let stmt = create_delete_stmt(
             DeleteTarget::Edges {
-                src: Expression::literal("v1"),
-                dst: Expression::literal("v2"),
                 edge_type: Some("friend".to_string()),
-                rank: Some(Expression::literal(0)),
+                edges: vec![(Expression::literal("v1"), Expression::literal("v2"), Some(Expression::literal(0)))],
             },
             None,
         );
@@ -283,10 +281,8 @@ mod tests {
         let mut validator = DeleteValidator::new();
         let stmt = create_delete_stmt(
             DeleteTarget::Edges {
-                src: Expression::literal("v1"),
-                dst: Expression::literal("v2"),
                 edge_type: Some("".to_string()),
-                rank: None,
+                edges: vec![(Expression::literal("v1"), Expression::literal("v2"), None)],
             },
             None,
         );
@@ -301,10 +297,8 @@ mod tests {
         let mut validator = DeleteValidator::new();
         let stmt = create_delete_stmt(
             DeleteTarget::Edges {
-                src: Expression::literal("v1"),
-                dst: Expression::literal("v2"),
                 edge_type: Some("friend".to_string()),
-                rank: Some(Expression::literal("invalid")),
+                edges: vec![(Expression::literal("v1"), Expression::literal("v2"), Some(Expression::literal("invalid")))],
             },
             None,
         );

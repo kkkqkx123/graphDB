@@ -2,46 +2,42 @@
 
 ## Summary
 
-- **Total Errors**: 6
-- **Total Warnings**: 0
-- **Total Issues**: 6
-- **Unique Error Patterns**: 2
-- **Unique Warning Patterns**: 0
+- **Total Errors**: 0
+- **Total Warnings**: 2
+- **Total Issues**: 2
+- **Unique Error Patterns**: 0
+- **Unique Warning Patterns**: 2
 - **Files with Issues**: 2
 
 ## Error Statistics
 
-**Total Errors**: 6
-
-### Error Type Breakdown
-
-- **error[E0599]**: 6 errors
-
-### Files with Errors (Top 10)
-
-- `src\query\planner\statements\match_statement_planner.rs`: 3 errors
-- `src\query\planner\statements\clauses\return_clause_planner.rs`: 3 errors
+**Total Errors**: 0
 
 ## Warning Statistics
 
-**Total Warnings**: 0
+**Total Warnings**: 2
 
-## Detailed Error Categorization
+### Warning Type Breakdown
 
-### error[E0599]: no function or associated item named `is_aggregated_expression` found for struct `return_clause_planner::ReturnClausePlanner` in the current scope: function or associated item not found in `ReturnClausePlanner`
+- **warning**: 2 warnings
 
-**Total Occurrences**: 6  
+### Files with Warnings (Top 10)
+
+- `src\query\parser\lexer\lexer.rs`: 1 warnings
+- `src\query\parser\parser\stmt_parser.rs`: 1 warnings
+
+## Detailed Warning Categorization
+
+### warning: unused import: `crate::core::types::expression::Expression`
+
+**Total Occurrences**: 2  
 **Unique Files**: 2
 
-#### `src\query\planner\statements\clauses\return_clause_planner.rs`: 3 occurrences
+#### `src\query\parser\parser\stmt_parser.rs`: 1 occurrences
 
-- Line 161: no function or associated item named `is_aggregated_expression` found for struct `return_clause_planner::ReturnClausePlanner` in the current scope: function or associated item not found in `ReturnClausePlanner`
-- Line 162: no function or associated item named `is_aggregated_expression` found for struct `return_clause_planner::ReturnClausePlanner` in the current scope: function or associated item not found in `ReturnClausePlanner`
-- Line 163: no function or associated item named `is_aggregated_expression` found for struct `return_clause_planner::ReturnClausePlanner` in the current scope: function or associated item not found in `ReturnClausePlanner`
+- Line 8: unused import: `crate::core::types::expression::Expression`
 
-#### `src\query\planner\statements\match_statement_planner.rs`: 3 occurrences
+#### `src\query\parser\lexer\lexer.rs`: 1 occurrences
 
-- Line 489: no function or associated item named `parse_tag_from_pattern` found for struct `match_statement_planner::MatchStatementPlanner` in the current scope: function or associated item not found in `MatchStatementPlanner`
-- Line 490: no function or associated item named `parse_tag_from_pattern` found for struct `match_statement_planner::MatchStatementPlanner` in the current scope: function or associated item not found in `MatchStatementPlanner`
-- Line 491: no function or associated item named `parse_tag_from_pattern` found for struct `match_statement_planner::MatchStatementPlanner` in the current scope: function or associated item not found in `MatchStatementPlanner`
+- Line 829: method `is_multitoken_keyword` is never used
 

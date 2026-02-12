@@ -117,11 +117,10 @@ impl<'a> Lexer<'a> {
             if ch.is_ascii_digit() {
                 self.read_char();
             } else if ch == '.' && !has_decimal && !has_exponent {
-                if self
-                    .chars.clone()
-                    .next()
-                    .map_or(false, |c| c.is_ascii_digit())
-                {
+                // 检查 . 后面是否跟着数字（使用 peek 不消耗字符）
+                let mut temp_chars = self.chars.clone();
+                temp_chars.next(); // 跳过 .
+                if temp_chars.peek().map_or(false, |c| c.is_ascii_digit()) {
                     has_decimal = true;
                     self.read_char();
                 } else {
@@ -495,17 +494,27 @@ impl<'a> Lexer<'a> {
                 }
             }
             Some(&'-') => {
-                self.read_char();
-                if let Some(&'-') = self.peek_char() {
-                    self.read_char();
+                // 检查下一个字符是否也是 -（使用 clone 避免消耗当前字符）
+                let mut temp_chars = self.chars.clone();
+                temp_chars.next(); // 跳过第一个 -
+                if let Some(&'-') = temp_chars.peek() {
+                    // 是 SQL 注释，消耗两个 -
+                    self.read_char(); // 读取第一个 -
+                    self.read_char(); // 读取第二个 -
                     while let Some(&ch) = self.peek_char() {
                         if ch == '\n' {
                             break;
                         }
                         self.read_char();
                     }
+                    Ok(())
+                } else {
+                    // 不是注释，返回错误让调用者处理
+                    Err(LexError::new(
+                        "Not a comment".to_string(),
+                        self.current_position(),
+                    ))
                 }
-                Ok(())
             }
             _ => Ok(()),
         }
@@ -817,6 +826,7 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    #[allow(dead_code)]
     fn is_multitoken_keyword(&self, token: &Token) -> bool {
         matches!(
             token.kind,

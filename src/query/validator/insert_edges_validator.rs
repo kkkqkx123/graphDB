@@ -24,18 +24,17 @@ impl InsertEdgesValidator {
             crate::query::parser::ast::stmt::InsertTarget::Edge {
                 edge_name,
                 prop_names,
-                src,
-                dst,
-                rank,
-                values,
+                edges,
             } => {
                 self.validate_edge_type_exists(edge_name)?;
                 self.validate_property_names(edge_name, prop_names)?;
-                self.validate_vertex_id_format(src, "source")?;
-                self.validate_vertex_id_format(dst, "destination")?;
-                self.validate_rank(rank)?;
-                self.validate_values_count(prop_names, values)?;
-                self.validate_property_values(edge_name, prop_names, values)?;
+                for (src, dst, rank, values) in edges {
+                    self.validate_vertex_id_format(src, "source")?;
+                    self.validate_vertex_id_format(dst, "destination")?;
+                    self.validate_rank(rank)?;
+                    self.validate_values_count(prop_names, values)?;
+                    self.validate_property_values(edge_name, prop_names, values)?;
+                }
             }
             crate::query::parser::ast::stmt::InsertTarget::Vertices { .. } => {
                 return Err(CoreValidationError::new(
@@ -231,10 +230,7 @@ mod tests {
             target: InsertTarget::Edge {
                 edge_name,
                 prop_names,
-                src,
-                dst,
-                rank,
-                values,
+                edges: vec![(src, dst, rank, values)],
             },
         }
     }

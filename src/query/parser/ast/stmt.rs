@@ -222,10 +222,8 @@ pub struct DeleteStmt {
 pub enum DeleteTarget {
     Vertices(Vec<Expression>),
     Edges {
-        src: Expression,
-        dst: Expression,
         edge_type: Option<String>,
-        rank: Option<Expression>,
+        edges: Vec<(Expression, Expression, Option<Expression>)>,
     },
     Tag(String),
     Index(String),
@@ -447,10 +445,7 @@ pub enum InsertTarget {
     Edge {
         edge_name: String,
         prop_names: Vec<String>,
-        src: Expression,
-        dst: Expression,
-        rank: Option<Expression>,
-        values: Vec<Expression>,
+        edges: Vec<(Expression, Expression, Option<Expression>, Vec<Expression>)>,
     },
 }
 
@@ -572,11 +567,13 @@ impl StmtUtils {
                             variables.extend(CoreExprUtils::find_variables(vertex));
                         }
                     }
-                    DeleteTarget::Edges { src, dst, rank, .. } => {
-                        variables.extend(CoreExprUtils::find_variables(src));
-                        variables.extend(CoreExprUtils::find_variables(dst));
-                        if let Some(ref rank) = rank {
-                            variables.extend(CoreExprUtils::find_variables(rank));
+                    DeleteTarget::Edges { edges, .. } => {
+                        for (src, dst, rank) in edges {
+                            variables.extend(CoreExprUtils::find_variables(src));
+                            variables.extend(CoreExprUtils::find_variables(dst));
+                            if let Some(ref rank) = rank {
+                                variables.extend(CoreExprUtils::find_variables(rank));
+                            }
                         }
                     }
                     _ => {}

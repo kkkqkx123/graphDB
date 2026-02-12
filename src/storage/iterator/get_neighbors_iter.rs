@@ -903,23 +903,54 @@ impl Iterator for GetNeighborsIter {
         Some(vertex_value)
     }
 
+    fn get_edge_prop(&self, edge: &str, prop: &str) -> Option<Value> {
+        if !self.valid() {
+            return None;
+        }
+
+        let ds_index = &self.ds_indices[self.current_ds_index];
+        let ds_guard = ds_index.ds.lock().ok()?;
+
+        // 边名必须带 +/- 前缀
+        let prop_index = ds_index.edge_props_map.get(edge)?;
+        let prop_idx = prop_index.prop_indices.get(prop)?;
+
+        let row = &ds_guard.rows[self.current_row];
+        if prop_index.col_idx >= row.len() {
+            return None;
+        }
+
+        if let Value::List(edge_col) = &row[prop_index.col_idx] {
+            if self.edge_idx >= 0 && (self.edge_idx as usize) < edge_col.len() {
+                if let Value::List(edge_data) = &edge_col[self.edge_idx as usize] {
+                    if *prop_idx < edge_data.len() {
+                        return Some(edge_data[*prop_idx].clone());
+                    }
+                }
+            }
+        }
+
+        None
+    }
+
     fn get_edge(&self) -> Option<Value> {
         if !self.valid() || self.no_edge {
             return None;
         }
 
         let current_edge_name = self.current_edge_name()?;
-        // 去掉+/-前缀
-        let edge_name = if current_edge_name.starts_with('+') || current_edge_name.starts_with('-') {
+        // 去掉+/-前缀得到边类型名
+        let edge_type = if current_edge_name.starts_with('+') || current_edge_name.starts_with('-') {
             &current_edge_name[1..]
         } else {
             current_edge_name
         };
 
         let src_vid = self.get_column("_vid")?.clone();
-        let dst_vid = self.get_edge_prop(edge_name, "_dst")?.clone();
+        // 使用带前缀的边名调用 get_edge_prop
+        let dst_vid = self.get_edge_prop(current_edge_name, "_dst")?.clone();
 
-        let ranking = match self.get_edge_prop(edge_name, "_rank") {
+        let ranking = match self.get_edge_prop(current_edge_name, "_rank") {
             Some(Value::Int(rank)) => rank,
             _ => 0,
         };
@@ -947,7 +978,7 @@ impl Iterator for GetNeighborsIter {
         let edge = Edge::new(
             src_vid,
             dst_vid,
-            edge_name.to_string(),
+            edge_type.to_string(),
             ranking,
             edge_props,
         );
