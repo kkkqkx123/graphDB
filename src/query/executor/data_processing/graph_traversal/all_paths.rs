@@ -26,6 +26,34 @@ use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
 use crate::utils::safe_lock;
 
+/// 自环边去重辅助结构
+/// 用于在遍历过程中跟踪已处理的自环边
+#[derive(Debug, Default)]
+struct SelfLoopDedup {
+    seen: HashSet<(String, i64)>,
+}
+
+impl SelfLoopDedup {
+    fn new() -> Self {
+        Self {
+            seen: HashSet::new(),
+        }
+    }
+
+    /// 检查并记录自环边
+    /// 返回 true 表示该边应该被包含（首次出现）
+    /// 返回 false 表示该边应该被跳过（重复的自环边）
+    fn should_include(&mut self, edge: &Edge) -> bool {
+        let is_self_loop = *edge.src == *edge.dst;
+        if is_self_loop {
+            let key = (edge.edge_type.clone(), edge.ranking);
+            self.seen.insert(key)
+        } else {
+            true
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct AllPathsExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
@@ -141,8 +169,12 @@ impl<S: StorageClient> AllPathsExecutor<S> {
             edges
         };
 
+        // 自环边去重
+        let mut dedup = SelfLoopDedup::new();
+
         let neighbors = filtered_edges
             .into_iter()
+            .filter(|edge| dedup.should_include(edge)) // 自环边去重
             .filter_map(|edge| match direction {
                 EdgeDirection::In => {
                     if *edge.dst == *node_id {
