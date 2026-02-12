@@ -58,6 +58,8 @@ impl<'a> StmtParser<'a> {
             TokenKind::AlterUser => self.parse_alter_user_statement(ctx),
             TokenKind::DropUser => self.parse_drop_user_statement(ctx),
             TokenKind::ChangePassword => self.parse_change_password_statement(ctx),
+            TokenKind::Find => self.parse_find_path_statement(ctx),
+            TokenKind::Get => self.parse_subgraph_statement(ctx),
             _ => Err(ParseError::new(
                 ParseErrorKind::UnexpectedToken,
                 format!("Unexpected token: {:?}", token.kind),
@@ -325,7 +327,18 @@ impl<'a> StmtParser<'a> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Fetch)?;
 
-        let target = if ctx.match_token(TokenKind::Tag) {
+        // 支持 FETCH PROP ON <tag> <ids> 语法
+        let _with_props = ctx.match_token(TokenKind::Prop);
+
+        let target = if ctx.match_token(TokenKind::On) {
+            // FETCH PROP ON <tag> <ids> 语法
+            let _tag_name = ctx.expect_identifier()?;
+            let ids = self.parse_expression_list(ctx)?;
+            FetchTarget::Vertices {
+                ids,
+                properties: None,
+            }
+        } else if ctx.match_token(TokenKind::Tag) {
             let _tag_name = ctx.expect_identifier()?;
             let ids = self.parse_expression_list(ctx)?;
             FetchTarget::Vertices {
@@ -335,8 +348,7 @@ impl<'a> StmtParser<'a> {
         } else if ctx.match_token(TokenKind::Edge) {
             let edge_type = ctx.expect_identifier()?;
             let src = self.parse_expression(ctx)?;
-            ctx.expect_token(TokenKind::Minus)?;
-            ctx.expect_token(TokenKind::Gt)?;
+            ctx.expect_token(TokenKind::Arrow)?;
             let dst = self.parse_expression(ctx)?;
             let rank = if ctx.match_token(TokenKind::At) {
                 Some(self.parse_expression(ctx)?)
@@ -643,7 +655,7 @@ impl<'a> StmtParser<'a> {
     }
 
     fn parse_yield_clause(&mut self, ctx: &mut ParseContext<'a>) -> Result<YieldClause, ParseError> {
-        ctx.expect_token(TokenKind::Yield)?;
+        // YIELD token 已经被消费，直接解析 items
         let items = self.parse_yield_items(ctx)?;
         Ok(YieldClause {
             span: ctx.current_span(),
@@ -772,6 +784,32 @@ impl<'a> StmtParser<'a> {
     }
 
     fn parse_steps(&mut self, ctx: &mut ParseContext<'a>) -> Result<Steps, ParseError> {
+        // 检查是否是 M TO N STEPS 语法
+        if let TokenKind::IntegerLiteral(min) = ctx.current_token().kind {
+            let min_val = min as usize;
+            ctx.next_token();
+            if ctx.match_token(TokenKind::To) {
+                // GO M TO N STEPS 语法
+                if let TokenKind::IntegerLiteral(max) = ctx.current_token().kind {
+                    let max_val = max as usize;
+                    ctx.next_token();
+                    // 可选的 STEPS 关键字
+                    ctx.match_token(TokenKind::Step);
+                    return Ok(Steps::Range { min: min_val, max: max_val });
+                } else {
+                    return Err(ParseError::new(
+                        ParseErrorKind::SyntaxError,
+                        "Expected integer after TO in step range".to_string(),
+                        ctx.current_position(),
+                    ));
+                }
+            } else {
+                // 只有一个数字，可能是 STEPS 或没有 STEPS 关键字
+                ctx.match_token(TokenKind::Step);
+                return Ok(Steps::Fixed(min_val));
+            }
+        }
+
         if ctx.match_token(TokenKind::Step) {
             if let TokenKind::IntegerLiteral(n) = ctx.current_token().kind {
                 ctx.next_token();
@@ -1213,6 +1251,158 @@ impl<'a> StmtParser<'a> {
             username,
             old_password,
             new_password,
+        }))
+    }
+
+    fn parse_find_path_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::Find)?;
+
+        // 解析路径类型: SHORTEST, ALL, NOLOOP
+        let path_type = if ctx.match_token(TokenKind::Shortest) {
+            "SHORTEST"
+        } else if ctx.match_token(TokenKind::All) {
+            "ALL"
+        } else if ctx.match_token(TokenKind::NoLoop) {
+            "NOLOOP"
+        } else {
+            "SHORTEST"
+        };
+
+        ctx.expect_token(TokenKind::Path)?;
+        ctx.expect_token(TokenKind::From)?;
+        let from_span = ctx.current_span();
+        let from_vertices = self.parse_expression_list(ctx)?;
+        let from_clause = FromClause {
+            span: from_span,
+            vertices: from_vertices,
+        };
+
+        ctx.expect_token(TokenKind::To)?;
+        let to_vertex = self.parse_expression(ctx)?;
+
+        ctx.expect_token(TokenKind::Over)?;
+        let over = self.parse_over_clause(ctx)?;
+
+        // 可选的 UPTO N STEPS
+        let _upto_steps = if ctx.match_token(TokenKind::Upto) {
+            if let TokenKind::IntegerLiteral(n) = ctx.current_token().kind {
+                ctx.next_token();
+                ctx.match_token(TokenKind::Step);
+                Some(n as usize)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        // 可选的 REVERSELY
+        let _reversely = ctx.match_token(TokenKind::BackArrow) || ctx.match_token(TokenKind::In);
+
+        // 可选的 WHERE 子句
+        let where_clause = if ctx.match_token(TokenKind::Where) {
+            Some(self.parse_expression(ctx)?)
+        } else {
+            None
+        };
+
+        // 可选的 YIELD 子句
+        let yield_clause = if ctx.match_token(TokenKind::Yield) {
+            Some(self.parse_yield_clause(ctx)?)
+        } else {
+            None
+        };
+
+        let end_span = ctx.current_span();
+        let span = ctx.merge_span(start_span.start, end_span.end);
+
+        Ok(Stmt::FindPath(FindPathStmt {
+            span,
+            from: from_clause,
+            to: to_vertex,
+            over: Some(over),
+            where_clause,
+            shortest: path_type == "SHORTEST",
+            yield_clause,
+        }))
+    }
+
+    fn parse_subgraph_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::Get)?;
+        ctx.expect_token(TokenKind::Subgraph)?;
+
+        // 可选的 WITH PROP
+        let _with_prop = ctx.match_token(TokenKind::With) && ctx.match_token(TokenKind::Prop);
+
+        // 解析顶点ID列表
+        let vertices = self.parse_expression_list(ctx)?;
+        let from_clause = FromClause {
+            span: start_span,
+            vertices,
+        };
+
+        // 解析步数 (IN, OUT, BOTH)
+        let mut in_steps = 1usize;
+        let mut out_steps = 1usize;
+
+        if ctx.match_token(TokenKind::In) {
+            if let TokenKind::IntegerLiteral(n) = ctx.current_token().kind {
+                ctx.next_token();
+                in_steps = n as usize;
+            }
+            ctx.match_token(TokenKind::Step);
+        }
+
+        if ctx.match_token(TokenKind::Out) {
+            if let TokenKind::IntegerLiteral(n) = ctx.current_token().kind {
+                ctx.next_token();
+                out_steps = n as usize;
+            }
+            ctx.match_token(TokenKind::Step);
+        }
+
+        if ctx.match_token(TokenKind::Both) {
+            if let TokenKind::IntegerLiteral(n) = ctx.current_token().kind {
+                ctx.next_token();
+                in_steps = n as usize;
+                out_steps = n as usize;
+            }
+            ctx.match_token(TokenKind::Step);
+        }
+
+        // 可选的 OVER 子句
+        let over = if ctx.match_token(TokenKind::Over) {
+            Some(self.parse_over_clause(ctx)?)
+        } else {
+            None
+        };
+
+        // 可选的 WHERE 子句
+        let where_clause = if ctx.match_token(TokenKind::Where) {
+            Some(self.parse_expression(ctx)?)
+        } else {
+            None
+        };
+
+        // 可选的 YIELD 子句
+        let yield_clause = if ctx.match_token(TokenKind::Yield) {
+            Some(self.parse_yield_clause(ctx)?)
+        } else {
+            None
+        };
+
+        let end_span = ctx.current_span();
+        let span = ctx.merge_span(start_span.start, end_span.end);
+
+        Ok(Stmt::Subgraph(SubgraphStmt {
+            span,
+            steps: Steps::Range { min: in_steps, max: out_steps },
+            from: from_clause,
+            over,
+            where_clause,
+            yield_clause,
         }))
     }
 }

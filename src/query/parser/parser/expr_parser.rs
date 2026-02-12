@@ -129,10 +129,14 @@ impl<'a> ExprParser<'a> {
             }
             TokenKind::StartsWith => {
                 ctx.next_token();
+                // 消费可选的 WITH token（STARTS WITH 是两个词的关键字）
+                ctx.match_token(TokenKind::With);
                 Some(BinaryOperator::StartsWith)
             }
             TokenKind::EndsWith => {
                 ctx.next_token();
+                // 消费可选的 WITH token（ENDS WITH 是两个词的关键字）
+                ctx.match_token(TokenKind::With);
                 Some(BinaryOperator::EndsWith)
             }
             _ => None,

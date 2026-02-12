@@ -91,7 +91,7 @@ impl Stmt {
             Stmt::Explain(_) => "EXPLAIN",
             Stmt::Lookup(_) => "LOOKUP",
             Stmt::Subgraph(_) => "SUBGRAPH",
-            Stmt::FindPath(_) => "FIND_PATH",
+            Stmt::FindPath(_) => "FIND PATH",
             Stmt::Insert(_) => "INSERT",
             Stmt::Merge(_) => "MERGE",
             Stmt::Unwind(_) => "UNWIND",
