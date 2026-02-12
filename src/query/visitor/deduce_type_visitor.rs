@@ -3,9 +3,11 @@
 
 use crate::core::types::expression::Expression;
 use crate::core::types::expression::visitor::{ExpressionVisitor, ExpressionVisitorState, GenericExpressionVisitor};
+use crate::core::types::metadata::PropertyDef;
 use crate::core::{
     TypeUtils, DataType, BinaryOperator, UnaryOperator, Value,
 };
+use crate::query::context::validate::ColsDef;
 use crate::query::validator::ValidationContext;
 use crate::storage::StorageClient;
 use thiserror::Error;
@@ -33,13 +35,13 @@ pub enum TypeDeductionError {
 /// 用于递归遍历表达式树，推导表达式的结果类型
 pub struct DeduceTypeVisitor<'a, S: StorageClient> {
     /// 存储引擎
-    _storage: &'a S,
+    storage: &'a S,
     /// 验证上下文
-    _validate_context: &'a ValidationContext,
+    validate_context: &'a ValidationContext,
     /// 输入列定义：列名 -> 列类型
-    _inputs: Vec<(String, DataType)>,
+    inputs: ColsDef,
     /// 图空间ID
-    _space: String,
+    space: String,
     /// 当前推导状态
     status: Option<TypeDeductionError>,
     /// 推导出的类型
@@ -54,23 +56,61 @@ impl<'a, S: StorageClient> DeduceTypeVisitor<'a, S> {
     pub fn new(
         storage: &'a S,
         validate_context: &'a ValidationContext,
-        inputs: Vec<(String, DataType)>,
+        inputs: ColsDef,
         space: String,
     ) -> Self {
-        // VID类型通常从空间配置获取，这里简化为String
-        let vid_type = DataType::String;
+        let vid_type = if validate_context.space_chosen() {
+            validate_context.which_space().vid_type.clone()
+        } else {
+            DataType::Empty
+        };
 
         Self {
-            _storage: storage,
-            _validate_context: validate_context,
-            _inputs: inputs,
-            _space: space,
+            storage,
+            validate_context,
+            inputs,
+            space,
             status: None,
             type_: DataType::Empty,
             vid_type,
             state: ExpressionVisitorState::new(),
         }
-}
+    }
+
+    fn find_tag_type_from_inputs(&self, _object: &Expression) -> Option<String> {
+        None
+    }
+
+    fn find_edge_type_from_inputs(&self, _object: &Expression) -> Option<String> {
+        None
+    }
+
+    fn get_property_type_from_tag(&self, tag_name: &str, property: &str) -> DataType {
+        if let Ok(Some(tag_info)) = self.storage.get_tag(&self.space, tag_name) {
+            if let Some(prop_type) = Self::find_property_type(&tag_info.properties, property) {
+                return prop_type;
+            }
+        }
+        DataType::Empty
+    }
+
+    fn get_property_type_from_edge(&self, edge_name: &str, property: &str) -> DataType {
+        if let Ok(Some(edge_info)) = self.storage.get_edge_type(&self.space, edge_name) {
+            if let Some(prop_type) = Self::find_property_type(&edge_info.properties, property) {
+                return prop_type;
+            }
+        }
+        DataType::Empty
+    }
+
+    fn find_property_type(properties: &[PropertyDef], prop_name: &str) -> Option<DataType> {
+        for prop in properties {
+            if prop.name == prop_name {
+                return Some(prop.data_type.clone());
+            }
+        }
+        None
+    }
 
     /// 创建用于测试的访问器（不需要存储和验证上下文）
     pub fn new_for_test(
@@ -120,18 +160,18 @@ impl<'a, S: StorageClient> DeduceTypeVisitor<'a, S> {
     ) -> Result<(), TypeDeductionError> {
         match op {
             BinaryOperator::Add => {
-                if left_type == DataType::String && right_type == DataType::String {
-                    self.type_ = DataType::String;
-                } else if left_type == DataType::Int && right_type == DataType::Int {
-                    self.type_ = DataType::Int;
-                } else if left_type == DataType::Float && right_type == DataType::Float {
-                    self.type_ = DataType::Float;
-                } else if (left_type == DataType::Int && right_type == DataType::Float)
-                    || (left_type == DataType::Float && right_type == DataType::Int)
-                {
-                    self.type_ = DataType::Float;
+                let left_is_numeric = matches!(left_type, DataType::Int | DataType::Int8 | DataType::Int16 | DataType::Int32 | DataType::Int64 | DataType::Float | DataType::Double);
+                let right_is_numeric = matches!(right_type, DataType::Int | DataType::Int8 | DataType::Int16 | DataType::Int32 | DataType::Int64 | DataType::Float | DataType::Double);
+                
+                if left_is_numeric && right_is_numeric {
+                    let left_is_float = matches!(left_type, DataType::Float | DataType::Double);
+                    let right_is_float = matches!(right_type, DataType::Float | DataType::Double);
+                    self.type_ = if left_is_float || right_is_float {
+                        DataType::Float
+                    } else {
+                        DataType::Int
+                    };
                 } else if self.is_superior_type(&left_type) || self.is_superior_type(&right_type) {
-                    // NULL或EMPTY类型兼容任何类型
                     self.type_ = if self.is_superior_type(&left_type) {
                         right_type
                     } else {
@@ -149,17 +189,20 @@ impl<'a, S: StorageClient> DeduceTypeVisitor<'a, S> {
             BinaryOperator::Subtract
             | BinaryOperator::Multiply
             | BinaryOperator::Divide
-            | BinaryOperator::Modulo => {
-                if left_type == DataType::Int && right_type == DataType::Int {
-                    self.type_ = DataType::Int;
-                } else if left_type == DataType::Float && right_type == DataType::Float {
-                    self.type_ = DataType::Float;
-                } else if (left_type == DataType::Int && right_type == DataType::Float)
-                    || (left_type == DataType::Float && right_type == DataType::Int)
-                {
-                    self.type_ = DataType::Float;
+            | BinaryOperator::Modulo
+            | BinaryOperator::Exponent => {
+                let left_is_numeric = matches!(left_type, DataType::Int | DataType::Int8 | DataType::Int16 | DataType::Int32 | DataType::Int64 | DataType::Float | DataType::Double);
+                let right_is_numeric = matches!(right_type, DataType::Int | DataType::Int8 | DataType::Int16 | DataType::Int32 | DataType::Int64 | DataType::Float | DataType::Double);
+                
+                if left_is_numeric && right_is_numeric {
+                    let left_is_float = matches!(left_type, DataType::Float | DataType::Double);
+                    let right_is_float = matches!(right_type, DataType::Float | DataType::Double);
+                    self.type_ = if left_is_float || right_is_float {
+                        DataType::Float
+                    } else {
+                        DataType::Int
+                    };
                 } else if self.is_superior_type(&left_type) || self.is_superior_type(&right_type) {
-                    // NULL或EMPTY类型兼容任何类型
                     self.type_ = if self.is_superior_type(&left_type) {
                         right_type
                     } else {
@@ -171,6 +214,7 @@ impl<'a, S: StorageClient> DeduceTypeVisitor<'a, S> {
                         BinaryOperator::Multiply => "乘法",
                         BinaryOperator::Divide => "除法",
                         BinaryOperator::Modulo => "模运算",
+                        BinaryOperator::Exponent => "幂运算",
                         _ => "数学运算",
                     };
                     let msg = format!(
@@ -187,19 +231,30 @@ impl<'a, S: StorageClient> DeduceTypeVisitor<'a, S> {
             | BinaryOperator::LessThanOrEqual
             | BinaryOperator::GreaterThan
             | BinaryOperator::GreaterThanOrEqual => {
-                // 关系操作的结果类型是布尔值
                 self.type_ = DataType::Bool;
             }
             BinaryOperator::And | BinaryOperator::Or => {
-                // 逻辑操作的结果类型是布尔值
                 self.type_ = DataType::Bool;
             }
-            BinaryOperator::In => {
-                // 集合操作的结果类型是布尔值
+            BinaryOperator::In | BinaryOperator::NotIn => {
+                self.type_ = DataType::Bool;
+            }
+            BinaryOperator::StringConcat => {
+                self.type_ = DataType::String;
+            }
+            BinaryOperator::Like => {
+                self.type_ = DataType::Bool;
+            }
+            BinaryOperator::Contains => {
+                self.type_ = DataType::Bool;
+            }
+            BinaryOperator::StartsWith => {
+                self.type_ = DataType::Bool;
+            }
+            BinaryOperator::EndsWith => {
                 self.type_ = DataType::Bool;
             }
             _ => {
-                // 其他操作默认返回布尔值
                 self.type_ = DataType::Bool;
             }
         }
@@ -210,15 +265,36 @@ impl<'a, S: StorageClient> DeduceTypeVisitor<'a, S> {
     fn deduce_unary_op_type(&mut self, op: &UnaryOperator) -> Result<(), TypeDeductionError> {
         match op {
             UnaryOperator::Plus | UnaryOperator::Minus => {
-                // 正负号操作保持原类型
-                // 类型已在visit_expression中推导
+                let is_numeric = matches!(self.type_, 
+                    DataType::Int | DataType::Int8 | DataType::Int16 | DataType::Int32 | DataType::Int64 
+                    | DataType::Float | DataType::Double
+                );
+                if !is_numeric && !self.is_superior_type(&self.type_) {
+                    let msg = format!(
+                        "无法对类型 {:?} 执行一元{}操作",
+                        self.type_,
+                        if *op == UnaryOperator::Plus { "正号" } else { "负号" }
+                    );
+                    self.status = Some(TypeDeductionError::SemanticError(msg.clone()));
+                    return Err(TypeDeductionError::SemanticError(msg));
+                }
             }
             UnaryOperator::Not => {
-                // 逻辑非操作的结果类型是布尔值
+                if self.type_ != DataType::Bool && !self.is_superior_type(&self.type_) {
+                    let msg = format!(
+                        "无法对类型 {:?} 执行逻辑非操作",
+                        self.type_
+                    );
+                    self.status = Some(TypeDeductionError::SemanticError(msg.clone()));
+                    return Err(TypeDeductionError::SemanticError(msg));
+                }
                 self.type_ = DataType::Bool;
             }
-            _ => {
-                // 其他操作保持原类型
+            UnaryOperator::IsNull
+            | UnaryOperator::IsNotNull
+            | UnaryOperator::IsEmpty
+            | UnaryOperator::IsNotEmpty => {
+                self.type_ = DataType::Bool;
             }
         }
         Ok(())
@@ -259,9 +335,25 @@ impl<'a, S: StorageClient> DeduceTypeVisitor<'a, S> {
                 DataType::String
             }
             // 数学函数
-            "ABS" | "CEIL" | "FLOOR" | "SQRT" | "POW" | "EXP" | "LOG" | "LOG10" => {
+            "ABS" | "CEIL" | "FLOOR" => DataType::Int,
+            "SQRT" | "POW" | "EXP" | "LOG" | "LOG10" => {
                 DataType::Float
             }
+            // 列表操作函数
+            "HEAD" | "LAST" | "TAIL" => {
+                if _arg_types.is_empty() {
+                    DataType::Empty
+                } else if _arg_types[0] == DataType::List {
+                    DataType::Empty
+                } else {
+                    DataType::Empty
+                }
+            }
+            "KEYS" => DataType::List,
+            "VALUES" => DataType::List,
+            "PROPERTIES" => DataType::Map,
+            "LABELS" => DataType::List,
+            "TYPE" => DataType::String,
             // 其他函数默认返回Empty
             _ => DataType::Empty,
         };
@@ -371,15 +463,51 @@ impl<'a, S: StorageClient> ExpressionVisitor for DeduceTypeVisitor<'a, S> {
         Ok(())
     }
 
-    fn visit_variable(&mut self, _name: &str) -> Self::Result {
-        // 变量表达式的结果类型不确定，使用Empty
+    fn visit_variable(&mut self, name: &str) -> Self::Result {
+        if self.inputs.iter().any(|col| col.name == name) {
+            if let Some(col) = self.inputs.iter().find(|col| col.name == name) {
+                self.type_ = col.type_.clone();
+                return Ok(());
+            }
+        }
+
+        if self.validate_context.exists_var(name) {
+            let var_cols = self.validate_context.get_var(name);
+            if !var_cols.is_empty() {
+                self.type_ = var_cols[0].type_.clone();
+                return Ok(());
+            }
+        }
+
         self.type_ = DataType::Empty;
         Ok(())
     }
 
-    fn visit_property(&mut self, object: &Expression, _property: &str) -> Self::Result {
+    fn visit_property(&mut self, object: &Expression, property: &str) -> Self::Result {
         self.visit_expression(object)?;
-        self.type_ = DataType::Empty;
+
+        match &self.type_ {
+            DataType::Vertex => {
+                if let Some(tag_type) = self.find_tag_type_from_inputs(object) {
+                    self.type_ = self.get_property_type_from_tag(&tag_type, property);
+                } else {
+                    self.type_ = DataType::Empty;
+                }
+            }
+            DataType::Edge => {
+                if let Some(edge_type) = self.find_edge_type_from_inputs(object) {
+                    self.type_ = self.get_property_type_from_edge(&edge_type, property);
+                } else {
+                    self.type_ = DataType::Empty;
+                }
+            }
+            DataType::Map => {
+                self.type_ = DataType::Empty;
+            }
+            _ => {
+                self.type_ = DataType::Empty;
+            }
+        }
         Ok(())
     }
 
@@ -563,6 +691,22 @@ impl<'a, S: StorageClient> ExpressionVisitor for DeduceTypeVisitor<'a, S> {
             self.visit_expression(m)?;
         }
         self.type_ = DataType::List;
+        Ok(())
+    }
+
+    fn visit_tag_property(&mut self, tag_name: &str, property: &str) -> Self::Result {
+        self.type_ = self.get_property_type_from_tag(tag_name, property);
+        Ok(())
+    }
+
+    fn visit_edge_property(&mut self, edge_name: &str, property: &str) -> Self::Result {
+        self.type_ = self.get_property_type_from_edge(edge_name, property);
+        Ok(())
+    }
+
+    fn visit_label_tag_property(&mut self, tag: &Expression, _property: &str) -> Self::Result {
+        self.visit_expression(tag)?;
+        self.type_ = DataType::Empty;
         Ok(())
     }
 }

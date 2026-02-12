@@ -1538,6 +1538,22 @@ impl PlanNodeEnum {
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
+            PlanNodeEnum::Minus(node) => {
+                let mut desc = PlanNodeDescription::new("Minus", node.id());
+                if let Some(var) = node.output_var() {
+                    desc = desc.with_output_var(var.name.clone());
+                }
+                desc.add_description("cost", format!("{:.2}", node.cost()));
+                desc
+            }
+            PlanNodeEnum::Intersect(node) => {
+                let mut desc = PlanNodeDescription::new("Intersect", node.id());
+                if let Some(var) = node.output_var() {
+                    desc = desc.with_output_var(var.name.clone());
+                }
+                desc.add_description("cost", format!("{:.2}", node.cost()));
+                desc
+            }
             PlanNodeEnum::Unwind(node) => {
                 let mut desc = PlanNodeDescription::new("Unwind", node.id());
                 if let Some(var) = node.output_var() {
@@ -1584,6 +1600,14 @@ impl PlanNodeEnum {
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.name.clone());
                 }
+                desc.add_description("cost", format!("{:.2}", node.cost()));
+                desc
+            }
+            PlanNodeEnum::EdgeIndexScan(node) => {
+                let mut desc = PlanNodeDescription::new("EdgeIndexScan", node.id());
+                desc.add_description("spaceId", node.space_id().to_string());
+                desc.add_description("edgeType", node.edge_type().to_string());
+                desc.add_description("indexName", node.index_name().to_string());
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
@@ -1636,9 +1660,194 @@ impl PlanNodeEnum {
                 desc
             }
 
-            // 管理节点 - 简化描述
-            _ => {
-                PlanNodeDescription::new(self.name(), self.id())
+            // ========== 管理节点 - 详细描述 ==========
+            // Space 管理节点
+            PlanNodeEnum::CreateSpace(node) => {
+                let mut desc = PlanNodeDescription::new("CreateSpace", node.id());
+                let info = node.info();
+                desc.add_description("spaceName", info.space_name.clone());
+                desc.add_description("partitionNum", info.partition_num.to_string());
+                desc.add_description("replicaFactor", info.replica_factor.to_string());
+                desc.add_description("vidType", info.vid_type.clone());
+                desc
+            }
+            PlanNodeEnum::DropSpace(node) => {
+                let mut desc = PlanNodeDescription::new("DropSpace", node.id());
+                desc.add_description("spaceName", node.space_name().to_string());
+                desc
+            }
+            PlanNodeEnum::DescSpace(node) => {
+                let mut desc = PlanNodeDescription::new("DescSpace", node.id());
+                desc.add_description("spaceName", node.space_name().to_string());
+                desc
+            }
+            PlanNodeEnum::ShowSpaces(_) => {
+                PlanNodeDescription::new("ShowSpaces", self.id())
+            }
+
+            // Tag 管理节点
+            PlanNodeEnum::CreateTag(node) => {
+                let mut desc = PlanNodeDescription::new("CreateTag", node.id());
+                let info = node.info();
+                desc.add_description("spaceName", info.space_name.clone());
+                desc.add_description("tagName", info.tag_name.clone());
+                desc.add_description("properties", format!("[{} properties]", info.properties.len()));
+                desc
+            }
+            PlanNodeEnum::AlterTag(node) => {
+                let mut desc = PlanNodeDescription::new("AlterTag", node.id());
+                let info = node.info();
+                desc.add_description("spaceName", info.space_name.clone());
+                desc.add_description("tagName", info.tag_name.clone());
+                desc.add_description("additions", format!("[{} additions]", info.additions.len()));
+                desc.add_description("deletions", format!("[{} deletions]", info.deletions.len()));
+                desc
+            }
+            PlanNodeEnum::DescTag(node) => {
+                let mut desc = PlanNodeDescription::new("DescTag", node.id());
+                desc.add_description("spaceName", node.space_name().to_string());
+                desc.add_description("tagName", node.tag_name().to_string());
+                desc
+            }
+            PlanNodeEnum::DropTag(node) => {
+                let mut desc = PlanNodeDescription::new("DropTag", node.id());
+                desc.add_description("spaceName", node.space_name().to_string());
+                desc.add_description("tagName", node.tag_name().to_string());
+                desc
+            }
+            PlanNodeEnum::ShowTags(_) => {
+                PlanNodeDescription::new("ShowTags", self.id())
+            }
+
+            // Edge 管理节点
+            PlanNodeEnum::CreateEdge(node) => {
+                let mut desc = PlanNodeDescription::new("CreateEdge", node.id());
+                let info = node.info();
+                desc.add_description("spaceName", info.space_name.clone());
+                desc.add_description("edgeName", info.edge_name.clone());
+                desc.add_description("properties", format!("[{} properties]", info.properties.len()));
+                desc
+            }
+            PlanNodeEnum::AlterEdge(node) => {
+                let mut desc = PlanNodeDescription::new("AlterEdge", node.id());
+                let info = node.info();
+                desc.add_description("spaceName", info.space_name.clone());
+                desc.add_description("edgeName", info.edge_name.clone());
+                desc.add_description("additions", format!("[{} additions]", info.additions.len()));
+                desc.add_description("deletions", format!("[{} deletions]", info.deletions.len()));
+                desc
+            }
+            PlanNodeEnum::DescEdge(node) => {
+                let mut desc = PlanNodeDescription::new("DescEdge", node.id());
+                desc.add_description("spaceName", node.space_name().to_string());
+                desc.add_description("edgeName", node.edge_name().to_string());
+                desc
+            }
+            PlanNodeEnum::DropEdge(node) => {
+                let mut desc = PlanNodeDescription::new("DropEdge", node.id());
+                desc.add_description("spaceName", node.space_name().to_string());
+                desc.add_description("edgeName", node.edge_name().to_string());
+                desc
+            }
+            PlanNodeEnum::ShowEdges(_) => {
+                PlanNodeDescription::new("ShowEdges", self.id())
+            }
+
+            // Tag 索引管理节点
+            PlanNodeEnum::CreateTagIndex(node) => {
+                let mut desc = PlanNodeDescription::new("CreateTagIndex", node.id());
+                let info = node.info();
+                desc.add_description("spaceName", info.space_name.clone());
+                desc.add_description("indexName", info.index_name.clone());
+                desc.add_description("targetName", info.target_name.clone());
+                desc.add_description("properties", format!("[{} properties]", info.properties.len()));
+                desc
+            }
+            PlanNodeEnum::DropTagIndex(node) => {
+                let mut desc = PlanNodeDescription::new("DropTagIndex", node.id());
+                desc.add_description("spaceName", node.space_name().to_string());
+                desc.add_description("indexName", node.index_name().to_string());
+                desc
+            }
+            PlanNodeEnum::DescTagIndex(node) => {
+                let mut desc = PlanNodeDescription::new("DescTagIndex", node.id());
+                desc.add_description("spaceName", node.space_name().to_string());
+                desc.add_description("indexName", node.index_name().to_string());
+                desc
+            }
+            PlanNodeEnum::ShowTagIndexes(_) => {
+                PlanNodeDescription::new("ShowTagIndexes", self.id())
+            }
+            PlanNodeEnum::RebuildTagIndex(node) => {
+                let mut desc = PlanNodeDescription::new("RebuildTagIndex", node.id());
+                desc.add_description("spaceName", node.space_name().to_string());
+                desc.add_description("indexName", node.index_name().to_string());
+                desc
+            }
+
+            // Edge 索引管理节点
+            PlanNodeEnum::CreateEdgeIndex(node) => {
+                let mut desc = PlanNodeDescription::new("CreateEdgeIndex", node.id());
+                let info = node.info();
+                desc.add_description("spaceName", info.space_name.clone());
+                desc.add_description("indexName", info.index_name.clone());
+                desc.add_description("targetName", info.target_name.clone());
+                desc.add_description("properties", format!("[{} properties]", info.properties.len()));
+                desc
+            }
+            PlanNodeEnum::DropEdgeIndex(node) => {
+                let mut desc = PlanNodeDescription::new("DropEdgeIndex", node.id());
+                desc.add_description("spaceName", node.space_name().to_string());
+                desc.add_description("indexName", node.index_name().to_string());
+                desc
+            }
+            PlanNodeEnum::DescEdgeIndex(node) => {
+                let mut desc = PlanNodeDescription::new("DescEdgeIndex", node.id());
+                desc.add_description("spaceName", node.space_name().to_string());
+                desc.add_description("indexName", node.index_name().to_string());
+                desc
+            }
+            PlanNodeEnum::ShowEdgeIndexes(_) => {
+                PlanNodeDescription::new("ShowEdgeIndexes", self.id())
+            }
+            PlanNodeEnum::RebuildEdgeIndex(node) => {
+                let mut desc = PlanNodeDescription::new("RebuildEdgeIndex", node.id());
+                desc.add_description("spaceName", node.space_name().to_string());
+                desc.add_description("indexName", node.index_name().to_string());
+                desc
+            }
+
+            // User 管理节点
+            PlanNodeEnum::CreateUser(node) => {
+                let mut desc = PlanNodeDescription::new("CreateUser", node.id());
+                desc.add_description("username", node.username().to_string());
+                desc.add_description("password", "******");
+                desc.add_description("role", node.role().to_string());
+                desc
+            }
+            PlanNodeEnum::AlterUser(node) => {
+                let mut desc = PlanNodeDescription::new("AlterUser", node.id());
+                desc.add_description("username", node.username().to_string());
+                if let Some(role) = node.new_role() {
+                    desc.add_description("newRole", role.clone());
+                }
+                if let Some(locked) = node.is_locked() {
+                    desc.add_description("isLocked", locked.to_string());
+                }
+                desc
+            }
+            PlanNodeEnum::DropUser(node) => {
+                let mut desc = PlanNodeDescription::new("DropUser", node.id());
+                desc.add_description("username", node.username().to_string());
+                desc
+            }
+            PlanNodeEnum::ChangePassword(node) => {
+                let mut desc = PlanNodeDescription::new("ChangePassword", node.id());
+                let info = node.password_info();
+                desc.add_description("username", info.username.clone());
+                desc.add_description("password", "******");
+                desc.add_description("newPassword", "******");
+                desc
             }
         }
     }

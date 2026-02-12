@@ -13,6 +13,9 @@ pub mod type_deduce;
 pub mod type_inference;
 pub mod variable_validator;
 
+#[cfg(test)]
+pub mod expression_strategy_test;
+
 pub use agg_functions::*;
 pub use aggregate_strategy::*;
 pub use alias_strategy::*;

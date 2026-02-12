@@ -4,6 +4,7 @@
 //! 提供表达式重写功能，将用户友好的语法转换为内部表示
 
 use crate::core::Expression;
+use crate::query::validator::structs::alias_structs::AliasType;
 use std::collections::HashMap;
 
 /// 表达式重写器
@@ -11,15 +12,6 @@ use std::collections::HashMap;
 /// 用于将表达式从一种形式转换为另一种形式
 pub struct ExpressionRewriter {
     alias_type_map: HashMap<String, AliasType>,
-}
-
-/// 别名类型
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AliasType {
-    Vertex,
-    Edge,
-    Path,
-    Unknown,
 }
 
 impl ExpressionRewriter {

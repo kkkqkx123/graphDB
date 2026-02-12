@@ -1068,6 +1068,7 @@ mod tests {
             space_id: Some(1),
             space_name: "test_space".to_string(),
             is_default: false,
+            vid_type: DataType::String,
         });
 
         let ctx = ValidationContext::from_basic(basic);

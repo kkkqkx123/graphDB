@@ -10,7 +10,8 @@
 //! 4. 边列表层：edgeIdx_（每个邻接边一条记录）
 
 use super::{Iterator, IteratorKind, Row};
-use crate::core::{DataSet, Value};
+use crate::core::{DataSet, Edge, Value};
+use crate::core::vertex_edge_path::Tag;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
@@ -55,6 +56,7 @@ pub struct GetNeighborsIter {
     edge_idx_upper_bound: i64,
     valid: bool,
     no_edge: bool,
+    prev_vertex: Option<Value>,
 }
 
 impl GetNeighborsIter {
@@ -70,6 +72,7 @@ impl GetNeighborsIter {
             edge_idx_upper_bound: -1,
             valid: false,
             no_edge: false,
+            prev_vertex: None,
         };
 
         iter.process_list()?;
@@ -857,23 +860,114 @@ impl Iterator for GetNeighborsIter {
         }
     }
 
-    fn get_edge_prop(&self, edge: &str, prop: &str) -> Option<Value> {
+    fn get_vertex(&self, _name: &str) -> Option<Value> {
+        if !self.valid() {
+            return None;
+        }
+
+        let vid_val = self.get_column("_vid")?.clone();
+
+        // 缓存机制：如果vid相同，返回缓存的顶点
+        if let Some(ref prev) = self.prev_vertex {
+            if let Value::Vertex(ref vertex) = prev {
+                if *vertex.vid == vid_val {
+                    return Some(prev.clone());
+                }
+            }
+        }
+
+        let ds_index = &self.ds_indices[self.current_ds_index];
+        let ds_guard = ds_index.ds.lock().ok()?;
+        let row = &ds_guard.rows[self.current_row];
+
+        let mut vertex = crate::core::Vertex::new(vid_val.clone(), Vec::new());
+
+        // 遍历所有tag，收集属性
+        for (tag_name, prop_index) in &ds_index.tag_props_map {
+            if prop_index.col_idx >= row.len() {
+                continue;
+            }
+
+            if let Value::List(prop_list) = &row[prop_index.col_idx] {
+                let mut tag_props = HashMap::new();
+                for (i, prop_name) in prop_index.prop_list.iter().enumerate() {
+                    if i < prop_list.len() && prop_name != "_tag" {
+                        tag_props.insert(prop_name.clone(), prop_list[i].clone());
+                    }
+                }
+                vertex.add_tag(Tag::new(tag_name.clone(), tag_props));
+            }
+        }
+
+        let vertex_value = Value::Vertex(Box::new(vertex));
+        Some(vertex_value)
+    }
+
+    fn get_edge(&self) -> Option<Value> {
         if !self.valid() || self.no_edge {
             return None;
         }
 
         let current_edge_name = self.current_edge_name()?;
+        // 去掉+/-前缀
+        let edge_name = if current_edge_name.starts_with('+') || current_edge_name.starts_with('-') {
+            &current_edge_name[1..]
+        } else {
+            current_edge_name
+        };
 
-        if edge != "*" && current_edge_name != edge {
+        let src_vid = self.get_column("_vid")?.clone();
+        let dst_vid = self.get_edge_prop(edge_name, "_dst")?.clone();
+
+        let ranking = match self.get_edge_prop(edge_name, "_rank") {
+            Some(Value::Int(rank)) => rank,
+            _ => 0,
+        };
+
+        let ds_index = &self.ds_indices[self.current_ds_index];
+        let prop_index = ds_index.edge_props_map.get(current_edge_name)?;
+
+        let mut edge_props = HashMap::new();
+
+        // 收集边属性（排除系统属性）
+        if let Some(edge_data) = self.get_current_edge_data() {
+            for (i, prop_name) in prop_index.prop_list.iter().enumerate() {
+                if i < edge_data.len() {
+                    let is_system_prop = matches!(
+                        prop_name.as_str(),
+                        "_dst" | "_rank" | "_type" | "_src"
+                    );
+                    if !is_system_prop {
+                        edge_props.insert(prop_name.clone(), edge_data[i].clone());
+                    }
+                }
+            }
+        }
+
+        let edge = Edge::new(
+            src_vid,
+            dst_vid,
+            edge_name.to_string(),
+            ranking,
+            edge_props,
+        );
+
+        Some(Value::Edge(edge))
+    }
+}
+
+impl GetNeighborsIter {
+    /// 获取当前边的数据列表
+    fn get_current_edge_data(&self) -> Option<Vec<Value>> {
+        if !self.valid() || self.no_edge {
             return None;
         }
 
+        let current_edge_name = self.current_edge_name()?;
         let ds_index = &self.ds_indices[self.current_ds_index];
         let ds_guard = ds_index.ds.lock().ok()?;
         let prop_index = ds_index.edge_props_map.get(current_edge_name)?;
-        let prop_idx = prop_index.prop_indices.get(prop)?;
 
-        // 获取当前边数据
         let row = &ds_guard.rows[self.current_row];
         if prop_index.col_idx >= row.len() {
             return None;
@@ -882,32 +976,12 @@ impl Iterator for GetNeighborsIter {
         if let Value::List(edge_col) = &row[prop_index.col_idx] {
             if self.edge_idx >= 0 && (self.edge_idx as usize) < edge_col.len() {
                 if let Value::List(edge_data) = &edge_col[self.edge_idx as usize] {
-                    if *prop_idx < edge_data.len() {
-                        return Some(edge_data[*prop_idx].clone());
-                    }
+                    return Some(edge_data.clone());
                 }
             }
         }
 
         None
-    }
-
-    fn get_vertex(&self, _name: &str) -> Option<Value> {
-        // 简化实现：返回当前顶点的VID
-        self.get_column("_vid").cloned()
-    }
-
-    fn get_edge(&self) -> Option<Value> {
-        if !self.valid() || self.no_edge {
-            return None;
-        }
-
-        // 简化实现：返回当前边的基本信息
-        let src_vid = self.get_column("_vid")?;
-        let dst_vid = self.get_edge_prop("*", "_dst")?;
-
-        // 创建简单的边表示
-        Some(Value::String(format!("{}->{}", src_vid, dst_vid)))
     }
 }
 

@@ -9,6 +9,7 @@ pub struct SpaceInfo {
     pub space_name: String,
     pub space_id: Option<u32>,
     pub is_default: bool,
+    pub vid_type: DataType,
 }
 
 /// 列定义
@@ -93,7 +94,13 @@ impl SpaceInfo {
             space_name,
             space_id,
             is_default,
+            vid_type: DataType::String,
         }
+    }
+
+    pub fn with_vid_type(mut self, vid_type: DataType) -> Self {
+        self.vid_type = vid_type;
+        self
     }
 }
 
@@ -103,6 +110,7 @@ impl Default for SpaceInfo {
             space_name: String::new(),
             space_id: None,
             is_default: false,
+            vid_type: DataType::String,
         }
     }
 }
@@ -156,6 +164,7 @@ mod tests {
         assert_eq!(space.space_name, "test_space");
         assert_eq!(space.space_id, Some(1));
         assert_eq!(space.is_default, false);
+        assert_eq!(space.vid_type, DataType::String);
     }
 
     #[test]

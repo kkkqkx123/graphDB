@@ -111,15 +111,16 @@ impl TypeValidator {
             Expression::Function { name, args } => {
                 self.validate_function_return_type(name, args, context, expected_type)
             }
-            Expression::Aggregate { func, arg: _, distinct: _ } => {
-                self.validate_aggregate_return_type(func, expected_type)
+            Expression::Aggregate { func, arg, distinct: _ } => {
+                self.validate_aggregate_return_type(func, arg, context, expected_type)
             }
             Expression::Variable(name) => {
                 self.validate_variable_type(name, context, expected_type)
             }
             _ => {
-                let actual_type = self.deduce_expression_type_simple(expression);
-                if self.are_types_compatible(&actual_type, &expected_type) {
+                let actual_type = self.deduce_expr_type(expression);
+                let expected_value_type = Self::value_type_def_to_value_type(&expected_type);
+                if self.are_types_compatible_enhanced(&actual_type, &expected_value_type) {
                     Ok(())
                 } else {
                     Err(ValidationError::new(
@@ -271,12 +272,15 @@ impl TypeValidator {
     }
 
     /// 验证聚合函数返回类型
-    fn validate_aggregate_return_type(
+    fn validate_aggregate_return_type<C: ExpressionValidationContext>(
         &self,
         func: &crate::core::AggregateFunction,
+        arg: &Expression,
+        context: &C,
         expected_type: DataType,
     ) -> Result<(), ValidationError> {
-        let return_type = self.deduce_aggregate_return_type(func);
+        let arg_type = self.deduce_expression_type_full(arg, context);
+        let return_type = self.deduce_aggregate_return_type_with_arg(func, &arg_type);
         if self.are_types_compatible(&return_type, &expected_type) {
             Ok(())
         } else {
@@ -315,19 +319,6 @@ impl TypeValidator {
         Ok(())
     }
 
-    /// 简化的表达式类型推导
-    pub fn deduce_expression_type_simple(&self, expression: &Expression) -> DataType {
-        match expression {
-            Expression::Literal(value) => value.get_type(),
-            Expression::Variable(_) => DataType::Empty,
-            Expression::Binary { op, .. } => self.deduce_binary_expr_type_simple(op),
-            Expression::Unary { op, .. } => self.deduce_unary_expr_type_simple(op),
-            Expression::Function { name, .. } => self.deduce_function_return_type_simple(name),
-            Expression::Aggregate { func, .. } => self.deduce_aggregate_return_type(func),
-            _ => DataType::Empty,
-        }
-    }
-
     /// 完整的表达式类型推导（使用上下文）
     pub fn deduce_expression_type_full<C: ExpressionValidationContext>(
         &self,
@@ -356,7 +347,10 @@ impl TypeValidator {
             Expression::Function { name, args } => {
                 self.deduce_function_return_type(name, args, context)
             }
-            Expression::Aggregate { func, .. } => self.deduce_aggregate_return_type(func),
+            Expression::Aggregate { func, arg, distinct: _ } => {
+                let arg_type = self.deduce_expression_type_full(arg, context);
+                self.deduce_aggregate_return_type_with_arg(func, &arg_type)
+            }
             _ => DataType::Empty,
         }
     }
@@ -376,15 +370,40 @@ impl TypeValidator {
             | crate::core::BinaryOperator::GreaterThan
             | crate::core::BinaryOperator::GreaterThanOrEqual => DataType::Bool,
             crate::core::BinaryOperator::And | crate::core::BinaryOperator::Or => DataType::Bool,
-            _ => {
-                if *left_type == DataType::Float || *right_type == DataType::Float {
-                    DataType::Float
-                } else if *left_type == DataType::Int || *right_type == DataType::Int {
-                    DataType::Int
-                } else {
-                    DataType::Empty
-                }
+            crate::core::BinaryOperator::Add
+            | crate::core::BinaryOperator::Subtract
+            | crate::core::BinaryOperator::Multiply
+            | crate::core::BinaryOperator::Divide
+            | crate::core::BinaryOperator::Modulo
+            | crate::core::BinaryOperator::Exponent => {
+                self.deduce_arithmetic_expr_type(op, left_type, right_type)
             }
+            crate::core::BinaryOperator::StringConcat => DataType::String,
+            _ => DataType::Empty,
+        }
+    }
+
+    /// 推导算术表达式类型（参考 NebulaGraph 的实现）
+    fn deduce_arithmetic_expr_type(
+        &self,
+        _op: &crate::core::BinaryOperator,
+        left_type: &DataType,
+        right_type: &DataType,
+    ) -> DataType {
+        let left_is_numeric = matches!(left_type, DataType::Int | DataType::Int8 | DataType::Int16 | DataType::Int32 | DataType::Int64 | DataType::Float | DataType::Double);
+        let right_is_numeric = matches!(right_type, DataType::Int | DataType::Int8 | DataType::Int16 | DataType::Int32 | DataType::Int64 | DataType::Float | DataType::Double);
+        
+        if !left_is_numeric || !right_is_numeric {
+            return DataType::Empty;
+        }
+
+        let left_is_float = matches!(left_type, DataType::Float | DataType::Double);
+        let right_is_float = matches!(right_type, DataType::Float | DataType::Double);
+
+        if left_is_float || right_is_float {
+            DataType::Float
+        } else {
+            DataType::Int
         }
     }
 
@@ -395,9 +414,28 @@ impl TypeValidator {
         operand_type: &DataType,
     ) -> DataType {
         match op {
-            crate::core::UnaryOperator::Not => DataType::Bool,
-            crate::core::UnaryOperator::Minus | crate::core::UnaryOperator::Plus => operand_type.clone(),
-            _ => DataType::Empty,
+            crate::core::UnaryOperator::Not => {
+                match operand_type {
+                    DataType::Bool => DataType::Bool,
+                    DataType::Null | DataType::Empty => DataType::Bool,
+                    _ => DataType::Empty,
+                }
+            }
+            crate::core::UnaryOperator::Minus | crate::core::UnaryOperator::Plus => {
+                let is_numeric = matches!(operand_type, 
+                    DataType::Int | DataType::Int8 | DataType::Int16 | DataType::Int32 | DataType::Int64 
+                    | DataType::Float | DataType::Double
+                );
+                if is_numeric || matches!(operand_type, DataType::Null | DataType::Empty) {
+                    operand_type.clone()
+                } else {
+                    DataType::Empty
+                }
+            }
+            crate::core::UnaryOperator::IsNull 
+            | crate::core::UnaryOperator::IsNotNull
+            | crate::core::UnaryOperator::IsEmpty
+            | crate::core::UnaryOperator::IsNotEmpty => DataType::Bool,
         }
     }
 
@@ -405,8 +443,8 @@ impl TypeValidator {
     fn deduce_function_return_type<C: ExpressionValidationContext>(
         &self,
         name: &str,
-        _args: &[Expression],
-        _context: &C,
+        args: &[Expression],
+        context: &C,
     ) -> DataType {
         match name.to_lowercase().as_str() {
             "abs" | "length" | "size" => DataType::Int,
@@ -422,7 +460,18 @@ impl TypeValidator {
             "values" => DataType::List,
             "range" => DataType::List,
             "reverse" => DataType::List,
-            "head" | "last" | "tail" => DataType::Empty,
+            "head" | "last" | "tail" => {
+                if !args.is_empty() {
+                    let arg_type = self.deduce_expression_type_full(&args[0], context);
+                    if let DataType::List = arg_type {
+                        DataType::Empty
+                    } else {
+                        DataType::Empty
+                    }
+                } else {
+                    DataType::Empty
+                }
+            }
             _ => DataType::Empty,
         }
     }
@@ -436,7 +485,9 @@ impl TypeValidator {
             crate::core::AggregateFunction::Count(_) => DataType::Int,
             crate::core::AggregateFunction::Sum(_) => DataType::Float,
             crate::core::AggregateFunction::Avg(_) => DataType::Float,
-            crate::core::AggregateFunction::Max(_) | crate::core::AggregateFunction::Min(_) => DataType::Empty,
+            crate::core::AggregateFunction::Max(_) | crate::core::AggregateFunction::Min(_) => {
+                DataType::Empty
+            }
             crate::core::AggregateFunction::Collect(_) => DataType::List,
             crate::core::AggregateFunction::CollectSet(_) => DataType::Set,
             crate::core::AggregateFunction::Distinct(_) => DataType::Set,
@@ -447,47 +498,26 @@ impl TypeValidator {
         }
     }
 
-    /// 简化的二元表达式类型推导
-    fn deduce_binary_expr_type_simple(&self, op: &crate::core::BinaryOperator) -> DataType {
-        match op {
-            crate::core::BinaryOperator::Equal
-            | crate::core::BinaryOperator::NotEqual
-            | crate::core::BinaryOperator::LessThan
-            | crate::core::BinaryOperator::LessThanOrEqual
-            | crate::core::BinaryOperator::GreaterThan
-            | crate::core::BinaryOperator::GreaterThanOrEqual => DataType::Bool,
-            crate::core::BinaryOperator::And | crate::core::BinaryOperator::Or => DataType::Bool,
-            _ => DataType::Empty,
-        }
-    }
-
-    /// 简化的一元表达式类型推导
-    fn deduce_unary_expr_type_simple(&self, op: &crate::core::UnaryOperator) -> DataType {
-        match op {
-            crate::core::UnaryOperator::Not => DataType::Bool,
-            crate::core::UnaryOperator::Minus | crate::core::UnaryOperator::Plus => DataType::Empty,
-            _ => DataType::Empty,
-        }
-    }
-
-    /// 简化的函数返回类型推导
-    fn deduce_function_return_type_simple(&self, name: &str) -> DataType {
-        match name.to_lowercase().as_str() {
-            "abs" | "length" | "size" => DataType::Int,
-            "round" | "floor" | "ceil" => DataType::Int,
-            "sqrt" | "pow" | "sin" | "cos" | "tan" => DataType::Float,
-            "concat" | "substring" | "trim" | "ltrim" | "rtrim" => DataType::String,
-            "upper" | "lower" => DataType::String,
-            "type" => DataType::String,
-            "id" => DataType::Int,
-            "properties" => DataType::Map,
-            "labels" => DataType::List,
-            "keys" => DataType::List,
-            "values" => DataType::List,
-            "range" => DataType::List,
-            "reverse" => DataType::List,
-            "head" | "last" | "tail" => DataType::Empty,
-            _ => DataType::Empty,
+    /// 推导聚合函数返回类型（带参数类型，参考 NebulaGraph）
+    pub fn deduce_aggregate_return_type_with_arg(
+        &self,
+        func: &crate::core::AggregateFunction,
+        arg_type: &DataType,
+    ) -> DataType {
+        match func {
+            crate::core::AggregateFunction::Count(_) => DataType::Int,
+            crate::core::AggregateFunction::Sum(_) => DataType::Float,
+            crate::core::AggregateFunction::Avg(_) => DataType::Float,
+            crate::core::AggregateFunction::Max(_) | crate::core::AggregateFunction::Min(_) => {
+                arg_type.clone()
+            }
+            crate::core::AggregateFunction::Collect(_) => DataType::List,
+            crate::core::AggregateFunction::CollectSet(_) => DataType::Set,
+            crate::core::AggregateFunction::Distinct(_) => DataType::Set,
+            crate::core::AggregateFunction::Percentile(_, _) => DataType::Float,
+            crate::core::AggregateFunction::Std(_) => DataType::Float,
+            crate::core::AggregateFunction::BitAnd(_) | crate::core::AggregateFunction::BitOr(_) => DataType::Int,
+            crate::core::AggregateFunction::GroupConcat(_, _) => DataType::String,
         }
     }
 

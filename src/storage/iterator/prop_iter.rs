@@ -6,6 +6,7 @@
 
 use super::{Iterator, IteratorKind, Row};
 use crate::core::{DataSet, Value};
+use crate::core::vertex_edge_path::{Tag, Edge};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -258,21 +259,25 @@ impl Iterator for PropIter {
     fn get_column_by_index(&self, index: i32) -> Option<&Value> {
         let row = self.curr_row()?;
         let size = row.len() as i32;
+
+        if size == 0 {
+            return None;
+        }
+
         let idx = if index >= 0 {
-            index as usize
-        } else {
-            let adjusted = (size + index) % size;
-            if adjusted < 0 {
+            if index >= size {
                 return None;
             }
-            adjusted as usize
+            index as usize
+        } else {
+            let idx_i32 = size + index;
+            if idx_i32 < 0 || idx_i32 >= size {
+                return None;
+            }
+            idx_i32 as usize
         };
 
-        if idx < row.len() {
-            Some(&row[idx])
-        } else {
-            None
-        }
+        row.get(idx)
     }
 
     fn get_column_index(&self, col: &str) -> Option<usize> {
@@ -303,13 +308,152 @@ impl Iterator for PropIter {
     }
 
     fn get_vertex(&self, _name: &str) -> Option<Value> {
-        // 简化实现：返回当前行的第一个列值作为顶点
-        self.curr_row()?.first().cloned()
+        if !self.valid() {
+            return None;
+        }
+
+        let vid_val = self.get_column("_vid")?.clone();
+
+        let mut vertex = crate::core::Vertex::new(vid_val, Vec::new());
+
+        let row = self.curr_row()?;
+
+        for (tag_name, prop_map) in &self.ds_index.props_map {
+            let mut tag_props = std::collections::HashMap::new();
+            let mut is_valid_tag = true;
+
+            for (prop_name, &col_id) in prop_map {
+                if col_id >= row.len() {
+                    is_valid_tag = false;
+                    break;
+                }
+
+                let val = &row[col_id];
+                if val.is_empty() || matches!(val, crate::core::Value::Empty) {
+                    is_valid_tag = false;
+                    break;
+                }
+
+                if prop_name != "_tag" {
+                    tag_props.insert(prop_name.clone(), val.clone());
+                }
+            }
+
+            if is_valid_tag && !tag_props.is_empty() {
+                vertex.add_tag(Tag::new(tag_name.clone(), tag_props));
+            }
+        }
+
+        Some(Value::Vertex(Box::new(vertex)))
     }
 
     fn get_edge(&self) -> Option<Value> {
-        // 简化实现：返回当前行的字符串表示
-        Some(Value::String(format!("Edge at position {}", self.curr_pos)))
+        if !self.valid() {
+            return None;
+        }
+
+        let row = self.curr_row()?;
+
+        let mut edge_name = None;
+
+        for (name, prop_map) in &self.ds_index.props_map {
+            let mut is_valid_edge = true;
+            let mut has_system_props = false;
+
+            for (prop_name, &col_id) in prop_map {
+                if col_id >= row.len() {
+                    is_valid_edge = false;
+                    break;
+                }
+
+                let val = &row[col_id];
+                if val.is_empty() || matches!(val, crate::core::Value::Empty) {
+                    is_valid_edge = false;
+                    break;
+                }
+
+                if prop_name == "_src" || prop_name == "_dst" || prop_name == "_rank" || prop_name == "_type" {
+                    has_system_props = true;
+                }
+            }
+
+            if is_valid_edge && has_system_props {
+                edge_name = Some(name.clone());
+                break;
+            }
+        }
+
+        let edge_name = match edge_name {
+            Some(name) => name,
+            None => return None,
+        };
+
+        let src_vid = self.get_prop(&edge_name, "_src")?.clone();
+        let dst_vid = self.get_prop(&edge_name, "_dst")?.clone();
+
+        let ranking = match self.get_prop(&edge_name, "_rank") {
+            Some(Value::Int(rank)) => *rank,
+            _ => 0,
+        };
+
+        let edge_type = match self.get_prop(&edge_name, "_type") {
+            Some(Value::Int(t)) => *t as i64,
+            _ => 0,
+        };
+
+        let mut edge_props = std::collections::HashMap::new();
+
+        if let Some(prop_map) = self.ds_index.props_map.get(&edge_name) {
+            for (prop_name, &col_id) in prop_map {
+                if prop_name == "_src" || prop_name == "_dst" || prop_name == "_rank" || prop_name == "_type" {
+                    continue;
+                }
+
+                if col_id < row.len() {
+                    edge_props.insert(prop_name.clone(), row[col_id].clone());
+                }
+            }
+        }
+
+        let constructed_edge = Edge::new(
+            src_vid,
+            dst_vid,
+            edge_name,
+            ranking,
+            edge_props,
+        );
+
+        Some(Value::Edge(constructed_edge))
+    }
+
+    fn get_vertices(&mut self) -> Vec<Value> {
+        let mut vertices = Vec::new();
+        let original_pos = self.curr_pos;
+
+        while self.valid() {
+            if let Some(vertex) = self.get_vertex("") {
+                vertices.push(vertex);
+            }
+            self.next();
+        }
+
+        self.reset(original_pos);
+        vertices
+    }
+
+    fn get_edges(&mut self) -> Vec<Value> {
+        let mut edges = Vec::new();
+        let original_pos = self.curr_pos;
+
+        while self.valid() {
+            if let Some(edge) = self.get_edge() {
+                edges.push(edge);
+            }
+            self.next();
+        }
+
+        self.reset(original_pos);
+        edges
     }
 }
 

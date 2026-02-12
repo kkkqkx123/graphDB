@@ -159,6 +159,16 @@ pub trait Iterator: Send + Sync + Debug + Clone {
     fn get_edge(&self) -> Option<Value> {
         None
     }
+
+    /// 批量获取所有顶点
+    fn get_vertices(&mut self) -> Vec<Value> {
+        Vec::new()
+    }
+
+    /// 批量获取所有边
+    fn get_edges(&mut self) -> Vec<Value> {
+        Vec::new()
+    }
 }
 
 #[cfg(test)]

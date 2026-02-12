@@ -216,6 +216,7 @@ mod tests {
             space_id: Some(1),
             space_name: "test_space".to_string(),
             is_default: false,
+            vid_type: DataType::String,
         };
 
         ctx.switch_to_space(space.clone());
