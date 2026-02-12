@@ -34,13 +34,26 @@ mod expression_strategy_tests {
     #[test]
     fn test_validate_path() {
         let strategy = ExpressionValidationStrategy::new();
-        let context = MatchClauseContext::new();
+        let mut context = MatchClauseContext::new();
         
-        // 这里简化测试，实际应该有更复杂的路径模式
+        // 测试有效的路径表达式
+        let path_expression = Expression::Path(vec![
+            Expression::Label("Person".to_string()),
+            Expression::Label("KNOWS".to_string()),
+            Expression::Label("Person".to_string()),
+        ]);
+        let result = strategy.validate_path(&path_expression, &context);
+        assert!(result.is_ok());
+        
+        // 测试标签表达式（应该返回 Empty 类型，也被接受）
         let label_expression = Expression::Label("Person".to_string());
         let result = strategy.validate_path(&label_expression, &context);
-        // 由于当前实现简化，可能返回 Ok 或 Err
-        assert!(result.is_ok() || result.is_err());
+        assert!(result.is_ok());
+        
+        // 测试无效的类型（非路径类型）
+        let int_expression = Expression::Literal(Value::Int(42));
+        let result = strategy.validate_path(&int_expression, &context);
+        assert!(result.is_err());
     }
 
     #[test]
@@ -48,11 +61,26 @@ mod expression_strategy_tests {
         let strategy = ExpressionValidationStrategy::new();
         let mut context = ReturnClauseContext::new();
         
-        // 简单的返回表达式
+        // 测试简单的返回表达式
         let var_expression = Expression::Variable("n".to_string());
         let result = strategy.validate_return(&var_expression, &[], &context);
-        // 由于别名验证可能失败，所以结果可能是 Ok 或 Err
-        assert!(result.is_ok() || result.is_err());
+        assert!(result.is_ok());
+        
+        // 测试包含聚合函数的返回表达式
+        let agg_expression = Expression::Aggregate {
+            func: crate::core::AggregateFunction::Count,
+            arg: Box::new(Expression::Variable("n".to_string())),
+            distinct: false,
+        };
+        let result = strategy.validate_return(&agg_expression, &[], &context);
+        assert!(result.is_ok());
+        
+        // 测试包含 GROUP BY 上下文的聚合函数
+        let mut context_with_group = ReturnClauseContext::new();
+        context_with_group.yield_clause.group_keys = vec![Expression::Variable("n".to_string())];
+        context_with_group.yield_clause.has_agg = true;
+        let result = strategy.validate_return(&agg_expression, &[], &context_with_group);
+        assert!(result.is_ok());
     }
 
     #[test]
@@ -60,11 +88,26 @@ mod expression_strategy_tests {
         let strategy = ExpressionValidationStrategy::new();
         let mut context = WithClauseContext::new();
         
-        // 简单的 With 表达式
+        // 测试简单的 With 表达式
         let var_expression = Expression::Variable("n".to_string());
         let result = strategy.validate_with(&var_expression, &[], &context);
-        // 由于别名验证可能失败，所以结果可能是 Ok 或 Err
-        assert!(result.is_ok() || result.is_err());
+        assert!(result.is_ok());
+        
+        // 测试包含聚合函数的 With 表达式
+        let agg_expression = Expression::Aggregate {
+            func: crate::core::AggregateFunction::Count,
+            arg: Box::new(Expression::Variable("n".to_string())),
+            distinct: false,
+        };
+        let result = strategy.validate_with(&agg_expression, &[], &context);
+        assert!(result.is_ok());
+        
+        // 测试包含 GROUP BY 上下文的聚合函数
+        let mut context_with_group = WithClauseContext::new();
+        context_with_group.yield_clause.group_keys = vec![Expression::Variable("n".to_string())];
+        context_with_group.yield_clause.has_agg = true;
+        let result = strategy.validate_with(&agg_expression, &[], &context_with_group);
+        assert!(result.is_ok());
     }
 
     #[test]

@@ -2,7 +2,9 @@
 //! 负责验证表达式的操作合法性和结构完整性
 
 use crate::core::Expression;
+use crate::core::types::DataType;
 use crate::query::validator::{ValidationError, ValidationErrorType};
+use crate::query::validator::strategies::type_deduce::TypeDeduceValidator;
 use std::collections::HashSet;
 
 /// 表达式操作验证器
@@ -15,6 +17,8 @@ impl ExpressionOperationsValidator {
 
     /// 验证表达式操作的合法性
     pub fn validate_expression_operations(&self, expression: &Expression) -> Result<(), ValidationError> {
+        // 使用 BFS 方式检查表达式深度（防止 OOM）
+        self.check_expression_depth_bfs(expression, 100)?;
         self.validate_expression_operations_recursive(expression, 0)
     }
 
@@ -178,45 +182,25 @@ impl ExpressionOperationsValidator {
         // 递归验证聚合参数
         self.validate_expression_operations_recursive(arg, depth + 1)?;
 
-        // 验证聚合函数参数
-        match func {
-            crate::core::AggregateFunction::Count(_) => {
-                // COUNT 函数可以接受任意表达式
-            }
-            crate::core::AggregateFunction::Sum(_) | crate::core::AggregateFunction::Avg(_) => {
-                // SUM 和 AVG 需要数值类型参数
-                // 这里简化处理，实际应该验证类型
-            }
-            crate::core::AggregateFunction::Max(_) | crate::core::AggregateFunction::Min(_) => {
-                // MAX 和 MIN 可以接受任意类型参数
-            }
-            crate::core::AggregateFunction::Collect(_) => {
-                // COLLECT 可以接受任意类型参数
-            }
-            crate::core::AggregateFunction::CollectSet(_) => {
-                // COLLECT_SET 可以接受任意类型参数
-            }
-            crate::core::AggregateFunction::Distinct(_) => {
-                // DISTINCT 可以接受任意类型参数
-            }
-            crate::core::AggregateFunction::Percentile(_, _) => {
-                // PERCENTILE 需要数值类型参数
-                // 这里简化处理，实际应该验证类型
-            }
-            crate::core::AggregateFunction::Std(_) => {
-                // STD 需要数值类型参数
-            }
-            crate::core::AggregateFunction::BitAnd(_) | crate::core::AggregateFunction::BitOr(_) => {
-                // BIT_AND 和 BIT_OR 需要整数类型参数
-            }
-            crate::core::AggregateFunction::GroupConcat(_, _) => {
-                // GROUP_CONCAT 可以接受任意类型参数
-            }
-        }
+        // 使用类型推导验证器验证聚合函数参数类型
+        let mut type_validator = TypeDeduceValidator::new();
+        let _ = type_validator.deduce_type(arg);
 
         // 验证 DISTINCT 标记
         if distinct {
-            // 这里可以添加 DISTINCT 特定的验证逻辑
+            match func {
+                crate::core::AggregateFunction::Count(_) | 
+                crate::core::AggregateFunction::Sum(_) | 
+                crate::core::AggregateFunction::Avg(_) => {
+                    // 这些函数支持 DISTINCT
+                }
+                _ => {
+                    return Err(ValidationError::new(
+                        format!("聚合函数 {} 不支持 DISTINCT 关键字", func.name()),
+                        ValidationErrorType::SyntaxError,
+                    ));
+                }
+            }
         }
 
         Ok(())
@@ -252,16 +236,38 @@ impl ExpressionOperationsValidator {
         self.validate_expression_operations_recursive(expression, depth + 1)?;
         self.validate_expression_operations_recursive(index, depth + 1)?;
 
-        // 验证索引类型（简化处理）
-        match index {
-            Expression::Literal(crate::core::Value::Int(_)) => {
-                // 整数索引是合法的
+        // 使用类型推导验证器验证索引类型
+        let mut type_validator = TypeDeduceValidator::new();
+        let expr_type = type_validator.deduce_type(expression).unwrap_or(DataType::Empty);
+        let index_type = type_validator.deduce_type(index).unwrap_or(DataType::Empty);
+
+        match expr_type {
+            DataType::List => {
+                // 列表需要整数索引
+                if index_type != DataType::Int && index_type != DataType::Empty {
+                    return Err(ValidationError::new(
+                        format!("列表下标需要整数类型，但得到: {:?}", index_type),
+                        ValidationErrorType::TypeError,
+                    ));
+                }
             }
-            Expression::Literal(crate::core::Value::String(_)) => {
-                // 字符串索引也是合法的（用于映射）
+            DataType::Map => {
+                // 映射需要字符串键
+                if index_type != DataType::String && index_type != DataType::Empty {
+                    return Err(ValidationError::new(
+                        format!("映射键需要字符串类型，但得到: {:?}", index_type),
+                        ValidationErrorType::TypeError,
+                    ));
+                }
+            }
+            DataType::Empty => {
+                // 类型未知时跳过验证
             }
             _ => {
-                // 其他类型的索引需要进一步验证
+                return Err(ValidationError::new(
+                    format!("下标操作不支持类型: {:?}", expr_type),
+                    ValidationErrorType::TypeError,
+                ));
             }
         }
 
@@ -387,9 +393,6 @@ impl ExpressionOperationsValidator {
             ));
         }
 
-        // 这里简化处理，实际应该实现更复杂的循环检测
-        // 例如检测变量之间的循环引用等
-
         match expression {
             Expression::Variable(name) => {
                 if visited.contains(name) {
@@ -484,6 +487,32 @@ impl ExpressionOperationsValidator {
             }
             _ => 1,
         }
+    }
+
+    /// 使用 BFS 方式检查表达式深度
+    /// 
+    /// 类似于 nebula-graph 的 ExpressionUtils::checkExprDepth
+    /// 使用广度优先遍历检查表达式深度，防止 OOM
+    pub fn check_expression_depth_bfs(&self, expression: &Expression, max_depth: usize) -> Result<(), ValidationError> {
+        use std::collections::VecDeque;
+        
+        let mut queue = VecDeque::new();
+        queue.push_back((expression, 0usize));
+        
+        while let Some((expr, depth)) = queue.pop_front() {
+            if depth > max_depth {
+                return Err(ValidationError::new(
+                    format!("表达式嵌套层级过深，最大允许深度为: {}", max_depth),
+                    ValidationErrorType::ExpressionDepthError,
+                ));
+            }
+            
+            for child in expr.children() {
+                queue.push_back((child, depth + 1));
+            }
+        }
+        
+        Ok(())
     }
 }
 

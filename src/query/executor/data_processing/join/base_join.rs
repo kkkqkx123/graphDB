@@ -311,7 +311,7 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
         Ok(())
     }
 
-    /// 创建新行（连接左右两行）
+    /// 创建新行（连接左右两行，根据输出列名选择值）
     pub fn new_row(
         &self,
         left_row: Vec<Value>,
@@ -319,58 +319,7 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
         left_col_names: &[String],
         right_col_names: &[String],
     ) -> Vec<Value> {
-        self.new_row_with_move(left_row, right_row, false, left_col_names, right_col_names)
-    }
-
-    /// 使用移动语义创建新行（性能优化）
-    pub fn new_row_with_move(
-        &self,
-        left_row: Vec<Value>,
-        right_row: Vec<Value>,
-        exchange: bool,
-        left_col_names: &[String],
-        right_col_names: &[String],
-    ) -> Vec<Value> {
-        let (left, right) = if exchange {
-            (right_row, left_row)
-        } else {
-            (left_row, right_row)
-        };
-
-        self.build_output_row(left, right, left_col_names, right_col_names)
-    }
-
-    /// 根据输出列名构建结果行
-    pub fn build_output_row(
-        &self,
-        left_row: Vec<Value>,
-        right_row: Vec<Value>,
-        left_col_names: &[String],
-        right_col_names: &[String],
-    ) -> Vec<Value> {
-        self.build_output_row_simple(left_row, right_row, left_col_names, right_col_names)
-    }
-
-    /// 简化版：根据位置构建结果行（假设输出列顺序为：左表所有列 + 右表非重复列）
-    pub fn build_output_row_simple(
-        &self,
-        left_row: Vec<Value>,
-        right_row: Vec<Value>,
-        left_col_names: &[String],
-        right_col_names: &[String],
-    ) -> Vec<Value> {
-        let mut result = Vec::new();
-
-        if left_col_names.is_empty() && right_col_names.is_empty() {
-            for (i, _col_name) in self.col_names.iter().enumerate() {
-                if i < left_row.len() {
-                    result.push(left_row[i].clone());
-                } else if i - left_row.len() < right_row.len() {
-                    result.push(right_row[i - left_row.len()].clone());
-                }
-            }
-            return result;
-        }
+        let mut result = Vec::with_capacity(self.col_names.len());
 
         for col_name in &self.col_names {
             if let Some(idx) = left_col_names.iter().position(|c| c == col_name) {
@@ -385,29 +334,6 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
         }
 
         result
-    }
-
-    /// 根据列名选择性合并行（用于自然连接）
-    pub fn new_row_by_col_names(
-        &self,
-        left_row: Vec<Value>,
-        right_row: Vec<Value>,
-        left_col_names: &[String],
-        right_col_names: &[String],
-    ) -> Vec<Value> {
-        let mut new_row = Vec::new();
-
-        new_row.extend(left_row);
-
-        for (idx, col_name) in right_col_names.iter().enumerate() {
-            if !left_col_names.contains(col_name) {
-                if let Some(val) = right_row.get(idx) {
-                    new_row.push(val.clone());
-                }
-            }
-        }
-
-        new_row
     }
 
     /// 决定是否交换左右输入以优化性能
@@ -443,14 +369,6 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
         if !rhs_output_col_idxs.is_empty() && rhs_output_col_idxs.len() != right_col_names.len() {
             self.rhs_output_col_idxs = Some(rhs_output_col_idxs);
         }
-    }
-
-    /// 检查数据是否可以移动（避免不必要的拷贝）
-    pub fn is_movable(&self, _var_name: &str) -> bool {
-        // 检查变量是否不再被后续执行器使用
-        // 简化实现：假设所有变量都可以移动
-        // 实际实现需要检查执行计划中的变量生命周期
-        true
     }
 
     /// 获取列名

@@ -560,57 +560,333 @@ impl<S: StorageClient> TopNExecutor<S> {
     }
 
     /// 对顶点列表执行 TopN
+    ///
+    /// 使用排序键对顶点进行排序，支持基于属性的复杂排序
+    /// 参考nebula-graph的TopNExecutor实现，使用堆排序优化
     fn execute_topn_vertices(
         &self,
         vertices: Vec<crate::core::Vertex>,
     ) -> DBResult<Vec<crate::core::Vertex>> {
-        // 简化实现：按顶点ID排序
-        let mut vertices = vertices;
-        if self.is_ascending() {
-            vertices.sort_by(|a, b| a.vid.cmp(&b.vid));
-        } else {
-            vertices.sort_by(|a, b| b.vid.cmp(&a.vid));
+        if vertices.is_empty() || self.n == 0 {
+            return Ok(Vec::new());
         }
 
-        let start = self.offset.min(vertices.len());
-        let end = (self.n + self.offset).min(vertices.len());
+        let total_size = vertices.len();
+        let heap_size = self.calculate_heap_size(total_size);
 
-        Ok(vertices[start..end].to_vec())
+        if heap_size == 0 {
+            return Ok(Vec::new());
+        }
+
+        // 计算maxCount：最终需要保留的元素数量
+        let max_count = if total_size <= self.offset {
+            0
+        } else if total_size > self.offset + self.n {
+            self.n
+        } else {
+            total_size - self.offset
+        };
+
+        if max_count == 0 {
+            return Ok(Vec::new());
+        }
+
+        // 参考nebula-graph的TopNExecutor实现
+        // 1. 先计算所有元素的排序值
+        let mut vertices_with_sort_values: Vec<(Vec<Value>, crate::core::Vertex)> = vertices
+            .into_iter()
+            .map(|vertex| {
+                let sort_values = self.calculate_vertex_sort_values(&vertex)?;
+                Ok((sort_values, vertex))
+            })
+            .collect::<DBResult<Vec<_>>>()?;
+
+        // 2. 使用select_nth_unstable优化TopN查询
+        if vertices_with_sort_values.len() > heap_size {
+            // 使用select_nth_unstable选择前heap_size个元素
+            vertices_with_sort_values.select_nth_unstable_by(heap_size, |a, b| {
+                self.compare_sort_values(&a.0, &b.0)
+            });
+            vertices_with_sort_values.truncate(heap_size);
+        }
+
+        // 3. 对选中的元素进行完整排序
+        vertices_with_sort_values.sort_by(|a, b| self.compare_sort_values(&a.0, &b.0));
+
+        // 4. 应用offset和limit
+        let start = self.offset.min(vertices_with_sort_values.len());
+        let end = (self.n + self.offset).min(vertices_with_sort_values.len());
+
+        Ok(vertices_with_sort_values.into_iter().skip(start).take(end - start).map(|(_, v)| v).collect())
     }
 
     /// 对边列表执行 TopN
+    ///
+    /// 使用排序键对边进行排序，支持基于属性的复杂排序
+    /// 参考nebula-graph的TopNExecutor实现，使用堆排序优化
     fn execute_topn_edges(
         &self,
         edges: Vec<crate::core::Edge>,
     ) -> DBResult<Vec<crate::core::Edge>> {
-        // 简化实现：按源顶点ID排序
-        let mut edges = edges;
-        if self.is_ascending() {
-            edges.sort_by(|a, b| a.src.cmp(&b.src));
-        } else {
-            edges.sort_by(|a, b| b.src.cmp(&a.src));
+        if edges.is_empty() || self.n == 0 {
+            return Ok(Vec::new());
         }
 
-        let start = self.offset.min(edges.len());
-        let end = (self.n + self.offset).min(edges.len());
+        let total_size = edges.len();
+        let heap_size = self.calculate_heap_size(total_size);
 
-        Ok(edges[start..end].to_vec())
+        if heap_size == 0 {
+            return Ok(Vec::new());
+        }
+
+        // 计算maxCount：最终需要保留的元素数量
+        let max_count = if total_size <= self.offset {
+            0
+        } else if total_size > self.offset + self.n {
+            self.n
+        } else {
+            total_size - self.offset
+        };
+
+        if max_count == 0 {
+            return Ok(Vec::new());
+        }
+
+        // 参考nebula-graph的TopNExecutor实现
+        // 1. 先计算所有元素的排序值
+        let mut edges_with_sort_values: Vec<(Vec<Value>, crate::core::Edge)> = edges
+            .into_iter()
+            .map(|edge| {
+                let sort_values = self.calculate_edge_sort_values(&edge)?;
+                Ok((sort_values, edge))
+            })
+            .collect::<DBResult<Vec<_>>>()?;
+
+        // 2. 使用select_nth_unstable优化TopN查询
+        if edges_with_sort_values.len() > heap_size {
+            // 使用select_nth_unstable选择前heap_size个元素
+            edges_with_sort_values.select_nth_unstable_by(heap_size, |a, b| {
+                self.compare_sort_values(&a.0, &b.0)
+            });
+            edges_with_sort_values.truncate(heap_size);
+        }
+
+        // 3. 对选中的元素进行完整排序
+        edges_with_sort_values.sort_by(|a, b| self.compare_sort_values(&a.0, &b.0));
+
+        // 4. 应用offset和limit
+        let start = self.offset.min(edges_with_sort_values.len());
+        let end = (self.n + self.offset).min(edges_with_sort_values.len());
+
+        Ok(edges_with_sort_values.into_iter().skip(start).take(end - start).map(|(_, e)| e).collect())
     }
 
     /// 对值列表执行 TopN
+    ///
+    /// 使用排序键对值列表进行排序
     fn execute_topn_values(&self, values: Vec<Value>) -> DBResult<Vec<Value>> {
-        // 简化实现：直接排序
-        let mut values = values;
-        if self.is_ascending() {
-            values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal));
-        } else {
-            values.sort_by(|a, b| b.partial_cmp(a).unwrap_or(Ordering::Equal));
+        if values.is_empty() || self.n == 0 {
+            return Ok(Vec::new());
         }
 
-        let start = self.offset.min(values.len());
-        let end = (self.n + self.offset).min(values.len());
+        let total_size = values.len();
+        let heap_size = self.calculate_heap_size(total_size);
 
-        Ok(values[start..end].to_vec())
+        if heap_size == 0 {
+            return Ok(Vec::new());
+        }
+
+        // 将Value包装为单行数据以便复用排序逻辑
+        let mut rows: Vec<Vec<Value>> = values.into_iter().map(|v| vec![v]).collect();
+
+        // 使用堆排序实现TopN
+        let heap_size = self.n + self.offset;
+
+        if rows.len() <= heap_size {
+            // 数据量小于等于heap_size，直接排序
+            rows.sort_by(|a, b| self.compare_rows(a, b).unwrap_or(Ordering::Equal));
+        } else {
+            // 使用TopN算法
+            rows.select_nth_unstable_by(heap_size, |a, b| {
+                self.compare_rows(a, b).unwrap_or(Ordering::Equal)
+            });
+            rows.truncate(heap_size);
+            rows.sort_by(|a, b| self.compare_rows(a, b).unwrap_or(Ordering::Equal));
+        }
+
+        // 应用offset和limit
+        let start = self.offset.min(rows.len());
+        let end = (self.n + self.offset).min(rows.len());
+
+        Ok(rows.into_iter().skip(start).take(end - start).map(|row| row.into_iter().next().unwrap()).collect())
+    }
+
+    /// 计算堆大小
+    fn calculate_heap_size(&self, total_size: usize) -> usize {
+        if total_size <= self.offset {
+            0
+        } else if total_size > self.offset + self.n {
+            self.offset + self.n
+        } else {
+            total_size
+        }
+    }
+
+    /// 计算顶点的排序值
+    fn calculate_vertex_sort_values(&self, vertex: &crate::core::Vertex) -> DBResult<Vec<Value>> {
+        let mut sort_values = Vec::with_capacity(self.sort_keys.len());
+
+        for sort_key in &self.sort_keys {
+            let value = self.extract_value_from_vertex(vertex, &sort_key.expression)?;
+            sort_values.push(value);
+        }
+
+        Ok(sort_values)
+    }
+
+    /// 计算边的排序值
+    fn calculate_edge_sort_values(&self, edge: &crate::core::Edge) -> DBResult<Vec<Value>> {
+        let mut sort_values = Vec::with_capacity(self.sort_keys.len());
+
+        for sort_key in &self.sort_keys {
+            let value = self.extract_value_from_edge(edge, &sort_key.expression)?;
+            sort_values.push(value);
+        }
+
+        Ok(sort_values)
+    }
+
+    /// 从顶点中提取值
+    fn extract_value_from_vertex(&self, vertex: &crate::core::Vertex, expression: &Expression) -> DBResult<Value> {
+        match expression {
+            Expression::Variable(name) => {
+                // 尝试从属性中获取
+                if let Some(value) = vertex.get_property_any(name) {
+                    Ok(value.clone())
+                } else if name == "vid" || name == "_vid" {
+                    Ok(*vertex.vid.clone())
+                } else if name == "id" || name == "_id" {
+                    Ok(Value::Int(vertex.id))
+                } else {
+                    Ok(Value::Null(crate::core::value::NullType::Null))
+                }
+            }
+            Expression::Property { object, property } => {
+                if object.as_ref() == &Expression::Variable("v".to_string())
+                    || object.as_ref() == &Expression::Variable("vertex".to_string()) {
+                    if let Some(value) = vertex.get_property_any(property) {
+                        Ok(value.clone())
+                    } else {
+                        Ok(Value::Null(crate::core::value::NullType::Null))
+                    }
+                } else {
+                    Ok(Value::Null(crate::core::value::NullType::Null))
+                }
+            }
+            Expression::Literal(value) => Ok(value.clone()),
+            _ => {
+                // 对于复杂表达式，使用表达式求值器
+                let mut context = DefaultExpressionContext::new();
+                context.set_variable("vid".to_string(), *vertex.vid.clone());
+                context.set_variable("id".to_string(), Value::Int(vertex.id));
+
+                // 添加所有标签属性到上下文
+                for tag in &vertex.tags {
+                    for (prop_name, prop_value) in &tag.properties {
+                        context.set_variable(prop_name.clone(), prop_value.clone());
+                    }
+                }
+
+                ExpressionEvaluator::evaluate(expression, &mut context)
+                    .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))
+            }
+        }
+    }
+
+    /// 从边中提取值
+    fn extract_value_from_edge(&self, edge: &crate::core::Edge, expression: &Expression) -> DBResult<Value> {
+        match expression {
+            Expression::Variable(name) => {
+                if name == "src" || name == "_src" {
+                    Ok(*edge.src.clone())
+                } else if name == "dst" || name == "_dst" {
+                    Ok(*edge.dst.clone())
+                } else if name == "ranking" || name == "_ranking" {
+                    Ok(Value::Int(edge.ranking))
+                } else if name == "edge_type" || name == "_type" {
+                    Ok(Value::String(edge.edge_type.clone()))
+                } else if let Some(value) = edge.get_property(name) {
+                    Ok(value.clone())
+                } else {
+                    Ok(Value::Null(crate::core::value::NullType::Null))
+                }
+            }
+            Expression::Property { object, property } => {
+                if object.as_ref() == &Expression::Variable("e".to_string())
+                    || object.as_ref() == &Expression::Variable("edge".to_string()) {
+                    if let Some(value) = edge.get_property(property) {
+                        Ok(value.clone())
+                    } else {
+                        Ok(Value::Null(crate::core::value::NullType::Null))
+                    }
+                } else {
+                    Ok(Value::Null(crate::core::value::NullType::Null))
+                }
+            }
+            Expression::Literal(value) => Ok(value.clone()),
+            _ => {
+                // 对于复杂表达式，使用表达式求值器
+                let mut context = DefaultExpressionContext::new();
+                context.set_variable("src".to_string(), *edge.src.clone());
+                context.set_variable("dst".to_string(), *edge.dst.clone());
+                context.set_variable("ranking".to_string(), Value::Int(edge.ranking));
+                context.set_variable("edge_type".to_string(), Value::String(edge.edge_type.clone()));
+
+                // 添加所有属性到上下文
+                for (prop_name, prop_value) in &edge.props {
+                    context.set_variable(prop_name.clone(), prop_value.clone());
+                }
+
+                ExpressionEvaluator::evaluate(expression, &mut context)
+                    .map_err(|e| DBError::Query(crate::core::error::QueryError::ExecutionError(e.to_string())))
+            }
+        }
+    }
+
+    /// 比较排序值
+    fn compare_sort_values(&self, a: &[Value], b: &[Value]) -> Ordering {
+        for (idx, (val_a, val_b)) in a.iter().zip(b.iter()).enumerate() {
+            let order = if idx < self.sort_keys.len() {
+                &self.sort_keys[idx].order
+            } else {
+                &crate::query::executor::result_processing::sort::SortOrder::Asc
+            };
+
+            let comparison = match val_a.partial_cmp(val_b) {
+                Some(cmp) => cmp,
+                None => continue,
+            };
+
+            if comparison != Ordering::Equal {
+                return match order {
+                    crate::query::executor::result_processing::sort::SortOrder::Asc => comparison,
+                    crate::query::executor::result_processing::sort::SortOrder::Desc => comparison.reverse(),
+                };
+            }
+        }
+        Ordering::Equal
+    }
+
+    /// 比较两行数据（用于值列表排序）
+    fn compare_rows(&self, a: &[Value], b: &[Value]) -> DBResult<Ordering> {
+        // 创建虚拟列名
+        let col_names: Vec<String> = (0..a.len().max(b.len())).map(|i| format!("col_{}", i)).collect();
+
+        // 计算排序值
+        let sort_values_a = self.calculate_sort_value(a, &col_names)?;
+        let sort_values_b = self.calculate_sort_value(b, &col_names)?;
+
+        Ok(self.compare_sort_values(&sort_values_a, &sort_values_b))
     }
 
     /// 提取排序值

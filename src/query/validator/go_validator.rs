@@ -3,9 +3,11 @@
 //! 验证 GO FROM ... OVER ... WHERE ... YIELD ... 语句
 
 use super::base_validator::Validator;
+use super::strategies::expression_rewriter::ExpressionRewriter;
+use super::strategies::type_deduce::TypeDeduceValidator;
 use super::validation_interface::{ValidationError, ValidationErrorType};
 use crate::core::{
-    AggregateFunction, BinaryOperator, DataType, Expression, UnaryOperator, Value,
+    AggregateFunction, BinaryOperator, DataType, Expression, UnaryOperator,
 };
 use crate::core::types::EdgeDirection;
 use std::collections::HashMap;
@@ -31,7 +33,7 @@ pub struct GoSource {
     pub variable_name: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum GoSourceType {
     VertexId,
     Expression,
@@ -214,10 +216,33 @@ impl GoValidator {
         // 1. 过滤表达式是否有效
         // 2. 引用的属性是否存在
         // 3. 类型兼容性
+        // 4. 重写表达式以适配语义
 
         if let Some(ref filter) = self.context.where_filter {
-            // 验证过滤表达式
-            self.validate_expression(filter)?;
+            // 重写表达式：将边属性函数转换为标签属性表达式
+            let rewriter = ExpressionRewriter::new();
+            let rewritten_filter = rewriter.rewrite_edge_prop_func_to_label_attr(filter);
+
+            // 重写表达式：将标签属性转换为边属性表达式
+            let rewritten_filter = rewriter.rewrite_label_attr_to_edge_prop(&rewritten_filter);
+
+            // 验证重写后的表达式
+            self.validate_expression(&rewritten_filter)?;
+
+            // 推断表达式类型
+            let mut type_validator = TypeDeduceValidator::new();
+            let expr_type = type_validator.deduce_type(&rewritten_filter)?;
+
+            // WHERE 子句必须返回布尔类型
+            if expr_type != DataType::Bool && expr_type != DataType::Null && expr_type != DataType::Empty {
+                return Err(ValidationError::new(
+                    format!(
+                        "WHERE 子句表达式必须返回布尔类型，但得到: {:?}",
+                        expr_type
+                    ),
+                    ValidationErrorType::TypeError,
+                ));
+            }
         }
 
         Ok(())
@@ -229,8 +254,12 @@ impl GoValidator {
         // 1. 返回列表达式是否有效
         // 2. 别名是否重复
         // 3. 属性引用是否正确
+        // 4. 重写表达式以适配语义
+        // 5. 验证表达式类型
+        // 6. 确保边在 OVER 子句中声明
 
         let mut column_names = HashMap::new();
+        let rewriter = ExpressionRewriter::new();
 
         for column in &self.context.yield_columns {
             if let Some(_existing) = column_names.get(&column.alias) {
@@ -240,7 +269,24 @@ impl GoValidator {
                 ));
             }
             column_names.insert(column.alias.clone(), true);
+
+            // 重写表达式：将边属性函数转换为标签属性表达式
+            let rewritten_expr = rewriter.rewrite_edge_prop_func_to_label_attr(&column.expression);
+
+            // 重写表达式：将标签属性转换为边属性表达式
+            let rewritten_expr = rewriter.rewrite_label_attr_to_edge_prop(&rewritten_expr);
+
+            // 验证重写后的表达式
+            self.validate_expression(&rewritten_expr)?;
+
+            // 推断表达式类型
+            let mut type_validator = TypeDeduceValidator::new();
+            let _expr_type = type_validator.deduce_type(&rewritten_expr)?;
         }
+
+        // 检查所有引用的边是否在 OVER 子句中声明
+        // 这里需要收集表达式中使用的边属性，然后检查它们是否在 self.context.over_edges 中
+        // 由于当前实现中没有属性收集功能，这里暂时跳过
 
         Ok(())
     }
@@ -402,8 +448,12 @@ impl GoValidator {
     }
 
     /// 验证变量引用
+    /// 
+    /// 类似于 nebula-graph 的变量验证逻辑：
+    /// 1. 检查变量是否已定义
+    /// 2. 检查变量是否在 FROM 子句中声明
+    /// 3. 确保变量引用的一致性
     fn validate_variable_reference(&self, var_name: &str) -> Result<(), ValidationError> {
-        // 检查变量是否已定义
         if var_name.is_empty() {
             return Err(ValidationError::new(
                 "变量名不能为空".to_string(),
@@ -411,9 +461,52 @@ impl GoValidator {
             ));
         }
 
-        // 在当前上下文中检查变量是否存在
-        // 这里可以检查 self.context.inputs 或其他变量定义源
-        // 为了简化，我们假设变量存在
+        // 检查是否是输入变量 ($-)
+        if var_name == "$-" {
+            // 检查 FROM 子句是否使用了管道输入
+            if let Some(ref source) = self.context.from_source {
+                if source.source_type != GoSourceType::Expression {
+                    return Err(ValidationError::new(
+                        "$- 必须在 FROM 中使用管道输入".to_string(),
+                        ValidationErrorType::SemanticError,
+                    ));
+                }
+            }
+            return Ok(());
+        }
+
+        // 检查是否是用户定义的变量
+        if let Some(ref source) = self.context.from_source {
+            if source.source_type == GoSourceType::Variable {
+                if let Some(ref variable_name) = source.variable_name {
+                    if var_name != variable_name {
+                        return Err(ValidationError::new(
+                            format!(
+                                "变量 '{}' 必须在 FROM 中引用，而不是 '{}'",
+                                var_name, variable_name
+                            ),
+                            ValidationErrorType::SemanticError,
+                        ));
+                    }
+                }
+            } else {
+                // 如果 FROM 子句不是变量类型，则不允许在其他地方引用变量
+                return Err(ValidationError::new(
+                    "变量必须在 FROM 中引用才能在 WHERE 或 YIELD 中使用".to_string(),
+                    ValidationErrorType::SemanticError,
+                ));
+            }
+        }
+
+        // 检查变量是否在 inputs 中定义
+        let input_exists = self.context.inputs.iter().any(|input| input.name == var_name);
+        if !input_exists {
+            return Err(ValidationError::new(
+                format!("变量 '{}' 未定义", var_name),
+                ValidationErrorType::SemanticError,
+            ));
+        }
+
         Ok(())
     }
 
@@ -492,143 +585,12 @@ impl GoValidator {
     }
 
     /// 推断表达式的类型
+    /// 
+    /// 使用类型推导验证器来推断表达式类型
+    /// 类似于 nebula-graph 的 deduceExprType 函数
     fn infer_expression_type(&self, expression: &Expression) -> Result<DataType, ValidationError> {
-        match expression {
-            Expression::Literal(value) => {
-                // 根据字面量值推断类型
-                Ok(self.infer_literal_type(value))
-            }
-            Expression::Variable(_) => {
-                // 变量类型的推断可能需要访问符号表
-                // 暂时返回通用类型
-                Ok(DataType::Empty)
-            }
-            Expression::Property { .. } => {
-                // 属性访问的类型取决于对象和属性
-                Ok(DataType::Empty)
-            }
-            Expression::Binary { left, op, right } => {
-                // 二元操作的结果类型取决于操作符和操作数类型
-                let left_type = self.infer_expression_type(left)?;
-                let right_type = self.infer_expression_type(right)?;
-
-                // 根据操作符确定结果类型
-                match op {
-                    BinaryOperator::And | BinaryOperator::Or => Ok(DataType::Bool),
-                    BinaryOperator::Equal | BinaryOperator::NotEqual |
-                    BinaryOperator::LessThan | BinaryOperator::LessThanOrEqual |
-                    BinaryOperator::GreaterThan | BinaryOperator::GreaterThanOrEqual |
-                    BinaryOperator::Like | BinaryOperator::In | BinaryOperator::NotIn |
-                    BinaryOperator::Contains | BinaryOperator::StartsWith | BinaryOperator::EndsWith => {
-                        Ok(DataType::Bool)
-                    }
-                    BinaryOperator::Add | BinaryOperator::Subtract |
-                    BinaryOperator::Multiply | BinaryOperator::Divide | BinaryOperator::Modulo => {
-                        // 如果任一操作数是浮点数，则结果为浮点数
-                        if left_type == DataType::Float || right_type == DataType::Float ||
-                           left_type == DataType::Double || right_type == DataType::Double {
-                            Ok(DataType::Double)
-                        } else {
-                            // 默认返回整数类型
-                            Ok(DataType::Int)
-                        }
-                    }
-                    BinaryOperator::StringConcat => Ok(DataType::String),
-                    _ => Ok(DataType::Empty),
-                }
-            }
-            Expression::Unary { op, .. } => {
-                match op {
-                    UnaryOperator::Plus | UnaryOperator::Minus => Ok(DataType::Empty),
-                    UnaryOperator::Not => Ok(DataType::Bool),
-                    UnaryOperator::IsNull | UnaryOperator::IsNotNull |
-                    UnaryOperator::IsEmpty | UnaryOperator::IsNotEmpty => Ok(DataType::Bool),
-                }
-            }
-            Expression::Function { name, .. } => {
-                // 根据函数名推断返回类型
-                match name.to_uppercase().as_str() {
-                    "COALESCE" | "IFNULL" | "NULLIF" => Ok(DataType::Empty),
-                    "UPPER" | "LOWER" | "TRIM" | "LTRIM" | "RTRIM" | "REPLACE" | "SUBSTR" => Ok(DataType::String),
-                    "LENGTH" | "CHAR_LENGTH" | "BIT_LENGTH" => Ok(DataType::Int),
-                    "ABS" | "ROUND" | "FLOOR" | "CEIL" => Ok(DataType::Empty),
-                    "NOW" | "TODAY" | "CURRENT_DATE" | "CURRENT_TIME" | "CURRENT_TIMESTAMP" => Ok(DataType::DateTime),
-                    "DATE" | "TIME" => Ok(DataType::DateTime),
-                    "YEAR" | "MONTH" | "DAY" | "HOUR" | "MINUTE" | "SECOND" => Ok(DataType::Int),
-                    _ => Ok(DataType::Empty), // 未知函数返回Empty类型
-                }
-            }
-            Expression::Aggregate { func, .. } => {
-                // 根据聚合函数类型推断返回类型
-                match func {
-                    AggregateFunction::Count(_) => Ok(DataType::Int),
-                    AggregateFunction::Sum(_) => Ok(DataType::Empty),
-                    AggregateFunction::Avg(_) => Ok(DataType::Double),
-                    AggregateFunction::Min(_) | AggregateFunction::Max(_) => Ok(DataType::Empty),
-                    AggregateFunction::Collect(_) => Ok(DataType::List),
-                    AggregateFunction::CollectSet(_) | AggregateFunction::Distinct(_) => Ok(DataType::Set),
-                    AggregateFunction::Percentile(_, _) => Ok(DataType::Double),
-                    AggregateFunction::Std(_) => Ok(DataType::Double),
-                    AggregateFunction::BitAnd(_) | AggregateFunction::BitOr(_) => Ok(DataType::Int),
-                    AggregateFunction::GroupConcat(_, _) => Ok(DataType::String),
-                }
-            }
-            Expression::List(_) => Ok(DataType::List),
-            Expression::Map(_) => Ok(DataType::Map),
-            Expression::Case { .. } => Ok(DataType::Empty), // CASE表达式类型取决于结果
-            Expression::TypeCast { target_type, .. } => {
-                // 直接返回目标类型
-                Ok(target_type.clone())
-            }
-            Expression::Subscript { collection, .. } => {
-                // 下标访问的结果类型取决于集合元素类型
-                let collection_type = self.infer_expression_type(collection)?;
-                // 简化处理：如果是LIST则返回ELEMENT，如果是MAP则返回VALUE
-                match collection_type {
-                    DataType::List => Ok(DataType::Empty),
-                    DataType::Map => Ok(DataType::Empty),
-                    _ => Ok(DataType::Empty),
-                }
-            }
-            Expression::Range { collection, .. } => {
-                // 范围访问的结果通常是一个列表
-                let _collection_type = self.infer_expression_type(collection)?;
-                Ok(DataType::List)
-            }
-            Expression::Path(_) => Ok(DataType::Path),
-            Expression::Label(_) => Ok(DataType::String),
-            Expression::ListComprehension { .. } => Ok(DataType::List),
-            Expression::LabelTagProperty { .. } => Ok(DataType::Empty),
-            Expression::TagProperty { .. } => Ok(DataType::Empty),
-            Expression::EdgeProperty { .. } => Ok(DataType::Empty),
-            Expression::Predicate { .. } => Ok(DataType::Bool),
-            Expression::Reduce { .. } => Ok(DataType::Empty),
-            Expression::PathBuild(_) => Ok(DataType::Path),
-        }
-    }
-
-    /// 从字面量值推断类型
-    fn infer_literal_type(&self, value: &Value) -> DataType {
-        match value {
-            Value::Null(_) => DataType::Null,
-            Value::Bool(_) => DataType::Bool,
-            Value::Int(_) => DataType::Int,
-            Value::Float(_) => DataType::Double,
-            Value::String(_) => DataType::String,
-            Value::List(_) => DataType::List,
-            Value::Map(_) => DataType::Map,
-            Value::Set(_) => DataType::Set,
-            Value::Vertex(_) => DataType::Vertex,
-            Value::Edge(_) => DataType::Edge,
-            Value::Path(_) => DataType::Path,
-            Value::Date(_) => DataType::Date,
-            Value::Time(_) => DataType::Time,
-            Value::DateTime(_) => DataType::DateTime,
-            Value::Duration(_) => DataType::Duration,
-            Value::Geography(_) => DataType::Geography,
-            Value::DataSet(_) => DataType::DataSet,
-            Value::Empty => DataType::Empty,
-        }
+        let mut type_validator = TypeDeduceValidator::new();
+        type_validator.deduce_type(expression)
     }
 
     pub fn context(&self) -> &GoContext {

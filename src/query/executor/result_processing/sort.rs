@@ -245,7 +245,7 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
             }
         }
 
-        // 使用标准库排序（简化实现）
+        // 使用标准库排序
         self.execute_standard_sort(data_set)
     }
 
@@ -280,7 +280,7 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
         Ok(())
     }
 
-    /// 使用标准库排序（简化实现）
+    /// 使用标准库排序
     fn execute_standard_sort(&mut self, data_set: &mut DataSet) -> DBResult<()> {
         // 使用标准库排序
         data_set
@@ -378,6 +378,9 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
     }
 
     /// 执行Top-N排序（使用select_nth_unstable优化）
+    ///
+    /// 参考nebula-graph的TopNExecutor实现，使用堆排序优化
+    /// 对于大数据集，select_nth_unstable的时间复杂度为O(n)，比完整排序O(n log n)更优
     fn execute_top_n_sort(&mut self, data_set: &mut DataSet, n: usize) -> DBResult<()> {
         if n == 0 || data_set.rows.is_empty() {
             return Ok(());
@@ -402,7 +405,10 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
         // 根据排序方向选择正确的比较逻辑
         let is_ascending = sort_orders[0] == SortOrder::Asc;
 
-        // 使用最佳实践方法：直接对数据行进行操作
+        // 使用select_nth_unstable优化Top-N查询
+        // select_nth_unstable会将前n个元素放在左侧，但顺序不确定
+        // 对于升序：左侧是前n个最小的元素
+        // 对于降序：需要反转比较器，使左侧变成前n个最大的元素
         if is_ascending {
             // 升序：选择前n个最小的元素
             let (left, _, _) = data_set.rows.select_nth_unstable_by(n, |a, b| {
@@ -411,12 +417,14 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
             left.sort_unstable_by(|a, b| self.compare_rows(a, b).unwrap_or(Ordering::Equal));
             data_set.rows.truncate(n);
         } else {
-            // 降序：选择最大的n个元素
-            // compare_rows方法内部已经根据SortOrder::Desc正确处理了降序比较
-            // 因此直接使用compare_rows(a, b)即可
-            data_set
-                .rows
-                .sort_unstable_by(|a, b| self.compare_rows(a, b).unwrap_or(Ordering::Equal));
+            // 降序：选择前n个最大的元素
+            // 通过反转比较器，select_nth_unstable会将最大的n个元素放在左侧
+            let (left, _, _) = data_set.rows.select_nth_unstable_by(n, |a, b| {
+                // 反转比较结果：使大的元素排在前面
+                self.compare_rows(b, a).unwrap_or(Ordering::Equal)
+            });
+            // 对左侧（最大的n个元素）按降序排序
+            left.sort_unstable_by(|a, b| self.compare_rows(a, b).unwrap_or(Ordering::Equal));
             data_set.rows.truncate(n);
         }
 
@@ -445,8 +453,15 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
             });
             data_set.rows.truncate(n);
         } else {
-            // 降序：选择最大的n个元素
-            data_set.rows.sort_unstable_by(|a, b| {
+            // 降序：选择前n个最大的元素
+            // 通过反转比较器，select_nth_unstable会将最大的n个元素放在左侧
+            let (left, _, _) = data_set.rows.select_nth_unstable_by(n, |a, b| {
+                // 反转比较结果：使大的元素排在前面
+                self.compare_by_column_indices(b, a)
+                    .unwrap_or(Ordering::Equal)
+            });
+            // 对左侧（最大的n个元素）按降序排序
+            left.sort_unstable_by(|a, b| {
                 self.compare_by_column_indices(a, b)
                     .unwrap_or(Ordering::Equal)
             });
@@ -636,6 +651,8 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
     }
 
     /// k路归并
+    ///
+    /// 使用堆实现多路归并排序，确保结果按排序键顺序排列
     fn k_way_merge(&self, sorted_chunks: Vec<Vec<Vec<Value>>>) -> DBResult<Vec<Vec<Value>>> {
         if sorted_chunks.is_empty() {
             return Ok(Vec::new());
@@ -645,12 +662,15 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
             return Ok(sorted_chunks.into_iter().next().unwrap());
         }
 
+        // 检查是否所有排序键都使用列索引
+        let all_use_column_index = self.sort_keys.iter().all(|key| key.uses_column_index());
+
         // 使用优先队列实现k路归并
-        #[derive(Clone)]
         struct HeapItem {
             row: Vec<Value>,
             chunk_idx: usize,
             row_idx: usize,
+            sort_values: Vec<Value>, // 预计算的排序值
         }
 
         impl Eq for HeapItem {}
@@ -661,11 +681,18 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
             }
         }
 
+        // 注意：BinaryHeap在Rust中是大顶堆，我们需要小顶堆，所以反转比较结果
         impl Ord for HeapItem {
             fn cmp(&self, other: &Self) -> Ordering {
-                // 注意：BinaryHeap在Rust中是大顶堆，我们需要小顶堆，所以反转比较结果
-                // 这里我们使用一个简化的比较，实际应该使用完整的排序逻辑
-                other.chunk_idx.cmp(&self.chunk_idx)
+                // 首先比较排序值
+                match self.sort_values.partial_cmp(&other.sort_values) {
+                    Some(Ordering::Equal) | None => {
+                        // 如果排序值相等，使用chunk_idx和row_idx作为稳定排序的依据
+                        other.chunk_idx.cmp(&self.chunk_idx)
+                            .then_with(|| other.row_idx.cmp(&self.row_idx))
+                    }
+                    Some(ordering) => ordering.reverse(), // 反转以实现小顶堆
+                }
             }
         }
 
@@ -681,14 +708,35 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
             .map(|c| c.into_iter())
             .collect();
 
+        // 创建虚拟列名用于计算排序值
+        let col_names: Vec<String> = if !chunk_iters.is_empty() && all_use_column_index {
+            // 如果使用列索引，不需要列名
+            Vec::new()
+        } else {
+            // 获取第一行的长度来确定列数
+            let first_row_len = chunk_iters.iter()
+                .filter_map(|iter| iter.as_slice().first().map(|row| row.len()))
+                .next()
+                .unwrap_or(0);
+            (0..first_row_len).map(|i| format!("col_{}", i)).collect()
+        };
+
         // 初始化堆
         let mut heap = BinaryHeap::new();
         for (chunk_idx, iter) in chunk_iters.iter_mut().enumerate() {
             if let Some(row) = iter.next() {
+                // 预计算排序值
+                let sort_values = if all_use_column_index {
+                    self.extract_column_sort_values(&row)?
+                } else {
+                    self.calculate_sort_values(&row, &col_names)?
+                };
+
                 heap.push(HeapItem {
                     row,
                     chunk_idx,
                     row_idx: 0,
+                    sort_values,
                 });
             }
         }
@@ -698,15 +746,52 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
             result.push(item.row);
 
             if let Some(next_row) = chunk_iters[item.chunk_idx].next() {
+                // 预计算下一行的排序值
+                let sort_values = if all_use_column_index {
+                    self.extract_column_sort_values(&next_row)?
+                } else {
+                    self.calculate_sort_values(&next_row, &col_names)?
+                };
+
                 heap.push(HeapItem {
                     row: next_row,
                     chunk_idx: item.chunk_idx,
                     row_idx: item.row_idx + 1,
+                    sort_values,
                 });
             }
         }
 
         Ok(result)
+    }
+
+    /// 从行中提取列索引对应的排序值
+    fn extract_column_sort_values(&self, row: &[Value]) -> DBResult<Vec<Value>> {
+        let mut sort_values = Vec::with_capacity(self.sort_keys.len());
+
+        for sort_key in &self.sort_keys {
+            if let Some(column_index) = sort_key.column_index {
+                if column_index < row.len() {
+                    sort_values.push(row[column_index].clone());
+                } else {
+                    return Err(DBError::Query(
+                        crate::core::error::QueryError::ExecutionError(format!(
+                            "列索引超出范围: {} (行长度: {})",
+                            column_index,
+                            row.len()
+                        )),
+                    ));
+                }
+            } else {
+                return Err(DBError::Query(
+                    crate::core::error::QueryError::ExecutionError(
+                        "非列索引排序键无法使用extract_column_sort_values".to_string(),
+                    ),
+                ));
+            }
+        }
+
+        Ok(sort_values)
     }
 }
 

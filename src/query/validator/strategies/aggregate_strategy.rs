@@ -6,6 +6,7 @@ use super::super::validation_interface::{
     ValidationContext as ValidationContextTrait, ValidationError, ValidationErrorType,
     ValidationStrategy, ValidationStrategyType,
 };
+use crate::core::types::operators::AggregateFunction;
 use crate::core::Expression;
 
 /// 聚合验证策略
@@ -86,7 +87,7 @@ impl AggregateValidationStrategy {
                 }
 
                 // 3. 检查特殊属性 (*.  * 只能用于COUNT)
-                self.validate_wildcard_property(&format!("{:?}", func), arg)?;
+                self.validate_wildcard_property(func, arg)?;
 
                 // 4. 递归验证参数表达式的合法性
                 self.validate_expression_in_aggregate(arg)?;
@@ -98,52 +99,49 @@ impl AggregateValidationStrategy {
     }
 
     /// 验证通配符属性的使用
-    /// 只有COUNT函数允许通配符属性(*)作为参数
+    /// 
+    /// 根据 nebula-graph 的实现，只有 COUNT 函数允许通配符属性(*)作为参数。
+    /// 
+    /// 验证规则：
+    /// 1. 只检查聚合函数的直接参数（不递归检查嵌套表达式）
+    /// 2. 只检查输入属性表达式（$-.prop 或 $var.prop 形式）
+    /// 3. 只有 COUNT 函数允许使用通配符属性 `*`
+    /// 
+    /// 参考：nebula-3.8.0/src/graph/util/ExpressionUtils.cpp:1199-1220
     fn validate_wildcard_property(
         &self,
-        func_name: &str,
+        func: &AggregateFunction,
         expression: &Expression,
     ) -> Result<(), ValidationError> {
-        // 简化版本：只有COUNT允许通配符
-        if !func_name.contains("Count") && self.has_wildcard_property(expression) {
-            return Err(ValidationError::new(
-                format!("聚合函数 `{}` 不能应用于通配符属性 `*`", func_name),
-                ValidationErrorType::AggregateError,
-            ));
+        let is_count = matches!(func, AggregateFunction::Count(_));
+        
+        if is_count {
+            return Ok(());
+        }
+        
+        if let Expression::Property { object, property } = expression {
+            if property == "*" {
+                if let Expression::Variable(var_name) = object.as_ref() {
+                    let ref_type = if var_name == "-" {
+                        "输入属性"
+                    } else {
+                        "变量属性"
+                    };
+                    return Err(ValidationError::new(
+                        format!(
+                            "不能将聚合函数 `{}` 应用于{}通配符属性 `{}.{}`",
+                            func.name(),
+                            ref_type,
+                            var_name,
+                            property
+                        ),
+                        ValidationErrorType::AggregateError,
+                    ));
+                }
+            }
         }
 
         Ok(())
-    }
-
-    /// 检查表达式中是否包含通配符属性
-    fn has_wildcard_property(&self, expression: &Expression) -> bool {
-        match expression {
-            Expression::Property { property, .. } if property == "*" => true,
-            Expression::Unary { operand, .. } => self.has_wildcard_property(operand.as_ref()),
-            Expression::Binary { left, right, .. } => {
-                self.has_wildcard_property(left.as_ref())
-                    || self.has_wildcard_property(right.as_ref())
-            }
-            Expression::Function { args, .. } => {
-                args.iter().any(|arg| self.has_wildcard_property(arg))
-            }
-            Expression::List(items) => items.iter().any(|item| self.has_wildcard_property(item)),
-            Expression::Map(items) => items
-                .iter()
-                .any(|(_, value)| self.has_wildcard_property(value)),
-            Expression::Case {
-                test_expr,
-                conditions,
-                default,
-            } => {
-                test_expr.as_ref().map_or(false, |expr| self.has_wildcard_property(expr))
-                    || conditions.iter().any(|(cond, val)| {
-                        self.has_wildcard_property(cond) || self.has_wildcard_property(val)
-                    })
-                    || default.as_ref().map_or(false, |d| self.has_wildcard_property(d))
-            }
-            _ => false,
-        }
     }
 
     /// 验证聚合函数参数表达式的合法性
@@ -393,7 +391,9 @@ mod tests {
         let result = strategy.validate_aggregate_expression(&expression);
         assert!(result.is_err());
         let err = result.unwrap_err();
-        assert!(err.message.contains("不能应用于通配符属性"));
+        assert!(err.message.contains("SUM"));
+        assert!(err.message.contains("变量属性"));
+        assert!(err.message.contains("n.*"));
     }
 
     #[test]
@@ -451,33 +451,87 @@ mod tests {
     }
 
     #[test]
-    fn test_has_wildcard_property() {
+    fn test_validate_input_property_wildcard() {
         let strategy = AggregateValidationStrategy::new();
 
-        // 直接通配符属性
-        let expr1 = Expression::Property {
-            object: Box::new(Expression::Variable("n".to_string())),
-            property: "*".to_string(),
-        };
-        assert!(strategy.has_wildcard_property(&expr1));
-
-        // 非通配符属性
-        let expr2 = Expression::Property {
-            object: Box::new(Expression::Variable("n".to_string())),
-            property: "age".to_string(),
-        };
-        assert!(!strategy.has_wildcard_property(&expr2));
-
-        // 二元表达式包含通配符
-        let expr3 = Expression::Binary {
-            left: Box::new(Expression::Property {
-                object: Box::new(Expression::Variable("n".to_string())),
+        // COUNT($-.*) 应该被允许
+        let count_input_wildcard = Expression::Aggregate {
+            func: AggregateFunction::Count(None),
+            arg: Box::new(Expression::Property {
+                object: Box::new(Expression::Variable("-".to_string())),
                 property: "*".to_string(),
             }),
-            op: BinaryOperator::Add,
-            right: Box::new(Expression::Literal(crate::core::Value::Int(1))),
+            distinct: false,
         };
-        assert!(strategy.has_wildcard_property(&expr3));
+        assert!(strategy.validate_aggregate_expression(&count_input_wildcard).is_ok());
+
+        // SUM($-.*) 不应该被允许
+        let sum_input_wildcard = Expression::Aggregate {
+            func: AggregateFunction::Sum("".to_string()),
+            arg: Box::new(Expression::Property {
+                object: Box::new(Expression::Variable("-".to_string())),
+                property: "*".to_string(),
+            }),
+            distinct: false,
+        };
+        let result = strategy.validate_aggregate_expression(&sum_input_wildcard);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.message.contains("输入属性"));
+        assert!(err.message.contains("SUM"));
+    }
+
+    #[test]
+    fn test_validate_var_property_wildcard() {
+        let strategy = AggregateValidationStrategy::new();
+
+        // COUNT($var.*) 应该被允许
+        let count_var_wildcard = Expression::Aggregate {
+            func: AggregateFunction::Count(None),
+            arg: Box::new(Expression::Property {
+                object: Box::new(Expression::Variable("myVar".to_string())),
+                property: "*".to_string(),
+            }),
+            distinct: false,
+        };
+        assert!(strategy.validate_aggregate_expression(&count_var_wildcard).is_ok());
+
+        // AVG($var.*) 不应该被允许
+        let avg_var_wildcard = Expression::Aggregate {
+            func: AggregateFunction::Avg("".to_string()),
+            arg: Box::new(Expression::Property {
+                object: Box::new(Expression::Variable("myVar".to_string())),
+                property: "*".to_string(),
+            }),
+            distinct: false,
+        };
+        let result = strategy.validate_aggregate_expression(&avg_var_wildcard);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.message.contains("变量属性"));
+        assert!(err.message.contains("AVG"));
+    }
+
+    #[test]
+    fn test_validate_wildcard_in_nested_expression() {
+        let strategy = AggregateValidationStrategy::new();
+
+        // 嵌套表达式中的通配符不应该被检查（只检查直接参数）
+        // SUM(n.* + 1) - 这里的 n.* 不是聚合函数的直接参数
+        let nested_wildcard = Expression::Aggregate {
+            func: AggregateFunction::Sum("".to_string()),
+            arg: Box::new(Expression::Binary {
+                left: Box::new(Expression::Property {
+                    object: Box::new(Expression::Variable("n".to_string())),
+                    property: "*".to_string(),
+                }),
+                op: BinaryOperator::Add,
+                right: Box::new(Expression::Literal(crate::core::Value::Int(1))),
+            }),
+            distinct: false,
+        };
+        // 由于通配符在嵌套表达式中，不是直接参数，所以应该通过验证
+        assert!(strategy.validate_aggregate_expression(&nested_wildcard).is_ok());
     }
 
     #[test]
