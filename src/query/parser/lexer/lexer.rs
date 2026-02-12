@@ -272,6 +272,7 @@ impl<'a> Lexer<'a> {
             "UPDATE" => Tk::Update,
             "INSERT" => Tk::Insert,
             "UPSERT" => Tk::Upsert,
+            "VALUES" => Tk::Values,
             "FROM" => Tk::From,
             "TO" => Tk::To,
             "AS" => Tk::As,
@@ -790,17 +791,6 @@ impl<'a> Lexer<'a> {
             None => Token::new(Tk::Eof, String::new(), self.line, self.column),
         };
 
-        if !matches!(
-            token.kind,
-            Tk::Identifier(_) | Tk::StringLiteral(_) | Tk::IntegerLiteral(_)
-                | Tk::FloatLiteral(_) | Tk::BooleanLiteral(_)
-                | Tk::Count | Tk::Sum | Tk::Avg | Tk::Min | Tk::Max
-        ) {
-            if !self.is_multitoken_keyword(&token) {
-                self.read_char();
-            }
-        }
-
         token
     }
 
@@ -1013,5 +1003,42 @@ mod tests {
         let input = "COUNT";
         let lexer = Lexer::new(input);
         assert_eq!(lexer.current_token.kind, Tk::Count);
+    }
+
+    #[test]
+    fn test_values_keyword() {
+        // 测试 VALUES 关键字识别
+        let input = "VALUES";
+        let lexer = Lexer::new(input);
+        
+        // 关键测试：VALUES 应该被识别为关键字
+        assert_eq!(lexer.current_token.kind, Tk::Values);
+        assert_eq!(lexer.current_token.lexeme, "VALUES");
+    }
+    
+    #[test]
+    fn test_values_in_insert_context() {
+        // 测试在 INSERT 语句上下文中 VALUES 关键字识别
+        let input = "INSERT VALUES";
+        let mut lexer = Lexer::new(input);
+
+        assert_eq!(lexer.current_token.kind, Tk::Insert);
+        lexer.advance();
+        
+        // VALUES 应该被识别为关键字，不是标识符
+        assert_eq!(lexer.current_token.kind, Tk::Values);
+        assert_eq!(lexer.current_token.lexeme, "VALUES");
+    }
+
+    #[test]
+    fn test_values_case_insensitive() {
+        // 测试 VALUES 关键字大小写不敏感
+        let inputs = vec!["VALUES", "values", "Values", "VaLuEs"];
+        
+        for input in inputs {
+            let lexer = Lexer::new(input);
+            assert_eq!(lexer.current_token.kind, Tk::Values, 
+                "'{}' 应该被识别为 Values 关键字", input);
+        }
     }
 }

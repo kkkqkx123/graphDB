@@ -1,5 +1,7 @@
 # GraphDB 集成测试设计方案
 
+> 本文档基于 Rust 集成测试最佳实践（参考 Rust Book、Cargo 官方文档及社区实践）
+
 ## 1. 项目现状分析
 
 ### 1.1 已完成测试
@@ -36,7 +38,110 @@ graphDB
 
 ---
 
-## 2. 集成测试分阶段方案
+## 2. Rust 集成测试最佳实践
+
+### 2.1 目录结构标准（Cargo 约定）
+
+根据 [Cargo 官方文档](https://doc.rust-lang.org/cargo/reference/cargo-targets.html) 和 [Rust Book](https://doc.rust-lang.org/book/ch11-03-test-organization.html)：
+
+```
+project/
+├── Cargo.toml
+├── src/
+│   └── lib.rs          # 必须是 lib.rs 才能支持集成测试
+└── tests/              # 集成测试目录（与 src/ 同级）
+    ├── common/         # 共享测试工具模块
+    │   └── mod.rs      # 使用 tests/common/mod.rs 模式
+    ├── integration_storage.rs    # 每个文件是一个独立的测试 crate
+    ├── integration_core.rs
+    ├── integration_query.rs
+    └── integration_e2e.rs
+```
+
+**关键要点**：
+- `tests/` 目录下的每个 `.rs` 文件会被编译为独立的测试 crate
+- 共享代码放在 `tests/common/mod.rs`，通过 `mod common;` 引用
+- **不要**创建 `tests/common.rs`，否则会被当作测试文件执行
+- 测试的工作目录设置为包根目录，可使用相对路径访问资源文件
+
+### 2.2 共享模块使用模式
+
+```rust
+// tests/common/mod.rs
+use std::sync::Arc;
+use tempfile::TempDir;
+use graphdb::storage::DefaultStorage;
+
+pub struct TestStorage {
+    storage: Arc<DefaultStorage>,
+    _temp_dir: TempDir,  // 生命周期绑定，自动清理
+}
+
+impl TestStorage {
+    pub fn new() -> anyhow::Result<Self> {
+        let temp_dir = tempfile::tempdir()?;
+        let storage = Arc::new(DefaultStorage::new_with_path(temp_dir.path())?);
+        Ok(Self { 
+            storage, 
+            _temp_dir: temp_dir 
+        })
+    }
+    
+    pub fn storage(&self) -> Arc<DefaultStorage> {
+        self.storage.clone()
+    }
+}
+```
+
+```rust
+// tests/integration_storage.rs
+mod common;
+use common::TestStorage;
+
+#[tokio::test]
+async fn test_storage_basic_operations() {
+    let test_storage = TestStorage::new().expect("创建测试存储失败");
+    let storage = test_storage.storage();
+    // 测试逻辑...
+}
+```
+
+### 2.3 测试命名规范
+
+```rust
+// 格式: test_<被测组件>_<场景>_<预期结果>
+#[tokio::test]
+async fn test_redb_storage_create_space_success() {}
+
+#[tokio::test]
+async fn test_redb_storage_transaction_rollback_isolation() {}
+
+#[tokio::test]
+async fn test_redb_iterator_filter_predicate_match() {}
+```
+
+### 2.4 临时资源管理
+
+使用 `tempfile` crate 确保测试隔离：
+
+```rust
+use tempfile::TempDir;
+
+#[tokio::test]
+async fn test_with_isolated_storage() {
+    let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
+    let storage = DefaultStorage::new_with_path(temp_dir.path())
+        .expect("初始化存储失败");
+    
+    // 测试执行...
+    
+    // temp_dir 在作用域结束时自动清理
+}
+```
+
+---
+
+## 3. 集成测试分阶段方案
 
 ### 阶段一：存储层集成测试（基础层）
 
@@ -52,7 +157,7 @@ graphDB
 | `storage::iterator` | 迭代器组合、谓词过滤、属性访问 | P1 |
 | `storage::index` | 索引创建、查询、维护 | P1 |
 
-**测试文件**: `tests/integration/storage/*.rs`
+**测试文件**: `tests/integration_storage.rs`
 
 **依赖关系**: 无（最底层）
 
@@ -71,7 +176,7 @@ graphDB
 | `expression::functions` | 内置函数注册与调用 | P1 |
 | `expression::context` | 上下文链、缓存管理 | P1 |
 
-**测试文件**: `tests/integration/core/*.rs`
+**测试文件**: `tests/integration_core.rs`
 
 **依赖关系**: 依赖阶段一的存储测试基础设施
 
@@ -90,7 +195,7 @@ graphDB
 | `query::optimizer` | 计划优化、规则应用 | P1 |
 | `query::executor` | 执行器调度、结果返回 | P0 |
 
-**测试文件**: `tests/integration/query/*.rs`
+**测试文件**: `tests/integration_query.rs`
 
 **测试场景**:
 ```rust
@@ -124,7 +229,7 @@ async fn test_complete_query_flow() {
 | `api::service::auth` | 认证流程 | P1 |
 | `api::service::permission` | 权限检查 | P1 |
 
-**测试文件**: `tests/integration/api/*.rs`
+**测试文件**: `tests/integration_api.rs`
 
 **测试场景**:
 - 会话创建与销毁
@@ -151,90 +256,94 @@ async fn test_complete_query_flow() {
 | 聚合查询 | COUNT / SUM / GROUP BY | P1 |
 | 事务场景 | 多语句事务、回滚 | P1 |
 
-**测试文件**: `tests/integration/e2e/*.rs`
+**测试文件**: `tests/integration_e2e.rs`
 
 **依赖关系**: 依赖所有前置阶段
 
 ---
 
-## 3. 测试基础设施设计
+## 4. 测试基础设施设计
 
-### 3.1 目录结构
+### 4.1 目录结构（遵循 Cargo 标准）
 
 ```
 tests/
-├── integration/
-│   ├── storage/          # 阶段一：存储层测试
-│   │   ├── mod.rs
-│   │   ├── redb_tests.rs
-│   │   ├── transaction_tests.rs
-│   │   └── metadata_tests.rs
-│   ├── core/             # 阶段二：核心层测试
-│   │   ├── mod.rs
-│   │   ├── value_tests.rs
-│   │   └── expression_tests.rs
-│   ├── query/            # 阶段三：查询引擎测试
-│   │   ├── mod.rs
-│   │   ├── parser_tests.rs
-│   │   ├── planner_tests.rs
-│   │   └── executor_tests.rs
-│   ├── api/              # 阶段四：API层测试
-│   │   ├── mod.rs
-│   │   ├── service_tests.rs
-│   │   └── session_tests.rs
-│   └── e2e/              # 阶段五：端到端测试
-│       ├── mod.rs
-│       ├── space_tests.rs
-│       ├── schema_tests.rs
-│       ├── data_tests.rs
-│       └── query_tests.rs
-├── fixtures/             # 测试数据
+├── common/                   # 共享测试工具（必须是目录形式）
+│   ├── mod.rs               # 主模块导出
+│   ├── storage_helpers.rs   # 存储相关辅助函数
+│   ├── data_fixtures.rs     # 测试数据生成
+│   └── assertions.rs        # 自定义断言
+├── fixtures/                # 静态测试数据文件
 │   ├── schemas/
-│   ├── datasets/
-│   └── queries/
-└── helpers/              # 测试辅助函数
-    ├── mod.rs
-    ├── storage_helpers.rs
-    ├── query_helpers.rs
-    └── assertions.rs
+│   │   ├── person_tag.json
+│   │   └── knows_edge.json
+│   └── datasets/
+│       └── social_network.csv
+├── integration_storage.rs   # 阶段一：存储层集成测试
+├── integration_core.rs      # 阶段二：核心层集成测试
+├── integration_query.rs     # 阶段三：查询引擎测试
+├── integration_api.rs       # 阶段四：API层测试
+└── integration_e2e.rs       # 阶段五：端到端测试
 ```
 
-### 3.2 共享测试工具
+### 4.2 共享测试工具
 
 ```rust
-// tests/helpers/mod.rs
+// tests/common/mod.rs
 pub mod storage_helpers;
-pub mod query_helpers;
+pub mod data_fixtures;
 pub mod assertions;
 
 use std::sync::Arc;
 use tempfile::TempDir;
+use graphdb::storage::DefaultStorage;
 
 /// 测试存储实例包装器
+/// 
+/// 使用 tempfile 确保每个测试有独立的存储环境，
+/// 测试结束后自动清理临时目录
 pub struct TestStorage {
     storage: Arc<DefaultStorage>,
-    temp_dir: TempDir,
+    _temp_dir: TempDir,
 }
 
 impl TestStorage {
+    /// 创建新的测试存储实例
     pub fn new() -> anyhow::Result<Self> {
         let temp_dir = tempfile::tempdir()?;
         let storage = Arc::new(DefaultStorage::new_with_path(temp_dir.path())?);
-        Ok(Self { storage, temp_dir })
+        Ok(Self { 
+            storage, 
+            _temp_dir: temp_dir 
+        })
     }
     
+    /// 获取存储实例引用
     pub fn storage(&self) -> Arc<DefaultStorage> {
         self.storage.clone()
     }
+    
+    /// 获取存储实例（用于需要直接访问的场景）
+    pub fn storage_ref(&self) -> &DefaultStorage {
+        &self.storage
+    }
 }
 
-/// 测试数据集加载
-pub async fn load_test_dataset(storage: &DefaultStorage, dataset: &str) -> anyhow::Result<()> {
-    // 从 fixtures/datasets/ 加载数据
+/// 测试上下文，包含常用测试资源
+pub struct TestContext {
+    pub storage: TestStorage,
+}
+
+impl TestContext {
+    pub fn new() -> anyhow::Result<Self> {
+        Ok(Self {
+            storage: TestStorage::new()?,
+        })
+    }
 }
 ```
 
-### 3.3 测试配置
+### 4.3 测试配置
 
 ```toml
 # Cargo.toml [dev-dependencies] 补充
@@ -245,9 +354,9 @@ serde_json = "1.0.145"
 
 ---
 
-## 4. 执行策略
+## 5. 执行策略
 
-### 4.1 分阶段执行命令
+### 5.1 分阶段执行命令
 
 ```bash
 # 阶段一：存储层测试
@@ -269,7 +378,7 @@ cargo test --test integration_e2e
 cargo test --test 'integration_*'
 ```
 
-### 4.2 CI/CD 集成建议
+### 5.2 CI/CD 集成建议
 
 ```yaml
 # 示例 GitHub Actions 配置
@@ -295,7 +404,7 @@ jobs:
         run: cargo test --test integration_e2e
 ```
 
-### 4.3 测试执行顺序约束
+### 5.3 测试执行顺序约束
 
 | 阶段 | 前置依赖 | 失败处理 |
 |------|----------|----------|
@@ -307,9 +416,9 @@ jobs:
 
 ---
 
-## 5. 测试用例设计原则
+## 6. 测试用例设计原则
 
-### 5.1 测试命名规范
+### 6.1 测试命名规范
 
 ```rust
 // 格式: test_<模块>_<场景>_<预期结果>
@@ -323,30 +432,66 @@ async fn test_storage_transaction_rollback_data_integrity() { }
 async fn test_query_match_single_vertex_filter() { }
 ```
 
-### 5.2 测试数据管理
+### 6.2 测试数据管理
 
-- ** fixtures 模式**: 静态测试数据存放于 `tests/fixtures/`
+- **fixtures 模式**: 静态测试数据存放于 `tests/fixtures/`
 - **工厂模式**: 动态生成测试数据
 - **每个测试独立**: 使用临时目录，测试后清理
 
-### 5.3 断言策略
+```rust
+// tests/common/data_fixtures.rs
+use graphdb::storage::{Schema, ColumnDef, DataType};
+
+/// 创建人员标签 Schema
+pub fn person_tag_schema() -> Schema {
+    Schema::new("Person")
+        .with_column(ColumnDef::new("name", DataType::String))
+        .with_column(ColumnDef::new("age", DataType::Int32))
+}
+
+/// 创建认识关系 Schema
+pub fn knows_edge_schema() -> Schema {
+    Schema::new("KNOWS")
+        .with_column(ColumnDef::new("since", DataType::Date))
+}
+```
+
+### 6.3 断言策略
 
 ```rust
-// 结果断言
-assert!(result.is_ok());
-assert_eq!(result.unwrap(), expected);
+// tests/common/assertions.rs
+use graphdb::core::DBResult;
 
-// 状态断言
-assert_storage_contains(&storage, key, value).await;
-assert_query_returns_rows(&query_result, expected_count).await;
+/// 断言操作成功
+pub fn assert_ok<T>(result: DBResult<T>) -> T {
+    result.expect("操作应该成功")
+}
 
-// 错误断言
-assert!(matches!(err, QueryError::ValidationError(_)));
+/// 断言操作失败并匹配错误类型
+pub fn assert_err_with<T>(result: DBResult<T>, expected_msg: &str) {
+    let err = result.expect_err("操作应该失败");
+    let err_str = err.to_string();
+    assert!(
+        err_str.contains(expected_msg),
+        "错误消息应包含 '{}', 实际是 '{}'",
+        expected_msg,
+        err_str
+    );
+}
+
+/// 断言存储包含指定数据
+pub async fn assert_storage_has_vertex(
+    storage: &DefaultStorage,
+    space: &str,
+    vertex_id: i64
+) {
+    // 实现验证逻辑
+}
 ```
 
 ---
 
-## 6. 风险与缓解措施
+## 7. 风险与缓解措施
 
 | 风险 | 影响 | 缓解措施 |
 |------|------|----------|
@@ -357,16 +502,16 @@ assert!(matches!(err, QueryError::ValidationError(_)));
 
 ---
 
-## 7. 实施计划
+## 8. 实施计划
 
-### 7.1 优先级排序
+### 8.1 优先级排序
 
 1. **立即实施**: 阶段一（存储层）- 基础设施
-2. **第一迭代**: 阶段二（核心层）+ 阶段三（查询引擎基础）
+2. **第一迭代**: 阶段二（核心层）+ 阶段三基础部分
 3. **第二迭代**: 阶段三完整 + 阶段四（API层）
 4. **第三迭代**: 阶段五（端到端场景）
 
-### 7.2 工作量估算
+### 8.2 工作量估算
 
 | 阶段 | 预估用例数 | 预估工作量 |
 |------|------------|------------|
@@ -379,16 +524,27 @@ assert!(matches!(err, QueryError::ValidationError(_)));
 
 ---
 
-## 8. 附录
+## 9. 附录
 
-### 8.1 参考文档
+### 9.1 参考文档
 
-- [Rust Testing Guide](https://doc.rust-lang.org/book/ch11-00-testing.html)
-- [Cargo Integration Tests](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#integration-tests)
+- [Rust Book - Test Organization](https://doc.rust-lang.org/book/ch11-03-test-organization.html)
+- [Cargo Targets - Integration Tests](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#integration-tests)
+- [Cargo Project Layout](https://doc.rust-lang.org/cargo/guide/project-layout.html)
+- [Rust Users Forum - Integration Test Organization](https://users.rust-lang.org/t/integration-test-common-module-questions/96638)
 
-### 8.2 相关代码文件
+### 9.2 相关代码文件
 
 - [src/lib.rs](file:///d:/项目/database/graphDB/src/lib.rs) - 库入口
 - [src/query/query_pipeline_manager.rs](file:///d:/项目/database/graphDB/src/query/query_pipeline_manager.rs) - 查询管道
 - [src/api/service/graph_service.rs](file:///d:/项目/database/graphDB/src/api/service/graph_service.rs) - 图服务
 - [src/storage/redb_storage.rs](file:///d:/项目/database/graphDB/src/storage/redb_storage.rs) - 存储实现
+
+### 9.3 最佳实践要点总结
+
+1. **必须是 lib.rs**: 项目必须有 `src/lib.rs` 才能创建集成测试
+2. **common 模块**: 共享代码放在 `tests/common/mod.rs`，不是 `tests/common.rs`
+3. **独立 crate**: `tests/` 下每个 `.rs` 文件编译为独立测试 crate
+4. **工作目录**: 测试工作目录是包根目录，可用相对路径访问资源
+5. **资源清理**: 使用 `tempfile` crate 确保测试资源自动清理
+6. **命名规范**: 测试函数使用 `test_<组件>_<场景>_<结果>` 格式

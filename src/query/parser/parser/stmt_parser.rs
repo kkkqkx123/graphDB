@@ -433,13 +433,17 @@ impl<'a> StmtParser<'a> {
 
     fn parse_property_names(&mut self, ctx: &mut ParseContext<'a>) -> Result<Vec<String>, ParseError> {
         let mut names = Vec::new();
+        // 检查是否是空列表 ()
+        if ctx.match_token(TokenKind::RParen) {
+            return Ok(names);
+        }
         loop {
             names.push(ctx.expect_identifier()?);
-            if !ctx.match_token(TokenKind::Comma) {
+            if ctx.match_token(TokenKind::RParen) {
                 break;
             }
+            ctx.expect_token(TokenKind::Comma)?;
         }
-        ctx.expect_token(TokenKind::RParen)?;
         Ok(names)
     }
 
@@ -453,10 +457,13 @@ impl<'a> StmtParser<'a> {
             ctx.expect_token(TokenKind::Colon)?;
             ctx.expect_token(TokenKind::LParen)?;
             let mut prop_values = Vec::new();
-            loop {
-                prop_values.push(self.parse_expression(ctx)?);
-                if !ctx.match_token(TokenKind::Comma) {
-                    break;
+            // 如果下一个 token 不是 RParen，则解析属性值
+            if ctx.current_token().kind != TokenKind::RParen {
+                loop {
+                    prop_values.push(self.parse_expression(ctx)?);
+                    if !ctx.match_token(TokenKind::Comma) {
+                        break;
+                    }
                 }
             }
             ctx.expect_token(TokenKind::RParen)?;
@@ -784,13 +791,10 @@ impl<'a> StmtParser<'a> {
             while !ctx.match_token(TokenKind::RParen) {
                 let name = ctx.expect_identifier()?;
                 ctx.expect_token(TokenKind::Colon)?;
-                let data_type = ctx.expect_identifier()?;
-                let dtype = match data_type.to_uppercase().as_str() {
-                    "INT" => DataType::Int,
-                    "FLOAT" => DataType::Float,
-                    "STRING" => DataType::String,
-                    _ => DataType::String,
-                };
+                
+                // 解析数据类型，支持关键字或标识符
+                let dtype = self.parse_data_type(ctx)?;
+                
                 defs.push(PropertyDef {
                     name,
                     data_type: dtype,
@@ -804,6 +808,66 @@ impl<'a> StmtParser<'a> {
             }
         }
         Ok(defs)
+    }
+    
+    /// 解析数据类型，支持关键字（如 STRING, INT）或标识符
+    fn parse_data_type(&mut self, ctx: &mut ParseContext<'a>) -> Result<DataType, ParseError> {
+        let token = ctx.current_token();
+        match token.kind {
+            // 支持数据类型关键字
+            TokenKind::Int | TokenKind::Int8 | TokenKind::Int16 | TokenKind::Int32 | TokenKind::Int64 => {
+                ctx.next_token();
+                Ok(DataType::Int)
+            }
+            TokenKind::Float | TokenKind::Double => {
+                ctx.next_token();
+                Ok(DataType::Float)
+            }
+            TokenKind::String | TokenKind::FixedString => {
+                ctx.next_token();
+                Ok(DataType::String)
+            }
+            TokenKind::Bool => {
+                ctx.next_token();
+                Ok(DataType::Bool)
+            }
+            TokenKind::Date => {
+                ctx.next_token();
+                Ok(DataType::Date)
+            }
+            TokenKind::Timestamp => {
+                ctx.next_token();
+                Ok(DataType::Timestamp)
+            }
+            TokenKind::Datetime => {
+                ctx.next_token();
+                Ok(DataType::DateTime)
+            }
+            // 支持标识符形式的数据类型（如 "INT", "string" 等）
+            TokenKind::Identifier(ref s) => {
+                let type_name = s.clone();
+                ctx.next_token();
+                match type_name.to_uppercase().as_str() {
+                    "INT" | "INTEGER" | "INT8" | "INT16" | "INT32" | "INT64" => Ok(DataType::Int),
+                    "FLOAT" | "DOUBLE" => Ok(DataType::Float),
+                    "STRING" | "VARCHAR" | "TEXT" => Ok(DataType::String),
+                    "BOOL" | "BOOLEAN" => Ok(DataType::Bool),
+                    "DATE" => Ok(DataType::Date),
+                    "TIMESTAMP" => Ok(DataType::Timestamp),
+                    "DATETIME" => Ok(DataType::DateTime),
+                    _ => Err(ParseError::new(
+                        ParseErrorKind::SyntaxError,
+                        format!("未知数据类型: {}", type_name),
+                        ctx.current_position(),
+                    )),
+                }
+            }
+            _ => Err(ParseError::new(
+                ParseErrorKind::UnexpectedToken,
+                format!("期望数据类型，发现 {:?}", token.kind),
+                ctx.current_position(),
+            )),
+        }
     }
 
     fn parse_set_clause(&mut self, ctx: &mut ParseContext<'a>) -> Result<SetClause, ParseError> {
@@ -1110,5 +1174,192 @@ impl<'a> StmtParser<'a> {
             old_password,
             new_password,
         }))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::query::parser::parser::ParseContext;
+
+    fn create_parser_context(input: &str) -> ParseContext {
+        ParseContext::new(input)
+    }
+
+    #[test]
+    fn test_parse_data_type_keywords() {
+        let mut parser = StmtParser::new();
+        
+        // 测试 STRING 关键字
+        let mut ctx = create_parser_context("STRING");
+        let result = parser.parse_data_type(&mut ctx);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), DataType::String);
+        
+        // 测试 INT 关键字
+        let mut ctx = create_parser_context("INT");
+        let result = parser.parse_data_type(&mut ctx);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), DataType::Int);
+        
+        // 测试 FLOAT 关键字
+        let mut ctx = create_parser_context("FLOAT");
+        let result = parser.parse_data_type(&mut ctx);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), DataType::Float);
+        
+        // 测试 BOOL 关键字
+        let mut ctx = create_parser_context("BOOL");
+        let result = parser.parse_data_type(&mut ctx);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), DataType::Bool);
+        
+        // 测试 DATE 关键字
+        let mut ctx = create_parser_context("DATE");
+        let result = parser.parse_data_type(&mut ctx);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), DataType::Date);
+    }
+
+    #[test]
+    fn test_parse_data_type_identifiers() {
+        let mut parser = StmtParser::new();
+        
+        // 测试小写标识符形式
+        let mut ctx = create_parser_context("string");
+        let result = parser.parse_data_type(&mut ctx);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), DataType::String);
+        
+        // 测试混合大小写
+        let mut ctx = create_parser_context("Int");
+        let result = parser.parse_data_type(&mut ctx);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), DataType::Int);
+    }
+
+    #[test]
+    fn test_create_tag_statement_parses() {
+        let mut parser = StmtParser::new();
+        
+        // 测试 CREATE TAG 语句能够解析成功
+        let mut ctx = create_parser_context("CREATE TAG Person(name: STRING, age: INT)");
+        let result = parser.parse_statement(&mut ctx);
+        
+        // 验证解析成功
+        assert!(result.is_ok(), "CREATE TAG 解析失败: {:?}", result.err());
+        
+        // 验证是 Create 语句
+        if let Ok(Stmt::Create(stmt)) = result {
+            // 验证是 Tag 创建目标
+            match stmt.target {
+                CreateTarget::Tag { name, .. } => {
+                    assert_eq!(name, "Person");
+                }
+                _ => panic!("期望 Tag 创建目标，实际得到 {:?}", stmt.target),
+            }
+        } else {
+            panic!("期望 Create 语句");
+        }
+    }
+
+    #[test]
+    fn test_create_edge_type_statement_parses() {
+        let mut parser = StmtParser::new();
+        
+        // 测试 CREATE EDGE 语句能够解析成功
+        let mut ctx = create_parser_context("CREATE EDGE KNOWS(since: DATE)");
+        let result = parser.parse_statement(&mut ctx);
+        
+        // 验证解析成功
+        assert!(result.is_ok(), "CREATE EDGE 解析失败: {:?}", result.err());
+        
+        // 验证是 Create 语句
+        if let Ok(Stmt::Create(stmt)) = result {
+            // 验证是 EdgeType 创建目标
+            match stmt.target {
+                CreateTarget::EdgeType { name, .. } => {
+                    assert_eq!(name, "KNOWS");
+                }
+                _ => panic!("期望 EdgeType 创建目标，实际得到 {:?}", stmt.target),
+            }
+        } else {
+            panic!("期望 Create 语句");
+        }
+    }
+
+    #[test]
+    fn test_insert_vertex_statement_parses() {
+        let mut parser = StmtParser::new();
+        
+        // 测试 INSERT VERTEX 语句解析
+        let mut ctx = create_parser_context("INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30)");
+        let result = parser.parse_statement(&mut ctx);
+        
+        // 验证解析成功
+        assert!(result.is_ok(), "INSERT VERTEX 解析失败: {:?}", result.err());
+        
+        // 验证是 Insert 语句
+        if let Ok(Stmt::Insert(stmt)) = result {
+            match stmt.target {
+                InsertTarget::Vertices { tag_name, .. } => {
+                    assert_eq!(tag_name, "Person");
+                }
+                _ => panic!("期望 Vertices 插入目标，实际得到 {:?}", stmt.target),
+            }
+        } else {
+            panic!("期望 Insert 语句");
+        }
+    }
+    
+    #[test]
+    fn test_insert_vertex_simple() {
+        // 测试简化版 INSERT VERTEX
+        let mut parser = StmtParser::new();
+        let mut ctx = create_parser_context("INSERT VERTEX Person() VALUES 1:()");
+        
+        // 调试：打印所有 token
+        println!("调试 INSERT VERTEX 解析:");
+        let mut debug_ctx = create_parser_context("INSERT VERTEX Person() VALUES 1:()");
+        loop {
+            let token = debug_ctx.current_token();
+            println!("Token: {:?}, Lexeme: '{}'", token.kind, token.lexeme);
+            if token.kind == TokenKind::Eof {
+                break;
+            }
+            debug_ctx.next_token();
+        }
+        
+        let result = parser.parse_statement(&mut ctx);
+        
+        assert!(result.is_ok(), "简化版 INSERT VERTEX 解析失败: {:?}", result.err());
+        
+        if let Ok(Stmt::Insert(stmt)) = result {
+            match stmt.target {
+                InsertTarget::Vertices { tag_name, .. } => {
+                    assert_eq!(tag_name, "Person");
+                }
+                _ => panic!("期望 Vertices 插入目标"),
+            }
+        }
+    }
+    
+    #[test]
+    fn test_tokenize_parentheses() {
+        // 测试括号是否正确识别 - 使用 ParseContext
+        use crate::query::parser::parser::ParseContext;
+        use crate::query::parser::lexer::TokenKind as Tk;
+        
+        let mut ctx = ParseContext::new("()");
+        println!("Token 1: {:?}", ctx.current_token().kind);
+        ctx.next_token();
+        println!("Token 2: {:?}", ctx.current_token().kind);
+        ctx.next_token();
+        println!("Token 3: {:?}", ctx.current_token().kind);
+        
+        let mut ctx2 = ParseContext::new("()");
+        assert_eq!(ctx2.current_token().kind, Tk::LParen);
+        ctx2.next_token();
+        assert_eq!(ctx2.current_token().kind, Tk::RParen);
     }
 }

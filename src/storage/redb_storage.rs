@@ -57,7 +57,9 @@ impl RedbStorage<RedbEngine> {
             .map_err(|e| StorageError::DbError(format!("创建数据库失败: {}", e)))?);
         let extended_schema_manager = Arc::new(RedbExtendedSchemaManager::new(db.clone()));
 
-        let engine = Arc::new(Mutex::new(RedbEngine::new(&path)?));
+        // 为 RedbEngine 使用不同的数据库文件路径，避免与主数据库冲突
+        let engine_path = path.with_extension("engine.redb");
+        let engine = Arc::new(Mutex::new(RedbEngine::new(&engine_path)?));
 
         Ok(Self {
             engine,
