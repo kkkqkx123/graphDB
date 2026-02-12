@@ -80,7 +80,7 @@ pub trait CostAwareRule: BaseOptRule {
     fn should_apply(&self, ctx: &OptContext, node: &OptGroupNode, new_node: &OptGroupNode) -> bool {
         let cost_before = self.estimate_cost_before(ctx, node);
         let cost_after = self.estimate_cost_after(ctx, node, new_node);
-        cost_after.total() < cost_before.total()
+        cost_after < cost_before
     }
 }
 

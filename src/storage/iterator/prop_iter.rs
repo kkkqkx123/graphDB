@@ -396,11 +396,6 @@ impl Iterator for PropIter {
             _ => 0,
         };
 
-        let edge_type = match self.get_prop(&edge_name, "_type") {
-            Some(Value::Int(t)) => *t as i64,
-            _ => 0,
-        };
-
         let mut edge_props = std::collections::HashMap::new();
 
         if let Some(prop_map) = self.ds_index.props_map.get(&edge_name) {

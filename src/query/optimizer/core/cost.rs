@@ -2,62 +2,10 @@
 //! 定义 Cost、Statistics 等代价估算相关的核心结构体
 
 use std::collections::HashMap;
-use std::cmp::Ordering;
-use std::fmt;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Cost {
-    pub cpu_cost: f64,
-    pub io_cost: f64,
-    pub memory_cost: f64,
-    pub network_cost: f64,
-}
-
-impl fmt::Display for Cost {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "Cost(cpu={:.2}, io={:.2}, memory={:.2}, network={:.2}, total={:.2})",
-            self.cpu_cost, self.io_cost, self.memory_cost, self.network_cost, self.total()
-        )
-    }
-}
-
-impl Default for Cost {
-    fn default() -> Self {
-        Self {
-            cpu_cost: 0.0,
-            io_cost: 0.0,
-            memory_cost: 0.0,
-            network_cost: 0.0,
-        }
-    }
-}
-
-impl Cost {
-    pub fn new(cpu: f64, io: f64, memory: f64, network: f64) -> Self {
-        Self {
-            cpu_cost: cpu,
-            io_cost: io,
-            memory_cost: memory,
-            network_cost: network,
-        }
-    }
-
-    pub fn total(&self) -> f64 {
-        self.cpu_cost + self.io_cost + self.memory_cost + self.network_cost
-    }
-
-    pub fn is_zero(&self) -> bool {
-        self.cpu_cost == 0.0 && self.io_cost == 0.0 && self.memory_cost == 0.0 && self.network_cost == 0.0
-    }
-}
-
-impl PartialOrd for Cost {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.total().partial_cmp(&other.total())
-    }
-}
+/// 代价值（单精度浮点数）
+/// 与 nebula-graph 保持一致，使用简单的单一代价值
+pub type Cost = f64;
 
 #[derive(Debug, Clone)]
 pub struct TableStats {

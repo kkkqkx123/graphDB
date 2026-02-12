@@ -194,6 +194,8 @@ impl JoinOptimizationRule {
     }
 
     /// 估算子树的代价
+    /// 此方法当前未使用，但保留作为基于代价优化（CBO）的基础设施
+    #[allow(dead_code)]
     fn estimate_subtree_cost(
         &self,
         _ctx: &OptContext,

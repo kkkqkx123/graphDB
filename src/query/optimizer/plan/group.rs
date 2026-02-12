@@ -63,8 +63,8 @@ impl OptGroup {
     pub fn get_min_cost_group_node(&self) -> Option<std::rc::Rc<std::cell::RefCell<OptGroupNode>>> {
         self.nodes.iter()
             .min_by(|a, b| {
-                let cost_a = a.borrow().cost.total();
-                let cost_b = b.borrow().cost.total();
+                let cost_a = a.borrow().cost;
+                let cost_b = b.borrow().cost;
                 cost_a.partial_cmp(&cost_b).unwrap_or(std::cmp::Ordering::Equal)
             })
             .map(std::rc::Rc::clone)

@@ -54,17 +54,6 @@ impl MatchStatementPlanner {
     pub fn match_ast_ctx(ast_ctx: &AstContext) -> bool {
         ast_ctx.statement_type().to_uppercase() == "MATCH"
     }
-
-    fn parse_tag_from_pattern(pattern: &str) -> Option<String> {
-        let colon_pos = pattern.find(':')?;
-        let closing_paren_pos = pattern.find(')')?;
-        if colon_pos < closing_paren_pos {
-            let tag_part = &pattern[colon_pos + 1..closing_paren_pos];
-            Some(tag_part.to_string())
-        } else {
-            None
-        }
-    }
 }
 
 impl Planner for MatchStatementPlanner {
@@ -495,10 +484,4 @@ mod tests {
         assert!(clauses.contains(&CypherClauseKind::Match));
     }
 
-    #[test]
-    fn test_parse_tag_from_pattern() {
-        assert_eq!(MatchStatementPlanner::parse_tag_from_pattern("(n:Person)"), Some("Person".to_string()));
-        assert_eq!(MatchStatementPlanner::parse_tag_from_pattern("(n:Tag1:Tag2)"), Some("Tag1:Tag2".to_string()));
-        assert_eq!(MatchStatementPlanner::parse_tag_from_pattern("(n)"), None);
-    }
 }

@@ -46,16 +46,6 @@ impl ReturnClausePlanner {
         let distinct = extract_distinct_flag(ast_ctx);
         Self::with_distinct(distinct)
     }
-
-    fn is_aggregated_expression(name: &str) -> bool {
-        let upper = name.to_uppercase();
-        upper.starts_with("COUNT(")
-            || upper.starts_with("SUM(")
-            || upper.starts_with("AVG(")
-            || upper.starts_with("MAX(")
-            || upper.starts_with("MIN(")
-            || upper.starts_with("COLLECT(")
-    }
 }
 
 fn extract_distinct_flag(ast_ctx: &AstContext) -> bool {
@@ -166,10 +156,4 @@ mod tests {
         assert!(!planner.supports(CypherClauseKind::Where));
     }
 
-    #[test]
-    fn test_is_aggregated_expression() {
-        assert!(ReturnClausePlanner::is_aggregated_expression("COUNT(*)"));
-        assert!(ReturnClausePlanner::is_aggregated_expression("SUM(x)"));
-        assert!(!ReturnClausePlanner::is_aggregated_expression("name"));
-    }
 }

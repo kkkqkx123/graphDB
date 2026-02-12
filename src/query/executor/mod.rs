@@ -87,10 +87,14 @@ pub use special_executors::{ArgumentExecutor, DataCollectExecutor, PassThroughEx
 
 /// PlanNodeEnum 的变体数量
 /// 注意：当添加或删除 PlanNodeEnum 的变体时，需要更新此常量
+/// 此常量仅用于编译期断言检查，故标记为允许未使用
+#[allow(dead_code)]
 const PLAN_NODE_VARIANT_COUNT: usize = 68;
 
 /// ExecutorEnum 的变体数量
 /// 注意：当添加或删除 ExecutorEnum 的变体时，需要更新此常量
+/// 此常量仅用于编译期断言检查，故标记为允许未使用
+#[allow(dead_code)]
 const EXECUTOR_VARIANT_COUNT: usize = 68;
 
 // 编译期断言：确保两个枚举的变体数量一致

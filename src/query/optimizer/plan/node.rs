@@ -589,8 +589,8 @@ mod tests {
     fn test_opt_group_node_cost() {
         let plan_node = PlanNodeEnum::default();
         let mut group_node = OptGroupNode::new(1, plan_node);
-        let cost = Cost::new(10.0, 100.0, 0.0, 0.0);
-        group_node.set_cost(cost.clone());
+        let cost = 110.0;  // 总代价
+        group_node.set_cost(cost);
         assert_eq!(group_node.get_cost(), cost);
     }
 

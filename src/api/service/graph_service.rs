@@ -119,7 +119,6 @@ pub struct GraphService<S: StorageClient + Clone + 'static> {
     authenticator: Arc<PasswordAuthenticator>,
     permission_manager: Arc<PermissionManager>,
     stats_manager: Arc<StatsManager>,
-    config: Config,
     transaction_manager: Arc<Mutex<TransactionManager>>,
     storage: Arc<Mutex<S>>,
 }
@@ -144,7 +143,6 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             authenticator,
             permission_manager,
             stats_manager,
-            config,
             transaction_manager,
             storage: Arc::new(Mutex::new(storage.as_ref().clone())),
         })
@@ -453,8 +451,8 @@ mod tests {
         let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
         let graph_service = GraphService::<MockStorage>::new(config, storage);
 
-        assert_eq!(graph_service.config.host, "127.0.0.1");
-        assert_eq!(graph_service.config.port, 9669);
+        // 验证服务创建成功
+        assert!(graph_service.get_session_manager().is_out_of_connections() == false);
     }
 
     #[tokio::test]
