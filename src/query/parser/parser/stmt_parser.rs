@@ -7,6 +7,7 @@ use crate::core::types::PropertyDef;
 use crate::core::types::expression::Expression as CoreExpression;
 use crate::query::parser::ast::*;
 use crate::query::parser::ast::pattern::{EdgePattern, NodePattern, PathElement, PathPattern};
+use crate::query::parser::ast::stmt::PropertyChange;
 use crate::query::parser::core::error::{ParseError, ParseErrorKind};
 use crate::query::parser::parser::ExprParser;
 use crate::query::parser::parser::parse_context::ParseContext;
@@ -151,18 +152,34 @@ impl<'a> StmtParser<'a> {
         ctx.expect_token(TokenKind::Create)?;
 
         if ctx.match_token(TokenKind::Tag) {
+            // 解析 IF NOT EXISTS (在 TAG 之后)
+            let mut if_not_exists = false;
+            if ctx.match_token(TokenKind::If) {
+                ctx.expect_token(TokenKind::Not)?;
+                ctx.expect_token(TokenKind::Exists)?;
+                if_not_exists = true;
+            }
             let name = ctx.expect_identifier()?;
             let properties = self.parse_property_defs(ctx)?;
             Ok(Stmt::Create(CreateStmt {
                 span: start_span,
                 target: CreateTarget::Tag { name, properties },
+                if_not_exists,
             }))
         } else if ctx.match_token(TokenKind::Edge) {
+            // 解析 IF NOT EXISTS (在 EDGE 之后)
+            let mut if_not_exists = false;
+            if ctx.match_token(TokenKind::If) {
+                ctx.expect_token(TokenKind::Not)?;
+                ctx.expect_token(TokenKind::Exists)?;
+                if_not_exists = true;
+            }
             let name = ctx.expect_identifier()?;
             let properties = self.parse_property_defs(ctx)?;
             Ok(Stmt::Create(CreateStmt {
                 span: start_span,
                 target: CreateTarget::EdgeType { name, properties },
+                if_not_exists,
             }))
         } else {
             Err(ParseError::new(
@@ -975,26 +992,51 @@ impl<'a> StmtParser<'a> {
         let target = if ctx.match_token(TokenKind::Space) {
             DropTarget::Space(ctx.expect_identifier()?)
         } else if ctx.match_token(TokenKind::Tag) {
-            let tag_name = ctx.expect_identifier()?;
-            let space_name = if ctx.match_token(TokenKind::In) {
-                Some(ctx.expect_identifier()?)
-            } else {
-                None
-            };
-            DropTarget::Tag {
-                space_name: space_name.unwrap_or_default(),
-                tag_name,
+            // 解析 IF EXISTS (在 TAG 之后)
+            let mut if_exists = false;
+            if ctx.match_token(TokenKind::If) {
+                ctx.expect_token(TokenKind::Exists)?;
+                if_exists = true;
             }
-        } else if ctx.match_token(TokenKind::Edge) && !ctx.match_token(TokenKind::Index) {
-            let edge_name = ctx.expect_identifier()?;
-            let space_name = if ctx.match_token(TokenKind::In) {
-                Some(ctx.expect_identifier()?)
+            let mut tag_names = vec![ctx.expect_identifier()?];
+            while ctx.match_token(TokenKind::Comma) {
+                tag_names.push(ctx.expect_identifier()?);
+            }
+            return Ok(Stmt::Drop(DropStmt {
+                span: start_span,
+                target: DropTarget::Tags(tag_names),
+                if_exists,
+            }));
+        } else if ctx.check_token(TokenKind::Edge) {
+            ctx.next_token(); // 消费 EDGE
+            if ctx.check_token(TokenKind::Index) {
+                ctx.next_token(); // 消费 INDEX
+                let index_name = ctx.expect_identifier()?;
+                let space_name = if ctx.match_token(TokenKind::On) {
+                    Some(ctx.expect_identifier()?)
+                } else {
+                    None
+                };
+                DropTarget::EdgeIndex {
+                    space_name: space_name.unwrap_or_default(),
+                    index_name,
+                }
             } else {
-                None
-            };
-            DropTarget::Edge {
-                space_name: space_name.unwrap_or_default(),
-                edge_name,
+                // 解析 IF EXISTS (在 EDGE 之后)
+                let mut if_exists = false;
+                if ctx.match_token(TokenKind::If) {
+                    ctx.expect_token(TokenKind::Exists)?;
+                    if_exists = true;
+                }
+                let mut edge_names = vec![ctx.expect_identifier()?];
+                while ctx.match_token(TokenKind::Comma) {
+                    edge_names.push(ctx.expect_identifier()?);
+                }
+                return Ok(Stmt::Drop(DropStmt {
+                    span: start_span,
+                    target: DropTarget::Edges(edge_names),
+                    if_exists,
+                }));
             }
         } else if ctx.match_token(TokenKind::Index) {
             let index_name = ctx.expect_identifier()?;
@@ -1004,17 +1046,6 @@ impl<'a> StmtParser<'a> {
                 None
             };
             DropTarget::TagIndex {
-                space_name: space_name.unwrap_or_default(),
-                index_name,
-            }
-        } else if ctx.match_token(TokenKind::Edge) && ctx.match_token(TokenKind::Index) {
-            let index_name = ctx.expect_identifier()?;
-            let space_name = if ctx.match_token(TokenKind::On) {
-                Some(ctx.expect_identifier()?)
-            } else {
-                None
-            };
-            DropTarget::EdgeIndex {
                 space_name: space_name.unwrap_or_default(),
                 index_name,
             }
@@ -1029,7 +1060,7 @@ impl<'a> StmtParser<'a> {
         let end_span = ctx.current_span();
         let span = ctx.merge_span(start_span.start, end_span.end);
 
-        Ok(Stmt::Drop(DropStmt { span, target }))
+        Ok(Stmt::Drop(DropStmt { span, target, if_exists: false }))
     }
 
     fn parse_desc_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {
@@ -1078,20 +1109,14 @@ impl<'a> StmtParser<'a> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Alter)?;
 
-        let (is_tag, space_name, name, additions, deletions) = if ctx.match_token(TokenKind::Tag) {
+        let (is_tag, name, additions, deletions, changes) = if ctx.match_token(TokenKind::Tag) {
             let tag_name = ctx.expect_identifier()?;
-            ctx.expect_token(TokenKind::Space)?;
-            let space_name = ctx.expect_identifier()?;
-            let additions = self.parse_alter_additions(ctx)?;
-            let deletions = self.parse_alter_deletions(ctx)?;
-            (true, space_name, tag_name, additions, deletions)
+            let (additions, deletions, changes) = self.parse_alter_operations(ctx)?;
+            (true, tag_name, additions, deletions, changes)
         } else if ctx.match_token(TokenKind::Edge) {
             let edge_name = ctx.expect_identifier()?;
-            ctx.expect_token(TokenKind::Space)?;
-            let space_name = ctx.expect_identifier()?;
-            let additions = self.parse_alter_additions(ctx)?;
-            let deletions = self.parse_alter_deletions(ctx)?;
-            (false, space_name, edge_name, additions, deletions)
+            let (additions, deletions, changes) = self.parse_alter_operations(ctx)?;
+            (false, edge_name, additions, deletions, changes)
         } else {
             return Err(ParseError::new(
                 ParseErrorKind::UnexpectedToken,
@@ -1107,45 +1132,65 @@ impl<'a> StmtParser<'a> {
             Ok(Stmt::Alter(AlterStmt {
                 span,
                 target: AlterTarget::Tag {
-                    space_name,
                     tag_name: name,
                     additions,
                     deletions,
+                    changes,
                 },
             }))
         } else {
             Ok(Stmt::Alter(AlterStmt {
                 span,
                 target: AlterTarget::Edge {
-                    space_name,
                     edge_name: name,
                     additions,
                     deletions,
+                    changes,
                 },
             }))
         }
     }
 
-    fn parse_alter_additions(&mut self, ctx: &mut ParseContext<'a>) -> Result<Vec<PropertyDef>, ParseError> {
+    fn parse_alter_operations(&mut self, ctx: &mut ParseContext<'a>) -> Result<(Vec<PropertyDef>, Vec<String>, Vec<PropertyChange>), ParseError> {
         let mut additions = Vec::new();
-        if ctx.match_token(TokenKind::Add) {
-            additions = self.parse_property_defs(ctx)?;
-        }
-        Ok(additions)
-    }
-
-    fn parse_alter_deletions(&mut self, ctx: &mut ParseContext<'a>) -> Result<Vec<String>, ParseError> {
         let mut deletions = Vec::new();
-        if ctx.match_token(TokenKind::Drop) {
-            ctx.expect_token(TokenKind::LParen)?;
-            while !ctx.match_token(TokenKind::RParen) {
-                deletions.push(ctx.expect_identifier()?);
-                if !ctx.match_token(TokenKind::Comma) {
-                    break;
+        let mut changes = Vec::new();
+
+        loop {
+            if ctx.match_token(TokenKind::Add) {
+                additions.extend(self.parse_property_defs(ctx)?);
+            } else if ctx.match_token(TokenKind::Drop) {
+                ctx.expect_token(TokenKind::LParen)?;
+                loop {
+                    deletions.push(ctx.expect_identifier()?);
+                    if !ctx.match_token(TokenKind::Comma) {
+                        break;
+                    }
                 }
+                ctx.expect_token(TokenKind::RParen)?;
+            } else if ctx.match_token(TokenKind::Change) {
+                ctx.expect_token(TokenKind::LParen)?;
+                loop {
+                    let old_name = ctx.expect_identifier()?;
+                    let new_name = ctx.expect_identifier()?;
+                    ctx.expect_token(TokenKind::Colon)?;
+                    let data_type = self.parse_data_type(ctx)?;
+                    changes.push(PropertyChange {
+                        old_name,
+                        new_name,
+                        data_type,
+                    });
+                    if !ctx.match_token(TokenKind::Comma) {
+                        break;
+                    }
+                }
+                ctx.expect_token(TokenKind::RParen)?;
+            } else {
+                break;
             }
         }
-        Ok(deletions)
+
+        Ok((additions, deletions, changes))
     }
 
     fn parse_create_user_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {

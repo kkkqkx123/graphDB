@@ -133,6 +133,10 @@ impl<'a> ParseContext<'a> {
         }
     }
 
+    pub fn check_token(&self, expected: TokenKind) -> bool {
+        self.current_token.kind == expected
+    }
+
     pub fn expect_token(&mut self, expected: TokenKind) -> Result<(), ParseError> {
         if self.current_token.kind == expected {
             self.next_token();
@@ -156,6 +160,27 @@ impl<'a> ParseContext<'a> {
                 let id = s.clone();
                 self.next_token();
                 Ok(id)
+            }
+            // 允许某些关键字作为标识符使用
+            TokenKind::Count => {
+                self.next_token();
+                Ok("count".to_string())
+            }
+            TokenKind::Sum => {
+                self.next_token();
+                Ok("sum".to_string())
+            }
+            TokenKind::Avg => {
+                self.next_token();
+                Ok("avg".to_string())
+            }
+            TokenKind::Min => {
+                self.next_token();
+                Ok("min".to_string())
+            }
+            TokenKind::Max => {
+                self.next_token();
+                Ok("max".to_string())
             }
             _ => {
                 let pos = self.current_position();

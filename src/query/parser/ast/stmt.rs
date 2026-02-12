@@ -129,6 +129,7 @@ impl QueryStmt {
 pub struct CreateStmt {
     pub span: Span,
     pub target: CreateTarget,
+    pub if_not_exists: bool,
 }
 
 /// 创建目标
@@ -657,20 +658,15 @@ impl StmtUtils {
 pub struct DropStmt {
     pub span: Span,
     pub target: DropTarget,
+    pub if_exists: bool,
 }
 
 /// DROP 目标
 #[derive(Debug, Clone, PartialEq)]
 pub enum DropTarget {
     Space(String),
-    Tag {
-        space_name: String,
-        tag_name: String,
-    },
-    Edge {
-        space_name: String,
-        edge_name: String,
-    },
+    Tags(Vec<String>),
+    Edges(Vec<String>),
     TagIndex {
         space_name: String,
         index_name: String,
@@ -709,20 +705,28 @@ pub struct AlterStmt {
     pub target: AlterTarget,
 }
 
+/// 属性修改定义 (用于 CHANGE 操作)
+#[derive(Debug, Clone, PartialEq)]
+pub struct PropertyChange {
+    pub old_name: String,
+    pub new_name: String,
+    pub data_type: super::types::DataType,
+}
+
 /// ALTER 目标
 #[derive(Debug, Clone, PartialEq)]
 pub enum AlterTarget {
     Tag {
-        space_name: String,
         tag_name: String,
         additions: Vec<PropertyDef>,
         deletions: Vec<String>,
+        changes: Vec<PropertyChange>,
     },
     Edge {
-        space_name: String,
         edge_name: String,
         additions: Vec<PropertyDef>,
         deletions: Vec<String>,
+        changes: Vec<PropertyChange>,
     },
 }
 

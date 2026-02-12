@@ -283,7 +283,7 @@ impl<'a> Lexer<'a> {
             "UPTO" => Tk::Upto,
             "LIMIT" => Tk::Limit,
             "ASC" => Tk::Asc,
-            "DESC" => Tk::Desc,
+            "DESC" | "DESCRIBE" => Tk::Desc,
             "ORDER" => Tk::Order,
             "BY" => Tk::By,
             "SKIP" => Tk::Skip,

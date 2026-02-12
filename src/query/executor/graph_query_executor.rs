@@ -267,15 +267,25 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                 executor.open()?;
                 executor.execute().map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
             }
-            DropTarget::Tag { space_name, tag_name } => {
-                let mut executor = admin_executor::DropTagExecutor::new(id, self.storage.clone(), space_name, tag_name);
-                executor.open()?;
-                executor.execute().map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
+            DropTarget::Tags(tag_names) => {
+                // 暂时只处理第一个标签，后续可以扩展为批量处理
+                if let Some(tag_name) = tag_names.first() {
+                    let mut executor = admin_executor::DropTagExecutor::new(id, self.storage.clone(), String::new(), tag_name.clone());
+                    executor.open()?;
+                    executor.execute().map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
+                } else {
+                    Err(DBError::Query(QueryError::ExecutionError("No tag specified".to_string())))
+                }
             }
-            DropTarget::Edge { space_name, edge_name } => {
-                let mut executor = admin_executor::DropEdgeExecutor::new(id, self.storage.clone(), space_name, edge_name);
-                executor.open()?;
-                executor.execute().map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
+            DropTarget::Edges(edge_names) => {
+                // 暂时只处理第一个边类型，后续可以扩展为批量处理
+                if let Some(edge_name) = edge_names.first() {
+                    let mut executor = admin_executor::DropEdgeExecutor::new(id, self.storage.clone(), String::new(), edge_name.clone());
+                    executor.open()?;
+                    executor.execute().map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
+                } else {
+                    Err(DBError::Query(QueryError::ExecutionError("No edge specified".to_string())))
+                }
             }
             DropTarget::TagIndex { space_name, index_name } => {
                 let mut executor = admin_executor::DropTagIndexExecutor::new(id, self.storage.clone(), space_name, index_name);
@@ -319,22 +329,22 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
         let id = self.id;
 
         match clause.target {
-            AlterTarget::Tag { space_name, tag_name, additions, deletions: _ } => {
+            AlterTarget::Tag { tag_name, additions, deletions: _, changes: _ } => {
                 let mut items = Vec::new();
                 for prop in additions {
                     items.push(AlterTagItem::add_property(prop));
                 }
-                let alter_info = AlterTagInfo::new(space_name, tag_name).with_items(items);
+                let alter_info = AlterTagInfo::new(String::new(), tag_name).with_items(items);
                 let mut executor = AlterTagExecutor::new(id, self.storage.clone(), alter_info);
                 executor.open()?;
                 executor.execute().map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
             }
-            AlterTarget::Edge { space_name, edge_name, additions, deletions: _ } => {
+            AlterTarget::Edge { edge_name, additions, deletions: _, changes: _ } => {
                 let mut items = Vec::new();
                 for prop in additions {
                     items.push(AlterEdgeItem::add_property(prop));
                 }
-                let alter_info = AlterEdgeInfo::new(space_name, edge_name).with_items(items);
+                let alter_info = AlterEdgeInfo::new(String::new(), edge_name).with_items(items);
                 let mut executor = AlterEdgeExecutor::new(id, self.storage.clone(), alter_info);
                 executor.open()?;
                 executor.execute().map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))

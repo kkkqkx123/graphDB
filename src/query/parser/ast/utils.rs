@@ -105,6 +105,7 @@ impl StmtFactory {
                 labels,
                 properties,
             },
+            if_not_exists: false,
         })
     }
 
@@ -128,6 +129,7 @@ impl StmtFactory {
                 properties,
                 direction,
             },
+            if_not_exists: false,
         })
     }
 
