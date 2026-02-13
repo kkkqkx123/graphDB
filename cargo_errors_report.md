@@ -23,17 +23,17 @@
 
 ### Files with Warnings (Top 10)
 
-- `src\storage\metadata\extended_schema.rs`: 2 warnings
+- `src\storage\processor\base.rs`: 2 warnings
 
 ## Detailed Warning Categorization
 
-### warning: unused imports: `PropertyDef` and `SchemaHistory`
+### warning: unused import: `StorageResult`
 
 **Total Occurrences**: 2  
 **Unique Files**: 1
 
-#### `src\storage\metadata\extended_schema.rs`: 2 occurrences
+#### `src\storage\processor\base.rs`: 2 occurrences
 
-- Line 3: unused imports: `PropertyDef` and `SchemaHistory`
-- Line 7: unused imports: `AlterTargetType`, `FieldChangeType`, `SchemaAlterOperation`, and `SchemaFieldChange`
+- Line 151: unused import: `StorageResult`
+- Line 160: unused imports: `IndexOptimization`, `IndexStats`, and `IndexStatus`
 

@@ -11,9 +11,9 @@ pub use crate::core::types::EdgeTypeInfo as EdgeTypeSchema;
 use crate::index::Index;
 use crate::storage::Schema;
 use crate::storage::serializer::{vertex_to_bytes, edge_to_bytes};
-use crate::storage::metadata::{RedbExtendedSchemaManager, ExtendedSchemaManager, SchemaManager, RedbSchemaManager};
+use crate::storage::metadata::{RedbExtendedSchemaManager, ExtendedSchemaManager, SchemaManager, RedbSchemaManager, IndexMetadataManager, RedbIndexMetadataManager};
 use crate::storage::operations::{RedbReader, RedbWriter};
-use crate::storage::index::RedbIndexManager;
+use crate::storage::index::RedbIndexDataManager;
 use crate::api::service::permission_manager::RoleType;
 use redb::Database;
 use std::collections::HashMap;
@@ -24,11 +24,10 @@ use std::sync::{Arc, Mutex};
 pub struct RedbStorage {
     reader: RedbReader,
     writer: Arc<Mutex<RedbWriter>>,
-    index_manager: RedbIndexManager,
+    index_data_manager: RedbIndexDataManager,
     pub schema_manager: Arc<dyn SchemaManager>,
+    pub index_metadata_manager: Arc<dyn IndexMetadataManager>,
     pub extended_schema_manager: Arc<RedbExtendedSchemaManager>,
-    tag_indexes: Arc<Mutex<HashMap<String, HashMap<String, Index>>>>,
-    edge_indexes: Arc<Mutex<HashMap<String, HashMap<String, Index>>>>,
     users: Arc<Mutex<HashMap<String, UserInfo>>>,
     db: Arc<Database>,
     db_path: PathBuf,
@@ -48,38 +47,27 @@ impl RedbStorage {
     }
 
     pub fn new_with_path(path: PathBuf) -> Result<Self, StorageError> {
-        // 创建或打开 redb 数据库
         let db = Arc::new(Database::create(&path)
             .map_err(|e| StorageError::DbError(format!("创建数据库失败: {}", e)))?);
 
-        // 创建 schema_manager
         let schema_manager = Arc::new(RedbSchemaManager::new(db.clone()));
+        let index_metadata_manager = Arc::new(RedbIndexMetadataManager::new(db.clone()));
         let extended_schema_manager = Arc::new(RedbExtendedSchemaManager::new(db.clone()));
 
-        // 创建 reader 和 writer
         let reader = RedbReader::new(db.clone())?;
         let writer = Arc::new(Mutex::new(RedbWriter::new(db.clone())?));
 
-        // 创建索引管理器
-        let tag_indexes = Arc::new(Mutex::new(HashMap::new()));
-        let edge_indexes = Arc::new(Mutex::new(HashMap::new()));
-        let index_manager = RedbIndexManager::new(
-            db.clone(),
-            tag_indexes.clone(),
-            edge_indexes.clone(),
-        );
+        let index_data_manager = RedbIndexDataManager::new(db.clone());
 
-        // 创建用户信息存储
         let users = Arc::new(Mutex::new(HashMap::new()));
 
         Ok(Self {
             reader,
             writer,
-            index_manager,
+            index_data_manager,
             schema_manager,
+            index_metadata_manager,
             extended_schema_manager,
-            tag_indexes,
-            edge_indexes,
             users,
             db,
             db_path: path,
@@ -119,7 +107,7 @@ impl RedbStorage {
                     let mut writer = self.writer.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
                     writer.delete_edge(space, &edge.src, &edge.dst, &edge.edge_type)?;
                 }
-                self.index_manager.delete_edge_indexes(space, &edge.src, &edge.dst, &edge.edge_type)?;
+                self.index_data_manager.delete_edge_indexes(space, &edge.src, &edge.dst, &edge.edge_type)?;
             }
         }
         Ok(())
@@ -312,27 +300,11 @@ impl StorageClient for RedbStorage {
     }
 
     fn create_space(&mut self, space: &SpaceInfo) -> Result<bool, StorageError> {
-        let result = self.schema_manager.create_space(space)?;
-        if result {
-            let mut tag_indexes = self.tag_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-            tag_indexes.insert(space.space_name.clone(), HashMap::new());
-            
-            let mut edge_indexes = self.edge_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-            edge_indexes.insert(space.space_name.clone(), HashMap::new());
-        }
-        Ok(result)
+        self.schema_manager.create_space(space)
     }
 
     fn drop_space(&mut self, space_name: &str) -> Result<bool, StorageError> {
-        let result = self.schema_manager.drop_space(space_name)?;
-        if result {
-            let mut tag_indexes = self.tag_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-            tag_indexes.remove(space_name);
-            
-            let mut edge_indexes = self.edge_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-            edge_indexes.remove(space_name);
-        }
-        Ok(result)
+        self.schema_manager.drop_space(space_name)
     }
 
     fn get_space(&self, space_name: &str) -> Result<Option<SpaceInfo>, StorageError> {
@@ -360,16 +332,8 @@ impl StorageClient for RedbStorage {
     }
 
     fn clear_space(&mut self, space_name: &str) -> Result<bool, StorageError> {
-        if let Ok(Some(_)) = self.schema_manager.get_space(space_name) {
-            let mut tag_indexes = self.tag_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-            tag_indexes.insert(space_name.to_string(), HashMap::new());
-            
-            let mut edge_indexes = self.edge_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-            edge_indexes.insert(space_name.to_string(), HashMap::new());
-            Ok(true)
-        } else {
-            Err(StorageError::DbError(format!("Space '{}' not found", space_name)))
-        }
+        self.schema_manager.get_space(space_name)?;
+        Ok(true)
     }
 
     fn alter_space_partition_num(&mut self, space_id: i32, partition_num: usize) -> Result<bool, StorageError> {
@@ -655,43 +619,19 @@ impl StorageClient for RedbStorage {
     }
 
     fn create_tag_index(&mut self, space: &str, info: &Index) -> Result<bool, StorageError> {
-        let mut tag_indexes = self.tag_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        if let Some(space_indexes) = tag_indexes.get_mut(space) {
-            if space_indexes.contains_key(&info.name) {
-                return Ok(false);
-            }
-            space_indexes.insert(info.name.clone(), info.clone());
-            Ok(true)
-        } else {
-            Err(StorageError::DbError(format!("Space '{}' not found", space)))
-        }
+        self.index_metadata_manager.create_tag_index(space, info)
     }
 
     fn drop_tag_index(&mut self, space: &str, index: &str) -> Result<bool, StorageError> {
-        let mut tag_indexes = self.tag_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        if let Some(space_indexes) = tag_indexes.get_mut(space) {
-            Ok(space_indexes.remove(index).is_some())
-        } else {
-            Err(StorageError::DbError(format!("Space '{}' not found", space)))
-        }
+        self.index_metadata_manager.drop_tag_index(space, index)
     }
 
     fn get_tag_index(&self, space: &str, index: &str) -> Result<Option<Index>, StorageError> {
-        let tag_indexes = self.tag_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        if let Some(space_indexes) = tag_indexes.get(space) {
-            Ok(space_indexes.get(index).cloned())
-        } else {
-            Err(StorageError::DbError(format!("Space '{}' not found", space)))
-        }
+        self.index_metadata_manager.get_tag_index(space, index)
     }
 
     fn list_tag_indexes(&self, space: &str) -> Result<Vec<Index>, StorageError> {
-        let tag_indexes = self.tag_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        if let Some(space_indexes) = tag_indexes.get(space) {
-            Ok(space_indexes.values().cloned().collect())
-        } else {
-            Err(StorageError::DbError(format!("Space '{}' not found", space)))
-        }
+        self.index_metadata_manager.list_tag_indexes(space)
     }
 
     fn rebuild_tag_index(&mut self, _space: &str, _index: &str) -> Result<bool, StorageError> {
@@ -699,60 +639,30 @@ impl StorageClient for RedbStorage {
     }
 
     fn create_edge_index(&mut self, space: &str, info: &Index) -> Result<bool, StorageError> {
-        let mut edge_indexes = self.edge_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        if let Some(space_indexes) = edge_indexes.get_mut(space) {
-            if space_indexes.contains_key(&info.name) {
-                return Ok(false);
-            }
-            space_indexes.insert(info.name.clone(), info.clone());
-            Ok(true)
-        } else {
-            Err(StorageError::DbError(format!("Space '{}' not found", space)))
-        }
+        self.index_metadata_manager.create_edge_index(space, info)
     }
 
     fn drop_edge_index(&mut self, space: &str, index: &str) -> Result<bool, StorageError> {
-        let mut edge_indexes = self.edge_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        if let Some(space_indexes) = edge_indexes.get_mut(space) {
-            Ok(space_indexes.remove(index).is_some())
-        } else {
-            Err(StorageError::DbError(format!("Space '{}' not found", space)))
-        }
+        self.index_metadata_manager.drop_edge_index(space, index)
     }
 
     fn get_edge_index(&self, space: &str, index: &str) -> Result<Option<Index>, StorageError> {
-        let edge_indexes = self.edge_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        if let Some(space_indexes) = edge_indexes.get(space) {
-            Ok(space_indexes.get(index).cloned())
-        } else {
-            Err(StorageError::DbError(format!("Space '{}' not found", space)))
-        }
+        self.index_metadata_manager.get_edge_index(space, index)
     }
 
     fn list_edge_indexes(&self, space: &str) -> Result<Vec<Index>, StorageError> {
-        let edge_indexes = self.edge_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        if let Some(space_indexes) = edge_indexes.get(space) {
-            Ok(space_indexes.values().cloned().collect())
-        } else {
-            Err(StorageError::DbError(format!("Space '{}' not found", space)))
-        }
+        self.index_metadata_manager.list_edge_indexes(space)
     }
 
     fn rebuild_edge_index(&mut self, space: &str, index_name: &str) -> Result<bool, StorageError> {
-        // 获取索引信息
-        let edge_indexes = self.edge_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        let index = edge_indexes.get(space)
-            .and_then(|space_indexes| space_indexes.get(index_name))
-            .cloned()
+        let index = self.index_metadata_manager.get_edge_index(space, index_name)?
             .ok_or_else(|| StorageError::DbError(format!("Edge index '{}' not found in space '{}'", index_name, space)))?;
         
-        // 清除现有索引数据
-        self.index_manager.clear_edge_index(space, index_name)?;
+        self.index_data_manager.clear_edge_index(space, index_name)?;
         
-        // 重新扫描所有边并重建索引
         let edges = self.reader.scan_all_edges(space)?;
         for edge in edges {
-            self.index_manager.build_edge_index_entry(space, &index, &edge)?;
+            self.index_data_manager.build_edge_index_entry(space, &index, &edge)?;
         }
         
         Ok(true)
@@ -802,7 +712,7 @@ impl StorageClient for RedbStorage {
         }
         
         // 更新索引
-        self.index_manager.update_vertex_indexes(space, &info.vertex_id, &tag_name, &info.props)?;
+        self.index_data_manager.update_vertex_indexes(space, &info.vertex_id, &tag_name, &info.props)?;
         
         Ok(true)
     }
@@ -841,7 +751,7 @@ impl StorageClient for RedbStorage {
         }
         
         // 更新边索引
-        self.index_manager.update_edge_indexes(
+        self.index_data_manager.update_edge_indexes(
             space, 
             &src_vertex_id, 
             &dst_vertex_id, 
@@ -860,7 +770,7 @@ impl StorageClient for RedbStorage {
         self.delete_vertex_edges(space, &vid)?;
         
         // 删除顶点索引
-        self.index_manager.delete_vertex_indexes(space, &vid)?;
+        self.index_data_manager.delete_vertex_indexes(space, &vid)?;
         
         // 删除顶点本身
         {
@@ -886,7 +796,7 @@ impl StorageClient for RedbStorage {
                     let mut writer = self.writer.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
                     writer.delete_edge(space, &edge.src, &edge.dst, &edge.edge_type)?;
                 }
-                self.index_manager.delete_edge_indexes(space, &edge.src, &edge.dst, &edge.edge_type)?;
+                self.index_data_manager.delete_edge_indexes(space, &edge.src, &edge.dst, &edge.edge_type)?;
                 deleted = true;
                 break;
             }
@@ -974,26 +884,16 @@ impl StorageClient for RedbStorage {
     }
 
     fn lookup_index_with_score(&self, space: &str, index_name: &str, value: &Value) -> Result<Vec<(Value, f32)>, StorageError> {
-        // 获取索引信息
-        let tag_indexes = self.tag_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        let edge_indexes = self.edge_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-
         let mut results = Vec::new();
 
-        // 检查标签索引
-        if let Some(space_tag_indexes) = tag_indexes.get(space) {
-            if let Some(index) = space_tag_indexes.get(index_name) {
-                let indexed_values = self.index_manager.lookup_tag_index(space, index, value)?;
-                results.extend(indexed_values.into_iter().map(|v| (v, 1.0f32)));
-            }
+        if let Some(index) = self.index_metadata_manager.get_tag_index(space, index_name)? {
+            let indexed_values = self.index_data_manager.lookup_tag_index(space, &index, value)?;
+            results.extend(indexed_values.into_iter().map(|v| (v, 1.0f32)));
         }
 
-        // 检查边索引
-        if let Some(space_edge_indexes) = edge_indexes.get(space) {
-            if let Some(index) = space_edge_indexes.get(index_name) {
-                let indexed_values = self.index_manager.lookup_edge_index(space, index, value)?;
-                results.extend(indexed_values.into_iter().map(|v| (v, 1.0f32)));
-            }
+        if let Some(index) = self.index_metadata_manager.get_edge_index(space, index_name)? {
+            let indexed_values = self.index_data_manager.lookup_edge_index(space, &index, value)?;
+            results.extend(indexed_values.into_iter().map(|v| (v, 1.0f32)));
         }
         
         Ok(results)

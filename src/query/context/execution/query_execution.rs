@@ -8,7 +8,7 @@ use crate::utils::IdGenerator;
 use crate::core::types::CharsetInfo;
 use crate::storage::StorageClient;
 use crate::storage::metadata::SchemaManager;
-use crate::storage::index::IndexManager;
+use crate::storage::metadata::IndexMetadataManager;
 use crate::query::context::request_context::RequestContext;
 use crate::utils::ObjectPool;
 use std::collections::HashMap;
@@ -174,8 +174,8 @@ pub struct QueryContext {
     // 模式管理器 - 使用Arc共享所有权
     schema_manager: Option<Arc<dyn SchemaManager>>,
 
-    // 索引管理器 - 使用Arc共享所有权
-    index_manager: Option<Arc<dyn IndexManager>>,
+    // 索引元数据管理器 - 使用Arc共享所有权
+    index_metadata_manager: Option<Arc<dyn IndexMetadataManager>>,
 
     // 存储客户端 - 使用Arc共享所有权
     storage_client: Option<Arc<dyn StorageClient>>,
@@ -205,10 +205,10 @@ impl QueryContext {
             ectx: QueryExecutionContext::new(),
             plan: None,
             schema_manager: None,
-            index_manager: None,
+            index_metadata_manager: None,
             storage_client: None,
             charset_info: None,
-            obj_pool: ObjectPool::new(1000), // 提供默认容量
+            obj_pool: ObjectPool::new(1000),
             id_gen: IdGenerator::new(0),
             sym_table: SymbolTable::new(),
             killed: AtomicBool::new(false),
@@ -240,9 +240,9 @@ impl QueryContext {
         self.schema_manager = Some(sm);
     }
 
-    /// 设置索引管理器
-    pub fn set_index_manager(&mut self, im: Arc<dyn IndexManager>) {
-        self.index_manager = Some(im);
+    /// 设置索引元数据管理器
+    pub fn set_index_metadata_manager(&mut self, imm: Arc<dyn IndexMetadataManager>) {
+        self.index_metadata_manager = Some(imm);
     }
 
     /// 设置存储客户端
@@ -300,9 +300,9 @@ impl QueryContext {
         self.schema_manager.as_ref()
     }
 
-    /// 获取索引管理器
-    pub fn index_manager(&self) -> Option<&Arc<dyn IndexManager>> {
-        self.index_manager.as_ref()
+    /// 获取索引元数据管理器
+    pub fn index_metadata_manager(&self) -> Option<&Arc<dyn IndexMetadataManager>> {
+        self.index_metadata_manager.as_ref()
     }
 
     /// 获取存储客户端
@@ -392,7 +392,7 @@ impl QueryContext {
         QueryContextStatus {
             has_request_context: self.rctx.is_some(),
             has_schema_manager: self.schema_manager.is_some(),
-            has_index_manager: self.index_manager.is_some(),
+            has_index_metadata_manager: self.index_metadata_manager.is_some(),
             has_storage_client: self.storage_client.is_some(),
             has_charset_info: self.charset_info.is_some(),
             has_execution_plan: self.plan.is_some(),
@@ -422,7 +422,7 @@ impl QueryContext {
 pub struct QueryContextStatus {
     pub has_request_context: bool,
     pub has_schema_manager: bool,
-    pub has_index_manager: bool,
+    pub has_index_metadata_manager: bool,
     pub has_storage_client: bool,
     pub has_charset_info: bool,
     pub has_execution_plan: bool,
@@ -440,7 +440,7 @@ impl Clone for QueryContext {
             ectx: self.ectx.clone(),
             plan: self.plan.clone(),
             schema_manager: self.schema_manager.clone(),
-            index_manager: self.index_manager.clone(),
+            index_metadata_manager: self.index_metadata_manager.clone(),
             storage_client: self.storage_client.clone(),
             charset_info: self.charset_info.clone(),
             obj_pool: self.obj_pool.clone(),
@@ -459,7 +459,7 @@ impl std::fmt::Debug for QueryContext {
             .field("ectx", &self.ectx)
             .field("plan", &self.plan.is_some())
             .field("schema_manager", &self.schema_manager.is_some())
-            .field("index_manager", &self.index_manager.is_some())
+            .field("index_metadata_manager", &self.index_metadata_manager.is_some())
             .field("storage_client", &self.storage_client.is_some())
             .field("charset_info", &self.charset_info.is_some())
             .field("obj_pool", &self.obj_pool)
@@ -480,7 +480,6 @@ impl Default for QueryContext {
 mod tests {
     use super::*;
     use crate::storage::redb_storage::DefaultStorage;
-    use crate::storage::index::MemoryIndexManager;
 
     #[test]
     fn test_query_context_creation() {
@@ -518,11 +517,6 @@ mod tests {
         let schema_manager = storage.schema_manager.clone();
         ctx.set_schema_manager(schema_manager);
         assert!(ctx.schema_manager().is_some());
-
-        let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
-        let index_manager = Arc::new(MemoryIndexManager::new(temp_dir.path().to_path_buf()));
-        ctx.set_index_manager(index_manager.clone());
-        assert!(ctx.index_manager().is_some());
 
         let storage = crate::storage::test_mock::MockStorage::new().expect("Failed to create mock storage");
         let storage_client: Arc<dyn crate::storage::StorageClient> = Arc::new(storage);
@@ -576,7 +570,7 @@ mod tests {
         let status = ctx.get_status_info();
         assert!(!status.has_request_context);
         assert!(!status.has_schema_manager);
-        assert!(!status.has_index_manager);
+        assert!(!status.has_index_metadata_manager);
         assert!(!status.has_storage_client);
         assert!(!status.has_charset_info);
         assert!(!status.has_execution_plan);

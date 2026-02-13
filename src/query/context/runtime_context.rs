@@ -1,6 +1,5 @@
 use crate::storage::StorageClient;
 use crate::storage::metadata::SchemaManager;
-use crate::storage::index::IndexManager;
 use std::sync::Arc;
 
 /// 存储环境
@@ -10,8 +9,6 @@ pub struct StorageEnv {
     pub storage_engine: Arc<dyn StorageClient>,
     /// Schema管理器
     pub schema_manager: Arc<dyn SchemaManager>,
-    /// 索引管理器
-    pub index_manager: Arc<dyn IndexManager>,
 }
 
 impl std::fmt::Debug for StorageEnv {
@@ -19,7 +16,6 @@ impl std::fmt::Debug for StorageEnv {
         f.debug_struct("StorageEnv")
             .field("storage_engine", &"<dyn StorageClient>")
             .field("schema_manager", &"<dyn SchemaManager>")
-            .field("index_manager", &"<dyn IndexManager>")
             .finish()
     }
 }
@@ -50,13 +46,10 @@ impl RuntimeContext {
 
     /// 创建简单的运行时上下文（用于不需要完整PlanContext的场景）
     pub fn new_simple() -> Arc<Self> {
-        use std::path::PathBuf;
-
         let storage = Arc::new(crate::storage::redb_storage::DefaultStorage::new().expect("Failed to create DefaultStorage"));
         let storage_env = Arc::new(StorageEnv {
             storage_engine: storage.clone(),
             schema_manager: storage.schema_manager.clone(),
-            index_manager: Arc::new(crate::storage::index::MemoryIndexManager::new(PathBuf::from("."))),
         });
 
         let plan_context = Arc::new(PlanContext {

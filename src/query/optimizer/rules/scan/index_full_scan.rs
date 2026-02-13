@@ -74,16 +74,26 @@ impl BaseOptRule for IndexFullScanRule {}
 
 impl IndexFullScanRule {
     fn find_best_index(&self, ctx: &OptContext, space_id: i32, tag_id: i32) -> Option<i32> {
-        let index_manager = ctx.qctx().index_manager()?;
+        let index_metadata_manager = ctx.qctx().index_metadata_manager()?;
 
-        let indexes = match index_manager.list_indexes_by_space(space_id) {
+        let space_name = match ctx.qctx().schema_manager()?.get_space_by_id(space_id) {
+            Ok(Some(space)) => space.space_name,
+            _ => return None,
+        };
+
+        let tag_name = match ctx.qctx().schema_manager()?.get_tag(&space_name, &tag_id.to_string()) {
+            Ok(Some(tag)) => tag.tag_name,
+            _ => return None,
+        };
+
+        let indexes = match index_metadata_manager.list_tag_indexes(&space_name) {
             Ok(indexes) => indexes,
             Err(_) => return None,
         };
 
         let schema_indexes: Vec<_> = indexes
             .into_iter()
-            .filter(|idx| idx.id == tag_id)
+            .filter(|idx| idx.schema_name == tag_name)
             .collect();
 
         if schema_indexes.is_empty() {

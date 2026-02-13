@@ -1,14 +1,9 @@
-//! 存储层索引管理模块
+//! 存储层索引数据管理模块
 //!
-//! 提供索引管理功能，包括索引的创建、删除、查询和维护
-//! 参考 NebulaGraph 的索引架构设计
+//! 提供索引数据管理功能，包括索引数据的更新、删除和查询
+//! 注意：索引元数据管理由 metadata::IndexMetadataManager 负责
 
-pub mod index_manager;
-pub mod memory_index_manager;
-pub mod redb_persistence;
+pub mod index_data_manager;
 
-pub use index_manager::*;
-pub use memory_index_manager::*;
-pub use redb_persistence::*;
-
+pub use index_data_manager::*;
 pub use crate::index::{Index, IndexStatus, IndexType, IndexStats, IndexOptimization};

@@ -148,17 +148,16 @@ impl<RESP> ProcessorFuture<RESP> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::{Edge, EdgeDirection, StorageError, StorageResult, Value, Vertex};
+    use crate::core::{Edge, EdgeDirection, StorageError, Value, Vertex};
     use crate::core::types::metadata::{SpaceInfo, TagInfo, EdgeTypeInfo, PropertyDef, InsertVertexInfo, InsertEdgeInfo, UpdateInfo, PasswordInfo, UserInfo, UserAlterInfo};
     use crate::storage::transaction::TransactionId;
     use crate::storage::Schema;
     use crate::query::context::runtime_context::{PlanContext, RuntimeContext, StorageEnv};
-    use crate::storage::index::IndexManager;
     use crate::storage::metadata::SchemaManager;
     use crate::storage::StorageClient;
     use crate::core::value::NullType;
     use std::sync::Mutex;
-    use crate::index::{Index, IndexStatus, IndexStats, IndexOptimization};
+    use crate::index::Index;
 
     #[derive(Debug)]
     struct DummySchemaManager;
@@ -179,44 +178,6 @@ mod tests {
         fn drop_edge_type(&self, _space: &str, _edge_type_name: &str) -> Result<bool, StorageError> { Ok(true) }
         fn get_tag_schema(&self, _space: &str, _tag: &str) -> Result<Schema, StorageError> { Ok(Schema::default()) }
         fn get_edge_type_schema(&self, _space: &str, _edge: &str) -> Result<Schema, StorageError> { Ok(Schema::default()) }
-    }
-
-    #[derive(Debug)]
-    struct DummyIndexManager;
-
-    impl IndexManager for DummyIndexManager {
-        fn get_index(&self, _name: &str) -> Option<Index> { None }
-        fn list_indexes(&self) -> Vec<String> { Vec::new() }
-        fn has_index(&self, _name: &str) -> bool { false }
-        fn create_index(&self, _space_id: i32, _index: Index) -> StorageResult<i32> { Ok(0) }
-        fn drop_index(&self, _space_id: i32, _index_id: i32) -> StorageResult<()> { Ok(()) }
-        fn get_index_status(&self, _space_id: i32, _index_id: i32) -> Option<IndexStatus> { None }
-        fn list_indexes_by_space(&self, _space_id: i32) -> StorageResult<Vec<Index>> { Ok(Vec::new()) }
-        fn lookup_vertex_by_index(&self, _space_id: i32, _index_name: &str, _values: &[Value]) -> StorageResult<Vec<Vertex>> { Ok(Vec::new()) }
-        fn lookup_edge_by_index(&self, _space_id: i32, _index_name: &str, _values: &[Value]) -> StorageResult<Vec<Edge>> { Ok(Vec::new()) }
-        fn range_lookup_vertex(&self, _space_id: i32, _index_name: &str, _start: &Value, _end: &Value) -> StorageResult<Vec<Vertex>> { Ok(Vec::new()) }
-        fn range_lookup_edge(&self, _space_id: i32, _index_name: &str, _start: &Value, _end: &Value) -> StorageResult<Vec<Edge>> { Ok(Vec::new()) }
-        fn insert_vertex_to_index(&self, _space_id: i32, _vertex: &Vertex) -> StorageResult<()> { Ok(()) }
-        fn delete_vertex_from_index(&self, _space_id: i32, _vertex: &Vertex) -> StorageResult<()> { Ok(()) }
-        fn update_vertex_in_index(&self, _space_id: i32, _old_vertex: &Vertex, _new_vertex: &Vertex) -> StorageResult<()> { Ok(()) }
-        fn insert_edge_to_index(&self, _space_id: i32, _edge: &Edge) -> StorageResult<()> { Ok(()) }
-        fn delete_edge_from_index(&self, _space_id: i32, _edge: &Edge) -> StorageResult<()> { Ok(()) }
-        fn update_edge_in_index(&self, _space_id: i32, _old_edge: &Edge, _new_edge: &Edge) -> StorageResult<()> { Ok(()) }
-        fn load_from_disk(&self) -> StorageResult<()> { Ok(()) }
-        fn save_to_disk(&self) -> StorageResult<()> { Ok(()) }
-        fn rebuild_index(&self, _space_id: i32, _index_id: i32) -> StorageResult<()> { Ok(()) }
-        fn rebuild_all_indexes(&self, _space_id: i32) -> StorageResult<()> { Ok(()) }
-        fn get_index_stats(&self, _space_id: i32, _index_id: i32) -> StorageResult<IndexStats> { Ok(IndexStats::default()) }
-        fn get_all_index_stats(&self, _space_id: i32) -> StorageResult<Vec<IndexStats>> { Ok(Vec::new()) }
-        fn analyze_index(&self, _space_id: i32, _index_id: i32) -> StorageResult<IndexOptimization> { Ok(IndexOptimization::default()) }
-        fn analyze_all_indexes(&self, _space_id: i32) -> StorageResult<Vec<IndexOptimization>> { Ok(Vec::new()) }
-        fn check_index_consistency(&self, _space_id: i32, _index_id: i32) -> StorageResult<bool> { Ok(true) }
-        fn repair_index(&self, _space_id: i32, _index_id: i32) -> StorageResult<()> { Ok(()) }
-        fn cleanup_index(&self, _space_id: i32, _index_id: i32) -> StorageResult<()> { Ok(()) }
-        fn batch_insert_vertices(&self, _space_id: i32, _vertices: &[Vertex]) -> StorageResult<()> { Ok(()) }
-        fn batch_delete_vertices(&self, _space_id: i32, _vertices: &[Vertex]) -> StorageResult<()> { Ok(()) }
-        fn batch_insert_edges(&self, _space_id: i32, _edges: &[Edge]) -> StorageResult<()> { Ok(()) }
-        fn batch_delete_edges(&self, _space_id: i32, _edges: &[Edge]) -> StorageResult<()> { Ok(()) }
     }
 
     #[derive(Debug)]
@@ -567,7 +528,6 @@ mod tests {
         let storage_env = Arc::new(StorageEnv {
             storage_engine: Arc::new(DummyStorage),
             schema_manager: Arc::new(DummySchemaManager),
-            index_manager: Arc::new(DummyIndexManager),
         });
 
         let plan_context = Arc::new(PlanContext {
