@@ -123,8 +123,8 @@ async fn test_go_parser_basic() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "GO基础解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("GO语句解析应该成功");
     assert_eq!(stmt.kind(), "GO");
 }
 
@@ -135,8 +135,8 @@ async fn test_go_parser_with_steps() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "GO带步数解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("GO语句解析应该成功");
     assert_eq!(stmt.kind(), "GO");
 }
 
@@ -147,8 +147,8 @@ async fn test_go_parser_reversely() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "GO反向遍历解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("GO语句解析应该成功");
     assert_eq!(stmt.kind(), "GO");
 }
 
@@ -159,8 +159,8 @@ async fn test_go_parser_bidirect() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "GO双向遍历解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("GO语句解析应该成功");
     assert_eq!(stmt.kind(), "GO");
 }
 
@@ -171,8 +171,8 @@ async fn test_go_parser_with_where() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "GO带WHERE解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("GO语句解析应该成功");
     assert_eq!(stmt.kind(), "GO");
 }
 
@@ -183,8 +183,8 @@ async fn test_go_parser_with_yield() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "GO带YIELD解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("GO语句解析应该成功");
     assert_eq!(stmt.kind(), "GO");
 }
 
@@ -195,8 +195,8 @@ async fn test_go_parser_complex() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "GO复杂查询解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("GO语句解析应该成功");
     assert_eq!(stmt.kind(), "GO");
 }
 
@@ -239,8 +239,8 @@ async fn test_lookup_parser_basic() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "LOOKUP基础解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("LOOKUP语句解析应该成功");
     assert_eq!(stmt.kind(), "LOOKUP");
 }
 
@@ -251,8 +251,8 @@ async fn test_lookup_parser_with_yield() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "LOOKUP带YIELD解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("LOOKUP语句解析应该成功");
     assert_eq!(stmt.kind(), "LOOKUP");
 }
 
@@ -263,8 +263,8 @@ async fn test_lookup_parser_complex_condition() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "LOOKUP复杂条件解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("LOOKUP语句解析应该成功");
     assert_eq!(stmt.kind(), "LOOKUP");
 }
 
@@ -275,8 +275,8 @@ async fn test_lookup_parser_edge() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "LOOKUP边类型解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("LOOKUP语句解析应该成功");
     assert_eq!(stmt.kind(), "LOOKUP");
 }
 
@@ -304,8 +304,8 @@ async fn test_fetch_parser_vertex() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "FETCH顶点解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("FETCH语句解析应该成功");
     assert_eq!(stmt.kind(), "FETCH");
 }
 
@@ -316,8 +316,8 @@ async fn test_fetch_parser_multiple_vertices() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "FETCH多个顶点解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("FETCH语句解析应该成功");
     assert_eq!(stmt.kind(), "FETCH");
 }
 
@@ -328,8 +328,8 @@ async fn test_fetch_parser_edge() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "FETCH边解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("FETCH语句解析应该成功");
     assert_eq!(stmt.kind(), "FETCH");
 }
 
@@ -340,8 +340,8 @@ async fn test_fetch_parser_edge_with_rank() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "FETCH边带rank解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("FETCH语句解析应该成功");
     assert_eq!(stmt.kind(), "FETCH");
 }
 
@@ -384,8 +384,8 @@ async fn test_find_path_parser_shortest() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "FIND SHORTEST PATH解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("FIND PATH语句解析应该成功");
     assert_eq!(stmt.kind(), "FIND PATH");
 }
 
@@ -396,8 +396,8 @@ async fn test_find_path_parser_all() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "FIND ALL PATH解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("FIND PATH语句解析应该成功");
     assert_eq!(stmt.kind(), "FIND PATH");
 }
 
@@ -415,8 +415,8 @@ async fn test_find_path_parser_noloop() {
     let mut parser2 = Parser::new(query2);
     let result2 = parser2.parse();
     assert!(result2.is_ok(), "FIND PATH解析应该成功: {:?}", result2.err());
-    
-    let stmt = result2.unwrap();
+
+    let stmt = result2.expect("FIND PATH语句解析应该成功");
     assert_eq!(stmt.kind(), "FIND PATH");
 }
 
@@ -427,8 +427,8 @@ async fn test_find_path_parser_with_upto() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "FIND PATH带UPTO解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("FIND PATH语句解析应该成功");
     assert_eq!(stmt.kind(), "FIND PATH");
 }
 
@@ -439,8 +439,8 @@ async fn test_find_path_parser_reversely() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "FIND PATH反向解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("FIND PATH语句解析应该成功");
     assert_eq!(stmt.kind(), "FIND PATH");
 }
 
@@ -451,8 +451,8 @@ async fn test_find_path_parser_with_where() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "FIND PATH带WHERE解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("FIND PATH语句解析应该成功");
     assert_eq!(stmt.kind(), "FIND PATH");
 }
 
@@ -463,8 +463,8 @@ async fn test_find_path_parser_complex() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "FIND PATH复杂查询解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("FIND PATH语句解析应该成功");
     assert_eq!(stmt.kind(), "FIND PATH");
 }
 
@@ -492,8 +492,8 @@ async fn test_subgraph_parser_basic() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "SUBGRAPH基础解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("SUBGRAPH语句解析应该成功");
     assert_eq!(stmt.kind(), "SUBGRAPH");
 }
 
@@ -504,8 +504,8 @@ async fn test_subgraph_parser_multiple_vertices() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "SUBGRAPH多个顶点解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("SUBGRAPH语句解析应该成功");
     assert_eq!(stmt.kind(), "SUBGRAPH");
 }
 
@@ -516,8 +516,8 @@ async fn test_subgraph_parser_in_steps() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "SUBGRAPH入边步数解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("SUBGRAPH语句解析应该成功");
     assert_eq!(stmt.kind(), "SUBGRAPH");
 }
 
@@ -528,8 +528,8 @@ async fn test_subgraph_parser_out_steps() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "SUBGRAPH出边步数解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("SUBGRAPH语句解析应该成功");
     assert_eq!(stmt.kind(), "SUBGRAPH");
 }
 
@@ -540,8 +540,8 @@ async fn test_subgraph_parser_both_steps() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "SUBGRAPH双向步数解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("SUBGRAPH语句解析应该成功");
     assert_eq!(stmt.kind(), "SUBGRAPH");
 }
 
@@ -552,8 +552,8 @@ async fn test_subgraph_parser_complex() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "SUBGRAPH复杂查询解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("SUBGRAPH语句解析应该成功");
     assert_eq!(stmt.kind(), "SUBGRAPH");
 }
 

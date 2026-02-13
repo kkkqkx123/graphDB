@@ -28,7 +28,10 @@ impl<S: StorageClient> KillQueryExecutor<S> {
 
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for KillQueryExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
-        let killed = GLOBAL_QUERY_MANAGER.get().map(|qm| qm.kill_query(self.query_id)).unwrap_or(false);
+        let killed = GLOBAL_QUERY_MANAGER
+            .get()
+            .map(|qm| qm.kill_query(self.query_id).is_ok())
+            .unwrap_or(false);
 
         if killed {
             Ok(ExecutionResult::Success)

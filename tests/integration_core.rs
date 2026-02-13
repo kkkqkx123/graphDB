@@ -142,49 +142,49 @@ fn test_value_float_conversion() {
 fn test_value_arithmetic_operations() {
     // 加法
     assert_eq!(
-        Value::Int(10).add(&Value::Int(5)).unwrap(),
+        Value::Int(10).add(&Value::Int(5)).expect("整数加法应该成功"),
         Value::Int(15)
     );
     assert_eq!(
-        Value::Float(3.5).add(&Value::Float(2.5)).unwrap(),
+        Value::Float(3.5).add(&Value::Float(2.5)).expect("浮点数加法应该成功"),
         Value::Float(6.0)
     );
     assert_eq!(
-        Value::Int(10).add(&Value::Float(2.5)).unwrap(),
+        Value::Int(10).add(&Value::Float(2.5)).expect("整数与浮点数加法应该成功"),
         Value::Float(12.5)
     );
     assert_eq!(
-        Value::String("Hello, ".to_string()).add(&Value::String("World".to_string())).unwrap(),
+        Value::String("Hello, ".to_string()).add(&Value::String("World".to_string())).expect("字符串连接应该成功"),
         Value::String("Hello, World".to_string())
     );
 
     // 减法
     assert_eq!(
-        Value::Int(10).sub(&Value::Int(3)).unwrap(),
+        Value::Int(10).sub(&Value::Int(3)).expect("整数减法应该成功"),
         Value::Int(7)
     );
     assert_eq!(
-        Value::Float(10.5).sub(&Value::Float(3.5)).unwrap(),
+        Value::Float(10.5).sub(&Value::Float(3.5)).expect("浮点数减法应该成功"),
         Value::Float(7.0)
     );
 
     // 乘法
     assert_eq!(
-        Value::Int(6).mul(&Value::Int(7)).unwrap(),
+        Value::Int(6).mul(&Value::Int(7)).expect("整数乘法应该成功"),
         Value::Int(42)
     );
     assert_eq!(
-        Value::Float(3.0).mul(&Value::Float(4.0)).unwrap(),
+        Value::Float(3.0).mul(&Value::Float(4.0)).expect("浮点数乘法应该成功"),
         Value::Float(12.0)
     );
 
     // 除法
     assert_eq!(
-        Value::Int(10).div(&Value::Int(2)).unwrap(),
+        Value::Int(10).div(&Value::Int(2)).expect("整数除法应该成功"),
         Value::Int(5)
     );
     assert_eq!(
-        Value::Float(10.0).div(&Value::Float(4.0)).unwrap(),
+        Value::Float(10.0).div(&Value::Float(4.0)).expect("浮点数除法应该成功"),
         Value::Float(2.5)
     );
 
@@ -194,7 +194,7 @@ fn test_value_arithmetic_operations() {
 
     // 取模
     assert_eq!(
-        Value::Int(10).rem(&Value::Int(3)).unwrap(),
+        Value::Int(10).rem(&Value::Int(3)).expect("整数取模应该成功"),
         Value::Int(1)
     );
     assert!(Value::Int(10).rem(&Value::Int(0)).is_err());
@@ -225,19 +225,19 @@ fn test_value_comparison() {
 #[test]
 fn test_value_unary_operations() {
     // 取反
-    assert_eq!(Value::Int(42).negate().unwrap(), Value::Int(-42));
-    assert_eq!(Value::Float(3.14).negate().unwrap(), Value::Float(-3.14));
+    assert_eq!(Value::Int(42).negate().expect("整数取反应该成功"), Value::Int(-42));
+    assert_eq!(Value::Float(3.14).negate().expect("浮点数取反应该成功"), Value::Float(-3.14));
     assert!(Value::String("test".to_string()).negate().is_err());
 
     // 绝对值
-    assert_eq!(Value::Int(-42).abs().unwrap(), Value::Int(42));
-    assert_eq!(Value::Float(-3.14).abs().unwrap(), Value::Float(3.14));
+    assert_eq!(Value::Int(-42).abs().expect("整数绝对值应该成功"), Value::Int(42));
+    assert_eq!(Value::Float(-3.14).abs().expect("浮点数绝对值应该成功"), Value::Float(3.14));
     assert!(Value::String("test".to_string()).abs().is_err());
 
     // 长度
-    assert_eq!(Value::String("hello".to_string()).length().unwrap(), Value::Int(5));
-    assert_eq!(Value::List(vec![Value::Int(1), Value::Int(2)]).length().unwrap(), Value::Int(2));
-    assert_eq!(Value::Map(std::collections::HashMap::new()).length().unwrap(), Value::Int(0));
+    assert_eq!(Value::String("hello".to_string()).length().expect("字符串长度计算应该成功"), Value::Int(5));
+    assert_eq!(Value::List(vec![Value::Int(1), Value::Int(2)]).length().expect("列表长度计算应该成功"), Value::Int(2));
+    assert_eq!(Value::Map(std::collections::HashMap::new()).length().expect("映射长度计算应该成功"), Value::Int(0));
 }
 
 #[test]
@@ -420,17 +420,17 @@ fn test_evaluator_literal() {
     
     // 整数
     let expr = Expression::literal(42i64);
-    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).unwrap();
+    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).expect("整数字面量求值应该成功");
     assert_eq!(result, Value::Int(42));
 
     // 字符串
     let expr = Expression::literal("test".to_string());
-    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).unwrap();
+    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).expect("字符串字面量求值应该成功");
     assert_eq!(result, Value::String("test".to_string()));
 
     // 布尔值
     let expr = Expression::literal(true);
-    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).unwrap();
+    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).expect("布尔字面量求值应该成功");
     assert_eq!(result, Value::Bool(true));
 }
 
@@ -442,11 +442,11 @@ fn test_evaluator_variable() {
 
     // 读取已设置变量
     let expr = Expression::variable("x");
-    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).unwrap();
+    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).expect("变量求值应该成功");
     assert_eq!(result, Value::Int(100));
 
     let expr = Expression::variable("name");
-    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).unwrap();
+    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).expect("变量求值应该成功");
     assert_eq!(result, Value::String("Alice".to_string()));
 }
 
@@ -461,7 +461,7 @@ fn test_evaluator_binary_arithmetic() {
         op: BinaryOperator::Add,
         right: Box::new(Expression::literal(5i64)),
     };
-    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).unwrap();
+    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).expect("二元加法求值应该成功");
     assert_eq!(result, Value::Int(15));
 
     // 减法: 20 - 8
@@ -470,7 +470,7 @@ fn test_evaluator_binary_arithmetic() {
         op: BinaryOperator::Subtract,
         right: Box::new(Expression::literal(8i64)),
     };
-    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).unwrap();
+    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).expect("二元减法求值应该成功");
     assert_eq!(result, Value::Int(12));
 
     // 乘法: 6 * 7
@@ -479,7 +479,7 @@ fn test_evaluator_binary_arithmetic() {
         op: BinaryOperator::Multiply,
         right: Box::new(Expression::literal(7i64)),
     };
-    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).unwrap();
+    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).expect("二元乘法求值应该成功");
     assert_eq!(result, Value::Int(42));
 
     // 除法: 20 / 4
@@ -488,7 +488,7 @@ fn test_evaluator_binary_arithmetic() {
         op: BinaryOperator::Divide,
         right: Box::new(Expression::literal(4i64)),
     };
-    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).unwrap();
+    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).expect("二元除法求值应该成功");
     assert_eq!(result, Value::Int(5));
 }
 
@@ -503,7 +503,7 @@ fn test_evaluator_binary_comparison() {
         op: BinaryOperator::Equal,
         right: Box::new(Expression::literal(5i64)),
     };
-    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).unwrap();
+    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).expect("二元相等比较求值应该成功");
     assert_eq!(result, Value::Bool(true));
 
     // 不等于: 5 != 3
@@ -512,7 +512,7 @@ fn test_evaluator_binary_comparison() {
         op: BinaryOperator::NotEqual,
         right: Box::new(Expression::literal(3i64)),
     };
-    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).unwrap();
+    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).expect("二元不等比较求值应该成功");
     assert_eq!(result, Value::Bool(true));
 
     // 大于: 10 > 5
@@ -521,7 +521,7 @@ fn test_evaluator_binary_comparison() {
         op: BinaryOperator::GreaterThan,
         right: Box::new(Expression::literal(5i64)),
     };
-    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).unwrap();
+    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).expect("二元大于比较求值应该成功");
     assert_eq!(result, Value::Bool(true));
 
     // 小于: 3 < 7
@@ -530,7 +530,7 @@ fn test_evaluator_binary_comparison() {
         op: BinaryOperator::LessThan,
         right: Box::new(Expression::literal(7i64)),
     };
-    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).unwrap();
+    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).expect("二元小于比较求值应该成功");
     assert_eq!(result, Value::Bool(true));
 }
 
@@ -545,7 +545,7 @@ fn test_evaluator_binary_logical() {
         op: BinaryOperator::And,
         right: Box::new(Expression::literal(true)),
     };
-    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).unwrap();
+    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).expect("二元AND逻辑求值应该成功");
     assert_eq!(result, Value::Bool(true));
 
     // AND: true && false
@@ -554,7 +554,7 @@ fn test_evaluator_binary_logical() {
         op: BinaryOperator::And,
         right: Box::new(Expression::literal(false)),
     };
-    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).unwrap();
+    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).expect("二元AND逻辑求值应该成功");
     assert_eq!(result, Value::Bool(false));
 
     // OR: false || true
@@ -563,7 +563,7 @@ fn test_evaluator_binary_logical() {
         op: BinaryOperator::Or,
         right: Box::new(Expression::literal(true)),
     };
-    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).unwrap();
+    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).expect("二元OR逻辑求值应该成功");
     assert_eq!(result, Value::Bool(true));
 }
 
@@ -577,7 +577,7 @@ fn test_evaluator_unary() {
         op: UnaryOperator::Not,
         operand: Box::new(Expression::literal(true)),
     };
-    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).unwrap();
+    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).expect("一元NOT求值应该成功");
     assert_eq!(result, Value::Bool(false));
 
     // NOT: !false
@@ -585,7 +585,7 @@ fn test_evaluator_unary() {
         op: UnaryOperator::Not,
         operand: Box::new(Expression::literal(false)),
     };
-    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).unwrap();
+    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).expect("一元NOT求值应该成功");
     assert_eq!(result, Value::Bool(true));
 
     // 负数: -42
@@ -593,7 +593,7 @@ fn test_evaluator_unary() {
         op: UnaryOperator::Minus,
         operand: Box::new(Expression::literal(42i64)),
     };
-    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).unwrap();
+    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).expect("一元负号求值应该成功");
     assert_eq!(result, Value::Int(-42));
 }
 
@@ -612,7 +612,7 @@ fn test_evaluator_nested_expression() {
         op: BinaryOperator::Multiply,
         right: Box::new(Expression::literal(2i64)),
     };
-    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).unwrap();
+    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).expect("嵌套表达式求值应该成功");
     assert_eq!(result, Value::Int(30));
 
     // 10 + (5 * 2) = 20
@@ -625,7 +625,7 @@ fn test_evaluator_nested_expression() {
             right: Box::new(Expression::literal(2i64)),
         }),
     };
-    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).unwrap();
+    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).expect("嵌套表达式求值应该成功");
     assert_eq!(result, Value::Int(20));
 }
 
@@ -639,7 +639,7 @@ fn test_evaluator_batch_evaluation() {
         Expression::literal(3i64),
     ];
 
-    let results = ExpressionEvaluator::evaluate_batch(&expressions, &mut ctx).unwrap();
+    let results = ExpressionEvaluator::evaluate_batch(&expressions, &mut ctx).expect("批量表达式求值应该成功");
     assert_eq!(results.len(), 3);
     assert_eq!(results[0], Value::Int(1));
     assert_eq!(results[1], Value::Int(2));
@@ -668,18 +668,18 @@ fn test_function_registry_builtins() {
     let registry = global_registry();
 
     // 测试数学函数
-    let result = registry.execute("abs", &[Value::Int(-42)]).unwrap();
+    let result = registry.execute("abs", &[Value::Int(-42)]).expect("abs函数执行应该成功");
     assert_eq!(result, Value::Int(42));
 
-    let result = registry.execute("abs", &[Value::Float(-3.14)]).unwrap();
+    let result = registry.execute("abs", &[Value::Float(-3.14)]).expect("abs函数执行应该成功");
     assert_eq!(result, Value::Float(3.14));
 
     // 测试字符串函数
-    let result = registry.execute("length", &[Value::String("hello".to_string())]).unwrap();
+    let result = registry.execute("length", &[Value::String("hello".to_string())]).expect("length函数执行应该成功");
     assert_eq!(result, Value::Int(5));
 
     // 测试类型转换函数
-    let result = registry.execute("to_int", &[Value::String("42".to_string())]).unwrap();
+    let result = registry.execute("to_int", &[Value::String("42".to_string())]).expect("to_int函数执行应该成功");
     assert_eq!(result, Value::Int(42));
 }
 
@@ -782,7 +782,7 @@ fn test_complex_arithmetic_expression() {
         }),
     };
 
-    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).unwrap();
+    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).expect("复杂表达式求值应该成功");
     assert_eq!(result, Value::Int(102));
 }
 
@@ -797,7 +797,7 @@ fn test_mixed_type_operations() {
         op: BinaryOperator::Add,
         right: Box::new(Expression::literal(5.5f64)),
     };
-    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).unwrap();
+    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).expect("混合类型操作求值应该成功");
     assert_eq!(result, Value::Float(15.5));
 }
 
@@ -812,7 +812,7 @@ fn test_string_concatenation() {
         op: BinaryOperator::Add,
         right: Box::new(Expression::literal("World!".to_string())),
     };
-    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).unwrap();
+    let result = ExpressionEvaluator::evaluate(&expr, &mut ctx).expect("字符串连接求值应该成功");
     assert_eq!(result, Value::String("Hello, World!".to_string()));
 }
 
@@ -825,12 +825,12 @@ fn test_list_operations() {
         Value::Int(3),
     ]);
 
-    assert_eq!(list.length().unwrap(), Value::Int(3));
+    assert_eq!(list.length().expect("列表长度计算应该成功"), Value::Int(3));
     assert_eq!(list.get_type(), DataType::List);
 
     // 空列表
     let empty_list = Value::List(vec![]);
-    assert_eq!(empty_list.length().unwrap(), Value::Int(0));
+    assert_eq!(empty_list.length().expect("空列表长度计算应该成功"), Value::Int(0));
 }
 
 #[test]
@@ -843,7 +843,7 @@ fn test_map_operations() {
     map.insert("age".to_string(), Value::Int(30));
     let map_value = Value::Map(map);
 
-    assert_eq!(map_value.length().unwrap(), Value::Int(2));
+    assert_eq!(map_value.length().expect("映射长度计算应该成功"), Value::Int(2));
     assert_eq!(map_value.get_type(), DataType::Map);
 }
 

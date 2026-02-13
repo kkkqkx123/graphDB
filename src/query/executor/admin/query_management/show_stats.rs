@@ -91,7 +91,10 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowStatsExecutor
 
 impl<S: StorageClient> ShowStatsExecutor<S> {
     fn show_all_stats(&self, storage: &S) -> DataSet {
-        let query_stats = GLOBAL_QUERY_MANAGER.get().map(|qm| qm.get_query_stats()).unwrap_or_default();
+        let query_stats = GLOBAL_QUERY_MANAGER
+            .get()
+            .and_then(|qm| qm.get_query_stats().ok())
+            .unwrap_or_default();
         let storage_stats = storage.get_storage_stats();
 
         let rows = vec![
@@ -144,7 +147,10 @@ impl<S: StorageClient> ShowStatsExecutor<S> {
     }
 
     fn show_query_stats(&self) -> DataSet {
-        let query_stats = GLOBAL_QUERY_MANAGER.get().map(|qm| qm.get_query_stats()).unwrap_or_default();
+        let query_stats = GLOBAL_QUERY_MANAGER
+            .get()
+            .and_then(|qm| qm.get_query_stats().ok())
+            .unwrap_or_default();
 
         let rows = vec![
             vec![

@@ -293,15 +293,15 @@ mod tests {
 
         assert_eq!(iter.size(), 2);
 
-        let row1 = iter.next().unwrap();
+        let row1 = iter.next().expect("Expected iterator to have at least one row");
         assert!(row1.is_some());
-        assert_eq!(row1.unwrap()[0], Value::Int(1));
+        assert_eq!(row1.expect("Expected row to exist")[0], Value::Int(1));
 
-        let row2 = iter.next().unwrap();
+        let row2 = iter.next().expect("Expected iterator to have a second row");
         assert!(row2.is_some());
-        assert_eq!(row2.unwrap()[0], Value::Int(2));
+        assert_eq!(row2.expect("Expected row to exist")[0], Value::Int(2));
 
-        let row3 = iter.next().unwrap();
+        let row3 = iter.next().expect("Expected iterator to have a third row (which should be None)");
         assert!(row3.is_none());
     }
 
@@ -310,11 +310,11 @@ mod tests {
         let rows = vec![vec![Value::Int(1)]];
         let mut iter = DefaultIterator::new(rows);
 
-        iter.next().unwrap();
-        assert_eq!(iter.next().unwrap(), None);
+        iter.next().expect("Expected iterator to have at least one row");
+        assert_eq!(iter.next().expect("Expected iterator to have a second row"), None);
 
         iter.reset();
-        assert_eq!(iter.next().unwrap().unwrap()[0], Value::Int(1));
+        assert_eq!(iter.next().expect("Expected iterator to have a row").expect("Expected row to exist")[0], Value::Int(1));
     }
 
     #[test]
@@ -329,11 +329,11 @@ mod tests {
 
         assert_eq!(iter.size(), 2);
 
-        let row1 = iter.next().unwrap().unwrap();
+        let row1 = iter.next().expect("Expected iterator to have a row").expect("Expected row to exist");
         assert_eq!(row1[0], Value::Int(1));
         assert_eq!(row1[1], Value::String("edge1".to_string()));
 
-        let row2 = iter.next().unwrap().unwrap();
+        let row2 = iter.next().expect("Expected iterator to have a row").expect("Expected row to exist");
         assert_eq!(row2[0], Value::Int(2));
         assert_eq!(row2[1], Value::String("edge2".to_string()));
     }
@@ -349,10 +349,10 @@ mod tests {
 
         assert_eq!(iter.size(), 2);
 
-        let prop1 = iter.next().unwrap().unwrap();
+        let prop1 = iter.next().expect("Expected iterator to have a row").expect("Expected row to exist");
         assert_eq!(prop1[0], Value::String("name".to_string()));
 
-        let prop2 = iter.next().unwrap().unwrap();
+        let prop2 = iter.next().expect("Expected iterator to have a row").expect("Expected row to exist");
         assert_eq!(prop2[0], Value::String("age".to_string()));
     }
 

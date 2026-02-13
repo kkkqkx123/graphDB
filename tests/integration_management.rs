@@ -33,8 +33,8 @@ async fn test_use_parser_basic() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "USE基础解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("USE语句解析应该成功");
     assert_eq!(stmt.kind(), "USE");
 }
 
@@ -45,8 +45,8 @@ async fn test_use_parser_complex_name() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "USE复杂名称解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("USE语句解析应该成功");
     assert_eq!(stmt.kind(), "USE");
 }
 
@@ -57,8 +57,8 @@ async fn test_use_parser_with_dots() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "USE带点号名称解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("USE语句解析应该成功");
     assert_eq!(stmt.kind(), "USE");
 }
 
@@ -101,8 +101,8 @@ async fn test_show_parser_spaces() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "SHOW SPACES解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("SHOW语句解析应该成功");
     assert_eq!(stmt.kind(), "SHOW");
 }
 
@@ -113,8 +113,8 @@ async fn test_show_parser_tags() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "SHOW TAGS解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("SHOW语句解析应该成功");
     assert_eq!(stmt.kind(), "SHOW");
 }
 
@@ -125,8 +125,8 @@ async fn test_show_parser_edges() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "SHOW EDGES解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("SHOW语句解析应该成功");
     assert_eq!(stmt.kind(), "SHOW");
 }
 
@@ -137,8 +137,8 @@ async fn test_show_parser_hosts() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "SHOW HOSTS解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("SHOW语句解析应该成功");
     assert_eq!(stmt.kind(), "SHOW");
 }
 
@@ -149,8 +149,8 @@ async fn test_show_parser_parts() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "SHOW PARTS解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("SHOW语句解析应该成功");
     assert_eq!(stmt.kind(), "SHOW");
 }
 
@@ -208,8 +208,8 @@ async fn test_explain_parser_match() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "EXPLAIN MATCH解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("EXPLAIN语句解析应该成功");
     assert_eq!(stmt.kind(), "EXPLAIN");
 }
 
@@ -220,8 +220,8 @@ async fn test_explain_parser_go() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "EXPLAIN GO解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("EXPLAIN语句解析应该成功");
     assert_eq!(stmt.kind(), "EXPLAIN");
 }
 
@@ -232,8 +232,8 @@ async fn test_explain_parser_lookup() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "EXPLAIN LOOKUP解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("EXPLAIN语句解析应该成功");
     assert_eq!(stmt.kind(), "EXPLAIN");
 }
 
@@ -276,8 +276,8 @@ async fn test_return_parser_basic() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "RETURN基础解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("RETURN语句解析应该成功");
     assert_eq!(stmt.kind(), "RETURN");
 }
 
@@ -288,8 +288,8 @@ async fn test_return_parser_with_alias() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "RETURN带别名解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("RETURN语句解析应该成功");
     assert_eq!(stmt.kind(), "RETURN");
 }
 
@@ -300,8 +300,8 @@ async fn test_return_parser_with_expression() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "RETURN带表达式解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("RETURN语句解析应该成功");
     assert_eq!(stmt.kind(), "RETURN");
 }
 
@@ -312,8 +312,8 @@ async fn test_return_parser_with_aggregate() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "RETURN带聚合函数解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("RETURN语句解析应该成功");
     assert_eq!(stmt.kind(), "RETURN");
 }
 
@@ -324,8 +324,8 @@ async fn test_return_parser_with_distinct() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "RETURN带DISTINCT解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("RETURN语句解析应该成功");
     assert_eq!(stmt.kind(), "RETURN");
 }
 
@@ -353,8 +353,8 @@ async fn test_with_parser_basic() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "WITH基础解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("WITH语句解析应该成功");
     assert_eq!(stmt.kind(), "WITH");
 }
 
@@ -365,8 +365,8 @@ async fn test_with_parser_with_aggregate() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "WITH带聚合解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("WITH语句解析应该成功");
     assert_eq!(stmt.kind(), "WITH");
 }
 
@@ -377,8 +377,8 @@ async fn test_with_parser_with_expression() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "WITH带表达式解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("WITH语句解析应该成功");
     assert_eq!(stmt.kind(), "WITH");
 }
 
@@ -406,8 +406,8 @@ async fn test_unwind_parser_basic() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "UNWIND基础解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("UNWIND语句解析应该成功");
     assert_eq!(stmt.kind(), "UNWIND");
 }
 
@@ -418,8 +418,8 @@ async fn test_unwind_parser_with_string_list() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "UNWIND字符串列表解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("UNWIND语句解析应该成功");
     assert_eq!(stmt.kind(), "UNWIND");
 }
 
@@ -430,8 +430,8 @@ async fn test_unwind_parser_with_expression() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "UNWIND带表达式解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("UNWIND语句解析应该成功");
     assert_eq!(stmt.kind(), "UNWIND");
 }
 
@@ -459,8 +459,8 @@ async fn test_pipe_parser_basic() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "PIPE基础解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("PIPE语句解析应该成功");
     assert_eq!(stmt.kind(), "PIPE");
 }
 
@@ -471,8 +471,8 @@ async fn test_pipe_parser_multiple() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "PIPE多个操作解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("PIPE语句解析应该成功");
     assert_eq!(stmt.kind(), "PIPE");
 }
 
@@ -483,8 +483,8 @@ async fn test_pipe_parser_complex() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "PIPE复杂查询解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("PIPE语句解析应该成功");
     assert_eq!(stmt.kind(), "PIPE");
 }
 

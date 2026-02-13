@@ -57,8 +57,8 @@ async fn test_insert_parser_edge() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "INSERT EDGE解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("INSERT语句解析应该成功");
     assert_eq!(stmt.kind(), "INSERT");
 }
 
@@ -69,8 +69,8 @@ async fn test_insert_parser_edge_with_rank() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "INSERT EDGE带rank解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("INSERT语句解析应该成功");
     assert_eq!(stmt.kind(), "INSERT");
 }
 
@@ -81,8 +81,8 @@ async fn test_insert_parser_multiple_edges() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "INSERT多个边解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("INSERT语句解析应该成功");
     assert_eq!(stmt.kind(), "INSERT");
 }
 
@@ -196,8 +196,8 @@ async fn test_update_parser_vertex() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "UPDATE顶点解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("UPDATE语句解析应该成功");
     assert_eq!(stmt.kind(), "UPDATE");
 }
 
@@ -208,8 +208,8 @@ async fn test_update_parser_vertex_with_when() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "UPDATE顶点带WHEN解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("UPDATE语句解析应该成功");
     assert_eq!(stmt.kind(), "UPDATE");
 }
 
@@ -220,8 +220,8 @@ async fn test_update_parser_edge() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "UPDATE边解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("UPDATE语句解析应该成功");
     assert_eq!(stmt.kind(), "UPDATE");
 }
 
@@ -232,8 +232,8 @@ async fn test_update_parser_edge_with_when() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "UPDATE边带WHEN解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("UPDATE语句解析应该成功");
     assert_eq!(stmt.kind(), "UPDATE");
 }
 
@@ -244,8 +244,8 @@ async fn test_update_parser_multiple_props() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "UPDATE多个属性解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("UPDATE语句解析应该成功");
     assert_eq!(stmt.kind(), "UPDATE");
 }
 
@@ -288,8 +288,8 @@ async fn test_delete_parser_vertex() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "DELETE VERTEX解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("DELETE语句解析应该成功");
     assert_eq!(stmt.kind(), "DELETE");
 }
 
@@ -300,8 +300,8 @@ async fn test_delete_parser_multiple_vertices() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "DELETE多个顶点解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("DELETE语句解析应该成功");
     assert_eq!(stmt.kind(), "DELETE");
 }
 
@@ -312,8 +312,8 @@ async fn test_delete_parser_edge() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "DELETE EDGE解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("DELETE语句解析应该成功");
     assert_eq!(stmt.kind(), "DELETE");
 }
 
@@ -324,8 +324,8 @@ async fn test_delete_parser_edge_with_rank() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "DELETE EDGE带rank解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("DELETE语句解析应该成功");
     assert_eq!(stmt.kind(), "DELETE");
 }
 
@@ -336,8 +336,8 @@ async fn test_delete_parser_multiple_edges() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "DELETE多个边解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("DELETE语句解析应该成功");
     assert_eq!(stmt.kind(), "DELETE");
 }
 
@@ -437,8 +437,8 @@ async fn test_set_parser_basic() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "SET基础解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("SET语句解析应该成功");
     assert_eq!(stmt.kind(), "SET");
 }
 
@@ -449,8 +449,8 @@ async fn test_set_parser_multiple() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "SET多个属性解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("SET语句解析应该成功");
     assert_eq!(stmt.kind(), "SET");
 }
 
@@ -461,8 +461,8 @@ async fn test_set_parser_with_expression() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "SET带表达式解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("SET语句解析应该成功");
     assert_eq!(stmt.kind(), "SET");
 }
 
@@ -490,8 +490,8 @@ async fn test_remove_parser_property() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "REMOVE属性解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("REMOVE语句解析应该成功");
     assert_eq!(stmt.kind(), "REMOVE");
 }
 
@@ -502,8 +502,8 @@ async fn test_remove_parser_multiple_properties() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "REMOVE多个属性解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("REMOVE语句解析应该成功");
     assert_eq!(stmt.kind(), "REMOVE");
 }
 
@@ -514,8 +514,8 @@ async fn test_remove_parser_label() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "REMOVE标签解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("REMOVE语句解析应该成功");
     assert_eq!(stmt.kind(), "REMOVE");
 }
 
@@ -526,8 +526,8 @@ async fn test_remove_parser_multiple_labels() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "REMOVE多个标签解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("REMOVE语句解析应该成功");
     assert_eq!(stmt.kind(), "REMOVE");
 }
 
@@ -538,8 +538,8 @@ async fn test_remove_parser_mixed() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "REMOVE混合解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("REMOVE语句解析应该成功");
     assert_eq!(stmt.kind(), "REMOVE");
 }
 

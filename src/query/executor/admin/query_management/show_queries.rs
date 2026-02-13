@@ -37,9 +37,15 @@ impl<S: StorageClient> ShowQueriesExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowQueriesExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let queries = if self.show_all {
-            GLOBAL_QUERY_MANAGER.get().map(|qm| qm.get_all_queries()).unwrap_or_default()
+            GLOBAL_QUERY_MANAGER
+                .get()
+                .and_then(|qm| qm.get_all_queries().ok())
+                .unwrap_or_default()
         } else {
-            GLOBAL_QUERY_MANAGER.get().map(|qm| qm.get_running_queries()).unwrap_or_default()
+            GLOBAL_QUERY_MANAGER
+                .get()
+                .and_then(|qm| qm.get_running_queries().ok())
+                .unwrap_or_default()
         };
 
         let rows: Vec<Vec<Value>> = queries
@@ -52,7 +58,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowQueriesExecut
                     Value::String(q.space_name.clone().unwrap_or_else(|| "NULL".to_string())),
                     Value::String(q.query_text.clone()),
                     Value::String(format!("{:?}", q.status)),
-                    Value::Int(q.duration()),
+                    Value::Int(q.duration().unwrap_or(0)),
                 ]
             })
             .collect();
