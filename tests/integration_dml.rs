@@ -33,8 +33,8 @@ async fn test_insert_parser_vertex() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "INSERT VERTEX解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("INSERT语句解析应该成功");
     assert_eq!(stmt.kind(), "INSERT");
 }
 
@@ -45,8 +45,8 @@ async fn test_insert_parser_multiple_vertices() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "INSERT多个顶点解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("INSERT语句解析应该成功");
     assert_eq!(stmt.kind(), "INSERT");
 }
 

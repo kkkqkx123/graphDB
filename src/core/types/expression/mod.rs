@@ -749,8 +749,8 @@ mod tests {
     #[test]
     fn test_serde() {
         let expression = Expression::add(Expression::int(1), Expression::int(2));
-        let json = serde_json::to_string(&expression).unwrap();
-        let parsed: Expression = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&expression).expect("Failed to serialize expression to JSON");
+        let parsed: Expression = serde_json::from_str(&json).expect("Failed to deserialize expression from JSON");
         assert_eq!(expression, parsed);
     }
 }

@@ -222,6 +222,7 @@ impl StatementType {
                 StatementType::ShowTags,
                 StatementType::ShowEdges,
             ],
+            SentenceKind::UserManagement => vec![],
         }
     }
 

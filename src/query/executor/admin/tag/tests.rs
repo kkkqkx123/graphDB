@@ -13,7 +13,7 @@ mod tests {
 
     #[test]
     fn test_create_tag_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let properties = vec![
             PropertyDef::new("name".to_string(), DataType::String),
             PropertyDef::new("age".to_string(), DataType::Int32),
@@ -25,7 +25,7 @@ mod tests {
 
         let result = executor.execute();
         assert!(result.is_ok());
-        match result.unwrap() {
+        match result.expect("Failed to execute query") {
             crate::query::executor::base::ExecutionResult::Success => {}
             _ => panic!("Expected Success result"),
         }
@@ -33,7 +33,7 @@ mod tests {
 
     #[test]
     fn test_create_tag_executor_with_if_not_exists() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let tag_info = ExecutorTagInfo::new("test_space".to_string(), "person".to_string());
 
         let mut executor = CreateTagExecutor::with_if_not_exists(2, storage, tag_info);
@@ -44,7 +44,7 @@ mod tests {
 
     #[test]
     fn test_alter_tag_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let new_prop = PropertyDef::new("email".to_string(), DataType::String);
         let items = vec![
             AlterTagItem::add_property(new_prop),
@@ -61,12 +61,12 @@ mod tests {
 
     #[test]
     fn test_drop_tag_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let mut executor = DropTagExecutor::new(4, storage, "test_space".to_string(), "person".to_string());
 
         let result = executor.execute();
         assert!(result.is_ok());
-        match result.unwrap() {
+        match result.expect("Failed to execute query") {
             crate::query::executor::base::ExecutionResult::Success => {}
             _ => panic!("Expected Success result"),
         }
@@ -74,7 +74,7 @@ mod tests {
 
     #[test]
     fn test_drop_tag_executor_with_if_exists() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let mut executor = DropTagExecutor::with_if_exists(5, storage, "test_space".to_string(), "person".to_string());
 
         let result = executor.execute();
@@ -83,7 +83,7 @@ mod tests {
 
     #[test]
     fn test_desc_tag_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let mut executor = DescTagExecutor::new(6, storage, "test_space".to_string(), "person".to_string());
 
         let result = executor.execute();
@@ -92,7 +92,7 @@ mod tests {
 
     #[test]
     fn test_show_tags_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let mut executor = ShowTagsExecutor::new(7, storage, "test_space".to_string());
 
         let result = executor.execute();
@@ -130,7 +130,7 @@ mod tests {
 
     #[test]
     fn test_executor_lifecycle() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let tag_info = ExecutorTagInfo::new("test_space".to_string(), "person".to_string());
         let mut executor = CreateTagExecutor::new(8, storage, tag_info);
 
@@ -143,7 +143,7 @@ mod tests {
 
     #[test]
     fn test_executor_stats() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let tag_info = ExecutorTagInfo::new("test_space".to_string(), "person".to_string());
         let executor = CreateTagExecutor::new(9, storage, tag_info);
 

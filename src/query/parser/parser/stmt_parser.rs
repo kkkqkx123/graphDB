@@ -1599,31 +1599,31 @@ mod tests {
         let mut ctx = create_parser_context("STRING");
         let result = parser.parse_data_type(&mut ctx);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), DataType::String);
+        assert_eq!(result.expect("STRING解析应该成功"), DataType::String);
         
         // 测试 INT 关键字
         let mut ctx = create_parser_context("INT");
         let result = parser.parse_data_type(&mut ctx);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), DataType::Int);
+        assert_eq!(result.expect("INT解析应该成功"), DataType::Int);
         
         // 测试 FLOAT 关键字
         let mut ctx = create_parser_context("FLOAT");
         let result = parser.parse_data_type(&mut ctx);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), DataType::Float);
+        assert_eq!(result.expect("FLOAT解析应该成功"), DataType::Float);
         
         // 测试 BOOL 关键字
         let mut ctx = create_parser_context("BOOL");
         let result = parser.parse_data_type(&mut ctx);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), DataType::Bool);
+        assert_eq!(result.expect("BOOL解析应该成功"), DataType::Bool);
         
         // 测试 DATE 关键字
         let mut ctx = create_parser_context("DATE");
         let result = parser.parse_data_type(&mut ctx);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), DataType::Date);
+        assert_eq!(result.expect("DATE解析应该成功"), DataType::Date);
     }
 
     #[test]
@@ -1634,13 +1634,13 @@ mod tests {
         let mut ctx = create_parser_context("string");
         let result = parser.parse_data_type(&mut ctx);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), DataType::String);
+        assert_eq!(result.expect("string解析应该成功"), DataType::String);
         
         // 测试混合大小写
         let mut ctx = create_parser_context("Int");
         let result = parser.parse_data_type(&mut ctx);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), DataType::Int);
+        assert_eq!(result.expect("Int解析应该成功"), DataType::Int);
     }
 
     #[test]

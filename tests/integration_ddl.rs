@@ -33,8 +33,8 @@ async fn test_create_tag_parser_basic() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "CREATE TAG基础解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("CREATE TAG语句解析应该成功");
     assert_eq!(stmt.kind(), "CREATE");
 }
 
@@ -45,8 +45,8 @@ async fn test_create_tag_parser_with_if_not_exists() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "CREATE TAG带IF NOT EXISTS解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("CREATE TAG语句解析应该成功");
     assert_eq!(stmt.kind(), "CREATE");
 }
 
@@ -57,8 +57,8 @@ async fn test_create_tag_parser_single_property() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "CREATE TAG单个属性解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("CREATE TAG语句解析应该成功");
     assert_eq!(stmt.kind(), "CREATE");
 }
 
@@ -69,8 +69,8 @@ async fn test_create_tag_parser_multiple_properties() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "CREATE TAG多个属性解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("CREATE TAG语句解析应该成功");
     assert_eq!(stmt.kind(), "CREATE");
 }
 
@@ -81,8 +81,8 @@ async fn test_create_tag_parser_various_types() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "CREATE TAG多种类型解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("CREATE TAG语句解析应该成功");
     assert_eq!(stmt.kind(), "CREATE");
 }
 
@@ -125,8 +125,8 @@ async fn test_create_edge_parser_basic() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "CREATE EDGE基础解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("CREATE EDGE语句解析应该成功");
     assert_eq!(stmt.kind(), "CREATE");
 }
 
@@ -137,8 +137,8 @@ async fn test_create_edge_parser_with_if_not_exists() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "CREATE EDGE带IF NOT EXISTS解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("CREATE EDGE语句解析应该成功");
     assert_eq!(stmt.kind(), "CREATE");
 }
 
@@ -149,8 +149,8 @@ async fn test_create_edge_parser_single_property() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "CREATE EDGE单个属性解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("CREATE EDGE语句解析应该成功");
     assert_eq!(stmt.kind(), "CREATE");
 }
 
@@ -161,8 +161,8 @@ async fn test_create_edge_parser_multiple_properties() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "CREATE EDGE多个属性解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("CREATE EDGE语句解析应该成功");
     assert_eq!(stmt.kind(), "CREATE");
 }
 
@@ -173,8 +173,8 @@ async fn test_create_edge_parser_various_types() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "CREATE EDGE多种类型解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("CREATE EDGE语句解析应该成功");
     assert_eq!(stmt.kind(), "CREATE");
 }
 
@@ -217,8 +217,8 @@ async fn test_alter_tag_parser_add() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "ALTER TAG ADD解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("ALTER TAG语句解析应该成功");
     assert_eq!(stmt.kind(), "ALTER");
 }
 
@@ -229,8 +229,8 @@ async fn test_alter_tag_parser_drop() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "ALTER TAG DROP解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("ALTER TAG语句解析应该成功");
     assert_eq!(stmt.kind(), "ALTER");
 }
 
@@ -241,8 +241,8 @@ async fn test_alter_tag_parser_change() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "ALTER TAG CHANGE解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("ALTER TAG语句解析应该成功");
     assert_eq!(stmt.kind(), "ALTER");
 }
 
@@ -253,8 +253,8 @@ async fn test_alter_tag_parser_add_single() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "ALTER TAG ADD单个属性解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("ALTER TAG语句解析应该成功");
     assert_eq!(stmt.kind(), "ALTER");
 }
 
@@ -265,8 +265,8 @@ async fn test_alter_tag_parser_drop_single() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "ALTER TAG DROP单个属性解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("ALTER TAG语句解析应该成功");
     assert_eq!(stmt.kind(), "ALTER");
 }
 
@@ -309,8 +309,8 @@ async fn test_alter_edge_parser_add() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "ALTER EDGE ADD解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("ALTER EDGE语句解析应该成功");
     assert_eq!(stmt.kind(), "ALTER");
 }
 
@@ -321,8 +321,8 @@ async fn test_alter_edge_parser_drop() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "ALTER EDGE DROP解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("ALTER EDGE语句解析应该成功");
     assert_eq!(stmt.kind(), "ALTER");
 }
 
@@ -333,8 +333,8 @@ async fn test_alter_edge_parser_change() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "ALTER EDGE CHANGE解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("ALTER EDGE语句解析应该成功");
     assert_eq!(stmt.kind(), "ALTER");
 }
 
@@ -345,8 +345,8 @@ async fn test_alter_edge_parser_add_single() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "ALTER EDGE ADD单个属性解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("ALTER EDGE语句解析应该成功");
     assert_eq!(stmt.kind(), "ALTER");
 }
 
@@ -357,8 +357,8 @@ async fn test_alter_edge_parser_drop_single() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "ALTER EDGE DROP单个属性解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("ALTER EDGE语句解析应该成功");
     assert_eq!(stmt.kind(), "ALTER");
 }
 
@@ -401,8 +401,8 @@ async fn test_drop_tag_parser_basic() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "DROP TAG基础解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("DROP TAG语句解析应该成功");
     assert_eq!(stmt.kind(), "DROP");
 }
 
@@ -413,8 +413,8 @@ async fn test_drop_tag_parser_with_if_exists() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "DROP TAG带IF EXISTS解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("DROP TAG语句解析应该成功");
     assert_eq!(stmt.kind(), "DROP");
 }
 
@@ -425,8 +425,8 @@ async fn test_drop_tag_parser_multiple() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "DROP TAG多个标签解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("DROP TAG语句解析应该成功");
     assert_eq!(stmt.kind(), "DROP");
 }
 
@@ -437,8 +437,8 @@ async fn test_drop_tag_parser_multiple_with_if_exists() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "DROP TAG多个标签带IF EXISTS解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("DROP TAG语句解析应该成功");
     assert_eq!(stmt.kind(), "DROP");
 }
 
@@ -481,8 +481,8 @@ async fn test_drop_edge_parser_basic() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "DROP EDGE基础解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("DROP EDGE语句解析应该成功");
     assert_eq!(stmt.kind(), "DROP");
 }
 
@@ -493,8 +493,8 @@ async fn test_drop_edge_parser_with_if_exists() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "DROP EDGE带IF EXISTS解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("DROP EDGE语句解析应该成功");
     assert_eq!(stmt.kind(), "DROP");
 }
 
@@ -505,8 +505,8 @@ async fn test_drop_edge_parser_multiple() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "DROP EDGE多个边类型解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("DROP EDGE语句解析应该成功");
     assert_eq!(stmt.kind(), "DROP");
 }
 
@@ -517,8 +517,8 @@ async fn test_drop_edge_parser_multiple_with_if_exists() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "DROP EDGE多个边类型带IF EXISTS解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("DROP EDGE语句解析应该成功");
     assert_eq!(stmt.kind(), "DROP");
 }
 
@@ -561,8 +561,8 @@ async fn test_desc_parser_tag() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "DESCRIBE TAG解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("DESCRIBE TAG语句解析应该成功");
     assert_eq!(stmt.kind(), "DESC");
 }
 
@@ -573,8 +573,8 @@ async fn test_desc_parser_edge() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "DESCRIBE EDGE解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("DESCRIBE EDGE语句解析应该成功");
     assert_eq!(stmt.kind(), "DESC");
 }
 
@@ -585,8 +585,8 @@ async fn test_desc_parser_short_tag() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "DESC TAG解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("DESC TAG语句解析应该成功");
     assert_eq!(stmt.kind(), "DESC");
 }
 
@@ -597,8 +597,8 @@ async fn test_desc_parser_short_edge() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "DESC EDGE解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("DESC EDGE语句解析应该成功");
     assert_eq!(stmt.kind(), "DESC");
 }
 

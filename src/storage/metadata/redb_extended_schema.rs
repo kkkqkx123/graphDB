@@ -245,22 +245,22 @@ mod tests {
     use tempfile::TempDir;
 
     fn create_test_manager() -> (RedbExtendedSchemaManager, TempDir) {
-        let temp_dir = TempDir::new().unwrap();
+        let temp_dir = TempDir::new().expect("创建临时目录应该成功");
         let db_path = temp_dir.path().join("test.db");
-        let db = Arc::new(Database::create(db_path).unwrap());
+        let db = Arc::new(Database::create(db_path).expect("创建数据库应该成功"));
         
         // 初始化所需的表
-        let write_txn = db.begin_write().unwrap();
+        let write_txn = db.begin_write().expect("开始写事务应该成功");
         {
-            let _ = write_txn.open_table(SCHEMA_VERSIONS_TABLE).unwrap();
+            let _ = write_txn.open_table(SCHEMA_VERSIONS_TABLE).expect("打开SCHEMA_VERSIONS_TABLE应该成功");
         }
         {
-            let _ = write_txn.open_table(SCHEMA_CHANGES_TABLE).unwrap();
+            let _ = write_txn.open_table(SCHEMA_CHANGES_TABLE).expect("打开SCHEMA_CHANGES_TABLE应该成功");
         }
         {
-            let _ = write_txn.open_table(CURRENT_VERSIONS_TABLE).unwrap();
+            let _ = write_txn.open_table(CURRENT_VERSIONS_TABLE).expect("打开CURRENT_VERSIONS_TABLE应该成功");
         }
-        write_txn.commit().unwrap();
+        write_txn.commit().expect("提交事务应该成功");
         
         (RedbExtendedSchemaManager::new(db), temp_dir)
     }
@@ -271,14 +271,14 @@ mod tests {
         let space_id = 1;
 
         // 初始版本为 0
-        let version = manager.get_schema_version(space_id).unwrap();
+        let version = manager.get_schema_version(space_id).expect("获取schema版本应该成功");
         assert_eq!(version, 0);
 
         // 创建新版本
-        let new_version = manager.create_schema_version(space_id).unwrap();
+        let new_version = manager.create_schema_version(space_id).expect("创建schema版本应该成功");
         assert_eq!(new_version, 1);
 
-        let version = manager.get_schema_version(space_id).unwrap();
+        let version = manager.get_schema_version(space_id).expect("获取schema版本应该成功");
         assert_eq!(version, 1);
     }
 
@@ -307,14 +307,14 @@ mod tests {
             tags.clone(),
             edge_types,
             Some("创建 Person 标签".to_string()),
-        ).unwrap();
+        ).expect("保存schema快照应该成功");
 
         assert_eq!(snapshot.version, 1);
         assert_eq!(snapshot.space_id, space_id);
         assert_eq!(snapshot.tags.len(), 1);
 
         // 验证版本已更新
-        let version = manager.get_schema_version(space_id).unwrap();
+        let version = manager.get_schema_version(space_id).expect("获取schema版本应该成功");
         assert_eq!(version, 1);
     }
 
@@ -336,9 +336,9 @@ mod tests {
             timestamp: chrono::Utc::now().timestamp_millis(),
         };
 
-        manager.record_schema_change(space_id, change.clone()).unwrap();
+        manager.record_schema_change(space_id, change.clone()).expect("记录schema变更应该成功");
 
-        let changes = manager.get_schema_changes(space_id).unwrap();
+        let changes = manager.get_schema_changes(space_id).expect("获取schema变更应该成功");
         assert_eq!(changes.len(), 1);
         assert_eq!(changes[0].target, "Person.name");
     }

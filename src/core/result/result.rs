@@ -239,7 +239,7 @@ mod tests {
         
         let row = result.get_row(0);
         assert!(row.is_some());
-        assert_eq!(row.unwrap()[0], Value::Int(1));
+        assert_eq!(row.expect("Expected row to exist")[0], Value::Int(1));
     }
 
     #[test]
@@ -249,7 +249,7 @@ mod tests {
         
         let value = result.get_value(0, 1);
         assert!(value.is_some());
-        assert_eq!(value.unwrap(), &Value::String("Alice".to_string()));
+        assert_eq!(value.expect("Expected value to exist"), &Value::String("Alice".to_string()));
     }
 
     #[test]

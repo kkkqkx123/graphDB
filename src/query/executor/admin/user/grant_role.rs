@@ -100,7 +100,7 @@ mod tests {
 
     #[test]
     fn test_grant_role_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let mut executor = GrantRoleExecutor::new(
             1,
             storage,
@@ -115,7 +115,7 @@ mod tests {
 
     #[test]
     fn test_executor_lifecycle() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let mut executor = GrantRoleExecutor::new(
             2,
             storage,
@@ -133,7 +133,7 @@ mod tests {
 
     #[test]
     fn test_executor_stats() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let executor = GrantRoleExecutor::new(
             3,
             storage,

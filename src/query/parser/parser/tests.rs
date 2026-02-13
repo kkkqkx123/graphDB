@@ -16,7 +16,7 @@ mod tests {
         let result = parse_statement(query);
         assert!(result.is_ok(), "INSERT EDGE 解析应该成功: {:?}", result.err());
         
-        let stmt = result.unwrap();
+        let stmt = result.expect("INSERT EDGE解析应该成功");
         assert_eq!(stmt.kind(), "INSERT");
         
         if let Stmt::Insert(insert_stmt) = stmt {
@@ -39,7 +39,7 @@ mod tests {
         let result = parse_statement(query);
         assert!(result.is_ok(), "INSERT EDGE 带 rank 解析应该成功: {:?}", result.err());
         
-        let stmt = result.unwrap();
+        let stmt = result.expect("INSERT EDGE带rank解析应该成功");
         assert_eq!(stmt.kind(), "INSERT");
         
         if let Stmt::Insert(insert_stmt) = stmt {
@@ -62,7 +62,7 @@ mod tests {
         let result = parse_statement(query);
         assert!(result.is_ok(), "INSERT 多个边解析应该成功: {:?}", result.err());
         
-        let stmt = result.unwrap();
+        let stmt = result.expect("INSERT多个边解析应该成功");
         assert_eq!(stmt.kind(), "INSERT");
     }
 
@@ -72,7 +72,7 @@ mod tests {
         let result = parse_statement(query);
         assert!(result.is_ok(), "INSERT EDGE 多属性解析应该成功: {:?}", result.err());
         
-        let stmt = result.unwrap();
+        let stmt = result.expect("INSERT EDGE多属性解析应该成功");
         assert_eq!(stmt.kind(), "INSERT");
     }
 
@@ -82,7 +82,7 @@ mod tests {
         let result = parse_statement(query);
         assert!(result.is_ok(), "INSERT VERTEX 解析应该成功: {:?}", result.err());
         
-        let stmt = result.unwrap();
+        let stmt = result.expect("INSERT VERTEX解析应该成功");
         assert_eq!(stmt.kind(), "INSERT");
     }
 
@@ -92,7 +92,7 @@ mod tests {
         let result = parse_statement(query);
         assert!(result.is_ok(), "INSERT 多个顶点解析应该成功: {:?}", result.err());
         
-        let stmt = result.unwrap();
+        let stmt = result.expect("INSERT多个顶点解析应该成功");
         assert_eq!(stmt.kind(), "INSERT");
     }
 
@@ -102,7 +102,7 @@ mod tests {
         let result = parse_statement(query);
         assert!(result.is_ok(), "DELETE EDGE 解析应该成功: {:?}", result.err());
         
-        let stmt = result.unwrap();
+        let stmt = result.expect("DELETE EDGE解析应该成功");
         assert_eq!(stmt.kind(), "DELETE");
     }
 
@@ -112,7 +112,7 @@ mod tests {
         let result = parse_statement(query);
         assert!(result.is_ok(), "DELETE EDGE 带 rank 解析应该成功: {:?}", result.err());
         
-        let stmt = result.unwrap();
+        let stmt = result.expect("DELETE EDGE带rank解析应该成功");
         assert_eq!(stmt.kind(), "DELETE");
     }
 
@@ -122,7 +122,7 @@ mod tests {
         let result = parse_statement(query);
         assert!(result.is_ok(), "DELETE 多个边解析应该成功: {:?}", result.err());
         
-        let stmt = result.unwrap();
+        let stmt = result.expect("DELETE多个边解析应该成功");
         assert_eq!(stmt.kind(), "DELETE");
     }
 
@@ -132,7 +132,7 @@ mod tests {
         let result = parse_statement(query);
         assert!(result.is_ok(), "SET 属性解析应该成功: {:?}", result.err());
         
-        let stmt = result.unwrap();
+        let stmt = result.expect("SET属性解析应该成功");
         assert_eq!(stmt.kind(), "SET");
     }
 
@@ -142,7 +142,7 @@ mod tests {
         let result = parse_statement(query);
         assert!(result.is_ok(), "SET 多个属性解析应该成功: {:?}", result.err());
         
-        let stmt = result.unwrap();
+        let stmt = result.expect("SET多个属性解析应该成功");
         assert_eq!(stmt.kind(), "SET");
     }
 
@@ -152,7 +152,7 @@ mod tests {
         let result = parse_statement(query);
         assert!(result.is_ok(), "SET 带表达式解析应该成功: {:?}", result.err());
         
-        let stmt = result.unwrap();
+        let stmt = result.expect("SET带表达式解析应该成功");
         assert_eq!(stmt.kind(), "SET");
     }
 
@@ -162,7 +162,7 @@ mod tests {
         let result = parse_statement(query);
         assert!(result.is_ok(), "UPDATE 顶点解析应该成功: {:?}", result.err());
         
-        let stmt = result.unwrap();
+        let stmt = result.expect("UPDATE顶点解析应该成功");
         assert_eq!(stmt.kind(), "UPDATE");
     }
 
@@ -172,7 +172,7 @@ mod tests {
         let result = parse_statement(query);
         assert!(result.is_ok(), "DELETE VERTEX 解析应该成功: {:?}", result.err());
         
-        let stmt = result.unwrap();
+        let stmt = result.expect("DELETE VERTEX解析应该成功");
         assert_eq!(stmt.kind(), "DELETE");
     }
 }

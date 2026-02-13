@@ -89,7 +89,7 @@ mod tests {
 
     #[test]
     fn test_clear_space_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let mut executor = ClearSpaceExecutor::new(1, storage, "test_space".to_string());
 
         let result = executor.execute();
@@ -98,7 +98,7 @@ mod tests {
 
     #[test]
     fn test_executor_lifecycle() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let mut executor = ClearSpaceExecutor::new(2, storage, "test_space".to_string());
 
         assert!(!executor.is_open());
@@ -110,7 +110,7 @@ mod tests {
 
     #[test]
     fn test_executor_stats() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let executor = ClearSpaceExecutor::new(3, storage, "test_space".to_string());
 
         assert_eq!(executor.id(), 3);

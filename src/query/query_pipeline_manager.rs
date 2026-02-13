@@ -21,7 +21,6 @@ use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 pub struct QueryPipelineManager<S: StorageClient + 'static> {
-    _storage: Arc<Mutex<S>>,
     validator: Validator,
     planner: StaticConfigurablePlannerRegistry,
     optimizer: Optimizer,
@@ -37,7 +36,6 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         Self::register_planners(&mut planner);
 
         Self {
-            _storage: storage,
             validator: Validator::new(),
             planner,
             optimizer: Optimizer::from_registry(),
@@ -56,7 +54,6 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         let optimizer = Optimizer::with_config(vec![], config);
 
         Self {
-            _storage: storage,
             validator: Validator::new(),
             planner,
             optimizer,
@@ -94,7 +91,6 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         };
 
         Self {
-            _storage: storage,
             validator: Validator::new(),
             planner,
             optimizer,
@@ -110,7 +106,6 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         Self::register_planners(&mut planner);
 
         Self {
-            _storage: storage,
             validator: Validator::new(),
             planner,
             optimizer: Optimizer::default(),
@@ -123,7 +118,55 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         planner.register(
             crate::query::planner::planner::SentenceKind::Match,
             crate::query::planner::planner::MatchAndInstantiateEnum::Match(
-                crate::query::planner::statements::match_planner::MatchPlanner::new()
+                crate::query::planner::statements::match_statement_planner::MatchStatementPlanner::new()
+            ),
+        );
+        planner.register(
+            crate::query::planner::planner::SentenceKind::Go,
+            crate::query::planner::planner::MatchAndInstantiateEnum::Go(
+                crate::query::planner::statements::go_planner::GoPlanner::new()
+            ),
+        );
+        planner.register(
+            crate::query::planner::planner::SentenceKind::Lookup,
+            crate::query::planner::planner::MatchAndInstantiateEnum::Lookup(
+                crate::query::planner::statements::lookup_planner::LookupPlanner::new()
+            ),
+        );
+        planner.register(
+            crate::query::planner::planner::SentenceKind::Path,
+            crate::query::planner::planner::MatchAndInstantiateEnum::Path(
+                crate::query::planner::statements::path_planner::PathPlanner::new()
+            ),
+        );
+        planner.register(
+            crate::query::planner::planner::SentenceKind::Subgraph,
+            crate::query::planner::planner::MatchAndInstantiateEnum::Subgraph(
+                crate::query::planner::statements::subgraph_planner::SubgraphPlanner::new()
+            ),
+        );
+        planner.register(
+            crate::query::planner::planner::SentenceKind::FetchVertices,
+            crate::query::planner::planner::MatchAndInstantiateEnum::FetchVertices(
+                crate::query::planner::statements::fetch_vertices_planner::FetchVerticesPlanner::new()
+            ),
+        );
+        planner.register(
+            crate::query::planner::planner::SentenceKind::FetchEdges,
+            crate::query::planner::planner::MatchAndInstantiateEnum::FetchEdges(
+                crate::query::planner::statements::fetch_edges_planner::FetchEdgesPlanner::new()
+            ),
+        );
+        planner.register(
+            crate::query::planner::planner::SentenceKind::Maintain,
+            crate::query::planner::planner::MatchAndInstantiateEnum::Maintain(
+                crate::query::planner::statements::maintain_planner::MaintainPlanner::new()
+            ),
+        );
+        planner.register(
+            crate::query::planner::planner::SentenceKind::UserManagement,
+            crate::query::planner::planner::MatchAndInstantiateEnum::UserManagement(
+                crate::query::planner::statements::user_management_planner::UserManagementPlanner::new()
             ),
         );
     }

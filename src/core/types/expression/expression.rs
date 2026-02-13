@@ -253,7 +253,7 @@ mod tests {
         let span = Span::new(Position::new(1, 0), Position::new(1, 1));
         let meta = ExpressionMeta::with_span(expr, span);
         assert!(meta.span().is_some());
-        assert_eq!(meta.span().unwrap().start.line, 1);
+        assert_eq!(meta.span().expect("Expected span to exist").start.line, 1);
     }
 
     #[test]
@@ -261,7 +261,7 @@ mod tests {
         let expr = Expression::literal(true);
         let meta = ExpressionMeta::new(expr).with_id(ExpressionId::new(42));
         assert!(meta.id().is_some());
-        assert_eq!(meta.id().unwrap().0, 42);
+        assert_eq!(meta.id().expect("Expected id to exist").0, 42);
     }
 
     #[test]
@@ -352,7 +352,7 @@ mod tests {
         let json = serde_json::to_string(&meta).expect("Serialization should succeed");
         let decoded: ExpressionMeta = serde_json::from_str(&json).expect("Deserialization should succeed");
         assert!(decoded.span().is_some());
-        assert_eq!(decoded.span().unwrap().start.line, 1);
+        assert_eq!(decoded.span().expect("Expected span to exist").start.line, 1);
     }
 
     #[test]

@@ -17,9 +17,10 @@ use crate::query::planner::statements::fetch_vertices_planner::FetchVerticesPlan
 use crate::query::planner::statements::go_planner::GoPlanner;
 use crate::query::planner::statements::lookup_planner::LookupPlanner;
 use crate::query::planner::statements::maintain_planner::MaintainPlanner;
-use crate::query::planner::statements::match_planner::MatchPlanner;
+use crate::query::planner::statements::match_statement_planner::MatchStatementPlanner;
 use crate::query::planner::statements::path_planner::PathPlanner;
 use crate::query::planner::statements::subgraph_planner::SubgraphPlanner;
+use crate::query::planner::statements::user_management_planner::UserManagementPlanner;
 
 /// 规划器配置
 #[derive(Debug, Clone)]
@@ -125,6 +126,7 @@ pub enum SentenceKind {
     FetchVertices,
     FetchEdges,
     Maintain,
+    UserManagement,
 }
 
 impl SentenceKind {
@@ -134,11 +136,15 @@ impl SentenceKind {
             "MATCH" => Ok(SentenceKind::Match),
             "GO" => Ok(SentenceKind::Go),
             "LOOKUP" => Ok(SentenceKind::Lookup),
-            "PATH" => Ok(SentenceKind::Path),
+            "PATH" | "FIND PATH" => Ok(SentenceKind::Path),
             "SUBGRAPH" => Ok(SentenceKind::Subgraph),
             "FETCH VERTICES" => Ok(SentenceKind::FetchVertices),
             "FETCH EDGES" => Ok(SentenceKind::FetchEdges),
             "MAINTAIN" => Ok(SentenceKind::Maintain),
+            "CREATE_USER" | "ALTER_USER" | "DROP_USER" | "CHANGE_PASSWORD" |
+            "CREATE USER" | "ALTER USER" | "DROP USER" | "CHANGE PASSWORD" => {
+                Ok(SentenceKind::UserManagement)
+            }
             _ => Err(PlannerError::UnsupportedOperation(format!(
                 "Unsupported statement type: {}",
                 s
@@ -157,6 +163,7 @@ impl SentenceKind {
             SentenceKind::FetchVertices => "FETCH VERTICES",
             SentenceKind::FetchEdges => "FETCH EDGES",
             SentenceKind::Maintain => "MAINTAIN",
+            SentenceKind::UserManagement => "USER_MANAGEMENT",
         }
     }
 
@@ -212,7 +219,7 @@ pub type MatchFunc = fn(&AstContext) -> bool;
 /// 静态匹配和实例化枚举 - 完全消除动态分发
 #[derive(Debug, Clone)]
 pub enum MatchAndInstantiateEnum {
-    Match(MatchPlanner),
+    Match(MatchStatementPlanner),
     Go(GoPlanner),
     Lookup(LookupPlanner),
     Path(PathPlanner),
@@ -220,6 +227,7 @@ pub enum MatchAndInstantiateEnum {
     FetchVertices(FetchVerticesPlanner),
     FetchEdges(FetchEdgesPlanner),
     Maintain(MaintainPlanner),
+    UserManagement(UserManagementPlanner),
 }
 
 impl MatchAndInstantiateEnum {
@@ -233,6 +241,7 @@ impl MatchAndInstantiateEnum {
             MatchAndInstantiateEnum::FetchVertices(_) => 100,
             MatchAndInstantiateEnum::FetchEdges(_) => 100,
             MatchAndInstantiateEnum::Maintain(_) => 100,
+            MatchAndInstantiateEnum::UserManagement(_) => 100,
         }
     }
 
@@ -246,6 +255,7 @@ impl MatchAndInstantiateEnum {
             MatchAndInstantiateEnum::FetchVertices(planner) => planner.transform(ast_ctx),
             MatchAndInstantiateEnum::FetchEdges(planner) => planner.transform(ast_ctx),
             MatchAndInstantiateEnum::Maintain(planner) => planner.transform(ast_ctx),
+            MatchAndInstantiateEnum::UserManagement(planner) => planner.transform(ast_ctx),
         }
     }
 
@@ -436,7 +446,7 @@ impl StaticConfigurablePlannerRegistry {
 /// 完全消除 Box<dyn Planner> 动态分发，使用编译时多态
 #[derive(Debug, Clone)]
 pub enum PlannerEnum {
-    Match(MatchPlanner),
+    Match(MatchStatementPlanner),
     Go(GoPlanner),
     Lookup(LookupPlanner),
     Path(PathPlanner),
@@ -444,13 +454,14 @@ pub enum PlannerEnum {
     FetchVertices(FetchVerticesPlanner),
     FetchEdges(FetchEdgesPlanner),
     Maintain(MaintainPlanner),
+    UserManagement(UserManagementPlanner),
 }
 
 impl PlannerEnum {
     /// 根据语句类型创建规划器
     pub fn from_sentence_kind(kind: SentenceKind) -> Option<Self> {
         match kind {
-            SentenceKind::Match => Some(PlannerEnum::Match(MatchPlanner::new())),
+            SentenceKind::Match => Some(PlannerEnum::Match(MatchStatementPlanner::new())),
             SentenceKind::Go => Some(PlannerEnum::Go(GoPlanner::new())),
             SentenceKind::Lookup => Some(PlannerEnum::Lookup(LookupPlanner::new())),
             SentenceKind::Path => Some(PlannerEnum::Path(PathPlanner::new())),
@@ -458,6 +469,7 @@ impl PlannerEnum {
             SentenceKind::FetchVertices => Some(PlannerEnum::FetchVertices(FetchVerticesPlanner::new())),
             SentenceKind::FetchEdges => Some(PlannerEnum::FetchEdges(FetchEdgesPlanner::new())),
             SentenceKind::Maintain => Some(PlannerEnum::Maintain(MaintainPlanner::new())),
+            SentenceKind::UserManagement => Some(PlannerEnum::UserManagement(UserManagementPlanner::new())),
         }
     }
 
@@ -472,6 +484,7 @@ impl PlannerEnum {
             PlannerEnum::FetchVertices(planner) => planner.transform(ast_ctx),
             PlannerEnum::FetchEdges(planner) => planner.transform(ast_ctx),
             PlannerEnum::Maintain(planner) => planner.transform(ast_ctx),
+            PlannerEnum::UserManagement(planner) => planner.transform(ast_ctx),
         }
     }
 
@@ -486,6 +499,7 @@ impl PlannerEnum {
             PlannerEnum::FetchVertices(_) => "FetchVerticesPlanner",
             PlannerEnum::FetchEdges(_) => "FetchEdgesPlanner",
             PlannerEnum::Maintain(_) => "MaintainPlanner",
+            PlannerEnum::UserManagement(_) => "UserManagementPlanner",
         }
     }
 
@@ -500,6 +514,7 @@ impl PlannerEnum {
             PlannerEnum::FetchVertices(planner) => planner.match_planner(ast_ctx),
             PlannerEnum::FetchEdges(planner) => planner.match_planner(ast_ctx),
             PlannerEnum::Maintain(planner) => planner.match_planner(ast_ctx),
+            PlannerEnum::UserManagement(planner) => planner.match_planner(ast_ctx),
         }
     }
 
@@ -514,6 +529,7 @@ impl PlannerEnum {
             PlannerEnum::FetchVertices(planner) => Box::new(planner),
             PlannerEnum::FetchEdges(planner) => Box::new(planner),
             PlannerEnum::Maintain(planner) => Box::new(planner),
+            PlannerEnum::UserManagement(planner) => Box::new(planner),
         }
     }
 }
@@ -530,7 +546,7 @@ impl StaticPlannerRegistry {
     pub fn new() -> Self {
         Self {
             planners: vec![
-                PlannerEnum::Match(MatchPlanner::new()),
+                PlannerEnum::Match(MatchStatementPlanner::new()),
                 PlannerEnum::Go(GoPlanner::new()),
                 PlannerEnum::Lookup(LookupPlanner::new()),
                 PlannerEnum::Path(PathPlanner::new()),
@@ -538,6 +554,7 @@ impl StaticPlannerRegistry {
                 PlannerEnum::FetchVertices(FetchVerticesPlanner::new()),
                 PlannerEnum::FetchEdges(FetchEdgesPlanner::new()),
                 PlannerEnum::Maintain(MaintainPlanner::new()),
+                PlannerEnum::UserManagement(UserManagementPlanner::new()),
             ],
         }
     }
@@ -728,19 +745,19 @@ mod tests {
 
     #[test]
     fn test_match_and_instantiate() {
-        let mi = MatchAndInstantiateEnum::Match(MatchPlanner::new());
+        let mi = MatchAndInstantiateEnum::Match(MatchStatementPlanner::new());
         assert_eq!(mi.priority(), 100);
     }
 
     #[test]
     fn test_planner_registry() {
         let registry = StaticPlannerRegistry::new();
-        assert_eq!(registry.len(), 8);
+        assert_eq!(registry.len(), 9);
     }
 
     #[test]
     fn test_sequential_planner() {
         let registry = StaticPlannerRegistry::new();
-        assert_eq!(registry.len(), 8);
+        assert_eq!(registry.len(), 9);
     }
 }

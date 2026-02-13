@@ -163,14 +163,14 @@ mod tests {
         let start = Enum::Start(StartNode::new());
         let empty_start = Enum::Start(StartNode::new());
         
-        let minus_node = MinusNode::new(start.clone(), empty_start).unwrap();
+        let minus_node = MinusNode::new(start.clone(), empty_start).expect("Failed to create minus node");
         let plan_node = Enum::Minus(minus_node);
         let opt_node = OptGroupNode::new(1, plan_node);
 
         let result = rule.apply(&mut ctx, &Rc::new(RefCell::new(opt_node)));
         
         assert!(result.is_ok());
-        assert!(result.unwrap().is_some());
+        assert!(result.expect("Expected result to exist").is_some());
     }
 
     #[test]
@@ -181,13 +181,13 @@ mod tests {
         let start = Enum::Start(StartNode::new());
         let empty_start = Enum::Start(StartNode::new());
         
-        let intersect_node = IntersectNode::new(start.clone(), empty_start).unwrap();
+        let intersect_node = IntersectNode::new(start.clone(), empty_start).expect("Failed to create intersect node");
         let plan_node = Enum::Intersect(intersect_node);
         let opt_node = OptGroupNode::new(1, plan_node);
 
         let result = rule.apply(&mut ctx, &Rc::new(RefCell::new(opt_node)));
         
         assert!(result.is_ok());
-        assert!(result.unwrap().is_some());
+        assert!(result.expect("Expected result to exist").is_some());
     }
 }

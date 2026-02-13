@@ -52,7 +52,7 @@ fn test_parser_go_statement_basic() {
     let result = parser.parse();
     assert!(result.is_ok(), "解析应该成功: {:?}", result.err());
     
-    let stmt = result.unwrap();
+    let stmt = result.expect("GO语句解析应该成功");
     assert_eq!(stmt.kind(), "GO");
 }
 
@@ -65,7 +65,7 @@ fn test_parser_fetch_tag_statement() {
     let result = parser.parse();
     assert!(result.is_ok(), "解析应该成功: {:?}", result.err());
     
-    let stmt = result.unwrap();
+    let stmt = result.expect("FETCH语句解析应该成功");
     assert_eq!(stmt.kind(), "FETCH");
 }
 
@@ -84,7 +84,7 @@ fn test_parser_insert_vertex_statement() {
     match &result {
         Ok(_) => {
             // 解析成功
-            let stmt = result.unwrap();
+            let stmt = result.expect("INSERT语句解析应该成功");
             assert_eq!(stmt.kind(), "INSERT");
         }
         Err(e) => {
@@ -108,8 +108,8 @@ fn test_parser_create_tag_statement() {
     let result = parser.parse();
     // 数据类型关键字已修复，解析应该成功
     assert!(result.is_ok(), "CREATE TAG 解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("CREATE TAG语句解析应该成功");
     assert_eq!(stmt.kind(), "CREATE");
 }
 
@@ -123,8 +123,8 @@ fn test_parser_create_edge_statement() {
     let result = parser.parse();
     // 数据类型关键字已修复，解析应该成功
     assert!(result.is_ok(), "CREATE EDGE 解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("CREATE EDGE语句解析应该成功");
     assert_eq!(stmt.kind(), "CREATE");
 }
 
@@ -136,7 +136,7 @@ fn test_parser_use_statement() {
     let result = parser.parse();
     assert!(result.is_ok(), "解析应该成功: {:?}", result.err());
     
-    let stmt = result.unwrap();
+    let stmt = result.expect("USE语句解析应该成功");
     assert_eq!(stmt.kind(), "USE");
 }
 
@@ -152,7 +152,7 @@ fn test_parser_show_statements() {
         let mut parser = Parser::new(query);
         let result = parser.parse();
         assert!(result.is_ok(), "解析 '{}' 应该成功: {:?}", query, result.err());
-        assert_eq!(result.unwrap().kind(), "SHOW");
+        assert_eq!(result.expect("SHOW语句解析应该成功").kind(), "SHOW");
     }
 }
 

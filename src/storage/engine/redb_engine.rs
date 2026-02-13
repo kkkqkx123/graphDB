@@ -247,28 +247,28 @@ mod tests {
 
     #[test]
     fn test_basic_operations() {
-        let temp_dir = TempDir::new().unwrap();
-        let mut engine = RedbEngine::new(temp_dir.path().join("test.db")).unwrap();
+        let temp_dir = TempDir::new().expect("Failed to create temporary directory");
+        let mut engine = RedbEngine::new(temp_dir.path().join("test.db")).expect("Failed to create RedbEngine");
 
-        assert_eq!(engine.get(b"key1").unwrap(), None);
+        assert_eq!(engine.get(b"key1").expect("Failed to get key"), None);
 
-        engine.put(b"key1", b"value1").unwrap();
-        assert_eq!(engine.get(b"key1").unwrap(), Some(b"value1".to_vec()));
+        engine.put(b"key1", b"value1").expect("Failed to put key-value pair");
+        assert_eq!(engine.get(b"key1").expect("Failed to get key"), Some(b"value1".to_vec()));
 
-        engine.delete(b"key1").unwrap();
-        assert_eq!(engine.get(b"key1").unwrap(), None);
+        engine.delete(b"key1").expect("Failed to delete key");
+        assert_eq!(engine.get(b"key1").expect("Failed to get key"), None);
     }
 
     #[test]
     fn test_scan() {
-        let temp_dir = TempDir::new().unwrap();
-        let mut engine = RedbEngine::new(temp_dir.path().join("test.db")).unwrap();
+        let temp_dir = TempDir::new().expect("Failed to create temporary directory");
+        let mut engine = RedbEngine::new(temp_dir.path().join("test.db")).expect("Failed to create RedbEngine");
 
-        engine.put(b"a1", b"v1").unwrap();
-        engine.put(b"a2", b"v2").unwrap();
-        engine.put(b"b1", b"v3").unwrap();
+        engine.put(b"a1", b"v1").expect("Failed to put key-value pair");
+        engine.put(b"a2", b"v2").expect("Failed to put key-value pair");
+        engine.put(b"b1", b"v3").expect("Failed to put key-value pair");
 
-        let iter = engine.scan(b"a").unwrap();
+        let iter = engine.scan(b"a").expect("Failed to create scan iterator");
         let mut items = Vec::new();
         let mut iter = iter;
         while iter.next() {
@@ -282,8 +282,8 @@ mod tests {
 
     #[test]
     fn test_batch() {
-        let temp_dir = TempDir::new().unwrap();
-        let mut engine = RedbEngine::new(temp_dir.path().join("test.db")).unwrap();
+        let temp_dir = TempDir::new().expect("Failed to create temporary directory");
+        let mut engine = RedbEngine::new(temp_dir.path().join("test.db")).expect("Failed to create RedbEngine");
 
         let ops = vec![
             Operation::Put { key: b"k1".to_vec(), value: b"v1".to_vec() },
@@ -291,10 +291,10 @@ mod tests {
             Operation::Delete { key: b"k3".to_vec() },
         ];
 
-        engine.batch(ops).unwrap();
+        engine.batch(ops).expect("Failed to execute batch operations");
 
-        assert_eq!(engine.get(b"k1").unwrap(), Some(b"v1".to_vec()));
-        assert_eq!(engine.get(b"k2").unwrap(), Some(b"v2".to_vec()));
-        assert_eq!(engine.get(b"k3").unwrap(), None);
+        assert_eq!(engine.get(b"k1").expect("Failed to get key"), Some(b"v1".to_vec()));
+        assert_eq!(engine.get(b"k2").expect("Failed to get key"), Some(b"v2".to_vec()));
+        assert_eq!(engine.get(b"k3").expect("Failed to get key"), None);
     }
 }

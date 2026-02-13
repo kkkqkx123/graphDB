@@ -294,7 +294,7 @@ mod tests {
     #[test]
     fn test_serde_serialize() {
         let span = Span::new(Position::new(1, 5), Position::new(2, 10));
-        let json = serde_json::to_string(&span).unwrap();
+        let json = serde_json::to_string(&span).expect("序列化Span应该成功");
         assert!(json.contains("start"));
         assert!(json.contains("end"));
     }
@@ -302,7 +302,7 @@ mod tests {
     #[test]
     fn test_serde_deserialize() {
         let json = r#"{"start":{"line":1,"column":5},"end":{"line":2,"column":10}}"#;
-        let span: Span = serde_json::from_str(json).unwrap();
+        let span: Span = serde_json::from_str(json).expect("反序列化Span应该成功");
         assert_eq!(span.start.line, 1);
         assert_eq!(span.end.column, 10);
     }

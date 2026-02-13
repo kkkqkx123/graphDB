@@ -142,7 +142,7 @@ mod tests {
 
         let regex = cache.get_regex_internal(r"\d+");
         assert!(regex.is_some());
-        assert!(regex.unwrap().is_match("123"));
+        assert!(regex.expect("Expected regex to be valid").is_match("123"));
         assert_eq!(cache.regex_count(), 1);
 
         let regex2 = cache.get_regex_internal(r"\d+");

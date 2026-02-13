@@ -30,8 +30,8 @@ async fn test_create_user_parser_basic() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "CREATE USER基础解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("CREATE USER语句解析应该成功");
     assert_eq!(stmt.kind(), "CREATE USER");
 }
 
@@ -42,8 +42,8 @@ async fn test_create_user_parser_with_if_not_exists() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "CREATE USER带IF NOT EXISTS解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("CREATE USER语句解析应该成功");
     assert_eq!(stmt.kind(), "CREATE USER");
 }
 
@@ -54,8 +54,8 @@ async fn test_create_user_parser_complex_password() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "CREATE USER复杂密码解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("CREATE USER语句解析应该成功");
     assert_eq!(stmt.kind(), "CREATE USER");
 }
 
@@ -66,8 +66,8 @@ async fn test_create_user_parser_special_username() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "CREATE USER特殊用户名解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("CREATE USER语句解析应该成功");
     assert_eq!(stmt.kind(), "CREATE USER");
 }
 
@@ -129,8 +129,8 @@ async fn test_alter_user_parser_basic() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "ALTER USER基础解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("ALTER USER语句解析应该成功");
     assert_eq!(stmt.kind(), "ALTER USER");
 }
 
@@ -141,8 +141,8 @@ async fn test_alter_user_parser_complex_password() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "ALTER USER复杂密码解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("ALTER USER语句解析应该成功");
     assert_eq!(stmt.kind(), "ALTER USER");
 }
 
@@ -153,8 +153,8 @@ async fn test_alter_user_parser_special_username() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "ALTER USER特殊用户名解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("ALTER USER语句解析应该成功");
     assert_eq!(stmt.kind(), "ALTER USER");
 }
 
@@ -197,8 +197,8 @@ async fn test_drop_user_parser_basic() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "DROP USER基础解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("DROP USER语句解析应该成功");
     assert_eq!(stmt.kind(), "DROP USER");
 }
 
@@ -209,8 +209,8 @@ async fn test_drop_user_parser_with_if_exists() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "DROP USER带IF EXISTS解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("DROP USER语句解析应该成功");
     assert_eq!(stmt.kind(), "DROP USER");
 }
 
@@ -221,8 +221,8 @@ async fn test_drop_user_parser_special_username() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "DROP USER特殊用户名解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("DROP USER语句解析应该成功");
     assert_eq!(stmt.kind(), "DROP USER");
 }
 
@@ -295,8 +295,8 @@ async fn test_change_password_parser_basic() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "CHANGE PASSWORD基础解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("CHANGE PASSWORD语句解析应该成功");
     assert_eq!(stmt.kind(), "CHANGE PASSWORD");
 }
 
@@ -307,8 +307,8 @@ async fn test_change_password_parser_complex_passwords() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "CHANGE PASSWORD复杂密码解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("CHANGE PASSWORD语句解析应该成功");
     assert_eq!(stmt.kind(), "CHANGE PASSWORD");
 }
 
@@ -319,8 +319,8 @@ async fn test_change_password_parser_special_chars() {
     
     let result = parser.parse();
     assert!(result.is_ok(), "CHANGE PASSWORD特殊字符密码解析应该成功: {:?}", result.err());
-    
-    let stmt = result.unwrap();
+
+    let stmt = result.expect("CHANGE PASSWORD语句解析应该成功");
     assert_eq!(stmt.kind(), "CHANGE PASSWORD");
 }
 

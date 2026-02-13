@@ -154,7 +154,8 @@ impl Validator {
         query_context: Option<&QueryContext>,
         ast: &mut AstContext,
     ) -> Result<(), CoreValidationError> {
-        if !self.no_space_required && !self.space_chosen_in_ast(ast) {
+        let no_space_required = self.no_space_required || Self::is_global_statement(ast);
+        if !no_space_required && !self.space_chosen_in_ast(ast) {
             return Err(CoreValidationError::new(
                 "No space selected. Use `USE <space>` to select a graph space first.".to_string(),
                 ValidationErrorType::SemanticError,
@@ -177,6 +178,16 @@ impl Validator {
 
     fn space_chosen_in_ast(&self, ast: &AstContext) -> bool {
         ast.space().space_id.is_some()
+    }
+
+    fn is_global_statement(ast: &AstContext) -> bool {
+        let stmt_type = ast.statement_type();
+        matches!(
+            stmt_type,
+            "CREATE_USER" | "ALTER_USER" | "DROP_USER" | "CHANGE_PASSWORD"
+                | "CREATE_SPACE" | "DROP_SPACE" | "SHOW_SPACES" | "DESC_SPACE"
+                | "SHOW_USERS" | "DESC_USER"
+        )
     }
 
     fn validate_impl_with_ast(

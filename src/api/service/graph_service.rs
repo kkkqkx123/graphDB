@@ -4,7 +4,7 @@ use crate::api::service::{
 use crate::api::session::{ClientSession, GraphSessionManager};
 use crate::config::Config;
 use crate::storage::{StorageClient, TransactionId};
-use crate::core::error::{SessionError, SessionResult};
+use crate::core::error::{SessionError, SessionResult, ManagerError, ManagerResult};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -32,20 +32,23 @@ impl TransactionManager {
         }
     }
 
-    pub fn begin_transaction(&self) -> TransactionId {
-        let mut id = self.next_tx_id.lock().unwrap();
+    pub fn begin_transaction(&self) -> ManagerResult<TransactionId> {
+        let mut id = self.next_tx_id.lock()
+            .map_err(|e| ManagerError::Other(format!("获取事务 ID 锁失败: {}", e)))?;
         let tx_id = *id;
         *id += 1;
 
         // 记录事务状态为活跃
-        let mut states = self.tx_states.lock().unwrap();
+        let mut states = self.tx_states.lock()
+            .map_err(|e| ManagerError::Other(format!("获取事务状态锁失败: {}", e)))?;
         states.insert(TransactionId(tx_id), TxState::Active);
 
-        TransactionId(tx_id)
+        Ok(TransactionId(tx_id))
     }
 
-    pub fn commit_transaction(&self, tx_id: TransactionId) -> Result<(), String> {
-        let mut states = self.tx_states.lock().unwrap();
+    pub fn commit_transaction(&self, tx_id: TransactionId) -> ManagerResult<()> {
+        let mut states = self.tx_states.lock()
+            .map_err(|e| ManagerError::Other(format!("获取事务状态锁失败: {}", e)))?;
 
         // 检查事务是否存在且处于活跃状态
         match states.get(&tx_id) {
@@ -55,19 +58,20 @@ impl TransactionManager {
                 Ok(())
             }
             Some(TxState::Committed) => {
-                Err(format!("事务 {} 已经提交过了", tx_id))
+                Err(ManagerError::TransactionError(format!("事务 {} 已经提交过了", tx_id)))
             }
             Some(TxState::RolledBack) => {
-                Err(format!("事务 {} 已经回滚了，无法提交", tx_id))
+                Err(ManagerError::TransactionError(format!("事务 {} 已经回滚了，无法提交", tx_id)))
             }
             None => {
-                Err(format!("事务 {} 不存在", tx_id))
+                Err(ManagerError::NotFound(format!("事务 {} 不存在", tx_id)))
             }
         }
     }
 
-    pub fn rollback_transaction(&self, tx_id: TransactionId) -> Result<(), String> {
-        let mut states = self.tx_states.lock().unwrap();
+    pub fn rollback_transaction(&self, tx_id: TransactionId) -> ManagerResult<()> {
+        let mut states = self.tx_states.lock()
+            .map_err(|e| ManagerError::Other(format!("获取事务状态锁失败: {}", e)))?;
 
         // 检查事务是否存在且处于活跃状态
         match states.get(&tx_id) {
@@ -77,33 +81,44 @@ impl TransactionManager {
                 Ok(())
             }
             Some(TxState::Committed) => {
-                Err(format!("事务 {} 已经提交了，无法回滚", tx_id))
+                Err(ManagerError::TransactionError(format!("事务 {} 已经提交了，无法回滚", tx_id)))
             }
             Some(TxState::RolledBack) => {
-                Err(format!("事务 {} 已经回滚了", tx_id))
+                Err(ManagerError::TransactionError(format!("事务 {} 已经回滚了", tx_id)))
             }
             None => {
-                Err(format!("事务 {} 不存在", tx_id))
+                Err(ManagerError::NotFound(format!("事务 {} 不存在", tx_id)))
             }
         }
     }
 
     /// 检查事务是否处于活跃状态
     pub fn is_active(&self, tx_id: TransactionId) -> bool {
-        let states = self.tx_states.lock().unwrap();
+        let states = match self.tx_states.lock() {
+            Ok(guard) => guard,
+            Err(e) => {
+                log::error!("获取事务状态锁失败: {}", e);
+                return false;
+            }
+        };
         matches!(states.get(&tx_id), Some(TxState::Active))
     }
 
     /// 清理已完成的事务
-    pub fn cleanup_completed_transactions(&self) {
-        let mut states = self.tx_states.lock().unwrap();
+    pub fn cleanup_completed_transactions(&self) -> ManagerResult<()> {
+        let mut states = self.tx_states.lock()
+            .map_err(|e| ManagerError::Other(format!("获取事务状态锁失败: {}", e)))?;
         states.retain(|_, state| *state == TxState::Active);
+        Ok(())
     }
 
     /// 获取事务状态
-    pub fn get_transaction_state(&self, tx_id: TransactionId) -> Option<TxState> {
-        let states = self.tx_states.lock().unwrap();
-        states.get(&tx_id).cloned()
+    pub fn get_transaction_state(&self, tx_id: TransactionId) -> ManagerResult<TxState> {
+        let states = self.tx_states.lock()
+            .map_err(|e| ManagerError::Other(format!("获取事务状态锁失败: {}", e)))?;
+        states.get(&tx_id)
+            .cloned()
+            .ok_or_else(|| ManagerError::NotFound(format!("事务 {} 不存在", tx_id)))
     }
 }
 
@@ -193,7 +208,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         let session = self
             .session_manager
             .find_session(session_id)
-            .ok_or_else(|| "无效的会话 ID".to_string())?;
+            .ok_or_else(|| format!("无效的会话 ID: {}", session_id))?;
 
         let space_id = session.space().map(|s| s.id).unwrap_or(0);
 
@@ -209,7 +224,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         let session = self
             .session_manager
             .find_session(session_id)
-            .ok_or_else(|| "无效的会话 ID".to_string())?;
+            .ok_or_else(|| format!("无效的会话 ID: {}", session_id))?;
 
         session.charge();
 
@@ -235,7 +250,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         let mut query_engine = self
             .query_engine
             .lock()
-            .expect("查询引擎锁被污染");
+            .map_err(|e| format!("获取查询引擎锁失败: {}", e))?;
         let response = query_engine.execute(request_context).await;
 
         match response.result {
@@ -334,10 +349,15 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             .lock()
             .map_err(|e| format!("获取事务管理器锁失败: {}", e))?;
 
-        let tx_id = tx_manager.begin_transaction();
+        let tx_id = tx_manager.begin_transaction()
+            .map_err(|e| format!("开始事务失败: {}", e))?;
+
+        // 释放锁，避免死锁
+        drop(tx_manager);
 
         // 同时在存储层开始事务
-        let mut storage = self.storage.lock().unwrap();
+        let mut storage = self.storage.lock()
+            .map_err(|e| format!("获取存储锁失败: {}", e))?;
         storage
             .begin_transaction("")  // 使用默认空间名
             .map_err(|e| format!("在存储层开始事务失败: {:?}", e))?;
@@ -348,7 +368,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
 
     /// 提交事务
     pub fn commit_transaction(&self, tx_id: TransactionId) -> Result<(), String> {
-        // 先验证事务状态
+        // 先更新服务层事务状态，确保一致性
         let tx_manager = self.transaction_manager
             .lock()
             .map_err(|e| format!("获取事务管理器锁失败: {}", e))?;
@@ -357,37 +377,24 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             return Err(format!("事务 {} 不处于活跃状态，无法提交", tx_id));
         }
 
+        // 先在服务层标记为已提交
+        tx_manager.commit_transaction(tx_id)
+            .map_err(|e| format!("更新事务状态失败: {}", e))?;
+
         // 释放锁，避免死锁
         drop(tx_manager);
 
-        // 在存储层提交事务
-        let mut storage = self.storage.lock().unwrap();
-        let result = storage
+        // 再在存储层提交事务
+        let mut storage = self.storage.lock()
+            .map_err(|e| format!("获取存储锁失败: {}", e))?;
+        storage
             .commit_transaction("", tx_id)  // 使用默认空间名
-            .map_err(|e| format!("在存储层提交事务失败: {:?}", e));
-
-        drop(storage);
-
-        // 更新服务层事务状态
-        let tx_manager = self.transaction_manager
-            .lock()
-            .map_err(|e| format!("获取事务管理器锁失败: {}", e))?;
-
-        match result {
-            Ok(()) => {
-                tx_manager.commit_transaction(tx_id)
-                    .map_err(|e| format!("提交事务失败: {}", e))
-            },
-            Err(e) => {
-                // 如果存储层提交失败，也要在服务层标记为失败
-                Err(e)
-            }
-        }
+            .map_err(|e| format!("在存储层提交事务失败: {:?}", e))
     }
 
     /// 回滚事务
     pub fn rollback_transaction(&self, tx_id: TransactionId) -> Result<(), String> {
-        // 先验证事务状态
+        // 先更新服务层事务状态，确保一致性
         let tx_manager = self.transaction_manager
             .lock()
             .map_err(|e| format!("获取事务管理器锁失败: {}", e))?;
@@ -396,32 +403,19 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             return Err(format!("事务 {} 不处于活跃状态，无法回滚", tx_id));
         }
 
+        // 先在服务层标记为已回滚
+        tx_manager.rollback_transaction(tx_id)
+            .map_err(|e| format!("更新事务状态失败: {}", e))?;
+
         // 释放锁，避免死锁
         drop(tx_manager);
 
-        // 在存储层回滚事务
-        let mut storage = self.storage.lock().unwrap();
-        let result = storage
+        // 再在存储层回滚事务
+        let mut storage = self.storage.lock()
+            .map_err(|e| format!("获取存储锁失败: {}", e))?;
+        storage
             .rollback_transaction("", tx_id)  // 使用默认空间名
-            .map_err(|e| format!("在存储层回滚事务失败: {:?}", e));
-
-        drop(storage);
-
-        // 更新服务层事务状态
-        let tx_manager = self.transaction_manager
-            .lock()
-            .map_err(|e| format!("获取事务管理器锁失败: {}", e))?;
-
-        match result {
-            Ok(()) => {
-                tx_manager.rollback_transaction(tx_id)
-                    .map_err(|e| format!("回滚事务失败: {}", e))
-            },
-            Err(e) => {
-                // 如果存储层回滚失败，也要在服务层标记为失败
-                Err(e)
-            }
-        }
+            .map_err(|e| format!("在存储层回滚事务失败: {:?}", e))
     }
 }
 

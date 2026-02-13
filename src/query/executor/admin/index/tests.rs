@@ -13,7 +13,7 @@ mod tests {
 
     #[test]
     fn test_create_tag_index_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let index = Index::new(
             0,
             "person_name_index".to_string(),
@@ -29,7 +29,7 @@ mod tests {
 
         let result = executor.execute();
         assert!(result.is_ok());
-        match result.unwrap() {
+        match result.expect("Failed to execute query") {
             crate::query::executor::base::ExecutionResult::Success => {}
             _ => panic!("Expected Success result"),
         }
@@ -37,7 +37,7 @@ mod tests {
 
     #[test]
     fn test_create_tag_index_executor_with_if_not_exists() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let index = Index::new(
             0,
             "person_name_index".to_string(),
@@ -57,7 +57,7 @@ mod tests {
 
     #[test]
     fn test_drop_tag_index_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let mut executor = DropTagIndexExecutor::new(
             3,
             storage,
@@ -67,7 +67,7 @@ mod tests {
 
         let result = executor.execute();
         assert!(result.is_ok());
-        match result.unwrap() {
+        match result.expect("Failed to execute query") {
             crate::query::executor::base::ExecutionResult::Success => {}
             _ => panic!("Expected Success result"),
         }
@@ -75,7 +75,7 @@ mod tests {
 
     #[test]
     fn test_drop_tag_index_executor_with_if_exists() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let mut executor = DropTagIndexExecutor::with_if_exists(
             4,
             storage,
@@ -89,7 +89,7 @@ mod tests {
 
     #[test]
     fn test_desc_tag_index_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let mut executor = DescTagIndexExecutor::new(
             5,
             storage,
@@ -103,7 +103,7 @@ mod tests {
 
     #[test]
     fn test_show_tag_indexes_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let mut executor = ShowTagIndexesExecutor::new(6, storage, "test_space".to_string());
 
         let result = executor.execute();
@@ -112,7 +112,7 @@ mod tests {
 
     #[test]
     fn test_rebuild_tag_index_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let mut executor = RebuildTagIndexExecutor::new(
             7,
             storage,
@@ -122,7 +122,7 @@ mod tests {
 
         let result = executor.execute();
         assert!(result.is_ok());
-        match result.unwrap() {
+        match result.expect("Failed to execute query") {
             crate::query::executor::base::ExecutionResult::Success => {}
             _ => panic!("Expected Success result"),
         }
@@ -130,7 +130,7 @@ mod tests {
 
     #[test]
     fn test_create_edge_index_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let index = Index::new(
             0,
             "knows_weight_index".to_string(),
@@ -146,7 +146,7 @@ mod tests {
 
         let result = executor.execute();
         assert!(result.is_ok());
-        match result.unwrap() {
+        match result.expect("Failed to execute query") {
             crate::query::executor::base::ExecutionResult::Success => {}
             _ => panic!("Expected Success result"),
         }
@@ -154,7 +154,7 @@ mod tests {
 
     #[test]
     fn test_create_edge_index_executor_with_if_not_exists() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let index = Index::new(
             0,
             "knows_weight_index".to_string(),
@@ -174,7 +174,7 @@ mod tests {
 
     #[test]
     fn test_drop_edge_index_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let mut executor = DropEdgeIndexExecutor::new(
             10,
             storage,
@@ -184,7 +184,7 @@ mod tests {
 
         let result = executor.execute();
         assert!(result.is_ok());
-        match result.unwrap() {
+        match result.expect("Failed to execute query") {
             crate::query::executor::base::ExecutionResult::Success => {}
             _ => panic!("Expected Success result"),
         }
@@ -192,7 +192,7 @@ mod tests {
 
     #[test]
     fn test_drop_edge_index_executor_with_if_exists() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let mut executor = DropEdgeIndexExecutor::with_if_exists(
             11,
             storage,
@@ -206,7 +206,7 @@ mod tests {
 
     #[test]
     fn test_desc_edge_index_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let mut executor = DescEdgeIndexExecutor::new(
             12,
             storage,
@@ -220,7 +220,7 @@ mod tests {
 
     #[test]
     fn test_show_edge_indexes_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let mut executor = ShowEdgeIndexesExecutor::new(13, storage, "test_space".to_string());
 
         let result = executor.execute();
@@ -229,7 +229,7 @@ mod tests {
 
     #[test]
     fn test_rebuild_edge_index_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let mut executor = RebuildEdgeIndexExecutor::new(
             14,
             storage,
@@ -239,7 +239,7 @@ mod tests {
 
         let result = executor.execute();
         assert!(result.is_ok());
-        match result.unwrap() {
+        match result.expect("Failed to execute query") {
             crate::query::executor::base::ExecutionResult::Success => {}
             _ => panic!("Expected Success result"),
         }
@@ -247,7 +247,7 @@ mod tests {
 
     #[test]
     fn test_executor_lifecycle() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let index = Index::new(
             0,
             "test_index".to_string(),
@@ -269,7 +269,7 @@ mod tests {
 
     #[test]
     fn test_executor_stats() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let index = Index::new(
             0,
             "test_index".to_string(),

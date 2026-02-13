@@ -138,9 +138,9 @@ mod tests {
         let temp_dir = std::env::temp_dir();
         let temp_path = temp_dir.join("optimizer_config_test.toml");
         
-        std::fs::write(&temp_path, config_content).unwrap();
-        
-        let config_info = load_optimizer_config(&temp_path).unwrap();
+        std::fs::write(&temp_path, config_content).expect("Failed to write config file");
+
+        let config_info = load_optimizer_config(&temp_path).expect("Failed to load optimizer config");
 
         assert_eq!(config_info.max_iteration_rounds, 10);
     }

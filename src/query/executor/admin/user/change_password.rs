@@ -99,7 +99,7 @@ mod tests {
 
     #[test]
     fn test_change_password_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建MockStorage应该成功")));
         let mut executor = ChangePasswordExecutor::new(
             1,
             storage,
@@ -110,7 +110,7 @@ mod tests {
 
         let result = executor.execute();
         assert!(result.is_ok());
-        match result.unwrap() {
+        match result.expect("执行应该成功") {
             ExecutionResult::Success => {}
             _ => panic!("Expected Success result"),
         }
@@ -118,7 +118,7 @@ mod tests {
 
     #[test]
     fn test_executor_lifecycle() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建MockStorage应该成功")));
         let mut executor = ChangePasswordExecutor::new(
             2,
             storage,
@@ -136,7 +136,7 @@ mod tests {
 
     #[test]
     fn test_executor_stats() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("创建MockStorage应该成功")));
         let executor = ChangePasswordExecutor::new(
             3,
             storage,

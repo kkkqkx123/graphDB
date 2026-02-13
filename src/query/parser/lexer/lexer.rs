@@ -238,11 +238,21 @@ impl<'a> Lexer<'a> {
                     }
                 }
                 Some(&'\'') | Some(&'"') => {
-                    if *self.peek_char().unwrap() == quote {
-                        self.read_char();
-                        return Ok(result);
-                    } else {
-                        result.push(self.read_char().unwrap());
+                    match self.peek_char() {
+                        Some(&q) if q == quote => {
+                            self.read_char();
+                            return Ok(result);
+                        }
+                        Some(_) => {
+                            let ch = self.read_char().ok_or_else(|| {
+                                LexError::unexpected_end_of_input(self.current_position())
+                            })?;
+                            result.push(ch);
+                        }
+                        None => {
+                            self.add_error(LexError::unterminated_string(start_position));
+                            return Err(LexError::unterminated_string(start_position));
+                        }
                     }
                 }
                 Some(&'\n') => {

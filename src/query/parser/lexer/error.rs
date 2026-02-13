@@ -39,6 +39,10 @@ impl LexError {
             position,
         )
     }
+
+    pub fn unexpected_end_of_input(position: Position) -> Self {
+        LexError::new("Unexpected end of input".to_string(), position)
+    }
 }
 
 impl std::fmt::Display for LexError {

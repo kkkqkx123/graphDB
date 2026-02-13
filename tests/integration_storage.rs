@@ -39,7 +39,7 @@ async fn test_storage_space_create_success() {
     // 验证空间存在
     let space = get_storage(&storage).get_space("test_space").expect("获取空间失败");
     assert!(space.is_some(), "空间应该存在");
-    assert_eq!(space.unwrap().space_name, "test_space");
+    assert_eq!(space.expect("空间应该存在").space_name, "test_space");
 }
 
 #[tokio::test]
@@ -127,7 +127,7 @@ async fn test_storage_tag_create_success() {
     // 验证标签存在
     let tag = get_storage(&storage).get_tag("tag_test_space", "Person").expect("获取标签失败");
     assert!(tag.is_some(), "标签应该存在");
-    assert_eq!(tag.unwrap().tag_name, "Person");
+    assert_eq!(tag.expect("标签应该存在").tag_name, "Person");
 }
 
 #[tokio::test]
@@ -192,7 +192,7 @@ async fn test_storage_edge_type_create_success() {
     // 验证边类型存在
     let edge_type = get_storage(&storage).get_edge_type("edge_type_space", "KNOWS").expect("获取边类型失败");
     assert!(edge_type.is_some(), "边类型应该存在");
-    assert_eq!(edge_type.unwrap().edge_type_name, "KNOWS");
+    assert_eq!(edge_type.expect("边类型应该存在").edge_type_name, "KNOWS");
 }
 
 #[tokio::test]
@@ -257,7 +257,7 @@ async fn test_storage_vertex_get_by_id() {
     let retrieved = get_storage(&storage).get_vertex("vertex_get_space", &vid).expect("获取顶点失败");
     assert!(retrieved.is_some(), "顶点应该存在");
     
-    let retrieved_vertex = retrieved.unwrap();
+    let retrieved_vertex = retrieved.expect("顶点应该存在");
     assert_eq!(retrieved_vertex.vid(), &Value::Int(100));
 }
 
@@ -407,7 +407,7 @@ async fn test_storage_edge_get() {
         .expect("获取边失败");
     assert!(retrieved.is_some(), "边应该存在");
     
-    let retrieved_edge = retrieved.unwrap();
+    let retrieved_edge = retrieved.expect("边应该存在");
     assert_eq!(retrieved_edge.src(), &Value::Int(10));
     assert_eq!(retrieved_edge.dst(), &Value::Int(20));
 }

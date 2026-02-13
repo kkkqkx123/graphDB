@@ -731,7 +731,7 @@ mod tests {
     #[test]
     fn test_filter_iter() {
         let data = create_test_data();
-        let inner = super::super::SequentialIter::new(data).unwrap();
+        let inner = super::super::SequentialIter::new(data).expect("Failed to create sequential iterator");
         let mut iter = FilterIter::new(inner, |row| {
             if let Some(Value::Int(age)) = row.get(1) {
                 *age >= 30
@@ -752,7 +752,7 @@ mod tests {
     #[test]
     fn test_map_iter() {
         let data = create_test_data();
-        let inner = super::super::SequentialIter::new(data).unwrap();
+        let inner = super::super::SequentialIter::new(data).expect("Failed to create sequential iterator");
         let mut iter = MapIter::new(inner, |mut row| {
             if let Some(Value::Int(age)) = row.get(1) {
                 row[1] = Value::Int(*age + 1);
@@ -770,7 +770,7 @@ mod tests {
     #[test]
     fn test_take_iter() {
         let data = create_test_data();
-        let inner = super::super::SequentialIter::new(data).unwrap();
+        let inner = super::super::SequentialIter::new(data).expect("Failed to create sequential iterator");
         let iter = TakeIter::new(inner, 2);
 
         assert_eq!(iter.size(), 2);
@@ -779,7 +779,7 @@ mod tests {
     #[test]
     fn test_skip_iter() {
         let data = create_test_data();
-        let inner = super::super::SequentialIter::new(data).unwrap();
+        let inner = super::super::SequentialIter::new(data).expect("Failed to create sequential iterator");
         let iter = SkipIter::new(inner, 2);
 
         assert_eq!(iter.size(), 2);
@@ -788,7 +788,7 @@ mod tests {
     #[test]
     fn test_composite_iter() {
         let data = create_test_data();
-        let inner = super::super::SequentialIter::new(data).unwrap();
+        let inner = super::super::SequentialIter::new(data).expect("Failed to create sequential iterator");
         let filtered = FilterIter::new(CompositeIter::new(inner), |row| {
             if let Some(Value::Int(age)) = row.get(1) {
                 *age >= 30

@@ -659,7 +659,10 @@ impl<S: StorageClient + Send + 'static> SortExecutor<S> {
         }
 
         if sorted_chunks.len() == 1 {
-            return Ok(sorted_chunks.into_iter().next().unwrap());
+            return Ok(sorted_chunks
+                .into_iter()
+                .next()
+                .expect("sorted_chunks should contain exactly one element"));
         }
 
         // 检查是否所有排序键都使用列索引

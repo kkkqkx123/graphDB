@@ -105,12 +105,12 @@ mod tests {
 
     #[test]
     fn test_drop_user_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let mut executor = DropUserExecutor::new(1, storage, "test_user".to_string());
 
         let result = executor.execute();
         assert!(result.is_ok());
-        match result.unwrap() {
+        match result.expect("Expected result to exist") {
             ExecutionResult::Success => {}
             _ => panic!("Expected Success result"),
         }
@@ -118,7 +118,7 @@ mod tests {
 
     #[test]
     fn test_drop_user_executor_if_exists() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let mut executor = DropUserExecutor::with_if_exists(2, storage, "test_user".to_string());
 
         let result = executor.execute();
@@ -127,7 +127,7 @@ mod tests {
 
     #[test]
     fn test_executor_lifecycle() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let mut executor = DropUserExecutor::new(3, storage, "test_user".to_string());
 
         assert!(!executor.is_open());
@@ -139,7 +139,7 @@ mod tests {
 
     #[test]
     fn test_executor_stats() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let executor = DropUserExecutor::new(4, storage, "test_user".to_string());
 
         assert_eq!(executor.id(), 4);

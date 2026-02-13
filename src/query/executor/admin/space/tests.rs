@@ -10,7 +10,7 @@ mod tests {
 
     #[test]
     fn test_create_space_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let space_info = ExecutorSpaceInfo::new("test_space".to_string())
             .with_partition_num(3)
             .with_replica_factor(2)
@@ -20,7 +20,7 @@ mod tests {
 
         let result = executor.execute();
         assert!(result.is_ok());
-        match result.unwrap() {
+        match result.expect("Failed to execute query") {
             crate::query::executor::base::ExecutionResult::Success => {}
             _ => panic!("Expected Success result"),
         }
@@ -28,12 +28,12 @@ mod tests {
 
     #[test]
     fn test_drop_space_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let mut executor = DropSpaceExecutor::new(2, storage, "test_space".to_string());
 
         let result = executor.execute();
         assert!(result.is_ok());
-        match result.unwrap() {
+        match result.expect("Failed to execute query") {
             crate::query::executor::base::ExecutionResult::Success => {}
             _ => panic!("Expected Success result"),
         }
@@ -41,7 +41,7 @@ mod tests {
 
     #[test]
     fn test_desc_space_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let mut executor = DescSpaceExecutor::new(3, storage, "test_space".to_string());
 
         let result = executor.execute();
@@ -50,7 +50,7 @@ mod tests {
 
     #[test]
     fn test_show_spaces_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let mut executor = ShowSpacesExecutor::new(4, storage);
 
         let result = executor.execute();
@@ -77,7 +77,7 @@ mod tests {
 
     #[test]
     fn test_executor_lifecycle() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let space_info = ExecutorSpaceInfo::new("test_space".to_string());
         let mut executor = CreateSpaceExecutor::new(5, storage, space_info);
 
@@ -90,7 +90,7 @@ mod tests {
 
     #[test]
     fn test_executor_stats() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let space_info = ExecutorSpaceInfo::new("test_space".to_string());
         let executor = CreateSpaceExecutor::new(6, storage, space_info);
 

@@ -120,7 +120,7 @@ mod tests {
 
     #[test]
     fn test_show_queries_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let mut executor = ShowQueriesExecutor::new(1, storage);
 
         let result = executor.execute();
@@ -129,7 +129,7 @@ mod tests {
 
     #[test]
     fn test_show_queries_executor_show_all() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let mut executor = ShowQueriesExecutor::with_show_all(2, storage);
 
         let result = executor.execute();
@@ -138,7 +138,7 @@ mod tests {
 
     #[test]
     fn test_executor_lifecycle() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let mut executor = ShowQueriesExecutor::new(3, storage);
 
         assert!(!executor.is_open());
@@ -150,7 +150,7 @@ mod tests {
 
     #[test]
     fn test_executor_stats() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let executor = ShowQueriesExecutor::new(4, storage);
 
         assert_eq!(executor.id(), 4);

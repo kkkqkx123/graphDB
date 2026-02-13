@@ -506,10 +506,10 @@ mod tests {
         let mut validator = TypeDeduceValidator::new();
         
         let expr = Expression::literal(Value::Int(42));
-        assert_eq!(validator.deduce_type(&expr).unwrap(), DataType::Int);
+        assert_eq!(validator.deduce_type(&expr).expect("字面量类型推断应该成功"), DataType::Int);
         
         let expr = Expression::literal(Value::String("test".to_string()));
-        assert_eq!(validator.deduce_type(&expr).unwrap(), DataType::String);
+        assert_eq!(validator.deduce_type(&expr).expect("字面量类型推断应该成功"), DataType::String);
     }
 
     #[test]
@@ -521,14 +521,14 @@ mod tests {
             BinaryOperator::Add,
             Expression::literal(Value::Int(2)),
         );
-        assert_eq!(validator.deduce_type(&expr).unwrap(), DataType::Int);
+        assert_eq!(validator.deduce_type(&expr).expect("二元运算类型推断应该成功"), DataType::Int);
         
         let expr = Expression::binary(
             Expression::literal(Value::Int(1)),
             BinaryOperator::Divide,
             Expression::literal(Value::Int(2)),
         );
-        assert_eq!(validator.deduce_type(&expr).unwrap(), DataType::Float);
+        assert_eq!(validator.deduce_type(&expr).expect("二元运算类型推断应该成功"), DataType::Float);
     }
 
     #[test]
@@ -540,13 +540,13 @@ mod tests {
             Expression::literal(Value::Int(1)),
             false,
         );
-        assert_eq!(validator.deduce_type(&expr).unwrap(), DataType::Int);
+        assert_eq!(validator.deduce_type(&expr).expect("聚合类型推断应该成功"), DataType::Int);
         
         let expr = Expression::aggregate(
             AggregateFunction::Sum("x".to_string()),
             Expression::variable("x"),
             false,
         );
-        assert_eq!(validator.deduce_type(&expr).unwrap(), DataType::Float);
+        assert_eq!(validator.deduce_type(&expr).expect("聚合类型推断应该成功"), DataType::Float);
     }
 }

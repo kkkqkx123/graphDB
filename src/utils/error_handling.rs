@@ -110,7 +110,7 @@ mod tests {
             Ok(value)
         }
 
-        assert_eq!(test_func().unwrap(), 42);
+        assert_eq!(test_func().expect("Expected test function to return 42"), 42);
 
         fn test_func_err() -> Result<i32, DBError> {
             let result: Result<i32, DBError> = Err(DBError::Internal("test error".to_string()));

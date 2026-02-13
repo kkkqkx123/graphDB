@@ -1616,7 +1616,7 @@ impl FunctionRegistry {
                 use std::time::{SystemTime, UNIX_EPOCH};
                 let now = SystemTime::now()
                     .duration_since(UNIX_EPOCH)
-                    .unwrap()
+                    .expect("Failed to create function registry")
                     .as_millis();
                 Ok(Value::Int(now as i64))
             },

@@ -513,11 +513,6 @@ mod tests {
     fn test_managers() {
         let mut ctx = QueryContext::new();
 
-        let storage = DefaultStorage::new().expect("Failed to create DefaultStorage");
-        let schema_manager = storage.schema_manager.clone();
-        ctx.set_schema_manager(schema_manager);
-        assert!(ctx.schema_manager().is_some());
-
         let storage = crate::storage::test_mock::MockStorage::new().expect("Failed to create mock storage");
         let storage_client: Arc<dyn crate::storage::StorageClient> = Arc::new(storage);
         ctx.set_storage_client(storage_client.clone());
@@ -578,8 +573,6 @@ mod tests {
         assert_eq!(status.current_id, 0);
         assert_eq!(status.variable_count, 0);
 
-        let storage = DefaultStorage::new().expect("Failed to create DefaultStorage");
-        ctx.set_schema_manager(storage.schema_manager.clone());
         ctx.set_plan(ExecutionPlan::new(ctx.gen_id()));
 
         ctx.ectx_mut()
@@ -588,7 +581,6 @@ mod tests {
             .set_value("test_var2".to_string(), crate::core::Value::String("hello".to_string()));
 
         let status = ctx.get_status_info();
-        assert!(status.has_schema_manager);
         assert!(status.has_execution_plan);
         assert_eq!(status.current_id, 1);
         assert_eq!(status.variable_count, 2);

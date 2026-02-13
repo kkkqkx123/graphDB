@@ -138,6 +138,6 @@ mod consistency_tests {
         // 验证 PlanNodeEnum 实现了 NodeTypeMapping
         let executor_type = plan_node.corresponding_executor_type();
         assert!(executor_type.is_some());
-        assert_eq!(executor_type.unwrap(), "cross_join");
+        assert_eq!(executor_type.expect("Expected executor type to exist"), "cross_join");
     }
 }

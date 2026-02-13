@@ -26,6 +26,7 @@ pub mod maintain_planner;
 pub mod path_planner;
 pub mod subgraph_planner;
 pub mod match_planner;
+pub mod user_management_planner;
 
 // 重新导出核心模块的主要类型
 pub use core::{

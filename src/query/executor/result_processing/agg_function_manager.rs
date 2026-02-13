@@ -402,54 +402,54 @@ mod tests {
     #[test]
     fn test_count_function() {
         let manager = AggFunctionManager::new();
-        let count_func = manager.get("COUNT").unwrap();
+        let count_func = manager.get("COUNT").expect("COUNT函数应该存在");
 
         let mut agg_data = AggData::new();
 
         // 测试空值 - COUNT 应该初始化为 0
-        count_func(&mut agg_data, &Value::Null(NullType::Null)).unwrap();
+        count_func(&mut agg_data, &Value::Null(NullType::Null)).expect("COUNT函数调用应该成功");
         assert_eq!(agg_data.result(), &Value::Int(0));
 
         // 测试正常值
-        count_func(&mut agg_data, &Value::Int(1)).unwrap();
+        count_func(&mut agg_data, &Value::Int(1)).expect("COUNT函数调用应该成功");
         assert_eq!(agg_data.result(), &Value::Int(1));
 
-        count_func(&mut agg_data, &Value::Int(2)).unwrap();
+        count_func(&mut agg_data, &Value::Int(2)).expect("COUNT函数调用应该成功");
         assert_eq!(agg_data.result(), &Value::Int(2));
 
         // 测试 NULL 不计数
-        count_func(&mut agg_data, &Value::Null(NullType::Null)).unwrap();
+        count_func(&mut agg_data, &Value::Null(NullType::Null)).expect("COUNT函数调用应该成功");
         assert_eq!(agg_data.result(), &Value::Int(2));
     }
 
     #[test]
     fn test_sum_function() {
         let manager = AggFunctionManager::new();
-        let sum_func = manager.get("SUM").unwrap();
+        let sum_func = manager.get("SUM").expect("SUM函数应该存在");
 
         let mut agg_data = AggData::new();
 
-        sum_func(&mut agg_data, &Value::Int(10)).unwrap();
+        sum_func(&mut agg_data, &Value::Int(10)).expect("SUM函数调用应该成功");
         assert_eq!(agg_data.result(), &Value::Int(10));
 
-        sum_func(&mut agg_data, &Value::Int(20)).unwrap();
+        sum_func(&mut agg_data, &Value::Int(20)).expect("SUM函数调用应该成功");
         assert_eq!(agg_data.result(), &Value::Int(30));
 
         // 测试 NULL 不加入
-        sum_func(&mut agg_data, &Value::Null(NullType::Null)).unwrap();
+        sum_func(&mut agg_data, &Value::Null(NullType::Null)).expect("SUM函数调用应该成功");
         assert_eq!(agg_data.result(), &Value::Int(30));
     }
 
     #[test]
     fn test_collect_set_function() {
         let manager = AggFunctionManager::new();
-        let collect_set_func = manager.get("COLLECT_SET").unwrap();
+        let collect_set_func = manager.get("COLLECT_SET").expect("COLLECT_SET函数应该存在");
 
         let mut agg_data = AggData::new();
 
-        collect_set_func(&mut agg_data, &Value::Int(1)).unwrap();
-        collect_set_func(&mut agg_data, &Value::Int(2)).unwrap();
-        collect_set_func(&mut agg_data, &Value::Int(1)).unwrap(); // 重复值
+        collect_set_func(&mut agg_data, &Value::Int(1)).expect("COLLECT_SET函数调用应该成功");
+        collect_set_func(&mut agg_data, &Value::Int(2)).expect("COLLECT_SET函数调用应该成功");
+        collect_set_func(&mut agg_data, &Value::Int(1)).expect("COLLECT_SET函数调用应该成功");
 
         if let Value::Set(set) = agg_data.result() {
             assert_eq!(set.len(), 2);

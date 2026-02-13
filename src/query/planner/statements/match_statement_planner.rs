@@ -28,7 +28,7 @@ use crate::query::validator::structs::CypherClauseKind;
 ///
 /// 负责将 MATCH 查询转换为可执行的执行计划。
 /// 实现 StatementPlanner 接口，提供统一的规划入口。
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MatchStatementPlanner {
     config: MatchPlannerConfig,
 }

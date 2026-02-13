@@ -120,7 +120,7 @@ mod tests {
 
     #[test]
     fn test_alter_space_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let options = vec![
             SpaceAlterOption::PartitionNum(2),
             SpaceAlterOption::ReplicaFactor(1),
@@ -138,7 +138,7 @@ mod tests {
 
     #[test]
     fn test_executor_lifecycle() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let options = vec![SpaceAlterOption::Comment("test".to_string())];
         let mut executor = AlterSpaceExecutor::new(
             2,
@@ -156,7 +156,7 @@ mod tests {
 
     #[test]
     fn test_executor_stats() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let options = vec![SpaceAlterOption::PartitionNum(2)];
         let executor = AlterSpaceExecutor::new(
             3,

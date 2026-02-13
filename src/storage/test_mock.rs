@@ -46,7 +46,7 @@ impl MockStorage {
 #[cfg(test)]
 impl Default for MockStorage {
     fn default() -> Self {
-        Self::new().unwrap()
+        Self::new().expect("Failed to create MockStorage")
     }
 }
 

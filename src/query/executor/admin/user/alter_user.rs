@@ -90,13 +90,13 @@ mod tests {
 
     #[test]
     fn test_alter_user_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let alter_info = UserAlterInfo::new("test_user".to_string());
         let mut executor = AlterUserExecutor::new(1, storage, alter_info);
 
         let result = executor.execute();
         assert!(result.is_ok());
-        match result.unwrap() {
+        match result.expect("Expected result to exist") {
             ExecutionResult::Success => {}
             _ => panic!("Expected Success result"),
         }
@@ -104,7 +104,7 @@ mod tests {
 
     #[test]
     fn test_executor_lifecycle() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let alter_info = UserAlterInfo::new("test_user".to_string());
         let mut executor = AlterUserExecutor::new(2, storage, alter_info);
 
@@ -117,7 +117,7 @@ mod tests {
 
     #[test]
     fn test_executor_stats() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().unwrap()));
+        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let alter_info = UserAlterInfo::new("test_user".to_string());
         let executor = AlterUserExecutor::new(3, storage, alter_info);
 
