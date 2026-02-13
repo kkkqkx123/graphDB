@@ -322,7 +322,7 @@ async fn test_planner_match_statement() {
     planner.register(
         graphdb::query::planner::planner::SentenceKind::Match,
         graphdb::query::planner::planner::MatchAndInstantiateEnum::Match(
-            graphdb::query::planner::statements::match_planner::MatchPlanner::new()
+            graphdb::query::planner::statements::match_statement_planner::MatchStatementPlanner::new()
         ),
     );
     

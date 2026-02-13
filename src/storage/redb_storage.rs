@@ -328,7 +328,7 @@ impl StorageClient for RedbStorage {
     }
 
     fn space_exists(&self, space_name: &str) -> bool {
-        self.schema_manager.get_space(space_name).is_ok()
+        matches!(self.schema_manager.get_space(space_name), Ok(Some(_)))
     }
 
     fn clear_space(&mut self, space_name: &str) -> Result<bool, StorageError> {

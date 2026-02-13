@@ -113,6 +113,7 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
             Stmt::Unwind(clause) => self.execute_unwind(clause),
             Stmt::Return(clause) => self.execute_return(clause),
             Stmt::With(clause) => self.execute_with(clause),
+            Stmt::Yield(clause) => self.execute_yield(clause),
             Stmt::Set(clause) => self.execute_set(clause),
             Stmt::Remove(clause) => self.execute_remove(clause),
             Stmt::Pipe(clause) => self.execute_pipe(clause),
@@ -802,6 +803,11 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
     #[allow(dead_code)]
     fn execute_with(&mut self, _clause: crate::query::parser::ast::stmt::WithStmt) -> Result<ExecutionResult, DBError> {
         Err(DBError::Query(QueryError::ExecutionError("WITH语句执行未实现".to_string())))
+    }
+
+    #[allow(dead_code)]
+    fn execute_yield(&mut self, _clause: crate::query::parser::ast::stmt::YieldStmt) -> Result<ExecutionResult, DBError> {
+        Err(DBError::Query(QueryError::ExecutionError("YIELD语句执行未实现".to_string())))
     }
 
     fn execute_set(&mut self, clause: crate::query::parser::ast::stmt::SetStmt) -> Result<ExecutionResult, DBError> {

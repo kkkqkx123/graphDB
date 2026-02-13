@@ -180,6 +180,7 @@ impl AstContext {
                 Stmt::Unwind(_) => "UNWIND",
                 Stmt::Return(_) => "RETURN",
                 Stmt::With(_) => "WITH",
+                Stmt::Yield(_) => "YIELD",
                 Stmt::Set(_) => "SET",
                 Stmt::Remove(_) => "REMOVE",
                 Stmt::Pipe(_) => "PIPE",

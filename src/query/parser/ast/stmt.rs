@@ -29,6 +29,7 @@ pub enum Stmt {
     Unwind(UnwindStmt),
     Return(ReturnStmt),
     With(WithStmt),
+    Yield(YieldStmt),
     Set(SetStmt),
     Remove(RemoveStmt),
     Pipe(PipeStmt),
@@ -63,6 +64,7 @@ impl Stmt {
             Stmt::Unwind(s) => s.span,
             Stmt::Return(s) => s.span,
             Stmt::With(s) => s.span,
+            Stmt::Yield(s) => s.span,
             Stmt::Set(s) => s.span,
             Stmt::Remove(s) => s.span,
             Stmt::Pipe(s) => s.span,
@@ -97,6 +99,7 @@ impl Stmt {
             Stmt::Unwind(_) => "UNWIND",
             Stmt::Return(_) => "RETURN",
             Stmt::With(_) => "WITH",
+            Stmt::Yield(_) => "YIELD",
             Stmt::Set(_) => "SET",
             Stmt::Remove(_) => "REMOVE",
             Stmt::Pipe(_) => "PIPE",
@@ -484,6 +487,16 @@ pub struct WithStmt {
     pub span: Span,
     pub items: Vec<ReturnItem>,
     pub where_clause: Option<Expression>,
+    pub distinct: bool,
+}
+
+/// YIELD 语句
+#[derive(Debug, Clone, PartialEq)]
+pub struct YieldStmt {
+    pub span: Span,
+    pub items: Vec<YieldItem>,
+    pub where_clause: Option<Expression>,
+    pub distinct: bool,
 }
 
 /// SET 语句
@@ -504,7 +517,8 @@ pub struct RemoveStmt {
 #[derive(Debug, Clone, PartialEq)]
 pub struct PipeStmt {
     pub span: Span,
-    pub expression: Expression,
+    pub left: Box<Stmt>,
+    pub right: Box<Stmt>,
 }
 
 /// MATCH 子句（用于 MATCH 语句中的子句）

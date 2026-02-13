@@ -33,6 +33,11 @@ impl<'a> StmtParser<'a> {
     }
 
     pub fn parse_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {
+        let stmt = self.parse_single_statement(ctx)?;
+        self.parse_pipe_suffix(ctx, stmt)
+    }
+
+    fn parse_single_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {
         let token = ctx.current_token().clone();
         match token.kind {
             TokenKind::Match => self.parse_match_statement(ctx),
@@ -50,9 +55,9 @@ impl<'a> StmtParser<'a> {
             TokenKind::Insert => self.parse_insert_statement(ctx),
             TokenKind::Return => self.parse_return_statement(ctx),
             TokenKind::With => self.parse_with_statement(ctx),
+            TokenKind::Yield => self.parse_yield_statement(ctx),
             TokenKind::Set => self.parse_set_statement(ctx),
             TokenKind::Remove => self.parse_remove_statement(ctx),
-            TokenKind::Pipe => self.parse_pipe_statement(ctx),
             TokenKind::Drop => self.parse_drop_statement(ctx),
             TokenKind::Desc => self.parse_desc_statement(ctx),
             TokenKind::Alter => self.parse_alter_statement(ctx),
@@ -68,6 +73,25 @@ impl<'a> StmtParser<'a> {
                 format!("Unexpected token: {:?}", token.kind),
                 ctx.current_position(),
             )),
+        }
+    }
+
+    fn parse_pipe_suffix(&mut self, ctx: &mut ParseContext<'a>, left: Stmt) -> Result<Stmt, ParseError> {
+        if ctx.match_token(TokenKind::Pipe) {
+            let start_span = left.span();
+            let right = self.parse_single_statement(ctx)?;
+            let end_span = right.span();
+            let span = ctx.merge_span(start_span.start, end_span.end);
+            
+            let pipe_stmt = Stmt::Pipe(PipeStmt {
+                span,
+                left: Box::new(left),
+                right: Box::new(right),
+            });
+            
+            self.parse_pipe_suffix(ctx, pipe_stmt)
+        } else {
+            Ok(left)
         }
     }
 
@@ -429,6 +453,9 @@ impl<'a> StmtParser<'a> {
         ctx.expect_token(TokenKind::Unwind)?;
 
         let expression = self.parse_expression(ctx)?;
+        
+        ctx.match_token(TokenKind::As);
+        
         let variable = ctx.expect_identifier()?;
 
         Ok(Stmt::Unwind(UnwindStmt {
@@ -592,18 +619,22 @@ impl<'a> StmtParser<'a> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Return)?;
 
+        let distinct = ctx.match_token(TokenKind::Distinct);
+
         let items = self.parse_return_items(ctx)?;
 
         Ok(Stmt::Return(ReturnStmt {
             span: start_span,
             items,
-            distinct: false,
+            distinct,
         }))
     }
 
     fn parse_with_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::With)?;
+
+        let distinct = ctx.match_token(TokenKind::Distinct);
 
         let items = self.parse_return_items(ctx)?;
 
@@ -617,7 +648,50 @@ impl<'a> StmtParser<'a> {
             span: start_span,
             items,
             where_clause,
+            distinct,
         }))
+    }
+
+    fn parse_yield_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::Yield)?;
+
+        let distinct = ctx.match_token(TokenKind::Distinct);
+
+        let items = self.parse_yield_items(ctx)?;
+
+        let where_clause = if ctx.match_token(TokenKind::Where) {
+            Some(self.parse_expression(ctx)?)
+        } else {
+            None
+        };
+
+        let end_span = ctx.current_span();
+        let span = ctx.merge_span(start_span.start, end_span.end);
+
+        Ok(Stmt::Yield(YieldStmt {
+            span,
+            items,
+            where_clause,
+            distinct,
+        }))
+    }
+
+    fn parse_yield_items(&mut self, ctx: &mut ParseContext<'a>) -> Result<Vec<YieldItem>, ParseError> {
+        let mut items = Vec::new();
+        loop {
+            let expression = self.parse_expression(ctx)?;
+            let alias = if ctx.match_token(TokenKind::As) {
+                Some(ctx.expect_identifier()?)
+            } else {
+                None
+            };
+            items.push(YieldItem { expression, alias });
+            if !ctx.match_token(TokenKind::Comma) {
+                break;
+            }
+        }
+        Ok(items)
     }
 
     fn parse_set_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {
@@ -644,18 +718,6 @@ impl<'a> StmtParser<'a> {
         Ok(Stmt::Remove(RemoveStmt {
             span: start_span,
             items,
-        }))
-    }
-
-    fn parse_pipe_statement(&mut self, ctx: &mut ParseContext<'a>) -> Result<Stmt, ParseError> {
-        let start_span = ctx.current_span();
-        ctx.expect_token(TokenKind::Pipe)?;
-
-        let expression = self.parse_expression(ctx)?;
-
-        Ok(Stmt::Pipe(PipeStmt {
-            span: start_span,
-            expression,
         }))
     }
 
@@ -690,12 +752,12 @@ impl<'a> StmtParser<'a> {
     }
 
     fn parse_return_clause(&mut self, ctx: &mut ParseContext<'a>) -> Result<ReturnClause, ParseError> {
-        ctx.expect_token(TokenKind::Return)?;
+        let distinct = ctx.match_token(TokenKind::Distinct);
         let items = self.parse_return_items(ctx)?;
         Ok(ReturnClause {
             span: ctx.current_span(),
             items,
-            distinct: false,
+            distinct,
             limit: None,
             skip: None,
             sample: None,
@@ -712,23 +774,6 @@ impl<'a> StmtParser<'a> {
             skip: None,
             sample: None,
         })
-    }
-
-    fn parse_yield_items(&mut self, ctx: &mut ParseContext<'a>) -> Result<Vec<YieldItem>, ParseError> {
-        let mut items = Vec::new();
-        loop {
-            let expression = self.parse_expression(ctx)?;
-            let alias = if ctx.match_token(TokenKind::As) {
-                Some(ctx.expect_identifier()?)
-            } else {
-                None
-            };
-            items.push(YieldItem { expression, alias });
-            if !ctx.match_token(TokenKind::Comma) {
-                break;
-            }
-        }
-        Ok(items)
     }
 
     fn parse_pattern(&mut self, ctx: &mut ParseContext<'a>) -> Result<Pattern, ParseError> {

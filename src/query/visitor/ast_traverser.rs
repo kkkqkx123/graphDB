@@ -7,7 +7,7 @@ use crate::query::parser::ast::stmt::{
     Stmt, MatchStmt, DeleteStmt, UpdateStmt, GoStmt, FetchStmt,
     InsertStmt, UseStmt, ShowStmt, CreateStmt, DropStmt, AlterStmt,
     SetStmt, LookupStmt, Assignment, QueryStmt, MergeStmt, UnwindStmt,
-    ReturnStmt, WithStmt, RemoveStmt, PipeStmt, DescStmt,
+    ReturnStmt, WithStmt, YieldStmt, RemoveStmt, PipeStmt, DescStmt,
     ExplainStmt, SubgraphStmt, FindPathStmt, ChangePasswordStmt,
     CreateUserStmt, AlterUserStmt, DropUserStmt,
 };
@@ -37,6 +37,7 @@ pub trait AstTraverser: StmtVisitor {
             Stmt::Unwind(s) => self.traverse_unwind_stmt(s),
             Stmt::Return(s) => self.traverse_return_stmt(s),
             Stmt::With(s) => self.traverse_with_stmt(s),
+            Stmt::Yield(s) => self.traverse_yield_stmt(s),
             Stmt::Remove(s) => self.traverse_remove_stmt(s),
             Stmt::Pipe(s) => self.traverse_pipe_stmt(s),
             Stmt::Desc(s) => self.traverse_desc_stmt(s),
@@ -117,6 +118,10 @@ pub trait AstTraverser: StmtVisitor {
 
     fn traverse_with_stmt(&mut self, stmt: &WithStmt) {
         self.visit_with_stmt(stmt);
+    }
+
+    fn traverse_yield_stmt(&mut self, stmt: &YieldStmt) {
+        self.visit_yield_stmt(stmt);
     }
 
     fn traverse_remove_stmt(&mut self, stmt: &RemoveStmt) {

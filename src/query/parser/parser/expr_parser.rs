@@ -350,6 +350,7 @@ impl<'a> ExprParser<'a> {
             TokenKind::Count | TokenKind::Sum | TokenKind::Avg | TokenKind::Min | TokenKind::Max => {
                 let func_name = token.lexeme.clone();
                 ctx.next_token();
+                ctx.expect_token(TokenKind::LParen)?;
                 let span = ctx.merge_span(start_pos, ctx.current_position());
                 self.parse_function_call(func_name, span, ctx)
             }
@@ -401,6 +402,55 @@ impl<'a> ExprParser<'a> {
                     span,
                 })
             }
+            TokenKind::InputRef => {
+                ctx.next_token();
+                let span = ctx.merge_span(start_pos, ctx.current_position());
+                let mut expr = Expression::variable("$-");
+                
+                if ctx.match_token(TokenKind::Dot) {
+                    let prop_name = ctx.expect_identifier()?;
+                    expr = Expression::property(expr, prop_name);
+                }
+                
+                let end_span = ctx.merge_span(start_pos, ctx.current_position());
+                Ok(ParseResult {
+                    expr,
+                    span: end_span,
+                })
+            }
+            TokenKind::SrcRef => {
+                ctx.next_token();
+                let span = ctx.merge_span(start_pos, ctx.current_position());
+                let mut expr = Expression::variable("$^");
+                
+                if ctx.match_token(TokenKind::Dot) {
+                    let prop_name = ctx.expect_identifier()?;
+                    expr = Expression::property(expr, prop_name);
+                }
+                
+                let end_span = ctx.merge_span(start_pos, ctx.current_position());
+                Ok(ParseResult {
+                    expr,
+                    span: end_span,
+                })
+            }
+            TokenKind::Dollar => {
+                ctx.next_token();
+                let var_name = ctx.expect_identifier()?;
+                let span = ctx.merge_span(start_pos, ctx.current_position());
+                let mut expr = Expression::variable(format!("${}", var_name));
+                
+                if ctx.match_token(TokenKind::Dot) {
+                    let prop_name = ctx.expect_identifier()?;
+                    expr = Expression::property(expr, prop_name);
+                }
+                
+                let end_span = ctx.merge_span(start_pos, ctx.current_position());
+                Ok(ParseResult {
+                    expr,
+                    span: end_span,
+                })
+            }
             _ => {
                 Err(ParseError::new(
                     ParseErrorKind::UnexpectedToken,
@@ -412,6 +462,29 @@ impl<'a> ExprParser<'a> {
     }
 
     fn parse_function_call(&mut self, name: String, span: Span, ctx: &mut ParseContext<'a>) -> Result<ParseResult, ParseError> {
+        let name_upper = name.to_uppercase();
+        
+        if ctx.match_token(TokenKind::Star) {
+            ctx.expect_token(TokenKind::RParen)?;
+            
+            if name_upper == "COUNT" {
+                return Ok(ParseResult {
+                    expr: Expression::Aggregate {
+                        func: crate::core::types::operators::AggregateFunction::Count(None),
+                        arg: Box::new(Expression::Literal(crate::core::Value::String("*".to_string()))),
+                        distinct: false,
+                    },
+                    span,
+                });
+            } else {
+                return Err(ParseError::new(
+                    ParseErrorKind::SyntaxError,
+                    format!("Could not apply aggregation function `{}` on `*`", name),
+                    ctx.current_position(),
+                ));
+            }
+        }
+        
         let args = if ctx.match_token(TokenKind::RParen) {
             Vec::new()
         } else {

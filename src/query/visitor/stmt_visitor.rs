@@ -6,7 +6,7 @@ use crate::query::parser::ast::stmt::{
     Stmt, MatchStmt, DeleteStmt, UpdateStmt, GoStmt, FetchStmt,
     InsertStmt, UseStmt, ShowStmt, CreateStmt, DropStmt, AlterStmt,
     SetStmt, LookupStmt, Assignment, QueryStmt, MergeStmt, UnwindStmt,
-    ReturnStmt, WithStmt, RemoveStmt, PipeStmt, DescStmt,
+    ReturnStmt, WithStmt, YieldStmt, RemoveStmt, PipeStmt, DescStmt,
     ExplainStmt, SubgraphStmt, FindPathStmt, ChangePasswordStmt,
     CreateUserStmt, AlterUserStmt, DropUserStmt,
 };
@@ -86,6 +86,10 @@ pub trait StmtVisitor {
 
     fn visit_with_stmt(&mut self, stmt: &WithStmt) -> Self::Result {
         self.visit_stmt(&Stmt::With(stmt.clone()))
+    }
+
+    fn visit_yield_stmt(&mut self, stmt: &YieldStmt) -> Self::Result {
+        self.visit_stmt(&Stmt::Yield(stmt.clone()))
     }
 
     fn visit_remove_stmt(&mut self, stmt: &RemoveStmt) -> Self::Result {

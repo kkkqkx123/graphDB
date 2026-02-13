@@ -478,7 +478,7 @@ async fn test_pipe_parser_multiple() {
 
 #[tokio::test]
 async fn test_pipe_parser_complex() {
-    let query = "GO FROM 1 OVER KNOWS | YIELD target.name AS name, target.age AS age | WHERE age > 25 | RETURN name";
+    let query = "GO FROM 1 OVER KNOWS | YIELD target.name AS name, target.age AS age WHERE age > 25 | RETURN name";
     let mut parser = Parser::new(query);
     
     let result = parser.parse();
