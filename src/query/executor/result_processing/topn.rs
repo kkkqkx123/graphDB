@@ -718,7 +718,7 @@ impl<S: StorageClient> TopNExecutor<S> {
         let start = self.offset.min(rows.len());
         let end = (self.n + self.offset).min(rows.len());
 
-        Ok(rows.into_iter().skip(start).take(end - start).map(|row| row.into_iter().next().unwrap()).collect())
+        Ok(rows.into_iter().skip(start).take(end - start).map(|row| row.into_iter().next().expect("row不应为空")).collect())
     }
 
     /// 计算堆大小
@@ -997,11 +997,7 @@ impl<S: StorageClient> TopNExecutor<S> {
 
     /// 推入堆中
     pub fn push_to_heap(&mut self, item: TopNItem) -> Result<(), TopNError> {
-        if self.heap.is_none() {
-            self.heap = Some(BinaryHeap::with_capacity(self.n + 1));
-        }
-
-        let heap = self.heap.as_mut().expect("heap should be initialized");
+        let heap = self.heap.get_or_insert_with(|| BinaryHeap::with_capacity(self.n + 1));
 
         heap.push(item);
 

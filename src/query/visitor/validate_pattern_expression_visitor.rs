@@ -113,7 +113,10 @@ impl ExpressionVisitor for ValidatePatternExpressionVisitor {
                                 "函数 {} 的参数不能是局部变量: {}",
                                 name, var
                             ));
-                            return Err(self.error.clone().unwrap());
+                            return Err(match self.error.as_ref() {
+                                Some(err) => err.clone(),
+                                None => "未知错误".to_string(),
+                            });
                         }
                     }
                 }

@@ -180,8 +180,14 @@ impl Timer {
         let sum = vals.iter().sum::<Duration>();
         let avg = Duration::from_nanos(sum.as_nanos() as u64 / vals.len() as u64);
 
-        let min = *vals.iter().min().unwrap();
-        let max = *vals.iter().max().unwrap();
+        let min = match vals.iter().min() {
+            Some(m) => *m,
+            None => return Ok((avg, Duration::from_nanos(0), Duration::from_nanos(0), vals.len())),
+        };
+        let max = match vals.iter().max() {
+            Some(m) => *m,
+            None => return Ok((avg, min, Duration::from_nanos(0), vals.len())),
+        };
 
         Ok((avg, min, max, vals.len()))
     }

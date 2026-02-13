@@ -3,10 +3,10 @@
 ## Summary
 
 - **Total Errors**: 0
-- **Total Warnings**: 2
-- **Total Issues**: 2
+- **Total Warnings**: 3
+- **Total Issues**: 3
 - **Unique Error Patterns**: 0
-- **Unique Warning Patterns**: 2
+- **Unique Warning Patterns**: 1
 - **Files with Issues**: 1
 
 ## Error Statistics
@@ -15,25 +15,26 @@
 
 ## Warning Statistics
 
-**Total Warnings**: 2
+**Total Warnings**: 3
 
 ### Warning Type Breakdown
 
-- **warning**: 2 warnings
+- **warning**: 3 warnings
 
 ### Files with Warnings (Top 10)
 
-- `src\storage\processor\base.rs`: 2 warnings
+- `src\api\service\graph_service.rs`: 3 warnings
 
 ## Detailed Warning Categorization
 
-### warning: unused import: `StorageResult`
+### warning: unused `std::result::Result` that must be used
 
-**Total Occurrences**: 2  
+**Total Occurrences**: 3  
 **Unique Files**: 1
 
-#### `src\storage\processor\base.rs`: 2 occurrences
+#### `src\api\service\graph_service.rs`: 3 occurrences
 
-- Line 151: unused import: `StorageResult`
-- Line 160: unused imports: `IndexOptimization`, `IndexStats`, and `IndexStatus`
+- Line 535: unused `std::result::Result` that must be used
+- Line 562: unused `std::result::Result` that must be used
+- Line 584: unused `std::result::Result` that must be used
 

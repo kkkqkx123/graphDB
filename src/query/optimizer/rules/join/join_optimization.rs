@@ -386,7 +386,7 @@ mod tests {
             "应该将InnerJoin转换为HashInnerJoin"
         );
 
-        let transform_result = result.unwrap();
+        let transform_result = result.expect("规则应用结果应该存在");
         assert!(transform_result.erase_curr);
         assert_eq!(transform_result.new_group_nodes.len(), 1);
 

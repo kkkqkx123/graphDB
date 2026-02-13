@@ -1,5 +1,6 @@
 use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
 use std::cmp::Reverse;
+use std::cmp::Ordering;
 use std::sync::{Arc, Mutex};
 
 use rayon::prelude::*;
@@ -239,8 +240,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
         &self,
         node_id: &Value,
     ) -> Result<Vec<(Value, Edge, f64)>, QueryError> {
-        let storage = safe_lock(&*self.get_storage())
-            .expect("ShortestPathExecutor storage lock should not be poisoned");
+        let storage = safe_lock(&*self.get_storage())?;
 
         let edges = storage
             .get_node_edges("default", node_id, EdgeDirection::Both)
@@ -322,8 +322,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
 
         // 初始化左向队列（从起点开始）
         for start_id in start_ids {
-            let storage = safe_lock(&*self.get_storage())
-                .expect("ShortestPathExecutor storage lock should not be poisoned");
+            let storage = safe_lock(&*self.get_storage())?;
             if let Ok(Some(start_vertex)) = storage.get_vertex("default", start_id) {
                 let initial_npath = Arc::new(NPath::new(Arc::new(start_vertex)));
                 state.left_queue.push_back((start_id.clone(), initial_npath.clone()));
@@ -333,8 +332,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
 
         // 初始化右向队列（从终点开始）
         for end_id in end_ids {
-            let storage = safe_lock(&*self.get_storage())
-                .expect("ShortestPathExecutor storage lock should not be poisoned");
+            let storage = safe_lock(&*self.get_storage())?;
             if let Ok(Some(end_vertex)) = storage.get_vertex("default", end_id) {
                 let initial_npath = Arc::new(NPath::new(Arc::new(end_vertex)));
                 state.right_queue.push_back((end_id.clone(), initial_npath.clone()));
@@ -352,7 +350,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
             }
 
             left_edges.push(HashMap::new());
-            let left_step_edges = left_edges.last_mut().unwrap();
+            let left_step_edges = left_edges.last_mut().expect("left_edges不应为空");
 
             // 左向扩展
             while let Some((current_id, current_npath)) = state.left_queue.pop_front() {
@@ -392,8 +390,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
                         continue;
                     }
 
-                    let storage = safe_lock(&*self.get_storage())
-                        .expect("ShortestPathExecutor storage lock should not be poisoned");
+                    let storage = safe_lock(&*self.get_storage())?;
                     if let Ok(Some(neighbor_vertex)) = storage.get_vertex("default", &neighbor_id) {
                         // 使用 NPath 扩展，O(1) 操作
                         let new_npath = Arc::new(NPath::extend(
@@ -414,7 +411,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
             }
 
             right_edges.push(HashMap::new());
-            let right_step_edges = right_edges.last_mut().unwrap();
+            let right_step_edges = right_edges.last_mut().expect("right_edges不应为空");
 
             // 右向扩展
             while let Some((current_id, current_npath)) = state.right_queue.pop_front() {
@@ -438,8 +435,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
                         continue;
                     }
 
-                    let storage = safe_lock(&*self.get_storage())
-                        .expect("ShortestPathExecutor storage lock should not be poisoned");
+                    let storage = safe_lock(&*self.get_storage())?;
                     if let Ok(Some(neighbor_vertex)) = storage.get_vertex("default", &neighbor_id) {
                         // 使用 NPath 扩展，O(1) 操作
                         let new_npath = Arc::new(NPath::extend(
@@ -570,7 +566,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
             result_paths.sort_by(|a, b| {
                 let weight_a: f64 = a.steps.iter().map(|s| s.edge.ranking as f64).sum();
                 let weight_b: f64 = b.steps.iter().map(|s| s.edge.ranking as f64).sum();
-                weight_a.partial_cmp(&weight_b).unwrap()
+                weight_a.partial_cmp(&weight_b).unwrap_or(Ordering::Equal)
             });
             result_paths.truncate(1);
         }
@@ -681,7 +677,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
             result_paths.sort_by(|a, b| {
                 let weight_a: f64 = a.steps.iter().map(|s| s.edge.ranking as f64).sum();
                 let weight_b: f64 = b.steps.iter().map(|s| s.edge.ranking as f64).sum();
-                weight_a.partial_cmp(&weight_b).unwrap()
+                weight_a.partial_cmp(&weight_b).unwrap_or(Ordering::Equal)
             });
             result_paths.truncate(1);
         }
@@ -703,8 +699,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
         let mut current_id = end_id.clone();
 
         while let Some((prev_id, edge)) = previous_map.get(&current_id) {
-            let storage = safe_lock(&*self.get_storage())
-                .expect("ShortestPathExecutor storage lock should not be poisoned");
+            let storage = safe_lock(&*self.get_storage())?;
             if let Ok(Some(current_vertex)) = storage.get_vertex("default", &current_id) {
                 path_steps.push(Step {
                     dst: Box::new(current_vertex),
@@ -718,8 +713,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
             return Ok(None);
         }
 
-        let storage = safe_lock(&*self.get_storage())
-            .expect("ShortestPathExecutor storage lock should not be poisoned");
+        let storage = safe_lock(&*self.get_storage())?;
         if let Ok(Some(start_vertex)) = storage.get_vertex("default", &current_id) {
             path_steps.reverse();
 
@@ -742,8 +736,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
         let mut result_paths = Vec::new();
 
         for start_id in start_ids {
-            let storage = safe_lock(&*self.get_storage())
-                .expect("ShortestPathExecutor storage lock should not be poisoned");
+            let storage = safe_lock(&*self.get_storage())?;
             if let Ok(Some(start_vertex)) = storage.get_vertex("default", start_id) {
                 let initial_path = Path {
                     src: Box::new(start_vertex),
@@ -780,8 +773,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
                     continue;
                 }
 
-                let storage = safe_lock(&*self.get_storage())
-                    .expect("ShortestPathExecutor storage lock should not be poisoned");
+                let storage = safe_lock(&*self.get_storage())?;
                 if let Ok(Some(neighbor_vertex)) = storage.get_vertex("default", &neighbor_id) {
                     let mut new_path = current_path.clone();
                     new_path.steps.push(Step {
@@ -977,7 +969,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ShortestPathExecutor<S> 
 
 impl<S: StorageClient + Send> HasStorage<S> for ShortestPathExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base.storage.as_ref().expect("ShortestPathExecutor storage should be set")
+        self.base.storage.as_ref().unwrap()
     }
 }
 
@@ -1077,8 +1069,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
     }
 
     fn get_neighbors_with_edges(&self, node_id: &Value) -> Result<Vec<(Value, Edge)>, QueryError> {
-        let storage = safe_lock(&*self.get_storage())
-            .expect("MultiShortestPathExecutor storage lock should not be poisoned");
+        let storage = safe_lock(&*self.get_storage())?;
 
         let edges = storage
             .get_node_edges("default", node_id, EdgeDirection::Both)
@@ -1108,8 +1099,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
 
         let mut initial_data: Vec<(Value, Path, Value)> = Vec::new();
         for start_vertex in &self.left_start_vertices {
-            let storage = safe_lock(&*self.get_storage())
-                .expect("MultiShortestPathExecutor storage lock should not be poisoned");
+            let storage = safe_lock(&*self.get_storage())?;
 
             if let Ok(Some(vertex)) = storage.get_vertex("default", start_vertex) {
                 let path = Path {
@@ -1140,8 +1130,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
 
                 let edge_clone = edge.clone();
                 for path in paths {
-                    let storage = safe_lock(&*self.get_storage())
-                        .expect("MultiShortestPathExecutor storage lock should not be poisoned");
+                    let storage = safe_lock(&*self.get_storage())?;
 
                     if let Ok(Some(dst_vertex)) = storage.get_vertex("default", &neighbor_id) {
                         let mut new_path = path.clone();
@@ -1170,8 +1159,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
 
         let mut initial_data: Vec<(Value, Path, Value)> = Vec::new();
         for target_vertex in &self.right_target_vertices {
-            let storage = safe_lock(&*self.get_storage())
-                .expect("MultiShortestPathExecutor storage lock should not be poisoned");
+            let storage = safe_lock(&*self.get_storage())?;
 
             if let Ok(Some(vertex)) = storage.get_vertex("default", target_vertex) {
                 let path = Path {
@@ -1202,8 +1190,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
 
                 let edge_clone = edge.clone();
                 for path in paths {
-                    let storage = safe_lock(&*self.get_storage())
-                        .expect("MultiShortestPathExecutor storage lock should not be poisoned");
+                    let storage = safe_lock(&*self.get_storage())?;
 
                     if let Ok(Some(dst_vertex)) = storage.get_vertex("default", &neighbor_id) {
                         let mut new_path = path.clone();
@@ -1402,6 +1389,6 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for MultiShortestPath
 
 impl<S: StorageClient + Send> HasStorage<S> for MultiShortestPathExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base.storage.as_ref().expect("MultiShortestPathExecutor storage should be set")
+        self.base.storage.as_ref().expect("存储未初始化")
     }
 }

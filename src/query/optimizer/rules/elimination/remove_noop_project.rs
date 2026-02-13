@@ -63,7 +63,11 @@ impl<'a> PlanNodeVisitor for RemoveNoopProjectVisitor<'a> {
             return self.clone();
         }
 
-        let input = deps.first().unwrap();
+        let input = if let Some(input) = deps.first() {
+            input
+        } else {
+            return self.clone();
+        };
         let input_id = input.id() as usize;
 
         if let Some(child_node) = self.ctx.find_group_node_by_plan_node_id(input_id) {

@@ -189,7 +189,7 @@ fn flatten_inner_logical_or_expr(expr: &Expression) -> Expression {
             collect_or_operands(&right_flattened, &mut operands);
             
             if operands.len() == 1 {
-                operands.into_iter().next().unwrap()
+                operands.into_iter().next().expect("operands不应为空")
             } else {
                 let mut result = None;
                 for operand in operands {
@@ -202,7 +202,7 @@ fn flatten_inner_logical_or_expr(expr: &Expression) -> Expression {
                         },
                     });
                 }
-                result.unwrap()
+                result.expect("result不应为空")
             }
         }
         _ => expr.clone(),
@@ -610,22 +610,23 @@ impl Expression {
 }
 
 /// 将多个表达式用 AND 连接成一个表达式
-pub fn and_all(mut exprs: Vec<Expression>) -> Expression {
-    match exprs.len() {
-        0 => Expression::Literal(crate::core::Value::Bool(true)),
-        1 => exprs.pop().expect("Should have one element"),
-        _ => {
-            let mut result = exprs.pop().expect("Should have elements");
-            while let Some(expression) = exprs.pop() {
-                result = Expression::Binary {
-                    left: Box::new(expression),
-                    op: BinaryOperator::And,
-                    right: Box::new(result),
-                };
-            }
-            result
-        }
+pub fn and_all(exprs: Vec<Expression>) -> Expression {
+    if exprs.is_empty() {
+        return Expression::Literal(crate::core::Value::Bool(true));
     }
+
+    let mut iter = exprs.into_iter();
+    let mut result = iter.next().expect("exprs不应为空");
+
+    while let Some(expression) = iter.next() {
+        result = Expression::Binary {
+            left: Box::new(expression),
+            op: BinaryOperator::And,
+            right: Box::new(result),
+        };
+    }
+
+    result
 }
 
 /// 检查表达式中的变量名是否在给定的列名列表中

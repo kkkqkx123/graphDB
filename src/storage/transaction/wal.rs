@@ -163,7 +163,9 @@ const MAX_LOG_RECORD_SIZE: usize = 1024 * 1024;
 impl Default for TransactionLog {
     fn default() -> Self {
         Self::new(PathBuf::from("transaction_logs"), LogConfig::default())
-            .expect("Failed to create default TransactionLog")
+            .unwrap_or_else(|_| {
+                panic!("Failed to create default TransactionLog: directory creation failed")
+            })
     }
 }
 
@@ -194,10 +196,12 @@ impl TransactionLog {
     }
 
     /// 分配 LSN
-    fn allocate_lsn(&self) -> u64 {
-        let mut counter = self.lsn_counter.lock().unwrap();
+    fn allocate_lsn(&self) -> Result<u64, StorageError> {
+        let mut counter = self.lsn_counter.lock().map_err(|e| {
+            StorageError::DbError(format!("Failed to acquire LSN counter lock: {}", e))
+        })?;
         *counter += 1;
-        *counter
+        Ok(*counter)
     }
 
     /// 写入日志记录
@@ -210,7 +214,7 @@ impl TransactionLog {
             )));
         }
 
-        let lsn = self.allocate_lsn();
+        let lsn = self.allocate_lsn()?;
         let mut record = record;
         record.lsn = lsn;
 
@@ -218,7 +222,9 @@ impl TransactionLog {
             record.prev_lsn = 0;
         }
 
-        let mut buffer = self.buffer.lock().unwrap();
+        let mut buffer = self.buffer.lock().map_err(|e| {
+            StorageError::DbError(format!("Failed to acquire WAL buffer lock: {}", e))
+        })?;
         if buffer.len() >= MAX_BUFFER_SIZE {
             self.flush_buffer()?;
         }
@@ -228,7 +234,9 @@ impl TransactionLog {
             self.flush_buffer()?;
         }
 
-        let mut stats = self.stats.lock().unwrap();
+        let mut stats = self.stats.lock().map_err(|e| {
+            StorageError::DbError(format!("Failed to acquire WAL stats lock: {}", e))
+        })?;
         stats.bytes_written += record_size as u64;
         stats.records_written += 1;
 
@@ -302,19 +310,23 @@ impl TransactionLog {
 
     /// 刷新缓冲区到磁盘
     fn flush_buffer(&self) -> Result<(), StorageError> {
-        let mut buffer = self.buffer.lock().unwrap();
+        let mut buffer = self.buffer.lock().map_err(|e| {
+            StorageError::DbError(format!("Failed to acquire WAL buffer lock: {}", e))
+        })?;
         if buffer.is_empty() {
             return Ok(());
         }
 
         let records: Vec<LogRecord> = buffer.drain(..).collect();
 
-        let mut log_file = self.current_log.lock().unwrap();
+        let mut log_file = self.current_log.lock().map_err(|e| {
+            StorageError::DbError(format!("Failed to acquire current log lock: {}", e))
+        })?;
 
         if log_file.is_none() {
             let timestamp = SystemTime::now()
                 .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap_or(Duration::ZERO)
+                .map_err(|e| StorageError::DbError(format!("System time error: {}", e)))?
                 .as_millis();
             let file_name = format!("transaction_{}.log", timestamp);
             let path = self.log_dir.join(&file_name);
@@ -327,7 +339,9 @@ impl TransactionLog {
             let writer = BufWriter::new(file);
             *log_file = Some(writer);
 
-            let mut log_files = self.log_files.write().unwrap();
+            let mut log_files = self.log_files.write().map_err(|e| {
+                StorageError::DbError(format!("Failed to acquire log files write lock: {}", e))
+            })?;
             log_files.push(path);
         }
 
@@ -343,7 +357,9 @@ impl TransactionLog {
                     StorageError::DbError(format!("IO error writing log: {}", e))
                 })?;
 
-                let mut flushed = self.flushed_lsn.lock().unwrap();
+                let mut flushed = self.flushed_lsn.lock().map_err(|e| {
+                    StorageError::DbError(format!("Failed to acquire flushed LSN lock: {}", e))
+                })?;
                 *flushed = record.lsn;
             }
 
@@ -358,18 +374,22 @@ impl TransactionLog {
     /// 强制刷新到磁盘
     pub fn flush(&self) -> Result<u64, StorageError> {
         self.flush_buffer()?;
-        let flushed = self.flushed_lsn.lock().unwrap();
+        let flushed = self.flushed_lsn.lock().map_err(|e| {
+            StorageError::DbError(format!("Failed to acquire flushed LSN lock: {}", e))
+        })?;
         Ok(*flushed)
     }
 
     /// 从日志恢复
-    pub fn recover(&self) -> RecoveryResult {
+    pub fn recover(&self) -> Result<RecoveryResult, StorageError> {
         let mut transactions = HashMap::new();
         let mut dirty_pages = HashMap::new();
         let mut commit_lsns = HashMap::new();
         let mut undo_lsns = HashMap::new();
 
-        let log_files = self.log_files.read().unwrap();
+        let log_files = self.log_files.read().map_err(|e| {
+            StorageError::DbError(format!("Failed to acquire log files read lock: {}", e))
+        })?;
 
         for log_path in log_files.iter().rev() {
             if let Ok(file) = File::open(log_path) {
@@ -407,12 +427,12 @@ impl TransactionLog {
             }
         }
 
-        RecoveryResult {
+        Ok(RecoveryResult {
             transactions,
             dirty_pages,
             commit_lsns,
             undo_lsns,
-        }
+        })
     }
 
     fn process_recovery_record(
@@ -464,21 +484,32 @@ impl TransactionLog {
     }
 
     /// 获取统计信息
-    pub fn get_stats(&self) -> LogStats {
-        let stats = self.stats.lock().unwrap();
-        stats.clone()
+    pub fn get_stats(&self) -> Result<LogStats, StorageError> {
+        let stats = self.stats.lock().map_err(|e| {
+            StorageError::DbError(format!("Failed to acquire WAL stats lock: {}", e))
+        })?;
+        Ok(stats.clone())
     }
 
     /// 清理旧日志文件
-    pub fn cleanup_old_logs(&self, _min_lsn: u64) {
-        let mut log_files = self.log_files.write().unwrap();
-        let _flushed = self.flushed_lsn.lock().unwrap();
+    pub fn cleanup_old_logs(&self, _min_lsn: u64) -> Result<(), StorageError> {
+        let mut log_files = self.log_files.write().map_err(|e| {
+            StorageError::DbError(format!("Failed to acquire log files write lock: {}", e))
+        })?;
+        let _flushed = self.flushed_lsn.lock().map_err(|e| {
+            StorageError::DbError(format!("Failed to acquire flushed LSN lock: {}", e))
+        })?;
 
         log_files.retain(|path| {
             if let Ok(metadata) = path.metadata() {
                 if let Ok(modified) = metadata.modified() {
-                    let age = SystemTime::now().duration_since(modified).unwrap_or(Duration::ZERO);
-                    age < Duration::from_secs(self.config.retain_duration_secs as u64)
+                    let age = SystemTime::now()
+                        .duration_since(modified)
+                        .map_err(|e| StorageError::DbError(format!("System time error: {}", e)));
+                    match age {
+                        Ok(duration) => duration < Duration::from_secs(self.config.retain_duration_secs as u64),
+                        Err(_) => true,
+                    }
                 } else {
                     true
                 }
@@ -486,6 +517,7 @@ impl TransactionLog {
                 true
             }
         });
+        Ok(())
     }
 }
 
@@ -602,7 +634,7 @@ mod tests {
 
     #[test]
     fn test_transaction_log_write() {
-        let temp_dir = TempDir::new().unwrap();
+        let temp_dir = TempDir::new().expect("Failed to create temporary directory");
         let log_dir = temp_dir.path().to_path_buf();
         let config = LogConfig {
             log_dir: log_dir.clone(),
@@ -610,10 +642,10 @@ mod tests {
             ..Default::default()
         };
 
-        let log = TransactionLog::new(log_dir, config).unwrap();
+        let log = TransactionLog::new(log_dir, config).expect("Failed to create transaction log");
         let tx_id = TransactionId::new(1);
 
-        let lsn = log.write_begin(tx_id).unwrap();
+        let lsn = log.write_begin(tx_id).expect("Failed to write begin transaction");
         assert!(lsn > 0);
     }
 

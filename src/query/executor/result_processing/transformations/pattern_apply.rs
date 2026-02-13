@@ -340,10 +340,7 @@ impl<S: StorageClient + Send + 'static> crate::query::executor::traits::HasStora
     for PatternApplyExecutor<S>
 {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base
-            .storage
-            .as_ref()
-            .expect("PatternApplyExecutor storage should be set")
+        self.base.get_storage()
     }
 }
 
@@ -382,7 +379,7 @@ mod tests {
             context,
         );
 
-        let result = executor.execute().unwrap();
+        let result = executor.execute().expect("Failed to execute pattern apply");
         if let ExecutionResult::Values(values) = result {
             assert_eq!(values.len(), 1);
             assert_eq!(values[0], Value::Int(2));
@@ -420,7 +417,7 @@ mod tests {
             context,
         );
 
-        let result = executor.execute().unwrap();
+        let result = executor.execute().expect("Failed to execute pattern apply");
         if let ExecutionResult::Values(values) = result {
             assert_eq!(values.len(), 2);
             assert!(values.contains(&Value::Int(1)));
@@ -458,7 +455,7 @@ mod tests {
             context,
         );
 
-        let result = executor.execute().unwrap();
+        let result = executor.execute().expect("Failed to execute pattern apply");
         if let ExecutionResult::Values(values) = result {
             assert_eq!(values.len(), 2);
         } else {
@@ -494,7 +491,7 @@ mod tests {
             context,
         );
 
-        let result = executor.execute().unwrap();
+        let result = executor.execute().expect("Failed to execute pattern apply");
         if let ExecutionResult::Values(values) = result {
             assert!(values.is_empty());
         } else {

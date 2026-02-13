@@ -182,7 +182,7 @@ mod tests {
 
         let node = InnerJoinNode::new(left, right, hash_keys, probe_keys);
         assert!(node.is_ok());
-        let node = node.unwrap();
+        let node = node.expect("InnerJoinNode创建应该成功");
         assert_eq!(node.type_name(), "InnerJoinNode");
         assert_eq!(node.id(), -1);
     }
@@ -196,7 +196,7 @@ mod tests {
 
         let node = LeftJoinNode::new(left, right, hash_keys, probe_keys);
         assert!(node.is_ok());
-        let node = node.unwrap();
+        let node = node.expect("LeftJoinNode创建应该成功");
         assert_eq!(node.type_name(), "LeftJoinNode");
         assert_eq!(node.id(), -1);
     }
@@ -208,7 +208,7 @@ mod tests {
 
         let node = CrossJoinNode::new(left, right);
         assert!(node.is_ok());
-        let node = node.unwrap();
+        let node = node.expect("CrossJoinNode创建应该成功");
         assert_eq!(node.type_name(), "CrossJoinNode");
         assert_eq!(node.id(), -1);
     }
@@ -222,7 +222,7 @@ mod tests {
 
         let node = HashInnerJoinNode::new(left, right, hash_keys, probe_keys);
         assert!(node.is_ok());
-        let node = node.unwrap();
+        let node = node.expect("HashInnerJoinNode创建应该成功");
         assert_eq!(node.type_name(), "HashInnerJoinNode");
         assert_eq!(node.id(), -1);
     }
@@ -236,7 +236,7 @@ mod tests {
 
         let node = HashLeftJoinNode::new(left, right, hash_keys, probe_keys);
         assert!(node.is_ok());
-        let node = node.unwrap();
+        let node = node.expect("HashLeftJoinNode创建应该成功");
         assert_eq!(node.type_name(), "HashLeftJoinNode");
         assert_eq!(node.id(), -1);
     }

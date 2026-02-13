@@ -105,7 +105,10 @@ impl OptRule for PushFilterDownAggregateRule {
             return Ok(None);
         }
 
-        let input_plan_node = input_plan_node.unwrap();
+        let input_plan_node = match input_plan_node {
+            Some(node) => node,
+            None => return Ok(None),
+        };
 
         let new_condition = Self::rewrite_filter_condition(filter_condition, group_keys);
 

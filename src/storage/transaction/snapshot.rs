@@ -206,9 +206,9 @@ impl SnapshotManager {
         tx_id: TransactionId,
         isolation_level: IsolationLevel,
     ) -> Result<Snapshot, StorageError> {
-        let version = self.mvcc.next_version();
-        let version_vector = self.mvcc.get_global_version_vec();
-        let active_transactions = self.mvcc.get_active_transactions();
+        let version = self.mvcc.next_version()?;
+        let version_vector = self.mvcc.get_global_version_vec()?;
+        let active_transactions = self.mvcc.get_active_transactions()?;
 
         let snapshot = Snapshot::new(tx_id, version, version_vector, isolation_level)
             .with_active_transactions(active_transactions);
@@ -220,22 +220,29 @@ impl SnapshotManager {
             snapshots.insert(tx_id, snapshot.clone());
         }
 
-        let mut stats = self.stats.lock().unwrap();
+        let mut stats = self.stats.lock().map_err(|e| {
+            StorageError::DbError(format!("Failed to acquire stats lock: {}", e))
+        })?;
         stats.snapshots_created += 1;
 
         Ok(snapshot)
     }
 
     /// 获取事务快照
-    pub fn get_snapshot(&self, tx_id: TransactionId) -> Option<Snapshot> {
-        let snapshots = self.snapshots.read().unwrap();
-        snapshots.get(&tx_id).cloned()
+    pub fn get_snapshot(&self, tx_id: TransactionId) -> Result<Option<Snapshot>, StorageError> {
+        let snapshots = self.snapshots.read().map_err(|e| {
+            StorageError::DbError(format!("Failed to acquire snapshots read lock: {}", e))
+        })?;
+        Ok(snapshots.get(&tx_id).cloned())
     }
 
     /// 删除快照
-    pub fn remove_snapshot(&self, tx_id: TransactionId) {
-        let mut snapshots = self.snapshots.write().unwrap();
+    pub fn remove_snapshot(&self, tx_id: TransactionId) -> Result<(), StorageError> {
+        let mut snapshots = self.snapshots.write().map_err(|e| {
+            StorageError::DbError(format!("Failed to acquire snapshots write lock: {}", e))
+        })?;
         snapshots.remove(&tx_id);
+        Ok(())
     }
 
     /// 检查版本是否对快照可见
@@ -244,39 +251,43 @@ impl SnapshotManager {
         snapshot: &Snapshot,
         version_tx_id: TransactionId,
         version: Version,
-    ) -> bool {
+    ) -> Result<bool, StorageError> {
         if version_tx_id == snapshot.tx_id {
-            return true;
+            return Ok(true);
         }
 
         match snapshot.isolation_level {
-            IsolationLevel::ReadUncommitted => true,
+            IsolationLevel::ReadUncommitted => Ok(true),
             IsolationLevel::ReadCommitted => {
-                !self.is_active(version_tx_id)
+                Ok(!self.is_active(version_tx_id)?)
             }
             IsolationLevel::RepeatableRead | IsolationLevel::Snapshot | IsolationLevel::Serializable => {
-                if self.is_active(version_tx_id) {
-                    return false;
+                if self.is_active(version_tx_id)? {
+                    return Ok(false);
                 }
 
                 if let Some(active_version) = snapshot.version_vector.get(&version_tx_id) {
-                    return active_version.as_u64() >= version.as_u64();
+                    return Ok(active_version.as_u64() >= version.as_u64());
                 }
 
-                version < snapshot.version
+                Ok(version < snapshot.version)
             }
         }
     }
 
     /// 检查事务是否活跃
-    fn is_active(&self, tx_id: TransactionId) -> bool {
-        let snapshots = self.snapshots.read().unwrap();
-        snapshots.contains_key(&tx_id)
+    fn is_active(&self, tx_id: TransactionId) -> Result<bool, StorageError> {
+        let snapshots = self.snapshots.read().map_err(|e| {
+            StorageError::DbError(format!("Failed to acquire snapshots read lock: {}", e))
+        })?;
+        Ok(snapshots.contains_key(&tx_id))
     }
 
     /// 清理过期快照
-    pub fn cleanup_expired_snapshots(&self) {
-        let mut snapshots = self.snapshots.write().unwrap();
+    pub fn cleanup_expired_snapshots(&self) -> Result<(), StorageError> {
+        let mut snapshots = self.snapshots.write().map_err(|e| {
+            StorageError::DbError(format!("Failed to acquire snapshots write lock: {}", e))
+        })?;
         let mut expired = Vec::new();
 
         for (tx_id, snapshot) in snapshots.iter() {
@@ -289,14 +300,19 @@ impl SnapshotManager {
             snapshots.remove(tx_id);
         }
 
-        let mut stats = self.stats.lock().unwrap();
+        let mut stats = self.stats.lock().map_err(|e| {
+            StorageError::DbError(format!("Failed to acquire stats lock: {}", e))
+        })?;
         stats.snapshots_cleaned += expired.len() as u64;
+        Ok(())
     }
 
     /// 获取统计信息
-    pub fn get_stats(&self) -> SnapshotStats {
-        let stats = self.stats.lock().unwrap();
-        stats.clone()
+    pub fn get_stats(&self) -> Result<SnapshotStats, StorageError> {
+        let stats = self.stats.lock().map_err(|e| {
+            StorageError::DbError(format!("Failed to acquire stats lock: {}", e))
+        })?;
+        Ok(stats.clone())
     }
 }
 

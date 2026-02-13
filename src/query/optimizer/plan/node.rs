@@ -615,7 +615,7 @@ mod tests {
             crate::query::planner::plan::core::nodes::project_node::ProjectNode::new(
                 input_node.clone(),
                 Vec::new(),
-            ).unwrap()
+            ).expect("创建ProjectNode应该成功")
         );
         let filter_node = PlanNodeEnum::Filter(
             crate::query::planner::plan::core::nodes::filter_node::FilterNode::new(
@@ -623,7 +623,7 @@ mod tests {
                 crate::core::types::expression::Expression::Literal(
                     crate::core::Value::Bool(true)
                 ),
-            ).unwrap()
+            ).expect("创建FilterNode应该成功")
         );
         assert!(pattern.matches(&project_node));
         assert!(!pattern.matches(&filter_node));

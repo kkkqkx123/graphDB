@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock};
 
 use crate::query::optimizer::{OptRule, OptimizationRule};
+use crate::core::error::{DBError, LockError};
 
 type RuleCreator = Arc<dyn Fn() -> Box<dyn OptRule> + Send + Sync>;
 
@@ -16,72 +17,89 @@ static INITIALIZED: OnceLock<bool> = OnceLock::new();
 pub struct RuleRegistry;
 
 impl RuleRegistry {
-    pub fn register<F>(rule: OptimizationRule, creator: F)
+    pub fn register<F>(rule: OptimizationRule, creator: F) -> Result<(), DBError>
     where
         F: Fn() -> Box<dyn OptRule> + Send + Sync + 'static,
     {
         let registry = RULE_REGISTRY.get_or_init(|| Mutex::new(HashMap::new()));
-        let mut writer = registry.lock().unwrap();
+        let mut writer = registry.lock().map_err(|e| {
+            DBError::Lock(LockError::MutexPoisoned { reason: e.to_string() })
+        })?;
         writer.insert(rule, Arc::new(creator));
+        Ok(())
     }
 
-    pub fn get(rule: OptimizationRule) -> Option<RuleCreator> {
-        let registry = RULE_REGISTRY.get()?;
-        let reader = registry.lock().unwrap();
-        reader.get(&rule).cloned()
+    pub fn get(rule: OptimizationRule) -> Result<Option<RuleCreator>, DBError> {
+        let registry = RULE_REGISTRY.get().ok_or_else(|| {
+            DBError::Internal("Rule registry not initialized".to_string())
+        })?;
+        let reader = registry.lock().map_err(|e| {
+            DBError::Lock(LockError::MutexPoisoned { reason: e.to_string() })
+        })?;
+        Ok(reader.get(&rule).cloned())
     }
 
-    pub fn create_instance(rule: OptimizationRule) -> Option<Box<dyn OptRule>> {
-        Self::get(rule).map(|creator| creator())
+    pub fn create_instance(rule: OptimizationRule) -> Result<Option<Box<dyn OptRule>>, DBError> {
+        Self::get(rule).map(|creator| creator.map(|c| c()))
     }
 
-    pub fn get_all_rules() -> Vec<OptimizationRule> {
+    pub fn get_all_rules() -> Result<Vec<OptimizationRule>, DBError> {
         if let Some(registry) = RULE_REGISTRY.get() {
-            let reader = registry.lock().unwrap();
-            return reader.keys().copied().collect();
+            let reader = registry.lock().map_err(|e| {
+                DBError::Lock(LockError::MutexPoisoned { reason: e.to_string() })
+            })?;
+            return Ok(reader.keys().copied().collect());
         }
-        Vec::new()
+        Ok(Vec::new())
     }
 
-    pub fn get_rules_by_phase(phase: crate::query::optimizer::OptimizationPhase) -> Vec<OptimizationRule> {
+    pub fn get_rules_by_phase(phase: crate::query::optimizer::OptimizationPhase) -> Result<Vec<OptimizationRule>, DBError> {
         if let Some(registry) = RULE_REGISTRY.get() {
-            let reader = registry.lock().unwrap();
-            return reader
+            let reader = registry.lock().map_err(|e| {
+                DBError::Lock(LockError::MutexPoisoned { reason: e.to_string() })
+            })?;
+            return Ok(reader
                 .keys()
                 .filter(|r| r.phase() == phase)
                 .copied()
-                .collect();
+                .collect());
         }
-        Vec::new()
+        Ok(Vec::new())
     }
 
-    pub fn is_registered(rule: OptimizationRule) -> bool {
+    pub fn is_registered(rule: OptimizationRule) -> Result<bool, DBError> {
         if let Some(registry) = RULE_REGISTRY.get() {
-            let reader = registry.lock().unwrap();
-            return reader.contains_key(&rule);
+            let reader = registry.lock().map_err(|e| {
+                DBError::Lock(LockError::MutexPoisoned { reason: e.to_string() })
+            })?;
+            return Ok(reader.contains_key(&rule));
         }
-        false
+        Ok(false)
     }
 
-    pub fn count() -> usize {
+    pub fn count() -> Result<usize, DBError> {
         if let Some(registry) = RULE_REGISTRY.get() {
-            let reader = registry.lock().unwrap();
-            return reader.len();
+            let reader = registry.lock().map_err(|e| {
+                DBError::Lock(LockError::MutexPoisoned { reason: e.to_string() })
+            })?;
+            return Ok(reader.len());
         }
-        0
+        Ok(0)
     }
 
     pub fn is_initialized() -> bool {
         INITIALIZED.get().copied().unwrap_or(false)
     }
 
-    pub fn initialize() {
+    pub fn initialize() -> Result<(), DBError> {
         if INITIALIZED.get().copied().unwrap_or(false) {
-            return;
+            return Ok(());
         }
 
         let registry = RULE_REGISTRY.get_or_init(|| Mutex::new(HashMap::new()));
-        let writer = registry.lock().unwrap();
+        let writer = registry.lock().map_err(|e| {
+            DBError::Lock(LockError::MutexPoisoned { reason: e.to_string() })
+        })?;
 
         if writer.is_empty() {
             drop(writer);
@@ -89,6 +107,7 @@ impl RuleRegistry {
         }
 
         INITIALIZED.set(true).ok();
+        Ok(())
     }
 }
 
@@ -133,13 +152,13 @@ mod tests {
 
     #[test]
     fn test_register_and_get() {
-        RuleRegistry::register(
+        let _ = RuleRegistry::register(
             OptimizationRule::ProjectionPushDown,
             || Box::new(TestRule) as Box<dyn OptRule>,
         );
 
-        assert!(RuleRegistry::is_registered(OptimizationRule::ProjectionPushDown));
-        assert!(RuleRegistry::create_instance(OptimizationRule::ProjectionPushDown).is_some());
+        assert!(RuleRegistry::is_registered(OptimizationRule::ProjectionPushDown).unwrap_or(false));
+        assert!(RuleRegistry::create_instance(OptimizationRule::ProjectionPushDown).unwrap_or(None).is_some());
     }
 
     #[test]
@@ -149,19 +168,19 @@ mod tests {
         // 注意：这个测试假设 PushFilterDownAllPaths 规则可能未被注册
         // 如果测试失败，说明该规则已被其他测试注册
         let rule = OptimizationRule::PushFilterDownAllPaths;
-        if RuleRegistry::is_registered(rule) {
+        if RuleRegistry::is_registered(rule).unwrap_or(false) {
             // 如果已注册，验证我们可以获取实例
-            assert!(RuleRegistry::create_instance(rule).is_some());
+            assert!(RuleRegistry::create_instance(rule).unwrap_or(None).is_some());
         } else {
             // 如果未注册，验证返回 None
-            assert!(RuleRegistry::create_instance(rule).is_none());
+            assert!(RuleRegistry::create_instance(rule).unwrap_or(None).is_none());
         }
     }
 
     #[test]
     fn test_get_all_rules() {
-        RuleRegistry::initialize();
+        let _ = RuleRegistry::initialize();
         let rules = RuleRegistry::get_all_rules();
-        assert!(!rules.is_empty());
+        assert!(!rules.unwrap_or_default().is_empty());
     }
 }

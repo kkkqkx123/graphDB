@@ -67,7 +67,10 @@ impl<'a> PlanNodeVisitor for EliminateFilterVisitor<'a> {
             return self.clone();
         }
 
-        let input = deps.first().unwrap();
+        let input = match deps.first() {
+            Some(node) => node,
+            None => return self.clone(),
+        };
         let input_id = input.id() as usize;
 
         if let Some(child_node) = self.ctx.find_group_node_by_plan_node_id(input_id) {

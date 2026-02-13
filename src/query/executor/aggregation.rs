@@ -47,10 +47,7 @@ impl AggData {
     }
 
     pub fn sum_mut(&mut self) -> &mut Value {
-        if self.sum.is_none() {
-            self.sum = Some(Value::Float(0.0));
-        }
-        self.sum.as_mut().unwrap()
+        self.sum.get_or_insert_with(|| Value::Float(0.0))
     }
 
     pub fn cnt(&self) -> Option<&Value> {
@@ -58,10 +55,7 @@ impl AggData {
     }
 
     pub fn cnt_mut(&mut self) -> &mut Value {
-        if self.cnt.is_none() {
-            self.cnt = Some(Value::Float(0.0));
-        }
-        self.cnt.as_mut().unwrap()
+        self.cnt.get_or_insert_with(|| Value::Float(0.0))
     }
 
     pub fn avg(&self) -> Option<&Value> {
@@ -69,10 +63,7 @@ impl AggData {
     }
 
     pub fn avg_mut(&mut self) -> &mut Value {
-        if self.avg.is_none() {
-            self.avg = Some(Value::Float(0.0));
-        }
-        self.avg.as_mut().unwrap()
+        self.avg.get_or_insert_with(|| Value::Float(0.0))
     }
 
     pub fn deviation(&self) -> Option<&Value> {
@@ -80,17 +71,11 @@ impl AggData {
     }
 
     pub fn deviation_mut(&mut self) -> &mut Value {
-        if self.deviation.is_none() {
-            self.deviation = Some(Value::Float(0.0));
-        }
-        self.deviation.as_mut().unwrap()
+        self.deviation.get_or_insert_with(|| Value::Float(0.0))
     }
 
     pub fn distinct_set_mut(&mut self) -> &mut HashSet<String> {
-        if self.distinct_set.is_none() {
-            self.distinct_set = Some(HashSet::new());
-        }
-        self.distinct_set.as_mut().unwrap()
+        self.distinct_set.get_or_insert_with(HashSet::new)
     }
 }
 
@@ -276,7 +261,11 @@ impl<S: StorageClient> AggregationExecutor<S> {
             });
 
             for (i, agg_func) in self.aggregation_functions.iter().enumerate() {
-                self.apply_aggregate_function(agg_func, &ctx, entry.get_mut(i).unwrap())?;
+                self.apply_aggregate_function(
+                    agg_func,
+                    &ctx,
+                    entry.get_mut(i).expect("聚合数据索引超出范围"),
+                )?;
             }
         }
 
@@ -781,8 +770,7 @@ impl ValueUtils for Value {
 impl<S: StorageClient> Executor<S> for AggregationExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         let storage_clone = self.get_storage().clone();
-        let storage = safe_lock(&storage_clone)
-            .expect("AggregationExecutor storage lock should not be poisoned");
+        let storage = safe_lock(&storage_clone)?;
 
         let input_data = self.get_input_data(&storage)?;
         self.execute_aggregation(&input_data)
@@ -845,7 +833,7 @@ impl<S: StorageClient> HasStorage<S> for AggregationExecutor<S> {
         self.base
             .storage
             .as_ref()
-            .expect("AggregationExecutor storage should be set")
+            .expect("存储未初始化")
     }
 }
 

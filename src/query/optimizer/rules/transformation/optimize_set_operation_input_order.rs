@@ -84,10 +84,15 @@ impl<'a> PlanNodeVisitor for OptimizeSetOperationInputOrderVisitor<'a> {
         let right_cost = estimate_node_cost(intersect_input);
         
         if right_cost < left_cost {
-            let new_node = IntersectNode::new(
+            let new_node = match IntersectNode::new(
                 intersect_input.clone(),
                 input.clone(),
-            ).unwrap();
+            ) {
+                Ok(n) => n,
+                Err(_) => {
+                    return self.visit_default();
+                }
+            };
             
             self.is_optimized = true;
             self.optimized_node = Some(OptGroupNode::new(
@@ -253,7 +258,7 @@ mod tests {
         let scan1 = Enum::ScanVertices(ScanVerticesNode::new(1));
         let scan2 = Enum::ScanVertices(ScanVerticesNode::new(1));
         
-        let intersect_node = IntersectNode::new(scan1.clone(), scan2.clone()).unwrap();
+        let intersect_node = IntersectNode::new(scan1.clone(), scan2.clone()).expect("IntersectNode创建应该成功");
         let plan_node = Enum::Intersect(intersect_node);
         let opt_node = OptGroupNode::new(1, plan_node);
 

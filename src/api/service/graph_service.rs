@@ -429,7 +429,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_graph_service_creation() {
-        RuleRegistry::initialize();
+        let _ = RuleRegistry::initialize();
         let config = Config {
             host: "127.0.0.1".to_string(),
             port: 9669,
@@ -451,7 +451,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_authentication_success() {
-        RuleRegistry::initialize();
+        let _ = RuleRegistry::initialize();
         let config = Config {
             host: "127.0.0.1".to_string(),
             port: 9669,
@@ -473,7 +473,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_authentication_failure() {
-        RuleRegistry::initialize();
+        let _ = RuleRegistry::initialize();
         let config = Config {
             host: "127.0.0.1".to_string(),
             port: 9669,
@@ -501,7 +501,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_signout() {
-        RuleRegistry::initialize();
+        let _ = RuleRegistry::initialize();
         let config = Config {
             host: "127.0.0.1".to_string(),
             port: 9669,
@@ -532,7 +532,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_execute_query() {
-        RuleRegistry::initialize();
+        let _ = RuleRegistry::initialize();
         let config = Config {
             host: "127.0.0.1".to_string(),
             port: 9669,
@@ -559,7 +559,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_invalid_session_execute() {
-        RuleRegistry::initialize();
+        let _ = RuleRegistry::initialize();
         let config = Config {
             host: "127.0.0.1".to_string(),
             port: 9669,
@@ -581,7 +581,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_permission_extraction() {
-        RuleRegistry::initialize();
+        let _ = RuleRegistry::initialize();
         let config = Config {
             host: "127.0.0.1".to_string(),
             port: 9669,

@@ -70,7 +70,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_query_engine_creation() {
-        RuleRegistry::initialize();
+        let _ = RuleRegistry::initialize();
         let storage = Arc::new(MockStorage::new().expect("Failed to create Mock storage"));
         let _query_engine = QueryEngine::new(storage);
 
@@ -79,7 +79,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_query_engine_execute() {
-        RuleRegistry::initialize();
+        let _ = RuleRegistry::initialize();
         let storage = Arc::new(MockStorage::new().expect("Failed to create Mock storage"));
         let mut query_engine = QueryEngine::new(storage);
 

@@ -523,7 +523,7 @@ mod tests {
         let mut parser = ExprParser::new(ctx);
         let result = parser.parse_expression(ctx);
         assert!(result.is_ok());
-        let parse_result = result.unwrap();
+        let parse_result = result.expect("简单表达式解析应该成功");
         // 验证表达式结构正确，不检查具体运算符优先级
         assert!(matches!(parse_result.expr, Expression::Binary { .. }));
     }
@@ -535,7 +535,7 @@ mod tests {
         let mut parser = ExprParser::new(ctx);
         let result = parser.parse_expression(ctx);
         assert!(result.is_ok());
-        let parse_result = result.unwrap();
+        let parse_result = result.expect("带括号表达式解析应该成功");
         // 验证表达式结构正确，不检查具体运算符优先级
         assert!(matches!(parse_result.expr, Expression::Binary { .. }));
     }

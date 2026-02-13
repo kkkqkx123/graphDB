@@ -314,7 +314,7 @@ impl FulltextIndexEngine for SimpleFulltextEngine {
             })
             .collect();
 
-        search_results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+        search_results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
         search_results.truncate(query.limit);
 
         let end = std::cmp::min(query.offset + query.limit, search_results.len());
@@ -336,12 +336,12 @@ impl FulltextIndexEngine for SimpleFulltextEngine {
 
 #[derive(Clone)]
 pub struct FulltextIndexManager {
-    engine: Arc<Mutex<dyn FulltextIndexEngine>>,
+    engine: Arc<Mutex<SimpleFulltextEngine>>,
     config: Arc<RwLock<FulltextIndexConfig>>,
 }
 
 impl FulltextIndexManager {
-    pub fn new(engine: Arc<Mutex<dyn FulltextIndexEngine>>) -> Self {
+    pub fn new(engine: Arc<Mutex<SimpleFulltextEngine>>) -> Self {
         Self {
             engine,
             config: Arc::new(RwLock::new(FulltextIndexConfig {
@@ -433,9 +433,11 @@ impl FulltextIndexManager {
         engine.search(&query)
     }
 
-    pub fn fulltext_index_exists(&self, name: &str) -> bool {
-        let engine = self.engine.lock().unwrap();
-        engine.index_exists(name)
+    pub fn fulltext_index_exists(&self, name: &str) -> DBResult<bool> {
+        let engine = self.engine.lock().map_err(|e| {
+            DBError::FulltextIndex(FulltextIndexError::EngineError(e.to_string()))
+        })?;
+        Ok(engine.index_exists(name))
     }
 }
 

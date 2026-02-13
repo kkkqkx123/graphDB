@@ -713,8 +713,9 @@ impl AllocationInfo {
         }
     }
 
-    pub fn layout(&self) -> Layout {
-        Layout::from_size_align(self.size, self.align).unwrap()
+    pub fn layout(&self) -> Result<Layout, String> {
+        Layout::from_size_align(self.size, self.align)
+            .map_err(|e| format!("Invalid size or alignment for layout: {}", e))
     }
 }
 
@@ -1123,8 +1124,8 @@ mod tests {
         assert!(report.contains("泄漏总数: 2"));
         assert!(report.contains("泄漏总大小: 150"));
 
-        detector.record_deallocation(0x1000).unwrap();
-        detector.record_deallocation(0x2000).unwrap();
+        detector.record_deallocation(0x1000).expect("Failed to record deallocation");
+        detector.record_deallocation(0x2000).expect("Failed to record deallocation");
 
         let stats2 = detector.stats();
         assert_eq!(stats2.total_leaks, 0);
@@ -1141,7 +1142,7 @@ mod tests {
         assert!(report.contains("详细内存泄漏报告"));
         assert!(report.contains("Box"));
 
-        detector.record_deallocation(0x1000).unwrap();
+        detector.record_deallocation(0x1000).expect("Failed to record deallocation");
     }
 
     #[test]
@@ -1151,7 +1152,7 @@ mod tests {
         let layout = Layout::from_size_align(100, 8).expect("布局创建失败");
         detector.record_allocation(0x1000, layout, "test".to_string());
 
-        detector.record_deallocation(0x1000).unwrap();
+        detector.record_deallocation(0x1000).expect("Failed to record deallocation");
 
         let result = detector.record_deallocation(0x1000);
         assert!(result.is_err());
@@ -1166,14 +1167,14 @@ mod tests {
         let leaks = detector.report_leaks();
         assert_eq!(leaks[0].allocation_type, AllocationType::Vec);
 
-        detector.record_deallocation(0x1000).unwrap();
+        detector.record_deallocation(0x1000).expect("Failed to record deallocation");
 
         let layout2 = Layout::from_size_align(100, 8).expect("布局创建失败");
         detector.record_allocation(0x2000, layout2, "String::from".to_string());
         let leaks2 = detector.report_leaks();
         assert_eq!(leaks2[0].allocation_type, AllocationType::String);
 
-        detector.record_deallocation(0x2000).unwrap();
+        detector.record_deallocation(0x2000).expect("Failed to record deallocation");
     }
 
     #[test]

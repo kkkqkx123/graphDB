@@ -54,9 +54,11 @@ impl<S: StorageClient + 'static> Executor<S> for GetVerticesExecutor<S> {
     }
 
     fn open(&mut self) -> DBResult<()> {
-        self.batch_optimizer = Some(BatchOptimizer::with_default_config(
-            self.base.storage.clone().unwrap()
-        ));
+        let storage = self.base.storage.clone()
+            .ok_or_else(|| crate::core::error::DBError::Storage(
+                crate::core::error::StorageError::DbError("Storage not set".to_string())
+            ))?;
+        self.batch_optimizer = Some(BatchOptimizer::with_default_config(storage));
         Ok(())
     }
 
@@ -102,7 +104,7 @@ impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
             Some(ids) if ids.len() > 1 => {
                 let batch_result = self.batch_optimizer
                     .as_ref()
-                    .expect("Executor not opened")
+                    .expect("批量优化器未初始化")
                     .batch_get_vertices(ids);
 
                 let mut result_vertices: Vec<vertex_edge_path::Vertex> = Vec::new();
@@ -135,8 +137,7 @@ impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
                 Ok(result_vertices)
             }
             Some(ids) if ids.len() == 1 => {
-                let storage = safe_lock(self.get_storage())
-                    .expect("GetVerticesExecutor storage lock should not be poisoned");
+                let storage = safe_lock(self.get_storage())?;
 
                 if let Some(vertex) = storage.get_vertex("default", &ids[0])? {
                     Ok(vec![vertex])
@@ -146,8 +147,7 @@ impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
             }
             Some(_) => Ok(Vec::new()),
             None => {
-                let storage = safe_lock(self.get_storage())
-                    .expect("GetVerticesExecutor storage lock should not be poisoned");
+                let storage = safe_lock(self.get_storage())?;
 
                 let vertices = storage.scan_vertices("default")?
                     .into_iter()
@@ -275,8 +275,7 @@ impl<S: StorageClient> HasStorage<S> for GetEdgesExecutor<S> {
 
 impl<S: StorageClient> GetEdgesExecutor<S> {
     fn do_execute(&mut self) -> DBResult<Vec<vertex_edge_path::Edge>> {
-        let storage = safe_lock(self.get_storage())
-            .expect("GetEdgesExecutor storage lock should not be poisoned");
+        let storage = safe_lock(self.get_storage())?;
 
         let edges = if let Some(ref edge_type) = self.edge_type {
             storage.scan_edges_by_type("default", edge_type)?
@@ -365,8 +364,7 @@ impl<S: StorageClient> HasStorage<S> for ScanEdgesExecutor<S> {
 
 impl<S: StorageClient> ScanEdgesExecutor<S> {
     fn do_execute(&mut self) -> DBResult<Vec<vertex_edge_path::Edge>> {
-        let storage = safe_lock(self.get_storage())
-            .expect("ScanEdgesExecutor storage lock should not be poisoned");
+        let storage = safe_lock(self.get_storage())?;
 
         let mut edges: Vec<vertex_edge_path::Edge> = if let Some(ref edge_type) = self.edge_type {
             storage.scan_edges_by_type("default", edge_type)?
@@ -487,7 +485,7 @@ impl<S: StorageClient + 'static> GetNeighborsExecutor<S> {
 
         let batch_result = self.batch_optimizer
             .as_ref()
-            .expect("Executor not opened")
+            .unwrap()
             .batch_get_vertices(&self.vertex_ids);
 
         let mut neighbor_ids: Vec<Value> = Vec::new();
@@ -498,8 +496,7 @@ impl<S: StorageClient + 'static> GetNeighborsExecutor<S> {
             if let Some(ref vertex) = vertex_opt {
                 let vertex_id = &vertex.vid;
 
-                let storage = safe_lock(self.get_storage())
-                    .expect("GetNeighborsExecutor storage lock should not be poisoned");
+                let storage = safe_lock(self.get_storage())?;
 
                 let edges = storage.get_node_edges("default", vertex_id, direction)?;
 
@@ -530,7 +527,7 @@ impl<S: StorageClient + 'static> GetNeighborsExecutor<S> {
 
         let neighbor_batch_result = self.batch_optimizer
             .as_ref()
-            .expect("Executor not opened")
+            .unwrap()
             .batch_get_vertices(&neighbor_ids);
 
         let mut neighbors: Vec<Value> = Vec::new();
@@ -627,8 +624,7 @@ impl<S: StorageClient> HasStorage<S> for GetPropExecutor<S> {
 
 impl<S: StorageClient> GetPropExecutor<S> {
     fn do_execute(&mut self) -> DBResult<Vec<Value>> {
-        let storage = safe_lock(self.get_storage())
-            .expect("GetPropExecutor storage lock should not be poisoned");
+        let storage = safe_lock(self.get_storage())?;
 
         let mut props = Vec::new();
 
@@ -755,8 +751,7 @@ impl<S: StorageClient> HasStorage<S> for IndexScanExecutor<S> {
 
 impl<S: StorageClient> IndexScanExecutor<S> {
     fn do_execute(&mut self) -> DBResult<Vec<Value>> {
-        let storage = safe_lock(self.get_storage())
-            .expect("IndexScanExecutor storage lock should not be poisoned");
+        let storage = safe_lock(self.get_storage())?;
 
         let mut results = Vec::new();
 
@@ -827,8 +822,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
 
 impl<S: StorageClient> Executor<S> for AllPathsExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
-        let storage = safe_lock(self.get_storage())
-            .expect("AllPathsExecutor storage lock should not be poisoned");
+        let storage = safe_lock(self.get_storage())?;
 
         let mut all_paths: Vec<Path> = Vec::new();
 
@@ -924,7 +918,7 @@ impl<S: StorageClient> HasStorage<S> for AllPathsExecutor<S> {
         self.base
             .storage
             .as_ref()
-            .expect("AllPathsExecutor storage should be set")
+            .expect("存储未初始化")
     }
 }
 
@@ -1006,8 +1000,7 @@ impl<S: StorageClient> HasStorage<S> for ScanVerticesExecutor<S> {
 
 impl<S: StorageClient> ScanVerticesExecutor<S> {
     fn do_execute(&mut self) -> DBResult<Vec<vertex_edge_path::Vertex>> {
-        let storage = safe_lock(self.get_storage())
-            .expect("ScanVerticesExecutor storage lock should not be poisoned");
+        let storage = safe_lock(self.get_storage())?;
 
         let mut vertices: Vec<vertex_edge_path::Vertex> = storage.scan_vertices("default")?
             .into_iter()

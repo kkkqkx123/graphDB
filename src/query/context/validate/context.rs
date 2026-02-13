@@ -372,7 +372,7 @@ impl ValidationContext {
                 super::schema::SchemaValidationError::FieldNotFound(schema_name.to_string()),
             ]));
         }
-        let schema = schema.unwrap();
+        let schema = schema.ok_or_else(|| format!("Schema '{}' 不存在", schema_name))?;
         let mut result = super::schema::SchemaValidationResult::success();
 
         for col in &columns {
@@ -464,7 +464,7 @@ impl ValidationContext {
         if schema.is_none() {
             return Err(format!("Schema '{}' 不存在", schema_name));
         }
-        let schema = schema.unwrap();
+        let schema = schema.ok_or_else(|| format!("Schema '{}' 不存在", schema_name))?;
         let mut errors = Vec::new();
 
         for col in &columns {
@@ -490,10 +490,11 @@ impl ValidationContext {
         let schema = self.get_schema(schema_name);
         let columns = self.get_var(var_name);
 
-        if schema.is_none() {
-            return vec![format!("Schema '{}' 不存在", schema_name)];
-        }
-        let schema = schema.unwrap();
+        let schema = match schema {
+            Some(s) => s,
+            None => return vec![format!("Schema '{}' 不存在", schema_name)],
+        };
+
         let mut missing_fields = Vec::new();
 
         for field_name in schema.get_field_names() {
@@ -521,10 +522,11 @@ impl ValidationContext {
         let schema = self.get_schema(schema_name);
         let columns = self.get_var(var_name);
 
-        if schema.is_none() {
-            return vec![format!("Schema '{}' 不存在", schema_name)];
-        }
-        let schema = schema.unwrap();
+        let schema = match schema {
+            Some(s) => s,
+            None => return vec![format!("Schema '{}' 不存在", schema_name)],
+        };
+
         let mut extra_fields = Vec::new();
 
         for col in &columns {

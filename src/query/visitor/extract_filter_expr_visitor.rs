@@ -219,8 +219,12 @@ impl ExpressionVisitor for ExtractFilterExprVisitor {
                 if self.remained_expr.is_none() {
                     self.remained_expr = Some(right.clone());
                 } else {
+                    let current = match self.remained_expr.take() {
+                        Some(expr) => expr,
+                        None => return Ok(()),
+                    };
                     self.remained_expr = Some(Expression::Binary {
-                        left: Box::new(self.remained_expr.take().unwrap()),
+                        left: Box::new(current),
                         op: op.clone(),
                         right: Box::new(right.clone()),
                     });
@@ -230,8 +234,12 @@ impl ExpressionVisitor for ExtractFilterExprVisitor {
                 if self.remained_expr.is_none() {
                     self.remained_expr = Some(left.clone());
                 } else {
+                    let current = match self.remained_expr.take() {
+                        Some(expr) => expr,
+                        None => return Ok(()),
+                    };
                     self.remained_expr = Some(Expression::Binary {
-                        left: Box::new(self.remained_expr.take().unwrap()),
+                        left: Box::new(current),
                         op: op.clone(),
                         right: Box::new(left.clone()),
                     });
@@ -244,8 +252,12 @@ impl ExpressionVisitor for ExtractFilterExprVisitor {
                         right: Box::new(right.clone()),
                     });
                 } else {
+                    let current = match self.remained_expr.take() {
+                        Some(expr) => expr,
+                        None => return Ok(()),
+                    };
                     self.remained_expr = Some(Expression::Binary {
-                        left: Box::new(self.remained_expr.take().unwrap()),
+                        left: Box::new(current),
                         op: op.clone(),
                         right: Box::new(Expression::Binary {
                             left: Box::new(left.clone()),
