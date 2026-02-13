@@ -5,7 +5,7 @@
 //! - 双向 BFS 算法
 //! - 使用 NPath 链表结构，共享路径前缀
 //! - 支持找到所有路径（非最短路径）
-//! - 支持 noLoop 避免循环
+//! - 自动环路检测，避免循环路径
 //! - 支持 limit 和 offset 限制结果数量
 //! - 支持 withProp 返回路径属性
 //! - 使用两阶段扩展（左扩展和右扩展）
@@ -54,21 +54,12 @@ impl SelfLoopDedup {
 struct PathResultCache {
     /// 使用 NPath 存储中间结果，共享前缀
     npaths: Vec<Arc<NPath>>,
-    /// 路径数量限制
-    limit: usize,
 }
 
 impl PathResultCache {
     fn new(limit: usize) -> Self {
         Self {
-            npaths: Vec::new(),
-            limit,
-        }
-    }
-
-    fn push(&mut self, npath: Arc<NPath>) {
-        if self.npaths.len() < self.limit {
-            self.npaths.push(npath);
+            npaths: Vec::with_capacity(limit.min(1024)), // 预分配容量，但不超过1024避免内存浪费
         }
     }
 
@@ -76,8 +67,9 @@ impl PathResultCache {
         self.npaths.len()
     }
 
-    fn is_empty(&self) -> bool {
-        self.npaths.is_empty()
+    /// 添加 NPath 到缓存
+    fn push(&mut self, npath: Arc<NPath>) {
+        self.npaths.push(npath);
     }
 
     /// 批量转换为 Path
@@ -107,7 +99,6 @@ pub struct AllPathsExecutor<S: StorageClient + Send + 'static> {
     pub edge_direction: EdgeDirection,
     pub edge_types: Option<Vec<String>>,
     pub max_steps: usize,
-    pub no_loop: bool,
     pub with_prop: bool,
     pub limit: usize,
     pub offset: usize,
@@ -117,8 +108,9 @@ pub struct AllPathsExecutor<S: StorageClient + Send + 'static> {
     right_steps: usize,
     left_visited: HashSet<Value>,
     right_visited: HashSet<Value>,
-    left_adj_list: HashMap<Value, Vec<(Edge, Value)>>,
-    right_adj_list: HashMap<Value, Vec<(Edge, Value)>>,
+    /// 存储从顶点到其NPath的映射，用于路径重建
+    left_path_map: HashMap<Value, Arc<NPath>>,
+    right_path_map: HashMap<Value, Arc<NPath>>,
     /// 使用 NPath 替代 Path 存储中间结果，减少内存复制
     left_queue: VecDeque<(Value, Arc<NPath>)>,
     right_queue: VecDeque<(Value, Arc<NPath>)>,
@@ -146,7 +138,6 @@ impl<S: StorageClient> AllPathsExecutor<S> {
             edge_direction,
             edge_types,
             max_steps,
-            no_loop: false,
             with_prop: false,
             limit: std::usize::MAX,
             offset: 0,
@@ -156,8 +147,8 @@ impl<S: StorageClient> AllPathsExecutor<S> {
             right_steps: 0,
             left_visited: HashSet::new(),
             right_visited: HashSet::new(),
-            left_adj_list: HashMap::new(),
-            right_adj_list: HashMap::new(),
+            left_path_map: HashMap::new(),
+            right_path_map: HashMap::new(),
             left_queue: VecDeque::new(),
             right_queue: VecDeque::new(),
             result_cache: PathResultCache::new(std::usize::MAX),
@@ -175,12 +166,10 @@ impl<S: StorageClient> AllPathsExecutor<S> {
 
     pub fn with_config(
         mut self,
-        no_loop: bool,
         with_prop: bool,
         limit: usize,
         offset: usize,
     ) -> Self {
-        self.no_loop = no_loop;
         self.with_prop = with_prop;
         self.limit = limit;
         self.offset = offset;
@@ -256,23 +245,26 @@ impl<S: StorageClient> AllPathsExecutor<S> {
     }
 
     /// 左向扩展 - 使用 NPath 避免路径复制
-    fn expand_left(&mut self) -> DBResult<Vec<(Value, Vec<(Edge, Value)>)>> {
-        let mut expansions = Vec::new();
-
+    fn expand_left(&mut self) -> DBResult<()> {
         while let Some((current_id, current_npath)) = self.left_queue.pop_front() {
             if self.left_visited.contains(&current_id) {
                 continue;
             }
             self.left_visited.insert(current_id.clone());
+            self.left_path_map.insert(current_id.clone(), current_npath.clone());
             self.nodes_visited += 1;
+
+            // 检查是否达到 limit
+            if self.result_cache.len() >= self.limit {
+                return Ok(());
+            }
 
             let neighbors = self.get_neighbors(&current_id, EdgeDirection::Out)?;
             self.edges_traversed += neighbors.len();
 
-            let mut valid_neighbors = Vec::new();
             for (neighbor_id, edge) in neighbors {
-                // noLoop 检查：使用 NPath 的 contains_vertex 方法
-                if self.no_loop && current_npath.contains_vertex(&neighbor_id) {
+                // 环路检测：使用 NPath 的 contains_vertex 方法
+                if current_npath.contains_vertex(&neighbor_id) {
                     continue;
                 }
                 if self.left_visited.contains(&neighbor_id) {
@@ -291,38 +283,44 @@ impl<S: StorageClient> AllPathsExecutor<S> {
                         Arc::new(neighbor_vertex),
                     ));
 
-                    self.left_queue.push_back((neighbor_id.clone(), new_npath));
-                    valid_neighbors.push((edge.clone(), neighbor_id));
-                }
-            }
+                    // 检查是否与右向搜索交汇
+                    if let Some(right_npath) = self.right_path_map.get(&neighbor_id) {
+                        // 构建完整路径
+                        if let Some(full_path) = self.join_paths(&new_npath, right_npath) {
+                            self.result_cache.push(Arc::new(full_path));
+                        }
+                    }
 
-            if !valid_neighbors.is_empty() {
-                expansions.push((current_id, valid_neighbors));
+                    self.left_queue.push_back((neighbor_id.clone(), new_npath));
+                }
             }
         }
 
         self.left_steps += 1;
-        Ok(expansions)
+        Ok(())
     }
 
     /// 右向扩展 - 使用 NPath 避免路径复制
-    fn expand_right(&mut self) -> DBResult<Vec<(Value, Vec<(Edge, Value)>)>> {
-        let mut expansions = Vec::new();
-
+    fn expand_right(&mut self) -> DBResult<()> {
         while let Some((current_id, current_npath)) = self.right_queue.pop_front() {
             if self.right_visited.contains(&current_id) {
                 continue;
             }
             self.right_visited.insert(current_id.clone());
+            self.right_path_map.insert(current_id.clone(), current_npath.clone());
             self.nodes_visited += 1;
+
+            // 检查是否达到 limit
+            if self.result_cache.len() >= self.limit {
+                return Ok(());
+            }
 
             let neighbors = self.get_neighbors(&current_id, EdgeDirection::In)?;
             self.edges_traversed += neighbors.len();
 
-            let mut valid_neighbors = Vec::new();
             for (neighbor_id, edge) in neighbors {
-                // noLoop 检查
-                if self.no_loop && current_npath.contains_vertex(&neighbor_id) {
+                // 环路检测
+                if current_npath.contains_vertex(&neighbor_id) {
                     continue;
                 }
                 if self.right_visited.contains(&neighbor_id) {
@@ -341,18 +339,21 @@ impl<S: StorageClient> AllPathsExecutor<S> {
                         Arc::new(neighbor_vertex),
                     ));
 
-                    self.right_queue.push_back((neighbor_id.clone(), new_npath));
-                    valid_neighbors.push((edge.clone(), neighbor_id));
-                }
-            }
+                    // 检查是否与左向搜索交汇
+                    if let Some(left_npath) = self.left_path_map.get(&neighbor_id) {
+                        // 构建完整路径
+                        if let Some(full_path) = self.join_paths(left_npath, &new_npath) {
+                            self.result_cache.push(Arc::new(full_path));
+                        }
+                    }
 
-            if !valid_neighbors.is_empty() {
-                expansions.push((current_id, valid_neighbors));
+                    self.right_queue.push_back((neighbor_id.clone(), new_npath));
+                }
             }
         }
 
         self.right_steps += 1;
-        Ok(expansions)
+        Ok(())
     }
 
     /// 启发式扩展决策
@@ -374,38 +375,80 @@ impl<S: StorageClient> AllPathsExecutor<S> {
         true
     }
 
-    /// 构建连接路径 - 使用 NPath 快速拼接
-    fn build_conjunct_paths(&mut self) -> DBResult<()> {
-        for (left_vertex_id, left_edges) in &self.left_adj_list {
-            for (_left_edge, left_intermediate) in left_edges {
-                if let Some(right_paths) = self.right_adj_list.get(left_intermediate) {
-                    for (_right_edge, right_vertex_id) in right_paths {
-                        // 检查是否已达到限制
-                        if self.result_cache.len() >= self.limit {
-                            return Ok(());
-                        }
+    /// 连接左右两条路径
+    /// 左路径：从起点到交汇点
+    /// 右路径：从终点到交汇点（需要反转方向）
+    fn join_paths(&self, left_path: &NPath, right_path: &NPath) -> Option<NPath> {
+        use crate::core::{Vertex, Edge};
+        use std::sync::Arc;
 
-                        // noLoop 检查：检查左右路径是否有共同顶点
-                        if self.no_loop {
-                            // 收集左侧路径的所有顶点
-                            let left_vid = left_vertex_id.clone();
-                            let right_vid = right_vertex_id.clone();
+        // 获取两条路径的顶点集合
+        let left_vertices: std::collections::HashSet<_> = left_path.iter_vertices()
+            .map(|v| v.vid.as_ref().clone())
+            .collect();
+        let right_vertices: std::collections::HashSet<_> = right_path.iter_vertices()
+            .map(|v| v.vid.as_ref().clone())
+            .collect();
 
-                            // 简化检查：如果左右顶点相同，跳过
-                            if left_vid == right_vid {
-                                continue;
-                            }
-                        }
-
-                        // 创建结果路径
-                        // 注意：这里我们需要从队列中找到对应的 NPath
-                        // 实际实现中应该维护 NPath 的引用
-                    }
-                }
-            }
+        // 检查是否有重复顶点（除交汇点外）
+        let common: Vec<_> = left_vertices.intersection(&right_vertices).collect();
+        if common.len() != 1 {
+            // 没有共同顶点或有多个共同顶点，无法连接或会形成环路
+            return None;
         }
 
-        Ok(())
+        // 获取交汇点
+        let junction_id = common[0].clone();
+
+        // 验证交汇点是两条路径的终点
+        if left_path.end_vertex().vid.as_ref() != &junction_id {
+            return None;
+        }
+        if right_path.end_vertex().vid.as_ref() != &junction_id {
+            return None;
+        }
+
+        // 检查总路径长度是否超过限制
+        let total_length = left_path.len() + right_path.len();
+        if total_length > self.max_steps {
+            return None;
+        }
+
+        // 构建完整路径：左路径 + 反转的右路径
+        // 右路径是从终点往回走的，需要反转方向
+        let mut full_path = left_path.clone();
+
+        // 收集右路径的所有步骤（边和顶点）
+        // 右路径结构：End <- ... <- A <- Junction（从终点向交汇点扩展）
+        // 需要反转为：Junction -> A -> ... -> End
+        let right_steps: Vec<(Arc<Edge>, Arc<Vertex>)> = right_path.iter()
+            .filter_map(|node| {
+                if let Some(ref edge) = node.edge() {
+                    Some(((*edge).clone(), node.vertex().clone()))
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        // 反转并连接（跳过交汇点本身，从它的前一个节点开始）
+        for (edge, vertex) in right_steps.into_iter().rev() {
+            // 跳过交汇点
+            if vertex.vid.as_ref() == &junction_id {
+                continue;
+            }
+            // 创建反向边（从交汇点向外）
+            let reversed_edge = Arc::new(Edge::new(
+                vertex.vid.as_ref().clone(),
+                full_path.end_vertex().vid.as_ref().clone(),
+                edge.edge_type.clone(),
+                edge.ranking,
+                edge.props.clone(),
+            ));
+            full_path = NPath::extend(Arc::new(full_path), reversed_edge, vertex);
+        }
+
+        Some(full_path)
     }
 
     /// 初始化队列
@@ -466,9 +509,6 @@ impl<S: StorageClient> AllPathsExecutor<S> {
                     self.expand_right()?;
                 }
             }
-
-            // 尝试构建连接路径
-            self.build_conjunct_paths()?;
 
             // 检查是否已达到限制
             if self.result_cache.len() >= self.limit {
@@ -548,24 +588,11 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AllPathsExecutor<
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::{Value, Vertex};
-
-    #[test]
-    fn test_path_result_cache() {
-        let mut cache = PathResultCache::new(10);
-        assert!(cache.is_empty());
-
-        let v = Arc::new(Vertex::new(Value::Int(1), vec![]));
-        let npath = Arc::new(NPath::new(v));
-        cache.push(npath);
-
-        assert_eq!(cache.len(), 1);
-        assert!(!cache.is_empty());
-    }
+    use crate::core::{Value, Edge};
+    use std::collections::HashMap;
 
     #[test]
     fn test_self_loop_dedup() {
-        use std::collections::HashMap;
         let mut dedup = SelfLoopDedup::new();
         let edge = Edge::new(
             Value::Int(1),

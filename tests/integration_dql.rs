@@ -405,11 +405,18 @@ async fn test_find_path_parser_all() {
 async fn test_find_path_parser_noloop() {
     let query = "FIND NOLOOP PATH FROM 1 TO 4 OVER KNOWS";
     let mut parser = Parser::new(query);
-    
+
     let result = parser.parse();
-    assert!(result.is_ok(), "FIND NOLOOP PATH解析应该成功: {:?}", result.err());
+    // NOLOOP现在是默认选项，所以不再需要显式指定，解析会失败
+    assert!(result.is_err(), "FIND NOLOOP PATH解析应该失败，因为NOLOOP是默认选项: {:?}", result.err());
+
+    // 测试不带NOLOOP的路径查找
+    let query2 = "FIND PATH FROM 1 TO 4 OVER KNOWS";
+    let mut parser2 = Parser::new(query2);
+    let result2 = parser2.parse();
+    assert!(result2.is_ok(), "FIND PATH解析应该成功: {:?}", result2.err());
     
-    let stmt = result.unwrap();
+    let stmt = result2.unwrap();
     assert_eq!(stmt.kind(), "FIND PATH");
 }
 

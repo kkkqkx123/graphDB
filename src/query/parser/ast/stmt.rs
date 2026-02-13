@@ -425,6 +425,9 @@ pub struct FindPathStmt {
     pub over: Option<OverClause>,
     pub where_clause: Option<Expression>,
     pub shortest: bool,
+    pub max_steps: Option<usize>,
+    pub limit: Option<usize>,
+    pub offset: Option<usize>,
     pub yield_clause: Option<YieldClause>,
 }
 
@@ -728,6 +731,12 @@ pub enum AlterTarget {
         deletions: Vec<String>,
         changes: Vec<PropertyChange>,
     },
+    Space {
+        space_name: String,
+        partition_num: Option<usize>,
+        replica_factor: Option<usize>,
+        comment: Option<String>,
+    },
 }
 
 /// CREATE USER 语句
@@ -780,6 +789,7 @@ mod tests {
                 labels: vec!["Person".to_string()],
                 properties: None,
             },
+            if_not_exists: false,
         });
 
         assert!(matches!(stmt, Stmt::Create(_)));
@@ -841,6 +851,9 @@ mod tests {
             over: None,
             where_clause: None,
             shortest: true,
+            max_steps: None,
+            limit: None,
+            offset: None,
             yield_clause: None,
         });
 

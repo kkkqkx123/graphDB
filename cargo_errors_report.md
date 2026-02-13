@@ -3,11 +3,11 @@
 ## Summary
 
 - **Total Errors**: 0
-- **Total Warnings**: 2
-- **Total Issues**: 2
+- **Total Warnings**: 1
+- **Total Issues**: 1
 - **Unique Error Patterns**: 0
-- **Unique Warning Patterns**: 2
-- **Files with Issues**: 2
+- **Unique Warning Patterns**: 1
+- **Files with Issues**: 1
 
 ## Error Statistics
 
@@ -15,29 +15,24 @@
 
 ## Warning Statistics
 
-**Total Warnings**: 2
+**Total Warnings**: 1
 
 ### Warning Type Breakdown
 
-- **warning**: 2 warnings
+- **warning**: 1 warnings
 
 ### Files with Warnings (Top 10)
 
-- `src\query\parser\lexer\lexer.rs`: 1 warnings
-- `src\query\parser\parser\stmt_parser.rs`: 1 warnings
+- `src\query\executor\graph_query_executor.rs`: 1 warnings
 
 ## Detailed Warning Categorization
 
-### warning: unused import: `crate::core::types::expression::Expression`
+### warning: variable does not need to be mutable
 
-**Total Occurrences**: 2  
-**Unique Files**: 2
+**Total Occurrences**: 1  
+**Unique Files**: 1
 
-#### `src\query\parser\parser\stmt_parser.rs`: 1 occurrences
+#### `src\query\executor\graph_query_executor.rs`: 1 occurrences
 
-- Line 8: unused import: `crate::core::types::expression::Expression`
-
-#### `src\query\parser\lexer\lexer.rs`: 1 occurrences
-
-- Line 829: method `is_multitoken_keyword` is never used
+- Line 624: variable does not need to be mutable
 

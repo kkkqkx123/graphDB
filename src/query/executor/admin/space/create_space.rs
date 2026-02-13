@@ -75,6 +75,7 @@ impl ExecutorSpaceInfo {
 pub struct CreateSpaceExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     space_info: ExecutorSpaceInfo,
+    if_not_exists: bool,
 }
 
 impl<S: StorageClient> CreateSpaceExecutor<S> {
@@ -83,6 +84,16 @@ impl<S: StorageClient> CreateSpaceExecutor<S> {
         Self {
             base: BaseExecutor::new(id, "CreateSpaceExecutor".to_string(), storage),
             space_info,
+            if_not_exists: false,
+        }
+    }
+
+    /// 创建带 IF NOT EXISTS 选项的 CreateSpaceExecutor
+    pub fn with_if_not_exists(id: i64, storage: Arc<Mutex<S>>, space_info: ExecutorSpaceInfo) -> Self {
+        Self {
+            base: BaseExecutor::new(id, "CreateSpaceExecutor".to_string(), storage),
+            space_info,
+            if_not_exists: true,
         }
     }
 }
@@ -100,7 +111,14 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateSpaceExecut
         let result = storage_guard.create_space(&metadata_space_info);
 
         match result {
-            Ok(_) => Ok(ExecutionResult::Success),
+            Ok(true) => Ok(ExecutionResult::Success),
+            Ok(false) => {
+                if self.if_not_exists {
+                    Ok(ExecutionResult::Success)
+                } else {
+                    Ok(ExecutionResult::Error(format!("Space '{}' already exists", self.space_info.space_name)))
+                }
+            }
             Err(e) => Ok(ExecutionResult::Error(format!("Failed to create space: {}", e))),
         }
     }

@@ -268,6 +268,9 @@ impl StmtFactory {
             over,
             where_clause,
             shortest,
+            max_steps: None,
+            limit: None,
+            offset: None,
             yield_clause,
         })
     }

@@ -103,7 +103,7 @@ mod tests {
         let mut executor = ChangePasswordExecutor::new(
             1,
             storage,
-            "test_user".to_string(),
+            Some("test_user".to_string()),
             "old_password".to_string(),
             "new_password".to_string(),
         );
@@ -122,7 +122,7 @@ mod tests {
         let mut executor = ChangePasswordExecutor::new(
             2,
             storage,
-            "test_user".to_string(),
+            Some("test_user".to_string()),
             "old_password".to_string(),
             "new_password".to_string(),
         );
@@ -140,7 +140,7 @@ mod tests {
         let executor = ChangePasswordExecutor::new(
             3,
             storage,
-            "test_user".to_string(),
+            Some("test_user".to_string()),
             "old_password".to_string(),
             "new_password".to_string(),
         );

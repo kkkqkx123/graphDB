@@ -7,6 +7,7 @@ use redb::{Database, ReadableTable};
 use lru::LruCache;
 use std::sync::{Arc, Mutex};
 
+#[derive(Clone)]
 pub struct RedbReader {
     db: Arc<Database>,
     vertex_cache: Arc<Mutex<LruCache<Vec<u8>, Vertex>>>,
@@ -308,7 +309,11 @@ impl RedbWriter {
 
 impl VertexWriter for RedbWriter {
     fn insert_vertex(&mut self, _space: &str, vertex: Vertex) -> Result<Value, StorageError> {
-        let id = Value::Int(generate_id() as i64);
+        // 如果顶点已有有效ID，使用它；否则生成新ID
+        let id = match vertex.vid() {
+            Value::Int(0) | Value::Null(_) => Value::Int(generate_id() as i64),
+            _ => vertex.vid().clone(),
+        };
         let vertex_with_id = Vertex::new(id.clone(), vertex.tags);
 
         let vertex_bytes = vertex_to_bytes(&vertex_with_id)?;

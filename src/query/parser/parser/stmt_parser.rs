@@ -1408,13 +1408,11 @@ impl<'a> StmtParser<'a> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Find)?;
 
-        // 解析路径类型: SHORTEST, ALL, NOLOOP
+        // 解析路径类型: SHORTEST, ALL
         let path_type = if ctx.match_token(TokenKind::Shortest) {
             "SHORTEST"
         } else if ctx.match_token(TokenKind::All) {
             "ALL"
-        } else if ctx.match_token(TokenKind::NoLoop) {
-            "NOLOOP"
         } else {
             "SHORTEST"
         };
@@ -1435,7 +1433,7 @@ impl<'a> StmtParser<'a> {
         let over = self.parse_over_clause(ctx)?;
 
         // 可选的 UPTO N STEPS
-        let _upto_steps = if ctx.match_token(TokenKind::Upto) {
+        let max_steps = if ctx.match_token(TokenKind::Upto) {
             if let TokenKind::IntegerLiteral(n) = ctx.current_token().kind {
                 ctx.next_token();
                 ctx.match_token(TokenKind::Step);
@@ -1457,6 +1455,30 @@ impl<'a> StmtParser<'a> {
             None
         };
 
+        // 可选的 LIMIT 子句
+        let limit = if ctx.match_token(TokenKind::Limit) {
+            if let TokenKind::IntegerLiteral(n) = ctx.current_token().kind {
+                ctx.next_token();
+                Some(n as usize)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        // 可选的 SKIP 子句 (OFFSET)
+        let offset = if ctx.match_token(TokenKind::Skip) {
+            if let TokenKind::IntegerLiteral(n) = ctx.current_token().kind {
+                ctx.next_token();
+                Some(n as usize)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
         // 可选的 YIELD 子句
         let yield_clause = if ctx.match_token(TokenKind::Yield) {
             Some(self.parse_yield_clause(ctx)?)
@@ -1474,6 +1496,9 @@ impl<'a> StmtParser<'a> {
             over: Some(over),
             where_clause,
             shortest: path_type == "SHORTEST",
+            max_steps,
+            limit,
+            offset,
             yield_clause,
         }))
     }

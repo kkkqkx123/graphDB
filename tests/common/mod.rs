@@ -9,14 +9,13 @@ pub mod storage_helpers;
 use std::sync::{Arc, Mutex};
 use std::path::PathBuf;
 use graphdb::storage::redb_storage::RedbStorage;
-use graphdb::storage::engine::RedbEngine;
 
 /// 测试存储实例包装器
 ///
 /// 使用项目目录下的临时文件夹确保每个测试有独立的存储环境，
 /// 测试结束后自动清理临时目录
 pub struct TestStorage {
-    storage: Arc<Mutex<RedbStorage<RedbEngine>>>,
+    storage: Arc<Mutex<RedbStorage>>,
     temp_path: PathBuf,
 }
 
@@ -52,7 +51,7 @@ impl TestStorage {
     }
 
     /// 获取存储实例引用
-    pub fn storage(&self) -> Arc<Mutex<RedbStorage<RedbEngine>>> {
+    pub fn storage(&self) -> Arc<Mutex<RedbStorage>> {
         self.storage.clone()
     }
 }

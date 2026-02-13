@@ -20,7 +20,7 @@ use graphdb::storage::StorageClient;
 use std::sync::{Arc, Mutex};
 
 // 辅助函数：获取可变存储
-fn get_storage(storage: &Arc<Mutex<graphdb::storage::redb_storage::RedbStorage<graphdb::storage::engine::RedbEngine>>>) -> std::sync::MutexGuard<graphdb::storage::redb_storage::RedbStorage<graphdb::storage::engine::RedbEngine>> {
+fn get_storage(storage: &Arc<Mutex<graphdb::storage::redb_storage::RedbStorage>>) -> std::sync::MutexGuard<graphdb::storage::redb_storage::RedbStorage> {
     storage.lock().expect("获取存储锁失败")
 }
 
