@@ -32,53 +32,6 @@ impl RedbExtendedSchemaManager {
     fn make_current_version_key(space_id: i32) -> ByteKey {
         ByteKey(format!("current_version:{}", space_id).into_bytes())
     }
-
-    pub fn save_schema_snapshot(
-        &self,
-        space_id: i32,
-        tags: Vec<TagInfo>,
-        edge_types: Vec<EdgeTypeInfo>,
-        comment: Option<String>,
-    ) -> Result<SchemaVersion, ManagerError> {
-        let current_version = self.get_schema_version(space_id)?;
-        let new_version = current_version + 1;
-
-        let snapshot = SchemaVersion {
-            version: new_version,
-            space_id,
-            tags,
-            edge_types,
-            created_at: chrono::Utc::now().timestamp_millis(),
-            comment,
-        };
-
-        let key = Self::make_version_key(space_id, new_version);
-        let value = encode_to_vec(&snapshot, bincode::config::standard())
-            .map_err(|e| ManagerError::storage_error(format!("序列化失败: {}", e)))?;
-
-        let write_txn = self.db.begin_write()
-            .map_err(|e| ManagerError::storage_error(e.to_string()))?;
-        {
-            let mut table = write_txn.open_table(SCHEMA_VERSIONS_TABLE)
-                .map_err(|e| ManagerError::storage_error(e.to_string()))?;
-            table.insert(key, ByteKey(value))
-                .map_err(|e| ManagerError::storage_error(e.to_string()))?;
-        }
-
-        {
-            let mut table = write_txn.open_table(CURRENT_VERSIONS_TABLE)
-                .map_err(|e| ManagerError::storage_error(e.to_string()))?;
-            let current_key = Self::make_current_version_key(space_id);
-            let current_value = new_version.to_be_bytes().to_vec();
-            table.insert(current_key, ByteKey(current_value))
-                .map_err(|e| ManagerError::storage_error(e.to_string()))?;
-        }
-
-        write_txn.commit()
-            .map_err(|e| ManagerError::storage_error(e.to_string()))?;
-
-        Ok(snapshot)
-    }
 }
 
 impl ExtendedSchemaManager for RedbExtendedSchemaManager {
@@ -143,6 +96,53 @@ impl ExtendedSchemaManager for RedbExtendedSchemaManager {
             .map_err(|e| ManagerError::storage_error(e.to_string()))?;
 
         Ok(())
+    }
+
+    fn save_schema_snapshot(
+        &self,
+        space_id: i32,
+        tags: Vec<TagInfo>,
+        edge_types: Vec<EdgeTypeInfo>,
+        comment: Option<String>,
+    ) -> Result<SchemaVersion, ManagerError> {
+        let current_version = self.get_schema_version(space_id)?;
+        let new_version = current_version + 1;
+
+        let snapshot = SchemaVersion {
+            version: new_version,
+            space_id,
+            tags,
+            edge_types,
+            created_at: chrono::Utc::now().timestamp_millis(),
+            comment,
+        };
+
+        let key = Self::make_version_key(space_id, new_version);
+        let value = encode_to_vec(&snapshot, bincode::config::standard())
+            .map_err(|e| ManagerError::storage_error(format!("序列化失败: {}", e)))?;
+
+        let write_txn = self.db.begin_write()
+            .map_err(|e| ManagerError::storage_error(e.to_string()))?;
+        {
+            let mut table = write_txn.open_table(SCHEMA_VERSIONS_TABLE)
+                .map_err(|e| ManagerError::storage_error(e.to_string()))?;
+            table.insert(key, ByteKey(value))
+                .map_err(|e| ManagerError::storage_error(e.to_string()))?;
+        }
+
+        {
+            let mut table = write_txn.open_table(CURRENT_VERSIONS_TABLE)
+                .map_err(|e| ManagerError::storage_error(e.to_string()))?;
+            let current_key = Self::make_current_version_key(space_id);
+            let current_value = new_version.to_be_bytes().to_vec();
+            table.insert(current_key, ByteKey(current_value))
+                .map_err(|e| ManagerError::storage_error(e.to_string()))?;
+        }
+
+        write_txn.commit()
+            .map_err(|e| ManagerError::storage_error(e.to_string()))?;
+
+        Ok(snapshot)
     }
 
     fn record_schema_change(

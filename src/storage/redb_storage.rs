@@ -1,4 +1,4 @@
-use super::{StorageClient, TransactionId, MemorySchemaManager};
+use super::{StorageClient, TransactionId};
 use crate::storage::operations::{VertexReader, EdgeReader, VertexWriter, EdgeWriter};
 use crate::core::{Edge, StorageError, Value, Vertex, EdgeDirection};
 use crate::core::types::{
@@ -11,7 +11,7 @@ pub use crate::core::types::EdgeTypeInfo as EdgeTypeSchema;
 use crate::index::Index;
 use crate::storage::Schema;
 use crate::storage::serializer::{vertex_to_bytes, edge_to_bytes};
-use crate::storage::metadata::{RedbExtendedSchemaManager, ExtendedSchemaManager, RedbMetadataManager};
+use crate::storage::metadata::{RedbExtendedSchemaManager, ExtendedSchemaManager, SchemaManager, RedbSchemaManager};
 use crate::storage::operations::{RedbReader, RedbWriter};
 use crate::storage::index::RedbIndexManager;
 use crate::api::service::permission_manager::RoleType;
@@ -25,15 +25,11 @@ pub struct RedbStorage {
     reader: RedbReader,
     writer: Arc<Mutex<RedbWriter>>,
     index_manager: RedbIndexManager,
-    metadata_manager: RedbMetadataManager,
-    spaces: Arc<Mutex<HashMap<String, SpaceInfo>>>,
-    tags: Arc<Mutex<HashMap<String, HashMap<String, TagInfo>>>>,
-    edge_type_infos: Arc<Mutex<HashMap<String, HashMap<String, EdgeTypeSchema>>>>,
+    pub schema_manager: Arc<dyn SchemaManager>,
+    pub extended_schema_manager: Arc<RedbExtendedSchemaManager>,
     tag_indexes: Arc<Mutex<HashMap<String, HashMap<String, Index>>>>,
     edge_indexes: Arc<Mutex<HashMap<String, HashMap<String, Index>>>>,
     users: Arc<Mutex<HashMap<String, UserInfo>>>,
-    pub schema_manager: Arc<MemorySchemaManager>,
-    pub extended_schema_manager: Arc<RedbExtendedSchemaManager>,
     db: Arc<Database>,
     db_path: PathBuf,
 }
@@ -52,11 +48,12 @@ impl RedbStorage {
     }
 
     pub fn new_with_path(path: PathBuf) -> Result<Self, StorageError> {
-        let schema_manager = Arc::new(MemorySchemaManager::new());
-
         // 创建或打开 redb 数据库
         let db = Arc::new(Database::create(&path)
             .map_err(|e| StorageError::DbError(format!("创建数据库失败: {}", e)))?);
+
+        // 创建 schema_manager
+        let schema_manager = Arc::new(RedbSchemaManager::new(db.clone()));
         let extended_schema_manager = Arc::new(RedbExtendedSchemaManager::new(db.clone()));
 
         // 创建 reader 和 writer
@@ -72,32 +69,18 @@ impl RedbStorage {
             edge_indexes.clone(),
         );
 
-        // 创建元数据管理器
-        let spaces = Arc::new(Mutex::new(HashMap::new()));
-        let tags = Arc::new(Mutex::new(HashMap::new()));
-        let edge_type_infos = Arc::new(Mutex::new(HashMap::new()));
+        // 创建用户信息存储
         let users = Arc::new(Mutex::new(HashMap::new()));
-        let metadata_manager = RedbMetadataManager::new(
-            db.clone(),
-            spaces.clone(),
-            tags.clone(),
-            edge_type_infos.clone(),
-            users.clone(),
-        );
 
         Ok(Self {
             reader,
             writer,
             index_manager,
-            metadata_manager,
-            spaces,
-            tags,
-            edge_type_infos,
+            schema_manager,
+            extended_schema_manager,
             tag_indexes,
             edge_indexes,
             users,
-            schema_manager,
-            extended_schema_manager,
             db,
             db_path: path,
         })
@@ -329,67 +312,43 @@ impl StorageClient for RedbStorage {
     }
 
     fn create_space(&mut self, space: &SpaceInfo) -> Result<bool, StorageError> {
-        let mut spaces = self.spaces.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        if spaces.contains_key(&space.space_name) {
-            return Ok(false);
+        let result = self.schema_manager.create_space(space)?;
+        if result {
+            let mut tag_indexes = self.tag_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+            tag_indexes.insert(space.space_name.clone(), HashMap::new());
+            
+            let mut edge_indexes = self.edge_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+            edge_indexes.insert(space.space_name.clone(), HashMap::new());
         }
-        spaces.insert(space.space_name.clone(), space.clone());
-        
-        let mut tags = self.tags.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        tags.insert(space.space_name.clone(), HashMap::new());
-        
-        let mut edge_type_infos = self.edge_type_infos.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        edge_type_infos.insert(space.space_name.clone(), HashMap::new());
-        
-        let mut tag_indexes = self.tag_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        tag_indexes.insert(space.space_name.clone(), HashMap::new());
-        
-        let mut edge_indexes = self.edge_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        edge_indexes.insert(space.space_name.clone(), HashMap::new());
-        
-        Ok(true)
+        Ok(result)
     }
 
     fn drop_space(&mut self, space_name: &str) -> Result<bool, StorageError> {
-        let mut spaces = self.spaces.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        if !spaces.contains_key(space_name) {
-            return Ok(false);
+        let result = self.schema_manager.drop_space(space_name)?;
+        if result {
+            let mut tag_indexes = self.tag_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+            tag_indexes.remove(space_name);
+            
+            let mut edge_indexes = self.edge_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+            edge_indexes.remove(space_name);
         }
-        spaces.remove(space_name);
-        
-        let mut tags = self.tags.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        tags.remove(space_name);
-        
-        let mut edge_type_infos = self.edge_type_infos.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        edge_type_infos.remove(space_name);
-        
-        let mut tag_indexes = self.tag_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        tag_indexes.remove(space_name);
-        
-        let mut edge_indexes = self.edge_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        edge_indexes.remove(space_name);
-        
-        Ok(true)
+        Ok(result)
     }
 
     fn get_space(&self, space_name: &str) -> Result<Option<SpaceInfo>, StorageError> {
-        let spaces = self.spaces.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        Ok(spaces.get(space_name).cloned())
+        self.schema_manager.get_space(space_name)
     }
 
     fn get_space_by_id(&self, space_id: i32) -> Result<Option<SpaceInfo>, StorageError> {
-        let spaces = self.spaces.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        Ok(spaces.values().find(|s| s.space_id == space_id).cloned())
+        self.schema_manager.get_space_by_id(space_id)
     }
 
     fn list_spaces(&self) -> Result<Vec<SpaceInfo>, StorageError> {
-        let spaces = self.spaces.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        Ok(spaces.values().cloned().collect())
+        self.schema_manager.list_spaces()
     }
 
     fn get_space_id(&self, space_name: &str) -> Result<i32, StorageError> {
-        let spaces = self.spaces.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        if let Some(space) = spaces.get(space_name) {
+        if let Some(space) = self.schema_manager.get_space(space_name)? {
             Ok(space.space_id)
         } else {
             Err(StorageError::DbError(format!("Space '{}' not found", space_name)))
@@ -397,33 +356,30 @@ impl StorageClient for RedbStorage {
     }
 
     fn space_exists(&self, space_name: &str) -> bool {
-        let spaces = self.spaces.lock().unwrap();
-        spaces.contains_key(space_name)
+        self.schema_manager.get_space(space_name).is_ok()
     }
 
     fn clear_space(&mut self, space_name: &str) -> Result<bool, StorageError> {
-        let mut tags = self.tags.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        let mut edge_types = self.edge_type_infos.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        let mut tag_indexes = self.tag_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        let mut edge_indexes = self.edge_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-
-        if !tags.contains_key(space_name) {
-            return Err(StorageError::DbError(format!("Space '{}' not found", space_name)));
+        if let Ok(Some(_)) = self.schema_manager.get_space(space_name) {
+            let mut tag_indexes = self.tag_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+            tag_indexes.insert(space_name.to_string(), HashMap::new());
+            
+            let mut edge_indexes = self.edge_indexes.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+            edge_indexes.insert(space_name.to_string(), HashMap::new());
+            Ok(true)
+        } else {
+            Err(StorageError::DbError(format!("Space '{}' not found", space_name)))
         }
-
-        tags.insert(space_name.to_string(), HashMap::new());
-        edge_types.insert(space_name.to_string(), HashMap::new());
-        tag_indexes.insert(space_name.to_string(), HashMap::new());
-        edge_indexes.insert(space_name.to_string(), HashMap::new());
-
-        Ok(true)
     }
 
     fn alter_space_partition_num(&mut self, space_id: i32, partition_num: usize) -> Result<bool, StorageError> {
-        let mut spaces = self.spaces.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        for space in spaces.values_mut() {
+        let spaces = self.schema_manager.list_spaces()?;
+        for space in spaces {
             if space.space_id == space_id {
-                space.partition_num = partition_num as i32;
+                let mut space_info = space.clone();
+                space_info.partition_num = partition_num as i32;
+                self.schema_manager.drop_space(&space_info.space_name)?;
+                self.schema_manager.create_space(&space_info)?;
                 return Ok(true);
             }
         }
@@ -431,10 +387,13 @@ impl StorageClient for RedbStorage {
     }
 
     fn alter_space_replica_factor(&mut self, space_id: i32, replica_factor: usize) -> Result<bool, StorageError> {
-        let mut spaces = self.spaces.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        for space in spaces.values_mut() {
+        let spaces = self.schema_manager.list_spaces()?;
+        for space in spaces {
             if space.space_id == space_id {
-                space.replica_factor = replica_factor as i32;
+                let mut space_info = space.clone();
+                space_info.replica_factor = replica_factor as i32;
+                self.schema_manager.drop_space(&space_info.space_name)?;
+                self.schema_manager.create_space(&space_info)?;
                 return Ok(true);
             }
         }
@@ -442,10 +401,13 @@ impl StorageClient for RedbStorage {
     }
 
     fn alter_space_comment(&mut self, space_id: i32, comment: String) -> Result<bool, StorageError> {
-        let mut spaces = self.spaces.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        for space in spaces.values_mut() {
+        let spaces = self.schema_manager.list_spaces()?;
+        for space in spaces {
             if space.space_id == space_id {
-                space.comment = Some(comment);
+                let mut space_info = space.clone();
+                space_info.comment = Some(comment);
+                self.schema_manager.drop_space(&space_info.space_name)?;
+                self.schema_manager.create_space(&space_info)?;
                 return Ok(true);
             }
         }
@@ -453,14 +415,8 @@ impl StorageClient for RedbStorage {
     }
 
     fn create_tag(&mut self, space: &str, info: &TagInfo) -> Result<bool, StorageError> {
-        let mut tags = self.tags.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        if let Some(space_tags) = tags.get_mut(space) {
-            if space_tags.contains_key(&info.tag_name) {
-                return Ok(false);
-            }
-            space_tags.insert(info.tag_name.clone(), info.clone());
-            drop(tags);
-
+        let result = self.schema_manager.create_tag(space, info)?;
+        if result {
             // 保存 schema 快照
             if let Ok(space_info) = self.get_space(space) {
                 if let Some(space_id) = space_info.map(|s| s.space_id) {
@@ -483,103 +439,50 @@ impl StorageClient for RedbStorage {
                     let _ = self.extended_schema_manager.record_schema_change(space_id, change);
                 }
             }
-
-            Ok(true)
-        } else {
-            Err(StorageError::DbError(format!("Space '{}' not found", space)))
         }
+        Ok(result)
     }
 
     fn alter_tag(&mut self, space_name: &str, tag_name: &str, additions: Vec<PropertyDef>, deletions: Vec<String>) -> Result<bool, StorageError> {
-        let mut tags = self.tags.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        if let Some(space_tags) = tags.get_mut(space_name) {
-            if let Some(tag_info) = space_tags.get_mut(tag_name) {
-                for prop in &additions {
-                    tag_info.properties.retain(|p| p.name != prop.name);
-                    tag_info.properties.push(prop.clone());
-                }
-                for prop_name in &deletions {
-                    tag_info.properties.retain(|p| p.name != *prop_name);
-                }
-                drop(tags);
-
-                // 保存 schema 快照
-                if let Ok(space_info) = self.get_space(space_name) {
-                    if let Some(space_id) = space_info.map(|s| s.space_id) {
-                        let tags_list = self.list_tags(space_name).unwrap_or_default();
-                        let edge_types = self.list_edge_types(space_name).unwrap_or_default();
-                        let _ = self.extended_schema_manager.save_schema_snapshot(
-                            space_id,
-                            tags_list,
-                            edge_types,
-                            Some(format!("修改标签: {}", tag_name)),
-                        );
-
-                        // 记录属性添加变更
-                        for prop in additions {
-                            let change = SchemaChange {
-                                change_type: SchemaChangeType::AddProperty,
-                                target: format!("{}.{}", tag_name, prop.name),
-                                property: Some(prop),
-                                timestamp: chrono::Utc::now().timestamp_millis(),
-                            };
-                            let _ = self.extended_schema_manager.record_schema_change(space_id, change);
-                        }
-
-                        // 记录属性删除变更
-                        for prop_name in deletions {
-                            let change = SchemaChange {
-                                change_type: SchemaChangeType::DropProperty,
-                                target: format!("{}.{}", tag_name, prop_name),
-                                property: None,
-                                timestamp: chrono::Utc::now().timestamp_millis(),
-                            };
-                            let _ = self.extended_schema_manager.record_schema_change(space_id, change);
-                        }
-                    }
-                }
-
-                Ok(true)
-            } else {
-                Ok(false)
+        if let Some(mut tag_info) = self.schema_manager.get_tag(space_name, tag_name)? {
+            for prop in &additions {
+                tag_info.properties.retain(|p| p.name != prop.name);
+                tag_info.properties.push(prop.clone());
             }
-        } else {
-            Err(StorageError::DbError(format!("Space '{}' not found", space_name)))
-        }
-    }
-
-    fn get_tag(&self, space_name: &str, tag_name: &str) -> Result<Option<TagInfo>, StorageError> {
-        let tags = self.tags.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        if let Some(space_tags) = tags.get(space_name) {
-            Ok(space_tags.get(tag_name).cloned())
-        } else {
-            Err(StorageError::DbError(format!("Space '{}' not found", space_name)))
-        }
-    }
-
-    fn drop_tag(&mut self, space_name: &str, tag_name: &str) -> Result<bool, StorageError> {
-        let mut tags = self.tags.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        if let Some(space_tags) = tags.get_mut(space_name) {
-            let removed = space_tags.remove(tag_name).is_some();
-            drop(tags);
+            for prop_name in &deletions {
+                tag_info.properties.retain(|p| p.name != *prop_name);
+            }
+            self.schema_manager.drop_tag(space_name, tag_name)?;
+            self.schema_manager.create_tag(space_name, &tag_info)?;
 
             // 保存 schema 快照
-            if removed {
-                if let Ok(space_info) = self.get_space(space_name) {
-                    if let Some(space_id) = space_info.map(|s| s.space_id) {
-                        let tags_list = self.list_tags(space_name).unwrap_or_default();
-                        let edge_types = self.list_edge_types(space_name).unwrap_or_default();
-                        let _ = self.extended_schema_manager.save_schema_snapshot(
-                            space_id,
-                            tags_list,
-                            edge_types,
-                            Some(format!("删除标签: {}", tag_name)),
-                        );
+            if let Ok(space_info) = self.get_space(space_name) {
+                if let Some(space_id) = space_info.map(|s| s.space_id) {
+                    let tags_list = self.list_tags(space_name).unwrap_or_default();
+                    let edge_types = self.list_edge_types(space_name).unwrap_or_default();
+                    let _ = self.extended_schema_manager.save_schema_snapshot(
+                        space_id,
+                        tags_list,
+                        edge_types,
+                        Some(format!("修改标签: {}", tag_name)),
+                    );
 
-                        // 记录 schema 变更
+                    // 记录属性添加变更
+                    for prop in additions {
+                        let change = SchemaChange {
+                            change_type: SchemaChangeType::AddProperty,
+                            target: format!("{}.{}", tag_name, prop.name),
+                            property: Some(prop),
+                            timestamp: chrono::Utc::now().timestamp_millis(),
+                        };
+                        let _ = self.extended_schema_manager.record_schema_change(space_id, change);
+                    }
+
+                    // 记录属性删除变更
+                    for prop_name in deletions {
                         let change = SchemaChange {
                             change_type: SchemaChangeType::DropProperty,
-                            target: tag_name.to_string(),
+                            target: format!("{}.{}", tag_name, prop_name),
                             property: None,
                             timestamp: chrono::Utc::now().timestamp_millis(),
                         };
@@ -588,30 +491,52 @@ impl StorageClient for RedbStorage {
                 }
             }
 
-            Ok(removed)
+            Ok(true)
         } else {
-            Err(StorageError::DbError(format!("Space '{}' not found", space_name)))
+            Ok(false)
         }
+    }
+
+    fn get_tag(&self, space_name: &str, tag_name: &str) -> Result<Option<TagInfo>, StorageError> {
+        self.schema_manager.get_tag(space_name, tag_name)
+    }
+
+    fn drop_tag(&mut self, space_name: &str, tag_name: &str) -> Result<bool, StorageError> {
+        let result = self.schema_manager.drop_tag(space_name, tag_name)?;
+        if result {
+            // 保存 schema 快照
+            if let Ok(space_info) = self.get_space(space_name) {
+                if let Some(space_id) = space_info.map(|s| s.space_id) {
+                    let tags_list = self.list_tags(space_name).unwrap_or_default();
+                    let edge_types = self.list_edge_types(space_name).unwrap_or_default();
+                    let _ = self.extended_schema_manager.save_schema_snapshot(
+                        space_id,
+                        tags_list,
+                        edge_types,
+                        Some(format!("删除标签: {}", tag_name)),
+                    );
+
+                    // 记录 schema 变更
+                    let change = SchemaChange {
+                        change_type: SchemaChangeType::DropProperty,
+                        target: tag_name.to_string(),
+                        property: None,
+                        timestamp: chrono::Utc::now().timestamp_millis(),
+                    };
+                    let _ = self.extended_schema_manager.record_schema_change(space_id, change);
+                }
+            }
+        }
+        Ok(result)
     }
 
     fn list_tags(&self, space: &str) -> Result<Vec<TagInfo>, StorageError> {
-        let tags = self.tags.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        if let Some(space_tags) = tags.get(space) {
-            Ok(space_tags.values().cloned().collect())
-        } else {
-            Err(StorageError::DbError(format!("Space '{}' not found", space)))
-        }
+        self.schema_manager.list_tags(space)
     }
 
     fn create_edge_type(&mut self, space: &str, edge: &EdgeTypeInfo) -> Result<bool, StorageError> {
-        let mut edge_type_infos = self.edge_type_infos.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        if let Some(space_edge_types) = edge_type_infos.get_mut(space) {
-            if space_edge_types.contains_key(&edge.edge_type_name) {
-                return Ok(false);
-            }
-            space_edge_types.insert(edge.edge_type_name.clone(), edge.clone());
-            drop(edge_type_infos);
-
+        let result = self.schema_manager.create_edge_type(space, edge)?;
+        if result {
             // 保存 schema 快照
             if let Ok(space_info) = self.get_space(space) {
                 if let Some(space_id) = space_info.map(|s| s.space_id) {
@@ -634,103 +559,50 @@ impl StorageClient for RedbStorage {
                     let _ = self.extended_schema_manager.record_schema_change(space_id, change);
                 }
             }
-
-            Ok(true)
-        } else {
-            Err(StorageError::DbError(format!("Space '{}' not found", space)))
         }
+        Ok(result)
     }
 
     fn alter_edge_type(&mut self, space_name: &str, edge_type_name: &str, additions: Vec<PropertyDef>, deletions: Vec<String>) -> Result<bool, StorageError> {
-        let mut edge_type_infos = self.edge_type_infos.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        if let Some(space_edge_types) = edge_type_infos.get_mut(space_name) {
-            if let Some(edge_type_info) = space_edge_types.get_mut(edge_type_name) {
-                for prop in &additions {
-                    edge_type_info.properties.retain(|p| p.name != prop.name);
-                    edge_type_info.properties.push(prop.clone());
-                }
-                for prop_name in &deletions {
-                    edge_type_info.properties.retain(|p| p.name != *prop_name);
-                }
-                drop(edge_type_infos);
-
-                // 保存 schema 快照
-                if let Ok(space_info) = self.get_space(space_name) {
-                    if let Some(space_id) = space_info.map(|s| s.space_id) {
-                        let tags_list = self.list_tags(space_name).unwrap_or_default();
-                        let edge_types = self.list_edge_types(space_name).unwrap_or_default();
-                        let _ = self.extended_schema_manager.save_schema_snapshot(
-                            space_id,
-                            tags_list,
-                            edge_types,
-                            Some(format!("修改边类型: {}", edge_type_name)),
-                        );
-
-                        // 记录属性添加变更
-                        for prop in additions {
-                            let change = SchemaChange {
-                                change_type: SchemaChangeType::AddProperty,
-                                target: format!("{}.{}", edge_type_name, prop.name),
-                                property: Some(prop),
-                                timestamp: chrono::Utc::now().timestamp_millis(),
-                            };
-                            let _ = self.extended_schema_manager.record_schema_change(space_id, change);
-                        }
-
-                        // 记录属性删除变更
-                        for prop_name in deletions {
-                            let change = SchemaChange {
-                                change_type: SchemaChangeType::DropProperty,
-                                target: format!("{}.{}", edge_type_name, prop_name),
-                                property: None,
-                                timestamp: chrono::Utc::now().timestamp_millis(),
-                            };
-                            let _ = self.extended_schema_manager.record_schema_change(space_id, change);
-                        }
-                    }
-                }
-
-                Ok(true)
-            } else {
-                Ok(false)
+        if let Some(mut edge_type_info) = self.schema_manager.get_edge_type(space_name, edge_type_name)? {
+            for prop in &additions {
+                edge_type_info.properties.retain(|p| p.name != prop.name);
+                edge_type_info.properties.push(prop.clone());
             }
-        } else {
-            Err(StorageError::DbError(format!("Space '{}' not found", space_name)))
-        }
-    }
-
-    fn get_edge_type(&self, space_name: &str, edge_type_name: &str) -> Result<Option<EdgeTypeInfo>, StorageError> {
-        let edge_type_infos = self.edge_type_infos.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        if let Some(space_edge_types) = edge_type_infos.get(space_name) {
-            Ok(space_edge_types.get(edge_type_name).cloned())
-        } else {
-            Err(StorageError::DbError(format!("Space '{}' not found", space_name)))
-        }
-    }
-
-    fn drop_edge_type(&mut self, space_name: &str, edge_type_name: &str) -> Result<bool, StorageError> {
-        let mut edge_type_infos = self.edge_type_infos.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        if let Some(space_edge_types) = edge_type_infos.get_mut(space_name) {
-            let removed = space_edge_types.remove(edge_type_name).is_some();
-            drop(edge_type_infos);
+            for prop_name in &deletions {
+                edge_type_info.properties.retain(|p| p.name != *prop_name);
+            }
+            self.schema_manager.drop_edge_type(space_name, edge_type_name)?;
+            self.schema_manager.create_edge_type(space_name, &edge_type_info)?;
 
             // 保存 schema 快照
-            if removed {
-                if let Ok(space_info) = self.get_space(space_name) {
-                    if let Some(space_id) = space_info.map(|s| s.space_id) {
-                        let tags_list = self.list_tags(space_name).unwrap_or_default();
-                        let edge_types = self.list_edge_types(space_name).unwrap_or_default();
-                        let _ = self.extended_schema_manager.save_schema_snapshot(
-                            space_id,
-                            tags_list,
-                            edge_types,
-                            Some(format!("删除边类型: {}", edge_type_name)),
-                        );
+            if let Ok(space_info) = self.get_space(space_name) {
+                if let Some(space_id) = space_info.map(|s| s.space_id) {
+                    let tags_list = self.list_tags(space_name).unwrap_or_default();
+                    let edge_types = self.list_edge_types(space_name).unwrap_or_default();
+                    let _ = self.extended_schema_manager.save_schema_snapshot(
+                        space_id,
+                        tags_list,
+                        edge_types,
+                        Some(format!("修改边类型: {}", edge_type_name)),
+                    );
 
-                        // 记录 schema 变更
+                    // 记录属性添加变更
+                    for prop in additions {
+                        let change = SchemaChange {
+                            change_type: SchemaChangeType::AddProperty,
+                            target: format!("{}.{}", edge_type_name, prop.name),
+                            property: Some(prop),
+                            timestamp: chrono::Utc::now().timestamp_millis(),
+                        };
+                        let _ = self.extended_schema_manager.record_schema_change(space_id, change);
+                    }
+
+                    // 记录属性删除变更
+                    for prop_name in deletions {
                         let change = SchemaChange {
                             change_type: SchemaChangeType::DropProperty,
-                            target: edge_type_name.to_string(),
+                            target: format!("{}.{}", edge_type_name, prop_name),
                             property: None,
                             timestamp: chrono::Utc::now().timestamp_millis(),
                         };
@@ -739,19 +611,47 @@ impl StorageClient for RedbStorage {
                 }
             }
 
-            Ok(removed)
+            Ok(true)
         } else {
-            Err(StorageError::DbError(format!("Space '{}' not found", space_name)))
+            Ok(false)
         }
     }
 
-    fn list_edge_types(&self, space: &str) -> Result<Vec<EdgeTypeInfo>, StorageError> {
-        let edge_type_infos = self.edge_type_infos.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        if let Some(space_edge_types) = edge_type_infos.get(space) {
-            Ok(space_edge_types.values().cloned().collect())
-        } else {
-            Err(StorageError::DbError(format!("Space '{}' not found", space)))
+    fn get_edge_type(&self, space_name: &str, edge_type_name: &str) -> Result<Option<EdgeTypeInfo>, StorageError> {
+        self.schema_manager.get_edge_type(space_name, edge_type_name)
+    }
+
+    fn drop_edge_type(&mut self, space_name: &str, edge_type_name: &str) -> Result<bool, StorageError> {
+        let result = self.schema_manager.drop_edge_type(space_name, edge_type_name)?;
+        if result {
+            // 保存 schema 快照
+            if let Ok(space_info) = self.get_space(space_name) {
+                if let Some(space_id) = space_info.map(|s| s.space_id) {
+                    let tags_list = self.list_tags(space_name).unwrap_or_default();
+                    let edge_types = self.list_edge_types(space_name).unwrap_or_default();
+                    let _ = self.extended_schema_manager.save_schema_snapshot(
+                        space_id,
+                        tags_list,
+                        edge_types,
+                        Some(format!("删除边类型: {}", edge_type_name)),
+                    );
+
+                    // 记录 schema 变更
+                    let change = SchemaChange {
+                        change_type: SchemaChangeType::DropProperty,
+                        target: edge_type_name.to_string(),
+                        property: None,
+                        timestamp: chrono::Utc::now().timestamp_millis(),
+                    };
+                    let _ = self.extended_schema_manager.record_schema_change(space_id, change);
+                }
+            }
         }
+        Ok(result)
+    }
+
+    fn list_edge_types(&self, space: &str) -> Result<Vec<EdgeTypeInfo>, StorageError> {
+        self.schema_manager.list_edge_types(space)
     }
 
     fn create_tag_index(&mut self, space: &str, info: &Index) -> Result<bool, StorageError> {
@@ -861,13 +761,8 @@ impl StorageClient for RedbStorage {
     fn insert_vertex_data(&mut self, space: &str, info: &InsertVertexInfo) -> Result<bool, StorageError> {
         // 获取标签信息
         let tag_name = info.tag_name.clone();
-        {
-            let tags = self.tags.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-            let space_tags = tags.get(space)
-                .ok_or_else(|| StorageError::DbError(format!("Space '{}' not found", space)))?;
-            let _tag_info = space_tags.get(&tag_name)
-                .ok_or_else(|| StorageError::DbError(format!("Tag '{}' not found in space '{}'", tag_name, space)))?;
-        }
+        let _tag_info = self.schema_manager.get_tag(space, &tag_name)?
+            .ok_or_else(|| StorageError::DbError(format!("Tag '{}' not found in space '{}'", tag_name, space)))?;
         
         // 构建顶点属性映射
         let mut properties = std::collections::HashMap::new();
@@ -920,13 +815,8 @@ impl StorageClient for RedbStorage {
         let rank = info.rank;
         let props = info.props.clone();
         
-        {
-            let edge_type_infos = self.edge_type_infos.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-            let space_edge_types = edge_type_infos.get(space)
-                .ok_or_else(|| StorageError::DbError(format!("Space '{}' not found", space)))?;
-            let _edge_type_info = space_edge_types.get(&edge_name)
-                .ok_or_else(|| StorageError::DbError(format!("Edge type '{}' not found in space '{}'", edge_name, space)))?;
-        }
+        let _edge_type_info = self.schema_manager.get_edge_type(space, &edge_name)?
+            .ok_or_else(|| StorageError::DbError(format!("Edge type '{}' not found in space '{}'", edge_name, space)))?;
         
         // 构建边属性映射
         let mut properties = std::collections::HashMap::new();
@@ -1113,18 +1003,15 @@ impl StorageClient for RedbStorage {
         // 获取顶点
         if let Some(vertex) = self.reader.get_vertex(space, id)? {
             // 获取标签信息
-            let tags = self.tags.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-            if let Some(space_tags) = tags.get(space) {
-                if let Some(tag_info) = space_tags.get(tag) {
-                    // 构建schema
-                    let schema = self.build_vertex_schema(tag_info)?;
-                    
-                    // 序列化顶点数据
-                    let vertex_data = vertex_to_bytes(&vertex)?;
-                    
-                    return Ok(Some((schema, vertex_data)));
-                }
-            }
+            let tag_info = self.schema_manager.get_tag(space, tag)?
+                .ok_or_else(|| StorageError::DbError(format!("Tag '{}' not found in space '{}'", tag, space)))?;
+            // 构建schema
+            let schema = self.build_vertex_schema(&tag_info)?;
+            
+            // 序列化顶点数据
+            let vertex_data = vertex_to_bytes(&vertex)?;
+            
+            return Ok(Some((schema, vertex_data)));
         }
         Ok(None)
     }
@@ -1133,18 +1020,15 @@ impl StorageClient for RedbStorage {
         // 获取边
         if let Some(edge) = self.reader.get_edge(space, src, dst, edge_type)? {
             // 获取边类型信息
-            let edge_type_infos = self.edge_type_infos.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-            if let Some(space_edge_types) = edge_type_infos.get(space) {
-                if let Some(edge_type_info) = space_edge_types.get(edge_type) {
-                    // 构建schema
-                    let schema = self.build_edge_schema(edge_type_info)?;
-                    
-                    // 序列化边数据
-                    let edge_data = edge_to_bytes(&edge)?;
-                    
-                    return Ok(Some((schema, edge_data)));
-                }
-            }
+            let edge_type_info = self.schema_manager.get_edge_type(space, edge_type)?
+                .ok_or_else(|| StorageError::DbError(format!("Edge type '{}' not found in space '{}'", edge_type, space)))?;
+            // 构建schema
+            let schema = self.build_edge_schema(&edge_type_info)?;
+            
+            // 序列化边数据
+            let edge_data = edge_to_bytes(&edge)?;
+            
+            return Ok(Some((schema, edge_data)));
         }
         Ok(None)
     }
@@ -1153,13 +1037,11 @@ impl StorageClient for RedbStorage {
         let mut results = Vec::new();
         
         // 获取标签信息
-        let tags = self.tags.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        let tag_info = tags.get(space)
-            .and_then(|space_tags| space_tags.get(tag))
+        let tag_info = self.schema_manager.get_tag(space, tag)?
             .ok_or_else(|| StorageError::DbError(format!("Tag '{}' not found in space '{}'", tag, space)))?;
         
         // 构建schema
-        let schema = self.build_vertex_schema(tag_info)?;
+        let schema = self.build_vertex_schema(&tag_info)?;
         
         // 扫描所有顶点并过滤
         let vertices = self.reader.scan_vertices(space)?;
@@ -1177,13 +1059,11 @@ impl StorageClient for RedbStorage {
         let mut results = Vec::new();
         
         // 获取边类型信息
-        let edge_type_infos = self.edge_type_infos.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        let edge_type_info = edge_type_infos.get(space)
-            .and_then(|space_edge_types| space_edge_types.get(edge_type))
+        let edge_type_info = self.schema_manager.get_edge_type(space, edge_type)?
             .ok_or_else(|| StorageError::DbError(format!("Edge type '{}' not found in space '{}'", edge_type, space)))?;
         
         // 构建schema
-        let schema = self.build_edge_schema(edge_type_info)?;
+        let schema = self.build_edge_schema(&edge_type_info)?;
         
         // 扫描所有边并过滤
         let edges = self.reader.scan_edges_by_type(space, edge_type)?;
@@ -1197,34 +1077,26 @@ impl StorageClient for RedbStorage {
 
     fn load_from_disk(&mut self) -> Result<(), StorageError> {
         // Redb 引擎自动从磁盘加载数据
-        // 加载元数据
-        self.metadata_manager.load_metadata()?;
-        
         Ok(())
     }
 
     fn save_to_disk(&self) -> Result<(), StorageError> {
         // Redb 引擎自动将数据保存到磁盘
-        // 保存元数据
-        self.metadata_manager.save_metadata()?;
-        
         Ok(())
     }
 
     fn get_storage_stats(&self) -> crate::storage::storage_client::StorageStats {
-        let total_spaces = self.spaces.lock().map(|s| s.len()).unwrap_or(0);
+        let total_spaces = self.schema_manager.list_spaces().map(|s| s.len()).unwrap_or(0);
         let mut total_tags = 0;
         let mut total_edge_types = 0;
         
-        if let Ok(tags) = self.tags.lock() {
-            for space_tags in tags.values() {
-                total_tags += space_tags.len();
+        let spaces = self.schema_manager.list_spaces().unwrap_or_default();
+        for space in spaces {
+            if let Ok(tags) = self.schema_manager.list_tags(&space.space_name) {
+                total_tags += tags.len();
             }
-        }
-        
-        if let Ok(edge_types) = self.edge_type_infos.lock() {
-            for space_edge_types in edge_types.values() {
-                total_edge_types += space_edge_types.len();
+            if let Ok(edge_types) = self.schema_manager.list_edge_types(&space.space_name) {
+                total_edge_types += edge_types.len();
             }
         }
         

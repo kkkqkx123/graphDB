@@ -45,6 +45,7 @@ pub use self::metadata::{
     InsertVertexInfo, InsertEdgeInfo, UpdateTarget, UpdateOp, UpdateInfo,
     PasswordInfo,
     SchemaExportConfig, SchemaImportResult, ExportFormat,
+    SchemaFieldChange, FieldChangeType, SchemaAlterOperation, AlterTargetType,
 };
 
 pub use self::expression::{Expression, ExpressionMeta};

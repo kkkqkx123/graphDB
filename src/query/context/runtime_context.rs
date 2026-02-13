@@ -52,9 +52,10 @@ impl RuntimeContext {
     pub fn new_simple() -> Arc<Self> {
         use std::path::PathBuf;
 
+        let storage = Arc::new(crate::storage::redb_storage::DefaultStorage::new().expect("Failed to create DefaultStorage"));
         let storage_env = Arc::new(StorageEnv {
-            storage_engine: Arc::new(crate::storage::redb_storage::DefaultStorage::new().expect("Failed to create DefaultStorage")),
-            schema_manager: Arc::new(crate::storage::metadata::MemorySchemaManager::new()),
+            storage_engine: storage.clone(),
+            schema_manager: storage.schema_manager.clone(),
             index_manager: Arc::new(crate::storage::index::MemoryIndexManager::new(PathBuf::from("."))),
         });
 

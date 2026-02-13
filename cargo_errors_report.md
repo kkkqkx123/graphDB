@@ -3,10 +3,10 @@
 ## Summary
 
 - **Total Errors**: 0
-- **Total Warnings**: 1
-- **Total Issues**: 1
+- **Total Warnings**: 2
+- **Total Issues**: 2
 - **Unique Error Patterns**: 0
-- **Unique Warning Patterns**: 1
+- **Unique Warning Patterns**: 2
 - **Files with Issues**: 1
 
 ## Error Statistics
@@ -15,24 +15,25 @@
 
 ## Warning Statistics
 
-**Total Warnings**: 1
+**Total Warnings**: 2
 
 ### Warning Type Breakdown
 
-- **warning**: 1 warnings
+- **warning**: 2 warnings
 
 ### Files with Warnings (Top 10)
 
-- `src\query\executor\graph_query_executor.rs`: 1 warnings
+- `src\storage\metadata\extended_schema.rs`: 2 warnings
 
 ## Detailed Warning Categorization
 
-### warning: variable does not need to be mutable
+### warning: unused imports: `PropertyDef` and `SchemaHistory`
 
-**Total Occurrences**: 1  
+**Total Occurrences**: 2  
 **Unique Files**: 1
 
-#### `src\query\executor\graph_query_executor.rs`: 1 occurrences
+#### `src\storage\metadata\extended_schema.rs`: 2 occurrences
 
-- Line 624: variable does not need to be mutable
+- Line 3: unused imports: `PropertyDef` and `SchemaHistory`
+- Line 7: unused imports: `AlterTargetType`, `FieldChangeType`, `SchemaAlterOperation`, and `SchemaFieldChange`
 

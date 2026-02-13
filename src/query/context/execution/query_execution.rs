@@ -479,7 +479,7 @@ impl Default for QueryContext {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::storage::MemorySchemaManager;
+    use crate::storage::redb_storage::DefaultStorage;
     use crate::storage::index::MemoryIndexManager;
 
     #[test]
@@ -514,8 +514,9 @@ mod tests {
     fn test_managers() {
         let mut ctx = QueryContext::new();
 
-        let schema_manager = Arc::new(MemorySchemaManager::new());
-        ctx.set_schema_manager(schema_manager.clone());
+        let storage = DefaultStorage::new().expect("Failed to create DefaultStorage");
+        let schema_manager = storage.schema_manager.clone();
+        ctx.set_schema_manager(schema_manager);
         assert!(ctx.schema_manager().is_some());
 
         let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
@@ -583,7 +584,8 @@ mod tests {
         assert_eq!(status.current_id, 0);
         assert_eq!(status.variable_count, 0);
 
-        ctx.set_schema_manager(Arc::new(MemorySchemaManager::new()));
+        let storage = DefaultStorage::new().expect("Failed to create DefaultStorage");
+        ctx.set_schema_manager(storage.schema_manager.clone());
         ctx.set_plan(ExecutionPlan::new(ctx.gen_id()));
 
         ctx.ectx_mut()
