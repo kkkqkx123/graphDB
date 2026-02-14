@@ -1,4 +1,3 @@
-use crate::utils::{safe_lock, Mutex};
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -8,6 +7,7 @@ use crate::core::{Value, vertex_edge_path};
 use crate::expression::context::traits::VariableContext;
 use crate::query::executor::traits::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
+use parking_lot::Mutex;
 
 pub struct GetVerticesExecutor<S: StorageClient + 'static> {
     base: BaseExecutor<S>,
@@ -137,7 +137,7 @@ impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
                 Ok(result_vertices)
             }
             Some(ids) if ids.len() == 1 => {
-                let storage = safe_lock(self.get_storage())?;
+                let storage = self.get_storage().lock();
 
                 if let Some(vertex) = storage.get_vertex("default", &ids[0])? {
                     Ok(vec![vertex])
@@ -147,7 +147,7 @@ impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
             }
             Some(_) => Ok(Vec::new()),
             None => {
-                let storage = safe_lock(self.get_storage())?;
+                let storage = self.get_storage().lock();
 
                 let vertices = storage.scan_vertices("default")?
                     .into_iter()
@@ -275,7 +275,7 @@ impl<S: StorageClient> HasStorage<S> for GetEdgesExecutor<S> {
 
 impl<S: StorageClient> GetEdgesExecutor<S> {
     fn do_execute(&mut self) -> DBResult<Vec<vertex_edge_path::Edge>> {
-        let storage = safe_lock(self.get_storage())?;
+        let storage = self.get_storage().lock();
 
         let edges = if let Some(ref edge_type) = self.edge_type {
             storage.scan_edges_by_type("default", edge_type)?
@@ -364,7 +364,7 @@ impl<S: StorageClient> HasStorage<S> for ScanEdgesExecutor<S> {
 
 impl<S: StorageClient> ScanEdgesExecutor<S> {
     fn do_execute(&mut self) -> DBResult<Vec<vertex_edge_path::Edge>> {
-        let storage = safe_lock(self.get_storage())?;
+        let storage = self.get_storage().lock();
 
         let mut edges: Vec<vertex_edge_path::Edge> = if let Some(ref edge_type) = self.edge_type {
             storage.scan_edges_by_type("default", edge_type)?
@@ -496,7 +496,7 @@ impl<S: StorageClient + 'static> GetNeighborsExecutor<S> {
             if let Some(ref vertex) = vertex_opt {
                 let vertex_id = &vertex.vid;
 
-                let storage = safe_lock(self.get_storage())?;
+                let storage = self.get_storage().lock();
 
                 let edges = storage.get_node_edges("default", vertex_id, direction)?;
 
@@ -624,7 +624,7 @@ impl<S: StorageClient> HasStorage<S> for GetPropExecutor<S> {
 
 impl<S: StorageClient> GetPropExecutor<S> {
     fn do_execute(&mut self) -> DBResult<Vec<Value>> {
-        let storage = safe_lock(self.get_storage())?;
+        let storage = self.get_storage().lock();
 
         let mut props = Vec::new();
 
@@ -751,7 +751,7 @@ impl<S: StorageClient> HasStorage<S> for IndexScanExecutor<S> {
 
 impl<S: StorageClient> IndexScanExecutor<S> {
     fn do_execute(&mut self) -> DBResult<Vec<Value>> {
-        let storage = safe_lock(self.get_storage())?;
+        let storage = self.get_storage().lock();
 
         let mut results = Vec::new();
 
@@ -822,7 +822,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
 
 impl<S: StorageClient> Executor<S> for AllPathsExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
-        let storage = safe_lock(self.get_storage())?;
+        let storage = self.get_storage().lock();
 
         let mut all_paths: Vec<Path> = Vec::new();
 
@@ -1000,7 +1000,7 @@ impl<S: StorageClient> HasStorage<S> for ScanVerticesExecutor<S> {
 
 impl<S: StorageClient> ScanVerticesExecutor<S> {
     fn do_execute(&mut self) -> DBResult<Vec<vertex_edge_path::Vertex>> {
-        let storage = safe_lock(self.get_storage())?;
+        let storage = self.get_storage().lock();
 
         let mut vertices: Vec<vertex_edge_path::Vertex> = storage.scan_vertices("default")?
             .into_iter()

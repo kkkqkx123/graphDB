@@ -2,7 +2,8 @@
 //!
 //! 实现MINUS操作，返回左数据集中存在但右数据集中不存在的行
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 use crate::core::error::QueryError;
 use crate::core::{DataSet, Value};

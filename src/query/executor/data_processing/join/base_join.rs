@@ -3,7 +3,8 @@
 //! 提供所有join操作的基础实现，包括哈希表构建、探测等核心功能
 
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 use crate::core::{DataSet, Expression, Value};
 use crate::expression::evaluator::traits::ExpressionContext;

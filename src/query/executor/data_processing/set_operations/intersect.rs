@@ -2,7 +2,8 @@
 //!
 //! 实现INTERSECT操作，返回两个数据集的交集（只存在于两个数据集中的行）
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 use crate::core::error::QueryError;
 use crate::core::{DataSet, Value};

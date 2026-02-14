@@ -2,7 +2,8 @@
 //!
 //! 负责查看指定标签的详细信息。
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 use crate::core::{DataSet, Value};
 use crate::storage::iterator::Row;
@@ -47,11 +48,7 @@ impl<S: StorageClient> DescTagExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DescTagExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let storage_guard = storage.lock().map_err(|e| {
-            crate::core::error::DBError::Storage(
-                crate::core::error::StorageError::DbError(format!("Storage lock poisoned: {}", e))
-            )
-        })?;
+        let storage_guard = storage.lock();
 
         let result = storage_guard.get_tag(&self.space_name, &self.tag_name);
 

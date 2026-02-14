@@ -1,8 +1,9 @@
 use crate::core::error::{DBError, DBResult};
 use crate::query::context::runtime_context::RuntimeContext;
 use crate::storage::StorageClient;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Duration;
+use parking_lot::Mutex;
 
 #[derive(Debug, Clone)]
 pub struct ProcessorCounters {
@@ -156,7 +157,6 @@ mod tests {
     use crate::storage::metadata::SchemaManager;
     use crate::storage::StorageClient;
     use crate::core::value::NullType;
-    use std::sync::Mutex;
     use crate::index::Index;
 
     #[derive(Debug)]

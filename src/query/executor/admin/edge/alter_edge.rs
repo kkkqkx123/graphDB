@@ -2,7 +2,8 @@
 //!
 //! 负责修改已存在边类型的属性定义。
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 use crate::core::types::metadata::PropertyDef;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
@@ -94,11 +95,7 @@ impl<S: StorageClient> AlterEdgeExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AlterEdgeExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let mut storage_guard = storage.lock().map_err(|e| {
-            crate::core::error::DBError::Storage(
-                crate::core::error::StorageError::DbError(format!("Storage lock poisoned: {}", e))
-            )
-        })?;
+        let mut storage_guard = storage.lock();
 
         let items: Vec<String> = self.alter_info.items.iter().filter_map(|item| {
             match item.op {

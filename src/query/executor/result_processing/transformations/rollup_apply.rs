@@ -3,7 +3,8 @@
 //! 负责处理聚合操作，将右输入中的值根据左输入的键进行聚合
 
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::Expression;
@@ -475,7 +476,8 @@ mod tests {
     use crate::core::Expression;
     use crate::core::Value;
     use crate::storage::MockStorage;
-    use std::sync::{Arc, Mutex};
+    use std::sync::Arc;
+use parking_lot::Mutex;
 
     #[tokio::test]
     async fn test_rollup_apply_executor() {

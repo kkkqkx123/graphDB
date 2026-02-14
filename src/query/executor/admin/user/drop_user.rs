@@ -2,7 +2,8 @@
 //!
 //! 负责删除数据库用户。
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
@@ -38,9 +39,7 @@ impl<S: StorageClient> DropUserExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DropUserExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let mut storage = storage.lock().map_err(|e| crate::core::error::DBError::Storage(
-            crate::core::StorageError::DbError(e.to_string())
-        ))?;
+        let mut storage = storage.lock();
         let result = storage.drop_user(&self.username);
 
         match result {

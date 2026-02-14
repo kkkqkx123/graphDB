@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use std::sync::{Arc, Mutex};
+    use std::sync::Arc;
+use parking_lot::Mutex;
     use crate::query::executor::admin::space::{
         CreateSpaceExecutor, DropSpaceExecutor, DescSpaceExecutor, ShowSpacesExecutor,
     };

@@ -2,10 +2,11 @@
 //!
 //! 负责删除指定的图空间及其所有数据。
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
+use parking_lot::Mutex;
 
 /// 删除图空间执行器
 ///
@@ -40,11 +41,7 @@ impl<S: StorageClient> DropSpaceExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DropSpaceExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let mut storage_guard = storage.lock().map_err(|e| {
-            crate::core::error::DBError::Storage(
-                crate::core::error::StorageError::DbError(format!("Storage lock poisoned: {}", e))
-            )
-        })?;
+        let mut storage_guard = storage.lock();
 
         let result = storage_guard.drop_space(&self.space_name);
 

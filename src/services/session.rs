@@ -1,6 +1,6 @@
 use crate::api::session::session_manager::SessionInfo;
 use crate::core::Value;
-use crate::utils::{safe_lock, safe_read, safe_write, Mutex, RwLock};
+use parking_lot::{Mutex, RwLock};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -92,31 +92,31 @@ impl Session {
 
     /// Get a session variable
     pub fn get_variable(&self, key: &str) -> Option<Value> {
-        let vars = safe_read(&self.variables);
+        let vars = self.variables.read();
         vars.get(key).cloned()
     }
 
     /// Set a session variable
     pub fn set_variable(&self, key: String, value: Value) {
-        let mut vars = safe_write(&self.variables);
+        let mut vars = self.variables.write();
         vars.insert(key, value);
     }
 
     /// Remove a session variable
     pub fn remove_variable(&self, key: &str) -> Option<Value> {
-        let mut vars = safe_write(&self.variables);
+        let mut vars = self.variables.write();
         vars.remove(key)
     }
 
     /// Get a session setting
     pub fn get_setting(&self, key: &str) -> Option<Value> {
-        let settings = safe_read(&self.settings);
+        let settings = self.settings.read();
         settings.get(key).cloned()
     }
 
     /// Set a session setting
     pub fn set_setting(&self, key: String, value: Value) {
-        let mut settings = safe_write(&self.settings);
+        let mut settings = self.settings.write();
         settings.insert(key, value);
     }
 
@@ -152,7 +152,7 @@ impl SessionManager {
 
         let session = Arc::new(Mutex::new(session));
         {
-            let mut sessions = safe_write(&self.sessions);
+            let mut sessions = self.sessions.write();
             sessions.insert(session_id.clone(), session);
         }
 
@@ -164,14 +164,14 @@ impl SessionManager {
         &self,
         session_id: &SessionId,
     ) -> Option<Arc<Mutex<Session>>> {
-        let sessions = safe_read(&self.sessions);
+        let sessions = self.sessions.read();
         sessions.get(session_id).cloned()
     }
 
     /// Check if a session exists and is valid
     pub fn is_valid_session(&self, session_id: &SessionId) -> bool {
         if let Some(session) = self.get_session(session_id) {
-            let session = safe_lock(&session);
+            let session = session.lock();
             session.is_valid(self.default_session_timeout)
         } else {
             false
@@ -181,7 +181,7 @@ impl SessionManager {
     /// Update the last accessed time for a session
     pub fn touch_session(&self, session_id: &SessionId) -> bool {
         if let Some(session) = self.get_session(session_id) {
-            let mut session = safe_lock(&session);
+            let mut session = session.lock();
             session.touch();
             true
         } else {
@@ -191,14 +191,14 @@ impl SessionManager {
 
     /// Remove an expired session
     pub fn remove_session(&self, session_id: &SessionId) -> bool {
-        let mut sessions = safe_write(&self.sessions);
+        let mut sessions = self.sessions.write();
         sessions.remove(session_id).is_some()
     }
 
     /// Get session info by ID
     pub fn get_session_info(&self, session_id: &SessionId) -> Option<SessionInfo> {
         if let Some(session) = self.get_session(session_id) {
-            let session = safe_lock(&session);
+            let session = session.lock();
             Some(session.session_info.clone())
         } else {
             None
@@ -207,11 +207,11 @@ impl SessionManager {
 
     /// List all active sessions
     pub fn list_active_sessions(&self) -> Vec<SessionInfo> {
-        let sessions = safe_read(&self.sessions);
+        let sessions = self.sessions.read();
         let mut active_sessions = Vec::new();
 
         for session in sessions.values() {
-            let session = safe_lock(session);
+            let session = session.lock();
             if matches!(session.status, SessionStatus::Active)
                 && session.is_valid(self.default_session_timeout)
             {
@@ -224,9 +224,9 @@ impl SessionManager {
 
     /// Clean up expired sessions
     pub fn cleanup_expired_sessions(&self) {
-        let mut sessions = safe_write(&self.sessions);
+        let mut sessions = self.sessions.write();
         sessions.retain(|_, session| {
-            let session = safe_lock(session);
+            let session = session.lock();
             session.is_valid(self.default_session_timeout)
         });
     }

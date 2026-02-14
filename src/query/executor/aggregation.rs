@@ -1,12 +1,12 @@
 use std::collections::{HashMap, HashSet};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use super::base::BaseExecutor;
 use crate::core::types::operators::AggregateFunction;
 use crate::core::Value;
 use crate::query::executor::traits::{DBResult, ExecutionResult, Executor, HasStorage, HasInput};
 use crate::storage::StorageClient;
-use crate::utils::safe_lock;
+use parking_lot::Mutex;
 
 #[derive(Debug, Clone)]
 pub struct AggData {
@@ -770,7 +770,7 @@ impl ValueUtils for Value {
 impl<S: StorageClient> Executor<S> for AggregationExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
         let storage_clone = self.get_storage().clone();
-        let storage = safe_lock(&storage_clone)?;
+        let storage = storage_clone.lock();
 
         let input_data = self.get_input_data(&storage)?;
         self.execute_aggregation(&input_data)

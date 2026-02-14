@@ -18,7 +18,8 @@ use crate::api::service::permission_manager::RoleType;
 use redb::Database;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 #[derive(Clone)]
 pub struct RedbStorage {
@@ -119,7 +120,7 @@ impl RedbStorage {
         for edge in edges {
             if *edge.src == *vertex_id || *edge.dst == *vertex_id {
                 {
-                    let mut writer = self.writer.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+                    let mut writer = self.writer.lock();
                     writer.delete_edge(space, &edge.src, &edge.dst, &edge.edge_type)?;
                 }
                 self.index_data_manager.delete_edge_indexes(space, &edge.src, &edge.dst, &edge.edge_type)?;
@@ -157,7 +158,7 @@ impl RedbStorage {
                 }
             }
             // 使用 writer 更新顶点
-            let mut writer = self.writer.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+            let mut writer = self.writer.lock();
             writer.update_vertex(space, vertex)?;
         }
         Ok(())
@@ -264,7 +265,7 @@ impl StorageClient for RedbStorage {
     }
 
     fn insert_vertex(&mut self, space: &str, vertex: Vertex) -> Result<Value, StorageError> {
-        let mut writer = self.writer.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let mut writer = self.writer.lock();
         let id = writer.insert_vertex(space, vertex.clone())?;
         
         // 更新索引
@@ -293,12 +294,12 @@ impl StorageClient for RedbStorage {
     }
 
     fn update_vertex(&mut self, space: &str, vertex: Vertex) -> Result<(), StorageError> {
-        let mut writer = self.writer.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let mut writer = self.writer.lock();
         writer.update_vertex(space, vertex)
     }
 
     fn delete_vertex(&mut self, space: &str, id: &Value) -> Result<(), StorageError> {
-        let mut writer = self.writer.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let mut writer = self.writer.lock();
         writer.delete_vertex(space, id)?;
         
         // 删除索引
@@ -308,12 +309,12 @@ impl StorageClient for RedbStorage {
     }
 
     fn batch_insert_vertices(&mut self, space: &str, vertices: Vec<Vertex>) -> Result<Vec<Value>, StorageError> {
-        let mut writer = self.writer.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let mut writer = self.writer.lock();
         writer.batch_insert_vertices(space, vertices)
     }
 
     fn insert_edge(&mut self, space: &str, edge: Edge) -> Result<(), StorageError> {
-        let mut writer = self.writer.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let mut writer = self.writer.lock();
         writer.insert_edge(space, edge.clone())?;
         
         // 更新索引
@@ -340,7 +341,7 @@ impl StorageClient for RedbStorage {
     }
 
     fn delete_edge(&mut self, space: &str, src: &Value, dst: &Value, edge_type: &str) -> Result<(), StorageError> {
-        let mut writer = self.writer.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let mut writer = self.writer.lock();
         writer.delete_edge(space, src, dst, edge_type)?;
         
         // 删除索引
@@ -350,7 +351,7 @@ impl StorageClient for RedbStorage {
     }
 
     fn batch_insert_edges(&mut self, space: &str, edges: Vec<Edge>) -> Result<(), StorageError> {
-        let mut writer = self.writer.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let mut writer = self.writer.lock();
         writer.batch_insert_edges(space, edges)
     }
 
@@ -778,7 +779,7 @@ impl StorageClient for RedbStorage {
         
         // 使用 VertexWriter 插入顶点
         {
-            let mut writer = self.writer.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+            let mut writer = self.writer.lock();
             writer.update_vertex(space, vertex)?;
         }
         
@@ -817,7 +818,7 @@ impl StorageClient for RedbStorage {
         
         // 使用 EdgeWriter 插入边
         {
-            let mut writer = self.writer.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+            let mut writer = self.writer.lock();
             writer.insert_edge(space, edge)?;
         }
         
@@ -845,7 +846,7 @@ impl StorageClient for RedbStorage {
         
         // 删除顶点本身
         {
-            let mut writer = self.writer.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+            let mut writer = self.writer.lock();
             writer.delete_vertex(space, &vid)?;
         }
         
@@ -864,7 +865,7 @@ impl StorageClient for RedbStorage {
         for edge in edges {
             if *edge.src == src_id && *edge.dst == dst_id && edge.ranking == rank {
                 {
-                    let mut writer = self.writer.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+                    let mut writer = self.writer.lock();
                     writer.delete_edge(space, &edge.src, &edge.dst, &edge.edge_type)?;
                 }
                 self.index_data_manager.delete_edge_indexes(space, &edge.src, &edge.dst, &edge.edge_type)?;
@@ -882,7 +883,7 @@ impl StorageClient for RedbStorage {
     }
 
     fn change_password(&mut self, info: &PasswordInfo) -> Result<bool, StorageError> {
-        let mut users = self.users.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let mut users = self.users.lock();
         let username = info.username.clone().ok_or_else(|| StorageError::DbError("用户名不能为空".to_string()))?;
         if let Some(user) = users.get_mut(&username) {
             user.password = info.new_password.clone();
@@ -893,7 +894,7 @@ impl StorageClient for RedbStorage {
     }
 
     fn create_user(&mut self, info: &UserInfo) -> Result<bool, StorageError> {
-        let mut users = self.users.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let mut users = self.users.lock();
         if users.contains_key(&info.username) {
             return Err(StorageError::DbError(format!("用户 {} 已存在", info.username)));
         }
@@ -902,7 +903,7 @@ impl StorageClient for RedbStorage {
     }
 
     fn alter_user(&mut self, info: &UserAlterInfo) -> Result<bool, StorageError> {
-        let mut users = self.users.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let mut users = self.users.lock();
         if let Some(user) = users.get_mut(&info.username) {
             if let Some(new_role) = &info.new_role {
                 user.role = new_role.clone();
@@ -917,13 +918,13 @@ impl StorageClient for RedbStorage {
     }
 
     fn drop_user(&mut self, username: &str) -> Result<bool, StorageError> {
-        let mut users = self.users.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let mut users = self.users.lock();
         users.remove(username);
         Ok(true)
     }
 
     fn grant_role(&mut self, username: &str, space_id: i32, role: RoleType) -> Result<bool, StorageError> {
-        let mut users = self.users.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let mut users = self.users.lock();
         if let Some(user) = users.get_mut(username) {
             if !user.roles.contains_key(&space_id) {
                 user.roles.insert(space_id, format!("{:?}", role));
@@ -937,7 +938,7 @@ impl StorageClient for RedbStorage {
     }
 
     fn revoke_role(&mut self, username: &str, space_id: i32) -> Result<bool, StorageError> {
-        let mut users = self.users.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
+        let mut users = self.users.lock();
         if let Some(user) = users.get_mut(username) {
             if user.roles.remove(&space_id).is_some() {
                 Ok(true)

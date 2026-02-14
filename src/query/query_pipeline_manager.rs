@@ -17,7 +17,8 @@ use crate::query::planner::planner::{StaticConfigurablePlannerRegistry, PlannerC
 use crate::query::validator::Validator;
 use crate::storage::StorageClient;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 use std::time::Instant;
 
 pub struct QueryPipelineManager<S: StorageClient + 'static> {

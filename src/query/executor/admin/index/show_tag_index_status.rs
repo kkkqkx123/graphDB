@@ -2,7 +2,8 @@
 //!
 //! 负责显示标签索引的状态信息。
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 use crate::core::{DataSet, Value};
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
@@ -39,11 +40,7 @@ impl<S: StorageClient> ShowTagIndexStatusExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowTagIndexStatusExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let storage_guard = storage.lock().map_err(|e| {
-            crate::core::error::DBError::Storage(
-                crate::core::error::StorageError::DbError(format!("Storage lock poisoned: {}", e))
-            )
-        })?;
+        let storage_guard = storage.lock();
 
         let indexes = storage_guard.list_tag_indexes(&self.space_name);
 

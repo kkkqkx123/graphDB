@@ -2,7 +2,8 @@
 //!
 //! 负责显示数据库的统计信息。
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 use crate::api::session::GLOBAL_QUERY_MANAGER;
 use crate::core::{DataSet, Value};
@@ -37,11 +38,7 @@ impl<S: StorageClient> ShowStatsExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowStatsExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let storage_guard = storage.lock().map_err(|e| {
-            crate::core::error::DBError::Storage(
-                crate::core::error::StorageError::DbError(format!("Storage lock poisoned: {}", e))
-            )
-        })?;
+        let storage_guard = storage.lock();
 
         let dataset = match &self.stats_type {
             None => self.show_all_stats(&*storage_guard),

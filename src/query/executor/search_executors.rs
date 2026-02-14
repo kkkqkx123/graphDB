@@ -1,12 +1,12 @@
 use std::collections::{HashMap, HashSet};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use crate::core::error::DBError;
 use crate::core::{Edge, EdgeDirection, NullType, Path, Value, Vertex};
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
-use crate::utils::safe_lock;
+use parking_lot::Mutex;
 
 use crate::expression::context::traits::VariableContext;
 
@@ -95,8 +95,7 @@ impl<S: StorageClient + Send + Sync + 'static> FulltextIndexScanExecutor<S> {
 
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for FulltextIndexScanExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
-        let storage = safe_lock(self.get_storage())
-            .expect("FulltextIndexScanExecutor storage lock should not be poisoned");
+        let storage = self.get_storage().lock();
 
         // 执行全文索引搜索
         let search_results = self.search_fulltext_index(&*storage)?;
@@ -134,14 +133,14 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for FulltextIndexScan
                         let edge_type = self.get_schema_name(&*storage).ok()?;
 
                         // 尝试获取边对象
-                        if let Ok(Some(edge)) = storage.get_edge(&space_name, &src, &dst, &edge_type) {
+                        if let Some(edge) = storage.get_edge(&space_name, &src, &dst, &edge_type).ok().flatten() {
                             return Some(vec![Value::Edge(edge), Value::Float(score as f64)]);
                         }
 
                         // 如果找不到边，尝试遍历所有边类型
                         if let Ok(edge_types) = storage.list_edge_types(&space_name) {
                             for edge_type_info in edge_types {
-                                if let Ok(Some(edge)) = storage.get_edge(&space_name, &src, &dst, &edge_type_info.edge_type_name) {
+                                if let Some(edge) = storage.get_edge(&space_name, &src, &dst, &edge_type_info.edge_type_name).ok().flatten() {
                                     return Some(vec![Value::Edge(edge), Value::Float(score as f64)]);
                                 }
                             }
@@ -156,7 +155,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for FulltextIndexScan
             limited_results
                 .into_iter()
                 .filter_map(|(id, score)| {
-                    if let Ok(Some(vertex)) = storage.get_vertex(&space_name, &id) {
+                    if let Some(vertex) = storage.get_vertex(&space_name, &id).ok().flatten() {
                         Some(vec![Value::Vertex(Box::new(vertex)), Value::Float(score as f64)])
                     } else {
                         // 如果无法获取完整顶点，返回ID和分数
@@ -627,22 +626,14 @@ impl<S: StorageClient + 'static> Executor<S> for BFSShortestExecutor<S> {
             // 从起点方向扩展
             if left_has_vids {
                 let storage = self.get_storage().clone();
-                let storage_guard = storage.lock().map_err(|_| {
-                    DBError::Storage(crate::core::error::StorageError::DbError(
-                        "Failed to lock storage".to_string(),
-                    ))
-                })?;
+                let storage_guard = storage.lock();
                 self.build_path(&storage_guard, &left_vids, false)?;
             }
 
             // 从终点方向扩展
             if right_has_vids {
                 let storage = self.get_storage().clone();
-                let storage_guard = storage.lock().map_err(|_| {
-                    DBError::Storage(crate::core::error::StorageError::DbError(
-                        "Failed to lock storage".to_string(),
-                    ))
-                })?;
+                let storage_guard = storage.lock();
                 self.build_path(&storage_guard, &right_vids, true)?;
             }
 
@@ -1117,16 +1108,15 @@ impl<S: StorageClient> IndexScanExecutor<S> {
     }
 }
 
-impl<S: StorageClient + Send + 'static> Executor<S> for IndexScanExecutor<S> {
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for IndexScanExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
-        let storage = safe_lock(self.get_storage())
-            .expect("IndexScanExecutor storage lock should not be poisoned");
+        let storage = self.get_storage().lock();
 
         // 1. 使用索引查找获取ID列表
-        let index_results = self.lookup_by_index(&*storage)?;
+        let index_results = self.lookup_by_index(&storage)?;
 
         // 2. 根据ID获取完整实体
-        let entities = self.fetch_entities(&*storage, index_results)?;
+        let entities = self.fetch_entities(&storage, index_results)?;
 
         // 3. 应用过滤器
         let filtered = self.apply_filter(entities);

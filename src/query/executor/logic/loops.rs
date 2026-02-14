@@ -5,7 +5,8 @@
 //! NebulaGraph 对应实现：
 //! nebula-3.8.0/src/graph/executor/logic/LoopExecutor.cpp
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::Expression;
@@ -655,7 +656,8 @@ mod tests {
     use super::*;
     use crate::core::BinaryOperator;
     use crate::storage::test_mock::MockStorage;
-    use std::sync::{Arc, Mutex};
+    use std::sync::Arc;
+use parking_lot::Mutex;
 
     #[tokio::test]
     async fn test_while_loop_executor() {

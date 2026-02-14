@@ -5,7 +5,8 @@
 //! - DROP FULLTEXT INDEX
 //! - SHOW FULLTEXT INDEXES
 //! - REBUILD FULLTEXT INDEX
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::Value;
@@ -16,7 +17,7 @@ use crate::index::{
 use crate::query::executor::base::{BaseExecutor, ExecutorStats};
 use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
-use crate::utils::safe_lock;
+use parking_lot::Mutex;
 
 pub struct CreateFTIndexExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
@@ -89,7 +90,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateFTIndexExec
 
 impl<S: StorageClient + Send + Sync + 'static> CreateFTIndexExecutor<S> {
     async fn do_execute(&mut self) -> DBResult<()> {
-        let storage = safe_lock(self.get_storage())?;
+        let storage = self.get_storage().lock();
         let space = storage.get_space("default")?;
 
         let mut ft_manager = space.get_fulltext_index_manager_mut()?;
@@ -160,7 +161,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DropFTIndexExecut
 
 impl<S: StorageClient + Send + Sync + 'static> DropFTIndexExecutor<S> {
     async fn do_execute(&mut self) -> DBResult<()> {
-        let storage = safe_lock(self.get_storage())?;
+        let storage = self.get_storage().lock();
         let space = storage.get_space("default")?;
 
         let mut ft_manager = space.get_fulltext_index_manager_mut()?;
@@ -223,7 +224,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowFTIndexesExec
 
 impl<S: StorageClient + Send + Sync + 'static> ShowFTIndexesExecutor<S> {
     async fn do_execute(&mut self) -> DBResult<Vec<Vec<Value>>> {
-        let storage = safe_lock(self.get_storage())?;
+        let storage = self.get_storage().lock();
         let space = storage.get_space("default")?;
 
         let ft_manager = space.get_fulltext_index_manager()?;
@@ -327,7 +328,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for FulltextIndexScan
 
 impl<S: StorageClient + Send + Sync + 'static> FulltextIndexScanExecutor<S> {
     async fn do_execute(&mut self) -> DBResult<Vec<Vec<Value>>> {
-        let storage = safe_lock(self.get_storage())?;
+        let storage = self.get_storage().lock();
         let space = storage.get_space("default")?;
 
         let ft_manager = space.get_fulltext_index_manager()?;

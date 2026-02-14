@@ -163,7 +163,7 @@ impl IndexDataManager for RedbIndexDataManager {
         Ok(())
     }
 
-    fn delete_edge_indexes(&self, space: &str, src: &Value, dst: &Value, edge_type: &str) -> Result<(), StorageError> {
+    fn delete_edge_indexes(&self, space: &str, src: &Value, dst: &Value, _edge_type: &str) -> Result<(), StorageError> {
         let mut keys_to_delete = Vec::new();
         
         // 扫描所有索引条目，找到匹配的边

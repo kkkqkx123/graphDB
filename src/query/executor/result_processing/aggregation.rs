@@ -14,7 +14,8 @@
 
 use rayon::prelude::*;
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 use crate::core::types::operators::AggregateFunction;
 use crate::core::value::{NullType, Value};

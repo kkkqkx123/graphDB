@@ -4,7 +4,8 @@
 //! 将左输入数据与右输入数据进行键匹配
 
 use std::collections::HashSet;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::Expression;
@@ -348,7 +349,8 @@ impl<S: StorageClient + Send + 'static> crate::query::executor::traits::HasStora
 mod tests {
     use super::*;
     use crate::storage::MockStorage;
-    use std::sync::{Arc, Mutex};
+    use std::sync::Arc;
+use parking_lot::Mutex;
 
     #[tokio::test]
     async fn test_pattern_apply_single_key_positive() {

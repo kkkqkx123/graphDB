@@ -2,7 +2,8 @@
 //!
 //! 定义了所有结果处理执行器的统一接口和公共行为
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::value::DataSet;

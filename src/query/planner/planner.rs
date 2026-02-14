@@ -9,8 +9,8 @@ use crate::query::validator::validation_factory::StatementType;
 use lru::LruCache;
 use std::collections::HashMap;
 use std::num::NonZeroUsize;
-use std::sync::Mutex;
 use std::time::Duration;
+use parking_lot::Mutex;
 
 use crate::query::planner::statements::fetch_edges_planner::FetchEdgesPlanner;
 use crate::query::planner::statements::fetch_vertices_planner::FetchVerticesPlanner;
@@ -85,32 +85,24 @@ impl PlanCache {
     }
 
     pub fn get(&self, key: &PlanCacheKey) -> Result<Option<ExecutionPlan>, PlannerError> {
-        let mut cache = self.cache.lock().map_err(|e| {
-            PlannerError::PlanGenerationFailed(format!("Failed to lock plan cache: {}", e))
-        })?;
+        let mut cache = self.cache.lock();
         Ok(cache.get(key).cloned())
     }
 
     pub fn insert(&self, key: PlanCacheKey, plan: ExecutionPlan) -> Result<(), PlannerError> {
-        let mut cache = self.cache.lock().map_err(|e| {
-            PlannerError::PlanGenerationFailed(format!("Failed to lock plan cache: {}", e))
-        })?;
+        let mut cache = self.cache.lock();
         cache.push(key, plan);
         Ok(())
     }
 
     pub fn clear(&self) -> Result<(), PlannerError> {
-        let mut cache = self.cache.lock().map_err(|e| {
-            PlannerError::PlanGenerationFailed(format!("Failed to lock plan cache: {}", e))
-        })?;
+        let mut cache = self.cache.lock();
         cache.clear();
         Ok(())
     }
 
     pub fn size(&self) -> Result<usize, PlannerError> {
-        let cache = self.cache.lock().map_err(|e| {
-            PlannerError::PlanGenerationFailed(format!("Failed to lock plan cache: {}", e))
-        })?;
+        let cache = self.cache.lock();
         Ok(cache.len())
     }
 }

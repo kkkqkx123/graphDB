@@ -2,10 +2,11 @@
 //!
 //! 负责切换当前会话的空间。
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
+use parking_lot::Mutex;
 
 /// 切换空间执行器
 ///
@@ -28,11 +29,7 @@ impl<S: StorageClient> SwitchSpaceExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for SwitchSpaceExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let storage_guard = storage.lock().map_err(|e| {
-            crate::core::error::DBError::Storage(
-                crate::core::error::StorageError::DbError(format!("Storage lock poisoned: {}", e))
-            )
-        })?;
+        let storage_guard = storage.lock();
 
         let space_exists = storage_guard.space_exists(&self.space_name);
 

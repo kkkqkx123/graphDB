@@ -2,7 +2,8 @@
 //!
 //! 负责终止正在运行的查询。
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 use crate::api::session::GLOBAL_QUERY_MANAGER;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};

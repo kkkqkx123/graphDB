@@ -1,4 +1,5 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 use crate::core::error::DBResult;
 use crate::query::executor::base::{BaseExecutor, InputExecutor};

@@ -2,7 +2,8 @@
 //!
 //! 负责处理变量赋值操作，将表达式的结果赋值给变量
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::Expression;
@@ -157,7 +158,8 @@ mod tests {
     use crate::core::Expression;
     use crate::core::Value;
     use crate::storage::MockStorage;
-    use std::sync::{Arc, Mutex};
+    use std::sync::Arc;
+use parking_lot::Mutex;
 
     #[tokio::test]
     async fn test_assign_executor() {

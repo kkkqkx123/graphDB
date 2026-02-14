@@ -2,7 +2,8 @@
 //!
 //! 实现笛卡尔积（交叉连接）算法，支持多表连接
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::{DataSet, Value};

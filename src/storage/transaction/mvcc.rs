@@ -11,8 +11,9 @@ use serde::{Deserialize, Serialize};
 use super::TransactionId;
 use crate::core::{StorageError, Value};
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::Arc;
 use std::time::{Duration, SystemTime};
+use parking_lot::{Mutex, RwLock};
 
 /// 版本号
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -245,9 +246,7 @@ impl MvccManager {
         let mut record = VersionRecord::new(version, tx_id, VersionType::Write);
         record = record.with_value(value);
 
-        let mut chains = self.version_chains.write().map_err(|e| {
-            StorageError::DbError(format!("Failed to acquire write lock: {}", e))
-        })?;
+        let mut chains = self.version_chains.write();
 
         let chain = chains.entry(key.to_string()).or_insert_with(|| VersionChain::new(key));
 
@@ -258,9 +257,7 @@ impl MvccManager {
 
     /// 获取下一版本号
     pub fn next_version(&self) -> Result<Version, StorageError> {
-        let mut global = self.global_version.lock().map_err(|e| {
-            StorageError::DbError(format!("Failed to acquire lock: {}", e))
-        })?;
+        let mut global = self.global_version.lock();
         *global += 1;
         Ok(Version(*global))
     }
@@ -274,9 +271,7 @@ impl MvccManager {
     ) -> Result<Option<Value>, StorageError> {
         self.register_read(tx_id, read_version)?;
 
-        let chains = self.version_chains.read().map_err(|e| {
-            StorageError::DbError(format!("Failed to acquire read lock: {}", e))
-        })?;
+        let chains = self.version_chains.read();
 
         if let Some(chain) = chains.get(key) {
             if chain.is_being_written() {
@@ -297,9 +292,7 @@ impl MvccManager {
 
     /// 注册读操作
     fn register_read(&self, tx_id: TransactionId, read_version: Version) -> Result<(), StorageError> {
-        let mut reads = self.active_reads.write().map_err(|e| {
-            StorageError::DbError(format!("Failed to acquire active reads lock: {}", e))
-        })?;
+        let mut reads = self.active_reads.write();
         reads.insert(tx_id, read_version.as_u64());
         Ok(())
     }
@@ -323,18 +316,14 @@ impl MvccManager {
 
     /// 获取数据的版本链
     pub fn get_version_chain(&self, key: &str) -> Result<Option<VersionChain>, StorageError> {
-        let chains = self.version_chains.read().map_err(|e| {
-            StorageError::DbError(format!("Failed to acquire version chains read lock: {}", e))
-        })?;
+        let chains = self.version_chains.read();
         Ok(chains.get(key).cloned())
     }
 
     /// 获取全局版本向量
     pub fn get_global_version_vec(&self) -> Result<VersionVec, StorageError> {
         let mut vv = VersionVec::new();
-        let chains = self.version_chains.read().map_err(|e| {
-            StorageError::DbError(format!("Failed to acquire version chains read lock: {}", e))
-        })?;
+        let chains = self.version_chains.read();
 
         for chain in chains.values() {
             if let Some(version) = chain.latest_version() {
@@ -347,28 +336,20 @@ impl MvccManager {
 
     /// 提交事务
     pub fn commit(&self, tx_id: TransactionId) -> Result<(), StorageError> {
-        let mut reads = self.active_reads.write().map_err(|e| {
-            StorageError::DbError(format!("Failed to acquire active reads lock: {}", e))
-        })?;
+        let mut reads = self.active_reads.write();
         reads.remove(&tx_id);
 
-        let mut stats = self.stats.lock().map_err(|e| {
-            StorageError::DbError(format!("Failed to acquire stats lock: {}", e))
-        })?;
+        let mut stats = self.stats.lock();
         stats.committed_versions += 1;
         Ok(())
     }
 
     /// 中止事务
     pub fn abort(&self, tx_id: TransactionId) -> Result<(), StorageError> {
-        let mut reads = self.active_reads.write().map_err(|e| {
-            StorageError::DbError(format!("Failed to acquire active reads lock: {}", e))
-        })?;
+        let mut reads = self.active_reads.write();
         reads.remove(&tx_id);
 
-        let mut chains = self.version_chains.write().map_err(|e| {
-            StorageError::DbError(format!("Failed to acquire version chains write lock: {}", e))
-        })?;
+        let mut chains = self.version_chains.write();
 
         for chain in chains.values_mut() {
             if chain.active_writer == Some(tx_id) {
@@ -378,26 +359,20 @@ impl MvccManager {
             chain.versions.retain(|v| v.tx_id != tx_id);
         }
 
-        let mut stats = self.stats.lock().map_err(|e| {
-            StorageError::DbError(format!("Failed to acquire stats lock: {}", e))
-        })?;
+        let mut stats = self.stats.lock();
         stats.aborted_versions += 1;
         Ok(())
     }
 
     /// 获取统计信息
     pub fn get_stats(&self) -> Result<MvccStats, StorageError> {
-        let stats = self.stats.lock().map_err(|e| {
-            StorageError::DbError(format!("Failed to acquire stats lock: {}", e))
-        })?;
+        let stats = self.stats.lock();
         Ok(stats.clone())
     }
 
     /// 获取活跃事务列表
     pub fn get_active_transactions(&self) -> Result<Vec<TransactionId>, StorageError> {
-        let reads = self.active_reads.read().map_err(|e| {
-            StorageError::DbError(format!("Failed to acquire active reads read lock: {}", e))
-        })?;
+        let reads = self.active_reads.read();
         Ok(reads.keys().cloned().collect())
     }
 }

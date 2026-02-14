@@ -2,7 +2,8 @@
 //!
 //! 负责处理列表展开操作，将列表中的每个元素展开为单独的行
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::Expression;
@@ -362,7 +363,8 @@ mod tests {
     use crate::core::Expression;
     use crate::core::Value;
     use crate::storage::MockStorage;
-    use std::sync::{Arc, Mutex};
+    use std::sync::Arc;
+use parking_lot::Mutex;
 
     #[tokio::test]
     async fn test_unwind_executor() {

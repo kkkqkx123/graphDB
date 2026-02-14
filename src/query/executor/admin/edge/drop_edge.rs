@@ -2,7 +2,8 @@
 //!
 //! 负责删除指定的边类型及其所有数据。
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
@@ -43,11 +44,7 @@ impl<S: StorageClient> DropEdgeExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DropEdgeExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let mut storage_guard = storage.lock().map_err(|e| {
-            crate::core::error::DBError::Storage(
-                crate::core::error::StorageError::DbError(format!("Storage lock poisoned: {}", e))
-            )
-        })?;
+        let mut storage_guard = storage.lock();
 
         let result = storage_guard.drop_edge_type(&self.space_name, &self.edge_name);
 

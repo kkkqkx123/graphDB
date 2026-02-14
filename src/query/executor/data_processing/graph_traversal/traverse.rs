@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::{Edge, Expression, NPath, Path, Value, Vertex};
@@ -12,7 +12,7 @@ use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::query::QueryError;
 use crate::storage::StorageClient;
-use crate::utils::safe_lock;
+use parking_lot::Mutex;
 
 /// TraverseExecutor - 完整图遍历执行器
 ///
@@ -230,8 +230,7 @@ impl<S: StorageClient> TraverseExecutor<S> {
 
             for (neighbor_id, edge) in neighbors_with_edges {
                 // 获取邻居节点的完整信息
-                let storage = safe_lock(self.get_storage())
-                    .expect("TraverseExecutor storage lock should not be poisoned");
+                let storage = self.get_storage().lock();
                 let neighbor_vertex = storage
                     .get_vertex("default", &neighbor_id)
                     .map_err(|e| QueryError::StorageError(e.to_string()))?;
@@ -363,8 +362,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for TraverseExecutor<S> {
                 let mut nodes = Vec::new();
                 let mut visited = HashSet::new();
                 for edge in edges {
-                    let storage = safe_lock(self.get_storage())
-                        .expect("TraverseExecutor storage lock should not be poisoned");
+                    let storage = self.get_storage().lock();
                     if let Ok(Some(src_vertex)) = storage.get_vertex("default", &edge.src) {
                         if visited.insert(src_vertex.vid.clone()) {
                             nodes.push(src_vertex);
@@ -381,8 +379,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for TraverseExecutor<S> {
             ExecutionResult::Values(values) => {
                 // 从值中提取节点
                 let mut vertices = Vec::new();
-                let storage = safe_lock(&*self.get_storage())
-                    .expect("TraverseExecutor storage lock should not be poisoned");
+                let storage = self.get_storage().lock();
                 for value in values {
                     match value {
                         Value::Vertex(vertex) => vertices.push(*vertex),

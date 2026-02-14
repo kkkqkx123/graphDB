@@ -5,7 +5,7 @@
 
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::storage::StorageClient;
-use crate::utils::{safe_lock, Mutex};
+use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -162,49 +162,49 @@ impl<S: StorageClient + 'static> ThreadSafeExecutorPool<S> {
 
     /// 从对象池获取执行器
     pub fn acquire(&self, executor_type: &str) -> Option<ExecutorEnum<S>> {
-        let mut pool = safe_lock(&self.inner);
+        let mut pool = self.inner.lock();
         pool.acquire(executor_type)
     }
 
     /// 将执行器释放回对象池
     pub fn release(&self, executor_type: &str, executor: ExecutorEnum<S>) {
-        let mut pool = safe_lock(&self.inner);
+        let mut pool = self.inner.lock();
         pool.release(executor_type, executor);
     }
 
     /// 清空对象池
     pub fn clear(&self) {
-        let mut pool = safe_lock(&self.inner);
+        let mut pool = self.inner.lock();
         pool.clear();
     }
 
     /// 获取对象池统计信息
     pub fn stats(&self) -> PoolStats {
-        let pool = safe_lock(&self.inner);
+        let pool = self.inner.lock();
         pool.stats().clone()
     }
 
     /// 获取对象池配置
     pub fn config(&self) -> ObjectPoolConfig {
-        let pool = safe_lock(&self.inner);
+        let pool = self.inner.lock();
         pool.config().clone()
     }
 
     /// 更新对象池配置
     pub fn set_config(&self, config: ObjectPoolConfig) {
-        let mut pool = safe_lock(&self.inner);
+        let mut pool = self.inner.lock();
         pool.set_config(config);
     }
 
     /// 获取指定类型的池大小
     pub fn pool_size(&self, executor_type: &str) -> usize {
-        let pool = safe_lock(&self.inner);
+        let pool = self.inner.lock();
         pool.pool_size(executor_type)
     }
 
     /// 获取总池大小
     pub fn total_size(&self) -> usize {
-        let pool = safe_lock(&self.inner);
+        let pool = self.inner.lock();
         pool.total_size()
     }
 }

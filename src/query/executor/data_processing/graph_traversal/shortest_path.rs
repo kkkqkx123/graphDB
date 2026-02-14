@@ -1,7 +1,7 @@
 use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
 use std::cmp::Reverse;
 use std::cmp::Ordering;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use rayon::prelude::*;
 
@@ -14,7 +14,7 @@ use crate::query::executor::recursion_detector::ParallelConfig;
 use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::query::QueryError;
 use crate::storage::StorageClient;
-use crate::utils::safe_lock;
+use parking_lot::Mutex;
 
 /// 自环边去重辅助结构
 /// 用于在遍历过程中跟踪已处理的自环边
@@ -240,7 +240,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
         &self,
         node_id: &Value,
     ) -> Result<Vec<(Value, Edge, f64)>, QueryError> {
-        let storage = safe_lock(&*self.get_storage())?;
+        let storage = self.get_storage().lock();
 
         let edges = storage
             .get_node_edges("default", node_id, EdgeDirection::Both)
@@ -322,7 +322,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
 
         // 初始化左向队列（从起点开始）
         for start_id in start_ids {
-            let storage = safe_lock(&*self.get_storage())?;
+            let storage = self.get_storage().lock();
             if let Ok(Some(start_vertex)) = storage.get_vertex("default", start_id) {
                 let initial_npath = Arc::new(NPath::new(Arc::new(start_vertex)));
                 state.left_queue.push_back((start_id.clone(), initial_npath.clone()));
@@ -332,7 +332,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
 
         // 初始化右向队列（从终点开始）
         for end_id in end_ids {
-            let storage = safe_lock(&*self.get_storage())?;
+            let storage = self.get_storage().lock();
             if let Ok(Some(end_vertex)) = storage.get_vertex("default", end_id) {
                 let initial_npath = Arc::new(NPath::new(Arc::new(end_vertex)));
                 state.right_queue.push_back((end_id.clone(), initial_npath.clone()));
@@ -390,7 +390,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
                         continue;
                     }
 
-                    let storage = safe_lock(&*self.get_storage())?;
+                    let storage = self.get_storage().lock();
                     if let Ok(Some(neighbor_vertex)) = storage.get_vertex("default", &neighbor_id) {
                         // 使用 NPath 扩展，O(1) 操作
                         let new_npath = Arc::new(NPath::extend(
@@ -435,7 +435,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
                         continue;
                     }
 
-                    let storage = safe_lock(&*self.get_storage())?;
+                    let storage = self.get_storage().lock();
                     if let Ok(Some(neighbor_vertex)) = storage.get_vertex("default", &neighbor_id) {
                         // 使用 NPath 扩展，O(1) 操作
                         let new_npath = Arc::new(NPath::extend(
@@ -699,7 +699,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
         let mut current_id = end_id.clone();
 
         while let Some((prev_id, edge)) = previous_map.get(&current_id) {
-            let storage = safe_lock(&*self.get_storage())?;
+            let storage = self.get_storage().lock();
             if let Ok(Some(current_vertex)) = storage.get_vertex("default", &current_id) {
                 path_steps.push(Step {
                     dst: Box::new(current_vertex),
@@ -713,7 +713,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
             return Ok(None);
         }
 
-        let storage = safe_lock(&*self.get_storage())?;
+        let storage = self.get_storage().lock();
         if let Ok(Some(start_vertex)) = storage.get_vertex("default", &current_id) {
             path_steps.reverse();
 
@@ -736,7 +736,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
         let mut result_paths = Vec::new();
 
         for start_id in start_ids {
-            let storage = safe_lock(&*self.get_storage())?;
+            let storage = self.get_storage().lock();
             if let Ok(Some(start_vertex)) = storage.get_vertex("default", start_id) {
                 let initial_path = Path {
                     src: Box::new(start_vertex),
@@ -773,7 +773,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
                     continue;
                 }
 
-                let storage = safe_lock(&*self.get_storage())?;
+                let storage = self.get_storage().lock();
                 if let Ok(Some(neighbor_vertex)) = storage.get_vertex("default", &neighbor_id) {
                     let mut new_path = current_path.clone();
                     new_path.steps.push(Step {
@@ -1069,7 +1069,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
     }
 
     fn get_neighbors_with_edges(&self, node_id: &Value) -> Result<Vec<(Value, Edge)>, QueryError> {
-        let storage = safe_lock(&*self.get_storage())?;
+        let storage = self.get_storage().lock();
 
         let edges = storage
             .get_node_edges("default", node_id, EdgeDirection::Both)
@@ -1099,7 +1099,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
 
         let mut initial_data: Vec<(Value, Path, Value)> = Vec::new();
         for start_vertex in &self.left_start_vertices {
-            let storage = safe_lock(&*self.get_storage())?;
+            let storage = self.get_storage().lock();
 
             if let Ok(Some(vertex)) = storage.get_vertex("default", start_vertex) {
                 let path = Path {
@@ -1130,7 +1130,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
 
                 let edge_clone = edge.clone();
                 for path in paths {
-                    let storage = safe_lock(&*self.get_storage())?;
+                    let storage = self.get_storage().lock();
 
                     if let Ok(Some(dst_vertex)) = storage.get_vertex("default", &neighbor_id) {
                         let mut new_path = path.clone();
@@ -1159,7 +1159,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
 
         let mut initial_data: Vec<(Value, Path, Value)> = Vec::new();
         for target_vertex in &self.right_target_vertices {
-            let storage = safe_lock(&*self.get_storage())?;
+            let storage = self.get_storage().lock();
 
             if let Ok(Some(vertex)) = storage.get_vertex("default", target_vertex) {
                 let path = Path {
@@ -1190,7 +1190,7 @@ impl<S: StorageClient> MultiShortestPathExecutor<S> {
 
                 let edge_clone = edge.clone();
                 for path in paths {
-                    let storage = safe_lock(&*self.get_storage())?;
+                    let storage = self.get_storage().lock();
 
                     if let Ok(Some(dst_vertex)) = storage.get_vertex("default", &neighbor_id) {
                         let mut new_path = path.clone();

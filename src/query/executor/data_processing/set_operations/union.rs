@@ -2,7 +2,8 @@
 //!
 //! 实现UNION操作，合并两个数据集并去除重复行
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 use crate::core::{DataSet, Value};
 use crate::query::executor::traits::{DBResult, ExecutionResult, Executor};

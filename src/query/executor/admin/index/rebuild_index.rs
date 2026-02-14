@@ -2,7 +2,8 @@
 //!
 //! 提供标签索引和边索引的重建功能。
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
@@ -31,11 +32,7 @@ impl<S: StorageClient> RebuildTagIndexExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for RebuildTagIndexExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let mut storage_guard = storage.lock().map_err(|e| {
-            crate::core::error::DBError::Storage(
-                crate::core::error::StorageError::DbError(format!("Storage lock poisoned: {}", e))
-            )
-        })?;
+        let mut storage_guard = storage.lock();
 
         let result = storage_guard.rebuild_tag_index(&self.space_name, &self.index_name);
 
@@ -109,11 +106,7 @@ impl<S: StorageClient> RebuildEdgeIndexExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for RebuildEdgeIndexExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let mut storage_guard = storage.lock().map_err(|e| {
-            crate::core::error::DBError::Storage(
-                crate::core::error::StorageError::DbError(format!("Storage lock poisoned: {}", e))
-            )
-        })?;
+        let mut storage_guard = storage.lock();
 
         let result = storage_guard.rebuild_edge_index(&self.space_name, &self.index_name);
 

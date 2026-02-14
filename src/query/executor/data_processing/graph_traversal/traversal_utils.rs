@@ -1,11 +1,11 @@
 use std::collections::HashSet;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult, StorageError};
 use crate::core::{Edge, Value};
 use crate::query::executor::base::EdgeDirection;
 use crate::storage::StorageClient;
-use crate::utils::safe_lock;
+use parking_lot::Mutex;
 
 /// 获取邻居节点
 ///
@@ -37,8 +37,7 @@ pub fn get_neighbors<S: StorageClient>(
     edge_direction: EdgeDirection,
     edge_types: &Option<Vec<String>>,
 ) -> DBResult<Vec<Value>> {
-    let storage_guard = safe_lock(storage)
-        .expect("Storage lock should not be poisoned");
+    let storage_guard = storage.lock();
 
     let edges = storage_guard
         .get_node_edges("default", node_id, EdgeDirection::Both)
@@ -118,8 +117,7 @@ pub fn get_neighbors_with_edges<S: StorageClient>(
     edge_direction: EdgeDirection,
     edge_types: &Option<Vec<String>>,
 ) -> DBResult<Vec<(Value, Edge)>> {
-    let storage_guard = safe_lock(storage)
-        .expect("Storage lock should not be poisoned");
+    let storage_guard = storage.lock();
 
     let edges = storage_guard
         .get_node_edges("default", node_id, EdgeDirection::Both)

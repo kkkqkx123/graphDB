@@ -2,10 +2,11 @@
 //!
 //! 提供执行器的基础结构和通用功能，包括 Executor trait、HasStorage trait、HasInput trait 等。
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Instant;
 
 use crate::storage::StorageClient;
+use parking_lot::Mutex;
 
 use super::execution_context::ExecutionContext;
 use super::execution_result::{ExecutionResult, DBResult};

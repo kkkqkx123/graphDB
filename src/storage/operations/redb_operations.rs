@@ -5,7 +5,8 @@ use crate::storage::serializer::{vertex_to_bytes, vertex_from_bytes, edge_to_byt
 use crate::utils::id_gen::generate_id;
 use redb::{Database, ReadableTable};
 use lru::LruCache;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 #[derive(Clone)]
 pub struct RedbReader {
@@ -83,7 +84,7 @@ impl VertexReader for RedbReader {
         let id_bytes = value_to_bytes(id)?;
 
         {
-            let mut cache = self.vertex_cache.lock().expect("Failed to lock vertex cache");
+            let mut cache = self.vertex_cache.lock();
             if let Some(vertex) = cache.get(&id_bytes) {
                 return Ok(Some(vertex.clone()));
             }
@@ -92,7 +93,7 @@ impl VertexReader for RedbReader {
         match self.get_node_from_bytes(&id_bytes)? {
             Some(vertex) => {
                 {
-                    let mut cache = self.vertex_cache.lock().expect("Failed to lock vertex cache");
+                    let mut cache = self.vertex_cache.lock();
                     cache.put(id_bytes.clone(), vertex.clone());
                 }
                 Ok(Some(vertex))
@@ -170,7 +171,7 @@ impl EdgeReader for RedbReader {
         let edge_key_bytes = edge_key.as_bytes().to_vec();
 
         {
-            let mut cache = self.edge_cache.lock().expect("Failed to lock edge cache");
+            let mut cache = self.edge_cache.lock();
             if let Some(edge) = cache.get(&edge_key_bytes) {
                 return Ok(Some(edge.clone()));
             }
@@ -179,7 +180,7 @@ impl EdgeReader for RedbReader {
         match self.get_edge_from_bytes(&edge_key_bytes)? {
             Some(edge) => {
                 {
-                    let mut cache = self.edge_cache.lock().expect("Failed to lock edge cache");
+                    let mut cache = self.edge_cache.lock();
                     cache.put(edge_key_bytes.clone(), edge.clone());
                 }
                 Ok(Some(edge))

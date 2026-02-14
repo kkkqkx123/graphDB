@@ -15,7 +15,8 @@ use crate::core::vertex_edge_path::Tag;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 /// 属性索引结构
 #[derive(Debug, Clone)]
@@ -121,8 +122,7 @@ impl GetNeighborsIter {
         let col_names = {
             let ds = ds_index
                 .ds
-                .lock()
-                .map_err(|e| format!("锁定数据集失败: {}", e))?;
+                .lock();
             ds.col_names.clone()
         };
         if col_names.len() < 3 {
@@ -212,10 +212,7 @@ impl GetNeighborsIter {
                 break;
             }
 
-            let ds_guard = match ds_index.ds.lock() {
-                Ok(guard) => guard,
-                Err(_) => continue,
-            };
+            let ds_guard = ds_index.ds.lock();
 
             for row_idx in 0..ds_guard.rows.len() {
                 self.col_idx = ds_index.col_lower_bound + 1; // 从第一列边开始
@@ -299,14 +296,11 @@ impl Iterator for GetNeighborsIter {
             return false;
         }
 
-        if let Ok(ds_guard) = self.ds_indices[self.current_ds_index].ds.lock() {
-            self.current_row < ds_guard.rows.len()
-                && self.col_idx <= self.ds_indices[self.current_ds_index].col_upper_bound
-                && self.edge_idx >= 0
-                && self.edge_idx < self.edge_idx_upper_bound
-        } else {
-            false
-        }
+        let ds_guard = self.ds_indices[self.current_ds_index].ds.lock();
+        self.current_row < ds_guard.rows.len()
+            && self.col_idx <= self.ds_indices[self.current_ds_index].col_upper_bound
+            && self.edge_idx >= 0
+            && self.edge_idx < self.edge_idx_upper_bound
     }
 
     fn next(&mut self) {
@@ -316,14 +310,13 @@ impl Iterator for GetNeighborsIter {
 
         if self.no_edge {
             self.current_row += 1;
-            if let Ok(ds_guard) = self.ds_indices[self.current_ds_index].ds.lock() {
-                if self.current_row >= ds_guard.rows.len() {
-                    self.current_ds_index += 1;
-                    if self.current_ds_index < self.ds_indices.len() {
-                        self.current_row = 0;
-                    } else {
-                        self.valid = false;
-                    }
+            let ds_guard = self.ds_indices[self.current_ds_index].ds.lock();
+            if self.current_row >= ds_guard.rows.len() {
+                self.current_ds_index += 1;
+                if self.current_ds_index < self.ds_indices.len() {
+                    self.current_row = 0;
+                } else {
+                    self.valid = false;
                 }
             }
             return;
@@ -344,22 +337,18 @@ impl Iterator for GetNeighborsIter {
                 let col_idx = self.col_idx as usize;
 
                 let current_col_list = {
-                    if let Ok(ds_guard) = self.ds_indices[self.current_ds_index].ds.lock() {
-                        if col_idx >= ds_guard.rows[self.current_row].len() {
+                    let ds_guard = self.ds_indices[self.current_ds_index].ds.lock();
+                    if col_idx >= ds_guard.rows[self.current_row].len() {
+                        self.col_idx += 1;
+                        continue;
+                    }
+
+                    match &ds_guard.rows[self.current_row][col_idx] {
+                        Value::List(list) if !list.is_empty() => Some(list.clone()),
+                        _ => {
                             self.col_idx += 1;
                             continue;
                         }
-
-                        match &ds_guard.rows[self.current_row][col_idx] {
-                            Value::List(list) if !list.is_empty() => Some(list.clone()),
-                            _ => {
-                                self.col_idx += 1;
-                                continue;
-                            }
-                        }
-                    } else {
-                        self.col_idx += 1;
-                        continue;
                     }
                 };
 
@@ -375,24 +364,20 @@ impl Iterator for GetNeighborsIter {
             if self.col_idx >= self.ds_indices[self.current_ds_index].col_upper_bound {
                 // 移动到下一行
                 self.current_row += 1;
-                if let Ok(ds_guard) = self.ds_indices[self.current_ds_index].ds.lock() {
-                    if self.current_row >= ds_guard.rows.len() {
-                        // 移动到下一个数据集
-                        self.current_ds_index += 1;
-                        if self.current_ds_index < self.ds_indices.len() {
-                            self.current_row = 0;
-                            self.col_idx =
-                                self.ds_indices[self.current_ds_index].col_lower_bound + 1;
-                        } else {
-                            self.valid = false;
-                            break;
-                        }
+                let ds_guard = self.ds_indices[self.current_ds_index].ds.lock();
+                if self.current_row >= ds_guard.rows.len() {
+                    // 移动到下一个数据集
+                    self.current_ds_index += 1;
+                    if self.current_ds_index < self.ds_indices.len() {
+                        self.current_row = 0;
+                        self.col_idx =
+                            self.ds_indices[self.current_ds_index].col_lower_bound + 1;
                     } else {
-                        self.col_idx = self.ds_indices[self.current_ds_index].col_lower_bound + 1;
+                        self.valid = false;
+                        break;
                     }
                 } else {
-                    self.valid = false;
-                    break;
+                    self.col_idx = self.ds_indices[self.current_ds_index].col_lower_bound + 1;
                 }
             }
         }
@@ -421,10 +406,7 @@ impl Iterator for GetNeighborsIter {
         // 执行删除操作
         {
             let ds_index = &self.ds_indices[self.current_ds_index];
-            let mut ds_guard = match ds_index.ds.lock() {
-                Ok(guard) => guard,
-                Err(_) => return,
-            };
+            let mut ds_guard = ds_index.ds.lock();
 
             if row_idx < ds_guard.rows.len() && col_idx < ds_guard.rows[row_idx].len() {
                 if let Value::List(edge_col) = &mut ds_guard.rows[row_idx][col_idx] {
@@ -468,10 +450,7 @@ impl Iterator for GetNeighborsIter {
 
         {
             let ds_index = &self.ds_indices[self.current_ds_index];
-            let mut ds_guard = match ds_index.ds.lock() {
-                Ok(guard) => guard,
-                Err(_) => return,
-            };
+            let mut ds_guard = ds_index.ds.lock();
 
             if row_idx < ds_guard.rows.len() && col_idx < ds_guard.rows[row_idx].len() {
                 if let Value::List(edge_col) = &mut ds_guard.rows[row_idx][col_idx] {
@@ -510,13 +489,12 @@ impl Iterator for GetNeighborsIter {
     fn size(&self) -> usize {
         let mut count = 0;
         for ds_idx in &self.ds_indices {
-            if let Ok(ds_guard) = ds_idx.ds.lock() {
-                for row in &ds_guard.rows {
-                    for edge_idx in ds_idx.edge_props_map.values() {
-                        if edge_idx.col_idx < row.len() {
-                            if let Value::List(list) = &row[edge_idx.col_idx] {
-                                count += list.len();
-                            }
+            let ds_guard = ds_idx.ds.lock();
+            for row in &ds_guard.rows {
+                for edge_idx in ds_idx.edge_props_map.values() {
+                    if edge_idx.col_idx < row.len() {
+                        if let Value::List(list) = &row[edge_idx.col_idx] {
+                            count += list.len();
                         }
                     }
                 }
@@ -541,12 +519,14 @@ impl Iterator for GetNeighborsIter {
         }
 
         let ds_index = &self.ds_indices[self.current_ds_index];
-        if let Ok(ds_guard) = ds_index.ds.lock() {
-            if self.current_row < ds_guard.rows.len() {
-                return Some(ds_guard.rows[self.current_row].clone());
-            }
-        }
-        None
+        let ds_guard = ds_index.ds.lock();
+        let result = if self.current_row < ds_guard.rows.len() {
+            Some(ds_guard.rows[self.current_row].clone())
+        } else {
+            None
+        };
+        drop(ds_guard);
+        result
     }
 
     fn add_row(&mut self, _row: Row) {
@@ -800,11 +780,8 @@ impl Iterator for GetNeighborsIter {
 
     fn get_col_names(&self) -> Vec<String> {
         if self.current_ds_index < self.ds_indices.len() {
-            if let Ok(ds_guard) = self.ds_indices[self.current_ds_index].ds.lock() {
-                ds_guard.col_names.clone()
-            } else {
-                Vec::new()
-            }
+            let ds_guard = self.ds_indices[self.current_ds_index].ds.lock();
+            ds_guard.col_names.clone()
         } else {
             Vec::new()
         }
@@ -821,7 +798,7 @@ impl Iterator for GetNeighborsIter {
         }
 
         let ds_index = &self.ds_indices[self.current_ds_index];
-        let ds_guard = ds_index.ds.lock().ok()?;
+        let ds_guard = ds_index.ds.lock();
 
         if tag == "*" {
             // 搜索所有标签
@@ -877,7 +854,7 @@ impl Iterator for GetNeighborsIter {
         }
 
         let ds_index = &self.ds_indices[self.current_ds_index];
-        let ds_guard = ds_index.ds.lock().ok()?;
+        let ds_guard = ds_index.ds.lock();
         let row = &ds_guard.rows[self.current_row];
 
         let mut vertex = crate::core::Vertex::new(vid_val.clone(), Vec::new());
@@ -909,7 +886,7 @@ impl Iterator for GetNeighborsIter {
         }
 
         let ds_index = &self.ds_indices[self.current_ds_index];
-        let ds_guard = ds_index.ds.lock().ok()?;
+        let ds_guard = ds_index.ds.lock();
 
         // 边名必须带 +/- 前缀
         let prop_index = ds_index.edge_props_map.get(edge)?;
@@ -996,7 +973,7 @@ impl GetNeighborsIter {
 
         let current_edge_name = self.current_edge_name()?;
         let ds_index = &self.ds_indices[self.current_ds_index];
-        let ds_guard = ds_index.ds.lock().ok()?;
+        let ds_guard = ds_index.ds.lock();
         let prop_index = ds_index.edge_props_map.get(current_edge_name)?;
 
         let row = &ds_guard.rows[self.current_row];

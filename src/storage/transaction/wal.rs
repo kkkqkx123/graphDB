@@ -15,8 +15,9 @@ use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::Arc;
 use std::time::{Duration, SystemTime};
+use parking_lot::{Mutex, RwLock};
 
 /// 日志类型
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
@@ -197,9 +198,7 @@ impl TransactionLog {
 
     /// 分配 LSN
     fn allocate_lsn(&self) -> Result<u64, StorageError> {
-        let mut counter = self.lsn_counter.lock().map_err(|e| {
-            StorageError::DbError(format!("Failed to acquire LSN counter lock: {}", e))
-        })?;
+        let mut counter = self.lsn_counter.lock();
         *counter += 1;
         Ok(*counter)
     }
@@ -222,9 +221,7 @@ impl TransactionLog {
             record.prev_lsn = 0;
         }
 
-        let mut buffer = self.buffer.lock().map_err(|e| {
-            StorageError::DbError(format!("Failed to acquire WAL buffer lock: {}", e))
-        })?;
+        let mut buffer = self.buffer.lock();
         if buffer.len() >= MAX_BUFFER_SIZE {
             self.flush_buffer()?;
         }
@@ -234,9 +231,7 @@ impl TransactionLog {
             self.flush_buffer()?;
         }
 
-        let mut stats = self.stats.lock().map_err(|e| {
-            StorageError::DbError(format!("Failed to acquire WAL stats lock: {}", e))
-        })?;
+        let mut stats = self.stats.lock();
         stats.bytes_written += record_size as u64;
         stats.records_written += 1;
 
@@ -310,18 +305,14 @@ impl TransactionLog {
 
     /// 刷新缓冲区到磁盘
     fn flush_buffer(&self) -> Result<(), StorageError> {
-        let mut buffer = self.buffer.lock().map_err(|e| {
-            StorageError::DbError(format!("Failed to acquire WAL buffer lock: {}", e))
-        })?;
+        let mut buffer = self.buffer.lock();
         if buffer.is_empty() {
             return Ok(());
         }
 
         let records: Vec<LogRecord> = buffer.drain(..).collect();
 
-        let mut log_file = self.current_log.lock().map_err(|e| {
-            StorageError::DbError(format!("Failed to acquire current log lock: {}", e))
-        })?;
+        let mut log_file = self.current_log.lock();
 
         if log_file.is_none() {
             let timestamp = SystemTime::now()
@@ -339,9 +330,7 @@ impl TransactionLog {
             let writer = BufWriter::new(file);
             *log_file = Some(writer);
 
-            let mut log_files = self.log_files.write().map_err(|e| {
-                StorageError::DbError(format!("Failed to acquire log files write lock: {}", e))
-            })?;
+            let mut log_files = self.log_files.write();
             log_files.push(path);
         }
 
@@ -357,9 +346,7 @@ impl TransactionLog {
                     StorageError::DbError(format!("IO error writing log: {}", e))
                 })?;
 
-                let mut flushed = self.flushed_lsn.lock().map_err(|e| {
-                    StorageError::DbError(format!("Failed to acquire flushed LSN lock: {}", e))
-                })?;
+                let mut flushed = self.flushed_lsn.lock();
                 *flushed = record.lsn;
             }
 
@@ -374,9 +361,7 @@ impl TransactionLog {
     /// 强制刷新到磁盘
     pub fn flush(&self) -> Result<u64, StorageError> {
         self.flush_buffer()?;
-        let flushed = self.flushed_lsn.lock().map_err(|e| {
-            StorageError::DbError(format!("Failed to acquire flushed LSN lock: {}", e))
-        })?;
+        let flushed = self.flushed_lsn.lock();
         Ok(*flushed)
     }
 
@@ -387,9 +372,7 @@ impl TransactionLog {
         let mut commit_lsns = HashMap::new();
         let mut undo_lsns = HashMap::new();
 
-        let log_files = self.log_files.read().map_err(|e| {
-            StorageError::DbError(format!("Failed to acquire log files read lock: {}", e))
-        })?;
+        let log_files = self.log_files.read();
 
         for log_path in log_files.iter().rev() {
             if let Ok(file) = File::open(log_path) {
@@ -485,20 +468,14 @@ impl TransactionLog {
 
     /// 获取统计信息
     pub fn get_stats(&self) -> Result<LogStats, StorageError> {
-        let stats = self.stats.lock().map_err(|e| {
-            StorageError::DbError(format!("Failed to acquire WAL stats lock: {}", e))
-        })?;
+        let stats = self.stats.lock();
         Ok(stats.clone())
     }
 
     /// 清理旧日志文件
     pub fn cleanup_old_logs(&self, _min_lsn: u64) -> Result<(), StorageError> {
-        let mut log_files = self.log_files.write().map_err(|e| {
-            StorageError::DbError(format!("Failed to acquire log files write lock: {}", e))
-        })?;
-        let _flushed = self.flushed_lsn.lock().map_err(|e| {
-            StorageError::DbError(format!("Failed to acquire flushed LSN lock: {}", e))
-        })?;
+        let mut log_files = self.log_files.write();
+        let _flushed = self.flushed_lsn.lock();
 
         log_files.retain(|path| {
             if let Ok(metadata) = path.metadata() {

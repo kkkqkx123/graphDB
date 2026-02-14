@@ -7,7 +7,8 @@ mod tests {
     use crate::query::executor::data_processing::graph_traversal::traits::GraphTraversalExecutor;
     use crate::query::executor::traits::Executor;
     use crate::storage::{MockStorage, StorageClient};
-    use std::sync::{Arc, Mutex};
+    use std::sync::Arc;
+use parking_lot::Mutex;
 
     async fn create_test_graph(_test_name: &str) -> Arc<Mutex<MockStorage>> {
         let storage = Arc::new(Mutex::new(MockStorage));
@@ -15,9 +16,7 @@ mod tests {
 
         // 创建测试图：A -> B -> C, A -> D
         {
-            let mut storage_lock = storage
-                .lock()
-                .expect("Test storage lock should not be poisoned");
+            let mut storage_lock = storage.lock();
 
             // 创建顶点
             let vertex_a = Vertex::new(Value::String("A".to_string()), vec![]);

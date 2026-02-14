@@ -6,7 +6,8 @@ use crate::core::types::operators::AggregateFunction;
 use crate::core::Value;
 use crate::query::executor::aggregation::AggregationExecutor;
 use crate::query::executor::base::BaseExecutor;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 #[cfg(feature = "redb")]
 /// 性能测试函数

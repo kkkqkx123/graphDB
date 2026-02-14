@@ -2,7 +2,8 @@
 //!
 //! 负责查看指定边类型的详细信息。
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 use crate::core::DataSet;
 use crate::core::types::graph_schema::PropertyType;
@@ -48,11 +49,7 @@ impl<S: StorageClient> DescEdgeExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DescEdgeExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let storage_guard = storage.lock().map_err(|e| {
-            crate::core::error::DBError::Storage(
-                crate::core::error::StorageError::DbError(format!("Storage lock poisoned: {}", e))
-            )
-        })?;
+        let storage_guard = storage.lock();
 
         let result = storage_guard.get_edge_type(&self.space_name, &self.edge_name);
 

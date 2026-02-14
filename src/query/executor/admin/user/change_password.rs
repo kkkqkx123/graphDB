@@ -2,7 +2,8 @@
 //!
 //! 负责修改用户密码。
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 use crate::core::types::metadata::PasswordInfo;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
@@ -33,9 +34,7 @@ impl<S: StorageClient> ChangePasswordExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ChangePasswordExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let mut storage = storage.lock().map_err(|e| crate::core::error::DBError::Storage(
-            crate::core::StorageError::DbError(e.to_string())
-        ))?;
+        let mut storage = storage.lock();
         let password_info = PasswordInfo {
             username: self.username.clone(),
             old_password: self.old_password.clone(),

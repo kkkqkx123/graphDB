@@ -15,7 +15,8 @@ use std::fs::{File, OpenOptions};
 use std::hash::{Hash, Hasher};
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 /// Join键，支持高效的哈希和序列化
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Encode, Decode)]
@@ -415,15 +416,13 @@ impl HashTable {
         entries.push(entry);
 
         // 记录LRU访问
-        if let Ok(mut tracker) = self.lru_tracker.lock() {
-            tracker.record_access(&key);
-        }
+        let mut tracker = self.lru_tracker.lock();
+        tracker.record_access(&key);
 
-        if let Ok(mut stats) = self.stats.lock() {
-            stats.total_entries += 1;
-            stats.memory_entries += 1;
-            stats.memory_usage += entry_size;
-        }
+        let mut stats = self.stats.lock();
+        stats.total_entries += 1;
+        stats.memory_entries += 1;
+        stats.memory_usage += entry_size;
 
         Ok(())
     }
@@ -443,11 +442,8 @@ impl HashTable {
 
             // 从LRU追踪器获取最久未使用的键
             let keys_to_spill = {
-                if let Ok(tracker) = self.lru_tracker.lock() {
-                    tracker.get_lru_keys(spill_count)
-                } else {
-                    Vec::new()
-                }
+                let tracker = self.lru_tracker.lock();
+                tracker.get_lru_keys(spill_count)
             };
 
             for key in keys_to_spill {
@@ -458,16 +454,14 @@ impl HashTable {
                     spill_manager.spill_entry(&key, &entries_vec)?;
 
                     // 从LRU追踪器中移除键
-                    if let Ok(mut tracker) = self.lru_tracker.lock() {
-                        tracker.remove_key(&key);
-                    }
+                    let mut tracker = self.lru_tracker.lock();
+                    tracker.remove_key(&key);
 
-                    if let Ok(mut stats) = self.stats.lock() {
-                        stats.memory_entries -= entries_vec.len();
-                        stats.spilled_entries += entries_vec.len();
-                        stats.memory_usage -= total_size;
-                        stats.spill_file_count += 1;
-                    }
+                    let mut stats = self.stats.lock();
+                    stats.memory_entries -= entries_vec.len();
+                    stats.spilled_entries += entries_vec.len();
+                    stats.memory_usage -= total_size;
+                    stats.spill_file_count += 1;
 
                     spilled_count += 1;
                 }
@@ -484,20 +478,17 @@ impl HashTable {
 
     /// 探测哈希表
     pub fn probe(&self, key: &JoinKey) -> Vec<HashTableEntry> {
-        if let Ok(mut stats) = self.stats.lock() {
-            stats.probe_count += 1;
-        }
+        let mut stats = self.stats.lock();
+        stats.probe_count += 1;
 
         // 记录LRU访问
-        if let Ok(mut tracker) = self.lru_tracker.lock() {
-            tracker.record_access(key);
-        }
+        let mut tracker = self.lru_tracker.lock();
+        tracker.record_access(key);
 
         // 先在内存中查找
         if let Some(entries) = self.memory_table.get(key) {
-            if let Ok(mut stats) = self.stats.lock() {
-                stats.hit_count += 1;
-            }
+            let mut stats = self.stats.lock();
+            stats.hit_count += 1;
             return entries.as_slice().to_vec();
         }
 
@@ -530,12 +521,12 @@ impl HashTable {
 
     /// 获取统计信息
     pub fn get_stats(&self) -> HashTableStats {
-        self.stats.lock().expect("Failed to acquire lock on hash table stats").clone()
+        self.stats.lock().clone()
     }
 
     /// 获取内存使用量
     pub fn memory_usage(&self) -> usize {
-        self.stats.lock().expect("Failed to acquire lock on hash table stats").memory_usage
+        self.stats.lock().memory_usage
     }
 
     /// 清理资源

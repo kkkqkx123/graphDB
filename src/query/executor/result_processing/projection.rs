@@ -4,7 +4,8 @@
 //!
 //! CPU 密集型操作，使用 Rayon 进行并行化
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 use rayon::prelude::*;
 
 use crate::core::error::{DBError, DBResult};

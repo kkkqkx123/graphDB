@@ -2,7 +2,8 @@
 //!
 //! 实现基于哈希的左外连接算法，支持单键和多键连接
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::{DataSet, Expression, NullType, Value};

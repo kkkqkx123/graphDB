@@ -4,7 +4,10 @@
 //! 注意：基础类型（ExecutorStats、ExecutionResult、BaseExecutor 等）已迁移到 base/ 模块。
 //! 本模块主要保留 ResultProcessor 等结果处理相关的 trait。
 
+use std::sync::Arc;
+
 use crate::storage::StorageClient;
+use parking_lot::Mutex;
 
 // 从 base 模块重新导出基础类型
 pub use crate::query::executor::base::{
@@ -28,14 +31,14 @@ pub trait ResultProcessor<S: StorageClient>: Executor<S> {
 #[derive(Debug, Clone)]
 pub struct ResultProcessorContext<S: StorageClient> {
     /// 存储引擎引用
-    pub storage: Option<std::sync::Arc<std::sync::Mutex<S>>>,
+    pub storage: Option<Arc<Mutex<S>>>,
     /// 输入数据
     pub input: Option<ExecutionResult>,
 }
 
 impl<S: StorageClient> ResultProcessorContext<S> {
     /// 创建新的上下文
-    pub fn new(storage: std::sync::Arc<std::sync::Mutex<S>>) -> Self {
+    pub fn new(storage: Arc<Mutex<S>>) -> Self {
         Self {
             storage: Some(storage),
             input: None,
@@ -68,7 +71,7 @@ pub struct BaseResultProcessor<S: StorageClient> {
 
 impl<S: StorageClient> BaseResultProcessor<S> {
     /// 创建新的基础结果处理器
-    pub fn new(id: i64, name: String, description: String, storage: std::sync::Arc<std::sync::Mutex<S>>) -> Self {
+    pub fn new(id: i64, name: String, description: String, storage: Arc<Mutex<S>>) -> Self {
         Self {
             id,
             name,

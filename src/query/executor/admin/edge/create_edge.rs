@@ -2,7 +2,8 @@
 //!
 //! 负责在指定图空间中创建新的边类型。
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 use crate::core::types::{EdgeTypeSchema, PropertyDef};
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
@@ -93,11 +94,7 @@ impl<S: StorageClient> CreateEdgeExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateEdgeExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let mut storage_guard = storage.lock().map_err(|e| {
-            crate::core::error::DBError::Storage(
-                crate::core::error::StorageError::DbError(format!("Storage lock poisoned: {}", e))
-            )
-        })?;
+        let mut storage_guard = storage.lock();
 
         let metadata_edge_info = EdgeTypeSchema::from_executor(&self.edge_info);
         let result = storage_guard.create_edge_type("default", &metadata_edge_info);

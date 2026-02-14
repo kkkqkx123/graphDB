@@ -13,7 +13,8 @@ use crate::core::types::metadata::{UserAlterInfo, UserInfo};
 use crate::query::planner::planner::Planner;
 use crate::query::planner::statements::match_statement_planner::MatchStatementPlanner;
 use crate::storage::StorageClient;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 /// 图查询执行器
 ///

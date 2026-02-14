@@ -2,12 +2,12 @@
 //!
 //! 提供高效的批量读取和批量操作接口，减少I/O次数，提高性能。
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Duration;
 
 use crate::core::{Edge, Value, Vertex};
 use crate::storage::StorageClient;
-use crate::utils::safe_lock;
+use parking_lot::Mutex;
 
 /// 批量操作配置
 #[derive(Debug, Clone)]
@@ -108,8 +108,7 @@ impl<S: StorageClient + Send + 'static> BatchOptimizer<S> {
         let mut results = Vec::with_capacity(ids.len());
         let mut failed_keys = Vec::new();
 
-        let storage = safe_lock(&*self.storage)
-            .expect("BatchOptimizer storage lock should not be poisoned");
+        let storage = self.storage.lock();
 
         for id in ids {
             match storage.get_vertex("default", id) {
@@ -132,8 +131,7 @@ impl<S: StorageClient + Send + 'static> BatchOptimizer<S> {
         let mut results = Vec::with_capacity(edge_keys.len());
         let mut failed_keys = Vec::new();
 
-        let storage = safe_lock(&*self.storage)
-            .expect("BatchOptimizer storage lock should not be poisoned");
+        let storage = self.storage.lock();
 
         for (src, dst, edge_type) in edge_keys {
             match storage.get_edge("default", src, dst, edge_type) {
@@ -158,8 +156,7 @@ impl<S: StorageClient + Send + 'static> BatchOptimizer<S> {
         limit: Option<usize>,
     ) -> BatchReadResult<Vertex> {
         let start_time = std::time::Instant::now();
-        let storage_guard = safe_lock(&*self.storage)
-            .expect("BatchOptimizer storage lock should not be poisoned");
+        let storage_guard = self.storage.lock();
 
         let vertices = if let Some(tag_name) = tag {
             storage_guard.scan_vertices_by_tag("default", tag_name)
@@ -188,8 +185,7 @@ impl<S: StorageClient + Send + 'static> BatchOptimizer<S> {
         limit: Option<usize>,
     ) -> BatchReadResult<Edge> {
         let start_time = std::time::Instant::now();
-        let storage_guard = safe_lock(&*self.storage)
-            .expect("BatchOptimizer storage lock should not be poisoned");
+        let storage_guard = self.storage.lock();
 
         let edges = if let Some(type_name) = edge_type {
             storage_guard.scan_edges_by_type("default", type_name)

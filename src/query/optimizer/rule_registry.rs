@@ -4,10 +4,11 @@
 //! 参考 nebula-graph 的实现，使用静态初始化避免运行时锁竞争
 
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, OnceLock};
 
 use crate::query::optimizer::{OptRule, OptimizationRule};
-use crate::core::error::{DBError, LockError};
+use crate::core::error::DBError;
+use parking_lot::Mutex;
 
 type RuleCreator = Arc<dyn Fn() -> Box<dyn OptRule> + Send + Sync>;
 
@@ -22,9 +23,7 @@ impl RuleRegistry {
         F: Fn() -> Box<dyn OptRule> + Send + Sync + 'static,
     {
         let registry = RULE_REGISTRY.get_or_init(|| Mutex::new(HashMap::new()));
-        let mut writer = registry.lock().map_err(|e| {
-            DBError::Lock(LockError::MutexPoisoned { reason: e.to_string() })
-        })?;
+        let mut writer = registry.lock();
         writer.insert(rule, Arc::new(creator));
         Ok(())
     }
@@ -33,9 +32,7 @@ impl RuleRegistry {
         let registry = RULE_REGISTRY.get().ok_or_else(|| {
             DBError::Internal("Rule registry not initialized".to_string())
         })?;
-        let reader = registry.lock().map_err(|e| {
-            DBError::Lock(LockError::MutexPoisoned { reason: e.to_string() })
-        })?;
+        let reader = registry.lock();
         Ok(reader.get(&rule).cloned())
     }
 
@@ -45,9 +42,7 @@ impl RuleRegistry {
 
     pub fn get_all_rules() -> Result<Vec<OptimizationRule>, DBError> {
         if let Some(registry) = RULE_REGISTRY.get() {
-            let reader = registry.lock().map_err(|e| {
-                DBError::Lock(LockError::MutexPoisoned { reason: e.to_string() })
-            })?;
+            let reader = registry.lock();
             return Ok(reader.keys().copied().collect());
         }
         Ok(Vec::new())
@@ -55,9 +50,7 @@ impl RuleRegistry {
 
     pub fn get_rules_by_phase(phase: crate::query::optimizer::OptimizationPhase) -> Result<Vec<OptimizationRule>, DBError> {
         if let Some(registry) = RULE_REGISTRY.get() {
-            let reader = registry.lock().map_err(|e| {
-                DBError::Lock(LockError::MutexPoisoned { reason: e.to_string() })
-            })?;
+            let reader = registry.lock();
             return Ok(reader
                 .keys()
                 .filter(|r| r.phase() == phase)
@@ -69,9 +62,7 @@ impl RuleRegistry {
 
     pub fn is_registered(rule: OptimizationRule) -> Result<bool, DBError> {
         if let Some(registry) = RULE_REGISTRY.get() {
-            let reader = registry.lock().map_err(|e| {
-                DBError::Lock(LockError::MutexPoisoned { reason: e.to_string() })
-            })?;
+            let reader = registry.lock();
             return Ok(reader.contains_key(&rule));
         }
         Ok(false)
@@ -79,9 +70,7 @@ impl RuleRegistry {
 
     pub fn count() -> Result<usize, DBError> {
         if let Some(registry) = RULE_REGISTRY.get() {
-            let reader = registry.lock().map_err(|e| {
-                DBError::Lock(LockError::MutexPoisoned { reason: e.to_string() })
-            })?;
+            let reader = registry.lock();
             return Ok(reader.len());
         }
         Ok(0)
@@ -97,9 +86,7 @@ impl RuleRegistry {
         }
 
         let registry = RULE_REGISTRY.get_or_init(|| Mutex::new(HashMap::new()));
-        let writer = registry.lock().map_err(|e| {
-            DBError::Lock(LockError::MutexPoisoned { reason: e.to_string() })
-        })?;
+        let writer = registry.lock();
 
         if writer.is_empty() {
             drop(writer);

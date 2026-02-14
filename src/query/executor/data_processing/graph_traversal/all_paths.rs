@@ -13,7 +13,7 @@
 //! - CPU 密集型操作，使用 Rayon 进行并行化
 
 use std::collections::{HashMap, HashSet, VecDeque};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Instant;
 
 use rayon::prelude::*;
@@ -23,7 +23,7 @@ use crate::core::{Edge, NPath, Path, Value};
 use crate::query::executor::base::{BaseExecutor, EdgeDirection, ExecutorStats, Executor, ExecutionResult};
 use crate::query::executor::recursion_detector::ParallelConfig;
 use crate::storage::StorageClient;
-use crate::utils::safe_lock;
+use parking_lot::Mutex;
 
 /// 自环边去重辅助结构
 #[derive(Debug, Default)]
@@ -190,8 +190,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
     ) -> DBResult<Vec<(Value, Edge)>> {
         let storage = self.base.storage.as_ref()
             .expect("AllPathsExecutor storage not set");
-        let storage = safe_lock(&**storage)
-            .expect("AllPathsExecutor storage lock should not be poisoned");
+        let storage = storage.lock();
 
         let edges = storage
             .get_node_edges("default", node_id, direction)
@@ -273,8 +272,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
 
                 let storage = self.base.storage.as_ref()
                     .expect("AllPathsExecutor storage not set");
-                let storage = safe_lock(&**storage)
-                    .expect("AllPathsExecutor storage lock should not be poisoned");
+                let storage = storage.lock();
                 if let Ok(Some(neighbor_vertex)) = storage.get_vertex("default", &neighbor_id) {
                     // 使用 NPath 扩展，O(1) 操作，共享前缀
                     let new_npath = Arc::new(NPath::extend(
@@ -329,8 +327,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
 
                 let storage = self.base.storage.as_ref()
                     .expect("AllPathsExecutor storage not set");
-                let storage = safe_lock(&**storage)
-                    .expect("AllPathsExecutor storage lock should not be poisoned");
+                let storage = storage.lock();
                 if let Ok(Some(neighbor_vertex)) = storage.get_vertex("default", &neighbor_id) {
                     // 使用 NPath 扩展
                     let new_npath = Arc::new(NPath::extend(
@@ -455,8 +452,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
     fn initialize_queues(&mut self) -> DBResult<()> {
         let storage = self.base.storage.as_ref()
             .expect("AllPathsExecutor storage not set");
-        let storage = safe_lock(&**storage)
-            .expect("AllPathsExecutor storage lock should not be poisoned");
+        let storage = storage.lock();
 
         // 初始化左队列
         for left_id in &self.left_start_ids {

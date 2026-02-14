@@ -4,7 +4,8 @@
 
 use std::collections::HashSet;
 use std::hash::Hash;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 use crate::core::{DataSet, Value};
 use crate::query::executor::{BaseExecutor, ExecutionResult};

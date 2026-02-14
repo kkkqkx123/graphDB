@@ -1,5 +1,5 @@
 use std::collections::{HashMap, HashSet};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Instant;
 
 use crate::core::error::{DBError, DBResult};
@@ -9,7 +9,7 @@ use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::query::QueryError;
 use crate::storage::StorageClient;
-use crate::utils::safe_lock;
+use parking_lot::Mutex;
 
 /// ExpandExecutor - 路径扩展执行器
 ///
@@ -189,8 +189,7 @@ impl<S: StorageClient> ExpandExecutor<S> {
     fn build_expansion_result(&self, expanded_nodes: Vec<Value>) -> ExecutionResult {
         // 将节点ID转换为顶点对象
         let mut vertices = Vec::new();
-        let storage = safe_lock(&*self.get_storage())
-            .expect("ExpandExecutor storage lock should not be poisoned");
+        let storage = self.get_storage().lock();
 
         for node_id in expanded_nodes {
             if let Ok(Some(vertex)) = storage.get_vertex("default", &node_id) {

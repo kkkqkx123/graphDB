@@ -2,7 +2,8 @@
 //!
 //! 负责处理追加顶点操作，根据给定的顶点ID获取顶点信息并追加到结果中
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::Expression;
@@ -239,11 +240,7 @@ impl<S: StorageClient + Send + 'static> AppendVerticesExecutor<S> {
     fn fetch_vertices(&mut self, vids: Vec<Value>) -> DBResult<Vec<Vertex>> {
         let mut vertices = Vec::new();
 
-        let storage = self.get_storage().lock().map_err(|_| {
-            DBError::Storage(crate::core::error::StorageError::DbError(
-                "Failed to lock storage".to_string(),
-            ))
-        })?;
+        let storage = self.get_storage().lock();
 
         for vid in vids {
             if vid.is_empty() {
@@ -377,7 +374,8 @@ mod tests {
     use crate::core::Expression;
     use crate::core::Value;
     use crate::storage::MockStorage;
-    use std::sync::{Arc, Mutex};
+    use std::sync::Arc;
+use parking_lot::Mutex;
 
     #[tokio::test]
     async fn test_append_vertices_executor() {

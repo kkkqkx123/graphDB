@@ -2,7 +2,8 @@
 //!
 //! 负责在指定图空间中创建新的标签。
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 use crate::core::types::metadata::{TagInfo, PropertyDef};
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
@@ -93,11 +94,7 @@ impl<S: StorageClient> CreateTagExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateTagExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let mut storage_guard = storage.lock().map_err(|e| {
-            crate::core::error::DBError::Storage(
-                crate::core::error::StorageError::DbError(format!("Storage lock poisoned: {}", e))
-            )
-        })?;
+        let mut storage_guard = storage.lock();
 
         let metadata_tag_info = TagInfo::from_executor(&self.tag_info);
         let result = storage_guard.create_tag("default", &metadata_tag_info);

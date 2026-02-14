@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Instant;
 
 use super::base::{BaseExecutor, ExecutorStats};
@@ -9,7 +9,7 @@ use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::traits::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::parser::parser::parse_expression_meta_from_string;
 use crate::storage::StorageClient;
-use crate::utils::safe_lock;
+use parking_lot::Mutex;
 
 // Executor for inserting new vertices/edges
 pub struct InsertExecutor<S: StorageClient> {
@@ -105,8 +105,7 @@ impl<S: StorageClient + Send + Sync + 'static> InsertExecutor<S> {
         let mut total_inserted = 0;
 
         if let Some(vertices) = &self.vertex_data {
-            let mut storage = safe_lock(self.get_storage())
-                .expect("InsertExecutor storage lock should not be poisoned");
+            let mut storage = self.get_storage().lock();
             for vertex in vertices {
                 storage.insert_vertex("default", vertex.clone())?;
                 total_inserted += 1;
@@ -114,8 +113,7 @@ impl<S: StorageClient + Send + Sync + 'static> InsertExecutor<S> {
         }
 
         if let Some(edges) = &self.edge_data {
-            let mut storage = safe_lock(self.get_storage())
-                .expect("InsertExecutor storage lock should not be poisoned");
+            let mut storage = self.get_storage().lock();
             for edge in edges {
                 storage.insert_edge("default", edge.clone())?;
                 total_inserted += 1;
@@ -277,8 +275,7 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
             None
         };
 
-        let mut storage: std::sync::MutexGuard<'_, S> = safe_lock(self.get_storage())
-            .expect("UpdateExecutor storage lock should not be poisoned");
+        let mut storage = self.get_storage().lock();
 
         if let Some(updates) = &self.vertex_updates {
             for update in updates {
@@ -492,8 +489,7 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
         };
 
         if let Some(ids) = &self.vertex_ids {
-            let mut storage = safe_lock(self.get_storage())
-                .expect("DeleteExecutor storage lock should not be poisoned");
+            let mut storage = self.get_storage().lock();
             for id in ids {
                 let should_delete = if let Some(ref expression) = condition_expression {
                     if let Ok(Some(vertex)) = storage.get_vertex("default", id) {
@@ -528,8 +524,7 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
         }
 
         if let Some(edges) = &self.edge_ids {
-            let mut storage = safe_lock(self.get_storage())
-                .expect("DeleteExecutor storage lock should not be poisoned");
+            let mut storage = self.get_storage().lock();
             for (src, dst, edge_type) in edges {
                 let should_delete = if let Some(ref expression) = condition_expression {
                     if let Ok(Some(edge)) = storage.get_edge("default", src, dst, edge_type) {
@@ -650,8 +645,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateIndexExecut
 
 impl<S: StorageClient + Send + Sync + 'static> CreateIndexExecutor<S> {
     fn do_execute(&mut self) -> DBResult<()> {
-        let mut storage = safe_lock(self.get_storage())
-            .expect("CreateIndexExecutor storage lock should not be poisoned");
+        let mut storage = self.get_storage().lock();
 
         let target_name = self.tag_name.clone()
             .or_else(|| Some(self.index_name.clone()))
@@ -753,8 +747,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DropIndexExecutor
 
 impl<S: StorageClient + Send + Sync + 'static> DropIndexExecutor<S> {
     fn do_execute(&mut self) -> DBResult<()> {
-        let mut storage = safe_lock(self.get_storage())
-            .expect("DropIndexExecutor storage lock should not be poisoned");
+        let mut storage = self.get_storage().lock();
 
         storage.drop_tag_index("default", &self._index_name)?;
 

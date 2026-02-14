@@ -2,10 +2,11 @@
 //!
 //! 负责修改图空间的配置。
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
+use parking_lot::Mutex;
 
 /// 空间修改选项
 #[derive(Debug, Clone)]
@@ -38,11 +39,7 @@ impl<S: StorageClient> AlterSpaceExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AlterSpaceExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let mut storage_guard = storage.lock().map_err(|e| {
-            crate::core::error::DBError::Storage(
-                crate::core::error::StorageError::DbError(format!("Storage lock poisoned: {}", e))
-            )
-        })?;
+        let mut storage_guard = storage.lock();
 
         let space_id = storage_guard.get_space_id(&self.space_name).map_err(|e| {
             crate::core::error::DBError::Storage(

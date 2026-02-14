@@ -14,7 +14,8 @@ use crate::query::planner::plan::core::nodes::plan_node_traits::{
 };
 
 use crate::storage::StorageClient;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 // 导入已实现的执行器
 use crate::query::executor::base::{ExecutionContext, StartExecutor};

@@ -1,7 +1,7 @@
 use crate::core::error::DBError;
 use crate::core::{Edge, Path, Value, Vertex};
 use crate::storage::StorageClient;
-use crate::utils::{safe_lock, Mutex};
+use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -146,57 +146,65 @@ impl<S: StorageClient> GraphContext<S> {
         }
     }
 
-    pub fn increment_vertices_created(&self) {
-        let mut metrics = safe_lock(&self.metrics);
+    pub fn increment_vertices_created(&self) -> Result<(), DBError> {
+        let mut metrics = self.metrics.lock();
         metrics.increment_vertices_created();
+        Ok(())
     }
 
-    pub fn increment_edges_created(&self) {
-        let mut metrics = safe_lock(&self.metrics);
+    pub fn increment_edges_created(&self) -> Result<(), DBError> {
+        let mut metrics = self.metrics.lock();
         metrics.increment_edges_created();
+        Ok(())
     }
 
-    pub fn increment_vertices_read(&self) {
-        let mut metrics = safe_lock(&self.metrics);
+    pub fn increment_vertices_read(&self) -> Result<(), DBError> {
+        let mut metrics = self.metrics.lock();
         metrics.increment_vertices_read();
+        Ok(())
     }
 
-    pub fn increment_edges_read(&self) {
-        let mut metrics = safe_lock(&self.metrics);
+    pub fn increment_edges_read(&self) -> Result<(), DBError> {
+        let mut metrics = self.metrics.lock();
         metrics.increment_edges_read();
+        Ok(())
     }
 
-    pub fn increment_queries_executed(&self) {
-        let mut metrics = safe_lock(&self.metrics);
+    pub fn increment_queries_executed(&self) -> Result<(), DBError> {
+        let mut metrics = self.metrics.lock();
         metrics.increment_queries_executed();
+        Ok(())
     }
 
-    pub fn increment_errors_occurred(&self) {
-        let mut metrics = safe_lock(&self.metrics);
+    pub fn increment_errors_occurred(&self) -> Result<(), DBError> {
+        let mut metrics = self.metrics.lock();
         metrics.increment_errors_occurred();
+        Ok(())
     }
 
-    pub fn add_execution_time(&self, time_ms: u64) {
-        let mut metrics = safe_lock(&self.metrics);
+    pub fn add_execution_time(&self, time_ms: u64) -> Result<(), DBError> {
+        let mut metrics = self.metrics.lock();
         metrics.add_execution_time(time_ms);
+        Ok(())
     }
 
     /// Get a session variable
-    pub fn get_session_var(&self, key: &str) -> Option<Value> {
-        let vars = safe_lock(&self.session_vars);
-        vars.get(key).cloned()
+    pub fn get_session_var(&self, key: &str) -> Result<Option<Value>, DBError> {
+        let vars = self.session_vars.lock();
+        Ok(vars.get(key).cloned())
     }
 
     /// Set a session variable
-    pub fn set_session_var(&self, key: String, value: Value) {
-        let mut vars = safe_lock(&self.session_vars);
+    pub fn set_session_var(&self, key: String, value: Value) -> Result<(), DBError> {
+        let mut vars = self.session_vars.lock();
         vars.insert(key, value);
+        Ok(())
     }
 
     /// Remove a session variable
-    pub fn remove_session_var(&self, key: &str) -> Option<Value> {
-        let mut vars = safe_lock(&self.session_vars);
-        vars.remove(key)
+    pub fn remove_session_var(&self, key: &str) -> Result<Option<Value>, DBError> {
+        let mut vars = self.session_vars.lock();
+        Ok(vars.remove(key))
     }
 
     /// Wait for the context to be ready or timeout
@@ -206,7 +214,7 @@ impl<S: StorageClient> GraphContext<S> {
         while start.elapsed() < timeout {
             // Check if our storage engine is ready
             {
-                let _storage = safe_lock(&self.storage);
+                let _storage = self.storage.lock();
                 // Since NativeStorage doesn't have an is_operational method, we'll just try a basic operation
                 // to verify that the storage is accessible
                 // Just drop the lock without doing anything
@@ -246,7 +254,7 @@ mod tests {
             .expect("Failed to increment edges created");
 
         {
-            let metrics = safe_lock(&ctx.metrics).expect("Failed to lock metrics for test");
+            let metrics = ctx.metrics.lock();
             assert_eq!(metrics.vertices_created, 1);
             assert_eq!(metrics.edges_created, 1);
         }

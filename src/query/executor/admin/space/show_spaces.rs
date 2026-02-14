@@ -2,12 +2,13 @@
 //!
 //! 负责列出所有已创建的图空间。
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use crate::core::{DataSet, Value};
 use crate::storage::iterator::Row;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
+use parking_lot::Mutex;
 
 /// 列出图空间执行器
 ///
@@ -29,11 +30,7 @@ impl<S: StorageClient> ShowSpacesExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowSpacesExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let storage_guard = storage.lock().map_err(|e| {
-            crate::core::error::DBError::Storage(
-                crate::core::error::StorageError::DbError(format!("Storage lock poisoned: {}", e))
-            )
-        })?;
+        let storage_guard = storage.lock();
 
         let result = storage_guard.list_spaces();
 

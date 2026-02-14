@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use crate::core::error::DBResult;
 use crate::core::{Edge, NPath, Path, Value, Vertex};
@@ -9,7 +9,7 @@ use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::query::QueryError;
 use crate::storage::StorageClient;
-use crate::utils::safe_lock;
+use parking_lot::Mutex;
 
 /// ExpandAllExecutor - 全路径扩展执行器
 ///
@@ -120,8 +120,7 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
 
             // 获取邻居节点的完整信息
             let neighbor_vertex = {
-                let storage = safe_lock(&*self.get_storage())
-                    .expect("ExpandAllExecutor storage lock should not be poisoned");
+                let storage = self.get_storage().lock();
                 storage
                     .get_vertex("default", &neighbor_id)
                     .map_err(|e| QueryError::StorageError(e.to_string()))?
@@ -206,8 +205,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
             ExecutionResult::Edges(edges) => {
                 // 从边中提取节点
                 let mut nodes = Vec::new();
-                let storage = safe_lock(&*self.get_storage())
-                    .expect("ExpandAllExecutor storage lock should not be poisoned");
+                let storage = self.get_storage().lock();
                 let mut visited = HashSet::new();
                 for edge in edges {
                     if let Ok(Some(src_vertex)) = storage.get_vertex("default", &edge.src) {
@@ -226,8 +224,7 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ExpandAllExecutor<S> {
             ExecutionResult::Values(values) => {
                 // 从值中提取节点
                 let mut vertices = Vec::new();
-                let storage = safe_lock(&*self.get_storage())
-                    .expect("ExpandAllExecutor storage lock should not be poisoned");
+                let storage = self.get_storage().lock();
                 for value in values {
                     match value {
                         Value::Vertex(vertex) => vertices.push(*vertex),

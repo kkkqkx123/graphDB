@@ -2,7 +2,8 @@
 //!
 //! 提供标签索引的创建、删除、描述和列出功能。
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 use crate::core::{DataSet, Value};
 use crate::index::{Index, IndexType};
@@ -76,11 +77,7 @@ impl<S: StorageClient> CreateTagIndexExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateTagIndexExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let mut storage_guard = storage.lock().map_err(|e| {
-            crate::core::error::DBError::Storage(
-                crate::core::error::StorageError::DbError(format!("Storage lock poisoned: {}", e))
-            )
-        })?;
+        let mut storage_guard = storage.lock();
 
         let result = storage_guard.create_tag_index("default", &self.index_info);
 
@@ -151,11 +148,7 @@ impl<S: StorageClient> DropTagIndexExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DropTagIndexExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let mut storage_guard = storage.lock().map_err(|e| {
-            crate::core::error::DBError::Storage(
-                crate::core::error::StorageError::DbError(format!("Storage lock poisoned: {}", e))
-            )
-        })?;
+        let mut storage_guard = storage.lock();
 
         let result = storage_guard.drop_tag_index(&self.space_name, &self.index_name);
 
@@ -209,11 +202,7 @@ impl<S: StorageClient> DescTagIndexExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DescTagIndexExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let storage_guard = storage.lock().map_err(|e| {
-            crate::core::error::DBError::Storage(
-                crate::core::error::StorageError::DbError(format!("Storage lock poisoned: {}", e))
-            )
-        })?;
+        let storage_guard = storage.lock();
 
         let result = storage_guard.get_tag_index(&self.space_name, &self.index_name);
 
@@ -275,11 +264,7 @@ impl<S: StorageClient> ShowTagIndexesExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowTagIndexesExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let storage_guard = storage.lock().map_err(|e| {
-            crate::core::error::DBError::Storage(
-                crate::core::error::StorageError::DbError(format!("Storage lock poisoned: {}", e))
-            )
-        })?;
+        let storage_guard = storage.lock();
 
         let result = storage_guard.list_tag_indexes(&self.space_name);
 

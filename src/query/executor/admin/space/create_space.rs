@@ -2,12 +2,13 @@
 //!
 //! 负责创建新的图空间，配置分片数和副本数（单节点简化版）。
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use crate::core::types::DataType;
 use crate::core::types::metadata::SpaceInfo;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
+use parking_lot::Mutex;
 
 impl SpaceInfo {
     pub fn from_executor(executor_info: &ExecutorSpaceInfo) -> Self {
@@ -101,11 +102,7 @@ impl<S: StorageClient> CreateSpaceExecutor<S> {
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateSpaceExecutor<S> {
     fn execute(&mut self) -> crate::query::executor::base::DBResult<ExecutionResult> {
         let storage = self.get_storage();
-        let mut storage_guard = storage.lock().map_err(|e| {
-            crate::core::error::DBError::Storage(
-                crate::core::error::StorageError::DbError(format!("Storage lock poisoned: {}", e))
-            )
-        })?;
+        let mut storage_guard = storage.lock();
 
         let metadata_space_info = SpaceInfo::from_executor(&self.space_info);
         let result = storage_guard.create_space(&metadata_space_info);

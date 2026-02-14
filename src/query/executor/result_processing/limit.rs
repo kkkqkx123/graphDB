@@ -2,7 +2,8 @@
 //!
 //! 实现对查询结果的数量限制和偏移功能，支持 LIMIT 和 OFFSET 操作
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::{DataSet, Value};

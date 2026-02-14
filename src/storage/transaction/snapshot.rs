@@ -10,8 +10,9 @@ use super::{TransactionId, MvccManager, Version, VersionVec};
 use crate::core::StorageError;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::Arc;
 use std::time::{Duration, SystemTime};
+use parking_lot::{Mutex, RwLock};
 
 /// 隔离级别
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -214,15 +215,11 @@ impl SnapshotManager {
             .with_active_transactions(active_transactions);
 
         if isolation_level.uses_snapshot() {
-            let mut snapshots = self.snapshots.write().map_err(|e| {
-                StorageError::DbError(format!("Failed to acquire write lock: {}", e))
-            })?;
+            let mut snapshots = self.snapshots.write();
             snapshots.insert(tx_id, snapshot.clone());
         }
 
-        let mut stats = self.stats.lock().map_err(|e| {
-            StorageError::DbError(format!("Failed to acquire stats lock: {}", e))
-        })?;
+        let mut stats = self.stats.lock();
         stats.snapshots_created += 1;
 
         Ok(snapshot)
@@ -230,17 +227,13 @@ impl SnapshotManager {
 
     /// 获取事务快照
     pub fn get_snapshot(&self, tx_id: TransactionId) -> Result<Option<Snapshot>, StorageError> {
-        let snapshots = self.snapshots.read().map_err(|e| {
-            StorageError::DbError(format!("Failed to acquire snapshots read lock: {}", e))
-        })?;
+        let snapshots = self.snapshots.read();
         Ok(snapshots.get(&tx_id).cloned())
     }
 
     /// 删除快照
     pub fn remove_snapshot(&self, tx_id: TransactionId) -> Result<(), StorageError> {
-        let mut snapshots = self.snapshots.write().map_err(|e| {
-            StorageError::DbError(format!("Failed to acquire snapshots write lock: {}", e))
-        })?;
+        let mut snapshots = self.snapshots.write();
         snapshots.remove(&tx_id);
         Ok(())
     }
@@ -277,17 +270,13 @@ impl SnapshotManager {
 
     /// 检查事务是否活跃
     fn is_active(&self, tx_id: TransactionId) -> Result<bool, StorageError> {
-        let snapshots = self.snapshots.read().map_err(|e| {
-            StorageError::DbError(format!("Failed to acquire snapshots read lock: {}", e))
-        })?;
+        let snapshots = self.snapshots.read();
         Ok(snapshots.contains_key(&tx_id))
     }
 
     /// 清理过期快照
     pub fn cleanup_expired_snapshots(&self) -> Result<(), StorageError> {
-        let mut snapshots = self.snapshots.write().map_err(|e| {
-            StorageError::DbError(format!("Failed to acquire snapshots write lock: {}", e))
-        })?;
+        let mut snapshots = self.snapshots.write();
         let mut expired = Vec::new();
 
         for (tx_id, snapshot) in snapshots.iter() {
@@ -300,18 +289,14 @@ impl SnapshotManager {
             snapshots.remove(tx_id);
         }
 
-        let mut stats = self.stats.lock().map_err(|e| {
-            StorageError::DbError(format!("Failed to acquire stats lock: {}", e))
-        })?;
+        let mut stats = self.stats.lock();
         stats.snapshots_cleaned += expired.len() as u64;
         Ok(())
     }
 
     /// 获取统计信息
     pub fn get_stats(&self) -> Result<SnapshotStats, StorageError> {
-        let stats = self.stats.lock().map_err(|e| {
-            StorageError::DbError(format!("Failed to acquire stats lock: {}", e))
-        })?;
+        let stats = self.stats.lock();
         Ok(stats.clone())
     }
 }

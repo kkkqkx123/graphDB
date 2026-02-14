@@ -1,5 +1,5 @@
-use crate::utils::{safe_lock, Mutex};
 use dashmap::DashMap;
+use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -23,17 +23,17 @@ impl Counter {
     }
 
     pub fn inc(&self) {
-        let mut val = safe_lock(&self.value);
+        let mut val = self.value.lock();
         *val += 1;
     }
 
     pub fn inc_by(&self, amount: u64) {
-        let mut val = safe_lock(&self.value);
+        let mut val = self.value.lock();
         *val += amount;
     }
 
     pub fn get(&self) -> u64 {
-        let val = safe_lock(&self.value);
+        let val = self.value.lock();
         *val
     }
 }
@@ -56,12 +56,12 @@ impl Gauge {
     }
 
     pub fn set(&self, value: f64) {
-        let mut val = safe_lock(&self.value);
+        let mut val = self.value.lock();
         *val = value;
     }
 
     pub fn get(&self) -> f64 {
-        let val = safe_lock(&self.value);
+        let val = self.value.lock();
         *val
     }
 }
@@ -90,13 +90,13 @@ impl Histogram {
     }
 
     pub fn observe(&self, value: f64) {
-        let mut vals = safe_lock(&self.value);
+        let mut vals = self.value.lock();
         vals.push(value);
-        let mut sum = safe_lock(&self.sum);
+        let mut sum = self.sum.lock();
         *sum += value;
 
         // Update bucket counts
-        let mut counts = safe_lock(&self.counts);
+        let mut counts = self.counts.lock();
         for (i, &bucket) in self.buckets.iter().enumerate() {
             if value <= bucket {
                 counts[i] += 1;
@@ -106,9 +106,9 @@ impl Histogram {
 
     pub fn get_summary(&self) -> (f64, f64, Vec<(f64, u64)>) {
         // (avg, sum, bucket_counts)
-        let vals = safe_lock(&self.value);
-        let sum = *safe_lock(&self.sum);
-        let counts = safe_lock(&self.counts);
+        let vals = self.value.lock();
+        let sum = *self.sum.lock();
+        let counts = self.counts.lock();
 
         let avg = if vals.len() > 0 {
             sum / vals.len() as f64
@@ -145,7 +145,7 @@ impl Timer {
     }
 
     pub fn record(&self, duration: Duration) {
-        let mut vals = safe_lock(&self.value);
+        let mut vals = self.value.lock();
         vals.push(duration);
     }
 
@@ -162,7 +162,7 @@ impl Timer {
 
     pub fn get_stats(&self) -> (Duration, Duration, Duration, usize) {
         // (avg, min, max, count)
-        let vals = safe_lock(&self.value);
+        let vals = self.value.lock();
         if vals.is_empty() {
             return (
                 Duration::from_nanos(0),

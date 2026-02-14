@@ -9,12 +9,13 @@
 //! 集成外部全文索引引擎（如 tantivy 或 rust-analyzer）
 
 use std::collections::{HashMap, HashSet};
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::Value;
+use parking_lot::{Mutex, RwLock};
 
 #[derive(Error, Debug, Clone)]
 pub enum FulltextIndexError {
@@ -364,10 +365,8 @@ impl FulltextIndexManager {
         fields: Vec<String>,
         analyzer: Option<String>,
     ) -> DBResult<()> {
-        let mut config = self.config.write().map_err(|e| {
-            DBError::FulltextIndex(FulltextIndexError::EngineError(e.to_string()))
-        })?;
-        
+        let mut config = self.config.write();
+
         config.name = name.clone();
         config.schema_type = schema_type.clone();
         config.schema_name = schema_name.clone();
@@ -386,57 +385,43 @@ impl FulltextIndexManager {
             created_at: config.created_at,
         };
 
-        let mut engine = self.engine.lock().map_err(|e| {
-            DBError::FulltextIndex(FulltextIndexError::EngineError(e.to_string()))
-        })?;
+        let mut engine = self.engine.lock();
 
         engine.create_index(&index_config)
     }
 
     pub fn drop_fulltext_index(&mut self, name: &str) -> DBResult<()> {
-        let mut engine = self.engine.lock().map_err(|e| {
-            DBError::FulltextIndex(FulltextIndexError::EngineError(e.to_string()))
-        })?;
+        let mut engine = self.engine.lock();
 
         engine.drop_index(name)
     }
 
     pub fn list_fulltext_indexes(&self) -> DBResult<Vec<FulltextIndexConfig>> {
-        let engine = self.engine.lock().map_err(|e| {
-            DBError::FulltextIndex(FulltextIndexError::EngineError(e.to_string()))
-        })?;
+        let engine = self.engine.lock();
 
         Ok(engine.list_index_configs())
     }
 
     pub fn index_document(&self, doc: FulltextDocument) -> DBResult<()> {
-        let mut engine = self.engine.lock().map_err(|e| {
-            DBError::FulltextIndex(FulltextIndexError::EngineError(e.to_string()))
-        })?;
+        let mut engine = self.engine.lock();
 
         engine.index_document(&doc)
     }
 
     pub fn delete_document(&self, _index_name: &str, doc_id: &str) -> DBResult<()> {
-        let mut engine = self.engine.lock().map_err(|e| {
-            DBError::FulltextIndex(FulltextIndexError::EngineError(e.to_string()))
-        })?;
+        let mut engine = self.engine.lock();
 
         engine.delete_document(doc_id)
     }
 
     pub fn search(&self, query: FulltextQuery) -> DBResult<Vec<FulltextSearchResult>> {
-        let mut engine = self.engine.lock().map_err(|e| {
-            DBError::FulltextIndex(FulltextIndexError::EngineError(e.to_string()))
-        })?;
+        let mut engine = self.engine.lock();
 
         engine.search(&query)
     }
 
     pub fn fulltext_index_exists(&self, name: &str) -> DBResult<bool> {
-        let engine = self.engine.lock().map_err(|e| {
-            DBError::FulltextIndex(FulltextIndexError::EngineError(e.to_string()))
-        })?;
+        let engine = self.engine.lock();
         Ok(engine.index_exists(name))
     }
 }

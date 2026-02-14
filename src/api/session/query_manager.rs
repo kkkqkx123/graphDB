@@ -4,7 +4,8 @@
 
 use log::{info, warn};
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use crate::core::error::{ManagerError, ManagerResult};
@@ -108,8 +109,7 @@ impl QueryManager {
         query_text: String,
     ) -> ManagerResult<i64> {
         let query_id = {
-            let mut next_id = self.next_query_id.lock()
-                .map_err(|e| ManagerError::Other(format!("获取查询 ID 锁失败: {}", e)))?;
+            let mut next_id = self.next_query_id.lock();
             let id = *next_id;
             *next_id += 1;
             id
@@ -123,8 +123,7 @@ impl QueryManager {
             query_text,
         );
 
-        let mut queries = self.queries.lock()
-            .map_err(|e| ManagerError::Other(format!("获取查询锁失败: {}", e)))?;
+        let mut queries = self.queries.lock();
         queries.insert(query_id, query_info);
 
         info!("Registered query {} for session {}", query_id, session_id);
@@ -133,8 +132,7 @@ impl QueryManager {
 
     /// 获取查询信息
     pub fn get_query(&self, query_id: i64) -> ManagerResult<QueryInfo> {
-        let queries = self.queries.lock()
-            .map_err(|e| ManagerError::Other(format!("获取查询锁失败: {}", e)))?;
+        let queries = self.queries.lock();
         queries.get(&query_id)
             .cloned()
             .ok_or_else(|| ManagerError::NotFound(format!("查询 {} 不存在", query_id)))
@@ -142,15 +140,13 @@ impl QueryManager {
 
     /// 获取所有查询
     pub fn get_all_queries(&self) -> ManagerResult<Vec<QueryInfo>> {
-        let queries = self.queries.lock()
-            .map_err(|e| ManagerError::Other(format!("获取查询锁失败: {}", e)))?;
+        let queries = self.queries.lock();
         Ok(queries.values().cloned().collect())
     }
 
     /// 获取指定会话的所有查询
     pub fn get_session_queries(&self, session_id: i64) -> ManagerResult<Vec<QueryInfo>> {
-        let queries = self.queries.lock()
-            .map_err(|e| ManagerError::Other(format!("获取查询锁失败: {}", e)))?;
+        let queries = self.queries.lock();
         Ok(queries
             .values()
             .filter(|q| q.session_id == session_id)
@@ -160,8 +156,7 @@ impl QueryManager {
 
     /// 获取指定用户的所有查询
     pub fn get_user_queries(&self, user_name: &str) -> ManagerResult<Vec<QueryInfo>> {
-        let queries = self.queries.lock()
-            .map_err(|e| ManagerError::Other(format!("获取查询锁失败: {}", e)))?;
+        let queries = self.queries.lock();
         Ok(queries
             .values()
             .filter(|q| q.user_name == user_name)
@@ -171,8 +166,7 @@ impl QueryManager {
 
     /// 获取正在运行的查询
     pub fn get_running_queries(&self) -> ManagerResult<Vec<QueryInfo>> {
-        let queries = self.queries.lock()
-            .map_err(|e| ManagerError::Other(format!("获取查询锁失败: {}", e)))?;
+        let queries = self.queries.lock();
         Ok(queries
             .values()
             .filter(|q| q.status == QueryStatus::Running)
@@ -182,8 +176,7 @@ impl QueryManager {
 
     /// 标记查询为完成
     pub fn mark_query_finished(&self, query_id: i64) -> ManagerResult<()> {
-        let mut queries = self.queries.lock()
-            .map_err(|e| ManagerError::Other(format!("获取查询锁失败: {}", e)))?;
+        let mut queries = self.queries.lock();
         let query = queries.get_mut(&query_id)
             .ok_or_else(|| ManagerError::NotFound(format!("查询 {} 不存在", query_id)))?;
         query.mark_finished()?;
@@ -193,8 +186,7 @@ impl QueryManager {
 
     /// 标记查询为失败
     pub fn mark_query_failed(&self, query_id: i64) -> ManagerResult<()> {
-        let mut queries = self.queries.lock()
-            .map_err(|e| ManagerError::Other(format!("获取查询锁失败: {}", e)))?;
+        let mut queries = self.queries.lock();
         let query = queries.get_mut(&query_id)
             .ok_or_else(|| ManagerError::NotFound(format!("查询 {} 不存在", query_id)))?;
         query.mark_failed()?;
@@ -204,8 +196,7 @@ impl QueryManager {
 
     /// 终止查询
     pub fn kill_query(&self, query_id: i64) -> ManagerResult<()> {
-        let mut queries = self.queries.lock()
-            .map_err(|e| ManagerError::Other(format!("获取查询锁失败: {}", e)))?;
+        let mut queries = self.queries.lock();
         let query = queries.get_mut(&query_id)
             .ok_or_else(|| ManagerError::NotFound(format!("查询 {} 不存在", query_id)))?;
         
@@ -221,8 +212,7 @@ impl QueryManager {
 
     /// 清理已完成的查询
     pub fn cleanup_finished_queries(&self, max_age: Duration) -> ManagerResult<()> {
-        let mut queries = self.queries.lock()
-            .map_err(|e| ManagerError::Other(format!("获取查询锁失败: {}", e)))?;
+        let mut queries = self.queries.lock();
         let now = SystemTime::now();
         let to_remove: Vec<i64> = queries
             .iter()
@@ -247,8 +237,7 @@ impl QueryManager {
 
     /// 获取查询统计信息
     pub fn get_query_stats(&self) -> ManagerResult<QueryStats> {
-        let queries = self.queries.lock()
-            .map_err(|e| ManagerError::Other(format!("获取查询锁失败: {}", e)))?;
+        let queries = self.queries.lock();
         let total = queries.len();
         let running = queries.values().filter(|q| q.status == QueryStatus::Running).count();
         let finished = queries.values().filter(|q| q.status == QueryStatus::Finished).count();
