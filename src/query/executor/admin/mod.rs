@@ -36,11 +36,10 @@ pub use self::index::{
 
 pub use self::user::{
     CreateUserExecutor, AlterUserExecutor, DropUserExecutor, ChangePasswordExecutor,
-    GrantRoleExecutor, RevokeRoleExecutor,
 };
 
 pub use self::query_management::{
-    KillQueryExecutor, ShowQueriesExecutor, ShowStatsExecutor,
+    ShowStatsExecutor,
 };
 
 pub use crate::core::types::metadata::PasswordInfo;

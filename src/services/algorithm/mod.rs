@@ -1,14 +1,8 @@
 //! 算法模块
 //!
-//! 包含各种算法实现，按类型分组
+//! 包含图相关算法实现
 
 pub mod graph;
-pub mod search;
-pub mod sorting;
-pub mod string;
 
-// 重新导出所有算法结构体，保持向后兼容性
+// 重新导出图算法结构体
 pub use graph::GraphAlgorithms;
-pub use search::SearchAlgorithms;
-pub use sorting::SortingAlgorithms;
-pub use string::StringAlgorithms;
