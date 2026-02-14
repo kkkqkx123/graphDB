@@ -2,6 +2,7 @@ use dashmap::DashMap;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 use std::time::Instant;
 
@@ -106,22 +107,64 @@ pub enum MetricType {
 }
 
 pub struct MetricValue {
-    pub value: u64,
-    pub timestamp: Instant,
+    pub value: AtomicU64,
+    pub timestamp: AtomicU64, // 存储为UNIX时间戳（秒）
 }
 
 impl MetricValue {
     pub fn new(value: u64) -> Self {
+        let timestamp_secs = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
         Self {
-            value,
-            timestamp: Instant::now(),
+            value: AtomicU64::new(value),
+            timestamp: AtomicU64::new(timestamp_secs),
         }
+    }
+
+    pub fn increment(&self) {
+        self.value.fetch_add(1, Ordering::Relaxed);
+        self.update_timestamp();
+    }
+
+    pub fn add(&self, amount: u64) {
+        self.value.fetch_add(amount, Ordering::Relaxed);
+        self.update_timestamp();
+    }
+
+    pub fn decrement(&self) {
+        let _ = self.value.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |v| {
+            if v > 0 { Some(v - 1) } else { Some(0) }
+        });
+        self.update_timestamp();
+    }
+
+    pub fn set(&self, value: u64) {
+        self.value.store(value, Ordering::Relaxed);
+        self.update_timestamp();
+    }
+
+    pub fn get(&self) -> u64 {
+        self.value.load(Ordering::Relaxed)
+    }
+
+    pub fn get_timestamp(&self) -> u64 {
+        self.timestamp.load(Ordering::Relaxed)
+    }
+
+    fn update_timestamp(&self) {
+        let timestamp_secs = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        self.timestamp.store(timestamp_secs, Ordering::Relaxed);
     }
 }
 
 pub struct StatsManager {
-    metrics: Arc<DashMap<MetricType, Arc<Mutex<MetricValue>>>>,
-    space_metrics: Arc<DashMap<String, Arc<DashMap<MetricType, Arc<Mutex<MetricValue>>>>>>,
+    metrics: Arc<DashMap<MetricType, Arc<MetricValue>>>,
+    space_metrics: Arc<DashMap<String, Arc<DashMap<MetricType, Arc<MetricValue>>>>>,
     last_query_metrics: Arc<Mutex<Option<QueryMetrics>>>,
 }
 
@@ -136,29 +179,21 @@ impl StatsManager {
 
     pub fn add_value(&self, metric_type: MetricType) {
         let metric = self.metrics.entry(metric_type).or_insert_with(|| {
-            Arc::new(Mutex::new(MetricValue::new(0)))
+            Arc::new(MetricValue::new(0))
         });
-        let mut value = metric.lock();
-        value.value += 1;
-        value.timestamp = Instant::now();
+        metric.increment();
     }
 
     pub fn add_value_with_amount(&self, metric_type: MetricType, amount: u64) {
         let metric = self.metrics.entry(metric_type).or_insert_with(|| {
-            Arc::new(Mutex::new(MetricValue::new(0)))
+            Arc::new(MetricValue::new(0))
         });
-        let mut value = metric.lock();
-        value.value += amount;
-        value.timestamp = Instant::now();
+        metric.add(amount);
     }
 
     pub fn dec_value(&self, metric_type: MetricType) {
         if let Some(metric) = self.metrics.get(&metric_type) {
-            let mut value = metric.lock();
-            if value.value > 0 {
-                value.value -= 1;
-                value.timestamp = Instant::now();
-            }
+            metric.decrement();
         }
     }
 
@@ -167,39 +202,33 @@ impl StatsManager {
             Arc::new(DashMap::new())
         });
         let metric = space_map.entry(metric_type).or_insert_with(|| {
-            Arc::new(Mutex::new(MetricValue::new(0)))
+            Arc::new(MetricValue::new(0))
         });
-        let mut value = metric.lock();
-        value.value += 1;
-        value.timestamp = Instant::now();
+        metric.increment();
     }
 
     pub fn dec_space_metric(&self, space_name: &str, metric_type: MetricType) {
         if let Some(space_map) = self.space_metrics.get(space_name) {
             if let Some(metric) = space_map.get(&metric_type) {
-                let mut value = metric.lock();
-                if value.value > 0 {
-                    value.value -= 1;
-                    value.timestamp = Instant::now();
-                }
+                metric.decrement();
             }
         }
     }
 
     pub fn get_value(&self, metric_type: MetricType) -> Option<u64> {
-        self.metrics.get(&metric_type).map(|metric| metric.lock().value)
+        self.metrics.get(&metric_type).map(|metric| metric.get())
     }
 
     pub fn get_space_value(&self, space_name: &str, metric_type: MetricType) -> Option<u64> {
         self.space_metrics.get(space_name).and_then(|space_map| {
-            space_map.get(&metric_type).map(|metric| metric.lock().value)
+            space_map.get(&metric_type).map(|metric| metric.get())
         })
     }
 
     pub fn get_all_metrics(&self) -> HashMap<MetricType, u64> {
         self.metrics
             .iter()
-            .map(|entry| (*entry.key(), entry.value().lock().value))
+            .map(|entry| (*entry.key(), entry.value().get()))
             .collect()
     }
 
@@ -207,33 +236,27 @@ impl StatsManager {
         self.space_metrics.get(space_name).map(|space_map| {
             space_map
                 .iter()
-                .map(|entry| (*entry.key(), entry.value().lock().value))
+                .map(|entry| (*entry.key(), entry.value().get()))
                 .collect()
         })
     }
 
     pub fn reset_metric(&self, metric_type: MetricType) {
         if let Some(metric) = self.metrics.get(&metric_type) {
-            let mut value = metric.lock();
-            value.value = 0;
-            value.timestamp = Instant::now();
+            metric.set(0);
         }
     }
 
     pub fn reset_all_metrics(&self) {
         for metric in self.metrics.iter() {
-            let mut value = metric.value().lock();
-            value.value = 0;
-            value.timestamp = Instant::now();
+            metric.value().set(0);
         }
     }
 
     pub fn reset_space_metrics(&self, space_name: &str) {
         if let Some(space_map) = self.space_metrics.get(space_name) {
             for metric in space_map.iter() {
-                let mut value = metric.value().lock();
-                value.value = 0;
-                value.timestamp = Instant::now();
+                metric.value().set(0);
             }
         }
     }
@@ -256,11 +279,9 @@ impl StatsManager {
         
         for (metric_type, value) in updates {
             let metric = self.metrics.entry(metric_type).or_insert_with(|| {
-                Arc::new(Mutex::new(MetricValue::new(0)))
+                Arc::new(MetricValue::new(0))
             });
-            let mut metric_value = metric.lock();
-            metric_value.value = value;
-            metric_value.timestamp = Instant::now();
+            metric.set(value);
         }
     }
     

@@ -9,8 +9,9 @@
 //! - 多查询模式：使用 `RwLock` + `HashMap`
 //! - 跨查询共享：使用 `Arc<RwLock>`
 
+use parking_lot::RwLock;
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use std::cell::{RefCell, Ref, RefMut};
 
 /// 单查询模式符号表
@@ -144,71 +145,51 @@ where
     }
 
     /// 读取数据
-    pub fn get(&self, key: &K) -> Result<Option<V>, String> {
-        Ok(self.symbols.read()
-            .map_err(|e| format!("Failed to acquire symbols read lock: {}", e))?
-            .get(key)
-            .cloned())
+    pub fn get(&self, key: &K) -> Option<V> {
+        self.symbols.read().get(key).cloned()
     }
 
     /// 写入数据
-    pub fn insert(&self, key: K, value: V) -> Result<Option<V>, String> {
-        Ok(self.symbols.write()
-            .map_err(|e| format!("Failed to acquire symbols write lock: {}", e))?
-            .insert(key, value))
+    pub fn insert(&self, key: K, value: V) -> Option<V> {
+        self.symbols.write().insert(key, value)
     }
 
     /// 批量读取所有数据
-    pub fn get_all(&self) -> Result<HashMap<K, V>, String> {
-        Ok(self.symbols.read()
-            .map_err(|e| format!("Failed to acquire symbols read lock: {}", e))?
-            .clone())
+    pub fn get_all(&self) -> HashMap<K, V> {
+        self.symbols.read().clone()
     }
 
     /// 批量写入数据
-    pub fn extend(&self, other: &HashMap<K, V>) -> Result<(), String> {
-        let mut map = self.symbols.write()
-            .map_err(|e| format!("Failed to acquire symbols write lock: {}", e))?;
+    pub fn extend(&self, other: &HashMap<K, V>) {
+        let mut map = self.symbols.write();
         for (k, v) in other.iter() {
             map.insert(k.clone(), v.clone());
         }
-        Ok(())
     }
 
     /// 检查是否存在
-    pub fn contains_key(&self, key: &K) -> Result<bool, String> {
-        Ok(self.symbols.read()
-            .map_err(|e| format!("Failed to acquire symbols read lock: {}", e))?
-            .contains_key(key))
+    pub fn contains_key(&self, key: &K) -> bool {
+        self.symbols.read().contains_key(key)
     }
 
     /// 获取大小
-    pub fn len(&self) -> Result<usize, String> {
-        Ok(self.symbols.read()
-            .map_err(|e| format!("Failed to acquire symbols read lock: {}", e))?
-            .len())
+    pub fn len(&self) -> usize {
+        self.symbols.read().len()
     }
 
     /// 检查是否为空
-    pub fn is_empty(&self) -> Result<bool, String> {
-        Ok(self.symbols.read()
-            .map_err(|e| format!("Failed to acquire symbols read lock: {}", e))?
-            .is_empty())
+    pub fn is_empty(&self) -> bool {
+        self.symbols.read().is_empty()
     }
 
     /// 清空
-    pub fn clear(&self) -> Result<(), String> {
-        self.symbols.write()
-            .map_err(|e| format!("Failed to acquire symbols write lock: {}", e))?
-            .clear();
-        Ok(())
+    pub fn clear(&self) {
+        self.symbols.write().clear();
     }
 
     /// 移除键
-    pub fn remove(&self, key: &K) -> Result<Option<V>, String> {
-        Ok(self.symbols.write()
-            .map_err(|e| format!("Failed to acquire symbols write lock: {}", e))?
-            .remove(key))
+    pub fn remove(&self, key: &K) -> Option<V> {
+        self.symbols.write().remove(key)
     }
 }
 
@@ -300,38 +281,30 @@ where
     }
 
     /// 从上下文克隆数据
-    pub fn get(&self) -> Result<T, String> {
-        Ok(self.inner.read()
-            .map_err(|e| format!("Failed to acquire inner read lock: {}", e))?
-            .clone())
+    pub fn get(&self) -> T {
+        self.inner.read().clone()
     }
 
     /// 更新上下文数据
-    pub fn set(&self, data: T) -> Result<(), String> {
-        *self.inner.write()
-            .map_err(|e| format!("Failed to acquire inner write lock: {}", e))? = data;
-        Ok(())
+    pub fn set(&self, data: T) {
+        *self.inner.write() = data;
     }
 
     /// 读取并修改数据
-    pub fn update<F>(&self, f: F) -> Result<(), String>
+    pub fn update<F>(&self, f: F)
     where
         F: FnOnce(&mut T),
     {
-        let mut data = self.inner.write()
-            .map_err(|e| format!("Failed to acquire inner write lock: {}", e))?;
+        let mut data = self.inner.write();
         f(&mut data);
-        Ok(())
     }
 
     /// 检查是否满足条件
-    pub fn check<F>(&self, f: F) -> Result<bool, String>
+    pub fn check<F>(&self, f: F) -> bool
     where
         F: FnOnce(&T) -> bool,
     {
-        let guard = self.inner.read()
-            .map_err(|e| format!("Failed to acquire inner read lock: {}", e))?;
-        Ok(f(&*guard))
+        f(&*self.inner.read())
     }
 }
 

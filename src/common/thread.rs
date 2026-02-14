@@ -1,7 +1,8 @@
+use parking_lot::{Condvar, Mutex};
 use std::collections::VecDeque;
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::{Arc, Condvar, Mutex};
+use std::sync::Arc;
 use std::task::{Context, Poll, Waker};
 use std::thread;
 
@@ -18,11 +19,11 @@ impl<T: Send> Future for TaskResult<T> {
     type Output = T;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let mut result = self.receiver.lock().expect("Result lock should not be poisoned");
+        let mut result = self.receiver.lock();
         if let Some(value) = result.take() {
             Poll::Ready(value)
         } else {
-            let mut waker = self.waker.lock().expect("Waker lock should not be poisoned");
+            let mut waker = self.waker.lock();
             *waker = Some(cx.waker().clone());
             Poll::Pending
         }
@@ -61,7 +62,7 @@ impl ThreadPool {
     where
         F: FnOnce() + Send + 'static,
     {
-        let mut tasks = self.tasks.lock().expect("Thread pool tasks lock should not be poisoned");
+        let mut tasks = self.tasks.lock();
         tasks.push_back(Box::new(f));
         self.notifier.notify_one();
     }
@@ -82,10 +83,10 @@ impl ThreadPool {
 
         self.execute(move || {
             let value = f();
-            let mut res = result_clone.lock().expect("Result lock should not be poisoned");
+            let mut res = result_clone.lock();
             *res = Some(value);
 
-            if let Some(w) = waker_clone.lock().expect("Waker lock should not be poisoned").take() {
+            if let Some(w) = waker_clone.lock().take() {
                 w.wake();
             }
         });
@@ -167,7 +168,7 @@ impl ThreadPool {
 
     pub fn shutdown(&self) {
         {
-            let mut shutdown = self.shutdown.lock().expect("Shutdown lock should not be poisoned");
+            let mut shutdown = self.shutdown.lock();
             *shutdown = true;
         }
         self.notifier.notify_all();
@@ -201,9 +202,9 @@ impl Worker {
         let thread = thread::spawn(move || {
             loop {
                 let task = {
-                    let mut tasks = tasks.lock().expect("Worker tasks lock should not be poisoned");
+                    let mut tasks = tasks.lock();
 
-                    let is_shutdown = *shutdown.lock().expect("Shutdown lock should not be poisoned");
+                    let is_shutdown = *shutdown.lock();
 
                     if let Some(task) = tasks.pop_front() {
                         Some(task)
@@ -211,13 +212,14 @@ impl Worker {
                         break;
                     } else {
                         loop {
-                            tasks = notifier.wait(tasks).expect("Condition variable wait should not fail");
+                            // parking_lot 的 Condvar::wait 返回 ()，需要重新获取锁
+                            notifier.wait(&mut tasks);
 
                             if let Some(task) = tasks.pop_front() {
                                 break Some(task);
                             }
 
-                            let new_shutdown = *shutdown.lock().expect("Shutdown lock should not be poisoned");
+                            let new_shutdown = *shutdown.lock();
                             if new_shutdown {
                                 break None;
                             }

@@ -1,6 +1,7 @@
 use log::{info, warn};
+use parking_lot::Mutex;
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, atomic::{AtomicU64, Ordering}};
+use std::sync::{Arc, atomic::{AtomicU64, Ordering}};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tokio::time;
 
@@ -101,15 +102,9 @@ impl GraphSessionManager {
         // Add to sessions and active sessions
         let create_time = SystemTime::now();
         {
-            let mut sessions = self.sessions.lock().expect("Sessions lock was poisoned");
-            let mut active_sessions = self
-                .active_sessions
-                .lock()
-                .expect("Active sessions lock was poisoned");
-            let mut session_create_times = self
-                .session_create_times
-                .lock()
-                .expect("Session create times lock was poisoned");
+            let mut sessions = self.sessions.lock();
+            let mut active_sessions = self.active_sessions.lock();
+            let mut session_create_times = self.session_create_times.lock();
 
             sessions.insert(session_id, Arc::clone(&client_session));
             active_sessions.insert(session_id, Instant::now());
@@ -122,7 +117,7 @@ impl GraphSessionManager {
 
     /// Finds an existing session
     pub fn find_session(&self, session_id: i64) -> Option<Arc<ClientSession>> {
-        let sessions = self.sessions.lock().expect("Sessions lock was poisoned");
+        let sessions = self.sessions.lock();
         sessions.get(&session_id).cloned()
     }
 
@@ -135,15 +130,9 @@ impl GraphSessionManager {
     pub fn remove_session(&self, session_id: i64) {
         info!("Removing session ID: {}", session_id);
         {
-            let mut sessions = self.sessions.lock().expect("Sessions lock was poisoned");
-            let mut active_sessions = self
-                .active_sessions
-                .lock()
-                .expect("Active sessions lock was poisoned");
-            let mut session_create_times = self
-                .session_create_times
-                .lock()
-                .expect("Session create times lock was poisoned");
+            let mut sessions = self.sessions.lock();
+            let mut active_sessions = self.active_sessions.lock();
+            let mut session_create_times = self.session_create_times.lock();
 
             sessions.remove(&session_id);
             active_sessions.remove(&session_id);
@@ -154,7 +143,7 @@ impl GraphSessionManager {
 
     /// Gets all sessions from the local cache
     pub fn get_sessions_from_local_cache(&self) -> Vec<Session> {
-        let sessions = self.sessions.lock().expect("Sessions lock was poisoned");
+        let sessions = self.sessions.lock();
         sessions
             .values()
             .map(|session| session.get_session())
@@ -163,8 +152,8 @@ impl GraphSessionManager {
 
     /// 获取会话列表信息，用于SHOW SESSIONS
     pub fn list_sessions(&self) -> Vec<SessionInfo> {
-        let sessions = self.sessions.lock().expect("Sessions lock was poisoned");
-        let create_times = self.session_create_times.lock().expect("Session create times lock was poisoned");
+        let sessions = self.sessions.lock();
+        let create_times = self.session_create_times.lock();
         
         sessions
             .iter()
@@ -178,8 +167,8 @@ impl GraphSessionManager {
 
     /// 获取指定会话的详细信息
     pub fn get_session_info(&self, session_id: i64) -> Option<SessionInfo> {
-        let sessions = self.sessions.lock().expect("Sessions lock was poisoned");
-        let create_times = self.session_create_times.lock().expect("Session create times lock was poisoned");
+        let sessions = self.sessions.lock();
+        let create_times = self.session_create_times.lock();
         
         sessions.get(&session_id).and_then(|client_session| {
             create_times.get(&session_id).map(|&create_time| {
@@ -236,10 +225,7 @@ impl GraphSessionManager {
 
     /// Whether exceeds the max allowed connections
     pub fn is_out_of_connections(&self) -> bool {
-        let active_sessions = self
-            .active_sessions
-            .lock()
-            .expect("Active sessions lock was poisoned");
+        let active_sessions = self.active_sessions.lock();
         active_sessions.len() >= self.max_connections
     }
 
@@ -281,10 +267,7 @@ impl GraphSessionManager {
 
     /// Reclaims expired sessions
     fn reclaim_expired_sessions(&self) {
-        let active_sessions = self
-            .active_sessions
-            .lock()
-            .expect("Active sessions lock was poisoned");
+        let active_sessions = self.active_sessions.lock();
         let expired_sessions: Vec<i64> = active_sessions
             .iter()
             .filter(|(_, last_activity)| last_activity.elapsed() > self.session_idle_timeout)

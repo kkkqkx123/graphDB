@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Result};
+use parking_lot::RwLock;
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Permission {
@@ -58,10 +59,7 @@ impl PermissionManager {
     }
 
     pub fn grant_role(&self, username: &str, space_id: i64, role: RoleType) -> Result<()> {
-        let mut user_roles = self
-            .user_roles
-            .write()
-            .map_err(|e| anyhow!("获取写锁失败: {}", e))?;
+        let mut user_roles = self.user_roles.write();
 
         let roles = user_roles.entry(username.to_string()).or_insert_with(HashMap::new);
         roles.insert(space_id, role);
@@ -69,10 +67,7 @@ impl PermissionManager {
     }
 
     pub fn revoke_role(&self, username: &str, space_id: i64) -> Result<()> {
-        let mut user_roles = self
-            .user_roles
-            .write()
-            .map_err(|e| anyhow!("获取写锁失败: {}", e))?;
+        let mut user_roles = self.user_roles.write();
 
         if let Some(roles) = user_roles.get_mut(username) {
             roles.remove(&space_id);
@@ -81,7 +76,7 @@ impl PermissionManager {
     }
 
     pub fn get_role(&self, username: &str, space_id: i64) -> Option<RoleType> {
-        let user_roles = self.user_roles.read().expect("获取读锁失败");
+        let user_roles = self.user_roles.read();
         user_roles.get(username)?.get(&space_id).copied()
     }
 
@@ -91,7 +86,7 @@ impl PermissionManager {
         space_id: i64,
         permission: Permission,
     ) -> Result<()> {
-        let user_roles = self.user_roles.read().expect("获取读锁失败");
+        let user_roles = self.user_roles.read();
 
         if let Some(roles) = user_roles.get(username) {
             if let Some(&role) = roles.get(&space_id) {
@@ -105,7 +100,7 @@ impl PermissionManager {
     }
 
     pub fn is_admin(&self, username: &str) -> bool {
-        let user_roles = self.user_roles.read().expect("获取读锁失败");
+        let user_roles = self.user_roles.read();
         user_roles
             .get(username)
             .map_or(false, |roles| roles.values().any(|&role| role == RoleType::Admin))
@@ -117,10 +112,7 @@ impl PermissionManager {
         username: &str,
         permission: Permission,
     ) -> Result<()> {
-        let mut space_permissions = self
-            .space_permissions
-            .write()
-            .map_err(|e| anyhow!("获取写锁失败: {}", e))?;
+        let mut space_permissions = self.space_permissions.write();
 
         let permissions = space_permissions
             .entry(space_id)
@@ -140,10 +132,7 @@ impl PermissionManager {
         username: &str,
         permission: Permission,
     ) -> Result<()> {
-        let mut space_permissions = self
-            .space_permissions
-            .write()
-            .map_err(|e| anyhow!("获取写锁失败: {}", e))?;
+        let mut space_permissions = self.space_permissions.write();
 
         if let Some(permissions) = space_permissions.get_mut(&space_id) {
             if let Some(user_permissions) = permissions.get_mut(username) {
@@ -160,7 +149,7 @@ impl PermissionManager {
         username: &str,
         permission: Permission,
     ) -> Result<()> {
-        let space_permissions = self.space_permissions.read().expect("获取读锁失败");
+        let space_permissions = self.space_permissions.read();
 
         if let Some(permissions) = space_permissions.get(&space_id) {
             if let Some(user_permissions) = permissions.get(username) {
