@@ -11,41 +11,30 @@ pub enum Permission {
     Admin,
 }
 
+/// 简化的2级权限模型
+/// - Admin: 管理员，拥有所有权限
+/// - User: 普通用户，拥有读写权限（不能修改Schema）
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RoleType {
-    God,
     Admin,
-    Dba,
     User,
-    Guest,
 }
 
 impl RoleType {
     pub fn has_permission(&self, permission: Permission) -> bool {
         match self {
-            RoleType::God => true,
-            RoleType::Admin => matches!(
-                permission,
-                Permission::Read | Permission::Write | Permission::Delete | Permission::Schema
-            ),
-            RoleType::Dba => matches!(
+            RoleType::Admin => true,
+            RoleType::User => matches!(
                 permission,
                 Permission::Read | Permission::Write | Permission::Delete
             ),
-            RoleType::User => matches!(permission, Permission::Read | Permission::Write),
-            RoleType::Guest => matches!(permission, Permission::Read),
         }
     }
 
     pub fn can_grant(&self, target_role: RoleType) -> bool {
         match self {
-            RoleType::God => true,
-            RoleType::Admin => matches!(
-                target_role,
-                RoleType::Dba | RoleType::User | RoleType::Guest
-            ),
-            RoleType::Dba => matches!(target_role, RoleType::User | RoleType::Guest),
-            RoleType::User | RoleType::Guest => false,
+            RoleType::Admin => matches!(target_role, RoleType::User),
+            RoleType::User => false,
         }
     }
 }
@@ -59,7 +48,7 @@ impl PermissionManager {
     pub fn new() -> Self {
         let mut user_roles = HashMap::new();
         let mut root_roles = HashMap::new();
-        root_roles.insert(0, RoleType::God);
+        root_roles.insert(0, RoleType::Admin);
         user_roles.insert("root".to_string(), root_roles);
 
         Self {
@@ -115,11 +104,11 @@ impl PermissionManager {
         Err(anyhow!("用户 {} 在空间 {} 没有权限 {:?}", username, space_id, permission))
     }
 
-    pub fn is_god(&self, username: &str) -> bool {
+    pub fn is_admin(&self, username: &str) -> bool {
         let user_roles = self.user_roles.read().expect("获取读锁失败");
         user_roles
             .get(username)
-            .map_or(false, |roles| roles.values().any(|&role| role == RoleType::God))
+            .map_or(false, |roles| roles.values().any(|&role| role == RoleType::Admin))
     }
 
     pub fn grant_permission(
@@ -202,26 +191,36 @@ mod tests {
 
     #[test]
     fn test_role_type_permissions() {
-        assert!(RoleType::God.has_permission(Permission::Admin));
+        // Admin 拥有所有权限
+        assert!(RoleType::Admin.has_permission(Permission::Admin));
         assert!(RoleType::Admin.has_permission(Permission::Schema));
-        assert!(!RoleType::Admin.has_permission(Permission::Admin));
+        assert!(RoleType::Admin.has_permission(Permission::Read));
+        assert!(RoleType::Admin.has_permission(Permission::Write));
+        assert!(RoleType::Admin.has_permission(Permission::Delete));
+
+        // User 拥有读写删权限，但没有Schema和Admin权限
         assert!(RoleType::User.has_permission(Permission::Read));
+        assert!(RoleType::User.has_permission(Permission::Write));
+        assert!(RoleType::User.has_permission(Permission::Delete));
         assert!(!RoleType::User.has_permission(Permission::Schema));
-        assert!(RoleType::Guest.has_permission(Permission::Read));
-        assert!(!RoleType::Guest.has_permission(Permission::Write));
+        assert!(!RoleType::User.has_permission(Permission::Admin));
     }
 
     #[test]
     fn test_role_grant() {
-        assert!(RoleType::God.can_grant(RoleType::Admin));
+        // Admin 可以授权 User
         assert!(RoleType::Admin.can_grant(RoleType::User));
+        // Admin 不能授权 Admin
+        assert!(!RoleType::Admin.can_grant(RoleType::Admin));
+        // User 不能授权
         assert!(!RoleType::User.can_grant(RoleType::Admin));
+        assert!(!RoleType::User.can_grant(RoleType::User));
     }
 
     #[test]
     fn test_permission_manager_creation() {
         let pm = PermissionManager::new();
-        assert!(pm.is_god("root"));
+        assert!(pm.is_admin("root"));
     }
 
     #[test]
@@ -251,18 +250,21 @@ mod tests {
         let pm = PermissionManager::new();
         pm.grant_role("testuser", 1, RoleType::User).expect("grant_role should succeed");
 
+        // User 可以读写删
         assert!(pm.check_permission("testuser", 1, Permission::Read).is_ok());
         assert!(pm.check_permission("testuser", 1, Permission::Write).is_ok());
-        assert!(pm.check_permission("testuser", 1, Permission::Delete).is_err());
+        assert!(pm.check_permission("testuser", 1, Permission::Delete).is_ok());
+        // User 不能修改Schema
+        assert!(pm.check_permission("testuser", 1, Permission::Schema).is_err());
     }
 
     #[test]
-    fn test_is_god() {
+    fn test_is_admin() {
         let pm = PermissionManager::new();
-        pm.grant_role("admin", 1, RoleType::God).expect("grant_role should succeed");
+        pm.grant_role("admin", 1, RoleType::Admin).expect("grant_role should succeed");
 
-        assert!(pm.is_god("admin"));
-        assert!(!pm.is_god("testuser"));
+        assert!(pm.is_admin("admin"));
+        assert!(!pm.is_admin("testuser"));
     }
 
     #[test]

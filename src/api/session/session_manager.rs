@@ -193,13 +193,13 @@ impl GraphSessionManager {
     /// # 参数
     /// * `session_id` - 要终止的会话ID
     /// * `current_user` - 执行终止操作的用户名
-    /// * `is_god` - 当前用户是否为God角色
+    /// * `is_admin` - 当前用户是否为Admin角色
     /// 
     /// # 返回
     /// * `Ok(())` - 成功终止会话
     /// * `Err(SessionError)` - 终止失败的具体原因
-    pub fn kill_session(&self, session_id: i64, current_user: &str, is_god: bool) -> SessionResult<()> {
-        info!("Attempting to kill session ID: {} by user: {} (is_god: {})", session_id, current_user, is_god);
+    pub fn kill_session(&self, session_id: i64, current_user: &str, is_admin: bool) -> SessionResult<()> {
+        info!("Attempting to kill session ID: {} by user: {} (is_admin: {})", session_id, current_user, is_admin);
         
         // 查找目标会话
         let target_session = self.find_session(session_id)
@@ -207,8 +207,8 @@ impl GraphSessionManager {
         
         let target_user = target_session.user();
         
-        // 权限检查：只能终止自己的会话，或者有God权限
-        if !is_god && target_user != current_user {
+        // 权限检查：只能终止自己的会话，或者有Admin权限
+        if !is_admin && target_user != current_user {
             warn!("User {} attempted to kill session {} without permission (target user: {})", 
                   current_user, session_id, target_user);
             return Err(SessionError::PermissionDenied);
@@ -228,9 +228,9 @@ impl GraphSessionManager {
     }
 
     /// 批量终止多个会话
-    pub fn kill_multiple_sessions(&self, session_ids: &[i64], current_user: &str, is_god: bool) -> Vec<SessionResult<()>> {
+    pub fn kill_multiple_sessions(&self, session_ids: &[i64], current_user: &str, is_admin: bool) -> Vec<SessionResult<()>> {
         session_ids.iter().map(|&session_id| {
-            self.kill_session(session_id, current_user, is_god)
+            self.kill_session(session_id, current_user, is_admin)
         }).collect()
     }
 

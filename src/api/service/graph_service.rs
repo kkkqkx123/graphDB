@@ -219,7 +219,8 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
 
         let username = session.user();
 
-        if !self.permission_manager.is_god(&username) {
+        // 权限检查（Admin拥有所有权限，不需要检查）
+        if !self.permission_manager.is_admin(&username) {
             let permission = self.extract_permission_from_statement(stmt);
             if let Err(e) = self
                 .permission_manager
@@ -306,9 +307,9 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         let current_session = self.session_manager.find_session(session_id)
             .ok_or(SessionError::SessionNotFound(session_id))?;
         
-        let is_god = current_session.is_god();
+        let is_admin = current_session.is_admin();
         
-        match self.session_manager.kill_session(session_id, current_user, is_god) {
+        match self.session_manager.kill_session(session_id, current_user, is_admin) {
             Ok(()) => {
                 self.stats_manager.dec_value(MetricType::NumActiveSessions);
                 Ok(())

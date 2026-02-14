@@ -36,6 +36,7 @@ pub use self::index::{
 
 pub use self::user::{
     CreateUserExecutor, AlterUserExecutor, DropUserExecutor, ChangePasswordExecutor,
+    GrantRoleExecutor, RevokeRoleExecutor,
 };
 
 pub use self::query_management::{

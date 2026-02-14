@@ -21,13 +21,11 @@ pub struct Session {
     pub timezone: Option<i32>,
 }
 
+/// 2级权限模型
 #[derive(Debug, Clone)]
 pub enum RoleType {
-    GOD,
     ADMIN,
-    DBA,
     USER,
-    GUEST,
 }
 
 /// ClientSession saves those information, including who created it, executed queries,
@@ -95,12 +93,12 @@ impl ClientSession {
             .cloned()
     }
 
-    pub fn is_god(&self) -> bool {
+    pub fn is_admin(&self) -> bool {
         self.roles
             .read()
             .expect("Roles lock was poisoned")
             .values()
-            .any(|role| matches!(role, RoleType::GOD))
+            .any(|role| matches!(role, RoleType::ADMIN))
     }
 
     pub fn set_role(&self, space: i64, role: RoleType) {
@@ -268,7 +266,7 @@ mod tests {
         assert_eq!(client_session.id(), 123);
         assert_eq!(client_session.user(), "testuser");
         assert_eq!(client_session.roles().len(), 0);
-        assert!(!client_session.is_god());
+        assert!(!client_session.is_admin());
     }
 
     #[test]
@@ -315,9 +313,12 @@ mod tests {
         ));
         assert!(client_session.role_with_space(2).is_none());
 
-        // Test is_god function
-        client_session.set_role(2, RoleType::GOD);
-        assert!(client_session.is_god());
+        // Test is_admin function
+        assert!(client_session.is_admin());
+
+        // Add USER role and verify is_admin returns true (has ADMIN role)
+        client_session.set_role(2, RoleType::USER);
+        assert!(client_session.is_admin()); // Still has ADMIN role from space 1
     }
 
     #[test]
