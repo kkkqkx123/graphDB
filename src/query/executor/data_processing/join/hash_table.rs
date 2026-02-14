@@ -403,7 +403,9 @@ impl HashTable {
     pub fn insert(&mut self, key: JoinKey, entry: HashTableEntry) -> DBResult<()> {
         // 记录内存使用
         let entry_size = entry.estimated_size;
-        self.memory_tracker.record_allocation(entry_size);
+        if let Err(e) = self.memory_tracker.record_allocation(entry_size) {
+            return Err(DBError::MemoryLimitExceeded(e));
+        }
 
         // 检查是否需要溢出
         if self.should_spill() {
@@ -433,7 +435,7 @@ impl HashTable {
 
     /// 检查是否应该溢出
     fn should_spill(&self) -> bool {
-        self.memory_tracker.current_allocated() > self.config.memory_config.max_query_memory as usize 
+        self.memory_tracker.current_usage() as usize > self.config.memory_config.max_query_memory as usize 
             && self.spill_manager.is_some()
     }
 
@@ -600,7 +602,7 @@ impl HashTableBuilder {
         dataset: &DataSet,
         key_index: usize,
     ) -> Result<SingleKeyHashTable, String> {
-        let memory_tracker = Arc::new(MemoryTracker::new());
+        let memory_tracker = Arc::new(MemoryTracker::new(100 * 1024 * 1024));
 
         let config = HashTableConfig::default();
 
@@ -613,7 +615,7 @@ impl HashTableBuilder {
         dataset: &DataSet,
         key_indices: &[usize],
     ) -> Result<MultiKeyHashTable, String> {
-        let memory_tracker = Arc::new(MemoryTracker::new());
+        let memory_tracker = Arc::new(MemoryTracker::new(100 * 1024 * 1024));
 
         let config = HashTableConfig::default();
 
@@ -656,7 +658,7 @@ mod tests {
     #[tokio::test]
     async fn test_hash_table_basic() {
         let config = HashTableConfig::default();
-        let memory_tracker = Arc::new(MemoryTracker::new());
+        let memory_tracker = Arc::new(MemoryTracker::new(100 * 1024 * 1024));
 
         let mut hash_table = HashTable::new(memory_tracker, config).expect("HashTable::new should succeed");
 
@@ -686,7 +688,7 @@ mod tests {
         config.memory_config.max_query_memory = 100; // 很小的内存限制
         config.memory_config.spill_enabled = false; // 禁用溢出
 
-        let memory_tracker = Arc::new(MemoryTracker::new());
+        let memory_tracker = Arc::new(MemoryTracker::new(100 * 1024 * 1024));
 
         let mut hash_table = HashTable::new(memory_tracker, config).expect("HashTable::new should succeed");
 

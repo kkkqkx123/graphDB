@@ -2,6 +2,7 @@ use dashmap::DashMap;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -10,7 +11,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 pub struct Counter {
     pub name: String,
     pub description: String,
-    value: Arc<Mutex<u64>>,
+    value: Arc<AtomicU64>,
 }
 
 impl Counter {
@@ -18,23 +19,20 @@ impl Counter {
         Self {
             name: name.to_string(),
             description: description.to_string(),
-            value: Arc::new(Mutex::new(0)),
+            value: Arc::new(AtomicU64::new(0)),
         }
     }
 
     pub fn inc(&self) {
-        let mut val = self.value.lock();
-        *val += 1;
+        self.value.fetch_add(1, Ordering::Relaxed);
     }
 
     pub fn inc_by(&self, amount: u64) {
-        let mut val = self.value.lock();
-        *val += amount;
+        self.value.fetch_add(amount, Ordering::Relaxed);
     }
 
     pub fn get(&self) -> u64 {
-        let val = self.value.lock();
-        *val
+        self.value.load(Ordering::Relaxed)
     }
 }
 
@@ -73,44 +71,43 @@ pub struct Histogram {
     pub description: String,
     value: Arc<Mutex<Vec<f64>>>,
     buckets: Vec<f64>,
-    counts: Arc<Mutex<Vec<u64>>>,
-    sum: Arc<Mutex<f64>>,
+    counts: Arc<[AtomicU64]>,
+    sum: Arc<AtomicU64>,
 }
 
 impl Histogram {
     pub fn new(name: &str, description: &str, buckets: Vec<f64>) -> Self {
+        let counts: Vec<AtomicU64> = buckets.iter().map(|_| AtomicU64::new(0)).collect();
         Self {
             name: name.to_string(),
             description: description.to_string(),
             value: Arc::new(Mutex::new(Vec::new())),
-            buckets: buckets.clone(),
-            counts: Arc::new(Mutex::new(vec![0; buckets.len()])),
-            sum: Arc::new(Mutex::new(0.0)),
+            buckets,
+            counts: counts.into(),
+            sum: Arc::new(AtomicU64::new(0)),
         }
     }
 
     pub fn observe(&self, value: f64) {
         let mut vals = self.value.lock();
         vals.push(value);
-        let mut sum = self.sum.lock();
-        *sum += value;
+        drop(vals);
 
-        // Update bucket counts
-        let mut counts = self.counts.lock();
+        let value_int = (value * 1000.0) as u64;
+        self.sum.fetch_add(value_int, Ordering::Relaxed);
+
         for (i, &bucket) in self.buckets.iter().enumerate() {
             if value <= bucket {
-                counts[i] += 1;
+                self.counts[i].fetch_add(1, Ordering::Relaxed);
             }
         }
     }
 
     pub fn get_summary(&self) -> (f64, f64, Vec<(f64, u64)>) {
-        // (avg, sum, bucket_counts)
         let vals = self.value.lock();
-        let sum = *self.sum.lock();
-        let counts = self.counts.lock();
+        let sum = self.sum.load(Ordering::Relaxed) as f64 / 1000.0;
 
-        let avg = if vals.len() > 0 {
+        let avg = if !vals.is_empty() {
             sum / vals.len() as f64
         } else {
             0.0
@@ -119,8 +116,8 @@ impl Histogram {
         let bucket_counts: Vec<(f64, u64)> = self
             .buckets
             .iter()
-            .zip(counts.iter())
-            .map(|(bucket, &count)| (*bucket, count))
+            .enumerate()
+            .map(|(i, &bucket)| (bucket, self.counts[i].load(Ordering::Relaxed)))
             .collect();
 
         (avg, sum, bucket_counts)

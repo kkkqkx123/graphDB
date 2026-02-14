@@ -68,6 +68,9 @@ pub enum DBError {
 
     #[error("全文索引错误: {0}")]
     FulltextIndex(#[from] crate::index::FulltextIndexError),
+
+    #[error("内存限制超出: {0}")]
+    MemoryLimitExceeded(String),
 }
 
 /// 统一的结果类型
@@ -250,6 +253,7 @@ impl From<DBError> for QueryError {
             DBError::Session(session) => QueryError::ExecutionError(session.to_string()),
             DBError::Permission(permission) => QueryError::ExecutionError(permission.to_string()),
             DBError::FulltextIndex(ft) => QueryError::ExecutionError(ft.to_string()),
+            DBError::MemoryLimitExceeded(msg) => QueryError::ExecutionError(msg),
         }
     }
 }

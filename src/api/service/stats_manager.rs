@@ -1,5 +1,7 @@
+use dashmap::DashMap;
+use parking_lot::Mutex;
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
 
@@ -118,163 +120,152 @@ impl MetricValue {
 }
 
 pub struct StatsManager {
-    metrics: Arc<RwLock<HashMap<MetricType, MetricValue>>>,
-    space_metrics: Arc<RwLock<HashMap<String, HashMap<MetricType, MetricValue>>>>,
-    last_query_metrics: Arc<RwLock<Option<QueryMetrics>>>,
+    metrics: Arc<DashMap<MetricType, Arc<Mutex<MetricValue>>>>,
+    space_metrics: Arc<DashMap<String, Arc<DashMap<MetricType, Arc<Mutex<MetricValue>>>>>>,
+    last_query_metrics: Arc<Mutex<Option<QueryMetrics>>>,
 }
 
 impl StatsManager {
     pub fn new() -> Self {
         Self {
-            metrics: Arc::new(RwLock::new(HashMap::new())),
-            space_metrics: Arc::new(RwLock::new(HashMap::new())),
-            last_query_metrics: Arc::new(RwLock::new(None)),
+            metrics: Arc::new(DashMap::new()),
+            space_metrics: Arc::new(DashMap::new()),
+            last_query_metrics: Arc::new(Mutex::new(None)),
         }
     }
 
     pub fn add_value(&self, metric_type: MetricType) {
-        let mut metrics = self.metrics.write().expect("获取指标写锁失败");
-        let entry = metrics.entry(metric_type).or_insert_with(|| MetricValue::new(0));
-        entry.value += 1;
-        entry.timestamp = Instant::now();
+        let metric = self.metrics.entry(metric_type).or_insert_with(|| {
+            Arc::new(Mutex::new(MetricValue::new(0)))
+        });
+        let mut value = metric.lock();
+        value.value += 1;
+        value.timestamp = Instant::now();
     }
 
     pub fn add_value_with_amount(&self, metric_type: MetricType, amount: u64) {
-        let mut metrics = self.metrics.write().expect("获取指标写锁失败");
-        let entry = metrics.entry(metric_type).or_insert_with(|| MetricValue::new(0));
-        entry.value += amount;
-        entry.timestamp = Instant::now();
+        let metric = self.metrics.entry(metric_type).or_insert_with(|| {
+            Arc::new(Mutex::new(MetricValue::new(0)))
+        });
+        let mut value = metric.lock();
+        value.value += amount;
+        value.timestamp = Instant::now();
     }
 
     pub fn dec_value(&self, metric_type: MetricType) {
-        let mut metrics = self.metrics.write().expect("获取指标写锁失败");
-        if let Some(entry) = metrics.get_mut(&metric_type) {
-            if entry.value > 0 {
-                entry.value -= 1;
-                entry.timestamp = Instant::now();
+        if let Some(metric) = self.metrics.get(&metric_type) {
+            let mut value = metric.lock();
+            if value.value > 0 {
+                value.value -= 1;
+                value.timestamp = Instant::now();
             }
         }
     }
 
     pub fn add_space_metric(&self, space_name: &str, metric_type: MetricType) {
-        let mut space_metrics = self.space_metrics.write().expect("获取空间指标写锁失败");
-        let space_entry = space_metrics
-            .entry(space_name.to_string())
-            .or_insert_with(HashMap::new);
-
-        let metric_entry = space_entry
-            .entry(metric_type)
-            .or_insert_with(|| MetricValue::new(0));
-        metric_entry.value += 1;
-        metric_entry.timestamp = Instant::now();
+        let space_map = self.space_metrics.entry(space_name.to_string()).or_insert_with(|| {
+            Arc::new(DashMap::new())
+        });
+        let metric = space_map.entry(metric_type).or_insert_with(|| {
+            Arc::new(Mutex::new(MetricValue::new(0)))
+        });
+        let mut value = metric.lock();
+        value.value += 1;
+        value.timestamp = Instant::now();
     }
 
     pub fn dec_space_metric(&self, space_name: &str, metric_type: MetricType) {
-        let mut space_metrics = self.space_metrics.write().expect("获取空间指标写锁失败");
-        if let Some(space_entry) = space_metrics.get_mut(space_name) {
-            if let Some(metric_entry) = space_entry.get_mut(&metric_type) {
-                if metric_entry.value > 0 {
-                    metric_entry.value -= 1;
-                    metric_entry.timestamp = Instant::now();
+        if let Some(space_map) = self.space_metrics.get(space_name) {
+            if let Some(metric) = space_map.get(&metric_type) {
+                let mut value = metric.lock();
+                if value.value > 0 {
+                    value.value -= 1;
+                    value.timestamp = Instant::now();
                 }
             }
         }
     }
 
     pub fn get_value(&self, metric_type: MetricType) -> Option<u64> {
-        let metrics = self.metrics.read().expect("获取指标读锁失败");
-        Some(metrics.get(&metric_type).map(|v| v.value).unwrap_or(0))
+        self.metrics.get(&metric_type).map(|metric| metric.lock().value)
     }
 
     pub fn get_space_value(&self, space_name: &str, metric_type: MetricType) -> Option<u64> {
-        let space_metrics = self.space_metrics.read().expect("获取空间指标读锁失败");
-        space_metrics
-            .get(space_name)
-            .and_then(|space| space.get(&metric_type).map(|v| v.value))
+        self.space_metrics.get(space_name).and_then(|space_map| {
+            space_map.get(&metric_type).map(|metric| metric.lock().value)
+        })
     }
 
     pub fn get_all_metrics(&self) -> HashMap<MetricType, u64> {
-        let metrics = self.metrics.read().expect("获取指标读锁失败");
-        metrics
+        self.metrics
             .iter()
-            .map(|(k, v)| (*k, v.value))
+            .map(|entry| (*entry.key(), entry.value().lock().value))
             .collect()
     }
 
     pub fn get_all_space_metrics(&self, space_name: &str) -> Option<HashMap<MetricType, u64>> {
-        let space_metrics = self.space_metrics.read().expect("获取空间指标读锁失败");
-        space_metrics.get(space_name).map(|space| {
-            space.iter().map(|(k, v)| (*k, v.value)).collect()
+        self.space_metrics.get(space_name).map(|space_map| {
+            space_map
+                .iter()
+                .map(|entry| (*entry.key(), entry.value().lock().value))
+                .collect()
         })
     }
 
     pub fn reset_metric(&self, metric_type: MetricType) {
-        let mut metrics = self.metrics.write().expect("获取指标写锁失败");
-        if let Some(entry) = metrics.get_mut(&metric_type) {
-            entry.value = 0;
-            entry.timestamp = Instant::now();
+        if let Some(metric) = self.metrics.get(&metric_type) {
+            let mut value = metric.lock();
+            value.value = 0;
+            value.timestamp = Instant::now();
         }
     }
 
     pub fn reset_all_metrics(&self) {
-        let mut metrics = self.metrics.write().expect("获取指标写锁失败");
-        for entry in metrics.values_mut() {
-            entry.value = 0;
-            entry.timestamp = Instant::now();
+        for metric in self.metrics.iter() {
+            let mut value = metric.value().lock();
+            value.value = 0;
+            value.timestamp = Instant::now();
         }
     }
 
     pub fn reset_space_metrics(&self, space_name: &str) {
-        let mut space_metrics = self.space_metrics.write().expect("获取空间指标写锁失败");
-        if let Some(space_entry) = space_metrics.get_mut(space_name) {
-            for entry in space_entry.values_mut() {
-                entry.value = 0;
-                entry.timestamp = Instant::now();
+        if let Some(space_map) = self.space_metrics.get(space_name) {
+            for metric in space_map.iter() {
+                let mut value = metric.value().lock();
+                value.value = 0;
+                value.timestamp = Instant::now();
             }
         }
     }
     
     pub fn record_query_metrics(&self, metrics: &QueryMetrics) {
-        let mut last_metrics = self.last_query_metrics.write().expect("获取查询指标写锁失败");
+        let mut last_metrics = self.last_query_metrics.lock();
         *last_metrics = Some(metrics.clone());
+        drop(last_metrics);
         
-        let mut global_metrics = self.metrics.write().expect("获取指标写锁失败");
+        let updates = [
+            (MetricType::QueryParseTimeUs, metrics.parse_time_us),
+            (MetricType::QueryValidateTimeUs, metrics.validate_time_us),
+            (MetricType::QueryPlanTimeUs, metrics.plan_time_us),
+            (MetricType::QueryOptimizeTimeUs, metrics.optimize_time_us),
+            (MetricType::QueryExecuteTimeUs, metrics.execute_time_us),
+            (MetricType::QueryTotalTimeUs, metrics.total_time_us),
+            (MetricType::QueryPlanNodeCount, metrics.plan_node_count as u64),
+            (MetricType::QueryResultRowCount, metrics.result_row_count as u64),
+        ];
         
-        let entry = global_metrics.entry(MetricType::QueryParseTimeUs).or_insert_with(|| MetricValue::new(0));
-        entry.value = metrics.parse_time_us;
-        entry.timestamp = Instant::now();
-        
-        let entry = global_metrics.entry(MetricType::QueryValidateTimeUs).or_insert_with(|| MetricValue::new(0));
-        entry.value = metrics.validate_time_us;
-        entry.timestamp = Instant::now();
-        
-        let entry = global_metrics.entry(MetricType::QueryPlanTimeUs).or_insert_with(|| MetricValue::new(0));
-        entry.value = metrics.plan_time_us;
-        entry.timestamp = Instant::now();
-        
-        let entry = global_metrics.entry(MetricType::QueryOptimizeTimeUs).or_insert_with(|| MetricValue::new(0));
-        entry.value = metrics.optimize_time_us;
-        entry.timestamp = Instant::now();
-        
-        let entry = global_metrics.entry(MetricType::QueryExecuteTimeUs).or_insert_with(|| MetricValue::new(0));
-        entry.value = metrics.execute_time_us;
-        entry.timestamp = Instant::now();
-        
-        let entry = global_metrics.entry(MetricType::QueryTotalTimeUs).or_insert_with(|| MetricValue::new(0));
-        entry.value = metrics.total_time_us;
-        entry.timestamp = Instant::now();
-        
-        let entry = global_metrics.entry(MetricType::QueryPlanNodeCount).or_insert_with(|| MetricValue::new(0));
-        entry.value = metrics.plan_node_count as u64;
-        entry.timestamp = Instant::now();
-        
-        let entry = global_metrics.entry(MetricType::QueryResultRowCount).or_insert_with(|| MetricValue::new(0));
-        entry.value = metrics.result_row_count as u64;
-        entry.timestamp = Instant::now();
+        for (metric_type, value) in updates {
+            let metric = self.metrics.entry(metric_type).or_insert_with(|| {
+                Arc::new(Mutex::new(MetricValue::new(0)))
+            });
+            let mut metric_value = metric.lock();
+            metric_value.value = value;
+            metric_value.timestamp = Instant::now();
+        }
     }
     
     pub fn get_last_query_metrics(&self) -> Option<QueryMetrics> {
-        let last_metrics = self.last_query_metrics.read().expect("获取查询指标读锁失败");
+        let last_metrics = self.last_query_metrics.lock();
         last_metrics.clone()
     }
     
@@ -296,7 +287,12 @@ mod tests {
     #[test]
     fn test_stats_manager_creation() {
         let stats = StatsManager::new();
-        assert_eq!(stats.get_value(MetricType::NumQueries), Some(0));
+        // DashMap 是懒加载的，只有在第一次 add_value 时才会创建 metric
+        assert_eq!(stats.get_value(MetricType::NumQueries), None);
+        
+        // 添加值后会创建 metric
+        stats.add_value(MetricType::NumQueries);
+        assert_eq!(stats.get_value(MetricType::NumQueries), Some(1));
     }
 
     #[test]
