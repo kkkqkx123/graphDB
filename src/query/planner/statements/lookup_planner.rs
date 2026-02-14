@@ -61,56 +61,14 @@ impl Planner for LookupPlanner {
             ));
         }
 
-        let index_scan_type = if lookup_ctx.is_fulltext_index {
-            "FULLTEXT".to_string()
-        } else {
-            "RANGE".to_string()
-        };
-
         let index_scan_node = IndexScan::new(
             -1,
             space_id as i32,
             lookup_ctx.schema_id,
             lookup_ctx.schema_id,
-            &index_scan_type,
+            "RANGE",
         );
         let mut current_node: PlanNodeEnum = PlanNodeEnum::IndexScan(index_scan_node);
-
-        if lookup_ctx.is_fulltext_index && lookup_ctx.has_score {
-            let id_expression = Expression::Variable("id".to_string());
-
-            let get_node = if lookup_ctx.is_edge {
-                let get_edges = GetEdgesNode::new(space_id as i32, "", "", "", "");
-                PlanNodeEnum::GetEdges(get_edges)
-            } else {
-                let get_vertices = GetVerticesNode::new(space_id as i32, "");
-                PlanNodeEnum::GetVertices(get_vertices)
-            };
-
-            let argument_node = ArgumentNode::new(-1, "id");
-            let argument_enum = PlanNodeEnum::Argument(argument_node);
-
-            let hash_join =
-                HashInnerJoinNode::new(get_node, argument_enum, vec![id_expression.clone()], vec![id_expression])
-                    .map_err(|e| {
-                        PlannerError::PlanGenerationFailed(format!(
-                            "Failed to create HashInnerJoinNode: {}",
-                            e
-                        ))
-                    })?;
-
-            current_node = PlanNodeEnum::HashInnerJoin(hash_join);
-        } else if lookup_ctx.is_fulltext_index {
-            let get_node = if lookup_ctx.is_edge {
-                let get_edges = GetEdgesNode::new(space_id as i32, "", "", "", "");
-                PlanNodeEnum::GetEdges(get_edges)
-            } else {
-                let get_vertices = GetVerticesNode::new(space_id as i32, "");
-                PlanNodeEnum::GetVertices(get_vertices)
-            };
-
-            current_node = get_node;
-        }
 
         if let Some(ref condition) = lookup_ctx.filter {
             let filter_node = FilterNode::new(current_node, condition.clone()).map_err(|e| {

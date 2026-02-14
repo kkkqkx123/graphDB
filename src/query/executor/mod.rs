@@ -76,7 +76,7 @@ pub use admin::{
 };
 
 // Re-export search executors (搜索执行器)
-pub use search_executors::{BFSShortestExecutor, FulltextIndexScanExecutor};
+pub use search_executors::BFSShortestExecutor;
 
 // Re-export special executors (特殊执行器)
 pub use special_executors::{ArgumentExecutor, DataCollectExecutor, PassThroughExecutor};

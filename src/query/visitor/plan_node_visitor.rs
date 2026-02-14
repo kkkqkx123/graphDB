@@ -104,11 +104,6 @@ pub trait PlanNodeVisitor {
         self.visit_default()
     }
 
-    /// 访问全文索引扫描节点
-    fn visit_fulltext_index_scan(&mut self, _node: &crate::query::planner::plan::algorithms::FulltextIndexScan) -> Self::Result {
-        self.visit_default()
-    }
-
     /// 访问扩展节点
     fn visit_expand(&mut self, _node: &ExpandNode) -> Self::Result {
         self.visit_default()
@@ -380,7 +375,6 @@ pub trait PlanNodeVisitor {
             PlanNodeEnum::ScanEdges(n) => self.visit_scan_edges(n),
             PlanNodeEnum::EdgeIndexScan(n) => self.visit_edge_index_scan(n),
             PlanNodeEnum::IndexScan(n) => self.visit_index_scan(n),
-            PlanNodeEnum::FulltextIndexScan(n) => self.visit_fulltext_index_scan(n),
             PlanNodeEnum::Expand(n) => self.visit_expand(n),
             PlanNodeEnum::ExpandAll(n) => self.visit_expand_all(n),
             PlanNodeEnum::Traverse(n) => self.visit_traverse(n),

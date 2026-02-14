@@ -122,7 +122,6 @@ fn estimate_node_cost(node: &Enum) -> f64 {
         Enum::GetEdges(n) => n.cost(),
         Enum::IndexScan(n) => n.cost(),
         Enum::EdgeIndexScan(n) => n.cost(),
-        Enum::FulltextIndexScan(n) => n.cost(),
         Enum::Filter(n) => estimate_node_cost(n.input()),
         Enum::Project(n) => estimate_node_cost(n.input()),
         Enum::Dedup(n) => estimate_node_cost(n.input()),

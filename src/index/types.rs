@@ -24,8 +24,6 @@ pub enum IndexType {
     TagIndex,
     #[serde(rename = "edge")]
     EdgeIndex,
-    #[serde(rename = "fulltext")]
-    FulltextIndex,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]

@@ -670,9 +670,6 @@ impl<S: StorageClient + Send + Sync + 'static> CreateIndexExecutor<S> {
             crate::index::IndexType::EdgeIndex => {
                 storage.create_edge_index("default", &index)?;
             }
-            crate::index::IndexType::FulltextIndex => {
-                storage.create_tag_index("default", &index)?;
-            }
         }
 
         Ok(())

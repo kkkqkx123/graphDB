@@ -66,9 +66,6 @@ pub enum DBError {
     #[error("权限错误: {0}")]
     Permission(#[from] PermissionError),
 
-    #[error("全文索引错误: {0}")]
-    FulltextIndex(#[from] crate::index::FulltextIndexError),
-
     #[error("内存限制超出: {0}")]
     MemoryLimitExceeded(String),
 }
@@ -252,7 +249,6 @@ impl From<DBError> for QueryError {
             DBError::Internal(msg) => QueryError::ExecutionError(msg),
             DBError::Session(session) => QueryError::ExecutionError(session.to_string()),
             DBError::Permission(permission) => QueryError::ExecutionError(permission.to_string()),
-            DBError::FulltextIndex(ft) => QueryError::ExecutionError(ft.to_string()),
             DBError::MemoryLimitExceeded(msg) => QueryError::ExecutionError(msg),
         }
     }

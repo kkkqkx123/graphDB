@@ -36,7 +36,7 @@ use crate::query::executor::result_processing::{
     PatternApplyExecutor, ProjectExecutor, RollUpApplyExecutor, SampleExecutor, SampleMethod, SortExecutor,
     TopNExecutor, UnwindExecutor,
 };
-use crate::query::executor::search_executors::{BFSShortestExecutor, FulltextIndexScanExecutor, IndexScanExecutor};
+use crate::query::executor::search_executors::{BFSShortestExecutor, IndexScanExecutor};
 use crate::query::executor::special_executors::{ArgumentExecutor, DataCollectExecutor, PassThroughExecutor};
 
 use crate::query::executor::admin::{
@@ -301,7 +301,6 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             PlanNodeEnum::DataCollect(_) => {}
 
             // 搜索节点
-            PlanNodeEnum::FulltextIndexScan(_) => {}
             PlanNodeEnum::BFSShortest(n) => {
                 for dep in n.deps.iter() {
                     self.analyze_plan_node(dep, loop_layers)?;
@@ -972,20 +971,6 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             }
 
             // 搜索执行器
-            PlanNodeEnum::FulltextIndexScan(node) => {
-                let executor = FulltextIndexScanExecutor::new(
-                    node.id(),
-                    storage,
-                    node.space_id,
-                    &node.index_name,
-                    &node.query,
-                    node.limit.map(|l| l as usize),
-                    node.is_edge,
-                    node.schema_id,
-                );
-                Ok(ExecutorEnum::FulltextIndexScan(executor))
-            }
-
             PlanNodeEnum::BFSShortest(node) => {
                 let start_vertex = if let Some(first_dep) = node.deps.first() {
                     extract_vertex_ids_from_node(first_dep)

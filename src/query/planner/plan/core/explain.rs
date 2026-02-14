@@ -181,7 +181,7 @@ impl Default for PlanDescription {
 }
 
 use crate::query::planner::plan::algorithms::{
-    AllPaths, BFSShortest, FulltextIndexScan, IndexScan, MultiShortestPath, ShortestPath,
+    AllPaths, BFSShortest, IndexScan, MultiShortestPath, ShortestPath,
 };
 use crate::query::planner::plan::core::nodes::plan_node_enum::*;
 use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
@@ -390,10 +390,6 @@ impl PlanNodeVisitor for DescribeVisitor {
 
     fn visit_index_scan(&mut self, node: &IndexScan) {
         self.create_description("IndexScan", node);
-    }
-
-    fn visit_fulltext_index_scan(&mut self, node: &FulltextIndexScan) {
-        self.create_description("FulltextIndexScan", node);
     }
 
     fn visit_multi_shortest_path(&mut self, node: &MultiShortestPath) {

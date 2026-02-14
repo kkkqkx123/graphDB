@@ -15,7 +15,7 @@ use crate::query::planner::plan::core::nodes::{
     CreateUserNode, AlterUserNode, DropUserNode, ChangePasswordNode,
 };
 use crate::query::planner::plan::algorithms::{
-    AllPaths, BFSShortest, FulltextIndexScan, IndexScan, MultiShortestPath, ShortestPath,
+    AllPaths, BFSShortest, IndexScan, MultiShortestPath, ShortestPath,
 };
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 
@@ -40,7 +40,6 @@ pub trait PlanNodeVisitor {
     fn visit_hash_inner_join(&mut self, node: &HashInnerJoinNode) -> Self::Result;
     fn visit_hash_left_join(&mut self, node: &HashLeftJoinNode) -> Self::Result;
     fn visit_index_scan(&mut self, node: &IndexScan) -> Self::Result;
-    fn visit_fulltext_index_scan(&mut self, node: &FulltextIndexScan) -> Self::Result;
     fn visit_expand(&mut self, node: &ExpandNode) -> Self::Result;
     fn visit_expand_all(&mut self, node: &ExpandAllNode) -> Self::Result;
     fn visit_traverse(&mut self, node: &TraverseNode) -> Self::Result;
@@ -113,7 +112,6 @@ pub trait PlanNodeVisitor {
             PlanNodeEnum::HashInnerJoin(n) => self.visit_hash_inner_join(n),
             PlanNodeEnum::HashLeftJoin(n) => self.visit_hash_left_join(n),
             PlanNodeEnum::IndexScan(n) => self.visit_index_scan(n),
-            PlanNodeEnum::FulltextIndexScan(n) => self.visit_fulltext_index_scan(n),
             PlanNodeEnum::Expand(n) => self.visit_expand(n),
             PlanNodeEnum::ExpandAll(n) => self.visit_expand_all(n),
             PlanNodeEnum::Traverse(n) => self.visit_traverse(n),
@@ -216,7 +214,6 @@ mod tests {
         fn visit_hash_inner_join(&mut self, _node: &HashInnerJoinNode) -> Self::Result { self.count += 1; self.count }
         fn visit_hash_left_join(&mut self, _node: &HashLeftJoinNode) -> Self::Result { self.count += 1; self.count }
         fn visit_index_scan(&mut self, _node: &IndexScan) -> Self::Result { self.count += 1; self.count }
-        fn visit_fulltext_index_scan(&mut self, _node: &FulltextIndexScan) -> Self::Result { self.count += 1; self.count }
         fn visit_expand(&mut self, _node: &ExpandNode) -> Self::Result { self.count += 1; self.count }
         fn visit_expand_all(&mut self, _node: &ExpandAllNode) -> Self::Result { self.count += 1; self.count }
         fn visit_traverse(&mut self, _node: &TraverseNode) -> Self::Result { self.count += 1; self.count }

@@ -499,7 +499,7 @@ impl Optimizer {
                     self.build_inputs_recursive(dep, ctx, dep_id)?;
                 }
             }
-            PlanNodeEnum::Start(_) | PlanNodeEnum::IndexScan(_) | PlanNodeEnum::FulltextIndexScan(_)
+            PlanNodeEnum::Start(_) | PlanNodeEnum::IndexScan(_)
             | PlanNodeEnum::ScanVertices(_) | PlanNodeEnum::ScanEdges(_) | PlanNodeEnum::EdgeIndexScan(_)
             | PlanNodeEnum::Argument(_) | PlanNodeEnum::Loop(_) | PlanNodeEnum::PassThrough(_)
             | PlanNodeEnum::Select(_) | PlanNodeEnum::DataCollect(_) | PlanNodeEnum::PatternApply(_)

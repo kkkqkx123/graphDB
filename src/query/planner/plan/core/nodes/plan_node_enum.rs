@@ -35,7 +35,7 @@ pub use super::sort_node::{LimitNode, SortNode, TopNNode};
 pub use super::start_node::StartNode;
 pub use super::traversal_node::{AppendVerticesNode, ExpandAllNode, ExpandNode, TraverseNode};
 pub use crate::query::planner::plan::algorithms::{
-    AllPaths, BFSShortest, FulltextIndexScan, IndexScan, MultiShortestPath, ShortestPath,
+    AllPaths, BFSShortest, IndexScan, MultiShortestPath, ShortestPath,
 };
 
 /// PlanNode 枚举，包含所有可能的节点类型
@@ -79,8 +79,6 @@ pub enum PlanNodeEnum {
     HashLeftJoin(HashLeftJoinNode),
     /// 索引扫描节点
     IndexScan(IndexScan),
-    /// 全文索引扫描节点
-    FulltextIndexScan(FulltextIndexScan),
     /// 扩展节点
     Expand(ExpandNode),
     /// 全扩展节点
@@ -233,10 +231,6 @@ impl PlanNodeEnum {
 
     pub fn is_data_collect(&self) -> bool {
         matches!(self, PlanNodeEnum::DataCollect(_))
-    }
-
-    pub fn is_fulltext_index_scan(&self) -> bool {
-        matches!(self, PlanNodeEnum::FulltextIndexScan(_))
     }
 
     pub fn is_bfs_shortest(&self) -> bool {
@@ -472,7 +466,6 @@ impl PlanNodeEnum {
                 | PlanNodeEnum::GetEdges(_)
                 | PlanNodeEnum::GetNeighbors(_)
                 | PlanNodeEnum::IndexScan(_)
-                | PlanNodeEnum::FulltextIndexScan(_)
         )
     }
 
@@ -599,7 +592,6 @@ impl PlanNodeEnum {
             PlanNodeEnum::HashInnerJoin(_) => "HashInnerJoin",
             PlanNodeEnum::HashLeftJoin(_) => "HashLeftJoin",
             PlanNodeEnum::IndexScan(_) => "IndexScan",
-            PlanNodeEnum::FulltextIndexScan(_) => "FulltextIndexScan",
             PlanNodeEnum::Expand(_) => "Expand",
             PlanNodeEnum::ExpandAll(_) => "ExpandAll",
             PlanNodeEnum::Traverse(_) => "Traverse",
@@ -675,7 +667,6 @@ impl PlanNodeEnum {
             PlanNodeEnum::HashInnerJoin(_) => PlanNodeCategory::Join,
             PlanNodeEnum::HashLeftJoin(_) => PlanNodeCategory::Join,
             PlanNodeEnum::IndexScan(_) => PlanNodeCategory::Access,
-            PlanNodeEnum::FulltextIndexScan(_) => PlanNodeCategory::Access,
             PlanNodeEnum::Expand(_) => PlanNodeCategory::Traversal,
             PlanNodeEnum::ExpandAll(_) => PlanNodeCategory::Traversal,
             PlanNodeEnum::Traverse(_) => PlanNodeCategory::Traversal,
@@ -1145,13 +1136,6 @@ impl PlanNodeEnum {
         }
     }
 
-    pub fn as_fulltext_index_scan(&self) -> Option<&FulltextIndexScan> {
-        match self {
-            PlanNodeEnum::FulltextIndexScan(node) => Some(node),
-            _ => None,
-        }
-    }
-
     pub fn as_bfs_shortest(&self) -> Option<&BFSShortest> {
         match self {
             PlanNodeEnum::BFSShortest(node) => Some(node),
@@ -1611,14 +1595,6 @@ impl PlanNodeEnum {
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
-            PlanNodeEnum::FulltextIndexScan(node) => {
-                let mut desc = PlanNodeDescription::new("FulltextIndexScan", node.id());
-                if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
-                }
-                desc.add_description("cost", format!("{:.2}", node.cost()));
-                desc
-            }
             PlanNodeEnum::MultiShortestPath(node) => {
                 let mut desc = PlanNodeDescription::new("MultiShortestPath", node.id());
                 if let Some(var) = node.output_var() {
@@ -1977,9 +1953,6 @@ pub trait PlanNodeVisitor {
     /// 访问IndexScan节点
     fn visit_index_scan(&mut self, node: &IndexScan) -> Self::Result;
 
-    /// 访问FulltextIndexScan节点
-    fn visit_fulltext_index_scan(&mut self, node: &FulltextIndexScan) -> Self::Result;
-
     /// 访问MultiShortestPath节点
     fn visit_multi_shortest_path(&mut self, node: &MultiShortestPath) -> Self::Result;
 
@@ -2121,7 +2094,6 @@ impl PlanNodeEnum {
             PlanNodeEnum::Unwind(node) => visitor.visit_unwind(node),
             PlanNodeEnum::Assign(node) => visitor.visit_assign(node),
             PlanNodeEnum::IndexScan(node) => visitor.visit_index_scan(node),
-            PlanNodeEnum::FulltextIndexScan(node) => visitor.visit_fulltext_index_scan(node),
             PlanNodeEnum::MultiShortestPath(node) => visitor.visit_multi_shortest_path(node),
             PlanNodeEnum::BFSShortest(node) => visitor.visit_bfs_shortest(node),
             PlanNodeEnum::AllPaths(node) => visitor.visit_all_paths(node),
@@ -2193,7 +2165,6 @@ impl PlanNodeEnum {
             PlanNodeEnum::DropUser(_) => vec![],
             PlanNodeEnum::ChangePassword(_) => vec![],
             PlanNodeEnum::IndexScan(_) => vec![],
-            PlanNodeEnum::FulltextIndexScan(_) => vec![],
             PlanNodeEnum::ScanVertices(_) => vec![],
             PlanNodeEnum::ScanEdges(_) => vec![],
             PlanNodeEnum::EdgeIndexScan(_) => vec![],
@@ -2271,7 +2242,6 @@ impl NodeType for PlanNodeEnum {
             PlanNodeEnum::HashInnerJoin(_) => "hash_inner_join",
             PlanNodeEnum::HashLeftJoin(_) => "hash_left_join",
             PlanNodeEnum::IndexScan(_) => "index_scan",
-            PlanNodeEnum::FulltextIndexScan(_) => "fulltext_index_scan",
             PlanNodeEnum::Expand(_) => "expand",
             PlanNodeEnum::ExpandAll(_) => "expand_all",
             PlanNodeEnum::Traverse(_) => "traverse",
@@ -2346,7 +2316,6 @@ impl NodeType for PlanNodeEnum {
             PlanNodeEnum::HashInnerJoin(_) => "Hash Inner Join",
             PlanNodeEnum::HashLeftJoin(_) => "Hash Left Join",
             PlanNodeEnum::IndexScan(_) => "Index Scan",
-            PlanNodeEnum::FulltextIndexScan(_) => "Fulltext Index Scan",
             PlanNodeEnum::Expand(_) => "Expand",
             PlanNodeEnum::ExpandAll(_) => "Expand All",
             PlanNodeEnum::Traverse(_) => "Traverse",
@@ -2421,7 +2390,6 @@ impl NodeType for PlanNodeEnum {
             PlanNodeEnum::HashInnerJoin(_) => NodeCategory::Join,
             PlanNodeEnum::HashLeftJoin(_) => NodeCategory::Join,
             PlanNodeEnum::IndexScan(_) => NodeCategory::Scan,
-            PlanNodeEnum::FulltextIndexScan(_) => NodeCategory::Scan,
             PlanNodeEnum::Expand(_) => NodeCategory::Traversal,
             PlanNodeEnum::ExpandAll(_) => NodeCategory::Traversal,
             PlanNodeEnum::Traverse(_) => NodeCategory::Traversal,
@@ -2501,7 +2469,6 @@ impl NodeTypeMapping for PlanNodeEnum {
             PlanNodeEnum::HashInnerJoin(_) => Some("hash_inner_join"),
             PlanNodeEnum::HashLeftJoin(_) => Some("hash_left_join"),
             PlanNodeEnum::IndexScan(_) => Some("index_scan"),
-            PlanNodeEnum::FulltextIndexScan(_) => Some("fulltext_index_scan"),
             PlanNodeEnum::Expand(_) => Some("expand"),
             PlanNodeEnum::ExpandAll(_) => Some("expand_all"),
             PlanNodeEnum::Traverse(_) => Some("traverse"),

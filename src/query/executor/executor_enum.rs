@@ -39,7 +39,8 @@ use super::result_processing::{
 use super::result_processing::transformations::{
     AppendVerticesExecutor, AssignExecutor, PatternApplyExecutor, RollUpApplyExecutor, UnwindExecutor,
 };
-use super::search_executors::{BFSShortestExecutor, FulltextIndexScanExecutor, IndexScanExecutor};
+use super::search_executors::BFSShortestExecutor;
+use super::search_executors::IndexScanExecutor;
 use super::special_executors::{ArgumentExecutor, DataCollectExecutor, PassThroughExecutor};
 
 pub enum ExecutorEnum<S: StorageClient + Send + 'static> {
@@ -88,7 +89,6 @@ pub enum ExecutorEnum<S: StorageClient + Send + 'static> {
     Argument(ArgumentExecutor<S>),
     PassThrough(PassThroughExecutor<S>),
     DataCollect(DataCollectExecutor<S>),
-    FulltextIndexScan(FulltextIndexScanExecutor<S>),
     BFSShortest(BFSShortestExecutor<S>),
     ShowSpaces(ShowSpacesExecutor<S>),
     ShowTags(ShowTagsExecutor<S>),
@@ -168,7 +168,6 @@ impl<S: StorageClient + Send + 'static> Debug for ExecutorEnum<S> {
             ExecutorEnum::Argument(exec) => f.write_str(&format!("ExecutorEnum::Argument({})", exec.name())),
             ExecutorEnum::PassThrough(exec) => f.write_str(&format!("ExecutorEnum::PassThrough({})", exec.name())),
             ExecutorEnum::DataCollect(exec) => f.write_str(&format!("ExecutorEnum::DataCollect({})", exec.name())),
-            ExecutorEnum::FulltextIndexScan(exec) => f.write_str(&format!("ExecutorEnum::FulltextIndexScan({})", exec.name())),
             ExecutorEnum::BFSShortest(exec) => f.write_str(&format!("ExecutorEnum::BFSShortest({})", exec.name())),
             ExecutorEnum::ShowSpaces(exec) => f.write_str(&format!("ExecutorEnum::ShowSpaces({})", exec.name())),
             ExecutorEnum::ShowTags(exec) => f.write_str(&format!("ExecutorEnum::ShowTags({})", exec.name())),
@@ -250,7 +249,6 @@ impl<S: StorageClient + Send + 'static> ExecutorEnum<S> {
             ExecutorEnum::Argument(exec) => exec.id(),
             ExecutorEnum::PassThrough(exec) => exec.id(),
             ExecutorEnum::DataCollect(exec) => exec.id(),
-            ExecutorEnum::FulltextIndexScan(exec) => exec.id(),
             ExecutorEnum::BFSShortest(exec) => exec.id(),
             ExecutorEnum::ShowSpaces(exec) => exec.id(),
             ExecutorEnum::ShowTags(exec) => exec.id(),
@@ -330,7 +328,6 @@ impl<S: StorageClient + Send + 'static> ExecutorEnum<S> {
             ExecutorEnum::Argument(exec) => exec.name(),
             ExecutorEnum::PassThrough(exec) => exec.name(),
             ExecutorEnum::DataCollect(exec) => exec.name(),
-            ExecutorEnum::FulltextIndexScan(exec) => exec.name(),
             ExecutorEnum::BFSShortest(exec) => exec.name(),
             ExecutorEnum::ShowSpaces(exec) => exec.name(),
             ExecutorEnum::ShowTags(exec) => exec.name(),
@@ -410,7 +407,6 @@ impl<S: StorageClient + Send + 'static> ExecutorEnum<S> {
             ExecutorEnum::Argument(exec) => exec.stats(),
             ExecutorEnum::PassThrough(exec) => exec.stats(),
             ExecutorEnum::DataCollect(exec) => exec.stats(),
-            ExecutorEnum::FulltextIndexScan(exec) => exec.stats(),
             ExecutorEnum::BFSShortest(exec) => exec.stats(),
             ExecutorEnum::ShowSpaces(exec) => exec.stats(),
             ExecutorEnum::ShowTags(exec) => exec.stats(),
@@ -490,7 +486,6 @@ impl<S: StorageClient + Send + 'static> ExecutorEnum<S> {
             ExecutorEnum::Argument(exec) => exec.stats_mut(),
             ExecutorEnum::PassThrough(exec) => exec.stats_mut(),
             ExecutorEnum::DataCollect(exec) => exec.stats_mut(),
-            ExecutorEnum::FulltextIndexScan(exec) => exec.stats_mut(),
             ExecutorEnum::BFSShortest(exec) => exec.stats_mut(),
             ExecutorEnum::ShowSpaces(exec) => exec.stats_mut(),
             ExecutorEnum::ShowTags(exec) => exec.stats_mut(),
@@ -573,7 +568,6 @@ impl<S: StorageClient + Send + 'static> super::base::Executor<S> for ExecutorEnu
             ExecutorEnum::Argument(exec) => exec.execute(),
             ExecutorEnum::PassThrough(exec) => exec.execute(),
             ExecutorEnum::DataCollect(exec) => exec.execute(),
-            ExecutorEnum::FulltextIndexScan(exec) => exec.execute(),
             ExecutorEnum::BFSShortest(exec) => exec.execute(),
             ExecutorEnum::ShowSpaces(exec) => exec.execute(),
             ExecutorEnum::ShowTags(exec) => exec.execute(),
@@ -655,7 +649,6 @@ impl<S: StorageClient + Send + 'static> super::base::Executor<S> for ExecutorEnu
             ExecutorEnum::Argument(exec) => exec.open(),
             ExecutorEnum::PassThrough(exec) => exec.open(),
             ExecutorEnum::DataCollect(exec) => exec.open(),
-            ExecutorEnum::FulltextIndexScan(exec) => exec.open(),
             ExecutorEnum::BFSShortest(exec) => exec.open(),
             ExecutorEnum::ShowSpaces(exec) => exec.open(),
             ExecutorEnum::ShowTags(exec) => exec.open(),
@@ -735,7 +728,6 @@ impl<S: StorageClient + Send + 'static> super::base::Executor<S> for ExecutorEnu
             ExecutorEnum::Argument(exec) => exec.close(),
             ExecutorEnum::PassThrough(exec) => exec.close(),
             ExecutorEnum::DataCollect(exec) => exec.close(),
-            ExecutorEnum::FulltextIndexScan(exec) => exec.close(),
             ExecutorEnum::BFSShortest(exec) => exec.close(),
             ExecutorEnum::ShowSpaces(exec) => exec.close(),
             ExecutorEnum::ShowTags(exec) => exec.close(),
@@ -815,7 +807,6 @@ impl<S: StorageClient + Send + 'static> super::base::Executor<S> for ExecutorEnu
             ExecutorEnum::Argument(exec) => exec.is_open(),
             ExecutorEnum::PassThrough(exec) => exec.is_open(),
             ExecutorEnum::DataCollect(exec) => exec.is_open(),
-            ExecutorEnum::FulltextIndexScan(exec) => exec.is_open(),
             ExecutorEnum::BFSShortest(exec) => exec.is_open(),
             ExecutorEnum::ShowSpaces(exec) => exec.is_open(),
             ExecutorEnum::ShowTags(exec) => exec.is_open(),
@@ -907,7 +898,6 @@ impl<S: StorageClient + Send + 'static> super::base::Executor<S> for ExecutorEnu
             ExecutorEnum::Argument(exec) => exec.stats(),
             ExecutorEnum::PassThrough(exec) => exec.stats(),
             ExecutorEnum::DataCollect(exec) => exec.stats(),
-            ExecutorEnum::FulltextIndexScan(exec) => exec.stats(),
             ExecutorEnum::BFSShortest(exec) => exec.stats(),
             ExecutorEnum::ShowSpaces(exec) => exec.stats(),
             ExecutorEnum::ShowTags(exec) => exec.stats(),
@@ -987,7 +977,6 @@ impl<S: StorageClient + Send + 'static> super::base::Executor<S> for ExecutorEnu
             ExecutorEnum::Argument(exec) => exec.stats_mut(),
             ExecutorEnum::PassThrough(exec) => exec.stats_mut(),
             ExecutorEnum::DataCollect(exec) => exec.stats_mut(),
-            ExecutorEnum::FulltextIndexScan(exec) => exec.stats_mut(),
             ExecutorEnum::BFSShortest(exec) => exec.stats_mut(),
             ExecutorEnum::ShowSpaces(exec) => exec.stats_mut(),
             ExecutorEnum::ShowTags(exec) => exec.stats_mut(),
@@ -1054,7 +1043,6 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for ExecutorEnum<S> {
             ExecutorEnum::Argument(_) => {}
             ExecutorEnum::PassThrough(_) => {}
             ExecutorEnum::DataCollect(_) => {}
-            ExecutorEnum::FulltextIndexScan(_) => {}
             ExecutorEnum::BFSShortest(_) => {}
             ExecutorEnum::ShowSpaces(_) => {}
             ExecutorEnum::ShowTags(_) => {}
@@ -1134,7 +1122,6 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for ExecutorEnum<S> {
             ExecutorEnum::Argument(_) => None,
             ExecutorEnum::PassThrough(_) => None,
             ExecutorEnum::DataCollect(_) => None,
-            ExecutorEnum::FulltextIndexScan(_) => None,
             ExecutorEnum::BFSShortest(_) => None,
             ExecutorEnum::ShowSpaces(_) => None,
             ExecutorEnum::ShowTags(_) => None,
@@ -1250,7 +1237,6 @@ impl<S: StorageClient + Send + 'static> NodeType for ExecutorEnum<S> {
             ExecutorEnum::Argument(_) => "argument",
             ExecutorEnum::PassThrough(_) => "pass_through",
             ExecutorEnum::DataCollect(_) => "data_collect",
-            ExecutorEnum::FulltextIndexScan(_) => "fulltext_index_scan",
             ExecutorEnum::BFSShortest(_) => "bfs_shortest",
             ExecutorEnum::ShowSpaces(_) => "show_spaces",
             ExecutorEnum::ShowTags(_) => "show_tags",
@@ -1330,7 +1316,6 @@ impl<S: StorageClient + Send + 'static> NodeType for ExecutorEnum<S> {
             ExecutorEnum::Argument(_) => "Argument",
             ExecutorEnum::PassThrough(_) => "Pass Through",
             ExecutorEnum::DataCollect(_) => "Data Collect",
-            ExecutorEnum::FulltextIndexScan(_) => "Fulltext Index Scan",
             ExecutorEnum::BFSShortest(_) => "BFS Shortest",
             ExecutorEnum::ShowSpaces(_) => "Show Spaces",
             ExecutorEnum::ShowTags(_) => "Show Tags",
@@ -1410,7 +1395,6 @@ impl<S: StorageClient + Send + 'static> NodeType for ExecutorEnum<S> {
             ExecutorEnum::Argument(_) => NodeCategory::Control,
             ExecutorEnum::PassThrough(_) => NodeCategory::Control,
             ExecutorEnum::DataCollect(_) => NodeCategory::DataCollect,
-            ExecutorEnum::FulltextIndexScan(_) => NodeCategory::Scan,
             ExecutorEnum::BFSShortest(_) => NodeCategory::Path,
             ExecutorEnum::ShowSpaces(_) => NodeCategory::Admin,
             ExecutorEnum::ShowTags(_) => NodeCategory::Admin,
