@@ -404,51 +404,54 @@ impl<'a> ExprParser<'a> {
             }
             TokenKind::InputRef => {
                 ctx.next_token();
-                let span = ctx.merge_span(start_pos, ctx.current_position());
+                let mut span = ctx.merge_span(start_pos, ctx.current_position());
                 let mut expr = Expression::variable("$-");
-                
+
                 if ctx.match_token(TokenKind::Dot) {
                     let prop_name = ctx.expect_identifier()?;
                     expr = Expression::property(expr, prop_name);
+                    // 更新span以包含属性访问
+                    span = ctx.merge_span(start_pos, ctx.current_position());
                 }
-                
-                let end_span = ctx.merge_span(start_pos, ctx.current_position());
+
                 Ok(ParseResult {
                     expr,
-                    span: end_span,
+                    span,
                 })
             }
             TokenKind::SrcRef => {
                 ctx.next_token();
-                let span = ctx.merge_span(start_pos, ctx.current_position());
+                let mut span = ctx.merge_span(start_pos, ctx.current_position());
                 let mut expr = Expression::variable("$^");
-                
+
                 if ctx.match_token(TokenKind::Dot) {
                     let prop_name = ctx.expect_identifier()?;
                     expr = Expression::property(expr, prop_name);
+                    // 更新span以包含属性访问
+                    span = ctx.merge_span(start_pos, ctx.current_position());
                 }
-                
-                let end_span = ctx.merge_span(start_pos, ctx.current_position());
+
                 Ok(ParseResult {
                     expr,
-                    span: end_span,
+                    span,
                 })
             }
             TokenKind::Dollar => {
                 ctx.next_token();
                 let var_name = ctx.expect_identifier()?;
-                let span = ctx.merge_span(start_pos, ctx.current_position());
+                let mut span = ctx.merge_span(start_pos, ctx.current_position());
                 let mut expr = Expression::variable(format!("${}", var_name));
-                
+
                 if ctx.match_token(TokenKind::Dot) {
                     let prop_name = ctx.expect_identifier()?;
                     expr = Expression::property(expr, prop_name);
+                    // 更新span以包含属性访问
+                    span = ctx.merge_span(start_pos, ctx.current_position());
                 }
-                
-                let end_span = ctx.merge_span(start_pos, ctx.current_position());
+
                 Ok(ParseResult {
                     expr,
-                    span: end_span,
+                    span,
                 })
             }
             _ => {

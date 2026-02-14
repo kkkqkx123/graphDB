@@ -12,8 +12,8 @@ use std::sync::Arc;
 
 /// 索引数据管理器 trait
 pub trait IndexDataManager {
-    fn update_vertex_indexes(&self, space: &str, vertex_id: &Value, tag_name: &str, props: &[(String, Value)]) -> Result<(), StorageError>;
-    fn update_edge_indexes(&self, space: &str, src: &Value, dst: &Value, edge_type: &str, props: &[(String, Value)]) -> Result<(), StorageError>;
+    fn update_vertex_indexes(&self, space: &str, vertex_id: &Value, index_name: &str, props: &[(String, Value)]) -> Result<(), StorageError>;
+    fn update_edge_indexes(&self, space: &str, src: &Value, dst: &Value, index_name: &str, props: &[(String, Value)]) -> Result<(), StorageError>;
     fn delete_vertex_indexes(&self, space: &str, vertex_id: &Value) -> Result<(), StorageError>;
     fn delete_edge_indexes(&self, space: &str, src: &Value, dst: &Value, edge_type: &str) -> Result<(), StorageError>;
     fn lookup_tag_index(&self, space: &str, index: &Index, value: &Value) -> Result<Vec<Value>, StorageError>;
@@ -62,9 +62,9 @@ impl RedbIndexDataManager {
 }
 
 impl IndexDataManager for RedbIndexDataManager {
-    fn update_vertex_indexes(&self, space: &str, vertex_id: &Value, tag_name: &str, props: &[(String, Value)]) -> Result<(), StorageError> {
+    fn update_vertex_indexes(&self, space: &str, vertex_id: &Value, index_name: &str, props: &[(String, Value)]) -> Result<(), StorageError> {
         // 构建索引键: space:idx:v:index_name:tag_name:prop_value:vertex_id
-        let mut index_key = format!("{}:idx:v:{}:{}:", space, "default", tag_name).into_bytes();
+        let mut index_key = format!("{}:idx:v:{}:", space, index_name).into_bytes();
         for (prop_name, prop_value) in props {
             index_key.extend_from_slice(prop_name.as_bytes());
             index_key.push(b':');
@@ -88,9 +88,9 @@ impl IndexDataManager for RedbIndexDataManager {
         Ok(())
     }
 
-    fn update_edge_indexes(&self, space: &str, src: &Value, dst: &Value, edge_type: &str, props: &[(String, Value)]) -> Result<(), StorageError> {
+    fn update_edge_indexes(&self, space: &str, src: &Value, dst: &Value, index_name: &str, props: &[(String, Value)]) -> Result<(), StorageError> {
         // 构建索引键: space:idx:e:index_name:edge_type:prop_value:src:dst
-        let mut index_key = format!("{}:idx:e:{}:{}:", space, "default", edge_type).into_bytes();
+        let mut index_key = format!("{}:idx:e:{}:", space, index_name).into_bytes();
         for (prop_name, prop_value) in props {
             index_key.extend_from_slice(prop_name.as_bytes());
             index_key.push(b':');
@@ -182,14 +182,12 @@ impl IndexDataManager for RedbIndexDataManager {
             let key_bytes = key.value().0;
             
             if key_bytes.starts_with(&prefix) {
-                // 检查键是否包含 src 和 dst
+                // 检查键是否以 src:dst 结尾
                 let key_str = String::from_utf8_lossy(&key_bytes);
                 let src_str = String::from_utf8_lossy(&src_bytes);
                 let dst_str = String::from_utf8_lossy(&dst_bytes);
                 
-                if key_str.contains(&format!(":{}:", src_str)) && 
-                   key_str.contains(&format!(":{}:", dst_str)) &&
-                   key_str.contains(&format!(":{}", edge_type)) {
+                if key_str.ends_with(&format!(":{}:{}", src_str, dst_str)) {
                     keys_to_delete.push(key_bytes.to_vec());
                 }
             }

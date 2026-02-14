@@ -1,26 +1,22 @@
-//! 索引系统模块
+//! 索引核心模块
 //!
-//! 提供完整的索引功能支持：
+//! 提供索引核心类型定义和工具：
 //! - 二进制键编码
-//! - 内存缓存
 //! - 统一索引类型定义
-//! - 全文索引功能
 //! - 索引错误处理
+//! - 索引配置
 //!
+//! 运行时服务（缓存、统计、全文索引）已移至 service 子模块
 //! 索引存储实现已迁移至 src/storage/index/ 目录
 
 pub mod binary;
-pub mod cache;
 pub mod config;
 pub mod error;
-pub mod fulltext;
-pub mod stats;
+pub mod service;
 pub mod types;
 
 pub use binary::*;
-pub use cache::*;
 pub use config::*;
 pub use error::*;
-pub use fulltext::*;
-pub use stats::*;
+pub use service::*;
 pub use types::*;

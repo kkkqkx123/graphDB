@@ -50,6 +50,21 @@ impl RedbStorage {
         let db = Arc::new(Database::create(&path)
             .map_err(|e| StorageError::DbError(format!("创建数据库失败: {}", e)))?);
 
+        // 初始化所需的表
+        let write_txn = db.begin_write()
+            .map_err(|e| StorageError::DbError(format!("开始写事务失败: {}", e)))?;
+        {
+            use crate::storage::redb_types::*;
+            let _ = write_txn.open_table(TAG_INDEXES_TABLE)
+                .map_err(|e| StorageError::DbError(format!("打开TAG_INDEXES_TABLE失败: {}", e)))?;
+            let _ = write_txn.open_table(EDGE_INDEXES_TABLE)
+                .map_err(|e| StorageError::DbError(format!("打开EDGE_INDEXES_TABLE失败: {}", e)))?;
+            let _ = write_txn.open_table(INDEX_DATA_TABLE)
+                .map_err(|e| StorageError::DbError(format!("打开INDEX_DATA_TABLE失败: {}", e)))?;
+        }
+        write_txn.commit()
+            .map_err(|e| StorageError::DbError(format!("提交初始化事务失败: {}", e)))?;
+
         let schema_manager = Arc::new(RedbSchemaManager::new(db.clone()));
         let index_metadata_manager = Arc::new(RedbIndexMetadataManager::new(db.clone()));
         let extended_schema_manager = Arc::new(RedbExtendedSchemaManager::new(db.clone()));
@@ -250,7 +265,31 @@ impl StorageClient for RedbStorage {
 
     fn insert_vertex(&mut self, space: &str, vertex: Vertex) -> Result<Value, StorageError> {
         let mut writer = self.writer.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        writer.insert_vertex(space, vertex)
+        let id = writer.insert_vertex(space, vertex.clone())?;
+        
+        // 更新索引
+        for tag in &vertex.tags {
+            // 获取该 tag 的所有索引
+            let indexes = self.index_metadata_manager.list_tag_indexes(space)?;
+            
+            for index in indexes {
+                if index.schema_name == tag.name {
+                    // 检查索引字段是否在顶点属性中
+                    let mut index_props = Vec::new();
+                    for field in &index.fields {
+                        if let Some(value) = tag.properties.get(&field.name) {
+                            index_props.push((field.name.clone(), value.clone()));
+                        }
+                    }
+                    
+                    if !index_props.is_empty() {
+                        self.index_data_manager.update_vertex_indexes(space, &id, &index.name, &index_props)?;
+                    }
+                }
+            }
+        }
+        
+        Ok(id)
     }
 
     fn update_vertex(&mut self, space: &str, vertex: Vertex) -> Result<(), StorageError> {
@@ -260,7 +299,12 @@ impl StorageClient for RedbStorage {
 
     fn delete_vertex(&mut self, space: &str, id: &Value) -> Result<(), StorageError> {
         let mut writer = self.writer.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        writer.delete_vertex(space, id)
+        writer.delete_vertex(space, id)?;
+        
+        // 删除索引
+        self.index_data_manager.delete_vertex_indexes(space, id)?;
+        
+        Ok(())
     }
 
     fn batch_insert_vertices(&mut self, space: &str, vertices: Vec<Vertex>) -> Result<Vec<Value>, StorageError> {
@@ -270,12 +314,39 @@ impl StorageClient for RedbStorage {
 
     fn insert_edge(&mut self, space: &str, edge: Edge) -> Result<(), StorageError> {
         let mut writer = self.writer.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        writer.insert_edge(space, edge)
+        writer.insert_edge(space, edge.clone())?;
+        
+        // 更新索引
+        // 获取该 edge_type 的所有索引
+        let indexes = self.index_metadata_manager.list_edge_indexes(space)?;
+        
+        for index in indexes {
+            if index.schema_name == edge.edge_type {
+                // 检查索引字段是否在边属性中
+                let mut index_props = Vec::new();
+                for field in &index.fields {
+                    if let Some(value) = edge.props.get(&field.name) {
+                        index_props.push((field.name.clone(), value.clone()));
+                    }
+                }
+                
+                if !index_props.is_empty() {
+                    self.index_data_manager.update_edge_indexes(space, &edge.src, &edge.dst, &index.name, &index_props)?;
+                }
+            }
+        }
+        
+        Ok(())
     }
 
     fn delete_edge(&mut self, space: &str, src: &Value, dst: &Value, edge_type: &str) -> Result<(), StorageError> {
         let mut writer = self.writer.lock().map_err(|e| StorageError::DbError(e.to_string()))?;
-        writer.delete_edge(space, src, dst, edge_type)
+        writer.delete_edge(space, src, dst, edge_type)?;
+        
+        // 删除索引
+        self.index_data_manager.delete_edge_indexes(space, src, dst, edge_type)?;
+        
+        Ok(())
     }
 
     fn batch_insert_edges(&mut self, space: &str, edges: Vec<Edge>) -> Result<(), StorageError> {

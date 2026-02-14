@@ -44,11 +44,11 @@ where
 }
 
 /// 断言 Option 是 Some 并返回内部值
-pub fn assert_some<T>(opt: Option<T>) -> T {
-    opt.expect("值应该是 Some")
+pub fn assert_some<T>(opt: &Option<T>) -> &T {
+    opt.as_ref().expect("值应该是 Some")
 }
 
 /// 断言 Option 是 None
-pub fn assert_none<T>(opt: Option<T>) {
+pub fn assert_none<T>(opt: &Option<T>) {
     assert!(opt.is_none(), "值应该是 None");
 }

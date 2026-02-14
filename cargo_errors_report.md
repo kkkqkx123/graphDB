@@ -23,18 +23,18 @@
 
 ### Files with Warnings (Top 10)
 
-- `src\api\service\graph_service.rs`: 3 warnings
+- `src\query\parser\parser\expr_parser.rs`: 3 warnings
 
 ## Detailed Warning Categorization
 
-### warning: unused `std::result::Result` that must be used
+### warning: unused variable: `span`: help: if this is intentional, prefix it with an underscore: `_span`
 
 **Total Occurrences**: 3  
 **Unique Files**: 1
 
-#### `src\api\service\graph_service.rs`: 3 occurrences
+#### `src\query\parser\parser\expr_parser.rs`: 3 occurrences
 
-- Line 535: unused `std::result::Result` that must be used
-- Line 562: unused `std::result::Result` that must be used
-- Line 584: unused `std::result::Result` that must be used
+- Line 407: unused variable: `span`: help: if this is intentional, prefix it with an underscore: `_span`
+- Line 423: unused variable: `span`: help: if this is intentional, prefix it with an underscore: `_span`
+- Line 440: unused variable: `span`: help: if this is intentional, prefix it with an underscore: `_span`
 
