@@ -8,6 +8,7 @@ use crate::core::types::expression::visitor::GenericExpressionVisitor;
 use crate::core::types::expression::Expression;
 use crate::core::value::NullType;
 use crate::core::Value;
+use crate::core::value::dataset::List;
 use crate::expression::evaluator::collection_operations::CollectionOperationEvaluator;
 use crate::expression::evaluator::functions::FunctionEvaluator;
 use crate::expression::evaluator::operations::{BinaryOperationEvaluator, UnaryOperationEvaluator};
@@ -207,7 +208,7 @@ impl ExpressionEvaluator {
                     .iter()
                     .map(|elem| self.visit_with_context(elem, context))
                     .collect();
-                element_values.map(Value::List)
+                element_values.map(|vals| Value::List(List::from(vals)))
             }
 
             // 映射 - 批量求值
@@ -255,7 +256,7 @@ impl ExpressionEvaluator {
                     .iter()
                     .map(|elem| self.visit_with_context(elem, context))
                     .collect();
-                element_values.map(Value::List)
+                element_values.map(|vals| Value::List(List::from(vals)))
             }
 
             // 属性访问
@@ -405,7 +406,7 @@ impl GenericExpressionVisitor<Expression> for ExpressionEvaluator {
                     .iter()
                     .map(|elem| self.visit(elem))
                     .collect();
-                element_values.map(Value::List)
+                element_values.map(|vals| Value::List(List::from(vals)))
             }
             Expression::Map(entries) => {
                 let mut map_values = std::collections::HashMap::new();
@@ -435,7 +436,7 @@ impl GenericExpressionVisitor<Expression> for ExpressionEvaluator {
                     .iter()
                     .map(|elem| self.visit(elem))
                     .collect();
-                element_values.map(Value::List)
+                element_values.map(|vals| Value::List(List::from(vals)))
             }
             Expression::Property { object, property } => {
                 let object_value = self.visit(object.as_ref())?;

@@ -4,6 +4,7 @@ use crate::core::types::operators::{BinaryOperator, UnaryOperator};
 ///
 /// 本模块负责处理表达式求值中的算术运算、比较运算、逻辑运算等基础运算操作。
 use crate::core::value::types::Value;
+use crate::core::value::dataset::List;
 
 /// 二元运算求值器
 pub struct BinaryOperationEvaluator;
@@ -349,7 +350,7 @@ impl BinaryOperationEvaluator {
                 }
                 let result: Vec<Value> =
                     l.iter().filter(|item| r.contains(item)).cloned().collect();
-                Ok(Value::List(result))
+                Ok(Value::List(List::from(result)))
             }
             _ => Err(ExpressionError::type_error("INTERSECT操作需要列表值")),
         }
@@ -367,7 +368,7 @@ impl BinaryOperationEvaluator {
                 }
                 let result: Vec<Value> =
                     l.iter().filter(|item| !r.contains(item)).cloned().collect();
-                Ok(Value::List(result))
+                Ok(Value::List(List::from(result)))
             }
             _ => Err(ExpressionError::type_error("EXCEPT操作需要列表值")),
         }

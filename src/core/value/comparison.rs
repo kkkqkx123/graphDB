@@ -1,6 +1,7 @@
-use super::types::{
-    DataSet, DateTimeValue, DateValue, DurationValue, GeographyValue, NullType, TimeValue, Value,
-};
+use super::types::{NullType, Value};
+use super::date_time::{DateValue, DateTimeValue, DurationValue, TimeValue};
+use super::dataset::DataSet;
+use super::geography::GeographyValue;
 use crate::core::DataType;
 use std::cmp::Ordering as CmpOrdering;
 use std::collections::HashMap;
@@ -152,11 +153,11 @@ impl Hash for Value {
                 g.hash(state);
             }
             Value::Duration(d) => {
-                17u8.hash(state);
+                16u8.hash(state);
                 d.hash(state);
             }
             Value::DataSet(ds) => {
-                18u8.hash(state);
+                17u8.hash(state);
                 ds.hash(state);
             }
         }
@@ -273,16 +274,16 @@ impl Value {
     }
 
     // 列表比较辅助函数
-    fn cmp_list(a: &Vec<Value>, b: &Vec<Value>) -> CmpOrdering {
+    fn cmp_list(a: &super::dataset::List, b: &super::dataset::List) -> CmpOrdering {
         // 按字典序比较列表
-        let min_len = a.len().min(b.len());
+        let min_len = a.values.len().min(b.values.len());
         for i in 0..min_len {
-            match a[i].cmp(&b[i]) {
+            match a.values[i].cmp(&b.values[i]) {
                 CmpOrdering::Equal => continue,
                 ord => return ord,
             }
         }
-        a.len().cmp(&b.len())
+        a.values.len().cmp(&b.values.len())
     }
 
     // 映射比较辅助函数

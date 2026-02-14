@@ -5,6 +5,7 @@
 
 use super::agg_data::AggData;
 use crate::core::value::{NullType, Value};
+use crate::core::value::dataset::List;
 use crate::core::error::{DBError, QueryError};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -327,7 +328,7 @@ impl AggFunctionManager {
                     return Ok(());
                 }
                 if res.is_null() {
-                    *res = Value::List(Vec::new());
+                    *res = Value::List(List::from(Vec::new()));
                 }
                 if val.is_null() || val.is_empty() {
                     return Ok(());

@@ -261,6 +261,7 @@ impl Default for RequestContext {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::value::dataset::List;
 
     #[test]
     fn test_request_context_creation() {
@@ -392,7 +393,7 @@ mod tests {
         );
 
         // 设置响应数据
-        let result = ctx.set_response_data(Value::List(vec![]));
+        let result = ctx.set_response_data(Value::List(List::from(vec![])));
         assert!(result.is_err());
 
         // 获取响应

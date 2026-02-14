@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use crate::core::error::DBResult;
 use crate::core::{Edge, NPath, Path, Value, Vertex};
+use crate::core::value::dataset::List;
 
 use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
 use crate::query::executor::executor_enum::ExecutorEnum;
@@ -172,7 +173,7 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
                 path_value.push(Value::Vertex(Box::new((*step.dst).clone())));
             }
 
-            path_values.push(Value::List(path_value));
+            path_values.push(Value::List(List::from(path_value)));
         }
 
         ExecutionResult::Values(path_values)

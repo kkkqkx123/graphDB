@@ -1,6 +1,7 @@
 use crate::core::types::operators::AggregateFunction;
 use crate::core::Expression;
 use crate::core::{ExpressionError, Value};
+use crate::core::value::dataset::List;
 use serde::{Deserialize, Serialize};
 
 impl std::fmt::Display for AggregateFunction {
@@ -152,7 +153,7 @@ impl AggregateExpression {
                     Ok(Value::Float(0.0))
                 }
             }
-            AggregateFunction::Collect(_) => Ok(Value::List(state.values.clone())),
+            AggregateFunction::Collect(_) => Ok(Value::List(List::from(state.values.clone()))),
             AggregateFunction::CollectSet(_) => Ok(Value::Set(
                 state
                     .values

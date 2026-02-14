@@ -1,4 +1,8 @@
 use super::types::{NullType, Value};
+use super::date_time::{DateValue, DateTimeValue, DurationValue, TimeValue};
+use super::dataset::List;
+use crate::core::types::DataType;
+use chrono::{Datelike, Timelike};
 
 impl Value {
     /// 转换为布尔值
@@ -139,7 +143,7 @@ impl Value {
     pub fn to_list(&self) -> Value {
         match self {
             Value::List(list) => Value::List(list.clone()),
-            Value::Set(set) => Value::List(set.iter().cloned().collect()),
+            Value::Set(set) => Value::List(List::from(set.iter().cloned().collect::<Vec<_>>())),
             _ => Value::Null(NullType::BadData),
         }
     }
@@ -159,6 +163,217 @@ impl Value {
             Value::List(list) => Value::Set(list.iter().cloned().collect()),
             _ => Value::Null(NullType::BadData),
         }
+    }
+
+    /// 转换为日期
+    pub fn to_date(&self) -> Value {
+        match self {
+            Value::Empty | Value::Null(_) => Value::Null(NullType::Null),
+            Value::Date(d) => Value::Date(d.clone()),
+            Value::DateTime(dt) => Value::Date(DateValue {
+                year: dt.year,
+                month: dt.month,
+                day: dt.day,
+            }),
+            Value::String(s) => Self::parse_date_string(s),
+            Value::Int(i) => Value::Date(Self::days_to_date(*i)),
+            _ => Value::Null(NullType::BadData),
+        }
+    }
+
+    /// 转换为时间
+    pub fn to_time(&self) -> Value {
+        match self {
+            Value::Empty | Value::Null(_) => Value::Null(NullType::Null),
+            Value::Time(t) => Value::Time(t.clone()),
+            Value::DateTime(dt) => Value::Time(TimeValue {
+                hour: dt.hour,
+                minute: dt.minute,
+                sec: dt.sec,
+                microsec: dt.microsec,
+            }),
+            Value::String(s) => Self::parse_time_string(s),
+            _ => Value::Null(NullType::BadData),
+        }
+    }
+
+    /// 转换为日期时间
+    pub fn to_datetime(&self) -> Value {
+        match self {
+            Value::Empty | Value::Null(_) => Value::Null(NullType::Null),
+            Value::DateTime(dt) => Value::DateTime(dt.clone()),
+            Value::Date(d) => Value::DateTime(DateTimeValue {
+                year: d.year,
+                month: d.month,
+                day: d.day,
+                hour: 0,
+                minute: 0,
+                sec: 0,
+                microsec: 0,
+            }),
+            Value::Time(t) => Value::DateTime(DateTimeValue {
+                year: 1970,
+                month: 1,
+                day: 1,
+                hour: t.hour,
+                minute: t.minute,
+                sec: t.sec,
+                microsec: t.microsec,
+            }),
+            Value::String(s) => Self::parse_datetime_string(s),
+            Value::Int(i) => {
+                let date = Self::days_to_date(*i);
+                Value::DateTime(DateTimeValue {
+                    year: date.year,
+                    month: date.month,
+                    day: date.day,
+                    hour: 0,
+                    minute: 0,
+                    sec: 0,
+                    microsec: 0,
+                })
+            }
+            _ => Value::Null(NullType::BadData),
+        }
+    }
+
+    /// 转换为持续时间
+    pub fn to_duration(&self) -> Value {
+        match self {
+            Value::Empty | Value::Null(_) => Value::Null(NullType::Null),
+            Value::Duration(d) => Value::Duration(d.clone()),
+            Value::Int(i) => Value::Duration(DurationValue {
+                seconds: *i,
+                microseconds: 0,
+                months: 0,
+            }),
+            Value::Float(f) => {
+                let seconds = f.floor() as i64;
+                let microseconds = ((f - seconds as f64) * 1_000_000.0) as i32;
+                Value::Duration(DurationValue {
+                    seconds,
+                    microseconds,
+                    months: 0,
+                })
+            }
+            Value::String(s) => Self::parse_duration_string(s),
+            _ => Value::Null(NullType::BadData),
+        }
+    }
+
+    fn parse_date_string(s: &str) -> Value {
+        let formats = vec!["%Y-%m-%d", "%Y/%m/%d", "%Y%m%d"];
+
+        for format in &formats {
+            if let Ok(dt) = chrono::NaiveDate::parse_from_str(s, format) {
+                return Value::Date(DateValue {
+                    year: dt.year(),
+                    month: dt.month(),
+                    day: dt.day(),
+                });
+            }
+        }
+
+        Value::Null(NullType::BadData)
+    }
+
+    fn parse_time_string(s: &str) -> Value {
+        let formats = vec!["%H:%M:%S", "%H:%M:%S%.f", "%H:%M"];
+
+        for format in &formats {
+            if let Ok(time) = chrono::NaiveTime::parse_from_str(s, format) {
+                return Value::Time(TimeValue {
+                    hour: time.hour(),
+                    minute: time.minute(),
+                    sec: time.second(),
+                    microsec: time.nanosecond() / 1000,
+                });
+            }
+        }
+
+        Value::Null(NullType::BadData)
+    }
+
+    fn parse_datetime_string(s: &str) -> Value {
+        let formats = vec![
+            "%Y-%m-%d %H:%M:%S",
+            "%Y-%m-%d %H:%M:%S%.f",
+            "%Y-%m-%dT%H:%M:%S",
+            "%Y-%m-%dT%H:%M:%S%.f",
+            "%Y/%m/%d %H:%M:%S",
+        ];
+
+        for format in &formats {
+            if let Ok(dt) = chrono::NaiveDateTime::parse_from_str(s, format) {
+                return Value::DateTime(DateTimeValue {
+                    year: dt.year(),
+                    month: dt.month(),
+                    day: dt.day(),
+                    hour: dt.hour(),
+                    minute: dt.minute(),
+                    sec: dt.second(),
+                    microsec: dt.nanosecond() / 1000,
+                });
+            }
+        }
+
+        Value::Null(NullType::BadData)
+    }
+
+    fn parse_duration_string(s: &str) -> Value {
+        use regex::Regex;
+
+        let re = Regex::new(r"(?:(\d+)d)?(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?").unwrap();
+        let caps = re.captures(s);
+
+        if let Some(caps) = caps {
+            let days = caps.get(1).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
+            let hours = caps.get(2).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
+            let minutes = caps.get(3).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
+            let seconds = caps.get(4).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
+
+            let total_seconds = days * 86400 + hours * 3600 + minutes * 60 + seconds;
+
+            return Value::Duration(DurationValue {
+                seconds: total_seconds,
+                microseconds: 0,
+                months: 0,
+            });
+        }
+
+        Value::Null(NullType::BadData)
+    }
+
+    fn days_to_date(days: i64) -> DateValue {
+        let epoch = chrono::NaiveDate::from_ymd_opt(1970, 1, 1).unwrap();
+        let date = epoch + chrono::Duration::days(days);
+        DateValue {
+            year: date.year(),
+            month: date.month(),
+            day: date.day(),
+        }
+    }
+
+    /// 尝试隐式转换为指定类型
+    pub fn try_implicit_cast(&self, target_type: &DataType) -> Result<Value, String> {
+        match target_type {
+            DataType::Bool => Ok(self.to_bool()),
+            DataType::Int | DataType::Int8 | DataType::Int16 | DataType::Int32 | DataType::Int64 => {
+                Ok(self.to_int())
+            }
+            DataType::Float | DataType::Double => Ok(self.to_float()),
+            DataType::String => self.to_string().map(Value::String),
+            DataType::Date => Ok(self.to_date()),
+            DataType::Time => Ok(self.to_time()),
+            DataType::DateTime => Ok(self.to_datetime()),
+            DataType::Duration => Ok(self.to_duration()),
+            _ => Err(format!("无法隐式转换为 {:?}", target_type)),
+        }
+    }
+
+    /// 检查是否可以隐式转换
+    pub fn can_implicitly_cast_to(&self, target_type: &DataType) -> bool {
+        self.try_implicit_cast(target_type).is_ok()
     }
 
     /// 检查值是否为有效的数字
@@ -254,7 +469,7 @@ impl From<NullType> for Value {
 
 impl From<Vec<Value>> for Value {
     fn from(value: Vec<Value>) -> Self {
-        Value::List(value)
+        Value::List(List::from(value))
     }
 }
 
@@ -272,12 +487,12 @@ impl From<std::collections::HashSet<Value>> for Value {
 
 impl From<(i64, &str)> for Value {
     fn from(value: (i64, &str)) -> Self {
-        Value::List(vec![Value::Int(value.0), Value::String(value.1.to_string())])
+        Value::List(super::dataset::List::from(vec![Value::Int(value.0), Value::String(value.1.to_string())]))
     }
 }
 
 impl From<(i64, String)> for Value {
     fn from(value: (i64, String)) -> Self {
-        Value::List(vec![Value::Int(value.0), Value::String(value.1)])
+        Value::List(super::dataset::List::from(vec![Value::Int(value.0), Value::String(value.1)]))
     }
 }

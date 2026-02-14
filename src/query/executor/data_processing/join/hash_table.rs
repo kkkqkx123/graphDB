@@ -412,17 +412,21 @@ impl HashTable {
 
         // 插入到内存表
         let entries = self.memory_table.entry(key.clone()).or_insert_with(Vec::new);
-
         entries.push(entry);
 
-        // 记录LRU访问
-        let mut tracker = self.lru_tracker.lock();
-        tracker.record_access(&key);
+        // 更新统计信息和LRU访问（按固定顺序获取锁）
+        {
+            let mut tracker = self.lru_tracker.lock();
+            tracker.record_access(&key);
+            drop(tracker);
+        }
 
-        let mut stats = self.stats.lock();
-        stats.total_entries += 1;
-        stats.memory_entries += 1;
-        stats.memory_usage += entry_size;
+        {
+            let mut stats = self.stats.lock();
+            stats.total_entries += 1;
+            stats.memory_entries += 1;
+            stats.memory_usage += entry_size;
+        }
 
         Ok(())
     }
@@ -453,15 +457,21 @@ impl HashTable {
 
                     spill_manager.spill_entry(&key, &entries_vec)?;
 
-                    // 从LRU追踪器中移除键
-                    let mut tracker = self.lru_tracker.lock();
-                    tracker.remove_key(&key);
+                    // 从LRU追踪器中移除键（先释放 tracker 锁）
+                    {
+                        let mut tracker = self.lru_tracker.lock();
+                        tracker.remove_key(&key);
+                        drop(tracker);
+                    }
 
-                    let mut stats = self.stats.lock();
-                    stats.memory_entries -= entries_vec.len();
-                    stats.spilled_entries += entries_vec.len();
-                    stats.memory_usage -= total_size;
-                    stats.spill_file_count += 1;
+                    // 然后更新统计信息
+                    {
+                        let mut stats = self.stats.lock();
+                        stats.memory_entries -= entries_vec.len();
+                        stats.spilled_entries += entries_vec.len();
+                        stats.memory_usage -= total_size;
+                        stats.spill_file_count += 1;
+                    }
 
                     spilled_count += 1;
                 }
@@ -478,25 +488,31 @@ impl HashTable {
 
     /// 探测哈希表
     pub fn probe(&self, key: &JoinKey) -> Vec<HashTableEntry> {
-        let mut stats = self.stats.lock();
-        stats.probe_count += 1;
-
         // 记录LRU访问
-        let mut tracker = self.lru_tracker.lock();
-        tracker.record_access(key);
+        {
+            let mut tracker = self.lru_tracker.lock();
+            tracker.record_access(key);
+        }
 
         // 先在内存中查找
         if let Some(entries) = self.memory_table.get(key) {
+            // 更新统计信息
             let mut stats = self.stats.lock();
+            stats.probe_count += 1;
             stats.hit_count += 1;
-            return entries.as_slice().to_vec();
-        }
-
-        // 如果启用了溢出，需要在溢出文件中查找
-        if self.spill_manager.is_some() {
-            self.probe_spilled_data(key)
+            entries.as_slice().to_vec()
         } else {
-            Vec::new()
+            // 更新统计信息
+            let mut stats = self.stats.lock();
+            stats.probe_count += 1;
+            drop(stats);
+
+            // 如果启用了溢出，需要在溢出文件中查找
+            if self.spill_manager.is_some() {
+                self.probe_spilled_data(key)
+            } else {
+                Vec::new()
+            }
         }
     }
 

@@ -6,8 +6,7 @@ use std::sync::Arc;
 use parking_lot::Mutex;
 
 use crate::core::error::{DBError, DBResult};
-use crate::core::Expression;
-use crate::core::{DataSet, Value};
+use crate::core::{DataSet, Expression, Value};
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::{DefaultExpressionContext, ExpressionContext};
 use crate::query::executor::base::BaseExecutor;
@@ -72,7 +71,7 @@ impl<S: StorageClient + Send + 'static> UnwindExecutor<S> {
     /// 从值中提取列表
     fn extract_list(&self, val: &Value) -> Vec<Value> {
         match val {
-            Value::List(list) => list.clone(),
+            Value::List(list) => list.clone().into_vec(),
             Value::Null(_) | Value::Empty => vec![],
             _ => vec![val.clone()],
         }
@@ -360,8 +359,7 @@ impl<S: StorageClient + Send + 'static> crate::query::executor::traits::HasStora
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::Expression;
-    use crate::core::Value;
+    use crate::core::{Expression, List, Value};
     use crate::storage::MockStorage;
     use std::sync::Arc;
 use parking_lot::Mutex;
@@ -372,7 +370,7 @@ use parking_lot::Mutex;
         let storage = Arc::new(Mutex::new(MockStorage));
 
         // 创建输入数据
-        let list_value = Value::List(vec![Value::Int(1), Value::Int(2), Value::Int(3)]);
+        let list_value = Value::List(List::from(vec![Value::Int(1), Value::Int(2), Value::Int(3)]));
 
         let input_result = ExecutionResult::Values(vec![list_value]);
 
@@ -402,17 +400,17 @@ use parking_lot::Mutex;
             assert_eq!(values.len(), 6);
             assert_eq!(
                 values[0],
-                Value::List(vec![Value::Int(1), Value::Int(2), Value::Int(3)])
+                Value::List(List::from(vec![Value::Int(1), Value::Int(2), Value::Int(3)]))
             );
             assert_eq!(values[1], Value::Int(1));
             assert_eq!(
                 values[2],
-                Value::List(vec![Value::Int(1), Value::Int(2), Value::Int(3)])
+                Value::List(List::from(vec![Value::Int(1), Value::Int(2), Value::Int(3)]))
             );
             assert_eq!(values[3], Value::Int(2));
             assert_eq!(
                 values[4],
-                Value::List(vec![Value::Int(1), Value::Int(2), Value::Int(3)])
+                Value::List(List::from(vec![Value::Int(1), Value::Int(2), Value::Int(3)]))
             );
             assert_eq!(values[5], Value::Int(3));
         } else {

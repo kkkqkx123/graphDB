@@ -4,6 +4,7 @@
 
 use crate::core::error::ExpressionError;
 use crate::core::Value;
+use crate::core::value::dataset::List;
 
 /// 集合操作求值器
 pub struct CollectionOperationEvaluator;
@@ -112,7 +113,7 @@ impl CollectionOperationEvaluator {
                     .unwrap_or(list.len());
 
                 if start_idx <= end_idx && end_idx <= list.len() {
-                    Ok(Value::List(list[start_idx..end_idx].to_vec()))
+                    Ok(Value::List(List::from(list[start_idx..end_idx].to_vec())))
                 } else {
                     Err(ExpressionError::index_out_of_bounds(
                         start_idx as isize,

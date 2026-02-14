@@ -5,6 +5,7 @@
 use crate::core::error::{ExpressionError, ExpressionErrorType};
 use crate::core::types::operators::AggregateFunction;
 use crate::core::Value;
+use crate::core::value::dataset::List;
 
 /// 函数求值器
 pub struct FunctionEvaluator;
@@ -144,13 +145,13 @@ impl FunctionEvaluator {
                     Ok(arg.clone())
                 }
             }
-            AggregateFunction::Collect(_) => Ok(Value::List(vec![arg.clone()])),
+            AggregateFunction::Collect(_) => Ok(Value::List(List::from(vec![arg.clone()]))),
             AggregateFunction::CollectSet(_) => {
                 let mut set = std::collections::HashSet::new();
                 set.insert(arg.clone());
                 Ok(Value::Set(set))
             }
-            AggregateFunction::Distinct(_) => Ok(Value::List(vec![arg.clone()])),
+            AggregateFunction::Distinct(_) => Ok(Value::List(List::from(vec![arg.clone()]))),
             AggregateFunction::Percentile(_, _) => {
                 if arg.is_null() {
                     Ok(Value::Null(crate::core::NullType::Null))
@@ -247,9 +248,9 @@ impl FunctionEvaluator {
                 if distinct {
                     let unique_values: std::collections::HashSet<_> =
                         args.iter().cloned().collect();
-                    Ok(Value::List(unique_values.into_iter().collect()))
+                    Ok(Value::List(List::from(unique_values.into_iter().collect::<Vec<_>>())))
                 } else {
-                    Ok(Value::List(args.to_vec()))
+                    Ok(Value::List(List::from(args.to_vec())))
                 }
             }
             AggregateFunction::CollectSet(_) => {

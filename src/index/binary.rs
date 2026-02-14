@@ -80,7 +80,7 @@ impl IndexBinaryEncoder {
             Value::Time(t) => Self::encode_time(t),
             Value::DateTime(dt) => Self::encode_datetime(dt),
             Value::Null(_) => Self::encode_null(),
-            Value::List(l) => Self::encode_list(l),
+            Value::List(l) => Self::encode_list(&l.values),
             Value::Map(m) => Self::encode_map(&m),
             Value::Path(p) => Self::encode_string(&format!("{:?}", p)),
             Value::Edge(e) => Self::encode_string(&format!("{:?}", e)),

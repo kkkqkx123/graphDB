@@ -8,7 +8,8 @@ use parking_lot::Mutex;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::Expression;
-use crate::core::{DataSet, List, Value};
+use crate::core::value::dataset::List;
+use crate::core::{DataSet, Value};
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::{DefaultExpressionContext, ExpressionContext};
 use crate::query::executor::base::BaseExecutor;
@@ -218,7 +219,7 @@ impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
                 row.push(value.clone());
             }
 
-            row.push(Value::List(hash_table.values.clone()));
+            row.push(Value::List(hash_table.clone()));
             dataset.rows.push(row);
         }
 
@@ -261,7 +262,7 @@ impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
                 row.push(key_val.clone());
             }
 
-            row.push(Value::List(vals.values));
+            row.push(Value::List(vals));
             dataset.rows.push(row);
         }
 
@@ -306,7 +307,7 @@ impl<S: StorageClient + Send + 'static> RollUpApplyExecutor<S> {
                 row.push(value.clone());
             }
 
-            row.push(Value::List(vals.values));
+            row.push(Value::List(vals));
             dataset.rows.push(row);
         }
 
@@ -665,9 +666,9 @@ use parking_lot::Mutex;
         if let ExecutionResult::Values(values) = result {
             assert_eq!(values.len(), 4);
             assert_eq!(values[0], Value::Int(1));
-            assert_eq!(values[1], Value::List(Vec::new()));
+            assert_eq!(values[1], Value::List(List::from(Vec::new())));
             assert_eq!(values[2], Value::Int(2));
-            assert_eq!(values[3], Value::List(Vec::new()));
+            assert_eq!(values[3], Value::List(List::from(Vec::new())));
         } else {
             panic!("Expected Values result");
         }

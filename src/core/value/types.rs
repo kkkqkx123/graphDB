@@ -4,22 +4,22 @@
 //!
 //! ## 类型层次
 //!
-//! - **基础类型**: NullType, DateValue, TimeValue, DateTimeValue
-//! - **空间/时间类型**: GeographyValue, DurationValue (预留)
+//! - **基础类型**: NullType
 //! - **复合类型**: List, Map, Set, DataSet
 //! - **图类型**: Vertex, Edge, Path
+//! - **日期时间类型**: 见 date_time 模块
+//! - **地理空间类型**: 见 geography 模块
+//! - **数据集类型**: 见 dataset 模块
 //!
-//! ## 预留类型说明
+//! ## 模块组织
 //!
-//! 以下类型当前版本可能未完全使用，但为支持高级查询预留：
-//!
-//! - [`GeographyValue`] - 地理空间坐标，用于位置相关查询
-//! - [`DurationValue`] - 时间间隔，用于时间范围查询
-//!
-//! 未来版本计划支持：
-//! - 空间索引和地理查询
-//! - 时间序列分析
-//! - 时空联合查询
+//! - `types.rs` - 核心类型定义（NullType、Value、DataType）
+//! - `date_time.rs` - 日期时间类型和操作
+//! - `geography.rs` - 地理空间类型和操作
+//! - `dataset.rs` - 数据集和列表类型及操作
+//! - `operations.rs` - 值运算
+//! - `conversion.rs` - 类型转换
+//! - `comparison.rs` - 值比较
 //!
 //! ## 与 Nebula-Graph 兼容性
 //!
@@ -103,238 +103,6 @@ impl std::fmt::Display for NullType {
     }
 }
 
-/// 简单日期表示
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash, Encode, Decode)]
-pub struct DateValue {
-    pub year: i32,
-    pub month: u32,
-    pub day: u32,
-}
-
-impl Default for DateValue {
-    fn default() -> Self {
-        DateValue {
-            year: 1970,
-            month: 1,
-            day: 1,
-        }
-    }
-}
-
-/// 简单时间表示
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash, Encode, Decode)]
-pub struct TimeValue {
-    pub hour: u32,
-    pub minute: u32,
-    pub sec: u32,
-    pub microsec: u32,
-}
-
-impl Default for TimeValue {
-    fn default() -> Self {
-        TimeValue {
-            hour: 0,
-            minute: 0,
-            sec: 0,
-            microsec: 0,
-        }
-    }
-}
-
-/// 简单日期时间表示
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash, Encode, Decode)]
-pub struct DateTimeValue {
-    pub year: i32,
-    pub month: u32,
-    pub day: u32,
-    pub hour: u32,
-    pub minute: u32,
-    pub sec: u32,
-    pub microsec: u32,
-}
-
-impl Default for DateTimeValue {
-    fn default() -> Self {
-        DateTimeValue {
-            year: 1970,
-            month: 1,
-            day: 1,
-            hour: 0,
-            minute: 0,
-            sec: 0,
-            microsec: 0,
-        }
-    }
-}
-
-/// 地理信息表示 - 仅支持基础坐标点
-///
-/// ## 用途
-/// 用于表示地理位置坐标，支持基础的空间数据查询。
-/// 
-/// ## 示例
-/// ```rust
-/// use graphdb::core::value::types::GeographyValue;
-/// 
-/// let location = GeographyValue {
-///     latitude: 39.9042,   // 北京纬度
-///     longitude: 116.4074, // 北京经度
-/// };
-/// ```
-///
-/// ## 支持的查询（预留）
-/// - 距离计算：`st_distance(point1, point2)`
-/// - 区域查询：基于坐标的范围筛选
-/// - 附近搜索：查找特定距离内的点
-///
-/// ## 注意事项
-/// 当前版本仅支持基础坐标点，完整的地理空间查询需要扩展：
-/// - 多边形支持
-/// - 空间索引
-/// - 投影坐标系转换
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Encode, Decode)]
-pub struct GeographyValue {
-    pub latitude: f64,
-    pub longitude: f64,
-}
-
-// 手动实现Hash以处理f64字段
-impl std::hash::Hash for GeographyValue {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        // 将f64转换为位表示进行哈希
-        self.latitude.to_bits().hash(state);
-        self.longitude.to_bits().hash(state);
-    }
-}
-
-impl Default for GeographyValue {
-    fn default() -> Self {
-        GeographyValue {
-            latitude: 0.0,
-            longitude: 0.0,
-        }
-    }
-}
-
-impl GeographyValue {
-    /// 估算地理值的内存使用大小
-    pub fn estimated_size(&self) -> usize {
-        std::mem::size_of::<Self>()
-    }
-}
-
-/// 简单持续时间表示
-///
-/// ## 用途
-/// 用于表示时间间隔，支持时间相关的查询和计算。
-///
-/// ## 字段说明
-/// - `seconds`: 秒数（可为负数）
-/// - `microseconds`: 微秒数（-999999 到 999999）
-/// - `months`: 月数（用于日历相关的持续时间）
-///
-/// ## 示例
-/// ```rust
-/// use graphdb::core::value::types::DurationValue;
-/// 
-/// // 表示 2小时30分45.5秒
-/// let duration = DurationValue {
-///     seconds: 9045,
-///     microseconds: 500000,
-///     months: 0,
-/// };
-///
-/// // 表示 3个月
-/// let month_duration = DurationValue {
-///     seconds: 0,
-///     microseconds: 0,
-///     months: 3,
-/// };
-/// ```
-///
-/// ## 支持的查询（预留）
-/// - 时间间隔算术：`date + duration`、`date - duration`
-/// - 持续时间比较：`duration1 < duration2`
-/// - 提取组件：`duration.seconds`、`duration.months`
-///
-/// ## 与 Nebula-Graph 兼容性
-/// 参考 Nebula-Graph 的 DURATION 类型设计，支持：
-/// - 秒和微秒精度
-/// - 月份计算（考虑月份天数差异）
-/// - 负时间间隔
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash, Encode, Decode)]
-pub struct DurationValue {
-    pub seconds: i64,
-    pub microseconds: i32,
-    pub months: i32,
-}
-
-impl DurationValue {
-    /// 估算持续时间的内存使用大小
-    pub fn estimated_size(&self) -> usize {
-        std::mem::size_of::<Self>()
-    }
-}
-
-/// 简单列表表示
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Encode, Decode)]
-pub struct List {
-    pub values: Vec<Value>,
-}
-
-// 手动实现Hash以处理Value的Hash
-impl std::hash::Hash for List {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        for value in &self.values {
-            value.hash(state);
-        }
-    }
-}
-
-/// 简单数据集表示
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash, Encode, Decode)]
-pub struct DataSet {
-    pub col_names: Vec<String>,
-    pub rows: Vec<Vec<Value>>,
-}
-
-impl DataSet {
-    pub fn new() -> Self {
-        Self {
-            col_names: Vec::new(),
-            rows: Vec::new(),
-        }
-    }
-
-    /// 估算数据集的内存使用大小
-    pub fn estimated_size(&self) -> usize {
-        let mut size = std::mem::size_of::<Self>();
-        
-        // 计算 col_names 的容量开销
-        size += self.col_names.capacity() * std::mem::size_of::<String>();
-        for col_name in &self.col_names {
-            size += col_name.capacity();
-        }
-        
-        // 计算 rows 的容量开销
-        size += self.rows.capacity() * std::mem::size_of::<Vec<Value>>();
-        for row in &self.rows {
-            size += row.capacity() * std::mem::size_of::<Value>();
-            for value in row {
-                size += value.estimated_size();
-            }
-        }
-        
-        size
-    }
-}
-
-impl List {
-    pub fn new() -> Self {
-        Self { values: Vec::new() }
-    }
-}
-
 /// 表示可以存储在节点/边属性中的值
 /// 遵循Nebula的Value类型设计模式
 #[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
@@ -345,18 +113,18 @@ pub enum Value {
     Int(i64),
     Float(f64),
     String(String),
-    Date(DateValue),
-    Time(TimeValue),
-    DateTime(DateTimeValue),
+    Date(super::date_time::DateValue),
+    Time(super::date_time::TimeValue),
+    DateTime(super::date_time::DateTimeValue),
     Vertex(Box<crate::core::vertex_edge_path::Vertex>),
     Edge(crate::core::vertex_edge_path::Edge),
     Path(crate::core::vertex_edge_path::Path),
-    List(Vec<Value>),
+    List(super::dataset::List),
     Map(std::collections::HashMap<String, Value>),
     Set(std::collections::HashSet<Value>),
-    Geography(GeographyValue),
-    Duration(DurationValue),
-    DataSet(DataSet),
+    Geography(super::geography::GeographyValue),
+    Duration(super::date_time::DurationValue),
+    DataSet(super::dataset::DataSet),
 }
 
 impl Value {
@@ -443,7 +211,7 @@ impl Value {
     pub fn length(&self) -> Result<Value, String> {
         match self {
             Value::String(s) => Ok(Value::Int(s.len() as i64)),
-            Value::List(list) => Ok(Value::Int(list.len() as i64)),
+            Value::List(list) => Ok(Value::Int(list.values.len() as i64)),
             Value::Map(map) => Ok(Value::Int(map.len() as i64)),
             Value::Set(set) => Ok(Value::Int(set.len() as i64)),
             Value::Path(p) => Ok(Value::Int(p.length() as i64)),
@@ -461,16 +229,16 @@ impl Value {
             Value::Int(_) => base_size,
             Value::Float(_) => base_size,
             Value::String(s) => base_size + std::mem::size_of::<String>() + s.capacity(),
-            Value::Date(_) => base_size,
-            Value::Time(_) => base_size,
-            Value::DateTime(_) => base_size,
+            Value::Date(d) => base_size + d.estimated_size(),
+            Value::Time(t) => base_size + t.estimated_size(),
+            Value::DateTime(dt) => base_size + dt.estimated_size(),
             Value::Vertex(v) => base_size + std::mem::size_of::<Box<crate::core::vertex_edge_path::Vertex>>() + v.estimated_size(),
             Value::Edge(e) => base_size + std::mem::size_of::<crate::core::vertex_edge_path::Edge>() + e.estimated_size(),
             Value::Path(p) => base_size + std::mem::size_of::<crate::core::vertex_edge_path::Path>() + p.estimated_size(),
-            Value::List(vec) => {
-                let mut size = base_size + std::mem::size_of::<Vec<Value>>();
-                size += vec.capacity() * std::mem::size_of::<Value>();
-                for v in vec {
+            Value::List(list) => {
+                let mut size = base_size + std::mem::size_of::<super::dataset::List>();
+                size += list.values.capacity() * std::mem::size_of::<Value>();
+                for v in &list.values {
                     size += v.estimated_size();
                 }
                 size
@@ -524,7 +292,7 @@ impl std::fmt::Display for Value {
             Value::Path(p) => write!(f, "Path({:?})", p),
             Value::List(list) => {
                 write!(f, "[")?;
-                for (i, item) in list.iter().enumerate() {
+                for (i, item) in list.values.iter().enumerate() {
                     if i > 0 {
                         write!(f, ", ")?;
                     }

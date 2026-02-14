@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::{Edge, Expression, NPath, Path, Value, Vertex};
+use crate::core::value::dataset::List;
 
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::evaluator::traits::ExpressionContext;
@@ -304,7 +305,7 @@ impl<S: StorageClient> TraverseExecutor<S> {
                     path_value.push(Value::Vertex(step.dst.clone()));
                 }
 
-                path_values.push(Value::List(path_value));
+                path_values.push(Value::List(List::from(path_value)));
             }
 
             ExecutionResult::Values(path_values)

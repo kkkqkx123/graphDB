@@ -5,6 +5,7 @@
 use crate::core::vertex_edge_path::Vertex;
 use crate::core::Expression;
 use crate::core::Value;
+use crate::core::value::dataset::List;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::evaluator::traits::ExpressionContext;
 use crate::expression::DefaultExpressionContext;
@@ -47,7 +48,7 @@ impl TagFilterProcessor {
             .iter()
             .map(|tag| Value::String(tag.name.clone()))
             .collect();
-        context.set_variable("tags".to_string(), Value::List(tag_names));
+        context.set_variable("tags".to_string(), Value::List(List::from(tag_names)));
 
         // 添加标签数量
         context.set_variable(

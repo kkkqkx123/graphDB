@@ -984,7 +984,7 @@ impl GetNeighborsIter {
         if let Value::List(edge_col) = &row[prop_index.col_idx] {
             if self.edge_idx >= 0 && (self.edge_idx as usize) < edge_col.len() {
                 if let Value::List(edge_data) = &edge_col[self.edge_idx as usize] {
-                    return Some(edge_data.clone());
+                    return Some(edge_data.clone().into_vec());
                 }
             }
         }
@@ -997,6 +997,7 @@ impl GetNeighborsIter {
 mod tests {
     use super::*;
     use crate::core::DataSet;
+    use crate::core::value::dataset::List;
 
     fn create_test_neighbors_data() -> Value {
         // 创建测试数据：一个顶点有两条边
@@ -1011,19 +1012,19 @@ mod tests {
         dataset.rows = vec![vec![
             Value::String("player1".to_string()), // _vid
             Value::String("stats".to_string()),   // _stats
-            Value::List(vec![
+            Value::List(List::from(vec![
                 // _tag:player:name:age
                 Value::String("Alice".to_string()),
                 Value::Int(25),
-            ]),
-            Value::List(vec![
+            ])),
+            Value::List(List::from(vec![
                 // _edge:+follow:weight
-                Value::List(vec![Value::Float(0.8)]), // 第一条边
-                Value::List(vec![Value::Float(0.6)]), // 第二条边
-            ]),
+                Value::List(List::from(vec![Value::Float(0.8)])), // 第一条边
+                Value::List(List::from(vec![Value::Float(0.6)])), // 第二条边
+            ])),
         ]];
 
-        Value::List(vec![Value::DataSet(dataset)])
+        Value::List(List::from(vec![Value::DataSet(dataset)]))
     }
 
     #[test]

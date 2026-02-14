@@ -4,6 +4,7 @@
 
 use crate::core::DataType;
 use crate::core::Value;
+use crate::core::value::dataset::List;
 use std::collections::HashMap;
 
 /// 类型转换映射表
@@ -286,7 +287,7 @@ impl TypeUtils {
             DataType::Int => Some(Value::Int(0)),
             DataType::Float => Some(Value::Float(0.0)),
             DataType::String => Some(Value::String(String::new())),
-            DataType::List => Some(Value::List(Vec::new())),
+            DataType::List => Some(Value::List(List::from(Vec::new()))),
             DataType::Map => Some(Value::Map(std::collections::HashMap::new())),
             _ => None,
         }
@@ -516,7 +517,7 @@ mod tests {
         assert_eq!(TypeUtils::get_default_value(&DataType::Int), Some(Value::Int(0)));
         assert_eq!(TypeUtils::get_default_value(&DataType::Float), Some(Value::Float(0.0)));
         assert_eq!(TypeUtils::get_default_value(&DataType::String), Some(Value::String(String::new())));
-        assert_eq!(TypeUtils::get_default_value(&DataType::List), Some(Value::List(Vec::new())));
+        assert_eq!(TypeUtils::get_default_value(&DataType::List), Some(Value::List(List::from(Vec::new()))));
         assert_eq!(TypeUtils::get_default_value(&DataType::Map), Some(Value::Map(std::collections::HashMap::new())));
         
         assert_eq!(TypeUtils::get_default_value(&DataType::Vertex), None);
