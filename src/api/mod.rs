@@ -10,9 +10,8 @@ use crate::api::service::GraphService;
 use crate::config::Config;
 use crate::storage::redb_storage::DefaultStorage;
 
+/// 使用配置文件路径启动服务（已弃用，请使用 start_service_with_config）
 pub async fn start_service(config_path: String) -> Result<()> {
-    println!("Initializing GraphDB service...");
-
     let config = match Config::load(&config_path) {
         Ok(config) => config,
         Err(e) => {
@@ -23,9 +22,15 @@ pub async fn start_service(config_path: String) -> Result<()> {
             Config::default()
         }
     };
+    start_service_with_config(config).await
+}
+
+/// 使用配置对象启动服务
+pub async fn start_service_with_config(config: Config) -> Result<()> {
+    println!("Initializing GraphDB service...");
     println!("Configuration loaded: {:?}", config);
 
-    info!("Logger initialized: {}", config.log_file);
+    info!("日志系统已初始化: {}/{}", config.log_dir, config.log_file);
 
     let storage = Arc::new(DefaultStorage::new()?);
     println!("Storage initialized (memory mode)");

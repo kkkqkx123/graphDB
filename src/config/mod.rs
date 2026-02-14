@@ -14,8 +14,9 @@ pub struct Config {
     pub max_connections: usize,
     pub transaction_timeout: u64,
     pub log_level: String,
+    pub log_dir: String,
     pub log_file: String,
-    pub max_log_file_size: usize,
+    pub max_log_file_size: u64,
     pub max_log_files: usize,
 }
 
@@ -28,7 +29,8 @@ impl Default for Config {
             max_connections: 10,
             transaction_timeout: 30,
             log_level: "info".to_string(),
-            log_file: "logs/graphdb.log".to_string(),
+            log_dir: "logs".to_string(),
+            log_file: "graphdb".to_string(),
             max_log_file_size: 100 * 1024 * 1024, // 100MB
             max_log_files: 5,
         }

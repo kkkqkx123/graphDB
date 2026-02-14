@@ -2,11 +2,13 @@
 host = "127.0.0.1"
 port = 9758
 storage_path = "data/graphdb"
-cache_size = 1000
-enable_cache = true
 max_connections = 10
 transaction_timeout = 30
 log_level = "info"
+log_dir = "logs"
+log_file = "graphdb"
+max_log_file_size = 104857600  # 100MB
+max_log_files = 5
 
 [optimizer]
 max_iteration_rounds = 5
