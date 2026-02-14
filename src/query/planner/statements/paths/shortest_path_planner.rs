@@ -6,7 +6,6 @@ use crate::core::types::graph_schema::EdgeDirection;
 use crate::core::{Edge, StorageError, Value, Vertex};
 use crate::query::planner::statements::seeks::seek_strategy_base::{NodePattern, SeekStrategyContext, SeekStrategySelector, SeekStrategyType};
 use crate::storage::StorageClient;
-use crate::storage::transaction::TransactionId;
 use std::collections::{HashMap, HashSet, VecDeque};
 
 pub type PlannerError = StorageError;
@@ -113,15 +112,6 @@ impl StorageClient for DummyStorage {
         Ok(Vec::new())
     }
     fn batch_insert_edges(&mut self, _space: &str, _edges: Vec<crate::core::Edge>) -> Result<(), crate::core::StorageError> {
-        Ok(())
-    }
-    fn begin_transaction(&mut self, _space: &str) -> Result<TransactionId, crate::core::StorageError> {
-        Ok(TransactionId::new(0))
-    }
-    fn commit_transaction(&mut self, _space: &str, _tx_id: TransactionId) -> Result<(), crate::core::StorageError> {
-        Ok(())
-    }
-    fn rollback_transaction(&mut self, _space: &str, _tx_id: TransactionId) -> Result<(), crate::core::StorageError> {
         Ok(())
     }
     fn create_space(&mut self, _space: &crate::core::types::SpaceInfo) -> Result<bool, crate::core::StorageError> {

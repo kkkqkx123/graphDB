@@ -1,1 +1,0 @@
-error: could not compile `graphdb` (lib test) due to 1 previous error; 96 warnings emitted

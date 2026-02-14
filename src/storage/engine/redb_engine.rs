@@ -1,9 +1,8 @@
-use super::{Engine, Operation, StorageIterator, TransactionId};
+use super::{Engine, Operation, StorageIterator};
 use crate::storage::iterator::VecPairIterator;
 use crate::core::StorageError;
 use redb::{Database, ReadableTable, TableDefinition, TypeName};
 use std::cmp::Ordering;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ByteKey(pub Vec<u8>);
@@ -219,24 +218,6 @@ impl Engine for RedbEngine {
         }
 
         Ok(count)
-    }
-
-    fn begin_transaction(&mut self) -> Result<TransactionId, StorageError> {
-        let tx_id = TransactionId::new(
-            SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .expect("Time went backwards")
-                .as_nanos() as u64,
-        );
-        Ok(tx_id)
-    }
-
-    fn commit_transaction(&mut self, _tx_id: TransactionId) -> Result<(), StorageError> {
-        Ok(())
-    }
-
-    fn rollback_transaction(&mut self, _tx_id: TransactionId) -> Result<(), StorageError> {
-        Ok(())
     }
 }
 

@@ -1,5 +1,4 @@
 use crate::core::StorageError;
-use crate::storage::transaction::TransactionId;
 
 pub mod redb_engine;
 
@@ -62,10 +61,6 @@ pub trait Engine: Send + Sync {
     fn scan(&self, prefix: &[u8]) -> Result<Box<dyn StorageIterator>, StorageError>;
     fn batch(&mut self, ops: Vec<Operation>) -> Result<(), StorageError>;
     fn count_keys(&self, prefix: &[u8]) -> Result<usize, StorageError>;
-
-    fn begin_transaction(&mut self) -> Result<TransactionId, StorageError>;
-    fn commit_transaction(&mut self, tx_id: TransactionId) -> Result<(), StorageError>;
-    fn rollback_transaction(&mut self, tx_id: TransactionId) -> Result<(), StorageError>;
 }
 
 pub enum Operation {

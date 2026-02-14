@@ -1,4 +1,4 @@
-use super::{StorageClient, TransactionId};
+use super::StorageClient;
 use crate::storage::operations::{VertexReader, EdgeReader, VertexWriter, EdgeWriter};
 use crate::core::{Edge, StorageError, Value, Vertex, EdgeDirection};
 use crate::core::types::{
@@ -353,22 +353,6 @@ impl StorageClient for RedbStorage {
     fn batch_insert_edges(&mut self, space: &str, edges: Vec<Edge>) -> Result<(), StorageError> {
         let mut writer = self.writer.lock();
         writer.batch_insert_edges(space, edges)
-    }
-
-    fn begin_transaction(&mut self, _space: &str) -> Result<TransactionId, StorageError> {
-        // 事务管理由 RedbWriter 内部处理
-        // 返回一个模拟的事务ID
-        Ok(TransactionId::new(1))
-    }
-
-    fn commit_transaction(&mut self, _space: &str, _tx_id: TransactionId) -> Result<(), StorageError> {
-        // 事务提交由 RedbWriter 内部处理
-        Ok(())
-    }
-
-    fn rollback_transaction(&mut self, _space: &str, _tx_id: TransactionId) -> Result<(), StorageError> {
-        // 事务回滚由 RedbWriter 内部处理
-        Ok(())
     }
 
     fn create_space(&mut self, space: &SpaceInfo) -> Result<bool, StorageError> {

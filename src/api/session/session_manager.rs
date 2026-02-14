@@ -7,7 +7,7 @@ use tokio::time;
 use super::client_session::{ClientSession, Session};
 use crate::core::error::{SessionError, SessionResult};
 
-pub const DEFAULT_MAX_ALLOWED_CONNECTIONS: usize = 1000; // 默认最大连接数
+pub const DEFAULT_MAX_ALLOWED_CONNECTIONS: usize = 100; // 默认最大连接数（单节点场景）
 pub const DEFAULT_SESSION_IDLE_TIMEOUT: Duration = Duration::from_secs(600); // 10分钟
 
 /// 全局会话ID计数器，用于生成唯一的会话ID

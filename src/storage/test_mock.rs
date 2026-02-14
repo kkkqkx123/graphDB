@@ -16,8 +16,6 @@ use crate::core::error::StorageError;
 #[cfg(test)]
 use crate::storage::StorageClient;
 #[cfg(test)]
-use crate::storage::transaction::TransactionId;
-#[cfg(test)]
 use crate::api::service::permission_manager::RoleType;
 #[cfg(test)]
 use crate::core::types::{
@@ -146,18 +144,6 @@ impl StorageClient for MockStorage {
     }
 
     fn batch_insert_edges(&mut self, _space: &str, _edges: Vec<Edge>) -> Result<(), StorageError> {
-        Ok(())
-    }
-
-    fn begin_transaction(&mut self, _space: &str) -> Result<TransactionId, StorageError> {
-        Ok(TransactionId::new(1))
-    }
-
-    fn commit_transaction(&mut self, _space: &str, _tx_id: TransactionId) -> Result<(), StorageError> {
-        Ok(())
-    }
-
-    fn rollback_transaction(&mut self, _space: &str, _tx_id: TransactionId) -> Result<(), StorageError> {
         Ok(())
     }
 

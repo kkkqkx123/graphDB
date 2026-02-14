@@ -6,7 +6,6 @@ use crate::core::types::{
 use crate::core::types::metadata::{UserInfo, UserAlterInfo};
 use crate::index::Index;
 use crate::storage::Schema;
-use crate::storage::transaction::TransactionId;
 use crate::api::service::permission_manager::RoleType;
 
 pub trait StorageClient: Send + Sync + std::fmt::Debug {
@@ -52,10 +51,6 @@ pub trait StorageClient: Send + Sync + std::fmt::Debug {
     fn insert_edge(&mut self, space: &str, edge: Edge) -> Result<(), StorageError>;
     fn delete_edge(&mut self, space: &str, src: &Value, dst: &Value, edge_type: &str) -> Result<(), StorageError>;
     fn batch_insert_edges(&mut self, space: &str, edges: Vec<Edge>) -> Result<(), StorageError>;
-
-    fn begin_transaction(&mut self, space: &str) -> Result<TransactionId, StorageError>;
-    fn commit_transaction(&mut self, space: &str, tx_id: TransactionId) -> Result<(), StorageError>;
-    fn rollback_transaction(&mut self, space: &str, tx_id: TransactionId) -> Result<(), StorageError>;
 
     fn create_space(&mut self, space: &SpaceInfo) -> Result<bool, StorageError>;
     fn drop_space(&mut self, space: &str) -> Result<bool, StorageError>;

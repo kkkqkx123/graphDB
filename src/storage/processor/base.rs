@@ -151,7 +151,7 @@ mod tests {
     use super::*;
     use crate::core::{Edge, EdgeDirection, StorageError, Value, Vertex};
     use crate::core::types::metadata::{SpaceInfo, TagInfo, EdgeTypeInfo, PropertyDef, InsertVertexInfo, InsertEdgeInfo, UpdateInfo, PasswordInfo, UserInfo, UserAlterInfo};
-    use crate::storage::transaction::TransactionId;
+
     use crate::storage::Schema;
     use crate::query::context::runtime_context::{PlanContext, RuntimeContext, StorageEnv};
     use crate::storage::metadata::SchemaManager;
@@ -278,18 +278,6 @@ mod tests {
         }
 
         fn batch_insert_edges(&mut self, _space: &str, _edges: Vec<Edge>) -> Result<(), StorageError> {
-            Ok(())
-        }
-
-        fn begin_transaction(&mut self, _space: &str) -> Result<TransactionId, StorageError> {
-            Ok(TransactionId::new(1))
-        }
-
-        fn commit_transaction(&mut self, _space: &str, _tx_id: TransactionId) -> Result<(), StorageError> {
-            Ok(())
-        }
-
-        fn rollback_transaction(&mut self, _space: &str, _tx_id: TransactionId) -> Result<(), StorageError> {
             Ok(())
         }
 

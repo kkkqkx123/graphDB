@@ -3,119 +3,11 @@ use crate::api::service::{
 };
 use crate::api::session::{ClientSession, GraphSessionManager};
 use crate::config::Config;
-use crate::storage::{StorageClient, TransactionId};
-use crate::core::error::{SessionError, SessionResult, ManagerError, ManagerResult};
-use std::collections::HashMap;
+use crate::storage::StorageClient;
+use crate::core::error::{SessionError, SessionResult};
 use std::sync::Arc;
 use parking_lot::Mutex;
 use std::time::Duration;
-
-/// 事务状态枚举
-#[derive(Debug, Clone, PartialEq)]
-pub enum TxState {
-    Active,
-    Committed,
-    RolledBack,
-}
-
-/// 事务管理器
-#[derive(Debug)]
-pub struct TransactionManager {
-    next_tx_id: Arc<Mutex<u64>>,
-    tx_states: Arc<Mutex<HashMap<TransactionId, TxState>>>,
-}
-
-impl TransactionManager {
-    pub fn new() -> Self {
-        Self {
-            next_tx_id: Arc::new(Mutex::new(1)),
-            tx_states: Arc::new(Mutex::new(HashMap::new())),
-        }
-    }
-
-    pub fn begin_transaction(&self) -> ManagerResult<TransactionId> {
-        let mut id = self.next_tx_id.lock();
-        let tx_id = *id;
-        *id += 1;
-
-        // 记录事务状态为活跃
-        let mut states = self.tx_states.lock();
-        states.insert(TransactionId(tx_id), TxState::Active);
-
-        Ok(TransactionId(tx_id))
-    }
-
-    pub fn commit_transaction(&self, tx_id: TransactionId) -> ManagerResult<()> {
-        let mut states = self.tx_states.lock();
-
-        // 检查事务是否存在且处于活跃状态
-        match states.get(&tx_id) {
-            Some(TxState::Active) => {
-                // 更新事务状态为已提交
-                states.insert(tx_id, TxState::Committed);
-                Ok(())
-            }
-            Some(TxState::Committed) => {
-                Err(ManagerError::TransactionError(format!("事务 {} 已经提交过了", tx_id)))
-            }
-            Some(TxState::RolledBack) => {
-                Err(ManagerError::TransactionError(format!("事务 {} 已经回滚了，无法提交", tx_id)))
-            }
-            None => {
-                Err(ManagerError::NotFound(format!("事务 {} 不存在", tx_id)))
-            }
-        }
-    }
-
-    pub fn rollback_transaction(&self, tx_id: TransactionId) -> ManagerResult<()> {
-        let mut states = self.tx_states.lock();
-
-        // 检查事务是否存在且处于活跃状态
-        match states.get(&tx_id) {
-            Some(TxState::Active) => {
-                // 更新事务状态为已回滚
-                states.insert(tx_id, TxState::RolledBack);
-                Ok(())
-            }
-            Some(TxState::Committed) => {
-                Err(ManagerError::TransactionError(format!("事务 {} 已经提交了，无法回滚", tx_id)))
-            }
-            Some(TxState::RolledBack) => {
-                Err(ManagerError::TransactionError(format!("事务 {} 已经回滚了", tx_id)))
-            }
-            None => {
-                Err(ManagerError::NotFound(format!("事务 {} 不存在", tx_id)))
-            }
-        }
-    }
-
-    /// 检查事务是否处于活跃状态
-    pub fn is_active(&self, tx_id: TransactionId) -> bool {
-        let states = self.tx_states.lock();
-        matches!(states.get(&tx_id), Some(TxState::Active))
-    }
-
-    /// 清理已完成的事务
-    pub fn cleanup_completed_transactions(&self) -> ManagerResult<()> {
-        let mut states = self.tx_states.lock();
-        states.retain(|_, state| *state == TxState::Active);
-        Ok(())
-    }
-
-    /// 获取事务状态
-    pub fn get_transaction_state(&self, tx_id: TransactionId) -> ManagerResult<TxState> {
-        let states = self.tx_states.lock();
-        states.get(&tx_id)
-            .cloned()
-            .ok_or_else(|| ManagerError::NotFound(format!("事务 {} 不存在", tx_id)))
-    }
-}
-
-impl Default for TransactionManager {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 
 pub struct GraphService<S: StorageClient + Clone + 'static> {
     session_manager: Arc<GraphSessionManager>,
@@ -123,7 +15,7 @@ pub struct GraphService<S: StorageClient + Clone + 'static> {
     authenticator: Arc<PasswordAuthenticator>,
     permission_manager: Arc<PermissionManager>,
     stats_manager: Arc<StatsManager>,
-    transaction_manager: Arc<Mutex<TransactionManager>>,
+    #[allow(dead_code)]
     storage: Arc<Mutex<S>>,
 }
 
@@ -139,7 +31,6 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         let authenticator = Arc::new(PasswordAuthenticator::new());
         let permission_manager = Arc::new(PermissionManager::new());
         let stats_manager = Arc::new(StatsManager::new());
-        let transaction_manager = Arc::new(Mutex::new(TransactionManager::new()));
 
         Arc::new(Self {
             session_manager,
@@ -147,7 +38,6 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             authenticator,
             permission_manager,
             stats_manager,
-            transaction_manager,
             storage: Arc::new(Mutex::new(storage.as_ref().clone())),
         })
     }
@@ -330,75 +220,6 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             },
             Err(e) => Err(e)
         }
-    }
-
-    /// 开始新事务
-    pub fn begin_transaction(&self, _session_id: i64) -> Result<TransactionId, String> {
-        let tx_manager = self.transaction_manager
-            .lock();
-
-        let tx_id = tx_manager.begin_transaction()
-            .map_err(|e| format!("开始事务失败: {}", e))?;
-
-        // 释放锁，避免死锁
-        drop(tx_manager);
-
-        // 同时在存储层开始事务
-        let mut storage = self.storage.lock();
-        storage
-            .begin_transaction("")  // 使用默认空间名
-            .map_err(|e| format!("在存储层开始事务失败: {:?}", e))?;
-
-        drop(storage);
-        Ok(tx_id)
-    }
-
-    /// 提交事务
-    pub fn commit_transaction(&self, tx_id: TransactionId) -> Result<(), String> {
-        // 先更新服务层事务状态，确保一致性
-        let tx_manager = self.transaction_manager
-            .lock();
-
-        if !tx_manager.is_active(tx_id) {
-            return Err(format!("事务 {} 不处于活跃状态，无法提交", tx_id));
-        }
-
-        // 先在服务层标记为已提交
-        tx_manager.commit_transaction(tx_id)
-            .map_err(|e| format!("更新事务状态失败: {}", e))?;
-
-        // 释放锁，避免死锁
-        drop(tx_manager);
-
-        // 再在存储层提交事务
-        let mut storage = self.storage.lock();
-        storage
-            .commit_transaction("", tx_id)  // 使用默认空间名
-            .map_err(|e| format!("在存储层提交事务失败: {:?}", e))
-    }
-
-    /// 回滚事务
-    pub fn rollback_transaction(&self, tx_id: TransactionId) -> Result<(), String> {
-        // 先更新服务层事务状态，确保一致性
-        let tx_manager = self.transaction_manager
-            .lock();
-
-        if !tx_manager.is_active(tx_id) {
-            return Err(format!("事务 {} 不处于活跃状态，无法回滚", tx_id));
-        }
-
-        // 先在服务层标记为已回滚
-        tx_manager.rollback_transaction(tx_id)
-            .map_err(|e| format!("更新事务状态失败: {}", e))?;
-
-        // 释放锁，避免死锁
-        drop(tx_manager);
-
-        // 再在存储层回滚事务
-        let mut storage = self.storage.lock();
-        storage
-            .rollback_transaction("", tx_id)  // 使用默认空间名
-            .map_err(|e| format!("在存储层回滚事务失败: {:?}", e))
     }
 }
 

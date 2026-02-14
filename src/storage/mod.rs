@@ -2,7 +2,6 @@ pub mod iterator;
 pub mod engine;
 pub mod operations;
 pub mod metadata;
-pub mod transaction;
 pub mod processor;
 pub mod redb_storage;
 pub mod redb_types;
@@ -24,7 +23,6 @@ pub use operations::*;
 pub use processor::*;
 pub use redb_storage::*;
 pub use storage_client::*;
-pub use transaction::*;
 pub use index::*;
 
 pub use crate::core::StorageError;
