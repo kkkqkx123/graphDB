@@ -161,7 +161,7 @@ GetNeighborsRequest → GetNeighborsProcessor → buildPlan
 graphDB已有一套成熟的并发控制体系：
 
 1. **存储层**：使用 `Arc<Mutex<S>>` 包装StorageClient
-2. **调度层**：`AsyncScheduler` 使用 `safe_lock` 保护执行状态
+2. **执行层**：通过 `ExecutorFactory` 递归执行，自然处理依赖关系
 3. **并发模型**：`concurrency.rs` 提供了三级并发策略
    - `LocalSymbolTable`：单查询模式（RefCell）
    - `SharedSymbolTable`：多查询模式（RwLock）
@@ -239,13 +239,13 @@ pub struct AsyncScheduler {
 | 维度 | 当前架构 | DAG架构 | 评估 |
 |------|---------|---------|------|
 | **代码量** | 已有70+执行器，结构清晰 | 需要重构所有执行器为节点 | 改造成本极高 |
-| **性能** | AsyncScheduler已支持并行 | 理论上更优，但单节点差异小 | 收益有限 |
+| **性能** | 递归执行，适合单节点 | 理论上更优，但单节点差异小 | 收益有限 |
 | **维护性** | 执行器职责单一，易于维护 | 节点间依赖复杂 | 当前更优 |
 | **Rust适配** | 所有权模型自然 | 生命周期管理复杂 | 当前更优 |
 | **功能完整性** | 已覆盖所有查询类型 | 无新增功能 | 无收益 |
 
 **关键理由**:
-1. graphDB的执行器模式本质上已经是DAG的变体 - `AsyncScheduler` 管理执行顺序和依赖
+1. graphDB的执行器模式通过递归执行自然处理依赖关系，适合单节点场景
 2. 单节点场景下，执行器间的数据传递开销远低于分布式网络通信，不需要DAG的细粒度优化
 3. Rust的所有权系统使得DAG节点的生命周期管理复杂，容易引入内存安全问题
 

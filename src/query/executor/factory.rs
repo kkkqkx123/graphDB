@@ -179,7 +179,6 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
 
     /// 分析执行计划的生命周期和安全性
     ///
-    /// 参考nebula-graph的Scheduler::analyzeLifetime实现
     /// 使用DFS遍历执行计划树，检测循环引用并验证安全性
     pub fn analyze_plan_lifecycle(
         &mut self,

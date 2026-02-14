@@ -38,15 +38,9 @@ SQL 字符串
     ├─ 规则集: DefaultRules, QueryRules0, QueryRules
     └─ 输出: 优化后的 ExecutionPlan
     ↓
-[4] Scheduler (AsyncMsgNotifyBasedScheduler)
+[4] ExecutorFactory (递归执行)
     ├─ Executor 树构建
-    ├─ 依赖关系分析
-    └─ 异步消息驱动调度
-    ↓
-[5] Executor (100+ 种具体 Executor)
-    ├─ open() - 资源初始化
-    ├─ execute() - 执行逻辑
-    ├─ close() - 资源清理
+    ├─ 递归执行
     └─ 输出: 查询结果
 ```
 
@@ -69,9 +63,9 @@ SQL 字符串
     ├─ 优化规则集
     └─ 成本模型
     ↓
-[4] Scheduler (部分实现)
-    ├─ AsyncScheduler
-    └─ 与 Executor 集成不完整
+[4] ExecutorFactory (已完整实现 ✅)
+    ├─ 递归执行执行器
+    └─ 自然处理依赖关系
     ↓
 [5] Executor (部分实现)
     ├─ 基础框架存在
@@ -85,7 +79,7 @@ SQL 字符串
 | Parser | ✅ 完整 | `src/query/parser/` |
 | Validator | ✅ 完整 | `src/query/validator/`，包含 15+ 种 Validator |
 | Optimizer | ✅ 完整 | `src/query/optimizer/`，包含 30+ 条优化规则 |
-| Scheduler | ⚠️ 部分 | `src/query/scheduler/`，需完善与 Executor 集成 |
+| ExecutorFactory | ✅ 完整 | `src/query/executor/factory.rs`，递归执行 |
 | Executor | ⚠️ 部分 | `src/query/executor/`，需清理冗余代码 |
 | **Planner** | ⚠️ **需改进** | `src/query/planner/`，**动态分发需改为静态注册** |
 
@@ -96,7 +90,6 @@ SQL 字符串
 | **Parser** | ✅ 完整 | ✅ 完整 | 无影响 |
 | **Validator** | ✅ 完整，集成到执行流程 | ✅ 完整 | 无影响 |
 | **Optimizer** | ✅ 完整，规则引擎 | ✅ 完整 | 无影响 |
-| **Scheduler** | ✅ 完整，异步调度 | ⚠️ 部分 | 并发执行能力受限 |
 | **Executor** | ✅ 完整，工厂模式 | ⚠️ 部分 | 执行逻辑分散 |
 | **Planner** | ✅ 静态注册 | ⚠️ **动态分发** | **性能开销，需改为静态注册** |
 
@@ -105,8 +98,7 @@ SQL 字符串
 **立即行动项**：
 1. ✅ ~~完成 Validator 层与查询执行流程的集成~~（已完成）
 2. 删除未使用的 Executor 代码（data_access.rs, data_modification.rs）
-3. 完善 Scheduler 与 Executor 的集成
-4. **Planner 改为静态注册，消除动态分发**
+3. **Planner 改为静态注册，消除动态分发**
 
 **后续增强项**：
 1. 完善 Executor 工厂方法
@@ -968,7 +960,6 @@ impl StaticPlannerRegistry {
 | **P0** | 删除未使用的 Executor 代码 | 低 | Executor 层 | 待开始 |
 | **P1** | **Planner 改为静态注册** | **中** | **规划器** | **待开始** |
 | **P1** | 静态化 SegmentsConnector | 低 | 连接机制 | 待开始 |
-| **P2** | 完善 Scheduler 与 Executor 集成 | 中 | 调度器 | 待开始 |
 | **P2** | 简化 CypherClausePlanner 接口 | 中 | 子句规划器 | 待开始 |
 | **P3** | 引入特化节点类型 | 高 | 节点体系 | 待开始 |
 
@@ -978,8 +969,7 @@ impl StaticPlannerRegistry {
 |------|------|--------|
 | **Phase 1 (1周)** | 删除冗余代码，静态注册基础 | 5 人天 |
 | **Phase 2 (1周)** | 静态注册完成，SegmentsConnector | 5 人天 |
-| **Phase 3 (2周)** | Scheduler/Executor 集成 | 10 人天 |
-| **Phase 4 (3周)** | 节点类型系统增强 | 15 人天 |
+| **Phase 3 (3周)** | 节点类型系统增强 | 15 人天 |
 
 ---
 
@@ -1002,7 +992,6 @@ impl StaticPlannerRegistry {
 2. **统一设计**：将 SegmentsConnector 统一为静态方法
 3. **简化接口**：简化 CypherClausePlanner 接口
 4. **清理代码**：删除未使用的 Executor 代码
-5. **完善集成**：完成 Scheduler 与 Executor 的集成
 
 ### 11.3 风险与缓解
 

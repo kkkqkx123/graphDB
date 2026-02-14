@@ -245,35 +245,15 @@ pub trait InputExecutor<S: StorageEngine> {
 
 这意味着即使有了 `ExecutorEnum`，整个执行器系统仍然依赖于动态分发。
 
-### 2.6 Scheduler 层分析
+### 2.6 执行层分析
 
-Scheduler 层负责调度执行器的执行顺序，处理并发和依赖关系。Scheduler 使用 `ExecutionSchedule` 来管理执行计划。
+执行层负责执行器的执行，通过 ExecutorFactory 递归执行执行计划。执行层位于 `src/query/executor` 目录，核心结构包括：
 
-Scheduler 模块位于 `src/query/scheduler` 目录，核心结构包括：
+- **factory.rs**：执行器工厂，负责创建和执行执行器
+- **traits.rs**：执行器 trait 定义
+- **executor_enum.rs**：执行器枚举
 
-- **async_scheduler.rs**：异步调度器实现
-- **execution_schedule.rs**：执行计划调度
-- **types.rs**：定义调度相关的类型
-
-Scheduler 定义了 `ExecutorType` 枚举和 `ExecutorDep` 结构体：
-
-```rust
-pub enum ExecutorType {
-    Normal,
-    Select,
-    Loop,
-    Argument,
-    Leaf,
-}
-
-pub struct ExecutorDep {
-    pub executor_id: i64,
-    pub dependencies: Vec<i64>,
-    pub successors: Vec<i64>,
-}
-```
-
-Scheduler 的问题是其类型系统与 Executor 层的类型系统是独立的，Scheduler 只管理执行器的执行顺序，而不关心具体的执行器类型。
+执行层通过递归调用自然处理执行器之间的依赖关系，对于单节点场景已经足够满足需求。
 
 ### 2.7 Visitor 层分析
 
@@ -338,7 +318,6 @@ mod rewrite_visitor;
 | Planner | SentenceKind | ~30 | 规划目标 |
 | Optimizer | PlanNodeEnum | 60 | 优化节点 |
 | Executor | ExecutorEnum | 40 | 执行器类型 |
-| Scheduler | ExecutorType | 5 | 调度分类 |
 | Visitor | 无 | 0 | 表达式访问 |
 
 从数量对比可以看出，`PlanNodeEnum` 是操作类型最为丰富的枚举，它贯穿了 Planner、Optimizer 和 Executor 三个核心模块。

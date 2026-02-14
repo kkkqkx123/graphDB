@@ -14,7 +14,6 @@ pub mod optimizer;
 pub mod parser;
 pub mod planner;
 pub mod query_pipeline_manager;
-pub mod scheduler;
 pub mod validator;
 pub mod visitor;
 // Re-export error types from core module
