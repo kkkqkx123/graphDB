@@ -8,9 +8,11 @@ pub use id_gen::{EPIdGenerator, IdGenerator, generate_id, is_valid_id, INVALID_I
 pub mod object_pool;
 pub use object_pool::ObjectPool;
 
-// 错误处理辅助函数模块
+// 锁操作模块 - 统一使用 parking_lot
 pub mod error_handling;
 pub use error_handling::{safe_lock, safe_read, safe_write};
+pub use error_handling::{Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
+pub use error_handling::compat;
 
 // 重试机制模块
 pub mod retry;

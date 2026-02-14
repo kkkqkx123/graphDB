@@ -1,11 +1,10 @@
 use crate::api::session::session_manager::SessionInfo;
-use crate::core::error::DBError;
 use crate::core::Value;
-use crate::utils::{safe_lock, safe_read, safe_write};
+use crate::utils::{safe_lock, safe_read, safe_write, Mutex, RwLock};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::Arc;
 use std::time::Duration;
 use uuid::Uuid;
 
@@ -92,35 +91,33 @@ impl Session {
     }
 
     /// Get a session variable
-    pub fn get_variable(&self, key: &str) -> Result<Option<Value>, DBError> {
-        let vars = safe_read(&self.variables)?;
-        Ok(vars.get(key).cloned())
+    pub fn get_variable(&self, key: &str) -> Option<Value> {
+        let vars = safe_read(&self.variables);
+        vars.get(key).cloned()
     }
 
     /// Set a session variable
-    pub fn set_variable(&self, key: String, value: Value) -> Result<(), DBError> {
-        let mut vars = safe_write(&self.variables)?;
+    pub fn set_variable(&self, key: String, value: Value) {
+        let mut vars = safe_write(&self.variables);
         vars.insert(key, value);
-        Ok(())
     }
 
     /// Remove a session variable
-    pub fn remove_variable(&self, key: &str) -> Result<Option<Value>, DBError> {
-        let mut vars = safe_write(&self.variables)?;
-        Ok(vars.remove(key))
+    pub fn remove_variable(&self, key: &str) -> Option<Value> {
+        let mut vars = safe_write(&self.variables);
+        vars.remove(key)
     }
 
     /// Get a session setting
-    pub fn get_setting(&self, key: &str) -> Result<Option<Value>, DBError> {
-        let settings = safe_read(&self.settings)?;
-        Ok(settings.get(key).cloned())
+    pub fn get_setting(&self, key: &str) -> Option<Value> {
+        let settings = safe_read(&self.settings);
+        settings.get(key).cloned()
     }
 
     /// Set a session setting
-    pub fn set_setting(&self, key: String, value: Value) -> Result<(), DBError> {
-        let mut settings = safe_write(&self.settings)?;
+    pub fn set_setting(&self, key: String, value: Value) {
+        let mut settings = safe_write(&self.settings);
         settings.insert(key, value);
-        Ok(())
     }
 
     /// Close the session
@@ -149,99 +146,94 @@ impl SessionManager {
         user_id: Option<String>,
         client_info: String,
         connection_info: String,
-    ) -> Result<SessionId, DBError> {
+    ) -> SessionId {
         let session = Session::new(user_id, client_info, connection_info);
         let session_id = SessionId(session.session_info.session_id.to_string());
 
         let session = Arc::new(Mutex::new(session));
         {
-            let mut sessions = safe_write(&self.sessions)?;
+            let mut sessions = safe_write(&self.sessions);
             sessions.insert(session_id.clone(), session);
         }
 
-        Ok(session_id)
+        session_id
     }
 
     /// Get a session by ID
     pub fn get_session(
         &self,
         session_id: &SessionId,
-    ) -> Result<Option<Arc<Mutex<Session>>>, DBError> {
-        let sessions = safe_read(&self.sessions)?;
-        Ok(sessions.get(session_id).cloned())
+    ) -> Option<Arc<Mutex<Session>>> {
+        let sessions = safe_read(&self.sessions);
+        sessions.get(session_id).cloned()
     }
 
     /// Check if a session exists and is valid
-    pub fn is_valid_session(&self, session_id: &SessionId) -> Result<bool, DBError> {
-        if let Some(session) = self.get_session(session_id)? {
-            let session = safe_lock(&session)?;
-            Ok(session.is_valid(self.default_session_timeout))
+    pub fn is_valid_session(&self, session_id: &SessionId) -> bool {
+        if let Some(session) = self.get_session(session_id) {
+            let session = safe_lock(&session);
+            session.is_valid(self.default_session_timeout)
         } else {
-            Ok(false)
+            false
         }
     }
 
     /// Update the last accessed time for a session
-    pub fn touch_session(&self, session_id: &SessionId) -> Result<bool, DBError> {
-        if let Some(session) = self.get_session(session_id)? {
-            let mut session = safe_lock(&session)?;
+    pub fn touch_session(&self, session_id: &SessionId) -> bool {
+        if let Some(session) = self.get_session(session_id) {
+            let mut session = safe_lock(&session);
             session.touch();
-            Ok(true)
+            true
         } else {
-            Ok(false)
+            false
         }
     }
 
     /// Remove an expired session
-    pub fn remove_session(&self, session_id: &SessionId) -> Result<bool, DBError> {
-        let mut sessions = safe_write(&self.sessions)?;
-        Ok(sessions.remove(session_id).is_some())
+    pub fn remove_session(&self, session_id: &SessionId) -> bool {
+        let mut sessions = safe_write(&self.sessions);
+        sessions.remove(session_id).is_some()
     }
 
     /// Get session info by ID
-    pub fn get_session_info(&self, session_id: &SessionId) -> Result<Option<SessionInfo>, DBError> {
-        if let Some(session) = self.get_session(session_id)? {
-            let session = safe_lock(&session)?;
-            Ok(Some(session.session_info.clone()))
+    pub fn get_session_info(&self, session_id: &SessionId) -> Option<SessionInfo> {
+        if let Some(session) = self.get_session(session_id) {
+            let session = safe_lock(&session);
+            Some(session.session_info.clone())
         } else {
-            Ok(None)
+            None
         }
     }
 
     /// List all active sessions
-    pub fn list_active_sessions(&self) -> Result<Vec<SessionInfo>, DBError> {
-        let sessions = safe_read(&self.sessions)?;
+    pub fn list_active_sessions(&self) -> Vec<SessionInfo> {
+        let sessions = safe_read(&self.sessions);
         let mut active_sessions = Vec::new();
 
         for session in sessions.values() {
-            if let Ok(session) = safe_lock(session) {
-                if matches!(session.status, SessionStatus::Active)
-                    && session.is_valid(self.default_session_timeout)
-                {
-                    active_sessions.push(session.session_info.clone());
-                }
+            let session = safe_lock(session);
+            if matches!(session.status, SessionStatus::Active)
+                && session.is_valid(self.default_session_timeout)
+            {
+                active_sessions.push(session.session_info.clone());
             }
         }
 
-        Ok(active_sessions)
+        active_sessions
     }
 
     /// Clean up expired sessions
-    pub fn cleanup_expired_sessions(&self) -> Result<(), DBError> {
-        let mut sessions = safe_write(&self.sessions)?;
+    pub fn cleanup_expired_sessions(&self) {
+        let mut sessions = safe_write(&self.sessions);
         sessions.retain(|_, session| {
-            if let Ok(session) = safe_lock(session) {
-                session.is_valid(self.default_session_timeout)
-            } else {
-                false // If lock is poisoned, remove the session
-            }
+            let session = safe_lock(session);
+            session.is_valid(self.default_session_timeout)
         });
-        Ok(())
     }
 
     /// Get the number of active sessions
-    pub fn active_session_count(&self) -> Result<usize, DBError> {
-        Ok(self.list_active_sessions()?.len())
+    pub fn active_session_count(&self) -> usize {
+        self.list_active_sessions().len()
     }
 }
 
@@ -338,26 +330,18 @@ mod tests {
         let session = Session::new(None, "".to_string(), "".to_string());
 
         // Set a variable
-        session
-            .set_variable("test_key".to_string(), Value::Int(42))
-            .expect("Failed to set session variable in test");
+        session.set_variable("test_key".to_string(), Value::Int(42));
 
         // Get the variable
-        let value = session
-            .get_variable("test_key")
-            .expect("Failed to get session variable in test");
+        let value = session.get_variable("test_key");
         assert_eq!(value, Some(Value::Int(42)));
 
         // Remove the variable
-        let removed_value = session
-            .remove_variable("test_key")
-            .expect("Failed to remove session variable in test");
+        let removed_value = session.remove_variable("test_key");
         assert_eq!(removed_value, Some(Value::Int(42)));
 
         // Check that it's gone
-        let value = session
-            .get_variable("test_key")
-            .expect("Failed to get session variable in test");
+        let value = session.get_variable("test_key");
         assert_eq!(value, None);
     }
 
@@ -371,18 +355,13 @@ mod tests {
                 Some("user123".to_string()),
                 "client_info".to_string(),
                 "connection_info".to_string(),
-            )
-            .expect("Failed to create session in test");
+            );
 
         // Verify the session exists
-        assert!(session_manager
-            .is_valid_session(&session_id)
-            .expect("Failed to check session validity in test"));
+        assert!(session_manager.is_valid_session(&session_id));
 
         // Get session info
-        let info = session_manager
-            .get_session_info(&session_id)
-            .expect("Failed to get session info in test");
+        let info = session_manager.get_session_info(&session_id);
         assert!(info.is_some());
         assert_eq!(
             info.expect("Session info should exist").user_name,
@@ -390,23 +369,15 @@ mod tests {
         );
 
         // Touch the session to update last_accessed time
-        assert!(session_manager
-            .touch_session(&session_id)
-            .expect("Failed to touch session in test"));
+        assert!(session_manager.touch_session(&session_id));
 
         // List active sessions
-        let active_sessions = session_manager
-            .list_active_sessions()
-            .expect("Failed to list active sessions in test");
+        let active_sessions = session_manager.list_active_sessions();
         assert_eq!(active_sessions.len(), 1);
 
         // Clean up
-        session_manager
-            .remove_session(&session_id)
-            .expect("Failed to remove session in test");
-        assert!(!session_manager
-            .is_valid_session(&session_id)
-            .expect("Failed to check session validity in test"));
+        session_manager.remove_session(&session_id);
+        assert!(!session_manager.is_valid_session(&session_id));
     }
 
     #[test]

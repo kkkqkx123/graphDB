@@ -1,4 +1,5 @@
-use std::sync::{Arc, Mutex};
+use crate::utils::{safe_lock, Mutex};
+use std::sync::Arc;
 use std::time::Instant;
 
 use super::base::{BaseExecutor, ExecutorStats};
@@ -7,7 +8,6 @@ use crate::core::{Value, vertex_edge_path};
 use crate::expression::context::traits::VariableContext;
 use crate::query::executor::traits::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
-use crate::utils::safe_lock;
 
 pub struct GetVerticesExecutor<S: StorageClient + 'static> {
     base: BaseExecutor<S>,

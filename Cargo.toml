@@ -34,6 +34,7 @@ async-trait = "0.1.83"
 rand = "0.8.5"
 rayon = "1.10.0"
 dashmap = "6.1"
+parking_lot = "0.12"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
