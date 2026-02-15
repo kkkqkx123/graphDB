@@ -4,7 +4,7 @@
 //! 采用直接匹配模式，简单高效，易于维护
 
 use crate::core::{EdgeDirection, Value};
-use crate::core::error::QueryError;
+use crate::core::error::{DBError, QueryError};
 use crate::query::context::execution::QueryContext;
 use crate::query::executor::traits::Executor;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
@@ -1320,7 +1320,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                 let user_info = UserInfo::new(
                     node.username().to_string(),
                     node.password().to_string(),
-                ).with_role(node.role().to_string());
+                ).map_err(|e| DBError::Storage(e))?;
                 let executor = CreateUserExecutor::new(node.id(), storage, user_info);
                 Ok(ExecutorEnum::CreateUser(executor))
             }
@@ -1328,9 +1328,6 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             PlanNodeEnum::AlterUser(node) => {
                 use crate::core::types::metadata::UserAlterInfo;
                 let mut alter_info = UserAlterInfo::new(node.username().to_string());
-                if let Some(role) = node.new_role() {
-                    alter_info = alter_info.with_role(role.clone());
-                }
                 if let Some(locked) = node.is_locked() {
                     alter_info = alter_info.with_locked(locked);
                 }

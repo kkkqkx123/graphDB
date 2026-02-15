@@ -978,7 +978,8 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
         use admin_executor::CreateUserExecutor;
         let id = self.id;
 
-        let user_info = UserInfo::new(clause.username, clause.password);
+        let user_info = UserInfo::new(clause.username, clause.password)
+            .map_err(|e| DBError::Storage(e))?;
         let mut executor = CreateUserExecutor::new(id, self.storage.clone(), user_info);
         executor.open()?;
         executor.execute().map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
@@ -989,11 +990,8 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
         let id = self.id;
 
         let mut alter_info = UserAlterInfo::new(clause.username);
-        if let Some(role) = clause.new_role {
-            alter_info = alter_info.with_role(role);
-        }
         if let Some(is_locked) = clause.is_locked {
-            alter_info = alter_info.with_locked(is_locked);
+            alter_info.is_locked = Some(is_locked);
         }
         let mut executor = AlterUserExecutor::new(id, self.storage.clone(), alter_info);
         executor.open()?;

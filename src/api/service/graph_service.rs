@@ -1,5 +1,5 @@
 use crate::api::service::{
-    Authenticator, MetricType, PasswordAuthenticator, PermissionManager, QueryEngine, StatsManager,
+    Authenticator, AuthenticatorFactory, MetricType, PasswordAuthenticator, PermissionManager, QueryEngine, StatsManager,
 };
 use crate::api::session::{ClientSession, GraphSessionManager};
 use crate::config::Config;
@@ -12,11 +12,10 @@ use std::time::Duration;
 pub struct GraphService<S: StorageClient + Clone + 'static> {
     session_manager: Arc<GraphSessionManager>,
     query_engine: Arc<Mutex<QueryEngine<S>>>,
-    authenticator: Arc<PasswordAuthenticator>,
+    authenticator: PasswordAuthenticator,
     permission_manager: Arc<PermissionManager>,
     stats_manager: Arc<StatsManager>,
-    #[allow(dead_code)]
-    storage: Arc<Mutex<S>>,
+    storage: Arc<S>,
 }
 
 impl<S: StorageClient + Clone + 'static> GraphService<S> {
@@ -28,7 +27,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             session_idle_timeout,
         );
         let query_engine = Arc::new(Mutex::new(QueryEngine::new(storage.clone())));
-        let authenticator = Arc::new(PasswordAuthenticator::new());
+        let authenticator = AuthenticatorFactory::create_default(&config.auth);
         let permission_manager = Arc::new(PermissionManager::new());
         let stats_manager = Arc::new(StatsManager::new());
 
@@ -38,7 +37,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             authenticator,
             permission_manager,
             stats_manager,
-            storage: Arc::new(Mutex::new(storage.as_ref().clone())),
+            storage,
         })
     }
 
@@ -110,8 +109,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
     
     async fn get_space_info(&self, space_name: &str) -> Result<crate::api::session::client_session::SpaceInfo, String> {
         // 从存储中获取空间信息
-        let storage = self.storage.lock();
-        match storage.get_space(space_name) {
+        match self.storage.get_space(space_name) {
             Ok(Some(space)) => Ok(crate::api::session::client_session::SpaceInfo {
                 name: space_name.to_string(),
                 id: space.space_id as i64,
@@ -275,10 +273,8 @@ mod tests {
     use crate::storage::test_mock::MockStorage;
     use std::sync::Arc;
 
-    #[tokio::test]
-    async fn test_graph_service_creation() {
-        let _ = RuleRegistry::initialize();
-        let config = Config {
+    fn create_test_config() -> Config {
+        Config {
             host: "127.0.0.1".to_string(),
             port: 9669,
             storage_path: "/tmp/graphdb_test".to_string(),
@@ -289,30 +285,38 @@ mod tests {
             log_file: "logs/test.log".to_string(),
             max_log_file_size: 100 * 1024 * 1024,
             max_log_files: 5,
-        };
+            auth: crate::config::AuthConfig {
+                enable_authorize: true,
+                failed_login_attempts: 5,
+                session_idle_timeout_secs: 3600,
+                default_username: "root".to_string(),
+                default_password: "root".to_string(),
+                force_change_default_password: true,
+            },
+            bootstrap: crate::config::BootstrapConfig {
+                auto_create_default_space: true,
+                default_space_name: "default".to_string(),
+                single_user_mode: false,
+            },
+        }
+    }
+
+    #[tokio::test]
+    async fn test_graph_service_creation() {
+        let _ = RuleRegistry::initialize();
+        let config = create_test_config();
 
         let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
         let graph_service = GraphService::<MockStorage>::new(config, storage);
 
         // 验证服务创建成功
-        assert!(graph_service.get_session_manager().is_out_of_connections() == false);
+        assert!(!graph_service.get_session_manager().is_out_of_connections());
     }
 
     #[tokio::test]
     async fn test_authentication_success() {
         let _ = RuleRegistry::initialize();
-        let config = Config {
-            host: "127.0.0.1".to_string(),
-            port: 9669,
-            storage_path: "/tmp/graphdb_test".to_string(),
-            max_connections: 10,
-            transaction_timeout: 30,
-            log_level: "info".to_string(),
-            log_dir: "logs".to_string(),
-            log_file: "logs/test.log".to_string(),
-            max_log_file_size: 100 * 1024 * 1024,
-            max_log_files: 5,
-        };
+        let config = create_test_config();
 
         let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
         let graph_service = GraphService::<MockStorage>::new(config, storage);
@@ -324,18 +328,7 @@ mod tests {
     #[tokio::test]
     async fn test_authentication_failure() {
         let _ = RuleRegistry::initialize();
-        let config = Config {
-            host: "127.0.0.1".to_string(),
-            port: 9669,
-            storage_path: "/tmp/graphdb_test".to_string(),
-            max_connections: 10,
-            transaction_timeout: 30,
-            log_level: "info".to_string(),
-            log_dir: "logs".to_string(),
-            log_file: "logs/test.log".to_string(),
-            max_log_file_size: 100 * 1024 * 1024,
-            max_log_files: 5,
-        };
+        let config = create_test_config();
 
         let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
         let graph_service = GraphService::<MockStorage>::new(config, storage);
@@ -353,18 +346,7 @@ mod tests {
     #[tokio::test]
     async fn test_signout() {
         let _ = RuleRegistry::initialize();
-        let config = Config {
-            host: "127.0.0.1".to_string(),
-            port: 9669,
-            storage_path: "/tmp/graphdb_test".to_string(),
-            max_connections: 10,
-            transaction_timeout: 30,
-            log_level: "info".to_string(),
-            log_dir: "logs".to_string(),
-            log_file: "logs/test.log".to_string(),
-            max_log_file_size: 100 * 1024 * 1024,
-            max_log_files: 5,
-        };
+        let config = create_test_config();
 
         let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
         let graph_service = GraphService::<MockStorage>::new(config, storage);
@@ -385,18 +367,7 @@ mod tests {
     #[tokio::test]
     async fn test_execute_query() {
         let _ = RuleRegistry::initialize();
-        let config = Config {
-            host: "127.0.0.1".to_string(),
-            port: 9669,
-            storage_path: "/tmp/graphdb_test".to_string(),
-            max_connections: 10,
-            transaction_timeout: 30,
-            log_level: "info".to_string(),
-            log_dir: "logs".to_string(),
-            log_file: "logs/test.log".to_string(),
-            max_log_file_size: 100 * 1024 * 1024,
-            max_log_files: 5,
-        };
+        let config = create_test_config();
 
         let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
         let graph_service = GraphService::<MockStorage>::new(config, storage);
@@ -407,24 +378,16 @@ mod tests {
             .expect("Failed to authenticate");
         let session_id = session.id();
 
-        let _result = graph_service.execute(session_id, "SHOW SPACES").await;
+        // 执行查询，验证不 panic
+        let result = graph_service.execute(session_id, "SHOW SPACES").await;
+        // 查询可能成功或失败，但不应该 panic
+        let _ = result;
     }
 
     #[tokio::test]
     async fn test_invalid_session_execute() {
         let _ = RuleRegistry::initialize();
-        let config = Config {
-            host: "127.0.0.1".to_string(),
-            port: 9669,
-            storage_path: "/tmp/graphdb_test".to_string(),
-            max_connections: 10,
-            transaction_timeout: 30,
-            log_level: "info".to_string(),
-            log_dir: "logs".to_string(),
-            log_file: "logs/test.log".to_string(),
-            max_log_file_size: 100 * 1024 * 1024,
-            max_log_files: 5,
-        };
+        let config = create_test_config();
 
         let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
         let graph_service = GraphService::<MockStorage>::new(config, storage);
@@ -436,18 +399,7 @@ mod tests {
     #[tokio::test]
     async fn test_permission_extraction() {
         let _ = RuleRegistry::initialize();
-        let config = Config {
-            host: "127.0.0.1".to_string(),
-            port: 9669,
-            storage_path: "/tmp/graphdb_test".to_string(),
-            max_connections: 10,
-            transaction_timeout: 30,
-            log_level: "info".to_string(),
-            log_dir: "logs".to_string(),
-            log_file: "logs/test.log".to_string(),
-            max_log_file_size: 100 * 1024 * 1024,
-            max_log_files: 5,
-        };
+        let config = create_test_config();
 
         let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
         let graph_service = GraphService::<MockStorage>::new(config, storage);

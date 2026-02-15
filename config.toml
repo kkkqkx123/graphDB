@@ -10,6 +10,28 @@ log_file = "graphdb"
 max_log_file_size = 104857600  # 100MB
 max_log_files = 5
 
+[auth]
+# 是否启用授权（false时跳过所有权限检查）
+enable_authorize = true
+# 登录失败次数限制（0表示不限制）
+failed_login_attempts = 5
+# 会话空闲超时时间（秒）
+session_idle_timeout_secs = 3600
+# 默认用户名
+default_username = "root"
+# 默认密码（生产环境请务必修改）
+default_password = "root"
+# 是否强制修改默认密码（首次登录时）
+force_change_default_password = true
+
+[bootstrap]
+# 是否自动创建默认Space
+auto_create_default_space = true
+# 默认Space名称
+default_space_name = "default"
+# 单用户模式（跳过认证，始终使用默认用户，适合个人使用）
+single_user_mode = false
+
 [optimizer]
 max_iteration_rounds = 5
 max_exploration_rounds = 128

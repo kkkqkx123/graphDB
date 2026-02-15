@@ -3,13 +3,13 @@ use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use std::time::Instant;
 
+use crate::api::service::permission_manager::RoleType;
 use crate::core::error::{SessionError, QueryResult};
 
 #[derive(Debug, Clone)]
 pub struct SpaceInfo {
     pub name: String,
     pub id: i64,
-    // Additional space description fields would go here
 }
 
 #[derive(Debug, Clone)]
@@ -19,13 +19,6 @@ pub struct Session {
     pub space_name: Option<String>,
     pub graph_addr: Option<String>,
     pub timezone: Option<i32>,
-}
-
-/// 2级权限模型
-#[derive(Debug, Clone)]
-pub enum RoleType {
-    ADMIN,
-    USER,
 }
 
 /// ClientSession saves those information, including who created it, executed queries,
@@ -93,12 +86,24 @@ impl ClientSession {
             .cloned()
     }
 
+    /// 检查用户是否是God角色（全局超级管理员）
+    /// 只要用户在任意Space拥有God角色，就是God用户
+    pub fn is_god(&self) -> bool {
+        self.roles
+            .read()
+            .expect("Roles lock was poisoned")
+            .values()
+            .any(|role| *role == RoleType::God)
+    }
+
+    /// 检查用户是否是Admin角色（Space管理员）
+    /// Admin或God都被视为管理员
     pub fn is_admin(&self) -> bool {
         self.roles
             .read()
             .expect("Roles lock was poisoned")
             .values()
-            .any(|role| matches!(role, RoleType::ADMIN))
+            .any(|role| *role == RoleType::Admin || *role == RoleType::God)
     }
 
     pub fn set_role(&self, space: i64, role: RoleType) {
@@ -306,19 +311,19 @@ mod tests {
 
         let client_session = ClientSession::new(session);
 
-        client_session.set_role(1, RoleType::ADMIN);
+        client_session.set_role(1, RoleType::Admin);
         assert!(matches!(
             client_session.role_with_space(1),
-            Some(RoleType::ADMIN)
+            Some(RoleType::Admin)
         ));
         assert!(client_session.role_with_space(2).is_none());
 
         // Test is_admin function
         assert!(client_session.is_admin());
 
-        // Add USER role and verify is_admin returns true (has ADMIN role)
-        client_session.set_role(2, RoleType::USER);
-        assert!(client_session.is_admin()); // Still has ADMIN role from space 1
+        // Add User role and verify is_admin returns true (has Admin role)
+        client_session.set_role(2, RoleType::User);
+        assert!(client_session.is_admin()); // Still has Admin role from space 1
     }
 
     #[test]

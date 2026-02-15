@@ -890,7 +890,8 @@ impl StorageClient for RedbStorage {
         let mut users = self.users.lock();
         let username = info.username.clone().ok_or_else(|| StorageError::DbError("用户名不能为空".to_string()))?;
         if let Some(user) = users.get_mut(&username) {
-            user.password = info.new_password.clone();
+            // 使用UserInfo的change_password方法进行密码哈希
+            user.change_password(info.new_password.clone())?;
             Ok(true)
         } else {
             Err(StorageError::DbError(format!("用户 {} 不存在", username)))
@@ -909,11 +910,22 @@ impl StorageClient for RedbStorage {
     fn alter_user(&mut self, info: &UserAlterInfo) -> Result<bool, StorageError> {
         let mut users = self.users.lock();
         if let Some(user) = users.get_mut(&info.username) {
-            if let Some(new_role) = &info.new_role {
-                user.role = new_role.clone();
-            }
+            // 修改锁定状态
             if let Some(is_locked) = info.is_locked {
                 user.is_locked = is_locked;
+            }
+            // 修改资源限制
+            if let Some(limit) = info.max_queries_per_hour {
+                user.max_queries_per_hour = limit;
+            }
+            if let Some(limit) = info.max_updates_per_hour {
+                user.max_updates_per_hour = limit;
+            }
+            if let Some(limit) = info.max_connections_per_hour {
+                user.max_connections_per_hour = limit;
+            }
+            if let Some(limit) = info.max_user_connections {
+                user.max_user_connections = limit;
             }
             Ok(true)
         } else {
@@ -928,27 +940,20 @@ impl StorageClient for RedbStorage {
     }
 
     fn grant_role(&mut self, username: &str, space_id: i32, role: RoleType) -> Result<bool, StorageError> {
-        let mut users = self.users.lock();
-        if let Some(user) = users.get_mut(username) {
-            if !user.roles.contains_key(&space_id) {
-                user.roles.insert(space_id, format!("{:?}", role));
-                Ok(true)
-            } else {
-                Err(StorageError::DbError(format!("User {} already has a role in space {}", username, space_id)))
-            }
+        // 角色授权现在由PermissionManager管理，这里仅做用户存在性检查
+        let users = self.users.lock();
+        if users.contains_key(username) {
+            Ok(true)
         } else {
             Err(StorageError::DbError(format!("User {} not found", username)))
         }
     }
 
-    fn revoke_role(&mut self, username: &str, space_id: i32) -> Result<bool, StorageError> {
-        let mut users = self.users.lock();
-        if let Some(user) = users.get_mut(username) {
-            if user.roles.remove(&space_id).is_some() {
-                Ok(true)
-            } else {
-                Err(StorageError::DbError(format!("User {} does not have a role in space {}", username, space_id)))
-            }
+    fn revoke_role(&mut self, username: &str, _space_id: i32) -> Result<bool, StorageError> {
+        // 角色撤销现在由PermissionManager管理，这里仅做用户存在性检查
+        let users = self.users.lock();
+        if users.contains_key(username) {
+            Ok(true)
         } else {
             Err(StorageError::DbError(format!("User {} not found", username)))
         }

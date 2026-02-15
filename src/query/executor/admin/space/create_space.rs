@@ -20,8 +20,11 @@ impl SpaceInfo {
             _ => DataType::String,
         };
         
+        // 使用自动生成的Space ID
+        let space_id = crate::core::types::metadata::generate_space_id();
+        
         Self {
-            space_id: 0,
+            space_id,
             space_name: executor_info.space_name.clone(),
             partition_num: executor_info.partition_num as i32,
             replica_factor: executor_info.replica_factor as i32,

@@ -106,7 +106,8 @@ mod tests {
     #[test]
     fn test_create_user_executor() {
         let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
-        let user_info = UserInfo::new("test_user".to_string(), "password123".to_string());
+        let user_info = UserInfo::new("test_user".to_string(), "password123".to_string())
+            .expect("Failed to create user info");
         let mut executor = CreateUserExecutor::new(1, storage, user_info);
 
         let result = executor.execute();
@@ -120,7 +121,8 @@ mod tests {
     #[test]
     fn test_create_user_executor_if_not_exists() {
         let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
-        let user_info = UserInfo::new("test_user".to_string(), "password123".to_string());
+        let user_info = UserInfo::new("test_user".to_string(), "password123".to_string())
+            .expect("Failed to create user info");
         let mut executor = CreateUserExecutor::with_if_not_exists(2, storage, user_info);
 
         let result = executor.execute();
@@ -130,7 +132,8 @@ mod tests {
     #[test]
     fn test_executor_lifecycle() {
         let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
-        let user_info = UserInfo::new("test_user".to_string(), "password123".to_string());
+        let user_info = UserInfo::new("test_user".to_string(), "password123".to_string())
+            .expect("Failed to create user info");
         let mut executor = CreateUserExecutor::new(3, storage, user_info);
 
         assert!(!executor.is_open());
@@ -143,7 +146,8 @@ mod tests {
     #[test]
     fn test_executor_stats() {
         let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
-        let user_info = UserInfo::new("test_user".to_string(), "password123".to_string());
+        let user_info = UserInfo::new("test_user".to_string(), "password123".to_string())
+            .expect("Failed to create user info");
         let executor = CreateUserExecutor::new(4, storage, user_info);
 
         assert_eq!(executor.id(), 4);

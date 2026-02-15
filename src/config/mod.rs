@@ -6,6 +6,57 @@ use std::path::{Path, PathBuf};
 #[cfg(test)]
 pub mod test_config;
 
+/// 授权配置
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct AuthConfig {
+    /// 是否启用授权
+    pub enable_authorize: bool,
+    /// 登录失败次数限制（0表示不限制）
+    pub failed_login_attempts: u32,
+    /// 会话空闲超时时间（秒）
+    pub session_idle_timeout_secs: u64,
+    /// 是否强制修改默认密码（首次登录时）
+    pub force_change_default_password: bool,
+    /// 默认用户名
+    pub default_username: String,
+    /// 默认密码（仅在首次启动或单用户模式使用）
+    pub default_password: String,
+}
+
+impl Default for AuthConfig {
+    fn default() -> Self {
+        Self {
+            enable_authorize: true,
+            failed_login_attempts: 5,
+            session_idle_timeout_secs: 3600,
+            force_change_default_password: true,
+            default_username: "root".to_string(),
+            default_password: "root".to_string(),
+        }
+    }
+}
+
+/// 初始化配置
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct BootstrapConfig {
+    /// 是否自动创建默认Space
+    pub auto_create_default_space: bool,
+    /// 默认Space名称
+    pub default_space_name: String,
+    /// 单用户模式（跳过认证，始终使用默认用户）
+    pub single_user_mode: bool,
+}
+
+impl Default for BootstrapConfig {
+    fn default() -> Self {
+        Self {
+            auto_create_default_space: true,
+            default_space_name: "default".to_string(),
+            single_user_mode: false,
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Config {
     pub host: String,
@@ -18,6 +69,10 @@ pub struct Config {
     pub log_file: String,
     pub max_log_file_size: u64,
     pub max_log_files: usize,
+    /// 授权配置
+    pub auth: AuthConfig,
+    /// 初始化配置
+    pub bootstrap: BootstrapConfig,
 }
 
 impl Default for Config {
@@ -33,6 +88,8 @@ impl Default for Config {
             log_file: "graphdb".to_string(),
             max_log_file_size: 100 * 1024 * 1024, // 100MB
             max_log_files: 5,
+            auth: AuthConfig::default(),
+            bootstrap: BootstrapConfig::default(),
         }
     }
 }
