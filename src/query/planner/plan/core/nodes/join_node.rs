@@ -163,6 +163,38 @@ impl HashLeftJoinNode {
     }
 }
 
+define_join_node! {
+    pub struct FullOuterJoinNode {
+    }
+    enum: FullOuterJoin
+}
+
+impl FullOuterJoinNode {
+    pub fn new(
+        left: super::plan_node_enum::PlanNodeEnum,
+        right: super::plan_node_enum::PlanNodeEnum,
+        hash_keys: Vec<Expression>,
+        probe_keys: Vec<Expression>,
+    ) -> Result<Self, crate::query::planner::planner::PlannerError> {
+        let mut col_names = left.col_names().to_vec();
+        col_names.extend(right.col_names().iter().cloned());
+
+        let deps = vec![Box::new(left.clone()), Box::new(right.clone())];
+
+        Ok(Self {
+            id: -1,
+            left: Box::new(left),
+            right: Box::new(right),
+            hash_keys,
+            probe_keys,
+            deps,
+            output_var: None,
+            col_names,
+            cost: 0.0,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

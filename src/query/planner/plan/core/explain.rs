@@ -288,6 +288,10 @@ impl PlanNodeVisitor for DescribeVisitor {
         self.create_description("HashLeftJoin", node);
     }
 
+    fn visit_full_outer_join(&mut self, node: &FullOuterJoinNode) {
+        self.create_description("FullOuterJoin", node);
+    }
+
     fn visit_get_vertices(&mut self, node: &GetVerticesNode) {
         self.create_description("GetVertices", node);
     }

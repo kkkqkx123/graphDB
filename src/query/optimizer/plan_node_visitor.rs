@@ -6,7 +6,7 @@ use crate::query::planner::plan::core::nodes::{
     CreateSpaceNode, CreateTagNode, CreateTagIndexNode, CrossJoinNode, DataCollectNode,
     DedupNode, DescEdgeNode, DescSpaceNode, DescTagNode, DescTagIndexNode, DropEdgeNode,
     DropSpaceNode, DropTagNode, DropTagIndexNode, DropEdgeIndexNode, EdgeIndexScanNode, ExpandAllNode, ExpandNode,
-    FilterNode, GetEdgesNode, GetNeighborsNode, GetVerticesNode, HashInnerJoinNode, HashLeftJoinNode,
+    FilterNode, FullOuterJoinNode, GetEdgesNode, GetNeighborsNode, GetVerticesNode, HashInnerJoinNode, HashLeftJoinNode,
     InnerJoinNode, IntersectNode, LeftJoinNode, LimitNode, LoopNode, MinusNode, PassThroughNode, PatternApplyNode,
     ProjectNode, RollUpApplyNode, SampleNode, ScanEdgesNode, ScanVerticesNode, SelectNode,
     ShowEdgesNode, ShowSpacesNode, ShowTagsNode, ShowTagIndexesNode, ShowEdgeIndexesNode,
@@ -39,6 +39,7 @@ pub trait PlanNodeVisitor {
     fn visit_edge_index_scan(&mut self, node: &EdgeIndexScanNode) -> Self::Result;
     fn visit_hash_inner_join(&mut self, node: &HashInnerJoinNode) -> Self::Result;
     fn visit_hash_left_join(&mut self, node: &HashLeftJoinNode) -> Self::Result;
+    fn visit_full_outer_join(&mut self, node: &FullOuterJoinNode) -> Self::Result;
     fn visit_index_scan(&mut self, node: &IndexScan) -> Self::Result;
     fn visit_expand(&mut self, node: &ExpandNode) -> Self::Result;
     fn visit_expand_all(&mut self, node: &ExpandAllNode) -> Self::Result;
@@ -111,6 +112,7 @@ pub trait PlanNodeVisitor {
             PlanNodeEnum::EdgeIndexScan(n) => self.visit_edge_index_scan(n),
             PlanNodeEnum::HashInnerJoin(n) => self.visit_hash_inner_join(n),
             PlanNodeEnum::HashLeftJoin(n) => self.visit_hash_left_join(n),
+            PlanNodeEnum::FullOuterJoin(n) => self.visit_full_outer_join(n),
             PlanNodeEnum::IndexScan(n) => self.visit_index_scan(n),
             PlanNodeEnum::Expand(n) => self.visit_expand(n),
             PlanNodeEnum::ExpandAll(n) => self.visit_expand_all(n),
@@ -215,6 +217,7 @@ mod tests {
         fn visit_edge_index_scan(&mut self, _node: &EdgeIndexScanNode) -> Self::Result { self.count += 1; self.count }
         fn visit_hash_inner_join(&mut self, _node: &HashInnerJoinNode) -> Self::Result { self.count += 1; self.count }
         fn visit_hash_left_join(&mut self, _node: &HashLeftJoinNode) -> Self::Result { self.count += 1; self.count }
+        fn visit_full_outer_join(&mut self, _node: &FullOuterJoinNode) -> Self::Result { self.count += 1; self.count }
         fn visit_index_scan(&mut self, _node: &IndexScan) -> Self::Result { self.count += 1; self.count }
         fn visit_expand(&mut self, _node: &ExpandNode) -> Self::Result { self.count += 1; self.count }
         fn visit_expand_all(&mut self, _node: &ExpandAllNode) -> Self::Result { self.count += 1; self.count }

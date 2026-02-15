@@ -229,6 +229,10 @@ impl Optimizer {
                     count_recursive_node(node.left_input(), count);
                     count_recursive_node(node.right_input(), count);
                 }
+                PlanNodeEnum::FullOuterJoin(node) => {
+                    count_recursive_node(node.left_input(), count);
+                    count_recursive_node(node.right_input(), count);
+                }
                 PlanNodeEnum::GetNeighbors(_) | PlanNodeEnum::GetVertices(_) | PlanNodeEnum::GetEdges(_) => {
                 }
                 PlanNodeEnum::Sample(node) => {
@@ -392,6 +396,16 @@ impl Optimizer {
                 self.build_inputs_recursive(node.right_input(), ctx, right_id)?;
             }
             PlanNodeEnum::HashLeftJoin(node) => {
+                let left_id = self.build_single_input(node.left_input(), ctx)?;
+                let right_id = self.build_single_input(node.right_input(), ctx)?;
+                if let Some(group_node) = ctx.find_group_node_by_id(parent_id) {
+                    group_node.borrow_mut().add_dependency(left_id);
+                    group_node.borrow_mut().add_dependency(right_id);
+                }
+                self.build_inputs_recursive(node.left_input(), ctx, left_id)?;
+                self.build_inputs_recursive(node.right_input(), ctx, right_id)?;
+            }
+            PlanNodeEnum::FullOuterJoin(node) => {
                 let left_id = self.build_single_input(node.left_input(), ctx)?;
                 let right_id = self.build_single_input(node.right_input(), ctx)?;
                 if let Some(group_node) = ctx.find_group_node_by_id(parent_id) {

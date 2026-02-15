@@ -23,13 +23,10 @@ impl<S: StorageClient + Send + 'static> FullOuterJoinExecutor<S> {
         storage: Arc<Mutex<S>>,
         left_var: String,
         right_var: String,
-        left_keys: Vec<String>,
-        right_keys: Vec<String>,
+        hash_keys: Vec<Expression>,
+        probe_keys: Vec<Expression>,
         output_columns: Vec<String>,
     ) -> Self {
-        let hash_keys: Vec<Expression> = left_keys.into_iter().map(Expression::Variable).collect();
-        let probe_keys: Vec<Expression> =
-            right_keys.into_iter().map(Expression::Variable).collect();
         Self {
             base: BaseJoinExecutor::with_description(
                 id,

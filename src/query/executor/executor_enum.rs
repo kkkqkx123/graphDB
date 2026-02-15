@@ -29,7 +29,7 @@ use super::data_processing::graph_traversal::{
     ExpandAllExecutor, ExpandExecutor, MultiShortestPathExecutor, ShortestPathExecutor,
     TraverseExecutor,
 };
-use super::data_processing::join::{CrossJoinExecutor, HashInnerJoinExecutor, HashLeftJoinExecutor, InnerJoinExecutor, LeftJoinExecutor};
+use super::data_processing::join::{CrossJoinExecutor, FullOuterJoinExecutor, HashInnerJoinExecutor, HashLeftJoinExecutor, InnerJoinExecutor, LeftJoinExecutor};
 use super::data_processing::set_operations::{IntersectExecutor, MinusExecutor, UnionAllExecutor, UnionExecutor};
 use super::logic::{ForLoopExecutor, LoopExecutor, SelectExecutor, WhileLoopExecutor};
 use super::result_processing::{
@@ -59,6 +59,7 @@ pub enum ExecutorEnum<S: StorageClient + Send + 'static> {
     HashInnerJoin(HashInnerJoinExecutor<S>),
     LeftJoin(LeftJoinExecutor<S>),
     HashLeftJoin(HashLeftJoinExecutor<S>),
+    FullOuterJoin(FullOuterJoinExecutor<S>),
     CrossJoin(CrossJoinExecutor<S>),
     Union(UnionExecutor<S>),
     UnionAll(UnionAllExecutor<S>),
@@ -138,6 +139,7 @@ impl<S: StorageClient + Send + 'static> Debug for ExecutorEnum<S> {
             ExecutorEnum::HashInnerJoin(exec) => f.write_str(&format!("ExecutorEnum::HashInnerJoin({})", exec.name())),
             ExecutorEnum::LeftJoin(exec) => f.write_str(&format!("ExecutorEnum::LeftJoin({})", exec.name())),
             ExecutorEnum::HashLeftJoin(exec) => f.write_str(&format!("ExecutorEnum::HashLeftJoin({})", exec.name())),
+            ExecutorEnum::FullOuterJoin(exec) => f.write_str(&format!("ExecutorEnum::FullOuterJoin({})", exec.name())),
             ExecutorEnum::CrossJoin(exec) => f.write_str(&format!("ExecutorEnum::CrossJoin({})", exec.name())),
             ExecutorEnum::Union(exec) => f.write_str(&format!("ExecutorEnum::Union({})", exec.name())),
             ExecutorEnum::UnionAll(exec) => f.write_str(&format!("ExecutorEnum::UnionAll({})", exec.name())),
@@ -219,6 +221,7 @@ impl<S: StorageClient + Send + 'static> ExecutorEnum<S> {
             ExecutorEnum::HashInnerJoin(exec) => exec.id(),
             ExecutorEnum::LeftJoin(exec) => exec.id(),
             ExecutorEnum::HashLeftJoin(exec) => exec.id(),
+            ExecutorEnum::FullOuterJoin(exec) => exec.id(),
             ExecutorEnum::CrossJoin(exec) => exec.id(),
             ExecutorEnum::Union(exec) => exec.id(),
             ExecutorEnum::UnionAll(exec) => exec.id(),
@@ -298,6 +301,7 @@ impl<S: StorageClient + Send + 'static> ExecutorEnum<S> {
             ExecutorEnum::HashInnerJoin(exec) => exec.name(),
             ExecutorEnum::LeftJoin(exec) => exec.name(),
             ExecutorEnum::HashLeftJoin(exec) => exec.name(),
+            ExecutorEnum::FullOuterJoin(exec) => exec.name(),
             ExecutorEnum::CrossJoin(exec) => exec.name(),
             ExecutorEnum::Union(exec) => exec.name(),
             ExecutorEnum::UnionAll(exec) => exec.name(),
@@ -377,6 +381,7 @@ impl<S: StorageClient + Send + 'static> ExecutorEnum<S> {
             ExecutorEnum::HashInnerJoin(exec) => exec.stats(),
             ExecutorEnum::LeftJoin(exec) => exec.stats(),
             ExecutorEnum::HashLeftJoin(exec) => exec.stats(),
+            ExecutorEnum::FullOuterJoin(exec) => exec.stats(),
             ExecutorEnum::CrossJoin(exec) => exec.stats(),
             ExecutorEnum::Union(exec) => exec.stats(),
             ExecutorEnum::UnionAll(exec) => exec.stats(),
@@ -456,6 +461,7 @@ impl<S: StorageClient + Send + 'static> ExecutorEnum<S> {
             ExecutorEnum::HashInnerJoin(exec) => exec.stats_mut(),
             ExecutorEnum::LeftJoin(exec) => exec.stats_mut(),
             ExecutorEnum::HashLeftJoin(exec) => exec.stats_mut(),
+            ExecutorEnum::FullOuterJoin(exec) => exec.stats_mut(),
             ExecutorEnum::CrossJoin(exec) => exec.stats_mut(),
             ExecutorEnum::Union(exec) => exec.stats_mut(),
             ExecutorEnum::UnionAll(exec) => exec.stats_mut(),
@@ -538,6 +544,7 @@ impl<S: StorageClient + Send + 'static> super::base::Executor<S> for ExecutorEnu
             ExecutorEnum::HashInnerJoin(exec) => exec.execute(),
             ExecutorEnum::LeftJoin(exec) => exec.execute(),
             ExecutorEnum::HashLeftJoin(exec) => exec.execute(),
+            ExecutorEnum::FullOuterJoin(exec) => exec.execute(),
             ExecutorEnum::CrossJoin(exec) => exec.execute(),
             ExecutorEnum::Union(exec) => exec.execute(),
             ExecutorEnum::UnionAll(exec) => exec.execute(),
@@ -619,6 +626,7 @@ impl<S: StorageClient + Send + 'static> super::base::Executor<S> for ExecutorEnu
             ExecutorEnum::HashInnerJoin(exec) => exec.open(),
             ExecutorEnum::LeftJoin(exec) => exec.open(),
             ExecutorEnum::HashLeftJoin(exec) => exec.open(),
+            ExecutorEnum::FullOuterJoin(exec) => exec.open(),
             ExecutorEnum::CrossJoin(exec) => exec.open(),
             ExecutorEnum::Union(exec) => exec.open(),
             ExecutorEnum::UnionAll(exec) => exec.open(),
@@ -698,6 +706,7 @@ impl<S: StorageClient + Send + 'static> super::base::Executor<S> for ExecutorEnu
             ExecutorEnum::HashInnerJoin(exec) => exec.close(),
             ExecutorEnum::LeftJoin(exec) => exec.close(),
             ExecutorEnum::HashLeftJoin(exec) => exec.close(),
+            ExecutorEnum::FullOuterJoin(exec) => exec.close(),
             ExecutorEnum::CrossJoin(exec) => exec.close(),
             ExecutorEnum::Union(exec) => exec.close(),
             ExecutorEnum::UnionAll(exec) => exec.close(),
@@ -777,6 +786,7 @@ impl<S: StorageClient + Send + 'static> super::base::Executor<S> for ExecutorEnu
             ExecutorEnum::HashInnerJoin(exec) => exec.is_open(),
             ExecutorEnum::LeftJoin(exec) => exec.is_open(),
             ExecutorEnum::HashLeftJoin(exec) => exec.is_open(),
+            ExecutorEnum::FullOuterJoin(exec) => exec.is_open(),
             ExecutorEnum::CrossJoin(exec) => exec.is_open(),
             ExecutorEnum::Union(exec) => exec.is_open(),
             ExecutorEnum::UnionAll(exec) => exec.is_open(),
@@ -868,6 +878,7 @@ impl<S: StorageClient + Send + 'static> super::base::Executor<S> for ExecutorEnu
             ExecutorEnum::HashInnerJoin(exec) => exec.stats(),
             ExecutorEnum::LeftJoin(exec) => exec.stats(),
             ExecutorEnum::HashLeftJoin(exec) => exec.stats(),
+            ExecutorEnum::FullOuterJoin(exec) => exec.stats(),
             ExecutorEnum::CrossJoin(exec) => exec.stats(),
             ExecutorEnum::Union(exec) => exec.stats(),
             ExecutorEnum::UnionAll(exec) => exec.stats(),
@@ -947,6 +958,7 @@ impl<S: StorageClient + Send + 'static> super::base::Executor<S> for ExecutorEnu
             ExecutorEnum::HashInnerJoin(exec) => exec.stats_mut(),
             ExecutorEnum::LeftJoin(exec) => exec.stats_mut(),
             ExecutorEnum::HashLeftJoin(exec) => exec.stats_mut(),
+            ExecutorEnum::FullOuterJoin(exec) => exec.stats_mut(),
             ExecutorEnum::CrossJoin(exec) => exec.stats_mut(),
             ExecutorEnum::Union(exec) => exec.stats_mut(),
             ExecutorEnum::UnionAll(exec) => exec.stats_mut(),
@@ -1061,6 +1073,7 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for ExecutorEnum<S> {
             ExecutorEnum::HashInnerJoin(_) => {}
             ExecutorEnum::LeftJoin(_) => {}
             ExecutorEnum::HashLeftJoin(_) => {}
+            ExecutorEnum::FullOuterJoin(_) => {}
             ExecutorEnum::CrossJoin(_) => {}
             ExecutorEnum::Start(_) => {}
             ExecutorEnum::Base(_) => {}
@@ -1140,6 +1153,7 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for ExecutorEnum<S> {
             ExecutorEnum::HashInnerJoin(_) => None,
             ExecutorEnum::LeftJoin(_) => None,
             ExecutorEnum::HashLeftJoin(_) => None,
+            ExecutorEnum::FullOuterJoin(_) => None,
             ExecutorEnum::CrossJoin(_) => None,
             ExecutorEnum::Start(_) => None,
             ExecutorEnum::Base(_) => None,
@@ -1207,6 +1221,7 @@ impl<S: StorageClient + Send + 'static> NodeType for ExecutorEnum<S> {
             ExecutorEnum::HashInnerJoin(_) => "hash_inner_join",
             ExecutorEnum::LeftJoin(_) => "left_join",
             ExecutorEnum::HashLeftJoin(_) => "hash_left_join",
+            ExecutorEnum::FullOuterJoin(_) => "full_outer_join",
             ExecutorEnum::CrossJoin(_) => "cross_join",
             ExecutorEnum::Union(_) => "union",
             ExecutorEnum::UnionAll(_) => "union_all",
@@ -1286,6 +1301,7 @@ impl<S: StorageClient + Send + 'static> NodeType for ExecutorEnum<S> {
             ExecutorEnum::HashInnerJoin(_) => "Hash Inner Join",
             ExecutorEnum::LeftJoin(_) => "Left Join",
             ExecutorEnum::HashLeftJoin(_) => "Hash Left Join",
+            ExecutorEnum::FullOuterJoin(_) => "Full Outer Join",
             ExecutorEnum::CrossJoin(_) => "Cross Join",
             ExecutorEnum::Union(_) => "Union",
             ExecutorEnum::UnionAll(_) => "Union All",
@@ -1365,6 +1381,7 @@ impl<S: StorageClient + Send + 'static> NodeType for ExecutorEnum<S> {
             ExecutorEnum::HashInnerJoin(_) => NodeCategory::Join,
             ExecutorEnum::LeftJoin(_) => NodeCategory::Join,
             ExecutorEnum::HashLeftJoin(_) => NodeCategory::Join,
+            ExecutorEnum::FullOuterJoin(_) => NodeCategory::Join,
             ExecutorEnum::CrossJoin(_) => NodeCategory::Join,
             ExecutorEnum::Union(_) => NodeCategory::SetOp,
             ExecutorEnum::UnionAll(_) => NodeCategory::SetOp,

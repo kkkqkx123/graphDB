@@ -22,7 +22,7 @@ use crate::query::executor::base::{ExecutionContext, StartExecutor};
 use crate::query::executor::data_access::{AllPathsExecutor, GetNeighborsExecutor, GetVerticesExecutor, ScanEdgesExecutor};
 use crate::query::executor::data_processing::{
     graph_traversal::{ExpandAllExecutor, TraverseExecutor},
-    CrossJoinExecutor, ExpandExecutor, InnerJoinExecutor, LeftJoinExecutor,
+    CrossJoinExecutor, ExpandExecutor, FullOuterJoinExecutor, InnerJoinExecutor, LeftJoinExecutor,
     UnionExecutor,
 };
 use crate::query::executor::data_processing::set_operations::{IntersectExecutor, MinusExecutor};
@@ -268,6 +268,10 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                 self.analyze_plan_node(n.left_input(), loop_layers)?;
                 self.analyze_plan_node(n.right_input(), loop_layers)?;
             }
+            PlanNodeEnum::FullOuterJoin(n) => {
+                self.analyze_plan_node(n.left_input(), loop_layers)?;
+                self.analyze_plan_node(n.right_input(), loop_layers)?;
+            }
             PlanNodeEnum::CrossJoin(n) => {
                 self.analyze_plan_node(n.left_input(), loop_layers)?;
                 self.analyze_plan_node(n.right_input(), loop_layers)?;
@@ -372,6 +376,28 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             node.col_names().to_vec(),
         );
         Ok(ExecutorEnum::LeftJoin(executor))
+    }
+
+    /// 创建全外连接执行器
+    fn create_full_outer_join_executor<N>(
+        &self,
+        node: &N,
+        storage: Arc<Mutex<S>>,
+    ) -> Result<ExecutorEnum<S>, QueryError>
+    where
+        N: JoinNode,
+    {
+        let (left_var, right_var) = Self::extract_join_vars(node);
+        let executor = FullOuterJoinExecutor::new(
+            node.id(),
+            storage,
+            left_var,
+            right_var,
+            node.hash_keys().to_vec(),
+            node.probe_keys().to_vec(),
+            node.col_names().to_vec(),
+        );
+        Ok(ExecutorEnum::FullOuterJoin(executor))
     }
 
     /// 验证计划节点的安全性
@@ -584,6 +610,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             PlanNodeEnum::HashInnerJoin(node) => self.create_inner_join_executor(&node, storage),
             PlanNodeEnum::LeftJoin(node) => self.create_left_join_executor(&node, storage),
             PlanNodeEnum::HashLeftJoin(node) => self.create_left_join_executor(&node, storage),
+            PlanNodeEnum::FullOuterJoin(node) => self.create_full_outer_join_executor(&node, storage),
             PlanNodeEnum::CrossJoin(node) => {
                 let left_var = node
                     .left_input()

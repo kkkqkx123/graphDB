@@ -5,7 +5,9 @@
 //! 模块组织：
 //! - `graph_traversal` - 图遍历相关（Expand、Traverse、ShortestPath 等）
 //! - `set_operations` - 集合运算（Union、Intersect、Minus）
-//! - `join` - 连接操作（InnerJoin、LeftJoin、RightJoin、FullOuterJoin）
+//! - `join` - 连接操作（InnerJoin、LeftJoin、FullOuterJoin）
+//!
+//! 注意：RightJoin 已被移除，可用 LeftJoin 交换表顺序实现
 
 // 图遍历执行器
 pub mod graph_traversal;
@@ -24,5 +26,5 @@ pub use set_operations::{
 pub mod join;
 pub use join::{
     CrossJoinExecutor, FullOuterJoinExecutor, InnerJoinExecutor, JoinConfig, JoinType,
-    LeftJoinExecutor, RightJoinExecutor,
+    LeftJoinExecutor,
 };

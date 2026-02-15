@@ -28,7 +28,7 @@ pub use super::graph_scan_node::{
 };
 pub use super::set_operations_node::{IntersectNode, MinusNode};
 pub use super::join_node::{
-    CrossJoinNode, HashInnerJoinNode, HashLeftJoinNode, InnerJoinNode, LeftJoinNode,
+    CrossJoinNode, FullOuterJoinNode, HashInnerJoinNode, HashLeftJoinNode, InnerJoinNode, LeftJoinNode,
 };
 pub use super::project_node::ProjectNode;
 pub use super::sample_node::SampleNode;
@@ -78,6 +78,8 @@ pub enum PlanNodeEnum {
     HashInnerJoin(HashInnerJoinNode),
     /// 哈希左连接节点
     HashLeftJoin(HashLeftJoinNode),
+    /// 全外连接节点
+    FullOuterJoin(FullOuterJoinNode),
     /// 索引扫描节点
     IndexScan(IndexScan),
     /// 扩展节点
@@ -604,6 +606,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::EdgeIndexScan(_) => "EdgeIndexScan",
             PlanNodeEnum::HashInnerJoin(_) => "HashInnerJoin",
             PlanNodeEnum::HashLeftJoin(_) => "HashLeftJoin",
+            PlanNodeEnum::FullOuterJoin(_) => "FullOuterJoin",
             PlanNodeEnum::IndexScan(_) => "IndexScan",
             PlanNodeEnum::Expand(_) => "Expand",
             PlanNodeEnum::ExpandAll(_) => "ExpandAll",
@@ -681,6 +684,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::EdgeIndexScan(_) => PlanNodeCategory::Access,
             PlanNodeEnum::HashInnerJoin(_) => PlanNodeCategory::Join,
             PlanNodeEnum::HashLeftJoin(_) => PlanNodeCategory::Join,
+            PlanNodeEnum::FullOuterJoin(_) => PlanNodeCategory::Join,
             PlanNodeEnum::IndexScan(_) => PlanNodeCategory::Access,
             PlanNodeEnum::Expand(_) => PlanNodeCategory::Traversal,
             PlanNodeEnum::ExpandAll(_) => PlanNodeCategory::Traversal,
@@ -1258,6 +1262,13 @@ impl PlanNodeEnum {
         }
     }
 
+    pub fn as_full_outer_join(&self) -> Option<&FullOuterJoinNode> {
+        match self {
+            PlanNodeEnum::FullOuterJoin(node) => Some(node),
+            _ => None,
+        }
+    }
+
     pub fn as_select(&self) -> Option<&SelectNode> {
         match self {
             PlanNodeEnum::Select(node) => Some(node),
@@ -1596,6 +1607,14 @@ impl PlanNodeEnum {
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
+            PlanNodeEnum::FullOuterJoin(node) => {
+                let mut desc = PlanNodeDescription::new("FullOuterJoin", node.id());
+                if let Some(var) = node.output_var() {
+                    desc = desc.with_output_var(var.name.clone());
+                }
+                desc.add_description("cost", format!("{:.2}", node.cost()));
+                desc
+            }
             PlanNodeEnum::IndexScan(node) => {
                 let mut desc = PlanNodeDescription::new("IndexScan", node.id());
                 if let Some(var) = node.output_var() {
@@ -1910,6 +1929,9 @@ pub trait PlanNodeVisitor {
     /// 访问HashLeftJoin节点
     fn visit_hash_left_join(&mut self, node: &HashLeftJoinNode) -> Self::Result;
 
+    /// 访问FullOuterJoin节点
+    fn visit_full_outer_join(&mut self, node: &FullOuterJoinNode) -> Self::Result;
+
     /// 访问GetVertices节点
     fn visit_get_vertices(&mut self, node: &GetVerticesNode) -> Self::Result;
 
@@ -2109,6 +2131,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::EdgeIndexScan(node) => visitor.visit_edge_index_scan(node),
             PlanNodeEnum::HashInnerJoin(node) => visitor.visit_hash_inner_join(node),
             PlanNodeEnum::HashLeftJoin(node) => visitor.visit_hash_left_join(node),
+            PlanNodeEnum::FullOuterJoin(node) => visitor.visit_full_outer_join(node),
             PlanNodeEnum::Expand(node) => visitor.visit_expand(node),
             PlanNodeEnum::ExpandAll(node) => visitor.visit_expand_all(node),
             PlanNodeEnum::Traverse(node) => visitor.visit_traverse(node),
@@ -2237,6 +2260,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::CrossJoin(node) => vec![super::plan_node_traits::BinaryInputNode::left_input(node), super::plan_node_traits::BinaryInputNode::right_input(node)],
             PlanNodeEnum::HashInnerJoin(node) => vec![super::plan_node_traits::BinaryInputNode::left_input(node), super::plan_node_traits::BinaryInputNode::right_input(node)],
             PlanNodeEnum::HashLeftJoin(node) => vec![super::plan_node_traits::BinaryInputNode::left_input(node), super::plan_node_traits::BinaryInputNode::right_input(node)],
+            PlanNodeEnum::FullOuterJoin(node) => vec![super::plan_node_traits::BinaryInputNode::left_input(node), super::plan_node_traits::BinaryInputNode::right_input(node)],
 
             // MultipleInputNode: 有多个子节点
             PlanNodeEnum::Expand(node) => node.dependencies().iter().map(|b| b.as_ref()).collect(),
@@ -2280,6 +2304,7 @@ impl NodeType for PlanNodeEnum {
             PlanNodeEnum::EdgeIndexScan(_) => "edge_index_scan",
             PlanNodeEnum::HashInnerJoin(_) => "hash_inner_join",
             PlanNodeEnum::HashLeftJoin(_) => "hash_left_join",
+            PlanNodeEnum::FullOuterJoin(_) => "full_outer_join",
             PlanNodeEnum::IndexScan(_) => "index_scan",
             PlanNodeEnum::Expand(_) => "expand",
             PlanNodeEnum::ExpandAll(_) => "expand_all",
@@ -2356,6 +2381,7 @@ impl NodeType for PlanNodeEnum {
             PlanNodeEnum::EdgeIndexScan(_) => "Edge Index Scan",
             PlanNodeEnum::HashInnerJoin(_) => "Hash Inner Join",
             PlanNodeEnum::HashLeftJoin(_) => "Hash Left Join",
+            PlanNodeEnum::FullOuterJoin(_) => "Full Outer Join",
             PlanNodeEnum::IndexScan(_) => "Index Scan",
             PlanNodeEnum::Expand(_) => "Expand",
             PlanNodeEnum::ExpandAll(_) => "Expand All",
@@ -2432,6 +2458,7 @@ impl NodeType for PlanNodeEnum {
             PlanNodeEnum::EdgeIndexScan(_) => NodeCategory::Scan,
             PlanNodeEnum::HashInnerJoin(_) => NodeCategory::Join,
             PlanNodeEnum::HashLeftJoin(_) => NodeCategory::Join,
+            PlanNodeEnum::FullOuterJoin(_) => NodeCategory::Join,
             PlanNodeEnum::IndexScan(_) => NodeCategory::Scan,
             PlanNodeEnum::Expand(_) => NodeCategory::Traversal,
             PlanNodeEnum::ExpandAll(_) => NodeCategory::Traversal,
@@ -2513,6 +2540,7 @@ impl NodeTypeMapping for PlanNodeEnum {
             PlanNodeEnum::EdgeIndexScan(_) => Some("edge_index_scan"),
             PlanNodeEnum::HashInnerJoin(_) => Some("hash_inner_join"),
             PlanNodeEnum::HashLeftJoin(_) => Some("hash_left_join"),
+            PlanNodeEnum::FullOuterJoin(_) => Some("full_outer_join"),
             PlanNodeEnum::IndexScan(_) => Some("index_scan"),
             PlanNodeEnum::Expand(_) => Some("expand"),
             PlanNodeEnum::ExpandAll(_) => Some("expand_all"),

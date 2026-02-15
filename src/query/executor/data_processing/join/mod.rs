@@ -3,11 +3,12 @@
 //! 包含所有 JOIN 操作相关的执行器，包括：
 //! - InnerJoin（内连接）
 //! - LeftJoin（左外连接）
-//! - RightJoin（右外连接）
 //! - FullOuterJoin（全外连接）
 //! - CrossJoin/CartesianProduct（笛卡尔积）
 //!
 //! 基于nebula-graph的join实现，使用哈希连接算法优化性能
+//!
+//! 注意：RightJoin 已被移除，因为可以用 LeftJoin 交换表顺序实现相同功能
 
 pub mod base_join;
 pub mod cross_join;
@@ -16,12 +17,6 @@ pub mod hash_table;
 pub mod inner_join;
 pub mod join_key_evaluator;
 pub mod left_join;
-pub mod right_join;
-
-// 并行处理模块暂时禁用
-// 该模块实现了完整的并行JOIN框架，但当前单线程版本尚未稳定
-// 如需启用，请取消以下模块声明的注释
-// pub mod parallel;
 
 // 重新导出主要类型
 pub use base_join::BaseJoinExecutor;
@@ -34,7 +29,6 @@ pub use hash_table::{
 pub use inner_join::{HashInnerJoinExecutor, InnerJoinExecutor};
 pub use join_key_evaluator::JoinKeyEvaluator;
 pub use left_join::{HashLeftJoinExecutor, LeftJoinExecutor};
-pub use right_join::RightJoinExecutor;
 
 // 从 core 模块导入 JoinType
 pub use crate::core::types::JoinType;

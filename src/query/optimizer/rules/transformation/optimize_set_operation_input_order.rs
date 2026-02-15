@@ -136,6 +136,7 @@ fn estimate_node_cost(node: &Enum) -> f64 {
         Enum::CrossJoin(n) => n.left_input().cost() + n.right_input().cost(),
         Enum::HashInnerJoin(n) => n.left_input().cost() + n.right_input().cost(),
         Enum::HashLeftJoin(n) => n.left_input().cost() + n.right_input().cost(),
+        Enum::FullOuterJoin(n) => n.left_input().cost() + n.right_input().cost(),
         Enum::Expand(n) => {
             let mut total_cost = 0.0;
             for dep in n.dependencies() {

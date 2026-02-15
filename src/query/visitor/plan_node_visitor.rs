@@ -149,6 +149,11 @@ pub trait PlanNodeVisitor {
         self.visit_default()
     }
 
+    /// 访问全外连接节点
+    fn visit_full_outer_join(&mut self, _node: &FullOuterJoinNode) -> Self::Result {
+        self.visit_default()
+    }
+
     /// 访问聚合节点
     fn visit_aggregate(&mut self, _node: &AggregateNode) -> Self::Result {
         self.visit_default()
@@ -384,6 +389,7 @@ pub trait PlanNodeVisitor {
             PlanNodeEnum::CrossJoin(n) => self.visit_cross_join(n),
             PlanNodeEnum::HashInnerJoin(n) => self.visit_hash_inner_join(n),
             PlanNodeEnum::HashLeftJoin(n) => self.visit_hash_left_join(n),
+            PlanNodeEnum::FullOuterJoin(n) => self.visit_full_outer_join(n),
             PlanNodeEnum::Aggregate(n) => self.visit_aggregate(n),
             PlanNodeEnum::Argument(n) => self.visit_argument(n),
             PlanNodeEnum::Loop(n) => self.visit_loop(n),

@@ -47,7 +47,7 @@ pub use index_nodes::{
 pub use insert_nodes::{
     EdgeInsertInfo, InsertEdgesNode, InsertVerticesNode, VertexInsertInfo,
 };
-pub use join_node::{CrossJoinNode, HashInnerJoinNode, HashLeftJoinNode, InnerJoinNode, LeftJoinNode};
+pub use join_node::{CrossJoinNode, FullOuterJoinNode, HashInnerJoinNode, HashLeftJoinNode, InnerJoinNode, LeftJoinNode};
 pub use plan_node_category::PlanNodeCategory;
 pub use plan_node_cost::{
     CostEstimate, CostModelConfig, NodeStatistics, SelectivityEstimate,

@@ -2,24 +2,24 @@
 
 ## Summary
 
-- **Total Errors**: 3
+- **Total Errors**: 2
 - **Total Warnings**: 0
-- **Total Issues**: 3
+- **Total Issues**: 2
 - **Unique Error Patterns**: 1
 - **Unique Warning Patterns**: 0
 - **Files with Issues**: 1
 
 ## Error Statistics
 
-**Total Errors**: 3
+**Total Errors**: 2
 
 ### Error Type Breakdown
 
-- **error[E0433]**: 3 errors
+- **error[E0412]**: 2 errors
 
 ### Files with Errors (Top 10)
 
-- `src\query\executor\data_access.rs`: 3 errors
+- `src\query\optimizer\plan_node_visitor.rs`: 2 errors
 
 ## Warning Statistics
 
@@ -27,14 +27,13 @@
 
 ## Detailed Error Categorization
 
-### error[E0433]: failed to resolve: could not find `DBError` in `types`: could not find `DBError` in `types`
+### error[E0412]: cannot find type `FullOuterJoinNode` in this scope: not found in this scope
 
-**Total Occurrences**: 3  
+**Total Occurrences**: 2  
 **Unique Files**: 1
 
-#### `src\query\executor\data_access.rs`: 3 occurrences
+#### `src\query\optimizer\plan_node_visitor.rs`: 2 occurrences
 
-- Line 439: failed to resolve: could not find `DBError` in `types`: could not find `DBError` in `types`
-- Line 488: failed to resolve: could not find `DBError` in `types`: could not find `DBError` in `types`
-- Line 530: failed to resolve: could not find `DBError` in `types`: could not find `DBError` in `types`
+- Line 42: cannot find type `FullOuterJoinNode` in this scope: not found in this scope
+- Line 220: cannot find type `FullOuterJoinNode` in this scope: not found in this scope
 
