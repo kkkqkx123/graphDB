@@ -9,7 +9,6 @@ use super::index_nodes::{
     DropEdgeIndexNode, DropTagIndexNode, RebuildEdgeIndexNode, RebuildTagIndexNode,
     ShowEdgeIndexesNode, ShowTagIndexesNode,
 };
-use super::insert_nodes::{InsertEdgesNode, InsertVerticesNode};
 use super::user_nodes::{AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode};
 
 pub use super::aggregate_node::AggregateNode;

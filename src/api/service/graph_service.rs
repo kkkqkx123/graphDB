@@ -55,8 +55,6 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         if self.session_manager.is_out_of_connections() {
             self.stats_manager
                 .add_value(MetricType::NumAuthFailedSessions);
-            self.stats_manager
-                .add_value(MetricType::NumAuthFailedSessionsOutOfMaxAllowed);
             return Err("超过最大连接数限制".to_string());
         }
 
@@ -67,16 +65,11 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
                     .create_session(username.to_string(), "127.0.0.1".to_string())
                     .map_err(|e| format!("创建会话失败: {}", e))?;
 
-                self.stats_manager.add_value(MetricType::NumOpenedSessions);
-                self.stats_manager.add_value(MetricType::NumActiveSessions);
-
                 Ok(session)
             }
             Err(e) => {
                 self.stats_manager
                     .add_value(MetricType::NumAuthFailedSessions);
-                self.stats_manager
-                    .add_value(MetricType::NumAuthFailedSessionsBadUserNamePassword);
                 Err(format!("认证失败: {}", e))
             }
         }
@@ -198,7 +191,6 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
 
     pub fn signout(&self, session_id: i64) {
         if let Some(session) = self.session_manager.find_session(session_id) {
-            self.stats_manager.dec_value(MetricType::NumActiveSessions);
             if let Some(space_name) = session.space_name() {
                 self.stats_manager
                     .dec_space_metric(&space_name, MetricType::NumActiveQueries);
@@ -241,13 +233,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         
         let is_admin = current_session.is_admin();
         
-        match self.session_manager.kill_session(session_id, current_user, is_admin) {
-            Ok(()) => {
-                self.stats_manager.dec_value(MetricType::NumActiveSessions);
-                Ok(())
-            },
-            Err(e) => Err(e)
-        }
+        self.session_manager.kill_session(session_id, current_user, is_admin)
     }
 
     /// 终止查询（KILL QUERY）

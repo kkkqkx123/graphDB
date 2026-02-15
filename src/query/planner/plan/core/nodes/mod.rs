@@ -14,6 +14,9 @@ pub mod plan_node_cost;
 pub mod plan_node_enum;
 pub mod plan_node_operations;
 pub mod plan_node_traits;
+pub mod plan_node_visitor;
+pub mod plan_node_children;
+pub mod plan_node_traits_impl;
 pub mod project_node;
 pub mod sample_node;
 pub mod set_operations_node;
@@ -52,7 +55,8 @@ pub use plan_node_category::PlanNodeCategory;
 pub use plan_node_cost::{
     CostEstimate, CostModelConfig, NodeStatistics, SelectivityEstimate,
 };
-pub use plan_node_enum::{PlanNodeEnum, PlanNodeVisitor};
+pub use plan_node_enum::{PlanNodeEnum};
+pub use plan_node_visitor::PlanNodeVisitor;
 pub use plan_node_traits::*;
 pub use project_node::ProjectNode;
 pub use sample_node::SampleNode;

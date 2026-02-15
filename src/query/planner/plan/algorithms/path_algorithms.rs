@@ -101,7 +101,7 @@ impl MultiShortestPath {
     /// 使用访问者模式访问节点
     pub fn accept<V>(&self, visitor: &mut V) -> V::Result
     where
-        V: crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeVisitor,
+        V: crate::query::planner::plan::core::nodes::plan_node_visitor::PlanNodeVisitor,
     {
         visitor.visit_multi_shortest_path(self)
     }
@@ -236,7 +236,7 @@ impl BFSShortest {
     /// 使用访问者模式访问节点
     pub fn accept<V>(&self, visitor: &mut V) -> V::Result
     where
-        V: crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeVisitor,
+        V: crate::query::planner::plan::core::nodes::plan_node_visitor::PlanNodeVisitor,
     {
         visitor.visit_bfs_shortest(self)
     }
@@ -396,7 +396,7 @@ impl AllPaths {
     /// 使用访问者模式访问节点
     pub fn accept<V>(&self, visitor: &mut V) -> V::Result
     where
-        V: crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeVisitor,
+        V: crate::query::planner::plan::core::nodes::plan_node_visitor::PlanNodeVisitor,
     {
         visitor.visit_all_paths(self)
     }
@@ -529,7 +529,7 @@ impl ShortestPath {
     /// 使用访问者模式访问节点
     pub fn accept<V>(&self, visitor: &mut V) -> V::Result
     where
-        V: crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeVisitor,
+        V: crate::query::planner::plan::core::nodes::plan_node_visitor::PlanNodeVisitor,
     {
         visitor.visit_shortest_path(self)
     }

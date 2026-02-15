@@ -184,6 +184,7 @@ use crate::query::planner::plan::algorithms::{
     AllPaths, BFSShortest, IndexScan, MultiShortestPath, ShortestPath,
 };
 use crate::query::planner::plan::core::nodes::plan_node_enum::*;
+use crate::query::planner::plan::core::nodes::plan_node_visitor::PlanNodeVisitor;
 use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
 use crate::query::planner::plan::core::nodes::{
     SampleNode, EdgeIndexScanNode, HashInnerJoinNode, HashLeftJoinNode,

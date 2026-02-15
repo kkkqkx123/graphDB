@@ -89,13 +89,8 @@ impl QueryMetrics {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum MetricType {
     NumAuthFailedSessions,
-    NumAuthFailedSessionsBadUserNamePassword,
-    NumAuthFailedSessionsOutOfMaxAllowed,
-    NumOpenedSessions,
-    NumActiveSessions,
     NumQueries,
     NumActiveQueries,
-    NumKilledQueries,
     QueryParseTimeUs,
     QueryValidateTimeUs,
     QueryPlanTimeUs,
@@ -403,13 +398,11 @@ mod tests {
     fn test_get_all_metrics() {
         let stats = StatsManager::new();
         stats.add_value(MetricType::NumQueries);
-        stats.add_value(MetricType::NumOpenedSessions);
-        stats.add_value(MetricType::NumActiveSessions);
+        stats.add_value(MetricType::NumActiveQueries);
 
         let all_metrics = stats.get_all_metrics();
         assert_eq!(all_metrics.get(&MetricType::NumQueries), Some(&1));
-        assert_eq!(all_metrics.get(&MetricType::NumOpenedSessions), Some(&1));
-        assert_eq!(all_metrics.get(&MetricType::NumActiveSessions), Some(&1));
+        assert_eq!(all_metrics.get(&MetricType::NumActiveQueries), Some(&1));
     }
 
     #[test]
@@ -439,14 +432,12 @@ mod tests {
     fn test_reset_all_metrics() {
         let stats = StatsManager::new();
         stats.add_value_with_amount(MetricType::NumQueries, 10);
-        stats.add_value_with_amount(MetricType::NumOpenedSessions, 5);
-        stats.add_value_with_amount(MetricType::NumActiveSessions, 3);
+        stats.add_value_with_amount(MetricType::NumActiveQueries, 3);
 
         stats.reset_all_metrics();
 
         assert_eq!(stats.get_value(MetricType::NumQueries), Some(0));
-        assert_eq!(stats.get_value(MetricType::NumOpenedSessions), Some(0));
-        assert_eq!(stats.get_value(MetricType::NumActiveSessions), Some(0));
+        assert_eq!(stats.get_value(MetricType::NumActiveQueries), Some(0));
     }
 
     #[test]

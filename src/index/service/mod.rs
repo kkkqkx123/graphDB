@@ -2,12 +2,9 @@
 //!
 //! 提供索引运行时服务功能：
 //! - 索引查询结果缓存
-//! - 索引统计和监控
 //!
 //! 这些是运行时服务层，与核心类型定义分离
 
 pub mod cache;
-pub mod stats;
 
 pub use cache::*;
-pub use stats::*;

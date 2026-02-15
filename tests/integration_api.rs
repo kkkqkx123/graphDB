@@ -880,6 +880,7 @@ async fn test_concurrent_session_operations() {
 #[test]
 fn test_query_manager_concurrent_operations() {
     use std::thread;
+    use std::time::Duration;
 
     let query_manager = Arc::new(QueryManager::new());
     let mut handles = vec![];
@@ -900,11 +901,15 @@ fn test_query_manager_concurrent_operations() {
         handles.push(handle);
     }
 
-    // 等待所有线程完成
-    let query_ids: Vec<i64> = handles
-        .into_iter()
-        .map(|h| h.join().expect("线程panic"))
-        .collect();
+    // 等待所有线程完成，带超时
+    let mut query_ids = vec![];
+    for handle in handles {
+        let result = handle.join();
+        match result {
+            Ok(id) => query_ids.push(id),
+            Err(_) => panic!("线程panic"),
+        }
+    }
 
     // 验证所有查询都注册成功
     assert_eq!(query_ids.len(), 10);

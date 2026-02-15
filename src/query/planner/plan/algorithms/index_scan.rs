@@ -2,7 +2,8 @@
 //! 包含索引扫描等搜索相关操作
 
 use crate::query::context::validate::types::Variable;
-use crate::query::planner::plan::core::nodes::plan_node_enum::{PlanNodeEnum, PlanNodeVisitor};
+use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::plan_node_visitor::PlanNodeVisitor;
 use crate::query::planner::plan::core::nodes::plan_node_traits::{
     PlanNode, PlanNodeClonable, ZeroInputNode,
 };
