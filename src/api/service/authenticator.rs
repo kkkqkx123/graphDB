@@ -2,7 +2,6 @@ use anyhow::{anyhow, Result};
 use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::config::AuthConfig;
 
@@ -58,14 +57,6 @@ impl PasswordAuthenticator {
             },
             config,
         )
-    }
-
-    /// 获取当前时间戳（秒）
-    fn current_timestamp() -> u64 {
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("系统时间错误")
-            .as_secs()
     }
 
     /// 记录登录失败

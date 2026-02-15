@@ -30,7 +30,7 @@ pub async fn start_service_with_config(config: Config) -> Result<()> {
     println!("Initializing GraphDB service...");
     println!("Configuration loaded: {:?}", config);
 
-    info!("日志系统已初始化: {}/{}", config.log_dir, config.log_file);
+    info!("日志系统已初始化: {}/{}", config.log_dir(), config.log_file());
 
     let storage = Arc::new(DefaultStorage::new()?);
     println!("Storage initialized (memory mode)");
@@ -38,7 +38,7 @@ pub async fn start_service_with_config(config: Config) -> Result<()> {
     let _graph_service = GraphService::<DefaultStorage>::new(config.clone(), storage);
     println!("Graph service initialized with session management");
 
-    println!("Starting HTTP server on {}:{}", config.host, config.port);
+    println!("Starting HTTP server on {}:{}", config.host(), config.port());
 
     shutdown_signal().await;
 

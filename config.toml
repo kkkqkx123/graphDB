@@ -4,11 +4,13 @@ port = 9758
 storage_path = "data/graphdb"
 max_connections = 10
 transaction_timeout = 30
-log_level = "info"
-log_dir = "logs"
-log_file = "graphdb"
-max_log_file_size = 104857600  # 100MB
-max_log_files = 5
+
+[log]
+level = "info"
+dir = "logs"
+file = "graphdb"
+max_file_size = 104857600  # 100MB
+max_files = 5
 
 [auth]
 # 是否启用授权（false时跳过所有权限检查）
@@ -38,14 +40,12 @@ max_exploration_rounds = 128
 enable_cost_model = true
 enable_multi_plan = true
 enable_property_pruning = true
-enable_rule_registration = false
 enable_adaptive_iteration = true
 stable_threshold = 2
 min_iteration_rounds = 1
 
-[optimizer.disabled_rules]
-FilterPushDownRule = false
-PredicatePushDownRule = false
-
-[optimizer.enabled_rules]
-RemoveUselessNodeRule = true
+[optimizer.rules]
+# 禁用的规则列表
+disabled_rules = []
+# 显式启用的规则列表（优先级高于默认）
+enabled_rules = []

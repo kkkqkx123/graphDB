@@ -97,10 +97,6 @@ impl UseValidator {
         Ok(())
     }
 
-    fn set_no_space_required(&mut self, required: bool) {
-        self.base.set_no_space_required(required);
-    }
-
     pub fn set_space_name(&mut self, name: String) {
         self.space_name = name;
     }

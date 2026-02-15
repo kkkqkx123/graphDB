@@ -4,6 +4,7 @@ use std::time::Instant;
 use super::base::{BaseExecutor, ExecutorStats};
 use super::batch::BatchOptimizer;
 use crate::core::{Value, vertex_edge_path};
+use crate::core::error::DBError;
 use crate::expression::context::traits::VariableContext;
 use crate::query::executor::traits::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
@@ -435,9 +436,9 @@ impl<S: StorageClient + 'static> Executor<S> for GetNeighborsExecutor<S> {
     }
 
     fn open(&mut self) -> DBResult<()> {
-        self.batch_optimizer = Some(BatchOptimizer::with_default_config(
-            self.base.storage.clone().unwrap()
-        ));
+        let storage = self.base.storage.clone()
+            .ok_or_else(|| DBError::Storage(crate::core::error::StorageError::DbError("存储未初始化".to_string())))?;
+        self.batch_optimizer = Some(BatchOptimizer::with_default_config(storage));
         Ok(())
     }
 
@@ -485,7 +486,7 @@ impl<S: StorageClient + 'static> GetNeighborsExecutor<S> {
 
         let batch_result = self.batch_optimizer
             .as_ref()
-            .unwrap()
+            .ok_or_else(|| DBError::Storage(crate::core::error::StorageError::DbError("批处理优化器未初始化".to_string())))?
             .batch_get_vertices(&self.vertex_ids);
 
         let mut neighbor_ids: Vec<Value> = Vec::new();
@@ -527,7 +528,7 @@ impl<S: StorageClient + 'static> GetNeighborsExecutor<S> {
 
         let neighbor_batch_result = self.batch_optimizer
             .as_ref()
-            .unwrap()
+            .ok_or_else(|| DBError::Storage(crate::core::error::StorageError::DbError("批处理优化器未初始化".to_string())))?
             .batch_get_vertices(&neighbor_ids);
 
         let mut neighbors: Vec<Value> = Vec::new();

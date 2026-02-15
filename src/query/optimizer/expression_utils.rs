@@ -153,7 +153,8 @@ fn flatten_inner_logical_and_expr(expr: &Expression) -> Expression {
             collect_and_operands(&right_flattened, &mut operands);
             
             if operands.len() == 1 {
-                operands.into_iter().next().unwrap()
+                operands.into_iter().next()
+                    .expect("operands 长度为1时不应为空")
             } else {
                 let mut result = None;
                 for operand in operands {
@@ -166,7 +167,7 @@ fn flatten_inner_logical_and_expr(expr: &Expression) -> Expression {
                         },
                     });
                 }
-                result.unwrap()
+                result.expect("result 不应为空")
             }
         }
         _ => expr.clone(),

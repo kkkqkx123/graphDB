@@ -69,24 +69,24 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
 
         Self::register_planners(&mut planner);
 
-        let optimizer = match crate::query::optimizer::load_optimizer_config(config_path) {
-            Ok(config_info) => {
-                let rule_config = config_info.to_rule_config();
+        let optimizer = match crate::config::Config::load(config_path) {
+            Ok(config) => {
+                let rule_config = Self::build_rule_config(&config.optimizer.rules);
                 let opt_config = OptimizationConfig {
-                    max_iteration_rounds: config_info.max_iteration_rounds,
-                    max_exploration_rounds: config_info.max_exploration_rounds,
-                    enable_cost_model: config_info.enable_cost_model,
-                    enable_multi_plan: config_info.enable_multi_plan,
-                    enable_property_pruning: config_info.enable_property_pruning,
+                    max_iteration_rounds: config.optimizer.max_iteration_rounds,
+                    max_exploration_rounds: config.optimizer.max_exploration_rounds,
+                    enable_cost_model: config.optimizer.enable_cost_model,
+                    enable_multi_plan: config.optimizer.enable_multi_plan,
+                    enable_property_pruning: config.optimizer.enable_property_pruning,
                     rule_config: Some(rule_config),
-                    enable_adaptive_iteration: config_info.enable_adaptive_iteration,
-                    stable_threshold: config_info.stable_threshold,
-                    min_iteration_rounds: config_info.min_iteration_rounds,
+                    enable_adaptive_iteration: config.optimizer.enable_adaptive_iteration,
+                    stable_threshold: config.optimizer.stable_threshold,
+                    min_iteration_rounds: config.optimizer.min_iteration_rounds,
                 };
                 Optimizer::with_config(vec![], opt_config)
             }
-            Err(_) => {
-                log::warn!("无法加载优化器配置，使用默认配置");
+            Err(e) => {
+                log::warn!("无法加载优化器配置，使用默认配置: {}", e);
                 Optimizer::from_registry()
             }
         };
@@ -98,6 +98,25 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
             executor_factory,
             stats_manager,
         }
+    }
+
+    fn build_rule_config(rules_config: &crate::config::OptimizerRulesConfig) -> RuleConfig {
+        use crate::query::optimizer::OptimizationRule;
+        let mut rule_config = RuleConfig::default();
+        
+        for rule_name in &rules_config.disabled_rules {
+            if let Some(rule) = OptimizationRule::from_name(rule_name) {
+                rule_config.disable(rule);
+            }
+        }
+        
+        for rule_name in &rules_config.enabled_rules {
+            if let Some(rule) = OptimizationRule::from_name(rule_name) {
+                rule_config.enable(rule);
+            }
+        }
+        
+        rule_config
     }
 
     pub fn with_config(storage: Arc<Mutex<S>>, config: PlannerConfig, stats_manager: Arc<StatsManager>) -> Self {

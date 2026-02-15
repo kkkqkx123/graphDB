@@ -281,7 +281,7 @@ mod tests {
     }
 
     fn create_test_checker() -> PermissionChecker {
-        let mut pm = PermissionManager::new();
+        let pm = PermissionManager::new();
         
         // 为测试用户分配角色
         pm.grant_role("user1", 1, RoleType::User).expect("Failed to grant role");
@@ -465,11 +465,8 @@ mod tests {
 
     #[test]
     fn test_check_permission_with_disabled_auth() {
-        let config = create_test_config();
-        let manager = PermissionManager::new();
-        let checker = PermissionChecker::new(manager, config);
-        let user_session = create_user_session("user1");
-
+        let _config = create_test_config();
+        let _manager = PermissionManager::new();
         // 当授权禁用时，所有操作都应该通过
         // 注意：这需要修改PermissionChecker来支持配置
         // 这里仅作为示例

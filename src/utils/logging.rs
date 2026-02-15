@@ -27,16 +27,16 @@ static LOGGER_HANDLE: Mutex<Option<LoggerHandle>> = Mutex::new(None);
 /// logging::init(&config).expect("日志初始化失败");
 /// ```
 pub fn init(config: &Config) -> Result<(), Box<dyn std::error::Error>> {
-    let handle = Logger::try_with_str(&config.log_level)?
+    let handle = Logger::try_with_str(&config.log.level)?
         .log_to_file(
             FileSpec::default()
-                .basename(&config.log_file)
-                .directory(&config.log_dir),
+                .basename(&config.log.file)
+                .directory(&config.log.dir),
         )
         .rotate(
-            Criterion::Size(config.max_log_file_size),
+            Criterion::Size(config.log.max_file_size),
             Naming::Numbers,
-            Cleanup::KeepLogFiles(config.max_log_files),
+            Cleanup::KeepLogFiles(config.log.max_files),
         )
         .write_mode(WriteMode::Async)
         .append()
@@ -47,7 +47,7 @@ pub fn init(config: &Config) -> Result<(), Box<dyn std::error::Error>> {
         *guard = Some(handle);
     }
 
-    log::info!("日志系统初始化完成: {}/{}", config.log_dir, config.log_file);
+    log::info!("日志系统初始化完成: {}/{}", config.log.dir, config.log.file);
     Ok(())
 }
 

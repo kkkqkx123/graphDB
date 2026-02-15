@@ -20,10 +20,10 @@ pub struct GraphService<S: StorageClient + Clone + 'static> {
 
 impl<S: StorageClient + Clone + 'static> GraphService<S> {
     pub fn new(config: Config, storage: Arc<S>) -> Arc<Self> {
-        let session_idle_timeout = Duration::from_secs(config.transaction_timeout * 10);
+        let session_idle_timeout = Duration::from_secs(config.database.transaction_timeout * 10);
         let session_manager = GraphSessionManager::new(
-            format!("{}:{}", config.host, config.port),
-            config.max_connections,
+            format!("{}:{}", config.database.host, config.database.port),
+            config.database.max_connections,
             session_idle_timeout,
         );
         let query_engine = Arc::new(Mutex::new(QueryEngine::new(storage.clone())));
@@ -275,16 +275,20 @@ mod tests {
 
     fn create_test_config() -> Config {
         Config {
-            host: "127.0.0.1".to_string(),
-            port: 9669,
-            storage_path: "/tmp/graphdb_test".to_string(),
-            max_connections: 10,
-            transaction_timeout: 30,
-            log_level: "info".to_string(),
-            log_dir: "logs".to_string(),
-            log_file: "logs/test.log".to_string(),
-            max_log_file_size: 100 * 1024 * 1024,
-            max_log_files: 5,
+            database: crate::config::DatabaseConfig {
+                host: "127.0.0.1".to_string(),
+                port: 9669,
+                storage_path: "/tmp/graphdb_test".to_string(),
+                max_connections: 10,
+                transaction_timeout: 30,
+            },
+            log: crate::config::LogConfig {
+                level: "info".to_string(),
+                dir: "logs".to_string(),
+                file: "logs/test.log".to_string(),
+                max_file_size: 100 * 1024 * 1024,
+                max_files: 5,
+            },
             auth: crate::config::AuthConfig {
                 enable_authorize: true,
                 failed_login_attempts: 5,
@@ -298,6 +302,7 @@ mod tests {
                 default_space_name: "default".to_string(),
                 single_user_mode: false,
             },
+            optimizer: crate::config::OptimizerConfig::default(),
         }
     }
 

@@ -2,37 +2,39 @@
 
 ## Summary
 
-- **Total Errors**: 0
-- **Total Warnings**: 1
-- **Total Issues**: 1
-- **Unique Error Patterns**: 0
-- **Unique Warning Patterns**: 1
+- **Total Errors**: 3
+- **Total Warnings**: 0
+- **Total Issues**: 3
+- **Unique Error Patterns**: 1
+- **Unique Warning Patterns**: 0
 - **Files with Issues**: 1
 
 ## Error Statistics
 
-**Total Errors**: 0
+**Total Errors**: 3
+
+### Error Type Breakdown
+
+- **error[E0433]**: 3 errors
+
+### Files with Errors (Top 10)
+
+- `src\query\executor\data_access.rs`: 3 errors
 
 ## Warning Statistics
 
-**Total Warnings**: 1
+**Total Warnings**: 0
 
-### Warning Type Breakdown
+## Detailed Error Categorization
 
-- **warning**: 1 warnings
+### error[E0433]: failed to resolve: could not find `DBError` in `types`: could not find `DBError` in `types`
 
-### Files with Warnings (Top 10)
-
-- `src\query\validator\use_validator.rs`: 1 warnings
-
-## Detailed Warning Categorization
-
-### warning: method `set_no_space_required` is never used
-
-**Total Occurrences**: 1  
+**Total Occurrences**: 3  
 **Unique Files**: 1
 
-#### `src\query\validator\use_validator.rs`: 1 occurrences
+#### `src\query\executor\data_access.rs`: 3 occurrences
 
-- Line 100: method `set_no_space_required` is never used
+- Line 439: failed to resolve: could not find `DBError` in `types`: could not find `DBError` in `types`
+- Line 488: failed to resolve: could not find `DBError` in `types`: could not find `DBError` in `types`
+- Line 530: failed to resolve: could not find `DBError` in `types`: could not find `DBError` in `types`
 

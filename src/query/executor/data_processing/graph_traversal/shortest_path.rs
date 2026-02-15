@@ -969,7 +969,8 @@ impl<S: StorageClient + Send + 'static> Executor<S> for ShortestPathExecutor<S> 
 
 impl<S: StorageClient + Send> HasStorage<S> for ShortestPathExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base.storage.as_ref().unwrap()
+        self.base.storage.as_ref()
+            .expect("ShortestPathExecutor 存储未初始化")
     }
 }
 

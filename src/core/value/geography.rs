@@ -305,11 +305,20 @@ impl Geography {
     }
 
     fn parse_point_wkt(wkt: &str) -> Result<Self, String> {
-        let re = Regex::new(r"POINT\s*\(\s*([-\d.]+)\s+([-\d.]+)\s*\)").unwrap();
+        let re = Regex::new(r"POINT\s*\(\s*([-\d.]+)\s+([-\d.]+)\s*\)")
+            .map_err(|_| "无效的正则表达式".to_string())?;
         
         if let Some(caps) = re.captures(wkt) {
-            let lon = caps.get(1).unwrap().as_str().parse::<f64>().unwrap();
-            let lat = caps.get(2).unwrap().as_str().parse::<f64>().unwrap();
+            let lon = caps.get(1)
+                .ok_or("缺少经度坐标")?
+                .as_str()
+                .parse::<f64>()
+                .map_err(|_| "无效的经度格式")?;
+            let lat = caps.get(2)
+                .ok_or("缺少纬度坐标")?
+                .as_str()
+                .parse::<f64>()
+                .map_err(|_| "无效的纬度格式")?;
             return Ok(Geography::Point(GeographyValue {
                 latitude: lat,
                 longitude: lon,
@@ -320,10 +329,13 @@ impl Geography {
     }
 
     fn parse_linestring_wkt(wkt: &str) -> Result<Self, String> {
-        let re = Regex::new(r"LINESTRING\s*\(\s*(.*?)\s*\)").unwrap();
+        let re = Regex::new(r"LINESTRING\s*\(\s*(.*?)\s*\)")
+            .map_err(|_| "无效的正则表达式".to_string())?;
         
         if let Some(caps) = re.captures(wkt) {
-            let coords_str = caps.get(1).unwrap().as_str();
+            let coords_str = caps.get(1)
+                .ok_or("缺少坐标数据")?
+                .as_str();
             let coords: Result<Vec<Coordinate>, _> = coords_str
                 .split(',')
                 .map(|s| {
@@ -348,10 +360,13 @@ impl Geography {
 
     fn parse_polygon_wkt(wkt: &str) -> Result<Self, String> {
         use regex::Regex;
-        let re = Regex::new(r"POLYGON\s*\(\s*(.*?)\s*\)").unwrap();
+        let re = Regex::new(r"POLYGON\s*\(\s*(.*?)\s*\)")
+            .map_err(|_| "无效的正则表达式".to_string())?;
         
         if let Some(caps) = re.captures(wkt) {
-            let rings_str = caps.get(1).unwrap().as_str();
+            let rings_str = caps.get(1)
+                .ok_or("缺少多边形数据")?
+                .as_str();
             let rings: Result<Vec<Vec<Coordinate>>, _> = rings_str
                 .split("),(")
                 .map(|s| {

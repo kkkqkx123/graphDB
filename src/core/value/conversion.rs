@@ -323,7 +323,10 @@ impl Value {
     fn parse_duration_string(s: &str) -> Value {
         use regex::Regex;
 
-        let re = Regex::new(r"(?:(\d+)d)?(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?").unwrap();
+        let re = match Regex::new(r"(?:(\d+)d)?(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?") {
+            Ok(re) => re,
+            Err(_) => return Value::Null(NullType::BadData),
+        };
         let caps = re.captures(s);
 
         if let Some(caps) = caps {
@@ -345,7 +348,10 @@ impl Value {
     }
 
     fn days_to_date(days: i64) -> DateValue {
-        let epoch = chrono::NaiveDate::from_ymd_opt(1970, 1, 1).unwrap();
+        let epoch = match chrono::NaiveDate::from_ymd_opt(1970, 1, 1) {
+            Some(date) => date,
+            None => return DateValue { year: 1970, month: 1, day: 1 },
+        };
         let date = epoch + chrono::Duration::days(days);
         DateValue {
             year: date.year(),

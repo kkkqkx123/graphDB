@@ -939,7 +939,7 @@ impl StorageClient for RedbStorage {
         Ok(true)
     }
 
-    fn grant_role(&mut self, username: &str, space_id: i32, role: RoleType) -> Result<bool, StorageError> {
+    fn grant_role(&mut self, username: &str, _space_id: i32, _role: RoleType) -> Result<bool, StorageError> {
         // 角色授权现在由PermissionManager管理，这里仅做用户存在性检查
         let users = self.users.lock();
         if users.contains_key(username) {
