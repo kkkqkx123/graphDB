@@ -401,26 +401,44 @@ impl HashTable {
 
     /// 插入条目
     pub fn insert(&mut self, key: JoinKey, entry: HashTableEntry) -> DBResult<()> {
-        // 记录内存使用
         let entry_size = entry.estimated_size;
-        if let Err(e) = self.memory_tracker.record_allocation(entry_size) {
-            return Err(DBError::MemoryLimitExceeded(e));
-        }
 
-        // 检查是否需要溢出
+        // 1. 检查是否需要溢出（在分配前）
         if self.should_spill() {
-            self.spill_to_disk()?;
+            self.spill_to_disk()
+                .map_err(|e| {
+                    log::warn!("溢出失败: {}", e);
+                    e
+                })?;
         }
 
-        // 插入到内存表
+        // 2. 分配内存
+        self.memory_tracker
+            .record_allocation(entry_size)
+            .map_err(|e| DBError::MemoryLimitExceeded(e))?;
+
+        // 3. 执行插入
+        let result = self.perform_insert(key, entry);
+
+        // 4. 如果失败，回滚内存
+        if result.is_err() {
+            self.memory_tracker.record_deallocation(entry_size);
+            log::debug!("插入失败，回滚 {} 字节内存", entry_size);
+        }
+
+        result
+    }
+
+    /// 执行实际的插入操作
+    fn perform_insert(&mut self, key: JoinKey, entry: HashTableEntry) -> DBResult<()> {
+        let entry_size = entry.estimated_size;
+
         let entries = self.memory_table.entry(key.clone()).or_insert_with(Vec::new);
         entries.push(entry);
 
-        // 更新统计信息和LRU访问（按固定顺序获取锁）
         {
             let mut tracker = self.lru_tracker.lock();
             tracker.record_access(&key);
-            drop(tracker);
         }
 
         {
@@ -441,12 +459,25 @@ impl HashTable {
 
     /// 溢出到磁盘
     fn spill_to_disk(&mut self) -> DBResult<()> {
-        if let Some(ref mut spill_manager) = self.spill_manager {
-            // 使用LRU策略选择要溢出的键（溢出25%的键）
-            let spill_count = std::cmp::max(1, self.memory_table.len() / 4);
-            let mut spilled_count = 0;
+        let initial_usage = self.memory_tracker.current_usage();
 
-            // 从LRU追踪器获取最久未使用的键
+        let result = self.perform_spill();
+
+        // 记录内存变化
+        let final_usage = self.memory_tracker.current_usage();
+        let delta = initial_usage - final_usage;
+        if delta > 0 {
+            log::debug!("溢出操作释放 {} 字节内存", delta);
+        }
+
+        result
+    }
+
+    /// 执行实际的溢出操作
+    fn perform_spill(&mut self) -> DBResult<()> {
+        if let Some(ref mut spill_manager) = self.spill_manager {
+            let spill_count = std::cmp::max(1, self.memory_table.len() / 4);
+
             let keys_to_spill = {
                 let tracker = self.lru_tracker.lock();
                 tracker.get_lru_keys(spill_count)
@@ -459,14 +490,13 @@ impl HashTable {
 
                     spill_manager.spill_entry(&key, &entries_vec)?;
 
-                    // 从LRU追踪器中移除键（先释放 tracker 锁）
+                    self.memory_tracker.record_deallocation(total_size);
+
                     {
                         let mut tracker = self.lru_tracker.lock();
                         tracker.remove_key(&key);
-                        drop(tracker);
                     }
 
-                    // 然后更新统计信息
                     {
                         let mut stats = self.stats.lock();
                         stats.memory_entries -= entries_vec.len();
@@ -474,14 +504,7 @@ impl HashTable {
                         stats.memory_usage -= total_size;
                         stats.spill_file_count += 1;
                     }
-
-                    spilled_count += 1;
                 }
-            }
-
-            if spilled_count > 0 {
-                // 重置内存计数器
-                self.memory_tracker.reset();
             }
         }
 

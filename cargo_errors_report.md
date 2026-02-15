@@ -7,7 +7,7 @@
 - **Total Issues**: 2
 - **Unique Error Patterns**: 1
 - **Unique Warning Patterns**: 1
-- **Files with Issues**: 2
+- **Files with Issues**: 1
 
 ## Error Statistics
 
@@ -15,11 +15,11 @@
 
 ### Error Type Breakdown
 
-- **error[E0432]**: 1 errors
+- **error[E0502]**: 1 errors
 
 ### Files with Errors (Top 10)
 
-- `src\query\planner\plan\core\mod.rs`: 1 errors
+- `src\query\executor\data_processing\join\hash_table.rs`: 1 errors
 
 ## Warning Statistics
 
@@ -31,27 +31,27 @@
 
 ### Files with Warnings (Top 10)
 
-- `src\query\planner\plan\core\nodes\plan_node_visitor.rs`: 1 warnings
+- `src\query\executor\data_processing\join\hash_table.rs`: 1 warnings
 
 ## Detailed Error Categorization
 
-### error[E0432]: unresolved import `nodes::plan_node_enum::PlanNodeVisitor`: no `PlanNodeVisitor` in `query::planner::plan::core::nodes::plan_node_enum`
+### error[E0502]: cannot borrow `*self` as mutable because it is also borrowed as immutable: mutable borrow occurs here
 
 **Total Occurrences**: 1  
 **Unique Files**: 1
 
-#### `src\query\planner\plan\core\mod.rs`: 1 occurrences
+#### `src\query\executor\data_processing\join\hash_table.rs`: 1 occurrences
 
-- Line 11: unresolved import `nodes::plan_node_enum::PlanNodeVisitor`: no `PlanNodeVisitor` in `query::planner::plan::core::nodes::plan_node_enum`
+- Line 412: cannot borrow `*self` as mutable because it is also borrowed as immutable: mutable borrow occurs here
 
 ## Detailed Warning Categorization
 
-### warning: unused imports: `InsertEdgesNode` and `InsertVerticesNode`
+### warning: variable `spilled_count` is assigned to, but never used
 
 **Total Occurrences**: 1  
 **Unique Files**: 1
 
-#### `src\query\planner\plan\core\nodes\plan_node_visitor.rs`: 1 occurrences
+#### `src\query\executor\data_processing\join\hash_table.rs`: 1 occurrences
 
-- Line 12: unused imports: `InsertEdgesNode` and `InsertVerticesNode`
+- Line 446: variable `spilled_count` is assigned to, but never used
 
