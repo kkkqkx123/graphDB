@@ -433,10 +433,10 @@ mod tests {
         let pm = PermissionManager::new();
         
         // 测试不同角色的权限
-        pm.grant_role("guest", 1, RoleType::Guest).unwrap();
-        pm.grant_role("user", 1, RoleType::User).unwrap();
-        pm.grant_role("dba", 1, RoleType::Dba).unwrap();
-        pm.grant_role("admin", 1, RoleType::Admin).unwrap();
+        pm.grant_role("guest", 1, RoleType::Guest).expect("Failed to grant guest role");
+        pm.grant_role("user", 1, RoleType::User).expect("Failed to grant user role");
+        pm.grant_role("dba", 1, RoleType::Dba).expect("Failed to grant dba role");
+        pm.grant_role("admin", 1, RoleType::Admin).expect("Failed to grant admin role");
 
         // Guest 只有读权限
         assert!(pm.check_permission("guest", 1, Permission::Read).is_ok());
@@ -476,9 +476,9 @@ mod tests {
         let pm = PermissionManager::new();
         
         // 设置角色
-        pm.grant_role("admin", 1, RoleType::Admin).unwrap();
-        pm.grant_role("dba", 1, RoleType::Dba).unwrap();
-        pm.grant_role("user", 1, RoleType::User).unwrap();
+        pm.grant_role("admin", 1, RoleType::Admin).expect("Failed to grant admin role");
+        pm.grant_role("dba", 1, RoleType::Dba).expect("Failed to grant dba role");
+        pm.grant_role("user", 1, RoleType::User).expect("Failed to grant user role");
         
         // Admin 可以授予 Dba, User, Guest
         assert!(pm.can_write_role("admin", RoleType::Dba, 1, "target").is_ok());
@@ -512,8 +512,8 @@ mod tests {
     fn test_list_user_roles() {
         let pm = PermissionManager::new();
         
-        pm.grant_role("user1", 1, RoleType::Admin).unwrap();
-        pm.grant_role("user1", 2, RoleType::User).unwrap();
+        pm.grant_role("user1", 1, RoleType::Admin).expect("Failed to grant admin role to user1");
+        pm.grant_role("user1", 2, RoleType::User).expect("Failed to grant user role to user1");
         
         let roles = pm.list_user_roles("user1");
         assert_eq!(roles.len(), 2);
@@ -525,9 +525,9 @@ mod tests {
     fn test_list_space_users() {
         let pm = PermissionManager::new();
         
-        pm.grant_role("user1", 1, RoleType::Admin).unwrap();
-        pm.grant_role("user2", 1, RoleType::User).unwrap();
-        pm.grant_role("user3", 2, RoleType::Guest).unwrap();
+        pm.grant_role("user1", 1, RoleType::Admin).expect("Failed to grant admin role to user1");
+        pm.grant_role("user2", 1, RoleType::User).expect("Failed to grant user role to user2");
+        pm.grant_role("user3", 2, RoleType::Guest).expect("Failed to grant guest role to user3");
         
         let space1_users = pm.list_space_users(1);
         assert_eq!(space1_users.len(), 2);

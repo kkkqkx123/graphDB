@@ -312,7 +312,7 @@ async fn test_planner_match_statement() {
         return;
     }
     
-    let stmt = result.unwrap();
+    let stmt = result.expect("Failed to parse query");
     
     // 创建AST上下文
     let mut ast_ctx = graphdb::query::context::ast::AstContext::new(None, Some(stmt));

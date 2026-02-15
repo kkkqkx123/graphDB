@@ -236,7 +236,7 @@ mod tests {
             values: vec![],
         };
         let ctx = create_test_ast_ctx_with_insert(target.clone());
-        let result = planner.extract_insert_stmt(&ctx).unwrap();
+        let result = planner.extract_insert_stmt(&ctx).expect("Failed to extract insert statement");
         assert_eq!(result.target, target);
     }
 
@@ -321,7 +321,7 @@ mod tests {
         let ctx = create_test_ast_ctx_with_insert(target);
         let result = planner.transform(&ctx);
         assert!(result.is_ok());
-        let sub_plan = result.unwrap();
+        let sub_plan = result.expect("Failed to transform insert statement");
         assert!(sub_plan.root.is_some());
     }
 
@@ -341,7 +341,7 @@ mod tests {
         let ctx = create_test_ast_ctx_with_insert(target);
         let result = planner.transform(&ctx);
         assert!(result.is_ok());
-        let sub_plan = result.unwrap();
+        let sub_plan = result.expect("Failed to transform insert statement");
         assert!(sub_plan.root.is_some());
     }
 

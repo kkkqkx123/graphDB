@@ -358,7 +358,7 @@ where
         }
     }
     
-    Err(last_error.unwrap())
+    Err(last_error.expect("Failed to get last error"))
 }
 
 /// 测试数据生成器

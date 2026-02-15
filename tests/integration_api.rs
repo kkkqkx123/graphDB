@@ -210,8 +210,8 @@ fn test_client_session_space_management() {
     };
     client_session.set_space(space.clone());
 
-    assert_eq!(client_session.space().unwrap().name, "test_space");
-    assert_eq!(client_session.space().unwrap().id, 1);
+    assert_eq!(client_session.space().expect("Failed to get space info").name, "test_space");
+    assert_eq!(client_session.space().expect("Failed to get space info").id, 1);
 }
 
 #[test]
@@ -826,7 +826,7 @@ async fn test_full_session_lifecycle() {
     // 4. 获取会话信息
     let session_info = graph_service.get_session_info(session_id);
     assert!(session_info.is_some());
-    assert_eq!(session_info.unwrap().user_name, "root");
+    assert_eq!(session_info.expect("Failed to get session info").user_name, "root");
 
     // 5. 登出
     graph_service.signout(session_id);

@@ -722,12 +722,12 @@ fn test_basic_context_functions() {
     // 测试 abs 函数
     let result = registry.execute("abs", &[Value::Int(-42)]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Int(42));
+    assert_eq!(result.expect("Failed to execute abs function"), Value::Int(42));
 
     // 测试 length 函数
     let result = registry.execute("length", &[Value::String("hello".to_string())]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Int(5));
+    assert_eq!(result.expect("Failed to execute length function"), Value::Int(5));
 
     // 未定义的函数应该返回错误
     let result = registry.execute("undefined_func", &[Value::Int(1)]);

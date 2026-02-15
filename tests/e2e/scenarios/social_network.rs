@@ -47,7 +47,7 @@ async fn test_sns_user_registration_and_friend_addition() {
     "#;
     let result = ctx.execute_query(create_users).await;
     assert!(result.is_ok(), "创建用户失败: {:?}", result.err());
-    assert_query_success(&result.unwrap());
+    assert_query_success(&result.expect("Failed to execute query"));
 
     // 建立好友关系
     let create_friendship = r#"

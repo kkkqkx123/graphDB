@@ -30,7 +30,7 @@ async fn test_regression_basic_crud() {
         .execute_query("INSERT VERTEX Item(name, value) VALUES 1:('Test Item', 100)")
         .await;
     println!("INSERT 结果: {:?}", create_result);
-    assert!(create_result.is_ok() && create_result.as_ref().unwrap().success, "创建失败: {:?}", create_result.err());
+    assert!(create_result.is_ok() && create_result.as_ref().expect("Failed to get query result").success, "创建失败: {:?}", create_result.err());
 
     // Read
     let read_data = ctx
@@ -201,7 +201,7 @@ async fn test_regression_error_handling() {
     // 无效语法
     let invalid_syntax = ctx.execute_query("INVALID SYNTAX").await;
     assert!(
-        invalid_syntax.is_err() || !invalid_syntax.unwrap().success,
+        invalid_syntax.is_err() || !invalid_syntax.expect("Failed to get invalid syntax query result").success,
         "无效语法应该返回错误"
     );
 
