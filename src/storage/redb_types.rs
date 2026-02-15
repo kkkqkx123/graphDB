@@ -51,3 +51,11 @@ pub const INDEX_COUNTER_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefiniti
 pub const SCHEMA_VERSIONS_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefinition::new("schema_versions");
 pub const SCHEMA_CHANGES_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefinition::new("schema_changes");
 pub const CURRENT_VERSIONS_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefinition::new("current_versions");
+
+// Tag/Edge ID 生成器表 - 用于为每个Space自动生成递增ID
+pub const TAG_ID_COUNTER_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefinition::new("tag_id_counters");
+pub const EDGE_TYPE_ID_COUNTER_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefinition::new("edge_type_id_counters");
+
+// Tag/Edge 名称索引表 - 用于名称到ID的映射
+pub const TAG_NAME_INDEX_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefinition::new("tag_name_index");
+pub const EDGE_TYPE_NAME_INDEX_TABLE: TableDefinition<ByteKey, ByteKey> = TableDefinition::new("edge_type_name_index");

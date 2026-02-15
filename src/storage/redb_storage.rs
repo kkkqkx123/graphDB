@@ -56,12 +56,32 @@ impl RedbStorage {
             .map_err(|e| StorageError::DbError(format!("开始写事务失败: {}", e)))?;
         {
             use crate::storage::redb_types::*;
+            // 索引相关表
             let _ = write_txn.open_table(TAG_INDEXES_TABLE)
                 .map_err(|e| StorageError::DbError(format!("打开TAG_INDEXES_TABLE失败: {}", e)))?;
             let _ = write_txn.open_table(EDGE_INDEXES_TABLE)
                 .map_err(|e| StorageError::DbError(format!("打开EDGE_INDEXES_TABLE失败: {}", e)))?;
             let _ = write_txn.open_table(INDEX_DATA_TABLE)
                 .map_err(|e| StorageError::DbError(format!("打开INDEX_DATA_TABLE失败: {}", e)))?;
+            // Schema相关表
+            let _ = write_txn.open_table(TAGS_TABLE)
+                .map_err(|e| StorageError::DbError(format!("打开TAGS_TABLE失败: {}", e)))?;
+            let _ = write_txn.open_table(EDGE_TYPES_TABLE)
+                .map_err(|e| StorageError::DbError(format!("打开EDGE_TYPES_TABLE失败: {}", e)))?;
+            // 数据存储表
+            let _ = write_txn.open_table(NODES_TABLE)
+                .map_err(|e| StorageError::DbError(format!("打开NODES_TABLE失败: {}", e)))?;
+            let _ = write_txn.open_table(EDGES_TABLE)
+                .map_err(|e| StorageError::DbError(format!("打开EDGES_TABLE失败: {}", e)))?;
+            // 初始化新的ID计数器表和名称索引表
+            let _ = write_txn.open_table(TAG_ID_COUNTER_TABLE)
+                .map_err(|e| StorageError::DbError(format!("打开TAG_ID_COUNTER_TABLE失败: {}", e)))?;
+            let _ = write_txn.open_table(EDGE_TYPE_ID_COUNTER_TABLE)
+                .map_err(|e| StorageError::DbError(format!("打开EDGE_TYPE_ID_COUNTER_TABLE失败: {}", e)))?;
+            let _ = write_txn.open_table(TAG_NAME_INDEX_TABLE)
+                .map_err(|e| StorageError::DbError(format!("打开TAG_NAME_INDEX_TABLE失败: {}", e)))?;
+            let _ = write_txn.open_table(EDGE_TYPE_NAME_INDEX_TABLE)
+                .map_err(|e| StorageError::DbError(format!("打开EDGE_TYPE_NAME_INDEX_TABLE失败: {}", e)))?;
         }
         write_txn.commit()
             .map_err(|e| StorageError::DbError(format!("提交初始化事务失败: {}", e)))?;

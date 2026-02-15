@@ -97,7 +97,7 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for CreateTagExecutor
         let mut storage_guard = storage.lock();
 
         let metadata_tag_info = TagInfo::from_executor(&self.tag_info);
-        let result = storage_guard.create_tag("default", &metadata_tag_info);
+        let result = storage_guard.create_tag(&self.tag_info.space_name, &metadata_tag_info);
 
         match result {
             Ok(true) => Ok(ExecutionResult::Success),
