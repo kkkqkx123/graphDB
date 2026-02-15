@@ -1,3 +1,5 @@
+//! 聚合函数实现
+
 use crate::core::types::operators::AggregateFunction;
 use crate::core::Expression;
 use crate::core::{ExpressionError, Value};
@@ -15,19 +17,19 @@ impl AggregateFunction {
     pub fn from_str(func_name: &str) -> Result<Self, ExpressionError> {
         match func_name.to_uppercase().as_str() {
             "COUNT" => Ok(AggregateFunction::Count(None)),
-            "COUNT_DISTINCT" => Ok(AggregateFunction::Distinct("".to_string())), // 需要字段名
-            "SUM" => Ok(AggregateFunction::Sum("".to_string())), // 需要字段名
-            "AVG" => Ok(AggregateFunction::Avg("".to_string())), // 需要字段名
-            "MIN" => Ok(AggregateFunction::Min("".to_string())), // 需要字段名
-            "MAX" => Ok(AggregateFunction::Max("".to_string())), // 需要字段名
-            "COLLECT" => Ok(AggregateFunction::Collect("".to_string())), // 需要字段名
-            "DISTINCT" => Ok(AggregateFunction::Distinct("".to_string())), // 需要字段名
-            "PERCENTILE" => Ok(AggregateFunction::Percentile("".to_string(), 50.0)), // 需要字段名和百分位数
+            "COUNT_DISTINCT" => Ok(AggregateFunction::Distinct("".to_string())),
+            "SUM" => Ok(AggregateFunction::Sum("".to_string())),
+            "AVG" => Ok(AggregateFunction::Avg("".to_string())),
+            "MIN" => Ok(AggregateFunction::Min("".to_string())),
+            "MAX" => Ok(AggregateFunction::Max("".to_string())),
+            "COLLECT" => Ok(AggregateFunction::Collect("".to_string())),
+            "DISTINCT" => Ok(AggregateFunction::Distinct("".to_string())),
+            "PERCENTILE" => Ok(AggregateFunction::Percentile("".to_string(), 50.0)),
             _ => {
-                return Err(ExpressionError::function_error(format!(
+                Err(ExpressionError::function_error(format!(
                     "Unknown aggregate function: {}",
                     func_name
-                )));
+                )))
             }
         }
     }
@@ -37,9 +39,9 @@ impl AggregateFunction {
         match func_name.to_uppercase().as_str() {
             "COUNT" => {
                 if args.is_empty() {
-                    Ok(AggregateFunction::Count(None)) // COUNT(*)
+                    Ok(AggregateFunction::Count(None))
                 } else {
-                    Ok(AggregateFunction::Count(Some(args[0].clone()))) // COUNT(field)
+                    Ok(AggregateFunction::Count(Some(args[0].clone())))
                 }
             },
             "SUM" => {
@@ -88,10 +90,10 @@ impl AggregateFunction {
                 Ok(AggregateFunction::Percentile(args[0].clone(), percentile))
             },
             _ => {
-                return Err(ExpressionError::function_error(format!(
+                Err(ExpressionError::function_error(format!(
                     "Unknown aggregate function: {}",
                     func_name
-                )));
+                )))
             }
         }
     }
@@ -397,9 +399,6 @@ impl AggregateState {
         Ok(Value::String(result.join(",")))
     }
 }
-
-// Legacy类型已移除 - 现在直接使用Core层的AggregateFunction
-// 所有聚合函数都在Core层定义，无需转换
 
 #[cfg(test)]
 mod tests {

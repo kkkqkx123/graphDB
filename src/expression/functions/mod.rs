@@ -6,6 +6,7 @@
 //!
 //! - `signature.rs` - 类型签名系统
 //! - `registry.rs` - 函数注册表
+//! - `builtin/` - 内置函数实现
 //!
 //! ## 使用方式
 //!
@@ -18,6 +19,7 @@
 
 pub mod signature;
 pub mod registry;
+pub mod builtin;
 
 pub use signature::{FunctionSignature, ValueType, RegisteredFunction};
 pub use registry::{FunctionRegistry, global_registry};
