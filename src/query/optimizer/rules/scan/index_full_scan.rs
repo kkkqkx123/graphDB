@@ -122,11 +122,13 @@ mod tests {
 
     #[test]
     fn test_index_full_scan_rule_without_index_id() {
+        use crate::query::planner::plan::algorithms::ScanType;
+
         let rule = IndexFullScanRule;
         let mut ctx = create_test_context();
 
         let index_scan_node =
-            crate::query::planner::plan::algorithms::IndexScan::new(1, 1, 1, 0, "RANGE");
+            crate::query::planner::plan::algorithms::IndexScan::new(1, 1, 1, 0, ScanType::Range);
         let index_scan_enum = PlanNodeEnum::IndexScan(index_scan_node);
 
         let opt_node = OptGroupNode::new(1, index_scan_enum);
@@ -140,11 +142,13 @@ mod tests {
 
     #[test]
     fn test_index_full_scan_rule_with_index_id() {
+        use crate::query::planner::plan::algorithms::ScanType;
+
         let rule = IndexFullScanRule;
         let mut ctx = create_test_context();
 
         let index_scan_node =
-            crate::query::planner::plan::algorithms::IndexScan::new(1, 1, 1, 5, "RANGE");
+            crate::query::planner::plan::algorithms::IndexScan::new(1, 1, 1, 5, ScanType::Range);
         let index_scan_enum = PlanNodeEnum::IndexScan(index_scan_node);
 
         let opt_node = OptGroupNode::new(1, index_scan_enum);

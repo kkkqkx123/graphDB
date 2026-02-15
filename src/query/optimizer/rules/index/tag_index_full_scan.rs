@@ -84,6 +84,8 @@ impl BaseOptRule for TagIndexFullScanRule {}
 
 /// 优化标签索引扫描
 fn optimize_tag_index_scan(index_scan: &mut IndexScan) {
+    use crate::query::planner::plan::algorithms::ScanType;
+
     if index_scan.scan_limits.is_empty() {
         return;
     }
@@ -93,6 +95,6 @@ fn optimize_tag_index_scan(index_scan: &mut IndexScan) {
     });
 
     if has_range_condition {
-        index_scan.scan_type = "RANGE".to_string();
+        index_scan.scan_type = ScanType::Range;
     }
 }

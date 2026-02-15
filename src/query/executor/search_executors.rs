@@ -624,9 +624,11 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                 // 参考 nebula-graph 的 RangePath 实现：
                 // 1. 使用 begin_value 作为前缀进行初步查找
                 // 2. 使用 end_value 进行范围过滤
-                // 3. 支持包含/不包含边界控制
+                // 3. 支持包含/不包含边界控制 (include_begin, include_end)
                 if let Some(first_limit) = self.scan_limits.first() {
                     let column_name = &first_limit.column;
+                    let include_begin = first_limit.include_begin;
+                    let include_end = first_limit.include_end;
                     
                     // 获取起始值和结束值
                     let start_value = first_limit.begin_value.as_ref()
@@ -652,27 +654,14 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                                 // 获取实体的属性值进行比较
                                 match self.get_entity_property_for_filter(storage, id, column_name) {
                                     Some(prop_value) => {
-                                        // 比较属性值是否在范围内 [start, end]
-                                        // 注意：这里假设属性值和范围值都是可比较的字符串
-                                        let start_str = match &start_val {
-                                            Value::String(s) => s.as_str(),
-                                            _ => return false,
-                                        };
-                                        let end_str = match &end_val {
-                                            Value::String(s) => s.as_str(),
-                                            _ => return false,
-                                        };
-                                        let prop_str = match &prop_value {
-                                            Value::String(s) => s.as_str(),
-                                            Value::Int(i) => return *i >= start_str.parse::<i64>().unwrap_or(i64::MIN) 
-                                                && *i <= end_str.parse::<i64>().unwrap_or(i64::MAX),
-                                            Value::Float(f) => return *f >= start_str.parse::<f64>().unwrap_or(f64::NEG_INFINITY) 
-                                                && *f <= end_str.parse::<f64>().unwrap_or(f64::INFINITY),
-                                            _ => return false,
-                                        };
-                                        
-                                        // 字符串范围比较
-                                        prop_str >= start_str && prop_str <= end_str
+                                        // 比较属性值是否在范围内，考虑边界包含控制
+                                        Self::value_in_range(
+                                            &prop_value,
+                                            &start_val,
+                                            &end_val,
+                                            include_begin,
+                                            include_end,
+                                        )
                                     }
                                     None => false,
                                 }
@@ -681,7 +670,22 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                         Ok(filtered)
                     } else {
                         // 没有结束值，返回所有候选结果（从起始值到无穷大）
-                        Ok(candidates)
+                        // 但仍需要检查起始边界
+                        if include_begin {
+                            Ok(candidates)
+                        } else {
+                            // 不包含起始值，需要过滤掉等于起始值的
+                            let filtered: Vec<Value> = candidates
+                                .into_iter()
+                                .filter(|id| {
+                                    match self.get_entity_property_for_filter(storage, id, column_name) {
+                                        Some(prop_value) => !Self::values_equal(&prop_value, &start_val),
+                                        None => false,
+                                    }
+                                })
+                                .collect();
+                            Ok(filtered)
+                        }
                     }
                 } else {
                     Ok(Vec::new())
@@ -880,6 +884,55 @@ impl<S: StorageClient> IndexScanExecutor<S> {
                 }
             })
             .collect()
+    }
+
+    /// 检查值是否在指定范围内
+    /// 支持边界包含控制 (include_begin, include_end)
+    fn value_in_range(
+        value: &Value,
+        start: &Value,
+        end: &Value,
+        include_begin: bool,
+        include_end: bool,
+    ) -> bool {
+        use std::cmp::Ordering;
+
+        // 比较起始边界
+        let pass_start = match Self::compare_values(value, start) {
+            Some(Ordering::Greater) => true,
+            Some(Ordering::Equal) => include_begin,
+            Some(Ordering::Less) => false,
+            None => false,
+        };
+
+        if !pass_start {
+            return false;
+        }
+
+        // 比较结束边界
+        match Self::compare_values(value, end) {
+            Some(Ordering::Less) => true,
+            Some(Ordering::Equal) => include_end,
+            Some(Ordering::Greater) => false,
+            None => false,
+        }
+    }
+
+    /// 比较两个值
+    fn compare_values(a: &Value, b: &Value) -> Option<std::cmp::Ordering> {
+        match (a, b) {
+            (Value::Int(a_i), Value::Int(b_i)) => Some(a_i.cmp(b_i)),
+            (Value::Float(a_f), Value::Float(b_f)) => a_f.partial_cmp(b_f),
+            (Value::Int(a_i), Value::Float(b_f)) => (*a_i as f64).partial_cmp(b_f),
+            (Value::Float(a_f), Value::Int(b_i)) => a_f.partial_cmp(&(*b_i as f64)),
+            (Value::String(a_s), Value::String(b_s)) => Some(a_s.cmp(b_s)),
+            _ => None,
+        }
+    }
+
+    /// 检查两个值是否相等
+    fn values_equal(a: &Value, b: &Value) -> bool {
+        matches!(Self::compare_values(a, b), Some(std::cmp::Ordering::Equal))
     }
 }
 

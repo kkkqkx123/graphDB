@@ -71,9 +71,11 @@ fn is_valid_index_scan(index_scan: &IndexScan) -> bool {
 
 /// 优化索引扫描
 fn optimize_index_scan(index_scan: &mut IndexScan) {
+    use crate::query::planner::plan::algorithms::ScanType;
+
     if index_scan.scan_limits.is_empty() {
-        index_scan.scan_type = "FULL".to_string();
+        index_scan.scan_type = ScanType::Full;
     } else {
-        index_scan.scan_type = "RANGE".to_string();
+        index_scan.scan_type = ScanType::Range;
     }
 }

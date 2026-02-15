@@ -221,30 +221,64 @@ fn create_index_limit(
     column: String,
     value: String,
 ) -> crate::query::planner::plan::algorithms::IndexLimit {
+    use crate::query::planner::plan::algorithms::ScanType;
+
     match op {
         crate::core::BinaryOperator::Equal => crate::query::planner::plan::algorithms::IndexLimit {
             column,
             begin_value: Some(value.clone()),
             end_value: Some(value),
+            include_begin: true,
+            include_end: true,
+            scan_type: ScanType::Unique,
         },
-        crate::core::BinaryOperator::GreaterThan | crate::core::BinaryOperator::GreaterThanOrEqual => {
+        crate::core::BinaryOperator::GreaterThan => {
             crate::query::planner::plan::algorithms::IndexLimit {
                 column,
                 begin_value: Some(value),
                 end_value: None,
+                include_begin: false,
+                include_end: false,
+                scan_type: ScanType::Range,
             }
         }
-        crate::core::BinaryOperator::LessThan | crate::core::BinaryOperator::LessThanOrEqual => {
+        crate::core::BinaryOperator::GreaterThanOrEqual => {
+            crate::query::planner::plan::algorithms::IndexLimit {
+                column,
+                begin_value: Some(value),
+                end_value: None,
+                include_begin: true,
+                include_end: false,
+                scan_type: ScanType::Range,
+            }
+        }
+        crate::core::BinaryOperator::LessThan => {
             crate::query::planner::plan::algorithms::IndexLimit {
                 column,
                 begin_value: None,
                 end_value: Some(value),
+                include_begin: false,
+                include_end: false,
+                scan_type: ScanType::Range,
+            }
+        }
+        crate::core::BinaryOperator::LessThanOrEqual => {
+            crate::query::planner::plan::algorithms::IndexLimit {
+                column,
+                begin_value: None,
+                end_value: Some(value),
+                include_begin: false,
+                include_end: true,
+                scan_type: ScanType::Range,
             }
         }
         _ => crate::query::planner::plan::algorithms::IndexLimit {
             column,
             begin_value: None,
             end_value: None,
+            include_begin: false,
+            include_end: false,
+            scan_type: ScanType::Full,
         },
     }
 }

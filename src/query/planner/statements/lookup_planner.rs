@@ -6,13 +6,16 @@
 //! - 统一导入路径
 //! - 完善表达式解析
 //! - 添加属性索引选择逻辑
+//! - 使用 IndexSelector 自动选择最优索引
 
 use crate::core::types::expression::Expression;
 use crate::query::context::ast::{AstContext, LookupContext};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
+use crate::query::planner::plan::algorithms::{IndexScan, ScanType};
+use crate::query::optimizer::IndexSelector;
+use crate::index::Index;
 
-pub use crate::query::planner::plan::algorithms::IndexScan;
 pub use crate::query::planner::plan::core::nodes::{
     ArgumentNode, DedupNode, FilterNode, GetEdgesNode, GetVerticesNode, HashInnerJoinNode,
     ProjectNode,
@@ -61,13 +64,41 @@ impl Planner for LookupPlanner {
             ));
         }
 
-        let index_scan_node = IndexScan::new(
+        // 1. 获取可用的索引列表（从元数据服务）
+        let available_indexes = self.get_available_indexes(space_id as u64, lookup_ctx.schema_id, lookup_ctx.is_edge)?;
+
+        // 2. 使用 IndexSelector 选择最优索引
+        let (selected_index, scan_limits, scan_type) = if !available_indexes.is_empty() {
+            if let Some(candidate) = IndexSelector::select_best_index(&available_indexes, &lookup_ctx.filter) {
+                let scan_limits = IndexSelector::hints_to_limits(&candidate.column_hints);
+                let scan_type = if candidate.column_hints.is_empty() {
+                    ScanType::Full
+                } else {
+                    candidate.column_hints[0].scan_type
+                };
+                (Some(candidate.index), scan_limits, scan_type)
+            } else {
+                (available_indexes.first().cloned(), vec![], ScanType::Full)
+            }
+        } else {
+            (None, vec![], ScanType::Full)
+        };
+
+        let index_id = selected_index.as_ref().map(|idx| idx.id).unwrap_or(lookup_ctx.schema_id);
+
+        // 3. 创建 IndexScan 节点，使用动态选择的扫描类型
+        let mut index_scan_node = IndexScan::new(
             -1,
             space_id as i32,
             lookup_ctx.schema_id,
-            lookup_ctx.schema_id,
-            "RANGE",
+            index_id,
+            scan_type,
         );
+
+        // 4. 设置扫描限制和返回列
+        index_scan_node.scan_limits = scan_limits;
+        index_scan_node.return_columns = lookup_ctx.idx_return_cols.clone();
+
         let mut current_node: PlanNodeEnum = PlanNodeEnum::IndexScan(index_scan_node);
 
         if let Some(ref condition) = lookup_ctx.filter {
@@ -107,6 +138,36 @@ impl Planner for LookupPlanner {
 }
 
 impl LookupPlanner {
+    /// 获取可用的索引列表
+    /// 注意：这里简化实现，实际应该从元数据服务获取
+    fn get_available_indexes(
+        &self,
+        _space_id: u64,
+        schema_id: i32,
+        is_edge: bool,
+    ) -> Result<Vec<Index>, PlannerError> {
+        // 简化实现：创建一个默认索引
+        // 实际应该从元数据服务查询
+        let default_index = Index {
+            id: schema_id,
+            name: format!("idx_{}_{}", if is_edge { "edge" } else { "tag" }, schema_id),
+            space_id: _space_id as i32,
+            schema_name: format!("schema_{}", schema_id),
+            fields: vec![], // 实际应该从元数据获取字段信息
+            properties: vec![],
+            index_type: if is_edge {
+                crate::index::IndexType::EdgeIndex
+            } else {
+                crate::index::IndexType::TagIndex
+            },
+            status: crate::index::IndexStatus::Active,
+            is_unique: false,
+            comment: None,
+        };
+
+        Ok(vec![default_index])
+    }
+
     /// 构建YIELD列
     fn build_yield_columns(
         lookup_ctx: &LookupContext,

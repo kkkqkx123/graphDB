@@ -6,6 +6,7 @@ use super::super::common::{EdgeProp, TagProp};
 use crate::core::Expression;
 use crate::define_plan_node;
 use crate::query::planner::plan::core::node_id_generator::next_node_id;
+use crate::query::planner::plan::algorithms::{IndexLimit, ScanType};
 
 define_plan_node! {
     pub struct GetVerticesNode {
@@ -75,6 +76,9 @@ define_plan_node! {
         index_name: String,
         expression: Option<String>,
         limit: Option<i64>,
+        scan_type: ScanType,
+        scan_limits: Vec<IndexLimit>,
+        return_columns: Vec<String>,
     }
     enum: EdgeIndexScan
     input: ZeroInputNode
@@ -89,6 +93,9 @@ impl EdgeIndexScanNode {
             index_name: index_name.to_string(),
             expression: None,
             limit: None,
+            scan_type: ScanType::Full,
+            scan_limits: Vec::new(),
+            return_columns: Vec::new(),
             output_var: None,
             col_names: Vec::new(),
             cost: 0.0,
@@ -117,6 +124,30 @@ impl EdgeIndexScanNode {
 
     pub fn limit(&self) -> Option<i64> {
         self.limit
+    }
+
+    pub fn scan_type(&self) -> ScanType {
+        self.scan_type
+    }
+
+    pub fn set_scan_type(&mut self, scan_type: ScanType) {
+        self.scan_type = scan_type;
+    }
+
+    pub fn scan_limits(&self) -> &[IndexLimit] {
+        &self.scan_limits
+    }
+
+    pub fn set_scan_limits(&mut self, scan_limits: Vec<IndexLimit>) {
+        self.scan_limits = scan_limits;
+    }
+
+    pub fn return_columns(&self) -> &[String] {
+        &self.return_columns
+    }
+
+    pub fn set_return_columns(&mut self, columns: Vec<String>) {
+        self.return_columns = columns;
     }
 }
 

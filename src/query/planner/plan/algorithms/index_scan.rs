@@ -7,11 +7,100 @@ use crate::query::planner::plan::core::nodes::plan_node_traits::{
     PlanNode, PlanNodeClonable, ZeroInputNode,
 };
 
+/// 索引扫描类型
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ScanType {
+    /// 唯一匹配（等值查询）
+    #[default]
+    Unique,
+    /// 前缀匹配
+    Prefix,
+    /// 范围查询
+    Range,
+    /// 全表扫描
+    Full,
+}
+
+impl ScanType {
+    /// 从字符串解析扫描类型
+    pub fn from_str(s: &str) -> Self {
+        match s.to_uppercase().as_str() {
+            "UNIQUE" => ScanType::Unique,
+            "PREFIX" => ScanType::Prefix,
+            "RANGE" => ScanType::Range,
+            "FULL" => ScanType::Full,
+            _ => ScanType::Range, // 默认使用范围扫描
+        }
+    }
+
+    /// 转换为字符串
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ScanType::Unique => "UNIQUE",
+            ScanType::Prefix => "PREFIX",
+            ScanType::Range => "RANGE",
+            ScanType::Full => "FULL",
+        }
+    }
+}
+
+/// 索引扫描限制条件
 #[derive(Debug, Clone)]
 pub struct IndexLimit {
     pub column: String,
     pub begin_value: Option<String>,
     pub end_value: Option<String>,
+    /// 是否包含起始值
+    pub include_begin: bool,
+    /// 是否包含结束值
+    pub include_end: bool,
+    /// 扫描类型
+    pub scan_type: ScanType,
+}
+
+impl IndexLimit {
+    /// 创建等值查询限制
+    pub fn equal(column: impl Into<String>, value: impl Into<String>) -> Self {
+        let value = value.into();
+        Self {
+            column: column.into(),
+            begin_value: Some(value.clone()),
+            end_value: Some(value),
+            include_begin: true,
+            include_end: true,
+            scan_type: ScanType::Unique,
+        }
+    }
+
+    /// 创建范围查询限制
+    pub fn range(
+        column: impl Into<String>,
+        begin: Option<impl Into<String>>,
+        end: Option<impl Into<String>>,
+        include_begin: bool,
+        include_end: bool,
+    ) -> Self {
+        Self {
+            column: column.into(),
+            begin_value: begin.map(|v| v.into()),
+            end_value: end.map(|v| v.into()),
+            include_begin,
+            include_end,
+            scan_type: ScanType::Range,
+        }
+    }
+
+    /// 创建前缀查询限制
+    pub fn prefix(column: impl Into<String>, prefix: impl Into<String>) -> Self {
+        Self {
+            column: column.into(),
+            begin_value: Some(prefix.into()),
+            end_value: None,
+            include_begin: true,
+            include_end: false,
+            scan_type: ScanType::Prefix,
+        }
+    }
 }
 
 // 索引扫描的计划节点
@@ -25,7 +114,7 @@ pub struct IndexScan {
     pub space_id: i32,
     pub tag_id: i32,
     pub index_id: i32,
-    pub scan_type: String,            // "RANGE", "PREFIX", "UNIQUE"等
+    pub scan_type: ScanType,          // 使用枚举类型代替字符串
     pub scan_limits: Vec<IndexLimit>, // 索引扫描限制
     pub filter: Option<String>,
     pub return_columns: Vec<String>,
@@ -33,7 +122,7 @@ pub struct IndexScan {
 }
 
 impl IndexScan {
-    pub fn new(id: i64, space_id: i32, tag_id: i32, index_id: i32, scan_type: &str) -> Self {
+    pub fn new(id: i64, space_id: i32, tag_id: i32, index_id: i32, scan_type: ScanType) -> Self {
         Self {
             id,
             deps: Vec::new(),
@@ -43,12 +132,17 @@ impl IndexScan {
             space_id,
             tag_id,
             index_id,
-            scan_type: scan_type.to_string(),
+            scan_type,
             scan_limits: Vec::new(),
             filter: None,
             return_columns: Vec::new(),
             limit: None,
         }
+    }
+
+    /// 从字符串创建新的 IndexScan
+    pub fn new_with_str(id: i64, space_id: i32, tag_id: i32, index_id: i32, scan_type: &str) -> Self {
+        Self::new(id, space_id, tag_id, index_id, ScanType::from_str(scan_type))
     }
 
     pub fn set_limit(&mut self, limit: i64) {

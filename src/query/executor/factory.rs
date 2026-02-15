@@ -1012,7 +1012,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     node.space_id,
                     node.tag_id,
                     node.index_id,
-                    &node.scan_type,
+                    node.scan_type.as_str(),
                     node.scan_limits.clone(),
                     node.filter.as_ref().and_then(|f| parse_expression_safe(f)),
                     node.return_columns.clone(),
@@ -1029,10 +1029,10 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     node.space_id(),
                     node.edge_type().chars().fold(0, |acc, c| acc.wrapping_mul(31).wrapping_add(c as i32)), // 将 edge_type 转换为 tag_id
                     node.index_name().chars().fold(0, |acc, c| acc.wrapping_mul(31).wrapping_add(c as i32)), // 将 index_name 转换为 index_id
-                    "EDGE_INDEX",
-                    vec![], // EdgeIndexScanNode 没有 scan_limits 字段
+                    node.scan_type().as_str(),
+                    node.scan_limits().to_vec(),
                     node.filter().and_then(|f| parse_expression_safe(f)),
-                    vec![], // EdgeIndexScanNode 没有 return_columns 字段
+                    node.return_columns().to_vec(),
                     node.limit().map(|l| l as usize),
                     true, // is_edge - 边索引扫描
                 );

@@ -80,6 +80,8 @@ impl BaseOptRule for IndexScanRule {}
 
 /// 优化索引扫描
 fn optimize_index_scan(index_scan: &mut IndexScan) {
+    use crate::query::planner::plan::algorithms::ScanType;
+
     if index_scan.scan_limits.is_empty() {
         return;
     }
@@ -89,6 +91,6 @@ fn optimize_index_scan(index_scan: &mut IndexScan) {
     });
 
     if has_range_condition {
-        index_scan.scan_type = "RANGE".to_string();
+        index_scan.scan_type = ScanType::Range;
     }
 }

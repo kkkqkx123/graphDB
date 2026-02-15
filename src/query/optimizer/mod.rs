@@ -28,6 +28,9 @@ pub mod engine;
 // 优化规则模块（新结构）
 pub mod rules;
 
+// 索引选择器模块
+pub mod index_selector;
+
 // Re-export core types
 pub use core::{Cost, OptimizationConfig, OptimizationPhase, OptimizationStats, Statistics};
 
@@ -53,3 +56,6 @@ pub use rules::*;
 
 // Re-export rule traits
 pub use rule_traits::{BaseOptRule, EliminationRule, MergeRule, PushDownRule};
+
+// Re-export index selector
+pub use index_selector::{IndexCandidate, IndexColumnHint, IndexScore, IndexSelector};

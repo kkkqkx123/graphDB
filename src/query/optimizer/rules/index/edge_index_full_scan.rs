@@ -75,18 +75,20 @@ fn optimize_edge_index_scan(
     _ctx: &mut OptContext,
     group_node: &Rc<RefCell<OptGroupNode>>,
 ) -> Result<Option<TransformResult>, crate::query::optimizer::engine::OptimizerError> {
+    use crate::query::planner::plan::algorithms::ScanType;
+
     if index_scan.scan_limits.is_empty() {
         return Ok(None);
     }
 
     let mut new_index_scan = index_scan.clone();
-    new_index_scan.scan_type = "RANGE".to_string();
+    new_index_scan.scan_type = ScanType::Range;
 
     let mut new_index_scan_group_node = group_node.borrow().clone();
     new_index_scan_group_node.plan_node = PlanNodeEnum::IndexScan(new_index_scan);
 
     let mut result = TransformResult::new();
     result.add_new_group_node(Rc::new(RefCell::new(new_index_scan_group_node)));
-    
+
     Ok(Some(result))
 }

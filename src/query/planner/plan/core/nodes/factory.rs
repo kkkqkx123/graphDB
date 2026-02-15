@@ -311,10 +311,10 @@ impl PlanNodeFactory {
         index_id: i32,
         scan_type: &str,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
-        use crate::query::planner::plan::algorithms::IndexScan;
+        use crate::query::planner::plan::algorithms::{IndexScan, ScanType};
 
         // 创建 IndexScan 节点
-        let index_scan_node = IndexScan::new(-1, space_id, tag_id, index_id, scan_type);
+        let index_scan_node = IndexScan::new(-1, space_id, tag_id, index_id, ScanType::from_str(scan_type));
         Ok(PlanNodeEnum::IndexScan(index_scan_node))
     }
 

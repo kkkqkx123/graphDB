@@ -267,6 +267,7 @@ mod tests {
     use crate::api::session::ClientSession;
     use crate::api::session::client_session::Session;
     use crate::config::AuthConfig;
+    use std::sync::Arc;
 
     fn create_test_config() -> AuthConfig {
         AuthConfig {
