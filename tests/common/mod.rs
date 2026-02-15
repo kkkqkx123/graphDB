@@ -6,7 +6,8 @@ pub mod assertions;
 pub mod data_fixtures;
 pub mod storage_helpers;
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 use std::path::PathBuf;
 use graphdb::storage::redb_storage::RedbStorage;
 

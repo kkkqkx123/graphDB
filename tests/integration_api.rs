@@ -666,6 +666,7 @@ fn create_test_config() -> Config {
         max_connections: 10,
         transaction_timeout: 30,
         log_level: "info".to_string(),
+        log_dir: "logs".to_string(),
         log_file: "logs/test.log".to_string(),
         max_log_file_size: 100 * 1024 * 1024,
         max_log_files: 5,

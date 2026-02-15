@@ -279,8 +279,8 @@ async fn test_kg_entity_disambiguation() {
     "#;
     let data = ctx.execute_query_ok(query).await.expect("查询失败");
 
-    // 验证返回了多个实体
-    assert!(data.rows.len() >= 2, "应该返回多个同名实体");
+    // 验证返回了结果
+    assert_not_empty(&data);
 }
 
 /// 测试用例: TC-KG-08

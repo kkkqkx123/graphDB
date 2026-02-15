@@ -10,7 +10,7 @@ use tokio::sync::Mutex;
 use graphdb::api::service::{GraphService, StatsManager};
 use graphdb::api::session::{ClientSession, GraphSessionManager};
 use graphdb::config::Config;
-use graphdb::core::{Value, DataSet, Row};
+use graphdb::core::{Value, DataSet};
 use graphdb::storage::redb_storage::{RedbStorage, DefaultStorage};
 
 /// E2E 测试上下文
@@ -18,7 +18,6 @@ use graphdb::storage::redb_storage::{RedbStorage, DefaultStorage};
 /// 维护完整的测试环境，包括服务、会话和存储
 pub struct E2eTestContext {
     service: Arc<GraphService<DefaultStorage>>,
-    session_manager: Arc<GraphSessionManager>,
     storage: Arc<DefaultStorage>,
     temp_path: PathBuf,
     current_space: Mutex<Option<String>>,
@@ -49,18 +48,20 @@ impl E2eTestContext {
         config.storage_path = db_path.to_string_lossy().to_string();
         
         let storage = Arc::new(DefaultStorage::new_with_path(db_path)?);
-        let stats_manager = Arc::new(StatsManager::new());
-        let session_manager = Arc::new(GraphSessionManager::new(
-            format!("{}:{}", config.host, config.port),
-            config.max_connections,
-            3600,
-        ));
         
-        let service = Arc::new(GraphService::new(config, storage.clone()));
+        let service = GraphService::new(config, storage.clone());
+        
+        // 添加 e2e_test 用户并授予 Admin 权限
+        service.get_authenticator()
+            .add_user("e2e_test".to_string(), "test_pass".to_string())
+            .expect("添加 e2e_test 用户失败");
+        
+        service.get_permission_manager()
+            .grant_role("e2e_test", 0, graphdb::api::service::RoleType::Admin)
+            .expect("授予 e2e_test 权限失败");
         
         Ok(Self {
             service,
-            session_manager,
             storage,
             temp_path,
             current_space: Mutex::new(None),
@@ -68,8 +69,9 @@ impl E2eTestContext {
     }
     
     /// 创建新会话
-    pub async fn create_session(&self, username: &str) -> anyhow::Result<ClientSession> {
-        self.session_manager
+    pub async fn create_session(&self, username: &str) -> anyhow::Result<Arc<ClientSession>> {
+        self.service
+            .get_session_manager()
             .create_session(username.to_string(), "127.0.0.1".to_string())
             .map_err(|e| anyhow::anyhow!("创建会话失败: {}", e))
     }
@@ -84,9 +86,9 @@ impl E2eTestContext {
         let duration = start.elapsed();
         
         match result {
-            Ok(data_set) => Ok(QueryResult {
+            Ok(result_str) => Ok(QueryResult {
                 success: true,
-                data: Some(data_set),
+                data: Some(result_str),
                 error: None,
                 execution_time: duration,
             }),
@@ -100,7 +102,7 @@ impl E2eTestContext {
     }
     
     /// 执行查询并返回成功结果
-    pub async fn execute_query_ok(&self, query: &str) -> anyhow::Result<DataSet> {
+    pub async fn execute_query_ok(&self, query: &str) -> anyhow::Result<String> {
         let result = self.execute_query(query).await?;
         if result.success {
             Ok(result.data.expect("成功结果应包含数据"))
@@ -146,7 +148,6 @@ impl Clone for E2eTestContext {
     fn clone(&self) -> Self {
         Self {
             service: self.service.clone(),
-            session_manager: self.session_manager.clone(),
             storage: self.storage.clone(),
             temp_path: self.temp_path.clone(),
             current_space: Mutex::new(None),
@@ -158,7 +159,7 @@ impl Clone for E2eTestContext {
 #[derive(Debug, Clone)]
 pub struct QueryResult {
     pub success: bool,
-    pub data: Option<DataSet>,
+    pub data: Option<String>,
     pub error: Option<String>,
     pub execution_time: Duration,
 }
@@ -181,7 +182,17 @@ pub mod assertions {
         assert!(!result.success, "查询应该失败，但成功了");
     }
     
-    /// 断言结果集行数
+    /// 断言结果非空
+    pub fn assert_not_empty(result: &str) {
+        assert!(!result.is_empty() && result != "[]" && result != "{}", "结果不应为空");
+    }
+    
+    /// 断言结果为空
+    pub fn assert_empty(result: &str) {
+        assert!(result.is_empty() || result == "[]" || result == "{}", "结果应为空");
+    }
+    
+    /// 断言结果集行数（用于 DataSet）
     pub fn assert_row_count(data: &DataSet, expected: usize) {
         assert_eq!(
             data.rows.len(),
@@ -192,14 +203,13 @@ pub mod assertions {
         );
     }
     
-    /// 断言结果集非空
-    pub fn assert_not_empty(data: &DataSet) {
-        assert!(!data.rows.is_empty(), "结果集不应为空");
-    }
-    
-    /// 断言结果集为空
-    pub fn assert_empty(data: &DataSet) {
-        assert!(data.rows.is_empty(), "结果集应为空");
+    /// 断言行包含特定值
+    pub fn assert_row_contains(row: &[Value], column_index: usize, expected: &Value) {
+        assert_eq!(
+            &row[column_index], expected,
+            "列索引 {} 的值不匹配",
+            column_index
+        );
     }
     
     /// 断言执行时间在限制内
@@ -212,25 +222,10 @@ pub mod assertions {
         );
     }
     
-    /// 断言行包含特定值
-    pub fn assert_row_contains(row: &Row, column: &str, expected: &Value) {
-        let col_index = row
-            .columns
-            .iter()
-            .position(|c| c == column)
-            .expect(&format!("列 '{}' 不存在", column));
-        
-        assert_eq!(
-            &row.values[col_index], expected,
-            "列 '{}' 的值不匹配",
-            column
-        );
-    }
-    
     /// 断言结果包含列
     pub fn assert_has_column(data: &DataSet, column: &str) {
         assert!(
-            data.columns.iter().any(|c| c.name == column),
+            data.col_names.iter().any(|c| c == column),
             "结果集应包含列 '{}'",
             column
         );
@@ -342,3 +337,6 @@ where
     
     Err(last_error.unwrap())
 }
+
+/// 测试数据生成器
+pub mod data_generators;

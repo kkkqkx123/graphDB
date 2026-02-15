@@ -17,10 +17,11 @@ use common::{
 use graphdb::core::{Value, Vertex, Edge};
 use graphdb::index::{Index, IndexType, IndexField, IndexStatus};
 use graphdb::storage::StorageClient;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
-fn get_storage(storage: &Arc<Mutex<graphdb::storage::redb_storage::RedbStorage>>) -> std::sync::MutexGuard<graphdb::storage::redb_storage::RedbStorage> {
-    storage.lock().expect("获取存储锁失败")
+fn get_storage(storage: &Arc<Mutex<graphdb::storage::redb_storage::RedbStorage>>) -> parking_lot::MutexGuard<graphdb::storage::redb_storage::RedbStorage> {
+    storage.lock()
 }
 
 // ==================== Tag 索引元数据管理测试 ====================

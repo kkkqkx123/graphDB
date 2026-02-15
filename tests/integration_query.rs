@@ -25,7 +25,8 @@ use graphdb::query::planner::{plan::ExecutionPlan, Planner, StaticConfigurablePl
 use graphdb::query::optimizer::Optimizer;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
 use graphdb::storage::StorageClient;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 // ==================== Parser 集成测试 ====================
 
@@ -214,10 +215,10 @@ async fn test_validator_match_basic() {
     // 创建图空间和Schema
     let space_info = create_test_space("validator_test_space");
     {
-        let mut storage_guard = storage.lock().expect("获取存储锁失败");
+        let mut storage_guard = storage.lock();
         assert_ok(storage_guard.create_space(&space_info));
     }
-    
+
     // 解析查询
     let query = "USE validator_test_space; MATCH (n:Person) RETURN n";
     let mut parser = Parser::new(query);
@@ -296,10 +297,10 @@ async fn test_planner_match_statement() {
     // 创建图空间
     let space_info = create_test_space("planner_test_space");
     {
-        let mut storage_guard = storage.lock().expect("获取存储锁失败");
+        let mut storage_guard = storage.lock();
         assert_ok(storage_guard.create_space(&space_info));
     }
-    
+
     // 解析查询
     let query = "MATCH (n:Person) RETURN n";
     let mut parser = Parser::new(query);
@@ -398,11 +399,11 @@ async fn test_pipeline_manager_use_space() {
     
     // 先创建空间
     {
-        let mut storage_guard = storage.lock().expect("获取存储锁失败");
+        let mut storage_guard = storage.lock();
         let space_info = create_test_space("use_test_space");
         let _ = storage_guard.create_space(&space_info);
     }
-    
+
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     // 执行USE查询

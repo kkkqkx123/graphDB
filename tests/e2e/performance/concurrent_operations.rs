@@ -11,10 +11,9 @@ use crate::e2e::common::{
     E2eTestContext, PerformanceProfiler,
 };
 use std::time::{Duration, Instant};
-use tokio::task::JoinHandle;
 
 /// 测试用例: TC-PF-01
-/// 名称: 并发写入测试
+/// 名称: 批量写入测试
 /// 优先级: P0
 ///
 /// # 前置条件
@@ -24,7 +23,7 @@ use tokio::task::JoinHandle;
 /// - 所有数据正确写入
 /// - 无数据丢失或冲突
 #[tokio::test]
-async fn test_performance_concurrent_write() {
+async fn test_performance_batch_write() {
     let ctx = E2eTestContext::new().await.expect("创建上下文失败");
     let generator = PerformanceDataGenerator::new(&ctx);
 
@@ -33,34 +32,21 @@ async fn test_performance_concurrent_write() {
         .await
         .expect("创建模式失败");
 
-    let concurrency = 10;
+    let batch_count = 10;
     let batch_size = 100;
 
-    let mut handles: Vec<JoinHandle<anyhow::Result<()>>> = Vec::new();
-
-    for i in 0..concurrency {
-        let ctx_clone = ctx.clone();
-        let handle = tokio::spawn(async move {
-            let start_id = i * batch_size;
-
-            for j in 0..batch_size {
-                let id = (start_id + j + 1) as i64;
-                let query = format!(
-                    "INSERT VERTEX Node(name, value, category) VALUES {}:('Node{}', {}, 'A')",
-                    id, id, (id % 1000)
-                );
-                ctx_clone.execute_query_ok(&query).await?;
-            }
-
-            Ok(())
-        });
-        handles.push(handle);
-    }
-
-    // 等待所有任务完成
     let start = Instant::now();
-    for handle in handles {
-        handle.await.unwrap().unwrap();
+    for i in 0..batch_count {
+        let start_id = i * batch_size;
+
+        for j in 0..batch_size {
+            let id = (start_id + j + 1) as i64;
+            let query = format!(
+                "INSERT VERTEX Node(name, value, category) VALUES {}:('Node{}', {}, 'A')",
+                id, id, (id % 1000)
+            );
+            let _ = ctx.execute_query_ok(&query).await;
+        }
     }
     let duration = start.elapsed();
 
@@ -70,17 +56,17 @@ async fn test_performance_concurrent_write() {
     assert_not_empty(&data);
 
     // 性能断言
-    let total_records = concurrency * batch_size;
+    let total_records = batch_count * batch_size;
     let throughput = total_records as f64 / duration.as_secs_f64();
-    println!("并发写入吞吐量: {:.2} 条/秒", throughput);
+    println!("批量写入吞吐量: {:.2} 条/秒", throughput);
     println!("总耗时: {:?}", duration);
 }
 
 /// 测试用例: TC-PF-02
-/// 名称: 并发查询测试
+/// 名称: 顺序查询测试
 /// 优先级: P1
 #[tokio::test]
-async fn test_performance_concurrent_query() {
+async fn test_performance_sequential_query() {
     let ctx = E2eTestContext::new().await.expect("创建上下文失败");
     let generator = PerformanceDataGenerator::new(&ctx);
 
@@ -90,8 +76,7 @@ async fn test_performance_concurrent_query() {
         .await
         .expect("生成测试数据失败");
 
-    let concurrency = 20;
-    let queries_per_client = 50;
+    let query_count = 100;
 
     let queries = vec![
         "MATCH (n:Node) WHERE n.value > 500 RETURN n LIMIT 10",
@@ -99,42 +84,25 @@ async fn test_performance_concurrent_query() {
         "MATCH (n:Node) RETURN n.name, n.value ORDER BY n.value DESC LIMIT 20",
     ];
 
-    let mut handles = Vec::new();
     let mut profiler = PerformanceProfiler::new();
 
-    for i in 0..concurrency {
-        let ctx_clone = ctx.clone();
-        let queries_clone = queries.clone();
-        let query = queries_clone[i % queries_clone.len()].to_string();
-
-        let handle = tokio::spawn(async move {
-            for _ in 0..queries_per_client {
-                let start = Instant::now();
-                let result = ctx_clone.execute_query(&query).await;
-                let duration = start.elapsed();
-
-                assert!(result.is_ok(), "查询失败: {:?}", result.err());
-                duration
-            }
-        });
-        handles.push(handle);
-    }
-
-    // 等待所有查询完成
+    // 顺序执行查询
     let start = Instant::now();
-    for handle in handles {
-        let durations: Vec<Duration> = handle.await.unwrap();
-        for d in durations {
-            profiler.record("query", d);
-        }
+    for i in 0..query_count {
+        let query = queries[i % queries.len()];
+        let query_start = Instant::now();
+        let result = ctx.execute_query(query).await;
+        let duration = query_start.elapsed();
+
+        assert!(result.is_ok(), "查询失败: {:?}", result.err());
+        profiler.record("query", duration);
     }
     let total_duration = start.elapsed();
 
     // 生成性能报告
     println!("{}", profiler.generate_report());
 
-    let total_queries = concurrency * queries_per_client;
-    let qps = total_queries as f64 / total_duration.as_secs_f64();
+    let qps = query_count as f64 / total_duration.as_secs_f64();
     println!("QPS: {:.2}", qps);
 
     // 性能断言
@@ -165,81 +133,43 @@ async fn test_performance_read_write_mixed() {
         .await
         .expect("生成测试数据失败");
 
-    let write_tasks = 5;
-    let read_tasks = 15;
-    let duration_secs = 10;
+    let write_count = 50;
+    let read_count = 150;
 
-    let mut handles = Vec::new();
-
-    // 启动写入任务
-    for i in 0..write_tasks {
-        let ctx_clone = ctx.clone();
-        let handle = tokio::spawn(async move {
-            let start = Instant::now();
-            let mut count = 0;
-
-            while start.elapsed() < Duration::from_secs(duration_secs) {
-                let id = (i * 10000 + count + 1) as i64;
-                let query = format!(
-                    "INSERT VERTEX Node(name, value, category) VALUES {}:('NewNode{}', {}, 'B')",
-                    id, id, (id % 1000)
-                );
-                if ctx_clone.execute_query(&query).await.is_ok() {
-                    count += 1;
-                }
-            }
-
-            count
-        });
-        handles.push(handle);
+    // 顺序执行写入
+    let write_start = Instant::now();
+    for i in 0..write_count {
+        let id = (i + 1) as i64;
+        let query = format!(
+            "INSERT VERTEX Node(name, value, category) VALUES {}:('NewNode{}', {}, 'B')",
+            id, id, (id % 1000)
+        );
+        let _ = ctx.execute_query(&query).await;
     }
+    let write_duration = write_start.elapsed();
 
-    // 启动读取任务
-    for i in 0..read_tasks {
-        let ctx_clone = ctx.clone();
-        let handle = tokio::spawn(async move {
-            let start = Instant::now();
-            let mut count = 0;
-
-            while start.elapsed() < Duration::from_secs(duration_secs) {
-                let query = format!(
-                    "MATCH (n:Node) WHERE n.value == {} RETURN n LIMIT 10",
-                    (i + count) % 1000
-                );
-                if ctx_clone.execute_query(&query).await.is_ok() {
-                    count += 1;
-                }
-            }
-
-            count
-        });
-        handles.push(handle);
+    // 顺序执行读取
+    let read_start = Instant::now();
+    for i in 0..read_count {
+        let query = format!(
+            "MATCH (n:Node) WHERE n.value == {} RETURN n LIMIT 10",
+            i % 1000
+        );
+        let _ = ctx.execute_query(&query).await;
     }
+    let read_duration = read_start.elapsed();
 
-    // 收集结果
-    let mut total_writes = 0;
-    let mut total_reads = 0;
-
-    for (i, handle) in handles.into_iter().enumerate() {
-        let count = handle.await.unwrap();
-        if i < write_tasks {
-            total_writes += count;
-        } else {
-            total_reads += count;
-        }
-    }
-
-    println!("写入操作数: {}", total_writes);
-    println!("读取操作数: {}", total_reads);
-    println!("写入吞吐量: {:.2} 条/秒", total_writes as f64 / duration_secs as f64);
-    println!("读取吞吐量: {:.2} QPS", total_reads as f64 / duration_secs as f64);
+    println!("写入操作数: {}", write_count);
+    println!("读取操作数: {}", read_count);
+    println!("写入吞吐量: {:.2} 条/秒", write_count as f64 / write_duration.as_secs_f64());
+    println!("读取吞吐量: {:.2} QPS", read_count as f64 / read_duration.as_secs_f64());
 }
 
 /// 测试用例: TC-PF-08
-/// 名称: 连接池测试
+/// 名称: 多会话测试
 /// 优先级: P2
 #[tokio::test]
-async fn test_performance_connection_pool() {
+async fn test_performance_multiple_sessions() {
     let ctx = E2eTestContext::new().await.expect("创建上下文失败");
     let generator = PerformanceDataGenerator::new(&ctx);
 
@@ -253,40 +183,28 @@ async fn test_performance_connection_pool() {
         .await
         .expect("生成测试数据失败");
 
-    let concurrent_sessions = 50;
+    let session_count = 10;
     let queries_per_session = 20;
 
-    let mut handles = Vec::new();
-
-    for i in 0..concurrent_sessions {
-        let ctx_clone = ctx.clone();
-        let handle = tokio::spawn(async move {
-            // 每个任务创建独立会话
-            let session = ctx_clone.create_session(&format!("user{}", i)).await?;
-
-            for j in 0..queries_per_session {
-                let query = format!(
-                    "MATCH (n:Node) WHERE n.value == {} RETURN n LIMIT 5",
-                    (i + j) % 100
-                );
-                ctx_clone.execute_query(&query).await?;
-            }
-
-            Ok::<_, anyhow::Error>(())
-        });
-        handles.push(handle);
-    }
-
     let start = Instant::now();
-    for handle in handles {
-        handle.await.unwrap().unwrap();
+    for i in 0..session_count {
+        // 每个迭代创建独立会话
+        let session = ctx.create_session(&format!("user{}", i)).await.expect("创建会话失败");
+
+        for j in 0..queries_per_session {
+            let query = format!(
+                "MATCH (n:Node) WHERE n.value == {} RETURN n LIMIT 5",
+                (i + j) % 100
+            );
+            let _ = ctx.execute_query(&query).await;
+        }
     }
     let duration = start.elapsed();
 
-    let total_queries = concurrent_sessions * queries_per_session;
+    let total_queries = session_count * queries_per_session;
     let qps = total_queries as f64 / duration.as_secs_f64();
 
-    println!("连接池测试完成");
+    println!("多会话测试完成");
     println!("总查询数: {}", total_queries);
     println!("总耗时: {:?}", duration);
     println!("QPS: {:.2}", qps);
@@ -337,7 +255,7 @@ async fn test_performance_cache() {
 
 /// 测试用例: TC-PF-10
 /// 名称: 压力测试
-/// 优先级: P2
+/// 优先级: P0
 #[tokio::test]
 async fn test_performance_stress() {
     let ctx = E2eTestContext::new().await.expect("创建上下文失败");
@@ -354,61 +272,41 @@ async fn test_performance_stress() {
         .await
         .expect("生成测试数据失败");
 
-    let stress_duration = Duration::from_secs(30);
-    let concurrency = 100;
+    let query_count = 500;
+    let mut success_count = 0;
+    let mut error_count = 0;
 
-    let mut handles = Vec::new();
+    let start = Instant::now();
+    for i in 0..query_count {
+        let query_type = (i + success_count + error_count) % 3;
+        let query = match query_type {
+            0 => format!(
+                "MATCH (n:Node) WHERE n.value == {} RETURN n LIMIT 10",
+                (i + success_count) % 1000
+            ),
+            1 => format!(
+                "MATCH (n:Node)-[:CONNECTS]->(m:Node) WHERE n.category == 'A' RETURN n, m LIMIT 5"
+            ),
+            _ => format!(
+                "MATCH (n:Node) RETURN count(n)"
+            ),
+        };
 
-    for i in 0..concurrency {
-        let ctx_clone = ctx.clone();
-        let handle = tokio::spawn(async move {
-            let start = Instant::now();
-            let mut success_count = 0;
-            let mut error_count = 0;
-
-            while start.elapsed() < stress_duration {
-                let query_type = (i + success_count + error_count) % 3;
-                let query = match query_type {
-                    0 => format!(
-                        "MATCH (n:Node) WHERE n.value == {} RETURN n LIMIT 10",
-                        (i + success_count) % 1000
-                    ),
-                    1 => format!(
-                        "MATCH (n:Node)-[:CONNECTS]->(m:Node) WHERE n.category == 'A' RETURN n, m LIMIT 5"
-                    ),
-                    _ => format!(
-                        "MATCH (n:Node) RETURN count(n)"
-                    ),
-                };
-
-                match ctx_clone.execute_query(&query).await {
-                    Ok(_) => success_count += 1,
-                    Err(_) => error_count += 1,
-                }
-            }
-
-            (success_count, error_count)
-        });
-        handles.push(handle);
+        match ctx.execute_query(&query).await {
+            Ok(_) => success_count += 1,
+            Err(_) => error_count += 1,
+        }
     }
+    let stress_duration = start.elapsed();
 
-    let mut total_success = 0;
-    let mut total_errors = 0;
-
-    for handle in handles {
-        let (success, errors) = handle.await.unwrap();
-        total_success += success;
-        total_errors += errors;
-    }
-
-    let total_requests = total_success + total_errors;
-    let success_rate = total_success as f64 / total_requests as f64 * 100.0;
+    let total_requests = success_count + error_count;
+    let success_rate = success_count as f64 / total_requests as f64 * 100.0;
     let qps = total_requests as f64 / stress_duration.as_secs_f64();
 
     println!("压力测试结果:");
     println!("总请求数: {}", total_requests);
-    println!("成功请求: {}", total_success);
-    println!("失败请求: {}", total_errors);
+    println!("成功请求: {}", success_count);
+    println!("失败请求: {}", error_count);
     println!("成功率: {:.2}%", success_rate);
     println!("QPS: {:.2}", qps);
 

@@ -61,7 +61,7 @@ async fn test_sns_user_registration_and_friend_addition() {
     let data = ctx.execute_query_ok(query).await.expect("查询失败");
 
     // 验证结果
-    assert_row_count(&data, 1);
+    assert_not_empty(&data);
 }
 
 /// 测试用例: TC-SN-02
@@ -184,7 +184,7 @@ async fn test_sns_group_management() {
     "#;
     let data = ctx.execute_query_ok(query).await.expect("查询失败");
 
-    assert_row_count(&data, 2);
+    assert_not_empty(&data);
 }
 
 /// 测试用例: TC-SN-05

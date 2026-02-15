@@ -17,11 +17,12 @@ use common::{
 };
 use graphdb::core::{Value, Vertex, Edge};
 use graphdb::storage::StorageClient;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 // 辅助函数：获取可变存储
-fn get_storage(storage: &Arc<Mutex<graphdb::storage::redb_storage::RedbStorage>>) -> std::sync::MutexGuard<graphdb::storage::redb_storage::RedbStorage> {
-    storage.lock().expect("获取存储锁失败")
+fn get_storage(storage: &Arc<Mutex<graphdb::storage::redb_storage::RedbStorage>>) -> parking_lot::MutexGuard<graphdb::storage::redb_storage::RedbStorage> {
+    storage.lock()
 }
 
 // ==================== 图空间管理测试 ====================
