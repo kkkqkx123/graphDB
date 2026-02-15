@@ -8,6 +8,10 @@ pub mod conversion;
 pub mod regex;
 pub mod datetime;
 pub mod aggregate;
+pub mod graph;
+pub mod container;
+pub mod path;
+pub mod utility;
 
 use super::registry::FunctionRegistry;
 
@@ -18,4 +22,8 @@ pub fn register_all(registry: &mut FunctionRegistry) {
     conversion::register_all(registry);
     regex::register_all(registry);
     datetime::register_all(registry);
+    graph::register_all(registry);
+    container::register_all(registry);
+    path::register_all(registry);
+    utility::register_all(registry);
 }

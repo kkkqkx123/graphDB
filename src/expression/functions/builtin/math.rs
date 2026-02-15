@@ -20,6 +20,14 @@ pub fn register_all(registry: &mut FunctionRegistry) {
     register_sin(registry);
     register_cos(registry);
     register_tan(registry);
+    register_bit_and(registry);
+    register_bit_or(registry);
+    register_bit_xor(registry);
+    register_asin(registry);
+    register_acos(registry);
+    register_atan(registry);
+    register_cbrt(registry);
+    register_hypot(registry);
 }
 
 fn register_abs(registry: &mut FunctionRegistry) {
@@ -627,6 +635,362 @@ fn register_tan(registry: &mut FunctionRegistry) {
                 Value::Float(f) => Ok(Value::Float(f.tan())),
                 Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
                 _ => Err(ExpressionError::type_error("tan函数需要浮点数类型")),
+            }
+        },
+    );
+}
+
+fn register_bit_and(registry: &mut FunctionRegistry) {
+    registry.register(
+        "bit_and",
+        FunctionSignature::new(
+            "bit_and",
+            vec![ValueType::Int, ValueType::Int],
+            ValueType::Int,
+            2,
+            2,
+            true,
+            "按位与",
+        ),
+        |args| {
+            match (&args[0], &args[1]) {
+                (Value::Int(a), Value::Int(b)) => Ok(Value::Int(a & b)),
+                (Value::Null(_), _) | (_, Value::Null(_)) => {
+                    Ok(Value::Null(crate::core::value::NullType::Null))
+                }
+                _ => Err(ExpressionError::type_error("bit_and函数需要整数参数")),
+            }
+        },
+    );
+}
+
+fn register_bit_or(registry: &mut FunctionRegistry) {
+    registry.register(
+        "bit_or",
+        FunctionSignature::new(
+            "bit_or",
+            vec![ValueType::Int, ValueType::Int],
+            ValueType::Int,
+            2,
+            2,
+            true,
+            "按位或",
+        ),
+        |args| {
+            match (&args[0], &args[1]) {
+                (Value::Int(a), Value::Int(b)) => Ok(Value::Int(a | b)),
+                (Value::Null(_), _) | (_, Value::Null(_)) => {
+                    Ok(Value::Null(crate::core::value::NullType::Null))
+                }
+                _ => Err(ExpressionError::type_error("bit_or函数需要整数参数")),
+            }
+        },
+    );
+}
+
+fn register_bit_xor(registry: &mut FunctionRegistry) {
+    registry.register(
+        "bit_xor",
+        FunctionSignature::new(
+            "bit_xor",
+            vec![ValueType::Int, ValueType::Int],
+            ValueType::Int,
+            2,
+            2,
+            true,
+            "按位异或",
+        ),
+        |args| {
+            match (&args[0], &args[1]) {
+                (Value::Int(a), Value::Int(b)) => Ok(Value::Int(a ^ b)),
+                (Value::Null(_), _) | (_, Value::Null(_)) => {
+                    Ok(Value::Null(crate::core::value::NullType::Null))
+                }
+                _ => Err(ExpressionError::type_error("bit_xor函数需要整数参数")),
+            }
+        },
+    );
+}
+
+fn register_asin(registry: &mut FunctionRegistry) {
+    registry.register(
+        "asin",
+        FunctionSignature::new(
+            "asin",
+            vec![ValueType::Int],
+            ValueType::Float,
+            1,
+            1,
+            true,
+            "计算反正弦",
+        ),
+        |args| {
+            match &args[0] {
+                Value::Int(i) => {
+                    let f = *i as f64;
+                    if f >= -1.0 && f <= 1.0 {
+                        Ok(Value::Float(f.asin()))
+                    } else {
+                        Ok(Value::Null(crate::core::value::NullType::NaN))
+                    }
+                }
+                Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
+                _ => Err(ExpressionError::type_error("asin函数需要整数类型")),
+            }
+        },
+    );
+
+    registry.register(
+        "asin",
+        FunctionSignature::new(
+            "asin",
+            vec![ValueType::Float],
+            ValueType::Float,
+            1,
+            1,
+            true,
+            "计算反正弦",
+        ),
+        |args| {
+            match &args[0] {
+                Value::Float(f) => {
+                    if *f >= -1.0 && *f <= 1.0 {
+                        Ok(Value::Float(f.asin()))
+                    } else {
+                        Ok(Value::Null(crate::core::value::NullType::NaN))
+                    }
+                }
+                Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
+                _ => Err(ExpressionError::type_error("asin函数需要浮点数类型")),
+            }
+        },
+    );
+}
+
+fn register_acos(registry: &mut FunctionRegistry) {
+    registry.register(
+        "acos",
+        FunctionSignature::new(
+            "acos",
+            vec![ValueType::Int],
+            ValueType::Float,
+            1,
+            1,
+            true,
+            "计算反余弦",
+        ),
+        |args| {
+            match &args[0] {
+                Value::Int(i) => {
+                    let f = *i as f64;
+                    if f >= -1.0 && f <= 1.0 {
+                        Ok(Value::Float(f.acos()))
+                    } else {
+                        Ok(Value::Null(crate::core::value::NullType::NaN))
+                    }
+                }
+                Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
+                _ => Err(ExpressionError::type_error("acos函数需要整数类型")),
+            }
+        },
+    );
+
+    registry.register(
+        "acos",
+        FunctionSignature::new(
+            "acos",
+            vec![ValueType::Float],
+            ValueType::Float,
+            1,
+            1,
+            true,
+            "计算反余弦",
+        ),
+        |args| {
+            match &args[0] {
+                Value::Float(f) => {
+                    if *f >= -1.0 && *f <= 1.0 {
+                        Ok(Value::Float(f.acos()))
+                    } else {
+                        Ok(Value::Null(crate::core::value::NullType::NaN))
+                    }
+                }
+                Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
+                _ => Err(ExpressionError::type_error("acos函数需要浮点数类型")),
+            }
+        },
+    );
+}
+
+fn register_atan(registry: &mut FunctionRegistry) {
+    registry.register(
+        "atan",
+        FunctionSignature::new(
+            "atan",
+            vec![ValueType::Int],
+            ValueType::Float,
+            1,
+            1,
+            true,
+            "计算反正切",
+        ),
+        |args| {
+            match &args[0] {
+                Value::Int(i) => Ok(Value::Float(((*i) as f64).atan())),
+                Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
+                _ => Err(ExpressionError::type_error("atan函数需要整数类型")),
+            }
+        },
+    );
+
+    registry.register(
+        "atan",
+        FunctionSignature::new(
+            "atan",
+            vec![ValueType::Float],
+            ValueType::Float,
+            1,
+            1,
+            true,
+            "计算反正切",
+        ),
+        |args| {
+            match &args[0] {
+                Value::Float(f) => Ok(Value::Float(f.atan())),
+                Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
+                _ => Err(ExpressionError::type_error("atan函数需要浮点数类型")),
+            }
+        },
+    );
+}
+
+fn register_cbrt(registry: &mut FunctionRegistry) {
+    registry.register(
+        "cbrt",
+        FunctionSignature::new(
+            "cbrt",
+            vec![ValueType::Int],
+            ValueType::Float,
+            1,
+            1,
+            true,
+            "计算立方根",
+        ),
+        |args| {
+            match &args[0] {
+                Value::Int(i) => Ok(Value::Float(((*i) as f64).cbrt())),
+                Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
+                _ => Err(ExpressionError::type_error("cbrt函数需要整数类型")),
+            }
+        },
+    );
+
+    registry.register(
+        "cbrt",
+        FunctionSignature::new(
+            "cbrt",
+            vec![ValueType::Float],
+            ValueType::Float,
+            1,
+            1,
+            true,
+            "计算立方根",
+        ),
+        |args| {
+            match &args[0] {
+                Value::Float(f) => Ok(Value::Float(f.cbrt())),
+                Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
+                _ => Err(ExpressionError::type_error("cbrt函数需要浮点数类型")),
+            }
+        },
+    );
+}
+
+fn register_hypot(registry: &mut FunctionRegistry) {
+    registry.register(
+        "hypot",
+        FunctionSignature::new(
+            "hypot",
+            vec![ValueType::Int, ValueType::Int],
+            ValueType::Float,
+            2,
+            2,
+            true,
+            "计算直角三角形斜边长度",
+        ),
+        |args| {
+            match (&args[0], &args[1]) {
+                (Value::Int(a), Value::Int(b)) => Ok(Value::Float((*a as f64).hypot(*b as f64))),
+                (Value::Null(_), _) | (_, Value::Null(_)) => {
+                    Ok(Value::Null(crate::core::value::NullType::Null))
+                }
+                _ => Err(ExpressionError::type_error("hypot函数需要整数参数")),
+            }
+        },
+    );
+
+    registry.register(
+        "hypot",
+        FunctionSignature::new(
+            "hypot",
+            vec![ValueType::Float, ValueType::Float],
+            ValueType::Float,
+            2,
+            2,
+            true,
+            "计算直角三角形斜边长度",
+        ),
+        |args| {
+            match (&args[0], &args[1]) {
+                (Value::Float(a), Value::Float(b)) => Ok(Value::Float(a.hypot(*b))),
+                (Value::Null(_), _) | (_, Value::Null(_)) => {
+                    Ok(Value::Null(crate::core::value::NullType::Null))
+                }
+                _ => Err(ExpressionError::type_error("hypot函数需要浮点数参数")),
+            }
+        },
+    );
+
+    registry.register(
+        "hypot",
+        FunctionSignature::new(
+            "hypot",
+            vec![ValueType::Int, ValueType::Float],
+            ValueType::Float,
+            2,
+            2,
+            true,
+            "计算直角三角形斜边长度",
+        ),
+        |args| {
+            match (&args[0], &args[1]) {
+                (Value::Int(a), Value::Float(b)) => Ok(Value::Float((*a as f64).hypot(*b))),
+                (Value::Null(_), _) | (_, Value::Null(_)) => {
+                    Ok(Value::Null(crate::core::value::NullType::Null))
+                }
+                _ => Err(ExpressionError::type_error("hypot函数需要数值参数")),
+            }
+        },
+    );
+
+    registry.register(
+        "hypot",
+        FunctionSignature::new(
+            "hypot",
+            vec![ValueType::Float, ValueType::Int],
+            ValueType::Float,
+            2,
+            2,
+            true,
+            "计算直角三角形斜边长度",
+        ),
+        |args| {
+            match (&args[0], &args[1]) {
+                (Value::Float(a), Value::Int(b)) => Ok(Value::Float(a.hypot(*b as f64))),
+                (Value::Null(_), _) | (_, Value::Null(_)) => {
+                    Ok(Value::Null(crate::core::value::NullType::Null))
+                }
+                _ => Err(ExpressionError::type_error("hypot函数需要数值参数")),
             }
         },
     );

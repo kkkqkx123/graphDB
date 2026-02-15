@@ -1,6 +1,7 @@
 //! 字符串函数实现
 
 use crate::core::error::ExpressionError;
+use crate::core::value::dataset::List;
 use crate::core::Value;
 use crate::expression::functions::registry::FunctionRegistry;
 use crate::expression::functions::signature::FunctionSignature;
@@ -21,6 +22,7 @@ pub fn register_all(registry: &mut FunctionRegistry) {
     register_left(registry);
     register_right(registry);
     register_reverse(registry);
+    register_split(registry);
 }
 
 fn register_length(registry: &mut FunctionRegistry) {
@@ -421,6 +423,33 @@ fn register_reverse(registry: &mut FunctionRegistry) {
                 }
                 Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
                 _ => Err(ExpressionError::type_error("reverse函数需要字符串类型")),
+            }
+        },
+    );
+}
+
+fn register_split(registry: &mut FunctionRegistry) {
+    registry.register(
+        "split",
+        FunctionSignature::new(
+            "split",
+            vec![ValueType::String, ValueType::String],
+            ValueType::List,
+            2,
+            2,
+            true,
+            "按分隔符分割字符串",
+        ),
+        |args| {
+            match (&args[0], &args[1]) {
+                (Value::String(s), Value::String(sep)) => {
+                    let parts: Vec<Value> = s.split(sep).map(|part| Value::String(part.to_string())).collect();
+                    Ok(Value::List(List { values: parts }))
+                }
+                (Value::Null(_), _) | (_, Value::Null(_)) => {
+                    Ok(Value::Null(crate::core::value::NullType::Null))
+                }
+                _ => Err(ExpressionError::type_error("split函数需要字符串类型")),
             }
         },
     );
