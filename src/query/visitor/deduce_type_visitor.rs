@@ -1,5 +1,4 @@
 //! DeduceTypeVisitor - 用于推导表达式类型的访问器
-//! 对应 NebulaGraph DeduceTypeVisitor.h/.cpp 的功能
 
 use crate::core::types::expression::Expression;
 use crate::core::types::expression::visitor::{ExpressionVisitor, ExpressionVisitorState, GenericExpressionVisitor};

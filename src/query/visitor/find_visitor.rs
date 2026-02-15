@@ -1,5 +1,4 @@
 //! FindVisitor - 用于查找表达式中特定类型子表达式的访问器
-//! 对应 NebulaGraph FindVisitor.h/.cpp 的功能
 
 use crate::core::types::expression::visitor::{ExpressionVisitor, ExpressionVisitorState};
 use crate::core::types::expression::DataType;

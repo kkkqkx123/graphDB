@@ -1,5 +1,4 @@
 //! ExtractFilterExprVisitor - 用于提取过滤表达式的访问器
-//! 对应 NebulaGraph ExtractFilterExprVisitor.h/.cpp 的功能
 
 use crate::core::types::expression::Expression;
 use crate::core::types::expression::visitor::{ExpressionVisitor, ExpressionVisitorState};
