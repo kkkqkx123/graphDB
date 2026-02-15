@@ -522,7 +522,8 @@ impl Optimizer {
             | PlanNodeEnum::DescEdgeIndex(_) | PlanNodeEnum::ShowEdgeIndexes(_)
             | PlanNodeEnum::RebuildTagIndex(_) | PlanNodeEnum::RebuildEdgeIndex(_)
             | PlanNodeEnum::CreateUser(_) | PlanNodeEnum::AlterUser(_) | PlanNodeEnum::DropUser(_)
-            | PlanNodeEnum::ChangePassword(_) => {
+            | PlanNodeEnum::ChangePassword(_)
+            | PlanNodeEnum::InsertVertices(_) | PlanNodeEnum::InsertEdges(_) => {
                 // These nodes don't have inputs to process in the current context
             }
         }

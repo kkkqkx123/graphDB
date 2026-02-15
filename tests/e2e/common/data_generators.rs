@@ -179,16 +179,16 @@ impl ECommerceDataGenerator {
         let schema_queries = vec![
             "CREATE SPACE IF NOT EXISTS ecommerce",
             "USE ecommerce",
-            "CREATE TAG IF NOT EXISTS User(name STRING, age INT, gender STRING, city STRING)",
-            "CREATE TAG IF NOT EXISTS Product(name STRING, category STRING, price DOUBLE, brand STRING)",
-            "CREATE TAG IF NOT EXISTS Category(name STRING, parent_id INT)",
-            "CREATE TAG IF NOT EXISTS Order(total_amount DOUBLE, status STRING, created_at TIMESTAMP)",
-            "CREATE EDGE IF NOT EXISTS VIEWED(view_time TIMESTAMP, duration INT)",
-            "CREATE EDGE IF NOT EXISTS ADDED_TO_CART(added_at TIMESTAMP, quantity INT)",
-            "CREATE EDGE IF NOT EXISTS PURCHASED(order_id STRING, quantity INT, price DOUBLE)",
+            "CREATE TAG IF NOT EXISTS User(name: STRING, age: INT, gender: STRING, city: STRING)",
+            "CREATE TAG IF NOT EXISTS Product(name: STRING, category: STRING, price: DOUBLE, brand: STRING)",
+            "CREATE TAG IF NOT EXISTS Category(name: STRING, parent_id: INT)",
+            "CREATE TAG IF NOT EXISTS Order(total_amount: DOUBLE, status: STRING, created_at: TIMESTAMP)",
+            "CREATE EDGE IF NOT EXISTS VIEWED(view_time: TIMESTAMP, duration: INT)",
+            "CREATE EDGE IF NOT EXISTS ADDED_TO_CART(added_at: TIMESTAMP, quantity: INT)",
+            "CREATE EDGE IF NOT EXISTS PURCHASED(order_id: STRING, quantity: INT, price: DOUBLE)",
             "CREATE EDGE IF NOT EXISTS BELONGS_TO",
-            "CREATE EDGE IF NOT EXISTS SIMILAR_TO(similarity_score DOUBLE)",
-            "CREATE EDGE IF NOT EXISTS BOUGHT_TOGETHER(frequency INT)",
+            "CREATE EDGE IF NOT EXISTS SIMILAR_TO(similarity_score: DOUBLE)",
+            "CREATE EDGE IF NOT EXISTS BOUGHT_TOGETHER(frequency: INT)",
         ];
         
         for query in schema_queries {
@@ -365,12 +365,12 @@ impl KnowledgeGraphDataGenerator {
         let schema_queries = vec![
             "CREATE SPACE IF NOT EXISTS knowledge_graph",
             "USE knowledge_graph",
-            "CREATE TAG IF NOT EXISTS Entity(name STRING, type STRING, description STRING)",
-            "CREATE TAG IF NOT EXISTS Concept(name STRING, domain STRING)",
-            "CREATE TAG IF NOT EXISTS Document(title STRING, content STRING, source STRING)",
-            "CREATE EDGE IF NOT EXISTS RELATES_TO(relation_type STRING, confidence DOUBLE)",
+            "CREATE TAG IF NOT EXISTS Entity(name: STRING, type: STRING, description: STRING)",
+            "CREATE TAG IF NOT EXISTS Concept(name: STRING, domain: STRING)",
+            "CREATE TAG IF NOT EXISTS Document(title: STRING, content: STRING, source: STRING)",
+            "CREATE EDGE IF NOT EXISTS RELATES_TO(relation_type: STRING, confidence: DOUBLE)",
             "CREATE EDGE IF NOT EXISTS INSTANCE_OF",
-            "CREATE EDGE IF NOT EXISTS MENTIONS(frequency INT)",
+            "CREATE EDGE IF NOT EXISTS MENTIONS(frequency: INT)",
             "CREATE EDGE IF NOT EXISTS PART_OF",
             "CREATE EDGE IF NOT EXISTS CAUSES",
         ];
@@ -468,8 +468,8 @@ impl PerformanceDataGenerator {
         let schema_queries = vec![
             "CREATE SPACE IF NOT EXISTS performance_test",
             "USE performance_test",
-            "CREATE TAG IF NOT EXISTS Node(name STRING, value INT, category STRING)",
-            "CREATE EDGE IF NOT EXISTS CONNECTS(weight DOUBLE)",
+            "CREATE TAG IF NOT EXISTS Node(name: STRING, value: INT, category: STRING)",
+            "CREATE EDGE IF NOT EXISTS CONNECTS(weight: DOUBLE)",
         ];
         
         for query in schema_queries {

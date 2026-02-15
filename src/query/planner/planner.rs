@@ -15,6 +15,7 @@ use parking_lot::Mutex;
 use crate::query::planner::statements::fetch_edges_planner::FetchEdgesPlanner;
 use crate::query::planner::statements::fetch_vertices_planner::FetchVerticesPlanner;
 use crate::query::planner::statements::go_planner::GoPlanner;
+use crate::query::planner::statements::insert_planner::InsertPlanner;
 use crate::query::planner::statements::lookup_planner::LookupPlanner;
 use crate::query::planner::statements::maintain_planner::MaintainPlanner;
 use crate::query::planner::statements::match_statement_planner::MatchStatementPlanner;
@@ -124,6 +125,7 @@ pub enum SentenceKind {
     Use,
     Show,
     Desc,
+    Insert,
 }
 
 impl SentenceKind {
@@ -147,6 +149,7 @@ impl SentenceKind {
             "USE" => Ok(SentenceKind::Use),
             "SHOW" => Ok(SentenceKind::Show),
             "DESC" => Ok(SentenceKind::Desc),
+            "INSERT" | "INSERT VERTEX" | "INSERT EDGE" => Ok(SentenceKind::Insert),
             _ => Err(PlannerError::UnsupportedOperation(format!(
                 "Unsupported statement type: {}",
                 s
@@ -171,6 +174,7 @@ impl SentenceKind {
             SentenceKind::Use => "USE",
             SentenceKind::Show => "SHOW",
             SentenceKind::Desc => "DESC",
+            SentenceKind::Insert => "INSERT",
         }
     }
 
@@ -185,9 +189,10 @@ impl SentenceKind {
             StatementType::GetSubgraph => Some(SentenceKind::Subgraph),
             StatementType::FetchVertices => Some(SentenceKind::FetchVertices),
             StatementType::FetchEdges => Some(SentenceKind::FetchEdges),
-            // 所有DDL和DML操作都映射到 Maintain
+            // INSERT 语句映射到 Insert
             StatementType::InsertVertices |
-            StatementType::InsertEdges |
+            StatementType::InsertEdges => Some(SentenceKind::Insert),
+            // 其他DDL和DML操作映射到 Maintain
             StatementType::Update |
             StatementType::Delete |
             StatementType::CreateSpace |
@@ -235,6 +240,7 @@ pub enum MatchAndInstantiateEnum {
     FetchEdges(FetchEdgesPlanner),
     Maintain(MaintainPlanner),
     UserManagement(UserManagementPlanner),
+    Insert(InsertPlanner),
 }
 
 impl MatchAndInstantiateEnum {
@@ -249,6 +255,7 @@ impl MatchAndInstantiateEnum {
             MatchAndInstantiateEnum::FetchEdges(_) => 100,
             MatchAndInstantiateEnum::Maintain(_) => 100,
             MatchAndInstantiateEnum::UserManagement(_) => 100,
+            MatchAndInstantiateEnum::Insert(_) => 100,
         }
     }
 
@@ -263,6 +270,7 @@ impl MatchAndInstantiateEnum {
             MatchAndInstantiateEnum::FetchEdges(planner) => planner.transform(ast_ctx),
             MatchAndInstantiateEnum::Maintain(planner) => planner.transform(ast_ctx),
             MatchAndInstantiateEnum::UserManagement(planner) => planner.transform(ast_ctx),
+            MatchAndInstantiateEnum::Insert(planner) => planner.transform(ast_ctx),
         }
     }
 
@@ -469,6 +477,7 @@ pub enum PlannerEnum {
     FetchEdges(FetchEdgesPlanner),
     Maintain(MaintainPlanner),
     UserManagement(UserManagementPlanner),
+    Insert(InsertPlanner),
 }
 
 impl PlannerEnum {
@@ -484,6 +493,7 @@ impl PlannerEnum {
             SentenceKind::FetchEdges => Some(PlannerEnum::FetchEdges(FetchEdgesPlanner::new())),
             SentenceKind::Maintain => Some(PlannerEnum::Maintain(MaintainPlanner::new())),
             SentenceKind::UserManagement => Some(PlannerEnum::UserManagement(UserManagementPlanner::new())),
+            SentenceKind::Insert => Some(PlannerEnum::Insert(InsertPlanner::new())),
             // DDL/DML 操作使用 Maintain 规划器
             SentenceKind::Create | SentenceKind::Drop | SentenceKind::Use | SentenceKind::Show | SentenceKind::Desc => {
                 Some(PlannerEnum::Maintain(MaintainPlanner::new()))
@@ -503,6 +513,7 @@ impl PlannerEnum {
             PlannerEnum::FetchEdges(planner) => planner.transform(ast_ctx),
             PlannerEnum::Maintain(planner) => planner.transform(ast_ctx),
             PlannerEnum::UserManagement(planner) => planner.transform(ast_ctx),
+            PlannerEnum::Insert(planner) => planner.transform(ast_ctx),
         }
     }
 
@@ -518,6 +529,7 @@ impl PlannerEnum {
             PlannerEnum::FetchEdges(_) => "FetchEdgesPlanner",
             PlannerEnum::Maintain(_) => "MaintainPlanner",
             PlannerEnum::UserManagement(_) => "UserManagementPlanner",
+            PlannerEnum::Insert(_) => "InsertPlanner",
         }
     }
 
@@ -533,6 +545,7 @@ impl PlannerEnum {
             PlannerEnum::FetchEdges(planner) => planner.match_planner(ast_ctx),
             PlannerEnum::Maintain(planner) => planner.match_planner(ast_ctx),
             PlannerEnum::UserManagement(planner) => planner.match_planner(ast_ctx),
+            PlannerEnum::Insert(planner) => planner.match_planner(ast_ctx),
         }
     }
 
@@ -548,6 +561,7 @@ impl PlannerEnum {
             PlannerEnum::FetchEdges(planner) => Box::new(planner),
             PlannerEnum::Maintain(planner) => Box::new(planner),
             PlannerEnum::UserManagement(planner) => Box::new(planner),
+            PlannerEnum::Insert(planner) => Box::new(planner),
         }
     }
 }

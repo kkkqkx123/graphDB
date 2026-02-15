@@ -284,7 +284,7 @@ async fn test_schema_version_control() {
     ctx.execute_query_ok(use_space).await.ok();
 
     // 创建初始标签
-    let create_v1 = "CREATE TAG IF NOT EXISTS Product(name STRING, price DOUBLE)";
+    let create_v1 = "CREATE TAG IF NOT EXISTS Product(name: STRING, price: DOUBLE)";
     ctx.execute_query_ok(create_v1).await.ok();
 
     // 模拟版本升级：添加属性

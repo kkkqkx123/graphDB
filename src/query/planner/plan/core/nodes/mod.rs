@@ -6,6 +6,7 @@ pub mod factory;
 pub mod filter_node;
 pub mod graph_scan_node;
 pub mod index_nodes;
+pub mod insert_nodes;
 pub mod join_node;
 pub mod macros;
 pub mod plan_node_category;
@@ -42,6 +43,9 @@ pub use index_nodes::{
     CreateEdgeIndexNode, CreateTagIndexNode, DescEdgeIndexNode, DescTagIndexNode,
     DropEdgeIndexNode, DropTagIndexNode, IndexManageInfo, RebuildEdgeIndexNode, RebuildTagIndexNode,
     ShowEdgeIndexesNode, ShowTagIndexesNode,
+};
+pub use insert_nodes::{
+    EdgeInsertInfo, InsertEdgesNode, InsertVerticesNode, VertexInsertInfo,
 };
 pub use join_node::{CrossJoinNode, HashInnerJoinNode, HashLeftJoinNode, InnerJoinNode, LeftJoinNode};
 pub use plan_node_category::PlanNodeCategory;

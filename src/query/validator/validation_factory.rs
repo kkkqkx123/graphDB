@@ -203,8 +203,6 @@ impl StatementType {
             SentenceKind::FetchVertices => vec![StatementType::FetchVertices],
             SentenceKind::FetchEdges => vec![StatementType::FetchEdges],
             SentenceKind::Maintain => vec![
-                StatementType::InsertVertices,
-                StatementType::InsertEdges,
                 StatementType::Update,
                 StatementType::Delete,
                 StatementType::CreateSpace,
@@ -243,6 +241,10 @@ impl StatementType {
                 StatementType::DescribeSpace,
                 StatementType::DescribeTag,
                 StatementType::DescribeEdge,
+            ],
+            SentenceKind::Insert => vec![
+                StatementType::InsertVertices,
+                StatementType::InsertEdges,
             ],
         }
     }

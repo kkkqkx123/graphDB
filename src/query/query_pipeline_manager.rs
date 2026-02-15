@@ -170,6 +170,12 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
                 crate::query::planner::statements::user_management_planner::UserManagementPlanner::new()
             ),
         );
+        planner.register(
+            crate::query::planner::planner::SentenceKind::Insert,
+            crate::query::planner::planner::MatchAndInstantiateEnum::Insert(
+                crate::query::planner::statements::insert_planner::InsertPlanner::new()
+            ),
+        );
     }
 
     pub async fn execute_query(&mut self, query_text: &str) -> DBResult<ExecutionResult> {

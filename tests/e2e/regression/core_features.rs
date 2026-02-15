@@ -21,15 +21,16 @@ async fn test_regression_basic_crud() {
     ctx.execute_query_ok("USE crud_test").await.expect("使用空间失败");
 
     // 创建标签
-    ctx.execute_query_ok("CREATE TAG IF NOT EXISTS Item(name STRING, value INT)")
+    ctx.execute_query_ok("CREATE TAG IF NOT EXISTS Item(name: STRING, value: INT)")
         .await
         .expect("创建标签失败");
 
     // Create
     let create_result = ctx
-        .execute_query_ok("INSERT VERTEX Item(name, value) VALUES 1:('Test Item', 100)")
+        .execute_query("INSERT VERTEX Item(name, value) VALUES 1:('Test Item', 100)")
         .await;
-    assert!(create_result.is_ok(), "创建失败");
+    println!("INSERT 结果: {:?}", create_result);
+    assert!(create_result.is_ok() && create_result.as_ref().unwrap().success, "创建失败: {:?}", create_result.err());
 
     // Read
     let read_data = ctx
@@ -75,10 +76,10 @@ async fn test_regression_edge_operations() {
     ctx.execute_query_ok("USE edge_test").await.expect("使用空间失败");
 
     // 创建标签和边类型
-    ctx.execute_query_ok("CREATE TAG IF NOT EXISTS Node(name STRING)")
+    ctx.execute_query_ok("CREATE TAG IF NOT EXISTS Node(name: STRING)")
         .await
         .expect("创建标签失败");
-    ctx.execute_query_ok("CREATE EDGE IF NOT EXISTS CONNECTS(weight DOUBLE)")
+    ctx.execute_query_ok("CREATE EDGE IF NOT EXISTS CONNECTS(weight: DOUBLE)")
         .await
         .expect("创建边类型失败");
 
@@ -155,7 +156,7 @@ async fn test_regression_transaction_consistency() {
         .expect("创建空间失败");
     ctx.execute_query_ok("USE tx_test").await.expect("使用空间失败");
 
-    ctx.execute_query_ok("CREATE TAG IF NOT EXISTS Account(id INT, balance DOUBLE)")
+    ctx.execute_query_ok("CREATE TAG IF NOT EXISTS Account(id: INT, balance: DOUBLE)")
         .await
         .expect("创建标签失败");
 
@@ -218,7 +219,7 @@ async fn test_regression_error_handling() {
     println!("不存在的标签查询结果: {:?}", nonexistent_tag);
 
     // 类型不匹配
-    ctx.execute_query_ok("CREATE TAG IF NOT EXISTS Typed(value INT)")
+    ctx.execute_query_ok("CREATE TAG IF NOT EXISTS Typed(value: INT)")
         .await
         .ok();
     let type_mismatch = ctx
@@ -238,7 +239,7 @@ async fn test_regression_boundary_conditions() {
         .expect("创建空间失败");
     ctx.execute_query_ok("USE boundary_test").await.expect("使用空间失败");
 
-    ctx.execute_query_ok("CREATE TAG IF NOT EXISTS Boundary(value INT, name STRING)")
+    ctx.execute_query_ok("CREATE TAG IF NOT EXISTS Boundary(value: INT, name: STRING)")
         .await
         .expect("创建标签失败");
 
@@ -292,7 +293,7 @@ async fn test_regression_concurrent_safety() {
         .expect("创建空间失败");
     ctx.execute_query_ok("USE concurrent_test").await.expect("使用空间失败");
 
-    ctx.execute_query_ok("CREATE TAG IF NOT EXISTS Counter(id INT, count INT)")
+    ctx.execute_query_ok("CREATE TAG IF NOT EXISTS Counter(id: INT, count: INT)")
         .await
         .expect("创建标签失败");
 
@@ -332,11 +333,11 @@ async fn test_regression_data_types() {
     // 创建包含多种数据类型的标签
     ctx.execute_query_ok(
         "CREATE TAG IF NOT EXISTS AllTypes(
-            bool_val BOOL,
-            int_val INT,
-            double_val DOUBLE,
-            string_val STRING,
-            timestamp_val TIMESTAMP
+            bool_val: BOOL,
+            int_val: INT,
+            double_val: DOUBLE,
+            string_val: STRING,
+            timestamp_val: TIMESTAMP
         )",
     )
     .await
@@ -371,7 +372,7 @@ async fn test_regression_index_functionality() {
         .expect("创建空间失败");
     ctx.execute_query_ok("USE index_test").await.expect("使用空间失败");
 
-    ctx.execute_query_ok("CREATE TAG IF NOT EXISTS IndexedItem(name STRING, value INT)")
+    ctx.execute_query_ok("CREATE TAG IF NOT EXISTS IndexedItem(name: STRING, value: INT)")
         .await
         .expect("创建标签失败");
 
@@ -461,7 +462,7 @@ async fn test_regression_space_management() {
     assert!(use_result.is_ok(), "使用空间失败");
 
     // 在空间内创建标签
-    ctx.execute_query_ok("CREATE TAG IF NOT EXISTS TestTag(name STRING)")
+    ctx.execute_query_ok("CREATE TAG IF NOT EXISTS TestTag(name: STRING)")
         .await
         .expect("创建标签失败");
 

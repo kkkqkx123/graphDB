@@ -21,6 +21,7 @@ pub mod match_statement_planner;
 pub mod fetch_edges_planner;
 pub mod fetch_vertices_planner;
 pub mod go_planner;
+pub mod insert_planner;
 pub mod lookup_planner;
 pub mod maintain_planner;
 pub mod path_planner;

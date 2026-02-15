@@ -3,7 +3,7 @@
 
 use super::plan_node_category::PlanNodeCategory;
 use crate::query::core::{NodeType, NodeCategory, NodeTypeMapping};
-use super::space_nodes::{CreateSpaceNode, DescSpaceNode, DropSpaceNode, ShowSpacesNode};
+use super::space_nodes::{CreateSpaceNode, DescSpaceNode, DropSpaceNode, ShowSpacesNode, SpaceManageInfo};
 use super::tag_nodes::{AlterTagNode, CreateTagNode, DescTagNode, DropTagNode, ShowTagsNode};
 use super::edge_nodes::{AlterEdgeNode, CreateEdgeNode, DescEdgeNode, DropEdgeNode, ShowEdgesNode};
 use super::index_nodes::{
@@ -11,6 +11,7 @@ use super::index_nodes::{
     DropEdgeIndexNode, DropTagIndexNode, RebuildEdgeIndexNode, RebuildTagIndexNode,
     ShowEdgeIndexesNode, ShowTagIndexesNode,
 };
+use super::insert_nodes::{InsertEdgesNode, InsertVerticesNode};
 use super::user_nodes::{AlterUserNode, ChangePasswordNode, CreateUserNode, DropUserNode};
 use crate::query::planner::plan::core::explain::PlanNodeDescription;
 
@@ -183,6 +184,10 @@ pub enum PlanNodeEnum {
     DropUser(DropUserNode),
     /// 修改密码
     ChangePassword(ChangePasswordNode),
+    /// 插入顶点
+    InsertVertices(InsertVerticesNode),
+    /// 插入边
+    InsertEdges(InsertEdgesNode),
 }
 
 impl Default for PlanNodeEnum {
@@ -413,7 +418,13 @@ impl PlanNodeEnum {
         matches!(self, PlanNodeEnum::ChangePassword(_))
     }
 
+    pub fn is_insert_vertices(&self) -> bool {
+        matches!(self, PlanNodeEnum::InsertVertices(_))
+    }
 
+    pub fn is_insert_edges(&self) -> bool {
+        matches!(self, PlanNodeEnum::InsertEdges(_))
+    }
 
     pub fn is_create_tag_index(&self) -> bool {
         matches!(self, PlanNodeEnum::CreateTagIndex(_))
@@ -569,6 +580,8 @@ impl PlanNodeEnum {
                 | PlanNodeEnum::AlterUser(_)
                 | PlanNodeEnum::DropUser(_)
                 | PlanNodeEnum::ChangePassword(_)
+                | PlanNodeEnum::InsertVertices(_)
+                | PlanNodeEnum::InsertEdges(_)
         )
     }
 
@@ -643,6 +656,8 @@ impl PlanNodeEnum {
             PlanNodeEnum::AlterUser(_) => "AlterUser",
             PlanNodeEnum::DropUser(_) => "DropUser",
             PlanNodeEnum::ChangePassword(_) => "ChangePassword",
+            PlanNodeEnum::InsertVertices(_) => "InsertVertices",
+            PlanNodeEnum::InsertEdges(_) => "InsertEdges",
         }
     }
 
@@ -718,6 +733,8 @@ impl PlanNodeEnum {
             PlanNodeEnum::AlterUser(_) => PlanNodeCategory::Management,
             PlanNodeEnum::DropUser(_) => PlanNodeCategory::Management,
             PlanNodeEnum::ChangePassword(_) => PlanNodeCategory::Management,
+            PlanNodeEnum::InsertVertices(_) => PlanNodeCategory::Management,
+            PlanNodeEnum::InsertEdges(_) => PlanNodeCategory::Management,
         }
     }
 
@@ -1826,6 +1843,24 @@ impl PlanNodeEnum {
                 desc.add_description("newPassword", "******");
                 desc
             }
+            PlanNodeEnum::InsertVertices(node) => {
+                let mut desc = PlanNodeDescription::new("InsertVertices", node.id());
+                let info = node.info();
+                desc.add_description("spaceName", info.space_name.clone());
+                desc.add_description("tagName", info.tag_name.clone());
+                desc.add_description("properties", format!("[{} properties]", info.prop_names.len()));
+                desc.add_description("values", format!("[{} values]", info.values.len()));
+                desc
+            }
+            PlanNodeEnum::InsertEdges(node) => {
+                let mut desc = PlanNodeDescription::new("InsertEdges", node.id());
+                let info = node.info();
+                desc.add_description("spaceName", info.space_name.clone());
+                desc.add_description("edgeName", info.edge_name.clone());
+                desc.add_description("properties", format!("[{} properties]", info.prop_names.len()));
+                desc.add_description("edges", format!("[{} edges]", info.edges.len()));
+                desc
+            }
         }
     }
 }
@@ -2127,6 +2162,8 @@ impl PlanNodeEnum {
             PlanNodeEnum::AlterUser(node) => visitor.visit_alter_user(node),
             PlanNodeEnum::DropUser(node) => visitor.visit_drop_user(node),
             PlanNodeEnum::ChangePassword(node) => visitor.visit_change_password(node),
+            PlanNodeEnum::InsertVertices(_node) => visitor.visit_create_space(&CreateSpaceNode::new(-1, SpaceManageInfo::new("".to_string()))),
+            PlanNodeEnum::InsertEdges(_node) => visitor.visit_create_space(&CreateSpaceNode::new(-1, SpaceManageInfo::new("".to_string()))),
         }
     }
 
@@ -2164,6 +2201,8 @@ impl PlanNodeEnum {
             PlanNodeEnum::AlterUser(_) => vec![],
             PlanNodeEnum::DropUser(_) => vec![],
             PlanNodeEnum::ChangePassword(_) => vec![],
+            PlanNodeEnum::InsertVertices(_) => vec![],
+            PlanNodeEnum::InsertEdges(_) => vec![],
             PlanNodeEnum::IndexScan(_) => vec![],
             PlanNodeEnum::ScanVertices(_) => vec![],
             PlanNodeEnum::ScanEdges(_) => vec![],
@@ -2293,6 +2332,8 @@ impl NodeType for PlanNodeEnum {
             PlanNodeEnum::AlterUser(_) => "alter_user",
             PlanNodeEnum::DropUser(_) => "drop_user",
             PlanNodeEnum::ChangePassword(_) => "change_password",
+            PlanNodeEnum::InsertVertices(_) => "insert_vertices",
+            PlanNodeEnum::InsertEdges(_) => "insert_edges",
         }
     }
 
@@ -2367,6 +2408,8 @@ impl NodeType for PlanNodeEnum {
             PlanNodeEnum::AlterUser(_) => "Alter User",
             PlanNodeEnum::DropUser(_) => "Drop User",
             PlanNodeEnum::ChangePassword(_) => "Change Password",
+            PlanNodeEnum::InsertVertices(_) => "Insert Vertices",
+            PlanNodeEnum::InsertEdges(_) => "Insert Edges",
         }
     }
 
@@ -2441,6 +2484,8 @@ impl NodeType for PlanNodeEnum {
             PlanNodeEnum::AlterUser(_) => NodeCategory::Admin,
             PlanNodeEnum::DropUser(_) => NodeCategory::Admin,
             PlanNodeEnum::ChangePassword(_) => NodeCategory::Admin,
+            PlanNodeEnum::InsertVertices(_) => NodeCategory::Admin,
+            PlanNodeEnum::InsertEdges(_) => NodeCategory::Admin,
         }
     }
 }
@@ -2520,6 +2565,8 @@ impl NodeTypeMapping for PlanNodeEnum {
             PlanNodeEnum::AlterUser(_) => Some("alter_user"),
             PlanNodeEnum::DropUser(_) => Some("drop_user"),
             PlanNodeEnum::ChangePassword(_) => Some("change_password"),
+            PlanNodeEnum::InsertVertices(_) => Some("insert_vertices"),
+            PlanNodeEnum::InsertEdges(_) => Some("insert_edges"),
         }
     }
 }

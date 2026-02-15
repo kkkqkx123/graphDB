@@ -27,7 +27,7 @@ async fn test_migration_cross_space() {
 
     // 在源空间创建数据
     ctx.execute_query_ok(
-        "CREATE TAG IF NOT EXISTS Person(name STRING, age INT)",
+        "CREATE TAG IF NOT EXISTS Person(name: STRING, age: INT)",
     )
     .await
     .ok();
@@ -45,7 +45,7 @@ async fn test_migration_cross_space() {
 
     // 在目标空间创建相同结构
     ctx.execute_query_ok(
-        "CREATE TAG IF NOT EXISTS Person(name STRING, age INT)",
+        "CREATE TAG IF NOT EXISTS Person(name: STRING, age: INT)",
     )
     .await
     .ok();
@@ -79,7 +79,7 @@ async fn test_migration_data_format_conversion() {
 
     // 创建旧格式标签
     ctx.execute_query_ok(
-        "CREATE TAG IF NOT EXISTS OldUser(full_name STRING, years_old INT, location STRING)",
+        "CREATE TAG IF NOT EXISTS OldUser(full_name: STRING, years_old: INT, location: STRING)",
     )
     .await
     .ok();
@@ -93,7 +93,7 @@ async fn test_migration_data_format_conversion() {
 
     // 创建新格式标签
     ctx.execute_query_ok(
-        "CREATE TAG IF NOT EXISTS NewUser(first_name STRING, last_name STRING, age INT, city STRING)",
+        "CREATE TAG IF NOT EXISTS NewUser(first_name: STRING, last_name: STRING, age: INT, city: STRING)",
     )
     .await
     .ok();
@@ -126,7 +126,7 @@ async fn test_migration_bulk_import() {
         .ok();
     ctx.execute_query_ok("USE bulk_import_test").await.ok();
 
-    ctx.execute_query_ok("CREATE TAG IF NOT EXISTS Item(id INT, name STRING, value DOUBLE)")
+    ctx.execute_query_ok("CREATE TAG IF NOT EXISTS Item(id: INT, name: STRING, value: DOUBLE)")
         .await
         .ok();
 
@@ -173,7 +173,7 @@ async fn test_migration_data_export() {
         .ok();
     ctx.execute_query_ok("USE export_test").await.ok();
 
-    ctx.execute_query_ok("CREATE TAG IF NOT EXISTS Product(name STRING, price DOUBLE)")
+    ctx.execute_query_ok("CREATE TAG IF NOT EXISTS Product(name: STRING, price: DOUBLE)")
         .await
         .ok();
 
@@ -208,7 +208,7 @@ async fn test_migration_data_validation() {
     ctx.execute_query_ok("USE validation_test").await.ok();
 
     ctx.execute_query_ok(
-        "CREATE TAG IF NOT EXISTS Employee(id INT, name STRING, department STRING, salary DOUBLE)",
+        "CREATE TAG IF NOT EXISTS Employee(id: INT, name: STRING, department: STRING, salary: DOUBLE)",
     )
     .await
     .ok();
@@ -264,7 +264,7 @@ async fn test_migration_incremental() {
         .ok();
     ctx.execute_query_ok("USE incremental_test").await.ok();
 
-    ctx.execute_query_ok("CREATE TAG IF NOT EXISTS Record(id INT, data STRING, updated_at TIMESTAMP)")
+    ctx.execute_query_ok("CREATE TAG IF NOT EXISTS Record(id: INT, data: STRING, updated_at: TIMESTAMP)")
         .await
         .ok();
 
@@ -307,7 +307,7 @@ async fn test_migration_error_handling() {
         .ok();
     ctx.execute_query_ok("USE error_test").await.ok();
 
-    ctx.execute_query_ok("CREATE TAG IF NOT EXISTS Data(id INT, value STRING)")
+    ctx.execute_query_ok("CREATE TAG IF NOT EXISTS Data(id: INT, value: STRING)")
         .await
         .ok();
 

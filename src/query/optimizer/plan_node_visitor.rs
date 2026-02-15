@@ -12,7 +12,7 @@ use crate::query::planner::plan::core::nodes::{
     ShowEdgesNode, ShowSpacesNode, ShowTagsNode, ShowTagIndexesNode, ShowEdgeIndexesNode,
     SortNode, StartNode, TopNNode, TraverseNode, UnwindNode, UnionNode, AppendVerticesNode,
     RebuildEdgeIndexNode, RebuildTagIndexNode,
-    CreateUserNode, AlterUserNode, DropUserNode, ChangePasswordNode,
+    CreateUserNode, AlterUserNode, DropUserNode, ChangePasswordNode, SpaceManageInfo,
 };
 use crate::query::planner::plan::algorithms::{
     AllPaths, BFSShortest, IndexScan, MultiShortestPath, ShortestPath,
@@ -163,6 +163,8 @@ pub trait PlanNodeVisitor {
             PlanNodeEnum::AlterUser(n) => self.visit_alter_user(n),
             PlanNodeEnum::DropUser(n) => self.visit_drop_user(n),
             PlanNodeEnum::ChangePassword(n) => self.visit_change_password(n),
+            PlanNodeEnum::InsertVertices(_n) => self.visit_create_space(&CreateSpaceNode::new(-1, SpaceManageInfo::new("".to_string()))),
+            PlanNodeEnum::InsertEdges(_n) => self.visit_create_space(&CreateSpaceNode::new(-1, SpaceManageInfo::new("".to_string()))),
         }
     }
 }

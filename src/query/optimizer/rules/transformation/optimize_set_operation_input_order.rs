@@ -231,7 +231,9 @@ fn estimate_node_cost(node: &Enum) -> f64 {
         | Enum::CreateUser(_)
         | Enum::DropUser(_)
         | Enum::AlterUser(_)
-        | Enum::ChangePassword(_) => 0.0,
+        | Enum::ChangePassword(_)
+        | Enum::InsertVertices(_)
+        | Enum::InsertEdges(_) => 0.0,
     }
 }
 
