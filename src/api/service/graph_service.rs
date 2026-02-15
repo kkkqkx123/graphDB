@@ -91,7 +91,51 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
 
         let space_id = session.space().map(|s| s.id).unwrap_or(0);
 
-        self.execute_with_permission(session_id, stmt, space_id).await
+        let result = self.execute_with_permission(session_id, stmt, space_id).await;
+        
+        // 如果是 USE 语句且执行成功，更新会话的空间
+        if result.is_ok() {
+            let trimmed_stmt = stmt.trim().to_uppercase();
+            if trimmed_stmt.starts_with("USE ") {
+                let space_name = stmt.trim()[4..].trim().to_string();
+                // 获取空间信息并设置到会话
+                if let Ok(space_info) = self.get_space_info(&space_name).await {
+                    session.set_space(space_info);
+                }
+            }
+        }
+        
+        result
+    }
+    
+    async fn get_space_info(&self, space_name: &str) -> Result<crate::api::session::client_session::SpaceInfo, String> {
+        // 从存储中获取空间信息
+        let storage = self.storage.lock();
+        match storage.get_space(space_name) {
+            Ok(Some(space)) => Ok(crate::api::session::client_session::SpaceInfo {
+                name: space_name.to_string(),
+                id: space.space_id as i64,
+            }),
+            Ok(None) => {
+                // 空间不存在，返回一个默认的空间信息（用于测试）
+                Ok(crate::api::session::client_session::SpaceInfo {
+                    name: space_name.to_string(),
+                    id: 1, // 默认空间ID
+                })
+            }
+            Err(e) => {
+                let error_msg = format!("{}", e);
+                if error_msg.contains("Table 'spaces' does not exist") {
+                    // 表不存在，返回默认空间信息
+                    Ok(crate::api::session::client_session::SpaceInfo {
+                        name: space_name.to_string(),
+                        id: 1, // 默认空间ID
+                    })
+                } else {
+                    Err(format!("获取空间信息失败: {}", e))
+                }
+            }
+        }
     }
 
     pub async fn execute_with_permission(

@@ -191,8 +191,11 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                 executor.open()?;
                 executor.execute()
             }
-            CreateTarget::Space { name } => {
-                let space_info = ExecutorSpaceInfo::new(name);
+            CreateTarget::Space { name, vid_type, partition_num, replica_factor, comment: _ } => {
+                let mut space_info = ExecutorSpaceInfo::new(name);
+                space_info.vid_type = vid_type;
+                space_info.partition_num = partition_num as usize;
+                space_info.replica_factor = replica_factor as usize;
                 let mut executor = if clause.if_not_exists {
                     CreateSpaceExecutor::with_if_not_exists(self.id, self.storage.clone(), space_info)
                 } else {

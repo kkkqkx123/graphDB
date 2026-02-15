@@ -21,11 +21,12 @@ pub struct E2eTestContext {
     storage: Arc<DefaultStorage>,
     temp_path: PathBuf,
     current_space: Mutex<Option<String>>,
+    session: Mutex<Option<Arc<ClientSession>>>,
 }
 
 impl E2eTestContext {
     /// 创建新的 E2E 测试上下文
-    pub async fn new() -> anyhow::Result<Self> {
+    pub async fn new() -> anyhow::Result<Arc<Self>> {
         let temp_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("target")
             .join("e2e-test-temp");
@@ -60,26 +61,47 @@ impl E2eTestContext {
             .grant_role("e2e_test", 0, graphdb::api::service::RoleType::Admin)
             .expect("授予 e2e_test 权限失败");
         
-        Ok(Self {
+        let ctx = Arc::new(Self {
             service,
             storage,
             temp_path,
             current_space: Mutex::new(None),
-        })
+            session: Mutex::new(None),
+        });
+        
+        // 创建默认会话
+        ctx.create_session("e2e_test").await?;
+        
+        Ok(ctx)
     }
     
     /// 创建新会话
     pub async fn create_session(&self, username: &str) -> anyhow::Result<Arc<ClientSession>> {
-        self.service
+        let session = self.service
             .get_session_manager()
             .create_session(username.to_string(), "127.0.0.1".to_string())
-            .map_err(|e| anyhow::anyhow!("创建会话失败: {}", e))
+            .map_err(|e| anyhow::anyhow!("创建会话失败: {}", e))?;
+        
+        // 保存会话到上下文
+        let mut session_guard = self.session.lock().await;
+        *session_guard = Some(session.clone());
+        
+        Ok(session)
     }
     
     /// 执行查询
     pub async fn execute_query(&self, query: &str) -> anyhow::Result<QueryResult> {
-        let session = self.create_session("e2e_test").await?;
-        let session_id = session.id();
+        // 获取当前会话，如果没有则创建新会话
+        let session_id = {
+            let session_guard = self.session.lock().await;
+            if let Some(ref session) = *session_guard {
+                session.id()
+            } else {
+                drop(session_guard);
+                let session = self.create_session("e2e_test").await?;
+                session.id()
+            }
+        };
         
         let start = Instant::now();
         let result = self.service.execute(session_id, query).await;
@@ -151,6 +173,7 @@ impl Clone for E2eTestContext {
             storage: self.storage.clone(),
             temp_path: self.temp_path.clone(),
             current_space: Mutex::new(None),
+            session: Mutex::new(None),
         }
     }
 }

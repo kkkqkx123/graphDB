@@ -223,6 +223,27 @@ impl StatementType {
                 StatementType::ShowEdges,
             ],
             SentenceKind::UserManagement => vec![],
+            SentenceKind::Create => vec![
+                StatementType::CreateSpace,
+                StatementType::CreateTag,
+                StatementType::CreateEdge,
+            ],
+            SentenceKind::Drop => vec![
+                StatementType::DropSpace,
+                StatementType::DropTag,
+                StatementType::DropEdge,
+            ],
+            SentenceKind::Use => vec![StatementType::Use],
+            SentenceKind::Show => vec![
+                StatementType::ShowSpaces,
+                StatementType::ShowTags,
+                StatementType::ShowEdges,
+            ],
+            SentenceKind::Desc => vec![
+                StatementType::DescribeSpace,
+                StatementType::DescribeTag,
+                StatementType::DescribeEdge,
+            ],
         }
     }
 

@@ -182,12 +182,39 @@ impl Validator {
 
     fn is_global_statement(ast: &AstContext) -> bool {
         let stmt_type = ast.statement_type();
-        matches!(
+        if matches!(
             stmt_type,
             "CREATE_USER" | "ALTER_USER" | "DROP_USER" | "CHANGE_PASSWORD"
-                | "CREATE_SPACE" | "DROP_SPACE" | "SHOW_SPACES" | "DESC_SPACE"
+                | "SHOW_SPACES" | "DESC_SPACE"
                 | "SHOW_USERS" | "DESC_USER"
-        )
+                | "USE"  // USE 语句是全局语句，不需要预先选择空间
+        ) {
+            return true;
+        }
+        
+        // 检查 CREATE 语句是否是 CREATE SPACE
+        if stmt_type == "CREATE" {
+            if let Some(ref stmt) = ast.sentence() {
+                if let crate::query::parser::ast::Stmt::Create(create_stmt) = stmt {
+                    if let crate::query::parser::ast::stmt::CreateTarget::Space { .. } = create_stmt.target {
+                        return true;
+                    }
+                }
+            }
+        }
+        
+        // 检查 DROP 语句是否是 DROP SPACE
+        if stmt_type == "DROP" {
+            if let Some(ref stmt) = ast.sentence() {
+                if let crate::query::parser::ast::Stmt::Drop(drop_stmt) = stmt {
+                    if let crate::query::parser::ast::stmt::DropTarget::Space(_) = drop_stmt.target {
+                        return true;
+                    }
+                }
+            }
+        }
+        
+        false
     }
 
     fn validate_impl_with_ast(

@@ -72,6 +72,9 @@ mod tests {
         
         // 验证可以生成基础模式
         let result = generator.generate_base_schema().await;
-        assert!(result.is_ok(), "生成基础模式应该成功");
+        if let Err(ref e) = result {
+            println!("生成基础模式失败: {}", e);
+        }
+        assert!(result.is_ok(), "生成基础模式应该成功: {:?}", result.err());
     }
 }

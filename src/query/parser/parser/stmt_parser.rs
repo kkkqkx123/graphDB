@@ -207,6 +207,63 @@ impl<'a> StmtParser<'a> {
                 target: CreateTarget::EdgeType { name, properties },
                 if_not_exists,
             }))
+        } else if ctx.match_token(TokenKind::Space) {
+            // 解析 CREATE SPACE
+            let mut if_not_exists = false;
+            if ctx.match_token(TokenKind::If) {
+                ctx.expect_token(TokenKind::Not)?;
+                ctx.expect_token(TokenKind::Exists)?;
+                if_not_exists = true;
+            }
+            let name = ctx.expect_identifier()?;
+            
+            // 解析可选参数 (vid_type, partition_num, replica_factor, comment)
+            let mut vid_type = "INT64".to_string();
+            let mut partition_num = 1i64;
+            let mut replica_factor = 1i64;
+            let mut comment = None;
+            
+            // 解析 (vid_type=INT64, partition_num=1, replica_factor=1, comment="xxx") 格式
+            if ctx.match_token(TokenKind::LParen) {
+                loop {
+                    if ctx.check_token(TokenKind::RParen) {
+                        ctx.expect_token(TokenKind::RParen)?;
+                        break;
+                    }
+                    
+                    if ctx.match_token(TokenKind::VIdType) {
+                        ctx.expect_token(TokenKind::Assign)?;
+                        vid_type = ctx.expect_identifier()?;
+                    } else if ctx.match_token(TokenKind::PartitionNum) {
+                        ctx.expect_token(TokenKind::Assign)?;
+                        partition_num = ctx.expect_integer_literal()?;
+                    } else if ctx.match_token(TokenKind::ReplicaFactor) {
+                        ctx.expect_token(TokenKind::Assign)?;
+                        replica_factor = ctx.expect_integer_literal()?;
+                    } else if ctx.match_token(TokenKind::Comment) {
+                        ctx.expect_token(TokenKind::Assign)?;
+                        comment = Some(ctx.expect_string_literal()?);
+                    }
+                    
+                    // 检查是否还有更多参数
+                    if !ctx.match_token(TokenKind::Comma) {
+                        ctx.expect_token(TokenKind::RParen)?;
+                        break;
+                    }
+                }
+            }
+            
+            Ok(Stmt::Create(CreateStmt {
+                span: start_span,
+                target: CreateTarget::Space { 
+                    name, 
+                    vid_type, 
+                    partition_num, 
+                    replica_factor, 
+                    comment 
+                },
+                if_not_exists,
+            }))
         } else if ctx.match_token(TokenKind::User) {
             // 解析 CREATE USER
             let mut if_not_exists = false;
@@ -239,7 +296,7 @@ impl<'a> StmtParser<'a> {
         } else {
             Err(ParseError::new(
                 ParseErrorKind::UnexpectedToken,
-                "Expected TAG, EDGE, or USER after CREATE".to_string(),
+                "Expected TAG, EDGE, SPACE, or USER after CREATE".to_string(),
                 ctx.current_position(),
             ))
         }
@@ -1811,5 +1868,84 @@ mod tests {
         assert_eq!(ctx2.current_token().kind, Tk::LParen);
         ctx2.next_token();
         assert_eq!(ctx2.current_token().kind, Tk::RParen);
+    }
+
+    #[test]
+    fn test_create_space_statement_parses() {
+        let mut parser = StmtParser::new();
+        
+        // 测试 CREATE SPACE 语句能够解析成功
+        let mut ctx = create_parser_context("CREATE SPACE IF NOT EXISTS test_space");
+        let result = parser.parse_statement(&mut ctx);
+        
+        // 验证解析成功
+        assert!(result.is_ok(), "CREATE SPACE 解析失败: {:?}", result.err());
+        
+        // 验证是 Create 语句
+        if let Ok(Stmt::Create(stmt)) = result {
+            // 验证是 Space 创建目标
+            match &stmt.target {
+                CreateTarget::Space { name, vid_type, partition_num, replica_factor, .. } => {
+                    assert_eq!(name, "test_space");
+                    assert_eq!(vid_type, "INT64");
+                    assert_eq!(*partition_num, 1);
+                    assert_eq!(*replica_factor, 1);
+                }
+                _ => panic!("期望 Space 创建目标，实际得到 {:?}", stmt.target),
+            }
+            assert!(stmt.if_not_exists);
+        } else {
+            panic!("期望 Create 语句");
+        }
+    }
+
+    #[test]
+    fn test_create_space_with_params_parses() {
+        let mut parser = StmtParser::new();
+        
+        // 测试 CREATE SPACE 带参数语句能够解析成功
+        // 注意：vid_type 只支持简单的标识符，不支持 FIXED_STRING(32) 这种带括号的格式
+        let mut ctx = create_parser_context(
+            "CREATE SPACE test_space(vid_type=FIXEDSTRING32, partition_num=10, replica_factor=3)"
+        );
+        let result = parser.parse_statement(&mut ctx);
+        
+        // 验证解析成功
+        assert!(result.is_ok(), "CREATE SPACE with params 解析失败: {:?}", result.err());
+        
+        // 验证是 Create 语句
+        if let Ok(Stmt::Create(stmt)) = result {
+            // 验证是 Space 创建目标
+            match &stmt.target {
+                CreateTarget::Space { name, vid_type, partition_num, replica_factor, .. } => {
+                    assert_eq!(name, "test_space");
+                    assert_eq!(vid_type, "FIXEDSTRING32");
+                    assert_eq!(*partition_num, 10);
+                    assert_eq!(*replica_factor, 3);
+                }
+                _ => panic!("期望 Space 创建目标，实际得到 {:?}", stmt.target),
+            }
+        } else {
+            panic!("期望 Create 语句");
+        }
+    }
+
+    #[test]
+    fn test_use_statement_parses() {
+        let mut parser = StmtParser::new();
+        
+        // 测试 USE 语句能够解析成功
+        let mut ctx = create_parser_context("USE test_space");
+        let result = parser.parse_statement(&mut ctx);
+        
+        // 验证解析成功
+        assert!(result.is_ok(), "USE 解析失败: {:?}", result.err());
+        
+        // 验证是 Use 语句
+        if let Ok(Stmt::Use(stmt)) = result {
+            assert_eq!(stmt.space, "test_space");
+        } else {
+            panic!("期望 Use 语句，实际得到 {:?}", result);
+        }
     }
 }

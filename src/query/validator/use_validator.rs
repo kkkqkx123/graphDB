@@ -14,8 +14,11 @@ pub struct UseValidator {
 
 impl UseValidator {
     pub fn new(context: ValidationContext) -> Self {
+        let mut base = Validator::with_context(context);
+        // USE 语句不需要预先选择空间
+        base.set_no_space_required(true);
         Self {
-            base: Validator::with_context(context),
+            base,
             space_name: String::new(),
         }
     }
@@ -27,7 +30,7 @@ impl UseValidator {
     fn validate_impl(&mut self) -> Result<(), ValidationError> {
         self.validate_space_name()?;
         self.validate_space_exists()?;
-        self.set_no_space_required(true);
+        // no_space_required 已在 new() 中设置
         Ok(())
     }
 

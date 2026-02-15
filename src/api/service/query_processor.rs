@@ -44,7 +44,19 @@ impl<S: StorageClient + Clone + 'static> QueryEngine<S> {
     pub async fn execute(&mut self, rctx: RequestContext) -> ExecutionResponse {
         let start_time = std::time::Instant::now();
 
-        match self.pipeline_manager.execute_query(&rctx.statement).await {
+        // 从客户端会话中提取空间信息
+        let space_info = rctx.client_session.as_ref().and_then(|session| {
+            session.space().map(|s| {
+                crate::query::context::validate::types::SpaceInfo {
+                    space_name: s.name.clone(),
+                    space_id: Some(s.id as u32),
+                    is_default: false,
+                    vid_type: crate::core::types::DataType::String,
+                }
+            })
+        });
+
+        match self.pipeline_manager.execute_query_with_space(&rctx.statement, space_info).await {
             Ok(result) => ExecutionResponse {
                 result: Ok(format!("{:?}", result)),
                 latency_us: start_time.elapsed().as_micros() as u64,

@@ -173,8 +173,22 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
     }
 
     pub async fn execute_query(&mut self, query_text: &str) -> DBResult<ExecutionResult> {
+        self.execute_query_with_space(query_text, None).await
+    }
+    
+    pub async fn execute_query_with_space(
+        &mut self, 
+        query_text: &str,
+        space_info: Option<crate::query::context::validate::types::SpaceInfo>,
+    ) -> DBResult<ExecutionResult> {
         let mut query_context = self.create_query_context(query_text)?;
         let mut ast = self.parse_into_context(query_text)?;
+        
+        // 如果提供了空间信息，设置到 AST 上下文中
+        if let Some(space) = space_info {
+            ast.set_space(space);
+        }
+        
         self.validate_query(&mut query_context, &mut ast)?;
         let execution_plan = self.generate_execution_plan(&mut query_context, &ast)?;
         let optimized_plan = self.optimize_execution_plan(&mut query_context, execution_plan)?;

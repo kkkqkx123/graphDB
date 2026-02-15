@@ -7,12 +7,12 @@ use std::collections::HashMap;
 
 /// 社交网络数据生成器
 pub struct SocialNetworkDataGenerator {
-    ctx: E2eTestContext,
+    ctx: Arc<E2eTestContext>,
 }
 
 impl SocialNetworkDataGenerator {
-    pub fn new(ctx: &E2eTestContext) -> Self {
-        Self { ctx: ctx.clone() }
+    pub fn new(ctx: &Arc<E2eTestContext>) -> Self {
+        Self { ctx: Arc::clone(ctx) }
     }
     
     /// 生成基础模式
@@ -20,21 +20,28 @@ impl SocialNetworkDataGenerator {
         let schema_queries = vec![
             "CREATE SPACE IF NOT EXISTS social_network",
             "USE social_network",
-            "CREATE TAG IF NOT EXISTS Person(name STRING, age INT, city STRING, created_at TIMESTAMP)",
-            "CREATE TAG IF NOT EXISTS Post(content STRING, created_at TIMESTAMP, likes INT)",
-            "CREATE TAG IF NOT EXISTS Comment(content STRING, created_at TIMESTAMP)",
-            "CREATE TAG IF NOT EXISTS Group(name STRING, description STRING, created_at TIMESTAMP)",
-            "CREATE EDGE IF NOT EXISTS KNOWS(since DATE, strength DOUBLE)",
-            "CREATE EDGE IF NOT EXISTS FOLLOWS(since DATE)",
+            "CREATE TAG IF NOT EXISTS Person(name: STRING, age: INT, city: STRING, created_at: TIMESTAMP)",
+            "CREATE TAG IF NOT EXISTS Post(content: STRING, created_at: TIMESTAMP, likes: INT)",
+            "CREATE TAG IF NOT EXISTS UserComment(content: STRING, created_at: TIMESTAMP)",
+            "CREATE TAG IF NOT EXISTS UserGroup(name: STRING, description: STRING, created_at: TIMESTAMP)",
+            "CREATE EDGE IF NOT EXISTS KNOWS(since: DATE, strength: DOUBLE)",
+            "CREATE EDGE IF NOT EXISTS FOLLOWS(since: DATE)",
             "CREATE EDGE IF NOT EXISTS POSTED",
-            "CREATE EDGE IF NOT EXISTS LIKES(created_at TIMESTAMP)",
+            "CREATE EDGE IF NOT EXISTS LIKES(created_at: TIMESTAMP)",
             "CREATE EDGE IF NOT EXISTS COMMENTED",
-            "CREATE EDGE IF NOT EXISTS ON",
-            "CREATE EDGE IF NOT EXISTS MEMBER_OF(joined_at TIMESTAMP, role STRING)",
+            "CREATE EDGE IF NOT EXISTS BELONGS_TO",
+            "CREATE EDGE IF NOT EXISTS MEMBER_OF(joined_at: TIMESTAMP, member_role: STRING)",
         ];
         
         for query in schema_queries {
-            self.ctx.execute_query_ok(query).await?;
+            println!("执行查询: {}", query);
+            match self.ctx.execute_query_ok(query).await {
+                Ok(result) => println!("  结果: {}", result),
+                Err(e) => {
+                    println!("  错误: {}", e);
+                    return Err(e);
+                }
+            }
         }
         
         Ok(())

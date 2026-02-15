@@ -119,6 +119,11 @@ pub enum SentenceKind {
     FetchEdges,
     Maintain,
     UserManagement,
+    Create,
+    Drop,
+    Use,
+    Show,
+    Desc,
 }
 
 impl SentenceKind {
@@ -137,6 +142,11 @@ impl SentenceKind {
             "CREATE USER" | "ALTER USER" | "DROP USER" | "CHANGE PASSWORD" => {
                 Ok(SentenceKind::UserManagement)
             }
+            "CREATE" => Ok(SentenceKind::Create),
+            "DROP" => Ok(SentenceKind::Drop),
+            "USE" => Ok(SentenceKind::Use),
+            "SHOW" => Ok(SentenceKind::Show),
+            "DESC" => Ok(SentenceKind::Desc),
             _ => Err(PlannerError::UnsupportedOperation(format!(
                 "Unsupported statement type: {}",
                 s
@@ -156,6 +166,11 @@ impl SentenceKind {
             SentenceKind::FetchEdges => "FETCH EDGES",
             SentenceKind::Maintain => "MAINTAIN",
             SentenceKind::UserManagement => "USER_MANAGEMENT",
+            SentenceKind::Create => "CREATE",
+            SentenceKind::Drop => "DROP",
+            SentenceKind::Use => "USE",
+            SentenceKind::Show => "SHOW",
+            SentenceKind::Desc => "DESC",
         }
     }
 
@@ -399,7 +414,14 @@ impl StaticConfigurablePlannerRegistry {
 
     fn extract_sentence_kind(&self, ast_ctx: &AstContext) -> Result<SentenceKind, PlannerError> {
         if let Some(sentence) = ast_ctx.sentence() {
-            SentenceKind::from_str(sentence.kind())
+            let kind = SentenceKind::from_str(sentence.kind())?;
+            // 将新的 SentenceKind 变体映射到 Maintain，以便使用相同的规划器
+            match kind {
+                SentenceKind::Create | SentenceKind::Drop | SentenceKind::Use | SentenceKind::Show | SentenceKind::Desc => {
+                    Ok(SentenceKind::Maintain)
+                }
+                _ => Ok(kind),
+            }
         } else {
             Err(PlannerError::InvalidAstContext(
                 "Missing sentence in AST context".to_string(),
@@ -462,6 +484,10 @@ impl PlannerEnum {
             SentenceKind::FetchEdges => Some(PlannerEnum::FetchEdges(FetchEdgesPlanner::new())),
             SentenceKind::Maintain => Some(PlannerEnum::Maintain(MaintainPlanner::new())),
             SentenceKind::UserManagement => Some(PlannerEnum::UserManagement(UserManagementPlanner::new())),
+            // DDL/DML 操作使用 Maintain 规划器
+            SentenceKind::Create | SentenceKind::Drop | SentenceKind::Use | SentenceKind::Show | SentenceKind::Desc => {
+                Some(PlannerEnum::Maintain(MaintainPlanner::new()))
+            }
         }
     }
 

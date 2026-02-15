@@ -306,6 +306,12 @@ impl Optimizer {
         let group_node_rc = Rc::new(RefCell::new(group_node));
         ctx.add_group_node(group_node_rc.clone())?;
 
+        // 创建对应的 OptGroup 并注册
+        let mut opt_group = OptGroup::new(node_id);
+        opt_group.nodes.push(group_node_rc.clone());
+        opt_group.root_group = true; // 根组标记
+        ctx.register_group(opt_group);
+
         self.build_inputs_recursive(plan_node, ctx, node_id)?;
 
         Ok(group_node_rc)
