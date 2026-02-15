@@ -1,5 +1,4 @@
 use anyhow::{anyhow, Result};
-use std::sync::Arc;
 
 use crate::api::session::ClientSession;
 use crate::api::service::permission_manager::{Permission, PermissionManager, RoleType};
