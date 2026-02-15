@@ -11,3 +11,7 @@ pub use object_pool::ObjectPool;
 // 重试机制模块
 pub mod retry;
 pub use retry::{RetryConfig, RetryStrategy, retry_with_backoff, retry_with_strategy};
+
+// 日志模块
+pub mod logging;
+pub use logging::{init as init_logging, shutdown as shutdown_logging, is_initialized as is_logging_initialized};

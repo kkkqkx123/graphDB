@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::Parser;
-use flexi_logger::{Cleanup, Criterion, FileSpec, Logger, Naming, WriteMode};
 use graphdb::config::Config;
+use graphdb::utils::logging;
 
 // 导入库模块
 use graphdb::api;
@@ -19,27 +19,6 @@ enum Cli {
         #[clap(short, long)]
         query: String,
     },
-}
-
-/// 初始化日志系统
-fn init_logger(config: &Config) -> Result<(), Box<dyn std::error::Error>> {
-    Logger::try_with_str(&config.log_level)?
-        .log_to_file(
-            FileSpec::default()
-                .basename(&config.log_file)
-                .directory(&config.log_dir),
-        )
-        .rotate(
-            Criterion::Size(config.max_log_file_size),
-            Naming::Numbers,
-            Cleanup::KeepLogFiles(config.max_log_files),
-        )
-        .write_mode(WriteMode::Async)
-        .append()
-        .start()?;
-
-    log::info!("日志系统初始化完成: {}/{}", config.log_dir, config.log_file);
-    Ok(())
 }
 
 #[tokio::main]
@@ -61,12 +40,16 @@ async fn main() -> Result<()> {
             };
 
             // 初始化日志系统
-            if let Err(e) = init_logger(&cfg) {
+            if let Err(e) = logging::init(&cfg) {
                 eprintln!("初始化日志系统失败: {}", e);
             }
 
             // Initialize and start service
-            api::start_service_with_config(cfg).await?;
+            let result = api::start_service_with_config(cfg).await;
+            
+            // 确保日志 flush 后再退出
+            logging::shutdown();
+            result?;
         }
         Cli::Query { query } => {
             println!("Executing query: {}", query);
@@ -74,12 +57,16 @@ async fn main() -> Result<()> {
 
             // 使用默认配置初始化日志
             let cfg = Config::default();
-            if let Err(e) = init_logger(&cfg) {
+            if let Err(e) = logging::init(&cfg) {
                 eprintln!("初始化日志系统失败: {}", e);
             }
 
             // Execute query directly
-            api::execute_query(&query).await?;
+            let result = api::execute_query(&query).await;
+            
+            // 确保日志 flush 后再退出
+            logging::shutdown();
+            result?;
         }
     }
 
