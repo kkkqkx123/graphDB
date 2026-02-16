@@ -23,6 +23,7 @@ pub struct ExpandExecutor<S: StorageClient + Send + 'static> {
     pub step_limits: Option<Vec<usize>>, // 每步的扩展限制
     pub sample: bool, // 是否启用采样
     pub sample_limit: Option<usize>, // 采样限制
+    pub with_loop: bool, // 是否允许自环边
     input_executor: Option<Box<ExecutorEnum<S>>>,
     // 缓存已访问的节点，用于避免循环
     pub visited_nodes: HashSet<Value>,
@@ -63,6 +64,7 @@ impl<S: StorageClient> ExpandExecutor<S> {
             step_limits: None,
             sample: false,
             sample_limit: None,
+            with_loop: false,
             input_executor: None,
             visited_nodes: HashSet::new(),
             adjacency_cache: HashMap::new(),
@@ -80,6 +82,12 @@ impl<S: StorageClient> ExpandExecutor<S> {
     pub fn with_sampling(mut self, sample_limit: usize) -> Self {
         self.sample = true;
         self.sample_limit = Some(sample_limit);
+        self
+    }
+
+    /// 设置是否允许自环边
+    pub fn with_loop(mut self, with_loop: bool) -> Self {
+        self.with_loop = with_loop;
         self
     }
 
@@ -150,6 +158,7 @@ impl<S: StorageClient> ExpandExecutor<S> {
             node_id,
             self.edge_direction,
             &self.edge_types,
+            self.with_loop,
         )
         .map_err(|e| QueryError::StorageError(e.to_string()))
     }

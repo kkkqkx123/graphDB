@@ -168,9 +168,10 @@ pub struct BFSShortest {
     pub col_names: Vec<String>,
     pub cost: f64,
     pub steps: usize,
-    pub edge_types: Vec<String>, // 边类型
-    pub no_loop: bool,           // 是否无环
-    pub reverse: bool,           // 是否反向搜索
+    pub edge_types: Vec<String>,      // 边类型
+    pub with_cycle: bool,             // 是否允许回路（路径中重复访问顶点）
+    pub with_loop: bool,              // 是否允许自环边（A->A）
+    pub reverse: bool,                // 是否反向搜索
 }
 
 impl BFSShortest {
@@ -180,7 +181,7 @@ impl BFSShortest {
         right: PlanNodeEnum,
         steps: usize,
         edge_types: Vec<String>,
-        no_loop: bool,
+        with_cycle: bool,
     ) -> Self {
         Self {
             id,
@@ -190,9 +191,15 @@ impl BFSShortest {
             cost: 0.0,
             steps,
             edge_types,
-            no_loop,
+            with_cycle,
+            with_loop: false,
             reverse: false,
         }
+    }
+
+    /// 设置是否允许自环边
+    pub fn set_loop(&mut self, with_loop: bool) {
+        self.with_loop = with_loop;
     }
 
     pub fn set_reverse(&mut self, reverse: bool) {

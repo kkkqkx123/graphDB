@@ -36,12 +36,12 @@ async fn test_algorithm_context_creation() {
         .with_max_depth(Some(10))
         .with_limit(100)
         .with_single_shortest(true)
-        .with_no_loop(true);
+        .with_path_unique_vertices(true);
 
     assert_eq!(context.max_depth, Some(10));
     assert_eq!(context.limit, 100);
     assert!(context.single_shortest);
-    assert!(context.no_loop);
+    assert!(context.path_unique_vertices);
 }
 
 #[tokio::test]
@@ -51,7 +51,7 @@ async fn test_algorithm_context_default() {
     assert_eq!(context.max_depth, None);
     assert_eq!(context.limit, usize::MAX);
     assert!(!context.single_shortest);
-    assert!(context.no_loop);
+    assert!(context.path_unique_vertices);
 }
 
 #[tokio::test]
@@ -369,6 +369,102 @@ async fn test_algorithm_context_with_max_depth_zero() {
         .with_max_depth(Some(0));
 
     assert_eq!(context.max_depth, Some(0));
+}
+
+// ==================== allow_self_loop 选项测试 ====================
+
+#[tokio::test]
+async fn test_algorithm_context_with_allow_self_loop() {
+    // 测试默认情况下 allow_self_loop 为 false
+    let context_default = AlgorithmContext::new();
+    assert!(!context_default.allow_self_loop);
+
+    // 测试设置 allow_self_loop 为 true
+    let context_with_loop = AlgorithmContext::new()
+        .with_allow_self_loop(true);
+    assert!(context_with_loop.allow_self_loop);
+
+    // 测试设置 allow_self_loop 为 false
+    let context_no_loop = AlgorithmContext::new()
+        .with_allow_self_loop(false);
+    assert!(!context_no_loop.allow_self_loop);
+}
+
+#[tokio::test]
+async fn test_algorithm_context_allow_self_loop_with_other_options() {
+    // 测试 allow_self_loop 与其他选项组合
+    let context = AlgorithmContext::new()
+        .with_max_depth(Some(10))
+        .with_limit(100)
+        .with_single_shortest(true)
+        .with_path_unique_vertices(true)
+        .with_allow_self_loop(true);
+
+    assert_eq!(context.max_depth, Some(10));
+    assert_eq!(context.limit, 100);
+    assert!(context.single_shortest);
+    assert!(context.path_unique_vertices);
+    assert!(context.allow_self_loop);
+}
+
+#[tokio::test]
+async fn test_expand_executor_with_allow_self_loop() {
+    use graphdb::query::executor::data_processing::graph_traversal::ExpandExecutor;
+
+    let test_storage = TestStorage::new().expect("创建测试存储失败");
+    let storage = test_storage.storage();
+
+    // 创建默认执行器（allow_self_loop = false）
+    let executor_default = ExpandExecutor::new(
+        1,
+        storage.clone(),
+        ExecEdgeDirection::Out,
+        None,
+        Some(3),
+    );
+    assert!(!executor_default.allow_self_loop);
+
+    // 创建允许自环边的执行器
+    let executor_with_loop = ExpandExecutor::new(
+        2,
+        storage.clone(),
+        ExecEdgeDirection::Out,
+        None,
+        Some(3),
+    ).with_allow_self_loop(true);
+    assert!(executor_with_loop.allow_self_loop);
+}
+
+#[tokio::test]
+async fn test_all_paths_executor_with_allow_self_loop() {
+    use graphdb::query::executor::data_processing::graph_traversal::AllPathsExecutor;
+
+    let test_storage = TestStorage::new().expect("创建测试存储失败");
+    let storage = test_storage.storage();
+
+    // 创建默认执行器（allow_self_loop = false）
+    let executor_default = AllPathsExecutor::new(
+        1,
+        storage.clone(),
+        vec![Value::from("A")],
+        vec![Value::from("B")],
+        ExecEdgeDirection::Both,
+        None,
+        5,
+    );
+    assert!(!executor_default.allow_self_loop);
+
+    // 创建允许自环边的执行器
+    let executor_with_loop = AllPathsExecutor::new(
+        2,
+        storage.clone(),
+        vec![Value::from("A")],
+        vec![Value::from("B")],
+        ExecEdgeDirection::Both,
+        None,
+        5,
+    ).with_allow_self_loop(true);
+    assert!(executor_with_loop.allow_self_loop);
 }
 
 // ==================== 带权最短路径集成测试 ====================

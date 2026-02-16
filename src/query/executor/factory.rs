@@ -1168,13 +1168,14 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     storage,
                     node.steps,
                     node.edge_types.clone(),
-                    node.no_loop,
+                    node.with_cycle,
                     Some(node.steps),
                     false,
                     usize::MAX,
                     start_vertex,
                     end_vertex,
-                );
+                )
+                .with_loop(node.with_loop);
                 Ok(ExecutorEnum::BFSShortest(executor))
             }
 

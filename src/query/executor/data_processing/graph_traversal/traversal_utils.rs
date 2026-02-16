@@ -18,6 +18,7 @@ use parking_lot::Mutex;
 /// - `node_id`: 当前节点ID
 /// - `edge_direction`: 边方向
 /// - `edge_types`: 边类型过滤
+/// - `allow_loop`: 是否允许自环边（默认false，即去重自环边）
 ///
 /// # 返回
 /// 邻居节点列表
@@ -29,6 +30,7 @@ use parking_lot::Mutex;
 ///     &node_id,
 ///     EdgeDirection::Out,
 ///     &Some(vec!["follow".to_string()]),
+///     false,
 /// )?;
 /// ```
 pub fn get_neighbors<S: StorageClient>(
@@ -36,6 +38,7 @@ pub fn get_neighbors<S: StorageClient>(
     node_id: &Value,
     edge_direction: EdgeDirection,
     edge_types: &Option<Vec<String>>,
+    allow_loop: bool,
 ) -> DBResult<Vec<Value>> {
     let storage_guard = storage.lock();
 
@@ -61,7 +64,8 @@ pub fn get_neighbors<S: StorageClient>(
             // 检查是否是自环边
             let is_self_loop = *edge.src == *edge.dst;
 
-            if is_self_loop {
+            // 如果不允许自环边，进行去重处理
+            if is_self_loop && !allow_loop {
                 let key = (edge.edge_type.clone(), edge.ranking);
                 if !seen_self_loops.insert(key) {
                     return None; // 重复的自环边，跳过
@@ -108,6 +112,7 @@ pub fn get_neighbors<S: StorageClient>(
 /// - `node_id`: 当前节点ID
 /// - `edge_direction`: 边方向
 /// - `edge_types`: 边类型过滤
+/// - `allow_loop`: 是否允许自环边（默认false，即去重自环边）
 ///
 /// # 返回
 /// (邻居节点, 边) 元组列表
@@ -116,6 +121,7 @@ pub fn get_neighbors_with_edges<S: StorageClient>(
     node_id: &Value,
     edge_direction: EdgeDirection,
     edge_types: &Option<Vec<String>>,
+    allow_loop: bool,
 ) -> DBResult<Vec<(Value, Edge)>> {
     let storage_guard = storage.lock();
 
@@ -141,7 +147,8 @@ pub fn get_neighbors_with_edges<S: StorageClient>(
             // 检查是否是自环边
             let is_self_loop = *edge.src == *edge.dst;
 
-            if is_self_loop {
+            // 如果不允许自环边，进行去重处理
+            if is_self_loop && !allow_loop {
                 let key = (edge.edge_type.clone(), edge.ranking);
                 if !seen_self_loops.insert(key) {
                     return None; // 重复的自环边，跳过

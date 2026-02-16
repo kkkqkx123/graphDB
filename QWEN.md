@@ -80,17 +80,12 @@ The graphDB project utilises Cargo as its build system. To build the project:
 
 analyze_cargo is a cli tool that automatically runs `cargo test --lib`, categorizes the errors/warnings, and generates a detailed Markdown report.
 default output file is `cargo_errors_report.md` in pwd.
-You can use it instead of `cargo test --lib` or `cargo check`. 
+Use it instead of `cargo test --lib` or `cargo check`. 
 
 **Usage**
 ```bash
 analyze_cargo
 ```
-
-**Options**
-- `--output <file>`: Specify output file path (default: cargo_errors_report.md)
-- `--filter-warnings`: Filter warnings, only show errors
-- `--filter-paths <paths>`: Filter errors by file paths (comma-separated)
 
 **Examples**
 
@@ -100,9 +95,6 @@ analyze_cargo
 
 # Filter warnings only
 analyze_cargo --filter-warnings
-
-# Filter by specific paths(folder or file)
-analyze_cargo --filter-paths src/main.rs,src/core
 ```
 
 4. **Run commands**:
@@ -134,7 +126,7 @@ The project includes a comprehensive test suite utilising Rust's standard testin
 1. **Running tests**:
    ```bash
    cargo test # Run all tests
-   cargo test -- --test-threads=1 # Run tests sequentially (useful for debugging)
+   cargo test --lib -- --nocapture # Run lib tests
    cargo test <test_name> # Run specific test(s) matching pattern
    cargo test --test <integration_test_file> # Run specific integration test
    cargo test --release  # Run tests in release mode
@@ -147,10 +139,10 @@ It is not recommended to run all tests in one time.
    - Unit tests when original file is too large: Add individual test.rs, and add it to `mod.rs`
    - Integration tests: Located in the `tests/` directory
    - Benchmarks: Located in the `benches/` directory
-   - Tests relevent to storage: storage in `data/tests` directory, don't place in any other directory
    
 ## Additional Notes
 
-- The project utilises Rust version 2021, employing the ownership system to ensure memory safety
+- The project utilises Rust, employing the ownership system to ensure memory safety
 - Does not include distributed functionality, focusing instead on single-machine performance and simplicity
 - The architecture aims to minimise external dependencies, leveraging the security and performance of the Rust ecosystem
+- Use powershell syntax instead of shell

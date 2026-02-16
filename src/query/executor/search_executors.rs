@@ -19,7 +19,8 @@ pub struct BFSShortestExecutor<S: StorageClient + 'static> {
     steps: usize,
     max_depth: Option<usize>,
     edge_types: Vec<String>,
-    no_loop: bool,
+    with_cycle: bool,  // 是否允许回路（路径中重复访问顶点）
+    with_loop: bool,   // 是否允许自环边
     single_shortest: bool,
     limit: usize,
     start_vertex: Value,
@@ -46,7 +47,7 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
         storage: Arc<Mutex<S>>,
         steps: usize,
         edge_types: Vec<String>,
-        no_loop: bool,
+        with_cycle: bool,
         max_depth: Option<usize>,
         single_shortest: bool,
         limit: usize,
@@ -58,7 +59,8 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
             steps,
             max_depth,
             edge_types,
-            no_loop,
+            with_cycle,
+            with_loop: false,
             single_shortest,
             limit,
             start_vertex,
@@ -76,6 +78,12 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
         }
     }
 
+    /// 设置是否允许自环边
+    pub fn with_loop(mut self, with_loop: bool) -> Self {
+        self.with_loop = with_loop;
+        self
+    }
+
     pub fn steps(&self) -> usize {
         self.steps
     }
@@ -88,8 +96,8 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
         &self.edge_types
     }
 
-    pub fn no_loop(&self) -> bool {
-        self.no_loop
+    pub fn with_cycle(&self) -> bool {
+        self.with_cycle
     }
 
     pub fn single_shortest(&self) -> bool {
@@ -125,6 +133,8 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
     ) -> DBResult<Vec<Value>> {
         let mut current_edges: HashMap<Value, Edge> = HashMap::new();
         let mut unique_dst: HashSet<Value> = HashSet::new();
+        // 自环边去重跟踪
+        let mut seen_self_loops: HashSet<(String, i64)> = HashSet::new();
 
         // 预留容量以提高性能
         if reverse {
@@ -162,19 +172,29 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
                     (*edge.dst).clone()
                 };
 
+                // 检查是否是自环边
+                let is_self_loop = *edge.src == *edge.dst;
+                // 如果不允许自环边，进行去重
+                if is_self_loop && !self.with_loop {
+                    let key = (edge.edge_type.clone(), edge.ranking);
+                    if !seen_self_loops.insert(key) {
+                        continue; // 重复的自环边，跳过
+                    }
+                }
+
                 // 检查是否已访问
                 let already_visited = if reverse {
                     self.right_visited_vids.contains(&dst)
                 } else {
                     self.left_visited_vids.contains(&dst)
                 };
-                
+
                 if already_visited {
                     continue;
                 }
 
-                // 检查无环约束
-                if self.no_loop {
+                // 检查无环约束（路径中顶点唯一）
+                if !self.with_cycle {
                     let in_path = self.left_visited_vids.contains(&dst) || self.right_visited_vids.contains(&dst);
                     if in_path {
                         continue;
@@ -248,8 +268,8 @@ impl<S: StorageClient + 'static> BFSShortestExecutor<S> {
         // 为每个交汇点构建完整路径
         for meet_vid in meet_vids {
             if let Some(path) = self.create_path(&meet_vid, odd_step) {
-                // 检查路径是否有重复边
-                if self.no_loop && path.has_duplicate_edges() {
+                // 检查路径是否有重复边（路径中顶点唯一）
+                if !self.with_cycle && path.has_duplicate_edges() {
                     continue;
                 }
 

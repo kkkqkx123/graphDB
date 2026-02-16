@@ -438,6 +438,8 @@ pub struct FindPathStmt {
     pub yield_clause: Option<YieldClause>,
     pub weight_expression: Option<String>,
     pub heuristic_expression: Option<String>,
+    pub with_loop: bool,   // 是否允许自环
+    pub with_cycle: bool,  // 是否允许回路（路径中重复访问顶点）
 }
 
 /// INSERT 语句
@@ -877,6 +879,8 @@ mod tests {
             yield_clause: None,
             weight_expression: None,
             heuristic_expression: None,
+            with_loop: false,
+            with_cycle: false,
         });
 
         assert!(matches!(stmt, Stmt::FindPath(_)));

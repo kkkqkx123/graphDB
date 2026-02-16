@@ -182,6 +182,10 @@ impl<'a> ParseContext<'a> {
                 self.next_token();
                 Ok("max".to_string())
             }
+            TokenKind::Weight => {
+                self.next_token();
+                Ok("weight".to_string())
+            }
             _ => {
                 let pos = self.current_position();
                 Err(ParseError::new(

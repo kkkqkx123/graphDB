@@ -90,21 +90,36 @@ pub fn cleanup_termination_map(map: &mut TerminationMap) {
 #[derive(Debug, Default)]
 pub struct SelfLoopDedup {
     seen: HashSet<(String, i64)>,
+    with_loop: bool,
 }
 
 impl SelfLoopDedup {
     pub fn new() -> Self {
         Self {
             seen: HashSet::new(),
+            with_loop: false,
+        }
+    }
+
+    /// 创建允许自环边的去重结构
+    pub fn with_loop(with_loop: bool) -> Self {
+        Self {
+            seen: HashSet::new(),
+            with_loop,
         }
     }
 
     /// 检查并记录自环边
-    /// 返回 true 表示该边应该被包含（首次出现）
+    /// 返回 true 表示该边应该被包含（首次出现或允许自环）
     /// 返回 false 表示该边应该被跳过（重复的自环边）
     pub fn should_include(&mut self, edge: &Edge) -> bool {
         let is_self_loop = *edge.src == *edge.dst;
         if is_self_loop {
+            // 如果允许自环边，直接返回 true
+            if self.with_loop {
+                return true;
+            }
+            // 否则进行去重
             let key = (edge.edge_type.clone(), edge.ranking);
             self.seen.insert(key)
         } else {

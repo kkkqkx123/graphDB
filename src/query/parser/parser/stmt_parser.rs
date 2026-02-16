@@ -1520,6 +1520,18 @@ impl<'a> StmtParser<'a> {
         };
 
         ctx.expect_token(TokenKind::Path)?;
+
+        // 可选的 WITH LOOP / WITH CYCLE
+        let mut with_loop = false;
+        let mut with_cycle = false;
+        while ctx.match_token(TokenKind::With) {
+            if ctx.match_token(TokenKind::Loop) {
+                with_loop = true;
+            } else if ctx.match_token(TokenKind::Cycle) {
+                with_cycle = true;
+            }
+        }
+
         ctx.expect_token(TokenKind::From)?;
         let from_span = ctx.current_span();
         let from_vertices = self.parse_expression_list(ctx)?;
@@ -1565,6 +1577,10 @@ impl<'a> StmtParser<'a> {
             } else if let TokenKind::StringLiteral(name) = ctx.current_token().kind.clone() {
                 ctx.next_token();
                 Some(name)
+            } else if let TokenKind::Weight = ctx.current_token().kind {
+                // 允许 weight 关键字作为权重表达式（例如：WEIGHT weight）
+                ctx.next_token();
+                Some("weight".to_string())
             } else {
                 None
             }
@@ -1619,6 +1635,8 @@ impl<'a> StmtParser<'a> {
             yield_clause,
             weight_expression,
             heuristic_expression: None,
+            with_loop,
+            with_cycle,
         }))
     }
 

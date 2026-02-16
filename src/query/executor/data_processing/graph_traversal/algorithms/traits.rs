@@ -100,8 +100,10 @@ pub struct AlgorithmContext {
     pub limit: usize,
     /// 是否只返回单条最短路径
     pub single_shortest: bool,
-    /// 是否检测环路
-    pub no_loop: bool,
+    /// 是否允许回路（路径中重复访问顶点）
+    pub with_cycle: bool,
+    /// 是否允许自环边（A->A）
+    pub with_loop: bool,
 }
 
 impl Default for AlgorithmContext {
@@ -110,7 +112,8 @@ impl Default for AlgorithmContext {
             max_depth: None,
             limit: usize::MAX,
             single_shortest: false,
-            no_loop: true,
+            with_cycle: false,
+            with_loop: false,
         }
     }
 }
@@ -135,8 +138,13 @@ impl AlgorithmContext {
         self
     }
 
-    pub fn with_no_loop(mut self, no_loop: bool) -> Self {
-        self.no_loop = no_loop;
+    pub fn with_cycle(mut self, with_cycle: bool) -> Self {
+        self.with_cycle = with_cycle;
+        self
+    }
+
+    pub fn with_loop(mut self, with_loop: bool) -> Self {
+        self.with_loop = with_loop;
         self
     }
 }

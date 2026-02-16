@@ -29,7 +29,8 @@ pub struct PathContext {
     pub is_weight: bool,
     pub weight_expression: Option<String>,
     pub heuristic_expression: Option<String>,
-    pub no_loop: bool,
+    pub with_cycle: bool,  // 是否允许回路（路径中重复访问顶点）
+    pub with_loop: bool,   // 是否允许自环边（A->A）
     pub with_prop: bool,
     pub runtime_from_project: Option<String>,
     pub runtime_from_dedup: Option<String>,
@@ -57,7 +58,8 @@ impl PathContext {
             is_weight: false,
             weight_expression: None,
             heuristic_expression: None,
-            no_loop: false,
+            with_cycle: false,
+            with_loop: false,
             with_prop: false,
             runtime_from_project: None,
             runtime_from_dedup: None,

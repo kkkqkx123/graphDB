@@ -274,6 +274,8 @@ impl StmtFactory {
             yield_clause,
             weight_expression: None,
             heuristic_expression: None,
+            with_loop: false,
+            with_cycle: false,
         })
     }
 }

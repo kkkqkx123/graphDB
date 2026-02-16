@@ -29,18 +29,30 @@ use parking_lot::Mutex;
 #[derive(Debug, Default)]
 struct SelfLoopDedup {
     seen: HashSet<(String, i64)>,
+    with_loop: bool,
 }
 
 impl SelfLoopDedup {
     fn new() -> Self {
         Self {
             seen: HashSet::new(),
+            with_loop: false,
+        }
+    }
+
+    fn with_loop(with_loop: bool) -> Self {
+        Self {
+            seen: HashSet::new(),
+            with_loop,
         }
     }
 
     fn should_include(&mut self, edge: &Edge) -> bool {
         let is_self_loop = *edge.src == *edge.dst;
         if is_self_loop {
+            if self.with_loop {
+                return true;
+            }
             let key = (edge.edge_type.clone(), edge.ranking);
             self.seen.insert(key)
         } else {
@@ -104,6 +116,7 @@ pub struct AllPathsExecutor<S: StorageClient + Send + 'static> {
     pub offset: usize,
     pub step_filter: Option<String>,
     pub filter: Option<String>,
+    pub with_loop: bool, // 是否允许自环边
     left_steps: usize,
     right_steps: usize,
     left_visited: HashSet<Value>,
@@ -143,6 +156,7 @@ impl<S: StorageClient> AllPathsExecutor<S> {
             offset: 0,
             step_filter: None,
             filter: None,
+            with_loop: false,
             left_steps: 0,
             right_steps: 0,
             left_visited: HashSet::new(),
@@ -156,6 +170,12 @@ impl<S: StorageClient> AllPathsExecutor<S> {
             edges_traversed: 0,
             parallel_config: ParallelConfig::default(),
         }
+    }
+
+    /// 设置是否允许自环边
+    pub fn with_loop(mut self, with_loop: bool) -> Self {
+        self.with_loop = with_loop;
+        self
     }
 
     /// 设置并行计算配置
@@ -207,8 +227,8 @@ impl<S: StorageClient> AllPathsExecutor<S> {
             edges
         };
 
-        // 自环边去重
-        let mut dedup = SelfLoopDedup::new();
+        // 自环边去重（根据 with_loop 配置决定是否去重）
+        let mut dedup = SelfLoopDedup::with_loop(self.with_loop);
 
         let neighbors = filtered_edges
             .into_iter()

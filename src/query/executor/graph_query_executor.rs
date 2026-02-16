@@ -550,11 +550,13 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
             edge_direction,
             edge_types,
             max_steps,
-        ).with_config(
+        )
+        .with_config(
             false, // with_prop
             limit,
             offset,
-        );
+        )
+        .with_loop(clause.with_loop);
 
         // 执行查询
         match executor.execute() {

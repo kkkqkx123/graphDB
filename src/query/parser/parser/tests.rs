@@ -259,4 +259,55 @@ mod tests {
             panic!("期望 FindPath 语句");
         }
     }
+
+    #[test]
+    fn test_find_path_with_loop() {
+        let query = "FIND ALL PATH WITH LOOP FROM 1 TO 2 OVER connect";
+        let result = parse_statement(query);
+        assert!(result.is_ok(), "带 WITH LOOP 的 FIND PATH 解析应该成功: {:?}", result.err());
+
+        let stmt = result.expect("带 WITH LOOP 的 FIND PATH 解析应该成功");
+        assert_eq!(stmt.kind(), "FIND PATH");
+
+        if let Stmt::FindPath(find_path_stmt) = stmt {
+            assert!(find_path_stmt.with_loop, "应该允许自环边");
+            assert!(!find_path_stmt.with_cycle, "默认不允许回路");
+        } else {
+            panic!("期望 FindPath 语句");
+        }
+    }
+
+    #[test]
+    fn test_find_path_with_cycle() {
+        let query = "FIND ALL PATH WITH CYCLE FROM 1 TO 2 OVER connect";
+        let result = parse_statement(query);
+        assert!(result.is_ok(), "带 WITH CYCLE 的 FIND PATH 解析应该成功: {:?}", result.err());
+
+        let stmt = result.expect("带 WITH CYCLE 的 FIND PATH 解析应该成功");
+        assert_eq!(stmt.kind(), "FIND PATH");
+
+        if let Stmt::FindPath(find_path_stmt) = stmt {
+            assert!(!find_path_stmt.with_loop, "默认不允许自环边");
+            assert!(find_path_stmt.with_cycle, "应该允许回路");
+        } else {
+            panic!("期望 FindPath 语句");
+        }
+    }
+
+    #[test]
+    fn test_find_path_with_loop_and_cycle() {
+        let query = "FIND ALL PATH WITH LOOP WITH CYCLE FROM 1 TO 2 OVER connect";
+        let result = parse_statement(query);
+        assert!(result.is_ok(), "带 WITH LOOP WITH CYCLE 的 FIND PATH 解析应该成功: {:?}", result.err());
+
+        let stmt = result.expect("带 WITH LOOP WITH CYCLE 的 FIND PATH 解析应该成功");
+        assert_eq!(stmt.kind(), "FIND PATH");
+
+        if let Stmt::FindPath(find_path_stmt) = stmt {
+            assert!(find_path_stmt.with_loop, "应该允许自环边");
+            assert!(find_path_stmt.with_cycle, "应该允许回路");
+        } else {
+            panic!("期望 FindPath 语句");
+        }
+    }
 }

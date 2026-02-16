@@ -112,6 +112,7 @@ impl<S: StorageClient> TraverseExecutor<S> {
             node_id,
             self.edge_direction,
             &self.edge_types,
+            false, // 默认不允许自环边
         )
         .map_err(|e| QueryError::StorageError(e.to_string()))
     }
