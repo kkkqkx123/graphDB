@@ -12,11 +12,9 @@
 pub mod binary;
 pub mod config;
 pub mod error;
-pub mod service;
 pub mod types;
 
 pub use binary::*;
 pub use config::*;
 pub use error::*;
-pub use service::*;
 pub use types::*;
