@@ -1,4 +1,5 @@
 pub mod iterator;
+pub mod monitoring;
 pub mod operations;
 pub mod metadata;
 pub mod redb_storage;

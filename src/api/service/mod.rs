@@ -10,4 +10,4 @@ pub use graph_service::GraphService;
 pub use permission_checker::PermissionChecker;
 pub use permission_manager::{Permission, PermissionManager, RoleType};
 pub use query_processor::QueryEngine;
-pub use stats_manager::{MetricType, MetricValue, StatsManager};
+pub use stats_manager::{MetricType, MetricValue, StatsManager, QueryPhase, ErrorType, ErrorInfo, ErrorSummary, QueryProfile, QueryStatus};

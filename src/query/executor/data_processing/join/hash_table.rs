@@ -553,7 +553,7 @@ impl HashTable {
                     }
                 }
                 Err(e) => {
-                    eprintln!("读取溢出数据失败: {}", e);
+                    log::warn!("读取溢出数据失败: {}", e);
                 }
             }
         }

@@ -26,7 +26,7 @@ impl TagFilterProcessor {
         match ExpressionEvaluator::evaluate(filter_expression, &mut context) {
             Ok(value) => Self::value_to_bool(&value),
             Err(e) => {
-                eprintln!("标签过滤表达式评估失败: {}", e);
+                log::warn!("标签过滤表达式评估失败: {}", e);
                 false // 默认排除
             }
         }

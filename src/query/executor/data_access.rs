@@ -193,7 +193,7 @@ impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
                                     }
                                 }
                                 Err(e) => {
-                                    eprintln!("顶点过滤表达式评估失败: {}", e);
+                                    log::warn!("顶点过滤表达式评估失败: {}", e);
                                     false
                                 }
                             }
