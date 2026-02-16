@@ -86,6 +86,16 @@ impl Vertex {
         }
     }
 
+    /// 创建只有VID的顶点（简化构造函数）
+    pub fn with_vid(vid: Value) -> Self {
+        Self {
+            vid: Box::new(vid),
+            id: 0,
+            tags: Vec::new(),
+            properties: HashMap::new(),
+        }
+    }
+
     pub fn new_with_properties(
         vid: Value,
         tags: Vec<Tag>,
@@ -517,6 +527,40 @@ impl PartialOrd for Step {
 }
 
 impl Step {
+    /// 创建新的步骤
+    pub fn new(dst: Vertex, edge_type: String, _edge_name: String, ranking: i64) -> Self {
+        // 创建一个空的边，稍后在构建路径时填充
+        use crate::core::NullType;
+        let edge = Edge::new_empty(Value::Null(NullType::Null), Value::Null(NullType::Null), edge_type, ranking);
+        Self {
+            dst: Box::new(dst),
+            edge: Box::new(edge),
+        }
+    }
+
+    /// 创建带有完整边信息的步骤
+    pub fn new_with_edge(dst: Vertex, edge: Edge) -> Self {
+        Self {
+            dst: Box::new(dst),
+            edge: Box::new(edge),
+        }
+    }
+
+    /// 获取源顶点ID
+    pub fn src_vid(&self) -> &Value {
+        &self.edge.src
+    }
+
+    /// 获取目标顶点ID
+    pub fn dst_vid(&self) -> &Value {
+        &self.dst.vid
+    }
+
+    /// 获取边的ranking
+    pub fn ranking(&self) -> i64 {
+        self.edge.ranking
+    }
+
     /// 估算步骤的内存使用大小
     pub fn estimated_size(&self) -> usize {
         let mut size = std::mem::size_of::<Self>();

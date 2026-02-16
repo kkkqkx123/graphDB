@@ -1,11 +1,89 @@
 //! 图算法共享类型定义
 //!
-//! 包含各种图算法使用的共享数据结构
+//! 包含各种图遍历和路径查找算法使用的共享数据结构
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 
 use crate::core::{Edge, NPath, Path, Value};
+
+/// 多源最短路径请求
+/// 表示一对起点和终点的路径查找请求
+#[derive(Debug, Clone)]
+pub struct MultiPathRequest {
+    /// 起点顶点ID
+    pub src: Value,
+    /// 终点顶点ID
+    pub dst: Value,
+    /// 是否已找到路径
+    pub found: bool,
+}
+
+impl MultiPathRequest {
+    pub fn new(src: Value, dst: Value) -> Self {
+        Self {
+            src,
+            dst,
+            found: false,
+        }
+    }
+
+    pub fn mark_found(&mut self) {
+        self.found = true;
+    }
+}
+
+/// 多源最短路径终止映射表
+/// 用于跟踪所有(src, dst)对的完成状态
+pub type TerminationMap = HashMap<Value, Vec<(Value, bool)>>;
+
+/// 中间路径映射
+/// 第一层key: 目标顶点ID
+/// 第二层key: 源顶点ID
+/// value: 从源到目标的所有路径
+pub type Interims = HashMap<Value, HashMap<Value, Vec<Path>>>;
+
+/// 创建终止映射表
+/// 从起点集合和终点集合创建笛卡尔积映射
+pub fn create_termination_map(start_vids: &[Value], end_vids: &[Value]) -> TerminationMap {
+    let mut map = HashMap::new();
+    for src in start_vids {
+        let pairs: Vec<(Value, bool)> = end_vids
+            .iter()
+            .map(|dst| (dst.clone(), true))
+            .collect();
+        map.insert(src.clone(), pairs);
+    }
+    map
+}
+
+/// 检查终止映射表是否全部完成
+pub fn is_termination_complete(map: &TerminationMap) -> bool {
+    map.is_empty()
+}
+
+/// 标记路径对已找到
+/// 返回true表示该对存在并被标记
+pub fn mark_path_found(map: &mut TerminationMap, src: &Value, dst: &Value) -> bool {
+    if let Some(pairs) = map.get_mut(src) {
+        for (d, found) in pairs.iter_mut() {
+            if d == dst {
+                *found = false;
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// 清理已找到的路径对
+/// 移除所有found=false的条目
+pub fn cleanup_termination_map(map: &mut TerminationMap) {
+    map.retain(|_, pairs| {
+        pairs.retain(|(_, found)| *found);
+        !pairs.is_empty()
+    });
+}
 
 /// 自环边去重辅助结构
 /// 用于在遍历过程中跟踪已处理的自环边
