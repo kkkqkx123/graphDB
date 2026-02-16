@@ -465,6 +465,7 @@ pub struct ShortestPath {
     pub edge_types: Vec<String>,
     pub max_step: usize,             // 最大步数
     pub weight_expression: Option<String>, // 权重表达式
+    pub heuristic_expression: Option<String>, // 启发式表达式
     pub no_reverse: bool,            // 是否不允许反向
 }
 
@@ -485,6 +486,7 @@ impl ShortestPath {
             edge_types,
             max_step,
             weight_expression: None,
+            heuristic_expression: None,
             no_reverse: false,
         }
     }
@@ -499,6 +501,14 @@ impl ShortestPath {
 
     pub fn weight_expression(&self) -> &Option<String> {
         &self.weight_expression
+    }
+
+    pub fn set_heuristic_expression(&mut self, expression: String) {
+        self.heuristic_expression = Some(expression);
+    }
+
+    pub fn heuristic_expression(&self) -> &Option<String> {
+        &self.heuristic_expression
     }
 
     /// 获取节点的唯一ID

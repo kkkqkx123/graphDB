@@ -186,28 +186,76 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
         }
     }
 
+    /// 解析启发式表达式为启发式配置
+    ///
+    /// 支持的启发式表达式格式：
+    /// - None: 零启发式（退化为Dijkstra）
+    /// - "distance(lat,lon)": 使用顶点的经纬度属性计算欧几里得距离
+    /// - "scale(factor)": 使用固定缩放因子
+    fn parse_heuristic_config(heuristic_expr: &Option<String>) -> crate::query::executor::data_processing::graph_traversal::algorithms::HeuristicFunction {
+        use crate::query::executor::data_processing::graph_traversal::algorithms::HeuristicFunction;
+
+        match heuristic_expr {
+            None => HeuristicFunction::Zero,
+            Some(expr) => {
+                let expr_lower = expr.to_lowercase().replace(' ', "");
+
+                // 解析 distance(lat,lon) 格式
+                if expr_lower.starts_with("distance(") && expr_lower.ends_with(')') {
+                    let inner = &expr_lower[9..expr_lower.len()-1];
+                    let parts: Vec<&str> = inner.split(',').collect();
+                    if parts.len() == 2 {
+                        return HeuristicFunction::PropertyDistance(
+                            parts[0].to_string(),
+                            parts[1].to_string(),
+                        );
+                    }
+                }
+
+                // 解析 scale(factor) 格式
+                if expr_lower.starts_with("scale(") && expr_lower.ends_with(')') {
+                    let inner = &expr_lower[6..expr_lower.len()-1];
+                    if let Ok(factor) = inner.parse::<f64>() {
+                        return HeuristicFunction::ScaleFactor(factor);
+                    }
+                }
+
+                // 默认使用零启发式
+                HeuristicFunction::Zero
+            }
+        }
+    }
+
     /// 根据查询特征自动选择最短路径算法
     ///
     /// 算法选择策略：
-    /// - 带权图: 必须使用Dijkstra算法
-    /// - 单对单最短路径 (1对1): 使用双向BFS，时间复杂度最优 O(b^(d/2))
-    /// - 多对多最短路径 (多对多):
-    ///   - 如果搜索深度较小 (<=10): 使用BFS，简单高效
-    ///   - 如果搜索深度较大 (>10): 使用Dijkstra，适合大规模图
-    /// - 有启发信息: 使用A*（当前版本暂不支持启发函数，后续扩展）
+    /// - 带权图:
+    ///   - 单对单且有启发信息: 使用A*算法
+    ///   - 其他情况: 使用Dijkstra算法
+    /// - 无权图:
+    ///   - 单对单最短路径 (1对1): 使用双向BFS，时间复杂度最优 O(b^(d/2))
+    ///   - 多对多最短路径 (多对多):
+    ///     - 如果搜索深度较小 (<=10): 使用BFS，简单高效
+    ///     - 如果搜索深度较大 (>10): 使用Dijkstra，适合大规模图
     fn select_shortest_path_algorithm(
         start_vertex_ids: &[Value],
         end_vertex_ids: &[Value],
         max_step: usize,
         weight_config: &crate::query::executor::data_processing::graph_traversal::algorithms::EdgeWeightConfig,
+        has_heuristic: bool,
     ) -> ShortestPathAlgorithmType {
-        // 带权图必须使用Dijkstra
+        let is_single_pair = start_vertex_ids.len() == 1 && end_vertex_ids.len() == 1;
+
+        // 带权图
         if weight_config.is_weighted() {
+            // 单对单且有启发信息时使用A*
+            if is_single_pair && has_heuristic {
+                return ShortestPathAlgorithmType::AStar;
+            }
             return ShortestPathAlgorithmType::Dijkstra;
         }
 
-        let is_single_pair = start_vertex_ids.len() == 1 && end_vertex_ids.len() == 1;
-
+        // 无权图
         if is_single_pair {
             // 单对单最短路径：双向BFS最优
             ShortestPathAlgorithmType::BFS
@@ -844,12 +892,17 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                 // 从查询计划节点解析权重配置
                 let weight_config = Self::parse_weight_config(node.weight_expression());
 
+                // 从查询计划节点解析启发式配置
+                let heuristic_config = Self::parse_heuristic_config(node.heuristic_expression());
+                let has_heuristic = !heuristic_config.is_zero();
+
                 // 自动选择最优算法
                 let algorithm = Self::select_shortest_path_algorithm(
                     &start_vertex_ids,
                     &end_vertex_ids,
                     node.max_step(),
                     &weight_config,
+                    has_heuristic,
                 );
 
                 let executor = crate::query::executor::data_processing::graph_traversal::ShortestPathExecutor::new(
@@ -865,7 +918,9 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     },
                     Some(node.max_step()),
                     algorithm,
-                ).with_weight_config(weight_config);
+                )
+                .with_weight_config(weight_config)
+                .with_heuristic_config(heuristic_config);
                 Ok(ExecutorEnum::ShortestPath(executor))
             }
 

@@ -2,7 +2,7 @@
 mod tests {
     use crate::core::{Edge, Value, Vertex};
     use crate::query::executor::base::EdgeDirection;
-    use crate::query::executor::data_processing::graph_traversal::algorithms::{EdgeWeightConfig, ShortestPathAlgorithmType};
+    use crate::query::executor::data_processing::graph_traversal::algorithms::{EdgeWeightConfig, HeuristicFunction, ShortestPathAlgorithmType};
     use crate::query::executor::data_processing::graph_traversal::factory::GraphTraversalExecutorFactory;
     use crate::query::executor::data_processing::graph_traversal::traits::GraphTraversalExecutor;
     use crate::query::executor::traits::Executor;
@@ -306,5 +306,173 @@ use parking_lot::Mutex;
 
         assert_eq!(executor.name(), "ShortestPathExecutor");
         assert_eq!(executor.id(), 7);
+    }
+
+    // 创建带坐标属性的测试图，用于A*算法测试
+    async fn create_spatial_test_graph(_test_name: &str) -> Arc<Mutex<MockStorage>> {
+        let storage = Arc::new(Mutex::new(MockStorage));
+        let space = "default";
+
+        // 创建空间测试图：A(0,0) -> B(3,4) -> C(6,8), A -> D(1,1) -> C
+        // 使用欧几里得距离作为启发式
+        {
+            let mut storage_lock = storage.lock();
+
+            // 创建带坐标属性的顶点
+            let mut props_a = std::collections::HashMap::new();
+            props_a.insert("lat".to_string(), Value::Float(0.0));
+            props_a.insert("lon".to_string(), Value::Float(0.0));
+            let vertex_a = Vertex::new_with_properties(Value::String("A".to_string()), vec![], props_a);
+
+            let mut props_b = std::collections::HashMap::new();
+            props_b.insert("lat".to_string(), Value::Float(3.0));
+            props_b.insert("lon".to_string(), Value::Float(4.0));
+            let vertex_b = Vertex::new_with_properties(Value::String("B".to_string()), vec![], props_b);
+
+            let mut props_c = std::collections::HashMap::new();
+            props_c.insert("lat".to_string(), Value::Float(6.0));
+            props_c.insert("lon".to_string(), Value::Float(8.0));
+            let vertex_c = Vertex::new_with_properties(Value::String("C".to_string()), vec![], props_c);
+
+            let mut props_d = std::collections::HashMap::new();
+            props_d.insert("lat".to_string(), Value::Float(1.0));
+            props_d.insert("lon".to_string(), Value::Float(1.0));
+            let vertex_d = Vertex::new_with_properties(Value::String("D".to_string()), vec![], props_d);
+
+            let id_a = storage_lock
+                .insert_vertex(space, vertex_a)
+                .expect("Failed to insert test vertex A");
+            let id_b = storage_lock
+                .insert_vertex(space, vertex_b)
+                .expect("Failed to insert test vertex B");
+            let id_c = storage_lock
+                .insert_vertex(space, vertex_c)
+                .expect("Failed to insert test vertex C");
+            let id_d = storage_lock
+                .insert_vertex(space, vertex_d)
+                .expect("Failed to insert test vertex D");
+
+            // 创建带权重的边
+            let mut props_ab = std::collections::HashMap::new();
+            props_ab.insert("weight".to_string(), Value::Int(5));
+            let edge_ab = Edge::new(
+                id_a.clone(),
+                id_b.clone(),
+                "connect".to_string(),
+                5,
+                props_ab,
+            );
+
+            let mut props_bc = std::collections::HashMap::new();
+            props_bc.insert("weight".to_string(), Value::Int(5));
+            let edge_bc = Edge::new(
+                id_b.clone(),
+                id_c.clone(),
+                "connect".to_string(),
+                5,
+                props_bc,
+            );
+
+            let mut props_ad = std::collections::HashMap::new();
+            props_ad.insert("weight".to_string(), Value::Int(2));
+            let edge_ad = Edge::new(
+                id_a.clone(),
+                id_d.clone(),
+                "connect".to_string(),
+                2,
+                props_ad,
+            );
+
+            let mut props_dc = std::collections::HashMap::new();
+            props_dc.insert("weight".to_string(), Value::Int(8));
+            let edge_dc = Edge::new(
+                id_d.clone(),
+                id_c.clone(),
+                "connect".to_string(),
+                8,
+                props_dc,
+            );
+
+            storage_lock
+                .insert_edge(space, edge_ab)
+                .expect("Failed to insert test edge AB");
+            storage_lock
+                .insert_edge(space, edge_bc)
+                .expect("Failed to insert test edge BC");
+            storage_lock
+                .insert_edge(space, edge_ad)
+                .expect("Failed to insert test edge AD");
+            storage_lock
+                .insert_edge(space, edge_dc)
+                .expect("Failed to insert test edge DC");
+        }
+
+        storage
+    }
+
+    #[tokio::test]
+    async fn test_astar_with_spatial_heuristic() {
+        let storage = create_spatial_test_graph("astar_spatial").await;
+
+        // 使用A*算法，带空间启发式
+        let executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
+            8,
+            storage.clone(),
+            vec![Value::String("A".to_string())],
+            vec![Value::String("C".to_string())],
+            EdgeDirection::Out,
+            None,
+            Some(10),
+            ShortestPathAlgorithmType::AStar,
+        )
+        .with_weight_config(EdgeWeightConfig::Property("weight".to_string()))
+        .with_heuristic_config(HeuristicFunction::PropertyDistance("lat".to_string(), "lon".to_string()));
+
+        assert_eq!(executor.name(), "ShortestPathExecutor");
+        assert_eq!(executor.id(), 8);
+    }
+
+    #[tokio::test]
+    async fn test_astar_without_heuristic() {
+        let storage = create_spatial_test_graph("astar_no_heuristic").await;
+
+        // 使用A*算法，但无启发式（退化为Dijkstra）
+        let executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
+            9,
+            storage.clone(),
+            vec![Value::String("A".to_string())],
+            vec![Value::String("C".to_string())],
+            EdgeDirection::Out,
+            None,
+            Some(10),
+            ShortestPathAlgorithmType::AStar,
+        )
+        .with_weight_config(EdgeWeightConfig::Property("weight".to_string()))
+        .with_heuristic_config(HeuristicFunction::Zero);
+
+        assert_eq!(executor.name(), "ShortestPathExecutor");
+        assert_eq!(executor.id(), 9);
+    }
+
+    #[tokio::test]
+    async fn test_astar_with_scale_heuristic() {
+        let storage = create_spatial_test_graph("astar_scale").await;
+
+        // 使用A*算法，带固定缩放因子启发式
+        let executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
+            10,
+            storage.clone(),
+            vec![Value::String("A".to_string())],
+            vec![Value::String("C".to_string())],
+            EdgeDirection::Out,
+            None,
+            Some(10),
+            ShortestPathAlgorithmType::AStar,
+        )
+        .with_weight_config(EdgeWeightConfig::Property("weight".to_string()))
+        .with_heuristic_config(HeuristicFunction::ScaleFactor(0.5));
+
+        assert_eq!(executor.name(), "ShortestPathExecutor");
+        assert_eq!(executor.id(), 10);
     }
 }

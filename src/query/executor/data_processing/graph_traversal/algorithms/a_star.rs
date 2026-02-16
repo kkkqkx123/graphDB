@@ -1,6 +1,6 @@
 //! A*最短路径算法
 //!
-//! 使用启发式函数的A*搜索算法
+//! 使用启发式函数的A*搜索算法，支持带权图和多终点查询
 
 use std::cmp::Reverse;
 use std::collections::{BinaryHeap, HashMap, HashSet};
@@ -11,7 +11,7 @@ use crate::query::QueryError;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
-use super::types::{AlgorithmStats, has_duplicate_edges};
+use super::types::{AlgorithmStats, EdgeWeightConfig, HeuristicFunction, SelfLoopDedup, has_duplicate_edges};
 use super::traits::ShortestPathAlgorithm;
 
 /// A*算法节点
@@ -51,8 +51,10 @@ pub struct AStar<S: StorageClient> {
     storage: Arc<Mutex<S>>,
     stats: AlgorithmStats,
     edge_direction: crate::core::types::EdgeDirection,
-    /// 启发式函数
-    heuristic: Box<dyn Fn(&Value, &Value) -> f64 + Send>,
+    /// 权重配置
+    weight_config: EdgeWeightConfig,
+    /// 启发式函数配置
+    heuristic_config: HeuristicFunction,
 }
 
 impl<S: StorageClient> AStar<S> {
@@ -61,10 +63,8 @@ impl<S: StorageClient> AStar<S> {
             storage,
             stats: AlgorithmStats::new(),
             edge_direction: crate::core::types::EdgeDirection::Both,
-            heuristic: Box::new(|_current: &Value, _end: &Value| -> f64 {
-                // 默认启发式函数返回0，退化为Dijkstra
-                0.0
-            }),
+            weight_config: EdgeWeightConfig::Unweighted,
+            heuristic_config: HeuristicFunction::Zero,
         }
     }
 
@@ -73,12 +73,75 @@ impl<S: StorageClient> AStar<S> {
         self
     }
 
-    pub fn with_heuristic<F>(mut self, heuristic: F) -> Self
-    where
-        F: Fn(&Value, &Value) -> f64 + Send + 'static,
-    {
-        self.heuristic = Box::new(heuristic);
+    pub fn with_weight_config(mut self, config: EdgeWeightConfig) -> Self {
+        self.weight_config = config;
         self
+    }
+
+    pub fn with_heuristic(mut self, heuristic: HeuristicFunction) -> Self {
+        self.heuristic_config = heuristic;
+        self
+    }
+
+    /// 获取边的权重
+    fn get_edge_weight(&self, edge: &Edge) -> f64 {
+        match &self.weight_config {
+            EdgeWeightConfig::Unweighted => 1.0,
+            EdgeWeightConfig::Ranking => edge.ranking as f64,
+            EdgeWeightConfig::Property(prop_name) => {
+                edge.get_property(prop_name)
+                    .map(|v| match v {
+                        crate::core::Value::Int(i) => *i as f64,
+                        crate::core::Value::Float(f) => *f,
+                        _ => 1.0,
+                    })
+                    .unwrap_or(1.0)
+            }
+        }
+    }
+
+    /// 计算启发式值
+    /// 对于多终点，使用到最近终点的启发式值
+    fn calculate_heuristic(
+        &self,
+        current_id: &Value,
+        end_ids: &[Value],
+    ) -> Result<f64, QueryError> {
+        if self.heuristic_config.is_zero() {
+            return Ok(0.0);
+        }
+
+        // 获取当前节点属性
+        let current_props = self.get_vertex_props(current_id)?;
+
+        // 计算到所有终点的启发式值，取最小值
+        let min_h = end_ids
+            .iter()
+            .filter_map(|end_id| {
+                let end_props = self.get_vertex_props(end_id).ok()?;
+                Some(self.heuristic_config.evaluate(
+                    current_id,
+                    end_id,
+                    current_props.as_ref(),
+                    end_props.as_ref(),
+                ))
+            })
+            .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+            .unwrap_or(0.0);
+
+        Ok(min_h)
+    }
+
+    /// 获取顶点属性
+    fn get_vertex_props(
+        &self,
+        vid: &Value,
+    ) -> Result<Option<std::collections::HashMap<String, crate::core::Value>>, QueryError> {
+        let storage = self.storage.lock();
+        storage
+            .get_vertex("default", vid)
+            .map(|v| v.map(|vertex| vertex.properties))
+            .map_err(|e| QueryError::StorageError(e.to_string()))
     }
 
     /// 获取邻居节点和边
@@ -102,34 +165,39 @@ impl<S: StorageClient> AStar<S> {
             edges
         };
 
+        // 自环边去重
+        let mut dedup = SelfLoopDedup::new();
+
         let neighbors_with_edges: Vec<(Value, Edge, f64)> = filtered_edges
             .into_iter()
+            .filter(|edge| dedup.should_include(edge))
             .filter_map(|edge| {
-                let (neighbor_id, weight) = match self.edge_direction {
+                let neighbor_id = match self.edge_direction {
                     crate::core::types::EdgeDirection::In => {
                         if *edge.dst == *node_id {
-                            ((*edge.src).clone(), edge.ranking as f64)
+                            (*edge.src).clone()
                         } else {
                             return None;
                         }
                     }
                     crate::core::types::EdgeDirection::Out => {
                         if *edge.src == *node_id {
-                            ((*edge.dst).clone(), edge.ranking as f64)
+                            (*edge.dst).clone()
                         } else {
                             return None;
                         }
                     }
                     crate::core::types::EdgeDirection::Both => {
                         if *edge.src == *node_id {
-                            ((*edge.dst).clone(), edge.ranking as f64)
+                            (*edge.dst).clone()
                         } else if *edge.dst == *node_id {
-                            ((*edge.src).clone(), edge.ranking as f64)
+                            (*edge.src).clone()
                         } else {
                             return None;
                         }
                     }
                 };
+                let weight = self.get_edge_weight(&edge);
                 Some((neighbor_id, edge, weight))
             })
             .collect();
@@ -203,19 +271,15 @@ impl<S: StorageClient> ShortestPathAlgorithm for AStar<S> {
         single_shortest: bool,
         limit: usize,
     ) -> Result<Vec<Path>, QueryError> {
-        // 使用第一个终点作为启发式函数的目标
-        let target = end_ids.first().cloned();
-
         let mut g_cost_map: HashMap<Value, f64> = HashMap::new();
         let mut previous_map: HashMap<Value, (Value, Edge)> = HashMap::new();
         let mut closed_set: HashSet<Value> = HashSet::new();
         let mut open_set: HashSet<Value> = HashSet::new();
         let mut priority_queue: BinaryHeap<Reverse<AStarNode>> = BinaryHeap::new();
 
+        // 初始化起点
         for start_id in start_ids {
-            let h_cost = target.as_ref()
-                .map(|t| (self.heuristic)(start_id, t))
-                .unwrap_or(0.0);
+            let h_cost = self.calculate_heuristic(start_id, end_ids)?;
 
             g_cost_map.insert(start_id.clone(), 0.0);
             open_set.insert(start_id.clone());
@@ -246,6 +310,7 @@ impl<S: StorageClient> ShortestPathAlgorithm for AStar<S> {
             open_set.remove(&current.vertex_id);
             self.stats.increment_nodes_visited();
 
+            // 检查是否到达终点
             if end_ids.contains(&current.vertex_id) {
                 if let Some(path) = self.reconstruct_path(&current.vertex_id, &previous_map, start_ids)? {
                     if !has_duplicate_edges(&path) {
@@ -255,12 +320,14 @@ impl<S: StorageClient> ShortestPathAlgorithm for AStar<S> {
                 continue;
             }
 
+            // 检查深度限制
             if let Some(max_d) = max_depth {
                 if current.g_cost as usize >= max_d {
                     continue;
                 }
             }
 
+            // 扩展邻居
             let neighbors = self.get_neighbors_with_edges(&current.vertex_id, edge_types)?;
             self.stats.increment_edges_traversed(neighbors.len());
 
@@ -276,10 +343,7 @@ impl<S: StorageClient> ShortestPathAlgorithm for AStar<S> {
                     g_cost_map.insert(neighbor_id.clone(), tentative_g_cost);
                     previous_map.insert(neighbor_id.clone(), (current.vertex_id.clone(), edge.clone()));
 
-                    let h_cost = target.as_ref()
-                        .map(|t| (self.heuristic)(&neighbor_id, t))
-                        .unwrap_or(0.0);
-
+                    let h_cost = self.calculate_heuristic(&neighbor_id, end_ids)?;
                     let f_cost = tentative_g_cost + h_cost;
 
                     priority_queue.push(Reverse(AStarNode {

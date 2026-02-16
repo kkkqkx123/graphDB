@@ -21,6 +21,6 @@ pub use traits::{
     AlgorithmContext, PathFindingAlgorithm, ShortestPathAlgorithm, TraversalAlgorithm,
 };
 pub use types::{
-    AlgorithmStats, BidirectionalBFSState, DistanceNode, EdgeWeightConfig, SelfLoopDedup,
+    AlgorithmStats, BidirectionalBFSState, DistanceNode, EdgeWeightConfig, HeuristicFunction, SelfLoopDedup,
     ShortestPathAlgorithmType, combine_npaths, has_duplicate_edges,
 };

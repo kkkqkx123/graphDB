@@ -139,6 +139,86 @@ pub enum EdgeWeightConfig {
     Property(String),
 }
 
+/// 启发式函数类型
+/// 用于A*算法估计从当前节点到目标节点的代价
+#[derive(Debug, Clone)]
+pub enum HeuristicFunction {
+    /// 零启发式，退化为Dijkstra算法
+    Zero,
+    /// 使用顶点属性计算启发式（如坐标）
+    /// 参数为属性名，用于获取空间坐标
+    PropertyDistance(String, String), // (lat_prop, lon_prop)
+    /// 使用固定权重因子
+    ScaleFactor(f64),
+}
+
+impl HeuristicFunction {
+    /// 计算启发式值
+    ///
+    /// # Arguments
+    /// * `current` - 当前节点值
+    /// * `target` - 目标节点值
+    /// * `current_props` - 当前节点属性
+    /// * `target_props` - 目标节点属性
+    ///
+    /// # Returns
+    /// 启发式估计值（必须满足可采纳性：不高估实际代价）
+    pub fn evaluate(
+        &self,
+        _current: &Value,
+        _target: &Value,
+        current_props: Option<&std::collections::HashMap<String, crate::core::Value>>,
+        target_props: Option<&std::collections::HashMap<String, crate::core::Value>>,
+    ) -> f64 {
+        match self {
+            HeuristicFunction::Zero => 0.0,
+            HeuristicFunction::PropertyDistance(lat_prop, lon_prop) => {
+                // 计算欧几里得距离
+                let get_coords = |props: &std::collections::HashMap<String, crate::core::Value>| {
+                    let lat = props.get(lat_prop)
+                        .and_then(|v| match v {
+                            crate::core::Value::Float(f) => Some(*f),
+                            crate::core::Value::Int(i) => Some(*i as f64),
+                            _ => None,
+                        })
+                        .unwrap_or(0.0);
+                    let lon = props.get(lon_prop)
+                        .and_then(|v| match v {
+                            crate::core::Value::Float(f) => Some(*f),
+                            crate::core::Value::Int(i) => Some(*i as f64),
+                            _ => None,
+                        })
+                        .unwrap_or(0.0);
+                    (lat, lon)
+                };
+
+                if let (Some(c_props), Some(t_props)) = (current_props, target_props) {
+                    let (c_lat, c_lon) = get_coords(c_props);
+                    let (t_lat, t_lon) = get_coords(t_props);
+                    // 简化的欧几里得距离
+                    let d_lat = c_lat - t_lat;
+                    let d_lon = c_lon - t_lon;
+                    ((d_lat * d_lat) + (d_lon * d_lon)).sqrt()
+                } else {
+                    0.0
+                }
+            }
+            HeuristicFunction::ScaleFactor(factor) => *factor,
+        }
+    }
+
+    /// 是否为零启发式
+    pub fn is_zero(&self) -> bool {
+        matches!(self, HeuristicFunction::Zero)
+    }
+}
+
+impl Default for HeuristicFunction {
+    fn default() -> Self {
+        HeuristicFunction::Zero
+    }
+}
+
 impl EdgeWeightConfig {
     /// 是否为带权图
     pub fn is_weighted(&self) -> bool {

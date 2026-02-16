@@ -16,8 +16,8 @@ use parking_lot::Mutex;
 
 // 引入算法模块
 use super::algorithms::{
-    AStar, AlgorithmStats, BidirectionalBFS, Dijkstra, EdgeWeightConfig, ShortestPathAlgorithm,
-    ShortestPathAlgorithmType,
+    AStar, AlgorithmStats, BidirectionalBFS, Dijkstra, EdgeWeightConfig, HeuristicFunction,
+    ShortestPathAlgorithm, ShortestPathAlgorithmType,
 };
 
 /// 最短路径执行器
@@ -32,6 +32,7 @@ pub struct ShortestPathExecutor<S: StorageClient + Send + 'static> {
     pub max_depth: Option<usize>,
     algorithm_type: ShortestPathAlgorithmType,
     weight_config: EdgeWeightConfig,
+    heuristic_config: HeuristicFunction,
     input_executor: Option<Box<ExecutorEnum<S>>>,
     pub shortest_paths: Vec<Path>,
     pub nodes_visited: usize,
@@ -81,6 +82,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
             max_depth,
             algorithm_type: algorithm,
             weight_config: EdgeWeightConfig::Unweighted,
+            heuristic_config: HeuristicFunction::Zero,
             input_executor: None,
             shortest_paths: Vec::new(),
             nodes_visited: 0,
@@ -100,6 +102,11 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
 
     pub fn with_weight_config(mut self, config: EdgeWeightConfig) -> Self {
         self.weight_config = config;
+        self
+    }
+
+    pub fn with_heuristic_config(mut self, config: HeuristicFunction) -> Self {
+        self.heuristic_config = config;
         self
     }
 
@@ -164,7 +171,9 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
             }
             ShortestPathAlgorithmType::AStar => {
                 let mut algorithm = AStar::new(storage)
-                    .with_edge_direction(self.edge_direction);
+                    .with_edge_direction(self.edge_direction)
+                    .with_weight_config(self.weight_config.clone())
+                    .with_heuristic(self.heuristic_config.clone());
                 let paths = algorithm.find_paths(
                     &self.start_vertex_ids,
                     &self.end_vertex_ids,
