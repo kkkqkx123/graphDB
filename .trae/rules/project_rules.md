@@ -142,7 +142,7 @@ It is not recommended to run all tests in one time.
    
 ## Additional Notes
 
-- The project utilises Rust version 2021, employing the ownership system to ensure memory safety
+- The project utilises Rust, employing the ownership system to ensure memory safety
 - Does not include distributed functionality, focusing instead on single-machine performance and simplicity
 - The architecture aims to minimise external dependencies, leveraging the security and performance of the Rust ecosystem
 - Use powershell syntax instead of shell

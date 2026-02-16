@@ -7,7 +7,6 @@ pub mod stats_manager;
 
 pub use authenticator::{Authenticator, PasswordAuthenticator, AuthenticatorFactory};
 pub use graph_service::GraphService;
-pub use crate::index::MemoryIndexCache;
 pub use permission_checker::PermissionChecker;
 pub use permission_manager::{Permission, PermissionManager, RoleType};
 pub use query_processor::QueryEngine;
