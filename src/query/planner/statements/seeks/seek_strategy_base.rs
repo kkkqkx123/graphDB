@@ -10,6 +10,9 @@ use crate::storage::StorageClient;
 pub enum SeekStrategyType {
     VertexSeek,
     IndexSeek,
+    PropIndexSeek,
+    VariablePropIndexSeek,
+    EdgeSeek,
     ScanSeek,
 }
 
@@ -86,6 +89,26 @@ impl SeekStrategyContext {
             idx.target_type == "tag" && labels.contains(&idx.target_name)
         })
     }
+
+    /// 获取指定属性的索引
+    pub fn get_index_for_property(&self, property: &str) -> Option<&IndexInfo> {
+        self.available_indexes.iter().find(|idx| {
+            idx.properties.contains(&property.to_string())
+        })
+    }
+
+    /// 检查是否有属性谓词
+    pub fn has_property_predicates(&self) -> bool {
+        // 检查谓词中是否包含属性过滤条件
+        self.predicates.iter().any(|pred| {
+            matches!(pred, Expression::Binary { .. })
+        })
+    }
+
+    /// 检查是否有属性索引
+    pub fn has_index_for_properties(&self) -> bool {
+        !self.available_indexes.is_empty() && !self.predicates.is_empty()
+    }
 }
 
 #[derive(Debug)]
@@ -115,6 +138,9 @@ impl SeekStrategySelector {
     ) -> SeekStrategyType {
         if context.has_explicit_vid() {
             SeekStrategyType::VertexSeek
+        } else if context.has_property_predicates() && context.has_index_for_properties() {
+            // 优先使用属性索引查找
+            SeekStrategyType::PropIndexSeek
         } else if let Some(_) = context.get_index_for_labels(&context.node_pattern.labels) {
             if context.estimated_rows < self.scan_threshold {
                 SeekStrategyType::IndexSeek

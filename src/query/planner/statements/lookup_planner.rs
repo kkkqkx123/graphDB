@@ -67,22 +67,36 @@ impl Planner for LookupPlanner {
         // 1. 获取可用的索引列表（从元数据服务）
         let available_indexes = self.get_available_indexes(space_id as u64, lookup_ctx.schema_id, lookup_ctx.is_edge)?;
 
-        // 2. 使用 IndexSelector 选择最优索引
-        let (selected_index, scan_limits, scan_type) = if !available_indexes.is_empty() {
-            if let Some(candidate) = IndexSelector::select_best_index(&available_indexes, &lookup_ctx.filter) {
+        // 2. 使用 IndexSelector 选择最优索引并获取评分详情
+        let (selected_index, scan_limits, scan_type, score_detail) = if !available_indexes.is_empty() {
+            if let Some((candidate, detail)) = IndexSelector::select_best_index_with_detail(&available_indexes, &lookup_ctx.filter) {
                 let scan_limits = IndexSelector::hints_to_limits(&candidate.column_hints);
                 let scan_type = if candidate.column_hints.is_empty() {
                     ScanType::Full
                 } else {
                     candidate.column_hints[0].scan_type
                 };
-                (Some(candidate.index), scan_limits, scan_type)
+                
+                // 记录评分信息到日志（实际应用中可以用于查询分析）
+                log::debug!(
+                    "LOOKUP 选择索引: {} (ID: {}), 评分: {}, 匹配率: {:.2}%, 预估行数: {}",
+                    detail.index_name,
+                    detail.index_id,
+                    detail.total_score,
+                    detail.match_ratio * 100.0,
+                    detail.estimated_rows
+                );
+                
+                (Some(candidate.index), scan_limits, scan_type, Some(detail))
             } else {
-                (available_indexes.first().cloned(), vec![], ScanType::Full)
+                (available_indexes.first().cloned(), vec![], ScanType::Full, None)
             }
         } else {
-            (None, vec![], ScanType::Full)
+            (None, vec![], ScanType::Full, None)
         };
+        
+        // 存储评分详情供后续使用（如查询分析、优化器统计）
+        let _score_detail = score_detail;
 
         let index_id = selected_index.as_ref().map(|idx| idx.id).unwrap_or(lookup_ctx.schema_id);
 

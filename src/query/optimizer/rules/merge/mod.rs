@@ -2,6 +2,7 @@
 //!
 //! 这些规则负责合并多个连续的相同类型操作，以减少中间结果和执行开销
 
+pub mod collapse_consecutive_project;
 pub mod combine_filter;
 pub mod collapse_project;
 pub mod merge_get_vertices_and_project;
@@ -10,6 +11,7 @@ pub mod merge_get_nbrs_and_dedup;
 pub mod merge_get_nbrs_and_project;
 
 // 导出所有规则
+pub use collapse_consecutive_project::CollapseConsecutiveProjectRule;
 pub use combine_filter::CombineFilterRule;
 pub use collapse_project::CollapseProjectRule;
 pub use merge_get_vertices_and_project::MergeGetVerticesAndProjectRule;

@@ -12,12 +12,39 @@ use std::collections::HashMap;
 /// 分数越高表示索引越适合该查询
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum IndexScore {
-    /// 不等于条件，无法使用索引
-    NotEqual = 0,
+    /// 无匹配，无法使用索引
+    NoMatch = 0,
+    /// 不等于条件，无法有效使用索引
+    NotEqual = 1,
     /// 范围条件
-    Range = 1,
+    Range = 2,
     /// 前缀匹配（等值）
-    Prefix = 2,
+    Prefix = 3,
+    /// 完全匹配（所有字段都有等值条件）
+    FullMatch = 4,
+}
+
+/// 索引评分详情
+#[derive(Debug, Clone)]
+pub struct IndexScoreDetail {
+    /// 索引ID
+    pub index_id: i32,
+    /// 索引名称
+    pub index_name: String,
+    /// 总评分
+    pub total_score: i32,
+    /// 匹配字段数
+    pub matched_fields: usize,
+    /// 总字段数
+    pub total_fields: usize,
+    /// 匹配率 (0.0 - 1.0)
+    pub match_ratio: f64,
+    /// 每个字段的评分
+    pub field_scores: Vec<(String, IndexScore)>,
+    /// 是否可以唯一确定记录
+    pub is_unique_match: bool,
+    /// 预估扫描行数
+    pub estimated_rows: usize,
 }
 
 /// 列约束类型
@@ -43,12 +70,24 @@ pub struct IndexCandidate {
     pub scores: Vec<IndexScore>,
     /// 列提示信息
     pub column_hints: Vec<IndexColumnHint>,
+    /// 评分详情
+    pub score_detail: Option<IndexScoreDetail>,
 }
 
 impl IndexCandidate {
     /// 获取总评分（用于比较）
     pub fn total_score(&self) -> Vec<IndexScore> {
         self.scores.clone()
+    }
+
+    /// 计算总评分值
+    pub fn calculate_total_score(&self) -> i32 {
+        self.scores.iter().map(|s| *s as i32).sum()
+    }
+
+    /// 获取评分详情
+    pub fn get_score_detail(&self) -> Option<IndexScoreDetail> {
+        self.score_detail.clone()
     }
 }
 
@@ -217,6 +256,10 @@ impl IndexSelector {
 
         let mut hints = Vec::new();
         let mut scores = Vec::new();
+        let mut field_scores = Vec::new();
+        let mut matched_fields = 0;
+        let total_fields = index.fields.len();
+        let mut is_unique_match = index.is_unique;
 
         // 按索引字段顺序匹配约束
         for field in &index.fields {
@@ -231,6 +274,8 @@ impl IndexSelector {
                         include_end: true,
                     });
                     scores.push(IndexScore::Prefix);
+                    field_scores.push((field.name.clone(), IndexScore::Prefix));
+                    matched_fields += 1;
                 }
                 Some(ColumnConstraint::Range { start, end, include_start, include_end }) => {
                     hints.push(IndexColumnHint {
@@ -242,13 +287,50 @@ impl IndexSelector {
                         include_end: *include_end,
                     });
                     scores.push(IndexScore::Range);
+                    field_scores.push((field.name.clone(), IndexScore::Range));
+                    matched_fields += 1;
+                    // 范围条件不能唯一确定记录
+                    is_unique_match = false;
                 }
                 None => {
                     // 索引字段中断，后续字段无法使用索引前缀
+                    field_scores.push((field.name.clone(), IndexScore::NoMatch));
+                    is_unique_match = false;
                     break;
                 }
             }
         }
+
+        // 如果所有字段都匹配且都是等值条件，则为完全匹配
+        if matched_fields == total_fields && scores.iter().all(|s| matches!(s, IndexScore::Prefix)) {
+            scores = vec![IndexScore::FullMatch; scores.len()];
+            for (_, score) in field_scores.iter_mut() {
+                *score = IndexScore::FullMatch;
+            }
+        }
+
+        // 计算匹配率
+        let match_ratio = if total_fields > 0 {
+            matched_fields as f64 / total_fields as f64
+        } else {
+            0.0
+        };
+
+        // 计算预估扫描行数
+        let estimated_rows = Self::estimate_rows(&hints, index.is_unique);
+
+        // 创建评分详情
+        let score_detail = IndexScoreDetail {
+            index_id: index.id,
+            index_name: index.name.clone(),
+            total_score: scores.iter().map(|s| *s as i32).sum(),
+            matched_fields,
+            total_fields,
+            match_ratio,
+            field_scores,
+            is_unique_match,
+            estimated_rows,
+        };
 
         if hints.is_empty() {
             // 没有任何匹配的字段，返回全扫描候选
@@ -256,6 +338,7 @@ impl IndexSelector {
                 index: index.clone(),
                 scores: vec![IndexScore::NotEqual],
                 column_hints: vec![],
+                score_detail: Some(score_detail),
             });
         }
 
@@ -263,7 +346,59 @@ impl IndexSelector {
             index: index.clone(),
             scores,
             column_hints: hints,
+            score_detail: Some(score_detail),
         })
+    }
+
+    /// 预估扫描行数
+    fn estimate_rows(hints: &[IndexColumnHint], is_unique: bool) -> usize {
+        if hints.is_empty() {
+            return 10000; // 默认全表扫描预估
+        }
+
+        if is_unique && hints.iter().all(|h| h.scan_type == ScanType::Unique) {
+            return 1; // 唯一索引等值查询
+        }
+
+        // 根据扫描类型估算
+        let mut rows = 1000usize;
+        for hint in hints {
+            match hint.scan_type {
+                ScanType::Unique => rows = rows.saturating_div(10),
+                ScanType::Range => rows = rows.saturating_div(5),
+                ScanType::Prefix => rows = rows.saturating_div(8), // 前缀匹配介于等值和范围之间
+                ScanType::Full => rows = rows.saturating_mul(10),
+            }
+        }
+
+        rows.max(1)
+    }
+
+    /// 评估所有索引并返回评分列表
+    pub fn evaluate_all_indexes(
+        indexes: &[Index],
+        filter: &Option<Expression>,
+    ) -> Vec<IndexScoreDetail> {
+        let constraints = match Self::extract_constraints(filter) {
+            Some(c) => c,
+            None => return vec![],
+        };
+
+        indexes
+            .iter()
+            .filter_map(|idx| Self::evaluate_index(idx, &constraints))
+            .filter_map(|candidate| candidate.score_detail)
+            .collect()
+    }
+
+    /// 选择最优索引并返回评分详情
+    pub fn select_best_index_with_detail(
+        indexes: &[Index],
+        filter: &Option<Expression>,
+    ) -> Option<(IndexCandidate, IndexScoreDetail)> {
+        let candidate = Self::select_best_index(indexes, filter)?;
+        let detail = candidate.score_detail.clone()?;
+        Some((candidate, detail))
     }
 
     /// 将列提示转换为 IndexLimit

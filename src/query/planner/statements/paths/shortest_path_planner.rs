@@ -40,6 +40,9 @@ impl ShortestPathPlanner {
         let start_finder = match start_strategy {
             SeekStrategyType::VertexSeek => StartVidSource::VertexSeek(start.clone()),
             SeekStrategyType::IndexSeek => StartVidSource::IndexScan(start.clone()),
+            SeekStrategyType::PropIndexSeek => StartVidSource::PropIndexScan(start.clone()),
+            SeekStrategyType::VariablePropIndexSeek => StartVidSource::VariablePropIndexScan(start.clone()),
+            SeekStrategyType::EdgeSeek => StartVidSource::EdgeScan(start.clone()),
             SeekStrategyType::ScanSeek => StartVidSource::FullScan(start.clone()),
         };
 
@@ -319,6 +322,9 @@ pub struct EdgePattern {
 pub enum StartVidSource {
     VertexSeek(NodePattern),
     IndexScan(NodePattern),
+    PropIndexScan(NodePattern),
+    VariablePropIndexScan(NodePattern),
+    EdgeScan(NodePattern),
     FullScan(NodePattern),
 }
 
@@ -407,6 +413,9 @@ impl ShortestPathPlanner {
                 }
             }
             StartVidSource::IndexScan(pattern) => self.scan_matching_vertices(storage, pattern),
+            StartVidSource::PropIndexScan(pattern) => self.scan_matching_vertices(storage, pattern),
+            StartVidSource::VariablePropIndexScan(pattern) => self.scan_matching_vertices(storage, pattern),
+            StartVidSource::EdgeScan(pattern) => self.scan_matching_vertices(storage, pattern),
             StartVidSource::FullScan(pattern) => self.scan_matching_vertices(storage, pattern),
         }
     }

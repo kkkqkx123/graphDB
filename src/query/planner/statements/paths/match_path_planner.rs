@@ -115,6 +115,15 @@ impl MatchPathPlanner {
             SeekStrategyType::IndexSeek => StartVidFinder::IndexScan {
                 pattern: pattern.clone(),
             },
+            SeekStrategyType::PropIndexSeek => StartVidFinder::PropIndexScan {
+                pattern: pattern.clone(),
+            },
+            SeekStrategyType::VariablePropIndexSeek => StartVidFinder::VariablePropIndexScan {
+                pattern: pattern.clone(),
+            },
+            SeekStrategyType::EdgeSeek => StartVidFinder::EdgeScan {
+                pattern: pattern.clone(),
+            },
             SeekStrategyType::ScanSeek => StartVidFinder::FullScan {
                 pattern: pattern.clone(),
             },
@@ -435,6 +444,9 @@ pub struct EdgePattern {
 pub enum StartVidFinder {
     VertexSeek { pattern: NodePattern },
     IndexScan { pattern: NodePattern },
+    PropIndexScan { pattern: NodePattern },
+    VariablePropIndexScan { pattern: NodePattern },
+    EdgeScan { pattern: NodePattern },
     FullScan { pattern: NodePattern },
 }
 
