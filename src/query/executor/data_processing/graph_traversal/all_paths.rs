@@ -33,6 +33,13 @@ struct SelfLoopDedup {
 }
 
 impl SelfLoopDedup {
+    fn new() -> Self {
+        Self {
+            seen: HashSet::new(),
+            with_loop: false,
+        }
+    }
+
     fn with_loop(with_loop: bool) -> Self {
         Self {
             seen: HashSet::new(),

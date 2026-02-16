@@ -424,6 +424,60 @@ impl VertexWriter for RedbWriter {
 
         Ok(ids)
     }
+
+    fn delete_tags(
+        &mut self,
+        _space: &str,
+        vertex_id: &Value,
+        tag_names: &[String],
+    ) -> Result<usize, StorageError> {
+        let id_bytes = value_to_bytes(vertex_id)?;
+
+        let write_txn = self
+            .db
+            .begin_write()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        
+        let mut deleted_count = 0;
+        
+        {
+            let mut table = write_txn
+                .open_table(NODES_TABLE)
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+            // 获取现有顶点
+            let vertex = match table.get(ByteKey(id_bytes.to_vec()))
+                .map_err(|e| StorageError::DbError(e.to_string()))? {
+                Some(value) => {
+                    let vertex_bytes = value.value();
+                    vertex_from_bytes(&vertex_bytes.0)?
+                }
+                None => return Err(StorageError::NodeNotFound(vertex_id.clone())),
+            };
+
+            // 过滤掉要删除的标签
+            let original_tag_count = vertex.tags.len();
+            let remaining_tags: Vec<_> = vertex.tags
+                .into_iter()
+                .filter(|tag| !tag_names.contains(&tag.name))
+                .collect();
+            
+            deleted_count = original_tag_count - remaining_tags.len();
+
+            // 如果没有标签了，可以选择删除整个顶点或保留空标签列表
+            // 这里选择保留空标签列表的顶点
+            let updated_vertex = Vertex::new(vertex_id.clone(), remaining_tags);
+            let vertex_bytes = vertex_to_bytes(&updated_vertex)?;
+
+            table.insert(ByteKey(id_bytes), ByteKey(vertex_bytes))
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+        }
+        
+        write_txn.commit()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+        Ok(deleted_count)
+    }
 }
 
 impl EdgeWriter for RedbWriter {

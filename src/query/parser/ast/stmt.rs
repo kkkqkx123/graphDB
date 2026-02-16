@@ -253,7 +253,11 @@ pub enum DeleteTarget {
         edge_type: Option<String>,
         edges: Vec<(Expression, Expression, Option<Expression>)>,
     },
-    Tag(String),
+    /// 删除标签 - 包含标签名列表和顶点ID列表
+    Tags {
+        tag_names: Vec<String>,
+        vertex_ids: Vec<Expression>,
+    },
     Index(String),
 }
 

@@ -428,6 +428,15 @@ impl StorageClient for MockStorage {
         Ok(())
     }
 
+    fn delete_tags(
+        &mut self,
+        _space: &str,
+        _vertex_id: &Value,
+        _tag_names: &[String],
+    ) -> Result<usize, StorageError> {
+        Ok(0)
+    }
+
     fn find_dangling_edges(&self, _space: &str) -> Result<Vec<Edge>, StorageError> {
         Ok(Vec::new())
     }

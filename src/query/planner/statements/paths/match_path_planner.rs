@@ -399,6 +399,15 @@ impl StorageClient for DummyStorage {
         Ok(())
     }
 
+    fn delete_tags(
+        &mut self,
+        _space: &str,
+        _vertex_id: &crate::core::Value,
+        _tag_names: &[String],
+    ) -> Result<usize, crate::core::StorageError> {
+        Ok(0)
+    }
+
     fn find_dangling_edges(&self, _space: &str) -> Result<Vec<crate::core::Edge>, crate::core::StorageError> {
         Ok(Vec::new())
     }

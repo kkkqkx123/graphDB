@@ -347,6 +347,23 @@ impl StorageClient for RedbStorage {
         writer.batch_insert_vertices(space, vertices)
     }
 
+    fn delete_tags(
+        &mut self,
+        space: &str,
+        vertex_id: &Value,
+        tag_names: &[String],
+    ) -> Result<usize, StorageError> {
+        let mut writer = self.writer.lock();
+        let deleted_count = writer.delete_tags(space, vertex_id, tag_names)?;
+        
+        // 删除相关索引
+        for tag_name in tag_names {
+            self.index_data_manager.delete_tag_indexes(space, vertex_id, tag_name)?;
+        }
+        
+        Ok(deleted_count)
+    }
+
     fn insert_edge(&mut self, space: &str, edge: Edge) -> Result<(), StorageError> {
         let mut writer = self.writer.lock();
         writer.insert_edge(space, edge.clone())?;

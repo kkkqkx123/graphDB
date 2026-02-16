@@ -564,6 +564,107 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
     }
 }
 
+// Executor for deleting tags from vertices
+pub struct DeleteTagExecutor<S: StorageClient> {
+    base: BaseExecutor<S>,
+    tag_names: Vec<String>,
+    vertex_ids: Vec<Value>,
+    space_name: String,
+}
+
+impl<S: StorageClient> DeleteTagExecutor<S> {
+    pub fn new(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        tag_names: Vec<String>,
+        vertex_ids: Vec<Value>,
+    ) -> Self {
+        Self {
+            base: BaseExecutor::new(id, "DeleteTagExecutor".to_string(), storage),
+            tag_names,
+            vertex_ids,
+            space_name: "default".to_string(),
+        }
+    }
+
+    pub fn with_space(mut self, space_name: String) -> Self {
+        self.space_name = space_name;
+        self
+    }
+}
+
+impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DeleteTagExecutor<S> {
+    fn execute(&mut self) -> DBResult<ExecutionResult> {
+        let start = Instant::now();
+        let result = self.do_execute();
+        let elapsed = start.elapsed();
+        self.base.get_stats_mut().add_total_time(elapsed);
+        match result {
+            Ok(count) => Ok(ExecutionResult::Count(count)),
+            Err(e) => Err(e),
+        }
+    }
+
+    fn open(&mut self) -> DBResult<()> {
+        Ok(())
+    }
+
+    fn close(&mut self) -> DBResult<()> {
+        Ok(())
+    }
+
+    fn is_open(&self) -> bool {
+        true
+    }
+
+    fn id(&self) -> i64 {
+        self.base.id
+    }
+
+    fn name(&self) -> &str {
+        "DeleteTagExecutor"
+    }
+
+    fn description(&self) -> &str {
+        "Delete tag executor - removes tags from vertices"
+    }
+
+    fn stats(&self) -> &ExecutorStats {
+        self.base.get_stats()
+    }
+
+    fn stats_mut(&mut self) -> &mut ExecutorStats {
+        self.base.get_stats_mut()
+    }
+}
+
+impl<S: StorageClient> HasStorage<S> for DeleteTagExecutor<S> {
+    fn get_storage(&self) -> &Arc<Mutex<S>> {
+        self.base.get_storage()
+    }
+}
+
+impl<S: StorageClient + Send + Sync + 'static> DeleteTagExecutor<S> {
+    fn do_execute(&mut self) -> DBResult<usize> {
+        let mut total_deleted = 0;
+        let mut storage = self.get_storage().lock();
+
+        for vertex_id in &self.vertex_ids {
+            match storage.delete_tags(&self.space_name, vertex_id, &self.tag_names) {
+                Ok(deleted_count) => {
+                    total_deleted += deleted_count;
+                }
+                Err(e) => {
+                    // 记录错误但继续处理其他顶点
+                    eprintln!("删除顶点 {:?} 的标签失败: {:?}", vertex_id, e);
+                }
+            }
+        }
+
+        Ok(total_deleted)
+    }
+}
+
 // Executor for creating indexes
 pub struct CreateIndexExecutor<S: StorageClient> {
     base: BaseExecutor<S>,

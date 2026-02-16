@@ -20,6 +20,18 @@ pub trait IndexDataManager {
     fn lookup_edge_index(&self, space: &str, index: &Index, value: &Value) -> Result<Vec<Value>, StorageError>;
     fn clear_edge_index(&self, space: &str, index_name: &str) -> Result<(), StorageError>;
     fn build_edge_index_entry(&self, space: &str, index: &Index, edge: &Edge) -> Result<(), StorageError>;
+    
+    /// 删除指定标签的索引
+    /// 
+    /// # Arguments
+    /// * `space` - 空间名称
+    /// * `vertex_id` - 顶点ID
+    /// * `tag_name` - 标签名称
+    /// 
+    /// # Returns
+    /// * `Ok(())` - 删除成功
+    /// * `Err(StorageError)` - 存储错误
+    fn delete_tag_indexes(&self, space: &str, vertex_id: &Value, tag_name: &str) -> Result<(), StorageError>;
 }
 
 /// 基于 Redb 的索引数据管理器实现
@@ -340,6 +352,59 @@ impl IndexDataManager for RedbIndexDataManager {
         }
         Ok(())
     }
+
+    fn delete_tag_indexes(&self, space: &str, vertex_id: &Value, tag_name: &str) -> Result<(), StorageError> {
+        let mut keys_to_delete = Vec::new();
+        
+        // 扫描所有索引条目，找到匹配的标签索引
+        let read_txn = self.db.begin_read()
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        let table = read_txn.open_table(INDEX_DATA_TABLE)
+            .map_err(|e| StorageError::DbError(e.to_string()))?;
+        
+        // 索引键格式: space:idx:v:index_name:tag_name:field_name:field_value
+        let prefix = format!("{}:idx:v:", space).into_bytes();
+        let tag_prefix = format!(":{}", tag_name).into_bytes();
+        
+        // 遍历所有匹配的键
+        for result in table.iter().map_err(|e| StorageError::DbError(e.to_string()))? {
+            let (key, value) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
+            let key_bytes = key.value().0;
+            
+            // 检查是否是该空间的索引且包含该标签
+            if key_bytes.starts_with(&prefix) {
+                // 检查键中是否包含标签名
+                if key_bytes.windows(tag_prefix.len()).any(|w| w == tag_prefix) {
+                    // 检查值是否匹配顶点ID
+                    if let Ok(id) = Self::deserialize_value(&value.value().0) {
+                        if id == *vertex_id {
+                            keys_to_delete.push(key_bytes.to_vec());
+                        }
+                    }
+                }
+            }
+        }
+        
+        drop(read_txn);
+        
+        // 删除匹配的索引条目
+        if !keys_to_delete.is_empty() {
+            let write_txn = self.db.begin_write()
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+            {
+                let mut table = write_txn.open_table(INDEX_DATA_TABLE)
+                    .map_err(|e| StorageError::DbError(e.to_string()))?;
+                for key in keys_to_delete {
+                    table.remove(&ByteKey(key))
+                        .map_err(|e| StorageError::DbError(e.to_string()))?;
+                }
+            }
+            write_txn.commit()
+                .map_err(|e| StorageError::DbError(e.to_string()))?;
+        }
+        
+        Ok(())
+    }
 }
 
 // 公开方法供外部使用
@@ -374,5 +439,9 @@ impl RedbIndexDataManager {
 
     pub fn build_edge_index_entry(&self, space: &str, index: &Index, edge: &Edge) -> Result<(), StorageError> {
         <Self as IndexDataManager>::build_edge_index_entry(self, space, index, edge)
+    }
+
+    pub fn delete_tag_indexes(&self, space: &str, vertex_id: &Value, tag_name: &str) -> Result<(), StorageError> {
+        <Self as IndexDataManager>::delete_tag_indexes(self, space, vertex_id, tag_name)
     }
 }

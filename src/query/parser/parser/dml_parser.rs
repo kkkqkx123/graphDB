@@ -171,6 +171,24 @@ impl DmlParser {
                 edge_type: Some(edge_type),
                 edges,
             }
+        } else if ctx.match_token(TokenKind::Tag) {
+            // 解析 DELETE TAG 语句: DELETE TAG <tag1>, <tag2> FROM <vid1>, <vid2>
+            let mut tag_names = Vec::new();
+            loop {
+                tag_names.push(ctx.expect_identifier()?);
+                if !ctx.match_token(TokenKind::Comma) {
+                    break;
+                }
+            }
+            
+            ctx.expect_token(TokenKind::From)?;
+            
+            let vertex_ids = self.parse_expression_list(ctx)?;
+            
+            DeleteTarget::Tags {
+                tag_names,
+                vertex_ids,
+            }
         } else {
             DeleteTarget::Vertices(self.parse_expression_list(ctx)?)
         };

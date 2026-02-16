@@ -322,14 +322,11 @@ mod tests {
 
     #[test]
     fn test_extract_variable_predicate() {
-        let expr = Expression::Binary {
-            op: crate::core::BinaryOp::Eq,
-            left: Box::new(Expression::Property {
-                object: Box::new(Expression::Variable("v".to_string())),
-                property: "name".to_string(),
-            }),
-            right: Box::new(Expression::Parameter("varName".to_string())),
-        };
+        let expr = Expression::binary(
+            Expression::property(Expression::variable("v"), "name"),
+            crate::core::BinaryOperator::Equal,
+            Expression::variable("varName"),
+        );
 
         let pred = VariablePropIndexSeek::extract_predicate(&expr);
         assert!(pred.is_some());

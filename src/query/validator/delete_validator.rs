@@ -81,12 +81,29 @@ impl DeleteValidator {
                     }
                 }
             }
-            crate::query::parser::ast::stmt::DeleteTarget::Tag(tag_name) => {
-                if tag_name.is_empty() {
+            crate::query::parser::ast::stmt::DeleteTarget::Tags { tag_names, vertex_ids } => {
+                if tag_names.is_empty() {
                     return Err(CoreValidationError::new(
-                        "Tag name cannot be empty".to_string(),
+                        "DELETE TAG must specify at least one tag name".to_string(),
                         ValidationErrorType::SemanticError,
                     ));
+                }
+                for tag_name in tag_names {
+                    if tag_name.is_empty() {
+                        return Err(CoreValidationError::new(
+                            "Tag name cannot be empty".to_string(),
+                            ValidationErrorType::SemanticError,
+                        ));
+                    }
+                }
+                if vertex_ids.is_empty() {
+                    return Err(CoreValidationError::new(
+                        "DELETE TAG must specify at least one vertex ID".to_string(),
+                        ValidationErrorType::SemanticError,
+                    ));
+                }
+                for (idx, vid) in vertex_ids.iter().enumerate() {
+                    self.validate_vertex_id(vid, idx + 1)?;
                 }
             }
             crate::query::parser::ast::stmt::DeleteTarget::Index(index_name) => {
@@ -114,6 +131,9 @@ impl DeleteValidator {
                         ValidationErrorType::SemanticError,
                     ));
                 }
+            }
+            Expression::Literal(crate::core::Value::Int(_)) => {
+                // 整数ID是有效的
             }
             Expression::Variable(_) => {}
             _ => {
@@ -185,7 +205,7 @@ impl Default for DeleteValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::Expression;
+    use crate::core::{Expression, Value};
     use crate::query::parser::ast::stmt::{DeleteStmt, DeleteTarget};
     use crate::query::parser::ast::Span;
 
@@ -310,10 +330,13 @@ mod tests {
     }
 
     #[test]
-    fn test_validate_tag_valid() {
+    fn test_validate_tags_valid() {
         let mut validator = DeleteValidator::new();
         let stmt = create_delete_stmt(
-            DeleteTarget::Tag("person".to_string()),
+            DeleteTarget::Tags {
+                tag_names: vec!["person".to_string()],
+                vertex_ids: vec![Expression::Literal(Value::Int(1))],
+            },
             None,
         );
         let result = validator.validate(&stmt);
@@ -321,16 +344,35 @@ mod tests {
     }
 
     #[test]
-    fn test_validate_tag_empty() {
+    fn test_validate_tags_empty_tag() {
         let mut validator = DeleteValidator::new();
         let stmt = create_delete_stmt(
-            DeleteTarget::Tag("".to_string()),
+            DeleteTarget::Tags {
+                tag_names: vec!["".to_string()],
+                vertex_ids: vec![Expression::Literal(Value::Int(1))],
+            },
             None,
         );
         let result = validator.validate(&stmt);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert_eq!(err.message, "Tag name cannot be empty");
+    }
+
+    #[test]
+    fn test_validate_tags_empty_vertex() {
+        let mut validator = DeleteValidator::new();
+        let stmt = create_delete_stmt(
+            DeleteTarget::Tags {
+                tag_names: vec!["person".to_string()],
+                vertex_ids: vec![],
+            },
+            None,
+        );
+        let result = validator.validate(&stmt);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err.message, "DELETE TAG must specify at least one vertex ID");
     }
 
     #[test]

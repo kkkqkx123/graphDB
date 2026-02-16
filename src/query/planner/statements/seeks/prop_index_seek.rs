@@ -297,14 +297,11 @@ mod tests {
 
     #[test]
     fn test_extract_predicate_eq() {
-        let expr = Expression::Binary {
-            op: crate::core::BinaryOp::Eq,
-            left: Box::new(Expression::Property {
-                object: Box::new(Expression::Variable("v".to_string())),
-                property: "age".to_string(),
-            }),
-            right: Box::new(Expression::Constant(Value::Int(18))),
-        };
+        let expr = Expression::binary(
+            Expression::property(Expression::variable("v"), "age"),
+            crate::core::BinaryOperator::Equal,
+            Expression::literal(18),
+        );
 
         let pred = PropIndexSeek::extract_predicate(&expr);
         assert!(pred.is_some());

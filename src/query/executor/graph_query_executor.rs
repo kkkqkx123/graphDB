@@ -320,9 +320,34 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                 executor.open()?;
                 executor.execute()
             }
-            _ => Err(DBError::Query(QueryError::ExecutionError(
-                format!("DELETE {:?} 未实现", clause.target)
-            )))
+            DeleteTarget::Tags { tag_names, vertex_ids: vertex_id_exprs } => {
+                use crate::query::executor::data_modification::DeleteTagExecutor;
+                
+                // 求值所有顶点ID表达式
+                let mut vertex_ids = Vec::new();
+                for expr in vertex_id_exprs {
+                    let mut context = DefaultExpressionContext::new();
+                    let vid = ExpressionEvaluator::evaluate(&expr, &mut context)
+                        .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("顶点ID求值失败: {}", e))))?;
+                    vertex_ids.push(vid);
+                }
+
+                let mut executor = DeleteTagExecutor::new(
+                    self.id,
+                    self.storage.clone(),
+                    tag_names,
+                    vertex_ids,
+                )
+                .with_space("default".to_string());
+                
+                executor.open()?;
+                executor.execute()
+            }
+            DeleteTarget::Index(index_name) => {
+                Err(DBError::Query(QueryError::ExecutionError(
+                    format!("DELETE INDEX {} 未实现", index_name)
+                )))
+            }
         }
     }
 

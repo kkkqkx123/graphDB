@@ -210,18 +210,20 @@ mod tests {
         });
 
         // 测试边类型匹配
-        let edge = crate::core::Edge::new(
+        let edge = crate::core::Edge::new_empty(
             Value::Int(1),
             Value::Int(2),
             "KNOWS".to_string(),
+            0,
         );
         assert!(seek.edge_matches_pattern(&edge));
 
         // 测试边类型不匹配
-        let edge2 = crate::core::Edge::new(
+        let edge2 = crate::core::Edge::new_empty(
             Value::Int(1),
             Value::Int(2),
             "FOLLOWS".to_string(),
+            0,
         );
         assert!(!seek.edge_matches_pattern(&edge2));
     }
@@ -236,17 +238,19 @@ mod tests {
             properties: vec![],
         });
 
-        let edge = crate::core::Edge::new(
+        let edge = crate::core::Edge::new_empty(
             Value::Int(1),
             Value::Int(2),
             "KNOWS".to_string(),
+            0,
         );
         assert!(seek.edge_matches_pattern(&edge));
 
-        let edge2 = crate::core::Edge::new(
+        let edge2 = crate::core::Edge::new_empty(
             Value::Int(3),
             Value::Int(2),
             "KNOWS".to_string(),
+            0,
         );
         assert!(!seek.edge_matches_pattern(&edge2));
     }
