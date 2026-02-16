@@ -7,7 +7,7 @@ use crate::core::types::expression::{Expression, ExpressionMeta};
 pub struct Parser<'a> {
     ctx: ParseContext<'a>,
     _expr_parser: std::marker::PhantomData<ExprParser<'a>>,
-    _stmt_parser: std::marker::PhantomData<StmtParser<'a>>,
+    _stmt_parser: std::marker::PhantomData<StmtParser>,
 }
 
 impl<'a> Parser<'a> {

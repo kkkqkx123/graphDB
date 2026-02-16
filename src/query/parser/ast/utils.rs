@@ -151,6 +151,7 @@ impl StmtFactory {
             order_by,
             limit,
             skip,
+            optional: false,
         })
     }
 

@@ -183,6 +183,7 @@ pub struct MatchStmt {
     pub order_by: Option<OrderByClause>,
     pub limit: Option<usize>,
     pub skip: Option<usize>,
+    pub optional: bool,
 }
 
 /// 返回子句
@@ -846,6 +847,7 @@ mod tests {
             order_by: None,
             limit: None,
             skip: None,
+            optional: false,
         });
 
         assert!(matches!(stmt, Stmt::Match(_)));

@@ -15,16 +15,21 @@
 /// - 移除复杂的验证逻辑，内聚到接口中
 /// - 专注于核心的路径处理和变量管理
 use crate::core::Expression;
+use crate::query::context::QueryContext;
 use crate::query::planner::connector::SegmentsConnector;
 use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
 use crate::query::planner::statements::core::{
     ClauseType, CypherClausePlanner, DataFlowNode, PlanningContext, VariableInfo,
 };
+use crate::query::planner::plan::algorithms::path_algorithms::MultiShortestPath;
+use crate::query::planner::plan::core::nodes::{PlanNodeEnum, StartNode};
+use crate::query::planner::plan::core::node_id_generator::next_node_id;
 
 use crate::query::planner::plan::factory::PlanNodeFactory;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
-use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind, MatchClauseContext, Path};
+use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind, MatchClauseContext, Path, PathYieldType};
+use std::collections::HashSet;
 
 /// MATCH子句规划器
 /// 负责规划 MATCH 子句的执行，是数据流的起始点
@@ -48,6 +53,80 @@ impl MatchClausePlanner {
     ) -> Result<SubPlan, PlannerError> {
         let space_id = 1i32;
 
+        // 如果路径是谓词（is_pred），使用模式表达式规划
+        if path.is_pred {
+            return self.plan_predicate_path(path, space_id);
+        }
+
+        // 根据路径类型选择不同的规划策略
+        match path.path_type {
+            PathYieldType::Shortest | PathYieldType::AllShortest => {
+                self.plan_shortest_path(path, space_id)
+            }
+            _ => self.plan_default_path(path, space_id),
+        }
+    }
+
+    /// 规划谓词路径（模式表达式）
+    fn plan_predicate_path(
+        &self,
+        path: &Path,
+        space_id: i32,
+    ) -> Result<SubPlan, PlannerError> {
+        // 谓词路径不需要实际构建路径，只需要验证模式是否存在
+        // 使用 PatternApply 节点来处理
+        let mut current_plan = SubPlan::new(None, None);
+
+        // 规划路径中的节点和边
+        for node_info in path.node_infos.iter() {
+            let scan_node = crate::query::planner::plan::core::nodes::ScanVerticesNode::new(space_id);
+            let node_plan = SubPlan::from_root(scan_node.clone().into_enum());
+
+            current_plan = if let Some(existing_root) = current_plan.root.take() {
+                SegmentsConnector::cross_join(
+                    SubPlan::new(Some(existing_root), current_plan.tail),
+                    node_plan,
+                )?
+            } else {
+                node_plan
+            };
+
+            if let Some(filter) = &node_info.filter {
+                let filter_node = crate::query::planner::plan::core::nodes::FilterNode::new(
+                    scan_node.into_enum(),
+                    filter.clone(),
+                )?;
+                current_plan = SubPlan::new(Some(filter_node.into_enum()), current_plan.tail);
+            }
+        }
+
+        for edge_info in &path.edge_infos {
+            let expand_node = crate::query::planner::plan::core::nodes::ExpandAllNode::new(
+                space_id,
+                edge_info.types.clone(),
+                "both",
+            );
+            let edge_plan = SubPlan::from_root(expand_node.into_enum());
+
+            current_plan = if let Some(existing_root) = current_plan.root.take() {
+                SegmentsConnector::cross_join(
+                    SubPlan::new(Some(existing_root), current_plan.tail),
+                    edge_plan,
+                )?
+            } else {
+                edge_plan
+            };
+        }
+
+        Ok(current_plan)
+    }
+
+    /// 规划默认路径（普通 MATCH）
+    fn plan_default_path(
+        &self,
+        path: &Path,
+        space_id: i32,
+    ) -> Result<SubPlan, PlannerError> {
         let mut current_plan = SubPlan::new(None, None);
 
         for node_info in path.node_infos.iter() {
@@ -92,6 +171,73 @@ impl MatchClausePlanner {
 
         Ok(current_plan)
     }
+
+    /// 规划最短路径
+    fn plan_shortest_path(
+        &self,
+        path: &Path,
+        _space_id: i32,
+    ) -> Result<SubPlan, PlannerError> {
+        // 验证最短路径模式：需要恰好两个节点和一条边
+        if path.node_infos.len() != 2 || path.edge_infos.len() != 1 {
+            return Err(PlannerError::InvalidOperation(
+                "最短路径模式需要恰好两个节点和一条边，如: (a)-[:type*..5]->(b)".to_string()
+            ));
+        }
+
+        let edge_info = &path.edge_infos[0];
+
+        // 创建最短路径计划节点
+        let steps = edge_info.range.as_ref().map(|r| r.max()).unwrap_or(5) as usize;
+        let shortest_node = MultiShortestPath::new(
+            next_node_id(),
+            PlanNodeEnum::Start(StartNode::new()),
+            PlanNodeEnum::Start(StartNode::new()),
+            steps,
+        );
+
+        // 设置最短路径类型
+        let mut shortest_node = shortest_node;
+        if path.path_type == PathYieldType::Shortest {
+            // 单条最短路径
+            shortest_node.single_shortest = true;
+        }
+
+        Ok(SubPlan::from_root(shortest_node.into_enum()))
+    }
+
+    /// 查找两个计划之间的共享别名
+    fn find_inter_aliases(
+        &self,
+        match_clause_ctx: &MatchClauseContext,
+        input_plan: &SubPlan,
+        _current_plan: &SubPlan,
+    ) -> HashSet<String> {
+        let mut inter_aliases = HashSet::new();
+
+        // 获取输入计划的列名（可用别名）
+        let input_aliases: std::collections::HashSet<String> = if let Some(ref root) = input_plan.root {
+            root.col_names().iter().cloned().collect()
+        } else {
+            std::collections::HashSet::new()
+        };
+
+        // 检查 MATCH 子句生成的别名是否与输入计划共享
+        for path in &match_clause_ctx.paths {
+            for node_info in &path.node_infos {
+                if !node_info.alias.is_empty() && input_aliases.contains(&node_info.alias) {
+                    inter_aliases.insert(node_info.alias.clone());
+                }
+            }
+            for edge_info in &path.edge_infos {
+                if !edge_info.alias.is_empty() && input_aliases.contains(&edge_info.alias) {
+                    inter_aliases.insert(edge_info.alias.clone());
+                }
+            }
+        }
+
+        inter_aliases
+    }
 }
 
 impl CypherClausePlanner for MatchClausePlanner {
@@ -105,9 +251,6 @@ impl CypherClausePlanner for MatchClausePlanner {
         input_plan: Option<&SubPlan>,
         context: &mut PlanningContext,
     ) -> Result<SubPlan, PlannerError> {
-        // 验证数据流：MATCH 子句不应该有输入
-        self.validate_flow(input_plan)?;
-
         // 验证上下文类型
         if !matches!(clause_ctx.kind(), CypherClauseKind::Match) {
             return Err(PlannerError::InvalidAstContext(
@@ -171,6 +314,28 @@ impl CypherClausePlanner for MatchClausePlanner {
             } else {
                 path_plan
             };
+        }
+
+        // 处理 OPTIONAL MATCH：如果有输入计划，使用左连接
+        if let Some(input) = input_plan {
+            if match_clause_ctx.is_optional {
+                // OPTIONAL MATCH：使用左连接
+                let qctx = QueryContext::new();
+                let inter_aliases = self.find_inter_aliases(match_clause_ctx, input, &plan);
+                let inter_aliases_ref: HashSet<&str> = inter_aliases.iter().map(|s| s.as_str()).collect();
+                plan = SegmentsConnector::left_join(&qctx, input.clone(), plan, inter_aliases_ref)?;
+            } else {
+                // 普通 MATCH：使用内连接
+                let qctx = QueryContext::new();
+                let inter_aliases = self.find_inter_aliases(match_clause_ctx, input, &plan);
+                if inter_aliases.is_empty() {
+                    // 没有共享别名，使用交叉连接
+                    plan = SegmentsConnector::cross_join(input.clone(), plan)?;
+                } else {
+                    let inter_aliases_ref: HashSet<&str> = inter_aliases.iter().map(|s| s.as_str()).collect();
+                    plan = SegmentsConnector::inner_join(&qctx, input.clone(), plan, inter_aliases_ref)?;
+                }
+            }
         }
 
         // 处理分页（如果存在）
