@@ -29,6 +29,15 @@ pub use storage_iter::VecPairIterator;
 pub use composite::{CompositeIter, FilterIter, MapIter, TakeIter, SkipIter};
 pub use predicate::{Predicate, Expression, SimplePredicate, CompoundPredicate, PredicateOptimizer, PushdownResult};
 
+/// 存储引擎迭代器接口
+/// 用于底层KV存储的迭代操作
+pub trait StorageIterator: Send {
+    fn key(&self) -> Option<&[u8]>;
+    fn value(&self) -> Option<&[u8]>;
+    fn next(&mut self) -> bool;
+    fn estimate_remaining(&self) -> Option<usize>;
+}
+
 use crate::core::Value;
 use std::fmt::Debug;
 

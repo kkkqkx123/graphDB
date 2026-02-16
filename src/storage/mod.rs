@@ -1,8 +1,6 @@
 pub mod iterator;
-pub mod engine;
 pub mod operations;
 pub mod metadata;
-pub mod processor;
 pub mod redb_storage;
 pub mod redb_types;
 pub mod storage_client;
@@ -11,16 +9,13 @@ pub mod types;
 pub mod schema;
 pub mod date_utils;
 pub mod serializer;
-pub mod utils;
 
 #[cfg(test)]
 pub mod test_mock;
 
-pub use engine::*;
 pub use iterator::*;
 pub use metadata::*;
 pub use operations::*;
-pub use processor::*;
 pub use redb_storage::*;
 pub use storage_client::*;
 pub use index::*;

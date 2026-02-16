@@ -8,7 +8,7 @@
 //! - PropIter: 属性迭代器
 
 use crate::core::StorageError;
-use crate::storage::engine::StorageIterator;
+use crate::storage::iterator::StorageIterator;
 
 /// 迭代器错误类型
 #[derive(Debug, Clone, PartialEq)]
