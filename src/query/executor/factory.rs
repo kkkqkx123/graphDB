@@ -12,6 +12,7 @@ use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::{
     JoinNode, MultipleInputNode, SingleInputNode,
 };
+use crate::query::executor::data_processing::graph_traversal::algorithms::ShortestPathAlgorithmType;
 
 use crate::storage::StorageClient;
 use std::sync::Arc;
@@ -160,6 +161,35 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             config,
             recursion_detector,
             safety_validator,
+        }
+    }
+
+    /// 根据查询特征自动选择最短路径算法
+    ///
+    /// 算法选择策略：
+    /// - 单对单最短路径 (1对1): 使用双向BFS，时间复杂度最优 O(b^(d/2))
+    /// - 多对多最短路径 (多对多):
+    ///   - 如果搜索深度较小 (<=10): 使用BFS，简单高效
+    ///   - 如果搜索深度较大 (>10): 使用Dijkstra，适合大规模图
+    /// - 带权图: 使用Dijkstra（当前版本暂不支持权重，后续扩展）
+    /// - 有启发信息: 使用A*（当前版本暂不支持启发函数，后续扩展）
+    fn select_shortest_path_algorithm(
+        start_vertex_ids: &[Value],
+        end_vertex_ids: &[Value],
+        max_step: usize,
+    ) -> ShortestPathAlgorithmType {
+        let is_single_pair = start_vertex_ids.len() == 1 && end_vertex_ids.len() == 1;
+
+        if is_single_pair {
+            // 单对单最短路径：双向BFS最优
+            ShortestPathAlgorithmType::BFS
+        } else if max_step <= 10 {
+            // 多对多且深度较小：BFS简单高效
+            ShortestPathAlgorithmType::BFS
+        } else {
+            // 多对多且深度较大：Dijkstra更适合大规模搜索
+            // 注意：当前Dijkstra实现也基于BFS，后续可优化为真正的加权Dijkstra
+            ShortestPathAlgorithmType::Dijkstra
         }
     }
 
@@ -770,7 +800,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                 Ok(ExecutorEnum::AllPaths(executor))
             }
 
-            // 最短路径执行器 - 单对单最短路径
+            // 最短路径执行器 - 根据查询特征自动选择最优算法
             PlanNodeEnum::ShortestPath(node) => {
                 let start_vertex_ids = if let Some(left) = node.deps.first() {
                     extract_vertex_ids_from_node(left)
@@ -784,6 +814,13 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     vec![Value::from("end")]
                 };
 
+                // 自动选择最优算法
+                let algorithm = Self::select_shortest_path_algorithm(
+                    &start_vertex_ids,
+                    &end_vertex_ids,
+                    node.max_step(),
+                );
+
                 let executor = crate::query::executor::data_processing::graph_traversal::ShortestPathExecutor::new(
                     node.id(),
                     storage,
@@ -796,7 +833,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                         Some(node.edge_types.clone())
                     },
                     Some(node.max_step()),
-                    crate::query::executor::data_processing::graph_traversal::algorithms::ShortestPathAlgorithmType::BFS,
+                    algorithm,
                 );
                 Ok(ExecutorEnum::ShortestPath(executor))
             }

@@ -3,14 +3,12 @@
 //! 使用算法模块中的具体算法实现最短路径查找
 //! 负责执行器的生命周期管理和算法调度
 
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::core::{Path, Value};
-use crate::core::error::{DBError, DBResult};
+use crate::core::error::DBResult;
 use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
 use crate::query::executor::executor_enum::ExecutorEnum;
-use crate::query::executor::recursion_detector::ParallelConfig;
 use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
 use crate::query::QueryError;
 use crate::storage::StorageClient;
@@ -41,8 +39,6 @@ pub struct ShortestPathExecutor<S: StorageClient + Send + 'static> {
     pub max_depth_reached: usize,
     pub single_shortest: bool,
     pub limit: usize,
-    termination_map: HashMap<(Value, Value), bool>,
-    parallel_config: ParallelConfig,
 }
 
 impl<S: StorageClient> std::fmt::Debug for ShortestPathExecutor<S> {
@@ -91,15 +87,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
             max_depth_reached: 0,
             single_shortest: false,
             limit: std::usize::MAX,
-            termination_map: HashMap::new(),
-            parallel_config: ParallelConfig::default(),
         }
-    }
-
-    /// 设置并行计算配置
-    pub fn with_parallel_config(mut self, config: ParallelConfig) -> Self {
-        self.parallel_config = config;
-        self
     }
 
     pub fn with_limits(mut self, single_shortest: bool, limit: usize) -> Self {
@@ -130,25 +118,6 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
 
     pub fn set_end_vertex_ids(&mut self, ids: Vec<Value>) {
         self.end_vertex_ids = ids;
-    }
-
-    fn init_termination_map(&mut self) {
-        self.termination_map.clear();
-        for start_id in &self.start_vertex_ids {
-            for end_id in &self.end_vertex_ids {
-                self.termination_map.insert((start_id.clone(), end_id.clone()), true);
-            }
-        }
-    }
-
-    fn check_termination(&self) -> bool {
-        self.termination_map.values().all(|&v| !v)
-    }
-
-    fn mark_termination(&mut self, start_id: &Value, end_id: &Value) {
-        if let Some(found) = self.termination_map.get_mut(&(start_id.clone(), end_id.clone())) {
-            *found = false;
-        }
     }
 
     /// 执行最短路径算法
@@ -222,8 +191,6 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for ShortestPathExecuto
 
 impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShortestPathExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
-        self.init_termination_map();
-
         let start_time = std::time::Instant::now();
 
         let paths = self.execute_algorithm()?;
@@ -248,7 +215,6 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShortestPathExecu
         self.edges_traversed = 0;
         self.execution_time_ms = 0;
         self.max_depth_reached = 0;
-        self.termination_map.clear();
         Ok(())
     }
 
