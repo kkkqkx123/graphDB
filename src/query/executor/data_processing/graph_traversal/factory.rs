@@ -1,10 +1,9 @@
 use std::sync::Arc;
 
+use crate::query::executor::data_processing::graph_traversal::algorithms::ShortestPathAlgorithmType;
 use crate::query::executor::data_processing::graph_traversal::expand::ExpandExecutor;
 use crate::query::executor::data_processing::graph_traversal::expand_all::ExpandAllExecutor;
-use crate::query::executor::data_processing::graph_traversal::shortest_path::{
-    ShortestPathAlgorithm, ShortestPathExecutor,
-};
+use crate::query::executor::data_processing::graph_traversal::shortest_path::ShortestPathExecutor;
 use crate::query::executor::data_processing::graph_traversal::traverse::TraverseExecutor;
 use parking_lot::Mutex;
 
@@ -62,7 +61,7 @@ impl GraphTraversalExecutorFactory {
         edge_direction: crate::query::executor::base::EdgeDirection,
         edge_types: Option<Vec<String>>,
         max_depth: Option<usize>,
-        algorithm: ShortestPathAlgorithm,
+        algorithm: ShortestPathAlgorithmType,
     ) -> ShortestPathExecutor<S> {
         ShortestPathExecutor::new(
             id,

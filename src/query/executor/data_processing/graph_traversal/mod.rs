@@ -9,6 +9,8 @@
 //! - 多最短路径（MultiShortestPath）- 新增
 //! - 子图提取（Subgraph）
 
+// 算法模块 - 解耦算法实现与执行流程
+pub mod algorithms;
 pub mod all_paths;
 pub mod expand;
 pub mod expand_all;
@@ -26,14 +28,15 @@ pub use expand_all::ExpandAllExecutor;
 pub use all_paths::{
     AllPathsExecutor,
 };
-pub use shortest_path::{
-    MultiShortestPathExecutor,
-    MultiShortestPathExecutor as AllPathsMultiShortestPathExecutor,
-    ShortestPathAlgorithm,
-    ShortestPathAlgorithmType,
-    ShortestPathExecutor,
-};
+pub use shortest_path::ShortestPathExecutor;
 pub use traverse::TraverseExecutor;
+
+// 导出算法模块
+pub use algorithms::{
+    AStar, AlgorithmContext, AlgorithmStats, BidirectionalBFS, Dijkstra,
+    PathFindingAlgorithm, ShortestPathAlgorithm, ShortestPathAlgorithmType,
+    TraversalAlgorithm,
+};
 
 // 导出通用特征和工厂
 pub use factory::GraphTraversalExecutorFactory;

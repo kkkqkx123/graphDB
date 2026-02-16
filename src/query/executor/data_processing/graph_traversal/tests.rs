@@ -2,8 +2,8 @@
 mod tests {
     use crate::core::{Edge, Value, Vertex};
     use crate::query::executor::base::EdgeDirection;
+    use crate::query::executor::data_processing::graph_traversal::algorithms::ShortestPathAlgorithmType;
     use crate::query::executor::data_processing::graph_traversal::factory::GraphTraversalExecutorFactory;
-    use crate::query::executor::data_processing::graph_traversal::shortest_path::ShortestPathAlgorithm;
     use crate::query::executor::data_processing::graph_traversal::traits::GraphTraversalExecutor;
     use crate::query::executor::traits::Executor;
     use crate::storage::{MockStorage, StorageClient};
@@ -147,7 +147,7 @@ use parking_lot::Mutex;
             EdgeDirection::Out,
             None,
             Some(10), // 添加max_depth参数
-            ShortestPathAlgorithm::BFS,
+            ShortestPathAlgorithmType::BFS,
         );
 
         assert_eq!(executor.name(), "ShortestPathExecutor");

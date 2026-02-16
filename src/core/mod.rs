@@ -20,7 +20,7 @@ pub use result::{ResultBuilder, DefaultIterator, GetNeighborsIterator, PropItera
 
 // 核心数据类型
 pub use value::*;
-pub use vertex_edge_path::{Edge, Path, Vertex};
+pub use vertex_edge_path::{Edge, Path, Step, Vertex};
 pub use npath::{NPath, NPathIter, NPathVertexIter, NPathEdgeIter};
 
 // 表达式系统类型

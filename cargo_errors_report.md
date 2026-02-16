@@ -2,24 +2,25 @@
 
 ## Summary
 
-- **Total Errors**: 1
+- **Total Errors**: 2
 - **Total Warnings**: 1
-- **Total Issues**: 2
-- **Unique Error Patterns**: 1
+- **Total Issues**: 3
+- **Unique Error Patterns**: 2
 - **Unique Warning Patterns**: 1
-- **Files with Issues**: 1
+- **Files with Issues**: 2
 
 ## Error Statistics
 
-**Total Errors**: 1
+**Total Errors**: 2
 
 ### Error Type Breakdown
 
-- **error[E0502]**: 1 errors
+- **error[E0599]**: 1 errors
+- **error[E0433]**: 1 errors
 
 ### Files with Errors (Top 10)
 
-- `src\query\executor\data_processing\join\hash_table.rs`: 1 errors
+- `src\query\executor\factory.rs`: 2 errors
 
 ## Warning Statistics
 
@@ -31,27 +32,36 @@
 
 ### Files with Warnings (Top 10)
 
-- `src\query\executor\data_processing\join\hash_table.rs`: 1 warnings
+- `src\query\executor\data_processing\graph_traversal\shortest_path.rs`: 1 warnings
 
 ## Detailed Error Categorization
 
-### error[E0502]: cannot borrow `*self` as mutable because it is also borrowed as immutable: mutable borrow occurs here
+### error[E0433]: failed to resolve: could not find `MultiShortestPathExecutor` in `graph_traversal`: could not find `MultiShortestPathExecutor` in `graph_traversal`, help: a struct with a similar name exists: `ShortestPathExecutor`
 
 **Total Occurrences**: 1  
 **Unique Files**: 1
 
-#### `src\query\executor\data_processing\join\hash_table.rs`: 1 occurrences
+#### `src\query\executor\factory.rs`: 1 occurrences
 
-- Line 412: cannot borrow `*self` as mutable because it is also borrowed as immutable: mutable borrow occurs here
+- Line 826: failed to resolve: could not find `MultiShortestPathExecutor` in `graph_traversal`: could not find `MultiShortestPathExecutor` in `graph_traversal`, help: a struct with a similar name exists: `ShortestPathExecutor`
+
+### error[E0599]: no variant or associated item named `MultiShortestPath` found for enum `executor_enum::ExecutorEnum` in the current scope: variant or associated item not found in `ExecutorEnum<_>`
+
+**Total Occurrences**: 1  
+**Unique Files**: 1
+
+#### `src\query\executor\factory.rs`: 1 occurrences
+
+- Line 835: no variant or associated item named `MultiShortestPath` found for enum `executor_enum::ExecutorEnum` in the current scope: variant or associated item not found in `ExecutorEnum<_>`
 
 ## Detailed Warning Categorization
 
-### warning: variable `spilled_count` is assigned to, but never used
+### warning: unused import: `DBError`
 
 **Total Occurrences**: 1  
 **Unique Files**: 1
 
-#### `src\query\executor\data_processing\join\hash_table.rs`: 1 occurrences
+#### `src\query\executor\data_processing\graph_traversal\shortest_path.rs`: 1 occurrences
 
-- Line 446: variable `spilled_count` is assigned to, but never used
+- Line 10: unused import: `DBError`
 

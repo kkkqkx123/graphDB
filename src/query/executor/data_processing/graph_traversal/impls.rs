@@ -1,7 +1,7 @@
 use super::*;
+use crate::query::executor::data_processing::graph_traversal::algorithms::ShortestPathAlgorithmType;
 use crate::query::executor::data_processing::graph_traversal::expand::ExpandExecutor;
 use crate::query::executor::data_processing::graph_traversal::expand_all::ExpandAllExecutor;
-use crate::query::executor::data_processing::graph_traversal::shortest_path::ShortestPathAlgorithm;
 use crate::query::executor::data_processing::graph_traversal::shortest_path::ShortestPathExecutor;
 use crate::query::executor::data_processing::graph_traversal::traits::TraversalStats;
 use crate::query::executor::data_processing::graph_traversal::traverse::TraverseExecutor;
@@ -103,7 +103,7 @@ impl<S: crate::storage::StorageClient> GraphTraversalExecutor<S> for ShortestPat
         // 验证算法选择是否有效
         let algorithm = self.get_algorithm();
         match algorithm {
-            ShortestPathAlgorithm::Dijkstra | ShortestPathAlgorithm::BFS | ShortestPathAlgorithm::AStar => {
+            ShortestPathAlgorithmType::BFS | ShortestPathAlgorithmType::Dijkstra | ShortestPathAlgorithmType::AStar => {
                 // 所有枚举变体都是有效的
             }
         }

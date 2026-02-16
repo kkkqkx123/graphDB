@@ -796,43 +796,9 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                         Some(node.edge_types.clone())
                     },
                     Some(node.max_step()),
-                    crate::query::executor::data_processing::graph_traversal::ShortestPathAlgorithm::BFS,
+                    crate::query::executor::data_processing::graph_traversal::algorithms::ShortestPathAlgorithmType::BFS,
                 );
                 Ok(ExecutorEnum::ShortestPath(executor))
-            }
-
-            // MultiShortestPath执行器 - 多源最短路径
-            PlanNodeEnum::MultiShortestPath(node) => {
-                let left_vids = if node.left_vid_var.is_empty() {
-                    if let Some(left) = node.deps.first() {
-                        extract_vertex_ids_from_node(left)
-                    } else {
-                        vec![Value::from("left_start")]
-                    }
-                } else {
-                    vec![Value::from(node.left_vid_var.as_str())]
-                };
-
-                let right_vids = if node.right_vid_var.is_empty() {
-                    if let Some(right) = node.deps.get(1) {
-                        extract_vertex_ids_from_node(right)
-                    } else {
-                        vec![Value::from("right_target")]
-                    }
-                } else {
-                    vec![Value::from(node.right_vid_var.as_str())]
-                };
-
-                let executor = crate::query::executor::data_processing::graph_traversal::MultiShortestPathExecutor::new(
-                    node.id(),
-                    storage,
-                    left_vids,
-                    right_vids,
-                    node.steps(),
-                    None,
-                    node.single_shortest(),
-                );
-                Ok(ExecutorEnum::MultiShortestPath(executor))
             }
 
             // 数据转换执行器
