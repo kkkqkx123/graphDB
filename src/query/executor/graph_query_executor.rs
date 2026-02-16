@@ -673,9 +673,71 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
         Ok(ExecutionResult::from_result(core_result))
     }
 
-    #[allow(dead_code)]
-    fn execute_subgraph(&mut self, _clause: crate::query::parser::ast::stmt::SubgraphStmt) -> Result<ExecutionResult, DBError> {
-        Err(DBError::Query(QueryError::ExecutionError("SUBGRAPH语句执行未实现".to_string())))
+    fn execute_subgraph(&mut self, clause: crate::query::parser::ast::stmt::SubgraphStmt) -> Result<ExecutionResult, DBError> {
+        use crate::query::executor::data_processing::graph_traversal::algorithms::{SubgraphExecutor, SubgraphConfig};
+        use crate::query::executor::base::EdgeDirection;
+        use crate::core::Value;
+
+        let storage = self.storage.clone();
+
+        // 解析起始顶点ID列表
+        let start_vids: Vec<Value> = clause.from.vertices.iter()
+            .map(|expr| match expr {
+                crate::core::types::expression::Expression::Literal(Value::Int(n)) => Value::Int(*n),
+                crate::core::types::expression::Expression::Literal(Value::String(s)) => Value::String(s.clone()),
+                _ => Value::Null(crate::core::NullType::default()),
+            })
+            .collect();
+
+        if start_vids.is_empty() {
+            return Err(DBError::Query(QueryError::ExecutionError("子图查询需要至少一个起始顶点".to_string())));
+        }
+
+        // 解析步数 - 使用 IN/OUT 步数的最大值
+        let steps = match clause.steps {
+            crate::query::parser::ast::stmt::Steps::Fixed(n) => n,
+            crate::query::parser::ast::stmt::Steps::Range { min, max } => min.max(max),
+            crate::query::parser::ast::stmt::Steps::Variable(_) => {
+                return Err(DBError::Query(QueryError::ExecutionError("子图查询不支持变量步数".to_string())));
+            }
+        };
+
+        // 解析边方向（从 OVER 子句获取）
+        let edge_direction = if let Some(ref over) = clause.over {
+            match over.direction {
+                crate::query::parser::ast::types::EdgeDirection::Out => EdgeDirection::Out,
+                crate::query::parser::ast::types::EdgeDirection::In => EdgeDirection::In,
+                crate::query::parser::ast::types::EdgeDirection::Both => EdgeDirection::Both,
+            }
+        } else {
+            EdgeDirection::Both
+        };
+
+        // 解析边类型过滤
+        let edge_types = clause.over.as_ref().map(|over| over.edge_types.clone());
+
+        // 创建子图执行器配置
+        let mut config = SubgraphConfig::new(steps)
+            .with_direction(edge_direction);
+
+        if let Some(types) = edge_types {
+            config = config.with_edge_types(types);
+        }
+
+        // 创建并执行子图查询
+        let mut executor = SubgraphExecutor::new(
+            self.id,
+            storage,
+            start_vids,
+            config,
+        );
+
+        executor.open()?;
+
+        match executor.execute() {
+            Ok(execution_result) => Ok(execution_result),
+            Err(e) => Err(DBError::Query(QueryError::ExecutionError(format!("子图查询执行失败: {:?}", e)))),
+        }
     }
 
     fn execute_insert(&mut self, clause: crate::query::parser::ast::stmt::InsertStmt) -> Result<ExecutionResult, DBError> {
