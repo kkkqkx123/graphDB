@@ -331,6 +331,7 @@ impl<'a> Lexer<'a> {
             "INDEXES" => Tk::Indexes,
             "LOOKUP" => Tk::Lookup,
             "FIND" => Tk::Find,
+            "WEIGHT" => Tk::Weight,
             "PATH" => Tk::Path,
             "SHORTEST" => Tk::Shortest,
             "NOLOOP" => Tk::NoLoop,

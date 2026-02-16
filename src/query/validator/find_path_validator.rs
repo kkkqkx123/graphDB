@@ -28,6 +28,8 @@ pub struct FindPathConfig {
     pub with_props: bool,
     pub limit: Option<i64>,
     pub yield_columns: Vec<super::structs::YieldColumn>,
+    pub weight_expression: Option<String>,
+    pub heuristic_expression: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -54,6 +56,8 @@ impl FindPathValidator {
                 with_props: false,
                 limit: None,
                 yield_columns: Vec::new(),
+                weight_expression: None,
+                heuristic_expression: None,
             },
         }
     }
@@ -67,6 +71,7 @@ impl FindPathValidator {
         self.validate_dst_vertices()?;
         self.validate_steps()?;
         self.validate_edge_types()?;
+        self.validate_weight_expression()?;
         self.validate_limit()?;
         self.validate_yields()?;
         Ok(())
@@ -117,6 +122,21 @@ impl FindPathValidator {
             if edge_type.is_empty() {
                 return Err(ValidationError::new(
                     "Edge type name cannot be empty".to_string(),
+                    ValidationErrorType::SemanticError,
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_weight_expression(&self) -> Result<(), ValidationError> {
+        if let Some(ref weight_expr) = self.config.weight_expression {
+            // 验证权重表达式格式
+            // 支持: "ranking" 或属性名
+            let expr_lower = weight_expr.to_lowercase();
+            if expr_lower != "ranking" && expr_lower.is_empty() {
+                return Err(ValidationError::new(
+                    "Weight expression must be 'ranking' or a valid property name".to_string(),
                     ValidationErrorType::SemanticError,
                 ));
             }
@@ -193,6 +213,22 @@ impl FindPathValidator {
 
     pub fn add_yield_column(&mut self, col: super::structs::YieldColumn) {
         self.config.yield_columns.push(col);
+    }
+
+    pub fn set_weight_expression(&mut self, expression: String) {
+        self.config.weight_expression = Some(expression);
+    }
+
+    pub fn set_heuristic_expression(&mut self, expression: String) {
+        self.config.heuristic_expression = Some(expression);
+    }
+
+    pub fn weight_expression(&self) -> Option<&String> {
+        self.config.weight_expression.as_ref()
+    }
+
+    pub fn heuristic_expression(&self) -> Option<&String> {
+        self.config.heuristic_expression.as_ref()
     }
 }
 

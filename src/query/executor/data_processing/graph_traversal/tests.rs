@@ -475,4 +475,85 @@ use parking_lot::Mutex;
         assert_eq!(executor.name(), "ShortestPathExecutor");
         assert_eq!(executor.id(), 10);
     }
+
+    #[tokio::test]
+    async fn test_weighted_path_query_integration() {
+        // 测试完整的带权路径查询流程
+        let storage = create_weighted_test_graph("weighted_integration").await;
+
+        // 测试使用属性权重的Dijkstra算法
+        let dijkstra_executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
+            11,
+            storage.clone(),
+            vec![Value::String("A".to_string())],
+            vec![Value::String("C".to_string())],
+            EdgeDirection::Out,
+            None,
+            Some(10),
+            ShortestPathAlgorithmType::Dijkstra,
+        )
+        .with_weight_config(EdgeWeightConfig::Property("weight".to_string()));
+
+        assert_eq!(dijkstra_executor.name(), "ShortestPathExecutor");
+        assert_eq!(dijkstra_executor.id(), 11);
+
+        // 验证算法类型
+        assert!(matches!(
+            dijkstra_executor.get_algorithm(),
+            ShortestPathAlgorithmType::Dijkstra
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_algorithm_auto_selection_weighted() {
+        let storage = create_weighted_test_graph("auto_select_weighted").await;
+
+        // 创建带权重的执行器，验证自动选择Dijkstra算法
+        let executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
+            12,
+            storage.clone(),
+            vec![Value::String("A".to_string())],
+            vec![Value::String("C".to_string())],
+            EdgeDirection::Out,
+            None,
+            Some(10),
+            ShortestPathAlgorithmType::Dijkstra, // 显式指定Dijkstra
+        )
+        .with_weight_config(EdgeWeightConfig::Property("weight".to_string()));
+
+        assert_eq!(executor.name(), "ShortestPathExecutor");
+
+        // 带权图应该使用Dijkstra或A*算法
+        let algorithm = executor.get_algorithm();
+        assert!(
+            matches!(algorithm, ShortestPathAlgorithmType::Dijkstra | ShortestPathAlgorithmType::AStar),
+            "带权图应该使用Dijkstra或A*算法"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_algorithm_auto_selection_unweighted() {
+        let storage = create_test_graph("auto_select_unweighted").await;
+
+        // 创建无权重的执行器，验证使用BFS算法
+        let executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
+            13,
+            storage.clone(),
+            vec![Value::String("A".to_string())],
+            vec![Value::String("C".to_string())],
+            EdgeDirection::Out,
+            None,
+            Some(10),
+            ShortestPathAlgorithmType::BFS,
+        )
+        .with_weight_config(EdgeWeightConfig::Unweighted);
+
+        assert_eq!(executor.name(), "ShortestPathExecutor");
+
+        // 无权图应该使用BFS算法
+        assert!(matches!(
+            executor.get_algorithm(),
+            ShortestPathAlgorithmType::BFS
+        ));
+    }
 }

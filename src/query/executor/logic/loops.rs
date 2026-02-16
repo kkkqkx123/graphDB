@@ -2,8 +2,6 @@
 //!
 //! 包含循环控制相关的执行器
 //!
-//! NebulaGraph 对应实现：
-//! nebula-3.8.0/src/graph/executor/logic/LoopExecutor.cpp
 
 use std::sync::Arc;
 use parking_lot::Mutex;

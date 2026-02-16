@@ -367,6 +367,127 @@ async fn test_algorithm_context_with_zero_limit() {
 async fn test_algorithm_context_with_max_depth_zero() {
     let context = AlgorithmContext::new()
         .with_max_depth(Some(0));
-    
+
     assert_eq!(context.max_depth, Some(0));
+}
+
+// ==================== 带权最短路径集成测试 ====================
+
+#[tokio::test]
+async fn test_weighted_shortest_path_executor_creation() {
+    use graphdb::query::executor::data_processing::graph_traversal::ShortestPathExecutor;
+    use graphdb::query::executor::data_processing::graph_traversal::algorithms::{
+        EdgeWeightConfig, ShortestPathAlgorithmType
+    };
+
+    let test_storage = TestStorage::new().expect("创建测试存储失败");
+    let storage = test_storage.storage();
+
+    // 创建带权最短路径执行器
+    let executor = ShortestPathExecutor::new(
+        100,
+        storage.clone(),
+        vec![Value::from("A")],
+        vec![Value::from("C")],
+        ExecEdgeDirection::Out,
+        Some(vec!["connect".to_string()]),
+        Some(10),
+        ShortestPathAlgorithmType::Dijkstra,
+    )
+    .with_weight_config(EdgeWeightConfig::Property("weight".to_string()));
+
+    assert_eq!(executor.id(), 100);
+    assert_eq!(executor.name(), "ShortestPathExecutor");
+}
+
+#[tokio::test]
+async fn test_weighted_shortest_path_with_ranking() {
+    use graphdb::query::executor::data_processing::graph_traversal::ShortestPathExecutor;
+    use graphdb::query::executor::data_processing::graph_traversal::algorithms::{
+        EdgeWeightConfig, ShortestPathAlgorithmType
+    };
+
+    let test_storage = TestStorage::new().expect("创建测试存储失败");
+    let storage = test_storage.storage();
+
+    // 使用ranking作为权重
+    let executor = ShortestPathExecutor::new(
+        101,
+        storage.clone(),
+        vec![Value::from("A")],
+        vec![Value::from("C")],
+        ExecEdgeDirection::Out,
+        None,
+        Some(5),
+        ShortestPathAlgorithmType::Dijkstra,
+    )
+    .with_weight_config(EdgeWeightConfig::Ranking);
+
+    assert_eq!(executor.id(), 101);
+}
+
+#[tokio::test]
+async fn test_weighted_shortest_path_astar() {
+    use graphdb::query::executor::data_processing::graph_traversal::ShortestPathExecutor;
+    use graphdb::query::executor::data_processing::graph_traversal::algorithms::{
+        EdgeWeightConfig, HeuristicFunction, ShortestPathAlgorithmType
+    };
+
+    let test_storage = TestStorage::new().expect("创建测试存储失败");
+    let storage = test_storage.storage();
+
+    // 使用A*算法，带启发式函数
+    let executor = ShortestPathExecutor::new(
+        102,
+        storage.clone(),
+        vec![Value::from("A")],
+        vec![Value::from("C")],
+        ExecEdgeDirection::Out,
+        None,
+        Some(10),
+        ShortestPathAlgorithmType::AStar,
+    )
+    .with_weight_config(EdgeWeightConfig::Property("weight".to_string()))
+    .with_heuristic_config(HeuristicFunction::Zero);
+
+    assert_eq!(executor.id(), 102);
+}
+
+#[tokio::test]
+async fn test_weighted_path_query_parser_integration() {
+    use graphdb::query::parser::parser::Parser;
+
+    // 测试带权路径查询语句解析
+    let query = "FIND SHORTEST PATH FROM 1 TO 2 OVER connect WEIGHT weight";
+    let mut parser = Parser::new(query);
+    let result = parser.parse();
+
+    assert!(result.is_ok(), "带权路径查询解析应该成功: {:?}", result.err());
+
+    let stmt = result.expect("解析应该成功");
+    assert_eq!(stmt.kind(), "FIND PATH");
+}
+
+#[tokio::test]
+async fn test_weighted_path_query_with_ranking_parser() {
+    use graphdb::query::parser::parser::Parser;
+
+    // 测试使用ranking作为权重的查询语句解析
+    let query = "FIND SHORTEST PATH FROM 1 TO 2 OVER connect WEIGHT ranking";
+    let mut parser = Parser::new(query);
+    let result = parser.parse();
+
+    assert!(result.is_ok(), "使用ranking权重的路径查询解析应该成功: {:?}", result.err());
+}
+
+#[tokio::test]
+async fn test_unweighted_path_query_parser() {
+    use graphdb::query::parser::parser::Parser;
+
+    // 测试无权路径查询语句解析
+    let query = "FIND SHORTEST PATH FROM 1 TO 2 OVER connect";
+    let mut parser = Parser::new(query);
+    let result = parser.parse();
+
+    assert!(result.is_ok(), "无权路径查询解析应该成功: {:?}", result.err());
 }

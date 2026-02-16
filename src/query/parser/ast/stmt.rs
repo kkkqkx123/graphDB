@@ -436,6 +436,8 @@ pub struct FindPathStmt {
     pub limit: Option<usize>,
     pub offset: Option<usize>,
     pub yield_clause: Option<YieldClause>,
+    pub weight_expression: Option<String>,
+    pub heuristic_expression: Option<String>,
 }
 
 /// INSERT 语句
@@ -873,6 +875,8 @@ mod tests {
             limit: None,
             offset: None,
             yield_clause: None,
+            weight_expression: None,
+            heuristic_expression: None,
         });
 
         assert!(matches!(stmt, Stmt::FindPath(_)));

@@ -568,19 +568,6 @@ mod tests {
     use crate::core::{Value, Vertex, Path};
     use crate::storage::MockStorage;
 
-    fn create_test_executor() -> MultiShortestPathExecutor<MockStorage> {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
-        MultiShortestPathExecutor::new(
-            1,
-            storage,
-            vec![Value::from("a")],
-            vec![Value::from("d")],
-            EdgeDirection::Out,
-            None,
-            10,
-        )
-    }
-
     #[test]
     fn test_termination_map_creation() {
         let start_vids = vec![Value::from("a"), Value::from("b")];

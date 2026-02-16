@@ -171,8 +171,92 @@ mod tests {
         let query = "DELETE VERTEX 1";
         let result = parse_statement(query);
         assert!(result.is_ok(), "DELETE VERTEX 解析应该成功: {:?}", result.err());
-        
+
         let stmt = result.expect("DELETE VERTEX解析应该成功");
         assert_eq!(stmt.kind(), "DELETE");
+    }
+
+    #[test]
+    fn test_find_shortest_path_basic() {
+        let query = "FIND SHORTEST PATH FROM 1 TO 2 OVER connect";
+        let result = parse_statement(query);
+        assert!(result.is_ok(), "FIND SHORTEST PATH 解析应该成功: {:?}", result.err());
+
+        let stmt = result.expect("FIND SHORTEST PATH解析应该成功");
+        assert_eq!(stmt.kind(), "FIND PATH");
+
+        if let Stmt::FindPath(find_path_stmt) = stmt {
+            assert!(find_path_stmt.shortest, "应该是最短路径查询");
+            assert!(find_path_stmt.weight_expression.is_none(), "无权表达式");
+        } else {
+            panic!("期望 FindPath 语句");
+        }
+    }
+
+    #[test]
+    fn test_find_weighted_shortest_path() {
+        let query = "FIND SHORTEST PATH FROM 1 TO 2 OVER connect WEIGHT weight";
+        let result = parse_statement(query);
+        assert!(result.is_ok(), "带权 FIND SHORTEST PATH 解析应该成功: {:?}", result.err());
+
+        let stmt = result.expect("带权FIND SHORTEST PATH解析应该成功");
+        assert_eq!(stmt.kind(), "FIND PATH");
+
+        if let Stmt::FindPath(find_path_stmt) = stmt {
+            assert!(find_path_stmt.shortest, "应该是最短路径查询");
+            assert_eq!(find_path_stmt.weight_expression, Some("weight".to_string()), "应该有weight表达式");
+        } else {
+            panic!("期望 FindPath 语句");
+        }
+    }
+
+    #[test]
+    fn test_find_weighted_shortest_path_with_ranking() {
+        let query = "FIND SHORTEST PATH FROM 1 TO 2 OVER connect WEIGHT ranking";
+        let result = parse_statement(query);
+        assert!(result.is_ok(), "使用ranking权重的 FIND SHORTEST PATH 解析应该成功: {:?}", result.err());
+
+        let stmt = result.expect("使用ranking权重的FIND SHORTEST PATH解析应该成功");
+        assert_eq!(stmt.kind(), "FIND PATH");
+
+        if let Stmt::FindPath(find_path_stmt) = stmt {
+            assert!(find_path_stmt.shortest, "应该是最短路径查询");
+            assert_eq!(find_path_stmt.weight_expression, Some("ranking".to_string()), "应该有ranking权重表达式");
+        } else {
+            panic!("期望 FindPath 语句");
+        }
+    }
+
+    #[test]
+    fn test_find_all_paths() {
+        let query = "FIND ALL PATH FROM 1 TO 2 OVER connect";
+        let result = parse_statement(query);
+        assert!(result.is_ok(), "FIND ALL PATH 解析应该成功: {:?}", result.err());
+
+        let stmt = result.expect("FIND ALL PATH解析应该成功");
+        assert_eq!(stmt.kind(), "FIND PATH");
+
+        if let Stmt::FindPath(find_path_stmt) = stmt {
+            assert!(!find_path_stmt.shortest, "应该是所有路径查询");
+        } else {
+            panic!("期望 FindPath 语句");
+        }
+    }
+
+    #[test]
+    fn test_find_shortest_path_with_steps() {
+        let query = "FIND SHORTEST PATH FROM 1 TO 2 OVER connect UPTO 5 STEPS";
+        let result = parse_statement(query);
+        assert!(result.is_ok(), "带步数限制的 FIND SHORTEST PATH 解析应该成功: {:?}", result.err());
+
+        let stmt = result.expect("带步数限制的FIND SHORTEST PATH解析应该成功");
+        assert_eq!(stmt.kind(), "FIND PATH");
+
+        if let Stmt::FindPath(find_path_stmt) = stmt {
+            assert!(find_path_stmt.shortest, "应该是最短路径查询");
+            assert_eq!(find_path_stmt.max_steps, Some(5), "应该有最大步数5");
+        } else {
+            panic!("期望 FindPath 语句");
+        }
     }
 }

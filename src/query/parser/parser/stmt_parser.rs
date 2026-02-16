@@ -1557,6 +1557,21 @@ impl<'a> StmtParser<'a> {
             None
         };
 
+        // 可选的 WEIGHT 子句
+        let weight_expression = if ctx.match_token(TokenKind::Weight) {
+            if let TokenKind::Identifier(name) = ctx.current_token().kind.clone() {
+                ctx.next_token();
+                Some(name)
+            } else if let TokenKind::StringLiteral(name) = ctx.current_token().kind.clone() {
+                ctx.next_token();
+                Some(name)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
         // 可选的 LIMIT 子句
         let limit = if ctx.match_token(TokenKind::Limit) {
             if let TokenKind::IntegerLiteral(n) = ctx.current_token().kind {
@@ -1602,6 +1617,8 @@ impl<'a> StmtParser<'a> {
             limit,
             offset,
             yield_clause,
+            weight_expression,
+            heuristic_expression: None,
         }))
     }
 

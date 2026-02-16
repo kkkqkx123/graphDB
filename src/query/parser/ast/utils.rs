@@ -272,6 +272,8 @@ impl StmtFactory {
             limit: None,
             offset: None,
             yield_clause,
+            weight_expression: None,
+            heuristic_expression: None,
         })
     }
 }

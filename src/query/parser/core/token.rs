@@ -227,6 +227,7 @@ pub enum TokenKind {
     Rank,
     Input,
     FindPath,
+    Weight,
     Identifier(String),
     StringLiteral(String),
     IntegerLiteral(i64),
