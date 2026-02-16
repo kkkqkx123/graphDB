@@ -5,1010 +5,724 @@
 本文档基于对 Nebula-Graph 函数实现的分析，整理出当前项目缺失的内置函数，并提供详细的实现方案。
 
 ### 1.1 当前状态
-- **已有函数**：约 40+ 个（数学、字符串、正则、类型转换、日期时间）
-- **缺失函数**：约 50+ 个（图相关、容器操作、高级数学等）
+- **已有函数**：约 60+ 个（数学、字符串、正则、类型转换、日期时间、图相关、容器操作、路径、实用函数）
+- **缺失函数**：约 35+ 个（扩展数学、字符串、日期时间、图相关、地理空间等）
 
 ### 1.2 实现原则
-1. **优先核心功能**：图查询相关函数优先实现
+1. **优先核心功能**：图查询相关函数和常用函数优先实现
 2. **参考 Nebula 实现**：借鉴成熟的实现逻辑
 3. **保持一致性**：与现有函数注册机制保持一致
 4. **类型安全**：充分利用 Rust 的类型系统
+5. **UDF 说明**：`udf_is_in` 等 UDF 相关函数等待 UDF 模块实现后再引入
 
 ---
 
-## 2. 缺失函数清单与实现方案
+## 2. 待实现函数清单
 
-### 2.1 图相关函数（优先级：最高）
+### 2.1 数学函数（math.rs 扩展）
 
-这些函数是图查询的核心功能，必须实现。
+| 序号 | 函数名 | 功能描述 | 参数 | 返回值 | 优先级 |
+|------|--------|----------|------|--------|--------|
+| 1 | `e` | 自然常数 e | 无 | Float | 低 |
+| 2 | `pi` | 圆周率 π | 无 | Float | 低 |
+| 3 | `exp2` | 2 的幂 | INT/FLOAT | Float | 低 |
+| 4 | `log2` | 以 2 为底的对数 | INT/FLOAT | Float | 低 |
+| 5 | `radians` | 角度转弧度 | INT/FLOAT | Float | 低 |
+| 6 | `sign` | 返回数值符号 (-1, 0, 1) | INT/FLOAT | Int | 中 |
+| 7 | `rand` | 0-1 随机浮点数 | 无 | Float | 中 |
+| 8 | `rand32` | 32 位随机整数 | 无/INT/INT,INT | Int | 中 |
+| 9 | `rand64` | 64 位随机整数 | 无/INT/INT,INT | Int | 中 |
 
-#### 2.1.1 id() - 获取顶点ID
+### 2.2 字符串函数（string.rs 扩展）
 
-**功能描述**：返回顶点的 ID
+| 序号 | 函数名 | 功能描述 | 参数 | 返回值 | 优先级 |
+|------|--------|----------|------|--------|--------|
+| 10 | `strcasecmp` | 不区分大小写比较字符串 | STRING, STRING | Int | 低 |
+| 11 | `lpad` | 左侧填充字符串 | STRING, INT, STRING | String | 中 |
+| 12 | `rpad` | 右侧填充字符串 | STRING, INT, STRING | String | 中 |
+| 13 | `concat_ws` | 带分隔符连接字符串 | STRING, STRING... | String | 中 |
 
-**参考实现**（Nebula）：
-```cpp
-auto &attr = functions_["id"];
-attr.body_ = [](const auto &args) -> Value {
-  switch (args[0].get().type()) {
-    case Value::Type::NULLVALUE: return Value::kNullValue;
-    case Value::Type::VERTEX: return args[0].get().getVertex().vid;
-    default: return Value::kNullBadType;
-  }
-};
-```
+### 2.3 类型转换函数（conversion.rs 扩展）
 
-**Rust 实现方案**：
-```rust
-// 在 registry.rs 中添加
-fn register_graph_functions(&mut self) {
-    let registry = self;
-    
-    // id - 获取顶点ID
-    registry.register(
-        "id",
-        FunctionSignature::new(
-            "id",
-            vec![ValueType::Vertex],
-            ValueType::Any,  // VID 可以是任意类型
-            1, 1, true, "获取顶点ID",
-        ),
-        |args| {
-            match &args[0] {
-                Value::Vertex(v) => Ok(*v.vid.clone()),
-                Value::Null(_) => Ok(Value::Null(NullType::Null)),
-                _ => Err(ExpressionError::type_error("id函数需要顶点类型")),
-            }
-        },
-    );
-}
-```
+| 序号 | 函数名 | 功能描述 | 参数 | 返回值 | 优先级 |
+|------|--------|----------|------|--------|--------|
+| 14 | `toset` | 列表转集合 | LIST | Set | 中 |
 
-#### 2.1.2 tags() / labels() - 获取顶点标签
+### 2.4 日期时间函数（datetime.rs 扩展）
 
-**功能描述**：返回顶点所有标签（tag）的名称列表
+| 序号 | 函数名 | 功能描述 | 参数 | 返回值 | 优先级 |
+|------|--------|----------|------|--------|--------|
+| 15 | `time` | 创建/获取时间 | 无/STRING/MAP | Time | 高 |
+| 16 | `datetime` | 创建/获取日期时间 | 无/STRING/MAP/INT | DateTime | 高 |
+| 17 | `timestamp` | 获取时间戳 | 无/STRING/INT/DATETIME | Int | 高 |
+| 18 | `duration` | 创建持续时间 | STRING/MAP | Duration | 中 |
+| 19 | `extract` | 提取日期时间组件 | STRING, STRING | List | 中 |
 
-**参考实现**（Nebula）：
-```cpp
-auto &attr = functions_["tags"];
-attr.body_ = [](const auto &args) -> Value {
-  switch (args[0].get().type()) {
-    case Value::Type::NULLVALUE: return Value::kNullValue;
-    case Value::Type::VERTEX: {
-      List tags;
-      for (auto &tag : args[0].get().getVertex().tags) {
-        tags.emplace_back(tag.name);
-      }
-      return tags;
-    }
-    default: return Value::kNullBadType;
-  }
-};
-functions_["labels"] = attr;  // 别名
-```
+### 2.5 图相关函数（graph.rs 扩展）
 
-**Rust 实现方案**：
-```rust
-// tags / labels
-for name in ["tags", "labels"] {
-    registry.register(
-        name,
-        FunctionSignature::new(
-            name,
-            vec![ValueType::Vertex],
-            ValueType::List,
-            1, 1, true, "获取顶点标签列表",
-        ),
-        |args| {
-            match &args[0] {
-                Value::Vertex(v) => {
-                    let tags: Vec<Value> = v.tags.iter()
-                        .map(|tag| Value::String(tag.name.clone()))
-                        .collect();
-                    Ok(Value::List(tags))
-                }
-                Value::Null(_) => Ok(Value::Null(NullType::Null)),
-                _ => Err(ExpressionError::type_error("tags函数需要顶点类型")),
-            }
-        },
-    );
-}
-```
+| 序号 | 函数名 | 功能描述 | 参数 | 返回值 | 优先级 |
+|------|--------|----------|------|--------|--------|
+| 20 | `typeid` | 获取边类型 ID | EDGE | Int | 低 |
+| 21 | `startnode` | 获取边的起始节点 | EDGE/PATH | Vertex | 高 |
+| 22 | `endnode` | 获取边的结束节点 | EDGE/PATH | Vertex | 高 |
+| 23 | `none_direct_src` | 获取无方向边的源 | EDGE/VERTEX/LIST | Any | 低 |
+| 24 | `none_direct_dst` | 获取无方向边的目标 | EDGE/VERTEX/LIST | Any | 低 |
 
-#### 2.1.3 properties() - 获取属性映射
+### 2.6 容器/路径函数（container.rs/path.rs 扩展）
 
-**功能描述**：返回顶点或边的所有属性
+| 序号 | 函数名 | 功能描述 | 参数 | 返回值 | 优先级 |
+|------|--------|----------|------|--------|--------|
+| 25 | `reverse` (列表) | 反转列表 | LIST | List | 中 |
+| 26 | `hassameedgeinpath` | 检查路径是否有重复边 | PATH | Bool | 低 |
+| 27 | `hassamevertexinpath` | 检查路径是否有重复顶点 | PATH | Bool | 低 |
+| 28 | `reversepath` | 反转路径 | PATH | Path | 低 |
 
-**参考实现**（Nebula）：
-```cpp
-auto &attr = functions_["properties"];
-attr.body_ = [](const auto &args) -> Value {
-  switch (args[0].get().type()) {
-    case Value::Type::NULLVALUE: return Value::kNullValue;
-    case Value::Type::VERTEX: {
-      Map props;
-      for (auto &tag : args[0].get().getVertex().tags) {
-        props.kvs.insert(tag.props.cbegin(), tag.props.cend());
-      }
-      return Value(std::move(props));
-    }
-    case Value::Type::EDGE: {
-      Map props;
-      props.kvs = args[0].get().getEdge().props;
-      return Value(std::move(props));
-    }
-    case Value::Type::MAP: return args[0].get();
-    default: return Value::kNullBadType;
-  }
-};
-```
+### 2.7 JSON 函数（新增 json.rs）
 
-**Rust 实现方案**：
-```rust
-registry.register(
-    "properties",
-    FunctionSignature::new(
-        "properties",
-        vec![ValueType::Any],  // 支持 Vertex, Edge, Map
-        ValueType::Map,
-        1, 1, true, "获取属性映射",
-    ),
-    |args| {
-        match &args[0] {
-            Value::Vertex(v) => {
-                let mut props = HashMap::new();
-                // 合并所有 tag 的属性
-                for tag in &v.tags {
-                    props.extend(tag.properties.clone());
-                }
-                // 合并顶点级属性
-                props.extend(v.properties.clone());
-                Ok(Value::Map(props))
-            }
-            Value::Edge(e) => Ok(Value::Map(e.props.clone())),
-            Value::Map(m) => Ok(Value::Map(m.clone())),
-            Value::Null(_) => Ok(Value::Null(NullType::Null)),
-            _ => Err(ExpressionError::type_error("properties函数需要顶点、边或映射类型")),
-        }
-    },
-);
-```
+| 序号 | 函数名 | 功能描述 | 参数 | 返回值 | 优先级 |
+|------|--------|----------|------|--------|--------|
+| 29 | `json_extract` | 提取 JSON 数据 | STRING | Map/Null | 中 |
 
-#### 2.1.4 type() - 获取边类型
+### 2.8 地理空间函数（新增 geo.rs）
 
-**功能描述**：返回边的类型名称
+| 序号 | 函数名 | 功能描述 | 参数 | 返回值 | 优先级 |
+|------|--------|----------|------|--------|--------|
+| 30 | `st_point` | 创建地理点 | FLOAT, FLOAT | Geography | 低 |
+| 31 | `st_geogfromtext` | 从 WKT 解析地理数据 | STRING | Geography | 低 |
+| 32 | `st_astext` | 地理数据转 WKT | GEOGRAPHY | String | 低 |
+| 33 | `st_centroid` | 计算质心 | GEOGRAPHY | Geography | 低 |
+| 34 | `st_isvalid` | 检查地理数据有效性 | GEOGRAPHY | Bool | 低 |
+| 35 | `st_intersects` | 检查两个地理对象是否相交 | GEOGRAPHY, GEOGRAPHY | Bool | 低 |
+| 36 | `st_covers` | 检查覆盖关系 | GEOGRAPHY, GEOGRAPHY | Bool | 低 |
+| 37 | `st_coveredby` | 检查被覆盖关系 | GEOGRAPHY, GEOGRAPHY | Bool | 低 |
+| 38 | `st_dwithin` | 检查是否在指定距离内 | GEOGRAPHY, GEOGRAPHY, FLOAT/INT | Bool | 低 |
+| 39 | `st_distance` | 计算地理距离 | GEOGRAPHY, GEOGRAPHY | Float | 低 |
+| 40 | `s2_cellidfrompoint` | S2 单元格 ID | GEOGRAPHY | Int | 低 |
+| 41 | `s2_coveringcellids` | S2 覆盖单元格 | GEOGRAPHY | List | 低 |
 
-**Rust 实现方案**：
-```rust
-registry.register(
-    "type",
-    FunctionSignature::new(
-        "type",
-        vec![ValueType::Edge],
-        ValueType::String,
-        1, 1, true, "获取边类型",
-    ),
-    |args| {
-        match &args[0] {
-            Value::Edge(e) => Ok(Value::String(e.edge_type.clone())),
-            Value::Null(_) => Ok(Value::Null(NullType::Null)),
-            _ => Err(ExpressionError::type_error("type函数需要边类型")),
-        }
-    },
-);
-```
+### 2.9 其他函数
 
-#### 2.1.5 src() / dst() - 获取边起点/终点
-
-**功能描述**：返回边的源顶点和目标顶点 ID
-
-**Rust 实现方案**：
-```rust
-// src
-registry.register(
-    "src",
-    FunctionSignature::new(
-        "src",
-        vec![ValueType::Edge],
-        ValueType::Any,
-        1, 1, true, "获取边起点",
-    ),
-    |args| {
-        match &args[0] {
-            Value::Edge(e) => Ok(*e.src.clone()),
-            Value::Null(_) => Ok(Value::Null(NullType::Null)),
-            _ => Err(ExpressionError::type_error("src函数需要边类型")),
-        }
-    },
-);
-
-// dst
-registry.register(
-    "dst",
-    FunctionSignature::new(
-        "dst",
-        vec![ValueType::Edge],
-        ValueType::Any,
-        1, 1, true, "获取边终点",
-    ),
-    |args| {
-        match &args[0] {
-            Value::Edge(e) => Ok(*e.dst.clone()),
-            Value::Null(_) => Ok(Value::Null(NullType::Null)),
-            _ => Err(ExpressionError::type_error("dst函数需要边类型")),
-        }
-    },
-);
-```
-
-#### 2.1.6 rank() - 获取边rank
-
-**功能描述**：返回边的 ranking 值
-
-**Rust 实现方案**：
-```rust
-registry.register(
-    "rank",
-    FunctionSignature::new(
-        "rank",
-        vec![ValueType::Edge],
-        ValueType::Int,
-        1, 1, true, "获取边rank",
-    ),
-    |args| {
-        match &args[0] {
-            Value::Edge(e) => Ok(Value::Int(e.ranking)),
-            Value::Null(_) => Ok(Value::Null(NullType::Null)),
-            _ => Err(ExpressionError::type_error("rank函数需要边类型")),
-        }
-    },
-);
-```
+| 序号 | 函数名 | 功能描述 | 参数 | 返回值 | 优先级 |
+|------|--------|----------|------|--------|--------|
+| 42 | `is_edge` | 检查是否为边类型 | EDGE | Bool | 低 |
+| 43 | `cos_similarity` | 计算余弦相似度 | 数值列表... | Float | 低 |
 
 ---
 
-### 2.2 容器操作函数（优先级：高）
+## 3. 详细实现方案
 
-#### 2.2.1 head() - 获取列表首元素
+### 3.1 数学函数扩展
 
-**参考实现**（Nebula）：
-```cpp
-auto &attr = functions_["head"];
-attr.body_ = [](const auto &args) -> Value {
-  switch (args[0].get().type()) {
-    case Value::Type::NULLVALUE: return Value::kNullValue;
-    case Value::Type::LIST: {
-      const auto &items = args[0].get().getList().values;
-      return items.empty() ? Value::kNullValue : items.front();
-    }
-    default: return Value::kNullBadType;
-  }
-};
-```
+#### 3.1.1 数学常数 e 和 pi
 
-**Rust 实现方案**：
 ```rust
-registry.register(
-    "head",
-    FunctionSignature::new(
-        "head",
-        vec![ValueType::List],
-        ValueType::Any,
-        1, 1, true, "获取列表首元素",
-    ),
-    |args| {
-        match &args[0] {
-            Value::List(list) => {
-                Ok(list.first().cloned().unwrap_or(Value::Null(NullType::Null)))
-            }
-            Value::Null(_) => Ok(Value::Null(NullType::Null)),
-            _ => Err(ExpressionError::type_error("head函数需要列表类型")),
-        }
-    },
-);
-```
-
-#### 2.2.2 last() - 获取列表末元素
-
-**Rust 实现方案**：
-```rust
-registry.register(
-    "last",
-    FunctionSignature::new(
-        "last",
-        vec![ValueType::List],
-        ValueType::Any,
-        1, 1, true, "获取列表末元素",
-    ),
-    |args| {
-        match &args[0] {
-            Value::List(list) => {
-                Ok(list.last().cloned().unwrap_or(Value::Null(NullType::Null)))
-            }
-            Value::Null(_) => Ok(Value::Null(NullType::Null)),
-            _ => Err(ExpressionError::type_error("last函数需要列表类型")),
-        }
-    },
-);
-```
-
-#### 2.2.3 tail() - 获取列表尾部
-
-**参考实现**（Nebula）：
-```cpp
-auto &attr = functions_["tail"];
-attr.body_ = [](const auto &args) -> Value {
-  switch (args[0].get().type()) {
-    case Value::Type::NULLVALUE: return Value::kNullValue;
-    case Value::Type::LIST: {
-      auto &list = args[0].get().getList();
-      if (list.empty()) return List();
-      return List(std::vector<Value>(list.values.begin() + 1, list.values.end()));
-    }
-    default: return Value::kNullBadType;
-  }
-};
-```
-
-**Rust 实现方案**：
-```rust
-registry.register(
-    "tail",
-    FunctionSignature::new(
-        "tail",
-        vec![ValueType::List],
-        ValueType::List,
-        1, 1, true, "获取列表尾部（除首元素外）",
-    ),
-    |args| {
-        match &args[0] {
-            Value::List(list) => {
-                if list.is_empty() {
-                    Ok(Value::List(vec![]))
-                } else {
-                    Ok(Value::List(list[1..].to_vec()))
-                }
-            }
-            Value::Null(_) => Ok(Value::Null(NullType::Null)),
-            _ => Err(ExpressionError::type_error("tail函数需要列表类型")),
-        }
-    },
-);
-```
-
-#### 2.2.4 size() - 获取容器大小
-
-**参考实现**（Nebula）：
-```cpp
-auto &attr = functions_["size"];
-attr.body_ = [](const auto &args) -> Value {
-  switch (args[0].get().type()) {
-    case Value::Type::NULLVALUE: return Value::kNullValue;
-    case Value::Type::__EMPTY__: return Value::kEmpty;
-    case Value::Type::STRING: return static_cast<int64_t>(args[0].get().getStr().size());
-    case Value::Type::LIST: return static_cast<int64_t>(args[0].get().getList().size());
-    case Value::Type::MAP: return static_cast<int64_t>(args[0].get().getMap().size());
-    case Value::Type::SET: return static_cast<int64_t>(args[0].get().getSet().size());
-    case Value::Type::DATASET: return static_cast<int64_t>(args[0].get().getDataSet().size());
-    default: return Value::kNullBadType;
-  }
-};
-```
-
-**Rust 实现方案**：
-```rust
-registry.register(
-    "size",
-    FunctionSignature::new(
-        "size",
-        vec![ValueType::Any],
-        ValueType::Int,
-        1, 1, true, "获取容器大小",
-    ),
-    |args| {
-        match &args[0] {
-            Value::String(s) => Ok(Value::Int(s.len() as i64)),
-            Value::List(list) => Ok(Value::Int(list.len() as i64)),
-            Value::Map(map) => Ok(Value::Int(map.len() as i64)),
-            Value::Set(set) => Ok(Value::Int(set.len() as i64)),
-            Value::DataSet(ds) => Ok(Value::Int(ds.rows.len() as i64)),
-            Value::Null(_) => Ok(Value::Null(NullType::Null)),
-            _ => Err(ExpressionError::type_error("size函数不支持该类型")),
-        }
-    },
-);
-```
-
-#### 2.2.5 range() - 生成范围列表
-
-**参考实现**（Nebula）：
-```cpp
-auto &attr = functions_["range"];
-attr.body_ = [](const auto &args) -> Value {
-  if (!args[0].get().isInt() || !args[1].get().isInt()) {
-    return Value::kNullBadType;
-  }
-  int64_t start = args[0].get().getInt();
-  int64_t end = args[1].get().getInt();
-  int64_t step = 1;
-  if (args.size() == 3) {
-    if (!args[2].get().isInt()) return Value::kNullBadType;
-    step = args[2].get().getInt();
-  }
-  if (step == 0) return Value::kNullBadData;
-  
-  List res;
-  for (auto i = start; step > 0 ? i <= end : i >= end; i = i + step) {
-    res.emplace_back(i);
-  }
-  return Value(res);
-};
-```
-
-**Rust 实现方案**：
-```rust
-// range(start, end) 或 range(start, end, step)
-registry.register(
-    "range",
-    FunctionSignature::new(
-        "range",
-        vec![ValueType::Int, ValueType::Int],  // 基础签名
-        ValueType::List,
-        2, 3, true, "生成范围列表",
-    ),
-    |args| {
-        let start = match &args[0] {
-            Value::Int(i) => *i,
-            Value::Null(_) => return Ok(Value::Null(NullType::Null)),
-            _ => return Err(ExpressionError::type_error("range函数需要整数参数")),
-        };
-        let end = match &args[1] {
-            Value::Int(i) => *i,
-            Value::Null(_) => return Ok(Value::Null(NullType::Null)),
-            _ => return Err(ExpressionError::type_error("range函数需要整数参数")),
-        };
-        let step = if args.len() > 2 {
-            match &args[2] {
-                Value::Int(i) => *i,
-                Value::Null(_) => return Ok(Value::Null(NullType::Null)),
-                _ => return Err(ExpressionError::type_error("range函数的step需要整数")),
-            }
-        } else {
-            1
-        };
-        
-        if step == 0 {
-            return Err(ExpressionError::new(
-                ExpressionErrorType::InvalidOperation,
-                "range函数的step不能为0".to_string(),
-            ));
-        }
-        
-        let mut result = Vec::new();
-        if step > 0 {
-            let mut i = start;
-            while i <= end {
-                result.push(Value::Int(i));
-                i += step;
-            }
-        } else {
-            let mut i = start;
-            while i >= end {
-                result.push(Value::Int(i));
-                i += step;
-            }
-        }
-        
-        Ok(Value::List(result))
-    },
-);
-```
-
-#### 2.2.6 keys() - 获取键列表
-
-**参考实现**（Nebula）：
-```cpp
-auto &attr = functions_["keys"];
-attr.body_ = [](const auto &args) -> Value {
-  std::set<std::string> tmp;
-  switch (args[0].get().type()) {
-    case Value::Type::NULLVALUE: return Value::kNullValue;
-    case Value::Type::VERTEX:
-      for (auto &tag : args[0].get().getVertex().tags) {
-        for (auto &prop : tag.props) tmp.emplace(prop.first);
-      }
-      break;
-    case Value::Type::EDGE:
-      for (auto &prop : args[0].get().getEdge().props) tmp.emplace(prop.first);
-      break;
-    case Value::Type::MAP:
-      for (auto &kv : args[0].get().getMap().kvs) tmp.emplace(kv.first);
-      break;
-    default: return Value::kNullBadType;
-  }
-  List result;
-  result.values.assign(tmp.cbegin(), tmp.cend());
-  return result;
-};
-```
-
-**Rust 实现方案**：
-```rust
-use std::collections::BTreeSet;
-
-registry.register(
-    "keys",
-    FunctionSignature::new(
-        "keys",
-        vec![ValueType::Any],
-        ValueType::List,
-        1, 1, true, "获取键列表",
-    ),
-    |args| {
-        let mut keys: BTreeSet<String> = BTreeSet::new();
-        
-        match &args[0] {
-            Value::Vertex(v) => {
-                for tag in &v.tags {
-                    for key in tag.properties.keys() {
-                        keys.insert(key.clone());
-                    }
-                }
-            }
-            Value::Edge(e) => {
-                for key in e.props.keys() {
-                    keys.insert(key.clone());
-                }
-            }
-            Value::Map(m) => {
-                for key in m.keys() {
-                    keys.insert(key.clone());
-                }
-            }
-            Value::Null(_) => return Ok(Value::Null(NullType::Null)),
-            _ => return Err(ExpressionError::type_error("keys函数需要顶点、边或映射类型")),
-        }
-        
-        let result: Vec<Value> = keys.into_iter().map(Value::String).collect();
-        Ok(Value::List(result))
-    },
-);
-```
-
----
-
-### 2.3 路径相关函数（优先级：高）
-
-#### 2.3.1 nodes() - 获取路径中的节点
-
-**参考实现**（Nebula）：
-```cpp
-auto &attr = functions_["nodes"];
-attr.body_ = [](const auto &args) -> Value {
-  switch (args[0].get().type()) {
-    case Value::Type::NULLVALUE: return Value::kNullValue;
-    case Value::Type::PATH: {
-      auto &path = args[0].get().getPath();
-      List result;
-      result.emplace_back(path.src);
-      for (auto &step : path.steps) {
-        result.emplace_back(step.dst);
-      }
-      return result;
-    }
-    default: return Value::kNullBadType;
-  }
-};
-```
-
-**Rust 实现方案**：
-```rust
-registry.register(
-    "nodes",
-    FunctionSignature::new(
-        "nodes",
-        vec![ValueType::Path],
-        ValueType::List,
-        1, 1, true, "获取路径中的所有节点",
-    ),
-    |args| {
-        match &args[0] {
-            Value::Path(path) => {
-                let mut result = vec![Value::Vertex(*path.src.clone())];
-                for step in &path.steps {
-                    result.push(Value::Vertex(step.dst.clone()));
-                }
-                Ok(Value::List(result))
-            }
-            Value::Null(_) => Ok(Value::Null(NullType::Null)),
-            _ => Err(ExpressionError::type_error("nodes函数需要路径类型")),
-        }
-    },
-);
-```
-
-#### 2.3.2 relationships() - 获取路径中的边
-
-**Rust 实现方案**：
-```rust
-registry.register(
-    "relationships",
-    FunctionSignature::new(
-        "relationships",
-        vec![ValueType::Path],
-        ValueType::List,
-        1, 1, true, "获取路径中的所有边",
-    ),
-    |args| {
-        match &args[0] {
-            Value::Path(path) => {
-                let mut result = Vec::new();
-                for step in &path.steps {
-                    if let Some(ref edge) = step.edge {
-                        result.push(Value::Edge(*edge.clone()));
-                    }
-                }
-                Ok(Value::List(result))
-            }
-            Value::Null(_) => Ok(Value::Null(NullType::Null)),
-            _ => Err(ExpressionError::type_error("relationships函数需要路径类型")),
-        }
-    },
-);
-```
-
----
-
-### 2.4 数学函数（优先级：中）
-
-#### 2.4.1 位运算函数
-
-**Rust 实现方案**：
-```rust
-fn register_bit_functions(&mut self) {
-    let registry = self;
-    
-    // bit_and
+// 在 math.rs 中添加
+fn register_e(registry: &mut FunctionRegistry) {
     registry.register(
-        "bit_and",
-        FunctionSignature::new(
-            "bit_and",
-            vec![ValueType::Int, ValueType::Int],
-            ValueType::Int,
-            2, 2, true, "按位与",
-        ),
-        |args| {
-            match (&args[0], &args[1]) {
-                (Value::Int(a), Value::Int(b)) => Ok(Value::Int(a & b)),
-                (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
-                _ => Err(ExpressionError::type_error("bit_and函数需要整数参数")),
-            }
-        },
-    );
-    
-    // bit_or
-    registry.register(
-        "bit_or",
-        FunctionSignature::new(
-            "bit_or",
-            vec![ValueType::Int, ValueType::Int],
-            ValueType::Int,
-            2, 2, true, "按位或",
-        ),
-        |args| {
-            match (&args[0], &args[1]) {
-                (Value::Int(a), Value::Int(b)) => Ok(Value::Int(a | b)),
-                (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
-                _ => Err(ExpressionError::type_error("bit_or函数需要整数参数")),
-            }
-        },
-    );
-    
-    // bit_xor
-    registry.register(
-        "bit_xor",
-        FunctionSignature::new(
-            "bit_xor",
-            vec![ValueType::Int, ValueType::Int],
-            ValueType::Int,
-            2, 2, true, "按位异或",
-        ),
-        |args| {
-            match (&args[0], &args[1]) {
-                (Value::Int(a), Value::Int(b)) => Ok(Value::Int(a ^ b)),
-                (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
-                _ => Err(ExpressionError::type_error("bit_xor函数需要整数参数")),
-            }
-        },
-    );
-}
-```
-
-#### 2.4.2 反三角函数
-
-**Rust 实现方案**：
-```rust
-// asin
-registry.register(
-    "asin",
-    FunctionSignature::new(
-        "asin",
-        vec![ValueType::Float],
-        ValueType::Float,
-        1, 1, true, "反正弦",
-    ),
-    |args| {
-        match &args[0] {
-            Value::Float(f) => Ok(Value::Float(f.asin())),
-            Value::Int(i) => Ok(Value::Float((*i as f64).asin())),
-            Value::Null(_) => Ok(Value::Null(NullType::Null)),
-            _ => Err(ExpressionError::type_error("asin函数需要数值类型")),
-        }
-    },
-);
-
-// acos
-registry.register(
-    "acos",
-    FunctionSignature::new(
-        "acos",
-        vec![ValueType::Float],
-        ValueType::Float,
-        1, 1, true, "反余弦",
-    ),
-    |args| {
-        match &args[0] {
-            Value::Float(f) => Ok(Value::Float(f.acos())),
-            Value::Int(i) => Ok(Value::Float((*i as f64).acos())),
-            Value::Null(_) => Ok(Value::Null(NullType::Null)),
-            _ => Err(ExpressionError::type_error("acos函数需要数值类型")),
-        }
-    },
-);
-
-// atan
-registry.register(
-    "atan",
-    FunctionSignature::new(
-        "atan",
-        vec![ValueType::Float],
-        ValueType::Float,
-        1, 1, true, "反正切",
-    ),
-    |args| {
-        match &args[0] {
-            Value::Float(f) => Ok(Value::Float(f.atan())),
-            Value::Int(i) => Ok(Value::Float((*i as f64).atan())),
-            Value::Null(_) => Ok(Value::Null(NullType::Null)),
-            _ => Err(ExpressionError::type_error("atan函数需要数值类型")),
-        }
-    },
-);
-```
-
-#### 2.4.3 其他数学函数
-
-```rust
-// cbrt - 立方根
-registry.register(
-    "cbrt",
-    FunctionSignature::new(
-        "cbrt",
-        vec![ValueType::Float],
-        ValueType::Float,
-        1, 1, true, "立方根",
-    ),
-    |args| {
-        match &args[0] {
-            Value::Float(f) => Ok(Value::Float(f.cbrt())),
-            Value::Int(i) => Ok(Value::Float((*i as f64).cbrt())),
-            Value::Null(_) => Ok(Value::Null(NullType::Null)),
-            _ => Err(ExpressionError::type_error("cbrt函数需要数值类型")),
-        }
-    },
-);
-
-// hypot - 欧几里得距离
-registry.register(
-    "hypot",
-    FunctionSignature::new(
-        "hypot",
-        vec![ValueType::Float, ValueType::Float],
-        ValueType::Float,
-        2, 2, true, "欧几里得距离",
-    ),
-    |args| {
-        match (&args[0], &args[1]) {
-            (Value::Float(a), Value::Float(b)) => Ok(Value::Float(a.hypot(*b))),
-            (Value::Int(a), Value::Int(b)) => Ok(Value::Float((*a as f64).hypot(*b as f64))),
-            (Value::Float(a), Value::Int(b)) => Ok(Value::Float(a.hypot(*b as f64))),
-            (Value::Int(a), Value::Float(b)) => Ok(Value::Float((*a as f64).hypot(*b))),
-            (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
-            _ => Err(ExpressionError::type_error("hypot函数需要数值类型")),
-        }
-    },
-);
-
-// pi - 圆周率常量
-registry.register(
-    "pi",
-    FunctionSignature::new(
-        "pi",
-        vec![],
-        ValueType::Float,
-        0, 0, true, "圆周率",
-    ),
-    |_args| {
-        Ok(Value::Float(std::f64::consts::PI))
-    },
-);
-
-// e - 自然常数
-registry.register(
-    "e",
-    FunctionSignature::new(
         "e",
-        vec![],
-        ValueType::Float,
-        0, 0, true, "自然常数",
-    ),
-    |_args| {
-        Ok(Value::Float(std::f64::consts::E))
-    },
-);
-```
-
----
-
-### 2.5 字符串函数（优先级：中）
-
-#### 2.5.1 left() / right() - 左右截取
-
-**Rust 实现方案**：
-```rust
-// left(string, length)
-registry.register(
-    "left",
-    FunctionSignature::new(
-        "left",
-        vec![ValueType::String, ValueType::Int],
-        ValueType::String,
-        2, 2, true, "左侧截取字符串",
-    ),
-    |args| {
-        match (&args[0], &args[1]) {
-            (Value::String(s), Value::Int(n)) => {
-                if *n <= 0 {
-                    Ok(Value::String(String::new()))
-                } else {
-                    let end = (*n as usize).min(s.len());
-                    Ok(Value::String(s[..end].to_string()))
-                }
-            }
-            (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
-            _ => Err(ExpressionError::type_error("left函数需要字符串和整数参数")),
-        }
-    },
-);
-
-// right(string, length)
-registry.register(
-    "right",
-    FunctionSignature::new(
-        "right",
-        vec![ValueType::String, ValueType::Int],
-        ValueType::String,
-        2, 2, true, "右侧截取字符串",
-    ),
-    |args| {
-        match (&args[0], &args[1]) {
-            (Value::String(s), Value::Int(n)) => {
-                if *n <= 0 {
-                    Ok(Value::String(String::new()))
-                } else {
-                    let start = s.len().saturating_sub(*n as usize);
-                    Ok(Value::String(s[start..].to_string()))
-                }
-            }
-            (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
-            _ => Err(ExpressionError::type_error("right函数需要字符串和整数参数")),
-        }
-    },
-);
-```
-
-#### 2.5.2 split() - 字符串分割
-
-**Rust 实现方案**：
-```rust
-registry.register(
-    "split",
-    FunctionSignature::new(
-        "split",
-        vec![ValueType::String, ValueType::String],
-        ValueType::List,
-        2, 2, true, "分割字符串",
-    ),
-    |args| {
-        match (&args[0], &args[1]) {
-            (Value::String(s), Value::String(delimiter)) => {
-                let parts: Vec<Value> = s.split(delimiter)
-                    .map(|part| Value::String(part.to_string()))
-                    .collect();
-                Ok(Value::List(parts))
-            }
-            (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
-            _ => Err(ExpressionError::type_error("split函数需要两个字符串参数")),
-        }
-    },
-);
-```
-
-#### 2.5.3 reverse() - 字符串反转
-
-**Rust 实现方案**：
-```rust
-registry.register(
-    "reverse",
-    FunctionSignature::new(
-        "reverse",
-        vec![ValueType::String],
-        ValueType::String,
-        1, 1, true, "反转字符串",
-    ),
-    |args| {
-        match &args[0] {
-            Value::String(s) => {
-                Ok(Value::String(s.chars().rev().collect()))
-            }
-            Value::Null(_) => Ok(Value::Null(NullType::Null)),
-            _ => Err(ExpressionError::type_error("reverse函数需要字符串类型")),
-        }
-    },
-);
-```
-
-#### 2.5.4 substr() / substring() - 子字符串
-
-**Rust 实现方案**：
-```rust
-// substr/substring(string, start, [length])
-for name in ["substr", "substring"] {
-    registry.register(
-        name,
         FunctionSignature::new(
-            name,
-            vec![ValueType::String, ValueType::Int],
-            ValueType::String,
-            2, 3, true, "获取子字符串",
+            "e",
+            vec![],
+            ValueType::Float,
+            0, 0, true, "自然常数 e",
+        ),
+        |_args| Ok(Value::Float(std::f64::consts::E)),
+    );
+}
+
+fn register_pi(registry: &mut FunctionRegistry) {
+    registry.register(
+        "pi",
+        FunctionSignature::new(
+            "pi",
+            vec![],
+            ValueType::Float,
+            0, 0, true, "圆周率 π",
+        ),
+        |_args| Ok(Value::Float(std::f64::consts::PI)),
+    );
+}
+```
+
+#### 3.1.2 exp2 和 log2
+
+```rust
+fn register_exp2(registry: &mut FunctionRegistry) {
+    for (type_in, converter) in [(ValueType::Int, |i: i64| i as f64), (ValueType::Float, |f: f64| f)] {
+        registry.register(
+            "exp2",
+            FunctionSignature::new("exp2", vec![type_in], ValueType::Float, 1, 1, true, "2的幂"),
+            move |args| {
+                match &args[0] {
+                    Value::Int(i) => Ok(Value::Float(2.0_f64.powf(*i as f64))),
+                    Value::Float(f) => Ok(Value::Float(2.0_f64.powf(*f))),
+                    Value::Null(_) => Ok(Value::Null(NullType::Null)),
+                    _ => Err(ExpressionError::type_error("exp2函数需要数值类型")),
+                }
+            },
+        );
+    }
+}
+
+fn register_log2(registry: &mut FunctionRegistry) {
+    registry.register(
+        "log2",
+        FunctionSignature::new("log2", vec![ValueType::Int], ValueType::Float, 1, 1, true, "以2为底的对数"),
+        |args| {
+            match &args[0] {
+                Value::Int(i) if *i > 0 => Ok(Value::Float((*i as f64).log2())),
+                Value::Int(_) => Err(ExpressionError::invalid_operation("log2 of non-positive number")),
+                Value::Float(f) if *f > 0.0 => Ok(Value::Float(f.log2())),
+                Value::Float(_) => Err(ExpressionError::invalid_operation("log2 of non-positive number")),
+                Value::Null(_) => Ok(Value::Null(NullType::Null)),
+                _ => Err(ExpressionError::type_error("log2函数需要数值类型")),
+            }
+        },
+    );
+}
+```
+
+#### 3.1.3 sign 函数
+
+```rust
+fn register_sign(registry: &mut FunctionRegistry) {
+    registry.register(
+        "sign",
+        FunctionSignature::new("sign", vec![ValueType::Int], ValueType::Int, 1, 1, true, "返回数值符号"),
+        |args| {
+            match &args[0] {
+                Value::Int(i) => Ok(Value::Int(if *i > 0 { 1 } else if *i < 0 { -1 } else { 0 })),
+                Value::Float(f) => Ok(Value::Int(if *f > 0.0 { 1 } else if *f < 0.0 { -1 } else { 0 })),
+                Value::Null(_) => Ok(Value::Null(NullType::Null)),
+                _ => Err(ExpressionError::type_error("sign函数需要数值类型")),
+            }
+        },
+    );
+}
+```
+
+#### 3.1.4 随机数函数
+
+```rust
+use rand::{thread_rng, Rng};
+
+fn register_rand(registry: &mut FunctionRegistry) {
+    // rand() - 0-1 随机浮点数
+    registry.register(
+        "rand",
+        FunctionSignature::new("rand", vec![], ValueType::Float, 0, 0, false, "0-1随机浮点数"),
+        |_args| {
+            let mut rng = thread_rng();
+            Ok(Value::Float(rng.gen::<f64>()))
+        },
+    );
+}
+
+fn register_rand32(registry: &mut FunctionRegistry) {
+    // rand32(), rand32(max), rand32(min, max)
+    registry.register(
+        "rand32",
+        FunctionSignature::new("rand32", vec![], ValueType::Int, 0, 2, false, "32位随机整数"),
+        |args| {
+            let mut rng = thread_rng();
+            match args.len() {
+                0 => Ok(Value::Int(rng.gen::<i32>() as i64)),
+                1 => match &args[0] {
+                    Value::Int(max) if *max > 0 => Ok(Value::Int(rng.gen_range(0..*max) as i64)),
+                    Value::Null(_) => Ok(Value::Null(NullType::Null)),
+                    _ => Err(ExpressionError::type_error("rand32参数必须是正整数")),
+                },
+                2 => match (&args[0], &args[1]) {
+                    (Value::Int(min), Value::Int(max)) if *min < *max => {
+                        Ok(Value::Int(rng.gen_range(*min..*max)))
+                    }
+                    (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
+                    _ => Err(ExpressionError::type_error("rand32参数范围无效")),
+                },
+                _ => unreachable!(),
+            }
+        },
+    );
+}
+
+fn register_rand64(registry: &mut FunctionRegistry) {
+    // rand64(), rand64(max), rand64(min, max)
+    registry.register(
+        "rand64",
+        FunctionSignature::new("rand64", vec![], ValueType::Int, 0, 2, false, "64位随机整数"),
+        |args| {
+            let mut rng = thread_rng();
+            match args.len() {
+                0 => Ok(Value::Int(rng.gen::<i64>())),
+                1 => match &args[0] {
+                    Value::Int(max) if *max > 0 => Ok(Value::Int(rng.gen_range(0..*max))),
+                    Value::Null(_) => Ok(Value::Null(NullType::Null)),
+                    _ => Err(ExpressionError::type_error("rand64参数必须是正整数")),
+                },
+                2 => match (&args[0], &args[1]) {
+                    (Value::Int(min), Value::Int(max)) if *min < *max => {
+                        Ok(Value::Int(rng.gen_range(*min..*max)))
+                    }
+                    (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
+                    _ => Err(ExpressionError::type_error("rand64参数范围无效")),
+                },
+                _ => unreachable!(),
+            }
+        },
+    );
+}
+```
+
+### 3.2 字符串函数扩展
+
+#### 3.2.1 strcasecmp
+
+```rust
+fn register_strcasecmp(registry: &mut FunctionRegistry) {
+    registry.register(
+        "strcasecmp",
+        FunctionSignature::new(
+            "strcasecmp",
+            vec![ValueType::String, ValueType::String],
+            ValueType::Int,
+            2, 2, true, "不区分大小写比较字符串",
         ),
         |args| {
             match (&args[0], &args[1]) {
-                (Value::String(s), Value::Int(start)) => {
-                    let len = if args.len() > 2 {
-                        match &args[2] {
-                            Value::Int(l) => *l as usize,
-                            Value::Null(_) => return Ok(Value::Null(NullType::Null)),
-                            _ => return Err(ExpressionError::type_error("substr函数的length需要整数")),
-                        }
-                    } else {
-                        s.len()
-                    };
-                    
-                    if *start < 0 || len == 0 {
-                        return Ok(Value::String(String::new()));
-                    }
-                    
-                    let start = *start as usize;
-                    if start >= s.len() {
-                        return Ok(Value::String(String::new()));
-                    }
-                    
-                    let end = (start + len).min(s.len());
-                    Ok(Value::String(s[start..end].to_string()))
+                (Value::String(s1), Value::String(s2)) => {
+                    let cmp = s1.to_lowercase().cmp(&s2.to_lowercase());
+                    Ok(Value::Int(match cmp {
+                        std::cmp::Ordering::Less => -1,
+                        std::cmp::Ordering::Equal => 0,
+                        std::cmp::Ordering::Greater => 1,
+                    }))
                 }
                 (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
-                _ => Err(ExpressionError::type_error("substr函数需要字符串和整数参数")),
+                _ => Err(ExpressionError::type_error("strcasecmp函数需要字符串类型")),
+            }
+        },
+    );
+}
+```
+
+#### 3.2.2 lpad 和 rpad
+
+```rust
+fn register_lpad(registry: &mut FunctionRegistry) {
+    registry.register(
+        "lpad",
+        FunctionSignature::new(
+            "lpad",
+            vec![ValueType::String, ValueType::Int, ValueType::String],
+            ValueType::String,
+            3, 3, true, "左侧填充字符串",
+        ),
+        |args| {
+            match (&args[0], &args[1], &args[2]) {
+                (Value::String(s), Value::Int(len), Value::String(pad)) => {
+                    let target_len = *len as usize;
+                    if target_len <= s.len() {
+                        Ok(Value::String(s[..target_len].to_string()))
+                    } else {
+                        let pad_len = target_len - s.len();
+                        let mut result = String::new();
+                        while result.len() < pad_len {
+                            result.push_str(pad);
+                        }
+                        result.truncate(pad_len);
+                        result.push_str(s);
+                        Ok(Value::String(result))
+                    }
+                }
+                (Value::Null(_), _, _) | (_, Value::Null(_), _) | (_, _, Value::Null(_)) => {
+                    Ok(Value::Null(NullType::Null))
+                }
+                _ => Err(ExpressionError::type_error("lpad函数参数类型错误")),
+            }
+        },
+    );
+}
+
+fn register_rpad(registry: &mut FunctionRegistry) {
+    registry.register(
+        "rpad",
+        FunctionSignature::new(
+            "rpad",
+            vec![ValueType::String, ValueType::Int, ValueType::String],
+            ValueType::String,
+            3, 3, true, "右侧填充字符串",
+        ),
+        |args| {
+            match (&args[0], &args[1], &args[2]) {
+                (Value::String(s), Value::Int(len), Value::String(pad)) => {
+                    let target_len = *len as usize;
+                    if target_len <= s.len() {
+                        Ok(Value::String(s[..target_len].to_string()))
+                    } else {
+                        let pad_len = target_len - s.len();
+                        let mut result = s.clone();
+                        while result.len() < target_len {
+                            result.push_str(pad);
+                        }
+                        result.truncate(target_len);
+                        Ok(Value::String(result))
+                    }
+                }
+                (Value::Null(_), _, _) | (_, Value::Null(_), _) | (_, _, Value::Null(_)) => {
+                    Ok(Value::Null(NullType::Null))
+                }
+                _ => Err(ExpressionError::type_error("rpad函数参数类型错误")),
+            }
+        },
+    );
+}
+```
+
+#### 3.2.3 concat_ws
+
+```rust
+fn register_concat_ws(registry: &mut FunctionRegistry) {
+    registry.register(
+        "concat_ws",
+        FunctionSignature::new(
+            "concat_ws",
+            vec![ValueType::String],
+            ValueType::String,
+            2, usize::MAX, true, "带分隔符连接字符串",
+        ),
+        |args| {
+            match &args[0] {
+                Value::String(sep) => {
+                    let parts: Vec<String> = args[1..]
+                        .iter()
+                        .filter_map(|arg| match arg {
+                            Value::String(s) => Some(s.clone()),
+                            Value::Int(i) => Some(i.to_string()),
+                            Value::Float(f) => Some(f.to_string()),
+                            Value::Bool(b) => Some(b.to_string()),
+                            _ => None,
+                        })
+                        .collect();
+                    Ok(Value::String(parts.join(sep)))
+                }
+                Value::Null(_) => Ok(Value::Null(NullType::Null)),
+                _ => Err(ExpressionError::type_error("concat_ws第一个参数必须是字符串")),
+            }
+        },
+    );
+}
+```
+
+### 3.3 类型转换函数扩展
+
+#### 3.3.1 toset
+
+```rust
+use std::collections::HashSet;
+
+fn register_toset(registry: &mut FunctionRegistry) {
+    registry.register(
+        "toset",
+        FunctionSignature::new(
+            "toset",
+            vec![ValueType::List],
+            ValueType::Set,
+            1, 1, true, "列表转集合",
+        ),
+        |args| {
+            match &args[0] {
+                Value::List(list) => {
+                    let set: HashSet<Value> = list.values.iter().cloned().collect();
+                    Ok(Value::Set(set))
+                }
+                Value::Set(set) => Ok(Value::Set(set.clone())),
+                Value::Null(_) => Ok(Value::Null(NullType::Null)),
+                _ => Err(ExpressionError::type_error("toset函数需要列表类型")),
+            }
+        },
+    );
+}
+```
+
+### 3.4 日期时间函数扩展
+
+#### 3.4.1 time 函数
+
+```rust
+use chrono::{NaiveTime, Timelike};
+
+fn register_time(registry: &mut FunctionRegistry) {
+    // time() - 当前时间
+    registry.register(
+        "time",
+        FunctionSignature::new("time", vec![], ValueType::Time, 0, 0, false, "获取当前时间"),
+        |_args| {
+            let now = chrono::Local::now();
+            Ok(Value::Time(TimeValue {
+                hour: now.hour() as u32,
+                minute: now.minute() as u32,
+                sec: now.second() as u32,
+                microsec: 0,
+            }))
+        },
+    );
+
+    // time(string) - 从字符串解析
+    registry.register(
+        "time",
+        FunctionSignature::new("time", vec![ValueType::String], ValueType::Time, 1, 1, true, "从字符串创建时间"),
+        |args| {
+            match &args[0] {
+                Value::String(s) => {
+                    let time = NaiveTime::parse_from_str(s, "%H:%M:%S")
+                        .map_err(|_| ExpressionError::type_error("无法解析时间字符串"))?;
+                    Ok(Value::Time(TimeValue {
+                        hour: time.hour(),
+                        minute: time.minute(),
+                        sec: time.second(),
+                        microsec: 0,
+                    }))
+                }
+                Value::Null(_) => Ok(Value::Null(NullType::Null)),
+                _ => Err(ExpressionError::type_error("time函数需要字符串类型")),
+            }
+        },
+    );
+}
+```
+
+#### 3.4.2 datetime 函数
+
+```rust
+use chrono::{NaiveDateTime, Datelike};
+
+fn register_datetime(registry: &mut FunctionRegistry) {
+    // datetime() - 当前日期时间
+    registry.register(
+        "datetime",
+        FunctionSignature::new("datetime", vec![], ValueType::DateTime, 0, 0, false, "获取当前日期时间"),
+        |_args| {
+            let now = chrono::Local::now();
+            Ok(Value::DateTime(DateTimeValue {
+                year: now.year(),
+                month: now.month(),
+                day: now.day(),
+                hour: now.hour(),
+                minute: now.minute(),
+                sec: now.second(),
+                microsec: 0,
+            }))
+        },
+    );
+
+    // datetime(string) - 从字符串解析
+    registry.register(
+        "datetime",
+        FunctionSignature::new("datetime", vec![ValueType::String], ValueType::DateTime, 1, 1, true, "从字符串创建日期时间"),
+        |args| {
+            match &args[0] {
+                Value::String(s) => {
+                    let dt = NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S")
+                        .map_err(|_| ExpressionError::type_error("无法解析日期时间字符串"))?;
+                    Ok(Value::DateTime(DateTimeValue {
+                        year: dt.year(),
+                        month: dt.month(),
+                        day: dt.day(),
+                        hour: dt.hour(),
+                        minute: dt.minute(),
+                        sec: dt.second(),
+                        microsec: 0,
+                    }))
+                }
+                Value::Null(_) => Ok(Value::Null(NullType::Null)),
+                _ => Err(ExpressionError::type_error("datetime函数需要字符串类型")),
+            }
+        },
+    );
+
+    // datetime(timestamp) - 从时间戳转换
+    registry.register(
+        "datetime",
+        FunctionSignature::new("datetime", vec![ValueType::Int], ValueType::DateTime, 1, 1, true, "从时间戳创建日期时间"),
+        |args| {
+            match &args[0] {
+                Value::Int(ts) => {
+                    let dt = chrono::DateTime::from_timestamp(*ts, 0)
+                        .ok_or_else(|| ExpressionError::type_error("无效的时间戳"))?;
+                    Ok(Value::DateTime(DateTimeValue {
+                        year: dt.year(),
+                        month: dt.month(),
+                        day: dt.day(),
+                        hour: dt.hour(),
+                        minute: dt.minute(),
+                        sec: dt.second(),
+                        microsec: 0,
+                    }))
+                }
+                Value::Null(_) => Ok(Value::Null(NullType::Null)),
+                _ => Err(ExpressionError::type_error("datetime函数需要整数类型")),
+            }
+        },
+    );
+}
+```
+
+#### 3.4.3 timestamp 函数
+
+```rust
+fn register_timestamp(registry: &mut FunctionRegistry) {
+    // timestamp() - 当前时间戳
+    registry.register(
+        "timestamp",
+        FunctionSignature::new("timestamp", vec![], ValueType::Int, 0, 0, false, "获取当前时间戳"),
+        |_args| {
+            let now = std::time::SystemTime::now();
+            let since_epoch = now.duration_since(std::time::UNIX_EPOCH)
+                .expect("Time went backwards");
+            Ok(Value::Int(since_epoch.as_secs() as i64))
+        },
+    );
+
+    // timestamp(string) - 从字符串解析
+    registry.register(
+        "timestamp",
+        FunctionSignature::new("timestamp", vec![ValueType::String], ValueType::Int, 1, 1, true, "从字符串获取时间戳"),
+        |args| {
+            match &args[0] {
+                Value::String(s) => {
+                    let dt = NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S")
+                        .map_err(|_| ExpressionError::type_error("无法解析日期时间字符串"))?;
+                    Ok(Value::Int(dt.timestamp()))
+                }
+                Value::Null(_) => Ok(Value::Null(NullType::Null)),
+                _ => Err(ExpressionError::type_error("timestamp函数需要字符串类型")),
+            }
+        },
+    );
+}
+```
+
+### 3.5 图相关函数扩展
+
+#### 3.5.1 startnode 和 endnode
+
+```rust
+fn register_startnode(registry: &mut FunctionRegistry) {
+    registry.register(
+        "startnode",
+        FunctionSignature::new("startnode", vec![ValueType::Edge], ValueType::Vertex, 1, 1, true, "获取边的起始节点"),
+        |args| {
+            match &args[0] {
+                Value::Edge(e) => {
+                    let vertex = Vertex::new((*e.src).clone(), vec![]);
+                    Ok(Value::Vertex(Box::new(vertex)))
+                }
+                Value::Path(p) => Ok(Value::Vertex(Box::new((*p.src).clone()))),
+                Value::Null(_) => Ok(Value::Null(NullType::Null)),
+                _ => Err(ExpressionError::type_error("startnode函数需要边或路径类型")),
+            }
+        },
+    );
+}
+
+fn register_endnode(registry: &mut FunctionRegistry) {
+    registry.register(
+        "endnode",
+        FunctionSignature::new("endnode", vec![ValueType::Edge], ValueType::Vertex, 1, 1, true, "获取边的结束节点"),
+        |args| {
+            match &args[0] {
+                Value::Edge(e) => {
+                    let vertex = Vertex::new((*e.dst).clone(), vec![]);
+                    Ok(Value::Vertex(Box::new(vertex)))
+                }
+                Value::Path(p) => {
+                    if let Some(last_step) = p.steps.last() {
+                        Ok(Value::Vertex(Box::new((*last_step.dst).clone())))
+                    } else {
+                        Ok(Value::Vertex(Box::new((*p.src).clone())))
+                    }
+                }
+                Value::Null(_) => Ok(Value::Null(NullType::Null)),
+                _ => Err(ExpressionError::type_error("endnode函数需要边或路径类型")),
+            }
+        },
+    );
+}
+```
+
+### 3.6 容器函数扩展
+
+#### 3.6.1 reverse 列表版本
+
+```rust
+fn register_reverse_list(registry: &mut FunctionRegistry) {
+    registry.register(
+        "reverse",
+        FunctionSignature::new("reverse", vec![ValueType::List], ValueType::List, 1, 1, true, "反转列表"),
+        |args| {
+            match &args[0] {
+                Value::List(list) => {
+                    let mut reversed = list.values.clone();
+                    reversed.reverse();
+                    Ok(Value::List(List { values: reversed }))
+                }
+                Value::Null(_) => Ok(Value::Null(NullType::Null)),
+                _ => Err(ExpressionError::type_error("reverse(列表)函数需要列表类型")),
+            }
+        },
+    );
+}
+```
+
+### 3.7 JSON 函数（新增模块）
+
+#### 3.7.1 json_extract
+
+```rust
+// 在 expression/functions/builtin/ 下新建 json.rs
+use serde_json::Value as JsonValue;
+
+fn register_json_extract(registry: &mut FunctionRegistry) {
+    registry.register(
+        "json_extract",
+        FunctionSignature::new("json_extract", vec![ValueType::String], ValueType::Map, 1, 1, true, "提取JSON数据"),
+        |args| {
+            match &args[0] {
+                Value::String(s) => {
+                    let json: JsonValue = serde_json::from_str(s)
+                        .map_err(|_| ExpressionError::type_error("无效的JSON字符串"))?;
+                    
+                    fn json_to_value(json: JsonValue) -> Value {
+                        match json {
+                            JsonValue::Null => Value::Null(NullType::Null),
+                            JsonValue::Bool(b) => Value::Bool(b),
+                            JsonValue::Number(n) => {
+                                if let Some(i) = n.as_i64() {
+                                    Value::Int(i)
+                                } else {
+                                    Value::Float(n.as_f64().unwrap_or(0.0))
+                                }
+                            }
+                            JsonValue::String(s) => Value::String(s),
+                            JsonValue::Array(arr) => {
+                                Value::List(List {
+                                    values: arr.into_iter().map(json_to_value).collect(),
+                                })
+                            }
+                            JsonValue::Object(obj) => {
+                                let map: HashMap<String, Value> = obj
+                                    .into_iter()
+                                    .map(|(k, v)| (k, json_to_value(v)))
+                                    .collect();
+                                Value::Map(map)
+                            }
+                        }
+                    }
+                    
+                    Ok(json_to_value(json))
+                }
+                Value::Null(_) => Ok(Value::Null(NullType::Null)),
+                _ => Err(ExpressionError::type_error("json_extract函数需要字符串类型")),
             }
         },
     );
@@ -1017,180 +731,141 @@ for name in ["substr", "substring"] {
 
 ---
 
-### 2.6 实用函数（优先级：中）
+## 4. 实现步骤
 
-#### 2.6.1 coalesce() - 返回第一个非NULL值
+### 4.1 文件修改清单
 
-**Rust 实现方案**：
-```rust
-registry.register(
-    "coalesce",
-    FunctionSignature::new(
-        "coalesce",
-        vec![ValueType::Any],
-        ValueType::Any,
-        1, usize::MAX, true, "返回第一个非NULL值",
-    ),
-    |args| {
-        for arg in args {
-            if !matches!(arg, Value::Null(_)) {
-                return Ok(arg.clone());
-            }
-        }
-        Ok(Value::Null(NullType::Null))
-    },
-);
-```
+| 文件 | 修改内容 |
+|------|----------|
+| `src/expression/functions/builtin/math.rs` | 添加 e, pi, exp2, log2, sign, rand, rand32, rand64 |
+| `src/expression/functions/builtin/string.rs` | 添加 strcasecmp, lpad, rpad, concat_ws |
+| `src/expression/functions/builtin/conversion.rs` | 添加 toset |
+| `src/expression/functions/builtin/datetime.rs` | 添加 time, datetime, timestamp, duration, extract |
+| `src/expression/functions/builtin/graph.rs` | 添加 typeid, startnode, endnode, none_direct_src, none_direct_dst |
+| `src/expression/functions/builtin/container.rs` | 添加 reverse(列表) |
+| `src/expression/functions/builtin/path.rs` | 添加 hassameedgeinpath, hassamevertexinpath, reversepath |
+| `src/expression/functions/builtin/json.rs` | 新建文件，添加 json_extract |
+| `src/expression/functions/builtin/geo.rs` | 新建文件，添加地理空间函数 |
+| `src/expression/functions/builtin/mod.rs` | 添加 json 和 geo 模块导出 |
 
-#### 2.6.2 hash() - 计算哈希值
+### 4.2 实现顺序建议
 
-**Rust 实现方案**：
-```rust
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
+| 阶段 | 函数类别 | 预计工作量 | 依赖 |
+|------|----------|-----------|------|
+| Phase 1 | 日期时间函数（time, datetime, timestamp） | 2-3 天 | chrono crate |
+| Phase 2 | 图相关函数（startnode, endnode） | 1-2 天 | 无 |
+| Phase 3 | 数学函数（sign, rand系列） | 2 天 | rand crate |
+| Phase 4 | 字符串函数（lpad, rpad, concat_ws） | 1-2 天 | 无 |
+| Phase 5 | 类型转换（toset）、容器（reverse列表） | 1 天 | 无 |
+| Phase 6 | JSON 函数 | 1-2 天 | serde_json crate |
+| Phase 7 | 其他（数学常数、strcasecmp等） | 1-2 天 | 无 |
+| Phase 8 | 地理空间函数 | 3-5 天 | 需地理类型支持 |
 
-registry.register(
-    "hash",
-    FunctionSignature::new(
-        "hash",
-        vec![ValueType::Any],
-        ValueType::Int,
-        1, 1, true, "计算哈希值",
-    ),
-    |args| {
-        match &args[0] {
-            Value::Null(_) => Ok(Value::Null(NullType::Null)),
-            value => {
-                // 使用 Value 的 Hash 实现
-                let mut hasher = DefaultHasher::new();
-                value.hash(&mut hasher);
-                Ok(Value::Int(hasher.finish() as i64))
-            }
-        }
-    },
-);
+**总计：约 12-18 天**
+
+---
+
+## 5. 依赖添加
+
+在 `Cargo.toml` 中添加以下依赖（如尚未添加）：
+
+```toml
+[dependencies]
+# 已有依赖
+chrono = "0.4"
+rand = "0.8"
+serde_json = "1.0"
+# 地理空间函数需要
+# geo = "0.28"  # 等待地理类型实现后添加
 ```
 
 ---
 
-## 3. 实现步骤
+## 6. UDF 相关函数说明
 
-### 3.1 文件结构
+以下函数与 UDF（用户自定义函数）机制相关，**等待 UDF 模块实现后再引入**：
 
-```
-src/expression/functions/
-├── mod.rs           # 模块导出
-├── registry.rs      # 函数注册表（添加新函数）
-├── signature.rs     # 函数签名
-└── README.md        # 函数文档
-```
-
-### 3.2 修改 registry.rs
-
-在 `registry.rs` 中添加新的注册方法：
-
-```rust
-impl FunctionRegistry {
-    /// 注册所有内置函数
-    fn register_all_builtin_functions(&mut self) {
-        self.register_math_functions();
-        self.register_string_functions();
-        self.register_regex_functions();
-        self.register_conversion_functions();
-        self.register_datetime_functions();
-        // 新增：
-        self.register_graph_functions();
-        self.register_collection_functions();
-        self.register_bit_functions();
-    }
-    
-    // 图相关函数
-    fn register_graph_functions(&mut self) { /* ... */ }
-    
-    // 容器操作函数
-    fn register_collection_functions(&mut self) { /* ... */ }
-    
-    // 位运算函数
-    fn register_bit_functions(&mut self) { /* ... */ }
-}
-```
-
-### 3.3 实现顺序建议
-
-| 阶段 | 函数类别 | 预计工作量 |
-|------|----------|-----------|
-| Phase 1 | 图相关函数（id, tags, properties, type, src, dst, rank） | 2-3 天 |
-| Phase 2 | 容器操作函数（head, last, tail, size, range, keys） | 2 天 |
-| Phase 3 | 路径函数（nodes, relationships） | 1 天 |
-| Phase 4 | 数学函数（bit_and/or/xor, asin, acos, atan, cbrt, hypot） | 2 天 |
-| Phase 5 | 字符串函数（left, right, split, reverse, substr） | 2 天 |
-| Phase 6 | 实用函数（coalesce, hash） | 1 天 |
-
-**总计：约 10-12 天**
+| 函数名 | 说明 |
+|--------|------|
+| `udf_is_in` | 检查值是否在列表中，用于 UDF 内部 |
+| `cos_similarity` | 可能依赖 UDF 框架进行向量计算 |
 
 ---
 
-## 4. 测试建议
+## 7. 测试建议
 
-### 4.1 单元测试模板
+### 7.1 单元测试模板
 
 ```rust
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
-    fn test_id_function() {
-        let registry = FunctionRegistry::new();
+    fn test_sign_function() {
+        let registry = create_test_registry();
         
-        // 测试顶点ID
-        let vertex = Value::Vertex(Vertex::new(
-            Value::Int(100),
-            vec![Tag::new("Person", HashMap::new())]
-        ));
-        
-        let result = registry.execute("id", &[vertex]).unwrap();
-        assert_eq!(result, Value::Int(100));
-        
-        // 测试NULL
-        let result = registry.execute("id", &[Value::Null(NullType::Null)]).unwrap();
-        assert!(matches!(result, Value::Null(_)));
+        assert_eq!(registry.execute("sign", &[Value::Int(10)]).unwrap(), Value::Int(1));
+        assert_eq!(registry.execute("sign", &[Value::Int(-5)]).unwrap(), Value::Int(-1));
+        assert_eq!(registry.execute("sign", &[Value::Int(0)]).unwrap(), Value::Int(0));
+        assert_eq!(registry.execute("sign", &[Value::Float(3.14)]).unwrap(), Value::Int(1));
+        assert_eq!(registry.execute("sign", &[Value::Float(-2.5)]).unwrap(), Value::Int(-1));
     }
-    
+
     #[test]
-    fn test_tags_function() {
-        let registry = FunctionRegistry::new();
+    fn test_rand_functions() {
+        let registry = create_test_registry();
         
-        let mut props = HashMap::new();
-        props.insert("name".to_string(), Value::String("Alice".to_string()));
+        // rand() 返回 0-1 之间的值
+        let result = registry.execute("rand", &[]).unwrap();
+        if let Value::Float(f) = result {
+            assert!(f >= 0.0 && f <= 1.0);
+        } else {
+            panic!("rand should return float");
+        }
         
-        let vertex = Value::Vertex(Vertex::new(
-            Value::Int(100),
-            vec![Tag::new("Person", props)]
-        ));
+        // rand32 范围测试
+        let result = registry.execute("rand32", &[Value::Int(100)]).unwrap();
+        if let Value::Int(i) = result {
+            assert!(i >= 0 && i < 100);
+        }
+    }
+
+    #[test]
+    fn test_datetime_functions() {
+        let registry = create_test_registry();
         
-        let result = registry.execute("tags", &[vertex]).unwrap();
-        assert_eq!(result, Value::List(vec![Value::String("Person".to_string())]));
+        // 测试 time 函数
+        let result = registry.execute("time", &[Value::String("14:30:00".to_string())]).unwrap();
+        if let Value::Time(t) = result {
+            assert_eq!(t.hour, 14);
+            assert_eq!(t.minute, 30);
+            assert_eq!(t.sec, 0);
+        }
+        
+        // 测试 timestamp 函数
+        let result = registry.execute("timestamp", &[]).unwrap();
+        assert!(matches!(result, Value::Int(_)));
     }
 }
 ```
 
 ---
 
-## 5. 注意事项
+## 8. 注意事项
 
-### 5.1 类型匹配
-- 使用 `ValueType::Any` 接受多种类型时，在函数体内进行运行时类型检查
-- 对于图相关函数，明确指定 `ValueType::Vertex`、`ValueType::Edge` 等
-
-### 5.2 NULL 处理
-- 遵循 Nebula 的惯例：参数为 NULL 时返回 NULL
+### 8.1 NULL 处理
+- 所有函数遵循 Nebula 惯例：参数为 NULL 时返回 NULL
 - 使用 `Value::Null(NullType::Null)` 表示 NULL 值
 
-### 5.3 错误处理
+### 8.2 类型错误
 - 类型错误使用 `ExpressionError::type_error()`
-- 无效操作使用 `ExpressionError::new(ExpressionErrorType::InvalidOperation, ...)`
+- 无效操作使用 `ExpressionError::invalid_operation()`
 
-### 5.4 性能考虑
-- 对于纯函数，确保 `is_pure` 标记为 `true`
-- 避免不必要的内存分配（如字符串克隆）
+### 8.3 纯函数标记
+- 对于纯函数（无副作用、相同输入相同输出），设置 `is_pure = true`
+- 对于非纯函数（如 rand, now），设置 `is_pure = false`
+
+### 8.4 性能考虑
+- 避免不必要的内存分配
+- 使用适当的数据结构（如 BTreeSet 用于有序键）

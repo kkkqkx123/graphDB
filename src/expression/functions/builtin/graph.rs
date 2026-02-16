@@ -18,6 +18,8 @@ pub fn register_all(registry: &mut FunctionRegistry) {
     register_src(registry);
     register_dst(registry);
     register_rank(registry);
+    register_startnode(registry);
+    register_endnode(registry);
 }
 
 fn register_id(registry: &mut FunctionRegistry) {
@@ -284,6 +286,56 @@ fn register_rank(registry: &mut FunctionRegistry) {
                 Value::Edge(e) => Ok(Value::Int(e.ranking)),
                 Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
                 _ => Err(ExpressionError::type_error("rank函数需要边类型")),
+            }
+        },
+    );
+}
+
+fn register_startnode(registry: &mut FunctionRegistry) {
+    registry.register(
+        "startnode",
+        FunctionSignature::new(
+            "startnode",
+            vec![ValueType::Edge],
+            ValueType::Vertex,
+            1,
+            1,
+            true,
+            "获取边的起始节点",
+        ),
+        |args| {
+            match &args[0] {
+                Value::Edge(e) => {
+                    let vertex = crate::core::vertex_edge_path::Vertex::new((*e.src).clone(), vec![]);
+                    Ok(Value::Vertex(Box::new(vertex)))
+                }
+                Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
+                _ => Err(ExpressionError::type_error("startnode函数需要边类型")),
+            }
+        },
+    );
+}
+
+fn register_endnode(registry: &mut FunctionRegistry) {
+    registry.register(
+        "endnode",
+        FunctionSignature::new(
+            "endnode",
+            vec![ValueType::Edge],
+            ValueType::Vertex,
+            1,
+            1,
+            true,
+            "获取边的终止节点",
+        ),
+        |args| {
+            match &args[0] {
+                Value::Edge(e) => {
+                    let vertex = crate::core::vertex_edge_path::Vertex::new((*e.dst).clone(), vec![]);
+                    Ok(Value::Vertex(Box::new(vertex)))
+                }
+                Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
+                _ => Err(ExpressionError::type_error("endnode函数需要边类型")),
             }
         },
     );

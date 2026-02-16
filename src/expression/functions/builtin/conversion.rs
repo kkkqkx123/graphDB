@@ -12,6 +12,7 @@ pub fn register_all(registry: &mut FunctionRegistry) {
     register_to_int(registry);
     register_to_float(registry);
     register_to_bool(registry);
+    register_toset(registry);
 }
 
 fn register_to_string(registry: &mut FunctionRegistry) {
@@ -372,6 +373,31 @@ fn register_to_bool(registry: &mut FunctionRegistry) {
                 }
                 Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
                 _ => Err(ExpressionError::type_error("to_bool函数需要字符串类型")),
+            }
+        },
+    );
+}
+
+fn register_toset(registry: &mut FunctionRegistry) {
+    registry.register(
+        "toset",
+        FunctionSignature::new(
+            "toset",
+            vec![ValueType::List],
+            ValueType::Set,
+            1,
+            1,
+            true,
+            "将列表转换为集合（去重）",
+        ),
+        |args| {
+            match &args[0] {
+                Value::List(list) => {
+                    let set: std::collections::HashSet<Value> = list.values.iter().cloned().collect();
+                    Ok(Value::Set(set))
+                }
+                Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
+                _ => Err(ExpressionError::type_error("toset函数需要列表类型")),
             }
         },
     );

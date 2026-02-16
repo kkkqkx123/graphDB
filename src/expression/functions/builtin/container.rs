@@ -19,6 +19,7 @@ pub fn register_all(registry: &mut FunctionRegistry) {
     register_size(registry);
     register_range(registry);
     register_keys(registry);
+    register_reverse_list(registry);
 }
 
 fn register_head(registry: &mut FunctionRegistry) {
@@ -401,6 +402,32 @@ fn register_keys(registry: &mut FunctionRegistry) {
 
             let result: Vec<Value> = keys.into_iter().map(Value::String).collect();
             Ok(Value::List(List { values: result }))
+        },
+    );
+}
+
+fn register_reverse_list(registry: &mut FunctionRegistry) {
+    registry.register(
+        "reverse",
+        FunctionSignature::new(
+            "reverse",
+            vec![ValueType::List],
+            ValueType::List,
+            1,
+            1,
+            true,
+            "反转列表",
+        ),
+        |args| {
+            match &args[0] {
+                Value::List(list) => {
+                    let mut reversed = list.values.clone();
+                    reversed.reverse();
+                    Ok(Value::List(List { values: reversed }))
+                }
+                Value::Null(_) => Ok(Value::Null(NullType::Null)),
+                _ => Err(ExpressionError::type_error("reverse函数需要列表类型")),
+            }
         },
     );
 }

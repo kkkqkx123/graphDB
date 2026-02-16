@@ -12,6 +12,7 @@ pub mod graph;
 pub mod container;
 pub mod path;
 pub mod utility;
+pub mod geography;
 
 use super::registry::FunctionRegistry;
 
@@ -26,4 +27,5 @@ pub fn register_all(registry: &mut FunctionRegistry) {
     container::register_all(registry);
     path::register_all(registry);
     utility::register_all(registry);
+    geography::register_all(registry);
 }

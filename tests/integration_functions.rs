@@ -634,6 +634,423 @@ fn test_single_element_list() {
     }
 }
 
+// ==================== 新增日期时间函数测试 ====================
+
+#[test]
+fn test_time_function() {
+    let registry = FunctionRegistry::new();
+
+    // 测试 time() 无参数
+    let result = registry.execute("time", &[]);
+    assert!(result.is_ok());
+    assert!(matches!(result.unwrap(), Value::Time(_)));
+
+    // 测试 time(string)
+    let result = registry.execute("time", &[Value::String("14:30:00".to_string())]);
+    assert!(result.is_ok());
+    assert!(matches!(result.unwrap(), Value::Time(_)));
+}
+
+#[test]
+fn test_datetime_function() {
+    let registry = FunctionRegistry::new();
+
+    // 测试 datetime() 无参数
+    let result = registry.execute("datetime", &[]);
+    assert!(result.is_ok());
+    assert!(matches!(result.unwrap(), Value::DateTime(_)));
+
+    // 测试 datetime(string)
+    let result = registry.execute("datetime", &[Value::String("2024-01-15 14:30:00".to_string())]);
+    assert!(result.is_ok());
+    assert!(matches!(result.unwrap(), Value::DateTime(_)));
+}
+
+#[test]
+fn test_timestamp_function() {
+    let registry = FunctionRegistry::new();
+
+    // 测试 timestamp() 无参数
+    let result = registry.execute("timestamp", &[]);
+    assert!(result.is_ok());
+    assert!(matches!(result.unwrap(), Value::Int(_)));
+
+    // 测试 timestamp(datetime)
+    let dt = Value::DateTime(graphdb::core::value::DateTimeValue {
+        year: 2024,
+        month: 1,
+        day: 15,
+        hour: 0,
+        minute: 0,
+        sec: 0,
+        microsec: 0,
+    });
+    let result = registry.execute("timestamp", &[dt]);
+    assert!(result.is_ok());
+    assert!(matches!(result.unwrap(), Value::Int(_)));
+}
+
+// ==================== 新增图相关函数测试 ====================
+
+#[test]
+fn test_startnode_function() {
+    let registry = FunctionRegistry::new();
+    let edge = create_test_edge(100, 200, "KNOWS", 0, HashMap::new());
+
+    let result = registry.execute("startnode", &[Value::Edge(edge)]);
+    assert!(result.is_ok());
+    assert!(matches!(result.unwrap(), Value::Vertex(_)));
+}
+
+#[test]
+fn test_endnode_function() {
+    let registry = FunctionRegistry::new();
+    let edge = create_test_edge(100, 200, "KNOWS", 0, HashMap::new());
+
+    let result = registry.execute("endnode", &[Value::Edge(edge)]);
+    assert!(result.is_ok());
+    assert!(matches!(result.unwrap(), Value::Vertex(_)));
+}
+
+// ==================== 新增数学函数测试 ====================
+
+#[test]
+fn test_sign_function() {
+    let registry = FunctionRegistry::new();
+
+    // 正数
+    let result = registry.execute("sign", &[Value::Int(42)]);
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), Value::Int(1));
+
+    // 负数
+    let result = registry.execute("sign", &[Value::Int(-42)]);
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), Value::Int(-1));
+
+    // 零
+    let result = registry.execute("sign", &[Value::Int(0)]);
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), Value::Int(0));
+
+    // 浮点数
+    let result = registry.execute("sign", &[Value::Float(-3.14)]);
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), Value::Int(-1));
+}
+
+#[test]
+fn test_rand_function() {
+    let registry = FunctionRegistry::new();
+
+    let result = registry.execute("rand", &[]);
+    assert!(result.is_ok());
+
+    if let Value::Float(val) = result.unwrap() {
+        assert!(val >= 0.0 && val < 1.0);
+    } else {
+        panic!("期望返回浮点类型");
+    }
+}
+
+#[test]
+fn test_rand32_function() {
+    let registry = FunctionRegistry::new();
+
+    // 无参数
+    let result = registry.execute("rand32", &[]);
+    assert!(result.is_ok());
+    assert!(matches!(result.unwrap(), Value::Int(_)));
+
+    // 有范围
+    let result = registry.execute("rand32", &[Value::Int(100)]);
+    assert!(result.is_ok());
+    if let Value::Int(val) = result.unwrap() {
+        assert!(val >= 0 && val < 100);
+    } else {
+        panic!("期望返回整数类型");
+    }
+
+    // 指定最小最大值
+    let result = registry.execute("rand32", &[Value::Int(10), Value::Int(20)]);
+    assert!(result.is_ok());
+    if let Value::Int(val) = result.unwrap() {
+        assert!(val >= 10 && val < 20);
+    } else {
+        panic!("期望返回整数类型");
+    }
+}
+
+#[test]
+fn test_rand64_function() {
+    let registry = FunctionRegistry::new();
+
+    let result = registry.execute("rand64", &[]);
+    assert!(result.is_ok());
+    assert!(matches!(result.unwrap(), Value::Int(_)));
+}
+
+#[test]
+fn test_e_function() {
+    let registry = FunctionRegistry::new();
+
+    let result = registry.execute("e", &[]);
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), Value::Float(std::f64::consts::E));
+}
+
+#[test]
+fn test_pi_function() {
+    let registry = FunctionRegistry::new();
+
+    let result = registry.execute("pi", &[]);
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), Value::Float(std::f64::consts::PI));
+}
+
+#[test]
+fn test_exp2_function() {
+    let registry = FunctionRegistry::new();
+
+    let result = registry.execute("exp2", &[Value::Int(3)]);
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), Value::Float(8.0));
+}
+
+#[test]
+fn test_log2_function() {
+    let registry = FunctionRegistry::new();
+
+    let result = registry.execute("log2", &[Value::Float(8.0)]);
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), Value::Float(3.0));
+}
+
+#[test]
+fn test_radians_function() {
+    let registry = FunctionRegistry::new();
+
+    let result = registry.execute("radians", &[Value::Int(180)]);
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), Value::Float(std::f64::consts::PI));
+}
+
+// ==================== 新增字符串函数测试 ====================
+
+#[test]
+fn test_lpad_function() {
+    let registry = FunctionRegistry::new();
+
+    let result = registry.execute("lpad", &[
+        Value::String("hello".to_string()),
+        Value::Int(10),
+        Value::String("*".to_string()),
+    ]);
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), Value::String("*****hello".to_string()));
+}
+
+#[test]
+fn test_rpad_function() {
+    let registry = FunctionRegistry::new();
+
+    let result = registry.execute("rpad", &[
+        Value::String("hello".to_string()),
+        Value::Int(10),
+        Value::String("*".to_string()),
+    ]);
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), Value::String("hello*****".to_string()));
+}
+
+#[test]
+fn test_concat_ws_function() {
+    let registry = FunctionRegistry::new();
+
+    let result = registry.execute("concat_ws", &[
+        Value::String(",".to_string()),
+        Value::String("a".to_string()),
+        Value::String("b".to_string()),
+        Value::String("c".to_string()),
+    ]);
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), Value::String("a,b,c".to_string()));
+}
+
+#[test]
+fn test_strcasecmp_function() {
+    let registry = FunctionRegistry::new();
+
+    // 相等
+    let result = registry.execute("strcasecmp", &[
+        Value::String("Hello".to_string()),
+        Value::String("hello".to_string()),
+    ]);
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), Value::Int(0));
+
+    // 小于
+    let result = registry.execute("strcasecmp", &[
+        Value::String("apple".to_string()),
+        Value::String("banana".to_string()),
+    ]);
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), Value::Int(-1));
+
+    // 大于
+    let result = registry.execute("strcasecmp", &[
+        Value::String("banana".to_string()),
+        Value::String("apple".to_string()),
+    ]);
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), Value::Int(1));
+}
+
+// ==================== 新增容器函数测试 ====================
+
+#[test]
+fn test_toset_function() {
+    let registry = FunctionRegistry::new();
+    let list = Value::List(List {
+        values: vec![
+            Value::Int(1),
+            Value::Int(2),
+            Value::Int(1),
+            Value::Int(3),
+        ],
+    });
+
+    let result = registry.execute("toset", &[list]);
+    assert!(result.is_ok());
+    assert!(matches!(result.unwrap(), Value::Set(_)));
+}
+
+#[test]
+fn test_reverse_list_function() {
+    let registry = FunctionRegistry::new();
+    let list = Value::List(List {
+        values: vec![Value::Int(1), Value::Int(2), Value::Int(3)],
+    });
+
+    let result = registry.execute("reverse", &[list]);
+    assert!(result.is_ok());
+
+    if let Value::List(list) = result.unwrap() {
+        assert_eq!(list.values.len(), 3);
+        assert_eq!(list.values[0], Value::Int(3));
+        assert_eq!(list.values[1], Value::Int(2));
+        assert_eq!(list.values[2], Value::Int(1));
+    } else {
+        panic!("期望返回列表类型");
+    }
+}
+
+// ==================== 新增JSON函数测试 ====================
+
+#[test]
+fn test_json_extract_function() {
+    let registry = FunctionRegistry::new();
+    let json = Value::String(r#"{"name": "Alice", "age": 30}"#.to_string());
+
+    let result = registry.execute("json_extract", &[
+        json,
+        Value::String("name".to_string()),
+    ]);
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), Value::String("Alice".to_string()));
+}
+
+// ==================== 新增地理空间函数测试 ====================
+
+#[test]
+fn test_st_point_function() {
+    let registry = FunctionRegistry::new();
+
+    let result = registry.execute("st_point", &[
+        Value::Float(116.4074),
+        Value::Float(39.9042),
+    ]);
+    assert!(result.is_ok());
+    assert!(matches!(result.unwrap(), Value::Geography(_)));
+}
+
+#[test]
+fn test_st_distance_function() {
+    let registry = FunctionRegistry::new();
+    use graphdb::core::value::geography::GeographyValue;
+
+    let beijing = Value::Geography(GeographyValue {
+        longitude: 116.4074,
+        latitude: 39.9042,
+    });
+    let shanghai = Value::Geography(GeographyValue {
+        longitude: 121.4737,
+        latitude: 31.2304,
+    });
+
+    let result = registry.execute("st_distance", &[beijing, shanghai]);
+    assert!(result.is_ok());
+
+    if let Value::Float(distance) = result.unwrap() {
+        assert!(distance > 1000.0 && distance < 1100.0);
+    } else {
+        panic!("期望返回浮点类型");
+    }
+}
+
+#[test]
+fn test_st_isvalid_function() {
+    let registry = FunctionRegistry::new();
+    use graphdb::core::value::geography::GeographyValue;
+
+    let valid_point = Value::Geography(GeographyValue {
+        longitude: 116.4074,
+        latitude: 39.9042,
+    });
+
+    let result = registry.execute("st_isvalid", &[valid_point]);
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), Value::Bool(true));
+}
+
+#[test]
+fn test_st_dwithin_function() {
+    let registry = FunctionRegistry::new();
+    use graphdb::core::value::geography::GeographyValue;
+
+    let point1 = Value::Geography(GeographyValue {
+        longitude: 116.4074,
+        latitude: 39.9042,
+    });
+    let point2 = Value::Geography(GeographyValue {
+        longitude: 116.4075,
+        latitude: 39.9043,
+    });
+
+    let result = registry.execute("st_dwithin", &[
+        point1,
+        point2,
+        Value::Float(1.0),
+    ]);
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), Value::Bool(true));
+}
+
+#[test]
+fn test_st_astext_function() {
+    let registry = FunctionRegistry::new();
+    use graphdb::core::value::geography::GeographyValue;
+
+    let point = Value::Geography(GeographyValue {
+        longitude: 116.4074,
+        latitude: 39.9042,
+    });
+
+    let result = registry.execute("st_astext", &[point]);
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), Value::String("POINT(116.4074 39.9042)".to_string()));
+}
+
 // ==================== 函数存在性测试 ====================
 
 #[test]
@@ -649,6 +1066,8 @@ fn test_all_functions_registered() {
     assert!(registry.contains("src"));
     assert!(registry.contains("dst"));
     assert!(registry.contains("rank"));
+    assert!(registry.contains("startnode"));
+    assert!(registry.contains("endnode"));
 
     // 容器操作函数
     assert!(registry.contains("head"));
@@ -657,6 +1076,7 @@ fn test_all_functions_registered() {
     assert!(registry.contains("size"));
     assert!(registry.contains("range"));
     assert!(registry.contains("keys"));
+    assert!(registry.contains("reverse"));
 
     // 路径函数
     assert!(registry.contains("nodes"));
@@ -671,11 +1091,40 @@ fn test_all_functions_registered() {
     assert!(registry.contains("atan"));
     assert!(registry.contains("cbrt"));
     assert!(registry.contains("hypot"));
+    assert!(registry.contains("sign"));
+    assert!(registry.contains("rand"));
+    assert!(registry.contains("rand32"));
+    assert!(registry.contains("rand64"));
+    assert!(registry.contains("e"));
+    assert!(registry.contains("pi"));
+    assert!(registry.contains("exp2"));
+    assert!(registry.contains("log2"));
+    assert!(registry.contains("radians"));
 
     // 字符串函数
     assert!(registry.contains("split"));
+    assert!(registry.contains("lpad"));
+    assert!(registry.contains("rpad"));
+    assert!(registry.contains("concat_ws"));
+    assert!(registry.contains("strcasecmp"));
 
     // 实用函数
     assert!(registry.contains("coalesce"));
     assert!(registry.contains("hash"));
+    assert!(registry.contains("json_extract"));
+
+    // 日期时间函数
+    assert!(registry.contains("time"));
+    assert!(registry.contains("datetime"));
+    assert!(registry.contains("timestamp"));
+
+    // 类型转换函数
+    assert!(registry.contains("toset"));
+
+    // 地理空间函数
+    assert!(registry.contains("st_point"));
+    assert!(registry.contains("st_distance"));
+    assert!(registry.contains("st_isvalid"));
+    assert!(registry.contains("st_dwithin"));
+    assert!(registry.contains("st_astext"));
 }

@@ -14,6 +14,7 @@ pub fn register_all(registry: &mut FunctionRegistry) {
     register_lower(registry);
     register_trim(registry);
     register_concat(registry);
+    register_concat_ws(registry);
     register_replace(registry);
     register_substring(registry);
     register_contains(registry);
@@ -21,8 +22,11 @@ pub fn register_all(registry: &mut FunctionRegistry) {
     register_ends_with(registry);
     register_left(registry);
     register_right(registry);
+    register_lpad(registry);
+    register_rpad(registry);
     register_reverse(registry);
     register_split(registry);
+    register_strcasecmp(registry);
 }
 
 fn register_length(registry: &mut FunctionRegistry) {
@@ -42,6 +46,38 @@ fn register_length(registry: &mut FunctionRegistry) {
                 Value::String(s) => Ok(Value::Int(s.len() as i64)),
                 Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
                 _ => Err(ExpressionError::type_error("length函数需要字符串类型")),
+            }
+        },
+    );
+}
+
+fn register_strcasecmp(registry: &mut FunctionRegistry) {
+    registry.register(
+        "strcasecmp",
+        FunctionSignature::new(
+            "strcasecmp",
+            vec![ValueType::String, ValueType::String],
+            ValueType::Int,
+            2,
+            2,
+            true,
+            "不区分大小写比较两个字符串",
+        ),
+        |args| {
+            match (&args[0], &args[1]) {
+                (Value::String(s1), Value::String(s2)) => {
+                    let cmp_result = s1.to_lowercase().cmp(&s2.to_lowercase());
+                    let result = match cmp_result {
+                        std::cmp::Ordering::Less => -1,
+                        std::cmp::Ordering::Equal => 0,
+                        std::cmp::Ordering::Greater => 1,
+                    };
+                    Ok(Value::Int(result))
+                }
+                (Value::Null(_), _) | (_, Value::Null(_)) => {
+                    Ok(Value::Null(crate::core::value::NullType::Null))
+                }
+                _ => Err(ExpressionError::type_error("strcasecmp函数需要字符串类型")),
             }
         },
     );
@@ -450,6 +486,148 @@ fn register_split(registry: &mut FunctionRegistry) {
                     Ok(Value::Null(crate::core::value::NullType::Null))
                 }
                 _ => Err(ExpressionError::type_error("split函数需要字符串类型")),
+            }
+        },
+    );
+}
+
+fn register_concat_ws(registry: &mut FunctionRegistry) {
+    registry.register(
+        "concat_ws",
+        FunctionSignature::new(
+            "concat_ws",
+            vec![ValueType::String],
+            ValueType::String,
+            2,
+            usize::MAX,
+            true,
+            "使用分隔符连接字符串",
+        ),
+        |args| {
+            if args.is_empty() {
+                return Ok(Value::String(String::new()));
+            }
+
+            let separator = match &args[0] {
+                Value::String(s) => s.clone(),
+                Value::Null(_) => return Ok(Value::Null(crate::core::value::NullType::Null)),
+                _ => return Err(ExpressionError::type_error("concat_ws函数第一个参数需要字符串类型")),
+            };
+
+            let mut result = String::new();
+            let mut first = true;
+
+            for arg in &args[1..] {
+                match arg {
+                    Value::String(s) => {
+                        if !first {
+                            result.push_str(&separator);
+                        }
+                        result.push_str(s);
+                        first = false;
+                    }
+                    Value::Null(_) => continue,
+                    _ => return Err(ExpressionError::type_error("concat_ws函数参数需要字符串类型")),
+                }
+            }
+
+            Ok(Value::String(result))
+        },
+    );
+}
+
+fn register_lpad(registry: &mut FunctionRegistry) {
+    registry.register(
+        "lpad",
+        FunctionSignature::new(
+            "lpad",
+            vec![ValueType::String, ValueType::Int],
+            ValueType::String,
+            2,
+            3,
+            true,
+            "左侧填充字符串至指定长度",
+        ),
+        |args| {
+            match (&args[0], &args[1]) {
+                (Value::String(s), Value::Int(len)) => {
+                    let len = *len as usize;
+                    let pad_str = if args.len() == 3 {
+                        match &args[2] {
+                            Value::String(pad) => pad.clone(),
+                            Value::Null(_) => return Ok(Value::Null(crate::core::value::NullType::Null)),
+                            _ => return Err(ExpressionError::type_error("lpad函数第三个参数需要字符串类型")),
+                        }
+                    } else {
+                        String::from(" ")
+                    };
+
+                    if s.len() >= len {
+                        Ok(Value::String(s[..len].to_string()))
+                    } else {
+                        let pad_len = len - s.len();
+                        let mut result = String::new();
+                        while result.len() < pad_len {
+                            result.push_str(&pad_str);
+                        }
+                        result.truncate(pad_len);
+                        result.push_str(s);
+                        Ok(Value::String(result))
+                    }
+                }
+                (Value::Null(_), _) | (_, Value::Null(_)) => {
+                    Ok(Value::Null(crate::core::value::NullType::Null))
+                }
+                _ => Err(ExpressionError::type_error("lpad函数需要字符串和整数类型")),
+            }
+        },
+    );
+}
+
+fn register_rpad(registry: &mut FunctionRegistry) {
+    registry.register(
+        "rpad",
+        FunctionSignature::new(
+            "rpad",
+            vec![ValueType::String, ValueType::Int],
+            ValueType::String,
+            2,
+            3,
+            true,
+            "右侧填充字符串至指定长度",
+        ),
+        |args| {
+            match (&args[0], &args[1]) {
+                (Value::String(s), Value::Int(len)) => {
+                    let len = *len as usize;
+                    let pad_str = if args.len() == 3 {
+                        match &args[2] {
+                            Value::String(pad) => pad.clone(),
+                            Value::Null(_) => return Ok(Value::Null(crate::core::value::NullType::Null)),
+                            _ => return Err(ExpressionError::type_error("rpad函数第三个参数需要字符串类型")),
+                        }
+                    } else {
+                        String::from(" ")
+                    };
+
+                    if s.len() >= len {
+                        Ok(Value::String(s[..len].to_string()))
+                    } else {
+                        let pad_len = len - s.len();
+                        let mut result = s.clone();
+                        let mut pad_count = 0;
+                        while pad_count < pad_len {
+                            result.push_str(&pad_str);
+                            pad_count += pad_str.len();
+                        }
+                        result.truncate(len);
+                        Ok(Value::String(result))
+                    }
+                }
+                (Value::Null(_), _) | (_, Value::Null(_)) => {
+                    Ok(Value::Null(crate::core::value::NullType::Null))
+                }
+                _ => Err(ExpressionError::type_error("rpad函数需要字符串和整数类型")),
             }
         },
     );

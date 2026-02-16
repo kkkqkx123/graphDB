@@ -5,6 +5,12 @@ use crate::core::Value;
 use crate::expression::functions::registry::FunctionRegistry;
 use crate::expression::functions::signature::FunctionSignature;
 use crate::expression::functions::signature::ValueType;
+use rand::Rng;
+use std::cell::RefCell;
+
+thread_local! {
+    static RNG: RefCell<rand::rngs::ThreadRng> = RefCell::new(rand::thread_rng());
+}
 
 /// 注册所有数学函数
 pub fn register_all(registry: &mut FunctionRegistry) {
@@ -28,6 +34,15 @@ pub fn register_all(registry: &mut FunctionRegistry) {
     register_atan(registry);
     register_cbrt(registry);
     register_hypot(registry);
+    register_sign(registry);
+    register_rand(registry);
+    register_rand32(registry);
+    register_rand64(registry);
+    register_e(registry);
+    register_pi(registry);
+    register_exp2(registry);
+    register_log2(registry);
+    register_radians(registry);
 }
 
 fn register_abs(registry: &mut FunctionRegistry) {
@@ -991,6 +1006,307 @@ fn register_hypot(registry: &mut FunctionRegistry) {
                     Ok(Value::Null(crate::core::value::NullType::Null))
                 }
                 _ => Err(ExpressionError::type_error("hypot函数需要数值参数")),
+            }
+        },
+    );
+}
+
+fn register_sign(registry: &mut FunctionRegistry) {
+    registry.register(
+        "sign",
+        FunctionSignature::new(
+            "sign",
+            vec![ValueType::Int],
+            ValueType::Int,
+            1,
+            1,
+            true,
+            "返回数值的符号（-1, 0, 1）",
+        ),
+        |args| {
+            match &args[0] {
+                Value::Int(i) => Ok(Value::Int(i.signum())),
+                Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
+                _ => Err(ExpressionError::type_error("sign函数需要整数类型")),
+            }
+        },
+    );
+
+    registry.register(
+        "sign",
+        FunctionSignature::new(
+            "sign",
+            vec![ValueType::Float],
+            ValueType::Int,
+            1,
+            1,
+            true,
+            "返回数值的符号（-1, 0, 1）",
+        ),
+        |args| {
+            match &args[0] {
+                Value::Float(f) => Ok(Value::Int(f.signum() as i64)),
+                Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
+                _ => Err(ExpressionError::type_error("sign函数需要浮点数类型")),
+            }
+        },
+    );
+}
+
+fn register_rand(registry: &mut FunctionRegistry) {
+    registry.register(
+        "rand",
+        FunctionSignature::new(
+            "rand",
+            vec![],
+            ValueType::Float,
+            0,
+            0,
+            false,
+            "返回0到1之间的随机浮点数",
+        ),
+        |_args| {
+            let value = RNG.with(|rng| rng.borrow_mut().gen::<f64>());
+            Ok(Value::Float(value))
+        },
+    );
+}
+
+fn register_rand32(registry: &mut FunctionRegistry) {
+    registry.register(
+        "rand32",
+        FunctionSignature::new(
+            "rand32",
+            vec![],
+            ValueType::Int,
+            0,
+            2,
+            true,
+            "返回32位随机整数，可选指定范围",
+        ),
+        |args| {
+            let (min, max) = match args.len() {
+                0 => (0i64, i32::MAX as i64),
+                1 => match &args[0] {
+                    Value::Int(max) => (0i64, *max),
+                    Value::Null(_) => return Ok(Value::Null(crate::core::value::NullType::Null)),
+                    _ => return Err(ExpressionError::type_error("rand32函数参数需要整数类型")),
+                },
+                2 => match (&args[0], &args[1]) {
+                    (Value::Int(min), Value::Int(max)) => (*min, *max),
+                    (Value::Null(_), _) | (_, Value::Null(_)) => {
+                        return Ok(Value::Null(crate::core::value::NullType::Null))
+                    }
+                    _ => return Err(ExpressionError::type_error("rand32函数参数需要整数类型")),
+                },
+                _ => return Err(ExpressionError::type_error("rand32函数参数数量错误")),
+            };
+
+            if min >= max {
+                return Err(ExpressionError::type_error("rand32函数最小值必须小于最大值"));
+            }
+
+            let value = RNG.with(|rng| rng.borrow_mut().gen_range(min..max));
+            Ok(Value::Int(value))
+        },
+    );
+}
+
+fn register_rand64(registry: &mut FunctionRegistry) {
+    registry.register(
+        "rand64",
+        FunctionSignature::new(
+            "rand64",
+            vec![],
+            ValueType::Int,
+            0,
+            2,
+            true,
+            "返回64位随机整数，可选指定范围",
+        ),
+        |args| {
+            let (min, max) = match args.len() {
+                0 => (i64::MIN, i64::MAX),
+                1 => match &args[0] {
+                    Value::Int(max) => (0i64, *max),
+                    Value::Null(_) => return Ok(Value::Null(crate::core::value::NullType::Null)),
+                    _ => return Err(ExpressionError::type_error("rand64函数参数需要整数类型")),
+                },
+                2 => match (&args[0], &args[1]) {
+                    (Value::Int(min), Value::Int(max)) => (*min, *max),
+                    (Value::Null(_), _) | (_, Value::Null(_)) => {
+                        return Ok(Value::Null(crate::core::value::NullType::Null))
+                    }
+                    _ => return Err(ExpressionError::type_error("rand64函数参数需要整数类型")),
+                },
+                _ => return Err(ExpressionError::type_error("rand64函数参数数量错误")),
+            };
+
+            if min >= max {
+                return Err(ExpressionError::type_error("rand64函数最小值必须小于最大值"));
+            }
+
+            let value = RNG.with(|rng| rng.borrow_mut().gen_range(min..max));
+            Ok(Value::Int(value))
+        },
+    );
+}
+
+fn register_e(registry: &mut FunctionRegistry) {
+    registry.register(
+        "e",
+        FunctionSignature::new(
+            "e",
+            vec![],
+            ValueType::Float,
+            0,
+            0,
+            true,
+            "自然常数 e",
+        ),
+        |_args| Ok(Value::Float(std::f64::consts::E)),
+    );
+}
+
+fn register_pi(registry: &mut FunctionRegistry) {
+    registry.register(
+        "pi",
+        FunctionSignature::new(
+            "pi",
+            vec![],
+            ValueType::Float,
+            0,
+            0,
+            true,
+            "圆周率 π",
+        ),
+        |_args| Ok(Value::Float(std::f64::consts::PI)),
+    );
+}
+
+fn register_exp2(registry: &mut FunctionRegistry) {
+    registry.register(
+        "exp2",
+        FunctionSignature::new(
+            "exp2",
+            vec![ValueType::Int],
+            ValueType::Float,
+            1,
+            1,
+            true,
+            "计算2的幂",
+        ),
+        |args| {
+            match &args[0] {
+                Value::Int(i) => Ok(Value::Float(((*i) as f64).exp2())),
+                Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
+                _ => Err(ExpressionError::type_error("exp2函数需要整数类型")),
+            }
+        },
+    );
+
+    registry.register(
+        "exp2",
+        FunctionSignature::new(
+            "exp2",
+            vec![ValueType::Float],
+            ValueType::Float,
+            1,
+            1,
+            true,
+            "计算2的幂",
+        ),
+        |args| {
+            match &args[0] {
+                Value::Float(f) => Ok(Value::Float(f.exp2())),
+                Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
+                _ => Err(ExpressionError::type_error("exp2函数需要浮点数类型")),
+            }
+        },
+    );
+}
+
+fn register_log2(registry: &mut FunctionRegistry) {
+    registry.register(
+        "log2",
+        FunctionSignature::new(
+            "log2",
+            vec![ValueType::Int],
+            ValueType::Float,
+            1,
+            1,
+            true,
+            "计算以2为底的对数",
+        ),
+        |args| {
+            match &args[0] {
+                Value::Int(i) if *i > 0 => Ok(Value::Float(((*i) as f64).log2())),
+                Value::Int(_) => Ok(Value::Null(crate::core::value::NullType::NaN)),
+                Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
+                _ => Err(ExpressionError::type_error("log2函数需要整数类型")),
+            }
+        },
+    );
+
+    registry.register(
+        "log2",
+        FunctionSignature::new(
+            "log2",
+            vec![ValueType::Float],
+            ValueType::Float,
+            1,
+            1,
+            true,
+            "计算以2为底的对数",
+        ),
+        |args| {
+            match &args[0] {
+                Value::Float(f) if *f > 0.0 => Ok(Value::Float(f.log2())),
+                Value::Float(_) => Ok(Value::Null(crate::core::value::NullType::NaN)),
+                Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
+                _ => Err(ExpressionError::type_error("log2函数需要浮点数类型")),
+            }
+        },
+    );
+}
+
+fn register_radians(registry: &mut FunctionRegistry) {
+    registry.register(
+        "radians",
+        FunctionSignature::new(
+            "radians",
+            vec![ValueType::Int],
+            ValueType::Float,
+            1,
+            1,
+            true,
+            "将角度转换为弧度",
+        ),
+        |args| {
+            match &args[0] {
+                Value::Int(i) => Ok(Value::Float(((*i) as f64).to_radians())),
+                Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
+                _ => Err(ExpressionError::type_error("radians函数需要整数类型")),
+            }
+        },
+    );
+
+    registry.register(
+        "radians",
+        FunctionSignature::new(
+            "radians",
+            vec![ValueType::Float],
+            ValueType::Float,
+            1,
+            1,
+            true,
+            "将角度转换为弧度",
+        ),
+        |args| {
+            match &args[0] {
+                Value::Float(f) => Ok(Value::Float(f.to_radians())),
+                Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
+                _ => Err(ExpressionError::type_error("radians函数需要浮点数类型")),
             }
         },
     );
