@@ -128,24 +128,31 @@ impl<S: StorageClient + Send> ExpandAllExecutor<S> {
                     .map_err(|e| QueryError::StorageError(e.to_string()))?
             };
 
-            if let Some(vertex) = neighbor_vertex {
-                // 使用 NPath 扩展，O(1) 操作
-                let new_npath = Arc::new(NPath::extend(
-                    current_npath.clone(),
-                    Arc::new(edge),
-                    Arc::new(vertex),
-                ));
+            // 创建顶点对象：如果顶点存在则使用实际顶点，否则创建悬挂顶点（空Tag列表）
+            let vertex = match neighbor_vertex {
+                Some(v) => v,
+                None => {
+                    // 悬挂边处理：创建一个空Tag的顶点，保留VID
+                    Vertex::new(neighbor_id.clone(), Vec::new())
+                }
+            };
 
-                // 标记为已访问
-                self.visited_nodes.insert(neighbor_id.clone());
+            // 使用 NPath 扩展，O(1) 操作
+            let new_npath = Arc::new(NPath::extend(
+                current_npath.clone(),
+                Arc::new(edge),
+                Arc::new(vertex),
+            ));
 
-                // 递归扩展
-                let mut expanded_npaths = self.expand_paths_recursive(&new_npath, current_depth + 1, max_depth)?;
-                all_npaths.append(&mut expanded_npaths);
+            // 标记为已访问
+            self.visited_nodes.insert(neighbor_id.clone());
 
-                // 取消标记（允许在其他路径中访问）
-                self.visited_nodes.remove(&neighbor_id);
-            }
+            // 递归扩展（即使顶点是悬挂的，也继续扩展以获取更多边）
+            let mut expanded_npaths = self.expand_paths_recursive(&new_npath, current_depth + 1, max_depth)?;
+            all_npaths.append(&mut expanded_npaths);
+
+            // 取消标记（允许在其他路径中访问）
+            self.visited_nodes.remove(&neighbor_id);
         }
 
         // 添加当前路径

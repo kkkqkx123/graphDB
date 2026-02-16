@@ -46,6 +46,7 @@ pub trait StorageClient: Send + Sync + std::fmt::Debug {
     fn insert_vertex(&mut self, space: &str, vertex: Vertex) -> Result<Value, StorageError>;
     fn update_vertex(&mut self, space: &str, vertex: Vertex) -> Result<(), StorageError>;
     fn delete_vertex(&mut self, space: &str, id: &Value) -> Result<(), StorageError>;
+    fn delete_vertex_with_edges(&mut self, space: &str, id: &Value) -> Result<(), StorageError>;
     fn batch_insert_vertices(&mut self, space: &str, vertices: Vec<Vertex>) -> Result<Vec<Value>, StorageError>;
 
     fn insert_edge(&mut self, space: &str, edge: Edge) -> Result<(), StorageError>;
@@ -113,6 +114,10 @@ pub trait StorageClient: Send + Sync + std::fmt::Debug {
     fn load_from_disk(&mut self) -> Result<(), StorageError>;
     fn save_to_disk(&self) -> Result<(), StorageError>;
     fn get_storage_stats(&self) -> StorageStats;
+
+    // 悬挂边检测和修复工具
+    fn find_dangling_edges(&self, space: &str) -> Result<Vec<Edge>, StorageError>;
+    fn repair_dangling_edges(&mut self, space: &str) -> Result<usize, StorageError>;
 }
 
 /// 存储统计信息

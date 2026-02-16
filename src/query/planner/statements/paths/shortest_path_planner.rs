@@ -294,6 +294,18 @@ impl StorageClient for DummyStorage {
             total_edge_types: 0,
         }
     }
+
+    fn delete_vertex_with_edges(&mut self, _space: &str, _id: &crate::core::Value) -> Result<(), crate::core::StorageError> {
+        Ok(())
+    }
+
+    fn find_dangling_edges(&self, _space: &str) -> Result<Vec<crate::core::Edge>, crate::core::StorageError> {
+        Ok(Vec::new())
+    }
+
+    fn repair_dangling_edges(&mut self, _space: &str) -> Result<usize, crate::core::StorageError> {
+        Ok(0)
+    }
 }
 
 #[derive(Debug, Clone)]

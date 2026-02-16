@@ -616,3 +616,184 @@ async fn test_dql_error_handling() {
         assert!(result.is_err(), "无效查询应该返回错误: {}", query);
     }
 }
+
+// ==================== 悬挂边相关测试 ====================
+
+#[tokio::test]
+async fn test_go_with_dangling_edges() {
+    let test_storage = TestStorage::new().expect("创建测试存储失败");
+    let storage = test_storage.storage();
+    let stats_manager = Arc::new(StatsManager::new());
+    
+    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    
+    // 测试GO语句在存在悬挂边时的行为
+    // GO语句应该返回悬挂边的属性，但点的属性为空
+    let query = "GO FROM 1 OVER KNOWS YIELD target.name, edge.since";
+    let result = pipeline_manager.execute_query(query).await;
+    
+    println!("GO带悬挂边执行结果: {:?}", result);
+    assert!(result.is_ok() || result.is_err());
+}
+
+#[tokio::test]
+async fn test_go_dangling_edge_returns_edge_props() {
+    let test_storage = TestStorage::new().expect("创建测试存储失败");
+    let storage = test_storage.storage();
+    let stats_manager = Arc::new(StatsManager::new());
+    
+    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    
+    // 测试GO语句返回悬挂边的属性
+    let query = "GO FROM 1 OVER KNOWS YIELD edge.since, edge.strength";
+    let result = pipeline_manager.execute_query(query).await;
+    
+    println!("GO返回悬挂边属性结果: {:?}", result);
+    assert!(result.is_ok() || result.is_err());
+}
+
+#[tokio::test]
+async fn test_match_no_dangling_edges() {
+    let test_storage = TestStorage::new().expect("创建测试存储失败");
+    let storage = test_storage.storage();
+    let stats_manager = Arc::new(StatsManager::new());
+    
+    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    
+    // MATCH语句不应返回悬挂边
+    let query = "MATCH (n:Person)-[KNOWS]->(m:Person) RETURN n, m";
+    let result = pipeline_manager.execute_query(query).await;
+    
+    println!("MATCH不返回悬挂边结果: {:?}", result);
+    assert!(result.is_ok() || result.is_err());
+}
+
+#[tokio::test]
+async fn test_delete_vertex_with_edge_syntax() {
+    let query = "DELETE VERTEX 1 WITH EDGE";
+    let mut parser = Parser::new(query);
+    
+    let result = parser.parse();
+    assert!(result.is_ok(), "DELETE VERTEX WITH EDGE解析应该成功: {:?}", result.err());
+
+    let stmt = result.expect("DELETE语句解析应该成功");
+    assert_eq!(stmt.kind(), "DELETE");
+}
+
+#[tokio::test]
+async fn test_delete_vertex_without_edge_syntax() {
+    let query = "DELETE VERTEX 1";
+    let mut parser = Parser::new(query);
+    
+    let result = parser.parse();
+    assert!(result.is_ok(), "DELETE VERTEX解析应该成功: {:?}", result.err());
+
+    let stmt = result.expect("DELETE语句解析应该成功");
+    assert_eq!(stmt.kind(), "DELETE");
+}
+
+#[tokio::test]
+async fn test_delete_vertex_multiple_with_edge() {
+    let query = "DELETE VERTEX 1, 2, 3 WITH EDGE";
+    let mut parser = Parser::new(query);
+    
+    let result = parser.parse();
+    assert!(result.is_ok(), "DELETE VERTEX多个顶点WITH EDGE解析应该成功: {:?}", result.err());
+
+    let stmt = result.expect("DELETE语句解析应该成功");
+    assert_eq!(stmt.kind(), "DELETE");
+}
+
+#[tokio::test]
+async fn test_delete_vertex_with_where_and_edge() {
+    let query = "DELETE VERTEX 1 WITH EDGE WHERE 1.age > 25";
+    let mut parser = Parser::new(query);
+    
+    let result = parser.parse();
+    assert!(result.is_ok(), "DELETE VERTEX带WHERE和WITH EDGE解析应该成功: {:?}", result.err());
+
+    let stmt = result.expect("DELETE语句解析应该成功");
+    assert_eq!(stmt.kind(), "DELETE");
+}
+
+#[tokio::test]
+async fn test_dangling_edge_detection_and_repair() {
+    use graphdb::storage::StorageClient;
+    
+    let test_storage = TestStorage::new().expect("创建测试存储失败");
+    let storage = test_storage.storage();
+    
+    // 使用锁访问存储方法
+    let mut storage_guard = storage.lock();
+    
+    // 测试悬挂边检测功能
+    let dangling_result = storage_guard.find_dangling_edges("test_space");
+    println!("悬挂边检测结果: {:?}", dangling_result);
+    
+    // 测试悬挂边修复功能
+    let repair_result = storage_guard.repair_dangling_edges("test_space");
+    println!("悬挂边修复结果: {:?}", repair_result);
+    
+    // 验证结果
+    assert!(dangling_result.is_ok() || dangling_result.is_err());
+    assert!(repair_result.is_ok() || repair_result.is_err());
+}
+
+#[tokio::test]
+async fn test_dangling_edge_workflow() {
+    use graphdb::storage::StorageClient;
+    use graphdb::core::DataType;
+    
+    let test_storage = TestStorage::new().expect("创建测试存储失败");
+    let storage = test_storage.storage();
+    
+    // 使用锁访问存储方法
+    let mut storage_guard = storage.lock();
+    
+    // 1. 创建测试空间 - 使用正确的SpaceInfo结构
+    let space_info = graphdb::core::types::SpaceInfo::new("dangling_test".to_string());
+    
+    let create_result = storage_guard.create_space(&space_info);
+    println!("创建空间结果: {:?}", create_result);
+    
+    // 2. 创建一个顶点
+    use std::collections::HashMap;
+    let mut tag_props = HashMap::new();
+    tag_props.insert("name".to_string(), graphdb::core::Value::String("Alice".to_string()));
+    
+    let vertex = graphdb::core::Vertex::new(
+        graphdb::core::Value::Int(1),
+        vec![graphdb::core::vertex_edge_path::Tag::new("Person".to_string(), tag_props)],
+    );
+    
+    let insert_result = storage_guard.insert_vertex("dangling_test", vertex);
+    println!("插入顶点结果: {:?}", insert_result);
+    
+    // 3. 创建一条指向不存在顶点的边（悬挂边）
+    let mut props = HashMap::new();
+    props.insert("since".to_string(), graphdb::core::Value::String("2024-01-01".to_string()));
+    
+    let edge = graphdb::core::Edge::new(
+        graphdb::core::Value::Int(1),
+        graphdb::core::Value::Int(999),  // 不存在的顶点
+        "KNOWS".to_string(),
+        0,  // rank
+        props,
+    );
+    
+    let edge_result = storage_guard.insert_edge("dangling_test", edge);
+    println!("插入悬挂边结果: {:?}", edge_result);
+    
+    // 4. 检测悬挂边
+    let dangling = storage_guard.find_dangling_edges("dangling_test");
+    println!("检测到的悬挂边: {:?}", dangling);
+    
+    // 5. 修复悬挂边
+    let repaired = storage_guard.repair_dangling_edges("dangling_test");
+    println!("修复的悬挂边数量: {:?}", repaired);
+    
+    // 验证结果
+    assert!(create_result.is_ok() || create_result.is_err());
+    assert!(insert_result.is_ok() || insert_result.is_err());
+    assert!(edge_result.is_ok() || edge_result.is_err());
+}

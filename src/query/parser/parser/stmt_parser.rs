@@ -340,10 +340,18 @@ impl<'a> StmtParser<'a> {
             None
         };
 
+        // 解析 WITH EDGE 选项（仅对删除顶点有效）
+        let with_edge = if matches!(target, DeleteTarget::Vertices(_)) {
+            ctx.match_token(TokenKind::With) && ctx.match_token(TokenKind::Edge)
+        } else {
+            false
+        };
+
         Ok(Stmt::Delete(DeleteStmt {
             span: start_span,
             target,
             where_clause,
+            with_edge,
         }))
     }
 

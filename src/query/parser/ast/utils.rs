@@ -160,6 +160,17 @@ impl StmtFactory {
             span,
             target,
             where_clause,
+            with_edge: false,
+        })
+    }
+
+    /// 创建带 WITH EDGE 选项的 DELETE 语句
+    pub fn delete_with_edge(target: DeleteTarget, where_clause: Option<Expression>, span: Span) -> Stmt {
+        Stmt::Delete(DeleteStmt {
+            span,
+            target,
+            where_clause,
+            with_edge: true,
         })
     }
 

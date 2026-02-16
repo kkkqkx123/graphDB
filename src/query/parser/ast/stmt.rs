@@ -223,6 +223,25 @@ pub struct DeleteStmt {
     pub span: Span,
     pub target: DeleteTarget,
     pub where_clause: Option<Expression>,
+    pub with_edge: bool, // 是否同时删除关联边
+}
+
+impl DeleteStmt {
+    /// 创建新的DELETE语句
+    pub fn new(target: DeleteTarget, span: Span) -> Self {
+        Self {
+            span,
+            target,
+            where_clause: None,
+            with_edge: false,
+        }
+    }
+
+    /// 设置是否删除关联边
+    pub fn with_edge(mut self, with_edge: bool) -> Self {
+        self.with_edge = with_edge;
+        self
+    }
 }
 
 /// 删除目标

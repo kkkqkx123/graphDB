@@ -194,6 +194,7 @@ mod tests {
             span: Span::default(),
             target,
             where_clause,
+            with_edge: false,
         }
     }
 

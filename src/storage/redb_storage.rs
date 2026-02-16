@@ -328,6 +328,20 @@ impl StorageClient for RedbStorage {
         Ok(())
     }
 
+    fn delete_vertex_with_edges(&mut self, space: &str, id: &Value) -> Result<(), StorageError> {
+        // 首先删除所有与该顶点关联的边
+        self.delete_vertex_edges(space, id)?;
+        
+        // 然后删除顶点本身
+        let mut writer = self.writer.lock();
+        writer.delete_vertex(space, id)?;
+        
+        // 删除索引
+        self.index_data_manager.delete_vertex_indexes(space, id)?;
+        
+        Ok(())
+    }
+
     fn batch_insert_vertices(&mut self, space: &str, vertices: Vec<Vertex>) -> Result<Vec<Value>, StorageError> {
         let mut writer = self.writer.lock();
         writer.batch_insert_vertices(space, vertices)
@@ -1096,6 +1110,44 @@ impl StorageClient for RedbStorage {
             total_tags,
             total_edge_types,
         }
+    }
+
+    fn find_dangling_edges(&self, space: &str) -> Result<Vec<Edge>, StorageError> {
+        let mut dangling_edges = Vec::new();
+        
+        // 获取所有边
+        let edges = self.reader.scan_all_edges(space)?;
+        
+        for edge in edges {
+            // 检查起点是否存在
+            let src_exists = self.reader.get_vertex(space, &edge.src)?.is_some();
+            // 检查终点是否存在
+            let dst_exists = self.reader.get_vertex(space, &edge.dst)?.is_some();
+            
+            // 如果起点或终点不存在，则为悬挂边
+            if !src_exists || !dst_exists {
+                dangling_edges.push(edge);
+            }
+        }
+        
+        Ok(dangling_edges)
+    }
+
+    fn repair_dangling_edges(&mut self, space: &str) -> Result<usize, StorageError> {
+        let dangling_edges = self.find_dangling_edges(space)?;
+        let count = dangling_edges.len();
+        
+        // 删除所有悬挂边
+        for edge in dangling_edges {
+            {
+                let mut writer = self.writer.lock();
+                writer.delete_edge(space, &edge.src, &edge.dst, &edge.edge_type)?;
+            }
+            // 删除相关索引
+            self.index_data_manager.delete_edge_indexes(space, &edge.src, &edge.dst, &edge.edge_type)?;
+        }
+        
+        Ok(count)
     }
 }
 

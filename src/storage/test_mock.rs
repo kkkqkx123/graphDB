@@ -423,4 +423,16 @@ impl StorageClient for MockStorage {
             total_edge_types: 0,
         }
     }
+
+    fn delete_vertex_with_edges(&mut self, _space: &str, _id: &Value) -> Result<(), StorageError> {
+        Ok(())
+    }
+
+    fn find_dangling_edges(&self, _space: &str) -> Result<Vec<Edge>, StorageError> {
+        Ok(Vec::new())
+    }
+
+    fn repair_dangling_edges(&mut self, _space: &str) -> Result<usize, StorageError> {
+        Ok(0)
+    }
 }
