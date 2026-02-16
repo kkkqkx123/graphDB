@@ -164,20 +164,48 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
         }
     }
 
+    /// 解析权重表达式为权重配置
+    ///
+    /// 支持的权重表达式格式：
+    /// - None: 无权图
+    /// - "ranking": 使用边的ranking作为权重
+    /// - 其他字符串: 使用指定属性名作为权重
+    fn parse_weight_config(weight_expr: &Option<String>) -> crate::query::executor::data_processing::graph_traversal::algorithms::EdgeWeightConfig {
+        use crate::query::executor::data_processing::graph_traversal::algorithms::EdgeWeightConfig;
+
+        match weight_expr {
+            None => EdgeWeightConfig::Unweighted,
+            Some(expr) => {
+                let expr_lower = expr.to_lowercase();
+                if expr_lower == "ranking" {
+                    EdgeWeightConfig::Ranking
+                } else {
+                    EdgeWeightConfig::Property(expr.clone())
+                }
+            }
+        }
+    }
+
     /// 根据查询特征自动选择最短路径算法
     ///
     /// 算法选择策略：
+    /// - 带权图: 必须使用Dijkstra算法
     /// - 单对单最短路径 (1对1): 使用双向BFS，时间复杂度最优 O(b^(d/2))
     /// - 多对多最短路径 (多对多):
     ///   - 如果搜索深度较小 (<=10): 使用BFS，简单高效
     ///   - 如果搜索深度较大 (>10): 使用Dijkstra，适合大规模图
-    /// - 带权图: 使用Dijkstra（当前版本暂不支持权重，后续扩展）
     /// - 有启发信息: 使用A*（当前版本暂不支持启发函数，后续扩展）
     fn select_shortest_path_algorithm(
         start_vertex_ids: &[Value],
         end_vertex_ids: &[Value],
         max_step: usize,
+        weight_config: &crate::query::executor::data_processing::graph_traversal::algorithms::EdgeWeightConfig,
     ) -> ShortestPathAlgorithmType {
+        // 带权图必须使用Dijkstra
+        if weight_config.is_weighted() {
+            return ShortestPathAlgorithmType::Dijkstra;
+        }
+
         let is_single_pair = start_vertex_ids.len() == 1 && end_vertex_ids.len() == 1;
 
         if is_single_pair {
@@ -188,7 +216,6 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             ShortestPathAlgorithmType::BFS
         } else {
             // 多对多且深度较大：Dijkstra更适合大规模搜索
-            // 注意：当前Dijkstra实现也基于BFS，后续可优化为真正的加权Dijkstra
             ShortestPathAlgorithmType::Dijkstra
         }
     }
@@ -814,11 +841,15 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     vec![Value::from("end")]
                 };
 
+                // 从查询计划节点解析权重配置
+                let weight_config = Self::parse_weight_config(node.weight_expression());
+
                 // 自动选择最优算法
                 let algorithm = Self::select_shortest_path_algorithm(
                     &start_vertex_ids,
                     &end_vertex_ids,
                     node.max_step(),
+                    &weight_config,
                 );
 
                 let executor = crate::query::executor::data_processing::graph_traversal::ShortestPathExecutor::new(
@@ -834,7 +865,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     },
                     Some(node.max_step()),
                     algorithm,
-                );
+                ).with_weight_config(weight_config);
                 Ok(ExecutorEnum::ShortestPath(executor))
             }
 

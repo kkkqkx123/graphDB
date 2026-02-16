@@ -16,7 +16,7 @@ use parking_lot::Mutex;
 
 // 引入算法模块
 use super::algorithms::{
-    AStar, AlgorithmStats, BidirectionalBFS, Dijkstra, ShortestPathAlgorithm,
+    AStar, AlgorithmStats, BidirectionalBFS, Dijkstra, EdgeWeightConfig, ShortestPathAlgorithm,
     ShortestPathAlgorithmType,
 };
 
@@ -31,6 +31,7 @@ pub struct ShortestPathExecutor<S: StorageClient + Send + 'static> {
     pub edge_types: Option<Vec<String>>,
     pub max_depth: Option<usize>,
     algorithm_type: ShortestPathAlgorithmType,
+    weight_config: EdgeWeightConfig,
     input_executor: Option<Box<ExecutorEnum<S>>>,
     pub shortest_paths: Vec<Path>,
     pub nodes_visited: usize,
@@ -79,6 +80,7 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
             edge_types,
             max_depth,
             algorithm_type: algorithm,
+            weight_config: EdgeWeightConfig::Unweighted,
             input_executor: None,
             shortest_paths: Vec::new(),
             nodes_visited: 0,
@@ -93,6 +95,11 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
     pub fn with_limits(mut self, single_shortest: bool, limit: usize) -> Self {
         self.single_shortest = single_shortest;
         self.limit = limit;
+        self
+    }
+
+    pub fn with_weight_config(mut self, config: EdgeWeightConfig) -> Self {
+        self.weight_config = config;
         self
     }
 
@@ -142,7 +149,8 @@ impl<S: StorageClient> ShortestPathExecutor<S> {
             }
             ShortestPathAlgorithmType::Dijkstra => {
                 let mut algorithm = Dijkstra::new(storage)
-                    .with_edge_direction(self.edge_direction);
+                    .with_edge_direction(self.edge_direction)
+                    .with_weight_config(self.weight_config.clone());
                 let paths = algorithm.find_paths(
                     &self.start_vertex_ids,
                     &self.end_vertex_ids,

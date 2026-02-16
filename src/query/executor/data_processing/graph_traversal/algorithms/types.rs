@@ -128,6 +128,38 @@ pub enum ShortestPathAlgorithmType {
     AStar,
 }
 
+/// 边权重配置
+#[derive(Debug, Clone)]
+pub enum EdgeWeightConfig {
+    /// 无权图，使用步数作为距离
+    Unweighted,
+    /// 使用边的ranking作为权重
+    Ranking,
+    /// 使用指定属性作为权重
+    Property(String),
+}
+
+impl EdgeWeightConfig {
+    /// 是否为带权图
+    pub fn is_weighted(&self) -> bool {
+        !matches!(self, EdgeWeightConfig::Unweighted)
+    }
+
+    /// 获取权重属性名
+    pub fn property_name(&self) -> Option<&str> {
+        match self {
+            EdgeWeightConfig::Property(name) => Some(name.as_str()),
+            _ => None,
+        }
+    }
+}
+
+impl Default for EdgeWeightConfig {
+    fn default() -> Self {
+        EdgeWeightConfig::Unweighted
+    }
+}
+
 /// 路径拼接工具函数
 /// 左路径从起点到中间，右路径从终点到中间
 pub fn combine_npaths(left: &Arc<NPath>, right: &Arc<NPath>) -> Option<Path> {

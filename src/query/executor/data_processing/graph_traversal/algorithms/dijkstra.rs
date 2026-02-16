@@ -11,7 +11,7 @@ use crate::query::QueryError;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
-use super::types::{AlgorithmStats, DistanceNode, SelfLoopDedup, has_duplicate_edges};
+use super::types::{AlgorithmStats, DistanceNode, EdgeWeightConfig, SelfLoopDedup, has_duplicate_edges};
 use super::traits::ShortestPathAlgorithm;
 
 /// Dijkstra最短路径算法
@@ -19,6 +19,7 @@ pub struct Dijkstra<S: StorageClient> {
     storage: Arc<Mutex<S>>,
     stats: AlgorithmStats,
     edge_direction: crate::core::types::EdgeDirection,
+    weight_config: EdgeWeightConfig,
 }
 
 impl<S: StorageClient> Dijkstra<S> {
@@ -27,12 +28,35 @@ impl<S: StorageClient> Dijkstra<S> {
             storage,
             stats: AlgorithmStats::new(),
             edge_direction: crate::core::types::EdgeDirection::Both,
+            weight_config: EdgeWeightConfig::Unweighted,
         }
     }
 
     pub fn with_edge_direction(mut self, direction: crate::core::types::EdgeDirection) -> Self {
         self.edge_direction = direction;
         self
+    }
+
+    pub fn with_weight_config(mut self, config: EdgeWeightConfig) -> Self {
+        self.weight_config = config;
+        self
+    }
+
+    /// 获取边的权重
+    fn get_edge_weight(&self, edge: &Edge) -> f64 {
+        match &self.weight_config {
+            EdgeWeightConfig::Unweighted => 1.0,
+            EdgeWeightConfig::Ranking => edge.ranking as f64,
+            EdgeWeightConfig::Property(prop_name) => {
+                edge.get_property(prop_name)
+                    .map(|v| match v {
+                        crate::core::Value::Int(i) => *i as f64,
+                        crate::core::Value::Float(f) => *f,
+                        _ => 1.0,
+                    })
+                    .unwrap_or(1.0)
+            }
+        }
     }
 
     /// 获取邻居节点和边
@@ -63,31 +87,32 @@ impl<S: StorageClient> Dijkstra<S> {
             .into_iter()
             .filter(|edge| dedup.should_include(edge))
             .filter_map(|edge| {
-                let (neighbor_id, weight) = match self.edge_direction {
+                let neighbor_id = match self.edge_direction {
                     crate::core::types::EdgeDirection::In => {
                         if *edge.dst == *node_id {
-                            ((*edge.src).clone(), edge.ranking as f64)
+                            (*edge.src).clone()
                         } else {
                             return None;
                         }
                     }
                     crate::core::types::EdgeDirection::Out => {
                         if *edge.src == *node_id {
-                            ((*edge.dst).clone(), edge.ranking as f64)
+                            (*edge.dst).clone()
                         } else {
                             return None;
                         }
                     }
                     crate::core::types::EdgeDirection::Both => {
                         if *edge.src == *node_id {
-                            ((*edge.dst).clone(), edge.ranking as f64)
+                            (*edge.dst).clone()
                         } else if *edge.dst == *node_id {
-                            ((*edge.src).clone(), edge.ranking as f64)
+                            (*edge.src).clone()
                         } else {
                             return None;
                         }
                     }
                 };
+                let weight = self.get_edge_weight(&edge);
                 Some((neighbor_id, edge, weight))
             })
             .collect();
@@ -230,8 +255,8 @@ impl<S: StorageClient> ShortestPathAlgorithm for Dijkstra<S> {
 
         if single_shortest && !result_paths.is_empty() {
             result_paths.sort_by(|a, b| {
-                let weight_a: f64 = a.steps.iter().map(|s| s.edge.ranking as f64).sum();
-                let weight_b: f64 = b.steps.iter().map(|s| s.edge.ranking as f64).sum();
+                let weight_a: f64 = a.steps.iter().map(|s| self.get_edge_weight(&s.edge)).sum();
+                let weight_b: f64 = b.steps.iter().map(|s| self.get_edge_weight(&s.edge)).sum();
                 weight_a.partial_cmp(&weight_b).unwrap_or(std::cmp::Ordering::Equal)
             });
             result_paths.truncate(1);
