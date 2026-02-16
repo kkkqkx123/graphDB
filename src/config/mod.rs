@@ -162,6 +162,33 @@ impl Default for OptimizerConfig {
     }
 }
 
+/// 监控配置
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct MonitoringConfig {
+    /// 是否启用监控
+    pub enabled: bool,
+    /// 内存缓存大小（保留最近N条查询）
+    pub memory_cache_size: usize,
+    /// 慢查询阈值（毫秒）
+    pub slow_query_threshold_ms: u64,
+    /// 慢查询日志目录
+    pub slow_query_log_dir: String,
+    /// 慢查询日志保留天数
+    pub slow_query_log_retention_days: u32,
+}
+
+impl Default for MonitoringConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            memory_cache_size: 1000,
+            slow_query_threshold_ms: 1000,
+            slow_query_log_dir: "logs/slow_queries".to_string(),
+            slow_query_log_retention_days: 7,
+        }
+    }
+}
+
 /// 全局配置
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Config {
@@ -175,6 +202,9 @@ pub struct Config {
     pub bootstrap: BootstrapConfig,
     /// 优化器配置
     pub optimizer: OptimizerConfig,
+    /// 监控配置
+    #[serde(default)]
+    pub monitoring: MonitoringConfig,
 }
 
 impl Default for Config {
@@ -185,6 +215,7 @@ impl Default for Config {
             auth: AuthConfig::default(),
             bootstrap: BootstrapConfig::default(),
             optimizer: OptimizerConfig::default(),
+            monitoring: MonitoringConfig::default(),
         }
     }
 }

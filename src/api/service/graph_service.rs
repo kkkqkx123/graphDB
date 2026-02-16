@@ -289,6 +289,7 @@ mod tests {
                 single_user_mode: false,
             },
             optimizer: crate::config::OptimizerConfig::default(),
+            monitoring: crate::config::MonitoringConfig::default(),
         }
     }
 

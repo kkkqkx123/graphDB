@@ -6,7 +6,7 @@
 //! 3. 处理错误和异常
 //! 4. 管理查询上下文和性能监控
 
-use crate::api::service::stats_manager::{QueryMetrics, StatsManager};
+use crate::api::service::stats_manager::{QueryMetrics, QueryProfile, StatsManager, ErrorInfo, ErrorType, QueryPhase};
 use crate::query::context::execution::QueryContext;
 use crate::core::error::{DBError, DBResult, QueryError};
 use crate::query::executor::factory::ExecutorFactory;
@@ -224,38 +224,123 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         &mut self,
         query_text: &str,
     ) -> DBResult<(ExecutionResult, QueryMetrics)> {
+        self.execute_query_with_session(query_text, 0).await.map(|(result, metrics, _)| (result, metrics))
+    }
+
+    pub async fn execute_query_with_session(
+        &mut self,
+        query_text: &str,
+        session_id: i64,
+    ) -> DBResult<(ExecutionResult, QueryMetrics, QueryProfile)> {
+        self.execute_query_with_profile(query_text, session_id).await
+    }
+
+    pub async fn execute_query_with_profile(
+        &mut self,
+        query_text: &str,
+        session_id: i64,
+    ) -> DBResult<(ExecutionResult, QueryMetrics, QueryProfile)> {
         let total_start = Instant::now();
         let mut metrics = QueryMetrics::new();
+        let mut profile = QueryProfile::new(session_id, query_text.to_string());
         
         let mut query_context = self.create_query_context(query_text)?;
         
         let parse_start = Instant::now();
-        let mut ast = self.parse_into_context(query_text)?;
-        metrics.record_parse_time(parse_start.elapsed());
+        let mut ast = match self.parse_into_context(query_text) {
+            Ok(ast) => {
+                profile.stages.parse_ms = parse_start.elapsed().as_millis() as u64;
+                metrics.record_parse_time(parse_start.elapsed());
+                ast
+            }
+            Err(e) => {
+                profile.stages.parse_ms = parse_start.elapsed().as_millis() as u64;
+                profile.mark_failed_with_info(
+                    ErrorInfo::new(ErrorType::ParseError, QueryPhase::Parse, e.to_string())
+                );
+                profile.total_duration_ms = total_start.elapsed().as_millis() as u64;
+                self.stats_manager.record_query_profile(profile.clone());
+                return Err(e);
+            }
+        };
         
         let validate_start = Instant::now();
-        self.validate_query(&mut query_context, &mut ast)?;
+        if let Err(e) = self.validate_query(&mut query_context, &mut ast) {
+            profile.stages.validate_ms = validate_start.elapsed().as_millis() as u64;
+            profile.mark_failed_with_info(
+                ErrorInfo::new(ErrorType::ValidationError, QueryPhase::Validate, e.to_string())
+            );
+            profile.total_duration_ms = total_start.elapsed().as_millis() as u64;
+            self.stats_manager.record_query_profile(profile.clone());
+            return Err(e);
+        }
+        profile.stages.validate_ms = validate_start.elapsed().as_millis() as u64;
         metrics.record_validate_time(validate_start.elapsed());
         
         let plan_start = Instant::now();
-        let execution_plan = self.generate_execution_plan(&mut query_context, &ast)?;
-        metrics.set_plan_node_count(execution_plan.node_count());
-        metrics.record_plan_time(plan_start.elapsed());
+        let execution_plan = match self.generate_execution_plan(&mut query_context, &ast) {
+            Ok(plan) => {
+                profile.stages.plan_ms = plan_start.elapsed().as_millis() as u64;
+                metrics.set_plan_node_count(plan.node_count());
+                metrics.record_plan_time(plan_start.elapsed());
+                plan
+            }
+            Err(e) => {
+                profile.stages.plan_ms = plan_start.elapsed().as_millis() as u64;
+                profile.mark_failed_with_info(
+                    ErrorInfo::new(ErrorType::PlanningError, QueryPhase::Plan, e.to_string())
+                );
+                profile.total_duration_ms = total_start.elapsed().as_millis() as u64;
+                self.stats_manager.record_query_profile(profile.clone());
+                return Err(e);
+            }
+        };
         
         let optimize_start = Instant::now();
-        let optimized_plan = self.optimize_execution_plan(&mut query_context, execution_plan)?;
-        metrics.record_optimize_time(optimize_start.elapsed());
+        let optimized_plan = match self.optimize_execution_plan(&mut query_context, execution_plan) {
+            Ok(plan) => {
+                profile.stages.optimize_ms = optimize_start.elapsed().as_millis() as u64;
+                metrics.record_optimize_time(optimize_start.elapsed());
+                plan
+            }
+            Err(e) => {
+                profile.stages.optimize_ms = optimize_start.elapsed().as_millis() as u64;
+                profile.mark_failed_with_info(
+                    ErrorInfo::new(ErrorType::OptimizationError, QueryPhase::Optimize, e.to_string())
+                );
+                profile.total_duration_ms = total_start.elapsed().as_millis() as u64;
+                self.stats_manager.record_query_profile(profile.clone());
+                return Err(e);
+            }
+        };
         
         let execute_start = Instant::now();
-        let result = self.execute_plan(&mut query_context, optimized_plan).await?;
-        metrics.set_result_row_count(result.count());
-        metrics.record_execute_time(execute_start.elapsed());
+        let result = match self.execute_plan(&mut query_context, optimized_plan).await {
+            Ok(result) => {
+                profile.stages.execute_ms = execute_start.elapsed().as_millis() as u64;
+                profile.result_count = result.count();
+                metrics.set_result_row_count(result.count());
+                metrics.record_execute_time(execute_start.elapsed());
+                result
+            }
+            Err(e) => {
+                profile.stages.execute_ms = execute_start.elapsed().as_millis() as u64;
+                profile.mark_failed_with_info(
+                    ErrorInfo::new(ErrorType::ExecutionError, QueryPhase::Execute, e.to_string())
+                );
+                profile.total_duration_ms = total_start.elapsed().as_millis() as u64;
+                self.stats_manager.record_query_profile(profile.clone());
+                return Err(e);
+            }
+        };
         
+        profile.total_duration_ms = total_start.elapsed().as_millis() as u64;
         metrics.record_total_time(total_start.elapsed());
         
         self.stats_manager.record_query_metrics(&metrics);
+        self.stats_manager.record_query_profile(profile.clone());
         
-        Ok((result, metrics))
+        Ok((result, metrics, profile))
     }
 
     fn create_query_context(&self, _query_text: &str) -> DBResult<QueryContext> {

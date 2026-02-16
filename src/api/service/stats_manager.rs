@@ -346,34 +346,12 @@ impl MetricValue {
     }
 }
 
-/// 监控配置
-#[derive(Debug, Clone)]
-pub struct MonitoringConfig {
-    pub enabled: bool,
-    pub memory_cache_size: usize,
-    pub slow_query_threshold_ms: u64,
-    pub slow_query_log_dir: String,
-    pub slow_query_log_retention_days: u32,
-}
-
 /// 错误统计摘要
 #[derive(Debug, Clone)]
 pub struct ErrorSummary {
     pub total_errors: u64,
     pub errors_by_type: HashMap<ErrorType, u64>,
     pub errors_by_phase: HashMap<QueryPhase, u64>,
-}
-
-impl Default for MonitoringConfig {
-    fn default() -> Self {
-        Self {
-            enabled: true,
-            memory_cache_size: 1000,
-            slow_query_threshold_ms: 10000,
-            slow_query_log_dir: "logs".to_string(),
-            slow_query_log_retention_days: 7,
-        }
-    }
 }
 
 pub struct StatsManager {
@@ -383,7 +361,7 @@ pub struct StatsManager {
     // 新增：查询画像内存缓存
     query_profiles: Arc<Mutex<VecDeque<QueryProfile>>>,
     // 新增：监控配置
-    config: MonitoringConfig,
+    config: crate::config::MonitoringConfig,
     // 新增：错误统计
     error_counts: Arc<DashMap<ErrorType, AtomicU64>>,
     error_by_phase: Arc<DashMap<QueryPhase, AtomicU64>>,
@@ -391,10 +369,10 @@ pub struct StatsManager {
 
 impl StatsManager {
     pub fn new() -> Self {
-        Self::with_config(MonitoringConfig::default())
+        Self::with_config(crate::config::MonitoringConfig::default())
     }
 
-    pub fn with_config(config: MonitoringConfig) -> Self {
+    pub fn with_config(config: crate::config::MonitoringConfig) -> Self {
         let cache_size = config.memory_cache_size;
         Self {
             metrics: Arc::new(DashMap::new()),
@@ -428,6 +406,36 @@ impl StatsManager {
 
     /// 写入慢查询日志
     fn write_slow_query_log(&self, profile: &QueryProfile) {
+        // 构建错误信息对象
+        let error_info = if let Some(ref info) = profile.error_info {
+            serde_json::json!({
+                "type": info.error_type.to_string(),
+                "phase": info.error_phase.to_string(),
+                "message": &info.error_message,
+                "details": &info.error_details,
+            })
+        } else if let Some(ref msg) = profile.error_message {
+            serde_json::json!({
+                "type": "unknown",
+                "phase": "unknown",
+                "message": msg,
+                "details": null,
+            })
+        } else {
+            serde_json::Value::Null
+        };
+
+        // 构建执行器统计数组
+        let executor_stats: Vec<serde_json::Value> = profile.executor_stats.iter().map(|stat| {
+            serde_json::json!({
+                "type": &stat.executor_type,
+                "id": stat.executor_id,
+                "duration_ms": stat.duration_ms,
+                "rows_processed": stat.rows_processed,
+                "memory_used": stat.memory_used,
+            })
+        }).collect();
+
         let log_entry = serde_json::json!({
             "timestamp": chrono::Local::now().to_rfc3339(),
             "trace_id": &profile.trace_id,
@@ -446,7 +454,10 @@ impl StatsManager {
                 QueryStatus::Success => "success",
                 QueryStatus::Failed => "failed",
             },
-            "error": &profile.error_message,
+            "error": error_info,
+            "executor_stats": executor_stats,
+            "executor_count": profile.executor_stats.len(),
+            "total_executor_time_ms": profile.total_executor_time_ms(),
         });
 
         let log_line = format!("{}\n", log_entry.to_string());
@@ -472,6 +483,25 @@ impl StatsManager {
             })
         {
             log::warn!("Failed to write slow query log: {}", e);
+        }
+
+        // 同时记录到系统错误日志（如果是失败查询）
+        if profile.status == QueryStatus::Failed {
+            if let Some(ref info) = profile.error_info {
+                log::error!(
+                    "慢查询执行失败 [trace_id={}] [type={}] [phase={}]: {}",
+                    profile.trace_id,
+                    info.error_type,
+                    info.error_phase,
+                    info.error_message
+                );
+            } else if let Some(ref msg) = profile.error_message {
+                log::error!(
+                    "慢查询执行失败 [trace_id={}]: {}",
+                    profile.trace_id,
+                    msg
+                );
+            }
         }
     }
 
@@ -919,7 +949,7 @@ mod tests {
 
     #[test]
     fn test_record_and_get_query_profile() {
-        let config = MonitoringConfig {
+        let config = crate::config::MonitoringConfig {
             enabled: true,
             memory_cache_size: 10,
             slow_query_threshold_ms: 1000,
@@ -943,7 +973,7 @@ mod tests {
 
     #[test]
     fn test_get_slow_queries() {
-        let config = MonitoringConfig {
+        let config = crate::config::MonitoringConfig {
             enabled: true,
             memory_cache_size: 10,
             slow_query_threshold_ms: 1000,
@@ -969,7 +999,7 @@ mod tests {
 
     #[test]
     fn test_get_query_profile_by_trace_id() {
-        let stats = StatsManager::with_config(MonitoringConfig {
+        let stats = StatsManager::with_config(crate::config::MonitoringConfig {
             enabled: true,
             memory_cache_size: 10,
             slow_query_threshold_ms: 1000,
@@ -991,7 +1021,7 @@ mod tests {
 
     #[test]
     fn test_get_session_queries() {
-        let stats = StatsManager::with_config(MonitoringConfig {
+        let stats = StatsManager::with_config(crate::config::MonitoringConfig {
             enabled: true,
             memory_cache_size: 10,
             slow_query_threshold_ms: 1000,
@@ -1013,7 +1043,7 @@ mod tests {
 
     #[test]
     fn test_clear_query_cache() {
-        let stats = StatsManager::with_config(MonitoringConfig {
+        let stats = StatsManager::with_config(crate::config::MonitoringConfig {
             enabled: true,
             memory_cache_size: 10,
             slow_query_threshold_ms: 1000,
@@ -1033,7 +1063,7 @@ mod tests {
 
     #[test]
     fn test_query_cache_size_limit() {
-        let stats = StatsManager::with_config(MonitoringConfig {
+        let stats = StatsManager::with_config(crate::config::MonitoringConfig {
             enabled: true,
             memory_cache_size: 3,
             slow_query_threshold_ms: 1000,
@@ -1057,7 +1087,7 @@ mod tests {
 
     #[test]
     fn test_disabled_monitoring() {
-        let stats = StatsManager::with_config(MonitoringConfig {
+        let stats = StatsManager::with_config(crate::config::MonitoringConfig {
             enabled: false,
             memory_cache_size: 10,
             slow_query_threshold_ms: 1000,
@@ -1164,7 +1194,7 @@ mod tests {
 
     #[test]
     fn test_record_failed_query() {
-        let stats = StatsManager::with_config(MonitoringConfig {
+        let stats = StatsManager::with_config(crate::config::MonitoringConfig {
             enabled: true,
             memory_cache_size: 10,
             slow_query_threshold_ms: 1000,
