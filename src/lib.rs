@@ -11,4 +11,5 @@ pub mod expression;
 pub mod index;
 pub mod query;
 pub mod storage;
+pub mod transaction;
 pub mod utils;

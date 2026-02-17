@@ -626,6 +626,7 @@ dependencies = [
  "bincode",
  "chrono",
  "clap",
+ "crossbeam-utils",
  "dashmap",
  "encoding_rs",
  "flexi_logger",

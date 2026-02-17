@@ -33,13 +33,6 @@ struct SelfLoopDedup {
 }
 
 impl SelfLoopDedup {
-    fn new() -> Self {
-        Self {
-            seen: HashSet::new(),
-            with_loop: false,
-        }
-    }
-
     fn with_loop(with_loop: bool) -> Self {
         Self {
             seen: HashSet::new(),
@@ -609,7 +602,7 @@ mod tests {
 
     #[test]
     fn test_self_loop_dedup() {
-        let mut dedup = SelfLoopDedup::new();
+        let mut dedup = SelfLoopDedup::with_loop(false);
         let edge = Edge::new(
             Value::Int(1),
             Value::Int(1),
