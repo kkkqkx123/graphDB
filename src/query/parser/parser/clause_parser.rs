@@ -92,6 +92,9 @@ impl ClauseParser {
     pub fn parse_yield_clause(&mut self, ctx: &mut ParseContext) -> Result<YieldClause, ParseError> {
         let span = ctx.current_span();
         
+        // 消费 YIELD token
+        ctx.expect_token(TokenKind::Yield)?;
+        
         let mut items = Vec::new();
         
         // 检查是否是 *

@@ -6,9 +6,9 @@ use crate::core::Expression;
 use crate::query::parser::ast::stmt::{
     Stmt, MatchStmt, DeleteStmt, UpdateStmt, GoStmt, FetchStmt,
     InsertStmt, UseStmt, ShowStmt, CreateStmt, DropStmt, AlterStmt,
-    SetStmt, LookupStmt, Assignment, QueryStmt, MergeStmt, UnwindStmt,
+    SetStmt, LookupStmt, QueryStmt, MergeStmt, UnwindStmt,
     ReturnStmt, WithStmt, YieldStmt, RemoveStmt, PipeStmt, DescStmt,
-    ExplainStmt, SubgraphStmt, FindPathStmt, ChangePasswordStmt,
+    ExplainStmt, ProfileStmt, GroupByStmt, SubgraphStmt, FindPathStmt, ChangePasswordStmt,
     CreateUserStmt, AlterUserStmt, DropUserStmt,
 };
 use crate::query::visitor::stmt_visitor::StmtVisitor;
@@ -31,6 +31,8 @@ pub trait AstTraverser: StmtVisitor {
             Stmt::Set(s) => self.traverse_set_stmt(s),
             Stmt::Lookup(s) => self.traverse_lookup_stmt(s),
             Stmt::Explain(s) => self.traverse_explain_stmt(s),
+            Stmt::Profile(s) => self.traverse_profile_stmt(s),
+            Stmt::GroupBy(s) => self.traverse_group_by_stmt(s),
             Stmt::Subgraph(s) => self.traverse_subgraph_stmt(s),
             Stmt::FindPath(s) => self.traverse_find_path_stmt(s),
             Stmt::Merge(s) => self.traverse_merge_stmt(s),
@@ -51,6 +53,13 @@ pub trait AstTraverser: StmtVisitor {
             Stmt::ShowUsers(_s) => {},
             Stmt::ShowRoles(_s) => {},
             Stmt::ShowCreate(_s) => {},
+            Stmt::ShowSessions(_s) => {},
+            Stmt::ShowQueries(_s) => {},
+            Stmt::KillQuery(_s) => {},
+            Stmt::ShowConfigs(_s) => {},
+            Stmt::UpdateConfigs(_s) => {},
+            Stmt::Assignment(s) => self.traverse_assignment_stmt(s),
+            Stmt::SetOperation(s) => self.traverse_set_operation_stmt(s),
         }
     }
 
@@ -146,6 +155,14 @@ pub trait AstTraverser: StmtVisitor {
         self.visit_explain_stmt(stmt);
     }
 
+    fn traverse_profile_stmt(&mut self, stmt: &ProfileStmt) {
+        self.visit_profile_stmt(stmt);
+    }
+
+    fn traverse_group_by_stmt(&mut self, stmt: &GroupByStmt) {
+        self.visit_group_by_stmt(stmt);
+    }
+
     fn traverse_subgraph_stmt(&mut self, stmt: &SubgraphStmt) {
         self.visit_subgraph_stmt(stmt);
     }
@@ -170,8 +187,12 @@ pub trait AstTraverser: StmtVisitor {
         self.visit_drop_user_stmt(stmt);
     }
 
-    fn traverse_assignment(&mut self, assignment: &Assignment) {
-        self.visit_assignment(assignment);
+    fn traverse_assignment_stmt(&mut self, stmt: &crate::query::parser::ast::stmt::AssignmentStmt) {
+        self.visit_assignment_stmt(stmt);
+    }
+
+    fn traverse_set_operation_stmt(&mut self, stmt: &crate::query::parser::ast::stmt::SetOperationStmt) {
+        self.visit_set_operation_stmt(stmt);
     }
 
     fn collect_expressions(&mut self, exprs: &[Expression]) {

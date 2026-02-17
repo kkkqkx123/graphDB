@@ -5,10 +5,11 @@
 use crate::query::parser::ast::stmt::{
     Stmt, MatchStmt, DeleteStmt, UpdateStmt, GoStmt, FetchStmt,
     InsertStmt, UseStmt, ShowStmt, CreateStmt, DropStmt, AlterStmt,
-    SetStmt, LookupStmt, Assignment, QueryStmt, MergeStmt, UnwindStmt,
+    SetStmt, LookupStmt, QueryStmt, MergeStmt, UnwindStmt,
     ReturnStmt, WithStmt, YieldStmt, RemoveStmt, PipeStmt, DescStmt,
-    ExplainStmt, SubgraphStmt, FindPathStmt, ChangePasswordStmt,
-    CreateUserStmt, AlterUserStmt, DropUserStmt,
+    ExplainStmt, ProfileStmt, GroupByStmt, SubgraphStmt, FindPathStmt, ChangePasswordStmt,
+    CreateUserStmt, AlterUserStmt, DropUserStmt, ShowSessionsStmt, ShowQueriesStmt, KillQueryStmt,
+    ShowConfigsStmt, UpdateConfigsStmt, AssignmentStmt, SetOperationStmt,
 };
 
 pub trait StmtVisitor {
@@ -108,6 +109,14 @@ pub trait StmtVisitor {
         self.visit_stmt(&Stmt::Explain(stmt.clone()))
     }
 
+    fn visit_profile_stmt(&mut self, stmt: &ProfileStmt) -> Self::Result {
+        self.visit_stmt(&Stmt::Profile(stmt.clone()))
+    }
+
+    fn visit_group_by_stmt(&mut self, stmt: &GroupByStmt) -> Self::Result {
+        self.visit_stmt(&Stmt::GroupBy(stmt.clone()))
+    }
+
     fn visit_subgraph_stmt(&mut self, stmt: &SubgraphStmt) -> Self::Result {
         self.visit_stmt(&Stmt::Subgraph(stmt.clone()))
     }
@@ -132,5 +141,31 @@ pub trait StmtVisitor {
         self.visit_stmt(&Stmt::DropUser(stmt.clone()))
     }
 
-    fn visit_assignment(&mut self, assignment: &Assignment) -> Self::Result;
+    fn visit_show_sessions_stmt(&mut self, stmt: &ShowSessionsStmt) -> Self::Result {
+        self.visit_stmt(&Stmt::ShowSessions(stmt.clone()))
+    }
+
+    fn visit_show_queries_stmt(&mut self, stmt: &ShowQueriesStmt) -> Self::Result {
+        self.visit_stmt(&Stmt::ShowQueries(stmt.clone()))
+    }
+
+    fn visit_kill_query_stmt(&mut self, stmt: &KillQueryStmt) -> Self::Result {
+        self.visit_stmt(&Stmt::KillQuery(stmt.clone()))
+    }
+
+    fn visit_show_configs_stmt(&mut self, stmt: &ShowConfigsStmt) -> Self::Result {
+        self.visit_stmt(&Stmt::ShowConfigs(stmt.clone()))
+    }
+
+    fn visit_update_configs_stmt(&mut self, stmt: &UpdateConfigsStmt) -> Self::Result {
+        self.visit_stmt(&Stmt::UpdateConfigs(stmt.clone()))
+    }
+
+    fn visit_assignment_stmt(&mut self, stmt: &AssignmentStmt) -> Self::Result {
+        self.visit_stmt(&Stmt::Assignment(stmt.clone()))
+    }
+
+    fn visit_set_operation_stmt(&mut self, stmt: &SetOperationStmt) -> Self::Result {
+        self.visit_stmt(&Stmt::SetOperation(stmt.clone()))
+    }
 }

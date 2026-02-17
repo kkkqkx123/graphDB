@@ -2,40 +2,47 @@
 
 ## Summary
 
-- **Total Errors**: 4
-- **Total Warnings**: 0
-- **Total Issues**: 4
-- **Unique Error Patterns**: 1
-- **Unique Warning Patterns**: 0
-- **Files with Issues**: 1
+- **Total Errors**: 0
+- **Total Warnings**: 3
+- **Total Issues**: 3
+- **Unique Error Patterns**: 0
+- **Unique Warning Patterns**: 3
+- **Files with Issues**: 3
 
 ## Error Statistics
 
-**Total Errors**: 4
-
-### Error Type Breakdown
-
-- **error[E0502]**: 4 errors
-
-### Files with Errors (Top 10)
-
-- `src\query\parser\parser\ddl_parser.rs`: 4 errors
+**Total Errors**: 0
 
 ## Warning Statistics
 
-**Total Warnings**: 0
+**Total Warnings**: 3
 
-## Detailed Error Categorization
+### Warning Type Breakdown
 
-### error[E0502]: cannot borrow `*ctx` as mutable because it is also borrowed as immutable: mutable borrow occurs here
+- **warning**: 3 warnings
 
-**Total Occurrences**: 4  
-**Unique Files**: 1
+### Files with Warnings (Top 10)
 
-#### `src\query\parser\parser\ddl_parser.rs`: 4 occurrences
+- `src\query\visitor\ast_traverser.rs`: 1 warnings
+- `src\query\executor\graph_query_executor.rs`: 1 warnings
+- `src\query\parser\parser\stmt_parser.rs`: 1 warnings
 
-- Line 533: cannot borrow `*ctx` as mutable because it is also borrowed as immutable: mutable borrow occurs here
-- Line 537: cannot borrow `*ctx` as mutable because it is also borrowed as immutable: mutable borrow occurs here
-- Line 541: cannot borrow `*ctx` as mutable because it is also borrowed as immutable: mutable borrow occurs here
-- ... 1 more occurrences in this file
+## Detailed Warning Categorization
+
+### warning: unused variable: `result`
+
+**Total Occurrences**: 3  
+**Unique Files**: 3
+
+#### `src\query\executor\graph_query_executor.rs`: 1 occurrences
+
+- Line 769: unused variable: `result`
+
+#### `src\query\parser\parser\stmt_parser.rs`: 1 occurrences
+
+- Line 351: unused import: `ShowConfigsStmt`
+
+#### `src\query\visitor\ast_traverser.rs`: 1 occurrences
+
+- Line 12: unused imports: `KillQueryStmt`, `ShowConfigsStmt`, `ShowQueriesStmt`, `ShowSessionsStmt`, and `UpdateConfigsStmt`
 

@@ -319,6 +319,7 @@ impl<'a> Lexer<'a> {
             "INTERSECT" => Tk::Intersect,
             "MINUS" => Tk::SetMinus,
             "GROUP" => Tk::Group,
+            "HAVING" => Tk::Having,
             "BETWEEN" => Tk::Between,
             "ADMIN" => Tk::Admin,
             "EDGE" => Tk::Edge,

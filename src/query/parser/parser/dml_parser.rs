@@ -19,6 +19,52 @@ impl DmlParser {
         Self
     }
 
+    /// 在 UPDATE token 已被消费后解析 UPDATE 语句
+    pub fn parse_update_after_token(&mut self, ctx: &mut ParseContext, start_span: crate::query::parser::ast::types::Span) -> Result<Stmt, ParseError> {
+        use crate::query::parser::ast::stmt::{UpdateStmt, UpdateTarget, SetClause};
+        use crate::query::parser::parser::clause_parser::ClauseParser;
+
+        let target = if ctx.match_token(TokenKind::Vertex) {
+            self.parse_update_vertex(ctx)?
+        } else if ctx.match_token(TokenKind::Edge) {
+            self.parse_update_edge(ctx)?
+        } else {
+            // 默认是顶点更新
+            UpdateTarget::Vertex(self.parse_expression(ctx)?)
+        };
+
+        let set_clause = if ctx.match_token(TokenKind::Set) {
+            ClauseParser::new().parse_set_clause(ctx)?
+        } else {
+            SetClause {
+                span: ctx.current_span(),
+                assignments: Vec::new(),
+            }
+        };
+
+        let where_clause = if ctx.match_token(TokenKind::Where) {
+            Some(self.parse_expression(ctx)?)
+        } else {
+            None
+        };
+
+        // 解析可选的 YIELD 子句
+        let yield_clause = if ctx.match_token(TokenKind::Yield) {
+            Some(self.parse_yield_clause(ctx)?)
+        } else {
+            None
+        };
+
+        Ok(Stmt::Update(UpdateStmt {
+            span: start_span,
+            target,
+            set_clause,
+            where_clause,
+            is_upsert: false,
+            yield_clause,
+        }))
+    }
+
     /// 解析 INSERT 语句
     /// 支持语法:
     ///   INSERT VERTEX [IF NOT EXISTS] <tag>(props), <tag>(props)... VALUES vid:(values), ...

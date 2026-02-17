@@ -228,7 +228,38 @@ impl StmtFactory {
 
     /// 创建 EXPLAIN 语句
     pub fn explain(statement: Box<Stmt>, span: Span) -> Stmt {
-        Stmt::Explain(ExplainStmt { span, statement })
+        Stmt::Explain(ExplainStmt {
+            span,
+            statement,
+            format: ExplainFormat::default(),
+        })
+    }
+
+    /// 创建带格式的 EXPLAIN 语句
+    pub fn explain_with_format(statement: Box<Stmt>, format: ExplainFormat, span: Span) -> Stmt {
+        Stmt::Explain(ExplainStmt {
+            span,
+            statement,
+            format,
+        })
+    }
+
+    /// 创建 PROFILE 语句
+    pub fn profile(statement: Box<Stmt>, span: Span) -> Stmt {
+        Stmt::Profile(ProfileStmt {
+            span,
+            statement,
+            format: ExplainFormat::default(),
+        })
+    }
+
+    /// 创建带格式的 PROFILE 语句
+    pub fn profile_with_format(statement: Box<Stmt>, format: ExplainFormat, span: Span) -> Stmt {
+        Stmt::Profile(ProfileStmt {
+            span,
+            statement,
+            format,
+        })
     }
 
     /// 创建 LOOKUP 语句

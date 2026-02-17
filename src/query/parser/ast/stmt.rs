@@ -21,6 +21,8 @@ pub enum Stmt {
     Use(UseStmt),
     Show(ShowStmt),
     Explain(ExplainStmt),
+    Profile(ProfileStmt),
+    GroupBy(GroupByStmt),
     Lookup(LookupStmt),
     Subgraph(SubgraphStmt),
     FindPath(FindPathStmt),
@@ -46,6 +48,13 @@ pub enum Stmt {
     ShowUsers(ShowUsersStmt),
     ShowRoles(ShowRolesStmt),
     ShowCreate(ShowCreateStmt),
+    ShowSessions(ShowSessionsStmt),
+    ShowQueries(ShowQueriesStmt),
+    KillQuery(KillQueryStmt),
+    ShowConfigs(ShowConfigsStmt),
+    UpdateConfigs(UpdateConfigsStmt),
+    Assignment(AssignmentStmt),
+    SetOperation(SetOperationStmt),
 }
 
 impl Stmt {
@@ -62,6 +71,8 @@ impl Stmt {
             Stmt::Use(s) => s.span,
             Stmt::Show(s) => s.span,
             Stmt::Explain(s) => s.span,
+            Stmt::Profile(s) => s.span,
+            Stmt::GroupBy(s) => s.span,
             Stmt::Lookup(s) => s.span,
             Stmt::Subgraph(s) => s.span,
             Stmt::FindPath(s) => s.span,
@@ -87,6 +98,13 @@ impl Stmt {
             Stmt::ShowUsers(s) => s.span,
             Stmt::ShowRoles(s) => s.span,
             Stmt::ShowCreate(s) => s.span,
+            Stmt::ShowSessions(s) => s.span,
+            Stmt::ShowQueries(s) => s.span,
+            Stmt::KillQuery(s) => s.span,
+            Stmt::ShowConfigs(s) => s.span,
+            Stmt::UpdateConfigs(s) => s.span,
+            Stmt::Assignment(s) => s.span,
+            Stmt::SetOperation(s) => s.span,
         }
     }
 
@@ -103,6 +121,8 @@ impl Stmt {
             Stmt::Use(_) => "USE",
             Stmt::Show(_) => "SHOW",
             Stmt::Explain(_) => "EXPLAIN",
+            Stmt::Profile(_) => "PROFILE",
+            Stmt::GroupBy(_) => "GROUP BY",
             Stmt::Lookup(_) => "LOOKUP",
             Stmt::Subgraph(_) => "SUBGRAPH",
             Stmt::FindPath(_) => "FIND PATH",
@@ -128,6 +148,13 @@ impl Stmt {
             Stmt::ShowUsers(_) => "SHOW USERS",
             Stmt::ShowRoles(_) => "SHOW ROLES",
             Stmt::ShowCreate(_) => "SHOW CREATE",
+            Stmt::ShowSessions(_) => "SHOW SESSIONS",
+            Stmt::ShowQueries(_) => "SHOW QUERIES",
+            Stmt::KillQuery(_) => "KILL QUERY",
+            Stmt::ShowConfigs(_) => "SHOW CONFIGS",
+            Stmt::UpdateConfigs(_) => "UPDATE CONFIGS",
+            Stmt::Assignment(_) => "ASSIGNMENT",
+            Stmt::SetOperation(_) => "SET OPERATION",
         }
     }
 }
@@ -443,11 +470,42 @@ pub enum ShowTarget {
     Roles,
 }
 
+/// EXPLAIN 格式类型
+#[derive(Debug, Clone, PartialEq)]
+pub enum ExplainFormat {
+    Table,
+    Dot,
+}
+
+impl Default for ExplainFormat {
+    fn default() -> Self {
+        ExplainFormat::Table
+    }
+}
+
 /// EXPLAIN 语句
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExplainStmt {
     pub span: Span,
     pub statement: Box<Stmt>,
+    pub format: ExplainFormat,
+}
+
+/// PROFILE 语句
+#[derive(Debug, Clone, PartialEq)]
+pub struct ProfileStmt {
+    pub span: Span,
+    pub statement: Box<Stmt>,
+    pub format: ExplainFormat,
+}
+
+/// GROUP BY 语句
+#[derive(Debug, Clone, PartialEq)]
+pub struct GroupByStmt {
+    pub span: Span,
+    pub group_items: Vec<Expression>,
+    pub yield_clause: YieldClause,
+    pub having_clause: Option<Expression>,
 }
 
 /// LOOKUP 语句（新增）
@@ -540,6 +598,68 @@ pub struct MergeStmt {
     pub pattern: Pattern,
     pub on_create: Option<SetClause>,
     pub on_match: Option<SetClause>,
+}
+
+/// SHOW SESSIONS 语句
+#[derive(Debug, Clone, PartialEq)]
+pub struct ShowSessionsStmt {
+    pub span: Span,
+}
+
+/// SHOW QUERIES 语句
+#[derive(Debug, Clone, PartialEq)]
+pub struct ShowQueriesStmt {
+    pub span: Span,
+}
+
+/// KILL QUERY 语句
+#[derive(Debug, Clone, PartialEq)]
+pub struct KillQueryStmt {
+    pub span: Span,
+    pub session_id: i64,
+    pub plan_id: i64,
+}
+
+/// SHOW CONFIGS 语句
+#[derive(Debug, Clone, PartialEq)]
+pub struct ShowConfigsStmt {
+    pub span: Span,
+    pub module: Option<String>,  // 可选的模块名过滤
+}
+
+/// UPDATE CONFIGS 语句
+#[derive(Debug, Clone, PartialEq)]
+pub struct UpdateConfigsStmt {
+    pub span: Span,
+    pub module: Option<String>,  // 可选的模块名
+    pub config_name: String,
+    pub config_value: crate::core::types::expression::Expression,
+}
+
+/// 变量赋值语句
+#[derive(Debug, Clone, PartialEq)]
+pub struct AssignmentStmt {
+    pub span: Span,
+    pub variable: String,  // 变量名（不包含$前缀）
+    pub statement: Box<Stmt>,
+}
+
+/// 集合操作类型
+#[derive(Debug, Clone, PartialEq)]
+pub enum SetOperationType {
+    Union,
+    UnionAll,
+    Intersect,
+    Minus,
+}
+
+/// 集合操作语句
+#[derive(Debug, Clone, PartialEq)]
+pub struct SetOperationStmt {
+    pub span: Span,
+    pub op_type: SetOperationType,
+    pub left: Box<Stmt>,
+    pub right: Box<Stmt>,
 }
 
 /// UNWIND 语句

@@ -172,6 +172,8 @@ impl AstContext {
                 Stmt::Use(_) => "USE",
                 Stmt::Show(_) => "SHOW",
                 Stmt::Explain(_) => "EXPLAIN",
+                Stmt::Profile(_) => "PROFILE",
+                Stmt::GroupBy(_) => "GROUP_BY",
                 Stmt::Lookup(_) => "LOOKUP",
                 Stmt::Subgraph(_) => "SUBGRAPH",
                 Stmt::FindPath(_) => "FIND_PATH",
@@ -197,6 +199,13 @@ impl AstContext {
                 Stmt::ShowUsers(_) => "SHOW_USERS",
                 Stmt::ShowRoles(_) => "SHOW_ROLES",
                 Stmt::ShowCreate(_) => "SHOW_CREATE",
+                Stmt::ShowSessions(_) => "SHOW_SESSIONS",
+                Stmt::ShowQueries(_) => "SHOW_QUERIES",
+                Stmt::KillQuery(_) => "KILL_QUERY",
+                Stmt::ShowConfigs(_) => "SHOW_CONFIGS",
+                Stmt::UpdateConfigs(_) => "UPDATE_CONFIGS",
+                Stmt::Assignment(_) => "ASSIGNMENT",
+                Stmt::SetOperation(_) => "SET_OPERATION",
             },
             None => {
                 if let Some(ref qctx) = self.qctx {

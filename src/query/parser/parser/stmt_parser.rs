@@ -14,6 +14,7 @@ use crate::query::parser::parser::{
     util_stmt_parser::UtilStmtParser,
 };
 use crate::query::parser::TokenKind;
+use crate::core::types::expression::Expression;
 
 /// 语句解析器
 pub struct StmtParser;
@@ -42,7 +43,7 @@ impl StmtParser {
             // 数据修改语句
             TokenKind::Insert => DmlParser::new().parse_insert_statement(ctx),
             TokenKind::Delete => DmlParser::new().parse_delete_statement(ctx),
-            TokenKind::Update => DmlParser::new().parse_update_statement(ctx),
+            TokenKind::Update => self.parse_update_statement_extended(ctx),
             TokenKind::Upsert => DmlParser::new().parse_update_statement(ctx),
             TokenKind::Merge => DmlParser::new().parse_merge_statement(ctx),
 
@@ -63,8 +64,11 @@ impl StmtParser {
 
             // 工具语句
             TokenKind::Use => UtilStmtParser::new().parse_use_statement(ctx),
-            TokenKind::Show => UtilStmtParser::new().parse_show_statement(ctx),
+            TokenKind::Show => self.parse_show_statement_extended(ctx),
             TokenKind::Explain => self.parse_explain_statement(ctx),
+            TokenKind::Profile => self.parse_profile_statement(ctx),
+            TokenKind::Group => self.parse_group_by_statement(ctx),
+            TokenKind::Kill => self.parse_kill_statement(ctx),
             TokenKind::Fetch => UtilStmtParser::new().parse_fetch_statement(ctx),
             TokenKind::Lookup => UtilStmtParser::new().parse_lookup_statement(ctx),
             TokenKind::Unwind => UtilStmtParser::new().parse_unwind_statement(ctx),
@@ -73,6 +77,9 @@ impl StmtParser {
             TokenKind::Yield => UtilStmtParser::new().parse_yield_statement(ctx),
             TokenKind::Set => UtilStmtParser::new().parse_set_statement(ctx),
             TokenKind::Remove => UtilStmtParser::new().parse_remove_statement(ctx),
+
+            // 变量赋值语句 ($var = statement)
+            TokenKind::Dollar => self.parse_assignment_statement(ctx),
 
             _ => Err(ParseError::new(
                 ParseErrorKind::UnexpectedToken,
@@ -98,7 +105,8 @@ impl StmtParser {
 
             self.parse_pipe_suffix(ctx, pipe_stmt)
         } else {
-            Ok(left)
+            // 检查是否是集合操作
+            self.parse_set_operation_suffix(ctx, left)
         }
     }
 
@@ -107,9 +115,348 @@ impl StmtParser {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Explain)?;
 
+        // 解析可选的 FORMAT 子句
+        let format = if ctx.match_token(TokenKind::Format) {
+            ctx.expect_token(TokenKind::Assign)?;
+            let format_name = ctx.expect_identifier()?;
+            match format_name.to_uppercase().as_str() {
+                "DOT" => ExplainFormat::Dot,
+                "TABLE" => ExplainFormat::Table,
+                _ => {
+                    return Err(ParseError::new(
+                        ParseErrorKind::SyntaxError,
+                        format!("未知的 EXPLAIN 格式: {}, 期望 DOT 或 TABLE", format_name),
+                        ctx.current_position(),
+                    ));
+                }
+            }
+        } else {
+            ExplainFormat::default()
+        };
+
         let statement = Box::new(self.parse_statement(ctx)?);
 
-        Ok(Stmt::Explain(ExplainStmt { span: start_span, statement }))
+        Ok(Stmt::Explain(ExplainStmt {
+            span: start_span,
+            statement,
+            format,
+        }))
+    }
+
+    /// 解析 PROFILE 语句
+    fn parse_profile_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::Profile)?;
+
+        // 解析可选的 FORMAT 子句
+        let format = if ctx.match_token(TokenKind::Format) {
+            ctx.expect_token(TokenKind::Assign)?;
+            let format_name = ctx.expect_identifier()?;
+            match format_name.to_uppercase().as_str() {
+                "DOT" => ExplainFormat::Dot,
+                "TABLE" => ExplainFormat::Table,
+                _ => {
+                    return Err(ParseError::new(
+                        ParseErrorKind::SyntaxError,
+                        format!("未知的 PROFILE 格式: {}, 期望 DOT 或 TABLE", format_name),
+                        ctx.current_position(),
+                    ));
+                }
+            }
+        } else {
+            ExplainFormat::default()
+        };
+
+        let statement = Box::new(self.parse_statement(ctx)?);
+
+        Ok(Stmt::Profile(ProfileStmt {
+            span: start_span,
+            statement,
+            format,
+        }))
+    }
+
+    /// 解析 GROUP BY 语句
+    fn parse_group_by_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
+        use crate::query::parser::ast::stmt::{GroupByStmt, YieldItem};
+        use crate::query::parser::parser::clause_parser::ClauseParser;
+        use crate::core::types::expression::Expression;
+
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::Group)?;
+        ctx.expect_token(TokenKind::By)?;
+
+        // 解析分组项列表（只解析标识符）
+        let mut group_items = Vec::new();
+        loop {
+            let ident = ctx.expect_identifier()?;
+            group_items.push(Expression::Variable(ident));
+            if !ctx.match_token(TokenKind::Comma) {
+                break;
+            }
+        }
+
+        // 解析 YIELD 子句
+        let yield_clause = if ctx.check_token(TokenKind::Yield) {
+            ClauseParser::new().parse_yield_clause(ctx)?
+        } else {
+            // 如果没有 YIELD，创建一个默认的返回所有分组项的 YIELD
+            let items: Vec<YieldItem> = group_items.iter().enumerate().map(|(i, expr)| {
+                YieldItem {
+                    expression: expr.clone(),
+                    alias: Some(format!("group_{}", i)),
+                }
+            }).collect();
+            crate::query::parser::ast::stmt::YieldClause {
+                span: start_span,
+                items,
+                limit: None,
+                skip: None,
+                sample: None,
+            }
+        };
+
+        // 解析可选的 HAVING 子句
+        let having_clause = if ctx.match_token(TokenKind::Having) {
+            Some(self.parse_expression(ctx)?)
+        } else {
+            None
+        };
+
+        let end_span = ctx.current_span();
+        let span = ctx.merge_span(start_span.start, end_span.end);
+
+        Ok(Stmt::GroupBy(GroupByStmt {
+            span,
+            group_items,
+            yield_clause,
+            having_clause,
+        }))
+    }
+
+    /// 解析表达式（辅助方法）
+    fn parse_expression(&mut self, ctx: &mut ParseContext) -> Result<Expression, ParseError> {
+        let mut expr_parser = crate::query::parser::parser::ExprParser::new(ctx);
+        let result = expr_parser.parse_expression(ctx)?;
+        Ok(result.expr)
+    }
+
+    /// 解析扩展的 SHOW 语句（包括 SESSIONS、QUERIES 和 CONFIGS）
+    fn parse_show_statement_extended(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
+        use crate::query::parser::ast::stmt::{ShowSessionsStmt, ShowQueriesStmt, ShowConfigsStmt};
+
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::Show)?;
+
+        // 检查下一个 token
+        if ctx.check_token(TokenKind::Sessions) {
+            ctx.expect_token(TokenKind::Sessions)?;
+            let end_span = ctx.current_span();
+            let span = ctx.merge_span(start_span.start, end_span.end);
+            Ok(Stmt::ShowSessions(ShowSessionsStmt { span }))
+        } else if ctx.check_token(TokenKind::Queries) {
+            ctx.expect_token(TokenKind::Queries)?;
+            let end_span = ctx.current_span();
+            let span = ctx.merge_span(start_span.start, end_span.end);
+            Ok(Stmt::ShowQueries(ShowQueriesStmt { span }))
+        } else if ctx.check_token(TokenKind::Configs) {
+            ctx.expect_token(TokenKind::Configs)?;
+            // 解析可选的模块名
+            let module = if ctx.is_identifier_or_in_token() {
+                Some(ctx.expect_identifier()?)
+            } else {
+                None
+            };
+            let end_span = ctx.current_span();
+            let span = ctx.merge_span(start_span.start, end_span.end);
+            Ok(Stmt::ShowConfigs(ShowConfigsStmt { span, module }))
+        } else if ctx.check_token(TokenKind::Spaces) {
+            ctx.expect_token(TokenKind::Spaces)?;
+            let end_span = ctx.current_span();
+            let span = ctx.merge_span(start_span.start, end_span.end);
+            Ok(Stmt::Show(crate::query::parser::ast::stmt::ShowStmt {
+                span,
+                target: crate::query::parser::ast::stmt::ShowTarget::Spaces,
+            }))
+        } else if ctx.check_token(TokenKind::Users) {
+            ctx.expect_token(TokenKind::Users)?;
+            let end_span = ctx.current_span();
+            let span = ctx.merge_span(start_span.start, end_span.end);
+            Ok(Stmt::ShowUsers(crate::query::parser::ast::stmt::ShowUsersStmt { span }))
+        } else if ctx.check_token(TokenKind::Roles) {
+            ctx.expect_token(TokenKind::Roles)?;
+            let end_span = ctx.current_span();
+            let span = ctx.merge_span(start_span.start, end_span.end);
+            Ok(Stmt::ShowRoles(crate::query::parser::ast::stmt::ShowRolesStmt { 
+                span,
+                space_name: None,
+            }))
+        } else if ctx.check_token(TokenKind::Create) {
+            // SHOW CREATE 需要特殊处理 - 简化实现
+            ctx.expect_token(TokenKind::Create)?;
+            // 解析 TAG 或 EDGE
+            let target = if ctx.match_token(TokenKind::Tag) {
+                let name = ctx.expect_identifier()?;
+                crate::query::parser::ast::stmt::ShowCreateTarget::Tag(name)
+            } else if ctx.match_token(TokenKind::Edge) {
+                let name = ctx.expect_identifier()?;
+                crate::query::parser::ast::stmt::ShowCreateTarget::Edge(name)
+            } else {
+                return Err(ParseError::new(
+                    ParseErrorKind::SyntaxError,
+                    "SHOW CREATE 期望 TAG 或 EDGE".to_string(),
+                    ctx.current_position(),
+                ));
+            };
+            let end_span = ctx.current_span();
+            let span = ctx.merge_span(start_span.start, end_span.end);
+            Ok(Stmt::ShowCreate(crate::query::parser::ast::stmt::ShowCreateStmt { 
+                span,
+                target,
+            }))
+        } else {
+            Err(ParseError::new(
+                ParseErrorKind::SyntaxError,
+                format!("未知的 SHOW 目标: {:?}", ctx.peek_token().kind),
+                ctx.current_position(),
+            ))
+        }
+    }
+
+    /// 解析 KILL 语句
+    fn parse_kill_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
+        use crate::query::parser::ast::stmt::KillQueryStmt;
+
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::Kill)?;
+        ctx.expect_token(TokenKind::Query)?;
+
+        // 解析 session_id
+        let session_id = ctx.expect_integer_literal()?;
+
+        // 解析逗号
+        ctx.expect_token(TokenKind::Comma)?;
+
+        // 解析 plan_id
+        let plan_id = ctx.expect_integer_literal()?;
+
+        let end_span = ctx.current_span();
+        let span = ctx.merge_span(start_span.start, end_span.end);
+
+        Ok(Stmt::KillQuery(KillQueryStmt {
+            span,
+            session_id,
+            plan_id,
+        }))
+    }
+
+    /// 解析扩展的 UPDATE 语句（包括 UPDATE CONFIGS）
+    fn parse_update_statement_extended(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
+        use crate::query::parser::ast::stmt::UpdateConfigsStmt;
+        use crate::query::parser::parser::dml_parser::DmlParser;
+
+        // 检查是否是 UPDATE CONFIGS
+        // 先消费 UPDATE token
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::Update)?;
+
+        if ctx.check_token(TokenKind::Configs) {
+            // 解析 UPDATE CONFIGS
+            ctx.expect_token(TokenKind::Configs)?;
+
+            // 先解析第一个标识符
+            let first_ident = ctx.expect_identifier()?;
+
+            // 检查下一个 token 是否是 '='，如果是，则第一个标识符是配置名
+            // 否则，第一个标识符是模块名，还需要解析配置名
+            let (module, config_name) = if ctx.check_token(TokenKind::Assign) {
+                (None, first_ident)
+            } else {
+                (Some(first_ident), ctx.expect_identifier()?)
+            };
+
+            // 解析等号和值
+            ctx.expect_token(TokenKind::Assign)?;
+            let config_value = self.parse_expression(ctx)?;
+
+            let end_span = ctx.current_span();
+            let span = ctx.merge_span(start_span.start, end_span.end);
+
+            Ok(Stmt::UpdateConfigs(UpdateConfigsStmt {
+                span,
+                module,
+                config_name,
+                config_value,
+            }))
+        } else {
+            // 不是 UPDATE CONFIGS，回退到普通的 UPDATE 解析
+            // 由于我们已经消费了 UPDATE token，需要调用 DML 解析器的其他方法
+            // 这里我们直接调用 parse_update_statement 并处理错误
+            // 实际上应该重构，但这里先这样处理
+            DmlParser::new().parse_update_after_token(ctx, start_span)
+        }
+    }
+
+    /// 解析变量赋值语句 ($var = statement)
+    fn parse_assignment_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
+        use crate::query::parser::ast::stmt::AssignmentStmt;
+
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::Dollar)?;
+
+        // 解析变量名
+        let var_name = ctx.expect_identifier()?;
+
+        // 解析等号
+        ctx.expect_token(TokenKind::Assign)?;
+
+        // 解析右侧语句
+        let statement = Box::new(self.parse_statement(ctx)?);
+
+        let end_span = ctx.current_span();
+        let span = ctx.merge_span(start_span.start, end_span.end);
+
+        Ok(Stmt::Assignment(AssignmentStmt {
+            span,
+            variable: var_name,
+            statement,
+        }))
+    }
+
+    /// 解析集合操作语句后的管道或结束
+    fn parse_set_operation_suffix(&mut self, ctx: &mut ParseContext, left: Stmt) -> Result<Stmt, ParseError> {
+        use crate::query::parser::ast::stmt::{SetOperationStmt, SetOperationType};
+
+        // 检查是否是集合操作符
+        let op_type = if ctx.match_token(TokenKind::Union) {
+            if ctx.match_token(TokenKind::All) {
+                SetOperationType::UnionAll
+            } else {
+                SetOperationType::Union
+            }
+        } else if ctx.match_token(TokenKind::Intersect) {
+            SetOperationType::Intersect
+        } else if ctx.match_token(TokenKind::SetMinus) {
+            SetOperationType::Minus
+        } else {
+            // 不是集合操作符，返回左侧语句
+            return Ok(left);
+        };
+
+        let start_span = left.span();
+        let right = self.parse_single_statement(ctx)?;
+        let end_span = right.span();
+        let span = ctx.merge_span(start_span.start, end_span.end);
+
+        let set_op_stmt = Stmt::SetOperation(SetOperationStmt {
+            span,
+            op_type,
+            left: Box::new(left),
+            right: Box::new(right),
+        });
+
+        // 继续检查是否有更多的集合操作
+        self.parse_set_operation_suffix(ctx, set_op_stmt)
     }
 }
 
@@ -246,6 +593,250 @@ mod tests {
             }
         } else {
             panic!("期望 Create 语句");
+        }
+    }
+
+    #[test]
+    fn test_parse_explain_statement() {
+        let mut parser = StmtParser::new();
+        let mut ctx = create_parser_context("EXPLAIN MATCH (n) RETURN n");
+        let result = parser.parse_statement(&mut ctx);
+        assert!(result.is_ok(), "EXPLAIN 解析失败: {:?}", result.err());
+
+        if let Ok(Stmt::Explain(stmt)) = result {
+            assert!(matches!(stmt.format, ExplainFormat::Table));
+        } else {
+            panic!("期望 Explain 语句");
+        }
+    }
+
+    #[test]
+    fn test_parse_explain_with_format() {
+        let mut parser = StmtParser::new();
+        let mut ctx = create_parser_context("EXPLAIN FORMAT = DOT MATCH (n) RETURN n");
+        let result = parser.parse_statement(&mut ctx);
+        assert!(result.is_ok(), "EXPLAIN FORMAT 解析失败: {:?}", result.err());
+
+        if let Ok(Stmt::Explain(stmt)) = result {
+            assert!(matches!(stmt.format, ExplainFormat::Dot));
+        } else {
+            panic!("期望 Explain 语句");
+        }
+    }
+
+    #[test]
+    fn test_parse_profile_statement() {
+        let mut parser = StmtParser::new();
+        let mut ctx = create_parser_context("PROFILE GO FROM \"player100\" OVER follow");
+        let result = parser.parse_statement(&mut ctx);
+        assert!(result.is_ok(), "PROFILE 解析失败: {:?}", result.err());
+
+        if let Ok(Stmt::Profile(stmt)) = result {
+            assert!(matches!(stmt.format, ExplainFormat::Table));
+        } else {
+            panic!("期望 Profile 语句");
+        }
+    }
+
+    #[test]
+    fn test_parse_profile_with_format() {
+        let mut parser = StmtParser::new();
+        let mut ctx = create_parser_context("PROFILE FORMAT = TABLE MATCH (n) RETURN n");
+        let result = parser.parse_statement(&mut ctx);
+        assert!(result.is_ok(), "PROFILE FORMAT 解析失败: {:?}", result.err());
+
+        if let Ok(Stmt::Profile(stmt)) = result {
+            assert!(matches!(stmt.format, ExplainFormat::Table));
+        } else {
+            panic!("期望 Profile 语句");
+        }
+    }
+
+    #[test]
+    fn test_parse_group_by_statement() {
+        let mut parser = StmtParser::new();
+        let mut ctx = create_parser_context("GROUP BY category YIELD category");
+        let result = parser.parse_statement(&mut ctx);
+        assert!(result.is_ok(), "GROUP BY 解析失败: {:?}", result.err());
+
+        if let Ok(Stmt::GroupBy(stmt)) = result {
+            assert_eq!(stmt.group_items.len(), 1);
+            assert_eq!(stmt.yield_clause.items.len(), 1);
+            assert!(stmt.having_clause.is_none());
+        } else {
+            panic!("期望 GroupBy 语句");
+        }
+    }
+
+    #[test]
+    fn test_parse_group_by_multiple_items() {
+        let mut parser = StmtParser::new();
+        let mut ctx = create_parser_context("GROUP BY category, type YIELD category, type");
+        let result = parser.parse_statement(&mut ctx);
+        assert!(result.is_ok(), "GROUP BY 多字段解析失败: {:?}", result.err());
+
+        if let Ok(Stmt::GroupBy(stmt)) = result {
+            assert_eq!(stmt.group_items.len(), 2);
+            assert_eq!(stmt.yield_clause.items.len(), 2);
+        } else {
+            panic!("期望 GroupBy 语句");
+        }
+    }
+
+    #[test]
+    fn test_parse_show_sessions() {
+        let mut parser = StmtParser::new();
+        let mut ctx = create_parser_context("SHOW SESSIONS");
+        let result = parser.parse_statement(&mut ctx);
+        assert!(result.is_ok(), "SHOW SESSIONS 解析失败: {:?}", result.err());
+
+        if let Ok(Stmt::ShowSessions(_)) = result {
+            // 成功
+        } else {
+            panic!("期望 ShowSessions 语句");
+        }
+    }
+
+    #[test]
+    fn test_parse_show_queries() {
+        let mut parser = StmtParser::new();
+        let mut ctx = create_parser_context("SHOW QUERIES");
+        let result = parser.parse_statement(&mut ctx);
+        assert!(result.is_ok(), "SHOW QUERIES 解析失败: {:?}", result.err());
+
+        if let Ok(Stmt::ShowQueries(_)) = result {
+            // 成功
+        } else {
+            panic!("期望 ShowQueries 语句");
+        }
+    }
+
+    #[test]
+    fn test_parse_kill_query() {
+        let mut parser = StmtParser::new();
+        let mut ctx = create_parser_context("KILL QUERY 123, 456");
+        let result = parser.parse_statement(&mut ctx);
+        assert!(result.is_ok(), "KILL QUERY 解析失败: {:?}", result.err());
+
+        if let Ok(Stmt::KillQuery(stmt)) = result {
+            assert_eq!(stmt.session_id, 123);
+            assert_eq!(stmt.plan_id, 456);
+        } else {
+            panic!("期望 KillQuery 语句");
+        }
+    }
+
+    #[test]
+    fn test_parse_show_configs() {
+        let mut parser = StmtParser::new();
+        let mut ctx = create_parser_context("SHOW CONFIGS");
+        let result = parser.parse_statement(&mut ctx);
+        assert!(result.is_ok(), "SHOW CONFIGS 解析失败: {:?}", result.err());
+
+        if let Ok(Stmt::ShowConfigs(stmt)) = result {
+            assert!(stmt.module.is_none());
+        } else {
+            panic!("期望 ShowConfigs 语句");
+        }
+    }
+
+    #[test]
+    fn test_parse_show_configs_with_module() {
+        let mut parser = StmtParser::new();
+        let mut ctx = create_parser_context("SHOW CONFIGS storage");
+        let result = parser.parse_statement(&mut ctx);
+        assert!(result.is_ok(), "SHOW CONFIGS storage 解析失败: {:?}", result.err());
+
+        if let Ok(Stmt::ShowConfigs(stmt)) = result {
+            assert_eq!(stmt.module, Some("storage".to_string()));
+        } else {
+            panic!("期望 ShowConfigs 语句");
+        }
+    }
+
+    #[test]
+    fn test_parse_update_configs() {
+        let mut parser = StmtParser::new();
+        let mut ctx = create_parser_context("UPDATE CONFIGS max_connections = 100");
+        let result = parser.parse_statement(&mut ctx);
+        assert!(result.is_ok(), "UPDATE CONFIGS 解析失败: {:?}", result.err());
+
+        if let Ok(Stmt::UpdateConfigs(stmt)) = result {
+            assert!(stmt.module.is_none());
+            assert_eq!(stmt.config_name, "max_connections");
+        } else {
+            panic!("期望 UpdateConfigs 语句");
+        }
+    }
+
+    #[test]
+    fn test_parse_update_configs_with_module() {
+        let mut parser = StmtParser::new();
+        let mut ctx = create_parser_context("UPDATE CONFIGS storage cache_size = 1024");
+        let result = parser.parse_statement(&mut ctx);
+        assert!(result.is_ok(), "UPDATE CONFIGS storage 解析失败: {:?}", result.err());
+
+        if let Ok(Stmt::UpdateConfigs(stmt)) = result {
+            assert_eq!(stmt.module, Some("storage".to_string()));
+            assert_eq!(stmt.config_name, "cache_size");
+        } else {
+            panic!("期望 UpdateConfigs 语句");
+        }
+    }
+
+    #[test]
+    fn test_parse_assignment_statement() {
+        let mut parser = StmtParser::new();
+        let mut ctx = create_parser_context("$result = GO FROM \"player100\" OVER follow");
+        let result = parser.parse_statement(&mut ctx);
+        assert!(result.is_ok(), "变量赋值解析失败: {:?}", result.err());
+
+        if let Ok(Stmt::Assignment(stmt)) = result {
+            assert_eq!(stmt.variable, "result");
+        } else {
+            panic!("期望 Assignment 语句，实际得到 {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_parse_union_statement() {
+        let mut parser = StmtParser::new();
+        let mut ctx = create_parser_context("GO FROM \"player100\" OVER follow UNION GO FROM \"player101\" OVER follow");
+        let result = parser.parse_statement(&mut ctx);
+        assert!(result.is_ok(), "UNION 解析失败: {:?}", result.err());
+
+        if let Ok(Stmt::SetOperation(stmt)) = result {
+            assert!(matches!(stmt.op_type, crate::query::parser::ast::stmt::SetOperationType::Union));
+        } else {
+            panic!("期望 SetOperation 语句，实际得到 {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_parse_intersect_statement() {
+        let mut parser = StmtParser::new();
+        let mut ctx = create_parser_context("GO FROM \"player100\" OVER follow INTERSECT GO FROM \"player101\" OVER follow");
+        let result = parser.parse_statement(&mut ctx);
+        assert!(result.is_ok(), "INTERSECT 解析失败: {:?}", result.err());
+
+        if let Ok(Stmt::SetOperation(stmt)) = result {
+            assert!(matches!(stmt.op_type, crate::query::parser::ast::stmt::SetOperationType::Intersect));
+        } else {
+            panic!("期望 SetOperation 语句，实际得到 {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_parse_minus_statement() {
+        let mut parser = StmtParser::new();
+        let mut ctx = create_parser_context("GO FROM \"player100\" OVER follow MINUS GO FROM \"player101\" OVER follow");
+        let result = parser.parse_statement(&mut ctx);
+        assert!(result.is_ok(), "MINUS 解析失败: {:?}", result.err());
+
+        if let Ok(Stmt::SetOperation(stmt)) = result {
+            assert!(matches!(stmt.op_type, crate::query::parser::ast::stmt::SetOperationType::Minus));
+        } else {
+            panic!("期望 SetOperation 语句，实际得到 {:?}", result);
         }
     }
 }
