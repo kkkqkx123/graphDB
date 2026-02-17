@@ -50,6 +50,7 @@ pub trait AstTraverser: StmtVisitor {
             Stmt::DescribeUser(_s) => {},
             Stmt::ShowUsers(_s) => {},
             Stmt::ShowRoles(_s) => {},
+            Stmt::ShowCreate(_s) => {},
         }
     }
 

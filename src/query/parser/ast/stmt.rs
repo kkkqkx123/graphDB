@@ -45,6 +45,7 @@ pub enum Stmt {
     DescribeUser(DescribeUserStmt),
     ShowUsers(ShowUsersStmt),
     ShowRoles(ShowRolesStmt),
+    ShowCreate(ShowCreateStmt),
 }
 
 impl Stmt {
@@ -85,6 +86,7 @@ impl Stmt {
             Stmt::DescribeUser(s) => s.span,
             Stmt::ShowUsers(s) => s.span,
             Stmt::ShowRoles(s) => s.span,
+            Stmt::ShowCreate(s) => s.span,
         }
     }
 
@@ -125,6 +127,7 @@ impl Stmt {
             Stmt::DescribeUser(_) => "DESCRIBE USER",
             Stmt::ShowUsers(_) => "SHOW USERS",
             Stmt::ShowRoles(_) => "SHOW ROLES",
+            Stmt::ShowCreate(_) => "SHOW CREATE",
         }
     }
 }
@@ -169,10 +172,14 @@ pub enum CreateTarget {
     Tag {
         name: String,
         properties: Vec<PropertyDef>,
+        ttl_duration: Option<i64>,
+        ttl_col: Option<String>,
     },
     EdgeType {
         name: String,
         properties: Vec<PropertyDef>,
+        ttl_duration: Option<i64>,
+        ttl_col: Option<String>,
     },
     Space {
         name: String,
@@ -933,6 +940,22 @@ pub struct ShowUsersStmt {
 pub struct ShowRolesStmt {
     pub span: Span,
     pub space_name: Option<String>,
+}
+
+/// SHOW CREATE 语句
+#[derive(Debug, Clone, PartialEq)]
+pub struct ShowCreateStmt {
+    pub span: Span,
+    pub target: ShowCreateTarget,
+}
+
+/// SHOW CREATE 目标
+#[derive(Debug, Clone, PartialEq)]
+pub enum ShowCreateTarget {
+    Space(String),
+    Tag(String),
+    Edge(String),
+    Index(String),
 }
 
 #[cfg(test)]

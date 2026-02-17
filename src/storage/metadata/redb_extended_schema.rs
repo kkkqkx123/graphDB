@@ -298,6 +298,8 @@ mod tests {
                 comment: None,
             }],
             comment: None,
+            ttl_duration: None,
+            ttl_col: None,
         }];
 
         let edge_types = vec![];

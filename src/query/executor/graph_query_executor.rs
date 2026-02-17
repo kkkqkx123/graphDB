@@ -130,6 +130,7 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
             Stmt::DescribeUser(_clause) => Ok(ExecutionResult::Success),
             Stmt::ShowUsers(_clause) => Ok(ExecutionResult::Success),
             Stmt::ShowRoles(_clause) => Ok(ExecutionResult::Success),
+            Stmt::ShowCreate(_clause) => self.execute_show_create(_clause),
         }
     }
 
@@ -174,7 +175,7 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
         use crate::index::{Index, IndexType};
 
         match clause.target {
-            CreateTarget::Tag { name, properties } => {
+            CreateTarget::Tag { name, properties, ttl_duration: _, ttl_col: _ } => {
                 let tag_info = ExecutorTagInfo::new("default".to_string(), name.clone())
                     .with_properties(properties);
                 let mut executor = if clause.if_not_exists {
@@ -185,7 +186,7 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                 executor.open()?;
                 executor.execute()
             }
-            CreateTarget::EdgeType { name, properties } => {
+            CreateTarget::EdgeType { name, properties, ttl_duration: _, ttl_col: _ } => {
                 let edge_info = ExecutorEdgeInfo::new("default".to_string(), name.clone())
                     .with_properties(properties);
                 let mut executor = if clause.if_not_exists {
@@ -688,6 +689,31 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                 )))
             }
         }
+    }
+
+    fn execute_show_create(&mut self, clause: crate::query::parser::ast::stmt::ShowCreateStmt) -> Result<ExecutionResult, DBError> {
+        use crate::core::result::Result as CoreResult;
+        use crate::core::Value as CoreValue;
+        
+        // 构建 SHOW CREATE 语句的字符串表示
+        let ddl = match &clause.target {
+            crate::query::parser::ast::stmt::ShowCreateTarget::Space(name) => {
+                format!("CREATE SPACE IF NOT EXISTS {} (vid_type=INT64, partition_num=1, replica_factor=1)", name)
+            }
+            crate::query::parser::ast::stmt::ShowCreateTarget::Tag(name) => {
+                format!("CREATE TAG IF NOT EXISTS {} (...)", name)
+            }
+            crate::query::parser::ast::stmt::ShowCreateTarget::Edge(name) => {
+                format!("CREATE EDGE IF NOT EXISTS {} (...)", name)
+            }
+            crate::query::parser::ast::stmt::ShowCreateTarget::Index(name) => {
+                format!("CREATE INDEX IF NOT EXISTS {} ON ...", name)
+            }
+        };
+        
+        let rows = vec![vec![CoreValue::String(ddl)]];
+        let core_result = CoreResult::from_rows(rows, vec!["create_statement".to_string()]);
+        Ok(ExecutionResult::from_result(core_result))
     }
 
     fn execute_explain(&mut self, clause: crate::query::parser::ast::stmt::ExplainStmt) -> Result<ExecutionResult, DBError> {

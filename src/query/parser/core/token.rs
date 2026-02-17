@@ -229,6 +229,8 @@ pub enum TokenKind {
     Weight,
     Loop,
     Cycle,
+    TtlDuration,
+    TtlCol,
     Identifier(String),
     StringLiteral(String),
     IntegerLiteral(i64),

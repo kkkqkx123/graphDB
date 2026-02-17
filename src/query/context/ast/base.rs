@@ -196,6 +196,7 @@ impl AstContext {
                 Stmt::DescribeUser(_) => "DESCRIBE_USER",
                 Stmt::ShowUsers(_) => "SHOW_USERS",
                 Stmt::ShowRoles(_) => "SHOW_ROLES",
+                Stmt::ShowCreate(_) => "SHOW_CREATE",
             },
             None => {
                 if let Some(ref qctx) = self.qctx {

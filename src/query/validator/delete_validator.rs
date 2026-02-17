@@ -508,6 +508,8 @@ mod tests {
                     tag_name: "person".to_string(),
                     properties: vec![],
                     comment: None,
+                    ttl_duration: None,
+                    ttl_col: None,
                 }))
             } else {
                 Ok(None)

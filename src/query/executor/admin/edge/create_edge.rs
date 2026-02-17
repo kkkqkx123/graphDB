@@ -27,6 +27,8 @@ impl EdgeTypeSchema {
             edge_type_name: executor_info.edge_name.clone(),
             properties,
             comment: executor_info.comment.clone(),
+            ttl_duration: None,
+            ttl_col: None,
         }
     }
 }

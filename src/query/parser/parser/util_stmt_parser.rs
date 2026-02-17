@@ -33,6 +33,11 @@ impl UtilStmtParser {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Show)?;
 
+        // 检查 SHOW CREATE
+        if ctx.check_token(TokenKind::Create) {
+            return self.parse_show_create_internal(ctx, start_span);
+        }
+
         // 检查 SHOW USERS
         if ctx.check_token(TokenKind::Users) {
             return self.parse_show_users_internal(ctx, start_span);
@@ -54,6 +59,32 @@ impl UtilStmtParser {
         };
 
         Ok(Stmt::Show(ShowStmt { span: start_span, target }))
+    }
+
+    /// 解析 SHOW CREATE 内部方法
+    fn parse_show_create_internal(&mut self, ctx: &mut ParseContext, start_span: crate::query::parser::ast::types::Span) -> Result<Stmt, ParseError> {
+        ctx.expect_token(TokenKind::Create)?;
+
+        let target = if ctx.match_token(TokenKind::Space) {
+            ShowCreateTarget::Space(ctx.expect_identifier()?)
+        } else if ctx.match_token(TokenKind::Tag) {
+            ShowCreateTarget::Tag(ctx.expect_identifier()?)
+        } else if ctx.match_token(TokenKind::Edge) {
+            ShowCreateTarget::Edge(ctx.expect_identifier()?)
+        } else if ctx.match_token(TokenKind::Index) {
+            ShowCreateTarget::Index(ctx.expect_identifier()?)
+        } else {
+            return Err(ParseError::new(
+                ParseErrorKind::UnexpectedToken,
+                "Expected SPACE, TAG, EDGE, or INDEX after SHOW CREATE".to_string(),
+                ctx.current_position(),
+            ));
+        };
+
+        let end_span = ctx.current_span();
+        let span = ctx.merge_span(start_span.start, end_span.end);
+
+        Ok(Stmt::ShowCreate(ShowCreateStmt { span, target }))
     }
 
     /// 解析 SHOW USERS 内部方法

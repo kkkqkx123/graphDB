@@ -27,6 +27,8 @@ impl TagInfo {
             tag_name: executor_info.tag_name.clone(),
             properties,
             comment: executor_info.comment.clone(),
+            ttl_duration: None,
+            ttl_col: None,
         }
     }
 }

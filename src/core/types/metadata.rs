@@ -402,6 +402,8 @@ pub struct TagInfo {
     pub tag_name: String,
     pub properties: Vec<PropertyDef>,
     pub comment: Option<String>,
+    pub ttl_duration: Option<i64>,
+    pub ttl_col: Option<String>,
 }
 
 impl TagInfo {
@@ -411,6 +413,8 @@ impl TagInfo {
             tag_name,
             properties: Vec::new(),
             comment: None,
+            ttl_duration: None,
+            ttl_col: None,
         }
     }
 
@@ -421,6 +425,12 @@ impl TagInfo {
 
     pub fn with_comment(mut self, comment: Option<String>) -> Self {
         self.comment = comment;
+        self
+    }
+    
+    pub fn with_ttl(mut self, duration: Option<i64>, col: Option<String>) -> Self {
+        self.ttl_duration = duration;
+        self.ttl_col = col;
         self
     }
 }
@@ -431,6 +441,8 @@ pub struct EdgeTypeInfo {
     pub edge_type_name: String,
     pub properties: Vec<PropertyDef>,
     pub comment: Option<String>,
+    pub ttl_duration: Option<i64>,
+    pub ttl_col: Option<String>,
 }
 
 impl EdgeTypeInfo {
@@ -440,6 +452,8 @@ impl EdgeTypeInfo {
             edge_type_name,
             properties: Vec::new(),
             comment: None,
+            ttl_duration: None,
+            ttl_col: None,
         }
     }
 
@@ -450,6 +464,12 @@ impl EdgeTypeInfo {
 
     pub fn with_comment(mut self, comment: Option<String>) -> Self {
         self.comment = comment;
+        self
+    }
+    
+    pub fn with_ttl(mut self, duration: Option<i64>, col: Option<String>) -> Self {
+        self.ttl_duration = duration;
+        self.ttl_col = col;
         self
     }
 }

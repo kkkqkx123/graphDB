@@ -651,6 +651,8 @@ mod tests {
                         PropertyDef::new("age".to_string(), DataType::Int).with_nullable(true),
                     ],
                     comment: None,
+                    ttl_duration: None,
+                    ttl_col: None,
                 }))
             } else {
                 Ok(None)

@@ -351,6 +351,8 @@ mod tests {
                             .with_default(Some(Value::String("unknown@example.com".to_string()))),
                     ],
                     comment: None,
+                    ttl_duration: None,
+                    ttl_col: None,
                 }))
             } else {
                 Ok(None)

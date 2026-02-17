@@ -2,54 +2,40 @@
 
 ## Summary
 
-- **Total Errors**: 0
-- **Total Warnings**: 6
-- **Total Issues**: 6
-- **Unique Error Patterns**: 0
-- **Unique Warning Patterns**: 6
-- **Files with Issues**: 4
+- **Total Errors**: 4
+- **Total Warnings**: 0
+- **Total Issues**: 4
+- **Unique Error Patterns**: 1
+- **Unique Warning Patterns**: 0
+- **Files with Issues**: 1
 
 ## Error Statistics
 
-**Total Errors**: 0
+**Total Errors**: 4
+
+### Error Type Breakdown
+
+- **error[E0502]**: 4 errors
+
+### Files with Errors (Top 10)
+
+- `src\query\parser\parser\ddl_parser.rs`: 4 errors
 
 ## Warning Statistics
 
-**Total Warnings**: 6
+**Total Warnings**: 0
 
-### Warning Type Breakdown
+## Detailed Error Categorization
 
-- **warning**: 6 warnings
+### error[E0502]: cannot borrow `*ctx` as mutable because it is also borrowed as immutable: mutable borrow occurs here
 
-### Files with Warnings (Top 10)
+**Total Occurrences**: 4  
+**Unique Files**: 1
 
-- `src\query\validator\insert_vertices_validator.rs`: 3 warnings
-- `src\query\executor\graph_query_executor.rs`: 1 warnings
-- `src\storage\operations\redb_operations.rs`: 1 warnings
-- `src\query\planner\statements\insert_planner.rs`: 1 warnings
+#### `src\query\parser\parser\ddl_parser.rs`: 4 occurrences
 
-## Detailed Warning Categorization
-
-### warning: value assigned to `deleted_count` is never read
-
-**Total Occurrences**: 6  
-**Unique Files**: 4
-
-#### `src\query\validator\insert_vertices_validator.rs`: 3 occurrences
-
-- Line 433: unused import: `crate::core::Value`
-- Line 393: unused variable: `prop_idx`: help: if this is intentional, prefix it with an underscore: `_prop_idx`
-- Line 438: struct `MockSchemaManager` is never constructed
-
-#### `src\storage\operations\redb_operations.rs`: 1 occurrences
-
-- Line 441: value assigned to `deleted_count` is never read
-
-#### `src\query\planner\statements\insert_planner.rs`: 1 occurrences
-
-- Line 6: unused import: `TagInsertSpec`
-
-#### `src\query\executor\graph_query_executor.rs`: 1 occurrences
-
-- Line 323: unused variable: `is_all_tags`: help: try ignoring the field: `is_all_tags: _`
+- Line 533: cannot borrow `*ctx` as mutable because it is also borrowed as immutable: mutable borrow occurs here
+- Line 537: cannot borrow `*ctx` as mutable because it is also borrowed as immutable: mutable borrow occurs here
+- Line 541: cannot borrow `*ctx` as mutable because it is also borrowed as immutable: mutable borrow occurs here
+- ... 1 more occurrences in this file
 
