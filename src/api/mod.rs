@@ -39,12 +39,12 @@ pub async fn start_service_with_config(config: Config) -> Result<()> {
     // 创建事务管理器
     let db = storage.get_db().clone();
     let txn_config = TransactionManagerConfig {
-        default_timeout: std::time::Duration::from_secs(config.database.transaction_timeout),
-        max_concurrent_transactions: config.database.max_connections * 2,
-        enable_2pc: false,
+        default_timeout: std::time::Duration::from_secs(config.transaction.default_timeout),
+        max_concurrent_transactions: config.transaction.max_concurrent_transactions,
+        enable_2pc: config.transaction.enable_2pc,
         deadlock_detection_interval: std::time::Duration::from_secs(5),
-        auto_cleanup: true,
-        cleanup_interval: std::time::Duration::from_secs(60),
+        auto_cleanup: config.transaction.auto_cleanup,
+        cleanup_interval: std::time::Duration::from_secs(config.transaction.cleanup_interval),
     };
     let transaction_manager = Arc::new(TransactionManager::new(db, txn_config));
     let savepoint_manager = Arc::new(SavepointManager::new());

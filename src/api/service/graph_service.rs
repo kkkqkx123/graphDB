@@ -27,7 +27,7 @@ pub struct GraphService<S: StorageClient + Clone + 'static> {
 impl<S: StorageClient + Clone + 'static> GraphService<S> {
     /// 创建新的GraphService（不包含事务管理器，用于测试）
     pub fn new(config: Config, storage: Arc<S>) -> Arc<Self> {
-        let session_idle_timeout = Duration::from_secs(config.database.transaction_timeout * 10);
+        let session_idle_timeout = Duration::from_secs(config.transaction.default_timeout * 10);
         let session_manager = GraphSessionManager::new(
             format!("{}:{}", config.database.host, config.database.port),
             config.database.max_connections,
@@ -57,7 +57,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         transaction_manager: Arc<TransactionManager>,
         savepoint_manager: Arc<SavepointManager>,
     ) -> Arc<Self> {
-        let session_idle_timeout = Duration::from_secs(config.database.transaction_timeout * 10);
+        let session_idle_timeout = Duration::from_secs(config.transaction.default_timeout * 10);
         let session_manager = GraphSessionManager::new(
             format!("{}:{}", config.database.host, config.database.port),
             config.database.max_connections,
@@ -452,8 +452,8 @@ mod tests {
                 port: 9669,
                 storage_path: "/tmp/graphdb_test".to_string(),
                 max_connections: 10,
-                transaction_timeout: 30,
             },
+            transaction: crate::config::TransactionConfig::default(),
             log: crate::config::LogConfig {
                 level: "info".to_string(),
                 dir: "logs".to_string(),

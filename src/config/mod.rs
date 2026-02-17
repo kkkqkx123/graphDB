@@ -17,8 +17,6 @@ pub struct DatabaseConfig {
     pub storage_path: String,
     /// 最大连接数
     pub max_connections: usize,
-    /// 事务超时时间（秒）
-    pub transaction_timeout: u64,
 }
 
 impl Default for DatabaseConfig {
@@ -28,7 +26,33 @@ impl Default for DatabaseConfig {
             port: 9758,
             storage_path: "data/graphdb".to_string(),
             max_connections: 10,
-            transaction_timeout: 30,
+        }
+    }
+}
+
+/// 事务配置
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct TransactionConfig {
+    /// 默认事务超时时间（秒）
+    pub default_timeout: u64,
+    /// 最大并发事务数
+    pub max_concurrent_transactions: usize,
+    /// 是否启用两阶段提交（2PC）
+    pub enable_2pc: bool,
+    /// 是否自动清理过期事务
+    pub auto_cleanup: bool,
+    /// 清理任务执行间隔（秒）
+    pub cleanup_interval: u64,
+}
+
+impl Default for TransactionConfig {
+    fn default() -> Self {
+        Self {
+            default_timeout: 30,
+            max_concurrent_transactions: 1000,
+            enable_2pc: false,
+            auto_cleanup: true,
+            cleanup_interval: 10,
         }
     }
 }
@@ -194,6 +218,9 @@ impl Default for MonitoringConfig {
 pub struct Config {
     /// 数据库配置
     pub database: DatabaseConfig,
+    /// 事务配置
+    #[serde(default)]
+    pub transaction: TransactionConfig,
     /// 日志配置
     pub log: LogConfig,
     /// 授权配置
@@ -211,6 +238,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             database: DatabaseConfig::default(),
+            transaction: TransactionConfig::default(),
             log: LogConfig::default(),
             auth: AuthConfig::default(),
             bootstrap: BootstrapConfig::default(),
@@ -306,7 +334,27 @@ impl Config {
 
     /// 获取事务超时时间
     pub fn transaction_timeout(&self) -> u64 {
-        self.database.transaction_timeout
+        self.transaction.default_timeout
+    }
+
+    /// 获取最大并发事务数
+    pub fn max_concurrent_transactions(&self) -> usize {
+        self.transaction.max_concurrent_transactions
+    }
+
+    /// 是否启用两阶段提交
+    pub fn enable_2pc(&self) -> bool {
+        self.transaction.enable_2pc
+    }
+
+    /// 是否自动清理过期事务
+    pub fn auto_cleanup(&self) -> bool {
+        self.transaction.auto_cleanup
+    }
+
+    /// 获取清理间隔（秒）
+    pub fn cleanup_interval(&self) -> u64 {
+        self.transaction.cleanup_interval
     }
 }
 
@@ -353,7 +401,13 @@ host = "0.0.0.0"
 port = 8080
 storage_path = "/tmp/graphdb"
 max_connections = 100
-transaction_timeout = 60
+
+[transaction]
+default_timeout = 60
+max_concurrent_transactions = 500
+enable_2pc = true
+auto_cleanup = false
+cleanup_interval = 30
 
 [log]
 level = "debug"
@@ -398,6 +452,11 @@ enabled_rules = ["RemoveUselessNodeRule"]
 
         assert_eq!(config.database.host, "0.0.0.0");
         assert_eq!(config.database.port, 8080);
+        assert_eq!(config.transaction.default_timeout, 60);
+        assert_eq!(config.transaction.max_concurrent_transactions, 500);
+        assert_eq!(config.transaction.enable_2pc, true);
+        assert_eq!(config.transaction.auto_cleanup, false);
+        assert_eq!(config.transaction.cleanup_interval, 30);
         assert_eq!(config.log.level, "debug");
         assert_eq!(config.auth.enable_authorize, false);
         assert_eq!(config.auth.default_username, "admin");

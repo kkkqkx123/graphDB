@@ -3,7 +3,18 @@ host = "127.0.0.1"
 port = 9758
 storage_path = "data/graphdb"
 max_connections = 10
-transaction_timeout = 30
+
+[transaction]
+# 默认事务超时时间（秒）
+default_timeout = 30
+# 最大并发事务数
+max_concurrent_transactions = 1000
+# 是否启用两阶段提交（2PC）
+enable_2pc = false
+# 是否自动清理过期事务
+auto_cleanup = true
+# 清理任务执行间隔（秒）
+cleanup_interval = 10
 
 [log]
 level = "info"
