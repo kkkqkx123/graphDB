@@ -842,6 +842,7 @@ pub enum ValidationErrorType {
     SyntaxError,
     SemanticError,
     TypeError,
+    TypeMismatch,
     AliasError,
     AggregateError,
     PaginationError,
@@ -852,6 +853,7 @@ pub enum ValidationErrorType {
     TooManyArguments,
     TooManyElements,
     DuplicateKey,
+    ConstraintViolation,
 }
 
 impl fmt::Display for ValidationErrorType {
@@ -860,6 +862,7 @@ impl fmt::Display for ValidationErrorType {
             ValidationErrorType::SyntaxError => write!(f, "语法错误"),
             ValidationErrorType::SemanticError => write!(f, "语义错误"),
             ValidationErrorType::TypeError => write!(f, "类型错误"),
+            ValidationErrorType::TypeMismatch => write!(f, "类型不匹配"),
             ValidationErrorType::AliasError => write!(f, "别名错误"),
             ValidationErrorType::AggregateError => write!(f, "聚合函数错误"),
             ValidationErrorType::PaginationError => write!(f, "分页错误"),
@@ -870,6 +873,7 @@ impl fmt::Display for ValidationErrorType {
             ValidationErrorType::TooManyArguments => write!(f, "参数过多"),
             ValidationErrorType::TooManyElements => write!(f, "元素过多"),
             ValidationErrorType::DuplicateKey => write!(f, "重复键"),
+            ValidationErrorType::ConstraintViolation => write!(f, "约束违反"),
         }
     }
 }

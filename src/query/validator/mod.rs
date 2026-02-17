@@ -31,6 +31,7 @@ pub mod update_validator;
 pub mod delete_validator;
 pub mod validation_factory;
 pub mod validation_interface;
+pub mod schema_validator;
 
 pub mod strategies;
 pub mod structs;
@@ -64,6 +65,7 @@ pub use insert_vertices_validator::InsertVerticesValidator;
 pub use insert_edges_validator::InsertEdgesValidator;
 pub use update_validator::UpdateValidator;
 pub use delete_validator::DeleteValidator;
+pub use schema_validator::SchemaValidator;
 
 pub use validation_factory::{
     ValidationFactory,

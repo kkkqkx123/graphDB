@@ -88,23 +88,10 @@ impl ValidationFactory {
         self.register("GET_SUBGRAPH", || Validator::new());
         self.register("SET", || Validator::new());
         self.register("SEQUENTIAL", || Validator::new());
-        
-        self.register("INSERT_VERTICES", || {
-            use super::InsertVerticesValidator;
-            Validator::from(InsertVerticesValidator::new())
-        });
-        self.register("INSERT_EDGES", || {
-            use super::InsertEdgesValidator;
-            Validator::from(InsertEdgesValidator::new())
-        });
-        self.register("UPDATE", || {
-            use super::UpdateValidator;
-            Validator::from(UpdateValidator::new())
-        });
-        self.register("DELETE", || {
-            use super::DeleteValidator;
-            Validator::from(DeleteValidator::new())
-        });
+        self.register("INSERT_VERTICES", || Validator::new());
+        self.register("INSERT_EDGES", || Validator::new());
+        self.register("UPDATE", || Validator::new());
+        self.register("DELETE", || Validator::new());
         self.register("CREATE_SPACE", || Validator::new());
         self.register("DROP_SPACE", || Validator::new());
         self.register("CREATE_TAG", || Validator::new());

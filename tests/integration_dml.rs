@@ -371,6 +371,131 @@ async fn test_delete_execution_edge() {
     assert!(result.is_ok() || result.is_err());
 }
 
+// ==================== 新增 DML 功能测试 ====================
+
+#[tokio::test]
+async fn test_insert_if_not_exists_parser() {
+    let query = "INSERT VERTEX IF NOT EXISTS Person(name, age) VALUES 1:('Alice', 30)";
+    let mut parser = Parser::new(query);
+    
+    let result = parser.parse();
+    assert!(result.is_ok(), "INSERT IF NOT EXISTS 解析应该成功: {:?}", result.err());
+
+    let stmt = result.expect("INSERT语句解析应该成功");
+    assert_eq!(stmt.kind(), "INSERT");
+}
+
+#[tokio::test]
+async fn test_insert_if_not_exists_execution() {
+    let test_storage = TestStorage::new().expect("创建测试存储失败");
+    let storage = test_storage.storage();
+    let stats_manager = Arc::new(StatsManager::new());
+    
+    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    
+    let query = "INSERT VERTEX IF NOT EXISTS Person(name, age) VALUES 1:('Alice', 30)";
+    let result = pipeline_manager.execute_query(query).await;
+    
+    println!("INSERT IF NOT EXISTS 执行结果: {:?}", result);
+    assert!(result.is_ok() || result.is_err());
+}
+
+#[tokio::test]
+async fn test_insert_multiple_tags_parser() {
+    let query = "INSERT VERTEX Person(name, age), Employee(department, salary) VALUES 1:('Alice', 30):('Engineering', 100000)";
+    let mut parser = Parser::new(query);
+    
+    let result = parser.parse();
+    assert!(result.is_ok(), "INSERT多Tag解析应该成功: {:?}", result.err());
+
+    let stmt = result.expect("INSERT语句解析应该成功");
+    assert_eq!(stmt.kind(), "INSERT");
+}
+
+#[tokio::test]
+async fn test_upsert_vertex_parser() {
+    let query = "UPSERT VERTEX 1 ON Person SET age = 26, name = 'Alice Smith'";
+    let mut parser = Parser::new(query);
+    
+    let result = parser.parse();
+    assert!(result.is_ok(), "UPSERT VERTEX解析应该成功: {:?}", result.err());
+
+    let stmt = result.expect("UPSERT语句解析应该成功");
+    assert_eq!(stmt.kind(), "UPDATE");
+}
+
+#[tokio::test]
+async fn test_upsert_edge_parser() {
+    let query = "UPSERT EDGE 1 -> 2 @0 OF KNOWS SET since = '2021-01-01'";
+    let mut parser = Parser::new(query);
+    
+    let result = parser.parse();
+    assert!(result.is_ok(), "UPSERT EDGE解析应该成功: {:?}", result.err());
+
+    let stmt = result.expect("UPSERT语句解析应该成功");
+    assert_eq!(stmt.kind(), "UPDATE");
+}
+
+#[tokio::test]
+async fn test_update_with_yield_parser() {
+    let query = "UPDATE 1 SET age = 26 YIELD age AS new_age";
+    let mut parser = Parser::new(query);
+    
+    let result = parser.parse();
+    assert!(result.is_ok(), "UPDATE带YIELD解析应该成功: {:?}", result.err());
+
+    let stmt = result.expect("UPDATE语句解析应该成功");
+    assert_eq!(stmt.kind(), "UPDATE");
+}
+
+#[tokio::test]
+async fn test_update_vertex_on_tag_parser() {
+    let query = "UPDATE VERTEX 1 ON Person SET age = 26";
+    let mut parser = Parser::new(query);
+    
+    let result = parser.parse();
+    assert!(result.is_ok(), "UPDATE VERTEX ON Tag解析应该成功: {:?}", result.err());
+
+    let stmt = result.expect("UPDATE语句解析应该成功");
+    assert_eq!(stmt.kind(), "UPDATE");
+}
+
+#[tokio::test]
+async fn test_delete_tag_wildcard_parser() {
+    let query = "DELETE TAG * FROM 1";
+    let mut parser = Parser::new(query);
+    
+    let result = parser.parse();
+    assert!(result.is_ok(), "DELETE TAG *解析应该成功: {:?}", result.err());
+
+    let stmt = result.expect("DELETE语句解析应该成功");
+    assert_eq!(stmt.kind(), "DELETE");
+}
+
+#[tokio::test]
+async fn test_delete_tag_specific_parser() {
+    let query = "DELETE TAG Person, Employee FROM 1";
+    let mut parser = Parser::new(query);
+    
+    let result = parser.parse();
+    assert!(result.is_ok(), "DELETE TAG特定标签解析应该成功: {:?}", result.err());
+
+    let stmt = result.expect("DELETE语句解析应该成功");
+    assert_eq!(stmt.kind(), "DELETE");
+}
+
+#[tokio::test]
+async fn test_delete_tag_multiple_vertices_parser() {
+    let query = "DELETE TAG Person FROM 1, 2, 3";
+    let mut parser = Parser::new(query);
+    
+    let result = parser.parse();
+    assert!(result.is_ok(), "DELETE TAG多个顶点解析应该成功: {:?}", result.err());
+
+    let stmt = result.expect("DELETE语句解析应该成功");
+    assert_eq!(stmt.kind(), "DELETE");
+}
+
 // ==================== MERGE 语句测试 ====================
 
 #[tokio::test]

@@ -438,6 +438,7 @@ impl VertexWriter for RedbWriter {
             .begin_write()
             .map_err(|e| StorageError::DbError(e.to_string()))?;
         
+        #[allow(unused_assignments)]
         let mut deleted_count = 0;
         
         {

@@ -187,6 +187,8 @@ impl StmtFactory {
             target,
             set_clause,
             where_clause,
+            is_upsert: false,
+            yield_clause: None,
         })
     }
 

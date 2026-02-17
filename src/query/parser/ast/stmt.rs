@@ -257,6 +257,7 @@ pub enum DeleteTarget {
     Tags {
         tag_names: Vec<String>,
         vertex_ids: Vec<Expression>,
+        is_all_tags: bool,
     },
     Index(String),
 }
@@ -268,6 +269,8 @@ pub struct UpdateStmt {
     pub target: UpdateTarget,
     pub set_clause: SetClause,
     pub where_clause: Option<Expression>,
+    pub is_upsert: bool,
+    pub yield_clause: Option<YieldClause>,
 }
 
 /// 更新目标
@@ -281,6 +284,11 @@ pub enum UpdateTarget {
         rank: Option<Expression>,
     },
     Tag(String),
+    /// 指定 Tag 的顶点更新: UPDATE VERTEX <vid> ON <tag> SET ...
+    TagOnVertex {
+        vid: Box<Expression>,
+        tag_name: String,
+    },
 }
 
 /// SET 子句
@@ -471,21 +479,36 @@ pub struct FindPathStmt {
 pub struct InsertStmt {
     pub span: Span,
     pub target: InsertTarget,
+    pub if_not_exists: bool,
 }
 
 /// INSERT 目标
 #[derive(Debug, Clone, PartialEq)]
 pub enum InsertTarget {
     Vertices {
-        tag_name: String,
-        prop_names: Vec<String>,
-        values: Vec<(Expression, Vec<Expression>)>,
+        tags: Vec<TagInsertSpec>,
+        values: Vec<VertexRow>,
     },
     Edge {
         edge_name: String,
         prop_names: Vec<String>,
         edges: Vec<(Expression, Expression, Option<Expression>, Vec<Expression>)>,
     },
+}
+
+/// Tag 插入规范
+#[derive(Debug, Clone, PartialEq)]
+pub struct TagInsertSpec {
+    pub tag_name: String,
+    pub prop_names: Vec<String>,
+    pub is_default_props: bool,
+}
+
+/// 顶点行数据
+#[derive(Debug, Clone, PartialEq)]
+pub struct VertexRow {
+    pub vid: Expression,
+    pub tag_values: Vec<Vec<Expression>>,
 }
 
 /// MERGE 语句

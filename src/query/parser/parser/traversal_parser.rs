@@ -114,12 +114,12 @@ impl TraversalParser {
         ctx.expect_token(TokenKind::Find)?;
 
         // 解析路径类型: SHORTEST, ALL
-        let _path_type = if ctx.match_token(TokenKind::Shortest) {
-            "SHORTEST"
+        let shortest = if ctx.match_token(TokenKind::Shortest) {
+            true
         } else if ctx.match_token(TokenKind::All) {
-            "ALL"
+            false
         } else {
-            "SHORTEST"
+            true
         };
 
         ctx.expect_token(TokenKind::Path)?;
@@ -156,6 +156,13 @@ impl TraversalParser {
             ctx.expect_token(TokenKind::Step)?;
         }
 
+        // 可选的 WEIGHT 子句
+        let weight_expression = if ctx.match_token(TokenKind::Weight) {
+            Some(ctx.expect_identifier()?)
+        } else {
+            None
+        };
+
         // 可选的 WHERE 子句
         let where_clause = if ctx.match_token(TokenKind::Where) {
             Some(self.parse_expression(ctx)?)
@@ -179,12 +186,12 @@ impl TraversalParser {
             to: to_vertex,
             over: Some(over),
             where_clause,
-            shortest: true,
+            shortest,
             max_steps,
             limit: None,
             offset: None,
             yield_clause,
-            weight_expression: None,
+            weight_expression,
             heuristic_expression: None,
             with_loop,
             with_cycle,

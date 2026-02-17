@@ -43,6 +43,7 @@ impl StmtParser {
             TokenKind::Insert => DmlParser::new().parse_insert_statement(ctx),
             TokenKind::Delete => DmlParser::new().parse_delete_statement(ctx),
             TokenKind::Update => DmlParser::new().parse_update_statement(ctx),
+            TokenKind::Upsert => DmlParser::new().parse_update_statement(ctx),
             TokenKind::Merge => DmlParser::new().parse_merge_statement(ctx),
 
             // DDL 语句

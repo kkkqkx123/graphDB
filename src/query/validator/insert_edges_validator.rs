@@ -232,6 +232,7 @@ mod tests {
                 prop_names,
                 edges: vec![(src, dst, rank, values)],
             },
+            if_not_exists: false,
         }
     }
 
@@ -435,10 +436,10 @@ mod tests {
         let stmt = InsertStmt {
             span: Span::default(),
             target: InsertTarget::Vertices {
-                tag_name: "person".to_string(),
-                prop_names: vec![],
+                tags: vec![],
                 values: vec![],
             },
+            if_not_exists: false,
         };
         let result = validator.validate(&stmt);
         assert!(result.is_err());

@@ -3,7 +3,7 @@
 //! 处理 INSERT VERTEX 和 INSERT EDGE 语句的查询规划
 
 use crate::query::context::ast::AstContext;
-use crate::query::parser::ast::{InsertStmt, InsertTarget, Stmt};
+use crate::query::parser::ast::{InsertStmt, InsertTarget, Stmt, VertexRow};
 use crate::query::planner::plan::core::{
     node_id_generator::next_node_id,
     nodes::{
@@ -58,14 +58,24 @@ impl InsertPlanner {
         space_name: String,
         tag_name: String,
         prop_names: Vec<String>,
-        values: Vec<(Expression, Vec<Expression>)>,
-    ) -> VertexInsertInfo {
-        VertexInsertInfo {
+        values: Vec<VertexRow>,
+    ) -> Result<VertexInsertInfo, PlannerError> {
+        // 将 VertexRow 转换为 (Expression, Vec<Expression>) 格式
+        // 暂时只支持单 Tag，所以只取第一个 tag 的值
+        let converted_values: Vec<(Expression, Vec<Expression>)> = values
+            .into_iter()
+            .map(|row| {
+                let props = row.tag_values.into_iter().next().unwrap_or_default();
+                (row.vid, props)
+            })
+            .collect();
+        
+        Ok(VertexInsertInfo {
             space_name,
             tag_name,
             prop_names,
-            values,
-        }
+            values: converted_values,
+        })
     }
 
     /// 构建边插入信息
@@ -106,19 +116,19 @@ impl Planner for InsertPlanner {
         let arg_node = ArgumentNode::new(next_node_id(), "insert_args");
 
         // 根据 INSERT 目标类型创建相应的插入节点
-        let (insert_node, inserted_count) = match insert_stmt.target {
-            InsertTarget::Vertices {
-                tag_name,
-                prop_names,
-                values,
-            } => {
+        let (insert_node, inserted_count) = match &insert_stmt.target {
+            InsertTarget::Vertices { tags, values } => {
                 let count = values.len();
+                // 暂时只支持单 Tag 插入，后续需要扩展支持多 Tag
+                let tag_spec = tags.first().ok_or_else(|| {
+                    PlannerError::PlanGenerationFailed("INSERT VERTEX must specify at least one tag".to_string())
+                })?;
                 let info = self.build_vertex_insert_info(
                     space_name,
-                    tag_name,
-                    prop_names,
-                    values,
-                );
+                    tag_spec.tag_name.clone(),
+                    tag_spec.prop_names.clone(),
+                    values.clone(),
+                )?;
                 (
                     PlanNodeEnum::InsertVertices(InsertVerticesNode::new(next_node_id(), info)),
                     count,
@@ -130,7 +140,7 @@ impl Planner for InsertPlanner {
                 edges,
             } => {
                 let count = edges.len();
-                let info = self.build_edge_insert_info(space_name, edge_name, prop_names, edges);
+                let info = self.build_edge_insert_info(space_name, edge_name.clone(), prop_names.clone(), edges.clone());
                 (
                     PlanNodeEnum::InsertEdges(InsertEdgesNode::new(next_node_id(), info)),
                     count,
@@ -170,7 +180,7 @@ mod tests {
     use crate::core::Value;
     use crate::query::context::ast::base::AstContext;
     use crate::query::context::validate::types::SpaceInfo;
-    use crate::query::parser::ast::{InsertStmt, InsertTarget, Span};
+    use crate::query::parser::ast::{InsertStmt, InsertTarget, Span, TagInsertSpec, VertexRow};
 
     // 辅助函数：创建常量表达式
     fn lit(val: Value) -> Expression {
@@ -186,6 +196,7 @@ mod tests {
         let insert_stmt = InsertStmt {
             span: create_test_span(),
             target,
+            if_not_exists: false,
         };
         let mut ctx = AstContext::new(None, Some(Stmt::Insert(insert_stmt)));
         ctx.set_space(SpaceInfo {
@@ -199,23 +210,37 @@ mod tests {
     fn test_insert_planner_new() {
         let planner = InsertPlanner::new();
         assert!(planner.match_planner(&create_test_ast_ctx_with_insert(InsertTarget::Vertices {
-            tag_name: "person".to_string(),
-            prop_names: vec!["name".to_string(), "age".to_string()],
-            values: vec![(
-                lit(Value::Int(1)),
-                vec![
-                    lit(Value::String("Alice".to_string())),
-                    lit(Value::Int(30)),
-                ],
-            )],
+            tags: vec![
+                TagInsertSpec {
+                    tag_name: "person".to_string(),
+                    prop_names: vec!["name".to_string(), "age".to_string()],
+                    is_default_props: false,
+                },
+            ],
+            values: vec![
+                VertexRow {
+                    vid: lit(Value::Int(1)),
+                    tag_values: vec![
+                        vec![
+                            lit(Value::String("Alice".to_string())),
+                            lit(Value::Int(30)),
+                        ],
+                    ],
+                },
+            ],
         })));
     }
 
     #[test]
     fn test_match_ast_ctx_with_insert() {
         let ctx = create_test_ast_ctx_with_insert(InsertTarget::Vertices {
-            tag_name: "person".to_string(),
-            prop_names: vec![],
+            tags: vec![
+                TagInsertSpec {
+                    tag_name: "person".to_string(),
+                    prop_names: vec![],
+                    is_default_props: true,
+                },
+            ],
             values: vec![],
         });
         assert!(InsertPlanner::match_ast_ctx(&ctx));
@@ -231,8 +256,13 @@ mod tests {
     fn test_extract_insert_stmt_success() {
         let planner = InsertPlanner::new();
         let target = InsertTarget::Vertices {
-            tag_name: "person".to_string(),
-            prop_names: vec!["name".to_string()],
+            tags: vec![
+                TagInsertSpec {
+                    tag_name: "person".to_string(),
+                    prop_names: vec!["name".to_string()],
+                    is_default_props: false,
+                },
+            ],
             values: vec![],
         };
         let ctx = create_test_ast_ctx_with_insert(target.clone());
@@ -259,14 +289,18 @@ mod tests {
             "test_space".to_string(),
             "person".to_string(),
             vec!["name".to_string(), "age".to_string()],
-            vec![(
-                lit(Value::Int(1)),
-                vec![
-                    lit(Value::String("Alice".to_string())),
-                    lit(Value::Int(30)),
-                ],
-            )],
-        );
+            vec![
+                VertexRow {
+                    vid: lit(Value::Int(1)),
+                    tag_values: vec![
+                        vec![
+                            lit(Value::String("Alice".to_string())),
+                            lit(Value::Int(30)),
+                        ],
+                    ],
+                },
+            ],
+        ).expect("Failed to build vertex insert info");
         assert_eq!(info.space_name, "test_space");
         assert_eq!(info.tag_name, "person");
         assert_eq!(info.prop_names.len(), 2);
@@ -305,17 +339,22 @@ mod tests {
     fn test_transform_insert_vertices() {
         let mut planner = InsertPlanner::new();
         let target = InsertTarget::Vertices {
-            tag_name: "person".to_string(),
-            prop_names: vec!["name".to_string()],
+            tags: vec![
+                TagInsertSpec {
+                    tag_name: "person".to_string(),
+                    prop_names: vec!["name".to_string()],
+                    is_default_props: false,
+                },
+            ],
             values: vec![
-                (
-                    lit(Value::Int(1)),
-                    vec![lit(Value::String("Alice".to_string()))],
-                ),
-                (
-                    lit(Value::Int(2)),
-                    vec![lit(Value::String("Bob".to_string()))],
-                ),
+                VertexRow {
+                    vid: lit(Value::Int(1)),
+                    tag_values: vec![vec![lit(Value::String("Alice".to_string()))]],
+                },
+                VertexRow {
+                    vid: lit(Value::Int(2)),
+                    tag_values: vec![vec![lit(Value::String("Bob".to_string()))]],
+                },
             ],
         };
         let ctx = create_test_ast_ctx_with_insert(target);
@@ -357,8 +396,13 @@ mod tests {
     fn test_default_impl() {
         let planner: InsertPlanner = Default::default();
         let ctx = create_test_ast_ctx_with_insert(InsertTarget::Vertices {
-            tag_name: "test".to_string(),
-            prop_names: vec![],
+            tags: vec![
+                TagInsertSpec {
+                    tag_name: "test".to_string(),
+                    prop_names: vec![],
+                    is_default_props: true,
+                },
+            ],
             values: vec![],
         });
         assert!(planner.match_planner(&ctx));

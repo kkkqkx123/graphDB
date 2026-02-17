@@ -325,12 +325,12 @@ mod tests {
         let expr = Expression::binary(
             Expression::property(Expression::variable("v"), "name"),
             crate::core::BinaryOperator::Equal,
-            Expression::variable("varName"),
+            Expression::variable("$varName"),
         );
 
         let pred = VariablePropIndexSeek::extract_predicate(&expr);
         assert!(pred.is_some());
-        
+
         let pred = pred.unwrap();
         assert_eq!(pred.property, "name");
         assert_eq!(pred.op, VariablePredicateOp::Eq);

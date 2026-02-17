@@ -320,7 +320,7 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                 executor.open()?;
                 executor.execute()
             }
-            DeleteTarget::Tags { tag_names, vertex_ids: vertex_id_exprs } => {
+            DeleteTarget::Tags { tag_names, vertex_ids: vertex_id_exprs, is_all_tags: _ } => {
                 use crate::query::executor::data_modification::DeleteTagExecutor;
                 
                 // 求值所有顶点ID表达式
@@ -339,6 +339,11 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                     vertex_ids,
                 )
                 .with_space("default".to_string());
+                
+                // TODO: 支持删除所有 Tag 的标志
+                // if is_all_tags {
+                //     executor = executor.delete_all_tags();
+                // }
                 
                 executor.open()?;
                 executor.execute()
@@ -777,14 +782,24 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
         use crate::expression::DefaultExpressionContext;
 
         match clause.target {
-            InsertTarget::Vertices { tag_name, prop_names, values } => {
+            InsertTarget::Vertices { tags, values } => {
                 let mut vertices = Vec::new();
 
-                for (vid_expr, prop_values) in values {
+                // 暂时只支持单 Tag 插入
+                let tag_spec = tags.first().ok_or_else(|| {
+                    DBError::Query(QueryError::ExecutionError("INSERT VERTEX 必须指定至少一个 Tag".to_string()))
+                })?;
+                let tag_name = &tag_spec.tag_name;
+                let prop_names = &tag_spec.prop_names;
+
+                for row in values {
                     let mut context = DefaultExpressionContext::new();
-                    let vid = ExpressionEvaluator::evaluate(&vid_expr, &mut context)
+                    let vid = ExpressionEvaluator::evaluate(&row.vid, &mut context)
                         .map_err(|e| DBError::Query(QueryError::ExecutionError(format!("表达式求值失败: {}", e))))?;
 
+                    // 暂时只处理第一个 Tag 的值
+                    let prop_values = row.tag_values.into_iter().next().unwrap_or_default();
+                    
                     let mut properties = std::collections::HashMap::new();
                     for (i, prop_name) in prop_names.iter().enumerate() {
                         if i < prop_values.len() {
@@ -809,6 +824,12 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                     self.storage.clone(),
                     vertices,
                 );
+                
+                // TODO: 支持 IF NOT EXISTS 标志
+                // if clause.if_not_exists {
+                //     executor = executor.with_if_not_exists();
+                // }
+                
                 executor.open()?;
                 executor.execute()
             }
