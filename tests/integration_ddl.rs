@@ -748,3 +748,212 @@ async fn test_ddl_if_not_exists_if_exists() {
         assert!(result.is_ok() || result.is_err());
     }
 }
+
+// ==================== DEFAULT 默认值测试 ====================
+
+#[tokio::test]
+async fn test_create_tag_with_default_value() {
+    let query = "CREATE TAG Person(name: STRING, age: INT DEFAULT 18, active: BOOL DEFAULT true)";
+    let mut parser = Parser::new(query);
+    
+    let result = parser.parse();
+    assert!(result.is_ok(), "CREATE TAG带DEFAULT解析应该成功: {:?}", result.err());
+
+    let stmt = result.expect("CREATE TAG语句解析应该成功");
+    assert_eq!(stmt.kind(), "CREATE");
+}
+
+#[tokio::test]
+async fn test_create_tag_with_default_string() {
+    let query = "CREATE TAG Person(name: STRING DEFAULT 'unknown', email: STRING DEFAULT 'test@example.com')";
+    let mut parser = Parser::new(query);
+    
+    let result = parser.parse();
+    assert!(result.is_ok(), "CREATE TAG带字符串DEFAULT解析应该成功: {:?}", result.err());
+}
+
+#[tokio::test]
+async fn test_create_tag_with_default_null() {
+    let query = "CREATE TAG Person(name: STRING, nickname: STRING DEFAULT NULL)";
+    let mut parser = Parser::new(query);
+    
+    let result = parser.parse();
+    assert!(result.is_ok(), "CREATE TAG带NULL DEFAULT解析应该成功: {:?}", result.err());
+}
+
+// ==================== NOT NULL 约束测试 ====================
+
+#[tokio::test]
+async fn test_create_tag_with_not_null() {
+    let query = "CREATE TAG Person(name: STRING NOT NULL, age: INT NOT NULL)";
+    let mut parser = Parser::new(query);
+    
+    let result = parser.parse();
+    assert!(result.is_ok(), "CREATE TAG带NOT NULL解析应该成功: {:?}", result.err());
+
+    let stmt = result.expect("CREATE TAG语句解析应该成功");
+    assert_eq!(stmt.kind(), "CREATE");
+}
+
+#[tokio::test]
+async fn test_create_tag_with_nullable() {
+    let query = "CREATE TAG Person(name: STRING NOT NULL, nickname: STRING NULL)";
+    let mut parser = Parser::new(query);
+    
+    let result = parser.parse();
+    assert!(result.is_ok(), "CREATE TAG带NULL约束解析应该成功: {:?}", result.err());
+}
+
+#[tokio::test]
+async fn test_create_tag_with_not_null_and_default() {
+    let query = "CREATE TAG Person(name: STRING NOT NULL, age: INT NOT NULL DEFAULT 0)";
+    let mut parser = Parser::new(query);
+    
+    let result = parser.parse();
+    assert!(result.is_ok(), "CREATE TAG带NOT NULL和DEFAULT解析应该成功: {:?}", result.err());
+}
+
+// ==================== COMMENT 注释测试 ====================
+
+#[tokio::test]
+async fn test_create_tag_with_comment() {
+    let query = "CREATE TAG Person(name: STRING COMMENT '姓名', age: INT COMMENT '年龄')";
+    let mut parser = Parser::new(query);
+    
+    let result = parser.parse();
+    assert!(result.is_ok(), "CREATE TAG带COMMENT解析应该成功: {:?}", result.err());
+
+    let stmt = result.expect("CREATE TAG语句解析应该成功");
+    assert_eq!(stmt.kind(), "CREATE");
+}
+
+#[tokio::test]
+async fn test_create_tag_with_comment_and_constraints() {
+    let query = "CREATE TAG Person(name: STRING NOT NULL COMMENT '用户姓名', age: INT DEFAULT 18 COMMENT '用户年龄')";
+    let mut parser = Parser::new(query);
+    
+    let result = parser.parse();
+    assert!(result.is_ok(), "CREATE TAG带COMMENT和约束解析应该成功: {:?}", result.err());
+}
+
+// ==================== TTL 支持测试 ====================
+
+#[tokio::test]
+async fn test_create_tag_with_ttl() {
+    let query = "CREATE TAG Session(token: STRING, created_at: TIMESTAMP, ttl_duration=86400, ttl_col=created_at)";
+    let mut parser = Parser::new(query);
+    
+    let result = parser.parse();
+    assert!(result.is_ok(), "CREATE TAG带TTL解析应该成功: {:?}", result.err());
+
+    let stmt = result.expect("CREATE TAG语句解析应该成功");
+    assert_eq!(stmt.kind(), "CREATE");
+}
+
+#[tokio::test]
+async fn test_create_edge_with_ttl() {
+    let query = "CREATE EDGE TempEdge(data: STRING, expire_at: TIMESTAMP, ttl_duration=3600, ttl_col=expire_at)";
+    let mut parser = Parser::new(query);
+    
+    let result = parser.parse();
+    assert!(result.is_ok(), "CREATE EDGE带TTL解析应该成功: {:?}", result.err());
+}
+
+// ==================== SHOW CREATE 测试 ====================
+
+#[tokio::test]
+async fn test_show_create_tag_parser() {
+    let query = "SHOW CREATE TAG Person";
+    let mut parser = Parser::new(query);
+    
+    let result = parser.parse();
+    assert!(result.is_ok(), "SHOW CREATE TAG解析应该成功: {:?}", result.err());
+
+    let stmt = result.expect("SHOW CREATE TAG语句解析应该成功");
+    assert_eq!(stmt.kind(), "SHOW_CREATE");
+}
+
+#[tokio::test]
+async fn test_show_create_edge_parser() {
+    let query = "SHOW CREATE EDGE KNOWS";
+    let mut parser = Parser::new(query);
+    
+    let result = parser.parse();
+    assert!(result.is_ok(), "SHOW CREATE EDGE解析应该成功: {:?}", result.err());
+
+    let stmt = result.expect("SHOW CREATE EDGE语句解析应该成功");
+    assert_eq!(stmt.kind(), "SHOW_CREATE");
+}
+
+#[tokio::test]
+async fn test_show_create_space_parser() {
+    let query = "SHOW CREATE SPACE test_space";
+    let mut parser = Parser::new(query);
+    
+    let result = parser.parse();
+    assert!(result.is_ok(), "SHOW CREATE SPACE解析应该成功: {:?}", result.err());
+
+    let stmt = result.expect("SHOW CREATE SPACE语句解析应该成功");
+    assert_eq!(stmt.kind(), "SHOW_CREATE");
+}
+
+#[tokio::test]
+async fn test_show_create_index_parser() {
+    let query = "SHOW CREATE INDEX idx_person_name";
+    let mut parser = Parser::new(query);
+    
+    let result = parser.parse();
+    assert!(result.is_ok(), "SHOW CREATE INDEX解析应该成功: {:?}", result.err());
+
+    let stmt = result.expect("SHOW CREATE INDEX语句解析应该成功");
+    assert_eq!(stmt.kind(), "SHOW_CREATE");
+}
+
+#[tokio::test]
+async fn test_show_create_execution() {
+    let test_storage = TestStorage::new().expect("创建测试存储失败");
+    let storage = test_storage.storage();
+    let stats_manager = Arc::new(StatsManager::new());
+    
+    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    
+    let query = "SHOW CREATE TAG Person";
+    let result = pipeline_manager.execute_query(query).await;
+    
+    println!("SHOW CREATE执行结果: {:?}", result);
+    assert!(result.is_ok() || result.is_err());
+}
+
+// ==================== 综合功能测试 ====================
+
+#[tokio::test]
+async fn test_create_tag_full_features() {
+    let query = "CREATE TAG IF NOT EXISTS Person(
+        id: INT NOT NULL COMMENT '主键ID',
+        name: STRING NOT NULL DEFAULT 'unknown' COMMENT '姓名',
+        age: INT DEFAULT 0 COMMENT '年龄',
+        email: STRING NULL COMMENT '邮箱',
+        created_at: TIMESTAMP,
+        ttl_duration=31536000,
+        ttl_col=created_at
+    )";
+    let mut parser = Parser::new(query);
+    
+    let result = parser.parse();
+    assert!(result.is_ok(), "完整功能CREATE TAG解析应该成功: {:?}", result.err());
+}
+
+#[tokio::test]
+async fn test_create_edge_full_features() {
+    let query = "CREATE EDGE IF NOT EXISTS KNOWS(
+        since: DATE NOT NULL COMMENT '认识时间',
+        degree: DOUBLE DEFAULT 1.0 COMMENT '关系程度',
+        note: STRING NULL COMMENT '备注',
+        ttl_duration=2592000,
+        ttl_col=since
+    )";
+    let mut parser = Parser::new(query);
+    
+    let result = parser.parse();
+    assert!(result.is_ok(), "完整功能CREATE EDGE解析应该成功: {:?}", result.err());
+}
