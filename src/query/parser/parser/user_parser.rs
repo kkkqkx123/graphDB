@@ -181,6 +181,163 @@ impl UserParser {
             ctx.current_position(),
         ))
     }
+
+    /// 解析角色类型（支持关键字形式）
+    fn parse_role_type(&mut self, ctx: &mut ParseContext) -> Result<RoleType, ParseError> {
+        let token = ctx.current_token();
+        let role_str = match token.kind {
+            TokenKind::God => {
+                ctx.next_token();
+                "GOD".to_string()
+            }
+            TokenKind::Admin | TokenKind::AdminRole => {
+                ctx.next_token();
+                "ADMIN".to_string()
+            }
+            TokenKind::Dba => {
+                ctx.next_token();
+                "DBA".to_string()
+            }
+            TokenKind::Guest => {
+                ctx.next_token();
+                "GUEST".to_string()
+            }
+            TokenKind::User => {
+                ctx.next_token();
+                "USER".to_string()
+            }
+            _ => ctx.expect_identifier()?,
+        };
+
+        role_str.parse::<RoleType>().map_err(|e| {
+            ParseError::new(
+                ParseErrorKind::SyntaxError,
+                e,
+                ctx.current_position(),
+            )
+        })
+    }
+
+    /// 解析 GRANT 语句
+    /// 语法: GRANT ROLE <role_type> ON <space_name> TO <username>
+    pub fn parse_grant_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::Grant)?;
+
+        // 解析 ROLE 关键字（可选）
+        let _ = ctx.match_token(TokenKind::Role);
+
+        // 解析角色类型
+        let role = self.parse_role_type(ctx)?;
+
+        // 解析 ON 关键字
+        ctx.expect_token(TokenKind::On)?;
+
+        // 解析 Space 名称
+        let space_name = ctx.expect_identifier()?;
+
+        // 解析 TO 关键字
+        ctx.expect_token(TokenKind::To)?;
+
+        // 解析用户名
+        let username = ctx.expect_identifier()?;
+
+        let end_span = ctx.current_span();
+        let span = ctx.merge_span(start_span.start, end_span.end);
+
+        Ok(Stmt::Grant(GrantStmt {
+            span,
+            role,
+            space_name,
+            username,
+        }))
+    }
+
+    /// 解析 REVOKE 语句
+    /// 语法: REVOKE ROLE <role_type> ON <space_name> FROM <username>
+    pub fn parse_revoke_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::Revoke)?;
+
+        // 解析 ROLE 关键字（可选）
+        let _ = ctx.match_token(TokenKind::Role);
+
+        // 解析角色类型
+        let role = self.parse_role_type(ctx)?;
+
+        // 解析 ON 关键字
+        ctx.expect_token(TokenKind::On)?;
+
+        // 解析 Space 名称
+        let space_name = ctx.expect_identifier()?;
+
+        // 解析 FROM 关键字
+        ctx.expect_token(TokenKind::From)?;
+
+        // 解析用户名
+        let username = ctx.expect_identifier()?;
+
+        let end_span = ctx.current_span();
+        let span = ctx.merge_span(start_span.start, end_span.end);
+
+        Ok(Stmt::Revoke(RevokeStmt {
+            span,
+            role,
+            space_name,
+            username,
+        }))
+    }
+
+    /// 解析 DESCRIBE USER 语句
+    /// 语法: DESCRIBE USER <username>
+    pub fn parse_describe_user_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::Desc)?;
+        ctx.expect_token(TokenKind::User)?;
+
+        let username = ctx.expect_identifier()?;
+
+        let end_span = ctx.current_span();
+        let span = ctx.merge_span(start_span.start, end_span.end);
+
+        Ok(Stmt::DescribeUser(DescribeUserStmt {
+            span,
+            username,
+        }))
+    }
+
+    /// 解析 SHOW USERS 语句
+    /// 语法: SHOW USERS
+    pub fn parse_show_users_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::Show)?;
+        ctx.expect_token(TokenKind::Users)?;
+
+        let end_span = ctx.current_span();
+        let span = ctx.merge_span(start_span.start, end_span.end);
+
+        Ok(Stmt::ShowUsers(ShowUsersStmt { span }))
+    }
+
+    /// 解析 SHOW ROLES 语句
+    /// 语法: SHOW ROLES [IN <space_name>]
+    pub fn parse_show_roles_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::Show)?;
+        ctx.expect_token(TokenKind::Roles)?;
+
+        // 可选的 IN <space_name> 子句
+        let space_name = if ctx.match_token(TokenKind::In) {
+            Some(ctx.expect_identifier()?)
+        } else {
+            None
+        };
+
+        let end_span = ctx.current_span();
+        let span = ctx.merge_span(start_span.start, end_span.end);
+
+        Ok(Stmt::ShowRoles(ShowRolesStmt { span, space_name }))
+    }
 }
 
 impl Default for UserParser {

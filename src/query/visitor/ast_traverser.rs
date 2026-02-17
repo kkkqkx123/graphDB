@@ -45,6 +45,11 @@ pub trait AstTraverser: StmtVisitor {
             Stmt::CreateUser(s) => self.traverse_create_user_stmt(s),
             Stmt::AlterUser(s) => self.traverse_alter_user_stmt(s),
             Stmt::DropUser(s) => self.traverse_drop_user_stmt(s),
+            Stmt::Grant(_s) => {},
+            Stmt::Revoke(_s) => {},
+            Stmt::DescribeUser(_s) => {},
+            Stmt::ShowUsers(_s) => {},
+            Stmt::ShowRoles(_s) => {},
         }
     }
 

@@ -40,6 +40,11 @@ pub enum Stmt {
     AlterUser(AlterUserStmt),
     DropUser(DropUserStmt),
     ChangePassword(ChangePasswordStmt),
+    Grant(GrantStmt),
+    Revoke(RevokeStmt),
+    DescribeUser(DescribeUserStmt),
+    ShowUsers(ShowUsersStmt),
+    ShowRoles(ShowRolesStmt),
 }
 
 impl Stmt {
@@ -75,6 +80,11 @@ impl Stmt {
             Stmt::AlterUser(s) => s.span,
             Stmt::DropUser(s) => s.span,
             Stmt::ChangePassword(s) => s.span,
+            Stmt::Grant(s) => s.span,
+            Stmt::Revoke(s) => s.span,
+            Stmt::DescribeUser(s) => s.span,
+            Stmt::ShowUsers(s) => s.span,
+            Stmt::ShowRoles(s) => s.span,
         }
     }
 
@@ -110,6 +120,11 @@ impl Stmt {
             Stmt::AlterUser(_) => "ALTER USER",
             Stmt::DropUser(_) => "DROP USER",
             Stmt::ChangePassword(_) => "CHANGE PASSWORD",
+            Stmt::Grant(_) => "GRANT",
+            Stmt::Revoke(_) => "REVOKE",
+            Stmt::DescribeUser(_) => "DESCRIBE USER",
+            Stmt::ShowUsers(_) => "SHOW USERS",
+            Stmt::ShowRoles(_) => "SHOW ROLES",
         }
     }
 }
@@ -843,6 +858,81 @@ pub struct ChangePasswordStmt {
     pub username: Option<String>,
     pub old_password: String,
     pub new_password: String,
+}
+
+/// 角色类型 - 用于GRANT/REVOKE语句
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RoleType {
+    God,
+    Admin,
+    Dba,
+    User,
+    Guest,
+}
+
+impl RoleType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            RoleType::God => "GOD",
+            RoleType::Admin => "ADMIN",
+            RoleType::Dba => "DBA",
+            RoleType::User => "USER",
+            RoleType::Guest => "GUEST",
+        }
+    }
+}
+
+impl std::str::FromStr for RoleType {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_uppercase().as_str() {
+            "GOD" => Ok(RoleType::God),
+            "ADMIN" => Ok(RoleType::Admin),
+            "DBA" => Ok(RoleType::Dba),
+            "USER" => Ok(RoleType::User),
+            "GUEST" => Ok(RoleType::Guest),
+            _ => Err(format!("未知的角色类型: {}", s)),
+        }
+    }
+}
+
+/// GRANT 语句
+#[derive(Debug, Clone, PartialEq)]
+pub struct GrantStmt {
+    pub span: Span,
+    pub role: RoleType,
+    pub space_name: String,
+    pub username: String,
+}
+
+/// REVOKE 语句
+#[derive(Debug, Clone, PartialEq)]
+pub struct RevokeStmt {
+    pub span: Span,
+    pub role: RoleType,
+    pub space_name: String,
+    pub username: String,
+}
+
+/// DESCRIBE USER 语句
+#[derive(Debug, Clone, PartialEq)]
+pub struct DescribeUserStmt {
+    pub span: Span,
+    pub username: String,
+}
+
+/// SHOW USERS 语句
+#[derive(Debug, Clone, PartialEq)]
+pub struct ShowUsersStmt {
+    pub span: Span,
+}
+
+/// SHOW ROLES 语句
+#[derive(Debug, Clone, PartialEq)]
+pub struct ShowRolesStmt {
+    pub span: Span,
+    pub space_name: Option<String>,
 }
 
 #[cfg(test)]

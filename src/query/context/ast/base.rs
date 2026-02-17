@@ -191,6 +191,11 @@ impl AstContext {
                 Stmt::AlterUser(_) => "ALTER_USER",
                 Stmt::DropUser(_) => "DROP_USER",
                 Stmt::ChangePassword(_) => "CHANGE_PASSWORD",
+                Stmt::Grant(_) => "GRANT",
+                Stmt::Revoke(_) => "REVOKE",
+                Stmt::DescribeUser(_) => "DESCRIBE_USER",
+                Stmt::ShowUsers(_) => "SHOW_USERS",
+                Stmt::ShowRoles(_) => "SHOW_ROLES",
             },
             None => {
                 if let Some(ref qctx) = self.qctx {

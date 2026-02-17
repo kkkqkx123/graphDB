@@ -33,6 +33,16 @@ impl UtilStmtParser {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Show)?;
 
+        // 检查 SHOW USERS
+        if ctx.check_token(TokenKind::Users) {
+            return self.parse_show_users_internal(ctx, start_span);
+        }
+
+        // 检查 SHOW ROLES
+        if ctx.check_token(TokenKind::Roles) {
+            return self.parse_show_roles_internal(ctx, start_span);
+        }
+
         let target = if ctx.match_token(TokenKind::Spaces) {
             ShowTarget::Spaces
         } else if ctx.match_token(TokenKind::Tags) {
@@ -44,6 +54,33 @@ impl UtilStmtParser {
         };
 
         Ok(Stmt::Show(ShowStmt { span: start_span, target }))
+    }
+
+    /// 解析 SHOW USERS 内部方法
+    fn parse_show_users_internal(&mut self, ctx: &mut ParseContext, start_span: crate::query::parser::ast::types::Span) -> Result<Stmt, ParseError> {
+        ctx.expect_token(TokenKind::Users)?;
+
+        let end_span = ctx.current_span();
+        let span = ctx.merge_span(start_span.start, end_span.end);
+
+        Ok(Stmt::ShowUsers(ShowUsersStmt { span }))
+    }
+
+    /// 解析 SHOW ROLES 内部方法
+    fn parse_show_roles_internal(&mut self, ctx: &mut ParseContext, start_span: crate::query::parser::ast::types::Span) -> Result<Stmt, ParseError> {
+        ctx.expect_token(TokenKind::Roles)?;
+
+        // 可选的 IN <space_name> 子句
+        let space_name = if ctx.match_token(TokenKind::In) {
+            Some(ctx.expect_identifier()?)
+        } else {
+            None
+        };
+
+        let end_span = ctx.current_span();
+        let span = ctx.merge_span(start_span.start, end_span.end);
+
+        Ok(Stmt::ShowRoles(ShowRolesStmt { span, space_name }))
     }
 
     /// 解析 EXPLAIN 语句

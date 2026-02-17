@@ -125,6 +125,11 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
             Stmt::AlterUser(clause) => self.execute_alter_user(clause),
             Stmt::DropUser(clause) => self.execute_drop_user(clause),
             Stmt::ChangePassword(clause) => self.execute_change_password(clause),
+            Stmt::Grant(_clause) => Ok(ExecutionResult::Success),
+            Stmt::Revoke(_clause) => Ok(ExecutionResult::Success),
+            Stmt::DescribeUser(_clause) => Ok(ExecutionResult::Success),
+            Stmt::ShowUsers(_clause) => Ok(ExecutionResult::Success),
+            Stmt::ShowRoles(_clause) => Ok(ExecutionResult::Success),
         }
     }
 

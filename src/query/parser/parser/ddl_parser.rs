@@ -248,6 +248,11 @@ impl DdlParser {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Desc)?;
 
+        // 检查是否是 DESCRIBE USER
+        if ctx.check_token(TokenKind::User) {
+            return self.parse_describe_user_internal(ctx, start_span);
+        }
+
         let target = if ctx.match_token(TokenKind::Space) {
             DescTarget::Space(ctx.expect_identifier()?)
         } else if ctx.match_token(TokenKind::Tag) {
@@ -275,7 +280,7 @@ impl DdlParser {
         } else {
             return Err(ParseError::new(
                 ParseErrorKind::UnexpectedToken,
-                "Expected SPACE, TAG, or EDGE".to_string(),
+                "Expected SPACE, TAG, EDGE, or USER".to_string(),
                 ctx.current_position(),
             ));
         };
@@ -284,6 +289,21 @@ impl DdlParser {
         let span = ctx.merge_span(start_span.start, end_span.end);
 
         Ok(Stmt::Desc(DescStmt { span, target }))
+    }
+
+    /// 解析 DESCRIBE USER 内部方法
+    fn parse_describe_user_internal(&mut self, ctx: &mut ParseContext, start_span: crate::query::parser::ast::types::Span) -> Result<Stmt, ParseError> {
+        ctx.expect_token(TokenKind::User)?;
+
+        let username = ctx.expect_identifier()?;
+
+        let end_span = ctx.current_span();
+        let span = ctx.merge_span(start_span.start, end_span.end);
+
+        Ok(Stmt::DescribeUser(DescribeUserStmt {
+            span,
+            username,
+        }))
     }
 
     /// 解析 ALTER 语句

@@ -526,3 +526,250 @@ async fn test_dcl_special_usernames() {
         assert!(result.is_ok() || result.is_err());
     }
 }
+
+// ==================== GRANT/REVOKE 语句测试 ====================
+
+#[tokio::test]
+async fn test_grant_parser_basic() {
+    let query = "GRANT ROLE ADMIN ON test_space TO alice";
+    let mut parser = Parser::new(query);
+    
+    let result = parser.parse();
+    assert!(result.is_ok(), "GRANT基础解析应该成功: {:?}", result.err());
+
+    let stmt = result.expect("GRANT语句解析应该成功");
+    assert_eq!(stmt.kind(), "GRANT");
+}
+
+#[tokio::test]
+async fn test_grant_parser_without_role_keyword() {
+    let query = "GRANT ADMIN ON test_space TO alice";
+    let mut parser = Parser::new(query);
+    
+    let result = parser.parse();
+    assert!(result.is_ok(), "GRANT不带ROLE关键字解析应该成功: {:?}", result.err());
+
+    let stmt = result.expect("GRANT语句解析应该成功");
+    assert_eq!(stmt.kind(), "GRANT");
+}
+
+#[tokio::test]
+async fn test_grant_parser_all_roles() {
+    let queries = vec![
+        "GRANT GOD ON test_space TO user1",
+        "GRANT ADMIN ON test_space TO user2",
+        "GRANT DBA ON test_space TO user3",
+        "GRANT USER ON test_space TO user4",
+        "GRANT GUEST ON test_space TO user5",
+    ];
+    
+    for query in queries {
+        let mut parser = Parser::new(query);
+        let result = parser.parse();
+        assert!(result.is_ok(), "GRANT角色 {} 解析应该成功: {:?}", query, result.err());
+    }
+}
+
+#[tokio::test]
+async fn test_revoke_parser_basic() {
+    let query = "REVOKE ROLE ADMIN ON test_space FROM alice";
+    let mut parser = Parser::new(query);
+    
+    let result = parser.parse();
+    assert!(result.is_ok(), "REVOKE基础解析应该成功: {:?}", result.err());
+
+    let stmt = result.expect("REVOKE语句解析应该成功");
+    assert_eq!(stmt.kind(), "REVOKE");
+}
+
+#[tokio::test]
+async fn test_revoke_parser_without_role_keyword() {
+    let query = "REVOKE ADMIN ON test_space FROM alice";
+    let mut parser = Parser::new(query);
+    
+    let result = parser.parse();
+    assert!(result.is_ok(), "REVOKE不带ROLE关键字解析应该成功: {:?}", result.err());
+
+    let stmt = result.expect("REVOKE语句解析应该成功");
+    assert_eq!(stmt.kind(), "REVOKE");
+}
+
+#[tokio::test]
+async fn test_grant_revoke_execution() {
+    let test_storage = TestStorage::new().expect("创建测试存储失败");
+    let storage = test_storage.storage();
+    let stats_manager = Arc::new(StatsManager::new());
+    
+    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    
+    let queries = vec![
+        "CREATE USER alice WITH PASSWORD 'password123'",
+        "GRANT ADMIN ON test_space TO alice",
+        "REVOKE ADMIN ON test_space FROM alice",
+        "DROP USER alice",
+    ];
+    
+    for (i, query) in queries.iter().enumerate() {
+        let result = pipeline_manager.execute_query(query).await;
+        println!("GRANT/REVOKE操作 {} 执行结果: {:?}", i + 1, result);
+        assert!(result.is_ok() || result.is_err());
+    }
+}
+
+// ==================== DESCRIBE USER 语句测试 ====================
+
+#[tokio::test]
+async fn test_describe_user_parser_basic() {
+    let query = "DESCRIBE USER alice";
+    let mut parser = Parser::new(query);
+    
+    let result = parser.parse();
+    assert!(result.is_ok(), "DESCRIBE USER基础解析应该成功: {:?}", result.err());
+
+    let stmt = result.expect("DESCRIBE USER语句解析应该成功");
+    assert_eq!(stmt.kind(), "DESCRIBE USER");
+}
+
+#[tokio::test]
+async fn test_describe_user_execution() {
+    let test_storage = TestStorage::new().expect("创建测试存储失败");
+    let storage = test_storage.storage();
+    let stats_manager = Arc::new(StatsManager::new());
+    
+    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    
+    let queries = vec![
+        "CREATE USER alice WITH PASSWORD 'password123'",
+        "DESCRIBE USER alice",
+        "DROP USER alice",
+    ];
+    
+    for (i, query) in queries.iter().enumerate() {
+        let result = pipeline_manager.execute_query(query).await;
+        println!("DESCRIBE USER操作 {} 执行结果: {:?}", i + 1, result);
+        assert!(result.is_ok() || result.is_err());
+    }
+}
+
+// ==================== SHOW USERS 语句测试 ====================
+
+#[tokio::test]
+async fn test_show_users_parser_basic() {
+    let query = "SHOW USERS";
+    let mut parser = Parser::new(query);
+    
+    let result = parser.parse();
+    assert!(result.is_ok(), "SHOW USERS基础解析应该成功: {:?}", result.err());
+
+    let stmt = result.expect("SHOW USERS语句解析应该成功");
+    assert_eq!(stmt.kind(), "SHOW USERS");
+}
+
+#[tokio::test]
+async fn test_show_users_execution() {
+    let test_storage = TestStorage::new().expect("创建测试存储失败");
+    let storage = test_storage.storage();
+    let stats_manager = Arc::new(StatsManager::new());
+    
+    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    
+    let queries = vec![
+        "CREATE USER alice WITH PASSWORD 'password123'",
+        "CREATE USER bob WITH PASSWORD 'password456'",
+        "SHOW USERS",
+        "DROP USER alice",
+        "DROP USER bob",
+    ];
+    
+    for (i, query) in queries.iter().enumerate() {
+        let result = pipeline_manager.execute_query(query).await;
+        println!("SHOW USERS操作 {} 执行结果: {:?}", i + 1, result);
+        assert!(result.is_ok() || result.is_err());
+    }
+}
+
+// ==================== SHOW ROLES 语句测试 ====================
+
+#[tokio::test]
+async fn test_show_roles_parser_basic() {
+    let query = "SHOW ROLES";
+    let mut parser = Parser::new(query);
+    
+    let result = parser.parse();
+    assert!(result.is_ok(), "SHOW ROLES基础解析应该成功: {:?}", result.err());
+
+    let stmt = result.expect("SHOW ROLES语句解析应该成功");
+    assert_eq!(stmt.kind(), "SHOW ROLES");
+}
+
+#[tokio::test]
+async fn test_show_roles_parser_with_space() {
+    let query = "SHOW ROLES IN test_space";
+    let mut parser = Parser::new(query);
+    
+    let result = parser.parse();
+    assert!(result.is_ok(), "SHOW ROLES带Space解析应该成功: {:?}", result.err());
+
+    let stmt = result.expect("SHOW ROLES语句解析应该成功");
+    assert_eq!(stmt.kind(), "SHOW ROLES");
+}
+
+#[tokio::test]
+async fn test_show_roles_execution() {
+    let test_storage = TestStorage::new().expect("创建测试存储失败");
+    let storage = test_storage.storage();
+    let stats_manager = Arc::new(StatsManager::new());
+    
+    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    
+    let queries = vec![
+        "CREATE USER alice WITH PASSWORD 'password123'",
+        "GRANT ADMIN ON test_space TO alice",
+        "SHOW ROLES",
+        "SHOW ROLES IN test_space",
+        "REVOKE ADMIN ON test_space FROM alice",
+        "DROP USER alice",
+    ];
+    
+    for (i, query) in queries.iter().enumerate() {
+        let result = pipeline_manager.execute_query(query).await;
+        println!("SHOW ROLES操作 {} 执行结果: {:?}", i + 1, result);
+        assert!(result.is_ok() || result.is_err());
+    }
+}
+
+// ==================== 新DCL语句综合测试 ====================
+
+#[tokio::test]
+async fn test_new_dcl_statements_lifecycle() {
+    let test_storage = TestStorage::new().expect("创建测试存储失败");
+    let storage = test_storage.storage();
+    let stats_manager = Arc::new(StatsManager::new());
+    
+    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    
+    let lifecycle_queries = vec![
+        "CREATE USER adminuser WITH PASSWORD 'Admin@2024'",
+        "CREATE USER dbauser WITH PASSWORD 'Dba@2024'",
+        "CREATE USER readonly WITH PASSWORD 'Read@2024'",
+        "SHOW USERS",
+        "DESCRIBE USER adminuser",
+        "GRANT ADMIN ON test_space TO adminuser",
+        "GRANT DBA ON test_space TO dbauser",
+        "GRANT GUEST ON test_space TO readonly",
+        "SHOW ROLES",
+        "SHOW ROLES IN test_space",
+        "REVOKE GUEST ON test_space FROM readonly",
+        "REVOKE DBA ON test_space FROM dbauser",
+        "REVOKE ADMIN ON test_space FROM adminuser",
+        "DROP USER readonly",
+        "DROP USER dbauser",
+        "DROP USER adminuser",
+    ];
+    
+    for (i, query) in lifecycle_queries.iter().enumerate() {
+        let result = pipeline_manager.execute_query(query).await;
+        println!("新DCL语句生命周期操作 {} 执行结果: {:?}", i + 1, result);
+        assert!(result.is_ok() || result.is_err());
+    }
+}

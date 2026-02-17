@@ -58,6 +58,8 @@ impl StmtParser {
             TokenKind::DropUser => UserParser::new().parse_drop_user_statement(ctx),
             TokenKind::ChangePassword => UserParser::new().parse_change_password_statement(ctx),
             TokenKind::Change => UserParser::new().parse_change_statement(ctx),
+            TokenKind::Grant => UserParser::new().parse_grant_statement(ctx),
+            TokenKind::Revoke => UserParser::new().parse_revoke_statement(ctx),
 
             // 工具语句
             TokenKind::Use => UtilStmtParser::new().parse_use_statement(ctx),
