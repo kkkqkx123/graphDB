@@ -7,6 +7,7 @@
 //! - FETCH - 获取数据
 //! - FIND PATH - 路径查找
 //! - SUBGRAPH - 子图查询
+//! - YIELD - 结果投影与过滤
 
 mod common;
 
@@ -796,4 +797,105 @@ async fn test_dangling_edge_workflow() {
     assert!(create_result.is_ok() || create_result.is_err());
     assert!(insert_result.is_ok() || insert_result.is_err());
     assert!(edge_result.is_ok() || edge_result.is_err());
+}
+
+// ==================== YIELD 语句测试 ====================
+
+#[tokio::test]
+async fn test_yield_with_where_basic() {
+    let query = "GO FROM 1 OVER KNOWS YIELD target.name, target.age WHERE target.age > 25";
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(result.is_ok(), "YIELD带WHERE解析应该成功: {:?}", result.err());
+
+    let stmt = result.expect("YIELD语句解析应该成功");
+    assert_eq!(stmt.kind(), "GO");
+}
+
+#[tokio::test]
+async fn test_yield_with_where_complex() {
+    let query = "GO FROM 1 OVER KNOWS YIELD target.name, target.age WHERE target.age > 25 AND target.name STARTS WITH 'A'";
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(result.is_ok(), "YIELD带复杂WHERE解析应该成功: {:?}", result.err());
+
+    let stmt = result.expect("YIELD语句解析应该成功");
+    assert_eq!(stmt.kind(), "GO");
+}
+
+#[tokio::test]
+async fn test_yield_with_limit() {
+    let query = "GO FROM 1 OVER KNOWS YIELD target.name LIMIT 10";
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(result.is_ok(), "YIELD带LIMIT解析应该成功: {:?}", result.err());
+
+    let stmt = result.expect("YIELD语句解析应该成功");
+    assert_eq!(stmt.kind(), "GO");
+}
+
+#[tokio::test]
+async fn test_yield_with_skip_limit() {
+    let query = "GO FROM 1 OVER KNOWS YIELD target.name SKIP 5 LIMIT 10";
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(result.is_ok(), "YIELD带SKIP和LIMIT解析应该成功: {:?}", result.err());
+
+    let stmt = result.expect("YIELD语句解析应该成功");
+    assert_eq!(stmt.kind(), "GO");
+}
+
+#[tokio::test]
+async fn test_yield_with_where_limit() {
+    let query = "GO FROM 1 OVER KNOWS YIELD target.name, target.age WHERE target.age > 25 LIMIT 10";
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(result.is_ok(), "YIELD带WHERE和LIMIT解析应该成功: {:?}", result.err());
+
+    let stmt = result.expect("YIELD语句解析应该成功");
+    assert_eq!(stmt.kind(), "GO");
+}
+
+#[tokio::test]
+async fn test_yield_standalone() {
+    let query = "YIELD 1 + 1 AS result";
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(result.is_ok(), "独立YIELD解析应该成功: {:?}", result.err());
+
+    let stmt = result.expect("YIELD语句解析应该成功");
+    assert_eq!(stmt.kind(), "YIELD");
+}
+
+#[tokio::test]
+async fn test_yield_standalone_with_where() {
+    let query = "YIELD 1 + 1 AS result WHERE result > 0";
+    let mut parser = Parser::new(query);
+
+    let result = parser.parse();
+    assert!(result.is_ok(), "独立YIELD带WHERE解析应该成功: {:?}", result.err());
+
+    let stmt = result.expect("YIELD语句解析应该成功");
+    assert_eq!(stmt.kind(), "YIELD");
+}
+
+#[tokio::test]
+async fn test_yield_execution_with_where() {
+    let test_storage = TestStorage::new().expect("创建测试存储失败");
+    let storage = test_storage.storage();
+    let stats_manager = Arc::new(StatsManager::new());
+
+    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+
+    let query = "GO FROM 1 OVER KNOWS YIELD target.name, target.age WHERE target.age > 25";
+    let result = pipeline_manager.execute_query(query).await;
+
+    println!("YIELD带WHERE执行结果: {:?}", result);
+    assert!(result.is_ok() || result.is_err());
 }

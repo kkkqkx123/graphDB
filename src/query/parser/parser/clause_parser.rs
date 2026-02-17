@@ -118,6 +118,13 @@ impl ClauseParser {
             }
         }
         
+        // 解析 WHERE 子句
+        let where_clause = if ctx.match_token(TokenKind::Where) {
+            Some(self.parse_expression(ctx)?)
+        } else {
+            None
+        };
+        
         // 解析 LIMIT
         let limit = if ctx.match_token(TokenKind::Limit) {
             let count = ctx.expect_integer_literal()? as usize;
@@ -143,6 +150,7 @@ impl ClauseParser {
         Ok(YieldClause {
             span,
             items,
+            where_clause,
             limit,
             skip,
             sample: None,

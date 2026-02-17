@@ -455,10 +455,18 @@ impl DmlParser {
             }
         }
         
+        // 解析 WHERE 子句
+        let where_clause = if ctx.match_token(TokenKind::Where) {
+            Some(self.parse_expression(ctx)?)
+        } else {
+            None
+        };
+        
         let end_span = ctx.current_span();
         Ok(YieldClause {
             span: ctx.merge_span(start_span.start, end_span.end),
             items,
+            where_clause,
             limit: None,
             skip: None,
             sample: None,

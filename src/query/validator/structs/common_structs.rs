@@ -115,6 +115,14 @@ impl CypherClauseContext {
             CypherClauseContext::Pagination(_) => CypherClauseKind::Pagination,
         }
     }
+
+    /// 获取 Yield 子句上下文
+    pub fn yield_clause(&self) -> Option<&super::clause_structs::YieldClauseContext> {
+        match self {
+            CypherClauseContext::Yield(ctx) => Some(ctx),
+            _ => None,
+        }
+    }
 }
 
 use crate::core::DataType;

@@ -95,6 +95,9 @@ mod expression_strategy_tests {
                 paths: vec![],
                 query_parts: vec![],
                 errors: vec![],
+                filter_condition: None,
+                skip: None,
+                limit: None,
             },
             aliases_available: aliases.clone(),
             aliases_generated: HashMap::new(),
@@ -136,6 +139,9 @@ mod expression_strategy_tests {
                 paths: vec![],
                 query_parts: vec![],
                 errors: vec![],
+                filter_condition: None,
+                skip: None,
+                limit: None,
             },
             aliases_available: aliases,
             aliases_generated: HashMap::new(),
@@ -170,6 +176,9 @@ mod expression_strategy_tests {
                 paths: vec![],
                 query_parts: vec![],
                 errors: vec![],
+                filter_condition: None,
+                skip: None,
+                limit: None,
             },
             aliases_available: aliases.clone(),
             aliases_generated: HashMap::new(),
@@ -212,6 +221,9 @@ mod expression_strategy_tests {
                 paths: vec![],
                 query_parts: vec![],
                 errors: vec![],
+                filter_condition: None,
+                skip: None,
+                limit: None,
             },
             aliases_available: aliases,
             aliases_generated: HashMap::new(),
@@ -286,12 +298,15 @@ mod expression_strategy_tests {
             paths: vec![],
             query_parts: vec![],
             errors: vec![],
+            filter_condition: None,
+            skip: None,
+            limit: None,
         };
-        
+
         // 测试简单的 YIELD 上下文
         let result = strategy.validate_yield(&context);
         assert!(result.is_ok());
-        
+
         // 测试包含聚合函数的 YIELD 子句
         let context_with_agg = YieldClauseContext {
             yield_columns: vec![
@@ -318,10 +333,13 @@ mod expression_strategy_tests {
             paths: vec![],
             query_parts: vec![],
             errors: vec![],
+            filter_condition: None,
+            skip: None,
+            limit: None,
         };
         let result = strategy.validate_yield(&context_with_agg);
         assert!(result.is_ok());
-        
+
         // 测试包含 GROUP BY 的 YIELD 子句
         let context_with_group = YieldClauseContext {
             yield_columns: vec![
@@ -353,6 +371,9 @@ mod expression_strategy_tests {
             paths: vec![],
             query_parts: vec![],
             errors: vec![],
+            filter_condition: None,
+            skip: None,
+            limit: None,
         };
         let result = strategy.validate_yield(&context_with_group);
         assert!(result.is_ok());
@@ -425,6 +446,9 @@ mod expression_strategy_tests {
             paths: vec![],
             query_parts: vec![],
             errors: vec![],
+            filter_condition: None,
+            skip: None,
+            limit: None,
         };
         
         // 聚合表达式
@@ -494,6 +518,9 @@ mod expression_strategy_tests {
             paths: vec![],
             query_parts: vec![],
             errors: vec![],
+            filter_condition: None,
+            skip: None,
+            limit: None,
         };
         
         // 分组键表达式 - 使用基本类型（字符串）

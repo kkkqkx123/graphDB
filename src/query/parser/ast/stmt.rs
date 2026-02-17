@@ -407,6 +407,7 @@ pub struct OverClause {
 pub struct YieldClause {
     pub span: Span,
     pub items: Vec<YieldItem>,
+    pub where_clause: Option<Expression>,
     pub limit: Option<super::types::LimitClause>,
     pub skip: Option<super::types::SkipClause>,
     pub sample: Option<super::types::SampleClause>,

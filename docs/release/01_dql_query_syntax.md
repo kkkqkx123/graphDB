@@ -226,7 +226,32 @@ RETURN <expression> [AS <alias>] [, ...] [DISTINCT]
 
 ### 7.2 YIELD 子句
 ```cypher
-YIELD <expression> [AS <alias>] [, ...]
+YIELD <expression> [AS <alias>] [, ...] [WHERE <condition>] [SKIP <n>] [LIMIT <n>]
+```
+
+#### 关键特性
+- 支持属性投影和表达式计算
+- 支持 WHERE 条件过滤（在投影后过滤）
+- 支持 SKIP 和 LIMIT 分页
+- 可作为独立语句使用
+- 可与其他语句组合使用
+
+#### 示例
+```cypher
+-- 基本YIELD
+YIELD 1 + 1 AS result
+
+-- YIELD带WHERE过滤
+YIELD target.name, target.age WHERE target.age > 25
+
+-- YIELD带分页
+YIELD target.name SKIP 5 LIMIT 10
+
+-- GO语句中使用YIELD带WHERE
+GO FROM "player100" OVER follow YIELD target.name, target.age WHERE target.age > 25
+
+-- LOOKUP语句中使用YIELD带WHERE
+LOOKUP ON person WHERE person.age > 20 YIELD person.name, person.age WHERE person.name STARTS WITH 'A'
 ```
 
 ### 7.3 WHERE 子句

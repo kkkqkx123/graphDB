@@ -88,6 +88,9 @@ pub struct YieldClauseContext {
     pub paths: Vec<Path>,
     pub query_parts: Vec<QueryPart>,
     pub errors: Vec<ValidationError>,
+    pub filter_condition: Option<Expression>,
+    pub skip: Option<usize>,
+    pub limit: Option<usize>,
 }
 
 /// 分页上下文

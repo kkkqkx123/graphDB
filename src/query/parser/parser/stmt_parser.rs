@@ -210,6 +210,7 @@ impl StmtParser {
             crate::query::parser::ast::stmt::YieldClause {
                 span: start_span,
                 items,
+                where_clause: None,
                 limit: None,
                 skip: None,
                 sample: None,
