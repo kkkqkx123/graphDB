@@ -244,6 +244,21 @@ impl TransactionManager {
             .collect()
     }
 
+    /// 获取指定事务的信息
+    ///
+    /// # Arguments
+    /// * `txn_id` - 事务ID
+    ///
+    /// # Returns
+    /// * `Some(TransactionInfo)` - 如果事务存在
+    /// * `None` - 如果事务不存在
+    pub fn get_transaction_info(&self, txn_id: TransactionId) -> Option<TransactionInfo> {
+        self.active_transactions
+            .read()
+            .get(&txn_id)
+            .map(|ctx| ctx.info())
+    }
+
     /// 获取统计信息
     pub fn stats(&self) -> &TransactionStats {
         &self.stats

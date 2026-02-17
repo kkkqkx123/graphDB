@@ -107,10 +107,16 @@ pub enum TransactionError {
     SavepointFailed(String),
 
     #[error("保存点未找到: {0}")]
-    SavepointNotFound(SavepointId),
+    SavepointNotFound(crate::transaction::savepoint::SavepointId),
+
+    #[error("保存点未激活: {0}")]
+    SavepointNotActive(crate::transaction::savepoint::SavepointId),
 
     #[error("事务中无保存点")]
     NoSavepointsInTransaction,
+
+    #[error("2PC事务未找到: {0}")]
+    TwoPhaseNotFound(crate::transaction::two_phase::TwoPhaseId),
 
     #[error("回滚失败: {0}")]
     RollbackFailed(String),

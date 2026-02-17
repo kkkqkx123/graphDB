@@ -26,13 +26,16 @@
 pub mod context;
 pub mod manager;
 pub mod types;
-
-// 保存点和2PC将在后续阶段实现
-// pub mod savepoint;
-// pub mod two_phase;
+pub mod savepoint;
+pub mod two_phase;
 
 pub use context::TransactionContext;
 pub use manager::TransactionManager;
+pub use savepoint::{Savepoint, SavepointId, SavepointInfo, SavepointManager, SavepointState, SavepointStats};
+pub use two_phase::{
+    ParticipantState, ParticipantVote, ResourceManager, TwoPhaseCoordinator,
+    TwoPhaseId, TwoPhaseState, TwoPhaseTransaction,
+};
 pub use types::*;
 
 /// 事务管理模块版本

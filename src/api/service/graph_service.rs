@@ -5,9 +5,11 @@ use crate::api::session::{ClientSession, GraphSessionManager};
 use crate::config::Config;
 use crate::storage::StorageClient;
 use crate::core::error::{SessionError, SessionResult};
+use crate::transaction::{SavepointManager, TransactionManager};
 use std::sync::Arc;
 use parking_lot::Mutex;
 use std::time::Duration;
+use log::{info, warn};
 
 pub struct GraphService<S: StorageClient + Clone + 'static> {
     session_manager: Arc<GraphSessionManager>,
@@ -16,9 +18,14 @@ pub struct GraphService<S: StorageClient + Clone + 'static> {
     permission_manager: Arc<PermissionManager>,
     stats_manager: Arc<StatsManager>,
     storage: Arc<S>,
+    
+    // 事务管理相关
+    transaction_manager: Option<Arc<TransactionManager>>,
+    savepoint_manager: Option<Arc<SavepointManager>>,
 }
 
 impl<S: StorageClient + Clone + 'static> GraphService<S> {
+    /// 创建新的GraphService（不包含事务管理器，用于测试）
     pub fn new(config: Config, storage: Arc<S>) -> Arc<Self> {
         let session_idle_timeout = Duration::from_secs(config.database.transaction_timeout * 10);
         let session_manager = GraphSessionManager::new(
@@ -38,6 +45,38 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             permission_manager,
             stats_manager,
             storage,
+            transaction_manager: None,
+            savepoint_manager: None,
+        })
+    }
+
+    /// 使用事务管理器创建GraphService
+    pub fn new_with_transaction_managers(
+        config: Config,
+        storage: Arc<S>,
+        transaction_manager: Arc<TransactionManager>,
+        savepoint_manager: Arc<SavepointManager>,
+    ) -> Arc<Self> {
+        let session_idle_timeout = Duration::from_secs(config.database.transaction_timeout * 10);
+        let session_manager = GraphSessionManager::new(
+            format!("{}:{}", config.database.host, config.database.port),
+            config.database.max_connections,
+            session_idle_timeout,
+        );
+        let query_engine = Arc::new(Mutex::new(QueryEngine::new(storage.clone())));
+        let authenticator = AuthenticatorFactory::create_default(&config.auth);
+        let permission_manager = Arc::new(PermissionManager::new());
+        let stats_manager = Arc::new(StatsManager::new());
+
+        Arc::new(Self {
+            session_manager,
+            query_engine,
+            authenticator,
+            permission_manager,
+            stats_manager,
+            storage,
+            transaction_manager: Some(transaction_manager),
+            savepoint_manager: Some(savepoint_manager),
         })
     }
 
@@ -83,16 +122,39 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
 
         let space_id = session.space().map(|s| s.id).unwrap_or(0);
 
+        // 处理事务控制语句
+        let trimmed_stmt = stmt.trim().to_uppercase();
+        if trimmed_stmt.starts_with("BEGIN") || trimmed_stmt.starts_with("START TRANSACTION") {
+            return self.handle_begin_transaction(&session).await;
+        } else if trimmed_stmt.starts_with("COMMIT") {
+            return self.handle_commit_transaction(&session).await;
+        } else if trimmed_stmt.starts_with("ROLLBACK") {
+            return self.handle_rollback_transaction(&session, stmt).await;
+        } else if trimmed_stmt.starts_with("SAVEPOINT") {
+            return self.handle_savepoint(&session, stmt).await;
+        }
+
+        // 执行普通查询
         let result = self.execute_with_permission(session_id, stmt, space_id).await;
         
         // 如果是 USE 语句且执行成功，更新会话的空间
-        if result.is_ok() {
-            let trimmed_stmt = stmt.trim().to_uppercase();
-            if trimmed_stmt.starts_with("USE ") {
-                let space_name = stmt.trim()[4..].trim().to_string();
-                // 获取空间信息并设置到会话
-                if let Ok(space_info) = self.get_space_info(&space_name).await {
-                    session.set_space(space_info);
+        if result.is_ok() && trimmed_stmt.starts_with("USE ") {
+            let space_name = stmt.trim()[4..].trim().to_string();
+            // 获取空间信息并设置到会话
+            if let Ok(space_info) = self.get_space_info(&space_name).await {
+                session.set_space(space_info);
+            }
+        }
+        
+        // 自动提交模式处理
+        if result.is_ok() && session.is_auto_commit() {
+            if let Some(txn_id) = session.current_transaction() {
+                if let Some(ref txn_manager) = self.transaction_manager {
+                    if let Err(e) = txn_manager.commit_transaction(txn_id) {
+                        warn!("自动提交失败: {}", e);
+                    } else {
+                        session.unbind_transaction();
+                    }
                 }
             }
         }
@@ -160,6 +222,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             statement: stmt.to_string(),
             parameters: std::collections::HashMap::new(),
             client_session: Some(session),
+            transaction_id: None,
         };
 
         let mut query_engine = self
@@ -247,6 +310,129 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
                 Ok(())
             },
             Err(e) => Err(e)
+        }
+    }
+
+    // ==================== 事务控制方法 ====================
+
+    /// 处理 BEGIN TRANSACTION 语句
+    async fn handle_begin_transaction(&self, session: &Arc<ClientSession>) -> Result<String, String> {
+        if session.has_active_transaction() {
+            return Err("会话已有活跃事务".to_string());
+        }
+
+        let txn_manager = self.transaction_manager.as_ref()
+            .ok_or("事务管理器未初始化")?;
+
+        let options = session.transaction_options();
+        match txn_manager.begin_transaction(options) {
+            Ok(txn_id) => {
+                session.bind_transaction(txn_id);
+                session.set_auto_commit(false);
+                info!("会话 {} 开始事务 {}", session.id(), txn_id);
+                Ok(format!("事务 {} 已开始", txn_id))
+            },
+            Err(e) => Err(format!("开始事务失败: {}", e)),
+        }
+    }
+
+    /// 处理 COMMIT 语句
+    async fn handle_commit_transaction(&self, session: &Arc<ClientSession>) -> Result<String, String> {
+        let txn_id = session.current_transaction()
+            .ok_or("没有活跃事务可提交")?;
+
+        let txn_manager = self.transaction_manager.as_ref()
+            .ok_or("事务管理器未初始化")?;
+
+        match txn_manager.commit_transaction(txn_id) {
+            Ok(()) => {
+                session.unbind_transaction();
+                session.set_auto_commit(true);
+                info!("会话 {} 提交事务 {}", session.id(), txn_id);
+                Ok(format!("事务 {} 已提交", txn_id))
+            },
+            Err(e) => Err(format!("提交事务失败: {}", e)),
+        }
+    }
+
+    /// 处理 ROLLBACK 语句
+    async fn handle_rollback_transaction(&self, session: &Arc<ClientSession>, stmt: &str) -> Result<String, String> {
+        let trimmed = stmt.trim().to_uppercase();
+        
+        // 检查是否是 ROLLBACK TO SAVEPOINT
+        if trimmed.starts_with("ROLLBACK TO ") {
+            return self.handle_rollback_to_savepoint(session, stmt).await;
+        }
+
+        let txn_id = session.current_transaction()
+            .ok_or("没有活跃事务可回滚")?;
+
+        let txn_manager = self.transaction_manager.as_ref()
+            .ok_or("事务管理器未初始化")?;
+
+        match txn_manager.abort_transaction(txn_id) {
+            Ok(()) => {
+                session.unbind_transaction();
+                session.set_auto_commit(true);
+                info!("会话 {} 回滚事务 {}", session.id(), txn_id);
+                Ok(format!("事务 {} 已回滚", txn_id))
+            },
+            Err(e) => Err(format!("回滚事务失败: {}", e)),
+        }
+    }
+
+    /// 处理 SAVEPOINT 语句
+    async fn handle_savepoint(&self, session: &Arc<ClientSession>, stmt: &str) -> Result<String, String> {
+        let txn_id = session.current_transaction()
+            .ok_or("必须先开始事务才能创建保存点")?;
+
+        let savepoint_manager = self.savepoint_manager.as_ref()
+            .ok_or("保存点管理器未初始化")?;
+
+        // 解析保存点名称
+        let parts: Vec<&str> = stmt.trim().split_whitespace().collect();
+        if parts.len() < 2 {
+            return Err("SAVEPOINT 语法错误: SAVEPOINT <name>".to_string());
+        }
+        let savepoint_name = parts[1].to_string();
+
+        match savepoint_manager.create_savepoint(txn_id, Some(savepoint_name.clone())) {
+            Ok(savepoint_id) => {
+                session.push_savepoint(savepoint_id);
+                info!("会话 {} 在事务 {} 中创建保存点 {} (ID: {})", 
+                    session.id(), txn_id, savepoint_name, savepoint_id);
+                Ok(format!("保存点 {} 已创建", savepoint_name))
+            },
+            Err(e) => Err(format!("创建保存点失败: {}", e)),
+        }
+    }
+
+    /// 处理 ROLLBACK TO SAVEPOINT 语句
+    async fn handle_rollback_to_savepoint(&self, session: &Arc<ClientSession>, stmt: &str) -> Result<String, String> {
+        let txn_id = session.current_transaction()
+            .ok_or("必须先开始事务才能回滚到保存点")?;
+
+        let savepoint_manager = self.savepoint_manager.as_ref()
+            .ok_or("保存点管理器未初始化")?;
+
+        // 解析保存点名称
+        let parts: Vec<&str> = stmt.trim().split_whitespace().collect();
+        if parts.len() < 3 {
+            return Err("ROLLBACK TO SAVEPOINT 语法错误: ROLLBACK TO <savepoint_name>".to_string());
+        }
+        let savepoint_name = parts[parts.len() - 1];
+
+        // 通过名称查找保存点ID
+        let savepoint_id = savepoint_manager.find_savepoint_by_name(txn_id, savepoint_name)
+            .ok_or_else(|| format!("保存点 '{}' 未找到", savepoint_name))?;
+
+        match savepoint_manager.rollback_to_savepoint(savepoint_id) {
+            Ok(()) => {
+                info!("会话 {} 在事务 {} 中回滚到保存点 {}", 
+                    session.id(), txn_id, savepoint_name);
+                Ok(format!("已回滚到保存点 {}", savepoint_name))
+            },
+            Err(e) => Err(format!("回滚到保存点失败: {}", e)),
         }
     }
 }

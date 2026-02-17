@@ -5,6 +5,7 @@ use crate::api::session::ClientSession;
 use crate::api::service::StatsManager;
 use crate::query::QueryPipelineManager;
 use crate::storage::StorageClient;
+use crate::transaction::TransactionId;
 
 #[derive(Debug)]
 pub struct RequestContext {
@@ -12,6 +13,7 @@ pub struct RequestContext {
     pub statement: String,
     pub parameters: std::collections::HashMap<String, String>,
     pub client_session: Option<Arc<ClientSession>>,
+    pub transaction_id: Option<TransactionId>,
 }
 
 #[derive(Debug)]
@@ -110,6 +112,7 @@ mod tests {
             statement: "CREATE SPACE IF NOT EXISTS test_space".to_string(),
             parameters: std::collections::HashMap::new(),
             client_session: Some(client_session),
+            transaction_id: None,
         };
 
         let _response = query_engine.execute(request_context).await;

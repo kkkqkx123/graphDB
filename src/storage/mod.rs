@@ -10,6 +10,7 @@ pub mod types;
 pub mod schema;
 pub mod date_utils;
 pub mod serializer;
+pub mod transactional_storage;
 
 #[cfg(test)]
 pub mod test_mock;
@@ -20,6 +21,7 @@ pub use operations::*;
 pub use redb_storage::*;
 pub use storage_client::*;
 pub use index::*;
+pub use transactional_storage::*;
 
 pub use crate::core::StorageError;
 pub use crate::core::StorageResult;

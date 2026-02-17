@@ -8,6 +8,7 @@ use std::time::{Duration, Instant};
 use crossbeam_utils::atomic::AtomicCell;
 use parking_lot::Mutex;
 
+use crate::core::StorageError;
 use crate::transaction::types::*;
 
 /// 事务上下文
@@ -195,6 +196,115 @@ impl TransactionContext {
         self.read_txn
             .as_ref()
             .ok_or(TransactionError::Internal("Read transaction not available".to_string()))
+    }
+
+    /// 使用写事务执行操作（供存储层调用）
+    ///
+    /// # Arguments
+    /// * `f` - 闭包，接收 redb::WriteTransaction 引用并返回结果
+    ///
+    /// # Returns
+    /// * `Ok(R)` - 操作成功返回的结果
+    /// * `Err(TransactionError)` - 操作失败返回的错误
+    pub fn with_write_txn<F, R>(&self, f: F) -> Result<R, TransactionError>
+    where
+        F: FnOnce(&redb::WriteTransaction) -> Result<R, StorageError>,
+    {
+        if self.read_only {
+            return Err(TransactionError::ReadOnlyTransaction);
+        }
+
+        let state = self.state.load();
+        if !state.can_execute() {
+            return Err(TransactionError::InvalidStateForCommit(state));
+        }
+
+        if self.is_expired() {
+            return Err(TransactionError::TransactionExpired);
+        }
+
+        let guard = self.write_txn.lock();
+        let txn = guard
+            .as_ref()
+            .ok_or(TransactionError::Internal("写事务不可用".to_string()))?;
+
+        f(txn).map_err(|e| TransactionError::Internal(e.to_string()))
+    }
+
+    /// 使用读事务执行操作（供存储层调用）
+    ///
+    /// # Arguments
+    /// * `f` - 闭包，接收 redb::ReadTransaction 引用并返回结果
+    ///
+    /// # Returns
+    /// * `Ok(R)` - 操作成功返回的结果
+    /// * `Err(TransactionError)` - 操作失败返回的错误
+    pub fn with_read_txn<F, R>(&self, f: F) -> Result<R, TransactionError>
+    where
+        F: FnOnce(&redb::ReadTransaction) -> Result<R, StorageError>,
+    {
+        let state = self.state.load();
+        if !state.can_execute() && !state.is_terminal() {
+            return Err(TransactionError::InvalidStateForCommit(state));
+        }
+
+        if self.is_expired() {
+            return Err(TransactionError::TransactionExpired);
+        }
+
+        // 优先使用只读事务
+        if let Some(ref txn) = self.read_txn {
+            return f(txn).map_err(|e| TransactionError::Internal(e.to_string()));
+        }
+
+        // 对于读写事务，需要创建一个新的读事务
+        // 因为写事务不能直接作为读事务使用
+        Err(TransactionError::Internal(
+            "只读事务不可用，请使用 with_write_txn 进行读取操作".to_string(),
+        ))
+    }
+
+    /// 获取写事务的可变引用（供存储层调用）
+    ///
+    /// # Safety
+    /// 此方法返回可变引用，调用者必须确保：
+    /// 1. 没有其他线程同时访问该事务
+    /// 2. 操作完成后立即释放引用
+    ///
+    /// 建议使用 `with_write_txn` 方法代替
+    pub fn write_txn_mut(&self) -> Result<impl std::ops::DerefMut<Target = redb::WriteTransaction> + '_, TransactionError> {
+        if self.read_only {
+            return Err(TransactionError::ReadOnlyTransaction);
+        }
+
+        let state = self.state.load();
+        if !state.can_execute() {
+            return Err(TransactionError::InvalidStateForCommit(state));
+        }
+
+        struct WriteTxnGuard<'a> {
+            guard: parking_lot::MutexGuard<'a, Option<redb::WriteTransaction>>,
+        }
+
+        impl<'a> std::ops::Deref for WriteTxnGuard<'a> {
+            type Target = redb::WriteTransaction;
+            fn deref(&self) -> &Self::Target {
+                self.guard.as_ref().unwrap()
+            }
+        }
+
+        impl<'a> std::ops::DerefMut for WriteTxnGuard<'a> {
+            fn deref_mut(&mut self) -> &mut Self::Target {
+                self.guard.as_mut().unwrap()
+            }
+        }
+
+        let guard = self.write_txn.lock();
+        if guard.is_none() {
+            return Err(TransactionError::Internal("写事务不可用".to_string()));
+        }
+
+        Ok(WriteTxnGuard { guard })
     }
 }
 

@@ -5,6 +5,7 @@ use std::time::Instant;
 
 use crate::api::service::permission_manager::RoleType;
 use crate::core::error::{SessionError, QueryResult};
+use crate::transaction::{SavepointId, TransactionId, TransactionOptions};
 
 #[derive(Debug, Clone)]
 pub struct SpaceInfo {
@@ -30,6 +31,12 @@ pub struct ClientSession {
     roles: Arc<RwLock<HashMap<i64, RoleType>>>,
     idle_start_time: Arc<RwLock<Instant>>,
     contexts: Arc<RwLock<HashMap<u32, String>>>, // Represents queries running in this session
+    
+    // 事务相关字段
+    current_transaction: Arc<RwLock<Option<TransactionId>>>,
+    savepoint_stack: Arc<RwLock<Vec<SavepointId>>>,
+    transaction_options: Arc<RwLock<TransactionOptions>>,
+    auto_commit: Arc<RwLock<bool>>,
 }
 
 impl ClientSession {
@@ -40,6 +47,11 @@ impl ClientSession {
             roles: Arc::new(RwLock::new(HashMap::new())),
             idle_start_time: Arc::new(RwLock::new(Instant::now())),
             contexts: Arc::new(RwLock::new(HashMap::new())),
+            // 初始化事务相关字段
+            current_transaction: Arc::new(RwLock::new(None)),
+            savepoint_stack: Arc::new(RwLock::new(Vec::new())),
+            transaction_options: Arc::new(RwLock::new(TransactionOptions::default())),
+            auto_commit: Arc::new(RwLock::new(true)), // 默认开启自动提交
         })
     }
 
@@ -249,6 +261,110 @@ impl ClientSession {
         query_ids.iter().map(|&query_id| {
             self.kill_query(query_id)
         }).collect()
+    }
+
+    // ==================== 事务管理方法 ====================
+
+    /// 获取当前绑定的事务ID
+    pub fn current_transaction(&self) -> Option<TransactionId> {
+        self.current_transaction
+            .read()
+            .expect("Transaction lock was poisoned")
+            .clone()
+    }
+
+    /// 绑定事务到会话
+    pub fn bind_transaction(&self, txn_id: TransactionId) {
+        info!("Binding transaction {} to session {}", txn_id, self.id());
+        *self.current_transaction
+            .write()
+            .expect("Transaction lock was poisoned") = Some(txn_id);
+    }
+
+    /// 解绑当前事务
+    pub fn unbind_transaction(&self) {
+        if let Some(txn_id) = self.current_transaction() {
+            info!("Unbinding transaction {} from session {}", txn_id, self.id());
+            *self.current_transaction
+                .write()
+                .expect("Transaction lock was poisoned") = None;
+            // 清空保存点栈
+            self.savepoint_stack
+                .write()
+                .expect("Savepoint lock was poisoned")
+                .clear();
+        }
+    }
+
+    /// 检查是否有活跃事务
+    pub fn has_active_transaction(&self) -> bool {
+        self.current_transaction().is_some()
+    }
+
+    /// 获取自动提交模式
+    pub fn is_auto_commit(&self) -> bool {
+        *self.auto_commit
+            .read()
+            .expect("Auto commit lock was poisoned")
+    }
+
+    /// 设置自动提交模式
+    pub fn set_auto_commit(&self, auto_commit: bool) {
+        info!("Setting auto_commit to {} for session {}", auto_commit, self.id());
+        *self.auto_commit
+            .write()
+            .expect("Auto commit lock was poisoned") = auto_commit;
+    }
+
+    /// 获取事务选项
+    pub fn transaction_options(&self) -> TransactionOptions {
+        self.transaction_options
+            .read()
+            .expect("Transaction options lock was poisoned")
+            .clone()
+    }
+
+    /// 设置事务选项
+    pub fn set_transaction_options(&self, options: TransactionOptions) {
+        *self.transaction_options
+            .write()
+            .expect("Transaction options lock was poisoned") = options;
+    }
+
+    // ==================== 保存点管理方法 ====================
+
+    /// 添加保存点到栈
+    pub fn push_savepoint(&self, savepoint_id: SavepointId) {
+        info!("Pushing savepoint {} to session {}", savepoint_id, self.id());
+        self.savepoint_stack
+            .write()
+            .expect("Savepoint lock was poisoned")
+            .push(savepoint_id);
+    }
+
+    /// 获取保存点栈（克隆）
+    pub fn savepoint_stack(&self) -> Vec<SavepointId> {
+        self.savepoint_stack
+            .read()
+            .expect("Savepoint lock was poisoned")
+            .clone()
+    }
+
+    /// 清空保存点栈
+    pub fn clear_savepoints(&self) {
+        info!("Clearing savepoint stack for session {}", self.id());
+        self.savepoint_stack
+            .write()
+            .expect("Savepoint lock was poisoned")
+            .clear();
+    }
+
+    /// 获取保存点数量
+    pub fn savepoint_count(&self) -> usize {
+        self.savepoint_stack
+            .read()
+            .expect("Savepoint lock was poisoned")
+            .len()
     }
 }
 

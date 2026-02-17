@@ -2,6 +2,7 @@ use crate::core::{Edge, EdgeDirection, Value, Vertex, StorageError};
 use crate::storage::operations::{VertexReader, EdgeReader, VertexWriter, EdgeWriter, ScanResult};
 use crate::storage::redb_types::{ByteKey, NODES_TABLE, EDGES_TABLE};
 use crate::storage::serializer::{vertex_to_bytes, vertex_from_bytes, edge_to_bytes, edge_from_bytes, value_to_bytes};
+use crate::transaction::TransactionContext;
 use crate::utils::id_gen::generate_id;
 use redb::{Database, ReadableTable};
 use lru::LruCache;
@@ -290,13 +291,84 @@ impl EdgeReader for RedbReader {
     }
 }
 
+/// 写事务执行器
+///
+/// 封装写事务的执行逻辑，支持绑定事务和独立事务两种模式
+pub struct WriteTxnExecutor<'a> {
+    /// 绑定的事务上下文（可选）
+    bound_context: Option<Arc<TransactionContext>>,
+    /// 独立的数据库连接（用于独立事务）
+    db: Option<&'a Arc<Database>>,
+}
+
+impl<'a> WriteTxnExecutor<'a> {
+    /// 创建绑定到事务上下文的执行器
+    pub fn bound(context: Arc<TransactionContext>) -> Self {
+        Self {
+            bound_context: Some(context),
+            db: None,
+        }
+    }
+
+    /// 创建独立事务执行器
+    pub fn independent(db: &'a Arc<Database>) -> Self {
+        Self {
+            bound_context: None,
+            db: Some(db),
+        }
+    }
+
+    /// 执行写操作
+    ///
+    /// 如果绑定了事务上下文，则在绑定的事务中执行
+    /// 否则创建新的独立事务并提交
+    pub fn execute<F, R>(&self, operation: F) -> Result<R, StorageError>
+    where
+        F: FnOnce(&redb::WriteTransaction) -> Result<R, StorageError>,
+    {
+        match &self.bound_context {
+            Some(ctx) => {
+                // 在绑定的事务上下文中执行
+                ctx.with_write_txn(operation)
+                    .map_err(|e| StorageError::DbError(e.to_string()))
+            }
+            None => {
+                // 创建新的独立事务
+                let db = self.db.expect("独立事务需要数据库连接");
+                let txn = db
+                    .begin_write()
+                    .map_err(|e| StorageError::DbError(e.to_string()))?;
+                let result = operation(&txn)?;
+                txn.commit()
+                    .map_err(|e| StorageError::DbError(e.to_string()))?;
+                Ok(result)
+            }
+        }
+    }
+}
+
 pub struct RedbWriter {
     db: Arc<Database>,
+    /// 绑定的写事务上下文（可选）
+    ///
+    /// 当在 TransactionManager 管理的事务中执行时使用
+    txn_context: Option<Arc<TransactionContext>>,
+}
+
+impl Clone for RedbWriter {
+    fn clone(&self) -> Self {
+        Self {
+            db: Arc::clone(&self.db),
+            txn_context: self.txn_context.clone(),
+        }
+    }
 }
 
 impl std::fmt::Debug for RedbWriter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("RedbWriter").finish()
+        f.debug_struct("RedbWriter")
+            .field("has_bound_context", &self.txn_context.is_some())
+            .finish()
     }
 }
 
@@ -304,12 +376,44 @@ impl RedbWriter {
     pub fn new(db: Arc<Database>) -> Result<Self, StorageError> {
         Ok(Self {
             db,
+            txn_context: None,
         })
+    }
+
+    /// 绑定到事务上下文
+    ///
+    /// 绑定后，写操作将使用事务上下文中的 redb 写事务
+    /// 而不是创建新的独立事务
+    pub fn bind_transaction_context(&mut self, context: Arc<TransactionContext>) {
+        self.txn_context = Some(context);
+    }
+
+    /// 解绑事务上下文
+    ///
+    /// 解绑后，写操作将创建新的独立事务
+    pub fn unbind_transaction_context(&mut self) {
+        self.txn_context = None;
+    }
+
+    /// 检查是否已绑定事务上下文
+    pub fn is_bound(&self) -> bool {
+        self.txn_context.is_some()
+    }
+
+    /// 获取写事务执行器
+    ///
+    /// 根据是否绑定事务上下文返回相应的执行器
+    fn get_executor(&self) -> WriteTxnExecutor<'_> {
+        match &self.txn_context {
+            Some(ctx) => WriteTxnExecutor::bound(ctx.clone()),
+            None => WriteTxnExecutor::independent(&self.db),
+        }
     }
 }
 
-impl VertexWriter for RedbWriter {
-    fn insert_vertex(&mut self, _space: &str, vertex: Vertex) -> Result<Value, StorageError> {
+impl RedbWriter {
+    /// 插入顶点的内部实现
+    fn insert_vertex_internal(&self, vertex: Vertex) -> Result<Value, StorageError> {
         // 如果顶点已有有效ID，使用它；否则生成新ID
         let id = match vertex.vid() {
             Value::Int(0) | Value::Null(_) => Value::Int(generate_id() as i64),
@@ -320,11 +424,8 @@ impl VertexWriter for RedbWriter {
         let vertex_bytes = vertex_to_bytes(&vertex_with_id)?;
         let id_bytes = value_to_bytes(&id)?;
 
-        let write_txn = self
-            .db
-            .begin_write()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        {
+        let executor = self.get_executor();
+        executor.execute(|write_txn| {
             let mut table = write_txn
                 .open_table(NODES_TABLE)
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
@@ -332,15 +433,15 @@ impl VertexWriter for RedbWriter {
             table
                 .insert(ByteKey(id_bytes), ByteKey(vertex_bytes))
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
-        }
-        write_txn
-            .commit()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+            Ok(())
+        })?;
 
         Ok(id)
     }
 
-    fn update_vertex(&mut self, _space: &str, vertex: Vertex) -> Result<(), StorageError> {
+    /// 更新顶点的内部实现
+    fn update_vertex_internal(&self, vertex: Vertex) -> Result<(), StorageError> {
         if matches!(*vertex.vid, Value::Null(_)) {
             return Err(StorageError::NodeNotFound(Value::Null(Default::default())));
         }
@@ -348,11 +449,8 @@ impl VertexWriter for RedbWriter {
         let vertex_bytes = vertex_to_bytes(&vertex)?;
         let id_bytes = value_to_bytes(&vertex.vid)?;
 
-        let write_txn = self
-            .db
-            .begin_write()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        {
+        let executor = self.get_executor();
+        executor.execute(|write_txn| {
             let mut table = write_txn
                 .open_table(NODES_TABLE)
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
@@ -360,22 +458,17 @@ impl VertexWriter for RedbWriter {
             table
                 .insert(ByteKey(id_bytes), ByteKey(vertex_bytes))
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
-        }
-        write_txn
-            .commit()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
 
-        Ok(())
+            Ok(())
+        })
     }
 
-    fn delete_vertex(&mut self, _space: &str, id: &Value) -> Result<(), StorageError> {
+    /// 删除顶点的内部实现
+    fn delete_vertex_internal(&self, id: &Value) -> Result<(), StorageError> {
         let id_bytes = value_to_bytes(id)?;
 
-        let write_txn = self
-            .db
-            .begin_write()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        {
+        let executor = self.get_executor();
+        executor.execute(|write_txn| {
             let mut table = write_txn
                 .open_table(NODES_TABLE)
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
@@ -388,22 +481,17 @@ impl VertexWriter for RedbWriter {
 
             table.remove(ByteKey(id_bytes.to_vec()))
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
-        }
-        write_txn
-            .commit()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
 
-        Ok(())
+            Ok(())
+        })
     }
 
-    fn batch_insert_vertices(&mut self, _space: &str, vertices: Vec<Vertex>) -> Result<Vec<Value>, StorageError> {
+    /// 批量插入顶点的内部实现
+    fn batch_insert_vertices_internal(&self, vertices: Vec<Vertex>) -> Result<Vec<Value>, StorageError> {
         let mut ids = Vec::new();
 
-        let write_txn = self
-            .db
-            .begin_write()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        {
+        let executor = self.get_executor();
+        executor.execute(|write_txn| {
             let mut table = write_txn
                 .open_table(NODES_TABLE)
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
@@ -418,30 +506,20 @@ impl VertexWriter for RedbWriter {
                     .map_err(|e| StorageError::DbError(e.to_string()))?;
                 ids.push(id);
             }
-        }
-        write_txn.commit()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
+
+            Ok(())
+        })?;
 
         Ok(ids)
     }
 
-    fn delete_tags(
-        &mut self,
-        _space: &str,
-        vertex_id: &Value,
-        tag_names: &[String],
-    ) -> Result<usize, StorageError> {
+    /// 删除标签的内部实现
+    fn delete_tags_internal(&self, vertex_id: &Value, tag_names: &[String]) -> Result<usize, StorageError> {
         let id_bytes = value_to_bytes(vertex_id)?;
+        let tag_names = tag_names.to_vec(); // 克隆以便在闭包中使用
 
-        let write_txn = self
-            .db
-            .begin_write()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        
-        #[allow(unused_assignments)]
-        let mut deleted_count = 0;
-        
-        {
+        let executor = self.get_executor();
+        executor.execute(|write_txn| {
             let mut table = write_txn
                 .open_table(NODES_TABLE)
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
@@ -462,8 +540,8 @@ impl VertexWriter for RedbWriter {
                 .into_iter()
                 .filter(|tag| !tag_names.contains(&tag.name))
                 .collect();
-            
-            deleted_count = original_tag_count - remaining_tags.len();
+
+            let deleted_count = original_tag_count - remaining_tags.len();
 
             // 如果没有标签了，可以选择删除整个顶点或保留空标签列表
             // 这里选择保留空标签列表的顶点
@@ -472,26 +550,54 @@ impl VertexWriter for RedbWriter {
 
             table.insert(ByteKey(id_bytes), ByteKey(vertex_bytes))
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
-        }
-        
-        write_txn.commit()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
 
-        Ok(deleted_count)
+            Ok(deleted_count)
+        })
     }
 }
 
-impl EdgeWriter for RedbWriter {
-    fn insert_edge(&mut self, _space: &str, edge: Edge) -> Result<(), StorageError> {
+// 为 RedbWriter 实现 VertexWriter trait
+impl VertexWriter for RedbWriter {
+    fn insert_vertex(&mut self, space: &str, vertex: Vertex) -> Result<Value, StorageError> {
+        let _ = space; // 暂时忽略 space 参数
+        self.insert_vertex_internal(vertex)
+    }
+
+    fn update_vertex(&mut self, space: &str, vertex: Vertex) -> Result<(), StorageError> {
+        let _ = space;
+        self.update_vertex_internal(vertex)
+    }
+
+    fn delete_vertex(&mut self, space: &str, id: &Value) -> Result<(), StorageError> {
+        let _ = space;
+        self.delete_vertex_internal(id)
+    }
+
+    fn batch_insert_vertices(&mut self, space: &str, vertices: Vec<Vertex>) -> Result<Vec<Value>, StorageError> {
+        let _ = space;
+        self.batch_insert_vertices_internal(vertices)
+    }
+
+    fn delete_tags(
+        &mut self,
+        space: &str,
+        vertex_id: &Value,
+        tag_names: &[String],
+    ) -> Result<usize, StorageError> {
+        let _ = space;
+        self.delete_tags_internal(vertex_id, tag_names)
+    }
+}
+
+impl RedbWriter {
+    /// 插入边的内部实现
+    fn insert_edge_internal(&self, edge: Edge) -> Result<(), StorageError> {
         let edge_key = format!("{:?}_{:?}_{}", edge.src, edge.dst, edge.edge_type);
         let edge_key_bytes = edge_key.as_bytes().to_vec();
         let edge_bytes = edge_to_bytes(&edge)?;
 
-        let write_txn = self
-            .db
-            .begin_write()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        {
+        let executor = self.get_executor();
+        executor.execute(|write_txn| {
             let mut table = write_txn
                 .open_table(EDGES_TABLE)
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
@@ -499,17 +605,14 @@ impl EdgeWriter for RedbWriter {
             table
                 .insert(ByteKey(edge_key_bytes), ByteKey(edge_bytes))
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
-        }
-        write_txn
-            .commit()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
 
-        Ok(())
+            Ok(())
+        })
     }
 
-    fn delete_edge(
-        &mut self,
-        _space: &str,
+    /// 删除边的内部实现
+    fn delete_edge_internal(
+        &self,
         src: &Value,
         dst: &Value,
         edge_type: &str,
@@ -517,11 +620,8 @@ impl EdgeWriter for RedbWriter {
         let edge_key = format!("{:?}_{:?}_{}", src, dst, edge_type);
         let edge_key_bytes = edge_key.as_bytes().to_vec();
 
-        let write_txn = self
-            .db
-            .begin_write()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        {
+        let executor = self.get_executor();
+        executor.execute(|write_txn| {
             let mut table = write_txn
                 .open_table(EDGES_TABLE)
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
@@ -534,20 +634,15 @@ impl EdgeWriter for RedbWriter {
 
             table.remove(ByteKey(edge_key_bytes.to_vec()))
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
-        }
-        write_txn
-            .commit()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
 
-        Ok(())
+            Ok(())
+        })
     }
 
-    fn batch_insert_edges(&mut self, _space: &str, edges: Vec<Edge>) -> Result<(), StorageError> {
-        let write_txn = self
-            .db
-            .begin_write()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        {
+    /// 批量插入边的内部实现
+    fn batch_insert_edges_internal(&self, edges: Vec<Edge>) -> Result<(), StorageError> {
+        let executor = self.get_executor();
+        executor.execute(|write_txn| {
             let mut table = write_txn
                 .open_table(EDGES_TABLE)
                 .map_err(|e| StorageError::DbError(e.to_string()))?;
@@ -560,10 +655,32 @@ impl EdgeWriter for RedbWriter {
                 table.insert(ByteKey(edge_key_bytes), ByteKey(edge_bytes))
                     .map_err(|e| StorageError::DbError(e.to_string()))?;
             }
-        }
-        write_txn.commit()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
 
-        Ok(())
+            Ok(())
+        })
+    }
+}
+
+// 为 RedbWriter 实现 EdgeWriter trait
+impl EdgeWriter for RedbWriter {
+    fn insert_edge(&mut self, space: &str, edge: Edge) -> Result<(), StorageError> {
+        let _ = space;
+        self.insert_edge_internal(edge)
+    }
+
+    fn delete_edge(
+        &mut self,
+        space: &str,
+        src: &Value,
+        dst: &Value,
+        edge_type: &str,
+    ) -> Result<(), StorageError> {
+        let _ = space;
+        self.delete_edge_internal(src, dst, edge_type)
+    }
+
+    fn batch_insert_edges(&mut self, space: &str, edges: Vec<Edge>) -> Result<(), StorageError> {
+        let _ = space;
+        self.batch_insert_edges_internal(edges)
     }
 }
