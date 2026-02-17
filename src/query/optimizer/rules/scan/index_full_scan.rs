@@ -86,7 +86,7 @@ impl IndexFullScanRule {
             _ => return None,
         };
 
-        let indexes = match index_metadata_manager.list_tag_indexes(&space_name) {
+        let indexes = match index_metadata_manager.list_tag_indexes(space_id) {
             Ok(indexes) => indexes,
             Err(_) => return None,
         };

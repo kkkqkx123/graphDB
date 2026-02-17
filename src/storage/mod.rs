@@ -11,6 +11,7 @@ pub mod schema;
 pub mod date_utils;
 pub mod serializer;
 pub mod transactional_storage;
+pub mod mutate;
 
 #[cfg(test)]
 pub mod test_mock;
@@ -22,6 +23,7 @@ pub use redb_storage::*;
 pub use storage_client::*;
 pub use index::*;
 pub use transactional_storage::*;
+pub use mutate::*;
 
 pub use crate::core::StorageError;
 pub use crate::core::StorageResult;

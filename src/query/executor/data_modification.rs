@@ -404,6 +404,8 @@ pub struct DeleteExecutor<S: StorageClient> {
     vertex_ids: Option<Vec<Value>>,
     edge_ids: Option<Vec<(Value, Value, String)>>,
     condition: Option<String>,
+    with_edge: bool, // 是否级联删除关联边
+    space_name: String,
 }
 
 impl<S: StorageClient> DeleteExecutor<S> {
@@ -419,7 +421,21 @@ impl<S: StorageClient> DeleteExecutor<S> {
             vertex_ids,
             edge_ids,
             condition,
+            with_edge: false,
+            space_name: "default".to_string(),
         }
+    }
+
+    /// 设置是否级联删除关联边
+    pub fn with_edge(mut self, with_edge: bool) -> Self {
+        self.with_edge = with_edge;
+        self
+    }
+
+    /// 设置空间名称
+    pub fn with_space(mut self, space_name: String) -> Self {
+        self.space_name = space_name;
+        self
     }
 }
 
@@ -492,7 +508,7 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
             let mut storage = self.get_storage().lock();
             for id in ids {
                 let should_delete = if let Some(ref expression) = condition_expression {
-                    if let Ok(Some(vertex)) = storage.get_vertex("default", id) {
+                    if let Ok(Some(vertex)) = storage.get_vertex(&self.space_name, id) {
                         let mut context = BasicExpressionContext::default();
                         context.set_variable("VID", id.clone());
                         for (key, value) in &vertex.properties {
@@ -517,8 +533,29 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
                     true
                 };
 
-                if should_delete && storage.delete_vertex("default", id).is_ok() {
-                    total_deleted += 1;
+                if should_delete {
+                    // 如果启用了级联删除，先删除关联边
+                    if self.with_edge {
+                        let edges = storage.get_node_edges(&self.space_name, id, crate::core::EdgeDirection::Both)
+                            .map_err(|e| {
+                                crate::core::error::DBError::Storage(
+                                    crate::core::error::StorageError::StorageError(format!("获取关联边失败: {}", e))
+                                )
+                            })?;
+                        for edge in edges {
+                            storage.delete_edge(&self.space_name, &edge.src, &edge.dst, &edge.edge_type)
+                                .map_err(|e| {
+                                    crate::core::error::DBError::Storage(
+                                        crate::core::error::StorageError::StorageError(format!("删除关联边失败: {}", e))
+                                    )
+                                })?;
+                            total_deleted += 1;
+                        }
+                    }
+
+                    if storage.delete_vertex(&self.space_name, id).is_ok() {
+                        total_deleted += 1;
+                    }
                 }
             }
         }
@@ -527,7 +564,7 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
             let mut storage = self.get_storage().lock();
             for (src, dst, edge_type) in edges {
                 let should_delete = if let Some(ref expression) = condition_expression {
-                    if let Ok(Some(edge)) = storage.get_edge("default", src, dst, edge_type) {
+                    if let Ok(Some(edge)) = storage.get_edge(&self.space_name, src, dst, edge_type) {
                         let mut context = BasicExpressionContext::default();
                         context.set_variable("SRC", src.clone());
                         context.set_variable("DST", dst.clone());
@@ -554,7 +591,7 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
                     true
                 };
 
-                if should_delete && storage.delete_edge("default", src, dst, edge_type).is_ok() {
+                if should_delete && storage.delete_edge(&self.space_name, src, dst, edge_type).is_ok() {
                     total_deleted += 1;
                 }
             }

@@ -1865,8 +1865,10 @@ impl PlanNodeEnum {
                 let mut desc = PlanNodeDescription::new("InsertVertices", node.id());
                 let info = node.info();
                 desc.add_description("spaceName", info.space_name.clone());
-                desc.add_description("tagName", info.tag_name.clone());
-                desc.add_description("properties", format!("[{} properties]", info.prop_names.len()));
+                let tag_names: Vec<String> = info.tags.iter().map(|t| t.tag_name.clone()).collect();
+                desc.add_description("tags", format!("[{}]", tag_names.join(", ")));
+                let total_props: usize = info.tags.iter().map(|t| t.prop_names.len()).sum();
+                desc.add_description("properties", format!("[{} properties]", total_props));
                 desc.add_description("values", format!("[{} values]", info.values.len()));
                 desc
             }

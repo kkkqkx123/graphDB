@@ -6,6 +6,9 @@ use crate::storage::serializer::{storage_index_to_bytes, storage_index_from_byte
 use redb::{Database, ReadableTable};
 use std::sync::Arc;
 
+/// Redb 索引元数据管理器
+///
+/// 使用 space_id 作为空间标识符，实现多空间数据隔离
 pub struct RedbIndexMetadataManager {
     db: Arc<Database>,
 }
@@ -21,18 +24,22 @@ impl RedbIndexMetadataManager {
         Self { db }
     }
 
-    fn make_tag_index_key(space: &str, index_name: &str) -> Vec<u8> {
-        format!("{}:{}", space, index_name).as_bytes().to_vec()
+    /// 构建标签索引键
+    /// 格式: space_id:index_name
+    fn make_tag_index_key(space_id: i32, index_name: &str) -> Vec<u8> {
+        format!("{}:{}", space_id, index_name).as_bytes().to_vec()
     }
 
-    fn make_edge_index_key(space: &str, index_name: &str) -> Vec<u8> {
-        format!("{}:{}", space, index_name).as_bytes().to_vec()
+    /// 构建边索引键
+    /// 格式: space_id:index_name
+    fn make_edge_index_key(space_id: i32, index_name: &str) -> Vec<u8> {
+        format!("{}:{}", space_id, index_name).as_bytes().to_vec()
     }
 }
 
 impl IndexMetadataManager for RedbIndexMetadataManager {
-    fn create_tag_index(&self, space: &str, index: &Index) -> Result<bool, StorageError> {
-        let key = Self::make_tag_index_key(space, &index.name);
+    fn create_tag_index(&self, space_id: i32, index: &Index) -> Result<bool, StorageError> {
+        let key = Self::make_tag_index_key(space_id, &index.name);
         let index_bytes = storage_index_to_bytes(index)?;
 
         let write_txn = self.db.begin_write()
@@ -56,8 +63,8 @@ impl IndexMetadataManager for RedbIndexMetadataManager {
         Ok(true)
     }
 
-    fn drop_tag_index(&self, space: &str, index_name: &str) -> Result<bool, StorageError> {
-        let key = Self::make_tag_index_key(space, index_name);
+    fn drop_tag_index(&self, space_id: i32, index_name: &str) -> Result<bool, StorageError> {
+        let key = Self::make_tag_index_key(space_id, index_name);
 
         let write_txn = self.db.begin_write()
             .map_err(|e| StorageError::DbError(e.to_string()))?;
@@ -80,8 +87,8 @@ impl IndexMetadataManager for RedbIndexMetadataManager {
         Ok(true)
     }
 
-    fn get_tag_index(&self, space: &str, index_name: &str) -> Result<Option<Index>, StorageError> {
-        let key = Self::make_tag_index_key(space, index_name);
+    fn get_tag_index(&self, space_id: i32, index_name: &str) -> Result<Option<Index>, StorageError> {
+        let key = Self::make_tag_index_key(space_id, index_name);
 
         let read_txn = self.db.begin_read()
             .map_err(|e| StorageError::DbError(e.to_string()))?;
@@ -99,14 +106,14 @@ impl IndexMetadataManager for RedbIndexMetadataManager {
         }
     }
 
-    fn list_tag_indexes(&self, space: &str) -> Result<Vec<Index>, StorageError> {
+    fn list_tag_indexes(&self, space_id: i32) -> Result<Vec<Index>, StorageError> {
         let read_txn = self.db.begin_read()
             .map_err(|e| StorageError::DbError(e.to_string()))?;
         let table = read_txn.open_table(TAG_INDEXES_TABLE)
             .map_err(|e| StorageError::DbError(e.to_string()))?;
 
         let mut indexes = Vec::new();
-        let space_prefix = format!("{}:", space);
+        let space_prefix = format!("{}:", space_id);
         for result in table.iter()
             .map_err(|e| StorageError::DbError(e.to_string()))? {
             let (key, value) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
@@ -121,13 +128,13 @@ impl IndexMetadataManager for RedbIndexMetadataManager {
         Ok(indexes)
     }
 
-    fn drop_tag_indexes_by_tag(&self, space: &str, tag_name: &str) -> Result<(), StorageError> {
+    fn drop_tag_indexes_by_tag(&self, space_id: i32, tag_name: &str) -> Result<(), StorageError> {
         let read_txn = self.db.begin_read()
             .map_err(|e| StorageError::DbError(e.to_string()))?;
         let table = read_txn.open_table(TAG_INDEXES_TABLE)
             .map_err(|e| StorageError::DbError(e.to_string()))?;
 
-        let space_prefix = format!("{}:", space);
+        let space_prefix = format!("{}:", space_id);
         let indexes_to_drop: Vec<Vec<u8>> = table.iter()
             .map_err(|e| StorageError::DbError(e.to_string()))?
             .filter_map(|result| {
@@ -166,8 +173,8 @@ impl IndexMetadataManager for RedbIndexMetadataManager {
         Ok(())
     }
 
-    fn create_edge_index(&self, space: &str, index: &Index) -> Result<bool, StorageError> {
-        let key = Self::make_edge_index_key(space, &index.name);
+    fn create_edge_index(&self, space_id: i32, index: &Index) -> Result<bool, StorageError> {
+        let key = Self::make_edge_index_key(space_id, &index.name);
         let index_bytes = storage_index_to_bytes(index)?;
 
         let write_txn = self.db.begin_write()
@@ -191,8 +198,8 @@ impl IndexMetadataManager for RedbIndexMetadataManager {
         Ok(true)
     }
 
-    fn drop_edge_index(&self, space: &str, index_name: &str) -> Result<bool, StorageError> {
-        let key = Self::make_edge_index_key(space, index_name);
+    fn drop_edge_index(&self, space_id: i32, index_name: &str) -> Result<bool, StorageError> {
+        let key = Self::make_edge_index_key(space_id, index_name);
 
         let write_txn = self.db.begin_write()
             .map_err(|e| StorageError::DbError(e.to_string()))?;
@@ -215,8 +222,8 @@ impl IndexMetadataManager for RedbIndexMetadataManager {
         Ok(true)
     }
 
-    fn get_edge_index(&self, space: &str, index_name: &str) -> Result<Option<Index>, StorageError> {
-        let key = Self::make_edge_index_key(space, index_name);
+    fn get_edge_index(&self, space_id: i32, index_name: &str) -> Result<Option<Index>, StorageError> {
+        let key = Self::make_edge_index_key(space_id, index_name);
 
         let read_txn = self.db.begin_read()
             .map_err(|e| StorageError::DbError(e.to_string()))?;
@@ -234,14 +241,14 @@ impl IndexMetadataManager for RedbIndexMetadataManager {
         }
     }
 
-    fn list_edge_indexes(&self, space: &str) -> Result<Vec<Index>, StorageError> {
+    fn list_edge_indexes(&self, space_id: i32) -> Result<Vec<Index>, StorageError> {
         let read_txn = self.db.begin_read()
             .map_err(|e| StorageError::DbError(e.to_string()))?;
         let table = read_txn.open_table(EDGE_INDEXES_TABLE)
             .map_err(|e| StorageError::DbError(e.to_string()))?;
 
         let mut indexes = Vec::new();
-        let space_prefix = format!("{}:", space);
+        let space_prefix = format!("{}:", space_id);
         for result in table.iter()
             .map_err(|e| StorageError::DbError(e.to_string()))? {
             let (key, value) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
@@ -256,13 +263,13 @@ impl IndexMetadataManager for RedbIndexMetadataManager {
         Ok(indexes)
     }
 
-    fn drop_edge_indexes_by_type(&self, space: &str, edge_type: &str) -> Result<(), StorageError> {
+    fn drop_edge_indexes_by_type(&self, space_id: i32, edge_type: &str) -> Result<(), StorageError> {
         let read_txn = self.db.begin_read()
             .map_err(|e| StorageError::DbError(e.to_string()))?;
         let table = read_txn.open_table(EDGE_INDEXES_TABLE)
             .map_err(|e| StorageError::DbError(e.to_string()))?;
 
-        let space_prefix = format!("{}:", space);
+        let space_prefix = format!("{}:", space_id);
         let indexes_to_drop: Vec<Vec<u8>> = table.iter()
             .map_err(|e| StorageError::DbError(e.to_string()))?
             .filter_map(|result| {

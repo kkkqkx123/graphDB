@@ -7,7 +7,7 @@ use crate::query::parser::ast::{InsertStmt, InsertTarget, Stmt, VertexRow};
 use crate::query::planner::plan::core::{
     node_id_generator::next_node_id,
     nodes::{
-        insert_nodes::{EdgeInsertInfo, InsertEdgesNode, InsertVerticesNode, VertexInsertInfo},
+        insert_nodes::{EdgeInsertInfo, InsertEdgesNode, InsertVerticesNode, VertexInsertInfo, TagInsertSpec},
         ArgumentNode, ProjectNode,
     },
 };
@@ -53,27 +53,34 @@ impl InsertPlanner {
     }
 
     /// 构建顶点插入信息
+    /// 支持多标签插入
     fn build_vertex_insert_info(
         &self,
         space_name: String,
-        tag_name: String,
-        prop_names: Vec<String>,
+        tags: Vec<crate::query::parser::ast::TagInsertSpec>,
         values: Vec<VertexRow>,
     ) -> Result<VertexInsertInfo, PlannerError> {
-        // 将 VertexRow 转换为 (Expression, Vec<Expression>) 格式
-        // 暂时只支持单 Tag，所以只取第一个 tag 的值
-        let converted_values: Vec<(Expression, Vec<Expression>)> = values
+        // 转换标签规范
+        let tag_specs: Vec<TagInsertSpec> = tags
+            .into_iter()
+            .map(|tag| TagInsertSpec {
+                tag_name: tag.tag_name,
+                prop_names: tag.prop_names,
+            })
+            .collect();
+
+        // 将 VertexRow 转换为 (vid, Vec<Vec<Expression>>) 格式
+        // 每个标签对应一个属性值列表
+        let converted_values: Vec<(Expression, Vec<Vec<Expression>>)> = values
             .into_iter()
             .map(|row| {
-                let props = row.tag_values.into_iter().next().unwrap_or_default();
-                (row.vid, props)
+                (row.vid, row.tag_values)
             })
             .collect();
         
         Ok(VertexInsertInfo {
             space_name,
-            tag_name,
-            prop_names,
+            tags: tag_specs,
             values: converted_values,
         })
     }
@@ -119,14 +126,15 @@ impl Planner for InsertPlanner {
         let (insert_node, inserted_count) = match &insert_stmt.target {
             InsertTarget::Vertices { tags, values } => {
                 let count = values.len();
-                // 暂时只支持单 Tag 插入，后续需要扩展支持多 Tag
-                let tag_spec = tags.first().ok_or_else(|| {
-                    PlannerError::PlanGenerationFailed("INSERT VERTEX must specify at least one tag".to_string())
-                })?;
+                // 支持多标签插入
+                if tags.is_empty() {
+                    return Err(PlannerError::PlanGenerationFailed(
+                        "INSERT VERTEX must specify at least one tag".to_string()
+                    ));
+                }
                 let info = self.build_vertex_insert_info(
                     space_name,
-                    tag_spec.tag_name.clone(),
-                    tag_spec.prop_names.clone(),
+                    tags.clone(),
                     values.clone(),
                 )?;
                 (
@@ -287,8 +295,13 @@ mod tests {
         let planner = InsertPlanner::new();
         let info = planner.build_vertex_insert_info(
             "test_space".to_string(),
-            "person".to_string(),
-            vec!["name".to_string(), "age".to_string()],
+            vec![
+                TagInsertSpec {
+                    tag_name: "person".to_string(),
+                    prop_names: vec!["name".to_string(), "age".to_string()],
+                    is_default_props: false,
+                },
+            ],
             vec![
                 VertexRow {
                     vid: lit(Value::Int(1)),
@@ -302,8 +315,9 @@ mod tests {
             ],
         ).expect("Failed to build vertex insert info");
         assert_eq!(info.space_name, "test_space");
-        assert_eq!(info.tag_name, "person");
-        assert_eq!(info.prop_names.len(), 2);
+        assert_eq!(info.tags.len(), 1);
+        assert_eq!(info.tags[0].tag_name, "person");
+        assert_eq!(info.tags[0].prop_names.len(), 2);
         assert_eq!(info.values.len(), 1);
     }
 

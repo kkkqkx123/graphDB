@@ -13,7 +13,7 @@ use crate::storage::Schema;
 use crate::storage::serializer::{vertex_to_bytes, edge_to_bytes};
 use crate::storage::metadata::{RedbExtendedSchemaManager, ExtendedSchemaManager, SchemaManager, RedbSchemaManager, IndexMetadataManager, RedbIndexMetadataManager};
 use crate::storage::operations::{RedbReader, RedbWriter};
-use crate::storage::index::RedbIndexDataManager;
+use crate::storage::index::{RedbIndexDataManager, IndexDataManager};
 use crate::api::service::permission_manager::RoleType;
 use redb::Database;
 use std::collections::HashMap;
@@ -137,13 +137,17 @@ impl RedbStorage {
     // 删除顶点相关边
     fn delete_vertex_edges(&mut self, space: &str, vertex_id: &Value) -> Result<(), StorageError> {
         let edges = self.reader.scan_all_edges(space)?;
+
+        // 获取 space_id
+        let space_id = self.get_space_id(space)?;
+
         for edge in edges {
             if *edge.src == *vertex_id || *edge.dst == *vertex_id {
                 {
                     let mut writer = self.writer.lock();
                     writer.delete_edge(space, &edge.src, &edge.dst, &edge.edge_type)?;
                 }
-                self.index_data_manager.delete_edge_indexes(space, &edge.src, &edge.dst, &edge.edge_type)?;
+                self.index_data_manager.delete_edge_indexes(space_id, &edge.src, &edge.dst, &edge.edge_type)?;
             }
         }
         Ok(())
@@ -287,12 +291,15 @@ impl StorageClient for RedbStorage {
     fn insert_vertex(&mut self, space: &str, vertex: Vertex) -> Result<Value, StorageError> {
         let mut writer = self.writer.lock();
         let id = writer.insert_vertex(space, vertex.clone())?;
-        
+
+        // 获取 space_id
+        let space_id = self.get_space_id(space)?;
+
         // 更新索引
         for tag in &vertex.tags {
             // 获取该 tag 的所有索引
-            let indexes = self.index_metadata_manager.list_tag_indexes(space)?;
-            
+            let indexes = self.index_metadata_manager.list_tag_indexes(space_id)?;
+
             for index in indexes {
                 if index.schema_name == tag.name {
                     // 检查索引字段是否在顶点属性中
@@ -302,14 +309,14 @@ impl StorageClient for RedbStorage {
                             index_props.push((field.name.clone(), value.clone()));
                         }
                     }
-                    
+
                     if !index_props.is_empty() {
-                        self.index_data_manager.update_vertex_indexes(space, &id, &index.name, &index_props)?;
+                        self.index_data_manager.update_vertex_indexes(space_id, &id, &index.name, &index_props)?;
                     }
                 }
             }
         }
-        
+
         Ok(id)
     }
 
@@ -321,24 +328,30 @@ impl StorageClient for RedbStorage {
     fn delete_vertex(&mut self, space: &str, id: &Value) -> Result<(), StorageError> {
         let mut writer = self.writer.lock();
         writer.delete_vertex(space, id)?;
-        
+
+        // 获取 space_id
+        let space_id = self.get_space_id(space)?;
+
         // 删除索引
-        self.index_data_manager.delete_vertex_indexes(space, id)?;
-        
+        self.index_data_manager.delete_vertex_indexes(space_id, id)?;
+
         Ok(())
     }
 
     fn delete_vertex_with_edges(&mut self, space: &str, id: &Value) -> Result<(), StorageError> {
         // 首先删除所有与该顶点关联的边
         self.delete_vertex_edges(space, id)?;
-        
+
         // 然后删除顶点本身
         let mut writer = self.writer.lock();
         writer.delete_vertex(space, id)?;
-        
+
+        // 获取 space_id
+        let space_id = self.get_space_id(space)?;
+
         // 删除索引
-        self.index_data_manager.delete_vertex_indexes(space, id)?;
-        
+        self.index_data_manager.delete_vertex_indexes(space_id, id)?;
+
         Ok(())
     }
 
@@ -355,23 +368,29 @@ impl StorageClient for RedbStorage {
     ) -> Result<usize, StorageError> {
         let mut writer = self.writer.lock();
         let deleted_count = writer.delete_tags(space, vertex_id, tag_names)?;
-        
+
+        // 获取 space_id
+        let space_id = self.get_space_id(space)?;
+
         // 删除相关索引
         for tag_name in tag_names {
-            self.index_data_manager.delete_tag_indexes(space, vertex_id, tag_name)?;
+            self.index_data_manager.delete_tag_indexes(space_id, vertex_id, tag_name)?;
         }
-        
+
         Ok(deleted_count)
     }
 
     fn insert_edge(&mut self, space: &str, edge: Edge) -> Result<(), StorageError> {
         let mut writer = self.writer.lock();
         writer.insert_edge(space, edge.clone())?;
-        
+
+        // 获取 space_id
+        let space_id = self.get_space_id(space)?;
+
         // 更新索引
         // 获取该 edge_type 的所有索引
-        let indexes = self.index_metadata_manager.list_edge_indexes(space)?;
-        
+        let indexes = self.index_metadata_manager.list_edge_indexes(space_id)?;
+
         for index in indexes {
             if index.schema_name == edge.edge_type {
                 // 检查索引字段是否在边属性中
@@ -381,22 +400,25 @@ impl StorageClient for RedbStorage {
                         index_props.push((field.name.clone(), value.clone()));
                     }
                 }
-                
+
                 if !index_props.is_empty() {
-                    self.index_data_manager.update_edge_indexes(space, &edge.src, &edge.dst, &index.name, &index_props)?;
+                    self.index_data_manager.update_edge_indexes(space_id, &edge.src, &edge.dst, &index.name, &index_props)?;
                 }
             }
         }
-        
+
         Ok(())
     }
 
     fn delete_edge(&mut self, space: &str, src: &Value, dst: &Value, edge_type: &str) -> Result<(), StorageError> {
         let mut writer = self.writer.lock();
         writer.delete_edge(space, src, dst, edge_type)?;
-        
+
+        // 获取 space_id
+        let space_id = self.get_space_id(space)?;
+
         // 删除索引
-        self.index_data_manager.delete_edge_indexes(space, src, dst, edge_type)?;
+        self.index_data_manager.delete_edge_indexes(space_id, src, dst, edge_type)?;
         
         Ok(())
     }
@@ -726,19 +748,23 @@ impl StorageClient for RedbStorage {
     }
 
     fn create_tag_index(&mut self, space: &str, info: &Index) -> Result<bool, StorageError> {
-        self.index_metadata_manager.create_tag_index(space, info)
+        let space_id = self.get_space_id(space)?;
+        self.index_metadata_manager.create_tag_index(space_id, info)
     }
 
     fn drop_tag_index(&mut self, space: &str, index: &str) -> Result<bool, StorageError> {
-        self.index_metadata_manager.drop_tag_index(space, index)
+        let space_id = self.get_space_id(space)?;
+        self.index_metadata_manager.drop_tag_index(space_id, index)
     }
 
     fn get_tag_index(&self, space: &str, index: &str) -> Result<Option<Index>, StorageError> {
-        self.index_metadata_manager.get_tag_index(space, index)
+        let space_id = self.get_space_id(space)?;
+        self.index_metadata_manager.get_tag_index(space_id, index)
     }
 
     fn list_tag_indexes(&self, space: &str) -> Result<Vec<Index>, StorageError> {
-        self.index_metadata_manager.list_tag_indexes(space)
+        let space_id = self.get_space_id(space)?;
+        self.index_metadata_manager.list_tag_indexes(space_id)
     }
 
     fn rebuild_tag_index(&mut self, _space: &str, _index: &str) -> Result<bool, StorageError> {
@@ -746,32 +772,37 @@ impl StorageClient for RedbStorage {
     }
 
     fn create_edge_index(&mut self, space: &str, info: &Index) -> Result<bool, StorageError> {
-        self.index_metadata_manager.create_edge_index(space, info)
+        let space_id = self.get_space_id(space)?;
+        self.index_metadata_manager.create_edge_index(space_id, info)
     }
 
     fn drop_edge_index(&mut self, space: &str, index: &str) -> Result<bool, StorageError> {
-        self.index_metadata_manager.drop_edge_index(space, index)
+        let space_id = self.get_space_id(space)?;
+        self.index_metadata_manager.drop_edge_index(space_id, index)
     }
 
     fn get_edge_index(&self, space: &str, index: &str) -> Result<Option<Index>, StorageError> {
-        self.index_metadata_manager.get_edge_index(space, index)
+        let space_id = self.get_space_id(space)?;
+        self.index_metadata_manager.get_edge_index(space_id, index)
     }
 
     fn list_edge_indexes(&self, space: &str) -> Result<Vec<Index>, StorageError> {
-        self.index_metadata_manager.list_edge_indexes(space)
+        let space_id = self.get_space_id(space)?;
+        self.index_metadata_manager.list_edge_indexes(space_id)
     }
 
     fn rebuild_edge_index(&mut self, space: &str, index_name: &str) -> Result<bool, StorageError> {
-        let index = self.index_metadata_manager.get_edge_index(space, index_name)?
+        let space_id = self.get_space_id(space)?;
+        let index = self.index_metadata_manager.get_edge_index(space_id, index_name)?
             .ok_or_else(|| StorageError::DbError(format!("Edge index '{}' not found in space '{}'", index_name, space)))?;
-        
-        self.index_data_manager.clear_edge_index(space, index_name)?;
-        
+
+        self.index_data_manager.clear_edge_index(space_id, index_name)?;
+
         let edges = self.reader.scan_all_edges(space)?;
         for edge in edges {
-            self.index_data_manager.build_edge_index_entry(space, &index, &edge)?;
+            self.index_data_manager.build_edge_index_entry(space_id, &index, &edge)?;
         }
-        
+
         Ok(true)
     }
 
@@ -817,10 +848,13 @@ impl StorageClient for RedbStorage {
             let mut writer = self.writer.lock();
             writer.update_vertex(space, vertex)?;
         }
-        
+
+        // 获取 space_id
+        let space_id = self.get_space_id(space)?;
+
         // 更新索引
-        self.index_data_manager.update_vertex_indexes(space, &info.vertex_id, &tag_name, &info.props)?;
-        
+        self.index_data_manager.update_vertex_indexes(space_id, &info.vertex_id, &tag_name, &info.props)?;
+
         Ok(true)
     }
 
@@ -857,27 +891,33 @@ impl StorageClient for RedbStorage {
             writer.insert_edge(space, edge)?;
         }
         
+        // 获取 space_id
+        let space_id = self.get_space_id(space)?;
+
         // 更新边索引
         self.index_data_manager.update_edge_indexes(
-            space, 
-            &src_vertex_id, 
-            &dst_vertex_id, 
-            &edge_name, 
+            space_id,
+            &src_vertex_id,
+            &dst_vertex_id,
+            &edge_name,
             &props
         )?;
-        
+
         Ok(true)
     }
 
     fn delete_vertex_data(&mut self, space: &str, vertex_id: &str) -> Result<bool, StorageError> {
         // 解析顶点ID
         let vid = self.parse_vertex_id(vertex_id)?;
-        
+
         // 首先删除所有相关的边
         self.delete_vertex_edges(space, &vid)?;
-        
+
+        // 获取 space_id
+        let space_id = self.get_space_id(space)?;
+
         // 删除顶点索引
-        self.index_data_manager.delete_vertex_indexes(space, &vid)?;
+        self.index_data_manager.delete_vertex_indexes(space_id, &vid)?;
         
         // 删除顶点本身
         {
@@ -892,23 +932,26 @@ impl StorageClient for RedbStorage {
         // 解析顶点ID
         let src_id = self.parse_vertex_id(src)?;
         let dst_id = self.parse_vertex_id(dst)?;
-        
+
+        // 获取 space_id
+        let space_id = self.get_space_id(space)?;
+
         // 扫描找到匹配的边
         let edges = self.reader.scan_all_edges(space)?;
         let mut deleted = false;
-        
+
         for edge in edges {
             if *edge.src == src_id && *edge.dst == dst_id && edge.ranking == rank {
                 {
                     let mut writer = self.writer.lock();
                     writer.delete_edge(space, &edge.src, &edge.dst, &edge.edge_type)?;
                 }
-                self.index_data_manager.delete_edge_indexes(space, &edge.src, &edge.dst, &edge.edge_type)?;
+                self.index_data_manager.delete_edge_indexes(space_id, &edge.src, &edge.dst, &edge.edge_type)?;
                 deleted = true;
                 break;
             }
         }
-        
+
         Ok(deleted)
     }
 
@@ -997,17 +1040,18 @@ impl StorageClient for RedbStorage {
 
     fn lookup_index_with_score(&self, space: &str, index_name: &str, value: &Value) -> Result<Vec<(Value, f32)>, StorageError> {
         let mut results = Vec::new();
+        let space_id = self.get_space_id(space)?;
 
-        if let Some(index) = self.index_metadata_manager.get_tag_index(space, index_name)? {
-            let indexed_values = self.index_data_manager.lookup_tag_index(space, &index, value)?;
+        if let Some(index) = self.index_metadata_manager.get_tag_index(space_id, index_name)? {
+            let indexed_values = self.index_data_manager.lookup_tag_index(space_id, &index, value)?;
             results.extend(indexed_values.into_iter().map(|v| (v, 1.0f32)));
         }
 
-        if let Some(index) = self.index_metadata_manager.get_edge_index(space, index_name)? {
-            let indexed_values = self.index_data_manager.lookup_edge_index(space, &index, value)?;
+        if let Some(index) = self.index_metadata_manager.get_edge_index(space_id, index_name)? {
+            let indexed_values = self.index_data_manager.lookup_edge_index(space_id, &index, value)?;
             results.extend(indexed_values.into_iter().map(|v| (v, 1.0f32)));
         }
-        
+
         Ok(results)
     }
 
@@ -1153,7 +1197,10 @@ impl StorageClient for RedbStorage {
     fn repair_dangling_edges(&mut self, space: &str) -> Result<usize, StorageError> {
         let dangling_edges = self.find_dangling_edges(space)?;
         let count = dangling_edges.len();
-        
+
+        // 获取 space_id
+        let space_id = self.get_space_id(space)?;
+
         // 删除所有悬挂边
         for edge in dangling_edges {
             {
@@ -1161,9 +1208,9 @@ impl StorageClient for RedbStorage {
                 writer.delete_edge(space, &edge.src, &edge.dst, &edge.edge_type)?;
             }
             // 删除相关索引
-            self.index_data_manager.delete_edge_indexes(space, &edge.src, &edge.dst, &edge.edge_type)?;
+            self.index_data_manager.delete_edge_indexes(space_id, &edge.src, &edge.dst, &edge.edge_type)?;
         }
-        
+
         Ok(count)
     }
 }

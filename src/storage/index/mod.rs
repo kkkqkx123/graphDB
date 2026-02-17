@@ -4,6 +4,8 @@
 //! 注意：索引元数据管理由 metadata::IndexMetadataManager 负责
 
 pub mod index_data_manager;
+pub mod index_updater;
 
 pub use index_data_manager::*;
+pub use index_updater::*;
 pub use crate::index::{Index, IndexStatus, IndexType, IndexStats, IndexOptimization};

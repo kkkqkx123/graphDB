@@ -2,6 +2,7 @@
 //!
 //! 提供索引数据的更新、删除和查询功能
 //! 注意：索引元数据管理由 IndexMetadataManager 负责
+//! 所有操作都通过 space_id 来标识空间，实现多空间数据隔离
 
 use crate::core::{StorageError, Value};
 use crate::core::Edge;
@@ -11,27 +12,28 @@ use redb::{Database, ReadableTable};
 use std::sync::Arc;
 
 /// 索引数据管理器 trait
+///
+/// 提供索引数据的增删改查功能
+/// 所有操作都通过 space_id 来标识空间，实现多空间数据隔离
 pub trait IndexDataManager {
-    fn update_vertex_indexes(&self, space: &str, vertex_id: &Value, index_name: &str, props: &[(String, Value)]) -> Result<(), StorageError>;
-    fn update_edge_indexes(&self, space: &str, src: &Value, dst: &Value, index_name: &str, props: &[(String, Value)]) -> Result<(), StorageError>;
-    fn delete_vertex_indexes(&self, space: &str, vertex_id: &Value) -> Result<(), StorageError>;
-    fn delete_edge_indexes(&self, space: &str, src: &Value, dst: &Value, edge_type: &str) -> Result<(), StorageError>;
-    fn lookup_tag_index(&self, space: &str, index: &Index, value: &Value) -> Result<Vec<Value>, StorageError>;
-    fn lookup_edge_index(&self, space: &str, index: &Index, value: &Value) -> Result<Vec<Value>, StorageError>;
-    fn clear_edge_index(&self, space: &str, index_name: &str) -> Result<(), StorageError>;
-    fn build_edge_index_entry(&self, space: &str, index: &Index, edge: &Edge) -> Result<(), StorageError>;
-    
+    /// 更新顶点索引
+    fn update_vertex_indexes(&self, space_id: i32, vertex_id: &Value, index_name: &str, props: &[(String, Value)]) -> Result<(), StorageError>;
+    /// 更新边索引
+    fn update_edge_indexes(&self, space_id: i32, src: &Value, dst: &Value, index_name: &str, props: &[(String, Value)]) -> Result<(), StorageError>;
+    /// 删除顶点所有索引
+    fn delete_vertex_indexes(&self, space_id: i32, vertex_id: &Value) -> Result<(), StorageError>;
+    /// 删除边所有索引
+    fn delete_edge_indexes(&self, space_id: i32, src: &Value, dst: &Value, edge_type: &str) -> Result<(), StorageError>;
+    /// 查找标签索引
+    fn lookup_tag_index(&self, space_id: i32, index: &Index, value: &Value) -> Result<Vec<Value>, StorageError>;
+    /// 查找边索引
+    fn lookup_edge_index(&self, space_id: i32, index: &Index, value: &Value) -> Result<Vec<Value>, StorageError>;
+    /// 清空边索引
+    fn clear_edge_index(&self, space_id: i32, index_name: &str) -> Result<(), StorageError>;
+    /// 构建边索引条目
+    fn build_edge_index_entry(&self, space_id: i32, index: &Index, edge: &Edge) -> Result<(), StorageError>;
     /// 删除指定标签的索引
-    /// 
-    /// # Arguments
-    /// * `space` - 空间名称
-    /// * `vertex_id` - 顶点ID
-    /// * `tag_name` - 标签名称
-    /// 
-    /// # Returns
-    /// * `Ok(())` - 删除成功
-    /// * `Err(StorageError)` - 存储错误
-    fn delete_tag_indexes(&self, space: &str, vertex_id: &Value, tag_name: &str) -> Result<(), StorageError>;
+    fn delete_tag_indexes(&self, space_id: i32, vertex_id: &Value, tag_name: &str) -> Result<(), StorageError>;
 }
 
 /// 基于 Redb 的索引数据管理器实现
@@ -62,386 +64,349 @@ impl RedbIndexDataManager {
     }
 
     /// 反序列化值
-    fn deserialize_value(data: &[u8]) -> Result<Value, StorageError> {
-        if data.len() == 8 {
-            let mut bytes = [0u8; 8];
-            bytes.copy_from_slice(data);
-            Ok(Value::Int(i64::from_be_bytes(bytes)))
-        } else {
-            Ok(Value::String(String::from_utf8_lossy(data).to_string()))
+    fn deserialize_value(data: &[u8], value_type: &Value) -> Value {
+        match value_type {
+            Value::String(_) => String::from_utf8_lossy(data).to_string().into(),
+            Value::Int(_) => i64::from_be_bytes(data.try_into().unwrap_or([0; 8])).into(),
+            Value::Float(_) => f64::from_be_bytes(data.try_into().unwrap_or([0; 8])).into(),
+            Value::Bool(_) => (data.first().copied().unwrap_or(0) != 0).into(),
+            _ => Value::Null(crate::core::DataType::Any),
         }
+    }
+
+    /// 构建索引键
+    /// 格式: space_id:index_name:prop_value:vertex_id
+    fn build_index_key(space_id: i32, index_name: &str, prop_value: &Value, vertex_id: &Value) -> ByteKey {
+        let space_prefix = format!("{}:", space_id);
+        let index_part = format!("{}:", index_name);
+        let value_part = format!("{}:", Self::serialize_value(prop_value).len());
+        let vertex_part = format!("{}", Self::serialize_value(vertex_id).len());
+        
+        ByteKey(
+            space_prefix.as_bytes()
+                .iter()
+                .chain(index_part.as_bytes().iter())
+                .chain(Self::serialize_value(prop_value).iter())
+                .chain(b":")
+                .chain(Self::serialize_value(vertex_id).iter())
+                .copied()
+                .collect()
+        )
+    }
+
+    /// 构建索引键前缀（用于范围查询）
+    fn build_index_prefix(space_id: i32, index_name: &str) -> ByteKey {
+        ByteKey(format!("{}:{}:", space_id, index_name).into_bytes())
+    }
+
+    /// 构建反向索引键
+    /// 格式: space_id:reverse:index_name:vertex_id
+    fn build_reverse_key(space_id: i32, index_name: &str, vertex_id: &Value) -> ByteKey {
+        ByteKey(
+            format!("{}:reverse:{}:", space_id, index_name)
+                .as_bytes()
+                .iter()
+                .chain(Self::serialize_value(vertex_id).iter())
+                .copied()
+                .collect()
+        )
     }
 }
 
 impl IndexDataManager for RedbIndexDataManager {
-    fn update_vertex_indexes(&self, space: &str, vertex_id: &Value, index_name: &str, props: &[(String, Value)]) -> Result<(), StorageError> {
-        // 构建索引键: space:idx:v:index_name:tag_name:prop_value:vertex_id
-        let mut index_key = format!("{}:idx:v:{}:", space, index_name).into_bytes();
-        for (prop_name, prop_value) in props {
-            index_key.extend_from_slice(prop_name.as_bytes());
-            index_key.push(b':');
-            index_key.extend_from_slice(&Self::serialize_value(prop_value));
-            index_key.push(b':');
-        }
-        index_key.extend_from_slice(&Self::serialize_value(vertex_id));
+    fn update_vertex_indexes(&self, space_id: i32, vertex_id: &Value, index_name: &str, props: &[(String, Value)]) -> Result<(), StorageError> {
+        let txn = self.db.begin_write()
+            .map_err(|e| StorageError::DbError(format!("开始写入事务失败: {}", e)))?;
         
-        // 存储索引
-        let write_txn = self.db.begin_write()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
         {
-            let mut table = write_txn.open_table(INDEX_DATA_TABLE)
-                .map_err(|e| StorageError::DbError(e.to_string()))?;
-            table.insert(&ByteKey(index_key), &ByteKey(Self::serialize_value(vertex_id)))
-                .map_err(|e| StorageError::DbError(e.to_string()))?;
-        }
-        write_txn.commit()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        
-        Ok(())
-    }
-
-    fn update_edge_indexes(&self, space: &str, src: &Value, dst: &Value, index_name: &str, props: &[(String, Value)]) -> Result<(), StorageError> {
-        // 构建索引键: space:idx:e:index_name:edge_type:prop_value:src:dst
-        let mut index_key = format!("{}:idx:e:{}:", space, index_name).into_bytes();
-        for (prop_name, prop_value) in props {
-            index_key.extend_from_slice(prop_name.as_bytes());
-            index_key.push(b':');
-            index_key.extend_from_slice(&Self::serialize_value(prop_value));
-            index_key.push(b':');
-        }
-        index_key.extend_from_slice(&Self::serialize_value(src));
-        index_key.push(b':');
-        index_key.extend_from_slice(&Self::serialize_value(dst));
-        
-        // 存储索引
-        let write_txn = self.db.begin_write()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        {
-            let mut table = write_txn.open_table(INDEX_DATA_TABLE)
-                .map_err(|e| StorageError::DbError(e.to_string()))?;
-            table.insert(&ByteKey(index_key), &ByteKey(Self::serialize_value(src)))
-                .map_err(|e| StorageError::DbError(e.to_string()))?;
-        }
-        write_txn.commit()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        
-        Ok(())
-    }
-
-    fn delete_vertex_indexes(&self, space: &str, vertex_id: &Value) -> Result<(), StorageError> {
-        let mut keys_to_delete = Vec::new();
-        
-        // 扫描所有索引条目，找到匹配的顶点ID
-        let read_txn = self.db.begin_read()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        let table = read_txn.open_table(INDEX_DATA_TABLE)
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        
-        let prefix = format!("{}:idx:v:", space).into_bytes();
-        
-        // 遍历所有匹配的键
-        for result in table.iter().map_err(|e| StorageError::DbError(e.to_string()))? {
-            let (key, value) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
-            let key_bytes = key.value().0;
+            let mut table = txn.open_table(INDEX_DATA_TABLE)
+                .map_err(|e| StorageError::DbError(format!("打开索引数据表失败: {}", e)))?;
             
-            if key_bytes.starts_with(&prefix) {
-                // 检查值是否匹配顶点ID
-                if let Ok(id) = Self::deserialize_value(&value.value().0) {
-                    if id == *vertex_id {
-                        keys_to_delete.push(key_bytes.to_vec());
-                    }
-                }
-            }
-        }
-        
-        drop(read_txn);
-        
-        // 删除匹配的索引条目
-        if !keys_to_delete.is_empty() {
-            let write_txn = self.db.begin_write()
-                .map_err(|e| StorageError::DbError(e.to_string()))?;
-            {
-                let mut table = write_txn.open_table(INDEX_DATA_TABLE)
-                    .map_err(|e| StorageError::DbError(e.to_string()))?;
-                for key in keys_to_delete {
-                    table.remove(&ByteKey(key))
-                        .map_err(|e| StorageError::DbError(e.to_string()))?;
-                }
-            }
-            write_txn.commit()
-                .map_err(|e| StorageError::DbError(e.to_string()))?;
-        }
-        
-        Ok(())
-    }
-
-    fn delete_edge_indexes(&self, space: &str, src: &Value, dst: &Value, _edge_type: &str) -> Result<(), StorageError> {
-        let mut keys_to_delete = Vec::new();
-        
-        // 扫描所有索引条目，找到匹配的边
-        let read_txn = self.db.begin_read()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        let table = read_txn.open_table(INDEX_DATA_TABLE)
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        
-        let prefix = format!("{}:idx:e:", space).into_bytes();
-        let src_bytes = Self::serialize_value(src);
-        let dst_bytes = Self::serialize_value(dst);
-        
-        // 遍历所有匹配的键
-        for result in table.iter().map_err(|e| StorageError::DbError(e.to_string()))? {
-            let (key, _) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
-            let key_bytes = key.value().0;
-            
-            if key_bytes.starts_with(&prefix) {
-                // 检查键是否以 src:dst 结尾
-                let key_str = String::from_utf8_lossy(&key_bytes);
-                let src_str = String::from_utf8_lossy(&src_bytes);
-                let dst_str = String::from_utf8_lossy(&dst_bytes);
+            for (prop_name, prop_value) in props {
+                // 构建索引键
+                let index_key = Self::build_index_key(space_id, index_name, prop_value, vertex_id);
                 
-                if key_str.ends_with(&format!(":{}:{}", src_str, dst_str)) {
-                    keys_to_delete.push(key_bytes.to_vec());
-                }
+                // 存储索引条目
+                table.insert(&index_key, prop_name.as_str())
+                    .map_err(|e| StorageError::DbError(format!("插入索引数据失败: {}", e)))?;
+                
+                // 构建反向索引以便删除时查找
+                let reverse_key = Self::build_reverse_key(space_id, index_name, vertex_id);
+                let value_key = format!("{}:{}", prop_name, Self::serialize_value(prop_value).len());
+                table.insert(&reverse_key, value_key.as_str())
+                    .map_err(|e| StorageError::DbError(format!("插入反向索引失败: {}", e)))?;
             }
         }
         
-        drop(read_txn);
-        
-        // 删除匹配的索引条目
-        if !keys_to_delete.is_empty() {
-            let write_txn = self.db.begin_write()
-                .map_err(|e| StorageError::DbError(e.to_string()))?;
-            {
-                let mut table = write_txn.open_table(INDEX_DATA_TABLE)
-                    .map_err(|e| StorageError::DbError(e.to_string()))?;
-                for key in keys_to_delete {
-                    table.remove(&ByteKey(key))
-                        .map_err(|e| StorageError::DbError(e.to_string()))?;
-                }
-            }
-            write_txn.commit()
-                .map_err(|e| StorageError::DbError(e.to_string()))?;
-        }
+        txn.commit()
+            .map_err(|e| StorageError::DbError(format!("提交事务失败: {}", e)))?;
         
         Ok(())
     }
 
-    fn lookup_tag_index(&self, space: &str, index: &Index, value: &Value) -> Result<Vec<Value>, StorageError> {
-        let mut results = Vec::new();
-        let prefix = format!("{}:idx:v:{}:", space, index.name).into_bytes();
+    fn update_edge_indexes(&self, space_id: i32, src: &Value, dst: &Value, index_name: &str, props: &[(String, Value)]) -> Result<(), StorageError> {
+        let txn = self.db.begin_write()
+            .map_err(|e| StorageError::DbError(format!("开始写入事务失败: {}", e)))?;
+        
+        {
+            let mut table = txn.open_table(INDEX_DATA_TABLE)
+                .map_err(|e| StorageError::DbError(format!("打开索引数据表失败: {}", e)))?;
+            
+            for (prop_name, prop_value) in props {
+                // 构建边索引键
+                let key = format!("{}:{}:{}:{}:{}", 
+                    space_id, 
+                    index_name, 
+                    Self::serialize_value(prop_value).len(),
+                    Self::serialize_value(src).len(),
+                    Self::serialize_value(dst).len()
+                );
+                
+                table.insert(ByteKey(key.into_bytes()), prop_name.as_str())
+                    .map_err(|e| StorageError::DbError(format!("插入边索引数据失败: {}", e)))?;
+            }
+        }
+        
+        txn.commit()
+            .map_err(|e| StorageError::DbError(format!("提交事务失败: {}", e)))?;
+        
+        Ok(())
+    }
+
+    fn delete_vertex_indexes(&self, space_id: i32, vertex_id: &Value) -> Result<(), StorageError> {
+        let txn = self.db.begin_write()
+            .map_err(|e| StorageError::DbError(format!("开始写入事务失败: {}", e)))?;
+        
+        {
+            let mut table = txn.open_table(INDEX_DATA_TABLE)
+                .map_err(|e| StorageError::DbError(format!("打开索引数据表失败: {}", e)))?;
+            
+            // 构建反向索引键前缀
+            let reverse_prefix = format!("{}:reverse:", space_id);
+            let vertex_bytes = Self::serialize_value(vertex_id);
+            
+            // 查找并删除所有相关的索引条目
+            let keys_to_delete: Vec<ByteKey> = table
+                .iter()
+                .map_err(|e| StorageError::DbError(format!("遍历索引数据失败: {}", e)))?
+                .filter_map(|entry| {
+                    if let Ok((key, _)) = entry {
+                        let key_bytes: Vec<u8> = key.value().to_vec();
+                        if key_bytes.starts_with(reverse_prefix.as_bytes()) && 
+                           key_bytes.ends_with(&vertex_bytes) {
+                            return Some(ByteKey(key_bytes));
+                        }
+                    }
+                    None
+                })
+                .collect();
+            
+            for key in keys_to_delete {
+                table.remove(&key)
+                    .map_err(|e| StorageError::DbError(format!("删除索引数据失败: {}", e)))?;
+            }
+        }
+        
+        txn.commit()
+            .map_err(|e| StorageError::DbError(format!("提交事务失败: {}", e)))?;
+        
+        Ok(())
+    }
+
+    fn delete_edge_indexes(&self, space_id: i32, src: &Value, dst: &Value, edge_type: &str) -> Result<(), StorageError> {
+        let txn = self.db.begin_write()
+            .map_err(|e| StorageError::DbError(format!("开始写入事务失败: {}", e)))?;
+        
+        {
+            let mut table = txn.open_table(INDEX_DATA_TABLE)
+                .map_err(|e| StorageError::DbError(format!("打开索引数据表失败: {}", e)))?;
+            
+            // 构建边索引键前缀
+            let prefix = format!("{}:{}:", space_id, edge_type);
+            let src_bytes = Self::serialize_value(src);
+            let dst_bytes = Self::serialize_value(dst);
+            
+            // 查找并删除所有相关的边索引条目
+            let keys_to_delete: Vec<ByteKey> = table
+                .iter()
+                .map_err(|e| StorageError::DbError(format!("遍历索引数据失败: {}", e)))?
+                .filter_map(|entry| {
+                    if let Ok((key, _)) = entry {
+                        let key_bytes: Vec<u8> = key.value().to_vec();
+                        if key_bytes.starts_with(prefix.as_bytes()) &&
+                           key_bytes.contains(&src_bytes) &&
+                           key_bytes.ends_with(&dst_bytes) {
+                            return Some(ByteKey(key_bytes));
+                        }
+                    }
+                    None
+                })
+                .collect();
+            
+            for key in keys_to_delete {
+                table.remove(&key)
+                    .map_err(|e| StorageError::DbError(format!("删除边索引数据失败: {}", e)))?;
+            }
+        }
+        
+        txn.commit()
+            .map_err(|e| StorageError::DbError(format!("提交事务失败: {}", e)))?;
+        
+        Ok(())
+    }
+
+    fn lookup_tag_index(&self, space_id: i32, index: &Index, value: &Value) -> Result<Vec<Value>, StorageError> {
+        let txn = self.db.begin_read()
+            .map_err(|e| StorageError::DbError(format!("开始读取事务失败: {}", e)))?;
+        
+        let table = txn.open_table(INDEX_DATA_TABLE)
+            .map_err(|e| StorageError::DbError(format!("打开索引数据表失败: {}", e)))?;
+        
+        let prefix = Self::build_index_prefix(space_id, &index.name);
         let value_bytes = Self::serialize_value(value);
         
-        let read_txn = self.db.begin_read()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        let table = read_txn.open_table(INDEX_DATA_TABLE)
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        
-        // 遍历所有匹配的键
-        for result in table.iter().map_err(|e| StorageError::DbError(e.to_string()))? {
-            let (key, val) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
-            let key_bytes = key.value().0;
-            
-            if key_bytes.starts_with(&prefix) {
-                // 检查键是否包含值
-                if key_bytes.windows(value_bytes.len()).any(|w| w == value_bytes) {
-                    // 反序列化顶点ID
-                    if let Ok(vertex_id) = Self::deserialize_value(&val.value().0) {
-                        results.push(vertex_id);
-                    }
-                }
-            }
-        }
-        
-        Ok(results)
-    }
-
-    fn lookup_edge_index(&self, space: &str, index: &Index, value: &Value) -> Result<Vec<Value>, StorageError> {
-        let mut results = Vec::new();
-        let prefix = format!("{}:idx:e:{}:", space, index.name).into_bytes();
-        let value_bytes = Self::serialize_value(value);
-        
-        let read_txn = self.db.begin_read()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        let table = read_txn.open_table(INDEX_DATA_TABLE)
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        
-        // 遍历所有匹配的键
-        for result in table.iter().map_err(|e| StorageError::DbError(e.to_string()))? {
-            let (key, val) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
-            let key_bytes = key.value().0;
-            
-            if key_bytes.starts_with(&prefix) {
-                // 检查键是否包含值
-                if key_bytes.windows(value_bytes.len()).any(|w| w == value_bytes) {
-                    // 反序列化源顶点ID
-                    if let Ok(src_id) = Self::deserialize_value(&val.value().0) {
-                        results.push(src_id);
-                    }
-                }
-            }
-        }
-        
-        Ok(results)
-    }
-
-    fn clear_edge_index(&self, space: &str, index_name: &str) -> Result<(), StorageError> {
-        let prefix = format!("{}:idx:e:{}:", space, index_name).into_bytes();
-        let mut keys_to_delete = Vec::new();
-        
-        // 扫描所有匹配的键
-        let read_txn = self.db.begin_read()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        let table = read_txn.open_table(INDEX_DATA_TABLE)
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        
-        for result in table.iter().map_err(|e| StorageError::DbError(e.to_string()))? {
-            let (key, _) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
-            let key_bytes = key.value().0;
-            
-            if key_bytes.starts_with(&prefix) {
-                keys_to_delete.push(key_bytes.to_vec());
-            }
-        }
-        
-        drop(read_txn);
-        
-        // 删除匹配的索引条目
-        if !keys_to_delete.is_empty() {
-            let write_txn = self.db.begin_write()
-                .map_err(|e| StorageError::DbError(e.to_string()))?;
-            {
-                let mut table = write_txn.open_table(INDEX_DATA_TABLE)
-                    .map_err(|e| StorageError::DbError(e.to_string()))?;
-                for key in keys_to_delete {
-                    table.remove(&ByteKey(key))
-                        .map_err(|e| StorageError::DbError(e.to_string()))?;
-                }
-            }
-            write_txn.commit()
-                .map_err(|e| StorageError::DbError(e.to_string()))?;
-        }
-
-        Ok(())
-    }
-
-    fn build_edge_index_entry(&self, space: &str, index: &Index, edge: &Edge) -> Result<(), StorageError> {
-        for field in &index.fields {
-            if let Some(value) = edge.props.get(&field.name) {
-                // 构建索引键: space:idx:e:index_name:edge_type:field_name:field_value:src:dst
-                let mut index_key = format!("{}:idx:e:{}:{}:", space, index.name, edge.edge_type).into_bytes();
-                index_key.extend_from_slice(field.name.as_bytes());
-                index_key.push(b':');
-                index_key.extend_from_slice(&Self::serialize_value(value));
-                index_key.push(b':');
-                index_key.extend_from_slice(&Self::serialize_value(&edge.src));
-                index_key.push(b':');
-                index_key.extend_from_slice(&Self::serialize_value(&edge.dst));
-                
-                // 存储索引
-                let write_txn = self.db.begin_write()
-                    .map_err(|e| StorageError::DbError(e.to_string()))?;
-                {
-                    let mut table = write_txn.open_table(INDEX_DATA_TABLE)
-                        .map_err(|e| StorageError::DbError(e.to_string()))?;
-                    table.insert(&ByteKey(index_key), &ByteKey(Self::serialize_value(&edge.src)))
-                        .map_err(|e| StorageError::DbError(e.to_string()))?;
-                }
-                write_txn.commit()
-                    .map_err(|e| StorageError::DbError(e.to_string()))?;
-            }
-        }
-        Ok(())
-    }
-
-    fn delete_tag_indexes(&self, space: &str, vertex_id: &Value, tag_name: &str) -> Result<(), StorageError> {
-        let mut keys_to_delete = Vec::new();
-        
-        // 扫描所有索引条目，找到匹配的标签索引
-        let read_txn = self.db.begin_read()
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        let table = read_txn.open_table(INDEX_DATA_TABLE)
-            .map_err(|e| StorageError::DbError(e.to_string()))?;
-        
-        // 索引键格式: space:idx:v:index_name:tag_name:field_name:field_value
-        let prefix = format!("{}:idx:v:", space).into_bytes();
-        let tag_prefix = format!(":{}", tag_name).into_bytes();
-        
-        // 遍历所有匹配的键
-        for result in table.iter().map_err(|e| StorageError::DbError(e.to_string()))? {
-            let (key, value) = result.map_err(|e| StorageError::DbError(e.to_string()))?;
-            let key_bytes = key.value().0;
-            
-            // 检查是否是该空间的索引且包含该标签
-            if key_bytes.starts_with(&prefix) {
-                // 检查键中是否包含标签名
-                if key_bytes.windows(tag_prefix.len()).any(|w| w == tag_prefix) {
-                    // 检查值是否匹配顶点ID
-                    if let Ok(id) = Self::deserialize_value(&value.value().0) {
-                        if id == *vertex_id {
-                            keys_to_delete.push(key_bytes.to_vec());
+        let results: Vec<Value> = table
+            .iter()
+            .map_err(|e| StorageError::DbError(format!("遍历索引数据失败: {}", e)))?
+            .filter_map(|entry| {
+                if let Ok((key, _)) = entry {
+                    let key_bytes: Vec<u8> = key.value().to_vec();
+                    if key_bytes.starts_with(&prefix.0) && key_bytes.contains(&value_bytes) {
+                        // 从键中提取 vertex_id
+                        let parts: Vec<&[u8]> = key_bytes.split(|&b| b == b':').collect();
+                        if parts.len() >= 4 {
+                            return Some(Value::String(String::from_utf8_lossy(parts[3]).to_string()));
                         }
                     }
                 }
-            }
-        }
+                None
+            })
+            .collect();
         
-        drop(read_txn);
+        Ok(results)
+    }
+
+    fn lookup_edge_index(&self, space_id: i32, index: &Index, value: &Value) -> Result<Vec<Value>, StorageError> {
+        let txn = self.db.begin_read()
+            .map_err(|e| StorageError::DbError(format!("开始读取事务失败: {}", e)))?;
         
-        // 删除匹配的索引条目
-        if !keys_to_delete.is_empty() {
-            let write_txn = self.db.begin_write()
-                .map_err(|e| StorageError::DbError(e.to_string()))?;
-            {
-                let mut table = write_txn.open_table(INDEX_DATA_TABLE)
-                    .map_err(|e| StorageError::DbError(e.to_string()))?;
-                for key in keys_to_delete {
-                    table.remove(&ByteKey(key))
-                        .map_err(|e| StorageError::DbError(e.to_string()))?;
+        let table = txn.open_table(INDEX_DATA_TABLE)
+            .map_err(|e| StorageError::DbError(format!("打开索引数据表失败: {}", e)))?;
+        
+        let prefix = format!("{}:{}:", space_id, index.name);
+        let value_bytes = Self::serialize_value(value);
+        
+        let results: Vec<Value> = table
+            .iter()
+            .map_err(|e| StorageError::DbError(format!("遍历索引数据失败: {}", e)))?
+            .filter_map(|entry| {
+                if let Ok((key, _)) = entry {
+                    let key_bytes: Vec<u8> = key.value().to_vec();
+                    if key_bytes.starts_with(prefix.as_bytes()) && key_bytes.contains(&value_bytes) {
+                        // 从键中提取边信息
+                        let parts: Vec<&[u8]> = key_bytes.split(|&b| b == b':').collect();
+                        if parts.len() >= 5 {
+                            return Some(Value::String(String::from_utf8_lossy(parts[4]).to_string()));
+                        }
+                    }
                 }
+                None
+            })
+            .collect();
+        
+        Ok(results)
+    }
+
+    fn clear_edge_index(&self, space_id: i32, index_name: &str) -> Result<(), StorageError> {
+        let txn = self.db.begin_write()
+            .map_err(|e| StorageError::DbError(format!("开始写入事务失败: {}", e)))?;
+        
+        {
+            let mut table = txn.open_table(INDEX_DATA_TABLE)
+                .map_err(|e| StorageError::DbError(format!("打开索引数据表失败: {}", e)))?;
+            
+            let prefix = format!("{}:{}:", space_id, index_name);
+            
+            // 查找并删除所有匹配的索引条目
+            let keys_to_delete: Vec<ByteKey> = table
+                .iter()
+                .map_err(|e| StorageError::DbError(format!("遍历索引数据失败: {}", e)))?
+                .filter_map(|entry| {
+                    if let Ok((key, _)) = entry {
+                        let key_bytes: Vec<u8> = key.value().to_vec();
+                        if key_bytes.starts_with(prefix.as_bytes()) {
+                            return Some(ByteKey(key_bytes));
+                        }
+                    }
+                    None
+                })
+                .collect();
+            
+            for key in keys_to_delete {
+                table.remove(&key)
+                    .map_err(|e| StorageError::DbError(format!("删除索引数据失败: {}", e)))?;
             }
-            write_txn.commit()
-                .map_err(|e| StorageError::DbError(e.to_string()))?;
         }
+        
+        txn.commit()
+            .map_err(|e| StorageError::DbError(format!("提交事务失败: {}", e)))?;
         
         Ok(())
     }
-}
 
-// 公开方法供外部使用
-impl RedbIndexDataManager {
-    pub fn update_vertex_indexes(&self, space: &str, vertex_id: &Value, tag_name: &str, props: &[(String, Value)]) -> Result<(), StorageError> {
-        <Self as IndexDataManager>::update_vertex_indexes(self, space, vertex_id, tag_name, props)
+    fn build_edge_index_entry(&self, space_id: i32, index: &Index, edge: &Edge) -> Result<(), StorageError> {
+        // 收集索引字段值
+        let mut props: Vec<(String, Value)> = Vec::new();
+        for field in &index.fields {
+            if let Some(value) = edge.props.get(&field.name) {
+                props.push((field.name.clone(), value.clone()));
+            }
+        }
+        
+        // 更新边索引
+        self.update_edge_indexes(space_id, &edge.src, &edge.dst, &index.name, &props)
     }
 
-    pub fn update_edge_indexes(&self, space: &str, src: &Value, dst: &Value, edge_type: &str, props: &[(String, Value)]) -> Result<(), StorageError> {
-        <Self as IndexDataManager>::update_edge_indexes(self, space, src, dst, edge_type, props)
-    }
-
-    pub fn delete_vertex_indexes(&self, space: &str, vertex_id: &Value) -> Result<(), StorageError> {
-        <Self as IndexDataManager>::delete_vertex_indexes(self, space, vertex_id)
-    }
-
-    pub fn delete_edge_indexes(&self, space: &str, src: &Value, dst: &Value, edge_type: &str) -> Result<(), StorageError> {
-        <Self as IndexDataManager>::delete_edge_indexes(self, space, src, dst, edge_type)
-    }
-
-    pub fn lookup_tag_index(&self, space: &str, index: &Index, value: &Value) -> Result<Vec<Value>, StorageError> {
-        <Self as IndexDataManager>::lookup_tag_index(self, space, index, value)
-    }
-
-    pub fn lookup_edge_index(&self, space: &str, index: &Index, value: &Value) -> Result<Vec<Value>, StorageError> {
-        <Self as IndexDataManager>::lookup_edge_index(self, space, index, value)
-    }
-
-    pub fn clear_edge_index(&self, space: &str, index_name: &str) -> Result<(), StorageError> {
-        <Self as IndexDataManager>::clear_edge_index(self, space, index_name)
-    }
-
-    pub fn build_edge_index_entry(&self, space: &str, index: &Index, edge: &Edge) -> Result<(), StorageError> {
-        <Self as IndexDataManager>::build_edge_index_entry(self, space, index, edge)
-    }
-
-    pub fn delete_tag_indexes(&self, space: &str, vertex_id: &Value, tag_name: &str) -> Result<(), StorageError> {
-        <Self as IndexDataManager>::delete_tag_indexes(self, space, vertex_id, tag_name)
+    fn delete_tag_indexes(&self, space_id: i32, vertex_id: &Value, tag_name: &str) -> Result<(), StorageError> {
+        let txn = self.db.begin_write()
+            .map_err(|e| StorageError::DbError(format!("开始写入事务失败: {}", e)))?;
+        
+        {
+            let mut table = txn.open_table(INDEX_DATA_TABLE)
+                .map_err(|e| StorageError::DbError(format!("打开索引数据表失败: {}", e)))?;
+            
+            // 构建反向索引键前缀
+            let reverse_prefix = format!("{}:reverse:", space_id);
+            let vertex_bytes = Self::serialize_value(vertex_id);
+            
+            // 查找并删除所有相关的索引条目
+            let keys_to_delete: Vec<ByteKey> = table
+                .iter()
+                .map_err(|e| StorageError::DbError(format!("遍历索引数据失败: {}", e)))?
+                .filter_map(|entry| {
+                    if let Ok((key, value)) = entry {
+                        let key_bytes: Vec<u8> = key.value().to_vec();
+                        let value_str = String::from_utf8_lossy(&value.value());
+                        // 检查是否匹配该标签的索引
+                        if key_bytes.starts_with(reverse_prefix.as_bytes()) && 
+                           key_bytes.ends_with(&vertex_bytes) &&
+                           value_str.starts_with(tag_name) {
+                            return Some(ByteKey(key_bytes));
+                        }
+                    }
+                    None
+                })
+                .collect();
+            
+            for key in keys_to_delete {
+                table.remove(&key)
+                    .map_err(|e| StorageError::DbError(format!("删除标签索引失败: {}", e)))?;
+            }
+        }
+        
+        txn.commit()
+            .map_err(|e| StorageError::DbError(format!("提交事务失败: {}", e)))?;
+        
+        Ok(())
     }
 }
