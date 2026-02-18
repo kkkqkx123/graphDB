@@ -25,7 +25,7 @@ use std::time::{Duration, Instant};
 #[tokio::test]
 async fn test_performance_batch_write() {
     let ctx = E2eTestContext::new().await.expect("创建上下文失败");
-    let generator = PerformanceDataGenerator::new(&ctx);
+    let generator = PerformanceDataGenerator::new(ctx.clone());
 
     generator
         .generate_base_schema()
@@ -68,7 +68,7 @@ async fn test_performance_batch_write() {
 #[tokio::test]
 async fn test_performance_sequential_query() {
     let ctx = E2eTestContext::new().await.expect("创建上下文失败");
-    let generator = PerformanceDataGenerator::new(&ctx);
+    let generator = PerformanceDataGenerator::new(ctx.clone());
 
     // 准备测试数据
     generator
@@ -120,7 +120,7 @@ async fn test_performance_sequential_query() {
 #[tokio::test]
 async fn test_performance_read_write_mixed() {
     let ctx = E2eTestContext::new().await.expect("创建上下文失败");
-    let generator = PerformanceDataGenerator::new(&ctx);
+    let generator = PerformanceDataGenerator::new(ctx.clone());
 
     generator
         .generate_base_schema()
@@ -171,7 +171,7 @@ async fn test_performance_read_write_mixed() {
 #[tokio::test]
 async fn test_performance_multiple_sessions() {
     let ctx = E2eTestContext::new().await.expect("创建上下文失败");
-    let generator = PerformanceDataGenerator::new(&ctx);
+    let generator = PerformanceDataGenerator::new(ctx.clone());
 
     generator
         .generate_base_schema()
@@ -216,7 +216,7 @@ async fn test_performance_multiple_sessions() {
 #[tokio::test]
 async fn test_performance_cache() {
     let ctx = E2eTestContext::new().await.expect("创建上下文失败");
-    let generator = PerformanceDataGenerator::new(&ctx);
+    let generator = PerformanceDataGenerator::new(ctx.clone());
 
     generator
         .generate_base_schema()
@@ -259,7 +259,7 @@ async fn test_performance_cache() {
 #[tokio::test]
 async fn test_performance_stress() {
     let ctx = E2eTestContext::new().await.expect("创建上下文失败");
-    let generator = PerformanceDataGenerator::new(&ctx);
+    let generator = PerformanceDataGenerator::new(ctx.clone());
 
     generator
         .generate_base_schema()

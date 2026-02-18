@@ -26,7 +26,7 @@ use std::time::{Duration, Instant};
 #[tokio::test]
 async fn test_performance_bulk_import() {
     let ctx = E2eTestContext::new().await.expect("创建上下文失败");
-    let generator = PerformanceDataGenerator::new(&ctx);
+    let generator = PerformanceDataGenerator::new(ctx.clone());
 
     generator
         .generate_base_schema()
@@ -74,7 +74,7 @@ async fn test_performance_bulk_import() {
 #[tokio::test]
 async fn test_performance_large_graph_traversal() {
     let ctx = E2eTestContext::new().await.expect("创建上下文失败");
-    let generator = PerformanceDataGenerator::new(&ctx);
+    let generator = PerformanceDataGenerator::new(ctx.clone());
 
     generator
         .generate_base_schema()
@@ -138,7 +138,7 @@ async fn test_performance_large_graph_traversal() {
 #[tokio::test]
 async fn test_performance_complex_query() {
     let ctx = E2eTestContext::new().await.expect("创建上下文失败");
-    let generator = PerformanceDataGenerator::new(&ctx);
+    let generator = PerformanceDataGenerator::new(ctx.clone());
 
     generator
         .generate_base_schema()
@@ -207,7 +207,7 @@ async fn test_performance_complex_query() {
 #[tokio::test]
 async fn test_performance_index_query() {
     let ctx = E2eTestContext::new().await.expect("创建上下文失败");
-    let generator = PerformanceDataGenerator::new(&ctx);
+    let generator = PerformanceDataGenerator::new(ctx.clone());
 
     generator
         .generate_base_schema()
@@ -267,7 +267,7 @@ async fn test_performance_index_query() {
 #[tokio::test]
 async fn test_performance_memory_usage() {
     let ctx = E2eTestContext::new().await.expect("创建上下文失败");
-    let generator = PerformanceDataGenerator::new(&ctx);
+    let generator = PerformanceDataGenerator::new(ctx.clone());
 
     generator
         .generate_base_schema()
@@ -304,7 +304,7 @@ async fn test_performance_memory_usage() {
 #[tokio::test]
 async fn test_performance_bulk_delete() {
     let ctx = E2eTestContext::new().await.expect("创建上下文失败");
-    let generator = PerformanceDataGenerator::new(&ctx);
+    let generator = PerformanceDataGenerator::new(ctx.clone());
 
     generator
         .generate_base_schema()
@@ -340,7 +340,7 @@ async fn test_performance_bulk_delete() {
 #[tokio::test]
 async fn test_performance_bulk_update() {
     let ctx = E2eTestContext::new().await.expect("创建上下文失败");
-    let generator = PerformanceDataGenerator::new(&ctx);
+    let generator = PerformanceDataGenerator::new(ctx.clone());
 
     generator
         .generate_base_schema()

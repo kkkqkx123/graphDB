@@ -22,7 +22,7 @@ use std::time::Duration;
 #[tokio::test]
 async fn test_ecommerce_catalog_management() {
     let ctx = E2eTestContext::new().await.expect("创建上下文失败");
-    let generator = ECommerceDataGenerator::new(&ctx);
+    let generator = ECommerceDataGenerator::new(ctx.clone());
 
     // 创建基础模式
     generator
@@ -60,7 +60,7 @@ async fn test_ecommerce_catalog_management() {
 #[tokio::test]
 async fn test_ecommerce_user_behavior_tracking() {
     let ctx = E2eTestContext::new().await.expect("创建上下文失败");
-    let generator = ECommerceDataGenerator::new(&ctx);
+    let generator = ECommerceDataGenerator::new(ctx.clone());
 
     generator
         .generate_base_schema()
@@ -103,7 +103,7 @@ async fn test_ecommerce_user_behavior_tracking() {
 
     // 查询用户行为路径
     let behavior_query = r#"
-        MATCH (u:User)-[r]->(p:Product)
+        MATCH (u:Customer)-[r]->(p:Product)
         WHERE u.name == 'Customer1'
         RETURN type(r) AS action, p.name
     "#;
@@ -120,7 +120,7 @@ async fn test_ecommerce_user_behavior_tracking() {
 #[tokio::test]
 async fn test_ecommerce_similar_product_recommendation() {
     let ctx = E2eTestContext::new().await.expect("创建上下文失败");
-    let generator = ECommerceDataGenerator::new(&ctx);
+    let generator = ECommerceDataGenerator::new(ctx.clone());
 
     generator
         .generate_base_schema()
@@ -162,7 +162,7 @@ async fn test_ecommerce_similar_product_recommendation() {
 #[tokio::test]
 async fn test_ecommerce_collaborative_filtering() {
     let ctx = E2eTestContext::new().await.expect("创建上下文失败");
-    let generator = ECommerceDataGenerator::new(&ctx);
+    let generator = ECommerceDataGenerator::new(ctx.clone());
 
     generator
         .generate_base_schema()
@@ -187,7 +187,7 @@ async fn test_ecommerce_collaborative_filtering() {
 
     // 协同过滤推荐查询
     let query = r#"
-        MATCH (u:User)-[:PURCHASED]->(p:Product)<-[:PURCHASED]-(similar:User)
+        MATCH (u:Customer)-[:PURCHASED]->(p:Product)<-[:PURCHASED]-(similar:Customer)
         WHERE u.name == 'Customer1'
         WITH similar, count(p) AS common_products
         ORDER BY common_products DESC
@@ -210,7 +210,7 @@ async fn test_ecommerce_collaborative_filtering() {
 #[tokio::test]
 async fn test_ecommerce_cart_abandonment_analysis() {
     let ctx = E2eTestContext::new().await.expect("创建上下文失败");
-    let generator = ECommerceDataGenerator::new(&ctx);
+    let generator = ECommerceDataGenerator::new(ctx.clone());
 
     generator
         .generate_base_schema()
@@ -237,7 +237,7 @@ async fn test_ecommerce_cart_abandonment_analysis() {
 
     // 查询购物车放弃
     let query = r#"
-        MATCH (u:User)-[:ADDED_TO_CART]->(p:Product)
+        MATCH (u:Customer)-[:ADDED_TO_CART]->(p:Product)
         WHERE NOT (u)-[:PURCHASED]->(p)
         RETURN u.name, p.name
     "#;
@@ -253,7 +253,7 @@ async fn test_ecommerce_cart_abandonment_analysis() {
 #[tokio::test]
 async fn test_ecommerce_best_sellers() {
     let ctx = E2eTestContext::new().await.expect("创建上下文失败");
-    let generator = ECommerceDataGenerator::new(&ctx);
+    let generator = ECommerceDataGenerator::new(ctx.clone());
 
     generator
         .generate_base_schema()
@@ -278,7 +278,7 @@ async fn test_ecommerce_best_sellers() {
 
     // 热销商品排行
     let query = r#"
-        MATCH (u:User)-[p:PURCHASED]->(product:Product)
+        MATCH (u:Customer)-[p:PURCHASED]->(product:Product)
         RETURN product.name, sum(p.quantity) AS total_sold
         ORDER BY total_sold DESC
         LIMIT 10
@@ -295,7 +295,7 @@ async fn test_ecommerce_best_sellers() {
 #[tokio::test]
 async fn test_ecommerce_user_segmentation() {
     let ctx = E2eTestContext::new().await.expect("创建上下文失败");
-    let generator = ECommerceDataGenerator::new(&ctx);
+    let generator = ECommerceDataGenerator::new(ctx.clone());
 
     generator
         .generate_base_schema()
@@ -320,7 +320,7 @@ async fn test_ecommerce_user_segmentation() {
 
     // 按购买频次分群
     let query = r#"
-        MATCH (u:User)-[:PURCHASED]->(p:Product)
+        MATCH (u:Customer)-[:PURCHASED]->(p:Product)
         WITH u, count(p) AS purchase_count
         RETURN 
             CASE 
@@ -342,7 +342,7 @@ async fn test_ecommerce_user_segmentation() {
 #[tokio::test]
 async fn test_ecommerce_purchase_path_analysis() {
     let ctx = E2eTestContext::new().await.expect("创建上下文失败");
-    let generator = ECommerceDataGenerator::new(&ctx);
+    let generator = ECommerceDataGenerator::new(ctx.clone());
 
     generator
         .generate_base_schema()
@@ -385,7 +385,7 @@ async fn test_ecommerce_purchase_path_analysis() {
 
     // 查询购买转化
     let query = r#"
-        MATCH (u:User)-[:VIEWED]->(p:Product)
+        MATCH (u:Customer)-[:VIEWED]->(p:Product)
         OPTIONAL MATCH (u)-[:ADDED_TO_CART]->(p)
         OPTIONAL MATCH (u)-[:PURCHASED]->(p)
         RETURN 
@@ -404,7 +404,7 @@ async fn test_ecommerce_purchase_path_analysis() {
 #[tokio::test]
 async fn test_ecommerce_inventory_alert() {
     let ctx = E2eTestContext::new().await.expect("创建上下文失败");
-    let generator = ECommerceDataGenerator::new(&ctx);
+    let generator = ECommerceDataGenerator::new(ctx.clone());
 
     generator
         .generate_base_schema()
@@ -440,7 +440,7 @@ async fn test_ecommerce_inventory_alert() {
 #[tokio::test]
 async fn test_ecommerce_price_elasticity() {
     let ctx = E2eTestContext::new().await.expect("创建上下文失败");
-    let generator = ECommerceDataGenerator::new(&ctx);
+    let generator = ECommerceDataGenerator::new(ctx.clone());
 
     generator
         .generate_base_schema()
@@ -465,7 +465,7 @@ async fn test_ecommerce_price_elasticity() {
 
     // 按价格区间统计销量
     let query = r#"
-        MATCH (u:User)-[p:PURCHASED]->(product:Product)
+        MATCH (u:Customer)-[p:PURCHASED]->(product:Product)
         RETURN 
             CASE 
                 WHEN product.price < 100 THEN 'Low Price'

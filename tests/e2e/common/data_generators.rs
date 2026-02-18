@@ -166,12 +166,12 @@ pub struct SocialGraph {
 
 /// 电商数据生成器
 pub struct ECommerceDataGenerator {
-    ctx: E2eTestContext,
+    ctx: Arc<E2eTestContext>,
 }
 
 impl ECommerceDataGenerator {
-    pub fn new(ctx: &E2eTestContext) -> Self {
-        Self { ctx: ctx.clone() }
+    pub fn new(ctx: Arc<E2eTestContext>) -> Self {
+        Self { ctx }
     }
     
     /// 生成基础模式
@@ -179,10 +179,10 @@ impl ECommerceDataGenerator {
         let schema_queries = vec![
             "CREATE SPACE IF NOT EXISTS ecommerce",
             "USE ecommerce",
-            "CREATE TAG IF NOT EXISTS User(name: STRING, age: INT, gender: STRING, city: STRING)",
+            "CREATE TAG IF NOT EXISTS Customer(name: STRING, age: INT, gender: STRING, city: STRING)",
             "CREATE TAG IF NOT EXISTS Product(name: STRING, category: STRING, price: DOUBLE, brand: STRING)",
             "CREATE TAG IF NOT EXISTS Category(name: STRING, parent_id: INT)",
-            "CREATE TAG IF NOT EXISTS Order(total_amount: DOUBLE, status: STRING, created_at: TIMESTAMP)",
+            "CREATE TAG IF NOT EXISTS OrderRecord(total_amount: DOUBLE, status: STRING, created_at: TIMESTAMP)",
             "CREATE EDGE IF NOT EXISTS VIEWED(view_time: TIMESTAMP, duration: INT)",
             "CREATE EDGE IF NOT EXISTS ADDED_TO_CART(added_at: TIMESTAMP, quantity: INT)",
             "CREATE EDGE IF NOT EXISTS PURCHASED(order_id: STRING, quantity: INT, price: DOUBLE)",
@@ -352,12 +352,12 @@ impl ECommerceDataGenerator {
 
 /// 知识图谱数据生成器
 pub struct KnowledgeGraphDataGenerator {
-    ctx: E2eTestContext,
+    ctx: Arc<E2eTestContext>,
 }
 
 impl KnowledgeGraphDataGenerator {
-    pub fn new(ctx: &E2eTestContext) -> Self {
-        Self { ctx: ctx.clone() }
+    pub fn new(ctx: Arc<E2eTestContext>) -> Self {
+        Self { ctx }
     }
     
     /// 生成基础模式
@@ -455,12 +455,12 @@ impl KnowledgeGraphDataGenerator {
 
 /// 性能测试数据生成器
 pub struct PerformanceDataGenerator {
-    ctx: E2eTestContext,
+    ctx: Arc<E2eTestContext>,
 }
 
 impl PerformanceDataGenerator {
-    pub fn new(ctx: &E2eTestContext) -> Self {
-        Self { ctx: ctx.clone() }
+    pub fn new(ctx: Arc<E2eTestContext>) -> Self {
+        Self { ctx }
     }
     
     /// 生成基础模式

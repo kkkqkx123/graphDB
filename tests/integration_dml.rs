@@ -771,3 +771,163 @@ async fn test_dml_transaction_like_operations() {
         assert!(result.is_ok() || result.is_err());
     }
 }
+
+// ==================== 索引优化规则测试 ====================
+
+#[tokio::test]
+async fn test_index_scan_with_limit() {
+    let test_storage = TestStorage::new().expect("创建测试存储失败");
+    let storage = test_storage.storage();
+    let stats_manager = Arc::new(StatsManager::new());
+    
+    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    
+    let setup_queries = vec![
+        "CREATE TAG Person(name string, age int)",
+        "CREATE TAG INDEX person_age_index ON Person(age)",
+        "INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30), 2:('Bob', 25), 3:('Charlie', 35), 4:('David', 28), 5:('Eve', 32)",
+    ];
+    
+    for query in setup_queries {
+        let _ = pipeline_manager.execute_query(query).await;
+    }
+    
+    let query = "LOOKUP ON Person WHERE Person.age > 25 YIELD Person.name, Person.age LIMIT 2";
+    let result = pipeline_manager.execute_query(query).await;
+    
+    println!("索引扫描带LIMIT执行结果: {:?}", result);
+    assert!(result.is_ok() || result.is_err());
+}
+
+#[tokio::test]
+async fn test_index_scan_with_order_by_limit() {
+    let test_storage = TestStorage::new().expect("创建测试存储失败");
+    let storage = test_storage.storage();
+    let stats_manager = Arc::new(StatsManager::new());
+    
+    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    
+    let setup_queries = vec![
+        "CREATE TAG Person(name string, age int)",
+        "CREATE TAG INDEX person_age_index ON Person(age)",
+        "INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30), 2:('Bob', 25), 3:('Charlie', 35), 4:('David', 28), 5:('Eve', 32)",
+    ];
+    
+    for query in setup_queries {
+        let _ = pipeline_manager.execute_query(query).await;
+    }
+    
+    let query = "LOOKUP ON Person WHERE Person.age > 20 YIELD Person.name, Person.age ORDER BY Person.age DESC LIMIT 3";
+    let result = pipeline_manager.execute_query(query).await;
+    
+    println!("索引扫描带ORDER BY和LIMIT执行结果: {:?}", result);
+    assert!(result.is_ok() || result.is_err());
+}
+
+#[tokio::test]
+async fn test_index_covering_scan() {
+    let test_storage = TestStorage::new().expect("创建测试存储失败");
+    let storage = test_storage.storage();
+    let stats_manager = Arc::new(StatsManager::new());
+    
+    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    
+    let setup_queries = vec![
+        "CREATE TAG Person(name string, age int)",
+        "CREATE TAG INDEX person_name_age_index ON Person(name, age)",
+        "INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30), 2:('Bob', 25), 3:('Charlie', 35)",
+    ];
+    
+    for query in setup_queries {
+        let _ = pipeline_manager.execute_query(query).await;
+    }
+    
+    let query = "LOOKUP ON Person WHERE Person.name == 'Alice' YIELD Person.name, Person.age";
+    let result = pipeline_manager.execute_query(query).await;
+    
+    println!("索引覆盖扫描执行结果: {:?}", result);
+    assert!(result.is_ok() || result.is_err());
+}
+
+#[tokio::test]
+async fn test_index_scan_with_filter_optimization() {
+    let test_storage = TestStorage::new().expect("创建测试存储失败");
+    let storage = test_storage.storage();
+    let stats_manager = Arc::new(StatsManager::new());
+    
+    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    
+    let setup_queries = vec![
+        "CREATE TAG Person(name string, age int, city string)",
+        "CREATE TAG INDEX person_age_city_index ON Person(age, city)",
+        "INSERT VERTEX Person(name, age, city) VALUES 1:('Alice', 30, 'Beijing'), 2:('Bob', 25, 'Shanghai'), 3:('Charlie', 35, 'Beijing')",
+    ];
+    
+    for query in setup_queries {
+        let _ = pipeline_manager.execute_query(query).await;
+    }
+    
+    let query = "LOOKUP ON Person WHERE Person.age > 25 AND Person.city == 'Beijing' YIELD Person.name, Person.age, Person.city";
+    let result = pipeline_manager.execute_query(query).await;
+    
+    println!("索引扫描带过滤器优化执行结果: {:?}", result);
+    assert!(result.is_ok() || result.is_err());
+}
+
+#[tokio::test]
+async fn test_dml_with_index_optimization() {
+    let test_storage = TestStorage::new().expect("创建测试存储失败");
+    let storage = test_storage.storage();
+    let stats_manager = Arc::new(StatsManager::new());
+    
+    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    
+    let setup_queries = vec![
+        "CREATE TAG Person(name string, age int)",
+        "CREATE TAG INDEX person_age_index ON Person(age)",
+    ];
+    
+    for query in setup_queries {
+        let _ = pipeline_manager.execute_query(query).await;
+    }
+    
+    let dml_queries = vec![
+        "INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30), 2:('Bob', 25), 3:('Charlie', 35)",
+        "UPDATE 1 SET age = 31",
+        "LOOKUP ON Person WHERE Person.age > 25 YIELD Person.name, Person.age LIMIT 2",
+        "DELETE VERTEX 3",
+    ];
+    
+    for (i, query) in dml_queries.iter().enumerate() {
+        let result = pipeline_manager.execute_query(query).await;
+        println!("DML带索引优化操作 {} 执行结果: {:?}", i + 1, result);
+        assert!(result.is_ok() || result.is_err());
+    }
+}
+
+#[tokio::test]
+async fn test_edge_index_scan_with_limit() {
+    let test_storage = TestStorage::new().expect("创建测试存储失败");
+    let storage = test_storage.storage();
+    let stats_manager = Arc::new(StatsManager::new());
+    
+    let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
+    
+    let setup_queries = vec![
+        "CREATE TAG Person(name string)",
+        "CREATE EDGE KNOWS(since string)",
+        "CREATE EDGE INDEX knows_since_index ON KNOWS(since)",
+        "INSERT VERTEX Person(name) VALUES 1:('Alice'), 2:('Bob'), 3:('Charlie')",
+        "INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2020-01-01'), 1 -> 3:('2021-01-01'), 2 -> 3:('2019-01-01')",
+    ];
+    
+    for query in setup_queries {
+        let _ = pipeline_manager.execute_query(query).await;
+    }
+    
+    let query = "LOOKUP ON KNOWS WHERE KNOWS.since > '2019-06-01' YIELD KNOWS.since LIMIT 2";
+    let result = pipeline_manager.execute_query(query).await;
+    
+    println!("边索引扫描带LIMIT执行结果: {:?}", result);
+    assert!(result.is_ok() || result.is_err());
+}

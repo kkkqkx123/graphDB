@@ -21,7 +21,7 @@ use crate::e2e::common::{
 #[tokio::test]
 async fn test_kg_entity_relation_query() {
     let ctx = E2eTestContext::new().await.expect("创建上下文失败");
-    let generator = KnowledgeGraphDataGenerator::new(&ctx);
+    let generator = KnowledgeGraphDataGenerator::new(ctx.clone());
 
     generator
         .generate_base_schema()
@@ -51,7 +51,7 @@ async fn test_kg_entity_relation_query() {
 #[tokio::test]
 async fn test_kg_multi_hop_reasoning() {
     let ctx = E2eTestContext::new().await.expect("创建上下文失败");
-    let generator = KnowledgeGraphDataGenerator::new(&ctx);
+    let generator = KnowledgeGraphDataGenerator::new(ctx.clone());
 
     generator
         .generate_base_schema()
@@ -86,7 +86,7 @@ async fn test_kg_multi_hop_reasoning() {
 #[tokio::test]
 async fn test_kg_consistency_validation() {
     let ctx = E2eTestContext::new().await.expect("创建上下文失败");
-    let generator = KnowledgeGraphDataGenerator::new(&ctx);
+    let generator = KnowledgeGraphDataGenerator::new(ctx.clone());
 
     generator
         .generate_base_schema()
@@ -128,7 +128,7 @@ async fn test_kg_consistency_validation() {
 #[tokio::test]
 async fn test_kg_entity_linking() {
     let ctx = E2eTestContext::new().await.expect("创建上下文失败");
-    let generator = KnowledgeGraphDataGenerator::new(&ctx);
+    let generator = KnowledgeGraphDataGenerator::new(ctx.clone());
 
     generator
         .generate_base_schema()
@@ -169,7 +169,7 @@ async fn test_kg_entity_linking() {
 #[tokio::test]
 async fn test_kg_knowledge_completion() {
     let ctx = E2eTestContext::new().await.expect("创建上下文失败");
-    let generator = KnowledgeGraphDataGenerator::new(&ctx);
+    let generator = KnowledgeGraphDataGenerator::new(ctx.clone());
 
     generator
         .generate_base_schema()
@@ -206,7 +206,7 @@ async fn test_kg_knowledge_completion() {
 #[tokio::test]
 async fn test_kg_knowledge_reasoning() {
     let ctx = E2eTestContext::new().await.expect("创建上下文失败");
-    let generator = KnowledgeGraphDataGenerator::new(&ctx);
+    let generator = KnowledgeGraphDataGenerator::new(ctx.clone());
 
     generator
         .generate_base_schema()
@@ -253,7 +253,7 @@ async fn test_kg_knowledge_reasoning() {
 #[tokio::test]
 async fn test_kg_entity_disambiguation() {
     let ctx = E2eTestContext::new().await.expect("创建上下文失败");
-    let generator = KnowledgeGraphDataGenerator::new(&ctx);
+    let generator = KnowledgeGraphDataGenerator::new(ctx.clone());
 
     generator
         .generate_base_schema()
@@ -289,7 +289,7 @@ async fn test_kg_entity_disambiguation() {
 #[tokio::test]
 async fn test_kg_visualization() {
     let ctx = E2eTestContext::new().await.expect("创建上下文失败");
-    let generator = KnowledgeGraphDataGenerator::new(&ctx);
+    let generator = KnowledgeGraphDataGenerator::new(ctx.clone());
 
     generator
         .generate_base_schema()
@@ -324,7 +324,7 @@ async fn test_kg_visualization() {
 #[tokio::test]
 async fn test_kg_question_answering() {
     let ctx = E2eTestContext::new().await.expect("创建上下文失败");
-    let generator = KnowledgeGraphDataGenerator::new(&ctx);
+    let generator = KnowledgeGraphDataGenerator::new(ctx.clone());
 
     generator
         .generate_base_schema()
@@ -377,7 +377,7 @@ async fn test_kg_question_answering() {
 #[tokio::test]
 async fn test_kg_knowledge_update() {
     let ctx = E2eTestContext::new().await.expect("创建上下文失败");
-    let generator = KnowledgeGraphDataGenerator::new(&ctx);
+    let generator = KnowledgeGraphDataGenerator::new(ctx.clone());
 
     generator
         .generate_base_schema()

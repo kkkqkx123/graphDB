@@ -146,7 +146,7 @@ async fn test_schema_rename_tag() {
 
     // 使用新名称查询
     let query = r#"
-        MATCH (u:User)
+        MATCH (u:Customer)
         WHERE u.name == 'Test'
         RETURN u.name
     "#;
