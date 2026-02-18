@@ -152,11 +152,15 @@ impl LockGuard {
     pub fn new(
         lock_manager: Arc<Mutex<MemoryLockManager>>,
         locks: Vec<LockType>,
-    ) -> Self {
-        Self {
+    ) -> Result<Self, StorageError> {
+        let mut manager = lock_manager.lock();
+        manager.try_lock_batch(&locks)?;
+        drop(manager);
+        
+        Ok(Self {
             lock_manager,
             locks,
-        }
+        })
     }
 
     /// 获取锁列表
@@ -244,7 +248,7 @@ mod tests {
         let lock = LockType::Vertex(1, Value::String("vid1".to_string()));
 
         {
-            let guard = LockGuard::new(manager.clone(), vec![lock.clone()]);
+            let guard = LockGuard::new(manager.clone(), vec![lock.clone()]).expect("创建锁守卫失败");
             assert!(manager.lock().is_locked(&lock));
             assert_eq!(guard.locks().len(), 1);
         }
