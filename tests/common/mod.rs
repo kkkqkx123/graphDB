@@ -23,31 +23,13 @@ pub struct TestStorage {
 impl TestStorage {
     /// 创建新的测试存储实例
     pub fn new() -> anyhow::Result<Self> {
-        // 使用项目目录下的临时文件夹
-        let temp_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("target")
-            .join("test-temp");
-        
-        // 确保临时目录存在
-        std::fs::create_dir_all(&temp_dir)?;
-        
-        // 创建唯一的子目录
-        let unique_id = format!("test_{}_{}", 
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)?
-                .as_nanos()
-        );
-        let temp_path = temp_dir.join(&unique_id);
-        std::fs::create_dir_all(&temp_path)?;
-        
-        // redb 需要一个具体的文件路径，而不是目录
-        let db_path = temp_path.join("test.db");
+        let temp_dir = tempfile::tempdir()?;
+        let db_path = temp_dir.path().join("test.db");
         
         let storage = Arc::new(Mutex::new(RedbStorage::new_with_path(db_path)?));
         Ok(Self {
             storage,
-            temp_path,
+            temp_path: temp_dir.path().to_path_buf(),
         })
     }
 

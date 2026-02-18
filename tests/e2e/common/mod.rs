@@ -46,20 +46,14 @@ impl E2eTestContext {
         let db_path = temp_path.join("test.db");
         
         let mut config = Config::default();
-        config.storage_path = db_path.to_string_lossy().to_string();
+        config.database.storage_path = db_path.to_string_lossy().to_string();
         
         let storage = Arc::new(DefaultStorage::new_with_path(db_path)?);
         
         let service = GraphService::new(config, storage.clone());
         
-        // 添加 e2e_test 用户并授予 Admin 权限
-        service.get_authenticator()
-            .add_user("e2e_test".to_string(), "test_pass".to_string())
-            .expect("添加 e2e_test 用户失败");
-        
-        service.get_permission_manager()
-            .grant_role("e2e_test", 0, graphdb::api::service::RoleType::Admin)
-            .expect("授予 e2e_test 权限失败");
+        // 使用默认的 root 用户进行测试
+        // root 用户默认是 God 角色，拥有所有权限
         
         let ctx = Arc::new(Self {
             service,
@@ -70,7 +64,7 @@ impl E2eTestContext {
         });
         
         // 创建默认会话
-        ctx.create_session("e2e_test").await?;
+        ctx.create_session("root").await?;
         
         Ok(ctx)
     }
@@ -98,7 +92,7 @@ impl E2eTestContext {
                 session.id()
             } else {
                 drop(session_guard);
-                let session = self.create_session("e2e_test").await?;
+                let session = self.create_session("root").await?;
                 session.id()
             }
         };
@@ -163,18 +157,6 @@ impl E2eTestContext {
 impl Drop for E2eTestContext {
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.temp_path);
-    }
-}
-
-impl Clone for E2eTestContext {
-    fn clone(&self) -> Self {
-        Self {
-            service: self.service.clone(),
-            storage: self.storage.clone(),
-            temp_path: self.temp_path.clone(),
-            current_space: Mutex::new(None),
-            session: Mutex::new(None),
-        }
     }
 }
 

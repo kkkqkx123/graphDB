@@ -131,16 +131,16 @@ impl OptimizerConfigInfo {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tempfile::NamedTempFile;
+    use std::io::Write;
     
     #[test]
     fn test_load_optimizer_config() {
         let config_content = "[optimizer]\nmax_iteration_rounds = 10\n";
-        let temp_dir = std::env::temp_dir();
-        let temp_path = temp_dir.join("optimizer_config_test.toml");
-        
-        std::fs::write(&temp_path, config_content).expect("Failed to write config file");
+        let mut temp_file = NamedTempFile::new().expect("Failed to create temporary file");
+        temp_file.write_all(config_content.as_bytes()).expect("Failed to write config file");
 
-        let config_info = load_optimizer_config(&temp_path).expect("Failed to load optimizer config");
+        let config_info = load_optimizer_config(temp_file.path()).expect("Failed to load optimizer config");
 
         assert_eq!(config_info.max_iteration_rounds, 10);
     }

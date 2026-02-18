@@ -13,9 +13,6 @@ use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::traits::{ExecutionResult, Executor};
 use crate::storage::StorageClient;
 
-#[cfg(test)]
-use crate::config::test_config::test_config;
-
 /// Unwind执行器
 /// 用于将列表中的每个元素展开为单独的行
 pub struct UnwindExecutor<S: StorageClient + Send + 'static> {
@@ -366,7 +363,6 @@ use parking_lot::Mutex;
 
     #[tokio::test]
     async fn test_unwind_executor() {
-        let _config = test_config();
         let storage = Arc::new(Mutex::new(MockStorage));
 
         // 创建输入数据

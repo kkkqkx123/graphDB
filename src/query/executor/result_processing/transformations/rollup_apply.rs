@@ -473,7 +473,6 @@ impl<S: StorageClient + Send + 'static> crate::query::executor::traits::HasStora
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::test_config::test_config;
     use crate::core::Expression;
     use crate::core::Value;
     use crate::storage::MockStorage;
@@ -629,7 +628,6 @@ use parking_lot::Mutex;
 
     #[tokio::test]
     async fn test_rollup_apply_empty_right() {
-        let _config = test_config();
         let storage = Arc::new(Mutex::new(MockStorage));
 
         let left_values = vec![Value::Int(1), Value::Int(2)];

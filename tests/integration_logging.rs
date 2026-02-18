@@ -35,18 +35,25 @@ fn test_log_config_serialization() {
             port: 9758,
             storage_path: "data/graphdb".to_string(),
             max_connections: 10,
-            transaction_timeout: 30,
+        },
+        transaction: graphdb::config::TransactionConfig {
+            default_timeout: 30,
+            max_concurrent_transactions: 1000,
+            enable_2pc: false,
+            auto_cleanup: true,
+            cleanup_interval: 10,
         },
         log: graphdb::config::LogConfig {
             level: "debug".to_string(),
             dir: "test_logs".to_string(),
             file: "test_graphdb".to_string(),
-            max_file_size: 50 * 1024 * 1024, // 50MB
+            max_file_size: 50 * 1024 * 1024,
             max_files: 3,
         },
         auth: graphdb::config::AuthConfig::default(),
         bootstrap: graphdb::config::BootstrapConfig::default(),
         optimizer: graphdb::config::OptimizerConfig::default(),
+        monitoring: graphdb::config::MonitoringConfig::default(),
     };
 
     // 序列化为 TOML
@@ -107,7 +114,13 @@ host = "127.0.0.1"
 port = 9758
 storage_path = "data/graphdb"
 max_connections = 10
-transaction_timeout = 30
+
+[transaction]
+default_timeout = 30
+max_concurrent_transactions = 1000
+enable_2pc = false
+auto_cleanup = true
+cleanup_interval = 10
 
 [log]
 level = "debug"
@@ -226,8 +239,9 @@ fn test_flexi_logger_integration() {
 
         let config = Config {
             database: graphdb::config::DatabaseConfig::default(),
+            transaction: graphdb::config::TransactionConfig::default(),
             log: graphdb::config::LogConfig {
-                level: "warn".to_string(), // 只记录 warn 及以上级别
+                level: "warn".to_string(),
                 dir: test_dir.to_string_lossy().to_string(),
                 file: "level_test".to_string(),
                 ..graphdb::config::LogConfig::default()
@@ -235,6 +249,7 @@ fn test_flexi_logger_integration() {
             auth: graphdb::config::AuthConfig::default(),
             bootstrap: graphdb::config::BootstrapConfig::default(),
             optimizer: graphdb::config::OptimizerConfig::default(),
+            monitoring: graphdb::config::MonitoringConfig::default(),
         };
 
         // 验证配置正确
@@ -249,16 +264,18 @@ fn test_flexi_logger_integration() {
 
         let config = Config {
             database: graphdb::config::DatabaseConfig::default(),
+            transaction: graphdb::config::TransactionConfig::default(),
             log: graphdb::config::LogConfig {
                 level: "info".to_string(),
                 dir: test_dir.to_string_lossy().to_string(),
                 file: "rotation_test".to_string(),
-                max_file_size: 10 * 1024 * 1024, // 10MB
+                max_file_size: 10 * 1024 * 1024,
                 max_files: 3,
             },
             auth: graphdb::config::AuthConfig::default(),
             bootstrap: graphdb::config::BootstrapConfig::default(),
             optimizer: graphdb::config::OptimizerConfig::default(),
+            monitoring: graphdb::config::MonitoringConfig::default(),
         };
 
         // 验证轮转配置
@@ -288,6 +305,7 @@ fn test_flexi_logger_integration() {
 
         let config = Config {
             database: graphdb::config::DatabaseConfig::default(),
+            transaction: graphdb::config::TransactionConfig::default(),
             log: graphdb::config::LogConfig {
                 level: "debug".to_string(),
                 dir: test_dir.to_string_lossy().to_string(),
@@ -297,6 +315,7 @@ fn test_flexi_logger_integration() {
             auth: graphdb::config::AuthConfig::default(),
             bootstrap: graphdb::config::BootstrapConfig::default(),
             optimizer: graphdb::config::OptimizerConfig::default(),
+            monitoring: graphdb::config::MonitoringConfig::default(),
         };
 
         // 验证异步配置可以正确构建
@@ -319,16 +338,18 @@ fn test_flexi_logger_integration() {
         let max_files = 2;
         let config = Config {
             database: graphdb::config::DatabaseConfig::default(),
+            transaction: graphdb::config::TransactionConfig::default(),
             log: graphdb::config::LogConfig {
                 level: "info".to_string(),
                 dir: test_dir.to_string_lossy().to_string(),
                 file: "cleanup_test".to_string(),
-                max_file_size: 1024 * 1024, // 1MB
+                max_file_size: 1024 * 1024,
                 max_files,
             },
             auth: graphdb::config::AuthConfig::default(),
             bootstrap: graphdb::config::BootstrapConfig::default(),
             optimizer: graphdb::config::OptimizerConfig::default(),
+            monitoring: graphdb::config::MonitoringConfig::default(),
         };
 
         // 验证清理配置
@@ -366,6 +387,7 @@ fn test_log_file_path_resolution() {
     // 测试自定义配置
     let custom_config = Config {
         database: graphdb::config::DatabaseConfig::default(),
+        transaction: graphdb::config::TransactionConfig::default(),
         log: graphdb::config::LogConfig {
             dir: "/var/log/graphdb".to_string(),
             file: "app".to_string(),
@@ -374,6 +396,7 @@ fn test_log_file_path_resolution() {
         auth: graphdb::config::AuthConfig::default(),
         bootstrap: graphdb::config::BootstrapConfig::default(),
         optimizer: graphdb::config::OptimizerConfig::default(),
+        monitoring: graphdb::config::MonitoringConfig::default(),
     };
 
     let custom_path = format!("{}/{}.log", custom_config.log.dir, custom_config.log.file);
@@ -390,26 +413,30 @@ fn test_log_file_size_config() {
     // 测试自定义大小
     let custom_config = Config {
         database: graphdb::config::DatabaseConfig::default(),
+        transaction: graphdb::config::TransactionConfig::default(),
         log: graphdb::config::LogConfig {
-            max_file_size: 500 * 1024 * 1024, // 500MB
+            max_file_size: 500 * 1024 * 1024,
             ..graphdb::config::LogConfig::default()
         },
         auth: graphdb::config::AuthConfig::default(),
         bootstrap: graphdb::config::BootstrapConfig::default(),
         optimizer: graphdb::config::OptimizerConfig::default(),
+        monitoring: graphdb::config::MonitoringConfig::default(),
     };
     assert_eq!(custom_config.log.max_file_size, 500 * 1024 * 1024);
 
     // 测试小文件配置（用于测试）
     let small_config = Config {
         database: graphdb::config::DatabaseConfig::default(),
+        transaction: graphdb::config::TransactionConfig::default(),
         log: graphdb::config::LogConfig {
-            max_file_size: 1024, // 1KB
+            max_file_size: 1024,
             ..graphdb::config::LogConfig::default()
         },
         auth: graphdb::config::AuthConfig::default(),
         bootstrap: graphdb::config::BootstrapConfig::default(),
         optimizer: graphdb::config::OptimizerConfig::default(),
+        monitoring: graphdb::config::MonitoringConfig::default(),
     };
     assert_eq!(small_config.log.max_file_size, 1024);
 }
@@ -422,6 +449,7 @@ fn test_log_level_validation() {
     for level in valid_levels {
         let config = Config {
             database: graphdb::config::DatabaseConfig::default(),
+            transaction: graphdb::config::TransactionConfig::default(),
             log: graphdb::config::LogConfig {
                 level: level.to_string(),
                 ..graphdb::config::LogConfig::default()
@@ -429,6 +457,7 @@ fn test_log_level_validation() {
             auth: graphdb::config::AuthConfig::default(),
             bootstrap: graphdb::config::BootstrapConfig::default(),
             optimizer: graphdb::config::OptimizerConfig::default(),
+            monitoring: graphdb::config::MonitoringConfig::default(),
         };
         assert_eq!(config.log.level, level);
     }

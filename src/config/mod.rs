@@ -3,9 +3,6 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-#[cfg(test)]
-pub mod test_config;
-
 /// 数据库配置
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct DatabaseConfig {
@@ -444,11 +441,10 @@ disabled_rules = ["FilterPushDownRule", "PredicatePushDownRule"]
 enabled_rules = ["RemoveUselessNodeRule"]
 "#;
 
-        let temp_dir = std::env::temp_dir();
-        let temp_path = temp_dir.join("test_nested_config.toml");
-        std::fs::write(&temp_path, config_content).expect("Failed to write config file");
+        let mut temp_file = NamedTempFile::new().expect("Failed to create temporary file");
+        temp_file.write_all(config_content.as_bytes()).expect("Failed to write config file");
 
-        let config = Config::load(&temp_path).expect("Failed to load config");
+        let config = Config::load(temp_file.path()).expect("Failed to load config");
 
         assert_eq!(config.database.host, "0.0.0.0");
         assert_eq!(config.database.port, 8080);
@@ -465,8 +461,5 @@ enabled_rules = ["RemoveUselessNodeRule"]
         assert_eq!(config.optimizer.enable_cost_model, false);
         assert_eq!(config.optimizer.rules.disabled_rules.len(), 2);
         assert_eq!(config.optimizer.rules.enabled_rules.len(), 1);
-
-        // 清理
-        let _ = std::fs::remove_file(&temp_path);
     }
 }

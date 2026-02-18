@@ -14,11 +14,12 @@ use graphdb::api::session::{
     ClientSession, GraphSessionManager, QueryManager, QueryStatus,
     DEFAULT_SESSION_IDLE_TIMEOUT,
 };
-use graphdb::api::session::client_session::{Session, SpaceInfo, RoleType as SessionRoleType};
+use graphdb::api::session::client_session::{Session, SpaceInfo};
 use graphdb::api::service::{
-    Authenticator, PasswordAuthenticator, PermissionManager, Permission, RoleType,
+    Authenticator, PasswordAuthenticator, PermissionManager, Permission,
     StatsManager, MetricType, GraphService,
 };
+use graphdb::api::service::permission_manager::RoleType;
 use graphdb::api::service::stats_manager::QueryMetrics;
 use graphdb::config::Config;
 use graphdb::storage::redb_storage::DefaultStorage;
@@ -148,7 +149,7 @@ async fn test_kill_session() {
     let session = session_manager
         .create_session("admin".to_string(), "127.0.0.1".to_string())
         .expect("创建会话失败");
-    session.set_role(0, SessionRoleType::ADMIN);
+    session.set_role(0, RoleType::Admin);
     let _session_id = session.id();
 
     // 创建另一个用户会话
@@ -230,18 +231,18 @@ fn test_client_session_roles() {
     assert!(!client_session.is_admin());
 
     // 设置Admin角色
-    client_session.set_role(1, SessionRoleType::ADMIN);
+    client_session.set_role(1, RoleType::Admin);
     assert!(client_session.is_admin());
     assert!(matches!(
         client_session.role_with_space(1),
-        Some(SessionRoleType::ADMIN)
+        Some(RoleType::Admin)
     ));
 
     // 设置User角色
-    client_session.set_role(2, SessionRoleType::USER);
+    client_session.set_role(2, RoleType::User);
     assert!(matches!(
         client_session.role_with_space(2),
-        Some(SessionRoleType::USER)
+        Some(RoleType::User)
     ));
 }
 
@@ -444,17 +445,18 @@ fn test_get_running_queries() {
 
 #[test]
 fn test_password_authenticator_creation() {
-    let authenticator = PasswordAuthenticator::new();
+    let config = graphdb::config::AuthConfig::default();
+    let authenticator = PasswordAuthenticator::new_default(config);
 
-    // 验证默认用户
-    assert!(authenticator.verify_password("root", "root"));
-    assert!(authenticator.verify_password("nebula", "nebula"));
-    assert!(!authenticator.verify_password("root", "wrong"));
+    // 验证默认用户可以认证
+    let result = authenticator.authenticate("root", "root");
+    assert!(result.is_ok());
 }
 
 #[test]
 fn test_authenticate_success() {
-    let authenticator = PasswordAuthenticator::new();
+    let config = graphdb::config::AuthConfig::default();
+    let authenticator = PasswordAuthenticator::new_default(config);
 
     let result = authenticator.authenticate("root", "root");
     assert!(result.is_ok());
@@ -462,7 +464,8 @@ fn test_authenticate_success() {
 
 #[test]
 fn test_authenticate_failure() {
-    let authenticator = PasswordAuthenticator::new();
+    let config = graphdb::config::AuthConfig::default();
+    let authenticator = PasswordAuthenticator::new_default(config);
 
     // 错误密码
     let result = authenticator.authenticate("root", "wrong_password");
@@ -482,22 +485,30 @@ fn test_authenticate_failure() {
 }
 
 #[test]
-fn test_add_and_remove_user() {
-    let authenticator = PasswordAuthenticator::new();
+fn test_custom_user_verifier() {
+    let config = graphdb::config::AuthConfig {
+        enable_authorize: true,
+        failed_login_attempts: 0,
+        session_idle_timeout_secs: 3600,
+        default_username: "admin".to_string(),
+        default_password: "admin123".to_string(),
+        force_change_default_password: false,
+    };
 
-    // 添加用户
-    authenticator
-        .add_user("testuser".to_string(), "testpass".to_string())
-        .expect("添加用户失败");
-    assert!(authenticator.verify_password("testuser", "testpass"));
+    let authenticator = PasswordAuthenticator::new(
+        |username: &str, password: &str| {
+            Ok(username == "testuser" && password == "testpass")
+        },
+        config,
+    );
 
-    // 验证新用户可以认证
+    // 自定义用户验证
     let result = authenticator.authenticate("testuser", "testpass");
     assert!(result.is_ok());
 
-    // 删除用户
-    authenticator.remove_user("testuser").expect("删除用户失败");
-    assert!(!authenticator.verify_password("testuser", "testpass"));
+    // 错误密码
+    let result = authenticator.authenticate("testuser", "wrong");
+    assert!(result.is_err());
 }
 
 // ==================== 权限管理器测试 ====================
@@ -621,11 +632,11 @@ fn test_metric_operations() {
     let stats_manager = StatsManager::new();
 
     // 增加指标值
-    stats_manager.add_value(MetricType::NumOpenedSessions);
-    stats_manager.add_value(MetricType::NumOpenedSessions);
+    stats_manager.add_value(MetricType::NumQueries);
+    stats_manager.add_value(MetricType::NumQueries);
 
     // 减少指标值
-    stats_manager.dec_value(MetricType::NumActiveSessions);
+    stats_manager.dec_value(MetricType::NumActiveQueries);
 
     // 批量增加
     stats_manager.add_value_with_amount(MetricType::NumQueries, 5);
@@ -660,24 +671,43 @@ fn test_query_metrics() {
 
 fn create_test_config() -> Config {
     Config {
-        host: "127.0.0.1".to_string(),
-        port: 9669,
-        storage_path: "/tmp/graphdb_test".to_string(),
-        max_connections: 10,
-        transaction_timeout: 30,
-        log_level: "info".to_string(),
-        log_dir: "logs".to_string(),
-        log_file: "logs/test.log".to_string(),
-        max_log_file_size: 100 * 1024 * 1024,
-        max_log_files: 5,
+        database: graphdb::config::DatabaseConfig {
+            host: "127.0.0.1".to_string(),
+            port: 9669,
+            storage_path: "/tmp/graphdb_test".to_string(),
+            max_connections: 10,
+        },
+        transaction: graphdb::config::TransactionConfig {
+            default_timeout: 30,
+            max_concurrent_transactions: 1000,
+            enable_2pc: false,
+            auto_cleanup: true,
+            cleanup_interval: 10,
+        },
+        log: graphdb::config::LogConfig {
+            level: "info".to_string(),
+            dir: "logs".to_string(),
+            file: "test".to_string(),
+            max_file_size: 100 * 1024 * 1024,
+            max_files: 5,
+        },
+        auth: graphdb::config::AuthConfig::default(),
+        bootstrap: graphdb::config::BootstrapConfig::default(),
+        optimizer: graphdb::config::OptimizerConfig::default(),
+        monitoring: graphdb::config::MonitoringConfig::default(),
     }
 }
 
 #[tokio::test]
 async fn test_graph_service_creation() {
     let _ = RuleRegistry::initialize();
-    let config = create_test_config();
-    let storage = Arc::new(DefaultStorage::new().expect("创建存储失败"));
+    let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
+    let db_path = temp_dir.path().join("graphdb_test");
+    
+    let mut config = create_test_config();
+    config.database.storage_path = db_path.to_string_lossy().to_string();
+    
+    let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
 
     let graph_service = GraphService::<DefaultStorage>::new(config, storage);
 
@@ -688,8 +718,13 @@ async fn test_graph_service_creation() {
 #[tokio::test]
 async fn test_graph_service_authentication() {
     let _ = RuleRegistry::initialize();
-    let config = create_test_config();
-    let storage = Arc::new(DefaultStorage::new().expect("创建存储失败"));
+    let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
+    let db_path = temp_dir.path().join("graphdb_test");
+    
+    let mut config = create_test_config();
+    config.database.storage_path = db_path.to_string_lossy().to_string();
+    
+    let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
     let graph_service = GraphService::<DefaultStorage>::new(config, storage);
 
     // 成功认证
@@ -704,8 +739,13 @@ async fn test_graph_service_authentication() {
 #[tokio::test]
 async fn test_graph_service_signout() {
     let _ = RuleRegistry::initialize();
-    let config = create_test_config();
-    let storage = Arc::new(DefaultStorage::new().expect("创建存储失败"));
+    let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
+    let db_path = temp_dir.path().join("graphdb_test");
+    
+    let mut config = create_test_config();
+    config.database.storage_path = db_path.to_string_lossy().to_string();
+    
+    let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
     let graph_service = GraphService::<DefaultStorage>::new(config, storage);
 
     // 认证并获取会话
@@ -728,8 +768,13 @@ async fn test_graph_service_signout() {
 #[tokio::test]
 async fn test_graph_service_execute_query() {
     let _ = RuleRegistry::initialize();
-    let config = create_test_config();
-    let storage = Arc::new(DefaultStorage::new().expect("创建存储失败"));
+    let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
+    let db_path = temp_dir.path().join("graphdb_test");
+    
+    let mut config = create_test_config();
+    config.database.storage_path = db_path.to_string_lossy().to_string();
+    
+    let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
     let graph_service = GraphService::<DefaultStorage>::new(config, storage);
 
     // 认证并获取会话
@@ -747,8 +792,13 @@ async fn test_graph_service_execute_query() {
 #[tokio::test]
 async fn test_graph_service_invalid_session() {
     let _ = RuleRegistry::initialize();
-    let config = create_test_config();
-    let storage = Arc::new(DefaultStorage::new().expect("创建存储失败"));
+    let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
+    let db_path = temp_dir.path().join("graphdb_test");
+    
+    let mut config = create_test_config();
+    config.database.storage_path = db_path.to_string_lossy().to_string();
+    
+    let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
     let graph_service = GraphService::<DefaultStorage>::new(config, storage);
 
     // 使用无效的会话ID执行查询
@@ -759,8 +809,13 @@ async fn test_graph_service_invalid_session() {
 #[tokio::test]
 async fn test_graph_service_list_sessions() {
     let _ = RuleRegistry::initialize();
-    let config = create_test_config();
-    let storage = Arc::new(DefaultStorage::new().expect("创建存储失败"));
+    let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
+    let db_path = temp_dir.path().join("graphdb_test");
+    
+    let mut config = create_test_config();
+    config.database.storage_path = db_path.to_string_lossy().to_string();
+    
+    let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
     let graph_service = GraphService::<DefaultStorage>::new(config, storage);
 
     // 初始没有会话
@@ -782,8 +837,13 @@ async fn test_graph_service_list_sessions() {
 #[tokio::test]
 async fn test_graph_service_kill_session() {
     let _ = RuleRegistry::initialize();
-    let config = create_test_config();
-    let storage = Arc::new(DefaultStorage::new().expect("创建存储失败"));
+    let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
+    let db_path = temp_dir.path().join("graphdb_test");
+    
+    let mut config = create_test_config();
+    config.database.storage_path = db_path.to_string_lossy().to_string();
+    
+    let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
     let graph_service = GraphService::<DefaultStorage>::new(config, storage);
 
     // 创建两个会话
@@ -806,8 +866,13 @@ async fn test_graph_service_kill_session() {
 #[tokio::test]
 async fn test_full_session_lifecycle() {
     let _ = RuleRegistry::initialize();
-    let config = create_test_config();
-    let storage = Arc::new(DefaultStorage::new().expect("创建存储失败"));
+    let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
+    let db_path = temp_dir.path().join("graphdb_test");
+    
+    let mut config = create_test_config();
+    config.database.storage_path = db_path.to_string_lossy().to_string();
+    
+    let storage = Arc::new(DefaultStorage::new_with_path(db_path).expect("创建存储失败"));
     let graph_service = GraphService::<DefaultStorage>::new(config, storage);
 
     // 1. 认证创建会话
@@ -852,7 +917,7 @@ async fn test_concurrent_session_operations() {
             let session = manager
                 .create_session(format!("user{}", i), "127.0.0.1".to_string())
                 .expect("创建会话失败");
-            session.set_role(1, SessionRoleType::USER);
+            session.set_role(1, RoleType::User);
             session.id()
         });
         handles.push(handle);
