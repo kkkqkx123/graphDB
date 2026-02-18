@@ -3,7 +3,7 @@
 //! 该规则识别多个边索引扫描的UNION ALL操作，
 //! 并尝试将其合并为更高效的索引扫描。
 
-use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult};
+use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, OptimizerError};
 use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::query::optimizer::rule_traits::BaseOptRule;
 use crate::query::planner::plan::algorithms::IndexScan;
@@ -45,7 +45,7 @@ impl OptRule for UnionAllTagIndexScanRule {
         &self,
         ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
-    ) -> Result<Option<TransformResult>, crate::query::optimizer::engine::OptimizerError> {
+    ) -> Result<Option<TransformResult>, OptimizerError> {
         let node_ref = group_node.borrow();
         
         if !node_ref.plan_node.is_union() {

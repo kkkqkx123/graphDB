@@ -21,7 +21,7 @@
 //! - Project 节点的子节点是数据访问节点（ScanVertices、ScanEdges、GetVertices）
 //! - Project 节点有列定义
 
-use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, Result as OptResult};
+use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, Result};
 use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::query::optimizer::rule_traits::{BaseOptRule, PushDownRule};
 use crate::query::planner::plan::core::nodes::PlanNodeEnum;
@@ -108,7 +108,7 @@ impl OptRule for PushProjectDownRule {
         &self,
         ctx: &mut OptContext,
         node: &Rc<RefCell<OptGroupNode>>,
-    ) -> OptResult<Option<TransformResult>> {
+    ) -> Result<Option<TransformResult>> {
         let node_ref = node.borrow();
         if !node_ref.plan_node.is_project() {
             return Ok(None);
@@ -155,7 +155,7 @@ impl PushDownRule for PushProjectDownRule {
         _ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
         _child: &OptGroupNode,
-    ) -> OptResult<Option<TransformResult>> {
+    ) -> Result<Option<TransformResult>> {
         let _node_ref = group_node.borrow();
         let mut result = TransformResult::new();
         result.add_new_group_node(group_node.clone());

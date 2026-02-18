@@ -1,6 +1,6 @@
 //! 折叠多个投影操作的规则
 
-use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult};
+use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, OptimizerError};
 use crate::query::optimizer::rule_patterns::CommonPatterns;
 use crate::query::optimizer::rule_traits::{BaseOptRule, MergeRule};
 use std::rc::Rc;
@@ -43,7 +43,7 @@ impl OptRule for CollapseProjectRule {
         &self,
         ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
-    ) -> Result<Option<TransformResult>, crate::query::optimizer::engine::OptimizerError> {
+    ) -> Result<Option<TransformResult>, OptimizerError> {
         let node_ref = group_node.borrow();
         if !node_ref.plan_node.is_project() {
             return Ok(None);
@@ -82,7 +82,7 @@ impl MergeRule for CollapseProjectRule {
         _ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
         _child: &OptGroupNode,
-    ) -> Result<Option<TransformResult>, crate::query::optimizer::engine::OptimizerError> {
+    ) -> Result<Option<TransformResult>, OptimizerError> {
         let _node_ref = group_node.borrow();
         let mut result = TransformResult::new();
         result.add_new_group_node(group_node.clone());

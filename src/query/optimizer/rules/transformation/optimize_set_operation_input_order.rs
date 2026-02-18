@@ -3,7 +3,7 @@
 //! 优化集合操作的输入顺序，选择较小的输入作为构建表：
 //! - Intersect: 选择较小的输入作为构建表
 
-use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult};
+use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, OptimizerError};
 use crate::query::optimizer::rule_traits::BaseOptRule;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum as Enum;
 use crate::query::planner::plan::core::nodes::set_operations_node::IntersectNode;
@@ -27,7 +27,7 @@ impl OptRule for OptimizeSetOperationInputOrderRule {
         &self,
         ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
-    ) -> Result<Option<TransformResult>, crate::query::optimizer::engine::OptimizerError> {
+    ) -> Result<Option<TransformResult>, OptimizerError> {
         let node_ref = group_node.borrow();
         let mut visitor = OptimizeSetOperationInputOrderVisitor {
             ctx,

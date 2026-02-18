@@ -159,6 +159,8 @@ impl RuleConfig {
             OptimizationRule::TagIndexFullScan,
             OptimizationRule::UnionAllEdgeIndexScan,
             OptimizationRule::UnionAllTagIndexScan,
+            OptimizationRule::IndexCoveringScan,
+            OptimizationRule::PushTopNDownIndexScan,
         ].into_iter()
     }
 }

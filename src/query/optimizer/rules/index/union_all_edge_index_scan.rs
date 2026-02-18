@@ -3,7 +3,7 @@
 //! 该规则提供索引扫描的基础优化功能，
 //! 包括索引选择、扫描类型确定等。
 
-use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult};
+use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, OptimizerError};
 use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::query::optimizer::rule_traits::BaseOptRule;
 use crate::query::planner::plan::algorithms::IndexScan;
@@ -29,7 +29,7 @@ impl OptRule for UnionAllEdgeIndexScanRule {
         &self,
         _ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
-    ) -> Result<Option<TransformResult>, crate::query::optimizer::engine::OptimizerError> {
+    ) -> Result<Option<TransformResult>, OptimizerError> {
         let node_ref = group_node.borrow();
         
         if !node_ref.plan_node.is_index_scan() {

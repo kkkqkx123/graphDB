@@ -1,6 +1,6 @@
 //! 移除连接下方的添加顶点操作的规则
 
-use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult};
+use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, OptimizerError};
 use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::query::optimizer::rule_traits::BaseOptRule;
 use crate::query::planner::plan::core::nodes::plan_node_traits::MultipleInputNode;
@@ -40,7 +40,7 @@ impl OptRule for RemoveAppendVerticesBelowJoinRule {
         &self,
         ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
-    ) -> Result<Option<TransformResult>, crate::query::optimizer::engine::OptimizerError> {
+    ) -> Result<Option<TransformResult>, OptimizerError> {
         let node_ref = group_node.borrow();
         let mut visitor = RemoveAppendVerticesBelowJoinVisitor {
             ctx,

@@ -4,7 +4,7 @@
 //! - Minus: 如果减输入为空，直接返回主输入
 //! - Intersect: 如果任一输入为空，返回空集
 
-use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult};
+use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, OptimizerError};
 use crate::query::optimizer::rule_traits::BaseOptRule;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum as Enum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
@@ -27,7 +27,7 @@ impl OptRule for EliminateEmptySetOperationRule {
         &self,
         ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
-    ) -> Result<Option<TransformResult>, crate::query::optimizer::engine::OptimizerError> {
+    ) -> Result<Option<TransformResult>, OptimizerError> {
         let node_ref = group_node.borrow();
         let mut visitor = EliminateEmptySetOperationVisitor {
             ctx,

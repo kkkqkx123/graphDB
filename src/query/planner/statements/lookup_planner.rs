@@ -65,7 +65,7 @@ impl Planner for LookupPlanner {
         }
 
         // 1. 获取可用的索引列表（从元数据服务）
-        let available_indexes = self.get_available_indexes(space_id as u64, lookup_ctx.schema_id, lookup_ctx.is_edge)?;
+        let available_indexes = self.get_available_indexes(ast_ctx, space_id as u64, lookup_ctx.schema_id, lookup_ctx.is_edge)?;
 
         // 2. 使用 IndexSelector 选择最优索引并获取评分详情
         let (selected_index, scan_limits, scan_type, score_detail) = if !available_indexes.is_empty() {
@@ -153,33 +153,62 @@ impl Planner for LookupPlanner {
 
 impl LookupPlanner {
     /// 获取可用的索引列表
-    /// 注意：这里简化实现，实际应该从元数据服务获取
+    /// 从元数据服务获取真实的索引列表
     fn get_available_indexes(
         &self,
-        _space_id: u64,
+        ast_ctx: &AstContext,
+        space_id: u64,
         schema_id: i32,
         is_edge: bool,
     ) -> Result<Vec<Index>, PlannerError> {
-        // 简化实现：创建一个默认索引
-        // 实际应该从元数据服务查询
-        let default_index = Index {
-            id: schema_id,
-            name: format!("idx_{}_{}", if is_edge { "edge" } else { "tag" }, schema_id),
-            space_id: _space_id as i32,
-            schema_name: format!("schema_{}", schema_id),
-            fields: vec![], // 实际应该从元数据获取字段信息
-            properties: vec![],
-            index_type: if is_edge {
-                crate::index::IndexType::EdgeIndex
-            } else {
-                crate::index::IndexType::TagIndex
-            },
-            status: crate::index::IndexStatus::Active,
-            is_unique: false,
-            comment: None,
+        // 从查询上下文中获取索引元数据管理器
+        let index_manager = ast_ctx.index_metadata_manager()
+            .ok_or_else(|| PlannerError::PlanGenerationFailed(
+                "Index metadata manager not available".to_string()
+            ))?;
+
+        // 获取schema名称
+        let schema_name = if is_edge {
+            ast_ctx.get_edge_type_name_by_id(space_id, schema_id)
+                .ok_or_else(|| PlannerError::PlanGenerationFailed(
+                    format!("Edge type not found for ID: {}", schema_id)
+                ))?
+        } else {
+            ast_ctx.get_tag_name_by_id(space_id, schema_id)
+                .ok_or_else(|| PlannerError::PlanGenerationFailed(
+                    format!("Tag not found for ID: {}", schema_id)
+                ))?
         };
 
-        Ok(vec![default_index])
+        // 从元数据服务获取索引列表
+        let indexes = if is_edge {
+            index_manager.list_edge_indexes(space_id as i32)
+                .map_err(|e| PlannerError::PlanGenerationFailed(
+                    format!("Failed to list edge indexes: {}", e)
+                ))?
+        } else {
+            index_manager.list_tag_indexes(space_id as i32)
+                .map_err(|e| PlannerError::PlanGenerationFailed(
+                    format!("Failed to list tag indexes: {}", e)
+                ))?
+        };
+
+        // 过滤出与当前schema相关的索引
+        let schema_indexes: Vec<Index> = indexes
+            .into_iter()
+            .filter(|idx| idx.schema_name == schema_name && idx.status == crate::index::IndexStatus::Active)
+            .collect();
+
+        if schema_indexes.is_empty() {
+            return Err(PlannerError::PlanGenerationFailed(
+                format!("No active indexes found for {}: {}", 
+                    if is_edge { "edge" } else { "tag" }, 
+                    schema_name
+                )
+            ));
+        }
+
+        Ok(schema_indexes)
     }
 
     /// 构建YIELD列

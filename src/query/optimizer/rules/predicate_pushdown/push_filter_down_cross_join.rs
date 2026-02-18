@@ -3,7 +3,7 @@
 //! 该规则识别 Filter -> CrossJoin 模式，
 //! 并将过滤条件下推到连接的两侧。
 
-use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult};
+use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, OptimizerError};
 use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::query::optimizer::rule_traits::BaseOptRule;
 use crate::core::Expression;
@@ -52,7 +52,7 @@ impl OptRule for PushFilterDownCrossJoinRule {
         &self,
         ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
-    ) -> Result<Option<TransformResult>, crate::query::optimizer::engine::OptimizerError> {
+    ) -> Result<Option<TransformResult>, OptimizerError> {
         let node_ref = group_node.borrow();
         
         if !node_ref.plan_node.is_filter() {

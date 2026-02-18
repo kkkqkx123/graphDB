@@ -27,7 +27,7 @@
 //! - Filter 节点的子节点是 Aggregate 节点
 //! - Filter 条件不涉及聚合函数（只涉及聚合的输入列）
 
-use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, Result as OptResult};
+use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, Result};
 use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::query::optimizer::rule_traits::BaseOptRule;
 use crate::core::Expression;
@@ -50,7 +50,7 @@ impl OptRule for PushFilterDownAggregateRule {
         &self,
         ctx: &mut OptContext,
         node: &Rc<RefCell<OptGroupNode>>,
-    ) -> OptResult<Option<TransformResult>> {
+    ) -> Result<Option<TransformResult>> {
         let node_ref = node.borrow();
         let plan_node = &node_ref.plan_node;
 

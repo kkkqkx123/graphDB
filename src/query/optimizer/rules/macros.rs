@@ -40,7 +40,7 @@ macro_rules! define_limit_pushdown_rule {
                 &self,
                 ctx: &mut $crate::query::optimizer::plan::OptContext,
                 group_node: &::std::rc::Rc<::std::cell::RefCell<$crate::query::optimizer::plan::OptGroupNode>>,
-            ) -> Result<Option<$crate::query::optimizer::plan::TransformResult>, $crate::query::optimizer::engine::OptimizerError> {
+            ) -> Result<Option<$crate::query::optimizer::plan::TransformResult>, $crate::query::optimizer::OptimizerError> {
                 let node_ref = group_node.borrow();
                 
                 if !node_ref.plan_node.is_limit() {
@@ -134,7 +134,7 @@ macro_rules! define_merge_rule {
                 &self,
                 ctx: &mut $crate::query::optimizer::plan::OptContext,
                 group_node: &::std::rc::Rc<::std::cell::RefCell<$crate::query::optimizer::plan::OptGroupNode>>,
-            ) -> Result<Option<$crate::query::optimizer::plan::TransformResult>, $crate::query::optimizer::engine::OptimizerError> {
+            ) -> Result<Option<$crate::query::optimizer::plan::TransformResult>, $crate::query::optimizer::OptimizerError> {
                 let node_ref = group_node.borrow();
                 if !node_ref.plan_node.$parent_check() {
                     return Ok(None);
@@ -177,7 +177,7 @@ macro_rules! define_merge_rule {
                 _ctx: &mut $crate::query::optimizer::plan::OptContext,
                 group_node: &::std::rc::Rc<::std::cell::RefCell<$crate::query::optimizer::plan::OptGroupNode>>,
                 _child: &$crate::query::optimizer::plan::OptGroupNode,
-            ) -> Result<Option<$crate::query::optimizer::plan::TransformResult>, $crate::query::optimizer::engine::OptimizerError> {
+            ) -> Result<Option<$crate::query::optimizer::plan::TransformResult>, $crate::query::optimizer::OptimizerError> {
                 let _node_ref = group_node.borrow();
                 let mut result = $crate::query::optimizer::plan::TransformResult::new();
                 result.add_new_group_node(group_node.clone());
@@ -223,7 +223,7 @@ macro_rules! define_elimination_rule {
                 &self,
                 ctx: &mut $crate::query::optimizer::plan::OptContext,
                 group_node: &::std::rc::Rc<::std::cell::RefCell<$crate::query::optimizer::plan::OptGroupNode>>,
-            ) -> Result<Option<$crate::query::optimizer::plan::TransformResult>, $crate::query::optimizer::engine::OptimizerError> {
+            ) -> Result<Option<$crate::query::optimizer::plan::TransformResult>, $crate::query::optimizer::OptimizerError> {
                 let node_ref = group_node.borrow();
                 let mut visitor = $visitor {
                     ctx,

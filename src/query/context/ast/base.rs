@@ -307,6 +307,33 @@ impl AstContext {
     pub fn clear_validation_errors(&mut self) {
         self.validation_errors.clear();
     }
+
+    /// 获取索引元数据管理器
+    pub fn index_metadata_manager(&self) -> Option<&std::sync::Arc<dyn crate::storage::metadata::IndexMetadataManager>> {
+        self.qctx.as_ref().and_then(|qctx| qctx.index_metadata_manager())
+    }
+
+    /// 根据ID获取标签名称
+    pub fn get_tag_name_by_id(&self, space_id: u64, tag_id: i32) -> Option<String> {
+        let qctx = self.qctx.as_ref()?;
+        let schema_manager = qctx.schema_manager()?;
+        let space = schema_manager.get_space_by_id(space_id as i32).ok()??;
+        let tags = schema_manager.list_tags(&space.space_name).ok()?;
+        tags.into_iter()
+            .find(|tag| tag.tag_id == tag_id)
+            .map(|tag| tag.tag_name)
+    }
+
+    /// 根据ID获取边类型名称
+    pub fn get_edge_type_name_by_id(&self, space_id: u64, edge_type_id: i32) -> Option<String> {
+        let qctx = self.qctx.as_ref()?;
+        let schema_manager = qctx.schema_manager()?;
+        let space = schema_manager.get_space_by_id(space_id as i32).ok()??;
+        let edge_types = schema_manager.list_edge_types(&space.space_name).ok()?;
+        edge_types.into_iter()
+            .find(|edge| edge.edge_type_id == edge_type_id)
+            .map(|edge| edge.edge_type_name)
+    }
 }
 
 impl AstContextTrait for AstContext {

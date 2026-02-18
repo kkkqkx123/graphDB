@@ -27,7 +27,7 @@
 //! - Limit 的 offset 为 0（当前无法知道输入数据的总量，只有offset为0时才应用）
 //! - Sort 节点有排序项
 
-use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, Result as OptResult};
+use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, Result};
 use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::query::optimizer::rule_traits::BaseOptRule;
 use crate::query::planner::plan::core::nodes::PlanNodeEnum;
@@ -48,7 +48,7 @@ impl OptRule for TopNRule {
         &self,
         ctx: &mut OptContext,
         node: &Rc<RefCell<OptGroupNode>>,
-    ) -> OptResult<Option<TransformResult>> {
+    ) -> Result<Option<TransformResult>> {
         let node_ref = node.borrow();
 
         if !node_ref.plan_node.is_limit() {

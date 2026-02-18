@@ -22,8 +22,8 @@ pub mod plan_node_visitor;
 // 执行计划表示模块
 pub mod plan;
 
-// 优化引擎模块
-pub mod engine;
+// 优化器实现
+pub mod optimizer_impl;
 
 // 优化规则模块（新结构）
 pub mod rules;
@@ -48,8 +48,8 @@ pub use plan::{
 };
 pub use crate::utils::ObjectPool;
 
-// Re-export engine types
-pub use engine::{ExplorationState, Optimizer, RuleSet};
+// Re-export optimizer types
+pub use optimizer_impl::{Optimizer, RuleSet};
 
 // Re-export all rule structs for convenient access (from new rules module)
 pub use rules::*;

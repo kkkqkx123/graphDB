@@ -1,6 +1,6 @@
 //! 合并多个过滤操作的规则
 
-use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult};
+use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, OptimizerError};
 use crate::query::optimizer::rule_patterns::CommonPatterns;
 use crate::query::optimizer::rule_traits::{combine_conditions, BaseOptRule, MergeRule};
 use crate::query::planner::plan::FilterNode as FilterPlanNode;
@@ -46,7 +46,7 @@ impl OptRule for CombineFilterRule {
         &self,
         ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
-    ) -> Result<Option<TransformResult>, crate::query::optimizer::engine::OptimizerError> {
+    ) -> Result<Option<TransformResult>, OptimizerError> {
         let node_ref = group_node.borrow();
         if !node_ref.plan_node.is_filter() {
             return Ok(None);
@@ -90,7 +90,7 @@ impl MergeRule for CombineFilterRule {
         _ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
         child: &OptGroupNode,
-    ) -> Result<Option<TransformResult>, crate::query::optimizer::engine::OptimizerError> {
+    ) -> Result<Option<TransformResult>, OptimizerError> {
         let node_ref = group_node.borrow();
         if let (Some(top_filter), Some(child_filter)) =
             (node_ref.plan_node.as_filter(), child.plan_node.as_filter())

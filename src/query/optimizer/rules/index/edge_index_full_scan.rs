@@ -3,7 +3,7 @@
 //! 该规则识别 EdgeIndexFullScan 节点，
 //! 并根据索引和过滤条件转换为更高效的索引扫描操作。
 
-use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult};
+use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, OptimizerError};
 use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::query::optimizer::rule_traits::BaseOptRule;
 use crate::query::planner::plan::algorithms::IndexScan;
@@ -43,7 +43,7 @@ impl OptRule for EdgeIndexFullScanRule {
         &self,
         ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
-    ) -> Result<Option<TransformResult>, crate::query::optimizer::engine::OptimizerError> {
+    ) -> Result<Option<TransformResult>, OptimizerError> {
         let node_ref = group_node.borrow();
         
         if !node_ref.plan_node.is_index_scan() {
@@ -74,7 +74,7 @@ fn optimize_edge_index_scan(
     index_scan: &IndexScan,
     _ctx: &mut OptContext,
     group_node: &Rc<RefCell<OptGroupNode>>,
-) -> Result<Option<TransformResult>, crate::query::optimizer::engine::OptimizerError> {
+) -> Result<Option<TransformResult>, OptimizerError> {
     use crate::query::planner::plan::algorithms::ScanType;
 
     if index_scan.scan_limits.is_empty() {

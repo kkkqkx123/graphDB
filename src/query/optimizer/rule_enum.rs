@@ -50,6 +50,10 @@ pub enum OptimizationRule {
     TagIndexFullScan,
     UnionAllEdgeIndexScan,
     UnionAllTagIndexScan,
+
+    // 索引覆盖扫描和TopN下推规则
+    IndexCoveringScan,
+    PushTopNDownIndexScan,
 }
 
 impl OptimizationRule {
@@ -75,7 +79,7 @@ impl OptimizationRule {
             Self::PushLimitDownIndexScan |
             Self::ScanWithFilterOptimization | Self::IndexFullScan | Self::IndexScan |
             Self::EdgeIndexFullScan | Self::TagIndexFullScan | Self::UnionAllEdgeIndexScan |
-            Self::UnionAllTagIndexScan => OptimizationPhase::Physical,
+            Self::UnionAllTagIndexScan | Self::IndexCoveringScan | Self::PushTopNDownIndexScan => OptimizationPhase::Physical,
         }
     }
     
@@ -121,6 +125,8 @@ impl OptimizationRule {
             Self::TagIndexFullScan => "TagIndexFullScanRule",
             Self::UnionAllEdgeIndexScan => "UnionAllEdgeIndexScanRule",
             Self::UnionAllTagIndexScan => "UnionAllTagIndexScanRule",
+            Self::IndexCoveringScan => "IndexCoveringScanRule",
+            Self::PushTopNDownIndexScan => "PushTopNDownIndexScanRule",
         }
     }
     
@@ -167,6 +173,8 @@ impl OptimizationRule {
             Self::TagIndexFullScan => Some(Rc::new(super::TagIndexFullScanRule)),
             Self::UnionAllEdgeIndexScan => Some(Rc::new(super::UnionAllEdgeIndexScanRule)),
             Self::UnionAllTagIndexScan => Some(Rc::new(super::UnionAllTagIndexScanRule)),
+            Self::IndexCoveringScan => Some(Rc::new(super::IndexCoveringScanRule)),
+            Self::PushTopNDownIndexScan => Some(Rc::new(super::PushTopNDownIndexScanRule)),
         }
     }
     
@@ -213,6 +221,8 @@ impl OptimizationRule {
             "TagIndexFullScanRule" => Some(Self::TagIndexFullScan),
             "UnionAllEdgeIndexScanRule" => Some(Self::UnionAllEdgeIndexScan),
             "UnionAllTagIndexScanRule" => Some(Self::UnionAllTagIndexScan),
+            "IndexCoveringScanRule" => Some(Self::IndexCoveringScan),
+            "PushTopNDownIndexScanRule" => Some(Self::PushTopNDownIndexScan),
             _ => None,
         }
     }

@@ -8,7 +8,7 @@
 //! - 查询上下文中没有设置索引 ID（表示还没有被优化过）
 //! - 存在可用的索引
 
-use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, Result as OptResult};
+use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, Result};
 use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::query::optimizer::rule_traits::BaseOptRule;
 use crate::query::planner::plan::core::nodes::PlanNodeEnum;
@@ -28,7 +28,7 @@ impl OptRule for IndexFullScanRule {
         &self,
         ctx: &mut OptContext,
         node: &Rc<RefCell<OptGroupNode>>,
-    ) -> OptResult<Option<TransformResult>> {
+    ) -> Result<Option<TransformResult>> {
         let node_ref = node.borrow();
 
         if !node_ref.plan_node.is_index_scan() {

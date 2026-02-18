@@ -7,7 +7,7 @@
 //! - 节点是 ScanVertices 或 ScanEdges 节点
 //! - 子节点包含 Filter 节点
 
-use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, Result as OptResult};
+use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, Result};
 use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::query::optimizer::rule_traits::BaseOptRule;
 use std::cell::RefCell;
@@ -26,7 +26,7 @@ impl OptRule for ScanWithFilterOptimizationRule {
         &self,
         ctx: &mut OptContext,
         node: &Rc<RefCell<OptGroupNode>>,
-    ) -> OptResult<Option<TransformResult>> {
+    ) -> Result<Option<TransformResult>> {
         let node_ref = node.borrow();
         if !node_ref.plan_node.is_scan_vertices() && !node_ref.plan_node.is_scan_edges() {
             return Ok(None);
@@ -54,7 +54,6 @@ impl BaseOptRule for ScanWithFilterOptimizationRule {}
 mod tests {
     use super::*;
     use crate::query::context::execution::QueryContext;
-    use crate::query::optimizer::engine::OptimizerError;
     use crate::query::optimizer::plan::{OptContext, OptGroupNode};
     use crate::query::planner::plan::PlanNodeEnum;
 
@@ -64,7 +63,7 @@ mod tests {
     }
 
     #[test]
-    fn test_scan_with_filter_optimization_rule() -> Result<(), OptimizerError> {
+    fn test_scan_with_filter_optimization_rule() -> Result<()> {
         let rule = ScanWithFilterOptimizationRule;
         let mut ctx = create_test_context();
 

@@ -10,9 +10,7 @@
 //! - 节点是连接节点（InnerJoin、LeftJoin、CrossJoin）
 //! - 至少有两个依赖节点
 
-use crate::query::optimizer::plan::{
-    OptContext, OptGroupNode, OptRule, Pattern, TransformResult,
-};
+use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, OptimizerError};
 use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::query::optimizer::rule_traits::BaseOptRule;
 use crate::query::planner::plan::core::nodes::{
@@ -53,7 +51,7 @@ impl OptRule for JoinOptimizationRule {
         &self,
         ctx: &mut OptContext,
         group_node: &Rc<RefCell<OptGroupNode>>,
-    ) -> Result<Option<TransformResult>, crate::query::optimizer::engine::OptimizerError> {
+    ) -> Result<Option<TransformResult>, OptimizerError> {
         let node_ref = group_node.borrow();
 
         // 只处理非哈希连接节点
@@ -95,7 +93,7 @@ impl OptRule for JoinOptimizationRule {
                             probe_keys,
                         )
                         .map_err(|e| {
-                            crate::query::optimizer::engine::OptimizerError::new(
+                            OptimizerError::new(
                                 format!("创建HashInnerJoinNode失败: {:?}", e),
                                 2001,
                             )
@@ -110,7 +108,7 @@ impl OptRule for JoinOptimizationRule {
                             probe_keys,
                         )
                         .map_err(|e| {
-                            crate::query::optimizer::engine::OptimizerError::new(
+                            OptimizerError::new(
                                 format!("创建HashLeftJoinNode失败: {:?}", e),
                                 2002,
                             )
@@ -154,7 +152,7 @@ impl JoinOptimizationRule {
         ctx: &OptContext,
         left_node: &PlanNodeEnum,
         right_node: &PlanNodeEnum,
-    ) -> Result<JoinStrategy, crate::query::optimizer::engine::OptimizerError> {
+    ) -> Result<JoinStrategy, OptimizerError> {
         // 估算行数
         let left_rows = self.estimate_row_count(ctx, left_node)?;
         let right_rows = self.estimate_row_count(ctx, right_node)?;
@@ -200,7 +198,7 @@ impl JoinOptimizationRule {
         &self,
         _ctx: &OptContext,
         node: &PlanNodeEnum,
-    ) -> Result<f64, crate::query::optimizer::engine::OptimizerError> {
+    ) -> Result<f64, OptimizerError> {
         // 基于节点类型估算代价
         let cost = match node {
             PlanNodeEnum::ScanVertices(_) => 100.0,
@@ -276,7 +274,7 @@ impl JoinOptimizationRule {
         &self,
         _ctx: &OptContext,
         node: &PlanNodeEnum,
-    ) -> Result<u64, crate::query::optimizer::engine::OptimizerError> {
+    ) -> Result<u64, OptimizerError> {
         // 基于节点类型估算行数
         let rows = match node {
             PlanNodeEnum::ScanVertices(_) => 10000,
@@ -341,7 +339,6 @@ enum JoinStrategy {
 mod tests {
     use super::*;
     use crate::query::context::execution::QueryContext;
-    use crate::query::optimizer::engine::OptimizerError;
     use crate::query::optimizer::plan::{OptContext, OptGroupNode};
     use crate::query::planner::plan::core::nodes::{
         InnerJoinNode, ScanVerticesNode, StartNode,
