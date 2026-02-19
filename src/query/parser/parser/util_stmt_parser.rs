@@ -4,6 +4,7 @@
 
 use crate::core::types::expression::Expression as CoreExpression;
 use crate::query::parser::ast::stmt::*;
+use crate::query::parser::ast::types::OrderDirection;
 use crate::query::parser::core::error::{ParseError, ParseErrorKind};
 use crate::query::parser::parser::clause_parser::ClauseParser;
 use crate::query::parser::parser::ExprParser;
@@ -284,14 +285,38 @@ impl UtilStmtParser {
             None
         };
 
+        // 解析 ORDER BY
+        let order_by = if ctx.match_token(TokenKind::Order) {
+            ctx.expect_token(TokenKind::By)?;
+            Some(self.parse_order_by_clause(ctx)?)
+        } else {
+            None
+        };
+
+        // 解析 SKIP
+        let skip = if ctx.match_token(TokenKind::Skip) {
+            let count = ctx.expect_integer_literal()? as usize;
+            Some(count)
+        } else {
+            None
+        };
+
+        // 解析 LIMIT
+        let limit = if ctx.match_token(TokenKind::Limit) {
+            let count = ctx.expect_integer_literal()? as usize;
+            Some(count)
+        } else {
+            None
+        };
+
         Ok(Stmt::With(WithStmt {
             span: start_span,
             items,
             where_clause,
             distinct,
-            order_by: None, // TODO: 解析 ORDER BY 子句
-            skip: None,     // TODO: 解析 SKIP 子句
-            limit: None,    // TODO: 解析 LIMIT 子句
+            order_by,
+            skip,
+            limit,
         }))
     }
 
@@ -364,6 +389,29 @@ impl UtilStmtParser {
         let mut expr_parser = ExprParser::new(ctx);
         let result = expr_parser.parse_expression(ctx)?;
         Ok(result.expr)
+    }
+
+    /// 解析 ORDER BY 子句
+    fn parse_order_by_clause(&mut self, ctx: &mut ParseContext) -> Result<OrderByClause, ParseError> {
+        let span = ctx.current_span();
+        let mut items = Vec::new();
+
+        loop {
+            let expr = self.parse_expression(ctx)?;
+            let direction = if ctx.match_token(TokenKind::Asc) {
+                OrderDirection::Asc
+            } else if ctx.match_token(TokenKind::Desc) {
+                OrderDirection::Desc
+            } else {
+                OrderDirection::Asc
+            };
+            items.push(OrderByItem { expression: expr, direction });
+            if !ctx.match_token(TokenKind::Comma) {
+                break;
+            }
+        }
+
+        Ok(OrderByClause { span, items })
     }
 }
 

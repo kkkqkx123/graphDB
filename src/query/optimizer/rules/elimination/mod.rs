@@ -9,7 +9,6 @@ pub mod eliminate_filter;
 pub mod eliminate_row_collect;
 pub mod remove_append_vertices_below_join;
 pub mod remove_noop_project;
-pub mod remove_redundant_filter;
 
 // 导出所有规则
 pub use dedup_elimination::DedupEliminationRule;
@@ -19,4 +18,3 @@ pub use eliminate_filter::EliminateFilterRule;
 pub use eliminate_row_collect::EliminateRowCollectRule;
 pub use remove_append_vertices_below_join::RemoveAppendVerticesBelowJoinRule;
 pub use remove_noop_project::RemoveNoopProjectRule;
-pub use remove_redundant_filter::RemoveRedundantFilterRule;
