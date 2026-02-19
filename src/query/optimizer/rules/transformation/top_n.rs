@@ -131,7 +131,6 @@ mod tests {
     use crate::query::context::execution::QueryContext;
     use crate::query::optimizer::plan::{OptContext, OptGroupNode};
     use crate::query::planner::plan::core::nodes::{LimitNode, SortNode, SortItem};
-    use crate::core::types::graph_schema::OrderDirection;
 
     fn create_test_context() -> OptContext {
         let query_context = QueryContext::new();

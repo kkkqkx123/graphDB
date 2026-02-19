@@ -127,7 +127,6 @@ mod tests {
     use crate::query::optimizer::plan::OptContext;
     use crate::query::planner::plan::algorithms::{IndexScan, ScanType};
     use crate::query::planner::plan::core::nodes::{PlanNodeEnum, TopNNode, SortItem};
-    use crate::core::types::graph_schema::OrderDirection;
 
     fn create_test_context() -> OptContext {
         let query_context = QueryContext::new();

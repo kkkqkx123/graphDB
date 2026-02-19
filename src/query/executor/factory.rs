@@ -95,26 +95,6 @@ fn parse_vertex_ids(src_vids: &str) -> Vec<Value> {
         .collect()
 }
 
-/// 解析排序项字符串为排序键和方向
-/// 支持格式: "column" 或 "column ASC" 或 "column DESC"
-fn parse_sort_item(sort_item: &str) -> (String, crate::query::executor::result_processing::SortOrder) {
-    let parts: Vec<&str> = sort_item
-        .split_whitespace()
-        .collect();
-
-    match parts.as_slice() {
-        [column] => (column.to_string(), crate::query::executor::result_processing::SortOrder::Asc),
-        [column, direction] => {
-            let order = match direction.to_uppercase().as_str() {
-                "DESC" => crate::query::executor::result_processing::SortOrder::Desc,
-                _ => crate::query::executor::result_processing::SortOrder::Asc,
-            };
-            (column.to_string(), order)
-        }
-        _ => (sort_item.to_string(), crate::query::executor::result_processing::SortOrder::Asc),
-    }
-}
-
 /// 解析边方向字符串为 EdgeDirection 枚举
 fn parse_edge_direction(direction_str: &str) -> crate::core::EdgeDirection {
     match direction_str.to_uppercase().as_str() {

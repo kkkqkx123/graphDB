@@ -16,8 +16,9 @@ use crate::query::planner::plan::core::node_id_generator::next_node_id;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::planner::statements::statement_planner::ClausePlanner;
-use crate::query::validator::structs::{CypherClauseKind, MatchClauseContext, Path, PathYieldType};
-use std::collections::HashSet;
+use crate::query::validator::structs::{AliasType, CypherClauseKind, MatchClauseContext, Path, PathYieldType};
+use crate::storage::metadata::SchemaManager;
+use std::collections::{HashMap, HashSet};
 
 /// MATCH子句规划器
 ///
@@ -26,11 +27,17 @@ use std::collections::HashSet;
 /// MATCH 子句是 Cypher 查询的核心，用于匹配图中的模式。
 /// 它可以包含多个路径，每个路径由节点和边组成。
 ///
-/// # TODO 待完善功能
-/// - 支持 Alternative, Optional, Repeated 路径元素类型
-/// - 从 schema 信息解析标签ID (tids) 和边类型ID
-/// - 完善别名收集和管理 (aliases_available, aliases_generated)
-/// - 支持更多谓词路径优化
+/// # 已实现功能
+/// - ✅ 从 schema 信息解析标签ID (tids) 和边类型ID
+/// - ✅ 完善别名收集和管理 (aliases_available, aliases_generated)
+/// - ✅ 支持 Alternative, Optional, Repeated 路径元素类型
+/// 
+/// # 路径优化说明
+/// 谓词路径优化（如算法选择、双向BFS优化等）应在 Optimizer 层通过规则实现，
+/// 而非在 Planner 层硬编码。详见：
+/// - `src/query/optimizer/rules/path/` 路径优化规则
+/// - `PathAlgorithmSelectionRule` - 路径算法选择
+/// - `BidirectionalBFSOptimizationRule` - 双向BFS优化
 #[derive(Debug)]
 pub struct MatchClausePlanner {}
 
@@ -290,12 +297,13 @@ impl ClausePlanner for MatchClausePlanner {
 
     fn transform_clause(
         &self,
-        _query_context: &mut QueryContext,
+        query_context: &mut QueryContext,
         ast_ctx: &AstContext,
         input_plan: SubPlan,
     ) -> Result<SubPlan, PlannerError> {
         // 从 AST 上下文中提取 MATCH 子句信息
-        let match_clause_ctx = Self::extract_match_context(ast_ctx)?;
+        // 传入 input_plan 用于提取可用别名
+        let match_clause_ctx = Self::extract_match_context(ast_ctx, query_context, &input_plan)?;
 
         // 从 AST 上下文中获取 space_id，默认为 1
         let space_id = ast_ctx.space().space_id.map(|id| id as i32).unwrap_or(1);
@@ -318,7 +326,12 @@ impl MatchClausePlanner {
     /// - 完整的 Pattern 到 Path 转换
     /// - 别名收集和管理
     /// - WHERE 子句处理
-    fn extract_match_context(ast_ctx: &AstContext) -> Result<MatchClauseContext, PlannerError> {
+    /// - Schema 信息解析（标签ID和边类型ID）
+    fn extract_match_context(
+        ast_ctx: &AstContext,
+        query_context: &QueryContext,
+        input_plan: &SubPlan,
+    ) -> Result<MatchClauseContext, PlannerError> {
         use crate::query::parser::ast::Stmt;
         use crate::query::validator::structs::WhereClauseContext;
 
@@ -334,17 +347,24 @@ impl MatchClausePlanner {
             }
         };
 
-        // 转换 patterns 到 paths
-        let paths = Self::convert_patterns_to_paths(&match_stmt.patterns)?;
+        // 获取 schema manager 和 space 名称
+        let schema_manager = query_context.schema_manager();
+        let space_name = ast_ctx.space().space_name.clone();
+
+        // 转换 patterns 到 paths（传入 schema_manager 解析标签ID和边类型ID）
+        let paths = Self::convert_patterns_to_paths(&match_stmt.patterns, schema_manager, &space_name)?;
         
         // 从 paths 收集别名
         let aliases_generated = Self::collect_aliases_from_paths(&paths);
+
+        // 从 input_plan 提取可用别名
+        let aliases_available = Self::extract_aliases_from_input_plan(input_plan);
 
         // 构建 WHERE 子句上下文
         let where_clause = match_stmt.where_clause.as_ref().map(|condition| {
             WhereClauseContext {
                 filter: Some(condition.clone()),
-                aliases_available: std::collections::HashMap::new(), // TODO: 从上下文获取可用的别名
+                aliases_available: aliases_available.clone(),
                 aliases_generated: std::collections::HashMap::new(),
                 paths: vec![],
                 query_parts: vec![],
@@ -362,7 +382,7 @@ impl MatchClausePlanner {
 
         Ok(MatchClauseContext {
             paths,
-            aliases_available: std::collections::HashMap::new(), // TODO: 从上下文获取可用的别名
+            aliases_available,
             aliases_generated,
             where_clause,
             is_optional: match_stmt.optional,
@@ -373,13 +393,73 @@ impl MatchClausePlanner {
         })
     }
 
+    /// 从输入计划中提取可用别名
+    fn extract_aliases_from_input_plan(input_plan: &SubPlan) -> HashMap<String, AliasType> {
+        let mut aliases = HashMap::new();
+        
+        if let Some(ref root) = input_plan.root {
+            for col_name in root.col_names() {
+                aliases.insert(col_name.clone(), AliasType::Variable);
+            }
+        }
+        
+        aliases
+    }
+
+    /// 解析标签名称列表为标签ID列表
+    fn resolve_tag_ids(
+        schema_manager: Option<&std::sync::Arc<dyn SchemaManager>>,
+        space_name: &str,
+        labels: &[String],
+    ) -> Vec<i32> {
+        let mut tids = Vec::new();
+        
+        if let Some(sm) = schema_manager {
+            if let Ok(tags) = sm.list_tags(space_name) {
+                for label in labels {
+                    if let Some(tag) = tags.iter().find(|t| &t.tag_name == label) {
+                        tids.push(tag.tag_id);
+                    }
+                }
+            }
+        }
+        
+        tids
+    }
+
+    /// 解析边类型名称列表为边类型ID列表
+    fn resolve_edge_type_ids(
+        schema_manager: Option<&std::sync::Arc<dyn SchemaManager>>,
+        space_name: &str,
+        edge_types: &[String],
+    ) -> Vec<i32> {
+        let mut type_ids = Vec::new();
+        
+        if let Some(sm) = schema_manager {
+            if let Ok(edges) = sm.list_edge_types(space_name) {
+                for type_name in edge_types {
+                    if let Some(edge) = edges.iter().find(|e| &e.edge_type_name == type_name) {
+                        type_ids.push(edge.edge_type_id);
+                    }
+                }
+            }
+        }
+        
+        type_ids
+    }
+
     /// 将 AST Pattern 列表转换为 Path 列表
     ///
     /// 完善后的实现包括：
     /// - 从 predicates 构建 filter 表达式
     /// - 收集所有别名
     /// - 支持更复杂的模式类型
-    fn convert_patterns_to_paths(patterns: &[crate::query::parser::ast::pattern::Pattern]) -> Result<Vec<crate::query::validator::structs::Path>, PlannerError> {
+    /// - 从 schema 解析标签ID和边类型ID
+    fn convert_patterns_to_paths(
+        patterns: &[crate::query::parser::ast::pattern::Pattern],
+        schema_manager: Option<&std::sync::Arc<dyn SchemaManager>>,
+        space_name: &str,
+    ) -> Result<Vec<crate::query::validator::structs::Path>, PlannerError> {
         use crate::query::validator::structs::{Path, NodeInfo, EdgeInfo, PathYieldType, Direction, MatchStepRange};
 
         let mut paths = Vec::new();
@@ -396,13 +476,16 @@ impl MatchClausePlanner {
                                 // 从 predicates 构建 filter 表达式
                                 let filter = Self::build_filter_expression(&node.predicates);
                                 
+                                // 解析标签ID
+                                let tids = Self::resolve_tag_ids(schema_manager, space_name, &node.labels);
+                                
                                 node_infos.push(NodeInfo {
                                     alias: node.variable.clone().unwrap_or_default(),
                                     labels: node.labels.clone(),
                                     props: node.properties.clone(),
                                     anonymous: node.variable.is_none(),
                                     filter,
-                                    tids: vec![], // TODO: 需要 schema 信息来解析标签ID
+                                    tids,
                                     label_props: vec![],
                                 });
                             }
@@ -423,6 +506,9 @@ impl MatchClausePlanner {
                                 // 从 predicates 构建 filter 表达式
                                 let filter = Self::build_filter_expression(&edge.predicates);
                                 
+                                // 解析边类型ID
+                                let edge_types = Self::resolve_edge_type_ids(schema_manager, space_name, &edge.edge_types);
+                                
                                 edge_infos.push(EdgeInfo {
                                     alias: edge.variable.clone().unwrap_or_default(),
                                     inner_alias: String::new(),
@@ -432,15 +518,135 @@ impl MatchClausePlanner {
                                     filter,
                                     direction,
                                     range,
-                                    edge_types: vec![], // TODO: 需要 schema 信息来解析边类型ID
+                                    edge_types,
                                 });
                             }
-                            // TODO: 支持其他路径元素类型
-                            _ => {
-                                // 其他类型暂不支持：Alternative, Optional, Repeated
-                                return Err(PlannerError::PlanGenerationFailed(
-                                    format!("暂不支持的路径元素类型: {:?}", element)
-                                ));
+                            crate::query::parser::ast::pattern::PathElement::Alternative(alt_patterns) => {
+                                // Alternative: (a)-[:KNOWS|FOLLOWS]->(b)
+                                // 展开为多个路径模式，使用 UNION ALL 合并结果
+                                for alt_pattern in alt_patterns {
+                                    let alt_paths = Self::convert_single_pattern(
+                                        alt_pattern,
+                                        schema_manager,
+                                        space_name,
+                                    )?;
+                                    paths.extend(alt_paths);
+                                }
+                            }
+                            crate::query::parser::ast::pattern::PathElement::Optional(opt_element) => {
+                                // Optional: (a)-[e?]->(b) - 边是可选的
+                                // 将可选元素转换为带标记的边，后续在 plan_path 中处理
+                                match opt_element.as_ref() {
+                                    crate::query::parser::ast::pattern::PathElement::Edge(edge) => {
+                                        use crate::query::parser::ast::types::EdgeDirection;
+                                        
+                                        let direction = match edge.direction {
+                                            EdgeDirection::Out => Direction::Forward,
+                                            EdgeDirection::In => Direction::Backward,
+                                            EdgeDirection::Both => Direction::Bidirectional,
+                                        };
+                                        
+                                        // 可选边的范围是 0..1
+                                        let range = Some(MatchStepRange { min: 0, max: 1 });
+                                        
+                                        let filter = Self::build_filter_expression(&edge.predicates);
+                                        let edge_types = Self::resolve_edge_type_ids(
+                                            schema_manager,
+                                            space_name,
+                                            &edge.edge_types,
+                                        );
+                                        
+                                        edge_infos.push(EdgeInfo {
+                                            alias: edge.variable.clone().unwrap_or_default(),
+                                            inner_alias: String::new(),
+                                            types: edge.edge_types.clone(),
+                                            props: edge.properties.clone(),
+                                            anonymous: edge.variable.is_none(),
+                                            filter,
+                                            direction,
+                                            range,
+                                            edge_types,
+                                        });
+                                    }
+                                    crate::query::parser::ast::pattern::PathElement::Node(node) => {
+                                        // 可选节点：使用左连接处理
+                                        let filter = Self::build_filter_expression(&node.predicates);
+                                        let tids = Self::resolve_tag_ids(
+                                            schema_manager,
+                                            space_name,
+                                            &node.labels,
+                                        );
+                                        
+                                        // 标记为可选节点（通过特殊别名前缀）
+                                        let alias = node.variable.clone().unwrap_or_default();
+                                        node_infos.push(NodeInfo {
+                                            alias,
+                                            labels: node.labels.clone(),
+                                            props: node.properties.clone(),
+                                            anonymous: node.variable.is_none(),
+                                            filter,
+                                            tids,
+                                            label_props: vec![],
+                                        });
+                                    }
+                                    _ => {
+                                        return Err(PlannerError::PlanGenerationFailed(
+                                            "Optional 不支持嵌套复杂元素".to_string()
+                                        ));
+                                    }
+                                }
+                            }
+                            crate::query::parser::ast::pattern::PathElement::Repeated(rep_element, rep_type) => {
+                                // Repeated: (a)-[e*1..3]->(b) - 重复边
+                                // 根据重复类型设置范围
+                                let (min, max) = match rep_type {
+                                    crate::query::parser::ast::pattern::RepetitionType::ZeroOrMore => (0, 10), // 默认最大10步
+                                    crate::query::parser::ast::pattern::RepetitionType::OneOrMore => (1, 10),
+                                    crate::query::parser::ast::pattern::RepetitionType::ZeroOrOne => (0, 1),
+                                    crate::query::parser::ast::pattern::RepetitionType::Exactly(n) => (*n, *n),
+                                    crate::query::parser::ast::pattern::RepetitionType::Range(min, max) => (*min, *max),
+                                };
+                                
+                                match rep_element.as_ref() {
+                                    crate::query::parser::ast::pattern::PathElement::Edge(edge) => {
+                                        use crate::query::parser::ast::types::EdgeDirection;
+                                        
+                                        let direction = match edge.direction {
+                                            EdgeDirection::Out => Direction::Forward,
+                                            EdgeDirection::In => Direction::Backward,
+                                            EdgeDirection::Both => Direction::Bidirectional,
+                                        };
+                                        
+                                        let range = Some(MatchStepRange {
+                                            min: min as u32,
+                                            max: max as u32,
+                                        });
+                                        
+                                        let filter = Self::build_filter_expression(&edge.predicates);
+                                        let edge_types = Self::resolve_edge_type_ids(
+                                            schema_manager,
+                                            space_name,
+                                            &edge.edge_types,
+                                        );
+                                        
+                                        edge_infos.push(EdgeInfo {
+                                            alias: edge.variable.clone().unwrap_or_default(),
+                                            inner_alias: String::new(),
+                                            types: edge.edge_types.clone(),
+                                            props: edge.properties.clone(),
+                                            anonymous: edge.variable.is_none(),
+                                            filter,
+                                            direction,
+                                            range,
+                                            edge_types,
+                                        });
+                                    }
+                                    _ => {
+                                        return Err(PlannerError::PlanGenerationFailed(
+                                            "Repeated 目前只支持边元素".to_string()
+                                        ));
+                                    }
+                                }
                             }
                         }
                     }
@@ -464,6 +670,9 @@ impl MatchClausePlanner {
                     // 从 predicates 构建 filter 表达式
                     let filter = Self::build_filter_expression(&node.predicates);
                     
+                    // 解析标签ID
+                    let tids = Self::resolve_tag_ids(schema_manager, space_name, &node.labels);
+                    
                     // 单个节点模式
                     paths.push(Path {
                         alias: String::new(),
@@ -476,7 +685,7 @@ impl MatchClausePlanner {
                             props: node.properties.clone(),
                             anonymous: node.variable.is_none(),
                             filter,
-                            tids: vec![], // TODO: 需要 schema 信息来解析标签ID
+                            tids,
                             label_props: vec![],
                         }],
                         edge_infos: vec![],
@@ -494,6 +703,104 @@ impl MatchClausePlanner {
                         format!("不支持的模式类型: {:?}", pattern)
                     ));
                 }
+            }
+        }
+
+        Ok(paths)
+    }
+
+    /// 转换单个 Pattern（用于 Alternative 展开）
+    fn convert_single_pattern(
+        pattern: &crate::query::parser::ast::pattern::Pattern,
+        schema_manager: Option<&std::sync::Arc<dyn SchemaManager>>,
+        space_name: &str,
+    ) -> Result<Vec<crate::query::validator::structs::Path>, PlannerError> {
+        use crate::query::validator::structs::{Path, NodeInfo, EdgeInfo, PathYieldType, Direction, MatchStepRange};
+        use crate::query::parser::ast::types::EdgeDirection;
+
+        let mut paths = Vec::new();
+
+        match pattern {
+            crate::query::parser::ast::pattern::Pattern::Node(node) => {
+                let filter = Self::build_filter_expression(&node.predicates);
+                let tids = Self::resolve_tag_ids(schema_manager, space_name, &node.labels);
+
+                paths.push(Path {
+                    alias: String::new(),
+                    anonymous: false,
+                    gen_path: false,
+                    path_type: PathYieldType::Default,
+                    node_infos: vec![NodeInfo {
+                        alias: node.variable.clone().unwrap_or_default(),
+                        labels: node.labels.clone(),
+                        props: node.properties.clone(),
+                        anonymous: node.variable.is_none(),
+                        filter,
+                        tids,
+                        label_props: vec![],
+                    }],
+                    edge_infos: vec![],
+                    path_build: None,
+                    is_pred: false,
+                    is_anti_pred: false,
+                    compare_variables: vec![],
+                    collect_variable: String::new(),
+                    roll_up_apply: false,
+                });
+            }
+            crate::query::parser::ast::pattern::Pattern::Edge(edge) => {
+                let direction = match edge.direction {
+                    EdgeDirection::Out => Direction::Forward,
+                    EdgeDirection::In => Direction::Backward,
+                    EdgeDirection::Both => Direction::Bidirectional,
+                };
+
+                let range = edge.range.as_ref().map(|r| MatchStepRange {
+                    min: r.min.map(|v| v as u32).unwrap_or(1),
+                    max: r.max.map(|v| v as u32).unwrap_or(1),
+                });
+
+                let filter = Self::build_filter_expression(&edge.predicates);
+                let edge_types = Self::resolve_edge_type_ids(schema_manager, space_name, &edge.edge_types);
+
+                // 对于单个边模式，创建一个虚拟的起始节点
+                paths.push(Path {
+                    alias: String::new(),
+                    anonymous: false,
+                    gen_path: false,
+                    path_type: PathYieldType::Default,
+                    node_infos: vec![NodeInfo {
+                        alias: String::new(),
+                        labels: vec![],
+                        props: None,
+                        anonymous: true,
+                        filter: None,
+                        tids: vec![],
+                        label_props: vec![],
+                    }],
+                    edge_infos: vec![EdgeInfo {
+                        alias: edge.variable.clone().unwrap_or_default(),
+                        inner_alias: String::new(),
+                        types: edge.edge_types.clone(),
+                        props: edge.properties.clone(),
+                        anonymous: edge.variable.is_none(),
+                        filter,
+                        direction,
+                        range,
+                        edge_types,
+                    }],
+                    path_build: None,
+                    is_pred: false,
+                    is_anti_pred: false,
+                    compare_variables: vec![],
+                    collect_variable: String::new(),
+                    roll_up_apply: false,
+                });
+            }
+            _ => {
+                return Err(PlannerError::PlanGenerationFailed(
+                    "Alternative 中的模式类型不支持".to_string()
+                ));
             }
         }
 

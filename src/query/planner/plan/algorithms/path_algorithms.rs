@@ -1,5 +1,7 @@
 //! 路径查找算法相关的计划节点
 //! 包含最短路径、所有路径等算法相关的计划节点
+//!
+//! 注意：算法选择已在Planner阶段完成，此模块只包含具体算法的计划节点
 
 use crate::query::context::validate::types::Variable;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
@@ -160,6 +162,9 @@ impl BinaryInputNode for MultiShortestPath {
 }
 
 /// BFS最短路径计划节点
+///
+/// 使用双向BFS算法查找最短路径
+/// 注意：算法选择已在Planner阶段完成，此节点专门用于双向BFS
 #[derive(Debug, Clone)]
 pub struct BFSShortest {
     pub id: i64,
