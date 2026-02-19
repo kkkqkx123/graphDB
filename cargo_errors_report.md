@@ -3,11 +3,11 @@
 ## Summary
 
 - **Total Errors**: 0
-- **Total Warnings**: 3
-- **Total Issues**: 3
+- **Total Warnings**: 2
+- **Total Issues**: 2
 - **Unique Error Patterns**: 0
-- **Unique Warning Patterns**: 1
-- **Files with Issues**: 2
+- **Unique Warning Patterns**: 2
+- **Files with Issues**: 1
 
 ## Error Statistics
 
@@ -15,30 +15,25 @@
 
 ## Warning Statistics
 
-**Total Warnings**: 3
+**Total Warnings**: 2
 
 ### Warning Type Breakdown
 
-- **warning**: 3 warnings
+- **warning**: 2 warnings
 
 ### Files with Warnings (Top 10)
 
-- `src\query\optimizer\rules\limit_pushdown\push_topn_down_index_scan.rs`: 2 warnings
-- `src\query\optimizer\rules\index\index_covering_scan.rs`: 1 warnings
+- `src\storage\index\index_data_manager.rs`: 2 warnings
 
 ## Detailed Warning Categorization
 
-### warning: unused `std::result::Result` that must be used
+### warning: unused variable: `prop_len`: help: if this is intentional, prefix it with an underscore: `_prop_len`
 
-**Total Occurrences**: 3  
-**Unique Files**: 2
+**Total Occurrences**: 2  
+**Unique Files**: 1
 
-#### `src\query\optimizer\rules\limit_pushdown\push_topn_down_index_scan.rs`: 2 occurrences
+#### `src\storage\index\index_data_manager.rs`: 2 occurrences
 
-- Line 160: unused `std::result::Result` that must be used
-- Line 198: unused `std::result::Result` that must be used
-
-#### `src\query\optimizer\rules\index\index_covering_scan.rs`: 1 occurrences
-
-- Line 195: unused `std::result::Result` that must be used
+- Line 274: unused variable: `prop_len`: help: if this is intentional, prefix it with an underscore: `_prop_len`
+- Line 345: unused variable: `edge_type`: help: if this is intentional, prefix it with an underscore: `_edge_type`
 

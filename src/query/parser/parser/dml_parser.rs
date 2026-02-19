@@ -50,7 +50,7 @@ impl DmlParser {
 
         // 解析可选的 YIELD 子句
         let yield_clause = if ctx.match_token(TokenKind::Yield) {
-            Some(self.parse_yield_clause(ctx)?)
+            Some(ClauseParser::new().parse_yield_clause(ctx)?)
         } else {
             None
         };
@@ -383,7 +383,7 @@ impl DmlParser {
 
         // 解析可选的 YIELD 子句
         let yield_clause = if ctx.match_token(TokenKind::Yield) {
-            Some(self.parse_yield_clause(ctx)?)
+            Some(ClauseParser::new().parse_yield_clause(ctx)?)
         } else {
             None
         };
@@ -433,43 +433,6 @@ impl DmlParser {
             dst,
             edge_type: Some(edge_type),
             rank,
-        })
-    }
-
-    /// 解析 YIELD 子句
-    fn parse_yield_clause(&mut self, ctx: &mut ParseContext) -> Result<YieldClause, ParseError> {
-        let start_span = ctx.current_span();
-        let mut items = Vec::new();
-        
-        loop {
-            let expr = self.parse_expression(ctx)?;
-            let alias = if ctx.match_token(TokenKind::As) {
-                Some(ctx.expect_identifier()?)
-            } else {
-                None
-            };
-            items.push(YieldItem { expression: expr, alias });
-            
-            if !ctx.match_token(TokenKind::Comma) {
-                break;
-            }
-        }
-        
-        // 解析 WHERE 子句
-        let where_clause = if ctx.match_token(TokenKind::Where) {
-            Some(self.parse_expression(ctx)?)
-        } else {
-            None
-        };
-        
-        let end_span = ctx.current_span();
-        Ok(YieldClause {
-            span: ctx.merge_span(start_span.start, end_span.end),
-            items,
-            where_clause,
-            limit: None,
-            skip: None,
-            sample: None,
         })
     }
 

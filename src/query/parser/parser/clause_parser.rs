@@ -89,12 +89,11 @@ impl ClauseParser {
     }
 
     /// 解析 YIELD 子句
+    ///
+    /// 假设 YIELD token 已被调用者消费，本方法只解析后续的表达式列表、WHERE、LIMIT、SKIP 等子句
     pub fn parse_yield_clause(&mut self, ctx: &mut ParseContext) -> Result<YieldClause, ParseError> {
-        let span = ctx.current_span();
-        
-        // 消费 YIELD token
-        ctx.expect_token(TokenKind::Yield)?;
-        
+        let start_span = ctx.current_span();
+
         let mut items = Vec::new();
         
         // 检查是否是 *
@@ -147,8 +146,10 @@ impl ClauseParser {
             None
         };
         
+        let end_span = ctx.current_span();
+
         Ok(YieldClause {
-            span,
+            span: ctx.merge_span(start_span.start, end_span.end),
             items,
             where_clause,
             limit,

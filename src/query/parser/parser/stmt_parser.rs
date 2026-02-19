@@ -197,7 +197,7 @@ impl StmtParser {
         }
 
         // 解析 YIELD 子句
-        let yield_clause = if ctx.check_token(TokenKind::Yield) {
+        let yield_clause = if ctx.match_token(TokenKind::Yield) {
             ClauseParser::new().parse_yield_clause(ctx)?
         } else {
             // 如果没有 YIELD，创建一个默认的返回所有分组项的 YIELD
@@ -275,6 +275,40 @@ impl StmtParser {
             ctx.expect_token(TokenKind::Spaces)?;
             let end_span = ctx.current_span();
             let span = ctx.merge_span(start_span.start, end_span.end);
+            Ok(Stmt::Show(crate::query::parser::ast::stmt::ShowStmt {
+                span,
+                target: crate::query::parser::ast::stmt::ShowTarget::Spaces,
+            }))
+        } else if ctx.check_token(TokenKind::Tags) {
+            ctx.expect_token(TokenKind::Tags)?;
+            let end_span = ctx.current_span();
+            let span = ctx.merge_span(start_span.start, end_span.end);
+            Ok(Stmt::Show(crate::query::parser::ast::stmt::ShowStmt {
+                span,
+                target: crate::query::parser::ast::stmt::ShowTarget::Tags,
+            }))
+        } else if ctx.check_token(TokenKind::Edges) {
+            ctx.expect_token(TokenKind::Edges)?;
+            let end_span = ctx.current_span();
+            let span = ctx.merge_span(start_span.start, end_span.end);
+            Ok(Stmt::Show(crate::query::parser::ast::stmt::ShowStmt {
+                span,
+                target: crate::query::parser::ast::stmt::ShowTarget::Edges,
+            }))
+        } else if ctx.check_token(TokenKind::Hosts) {
+            ctx.expect_token(TokenKind::Hosts)?;
+            let end_span = ctx.current_span();
+            let span = ctx.merge_span(start_span.start, end_span.end);
+            // HOSTS 暂时映射到 Spaces，因为这是一个单节点实现
+            Ok(Stmt::Show(crate::query::parser::ast::stmt::ShowStmt {
+                span,
+                target: crate::query::parser::ast::stmt::ShowTarget::Spaces,
+            }))
+        } else if ctx.check_token(TokenKind::Parts) {
+            ctx.expect_token(TokenKind::Parts)?;
+            let end_span = ctx.current_span();
+            let span = ctx.merge_span(start_span.start, end_span.end);
+            // PARTS 暂时映射到 Spaces，因为这是一个单节点实现
             Ok(Stmt::Show(crate::query::parser::ast::stmt::ShowStmt {
                 span,
                 target: crate::query::parser::ast::stmt::ShowTarget::Spaces,

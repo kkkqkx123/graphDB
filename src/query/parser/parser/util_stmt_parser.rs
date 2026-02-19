@@ -292,10 +292,9 @@ impl UtilStmtParser {
     /// 解析 YIELD 语句
     pub fn parse_yield_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
-        ctx.expect_token(TokenKind::Yield)?;
 
         let yield_clause = ClauseParser::new().parse_yield_clause(ctx)?;
-        
+
         Ok(Stmt::Yield(YieldStmt {
             span: start_span,
             items: yield_clause.items,
