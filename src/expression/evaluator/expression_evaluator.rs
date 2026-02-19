@@ -333,18 +333,6 @@ impl ExpressionEvaluator {
             Ok(result)
         }
     }
-
-    /// 求值LIKE操作
-    /// 支持SQL标准的LIKE通配符：
-    /// - %: 匹配任意数量的字符（包括零个）
-    /// - _: 匹配单个字符
-    pub fn eval_like(
-        _value: &Value,
-        _pattern: &Value,
-        _escape_char: Option<char>,
-    ) -> Result<Value, ExpressionError> {
-        todo!("LIKE操作实现")
-    }
 }
 
 /// 为ExpressionEvaluator实现GenericExpressionVisitor<Expression>

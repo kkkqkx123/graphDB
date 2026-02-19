@@ -208,4 +208,15 @@ impl CollectionOperationEvaluator {
             _ => Err(ExpressionError::type_error("不支持属性访问的类型")),
         }
     }
+
+    /// 求值属性访问（Attribute运算，用于BinaryOperator::Attribute）
+    /// 将右侧值格式化为字符串作为属性名
+    pub fn eval_attribute_access(
+        &self,
+        object: &Value,
+        attribute: &Value,
+    ) -> Result<Value, ExpressionError> {
+        let property = format!("{}", attribute);
+        self.eval_property_access(object, &property)
+    }
 }

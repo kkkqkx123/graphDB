@@ -5,6 +5,7 @@ use crate::core::types::operators::{BinaryOperator, UnaryOperator};
 /// 本模块负责处理表达式求值中的算术运算、比较运算、逻辑运算等基础运算操作。
 use crate::core::value::types::Value;
 use crate::core::value::dataset::List;
+use crate::expression::evaluator::collection_operations::CollectionOperationEvaluator;
 
 /// 二元运算求值器
 pub struct BinaryOperationEvaluator;
@@ -47,9 +48,9 @@ impl BinaryOperationEvaluator {
             BinaryOperator::StartsWith => Self::eval_starts_with(left, right),
             BinaryOperator::EndsWith => Self::eval_ends_with(left, right),
 
-            // 访问运算
-            BinaryOperator::Subscript => Self::eval_subscript(left, right),
-            BinaryOperator::Attribute => Self::eval_attribute(left, right),
+            // 访问运算 - 委托给CollectionOperationEvaluator
+            BinaryOperator::Subscript => CollectionOperationEvaluator.eval_subscript_access(left, right),
+            BinaryOperator::Attribute => CollectionOperationEvaluator.eval_attribute_access(left, right),
 
             // 集合运算
             BinaryOperator::Union => Self::eval_union(left, right),
@@ -272,51 +273,6 @@ impl BinaryOperationEvaluator {
         match (&left, &right) {
             (Value::String(s), Value::String(suffix)) => Ok(Value::Bool(s.ends_with(suffix))),
             _ => Err(ExpressionError::type_error("ENDS WITH操作需要字符串值")),
-        }
-    }
-
-    fn eval_subscript(left: &Value, right: &Value) -> Result<Value, ExpressionError> {
-        match left {
-            Value::List(list) => {
-                if let Value::Int(i) = right {
-                    let adjusted_index = if *i < 0 { list.len() as i64 + i } else { *i };
-
-                    if adjusted_index >= 0 && (adjusted_index as usize) < list.len() {
-                        Ok(list[adjusted_index as usize].clone())
-                    } else {
-                        Err(ExpressionError::index_out_of_bounds(
-                            adjusted_index as isize,
-                            list.len(),
-                        ))
-                    }
-                } else {
-                    Err(ExpressionError::type_error("列表下标必须是整数"))
-                }
-            }
-            Value::Map(map) => {
-                if let Value::String(key) = right {
-                    map.get(key)
-                        .cloned()
-                        .ok_or_else(|| ExpressionError::runtime_error(format!("键不存在: {}", key)))
-                } else {
-                    Err(ExpressionError::type_error("映射下标必须是字符串"))
-                }
-            }
-            _ => Err(ExpressionError::type_error("不支持下标访问的类型")),
-        }
-    }
-
-    fn eval_attribute(left: &Value, right: &Value) -> Result<Value, ExpressionError> {
-        Self::eval_property_access(left, &format!("{}", right))
-    }
-
-    fn eval_property_access(value: &Value, property: &str) -> Result<Value, ExpressionError> {
-        match value {
-            Value::Map(map) => map
-                .get(property)
-                .cloned()
-                .ok_or_else(|| ExpressionError::runtime_error(format!("属性不存在: {}", property))),
-            _ => Err(ExpressionError::type_error("属性访问需要映射类型")),
         }
     }
 

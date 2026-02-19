@@ -10,10 +10,9 @@ use crate::query::context::execution::QueryContext;
 use crate::query::planner::connector::SegmentsConnector;
 use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
 use crate::query::planner::plan::algorithms::path_algorithms::MultiShortestPath;
-use crate::query::planner::plan::core::nodes::{PlanNodeEnum, StartNode};
+use crate::query::planner::plan::core::nodes::{LimitNode, PlanNodeEnum, StartNode};
 use crate::query::planner::plan::core::node_id_generator::next_node_id;
 
-use crate::query::planner::plan::factory::PlanNodeFactory;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::planner::statements::statement_planner::ClausePlanner;
@@ -21,10 +20,17 @@ use crate::query::validator::structs::{CypherClauseKind, MatchClauseContext, Pat
 use std::collections::HashSet;
 
 /// MATCH子句规划器
+///
 /// 负责规划 MATCH 子句的执行，是数据流的起始点
 ///
 /// MATCH 子句是 Cypher 查询的核心，用于匹配图中的模式。
 /// 它可以包含多个路径，每个路径由节点和边组成。
+///
+/// # TODO 待完善功能
+/// - 支持 Alternative, Optional, Repeated 路径元素类型
+/// - 从 schema 信息解析标签ID (tids) 和边类型ID
+/// - 完善别名收集和管理 (aliases_available, aliases_generated)
+/// - 支持更多谓词路径优化
 #[derive(Debug)]
 pub struct MatchClausePlanner {}
 
@@ -37,35 +43,28 @@ impl MatchClausePlanner {
     fn plan_path(
         &self,
         path: &Path,
-        _match_clause_ctx: &MatchClauseContext,
+        space_id: i32,
     ) -> Result<SubPlan, PlannerError> {
-        let space_id = 1i32;
-
-        // 如果路径是谓词（is_pred），使用模式表达式规划
-        if path.is_pred {
-            return self.plan_predicate_path(path, space_id);
-        }
-
         // 根据路径类型选择不同的规划策略
         match path.path_type {
             PathYieldType::Shortest | PathYieldType::AllShortest => {
                 self.plan_shortest_path(path, space_id)
             }
-            _ => self.plan_default_path(path, space_id),
+            _ => self.plan_standard_path(path, space_id),
         }
     }
 
-    /// 规划谓词路径（模式表达式）
-    fn plan_predicate_path(
+    /// 规划标准路径（普通 MATCH 和谓词路径）
+    ///
+    /// 统一处理普通路径和谓词路径的规划逻辑
+    fn plan_standard_path(
         &self,
         path: &Path,
         space_id: i32,
     ) -> Result<SubPlan, PlannerError> {
-        // 谓词路径不需要实际构建路径，只需要验证模式是否存在
-        // 使用 PatternApply 节点来处理
         let mut current_plan = SubPlan::new(None, None);
 
-        // 规划路径中的节点和边
+        // 规划路径中的节点
         for node_info in path.node_infos.iter() {
             let scan_node = crate::query::planner::plan::core::nodes::ScanVerticesNode::new(space_id);
             let node_plan = SubPlan::from_root(scan_node.clone().into_enum());
@@ -88,57 +87,7 @@ impl MatchClausePlanner {
             }
         }
 
-        for edge_info in &path.edge_infos {
-            let expand_node = crate::query::planner::plan::core::nodes::ExpandAllNode::new(
-                space_id,
-                edge_info.types.clone(),
-                "both",
-            );
-            let edge_plan = SubPlan::from_root(expand_node.into_enum());
-
-            current_plan = if let Some(existing_root) = current_plan.root.take() {
-                SegmentsConnector::cross_join(
-                    SubPlan::new(Some(existing_root), current_plan.tail),
-                    edge_plan,
-                )?
-            } else {
-                edge_plan
-            };
-        }
-
-        Ok(current_plan)
-    }
-
-    /// 规划默认路径（普通 MATCH）
-    fn plan_default_path(
-        &self,
-        path: &Path,
-        space_id: i32,
-    ) -> Result<SubPlan, PlannerError> {
-        let mut current_plan = SubPlan::new(None, None);
-
-        for node_info in path.node_infos.iter() {
-            let scan_node = crate::query::planner::plan::core::nodes::ScanVerticesNode::new(space_id);
-            let node_plan = SubPlan::from_root(scan_node.clone().into_enum());
-
-            current_plan = if let Some(existing_root) = current_plan.root.take() {
-                SegmentsConnector::cross_join(
-                    SubPlan::new(Some(existing_root), current_plan.tail),
-                    node_plan,
-                )?
-            } else {
-                node_plan
-            };
-
-            if let Some(filter) = &node_info.filter {
-                let filter_node = crate::query::planner::plan::core::nodes::FilterNode::new(
-                    scan_node.into_enum(),
-                    filter.clone(),
-                )?;
-                current_plan = SubPlan::new(Some(filter_node.into_enum()), current_plan.tail);
-            }
-        }
-
+        // 规划路径中的边
         for edge_info in &path.edge_infos {
             let expand_node = crate::query::planner::plan::core::nodes::ExpandAllNode::new(
                 space_id,
@@ -232,6 +181,7 @@ impl MatchClausePlanner {
     /// # 参数
     /// - `match_clause_ctx`: MATCH 子句上下文，包含路径、WHERE条件等信息
     /// - `input_plan`: 输入计划，对于 OPTIONAL MATCH 或连续 MATCH 时使用
+    /// - `space_id`: 图空间 ID
     ///
     /// # 返回
     /// - 成功：生成的子计划
@@ -240,6 +190,7 @@ impl MatchClausePlanner {
         &self,
         match_clause_ctx: &MatchClauseContext,
         input_plan: Option<&SubPlan>,
+        space_id: i32,
     ) -> Result<SubPlan, PlannerError> {
         // 验证 MATCH 子句上下文的完整性
         if match_clause_ctx.paths.is_empty() {
@@ -252,7 +203,7 @@ impl MatchClausePlanner {
         let mut plan = SubPlan::new(None, None);
 
         for path in &match_clause_ctx.paths {
-            let path_plan = self.plan_path(path, match_clause_ctx)?;
+            let path_plan = self.plan_path(path, space_id)?;
 
             // 连接路径计划
             plan = if let Some(existing_root) = plan.root.take() {
@@ -301,28 +252,27 @@ impl MatchClausePlanner {
         }
 
         // 处理分页（如果存在）
-        if let Some(skip) = &match_clause_ctx.skip {
-            let skip_value = match skip {
-                Expression::Literal(crate::core::Value::Int(v)) => *v,
-                _ => 0,
-            };
+        // 合并 skip 和 limit 为一个 LimitNode 处理
+        let skip_value = match_clause_ctx.skip.as_ref().map(|skip| match skip {
+            Expression::Literal(crate::core::Value::Int(v)) if *v > 0 => *v,
+            _ => 0,
+        }).unwrap_or(0);
 
-            if skip_value > 0 {
-                let skip_node = PlanNodeFactory::create_placeholder_node()?;
-                plan = SubPlan::new(Some(skip_node.clone()), Some(skip_node));
-            }
-        }
+        let limit_value = match_clause_ctx.limit.as_ref().map(|limit| match limit {
+            Expression::Literal(crate::core::Value::Int(v)) if *v >= 0 => *v,
+            _ => i64::MAX,
+        }).unwrap_or(i64::MAX);
 
-        if let Some(limit) = &match_clause_ctx.limit {
-            let limit_value = match limit {
-                Expression::Literal(crate::core::Value::Int(v)) => *v,
-                _ => i64::MAX,
-            };
-
-            if limit_value != i64::MAX {
-                let limit_node = PlanNodeFactory::create_placeholder_node()?;
-                plan = SubPlan::new(Some(limit_node.clone()), Some(limit_node));
-            }
+        // 当 skip 或 limit 有有效值时，创建 LimitNode
+        if skip_value > 0 || limit_value != i64::MAX {
+            let input_node = plan.root.as_ref()
+                .ok_or_else(|| PlannerError::PlanGenerationFailed("分页处理需要输入计划".to_string()))?;
+            let limit_node = LimitNode::new(
+                input_node.clone(),
+                skip_value,
+                if limit_value == i64::MAX { i64::MAX } else { limit_value },
+            )?;
+            plan = SubPlan::new(Some(limit_node.into_enum()), plan.tail);
         }
 
         Ok(plan)
@@ -347,10 +297,17 @@ impl ClausePlanner for MatchClausePlanner {
         // 从 AST 上下文中提取 MATCH 子句信息
         let match_clause_ctx = Self::extract_match_context(ast_ctx)?;
 
+        // 从 AST 上下文中获取 space_id，默认为 1
+        let space_id = ast_ctx.space().space_id.map(|id| id as i32).unwrap_or(1);
+
         // 对于 MATCH 子句，input_plan 可能是空计划（作为 Source）
         // 或者在管道中作为输入（如 WITH ... MATCH ...）
         let has_input = input_plan.root().is_some();
-        self.plan_match_clause(&match_clause_ctx, if has_input { Some(&input_plan) } else { None })
+        self.plan_match_clause(
+            &match_clause_ctx,
+            if has_input { Some(&input_plan) } else { None },
+            space_id,
+        )
     }
 }
 
@@ -424,7 +381,6 @@ impl MatchClausePlanner {
     /// - 支持更复杂的模式类型
     fn convert_patterns_to_paths(patterns: &[crate::query::parser::ast::pattern::Pattern]) -> Result<Vec<crate::query::validator::structs::Path>, PlannerError> {
         use crate::query::validator::structs::{Path, NodeInfo, EdgeInfo, PathYieldType, Direction, MatchStepRange};
-        use crate::core::Expression;
 
         let mut paths = Vec::new();
 

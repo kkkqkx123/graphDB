@@ -361,9 +361,9 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                 executor.open()?;
                 executor.execute()
             }
-            DeleteTarget::Tags { tag_names, vertex_ids: vertex_id_exprs, is_all_tags: _ } => {
+            DeleteTarget::Tags { tag_names, vertex_ids: vertex_id_exprs, is_all_tags } => {
                 use crate::query::executor::data_modification::DeleteTagExecutor;
-                
+
                 // 求值所有顶点ID表达式
                 let mut vertex_ids = Vec::new();
                 for expr in vertex_id_exprs {
@@ -373,19 +373,21 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                     vertex_ids.push(vid);
                 }
 
-                let mut executor = DeleteTagExecutor::new(
+                let executor = DeleteTagExecutor::new(
                     self.id,
                     self.storage.clone(),
                     tag_names,
                     vertex_ids,
                 )
                 .with_space("default".to_string());
-                
-                // TODO: 支持删除所有 Tag 的标志
-                // if is_all_tags {
-                //     executor = executor.delete_all_tags();
-                // }
-                
+
+                // 支持删除所有 Tag 的标志
+                let mut executor = if is_all_tags {
+                    executor.delete_all_tags()
+                } else {
+                    executor
+                };
+
                 executor.open()?;
                 executor.execute()
             }
@@ -988,17 +990,21 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                     vertices.push(vertex);
                 }
 
-                let mut executor = InsertExecutor::with_vertices(
-                    self.id,
-                    self.storage.clone(),
-                    vertices,
-                );
-                
-                // TODO: 支持 IF NOT EXISTS 标志
-                // if clause.if_not_exists {
-                //     executor = executor.with_if_not_exists();
-                // }
-                
+                // 支持 IF NOT EXISTS 标志
+                let mut executor = if clause.if_not_exists {
+                    InsertExecutor::with_vertices_if_not_exists(
+                        self.id,
+                        self.storage.clone(),
+                        vertices,
+                    )
+                } else {
+                    InsertExecutor::with_vertices(
+                        self.id,
+                        self.storage.clone(),
+                        vertices,
+                    )
+                };
+
                 executor.open()?;
                 executor.execute()
             }

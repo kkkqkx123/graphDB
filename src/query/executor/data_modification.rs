@@ -16,6 +16,7 @@ pub struct InsertExecutor<S: StorageClient> {
     base: BaseExecutor<S>,
     vertex_data: Option<Vec<Vertex>>,
     edge_data: Option<Vec<Edge>>,
+    if_not_exists: bool,
 }
 
 impl<S: StorageClient> InsertExecutor<S> {
@@ -29,6 +30,7 @@ impl<S: StorageClient> InsertExecutor<S> {
             base: BaseExecutor::new(id, "InsertExecutor".to_string(), storage),
             vertex_data,
             edge_data,
+            if_not_exists: false,
         }
     }
 
@@ -37,6 +39,7 @@ impl<S: StorageClient> InsertExecutor<S> {
             base: BaseExecutor::new(id, "InsertExecutor".to_string(), storage),
             vertex_data: Some(vertex_data),
             edge_data: None,
+            if_not_exists: false,
         }
     }
 
@@ -45,6 +48,35 @@ impl<S: StorageClient> InsertExecutor<S> {
             base: BaseExecutor::new(id, "InsertExecutor".to_string(), storage),
             vertex_data: None,
             edge_data: Some(edge_data),
+            if_not_exists: false,
+        }
+    }
+
+    /// 创建带 IF NOT EXISTS 选项的 InsertExecutor
+    pub fn with_vertices_if_not_exists(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        vertex_data: Vec<Vertex>,
+    ) -> Self {
+        Self {
+            base: BaseExecutor::new(id, "InsertExecutor".to_string(), storage),
+            vertex_data: Some(vertex_data),
+            edge_data: None,
+            if_not_exists: true,
+        }
+    }
+
+    /// 创建带 IF NOT EXISTS 选项的 InsertExecutor（用于边）
+    pub fn with_edges_if_not_exists(
+        id: i64,
+        storage: Arc<Mutex<S>>,
+        edge_data: Vec<Edge>,
+    ) -> Self {
+        Self {
+            base: BaseExecutor::new(id, "InsertExecutor".to_string(), storage),
+            vertex_data: None,
+            edge_data: Some(edge_data),
+            if_not_exists: true,
         }
     }
 }
@@ -107,6 +139,13 @@ impl<S: StorageClient + Send + Sync + 'static> InsertExecutor<S> {
         if let Some(vertices) = &self.vertex_data {
             let mut storage = self.get_storage().lock();
             for vertex in vertices {
+                // 如果启用了 IF NOT EXISTS，检查顶点是否已存在
+                if self.if_not_exists {
+                    if storage.get_vertex("default", &vertex.vid)?.is_some() {
+                        // 顶点已存在，跳过插入
+                        continue;
+                    }
+                }
                 storage.insert_vertex("default", vertex.clone())?;
                 total_inserted += 1;
             }
@@ -607,6 +646,7 @@ pub struct DeleteTagExecutor<S: StorageClient> {
     tag_names: Vec<String>,
     vertex_ids: Vec<Value>,
     space_name: String,
+    delete_all_tags: bool,
 }
 
 impl<S: StorageClient> DeleteTagExecutor<S> {
@@ -621,11 +661,18 @@ impl<S: StorageClient> DeleteTagExecutor<S> {
             tag_names,
             vertex_ids,
             space_name: "default".to_string(),
+            delete_all_tags: false,
         }
     }
 
     pub fn with_space(mut self, space_name: String) -> Self {
         self.space_name = space_name;
+        self
+    }
+
+    /// 设置删除所有标签模式
+    pub fn delete_all_tags(mut self) -> Self {
+        self.delete_all_tags = true;
         self
     }
 }
@@ -687,7 +734,26 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteTagExecutor<S> {
         let mut storage = self.get_storage().lock();
 
         for vertex_id in &self.vertex_ids {
-            match storage.delete_tags(&self.space_name, vertex_id, &self.tag_names) {
+            // 如果是删除所有标签模式，先获取顶点的所有标签名
+            let tag_names_to_delete = if self.delete_all_tags {
+                match storage.get_vertex(&self.space_name, vertex_id) {
+                    Ok(Some(vertex)) => {
+                        vertex.tags.iter().map(|tag| tag.name.clone()).collect::<Vec<_>>()
+                    }
+                    Ok(None) => {
+                        // 顶点不存在，跳过
+                        continue;
+                    }
+                    Err(e) => {
+                        eprintln!("获取顶点 {:?} 失败: {:?}", vertex_id, e);
+                        continue;
+                    }
+                }
+            } else {
+                self.tag_names.clone()
+            };
+
+            match storage.delete_tags(&self.space_name, vertex_id, &tag_names_to_delete) {
                 Ok(deleted_count) => {
                     total_deleted += deleted_count;
                 }
