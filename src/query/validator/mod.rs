@@ -3,13 +3,17 @@
 //! 用于验证 AST 的合法性
 //!
 //! 重构说明：
-//! 1. 采用策略模式，将验证逻辑分解为独立的策略类
-//! 2. 引入工厂模式，统一管理验证策略的创建
-//! 3. 引入注册表模式，支持动态注册验证器
+//! 1. 采用 trait + 枚举模式，替代原有的组合式继承
+//! 2. 使用泛型策略模式，避免 dyn 开销
+//! 3. 统一验证上下文，消除双重上下文问题
 //! 4. 消除循环依赖，提高模块的可维护性和可测试性
-//! 5. 合并冗余文件，拆分大型文件
+//! 5. 提供统一的 StatementValidator trait 接口
 
-pub mod base_validator;
+// 核心模块（新架构）
+pub mod core;
+pub mod docs;
+
+// 具体验证器实现（保持现有，后续逐一迁移）
 pub mod match_validator;
 pub mod go_validator;
 pub mod fetch_vertices_validator;
@@ -30,66 +34,48 @@ pub mod insert_edges_validator;
 pub mod update_validator;
 pub mod delete_validator;
 pub mod create_validator;
-pub mod validation_factory;
-pub mod validation_interface;
 pub mod schema_validator;
 
+// 策略模块
 pub mod strategies;
 pub mod structs;
 
-pub use base_validator::{
-    Validator,
-    ColumnDef,
-    ValueType,
-    ExpressionProps,
-    InputProperty,
-    VarProperty,
-    TagProperty,
-    EdgeProperty,
+// 核心模块导出（新架构）
+pub use core::{
+    ColumnDef, DefaultStrategySet, EdgeProperty, ExpressionProps, InputProperty,
+    StatementType, StatementValidator, StrategyResult, StrategySet, TagProperty,
+    ValidationStrategy, ValidationStrategyType, Validator, ValidatorBuilder, VarProperty,
 };
+
+// 错误类型导出
+pub use crate::core::error::{ValidationError, ValidationErrorType};
+
+// 验证上下文导出
+pub use crate::query::context::validate::ValidationContext;
+
+// 策略模块导出
+pub use strategies::*;
+pub use structs::*;
+
+// 具体验证器导出（保持现有，后续迁移到新架构）
 pub use match_validator::MatchValidator;
-pub use go_validator::{GoValidator, GoContext, GoSource, GoYieldColumn};
-pub use fetch_vertices_validator::{FetchVerticesValidator, FetchVerticesContext, FetchVertexId};
-pub use fetch_edges_validator::{FetchEdgesValidator, FetchEdgesContext, FetchEdgeKey};
-pub use pipe_validator::{PipeValidator, ColumnInfo};
+pub use go_validator::GoValidator;
+pub use fetch_vertices_validator::FetchVerticesValidator;
+pub use fetch_edges_validator::FetchEdgesValidator;
+pub use pipe_validator::PipeValidator;
 pub use yield_validator::YieldValidator;
-pub use order_by_validator::{OrderByValidator, OrderColumn};
+pub use order_by_validator::OrderByValidator;
 pub use limit_validator::LimitValidator;
 pub use use_validator::UseValidator;
 pub use unwind_validator::UnwindValidator;
 pub use lookup_validator::LookupValidator;
-pub use find_path_validator::{FindPathValidator, FindPathConfig, PathPattern, PathEdgeDirection};
-pub use get_subgraph_validator::{GetSubgraphValidator, GetSubgraphConfig};
-pub use set_validator::{SetValidator, SetValidator as SetStatementValidator, SetItem, SetStatementType};
-pub use sequential_validator::{SequentialValidator, SequentialStatement};
+pub use find_path_validator::FindPathValidator;
+pub use get_subgraph_validator::GetSubgraphValidator;
+pub use set_validator::SetValidator;
+pub use sequential_validator::SequentialValidator;
 pub use insert_vertices_validator::InsertVerticesValidator;
 pub use insert_edges_validator::InsertEdgesValidator;
 pub use update_validator::UpdateValidator;
 pub use delete_validator::DeleteValidator;
 pub use create_validator::CreateValidator;
 pub use schema_validator::SchemaValidator;
-
-pub use validation_factory::{
-    ValidationFactory,
-    ValidatorRegistry,
-    ValidatorBuilder,
-    StatementType,
-};
-
-pub use validation_interface::{
-    ValidationError,
-    ValidationErrorType,
-    ValidationStrategy,
-    ValidationStrategyType,
-};
-
-// 重新导出context版本的ValidationContext
-pub use crate::query::context::validate::ValidationContext;
-
-// 为了向后兼容，导出类型定义
-pub use crate::query::context::validate::types::{Column, Variable};
-
-// 导出策略模块
-pub use strategies::*;
-// 导出结构模块
-pub use structs::*;
