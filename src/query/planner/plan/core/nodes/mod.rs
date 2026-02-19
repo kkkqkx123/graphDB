@@ -60,7 +60,7 @@ pub use plan_node_visitor::PlanNodeVisitor;
 pub use plan_node_traits::*;
 pub use project_node::ProjectNode;
 pub use sample_node::SampleNode;
-pub use sort_node::{LimitNode, SortNode, TopNNode};
+pub use sort_node::{LimitNode, SortNode, SortItem, TopNNode};
 pub use space_nodes::{
     CreateSpaceNode, DescSpaceNode, DropSpaceNode, ShowSpacesNode, SpaceManageInfo,
 };

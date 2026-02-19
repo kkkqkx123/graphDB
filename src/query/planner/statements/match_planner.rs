@@ -20,7 +20,8 @@ use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
 use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
 use crate::query::planner::plan::core::nodes::{ProjectNode, ScanVerticesNode};
-use crate::query::planner::plan::core::nodes::{LimitNode, SortNode};
+use crate::query::planner::plan::core::nodes::{LimitNode, SortNode, SortItem};
+use crate::core::types::graph_schema::OrderDirection;
 use crate::query::planner::planner::{Planner, PlannerError};
 use crate::query::planner::PlanIdGenerator;
 use crate::query::validator::YieldColumn;
@@ -189,9 +190,13 @@ impl MatchPlanner {
             PlannerError::PlanGenerationFailed("输入计划没有根节点".to_string())
         })?;
 
-        let sort_items: Vec<String> = order_by
+        let sort_items: Vec<SortItem> = order_by
             .into_iter()
-            .map(|item| self.expression_to_string(&item.expression))
+            .map(|item| {
+                let column = self.expression_to_string(&item.expression);
+                let direction = if item.desc { OrderDirection::Desc } else { OrderDirection::Asc };
+                SortItem::new(column, direction)
+            })
             .collect();
 
         let sort_node = SortNode::new(input_node.clone(), sort_items)?;

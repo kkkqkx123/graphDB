@@ -17,8 +17,10 @@ use crate::query::planner::plan::core::nodes::{FilterNode, LimitNode, PlanNodeEn
 use crate::query::planner::planner::PlannerError;
 use crate::query::planner::statements::statement_planner::ClausePlanner;
 use crate::query::validator::structs::{
-    CypherClauseKind, OrderByClauseContext, PaginationContext, WithClauseContext, YieldColumn,
+    AliasType, CypherClauseKind, OrderByClauseContext, PaginationContext, WithClauseContext, YieldColumn,
 };
+use crate::query::visitor::ExtractGroupSuiteVisitor;
+use std::collections::HashMap;
 
 /// WITH 子句规划器
 #[derive(Debug)]
@@ -115,13 +117,7 @@ impl WithClausePlanner {
 
     /// 应用 ORDER BY 排序
     ///
-    /// TODO: 当前实现存在架构问题：
-    /// - OrderByClauseContext 提供的是 Vec<(usize, OrderDirection)>（列索引+方向）
-    /// - SortNode 期望的是 Vec<String>（列名）
-    /// - 这种不匹配需要在架构层面解决，可能通过：
-    ///   1. 修改 SortNode 支持索引+方向的排序项
-    ///   2. 修改 OrderByClauseContext 提供列名而非索引
-    ///   3. 在规划阶段维护列名到索引的映射
+    /// 将 OrderByClauseContext 中的索引排序因子转换为排序字段名和方向
     fn apply_order_by(
         &self,
         input_plan: SubPlan,
@@ -135,16 +131,17 @@ impl WithClausePlanner {
         // 获取输入节点的列名
         let col_names = input_node.col_names();
 
-        // 将索引排序因子转换为排序字段名
+        // 将索引排序因子转换为排序项（包含列名和方向）
         // 注意：这里假设索引对应于列名列表中的位置
         // 如果索引超出范围，使用占位符名称
-        let sort_items: Vec<String> = order_by_ctx
+        let sort_items: Vec<crate::query::planner::plan::core::nodes::SortItem> = order_by_ctx
             .indexed_order_factors
             .iter()
-            .map(|(idx, _dir)| {
-                col_names.get(*idx)
+            .map(|(idx, dir)| {
+                let column = col_names.get(*idx)
                     .cloned()
-                    .unwrap_or_else(|| format!("col_{}", idx))
+                    .unwrap_or_else(|| format!("col_{}", idx));
+                crate::query::planner::plan::core::nodes::SortItem::new(column.clone(), dir.clone())
             })
             .collect();
 
@@ -234,6 +231,8 @@ impl WithClausePlanner {
     /// - 从 Stmt::With 提取完整的 WITH 子句信息
     /// - 构建 YieldClauseContext
     /// - 处理 ORDER BY 和分页
+    /// - 收集别名信息
+    /// - 处理聚合表达式和分组键
     fn extract_with_context(ast_ctx: &AstContext) -> Result<WithClauseContext, PlannerError> {
         use crate::query::parser::ast::Stmt;
         use crate::query::validator::structs::{YieldClauseContext, YieldColumn, OrderByClauseContext, PaginationContext};
@@ -253,28 +252,49 @@ impl WithClausePlanner {
         // 转换 ReturnItem 到 YieldColumn
         let mut yield_columns = Vec::new();
         let mut has_agg = false;
-        
+        let mut aliases_generated = HashMap::new();
+
         for item in &with_stmt.items {
             match item {
                 crate::query::parser::ast::stmt::ReturnItem::All => {
                     // WITH * 表示保留所有列
-                    // TODO: 需要从输入计划获取所有列
-                }
-                crate::query::parser::ast::stmt::ReturnItem::Expression { expression, alias } => {
+                    // 使用通配符表达式表示保留所有列
                     yield_columns.push(YieldColumn {
-                        expression: expression.clone(),
-                        alias: alias.clone().unwrap_or_else(|| {
-                            Self::generate_default_alias(expression)
-                        }),
+                        expression: Expression::Variable("*".to_string()),
+                        alias: "*".to_string(),
                         is_matched: false,
                     });
-                    
+                }
+                crate::query::parser::ast::stmt::ReturnItem::Expression { expression, alias } => {
+                    let col_alias = alias.clone().unwrap_or_else(|| {
+                        Self::generate_default_alias(expression)
+                    });
+
+                    yield_columns.push(YieldColumn {
+                        expression: expression.clone(),
+                        alias: col_alias.clone(),
+                        is_matched: false,
+                    });
+
+                    // 收集生成的别名
+                    if !col_alias.is_empty() && col_alias != "*" {
+                        let alias_type = Self::deduce_alias_type(expression);
+                        aliases_generated.insert(col_alias, alias_type);
+                    }
+
                     if Self::has_aggregate_expression(expression) {
                         has_agg = true;
                     }
                 }
             }
         }
+
+        // 提取分组键和聚合项
+        let (group_keys, group_items) = if has_agg {
+            Self::extract_group_info(&yield_columns)
+        } else {
+            (vec![], vec![])
+        };
 
         // 构建 ORDER BY 上下文
         let order_by = with_stmt.order_by.as_ref().map(|order| {
@@ -297,13 +317,13 @@ impl WithClausePlanner {
 
         // 构建 YieldClauseContext
         let yield_clause = YieldClauseContext {
-            yield_columns,
-            aliases_available: std::collections::HashMap::new(), // TODO: 从输入计划获取可用的别名
-            aliases_generated: std::collections::HashMap::new(), // TODO: 从 WITH 子句收集生成的别名
+            yield_columns: yield_columns.clone(),
+            aliases_available: HashMap::new(), // 从输入计划获取的别名在规划阶段填充
+            aliases_generated: aliases_generated.clone(),
             distinct: with_stmt.distinct,
             has_agg,
-            group_keys: vec![], // TODO: 如果有聚合，需要确定分组键
-            group_items: vec![], // TODO: 如果有聚合，需要收集聚合项
+            group_keys: group_keys.clone(),
+            group_items: group_items.clone(),
             need_gen_project: has_agg,
             agg_output_column_names: vec![],
             proj_output_column_names: vec![],
@@ -318,13 +338,13 @@ impl WithClausePlanner {
 
         Ok(WithClauseContext {
             yield_clause,
-            aliases_available: std::collections::HashMap::new(), // TODO: 从输入计划获取
-            aliases_generated: std::collections::HashMap::new(), // TODO: 从 WITH 子句收集
+            aliases_available: HashMap::new(), // 从输入计划获取的别名在规划阶段填充
+            aliases_generated,
             where_clause: with_stmt.where_clause.clone().map(|condition| {
                 crate::query::validator::structs::WhereClauseContext {
                     filter: Some(condition),
-                    aliases_available: std::collections::HashMap::new(),
-                    aliases_generated: std::collections::HashMap::new(),
+                    aliases_available: HashMap::new(),
+                    aliases_generated: HashMap::new(),
                     paths: vec![],
                     query_parts: vec![],
                     errors: vec![],
@@ -336,6 +356,69 @@ impl WithClausePlanner {
             query_parts: vec![],
             errors: vec![],
         })
+    }
+
+    /// 提取分组信息
+    ///
+    /// 从 YieldColumn 列表中提取分组键和聚合项
+    fn extract_group_info(yield_columns: &[YieldColumn]) -> (Vec<Expression>, Vec<Expression>) {
+        let mut group_keys = Vec::new();
+        let mut group_items = Vec::new();
+        let mut visitor = ExtractGroupSuiteVisitor::new();
+
+        for column in yield_columns {
+            if let Ok(suite) = visitor.extract(&column.expression) {
+                // 非聚合表达式作为分组键
+                if !suite.group_keys.is_empty() {
+                    group_keys.extend(suite.group_keys);
+                }
+                // 聚合表达式作为分组项
+                if !suite.aggregates.is_empty() {
+                    group_items.extend(suite.aggregates);
+                }
+            }
+        }
+
+        // 去重
+        group_keys.dedup_by(|a, b| a == b);
+        group_items.dedup_by(|a, b| a == b);
+
+        (group_keys, group_items)
+    }
+
+    /// 推断别名类型
+    ///
+    /// 根据表达式推断别名类型
+    fn deduce_alias_type(expression: &Expression) -> AliasType {
+        use crate::core::Expression;
+
+        match expression {
+            Expression::Variable(_) => AliasType::Variable,
+            Expression::Property { object, .. } => {
+                if let Expression::Variable(var_name) = object.as_ref() {
+                    // 根据变量名推断类型（简化实现）
+                    if var_name.starts_with('e') || var_name.starts_with('E') {
+                        AliasType::Edge
+                    } else if var_name.starts_with('v') || var_name.starts_with('V') {
+                        AliasType::Node
+                    } else {
+                        AliasType::Variable
+                    }
+                } else {
+                    AliasType::Variable
+                }
+            }
+            Expression::Function { name, .. } => {
+                let name_lower = name.to_lowercase();
+                match name_lower.as_str() {
+                    "id" | "src" | "dst" => AliasType::Variable,
+                    "nodes" | "relationships" => AliasType::Path,
+                    _ => AliasType::Variable,
+                }
+            }
+            Expression::Aggregate { .. } => AliasType::Variable,
+            _ => AliasType::Variable,
+        }
     }
 
     /// 生成默认别名

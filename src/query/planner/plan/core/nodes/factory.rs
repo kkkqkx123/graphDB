@@ -11,7 +11,7 @@ use super::graph_scan_node::{
     GetEdgesNode, GetNeighborsNode, GetVerticesNode, ScanEdgesNode, ScanVerticesNode,
 };
 
-use super::sort_node::{LimitNode, SortNode};
+use super::sort_node::{LimitNode, SortNode, SortItem};
 use super::start_node::StartNode;
 use super::traversal_node::{AppendVerticesNode, ExpandAllNode, ExpandNode, TraverseNode};
 use crate::core::types::EdgeDirection;
@@ -85,7 +85,7 @@ impl PlanNodeFactory {
     /// 创建排序节点
     pub fn create_sort(
         input: PlanNodeEnum,
-        sort_items: Vec<String>,
+        sort_items: Vec<SortItem>,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
         let sort_node = SortNode::new(input, sort_items)?;
         Ok(PlanNodeEnum::Sort(sort_node))

@@ -126,7 +126,8 @@ mod tests {
     use crate::query::context::execution::QueryContext;
     use crate::query::optimizer::plan::OptContext;
     use crate::query::planner::plan::algorithms::{IndexScan, ScanType};
-    use crate::query::planner::plan::core::nodes::{PlanNodeEnum, TopNNode};
+    use crate::query::planner::plan::core::nodes::{PlanNodeEnum, TopNNode, SortItem};
+    use crate::core::types::graph_schema::OrderDirection;
 
     fn create_test_context() -> OptContext {
         let query_context = QueryContext::new();
@@ -143,7 +144,7 @@ mod tests {
         let index_scan_enum = PlanNodeEnum::IndexScan(index_scan);
 
         // 创建TopN节点
-        let sort_items = vec!["age".to_string()];
+        let sort_items = vec![SortItem::desc("age".to_string())];
         let topn = TopNNode::new(index_scan_enum.clone(), sort_items, 100)
             .expect("Failed to create TopN node");
         let topn_enum = PlanNodeEnum::TopN(topn);
@@ -181,7 +182,7 @@ mod tests {
         let index_scan_enum = PlanNodeEnum::IndexScan(index_scan);
 
         // 创建TopN节点
-        let sort_items = vec!["age".to_string()];
+        let sort_items = vec![SortItem::desc("age".to_string())];
         let topn = TopNNode::new(index_scan_enum.clone(), sort_items, 100)
             .expect("Failed to create TopN node");
         let topn_enum = PlanNodeEnum::TopN(topn);

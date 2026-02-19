@@ -7,11 +7,12 @@ use crate::query::context::ast::AstContext;
 use crate::query::context::execution::QueryContext;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
-use crate::query::planner::plan::core::nodes::sort_node::SortNode;
+use crate::query::planner::plan::core::nodes::sort_node::{SortNode, SortItem};
 use crate::query::planner::planner::PlannerError;
 use crate::query::planner::statements::statement_planner::ClausePlanner;
 use crate::query::validator::OrderByItem;
 use crate::query::validator::structs::CypherClauseKind;
+use crate::core::types::graph_schema::OrderDirection;
 
 /// ORDER BY 子句规划器
 ///
@@ -103,9 +104,13 @@ impl ClausePlanner for OrderByClausePlanner {
             PlannerError::PlanGenerationFailed("ORDER BY 子句需要输入计划".to_string())
         })?;
 
-        let sort_items: Vec<String> = order_by_items
+        let sort_items: Vec<SortItem> = order_by_items
             .into_iter()
-            .map(|item| expression_to_string(&item.expression))
+            .map(|item| {
+                let column = expression_to_string(&item.expression);
+                let direction = if item.desc { OrderDirection::Desc } else { OrderDirection::Asc };
+                SortItem::new(column, direction)
+            })
             .collect();
 
         let sort_node = SortNode::new(input_node.clone(), sort_items)?;

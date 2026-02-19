@@ -2,11 +2,39 @@
 //!
 //! SortNode 用于对输入数据进行排序操作
 
+use crate::core::types::graph_schema::OrderDirection;
 use crate::define_plan_node_with_deps;
+
+/// 排序项定义
+/// 包含列名和排序方向
+#[derive(Debug, Clone, PartialEq)]
+pub struct SortItem {
+    /// 排序列名
+    pub column: String,
+    /// 排序方向
+    pub direction: OrderDirection,
+}
+
+impl SortItem {
+    /// 创建新的排序项
+    pub fn new(column: String, direction: OrderDirection) -> Self {
+        Self { column, direction }
+    }
+
+    /// 创建升序排序项
+    pub fn asc(column: String) -> Self {
+        Self::new(column, OrderDirection::Asc)
+    }
+
+    /// 创建降序排序项
+    pub fn desc(column: String) -> Self {
+        Self::new(column, OrderDirection::Desc)
+    }
+}
 
 define_plan_node_with_deps! {
     pub struct SortNode {
-        sort_items: Vec<String>,
+        sort_items: Vec<SortItem>,
         limit: Option<i64>,
     }
     enum: Sort
@@ -17,7 +45,7 @@ impl SortNode {
     /// 创建新的排序节点
     pub fn new(
         input: super::plan_node_enum::PlanNodeEnum,
-        sort_items: Vec<String>,
+        sort_items: Vec<SortItem>,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let col_names = input.col_names().to_vec();
 
@@ -34,7 +62,7 @@ impl SortNode {
     }
 
     /// 获取排序字段
-    pub fn sort_items(&self) -> &[String] {
+    pub fn sort_items(&self) -> &[SortItem] {
         &self.sort_items
     }
 
@@ -92,7 +120,7 @@ impl LimitNode {
 
 define_plan_node_with_deps! {
     pub struct TopNNode {
-        sort_items: Vec<String>,
+        sort_items: Vec<SortItem>,
         limit: i64,
     }
     enum: TopN
@@ -103,7 +131,7 @@ impl TopNNode {
     /// 创建新的TopN节点
     pub fn new(
         input: super::plan_node_enum::PlanNodeEnum,
-        sort_items: Vec<String>,
+        sort_items: Vec<SortItem>,
         limit: i64,
     ) -> Result<Self, crate::query::planner::planner::PlannerError> {
         let col_names = input.col_names().to_vec();
@@ -121,7 +149,7 @@ impl TopNNode {
     }
 
     /// 获取排序字段
-    pub fn sort_items(&self) -> &[String] {
+    pub fn sort_items(&self) -> &[SortItem] {
         &self.sort_items
     }
 
@@ -141,7 +169,10 @@ mod tests {
     fn test_sort_node_creation() {
         let start_node = PlanNodeEnum::Start(StartNode::new());
 
-        let sort_items = vec!["name".to_string(), "age".to_string()];
+        let sort_items = vec![
+            SortItem::asc("name".to_string()),
+            SortItem::desc("age".to_string()),
+        ];
 
         let sort_node =
             SortNode::new(start_node, sort_items).expect("SortNode creation should succeed");
@@ -149,6 +180,8 @@ mod tests {
         assert_eq!(sort_node.type_name(), "SortNode");
         assert_eq!(sort_node.dependencies().len(), 1);
         assert_eq!(sort_node.sort_items().len(), 2);
+        assert_eq!(sort_node.sort_items()[0].direction, OrderDirection::Asc);
+        assert_eq!(sort_node.sort_items()[1].direction, OrderDirection::Desc);
     }
 
     #[test]
@@ -168,7 +201,10 @@ mod tests {
     fn test_topn_node_creation() {
         let start_node = PlanNodeEnum::Start(StartNode::new());
 
-        let sort_items = vec!["name".to_string(), "age".to_string()];
+        let sort_items = vec![
+            SortItem::asc("name".to_string()),
+            SortItem::desc("age".to_string()),
+        ];
         let topn_node = TopNNode::new(start_node, sort_items, 10)
             .expect("TopN node should be created successfully");
 
@@ -176,5 +212,7 @@ mod tests {
         assert_eq!(topn_node.dependencies().len(), 1);
         assert_eq!(topn_node.sort_items().len(), 2);
         assert_eq!(topn_node.limit(), 10);
+        assert_eq!(topn_node.sort_items()[0].direction, OrderDirection::Asc);
+        assert_eq!(topn_node.sort_items()[1].direction, OrderDirection::Desc);
     }
 }

@@ -130,7 +130,8 @@ mod tests {
     use super::*;
     use crate::query::context::execution::QueryContext;
     use crate::query::optimizer::plan::{OptContext, OptGroupNode};
-    use crate::query::planner::plan::core::nodes::{LimitNode, SortNode};
+    use crate::query::planner::plan::core::nodes::{LimitNode, SortNode, SortItem};
+    use crate::core::types::graph_schema::OrderDirection;
 
     fn create_test_context() -> OptContext {
         let query_context = QueryContext::new();
@@ -145,7 +146,7 @@ mod tests {
         let start_node = PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new());
 
         let sort_node = PlanNodeEnum::Sort(
-            SortNode::new(start_node.clone(), vec!["name".to_string()])
+            SortNode::new(start_node.clone(), vec![SortItem::asc("name".to_string())])
                 .expect("Sort node should be created successfully"),
         );
         let sort_node_id = sort_node.id() as usize;
@@ -156,7 +157,7 @@ mod tests {
 
         // 创建 Limit 节点
         let sort_node_for_limit = PlanNodeEnum::Sort(
-            SortNode::new(start_node, vec!["name".to_string()])
+            SortNode::new(start_node, vec![SortItem::asc("name".to_string())])
                 .expect("Sort node should be created successfully"),
         );
         let limit_node = PlanNodeEnum::Limit(
@@ -183,7 +184,7 @@ mod tests {
         let start_node = PlanNodeEnum::Start(crate::query::planner::plan::core::nodes::StartNode::new());
 
         let sort_node = PlanNodeEnum::Sort(
-            SortNode::new(start_node.clone(), vec!["name".to_string()])
+            SortNode::new(start_node.clone(), vec![SortItem::asc("name".to_string())])
                 .expect("Sort node should be created successfully"),
         );
         let sort_node_id = sort_node.id() as usize;
@@ -194,7 +195,7 @@ mod tests {
 
         // 创建 Limit 节点
         let sort_node_for_limit = PlanNodeEnum::Sort(
-            SortNode::new(start_node, vec!["name".to_string()])
+            SortNode::new(start_node, vec![SortItem::asc("name".to_string())])
                 .expect("Sort node should be created successfully"),
         );
         let limit_node = PlanNodeEnum::Limit(

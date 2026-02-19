@@ -696,9 +696,16 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     .sort_items()
                     .iter()
                     .map(|item| {
-                        let (column, order) = parse_sort_item(item);
+                        let order = match item.direction {
+                            crate::core::types::graph_schema::OrderDirection::Asc => {
+                                crate::query::executor::result_processing::SortOrder::Asc
+                            }
+                            crate::core::types::graph_schema::OrderDirection::Desc => {
+                                crate::query::executor::result_processing::SortOrder::Desc
+                            }
+                        };
                         crate::query::executor::result_processing::SortKey::new(
-                            crate::core::Expression::Variable(column),
+                            crate::core::Expression::Variable(item.column.clone()),
                             order,
                         )
                     })
@@ -715,11 +722,16 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                 Ok(ExecutorEnum::Sort(executor))
             }
             PlanNodeEnum::TopN(node) => {
+                let sort_columns: Vec<String> = node
+                    .sort_items()
+                    .iter()
+                    .map(|item| item.column.clone())
+                    .collect();
                 let executor = TopNExecutor::new(
                     node.id(),
                     storage,
                     node.limit() as usize,
-                    node.sort_items().to_vec(),
+                    sort_columns,
                     true,
                 );
                 Ok(ExecutorEnum::TopN(executor))
