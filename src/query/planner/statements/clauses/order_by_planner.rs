@@ -41,42 +41,11 @@ fn extract_order_by_items(ast_ctx: &AstContext) -> Vec<OrderByItem> {
     Vec::new()
 }
 
+/// 将表达式转换为字符串表示
+/// 
+/// 使用 Expression::to_expression_string() 方法
 fn expression_to_string(expr: &Expression) -> String {
-    match expr {
-        Expression::Variable(name) => name.clone(),
-        Expression::Property { object, property } => {
-            format!("{}.{}", expression_to_string(object), property)
-        }
-        Expression::Function { name, args } => {
-            let args_str: Vec<String> = args
-                .iter()
-                .map(|arg| expression_to_string(arg))
-                .collect();
-            format!("{}({})", name, args_str.join(", "))
-        }
-        Expression::Literal(value) => format!("{}", value),
-        Expression::Binary { left, op, right } => {
-            let left_str = expression_to_string(left);
-            let right_str = expression_to_string(right);
-            let op_str = match op {
-                crate::core::BinaryOperator::Add => "+",
-                crate::core::BinaryOperator::Subtract => "-",
-                crate::core::BinaryOperator::Multiply => "*",
-                crate::core::BinaryOperator::Divide => "/",
-                crate::core::BinaryOperator::Equal => "=",
-                crate::core::BinaryOperator::NotEqual => "!=",
-                crate::core::BinaryOperator::LessThan => "<",
-                crate::core::BinaryOperator::LessThanOrEqual => "<=",
-                crate::core::BinaryOperator::GreaterThan => ">",
-                crate::core::BinaryOperator::GreaterThanOrEqual => ">=",
-                crate::core::BinaryOperator::And => "AND",
-                crate::core::BinaryOperator::Or => "OR",
-                _ => "?",
-            };
-            format!("{} {} {}", left_str, op_str, right_str)
-        }
-        _ => "<?>".to_string(),
-    }
+    expr.to_expression_string()
 }
 
 impl ClausePlanner for OrderByClausePlanner {

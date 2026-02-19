@@ -21,9 +21,15 @@ use crate::query::planner::planner::{Planner, PlannerError};
 use crate::query::planner::statements::statement_planner::StatementPlanner;
 use crate::query::planner::PlanIdGenerator;
 use crate::query::validator::OrderByItem;
-use crate::query::planner::statements::match_planner::PaginationInfo;
 use crate::query::validator::YieldColumn;
 use crate::query::validator::structs::CypherClauseKind;
+
+/// 分页信息结构体
+#[derive(Debug, Clone)]
+pub struct PaginationInfo {
+    pub skip: usize,
+    pub limit: usize,
+}
 
 /// MATCH 语句规划器
 ///
@@ -242,109 +248,11 @@ impl MatchStatementPlanner {
         Ok(SubPlan::new(Some(sort_node.into_enum()), input_plan.tail))
     }
 
+    /// 将表达式转换为字符串表示
+    /// 
+    /// 使用 Expression::to_expression_string() 方法
     fn expression_to_string(&self, expr: &Expression) -> String {
-        match expr {
-            Expression::Variable(name) => name.clone(),
-            Expression::Property { object, property } => {
-                let obj_str = self.expression_to_string(object);
-                format!("{}.{}", obj_str, property)
-            }
-            Expression::Function { name, args } => {
-                let args_str: Vec<String> = args
-                    .iter()
-                    .map(|arg| self.expression_to_string(arg))
-                    .collect();
-                format!("{}({})", name, args_str.join(", "))
-            }
-            Expression::Literal(value) => format!("{}", value),
-            Expression::Binary { left, op, right } => {
-                let left_str = self.expression_to_string(left);
-                let right_str = self.expression_to_string(right);
-                let op_str = match op {
-                    crate::core::BinaryOperator::Add => "+",
-                    crate::core::BinaryOperator::Subtract => "-",
-                    crate::core::BinaryOperator::Multiply => "*",
-                    crate::core::BinaryOperator::Divide => "/",
-                    crate::core::BinaryOperator::Modulo => "%",
-                    crate::core::BinaryOperator::Equal => "=",
-                    crate::core::BinaryOperator::NotEqual => "!=",
-                    crate::core::BinaryOperator::LessThan => "<",
-                    crate::core::BinaryOperator::LessThanOrEqual => "<=",
-                    crate::core::BinaryOperator::GreaterThan => ">",
-                    crate::core::BinaryOperator::GreaterThanOrEqual => ">=",
-                    crate::core::BinaryOperator::And => "AND",
-                    crate::core::BinaryOperator::Or => "OR",
-                    crate::core::BinaryOperator::Xor => "XOR",
-                    crate::core::BinaryOperator::StringConcat => "+",
-                    crate::core::BinaryOperator::Contains => "CONTAINS",
-                    crate::core::BinaryOperator::StartsWith => "STARTS WITH",
-                    crate::core::BinaryOperator::EndsWith => "ENDS WITH",
-                    crate::core::BinaryOperator::In => "IN",
-                    crate::core::BinaryOperator::NotIn => "NOT IN",
-                    crate::core::BinaryOperator::Like => "LIKE",
-                    crate::core::BinaryOperator::Exponent => "^",
-                    _ => "?",
-                };
-                format!("{} {} {}", left_str, op_str, right_str)
-            }
-            Expression::Unary { op, operand } => {
-                let operand_str = self.expression_to_string(operand);
-                let op_str = match op {
-                    crate::core::UnaryOperator::Not => "NOT ",
-                    crate::core::UnaryOperator::IsNull => "IS NULL",
-                    crate::core::UnaryOperator::IsNotNull => "IS NOT NULL",
-                    crate::core::UnaryOperator::IsEmpty => "IS EMPTY",
-                    crate::core::UnaryOperator::IsNotEmpty => "IS NOT EMPTY",
-                    crate::core::UnaryOperator::Plus => "+",
-                    crate::core::UnaryOperator::Minus => "-",
-                };
-                format!("{}{}", op_str, operand_str)
-            }
-            Expression::Subscript { collection, index } => {
-                let coll_str = self.expression_to_string(collection);
-                let idx_str = self.expression_to_string(index);
-                format!("{}[{}]", coll_str, idx_str)
-            }
-            Expression::Case { .. } => "CASE".to_string(),
-            Expression::TypeCast { expression, target_type } => {
-                let expr_str = self.expression_to_string(expression);
-                format!("{} AS {:?}", expr_str, target_type)
-            }
-            Expression::List(items) => {
-                let items_str: Vec<String> = items
-                    .iter()
-                    .map(|item| self.expression_to_string(item))
-                    .collect();
-                format!("[{}]", items_str.join(", "))
-            }
-            Expression::Map(pairs) => {
-                let pairs_str: Vec<String> = pairs
-                    .iter()
-                    .map(|(k, v)| format!("{}: {}", k, self.expression_to_string(v)))
-                    .collect();
-                format!("{{{}}}", pairs_str.join(", "))
-            }
-            Expression::Range { collection, start, end } => {
-                let coll_str = self.expression_to_string(collection);
-                let start_str = start.as_ref().map(|s| self.expression_to_string(s)).unwrap_or_default();
-                let end_str = end.as_ref().map(|e| self.expression_to_string(e)).unwrap_or_default();
-                if start_str.is_empty() {
-                    format!("RANGE({}, {})", coll_str, end_str)
-                } else {
-                    format!("RANGE({}, {}, {})", coll_str, start_str, end_str)
-                }
-            }
-            Expression::Path(_) => "<path>".to_string(),
-            Expression::Label(_) => "<label>".to_string(),
-            Expression::ListComprehension { .. } => "<list_comprehension>".to_string(),
-            Expression::Aggregate { func, .. } => format!("<aggregate:{:?}>", func),
-            Expression::LabelTagProperty { .. } => "<label_tag_property>".to_string(),
-            Expression::TagProperty { .. } => "<tag_property>".to_string(),
-            Expression::EdgeProperty { .. } => "<edge_property>".to_string(),
-            Expression::Predicate { .. } => "<predicate>".to_string(),
-            Expression::Reduce { .. } => "<reduce>".to_string(),
-            Expression::PathBuild(_) => "<path_build>".to_string(),
-        }
+        expr.to_expression_string()
     }
 
     fn plan_limit(

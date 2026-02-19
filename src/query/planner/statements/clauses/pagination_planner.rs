@@ -9,7 +9,7 @@ use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
 use crate::query::planner::plan::core::nodes::sort_node::LimitNode;
 use crate::query::planner::planner::PlannerError;
 use crate::query::planner::statements::statement_planner::ClausePlanner;
-use crate::query::planner::statements::match_planner::PaginationInfo;
+use crate::query::planner::statements::match_statement_planner::PaginationInfo;
 use crate::query::validator::structs::CypherClauseKind;
 
 /// LIMIT/SKIP 子句规划器
