@@ -10,6 +10,7 @@ use crate::core::{
     AggregateFunction, BinaryOperator, DataType, Expression, UnaryOperator,
 };
 use crate::core::types::EdgeDirection;
+use crate::query::parser::ast::stmt::GoStmt;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
@@ -595,6 +596,149 @@ impl GoValidator {
 
     pub fn context(&self) -> &GoContext {
         &self.context
+    }
+
+    /// 获取基础验证器的上下文
+    pub fn base_context(&self) -> &super::ValidationContext {
+        self.base.context()
+    }
+
+    /// 获取基础验证器的上下文的可变引用
+    pub fn base_context_mut(&mut self) -> &mut super::ValidationContext {
+        self.base.context_mut()
+    }
+
+    /// 从 GoStmt 构建并验证
+    /// 
+    /// 这是从 AST 直接验证的入口点
+    pub fn validate_from_stmt(&mut self, go_stmt: &GoStmt) -> Result<(), ValidationError> {
+        // 1. 构建 FROM 上下文
+        self.build_from_context(&go_stmt.from)?;
+
+        // 2. 构建 OVER 上下文
+        if let Some(ref over) = go_stmt.over {
+            self.build_over_context(over)?;
+        }
+
+        // 3. 构建 WHERE 上下文
+        self.context.where_filter = go_stmt.where_clause.clone();
+
+        // 4. 构建 YIELD 上下文
+        if let Some(ref yield_clause) = go_stmt.yield_clause {
+            self.build_yield_context(yield_clause)?;
+        }
+
+        // 5. 构建步数范围
+        self.build_step_range(&go_stmt.steps)?;
+
+        // 6. 执行验证
+        self.validate()
+    }
+
+    /// 从 FROM 子句构建上下文
+    fn build_from_context(
+        &mut self,
+        from: &crate::query::parser::ast::stmt::FromClause,
+    ) -> Result<(), ValidationError> {
+        if from.vertices.is_empty() {
+            return Err(ValidationError::new(
+                "GO 语句必须指定 FROM 顶点".to_string(),
+                ValidationErrorType::SemanticError,
+            ));
+        }
+
+        // 使用第一个顶点表达式作为源
+        let first_vertex = from.vertices.first().unwrap();
+        
+        let source_type = match first_vertex {
+            Expression::Variable(_) => GoSourceType::Variable,
+            Expression::List(_) => GoSourceType::VertexId,
+            _ => GoSourceType::Expression,
+        };
+
+        let variable_name = match first_vertex {
+            Expression::Variable(name) => Some(name.clone()),
+            _ => None,
+        };
+
+        self.context.from_source = Some(GoSource {
+            source_type,
+            expression: first_vertex.clone(),
+            is_variable: variable_name.is_some(),
+            variable_name,
+        });
+
+        Ok(())
+    }
+
+    /// 从 OVER 子句构建上下文
+    fn build_over_context(
+        &mut self,
+        over: &crate::query::parser::ast::stmt::OverClause,
+    ) -> Result<(), ValidationError> {
+        if over.edge_types.is_empty() {
+            return Err(ValidationError::new(
+                "OVER 子句必须指定至少一条边".to_string(),
+                ValidationErrorType::SemanticError,
+            ));
+        }
+
+        for edge_type in &over.edge_types {
+            self.context.over_edges.push(OverEdge {
+                edge_name: edge_type.clone(),
+                edge_type: None, // 稍后从 Schema 中解析
+                direction: over.direction,
+                props: Vec::new(),
+                is_reversible: over.direction == EdgeDirection::Both,
+                is_all: false,
+            });
+        }
+
+        Ok(())
+    }
+
+    /// 从 YIELD 子句构建上下文
+    fn build_yield_context(
+        &mut self,
+        yield_clause: &crate::query::parser::ast::stmt::YieldClause,
+    ) -> Result<(), ValidationError> {
+        for item in &yield_clause.items {
+            let column = GoYieldColumn {
+                expression: item.expression.clone(),
+                alias: item.alias.clone().unwrap_or_else(|| {
+                    // 如果没有别名，尝试从表达式生成
+                    format!("col_{}", self.context.yield_columns.len())
+                }),
+                is_distinct: false, // TODO: 支持 DISTINCT
+            };
+            self.context.yield_columns.push(column);
+        }
+
+        Ok(())
+    }
+
+    /// 构建步数范围
+    fn build_step_range(
+        &mut self,
+        steps: &crate::query::parser::ast::stmt::Steps,
+    ) -> Result<(), ValidationError> {
+        let (from, to) = match steps {
+            crate::query::parser::ast::stmt::Steps::Fixed(n) => (*n as i32, *n as i32),
+            crate::query::parser::ast::stmt::Steps::Range { min, max } => (*min as i32, *max as i32),
+            crate::query::parser::ast::stmt::Steps::Variable(_) => {
+                return Err(ValidationError::new(
+                    "GO 语句不支持变量步数".to_string(),
+                    ValidationErrorType::SemanticError,
+                ));
+            }
+        };
+
+        self.context.step_range = Some(StepRange {
+            step_from: from,
+            step_to: to,
+        });
+
+        Ok(())
     }
 
     pub fn context_mut(&mut self) -> &mut GoContext {
