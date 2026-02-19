@@ -270,6 +270,11 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                     "CREATE NODE/EDGE for MATCH pattern is not implemented yet".to_string()
                 )))
             }
+            CreateTarget::Path { .. } => {
+                Err(DBError::Query(QueryError::ExecutionError(
+                    "CREATE Path for Cypher-style pattern is not implemented yet".to_string()
+                )))
+            }
         }
     }
 

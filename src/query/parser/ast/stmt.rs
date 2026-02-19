@@ -183,11 +183,13 @@ pub struct CreateStmt {
 /// 创建目标
 #[derive(Debug, Clone, PartialEq)]
 pub enum CreateTarget {
+    /// Cypher 风格的节点创建: CREATE (n:Label {props})
     Node {
         variable: Option<String>,
         labels: Vec<String>,
         properties: Option<Expression>,
     },
+    /// Cypher 风格的边创建: CREATE ()-[:Type {props}]->()
     Edge {
         variable: Option<String>,
         edge_type: String,
@@ -196,6 +198,11 @@ pub enum CreateTarget {
         properties: Option<Expression>,
         direction: EdgeDirection,
     },
+    /// Cypher 风格的完整路径创建: CREATE (a)-[:FRIEND]->(b)
+    Path {
+        patterns: Vec<Pattern>,
+    },
+    /// Schema 定义 - TAG
     Tag {
         name: String,
         properties: Vec<PropertyDef>,

@@ -47,8 +47,8 @@ impl StmtParser {
             TokenKind::Upsert => DmlParser::new().parse_update_statement(ctx),
             TokenKind::Merge => DmlParser::new().parse_merge_statement(ctx),
 
-            // DDL 语句
-            TokenKind::Create => DdlParser::new().parse_create_statement(ctx),
+            // DDL 语句 或 Cypher CREATE 数据语句
+            TokenKind::Create => self.parse_create_statement_extended(ctx),
             TokenKind::Drop => DdlParser::new().parse_drop_statement(ctx),
             TokenKind::Desc => DdlParser::new().parse_desc_statement(ctx),
             TokenKind::Alter => DdlParser::new().parse_alter_statement(ctx),
@@ -456,6 +456,41 @@ impl StmtParser {
             variable: var_name,
             statement,
         }))
+    }
+
+    /// 解析扩展的 CREATE 语句
+    /// 区分 DDL CREATE (TAG/EDGE/SPACE/INDEX) 和 Cypher CREATE 数据语句
+    fn parse_create_statement_extended(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
+        use crate::query::parser::parser::ddl_parser::DdlParser;
+        use crate::query::parser::parser::dml_parser::DmlParser;
+
+        // 预读下一个 token 来判断 CREATE 类型
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::Create)?;
+
+        // 检查是否是 Cypher 风格的 CREATE (以 '(' 开头)
+        if ctx.check_token(TokenKind::LParen) {
+            // Cypher CREATE 数据语句: CREATE (n:Label {props})
+            // 由于已经消费了 CREATE token，需要调用特殊方法
+            return DmlParser::new().parse_create_data_after_token(ctx, start_span);
+        }
+
+        // 检查 DDL CREATE 类型
+        if ctx.check_token(TokenKind::Tag) 
+            || ctx.check_token(TokenKind::Edge)
+            || ctx.check_token(TokenKind::Space)
+            || ctx.check_token(TokenKind::Index) {
+            // DDL CREATE: CREATE TAG/EDGE/SPACE/INDEX
+            // 由于已经消费了 CREATE token，调用 DDL 解析器的特殊方法
+            return DdlParser::new().parse_create_after_token(ctx, start_span);
+        }
+
+        // 无法确定类型，报错
+        Err(ParseError::new(
+            ParseErrorKind::SyntaxError,
+            "CREATE 语句期望 '(' (Cypher 数据创建) 或 TAG/EDGE/SPACE/INDEX (Schema 定义)".to_string(),
+            ctx.current_position(),
+        ))
     }
 
     /// 解析集合操作语句后的管道或结束

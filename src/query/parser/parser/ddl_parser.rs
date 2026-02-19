@@ -147,6 +147,129 @@ impl DdlParser {
         }
     }
 
+    /// 解析 CREATE 语句（CREATE token 已被消费）
+    pub fn parse_create_after_token(&mut self, ctx: &mut ParseContext, start_span: crate::query::parser::ast::types::Span) -> Result<Stmt, ParseError> {
+        if ctx.match_token(TokenKind::Tag) {
+            // 解析 IF NOT EXISTS (在 TAG 之后)
+            let mut if_not_exists = false;
+            if ctx.match_token(TokenKind::If) {
+                ctx.expect_token(TokenKind::Not)?;
+                ctx.expect_token(TokenKind::Exists)?;
+                if_not_exists = true;
+            }
+            let name = ctx.expect_identifier()?;
+            let (properties, ttl_duration, ttl_col) = self.parse_tag_edge_defs(ctx)?;
+            Ok(Stmt::Create(CreateStmt {
+                span: start_span,
+                target: CreateTarget::Tag { name, properties, ttl_duration, ttl_col },
+                if_not_exists,
+            }))
+        } else if ctx.match_token(TokenKind::Edge) {
+            // 解析 IF NOT EXISTS (在 EDGE 之后)
+            let mut if_not_exists = false;
+            if ctx.match_token(TokenKind::If) {
+                ctx.expect_token(TokenKind::Not)?;
+                ctx.expect_token(TokenKind::Exists)?;
+                if_not_exists = true;
+            }
+            let name = ctx.expect_identifier()?;
+            let (properties, ttl_duration, ttl_col) = self.parse_tag_edge_defs(ctx)?;
+            Ok(Stmt::Create(CreateStmt {
+                span: start_span,
+                target: CreateTarget::EdgeType { name, properties, ttl_duration, ttl_col },
+                if_not_exists,
+            }))
+        } else if ctx.match_token(TokenKind::Space) {
+            // 解析 CREATE SPACE
+            let mut if_not_exists = false;
+            if ctx.match_token(TokenKind::If) {
+                ctx.expect_token(TokenKind::Not)?;
+                ctx.expect_token(TokenKind::Exists)?;
+                if_not_exists = true;
+            }
+            let name = ctx.expect_identifier()?;
+            
+            // 解析可选参数 (vid_type, partition_num, replica_factor, comment)
+            let mut vid_type = "INT64".to_string();
+            let mut partition_num = 1i64;
+            let mut replica_factor = 1i64;
+            let mut comment = None;
+            
+            // 解析 (vid_type=INT64, partition_num=1, replica_factor=1, comment="xxx") 格式
+            if ctx.match_token(TokenKind::LParen) {
+                loop {
+                    if ctx.check_token(TokenKind::RParen) {
+                        ctx.expect_token(TokenKind::RParen)?;
+                        break;
+                    }
+                    
+                    if ctx.match_token(TokenKind::VIdType) {
+                        ctx.expect_token(TokenKind::Assign)?;
+                        vid_type = ctx.expect_identifier()?;
+                    } else if ctx.match_token(TokenKind::PartitionNum) {
+                        ctx.expect_token(TokenKind::Assign)?;
+                        partition_num = ctx.expect_integer_literal()?;
+                    } else if ctx.match_token(TokenKind::ReplicaFactor) {
+                        ctx.expect_token(TokenKind::Assign)?;
+                        replica_factor = ctx.expect_integer_literal()?;
+                    } else if ctx.match_token(TokenKind::Comment) {
+                        ctx.expect_token(TokenKind::Assign)?;
+                        comment = Some(ctx.expect_string_literal()?);
+                    }
+                    
+                    // 检查是否还有更多参数
+                    if !ctx.match_token(TokenKind::Comma) {
+                        ctx.expect_token(TokenKind::RParen)?;
+                        break;
+                    }
+                }
+            }
+            
+            Ok(Stmt::Create(CreateStmt {
+                span: start_span,
+                target: CreateTarget::Space { 
+                    name, 
+                    vid_type, 
+                    partition_num, 
+                    replica_factor, 
+                    comment 
+                },
+                if_not_exists,
+            }))
+        } else if ctx.match_token(TokenKind::Index) {
+            // 解析 CREATE INDEX
+            let mut if_not_exists = false;
+            if ctx.match_token(TokenKind::If) {
+                ctx.expect_token(TokenKind::Not)?;
+                ctx.expect_token(TokenKind::Exists)?;
+                if_not_exists = true;
+            }
+            let name = ctx.expect_identifier()?;
+            ctx.expect_token(TokenKind::On)?;
+            let on = ctx.expect_identifier()?;
+            ctx.expect_token(TokenKind::LParen)?;
+            let mut properties = vec![];
+            loop {
+                properties.push(ctx.expect_identifier()?);
+                if !ctx.match_token(TokenKind::Comma) {
+                    break;
+                }
+            }
+            ctx.expect_token(TokenKind::RParen)?;
+            Ok(Stmt::Create(CreateStmt {
+                span: start_span,
+                target: CreateTarget::Index { name, on, properties },
+                if_not_exists,
+            }))
+        } else {
+            Err(ParseError::new(
+                ParseErrorKind::UnexpectedToken,
+                "Expected TAG, EDGE, SPACE, or INDEX after CREATE".to_string(),
+                ctx.current_position(),
+            ))
+        }
+    }
+
     /// 解析 DROP 语句
     pub fn parse_drop_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();

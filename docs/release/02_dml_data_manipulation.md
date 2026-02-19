@@ -48,27 +48,153 @@ INSERT EDGE follow(degree) VALUES "101" -> "102" @0: (0.8), "102" -> "103" @0: (
 
 ---
 
-## 2. CREATE - 创建数据
+## 2. CREATE - 创建数据（Cypher风格）
 
 ### 功能
-创建节点和边（Cypher风格语法）。
+使用Cypher风格语法创建节点和边，提供更直观、灵活的图数据操作方式。
 
 ### 语法结构
+
+#### 基本语法
 ```cypher
+-- 创建节点（旧格式）
 CREATE (<variable>:<Label> {<prop>: <value>})
+
+-- 创建边（旧格式）
 CREATE (<src>)-[:<EdgeType> {<prop>: <value>}]->(<dst>)
 ```
 
+#### 完整语法（推荐）
+```cypher
+-- 创建节点（支持可选属性）
+CREATE (<variable>:<Label> [{<prop>: <value>, ...}])
+CREATE (:<Label> [{<prop>: <value>, ...}])  -- 无变量
+
+-- 创建边（支持可选属性）
+CREATE (<src>)-[:<EdgeType> [{<prop>: <value>, ...}]]->(<dst>)
+CREATE (<src>)-[:<EdgeType>]-(<dst>)  -- 无向边
+CREATE (<src>)<-[:<EdgeType>]-(<dst>)  -- 反向边
+
+-- 创建路径（节点+边）
+CREATE (<var1>:<Label1> [{props}])-[:<EdgeType> [{props}]]->(<var2>:<Label2> [{props}])
+
+-- 创建多个模式
+CREATE <pattern1>, <pattern2>, ...
+```
+
+> **说明：** 旧格式 `CREATE (n:Label {prop: value})` 仍然完全支持。新格式使用方括号 `[{...}]` 表示属性是可选的，两者在功能上等价。
+
 ### 关键特性
-- Cypher风格语法
-- 支持模式创建
-- 支持变量绑定
-- 支持属性设置
+
+| 特性 | 说明 | 示例 |
+|------|------|------|
+| **Cypher风格语法** | 与Neo4j兼容的语法 | `CREATE (n:Person {name: 'Alice'})` |
+| **Schema自动推断** | 自动创建不存在的Tag和Edge Type | 创建节点时自动创建Person标签 |
+| **多标签支持** | 一个节点可以有多个标签 | `CREATE (n:Person:Employee {...})` |
+| **变量绑定** | 可在后续引用创建的节点 | `CREATE (n)-[:KNOWS]->(m)` |
+| **可选属性** | 节点和边可以没有属性 | `CREATE (n:Person)` |
+| **批量创建** | 支持一次创建多个模式 | `CREATE (a), (b), (c)` |
+| **路径创建** | 同时创建节点和关系 | `CREATE (a)-[:KNOWS]->(b)` |
+
+### Schema自动推断
+
+当使用CREATE语句创建数据时，如果指定的标签或边类型不存在，系统会自动推断并创建Schema：
+
+| 属性值类型 | 推断的Schema类型 | 示例 |
+|------------|------------------|------|
+| 字符串 | STRING | `{name: 'Alice'}` → `name: STRING` |
+| 整数 | INT64 | `{age: 30}` → `age: INT64` |
+| 浮点数 | DOUBLE | `{salary: 50000.50}` → `salary: DOUBLE` |
+| 布尔值 | BOOL | `{active: true}` → `active: BOOL` |
+| 日期时间 | DATETIME | `{created: datetime()}` → `created: DATETIME` |
+
+**注意：**
+- 自动创建的Schema属性默认可空（NULL）
+- 不会自动设置默认值
+- 不会自动添加NOT NULL约束
+- 如需更精确的Schema控制，请使用DDL语句预先定义
+
+### 与NGQL语法对比
+
+| 操作 | Cypher语法 | NGQL语法 |
+|------|------------|----------|
+| 创建节点 | `CREATE (n:Person {name: 'Alice', age: 30})` | `INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30)` |
+| 创建边 | `CREATE (a)-[:KNOWS {since: '2020-01-01'}]->(b)` | `INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2020-01-01')` |
+| 多标签 | `CREATE (n:Person:Employee {...})` | `INSERT VERTEX Person(...), Employee(...) VALUES 1:(...):(...)` |
 
 ### 示例
+
+#### 基本节点创建
 ```cypher
+-- 创建带属性的节点（旧格式）
 CREATE (p:Person {name: 'Alice', age: 25})
-CREATE (a:Person)-[:FRIEND {since: 2020}]->(b:Person)
+
+-- 创建带属性的节点（新格式，属性可选）
+CREATE (p:Person [{name: 'Alice', age: 25}])
+
+-- 创建无属性的节点
+CREATE (p:Person)
+
+-- 创建多标签节点
+CREATE (p:Person:Employee {name: 'Bob', department: 'Engineering'})
+
+-- 创建无变量节点（匿名节点）
+CREATE (:Person {name: 'Charlie'})
+```
+
+#### 边创建
+```cypher
+-- 创建带属性的边（旧格式）
+CREATE (a)-[:KNOWS {since: '2020-01-01', degree: 0.8}]->(b)
+
+-- 创建带属性的边（新格式，属性可选）
+CREATE (a)-[:KNOWS [{since: '2020-01-01', degree: 0.8}]]->(b)
+
+-- 创建无属性的边
+CREATE (a)-[:FRIEND]->(b)
+
+-- 创建双向边
+CREATE (a)-[:COLLEAGUE]-(b)
+
+-- 创建反向边
+CREATE (a)<-[:FOLLOWS]-(b)
+```
+
+#### 路径创建
+```cypher
+-- 创建节点和边（完整路径）
+CREATE (a:Person {name: 'Alice'})-[:KNOWS {since: '2020-01-01'}]->(b:Person {name: 'Bob'})
+
+-- 创建长路径
+CREATE (a:Person)-[:KNOWS]->(b:Person)-[:WORKS_AT]->(c:Company)
+```
+
+#### 批量创建
+```cypher
+-- 创建多个节点
+CREATE (a:Person {name: 'Alice'}), (b:Person {name: 'Bob'}), (c:Person {name: 'Charlie'})
+
+-- 创建多个边
+CREATE (a)-[:KNOWS]->(b), (b)-[:KNOWS]->(c), (c)-[:KNOWS]->(a)
+
+-- 混合创建
+CREATE 
+  (a:Person {name: 'Alice'}),
+  (b:Person {name: 'Bob'}),
+  (a)-[:KNOWS {since: '2020-01-01'}]->(b)
+```
+
+#### 复杂属性
+```cypher
+-- 使用各种数据类型
+CREATE (p:Person {
+  name: 'Alice',
+  age: 30,
+  salary: 50000.50,
+  is_active: true,
+  created_at: datetime(),
+  tags: ['engineer', 'leader']
+})
 ```
 
 ---

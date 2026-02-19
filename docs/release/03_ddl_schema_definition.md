@@ -170,7 +170,117 @@ CREATE EDGE TempRelation(
 
 ---
 
-## 3. CREATE SPACE - 创建图空间
+## 3. Schema 自动创建（Cypher DML 触发）
+
+### 功能
+当使用 Cypher 风格的 `CREATE` 数据语句时，如果指定的标签或边类型不存在，系统会自动推断并创建对应的 Schema。
+
+### 触发条件
+- 使用 `CREATE (n:Label {...})` 创建节点时，如果 `Label` 不存在
+- 使用 `CREATE ()-[:Type {...}]->()` 创建边时，如果 `Type` 不存在
+
+### 自动推断规则
+
+#### 数据类型推断
+| 属性值示例 | 推断的数据类型 | 说明 |
+|------------|----------------|------|
+| `'Alice'` | STRING | 字符串值 |
+| `30` | INT64 | 整数值 |
+| `30.5` | DOUBLE | 浮点数值 |
+| `true` / `false` | BOOL | 布尔值 |
+| `datetime()` | DATETIME | 日期时间函数 |
+| `date()` | DATE | 日期函数 |
+| `timestamp()` | TIMESTAMP | 时间戳函数 |
+
+#### Schema 特性
+| 特性 | 自动创建行为 | 说明 |
+|------|--------------|------|
+| 属性约束 | 默认可空（NULL） | 不添加 NOT NULL 约束 |
+| 默认值 | 无默认值 | 不设置 DEFAULT 值 |
+| 注释 | 无注释 | 不添加 COMMENT |
+| TTL | 禁用 | 不设置 ttl_duration 和 ttl_col |
+
+### 示例
+
+#### 自动创建标签
+```cypher
+-- 创建节点，自动创建 Person 标签
+CREATE (n:Person {name: 'Alice', age: 30, salary: 50000.50})
+
+-- 自动创建的 Schema:
+-- CREATE TAG Person(
+--   name: STRING,
+--   age: INT64,
+--   salary: DOUBLE
+-- )
+```
+
+#### 自动创建边类型
+```cypher
+-- 创建边，自动创建 KNOWS 边类型
+CREATE (a)-[:KNOWS {since: '2020-01-01', degree: 0.8}]->(b)
+
+-- 自动创建的 Schema:
+-- CREATE EDGE KNOWS(
+--   since: STRING,
+--   degree: DOUBLE
+-- )
+```
+
+#### 自动创建多标签
+```cypher
+-- 创建多标签节点
+CREATE (n:Person:Employee {name: 'Bob', department: 'Engineering'})
+
+-- 自动创建两个标签:
+-- CREATE TAG Person(name: STRING)
+-- CREATE TAG Employee(name: STRING, department: STRING)
+```
+
+### 注意事项
+
+1. **类型推断的局限性**
+   - 所有字符串都推断为 STRING，不会自动使用 VARCHAR
+   - 所有整数都推断为 INT64，不会使用 INT8/INT16/INT32
+   - 如需更精确的类型控制，请使用 DDL 预先定义 Schema
+
+2. **约束缺失**
+   - 自动创建的属性都是可空的
+   - 不会自动设置默认值
+   - 不会自动添加 NOT NULL 约束
+   - 如需约束，请使用 ALTER TAG/EDGE 修改
+
+3. **性能考虑**
+   - Schema 自动创建需要额外的元数据操作
+   - 大批量数据导入时，建议先使用 DDL 创建 Schema
+   - 自动创建适合交互式查询和小批量数据操作
+
+4. **命名规范**
+   - 自动创建的 Schema 名称与 Cypher 语句中的标签/边类型名称一致
+   - 遵循标识符命名规范（区分大小写）
+
+### 与显式 DDL 的对比
+
+| 特性 | Schema 自动创建 | 显式 DDL |
+|------|-----------------|----------|
+| 使用场景 | 交互式查询、快速原型 | 生产环境、大批量导入 |
+| 类型控制 | 自动推断 | 精确指定 |
+| 约束支持 | 仅默认可空 | 完整约束支持 |
+| 性能 | 稍慢（需元数据操作） | 更快（无运行时创建） |
+| 灵活性 | 高 | 中 |
+
+### 最佳实践
+
+1. **开发阶段**：可以使用 Schema 自动创建快速迭代
+2. **测试阶段**：建议使用显式 DDL 确保 Schema 稳定性
+3. **生产阶段**：
+   - 使用显式 DDL 预先定义所有 Schema
+   - 禁用 Schema 自动创建（如支持该配置）
+   - 使用版本控制管理 Schema 变更
+
+---
+
+## 4. CREATE SPACE - 创建图空间
 
 ### 功能
 创建图空间（数据库实例）。
@@ -198,7 +308,7 @@ CREATE SPACE test_space(vid_type=FIXEDSTRING32, partition_num=10, replica_factor
 
 ---
 
-## 4. CREATE INDEX - 创建索引
+## 5. CREATE INDEX - 创建索引
 
 ### 功能
 在标签或边类型上创建索引。
@@ -216,7 +326,7 @@ CREATE INDEX idx_follow_degree ON follow(degree)
 
 ---
 
-## 5. ALTER TAG - 修改标签
+## 6. ALTER TAG - 修改标签
 
 ### 功能
 修改标签定义。
@@ -243,7 +353,7 @@ ALTER TAG person CHANGE (old_name new_name: STRING)
 
 ---
 
-## 6. ALTER EDGE - 修改边类型
+## 7. ALTER EDGE - 修改边类型
 
 ### 功能
 修改边类型定义。
@@ -269,7 +379,7 @@ ALTER EDGE follow DROP (old_field)
 
 ---
 
-## 7. DROP TAG - 删除标签
+## 8. DROP TAG - 删除标签
 
 ### 功能
 删除标签定义。
@@ -291,7 +401,7 @@ DROP TAG IF EXISTS person, company
 
 ---
 
-## 8. DROP EDGE - 删除边类型
+## 9. DROP EDGE - 删除边类型
 
 ### 功能
 删除边类型定义。
@@ -313,7 +423,7 @@ DROP EDGE IF EXISTS follow, like
 
 ---
 
-## 9. DROP SPACE - 删除图空间
+## 10. DROP SPACE - 删除图空间
 
 ### 功能
 删除图空间。
@@ -330,7 +440,7 @@ DROP SPACE IF EXISTS test_space
 
 ---
 
-## 10. DROP INDEX - 删除索引
+## 11. DROP INDEX - 删除索引
 
 ### 功能
 删除索引。
@@ -350,7 +460,7 @@ DROP TAG INDEX idx_person_name ON test_space
 
 ---
 
-## 11. DESC/DESCRIBE - 描述对象
+## 12. DESC/DESCRIBE - 描述对象
 
 ### 功能
 显示标签、边类型或用户的定义。
@@ -376,7 +486,7 @@ DESCRIBE SPACE test_space
 
 ---
 
-## 12. SHOW - 显示信息
+## 13. SHOW - 显示信息
 
 ### 功能
 显示数据库中的各种信息。
@@ -398,7 +508,7 @@ SHOW EDGES
 
 ---
 
-## 13. SHOW CREATE - 显示创建语句
+## 14. SHOW CREATE - 显示创建语句
 
 ### 功能
 显示对象的完整创建语句（DDL），便于查看对象定义或迁移数据。

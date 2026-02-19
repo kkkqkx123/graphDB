@@ -18,6 +18,7 @@ pub mod seeks;
 pub mod statement_planner;
 pub mod match_statement_planner;
 
+pub mod create_planner;
 pub mod fetch_edges_planner;
 pub mod fetch_vertices_planner;
 pub mod go_planner;

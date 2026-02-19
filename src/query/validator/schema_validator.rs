@@ -306,6 +306,149 @@ impl<'a> SchemaValidator<'a> {
             )),
         }
     }
+
+    /// 自动创建 Tag（如果不存在）
+    /// 根据提供的属性推断 Tag 的 Schema
+    pub fn auto_create_tag(
+        &self,
+        space_name: &str,
+        tag_name: &str,
+        properties: &[(String, Value)],
+    ) -> Result<TagInfo, CoreValidationError> {
+        // 检查 Tag 是否已存在
+        if let Some(existing) = self.schema_manager.get_tag(space_name, tag_name)
+            .map_err(|e| CoreValidationError::new(
+                format!("获取 Tag 失败: {}", e),
+                ValidationErrorType::SemanticError,
+            ))? {
+            return Ok(existing);
+        }
+
+        // 根据属性值推断属性类型
+        let mut prop_defs = Vec::new();
+        for (prop_name, value) in properties {
+            let data_type = Self::infer_data_type(value);
+            let prop_def = PropertyDef::new(prop_name.clone(), data_type)
+                .with_nullable(true); // 自动创建的属性默认可为空
+            prop_defs.push(prop_def);
+        }
+
+        // 创建 TagInfo
+        let tag_info = TagInfo {
+            tag_id: 0, // 由存储层分配
+            tag_name: tag_name.to_string(),
+            properties: prop_defs,
+            comment: Some(format!("Auto-created for Cypher CREATE")),
+            ttl_duration: None,
+            ttl_col: None,
+        };
+
+        // 创建 Tag
+        self.schema_manager.create_tag(space_name, &tag_info)
+            .map_err(|e| CoreValidationError::new(
+                format!("创建 Tag '{}' 失败: {}", tag_name, e),
+                ValidationErrorType::SemanticError,
+            ))?;
+
+        Ok(tag_info)
+    }
+
+    /// 自动创建 Edge Type（如果不存在）
+    /// 根据提供的属性推断 Edge Type 的 Schema
+    pub fn auto_create_edge_type(
+        &self,
+        space_name: &str,
+        edge_type_name: &str,
+        properties: &[(String, Value)],
+    ) -> Result<EdgeTypeInfo, CoreValidationError> {
+        // 检查 Edge Type 是否已存在
+        if let Some(existing) = self.schema_manager.get_edge_type(space_name, edge_type_name)
+            .map_err(|e| CoreValidationError::new(
+                format!("获取 Edge Type 失败: {}", e),
+                ValidationErrorType::SemanticError,
+            ))? {
+            return Ok(existing);
+        }
+
+        // 根据属性值推断属性类型
+        let mut prop_defs = Vec::new();
+        for (prop_name, value) in properties {
+            let data_type = Self::infer_data_type(value);
+            let prop_def = PropertyDef::new(prop_name.clone(), data_type)
+                .with_nullable(true); // 自动创建的属性默认可为空
+            prop_defs.push(prop_def);
+        }
+
+        // 创建 EdgeTypeInfo
+        let edge_info = EdgeTypeInfo {
+            edge_type_id: 0, // 由存储层分配
+            edge_type_name: edge_type_name.to_string(),
+            properties: prop_defs,
+            comment: Some(format!("Auto-created for Cypher CREATE")),
+            ttl_duration: None,
+            ttl_col: None,
+        };
+
+        // 创建 Edge Type
+        self.schema_manager.create_edge_type(space_name, &edge_info)
+            .map_err(|e| CoreValidationError::new(
+                format!("创建 Edge Type '{}' 失败: {}", edge_type_name, e),
+                ValidationErrorType::SemanticError,
+            ))?;
+
+        Ok(edge_info)
+    }
+
+    /// 根据 Value 推断 DataType
+    fn infer_data_type(value: &Value) -> DataType {
+        match value {
+            Value::Null(_) => DataType::String, // 默认为字符串类型
+            Value::Bool(_) => DataType::Bool,
+            Value::Int(_) => DataType::Int64,
+            Value::Float(_) => DataType::Double,
+            Value::String(s) => {
+                // 根据字符串长度选择 FixedString 或 String
+                if s.len() <= 256 {
+                    DataType::FixedString(s.len().max(32))
+                } else {
+                    DataType::String
+                }
+            }
+            Value::List(_) => DataType::List,
+            Value::Map(_) => DataType::Map,
+            Value::Date(_) => DataType::Date,
+            Value::DateTime(_) => DataType::DateTime,
+            _ => DataType::String, // 默认为字符串类型
+        }
+    }
+
+    /// 批量自动创建缺失的 Tags
+    pub fn auto_create_missing_tags(
+        &self,
+        space_name: &str,
+        tags: &[(String, Vec<(String, Value)>)],
+    ) -> Result<Vec<TagInfo>, CoreValidationError> {
+        let mut created = Vec::new();
+        for (tag_name, properties) in tags {
+            let tag_info = self.auto_create_tag(space_name, tag_name, properties)?;
+            created.push(tag_info);
+        }
+        Ok(created)
+    }
+
+    /// 批量自动创建缺失的 Edge Types
+    pub fn auto_create_missing_edge_types(
+        &self,
+        space_name: &str,
+        edge_types: &[(String, Vec<(String, Value)>)],
+    ) -> Result<Vec<EdgeTypeInfo>, CoreValidationError> {
+        let mut created = Vec::new();
+        for (edge_type_name, properties) in edge_types {
+            let edge_info = self.auto_create_edge_type(space_name, edge_type_name, properties)?;
+            created.push(edge_info);
+        }
+        Ok(created)
+    }
 }
 
 #[cfg(test)]
