@@ -7,9 +7,10 @@ use crate::core::Value;
 use crate::query::context::ast::AstContext;
 use crate::query::context::execution::QueryContext;
 use crate::query::parser::ast::stmt::{InsertStmt, InsertTarget, TagInsertSpec, VertexRow};
-use crate::query::validator::base_validator::{Validator, ValueType};
-use crate::query::validator::schema_validator::SchemaValidator;
+use crate::query::context::validate::ValidationContext;
+use crate::query::validator::core::{ColumnDef, StatementType, StatementValidator};
 use crate::storage::metadata::schema_manager::SchemaManager;
+use crate::core::error::ValidationError;
 
 /// 验证后的顶点插入信息
 #[derive(Debug, Clone)]
@@ -36,15 +37,19 @@ pub struct ValidatedVertex {
 }
 
 pub struct InsertVerticesValidator<'a> {
-    base: Validator,
     schema_validator: Option<SchemaValidator<'a>>,
+    inputs: Vec<ColumnDef>,
+    outputs: Vec<ColumnDef>,
 }
+
+use crate::query::validator::schema_validator::SchemaValidator;
 
 impl<'a> InsertVerticesValidator<'a> {
     pub fn new() -> Self {
         Self {
-            base: Validator::new(),
             schema_validator: None,
+            inputs: Vec::new(),
+            outputs: Vec::new(),
         }
     }
 
@@ -390,7 +395,7 @@ impl<'a> InsertVerticesValidator<'a> {
     ) -> Result<Vec<Value>, CoreValidationError> {
         let mut result = Vec::new();
 
-        for (_prop_idx, (prop_name, value_expr)) in
+        for (prop_idx, (prop_name, value_expr)) in
             prop_names.iter().zip(prop_values.iter()).enumerate()
         {
             // 评估表达式
@@ -416,13 +421,39 @@ impl<'a> InsertVerticesValidator<'a> {
     }
 
     fn generate_output_columns(&mut self, _ast: &mut AstContext) {
-        self.base.add_output("INSERTED_VERTICES".to_string(), ValueType::List);
+        self.add_output(ColumnDef::new("INSERTED_VERTICES", crate::core::DataType::List));
     }
 }
 
 impl Default for InsertVerticesValidator<'_> {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl StatementValidator for InsertVerticesValidator<'_> {
+    fn validate(&mut self, _ctx: &mut ValidationContext) -> Result<(), ValidationError> {
+        Ok(())
+    }
+
+    fn statement_type(&self) -> StatementType {
+        StatementType::Insert
+    }
+
+    fn inputs(&self) -> &[ColumnDef] {
+        &self.inputs
+    }
+
+    fn outputs(&self) -> &[ColumnDef] {
+        &self.outputs
+    }
+
+    fn add_input(&mut self, col: ColumnDef) {
+        self.inputs.push(col);
+    }
+
+    fn add_output(&mut self, col: ColumnDef) {
+        self.outputs.push(col);
     }
 }
 

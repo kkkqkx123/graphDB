@@ -2,12 +2,11 @@
 //! 对应 NebulaGraph FindPathValidator.h/.cpp 的功能
 //! 验证 FIND PATH 语句的合法性
 
-use super::base_validator::Validator;
-use super::ValidationContext;
+use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::Expression;
 use crate::core::types::EdgeDirection;
-use crate::query::validator::ValidationError;
-use crate::query::validator::ValidationErrorType;
+use crate::query::context::validate::ValidationContext;
+use crate::query::validator::core::{ColumnDef, StatementType, StatementValidator};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -27,7 +26,7 @@ pub struct FindPathConfig {
     pub direction: EdgeDirection,
     pub with_props: bool,
     pub limit: Option<i64>,
-    pub yield_columns: Vec<super::structs::YieldColumn>,
+    pub yield_columns: Vec<crate::query::validator::structs::YieldColumn>,
     pub weight_expression: Option<String>,
     pub heuristic_expression: Option<String>,
 }
@@ -41,10 +40,12 @@ pub enum PathEdgeDirection {
 
 pub struct FindPathValidator {
     config: FindPathConfig,
+    inputs: Vec<ColumnDef>,
+    outputs: Vec<ColumnDef>,
 }
 
 impl FindPathValidator {
-    pub fn new(_context: ValidationContext) -> Self {
+    pub fn new() -> Self {
         Self {
             config: FindPathConfig {
                 path_pattern: PathPattern::AllPaths,
@@ -52,13 +53,15 @@ impl FindPathValidator {
                 dst_vertices: Vec::new(),
                 steps: None,
                 edge_types: Vec::new(),
-                direction: crate::core::types::EdgeDirection::Out,
+                direction: EdgeDirection::Out,
                 with_props: false,
                 limit: None,
                 yield_columns: Vec::new(),
                 weight_expression: None,
                 heuristic_expression: None,
             },
+            inputs: Vec::new(),
+            outputs: Vec::new(),
         }
     }
 
@@ -131,8 +134,6 @@ impl FindPathValidator {
 
     fn validate_weight_expression(&self) -> Result<(), ValidationError> {
         if let Some(ref weight_expr) = self.config.weight_expression {
-            // 验证权重表达式格式
-            // 支持: "ranking" 或属性名
             let expr_lower = weight_expr.to_lowercase();
             if expr_lower != "ranking" && expr_lower.is_empty() {
                 return Err(ValidationError::new(
@@ -211,7 +212,7 @@ impl FindPathValidator {
         self.config.limit = Some(limit);
     }
 
-    pub fn add_yield_column(&mut self, col: super::structs::YieldColumn) {
+    pub fn add_yield_column(&mut self, col: crate::query::validator::structs::YieldColumn) {
         self.config.yield_columns.push(col);
     }
 
@@ -232,13 +233,34 @@ impl FindPathValidator {
     }
 }
 
-impl Validator {
-    pub fn validate_find_path(
-        &mut self,
-        config: FindPathConfig,
-    ) -> Result<(), ValidationError> {
-        let mut validator = FindPathValidator::new(self.context().clone());
-        validator.config = config;
-        validator.validate()
+impl Default for FindPathValidator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl StatementValidator for FindPathValidator {
+    fn validate(&mut self, _ctx: &mut ValidationContext) -> Result<(), ValidationError> {
+        self.validate()
+    }
+
+    fn statement_type(&self) -> StatementType {
+        StatementType::FindPath
+    }
+
+    fn inputs(&self) -> &[ColumnDef] {
+        &self.inputs
+    }
+
+    fn outputs(&self) -> &[ColumnDef] {
+        &self.outputs
+    }
+
+    fn add_input(&mut self, col: ColumnDef) {
+        self.inputs.push(col);
+    }
+
+    fn add_output(&mut self, col: ColumnDef) {
+        self.outputs.push(col);
     }
 }

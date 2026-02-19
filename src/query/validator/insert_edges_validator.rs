@@ -6,16 +6,20 @@ use crate::core::error::{DBResult, ValidationError as CoreValidationError, Valid
 use crate::query::context::ast::AstContext;
 use crate::query::context::execution::QueryContext;
 use crate::query::parser::ast::stmt::InsertStmt;
-use crate::query::validator::base_validator::{Validator, ValueType};
+use crate::query::context::validate::ValidationContext;
+use crate::query::validator::core::{ColumnDef, StatementType, StatementValidator};
+use crate::core::error::ValidationError;
 
 pub struct InsertEdgesValidator {
-    base: Validator,
+    inputs: Vec<ColumnDef>,
+    outputs: Vec<ColumnDef>,
 }
 
 impl InsertEdgesValidator {
     pub fn new() -> Self {
         Self {
-            base: Validator::new(),
+            inputs: Vec::new(),
+            outputs: Vec::new(),
         }
     }
 
@@ -158,18 +162,14 @@ impl InsertEdgesValidator {
 
     fn validate_property_values(
         &self,
-        edge_name: &str,
-        prop_names: &[String],
+        _edge_name: &str,
+        _prop_names: &[String],
         values: &[crate::core::Expression],
     ) -> Result<(), CoreValidationError> {
-        for (prop_idx, value) in values.iter().enumerate() {
-            if let Err(e) = self.validate_property_value(edge_name, &prop_names[prop_idx], value) {
+        for (_prop_idx, value) in values.iter().enumerate() {
+            if let Err(e) = self.validate_property_value(value) {
                 return Err(CoreValidationError::new(
-                    format!(
-                        "Error in edge property '{}': {}",
-                        prop_names[prop_idx],
-                        e.message
-                    ),
+                    format!("Error in edge property: {}", e.message),
                     e.error_type,
                 ));
             }
@@ -179,8 +179,6 @@ impl InsertEdgesValidator {
 
     fn validate_property_value(
         &self,
-        _edge_name: &str,
-        _prop_name: &str,
         value: &crate::core::Expression,
     ) -> Result<(), CoreValidationError> {
         match value {
@@ -200,13 +198,39 @@ impl InsertEdgesValidator {
     }
 
     fn generate_output_columns(&mut self, _ast: &mut AstContext) {
-        self.base.add_output("INSERTED_EDGES".to_string(), ValueType::List);
+        self.add_output(ColumnDef::new("INSERTED_EDGES", crate::core::DataType::List));
     }
 }
 
 impl Default for InsertEdgesValidator {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl StatementValidator for InsertEdgesValidator {
+    fn validate(&mut self, _ctx: &mut ValidationContext) -> Result<(), ValidationError> {
+        Ok(())
+    }
+
+    fn statement_type(&self) -> StatementType {
+        StatementType::Insert
+    }
+
+    fn inputs(&self) -> &[ColumnDef] {
+        &self.inputs
+    }
+
+    fn outputs(&self) -> &[ColumnDef] {
+        &self.outputs
+    }
+
+    fn add_input(&mut self, col: ColumnDef) {
+        self.inputs.push(col);
+    }
+
+    fn add_output(&mut self, col: ColumnDef) {
+        self.outputs.push(col);
     }
 }
 

@@ -2,12 +2,11 @@
 //! 对应 NebulaGraph DeleteValidator 的功能
 //! 验证 DELETE 语句的语义正确性
 
-use crate::core::error::{DBResult, ValidationError as CoreValidationError, ValidationErrorType};
+use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::{Expression, Value};
-use crate::query::context::ast::AstContext;
-use crate::query::context::execution::QueryContext;
+use crate::query::context::validate::ValidationContext;
 use crate::query::parser::ast::stmt::{DeleteStmt, DeleteTarget};
-use crate::query::validator::base_validator::{Validator, ValueType};
+use crate::query::validator::core::{ColumnDef, StatementType, StatementValidator};
 use crate::query::validator::schema_validator::SchemaValidator;
 use crate::storage::metadata::schema_manager::SchemaManager;
 
@@ -45,22 +44,42 @@ pub struct EdgeKey {
     pub rank: i64,
 }
 
+/// DELETE 语句验证器
 pub struct DeleteValidator<'a> {
-    base: Validator,
     schema_validator: Option<SchemaValidator<'a>>,
+    stmt: Option<DeleteStmt>,
+    inputs: Vec<ColumnDef>,
+    outputs: Vec<ColumnDef>,
+    validated_result: Option<ValidatedDelete>,
 }
 
 impl<'a> DeleteValidator<'a> {
+    /// 创建新的验证器
     pub fn new() -> Self {
         Self {
-            base: Validator::new(),
             schema_validator: None,
+            stmt: None,
+            inputs: Vec::new(),
+            outputs: Vec::new(),
+            validated_result: None,
         }
     }
 
+    /// 设置 Schema 管理器
     pub fn with_schema_manager(mut self, schema_manager: &'a dyn SchemaManager) -> Self {
         self.schema_validator = Some(SchemaValidator::new(schema_manager));
         self
+    }
+
+    /// 设置要验证的语句
+    pub fn with_statement(mut self, stmt: DeleteStmt) -> Self {
+        self.stmt = Some(stmt);
+        self
+    }
+
+    /// 获取验证结果
+    pub fn validated_result(&self) -> Option<&ValidatedDelete> {
+        self.validated_result.as_ref()
     }
 
     /// 验证 DELETE 语句并返回验证后的信息
@@ -68,12 +87,12 @@ impl<'a> DeleteValidator<'a> {
         &mut self,
         stmt: &DeleteStmt,
         space_name: &str,
-    ) -> Result<ValidatedDelete, CoreValidationError> {
+    ) -> Result<ValidatedDelete, ValidationError> {
         // 基础验证（不依赖 schema_validator）
-        self.validate(stmt)?;
+        self.validate_basic(stmt)?;
 
         let schema_validator = self.schema_validator.as_ref().ok_or_else(|| {
-            CoreValidationError::new(
+            ValidationError::new(
                 "Schema validator not initialized".to_string(),
                 ValidationErrorType::SemanticError,
             )
@@ -83,13 +102,13 @@ impl<'a> DeleteValidator<'a> {
             .schema_manager
             .get_space(space_name)
             .map_err(|e| {
-                CoreValidationError::new(
+                ValidationError::new(
                     format!("Failed to get space '{}': {}", space_name, e),
                     ValidationErrorType::SemanticError,
                 )
             })?
             .ok_or_else(|| {
-                CoreValidationError::new(
+                ValidationError::new(
                     format!("Space '{}' not found", space_name),
                     ValidationErrorType::SemanticError,
                 )
@@ -108,40 +127,18 @@ impl<'a> DeleteValidator<'a> {
     }
 
     /// 基础验证（不依赖 Schema）
-    pub fn validate(&mut self, stmt: &DeleteStmt) -> Result<(), CoreValidationError> {
+    pub fn validate_basic(&self, stmt: &DeleteStmt) -> Result<(), ValidationError> {
         self.validate_target(&stmt.target)?;
         self.validate_where_clause(stmt.where_clause.as_ref())?;
         Ok(())
     }
 
-    /// 完整验证（包含 AST 上下文）
-    pub fn validate_with_ast(
-        &mut self,
-        stmt: &DeleteStmt,
-        _query_context: Option<&QueryContext>,
-        ast: &mut AstContext,
-    ) -> DBResult<()> {
-        self.validate_space_chosen(ast)?;
-        self.validate(stmt)?;
-        self.generate_output_columns(ast);
-        Ok(())
-    }
-
-    fn validate_space_chosen(&self, ast: &AstContext) -> Result<(), CoreValidationError> {
-        if ast.space().space_id.is_none() {
-            return Err(CoreValidationError::new(
-                "No space selected. Use `USE <space>` to select a graph space first.".to_string(),
-                ValidationErrorType::SemanticError,
-            ));
-        }
-        Ok(())
-    }
-
-    fn validate_target(&self, target: &DeleteTarget) -> Result<(), CoreValidationError> {
+    /// 验证目标
+    fn validate_target(&self, target: &DeleteTarget) -> Result<(), ValidationError> {
         match target {
             DeleteTarget::Vertices(vids) => {
                 if vids.is_empty() {
-                    return Err(CoreValidationError::new(
+                    return Err(ValidationError::new(
                         "DELETE VERTICES must specify at least one vertex".to_string(),
                         ValidationErrorType::SemanticError,
                     ));
@@ -160,7 +157,7 @@ impl<'a> DeleteValidator<'a> {
                 }
                 if let Some(et) = edge_type {
                     if et.is_empty() {
-                        return Err(CoreValidationError::new(
+                        return Err(ValidationError::new(
                             "Edge type name cannot be empty".to_string(),
                             ValidationErrorType::SemanticError,
                         ));
@@ -170,21 +167,21 @@ impl<'a> DeleteValidator<'a> {
             DeleteTarget::Tags { tag_names, vertex_ids, is_all_tags } => {
                 // 如果不是删除所有 Tag，则需要指定至少一个 Tag 名
                 if !is_all_tags && tag_names.is_empty() {
-                    return Err(CoreValidationError::new(
+                    return Err(ValidationError::new(
                         "DELETE TAG must specify at least one tag name or use *".to_string(),
                         ValidationErrorType::SemanticError,
                     ));
                 }
                 for tag_name in tag_names {
                     if tag_name.is_empty() {
-                        return Err(CoreValidationError::new(
+                        return Err(ValidationError::new(
                             "Tag name cannot be empty".to_string(),
                             ValidationErrorType::SemanticError,
                         ));
                     }
                 }
                 if vertex_ids.is_empty() {
-                    return Err(CoreValidationError::new(
+                    return Err(ValidationError::new(
                         "DELETE TAG must specify at least one vertex ID".to_string(),
                         ValidationErrorType::SemanticError,
                     ));
@@ -195,7 +192,7 @@ impl<'a> DeleteValidator<'a> {
             }
             DeleteTarget::Index(index_name) => {
                 if index_name.is_empty() {
-                    return Err(CoreValidationError::new(
+                    return Err(ValidationError::new(
                         "Index name cannot be empty".to_string(),
                         ValidationErrorType::SemanticError,
                     ));
@@ -209,9 +206,9 @@ impl<'a> DeleteValidator<'a> {
     fn validate_and_convert_target_with_schema(
         &self,
         target: &DeleteTarget,
-        vid_type: &crate::core::types::DataType,
+        vid_type: &crate::core::DataType,
         schema_validator: &SchemaValidator,
-    ) -> Result<DeleteTargetType, CoreValidationError> {
+    ) -> Result<DeleteTargetType, ValidationError> {
         match target {
             DeleteTarget::Vertices(vids) => {
                 let mut validated_vids = Vec::new();
@@ -232,7 +229,7 @@ impl<'a> DeleteValidator<'a> {
                     let edge_info = schema_validator
                         .get_edge_type("", et)
                         .map_err(|e| {
-                            CoreValidationError::new(
+                            ValidationError::new(
                                 format!("Failed to get edge type '{}': {}", et, e),
                                 ValidationErrorType::SemanticError,
                             )
@@ -285,7 +282,7 @@ impl<'a> DeleteValidator<'a> {
                         let tag_info = schema_validator
                             .get_tag("", tag_name)
                             .map_err(|e| {
-                                CoreValidationError::new(
+                                ValidationError::new(
                                     format!("Failed to get tag '{}': {}", tag_name, e),
                                     ValidationErrorType::SemanticError,
                                 )
@@ -318,11 +315,11 @@ impl<'a> DeleteValidator<'a> {
         }
     }
 
-    fn validate_vertex_id(&self, expr: &Expression, idx: usize) -> Result<(), CoreValidationError> {
+    fn validate_vertex_id(&self, expr: &Expression, idx: usize) -> Result<(), ValidationError> {
         match expr {
             Expression::Literal(crate::core::Value::String(s)) => {
                 if s.is_empty() {
-                    return Err(CoreValidationError::new(
+                    return Err(ValidationError::new(
                         format!("Vertex ID at position {} cannot be empty", idx + 1),
                         ValidationErrorType::SemanticError,
                     ));
@@ -331,7 +328,7 @@ impl<'a> DeleteValidator<'a> {
             }
             Expression::Literal(crate::core::Value::Int(_)) => Ok(()),
             Expression::Variable(_) => Ok(()),
-            _ => Err(CoreValidationError::new(
+            _ => Err(ValidationError::new(
                 format!(
                     "Vertex ID at position {} must be a string constant or variable",
                     idx + 1
@@ -345,14 +342,14 @@ impl<'a> DeleteValidator<'a> {
     fn validate_and_evaluate_vid(
         &self,
         vid_expr: &Expression,
-        vid_type: &crate::core::types::DataType,
+        vid_type: &crate::core::DataType,
         schema_validator: &SchemaValidator,
         idx: usize,
-    ) -> Result<Value, CoreValidationError> {
+    ) -> Result<Value, ValidationError> {
         let vid = schema_validator
             .evaluate_expression(vid_expr)
             .map_err(|e| {
-                CoreValidationError::new(
+                ValidationError::new(
                     format!("Failed to evaluate vertex ID at position {}: {}", idx, e.message),
                     e.error_type,
                 )
@@ -361,7 +358,7 @@ impl<'a> DeleteValidator<'a> {
         schema_validator
             .validate_vid(&vid, vid_type)
             .map_err(|e| {
-                CoreValidationError::new(
+                ValidationError::new(
                     format!("Invalid vertex ID at position {}: {}", idx, e.message),
                     e.error_type,
                 )
@@ -370,11 +367,11 @@ impl<'a> DeleteValidator<'a> {
         Ok(vid)
     }
 
-    fn validate_rank(&self, expr: &Expression) -> Result<(), CoreValidationError> {
+    fn validate_rank(&self, expr: &Expression) -> Result<(), ValidationError> {
         match expr {
             Expression::Literal(crate::core::Value::Int(_)) => Ok(()),
             Expression::Variable(_) => Ok(()),
-            _ => Err(CoreValidationError::new(
+            _ => Err(ValidationError::new(
                 "Rank must be an integer constant or variable".to_string(),
                 ValidationErrorType::SemanticError,
             )),
@@ -386,11 +383,11 @@ impl<'a> DeleteValidator<'a> {
         &self,
         expr: &Expression,
         schema_validator: &SchemaValidator,
-    ) -> Result<i64, CoreValidationError> {
+    ) -> Result<i64, ValidationError> {
         let value = schema_validator
             .evaluate_expression(expr)
             .map_err(|e| {
-                CoreValidationError::new(
+                ValidationError::new(
                     format!("Failed to evaluate rank: {}", e.message),
                     e.error_type,
                 )
@@ -398,7 +395,7 @@ impl<'a> DeleteValidator<'a> {
 
         match value {
             Value::Int(i) => Ok(i),
-            _ => Err(CoreValidationError::new(
+            _ => Err(ValidationError::new(
                 "Rank must be an integer".to_string(),
                 ValidationErrorType::TypeMismatch,
             )),
@@ -408,14 +405,14 @@ impl<'a> DeleteValidator<'a> {
     fn validate_where_clause(
         &self,
         where_clause: Option<&Expression>,
-    ) -> Result<(), CoreValidationError> {
+    ) -> Result<(), ValidationError> {
         if let Some(where_expr) = where_clause {
             self.validate_expression(where_expr)?;
         }
         Ok(())
     }
 
-    fn validate_expression(&self, expr: &Expression) -> Result<(), CoreValidationError> {
+    fn validate_expression(&self, expr: &Expression) -> Result<(), ValidationError> {
         match expr {
             Expression::Literal(_) => Ok(()),
             Expression::Variable(_) => Ok(()),
@@ -435,15 +432,65 @@ impl<'a> DeleteValidator<'a> {
             _ => Ok(()),
         }
     }
-
-    fn generate_output_columns(&mut self, _ast: &mut AstContext) {
-        self.base.add_output("DELETED".to_string(), ValueType::Bool);
-    }
 }
 
 impl Default for DeleteValidator<'_> {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl StatementValidator for DeleteValidator<'_> {
+    fn validate(&mut self, ctx: &mut ValidationContext) -> Result<(), ValidationError> {
+        let stmt = self.stmt.as_ref().ok_or_else(|| {
+            ValidationError::new(
+                "DELETE statement not set".to_string(),
+                ValidationErrorType::SemanticError,
+            )
+        })?;
+
+        // 检查是否选择了图空间
+        if ctx.space().space_id.is_none() {
+            return Err(ValidationError::new(
+                "No space selected. Use `USE <space>` to select a graph space first.".to_string(),
+                ValidationErrorType::SemanticError,
+            ));
+        }
+
+        let space_name = ctx.space().name.as_str();
+
+        match self.validate_with_schema(stmt, space_name) {
+            Ok(result) => {
+                self.validated_result = Some(result);
+                // 添加输出列
+                self.add_output(ColumnDef::new("DELETED", crate::core::DataType::Bool));
+                Ok(())
+            }
+            Err(e) => {
+                ctx.add_error(e.clone());
+                Err(e)
+            }
+        }
+    }
+
+    fn statement_type(&self) -> StatementType {
+        StatementType::Delete
+    }
+
+    fn inputs(&self) -> &[ColumnDef] {
+        &self.inputs
+    }
+
+    fn outputs(&self) -> &[ColumnDef] {
+        &self.outputs
+    }
+
+    fn add_input(&mut self, col: ColumnDef) {
+        self.inputs.push(col);
+    }
+
+    fn add_output(&mut self, col: ColumnDef) {
+        self.outputs.push(col);
     }
 }
 
@@ -543,9 +590,9 @@ mod tests {
 
     #[test]
     fn test_validate_vertices_empty_list() {
-        let mut validator = DeleteValidator::new();
+        let validator = DeleteValidator::new();
         let stmt = create_delete_stmt(DeleteTarget::Vertices(vec![]), None);
-        let result = validator.validate(&stmt);
+        let result = validator.validate_basic(&stmt);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert_eq!(err.message, "DELETE VERTICES must specify at least one vertex");
@@ -553,40 +600,40 @@ mod tests {
 
     #[test]
     fn test_validate_vertices_valid() {
-        let mut validator = DeleteValidator::new();
+        let validator = DeleteValidator::new();
         let stmt = create_delete_stmt(
             DeleteTarget::Vertices(vec![
-                Expression::literal("v1"),
-                Expression::literal("v2"),
+                Expression::Literal(crate::core::Value::String("v1".to_string())),
+                Expression::Literal(crate::core::Value::String("v2".to_string())),
             ]),
             None,
         );
-        let result = validator.validate(&stmt);
+        let result = validator.validate_basic(&stmt);
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_validate_vertices_with_variable() {
-        let mut validator = DeleteValidator::new();
+        let validator = DeleteValidator::new();
         let stmt = create_delete_stmt(
-            DeleteTarget::Vertices(vec![Expression::variable("$vids")]),
+            DeleteTarget::Vertices(vec![Expression::Variable("$vids".to_string())]),
             None,
         );
-        let result = validator.validate(&stmt);
+        let result = validator.validate_basic(&stmt);
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_validate_vertex_id_empty() {
-        let mut validator = DeleteValidator::new();
+        let validator = DeleteValidator::new();
         let stmt = create_delete_stmt(
             DeleteTarget::Vertices(vec![
-                Expression::literal("v1"),
-                Expression::literal(""),
+                Expression::Literal(crate::core::Value::String("v1".to_string())),
+                Expression::Literal(crate::core::Value::String("".to_string())),
             ]),
             None,
         );
-        let result = validator.validate(&stmt);
+        let result = validator.validate_basic(&stmt);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("cannot be empty"));
@@ -594,29 +641,29 @@ mod tests {
 
     #[test]
     fn test_validate_edges_valid() {
-        let mut validator = DeleteValidator::new();
+        let validator = DeleteValidator::new();
         let stmt = create_delete_stmt(
             DeleteTarget::Edges {
                 edge_type: Some("friend".to_string()),
-                edges: vec![(Expression::literal("v1"), Expression::literal("v2"), None)],
+                edges: vec![(Expression::Literal(crate::core::Value::String("v1".to_string())), Expression::Literal(crate::core::Value::String("v2".to_string())), None)],
             },
             None,
         );
-        let result = validator.validate(&stmt);
+        let result = validator.validate_basic(&stmt);
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_validate_edges_with_rank() {
-        let mut validator = DeleteValidator::new();
+        let validator = DeleteValidator::new();
         let stmt = create_delete_stmt(
             DeleteTarget::Edges {
                 edge_type: Some("friend".to_string()),
-                edges: vec![(Expression::literal("v1"), Expression::literal("v2"), Some(Expression::literal(0)))],
+                edges: vec![(Expression::Literal(crate::core::Value::String("v1".to_string())), Expression::Literal(crate::core::Value::String("v2".to_string())), Some(Expression::Literal(crate::core::Value::Int(0))))],
             },
             None,
         );
-        let result = validator.validate(&stmt);
+        let result = validator.validate_basic(&stmt);
         assert!(result.is_ok());
     }
 
@@ -627,8 +674,8 @@ mod tests {
 
         let stmt = create_delete_stmt(
             DeleteTarget::Vertices(vec![
-                Expression::literal("v1"),
-                Expression::literal("v2"),
+                Expression::Literal(crate::core::Value::String("v1".to_string())),
+                Expression::Literal(crate::core::Value::String("v2".to_string())),
             ]),
             None,
         );
