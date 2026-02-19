@@ -3,32 +3,40 @@ use crate::core::result::ResultIterator;
 use crate::core::DBResult;
 
 #[derive(Debug)]
-pub struct ZipIterator<RA, RB>
+pub struct ZipIterator<RA, RB, A, B>
 where
     RA: Send + Sync + std::fmt::Debug + 'static,
     RB: Send + Sync + std::fmt::Debug + 'static,
+    A: ResultIterator<'static, RA, Row = RA>,
+    B: ResultIterator<'static, RB, Row = RB>,
 {
-    a: Box<dyn ResultIterator<'static, RA, Row = RA>>,
-    b: Box<dyn ResultIterator<'static, RB, Row = RB>>,
+    a: A,
+    b: B,
+    _phantom: std::marker::PhantomData<(RA, RB)>,
 }
 
-impl<RA, RB> ZipIterator<RA, RB>
+impl<RA, RB, A, B> ZipIterator<RA, RB, A, B>
 where
     RA: Send + Sync + std::fmt::Debug + 'static,
     RB: Send + Sync + std::fmt::Debug + 'static,
+    A: ResultIterator<'static, RA, Row = RA>,
+    B: ResultIterator<'static, RB, Row = RB>,
 {
-    pub fn new(
-        a: Box<dyn ResultIterator<'static, RA, Row = RA>>,
-        b: Box<dyn ResultIterator<'static, RB, Row = RB>>,
-    ) -> Self {
-        Self { a, b }
+    pub(crate) fn new(a: A, b: B) -> Self {
+        Self {
+            a,
+            b,
+            _phantom: std::marker::PhantomData,
+        }
     }
 }
 
-impl<RA, RB> ResultIterator<'static, (RA, RB)> for ZipIterator<RA, RB>
+impl<RA, RB, A, B> ResultIterator<'static, (RA, RB)> for ZipIterator<RA, RB, A, B>
 where
     RA: Send + Sync + std::fmt::Debug + 'static,
     RB: Send + Sync + std::fmt::Debug + 'static,
+    A: ResultIterator<'static, RA, Row = RA>,
+    B: ResultIterator<'static, RB, Row = RB>,
 {
     type Row = (RA, RB);
 
@@ -56,9 +64,10 @@ where
     }
 
     fn nth(&mut self, n: usize) -> DBResult<Option<(RA, RB)>> {
-        self.a.nth(n)?;
-        self.b.nth(n)?;
-        self.next()
+        match (self.a.nth(n)?, self.b.nth(n)?) {
+            (Some(a_row), Some(b_row)) => Ok(Some((a_row, b_row))),
+            _ => Ok(None),
+        }
     }
 
     fn last(&mut self) -> DBResult<Option<(RA, RB)>> {
@@ -72,34 +81,39 @@ where
 }
 
 #[derive(Debug)]
-pub struct ChainIterator<R>
+pub struct ChainIterator<R, A, B>
 where
     R: Send + Sync + std::fmt::Debug + 'static,
+    A: ResultIterator<'static, R, Row = R>,
+    B: ResultIterator<'static, R, Row = R>,
 {
-    first: Box<dyn ResultIterator<'static, R, Row = R>>,
-    second: Box<dyn ResultIterator<'static, R, Row = R>>,
+    first: A,
+    second: B,
     in_first: bool,
+    _phantom: std::marker::PhantomData<R>,
 }
 
-impl<R> ChainIterator<R>
+impl<R, A, B> ChainIterator<R, A, B>
 where
     R: Send + Sync + std::fmt::Debug + 'static,
+    A: ResultIterator<'static, R, Row = R>,
+    B: ResultIterator<'static, R, Row = R>,
 {
-    pub fn new(
-        first: Box<dyn ResultIterator<'static, R, Row = R>>,
-        second: Box<dyn ResultIterator<'static, R, Row = R>>,
-    ) -> Self {
+    pub(crate) fn new(first: A, second: B) -> Self {
         Self {
             first,
             second,
             in_first: true,
+            _phantom: std::marker::PhantomData,
         }
     }
 }
 
-impl<R> ResultIterator<'static, R> for ChainIterator<R>
+impl<R, A, B> ResultIterator<'static, R> for ChainIterator<R, A, B>
 where
     R: Send + Sync + std::fmt::Debug + 'static,
+    A: ResultIterator<'static, R, Row = R>,
+    B: ResultIterator<'static, R, Row = R>,
 {
     type Row = R;
 
@@ -133,11 +147,16 @@ where
     }
 
     fn nth(&mut self, n: usize) -> DBResult<Option<R>> {
-        let first_size = self.first.size_hint().0;
-        if n < first_size {
-            self.first.nth(n)
+        if self.in_first {
+            match self.first.nth(n)? {
+                Some(row) => return Ok(Some(row)),
+                None => {
+                    self.in_first = false;
+                    self.second.nth(0)
+                }
+            }
         } else {
-            self.second.nth(n - first_size)
+            self.second.nth(n)
         }
     }
 
@@ -146,19 +165,22 @@ where
     }
 }
 
-pub struct FilterIterator<R, P>
+pub struct FilterIterator<R, P, I>
 where
     R: Send + Sync + std::fmt::Debug + 'static,
     P: Fn(&R) -> bool + Send + std::fmt::Debug + 'static,
+    I: ResultIterator<'static, R, Row = R>,
 {
-    iter: Box<dyn ResultIterator<'static, R, Row = R>>,
+    iter: I,
     predicate: P,
+    _phantom: std::marker::PhantomData<R>,
 }
 
-impl<R, P> std::fmt::Debug for FilterIterator<R, P>
+impl<R, P, I> std::fmt::Debug for FilterIterator<R, P, I>
 where
     R: Send + Sync + std::fmt::Debug + 'static,
     P: Fn(&R) -> bool + Send + std::fmt::Debug + 'static,
+    I: ResultIterator<'static, R, Row = R>,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("FilterIterator")
@@ -167,23 +189,26 @@ where
     }
 }
 
-impl<R, P> FilterIterator<R, P>
+impl<R, P, I> FilterIterator<R, P, I>
 where
     R: Send + Sync + std::fmt::Debug + 'static,
     P: Fn(&R) -> bool + Send + std::fmt::Debug + 'static,
+    I: ResultIterator<'static, R, Row = R>,
 {
-    pub fn new(
-        iter: Box<dyn ResultIterator<'static, R, Row = R>>,
-        predicate: P,
-    ) -> Self {
-        Self { iter, predicate }
+    pub(crate) fn new(iter: I, predicate: P) -> Self {
+        Self {
+            iter,
+            predicate,
+            _phantom: std::marker::PhantomData,
+        }
     }
 }
 
-impl<R, P> ResultIterator<'static, R> for FilterIterator<R, P>
+impl<R, P, I> ResultIterator<'static, R> for FilterIterator<R, P, I>
 where
     R: Send + Sync + std::fmt::Debug + 'static,
     P: Fn(&R) -> bool + Send + Sync + std::fmt::Debug + 'static,
+    I: ResultIterator<'static, R, Row = R>,
 {
     type Row = R;
 
@@ -226,22 +251,24 @@ where
     }
 }
 
-pub struct MapIterator<R, B, F>
+pub struct MapIterator<R, B, F, I>
 where
     R: Send + Sync + std::fmt::Debug + 'static,
     B: Send + Sync + std::fmt::Debug + 'static,
     F: Fn(R) -> B + Send + std::fmt::Debug + 'static,
+    I: ResultIterator<'static, R, Row = R>,
 {
-    iter: Box<dyn ResultIterator<'static, R, Row = R>>,
+    iter: I,
     mapper: F,
     _phantom: std::marker::PhantomData<(R, B)>,
 }
 
-impl<R, B, F> std::fmt::Debug for MapIterator<R, B, F>
+impl<R, B, F, I> std::fmt::Debug for MapIterator<R, B, F, I>
 where
     R: Send + Sync + std::fmt::Debug + 'static,
     B: Send + Sync + std::fmt::Debug + 'static,
     F: Fn(R) -> B + Send + std::fmt::Debug + 'static,
+    I: ResultIterator<'static, R, Row = R>,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("MapIterator")
@@ -250,16 +277,14 @@ where
     }
 }
 
-impl<R, B, F> MapIterator<R, B, F>
+impl<R, B, F, I> MapIterator<R, B, F, I>
 where
     R: Send + Sync + std::fmt::Debug + 'static,
     B: Send + Sync + std::fmt::Debug + 'static,
     F: Fn(R) -> B + Send + std::fmt::Debug + 'static,
+    I: ResultIterator<'static, R, Row = R>,
 {
-    pub fn new(
-        iter: Box<dyn ResultIterator<'static, R, Row = R>>,
-        mapper: F,
-    ) -> Self {
+    pub(crate) fn new(iter: I, mapper: F) -> Self {
         Self {
             iter,
             mapper,
@@ -268,11 +293,12 @@ where
     }
 }
 
-impl<R, B, F> ResultIterator<'static, B> for MapIterator<R, B, F>
+impl<R, B, F, I> ResultIterator<'static, B> for MapIterator<R, B, F, I>
 where
     R: Send + Sync + std::fmt::Debug + 'static,
     B: Send + Sync + std::fmt::Debug + 'static,
     F: Fn(R) -> B + Send + Sync + std::fmt::Debug + 'static,
+    I: ResultIterator<'static, R, Row = R>,
 {
     type Row = B;
 
@@ -303,32 +329,34 @@ where
 }
 
 #[derive(Debug)]
-pub struct TakeIterator<R>
+pub struct TakeIterator<R, I>
 where
     R: Send + Sync + std::fmt::Debug + 'static,
+    I: ResultIterator<'static, R, Row = R>,
 {
-    iter: Box<dyn ResultIterator<'static, R, Row = R>>,
+    iter: I,
     remaining: usize,
+    _phantom: std::marker::PhantomData<R>,
 }
 
-impl<R> TakeIterator<R>
+impl<R, I> TakeIterator<R, I>
 where
     R: Send + Sync + std::fmt::Debug + 'static,
+    I: ResultIterator<'static, R, Row = R>,
 {
-    pub fn new(
-        iter: Box<dyn ResultIterator<'static, R, Row = R>>,
-        n: usize,
-    ) -> Self {
+    pub(crate) fn new(iter: I, n: usize) -> Self {
         Self {
             iter,
             remaining: n,
+            _phantom: std::marker::PhantomData,
         }
     }
 }
 
-impl<R> ResultIterator<'static, R> for TakeIterator<R>
+impl<R, I> ResultIterator<'static, R> for TakeIterator<R, I>
 where
     R: Send + Sync + std::fmt::Debug + 'static,
+    I: ResultIterator<'static, R, Row = R>,
 {
     type Row = R;
 
@@ -365,46 +393,62 @@ where
     }
 
     fn last(&mut self) -> DBResult<Option<R>> {
+        let mut last = None;
+        let mut count = 0;
+        while count < self.remaining {
+            match self.iter.next()? {
+                Some(row) => {
+                    last = Some(row);
+                    count += 1;
+                }
+                None => break,
+            }
+        }
         self.remaining = 0;
-        self.iter.last()
+        Ok(last)
     }
 }
 
 #[derive(Debug)]
-pub struct SkipIterator<R>
+pub struct SkipIterator<R, I>
 where
     R: Send + Sync + std::fmt::Debug + 'static,
+    I: ResultIterator<'static, R, Row = R>,
 {
-    iter: Box<dyn ResultIterator<'static, R, Row = R>>,
+    iter: I,
     target_skip: usize,
+    skipped: usize,
+    _phantom: std::marker::PhantomData<R>,
 }
 
-impl<R> SkipIterator<R>
+impl<R, I> SkipIterator<R, I>
 where
     R: Send + Sync + std::fmt::Debug + 'static,
+    I: ResultIterator<'static, R, Row = R>,
 {
-    pub fn new(
-        iter: Box<dyn ResultIterator<'static, R, Row = R>>,
-        n: usize,
-    ) -> Self {
+    pub(crate) fn new(iter: I, n: usize) -> Self {
         Self {
             iter,
             target_skip: n,
+            skipped: 0,
+            _phantom: std::marker::PhantomData,
         }
     }
 }
 
-impl<R> ResultIterator<'static, R> for SkipIterator<R>
+impl<R, I> ResultIterator<'static, R> for SkipIterator<R, I>
 where
     R: Send + Sync + std::fmt::Debug + 'static,
+    I: ResultIterator<'static, R, Row = R>,
 {
     type Row = R;
 
     fn next(&mut self) -> DBResult<Option<R>> {
-        let mut skipped = 0;
-        while skipped < self.target_skip {
-            self.iter.next()?;
-            skipped += 1;
+        while self.skipped < self.target_skip {
+            if self.iter.next()?.is_none() {
+                return Ok(None);
+            }
+            self.skipped += 1;
         }
         self.iter.next()
     }
@@ -418,16 +462,22 @@ where
     fn size_hint(&self) -> (usize, Option<usize>) {
         let (lower, upper) = self.iter.size_hint();
         (
-            lower.saturating_sub(self.target_skip),
-            upper.map(|u| u.saturating_sub(self.target_skip)),
+            lower.saturating_sub(self.target_skip.saturating_sub(self.skipped)),
+            upper.map(|u| u.saturating_sub(self.target_skip.saturating_sub(self.skipped))),
         )
     }
 
     fn nth(&mut self, n: usize) -> DBResult<Option<R>> {
-        self.iter.nth(n + self.target_skip)
+        self.iter.nth(n + self.target_skip.saturating_sub(self.skipped))
     }
 
     fn last(&mut self) -> DBResult<Option<R>> {
+        while self.skipped < self.target_skip {
+            if self.iter.next()?.is_none() {
+                return Ok(None);
+            }
+            self.skipped += 1;
+        }
         self.iter.last()
     }
 }

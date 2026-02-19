@@ -31,10 +31,6 @@ pub mod match_planner;
 pub mod user_management_planner;
 
 // 重新导出核心模块的主要类型
-pub use core::{
-    ClauseType, ContextPropagator, CypherClausePlanner, DataFlowManager, DataFlowNode,
-    FlowDirection, PlanningContext, QueryInfo, VariableInfo,
-};
 pub use core::MatchClausePlanner;
 
 // 重新导出语句规划器模块
@@ -42,6 +38,3 @@ pub use statement_planner::{
     ClausePlanner, PlannerRegistry, PlanningPhase, StatementPlanningContext, StatementPlanner,
 };
 pub use match_statement_planner::MatchStatementPlanner;
-
-
-

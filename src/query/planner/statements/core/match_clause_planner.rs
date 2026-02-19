@@ -1,26 +1,14 @@
 /// MATCH子句规划器
-/// 架构重构：实现统一的 CypherClausePlanner 接口
 ///
-/// ## 重构说明
+/// 负责规划 MATCH 子句的执行，是数据流的起始点
 ///
-/// ### 删除冗余方法
-/// - 移除 `validate_input`, `can_start_flow`, `requires_input` 等冗余方法
-/// - 通过 `flow_direction()` 统一表达数据流行为
-///
-/// ### 优化上下文管理
-/// - 使用 `VariableInfo` 替代简单的字符串映射
-/// - 提供完整的变量生命周期管理
-///
-/// ### 简化实现逻辑
-/// - 移除复杂的验证逻辑，内聚到接口中
-/// - 专注于核心的路径处理和变量管理
+/// MATCH 子句是 Cypher 查询的核心，用于匹配图中的模式。
+/// 它可以包含多个路径，每个路径由节点和边组成。
 use crate::core::Expression;
-use crate::query::context::QueryContext;
+use crate::query::context::ast::AstContext;
+use crate::query::context::execution::QueryContext;
 use crate::query::planner::connector::SegmentsConnector;
 use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
-use crate::query::planner::statements::core::{
-    ClauseType, CypherClausePlanner, DataFlowNode, PlanningContext, VariableInfo,
-};
 use crate::query::planner::plan::algorithms::path_algorithms::MultiShortestPath;
 use crate::query::planner::plan::core::nodes::{PlanNodeEnum, StartNode};
 use crate::query::planner::plan::core::node_id_generator::next_node_id;
@@ -28,7 +16,8 @@ use crate::query::planner::plan::core::node_id_generator::next_node_id;
 use crate::query::planner::plan::factory::PlanNodeFactory;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
-use crate::query::validator::structs::{CypherClauseContext, CypherClauseKind, MatchClauseContext, Path, PathYieldType};
+use crate::query::planner::statements::statement_planner::ClausePlanner;
+use crate::query::validator::structs::{CypherClauseKind, MatchClauseContext, Path, PathYieldType};
 use std::collections::HashSet;
 
 /// MATCH子句规划器
@@ -48,7 +37,6 @@ impl MatchClausePlanner {
     fn plan_path(
         &self,
         path: &Path,
-        _context: &mut PlanningContext,
         _match_clause_ctx: &MatchClauseContext,
     ) -> Result<SubPlan, PlannerError> {
         let space_id = 1i32;
@@ -238,35 +226,21 @@ impl MatchClausePlanner {
 
         inter_aliases
     }
-}
 
-impl CypherClausePlanner for MatchClausePlanner {
-    fn clause_type(&self) -> ClauseType {
-        ClauseType::Match
-    }
-
-    fn transform(
+    /// 规划 MATCH 子句
+    ///
+    /// # 参数
+    /// - `match_clause_ctx`: MATCH 子句上下文，包含路径、WHERE条件等信息
+    /// - `input_plan`: 输入计划，对于 OPTIONAL MATCH 或连续 MATCH 时使用
+    ///
+    /// # 返回
+    /// - 成功：生成的子计划
+    /// - 失败：规划错误
+    pub fn plan_match_clause(
         &self,
-        clause_ctx: &CypherClauseContext,
+        match_clause_ctx: &MatchClauseContext,
         input_plan: Option<&SubPlan>,
-        context: &mut PlanningContext,
     ) -> Result<SubPlan, PlannerError> {
-        // 验证上下文类型
-        if !matches!(clause_ctx.kind(), CypherClauseKind::Match) {
-            return Err(PlannerError::InvalidAstContext(
-                "Not a valid context for MatchClausePlanner".to_string(),
-            ));
-        }
-
-        let match_clause_ctx = match clause_ctx {
-            CypherClauseContext::Match(ctx) => ctx,
-            _ => {
-                return Err(PlannerError::InvalidAstContext(
-                    "Expected MatchClauseContext".to_string(),
-                ))
-            }
-        };
-
         // 验证 MATCH 子句上下文的完整性
         if match_clause_ctx.paths.is_empty() {
             return Err(PlannerError::PlanGenerationFailed(
@@ -278,32 +252,7 @@ impl CypherClausePlanner for MatchClausePlanner {
         let mut plan = SubPlan::new(None, None);
 
         for path in &match_clause_ctx.paths {
-            let path_plan = self.plan_path(path, context, match_clause_ctx)?;
-
-            // 更新上下文中的变量信息
-            for node_info in &path.node_infos {
-                if !node_info.alias.is_empty() {
-                    let variable_info = VariableInfo {
-                        name: node_info.alias.clone(),
-                        var_type: "Vertex".to_string(),
-                        source_clause: ClauseType::Match,
-                        is_output: false,
-                    };
-                    context.add_variable(variable_info);
-                }
-            }
-
-            for edge_info in &path.edge_infos {
-                if !edge_info.alias.is_empty() {
-                    let variable_info = VariableInfo {
-                        name: edge_info.alias.clone(),
-                        var_type: "Edge".to_string(),
-                        source_clause: ClauseType::Match,
-                        is_output: false,
-                    };
-                    context.add_variable(variable_info);
-                }
-            }
+            let path_plan = self.plan_path(path, match_clause_ctx)?;
 
             // 连接路径计划
             plan = if let Some(existing_root) = plan.root.take() {
@@ -314,6 +263,19 @@ impl CypherClausePlanner for MatchClausePlanner {
             } else {
                 path_plan
             };
+        }
+
+        // 处理 WHERE 条件
+        if let Some(ref where_ctx) = match_clause_ctx.where_clause {
+            if let Some(ref filter) = where_ctx.filter {
+                let input_node = plan.root.as_ref()
+                    .ok_or_else(|| PlannerError::PlanGenerationFailed("MATCH计划缺少根节点".to_string()))?;
+                let filter_node = crate::query::planner::plan::core::nodes::FilterNode::new(
+                    input_node.clone(),
+                    filter.clone(),
+                )?;
+                plan = SubPlan::new(Some(filter_node.into_enum()), plan.tail);
+            }
         }
 
         // 处理 OPTIONAL MATCH：如果有输入计划，使用左连接
@@ -367,103 +329,288 @@ impl CypherClausePlanner for MatchClausePlanner {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::query::validator::structs::{NodeInfo, Path, PathYieldType};
-
-    #[test]
-    fn test_match_clause_planner_interface() {
-        let planner = MatchClausePlanner::new();
-        assert_eq!(planner.clause_type(), ClauseType::Match);
-        assert_eq!(<MatchClausePlanner as DataFlowNode>::flow_direction(&planner), crate::query::planner::statements::core::cypher_clause_planner::FlowDirection::Source);
-        assert!(!planner.requires_input());
+impl ClausePlanner for MatchClausePlanner {
+    fn clause_kind(&self) -> CypherClauseKind {
+        CypherClauseKind::Match
     }
 
-    #[test]
-    fn test_match_clause_planner_validate_flow() {
-        let planner = MatchClausePlanner::new();
-
-        // 测试有输入的情况（应该失败）
-        let dummy_plan = SubPlan::new(None, None);
-        let result = planner.validate_flow(Some(&dummy_plan));
-        assert!(result.is_err());
-
-        // 测试没有输入的情况（应该成功）
-        let result = planner.validate_flow(None);
-        assert!(result.is_ok());
+    fn name(&self) -> &'static str {
+        "MatchClausePlanner"
     }
 
-    #[test]
-    fn test_match_clause_planner_context_variables() {
-        let node_info = NodeInfo {
-            alias: "n".to_string(),
-            labels: vec!["Person".to_string()],
-            props: None,
-            anonymous: false,
-            filter: None,
-            tids: vec![1],
-            label_props: vec![None],
-        };
+    fn transform_clause(
+        &self,
+        _query_context: &mut QueryContext,
+        ast_ctx: &AstContext,
+        input_plan: SubPlan,
+    ) -> Result<SubPlan, PlannerError> {
+        // 从 AST 上下文中提取 MATCH 子句信息
+        let match_clause_ctx = Self::extract_match_context(ast_ctx)?;
 
-        let path = Path {
-            alias: "p".to_string(),
-            anonymous: false,
-            gen_path: false,
-            path_type: PathYieldType::Default,
-            node_infos: vec![node_info],
-            edge_infos: vec![],
-            path_build: None,
-            is_pred: false,
-            is_anti_pred: false,
-            compare_variables: vec![],
-            collect_variable: String::new(),
-            roll_up_apply: false,
-        };
-
-        let planner = MatchClausePlanner::new();
-
-        let query_info =
-            crate::query::planner::statements::core::cypher_clause_planner::QueryInfo {
-                query_id: "test".to_string(),
-                statement_type: "MATCH".to_string(),
-            };
-        let mut context = PlanningContext::new(query_info);
-
-        // 创建一个简单的 MATCH 上下文
-        let match_clause_ctx = crate::query::validator::structs::MatchClauseContext {
-            paths: vec![path],
-            aliases_available: std::collections::HashMap::new(),
-            aliases_generated: std::collections::HashMap::new(),
-            where_clause: None,
-            is_optional: false,
-            skip: None,
-            limit: None,
-            query_parts: Vec::new(),
-            errors: Vec::new(),
-        };
-
-        let clause_ctx = CypherClauseContext::Match(match_clause_ctx);
-
-        // 执行转换以更新上下文
-        let _result = planner.transform(&clause_ctx, None, &mut context);
-
-        // 验证变量被添加到上下文
-        assert!(context.has_variable("n"));
-
-        if let Some(variable) = context.get_variable("n") {
-            assert_eq!(variable.name, "n");
-            assert_eq!(variable.var_type, "Vertex");
-            assert_eq!(variable.source_clause, ClauseType::Match);
-            assert!(!variable.is_output);
-        }
+        // 对于 MATCH 子句，input_plan 可能是空计划（作为 Source）
+        // 或者在管道中作为输入（如 WITH ... MATCH ...）
+        let has_input = input_plan.root().is_some();
+        self.plan_match_clause(&match_clause_ctx, if has_input { Some(&input_plan) } else { None })
     }
 }
 
-impl DataFlowNode for MatchClausePlanner {
-    fn flow_direction(
-        &self,
-    ) -> crate::query::planner::statements::core::cypher_clause_planner::FlowDirection {
-        self.clause_type().flow_direction()
+impl MatchClausePlanner {
+    /// 从 AST 上下文中提取 MATCH 子句上下文
+    ///
+    /// 完善后的实现包括：
+    /// - 完整的 Pattern 到 Path 转换
+    /// - 别名收集和管理
+    /// - WHERE 子句处理
+    fn extract_match_context(ast_ctx: &AstContext) -> Result<MatchClauseContext, PlannerError> {
+        use crate::query::parser::ast::Stmt;
+        use crate::query::validator::structs::WhereClauseContext;
+
+        let sentence = ast_ctx.sentence()
+            .ok_or_else(|| PlannerError::PlanGenerationFailed("AST 上下文中没有语句".to_string()))?;
+
+        let match_stmt = match sentence {
+            Stmt::Match(m) => m,
+            _ => {
+                return Err(PlannerError::PlanGenerationFailed(
+                    "期望 MATCH 语句，但得到了其他类型的语句".to_string()
+                ));
+            }
+        };
+
+        // 转换 patterns 到 paths
+        let paths = Self::convert_patterns_to_paths(&match_stmt.patterns)?;
+        
+        // 从 paths 收集别名
+        let aliases_generated = Self::collect_aliases_from_paths(&paths);
+
+        // 构建 WHERE 子句上下文
+        let where_clause = match_stmt.where_clause.as_ref().map(|condition| {
+            WhereClauseContext {
+                filter: Some(condition.clone()),
+                aliases_available: std::collections::HashMap::new(), // TODO: 从上下文获取可用的别名
+                aliases_generated: std::collections::HashMap::new(),
+                paths: vec![],
+                query_parts: vec![],
+                errors: vec![],
+            }
+        });
+
+        // 转换 skip/limit
+        let skip = match_stmt.skip.map(|s| crate::core::Expression::Literal(
+            crate::core::Value::Int(s as i64)
+        ));
+        let limit = match_stmt.limit.map(|l| crate::core::Expression::Literal(
+            crate::core::Value::Int(l as i64)
+        ));
+
+        Ok(MatchClauseContext {
+            paths,
+            aliases_available: std::collections::HashMap::new(), // TODO: 从上下文获取可用的别名
+            aliases_generated,
+            where_clause,
+            is_optional: match_stmt.optional,
+            skip,
+            limit,
+            query_parts: vec![],
+            errors: vec![],
+        })
+    }
+
+    /// 将 AST Pattern 列表转换为 Path 列表
+    ///
+    /// 完善后的实现包括：
+    /// - 从 predicates 构建 filter 表达式
+    /// - 收集所有别名
+    /// - 支持更复杂的模式类型
+    fn convert_patterns_to_paths(patterns: &[crate::query::parser::ast::pattern::Pattern]) -> Result<Vec<crate::query::validator::structs::Path>, PlannerError> {
+        use crate::query::validator::structs::{Path, NodeInfo, EdgeInfo, PathYieldType, Direction, MatchStepRange};
+        use crate::core::Expression;
+
+        let mut paths = Vec::new();
+
+        for pattern in patterns {
+            match pattern {
+                crate::query::parser::ast::pattern::Pattern::Path(path_pattern) => {
+                    let mut node_infos = Vec::new();
+                    let mut edge_infos = Vec::new();
+
+                    for element in &path_pattern.elements {
+                        match element {
+                            crate::query::parser::ast::pattern::PathElement::Node(node) => {
+                                // 从 predicates 构建 filter 表达式
+                                let filter = Self::build_filter_expression(&node.predicates);
+                                
+                                node_infos.push(NodeInfo {
+                                    alias: node.variable.clone().unwrap_or_default(),
+                                    labels: node.labels.clone(),
+                                    props: node.properties.clone(),
+                                    anonymous: node.variable.is_none(),
+                                    filter,
+                                    tids: vec![], // TODO: 需要 schema 信息来解析标签ID
+                                    label_props: vec![],
+                                });
+                            }
+                            crate::query::parser::ast::pattern::PathElement::Edge(edge) => {
+                                use crate::query::parser::ast::types::EdgeDirection;
+                                
+                                let direction = match edge.direction {
+                                    EdgeDirection::Out => Direction::Forward,
+                                    EdgeDirection::In => Direction::Backward,
+                                    EdgeDirection::Both => Direction::Bidirectional,
+                                };
+                                
+                                let range = edge.range.as_ref().map(|r| MatchStepRange {
+                                    min: r.min.map(|v| v as u32).unwrap_or(1),
+                                    max: r.max.map(|v| v as u32).unwrap_or(1),
+                                });
+                                
+                                // 从 predicates 构建 filter 表达式
+                                let filter = Self::build_filter_expression(&edge.predicates);
+                                
+                                edge_infos.push(EdgeInfo {
+                                    alias: edge.variable.clone().unwrap_or_default(),
+                                    inner_alias: String::new(),
+                                    types: edge.edge_types.clone(),
+                                    props: edge.properties.clone(),
+                                    anonymous: edge.variable.is_none(),
+                                    filter,
+                                    direction,
+                                    range,
+                                    edge_types: vec![], // TODO: 需要 schema 信息来解析边类型ID
+                                });
+                            }
+                            // TODO: 支持其他路径元素类型
+                            _ => {
+                                // 其他类型暂不支持：Alternative, Optional, Repeated
+                                return Err(PlannerError::PlanGenerationFailed(
+                                    format!("暂不支持的路径元素类型: {:?}", element)
+                                ));
+                            }
+                        }
+                    }
+
+                    paths.push(Path {
+                        alias: String::new(),
+                        anonymous: false,
+                        gen_path: false,
+                        path_type: PathYieldType::Default,
+                        node_infos,
+                        edge_infos,
+                        path_build: None,
+                        is_pred: false,
+                        is_anti_pred: false,
+                        compare_variables: vec![],
+                        collect_variable: String::new(),
+                        roll_up_apply: false,
+                    });
+                }
+                crate::query::parser::ast::pattern::Pattern::Node(node) => {
+                    // 从 predicates 构建 filter 表达式
+                    let filter = Self::build_filter_expression(&node.predicates);
+                    
+                    // 单个节点模式
+                    paths.push(Path {
+                        alias: String::new(),
+                        anonymous: false,
+                        gen_path: false,
+                        path_type: PathYieldType::Default,
+                        node_infos: vec![NodeInfo {
+                            alias: node.variable.clone().unwrap_or_default(),
+                            labels: node.labels.clone(),
+                            props: node.properties.clone(),
+                            anonymous: node.variable.is_none(),
+                            filter,
+                            tids: vec![], // TODO: 需要 schema 信息来解析标签ID
+                            label_props: vec![],
+                        }],
+                        edge_infos: vec![],
+                        path_build: None,
+                        is_pred: false,
+                        is_anti_pred: false,
+                        compare_variables: vec![],
+                        collect_variable: String::new(),
+                        roll_up_apply: false,
+                    });
+                }
+                _ => {
+                    // 其他模式类型暂不支持
+                    return Err(PlannerError::PlanGenerationFailed(
+                        format!("不支持的模式类型: {:?}", pattern)
+                    ));
+                }
+            }
+        }
+
+        Ok(paths)
+    }
+
+    /// 从谓词列表构建 filter 表达式
+    ///
+    /// 将多个谓词用 AND 组合成一个表达式
+    fn build_filter_expression(predicates: &[crate::core::Expression]) -> Option<crate::core::Expression> {
+        use crate::core::Expression;
+        
+        if predicates.is_empty() {
+            return None;
+        }
+        
+        if predicates.len() == 1 {
+            return Some(predicates[0].clone());
+        }
+        
+        // 多个谓词用 AND 组合
+        let mut result = predicates[0].clone();
+        for predicate in &predicates[1..] {
+            result = Expression::Binary {
+                op: crate::core::BinaryOperator::And,
+                left: Box::new(result),
+                right: Box::new(predicate.clone()),
+            };
+        }
+        
+        Some(result)
+    }
+
+    /// 从 Path 列表收集所有别名
+    ///
+    /// 收集节点和边的别名到 aliases_generated
+    fn collect_aliases_from_paths(paths: &[crate::query::validator::structs::Path]) -> std::collections::HashMap<String, crate::query::validator::structs::AliasType> {
+        use crate::query::validator::structs::AliasType;
+        
+        let mut aliases = std::collections::HashMap::new();
+        
+        for path in paths {
+            for node_info in &path.node_infos {
+                if !node_info.alias.is_empty() {
+                    aliases.insert(node_info.alias.clone(), AliasType::Node);
+                }
+            }
+            
+            for edge_info in &path.edge_infos {
+                if !edge_info.alias.is_empty() {
+                    aliases.insert(edge_info.alias.clone(), AliasType::Edge);
+                }
+            }
+        }
+        
+        aliases
+    }
+}
+
+impl Default for MatchClausePlanner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_match_clause_planner_creation() {
+        let planner = MatchClausePlanner::new();
+        assert_eq!(planner.name(), "MatchClausePlanner");
+        assert_eq!(planner.clause_kind(), CypherClauseKind::Match);
     }
 }

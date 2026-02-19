@@ -211,6 +211,7 @@ impl StmtParser {
                 span: start_span,
                 items,
                 where_clause: None,
+                order_by: None,
                 limit: None,
                 skip: None,
                 sample: None,

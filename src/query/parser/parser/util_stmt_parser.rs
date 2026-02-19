@@ -248,6 +248,9 @@ impl UtilStmtParser {
             span: start_span,
             items: return_clause.items,
             distinct: return_clause.distinct,
+            order_by: return_clause.order_by,
+            skip: return_clause.skip.map(|s| s.count),
+            limit: return_clause.limit.map(|l| l.count),
         }))
     }
 
@@ -286,6 +289,9 @@ impl UtilStmtParser {
             items,
             where_clause,
             distinct,
+            order_by: None, // TODO: 解析 ORDER BY 子句
+            skip: None,     // TODO: 解析 SKIP 子句
+            limit: None,    // TODO: 解析 LIMIT 子句
         }))
     }
 
@@ -301,6 +307,9 @@ impl UtilStmtParser {
             items: yield_clause.items,
             where_clause: yield_clause.where_clause,
             distinct: false,
+            order_by: yield_clause.order_by,
+            skip: yield_clause.skip.map(|s| s.count),
+            limit: yield_clause.limit.map(|l| l.count),
         }))
     }
 

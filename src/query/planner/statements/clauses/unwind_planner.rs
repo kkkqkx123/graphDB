@@ -1,11 +1,9 @@
 //! UNWIND 子句规划器
-use crate::query::planner::statements::clauses::clause_planner::ClausePlanner;
-use crate::query::planner::statements::core::cypher_clause_planner::{
-    ClauseType, CypherClausePlanner, DataFlowNode, PlanningContext,
-};
+use crate::query::context::ast::AstContext;
+use crate::query::context::execution::QueryContext;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
-use crate::query::validator::structs::common_structs::CypherClauseContext;
+use crate::query::planner::statements::statement_planner::ClausePlanner;
 use crate::query::validator::structs::CypherClauseKind;
 
 #[derive(Debug)]
@@ -18,36 +16,40 @@ impl UnwindClausePlanner {
 }
 
 impl ClausePlanner for UnwindClausePlanner {
+    fn clause_kind(&self) -> CypherClauseKind {
+        CypherClauseKind::Unwind
+    }
+
     fn name(&self) -> &'static str {
         "UnwindClausePlanner"
     }
 
-    fn supported_clause_kind(&self) -> CypherClauseKind {
-        CypherClauseKind::Unwind
-    }
-}
-
-impl DataFlowNode for UnwindClausePlanner {
-    fn flow_direction(&self) -> crate::query::planner::statements::core::cypher_clause_planner::FlowDirection {
-        self.clause_type().flow_direction()
-    }
-}
-
-impl CypherClausePlanner for UnwindClausePlanner {
-    fn clause_type(&self) -> ClauseType {
-        ClauseType::Unwind
-    }
-
-    fn transform(
+    fn transform_clause(
         &self,
-        _clause_ctx: &CypherClauseContext,
-        input_plan: Option<&SubPlan>,
-        _context: &mut PlanningContext,
+        _query_context: &mut QueryContext,
+        _ast_ctx: &AstContext,
+        input_plan: SubPlan,
     ) -> Result<SubPlan, PlannerError> {
-        self.validate_flow(input_plan)?;
-        let input_plan = input_plan.ok_or_else(|| {
-            PlannerError::PlanGenerationFailed("UNWIND 子句需要输入计划".to_string())
-        })?;
-        Ok(input_plan.clone())
+        // UNWIND 子句的实现
+        // 注意：这里需要根据实际的 AST 结构来实现 UNWIND 逻辑
+        // 目前直接返回输入计划作为占位符
+        Ok(input_plan)
+    }
+}
+
+impl Default for UnwindClausePlanner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_unwind_clause_planner_creation() {
+        let planner = UnwindClausePlanner::new();
+        assert_eq!(planner.name(), "UnwindClausePlanner");
     }
 }

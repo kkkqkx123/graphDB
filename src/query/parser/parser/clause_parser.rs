@@ -49,7 +49,7 @@ impl ClauseParser {
         }
         
         // 解析 ORDER BY
-        let _order_by = if ctx.match_token(TokenKind::Order) {
+        let order_by = if ctx.match_token(TokenKind::Order) {
             ctx.expect_token(TokenKind::By)?;
             Some(self.parse_order_by_clause(ctx)?)
         } else {
@@ -82,6 +82,7 @@ impl ClauseParser {
             span,
             items,
             distinct,
+            order_by,
             limit,
             skip,
             sample: None,
@@ -124,6 +125,14 @@ impl ClauseParser {
             None
         };
         
+        // 解析 ORDER BY
+        let order_by = if ctx.match_token(TokenKind::Order) {
+            ctx.expect_token(TokenKind::By)?;
+            Some(self.parse_order_by_clause(ctx)?)
+        } else {
+            None
+        };
+        
         // 解析 LIMIT
         let limit = if ctx.match_token(TokenKind::Limit) {
             let count = ctx.expect_integer_literal()? as usize;
@@ -152,6 +161,7 @@ impl ClauseParser {
             span: ctx.merge_span(start_span.start, end_span.end),
             items,
             where_clause,
+            order_by,
             limit,
             skip,
             sample: None,

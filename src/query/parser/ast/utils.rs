@@ -417,6 +417,7 @@ impl AstBuilder {
                 alias: None,
             }],
             distinct: false,
+            order_by: None,
             limit: None,
             skip: None,
             sample: None,

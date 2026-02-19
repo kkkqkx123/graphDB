@@ -76,8 +76,6 @@ impl DmlParser {
     }
 
     fn parse_update_edge(&mut self, ctx: &mut ParseContext) -> Result<UpdateTarget, ParseError> {
-        use crate::core::types::expression::Expression;
-
         ctx.expect_token(TokenKind::Of)?;
 
         // 解析边类型
@@ -287,8 +285,6 @@ impl DmlParser {
     ///   CREATE (a)-[:Type {prop: value}]->(b)
     ///   CREATE (a:Label1)-[:Type]->(b:Label2)
     pub fn parse_create_data_after_token(&mut self, ctx: &mut ParseContext, start_span: crate::query::parser::ast::types::Span) -> Result<Stmt, ParseError> {
-        use crate::query::parser::ast::pattern::*;
-
         // 解析模式列表（支持多个模式用逗号分隔）
         let mut patterns = Vec::new();
         
@@ -452,7 +448,7 @@ impl DmlParser {
 
     /// 解析属性映射: {prop1: value1, prop2: value2}
     fn parse_property_map(&mut self, ctx: &mut ParseContext) -> Result<CoreExpression, ParseError> {
-        let start_span = ctx.current_span();
+        let _start_span = ctx.current_span();
         let mut properties = Vec::new();
         
         if !ctx.check_token(TokenKind::RBrace) {

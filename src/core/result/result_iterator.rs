@@ -196,67 +196,75 @@ impl<T> Default for EmptyIterator<T> {
 pub struct IteratorFactories;
 
 impl IteratorFactories {
-    pub fn zip<RA, RB>(
-        a: Box<dyn ResultIterator<'static, RA, Row = RA>>,
-        b: Box<dyn ResultIterator<'static, RB, Row = RB>>,
-    ) -> Box<dyn ResultIterator<'static, (RA, RB), Row = (RA, RB)>>
+    pub fn zip<RA, RB, A, B>(
+        a: A,
+        b: B,
+    ) -> super::combinators::ZipIterator<RA, RB, A, B>
     where
         RA: Send + Sync + std::fmt::Debug + 'static,
         RB: Send + Sync + std::fmt::Debug + 'static,
+        A: ResultIterator<'static, RA, Row = RA>,
+        B: ResultIterator<'static, RB, Row = RB>,
     {
-        Box::new(super::combinators::ZipIterator::new(a, b))
+        super::combinators::ZipIterator::new(a, b)
     }
 
-    pub fn chain<R>(
-        first: Box<dyn ResultIterator<'static, R, Row = R>>,
-        second: Box<dyn ResultIterator<'static, R, Row = R>>,
-    ) -> Box<dyn ResultIterator<'static, R, Row = R>>
+    pub fn chain<R, A, B>(
+        first: A,
+        second: B,
+    ) -> super::combinators::ChainIterator<R, A, B>
     where
         R: Send + Sync + std::fmt::Debug + 'static,
+        A: ResultIterator<'static, R, Row = R>,
+        B: ResultIterator<'static, R, Row = R>,
     {
-        Box::new(super::combinators::ChainIterator::new(first, second))
+        super::combinators::ChainIterator::new(first, second)
     }
 
-    pub fn filter<R, P>(
-        iter: Box<dyn ResultIterator<'static, R, Row = R>>,
+    pub fn filter<R, P, I>(
+        iter: I,
         predicate: P,
-    ) -> Box<dyn ResultIterator<'static, R, Row = R> + 'static>
+    ) -> super::combinators::FilterIterator<R, P, I>
     where
         R: Send + Sync + std::fmt::Debug + 'static,
         P: Fn(&R) -> bool + Send + Sync + std::fmt::Debug + 'static,
+        I: ResultIterator<'static, R, Row = R>,
     {
-        Box::new(super::combinators::FilterIterator::new(iter, predicate))
+        super::combinators::FilterIterator::new(iter, predicate)
     }
 
-    pub fn map<R, B, F>(
-        iter: Box<dyn ResultIterator<'static, R, Row = R>>,
+    pub fn map<R, B, F, I>(
+        iter: I,
         mapper: F,
-    ) -> Box<dyn ResultIterator<'static, B, Row = B> + 'static>
+    ) -> super::combinators::MapIterator<R, B, F, I>
     where
         R: Send + Sync + std::fmt::Debug + 'static,
         B: Send + Sync + std::fmt::Debug + 'static,
         F: Fn(R) -> B + Send + Sync + std::fmt::Debug + 'static,
+        I: ResultIterator<'static, R, Row = R>,
     {
-        Box::new(super::combinators::MapIterator::new(iter, mapper))
+        super::combinators::MapIterator::new(iter, mapper)
     }
 
-    pub fn take<R>(
-        iter: Box<dyn ResultIterator<'static, R, Row = R>>,
+    pub fn take<R, I>(
+        iter: I,
         n: usize,
-    ) -> Box<dyn ResultIterator<'static, R, Row = R> + 'static>
+    ) -> super::combinators::TakeIterator<R, I>
     where
         R: Send + Sync + std::fmt::Debug + 'static,
+        I: ResultIterator<'static, R, Row = R>,
     {
-        Box::new(super::combinators::TakeIterator::new(iter, n))
+        super::combinators::TakeIterator::new(iter, n)
     }
 
-    pub fn skip<R>(
-        iter: Box<dyn ResultIterator<'static, R, Row = R>>,
+    pub fn skip<R, I>(
+        iter: I,
         n: usize,
-    ) -> Box<dyn ResultIterator<'static, R, Row = R> + 'static>
+    ) -> super::combinators::SkipIterator<R, I>
     where
         R: Send + Sync + std::fmt::Debug + 'static,
+        I: ResultIterator<'static, R, Row = R>,
     {
-        Box::new(super::combinators::SkipIterator::new(iter, n))
+        super::combinators::SkipIterator::new(iter, n)
     }
 }

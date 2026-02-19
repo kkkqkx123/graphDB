@@ -3,16 +3,14 @@
 //! 负责将 YIELD 子句转换为执行计划节点
 //! 支持 YIELD ... WHERE ... 语法
 
-use crate::query::planner::statements::clauses::clause_planner::ClausePlanner;
-use crate::query::planner::statements::core::cypher_clause_planner::{
-    ClauseType, CypherClausePlanner, DataFlowNode, FlowDirection, PlanningContext,
-};
+use crate::query::context::ast::AstContext;
+use crate::query::context::execution::QueryContext;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::{
     FilterNode, LimitNode, PlanNodeEnum, ProjectNode,
 };
 use crate::query::planner::planner::PlannerError;
-use crate::query::validator::structs::common_structs::CypherClauseContext;
+use crate::query::planner::statements::statement_planner::ClausePlanner;
 use crate::query::validator::structs::CypherClauseKind;
 use crate::query::validator::YieldColumn;
 
@@ -33,33 +31,30 @@ impl YieldClausePlanner {
     /// 3. 如有 LIMIT/SKIP，添加分页节点
     pub fn plan_yield_clause(
         &self,
-        clause_ctx: &CypherClauseContext,
+        yield_columns: &[YieldColumn],
+        filter_condition: Option<crate::core::Expression>,
+        skip: Option<usize>,
+        limit: Option<usize>,
         input_plan: &SubPlan,
-        _context: &mut PlanningContext,
     ) -> Result<SubPlan, PlannerError> {
         let mut current_plan = input_plan.clone();
 
-        // 获取 YIELD 上下文
-        let yield_ctx = clause_ctx
-            .yield_clause()
-            .ok_or_else(|| PlannerError::PlanGenerationFailed("缺少 YIELD 上下文".to_string()))?;
-
         // 1. 构建投影节点（如果有具体的 YIELD 列）
-        if !yield_ctx.yield_columns.is_empty() {
-            let project_node = self.create_project_node(&current_plan, &yield_ctx.yield_columns)?;
+        if !yield_columns.is_empty() {
+            let project_node = self.create_project_node(&current_plan, yield_columns)?;
             current_plan = SubPlan::new(Some(project_node), current_plan.tail.clone());
         }
 
         // 2. 如有 WHERE 条件，添加 Filter 节点
-        if let Some(ref filter_condition) = yield_ctx.filter_condition {
+        if let Some(ref filter_condition) = filter_condition {
             let filter_node = self.create_filter_node(&current_plan, filter_condition.clone())?;
             current_plan = SubPlan::new(Some(filter_node), current_plan.tail.clone());
         }
 
         // 3. 处理分页（LIMIT/SKIP）
-        if yield_ctx.limit.is_some() || yield_ctx.skip.is_some() {
+        if limit.is_some() || skip.is_some() {
             current_plan =
-                self.apply_pagination(current_plan, yield_ctx.skip, yield_ctx.limit)?;
+                self.apply_pagination(current_plan, skip, limit)?;
         }
 
         Ok(current_plan)
@@ -123,37 +118,129 @@ impl YieldClausePlanner {
 }
 
 impl ClausePlanner for YieldClausePlanner {
+    fn clause_kind(&self) -> CypherClauseKind {
+        CypherClauseKind::Yield
+    }
+
     fn name(&self) -> &'static str {
         "YieldClausePlanner"
     }
 
-    fn supported_clause_kind(&self) -> CypherClauseKind {
-        CypherClauseKind::Yield
-    }
-}
-
-impl DataFlowNode for YieldClausePlanner {
-    fn flow_direction(&self) -> FlowDirection {
-        self.clause_type().flow_direction()
-    }
-}
-
-impl CypherClausePlanner for YieldClausePlanner {
-    fn clause_type(&self) -> ClauseType {
-        ClauseType::Yield
-    }
-
-    fn transform(
+    fn transform_clause(
         &self,
-        clause_ctx: &CypherClauseContext,
-        input_plan: Option<&SubPlan>,
-        context: &mut PlanningContext,
+        _query_context: &mut QueryContext,
+        ast_ctx: &AstContext,
+        input_plan: SubPlan,
     ) -> Result<SubPlan, PlannerError> {
-        self.validate_flow(input_plan)?;
-        let input_plan = input_plan.ok_or_else(|| {
-            PlannerError::PlanGenerationFailed("YIELD 子句需要输入计划".to_string())
-        })?;
-        self.plan_yield_clause(clause_ctx, input_plan, context)
+        // 从 AST 上下文中提取 YIELD 子句信息
+        let (yield_columns, filter_condition, skip, limit) = Self::extract_yield_info(ast_ctx)?;
+
+        self.plan_yield_clause(&yield_columns, filter_condition, skip, limit, &input_plan)
+    }
+}
+
+impl YieldClausePlanner {
+    /// 从 AST 上下文中提取 YIELD 子句信息
+    ///
+    /// 完善后的实现包括：
+    /// - 支持多种语句类型中的 YIELD 子句
+    /// - YieldItem 到 YieldColumn 的完整转换
+    /// - 聚合表达式检测
+    /// - 别名处理
+    fn extract_yield_info(ast_ctx: &AstContext) -> Result<(Vec<YieldColumn>, Option<crate::core::Expression>, Option<usize>, Option<usize>), PlannerError> {
+        use crate::query::parser::ast::Stmt;
+
+        let sentence = ast_ctx.sentence()
+            .ok_or_else(|| PlannerError::PlanGenerationFailed("AST 上下文中没有语句".to_string()))?;
+
+        // YIELD 可能作为独立语句或子句出现在其他语句中
+        match sentence {
+            Stmt::Yield(yield_stmt) => {
+                let yield_columns = Self::convert_yield_items(&yield_stmt.items)?;
+                Ok((yield_columns, yield_stmt.where_clause.clone(), None, None))
+            }
+            Stmt::Go(go_stmt) => {
+                // 从 GO 语句中提取 YIELD 子句
+                if let Some(ref yield_clause) = go_stmt.yield_clause {
+                    let yield_columns = Self::convert_yield_items(&yield_clause.items)?;
+                    let skip = yield_clause.skip.as_ref().map(|s| s.count as usize);
+                    let limit = yield_clause.limit.as_ref().map(|l| l.count as usize);
+                    Ok((yield_columns, yield_clause.where_clause.clone(), skip, limit))
+                } else {
+                    Ok((vec![], None, None, None))
+                }
+            }
+            Stmt::Fetch(_fetch_stmt) => {
+                // FETCH 语句可能有隐式的 YIELD
+                Ok((vec![], None, None, None))
+            }
+            _ => {
+                // 其他语句类型暂不支持 YIELD 提取
+                Ok((vec![], None, None, None))
+            }
+        }
+    }
+
+    /// 转换 YieldItem 列表到 YieldColumn 列表
+    fn convert_yield_items(items: &[crate::query::parser::ast::stmt::YieldItem]) -> Result<Vec<YieldColumn>, PlannerError> {
+        let yield_columns: Vec<YieldColumn> = items
+            .iter()
+            .map(|item| {
+                YieldColumn {
+                    expression: item.expression.clone(),
+                    alias: item.alias.clone().unwrap_or_else(|| {
+                        Self::generate_default_alias(&item.expression)
+                    }),
+                    is_matched: false,
+                }
+            })
+            .collect();
+        Ok(yield_columns)
+    }
+
+    /// 生成默认别名
+    ///
+    /// 当用户没有指定别名时，根据表达式生成默认别名
+    fn generate_default_alias(expression: &crate::core::Expression) -> String {
+        use crate::core::Expression;
+        
+        match expression {
+            Expression::Variable(name) => name.clone(),
+            Expression::Property { object, property } => {
+                if let Expression::Variable(name) = object.as_ref() {
+                    format!("{}.{}", name, property)
+                } else {
+                    "expr".to_string()
+                }
+            }
+            Expression::Function { name, .. } => name.clone(),
+            Expression::Aggregate { func, .. } => format!("{:?}", func).to_lowercase(),
+            _ => "expr".to_string(),
+        }
+    }
+
+    /// 检查表达式是否包含聚合函数
+    ///
+    /// 用于确定是否需要聚合处理
+    #[allow(dead_code)]
+    fn has_aggregate_expression(expression: &crate::core::Expression) -> bool {
+        use crate::core::Expression;
+        
+        match expression {
+            Expression::Function { name, .. } => {
+                // 常见的聚合函数
+                let agg_functions = ["count", "sum", "avg", "min", "max", "collect"];
+                agg_functions.contains(&name.to_lowercase().as_str())
+            }
+            Expression::Aggregate { .. } => true,
+            Expression::Binary { left, right, .. } => {
+                Self::has_aggregate_expression(left) || Self::has_aggregate_expression(right)
+            }
+            Expression::Unary { operand, .. } => {
+                Self::has_aggregate_expression(operand)
+            }
+            _ => false,
+        }
     }
 }
 

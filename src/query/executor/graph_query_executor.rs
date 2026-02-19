@@ -265,15 +265,35 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                     )))
                 }
             }
-            CreateTarget::Node { .. } | CreateTarget::Edge { .. } => {
-                Err(DBError::Query(QueryError::ExecutionError(
-                    "CREATE NODE/EDGE for MATCH pattern is not implemented yet".to_string()
-                )))
-            }
-            CreateTarget::Path { .. } => {
-                Err(DBError::Query(QueryError::ExecutionError(
-                    "CREATE Path for Cypher-style pattern is not implemented yet".to_string()
-                )))
+            CreateTarget::Node { .. } | CreateTarget::Edge { .. } | CreateTarget::Path { .. } => {
+                // 使用 CreatePlanner 生成执行计划并执行
+                let mut ast_ctx = AstContext::new(None, Some(Stmt::Create(clause)));
+                ast_ctx.set_query_type(crate::query::context::ast::QueryType::WriteQuery);
+
+                use crate::query::planner::statements::create_planner::CreatePlanner;
+                let mut planner = CreatePlanner::new();
+                let plan = planner.transform(&ast_ctx)
+                    .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
+
+                let root_node = plan.root()
+                    .as_ref()
+                    .ok_or_else(|| DBError::Query(QueryError::ExecutionError("执行计划为空".to_string())))?
+                    .clone();
+
+                let mut executor_factory = ExecutorFactory::with_storage(self.storage.clone());
+                let mut executor = executor_factory.create_executor(&root_node, self.storage.clone(), &Default::default())
+                    .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
+
+                executor.open()
+                    .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
+
+                let result = executor.execute()
+                    .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
+
+                executor.close()
+                    .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
+
+                Ok(result)
             }
         }
     }

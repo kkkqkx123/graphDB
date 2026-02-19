@@ -7,7 +7,6 @@ use crate::core::types::EdgeDirection;
 use crate::core::Value;
 use crate::query::parser::ast::stmt::{CreateStmt, CreateTarget};
 use crate::query::parser::ast::pattern::{Pattern, NodePattern, EdgePattern, PathPattern, PathElement};
-use crate::query::validator::base_validator::Validator;
 use crate::storage::metadata::schema_manager::SchemaManager;
 
 /// 验证后的创建信息
@@ -57,7 +56,6 @@ pub struct ValidatedPathCreate {
 
 /// CREATE 语句验证器
 pub struct CreateValidator<'a> {
-    base: Validator,
     schema_manager: Option<&'a dyn SchemaManager>,
     auto_create_schema: bool,
 }
@@ -65,7 +63,6 @@ pub struct CreateValidator<'a> {
 impl<'a> CreateValidator<'a> {
     pub fn new() -> Self {
         Self {
-            base: Validator::new(),
             schema_manager: None,
             auto_create_schema: true,
         }

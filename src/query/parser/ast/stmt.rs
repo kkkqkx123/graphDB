@@ -248,6 +248,7 @@ pub struct ReturnClause {
     pub span: Span,
     pub items: Vec<ReturnItem>,
     pub distinct: bool,
+    pub order_by: Option<OrderByClause>,
     pub limit: Option<super::types::LimitClause>,
     pub skip: Option<super::types::SkipClause>,
     pub sample: Option<super::types::SampleClause>,
@@ -415,6 +416,7 @@ pub struct YieldClause {
     pub span: Span,
     pub items: Vec<YieldItem>,
     pub where_clause: Option<Expression>,
+    pub order_by: Option<OrderByClause>,
     pub limit: Option<super::types::LimitClause>,
     pub skip: Option<super::types::SkipClause>,
     pub sample: Option<super::types::SampleClause>,
@@ -684,6 +686,9 @@ pub struct ReturnStmt {
     pub span: Span,
     pub items: Vec<ReturnItem>,
     pub distinct: bool,
+    pub order_by: Option<OrderByClause>,
+    pub skip: Option<usize>,
+    pub limit: Option<usize>,
 }
 
 /// WITH 语句
@@ -693,6 +698,9 @@ pub struct WithStmt {
     pub items: Vec<ReturnItem>,
     pub where_clause: Option<Expression>,
     pub distinct: bool,
+    pub order_by: Option<OrderByClause>,
+    pub skip: Option<usize>,
+    pub limit: Option<usize>,
 }
 
 /// YIELD 语句
@@ -702,6 +710,9 @@ pub struct YieldStmt {
     pub items: Vec<YieldItem>,
     pub where_clause: Option<Expression>,
     pub distinct: bool,
+    pub order_by: Option<OrderByClause>,
+    pub skip: Option<usize>,
+    pub limit: Option<usize>,
 }
 
 /// SET 语句
