@@ -2,99 +2,83 @@
 
 ## Summary
 
-- **Total Errors**: 8
-- **Total Warnings**: 3
+- **Total Errors**: 0
+- **Total Warnings**: 11
 - **Total Issues**: 11
-- **Unique Error Patterns**: 4
-- **Unique Warning Patterns**: 1
-- **Files with Issues**: 6
+- **Unique Error Patterns**: 0
+- **Unique Warning Patterns**: 6
+- **Files with Issues**: 17
 
 ## Error Statistics
 
-**Total Errors**: 8
-
-### Error Type Breakdown
-
-- **error[E0422]**: 4 errors
-- **error[E0599]**: 2 errors
-- **error[E0412]**: 2 errors
-
-### Files with Errors (Top 10)
-
-- `src\query\validator\insert_vertices_validator.rs`: 3 errors
-- `src\query\validator\insert_edges_validator.rs`: 3 errors
-- `src\query\validator\match_validator.rs`: 2 errors
+**Total Errors**: 0
 
 ## Warning Statistics
 
-**Total Warnings**: 3
+**Total Warnings**: 11
 
 ### Warning Type Breakdown
 
-- **warning**: 3 warnings
+- **warning**: 11 warnings
 
 ### Files with Warnings (Top 10)
 
-- `src\query\validator\fetch_vertices_validator.rs`: 1 warnings
-- `src\query\validator\delete_validator.rs`: 1 warnings
+- `src\query\validator\fetch_vertices_validator.rs`: 2 warnings
+- `src\query\validator\sequential_validator.rs`: 1 warnings
+- `src\query\validator\unwind_validator.rs`: 1 warnings
+- `src\query\validator\match_validator.rs`: 1 warnings
+- `src\query\validator\pipe_validator.rs`: 1 warnings
+- `src\query\validator\use_validator.rs`: 1 warnings
+- `src\query\validator\order_by_validator.rs`: 1 warnings
+- `src\query\validator\yield_validator.rs`: 1 warnings
+- `src\query\validator\set_validator.rs`: 1 warnings
 - `src\query\validator\fetch_edges_validator.rs`: 1 warnings
-
-## Detailed Error Categorization
-
-### error[E0422]: cannot find struct, variant or union type `InsertStmt` in this scope: not found in this scope
-
-**Total Occurrences**: 4  
-**Unique Files**: 2
-
-#### `src\query\validator\insert_edges_validator.rs`: 2 occurrences
-
-- Line 381: cannot find struct, variant or union type `InsertStmt` in this scope: not found in this scope
-- Line 637: cannot find struct, variant or union type `InsertStmt` in this scope: not found in this scope
-
-#### `src\query\validator\insert_vertices_validator.rs`: 2 occurrences
-
-- Line 334: cannot find struct, variant or union type `InsertStmt` in this scope: not found in this scope
-- Line 565: cannot find struct, variant or union type `InsertStmt` in this scope: not found in this scope
-
-### error[E0412]: cannot find type `InsertStmt` in this scope: not found in this scope
-
-**Total Occurrences**: 2  
-**Unique Files**: 2
-
-#### `src\query\validator\insert_vertices_validator.rs`: 1 occurrences
-
-- Line 333: cannot find type `InsertStmt` in this scope: not found in this scope
-
-#### `src\query\validator\insert_edges_validator.rs`: 1 occurrences
-
-- Line 380: cannot find type `InsertStmt` in this scope: not found in this scope
-
-### error[E0599]: no method named `requires_space` found for struct `match_validator::MatchValidator` in the current scope: method not found in `MatchValidator`
-
-**Total Occurrences**: 2  
-**Unique Files**: 1
-
-#### `src\query\validator\match_validator.rs`: 2 occurrences
-
-- Line 911: no method named `requires_space` found for struct `match_validator::MatchValidator` in the current scope: method not found in `MatchValidator`
-- Line 917: no method named `requires_write_permission` found for struct `match_validator::MatchValidator` in the current scope: method not found in `MatchValidator`
 
 ## Detailed Warning Categorization
 
-### warning: variable does not need to be mutable
+### warning: methods `add_error` and `has_errors` are never used
 
-**Total Occurrences**: 3  
-**Unique Files**: 3
+**Total Occurrences**: 11  
+**Unique Files**: 10
 
-#### `src\query\validator\delete_validator.rs`: 1 occurrences
+#### `src\query\validator\fetch_vertices_validator.rs`: 2 occurrences
 
-- Line 643: variable does not need to be mutable
+- Line 178: method `get_tag_id` is never used
+- Line 324: function `create_fetch_vertices_stmt` is never used
+
+#### `src\query\validator\pipe_validator.rs`: 1 occurrences
+
+- Line 134: methods `add_error` and `has_errors` are never used
+
+#### `src\query\validator\sequential_validator.rs`: 1 occurrences
+
+- Line 130: methods `add_error` and `has_errors` are never used
+
+#### `src\query\validator\yield_validator.rs`: 1 occurrences
+
+- Line 260: method `to_plan` is never used
+
+#### `src\query\validator\use_validator.rs`: 1 occurrences
+
+- Line 200: method `to_plan` is never used
+
+#### `src\query\validator\set_validator.rs`: 1 occurrences
+
+- Line 393: method `to_plan` is never used
+
+#### `src\query\validator\match_validator.rs`: 1 occurrences
+
+- Line 47: field `query_parts` is never read
+
+#### `src\query\validator\unwind_validator.rs`: 1 occurrences
+
+- Line 299: method `to_plan` is never used
+
+#### `src\query\validator\order_by_validator.rs`: 1 occurrences
+
+- Line 102: methods `add_error` and `has_errors` are never used
 
 #### `src\query\validator\fetch_edges_validator.rs`: 1 occurrences
 
-- Line 460: variable does not need to be mutable
-
-#### `src\query\validator\fetch_vertices_validator.rs`: 1 occurrences
-
-- Line 405: variable does not need to be mutable
+- Line 382: function `create_fetch_edges_stmt` is never used
 

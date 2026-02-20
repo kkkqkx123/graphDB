@@ -28,6 +28,10 @@ pub mod match_validator;
 pub mod order_by_validator;
 pub mod pipe_validator;
 pub mod sequential_validator;
+pub mod set_validator;
+pub mod unwind_validator;
+pub mod use_validator;
+pub mod yield_validator;
 
 // 导出数据结构
 pub use structs::{
@@ -81,3 +85,7 @@ pub use match_validator::MatchValidator;
 pub use order_by_validator::{OrderByValidator, OrderColumn};
 pub use pipe_validator::{PipeValidator, ColumnInfo};
 pub use sequential_validator::{SequentialValidator, SequentialStatement};
+pub use set_validator::{SetValidator, SetItem, SetStatementType, ValidatedSet, ValidatedSetItem};
+pub use unwind_validator::{UnwindValidator, ValidatedUnwind};
+pub use use_validator::{UseValidator, ValidatedUse};
+pub use yield_validator::{YieldValidator, ValidatedYield};

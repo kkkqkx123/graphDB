@@ -173,12 +173,6 @@ impl FetchVerticesValidator {
             )),
         }
     }
-
-    /// 获取 Tag ID
-    fn get_tag_id(&self, tag_name: &str, _space_id: u64) -> Result<Option<i32>, ValidationError> {
-        let _ = tag_name;
-        Ok(None)
-    }
 }
 
 impl Default for FetchVerticesValidator {
@@ -402,7 +396,7 @@ mod tests {
 
     #[test]
     fn test_statement_validator_trait() {
-        let mut validator = FetchVerticesValidator::new();
+        let validator = FetchVerticesValidator::new();
         
         // 测试 statement_type
         assert_eq!(validator.statement_type(), StatementType::FetchVertices);

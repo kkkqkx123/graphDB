@@ -43,8 +43,6 @@ pub struct MatchValidator {
     aliases: HashMap<String, AliasType>,
     /// 路径列表
     paths: Vec<Path>,
-    /// 查询部分
-    query_parts: Vec<QueryPart>,
     /// 分页上下文
     pagination: Option<PaginationContext>,
     /// 是否为可选匹配
@@ -64,7 +62,6 @@ impl MatchValidator {
             validated_result: None,
             aliases: HashMap::new(),
             paths: Vec::new(),
-            query_parts: Vec::new(),
             pagination: None,
             optional: false,
             expression_props: ExpressionProps::default(),
@@ -92,6 +89,16 @@ impl MatchValidator {
     /// 获取路径列表
     pub fn paths(&self) -> &[Path] {
         &self.paths
+    }
+
+    /// 是否需要选择图空间
+    pub fn requires_space(&self) -> bool {
+        true
+    }
+
+    /// 是否需要写权限
+    pub fn requires_write_permission(&self) -> bool {
+        false
     }
 
     /// 验证完整的 MATCH 语句

@@ -126,16 +126,6 @@ impl SequentialValidator {
         self.max_statements = max;
     }
 
-    /// 添加验证错误
-    fn add_error(&mut self, error: ValidationError) {
-        self.validation_errors.push(error);
-    }
-
-    /// 检查是否有验证错误
-    fn has_errors(&self) -> bool {
-        !self.validation_errors.is_empty()
-    }
-
     /// 清空验证错误
     fn clear_errors(&mut self) {
         self.validation_errors.clear();

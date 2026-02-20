@@ -19,9 +19,13 @@ use crate::query::validator::create_validator::CreateValidator;
 use crate::query::validator::order_by_validator::OrderByValidator;
 use crate::query::validator::pipe_validator::PipeValidator;
 use crate::query::validator::sequential_validator::SequentialValidator;
+use crate::query::validator::set_validator::SetValidator;
+use crate::query::validator::unwind_validator::UnwindValidator;
+use crate::query::validator::use_validator::UseValidator;
+use crate::query::validator::yield_validator::YieldValidator;
 
 /// 统一验证器枚举
-/// 
+///
 /// 设计优势：
 /// 1. 编译期确定类型，避免动态分发开销
 /// 2. 统一接口，便于管理和扩展
@@ -37,10 +41,14 @@ pub enum Validator {
     Pipe(PipeValidator),
     /// Sequential 语句验证器
     Sequential(SequentialValidator),
-    // TODO: 后续添加其他验证器
-    // Match(MatchValidator),
-    // Go(GoValidator),
-    // ...
+    /// SET 语句验证器
+    Set(SetValidator),
+    /// UNWIND 子句验证器
+    Unwind(UnwindValidator),
+    /// USE 语句验证器
+    Use(UseValidator),
+    /// YIELD 子句验证器
+    Yield(YieldValidator),
 }
 
 impl Validator {
@@ -69,6 +77,26 @@ impl Validator {
         Validator::Sequential(validator)
     }
 
+    /// 创建 Set 验证器
+    pub fn set(validator: SetValidator) -> Self {
+        Validator::Set(validator)
+    }
+
+    /// 创建 Unwind 验证器
+    pub fn unwind(validator: UnwindValidator) -> Self {
+        Validator::Unwind(validator)
+    }
+
+    /// 创建 Use 验证器
+    pub fn use_(validator: UseValidator) -> Self {
+        Validator::Use(validator)
+    }
+
+    /// 创建 Yield 验证器
+    pub fn yield_(validator: YieldValidator) -> Self {
+        Validator::Yield(validator)
+    }
+
     /// 获取语句类型
     pub fn statement_type(&self) -> StatementType {
         match self {
@@ -76,11 +104,15 @@ impl Validator {
             Validator::OrderBy(_) => StatementType::OrderBy,
             Validator::Pipe(_) => StatementType::Pipe,
             Validator::Sequential(_) => StatementType::Sequential,
+            Validator::Set(_) => StatementType::Set,
+            Validator::Unwind(_) => StatementType::Unwind,
+            Validator::Use(_) => StatementType::Use,
+            Validator::Yield(_) => StatementType::Yield,
         }
     }
 
     /// 执行完整验证生命周期
-    /// 
+    ///
     /// 验证生命周期：
     /// 1. 检查是否需要空间（is_global_statement）
     /// 2. 执行具体验证逻辑（validate_impl）
@@ -97,6 +129,10 @@ impl Validator {
             Validator::OrderBy(v) => v.validate(query_context, ast),
             Validator::Pipe(v) => v.validate(query_context, ast),
             Validator::Sequential(v) => v.validate(query_context, ast),
+            Validator::Set(v) => v.validate(query_context, ast),
+            Validator::Unwind(v) => v.validate(query_context, ast),
+            Validator::Use(v) => v.validate(query_context, ast),
+            Validator::Yield(v) => v.validate(query_context, ast),
         }
     }
 
@@ -133,6 +169,10 @@ impl Validator {
             Validator::OrderBy(v) => v.inputs(),
             Validator::Pipe(v) => v.inputs(),
             Validator::Sequential(v) => v.inputs(),
+            Validator::Set(v) => v.inputs(),
+            Validator::Unwind(v) => v.inputs(),
+            Validator::Use(v) => v.inputs(),
+            Validator::Yield(v) => v.inputs(),
         }
     }
 
@@ -143,6 +183,10 @@ impl Validator {
             Validator::OrderBy(v) => v.outputs(),
             Validator::Pipe(v) => v.outputs(),
             Validator::Sequential(v) => v.outputs(),
+            Validator::Set(v) => v.outputs(),
+            Validator::Unwind(v) => v.outputs(),
+            Validator::Use(v) => v.outputs(),
+            Validator::Yield(v) => v.outputs(),
         }
     }
 
@@ -153,6 +197,10 @@ impl Validator {
             Validator::OrderBy(v) => v.is_global_statement(ast),
             Validator::Pipe(v) => v.is_global_statement(ast),
             Validator::Sequential(v) => v.is_global_statement(ast),
+            Validator::Set(v) => v.is_global_statement(ast),
+            Validator::Unwind(v) => v.is_global_statement(ast),
+            Validator::Use(v) => v.is_global_statement(ast),
+            Validator::Yield(v) => v.is_global_statement(ast),
         }
     }
 
@@ -163,6 +211,10 @@ impl Validator {
             Validator::OrderBy(v) => v.validator_name(),
             Validator::Pipe(v) => v.validator_name(),
             Validator::Sequential(v) => v.validator_name(),
+            Validator::Set(v) => v.validator_name(),
+            Validator::Unwind(v) => v.validator_name(),
+            Validator::Use(v) => v.validator_name(),
+            Validator::Yield(v) => v.validator_name(),
         }
     }
 
@@ -173,6 +225,10 @@ impl Validator {
             Validator::OrderBy(v) => v.expression_props(),
             Validator::Pipe(v) => v.expression_props(),
             Validator::Sequential(v) => v.expression_props(),
+            Validator::Set(v) => v.expression_props(),
+            Validator::Unwind(v) => v.expression_props(),
+            Validator::Use(v) => v.expression_props(),
+            Validator::Yield(v) => v.expression_props(),
         }
     }
 
@@ -183,6 +239,10 @@ impl Validator {
             Validator::OrderBy(v) => v.user_defined_vars(),
             Validator::Pipe(v) => v.user_defined_vars(),
             Validator::Sequential(v) => v.user_defined_vars(),
+            Validator::Set(v) => v.user_defined_vars(),
+            Validator::Unwind(v) => v.user_defined_vars(),
+            Validator::Use(v) => v.user_defined_vars(),
+            Validator::Yield(v) => v.user_defined_vars(),
         }
     }
 }
@@ -227,10 +287,10 @@ pub struct ValidatorFactory;
 
 impl ValidatorFactory {
     /// 根据语句类型创建对应的验证器
-    /// 
+    ///
     /// # Arguments
     /// * `stmt_type` - 语句类型
-    /// 
+    ///
     /// # Returns
     /// * `Some(Validator)` - 成功创建验证器
     /// * `None` - 不支持的语句类型
@@ -240,7 +300,10 @@ impl ValidatorFactory {
             StatementType::OrderBy => Some(Validator::OrderBy(OrderByValidator::new())),
             StatementType::Pipe => Some(Validator::Pipe(PipeValidator::new())),
             StatementType::Sequential => Some(Validator::Sequential(SequentialValidator::new())),
-            // TODO: 添加其他语句类型的支持
+            StatementType::Set => Some(Validator::Set(SetValidator::new())),
+            StatementType::Unwind => Some(Validator::Unwind(UnwindValidator::new())),
+            StatementType::Use => Some(Validator::Use(UseValidator::new())),
+            StatementType::Yield => Some(Validator::Yield(YieldValidator::new())),
             _ => None,
         }
     }
@@ -252,7 +315,10 @@ impl ValidatorFactory {
             StatementType::OrderBy,
             StatementType::Pipe,
             StatementType::Sequential,
-            // TODO: 添加其他支持的类型
+            StatementType::Set,
+            StatementType::Unwind,
+            StatementType::Use,
+            StatementType::Yield,
         ]
     }
 }

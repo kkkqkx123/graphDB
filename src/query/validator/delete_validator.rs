@@ -640,7 +640,7 @@ mod tests {
 
     #[test]
     fn test_statement_validator_trait() {
-        let mut validator = DeleteValidator::new();
+        let validator = DeleteValidator::new();
         
         // 测试 statement_type
         assert_eq!(validator.statement_type(), StatementType::Delete);

@@ -324,6 +324,7 @@ impl StatementValidator for InsertVerticesValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::query::parser::ast::stmt::InsertStmt;
     use crate::query::parser::ast::Span;
 
     fn create_insert_vertices_stmt(

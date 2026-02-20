@@ -182,27 +182,6 @@ impl FetchEdgesValidator {
         }
     }
 
-    /// 验证 YIELD 子句
-    fn validate_yield_clause(
-        &self,
-        yield_columns: &[(Expression, Option<String>)],
-    ) -> Result<(), ValidationError> {
-        let mut column_names = std::collections::HashSet::new();
-
-        for (_, alias) in yield_columns {
-            if let Some(ref alias_name) = alias {
-                if !column_names.insert(alias_name) {
-                    return Err(ValidationError::new(
-                        format!("YIELD 列别名 '{}' 重复出现", alias_name),
-                        ValidationErrorType::DuplicateKey,
-                    ));
-                }
-            }
-        }
-
-        Ok(())
-    }
-
     /// 评估表达式为 Value
     fn evaluate_expression(&self, expr: &Expression) -> Result<Value, ValidationError> {
         match expr {
@@ -457,7 +436,7 @@ mod tests {
 
     #[test]
     fn test_statement_validator_trait() {
-        let mut validator = FetchEdgesValidator::new();
+        let validator = FetchEdgesValidator::new();
         
         // 测试 statement_type
         assert_eq!(validator.statement_type(), StatementType::FetchEdges);

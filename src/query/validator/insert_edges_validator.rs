@@ -368,6 +368,7 @@ impl StatementValidator for InsertEdgesValidator {
 mod tests {
     use super::*;
     use crate::core::Expression;
+    use crate::query::parser::ast::stmt::InsertStmt;
     use crate::query::parser::ast::Span;
 
     fn create_insert_edge_stmt(
