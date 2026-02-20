@@ -2,11 +2,12 @@
 //! 对应 NebulaGraph GetSubgraphValidator.h/.cpp 的功能
 //! 验证 GET SUBGRAPH 语句的合法性
 
-use crate::core::error::{ValidationError, ValidationErrorType};
+use super::base_validator::{Validator, ValueType};
+use super::ValidationContext;
 use crate::core::Expression;
 use crate::core::types::EdgeDirection;
-use crate::query::context::validate::ValidationContext;
-use crate::query::validator::core::{ColumnDef, StatementType, StatementValidator};
+use crate::query::validator::ValidationError;
+use crate::query::validator::ValidationErrorType;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
@@ -16,19 +17,19 @@ pub struct GetSubgraphConfig {
     pub edge_filters: Vec<Expression>,
     pub edge_types: Vec<String>,
     pub direction: EdgeDirection,
-    pub yield_columns: Vec<crate::query::validator::structs::YieldColumn>,
+    pub yield_columns: Vec<super::structs::YieldColumn>,
     pub yield_stats: bool,
 }
 
 pub struct GetSubgraphValidator {
+    base: Validator,
     config: GetSubgraphConfig,
-    inputs: Vec<ColumnDef>,
-    outputs: Vec<ColumnDef>,
 }
 
 impl GetSubgraphValidator {
-    pub fn new() -> Self {
+    pub fn new(context: ValidationContext) -> Self {
         Self {
+            base: Validator::with_context(context),
             config: GetSubgraphConfig {
                 steps: Some((1, None)),
                 vertex_filters: Vec::new(),
@@ -38,8 +39,6 @@ impl GetSubgraphValidator {
                 yield_columns: Vec::new(),
                 yield_stats: false,
             },
-            inputs: Vec::new(),
-            outputs: Vec::new(),
         }
     }
 
@@ -109,29 +108,14 @@ impl GetSubgraphValidator {
     }
 
     fn validate_filter_type(&self, filter: &Expression) -> Result<(), ValidationError> {
-        match filter {
-            Expression::Binary { op, .. } => match op {
-                crate::core::BinaryOperator::Eq
-                | crate::core::BinaryOperator::Ne
-                | crate::core::BinaryOperator::Lt
-                | crate::core::BinaryOperator::Le
-                | crate::core::BinaryOperator::Gt
-                | crate::core::BinaryOperator::Ge
-                | crate::core::BinaryOperator::And
-                | crate::core::BinaryOperator::Or => Ok(()),
-                _ => Err(ValidationError::new(
-                    "Filter expression must return bool type".to_string(),
-                    ValidationErrorType::TypeError,
-                )),
-            },
-            Expression::Unary { op, .. } => match op {
-                crate::core::UnaryOperator::Not => Ok(()),
-                _ => Err(ValidationError::new(
-                    "Filter expression must return bool type".to_string(),
-                    ValidationErrorType::TypeError,
-                )),
-            },
-            _ => Ok(()),
+        let filter_type = self.base.deduce_expr_type(filter);
+        match filter_type {
+            ValueType::Bool => Ok(()),
+            ValueType::Null | ValueType::Unknown => Ok(()),
+            _ => Err(ValidationError::new(
+                format!("Filter expression must return bool type, actual returns {:?}", filter_type),
+                ValidationErrorType::TypeError,
+            )),
         }
     }
 
@@ -178,7 +162,7 @@ impl GetSubgraphValidator {
         self.config.direction = direction;
     }
 
-    pub fn add_yield_column(&mut self, col: crate::query::validator::structs::YieldColumn) {
+    pub fn add_yield_column(&mut self, col: super::structs::YieldColumn) {
         self.config.yield_columns.push(col);
     }
 
@@ -187,34 +171,13 @@ impl GetSubgraphValidator {
     }
 }
 
-impl Default for GetSubgraphValidator {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl StatementValidator for GetSubgraphValidator {
-    fn validate(&mut self, _ctx: &mut ValidationContext) -> Result<(), ValidationError> {
-        self.validate()
-    }
-
-    fn statement_type(&self) -> StatementType {
-        StatementType::GetSubgraph
-    }
-
-    fn inputs(&self) -> &[ColumnDef] {
-        &self.inputs
-    }
-
-    fn outputs(&self) -> &[ColumnDef] {
-        &self.outputs
-    }
-
-    fn add_input(&mut self, col: ColumnDef) {
-        self.inputs.push(col);
-    }
-
-    fn add_output(&mut self, col: ColumnDef) {
-        self.outputs.push(col);
+impl Validator {
+    pub fn validate_get_subgraph(
+        &mut self,
+        config: GetSubgraphConfig,
+    ) -> Result<(), ValidationError> {
+        let mut validator = GetSubgraphValidator::new(self.context().clone());
+        validator.config = config;
+        validator.validate()
     }
 }

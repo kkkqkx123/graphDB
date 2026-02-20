@@ -2,13 +2,11 @@
 //! 对应 Cypher CREATE (n:Label {prop: value}) 语法的验证
 //! 支持自动 Schema 推断和创建
 
-use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::core::error::{ValidationError as CoreValidationError, ValidationErrorType};
 use crate::core::types::EdgeDirection;
 use crate::core::Value;
-use crate::query::context::validate::ValidationContext;
 use crate::query::parser::ast::stmt::{CreateStmt, CreateTarget};
 use crate::query::parser::ast::pattern::{Pattern, NodePattern, EdgePattern, PathPattern, PathElement};
-use crate::query::validator::core::{ColumnDef, StatementType, StatementValidator};
 use crate::storage::metadata::schema_manager::SchemaManager;
 
 /// 验证后的创建信息
@@ -60,56 +58,34 @@ pub struct ValidatedPathCreate {
 pub struct CreateValidator<'a> {
     schema_manager: Option<&'a dyn SchemaManager>,
     auto_create_schema: bool,
-    stmt: Option<CreateStmt>,
-    inputs: Vec<ColumnDef>,
-    outputs: Vec<ColumnDef>,
-    validated_result: Option<ValidatedCreate>,
 }
 
 impl<'a> CreateValidator<'a> {
-    /// 创建新的验证器
     pub fn new() -> Self {
         Self {
             schema_manager: None,
             auto_create_schema: true,
-            stmt: None,
-            inputs: Vec::new(),
-            outputs: Vec::new(),
-            validated_result: None,
         }
     }
 
-    /// 设置 Schema 管理器
     pub fn with_schema_manager(mut self, schema_manager: &'a dyn SchemaManager) -> Self {
         self.schema_manager = Some(schema_manager);
         self
     }
 
-    /// 设置是否自动创建 Schema
     pub fn with_auto_create_schema(mut self, auto_create: bool) -> Self {
         self.auto_create_schema = auto_create;
         self
     }
 
-    /// 设置要验证的语句
-    pub fn with_statement(mut self, stmt: CreateStmt) -> Self {
-        self.stmt = Some(stmt);
-        self
-    }
-
-    /// 获取验证结果
-    pub fn validated_result(&self) -> Option<&ValidatedCreate> {
-        self.validated_result.as_ref()
-    }
-
-    /// 验证 CREATE 语句（旧接口，保持兼容）
+    /// 验证 CREATE 语句
     pub fn validate(
         &self,
         stmt: &CreateStmt,
         space_name: &str,
-    ) -> Result<ValidatedCreate, ValidationError> {
+    ) -> Result<ValidatedCreate, CoreValidationError> {
         let schema_manager = self.schema_manager.ok_or_else(|| {
-            ValidationError::new(
+            CoreValidationError::new(
                 "Schema manager not initialized".to_string(),
                 ValidationErrorType::SemanticError,
             )
@@ -118,13 +94,13 @@ impl<'a> CreateValidator<'a> {
         let space = schema_manager
             .get_space(space_name)
             .map_err(|e| {
-                ValidationError::new(
+                CoreValidationError::new(
                     format!("Failed to get space '{}': {}", space_name, e),
                     ValidationErrorType::SemanticError,
                 )
             })?
             .ok_or_else(|| {
-                ValidationError::new(
+                CoreValidationError::new(
                     format!("Space '{}' does not exist", space_name),
                     ValidationErrorType::SemanticError,
                 )
@@ -146,7 +122,7 @@ impl<'a> CreateValidator<'a> {
                 vec![self.validate_single_edge(variable, edge_type, src, dst, properties, direction, space_name, schema_manager, &mut missing_edge_types)?]
             }
             _ => {
-                return Err(ValidationError::new(
+                return Err(CoreValidationError::new(
                     "Unsupported CREATE target type".to_string(),
                     ValidationErrorType::SemanticError,
                 ));
@@ -171,7 +147,7 @@ impl<'a> CreateValidator<'a> {
         schema_manager: &'a dyn SchemaManager,
         missing_tags: &mut Vec<String>,
         missing_edge_types: &mut Vec<String>,
-    ) -> Result<Vec<ValidatedPattern>, ValidationError> {
+    ) -> Result<Vec<ValidatedPattern>, CoreValidationError> {
         let mut validated = Vec::new();
 
         for pattern in patterns {
@@ -186,7 +162,7 @@ impl<'a> CreateValidator<'a> {
                     ValidatedPattern::Path(self.validate_path_pattern(path, space_name, schema_manager, missing_tags, missing_edge_types)?)
                 }
                 _ => {
-                    return Err(ValidationError::new(
+                    return Err(CoreValidationError::new(
                         format!("Unsupported pattern type: {:?}", pattern),
                         ValidationErrorType::SemanticError,
                     ));
@@ -205,12 +181,12 @@ impl<'a> CreateValidator<'a> {
         space_name: &str,
         schema_manager: &'a dyn SchemaManager,
         missing_tags: &mut Vec<String>,
-    ) -> Result<ValidatedNodeCreate, ValidationError> {
+    ) -> Result<ValidatedNodeCreate, CoreValidationError> {
         // 验证标签是否存在，如果不存在且允许自动创建，则记录需要创建
         for label in &node.labels {
             if let Ok(None) = schema_manager.get_tag(space_name, label) {
                 if !self.auto_create_schema {
-                    return Err(ValidationError::new(
+                    return Err(CoreValidationError::new(
                         format!("Tag '{}' does not exist", label),
                         ValidationErrorType::SemanticError,
                     ));
@@ -242,7 +218,7 @@ impl<'a> CreateValidator<'a> {
         space_name: &str,
         schema_manager: &'a dyn SchemaManager,
         missing_edge_types: &mut Vec<String>,
-    ) -> Result<ValidatedEdgeCreate, ValidationError> {
+    ) -> Result<ValidatedEdgeCreate, CoreValidationError> {
         // 验证边类型是否存在
         let edge_type = edge.edge_types.first()
             .cloned()
@@ -250,7 +226,7 @@ impl<'a> CreateValidator<'a> {
 
         if let Ok(None) = schema_manager.get_edge_type(space_name, &edge_type) {
             if !self.auto_create_schema {
-                return Err(ValidationError::new(
+                return Err(CoreValidationError::new(
                     format!("Edge type '{}' does not exist", edge_type),
                     ValidationErrorType::SemanticError,
                 ));
@@ -287,7 +263,7 @@ impl<'a> CreateValidator<'a> {
         schema_manager: &'a dyn SchemaManager,
         missing_tags: &mut Vec<String>,
         missing_edge_types: &mut Vec<String>,
-    ) -> Result<ValidatedPathCreate, ValidationError> {
+    ) -> Result<ValidatedPathCreate, CoreValidationError> {
         let mut nodes = Vec::new();
         let mut edges = Vec::new();
 
@@ -300,7 +276,7 @@ impl<'a> CreateValidator<'a> {
                     edges.push(self.validate_edge_pattern(edge, space_name, schema_manager, missing_edge_types)?);
                 }
                 _ => {
-                    return Err(ValidationError::new(
+                    return Err(CoreValidationError::new(
                         "Unsupported path element type".to_string(),
                         ValidationErrorType::SemanticError,
                     ));
@@ -316,16 +292,16 @@ impl<'a> CreateValidator<'a> {
         &self,
         variable: &Option<String>,
         labels: &[String],
-        properties: &Option<crate::core::Expression>,
+        properties: &Option<crate::core::types::expression::Expression>,
         space_name: &str,
         schema_manager: &'a dyn SchemaManager,
         missing_tags: &mut Vec<String>,
-    ) -> Result<ValidatedPattern, ValidationError> {
+    ) -> Result<ValidatedPattern, CoreValidationError> {
         // 验证标签
         for label in labels {
             if let Ok(None) = schema_manager.get_tag(space_name, label) {
                 if !self.auto_create_schema {
-                    return Err(ValidationError::new(
+                    return Err(CoreValidationError::new(
                         format!("Tag '{}' does not exist", label),
                         ValidationErrorType::SemanticError,
                     ));
@@ -355,18 +331,18 @@ impl<'a> CreateValidator<'a> {
         &self,
         variable: &Option<String>,
         edge_type: &str,
-        _src: &crate::core::Expression,
-        _dst: &crate::core::Expression,
-        properties: &Option<crate::core::Expression>,
+        _src: &crate::core::types::expression::Expression,
+        _dst: &crate::core::types::expression::Expression,
+        properties: &Option<crate::core::types::expression::Expression>,
         direction: &EdgeDirection,
         space_name: &str,
         schema_manager: &'a dyn SchemaManager,
         missing_edge_types: &mut Vec<String>,
-    ) -> Result<ValidatedPattern, ValidationError> {
+    ) -> Result<ValidatedPattern, CoreValidationError> {
         // 验证边类型
         if let Ok(None) = schema_manager.get_edge_type(space_name, edge_type) {
             if !self.auto_create_schema {
-                return Err(ValidationError::new(
+                return Err(CoreValidationError::new(
                     format!("Edge type '{}' does not exist", edge_type),
                     ValidationErrorType::SemanticError,
                 ));
@@ -396,9 +372,9 @@ impl<'a> CreateValidator<'a> {
     /// 从表达式中提取属性键值对
     fn extract_properties(
         &self,
-        expr: &crate::core::Expression,
-    ) -> Result<Vec<(String, Value)>, ValidationError> {
-        use crate::core::Expression;
+        expr: &crate::core::types::expression::Expression,
+    ) -> Result<Vec<(String, Value)>, CoreValidationError> {
+        use crate::core::types::expression::Expression;
 
         match expr {
             Expression::Map(entries) => {
@@ -409,7 +385,7 @@ impl<'a> CreateValidator<'a> {
                 }
                 Ok(props)
             }
-            _ => Err(ValidationError::new(
+            _ => Err(CoreValidationError::new(
                 "Expected Map expression for properties".to_string(),
                 ValidationErrorType::SemanticError,
             )),
@@ -419,13 +395,13 @@ impl<'a> CreateValidator<'a> {
     /// 求值表达式（简化版）
     fn evaluate_expression(
         &self,
-        expr: &crate::core::Expression,
-    ) -> Result<Value, ValidationError> {
-        use crate::core::Expression;
+        expr: &crate::core::types::expression::Expression,
+    ) -> Result<Value, CoreValidationError> {
+        use crate::core::types::expression::Expression;
 
         match expr {
             Expression::Literal(value) => Ok(value.clone()),
-            _ => Err(ValidationError::new(
+            _ => Err(CoreValidationError::new(
                 format!("Unsupported expression type in CREATE: {:?}", expr),
                 ValidationErrorType::SemanticError,
             )),
@@ -436,49 +412,5 @@ impl<'a> CreateValidator<'a> {
 impl<'a> Default for CreateValidator<'a> {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-impl<'a> StatementValidator for CreateValidator<'a> {
-    fn validate(&mut self, ctx: &mut ValidationContext) -> Result<(), ValidationError> {
-        let stmt = self.stmt.as_ref().ok_or_else(|| {
-            ValidationError::new(
-                "CREATE statement not set".to_string(),
-                ValidationErrorType::SemanticError,
-            )
-        })?;
-
-        let space_name = ctx.space().name.as_str();
-        
-        match self.validate(stmt, space_name) {
-            Ok(result) => {
-                self.validated_result = Some(result);
-                Ok(())
-            }
-            Err(e) => {
-                ctx.add_error(e.clone());
-                Err(e)
-            }
-        }
-    }
-
-    fn statement_type(&self) -> StatementType {
-        StatementType::Create
-    }
-
-    fn inputs(&self) -> &[ColumnDef] {
-        &self.inputs
-    }
-
-    fn outputs(&self) -> &[ColumnDef] {
-        &self.outputs
-    }
-
-    fn add_input(&mut self, col: ColumnDef) {
-        self.inputs.push(col);
-    }
-
-    fn add_output(&mut self, col: ColumnDef) {
-        self.outputs.push(col);
     }
 }

@@ -2,11 +2,10 @@
 //! 对应 NebulaGraph FetchVerticesValidator.h/.cpp 的功能
 //! 验证 FETCH PROP ON ... 语句
 
-use crate::core::error::{ValidationError, ValidationErrorType};
+use super::base_validator::Validator;
+use super::validation_interface::{ValidationError, ValidationErrorType};
 use crate::core::Expression;
-use crate::core::DataType;
-use crate::query::context::validate::ValidationContext;
-use crate::query::validator::core::{ColumnDef, StatementType, StatementValidator};
+use crate::core::types::DataType;
 
 #[derive(Debug, Clone)]
 pub struct FetchVerticesContext {
@@ -67,14 +66,14 @@ pub struct FetchPropDef {
 }
 
 pub struct FetchVerticesValidator {
+    base: Validator,
     context: FetchVerticesContext,
-    inputs: Vec<ColumnDef>,
-    outputs: Vec<ColumnDef>,
 }
 
 impl FetchVerticesValidator {
-    pub fn new() -> Self {
+    pub fn new(context: super::ValidationContext) -> Self {
         Self {
+            base: Validator::with_context(context),
             context: FetchVerticesContext {
                 vertex_ids: Vec::new(),
                 tag_names: Vec::new(),
@@ -84,8 +83,6 @@ impl FetchVerticesValidator {
                 schemas: Vec::new(),
                 is_system: false,
             },
-            inputs: Vec::new(),
-            outputs: Vec::new(),
         }
     }
 
@@ -96,10 +93,22 @@ impl FetchVerticesValidator {
         self.validate_tag_props()?;
         self.build_outputs()?;
 
+        if self.base.context().has_validation_errors() {
+            let errors = self.base.context().get_validation_errors();
+            if let Some(first_error) = errors.first() {
+                return Err(first_error.clone());
+            }
+        }
+
         Ok(())
     }
 
     fn validate_vertex_ids(&mut self) -> Result<(), ValidationError> {
+        // 验证顶点 ID 列表
+        // 需要检查：
+        // 1. 顶点 ID 不能为空
+        // 2. 如果是变量引用，变量必须存在且类型正确
+
         if self.context.vertex_ids.is_empty() {
             return Err(ValidationError::new(
                 "必须指定至少一个顶点 ID".to_string(),
@@ -122,6 +131,11 @@ impl FetchVerticesValidator {
     }
 
     fn validate_tag_clause(&mut self) -> Result<(), ValidationError> {
+        // 验证标签子句
+        // 需要检查：
+        // 1. 标签必须存在
+        // 2. 标签不能重复
+
         let mut tag_set = std::collections::HashSet::new();
 
         for tag_name in &self.context.tag_names {
@@ -144,10 +158,15 @@ impl FetchVerticesValidator {
     }
 
     fn validate_yield_clause(&mut self) -> Result<(), ValidationError> {
+        // 验证 YIELD 子句
+        // 需要检查：
+        // 1. 引用的属性必须在标签中存在
+        // 2. 别名不能重复
+
         let mut column_names = std::collections::HashMap::new();
 
         for column in &self.context.yield_columns {
-            if column_names.get(&column.alias).is_some() {
+            if let Some(_) = column_names.get(&column.alias) {
                 return Err(ValidationError::new(
                     format!("YIELD 列别名 '{}' 重复出现", column.alias),
                     ValidationErrorType::DuplicateKey,
@@ -160,6 +179,11 @@ impl FetchVerticesValidator {
     }
 
     fn validate_tag_props(&mut self) -> Result<(), ValidationError> {
+        // 验证标签属性
+        // 需要检查：
+        // 1. 属性必须在标签 Schema 中定义
+        // 2. 只能引用指定标签的属性
+
         for column in &self.context.yield_columns {
             if let (Some(tag_name), Some(prop_name)) = (&column.tag_name, &column.prop_name) {
                 let tag_exists = self.context.tag_names.contains(tag_name);
@@ -170,6 +194,7 @@ impl FetchVerticesValidator {
                     ));
                 }
 
+                // 查找标签的 Schema 并验证属性是否存在
                 let prop_exists = self.context.schemas.iter()
                     .find(|schema| &schema.tag_name == tag_name)
                     .map_or(false, |schema| {
@@ -190,6 +215,9 @@ impl FetchVerticesValidator {
     }
 
     fn build_outputs(&mut self) -> Result<(), ValidationError> {
+        // 构建输出列
+        // 每个 YIELD 列对应一个输出
+
         for column in &self.context.yield_columns {
             let output = FetchOutput {
                 name: column.alias.clone(),
@@ -228,34 +256,16 @@ impl FetchVerticesValidator {
     }
 }
 
-impl Default for FetchVerticesValidator {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl StatementValidator for FetchVerticesValidator {
-    fn validate(&mut self, _ctx: &mut ValidationContext) -> Result<(), ValidationError> {
-        self.validate()
+impl super::validation_interface::ValidationStrategy for FetchVerticesValidator {
+    fn validate(&self, _context: &dyn super::validation_interface::ValidationContext) -> Result<(), ValidationError> {
+        Ok(())
     }
 
-    fn statement_type(&self) -> StatementType {
-        StatementType::FetchVertices
+    fn strategy_type(&self) -> super::validation_interface::ValidationStrategyType {
+        super::validation_interface::ValidationStrategyType::Clause
     }
 
-    fn inputs(&self) -> &[ColumnDef] {
-        &self.inputs
-    }
-
-    fn outputs(&self) -> &[ColumnDef] {
-        &self.outputs
-    }
-
-    fn add_input(&mut self, col: ColumnDef) {
-        self.inputs.push(col);
-    }
-
-    fn add_output(&mut self, col: ColumnDef) {
-        self.outputs.push(col);
+    fn strategy_name(&self) -> &'static str {
+        "FetchVerticesValidator"
     }
 }
