@@ -1,44 +1,26 @@
-//! 查询验证器模块（重构版）
+//! 查询验证器模块
 //! 对应 NebulaGraph src/graph/validator 的功能
 //! 用于验证 AST 的合法性
 //!
-//! 重构说明：
-//! 1. 采用策略模式，将验证逻辑分解为独立的策略类
-//! 2. 引入工厂模式，统一管理验证策略的创建
-//! 3. 引入注册表模式，支持动态注册验证器
-//! 4. 消除循环依赖，提高模块的可维护性和可测试性
-//! 5. 合并冗余文件，拆分大型文件
+//! 设计说明：
+//! 采用 trait + 枚举模式管理验证器
+//! - trait 定义统一接口
+//! - 枚举实现静态分发
+//! - 工厂模式创建验证器
 
-pub mod base_validator;
-pub mod match_validator;
-pub mod go_validator;
-pub mod fetch_vertices_validator;
-pub mod fetch_edges_validator;
-pub mod pipe_validator;
-pub mod yield_validator;
-pub mod order_by_validator;
-pub mod limit_validator;
-pub mod use_validator;
-pub mod unwind_validator;
-pub mod lookup_validator;
-pub mod find_path_validator;
-pub mod get_subgraph_validator;
-pub mod set_validator;
-pub mod sequential_validator;
-pub mod insert_vertices_validator;
-pub mod insert_edges_validator;
-pub mod update_validator;
-pub mod delete_validator;
+// 新的验证器体系（trait + 枚举）
+pub mod validator_trait;
+pub mod validator_enum;
 pub mod create_validator;
-pub mod validation_factory;
-pub mod validation_interface;
 pub mod schema_validator;
 
-pub mod strategies;
-pub mod structs;
-
-pub use base_validator::{
-    Validator,
+// 导出新的验证器体系（trait + 枚举）
+pub use validator_trait::{
+    StatementType,
+    StatementValidator,
+    ValidationResult,
+    ValidatorBuilder,
+    ValidatorRegistry,
     ColumnDef,
     ValueType,
     ExpressionProps,
@@ -47,49 +29,12 @@ pub use base_validator::{
     TagProperty,
     EdgeProperty,
 };
-pub use match_validator::MatchValidator;
-pub use go_validator::{GoValidator, GoContext, GoSource, GoYieldColumn};
-pub use fetch_vertices_validator::{FetchVerticesValidator, FetchVerticesContext, FetchVertexId};
-pub use fetch_edges_validator::{FetchEdgesValidator, FetchEdgesContext, FetchEdgeKey};
-pub use pipe_validator::{PipeValidator, ColumnInfo};
-pub use yield_validator::YieldValidator;
-pub use order_by_validator::{OrderByValidator, OrderColumn};
-pub use limit_validator::LimitValidator;
-pub use use_validator::UseValidator;
-pub use unwind_validator::UnwindValidator;
-pub use lookup_validator::LookupValidator;
-pub use find_path_validator::{FindPathValidator, FindPathConfig, PathPattern, PathEdgeDirection};
-pub use get_subgraph_validator::{GetSubgraphValidator, GetSubgraphConfig};
-pub use set_validator::{SetValidator, SetValidator as SetStatementValidator, SetItem, SetStatementType};
-pub use sequential_validator::{SequentialValidator, SequentialStatement};
-pub use insert_vertices_validator::InsertVerticesValidator;
-pub use insert_edges_validator::InsertEdgesValidator;
-pub use update_validator::UpdateValidator;
-pub use delete_validator::DeleteValidator;
+pub use validator_enum::{
+    Validator,
+    ValidatorFactory,
+    ValidatorCollection,
+};
+
+// 导出具体验证器
 pub use create_validator::CreateValidator;
 pub use schema_validator::SchemaValidator;
-
-pub use validation_factory::{
-    ValidationFactory,
-    ValidatorRegistry,
-    ValidatorBuilder,
-    StatementType,
-};
-
-pub use validation_interface::{
-    ValidationError,
-    ValidationErrorType,
-    ValidationStrategy,
-    ValidationStrategyType,
-};
-
-// 重新导出context版本的ValidationContext
-pub use crate::query::context::validate::ValidationContext;
-
-// 为了向后兼容，导出类型定义
-pub use crate::query::context::validate::types::{Column, Variable};
-
-// 导出策略模块
-pub use strategies::*;
-// 导出结构模块
-pub use structs::*;

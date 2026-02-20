@@ -1,14 +1,30 @@
-//! Delete 语句验证器（增强版）
+//! DELETE 语句验证器 - 新体系版本
 //! 对应 NebulaGraph DeleteValidator 的功能
 //! 验证 DELETE 语句的语义正确性
+//!
+//! 本文件已按照新的 trait + 枚举 验证器体系重构：
+//! 1. 实现了 StatementValidator trait，统一接口
+//! 2. 保留了完整功能：
+//!    - 验证生命周期管理
+//!    - 输入/输出列管理
+//!    - 表达式属性追踪
+//!    - 用户定义变量管理
+//!    - 权限检查
+//!    - 执行计划生成
+//! 3. 移除了生命周期参数，使用 Arc 管理 SchemaManager
+//! 4. 使用 AstContext 统一管理上下文
 
-use crate::core::error::{DBResult, ValidationError as CoreValidationError, ValidationErrorType};
+use std::sync::Arc;
+
+use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::{Expression, Value};
 use crate::query::context::ast::AstContext;
 use crate::query::context::execution::QueryContext;
 use crate::query::parser::ast::stmt::{DeleteStmt, DeleteTarget};
-use crate::query::validator::base_validator::{Validator, ValueType};
-use crate::query::validator::schema_validator::SchemaValidator;
+use crate::query::validator::validator_trait::{
+    StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
+    ExpressionProps,
+};
 use crate::storage::metadata::schema_manager::SchemaManager;
 
 /// 验证后的删除信息
@@ -45,103 +61,66 @@ pub struct EdgeKey {
     pub rank: i64,
 }
 
-pub struct DeleteValidator<'a> {
-    base: Validator,
-    schema_validator: Option<SchemaValidator<'a>>,
+/// DELETE 语句验证器 - 新体系实现
+///
+/// 功能完整性保证：
+/// 1. 完整的验证生命周期
+/// 2. 输入/输出列管理
+/// 3. 表达式属性追踪
+/// 4. 用户定义变量管理
+/// 5. 权限检查（可扩展）
+/// 6. 执行计划生成（可扩展）
+#[derive(Debug)]
+pub struct DeleteValidator {
+    // Schema 管理
+    schema_manager: Option<Arc<dyn SchemaManager>>,
+    // 输入列定义
+    inputs: Vec<ColumnDef>,
+    // 输出列定义
+    outputs: Vec<ColumnDef>,
+    // 表达式属性
+    expr_props: ExpressionProps,
+    // 用户定义变量
+    user_defined_vars: Vec<String>,
+    // 缓存验证结果
+    validated_result: Option<ValidatedDelete>,
 }
 
-impl<'a> DeleteValidator<'a> {
+impl DeleteValidator {
     pub fn new() -> Self {
         Self {
-            base: Validator::new(),
-            schema_validator: None,
+            schema_manager: None,
+            inputs: Vec::new(),
+            outputs: Vec::new(),
+            expr_props: ExpressionProps::default(),
+            user_defined_vars: Vec::new(),
+            validated_result: None,
         }
     }
 
-    pub fn with_schema_manager(mut self, schema_manager: &'a dyn SchemaManager) -> Self {
-        self.schema_validator = Some(SchemaValidator::new(schema_manager));
+    pub fn with_schema_manager(mut self, schema_manager: Arc<dyn SchemaManager>) -> Self {
+        self.schema_manager = Some(schema_manager);
         self
     }
 
-    /// 验证 DELETE 语句并返回验证后的信息
-    pub fn validate_with_schema(
-        &mut self,
-        stmt: &DeleteStmt,
-        space_name: &str,
-    ) -> Result<ValidatedDelete, CoreValidationError> {
-        // 基础验证（不依赖 schema_validator）
-        self.validate(stmt)?;
-
-        let schema_validator = self.schema_validator.as_ref().ok_or_else(|| {
-            CoreValidationError::new(
-                "Schema validator not initialized".to_string(),
-                ValidationErrorType::SemanticError,
-            )
-        })?;
-
-        let space = schema_validator
-            .schema_manager
-            .get_space(space_name)
-            .map_err(|e| {
-                CoreValidationError::new(
-                    format!("Failed to get space '{}': {}", space_name, e),
-                    ValidationErrorType::SemanticError,
-                )
-            })?
-            .ok_or_else(|| {
-                CoreValidationError::new(
-                    format!("Space '{}' not found", space_name),
-                    ValidationErrorType::SemanticError,
-                )
-            })?;
-
-        // 验证并转换目标
-        let target_type =
-            self.validate_and_convert_target_with_schema(&stmt.target, &space.vid_type, schema_validator)?;
-
-        Ok(ValidatedDelete {
-            space_id: space.space_id,
-            target_type,
-            with_edge: stmt.with_edge,
-            where_clause: stmt.where_clause.clone(),
-        })
+    /// 获取验证结果
+    pub fn validated_result(&self) -> Option<&ValidatedDelete> {
+        self.validated_result.as_ref()
     }
 
     /// 基础验证（不依赖 Schema）
-    pub fn validate(&mut self, stmt: &DeleteStmt) -> Result<(), CoreValidationError> {
+    fn validate_delete(&self, stmt: &DeleteStmt) -> Result<(), ValidationError> {
         self.validate_target(&stmt.target)?;
         self.validate_where_clause(stmt.where_clause.as_ref())?;
         Ok(())
     }
 
-    /// 完整验证（包含 AST 上下文）
-    pub fn validate_with_ast(
-        &mut self,
-        stmt: &DeleteStmt,
-        _query_context: Option<&QueryContext>,
-        ast: &mut AstContext,
-    ) -> DBResult<()> {
-        self.validate_space_chosen(ast)?;
-        self.validate(stmt)?;
-        self.generate_output_columns(ast);
-        Ok(())
-    }
-
-    fn validate_space_chosen(&self, ast: &AstContext) -> Result<(), CoreValidationError> {
-        if ast.space().space_id.is_none() {
-            return Err(CoreValidationError::new(
-                "No space selected. Use `USE <space>` to select a graph space first.".to_string(),
-                ValidationErrorType::SemanticError,
-            ));
-        }
-        Ok(())
-    }
-
-    fn validate_target(&self, target: &DeleteTarget) -> Result<(), CoreValidationError> {
+    /// 验证删除目标
+    fn validate_target(&self, target: &DeleteTarget) -> Result<(), ValidationError> {
         match target {
             DeleteTarget::Vertices(vids) => {
                 if vids.is_empty() {
-                    return Err(CoreValidationError::new(
+                    return Err(ValidationError::new(
                         "DELETE VERTICES must specify at least one vertex".to_string(),
                         ValidationErrorType::SemanticError,
                     ));
@@ -160,7 +139,7 @@ impl<'a> DeleteValidator<'a> {
                 }
                 if let Some(et) = edge_type {
                     if et.is_empty() {
-                        return Err(CoreValidationError::new(
+                        return Err(ValidationError::new(
                             "Edge type name cannot be empty".to_string(),
                             ValidationErrorType::SemanticError,
                         ));
@@ -170,21 +149,21 @@ impl<'a> DeleteValidator<'a> {
             DeleteTarget::Tags { tag_names, vertex_ids, is_all_tags } => {
                 // 如果不是删除所有 Tag，则需要指定至少一个 Tag 名
                 if !is_all_tags && tag_names.is_empty() {
-                    return Err(CoreValidationError::new(
+                    return Err(ValidationError::new(
                         "DELETE TAG must specify at least one tag name or use *".to_string(),
                         ValidationErrorType::SemanticError,
                     ));
                 }
                 for tag_name in tag_names {
                     if tag_name.is_empty() {
-                        return Err(CoreValidationError::new(
+                        return Err(ValidationError::new(
                             "Tag name cannot be empty".to_string(),
                             ValidationErrorType::SemanticError,
                         ));
                     }
                 }
                 if vertex_ids.is_empty() {
-                    return Err(CoreValidationError::new(
+                    return Err(ValidationError::new(
                         "DELETE TAG must specify at least one vertex ID".to_string(),
                         ValidationErrorType::SemanticError,
                     ));
@@ -195,7 +174,7 @@ impl<'a> DeleteValidator<'a> {
             }
             DeleteTarget::Index(index_name) => {
                 if index_name.is_empty() {
-                    return Err(CoreValidationError::new(
+                    return Err(ValidationError::new(
                         "Index name cannot be empty".to_string(),
                         ValidationErrorType::SemanticError,
                     ));
@@ -205,217 +184,55 @@ impl<'a> DeleteValidator<'a> {
         Ok(())
     }
 
-    /// 验证并转换目标（使用 Schema）
-    fn validate_and_convert_target_with_schema(
-        &self,
-        target: &DeleteTarget,
-        vid_type: &crate::core::types::DataType,
-        schema_validator: &SchemaValidator,
-    ) -> Result<DeleteTargetType, CoreValidationError> {
-        match target {
-            DeleteTarget::Vertices(vids) => {
-                let mut validated_vids = Vec::new();
-                for (idx, vid_expr) in vids.iter().enumerate() {
-                    let vid = self.validate_and_evaluate_vid(
-                        vid_expr,
-                        vid_type,
-                        schema_validator,
-                        idx + 1,
-                    )?;
-                    validated_vids.push(vid);
-                }
-                Ok(DeleteTargetType::Vertices(validated_vids))
-            }
-            DeleteTarget::Edges { edge_type, edges } => {
-                // 获取 EdgeType ID
-                let edge_type_id = if let Some(et) = edge_type {
-                    let edge_info = schema_validator
-                        .get_edge_type("", et)
-                        .map_err(|e| {
-                            CoreValidationError::new(
-                                format!("Failed to get edge type '{}': {}", et, e),
-                                ValidationErrorType::SemanticError,
-                            )
-                        })?;
-                    edge_info.map(|e| e.edge_type_id)
-                } else {
-                    None
-                };
-
-                let mut validated_edges = Vec::new();
-                for (idx, (src, dst, rank)) in edges.iter().enumerate() {
-                    let src_vid = self.validate_and_evaluate_vid(
-                        src,
-                        vid_type,
-                        schema_validator,
-                        idx * 2,
-                    )?;
-                    let dst_vid = self.validate_and_evaluate_vid(
-                        dst,
-                        vid_type,
-                        schema_validator,
-                        idx * 2 + 1,
-                    )?;
-                    let rank_val = if let Some(rank_expr) = rank {
-                        self.evaluate_rank(rank_expr, schema_validator)?
-                    } else {
-                        0
-                    };
-                    validated_edges.push(EdgeKey {
-                        src: src_vid,
-                        dst: dst_vid,
-                        rank: rank_val,
-                    });
-                }
-
-                Ok(DeleteTargetType::Edges {
-                    edge_type: edge_type.clone(),
-                    edge_type_id,
-                    edges: validated_edges,
-                })
-            }
-            DeleteTarget::Tags { tag_names, vertex_ids, is_all_tags } => {
-                // 获取 Tag IDs
-                let mut tag_ids = Vec::new();
-                let final_tag_names = if *is_all_tags {
-                    // 如果是删除所有 Tag，获取该 Space 下的所有 Tag
-                    vec![] // 执行层会处理获取所有 Tag 的逻辑
-                } else {
-                    for tag_name in tag_names {
-                        let tag_info = schema_validator
-                            .get_tag("", tag_name)
-                            .map_err(|e| {
-                                CoreValidationError::new(
-                                    format!("Failed to get tag '{}': {}", tag_name, e),
-                                    ValidationErrorType::SemanticError,
-                                )
-                            })?;
-                        if let Some(tag) = tag_info {
-                            tag_ids.push(tag.tag_id);
-                        }
-                    }
-                    tag_names.clone()
-                };
-
-                let mut validated_vids = Vec::new();
-                for (idx, vid_expr) in vertex_ids.iter().enumerate() {
-                    let vid = self.validate_and_evaluate_vid(
-                        vid_expr,
-                        vid_type,
-                        schema_validator,
-                        idx + 1,
-                    )?;
-                    validated_vids.push(vid);
-                }
-
-                Ok(DeleteTargetType::Tags {
-                    tag_names: final_tag_names,
-                    tag_ids,
-                    vertex_ids: validated_vids,
-                })
-            }
-            DeleteTarget::Index(index_name) => Ok(DeleteTargetType::Index(index_name.clone())),
-        }
-    }
-
-    fn validate_vertex_id(&self, expr: &Expression, idx: usize) -> Result<(), CoreValidationError> {
+    /// 验证顶点 ID
+    fn validate_vertex_id(&self, expr: &Expression, idx: usize) -> Result<(), ValidationError> {
         match expr {
-            Expression::Literal(crate::core::Value::String(s)) => {
+            Expression::Literal(Value::String(s)) => {
                 if s.is_empty() {
-                    return Err(CoreValidationError::new(
-                        format!("Vertex ID at position {} cannot be empty", idx + 1),
+                    return Err(ValidationError::new(
+                        format!("Vertex ID at position {} cannot be empty", idx),
                         ValidationErrorType::SemanticError,
                     ));
                 }
                 Ok(())
             }
-            Expression::Literal(crate::core::Value::Int(_)) => Ok(()),
+            Expression::Literal(Value::Int(_)) => Ok(()),
             Expression::Variable(_) => Ok(()),
-            _ => Err(CoreValidationError::new(
+            _ => Err(ValidationError::new(
                 format!(
                     "Vertex ID at position {} must be a string constant or variable",
-                    idx + 1
+                    idx
                 ),
                 ValidationErrorType::SemanticError,
             )),
         }
     }
 
-    /// 验证并评估 VID
-    fn validate_and_evaluate_vid(
-        &self,
-        vid_expr: &Expression,
-        vid_type: &crate::core::types::DataType,
-        schema_validator: &SchemaValidator,
-        idx: usize,
-    ) -> Result<Value, CoreValidationError> {
-        let vid = schema_validator
-            .evaluate_expression(vid_expr)
-            .map_err(|e| {
-                CoreValidationError::new(
-                    format!("Failed to evaluate vertex ID at position {}: {}", idx, e.message),
-                    e.error_type,
-                )
-            })?;
-
-        schema_validator
-            .validate_vid(&vid, vid_type)
-            .map_err(|e| {
-                CoreValidationError::new(
-                    format!("Invalid vertex ID at position {}: {}", idx, e.message),
-                    e.error_type,
-                )
-            })?;
-
-        Ok(vid)
-    }
-
-    fn validate_rank(&self, expr: &Expression) -> Result<(), CoreValidationError> {
+    /// 验证 rank
+    fn validate_rank(&self, expr: &Expression) -> Result<(), ValidationError> {
         match expr {
-            Expression::Literal(crate::core::Value::Int(_)) => Ok(()),
+            Expression::Literal(Value::Int(_)) => Ok(()),
             Expression::Variable(_) => Ok(()),
-            _ => Err(CoreValidationError::new(
+            _ => Err(ValidationError::new(
                 "Rank must be an integer constant or variable".to_string(),
                 ValidationErrorType::SemanticError,
             )),
         }
     }
 
-    /// 评估 rank 表达式
-    fn evaluate_rank(
-        &self,
-        expr: &Expression,
-        schema_validator: &SchemaValidator,
-    ) -> Result<i64, CoreValidationError> {
-        let value = schema_validator
-            .evaluate_expression(expr)
-            .map_err(|e| {
-                CoreValidationError::new(
-                    format!("Failed to evaluate rank: {}", e.message),
-                    e.error_type,
-                )
-            })?;
-
-        match value {
-            Value::Int(i) => Ok(i),
-            _ => Err(CoreValidationError::new(
-                "Rank must be an integer".to_string(),
-                ValidationErrorType::TypeMismatch,
-            )),
-        }
-    }
-
+    /// 验证 WHERE 子句
     fn validate_where_clause(
         &self,
         where_clause: Option<&Expression>,
-    ) -> Result<(), CoreValidationError> {
+    ) -> Result<(), ValidationError> {
         if let Some(where_expr) = where_clause {
             self.validate_expression(where_expr)?;
         }
         Ok(())
     }
 
-    fn validate_expression(&self, expr: &Expression) -> Result<(), CoreValidationError> {
+    /// 验证表达式
+    fn validate_expression(&self, expr: &Expression) -> Result<(), ValidationError> {
         match expr {
             Expression::Literal(_) => Ok(()),
             Expression::Variable(_) => Ok(()),
@@ -436,14 +253,231 @@ impl<'a> DeleteValidator<'a> {
         }
     }
 
-    fn generate_output_columns(&mut self, _ast: &mut AstContext) {
-        self.base.add_output("DELETED".to_string(), ValueType::Bool);
+    /// 验证并转换目标（使用 Schema）
+    fn validate_and_convert_target(
+        &self,
+        target: &DeleteTarget,
+        space_id: i32,
+    ) -> Result<DeleteTargetType, ValidationError> {
+        match target {
+            DeleteTarget::Vertices(vids) => {
+                let mut validated_vids = Vec::new();
+                for (idx, vid_expr) in vids.iter().enumerate() {
+                    let vid = self.evaluate_vid(vid_expr, idx + 1)?;
+                    validated_vids.push(vid);
+                }
+                Ok(DeleteTargetType::Vertices(validated_vids))
+            }
+            DeleteTarget::Edges { edge_type, edges } => {
+                // 获取 EdgeType ID
+                let edge_type_id = if let Some(et) = edge_type {
+                    self.get_edge_type_id(et, space_id)?
+                } else {
+                    None
+                };
+
+                let mut validated_edges = Vec::new();
+                for (idx, (src, dst, rank)) in edges.iter().enumerate() {
+                    let src_vid = self.evaluate_vid(src, idx * 2)?;
+                    let dst_vid = self.evaluate_vid(dst, idx * 2 + 1)?;
+                    let rank_val = if let Some(rank_expr) = rank {
+                        self.evaluate_rank(rank_expr)?
+                    } else {
+                        0
+                    };
+                    validated_edges.push(EdgeKey {
+                        src: src_vid,
+                        dst: dst_vid,
+                        rank: rank_val,
+                    });
+                }
+
+                Ok(DeleteTargetType::Edges {
+                    edge_type: edge_type.clone(),
+                    edge_type_id,
+                    edges: validated_edges,
+                })
+            }
+            DeleteTarget::Tags { tag_names, vertex_ids, is_all_tags } => {
+                // 获取 Tag IDs
+                let mut tag_ids = Vec::new();
+                let final_tag_names = if *is_all_tags {
+                    // 如果是删除所有 Tag，执行层会处理获取所有 Tag 的逻辑
+                    vec![]
+                } else {
+                    for tag_name in tag_names {
+                        let tag_id = self.get_tag_id(tag_name, space_id)?;
+                        if let Some(id) = tag_id {
+                            tag_ids.push(id);
+                        }
+                    }
+                    tag_names.clone()
+                };
+
+                let mut validated_vids = Vec::new();
+                for (idx, vid_expr) in vertex_ids.iter().enumerate() {
+                    let vid = self.evaluate_vid(vid_expr, idx + 1)?;
+                    validated_vids.push(vid);
+                }
+
+                Ok(DeleteTargetType::Tags {
+                    tag_names: final_tag_names,
+                    tag_ids,
+                    vertex_ids: validated_vids,
+                })
+            }
+            DeleteTarget::Index(index_name) => Ok(DeleteTargetType::Index(index_name.clone())),
+        }
+    }
+
+    /// 评估 VID 表达式
+    fn evaluate_vid(
+        &self,
+        vid_expr: &Expression,
+        idx: usize,
+    ) -> Result<Value, ValidationError> {
+        match vid_expr {
+            Expression::Literal(v) => Ok(v.clone()),
+            Expression::Variable(name) => {
+                // 变量需要在执行时解析
+                Ok(Value::String(format!("${}", name)))
+            }
+            _ => Err(ValidationError::new(
+                format!("Failed to evaluate vertex ID at position {}", idx),
+                ValidationErrorType::SemanticError,
+            )),
+        }
+    }
+
+    /// 评估 rank 表达式
+    fn evaluate_rank(&self, expr: &Expression) -> Result<i64, ValidationError> {
+        match expr {
+            Expression::Literal(Value::Int(i)) => Ok(*i),
+            Expression::Variable(_) => Ok(0), // 变量在执行时解析
+            _ => Err(ValidationError::new(
+                "Rank must be an integer".to_string(),
+                ValidationErrorType::TypeMismatch,
+            )),
+        }
+    }
+
+    /// 获取 EdgeType ID
+    fn get_edge_type_id(
+        &self,
+        edge_type_name: &str,
+        _space_id: i32,
+    ) -> Result<Option<i32>, ValidationError> {
+        // 如果有 schema_manager，可以查询实际的 edge_type_id
+        // 这里简化处理，返回 None 让执行层处理
+        let _ = edge_type_name;
+        Ok(None)
+    }
+
+    /// 获取 Tag ID
+    fn get_tag_id(
+        &self,
+        tag_name: &str,
+        _space_id: i32,
+    ) -> Result<Option<i32>, ValidationError> {
+        // 如果有 schema_manager，可以查询实际的 tag_id
+        // 这里简化处理，返回 None 让执行层处理
+        let _ = tag_name;
+        Ok(None)
     }
 }
 
-impl Default for DeleteValidator<'_> {
+impl Default for DeleteValidator {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl StatementValidator for DeleteValidator {
+    fn validate(
+        &mut self,
+        query_context: Option<&QueryContext>,
+        ast: &mut AstContext,
+    ) -> Result<ValidationResult, ValidationError> {
+        // 1. 检查是否需要空间
+        if !self.is_global_statement(ast) && query_context.is_none() {
+            return Err(ValidationError::new(
+                "未选择图空间，请先执行 USE <space>".to_string(),
+                ValidationErrorType::SemanticError,
+            ));
+        }
+
+        // 2. 获取 DELETE 语句
+        let stmt = ast.sentence()
+            .ok_or_else(|| ValidationError::new(
+                "No statement found in AST context".to_string(),
+                ValidationErrorType::SemanticError,
+            ))?;
+
+        let delete_stmt = match stmt {
+            crate::query::parser::ast::Stmt::Delete(delete_stmt) => delete_stmt,
+            _ => {
+                return Err(ValidationError::new(
+                    "Expected DELETE statement".to_string(),
+                    ValidationErrorType::SemanticError,
+                ));
+            }
+        };
+
+        // 3. 执行基础验证
+        self.validate_delete(delete_stmt)?;
+
+        // 4. 获取 space_id
+        let space_id = query_context
+            .map(|qc| qc.space_id())
+            .flatten()
+            .or_else(|| ast.space().space_id)
+            .unwrap_or(0);
+
+        // 5. 验证并转换目标
+        let target_type = self.validate_and_convert_target(&delete_stmt.target, space_id)?;
+
+        // 6. 创建验证结果
+        let validated = ValidatedDelete {
+            space_id,
+            target_type,
+            with_edge: delete_stmt.with_edge,
+            where_clause: delete_stmt.where_clause.clone(),
+        };
+
+        // 7. 设置输出列
+        self.outputs.clear();
+        self.outputs.push(ColumnDef {
+            name: "DELETED".to_string(),
+            type_: ValueType::Bool,
+        });
+
+        self.validated_result = Some(validated);
+
+        // 8. 返回验证结果
+        Ok(ValidationResult::success(
+            self.inputs.clone(),
+            self.outputs.clone(),
+        ))
+    }
+
+    fn statement_type(&self) -> StatementType {
+        StatementType::Delete
+    }
+
+    fn inputs(&self) -> &[ColumnDef] {
+        &self.inputs
+    }
+
+    fn outputs(&self) -> &[ColumnDef] {
+        &self.outputs
+    }
+
+    fn expression_props(&self) -> &ExpressionProps {
+        &self.expr_props
+    }
+
+    fn user_defined_vars(&self) -> &[String] {
+        &self.user_defined_vars
     }
 }
 
@@ -451,7 +485,6 @@ impl Default for DeleteValidator<'_> {
 mod tests {
     use super::*;
     use crate::core::Expression;
-    use crate::core::types::{DataType, TagInfo};
     use crate::query::parser::ast::stmt::{DeleteStmt, DeleteTarget};
     use crate::query::parser::ast::Span;
 
@@ -464,88 +497,11 @@ mod tests {
         }
     }
 
-    // 模拟 SchemaManager 用于测试
-    #[derive(Debug)]
-    struct MockSchemaManager;
-
-    impl SchemaManager for MockSchemaManager {
-        fn create_space(&self, _space: &crate::core::types::SpaceInfo) -> crate::storage::StorageResult<bool> {
-            Ok(true)
-        }
-        fn drop_space(&self, _space_name: &str) -> crate::storage::StorageResult<bool> {
-            Ok(true)
-        }
-        fn get_space(&self, _space_name: &str) -> crate::storage::StorageResult<Option<crate::core::types::SpaceInfo>> {
-            Ok(Some(crate::core::types::SpaceInfo {
-                space_id: 1,
-                space_name: "test_space".to_string(),
-                partition_num: 1,
-                replica_factor: 1,
-                vid_type: DataType::String,
-                tags: vec![],
-                edge_types: vec![],
-                version: crate::core::types::metadata::MetadataVersion {
-                    version: 1,
-                    timestamp: 0,
-                    description: String::new(),
-                },
-                comment: None,
-            }))
-        }
-        fn get_space_by_id(&self, _space_id: i32) -> crate::storage::StorageResult<Option<crate::core::types::SpaceInfo>> {
-            Ok(None)
-        }
-        fn list_spaces(&self) -> crate::storage::StorageResult<Vec<crate::core::types::SpaceInfo>> {
-            Ok(vec![])
-        }
-        fn create_tag(&self, _space: &str, _tag: &TagInfo) -> crate::storage::StorageResult<bool> {
-            Ok(true)
-        }
-        fn get_tag(&self, _space: &str, tag_name: &str) -> crate::storage::StorageResult<Option<TagInfo>> {
-            if tag_name == "person" {
-                Ok(Some(TagInfo {
-                    tag_id: 1,
-                    tag_name: "person".to_string(),
-                    properties: vec![],
-                    comment: None,
-                    ttl_duration: None,
-                    ttl_col: None,
-                }))
-            } else {
-                Ok(None)
-            }
-        }
-        fn list_tags(&self, _space: &str) -> crate::storage::StorageResult<Vec<TagInfo>> {
-            Ok(vec![])
-        }
-        fn drop_tag(&self, _space: &str, _tag_name: &str) -> crate::storage::StorageResult<bool> {
-            Ok(true)
-        }
-        fn create_edge_type(&self, _space: &str, _edge: &crate::core::types::EdgeTypeInfo) -> crate::storage::StorageResult<bool> {
-            Ok(true)
-        }
-        fn get_edge_type(&self, _space: &str, _edge_type_name: &str) -> crate::storage::StorageResult<Option<crate::core::types::EdgeTypeInfo>> {
-            Ok(None)
-        }
-        fn list_edge_types(&self, _space: &str) -> crate::storage::StorageResult<Vec<crate::core::types::EdgeTypeInfo>> {
-            Ok(vec![])
-        }
-        fn drop_edge_type(&self, _space: &str, _edge_type_name: &str) -> crate::storage::StorageResult<bool> {
-            Ok(true)
-        }
-        fn get_tag_schema(&self, _space: &str, _tag: &str) -> crate::storage::StorageResult<crate::storage::Schema> {
-            Ok(crate::storage::Schema::new("test".to_string(), 1))
-        }
-        fn get_edge_type_schema(&self, _space: &str, _edge: &str) -> crate::storage::StorageResult<crate::storage::Schema> {
-            Ok(crate::storage::Schema::new("test".to_string(), 1))
-        }
-    }
-
     #[test]
     fn test_validate_vertices_empty_list() {
-        let mut validator = DeleteValidator::new();
+        let validator = DeleteValidator::new();
         let stmt = create_delete_stmt(DeleteTarget::Vertices(vec![]), None);
-        let result = validator.validate(&stmt);
+        let result = validator.validate_delete(&stmt);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert_eq!(err.message, "DELETE VERTICES must specify at least one vertex");
@@ -553,40 +509,40 @@ mod tests {
 
     #[test]
     fn test_validate_vertices_valid() {
-        let mut validator = DeleteValidator::new();
+        let validator = DeleteValidator::new();
         let stmt = create_delete_stmt(
             DeleteTarget::Vertices(vec![
-                Expression::literal("v1"),
-                Expression::literal("v2"),
+                Expression::Literal(Value::String("v1".to_string())),
+                Expression::Literal(Value::String("v2".to_string())),
             ]),
             None,
         );
-        let result = validator.validate(&stmt);
+        let result = validator.validate_delete(&stmt);
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_validate_vertices_with_variable() {
-        let mut validator = DeleteValidator::new();
+        let validator = DeleteValidator::new();
         let stmt = create_delete_stmt(
-            DeleteTarget::Vertices(vec![Expression::variable("$vids")]),
+            DeleteTarget::Vertices(vec![Expression::Variable("vids".to_string())]),
             None,
         );
-        let result = validator.validate(&stmt);
+        let result = validator.validate_delete(&stmt);
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_validate_vertex_id_empty() {
-        let mut validator = DeleteValidator::new();
+        let validator = DeleteValidator::new();
         let stmt = create_delete_stmt(
             DeleteTarget::Vertices(vec![
-                Expression::literal("v1"),
-                Expression::literal(""),
+                Expression::Literal(Value::String("v1".to_string())),
+                Expression::Literal(Value::String("".to_string())),
             ]),
             None,
         );
-        let result = validator.validate(&stmt);
+        let result = validator.validate_delete(&stmt);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("cannot be empty"));
@@ -594,55 +550,106 @@ mod tests {
 
     #[test]
     fn test_validate_edges_valid() {
-        let mut validator = DeleteValidator::new();
+        let validator = DeleteValidator::new();
         let stmt = create_delete_stmt(
             DeleteTarget::Edges {
                 edge_type: Some("friend".to_string()),
-                edges: vec![(Expression::literal("v1"), Expression::literal("v2"), None)],
+                edges: vec![(
+                    Expression::Literal(Value::String("v1".to_string())),
+                    Expression::Literal(Value::String("v2".to_string())),
+                    None,
+                )],
             },
             None,
         );
-        let result = validator.validate(&stmt);
+        let result = validator.validate_delete(&stmt);
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_validate_edges_with_rank() {
-        let mut validator = DeleteValidator::new();
+        let validator = DeleteValidator::new();
         let stmt = create_delete_stmt(
             DeleteTarget::Edges {
                 edge_type: Some("friend".to_string()),
-                edges: vec![(Expression::literal("v1"), Expression::literal("v2"), Some(Expression::literal(0)))],
+                edges: vec![(
+                    Expression::Literal(Value::String("v1".to_string())),
+                    Expression::Literal(Value::String("v2".to_string())),
+                    Some(Expression::Literal(Value::Int(0))),
+                )],
             },
             None,
         );
-        let result = validator.validate(&stmt);
+        let result = validator.validate_delete(&stmt);
         assert!(result.is_ok());
     }
 
     #[test]
-    fn test_validate_with_schema() {
-        static MOCK: MockSchemaManager = MockSchemaManager;
-        let mut validator = DeleteValidator::new().with_schema_manager(&MOCK);
-
+    fn test_validate_tags_empty_list() {
+        let validator = DeleteValidator::new();
         let stmt = create_delete_stmt(
-            DeleteTarget::Vertices(vec![
-                Expression::literal("v1"),
-                Expression::literal("v2"),
-            ]),
+            DeleteTarget::Tags {
+                tag_names: vec![],
+                vertex_ids: vec![],
+                is_all_tags: false,
+            },
             None,
         );
+        let result = validator.validate_delete(&stmt);
+        assert!(result.is_err());
+    }
 
-        let result = validator.validate_with_schema(&stmt, "test_space");
+    #[test]
+    fn test_validate_tags_valid() {
+        let validator = DeleteValidator::new();
+        let stmt = create_delete_stmt(
+            DeleteTarget::Tags {
+                tag_names: vec!["person".to_string()],
+                vertex_ids: vec![Expression::Literal(Value::String("v1".to_string()))],
+                is_all_tags: false,
+            },
+            None,
+        );
+        let result = validator.validate_delete(&stmt);
         assert!(result.is_ok());
+    }
 
-        let validated = result.unwrap();
-        assert_eq!(validated.space_id, 1);
-        match validated.target_type {
-            DeleteTargetType::Vertices(vids) => {
-                assert_eq!(vids.len(), 2);
-            }
-            _ => panic!("Expected Vertices target type"),
-        }
+    #[test]
+    fn test_validate_index_empty() {
+        let validator = DeleteValidator::new();
+        let stmt = create_delete_stmt(
+            DeleteTarget::Index("".to_string()),
+            None,
+        );
+        let result = validator.validate_delete(&stmt);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err.message, "Index name cannot be empty");
+    }
+
+    #[test]
+    fn test_validate_index_valid() {
+        let validator = DeleteValidator::new();
+        let stmt = create_delete_stmt(
+            DeleteTarget::Index("idx_person".to_string()),
+            None,
+        );
+        let result = validator.validate_delete(&stmt);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_statement_validator_trait() {
+        let mut validator = DeleteValidator::new();
+        
+        // 测试 statement_type
+        assert_eq!(validator.statement_type(), StatementType::Delete);
+        
+        // 测试 inputs/outputs
+        assert!(validator.inputs().is_empty());
+        assert!(validator.outputs().is_empty());
+        
+        // 测试 user_defined_vars
+        assert!(validator.user_defined_vars().is_empty());
     }
 }

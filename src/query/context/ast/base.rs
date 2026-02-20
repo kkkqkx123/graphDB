@@ -7,7 +7,7 @@ use crate::query::context::request_context::RequestContext;
 use crate::query::context::symbol::SymbolTable;
 use crate::query::context::validate::types::SpaceInfo;
 use crate::query::parser::ast::Stmt;
-use crate::query::validator::ColumnDef;
+use crate::query::validator::validator_trait::{ColumnDef, ValueType};
 use once_cell::sync::Lazy;
 use std::sync::Arc;
 
@@ -276,7 +276,7 @@ impl AstContext {
             .unwrap_or_default()
     }
 
-    pub fn add_output(&mut self, name: String, type_: crate::query::validator::ValueType) {
+    pub fn add_output(&mut self, name: String, type_: ValueType) {
         self.outputs.push(ColumnDef { name, type_ });
     }
 
@@ -284,7 +284,7 @@ impl AstContext {
         &self.outputs
     }
 
-    pub fn add_input(&mut self, name: String, type_: crate::query::validator::ValueType) {
+    pub fn add_input(&mut self, name: String, type_: ValueType) {
         self.inputs.push(ColumnDef { name, type_ });
     }
 
