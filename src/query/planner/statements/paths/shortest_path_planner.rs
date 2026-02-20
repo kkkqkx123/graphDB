@@ -24,7 +24,7 @@ impl ShortestPathPlanner {
         start: &NodePattern,
         end: &NodePattern,
         edge_pattern: &EdgePattern,
-        space_id: i32,
+        space_id: u64,
     ) -> Result<ShortestPathPlan, PlannerError> {
         let bfs_config = BfsConfig {
             max_iterations: 10000,
@@ -126,7 +126,7 @@ impl StorageClient for DummyStorage {
     fn get_space(&self, _space: &str) -> Result<Option<crate::core::types::SpaceInfo>, crate::core::StorageError> {
         Ok(None)
     }
-    fn get_space_by_id(&self, _space_id: i32) -> Result<Option<crate::core::types::SpaceInfo>, crate::core::StorageError> {
+    fn get_space_by_id(&self, _space_id: u64) -> Result<Option<crate::core::types::SpaceInfo>, crate::core::StorageError> {
         Ok(None)
     }
     fn list_spaces(&self) -> Result<Vec<crate::core::types::SpaceInfo>, crate::core::StorageError> {
@@ -208,7 +208,7 @@ impl StorageClient for DummyStorage {
         Ok(true)
     }
 
-    fn get_space_id(&self, _space: &str) -> Result<i32, crate::core::StorageError> {
+    fn get_space_id(&self, _space: &str) -> Result<u64, crate::core::StorageError> {
         Ok(1)
     }
 
@@ -220,23 +220,23 @@ impl StorageClient for DummyStorage {
         Ok(true)
     }
 
-    fn alter_space_partition_num(&mut self, _space_id: i32, _partition_num: usize) -> Result<bool, crate::core::StorageError> {
+    fn alter_space_partition_num(&mut self, _space_id: u64, _partition_num: usize) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
 
-    fn alter_space_replica_factor(&mut self, _space_id: i32, _replica_factor: usize) -> Result<bool, crate::core::StorageError> {
+    fn alter_space_replica_factor(&mut self, _space_id: u64, _replica_factor: usize) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
 
-    fn alter_space_comment(&mut self, _space_id: i32, _comment: String) -> Result<bool, crate::core::StorageError> {
+    fn alter_space_comment(&mut self, _space_id: u64, _comment: String) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
 
-    fn grant_role(&mut self, _username: &str, _space_id: i32, _role: crate::api::service::permission_manager::RoleType) -> Result<bool, crate::core::StorageError> {
+    fn grant_role(&mut self, _username: &str, _space_id: u64, _role: crate::api::service::permission_manager::RoleType) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
 
-    fn revoke_role(&mut self, _username: &str, _space_id: i32) -> Result<bool, crate::core::StorageError> {
+    fn revoke_role(&mut self, _username: &str, _space_id: u64) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
 

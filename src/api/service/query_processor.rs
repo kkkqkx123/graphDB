@@ -51,7 +51,7 @@ impl<S: StorageClient + Clone + 'static> QueryEngine<S> {
             session.space().map(|s| {
                 crate::query::context::validate::types::SpaceInfo {
                     space_name: s.name.clone(),
-                    space_id: Some(s.id as u32),
+                    space_id: Some(s.id as u64),
                     is_default: false,
                     vid_type: crate::core::types::DataType::String,
                 }

@@ -3,10 +3,10 @@
 //! 验证 INSERT EDGES 语句的语义正确性
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::core::{Expression, Value};
+use crate::core::{Expression, Value, NullType};
 use crate::query::context::ast::AstContext;
 use crate::query::context::execution::QueryContext;
-use crate::query::parser::ast::stmt::{InsertStmt, InsertTarget};
+use crate::query::parser::ast::stmt::InsertTarget;
 use crate::query::parser::ast::Stmt;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
@@ -102,7 +102,7 @@ impl InsertEdgesValidator {
                 }
                 Ok(())
             }
-            Expression::Variable(var_name) => {
+            Expression::Variable(_var_name) => {
                 // 变量引用是允许的
                 Ok(())
             }
@@ -218,7 +218,7 @@ impl InsertEdgesValidator {
                 // 变量在运行时解析
                 Ok(Value::String(format!("${}", name)))
             }
-            _ => Ok(Value::Null),
+            _ => Ok(Value::Null(NullType::Null)),
         }
     }
 

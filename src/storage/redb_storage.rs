@@ -440,7 +440,7 @@ impl StorageClient for RedbStorage {
         self.schema_manager.get_space(space_name)
     }
 
-    fn get_space_by_id(&self, space_id: i32) -> Result<Option<SpaceInfo>, StorageError> {
+    fn get_space_by_id(&self, space_id: u64) -> Result<Option<SpaceInfo>, StorageError> {
         self.schema_manager.get_space_by_id(space_id)
     }
 
@@ -448,7 +448,7 @@ impl StorageClient for RedbStorage {
         self.schema_manager.list_spaces()
     }
 
-    fn get_space_id(&self, space_name: &str) -> Result<i32, StorageError> {
+    fn get_space_id(&self, space_name: &str) -> Result<u64, StorageError> {
         if let Some(space) = self.schema_manager.get_space(space_name)? {
             Ok(space.space_id)
         } else {
@@ -465,7 +465,7 @@ impl StorageClient for RedbStorage {
         Ok(true)
     }
 
-    fn alter_space_partition_num(&mut self, space_id: i32, partition_num: usize) -> Result<bool, StorageError> {
+    fn alter_space_partition_num(&mut self, space_id: u64, partition_num: usize) -> Result<bool, StorageError> {
         let spaces = self.schema_manager.list_spaces()?;
         for space in spaces {
             if space.space_id == space_id {
@@ -479,7 +479,7 @@ impl StorageClient for RedbStorage {
         Err(StorageError::DbError(format!("Space with ID {} not found", space_id)))
     }
 
-    fn alter_space_replica_factor(&mut self, space_id: i32, replica_factor: usize) -> Result<bool, StorageError> {
+    fn alter_space_replica_factor(&mut self, space_id: u64, replica_factor: usize) -> Result<bool, StorageError> {
         let spaces = self.schema_manager.list_spaces()?;
         for space in spaces {
             if space.space_id == space_id {
@@ -493,7 +493,7 @@ impl StorageClient for RedbStorage {
         Err(StorageError::DbError(format!("Space with ID {} not found", space_id)))
     }
 
-    fn alter_space_comment(&mut self, space_id: i32, comment: String) -> Result<bool, StorageError> {
+    fn alter_space_comment(&mut self, space_id: u64, comment: String) -> Result<bool, StorageError> {
         let spaces = self.schema_manager.list_spaces()?;
         for space in spaces {
             if space.space_id == space_id {
@@ -1013,7 +1013,7 @@ impl StorageClient for RedbStorage {
         Ok(true)
     }
 
-    fn grant_role(&mut self, username: &str, _space_id: i32, _role: RoleType) -> Result<bool, StorageError> {
+    fn grant_role(&mut self, username: &str, _space_id: u64, _role: RoleType) -> Result<bool, StorageError> {
         // 角色授权现在由PermissionManager管理，这里仅做用户存在性检查
         let users = self.users.lock();
         if users.contains_key(username) {
@@ -1023,7 +1023,7 @@ impl StorageClient for RedbStorage {
         }
     }
 
-    fn revoke_role(&mut self, username: &str, _space_id: i32) -> Result<bool, StorageError> {
+    fn revoke_role(&mut self, username: &str, _space_id: u64) -> Result<bool, StorageError> {
         // 角色撤销现在由PermissionManager管理，这里仅做用户存在性检查
         let users = self.users.lock();
         if users.contains_key(username) {

@@ -526,7 +526,7 @@ mod tests {
         fn get_space(&self, _space_name: &str) -> crate::storage::StorageResult<Option<crate::core::types::SpaceInfo>> {
             Ok(None)
         }
-        fn get_space_by_id(&self, _space_id: i32) -> crate::storage::StorageResult<Option<crate::core::types::SpaceInfo>> {
+        fn get_space_by_id(&self, _space_id: u64) -> crate::storage::StorageResult<Option<crate::core::types::SpaceInfo>> {
             Ok(None)
         }
         fn list_spaces(&self) -> crate::storage::StorageResult<Vec<crate::core::types::SpaceInfo>> {

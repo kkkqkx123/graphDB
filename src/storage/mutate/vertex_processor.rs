@@ -23,7 +23,7 @@ pub struct VertexInsertProcessor<S: StorageClient, I: IndexDataManager, M: Index
     index_metadata_manager: Arc<M>,
     context: BatchDmlContext,
     vertices: Vec<(Value, Vec<Tag>)>, // (vid, tags)
-    space_id: i32,
+    space_id: u64,
 }
 
 impl<S: StorageClient, I: IndexDataManager, M: IndexMetadataManager> VertexInsertProcessor<S, I, M> {
@@ -33,7 +33,7 @@ impl<S: StorageClient, I: IndexDataManager, M: IndexMetadataManager> VertexInser
         index_data_manager: Arc<I>,
         index_metadata_manager: Arc<M>,
         context: BatchDmlContext,
-        space_id: i32,
+        space_id: u64,
     ) -> Self {
         Self {
             storage,
@@ -209,7 +209,7 @@ pub struct VertexUpdateProcessor<S: StorageClient, I: IndexDataManager, M: Index
     index_metadata_manager: Arc<M>,
     context: BatchDmlContext,
     updates: Vec<VertexUpdateItem>,
-    space_id: i32,
+    space_id: u64,
     insertable: bool, // UPSERT 语义
 }
 
@@ -229,7 +229,7 @@ impl<S: StorageClient, I: IndexDataManager, M: IndexMetadataManager> VertexUpdat
         index_data_manager: Arc<I>,
         index_metadata_manager: Arc<M>,
         context: BatchDmlContext,
-        space_id: i32,
+        space_id: u64,
         insertable: bool,
     ) -> Self {
         Self {
@@ -386,7 +386,7 @@ pub struct VertexDeleteProcessor<S: StorageClient, I: IndexDataManager> {
     index_data_manager: Arc<I>,
     context: BatchDmlContext,
     vertex_ids: Vec<Value>,
-    space_id: i32,
+    space_id: u64,
     with_edge: bool, // 是否级联删除关联边
 }
 
@@ -396,7 +396,7 @@ impl<S: StorageClient, I: IndexDataManager> VertexDeleteProcessor<S, I> {
         lock_manager: Arc<Mutex<MemoryLockManager>>,
         index_data_manager: Arc<I>,
         context: BatchDmlContext,
-        space_id: i32,
+        space_id: u64,
         with_edge: bool,
     ) -> Self {
         Self {
@@ -518,7 +518,7 @@ pub struct TagDeleteProcessor<S: StorageClient, I: IndexDataManager> {
     index_data_manager: Arc<I>,
     context: BatchDmlContext,
     items: Vec<TagDeleteItem>,
-    space_id: i32,
+    space_id: u64,
 }
 
 /// 标签删除项
@@ -534,7 +534,7 @@ impl<S: StorageClient, I: IndexDataManager> TagDeleteProcessor<S, I> {
         lock_manager: Arc<Mutex<MemoryLockManager>>,
         index_data_manager: Arc<I>,
         context: BatchDmlContext,
-        space_id: i32,
+        space_id: u64,
     ) -> Self {
         Self {
             storage,

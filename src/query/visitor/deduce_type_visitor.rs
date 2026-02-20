@@ -837,7 +837,7 @@ mod tests {
             Ok(None)
         }
 
-        fn get_space_by_id(&self, _space_id: i32) -> Result<Option<SpaceInfo>, StorageError> {
+        fn get_space_by_id(&self, _space_id: u64) -> Result<Option<SpaceInfo>, StorageError> {
             Ok(None)
         }
 
@@ -1017,7 +1017,7 @@ mod tests {
             Ok(true)
         }
 
-        fn get_space_id(&self, _space: &str) -> Result<i32, StorageError> {
+        fn get_space_id(&self, _space: &str) -> Result<u64, StorageError> {
             Ok(1)
         }
 
@@ -1029,23 +1029,23 @@ mod tests {
             Ok(true)
         }
 
-        fn alter_space_partition_num(&mut self, _space_id: i32, _partition_num: usize) -> Result<bool, StorageError> {
+        fn alter_space_partition_num(&mut self, _space_id: u64, _partition_num: usize) -> Result<bool, StorageError> {
             Ok(true)
         }
 
-        fn alter_space_replica_factor(&mut self, _space_id: i32, _replica_factor: usize) -> Result<bool, StorageError> {
+        fn alter_space_replica_factor(&mut self, _space_id: u64, _replica_factor: usize) -> Result<bool, StorageError> {
             Ok(true)
         }
 
-        fn alter_space_comment(&mut self, _space_id: i32, _comment: String) -> Result<bool, StorageError> {
+        fn alter_space_comment(&mut self, _space_id: u64, _comment: String) -> Result<bool, StorageError> {
             Ok(true)
         }
 
-        fn grant_role(&mut self, _username: &str, _space_id: i32, _role: crate::api::service::permission_manager::RoleType) -> Result<bool, StorageError> {
+        fn grant_role(&mut self, _username: &str, _space_id: u64, _role: crate::api::service::permission_manager::RoleType) -> Result<bool, StorageError> {
             Ok(true)
         }
 
-        fn revoke_role(&mut self, _username: &str, _space_id: i32) -> Result<bool, StorageError> {
+        fn revoke_role(&mut self, _username: &str, _space_id: u64) -> Result<bool, StorageError> {
             Ok(true)
         }
 

@@ -18,23 +18,23 @@ use std::sync::Arc;
 /// 所有操作都通过 space_id 来标识空间，实现多空间数据隔离
 pub trait IndexDataManager {
     /// 更新顶点索引
-    fn update_vertex_indexes(&self, space_id: i32, vertex_id: &Value, index_name: &str, props: &[(String, Value)]) -> Result<(), StorageError>;
+    fn update_vertex_indexes(&self, space_id: u64, vertex_id: &Value, index_name: &str, props: &[(String, Value)]) -> Result<(), StorageError>;
     /// 更新边索引
-    fn update_edge_indexes(&self, space_id: i32, src: &Value, dst: &Value, index_name: &str, props: &[(String, Value)]) -> Result<(), StorageError>;
+    fn update_edge_indexes(&self, space_id: u64, src: &Value, dst: &Value, index_name: &str, props: &[(String, Value)]) -> Result<(), StorageError>;
     /// 删除顶点所有索引
-    fn delete_vertex_indexes(&self, space_id: i32, vertex_id: &Value) -> Result<(), StorageError>;
+    fn delete_vertex_indexes(&self, space_id: u64, vertex_id: &Value) -> Result<(), StorageError>;
     /// 删除边所有索引
-    fn delete_edge_indexes(&self, space_id: i32, src: &Value, dst: &Value, edge_type: &str) -> Result<(), StorageError>;
+    fn delete_edge_indexes(&self, space_id: u64, src: &Value, dst: &Value, edge_type: &str) -> Result<(), StorageError>;
     /// 查找标签索引
-    fn lookup_tag_index(&self, space_id: i32, index: &Index, value: &Value) -> Result<Vec<Value>, StorageError>;
+    fn lookup_tag_index(&self, space_id: u64, index: &Index, value: &Value) -> Result<Vec<Value>, StorageError>;
     /// 查找边索引
-    fn lookup_edge_index(&self, space_id: i32, index: &Index, value: &Value) -> Result<Vec<Value>, StorageError>;
+    fn lookup_edge_index(&self, space_id: u64, index: &Index, value: &Value) -> Result<Vec<Value>, StorageError>;
     /// 清空边索引
-    fn clear_edge_index(&self, space_id: i32, index_name: &str) -> Result<(), StorageError>;
+    fn clear_edge_index(&self, space_id: u64, index_name: &str) -> Result<(), StorageError>;
     /// 构建边索引条目
-    fn build_edge_index_entry(&self, space_id: i32, index: &Index, edge: &Edge) -> Result<(), StorageError>;
+    fn build_edge_index_entry(&self, space_id: u64, index: &Index, edge: &Edge) -> Result<(), StorageError>;
     /// 删除指定标签的索引
-    fn delete_tag_indexes(&self, space_id: i32, vertex_id: &Value, tag_name: &str) -> Result<(), StorageError>;
+    fn delete_tag_indexes(&self, space_id: u64, vertex_id: &Value, tag_name: &str) -> Result<(), StorageError>;
 }
 
 /// 基于 Redb 的索引数据管理器实现
@@ -63,7 +63,7 @@ impl RedbIndexDataManager {
     /// 构建索引键
     /// 格式: space_id:index_name:prop_value_len:prop_value:vertex_id_len:vertex_id
     /// 使用长度前缀来正确解析二进制数据
-    fn build_index_key(space_id: i32, index_name: &str, prop_value: &Value, vertex_id: &Value) -> Result<ByteKey, StorageError> {
+    fn build_index_key(space_id: u64, index_name: &str, prop_value: &Value, vertex_id: &Value) -> Result<ByteKey, StorageError> {
         let space_prefix = format!("{}:", space_id);
         let index_part = format!("{}:", index_name);
         let prop_value_bytes = Self::serialize_value(prop_value)?;
@@ -122,13 +122,13 @@ impl RedbIndexDataManager {
     }
 
     /// 构建索引键前缀（用于范围查询）
-    fn build_index_prefix(space_id: i32, index_name: &str) -> ByteKey {
+    fn build_index_prefix(space_id: u64, index_name: &str) -> ByteKey {
         ByteKey(format!("{}:{}:", space_id, index_name).into_bytes())
     }
 
     /// 构建反向索引键
     /// 格式: space_id:reverse:index_name:vertex_id_len:vertex_id
-    fn build_reverse_key(space_id: i32, index_name: &str, vertex_id: &Value) -> Result<ByteKey, StorageError> {
+    fn build_reverse_key(space_id: u64, index_name: &str, vertex_id: &Value) -> Result<ByteKey, StorageError> {
         let vertex_id_bytes = Self::serialize_value(vertex_id)?;
         let vertex_len_part = format!("{}:", vertex_id_bytes.len());
 
@@ -145,7 +145,7 @@ impl RedbIndexDataManager {
 }
 
 impl IndexDataManager for RedbIndexDataManager {
-    fn update_vertex_indexes(&self, space_id: i32, vertex_id: &Value, index_name: &str, props: &[(String, Value)]) -> Result<(), StorageError> {
+    fn update_vertex_indexes(&self, space_id: u64, vertex_id: &Value, index_name: &str, props: &[(String, Value)]) -> Result<(), StorageError> {
         let txn = self.db.begin_write()
             .map_err(|e| StorageError::DbError(format!("开始写入事务失败: {}", e)))?;
         
@@ -176,7 +176,7 @@ impl IndexDataManager for RedbIndexDataManager {
         Ok(())
     }
 
-    fn update_edge_indexes(&self, space_id: i32, src: &Value, dst: &Value, index_name: &str, props: &[(String, Value)]) -> Result<(), StorageError> {
+    fn update_edge_indexes(&self, space_id: u64, src: &Value, dst: &Value, index_name: &str, props: &[(String, Value)]) -> Result<(), StorageError> {
         let txn = self.db.begin_write()
             .map_err(|e| StorageError::DbError(format!("开始写入事务失败: {}", e)))?;
         
@@ -228,7 +228,7 @@ impl IndexDataManager for RedbIndexDataManager {
         Ok(())
     }
 
-    fn delete_vertex_indexes(&self, space_id: i32, vertex_id: &Value) -> Result<(), StorageError> {
+    fn delete_vertex_indexes(&self, space_id: u64, vertex_id: &Value) -> Result<(), StorageError> {
         let txn = self.db.begin_write()
             .map_err(|e| StorageError::DbError(format!("开始写入事务失败: {}", e)))?;
 
@@ -340,7 +340,7 @@ impl IndexDataManager for RedbIndexDataManager {
         Ok(())
     }
 
-    fn delete_edge_indexes(&self, space_id: i32, src: &Value, dst: &Value, edge_type: &str) -> Result<(), StorageError> {
+    fn delete_edge_indexes(&self, space_id: u64, src: &Value, dst: &Value, edge_type: &str) -> Result<(), StorageError> {
         let txn = self.db.begin_write()
             .map_err(|e| StorageError::DbError(format!("开始写入事务失败: {}", e)))?;
 
@@ -493,7 +493,7 @@ impl IndexDataManager for RedbIndexDataManager {
         Ok(())
     }
 
-    fn lookup_tag_index(&self, space_id: i32, index: &Index, value: &Value) -> Result<Vec<Value>, StorageError> {
+    fn lookup_tag_index(&self, space_id: u64, index: &Index, value: &Value) -> Result<Vec<Value>, StorageError> {
         let txn = self.db.begin_read()
             .map_err(|e| StorageError::DbError(format!("开始读取事务失败: {}", e)))?;
         
@@ -524,7 +524,7 @@ impl IndexDataManager for RedbIndexDataManager {
         Ok(results)
     }
 
-    fn lookup_edge_index(&self, space_id: i32, index: &Index, value: &Value) -> Result<Vec<Value>, StorageError> {
+    fn lookup_edge_index(&self, space_id: u64, index: &Index, value: &Value) -> Result<Vec<Value>, StorageError> {
         let txn = self.db.begin_read()
             .map_err(|e| StorageError::DbError(format!("开始读取事务失败: {}", e)))?;
 
@@ -594,7 +594,7 @@ impl IndexDataManager for RedbIndexDataManager {
         Ok(results)
     }
 
-    fn clear_edge_index(&self, space_id: i32, index_name: &str) -> Result<(), StorageError> {
+    fn clear_edge_index(&self, space_id: u64, index_name: &str) -> Result<(), StorageError> {
         let txn = self.db.begin_write()
             .map_err(|e| StorageError::DbError(format!("开始写入事务失败: {}", e)))?;
         
@@ -631,7 +631,7 @@ impl IndexDataManager for RedbIndexDataManager {
         Ok(())
     }
 
-    fn build_edge_index_entry(&self, space_id: i32, index: &Index, edge: &Edge) -> Result<(), StorageError> {
+    fn build_edge_index_entry(&self, space_id: u64, index: &Index, edge: &Edge) -> Result<(), StorageError> {
         // 收集索引字段值
         let mut props: Vec<(String, Value)> = Vec::new();
         for field in &index.fields {
@@ -644,7 +644,7 @@ impl IndexDataManager for RedbIndexDataManager {
         self.update_edge_indexes(space_id, &edge.src, &edge.dst, &index.name, &props)
     }
 
-    fn delete_tag_indexes(&self, space_id: i32, vertex_id: &Value, tag_name: &str) -> Result<(), StorageError> {
+    fn delete_tag_indexes(&self, space_id: u64, vertex_id: &Value, tag_name: &str) -> Result<(), StorageError> {
         let txn = self.db.begin_write()
             .map_err(|e| StorageError::DbError(format!("开始写入事务失败: {}", e)))?;
         

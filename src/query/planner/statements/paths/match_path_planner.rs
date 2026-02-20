@@ -23,7 +23,7 @@ impl MatchPathPlanner {
         &self,
         storage: &S,
         pattern: &PathPattern,
-        space_id: i32,
+        space_id: u64,
     ) -> Result<PathPlan, PlannerError> {
         match &pattern.kind {
             PathPatternKind::Simple { start, edge, end } => {
@@ -60,7 +60,7 @@ impl MatchPathPlanner {
         start: &NodePattern,
         edge: &EdgePattern,
         end: &NodePattern,
-        space_id: i32,
+        space_id: u64,
     ) -> Result<PathPlan, PlannerError> {
         let start_finder = self.plan_start_finder(storage, start, space_id)?;
         let edge_traversal = self.plan_edge_traversal(edge)?;
@@ -81,7 +81,7 @@ impl MatchPathPlanner {
         end: &NodePattern,
         lower: Option<usize>,
         upper: Option<usize>,
-        space_id: i32,
+        space_id: u64,
     ) -> Result<PathPlan, PlannerError> {
         let start_finder = self.plan_start_finder(storage, start, space_id)?;
         let edge_types = self.extract_edge_types(edge)?;
@@ -102,7 +102,7 @@ impl MatchPathPlanner {
         &self,
         _storage: &S,
         pattern: &NodePattern,
-        space_id: i32,
+        space_id: u64,
     ) -> Result<StartVidFinder, PlannerError> {
         let context = SeekStrategyContext::new(space_id, pattern.clone(), vec![]);
         let selector = SeekStrategySelector::new();
@@ -223,7 +223,7 @@ impl StorageClient for DummyStorage {
     fn get_space(&self, _space: &str) -> Result<Option<crate::core::types::SpaceInfo>, crate::core::StorageError> {
         Ok(None)
     }
-    fn get_space_by_id(&self, _space_id: i32) -> Result<Option<crate::core::types::SpaceInfo>, crate::core::StorageError> {
+    fn get_space_by_id(&self, _space_id: u64) -> Result<Option<crate::core::types::SpaceInfo>, crate::core::StorageError> {
         Ok(None)
     }
     fn list_spaces(&self) -> Result<Vec<crate::core::types::SpaceInfo>, crate::core::StorageError> {
@@ -305,7 +305,7 @@ impl StorageClient for DummyStorage {
         Ok(true)
     }
 
-    fn get_space_id(&self, _space: &str) -> Result<i32, crate::core::StorageError> {
+    fn get_space_id(&self, _space: &str) -> Result<u64, crate::core::StorageError> {
         Ok(1)
     }
 
@@ -317,23 +317,23 @@ impl StorageClient for DummyStorage {
         Ok(true)
     }
 
-    fn alter_space_partition_num(&mut self, _space_id: i32, _partition_num: usize) -> Result<bool, crate::core::StorageError> {
+    fn alter_space_partition_num(&mut self, _space_id: u64, _partition_num: usize) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
 
-    fn alter_space_replica_factor(&mut self, _space_id: i32, _replica_factor: usize) -> Result<bool, crate::core::StorageError> {
+    fn alter_space_replica_factor(&mut self, _space_id: u64, _replica_factor: usize) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
 
-    fn alter_space_comment(&mut self, _space_id: i32, _comment: String) -> Result<bool, crate::core::StorageError> {
+    fn alter_space_comment(&mut self, _space_id: u64, _comment: String) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
 
-    fn grant_role(&mut self, _username: &str, _space_id: i32, _role: crate::api::service::permission_manager::RoleType) -> Result<bool, crate::core::StorageError> {
+    fn grant_role(&mut self, _username: &str, _space_id: u64, _role: crate::api::service::permission_manager::RoleType) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
 
-    fn revoke_role(&mut self, _username: &str, _space_id: i32) -> Result<bool, crate::core::StorageError> {
+    fn revoke_role(&mut self, _username: &str, _space_id: u64) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
 

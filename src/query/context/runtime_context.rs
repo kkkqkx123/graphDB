@@ -27,7 +27,7 @@ pub struct PlanContext {
     /// 存储环境引用
     pub storage_env: Arc<StorageEnv>,
     /// 空间ID
-    pub space_id: i32,
+    pub space_id: u64,
 }
 
 /// 运行时上下文
@@ -66,7 +66,7 @@ impl RuntimeContext {
     }
 
     /// 获取空间ID
-    pub fn space_id(&self) -> i32 {
+    pub fn space_id(&self) -> u64 {
         self.plan_context.space_id
     }
 }

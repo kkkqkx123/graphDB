@@ -508,7 +508,7 @@ impl<S: StorageClient + 'static> HasStorage<S> for BFSShortestExecutor<S> {
 /// 用于执行基于索引的扫描操作
 pub struct IndexScanExecutor<S: StorageClient + Send + 'static> {
     base: BaseExecutor<S>,
-    space_id: i32,
+    space_id: u64,
     tag_id: i32,
     index_id: i32,
     scan_type: String,
@@ -523,7 +523,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
     pub fn new(
         id: i64,
         storage: Arc<Mutex<S>>,
-        space_id: i32,
+        space_id: u64,
         tag_id: i32,
         index_id: i32,
         scan_type: &str,
@@ -547,7 +547,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
         }
     }
 
-    pub fn space_id(&self) -> i32 {
+    pub fn space_id(&self) -> u64 {
         self.space_id
     }
 

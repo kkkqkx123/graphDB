@@ -22,7 +22,7 @@ pub struct EdgeInsertProcessor<S: StorageClient, I: IndexDataManager, M: IndexMe
     index_metadata_manager: Arc<M>,
     context: BatchDmlContext,
     edges: Vec<EdgeInsertItem>,
-    space_id: i32,
+    space_id: u64,
 }
 
 /// 边插入项
@@ -42,7 +42,7 @@ impl<S: StorageClient, I: IndexDataManager, M: IndexMetadataManager> EdgeInsertP
         index_data_manager: Arc<I>,
         index_metadata_manager: Arc<M>,
         context: BatchDmlContext,
-        space_id: i32,
+        space_id: u64,
     ) -> Self {
         Self {
             storage,
@@ -237,7 +237,7 @@ pub struct EdgeUpdateProcessor<S: StorageClient, I: IndexDataManager, M: IndexMe
     index_metadata_manager: Arc<M>,
     context: BatchDmlContext,
     updates: Vec<EdgeUpdateItem>,
-    space_id: i32,
+    space_id: u64,
     insertable: bool, // UPSERT 语义
 }
 
@@ -259,7 +259,7 @@ impl<S: StorageClient, I: IndexDataManager, M: IndexMetadataManager> EdgeUpdateP
         index_data_manager: Arc<I>,
         index_metadata_manager: Arc<M>,
         context: BatchDmlContext,
-        space_id: i32,
+        space_id: u64,
         insertable: bool,
     ) -> Self {
         Self {
@@ -418,7 +418,7 @@ pub struct EdgeDeleteProcessor<S: StorageClient, I: IndexDataManager> {
     index_data_manager: Arc<I>,
     context: BatchDmlContext,
     edges: Vec<EdgeDeleteItem>,
-    space_id: i32,
+    space_id: u64,
 }
 
 /// 边删除项
@@ -436,7 +436,7 @@ impl<S: StorageClient, I: IndexDataManager> EdgeDeleteProcessor<S, I> {
         lock_manager: Arc<Mutex<MemoryLockManager>>,
         index_data_manager: Arc<I>,
         context: BatchDmlContext,
-        space_id: i32,
+        space_id: u64,
     ) -> Self {
         Self {
             storage,

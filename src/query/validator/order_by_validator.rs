@@ -1,5 +1,4 @@
-//! ORDER BY 子句验证器
-//! 对应 NebulaGraph OrderByValidator.h/.cpp 的功能
+//! ORDER BY 子句验证器\
 //! 验证 ORDER BY 子句的排序表达式和方向
 //!
 //! 本文件已按照新的 trait + 枚举 验证器体系重构：

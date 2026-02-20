@@ -18,13 +18,13 @@ pub const INDEX_KEY_SEPARATOR: u8 = 0xFF;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IndexKey {
-    pub space_id: i32,
+    pub space_id: u64,
     pub index_id: i32,
     pub encoded_values: Vec<u8>,
 }
 
 impl IndexKey {
-    pub fn new(space_id: i32, index_id: i32, encoded_values: Vec<u8>) -> Self {
+    pub fn new(space_id: u64, index_id: i32, encoded_values: Vec<u8>) -> Self {
         Self {
             space_id,
             index_id,
@@ -44,7 +44,7 @@ impl IndexKey {
         if encoded.len() < 8 {
             return None;
         }
-        let space_id = i32::from_le_bytes(encoded[0..4].try_into().ok()?);
+        let space_id = u64::from_le_bytes(encoded[0..8].try_into().ok()?);
         let index_id = i32::from_le_bytes(encoded[4..8].try_into().ok()?);
         let encoded_values = encoded[8..].to_vec();
         Some(Self {

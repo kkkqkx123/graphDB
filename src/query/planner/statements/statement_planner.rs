@@ -217,13 +217,13 @@ pub enum PlanningPhase {
 #[derive(Debug, Clone)]
 pub struct StatementPlanningContext {
     pub phase: PlanningPhase,
-    pub space_id: i32,
+    pub space_id: u64,
     pub variables: HashMap<String, String>,
     pub aliased_variables: HashMap<String, String>,
 }
 
 impl StatementPlanningContext {
-    pub fn new(space_id: i32) -> Self {
+    pub fn new(space_id: u64) -> Self {
         Self {
             phase: PlanningPhase::Initial,
             space_id,

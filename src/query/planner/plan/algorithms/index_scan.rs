@@ -112,7 +112,7 @@ pub struct IndexScan {
     pub output_var: Option<Variable>,
     pub col_names: Vec<String>,
     pub cost: f64,
-    pub space_id: i32,
+    pub space_id: u64,
     pub tag_id: i32,
     pub index_id: i32,
     pub scan_type: ScanType,          // 使用枚举类型代替字符串
@@ -123,7 +123,7 @@ pub struct IndexScan {
 }
 
 impl IndexScan {
-    pub fn new(id: i64, space_id: i32, tag_id: i32, index_id: i32, scan_type: ScanType) -> Self {
+    pub fn new(id: i64, space_id: u64, tag_id: i32, index_id: i32, scan_type: ScanType) -> Self {
         Self {
             id,
             deps: Vec::new(),
@@ -142,7 +142,7 @@ impl IndexScan {
     }
 
     /// 从字符串创建新的 IndexScan
-    pub fn new_with_str(id: i64, space_id: i32, tag_id: i32, index_id: i32, scan_type: &str) -> Self {
+    pub fn new_with_str(id: i64, space_id: u64, tag_id: i32, index_id: i32, scan_type: &str) -> Self {
         Self::new(id, space_id, tag_id, index_id, ScanType::from_str(scan_type))
     }
 

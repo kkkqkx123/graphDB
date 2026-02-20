@@ -72,7 +72,7 @@ impl Planner for MatchStatementPlanner {
             PlannerError::InvalidAstContext("AstContext 中缺少语句".to_string())
         })?;
 
-        let space_id = ast_ctx.space().space_id.unwrap_or(1) as i32;
+        let space_id = ast_ctx.space().space_id.unwrap_or(1);
         self.plan_match_pattern(stmt, space_id)
     }
 
@@ -85,7 +85,7 @@ impl Planner for MatchStatementPlanner {
             PlannerError::InvalidAstContext("AstContext 中缺少语句".to_string())
         })?;
 
-        let space_id = ast_ctx.space().space_id.unwrap_or(1) as i32;
+        let space_id = ast_ctx.space().space_id.unwrap_or(1);
         let mut current_plan = self.plan_match_pattern(stmt, space_id)?;
 
         if ast_ctx.query_type() == crate::query::context::ast::QueryType::ReadQuery {
@@ -164,7 +164,7 @@ impl StatementPlanner for MatchStatementPlanner {
         let stmt = ast_ctx.sentence().ok_or_else(|| {
             PlannerError::InvalidAstContext("AstContext 中缺少语句".to_string())
         })?;
-        let space_id = ast_ctx.space().space_id.unwrap_or(1) as i32;
+        let space_id = ast_ctx.space().space_id.unwrap_or(1);
         self.plan_match_pattern(stmt, space_id)
     }
 
@@ -178,7 +178,7 @@ impl MatchStatementPlanner {
     fn plan_match_pattern(
         &self,
         stmt: &crate::query::parser::ast::Stmt,
-        space_id: i32,
+        space_id: u64,
     ) -> Result<SubPlan, PlannerError> {
         match stmt {
             crate::query::parser::ast::Stmt::Match(_match_stmt) => {
@@ -191,7 +191,7 @@ impl MatchStatementPlanner {
         }
     }
 
-    fn plan_node_pattern(&self, space_id: i32) -> Result<PlanNodeEnum, PlannerError> {
+    fn plan_node_pattern(&self, space_id: u64) -> Result<PlanNodeEnum, PlannerError> {
         let scan_node = ScanVerticesNode::new(space_id);
         Ok(scan_node.into_enum())
     }
@@ -200,7 +200,7 @@ impl MatchStatementPlanner {
         &self,
         input_plan: SubPlan,
         condition: Expression,
-        _space_id: i32,
+        _space_id: u64,
     ) -> Result<SubPlan, PlannerError> {
         let input_node = input_plan.root().as_ref().ok_or_else(|| {
             PlannerError::PlanGenerationFailed("输入计划没有根节点".to_string())
@@ -214,7 +214,7 @@ impl MatchStatementPlanner {
         &self,
         input_plan: SubPlan,
         columns: Vec<YieldColumn>,
-        _space_id: i32,
+        _space_id: u64,
     ) -> Result<SubPlan, PlannerError> {
         let input_node = input_plan.root().as_ref().ok_or_else(|| {
             PlannerError::PlanGenerationFailed("输入计划没有根节点".to_string())
@@ -228,7 +228,7 @@ impl MatchStatementPlanner {
         &self,
         input_plan: SubPlan,
         order_by: Vec<OrderByItem>,
-        _space_id: i32,
+        _space_id: u64,
     ) -> Result<SubPlan, PlannerError> {
         let input_node = input_plan.root().as_ref().ok_or_else(|| {
             PlannerError::PlanGenerationFailed("输入计划没有根节点".to_string())

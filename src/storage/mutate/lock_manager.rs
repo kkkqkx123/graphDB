@@ -12,11 +12,11 @@ use parking_lot::Mutex;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum LockType {
     /// 顶点锁: (space_id, vertex_id)
-    Vertex(i32, Value),
+    Vertex(u64, Value),
     /// 边锁: (space_id, src_id, edge_type, rank, dst_id)
-    Edge(i32, Value, String, i64, Value),
+    Edge(u64, Value, String, i64, Value),
     /// 标签锁: (space_id, vertex_id, tag_id)
-    Tag(i32, Value, i32),
+    Tag(u64, Value, i32),
 }
 
 /// 内存锁管理器
@@ -112,13 +112,13 @@ impl MemoryLockManager {
     }
 
     /// 创建顶点锁
-    pub fn create_vertex_lock(space_id: i32, vertex_id: Value) -> LockType {
+    pub fn create_vertex_lock(space_id: u64, vertex_id: Value) -> LockType {
         LockType::Vertex(space_id, vertex_id)
     }
 
     /// 创建边锁
     pub fn create_edge_lock(
-        space_id: i32,
+        space_id: u64,
         src_id: Value,
         edge_type: String,
         rank: i64,
@@ -128,7 +128,7 @@ impl MemoryLockManager {
     }
 
     /// 创建标签锁
-    pub fn create_tag_lock(space_id: i32, vertex_id: Value, tag_id: i32) -> LockType {
+    pub fn create_tag_lock(space_id: u64, vertex_id: Value, tag_id: i32) -> LockType {
         LockType::Tag(space_id, vertex_id, tag_id)
     }
 }

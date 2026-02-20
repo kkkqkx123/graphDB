@@ -21,21 +21,21 @@ impl RedbExtendedSchemaManager {
         Self { db }
     }
 
-    fn make_version_key(space_id: i32, version: i32) -> ByteKey {
+    fn make_version_key(space_id: u64, version: i32) -> ByteKey {
         ByteKey(format!("schema_version:{}:{}", space_id, version).into_bytes())
     }
 
-    fn make_change_key(space_id: i32, timestamp: i64) -> ByteKey {
+    fn make_change_key(space_id: u64, timestamp: i64) -> ByteKey {
         ByteKey(format!("schema_change:{}:{}", space_id, timestamp).into_bytes())
     }
 
-    fn make_current_version_key(space_id: i32) -> ByteKey {
+    fn make_current_version_key(space_id: u64) -> ByteKey {
         ByteKey(format!("current_version:{}", space_id).into_bytes())
     }
 }
 
 impl ExtendedSchemaManager for RedbExtendedSchemaManager {
-    fn create_schema_version(&self, space_id: i32) -> Result<i32, ManagerError> {
+    fn create_schema_version(&self, space_id: u64) -> Result<i32, ManagerError> {
         let current_version = self.get_schema_version(space_id)?;
         let new_version = current_version + 1;
 
@@ -55,7 +55,7 @@ impl ExtendedSchemaManager for RedbExtendedSchemaManager {
         Ok(new_version)
     }
 
-    fn get_schema_version(&self, space_id: i32) -> Result<i32, ManagerError> {
+    fn get_schema_version(&self, space_id: u64) -> Result<i32, ManagerError> {
         let read_txn = self.db.begin_read()
             .map_err(|e| ManagerError::storage_error(e.to_string()))?;
         let table = read_txn.open_table(CURRENT_VERSIONS_TABLE)
@@ -77,7 +77,7 @@ impl ExtendedSchemaManager for RedbExtendedSchemaManager {
         }
     }
 
-    fn rollback_schema(&self, space_id: i32, version: i32) -> Result<(), ManagerError> {
+    fn rollback_schema(&self, space_id: u64, version: i32) -> Result<(), ManagerError> {
         if version < 1 {
             return Err(ManagerError::invalid_input("版本号必须 >= 1"));
         }
@@ -100,7 +100,7 @@ impl ExtendedSchemaManager for RedbExtendedSchemaManager {
 
     fn save_schema_snapshot(
         &self,
-        space_id: i32,
+        space_id: u64,
         tags: Vec<TagInfo>,
         edge_types: Vec<EdgeTypeInfo>,
         comment: Option<String>,
@@ -147,7 +147,7 @@ impl ExtendedSchemaManager for RedbExtendedSchemaManager {
 
     fn record_schema_change(
         &self,
-        space_id: i32,
+        space_id: u64,
         change: SchemaChange,
     ) -> Result<(), ManagerError> {
         let key = Self::make_change_key(space_id, change.timestamp);
@@ -170,7 +170,7 @@ impl ExtendedSchemaManager for RedbExtendedSchemaManager {
 
     fn get_schema_changes(
         &self,
-        space_id: i32,
+        space_id: u64,
     ) -> Result<Vec<SchemaChange>, ManagerError> {
         let read_txn = self.db.begin_read()
             .map_err(|e| ManagerError::storage_error(e.to_string()))?;
@@ -196,7 +196,7 @@ impl ExtendedSchemaManager for RedbExtendedSchemaManager {
         Ok(changes)
     }
 
-    fn clear_schema_changes(&self, space_id: i32) -> Result<(), ManagerError> {
+    fn clear_schema_changes(&self, space_id: u64) -> Result<(), ManagerError> {
         let write_txn = self.db.begin_write()
             .map_err(|e| ManagerError::storage_error(e.to_string()))?;
         {

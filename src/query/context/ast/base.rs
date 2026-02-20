@@ -332,7 +332,7 @@ impl AstContext {
     pub fn get_tag_name_by_id(&self, space_id: u64, tag_id: i32) -> Option<String> {
         let qctx = self.qctx.as_ref()?;
         let schema_manager = qctx.schema_manager()?;
-        let space = schema_manager.get_space_by_id(space_id as i32).ok()??;
+        let space = schema_manager.get_space_by_id(space_id).ok()??;
         let tags = schema_manager.list_tags(&space.space_name).ok()?;
         tags.into_iter()
             .find(|tag| tag.tag_id == tag_id)
@@ -343,7 +343,7 @@ impl AstContext {
     pub fn get_edge_type_name_by_id(&self, space_id: u64, edge_type_id: i32) -> Option<String> {
         let qctx = self.qctx.as_ref()?;
         let schema_manager = qctx.schema_manager()?;
-        let space = schema_manager.get_space_by_id(space_id as i32).ok()??;
+        let space = schema_manager.get_space_by_id(space_id).ok()??;
         let edge_types = schema_manager.list_edge_types(&space.space_name).ok()?;
         edge_types.into_iter()
             .find(|edge| edge.edge_type_id == edge_type_id)

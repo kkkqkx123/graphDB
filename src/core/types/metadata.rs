@@ -6,13 +6,13 @@
 use crate::core::{DataType, Value};
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
-use std::sync::atomic::{AtomicI32, Ordering};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 /// Space ID计数器，用于生成唯一的Space ID
-static SPACE_ID_COUNTER: AtomicI32 = AtomicI32::new(1);
+static SPACE_ID_COUNTER: AtomicU64 = AtomicU64::new(1);
 
 /// 生成唯一的Space ID
-pub fn generate_space_id() -> i32 {
+pub fn generate_space_id() -> u64 {
     SPACE_ID_COUNTER.fetch_add(1, Ordering::SeqCst)
 }
 
@@ -41,7 +41,7 @@ impl Default for MetadataVersion {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
 pub struct SchemaVersion {
     pub version: i32,
-    pub space_id: i32,
+    pub space_id: u64,
     pub tags: Vec<TagInfo>,
     pub edge_types: Vec<EdgeTypeInfo>,
     pub created_at: i64,
@@ -50,7 +50,7 @@ pub struct SchemaVersion {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
 pub struct SchemaHistory {
-    pub space_id: i32,
+    pub space_id: u64,
     pub versions: Vec<SchemaVersion>,
     pub current_version: i64,
     pub timestamp: i64,
@@ -122,7 +122,7 @@ impl PropertyDef {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
 pub struct InsertVertexInfo {
-    pub space_id: i32,
+    pub space_id: u64,
     pub vertex_id: Value,
     pub tag_name: String,
     pub props: Vec<(String, Value)>,
@@ -130,7 +130,7 @@ pub struct InsertVertexInfo {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
 pub struct InsertEdgeInfo {
-    pub space_id: i32,
+    pub space_id: u64,
     pub src_vertex_id: Value,
     pub dst_vertex_id: Value,
     pub edge_name: String,
@@ -304,7 +304,7 @@ pub struct CharsetInfo {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
 pub struct SchemaExportConfig {
-    pub space_id: Option<i32>,
+    pub space_id: Option<u64>,
     pub format: ExportFormat,
     pub include_comments: bool,
 }
@@ -349,7 +349,7 @@ impl SchemaImportResult {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
 pub struct SpaceInfo {
-    pub space_id: i32,
+    pub space_id: u64,
     pub space_name: String,
     pub partition_num: i32,
     pub replica_factor: i32,

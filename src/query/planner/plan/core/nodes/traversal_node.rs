@@ -11,7 +11,7 @@ use crate::query::planner::plan::core::node_id_generator::next_node_id;
 
 define_plan_node! {
     pub struct ExpandNode {
-        space_id: i32,
+        space_id: u64,
         edge_types: Vec<String>,
         direction: EdgeDirection,
         step_limit: Option<u32>,
@@ -22,7 +22,7 @@ define_plan_node! {
 }
 
 impl ExpandNode {
-    pub fn new(space_id: i32, edge_types: Vec<String>, direction: EdgeDirection) -> Self {
+    pub fn new(space_id: u64, edge_types: Vec<String>, direction: EdgeDirection) -> Self {
         Self {
             id: next_node_id(),
             deps: Vec::new(),
@@ -60,7 +60,7 @@ impl ExpandNode {
 
 define_plan_node! {
     pub struct ExpandAllNode {
-        space_id: i32,
+        space_id: u64,
         edge_types: Vec<String>,
         direction: String,
         step_limit: Option<u32>,
@@ -76,7 +76,7 @@ define_plan_node! {
 }
 
 impl ExpandAllNode {
-    pub fn new(space_id: i32, edge_types: Vec<String>, direction: &str) -> Self {
+    pub fn new(space_id: u64, edge_types: Vec<String>, direction: &str) -> Self {
         Self {
             id: next_node_id(),
             deps: Vec::new(),
@@ -155,7 +155,7 @@ impl ExpandAllNode {
 
 define_plan_node_with_deps! {
     pub struct TraverseNode {
-        space_id: i32,
+        space_id: u64,
         start_vids: String,
         end_vids: Option<String>,
         edge_types: Vec<String>,
@@ -170,7 +170,7 @@ define_plan_node_with_deps! {
 }
 
 impl TraverseNode {
-    pub fn new(space_id: i32, start_vids: &str, min_steps: u32, max_steps: u32) -> Self {
+    pub fn new(space_id: u64, start_vids: &str, min_steps: u32, max_steps: u32) -> Self {
         Self {
             id: next_node_id(),
             input: None,
@@ -257,7 +257,7 @@ impl TraverseNode {
 
 define_plan_node! {
     pub struct AppendVerticesNode {
-        space_id: i32,
+        space_id: u64,
         vertex_tag: String,
         vertex_props: Vec<TagProp>,
         filter: Option<String>,
@@ -274,7 +274,7 @@ define_plan_node! {
 }
 
 impl AppendVerticesNode {
-    pub fn new(space_id: i32, vertex_tag: &str) -> Self {
+    pub fn new(space_id: u64, vertex_tag: &str) -> Self {
         Self {
             id: next_node_id(),
             deps: Vec::new(),

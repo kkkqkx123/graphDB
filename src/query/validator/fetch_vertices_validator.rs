@@ -18,7 +18,6 @@ use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::{Expression, Value};
-use crate::core::types::DataType;
 use crate::query::context::ast::AstContext;
 use crate::query::context::execution::QueryContext;
 use crate::query::parser::ast::stmt::{FetchStmt, FetchTarget};
@@ -176,7 +175,7 @@ impl FetchVerticesValidator {
     }
 
     /// 获取 Tag ID
-    fn get_tag_id(&self, tag_name: &str, _space_id: i32) -> Result<Option<i32>, ValidationError> {
+    fn get_tag_id(&self, tag_name: &str, _space_id: u64) -> Result<Option<i32>, ValidationError> {
         let _ = tag_name;
         Ok(None)
     }
@@ -251,10 +250,9 @@ impl StatementValidator for FetchVerticesValidator {
         let mut validated_columns = Vec::new();
         if let Some(props) = properties {
             for prop in props {
+                // 使用变量表达式表示属性名
                 validated_columns.push(ValidatedYieldColumn {
-                    expression: Expression::Property {
-                        name: prop.clone(),
-                    },
+                    expression: Expression::Variable(prop.clone()),
                     alias: prop.clone(),
                     tag_name: None,
                     prop_name: Some(prop.clone()),

@@ -18,7 +18,7 @@ pub enum SeekStrategyType {
 
 #[derive(Debug)]
 pub struct SeekStrategyContext {
-    pub space_id: i32,
+    pub space_id: u64,
     pub node_pattern: NodePattern,
     pub predicates: Vec<Expression>,
     pub estimated_rows: usize,
@@ -49,7 +49,7 @@ pub struct SeekResult {
 
 impl SeekStrategyContext {
     pub fn new(
-        space_id: i32,
+        space_id: u64,
         node_pattern: NodePattern,
         predicates: Vec<Expression>,
     ) -> Self {

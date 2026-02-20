@@ -50,7 +50,7 @@ impl MatchClausePlanner {
     fn plan_path(
         &self,
         path: &Path,
-        space_id: i32,
+        space_id: u64,
     ) -> Result<SubPlan, PlannerError> {
         // 根据路径类型选择不同的规划策略
         match path.path_type {
@@ -67,7 +67,7 @@ impl MatchClausePlanner {
     fn plan_standard_path(
         &self,
         path: &Path,
-        space_id: i32,
+        space_id: u64,
     ) -> Result<SubPlan, PlannerError> {
         let mut current_plan = SubPlan::new(None, None);
 
@@ -120,7 +120,7 @@ impl MatchClausePlanner {
     fn plan_shortest_path(
         &self,
         path: &Path,
-        _space_id: i32,
+        _space_id: u64,
     ) -> Result<SubPlan, PlannerError> {
         // 验证最短路径模式：需要恰好两个节点和一条边
         if path.node_infos.len() != 2 || path.edge_infos.len() != 1 {
@@ -197,7 +197,7 @@ impl MatchClausePlanner {
         &self,
         match_clause_ctx: &MatchClauseContext,
         input_plan: Option<&SubPlan>,
-        space_id: i32,
+        space_id: u64,
     ) -> Result<SubPlan, PlannerError> {
         // 验证 MATCH 子句上下文的完整性
         if match_clause_ctx.paths.is_empty() {
@@ -306,7 +306,7 @@ impl ClausePlanner for MatchClausePlanner {
         let match_clause_ctx = Self::extract_match_context(ast_ctx, query_context, &input_plan)?;
 
         // 从 AST 上下文中获取 space_id，默认为 1
-        let space_id = ast_ctx.space().space_id.map(|id| id as i32).unwrap_or(1);
+        let space_id = ast_ctx.space().space_id.unwrap_or(1);
 
         // 对于 MATCH 子句，input_plan 可能是空计划（作为 Source）
         // 或者在管道中作为输入（如 WITH ... MATCH ...）

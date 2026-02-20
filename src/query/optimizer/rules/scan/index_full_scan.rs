@@ -73,7 +73,7 @@ impl OptRule for IndexFullScanRule {
 impl BaseOptRule for IndexFullScanRule {}
 
 impl IndexFullScanRule {
-    fn find_best_index(&self, ctx: &OptContext, space_id: i32, tag_id: i32) -> Option<i32> {
+    fn find_best_index(&self, ctx: &OptContext, space_id: u64, tag_id: i32) -> Option<i32> {
         let index_metadata_manager = ctx.qctx().index_metadata_manager()?;
 
         let space_name = match ctx.qctx().schema_manager()?.get_space_by_id(space_id) {

@@ -19,7 +19,7 @@ pub struct IndexUpdater<'a, I: IndexDataManager, M: IndexMetadataManager> {
     index_metadata_manager: &'a M,
     space_name: String,
     /// 空间ID，用于多空间数据隔离
-    space_id: i32,
+    space_id: u64,
 }
 
 impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
@@ -28,7 +28,7 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
         index_data_manager: &'a I,
         index_metadata_manager: &'a M,
         space_name: String,
-        space_id: i32,
+        space_id: u64,
     ) -> Self {
         Self {
             index_data_manager,
@@ -44,7 +44,7 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdater<'a, I, M> {
     }
 
     /// 获取空间ID
-    pub fn space_id(&self) -> i32 {
+    pub fn space_id(&self) -> u64 {
         self.space_id
     }
 
@@ -322,7 +322,7 @@ impl<'a, I: IndexDataManager, M: IndexMetadataManager> IndexUpdateContext<'a, I,
         index_data_manager: &'a I,
         index_metadata_manager: &'a M,
         space_name: String,
-        space_id: i32,
+        space_id: u64,
     ) -> Self {
         Self {
             updater: IndexUpdater::new(index_data_manager, index_metadata_manager, space_name, space_id),

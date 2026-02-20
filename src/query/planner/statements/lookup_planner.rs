@@ -65,7 +65,7 @@ impl Planner for LookupPlanner {
         }
 
         // 1. 获取可用的索引列表（从元数据服务）
-        let available_indexes = self.get_available_indexes(ast_ctx, space_id as u64, lookup_ctx.schema_id, lookup_ctx.is_edge)?;
+        let available_indexes = self.get_available_indexes(ast_ctx, space_id, lookup_ctx.schema_id, lookup_ctx.is_edge)?;
 
         // 2. 使用 IndexSelector 选择最优索引并获取评分详情
         let (selected_index, scan_limits, scan_type, score_detail) = if !available_indexes.is_empty() {
@@ -103,7 +103,7 @@ impl Planner for LookupPlanner {
         // 3. 创建 IndexScan 节点，使用动态选择的扫描类型
         let mut index_scan_node = IndexScan::new(
             -1,
-            space_id as i32,
+            space_id,
             lookup_ctx.schema_id,
             index_id,
             scan_type,
@@ -182,12 +182,12 @@ impl LookupPlanner {
 
         // 从元数据服务获取索引列表
         let indexes = if is_edge {
-            index_manager.list_edge_indexes(space_id as i32)
+            index_manager.list_edge_indexes(space_id)
                 .map_err(|e| PlannerError::PlanGenerationFailed(
                     format!("Failed to list edge indexes: {}", e)
                 ))?
         } else {
-            index_manager.list_tag_indexes(space_id as i32)
+            index_manager.list_tag_indexes(space_id)
                 .map_err(|e| PlannerError::PlanGenerationFailed(
                     format!("Failed to list tag indexes: {}", e)
                 ))?

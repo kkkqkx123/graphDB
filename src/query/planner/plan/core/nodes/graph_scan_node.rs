@@ -10,7 +10,7 @@ use crate::query::planner::plan::algorithms::{IndexLimit, ScanType};
 
 define_plan_node! {
     pub struct GetVerticesNode {
-        space_id: i32,
+        space_id: u64,
         src_ref: Expression,
         src_vids: String,
         tag_props: Vec<TagProp>,
@@ -23,7 +23,7 @@ define_plan_node! {
 }
 
 impl GetVerticesNode {
-    pub fn new(space_id: i32, src_vids: &str) -> Self {
+    pub fn new(space_id: u64, src_vids: &str) -> Self {
         Self {
             id: next_node_id(),
             deps: Vec::new(),
@@ -48,7 +48,7 @@ impl GetVerticesNode {
         self.expression.is_some()
     }
 
-    pub fn space_id(&self) -> i32 {
+    pub fn space_id(&self) -> u64 {
         self.space_id
     }
 
@@ -71,7 +71,7 @@ impl GetVerticesNode {
 
 define_plan_node! {
     pub struct EdgeIndexScanNode {
-        space_id: i32,
+        space_id: u64,
         edge_type: String,
         index_name: String,
         expression: Option<String>,
@@ -85,7 +85,7 @@ define_plan_node! {
 }
 
 impl EdgeIndexScanNode {
-    pub fn new(space_id: i32, edge_type: &str, index_name: &str) -> Self {
+    pub fn new(space_id: u64, edge_type: &str, index_name: &str) -> Self {
         Self {
             id: next_node_id(),
             space_id,
@@ -106,7 +106,7 @@ impl EdgeIndexScanNode {
         self.limit = Some(limit);
     }
 
-    pub fn space_id(&self) -> i32 {
+    pub fn space_id(&self) -> u64 {
         self.space_id
     }
 
@@ -153,7 +153,7 @@ impl EdgeIndexScanNode {
 
 define_plan_node! {
     pub struct GetEdgesNode {
-        space_id: i32,
+        space_id: u64,
         edge_ref: Expression,
         src: String,
         edge_type: String,
@@ -169,7 +169,7 @@ define_plan_node! {
 }
 
 impl GetEdgesNode {
-    pub fn new(space_id: i32, src: &str, edge_type: &str, rank: &str, dst: &str) -> Self {
+    pub fn new(space_id: u64, src: &str, edge_type: &str, rank: &str, dst: &str) -> Self {
         Self {
             id: next_node_id(),
             space_id,
@@ -196,7 +196,7 @@ impl GetEdgesNode {
         self.expression.is_some()
     }
 
-    pub fn space_id(&self) -> i32 {
+    pub fn space_id(&self) -> u64 {
         self.space_id
     }
 
@@ -227,7 +227,7 @@ impl GetEdgesNode {
 
 define_plan_node! {
     pub struct GetNeighborsNode {
-        space_id: i32,
+        space_id: u64,
         src_vids: String,
         edge_types: Vec<String>,
         direction: String,
@@ -242,7 +242,7 @@ define_plan_node! {
 }
 
 impl GetNeighborsNode {
-    pub fn new(space_id: i32, src_vids: &str) -> Self {
+    pub fn new(space_id: u64, src_vids: &str) -> Self {
         Self {
             id: next_node_id(),
             deps: Vec::new(),
@@ -269,7 +269,7 @@ impl GetNeighborsNode {
         self.direction = direction.to_string();
     }
 
-    pub fn space_id(&self) -> i32 {
+    pub fn space_id(&self) -> u64 {
         self.space_id
     }
 
@@ -288,7 +288,7 @@ impl GetNeighborsNode {
 
 define_plan_node! {
     pub struct ScanVerticesNode {
-        space_id: i32,
+        space_id: u64,
         tag: Option<String>,
         expression: Option<String>,
         limit: Option<i64>,
@@ -298,7 +298,7 @@ define_plan_node! {
 }
 
 impl ScanVerticesNode {
-    pub fn new(space_id: i32) -> Self {
+    pub fn new(space_id: u64) -> Self {
         Self {
             id: next_node_id(),
             space_id,
@@ -319,7 +319,7 @@ impl ScanVerticesNode {
         self.limit = Some(limit);
     }
 
-    pub fn space_id(&self) -> i32 {
+    pub fn space_id(&self) -> u64 {
         self.space_id
     }
 
@@ -342,7 +342,7 @@ impl ScanVerticesNode {
 
 define_plan_node! {
     pub struct ScanEdgesNode {
-        space_id: i32,
+        space_id: u64,
         edge_type: Option<String>,
         expression: Option<String>,
         limit: Option<i64>,
@@ -352,7 +352,7 @@ define_plan_node! {
 }
 
 impl ScanEdgesNode {
-    pub fn new(space_id: i32, edge_type: &str) -> Self {
+    pub fn new(space_id: u64, edge_type: &str) -> Self {
         Self {
             id: next_node_id(),
             space_id,
@@ -369,7 +369,7 @@ impl ScanEdgesNode {
         self.limit = Some(limit);
     }
 
-    pub fn space_id(&self) -> i32 {
+    pub fn space_id(&self) -> u64 {
         self.space_id
     }
 

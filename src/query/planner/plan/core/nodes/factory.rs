@@ -103,7 +103,7 @@ impl PlanNodeFactory {
 
     /// 创建获取顶点节点
     pub fn create_get_vertices(
-        space_id: i32,
+        space_id: u64,
         src_vids: &str,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
         Ok(PlanNodeEnum::GetVertices(GetVerticesNode::new(
@@ -113,7 +113,7 @@ impl PlanNodeFactory {
 
     /// 创建获取边节点
     pub fn create_get_edges(
-        space_id: i32,
+        space_id: u64,
         src: &str,
         edge_type: &str,
         rank: &str,
@@ -126,7 +126,7 @@ impl PlanNodeFactory {
 
     /// 创建获取邻居节点
     pub fn create_get_neighbors(
-        space_id: i32,
+        space_id: u64,
         src_vids: &str,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
         Ok(PlanNodeEnum::GetNeighbors(GetNeighborsNode::new(
@@ -136,14 +136,14 @@ impl PlanNodeFactory {
 
     /// 创建扫描顶点节点
     pub fn create_scan_vertices(
-        space_id: i32,
+        space_id: u64,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
         Ok(PlanNodeEnum::ScanVertices(ScanVerticesNode::new(space_id)))
     }
 
     /// 创建扫描边节点
     pub fn create_scan_edges(
-        space_id: i32,
+        space_id: u64,
         edge_type: &str,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
         Ok(PlanNodeEnum::ScanEdges(ScanEdgesNode::new(
@@ -153,7 +153,7 @@ impl PlanNodeFactory {
 
     /// 创建扩展节点
     pub fn create_expand(
-        space_id: i32,
+        space_id: u64,
         edge_types: Vec<String>,
         direction: EdgeDirection,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
@@ -164,7 +164,7 @@ impl PlanNodeFactory {
 
     /// 创建扩展全部节点
     pub fn create_expand_all(
-        space_id: i32,
+        space_id: u64,
         edge_types: Vec<String>,
         direction: &str,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
@@ -175,7 +175,7 @@ impl PlanNodeFactory {
 
     /// 创建遍历节点
     pub fn create_traverse(
-        space_id: i32,
+        space_id: u64,
         start_vids: &str,
         min_steps: u32,
         max_steps: u32,
@@ -187,7 +187,7 @@ impl PlanNodeFactory {
 
     /// 创建追加顶点节点
     pub fn create_append_vertices(
-        space_id: i32,
+        space_id: u64,
         vertex_tag: &str,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {
         Ok(PlanNodeEnum::AppendVertices(AppendVerticesNode::new(
@@ -306,7 +306,7 @@ impl PlanNodeFactory {
 
     /// 创建索引扫描节点
     pub fn create_index_scan(
-        space_id: i32,
+        space_id: u64,
         tag_id: i32,
         index_id: i32,
         scan_type: &str,
@@ -320,7 +320,7 @@ impl PlanNodeFactory {
 
     /// 创建边索引扫描节点
     pub fn create_edge_index_scan(
-        space_id: i32,
+        space_id: u64,
         edge_type: &str,
         index_name: &str,
     ) -> Result<PlanNodeEnum, crate::query::planner::planner::PlannerError> {

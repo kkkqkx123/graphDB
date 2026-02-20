@@ -6,7 +6,6 @@ use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::Expression;
 use crate::query::context::ast::AstContext;
 use crate::query::context::execution::QueryContext;
-use crate::query::parser::ast::Stmt;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
@@ -200,16 +199,8 @@ impl StatementValidator for LimitValidator {
         }
 
         // 2. 获取 LIMIT 语句（如果存在）
-        let (skip_opt, limit_opt) = if let Some(ref stmt) = ast.sentence() {
-            match stmt {
-                Stmt::Query(query_stmt) => {
-                    (query_stmt.skip.clone(), query_stmt.limit.clone())
-                }
-                _ => (self.skip_expr.clone(), self.limit_expr.clone())
-            }
-        } else {
-            (self.skip_expr.clone(), self.limit_expr.clone())
-        };
+        // QueryStmt 没有 skip/limit 字段，使用验证器预设的值
+        let (skip_opt, limit_opt) = (self.skip_expr.clone(), self.limit_expr.clone());
 
         // 3. 验证 SKIP
         let skip_val = self.validate_skip(&skip_opt)?;

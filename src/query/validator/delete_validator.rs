@@ -257,7 +257,7 @@ impl DeleteValidator {
     fn validate_and_convert_target(
         &self,
         target: &DeleteTarget,
-        space_id: i32,
+        space_id: u64,
     ) -> Result<DeleteTargetType, ValidationError> {
         match target {
             DeleteTarget::Vertices(vids) => {
@@ -365,7 +365,7 @@ impl DeleteValidator {
     fn get_edge_type_id(
         &self,
         edge_type_name: &str,
-        _space_id: i32,
+        _space_id: u64,
     ) -> Result<Option<i32>, ValidationError> {
         // 如果有 schema_manager，可以查询实际的 edge_type_id
         // 这里简化处理，返回 None 让执行层处理
@@ -377,7 +377,7 @@ impl DeleteValidator {
     fn get_tag_id(
         &self,
         tag_name: &str,
-        _space_id: i32,
+        _space_id: u64,
     ) -> Result<Option<i32>, ValidationError> {
         // 如果有 schema_manager，可以查询实际的 tag_id
         // 这里简化处理，返回 None 让执行层处理

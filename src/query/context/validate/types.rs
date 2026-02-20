@@ -7,7 +7,7 @@ use crate::core::types::DataType;
 #[derive(Debug, Clone)]
 pub struct SpaceInfo {
     pub space_name: String,
-    pub space_id: Option<u32>,
+    pub space_id: Option<u64>,
     pub is_default: bool,
     pub vid_type: DataType,
 }
@@ -89,7 +89,7 @@ impl Column {
 }
 
 impl SpaceInfo {
-    pub fn new(space_name: String, space_id: Option<u32>, is_default: bool) -> Self {
+    pub fn new(space_name: String, space_id: Option<u64>, is_default: bool) -> Self {
         Self {
             space_name,
             space_id,

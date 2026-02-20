@@ -104,14 +104,17 @@ impl MatchValidator {
             ));
         }
 
-        // 2. 验证每个模式
+        // 2. 第一遍：收集所有别名（变量定义）
+        self.collect_aliases_from_patterns(&match_stmt.patterns)?;
+
+        // 3. 第二遍：验证模式结构和变量引用
         for (idx, pattern) in match_stmt.patterns.iter().enumerate() {
             if let Err(e) = self.validate_pattern(pattern, idx) {
                 return Err(e);
             }
         }
 
-        // 3. 验证 RETURN 子句存在性
+        // 4. 验证 RETURN 子句存在性
         if match_stmt.return_clause.is_none() {
             return Err(ValidationError::new(
                 "MATCH 语句必须包含 RETURN 子句".to_string(),
@@ -119,28 +122,28 @@ impl MatchValidator {
             ));
         }
 
-        // 4. 验证 WHERE 子句（如果存在）
+        // 5. 验证 WHERE 子句（如果存在）
         if let Some(ref where_clause) = match_stmt.where_clause {
             if let Err(e) = self.validate_where_clause(where_clause) {
                 return Err(e);
             }
         }
 
-        // 5. 验证 RETURN 子句
+        // 6. 验证 RETURN 子句
         if let Some(ref return_clause) = match_stmt.return_clause {
             if let Err(e) = self.validate_return_clause(return_clause) {
                 return Err(e);
             }
         }
 
-        // 6. 验证 ORDER BY 子句（如果存在）
+        // 7. 验证 ORDER BY 子句（如果存在）
         if let Some(ref order_by) = match_stmt.order_by {
             if let Err(e) = self.validate_order_by(order_by) {
                 return Err(e);
             }
         }
 
-        // 7. 验证分页参数
+        // 8. 验证分页参数
         if let (Some(skip), Some(limit)) = (match_stmt.skip, match_stmt.limit) {
             if skip >= limit {
                 return Err(ValidationError::new(
@@ -150,9 +153,6 @@ impl MatchValidator {
             }
         }
 
-        // 8. 收集别名
-        self.collect_aliases_from_patterns(&match_stmt.patterns)?;
-
         Ok(())
     }
 
@@ -160,46 +160,29 @@ impl MatchValidator {
     fn validate_pattern(&mut self, pattern: &Pattern, idx: usize) -> Result<(), ValidationError> {
         match pattern {
             Pattern::Node(node_pattern) => {
-                // 验证节点模式
+                // 验证节点模式：匿名节点必须指定标签
                 if node_pattern.variable.is_none() && node_pattern.labels.is_empty() {
                     return Err(ValidationError::new(
                         format!("第 {} 个模式: 匿名节点必须指定标签", idx + 1),
                         ValidationErrorType::SemanticError,
                     ));
                 }
-                
-                // 如果有变量名，添加到别名映射
-                if let Some(ref var) = node_pattern.variable {
-                    self.aliases.insert(var.clone(), AliasType::Node);
-                }
             }
-            Pattern::Edge(edge_pattern) => {
-                // 验证边模式
-                if edge_pattern.edge_types.is_empty() && edge_pattern.variable.is_none() {
-                    // 警告：匿名边类型，但不报错
-                }
-                
-                // 如果有变量名，添加到别名映射
-                if let Some(ref var) = edge_pattern.variable {
-                    self.aliases.insert(var.clone(), AliasType::Edge);
-                }
+            Pattern::Edge(_edge_pattern) => {
+                // 边模式验证：匿名边是允许的，会自动匹配所有边类型
+                // 参考 nebula-graph 实现，不强制要求指定边类型
             }
             Pattern::Path(path_pattern) => {
-                // 验证路径模式
+                // 验证路径模式：路径不能为空
                 if path_pattern.elements.is_empty() {
                     return Err(ValidationError::new(
                         format!("第 {} 个模式: 路径不能为空", idx + 1),
                         ValidationErrorType::SemanticError,
                     ));
                 }
-                
-                // 如果有变量名，添加到别名映射
-                if let Some(ref var) = path_pattern.variable {
-                    self.aliases.insert(var.clone(), AliasType::Path);
-                }
             }
             Pattern::Variable(var_pattern) => {
-                // 变量模式 - 检查变量是否已定义
+                // 变量模式：检查变量是否已定义
                 if !self.aliases.contains_key(&var_pattern.name) {
                     return Err(ValidationError::new(
                         format!("第 {} 个模式: 引用了未定义的变量 '{}'", idx + 1, var_pattern.name),
@@ -211,9 +194,9 @@ impl MatchValidator {
         Ok(())
     }
 
-    /// 从模式中收集别名
+    /// 从模式中收集别名（第一遍扫描）
     fn collect_aliases_from_patterns(&mut self, patterns: &[Pattern]) -> Result<(), ValidationError> {
-        for (idx, pattern) in patterns.iter().enumerate() {
+        for pattern in patterns.iter() {
             match pattern {
                 Pattern::Node(node) => {
                     if let Some(ref var) = node.variable {
@@ -225,18 +208,11 @@ impl MatchValidator {
                         self.aliases.insert(var.clone(), AliasType::Edge);
                     }
                 }
-                Pattern::Path(path) => {
-                    if let Some(ref var) = path.variable {
-                        self.aliases.insert(var.clone(), AliasType::Path);
-                    }
+                Pattern::Path(_path) => {
+                    // PathPattern 不支持变量名绑定
                 }
-                Pattern::Variable(var) => {
-                    if !self.aliases.contains_key(&var.name) {
-                        return Err(ValidationError::new(
-                            format!("第 {} 个模式: 引用了未定义的变量 '{}'", idx + 1, var.name),
-                            ValidationErrorType::SemanticError,
-                        ));
-                    }
+                Pattern::Variable(_var) => {
+                    // VariablePattern 是变量引用，不是定义，在第一遍扫描中跳过
                 }
             }
         }
@@ -344,7 +320,7 @@ impl MatchValidator {
                     }
                 }
             }
-            Expression::Function { name, args } => {
+            Expression::Function { name: _, args } => {
                 // 验证函数调用
                 for (arg_idx, arg) in args.iter().enumerate() {
                     if let Err(e) = self.validate_return_expression(arg, arg_idx) {
@@ -456,8 +432,8 @@ impl MatchValidator {
     /// 验证分页
     pub fn validate_pagination(
         &mut self,
-        skip_expression: Option<&Expression>,
-        limit_expression: Option<&Expression>,
+        _skip_expression: Option<&Expression>,
+        _limit_expression: Option<&Expression>,
         context: &PaginationContext,
     ) -> Result<(), ValidationError> {
         // 验证 skip 值
@@ -583,7 +559,7 @@ impl MatchValidator {
         columns: &mut Vec<YieldColumn>,
     ) -> Result<(), ValidationError> {
         for part in query_parts {
-            for (alias, alias_type) in &part.aliases_generated {
+            for (alias, _alias_type) in &part.aliases_generated {
                 // 根据别名类型构建列
                 let expr = Expression::Variable(alias.clone());
                 let col = YieldColumn::new(expr, alias.clone());

@@ -47,7 +47,7 @@ impl IndexField {
 pub struct Index {
     pub id: i32,
     pub name: String,
-    pub space_id: i32,
+    pub space_id: u64,
     pub schema_name: String,
     pub fields: Vec<IndexField>,
     pub properties: Vec<String>,
@@ -61,7 +61,7 @@ impl Index {
     pub fn new(
         id: i32,
         name: String,
-        space_id: i32,
+        space_id: u64,
         schema_name: String,
         fields: Vec<IndexField>,
         properties: Vec<String>,

@@ -73,14 +73,14 @@ pub trait StorageClient: Send + Sync + std::fmt::Debug {
     fn create_space(&mut self, space: &SpaceInfo) -> Result<bool, StorageError>;
     fn drop_space(&mut self, space: &str) -> Result<bool, StorageError>;
     fn get_space(&self, space: &str) -> Result<Option<SpaceInfo>, StorageError>;
-    fn get_space_by_id(&self, space_id: i32) -> Result<Option<SpaceInfo>, StorageError>;
+    fn get_space_by_id(&self, space_id: u64) -> Result<Option<SpaceInfo>, StorageError>;
     fn list_spaces(&self) -> Result<Vec<SpaceInfo>, StorageError>;
-    fn get_space_id(&self, space: &str) -> Result<i32, StorageError>;
+    fn get_space_id(&self, space: &str) -> Result<u64, StorageError>;
     fn space_exists(&self, space: &str) -> bool;
     fn clear_space(&mut self, space: &str) -> Result<bool, StorageError>;
-    fn alter_space_partition_num(&mut self, space_id: i32, partition_num: usize) -> Result<bool, StorageError>;
-    fn alter_space_replica_factor(&mut self, space_id: i32, replica_factor: usize) -> Result<bool, StorageError>;
-    fn alter_space_comment(&mut self, space_id: i32, comment: String) -> Result<bool, StorageError>;
+    fn alter_space_partition_num(&mut self, space_id: u64, partition_num: usize) -> Result<bool, StorageError>;
+    fn alter_space_replica_factor(&mut self, space_id: u64, replica_factor: usize) -> Result<bool, StorageError>;
+    fn alter_space_comment(&mut self, space_id: u64, comment: String) -> Result<bool, StorageError>;
 
     fn create_tag(&mut self, space: &str, tag: &TagInfo) -> Result<bool, StorageError>;
     fn alter_tag(&mut self, space: &str, tag: &str, additions: Vec<PropertyDef>, deletions: Vec<String>) -> Result<bool, StorageError>;
@@ -117,8 +117,8 @@ pub trait StorageClient: Send + Sync + std::fmt::Debug {
     fn create_user(&mut self, info: &UserInfo) -> Result<bool, StorageError>;
     fn alter_user(&mut self, info: &UserAlterInfo) -> Result<bool, StorageError>;
     fn drop_user(&mut self, username: &str) -> Result<bool, StorageError>;
-    fn grant_role(&mut self, username: &str, space_id: i32, role: RoleType) -> Result<bool, StorageError>;
-    fn revoke_role(&mut self, username: &str, space_id: i32) -> Result<bool, StorageError>;
+    fn grant_role(&mut self, username: &str, space_id: u64, role: RoleType) -> Result<bool, StorageError>;
+    fn revoke_role(&mut self, username: &str, space_id: u64) -> Result<bool, StorageError>;
 
     fn lookup_index(&self, space: &str, index: &str, value: &Value) -> Result<Vec<Value>, StorageError>;
     fn lookup_index_with_score(&self, space: &str, index: &str, value: &Value) -> Result<Vec<(Value, f32)>, StorageError>;

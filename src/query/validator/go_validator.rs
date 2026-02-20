@@ -4,7 +4,7 @@
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::{
-    AggregateFunction, BinaryOperator, DataType, Expression, UnaryOperator,
+    DataType, Expression,
 };
 use crate::core::types::EdgeDirection;
 use crate::query::context::ast::AstContext;
@@ -123,7 +123,13 @@ impl GoValidator {
     }
 
     /// 验证 FROM 子句
-    fn validate_from_clause(&mut self, from_expr: &Expression) -> Result<GoSource, ValidationError> {
+    fn validate_from_clause(&mut self, from_vertices: &[Expression]) -> Result<GoSource, ValidationError> {
+        // 取第一个顶点表达式作为源
+        let from_expr = from_vertices.first().ok_or_else(|| ValidationError::new(
+            "FROM 子句不能为空".to_string(),
+            ValidationErrorType::SemanticError,
+        ))?;
+
         let source_type = match from_expr {
             Expression::Variable(var_name) => {
                 if var_name == "$-" {
@@ -139,7 +145,7 @@ impl GoValidator {
         };
 
         Ok(GoSource {
-            source_type,
+            source_type: source_type.clone(),
             expression: from_expr.clone(),
             is_variable: matches!(source_type, GoSourceType::Variable),
             variable_name: if let Expression::Variable(name) = from_expr {
@@ -418,7 +424,7 @@ impl StatementValidator for GoValidator {
         };
 
         // 3. 验证 FROM 子句
-        let from_source = self.validate_from_clause(&go_stmt.from.expression)?;
+        let from_source = self.validate_from_clause(&go_stmt.from.vertices)?;
 
         // 4. 验证 OVER 子句
         let edge_names: Vec<String> = go_stmt.over.as_ref()
@@ -507,13 +513,12 @@ mod tests {
             steps: Steps::Fixed(1),
             from: FromClause {
                 span: Span::default(),
-                expression: from_expr,
+                vertices: vec![from_expr],
             },
             over: Some(OverClause {
                 span: Span::default(),
                 edge_types,
                 direction: crate::core::types::EdgeDirection::Out,
-                is_reversible: false,
             }),
             where_clause: None,
             yield_clause: None,
