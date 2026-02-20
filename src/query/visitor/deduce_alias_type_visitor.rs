@@ -276,4 +276,9 @@ impl ExpressionVisitor for DeduceAliasTypeVisitor {
     fn state_mut(&mut self) -> &mut ExpressionVisitorState {
         &mut self.state
     }
+
+    fn visit_parameter(&mut self, _name: &str) -> Self::Result {
+        self.set_output_type(AliasType::Runtime);
+        Ok(())
+    }
 }

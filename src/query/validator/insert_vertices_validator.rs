@@ -1,20 +1,25 @@
-//! Insert Vertices 语句验证器（增强版）
+//! Insert Vertices 语句验证器
 //! 对应 NebulaGraph InsertVerticesValidator 的功能
 //! 验证 INSERT VERTICES 语句的语义正确性，支持多 Tag 插入
 
-use crate::core::error::{DBResult, ValidationError as CoreValidationError, ValidationErrorType};
-use crate::core::Value;
+use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::core::{Expression, Value};
+use crate::core::types::DataType;
 use crate::query::context::ast::AstContext;
 use crate::query::context::execution::QueryContext;
 use crate::query::parser::ast::stmt::{InsertStmt, InsertTarget, TagInsertSpec, VertexRow};
-use crate::query::validator::base_validator::{Validator, ValueType};
-use crate::query::validator::schema_validator::SchemaValidator;
+use crate::query::parser::ast::Stmt;
+use crate::query::validator::validator_trait::{
+    ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
+};
+use std::collections::HashSet;
+use std::sync::Arc;
 use crate::storage::metadata::schema_manager::SchemaManager;
 
 /// 验证后的顶点插入信息
 #[derive(Debug, Clone)]
-pub struct ValidatedVertexInsert {
-    pub space_id: i32,
+pub struct ValidatedInsertVertices {
+    pub space_id: u64,
     pub tags: Vec<ValidatedTagInsert>,
     pub vertices: Vec<ValidatedVertex>,
     pub if_not_exists: bool,
@@ -35,198 +40,54 @@ pub struct ValidatedVertex {
     pub tag_values: Vec<Vec<Value>>,
 }
 
-pub struct InsertVerticesValidator<'a> {
-    base: Validator,
-    schema_validator: Option<SchemaValidator<'a>>,
+#[derive(Debug)]
+pub struct InsertVerticesValidator {
+    inputs: Vec<ColumnDef>,
+    outputs: Vec<ColumnDef>,
+    expression_props: ExpressionProps,
+    user_defined_vars: Vec<String>,
+    validated_result: Option<ValidatedInsertVertices>,
+    schema_manager: Option<Arc<dyn SchemaManager>>,
 }
 
-impl<'a> InsertVerticesValidator<'a> {
+impl InsertVerticesValidator {
     pub fn new() -> Self {
         Self {
-            base: Validator::new(),
-            schema_validator: None,
+            inputs: Vec::new(),
+            outputs: Vec::new(),
+            expression_props: ExpressionProps::default(),
+            user_defined_vars: Vec::new(),
+            validated_result: None,
+            schema_manager: None,
         }
     }
 
-    pub fn with_schema_manager(mut self, schema_manager: &'a dyn SchemaManager) -> Self {
-        self.schema_validator = Some(SchemaValidator::new(schema_manager));
+    pub fn with_schema_manager(mut self, schema_manager: Arc<dyn SchemaManager>) -> Self {
+        self.schema_manager = Some(schema_manager);
         self
     }
 
-    /// 验证 INSERT VERTICES 语句
-    /// 返回验证后的插入信息，供执行层使用
-    pub fn validate_with_schema(
-        &mut self,
-        stmt: &InsertStmt,
-        space_name: &str,
-    ) -> Result<ValidatedVertexInsert, CoreValidationError> {
-        let schema_validator = self.schema_validator.as_ref().ok_or_else(|| {
-            CoreValidationError::new(
-                "Schema validator not initialized".to_string(),
-                ValidationErrorType::SemanticError,
-            )
-        })?;
-
-        let space = schema_validator
-            .schema_manager
-            .get_space(space_name)
-            .map_err(|e| {
-                CoreValidationError::new(
-                    format!("Failed to get space '{}': {}", space_name, e),
-                    ValidationErrorType::SemanticError,
-                )
-            })?
-            .ok_or_else(|| {
-                CoreValidationError::new(
-                    format!("Space '{}' not found", space_name),
-                    ValidationErrorType::SemanticError,
-                )
-            })?;
-
-        match &stmt.target {
-            InsertTarget::Vertices { tags, values } => {
-                // 验证所有 Tag
-                let mut validated_tags = Vec::new();
-                for tag_spec in tags {
-                    let validated_tag = self.validate_tag_spec(
-                        tag_spec,
-                        space_name,
-                        schema_validator,
-                    )?;
-                    validated_tags.push(validated_tag);
-                }
-
-                // 验证并转换所有顶点数据
-                let mut validated_vertices = Vec::new();
-                for (idx, row) in values.iter().enumerate() {
-                    // 验证 VID
-                    let vid = self.validate_and_evaluate_vid(
-                        &row.vid,
-                        &space.vid_type,
-                        schema_validator,
-                        idx,
-                    )?;
-
-                    // 验证每个 Tag 的属性值
-                    let mut tag_values = Vec::new();
-                    for (tag_idx, (tag_spec, validated_tag)) in 
-                        row.tag_values.iter().zip(validated_tags.iter()).enumerate() {
-                        let values = self.validate_and_convert_props(
-                            &validated_tag.prop_names,
-                            tag_spec,
-                            schema_validator,
-                            idx,
-                            tag_idx,
-                        )?;
-                        tag_values.push(values);
-                    }
-
-                    validated_vertices.push(ValidatedVertex { vid, tag_values });
-                }
-
-                Ok(ValidatedVertexInsert {
-                    space_id: space.space_id,
-                    tags: validated_tags,
-                    vertices: validated_vertices,
-                    if_not_exists: stmt.if_not_exists,
-                })
-            }
-            InsertTarget::Edge { .. } => Err(CoreValidationError::new(
-                "Expected INSERT VERTICES but got INSERT EDGES".to_string(),
-                ValidationErrorType::SemanticError,
-            )),
-        }
-    }
-
-    /// 验证 Tag 规范
-    fn validate_tag_spec(
-        &self,
-        tag_spec: &TagInsertSpec,
-        space_name: &str,
-        schema_validator: &SchemaValidator,
-    ) -> Result<ValidatedTagInsert, CoreValidationError> {
-        let tag_info = schema_validator
-            .get_tag(space_name, &tag_spec.tag_name)
-            .map_err(|e| {
-                CoreValidationError::new(
-                    format!("Failed to get tag '{}': {}", tag_spec.tag_name, e),
-                    ValidationErrorType::SemanticError,
-                )
-            })?
-            .ok_or_else(|| {
-                CoreValidationError::new(
-                    format!("Tag '{}' not found in space '{}'", tag_spec.tag_name, space_name),
-                    ValidationErrorType::SemanticError,
-                )
-            })?;
-
-        // 验证属性名
-        self.validate_property_names_with_schema(&tag_info.properties, &tag_spec.prop_names)?;
-
-        Ok(ValidatedTagInsert {
-            tag_id: tag_info.tag_id,
-            tag_name: tag_spec.tag_name.clone(),
-            prop_names: tag_spec.prop_names.clone(),
-        })
-    }
-
-    /// 基础验证（不依赖 Schema）
-    pub fn validate(&mut self, stmt: &InsertStmt) -> Result<(), CoreValidationError> {
-        match &stmt.target {
-            InsertTarget::Vertices { tags, values } => {
-                if tags.is_empty() {
-                    return Err(CoreValidationError::new(
-                        "INSERT VERTEX must specify at least one tag".to_string(),
-                        ValidationErrorType::SemanticError,
-                    ));
-                }
-                
-                for tag_spec in tags {
-                    self.validate_tag_name(&tag_spec.tag_name)?;
-                    self.validate_property_names_basic(&tag_spec.prop_names)?;
-                }
-                
-                self.validate_vertex_rows(tags, values)?;
-            }
-            InsertTarget::Edge { .. } => {
-                return Err(CoreValidationError::new(
-                    "Expected INSERT VERTICES but got INSERT EDGES".to_string(),
-                    ValidationErrorType::SemanticError,
-                ));
-            }
-        }
-        Ok(())
-    }
-
-    /// 完整验证（包含 AST 上下文）
-    pub fn validate_with_ast(
-        &mut self,
-        stmt: &InsertStmt,
-        _query_context: Option<&QueryContext>,
-        ast: &mut AstContext,
-    ) -> DBResult<()> {
-        self.validate_space_chosen(ast)?;
-        self.validate(stmt)?;
-        self.generate_output_columns(ast);
-        Ok(())
-    }
-
-    fn validate_space_chosen(&self, ast: &AstContext) -> Result<(), CoreValidationError> {
-        if ast.space().space_id.is_none() {
-            return Err(CoreValidationError::new(
-                "No space selected. Use `USE <space>` to select a graph space first.".to_string(),
-                ValidationErrorType::SemanticError,
-            ));
-        }
-        Ok(())
-    }
-
-    fn validate_tag_name(&self, tag_name: &str) -> Result<(), CoreValidationError> {
+    /// 验证 Tag 名称
+    fn validate_tag_name(&self, tag_name: &str) -> Result<(), ValidationError> {
         if tag_name.is_empty() {
-            return Err(CoreValidationError::new(
+            return Err(ValidationError::new(
                 "Tag name cannot be empty".to_string(),
                 ValidationErrorType::SemanticError,
             ));
+        }
+        Ok(())
+    }
+
+    /// 验证属性名
+    fn validate_property_names(&self, prop_names: &[String]) -> Result<(), ValidationError> {
+        let mut seen = HashSet::new();
+        for prop_name in prop_names {
+            if !seen.insert(prop_name) {
+                return Err(ValidationError::new(
+                    format!("Duplicate property name '{}' in INSERT VERTICES", prop_name),
+                    ValidationErrorType::SemanticError,
+                ));
+            }
         }
         Ok(())
     }
@@ -236,14 +97,14 @@ impl<'a> InsertVerticesValidator<'a> {
         &self,
         tags: &[TagInsertSpec],
         rows: &[VertexRow],
-    ) -> Result<(), CoreValidationError> {
+    ) -> Result<(), ValidationError> {
         for (row_idx, row) in rows.iter().enumerate() {
             // 验证 VID 格式
             self.validate_vid_expression(&row.vid, row_idx)?;
-            
+
             // 验证值数量与 Tag 数量匹配
             if row.tag_values.len() != tags.len() {
-                return Err(CoreValidationError::new(
+                return Err(ValidationError::new(
                     format!(
                         "Value count mismatch for vertex {}: expected {} tag value groups, got {}",
                         row_idx + 1,
@@ -253,12 +114,12 @@ impl<'a> InsertVerticesValidator<'a> {
                     ValidationErrorType::SemanticError,
                 ));
             }
-            
+
             // 验证每个 Tag 的值数量
-            for (tag_idx, (tag_spec, values)) in 
+            for (tag_idx, (tag_spec, values)) in
                 tags.iter().zip(row.tag_values.iter()).enumerate() {
                 if values.len() != tag_spec.prop_names.len() {
-                    return Err(CoreValidationError::new(
+                    return Err(ValidationError::new(
                         format!(
                             "Value count mismatch for vertex {}, tag {}: expected {} values, got {}",
                             row_idx + 1,
@@ -274,24 +135,25 @@ impl<'a> InsertVerticesValidator<'a> {
         Ok(())
     }
 
+    /// 验证 VID 表达式
     fn validate_vid_expression(
         &self,
-        vid_expr: &crate::core::Expression,
+        vid_expr: &Expression,
         idx: usize,
-    ) -> Result<(), CoreValidationError> {
+    ) -> Result<(), ValidationError> {
         match vid_expr {
-            crate::core::Expression::Literal(crate::core::Value::String(s)) => {
+            Expression::Literal(Value::String(s)) => {
                 if s.is_empty() {
-                    return Err(CoreValidationError::new(
+                    return Err(ValidationError::new(
                         format!("Vertex ID cannot be empty for vertex {}", idx + 1),
                         ValidationErrorType::SemanticError,
                     ));
                 }
                 Ok(())
             }
-            crate::core::Expression::Literal(crate::core::Value::Int(_)) => Ok(()),
-            crate::core::Expression::Variable(_) => Ok(()),
-            _ => Err(CoreValidationError::new(
+            Expression::Literal(Value::Int(_)) => Ok(()),
+            Expression::Variable(_) => Ok(()),
+            _ => Err(ValidationError::new(
                 format!(
                     "Vertex ID must be a string constant or variable for vertex {}",
                     idx + 1
@@ -301,333 +163,453 @@ impl<'a> InsertVerticesValidator<'a> {
         }
     }
 
-    /// 使用 Schema 验证属性名
-    fn validate_property_names_with_schema(
-        &self,
-        schema_props: &[crate::core::types::PropertyDef],
-        prop_names: &[String],
-    ) -> Result<(), CoreValidationError> {
-        // 检查重复属性名
-        let mut seen = std::collections::HashSet::new();
-        for prop_name in prop_names {
-            if !seen.insert(prop_name) {
-                return Err(CoreValidationError::new(
-                    format!("Duplicate property name '{}' in INSERT VERTICES", prop_name),
-                    ValidationErrorType::SemanticError,
-                ));
+    /// 评估表达式为值
+    fn evaluate_expression(&self, expr: &Expression) -> Result<Value, ValidationError> {
+        match expr {
+            Expression::Literal(val) => Ok(val.clone()),
+            Expression::Variable(name) => {
+                // 变量在运行时解析
+                Ok(Value::String(format!("${}", name)))
             }
-
-            // 检查属性是否存在于 Schema 中
-            if !schema_props.iter().any(|p| &p.name == prop_name) {
-                return Err(CoreValidationError::new(
-                    format!(
-                        "Property '{}' does not exist in tag schema",
-                        prop_name
-                    ),
-                    ValidationErrorType::SemanticError,
-                ));
-            }
+            _ => Ok(Value::Null(crate::core::NullType::Null)),
         }
-
-        Ok(())
     }
 
-    fn validate_property_names_basic(
-        &self,
-        prop_names: &[String],
-    ) -> Result<(), CoreValidationError> {
-        let mut seen = std::collections::HashSet::new();
-        for prop_name in prop_names {
-            if !seen.insert(prop_name) {
-                return Err(CoreValidationError::new(
-                    format!("Duplicate property name '{}' in INSERT VERTICES", prop_name),
-                    ValidationErrorType::SemanticError,
-                ));
-            }
-        }
-        Ok(())
-    }
-
-    /// 验证并评估 VID
-    fn validate_and_evaluate_vid(
-        &self,
-        vid_expr: &crate::core::Expression,
-        vid_type: &crate::core::types::DataType,
-        schema_validator: &SchemaValidator,
-        vertex_idx: usize,
-    ) -> Result<Value, CoreValidationError> {
-        // 评估表达式为值
-        let vid = schema_validator
-            .evaluate_expression(vid_expr)
-            .map_err(|e| {
-                CoreValidationError::new(
-                    format!("Failed to evaluate vertex ID for vertex {}: {}", vertex_idx + 1, e.message),
-                    e.error_type,
-                )
-            })?;
-
-        // 验证 VID 类型
-        schema_validator
-            .validate_vid(&vid, vid_type)
-            .map_err(|e| {
-                CoreValidationError::new(
-                    format!("Invalid vertex ID for vertex {}: {}", vertex_idx + 1, e.message),
-                    e.error_type,
-                )
-            })?;
-
-        Ok(vid)
-    }
-
-    /// 验证并转换属性值
-    fn validate_and_convert_props(
-        &self,
-        prop_names: &[String],
-        prop_values: &[crate::core::Expression],
-        schema_validator: &SchemaValidator,
-        vertex_idx: usize,
-        tag_idx: usize,
-    ) -> Result<Vec<Value>, CoreValidationError> {
-        let mut result = Vec::new();
-
-        for (_prop_idx, (prop_name, value_expr)) in
-            prop_names.iter().zip(prop_values.iter()).enumerate()
-        {
-            // 评估表达式
-            let value = schema_validator
-                .evaluate_expression(value_expr)
-                .map_err(|e| {
-                    CoreValidationError::new(
-                        format!(
-                            "Failed to evaluate property '{}' for vertex {}, tag {}: {}",
-                            prop_name,
-                            vertex_idx + 1,
-                            tag_idx + 1,
-                            e.message
-                        ),
-                        e.error_type,
-                    )
-                })?;
-
-            result.push(value);
-        }
-
-        Ok(result)
-    }
-
-    fn generate_output_columns(&mut self, _ast: &mut AstContext) {
-        self.base.add_output("INSERTED_VERTICES".to_string(), ValueType::List);
+    /// 生成输出列
+    fn generate_output_columns(&mut self) {
+        self.outputs.clear();
+        self.outputs.push(ColumnDef {
+            name: "INSERTED_VERTICES".to_string(),
+            type_: ValueType::List,
+        });
     }
 }
 
-impl Default for InsertVerticesValidator<'_> {
+impl Default for InsertVerticesValidator {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl StatementValidator for InsertVerticesValidator {
+    fn validate(
+        &mut self,
+        query_context: Option<&QueryContext>,
+        ast: &mut AstContext,
+    ) -> Result<ValidationResult, ValidationError> {
+        // 1. 检查是否需要空间
+        if !self.is_global_statement(ast) && query_context.is_none() {
+            return Err(ValidationError::new(
+                "未选择图空间，请先执行 USE <space>".to_string(),
+                ValidationErrorType::SemanticError,
+            ));
+        }
+
+        // 2. 获取 INSERT 语句
+        let stmt = ast.sentence()
+            .ok_or_else(|| ValidationError::new(
+                "No statement found in AST context".to_string(),
+                ValidationErrorType::SemanticError,
+            ))?;
+
+        let insert_stmt = match stmt {
+            Stmt::Insert(insert_stmt) => insert_stmt,
+            _ => {
+                return Err(ValidationError::new(
+                    "Expected INSERT statement".to_string(),
+                    ValidationErrorType::SemanticError,
+                ));
+            }
+        };
+
+        // 3. 验证语句类型
+        let (tags, values) = match &insert_stmt.target {
+            InsertTarget::Vertices { tags, values } => {
+                if tags.is_empty() {
+                    return Err(ValidationError::new(
+                        "INSERT VERTEX must specify at least one tag".to_string(),
+                        ValidationErrorType::SemanticError,
+                    ));
+                }
+                (tags.clone(), values.clone())
+            }
+            InsertTarget::Edge { .. } => {
+                return Err(ValidationError::new(
+                    "Expected INSERT VERTICES but got INSERT EDGES".to_string(),
+                    ValidationErrorType::SemanticError,
+                ));
+            }
+        };
+
+        // 4. 验证所有 Tag
+        for tag_spec in &tags {
+            self.validate_tag_name(&tag_spec.tag_name)?;
+            self.validate_property_names(&tag_spec.prop_names)?;
+        }
+
+        // 5. 验证顶点行数据
+        self.validate_vertex_rows(&tags, &values)?;
+
+        // 6. 转换验证后的数据
+        let mut validated_tags = Vec::new();
+        for tag_spec in &tags {
+            validated_tags.push(ValidatedTagInsert {
+                tag_id: 0, // 运行时从 schema 获取
+                tag_name: tag_spec.tag_name.clone(),
+                prop_names: tag_spec.prop_names.clone(),
+            });
+        }
+
+        let mut validated_vertices = Vec::new();
+        for row in &values {
+            let vid = self.evaluate_expression(&row.vid)?;
+            let mut tag_values = Vec::new();
+            for tag_vals in &row.tag_values {
+                let mut values = Vec::new();
+                for v in tag_vals {
+                    values.push(self.evaluate_expression(v)?);
+                }
+                tag_values.push(values);
+            }
+            validated_vertices.push(ValidatedVertex { vid, tag_values });
+        }
+
+        // 7. 获取 space_id
+        let space_id = query_context
+            .map(|qc| qc.space_id())
+            .filter(|&id| id != 0)
+            .or_else(|| ast.space().space_id.map(|id| id as u64))
+            .unwrap_or(0);
+
+        // 8. 创建验证结果
+        let validated = ValidatedInsertVertices {
+            space_id,
+            tags: validated_tags,
+            vertices: validated_vertices,
+            if_not_exists: insert_stmt.if_not_exists,
+        };
+
+        self.validated_result = Some(validated);
+
+        // 9. 生成输出列
+        self.generate_output_columns();
+
+        // 10. 返回验证结果
+        Ok(ValidationResult::success(
+            self.inputs.clone(),
+            self.outputs.clone(),
+        ))
+    }
+
+    fn statement_type(&self) -> StatementType {
+        StatementType::InsertVertices
+    }
+
+    fn inputs(&self) -> &[ColumnDef] {
+        &self.inputs
+    }
+
+    fn outputs(&self) -> &[ColumnDef] {
+        &self.outputs
+    }
+
+    fn expression_props(&self) -> &ExpressionProps {
+        &self.expression_props
+    }
+
+    fn user_defined_vars(&self) -> &[String] {
+        &self.user_defined_vars
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::{DataType, PropertyDef, TagInfo};
-    use crate::query::parser::Span;
+    use crate::query::parser::ast::Span;
 
-    // 模拟 SchemaManager 用于测试
-    #[derive(Debug)]
-    #[allow(dead_code)]
-    struct MockSchemaManager;
-
-    impl SchemaManager for MockSchemaManager {
-        fn create_space(
-            &self,
-            _space: &crate::core::types::SpaceInfo,
-        ) -> crate::storage::StorageResult<bool> {
-            Ok(true)
-        }
-        fn drop_space(&self, _space_name: &str) -> crate::storage::StorageResult<bool> {
-            Ok(true)
-        }
-        fn get_space(
-            &self,
-            _space_name: &str,
-        ) -> crate::storage::StorageResult<Option<crate::core::types::SpaceInfo>> {
-            Ok(Some(crate::core::types::SpaceInfo {
-                space_id: 1,
-                space_name: "test_space".to_string(),
-                partition_num: 1,
-                replica_factor: 1,
-                vid_type: DataType::String,
-                tags: vec![],
-                edge_types: vec![],
-                version: crate::core::types::metadata::MetadataVersion {
-                    version: 1,
-                    timestamp: 0,
-                    description: String::new(),
-                },
-                comment: None,
-            }))
-        }
-        fn get_space_by_id(
-            &self,
-            _space_id: i32,
-        ) -> crate::storage::StorageResult<Option<crate::core::types::SpaceInfo>> {
-            Ok(None)
-        }
-        fn list_spaces(&self) -> crate::storage::StorageResult<Vec<crate::core::types::SpaceInfo>> {
-            Ok(vec![])
-        }
-        fn create_tag(&self, _space: &str, _tag: &TagInfo) -> crate::storage::StorageResult<bool> {
-            Ok(true)
-        }
-        fn get_tag(
-            &self,
-            _space: &str,
-            tag_name: &str,
-        ) -> crate::storage::StorageResult<Option<TagInfo>> {
-            if tag_name == "person" {
-                Ok(Some(TagInfo {
-                    tag_id: 1,
-                    tag_name: "person".to_string(),
-                    properties: vec![
-                        PropertyDef::new("name".to_string(), DataType::String).with_nullable(false),
-                        PropertyDef::new("age".to_string(), DataType::Int).with_nullable(true),
-                    ],
-                    comment: None,
-                    ttl_duration: None,
-                    ttl_col: None,
-                }))
-            } else if tag_name == "employee" {
-                Ok(Some(TagInfo {
-                    tag_id: 2,
-                    tag_name: "employee".to_string(),
-                    properties: vec![
-                        PropertyDef::new("department".to_string(), DataType::String).with_nullable(false),
-                        PropertyDef::new("salary".to_string(), DataType::Int).with_nullable(true),
-                    ],
-                    comment: None,
-                    ttl_duration: None,
-                    ttl_col: None,
-                }))
-            } else {
-                Ok(None)
-            }
-        }
-        fn drop_tag(&self, _space: &str, _tag_name: &str) -> crate::storage::StorageResult<bool> {
-            Ok(true)
-        }
-        fn list_tags(&self, _space: &str) -> crate::storage::StorageResult<Vec<TagInfo>> {
-            Ok(vec![])
-        }
-        fn create_edge_type(
-            &self,
-            _space: &str,
-            _edge: &crate::core::types::EdgeTypeInfo,
-        ) -> crate::storage::StorageResult<bool> {
-            Ok(true)
-        }
-        fn get_edge_type(
-            &self,
-            _space: &str,
-            _edge_name: &str,
-        ) -> crate::storage::StorageResult<Option<crate::core::types::EdgeTypeInfo>> {
-            Ok(None)
-        }
-        fn drop_edge_type(&self, _space: &str, _edge_name: &str) -> crate::storage::StorageResult<bool> {
-            Ok(true)
-        }
-        fn list_edge_types(&self, _space: &str) -> crate::storage::StorageResult<Vec<crate::core::types::EdgeTypeInfo>> {
-            Ok(vec![])
-        }
-        fn get_tag_schema(&self, _space: &str, tag: &str) -> crate::storage::StorageResult<crate::storage::Schema> {
-            Ok(crate::storage::Schema::new(tag.to_string(), 1))
-        }
-        fn get_edge_type_schema(&self, _space: &str, edge: &str) -> crate::storage::StorageResult<crate::storage::Schema> {
-            Ok(crate::storage::Schema::new(edge.to_string(), 1))
-        }
-    }
-
-    fn create_test_stmt(if_not_exists: bool) -> InsertStmt {
+    fn create_insert_vertices_stmt(
+        tags: Vec<TagInsertSpec>,
+        values: Vec<VertexRow>,
+        if_not_exists: bool,
+    ) -> InsertStmt {
         InsertStmt {
             span: Span::default(),
-            target: InsertTarget::Vertices {
-                tags: vec![
-                    TagInsertSpec {
-                        tag_name: "person".to_string(),
-                        prop_names: vec!["name".to_string(), "age".to_string()],
-                        is_default_props: false,
-                    },
-                ],
-                values: vec![
-                    VertexRow {
-                        vid: crate::core::Expression::literal("vid1"),
-                        tag_values: vec![
-                            vec![
-                                crate::core::Expression::literal("Alice"),
-                                crate::core::Expression::literal(30i64),
-                            ],
-                        ],
-                    },
-                ],
-            },
+            target: InsertTarget::Vertices { tags, values },
             if_not_exists,
         }
     }
 
-    #[test]
-    fn test_validate_single_tag() {
-        let mut validator = InsertVerticesValidator::new();
-        let stmt = create_test_stmt(false);
-        let result = validator.validate(&stmt);
-        assert!(result.is_ok());
+    fn create_tag_spec(tag_name: &str, prop_names: Vec<&str>) -> TagInsertSpec {
+        TagInsertSpec {
+            tag_name: tag_name.to_string(),
+            prop_names: prop_names.iter().map(|s| s.to_string()).collect(),
+            is_default_props: false,
+        }
+    }
+
+    fn create_vertex_row(vid: Expression, tag_values: Vec<Vec<Expression>>) -> VertexRow {
+        VertexRow { vid, tag_values }
     }
 
     #[test]
-    fn test_validate_if_not_exists() {
+    fn test_validate_empty_tags() {
         let mut validator = InsertVerticesValidator::new();
-        let stmt = create_test_stmt(true);
-        let result = validator.validate(&stmt);
-        assert!(result.is_ok());
+        let stmt = create_insert_vertices_stmt(
+            vec![],
+            vec![],
+            false,
+        );
+
+        let mut ast = AstContext::default();
+        ast.set_sentence(Stmt::Insert(stmt));
+
+        let result = validator.validate(None, &mut ast);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.message.contains("INSERT VERTEX must specify at least one tag"));
     }
 
     #[test]
     fn test_validate_empty_tag_name() {
         let mut validator = InsertVerticesValidator::new();
-        let stmt = InsertStmt {
-            span: Span::default(),
-            target: InsertTarget::Vertices {
-                tags: vec![
-                    TagInsertSpec {
-                        tag_name: "".to_string(),
-                        prop_names: vec![],
-                        is_default_props: true,
-                    },
-                ],
-                values: vec![],
-            },
-            if_not_exists: false,
-        };
-        let result = validator.validate(&stmt);
+        let stmt = create_insert_vertices_stmt(
+            vec![create_tag_spec("", vec!["name"])],
+            vec![create_vertex_row(
+                Expression::literal("vid1"),
+                vec![vec![Expression::literal("Alice")]],
+            )],
+            false,
+        );
+
+        let mut ast = AstContext::default();
+        ast.set_sentence(Stmt::Insert(stmt));
+
+        let result = validator.validate(None, &mut ast);
         assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.message.contains("Tag name cannot be empty"));
     }
 
     #[test]
-    fn test_validate_duplicate_property() {
+    fn test_validate_duplicate_property_names() {
+        let mut validator = InsertVerticesValidator::new();
+        let stmt = create_insert_vertices_stmt(
+            vec![create_tag_spec("person", vec!["name", "name"])],
+            vec![create_vertex_row(
+                Expression::literal("vid1"),
+                vec![vec![Expression::literal("Alice"), Expression::literal("Bob")]],
+            )],
+            false,
+        );
+
+        let mut ast = AstContext::default();
+        ast.set_sentence(Stmt::Insert(stmt));
+
+        let result = validator.validate(None, &mut ast);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.message.contains("Duplicate property name"));
+    }
+
+    #[test]
+    fn test_validate_value_count_mismatch() {
+        let mut validator = InsertVerticesValidator::new();
+        let stmt = create_insert_vertices_stmt(
+            vec![create_tag_spec("person", vec!["name", "age"])],
+            vec![create_vertex_row(
+                Expression::literal("vid1"),
+                vec![vec![Expression::literal("Alice")]], // 只提供了一个值，但期望两个
+            )],
+            false,
+        );
+
+        let mut ast = AstContext::default();
+        ast.set_sentence(Stmt::Insert(stmt));
+
+        let result = validator.validate(None, &mut ast);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.message.contains("Value count mismatch"));
+    }
+
+    #[test]
+    fn test_validate_empty_vid() {
+        let mut validator = InsertVerticesValidator::new();
+        let stmt = create_insert_vertices_stmt(
+            vec![create_tag_spec("person", vec!["name"])],
+            vec![create_vertex_row(
+                Expression::literal(""),
+                vec![vec![Expression::literal("Alice")]],
+            )],
+            false,
+        );
+
+        let mut ast = AstContext::default();
+        ast.set_sentence(Stmt::Insert(stmt));
+
+        let result = validator.validate(None, &mut ast);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.message.contains("Vertex ID cannot be empty"));
+    }
+
+    #[test]
+    fn test_validate_valid_single_tag() {
+        let mut validator = InsertVerticesValidator::new();
+        let stmt = create_insert_vertices_stmt(
+            vec![create_tag_spec("person", vec!["name", "age"])],
+            vec![create_vertex_row(
+                Expression::literal("vid1"),
+                vec![vec![Expression::literal("Alice"), Expression::literal(30)]],
+            )],
+            false,
+        );
+
+        let mut ast = AstContext::default();
+        ast.set_sentence(Stmt::Insert(stmt));
+
+        let result = validator.validate(None, &mut ast);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validate_valid_multiple_tags() {
+        let mut validator = InsertVerticesValidator::new();
+        let stmt = create_insert_vertices_stmt(
+            vec![
+                create_tag_spec("person", vec!["name"]),
+                create_tag_spec("employee", vec!["department", "salary"]),
+            ],
+            vec![create_vertex_row(
+                Expression::literal("vid1"),
+                vec![
+                    vec![Expression::literal("Alice")],
+                    vec![Expression::literal("Engineering"), Expression::literal(50000)],
+                ],
+            )],
+            false,
+        );
+
+        let mut ast = AstContext::default();
+        ast.set_sentence(Stmt::Insert(stmt));
+
+        let result = validator.validate(None, &mut ast);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validate_multiple_vertices() {
+        let mut validator = InsertVerticesValidator::new();
+        let stmt = create_insert_vertices_stmt(
+            vec![create_tag_spec("person", vec!["name"])],
+            vec![
+                create_vertex_row(
+                    Expression::literal("vid1"),
+                    vec![vec![Expression::literal("Alice")]],
+                ),
+                create_vertex_row(
+                    Expression::literal("vid2"),
+                    vec![vec![Expression::literal("Bob")]],
+                ),
+            ],
+            false,
+        );
+
+        let mut ast = AstContext::default();
+        ast.set_sentence(Stmt::Insert(stmt));
+
+        let result = validator.validate(None, &mut ast);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validate_variable_vid() {
+        let mut validator = InsertVerticesValidator::new();
+        let stmt = create_insert_vertices_stmt(
+            vec![create_tag_spec("person", vec!["name"])],
+            vec![create_vertex_row(
+                Expression::variable("$vid"),
+                vec![vec![Expression::literal("Alice")]],
+            )],
+            false,
+        );
+
+        let mut ast = AstContext::default();
+        ast.set_sentence(Stmt::Insert(stmt));
+
+        let result = validator.validate(None, &mut ast);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validate_integer_vid() {
+        let mut validator = InsertVerticesValidator::new();
+        let stmt = create_insert_vertices_stmt(
+            vec![create_tag_spec("person", vec!["name"])],
+            vec![create_vertex_row(
+                Expression::literal(123),
+                vec![vec![Expression::literal("Alice")]],
+            )],
+            false,
+        );
+
+        let mut ast = AstContext::default();
+        ast.set_sentence(Stmt::Insert(stmt));
+
+        let result = validator.validate(None, &mut ast);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validate_wrong_target_type() {
         let mut validator = InsertVerticesValidator::new();
         let stmt = InsertStmt {
             span: Span::default(),
-            target: InsertTarget::Vertices {
-                tags: vec![
-                    TagInsertSpec {
-                        tag_name: "person".to_string(),
-                        prop_names: vec!["name".to_string(), "name".to_string()],
-                        is_default_props: false,
-                    },
-                ],
-                values: vec![],
+            target: InsertTarget::Edge {
+                edge_name: "friend".to_string(),
+                prop_names: vec![],
+                edges: vec![],
             },
             if_not_exists: false,
         };
-        let result = validator.validate(&stmt);
+
+        let mut ast = AstContext::default();
+        ast.set_sentence(Stmt::Insert(stmt));
+
+        let result = validator.validate(None, &mut ast);
         assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err.message, "Expected INSERT VERTICES but got INSERT EDGES");
+    }
+
+    #[test]
+    fn test_insert_vertices_validator_trait_interface() {
+        let validator = InsertVerticesValidator::new();
+
+        assert_eq!(validator.statement_type(), StatementType::InsertVertices);
+        assert!(validator.inputs().is_empty());
+        assert!(validator.user_defined_vars().is_empty());
+    }
+
+    #[test]
+    fn test_validate_if_not_exists() {
+        let mut validator = InsertVerticesValidator::new();
+        let stmt = create_insert_vertices_stmt(
+            vec![create_tag_spec("person", vec!["name"])],
+            vec![create_vertex_row(
+                Expression::literal("vid1"),
+                vec![vec![Expression::literal("Alice")]],
+            )],
+            true, // if_not_exists = true
+        );
+
+        let mut ast = AstContext::default();
+        ast.set_sentence(Stmt::Insert(stmt));
+
+        let result = validator.validate(None, &mut ast);
+        assert!(result.is_ok());
+
+        // 验证 if_not_exists 被正确保存
+        assert!(validator.validated_result.as_ref().unwrap().if_not_exists);
     }
 }

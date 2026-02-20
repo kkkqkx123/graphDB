@@ -21,7 +21,7 @@ use crate::core::{Expression, Value};
 use crate::core::types::DataType;
 use crate::query::context::ast::AstContext;
 use crate::query::context::execution::QueryContext;
-use crate::query::parser::ast::stmt::FetchVerticesStmt;
+use crate::query::parser::ast::stmt::{FetchStmt, FetchTarget};
 use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
     ExpressionProps,
@@ -31,7 +31,7 @@ use crate::storage::metadata::schema_manager::SchemaManager;
 /// 验证后的顶点获取信息
 #[derive(Debug, Clone)]
 pub struct ValidatedFetchVertices {
-    pub space_id: i32,
+    pub space_id: u64,
     pub tag_names: Vec<String>,
     pub tag_ids: Vec<i32>,
     pub vertex_ids: Vec<Value>,
@@ -96,11 +96,18 @@ impl FetchVerticesValidator {
     }
 
     /// 基础验证
-    fn validate_fetch_vertices(&self, stmt: &FetchVerticesStmt) -> Result<(), ValidationError> {
-        self.validate_vertex_ids(&stmt.vertex_ids)?;
-        self.validate_tag_clause(&stmt.tag_names)?;
-        self.validate_yield_clause(&stmt.yield_columns)?;
-        Ok(())
+    fn validate_fetch_vertices(&self, stmt: &FetchStmt) -> Result<(), ValidationError> {
+        match &stmt.target {
+            FetchTarget::Vertices { ids, properties } => {
+                self.validate_vertex_ids(ids)?;
+                self.validate_properties_clause(properties.as_ref())?;
+                Ok(())
+            }
+            _ => Err(ValidationError::new(
+                "Expected FETCH VERTICES statement".to_string(),
+                ValidationErrorType::SemanticError,
+            )),
+        }
     }
 
     /// 验证顶点 ID 列表
@@ -139,45 +146,20 @@ impl FetchVerticesValidator {
         }
     }
 
-    /// 验证标签子句
-    fn validate_tag_clause(&self, tag_names: &[String]) -> Result<(), ValidationError> {
-        if tag_names.is_empty() {
-            return Err(ValidationError::new(
-                "必须指定至少一个标签".to_string(),
-                ValidationErrorType::SemanticError,
-            ));
-        }
-
-        let mut tag_set = std::collections::HashSet::new();
-
-        for tag_name in tag_names {
-            if !tag_set.insert(tag_name) {
-                return Err(ValidationError::new(
-                    format!("标签 '{}' 重复出现", tag_name),
-                    ValidationErrorType::DuplicateKey,
-                ));
+    /// 验证属性列表子句
+    fn validate_properties_clause(&self, properties: Option<&Vec<String>>) -> Result<(), ValidationError> {
+        // 属性列表可以为空，表示获取所有属性
+        if let Some(props) = properties {
+            let mut prop_set = std::collections::HashSet::new();
+            for prop in props {
+                if !prop_set.insert(prop) {
+                    return Err(ValidationError::new(
+                        format!("属性 '{}' 重复出现", prop),
+                        ValidationErrorType::DuplicateKey,
+                    ));
+                }
             }
         }
-
-        Ok(())
-    }
-
-    /// 验证 YIELD 子句
-    fn validate_yield_clause(
-        &self,
-        yield_columns: &[(Expression, String)],
-    ) -> Result<(), ValidationError> {
-        let mut column_names = std::collections::HashSet::new();
-
-        for (_, alias) in yield_columns {
-            if !column_names.insert(alias) {
-                return Err(ValidationError::new(
-                    format!("YIELD 列别名 '{}' 重复出现", alias),
-                    ValidationErrorType::DuplicateKey,
-                ));
-            }
-        }
-
         Ok(())
     }
 
@@ -220,7 +202,7 @@ impl StatementValidator for FetchVerticesValidator {
             ));
         }
 
-        // 2. 获取 FETCH VERTICES 语句
+        // 2. 获取 FETCH 语句
         let stmt = ast.sentence()
             .ok_or_else(|| ValidationError::new(
                 "No statement found in AST context".to_string(),
@@ -228,10 +210,10 @@ impl StatementValidator for FetchVerticesValidator {
             ))?;
 
         let fetch_stmt = match stmt {
-            crate::query::parser::ast::Stmt::FetchVertices(fetch_stmt) => fetch_stmt,
+            crate::query::parser::ast::Stmt::Fetch(fetch_stmt) => fetch_stmt,
             _ => {
                 return Err(ValidationError::new(
-                    "Expected FETCH VERTICES statement".to_string(),
+                    "Expected FETCH statement".to_string(),
                     ValidationErrorType::SemanticError,
                 ));
             }
@@ -243,42 +225,48 @@ impl StatementValidator for FetchVerticesValidator {
         // 4. 获取 space_id
         let space_id = query_context
             .map(|qc| qc.space_id())
-            .flatten()
-            .or_else(|| ast.space().space_id)
+            .filter(|&id| id != 0)
+            .or_else(|| ast.space().space_id.map(|id| id as u64))
             .unwrap_or(0);
 
-        // 5. 获取 Tag IDs
-        let mut tag_ids = Vec::new();
-        for tag_name in &fetch_stmt.tag_names {
-            let tag_id = self.get_tag_id(tag_name, space_id)?;
-            if let Some(id) = tag_id {
-                tag_ids.push(id);
+        // 5. 提取顶点信息
+        let (vertex_ids, properties) = match &fetch_stmt.target {
+            FetchTarget::Vertices { ids, properties } => (ids, properties),
+            _ => {
+                return Err(ValidationError::new(
+                    "Expected FETCH VERTICES statement".to_string(),
+                    ValidationErrorType::SemanticError,
+                ));
             }
-        }
+        };
 
         // 6. 验证并转换顶点 ID
         let mut validated_vids = Vec::new();
-        for vid_expr in &fetch_stmt.vertex_ids {
+        for vid_expr in vertex_ids {
             let vid = self.evaluate_expression(vid_expr)?;
             validated_vids.push(vid);
         }
 
-        // 7. 验证并转换 YIELD 列
+        // 7. 验证并转换属性列为 YIELD 列
         let mut validated_columns = Vec::new();
-        for (expr, alias) in &fetch_stmt.yield_columns {
-            validated_columns.push(ValidatedYieldColumn {
-                expression: expr.clone(),
-                alias: alias.clone(),
-                tag_name: None,
-                prop_name: None,
-            });
+        if let Some(props) = properties {
+            for prop in props {
+                validated_columns.push(ValidatedYieldColumn {
+                    expression: Expression::Property {
+                        name: prop.clone(),
+                    },
+                    alias: prop.clone(),
+                    tag_name: None,
+                    prop_name: Some(prop.clone()),
+                });
+            }
         }
 
         // 8. 创建验证结果
         let validated = ValidatedFetchVertices {
             space_id,
-            tag_names: fetch_stmt.tag_names.clone(),
-            tag_ids,
+            tag_names: vec![], // FETCH VERTICES 不指定具体 tag
+            tag_ids: vec![],
             vertex_ids: validated_vids,
             yield_columns: validated_columns,
             is_system: false,
@@ -332,19 +320,19 @@ impl StatementValidator for FetchVerticesValidator {
 mod tests {
     use super::*;
     use crate::core::Expression;
-    use crate::query::parser::ast::stmt::FetchVerticesStmt;
+    use crate::query::parser::ast::stmt::{FetchStmt, FetchTarget};
     use crate::query::parser::ast::Span;
 
     fn create_fetch_vertices_stmt(
-        tag_names: Vec<String>,
         vertex_ids: Vec<Expression>,
-        yield_columns: Vec<(Expression, String)>,
-    ) -> FetchVerticesStmt {
-        FetchVerticesStmt {
+        properties: Option<Vec<String>>,
+    ) -> FetchStmt {
+        FetchStmt {
             span: Span::default(),
-            tag_names,
-            vertex_ids,
-            yield_columns,
+            target: FetchTarget::Vertices {
+                ids: vertex_ids,
+                properties,
+            },
         }
     }
 
@@ -390,53 +378,27 @@ mod tests {
     }
 
     #[test]
-    fn test_validate_tag_clause_empty() {
+    fn test_validate_properties_clause_duplicate() {
         let validator = FetchVerticesValidator::new();
-        let result = validator.validate_tag_clause(&[]);
-        assert!(result.is_err());
-        let err = result.unwrap_err();
-        assert_eq!(err.message, "必须指定至少一个标签");
-    }
-
-    #[test]
-    fn test_validate_tag_clause_duplicate() {
-        let validator = FetchVerticesValidator::new();
-        let tag_names = vec!["person".to_string(), "person".to_string()];
-        let result = validator.validate_tag_clause(&tag_names);
+        let properties = Some(vec!["prop1".to_string(), "prop1".to_string()]);
+        let result = validator.validate_properties_clause(properties.as_ref());
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("重复"));
     }
 
     #[test]
-    fn test_validate_tag_clause_valid() {
+    fn test_validate_properties_clause_valid() {
         let validator = FetchVerticesValidator::new();
-        let tag_names = vec!["person".to_string(), "company".to_string()];
-        let result = validator.validate_tag_clause(&tag_names);
+        let properties = Some(vec!["prop1".to_string(), "prop2".to_string()]);
+        let result = validator.validate_properties_clause(properties.as_ref());
         assert!(result.is_ok());
     }
 
     #[test]
-    fn test_validate_yield_duplicate_alias() {
+    fn test_validate_properties_clause_empty() {
         let validator = FetchVerticesValidator::new();
-        let yield_columns = vec![
-            (Expression::Literal(Value::String("prop1".to_string())), "col".to_string()),
-            (Expression::Literal(Value::String("prop2".to_string())), "col".to_string()),
-        ];
-        let result = validator.validate_yield_clause(&yield_columns);
-        assert!(result.is_err());
-        let err = result.unwrap_err();
-        assert!(err.message.contains("重复"));
-    }
-
-    #[test]
-    fn test_validate_yield_valid() {
-        let validator = FetchVerticesValidator::new();
-        let yield_columns = vec![
-            (Expression::Literal(Value::String("prop1".to_string())), "col1".to_string()),
-            (Expression::Literal(Value::String("prop2".to_string())), "col2".to_string()),
-        ];
-        let result = validator.validate_yield_clause(&yield_columns);
+        let result = validator.validate_properties_clause(None);
         assert!(result.is_ok());
     }
 

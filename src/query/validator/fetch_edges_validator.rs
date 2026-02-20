@@ -21,7 +21,7 @@ use crate::core::{Expression, Value};
 use crate::core::types::DataType;
 use crate::query::context::ast::AstContext;
 use crate::query::context::execution::QueryContext;
-use crate::query::parser::ast::stmt::FetchEdgesStmt;
+use crate::query::parser::ast::stmt::{FetchStmt, FetchTarget};
 use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
     ExpressionProps,
@@ -31,7 +31,7 @@ use crate::storage::metadata::schema_manager::SchemaManager;
 /// 验证后的边获取信息
 #[derive(Debug, Clone)]
 pub struct ValidatedFetchEdges {
-    pub space_id: i32,
+    pub space_id: u64,
     pub edge_name: String,
     pub edge_type: Option<i32>,
     pub edge_keys: Vec<ValidatedEdgeKey>,
@@ -103,11 +103,18 @@ impl FetchEdgesValidator {
     }
 
     /// 基础验证
-    fn validate_fetch_edges(&self, stmt: &FetchEdgesStmt) -> Result<(), ValidationError> {
-        self.validate_edge_name(&stmt.edge_name)?;
-        self.validate_edge_keys(&stmt.edge_keys)?;
-        self.validate_yield_clause(&stmt.yield_columns)?;
-        Ok(())
+    fn validate_fetch_edges(&self, stmt: &FetchStmt) -> Result<(), ValidationError> {
+        match &stmt.target {
+            FetchTarget::Edges { edge_type, src, dst, rank, .. } => {
+                self.validate_edge_name(edge_type)?;
+                self.validate_edge_key(src, dst, rank.as_ref())?;
+                Ok(())
+            }
+            _ => Err(ValidationError::new(
+                "Expected FETCH EDGES statement".to_string(),
+                ValidationErrorType::SemanticError,
+            )),
+        }
     }
 
     /// 验证边类型名称
@@ -121,27 +128,20 @@ impl FetchEdgesValidator {
         Ok(())
     }
 
-    /// 验证边键列表
-    fn validate_edge_keys(
+    /// 验证边键
+    fn validate_edge_key(
         &self,
-        edge_keys: &[(Expression, Expression, Option<Expression>)],
+        src: &Expression,
+        dst: &Expression,
+        rank: Option<&Expression>,
     ) -> Result<(), ValidationError> {
-        if edge_keys.is_empty() {
-            return Err(ValidationError::new(
-                "必须指定至少一个边键".to_string(),
-                ValidationErrorType::SemanticError,
-            ));
-        }
-
-        for (src, dst, rank) in edge_keys {
-            // 验证源顶点表达式
-            self.validate_endpoint(src, "源顶点")?;
-            // 验证目标顶点表达式
-            self.validate_endpoint(dst, "目标顶点")?;
-            // 验证 rank 值
-            if let Some(rank_expr) = rank {
-                self.validate_rank(rank_expr)?;
-            }
+        // 验证源顶点表达式
+        self.validate_endpoint(src, "源顶点")?;
+        // 验证目标顶点表达式
+        self.validate_endpoint(dst, "目标顶点")?;
+        // 验证 rank 值
+        if let Some(rank_expr) = rank {
+            self.validate_rank(rank_expr)?;
         }
 
         Ok(())
@@ -256,7 +256,7 @@ impl StatementValidator for FetchEdgesValidator {
             ));
         }
 
-        // 2. 获取 FETCH EDGES 语句
+        // 2. 获取 FETCH 语句
         let stmt = ast.sentence()
             .ok_or_else(|| ValidationError::new(
                 "No statement found in AST context".to_string(),
@@ -264,10 +264,10 @@ impl StatementValidator for FetchEdgesValidator {
             ))?;
 
         let fetch_stmt = match stmt {
-            crate::query::parser::ast::Stmt::FetchEdges(fetch_stmt) => fetch_stmt,
+            crate::query::parser::ast::Stmt::Fetch(fetch_stmt) => fetch_stmt,
             _ => {
                 return Err(ValidationError::new(
-                    "Expected FETCH EDGES statement".to_string(),
+                    "Expected FETCH statement".to_string(),
                     ValidationErrorType::SemanticError,
                 ));
             }
@@ -279,40 +279,54 @@ impl StatementValidator for FetchEdgesValidator {
         // 4. 获取 space_id
         let space_id = query_context
             .map(|qc| qc.space_id())
-            .flatten()
-            .or_else(|| ast.space().space_id)
+            .filter(|&id| id != 0)
+            .or_else(|| ast.space().space_id.map(|id| id as u64))
             .unwrap_or(0);
 
-        // 5. 获取 edge_type_id
-        let edge_type_id = self.get_edge_type_id(&fetch_stmt.edge_name, space_id)?;
+        // 5. 提取边信息并验证
+        let (edge_type_name, src, dst, rank, properties) = match &fetch_stmt.target {
+            FetchTarget::Edges { edge_type, src, dst, rank, properties } => {
+                (edge_type.clone(), src, dst, rank.clone(), properties.clone())
+            }
+            _ => {
+                return Err(ValidationError::new(
+                    "Expected FETCH EDGES statement".to_string(),
+                    ValidationErrorType::SemanticError,
+                ));
+            }
+        };
 
-        // 6. 验证并转换边键
-        let mut validated_keys = Vec::new();
-        for (src, dst, rank) in &fetch_stmt.edge_keys {
-            let src_id = self.evaluate_expression(src)?;
-            let dst_id = self.evaluate_expression(dst)?;
-            let rank_val = self.evaluate_rank(rank)?;
-            validated_keys.push(ValidatedEdgeKey {
-                src_id,
-                dst_id,
-                rank: rank_val,
-            });
-        }
+        // 6. 获取 edge_type_id
+        let edge_type_id = self.get_edge_type_id(&edge_type_name, space_id)?;
 
-        // 7. 验证并转换 YIELD 列
+        // 7. 验证并转换边键
+        let src_id = self.evaluate_expression(src)?;
+        let dst_id = self.evaluate_expression(dst)?;
+        let rank_val = self.evaluate_rank(&rank)?;
+        let validated_keys = vec![ValidatedEdgeKey {
+            src_id,
+            dst_id,
+            rank: rank_val,
+        }];
+
+        // 8. 验证并转换 YIELD 列（从 properties 构建）
         let mut validated_columns = Vec::new();
-        for (expr, alias) in &fetch_stmt.yield_columns {
-            validated_columns.push(ValidatedYieldColumn {
-                expression: expr.clone(),
-                alias: alias.clone(),
-                prop_name: None, // 从表达式中提取属性名
-            });
+        if let Some(props) = properties {
+            for prop in props {
+                validated_columns.push(ValidatedYieldColumn {
+                    expression: Expression::Property {
+                        name: prop.clone(),
+                    },
+                    alias: Some(prop.clone()),
+                    prop_name: None,
+                });
+            }
         }
 
-        // 8. 创建验证结果
+        // 9. 创建验证结果
         let validated = ValidatedFetchEdges {
             space_id,
-            edge_name: fetch_stmt.edge_name.clone(),
+            edge_name: edge_type_name,
             edge_type: edge_type_id,
             edge_keys: validated_keys,
             yield_columns: validated_columns,
@@ -364,19 +378,25 @@ impl StatementValidator for FetchEdgesValidator {
 mod tests {
     use super::*;
     use crate::core::Expression;
-    use crate::query::parser::ast::stmt::FetchEdgesStmt;
+    use crate::query::parser::ast::stmt::{FetchStmt, FetchTarget};
     use crate::query::parser::ast::Span;
 
     fn create_fetch_edges_stmt(
-        edge_name: &str,
-        edge_keys: Vec<(Expression, Expression, Option<Expression>)>,
-        yield_columns: Vec<(Expression, Option<String>)>,
-    ) -> FetchEdgesStmt {
-        FetchEdgesStmt {
+        edge_type: &str,
+        src: Expression,
+        dst: Expression,
+        rank: Option<Expression>,
+        properties: Option<Vec<String>>,
+    ) -> FetchStmt {
+        FetchStmt {
             span: Span::default(),
-            edge_name: edge_name.to_string(),
-            edge_keys,
-            yield_columns,
+            target: FetchTarget::Edges {
+                edge_type: edge_type.to_string(),
+                src,
+                dst,
+                rank,
+                properties,
+            },
         }
     }
 
@@ -397,35 +417,21 @@ mod tests {
     }
 
     #[test]
-    fn test_validate_edge_keys_empty() {
+    fn test_validate_edge_key_valid() {
         let validator = FetchEdgesValidator::new();
-        let result = validator.validate_edge_keys(&[]);
-        assert!(result.is_err());
-        let err = result.unwrap_err();
-        assert_eq!(err.message, "必须指定至少一个边键");
-    }
-
-    #[test]
-    fn test_validate_edge_keys_valid() {
-        let validator = FetchEdgesValidator::new();
-        let edge_keys = vec![(
-            Expression::Literal(Value::String("v1".to_string())),
-            Expression::Literal(Value::String("v2".to_string())),
-            None,
-        )];
-        let result = validator.validate_edge_keys(&edge_keys);
+        let src = Expression::Literal(Value::String("v1".to_string()));
+        let dst = Expression::Literal(Value::String("v2".to_string()));
+        let result = validator.validate_edge_key(&src, &dst, None);
         assert!(result.is_ok());
     }
 
     #[test]
-    fn test_validate_edge_keys_with_rank() {
+    fn test_validate_edge_key_with_rank() {
         let validator = FetchEdgesValidator::new();
-        let edge_keys = vec![(
-            Expression::Literal(Value::String("v1".to_string())),
-            Expression::Literal(Value::String("v2".to_string())),
-            Some(Expression::Literal(Value::Int(0))),
-        )];
-        let result = validator.validate_edge_keys(&edge_keys);
+        let src = Expression::Literal(Value::String("v1".to_string()));
+        let dst = Expression::Literal(Value::String("v2".to_string()));
+        let rank = Some(Expression::Literal(Value::Int(0)));
+        let result = validator.validate_edge_key(&src, &dst, rank.as_ref());
         assert!(result.is_ok());
     }
 

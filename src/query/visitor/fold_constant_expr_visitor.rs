@@ -759,4 +759,9 @@ impl ExpressionVisitor for FoldConstantExprVisitor {
     fn state_mut(&mut self) -> &mut ExpressionVisitorState {
         &mut self.state
     }
+
+    fn visit_parameter(&mut self, _name: &str) -> Self::Result {
+        self.can_be_folded = false;
+        Ok(())
+    }
 }

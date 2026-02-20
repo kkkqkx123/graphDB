@@ -5,7 +5,7 @@ use crate::query::context::ast::AstContext;
 use crate::query::context::execution::QueryContext;
 use crate::query::planner::plan::ExecutionPlan;
 use crate::query::planner::plan::SubPlan;
-use crate::query::validator::validation_factory::StatementType;
+use crate::query::validator::StatementType;
 use lru::LruCache;
 use std::collections::HashMap;
 use std::num::NonZeroUsize;
@@ -195,11 +195,14 @@ impl SentenceKind {
             // 其他DDL和DML操作映射到 Maintain
             StatementType::Update |
             StatementType::Delete |
+            StatementType::Create |
             StatementType::CreateSpace |
             StatementType::CreateTag |
             StatementType::CreateEdge |
+            StatementType::Alter |
             StatementType::AlterTag |
             StatementType::AlterEdge |
+            StatementType::Drop |
             StatementType::DropSpace |
             StatementType::DropTag |
             StatementType::DropEdge |

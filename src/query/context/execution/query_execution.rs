@@ -345,6 +345,17 @@ impl QueryContext {
         &mut self.sym_table
     }
 
+    /// 获取当前空间的ID
+    /// 
+    /// 如果已选择空间，返回空间ID；否则返回0
+    pub fn space_id(&self) -> u64 {
+        if self.vctx.space_chosen() {
+            self.vctx.which_space().space_id.map(|id| id as u64).unwrap_or(0)
+        } else {
+            0
+        }
+    }
+
     /// 标记为部分成功
     ///
     /// 设置响应状态为部分成功，通常在查询部分成功但遇到某些错误时调用

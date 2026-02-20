@@ -319,4 +319,9 @@ impl ExpressionVisitor for ExtractGroupSuiteVisitor {
     fn state_mut(&mut self) -> &mut ExpressionVisitorState {
         &mut self.state
     }
+
+    fn visit_parameter(&mut self, name: &str) -> Self::Result {
+        self.group_suite.add_group_key(Expression::Parameter(name.to_string()));
+        Ok(())
+    }
 }

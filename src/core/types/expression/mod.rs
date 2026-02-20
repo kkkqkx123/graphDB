@@ -211,6 +211,11 @@ pub enum Expression {
     /// 
     /// 用于构建路径，如 `path(v1, e1, v2)`
     PathBuild(Vec<Expression>),
+
+    /// 查询参数表达式
+    /// 
+    /// 用于表示查询参数，如 `$param`
+    Parameter(String),
 }
 
 impl Expression {
@@ -446,6 +451,7 @@ impl Expression {
                 ..
             } => vec![initial.as_ref(), source.as_ref(), mapping.as_ref()],
             Expression::PathBuild(items) => items.iter().collect(),
+            Expression::Parameter(_) => vec![],
         }
     }
 
@@ -627,6 +633,7 @@ impl Expression {
                     .join(", ");
                 format!("PATH({})", items_str)
             }
+            Expression::Parameter(name) => format!("${}", name),
         }
     }
 }

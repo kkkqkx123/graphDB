@@ -69,8 +69,14 @@ pub trait ExpressionVisitor: Send + Sync {
             Expression::PathBuild(exprs) => {
                 self.visit_path_build(exprs)
             }
+            Expression::Parameter(name) => {
+                self.visit_parameter(name)
+            }
         }
     }
+
+    /// 访问查询参数
+    fn visit_parameter(&mut self, name: &str) -> Self::Result;
 
     /// 访问字面量
     fn visit_literal(&mut self, value: &Value) -> Self::Result;
@@ -512,6 +518,9 @@ pub trait ExpressionTransformer: ExpressionVisitor<Result = Expression> {
                 let new_exprs: Vec<Expression> = exprs.iter().map(|e| self.transform(e)).collect();
                 Expression::PathBuild(new_exprs)
             }
+            Expression::Parameter(name) => {
+                Expression::Parameter(name.clone())
+            }
         }
     }
 }
@@ -728,6 +737,11 @@ mod tests {
             if let Some(map) = map {
                 self.visit_expression(map);
             }
+            self.count
+        }
+
+        fn visit_parameter(&mut self, _name: &str) -> Self::Result {
+            self.count += 1;
             self.count
         }
     }

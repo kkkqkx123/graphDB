@@ -1,21 +1,29 @@
 //! ORDER BY 子句验证器
 //! 对应 NebulaGraph OrderByValidator.h/.cpp 的功能
 //! 验证 ORDER BY 子句的排序表达式和方向
+//!
+//! 本文件已按照新的 trait + 枚举 验证器体系重构：
+//! 1. 实现了 StatementValidator trait，统一接口
+//! 2. 保留了原有完整功能：
+//!    - 排序列验证
+//!    - 类型检查（可比较类型）
+//!    - 输入列兼容性验证
+//!    - 表达式类型推导
+//!    - 表达式引用收集
+//! 3. 使用 AstContext 统一管理上下文
 
-use super::base_validator::{Validator, ValueType};
-use super::ValidationContext;
+use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::Expression;
 use crate::core::types::OrderDirection;
-use crate::query::validator::ValidationError;
-use crate::query::validator::ValidationErrorType;
+use crate::query::context::ast::AstContext;
+use crate::query::context::execution::QueryContext;
+use crate::query::validator::validator_trait::{
+    StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
+    ExpressionProps,
+};
 use std::collections::HashMap;
 
-pub struct OrderByValidator {
-    _base: Validator,
-    order_columns: Vec<OrderColumn>,
-    input_columns: HashMap<String, ValueType>,
-}
-
+/// 排序列定义
 #[derive(Debug, Clone)]
 pub struct OrderColumn {
     pub expression: Expression,
@@ -23,17 +31,94 @@ pub struct OrderColumn {
     pub direction: OrderDirection,
 }
 
+/// ORDER BY 验证器 - 新体系实现
+///
+/// 功能完整性保证：
+/// 1. 完整的验证生命周期
+/// 2. 输入/输出列管理
+/// 3. 表达式属性追踪
+/// 4. 排序表达式验证
+/// 5. 类型兼容性检查
+#[derive(Debug)]
+pub struct OrderByValidator {
+    // 排序列列表
+    order_columns: Vec<OrderColumn>,
+    // 输入列定义（来自前序查询）
+    input_columns: HashMap<String, ValueType>,
+    // 输入列定义（用于 trait 接口）
+    inputs: Vec<ColumnDef>,
+    // 输出列定义（ORDER BY 不改变输出结构）
+    outputs: Vec<ColumnDef>,
+    // 表达式属性
+    expr_props: ExpressionProps,
+    // 用户定义变量
+    user_defined_vars: Vec<String>,
+    // 验证错误列表
+    validation_errors: Vec<ValidationError>,
+}
+
 impl OrderByValidator {
-    pub fn new(context: ValidationContext) -> Self {
+    /// 创建新的验证器实例
+    pub fn new() -> Self {
         Self {
-            _base: Validator::with_context(context),
             order_columns: Vec::new(),
             input_columns: HashMap::new(),
+            inputs: Vec::new(),
+            outputs: Vec::new(),
+            expr_props: ExpressionProps::default(),
+            user_defined_vars: Vec::new(),
+            validation_errors: Vec::new(),
         }
     }
 
-    pub fn validate(&mut self) -> Result<(), ValidationError> {
-        self.validate_impl()
+    /// 添加排序列
+    pub fn add_order_column(&mut self, col: OrderColumn) {
+        self.order_columns.push(col);
+    }
+
+    /// 设置输入列
+    pub fn set_input_columns(&mut self, columns: HashMap<String, ValueType>) {
+        self.input_columns = columns;
+        // 同步到 inputs
+        self.inputs = self.input_columns
+            .iter()
+            .map(|(name, type_)| ColumnDef {
+                name: name.clone(),
+                type_: type_.clone(),
+            })
+            .collect();
+    }
+
+    /// 获取排序列列表
+    pub fn order_columns(&self) -> &[OrderColumn] {
+        &self.order_columns
+    }
+
+    /// 获取输入列
+    pub fn input_columns(&self) -> &HashMap<String, ValueType> {
+        &self.input_columns
+    }
+
+    /// 添加验证错误
+    fn add_error(&mut self, error: ValidationError) {
+        self.validation_errors.push(error);
+    }
+
+    /// 检查是否有验证错误
+    fn has_errors(&self) -> bool {
+        !self.validation_errors.is_empty()
+    }
+
+    /// 清空验证错误
+    fn clear_errors(&mut self) {
+        self.validation_errors.clear();
+    }
+
+    /// 执行验证（传统方式，保持向后兼容）
+    pub fn validate_order_by(&mut self) -> Result<(), ValidationError> {
+        self.clear_errors();
+        self.validate_impl()?;
+        Ok(())
     }
 
     fn validate_impl(&mut self) -> Result<(), ValidationError> {
@@ -282,6 +367,7 @@ impl OrderByValidator {
             Expression::Predicate { .. } => Ok(ValueType::Bool),
             Expression::Reduce { .. } => Ok(ValueType::Unknown),
             Expression::PathBuild(_) => Ok(ValueType::Path),
+            Expression::Parameter(_) => Ok(ValueType::Unknown),
         }
     }
 
@@ -392,33 +478,110 @@ impl OrderByValidator {
                     self.collect_refs(expr, refs);
                 }
             },
+            Expression::Parameter(_) => {},
         }
-    }
-
-    pub fn add_order_column(&mut self, col: OrderColumn) {
-        self.order_columns.push(col);
-    }
-
-    pub fn set_input_columns(&mut self, columns: HashMap<String, ValueType>) {
-        self.input_columns = columns;
-    }
-
-    pub fn order_columns(&self) -> &[OrderColumn] {
-        &self.order_columns
     }
 }
 
-impl Validator {
-    pub fn validate_order_by(
+impl Default for OrderByValidator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl StatementValidator for OrderByValidator {
+    fn validate(
         &mut self,
-        columns: &[OrderColumn],
-        input_columns: &HashMap<String, ValueType>,
-    ) -> Result<(), ValidationError> {
-        let mut validator = OrderByValidator::new(self.context().clone());
-        for col in columns {
-            validator.add_order_column(col.clone());
+        _query_context: Option<&QueryContext>,
+        ast: &mut AstContext,
+    ) -> Result<ValidationResult, ValidationError> {
+        self.clear_errors();
+
+        // 执行验证
+        if let Err(e) = self.validate_impl() {
+            return Ok(ValidationResult::failure(vec![e]));
         }
-        validator.set_input_columns(input_columns.clone());
-        validator.validate()
+
+        // ORDER BY 不改变输出结构，输出与输入相同
+        self.outputs = self.inputs.clone();
+
+        // 同步到 AstContext
+        ast.set_inputs(self.inputs.clone());
+        ast.set_outputs(self.outputs.clone());
+
+        Ok(ValidationResult::success(
+            self.inputs.clone(),
+            self.outputs.clone(),
+        ))
+    }
+
+    fn statement_type(&self) -> StatementType {
+        StatementType::OrderBy
+    }
+
+    fn inputs(&self) -> &[ColumnDef] {
+        &self.inputs
+    }
+
+    fn outputs(&self) -> &[ColumnDef] {
+        &self.outputs
+    }
+
+    fn expression_props(&self) -> &ExpressionProps {
+        &self.expr_props
+    }
+
+    fn user_defined_vars(&self) -> &[String] {
+        &self.user_defined_vars
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::Value;
+
+    #[test]
+    fn test_order_by_validator_new() {
+        let validator = OrderByValidator::new();
+        assert!(validator.order_columns().is_empty());
+        assert!(validator.input_columns().is_empty());
+    }
+
+    #[test]
+    fn test_add_order_column() {
+        let mut validator = OrderByValidator::new();
+        let col = OrderColumn {
+            expression: Expression::Literal(Value::Int(1)),
+            alias: Some("col1".to_string()),
+            direction: OrderDirection::Asc,
+        };
+        validator.add_order_column(col);
+        assert_eq!(validator.order_columns().len(), 1);
+    }
+
+    #[test]
+    fn test_validate_empty_columns() {
+        let mut validator = OrderByValidator::new();
+        let result = validator.validate_order_by();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_valid_column() {
+        let mut validator = OrderByValidator::new();
+        let mut input_cols = HashMap::new();
+        input_cols.insert("name".to_string(), ValueType::String);
+        validator.set_input_columns(input_cols);
+
+        let col = OrderColumn {
+            expression: Expression::Variable("name".to_string()),
+            alias: None,
+            direction: OrderDirection::Asc,
+        };
+        validator.add_order_column(col);
+
+        let result = validator.validate_order_by();
+        assert!(result.is_ok());
     }
 }

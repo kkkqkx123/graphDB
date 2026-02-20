@@ -307,4 +307,8 @@ impl ExpressionVisitor for FindVisitor {
             self.visit_expression(expr);
         }
     }
+
+    fn visit_parameter(&mut self, _name: &str) -> Self::Result {
+        // 参数表达式不需要特殊处理
+    }
 }

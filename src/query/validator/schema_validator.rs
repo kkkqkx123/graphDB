@@ -2,33 +2,60 @@
 //!
 //! 提供完整的 Schema 校验功能，对标 NebulaGraph 的 SchemaUtil
 //! 用于 DML 语句（INSERT、UPDATE、DELETE）的 Schema 级别验证
+//!
+//! 本文件已按照新的验证器体系更新：
+//! 1. 保留了原有完整功能：
+//!    - 属性存在性验证
+//!    - 属性类型验证
+//!    - 非空约束验证
+//!    - 默认值填充
+//!    - VID 类型验证
+//!    - 表达式求值
+//!    - 自动 Schema 创建
+//! 2. 添加了与新的验证器体系的集成支持
+//! 3. 使用 Arc 管理 SchemaManager 以支持新体系
 
-use crate::core::error::{DBResult, ValidationError as CoreValidationError, ValidationErrorType};
+use std::sync::Arc;
+
+use crate::core::error::{ValidationError as CoreValidationError, ValidationErrorType};
 use crate::core::types::{DataType, EdgeTypeInfo, PropertyDef, TagInfo};
 use crate::core::Value;
 use crate::storage::metadata::schema_manager::SchemaManager;
+use crate::query::validator::validator_trait::ValueType;
 
 /// Schema 验证器
 /// 封装 Schema 相关的所有验证逻辑
+/// 
+/// 注意：这是一个工具验证器，不直接实现 StatementValidator trait
+/// 它被其他语句验证器（如 InsertVerticesValidator, UpdateValidator 等）使用
 #[derive(Debug, Clone)]
-pub struct SchemaValidator<'a> {
-    pub schema_manager: &'a dyn SchemaManager,
+pub struct SchemaValidator {
+    schema_manager: Arc<dyn SchemaManager>,
 }
 
-impl<'a> SchemaValidator<'a> {
+impl SchemaValidator {
     /// 创建新的 Schema 验证器
-    pub fn new(schema_manager: &'a dyn SchemaManager) -> Self {
+    pub fn new(schema_manager: Arc<dyn SchemaManager>) -> Self {
         Self { schema_manager }
     }
 
     /// 获取底层的 SchemaManager
-    pub fn get_schema_manager(&self) -> &'a dyn SchemaManager {
-        self.schema_manager
+    pub fn get_schema_manager(&self) -> &dyn SchemaManager {
+        self.schema_manager.as_ref()
+    }
+
+    /// 获取 Arc<SchemaManager>
+    pub fn schema_manager_arc(&self) -> Arc<dyn SchemaManager> {
+        self.schema_manager.clone()
     }
 
     /// 获取 Tag 信息
-    pub fn get_tag(&self, space_name: &str, tag_name: &str) -> DBResult<Option<TagInfo>> {
-        Ok(self.schema_manager.get_tag(space_name, tag_name)?)
+    pub fn get_tag(&self, space_name: &str, tag_name: &str) -> Result<Option<TagInfo>, CoreValidationError> {
+        self.schema_manager.get_tag(space_name, tag_name)
+            .map_err(|e| CoreValidationError::new(
+                format!("获取 Tag 失败: {}", e),
+                ValidationErrorType::SemanticError,
+            ))
     }
 
     /// 获取 EdgeType 信息
@@ -36,13 +63,21 @@ impl<'a> SchemaValidator<'a> {
         &self,
         space_name: &str,
         edge_type_name: &str,
-    ) -> DBResult<Option<EdgeTypeInfo>> {
-        Ok(self.schema_manager.get_edge_type(space_name, edge_type_name)?)
+    ) -> Result<Option<EdgeTypeInfo>, CoreValidationError> {
+        self.schema_manager.get_edge_type(space_name, edge_type_name)
+            .map_err(|e| CoreValidationError::new(
+                format!("获取 Edge Type 失败: {}", e),
+                ValidationErrorType::SemanticError,
+            ))
     }
 
     /// 获取 Space 的所有 EdgeType
-    pub fn get_all_edge_types(&self, space_name: &str) -> DBResult<Vec<EdgeTypeInfo>> {
-        Ok(self.schema_manager.list_edge_types(space_name)?)
+    pub fn get_all_edge_types(&self, space_name: &str) -> Result<Vec<EdgeTypeInfo>, CoreValidationError> {
+        self.schema_manager.list_edge_types(space_name)
+            .map_err(|e| CoreValidationError::new(
+                format!("获取 Edge Type 列表失败: {}", e),
+                ValidationErrorType::SemanticError,
+            ))
     }
 
     /// 验证属性名是否存在于 Schema 中
@@ -97,7 +132,7 @@ impl<'a> SchemaValidator<'a> {
 
     /// 检查类型兼容性
     /// 支持一些隐式类型转换
-    fn is_type_compatible(expected: &DataType, actual: &DataType) -> bool {
+    pub fn is_type_compatible(expected: &DataType, actual: &DataType) -> bool {
         match (expected, actual) {
             // 精确匹配
             (a, b) if a == b => true,
@@ -127,6 +162,27 @@ impl<'a> SchemaValidator<'a> {
 
             // 其他情况不匹配
             _ => false,
+        }
+    }
+
+    /// 将 DataType 转换为 ValueType（用于新验证器体系）
+    pub fn data_type_to_value_type(data_type: &DataType) -> ValueType {
+        match data_type {
+            DataType::Bool => ValueType::Bool,
+            DataType::Int | DataType::Int8 | DataType::Int16 | DataType::Int32 | DataType::Int64 => ValueType::Int,
+            DataType::Float | DataType::Double => ValueType::Float,
+            DataType::String | DataType::FixedString(_) => ValueType::String,
+            DataType::Date => ValueType::Date,
+            DataType::Time => ValueType::Time,
+            DataType::DateTime => ValueType::DateTime,
+            DataType::Null => ValueType::Null,
+            DataType::Vertex => ValueType::Vertex,
+            DataType::Edge => ValueType::Edge,
+            DataType::Path => ValueType::Path,
+            DataType::List => ValueType::List,
+            DataType::Map => ValueType::Map,
+            DataType::Set => ValueType::Set,
+            _ => ValueType::Unknown,
         }
     }
 
@@ -527,9 +583,8 @@ mod tests {
         }
     }
 
-    fn create_test_validator() -> SchemaValidator<'static> {
-        static MOCK: MockSchemaManager = MockSchemaManager;
-        SchemaValidator::new(&MOCK)
+    fn create_test_validator() -> SchemaValidator {
+        SchemaValidator::new(Arc::new(MockSchemaManager))
     }
 
     #[test]
@@ -649,5 +704,12 @@ mod tests {
         // 不兼容
         assert!(!SchemaValidator::is_type_compatible(&DataType::Int, &DataType::String));
         assert!(!SchemaValidator::is_type_compatible(&DataType::Bool, &DataType::Int));
+    }
+
+    #[test]
+    fn test_data_type_to_value_type() {
+        assert!(matches!(SchemaValidator::data_type_to_value_type(&DataType::Bool), ValueType::Bool));
+        assert!(matches!(SchemaValidator::data_type_to_value_type(&DataType::Int), ValueType::Int));
+        assert!(matches!(SchemaValidator::data_type_to_value_type(&DataType::String), ValueType::String));
     }
 }

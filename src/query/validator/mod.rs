@@ -8,11 +8,42 @@
 //! - 枚举实现静态分发
 //! - 工厂模式创建验证器
 
+// 数据结构模块
+pub mod structs;
+
 // 新的验证器体系（trait + 枚举）
 pub mod validator_trait;
 pub mod validator_enum;
 pub mod create_validator;
 pub mod schema_validator;
+pub mod delete_validator;
+pub mod fetch_edges_validator;
+pub mod fetch_vertices_validator;
+pub mod go_validator;
+pub mod insert_edges_validator;
+pub mod insert_vertices_validator;
+pub mod limit_validator;
+pub mod lookup_validator;
+pub mod match_validator;
+pub mod order_by_validator;
+pub mod pipe_validator;
+pub mod sequential_validator;
+
+// 导出数据结构
+pub use structs::{
+    AliasType,
+    MatchClauseContext,
+    MatchStepRange,
+    PaginationContext,
+    Path,
+    QueryPart,
+    ReturnClauseContext,
+    UnwindClauseContext,
+    WhereClauseContext,
+    WithClauseContext,
+    YieldClauseContext,
+    YieldColumn,
+};
 
 // 导出新的验证器体系（trait + 枚举）
 pub use validator_trait::{
@@ -38,3 +69,15 @@ pub use validator_enum::{
 // 导出具体验证器
 pub use create_validator::CreateValidator;
 pub use schema_validator::SchemaValidator;
+pub use delete_validator::DeleteValidator;
+pub use fetch_edges_validator::FetchEdgesValidator;
+pub use fetch_vertices_validator::FetchVerticesValidator;
+pub use go_validator::GoValidator;
+pub use insert_edges_validator::InsertEdgesValidator;
+pub use insert_vertices_validator::InsertVerticesValidator;
+pub use limit_validator::LimitValidator;
+pub use lookup_validator::LookupValidator;
+pub use match_validator::MatchValidator;
+pub use order_by_validator::{OrderByValidator, OrderColumn};
+pub use pipe_validator::{PipeValidator, ColumnInfo};
+pub use sequential_validator::{SequentialValidator, SequentialStatement};

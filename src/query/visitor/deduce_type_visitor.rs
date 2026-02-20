@@ -6,8 +6,7 @@ use crate::core::types::metadata::PropertyDef;
 use crate::core::{
     TypeUtils, DataType, BinaryOperator, UnaryOperator, Value,
 };
-use crate::query::context::validate::ColsDef;
-use crate::query::validator::ValidationContext;
+use crate::query::context::validate::{ColsDef, ValidationContext};
 use crate::storage::StorageClient;
 use thiserror::Error;
 
@@ -704,6 +703,11 @@ impl<'a, S: StorageClient> ExpressionVisitor for DeduceTypeVisitor<'a, S> {
 
     fn visit_label_tag_property(&mut self, tag: &Expression, _property: &str) -> Self::Result {
         self.visit_expression(tag)?;
+        self.type_ = DataType::Empty;
+        Ok(())
+    }
+
+    fn visit_parameter(&mut self, _name: &str) -> Self::Result {
         self.type_ = DataType::Empty;
         Ok(())
     }

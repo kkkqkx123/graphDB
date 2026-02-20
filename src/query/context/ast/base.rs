@@ -138,6 +138,11 @@ impl AstContext {
         self.sentence = Some(stmt);
     }
 
+    /// 设置语句（与 set_statement 相同，为了兼容性提供）
+    pub fn set_sentence(&mut self, stmt: Stmt) {
+        self.sentence = Some(stmt);
+    }
+
     pub fn space(&self) -> &SpaceInfo {
         &self.space
     }
@@ -284,12 +289,22 @@ impl AstContext {
         &self.outputs
     }
 
+    /// 设置输出列（替换原有输出）
+    pub fn set_outputs(&mut self, outputs: Vec<ColumnDef>) {
+        self.outputs = outputs;
+    }
+
     pub fn add_input(&mut self, name: String, type_: ValueType) {
         self.inputs.push(ColumnDef { name, type_ });
     }
 
     pub fn inputs(&self) -> &[ColumnDef] {
         &self.inputs
+    }
+
+    /// 设置输入列（替换原有输入）
+    pub fn set_inputs(&mut self, inputs: Vec<ColumnDef>) {
+        self.inputs = inputs;
     }
 
     pub fn add_validation_error(&mut self, error: ValidationError) {

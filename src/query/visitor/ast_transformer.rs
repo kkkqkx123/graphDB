@@ -195,6 +195,7 @@ pub trait AstTransformer: StmtTransformer {
                     .collect();
                 PathBuild(transformed)
             }
+            Parameter(name) => Parameter(name.clone()),
         }
     }
 

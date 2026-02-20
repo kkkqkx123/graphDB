@@ -90,8 +90,16 @@ pub enum StatementType {
     Update,
     Delete,
     Create,
+    CreateSpace,
+    CreateTag,
+    CreateEdge,
     Drop,
+    DropSpace,
+    DropTag,
+    DropEdge,
     Alter,
+    AlterTag,
+    AlterEdge,
     Use,
     Pipe,
     Yield,
@@ -106,6 +114,9 @@ pub enum StatementType {
     DescribeSpace,
     DescribeTag,
     DescribeEdge,
+    GroupBy,
+    Assignment,
+    Explain,
 }
 
 impl StatementType {
@@ -123,8 +134,16 @@ impl StatementType {
             StatementType::Update => "UPDATE",
             StatementType::Delete => "DELETE",
             StatementType::Create => "CREATE",
+            StatementType::CreateSpace => "CREATE_SPACE",
+            StatementType::CreateTag => "CREATE_TAG",
+            StatementType::CreateEdge => "CREATE_EDGE",
             StatementType::Drop => "DROP",
+            StatementType::DropSpace => "DROP_SPACE",
+            StatementType::DropTag => "DROP_TAG",
+            StatementType::DropEdge => "DROP_EDGE",
             StatementType::Alter => "ALTER",
+            StatementType::AlterTag => "ALTER_TAG",
+            StatementType::AlterEdge => "ALTER_EDGE",
             StatementType::Use => "USE",
             StatementType::Pipe => "PIPE",
             StatementType::Yield => "YIELD",
@@ -139,13 +158,26 @@ impl StatementType {
             StatementType::DescribeSpace => "DESCRIBE_SPACE",
             StatementType::DescribeTag => "DESCRIBE_TAG",
             StatementType::DescribeEdge => "DESCRIBE_EDGE",
+            StatementType::GroupBy => "GROUP_BY",
+            StatementType::Assignment => "ASSIGNMENT",
+            StatementType::Explain => "EXPLAIN",
         }
     }
 
     pub fn is_ddl(&self) -> bool {
         matches!(
             self,
-            StatementType::Create | StatementType::Drop | StatementType::Alter
+            StatementType::Create
+                | StatementType::CreateSpace
+                | StatementType::CreateTag
+                | StatementType::CreateEdge
+                | StatementType::Drop
+                | StatementType::DropSpace
+                | StatementType::DropTag
+                | StatementType::DropEdge
+                | StatementType::Alter
+                | StatementType::AlterTag
+                | StatementType::AlterEdge
         )
     }
 

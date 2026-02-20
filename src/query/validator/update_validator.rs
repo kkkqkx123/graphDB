@@ -2,6 +2,8 @@
 //! 对应 NebulaGraph UpdateValidator 的功能
 //! 验证 UPDATE 语句的语义正确性
 
+use std::sync::Arc;
+
 use crate::core::error::{DBResult, ValidationError as CoreValidationError, ValidationErrorType};
 use crate::core::{Expression, Value};
 use crate::query::context::ast::AstContext;
@@ -14,7 +16,7 @@ use crate::storage::metadata::schema_manager::SchemaManager;
 /// 验证后的更新信息
 #[derive(Debug, Clone)]
 pub struct ValidatedUpdate {
-    pub space_id: i32,
+    pub space_id: u64,
     pub target_type: UpdateTargetType,
     pub tag_or_edge_id: Option<i32>,
     pub tag_or_edge_name: Option<String>,
@@ -45,12 +47,12 @@ pub struct ValidatedAssignment {
     pub prop_id: Option<i32>,
 }
 
-pub struct UpdateValidator<'a> {
+pub struct UpdateValidator {
     base: Validator,
-    schema_validator: Option<SchemaValidator<'a>>,
+    schema_validator: Option<SchemaValidator>,
 }
 
-impl<'a> UpdateValidator<'a> {
+impl UpdateValidator {
     pub fn new() -> Self {
         Self {
             base: Validator::new(),
@@ -58,7 +60,7 @@ impl<'a> UpdateValidator<'a> {
         }
     }
 
-    pub fn with_schema_manager(mut self, schema_manager: &'a dyn SchemaManager) -> Self {
+    pub fn with_schema_manager(mut self, schema_manager: Arc<dyn SchemaManager>) -> Self {
         self.schema_validator = Some(SchemaValidator::new(schema_manager));
         self
     }
@@ -576,7 +578,7 @@ impl<'a> UpdateValidator<'a> {
     }
 }
 
-impl Default for UpdateValidator<'_> {
+impl Default for UpdateValidator {
     fn default() -> Self {
         Self::new()
     }
@@ -733,8 +735,8 @@ mod tests {
 
     #[test]
     fn test_validate_with_schema() {
-        static MOCK: MockSchemaManager = MockSchemaManager;
-        let mut validator = UpdateValidator::new().with_schema_manager(&MOCK);
+        let mock = Arc::new(MockSchemaManager);
+        let mut validator = UpdateValidator::new().with_schema_manager(mock);
 
         // 使用 Vertex 目标类型进行测试（Tag 类型需要额外的 VID 上下文）
         let stmt = create_update_stmt(

@@ -30,7 +30,7 @@ use crate::storage::metadata::schema_manager::SchemaManager;
 /// 验证后的删除信息
 #[derive(Debug, Clone)]
 pub struct ValidatedDelete {
-    pub space_id: i32,
+    pub space_id: u64,
     pub target_type: DeleteTargetType,
     pub with_edge: bool,
     pub where_clause: Option<Expression>,
@@ -429,8 +429,8 @@ impl StatementValidator for DeleteValidator {
         // 4. 获取 space_id
         let space_id = query_context
             .map(|qc| qc.space_id())
-            .flatten()
-            .or_else(|| ast.space().space_id)
+            .filter(|&id| id != 0)
+            .or_else(|| ast.space().space_id.map(|id| id as u64))
             .unwrap_or(0);
 
         // 5. 验证并转换目标

@@ -3,8 +3,9 @@
 use super::alias_structs::AliasType;
 use super::path_structs::Path;
 use crate::core::Expression;
+use crate::core::error::ValidationError;
 use crate::core::types::OrderDirection;
-use crate::query::validator::{ValidationError, QueryPart};
+use crate::query::validator::QueryPart;
 use std::collections::HashMap;
 
 /// Match子句上下文
@@ -132,139 +133,5 @@ impl YieldColumn {
 
     pub fn name(&self) -> &str {
         &self.alias
-    }
-}
-
-use crate::query::validator::validation_interface::ValidationContext;
-
-impl ValidationContext for WhereClauseContext {
-    fn get_query_parts(&self) -> &[QueryPart] {
-        &self.query_parts
-    }
-
-    fn get_aliases(&self) -> &HashMap<String, AliasType> {
-        &self.aliases_available
-    }
-
-    fn add_error(&mut self, error: ValidationError) {
-        self.errors.push(error);
-    }
-
-    fn has_errors(&self) -> bool {
-        !self.errors.is_empty()
-    }
-
-    fn get_errors(&self) -> &[ValidationError] {
-        &self.errors
-    }
-}
-
-impl ValidationContext for MatchClauseContext {
-    fn get_query_parts(&self) -> &[QueryPart] {
-        &self.query_parts
-    }
-
-    fn get_aliases(&self) -> &HashMap<String, AliasType> {
-        &self.aliases_available
-    }
-
-    fn add_error(&mut self, error: ValidationError) {
-        self.errors.push(error);
-    }
-
-    fn has_errors(&self) -> bool {
-        !self.errors.is_empty()
-    }
-
-    fn get_errors(&self) -> &[ValidationError] {
-        &self.errors
-    }
-}
-
-impl ValidationContext for ReturnClauseContext {
-    fn get_query_parts(&self) -> &[QueryPart] {
-        &self.query_parts
-    }
-
-    fn get_aliases(&self) -> &HashMap<String, AliasType> {
-        &self.aliases_available
-    }
-
-    fn add_error(&mut self, error: ValidationError) {
-        self.errors.push(error);
-    }
-
-    fn has_errors(&self) -> bool {
-        !self.errors.is_empty()
-    }
-
-    fn get_errors(&self) -> &[ValidationError] {
-        &self.errors
-    }
-}
-
-impl ValidationContext for WithClauseContext {
-    fn get_query_parts(&self) -> &[QueryPart] {
-        &self.query_parts
-    }
-
-    fn get_aliases(&self) -> &HashMap<String, AliasType> {
-        &self.aliases_available
-    }
-
-    fn add_error(&mut self, error: ValidationError) {
-        self.errors.push(error);
-    }
-
-    fn has_errors(&self) -> bool {
-        !self.errors.is_empty()
-    }
-
-    fn get_errors(&self) -> &[ValidationError] {
-        &self.errors
-    }
-}
-
-impl ValidationContext for UnwindClauseContext {
-    fn get_query_parts(&self) -> &[QueryPart] {
-        &self.query_parts
-    }
-
-    fn get_aliases(&self) -> &HashMap<String, AliasType> {
-        &self.aliases_available
-    }
-
-    fn add_error(&mut self, error: ValidationError) {
-        self.errors.push(error);
-    }
-
-    fn has_errors(&self) -> bool {
-        !self.errors.is_empty()
-    }
-
-    fn get_errors(&self) -> &[ValidationError] {
-        &self.errors
-    }
-}
-
-impl ValidationContext for YieldClauseContext {
-    fn get_query_parts(&self) -> &[QueryPart] {
-        &self.query_parts
-    }
-
-    fn get_aliases(&self) -> &HashMap<String, AliasType> {
-        &self.aliases_available
-    }
-
-    fn add_error(&mut self, error: ValidationError) {
-        self.errors.push(error);
-    }
-
-    fn has_errors(&self) -> bool {
-        !self.errors.is_empty()
-    }
-
-    fn get_errors(&self) -> &[ValidationError] {
-        &self.errors
     }
 }

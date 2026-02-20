@@ -7,9 +7,7 @@ use super::schema::{SchemaInfo, SchemaProvider};
 use super::types::{ColsDef, SpaceInfo, Variable};
 use crate::query::context::SymbolTable;
 use crate::query::validator::structs::{AliasType, QueryPart};
-use crate::query::validator::validation_interface::{
-    ValidationContext as ValidationContextTrait, ValidationError,
-};
+use crate::core::error::ValidationError;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -196,6 +194,11 @@ impl ValidationContext {
     /// 检查是否有验证错误
     pub fn has_validation_errors(&self) -> bool {
         !self.validation_errors.is_empty()
+    }
+
+    /// 检查是否有验证错误（别名，用于兼容性）
+    pub fn has_errors(&self) -> bool {
+        self.has_validation_errors()
     }
 
     /// 清空验证错误
@@ -588,29 +591,6 @@ impl std::fmt::Debug for ValidationContext {
             .field("alias_types", &self.alias_types)
             .field("validation_errors", &self.validation_errors)
             .finish()
-    }
-}
-
-// 实现ValidationContext trait
-impl ValidationContextTrait for ValidationContext {
-    fn get_query_parts(&self) -> &[QueryPart] {
-        &self.query_parts
-    }
-
-    fn get_aliases(&self) -> &HashMap<String, AliasType> {
-        &self.alias_types
-    }
-
-    fn add_error(&mut self, error: ValidationError) {
-        self.validation_errors.push(error);
-    }
-
-    fn has_errors(&self) -> bool {
-        !self.validation_errors.is_empty()
-    }
-
-    fn get_errors(&self) -> &[ValidationError] {
-        &self.validation_errors
     }
 }
 

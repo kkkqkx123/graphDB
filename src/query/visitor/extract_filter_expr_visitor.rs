@@ -430,4 +430,8 @@ impl ExpressionVisitor for ExtractFilterExprVisitor {
         }
         Ok(())
     }
+
+    fn visit_parameter(&mut self, _name: &str) -> Self::Result {
+        Ok(())
+    }
 }

@@ -7,7 +7,7 @@ use crate::query::validator::structs::{
     },
     AliasType, QueryPart,
 };
-use crate::query::validator::validation_interface::{ValidationContext, ValidationError};
+use crate::core::error::ValidationError;
 
 /// 验证上下文实现
 #[derive(Debug, Clone)]
@@ -37,28 +37,6 @@ impl ValidationContextImpl {
     }
 
     pub fn get_errors(&self) -> &[ValidationError] {
-        &self.errors
-    }
-}
-
-impl ValidationContext for ValidationContextImpl {
-    fn get_query_parts(&self) -> &[QueryPart] {
-        &self.query_parts
-    }
-
-    fn get_aliases(&self) -> &std::collections::HashMap<String, AliasType> {
-        &self.aliases
-    }
-
-    fn add_error(&mut self, error: ValidationError) {
-        self.errors.push(error);
-    }
-
-    fn has_errors(&self) -> bool {
-        !self.errors.is_empty()
-    }
-
-    fn get_errors(&self) -> &[ValidationError] {
         &self.errors
     }
 }
@@ -101,80 +79,56 @@ pub enum CypherClauseKind {
     Pagination,
 }
 
-impl CypherClauseContext {
-    /// 获取子句类型
-    pub fn kind(&self) -> CypherClauseKind {
+impl CypherClauseKind {
+    /// 获取子句类型的字符串表示
+    pub fn as_str(&self) -> &'static str {
         match self {
-            CypherClauseContext::Match(_) => CypherClauseKind::Match,
-            CypherClauseContext::Where(_) => CypherClauseKind::Where,
-            CypherClauseContext::Return(_) => CypherClauseKind::Return,
-            CypherClauseContext::With(_) => CypherClauseKind::With,
-            CypherClauseContext::Unwind(_) => CypherClauseKind::Unwind,
-            CypherClauseContext::Yield(_) => CypherClauseKind::Yield,
-            CypherClauseContext::OrderBy(_) => CypherClauseKind::OrderBy,
-            CypherClauseContext::Pagination(_) => CypherClauseKind::Pagination,
-        }
-    }
-
-    /// 获取 Yield 子句上下文
-    pub fn yield_clause(&self) -> Option<&super::clause_structs::YieldClauseContext> {
-        match self {
-            CypherClauseContext::Yield(ctx) => Some(ctx),
-            _ => None,
+            CypherClauseKind::Match => "MATCH",
+            CypherClauseKind::Where => "WHERE",
+            CypherClauseKind::Return => "RETURN",
+            CypherClauseKind::With => "WITH",
+            CypherClauseKind::Unwind => "UNWIND",
+            CypherClauseKind::Yield => "YIELD",
+            CypherClauseKind::OrderBy => "ORDER BY",
+            CypherClauseKind::Pagination => "PAGINATION",
         }
     }
 }
 
-use crate::core::DataType;
-use std::collections::HashMap;
-
-/// 验证结果
-#[derive(Debug, Clone)]
-pub struct ValidationResult {
-    pub is_valid: bool,
-    pub errors: Vec<ValidationError>,
-    pub warnings: Vec<String>,
-}
-
-impl ValidationResult {
-    pub fn new() -> Self {
-        Self {
-            is_valid: true,
-            errors: Vec::new(),
-            warnings: Vec::new(),
-        }
-    }
-
-    pub fn add_error(&mut self, error: ValidationError) {
-        self.errors.push(error);
-        self.is_valid = false;
-    }
-
-    pub fn add_warning(&mut self, warning: String) {
-        self.warnings.push(warning);
-    }
-
-    pub fn merge(&mut self, other: ValidationResult) {
-        self.errors.extend(other.errors);
-        self.warnings.extend(other.warnings);
-        if !other.is_valid {
-            self.is_valid = false;
-        }
-    }
-}
-
-/// LOOKUP 索引类型
+/// 验证状态
 #[derive(Debug, Clone, PartialEq)]
-pub enum LookupIndexType {
-    None,
-    Single(String),
-    Composite(Vec<String>),
+pub enum ValidationState {
+    Pending,
+    InProgress,
+    Success,
+    Failed,
 }
 
-/// LOOKUP 目标定义
-#[derive(Debug, Clone)]
-pub struct LookupTarget {
-    pub label: String,
-    pub index_type: LookupIndexType,
-    pub properties: HashMap<String, DataType>,
+/// 验证统计信息
+#[derive(Debug, Clone, Default)]
+pub struct ValidationStats {
+    pub total_validated: usize,
+    pub success_count: usize,
+    pub failure_count: usize,
+    pub warning_count: usize,
+}
+
+impl ValidationStats {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn record_success(&mut self) {
+        self.total_validated += 1;
+        self.success_count += 1;
+    }
+
+    pub fn record_failure(&mut self) {
+        self.total_validated += 1;
+        self.failure_count += 1;
+    }
+
+    pub fn record_warning(&mut self) {
+        self.warning_count += 1;
+    }
 }

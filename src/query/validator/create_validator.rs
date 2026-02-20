@@ -32,7 +32,7 @@ use crate::query::validator::validator_trait::{
 /// 验证后的创建信息
 #[derive(Debug, Clone)]
 pub struct ValidatedCreate {
-    pub space_id: i32,
+    pub space_id: u64,
     pub space_name: String,
     pub patterns: Vec<ValidatedPattern>,
     pub auto_create_schema: bool,

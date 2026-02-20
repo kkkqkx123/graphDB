@@ -2,114 +2,130 @@
 //! 对应 NebulaGraph LimitValidator.h/.cpp 的功能
 //! 验证 LIMIT 和 SKIP 子句的表达式
 
-use super::base_validator::{Validator, ValueType};
-use super::ValidationContext;
+use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::Expression;
-use crate::query::validator::ValidationError;
-use crate::query::validator::ValidationErrorType;
+use crate::query::context::ast::AstContext;
+use crate::query::context::execution::QueryContext;
+use crate::query::parser::ast::Stmt;
+use crate::query::validator::validator_trait::{
+    ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
+};
+use std::sync::Arc;
+use crate::storage::metadata::schema_manager::SchemaManager;
 
+/// 验证后的 LIMIT 信息
+#[derive(Debug, Clone)]
+pub struct ValidatedLimit {
+    pub space_id: u64,
+    pub skip: Option<u64>,
+    pub limit: Option<u64>,
+    pub count: Option<u64>,
+}
+
+#[derive(Debug)]
 pub struct LimitValidator {
-    base: Validator,
-    skip: Option<Expression>,
-    limit: Option<Expression>,
+    inputs: Vec<ColumnDef>,
+    outputs: Vec<ColumnDef>,
+    expression_props: ExpressionProps,
+    user_defined_vars: Vec<String>,
+    validated_result: Option<ValidatedLimit>,
+    schema_manager: Option<Arc<dyn SchemaManager>>,
+    skip_expr: Option<Expression>,
+    limit_expr: Option<Expression>,
     count: Option<u64>,
 }
 
 impl LimitValidator {
-    pub fn new(context: ValidationContext) -> Self {
+    pub fn new() -> Self {
         Self {
-            base: Validator::with_context(context),
-            skip: None,
-            limit: None,
+            inputs: Vec::new(),
+            outputs: Vec::new(),
+            expression_props: ExpressionProps::default(),
+            user_defined_vars: Vec::new(),
+            validated_result: None,
+            schema_manager: None,
+            skip_expr: None,
+            limit_expr: None,
             count: None,
         }
     }
 
-    pub fn validate(&mut self) -> Result<(), ValidationError> {
-        self.validate_impl()
+    pub fn with_schema_manager(mut self, schema_manager: Arc<dyn SchemaManager>) -> Self {
+        self.schema_manager = Some(schema_manager);
+        self
     }
 
-    fn validate_impl(&mut self) -> Result<(), ValidationError> {
-        self.validate_skip()?;
-        self.validate_limit()?;
-        self.validate_range()?;
-        self.validate_count()?;
-        Ok(())
+    pub fn set_skip(mut self, skip: Expression) -> Self {
+        self.skip_expr = Some(skip);
+        self
     }
 
-    fn validate_skip(&mut self) -> Result<(), ValidationError> {
-        if let Some(skip_expression) = &self.skip {
-            let skip_type = self.deduce_expr_type(skip_expression)?;
-            if skip_type != ValueType::Int {
+    pub fn set_limit(mut self, limit: Expression) -> Self {
+        self.limit_expr = Some(limit);
+        self
+    }
+
+    pub fn set_count(mut self, count: u64) -> Self {
+        self.count = Some(count);
+        self
+    }
+
+    /// 验证 SKIP 表达式
+    fn validate_skip(&self, skip: &Option<Expression>) -> Result<Option<u64>, ValidationError> {
+        if let Some(skip_expr) = skip {
+            // 验证类型是否为整数
+            if !self.is_integer_expression(skip_expr) {
                 return Err(ValidationError::new(
-                    format!(
-                        "SKIP value must be integer type, got {:?}",
-                        skip_type
-                    ),
+                    "SKIP value must be integer type".to_string(),
                     ValidationErrorType::TypeError,
                 ));
             }
 
-            if !self.is_constant_or_parameter(skip_expression) {
-                if let Some(input_cols) = self.base.inputs().first() {
-                    if input_cols.type_ != ValueType::Int {
-                        return Err(ValidationError::new(
-                            "SKIP value must be integer type".to_string(),
-                            ValidationErrorType::TypeError,
-                        ));
-                    }
-                }
+            // 评估表达式
+            let skip_val = self.evaluate_expression(skip_expr)?;
+            if skip_val < 0 {
+                return Err(ValidationError::new(
+                    "SKIP value cannot be negative".to_string(),
+                    ValidationErrorType::SemanticError,
+                ));
             }
+            Ok(Some(skip_val as u64))
+        } else {
+            Ok(None)
         }
-        Ok(())
     }
 
-    fn validate_limit(&mut self) -> Result<(), ValidationError> {
-        if let Some(limit_expression) = &self.limit {
-            let limit_type = self.deduce_expr_type(limit_expression)?;
-            if limit_type != ValueType::Int {
+    /// 验证 LIMIT 表达式
+    fn validate_limit(&self, limit: &Option<Expression>) -> Result<Option<u64>, ValidationError> {
+        if let Some(limit_expr) = limit {
+            // 验证类型是否为整数
+            if !self.is_integer_expression(limit_expr) {
                 return Err(ValidationError::new(
-                    format!(
-                        "LIMIT value must be integer type, got {:?}",
-                        limit_type
-                    ),
+                    "LIMIT value must be integer type".to_string(),
                     ValidationErrorType::TypeError,
                 ));
             }
 
-            if !self.is_constant_or_parameter(limit_expression) {
-                if let Some(input_cols) = self.base.inputs().first() {
-                    if input_cols.type_ != ValueType::Int {
-                        return Err(ValidationError::new(
-                            "LIMIT value must be integer type".to_string(),
-                            ValidationErrorType::TypeError,
-                        ));
-                    }
-                }
+            // 评估表达式
+            let limit_val = self.evaluate_expression(limit_expr)?;
+            if limit_val < 0 {
+                return Err(ValidationError::new(
+                    "LIMIT value cannot be negative".to_string(),
+                    ValidationErrorType::SemanticError,
+                ));
             }
+            Ok(Some(limit_val as u64))
+        } else {
+            Ok(None)
         }
-        Ok(())
     }
 
-    fn validate_range(&self) -> Result<(), ValidationError> {
-        let skip_value = self.evaluate_skip()?;
-        let limit_value = self.evaluate_limit()?;
+    /// 验证范围
+    fn validate_range(&self, skip: Option<u64>, limit: Option<u64>) -> Result<(), ValidationError> {
+        let skip_val = skip.unwrap_or(0);
+        let limit_val = limit.unwrap_or(0);
 
-        if skip_value < 0 {
-            return Err(ValidationError::new(
-                "SKIP value cannot be negative".to_string(),
-                ValidationErrorType::SemanticError,
-            ));
-        }
-
-        if limit_value < 0 {
-            return Err(ValidationError::new(
-                "LIMIT value cannot be negative".to_string(),
-                ValidationErrorType::SemanticError,
-            ));
-        }
-
-        if skip_value == 0 && limit_value == 0 {
+        if skip_val == 0 && limit_val == 0 {
             return Err(ValidationError::new(
                 "At least one of SKIP or LIMIT must be greater than zero".to_string(),
                 ValidationErrorType::SemanticError,
@@ -119,9 +135,10 @@ impl LimitValidator {
         Ok(())
     }
 
-    fn validate_count(&self) -> Result<(), ValidationError> {
-        if let Some(count) = self.count {
-            if count > u64::MAX / 2 {
+    /// 验证 count
+    fn validate_count(&self, count: Option<u64>) -> Result<(), ValidationError> {
+        if let Some(c) = count {
+            if c > u64::MAX / 2 {
                 return Err(ValidationError::new(
                     "LIMIT value is too large".to_string(),
                     ValidationErrorType::SemanticError,
@@ -131,56 +148,230 @@ impl LimitValidator {
         Ok(())
     }
 
-    fn deduce_expr_type(&self, _expression: &Expression) -> Result<ValueType, ValidationError> {
-        Ok(ValueType::Int)
+    /// 检查表达式是否为整数类型
+    fn is_integer_expression(&self, expr: &Expression) -> bool {
+        match expr {
+            Expression::Literal(val) => matches!(val, crate::core::Value::Int(_)),
+            Expression::Variable(_) => true, // 变量在运行时检查
+            _ => false,
+        }
     }
 
-    fn is_constant_or_parameter(&self, _expression: &Expression) -> bool {
-        true
+    /// 评估表达式
+    fn evaluate_expression(&self, expr: &Expression) -> Result<i64, ValidationError> {
+        match expr {
+            Expression::Literal(crate::core::Value::Int(n)) => Ok(*n),
+            Expression::Variable(_) => Ok(0), // 变量在运行时解析
+            _ => Err(ValidationError::new(
+                "Cannot evaluate expression".to_string(),
+                ValidationErrorType::SemanticError,
+            )),
+        }
     }
 
-    fn evaluate_skip(&self) -> Result<i64, ValidationError> {
-        Ok(0)
-    }
-
-    fn evaluate_limit(&self) -> Result<i64, ValidationError> {
-        Ok(10)
-    }
-
-    pub fn set_skip(&mut self, skip: Expression) {
-        self.skip = Some(skip);
-    }
-
-    pub fn set_limit(&mut self, limit: Expression) {
-        self.limit = Some(limit);
-    }
-
-    pub fn set_count(&mut self, count: u64) {
-        self.count = Some(count);
-    }
-
-    pub fn skip(&self) -> Option<&Expression> {
-        self.skip.as_ref()
-    }
-
-    pub fn limit(&self) -> Option<&Expression> {
-        self.limit.as_ref()
+    /// 生成输出列
+    fn generate_output_columns(&mut self) {
+        self.outputs.clear();
+        self.outputs.push(ColumnDef {
+            name: "LIMIT_RESULT".to_string(),
+            type_: ValueType::List,
+        });
     }
 }
 
-impl Validator {
-    pub fn validate_limit_clause(
+impl Default for LimitValidator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl StatementValidator for LimitValidator {
+    fn validate(
         &mut self,
-        skip: Option<&Expression>,
-        limit: Option<&Expression>,
-    ) -> Result<(), ValidationError> {
-        let mut validator = LimitValidator::new(self.context().clone());
-        if let Some(skip_expression) = skip {
-            validator.set_skip(skip_expression.clone());
+        query_context: Option<&QueryContext>,
+        ast: &mut AstContext,
+    ) -> Result<ValidationResult, ValidationError> {
+        // 1. 检查是否需要空间
+        if !self.is_global_statement(ast) && query_context.is_none() {
+            return Err(ValidationError::new(
+                "未选择图空间，请先执行 USE <space>".to_string(),
+                ValidationErrorType::SemanticError,
+            ));
         }
-        if let Some(limit_expression) = limit {
-            validator.set_limit(limit_expression.clone());
-        }
-        validator.validate()
+
+        // 2. 获取 LIMIT 语句（如果存在）
+        let (skip_opt, limit_opt) = if let Some(ref stmt) = ast.sentence() {
+            match stmt {
+                Stmt::Query(query_stmt) => {
+                    (query_stmt.skip.clone(), query_stmt.limit.clone())
+                }
+                _ => (self.skip_expr.clone(), self.limit_expr.clone())
+            }
+        } else {
+            (self.skip_expr.clone(), self.limit_expr.clone())
+        };
+
+        // 3. 验证 SKIP
+        let skip_val = self.validate_skip(&skip_opt)?;
+
+        // 4. 验证 LIMIT
+        let limit_val = self.validate_limit(&limit_opt)?;
+
+        // 5. 验证范围
+        self.validate_range(skip_val, limit_val)?;
+
+        // 6. 验证 count
+        self.validate_count(self.count)?;
+
+        // 7. 获取 space_id
+        let space_id = query_context
+            .map(|qc| qc.space_id())
+            .filter(|&id| id != 0)
+            .or_else(|| ast.space().space_id.map(|id| id as u64))
+            .unwrap_or(0);
+
+        // 8. 创建验证结果
+        let validated = ValidatedLimit {
+            space_id,
+            skip: skip_val,
+            limit: limit_val,
+            count: self.count,
+        };
+
+        self.validated_result = Some(validated);
+
+        // 9. 生成输出列
+        self.generate_output_columns();
+
+        // 10. 返回验证结果
+        Ok(ValidationResult::success(
+            self.inputs.clone(),
+            self.outputs.clone(),
+        ))
+    }
+
+    fn statement_type(&self) -> StatementType {
+        StatementType::Limit
+    }
+
+    fn inputs(&self) -> &[ColumnDef] {
+        &self.inputs
+    }
+
+    fn outputs(&self) -> &[ColumnDef] {
+        &self.outputs
+    }
+
+    fn expression_props(&self) -> &ExpressionProps {
+        &self.expression_props
+    }
+
+    fn user_defined_vars(&self) -> &[String] {
+        &self.user_defined_vars
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_limit_validator_basic() {
+        let mut validator = LimitValidator::new()
+            .set_limit(Expression::literal(10));
+
+        let mut ast = AstContext::default();
+        let result = validator.validate(None, &mut ast);
+        assert!(result.is_ok());
+
+        let validated = validator.validated_result.unwrap();
+        assert_eq!(validated.limit, Some(10));
+    }
+
+    #[test]
+    fn test_limit_validator_with_skip() {
+        let mut validator = LimitValidator::new()
+            .set_skip(Expression::literal(5))
+            .set_limit(Expression::literal(10));
+
+        let mut ast = AstContext::default();
+        let result = validator.validate(None, &mut ast);
+        assert!(result.is_ok());
+
+        let validated = validator.validated_result.unwrap();
+        assert_eq!(validated.skip, Some(5));
+        assert_eq!(validated.limit, Some(10));
+    }
+
+    #[test]
+    fn test_limit_validator_negative_skip() {
+        let mut validator = LimitValidator::new()
+            .set_skip(Expression::literal(-1));
+
+        let mut ast = AstContext::default();
+        let result = validator.validate(None, &mut ast);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.message.contains("cannot be negative"));
+    }
+
+    #[test]
+    fn test_limit_validator_negative_limit() {
+        let mut validator = LimitValidator::new()
+            .set_limit(Expression::literal(-5));
+
+        let mut ast = AstContext::default();
+        let result = validator.validate(None, &mut ast);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.message.contains("cannot be negative"));
+    }
+
+    #[test]
+    fn test_limit_validator_zero_skip_and_limit() {
+        let mut validator = LimitValidator::new()
+            .set_skip(Expression::literal(0))
+            .set_limit(Expression::literal(0));
+
+        let mut ast = AstContext::default();
+        let result = validator.validate(None, &mut ast);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.message.contains("greater than zero"));
+    }
+
+    #[test]
+    fn test_limit_validator_non_integer() {
+        let mut validator = LimitValidator::new()
+            .set_limit(Expression::literal("invalid"));
+
+        let mut ast = AstContext::default();
+        let result = validator.validate(None, &mut ast);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.message.contains("must be integer"));
+    }
+
+    #[test]
+    fn test_limit_validator_trait_interface() {
+        let validator = LimitValidator::new();
+
+        assert_eq!(validator.statement_type(), StatementType::Limit);
+        assert!(validator.inputs().is_empty());
+        assert!(validator.user_defined_vars().is_empty());
+    }
+
+    #[test]
+    fn test_limit_validator_count() {
+        let mut validator = LimitValidator::new()
+            .set_limit(Expression::literal(10))
+            .set_count(100);
+
+        let mut ast = AstContext::default();
+        let result = validator.validate(None, &mut ast);
+        assert!(result.is_ok());
+
+        let validated = validator.validated_result.unwrap();
+        assert_eq!(validated.count, Some(100));
     }
 }

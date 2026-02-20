@@ -144,6 +144,10 @@ impl ExpressionVisitor for VariableVisitor {
     fn state_mut(&mut self) -> &mut ExpressionVisitorState {
         &mut self.state
     }
+
+    fn visit_parameter(&mut self, _name: &str) -> Self::Result {
+        // 参数表达式不产生变量
+    }
 }
 
 #[cfg(test)]

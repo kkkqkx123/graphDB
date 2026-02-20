@@ -287,6 +287,7 @@ pub trait AstTraverser: StmtVisitor {
             PathBuild(exprs) => {
                 self.collect_expressions(exprs);
             }
+            Parameter(_) => {}
         }
     }
 }

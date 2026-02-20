@@ -232,4 +232,8 @@ impl ExpressionVisitor for ValidatePatternExpressionVisitor {
     fn state_mut(&mut self) -> &mut ExpressionVisitorState {
         &mut self.state
     }
+
+    fn visit_parameter(&mut self, _name: &str) -> Self::Result {
+        Ok(())
+    }
 }

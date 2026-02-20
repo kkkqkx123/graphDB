@@ -579,6 +579,7 @@ pub enum ExpressionKind {
     Predicate,
     Reduce,
     PathBuild,
+    Parameter,
 }
 
 impl Expression {
@@ -606,6 +607,7 @@ impl Expression {
             Expression::Predicate { .. } => ExpressionKind::Predicate,
             Expression::Reduce { .. } => ExpressionKind::Reduce,
             Expression::PathBuild(_) => ExpressionKind::PathBuild,
+            Expression::Parameter(_) => ExpressionKind::Parameter,
         }
     }
 }

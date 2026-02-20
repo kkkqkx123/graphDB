@@ -98,6 +98,7 @@ impl ExpressionEvaluator {
                     || Self::check_requires_context(mapping)
             }
             Expression::PathBuild(exprs) => exprs.iter().any(|expr| Self::check_requires_context(expr)),
+            Expression::Parameter(_) => true, // 参数需要运行时上下文
         }
     }
 
@@ -442,6 +443,7 @@ impl GenericExpressionVisitor<Expression> for ExpressionEvaluator {
             Expression::Predicate { .. } => Err(ExpressionError::type_error("谓词表达式需要运行时上下文")),
             Expression::Reduce { .. } => Err(ExpressionError::type_error("归约表达式需要运行时上下文")),
             Expression::PathBuild(_) => Err(ExpressionError::type_error("路径构建表达式需要运行时上下文")),
+            Expression::Parameter(name) => Err(ExpressionError::type_error(&format!("查询参数 '{}' 需要运行时上下文提供值", name))),
         }
     }
 }
