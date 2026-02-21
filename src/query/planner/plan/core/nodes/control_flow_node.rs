@@ -4,7 +4,7 @@
 
 use super::plan_node_enum::PlanNodeEnum;
 use super::plan_node_traits::{PlanNode, PlanNodeClonable};
-use crate::query::context::validate::types::Variable;
+use crate::query::context::ast::Variable;
 use crate::define_plan_node;
 
 define_plan_node! {

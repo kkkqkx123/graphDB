@@ -3,7 +3,7 @@
 use crate::core::error::ValidationError;
 use crate::core::types::DataType;
 use crate::query::context::ast::common::VariableInfo;
-use crate::query::context::execution::QueryContext;
+use crate::query::context::QueryContext;
 use crate::query::context::request_context::RequestContext;
 use crate::query::context::symbol::SymbolTable;
 use crate::query::parser::ast::Stmt;

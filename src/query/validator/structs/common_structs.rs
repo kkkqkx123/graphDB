@@ -8,6 +8,7 @@ use crate::query::validator::structs::{
     AliasType, QueryPart,
 };
 use crate::core::error::ValidationError;
+use crate::query::context::ast::Column;
 
 /// 验证上下文实现
 #[derive(Debug, Clone)]
@@ -16,6 +17,8 @@ pub struct ValidationContextImpl {
     pub errors: Vec<ValidationError>,
     pub aliases: std::collections::HashMap<String, AliasType>,
     pub current_clause: Option<ClauseType>,
+    /// 变量定义：变量名 -> 列定义
+    pub variables: std::collections::HashMap<String, Vec<Column>>,
 }
 
 impl ValidationContextImpl {
@@ -25,6 +28,7 @@ impl ValidationContextImpl {
             errors: Vec::new(),
             aliases: std::collections::HashMap::new(),
             current_clause: None,
+            variables: std::collections::HashMap::new(),
         }
     }
 
@@ -38,6 +42,21 @@ impl ValidationContextImpl {
 
     pub fn get_errors(&self) -> &[ValidationError] {
         &self.errors
+    }
+
+    /// 检查变量是否存在
+    pub fn exists_var(&self, name: &str) -> bool {
+        self.variables.contains_key(name)
+    }
+
+    /// 获取变量的列定义
+    pub fn get_var(&self, name: &str) -> Vec<Column> {
+        self.variables.get(name).cloned().unwrap_or_default()
+    }
+
+    /// 注册变量
+    pub fn register_variable(&mut self, name: String, cols: Vec<Column>) {
+        self.variables.insert(name, cols);
     }
 }
 

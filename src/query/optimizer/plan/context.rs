@@ -18,7 +18,7 @@ use std::rc::Rc;
 use super::group::OptGroup;
 use super::node::{OptGroupNode};
 use crate::utils::ObjectPool;
-use crate::query::context::execution::QueryContext;
+use crate::query::context::QueryContext;
 use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::optimizer::core::cost::{TableStats, FeedbackStats};
 

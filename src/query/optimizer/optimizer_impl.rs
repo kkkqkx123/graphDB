@@ -11,7 +11,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::query::context::execution::QueryContext;
+use crate::query::context::QueryContext;
 use crate::query::optimizer::core::config::{OptimizationConfig, OptimizationStats};
 use crate::query::optimizer::core::OptimizationPhase;
 use crate::query::optimizer::plan::{

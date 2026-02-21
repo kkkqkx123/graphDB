@@ -46,14 +46,14 @@ pub struct QueryExpressionContext {
 impl QueryExpressionContext {
     /// 从查询上下文创建表达式上下文
     ///
-    /// 继承查询上下文中的变量
+    /// 继承查询上下文中的变量（从请求参数）
     pub fn from_query_context(qctx: &QueryContext) -> Self {
         let mut ctx = Self::new();
 
-        // 继承执行上下文的变量
-        for name in qctx.ectx().variable_names() {
-            if let Some(value) = qctx.ectx().get_value(&name) {
-                VariableContext::set_variable(&mut ctx, name, value.clone());
+        // 从请求参数继承变量
+        if let Some(params) = qctx.request_params() {
+            for (name, value) in &params.parameters {
+                VariableContext::set_variable(&mut ctx, name.clone(), value.clone());
             }
         }
 

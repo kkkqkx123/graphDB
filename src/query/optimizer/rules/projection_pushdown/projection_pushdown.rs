@@ -167,7 +167,7 @@ impl PushDownRule for ProjectionPushDownRule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::context::execution::QueryContext;
+    use crate::query::context::QueryContext;
     use crate::query::optimizer::plan::{OptContext, OptGroupNode};
 
     fn create_test_context() -> OptContext {

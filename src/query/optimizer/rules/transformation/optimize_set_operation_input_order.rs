@@ -241,7 +241,7 @@ fn estimate_node_cost(node: &Enum) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::context::execution::QueryContext;
+    use crate::query::context::QueryContext;
     use crate::query::optimizer::plan::{OptContext, OptGroupNode};
     use crate::query::planner::plan::core::nodes::graph_scan_node::ScanVerticesNode;
     use std::rc::Rc;

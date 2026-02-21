@@ -11,7 +11,7 @@
 
 use crate::core::Expression;
 use crate::query::context::ast::AstContext;
-use crate::query::context::execution::QueryContext;
+use crate::query::context::QueryContext;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::{FilterNode, LimitNode, PlanNodeEnum, ProjectNode};
 use crate::query::planner::planner::PlannerError;

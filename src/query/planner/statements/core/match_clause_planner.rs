@@ -6,7 +6,7 @@
 /// 它可以包含多个路径，每个路径由节点和边组成。
 use crate::core::Expression;
 use crate::query::context::ast::AstContext;
-use crate::query::context::execution::QueryContext;
+use crate::query::context::QueryContext;
 use crate::query::planner::connector::SegmentsConnector;
 use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
 use crate::query::planner::plan::algorithms::path_algorithms::MultiShortestPath;

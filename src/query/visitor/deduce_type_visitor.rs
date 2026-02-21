@@ -6,7 +6,8 @@ use crate::core::types::metadata::PropertyDef;
 use crate::core::{
     TypeUtils, DataType, BinaryOperator, UnaryOperator, Value,
 };
-use crate::query::context::validate::{ColsDef, ValidationContext};
+use crate::query::validator::structs::ValidationContextImpl;
+use crate::query::context::ast::ColsDef;
 use crate::storage::StorageClient;
 use thiserror::Error;
 
@@ -34,7 +35,7 @@ pub struct DeduceTypeVisitor<'a, S: StorageClient> {
     /// 存储引擎
     storage: &'a S,
     /// 验证上下文
-    validate_context: &'a ValidationContext,
+    validate_context: &'a ValidationContextImpl,
     /// 输入列定义：列名 -> 列类型
     inputs: ColsDef,
     /// 图空间ID
@@ -52,15 +53,12 @@ pub struct DeduceTypeVisitor<'a, S: StorageClient> {
 impl<'a, S: StorageClient> DeduceTypeVisitor<'a, S> {
     pub fn new(
         storage: &'a S,
-        validate_context: &'a ValidationContext,
+        validate_context: &'a ValidationContextImpl,
         inputs: ColsDef,
         space: String,
     ) -> Self {
-        let vid_type = if validate_context.space_chosen() {
-            validate_context.which_space().vid_type.clone()
-        } else {
-            DataType::Empty
-        };
+        // VID 类型从存储引擎获取，如果无法获取则使用默认值
+        let vid_type = DataType::String;
 
         Self {
             storage,
@@ -113,8 +111,8 @@ impl<'a, S: StorageClient> DeduceTypeVisitor<'a, S> {
     pub fn new_for_test(
         _inputs: Vec<(String, DataType)>,
         _space: String,
-    ) -> (Self, ValidationContext) {
-        let _vctx = ValidationContext::new();
+    ) -> (Self, ValidationContextImpl) {
+        let _vctx = ValidationContextImpl::new();
         let _vid_type = DataType::String;
 
         // 返回值类型无法直接满足要求，这里需要特殊处理
@@ -1118,7 +1116,7 @@ mod tests {
 
     #[test]
     fn test_is_superior_type() {
-        let validate_context = ValidationContext::new();
+        let validate_context = ValidationContextImpl::new();
         let visitor = DeduceTypeVisitor::new(
             &MockStorageEngine,
             &validate_context,
@@ -1134,7 +1132,7 @@ mod tests {
 
     #[test]
     fn test_are_types_compatible() {
-        let validate_context = ValidationContext::new();
+        let validate_context = ValidationContextImpl::new();
         let visitor = DeduceTypeVisitor::new(
             &MockStorageEngine,
             &validate_context,

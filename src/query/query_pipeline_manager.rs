@@ -7,7 +7,7 @@
 //! 4. 管理查询上下文和性能监控
 
 use crate::api::service::stats_manager::{QueryMetrics, QueryProfile, StatsManager, ErrorInfo, ErrorType, QueryPhase};
-use crate::query::context::execution::QueryContext;
+use crate::query::context::QueryContext;
 use crate::core::error::{DBError, DBResult, QueryError};
 use crate::query::executor::factory::ExecutorFactory;
 use crate::query::executor::traits::ExecutionResult;
@@ -226,9 +226,9 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
     }
     
     pub async fn execute_query_with_space(
-        &mut self, 
+        &mut self,
         query_text: &str,
-        space_info: Option<crate::query::context::validate::types::SpaceInfo>,
+        space_info: Option<crate::query::context::ast::SpaceInfo>,
     ) -> DBResult<ExecutionResult> {
         let mut query_context = self.create_query_context(query_text)?;
         let mut ast = self.parse_into_context(query_text)?;

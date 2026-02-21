@@ -7,7 +7,7 @@ use std::sync::Arc;
 use crate::core::error::{DBResult, ValidationError, ValidationError as CoreValidationError, ValidationErrorType};
 use crate::core::{Expression, Value};
 use crate::query::context::ast::AstContext;
-use crate::query::context::execution::QueryContext;
+use crate::query::context::QueryContext;
 use crate::query::parser::ast::stmt::{SetClause, UpdateStmt, UpdateTarget};
 use crate::query::validator::validator_trait::{StatementValidator, StatementType, ValidationResult, ColumnDef, ExpressionProps, ValueType};
 use crate::query::validator::schema_validator::SchemaValidator;

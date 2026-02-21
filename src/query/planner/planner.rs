@@ -2,7 +2,7 @@
 //! 使用类型安全的枚举实现静态注册，完全消除动态分发
 
 use crate::query::context::ast::AstContext;
-use crate::query::context::execution::QueryContext;
+use crate::query::context::QueryContext;
 use crate::query::planner::plan::ExecutionPlan;
 use crate::query::planner::plan::SubPlan;
 use crate::query::validator::StatementType;

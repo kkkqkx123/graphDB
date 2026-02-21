@@ -49,7 +49,7 @@ impl<S: StorageClient + Clone + 'static> QueryEngine<S> {
         // 从客户端会话中提取空间信息
         let space_info = rctx.client_session.as_ref().and_then(|session| {
             session.space().map(|s| {
-                crate::query::context::validate::types::SpaceInfo {
+                crate::query::context::ast::SpaceInfo {
                     space_name: s.name.clone(),
                     space_id: Some(s.id as u64),
                     is_default: false,

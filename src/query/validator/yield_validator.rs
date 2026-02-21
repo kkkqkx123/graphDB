@@ -13,7 +13,7 @@
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::query::context::ast::AstContext;
-use crate::query::context::execution::QueryContext;
+use crate::query::context::QueryContext;
 use crate::core::YieldColumn;
 use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,

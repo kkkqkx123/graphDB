@@ -154,7 +154,7 @@ impl BaseOptRule for IndexCoveringScanRule {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::context::execution::QueryContext;
+    use crate::query::context::QueryContext;
     use crate::query::optimizer::plan::OptContext;
     use crate::query::planner::plan::algorithms::{IndexScan, ScanType};
     use crate::query::planner::plan::core::nodes::{PlanNodeEnum, ProjectNode};

@@ -5,7 +5,7 @@
 
 use crate::core::{EdgeDirection, Value};
 use crate::core::error::{DBError, QueryError};
-use crate::query::context::execution::QueryContext;
+use crate::query::context::QueryContext;
 use crate::query::executor::traits::Executor;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use crate::query::executor::executor_enum::ExecutorEnum;

@@ -143,7 +143,7 @@ fn create_empty_node() -> Enum {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::context::execution::QueryContext;
+    use crate::query::context::QueryContext;
     use crate::query::optimizer::plan::{OptContext, OptGroupNode};
     use crate::query::planner::plan::core::nodes::set_operations_node::{MinusNode, IntersectNode};
     use crate::query::planner::plan::core::nodes::start_node::StartNode;
