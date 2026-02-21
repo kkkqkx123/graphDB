@@ -189,6 +189,36 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
                 crate::query::planner::statements::insert_planner::InsertPlanner::new()
             ),
         );
+        planner.register(
+            crate::query::planner::planner::SentenceKind::Delete,
+            crate::query::planner::planner::MatchAndInstantiateEnum::Delete(
+                crate::query::planner::statements::delete_planner::DeletePlanner::new()
+            ),
+        );
+        planner.register(
+            crate::query::planner::planner::SentenceKind::Update,
+            crate::query::planner::planner::MatchAndInstantiateEnum::Update(
+                crate::query::planner::statements::update_planner::UpdatePlanner::new()
+            ),
+        );
+        planner.register(
+            crate::query::planner::planner::SentenceKind::GroupBy,
+            crate::query::planner::planner::MatchAndInstantiateEnum::GroupBy(
+                crate::query::planner::statements::group_by_planner::GroupByPlanner::new()
+            ),
+        );
+        planner.register(
+            crate::query::planner::planner::SentenceKind::SetOperation,
+            crate::query::planner::planner::MatchAndInstantiateEnum::SetOperation(
+                crate::query::planner::statements::set_operation_planner::SetOperationPlanner::new()
+            ),
+        );
+        planner.register(
+            crate::query::planner::planner::SentenceKind::Use,
+            crate::query::planner::planner::MatchAndInstantiateEnum::Use(
+                crate::query::planner::statements::use_planner::UsePlanner::new()
+            ),
+        );
     }
 
     pub async fn execute_query(&mut self, query_text: &str) -> DBResult<ExecutionResult> {

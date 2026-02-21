@@ -12,15 +12,20 @@ use std::num::NonZeroUsize;
 use std::time::Duration;
 use parking_lot::Mutex;
 
+use crate::query::planner::statements::delete_planner::DeletePlanner;
 use crate::query::planner::statements::fetch_edges_planner::FetchEdgesPlanner;
 use crate::query::planner::statements::fetch_vertices_planner::FetchVerticesPlanner;
 use crate::query::planner::statements::go_planner::GoPlanner;
+use crate::query::planner::statements::group_by_planner::GroupByPlanner;
 use crate::query::planner::statements::insert_planner::InsertPlanner;
 use crate::query::planner::statements::lookup_planner::LookupPlanner;
 use crate::query::planner::statements::maintain_planner::MaintainPlanner;
 use crate::query::planner::statements::match_statement_planner::MatchStatementPlanner;
 use crate::query::planner::statements::path_planner::PathPlanner;
+use crate::query::planner::statements::set_operation_planner::SetOperationPlanner;
 use crate::query::planner::statements::subgraph_planner::SubgraphPlanner;
+use crate::query::planner::statements::update_planner::UpdatePlanner;
+use crate::query::planner::statements::use_planner::UsePlanner;
 use crate::query::planner::statements::user_management_planner::UserManagementPlanner;
 
 /// 规划器配置
@@ -126,6 +131,10 @@ pub enum SentenceKind {
     Show,
     Desc,
     Insert,
+    Delete,
+    Update,
+    GroupBy,
+    SetOperation,
 }
 
 impl SentenceKind {
@@ -147,6 +156,10 @@ impl SentenceKind {
             "CREATE" => Ok(SentenceKind::Create),
             "DROP" => Ok(SentenceKind::Drop),
             "USE" => Ok(SentenceKind::Use),
+            "DELETE" => Ok(SentenceKind::Delete),
+            "UPDATE" => Ok(SentenceKind::Update),
+            "GROUP BY" => Ok(SentenceKind::GroupBy),
+            "SET OPERATION" | "UNION" | "UNION ALL" | "INTERSECT" | "MINUS" => Ok(SentenceKind::SetOperation),
             "SHOW" => Ok(SentenceKind::Show),
             "DESC" => Ok(SentenceKind::Desc),
             "INSERT" | "INSERT VERTEX" | "INSERT EDGE" => Ok(SentenceKind::Insert),
@@ -172,6 +185,10 @@ impl SentenceKind {
             SentenceKind::Create => "CREATE",
             SentenceKind::Drop => "DROP",
             SentenceKind::Use => "USE",
+            SentenceKind::Delete => "DELETE",
+            SentenceKind::Update => "UPDATE",
+            SentenceKind::GroupBy => "GROUP BY",
+            SentenceKind::SetOperation => "SET OPERATION",
             SentenceKind::Show => "SHOW",
             SentenceKind::Desc => "DESC",
             SentenceKind::Insert => "INSERT",
@@ -192,9 +209,16 @@ impl SentenceKind {
             // INSERT 语句映射到 Insert
             StatementType::InsertVertices |
             StatementType::InsertEdges => Some(SentenceKind::Insert),
+            // DELETE 和 UPDATE 有独立的规划器
+            StatementType::Delete => Some(SentenceKind::Delete),
+            StatementType::Update => Some(SentenceKind::Update),
+            // GROUP BY 有独立的规划器
+            StatementType::GroupBy => Some(SentenceKind::GroupBy),
+            // USE 有独立的规划器
+            StatementType::Use => Some(SentenceKind::Use),
+            // 集合操作有独立的规划器
+            StatementType::SetOperation => Some(SentenceKind::SetOperation),
             // 其他DDL和DML操作映射到 Maintain
-            StatementType::Update |
-            StatementType::Delete |
             StatementType::Create |
             StatementType::CreateSpace |
             StatementType::CreateTag |
@@ -217,8 +241,6 @@ impl SentenceKind {
             StatementType::Yield |
             StatementType::OrderBy |
             StatementType::Limit |
-            StatementType::GroupBy |
-            StatementType::Use |
             StatementType::Assignment |
             StatementType::Set |
             StatementType::Pipe |
@@ -246,8 +268,7 @@ impl SentenceKind {
             StatementType::ChangePassword |
             StatementType::DescribeUser |
             StatementType::ShowUsers |
-            StatementType::ShowRoles |
-            StatementType::SetOperation => None,
+            StatementType::ShowRoles => None,
         }
     }
 }
@@ -268,6 +289,11 @@ pub enum MatchAndInstantiateEnum {
     Maintain(MaintainPlanner),
     UserManagement(UserManagementPlanner),
     Insert(InsertPlanner),
+    Delete(DeletePlanner),
+    Update(UpdatePlanner),
+    GroupBy(GroupByPlanner),
+    SetOperation(SetOperationPlanner),
+    Use(UsePlanner),
 }
 
 impl MatchAndInstantiateEnum {
@@ -283,6 +309,11 @@ impl MatchAndInstantiateEnum {
             MatchAndInstantiateEnum::Maintain(_) => 100,
             MatchAndInstantiateEnum::UserManagement(_) => 100,
             MatchAndInstantiateEnum::Insert(_) => 100,
+            MatchAndInstantiateEnum::Delete(_) => 100,
+            MatchAndInstantiateEnum::Update(_) => 100,
+            MatchAndInstantiateEnum::GroupBy(_) => 100,
+            MatchAndInstantiateEnum::SetOperation(_) => 100,
+            MatchAndInstantiateEnum::Use(_) => 100,
         }
     }
 
@@ -298,6 +329,11 @@ impl MatchAndInstantiateEnum {
             MatchAndInstantiateEnum::Maintain(planner) => planner.transform(ast_ctx),
             MatchAndInstantiateEnum::UserManagement(planner) => planner.transform(ast_ctx),
             MatchAndInstantiateEnum::Insert(planner) => planner.transform(ast_ctx),
+            MatchAndInstantiateEnum::Delete(planner) => planner.transform(ast_ctx),
+            MatchAndInstantiateEnum::Update(planner) => planner.transform(ast_ctx),
+            MatchAndInstantiateEnum::GroupBy(planner) => planner.transform(ast_ctx),
+            MatchAndInstantiateEnum::SetOperation(planner) => planner.transform(ast_ctx),
+            MatchAndInstantiateEnum::Use(planner) => planner.transform(ast_ctx),
         }
     }
 
@@ -505,6 +541,11 @@ pub enum PlannerEnum {
     Maintain(MaintainPlanner),
     UserManagement(UserManagementPlanner),
     Insert(InsertPlanner),
+    Delete(DeletePlanner),
+    Update(UpdatePlanner),
+    GroupBy(GroupByPlanner),
+    SetOperation(SetOperationPlanner),
+    Use(UsePlanner),
 }
 
 impl PlannerEnum {
@@ -521,8 +562,13 @@ impl PlannerEnum {
             SentenceKind::Maintain => Some(PlannerEnum::Maintain(MaintainPlanner::new())),
             SentenceKind::UserManagement => Some(PlannerEnum::UserManagement(UserManagementPlanner::new())),
             SentenceKind::Insert => Some(PlannerEnum::Insert(InsertPlanner::new())),
+            SentenceKind::Delete => Some(PlannerEnum::Delete(DeletePlanner::new())),
+            SentenceKind::Update => Some(PlannerEnum::Update(UpdatePlanner::new())),
+            SentenceKind::GroupBy => Some(PlannerEnum::GroupBy(GroupByPlanner::new())),
+            SentenceKind::SetOperation => Some(PlannerEnum::SetOperation(SetOperationPlanner::new())),
+            SentenceKind::Use => Some(PlannerEnum::Use(UsePlanner::new())),
             // DDL/DML 操作使用 Maintain 规划器
-            SentenceKind::Create | SentenceKind::Drop | SentenceKind::Use | SentenceKind::Show | SentenceKind::Desc => {
+            SentenceKind::Create | SentenceKind::Drop | SentenceKind::Show | SentenceKind::Desc => {
                 Some(PlannerEnum::Maintain(MaintainPlanner::new()))
             }
         }
@@ -541,6 +587,11 @@ impl PlannerEnum {
             PlannerEnum::Maintain(planner) => planner.transform(ast_ctx),
             PlannerEnum::UserManagement(planner) => planner.transform(ast_ctx),
             PlannerEnum::Insert(planner) => planner.transform(ast_ctx),
+            PlannerEnum::Delete(planner) => planner.transform(ast_ctx),
+            PlannerEnum::Update(planner) => planner.transform(ast_ctx),
+            PlannerEnum::GroupBy(planner) => planner.transform(ast_ctx),
+            PlannerEnum::SetOperation(planner) => planner.transform(ast_ctx),
+            PlannerEnum::Use(planner) => planner.transform(ast_ctx),
         }
     }
 
@@ -557,6 +608,11 @@ impl PlannerEnum {
             PlannerEnum::Maintain(_) => "MaintainPlanner",
             PlannerEnum::UserManagement(_) => "UserManagementPlanner",
             PlannerEnum::Insert(_) => "InsertPlanner",
+            PlannerEnum::Delete(_) => "DeletePlanner",
+            PlannerEnum::Update(_) => "UpdatePlanner",
+            PlannerEnum::GroupBy(_) => "GroupByPlanner",
+            PlannerEnum::SetOperation(_) => "SetOperationPlanner",
+            PlannerEnum::Use(_) => "UsePlanner",
         }
     }
 
@@ -573,6 +629,11 @@ impl PlannerEnum {
             PlannerEnum::Maintain(planner) => planner.match_planner(ast_ctx),
             PlannerEnum::UserManagement(planner) => planner.match_planner(ast_ctx),
             PlannerEnum::Insert(planner) => planner.match_planner(ast_ctx),
+            PlannerEnum::Delete(planner) => planner.match_planner(ast_ctx),
+            PlannerEnum::Update(planner) => planner.match_planner(ast_ctx),
+            PlannerEnum::GroupBy(planner) => planner.match_planner(ast_ctx),
+            PlannerEnum::SetOperation(planner) => planner.match_planner(ast_ctx),
+            PlannerEnum::Use(planner) => planner.match_planner(ast_ctx),
         }
     }
 
@@ -589,6 +650,11 @@ impl PlannerEnum {
             PlannerEnum::Maintain(planner) => Box::new(planner),
             PlannerEnum::UserManagement(planner) => Box::new(planner),
             PlannerEnum::Insert(planner) => Box::new(planner),
+            PlannerEnum::Delete(planner) => Box::new(planner),
+            PlannerEnum::Update(planner) => Box::new(planner),
+            PlannerEnum::GroupBy(planner) => Box::new(planner),
+            PlannerEnum::SetOperation(planner) => Box::new(planner),
+            PlannerEnum::Use(planner) => Box::new(planner),
         }
     }
 }

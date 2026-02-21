@@ -41,12 +41,12 @@ impl IndexKey {
     }
 
     pub fn from_encoded(encoded: &[u8]) -> Option<Self> {
-        if encoded.len() < 8 {
+        if encoded.len() < 12 {
             return None;
         }
         let space_id = u64::from_le_bytes(encoded[0..8].try_into().ok()?);
-        let index_id = i32::from_le_bytes(encoded[4..8].try_into().ok()?);
-        let encoded_values = encoded[8..].to_vec();
+        let index_id = i32::from_le_bytes(encoded[8..12].try_into().ok()?);
+        let encoded_values = encoded[12..].to_vec();
         Some(Self {
             space_id,
             index_id,

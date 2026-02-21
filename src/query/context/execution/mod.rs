@@ -4,4 +4,6 @@
 
 pub mod query_execution;
 
-pub use query_execution::{QueryContext, QueryContextStatus, QueryExecutionContext, ExecutionPlan, ExecutionResponse, PlanNode};
+pub use query_execution::{QueryContext, QueryContextStatus, QueryExecutionContext, ExecutionResponse};
+// ExecutionPlan 和 PlanNode 从 planner::plan 重新导出
+pub use crate::query::planner::plan::{ExecutionPlan, PlanNodeEnum as PlanNode};

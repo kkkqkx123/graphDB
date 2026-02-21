@@ -9,6 +9,7 @@ use crate::storage::StorageClient;
 use crate::storage::metadata::SchemaManager;
 use crate::storage::metadata::IndexMetadataManager;
 use crate::query::context::request_context::RequestContext;
+use crate::query::planner::plan::ExecutionPlan;
 use crate::utils::ObjectPool;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -74,43 +75,8 @@ impl Default for QueryExecutionContext {
     }
 }
 
-/// 执行计划 - 表示查询的执行计划
-#[derive(Debug, Clone)]
-pub struct ExecutionPlan {
-    pub plan_id: i64,
-    pub root_node: Option<PlanNode>,
-    pub is_profile_enabled: bool,
-}
-
-impl ExecutionPlan {
-    pub fn new(plan_id: i64) -> Self {
-        Self {
-            plan_id,
-            root_node: None,
-            is_profile_enabled: false,
-        }
-    }
-
-    pub fn id(&self) -> i64 {
-        self.plan_id
-    }
-
-    pub fn is_profile_enabled(&self) -> bool {
-        self.is_profile_enabled
-    }
-
-    pub fn enable_profile(&mut self) {
-        self.is_profile_enabled = true;
-    }
-}
-
-/// 计划节点 - 执行计划的基本单元
-#[derive(Debug, Clone)]
-pub struct PlanNode {
-    pub node_id: i64,
-    pub node_type: String,
-    pub children: Vec<PlanNode>,
-}
+// 注意：ExecutionPlan 和 PlanNode 现在从 crate::query::planner::plan 导入
+// 旧的定义已移除，以消除重复定义
 
 /// 执行响应 - 包含查询执行结果
 #[derive(Debug, Clone)]
@@ -278,6 +244,11 @@ impl QueryContext {
     /// 设置执行计划
     pub fn set_plan(&mut self, plan: ExecutionPlan) {
         self.plan = Some(Box::new(plan));
+    }
+
+    /// 获取执行计划ID
+    pub fn plan_id(&self) -> Option<i64> {
+        self.plan.as_ref().map(|p| p.id)
     }
 
     /// 获取模式管理器

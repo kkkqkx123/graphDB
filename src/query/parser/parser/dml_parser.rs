@@ -122,26 +122,31 @@ impl DmlParser {
             }
             DeleteTarget::Vertices(vids)
         } else if ctx.match_token(TokenKind::Edge) {
-            // DELETE EDGE edge_type OF src -> dst [@rank]
-            ctx.expect_token(TokenKind::Of)?;
-
+            // DELETE EDGE edge_type src -> dst [@rank]
             let edge_type = Some(ctx.expect_identifier()?);
 
-            ctx.expect_token(TokenKind::From)?;
-            let src = self.parse_expression(ctx)?;
+            let mut edges = vec![];
+            loop {
+                let src = self.parse_expression(ctx)?;
+                ctx.expect_token(TokenKind::Arrow)?;
+                let dst = self.parse_expression(ctx)?;
 
-            ctx.expect_token(TokenKind::To)?;
-            let dst = self.parse_expression(ctx)?;
+                let rank = if ctx.match_token(TokenKind::At) {
+                    Some(self.parse_expression(ctx)?)
+                } else {
+                    None
+                };
 
-            let rank = if ctx.match_token(TokenKind::At) {
-                Some(self.parse_expression(ctx)?)
-            } else {
-                None
-            };
+                edges.push((src, dst, rank));
+
+                if !ctx.match_token(TokenKind::Comma) {
+                    break;
+                }
+            }
 
             DeleteTarget::Edges {
                 edge_type,
-                edges: vec![(src, dst, rank)],
+                edges,
             }
         } else {
             // 默认解析为顶点删除
@@ -168,11 +173,29 @@ impl DmlParser {
 
     /// 解析 INSERT 语句
     pub fn parse_insert_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
-        use crate::query::parser::ast::stmt::{InsertStmt, InsertTarget, TagInsertSpec, VertexRow};
 
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Insert)?;
-        ctx.expect_token(TokenKind::Vertex)?;
+
+        // 检查是 VERTEX 还是 EDGE
+        let target = if ctx.match_token(TokenKind::Vertex) {
+            self.parse_insert_vertex(ctx, start_span)?
+        } else if ctx.match_token(TokenKind::Edge) {
+            self.parse_insert_edge(ctx, start_span)?
+        } else {
+            return Err(ParseError::new(
+                crate::query::parser::core::error::ParseErrorKind::UnexpectedToken,
+                "Expected VERTEX or EDGE after INSERT".to_string(),
+                ctx.current_position(),
+            ));
+        };
+
+        Ok(target)
+    }
+
+    /// 解析 INSERT VERTEX
+    fn parse_insert_vertex(&mut self, ctx: &mut ParseContext, start_span: crate::query::parser::ast::types::Span) -> Result<Stmt, ParseError> {
+        use crate::query::parser::ast::stmt::{InsertStmt, InsertTarget, TagInsertSpec, VertexRow};
 
         // 解析 IF NOT EXISTS（可选）
         let mut if_not_exists = false;
@@ -239,6 +262,88 @@ impl DmlParser {
         Ok(Stmt::Insert(InsertStmt {
             span,
             target: InsertTarget::Vertices { tags, values },
+            if_not_exists,
+        }))
+    }
+
+    /// 解析 INSERT EDGE
+    fn parse_insert_edge(&mut self, ctx: &mut ParseContext, start_span: crate::query::parser::ast::types::Span) -> Result<Stmt, ParseError> {
+        use crate::query::parser::ast::stmt::{InsertStmt, InsertTarget};
+
+        // 解析边类型和属性名列表
+        let edge_name = ctx.expect_identifier()?;
+        let mut prop_names = vec![];
+
+        if ctx.match_token(TokenKind::LParen) {
+            loop {
+                let prop_name = ctx.expect_identifier()?;
+                prop_names.push(prop_name);
+                if !ctx.match_token(TokenKind::Comma) {
+                    break;
+                }
+            }
+            ctx.expect_token(TokenKind::RParen)?;
+        }
+
+        // 解析 IF NOT EXISTS（可选）
+        let mut if_not_exists = false;
+        if ctx.match_token(TokenKind::If) {
+            ctx.expect_token(TokenKind::Not)?;
+            ctx.expect_token(TokenKind::Exists)?;
+            if_not_exists = true;
+        }
+
+        // 解析 VALUES 关键字
+        if ctx.check_token(TokenKind::Values) {
+            ctx.next_token(); // 消费 VALUES
+        }
+
+        // 解析边值列表
+        let mut edges = vec![];
+        loop {
+            // 解析 src -> dst
+            let src = self.parse_expression(ctx)?;
+            ctx.expect_token(TokenKind::Arrow)?;
+            let dst = self.parse_expression(ctx)?;
+
+            // 解析可选的 rank
+            let rank = if ctx.match_token(TokenKind::At) {
+                Some(self.parse_expression(ctx)?)
+            } else {
+                None
+            };
+
+            // 解析属性值列表
+            let mut values = vec![];
+            if ctx.match_token(TokenKind::Colon) {
+                ctx.expect_token(TokenKind::LParen)?;
+                loop {
+                    let value = self.parse_expression(ctx)?;
+                    values.push(value);
+                    if !ctx.match_token(TokenKind::Comma) {
+                        break;
+                    }
+                }
+                ctx.expect_token(TokenKind::RParen)?;
+            }
+
+            edges.push((src, dst, rank, values));
+
+            if !ctx.match_token(TokenKind::Comma) {
+                break;
+            }
+        }
+
+        let end_span = ctx.current_span();
+        let span = ctx.merge_span(start_span.start, end_span.end);
+
+        Ok(Stmt::Insert(InsertStmt {
+            span,
+            target: InsertTarget::Edge {
+                edge_name,
+                prop_names,
+                edges,
+            },
             if_not_exists,
         }))
     }

@@ -19,14 +19,19 @@ pub mod statement_planner;
 pub mod match_statement_planner;
 
 pub mod create_planner;
+pub mod delete_planner;
 pub mod fetch_edges_planner;
 pub mod fetch_vertices_planner;
 pub mod go_planner;
+pub mod group_by_planner;
 pub mod insert_planner;
 pub mod lookup_planner;
 pub mod maintain_planner;
 pub mod path_planner;
+pub mod set_operation_planner;
 pub mod subgraph_planner;
+pub mod update_planner;
+pub mod use_planner;
 pub mod user_management_planner;
 
 // 重新导出核心模块的主要类型
