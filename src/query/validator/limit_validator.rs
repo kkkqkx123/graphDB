@@ -273,7 +273,7 @@ mod tests {
             .set_limit(Expression::literal(10));
 
         let mut ast = AstContext::default();
-        let result = validator.validate(None, &mut ast);
+        let result = validator.validate(&mut ast);
         assert!(result.is_ok());
 
         let validated = validator.validated_result.unwrap();
@@ -287,7 +287,7 @@ mod tests {
             .set_limit(Expression::literal(10));
 
         let mut ast = AstContext::default();
-        let result = validator.validate(None, &mut ast);
+        let result = validator.validate(&mut ast);
         assert!(result.is_ok());
 
         let validated = validator.validated_result.unwrap();
@@ -301,7 +301,7 @@ mod tests {
             .set_skip(Expression::literal(-1));
 
         let mut ast = AstContext::default();
-        let result = validator.validate(None, &mut ast);
+        let result = validator.validate(&mut ast);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("cannot be negative"));
@@ -313,7 +313,7 @@ mod tests {
             .set_limit(Expression::literal(-5));
 
         let mut ast = AstContext::default();
-        let result = validator.validate(None, &mut ast);
+        let result = validator.validate(&mut ast);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("cannot be negative"));
@@ -326,7 +326,7 @@ mod tests {
             .set_limit(Expression::literal(0));
 
         let mut ast = AstContext::default();
-        let result = validator.validate(None, &mut ast);
+        let result = validator.validate(&mut ast);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("greater than zero"));
@@ -338,7 +338,7 @@ mod tests {
             .set_limit(Expression::literal("invalid"));
 
         let mut ast = AstContext::default();
-        let result = validator.validate(None, &mut ast);
+        let result = validator.validate(&mut ast);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("must be integer"));
@@ -360,7 +360,7 @@ mod tests {
             .set_count(100);
 
         let mut ast = AstContext::default();
-        let result = validator.validate(None, &mut ast);
+        let result = validator.validate(&mut ast);
         assert!(result.is_ok());
 
         let validated = validator.validated_result.unwrap();

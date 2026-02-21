@@ -364,7 +364,7 @@ mod tests {
         let mut ast = AstContext::default();
         ast.set_sentence(Stmt::Insert(stmt));
 
-        let result = validator.validate(None, &mut ast);
+        let result = validator.validate(&mut ast);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("INSERT VERTEX must specify at least one tag"));
@@ -385,7 +385,7 @@ mod tests {
         let mut ast = AstContext::default();
         ast.set_sentence(Stmt::Insert(stmt));
 
-        let result = validator.validate(None, &mut ast);
+        let result = validator.validate(&mut ast);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("Tag name cannot be empty"));
@@ -406,7 +406,7 @@ mod tests {
         let mut ast = AstContext::default();
         ast.set_sentence(Stmt::Insert(stmt));
 
-        let result = validator.validate(None, &mut ast);
+        let result = validator.validate(&mut ast);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("Duplicate property name"));
@@ -427,7 +427,7 @@ mod tests {
         let mut ast = AstContext::default();
         ast.set_sentence(Stmt::Insert(stmt));
 
-        let result = validator.validate(None, &mut ast);
+        let result = validator.validate(&mut ast);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("Value count mismatch"));
@@ -448,7 +448,7 @@ mod tests {
         let mut ast = AstContext::default();
         ast.set_sentence(Stmt::Insert(stmt));
 
-        let result = validator.validate(None, &mut ast);
+        let result = validator.validate(&mut ast);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("Vertex ID cannot be empty"));
@@ -469,7 +469,7 @@ mod tests {
         let mut ast = AstContext::default();
         ast.set_sentence(Stmt::Insert(stmt));
 
-        let result = validator.validate(None, &mut ast);
+        let result = validator.validate(&mut ast);
         assert!(result.is_ok());
     }
 
@@ -494,7 +494,7 @@ mod tests {
         let mut ast = AstContext::default();
         ast.set_sentence(Stmt::Insert(stmt));
 
-        let result = validator.validate(None, &mut ast);
+        let result = validator.validate(&mut ast);
         assert!(result.is_ok());
     }
 
@@ -519,7 +519,7 @@ mod tests {
         let mut ast = AstContext::default();
         ast.set_sentence(Stmt::Insert(stmt));
 
-        let result = validator.validate(None, &mut ast);
+        let result = validator.validate(&mut ast);
         assert!(result.is_ok());
     }
 
@@ -538,7 +538,7 @@ mod tests {
         let mut ast = AstContext::default();
         ast.set_sentence(Stmt::Insert(stmt));
 
-        let result = validator.validate(None, &mut ast);
+        let result = validator.validate(&mut ast);
         assert!(result.is_ok());
     }
 
@@ -557,7 +557,7 @@ mod tests {
         let mut ast = AstContext::default();
         ast.set_sentence(Stmt::Insert(stmt));
 
-        let result = validator.validate(None, &mut ast);
+        let result = validator.validate(&mut ast);
         assert!(result.is_ok());
     }
 
@@ -577,7 +577,7 @@ mod tests {
         let mut ast = AstContext::default();
         ast.set_sentence(Stmt::Insert(stmt));
 
-        let result = validator.validate(None, &mut ast);
+        let result = validator.validate(&mut ast);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert_eq!(err.message, "Expected INSERT VERTICES but got INSERT EDGES");
@@ -607,7 +607,7 @@ mod tests {
         let mut ast = AstContext::default();
         ast.set_sentence(Stmt::Insert(stmt));
 
-        let result = validator.validate(None, &mut ast);
+        let result = validator.validate(&mut ast);
         assert!(result.is_ok());
 
         // 验证 if_not_exists 被正确保存

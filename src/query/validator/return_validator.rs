@@ -1,0 +1,348 @@
+//! Return 语句验证器
+//! 用于验证 RETURN 语句（Cypher 风格的返回子句）
+//! 参考 nebula-graph MatchValidator.cpp 中的 Return 子句验证
+
+use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::query::context::ast::AstContext;
+use crate::query::parser::ast::stmt::{ReturnStmt, ReturnItem};
+use crate::query::validator::validator_trait::{
+    ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
+};
+
+/// Return 语句验证器
+#[derive(Debug)]
+pub struct ReturnValidator {
+    items: Vec<ReturnItem>,
+    distinct: bool,
+    order_by: Option<crate::query::parser::ast::stmt::OrderByClause>,
+    skip: Option<usize>,
+    limit: Option<usize>,
+    inputs: Vec<ColumnDef>,
+    outputs: Vec<ColumnDef>,
+    expr_props: ExpressionProps,
+    user_defined_vars: Vec<String>,
+}
+
+impl ReturnValidator {
+    /// 创建新的 Return 验证器
+    pub fn new() -> Self {
+        Self {
+            items: Vec::new(),
+            distinct: false,
+            order_by: None,
+            skip: None,
+            limit: None,
+            inputs: Vec::new(),
+            outputs: Vec::new(),
+            expr_props: ExpressionProps::default(),
+            user_defined_vars: Vec::new(),
+        }
+    }
+
+    /// 验证返回项
+    fn validate_return_item(&self, item: &ReturnItem) -> Result<ColumnDef, ValidationError> {
+        match item {
+            ReturnItem::All => {
+                // RETURN * 返回所有可用变量
+                Ok(ColumnDef {
+                    name: "*".to_string(),
+                    type_: ValueType::Map,
+                })
+            }
+            ReturnItem::Expression { expression, alias } => {
+                // 验证表达式
+                self.validate_expression(expression)?;
+
+                // 确定列名
+                let name = alias.clone()
+                    .or_else(|| self.infer_column_name(expression))
+                    .unwrap_or_else(|| "column".to_string());
+
+                // 推断类型
+                let type_ = self.infer_expression_type(expression);
+
+                Ok(ColumnDef { name, type_ })
+            }
+        }
+    }
+
+    /// 验证表达式
+    fn validate_expression(
+        &self,
+        expr: &crate::core::types::expression::Expression,
+    ) -> Result<(), ValidationError> {
+        use crate::core::types::expression::Expression;
+
+        match expr {
+            Expression::Literal(_) => Ok(()),
+            Expression::Variable(var) => {
+                // 检查变量是否存在
+                if !self.user_defined_vars.iter().any(|v| v == var) {
+                    return Err(ValidationError::new(
+                        format!("Variable '{}' not defined", var),
+                        ValidationErrorType::SemanticError,
+                    ));
+                }
+                Ok(())
+            }
+            Expression::Property { object, property } => {
+                self.validate_expression(object)?;
+                if property.is_empty() {
+                    return Err(ValidationError::new(
+                        "Property name cannot be empty".to_string(),
+                        ValidationErrorType::SemanticError,
+                    ));
+                }
+                Ok(())
+            }
+            Expression::Function { name, args } => {
+                self.validate_function_call(name, args)
+            }
+            Expression::Binary { left, right, .. } => {
+                self.validate_expression(left)?;
+                self.validate_expression(right)
+            }
+            Expression::Unary { operand, .. } => {
+                self.validate_expression(operand)
+            }
+            _ => Ok(()),
+        }
+    }
+
+    /// 验证函数调用
+    fn validate_function_call(
+        &self,
+        name: &str,
+        args: &[crate::core::types::expression::Expression],
+    ) -> Result<(), ValidationError> {
+        // 验证函数名
+        if name.is_empty() {
+            return Err(ValidationError::new(
+                "Function name cannot be empty".to_string(),
+                ValidationErrorType::SemanticError,
+            ));
+        }
+
+        // 验证参数
+        for arg in args {
+            self.validate_expression(arg)?;
+        }
+
+        Ok(())
+    }
+
+    /// 推断列名
+    fn infer_column_name(
+        &self,
+        expr: &crate::core::types::expression::Expression,
+    ) -> Option<String> {
+        use crate::core::types::expression::Expression;
+
+        match expr {
+            Expression::Variable(name) => Some(name.clone()),
+            Expression::Property { property, .. } => Some(property.clone()),
+            Expression::Function { name, .. } => Some(name.clone()),
+            _ => None,
+        }
+    }
+
+    /// 推断表达式类型
+    fn infer_expression_type(
+        &self,
+        expr: &crate::core::types::expression::Expression,
+    ) -> ValueType {
+        use crate::core::types::expression::Expression;
+        use crate::core::Value;
+
+        match expr {
+            Expression::Literal(value) => match value {
+                Value::Null(_) => ValueType::Null,
+                Value::Bool(_) => ValueType::Bool,
+                Value::Int(_) => ValueType::Int,
+                Value::Float(_) => ValueType::Float,
+                Value::String(_) => ValueType::String,
+                Value::Date(_) => ValueType::Date,
+                Value::Time(_) => ValueType::Time,
+                Value::DateTime(_) => ValueType::DateTime,
+                Value::Vertex(_) => ValueType::Vertex,
+                Value::Edge(_) => ValueType::Edge,
+                Value::Path(_) => ValueType::Path,
+                Value::List(_) => ValueType::List,
+                Value::Map(_) => ValueType::Map,
+                Value::Set(_) => ValueType::Set,
+                _ => ValueType::Unknown,
+            },
+            _ => ValueType::Unknown,
+        }
+    }
+
+    /// 验证 ORDER BY 子句
+    fn validate_order_by(
+        &self,
+        order_by: &crate::query::parser::ast::stmt::OrderByClause,
+    ) -> Result<(), ValidationError> {
+        for item in &order_by.items {
+            self.validate_expression(&item.expression)?;
+        }
+        Ok(())
+    }
+
+    /// 验证 SKIP 和 LIMIT
+    fn validate_skip_limit(&self, skip: Option<usize>, limit: Option<usize>) -> Result<(), ValidationError> {
+        if let Some(s) = skip {
+            if s > 1_000_000 {
+                return Err(ValidationError::new(
+                    format!("SKIP value {} exceeds maximum allowed (1000000)", s),
+                    ValidationErrorType::SemanticError,
+                ));
+            }
+        }
+
+        if let Some(l) = limit {
+            if l > 1_000_000 {
+                return Err(ValidationError::new(
+                    format!("LIMIT value {} exceeds maximum allowed (1000000)", l),
+                    ValidationErrorType::SemanticError,
+                ));
+            }
+        }
+
+        Ok(())
+    }
+
+    fn validate_impl(&mut self, stmt: &ReturnStmt) -> Result<(), ValidationError> {
+        // 验证返回项
+        if stmt.items.is_empty() {
+            return Err(ValidationError::new(
+                "RETURN clause must have at least one item".to_string(),
+                ValidationErrorType::SemanticError,
+            ));
+        }
+
+        for item in &stmt.items {
+            let col = self.validate_return_item(item)?;
+            self.outputs.push(col);
+        }
+
+        // 验证 ORDER BY
+        if let Some(ref order_by) = stmt.order_by {
+            self.validate_order_by(order_by)?;
+        }
+
+        // 验证 SKIP 和 LIMIT
+        self.validate_skip_limit(stmt.skip, stmt.limit)?;
+
+        // 保存信息
+        self.items = stmt.items.clone();
+        self.distinct = stmt.distinct;
+        self.order_by = stmt.order_by.clone();
+        self.skip = stmt.skip;
+        self.limit = stmt.limit;
+
+        Ok(())
+    }
+
+    /// 设置输入列（从父查询传递的列）
+    pub fn set_inputs(&mut self, inputs: Vec<ColumnDef>) {
+        // 更新可用的用户定义变量
+        self.user_defined_vars = inputs.iter().map(|c| c.name.clone()).collect();
+        self.inputs = inputs;
+    }
+}
+
+impl Default for ReturnValidator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl StatementValidator for ReturnValidator {
+    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError> {
+        let stmt = ast.sentence.as_ref()
+            .and_then(|s| s.as_return())
+            .ok_or_else(|| ValidationError::new(
+                "Expected RETURN statement".to_string(),
+                ValidationErrorType::SemanticError,
+            ))?;
+
+        self.validate_impl(stmt)?;
+
+        Ok(ValidationResult::success(
+            self.inputs.clone(),
+            self.outputs.clone(),
+        ))
+    }
+
+    fn statement_type(&self) -> StatementType {
+        StatementType::Return
+    }
+
+    fn inputs(&self) -> &[ColumnDef] {
+        &self.inputs
+    }
+
+    fn outputs(&self) -> &[ColumnDef] {
+        &self.outputs
+    }
+
+    fn is_global_statement(&self) -> bool {
+        // RETURN 不是全局语句
+        false
+    }
+
+    fn expression_props(&self) -> &ExpressionProps {
+        &self.expr_props
+    }
+
+    fn user_defined_vars(&self) -> &[String] {
+        &self.user_defined_vars
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::types::expression::Expression;
+
+    #[test]
+    fn test_return_validator_new() {
+        let validator = ReturnValidator::new();
+        assert_eq!(validator.statement_type(), StatementType::Return);
+        assert!(!validator.is_global_statement());
+    }
+
+    #[test]
+    fn test_validate_return_item_all() {
+        let validator = ReturnValidator::new();
+        let item = ReturnItem::All;
+        let col = validator.validate_return_item(&item).unwrap();
+        assert_eq!(col.name, "*");
+        assert_eq!(col.type_, ValueType::Map);
+    }
+
+    #[test]
+    fn test_validate_return_item_expression() {
+        let mut validator = ReturnValidator::new();
+        validator.user_defined_vars.push("n".to_string());
+        
+        let item = ReturnItem::Expression {
+            expression: Expression::Variable("n".to_string()),
+            alias: Some("node".to_string()),
+        };
+        let col = validator.validate_return_item(&item).unwrap();
+        assert_eq!(col.name, "node");
+    }
+
+    #[test]
+    fn test_validate_skip_limit() {
+        let validator = ReturnValidator::new();
+        
+        // 有效值
+        assert!(validator.validate_skip_limit(Some(10), Some(100)).is_ok());
+        assert!(validator.validate_skip_limit(None, None).is_ok());
+        
+        // 超过最大值
+        assert!(validator.validate_skip_limit(Some(2_000_000), None).is_err());
+        assert!(validator.validate_skip_limit(None, Some(2_000_000)).is_err());
+    }
+}

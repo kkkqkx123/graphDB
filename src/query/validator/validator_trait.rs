@@ -76,6 +76,7 @@ pub struct EdgeProperty {
 /// 语句类型枚举
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum StatementType {
+    // 查询类
     Match,
     Go,
     FetchVertices,
@@ -83,10 +84,14 @@ pub enum StatementType {
     Lookup,
     FindPath,
     GetSubgraph,
+
+    // 数据操作类 (DML)
     InsertVertices,
     InsertEdges,
     Update,
     Delete,
+
+    // 数据定义类 (DDL)
     Create,
     CreateSpace,
     CreateTag,
@@ -98,7 +103,11 @@ pub enum StatementType {
     Alter,
     AlterTag,
     AlterEdge,
+
+    // 会话管理
     Use,
+
+    // 管道和子句
     Pipe,
     Yield,
     OrderBy,
@@ -106,20 +115,53 @@ pub enum StatementType {
     Unwind,
     Set,
     Sequential,
+
+    // 管理类语句
+    Show,
     ShowSpaces,
     ShowTags,
     ShowEdges,
+    Desc,
     DescribeSpace,
     DescribeTag,
     DescribeEdge,
+    ShowCreate,
+    ShowConfigs,
+    ShowSessions,
+    ShowQueries,
+    KillQuery,
+
+    // 权限类语句
+    CreateUser,
+    DropUser,
+    AlterUser,
+    ChangePassword,
+    Grant,
+    Revoke,
+    DescribeUser,
+    ShowUsers,
+    ShowRoles,
+
+    // 其他语句
     GroupBy,
     Assignment,
     Explain,
+    Profile,
+    SetOperation,
+
+    // 新增语句类型
+    Query,
+    Merge,
+    Return,
+    With,
+    Remove,
+    UpdateConfigs,
 }
 
 impl StatementType {
     pub fn as_str(&self) -> &'static str {
         match self {
+            // 查询类
             StatementType::Match => "MATCH",
             StatementType::Go => "GO",
             StatementType::FetchVertices => "FETCH_VERTICES",
@@ -127,10 +169,14 @@ impl StatementType {
             StatementType::Lookup => "LOOKUP",
             StatementType::FindPath => "FIND_PATH",
             StatementType::GetSubgraph => "GET_SUBGRAPH",
+
+            // 数据操作类 (DML)
             StatementType::InsertVertices => "INSERT_VERTICES",
             StatementType::InsertEdges => "INSERT_EDGES",
             StatementType::Update => "UPDATE",
             StatementType::Delete => "DELETE",
+
+            // 数据定义类 (DDL)
             StatementType::Create => "CREATE",
             StatementType::CreateSpace => "CREATE_SPACE",
             StatementType::CreateTag => "CREATE_TAG",
@@ -142,7 +188,11 @@ impl StatementType {
             StatementType::Alter => "ALTER",
             StatementType::AlterTag => "ALTER_TAG",
             StatementType::AlterEdge => "ALTER_EDGE",
+
+            // 会话管理
             StatementType::Use => "USE",
+
+            // 管道和子句
             StatementType::Pipe => "PIPE",
             StatementType::Yield => "YIELD",
             StatementType::OrderBy => "ORDER_BY",
@@ -150,15 +200,47 @@ impl StatementType {
             StatementType::Unwind => "UNWIND",
             StatementType::Set => "SET",
             StatementType::Sequential => "SEQUENTIAL",
+
+            // 管理类语句
+            StatementType::Show => "SHOW",
             StatementType::ShowSpaces => "SHOW_SPACES",
             StatementType::ShowTags => "SHOW_TAGS",
             StatementType::ShowEdges => "SHOW_EDGES",
+            StatementType::Desc => "DESC",
             StatementType::DescribeSpace => "DESCRIBE_SPACE",
             StatementType::DescribeTag => "DESCRIBE_TAG",
             StatementType::DescribeEdge => "DESCRIBE_EDGE",
+            StatementType::ShowCreate => "SHOW_CREATE",
+            StatementType::ShowConfigs => "SHOW_CONFIGS",
+            StatementType::ShowSessions => "SHOW_SESSIONS",
+            StatementType::ShowQueries => "SHOW_QUERIES",
+            StatementType::KillQuery => "KILL_QUERY",
+
+            // 权限类语句
+            StatementType::CreateUser => "CREATE_USER",
+            StatementType::DropUser => "DROP_USER",
+            StatementType::AlterUser => "ALTER_USER",
+            StatementType::ChangePassword => "CHANGE_PASSWORD",
+            StatementType::Grant => "GRANT",
+            StatementType::Revoke => "REVOKE",
+            StatementType::DescribeUser => "DESCRIBE_USER",
+            StatementType::ShowUsers => "SHOW_USERS",
+            StatementType::ShowRoles => "SHOW_ROLES",
+
+            // 其他语句
             StatementType::GroupBy => "GROUP_BY",
             StatementType::Assignment => "ASSIGNMENT",
             StatementType::Explain => "EXPLAIN",
+            StatementType::Profile => "PROFILE",
+            StatementType::SetOperation => "SET_OPERATION",
+
+            // 新增语句类型
+            StatementType::Query => "QUERY",
+            StatementType::Merge => "MERGE",
+            StatementType::Return => "RETURN",
+            StatementType::With => "WITH",
+            StatementType::Remove => "REMOVE",
+            StatementType::UpdateConfigs => "UPDATE_CONFIGS",
         }
     }
 
@@ -280,5 +362,25 @@ pub fn is_global_statement_type(stmt_type: StatementType) -> bool {
             | StatementType::ShowSpaces
             | StatementType::DescribeSpace
             | StatementType::Use
+            // 管理类语句
+            | StatementType::Show
+            | StatementType::ShowTags
+            | StatementType::ShowEdges
+            | StatementType::Desc
+            | StatementType::ShowCreate
+            | StatementType::ShowConfigs
+            | StatementType::ShowSessions
+            | StatementType::ShowQueries
+            | StatementType::KillQuery
+            // 权限类语句
+            | StatementType::CreateUser
+            | StatementType::DropUser
+            | StatementType::AlterUser
+            | StatementType::ChangePassword
+            | StatementType::Grant
+            | StatementType::Revoke
+            | StatementType::DescribeUser
+            | StatementType::ShowUsers
+            | StatementType::ShowRoles
     )
 }

@@ -222,7 +222,6 @@ impl StatementValidator for FindPathValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::parser::ast::Span;
 
     #[test]
     fn test_find_path_validator_new() {

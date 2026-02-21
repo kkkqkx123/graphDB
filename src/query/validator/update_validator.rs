@@ -781,7 +781,7 @@ mod tests {
             }],
             None,
         );
-        let result = validator.validate(&stmt);
+        let result = validator.validate_update_stmt(&stmt);
         assert!(result.is_ok());
     }
 
@@ -796,7 +796,7 @@ mod tests {
             }],
             None,
         );
-        let result = validator.validate(&stmt);
+        let result = validator.validate_update_stmt(&stmt);
         assert!(result.is_ok());
     }
 
@@ -811,7 +811,7 @@ mod tests {
             }],
             None,
         );
-        let result = validator.validate(&stmt);
+        let result = validator.validate_update_stmt(&stmt);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("vertex ID cannot be empty"));
@@ -859,7 +859,7 @@ mod tests {
             ],
             None,
         );
-        let result = validator.validate(&stmt);
+        let result = validator.validate_update_stmt(&stmt);
         assert!(result.is_err());
         assert!(result.unwrap_err().message.contains("Duplicate"));
     }

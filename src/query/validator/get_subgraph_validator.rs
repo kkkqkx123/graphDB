@@ -335,15 +335,15 @@ mod tests {
 
     #[test]
     fn test_statement_validator_trait() {
-        let mut validator = GetSubgraphValidator::new();
-        
+        let validator = GetSubgraphValidator::new();
+
         // 测试 statement_type
         assert_eq!(validator.statement_type(), StatementType::GetSubgraph);
-        
+
         // 测试 inputs/outputs
         assert!(validator.inputs().is_empty());
         assert!(validator.outputs().is_empty());
-        
+
         // 测试 user_defined_vars
         assert!(validator.user_defined_vars().is_empty());
     }

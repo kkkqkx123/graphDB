@@ -223,7 +223,31 @@ impl SentenceKind {
             StatementType::Set |
             StatementType::Pipe |
             StatementType::Sequential |
-            StatementType::Explain => None,
+            StatementType::Explain |
+            StatementType::Profile |
+            StatementType::Query |
+            StatementType::Merge |
+            StatementType::Return |
+            StatementType::With |
+            StatementType::Remove |
+            StatementType::UpdateConfigs |
+            StatementType::Show |
+            StatementType::Desc |
+            StatementType::ShowCreate |
+            StatementType::ShowConfigs |
+            StatementType::ShowSessions |
+            StatementType::ShowQueries |
+            StatementType::KillQuery |
+            StatementType::CreateUser |
+            StatementType::DropUser |
+            StatementType::AlterUser |
+            StatementType::Grant |
+            StatementType::Revoke |
+            StatementType::ChangePassword |
+            StatementType::DescribeUser |
+            StatementType::ShowUsers |
+            StatementType::ShowRoles |
+            StatementType::SetOperation => None,
         }
     }
 }

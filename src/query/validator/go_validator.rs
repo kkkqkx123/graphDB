@@ -538,23 +538,23 @@ mod tests {
         let mut ast = AstContext::default();
         ast.set_sentence(Stmt::Go(go_stmt));
         
-        let result = validator.validate(None, &mut ast);
+        let result = validator.validate(&mut ast);
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_go_validator_empty_edges() {
         let mut validator = GoValidator::new();
-        
+
         let go_stmt = create_go_stmt(
             Expression::literal("vid1"),
             vec![],
         );
-        
+
         let mut ast = AstContext::default();
         ast.set_sentence(Stmt::Go(go_stmt));
-        
-        let result = validator.validate(None, &mut ast);
+
+        let result = validator.validate(&mut ast);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("OVER 子句必须指定至少一条边"));
@@ -563,12 +563,12 @@ mod tests {
     #[test]
     fn test_go_validator_with_yield() {
         let mut validator = GoValidator::new();
-        
+
         let mut go_stmt = create_go_stmt(
             Expression::literal("vid1"),
             vec!["friend".to_string()],
         );
-        
+
         go_stmt.yield_clause = Some(crate::query::parser::ast::stmt::YieldClause {
             span: Span::default(),
             items: vec![
@@ -583,11 +583,11 @@ mod tests {
             skip: None,
             sample: None,
         });
-        
+
         let mut ast = AstContext::default();
         ast.set_sentence(Stmt::Go(go_stmt));
-        
-        let result = validator.validate(None, &mut ast);
+
+        let result = validator.validate(&mut ast);
         assert!(result.is_ok());
         
         let outputs = validator.outputs();
@@ -598,12 +598,12 @@ mod tests {
     #[test]
     fn test_go_validator_duplicate_alias() {
         let mut validator = GoValidator::new();
-        
+
         let mut go_stmt = create_go_stmt(
             Expression::literal("vid1"),
             vec!["friend".to_string()],
         );
-        
+
         go_stmt.yield_clause = Some(crate::query::parser::ast::stmt::YieldClause {
             span: Span::default(),
             items: vec![
@@ -622,11 +622,11 @@ mod tests {
             skip: None,
             sample: None,
         });
-        
+
         let mut ast = AstContext::default();
         ast.set_sentence(Stmt::Go(go_stmt));
-        
-        let result = validator.validate(None, &mut ast);
+
+        let result = validator.validate(&mut ast);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("重复出现"));

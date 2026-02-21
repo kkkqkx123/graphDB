@@ -157,6 +157,140 @@ impl Stmt {
             Stmt::SetOperation(_) => "SET OPERATION",
         }
     }
+
+    // 类型转换方法
+    pub fn as_query(&self) -> Option<&QueryStmt> {
+        match self { Stmt::Query(s) => Some(s), _ => None }
+    }
+    pub fn as_create(&self) -> Option<&CreateStmt> {
+        match self { Stmt::Create(s) => Some(s), _ => None }
+    }
+    pub fn as_match(&self) -> Option<&MatchStmt> {
+        match self { Stmt::Match(s) => Some(s), _ => None }
+    }
+    pub fn as_delete(&self) -> Option<&DeleteStmt> {
+        match self { Stmt::Delete(s) => Some(s), _ => None }
+    }
+    pub fn as_update(&self) -> Option<&UpdateStmt> {
+        match self { Stmt::Update(s) => Some(s), _ => None }
+    }
+    pub fn as_go(&self) -> Option<&GoStmt> {
+        match self { Stmt::Go(s) => Some(s), _ => None }
+    }
+    pub fn as_fetch(&self) -> Option<&FetchStmt> {
+        match self { Stmt::Fetch(s) => Some(s), _ => None }
+    }
+    pub fn as_use(&self) -> Option<&UseStmt> {
+        match self { Stmt::Use(s) => Some(s), _ => None }
+    }
+    pub fn as_show(&self) -> Option<&ShowStmt> {
+        match self { Stmt::Show(s) => Some(s), _ => None }
+    }
+    pub fn as_explain(&self) -> Option<&ExplainStmt> {
+        match self { Stmt::Explain(s) => Some(s), _ => None }
+    }
+    pub fn as_profile(&self) -> Option<&ProfileStmt> {
+        match self { Stmt::Profile(s) => Some(s), _ => None }
+    }
+    pub fn as_group_by(&self) -> Option<&GroupByStmt> {
+        match self { Stmt::GroupBy(s) => Some(s), _ => None }
+    }
+    pub fn as_lookup(&self) -> Option<&LookupStmt> {
+        match self { Stmt::Lookup(s) => Some(s), _ => None }
+    }
+    pub fn as_subgraph(&self) -> Option<&SubgraphStmt> {
+        match self { Stmt::Subgraph(s) => Some(s), _ => None }
+    }
+    pub fn as_find_path(&self) -> Option<&FindPathStmt> {
+        match self { Stmt::FindPath(s) => Some(s), _ => None }
+    }
+    pub fn as_insert(&self) -> Option<&InsertStmt> {
+        match self { Stmt::Insert(s) => Some(s), _ => None }
+    }
+    pub fn as_merge(&self) -> Option<&MergeStmt> {
+        match self { Stmt::Merge(s) => Some(s), _ => None }
+    }
+    pub fn as_unwind(&self) -> Option<&UnwindStmt> {
+        match self { Stmt::Unwind(s) => Some(s), _ => None }
+    }
+    pub fn as_return(&self) -> Option<&ReturnStmt> {
+        match self { Stmt::Return(s) => Some(s), _ => None }
+    }
+    pub fn as_with(&self) -> Option<&WithStmt> {
+        match self { Stmt::With(s) => Some(s), _ => None }
+    }
+    pub fn as_yield(&self) -> Option<&YieldStmt> {
+        match self { Stmt::Yield(s) => Some(s), _ => None }
+    }
+    pub fn as_set(&self) -> Option<&SetStmt> {
+        match self { Stmt::Set(s) => Some(s), _ => None }
+    }
+    pub fn as_remove(&self) -> Option<&RemoveStmt> {
+        match self { Stmt::Remove(s) => Some(s), _ => None }
+    }
+    pub fn as_pipe(&self) -> Option<&PipeStmt> {
+        match self { Stmt::Pipe(s) => Some(s), _ => None }
+    }
+    pub fn as_drop(&self) -> Option<&DropStmt> {
+        match self { Stmt::Drop(s) => Some(s), _ => None }
+    }
+    pub fn as_desc(&self) -> Option<&DescStmt> {
+        match self { Stmt::Desc(s) => Some(s), _ => None }
+    }
+    pub fn as_alter(&self) -> Option<&AlterStmt> {
+        match self { Stmt::Alter(s) => Some(s), _ => None }
+    }
+    pub fn as_create_user(&self) -> Option<&CreateUserStmt> {
+        match self { Stmt::CreateUser(s) => Some(s), _ => None }
+    }
+    pub fn as_alter_user(&self) -> Option<&AlterUserStmt> {
+        match self { Stmt::AlterUser(s) => Some(s), _ => None }
+    }
+    pub fn as_drop_user(&self) -> Option<&DropUserStmt> {
+        match self { Stmt::DropUser(s) => Some(s), _ => None }
+    }
+    pub fn as_change_password(&self) -> Option<&ChangePasswordStmt> {
+        match self { Stmt::ChangePassword(s) => Some(s), _ => None }
+    }
+    pub fn as_grant(&self) -> Option<&GrantStmt> {
+        match self { Stmt::Grant(s) => Some(s), _ => None }
+    }
+    pub fn as_revoke(&self) -> Option<&RevokeStmt> {
+        match self { Stmt::Revoke(s) => Some(s), _ => None }
+    }
+    pub fn as_describe_user(&self) -> Option<&DescribeUserStmt> {
+        match self { Stmt::DescribeUser(s) => Some(s), _ => None }
+    }
+    pub fn as_show_users(&self) -> Option<&ShowUsersStmt> {
+        match self { Stmt::ShowUsers(s) => Some(s), _ => None }
+    }
+    pub fn as_show_roles(&self) -> Option<&ShowRolesStmt> {
+        match self { Stmt::ShowRoles(s) => Some(s), _ => None }
+    }
+    pub fn as_show_create(&self) -> Option<&ShowCreateStmt> {
+        match self { Stmt::ShowCreate(s) => Some(s), _ => None }
+    }
+    pub fn as_show_sessions(&self) -> Option<&ShowSessionsStmt> {
+        match self { Stmt::ShowSessions(s) => Some(s), _ => None }
+    }
+    pub fn as_show_queries(&self) -> Option<&ShowQueriesStmt> {
+        match self { Stmt::ShowQueries(s) => Some(s), _ => None }
+    }
+    pub fn as_kill_query(&self) -> Option<&KillQueryStmt> {
+        match self { Stmt::KillQuery(s) => Some(s), _ => None }
+    }
+    pub fn as_show_configs(&self) -> Option<&ShowConfigsStmt> {
+        match self { Stmt::ShowConfigs(s) => Some(s), _ => None }
+    }
+    pub fn as_update_configs(&self) -> Option<&UpdateConfigsStmt> {
+        match self { Stmt::UpdateConfigs(s) => Some(s), _ => None }
+    }
+    pub fn as_assignment(&self) -> Option<&AssignmentStmt> {
+        match self { Stmt::Assignment(s) => Some(s), _ => None }
+    }
+    pub fn as_set_operation(&self) -> Option<&SetOperationStmt> {
+        match self { Stmt::SetOperation(s) => Some(s), _ => None }
+    }
 }
 
 /// 查询语句

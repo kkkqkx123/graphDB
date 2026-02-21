@@ -481,7 +481,7 @@ mod tests {
         let lookup_stmt = create_simple_lookup_stmt("person", false);
         let mut ast = create_test_ast_with_lookup(lookup_stmt);
 
-        let result = validator.validate(None, &mut ast);
+        let result = validator.validate(&mut ast);
         // 当前会失败，因为没有 YIELD 列且不是 YIELD *
         assert!(result.is_err());
     }
@@ -492,7 +492,7 @@ mod tests {
         let lookup_stmt = create_simple_lookup_stmt("", false);
         let mut ast = create_test_ast_with_lookup(lookup_stmt);
 
-        let result = validator.validate(None, &mut ast);
+        let result = validator.validate(&mut ast);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("必须指定"));
@@ -504,7 +504,7 @@ mod tests {
         let mut ast = AstContext::default();
         // 不设置 LOOKUP 语句
 
-        let result = validator.validate(None, &mut ast);
+        let result = validator.validate(&mut ast);
         assert!(result.is_err());
     }
 }

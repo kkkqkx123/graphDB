@@ -100,6 +100,27 @@ impl FetchEdgesValidator {
         self.validated_result.as_ref()
     }
 
+    /// 验证 YIELD 子句（检查重复别名）
+    pub fn validate_yield_clause(
+        &self,
+        yield_columns: &[(Expression, Option<String>)],
+    ) -> Result<(), ValidationError> {
+        let mut seen_aliases = std::collections::HashSet::new();
+        
+        for (_, alias) in yield_columns {
+            if let Some(ref name) = alias {
+                if !seen_aliases.insert(name.clone()) {
+                    return Err(ValidationError::new(
+                        format!("重复的别名: {}", name),
+                        ValidationErrorType::SemanticError,
+                    ));
+                }
+            }
+        }
+        
+        Ok(())
+    }
+
     /// 基础验证
     fn validate_fetch_edges(&self, stmt: &FetchStmt) -> Result<(), ValidationError> {
         match &stmt.target {

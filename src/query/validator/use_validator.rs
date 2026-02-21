@@ -363,7 +363,6 @@ mod tests {
     #[test]
     fn test_is_global_statement() {
         let validator = UseValidator::new();
-        let ast = AstContext::new(None, None);
-        assert!(validator.is_global_statement(&ast));
+        assert!(validator.is_global_statement());
     }
 }

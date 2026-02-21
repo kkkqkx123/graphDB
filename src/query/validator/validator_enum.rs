@@ -14,13 +14,26 @@ use crate::query::validator::validator_trait::{
 };
 
 // 导入具体验证器
+use crate::query::validator::admin_validator::{
+    ShowValidator, DescValidator, ShowCreateValidator, ShowConfigsValidator,
+    ShowSessionsValidator, ShowQueriesValidator, KillQueryValidator,
+};
+use crate::query::validator::acl_validator::{
+    CreateUserValidator, DropUserValidator, AlterUserValidator, ChangePasswordValidator,
+    GrantValidator, RevokeValidator, DescribeUserValidator, ShowUsersValidator, ShowRolesValidator,
+};
+use crate::query::validator::alter_validator::AlterValidator;
+use crate::query::validator::assignment_validator::AssignmentValidator;
 use crate::query::validator::create_validator::CreateValidator;
 use crate::query::validator::delete_validator::DeleteValidator;
+use crate::query::validator::drop_validator::DropValidator;
+use crate::query::validator::explain_validator::{ExplainValidator, ProfileValidator};
 use crate::query::validator::fetch_edges_validator::FetchEdgesValidator;
 use crate::query::validator::fetch_vertices_validator::FetchVerticesValidator;
 use crate::query::validator::find_path_validator::FindPathValidator;
 use crate::query::validator::get_subgraph_validator::GetSubgraphValidator;
 use crate::query::validator::go_validator::GoValidator;
+use crate::query::validator::group_by_validator::GroupByValidator;
 use crate::query::validator::insert_edges_validator::InsertEdgesValidator;
 use crate::query::validator::insert_vertices_validator::InsertVerticesValidator;
 use crate::query::validator::limit_validator::LimitValidator;
@@ -29,11 +42,18 @@ use crate::query::validator::match_validator::MatchValidator;
 use crate::query::validator::order_by_validator::OrderByValidator;
 use crate::query::validator::pipe_validator::PipeValidator;
 use crate::query::validator::sequential_validator::SequentialValidator;
+use crate::query::validator::set_operation_validator::SetOperationValidator;
 use crate::query::validator::set_validator::SetValidator;
 use crate::query::validator::unwind_validator::UnwindValidator;
 use crate::query::validator::update_validator::UpdateValidator;
 use crate::query::validator::use_validator::UseValidator;
 use crate::query::validator::yield_validator::YieldValidator;
+use crate::query::validator::update_config_validator::UpdateConfigsValidator;
+use crate::query::validator::merge_validator::MergeValidator;
+use crate::query::validator::return_validator::ReturnValidator;
+use crate::query::validator::with_validator::WithValidator;
+use crate::query::validator::remove_validator::RemoveValidator;
+use crate::query::validator::query_validator::QueryValidator;
 
 /// 统一验证器枚举
 ///
@@ -44,10 +64,57 @@ use crate::query::validator::yield_validator::YieldValidator;
 /// 4. 保留完整的验证生命周期功能
 #[derive(Debug)]
 pub enum Validator {
+    // 管理类验证器
+    /// SHOW 语句验证器
+    Show(ShowValidator),
+    /// DESCRIBE 语句验证器
+    Desc(DescValidator),
+    /// SHOW CREATE 语句验证器
+    ShowCreate(ShowCreateValidator),
+    /// SHOW CONFIGS 语句验证器
+    ShowConfigs(ShowConfigsValidator),
+    /// SHOW SESSIONS 语句验证器
+    ShowSessions(ShowSessionsValidator),
+    /// SHOW QUERIES 语句验证器
+    ShowQueries(ShowQueriesValidator),
+    /// KILL QUERY 语句验证器
+    KillQuery(KillQueryValidator),
+
+    // 权限类验证器
+    /// CREATE USER 语句验证器
+    CreateUser(CreateUserValidator),
+    /// DROP USER 语句验证器
+    DropUser(DropUserValidator),
+    /// ALTER USER 语句验证器
+    AlterUser(AlterUserValidator),
+    /// CHANGE PASSWORD 语句验证器
+    ChangePassword(ChangePasswordValidator),
+    /// GRANT 语句验证器
+    Grant(GrantValidator),
+    /// REVOKE 语句验证器
+    Revoke(RevokeValidator),
+    /// DESCRIBE USER 语句验证器
+    DescribeUser(DescribeUserValidator),
+    /// SHOW USERS 语句验证器
+    ShowUsers(ShowUsersValidator),
+    /// SHOW ROLES 语句验证器
+    ShowRoles(ShowRolesValidator),
+
+    // 其他验证器
+    /// ALTER 语句验证器
+    Alter(AlterValidator),
+    /// ASSIGNMENT 语句验证器
+    Assignment(AssignmentValidator),
     /// CREATE 语句验证器
     Create(CreateValidator),
     /// DELETE 语句验证器
     Delete(DeleteValidator),
+    /// DROP 语句验证器
+    Drop(DropValidator),
+    /// EXPLAIN 语句验证器
+    Explain(ExplainValidator),
+    /// PROFILE 语句验证器
+    Profile(ProfileValidator),
     /// FETCH EDGES 语句验证器
     FetchEdges(FetchEdgesValidator),
     /// FETCH VERTICES 语句验证器
@@ -58,6 +125,8 @@ pub enum Validator {
     GetSubgraph(GetSubgraphValidator),
     /// GO 语句验证器
     Go(GoValidator),
+    /// GROUP BY 语句验证器
+    GroupBy(GroupByValidator),
     /// INSERT EDGES 语句验证器
     InsertEdges(InsertEdgesValidator),
     /// INSERT VERTICES 语句验证器
@@ -74,6 +143,8 @@ pub enum Validator {
     Pipe(PipeValidator),
     /// Sequential 语句验证器
     Sequential(SequentialValidator),
+    /// SET OPERATION 语句验证器
+    SetOperation(SetOperationValidator),
     /// SET 语句验证器
     Set(SetValidator),
     /// UPDATE 语句验证器
@@ -84,6 +155,20 @@ pub enum Validator {
     Use(UseValidator),
     /// YIELD 子句验证器
     Yield(YieldValidator),
+
+    // 新增验证器
+    /// UPDATE CONFIGS 语句验证器
+    UpdateConfigs(UpdateConfigsValidator),
+    /// MERGE 语句验证器
+    Merge(MergeValidator),
+    /// RETURN 语句验证器
+    Return(ReturnValidator),
+    /// WITH 语句验证器
+    With(WithValidator),
+    /// REMOVE 语句验证器
+    Remove(RemoveValidator),
+    /// QUERY 语句验证器
+    Query(QueryValidator),
 }
 
 /// 为 Validator 枚举实现方法
@@ -91,13 +176,38 @@ pub enum Validator {
 macro_rules! forward_to_validator {
     ($self:ident, $method:ident) => {
         match $self {
+            // 管理类验证器
+            Validator::Show(v) => v.$method(),
+            Validator::Desc(v) => v.$method(),
+            Validator::ShowCreate(v) => v.$method(),
+            Validator::ShowConfigs(v) => v.$method(),
+            Validator::ShowSessions(v) => v.$method(),
+            Validator::ShowQueries(v) => v.$method(),
+            Validator::KillQuery(v) => v.$method(),
+            // 权限类验证器
+            Validator::CreateUser(v) => v.$method(),
+            Validator::DropUser(v) => v.$method(),
+            Validator::AlterUser(v) => v.$method(),
+            Validator::ChangePassword(v) => v.$method(),
+            Validator::Grant(v) => v.$method(),
+            Validator::Revoke(v) => v.$method(),
+            Validator::DescribeUser(v) => v.$method(),
+            Validator::ShowUsers(v) => v.$method(),
+            Validator::ShowRoles(v) => v.$method(),
+            // 其他验证器
+            Validator::Alter(v) => v.$method(),
+            Validator::Assignment(v) => v.$method(),
             Validator::Create(v) => v.$method(),
             Validator::Delete(v) => v.$method(),
+            Validator::Drop(v) => v.$method(),
+            Validator::Explain(v) => v.$method(),
+            Validator::Profile(v) => v.$method(),
             Validator::FetchEdges(v) => v.$method(),
             Validator::FetchVertices(v) => v.$method(),
             Validator::FindPath(v) => v.$method(),
             Validator::GetSubgraph(v) => v.$method(),
             Validator::Go(v) => v.$method(),
+            Validator::GroupBy(v) => v.$method(),
             Validator::InsertEdges(v) => v.$method(),
             Validator::InsertVertices(v) => v.$method(),
             Validator::Limit(v) => v.$method(),
@@ -106,22 +216,55 @@ macro_rules! forward_to_validator {
             Validator::OrderBy(v) => v.$method(),
             Validator::Pipe(v) => v.$method(),
             Validator::Sequential(v) => v.$method(),
+            Validator::SetOperation(v) => v.$method(),
             Validator::Set(v) => v.$method(),
             Validator::Update(v) => v.$method(),
             Validator::Unwind(v) => v.$method(),
             Validator::Use(v) => v.$method(),
             Validator::Yield(v) => v.$method(),
+            // 新增验证器
+            Validator::UpdateConfigs(v) => v.$method(),
+            Validator::Merge(v) => v.$method(),
+            Validator::Return(v) => v.$method(),
+            Validator::With(v) => v.$method(),
+            Validator::Remove(v) => v.$method(),
+            Validator::Query(v) => v.$method(),
         }
     };
     ($self:ident, $method:ident, $arg:expr) => {
         match $self {
+            // 管理类验证器
+            Validator::Show(v) => v.$method($arg),
+            Validator::Desc(v) => v.$method($arg),
+            Validator::ShowCreate(v) => v.$method($arg),
+            Validator::ShowConfigs(v) => v.$method($arg),
+            Validator::ShowSessions(v) => v.$method($arg),
+            Validator::ShowQueries(v) => v.$method($arg),
+            Validator::KillQuery(v) => v.$method($arg),
+            // 权限类验证器
+            Validator::CreateUser(v) => v.$method($arg),
+            Validator::DropUser(v) => v.$method($arg),
+            Validator::AlterUser(v) => v.$method($arg),
+            Validator::ChangePassword(v) => v.$method($arg),
+            Validator::Grant(v) => v.$method($arg),
+            Validator::Revoke(v) => v.$method($arg),
+            Validator::DescribeUser(v) => v.$method($arg),
+            Validator::ShowUsers(v) => v.$method($arg),
+            Validator::ShowRoles(v) => v.$method($arg),
+            // 其他验证器
+            Validator::Alter(v) => v.$method($arg),
+            Validator::Assignment(v) => v.$method($arg),
             Validator::Create(v) => v.$method($arg),
             Validator::Delete(v) => v.$method($arg),
+            Validator::Drop(v) => v.$method($arg),
+            Validator::Explain(v) => v.$method($arg),
+            Validator::Profile(v) => v.$method($arg),
             Validator::FetchEdges(v) => v.$method($arg),
             Validator::FetchVertices(v) => v.$method($arg),
             Validator::FindPath(v) => v.$method($arg),
             Validator::GetSubgraph(v) => v.$method($arg),
             Validator::Go(v) => v.$method($arg),
+            Validator::GroupBy(v) => v.$method($arg),
             Validator::InsertEdges(v) => v.$method($arg),
             Validator::InsertVertices(v) => v.$method($arg),
             Validator::Limit(v) => v.$method($arg),
@@ -130,11 +273,19 @@ macro_rules! forward_to_validator {
             Validator::OrderBy(v) => v.$method($arg),
             Validator::Pipe(v) => v.$method($arg),
             Validator::Sequential(v) => v.$method($arg),
+            Validator::SetOperation(v) => v.$method($arg),
             Validator::Set(v) => v.$method($arg),
             Validator::Update(v) => v.$method($arg),
             Validator::Unwind(v) => v.$method($arg),
             Validator::Use(v) => v.$method($arg),
             Validator::Yield(v) => v.$method($arg),
+            // 新增验证器
+            Validator::UpdateConfigs(v) => v.$method($arg),
+            Validator::Merge(v) => v.$method($arg),
+            Validator::Return(v) => v.$method($arg),
+            Validator::With(v) => v.$method($arg),
+            Validator::Remove(v) => v.$method($arg),
+            Validator::Query(v) => v.$method($arg),
         }
     };
 }
@@ -248,13 +399,38 @@ impl Validator {
     /// 获取语句类型
     pub fn statement_type(&self) -> StatementType {
         match self {
+            // 管理类验证器
+            Validator::Show(_) => StatementType::Show,
+            Validator::Desc(_) => StatementType::Desc,
+            Validator::ShowCreate(_) => StatementType::ShowCreate,
+            Validator::ShowConfigs(_) => StatementType::ShowConfigs,
+            Validator::ShowSessions(_) => StatementType::ShowSessions,
+            Validator::ShowQueries(_) => StatementType::ShowQueries,
+            Validator::KillQuery(_) => StatementType::KillQuery,
+            // 权限类验证器
+            Validator::CreateUser(_) => StatementType::CreateUser,
+            Validator::DropUser(_) => StatementType::DropUser,
+            Validator::AlterUser(_) => StatementType::AlterUser,
+            Validator::ChangePassword(_) => StatementType::ChangePassword,
+            Validator::Grant(_) => StatementType::Grant,
+            Validator::Revoke(_) => StatementType::Revoke,
+            Validator::DescribeUser(_) => StatementType::DescribeUser,
+            Validator::ShowUsers(_) => StatementType::ShowUsers,
+            Validator::ShowRoles(_) => StatementType::ShowRoles,
+            // 其他验证器
+            Validator::Alter(_) => StatementType::Alter,
+            Validator::Assignment(_) => StatementType::Assignment,
             Validator::Create(_) => StatementType::Create,
             Validator::Delete(_) => StatementType::Delete,
+            Validator::Drop(_) => StatementType::Drop,
+            Validator::Explain(_) => StatementType::Explain,
+            Validator::Profile(_) => StatementType::Profile,
             Validator::FetchEdges(_) => StatementType::FetchEdges,
             Validator::FetchVertices(_) => StatementType::FetchVertices,
             Validator::FindPath(_) => StatementType::FindPath,
             Validator::GetSubgraph(_) => StatementType::GetSubgraph,
             Validator::Go(_) => StatementType::Go,
+            Validator::GroupBy(_) => StatementType::GroupBy,
             Validator::InsertEdges(_) => StatementType::InsertEdges,
             Validator::InsertVertices(_) => StatementType::InsertVertices,
             Validator::Limit(_) => StatementType::Limit,
@@ -263,11 +439,19 @@ impl Validator {
             Validator::OrderBy(_) => StatementType::OrderBy,
             Validator::Pipe(_) => StatementType::Pipe,
             Validator::Sequential(_) => StatementType::Sequential,
+            Validator::SetOperation(_) => StatementType::SetOperation,
             Validator::Set(_) => StatementType::Set,
             Validator::Update(_) => StatementType::Update,
             Validator::Unwind(_) => StatementType::Unwind,
             Validator::Use(_) => StatementType::Use,
             Validator::Yield(_) => StatementType::Yield,
+            // 新增验证器
+            Validator::UpdateConfigs(_) => StatementType::UpdateConfigs,
+            Validator::Merge(_) => StatementType::Merge,
+            Validator::Return(_) => StatementType::Return,
+            Validator::With(_) => StatementType::With,
+            Validator::Remove(_) => StatementType::Remove,
+            Validator::Query(_) => StatementType::Query,
         }
     }
 
@@ -275,68 +459,69 @@ impl Validator {
     pub fn from_stmt(stmt: &crate::query::parser::ast::Stmt) -> Option<Self> {
         use crate::query::parser::ast::Stmt;
         match stmt {
-            Stmt::Match(_) => Some(Validator::Match(MatchValidator::new())),
-            Stmt::Go(_) => Some(Validator::Go(GoValidator::new())),
+            // 管理类语句
+            Stmt::Show(_) => Some(Validator::Show(ShowValidator::new())),
+            Stmt::Desc(_) => Some(Validator::Desc(DescValidator::new())),
+            Stmt::ShowCreate(_) => Some(Validator::ShowCreate(ShowCreateValidator::new())),
+            Stmt::ShowConfigs(_) => Some(Validator::ShowConfigs(ShowConfigsValidator::new())),
+            Stmt::ShowSessions(_) => Some(Validator::ShowSessions(ShowSessionsValidator::new())),
+            Stmt::ShowQueries(_) => Some(Validator::ShowQueries(ShowQueriesValidator::new())),
+            Stmt::KillQuery(_) => Some(Validator::KillQuery(KillQueryValidator::new())),
+
+            // 权限类语句
+            Stmt::CreateUser(_) => Some(Validator::CreateUser(CreateUserValidator::new())),
+            Stmt::DropUser(_) => Some(Validator::DropUser(DropUserValidator::new())),
+            Stmt::AlterUser(_) => Some(Validator::AlterUser(AlterUserValidator::new())),
+            Stmt::ChangePassword(_) => Some(Validator::ChangePassword(ChangePasswordValidator::new())),
+            Stmt::Grant(_) => Some(Validator::Grant(GrantValidator::new())),
+            Stmt::Revoke(_) => Some(Validator::Revoke(RevokeValidator::new())),
+            Stmt::DescribeUser(_) => Some(Validator::DescribeUser(DescribeUserValidator::new())),
+            Stmt::ShowUsers(_) => Some(Validator::ShowUsers(ShowUsersValidator::new())),
+            Stmt::ShowRoles(_) => Some(Validator::ShowRoles(ShowRolesValidator::new())),
+
+            // 其他语句
+            Stmt::Alter(_) => Some(Validator::Alter(AlterValidator::new())),
+            Stmt::Assignment(_) => Some(Validator::Assignment(AssignmentValidator::new())),
+            Stmt::Create(_) => Some(Validator::Create(CreateValidator::new())),
+            Stmt::Delete(_) => Some(Validator::Delete(DeleteValidator::new())),
+            Stmt::Drop(_) => Some(Validator::Drop(DropValidator::new())),
+            Stmt::Explain(_) => Some(Validator::Explain(ExplainValidator::new())),
+            Stmt::Profile(_) => Some(Validator::Profile(ProfileValidator::new())),
             Stmt::Fetch(fetch_stmt) => {
-                // 根据 FetchTarget 类型选择对应的验证器
                 use crate::query::parser::ast::stmt::FetchTarget;
                 match &fetch_stmt.target {
                     FetchTarget::Vertices { .. } => Some(Validator::FetchVertices(FetchVerticesValidator::new())),
                     FetchTarget::Edges { .. } => Some(Validator::FetchEdges(FetchEdgesValidator::new())),
                 }
             }
-            Stmt::Lookup(_) => Some(Validator::Lookup(LookupValidator::new())),
-            Stmt::Subgraph(_) => Some(Validator::GetSubgraph(GetSubgraphValidator::new())),
             Stmt::FindPath(_) => Some(Validator::FindPath(FindPathValidator::new())),
+            Stmt::Subgraph(_) => Some(Validator::GetSubgraph(GetSubgraphValidator::new())),
+            Stmt::Go(_) => Some(Validator::Go(GoValidator::new())),
+            Stmt::GroupBy(_) => Some(Validator::GroupBy(GroupByValidator::new())),
             Stmt::Insert(insert_stmt) => {
-                // 根据 InsertTarget 类型选择对应的验证器
                 use crate::query::parser::ast::stmt::InsertTarget;
                 match &insert_stmt.target {
                     InsertTarget::Vertices { .. } => Some(Validator::InsertVertices(InsertVerticesValidator::new())),
                     InsertTarget::Edge { .. } => Some(Validator::InsertEdges(InsertEdgesValidator::new())),
                 }
             }
-            Stmt::Update(_) => Some(Validator::Update(UpdateValidator::new())),
-            Stmt::Delete(_) => Some(Validator::Delete(DeleteValidator::new())),
-            Stmt::Create(_) => Some(Validator::Create(CreateValidator::new())),
-            Stmt::Use(_) => Some(Validator::Use(UseValidator::new())),
+            Stmt::Lookup(_) => Some(Validator::Lookup(LookupValidator::new())),
+            Stmt::Match(_) => Some(Validator::Match(MatchValidator::new())),
             Stmt::Pipe(_) => Some(Validator::Pipe(PipeValidator::new())),
-            Stmt::Yield(_) => Some(Validator::Yield(YieldValidator::new())),
             Stmt::Set(_) => Some(Validator::Set(SetValidator::new())),
+            Stmt::SetOperation(_) => Some(Validator::SetOperation(SetOperationValidator::new())),
             Stmt::Unwind(_) => Some(Validator::Unwind(UnwindValidator::new())),
-            // 以下语句类型暂未实现专门的验证器，使用 SequentialValidator 作为占位
-            // 后续应该为每种语句类型实现专门的验证器
-            Stmt::Query(_) | 
-            Stmt::Show(_) | 
-            Stmt::Explain(_) | 
-            Stmt::Profile(_) | 
-            Stmt::GroupBy(_) | 
-            Stmt::Merge(_) | 
-            Stmt::Return(_) | 
-            Stmt::With(_) | 
-            Stmt::Remove(_) | 
-            Stmt::Drop(_) | 
-            Stmt::Desc(_) | 
-            Stmt::Alter(_) |
-            Stmt::CreateUser(_) |
-            Stmt::AlterUser(_) |
-            Stmt::DropUser(_) |
-            Stmt::ChangePassword(_) |
-            Stmt::Grant(_) |
-            Stmt::Revoke(_) |
-            Stmt::DescribeUser(_) |
-            Stmt::ShowUsers(_) |
-            Stmt::ShowRoles(_) |
-            Stmt::ShowCreate(_) |
-            Stmt::ShowSessions(_) |
-            Stmt::ShowQueries(_) |
-            Stmt::KillQuery(_) |
-            Stmt::ShowConfigs(_) |
-            Stmt::UpdateConfigs(_) |
-            Stmt::Assignment(_) |
-            Stmt::SetOperation(_) => {
-                Some(Validator::Sequential(SequentialValidator::new()))
-            }
+            Stmt::Update(_) => Some(Validator::Update(UpdateValidator::new())),
+            Stmt::Use(_) => Some(Validator::Use(UseValidator::new())),
+            Stmt::Yield(_) => Some(Validator::Yield(YieldValidator::new())),
+
+            // 新增验证器
+            Stmt::Query(_) => Some(Validator::Query(QueryValidator::new())),
+            Stmt::Merge(_) => Some(Validator::Merge(MergeValidator::new())),
+            Stmt::Return(_) => Some(Validator::Return(ReturnValidator::new())),
+            Stmt::With(_) => Some(Validator::With(WithValidator::new())),
+            Stmt::Remove(_) => Some(Validator::Remove(RemoveValidator::new())),
+            Stmt::UpdateConfigs(_) => Some(Validator::UpdateConfigs(UpdateConfigsValidator::new())),
         }
     }
 
@@ -390,13 +575,40 @@ impl ValidatorFactory {
     /// 根据语句类型创建对应的验证器
     pub fn create(stmt_type: StatementType) -> Option<Validator> {
         match stmt_type {
+            // 管理类验证器
+            StatementType::Show => Some(Validator::Show(ShowValidator::new())),
+            StatementType::Desc => Some(Validator::Desc(DescValidator::new())),
+            StatementType::ShowCreate => Some(Validator::ShowCreate(ShowCreateValidator::new())),
+            StatementType::ShowConfigs => Some(Validator::ShowConfigs(ShowConfigsValidator::new())),
+            StatementType::ShowSessions => Some(Validator::ShowSessions(ShowSessionsValidator::new())),
+            StatementType::ShowQueries => Some(Validator::ShowQueries(ShowQueriesValidator::new())),
+            StatementType::KillQuery => Some(Validator::KillQuery(KillQueryValidator::new())),
+
+            // 权限类验证器
+            StatementType::CreateUser => Some(Validator::CreateUser(CreateUserValidator::new())),
+            StatementType::DropUser => Some(Validator::DropUser(DropUserValidator::new())),
+            StatementType::AlterUser => Some(Validator::AlterUser(AlterUserValidator::new())),
+            StatementType::ChangePassword => Some(Validator::ChangePassword(ChangePasswordValidator::new())),
+            StatementType::Grant => Some(Validator::Grant(GrantValidator::new())),
+            StatementType::Revoke => Some(Validator::Revoke(RevokeValidator::new())),
+            StatementType::DescribeUser => Some(Validator::DescribeUser(DescribeUserValidator::new())),
+            StatementType::ShowUsers => Some(Validator::ShowUsers(ShowUsersValidator::new())),
+            StatementType::ShowRoles => Some(Validator::ShowRoles(ShowRolesValidator::new())),
+
+            // 其他验证器
+            StatementType::Alter => Some(Validator::Alter(AlterValidator::new())),
+            StatementType::Assignment => Some(Validator::Assignment(AssignmentValidator::new())),
             StatementType::Create => Some(Validator::Create(CreateValidator::new())),
             StatementType::Delete => Some(Validator::Delete(DeleteValidator::new())),
+            StatementType::Drop => Some(Validator::Drop(DropValidator::new())),
+            StatementType::Explain => Some(Validator::Explain(ExplainValidator::new())),
+            StatementType::Profile => Some(Validator::Profile(ProfileValidator::new())),
             StatementType::FetchEdges => Some(Validator::FetchEdges(FetchEdgesValidator::new())),
             StatementType::FetchVertices => Some(Validator::FetchVertices(FetchVerticesValidator::new())),
             StatementType::FindPath => Some(Validator::FindPath(FindPathValidator::new())),
             StatementType::GetSubgraph => Some(Validator::GetSubgraph(GetSubgraphValidator::new())),
             StatementType::Go => Some(Validator::Go(GoValidator::new())),
+            StatementType::GroupBy => Some(Validator::GroupBy(GroupByValidator::new())),
             StatementType::InsertEdges => Some(Validator::InsertEdges(InsertEdgesValidator::new())),
             StatementType::InsertVertices => Some(Validator::InsertVertices(InsertVerticesValidator::new())),
             StatementType::Limit => Some(Validator::Limit(LimitValidator::new())),
@@ -405,11 +617,19 @@ impl ValidatorFactory {
             StatementType::OrderBy => Some(Validator::OrderBy(OrderByValidator::new())),
             StatementType::Pipe => Some(Validator::Pipe(PipeValidator::new())),
             StatementType::Sequential => Some(Validator::Sequential(SequentialValidator::new())),
+            StatementType::SetOperation => Some(Validator::SetOperation(SetOperationValidator::new())),
             StatementType::Set => Some(Validator::Set(SetValidator::new())),
             StatementType::Update => Some(Validator::Update(UpdateValidator::new())),
             StatementType::Unwind => Some(Validator::Unwind(UnwindValidator::new())),
             StatementType::Use => Some(Validator::Use(UseValidator::new())),
             StatementType::Yield => Some(Validator::Yield(YieldValidator::new())),
+            // 新增验证器
+            StatementType::Query => Some(Validator::Query(QueryValidator::new())),
+            StatementType::Merge => Some(Validator::Merge(MergeValidator::new())),
+            StatementType::Return => Some(Validator::Return(ReturnValidator::new())),
+            StatementType::With => Some(Validator::With(WithValidator::new())),
+            StatementType::Remove => Some(Validator::Remove(RemoveValidator::new())),
+            StatementType::UpdateConfigs => Some(Validator::UpdateConfigs(UpdateConfigsValidator::new())),
             _ => None,
         }
     }
@@ -417,13 +637,38 @@ impl ValidatorFactory {
     /// 获取支持的语句类型列表
     pub fn supported_types() -> Vec<StatementType> {
         vec![
+            // 管理类
+            StatementType::Show,
+            StatementType::Desc,
+            StatementType::ShowCreate,
+            StatementType::ShowConfigs,
+            StatementType::ShowSessions,
+            StatementType::ShowQueries,
+            StatementType::KillQuery,
+            // 权限类
+            StatementType::CreateUser,
+            StatementType::DropUser,
+            StatementType::AlterUser,
+            StatementType::ChangePassword,
+            StatementType::Grant,
+            StatementType::Revoke,
+            StatementType::DescribeUser,
+            StatementType::ShowUsers,
+            StatementType::ShowRoles,
+            // 其他
+            StatementType::Alter,
+            StatementType::Assignment,
             StatementType::Create,
             StatementType::Delete,
+            StatementType::Drop,
+            StatementType::Explain,
+            StatementType::Profile,
             StatementType::FetchEdges,
             StatementType::FetchVertices,
             StatementType::FindPath,
             StatementType::GetSubgraph,
             StatementType::Go,
+            StatementType::GroupBy,
             StatementType::InsertEdges,
             StatementType::InsertVertices,
             StatementType::Limit,
@@ -432,11 +677,19 @@ impl ValidatorFactory {
             StatementType::OrderBy,
             StatementType::Pipe,
             StatementType::Sequential,
+            StatementType::SetOperation,
             StatementType::Set,
             StatementType::Update,
             StatementType::Unwind,
             StatementType::Use,
             StatementType::Yield,
+            // 新增验证器
+            StatementType::Query,
+            StatementType::Merge,
+            StatementType::Return,
+            StatementType::With,
+            StatementType::Remove,
+            StatementType::UpdateConfigs,
         ]
     }
 }
