@@ -8,18 +8,18 @@
 //! - `validate/` - 验证上下文
 //! - `symbol/` - 符号表管理
 //! - `components.rs` - 组件访问器
-//! - `request_context.rs` - 请求上下文
-//! - `runtime_context.rs` - 运行时上下文（存储层）
 //!
 //! # 核心类型
 //!
 //! - [`QueryContext`] - 查询上下文，聚合查询执行所需的所有资源
-//! - [`RequestContext`] - 请求上下文，管理请求生命周期
 //! - [`SymbolTable`] - 符号表，管理查询变量
+//!
+//! # 注意
+//!
+//! - `RequestContext` 已迁移到 `api::session::RequestContext`
+//! - `RuntimeContext` 已迁移到 `storage::RuntimeContext`
 
 pub mod ast;
-pub mod request_context;
-pub mod runtime_context;
 
 // 新的模块结构
 pub mod symbol;
@@ -29,7 +29,6 @@ pub mod components;
 
 // 重新导出主要类型
 pub use ast::*;
-pub use request_context::RequestContext;
 
 // 导出新的模块结构
 pub use symbol::{Symbol, SymbolTable};
@@ -42,6 +41,7 @@ pub use crate::query::core::{ExecutorState, RowStatus};
 
 // ==================== QueryContext 定义 ====================
 
+use crate::api::session::RequestContext;
 use crate::query::planner::plan::ExecutionPlan;
 use crate::storage::StorageClient;
 use crate::storage::metadata::SchemaManager;
@@ -262,7 +262,7 @@ impl QueryContext {
     }
 
     /// 获取请求参数
-    pub fn request_params(&self) -> Option<crate::query::context::request_context::RequestParams> {
+    pub fn request_params(&self) -> Option<crate::api::session::RequestParams> {
         self.rctx.as_ref().map(|r| r.request_params())
     }
 

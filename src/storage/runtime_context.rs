@@ -1,3 +1,10 @@
+//! 运行时上下文模块 - 存储层上下文管理
+//!
+//! 提供查询执行过程中的存储层上下文信息，包括：
+//! - 存储环境（StorageEnv）
+//! - 计划上下文（PlanContext）
+//! - 运行时上下文（RuntimeContext）
+
 use crate::storage::StorageClient;
 use crate::storage::metadata::SchemaManager;
 use std::sync::Arc;

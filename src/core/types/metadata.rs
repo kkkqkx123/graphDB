@@ -1,71 +1,17 @@
-//! 元数据类型定义（统一版本）
+//! 元数据类型定义（遗留类型）
 //!
-//! 用于存储引擎管理层操作的元数据结构
-//! 此模块定义了所有 Schema 相关的核心类型，作为系统统一的类型定义来源
+//! 此模块保留尚未迁移的类型，逐步迁移到各自的原子模块
 
-use crate::core::{DataType, Value};
+use crate::core::Value;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
-use std::sync::atomic::{AtomicU64, Ordering};
 
-/// Space ID计数器，用于生成唯一的Space ID
-static SPACE_ID_COUNTER: AtomicU64 = AtomicU64::new(1);
-
-/// 生成唯一的Space ID
-pub fn generate_space_id() -> u64 {
-    SPACE_ID_COUNTER.fetch_add(1, Ordering::SeqCst)
-}
-
-/// 重置Space ID计数器（仅用于测试）
-pub fn reset_space_id_counter() {
-    SPACE_ID_COUNTER.store(1, Ordering::SeqCst);
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
-pub struct MetadataVersion {
-    pub version: i32,
-    pub timestamp: i64,
-    pub description: String,
-}
-
-impl Default for MetadataVersion {
-    fn default() -> Self {
-        Self {
-            version: 1,
-            timestamp: chrono::Utc::now().timestamp_millis(),
-            description: String::new(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
-pub struct SchemaVersion {
-    pub version: i32,
-    pub space_id: u64,
-    pub tags: Vec<TagInfo>,
-    pub edge_types: Vec<EdgeTypeInfo>,
-    pub created_at: i64,
-    pub comment: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
-pub struct SchemaHistory {
-    pub space_id: u64,
-    pub versions: Vec<SchemaVersion>,
-    pub current_version: i64,
-    pub timestamp: i64,
-}
-
-impl Default for SchemaHistory {
-    fn default() -> Self {
-        Self {
-            space_id: 0,
-            versions: Vec::new(),
-            current_version: 0,
-            timestamp: chrono::Utc::now().timestamp_millis(),
-        }
-    }
-}
+// 从原子模块重新导出基础类型
+pub use crate::core::types::space::{generate_space_id, reset_space_id_counter, SpaceInfo};
+pub use crate::core::types::property::PropertyDef;
+pub use crate::core::types::tag::TagInfo;
+pub use crate::core::types::edge::EdgeTypeInfo;
+pub use crate::core::types::metadata_version::{MetadataVersion, SchemaVersion, SchemaHistory};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
 pub enum SchemaChangeType {
@@ -82,42 +28,6 @@ pub struct SchemaChange {
     pub target: String,
     pub property: Option<PropertyDef>,
     pub timestamp: i64,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
-pub struct PropertyDef {
-    pub name: String,
-    pub data_type: DataType,
-    pub nullable: bool,
-    pub default: Option<Value>,
-    pub comment: Option<String>,
-}
-
-impl PropertyDef {
-    pub fn new(name: String, data_type: DataType) -> Self {
-        Self {
-            name,
-            data_type,
-            nullable: false,
-            default: None,
-            comment: None,
-        }
-    }
-
-    pub fn with_nullable(mut self, nullable: bool) -> Self {
-        self.nullable = nullable;
-        self
-    }
-
-    pub fn with_default(mut self, default: Option<Value>) -> Self {
-        self.default = default;
-        self
-    }
-
-    pub fn with_comment(mut self, comment: Option<String>) -> Self {
-        self.comment = comment;
-        self
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
@@ -344,137 +254,6 @@ impl Default for SchemaImportResult {
 impl SchemaImportResult {
     pub fn new() -> Self {
         Self::default()
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
-pub struct SpaceInfo {
-    pub space_id: u64,
-    pub space_name: String,
-    pub vid_type: DataType,
-    pub tags: Vec<TagInfo>,
-    pub edge_types: Vec<EdgeTypeInfo>,
-    pub version: MetadataVersion,
-    pub comment: Option<String>,
-}
-
-impl SpaceInfo {
-    pub fn new(space_name: String) -> Self {
-        Self {
-            space_id: generate_space_id(),
-            space_name,
-            vid_type: DataType::String,
-            tags: Vec::new(),
-            edge_types: Vec::new(),
-            version: MetadataVersion::default(),
-            comment: None,
-        }
-    }
-
-    pub fn with_vid_type(mut self, vid_type: DataType) -> Self {
-        self.vid_type = vid_type;
-        self
-    }
-
-    pub fn with_comment(mut self, comment: Option<String>) -> Self {
-        self.comment = comment;
-        self
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
-pub struct TagInfo {
-    pub tag_id: i32,
-    pub tag_name: String,
-    pub properties: Vec<PropertyDef>,
-    pub comment: Option<String>,
-    pub ttl_duration: Option<i64>,
-    pub ttl_col: Option<String>,
-}
-
-impl TagInfo {
-    pub fn new(tag_name: String) -> Self {
-        Self {
-            tag_id: 0,
-            tag_name,
-            properties: Vec::new(),
-            comment: None,
-            ttl_duration: None,
-            ttl_col: None,
-        }
-    }
-
-    pub fn with_properties(mut self, properties: Vec<PropertyDef>) -> Self {
-        self.properties = properties;
-        self
-    }
-
-    pub fn with_comment(mut self, comment: Option<String>) -> Self {
-        self.comment = comment;
-        self
-    }
-    
-    pub fn with_ttl(mut self, duration: Option<i64>, col: Option<String>) -> Self {
-        self.ttl_duration = duration;
-        self.ttl_col = col;
-        self
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
-pub struct EdgeTypeInfo {
-    pub edge_type_id: i32,
-    pub edge_type_name: String,
-    pub properties: Vec<PropertyDef>,
-    pub comment: Option<String>,
-    pub ttl_duration: Option<i64>,
-    pub ttl_col: Option<String>,
-}
-
-impl EdgeTypeInfo {
-    pub fn new(edge_type_name: String) -> Self {
-        Self {
-            edge_type_id: 0,
-            edge_type_name,
-            properties: Vec::new(),
-            comment: None,
-            ttl_duration: None,
-            ttl_col: None,
-        }
-    }
-
-    pub fn with_properties(mut self, properties: Vec<PropertyDef>) -> Self {
-        self.properties = properties;
-        self
-    }
-
-    pub fn with_comment(mut self, comment: Option<String>) -> Self {
-        self.comment = comment;
-        self
-    }
-    
-    pub fn with_ttl(mut self, duration: Option<i64>, col: Option<String>) -> Self {
-        self.ttl_duration = duration;
-        self.ttl_col = col;
-        self
-    }
-}
-
-impl Default for SpaceInfo {
-    fn default() -> Self {
-        SpaceInfo::new("default".to_string())
-    }
-}
-
-impl Default for TagInfo {
-    fn default() -> Self {
-        TagInfo::new("default".to_string())
-    }
-}
-
-impl Default for EdgeTypeInfo {
-    fn default() -> Self {
-        EdgeTypeInfo::new("default".to_string())
     }
 }
 

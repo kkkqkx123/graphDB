@@ -1,14 +1,56 @@
-//! 字段类型定义
-//!
-//! 定义了存储层支持的各种字段类型，与 nebula-graph 的 PropertyType 对应
-//! 基于 core 层的 DataType 统一类型系统扩展
-
-pub use crate::core::DataType;
-
-pub type FieldType = DataType;
+//! 存储层数据操作类型
 
 use crate::core::Value;
+use crate::core::DataType;
+use bincode::{Decode, Encode};
+use serde::{Deserialize, Serialize};
 
+// 重新导出core层的DataType作为FieldType
+pub type FieldType = DataType;
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
+pub struct InsertVertexInfo {
+    pub space_id: u64,
+    pub vertex_id: Value,
+    pub tag_name: String,
+    pub props: Vec<(String, Value)>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
+pub struct InsertEdgeInfo {
+    pub space_id: u64,
+    pub src_vertex_id: Value,
+    pub dst_vertex_id: Value,
+    pub edge_name: String,
+    pub rank: i64,
+    pub props: Vec<(String, Value)>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
+pub struct UpdateTarget {
+    pub space_name: String,
+    pub label: String,
+    pub id: Value,
+    pub prop: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
+pub enum UpdateOp {
+    Set,
+    Add,
+    Subtract,
+    Append,
+    Remove,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Encode, Decode)]
+pub struct UpdateInfo {
+    pub update_target: UpdateTarget,
+    pub update_op: UpdateOp,
+    pub value: Value,
+}
+
+/// 字段定义
 #[derive(Debug, Clone)]
 pub struct FieldDef {
     pub name: String,
@@ -107,6 +149,7 @@ pub enum GeoShape {
     Any,
 }
 
+/// 列定义
 #[derive(Debug, Clone)]
 pub struct ColumnDef {
     pub name: String,

@@ -12,6 +12,7 @@ pub mod date_utils;
 pub mod serializer;
 pub mod transactional_storage;
 pub mod mutate;
+pub mod runtime_context;
 
 #[cfg(test)]
 pub mod test_mock;
@@ -34,4 +35,8 @@ pub use test_mock::*;
 // 导出数据编码相关类型
 pub use date_utils::*;
 pub use schema::Schema;
-pub use types::{ColumnDef, DataType, FieldDef, FieldType};
+pub use types::{ColumnDef, FieldDef, FieldType};
+pub use types::{InsertVertexInfo, InsertEdgeInfo, UpdateTarget, UpdateOp, UpdateInfo};
+
+// 导出运行时上下文类型
+pub use runtime_context::{PlanContext, RuntimeContext, StorageEnv};

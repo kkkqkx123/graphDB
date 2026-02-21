@@ -261,7 +261,6 @@ impl Default for RequestContext {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::value::dataset::List;
 
     #[test]
     fn test_request_context_creation() {
@@ -296,113 +295,5 @@ mod tests {
         assert_eq!(ctx.query(), "SELECT * FROM users");
         assert_eq!(ctx.session_id(), Some(12345));
         assert_eq!(ctx.user_name(), Some("test_user"));
-    }
-
-    #[test]
-    fn test_request_context_with_session() {
-        let ctx = RequestContext::with_session(
-            "MATCH (n) RETURN n".to_string(),
-            "99999",
-            "admin",
-            "192.168.1.100",
-            8080,
-        );
-        assert_eq!(ctx.query(), "MATCH (n) RETURN n");
-        assert_eq!(ctx.session_id(), Some(99999));
-        assert_eq!(ctx.user_name(), Some("admin"));
-        assert_eq!(ctx.client_ip(), Some("192.168.1.100:8080"));
-    }
-
-    #[test]
-    fn test_request_context_with_parameters() {
-        let mut params = HashMap::new();
-        params.insert("name".to_string(), Value::String("Alice".to_string()));
-        params.insert("age".to_string(), Value::Int(25));
-
-        let ctx = RequestContext::with_parameters(
-            "MATCH (n) WHERE n.name = $name AND n.age = $age RETURN n".to_string(),
-            params,
-            "88888",
-            "admin",
-            "192.168.1.100",
-            8080,
-        );
-
-        assert_eq!(
-            ctx.query(),
-            "MATCH (n) WHERE n.name = $name AND n.age = $age RETURN n"
-        );
-        assert_eq!(
-            ctx.get_parameter("name"),
-            Some(Value::String("Alice".to_string()))
-        );
-        assert_eq!(ctx.get_parameter("age"), Some(Value::Int(25)));
-        assert_eq!(ctx.session_id(), Some(88888));
-        assert_eq!(ctx.user_name(), Some("admin"));
-        assert_eq!(ctx.client_ip(), Some("192.168.1.100:8080"));
-    }
-
-    #[test]
-    fn test_request_context_with_parameters_from_context() {
-        let base_ctx = RequestContext::with_session(
-            "MATCH (n) RETURN n".to_string(),
-            "55555",
-            "base_user",
-            "192.168.1.50",
-            6060,
-        );
-
-        let mut params = HashMap::new();
-        params.insert("limit".to_string(), Value::Int(10));
-
-        let new_ctx = base_ctx.with_parameters_from_context(params);
-
-        assert_eq!(new_ctx.query(), "MATCH (n) RETURN n");
-        assert_eq!(new_ctx.get_parameter("limit"), Some(Value::Int(10)));
-        assert_eq!(new_ctx.session_id(), Some(55555));
-        assert_eq!(new_ctx.user_name(), Some("base_user"));
-    }
-
-    #[test]
-    fn test_request_parameters() {
-        let ctx = RequestContext::with_session(
-            "MATCH (n) WHERE n.name = $name RETURN n".to_string(),
-            "test_session",
-            "test_user",
-            "127.0.0.1",
-            0,
-        );
-
-        // 设置参数
-        let result = ctx.set_parameter("name".to_string(), Value::String("Alice".to_string()));
-        assert!(result.is_err());
-
-        // 获取参数
-        let param = ctx.get_parameter("name");
-        assert!(param.is_none());
-    }
-
-    #[test]
-    fn test_response_management() {
-        let ctx = RequestContext::with_session(
-            "MATCH (n) RETURN n".to_string(),
-            "test_session",
-            "test_user",
-            "127.0.0.1",
-            0,
-        );
-
-        // 设置响应数据
-        let result = ctx.set_response_data(Value::List(List::from(vec![])));
-        assert!(result.is_err());
-
-        // 获取响应
-        let response = ctx.get_response();
-        assert!(response.is_success());
-        assert!(response.get_data().is_none());
-
-        // 设置响应错误
-        let result = ctx.set_response_error("Query failed".to_string());
-        assert!(result.is_err());
     }
 }

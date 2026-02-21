@@ -8,6 +8,7 @@ pub mod npath;
 // 新增的子模块
 pub mod types;
 pub mod concurrency;
+pub mod symbol;
 
 // 错误和结果类型
 pub use error::{
@@ -32,6 +33,9 @@ pub use types::graph_schema::EdgeDirection;
 pub use types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 
 pub use types::YieldColumn;
+
+// 符号表类型
+pub use symbol::{Symbol, SymbolTable};
 
 // 其他核心类型
 pub use type_system::TypeUtils;

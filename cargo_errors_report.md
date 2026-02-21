@@ -23,16 +23,20 @@
 
 ### Files with Warnings (Top 10)
 
-- `src\query\validator\fetch_vertices_validator.rs`: 1 warnings
-- `src\query\validator\fetch_edges_validator.rs`: 1 warnings
 - `src\query\validator\with_validator.rs`: 1 warnings
+- `src\query\validator\fetch_edges_validator.rs`: 1 warnings
+- `src\query\validator\fetch_vertices_validator.rs`: 1 warnings
 
 ## Detailed Warning Categorization
 
-### warning: function `create_fetch_vertices_stmt` is never used
+### warning: unused variable: `where_expr`: help: if this is intentional, prefix it with an underscore: `_where_expr`
 
 **Total Occurrences**: 3  
 **Unique Files**: 3
+
+#### `src\query\validator\with_validator.rs`: 1 occurrences
+
+- Line 364: unused variable: `where_expr`: help: if this is intentional, prefix it with an underscore: `_where_expr`
 
 #### `src\query\validator\fetch_vertices_validator.rs`: 1 occurrences
 
@@ -41,8 +45,4 @@
 #### `src\query\validator\fetch_edges_validator.rs`: 1 occurrences
 
 - Line 379: function `create_fetch_edges_stmt` is never used
-
-#### `src\query\validator\with_validator.rs`: 1 occurrences
-
-- Line 364: unused variable: `where_expr`
 

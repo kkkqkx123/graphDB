@@ -1,10 +1,10 @@
 //! 基础AST上下文定义
 
+use crate::api::session::{RequestContext, RequestParams};
 use crate::core::error::ValidationError;
 use crate::core::types::DataType;
 use crate::query::context::ast::common::VariableInfo;
 use crate::query::context::QueryContext;
-use crate::query::context::request_context::RequestContext;
 use crate::query::context::symbol::SymbolTable;
 use crate::query::parser::ast::Stmt;
 use crate::query::validator::validator_trait::{ColumnDef, ValueType};
@@ -114,7 +114,7 @@ impl AstContext {
     }
 
     pub fn from_strings(query_type: &str, query_text: &str) -> Self {
-        let request_params = crate::query::context::request_context::RequestParams::new(query_text.to_string());
+        let request_params = RequestParams::new(query_text.to_string());
         let request_context = std::sync::Arc::new(RequestContext::new(None, request_params));
         
         let mut qctx = QueryContext::new();

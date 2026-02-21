@@ -1,8 +1,15 @@
+pub mod edge;
 pub mod expression;
 pub mod graph_schema;
-pub mod operators;
 pub mod metadata;
+pub mod metadata_version;
+pub mod operators;
+pub mod property;
 pub mod span;
+pub mod space;
+pub mod query;
+pub mod tag;
+pub mod variable;
 
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
@@ -38,9 +45,18 @@ pub enum DataType {
     Timestamp,
 }
 
+// 从原子模块导出基础Schema类型
+pub use self::edge::EdgeTypeInfo;
+pub use self::property::PropertyDef;
+pub use self::space::{SpaceInfo, generate_space_id, reset_space_id_counter};
+pub use self::tag::TagInfo;
+
+// 从metadata_version导出版本类型
+pub use self::metadata_version::{MetadataVersion, SchemaVersion, SchemaHistory};
+
+// 从metadata导出其他类型（后续逐步迁移）
 pub use self::metadata::{
-    SpaceInfo, TagInfo, EdgeTypeInfo, PropertyDef,
-    MetadataVersion, SchemaVersion, SchemaHistory, SchemaChange, SchemaChangeType,
+    SchemaChange, SchemaChangeType,
     ClusterInfo, CharsetInfo,
     InsertVertexInfo, InsertEdgeInfo, UpdateTarget, UpdateOp, UpdateInfo,
     PasswordInfo,
@@ -52,6 +68,9 @@ pub use self::expression::{Expression, ExpressionMeta};
 pub use self::graph_schema::{EdgeDirection, JoinType, OrderDirection, GraphTypeInference, VertexType, PathInfo, PropertyType};
 pub use self::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 pub use self::span::{Position, Span, ToSpan};
+// 注意：QuerySpaceInfo已删除，统一使用SpaceInfo
+pub use self::query::QueryType;
+pub use self::variable::{VariableInfo, FromType};
 
 pub use EdgeTypeInfo as EdgeTypeSchema;
 
