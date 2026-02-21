@@ -8,7 +8,6 @@ use crate::core::{
 };
 use crate::core::types::EdgeDirection;
 use crate::query::context::ast::AstContext;
-use crate::query::context::execution::QueryContext;
 use crate::query::parser::ast::Stmt;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
@@ -393,13 +392,10 @@ impl Default for GoValidator {
 }
 
 impl StatementValidator for GoValidator {
-    fn validate(
-        &mut self,
-        query_context: Option<&QueryContext>,
-        ast: &mut AstContext,
-    ) -> Result<ValidationResult, ValidationError> {
+    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError> {
         // 1. 检查是否需要空间
-        if !self.is_global_statement(ast) && query_context.is_none() {
+        let query_context = ast.query_context();
+        if !self.is_global_statement() && query_context.is_none() {
             return Err(ValidationError::new(
                 "未选择图空间，请先执行 USE <space>".to_string(),
                 ValidationErrorType::SemanticError,
@@ -489,6 +485,11 @@ impl StatementValidator for GoValidator {
 
     fn outputs(&self) -> &[ColumnDef] {
         &self.outputs
+    }
+
+    fn is_global_statement(&self) -> bool {
+        // GO 不是全局语句，需要预先选择空间
+        false
     }
 
     fn expression_props(&self) -> &ExpressionProps {

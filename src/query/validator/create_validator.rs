@@ -20,7 +20,6 @@ use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::EdgeDirection;
 use crate::core::Value;
 use crate::query::context::ast::AstContext;
-use crate::query::context::execution::QueryContext;
 use crate::storage::metadata::schema_manager::SchemaManager;
 use crate::query::parser::ast::stmt::{CreateStmt, CreateTarget};
 use crate::query::parser::ast::pattern::{Pattern, NodePattern, EdgePattern, PathPattern, PathElement};
@@ -528,11 +527,7 @@ impl CreateValidator {
     }
 
     /// 验证具体语句（参考 base_validator.rs 的 validate_impl）
-    fn validate_impl(
-        &mut self,
-        _query_context: Option<&QueryContext>,
-        ast: &mut AstContext,
-    ) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self, ast: &mut AstContext) -> Result<(), ValidationError> {
         // 获取 CREATE 语句
         let stmt = ast.sentence()
             .ok_or_else(|| ValidationError::new(
@@ -629,11 +624,7 @@ impl Default for CreateValidator {
 /// 4. 生成执行计划（to_plan）
 /// 5. 同步输入/输出到 AstContext
 impl StatementValidator for CreateValidator {
-    fn validate(
-        &mut self,
-        query_context: Option<&QueryContext>,
-        ast: &mut AstContext,
-    ) -> Result<ValidationResult, ValidationError> {
+    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError> {
         // 清空之前的状态
         self.outputs.clear();
         self.inputs.clear();
@@ -652,7 +643,7 @@ impl StatementValidator for CreateValidator {
         }
 
         // 步骤 2: 执行具体验证逻辑
-        if let Err(e) = self.validate_impl(query_context, ast) {
+        if let Err(e) = self.validate_impl(ast) {
             self.add_error(e);
         }
 
@@ -662,17 +653,7 @@ impl StatementValidator for CreateValidator {
             return Ok(ValidationResult::failure(errors));
         }
 
-        // 步骤 3: 权限检查
-        if let Err(e) = self.check_permission() {
-            return Ok(ValidationResult::failure(vec![e]));
-        }
-
-        // 步骤 4: 生成执行计划
-        if let Err(e) = self.to_plan(ast) {
-            return Ok(ValidationResult::failure(vec![e]));
-        }
-
-        // 步骤 5: 同步输入/输出到 AstContext
+        // 步骤 3: 同步输入/输出到 AstContext
         for output in &self.outputs {
             ast.add_output(output.name.clone(), output.type_.clone());
         }
@@ -699,8 +680,9 @@ impl StatementValidator for CreateValidator {
         &self.outputs
     }
 
-    fn is_global_statement(&self, ast: &AstContext) -> bool {
-        self.is_global_statement_internal(ast)
+    fn is_global_statement(&self) -> bool {
+        // CREATE 不是全局语句，需要预先选择空间
+        false
     }
 
     fn expression_props(&self) -> &ExpressionProps {

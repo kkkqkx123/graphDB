@@ -14,7 +14,6 @@
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::query::context::ast::AstContext;
-use crate::query::context::execution::QueryContext;
 use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
     ExpressionProps,
@@ -245,11 +244,7 @@ impl Default for PipeValidator {
 }
 
 impl StatementValidator for PipeValidator {
-    fn validate(
-        &mut self,
-        _query_context: Option<&QueryContext>,
-        ast: &mut AstContext,
-    ) -> Result<ValidationResult, ValidationError> {
+    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError> {
         self.clear_errors();
 
         // 执行验证
@@ -291,6 +286,11 @@ impl StatementValidator for PipeValidator {
 
     fn outputs(&self) -> &[ColumnDef] {
         &self.outputs
+    }
+
+    fn is_global_statement(&self) -> bool {
+        // PIPE 不是全局语句，需要预先选择空间
+        false
     }
 
     fn expression_props(&self) -> &ExpressionProps {

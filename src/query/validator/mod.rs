@@ -18,7 +18,9 @@ pub mod create_validator;
 pub mod schema_validator;
 pub mod delete_validator;
 pub mod fetch_edges_validator;
+pub mod find_path_validator;
 pub mod fetch_vertices_validator;
+pub mod get_subgraph_validator;
 pub mod go_validator;
 pub mod insert_edges_validator;
 pub mod insert_vertices_validator;
@@ -30,6 +32,7 @@ pub mod pipe_validator;
 pub mod sequential_validator;
 pub mod set_validator;
 pub mod unwind_validator;
+pub mod update_validator;
 pub mod use_validator;
 pub mod yield_validator;
 
@@ -54,8 +57,7 @@ pub use validator_trait::{
     StatementType,
     StatementValidator,
     ValidationResult,
-    ValidatorBuilder,
-    ValidatorRegistry,
+    is_global_statement_type,
     ColumnDef,
     ValueType,
     ExpressionProps,

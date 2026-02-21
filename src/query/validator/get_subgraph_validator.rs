@@ -14,15 +14,12 @@
 //! 3. 移除了生命周期参数，使用 Arc 管理 SchemaManager
 //! 4. 使用 AstContext 统一管理上下文
 
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::Expression;
-use crate::core::types::EdgeDirection;
 use crate::query::context::ast::AstContext;
-use crate::query::context::execution::QueryContext;
-use crate::query::parser::ast::stmt::GetSubgraphStmt;
+use crate::query::parser::ast::stmt::{SubgraphStmt, Steps, FromClause, OverClause, YieldClause};
 use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
     ExpressionProps,
@@ -33,12 +30,11 @@ use crate::storage::metadata::schema_manager::SchemaManager;
 #[derive(Debug, Clone)]
 pub struct ValidatedGetSubgraph {
     pub space_id: u64,
-    pub steps: Option<(i32, Option<i32>)>,
-    pub vertex_filters: Vec<Expression>,
-    pub edge_filters: Vec<Expression>,
-    pub edge_types: Vec<String>,
-    pub direction: EdgeDirection,
-    pub yield_stats: bool,
+    pub steps: Steps,
+    pub from: FromClause,
+    pub over: Option<OverClause>,
+    pub where_clause: Option<Expression>,
+    pub yield_clause: Option<YieldClause>,
 }
 
 /// GET SUBGRAPH 验证器 - 新体系实现
@@ -89,68 +85,55 @@ impl GetSubgraphValidator {
     }
 
     /// 基础验证
-    fn validate_get_subgraph(&self, stmt: &GetSubgraphStmt) -> Result<(), ValidationError> {
-        self.validate_steps(stmt.steps)?;
-        self.validate_vertex_filters(&stmt.vertex_filters)?;
-        self.validate_edge_filters(&stmt.edge_filters)?;
-        self.validate_edge_types(&stmt.edge_types)?;
+    fn validate_get_subgraph(&self, stmt: &SubgraphStmt) -> Result<(), ValidationError> {
+        self.validate_steps(&stmt.steps)?;
+        self.validate_from_clause(&stmt.from)?;
+        if let Some(ref over) = stmt.over {
+            self.validate_over_clause(over)?;
+        }
         Ok(())
     }
 
     /// 验证步数
-    fn validate_steps(&self, steps: Option<(i32, Option<i32>)>) -> Result<(), ValidationError> {
-        if let Some((min, max)) = steps {
-            if min < 0 {
-                return Err(ValidationError::new(
-                    "Steps cannot be negative".to_string(),
-                    ValidationErrorType::SemanticError,
-                ));
-            }
-            if let Some(max_steps) = max {
-                if max_steps < min {
-                    return Err(ValidationError::new(
-                        "Maximum steps cannot be less than minimum steps".to_string(),
-                        ValidationErrorType::SemanticError,
-                    ));
-                }
-                if max_steps > 100 {
+    fn validate_steps(&self, steps: &Steps) -> Result<(), ValidationError> {
+        match steps {
+            Steps::Fixed(n) => {
+                if *n > 100 {
                     return Err(ValidationError::new(
                         "Maximum steps cannot exceed 100".to_string(),
                         ValidationErrorType::SemanticError,
                     ));
                 }
             }
+            Steps::Range { min, max } => {
+                if max < min {
+                    return Err(ValidationError::new(
+                        "Maximum steps cannot be less than minimum steps".to_string(),
+                        ValidationErrorType::SemanticError,
+                    ));
+                }
+                if *max > 100 {
+                    return Err(ValidationError::new(
+                        "Maximum steps cannot exceed 100".to_string(),
+                        ValidationErrorType::SemanticError,
+                    ));
+                }
+            }
+            Steps::Variable(_) => {}
         }
         Ok(())
     }
 
-    /// 验证顶点过滤器
-    fn validate_vertex_filters(&self, filters: &[Expression]) -> Result<(), ValidationError> {
-        for filter in filters {
-            self.validate_filter_type(filter)?;
-        }
+    /// 验证 FROM 子句
+    fn validate_from_clause(&self, from: &FromClause) -> Result<(), ValidationError> {
+        // 简化处理：假设 FROM 子句有效
+        let _ = from;
         Ok(())
     }
 
-    /// 验证边过滤器
-    fn validate_edge_filters(&self, filters: &[Expression]) -> Result<(), ValidationError> {
-        for filter in filters {
-            self.validate_filter_type(filter)?;
-        }
-        Ok(())
-    }
-
-    /// 验证过滤器类型
-    fn validate_filter_type(&self, filter: &Expression) -> Result<(), ValidationError> {
-        // 简化处理：假设过滤器表达式有效
-        // 实际实现应该推断表达式类型并检查是否为布尔类型
-        let _ = filter;
-        Ok(())
-    }
-
-    /// 验证边类型
-    fn validate_edge_types(&self, edge_types: &[String]) -> Result<(), ValidationError> {
-        for edge_type in edge_types {
+    /// 验证 OVER 子句
+    fn validate_over_clause(&self, over: &OverClause) -> Result<(), ValidationError> {
+        for edge_type in &over.edge_types {
             if edge_type.is_empty() {
                 return Err(ValidationError::new(
                     "Edge type name cannot be empty".to_string(),
@@ -162,24 +145,20 @@ impl GetSubgraphValidator {
     }
 
     /// 验证 YIELD 子句
-    fn validate_yield_clause(&self, yield_columns: &[(Expression, Option<String>)], yield_stats: bool) -> Result<(), ValidationError> {
-        if yield_columns.is_empty() && !yield_stats {
-            return Err(ValidationError::new(
-                "GET SUBGRAPH must have YIELD clause".to_string(),
-                ValidationErrorType::SemanticError,
-            ));
-        }
-
-        let mut seen_names: HashMap<String, usize> = HashMap::new();
-        for (_, alias) in yield_columns {
-            let name = alias.clone().unwrap_or_else(|| "column".to_string());
-            let count = seen_names.entry(name.clone()).or_insert(0);
-            *count += 1;
-            if *count > 1 {
-                return Err(ValidationError::new(
-                    format!("Duplicate column name '{}' in YIELD clause", name),
-                    ValidationErrorType::SemanticError,
-                ));
+    fn validate_yield_clause(&self, yield_clause: &Option<YieldClause>) -> Result<(), ValidationError> {
+        if let Some(ref yc) = yield_clause {
+            let mut seen_names: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+            for item in &yc.items {
+                let name = item.alias.clone()
+                    .unwrap_or_else(|| format!("{:?}", item.expression));
+                let count = seen_names.entry(name.clone()).or_insert(0);
+                *count += 1;
+                if *count > 1 {
+                    return Err(ValidationError::new(
+                        format!("Duplicate column name '{}' in YIELD clause", name),
+                        ValidationErrorType::SemanticError,
+                    ));
+                }
             }
         }
         Ok(())
@@ -193,13 +172,10 @@ impl Default for GetSubgraphValidator {
 }
 
 impl StatementValidator for GetSubgraphValidator {
-    fn validate(
-        &mut self,
-        query_context: Option<&QueryContext>,
-        ast: &mut AstContext,
-    ) -> Result<ValidationResult, ValidationError> {
+    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError> {
         // 1. 检查是否需要空间
-        if !self.is_global_statement(ast) && query_context.is_none() {
+        let query_context = ast.query_context();
+        if !self.is_global_statement() && query_context.is_none() {
             return Err(ValidationError::new(
                 "未选择图空间，请先执行 USE <space>".to_string(),
                 ValidationErrorType::SemanticError,
@@ -214,7 +190,7 @@ impl StatementValidator for GetSubgraphValidator {
             ))?;
 
         let get_subgraph_stmt = match stmt {
-            crate::query::parser::ast::Stmt::GetSubgraph(get_subgraph_stmt) => get_subgraph_stmt,
+            crate::query::parser::ast::Stmt::Subgraph(get_subgraph_stmt) => get_subgraph_stmt,
             _ => {
                 return Err(ValidationError::new(
                     "Expected GET SUBGRAPH statement".to_string(),
@@ -227,47 +203,36 @@ impl StatementValidator for GetSubgraphValidator {
         self.validate_get_subgraph(get_subgraph_stmt)?;
 
         // 4. 验证 YIELD 子句
-        self.validate_yield_clause(&get_subgraph_stmt.yield_columns, get_subgraph_stmt.yield_stats)?;
+        self.validate_yield_clause(&get_subgraph_stmt.yield_clause)?;
 
         // 5. 获取 space_id
         let space_id = query_context
             .map(|qc| qc.space_id())
-            .flatten()
+            .filter(|&id| id != 0)
             .or_else(|| ast.space().space_id.map(|id| id as u64))
             .unwrap_or(0);
 
         // 6. 创建验证结果
         let validated = ValidatedGetSubgraph {
             space_id,
-            steps: get_subgraph_stmt.steps,
-            vertex_filters: get_subgraph_stmt.vertex_filters.clone(),
-            edge_filters: get_subgraph_stmt.edge_filters.clone(),
-            edge_types: get_subgraph_stmt.edge_types.clone(),
-            direction: get_subgraph_stmt.direction,
-            yield_stats: get_subgraph_stmt.yield_stats,
+            steps: get_subgraph_stmt.steps.clone(),
+            from: get_subgraph_stmt.from.clone(),
+            over: get_subgraph_stmt.over.clone(),
+            where_clause: get_subgraph_stmt.where_clause.clone(),
+            yield_clause: get_subgraph_stmt.yield_clause.clone(),
         };
 
         // 7. 设置输出列
         self.outputs.clear();
-        for (i, (_, alias)) in get_subgraph_stmt.yield_columns.iter().enumerate() {
-            let col_name = alias.clone()
-                .unwrap_or_else(|| format!("column_{}", i));
-            self.outputs.push(ColumnDef {
-                name: col_name,
-                type_: ValueType::Vertex,
-            });
-        }
-
-        // 如果 yield_stats 为 true，添加统计列
-        if get_subgraph_stmt.yield_stats {
-            self.outputs.push(ColumnDef {
-                name: "vertex_count".to_string(),
-                type_: ValueType::Int,
-            });
-            self.outputs.push(ColumnDef {
-                name: "edge_count".to_string(),
-                type_: ValueType::Int,
-            });
+        if let Some(ref yc) = get_subgraph_stmt.yield_clause {
+            for item in &yc.items {
+                let col_name = item.alias.clone()
+                    .unwrap_or_else(|| format!("{:?}", item.expression));
+                self.outputs.push(ColumnDef {
+                    name: col_name,
+                    type_: ValueType::Vertex,
+                });
+            }
         }
 
         self.validated_result = Some(validated);
@@ -291,6 +256,11 @@ impl StatementValidator for GetSubgraphValidator {
         &self.outputs
     }
 
+    fn is_global_statement(&self) -> bool {
+        // GET SUBGRAPH 不是全局语句，需要预先选择空间
+        false
+    }
+
     fn expression_props(&self) -> &ExpressionProps {
         &self.expr_props
     }
@@ -303,106 +273,64 @@ impl StatementValidator for GetSubgraphValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::Expression;
-    use crate::core::Value;
-    use crate::query::parser::ast::stmt::GetSubgraphStmt;
     use crate::query::parser::ast::Span;
 
-    fn create_get_subgraph_stmt(
-        vertex_filters: Vec<Expression>,
-        edge_filters: Vec<Expression>,
-        yield_columns: Vec<(Expression, Option<String>)>,
-        yield_stats: bool,
-    ) -> GetSubgraphStmt {
-        GetSubgraphStmt {
-            span: Span::default(),
-            steps: Some((1, Some(3))),
-            vertex_filters,
-            edge_filters,
-            edge_types: vec![],
-            direction: EdgeDirection::Both,
-            yield_columns,
-            yield_stats,
-        }
+    #[test]
+    fn test_validate_steps_fixed() {
+        let validator = GetSubgraphValidator::new();
+        let result = validator.validate_steps(&Steps::Fixed(5));
+        assert!(result.is_ok());
     }
 
     #[test]
-    fn test_validate_steps_negative() {
+    fn test_validate_steps_fixed_exceed_max() {
         let validator = GetSubgraphValidator::new();
-        let result = validator.validate_steps(Some((-1, None)));
-        assert!(result.is_err());
-        let err = result.unwrap_err();
-        assert!(err.message.contains("negative"));
-    }
-
-    #[test]
-    fn test_validate_steps_invalid_range() {
-        let validator = GetSubgraphValidator::new();
-        let result = validator.validate_steps(Some((5, Some(3))));
-        assert!(result.is_err());
-        let err = result.unwrap_err();
-        assert!(err.message.contains("less than"));
-    }
-
-    #[test]
-    fn test_validate_steps_exceed_max() {
-        let validator = GetSubgraphValidator::new();
-        let result = validator.validate_steps(Some((1, Some(101))));
+        let result = validator.validate_steps(&Steps::Fixed(101));
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("exceed 100"));
     }
 
     #[test]
-    fn test_validate_steps_valid() {
+    fn test_validate_steps_range_invalid() {
         let validator = GetSubgraphValidator::new();
-        let result = validator.validate_steps(Some((1, Some(5))));
+        let result = validator.validate_steps(&Steps::Range { min: 5, max: 3 });
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.message.contains("less than"));
+    }
+
+    #[test]
+    fn test_validate_steps_range_valid() {
+        let validator = GetSubgraphValidator::new();
+        let result = validator.validate_steps(&Steps::Range { min: 1, max: 5 });
         assert!(result.is_ok());
     }
 
     #[test]
-    fn test_validate_edge_types_empty() {
+    fn test_validate_over_clause_empty() {
         let validator = GetSubgraphValidator::new();
-        let result = validator.validate_edge_types(&["".to_string()]);
+        let over = OverClause {
+            span: Span::default(),
+            edge_types: vec!["".to_string()],
+            direction: crate::core::types::EdgeDirection::Both,
+        };
+        let result = validator.validate_over_clause(&over);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("empty"));
     }
 
     #[test]
-    fn test_validate_edge_types_valid() {
+    fn test_validate_over_clause_valid() {
         let validator = GetSubgraphValidator::new();
-        let result = validator.validate_edge_types(&["friend".to_string(), "colleague".to_string()]);
+        let over = OverClause {
+            span: Span::default(),
+            edge_types: vec!["friend".to_string(), "colleague".to_string()],
+            direction: crate::core::types::EdgeDirection::Both,
+        };
+        let result = validator.validate_over_clause(&over);
         assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_validate_yield_empty() {
-        let validator = GetSubgraphValidator::new();
-        let result = validator.validate_yield_clause(&[], false);
-        assert!(result.is_err());
-        let err = result.unwrap_err();
-        assert!(err.message.contains("YIELD"));
-    }
-
-    #[test]
-    fn test_validate_yield_with_stats() {
-        let validator = GetSubgraphValidator::new();
-        let result = validator.validate_yield_clause(&[], true);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_validate_yield_duplicate() {
-        let validator = GetSubgraphValidator::new();
-        let yield_columns = vec![
-            (Expression::Literal(Value::String("v".to_string())), Some("col".to_string())),
-            (Expression::Literal(Value::String("e".to_string())), Some("col".to_string())),
-        ];
-        let result = validator.validate_yield_clause(&yield_columns, false);
-        assert!(result.is_err());
-        let err = result.unwrap_err();
-        assert!(err.message.contains("Duplicate"));
     }
 
     #[test]

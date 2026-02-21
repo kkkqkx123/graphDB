@@ -298,11 +298,7 @@ impl Default for UnwindValidator {
 
 /// 实现 StatementValidator trait
 impl StatementValidator for UnwindValidator {
-    fn validate(
-        &mut self,
-        query_context: Option<&QueryContext>,
-        ast: &mut AstContext,
-    ) -> Result<ValidationResult, ValidationError> {
+    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError> {
         // 清空之前的状态
         self.outputs.clear();
         self.inputs.clear();
@@ -310,7 +306,8 @@ impl StatementValidator for UnwindValidator {
         self.clear_errors();
 
         // 执行具体验证逻辑
-        if let Err(e) = self.validate_impl(query_context, ast) {
+        // 注意：validate_impl 内部会调用 ast.query_context()
+        if let Err(e) = self.validate_impl(None, ast) {
             self.add_error(e);
         }
 
@@ -318,16 +315,6 @@ impl StatementValidator for UnwindValidator {
         if self.has_errors() {
             let errors = self.validation_errors.clone();
             return Ok(ValidationResult::failure(errors));
-        }
-
-        // 权限检查
-        if let Err(e) = self.check_permission() {
-            return Ok(ValidationResult::failure(vec![e]));
-        }
-
-        // 生成执行计划
-        if let Err(e) = self.to_plan(ast) {
-            return Ok(ValidationResult::failure(vec![e]));
         }
 
         // 同步输入/输出到 AstContext
@@ -357,7 +344,7 @@ impl StatementValidator for UnwindValidator {
         &self.outputs
     }
 
-    fn is_global_statement(&self, _ast: &AstContext) -> bool {
+    fn is_global_statement(&self) -> bool {
         // UNWIND 不是全局语句，需要预先选择空间
         false
     }

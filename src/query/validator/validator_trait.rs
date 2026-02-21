@@ -9,8 +9,6 @@
 
 use crate::core::error::ValidationError;
 use crate::query::context::ast::AstContext;
-use crate::query::context::execution::QueryContext;
-use crate::query::parser::ast::Stmt;
 
 /// 列定义
 #[derive(Debug, Clone)]
@@ -239,23 +237,15 @@ impl ValidationResult {
 /// 所有语句验证器的统一接口
 ///
 /// 设计原则：
-/// 1. 保留完整验证生命周期
-/// 2. 提供统一的接口便于管理和扩展
-/// 3. 支持完整的上下文管理和错误收集
+/// 1. 简化接口，只保留核心方法
+/// 2. 验证生命周期由 Validator 枚举统一管理
+/// 3. 使用静态分发替代动态分发
+/// 4. 直接使用 AstContext 作为验证上下文（AstContext 已包含 QueryContext）
 pub trait StatementValidator {
-    /// 执行完整的验证生命周期
-    ///
-    /// 验证生命周期：
-    /// 1. 检查是否需要空间（is_global_statement）
-    /// 2. 执行具体验证逻辑（validate_impl）
-    /// 3. 权限检查（check_permission）
-    /// 4. 生成执行计划（to_plan）
-    /// 5. 同步输入/输出到 AstContext
-    fn validate(
-        &mut self,
-        query_context: Option<&QueryContext>,
-        ast: &mut AstContext,
-    ) -> Result<ValidationResult, ValidationError>;
+    /// 执行验证逻辑
+    /// 返回验证结果，包含输入/输出列定义
+    /// 直接使用 &mut AstContext 作为上下文，避免不必要的包装
+    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError>;
 
     /// 获取语句类型
     fn statement_type(&self) -> StatementType;
@@ -267,57 +257,7 @@ pub trait StatementValidator {
     fn outputs(&self) -> &[ColumnDef];
 
     /// 判断是否为全局语句（不需要预先选择空间）
-    /// 默认实现根据语句类型判断
-    fn is_global_statement(&self, ast: &AstContext) -> bool {
-        let stmt_type = ast.statement_type();
-
-        // 基础全局语句类型
-        if matches!(
-            stmt_type,
-            "CREATE_USER" | "ALTER_USER" | "DROP_USER" | "CHANGE_PASSWORD"
-                | "SHOW_SPACES" | "DESC_SPACE"
-                | "SHOW_USERS" | "DESC_USER"
-                | "USE"
-        ) {
-            return true;
-        }
-
-        // 检查 CREATE 语句是否是 CREATE SPACE
-        if stmt_type == "CREATE" {
-            if let Some(ref stmt) = ast.sentence() {
-                if let Stmt::Create(create_stmt) = stmt {
-                    if let crate::query::parser::ast::stmt::CreateTarget::Space { .. } = create_stmt.target {
-                        return true;
-                    }
-                }
-            }
-        }
-
-        // 检查 DROP 语句是否是 DROP SPACE
-        if stmt_type == "DROP" {
-            if let Some(ref stmt) = ast.sentence() {
-                if let Stmt::Drop(drop_stmt) = stmt {
-                    if let crate::query::parser::ast::stmt::DropTarget::Space(_) = drop_stmt.target {
-                        return true;
-                    }
-                }
-            }
-        }
-
-        false
-    }
-
-    /// 权限检查
-    /// 默认实现返回成功，子类可以覆盖
-    fn check_permission(&self) -> Result<(), ValidationError> {
-        Ok(())
-    }
-
-    /// 生成执行计划
-    /// 默认实现返回成功，子类可以覆盖
-    fn to_plan(&mut self, _ast: &mut AstContext) -> Result<(), ValidationError> {
-        Ok(())
-    }
+    fn is_global_statement(&self) -> bool;
 
     /// 获取验证器名称
     fn validator_name(&self) -> String {
@@ -331,43 +271,14 @@ pub trait StatementValidator {
     fn user_defined_vars(&self) -> &[String];
 }
 
-/// 验证器构建器 trait
-/// 用于构建特定类型的验证器
-pub trait ValidatorBuilder<V: StatementValidator> {
-    fn build(self) -> V;
-}
-
-/// 验证器注册表
-/// 用于管理和查找验证器
-pub struct ValidatorRegistry {
-    validators: std::collections::HashMap<StatementType, Box<dyn Fn() -> Box<dyn StatementValidator>>>,
-}
-
-impl ValidatorRegistry {
-    pub fn new() -> Self {
-        Self {
-            validators: std::collections::HashMap::new(),
-        }
-    }
-
-    pub fn register<F>(&mut self, stmt_type: StatementType, factory: F)
-    where
-        F: Fn() -> Box<dyn StatementValidator> + 'static,
-    {
-        self.validators.insert(stmt_type, Box::new(factory));
-    }
-
-    pub fn get(&self, stmt_type: StatementType) -> Option<&Box<dyn Fn() -> Box<dyn StatementValidator>>> {
-        self.validators.get(&stmt_type)
-    }
-
-    pub fn contains(&self, stmt_type: StatementType) -> bool {
-        self.validators.contains_key(&stmt_type)
-    }
-}
-
-impl Default for ValidatorRegistry {
-    fn default() -> Self {
-        Self::new()
-    }
+/// 判断语句类型是否为全局语句
+pub fn is_global_statement_type(stmt_type: StatementType) -> bool {
+    matches!(
+        stmt_type,
+        StatementType::CreateSpace
+            | StatementType::DropSpace
+            | StatementType::ShowSpaces
+            | StatementType::DescribeSpace
+            | StatementType::Use
+    )
 }

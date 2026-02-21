@@ -5,7 +5,6 @@
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::Expression;
 use crate::query::context::ast::AstContext;
-use crate::query::context::execution::QueryContext;
 use crate::query::parser::ast::{Stmt, YieldItem};
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
@@ -337,13 +336,10 @@ impl Default for LookupValidator {
 }
 
 impl StatementValidator for LookupValidator {
-    fn validate(
-        &mut self,
-        query_context: Option<&QueryContext>,
-        ast: &mut AstContext,
-    ) -> Result<ValidationResult, ValidationError> {
+    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError> {
         // 1. 检查是否需要空间
-        if !self.is_global_statement(ast) && query_context.is_none() {
+        let query_context = ast.query_context();
+        if !self.is_global_statement() && query_context.is_none() {
             return Err(ValidationError::new(
                 "未选择图空间，请先执行 USE <space>".to_string(),
                 ValidationErrorType::SemanticError,
@@ -420,6 +416,11 @@ impl StatementValidator for LookupValidator {
 
     fn statement_type(&self) -> StatementType {
         StatementType::Lookup
+    }
+
+    fn is_global_statement(&self) -> bool {
+        // LOOKUP 不是全局语句，需要预先选择空间
+        false
     }
 
     fn inputs(&self) -> &[ColumnDef] {

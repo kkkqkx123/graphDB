@@ -14,7 +14,6 @@ use crate::query::executor::traits::ExecutionResult;
 use crate::query::optimizer::{Optimizer, OptimizationConfig, RuleConfig};
 use crate::query::parser::Parser;
 use crate::query::planner::planner::{StaticConfigurablePlannerRegistry, PlannerConfig};
-use crate::query::validator::Validator;
 use crate::storage::StorageClient;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -22,7 +21,6 @@ use parking_lot::Mutex;
 use std::time::Instant;
 
 pub struct QueryPipelineManager<S: StorageClient + 'static> {
-    validator: Validator,
     planner: StaticConfigurablePlannerRegistry,
     optimizer: Optimizer,
     executor_factory: ExecutorFactory<S>,
@@ -37,7 +35,6 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         Self::register_planners(&mut planner);
 
         Self {
-            validator: Validator::new(),
             planner,
             optimizer: Optimizer::from_registry(),
             executor_factory,
@@ -55,7 +52,6 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         let optimizer = Optimizer::with_config(vec![], config);
 
         Self {
-            validator: Validator::new(),
             planner,
             optimizer,
             executor_factory,
@@ -92,7 +88,6 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         };
 
         Self {
-            validator: Validator::new(),
             planner,
             optimizer,
             executor_factory,
@@ -126,7 +121,6 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         Self::register_planners(&mut planner);
 
         Self {
-            validator: Validator::new(),
             planner,
             optimizer: Optimizer::default(),
             executor_factory,
@@ -364,13 +358,25 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
 
     fn validate_query(
         &mut self,
-        query_context: &mut QueryContext,
+        _query_context: &mut QueryContext,
         ast: &mut crate::query::context::ast::AstContext,
     ) -> DBResult<()> {
-        let _stmt = ast.sentence().ok_or_else(|| {
+        let stmt = ast.sentence().ok_or_else(|| {
             DBError::from(QueryError::InvalidQuery("AST 上下文中缺少语句".to_string()))
         })?;
-        self.validator.validate_with_ast_context(Some(query_context), ast)
+
+        // 根据语句类型创建对应的验证器
+        let mut validator = crate::query::validator::Validator::from_stmt(stmt)
+            .ok_or_else(|| {
+                DBError::from(QueryError::InvalidQuery(format!(
+                    "不支持的语句类型: {:?}",
+                    stmt
+                )))
+            })?;
+
+        validator.validate(ast)
+            .map(|_| ())
+            .map_err(|e| DBError::from(QueryError::pipeline_validation_error(e)))
     }
 
     fn generate_execution_plan(
