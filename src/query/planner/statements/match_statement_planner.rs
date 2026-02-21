@@ -20,7 +20,8 @@ use crate::core::types::graph_schema::OrderDirection;
 use crate::query::planner::planner::{Planner, PlannerError};
 use crate::query::planner::statements::statement_planner::StatementPlanner;
 use crate::query::planner::PlanIdGenerator;
-use crate::query::validator::structs::{OrderByItem, YieldColumn};
+use crate::core::YieldColumn;
+use crate::query::validator::structs::OrderByItem;
 use crate::query::validator::structs::CypherClauseKind;
 
 /// 分页信息结构体

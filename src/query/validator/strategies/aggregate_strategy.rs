@@ -1,13 +1,9 @@
 //! 聚合验证策略
 //! 负责验证聚合函数的使用和检查表达式是否包含聚合
 
-use super::super::structs::*;
-use super::super::validation_interface::{
-    ValidationContext as ValidationContextTrait, ValidationError, ValidationErrorType,
-    ValidationStrategy, ValidationStrategyType,
-};
 use crate::core::types::operators::AggregateFunction;
 use crate::core::Expression;
+use crate::query::validator::structs::{ValidationError, ValidationErrorType};
 
 /// 聚合验证策略
 pub struct AggregateValidationStrategy;
@@ -216,50 +212,9 @@ impl AggregateValidationStrategy {
     }
 }
 
-impl ValidationStrategy for AggregateValidationStrategy {
-    fn validate(&self, context: &dyn ValidationContextTrait) -> Result<(), ValidationError> {
-        // 遍历所有查询部分，验证聚合函数使用
-        for query_part in context.get_query_parts() {
-            // 验证边界子句中的聚合函数
-            if let Some(boundary) = &query_part.boundary {
-                match boundary {
-                    BoundaryClauseContext::With(with_ctx) => {
-                        // 验证WITH子句中的聚合函数
-                        if with_ctx.yield_clause.has_agg {
-                            for col in &with_ctx.yield_clause.yield_columns {
-                                self.validate_aggregate_expression(&col.expression)?;
-                            }
-                        }
-
-                        // 验证 WITH WHERE 子句不允许使用聚合
-                        // 这与SQL的WHERE语义一致：WHERE不能包含聚合函数
-                        if let Some(where_clause) = &with_ctx.where_clause {
-                            if let Some(filter_expression) = &where_clause.filter {
-                                if self.has_aggregate_expression(filter_expression) {
-                                    return Err(ValidationError::new(
-                                        "WHERE 子句中不允许使用聚合函数".to_string(),
-                                        ValidationErrorType::AggregateError,
-                                    ));
-                                }
-                            }
-                        }
-                    }
-                    BoundaryClauseContext::Unwind(unwind_ctx) => {
-                        // 验证UNWIND子句中不允许使用聚合函数
-                        self.validate_unwind_aggregate(&unwind_ctx.unwind_expression)?;
-                    }
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    fn strategy_type(&self) -> ValidationStrategyType {
-        ValidationStrategyType::Aggregate
-    }
-
-    fn strategy_name(&self) -> &'static str {
+impl AggregateValidationStrategy {
+    /// 获取策略名称
+    pub fn strategy_name(&self) -> &'static str {
         "AggregateValidationStrategy"
     }
 }
@@ -267,14 +222,12 @@ impl ValidationStrategy for AggregateValidationStrategy {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::expression::DataType;
     use crate::core::types::operators::{AggregateFunction, BinaryOperator};
     use crate::core::Expression;
 
     #[test]
     fn test_aggregate_validation_strategy_creation() {
         let strategy = AggregateValidationStrategy::new();
-        assert_eq!(strategy.strategy_type(), ValidationStrategyType::Aggregate);
         assert_eq!(strategy.strategy_name(), "AggregateValidationStrategy");
     }
 

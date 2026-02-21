@@ -448,11 +448,7 @@ impl StatementValidator for GoValidator {
         self.build_outputs(&yield_columns);
 
         // 9. 获取 space_id
-        let space_id = query_context
-            .map(|qc| qc.space_id())
-            .filter(|&id| id != 0)
-            .or_else(|| ast.space().space_id.map(|id| id as u64))
-            .unwrap_or(0);
+        let space_id = ast.space().space_id.map(|id| id as u64).unwrap_or(0);
 
         // 10. 创建验证结果
         let validated = ValidatedGo {

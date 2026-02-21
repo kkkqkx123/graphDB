@@ -1,7 +1,7 @@
 //! AST上下文中的共享结构定义
 
 use crate::core::types::EdgeDirection;
-use crate::query::validator::structs::clause_structs::YieldColumn;
+use crate::core::YieldColumn;
 use std::collections::HashMap;
 
 /// 变量信息

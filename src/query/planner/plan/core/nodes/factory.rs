@@ -18,7 +18,7 @@ use crate::core::types::EdgeDirection;
 use crate::core::types::operators::AggregateFunction;
 use crate::core::types::expression::Expression;
 use crate::query::planner::plan::PlanNodeEnum;
-use crate::query::validator::YieldColumn;
+use crate::core::YieldColumn;
 
 /// 节点工厂
 ///

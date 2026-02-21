@@ -3,7 +3,7 @@
 use crate::core::types::expression::Expression;
 use crate::core::types::EdgeDirection as CoreEdgeDirection;
 use crate::query::context::ast::{AstContext, ExpressionProps, FromType, Over, Starts, StepClause, YieldColumns};
-use crate::query::validator::structs::clause_structs::YieldColumn;
+use crate::core::YieldColumn;
 
 /// GO查询上下文
 ///

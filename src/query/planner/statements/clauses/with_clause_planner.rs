@@ -16,8 +16,9 @@ use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::{FilterNode, LimitNode, PlanNodeEnum, ProjectNode};
 use crate::query::planner::planner::PlannerError;
 use crate::query::planner::statements::statement_planner::ClausePlanner;
+use crate::core::YieldColumn;
 use crate::query::validator::structs::{
-    AliasType, CypherClauseKind, OrderByClauseContext, PaginationContext, WithClauseContext, YieldColumn,
+    AliasType, CypherClauseKind, OrderByClauseContext, PaginationContext, WithClauseContext,
 };
 use crate::query::visitor::ExtractGroupSuiteVisitor;
 use std::collections::HashMap;
@@ -235,7 +236,8 @@ impl WithClausePlanner {
     /// - 处理聚合表达式和分组键
     fn extract_with_context(ast_ctx: &AstContext) -> Result<WithClauseContext, PlannerError> {
         use crate::query::parser::ast::Stmt;
-        use crate::query::validator::structs::{YieldClauseContext, YieldColumn, OrderByClauseContext, PaginationContext};
+        use crate::core::YieldColumn;
+        use crate::query::validator::structs::{YieldClauseContext, OrderByClauseContext, PaginationContext};
 
         let sentence = ast_ctx.sentence()
             .ok_or_else(|| PlannerError::PlanGenerationFailed("AST 上下文中没有语句".to_string()))?;

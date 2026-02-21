@@ -1,7 +1,6 @@
 //! 查询执行上下文 - 管理整个查询请求的上下文
 //! 对应原C++中的QueryContext.h/cpp
 
-use crate::query::context::validate::ValidationContext;
 use crate::query::context::SymbolTable;
 use crate::core::Value;
 use crate::utils::IdGenerator;
@@ -162,9 +161,6 @@ pub struct QueryContext {
     // 请求上下文 - 使用Arc共享所有权
     rctx: Option<Arc<RequestContext>>,
 
-    // 验证上下文
-    vctx: ValidationContext,
-
     // 查询执行上下文
     ectx: QueryExecutionContext,
 
@@ -201,7 +197,6 @@ impl QueryContext {
     pub fn new() -> Self {
         Self {
             rctx: None,
-            vctx: ValidationContext::new(),
             ectx: QueryExecutionContext::new(),
             plan: None,
             schema_manager: None,
@@ -258,16 +253,6 @@ impl QueryContext {
     /// 获取请求上下文
     pub fn rctx(&self) -> Option<&RequestContext> {
         self.rctx.as_deref()
-    }
-
-    /// 获取验证上下文
-    pub fn vctx(&self) -> &ValidationContext {
-        &self.vctx
-    }
-
-    /// 获取可变验证上下文
-    pub fn vctx_mut(&mut self) -> &mut ValidationContext {
-        &mut self.vctx
     }
 
     /// 获取查询执行上下文
@@ -347,13 +332,10 @@ impl QueryContext {
 
     /// 获取当前空间的ID
     /// 
-    /// 如果已选择空间，返回空间ID；否则返回0
+    /// 注意：空间信息现在存储在 AstContext 中，此方法暂时返回0
+    /// 实际使用时请从 AstContext.space().space_id 获取
     pub fn space_id(&self) -> u64 {
-        if self.vctx.space_chosen() {
-            self.vctx.which_space().space_id.map(|id| id as u64).unwrap_or(0)
-        } else {
-            0
-        }
+        0
     }
 
     /// 标记为部分成功
@@ -447,7 +429,6 @@ impl Clone for QueryContext {
     fn clone(&self) -> Self {
         Self {
             rctx: self.rctx.clone(),
-            vctx: self.vctx.clone(),
             ectx: self.ectx.clone(),
             plan: self.plan.clone(),
             schema_manager: self.schema_manager.clone(),
@@ -466,7 +447,6 @@ impl std::fmt::Debug for QueryContext {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("QueryContext")
             .field("rctx", &self.rctx.is_some())
-            .field("vctx", &self.vctx)
             .field("ectx", &self.ectx)
             .field("plan", &self.plan.is_some())
             .field("schema_manager", &self.schema_manager.is_some())

@@ -11,7 +11,7 @@ use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
 use crate::query::planner::plan::core::nodes::project_node::ProjectNode;
 use crate::query::planner::planner::PlannerError;
 use crate::query::planner::statements::statement_planner::ClausePlanner;
-use crate::query::validator::YieldColumn;
+use crate::core::YieldColumn;
 use crate::query::validator::structs::CypherClauseKind;
 
 pub use crate::query::planner::plan::core::PlanNodeEnum;

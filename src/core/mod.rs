@@ -31,5 +31,7 @@ pub use types::graph_schema::EdgeDirection;
 
 pub use types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 
+pub use types::YieldColumn;
+
 // 其他核心类型
 pub use type_system::TypeUtils;

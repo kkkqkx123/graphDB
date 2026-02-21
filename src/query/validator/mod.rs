@@ -63,8 +63,10 @@ pub use structs::{
     WhereClauseContext,
     WithClauseContext,
     YieldClauseContext,
-    YieldColumn,
 };
+
+// 从 core 重新导出 YieldColumn
+pub use crate::core::YieldColumn;
 
 // 导出新的验证器体系（trait + 枚举）
 pub use validator_trait::{

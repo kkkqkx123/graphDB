@@ -349,17 +349,8 @@ impl StatementValidator for LookupValidator {
         // 2. 从 AST 解析 LOOKUP 语句
         let parsed_info = self.parse_from_ast(ast)?;
 
-        // 3. 获取当前空间名称
-        let space_name = query_context
-            .and_then(|qc| {
-                if qc.vctx().space_chosen() {
-                    Some(qc.vctx().which_space().space_name.clone())
-                } else {
-                    None
-                }
-            })
-            .or_else(|| Some(ast.space().space_name.clone()))
-            .unwrap_or_default();
+        // 3. 获取当前空间名称（直接从 AstContext 获取）
+        let space_name = ast.space().space_name.clone();
 
         if space_name.is_empty() {
             return Err(ValidationError::new(
@@ -382,11 +373,7 @@ impl StatementValidator for LookupValidator {
         self.validate_yields(&parsed_info.yield_columns, parsed_info.is_yield_all)?;
 
         // 6. 获取 space_id
-        let space_id = query_context
-            .map(|qc| qc.space_id())
-            .filter(|&id| id != 0)
-            .or_else(|| ast.space().space_id.map(|id| id as u64))
-            .unwrap_or(0);
+        let space_id = ast.space().space_id.map(|id| id as u64).unwrap_or(0);
 
         // 7. 创建验证结果
         let validated = ValidatedLookup {

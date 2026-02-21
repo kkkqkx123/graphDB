@@ -1,9 +1,8 @@
 //! 分页验证策略
 //! 负责验证SKIP、LIMIT和分页相关的表达式
 
-use super::super::structs::*;
-use super::super::validation_interface::*;
 use crate::core::Expression;
+use crate::query::validator::structs::{MatchStepRange, PaginationContext, ValidationError, ValidationErrorType};
 
 /// 分页验证策略
 pub struct PaginationValidationStrategy;
@@ -140,50 +139,9 @@ impl PaginationValidationStrategy {
     }
 }
 
-impl ValidationStrategy for PaginationValidationStrategy {
-    fn validate(&self, context: &dyn ValidationContext) -> Result<(), ValidationError> {
-        // 遍历所有查询部分，验证分页参数
-        for query_part in context.get_query_parts() {
-            // 验证Match子句中的分页
-            for match_ctx in &query_part.matchs {
-                if let Some(skip) = &match_ctx.skip {
-                    self.validate_pagination_expression(skip, "SKIP")?;
-                }
-                if let Some(limit) = &match_ctx.limit {
-                    self.validate_pagination_expression(limit, "LIMIT")?;
-                }
-            }
-
-            // 验证边界子句中的分页
-            if let Some(boundary) = &query_part.boundary {
-                match boundary {
-                    BoundaryClauseContext::With(with_ctx) => {
-                        if let Some(pagination) = &with_ctx.pagination {
-                            self.validate_pagination(None, None, pagination)?;
-                        }
-                        if let Some(order_by) = &with_ctx.order_by {
-                            self.validate_order_by(
-                                &[],
-                                &with_ctx.yield_clause.yield_columns,
-                                order_by,
-                            )?;
-                        }
-                    }
-                    BoundaryClauseContext::Unwind(_) => {
-                        // UNWIND子句没有分页
-                    }
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    fn strategy_type(&self) -> ValidationStrategyType {
-        ValidationStrategyType::Pagination
-    }
-
-    fn strategy_name(&self) -> &'static str {
+impl PaginationValidationStrategy {
+    /// 获取策略名称
+    pub fn strategy_name(&self) -> &'static str {
         "PaginationValidationStrategy"
     }
 }
@@ -196,7 +154,6 @@ mod tests {
     #[test]
     fn test_pagination_validation_strategy_creation() {
         let strategy = PaginationValidationStrategy::new();
-        assert_eq!(strategy.strategy_type(), ValidationStrategyType::Pagination);
         assert_eq!(strategy.strategy_name(), "PaginationValidationStrategy");
     }
 

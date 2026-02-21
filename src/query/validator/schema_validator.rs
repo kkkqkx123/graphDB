@@ -281,6 +281,75 @@ impl SchemaValidator {
         Ok(())
     }
 
+    /// 统一验证 VID 表达式
+    /// 根据 Space 的 vid_type 验证表达式，确保类型匹配
+    /// 
+    /// 参数:
+    /// - expr: VID 表达式
+    /// - vid_type: Space 定义的 VID 类型
+    /// - role: VID 角色描述（如 "source", "destination", "vertex"）
+    /// 
+    /// 返回:
+    /// - Ok(()) 验证通过
+    /// - Err(ValidationError) 验证失败
+    pub fn validate_vid_expr(
+        &self,
+        expr: &crate::core::Expression,
+        vid_type: &DataType,
+        role: &str,
+    ) -> Result<(), CoreValidationError> {
+        use crate::core::Expression;
+        
+        match expr {
+            Expression::Literal(value) => {
+                // 字面量需要检查空值和类型匹配
+                match value {
+                    Value::String(s) => {
+                        if s.is_empty() {
+                            return Err(CoreValidationError::new(
+                                format!("{} vertex ID 不能为空字符串", role),
+                                ValidationErrorType::SemanticError,
+                            ));
+                        }
+                        // 检查类型是否匹配
+                        if !matches!(vid_type, DataType::String | DataType::FixedString(_) | DataType::VID) {
+                            return Err(CoreValidationError::new(
+                                format!("{} vertex ID 期望 {:?} 类型, 实际为字符串", role, vid_type),
+                                ValidationErrorType::TypeMismatch,
+                            ));
+                        }
+                    }
+                    Value::Int(_) => {
+                        // 检查类型是否匹配
+                        if !matches!(vid_type, DataType::Int | DataType::Int64 | DataType::Int32 | DataType::VID) {
+                            return Err(CoreValidationError::new(
+                                format!("{} vertex ID 期望 {:?} 类型, 实际为整数", role, vid_type),
+                                ValidationErrorType::TypeMismatch,
+                            ));
+                        }
+                    }
+                    _ => {
+                        return Err(CoreValidationError::new(
+                            format!("{} vertex ID 必须是字符串或整数常量", role),
+                            ValidationErrorType::TypeMismatch,
+                        ));
+                    }
+                }
+                Ok(())
+            }
+            Expression::Variable(_) => {
+                // 变量在验证阶段无法确定具体值，假设有效
+                Ok(())
+            }
+            _ => {
+                Err(CoreValidationError::new(
+                    format!("{} vertex ID 必须是常量或变量", role),
+                    ValidationErrorType::SemanticError,
+                ))
+            }
+        }
+    }
+
     /// 验证属性值列表
     /// 验证所有属性存在、类型匹配、非空约束
     pub fn validate_properties(

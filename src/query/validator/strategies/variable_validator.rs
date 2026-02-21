@@ -2,9 +2,7 @@
 //! 负责验证变量的作用域、命名格式和使用
 
 use crate::core::Expression;
-use crate::query::validator::structs::*;
-use crate::query::validator::{ValidationError, ValidationErrorType};
-use crate::query::validator::validation_interface::ValidationContext;
+use crate::query::validator::structs::{AliasType, ValidationError, ValidationErrorType};
 use std::collections::HashMap;
 
 /// 变量验证器
@@ -16,10 +14,9 @@ impl VariableValidator {
     }
 
     /// 验证变量作用域
-    pub fn validate_variable_scope<C: ValidationContext>(
+    pub fn validate_variable_scope(
         &self,
         expression: &Expression,
-        context: &C,
         available_aliases: &HashMap<String, AliasType>,
     ) -> Result<(), ValidationError> {
         // 提取表达式中使用的变量
@@ -27,7 +24,7 @@ impl VariableValidator {
         
         // 验证每个变量的作用域
         for var in &variables {
-            self.validate_variable_usage(var, context, available_aliases)?;
+            self.validate_variable_usage(var, available_aliases)?;
         }
         
         Ok(())
@@ -76,10 +73,9 @@ impl VariableValidator {
     }
 
     /// 验证变量使用
-    fn validate_variable_usage<C: ValidationContext>(
+    fn validate_variable_usage(
         &self,
         var: &str,
-        _context: &C,
         available_aliases: &HashMap<String, AliasType>,
     ) -> Result<(), ValidationError> {
         // 首先验证变量名格式
@@ -217,12 +213,12 @@ impl VariableValidator {
     }
 
     /// 验证表达式中的变量
-    pub fn validate_expression_variables<C: ValidationContext>(
+    pub fn validate_expression_variables(
         &self,
         expression: &Expression,
-        context: &C,
+        available_aliases: &HashMap<String, AliasType>,
     ) -> Result<(), ValidationError> {
-        self.validate_variable_scope(expression, context, context.get_aliases())
+        self.validate_variable_scope(expression, available_aliases)
     }
 
     /// 检查是否为算术表达式

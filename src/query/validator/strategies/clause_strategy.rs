@@ -2,9 +2,8 @@
 //! 负责验证不同查询子句（MATCH、RETURN、WITH、UNWIND等）
 //! 合并原expression_validator和clause_validator的功能
 
-use super::super::structs::*;
-use super::super::validation_interface::*;
 use crate::core::Expression;
+use crate::query::validator::structs::{ReturnClauseContext, ValidationError, ValidationErrorType};
 
 /// 子句验证策略
 pub struct ClauseValidationStrategy;
@@ -248,36 +247,9 @@ impl ClauseValidationStrategy {
     }
 }
 
-impl ValidationStrategy for ClauseValidationStrategy {
-    fn validate(&self, context: &dyn ValidationContext) -> Result<(), ValidationError> {
-        // 遍历所有查询部分，验证子句
-        for query_part in context.get_query_parts() {
-            // 验证Match子句
-            for match_ctx in &query_part.matchs {
-                self.validate_match_clause_context(match_ctx)?;
-            }
-
-            // 验证边界子句
-            if let Some(boundary) = &query_part.boundary {
-                match boundary {
-                    BoundaryClauseContext::With(with_ctx) => {
-                        self.validate_yield_clause(&with_ctx.yield_clause)?;
-                    }
-                    BoundaryClauseContext::Unwind(_unwind_ctx) => {
-                        // UNWIND子句的验证在表达式策略中处理
-                    }
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    fn strategy_type(&self) -> ValidationStrategyType {
-        ValidationStrategyType::Clause
-    }
-
-    fn strategy_name(&self) -> &'static str {
+impl ClauseValidationStrategy {
+    /// 获取策略名称
+    pub fn strategy_name(&self) -> &'static str {
         "ClauseValidationStrategy"
     }
 }
@@ -286,12 +258,12 @@ impl ValidationStrategy for ClauseValidationStrategy {
 mod tests {
     use super::*;
     use crate::core::Expression;
+    use crate::query::validator::structs::{YieldClauseContext, YieldColumn};
     use std::collections::HashMap;
 
     #[test]
     fn test_clause_validation_strategy_creation() {
         let strategy = ClauseValidationStrategy::new();
-        assert_eq!(strategy.strategy_type(), ValidationStrategyType::Clause);
         assert_eq!(strategy.strategy_name(), "ClauseValidationStrategy");
     }
 

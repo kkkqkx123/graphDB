@@ -14,7 +14,7 @@
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::query::context::ast::AstContext;
 use crate::query::context::execution::QueryContext;
-use crate::query::validator::structs::YieldColumn;
+use crate::core::YieldColumn;
 use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
     ExpressionProps,

@@ -86,8 +86,28 @@ impl InsertEdgesValidator {
     }
 
     /// 验证顶点ID格式
+    /// 使用 SchemaValidator 的统一验证方法
     fn validate_vertex_id_format(
         &self,
+        expr: &Expression,
+        role: &str,
+    ) -> Result<(), ValidationError> {
+        // 使用 SchemaValidator 进行统一验证
+        // INSERT EDGES 默认使用 String 类型的 VID
+        let vid_type = crate::core::types::DataType::String;
+        
+        if let Some(ref schema_manager) = self.schema_manager {
+            let schema_validator = crate::query::validator::SchemaValidator::new(schema_manager.clone());
+            schema_validator.validate_vid_expr(expr, &vid_type, role)
+                .map_err(|e| ValidationError::new(e.message, e.error_type))
+        } else {
+            // 没有 schema_manager 时进行基本验证
+            Self::basic_validate_vertex_id_format(expr, role)
+        }
+    }
+    
+    /// 基本顶点 ID 验证（无 SchemaManager 时）
+    fn basic_validate_vertex_id_format(
         expr: &Expression,
         role: &str,
     ) -> Result<(), ValidationError> {
@@ -102,11 +122,6 @@ impl InsertEdgesValidator {
                 Ok(())
             }
             Expression::Variable(_var_name) => {
-                // 变量引用是允许的
-                Ok(())
-            }
-            Expression::Literal(Value::Int(_)) => {
-                // 整数ID也是允许的
                 Ok(())
             }
             _ => {
@@ -311,11 +326,7 @@ impl StatementValidator for InsertEdgesValidator {
         }
 
         // 7. 获取 space_id
-        let space_id = query_context
-            .map(|qc| qc.space_id())
-            .filter(|&id| id != 0)
-            .or_else(|| ast.space().space_id.map(|id| id as u64))
-            .unwrap_or(0);
+        let space_id = ast.space().space_id.map(|id| id as u64).unwrap_or(0);
 
         // 8. 创建验证结果
         let validated = ValidatedInsertEdges {

@@ -206,11 +206,7 @@ impl StatementValidator for GetSubgraphValidator {
         self.validate_yield_clause(&get_subgraph_stmt.yield_clause)?;
 
         // 5. 获取 space_id
-        let space_id = query_context
-            .map(|qc| qc.space_id())
-            .filter(|&id| id != 0)
-            .or_else(|| ast.space().space_id.map(|id| id as u64))
-            .unwrap_or(0);
+        let space_id = ast.space().space_id.map(|id| id as u64).unwrap_or(0);
 
         // 6. 创建验证结果
         let validated = ValidatedGetSubgraph {

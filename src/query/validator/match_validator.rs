@@ -1,9 +1,10 @@
 //! Match语句验证器（新体系）
 //! 使用trait+枚举架构，替代原有的策略模式
 
+use crate::core::YieldColumn;
 use super::structs::{
     AliasType, MatchStepRange, PaginationContext, Path, QueryPart, ReturnClauseContext,
-    UnwindClauseContext, WhereClauseContext, WithClauseContext, YieldClauseContext, YieldColumn,
+    UnwindClauseContext, WhereClauseContext, WithClauseContext, YieldClauseContext,
 };
 use super::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult,
@@ -715,11 +716,7 @@ impl StatementValidator for MatchValidator {
         }
 
         // 4. 获取 space_id
-        let space_id = query_context
-            .map(|qc| qc.space_id())
-            .filter(|&id| id != 0)
-            .or_else(|| ast.space().space_id.map(|id| id as u64))
-            .unwrap_or(0);
+        let space_id = ast.space().space_id.map(|id| id as u64).unwrap_or(0);
 
         // 5. 创建验证结果
         let validated = ValidatedMatch {

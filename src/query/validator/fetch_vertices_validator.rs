@@ -125,7 +125,26 @@ impl FetchVerticesValidator {
     }
 
     /// 验证单个顶点 ID
+    /// 使用 SchemaValidator 的统一验证方法
     fn validate_vertex_id(&self, expr: &Expression) -> Result<(), ValidationError> {
+        // 使用 SchemaValidator 进行统一验证
+        // 默认使用 String 类型，因为 FETCH VERTICES 通常使用字符串 VID
+        let vid_type = crate::core::types::DataType::String;
+        
+        if let Some(ref schema_manager) = self.schema_manager {
+            let schema_validator = crate::query::validator::SchemaValidator::new(schema_manager.clone());
+            schema_validator.validate_vid_expr(expr, &vid_type, "vertex")
+                .map_err(|e| ValidationError::new(e.message, e.error_type))?
+        } else {
+            // 没有 schema_manager 时进行基本验证
+            Self::basic_validate_vertex_id(expr)?;
+        }
+        
+        Ok(())
+    }
+    
+    /// 基本顶点 ID 验证（无 SchemaManager 时）
+    fn basic_validate_vertex_id(expr: &Expression) -> Result<(), ValidationError> {
         match expr {
             Expression::Literal(value) => {
                 if value.is_null() || value.is_empty() {
@@ -133,6 +152,14 @@ impl FetchVerticesValidator {
                         "顶点 ID 不能为空".to_string(),
                         ValidationErrorType::SemanticError,
                     ));
+                }
+                if let Value::String(s) = value {
+                    if s.is_empty() {
+                        return Err(ValidationError::new(
+                            "顶点 ID 不能为空".to_string(),
+                            ValidationErrorType::SemanticError,
+                        ));
+                    }
                 }
                 Ok(())
             }
@@ -212,11 +239,7 @@ impl StatementValidator for FetchVerticesValidator {
         self.validate_fetch_vertices(fetch_stmt)?;
 
         // 4. 获取 space_id
-        let space_id = query_context
-            .map(|qc| qc.space_id())
-            .filter(|&id| id != 0)
-            .or_else(|| ast.space().space_id.map(|id| id as u64))
-            .unwrap_or(0);
+        let space_id = ast.space().space_id.map(|id| id as u64).unwrap_or(0);
 
         // 5. 提取顶点信息
         let (vertex_ids, properties) = match &fetch_stmt.target {

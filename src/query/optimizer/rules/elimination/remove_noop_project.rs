@@ -2,7 +2,7 @@
 
 use crate::query::optimizer::plan::{OptContext, OptGroupNode};
 use crate::query::optimizer::rule_patterns::PatternBuilder;
-use crate::query::validator::YieldColumn;
+use crate::core::YieldColumn;
 use crate::query::visitor::PlanNodeVisitor;
 
 crate::define_elimination_rule! {

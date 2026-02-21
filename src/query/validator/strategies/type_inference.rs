@@ -8,10 +8,7 @@ use crate::core::BinaryOperator;
 use crate::core::UnaryOperator;
 use crate::core::Value;
 use crate::core::TypeUtils;
-use crate::query::validator::base_validator::ValueType;
-use crate::query::validator::structs::*;
-use crate::query::validator::{ValidationError, ValidationErrorType};
-use crate::query::validator::validation_interface::ValidationContext;
+use crate::query::validator::structs::{AliasType, ValidationError, ValidationErrorType};
 use std::collections::HashMap;
 
 /// 表达式验证上下文Trait
@@ -19,16 +16,6 @@ use std::collections::HashMap;
 pub trait ExpressionValidationContext {
     fn get_aliases(&self) -> &HashMap<String, AliasType>;
     fn get_variable_types(&self) -> Option<&HashMap<String, DataType>>;
-}
-
-impl<T: ValidationContext> ExpressionValidationContext for T {
-    fn get_aliases(&self) -> &HashMap<String, AliasType> {
-        self.get_aliases()
-    }
-
-    fn get_variable_types(&self) -> Option<&HashMap<String, DataType>> {
-        None
-    }
 }
 
 /// 表达式类型验证器

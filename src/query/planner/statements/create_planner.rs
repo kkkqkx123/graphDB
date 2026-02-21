@@ -14,7 +14,7 @@ use crate::query::planner::plan::core::{
 };
 use crate::query::planner::plan::{PlanNodeEnum, SubPlan};
 use crate::query::planner::planner::{Planner, PlannerError};
-use crate::query::validator::YieldColumn;
+use crate::core::YieldColumn;
 use crate::core::{Expression, Value};
 
 /// CREATE 数据语句规划器

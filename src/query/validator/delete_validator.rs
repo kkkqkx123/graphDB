@@ -184,7 +184,22 @@ impl DeleteValidator {
     }
 
     /// 验证顶点 ID
+    /// 使用 SchemaValidator 的统一验证方法
     fn validate_vertex_id(&self, expr: &Expression, idx: usize) -> Result<(), ValidationError> {
+        let role = &format!("vertex {}", idx);
+        
+        if let Some(ref schema_manager) = self.schema_manager {
+            let schema_validator = crate::query::validator::SchemaValidator::new(schema_manager.clone());
+            let vid_type = crate::core::types::DataType::String;
+            schema_validator.validate_vid_expr(expr, &vid_type, role)
+                .map_err(|e| ValidationError::new(e.message, e.error_type))
+        } else {
+            Self::basic_validate_vertex_id(expr, idx)
+        }
+    }
+    
+    /// 基本顶点 ID 验证（无 SchemaManager 时）
+    fn basic_validate_vertex_id(expr: &Expression, idx: usize) -> Result<(), ValidationError> {
         match expr {
             Expression::Literal(Value::String(s)) => {
                 if s.is_empty() {
@@ -423,11 +438,7 @@ impl StatementValidator for DeleteValidator {
         self.validate_delete(delete_stmt)?;
 
         // 4. 获取 space_id
-        let space_id = query_context
-            .map(|qc| qc.space_id())
-            .filter(|&id| id != 0)
-            .or_else(|| ast.space().space_id.map(|id| id as u64))
-            .unwrap_or(0);
+        let space_id = ast.space().space_id.map(|id| id as u64).unwrap_or(0);
 
         // 5. 验证并转换目标
         let target_type = self.validate_and_convert_target(&delete_stmt.target, space_id)?;

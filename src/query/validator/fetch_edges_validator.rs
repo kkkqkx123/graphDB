@@ -272,11 +272,7 @@ impl StatementValidator for FetchEdgesValidator {
         self.validate_fetch_edges(fetch_stmt)?;
 
         // 4. 获取 space_id
-        let space_id = query_context
-            .map(|qc| qc.space_id())
-            .filter(|&id| id != 0)
-            .or_else(|| ast.space().space_id.map(|id| id as u64))
-            .unwrap_or(0);
+        let space_id = ast.space().space_id.map(|id| id as u64).unwrap_or(0);
 
         // 5. 提取边信息并验证
         let (edge_type_name, src, dst, rank, properties) = match &fetch_stmt.target {

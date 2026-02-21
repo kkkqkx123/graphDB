@@ -1,9 +1,8 @@
 //! 别名验证策略
 //! 负责验证表达式中的别名引用和可用性
 
-use super::super::structs::*;
-use super::super::validation_interface::*;
 use crate::core::Expression;
+use crate::query::validator::structs::{AliasType, ValidationError, ValidationErrorType};
 use std::collections::HashMap;
 
 /// 别名验证策略
@@ -198,38 +197,9 @@ impl AliasValidationStrategy {
     }
 }
 
-impl ValidationStrategy for AliasValidationStrategy {
-    fn validate(&self, context: &dyn ValidationContext) -> Result<(), ValidationError> {
-        // 遍历所有查询部分，验证别名使用
-        for query_part in context.get_query_parts() {
-            // 验证Match子句中的别名
-            for match_ctx in &query_part.matchs {
-                if let Some(where_clause) = &match_ctx.where_clause {
-                    self.validate_aliases(&[], &where_clause.aliases_available)?;
-                }
-            }
-
-            // 验证边界子句中的别名
-            if let Some(boundary) = &query_part.boundary {
-                match boundary {
-                    BoundaryClauseContext::With(with_ctx) => {
-                        self.validate_aliases(&[], &with_ctx.aliases_available)?;
-                    }
-                    BoundaryClauseContext::Unwind(unwind_ctx) => {
-                        self.validate_aliases(&[], &unwind_ctx.aliases_available)?;
-                    }
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    fn strategy_type(&self) -> ValidationStrategyType {
-        ValidationStrategyType::Alias
-    }
-
-    fn strategy_name(&self) -> &'static str {
+impl AliasValidationStrategy {
+    /// 获取策略名称
+    pub fn strategy_name(&self) -> &'static str {
         "AliasValidationStrategy"
     }
 }
@@ -242,7 +212,6 @@ mod tests {
     #[test]
     fn test_alias_validation_strategy_creation() {
         let strategy = AliasValidationStrategy::new();
-        assert_eq!(strategy.strategy_type(), ValidationStrategyType::Alias);
         assert_eq!(strategy.strategy_name(), "AliasValidationStrategy");
     }
 

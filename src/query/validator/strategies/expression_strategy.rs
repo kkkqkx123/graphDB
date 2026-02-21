@@ -1,12 +1,10 @@
 use crate::core::types::expression::Expression;
 use crate::core::DataType;
-use crate::query::validator::{
-    ValidationStrategy, ValidationError, ValidationErrorType,
-    ValidationStrategyType, WhereClauseContext, MatchClauseContext, ReturnClauseContext,
-    WithClauseContext, UnwindClauseContext, YieldClauseContext, BoundaryClauseContext,
-    YieldColumn
+use crate::query::validator::structs::{
+    ValidationError, ValidationErrorType, WhereClauseContext, MatchClauseContext, 
+    ReturnClauseContext, WithClauseContext, UnwindClauseContext, YieldClauseContext, 
+    BoundaryClauseContext, YieldColumn
 };
-use crate::query::validator::validation_interface::ValidationContext;
 
 /// 表达式验证策略
 pub struct ExpressionValidationStrategy;
@@ -202,44 +200,9 @@ impl ExpressionValidationStrategy {
     }
 }
 
-impl ValidationStrategy for ExpressionValidationStrategy {
-    fn validate(&self, context: &dyn ValidationContext) -> Result<(), ValidationError> {
-        // 遍历所有查询部分，验证表达式
-        for query_part in context.get_query_parts() {
-            // 验证Match子句中的表达式
-            for match_ctx in &query_part.matchs {
-                if let Some(where_clause) = &match_ctx.where_clause {
-                    if let Some(filter) = &where_clause.filter {
-                        self.validate_filter(filter, where_clause)?;
-                    }
-                }
-            }
-
-            // 验证边界子句中的表达式
-            if let Some(boundary) = &query_part.boundary {
-                match boundary {
-                    BoundaryClauseContext::With(with_ctx) => {
-                        if let Some(where_clause) = &with_ctx.where_clause {
-                            if let Some(filter) = &where_clause.filter {
-                                self.validate_filter(filter, where_clause)?;
-                            }
-                        }
-                    }
-                    BoundaryClauseContext::Unwind(unwind_ctx) => {
-                        self.validate_unwind(&unwind_ctx.unwind_expression, unwind_ctx)?;
-                    }
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    fn strategy_type(&self) -> ValidationStrategyType {
-        ValidationStrategyType::Expression
-    }
-
-    fn strategy_name(&self) -> &'static str {
+impl ExpressionValidationStrategy {
+    /// 获取策略名称
+    pub fn strategy_name(&self) -> &'static str {
         "ExpressionValidationStrategy"
     }
 }

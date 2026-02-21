@@ -2,7 +2,7 @@
 
 use crate::core::types::expression::Expression;
 use crate::query::context::ast::{AstContext, ExpressionProps, FromType, Over, Starts, StepClause, YieldColumns};
-use crate::query::validator::structs::clause_structs::YieldColumn;
+use crate::core::YieldColumn;
 
 /// Fetch Vertices查询上下文
 ///

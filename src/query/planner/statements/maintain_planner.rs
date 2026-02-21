@@ -59,7 +59,7 @@ impl Planner for MaintainPlanner {
 
         // 2. 根据不同类型创建相应的计划节点
         use crate::core::Expression;
-        use crate::query::validator::YieldColumn;
+        use crate::core::YieldColumn;
         let yield_columns = vec![YieldColumn {
             expression: Expression::Variable(format!("MAINTAIN_{}", stmt_type)),
             alias: "maintain_result".to_string(),

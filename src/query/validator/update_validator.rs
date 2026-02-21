@@ -316,7 +316,22 @@ impl UpdateValidator {
         }
     }
 
+    /// 验证顶点 ID
+    /// 优先使用 SchemaValidator 的统一验证方法
     fn validate_vertex_id(&self, expr: &Expression, role: &str) -> Result<(), CoreValidationError> {
+        // 如果有 schema_validator，使用统一的验证方法
+        if let Some(ref schema_validator) = self.schema_validator {
+            // 获取 space 的 vid_type，默认为 String
+            let vid_type = crate::core::types::DataType::String;
+            return schema_validator.validate_vid_expr(expr, &vid_type, role);
+        }
+        
+        // 没有 schema_validator 时进行基本验证
+        Self::basic_validate_vertex_id(expr, role)
+    }
+    
+    /// 基本顶点 ID 验证（无 SchemaValidator 时）
+    fn basic_validate_vertex_id(expr: &Expression, role: &str) -> Result<(), CoreValidationError> {
         match expr {
             Expression::Literal(crate::core::Value::String(s)) => {
                 if s.is_empty() {

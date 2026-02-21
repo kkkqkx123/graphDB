@@ -54,3 +54,33 @@ pub use self::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 pub use self::span::{Position, Span, ToSpan};
 
 pub use EdgeTypeInfo as EdgeTypeSchema;
+
+/// YIELD列定义
+/// 
+/// 表示YIELD子句中的一个输出列
+#[derive(Debug, Clone)]
+pub struct YieldColumn {
+    pub expression: Expression,
+    pub alias: String,
+    pub is_matched: bool,
+}
+
+impl YieldColumn {
+    pub fn new(expression: Expression, alias: String) -> Self {
+        Self {
+            expression,
+            alias,
+            is_matched: false,
+        }
+    }
+
+    pub fn with_matched(mut self, is_matched: bool) -> Self {
+        self.is_matched = is_matched;
+        self
+    }
+
+    /// 获取列名（别名）
+    pub fn name(&self) -> &str {
+        &self.alias
+    }
+}

@@ -3,6 +3,7 @@
 use super::alias_structs::AliasType;
 use super::path_structs::Path;
 use crate::core::Expression;
+use crate::core::YieldColumn;
 use crate::core::error::ValidationError;
 use crate::core::types::OrderDirection;
 use crate::query::validator::QueryPart;
@@ -112,26 +113,4 @@ pub struct OrderByClauseContext {
 pub struct OrderByItem {
     pub expression: Expression,
     pub desc: bool,
-}
-
-/// 输出列
-#[derive(Debug, Clone)]
-pub struct YieldColumn {
-    pub expression: Expression,
-    pub alias: String,
-    pub is_matched: bool, // 是否已匹配
-}
-
-impl YieldColumn {
-    pub fn new(expression: Expression, alias: String) -> Self {
-        YieldColumn {
-            expression,
-            alias,
-            is_matched: false,
-        }
-    }
-
-    pub fn name(&self) -> &str {
-        &self.alias
-    }
 }

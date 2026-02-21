@@ -3,7 +3,7 @@
 //! ProjectNode 用于根据指定的列表达式投影输入数据流
 
 use crate::define_plan_node_with_deps;
-use crate::query::validator::YieldColumn;
+use crate::core::YieldColumn;
 
 define_plan_node_with_deps! {
     pub struct ProjectNode {
