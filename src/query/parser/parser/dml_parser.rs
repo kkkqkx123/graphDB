@@ -28,18 +28,45 @@ impl DmlParser {
         self.parse_update_after_token(ctx, start_span)
     }
 
+    /// 解析 UPSERT 语句（完整的，包括 UPSERT token）
+    pub fn parse_upsert_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
+        let start_span = ctx.current_span();
+        ctx.expect_token(TokenKind::Upsert)?;
+        ctx.set_upsert_mode(true);
+        let result = self.parse_update_after_token(ctx, start_span);
+        ctx.set_upsert_mode(false);
+        result
+    }
+
     /// 在 UPDATE token 已被消费后解析 UPDATE 语句
     pub fn parse_update_after_token(&mut self, ctx: &mut ParseContext, start_span: crate::query::parser::ast::types::Span) -> Result<Stmt, ParseError> {
         use crate::query::parser::ast::stmt::{UpdateStmt, UpdateTarget, SetClause};
         use crate::query::parser::parser::clause_parser::ClauseParser;
 
+        // 检查是否是 UPSERT 语法
+        let is_upsert = ctx.is_upsert_mode();
+        
         let target = if ctx.match_token(TokenKind::Vertex) {
             self.parse_update_vertex(ctx)?
         } else if ctx.match_token(TokenKind::Edge) {
             self.parse_update_edge(ctx)?
         } else {
-            // 默认是顶点更新
-            UpdateTarget::Vertex(self.parse_expression(ctx)?)
+            // 检查是否是 UPSERT VERTEX vid ON tag_name 语法
+            if is_upsert {
+                let vid = self.parse_expression(ctx)?;
+                if ctx.match_token(TokenKind::On) {
+                    let tag_name = ctx.expect_identifier()?;
+                    UpdateTarget::TagOnVertex {
+                        vid: Box::new(vid),
+                        tag_name,
+                    }
+                } else {
+                    UpdateTarget::Vertex(vid)
+                }
+            } else {
+                // 默认是顶点更新
+                UpdateTarget::Vertex(self.parse_expression(ctx)?)
+            }
         };
 
         let set_clause = if ctx.match_token(TokenKind::Set) {
@@ -65,7 +92,7 @@ impl DmlParser {
             target,
             set_clause,
             where_clause,
-            is_upsert: false,
+            is_upsert,
             yield_clause: None,
         }))
     }
@@ -76,31 +103,60 @@ impl DmlParser {
     }
 
     fn parse_update_edge(&mut self, ctx: &mut ParseContext) -> Result<UpdateTarget, ParseError> {
-        ctx.expect_token(TokenKind::Of)?;
+        // 检查是否是 UPSERT EDGE 语法：src -> dst @rank OF edge_type
+        // 还是 UPDATE EDGE 语法：OF edge_type FROM src TO dst [@rank]
+        let is_upsert = ctx.is_upsert_mode();
+        
+        if is_upsert {
+            // UPSERT EDGE 语法：src -> dst [@rank] OF edge_type
+            // 注意：EDGE token 已经在 parse_update_after_token 中被消费了
+            let src = self.parse_expression(ctx)?;
+            ctx.expect_token(TokenKind::Arrow)?;
+            let dst = self.parse_expression(ctx)?;
 
-        // 解析边类型
-        let edge_type = ctx.expect_identifier()?;
+            let rank = if ctx.match_token(TokenKind::At) {
+                Some(self.parse_expression(ctx)?)
+            } else {
+                None
+            };
 
-        // 解析 src 和 dst
-        ctx.expect_token(TokenKind::From)?;
-        let src = self.parse_expression(ctx)?;
+            ctx.expect_token(TokenKind::Of)?;
+            let edge_type = Some(ctx.expect_identifier()?);
 
-        ctx.expect_token(TokenKind::To)?;
-        let dst = self.parse_expression(ctx)?;
-
-        // 解析 @rank（可选）
-        let rank = if ctx.match_token(TokenKind::At) {
-            Some(self.parse_expression(ctx)?)
+            Ok(UpdateTarget::Edge {
+                edge_type,
+                src,
+                dst,
+                rank,
+            })
         } else {
-            None
-        };
+            // UPDATE EDGE 语法：OF edge_type FROM src TO dst [@rank]
+            ctx.expect_token(TokenKind::Of)?;
 
-        Ok(UpdateTarget::Edge {
-            edge_type: Some(edge_type),
-            src,
-            dst,
-            rank,
-        })
+            // 解析边类型
+            let edge_type = ctx.expect_identifier()?;
+
+            // 解析 src 和 dst
+            ctx.expect_token(TokenKind::From)?;
+            let src = self.parse_expression(ctx)?;
+
+            ctx.expect_token(TokenKind::To)?;
+            let dst = self.parse_expression(ctx)?;
+
+            // 解析 @rank（可选）
+            let rank = if ctx.match_token(TokenKind::At) {
+                Some(self.parse_expression(ctx)?)
+            } else {
+                None
+            };
+
+            Ok(UpdateTarget::Edge {
+                edge_type: Some(edge_type),
+                src,
+                dst,
+                rank,
+            })
+        }
     }
 
     /// 解析 DELETE 语句
@@ -110,7 +166,7 @@ impl DmlParser {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::Delete)?;
 
-        // 检查是否有 VERTEX 或 EDGE 关键字
+        // 检查是否有 VERTEX、EDGE 或 TAG 关键字
         let target = if ctx.match_token(TokenKind::Vertex) {
             // DELETE VERTEX vid [, vid ...]
             let mut vids = vec![];
@@ -147,6 +203,43 @@ impl DmlParser {
             DeleteTarget::Edges {
                 edge_type,
                 edges,
+            }
+        } else if ctx.match_token(TokenKind::Tag) {
+            // DELETE TAG tag_name [, tag_name ...] FROM vid [, vid ...]
+            let mut tags = vec![];
+            
+            // 检查是否是通配符 *
+            if ctx.match_token(TokenKind::Star) {
+                tags.push("*".to_string());
+            } else {
+                // 解析标签列表
+                loop {
+                    let tag_name = ctx.expect_identifier()?;
+                    tags.push(tag_name);
+                    if !ctx.match_token(TokenKind::Comma) {
+                        break;
+                    }
+                }
+            }
+            
+            // 期望 FROM 关键字
+            ctx.expect_token(TokenKind::From)?;
+            
+            // 解析顶点 ID 列表
+            let mut vids = vec![];
+            loop {
+                vids.push(self.parse_expression(ctx)?);
+                if !ctx.match_token(TokenKind::Comma) {
+                    break;
+                }
+            }
+            
+            let is_all_tags = tags.iter().any(|t| t == "*");
+            
+            DeleteTarget::Tags { 
+                tag_names: tags, 
+                vertex_ids: vids,
+                is_all_tags,
             }
         } else {
             // 默认解析为顶点删除
@@ -205,9 +298,13 @@ impl DmlParser {
             if_not_exists = true;
         }
 
-        // 解析 TAG 列表（可选）
+        // 解析 TAG 列表
+        // 支持两种语法：
+        // 1. ON tag1, tag2（可选）
+        // 2. tag_name(prop1, prop2), tag2_name(prop3, prop4)（NebulaGraph 标准语法）
         let mut tags = vec![];
         if ctx.match_token(TokenKind::On) {
+            // 语法：ON tag1, tag2
             loop {
                 let tag_name = ctx.expect_identifier()?;
                 tags.push(TagInsertSpec {
@@ -217,6 +314,37 @@ impl DmlParser {
                 });
                 if !ctx.match_token(TokenKind::Comma) {
                     break;
+                }
+            }
+        } else {
+            // 检查是否是 NebulaGraph 标准语法：tag_name(prop1, prop2), tag2_name(prop3, prop4)
+            if ctx.is_identifier_token() {
+                loop {
+                    let tag_name = ctx.expect_identifier()?;
+                    let mut prop_names = vec![];
+                    
+                    // 检查是否有属性名列表
+                    if ctx.match_token(TokenKind::LParen) {
+                        loop {
+                            let prop_name = ctx.expect_identifier()?;
+                            prop_names.push(prop_name);
+                            if !ctx.match_token(TokenKind::Comma) {
+                                break;
+                            }
+                        }
+                        ctx.expect_token(TokenKind::RParen)?;
+                    }
+                    
+                    tags.push(TagInsertSpec {
+                        tag_name,
+                        prop_names,
+                        is_default_props: false,
+                    });
+                    
+                    // 检查是否有更多标签
+                    if !ctx.match_token(TokenKind::Comma) {
+                        break;
+                    }
                 }
             }
         }
@@ -232,7 +360,7 @@ impl DmlParser {
             // 解析 vid
             let vid = self.parse_expression(ctx)?;
 
-            // 解析属性列表（可选）
+            // 解析属性列表
             let tag_values = if ctx.match_token(TokenKind::Colon) {
                 ctx.expect_token(TokenKind::LParen)?;
                 let mut props = vec![];

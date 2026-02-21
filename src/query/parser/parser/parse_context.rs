@@ -11,6 +11,7 @@ pub struct ParseContext<'a> {
     current_token: Token,
     errors: ParseErrors,
     compat_mode: bool,
+    upsert_mode: bool,
     recursion_depth: usize,
     max_recursion_depth: usize,
 }
@@ -25,6 +26,7 @@ impl<'a> ParseContext<'a> {
             current_token,
             errors: ParseErrors::new(),
             compat_mode: false,
+            upsert_mode: false,
             recursion_depth: 0,
             max_recursion_depth: 100,
         }
@@ -39,6 +41,7 @@ impl<'a> ParseContext<'a> {
             current_token,
             errors: ParseErrors::new(),
             compat_mode: false,
+            upsert_mode: false,
             recursion_depth: 0,
             max_recursion_depth: 100,
         }
@@ -54,6 +57,14 @@ impl<'a> ParseContext<'a> {
 
     pub fn set_compat_mode(&mut self, enabled: bool) {
         self.compat_mode = enabled;
+    }
+
+    pub fn set_upsert_mode(&mut self, enabled: bool) {
+        self.upsert_mode = enabled;
+    }
+
+    pub fn is_upsert_mode(&self) -> bool {
+        self.upsert_mode
     }
 
     pub fn enter_recursion(&mut self) -> Result<(), ParseError> {
@@ -256,5 +267,9 @@ impl<'a> ParseContext<'a> {
             self.current_token.kind,
             TokenKind::Identifier(_) | TokenKind::In
         )
+    }
+
+    pub fn is_identifier_token(&self) -> bool {
+        matches!(self.current_token.kind, TokenKind::Identifier(_))
     }
 }

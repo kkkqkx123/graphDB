@@ -44,7 +44,7 @@ impl StmtParser {
             TokenKind::Insert => DmlParser::new().parse_insert_statement(ctx),
             TokenKind::Delete => DmlParser::new().parse_delete_statement(ctx),
             TokenKind::Update => self.parse_update_statement_extended(ctx),
-            TokenKind::Upsert => DmlParser::new().parse_update_statement(ctx),
+            TokenKind::Upsert => DmlParser::new().parse_upsert_statement(ctx),
             TokenKind::Merge => DmlParser::new().parse_merge_statement(ctx),
 
             // DDL 语句 或 Cypher CREATE 数据语句
@@ -476,6 +476,11 @@ impl StmtParser {
             return DmlParser::new().parse_create_data_after_token(ctx, start_span);
         }
 
+        // 检查是否是 CREATE USER 语句
+        if ctx.check_token(TokenKind::User) {
+            return UserParser::new().parse_create_user_statement_after_create(ctx, start_span);
+        }
+
         // 检查 DDL CREATE 类型
         if ctx.check_token(TokenKind::Tag) 
             || ctx.check_token(TokenKind::Edge)
@@ -489,7 +494,7 @@ impl StmtParser {
         // 无法确定类型，报错
         Err(ParseError::new(
             ParseErrorKind::SyntaxError,
-            "CREATE 语句期望 '(' (Cypher 数据创建) 或 TAG/EDGE/SPACE/INDEX (Schema 定义)".to_string(),
+            "CREATE 语句期望 '(' (Cypher 数据创建) 或 TAG/EDGE/SPACE/INDEX (Schema 定义) 或 USER (用户管理)".to_string(),
             ctx.current_position(),
         ))
     }

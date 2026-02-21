@@ -21,7 +21,17 @@ impl UserParser {
     pub fn parse_create_user_statement(&mut self, ctx: &mut ParseContext) -> Result<Stmt, ParseError> {
         let start_span = ctx.current_span();
         ctx.expect_token(TokenKind::CreateUser)?;
+        self.parse_create_user_internal(ctx, start_span)
+    }
 
+    /// 解析 CREATE USER 语句（CREATE token 已被消费）
+    pub fn parse_create_user_statement_after_create(&mut self, ctx: &mut ParseContext, start_span: Span) -> Result<Stmt, ParseError> {
+        ctx.expect_token(TokenKind::User)?;
+        self.parse_create_user_internal(ctx, start_span)
+    }
+
+    /// 解析 CREATE USER 语句的内部实现
+    fn parse_create_user_internal(&mut self, ctx: &mut ParseContext, start_span: Span) -> Result<Stmt, ParseError> {
         let mut if_not_exists = false;
         if ctx.match_token(TokenKind::If) {
             ctx.expect_token(TokenKind::Not)?;
@@ -30,7 +40,11 @@ impl UserParser {
         }
 
         let username = ctx.expect_identifier()?;
+        
+        // 支持 WITH PASSWORD 语法
+        ctx.match_token(TokenKind::With);
         ctx.expect_token(TokenKind::Password)?;
+        
         let password = ctx.expect_string_literal()?;
 
         let mut role = None;
