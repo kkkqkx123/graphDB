@@ -15,8 +15,6 @@ use parking_lot::Mutex;
 pub struct SpaceDesc {
     pub id: i32,
     pub name: String,
-    pub partition_num: usize,
-    pub replica_factor: usize,
     pub vid_type: String,
     pub charset: String,
     pub collate: String,
@@ -27,8 +25,6 @@ impl SpaceDesc {
         vec![
             Value::Int(self.id as i64),
             Value::String(self.name.clone()),
-            Value::Int(self.partition_num as i64),
-            Value::Int(self.replica_factor as i64),
             Value::String(self.vid_type.clone()),
             Value::String(self.charset.clone()),
             Value::String(self.collate.clone()),
@@ -67,18 +63,14 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DescSpaceExecutor
                 let rows = vec![
                     vec![
                         Value::String(space_info.space_name.clone()),
-                        Value::Int(space_info.partition_num as i64),
-                        Value::Int(space_info.replica_factor as i64),
                         Value::String(format!("{:?}", space_info.vid_type)),
                         Value::String(space_info.comment.clone().unwrap_or_else(|| "".to_string())),
                     ]
                 ];
-                
+
                 let dataset = DataSet {
                     col_names: vec![
                         "Name".to_string(),
-                        "Partition Number".to_string(),
-                        "Replica Factor".to_string(),
                         "Vid Type".to_string(),
                         "Comment".to_string(),
                     ],

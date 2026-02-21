@@ -2,247 +2,153 @@
 
 ## Summary
 
-- **Total Errors**: 63
-- **Total Warnings**: 30
-- **Total Issues**: 93
-- **Unique Error Patterns**: 22
-- **Unique Warning Patterns**: 6
-- **Files with Issues**: 18
+- **Total Errors**: 23
+- **Total Warnings**: 1
+- **Total Issues**: 24
+- **Unique Error Patterns**: 9
+- **Unique Warning Patterns**: 1
+- **Files with Issues**: 14
 
 ## Error Statistics
 
-**Total Errors**: 63
+**Total Errors**: 23
 
 ### Error Type Breakdown
 
-- **error[E0061]**: 40 errors
-- **error[E0560]**: 14 errors
-- **error[E0308]**: 7 errors
-- **error[E0599]**: 1 errors
-- **error[E0603]**: 1 errors
+- **error[E0433]**: 11 errors
+- **error[E0599]**: 7 errors
+- **error[E0308]**: 3 errors
+- **error[E0432]**: 1 errors
+- **error[E0422]**: 1 errors
 
 ### Files with Errors (Top 10)
 
-- `src\query\validator\insert_edges_validator.rs`: 13 errors
-- `src\query\validator\insert_vertices_validator.rs`: 12 errors
-- `src\query\validator\find_path_validator.rs`: 11 errors
-- `src\query\validator\get_subgraph_validator.rs`: 7 errors
-- `src\query\validator\limit_validator.rs`: 7 errors
-- `src\query\validator\update_validator.rs`: 4 errors
-- `src\query\validator\go_validator.rs`: 4 errors
-- `src\query\validator\lookup_validator.rs`: 3 errors
-- `src\query\validator\use_validator.rs`: 1 errors
-- `src\query\validator\fetch_edges_validator.rs`: 1 errors
+- `src\query\context\execution\query_execution.rs`: 8 errors
+- `src\query\executor\admin\space\alter_space.rs`: 3 errors
+- `src\query\planner\plan\core\nodes\traversal_node.rs`: 2 errors
+- `src\query\planner\statements\fetch_vertices_planner.rs`: 1 errors
+- `src\query\planner\plan\core\nodes\control_flow_node.rs`: 1 errors
+- `src\query\planner\plan\core\nodes\plan_node_operations.rs`: 1 errors
+- `src\query\planner\plan\algorithms\path_algorithms.rs`: 1 errors
+- `src\query\visitor\deduce_type_visitor.rs`: 1 errors
+- `src\api\service\query_processor.rs`: 1 errors
+- `src\query\query_pipeline_manager.rs`: 1 errors
 
 ## Warning Statistics
 
-**Total Warnings**: 30
+**Total Warnings**: 1
 
 ### Warning Type Breakdown
 
-- **warning**: 30 warnings
+- **warning**: 1 warnings
 
 ### Files with Warnings (Top 10)
 
-- `src\query\validator\find_path_validator.rs`: 4 warnings
-- `src\query\validator\get_subgraph_validator.rs`: 3 warnings
-- `src\query\validator\fetch_edges_validator.rs`: 2 warnings
-- `src\query\validator\sequential_validator.rs`: 2 warnings
-- `src\query\validator\delete_validator.rs`: 2 warnings
-- `src\query\validator\fetch_vertices_validator.rs`: 2 warnings
-- `src\query\validator\pipe_validator.rs`: 2 warnings
-- `src\query\validator\match_validator.rs`: 2 warnings
-- `src\query\validator\order_by_validator.rs`: 2 warnings
-- `src\query\validator\validator_enum.rs`: 2 warnings
+- `src\query\validator\with_validator.rs`: 1 warnings
 
 ## Detailed Error Categorization
 
-### error[E0061]: this method takes 0 arguments but 1 argument was supplied
+### error[E0433]: failed to resolve: could not find `validate` in `context`: could not find `validate` in `context`
 
-**Total Occurrences**: 40  
-**Unique Files**: 6
+**Total Occurrences**: 11  
+**Unique Files**: 10
 
-#### `src\query\validator\insert_edges_validator.rs`: 13 occurrences
+#### `src\query\planner\plan\core\nodes\traversal_node.rs`: 2 occurrences
 
-- Line 409: this method takes 1 argument but 2 arguments were supplied
-- Line 430: this method takes 1 argument but 2 arguments were supplied
-- Line 451: this method takes 1 argument but 2 arguments were supplied
-- ... 10 more occurrences in this file
+- Line 264: failed to resolve: could not find `validate` in `context`: could not find `validate` in `context`
+- Line 318: failed to resolve: could not find `validate` in `context`: could not find `validate` in `context`
 
-#### `src\query\validator\insert_vertices_validator.rs`: 12 occurrences
+#### `src\query\planner\plan\core\nodes\data_processing_node.rs`: 1 occurrences
 
-- Line 367: this method takes 1 argument but 2 arguments were supplied
-- Line 388: this method takes 1 argument but 2 arguments were supplied
-- Line 409: this method takes 1 argument but 2 arguments were supplied
-- ... 9 more occurrences in this file
+- Line 6: failed to resolve: could not find `validate` in `context`: could not find `validate` in `context`
 
-#### `src\query\validator\limit_validator.rs`: 7 occurrences
+#### `src\query\planner\plan\core\nodes\plan_node_traits.rs`: 1 occurrences
 
-- Line 276: this method takes 1 argument but 2 arguments were supplied
-- Line 290: this method takes 1 argument but 2 arguments were supplied
-- Line 304: this method takes 1 argument but 2 arguments were supplied
-- ... 4 more occurrences in this file
+- Line 7: failed to resolve: could not find `validate` in `context`: could not find `validate` in `context`
 
-#### `src\query\validator\go_validator.rs`: 4 occurrences
+#### `src\query\planner\plan\algorithms\path_algorithms.rs`: 1 occurrences
 
-- Line 541: this method takes 1 argument but 2 arguments were supplied
-- Line 557: this method takes 1 argument but 2 arguments were supplied
-- Line 590: this method takes 1 argument but 2 arguments were supplied
-- ... 1 more occurrences in this file
+- Line 6: failed to resolve: could not find `validate` in `context`: could not find `validate` in `context`
 
-#### `src\query\validator\lookup_validator.rs`: 3 occurrences
+#### `src\query\planner\plan\core\nodes\plan_node_operations.rs`: 1 occurrences
 
-- Line 484: this method takes 1 argument but 2 arguments were supplied
-- Line 495: this method takes 1 argument but 2 arguments were supplied
-- Line 507: this method takes 1 argument but 2 arguments were supplied
+- Line 7: failed to resolve: could not find `validate` in `context`: could not find `validate` in `context`
 
-#### `src\query\validator\use_validator.rs`: 1 occurrences
+#### `src\query\planner\statements\fetch_vertices_planner.rs`: 1 occurrences
 
-- Line 366: this method takes 0 arguments but 1 argument was supplied
+- Line 5: failed to resolve: could not find `validate` in `context`: could not find `validate` in `context`
 
-### error[E0560]: struct `stmt::SubgraphStmt` has no field named `vertex_filters`: `stmt::SubgraphStmt` does not have this field
+#### `src\query\planner\plan\algorithms\index_scan.rs`: 1 occurrences
 
-**Total Occurrences**: 14  
-**Unique Files**: 2
+- Line 4: failed to resolve: could not find `validate` in `context`: could not find `validate` in `context`
 
-#### `src\query\validator\find_path_validator.rs`: 8 occurrences
+#### `src\api\service\query_processor.rs`: 1 occurrences
 
-- Line 352: struct `stmt::FindPathStmt` has no field named `path_pattern`: `stmt::FindPathStmt` does not have this field
-- Line 353: struct `stmt::FindPathStmt` has no field named `src_vertices`: `stmt::FindPathStmt` does not have this field
-- Line 354: struct `stmt::FindPathStmt` has no field named `dst_vertices`: `stmt::FindPathStmt` does not have this field
-- ... 5 more occurrences in this file
+- Line 52: failed to resolve: could not find `validate` in `context`: could not find `validate` in `context`
 
-#### `src\query\validator\get_subgraph_validator.rs`: 6 occurrences
+#### `src\query\query_pipeline_manager.rs`: 1 occurrences
 
-- Line 305: struct `stmt::SubgraphStmt` has no field named `vertex_filters`: `stmt::SubgraphStmt` does not have this field
-- Line 306: struct `stmt::SubgraphStmt` has no field named `edge_filters`: `stmt::SubgraphStmt` does not have this field
-- Line 307: struct `stmt::SubgraphStmt` has no field named `edge_types`: `stmt::SubgraphStmt` does not have this field
-- ... 3 more occurrences in this file
+- Line 231: failed to resolve: could not find `validate` in `context`: could not find `validate` in `context`
 
-### error[E0308]: mismatched types: types differ in mutability
+#### `src\query\planner\plan\core\nodes\control_flow_node.rs`: 1 occurrences
+
+- Line 7: failed to resolve: could not find `validate` in `context`: could not find `validate` in `context`
+
+### error[E0599]: no variant or associated item named `PartitionNum` found for enum `alter_space::SpaceAlterOption` in the current scope: variant or associated item not found in `SpaceAlterOption`
 
 **Total Occurrences**: 7  
-**Unique Files**: 3
+**Unique Files**: 2
 
-#### `src\query\validator\update_validator.rs`: 4 occurrences
+#### `src\query\context\execution\query_execution.rs`: 4 occurrences
 
-- Line 808: mismatched types: types differ in mutability
-- Line 823: mismatched types: types differ in mutability
-- Line 838: mismatched types: types differ in mutability
+- Line 491: no method named `id` found for reference `&execution_plan::ExecutionPlan` in the current scope: field, not a method
+- Line 492: no method named `is_profile_enabled` found for reference `&execution_plan::ExecutionPlan` in the current scope: method not found in `&ExecutionPlan`
+- Line 497: no method named `enable_profile` found for mutable reference `&mut Box<execution_plan::ExecutionPlan>` in the current scope: method not found in `&mut Box<ExecutionPlan>`
 - ... 1 more occurrences in this file
 
-#### `src\query\validator\find_path_validator.rs`: 2 occurrences
+#### `src\query\executor\admin\space\alter_space.rs`: 3 occurrences
 
-- Line 431: mismatched types: expected `&Option<YieldClause>`, found `&[_; 0]`
-- Line 444: mismatched types: expected `&Option<YieldClause>`, found `&Vec<(Expression, Option<String>)>`
+- Line 110: no variant or associated item named `PartitionNum` found for enum `alter_space::SpaceAlterOption` in the current scope: variant or associated item not found in `SpaceAlterOption`
+- Line 111: no variant or associated item named `ReplicaFactor` found for enum `alter_space::SpaceAlterOption` in the current scope: variant or associated item not found in `SpaceAlterOption`
+- Line 145: no variant or associated item named `PartitionNum` found for enum `alter_space::SpaceAlterOption` in the current scope: variant or associated item not found in `SpaceAlterOption`
 
-#### `src\query\validator\get_subgraph_validator.rs`: 1 occurrences
+### error[E0308]: mismatched types: expected `Option<PlanNodeEnum>`, found `i64`
 
-- Line 304: mismatched types: expected `Steps`, found `Option<({integer}, Option<{integer}>)>`
+**Total Occurrences**: 3  
+**Unique Files**: 1
 
-### error[E0599]: no method named `validate_yield_clause` found for struct `fetch_edges_validator::FetchEdgesValidator` in the current scope
+#### `src\query\context\execution\query_execution.rs`: 3 occurrences
+
+- Line 487: mismatched types: expected `Option<PlanNodeEnum>`, found `i64`
+- Line 537: mismatched types: expected `Option<PlanNodeEnum>`, found `i64`
+- Line 554: mismatched types: expected `Option<PlanNodeEnum>`, found `i64`
+
+### error[E0422]: cannot find struct, variant or union type `PlanNode` in this scope: not found in this scope
 
 **Total Occurrences**: 1  
 **Unique Files**: 1
 
-#### `src\query\validator\fetch_edges_validator.rs`: 1 occurrences
+#### `src\query\context\execution\query_execution.rs`: 1 occurrences
 
-- Line 432: no method named `validate_yield_clause` found for struct `fetch_edges_validator::FetchEdgesValidator` in the current scope
+- Line 646: cannot find struct, variant or union type `PlanNode` in this scope: not found in this scope
 
-### error[E0603]: struct import `PathPattern` is private: private struct import
+### error[E0432]: unresolved import `crate::query::context::validate`: could not find `validate` in `context`
 
 **Total Occurrences**: 1  
 **Unique Files**: 1
 
-#### `src\query\validator\find_path_validator.rs`: 1 occurrences
+#### `src\query\visitor\deduce_type_visitor.rs`: 1 occurrences
 
-- Line 342: struct import `PathPattern` is private: private struct import
+- Line 9: unresolved import `crate::query::context::validate`: could not find `validate` in `context`
 
 ## Detailed Warning Categorization
 
-### warning: unused import: `crate::query::parser::ast::Stmt`
+### warning: unused variable: `where_expr`: help: if this is intentional, prefix it with an underscore: `_where_expr`
 
-**Total Occurrences**: 30  
-**Unique Files**: 17
+**Total Occurrences**: 1  
+**Unique Files**: 1
 
-#### `src\query\validator\find_path_validator.rs`: 4 occurrences
+#### `src\query\validator\with_validator.rs`: 1 occurrences
 
-- Line 17: unused import: `std::collections::HashMap`
-- Line 23: unused import: `crate::query::context::ast::AstContext`
-- Line 24: unused import: `crate::query::context::execution::QueryContext`
-- ... 1 more occurrences in this file
-
-#### `src\query\validator\get_subgraph_validator.rs`: 3 occurrences
-
-- Line 23: unused import: `crate::query::context::ast::AstContext`
-- Line 24: unused import: `crate::query::context::execution::QueryContext`
-- Line 395: variable does not need to be mutable
-
-#### `src\query\validator\match_validator.rs`: 2 occurrences
-
-- Line 13: unused import: `crate::query::context::ast::AstContext`
-- Line 14: unused import: `crate::query::context::execution::QueryContext`
-
-#### `src\query\validator\pipe_validator.rs`: 2 occurrences
-
-- Line 16: unused import: `crate::query::context::ast::AstContext`
-- Line 17: unused import: `crate::query::context::execution::QueryContext`
-
-#### `src\query\validator\validator_enum.rs`: 2 occurrences
-
-- Line 11: unused import: `crate::query::context::ast::AstContext`
-- Line 12: unused import: `crate::query::context::execution::QueryContext`
-
-#### `src\query\validator\fetch_edges_validator.rs`: 2 occurrences
-
-- Line 21: unused import: `crate::query::context::ast::AstContext`
-- Line 22: unused import: `crate::query::context::execution::QueryContext`
-
-#### `src\query\validator\sequential_validator.rs`: 2 occurrences
-
-- Line 16: unused import: `crate::query::context::ast::AstContext`
-- Line 17: unused import: `crate::query::context::execution::QueryContext`
-
-#### `src\query\validator\fetch_vertices_validator.rs`: 2 occurrences
-
-- Line 21: unused import: `crate::query::context::ast::AstContext`
-- Line 22: unused import: `crate::query::context::execution::QueryContext`
-
-#### `src\query\validator\order_by_validator.rs`: 2 occurrences
-
-- Line 17: unused import: `crate::query::context::ast::AstContext`
-- Line 18: unused import: `crate::query::context::execution::QueryContext`
-
-#### `src\query\validator\delete_validator.rs`: 2 occurrences
-
-- Line 21: unused import: `crate::query::context::ast::AstContext`
-- Line 22: unused import: `crate::query::context::execution::QueryContext`
-
-#### `src\query\validator\validator_trait.rs`: 1 occurrences
-
-- Line 13: unused import: `crate::query::parser::ast::Stmt`
-
-#### `src\query\validator\insert_vertices_validator.rs`: 1 occurrences
-
-- Line 8: unused import: `crate::query::context::execution::QueryContext`
-
-#### `src\query\validator\limit_validator.rs`: 1 occurrences
-
-- Line 8: unused import: `crate::query::context::execution::QueryContext`
-
-#### `src\query\validator\go_validator.rs`: 1 occurrences
-
-- Line 11: unused import: `crate::query::context::execution::QueryContext`
-
-#### `src\query\validator\lookup_validator.rs`: 1 occurrences
-
-- Line 8: unused import: `crate::query::context::execution::QueryContext`
-
-#### `src\query\validator\update_validator.rs`: 1 occurrences
-
-- Line 644: unused variable: `validated`: help: if this is intentional, prefix it with an underscore: `_validated`
-
-#### `src\query\validator\insert_edges_validator.rs`: 1 occurrences
-
-- Line 8: unused import: `crate::query::context::execution::QueryContext`
+- Line 364: unused variable: `where_expr`: help: if this is intentional, prefix it with an underscore: `_where_expr`
 

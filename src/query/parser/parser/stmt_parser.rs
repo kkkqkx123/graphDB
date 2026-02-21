@@ -628,11 +628,9 @@ mod tests {
         if let Ok(Stmt::Create(stmt)) = result {
             // 验证是 Space 创建目标
             match &stmt.target {
-                CreateTarget::Space { name, vid_type, partition_num, replica_factor, .. } => {
+                CreateTarget::Space { name, vid_type, .. } => {
                     assert_eq!(name, "test_space");
                     assert_eq!(vid_type, "INT64");
-                    assert_eq!(*partition_num, 1);
-                    assert_eq!(*replica_factor, 1);
                 }
                 _ => panic!("期望 Space 创建目标，实际得到 {:?}", stmt.target),
             }
@@ -645,25 +643,23 @@ mod tests {
     #[test]
     fn test_create_space_with_params_parses() {
         let mut parser = StmtParser::new();
-        
+
         // 测试 CREATE SPACE 带参数语句能够解析成功
         let mut ctx = create_parser_context(
-            "CREATE SPACE test_space(vid_type=FIXEDSTRING32, partition_num=10, replica_factor=3)"
+            "CREATE SPACE test_space(vid_type=FIXEDSTRING32)"
         );
         let result = parser.parse_statement(&mut ctx);
-        
+
         // 验证解析成功
         assert!(result.is_ok(), "CREATE SPACE with params 解析失败: {:?}", result.err());
-        
+
         // 验证是 Create 语句
         if let Ok(Stmt::Create(stmt)) = result {
             // 验证是 Space 创建目标
             match &stmt.target {
-                CreateTarget::Space { name, vid_type, partition_num, replica_factor, .. } => {
+                CreateTarget::Space { name, vid_type, .. } => {
                     assert_eq!(name, "test_space");
                     assert_eq!(vid_type, "FIXEDSTRING32");
-                    assert_eq!(*partition_num, 10);
-                    assert_eq!(*replica_factor, 3);
                 }
                 _ => panic!("期望 Space 创建目标，实际得到 {:?}", stmt.target),
             }

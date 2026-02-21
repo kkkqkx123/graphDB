@@ -13,8 +13,6 @@ use parking_lot::Mutex;
     fn test_create_space_executor() {
         let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
         let space_info = ExecutorSpaceInfo::new("test_space".to_string())
-            .with_partition_num(3)
-            .with_replica_factor(2)
             .with_vid_type("INT64".to_string());
 
         let mut executor = CreateSpaceExecutor::new(1, storage, space_info);
@@ -62,17 +60,11 @@ use parking_lot::Mutex;
     fn test_executor_space_info_builder() {
         let space_info = ExecutorSpaceInfo::new("my_space".to_string());
         assert_eq!(space_info.space_name, "my_space");
-        assert_eq!(space_info.partition_num, 1);
-        assert_eq!(space_info.replica_factor, 1);
         assert_eq!(space_info.vid_type, "FIXED_STRING(32)");
 
         let space_info = space_info
-            .with_partition_num(5)
-            .with_replica_factor(3)
             .with_vid_type("INT32".to_string());
 
-        assert_eq!(space_info.partition_num, 5);
-        assert_eq!(space_info.replica_factor, 3);
         assert_eq!(space_info.vid_type, "INT32");
     }
 

@@ -352,8 +352,6 @@ pub enum CreateTarget {
     Space {
         name: String,
         vid_type: String,
-        partition_num: i64,
-        replica_factor: i64,
         comment: Option<String>,
     },
     Index {
@@ -1097,8 +1095,6 @@ pub enum AlterTarget {
     },
     Space {
         space_name: String,
-        partition_num: Option<usize>,
-        replica_factor: Option<usize>,
         comment: Option<String>,
     },
 }

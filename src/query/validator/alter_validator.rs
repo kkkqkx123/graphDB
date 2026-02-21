@@ -122,7 +122,7 @@ impl AlterValidator {
                 // 验证属性修改
                 self.validate_property_changes(additions, deletions, changes)?;
             }
-            AlterTarget::Space { space_name, partition_num, replica_factor, comment } => {
+            AlterTarget::Space { space_name, comment } => {
                 self.target_type = AlterTargetType::Space;
                 self.target_name = space_name.clone();
                 self.space_name = Some(space_name.clone());
@@ -136,31 +136,11 @@ impl AlterValidator {
                 }
 
                 // 验证至少有一个修改参数
-                if partition_num.is_none() && replica_factor.is_none() && comment.is_none() {
+                if comment.is_none() {
                     return Err(ValidationError::new(
                         "At least one alter parameter is required".to_string(),
                         ValidationErrorType::SemanticError,
                     ));
-                }
-
-                // 验证 partition_num
-                if let Some(num) = partition_num {
-                    if *num == 0 {
-                        return Err(ValidationError::new(
-                            "Partition number must be greater than 0".to_string(),
-                            ValidationErrorType::SemanticError,
-                        ));
-                    }
-                }
-
-                // 验证 replica_factor
-                if let Some(factor) = replica_factor {
-                    if *factor == 0 {
-                        return Err(ValidationError::new(
-                            "Replica factor must be greater than 0".to_string(),
-                            ValidationErrorType::SemanticError,
-                        ));
-                    }
                 }
             }
         }

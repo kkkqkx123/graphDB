@@ -41,8 +41,6 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowSpacesExecuto
                     .map(|space| {
                         vec![
                             Value::String(space.space_name.clone()),
-                            Value::Int(space.partition_num as i64),
-                            Value::Int(space.replica_factor as i64),
                             Value::String(format!("{:?}", space.vid_type)),
                             Value::String(space.comment.clone().unwrap_or_else(|| "".to_string())),
                         ]
@@ -52,8 +50,6 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowSpacesExecuto
                 let dataset = DataSet {
                     col_names: vec![
                         "Name".to_string(),
-                        "Partition Number".to_string(),
-                        "Replica Factor".to_string(),
                         "Vid Type".to_string(),
                         "Comment".to_string(),
                     ],

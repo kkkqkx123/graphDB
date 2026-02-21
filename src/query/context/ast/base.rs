@@ -1,15 +1,58 @@
 //! 基础AST上下文定义
 
 use crate::core::error::ValidationError;
+use crate::core::types::DataType;
 use crate::query::context::ast::common::VariableInfo;
 use crate::query::context::execution::QueryContext;
 use crate::query::context::request_context::RequestContext;
 use crate::query::context::symbol::SymbolTable;
-use crate::query::context::validate::types::SpaceInfo;
 use crate::query::parser::ast::Stmt;
 use crate::query::validator::validator_trait::{ColumnDef, ValueType};
 use once_cell::sync::Lazy;
 use std::sync::Arc;
+
+/// 图空间信息（查询上下文版本）
+///
+/// 用于查询执行过程中的空间信息跟踪，包含：
+/// - 空间名称和ID
+/// - 是否为默认空间
+/// - VID类型
+#[derive(Debug, Clone)]
+pub struct SpaceInfo {
+    pub space_name: String,
+    pub space_id: Option<u64>,
+    pub is_default: bool,
+    pub vid_type: DataType,
+}
+
+impl SpaceInfo {
+    /// 创建新的空间信息
+    pub fn new(space_name: String, space_id: Option<u64>, is_default: bool) -> Self {
+        Self {
+            space_name,
+            space_id,
+            is_default,
+            vid_type: DataType::String,
+        }
+    }
+
+    /// 设置VID类型
+    pub fn with_vid_type(mut self, vid_type: DataType) -> Self {
+        self.vid_type = vid_type;
+        self
+    }
+}
+
+impl Default for SpaceInfo {
+    fn default() -> Self {
+        Self {
+            space_name: String::new(),
+            space_id: None,
+            is_default: false,
+            vid_type: DataType::String,
+        }
+    }
+}
 
 static EMPTY_SYMBOL_TABLE: Lazy<SymbolTable> = Lazy::new(SymbolTable::new);
 

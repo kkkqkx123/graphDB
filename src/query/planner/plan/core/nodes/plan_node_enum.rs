@@ -1677,8 +1677,6 @@ impl PlanNodeEnum {
                 let mut desc = PlanNodeDescription::new("CreateSpace", node.id());
                 let info = node.info();
                 desc.add_description("spaceName", info.space_name.clone());
-                desc.add_description("partitionNum", info.partition_num.to_string());
-                desc.add_description("replicaFactor", info.replica_factor.to_string());
                 desc.add_description("vidType", info.vid_type.clone());
                 desc
             }

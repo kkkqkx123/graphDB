@@ -478,8 +478,6 @@ impl<S: StorageClient> ShowStatsExecutor<S> {
                 vec![
                     Value::String(space.space_name.clone()),
                     Value::Int(space.space_id as i64),
-                    Value::Int(space.partition_num as i64),
-                    Value::Int(space.replica_factor as i64),
                     Value::Int(space.tags.len() as i64),
                     Value::Int(space.edge_types.len() as i64),
                 ]
@@ -490,8 +488,6 @@ impl<S: StorageClient> ShowStatsExecutor<S> {
             col_names: vec![
                 "Space Name".to_string(),
                 "Space ID".to_string(),
-                "Partition Num".to_string(),
-                "Replica Factor".to_string(),
                 "Tags".to_string(),
                 "Edge Types".to_string(),
             ],

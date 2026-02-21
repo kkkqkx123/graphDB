@@ -186,8 +186,7 @@ impl Default for InsertPlanner {
 mod tests {
     use super::*;
     use crate::core::Value;
-    use crate::query::context::ast::base::AstContext;
-    use crate::query::context::validate::types::SpaceInfo;
+    use crate::query::context::ast::{AstContext, SpaceInfo};
     use crate::query::parser::ast::{InsertStmt, InsertTarget, Span, TagInsertSpec, VertexRow};
 
     // 辅助函数：创建常量表达式

@@ -10,9 +10,8 @@
 //! 3. 使用 AstContext 统一管理上下文
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::query::context::ast::AstContext;
+use crate::query::context::ast::{AstContext, SpaceInfo};
 use crate::query::context::execution::QueryContext;
-use crate::query::context::validate::types::SpaceInfo;
 use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef,
     ExpressionProps,

@@ -61,35 +61,27 @@ impl DdlParser {
                 if_not_exists = true;
             }
             let name = ctx.expect_identifier()?;
-            
-            // 解析可选参数 (vid_type, partition_num, replica_factor, comment)
+
+            // 解析可选参数 (vid_type, comment)
             let mut vid_type = "INT64".to_string();
-            let mut partition_num = 1i64;
-            let mut replica_factor = 1i64;
             let mut comment = None;
-            
-            // 解析 (vid_type=INT64, partition_num=1, replica_factor=1, comment="xxx") 格式
+
+            // 解析 (vid_type=INT64, comment="xxx") 格式
             if ctx.match_token(TokenKind::LParen) {
                 loop {
                     if ctx.check_token(TokenKind::RParen) {
                         ctx.expect_token(TokenKind::RParen)?;
                         break;
                     }
-                    
+
                     if ctx.match_token(TokenKind::VIdType) {
                         ctx.expect_token(TokenKind::Assign)?;
                         vid_type = ctx.expect_identifier()?;
-                    } else if ctx.match_token(TokenKind::PartitionNum) {
-                        ctx.expect_token(TokenKind::Assign)?;
-                        partition_num = ctx.expect_integer_literal()?;
-                    } else if ctx.match_token(TokenKind::ReplicaFactor) {
-                        ctx.expect_token(TokenKind::Assign)?;
-                        replica_factor = ctx.expect_integer_literal()?;
                     } else if ctx.match_token(TokenKind::Comment) {
                         ctx.expect_token(TokenKind::Assign)?;
                         comment = Some(ctx.expect_string_literal()?);
                     }
-                    
+
                     // 检查是否还有更多参数
                     if !ctx.match_token(TokenKind::Comma) {
                         ctx.expect_token(TokenKind::RParen)?;
@@ -97,15 +89,13 @@ impl DdlParser {
                     }
                 }
             }
-            
+
             Ok(Stmt::Create(CreateStmt {
                 span: start_span,
-                target: CreateTarget::Space { 
-                    name, 
-                    vid_type, 
-                    partition_num, 
-                    replica_factor, 
-                    comment 
+                target: CreateTarget::Space {
+                    name,
+                    vid_type,
+                    comment,
                 },
                 if_not_exists,
             }))
@@ -188,35 +178,27 @@ impl DdlParser {
                 if_not_exists = true;
             }
             let name = ctx.expect_identifier()?;
-            
-            // 解析可选参数 (vid_type, partition_num, replica_factor, comment)
+
+            // 解析可选参数 (vid_type, comment)
             let mut vid_type = "INT64".to_string();
-            let mut partition_num = 1i64;
-            let mut replica_factor = 1i64;
             let mut comment = None;
-            
-            // 解析 (vid_type=INT64, partition_num=1, replica_factor=1, comment="xxx") 格式
+
+            // 解析 (vid_type=INT64, comment="xxx") 格式
             if ctx.match_token(TokenKind::LParen) {
                 loop {
                     if ctx.check_token(TokenKind::RParen) {
                         ctx.expect_token(TokenKind::RParen)?;
                         break;
                     }
-                    
+
                     if ctx.match_token(TokenKind::VIdType) {
                         ctx.expect_token(TokenKind::Assign)?;
                         vid_type = ctx.expect_identifier()?;
-                    } else if ctx.match_token(TokenKind::PartitionNum) {
-                        ctx.expect_token(TokenKind::Assign)?;
-                        partition_num = ctx.expect_integer_literal()?;
-                    } else if ctx.match_token(TokenKind::ReplicaFactor) {
-                        ctx.expect_token(TokenKind::Assign)?;
-                        replica_factor = ctx.expect_integer_literal()?;
                     } else if ctx.match_token(TokenKind::Comment) {
                         ctx.expect_token(TokenKind::Assign)?;
                         comment = Some(ctx.expect_string_literal()?);
                     }
-                    
+
                     // 检查是否还有更多参数
                     if !ctx.match_token(TokenKind::Comma) {
                         ctx.expect_token(TokenKind::RParen)?;
@@ -224,15 +206,13 @@ impl DdlParser {
                     }
                 }
             }
-            
+
             Ok(Stmt::Create(CreateStmt {
                 span: start_span,
-                target: CreateTarget::Space { 
-                    name, 
-                    vid_type, 
-                    partition_num, 
-                    replica_factor, 
-                    comment 
+                target: CreateTarget::Space {
+                    name,
+                    vid_type,
+                    comment,
                 },
                 if_not_exists,
             }))

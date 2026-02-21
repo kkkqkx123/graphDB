@@ -78,8 +78,6 @@ pub trait StorageClient: Send + Sync + std::fmt::Debug {
     fn get_space_id(&self, space: &str) -> Result<u64, StorageError>;
     fn space_exists(&self, space: &str) -> bool;
     fn clear_space(&mut self, space: &str) -> Result<bool, StorageError>;
-    fn alter_space_partition_num(&mut self, space_id: u64, partition_num: usize) -> Result<bool, StorageError>;
-    fn alter_space_replica_factor(&mut self, space_id: u64, replica_factor: usize) -> Result<bool, StorageError>;
     fn alter_space_comment(&mut self, space_id: u64, comment: String) -> Result<bool, StorageError>;
 
     fn create_tag(&mut self, space: &str, tag: &TagInfo) -> Result<bool, StorageError>;

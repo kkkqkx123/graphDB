@@ -3,7 +3,7 @@
 //! 包含Union、Unwind、Dedup等数据处理相关的计划节点
 
 use crate::define_plan_node_with_deps;
-use crate::query::context::validate::types::Variable;
+use crate::query::context::ast::Variable;
 
 define_plan_node_with_deps! {
     pub struct UnionNode {

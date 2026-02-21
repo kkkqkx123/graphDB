@@ -465,34 +465,6 @@ impl StorageClient for RedbStorage {
         Ok(true)
     }
 
-    fn alter_space_partition_num(&mut self, space_id: u64, partition_num: usize) -> Result<bool, StorageError> {
-        let spaces = self.schema_manager.list_spaces()?;
-        for space in spaces {
-            if space.space_id == space_id {
-                let mut space_info = space.clone();
-                space_info.partition_num = partition_num as i32;
-                self.schema_manager.drop_space(&space_info.space_name)?;
-                self.schema_manager.create_space(&space_info)?;
-                return Ok(true);
-            }
-        }
-        Err(StorageError::DbError(format!("Space with ID {} not found", space_id)))
-    }
-
-    fn alter_space_replica_factor(&mut self, space_id: u64, replica_factor: usize) -> Result<bool, StorageError> {
-        let spaces = self.schema_manager.list_spaces()?;
-        for space in spaces {
-            if space.space_id == space_id {
-                let mut space_info = space.clone();
-                space_info.replica_factor = replica_factor as i32;
-                self.schema_manager.drop_space(&space_info.space_name)?;
-                self.schema_manager.create_space(&space_info)?;
-                return Ok(true);
-            }
-        }
-        Err(StorageError::DbError(format!("Space with ID {} not found", space_id)))
-    }
-
     fn alter_space_comment(&mut self, space_id: u64, comment: String) -> Result<bool, StorageError> {
         let spaces = self.schema_manager.list_spaces()?;
         for space in spaces {

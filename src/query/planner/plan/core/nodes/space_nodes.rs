@@ -98,8 +98,6 @@ impl ShowSpacesNode {
 #[derive(Debug, Clone)]
 pub struct SpaceManageInfo {
     pub space_name: String,
-    pub partition_num: usize,
-    pub replica_factor: usize,
     pub vid_type: String,
 }
 
@@ -107,20 +105,8 @@ impl SpaceManageInfo {
     pub fn new(space_name: String) -> Self {
         Self {
             space_name,
-            partition_num: 1,
-            replica_factor: 1,
             vid_type: "FIXED_STRING(32)".to_string(),
         }
-    }
-
-    pub fn with_partition_num(mut self, partition_num: usize) -> Self {
-        self.partition_num = partition_num;
-        self
-    }
-
-    pub fn with_replica_factor(mut self, replica_factor: usize) -> Self {
-        self.replica_factor = replica_factor;
-        self
     }
 
     pub fn with_vid_type(mut self, vid_type: String) -> Self {

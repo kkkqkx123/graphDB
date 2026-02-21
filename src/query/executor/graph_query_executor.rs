@@ -207,11 +207,9 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                 executor.open()?;
                 executor.execute()
             }
-            CreateTarget::Space { name, vid_type, partition_num, replica_factor, comment: _ } => {
+            CreateTarget::Space { name, vid_type, comment: _ } => {
                 let mut space_info = ExecutorSpaceInfo::new(name);
                 space_info.vid_type = vid_type;
-                space_info.partition_num = partition_num as usize;
-                space_info.replica_factor = replica_factor as usize;
                 let mut executor = if clause.if_not_exists {
                     CreateSpaceExecutor::with_if_not_exists(self.id, self.storage.clone(), space_info)
                 } else {
@@ -735,7 +733,7 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
         // 构建 SHOW CREATE 语句的字符串表示
         let ddl = match &clause.target {
             crate::query::parser::ast::stmt::ShowCreateTarget::Space(name) => {
-                format!("CREATE SPACE IF NOT EXISTS {} (vid_type=INT64, partition_num=1, replica_factor=1)", name)
+                format!("CREATE SPACE IF NOT EXISTS {} (vid_type=INT64)", name)
             }
             crate::query::parser::ast::stmt::ShowCreateTarget::Tag(name) => {
                 format!("CREATE TAG IF NOT EXISTS {} (...)", name)
@@ -1241,14 +1239,8 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                 executor.open()?;
                 executor.execute().map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
             }
-            AlterTarget::Space { space_name, partition_num, replica_factor, comment } => {
+            AlterTarget::Space { space_name, comment } => {
                 let mut options = Vec::new();
-                if let Some(num) = partition_num {
-                    options.push(SpaceAlterOption::PartitionNum(num));
-                }
-                if let Some(factor) = replica_factor {
-                    options.push(SpaceAlterOption::ReplicaFactor(factor));
-                }
                 if let Some(comment_str) = comment {
                     options.push(SpaceAlterOption::Comment(comment_str));
                 }

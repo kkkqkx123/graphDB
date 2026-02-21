@@ -4,7 +4,7 @@
 
 use crate::core::error::PlanNodeVisitError;
 use crate::core::Expression;
-use crate::query::context::validate::types::Variable;
+use crate::query::context::ast::Variable;
 
 /// PlanNode 基础特征
 pub trait PlanNode {

@@ -11,8 +11,6 @@ use parking_lot::Mutex;
 /// 空间修改选项
 #[derive(Debug, Clone)]
 pub enum SpaceAlterOption {
-    PartitionNum(usize),
-    ReplicaFactor(usize),
     Comment(String),
 }
 
@@ -49,16 +47,6 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AlterSpaceExecuto
 
         for option in &self.options {
             match option {
-                SpaceAlterOption::PartitionNum(num) => {
-                    if let Err(e) = storage_guard.alter_space_partition_num(space_id, *num) {
-                        return Ok(ExecutionResult::Error(format!("Failed to alter partition num: {}", e)));
-                    }
-                }
-                SpaceAlterOption::ReplicaFactor(factor) => {
-                    if let Err(e) = storage_guard.alter_space_replica_factor(space_id, *factor) {
-                        return Ok(ExecutionResult::Error(format!("Failed to alter replica factor: {}", e)));
-                    }
-                }
                 SpaceAlterOption::Comment(comment) => {
                     if let Err(e) = storage_guard.alter_space_comment(space_id, comment.clone()) {
                         return Ok(ExecutionResult::Error(format!("Failed to alter comment: {}", e)));

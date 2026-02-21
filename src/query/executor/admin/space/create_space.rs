@@ -1,6 +1,6 @@
 //! CreateSpaceExecutor - 创建图空间执行器
 //!
-//! 负责创建新的图空间，配置分片数和副本数（单节点简化版）。
+//! 负责创建新的图空间（单节点简化版）。
 
 use std::sync::Arc;
 
@@ -19,15 +19,13 @@ impl SpaceInfo {
             "INT8" => DataType::Int8,
             _ => DataType::String,
         };
-        
+
         // 使用自动生成的Space ID
         let space_id = crate::core::types::metadata::generate_space_id();
-        
+
         Self {
             space_id,
             space_name: executor_info.space_name.clone(),
-            partition_num: executor_info.partition_num as i32,
-            replica_factor: executor_info.replica_factor as i32,
             vid_type,
             tags: Vec::new(),
             edge_types: Vec::new(),
@@ -41,8 +39,6 @@ impl SpaceInfo {
 #[derive(Debug, Clone)]
 pub struct ExecutorSpaceInfo {
     pub space_name: String,
-    pub partition_num: usize,
-    pub replica_factor: usize,
     pub vid_type: String,
 }
 
@@ -50,20 +46,8 @@ impl ExecutorSpaceInfo {
     pub fn new(space_name: String) -> Self {
         Self {
             space_name,
-            partition_num: 1,
-            replica_factor: 1,
             vid_type: "FIXED_STRING(32)".to_string(),
         }
-    }
-
-    pub fn with_partition_num(mut self, partition_num: usize) -> Self {
-        self.partition_num = partition_num;
-        self
-    }
-
-    pub fn with_replica_factor(mut self, replica_factor: usize) -> Self {
-        self.replica_factor = replica_factor;
-        self
     }
 
     pub fn with_vid_type(mut self, vid_type: String) -> Self {

@@ -220,14 +220,6 @@ impl StorageClient for DummyStorage {
         Ok(true)
     }
 
-    fn alter_space_partition_num(&mut self, _space_id: u64, _partition_num: usize) -> Result<bool, crate::core::StorageError> {
-        Ok(true)
-    }
-
-    fn alter_space_replica_factor(&mut self, _space_id: u64, _replica_factor: usize) -> Result<bool, crate::core::StorageError> {
-        Ok(true)
-    }
-
     fn alter_space_comment(&mut self, _space_id: u64, _comment: String) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }

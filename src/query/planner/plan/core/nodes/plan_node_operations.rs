@@ -4,7 +4,7 @@
 
 use super::plan_node_enum::PlanNodeEnum;
 use super::plan_node_traits::{MultipleInputNode, PlanNode, SingleInputNode};
-use crate::query::context::validate::types::Variable;
+use crate::query::context::ast::Variable;
 
 impl PlanNodeEnum {
     /// 获取节点的唯一ID

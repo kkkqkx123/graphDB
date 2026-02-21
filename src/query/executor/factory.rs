@@ -1242,8 +1242,6 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             PlanNodeEnum::CreateSpace(node) => {
                 use crate::query::executor::admin::space::create_space::ExecutorSpaceInfo;
                 let space_info = ExecutorSpaceInfo::new(node.info().space_name.clone())
-                    .with_partition_num(node.info().partition_num)
-                    .with_replica_factor(node.info().replica_factor)
                     .with_vid_type(node.info().vid_type.clone());
                 let executor = CreateSpaceExecutor::new(node.id(), storage, space_info);
                 Ok(ExecutorEnum::CreateSpace(executor))

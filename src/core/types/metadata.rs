@@ -351,8 +351,6 @@ impl SchemaImportResult {
 pub struct SpaceInfo {
     pub space_id: u64,
     pub space_name: String,
-    pub partition_num: i32,
-    pub replica_factor: i32,
     pub vid_type: DataType,
     pub tags: Vec<TagInfo>,
     pub edge_types: Vec<EdgeTypeInfo>,
@@ -365,24 +363,12 @@ impl SpaceInfo {
         Self {
             space_id: generate_space_id(),
             space_name,
-            partition_num: 1,
-            replica_factor: 1,
             vid_type: DataType::String,
             tags: Vec::new(),
             edge_types: Vec::new(),
             version: MetadataVersion::default(),
             comment: None,
         }
-    }
-
-    pub fn with_partition_num(mut self, partition_num: i32) -> Self {
-        self.partition_num = partition_num;
-        self
-    }
-
-    pub fn with_replica_factor(mut self, replica_factor: i32) -> Self {
-        self.replica_factor = replica_factor;
-        self
     }
 
     pub fn with_vid_type(mut self, vid_type: DataType) -> Self {

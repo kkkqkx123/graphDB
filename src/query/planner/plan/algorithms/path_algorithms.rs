@@ -3,7 +3,7 @@
 //!
 //! 注意：算法选择已在Planner阶段完成，此模块只包含具体算法的计划节点
 
-use crate::query::context::validate::types::Variable;
+use crate::query::context::ast::Variable;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::{
     BinaryInputNode, PlanNode,

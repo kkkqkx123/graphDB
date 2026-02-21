@@ -262,3 +262,81 @@ impl YieldColumns {
         self.columns.iter()
     }
 }
+
+/// 列定义
+///
+/// 用于表示变量中的列信息
+#[derive(Debug, Clone)]
+pub struct Column {
+    pub name: String,
+    pub type_: crate::core::types::DataType,
+    pub nullable: bool,
+    pub default_value: Option<String>,
+    pub comment: Option<String>,
+}
+
+impl Column {
+    /// 创建新的列定义
+    pub fn new(name: String, type_: crate::core::types::DataType) -> Self {
+        Column {
+            name,
+            type_,
+            nullable: false,
+            default_value: None,
+            comment: None,
+        }
+    }
+
+    /// 创建可空列
+    pub fn nullable(name: String, type_: crate::core::types::DataType) -> Self {
+        Column {
+            name,
+            type_,
+            nullable: true,
+            default_value: None,
+            comment: None,
+        }
+    }
+
+    /// 设置默认值
+    pub fn with_default(mut self, default_value: String) -> Self {
+        self.default_value = Some(default_value);
+        self
+    }
+
+    /// 设置注释
+    pub fn with_comment(mut self, comment: String) -> Self {
+        self.comment = Some(comment);
+        self
+    }
+}
+
+/// 列定义集合 - 一个变量包含多个列
+pub type ColsDef = Vec<Column>;
+
+/// 变量定义 - 在查询中定义的变量（如MATCH中的别名）
+#[derive(Debug, Clone)]
+pub struct Variable {
+    pub name: String,
+    pub columns: ColsDef,
+}
+
+impl Variable {
+    /// 创建新的变量
+    pub fn new(name: String, columns: ColsDef) -> Self {
+        Self { name, columns }
+    }
+
+    /// 检查变量是否有指定的列
+    pub fn has_column(&self, col_name: &str) -> bool {
+        self.columns.iter().any(|c| c.name == col_name)
+    }
+
+    /// 获取指定列的类型
+    pub fn get_column_type(&self, col_name: &str) -> Option<&crate::core::types::DataType> {
+        self.columns
+            .iter()
+            .find(|c| c.name == col_name)
+            .map(|c| &c.type_)
+    }
+}

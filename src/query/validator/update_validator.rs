@@ -720,8 +720,6 @@ mod tests {
             Ok(Some(crate::core::types::SpaceInfo {
                 space_id: 1,
                 space_name: "test_space".to_string(),
-                partition_num: 1,
-                replica_factor: 1,
                 vid_type: DataType::String,
                 tags: vec![],
                 edge_types: vec![],
