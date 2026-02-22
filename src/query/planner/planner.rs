@@ -1,9 +1,6 @@
 //! 规划器注册机制
 //! 使用类型安全的枚举实现静态注册，完全消除动态分发
 //!
-//! # 重构变更
-//! - 使用 Arc<QueryContext> 替代 &QueryContext
-//! - 使用 &Stmt 替代 &AstContext
 
 use std::num::NonZeroUsize;
 use std::sync::Arc;
@@ -319,86 +316,6 @@ impl SentenceKind {
 /// # 重构变更
 /// - 使用 &Stmt 替代 &AstContext
 pub type MatchFunc = fn(&Stmt) -> bool;
-
-/// 静态匹配和实例化枚举 - 完全消除动态分发
-#[derive(Debug, Clone)]
-pub enum MatchAndInstantiateEnum {
-    Match(MatchStatementPlanner),
-    Go(GoPlanner),
-    Lookup(LookupPlanner),
-    Path(PathPlanner),
-    Subgraph(SubgraphPlanner),
-    FetchVertices(FetchVerticesPlanner),
-    FetchEdges(FetchEdgesPlanner),
-    Maintain(MaintainPlanner),
-    UserManagement(UserManagementPlanner),
-    Insert(InsertPlanner),
-    Delete(DeletePlanner),
-    Update(UpdatePlanner),
-    GroupBy(GroupByPlanner),
-    SetOperation(SetOperationPlanner),
-    Use(UsePlanner),
-}
-
-impl MatchAndInstantiateEnum {
-    pub fn priority(&self) -> i32 {
-        match self {
-            MatchAndInstantiateEnum::Match(_) => 100,
-            MatchAndInstantiateEnum::Go(_) => 100,
-            MatchAndInstantiateEnum::Lookup(_) => 100,
-            MatchAndInstantiateEnum::Path(_) => 100,
-            MatchAndInstantiateEnum::Subgraph(_) => 100,
-            MatchAndInstantiateEnum::FetchVertices(_) => 100,
-            MatchAndInstantiateEnum::FetchEdges(_) => 100,
-            MatchAndInstantiateEnum::Maintain(_) => 100,
-            MatchAndInstantiateEnum::UserManagement(_) => 100,
-            MatchAndInstantiateEnum::Insert(_) => 100,
-            MatchAndInstantiateEnum::Delete(_) => 100,
-            MatchAndInstantiateEnum::Update(_) => 100,
-            MatchAndInstantiateEnum::GroupBy(_) => 100,
-            MatchAndInstantiateEnum::SetOperation(_) => 100,
-            MatchAndInstantiateEnum::Use(_) => 100,
-        }
-    }
-
-    /// # 重构变更
-    /// - 使用 &Stmt 替代 &AstContext
-    pub fn transform(
-        &mut self,
-        stmt: &Stmt,
-        qctx: Arc<QueryContext>,
-    ) -> Result<SubPlan, PlannerError> {
-        match self {
-            MatchAndInstantiateEnum::Match(planner) => planner.transform(stmt, qctx),
-            MatchAndInstantiateEnum::Go(planner) => planner.transform(stmt, qctx),
-            MatchAndInstantiateEnum::Lookup(planner) => planner.transform(stmt, qctx),
-            MatchAndInstantiateEnum::Path(planner) => planner.transform(stmt, qctx),
-            MatchAndInstantiateEnum::Subgraph(planner) => planner.transform(stmt, qctx),
-            MatchAndInstantiateEnum::FetchVertices(planner) => planner.transform(stmt, qctx),
-            MatchAndInstantiateEnum::FetchEdges(planner) => planner.transform(stmt, qctx),
-            MatchAndInstantiateEnum::Maintain(planner) => planner.transform(stmt, qctx),
-            MatchAndInstantiateEnum::UserManagement(planner) => planner.transform(stmt, qctx),
-            MatchAndInstantiateEnum::Insert(planner) => planner.transform(stmt, qctx),
-            MatchAndInstantiateEnum::Delete(planner) => planner.transform(stmt, qctx),
-            MatchAndInstantiateEnum::Update(planner) => planner.transform(stmt, qctx),
-            MatchAndInstantiateEnum::GroupBy(planner) => planner.transform(stmt, qctx),
-            MatchAndInstantiateEnum::SetOperation(planner) => planner.transform(stmt, qctx),
-            MatchAndInstantiateEnum::Use(planner) => planner.transform(stmt, qctx),
-        }
-    }
-
-    /// # 重构变更
-    /// - 使用 Arc<QueryContext> 替代 &mut QueryContext
-    /// - 使用 &Stmt 替代 &AstContext
-    pub fn transform_with_full_context(
-        &mut self,
-        qctx: Arc<QueryContext>,
-        stmt: &Stmt,
-    ) -> Result<ExecutionPlan, PlannerError> {
-        let sub_plan = self.transform(stmt, qctx)?;
-        Ok(ExecutionPlan::new(sub_plan.root().clone()))
-    }
-}
 
 /// 规划器特征（重构后接口）
 ///

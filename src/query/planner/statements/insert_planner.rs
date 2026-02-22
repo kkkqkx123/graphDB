@@ -39,8 +39,8 @@ impl InsertPlanner {
     }
 
     /// 获取匹配和实例化函数（静态注册版本）
-    pub fn get_match_and_instantiate() -> crate::query::planner::planner::MatchAndInstantiateEnum {
-        crate::query::planner::planner::MatchAndInstantiateEnum::Insert(Self::new())
+    pub fn get_match_and_instantiate() -> crate::query::planner::planner::PlannerEnum {
+        crate::query::planner::planner::PlannerEnum::Insert(Self::new())
     }
 
     /// 从 Stmt 提取 InsertStmt

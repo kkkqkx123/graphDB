@@ -12,7 +12,7 @@ pub mod statements;
 // 重新导出主要的类型
 pub use plan::execution_plan::{ExecutionPlan, SubPlan};
 pub use planner::{
-    MatchAndInstantiateEnum, Planner, PlannerConfig, PlannerError,
+    Planner, PlannerConfig, PlannerError,
     PlanCache, PlanCacheKey, SentenceKind,
 };
 pub use connector::SegmentsConnector;
