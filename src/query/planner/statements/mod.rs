@@ -10,7 +10,6 @@
 //! - StatementPlanner trait：语句级规划器，处理完整语句
 //! - ClausePlanner trait：子句级规划器，处理单个子句
 
-pub mod core;
 pub mod clauses;
 pub mod paths;
 pub mod seeks;
@@ -33,9 +32,6 @@ pub mod subgraph_planner;
 pub mod update_planner;
 pub mod use_planner;
 pub mod user_management_planner;
-
-// 重新导出核心模块的主要类型
-pub use core::MatchClausePlanner;
 
 // 重新导出语句规划器模块
 pub use statement_planner::{ClausePlanner, StatementPlanner};
