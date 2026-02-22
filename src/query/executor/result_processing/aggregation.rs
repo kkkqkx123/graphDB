@@ -28,10 +28,10 @@ use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::recursion_detector::ParallelConfig;
 use crate::query::executor::result_processing::agg_data::AggData;
 use crate::query::executor::result_processing::agg_function_manager::AggFunctionManager;
-use crate::query::executor::result_processing::traits::{
+use crate::query::executor::base::{
     BaseResultProcessor, ResultProcessor, ResultProcessorContext,
 };
-use crate::query::executor::traits::{DBResult, ExecutionResult, Executor, ExecutorStats};
+use crate::query::executor::base::{DBResult, ExecutionResult, Executor, ExecutorStats};
 use crate::storage::StorageClient;
 
 /// 聚合函数规范
@@ -766,11 +766,11 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AggregateExecutor
         &self.base.description
     }
 
-    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+    fn stats(&self) -> &crate::query::executor::base::ExecutorStats {
         self.base.get_stats()
     }
 
-    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+    fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
         self.base.get_stats_mut()
     }
 }
@@ -1041,11 +1041,11 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for HavingExecutor<S>
         &self.base.description
     }
 
-    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+    fn stats(&self) -> &crate::query::executor::base::ExecutorStats {
         self.base.get_stats()
     }
 
-    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+    fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
         self.base.get_stats_mut()
     }
 }

@@ -8,7 +8,7 @@ use crate::core::Value as CoreValue;
 use crate::query::QueryContext;
 use crate::query::executor::admin as admin_executor;
 use crate::query::executor::factory::ExecutorFactory;
-use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
+use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
 use crate::query::parser::ast::stmt::{AlterStmt, ChangePasswordStmt, CreateUserStmt, AlterUserStmt, DropUserStmt, DescStmt, DropStmt, Stmt};
 use crate::core::types::metadata::{UserAlterInfo, UserInfo};
 use crate::query::planner::planner::Planner;
@@ -33,7 +33,7 @@ pub struct GraphQueryExecutor<S: StorageClient> {
     /// 是否已打开
     is_open: bool,
     /// 执行统计信息
-    stats: crate::query::executor::traits::ExecutorStats,
+    stats: crate::query::executor::base::ExecutorStats,
 }
 
 impl<S: StorageClient> std::fmt::Debug for GraphQueryExecutor<S> {
@@ -57,7 +57,7 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
             description: "图查询语言执行器".to_string(),
             storage,
             is_open: false,
-            stats: crate::query::executor::traits::ExecutorStats::new(),
+            stats: crate::query::executor::base::ExecutorStats::new(),
         }
     }
 
@@ -69,7 +69,7 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
             description: "图查询语言执行器".to_string(),
             storage,
             is_open: false,
-            stats: crate::query::executor::traits::ExecutorStats::new(),
+            stats: crate::query::executor::base::ExecutorStats::new(),
         }
     }
 
@@ -86,7 +86,7 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
             description,
             storage,
             is_open: false,
-            stats: crate::query::executor::traits::ExecutorStats::new(),
+            stats: crate::query::executor::base::ExecutorStats::new(),
         }
     }
 
@@ -1329,11 +1329,11 @@ impl<S: StorageClient> Executor<S> for GraphQueryExecutor<S> {
         self.is_open
     }
 
-    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+    fn stats(&self) -> &crate::query::executor::base::ExecutorStats {
         &self.stats
     }
 
-    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+    fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
         &mut self.stats
     }
 }

@@ -13,10 +13,10 @@ use crate::core::{Edge, Value, Vertex};
 use crate::query::executor::base::InputExecutor;
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::recursion_detector::ParallelConfig;
-use crate::query::executor::result_processing::traits::{
+use crate::query::executor::base::{
     BaseResultProcessor, ResultProcessor, ResultProcessorContext,
 };
-use crate::query::executor::traits::{DBResult, ExecutionResult, Executor};
+use crate::query::executor::base::{DBResult, ExecutionResult, Executor};
 use crate::storage::StorageClient;
 use crate::storage::iterator::Row;
 
@@ -579,11 +579,11 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for DedupExecutor<S> 
         &self.base.description
     }
 
-    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+    fn stats(&self) -> &crate::query::executor::base::ExecutorStats {
         self.base.get_stats()
     }
 
-    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+    fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
         self.base.get_stats_mut()
     }
 }
@@ -622,7 +622,7 @@ mod tests {
         let input_result = ExecutionResult::Values(test_data);
 
         // 使用 ResultProcessor trait 的 set_input 方法
-        <DedupExecutor<MockStorage> as crate::query::executor::result_processing::traits::ResultProcessor<MockStorage>>::set_input(
+        <DedupExecutor<MockStorage> as crate::query::executor::base::ResultProcessor<MockStorage>>::set_input(
             &mut executor,
             input_result,
         );
@@ -678,7 +678,7 @@ mod tests {
         ];
 
         // 使用 set_input 方法设置输入数据
-        <DedupExecutor<MockStorage> as crate::query::executor::result_processing::traits::ResultProcessor<MockStorage>>::set_input(&mut executor, ExecutionResult::Values(test_data));
+        <DedupExecutor<MockStorage> as crate::query::executor::base::ResultProcessor<MockStorage>>::set_input(&mut executor, ExecutionResult::Values(test_data));
 
         // 处理去重
         let result = executor

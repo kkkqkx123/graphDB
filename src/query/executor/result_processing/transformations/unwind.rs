@@ -10,7 +10,7 @@ use crate::core::{DataSet, Expression, Value};
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::{DefaultExpressionContext, ExpressionContext};
 use crate::query::executor::base::BaseExecutor;
-use crate::query::executor::traits::{ExecutionResult, Executor};
+use crate::query::executor::base::{ExecutionResult, Executor};
 use crate::storage::StorageClient;
 
 /// Unwind执行器
@@ -333,16 +333,16 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for UnwindExecutor<S>
         &self.base.description
     }
 
-    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+    fn stats(&self) -> &crate::query::executor::base::ExecutorStats {
         self.base.get_stats()
     }
 
-    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+    fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
         self.base.get_stats_mut()
     }
 }
 
-impl<S: StorageClient + Send + 'static> crate::query::executor::traits::HasStorage<S>
+impl<S: StorageClient + Send + 'static> crate::query::executor::base::HasStorage<S>
     for UnwindExecutor<S>
 {
     fn get_storage(&self) -> &Arc<Mutex<S>> {

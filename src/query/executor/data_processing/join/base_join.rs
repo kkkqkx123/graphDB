@@ -11,7 +11,7 @@ use crate::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::base::BaseExecutor;
 use crate::query::executor::data_processing::join::hash_table::JoinKey;
 use crate::query::executor::data_processing::join::join_key_evaluator::JoinKeyEvaluator;
-use crate::query::executor::traits::ExecutionResult;
+use crate::query::executor::base::ExecutionResult;
 use crate::query::QueryError;
 use crate::storage::StorageClient;
 
@@ -448,7 +448,7 @@ impl<S: StorageClient> BaseJoinExecutor<S> {
     }
 }
 
-impl<S: StorageClient + Send + 'static> crate::query::executor::traits::HasStorage<S>
+impl<S: StorageClient + Send + 'static> crate::query::executor::base::HasStorage<S>
     for BaseJoinExecutor<S>
 {
     fn get_storage(&self) -> &Arc<Mutex<S>> {

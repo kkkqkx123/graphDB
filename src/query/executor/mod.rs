@@ -15,12 +15,11 @@ pub mod result_processing;
 pub mod search_executors;
 pub mod special_executors;
 pub mod tag_filter;
-pub mod traits;
 
 // Re-export from base module (基础类型从 base 模块统一导出)
 pub use base::{
-    BaseExecutor, ExecutionContext, ExecutionResult, Executor, ExecutorStats,
-    HasInput, HasStorage, StartExecutor,
+    BaseExecutor, BaseResultProcessor, ExecutionContext, ExecutionResult, Executor, ExecutorStats,
+    HasInput, HasStorage, InputExecutor, ResultProcessor, ResultProcessorContext, StartExecutor,
 };
 
 // Re-export ExecutorEnum (执行器枚举)
@@ -41,11 +40,12 @@ pub use data_access::{
 pub use result_processing::{
     AggregateExecutor, AggregateFunction, DedupExecutor, DedupStrategy,
     FilterExecutor, GroupAggregateState, GroupByExecutor, HavingExecutor, LimitExecutor,
-    ProjectExecutor, ResultProcessor, ResultProcessorContext, SampleExecutor, SampleMethod,
+    ProjectExecutor, SampleExecutor, SampleMethod,
     SortExecutor, SortKey, SortOrder, TopNExecutor,
 };
 
-pub use result_processing::traits::ResultProcessorFactory;
+// Re-export ResultProcessorFactory from base module
+pub use base::ResultProcessorFactory;
 
 // Re-export transformations (数据转换执行器)
 pub use result_processing::transformations::{

@@ -6,7 +6,7 @@ use super::batch::BatchOptimizer;
 use crate::core::{Value, vertex_edge_path};
 use crate::core::error::DBError;
 use crate::expression::context::traits::VariableContext;
-use crate::query::executor::traits::{DBResult, ExecutionResult, Executor, HasStorage};
+use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 

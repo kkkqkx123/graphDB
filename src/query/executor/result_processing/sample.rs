@@ -12,10 +12,10 @@ use crate::core::error::{DBError, DBResult};
 use crate::core::value::DataSet;
 use crate::query::executor::base::InputExecutor;
 use crate::query::executor::executor_enum::ExecutorEnum;
-use crate::query::executor::result_processing::traits::{
+use crate::query::executor::base::{
     BaseResultProcessor, ResultProcessor, ResultProcessorContext,
 };
-use crate::query::executor::traits::{ExecutionResult, Executor};
+use crate::query::executor::base::{ExecutionResult, Executor};
 use crate::storage::StorageClient;
 
 /// 采样方法
@@ -477,11 +477,11 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for SampleExecutor<S>
         &self.base.description
     }
 
-    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+    fn stats(&self) -> &crate::query::executor::base::ExecutorStats {
         self.base.get_stats()
     }
 
-    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+    fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
         self.base.get_stats_mut()
     }
 }

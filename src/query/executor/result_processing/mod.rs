@@ -69,7 +69,3 @@ pub mod transformations;
 pub use transformations::{
     AppendVerticesExecutor, AssignExecutor, PatternApplyExecutor, RollUpApplyExecutor, UnwindExecutor,
 };
-
-// 统一的执行器接口
-pub mod traits;
-pub use traits::{ResultProcessor, ResultProcessorContext};

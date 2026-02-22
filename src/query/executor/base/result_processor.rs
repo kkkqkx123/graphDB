@@ -1,14 +1,15 @@
-//! 结果处理执行器统一接口
+//! 结果处理器 trait 定义
 //!
-//! 定义了所有结果处理执行器的统一接口和公共行为
+//! 本模块提供结果处理器相关的 trait 和类型定义。
+//! 统一的结果处理抽象层，被所有结果处理执行器使用。
 
 use std::sync::Arc;
-use parking_lot::Mutex;
 
 use crate::core::error::{DBError, DBResult};
 use crate::core::value::DataSet;
-use crate::query::executor::traits::ExecutionResult;
+use crate::query::executor::base::ExecutionResult;
 use crate::storage::StorageClient;
+use parking_lot::Mutex;
 
 /// 结果处理器上下文
 ///
@@ -100,7 +101,7 @@ pub struct BaseResultProcessor<S: StorageClient> {
     /// 当前内存使用量
     pub memory_usage: usize,
     /// 执行统计信息
-    pub stats: crate::query::executor::traits::ExecutorStats,
+    pub stats: crate::query::executor::base::ExecutorStats,
 }
 
 impl<S: StorageClient> BaseResultProcessor<S> {
@@ -114,17 +115,17 @@ impl<S: StorageClient> BaseResultProcessor<S> {
             input: None,
             context: ResultProcessorContext::default(),
             memory_usage: 0,
-            stats: crate::query::executor::traits::ExecutorStats::new(),
+            stats: crate::query::executor::base::ExecutorStats::new(),
         }
     }
 
     /// 获取执行统计信息
-    pub fn get_stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+    pub fn get_stats(&self) -> &crate::query::executor::base::ExecutorStats {
         &self.stats
     }
 
     /// 获取可变的执行统计信息
-    pub fn get_stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+    pub fn get_stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
         &mut self.stats
     }
 
@@ -204,7 +205,7 @@ impl<S: StorageClient> BaseResultProcessor<S> {
     pub fn reset_state(&mut self) {
         self.memory_usage = 0;
         self.input = None;
-        self.stats = crate::query::executor::traits::ExecutorStats::new();
+        self.stats = crate::query::executor::base::ExecutorStats::new();
     }
 }
 
@@ -369,20 +370,6 @@ mod tests {
         assert!(context.parallel_degree.is_none());
         assert!(!context.enable_disk_spill);
         assert!(context.temp_dir.is_none());
-    }
-
-    #[test]
-    fn test_base_result_processor() {
-        // 这里需要模拟存储引擎，暂时跳过具体实现
-        // let storage = Arc::new(Mutex::new(MockStorageClient::new()));
-        // let processor = BaseResultProcessor::new(
-        //     1,
-        //     "test".to_string(),
-        //     "test processor".to_string(),
-        //     storage,
-        // );
-        // assert_eq!(processor.id, 1);
-        // assert_eq!(processor.name, "test");
     }
 
     #[test]

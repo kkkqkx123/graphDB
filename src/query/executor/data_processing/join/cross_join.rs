@@ -8,7 +8,7 @@ use parking_lot::Mutex;
 use crate::core::error::{DBError, DBResult};
 use crate::core::{DataSet, Value};
 use crate::query::executor::data_processing::join::base_join::BaseJoinExecutor;
-use crate::query::executor::traits::{ExecutionResult, Executor};
+use crate::query::executor::base::{ExecutionResult, Executor};
 use crate::query::QueryError;
 use crate::storage::StorageClient;
 
@@ -275,16 +275,16 @@ impl<S: StorageClient + Send + 'static> Executor<S> for CrossJoinExecutor<S> {
         &self.base_executor.get_base().description
     }
 
-    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+    fn stats(&self) -> &crate::query::executor::base::ExecutorStats {
         self.base_executor.get_base().get_stats()
     }
 
-    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+    fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
         self.base_executor.get_base_mut().get_stats_mut()
     }
 }
 
-impl<S: StorageClient + Send + 'static> crate::query::executor::traits::HasStorage<S>
+impl<S: StorageClient + Send + 'static> crate::query::executor::base::HasStorage<S>
     for CrossJoinExecutor<S>
 {
     fn get_storage(&self) -> &Arc<Mutex<S>> {

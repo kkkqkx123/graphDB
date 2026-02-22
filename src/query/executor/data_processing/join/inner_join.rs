@@ -11,7 +11,7 @@ use crate::core::{DataSet, Expression, Value};
 use crate::expression::context::row_context::RowExpressionContext;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::query::executor::data_processing::join::base_join::BaseJoinExecutor;
-use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
+use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
 use crate::query::QueryError;
 use crate::storage::StorageClient;
 
@@ -299,11 +299,11 @@ impl<S: StorageClient + Send + 'static> Executor<S> for InnerJoinExecutor<S> {
         &self.base_executor.get_base().description
     }
 
-    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+    fn stats(&self) -> &crate::query::executor::base::ExecutorStats {
         self.base_executor.get_base().get_stats()
     }
 
-    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+    fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
         self.base_executor.get_base_mut().get_stats_mut()
     }
 }
@@ -370,11 +370,11 @@ impl<S: StorageClient + Send + 'static> Executor<S> for HashInnerJoinExecutor<S>
         &self.inner.description()
     }
 
-    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+    fn stats(&self) -> &crate::query::executor::base::ExecutorStats {
         self.inner.stats()
     }
 
-    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+    fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
         self.inner.stats_mut()
     }
 }

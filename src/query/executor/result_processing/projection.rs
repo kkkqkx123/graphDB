@@ -368,11 +368,11 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ProjectExecutor<S
         &self.base.description
     }
 
-    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+    fn stats(&self) -> &crate::query::executor::base::ExecutorStats {
         self.base.get_stats()
     }
 
-    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+    fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
         self.base.get_stats_mut()
     }
 }

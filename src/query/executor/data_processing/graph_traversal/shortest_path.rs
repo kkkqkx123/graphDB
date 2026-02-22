@@ -9,7 +9,7 @@ use crate::core::{Path, Value};
 use crate::core::error::DBResult;
 use crate::query::executor::base::{BaseExecutor, EdgeDirection, InputExecutor};
 use crate::query::executor::executor_enum::ExecutorEnum;
-use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
+use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
 use crate::query::QueryError;
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
@@ -257,11 +257,11 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShortestPathExecu
         &self.base.description
     }
 
-    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+    fn stats(&self) -> &crate::query::executor::base::ExecutorStats {
         self.base.get_stats()
     }
 
-    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+    fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
         self.base.get_stats_mut()
     }
 }

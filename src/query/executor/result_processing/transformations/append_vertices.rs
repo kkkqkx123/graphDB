@@ -12,7 +12,7 @@ use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::evaluator::traits::ExpressionContext;
 use crate::expression::DefaultExpressionContext;
 use crate::query::executor::base::BaseExecutor;
-use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
+use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
 
 /// AppendVertices执行器
@@ -350,11 +350,11 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for AppendVerticesExe
         &self.base.description
     }
 
-    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+    fn stats(&self) -> &crate::query::executor::base::ExecutorStats {
         self.base.get_stats()
     }
 
-    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+    fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
         self.base.get_stats_mut()
     }
 }

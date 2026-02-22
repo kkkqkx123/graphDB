@@ -11,7 +11,7 @@ use crate::query::executor::data_processing::join::{
     base_join::BaseJoinExecutor,
     hash_table::{build_hash_table, extract_key_values, JoinKey},
 };
-use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
+use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
 
 /// 左外连接执行器
@@ -261,11 +261,11 @@ impl<S: StorageClient + Send + 'static> Executor<S> for LeftJoinExecutor<S> {
         &self.base_executor.get_base().description
     }
 
-    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+    fn stats(&self) -> &crate::query::executor::base::ExecutorStats {
         self.base_executor.get_base().get_stats()
     }
 
-    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+    fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
         self.base_executor.get_base_mut().get_stats_mut()
     }
 }
@@ -332,11 +332,11 @@ impl<S: StorageClient + Send + 'static> Executor<S> for HashLeftJoinExecutor<S> 
         &self.inner.description()
     }
 
-    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+    fn stats(&self) -> &crate::query::executor::base::ExecutorStats {
         self.inner.stats()
     }
 
-    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+    fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
         self.inner.stats_mut()
     }
 }

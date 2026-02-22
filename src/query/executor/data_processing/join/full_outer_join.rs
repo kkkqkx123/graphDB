@@ -8,7 +8,7 @@ use crate::query::executor::data_processing::join::{
     base_join::BaseJoinExecutor,
     hash_table::{build_hash_table, extract_key_values, JoinKey},
 };
-use crate::query::executor::traits::{ExecutionResult, Executor};
+use crate::query::executor::base::{ExecutionResult, Executor};
 use crate::storage::StorageClient;
 
 /// 全外连接执行器
@@ -247,16 +247,16 @@ impl<S: StorageClient + Send + 'static> Executor<S> for FullOuterJoinExecutor<S>
         self.base.description()
     }
 
-    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+    fn stats(&self) -> &crate::query::executor::base::ExecutorStats {
         self.base.get_base().get_stats()
     }
 
-    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+    fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
         self.base.get_base_mut().get_stats_mut()
     }
 }
 
-impl<S: StorageClient + Send + 'static> crate::query::executor::traits::HasStorage<S>
+impl<S: StorageClient + Send + 'static> crate::query::executor::base::HasStorage<S>
     for FullOuterJoinExecutor<S>
 {
     fn get_storage(&self) -> &Arc<Mutex<S>> {

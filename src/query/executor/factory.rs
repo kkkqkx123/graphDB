@@ -6,7 +6,7 @@
 use crate::core::{EdgeDirection, Value};
 use crate::core::error::{DBError, QueryError};
 use crate::query::QueryContext;
-use crate::query::executor::traits::Executor;
+use crate::query::executor::base::Executor;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::{
@@ -1532,7 +1532,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
         &mut self,
         query_context: Arc<QueryContext>,
         plan: crate::query::planner::plan::ExecutionPlan,
-    ) -> Result<crate::query::executor::traits::ExecutionResult, QueryError> {
+    ) -> Result<crate::query::executor::base::ExecutionResult, QueryError> {
         // 获取存储引擎
         let storage = match &self.storage {
             Some(storage) => storage.clone(),

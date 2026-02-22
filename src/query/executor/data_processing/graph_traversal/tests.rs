@@ -5,7 +5,7 @@ mod tests {
     use crate::query::executor::data_processing::graph_traversal::algorithms::{EdgeWeightConfig, HeuristicFunction, ShortestPathAlgorithmType};
     use crate::query::executor::data_processing::graph_traversal::factory::GraphTraversalExecutorFactory;
     use crate::query::executor::data_processing::graph_traversal::traits::GraphTraversalExecutor;
-    use crate::query::executor::traits::Executor;
+    use crate::query::executor::base::Executor;
     use crate::storage::{MockStorage, StorageClient};
     use std::sync::Arc;
 use parking_lot::Mutex;

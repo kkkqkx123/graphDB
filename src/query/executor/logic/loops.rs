@@ -18,7 +18,7 @@ use crate::query::executor::executor_enum::ExecutorEnum;
 use crate::query::executor::recursion_detector::{
     ExecutorSafetyConfig, ExecutorSafetyValidator, RecursionDetector,
 };
-use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
+use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
 
 // 使用新的类型别名（LoopState 是 LoopExecutionState 的别名，用于向后兼容）
@@ -351,11 +351,11 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for LoopExecutor<S> {
         &self.base.description
     }
 
-    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+    fn stats(&self) -> &crate::query::executor::base::ExecutorStats {
         self.base.get_stats()
     }
 
-    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+    fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
         self.base.get_stats_mut()
     }
 }
@@ -416,11 +416,11 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for WhileLoopExecutor
         &self.inner.description()
     }
 
-    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+    fn stats(&self) -> &crate::query::executor::base::ExecutorStats {
         self.inner.stats()
     }
 
-    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+    fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
         self.inner.stats_mut()
     }
 }
@@ -520,11 +520,11 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ForLoopExecutor<S
         &self.inner.description()
     }
 
-    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+    fn stats(&self) -> &crate::query::executor::base::ExecutorStats {
         self.inner.stats()
     }
 
-    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+    fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
         self.inner.stats_mut()
     }
 }
@@ -634,11 +634,11 @@ impl<S: StorageClient + Send + 'static> Executor<S> for SelectExecutor<S> {
         "Select executor - conditional branch execution"
     }
 
-    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+    fn stats(&self) -> &crate::query::executor::base::ExecutorStats {
         self.base.get_stats()
     }
 
-    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+    fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
         self.base.get_stats_mut()
     }
 }

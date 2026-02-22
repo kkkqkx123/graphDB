@@ -4,7 +4,7 @@ use std::sync::Arc;
 use super::base::BaseExecutor;
 use crate::core::types::operators::AggregateFunction;
 use crate::core::Value;
-use crate::query::executor::traits::{DBResult, ExecutionResult, Executor, HasStorage, HasInput};
+use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage, HasInput};
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
@@ -800,11 +800,11 @@ impl<S: StorageClient> Executor<S> for AggregationExecutor<S> {
         "Aggregation executor - performs statistical aggregation operations with proper null handling"
     }
 
-    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+    fn stats(&self) -> &crate::query::executor::base::ExecutorStats {
         self.base.get_stats()
     }
 
-    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+    fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
         self.base.get_stats_mut()
     }
 }

@@ -6,7 +6,7 @@ use std::sync::Arc;
 use parking_lot::Mutex;
 
 use crate::core::{DataSet, Value};
-use crate::query::executor::traits::{DBResult, ExecutionResult, Executor};
+use crate::query::executor::base::{DBResult, ExecutionResult, Executor};
 use crate::query::QueryError;
 use crate::storage::StorageClient;
 
@@ -102,11 +102,11 @@ impl<S: StorageClient + Send + 'static> Executor<S> for UnionAllExecutor<S> {
         self.set_executor.description()
     }
 
-    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+    fn stats(&self) -> &crate::query::executor::base::ExecutorStats {
         self.set_executor.stats()
     }
 
-    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+    fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
         self.set_executor.stats_mut()
     }
 }

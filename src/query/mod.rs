@@ -18,7 +18,7 @@ pub mod validator;
 // Re-export error types from core module
 pub use crate::core::{DBResult, QueryError};
 // Re-export execution result from executor module
-pub use executor::traits::ExecutionResult;
+pub use executor::base::ExecutionResult;
 // Re-export QueryPipelineManager
 pub use query_pipeline_manager::QueryPipelineManager;
 // Re-export new QueryContext

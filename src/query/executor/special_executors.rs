@@ -4,7 +4,7 @@ use parking_lot::Mutex;
 use crate::core::error::DBResult;
 use crate::query::executor::base::{BaseExecutor, InputExecutor};
 use crate::query::executor::executor_enum::ExecutorEnum;
-use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
+use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
 
 /// ArgumentExecutor - 参数执行器

@@ -196,12 +196,12 @@ impl<S: StorageClient> SetExecutor<S> {
     }
 }
 
-impl<S: StorageClient + Send + 'static> crate::query::executor::traits::Executor<S>
+impl<S: StorageClient + Send + 'static> crate::query::executor::base::Executor<S>
     for SetExecutor<S>
 {
     fn execute(
         &mut self,
-    ) -> crate::query::executor::traits::DBResult<crate::query::executor::traits::ExecutionResult>
+    ) -> crate::query::executor::base::DBResult<crate::query::executor::base::ExecutionResult>
     {
         Err(crate::core::error::DBError::Query(
             crate::core::error::QueryError::ExecutionError(
@@ -210,11 +210,11 @@ impl<S: StorageClient + Send + 'static> crate::query::executor::traits::Executor
         ))
     }
 
-    fn open(&mut self) -> crate::query::executor::traits::DBResult<()> {
+    fn open(&mut self) -> crate::query::executor::base::DBResult<()> {
         Ok(())
     }
 
-    fn close(&mut self) -> crate::query::executor::traits::DBResult<()> {
+    fn close(&mut self) -> crate::query::executor::base::DBResult<()> {
         Ok(())
     }
 
@@ -234,11 +234,11 @@ impl<S: StorageClient + Send + 'static> crate::query::executor::traits::Executor
         "Set executor base class"
     }
 
-    fn stats(&self) -> &crate::query::executor::traits::ExecutorStats {
+    fn stats(&self) -> &crate::query::executor::base::ExecutorStats {
         self.base.get_stats()
     }
 
-    fn stats_mut(&mut self) -> &mut crate::query::executor::traits::ExecutorStats {
+    fn stats_mut(&mut self) -> &mut crate::query::executor::base::ExecutorStats {
         self.base.get_stats_mut()
     }
 }
