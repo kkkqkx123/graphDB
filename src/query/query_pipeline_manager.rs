@@ -13,7 +13,6 @@ use crate::query::executor::factory::ExecutorFactory;
 use crate::query::executor::traits::ExecutionResult;
 use crate::query::optimizer::{Optimizer, OptimizationConfig, RuleConfig};
 use crate::query::parser::Parser;
-use crate::query::planner::planner::{PlannerConfig};
 use crate::storage::StorageClient;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -24,7 +23,6 @@ pub struct QueryPipelineManager<S: StorageClient + 'static> {
     optimizer: Optimizer,
     executor_factory: ExecutorFactory<S>,
     stats_manager: Arc<StatsManager>,
-    planner_config: Option<PlannerConfig>,
 }
 
 impl<S: StorageClient + 'static> QueryPipelineManager<S> {
@@ -35,7 +33,6 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
             optimizer: Optimizer::from_registry(),
             executor_factory,
             stats_manager,
-            planner_config: None,
         }
     }
 
@@ -49,7 +46,6 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
             optimizer,
             executor_factory,
             stats_manager,
-            planner_config: None,
         }
     }
 
@@ -82,7 +78,6 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
             optimizer,
             executor_factory,
             stats_manager,
-            planner_config: None,
         }
     }
 
@@ -103,17 +98,6 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         }
         
         rule_config
-    }
-
-    pub fn with_config(storage: Arc<Mutex<S>>, config: PlannerConfig, stats_manager: Arc<StatsManager>) -> Self {
-        let executor_factory = ExecutorFactory::with_storage(storage.clone());
-
-        Self {
-            optimizer: Optimizer::default(),
-            executor_factory,
-            stats_manager,
-            planner_config: Some(config),
-        }
     }
 
     pub async fn execute_query(&mut self, query_text: &str) -> DBResult<ExecutionResult> {

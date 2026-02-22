@@ -38,7 +38,5 @@ pub mod user_management_planner;
 pub use core::MatchClausePlanner;
 
 // 重新导出语句规划器模块
-pub use statement_planner::{
-    ClausePlanner, PlannerRegistry, PlanningPhase, StatementPlanningContext, StatementPlanner,
-};
+pub use statement_planner::{ClausePlanner, StatementPlanner};
 pub use match_statement_planner::MatchStatementPlanner;

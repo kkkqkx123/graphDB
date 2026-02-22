@@ -123,10 +123,6 @@ impl ClausePlanner for YieldClausePlanner {
         CypherClauseKind::Yield
     }
 
-    fn name(&self) -> &'static str {
-        "YieldClausePlanner"
-    }
-
     fn transform_clause(
         &self,
         _qctx: Arc<QueryContext>,
@@ -255,6 +251,6 @@ mod tests {
     #[test]
     fn test_yield_clause_planner_creation() {
         let planner = YieldClausePlanner::new();
-        assert_eq!(planner.name(), "YieldClausePlanner");
+        assert_eq!(planner.clause_kind(), CypherClauseKind::Yield);
     }
 }

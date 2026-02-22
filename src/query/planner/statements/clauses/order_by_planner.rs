@@ -53,10 +53,6 @@ impl ClausePlanner for OrderByClausePlanner {
         CypherClauseKind::OrderBy
     }
 
-    fn name(&self) -> &'static str {
-        "OrderByClausePlanner"
-    }
-
     fn transform_clause(
         &self,
         _qctx: Arc<QueryContext>,
@@ -94,14 +90,6 @@ mod tests {
     #[test]
     fn test_order_by_clause_planner_creation() {
         let planner = OrderByClausePlanner::new();
-        assert_eq!(planner.name(), "OrderByClausePlanner");
         assert_eq!(planner.clause_kind(), CypherClauseKind::OrderBy);
-    }
-
-    #[test]
-    fn test_supports() {
-        let planner = OrderByClausePlanner::new();
-        assert!(planner.supports(CypherClauseKind::OrderBy));
-        assert!(!planner.supports(CypherClauseKind::Where));
     }
 }

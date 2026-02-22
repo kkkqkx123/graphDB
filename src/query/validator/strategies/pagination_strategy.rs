@@ -33,27 +33,26 @@ impl PaginationValidationStrategy {
             ));
         }
 
-        // 验证表达式类型（如果提供了表达式）
-        if let Some(skip) = skip_expression {
-            self.validate_pagination_expression(skip, "SKIP")?;
+        // 验证 SKIP 表达式
+        if let Some(expr) = skip_expression {
+            self.validate_pagination_expression(expr, "SKIP")?;
         }
 
-        if let Some(limit) = limit_expression {
-            self.validate_pagination_expression(limit, "LIMIT")?;
+        // 验证 LIMIT 表达式
+        if let Some(expr) = limit_expression {
+            self.validate_pagination_expression(expr, "LIMIT")?;
         }
 
         Ok(())
     }
 
     /// 验证分页表达式
-    pub fn validate_pagination_expression(
+    fn validate_pagination_expression(
         &self,
         expression: &Expression,
         clause_name: &str,
     ) -> Result<(), ValidationError> {
-        use crate::query::visitor::FoldConstantExprVisitor;
-
-        if !FoldConstantExprVisitor::is_evaluable(expression) {
+        if !is_evaluable(expression) {
             return Err(ValidationError::new(
                 format!("{}表达式必须是可立即计算的常量表达式", clause_name),
                 ValidationErrorType::PaginationError,

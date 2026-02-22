@@ -292,10 +292,6 @@ impl ClausePlanner for MatchClausePlanner {
         CypherClauseKind::Match
     }
 
-    fn name(&self) -> &'static str {
-        "MatchClausePlanner"
-    }
-
     fn transform_clause(
         &self,
         qctx: Arc<QueryContext>,
@@ -873,7 +869,6 @@ mod tests {
     #[test]
     fn test_match_clause_planner_creation() {
         let planner = MatchClausePlanner::new();
-        assert_eq!(planner.name(), "MatchClausePlanner");
         assert_eq!(planner.clause_kind(), CypherClauseKind::Match);
     }
 }

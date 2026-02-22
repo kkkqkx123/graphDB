@@ -10,6 +10,7 @@
 //! 5. 作用域重置：只保留输出的变量，其他变量不可见
 
 use crate::core::Expression;
+use crate::core::types::expression::utils::extract_group_suite;
 use crate::query::context::QueryContext;
 use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::SubPlan;
@@ -20,7 +21,6 @@ use crate::core::YieldColumn;
 use crate::query::validator::structs::{
     AliasType, CypherClauseKind, OrderByClauseContext, PaginationContext, WithClauseContext,
 };
-use crate::query::visitor::ExtractGroupSuiteVisitor;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -210,10 +210,6 @@ impl ClausePlanner for WithClausePlanner {
         CypherClauseKind::With
     }
 
-    fn name(&self) -> &'static str {
-        "WithClausePlanner"
-    }
-
     fn transform_clause(
         &self,
         _qctx: Arc<QueryContext>,
@@ -364,10 +360,9 @@ impl WithClausePlanner {
     fn extract_group_info(yield_columns: &[YieldColumn]) -> (Vec<Expression>, Vec<Expression>) {
         let mut group_keys = Vec::new();
         let mut group_items = Vec::new();
-        let mut visitor = ExtractGroupSuiteVisitor::new();
 
         for column in yield_columns {
-            if let Ok(suite) = visitor.extract(&column.expression) {
+            if let Ok(suite) = extract_group_suite(&column.expression) {
                 // 非聚合表达式作为分组键
                 if !suite.group_keys.is_empty() {
                     group_keys.extend(suite.group_keys);
@@ -474,7 +469,6 @@ mod tests {
     #[test]
     fn test_with_clause_planner_creation() {
         let planner = WithClausePlanner::new();
-        assert_eq!(planner.name(), "WithClausePlanner");
         assert_eq!(planner.clause_kind(), CypherClauseKind::With);
     }
 }

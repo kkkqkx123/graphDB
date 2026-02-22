@@ -55,10 +55,6 @@ impl ClausePlanner for WhereClausePlanner {
         CypherClauseKind::Where
     }
 
-    fn name(&self) -> &'static str {
-        "WhereClausePlanner"
-    }
-
     fn transform_clause(
         &self,
         _qctx: Arc<QueryContext>,
@@ -85,7 +81,6 @@ mod tests {
     #[test]
     fn test_where_clause_planner_creation() {
         let planner = WhereClausePlanner::new();
-        assert_eq!(planner.name(), "WhereClausePlanner");
         assert_eq!(planner.clause_kind(), CypherClauseKind::Where);
     }
 
@@ -94,12 +89,5 @@ mod tests {
         let expr = Expression::Variable("age".to_string());
         let planner = WhereClausePlanner::with_filter(expr);
         assert!(planner.filter_expression.is_some());
-    }
-
-    #[test]
-    fn test_supports() {
-        let planner = WhereClausePlanner::new();
-        assert!(planner.supports(CypherClauseKind::Where));
-        assert!(!planner.supports(CypherClauseKind::Return));
     }
 }

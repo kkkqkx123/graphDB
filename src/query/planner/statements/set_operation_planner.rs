@@ -2,8 +2,8 @@
 //!
 //! 处理 UNION, UNION ALL, INTERSECT, MINUS 等集合操作语句的查询规划
 
-use crate::query::context::ast::AstContext;
-use crate::query::parser::ast::{SetOperationStmt, SetOperationType, Stmt};
+use crate::query::context::QueryContext;
+use crate::query::parser::ast::{SetOperationType, Stmt};
 use crate::query::planner::plan::core::{
     node_id_generator::next_node_id,
     nodes::{
@@ -12,6 +12,7 @@ use crate::query::planner::plan::core::{
 };
 use crate::query::planner::plan::{PlanNodeEnum, SubPlan};
 use crate::query::planner::planner::{Planner, PlannerError};
+use std::sync::Arc;
 
 /// 集合操作规划器
 /// 负责将集合操作语句转换为执行计划
@@ -29,30 +30,22 @@ impl SetOperationPlanner {
         Box::new(Self::new())
     }
 
-    /// 检查 AST 上下文是否匹配集合操作
-    pub fn match_ast_ctx(ast_ctx: &AstContext) -> bool {
-        matches!(ast_ctx.sentence(), Some(Stmt::SetOperation(_)))
-    }
-
     /// 获取匹配和实例化函数（静态注册版本）
     pub fn get_match_and_instantiate() -> crate::query::planner::planner::MatchAndInstantiateEnum {
         crate::query::planner::planner::MatchAndInstantiateEnum::SetOperation(Self::new())
     }
-
-    /// 从 AstContext 提取 SetOperationStmt
-    fn extract_set_op_stmt(&self, ast_ctx: &AstContext) -> Result<SetOperationStmt, PlannerError> {
-        match ast_ctx.sentence() {
-            Some(Stmt::SetOperation(set_op_stmt)) => Ok(set_op_stmt.clone()),
-            _ => Err(PlannerError::PlanGenerationFailed(
-                "AST 上下文中不包含集合操作语句".to_string(),
-            )),
-        }
-    }
 }
 
 impl Planner for SetOperationPlanner {
-    fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
-        let set_op_stmt = self.extract_set_op_stmt(ast_ctx)?;
+    fn transform(&mut self, stmt: &Stmt, _qctx: Arc<QueryContext>) -> Result<SubPlan, PlannerError> {
+        let set_op_stmt = match stmt {
+            Stmt::SetOperation(set_op_stmt) => set_op_stmt,
+            _ => {
+                return Err(PlannerError::InvalidOperation(
+                    "SetOperationPlanner 需要 SetOperation 语句".to_string()
+                ));
+            }
+        };
 
         // 创建左右子计划的参数节点
         let left_arg = ArgumentNode::new(next_node_id(), "left_input");
@@ -119,8 +112,8 @@ impl Planner for SetOperationPlanner {
         Ok(sub_plan)
     }
 
-    fn match_planner(&self, ast_ctx: &AstContext) -> bool {
-        Self::match_ast_ctx(ast_ctx)
+    fn match_planner(&self, stmt: &Stmt) -> bool {
+        matches!(stmt, Stmt::SetOperation(_))
     }
 }
 

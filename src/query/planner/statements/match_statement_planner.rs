@@ -15,11 +15,10 @@ use crate::query::planner::plan::ExecutionPlan;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
 use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
-use crate::query::planner::plan::core::nodes::{LimitNode, PlanNodeEnum, ProjectNode, ScanVerticesNode, SortNode, SortItem};
+use crate::query::planner::plan::core::nodes::{LimitNode, ProjectNode, ScanVerticesNode, SortNode, SortItem};
 use crate::core::types::graph_schema::OrderDirection;
 use crate::query::planner::planner::{Planner, PlannerError};
 use crate::query::planner::statements::statement_planner::StatementPlanner;
-use crate::query::planner::PlanIdGenerator;
 use crate::core::YieldColumn;
 use crate::query::validator::structs::OrderByItem;
 use crate::query::validator::structs::CypherClauseKind;
@@ -87,52 +86,15 @@ impl StatementPlanner for MatchStatementPlanner {
         "MATCH"
     }
 
-    fn supported_clause_kinds(&self) -> Vec<CypherClauseKind> {
-        vec![
+    fn supported_clause_kinds(&self) -> &[CypherClauseKind] {
+        const SUPPORTED_CLAUSES: &[CypherClauseKind] = &[
             CypherClauseKind::Match,
             CypherClauseKind::Where,
             CypherClauseKind::Return,
             CypherClauseKind::OrderBy,
             CypherClauseKind::Pagination,
-        ]
-    }
-
-    fn extract_clauses(&self, stmt: &Stmt) -> Vec<CypherClauseKind> {
-        let mut clauses = Vec::new();
-        clauses.push(CypherClauseKind::Match);
-
-        if let crate::query::parser::ast::Stmt::Match(match_stmt) = stmt {
-            if match_stmt.where_clause.is_some() {
-                clauses.push(CypherClauseKind::Where);
-            }
-            if match_stmt.return_clause.is_some() {
-                clauses.push(CypherClauseKind::Return);
-            }
-            if match_stmt.order_by.is_some() {
-                clauses.push(CypherClauseKind::OrderBy);
-            }
-            if match_stmt.skip.is_some() || match_stmt.limit.is_some() {
-                clauses.push(CypherClauseKind::Pagination);
-            }
-        }
-        clauses
-    }
-
-    fn make_statement_planner() -> Box<dyn StatementPlanner>
-    where
-        Self: Sized,
-    {
-        Box::new(Self::new())
-    }
-
-    fn create_initial_plan(&self, stmt: &Stmt, qctx: Arc<QueryContext>) -> Result<SubPlan, PlannerError> {
-        let space_id = qctx.space_id().unwrap_or(1) as u64;
-        self.plan_match_pattern(stmt, space_id)
-    }
-
-    fn create_default_plan(&self, stmt: &Stmt, qctx: Arc<QueryContext>) -> Result<ExecutionPlan, PlannerError> {
-        let mut planner = MatchStatementPlanner::new();
-        planner.transform_with_full_context(qctx, stmt)
+        ];
+        SUPPORTED_CLAUSES
     }
 }
 
@@ -336,11 +298,6 @@ impl MatchStatementPlanner {
             _ => Ok(None),
         }
     }
-
-    fn set_plan_id(&self, plan: &mut ExecutionPlan) {
-        let id = PlanIdGenerator::instance().next_id();
-        plan.set_id(id);
-    }
 }
 
 #[cfg(test)]
@@ -364,23 +321,4 @@ mod tests {
         assert!(clauses.contains(&CypherClauseKind::OrderBy));
         assert!(clauses.contains(&CypherClauseKind::Pagination));
     }
-
-    #[test]
-    fn test_extract_clauses_simple() {
-        let planner = MatchStatementPlanner::new();
-        let stmt = crate::query::parser::ast::Stmt::Match(crate::query::parser::ast::MatchStmt {
-            span: crate::core::types::Span::default(),
-            patterns: vec![],
-            optional: false,
-            where_clause: None,
-            return_clause: None,
-            order_by: None,
-            limit: None,
-            skip: None,
-        });
-        let clauses = planner.extract_clauses(&stmt);
-        assert_eq!(clauses.len(), 1);
-        assert!(clauses.contains(&CypherClauseKind::Match));
-    }
-
 }

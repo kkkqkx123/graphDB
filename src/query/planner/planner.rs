@@ -5,7 +5,9 @@
 //! - 使用 Arc<QueryContext> 替代 &QueryContext
 //! - 使用 &Stmt 替代 &AstContext
 
+use std::num::NonZeroUsize;
 use std::sync::Arc;
+use std::time::Duration;
 
 use crate::query::context::QueryContext;
 use crate::query::parser::ast::Stmt;
@@ -13,9 +15,6 @@ use crate::query::planner::plan::ExecutionPlan;
 use crate::query::planner::plan::SubPlan;
 use crate::query::validator::StatementType;
 use lru::LruCache;
-use std::collections::HashMap;
-use std::num::NonZeroUsize;
-use std::time::Duration;
 use parking_lot::Mutex;
 
 use crate::query::planner::statements::delete_planner::DeletePlanner;
@@ -428,97 +427,6 @@ pub trait Planner: std::fmt::Debug {
     }
 }
 
-/// 可配置的规划器注册表（静态版本）
-#[derive(Debug)]
-pub struct StaticConfigurablePlannerRegistry {
-    planners: HashMap<SentenceKind, Vec<MatchAndInstantiateEnum>>,
-    config: PlannerConfig,
-    cache: Option<PlanCache>,
-}
-
-impl StaticConfigurablePlannerRegistry {
-    pub fn new() -> Self {
-        let cache = PlanCache::new(100)
-            .unwrap_or_else(|_| PlanCache::new(1).expect("Failed to create plan cache with minimum size"));
-        Self {
-            planners: HashMap::new(),
-            config: PlannerConfig::default(),
-            cache: Some(cache),
-        }
-    }
-
-    pub fn with_config(config: PlannerConfig) -> Self {
-        let cache = if config.enable_caching {
-            Some(PlanCache::new(config.cache_size)
-                .unwrap_or_else(|_| PlanCache::new(100)
-                    .expect("Failed to create plan cache with default size")))
-        } else {
-            None
-        };
-        Self {
-            planners: HashMap::new(),
-            config: config.clone(),
-            cache,
-        }
-    }
-
-    pub fn register(
-        &mut self,
-        sentence_kind: SentenceKind,
-        planner: MatchAndInstantiateEnum,
-    ) {
-        self.planners
-            .entry(sentence_kind)
-            .or_default()
-            .push(planner);
-
-        if let Some(planners) = self.planners.get_mut(&sentence_kind) {
-            planners.sort_by_key(|p| -p.priority());
-        }
-    }
-
-    pub fn unregister_planners(&mut self, sentence_kind: &SentenceKind) {
-        self.planners.remove(sentence_kind);
-    }
-
-    pub fn set_config(&mut self, config: PlannerConfig) {
-        self.config = config.clone();
-        if config.enable_caching && self.cache.is_none() {
-            self.cache = Some(PlanCache::new(config.cache_size)
-                .unwrap_or_else(|_| PlanCache::new(100)
-                    .expect("Failed to create plan cache in set_config")));
-        } else if !config.enable_caching {
-            self.cache = None;
-        }
-    }
-
-    pub fn config(&self) -> &PlannerConfig {
-        &self.config
-    }
-
-    pub fn planner_count(&self) -> usize {
-        self.planners.values().map(|v| v.len()).sum()
-    }
-
-    pub fn has_planners_for(&self, sentence_kind: &SentenceKind) -> bool {
-        self.planners.contains_key(sentence_kind)
-    }
-
-    pub fn cache_size(&self) -> usize {
-        self.cache.as_ref().map_or(0, |c| c.size().unwrap_or(0))
-    }
-
-    pub fn clear_cache(&mut self) {
-        if let Some(ref mut cache) = self.cache {
-            let _ = cache.clear();
-        }
-    }
-
-    pub fn is_caching_enabled(&self) -> bool {
-        self.config.enable_caching
-    }
-}
-
 // ============================================================================
 // 静态注册实现 - 完全消除动态分发
 // ============================================================================
@@ -655,112 +563,6 @@ impl PlannerEnum {
     }
 }
 
-/// 静态规划器注册表
-/// 编译时确定所有规划器，完全消除动态分发
-#[derive(Debug, Default)]
-pub struct StaticPlannerRegistry {
-    planners: Vec<PlannerEnum>,
-}
-
-impl StaticPlannerRegistry {
-    /// 创建注册表并注册所有规划器
-    pub fn new() -> Self {
-        Self {
-            planners: vec![
-                PlannerEnum::Match(MatchStatementPlanner::new()),
-                PlannerEnum::Go(GoPlanner::new()),
-                PlannerEnum::Lookup(LookupPlanner::new()),
-                PlannerEnum::Path(PathPlanner::new()),
-                PlannerEnum::Subgraph(SubgraphPlanner::new()),
-                PlannerEnum::FetchVertices(FetchVerticesPlanner::new()),
-                PlannerEnum::FetchEdges(FetchEdgesPlanner::new()),
-                PlannerEnum::Maintain(MaintainPlanner::new()),
-                PlannerEnum::UserManagement(UserManagementPlanner::new()),
-            ],
-        }
-    }
-
-    /// 获取规划器数量
-    pub fn len(&self) -> usize {
-        self.planners.len()
-    }
-
-    /// 检查是否为空
-    pub fn is_empty(&self) -> bool {
-        self.planners.is_empty()
-    }
-
-    /// 根据语句类型获取规划器
-    pub fn get(&self, kind: SentenceKind) -> Option<&PlannerEnum> {
-        self.planners.iter().find(|p| p.name() == kind.as_str())
-    }
-
-    /// 获取可变的规划器
-    pub fn get_mut(&mut self, kind: SentenceKind) -> Option<&mut PlannerEnum> {
-        self.planners.iter_mut().find(|p| p.name() == kind.as_str())
-    }
-
-    /// 创建执行计划（使用静态分发）
-    pub fn create_plan(&mut self, stmt: &Stmt, qctx: Arc<QueryContext>) -> Result<SubPlan, PlannerError> {
-        let kind = SentenceKind::from_stmt(stmt)
-            .map_err(|_| PlannerError::NoSuitablePlanner("Unknown statement type".to_string()))?;
-
-        if let Some(planner) = self.planners.iter_mut().find(|p| {
-            p.name() == kind.as_str() && p.matches(stmt)
-        }) {
-            return planner.transform(stmt, qctx);
-        }
-
-        Err(PlannerError::NoSuitablePlanner(
-            "No suitable planner found for the given statement".to_string(),
-        ))
-    }
-
-    /// 迭代所有规划器
-    pub fn iter(&self) -> impl Iterator<Item = &PlannerEnum> {
-        self.planners.iter()
-    }
-
-    /// 迭代所有规划器（可变）
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut PlannerEnum> {
-        self.planners.iter_mut()
-    }
-}
-
-/// 便捷函数 - 创建规划器
-pub fn create_planner(kind: SentenceKind) -> Option<PlannerEnum> {
-    PlannerEnum::from_sentence_kind(kind)
-}
-
-/// 静态注册版本的顺序规划器
-#[derive(Debug, Default)]
-pub struct StaticSequentialPlanner {
-    registry: StaticPlannerRegistry,
-}
-
-impl StaticSequentialPlanner {
-    pub fn new() -> Self {
-        Self {
-            registry: StaticPlannerRegistry::new(),
-        }
-    }
-
-    pub fn match_stmt(stmt: &Stmt) -> bool {
-        let kind = SentenceKind::from_stmt(stmt);
-        kind.is_ok()
-    }
-
-    pub fn create_plan(&mut self, stmt: &Stmt, qctx: Arc<QueryContext>) -> Result<SubPlan, PlannerError> {
-        self.registry.create_plan(stmt, qctx)
-    }
-
-    /// 转换语句为计划（静态分发版本）
-    pub fn to_plan(stmt: &Stmt, qctx: Arc<QueryContext>) -> Result<SubPlan, PlannerError> {
-        let mut registry = StaticPlannerRegistry::new();
-        registry.create_plan(stmt, qctx)
-    }
-}
-
 /// 错误处理宏
 ///
 /// 类似于 C++ 中的 NG_RETURN_IF_ERROR 宏，用于简化错误传播
@@ -863,14 +665,8 @@ mod tests {
     }
 
     #[test]
-    fn test_planner_registry() {
-        let registry = StaticPlannerRegistry::new();
-        assert_eq!(registry.len(), 9);
-    }
-
-    #[test]
-    fn test_sequential_planner() {
-        let registry = StaticPlannerRegistry::new();
-        assert_eq!(registry.len(), 9);
+    fn test_planner_enum_from_sentence_kind() {
+        let planner = PlannerEnum::from_sentence_kind(SentenceKind::Match);
+        assert!(planner.is_some());
     }
 }

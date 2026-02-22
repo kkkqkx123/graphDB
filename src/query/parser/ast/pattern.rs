@@ -4,7 +4,7 @@
 
 use super::types::*;
 use crate::core::types::expression::Expression;
-use crate::core::types::expression::utils::CoreExprUtils;
+use crate::core::types::expression::utils::collect_variables;
 
 /// 模式枚举 - 图模式匹配
 #[derive(Debug, Clone, PartialEq)]

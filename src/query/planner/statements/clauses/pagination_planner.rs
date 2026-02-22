@@ -39,10 +39,6 @@ impl ClausePlanner for PaginationPlanner {
         CypherClauseKind::Pagination
     }
 
-    fn name(&self) -> &'static str {
-        "PaginationPlanner"
-    }
-
     fn transform_clause(
         &self,
         _qctx: Arc<QueryContext>,
@@ -71,14 +67,6 @@ mod tests {
     #[test]
     fn test_pagination_planner_creation() {
         let planner = PaginationPlanner::new();
-        assert_eq!(planner.name(), "PaginationPlanner");
         assert_eq!(planner.clause_kind(), CypherClauseKind::Pagination);
-    }
-
-    #[test]
-    fn test_supports() {
-        let planner = PaginationPlanner::new();
-        assert!(planner.supports(CypherClauseKind::Pagination));
-        assert!(!planner.supports(CypherClauseKind::Where));
     }
 }

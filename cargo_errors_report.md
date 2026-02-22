@@ -2,65 +2,77 @@
 
 ## Summary
 
-- **Total Errors**: 0
-- **Total Warnings**: 9
-- **Total Issues**: 9
-- **Unique Error Patterns**: 0
-- **Unique Warning Patterns**: 7
-- **Files with Issues**: 7
+- **Total Errors**: 36
+- **Total Warnings**: 3
+- **Total Issues**: 39
+- **Unique Error Patterns**: 1
+- **Unique Warning Patterns**: 2
+- **Files with Issues**: 3
 
 ## Error Statistics
 
-**Total Errors**: 0
+**Total Errors**: 36
+
+### Error Type Breakdown
+
+- **error[E0433]**: 36 errors
+
+### Files with Errors (Top 10)
+
+- `src\query\parser\ast\stmt.rs`: 28 errors
+- `src\query\parser\ast\pattern.rs`: 8 errors
 
 ## Warning Statistics
 
-**Total Warnings**: 9
+**Total Warnings**: 3
 
 ### Warning Type Breakdown
 
-- **warning**: 9 warnings
+- **warning**: 3 warnings
 
 ### Files with Warnings (Top 10)
 
-- `src\query\planner\statements\match_statement_planner.rs`: 2 warnings
-- `src\query\optimizer\rules\index\index_covering_scan.rs`: 2 warnings
-- `src\query\query_pipeline_manager.rs`: 2 warnings
-- `src\query\optimizer\rules\scan\index_full_scan.rs`: 1 warnings
-- `src\query\optimizer\rules\projection_pushdown\push_project_down.rs`: 1 warnings
-- `src\query\planner\statements\set_operation_planner.rs`: 1 warnings
+- `src\query\parser\ast\stmt.rs`: 1 warnings
+- `src\core\types\expression\utils.rs`: 1 warnings
+- `src\query\parser\ast\pattern.rs`: 1 warnings
+
+## Detailed Error Categorization
+
+### error[E0433]: failed to resolve: use of undeclared type `CoreExprUtils`: use of undeclared type `CoreExprUtils`
+
+**Total Occurrences**: 36  
+**Unique Files**: 2
+
+#### `src\query\parser\ast\stmt.rs`: 28 occurrences
+
+- Line 906: failed to resolve: use of undeclared type `CoreExprUtils`: use of undeclared type `CoreExprUtils`
+- Line 912: failed to resolve: use of undeclared type `CoreExprUtils`: use of undeclared type `CoreExprUtils`
+- Line 921: failed to resolve: use of undeclared type `CoreExprUtils`: use of undeclared type `CoreExprUtils`
+- ... 25 more occurrences in this file
+
+#### `src\query\parser\ast\pattern.rs`: 8 occurrences
+
+- Line 204: failed to resolve: use of undeclared type `CoreExprUtils`: use of undeclared type `CoreExprUtils`
+- Line 207: failed to resolve: use of undeclared type `CoreExprUtils`: use of undeclared type `CoreExprUtils`
+- Line 215: failed to resolve: use of undeclared type `CoreExprUtils`: use of undeclared type `CoreExprUtils`
+- ... 5 more occurrences in this file
 
 ## Detailed Warning Categorization
 
-### warning: unused import: `std::sync::Arc`
+### warning: unused import: `crate::core::types::expression::utils::collect_variables`
 
-**Total Occurrences**: 9  
-**Unique Files**: 6
+**Total Occurrences**: 3  
+**Unique Files**: 3
 
-#### `src\query\query_pipeline_manager.rs`: 2 occurrences
+#### `src\query\parser\ast\stmt.rs`: 1 occurrences
 
-- Line 16: unused import: `StaticConfigurablePlannerRegistry`
-- Line 104: unused variable: `config`: help: if this is intentional, prefix it with an underscore: `_config`
+- Line 9: unused import: `crate::core::types::expression::utils::collect_variables`
 
-#### `src\query\optimizer\rules\index\index_covering_scan.rs`: 2 occurrences
+#### `src\core\types\expression\utils.rs`: 1 occurrences
 
-- Line 38: unused import: `std::sync::Arc`
-- Line 159: unused import: `OptGroupNode`
+- Line 9: unused imports: `BinaryOperator`, `DataType`, `UnaryOperator`, and `Value`
 
-#### `src\query\planner\statements\match_statement_planner.rs`: 2 occurrences
+#### `src\query\parser\ast\pattern.rs`: 1 occurrences
 
-- Line 41: field `config` is never read
-- Line 161: multiple methods are never used
-
-#### `src\query\optimizer\rules\scan\index_full_scan.rs`: 1 occurrences
-
-- Line 17: unused import: `std::sync::Arc`
-
-#### `src\query\planner\statements\set_operation_planner.rs`: 1 occurrences
-
-- Line 6: unused import: `SetOperationStmt`
-
-#### `src\query\optimizer\rules\projection_pushdown\push_project_down.rs`: 1 occurrences
-
-- Line 32: unused import: `std::sync::Arc`
+- Line 7: unused import: `crate::core::types::expression::utils::collect_variables`
 

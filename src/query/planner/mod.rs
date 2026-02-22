@@ -24,11 +24,7 @@ pub use statements::{
 };
 
 // 静态注册相关导出
-pub use planner::{
-    PlannerEnum, StaticConfigurablePlannerRegistry, StaticPlannerRegistry,
-    StaticSequentialPlanner,
-    create_planner,
-};
+pub use planner::PlannerEnum;
 
 use std::sync::atomic::{AtomicI64, Ordering};
 

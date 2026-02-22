@@ -21,10 +21,6 @@ impl ClausePlanner for UnwindClausePlanner {
         CypherClauseKind::Unwind
     }
 
-    fn name(&self) -> &'static str {
-        "UnwindClausePlanner"
-    }
-
     fn transform_clause(
         &self,
         _qctx: Arc<QueryContext>,
@@ -51,6 +47,6 @@ mod tests {
     #[test]
     fn test_unwind_clause_planner_creation() {
         let planner = UnwindClausePlanner::new();
-        assert_eq!(planner.name(), "UnwindClausePlanner");
+        assert_eq!(planner.clause_kind(), CypherClauseKind::Unwind);
     }
 }

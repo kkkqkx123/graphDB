@@ -100,10 +100,6 @@ impl ClausePlanner for ReturnClausePlanner {
         CypherClauseKind::Return
     }
 
-    fn name(&self) -> &'static str {
-        "ReturnClausePlanner"
-    }
-
     fn transform_clause(
         &self,
         _qctx: Arc<QueryContext>,
@@ -138,7 +134,6 @@ mod tests {
     #[test]
     fn test_return_clause_planner_creation() {
         let planner = ReturnClausePlanner::new();
-        assert_eq!(planner.name(), "ReturnClausePlanner");
         assert_eq!(planner.clause_kind(), CypherClauseKind::Return);
     }
 
@@ -147,12 +142,4 @@ mod tests {
         let planner = ReturnClausePlanner::with_distinct(true);
         assert!(planner.distinct);
     }
-
-    #[test]
-    fn test_supports() {
-        let planner = ReturnClausePlanner::new();
-        assert!(planner.supports(CypherClauseKind::Return));
-        assert!(!planner.supports(CypherClauseKind::Where));
-    }
-
 }

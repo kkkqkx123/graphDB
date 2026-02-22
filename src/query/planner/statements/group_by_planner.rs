@@ -38,10 +38,129 @@ impl GroupByPlanner {
     }
 
     /// 从表达式中提取聚合函数
-    fn extract_aggregate_functions(&self, _expr: &Expression) -> Vec<AggregateFunction> {
-        // TODO: 实现从表达式中提取聚合函数的逻辑
-        // 这里简化处理，返回空列表
-        vec![]
+    /// 
+    /// 递归遍历表达式树，收集所有聚合函数。
+    /// 参考 nebula-graph 的 ExpressionUtils::collectAll 实现。
+    fn extract_aggregate_functions(&self, expr: &Expression) -> Vec<AggregateFunction> {
+        let mut functions = Vec::new();
+        self.collect_aggregate_functions_recursive(expr, &mut functions);
+        functions
+    }
+
+    /// 递归收集聚合函数的辅助方法
+    fn collect_aggregate_functions_recursive(&self, expr: &Expression, functions: &mut Vec<AggregateFunction>) {
+        match expr {
+            Expression::Aggregate { func, .. } => {
+                functions.push(func.clone());
+            }
+            Expression::Binary { left, right, .. } => {
+                self.collect_aggregate_functions_recursive(left, functions);
+                self.collect_aggregate_functions_recursive(right, functions);
+            }
+            Expression::Unary { operand, .. } => {
+                self.collect_aggregate_functions_recursive(operand, functions);
+            }
+            Expression::Function { args, .. } => {
+                for arg in args {
+                    self.collect_aggregate_functions_recursive(arg, functions);
+                }
+            }
+            Expression::List(items) => {
+                for item in items {
+                    self.collect_aggregate_functions_recursive(item, functions);
+                }
+            }
+            Expression::Map(pairs) => {
+                for (_, value) in pairs {
+                    self.collect_aggregate_functions_recursive(value, functions);
+                }
+            }
+            Expression::Case {
+                test_expr,
+                conditions,
+                default,
+            } => {
+                if let Some(test) = test_expr {
+                    self.collect_aggregate_functions_recursive(test, functions);
+                }
+                for (when_expr, then_expr) in conditions {
+                    self.collect_aggregate_functions_recursive(when_expr, functions);
+                    self.collect_aggregate_functions_recursive(then_expr, functions);
+                }
+                if let Some(def) = default {
+                    self.collect_aggregate_functions_recursive(def, functions);
+                }
+            }
+            Expression::Property { object, .. } => {
+                self.collect_aggregate_functions_recursive(object, functions);
+            }
+            Expression::Subscript { collection, index } => {
+                self.collect_aggregate_functions_recursive(collection, functions);
+                self.collect_aggregate_functions_recursive(index, functions);
+            }
+            Expression::Range {
+                collection,
+                start,
+                end,
+            } => {
+                self.collect_aggregate_functions_recursive(collection, functions);
+                if let Some(s) = start {
+                    self.collect_aggregate_functions_recursive(s, functions);
+                }
+                if let Some(e) = end {
+                    self.collect_aggregate_functions_recursive(e, functions);
+                }
+            }
+            Expression::Path(items) => {
+                for item in items {
+                    self.collect_aggregate_functions_recursive(item, functions);
+                }
+            }
+            Expression::TypeCast { expression, .. } => {
+                self.collect_aggregate_functions_recursive(expression, functions);
+            }
+            Expression::ListComprehension {
+                source,
+                filter,
+                map,
+                ..
+            } => {
+                self.collect_aggregate_functions_recursive(source, functions);
+                if let Some(f) = filter {
+                    self.collect_aggregate_functions_recursive(f, functions);
+                }
+                if let Some(m) = map {
+                    self.collect_aggregate_functions_recursive(m, functions);
+                }
+            }
+            Expression::LabelTagProperty { tag, .. } => {
+                self.collect_aggregate_functions_recursive(tag, functions);
+            }
+            Expression::Predicate { args, .. } => {
+                for arg in args {
+                    self.collect_aggregate_functions_recursive(arg, functions);
+                }
+            }
+            Expression::Reduce {
+                initial,
+                source,
+                mapping,
+                ..
+            } => {
+                self.collect_aggregate_functions_recursive(initial, functions);
+                self.collect_aggregate_functions_recursive(source, functions);
+                self.collect_aggregate_functions_recursive(mapping, functions);
+            }
+            Expression::PathBuild(items) => {
+                for item in items {
+                    self.collect_aggregate_functions_recursive(item, functions);
+                }
+            }
+            Expression::Literal(_) | Expression::Variable(_) | Expression::Label(_) | 
+            Expression::TagProperty { .. } | Expression::EdgeProperty { .. } | 
+            Expression::Parameter(_) => {
+            }
+        }
     }
 }
 
