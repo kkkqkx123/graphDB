@@ -5,7 +5,7 @@ use crate::query::optimizer::rule_patterns::CommonPatterns;
 use crate::query::optimizer::rule_traits::{combine_conditions, BaseOptRule, MergeRule};
 use crate::query::planner::plan::FilterNode as FilterPlanNode;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
-use crate::query::optimizer::PlanNodeVisitor;
+use crate::query::planner::plan::core::nodes::plan_node_visitor::PlanNodeVisitor;
 use std::rc::Rc;
 use std::cell::RefCell;
 
@@ -59,7 +59,7 @@ impl OptRule for CombineFilterRule {
             node_dependencies: node_ref.dependencies.clone(),
         };
 
-        let result = visitor.visit(&node_ref.plan_node);
+        let result = node_ref.plan_node.accept(&mut visitor);
         drop(node_ref);
 
         if result.is_merged {

@@ -3,7 +3,7 @@
 use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, OptimizerError};
 use crate::query::optimizer::rule_traits::{create_basic_pattern, BaseOptRule};
 use crate::query::planner::plan::core::nodes::plan_node_traits::MultipleInputNode;
-use crate::query::optimizer::PlanNodeVisitor;
+use crate::query::planner::plan::core::nodes::plan_node_visitor::PlanNodeVisitor;
 use std::rc::Rc;
 use std::cell::RefCell;
 
@@ -47,7 +47,7 @@ impl OptRule for EliminateAppendVerticesRule {
             node_dependencies: node_ref.dependencies.clone(),
         };
 
-        let result = visitor.visit(&node_ref.plan_node);
+        let result = node_ref.plan_node.accept(&mut visitor);
         drop(node_ref);
 
         if result.is_eliminated {

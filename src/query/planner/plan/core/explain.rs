@@ -245,6 +245,9 @@ impl Default for DescribeVisitor {
 impl PlanNodeVisitor for DescribeVisitor {
     type Result = ();
 
+    fn visit_default(&mut self) {
+    }
+
     fn visit_start(&mut self, node: &StartNode) {
         self.create_description("Start", node);
     }

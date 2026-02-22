@@ -231,7 +231,7 @@ macro_rules! define_elimination_rule {
                     eliminated_node: None,
                 };
 
-                let result = visitor.visit(&node_ref.plan_node);
+                let result = node_ref.plan_node.accept(&mut visitor);
                 drop(node_ref);
 
                 if result.is_eliminated {

@@ -3,7 +3,7 @@
 use crate::query::optimizer::plan::{OptContext, OptGroupNode};
 use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
-use crate::query::optimizer::PlanNodeVisitor;
+use crate::query::planner::plan::core::nodes::plan_node_visitor::PlanNodeVisitor;
 
 crate::define_elimination_rule! {
     /// 消除重复操作的规则

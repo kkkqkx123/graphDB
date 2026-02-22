@@ -8,7 +8,7 @@ use crate::query::optimizer::rule_traits::BaseOptRule;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum as Enum;
 use crate::query::planner::plan::core::nodes::set_operations_node::IntersectNode;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
-use crate::query::optimizer::PlanNodeVisitor;
+use crate::query::planner::plan::core::nodes::plan_node_visitor::PlanNodeVisitor;
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::sync::Arc;
@@ -36,7 +36,7 @@ impl OptRule for OptimizeSetOperationInputOrderRule {
             optimized_node: None,
         };
 
-        let result = visitor.visit(&node_ref.plan_node);
+        let result = node_ref.plan_node.accept(&mut visitor);
         drop(node_ref);
 
         if result.is_optimized {

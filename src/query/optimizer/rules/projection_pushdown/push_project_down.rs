@@ -26,7 +26,7 @@ use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::query::optimizer::rule_traits::{BaseOptRule, PushDownRule};
 use crate::query::planner::plan::core::nodes::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
-use crate::query::optimizer::PlanNodeVisitor;
+use crate::query::planner::plan::core::nodes::plan_node_visitor::PlanNodeVisitor;
 use std::rc::Rc;
 use std::cell::RefCell;
 
@@ -118,7 +118,7 @@ impl OptRule for PushProjectDownRule {
             pushed_node: None,
             ctx: &ctx,
         };
-        let result = visitor.visit(&node_ref.plan_node);
+        let result = node_ref.plan_node.accept(&mut visitor);
         if result.is_pushed_down {
             if let Some(new_node) = result.pushed_node {
                 let mut transform_result = TransformResult::new();

@@ -2,7 +2,7 @@
 
 use crate::query::optimizer::plan::{OptContext, OptGroupNode};
 use crate::query::optimizer::rule_traits::create_basic_pattern;
-use crate::query::optimizer::PlanNodeVisitor;
+use crate::query::planner::plan::core::nodes::plan_node_visitor::PlanNodeVisitor;
 
 crate::define_elimination_rule! {
     /// 消除冗余数据收集操作的规则
