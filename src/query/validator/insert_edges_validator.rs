@@ -390,8 +390,7 @@ mod tests {
     fn create_test_query_context() -> Arc<QueryContext> {
         let request_params = RequestParams::new("TEST".to_string());
         let rctx = Arc::new(RequestContext::new(None, request_params));
-        let mut qctx = QueryContext::new();
-        qctx.set_rctx(rctx);
+        let qctx = QueryContext::new(rctx);
         Arc::new(qctx)
     }
 

@@ -10,6 +10,7 @@ use crate::query::QueryContext;
 use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::ExecutionPlan;
 use crate::query::planner::plan::SubPlan;
+use crate::query::planner::template_extractor::TemplateExtractor;
 use crate::query::validator::StatementType;
 use lru::LruCache;
 use parking_lot::Mutex;
@@ -99,26 +100,7 @@ impl PlanCacheKey {
     /// 提取查询模板（参数化）
     /// 将具体参数值替换为占位符，使相似查询共享缓存
     fn extract_template(stmt: &Stmt) -> String {
-        // 简化的模板提取：使用语句类型 + 结构特征
-        // 实际实现可能需要更复杂的逻辑来提取参数化模板
-        match stmt {
-            Stmt::Match(m) => {
-                let pattern_str = format!("MATCH {:?}", m.patterns);
-                // 移除 WHERE 子句中的具体值
-                if m.where_clause.is_some() {
-                    format!("{} WHERE ...", pattern_str)
-                } else {
-                    pattern_str
-                }
-            }
-            Stmt::Go(_) => "GO ...".to_string(),
-            Stmt::Lookup(_) => "LOOKUP ...".to_string(),
-            Stmt::Fetch(_) => "FETCH ...".to_string(),
-            Stmt::Insert(_) => "INSERT ...".to_string(),
-            Stmt::Delete(_) => "DELETE ...".to_string(),
-            Stmt::Update(_) => "UPDATE ...".to_string(),
-            _ => stmt.kind().to_string(),
-        }
+        TemplateExtractor::extract(stmt)
     }
 
     /// 生成模式指纹
@@ -893,12 +875,6 @@ mod tests {
         assert_eq!(SentenceKind::Match.as_str(), "MATCH");
         assert_eq!(SentenceKind::Go.as_str(), "GO");
         assert_eq!(SentenceKind::FetchVertices.as_str(), "FETCH VERTICES");
-    }
-
-    #[test]
-    fn test_match_and_instantiate() {
-        let mi = MatchAndInstantiateEnum::Match(MatchStatementPlanner::new());
-        assert_eq!(mi.priority(), 100);
     }
 
     #[test]

@@ -126,6 +126,14 @@ impl SegmentsConnector {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::api::session::{RequestContext, RequestParams};
+    use std::sync::Arc;
+
+    fn create_test_query_context() -> QueryContext {
+        let request_params = RequestParams::new("TEST".to_string());
+        let rctx = Arc::new(RequestContext::new(None, request_params));
+        QueryContext::new(rctx)
+    }
 
     #[test]
     fn test_inner_join() {
@@ -136,7 +144,7 @@ mod tests {
             crate::query::planner::plan::core::nodes::StartNode::new(),
         ));
 
-        let result = SegmentsConnector::inner_join(&QueryContext::new(), left, right, HashSet::new());
+        let result = SegmentsConnector::inner_join(&create_test_query_context(), left, right, HashSet::new());
         assert!(result.is_ok());
         assert!(result.expect("Expected planner result to exist").root.is_some());
     }
@@ -150,7 +158,7 @@ mod tests {
             crate::query::planner::plan::core::nodes::StartNode::new(),
         ));
 
-        let result = SegmentsConnector::left_join(&QueryContext::new(), left, right, HashSet::new());
+        let result = SegmentsConnector::left_join(&create_test_query_context(), left, right, HashSet::new());
         assert!(result.is_ok());
         assert!(result.expect("Expected planner result to exist").root.is_some());
     }
@@ -189,7 +197,7 @@ mod tests {
             crate::query::planner::plan::core::nodes::StartNode::new(),
         ));
 
-        let result = SegmentsConnector::inner_join(&QueryContext::new(), left, right, HashSet::new());
+        let result = SegmentsConnector::inner_join(&create_test_query_context(), left, right, HashSet::new());
         assert!(result.is_ok());
         assert!(result.expect("Expected planner result to exist").root.is_some());
     }

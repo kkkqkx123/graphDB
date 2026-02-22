@@ -5,6 +5,7 @@
 pub mod plan;
 pub mod planner;
 pub mod connector;
+pub mod template_extractor;
 
 // 按功能组织的模块
 pub mod statements;
@@ -16,6 +17,7 @@ pub use planner::{
     PlanCache, PlanCacheKey, SentenceKind,
 };
 pub use connector::SegmentsConnector;
+pub use template_extractor::{TemplateExtractor, ParameterizingTransformer, ParameterizedResult};
 
 // 从 core 模块重新导出 JoinType
 pub use crate::core::types::JoinType;

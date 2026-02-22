@@ -361,7 +361,7 @@ mod tests {
 
         let vars = table.get_variables_by_type("dataset");
         assert_eq!(vars.len(), 1);
-        assert_eq!(vars[0].name, "var1");
+        assert_eq!(vars[0].variable_name, "var1");
     }
 
     #[test]
@@ -373,7 +373,7 @@ mod tests {
 
         let vars = table.get_variables_by_source("MATCH");
         assert_eq!(vars.len(), 1);
-        assert_eq!(vars[0].name, "var1");
+        assert_eq!(vars[0].variable_name, "var1");
     }
 
     #[test]
@@ -386,6 +386,6 @@ mod tests {
 
         let vars = table.get_aggregated_variables();
         assert_eq!(vars.len(), 1);
-        assert_eq!(vars[0].name, "var1");
+        assert_eq!(vars[0].variable_name, "var1");
     }
 }
