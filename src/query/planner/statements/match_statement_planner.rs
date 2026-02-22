@@ -65,9 +65,7 @@ impl Planner for MatchStatementPlanner {
     }
 
     fn transform(&mut self, stmt: &Stmt, qctx: Arc<QueryContext>) -> Result<SubPlan, PlannerError> {
-        let space_id = qctx.rctx()
-            .and_then(|rctx| rctx.space_id())
-            .unwrap_or(1) as u64;
+        let space_id = qctx.rctx().space_id().unwrap_or(1) as u64;
         self.plan_match_pattern(stmt, space_id)
     }
 

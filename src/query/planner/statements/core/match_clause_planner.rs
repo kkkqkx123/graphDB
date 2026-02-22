@@ -241,13 +241,13 @@ impl MatchClausePlanner {
         if let Some(input) = input_plan {
             if match_clause_ctx.is_optional {
                 // OPTIONAL MATCH：使用左连接
-                let qctx = QueryContext::new();
+                let qctx = QueryContext::default();
                 let inter_aliases = self.find_inter_aliases(match_clause_ctx, input, &plan);
                 let inter_aliases_ref: HashSet<&str> = inter_aliases.iter().map(|s| s.as_str()).collect();
                 plan = SegmentsConnector::left_join(&qctx, input.clone(), plan, inter_aliases_ref)?;
             } else {
                 // 普通 MATCH：使用内连接
-                let qctx = QueryContext::new();
+                let qctx = QueryContext::default();
                 let inter_aliases = self.find_inter_aliases(match_clause_ctx, input, &plan);
                 if inter_aliases.is_empty() {
                     // 没有共享别名，使用交叉连接
@@ -303,9 +303,7 @@ impl ClausePlanner for MatchClausePlanner {
         let match_clause_ctx = Self::extract_match_context(stmt, &qctx, &input_plan)?;
 
         // 从查询上下文中获取 space_id，默认为 1
-        let space_id = qctx.rctx()
-            .and_then(|rctx| rctx.space_id())
-            .unwrap_or(1) as u64;
+        let space_id = qctx.rctx().space_id().unwrap_or(1) as u64;
 
         // 对于 MATCH 子句，input_plan 可能是空计划（作为 Source）
         // 或者在管道中作为输入（如 WITH ... MATCH ...）

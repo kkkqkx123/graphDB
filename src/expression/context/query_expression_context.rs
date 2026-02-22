@@ -51,10 +51,9 @@ impl QueryExpressionContext {
         let mut ctx = Self::new();
 
         // 从请求参数继承变量
-        if let Some(params) = qctx.request_params() {
-            for (name, value) in &params.parameters {
-                VariableContext::set_variable(&mut ctx, name.clone(), value.clone());
-            }
+        let params = qctx.request_params();
+        for (name, value) in &params.parameters {
+            VariableContext::set_variable(&mut ctx, name.clone(), value.clone());
         }
 
         ctx

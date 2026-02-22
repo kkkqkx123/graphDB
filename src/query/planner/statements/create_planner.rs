@@ -130,9 +130,7 @@ impl Planner for CreatePlanner {
         qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
         // 获取空间名称
-        let space_name = qctx.rctx()
-            .and_then(|rctx| rctx.space_name())
-            .unwrap_or_else(|| "default".to_string());
+        let space_name = qctx.rctx().space_name().unwrap_or_else(|| "default".to_string());
 
         // 提取 CREATE 语句
         let create_stmt = self.extract_create_stmt(stmt)?;

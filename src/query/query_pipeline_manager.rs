@@ -242,7 +242,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
     }
 
     fn create_query_context(&self, _query_text: &str) -> DBResult<QueryContext> {
-        Ok(QueryContext::new())
+        Ok(QueryContext::default())
     }
 
     fn parse_into_context(

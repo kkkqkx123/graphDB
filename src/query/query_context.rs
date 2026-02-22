@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::api::session::RequestContext;
 use crate::core::types::SpaceInfo;
-use crate::core::{Symbol, SymbolTable};
+use crate::core::SymbolTable;
 use crate::query::planner::plan::ExecutionPlan;
 use crate::storage::metadata::{SchemaManager, IndexMetadataManager};
 use crate::storage::StorageClient;
@@ -93,6 +93,11 @@ impl QueryContext {
     /// 获取请求上下文的 Arc 引用
     pub fn request_context_arc(&self) -> Arc<RequestContext> {
         self.rctx.clone()
+    }
+
+    /// 获取请求上下文（兼容旧代码）
+    pub fn rctx(&self) -> &RequestContext {
+        &self.rctx
     }
 
     /// 设置模式管理器
@@ -250,5 +255,11 @@ impl std::fmt::Debug for QueryContext {
             .field("space_id", &self.space_id())
             .field("killed", &self.killed)
             .finish()
+    }
+}
+
+impl Default for QueryContext {
+    fn default() -> Self {
+        Self::new(Arc::new(RequestContext::default()))
     }
 }
