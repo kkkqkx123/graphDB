@@ -1,7 +1,7 @@
 //! FETCH VERTICES查询规划器
 //! 处理FETCH VERTICES查询的规划
 
-use crate::query::context::QueryContext;
+use crate::query::QueryContext;
 use crate::query::parser::ast::{FetchTarget, Stmt};
 use crate::query::planner::plan::core::common::TagProp;
 use crate::query::planner::plan::core::nodes::{

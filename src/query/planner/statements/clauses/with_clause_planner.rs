@@ -11,7 +11,7 @@
 
 use crate::core::Expression;
 use crate::core::types::expression::utils::extract_group_suite;
-use crate::query::context::QueryContext;
+use crate::query::QueryContext;
 use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::{FilterNode, LimitNode, PlanNodeEnum, ProjectNode};

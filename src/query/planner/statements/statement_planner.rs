@@ -9,7 +9,7 @@
 //! - **StatementPlanner**：语句级 trait，处理完整语句的规划
 //! - **ClausePlanner**：子句级 trait，处理单个子句的规划
 
-use crate::query::context::QueryContext;
+use crate::query::QueryContext;
 use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::Planner;

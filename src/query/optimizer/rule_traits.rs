@@ -605,7 +605,7 @@ mod tests {
 
     #[test]
     fn test_dependency_functions() {
-        use crate::query::context::QueryContext;
+        use crate::query::QueryContext;
 
         // 创建测试上下文
         let _session_info = crate::api::session::session_manager::SessionInfo {

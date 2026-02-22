@@ -5,7 +5,7 @@
 use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::Expression;
-use crate::query::context::QueryContext;
+use crate::query::QueryContext;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
@@ -270,13 +270,23 @@ impl StatementValidator for LimitValidator {
 mod tests {
     use super::*;
     use crate::query::parser::ast::Stmt;
+    use crate::api::session::{RequestContext, RequestParams};
+
+    /// 创建测试用的 QueryContext，带有有效的 space_id
+    fn create_test_query_context() -> Arc<QueryContext> {
+        let request_params = RequestParams::new("TEST".to_string());
+        let rctx = Arc::new(RequestContext::new(None, request_params));
+        let mut qctx = QueryContext::new();
+        qctx.set_rctx(rctx);
+        Arc::new(qctx)
+    }
 
     #[test]
     fn test_limit_validator_basic() {
         let mut validator = LimitValidator::new()
             .set_limit(Expression::literal(10));
 
-        let qctx = Arc::new(QueryContext::default());
+        let qctx = create_test_query_context();
         let use_stmt = crate::query::parser::ast::UseStmt {
             span: crate::core::types::Span::default(),
             space: "test".to_string(),
@@ -294,7 +304,7 @@ mod tests {
             .set_skip(Expression::literal(5))
             .set_limit(Expression::literal(10));
 
-        let qctx = Arc::new(QueryContext::default());
+        let qctx = create_test_query_context();
         let use_stmt = crate::query::parser::ast::UseStmt {
             span: crate::core::types::Span::default(),
             space: "test".to_string(),
@@ -312,7 +322,7 @@ mod tests {
         let mut validator = LimitValidator::new()
             .set_skip(Expression::literal(-1));
 
-        let qctx = Arc::new(QueryContext::default());
+        let qctx = create_test_query_context();
         let use_stmt = crate::query::parser::ast::UseStmt {
             span: crate::core::types::Span::default(),
             space: "test".to_string(),
@@ -328,7 +338,7 @@ mod tests {
         let mut validator = LimitValidator::new()
             .set_limit(Expression::literal(-5));
 
-        let qctx = Arc::new(QueryContext::default());
+        let qctx = create_test_query_context();
         let use_stmt = crate::query::parser::ast::UseStmt {
             span: crate::core::types::Span::default(),
             space: "test".to_string(),
@@ -345,7 +355,7 @@ mod tests {
             .set_skip(Expression::literal(0))
             .set_limit(Expression::literal(0));
 
-        let qctx = Arc::new(QueryContext::default());
+        let qctx = create_test_query_context();
         let use_stmt = crate::query::parser::ast::UseStmt {
             span: crate::core::types::Span::default(),
             space: "test".to_string(),
@@ -361,7 +371,7 @@ mod tests {
         let mut validator = LimitValidator::new()
             .set_limit(Expression::literal("invalid"));
 
-        let qctx = Arc::new(QueryContext::default());
+        let qctx = create_test_query_context();
         let use_stmt = crate::query::parser::ast::UseStmt {
             span: crate::core::types::Span::default(),
             space: "test".to_string(),
@@ -387,7 +397,7 @@ mod tests {
             .set_limit(Expression::literal(10))
             .set_count(100);
 
-        let qctx = Arc::new(QueryContext::default());
+        let qctx = create_test_query_context();
         let use_stmt = crate::query::parser::ast::UseStmt {
             span: crate::core::types::Span::default(),
             space: "test".to_string(),

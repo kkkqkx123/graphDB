@@ -7,7 +7,7 @@ use std::sync::Arc;
 use crate::core::YieldColumn;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::Expression;
-use crate::query::context::QueryContext;
+use crate::query::QueryContext;
 use crate::query::parser::ast::{Stmt, Pattern};
 use crate::query::parser::ast::stmt::{MatchStmt, ReturnClause, ReturnItem, OrderByClause};
 

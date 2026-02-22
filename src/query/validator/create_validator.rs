@@ -19,7 +19,7 @@ use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::EdgeDirection;
 use crate::core::Value;
-use crate::query::context::QueryContext;
+use crate::query::QueryContext;
 use crate::storage::metadata::schema_manager::SchemaManager;
 use crate::query::parser::ast::stmt::{CreateStmt, CreateTarget};
 use crate::query::parser::ast::pattern::{Pattern, NodePattern, EdgePattern, PathPattern, PathElement};

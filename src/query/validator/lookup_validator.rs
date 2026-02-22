@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::Expression;
-use crate::query::context::QueryContext;
+use crate::query::QueryContext;
 use crate::query::parser::ast::{Stmt, YieldItem};
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
@@ -433,7 +433,17 @@ mod tests {
     use super::*;
     use crate::query::parser::ast::stmt::{LookupStmt, LookupTarget, YieldClause};
     use crate::query::parser::ast::Span;
+    use crate::api::session::{RequestContext, RequestParams};
     use std::sync::Arc;
+
+    /// 创建测试用的 QueryContext，带有有效的 space_id
+    fn create_test_query_context() -> Arc<QueryContext> {
+        let request_params = RequestParams::new("TEST".to_string());
+        let rctx = Arc::new(RequestContext::new(None, request_params));
+        let mut qctx = QueryContext::new();
+        qctx.set_rctx(rctx);
+        Arc::new(qctx)
+    }
 
     fn create_simple_lookup_stmt(label: &str, is_edge: bool) -> LookupStmt {
         let target = if is_edge {
@@ -462,7 +472,7 @@ mod tests {
     fn test_lookup_validator_basic() {
         let mut validator = LookupValidator::new();
         let lookup_stmt = create_simple_lookup_stmt("person", false);
-        let qctx = Arc::new(QueryContext::default());
+        let qctx = create_test_query_context();
 
         let result = validator.validate(&Stmt::Lookup(lookup_stmt), qctx);
         // 当前会失败，因为没有 YIELD 列且不是 YIELD *
@@ -473,7 +483,7 @@ mod tests {
     fn test_lookup_validator_empty_label() {
         let mut validator = LookupValidator::new();
         let lookup_stmt = create_simple_lookup_stmt("", false);
-        let qctx = Arc::new(QueryContext::default());
+        let qctx = create_test_query_context();
 
         let result = validator.validate(&Stmt::Lookup(lookup_stmt), qctx);
         assert!(result.is_err());
@@ -484,7 +494,7 @@ mod tests {
     #[test]
     fn test_lookup_validator_not_lookup_stmt() {
         let mut validator = LookupValidator::new();
-        let qctx = Arc::new(QueryContext::default());
+        let qctx = create_test_query_context();
         // 不设置 LOOKUP 语句
 
         let result = validator.validate(&Stmt::Use(crate::query::parser::ast::stmt::UseStmt {

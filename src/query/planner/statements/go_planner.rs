@@ -8,7 +8,7 @@
 //! - 添加属性投影支持
 
 use crate::core::types::EdgeDirection;
-use crate::query::context::QueryContext;
+use crate::query::QueryContext;
 use crate::query::parser::ast::{GoStmt, Stmt};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};

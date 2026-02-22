@@ -23,7 +23,7 @@ use std::sync::Arc;
 use super::group::OptGroup;
 use super::node::{OptGroupNode};
 use crate::utils::ObjectPool;
-use crate::query::context::QueryContext;
+use crate::query::QueryContext;
 use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::optimizer::core::cost::{TableStats, FeedbackStats};
 

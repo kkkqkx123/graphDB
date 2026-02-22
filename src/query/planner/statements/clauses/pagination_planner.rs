@@ -2,7 +2,7 @@
 //!
 //! 负责规划 LIMIT 和 SKIP 子句的执行，实现结果分页。
 
-use crate::query::context::QueryContext;
+use crate::query::QueryContext;
 use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;

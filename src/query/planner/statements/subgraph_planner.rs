@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 use crate::core::types::EdgeDirection;
 use crate::core::Expression;
-use crate::query::context::QueryContext;
+use crate::query::QueryContext;
 use crate::query::parser::ast::stmt::Steps;
 use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::core::nodes::{

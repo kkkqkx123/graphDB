@@ -1,14 +1,13 @@
 //! 查询上下文
 //!
 //! 管理查询从解析、验证、规划到执行整个生命周期中的上下文信息。
-//! 这是重构后的新 QueryContext，替代原有的 query/context/mod.rs 中的定义。
 
 use std::sync::{Arc, RwLock};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::api::session::RequestContext;
 use crate::core::types::SpaceInfo;
-use crate::query::context::symbol::SymbolTable;
+use crate::core::{Symbol, SymbolTable};
 use crate::query::planner::plan::ExecutionPlan;
 use crate::storage::metadata::{SchemaManager, IndexMetadataManager};
 use crate::storage::StorageClient;

@@ -1,7 +1,7 @@
 //! 用户管理规划器
 //! 处理用户管理相关的查询规划（CREATE USER、ALTER USER、DROP USER、CHANGE PASSWORD）
 
-use crate::query::context::QueryContext;
+use crate::query::QueryContext;
 use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::core::{ArgumentNode, PlanNodeEnum};
 use crate::query::planner::plan::SubPlan;

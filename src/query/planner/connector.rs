@@ -2,7 +2,7 @@
 //!
 //! 提供计划节点之间的连接功能，包括内连接、左连接和输入添加
 
-use crate::query::context::QueryContext;
+use crate::query::QueryContext;
 use crate::query::planner::plan::{PlanNodeEnum, SubPlan};
 use crate::query::planner::planner::PlannerError;
 use std::collections::HashSet;

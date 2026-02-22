@@ -10,7 +10,7 @@ use crate::core::{
     DataType, Expression,
 };
 use crate::core::types::EdgeDirection;
-use crate::query::context::QueryContext;
+use crate::query::QueryContext;
 use crate::query::parser::ast::Stmt;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
@@ -505,7 +505,17 @@ mod tests {
     use crate::core::Expression;
     use crate::query::parser::ast::stmt::{GoStmt, FromClause, OverClause, Steps};
     use crate::query::parser::ast::Span;
+    use crate::api::session::{RequestContext, RequestParams};
     use std::sync::Arc;
+
+    /// 创建测试用的 QueryContext，带有有效的 space_id
+    fn create_test_query_context() -> Arc<QueryContext> {
+        let request_params = RequestParams::new("TEST".to_string());
+        let rctx = Arc::new(RequestContext::new(None, request_params));
+        let mut qctx = QueryContext::new();
+        qctx.set_rctx(rctx);
+        Arc::new(qctx)
+    }
 
     fn create_go_stmt(from_expr: Expression, edge_types: Vec<String>) -> GoStmt {
         GoStmt {
@@ -534,7 +544,7 @@ mod tests {
             vec!["friend".to_string()],
         );
         
-        let qctx = Arc::new(QueryContext::default());
+        let qctx = create_test_query_context();
         let result = validator.validate(&Stmt::Go(go_stmt), qctx);
         assert!(result.is_ok());
     }
@@ -548,7 +558,7 @@ mod tests {
             vec![],
         );
 
-        let qctx = Arc::new(QueryContext::default());
+        let qctx = create_test_query_context();
         let result = validator.validate(&Stmt::Go(go_stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
@@ -579,7 +589,7 @@ mod tests {
             sample: None,
         });
 
-        let qctx = Arc::new(QueryContext::default());
+        let qctx = create_test_query_context();
         let result = validator.validate(&Stmt::Go(go_stmt), qctx);
         assert!(result.is_ok());
         
@@ -616,7 +626,7 @@ mod tests {
             sample: None,
         });
 
-        let qctx = Arc::new(QueryContext::default());
+        let qctx = create_test_query_context();
         let result = validator.validate(&Stmt::Go(go_stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();

@@ -9,7 +9,7 @@
 
 use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::query::context::QueryContext;
+use crate::query::QueryContext;
 use crate::query::parser::ast::stmt::{
     ShowStmt, ShowTarget, DescStmt, DescTarget, ShowCreateStmt, ShowCreateTarget,
     ShowConfigsStmt, ShowSessionsStmt, ShowQueriesStmt, KillQueryStmt,

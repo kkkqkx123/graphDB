@@ -5,7 +5,7 @@
 use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::query::context::QueryContext;
+use crate::query::QueryContext;
 use crate::query::parser::ast::stmt::{MergeStmt, SetClause};
 use crate::query::parser::ast::Pattern;
 use crate::query::validator::validator_trait::{

@@ -9,7 +9,7 @@
 //! - 使用 IndexSelector 自动选择最优索引
 
 use crate::core::types::expression::Expression;
-use crate::query::context::QueryContext;
+use crate::query::QueryContext;
 use crate::query::parser::ast::{LookupStmt, Stmt};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};

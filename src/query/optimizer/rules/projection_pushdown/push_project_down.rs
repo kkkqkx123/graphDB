@@ -166,7 +166,7 @@ impl PushDownRule for PushProjectDownRule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::context::QueryContext;
+    use crate::query::QueryContext;
     use crate::query::optimizer::plan::{OptContext, OptGroupNode};
     use std::sync::Arc;
 

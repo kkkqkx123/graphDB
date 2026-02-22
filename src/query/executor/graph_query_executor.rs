@@ -5,7 +5,7 @@
 
 use crate::core::error::{DBError, DBResult, QueryError};
 use crate::core::Value as CoreValue;
-use crate::query::context::QueryContext;
+use crate::query::QueryContext;
 use crate::query::executor::admin as admin_executor;
 use crate::query::executor::factory::ExecutorFactory;
 use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};

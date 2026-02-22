@@ -3,7 +3,7 @@
 //! 负责规划 ORDER BY 子句的执行，对结果进行排序。
 
 use crate::core::Expression;
-use crate::query::context::QueryContext;
+use crate::query::QueryContext;
 use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;

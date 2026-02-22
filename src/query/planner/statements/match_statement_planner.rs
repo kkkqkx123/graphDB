@@ -9,7 +9,7 @@
 //! - LIMIT/SKIP 分页
 
 use crate::core::Expression;
-use crate::query::context::QueryContext;
+use crate::query::QueryContext;
 use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::ExecutionPlan;
 use crate::query::planner::plan::SubPlan;
@@ -308,7 +308,8 @@ mod tests {
     fn test_match_statement_planner_creation() {
         let planner = MatchStatementPlanner::new();
         assert_eq!(planner.statement_type(), "MATCH");
-        assert_eq!(planner.name(), "MatchStatementPlanner");
+        // name() 返回完整的类型路径，检查是否包含类型名称
+        assert!(planner.name().contains("MatchStatementPlanner"));
     }
 
     #[test]

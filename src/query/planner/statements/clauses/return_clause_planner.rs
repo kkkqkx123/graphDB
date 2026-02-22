@@ -3,7 +3,7 @@
 //! 负责规划 RETURN 子句的执行，实现结果投影。
 
 use crate::core::Expression;
-use crate::query::context::QueryContext;
+use crate::query::QueryContext;
 use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::data_processing_node::DedupNode;

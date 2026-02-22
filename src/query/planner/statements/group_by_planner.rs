@@ -2,7 +2,7 @@
 //!
 //! 处理 GROUP BY 语句的查询规划
 
-use crate::query::context::QueryContext;
+use crate::query::QueryContext;
 use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::core::{
     node_id_generator::next_node_id,

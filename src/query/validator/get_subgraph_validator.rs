@@ -18,7 +18,7 @@ use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::Expression;
-use crate::query::context::QueryContext;
+use crate::query::QueryContext;
 use crate::query::parser::ast::stmt::{SubgraphStmt, Steps, FromClause, OverClause, YieldClause};
 use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,

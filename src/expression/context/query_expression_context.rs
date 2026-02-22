@@ -11,7 +11,7 @@ use crate::expression::context::{
     version_manager::VersionManager,
 };
 use crate::expression::functions::registry::FunctionRegistry;
-use crate::query::context::QueryContext;
+use crate::query::QueryContext;
 use std::collections::HashMap;
 
 /// 查询表达式上下文

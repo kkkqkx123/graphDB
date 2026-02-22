@@ -4,7 +4,7 @@
 //! 实现了 ClausePlanner 接口，提供完整的过滤功能。
 
 use crate::core::Expression;
-use crate::query::context::QueryContext;
+use crate::query::QueryContext;
 use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::filter_node::FilterNode;

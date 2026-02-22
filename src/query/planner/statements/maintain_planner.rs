@@ -1,7 +1,7 @@
 //! 维护操作规划器
 //! 处理维护相关的查询规划（如SUBMIT JOB等）
 
-use crate::query::context::QueryContext;
+use crate::query::QueryContext;
 use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::core::{ArgumentNode, PlanNodeEnum, ProjectNode};
 use crate::query::planner::plan::SubPlan;

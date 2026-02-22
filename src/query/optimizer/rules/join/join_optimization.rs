@@ -339,7 +339,7 @@ enum JoinStrategy {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::context::QueryContext;
+    use crate::query::QueryContext;
     use crate::query::optimizer::plan::{OptContext, OptGroupNode};
     use crate::query::planner::plan::core::nodes::{
         InnerJoinNode, ScanVerticesNode, StartNode,

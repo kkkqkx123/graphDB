@@ -3,7 +3,7 @@
 //! 处理 INSERT VERTEX 和 INSERT EDGE 语句的查询规划
 
 use std::sync::Arc;
-use crate::query::context::QueryContext;
+use crate::query::QueryContext;
 use crate::query::parser::ast::{InsertStmt, InsertTarget, Stmt, VertexRow};
 use crate::query::planner::plan::core::{
     node_id_generator::next_node_id,
@@ -192,7 +192,7 @@ mod tests {
     use super::*;
     use std::sync::Arc;
     use crate::core::Value;
-    use crate::query::context::QueryContext;
+    use crate::query::QueryContext;
     use crate::query::parser::ast::{InsertStmt, InsertTarget, Span, TagInsertSpec, VertexRow, Stmt};
 
     // 辅助函数：创建常量表达式

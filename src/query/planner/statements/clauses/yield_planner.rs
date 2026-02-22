@@ -3,7 +3,7 @@
 //! 负责将 YIELD 子句转换为执行计划节点
 //! 支持 YIELD ... WHERE ... 语法
 
-use crate::query::context::QueryContext;
+use crate::query::QueryContext;
 use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::{

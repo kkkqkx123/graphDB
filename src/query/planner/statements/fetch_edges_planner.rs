@@ -1,7 +1,7 @@
 //! FETCH EDGES查询规划器
 //! 处理FETCH EDGES查询的规划
 
-use crate::query::context::QueryContext;
+use crate::query::QueryContext;
 use crate::query::parser::ast::{FetchTarget, Stmt};
 use crate::query::planner::plan::core::nodes::{
     ArgumentNode, FilterNode, GetEdgesNode, ProjectNode,

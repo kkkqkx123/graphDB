@@ -7,7 +7,6 @@
 // - Managing query contexts and validation
 
 // Sub-modules
-pub mod context;
 pub mod core;
 pub mod executor;
 pub mod optimizer;

@@ -3,7 +3,7 @@
 //! 处理 Cypher 风格 CREATE 语句的查询规划
 //! 支持 CREATE (n:Label {props}) 和 CREATE (a)-[:Type]->(b) 语法
 
-use crate::query::context::QueryContext;
+use crate::query::QueryContext;
 use crate::query::parser::ast::{CreateStmt, CreateTarget, Stmt};
 use crate::query::planner::plan::core::{
     node_id_generator::next_node_id,
