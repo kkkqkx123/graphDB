@@ -754,8 +754,8 @@ pub enum ErrorCategory {
 // ExpressionError 是本地定义，无需转换实现
 // PlanNodeVisitError 的 From 实现已通过 #[from] 属性自动生成（第22行）
 
-impl From<crate::query::visitor::TypeDeductionError> for DBError {
-    fn from(err: crate::query::visitor::TypeDeductionError) -> Self {
+impl From<crate::query::optimizer::TypeDeductionError> for DBError {
+    fn from(err: crate::query::optimizer::TypeDeductionError) -> Self {
         DBError::TypeDeduction(err.to_string())
     }
 }

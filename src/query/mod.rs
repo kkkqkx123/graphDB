@@ -16,7 +16,6 @@ pub mod planner;
 pub mod query_context;
 pub mod query_pipeline_manager;
 pub mod validator;
-pub mod visitor;
 // Re-export error types from core module
 pub use crate::core::{DBResult, QueryError};
 // Re-export execution result from executor module

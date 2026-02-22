@@ -2,77 +2,45 @@
 
 ## Summary
 
-- **Total Errors**: 36
-- **Total Warnings**: 3
-- **Total Issues**: 39
-- **Unique Error Patterns**: 1
-- **Unique Warning Patterns**: 2
+- **Total Errors**: 0
+- **Total Warnings**: 7
+- **Total Issues**: 7
+- **Unique Error Patterns**: 0
+- **Unique Warning Patterns**: 6
 - **Files with Issues**: 3
 
 ## Error Statistics
 
-**Total Errors**: 36
-
-### Error Type Breakdown
-
-- **error[E0433]**: 36 errors
-
-### Files with Errors (Top 10)
-
-- `src\query\parser\ast\stmt.rs`: 28 errors
-- `src\query\parser\ast\pattern.rs`: 8 errors
+**Total Errors**: 0
 
 ## Warning Statistics
 
-**Total Warnings**: 3
+**Total Warnings**: 7
 
 ### Warning Type Breakdown
 
-- **warning**: 3 warnings
+- **warning**: 7 warnings
 
 ### Files with Warnings (Top 10)
 
-- `src\query\parser\ast\stmt.rs`: 1 warnings
-- `src\core\types\expression\utils.rs`: 1 warnings
-- `src\query\parser\ast\pattern.rs`: 1 warnings
-
-## Detailed Error Categorization
-
-### error[E0433]: failed to resolve: use of undeclared type `CoreExprUtils`: use of undeclared type `CoreExprUtils`
-
-**Total Occurrences**: 36  
-**Unique Files**: 2
-
-#### `src\query\parser\ast\stmt.rs`: 28 occurrences
-
-- Line 906: failed to resolve: use of undeclared type `CoreExprUtils`: use of undeclared type `CoreExprUtils`
-- Line 912: failed to resolve: use of undeclared type `CoreExprUtils`: use of undeclared type `CoreExprUtils`
-- Line 921: failed to resolve: use of undeclared type `CoreExprUtils`: use of undeclared type `CoreExprUtils`
-- ... 25 more occurrences in this file
-
-#### `src\query\parser\ast\pattern.rs`: 8 occurrences
-
-- Line 204: failed to resolve: use of undeclared type `CoreExprUtils`: use of undeclared type `CoreExprUtils`
-- Line 207: failed to resolve: use of undeclared type `CoreExprUtils`: use of undeclared type `CoreExprUtils`
-- Line 215: failed to resolve: use of undeclared type `CoreExprUtils`: use of undeclared type `CoreExprUtils`
-- ... 5 more occurrences in this file
+- `src\query\optimizer\deduce_type_visitor.rs`: 6 warnings
+- `src\query\optimizer\fold_constant_expr_visitor.rs`: 1 warnings
 
 ## Detailed Warning Categorization
 
-### warning: unused import: `crate::core::types::expression::utils::collect_variables`
+### warning: unused imports: `Edge` and `Vertex`
 
-**Total Occurrences**: 3  
-**Unique Files**: 3
+**Total Occurrences**: 7  
+**Unique Files**: 2
 
-#### `src\query\parser\ast\stmt.rs`: 1 occurrences
+#### `src\query\optimizer\deduce_type_visitor.rs`: 6 occurrences
 
-- Line 9: unused import: `crate::core::types::expression::utils::collect_variables`
+- Line 15: unused imports: `Edge` and `Vertex`
+- Line 17: unused import: `crate::core::EdgeDirection`
+- Line 19: unused import: `crate::core::error::StorageError`
+- ... 3 more occurrences in this file
 
-#### `src\core\types\expression\utils.rs`: 1 occurrences
+#### `src\query\optimizer\fold_constant_expr_visitor.rs`: 1 occurrences
 
-- Line 9: unused imports: `BinaryOperator`, `DataType`, `UnaryOperator`, and `Value`
-
-#### `src\query\parser\ast\pattern.rs`: 1 occurrences
-
-- Line 7: unused import: `crate::core::types::expression::utils::collect_variables`
+- Line 65: field `state` is never read
 

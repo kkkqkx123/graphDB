@@ -3,7 +3,7 @@
 use crate::query::optimizer::plan::{OptContext, OptGroupNode};
 use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::core::YieldColumn;
-use crate::query::visitor::PlanNodeVisitor;
+use crate::query::optimizer::PlanNodeVisitor;
 
 crate::define_elimination_rule! {
     /// 移除无操作投影的规则

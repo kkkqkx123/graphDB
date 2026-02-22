@@ -596,53 +596,49 @@ impl ExpressionVisitor for FoldConstantExprVisitor {
         arg: &Expression,
         _distinct: bool,
     ) -> Self::Result {
+        // 聚合函数不能折叠，因为需要运行时数据
+        self.can_be_folded = false;
         self.visit_expression(arg)?;
         Ok(())
     }
 
     fn visit_list(&mut self, items: &[Expression]) -> Self::Result {
-        let mut all_constant = true;
         let mut folded_items = Vec::new();
+        let mut all_folded = true;
 
         for item in items {
             if Self::is_constant(item) {
                 folded_items.push(item.clone());
             } else {
-                all_constant = false;
-                break;
-            }
-        }
-
-        if all_constant {
-            self.set_folded(Expression::List(folded_items));
-        } else {
-            for item in items {
+                all_folded = false;
                 self.visit_expression(item)?;
             }
         }
+
+        if all_folded && !items.is_empty() {
+            self.set_folded(Expression::List(folded_items));
+        }
+
         Ok(())
     }
 
     fn visit_map(&mut self, pairs: &[(String, Expression)]) -> Self::Result {
-        let mut all_constant = true;
         let mut folded_pairs = Vec::new();
+        let mut all_folded = true;
 
         for (key, value) in pairs {
             if Self::is_constant(value) {
                 folded_pairs.push((key.clone(), value.clone()));
             } else {
-                all_constant = false;
-                break;
-            }
-        }
-
-        if all_constant {
-            self.set_folded(Expression::Map(folded_pairs));
-        } else {
-            for (_, value) in pairs {
+                all_folded = false;
                 self.visit_expression(value)?;
             }
         }
+
+        if all_folded && !pairs.is_empty() {
+            self.set_folded(Expression::Map(folded_pairs));
+        }
+
         Ok(())
     }
 
@@ -652,57 +648,60 @@ impl ExpressionVisitor for FoldConstantExprVisitor {
         conditions: &[(Expression, Expression)],
         default: Option<&Expression>,
     ) -> Self::Result {
-        if let Some(test) = test_expr {
-            self.visit_expression(test)?;
-        }
-        let mut all_constant = true;
+        // 尝试折叠CASE表达式
         let mut folded_conditions = Vec::new();
-        let mut folded_default = None;
 
-        for (cond, expr) in conditions {
-            self.visit_expression(cond)?;
-            if let Some(Expression::Literal(cond_val)) = self.folded_expression.take() {
-                folded_conditions.push((cond_val, expr.clone()));
-            } else {
-                all_constant = false;
-            }
-
+        if let Some(expr) = test_expr {
             self.visit_expression(expr)?;
-            if self.folded_expression.is_some() {
-                if let Some(folded) = self.folded_expression.take() {
-                    if let Some((_, original_expr)) = folded_conditions.last_mut() {
-                        *original_expr = folded;
-                    }
+        }
+
+        for (when, then) in conditions {
+            if Self::is_constant(when) {
+                if let Expression::Literal(val) = when {
+                    folded_conditions.push((val.clone(), then.clone()));
                 }
             } else {
-                all_constant = false;
+                self.visit_expression(when)?;
             }
+            self.visit_expression(then)?;
         }
 
-        if let Some(default_expr) = default {
-            self.visit_expression(default_expr)?;
-            if let Some(folded) = self.folded_expression.take() {
-                folded_default = Some(Box::new(folded));
-            } else {
-                all_constant = false;
-            }
+        if let Some(expr) = default {
+            self.visit_expression(expr)?;
         }
 
-        if all_constant {
-            if let Some(first_result) = self.try_evaluate_case(&folded_conditions, folded_default.as_deref()) {
-                self.set_folded(Expression::Literal(first_result));
-            }
+        // 尝试求值CASE
+        if let Some(result) = self.try_evaluate_case(&folded_conditions, default) {
+            self.set_folded(Expression::Literal(result));
         }
 
         Ok(())
     }
 
     fn visit_type_cast(&mut self, expression: &Expression, _target_type: &DataType) -> Self::Result {
+        // 类型转换折叠暂时简化处理
+        if Self::is_constant(expression) {
+            if let Expression::Literal(_val) = expression {
+                // 暂时不进行实际的类型转换折叠
+                // 后续可以实现具体的转换逻辑
+            }
+        }
         self.visit_expression(expression)?;
         Ok(())
     }
 
     fn visit_subscript(&mut self, collection: &Expression, index: &Expression) -> Self::Result {
+        // 尝试折叠下标访问
+        if Self::is_constant(collection) && Self::is_constant(index) {
+            if let (Expression::Literal(_coll_val), Expression::Literal(_idx_val)) = (collection, index) {
+                // 暂时简化处理，后续可以实现具体的下标访问求值
+                // if let Some(result) = eval_subscript_access(coll_val, idx_val) {
+                //     self.set_folded(Expression::Literal(result));
+                //     return Ok(());
+                // }
+            }
+        }
+
         self.visit_expression(collection)?;
         self.visit_expression(index)?;
         Ok(())
@@ -715,11 +714,11 @@ impl ExpressionVisitor for FoldConstantExprVisitor {
         end: Option<&Expression>,
     ) -> Self::Result {
         self.visit_expression(collection)?;
-        if let Some(start_expression) = start {
-            self.visit_expression(start_expression)?;
+        if let Some(expr) = start {
+            self.visit_expression(expr)?;
         }
-        if let Some(end_expression) = end {
-            self.visit_expression(end_expression)?;
+        if let Some(expr) = end {
+            self.visit_expression(expr)?;
         }
         Ok(())
     }
@@ -743,25 +742,103 @@ impl ExpressionVisitor for FoldConstantExprVisitor {
         map: Option<&Expression>,
     ) -> Self::Result {
         self.visit_expression(source)?;
-        if let Some(f) = filter {
-            self.visit_expression(f)?;
+        if let Some(expr) = filter {
+            self.visit_expression(expr)?;
         }
-        if let Some(m) = map {
-            self.visit_expression(m)?;
+        if let Some(expr) = map {
+            self.visit_expression(expr)?;
         }
         Ok(())
     }
 
-    fn state(&self) -> &ExpressionVisitorState {
-        &self.state
+    fn visit_label_tag_property(&mut self, _tag: &Expression, _property: &str) -> Self::Result {
+        Ok(())
     }
 
-    fn state_mut(&mut self) -> &mut ExpressionVisitorState {
-        &mut self.state
+    fn visit_tag_property(&mut self, _tag_name: &str, _property: &str) -> Self::Result {
+        Ok(())
+    }
+
+    fn visit_edge_property(&mut self, _edge_name: &str, _property: &str) -> Self::Result {
+        Ok(())
+    }
+
+    fn visit_predicate(
+        &mut self,
+        _func: &str,
+        args: &[Expression],
+    ) -> Self::Result {
+        for arg in args {
+            self.visit_expression(arg)?;
+        }
+        Ok(())
+    }
+
+    fn visit_reduce(
+        &mut self,
+        _accumulator: &str,
+        initial: &Expression,
+        _variable: &str,
+        source: &Expression,
+        mapping: &Expression,
+    ) -> Self::Result {
+        self.visit_expression(initial)?;
+        self.visit_expression(source)?;
+        self.visit_expression(mapping)?;
+        Ok(())
+    }
+
+    fn visit_path_build(&mut self, exprs: &[Expression]) -> Self::Result {
+        for expr in exprs {
+            self.visit_expression(expr)?;
+        }
+        Ok(())
     }
 
     fn visit_parameter(&mut self, _name: &str) -> Self::Result {
+        // 参数在编译时无法确定值，不能折叠
         self.can_be_folded = false;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_fold_constant_add() {
+        let mut visitor = FoldConstantExprVisitor::new();
+        let expr = Expression::Binary {
+            left: Box::new(Expression::Literal(Value::Int(1))),
+            op: BinaryOperator::Add,
+            right: Box::new(Expression::Literal(Value::Int(2))),
+        };
+
+        let result = visitor.fold(&expr).expect("折叠应该成功");
+        assert_eq!(result, Expression::Literal(Value::Int(3)));
+    }
+
+    #[test]
+    fn test_fold_constant_string_concat() {
+        let mut visitor = FoldConstantExprVisitor::new();
+        let expr = Expression::Binary {
+            left: Box::new(Expression::Literal(Value::String("Hello, ".to_string()))),
+            op: BinaryOperator::Add,
+            right: Box::new(Expression::Literal(Value::String("World!".to_string()))),
+        };
+
+        let result = visitor.fold(&expr).expect("折叠应该成功");
+        assert_eq!(result, Expression::Literal(Value::String("Hello, World!".to_string())));
+    }
+
+    #[test]
+    fn test_cannot_fold_variable() {
+        let mut visitor = FoldConstantExprVisitor::new();
+        let expr = Expression::Variable("x".to_string());
+
+        let result = visitor.fold(&expr).expect("应该返回原表达式");
+        assert_eq!(result, expr);
+        assert!(!visitor.can_be_folded());
     }
 }

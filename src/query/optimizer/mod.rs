@@ -14,8 +14,6 @@ pub mod core;
 // 规则枚举和配置模块
 pub mod rule_enum;
 pub mod rule_config;
-pub mod rule_registry;
-pub mod rule_registrar;
 pub mod optimizer_config;
 pub mod plan_node_visitor;
 
@@ -31,13 +29,16 @@ pub mod rules;
 // 索引选择器模块
 pub mod index_selector;
 
+// 表达式优化访问器模块
+pub mod deduce_type_visitor;
+pub mod fold_constant_expr_visitor;
+
 // Re-export core types
 pub use core::{Cost, OptimizationConfig, OptimizationPhase, OptimizationStats, Statistics};
 
 // Re-export rule enum and config
 pub use rule_enum::OptimizationRule;
 pub use rule_config::RuleConfig;
-pub use rule_registry::RuleRegistry;
 pub use optimizer_config::{load_optimizer_config, OptimizerConfigInfo};
 pub use plan_node_visitor::{PlanNodeVisitor, PlanNodeVisitable};
 
@@ -59,3 +60,7 @@ pub use rule_traits::{BaseOptRule, EliminationRule, MergeRule, PushDownRule};
 
 // Re-export index selector
 pub use index_selector::{IndexCandidate, IndexColumnHint, IndexScore, IndexSelector};
+
+// Re-export expression optimization visitors
+pub use deduce_type_visitor::{DeduceTypeVisitor, TypeDeductionError};
+pub use fold_constant_expr_visitor::{FoldConstantExprVisitor, VisitorError, VisitorResult};

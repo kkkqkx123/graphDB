@@ -82,13 +82,11 @@ impl<S: StorageClient + Clone + 'static> QueryEngine<S> {
 mod tests {
     use super::*;
     use crate::api::session::client_session::{ClientSession, Session};
-    use crate::query::optimizer::rule_registry::RuleRegistry;
     use crate::storage::test_mock::MockStorage;
     use std::sync::Arc;
 
     #[tokio::test]
     async fn test_query_engine_creation() {
-        let _ = RuleRegistry::initialize();
         let storage = Arc::new(MockStorage::new().expect("Failed to create Mock storage"));
         let _query_engine = QueryEngine::new(storage);
 
@@ -97,7 +95,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_query_engine_execute() {
-        let _ = RuleRegistry::initialize();
         let storage = Arc::new(MockStorage::new().expect("Failed to create Mock storage"));
         let mut query_engine = QueryEngine::new(storage);
 

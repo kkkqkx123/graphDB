@@ -1,133 +1,403 @@
-//! PlanNode 访问者接口
-//! 提供统一的 PlanNode 遍历和转换机制
+//! PlanNode 访问者 trait
+//!
+//! 提供统一的 PlanNode 遍历接口，简化优化规则和数据转换的实现。
+//! 访问者模式使得可以在不修改节点结构的情况下对节点进行操作。
 
-use crate::query::planner::plan::core::nodes::{
-    AggregateNode, ArgumentNode, AssignNode, CreateEdgeNode, CreateEdgeIndexNode,
-    CreateSpaceNode, CreateTagNode, CreateTagIndexNode, CrossJoinNode, DataCollectNode,
-    DedupNode, DescEdgeNode, DescSpaceNode, DescTagNode, DescTagIndexNode, DropEdgeNode,
-    DropSpaceNode, DropTagNode, DropTagIndexNode, DropEdgeIndexNode, EdgeIndexScanNode, ExpandAllNode, ExpandNode,
-    FilterNode, FullOuterJoinNode, GetEdgesNode, GetNeighborsNode, GetVerticesNode, HashInnerJoinNode, HashLeftJoinNode,
-    InnerJoinNode, IntersectNode, LeftJoinNode, LimitNode, LoopNode, MinusNode, PassThroughNode, PatternApplyNode,
-    ProjectNode, RollUpApplyNode, SampleNode, ScanEdgesNode, ScanVerticesNode, SelectNode,
-    ShowEdgesNode, ShowSpacesNode, ShowTagsNode, ShowTagIndexesNode, ShowEdgeIndexesNode,
-    SortNode, StartNode, TopNNode, TraverseNode, UnwindNode, UnionNode, AppendVerticesNode,
-    RebuildEdgeIndexNode, RebuildTagIndexNode,
-    CreateUserNode, AlterUserNode, DropUserNode, ChangePasswordNode, SpaceManageInfo,
-};
-use crate::query::planner::plan::algorithms::{
-    AllPaths, BFSShortest, IndexScan, MultiShortestPath, ShortestPath,
-};
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::aggregate_node::*;
+use crate::query::planner::plan::core::nodes::control_flow_node::*;
+use crate::query::planner::plan::core::nodes::data_processing_node::*;
+use crate::query::planner::plan::core::nodes::edge_nodes::*;
+use crate::query::planner::plan::core::nodes::filter_node::*;
+use crate::query::planner::plan::core::nodes::graph_scan_node::*;
+use crate::query::planner::plan::core::nodes::index_nodes::*;
+use crate::query::planner::plan::core::nodes::join_node::*;
+use crate::query::planner::plan::core::nodes::project_node::*;
+use crate::query::planner::plan::core::nodes::sample_node::*;
+use crate::query::planner::plan::core::nodes::set_operations_node::*;
+use crate::query::planner::plan::core::nodes::sort_node::*;
+use crate::query::planner::plan::core::nodes::space_nodes::*;
+use crate::query::planner::plan::core::nodes::start_node::*;
+use crate::query::planner::plan::core::nodes::tag_nodes::*;
+use crate::query::planner::plan::core::nodes::traversal_node::*;
 
+/// PlanNode 访问者 trait
+///
+/// 提供统一的 PlanNode 遍历接口，简化优化规则和数据转换的实现。
+/// 访问者模式使得可以在不修改节点结构的情况下对节点进行操作。
 pub trait PlanNodeVisitor {
+    /// 访问结果的类型
     type Result;
-    
-    fn visit_start(&mut self, node: &StartNode) -> Self::Result;
-    fn visit_project(&mut self, node: &ProjectNode) -> Self::Result;
-    fn visit_sort(&mut self, node: &SortNode) -> Self::Result;
-    fn visit_limit(&mut self, node: &LimitNode) -> Self::Result;
-    fn visit_top_n(&mut self, node: &TopNNode) -> Self::Result;
-    fn visit_sample(&mut self, node: &SampleNode) -> Self::Result;
-    fn visit_inner_join(&mut self, node: &InnerJoinNode) -> Self::Result;
-    fn visit_left_join(&mut self, node: &LeftJoinNode) -> Self::Result;
-    fn visit_cross_join(&mut self, node: &CrossJoinNode) -> Self::Result;
-    fn visit_get_vertices(&mut self, node: &GetVerticesNode) -> Self::Result;
-    fn visit_get_edges(&mut self, node: &GetEdgesNode) -> Self::Result;
-    fn visit_get_neighbors(&mut self, node: &GetNeighborsNode) -> Self::Result;
-    fn visit_scan_vertices(&mut self, node: &ScanVerticesNode) -> Self::Result;
-    fn visit_scan_edges(&mut self, node: &ScanEdgesNode) -> Self::Result;
-    fn visit_edge_index_scan(&mut self, node: &EdgeIndexScanNode) -> Self::Result;
-    fn visit_hash_inner_join(&mut self, node: &HashInnerJoinNode) -> Self::Result;
-    fn visit_hash_left_join(&mut self, node: &HashLeftJoinNode) -> Self::Result;
-    fn visit_full_outer_join(&mut self, node: &FullOuterJoinNode) -> Self::Result;
-    fn visit_index_scan(&mut self, node: &IndexScan) -> Self::Result;
-    fn visit_expand(&mut self, node: &ExpandNode) -> Self::Result;
-    fn visit_expand_all(&mut self, node: &ExpandAllNode) -> Self::Result;
-    fn visit_traverse(&mut self, node: &TraverseNode) -> Self::Result;
-    fn visit_append_vertices(&mut self, node: &AppendVerticesNode) -> Self::Result;
-    fn visit_filter(&mut self, node: &FilterNode) -> Self::Result;
-    fn visit_aggregate(&mut self, node: &AggregateNode) -> Self::Result;
-    fn visit_argument(&mut self, node: &ArgumentNode) -> Self::Result;
-    fn visit_loop(&mut self, node: &LoopNode) -> Self::Result;
-    fn visit_pass_through(&mut self, node: &PassThroughNode) -> Self::Result;
-    fn visit_select(&mut self, node: &SelectNode) -> Self::Result;
-    fn visit_data_collect(&mut self, node: &DataCollectNode) -> Self::Result;
-    fn visit_dedup(&mut self, node: &DedupNode) -> Self::Result;
-    fn visit_pattern_apply(&mut self, node: &PatternApplyNode) -> Self::Result;
-    fn visit_roll_up_apply(&mut self, node: &RollUpApplyNode) -> Self::Result;
-    fn visit_union(&mut self, node: &UnionNode) -> Self::Result;
-    fn visit_minus(&mut self, node: &MinusNode) -> Self::Result;
-    fn visit_intersect(&mut self, node: &IntersectNode) -> Self::Result;
-    fn visit_unwind(&mut self, node: &UnwindNode) -> Self::Result;
-    fn visit_assign(&mut self, node: &AssignNode) -> Self::Result;
-    fn visit_multi_shortest_path(&mut self, node: &MultiShortestPath) -> Self::Result;
-    fn visit_bfs_shortest(&mut self, node: &BFSShortest) -> Self::Result;
-    fn visit_all_paths(&mut self, node: &AllPaths) -> Self::Result;
-    fn visit_shortest_path(&mut self, node: &ShortestPath) -> Self::Result;
-    fn visit_create_space(&mut self, node: &CreateSpaceNode) -> Self::Result;
-    fn visit_drop_space(&mut self, node: &DropSpaceNode) -> Self::Result;
-    fn visit_desc_space(&mut self, node: &DescSpaceNode) -> Self::Result;
-    fn visit_show_spaces(&mut self, node: &ShowSpacesNode) -> Self::Result;
-    fn visit_create_tag(&mut self, node: &CreateTagNode) -> Self::Result;
-    fn visit_alter_tag(&mut self, node: &crate::query::planner::plan::core::nodes::AlterTagNode) -> Self::Result;
-    fn visit_desc_tag(&mut self, node: &DescTagNode) -> Self::Result;
-    fn visit_drop_tag(&mut self, node: &DropTagNode) -> Self::Result;
-    fn visit_show_tags(&mut self, node: &ShowTagsNode) -> Self::Result;
-    fn visit_create_edge(&mut self, node: &CreateEdgeNode) -> Self::Result;
-    fn visit_alter_edge(&mut self, node: &crate::query::planner::plan::core::nodes::AlterEdgeNode) -> Self::Result;
-    fn visit_desc_edge(&mut self, node: &DescEdgeNode) -> Self::Result;
-    fn visit_drop_edge(&mut self, node: &DropEdgeNode) -> Self::Result;
-    fn visit_show_edges(&mut self, node: &ShowEdgesNode) -> Self::Result;
-    fn visit_create_tag_index(&mut self, node: &CreateTagIndexNode) -> Self::Result;
-    fn visit_drop_tag_index(&mut self, node: &DropTagIndexNode) -> Self::Result;
-    fn visit_desc_tag_index(&mut self, node: &DescTagIndexNode) -> Self::Result;
-    fn visit_show_tag_indexes(&mut self, node: &ShowTagIndexesNode) -> Self::Result;
-    fn visit_create_edge_index(&mut self, node: &CreateEdgeIndexNode) -> Self::Result;
-    fn visit_drop_edge_index(&mut self, node: &DropEdgeIndexNode) -> Self::Result;
-    fn visit_desc_edge_index(&mut self, node: &crate::query::planner::plan::core::nodes::DescEdgeIndexNode) -> Self::Result;
-    fn visit_show_edge_indexes(&mut self, node: &ShowEdgeIndexesNode) -> Self::Result;
-    fn visit_rebuild_tag_index(&mut self, node: &RebuildTagIndexNode) -> Self::Result;
-    fn visit_rebuild_edge_index(&mut self, node: &RebuildEdgeIndexNode) -> Self::Result;
-    fn visit_create_user(&mut self, node: &CreateUserNode) -> Self::Result;
-    fn visit_alter_user(&mut self, node: &AlterUserNode) -> Self::Result;
-    fn visit_drop_user(&mut self, node: &DropUserNode) -> Self::Result;
-    fn visit_change_password(&mut self, node: &ChangePasswordNode) -> Self::Result;
 
+    /// 访问开始节点
+    fn visit_start(&mut self, _node: &StartNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问项目节点
+    fn visit_project(&mut self, _node: &ProjectNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问过滤节点
+    fn visit_filter(&mut self, _node: &FilterNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问排序节点
+    fn visit_sort(&mut self, _node: &SortNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问限制节点
+    fn visit_limit(&mut self, _node: &LimitNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问 TopN 节点
+    fn visit_topn(&mut self, _node: &TopNNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问采样节点
+    fn visit_sample(&mut self, _node: &SampleNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问去重节点
+    fn visit_dedup(&mut self, _node: &DedupNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问获取顶点节点
+    fn visit_get_vertices(&mut self, _node: &GetVerticesNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问获取边节点
+    fn visit_get_edges(&mut self, _node: &GetEdgesNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问获取邻居节点
+    fn visit_get_neighbors(&mut self, _node: &GetNeighborsNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问扫描顶点节点
+    fn visit_scan_vertices(&mut self, _node: &ScanVerticesNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问扫描边节点
+    fn visit_scan_edges(&mut self, _node: &ScanEdgesNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问边索引扫描节点
+    fn visit_edge_index_scan(&mut self, _node: &EdgeIndexScanNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问索引扫描节点
+    fn visit_index_scan(&mut self, _node: &crate::query::planner::plan::algorithms::IndexScan) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问扩展节点
+    fn visit_expand(&mut self, _node: &ExpandNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问全扩展节点
+    fn visit_expand_all(&mut self, _node: &ExpandAllNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问遍历节点
+    fn visit_traverse(&mut self, _node: &TraverseNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问追加顶点节点
+    fn visit_append_vertices(&mut self, _node: &AppendVerticesNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问内连接节点
+    fn visit_inner_join(&mut self, _node: &InnerJoinNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问左连接节点
+    fn visit_left_join(&mut self, _node: &LeftJoinNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问交叉连接节点
+    fn visit_cross_join(&mut self, _node: &CrossJoinNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问哈希内连接节点
+    fn visit_hash_inner_join(&mut self, _node: &HashInnerJoinNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问哈希左连接节点
+    fn visit_hash_left_join(&mut self, _node: &HashLeftJoinNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问全外连接节点
+    fn visit_full_outer_join(&mut self, _node: &FullOuterJoinNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问聚合节点
+    fn visit_aggregate(&mut self, _node: &AggregateNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问参数节点
+    fn visit_argument(&mut self, _node: &ArgumentNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问循环节点
+    fn visit_loop(&mut self, _node: &LoopNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问透传节点
+    fn visit_pass_through(&mut self, _node: &PassThroughNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问选择节点
+    fn visit_select(&mut self, _node: &SelectNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问数据收集节点
+    fn visit_data_collect(&mut self, _node: &DataCollectNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问模式应用节点
+    fn visit_pattern_apply(&mut self, _node: &PatternApplyNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问卷起应用节点
+    fn visit_rollup_apply(&mut self, _node: &RollUpApplyNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问并集节点
+    fn visit_union(&mut self, _node: &UnionNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问差集节点
+    fn visit_minus(&mut self, _node: &MinusNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问交集节点
+    fn visit_intersect(&mut self, _node: &IntersectNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问展开节点
+    fn visit_unwind(&mut self, _node: &UnwindNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问赋值节点
+    fn visit_assign(&mut self, _node: &AssignNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问多源最短路径节点
+    fn visit_multi_shortest_path(&mut self, _node: &crate::query::planner::plan::algorithms::MultiShortestPath) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问 BFS 最短路径节点
+    fn visit_bfs_shortest(&mut self, _node: &crate::query::planner::plan::algorithms::BFSShortest) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问所有路径节点
+    fn visit_all_paths(&mut self, _node: &crate::query::planner::plan::algorithms::AllPaths) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问最短路径节点
+    fn visit_shortest_path(&mut self, _node: &crate::query::planner::plan::algorithms::ShortestPath) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问创建空间节点
+    fn visit_create_space(&mut self, _node: &CreateSpaceNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问删除空间节点
+    fn visit_drop_space(&mut self, _node: &DropSpaceNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问描述空间节点
+    fn visit_desc_space(&mut self, _node: &DescSpaceNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问显示所有图空间节点
+    fn visit_show_spaces(&mut self, _node: &ShowSpacesNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问创建标签节点
+    fn visit_create_tag(&mut self, _node: &CreateTagNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问修改标签节点
+    fn visit_alter_tag(&mut self, _node: &AlterTagNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问描述标签节点
+    fn visit_desc_tag(&mut self, _node: &DescTagNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问删除标签节点
+    fn visit_drop_tag(&mut self, _node: &DropTagNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问显示所有标签节点
+    fn visit_show_tags(&mut self, _node: &ShowTagsNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问创建边类型节点
+    fn visit_create_edge(&mut self, _node: &CreateEdgeNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问修改边类型节点
+    fn visit_alter_edge(&mut self, _node: &AlterEdgeNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问描述边类型节点
+    fn visit_desc_edge(&mut self, _node: &DescEdgeNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问删除边类型节点
+    fn visit_drop_edge(&mut self, _node: &DropEdgeNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问显示所有边类型节点
+    fn visit_show_edges(&mut self, _node: &ShowEdgesNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问创建标签索引节点
+    fn visit_create_tag_index(&mut self, _node: &CreateTagIndexNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问删除标签索引节点
+    fn visit_drop_tag_index(&mut self, _node: &DropTagIndexNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问描述标签索引节点
+    fn visit_desc_tag_index(&mut self, _node: &DescTagIndexNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问显示所有标签索引节点
+    fn visit_show_tag_indexes(&mut self, _node: &ShowTagIndexesNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问创建边索引节点
+    fn visit_create_edge_index(&mut self, _node: &CreateEdgeIndexNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问删除边索引节点
+    fn visit_drop_edge_index(&mut self, _node: &DropEdgeIndexNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问描述边索引节点
+    fn visit_desc_edge_index(&mut self, _node: &DescEdgeIndexNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问显示所有边索引节点
+    fn visit_show_edge_indexes(&mut self, _node: &ShowEdgeIndexesNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问重建标签索引节点
+    fn visit_rebuild_tag_index(&mut self, _node: &RebuildTagIndexNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 访问重建边索引节点
+    fn visit_rebuild_edge_index(&mut self, _node: &RebuildEdgeIndexNode) -> Self::Result {
+        self.visit_default()
+    }
+
+    /// 默认访问实现
+    fn visit_default(&mut self) -> Self::Result;
+
+    /// 统一的访问入口
     fn visit(&mut self, node: &PlanNodeEnum) -> Self::Result {
         match node {
             PlanNodeEnum::Start(n) => self.visit_start(n),
             PlanNodeEnum::Project(n) => self.visit_project(n),
+            PlanNodeEnum::Filter(n) => self.visit_filter(n),
             PlanNodeEnum::Sort(n) => self.visit_sort(n),
             PlanNodeEnum::Limit(n) => self.visit_limit(n),
-            PlanNodeEnum::TopN(n) => self.visit_top_n(n),
+            PlanNodeEnum::TopN(n) => self.visit_topn(n),
             PlanNodeEnum::Sample(n) => self.visit_sample(n),
-            PlanNodeEnum::InnerJoin(n) => self.visit_inner_join(n),
-            PlanNodeEnum::LeftJoin(n) => self.visit_left_join(n),
-            PlanNodeEnum::CrossJoin(n) => self.visit_cross_join(n),
+            PlanNodeEnum::Dedup(n) => self.visit_dedup(n),
             PlanNodeEnum::GetVertices(n) => self.visit_get_vertices(n),
             PlanNodeEnum::GetEdges(n) => self.visit_get_edges(n),
             PlanNodeEnum::GetNeighbors(n) => self.visit_get_neighbors(n),
             PlanNodeEnum::ScanVertices(n) => self.visit_scan_vertices(n),
             PlanNodeEnum::ScanEdges(n) => self.visit_scan_edges(n),
             PlanNodeEnum::EdgeIndexScan(n) => self.visit_edge_index_scan(n),
-            PlanNodeEnum::HashInnerJoin(n) => self.visit_hash_inner_join(n),
-            PlanNodeEnum::HashLeftJoin(n) => self.visit_hash_left_join(n),
-            PlanNodeEnum::FullOuterJoin(n) => self.visit_full_outer_join(n),
             PlanNodeEnum::IndexScan(n) => self.visit_index_scan(n),
             PlanNodeEnum::Expand(n) => self.visit_expand(n),
             PlanNodeEnum::ExpandAll(n) => self.visit_expand_all(n),
             PlanNodeEnum::Traverse(n) => self.visit_traverse(n),
             PlanNodeEnum::AppendVertices(n) => self.visit_append_vertices(n),
-            PlanNodeEnum::Filter(n) => self.visit_filter(n),
+            PlanNodeEnum::InnerJoin(n) => self.visit_inner_join(n),
+            PlanNodeEnum::LeftJoin(n) => self.visit_left_join(n),
+            PlanNodeEnum::CrossJoin(n) => self.visit_cross_join(n),
+            PlanNodeEnum::HashInnerJoin(n) => self.visit_hash_inner_join(n),
+            PlanNodeEnum::HashLeftJoin(n) => self.visit_hash_left_join(n),
+            PlanNodeEnum::FullOuterJoin(n) => self.visit_full_outer_join(n),
             PlanNodeEnum::Aggregate(n) => self.visit_aggregate(n),
             PlanNodeEnum::Argument(n) => self.visit_argument(n),
             PlanNodeEnum::Loop(n) => self.visit_loop(n),
             PlanNodeEnum::PassThrough(n) => self.visit_pass_through(n),
             PlanNodeEnum::Select(n) => self.visit_select(n),
             PlanNodeEnum::DataCollect(n) => self.visit_data_collect(n),
-            PlanNodeEnum::Dedup(n) => self.visit_dedup(n),
             PlanNodeEnum::PatternApply(n) => self.visit_pattern_apply(n),
-            PlanNodeEnum::RollUpApply(n) => self.visit_roll_up_apply(n),
+            PlanNodeEnum::RollUpApply(n) => self.visit_rollup_apply(n),
             PlanNodeEnum::Union(n) => self.visit_union(n),
             PlanNodeEnum::Minus(n) => self.visit_minus(n),
             PlanNodeEnum::Intersect(n) => self.visit_intersect(n),
@@ -153,129 +423,44 @@ pub trait PlanNodeVisitor {
             PlanNodeEnum::ShowEdges(n) => self.visit_show_edges(n),
             PlanNodeEnum::CreateTagIndex(n) => self.visit_create_tag_index(n),
             PlanNodeEnum::DropTagIndex(n) => self.visit_drop_tag_index(n),
-            PlanNodeEnum::DescTagIndex(n) => self.visit_desc_tag_index(n),
-            PlanNodeEnum::ShowTagIndexes(n) => self.visit_show_tag_indexes(n),
-            PlanNodeEnum::CreateEdgeIndex(n) => self.visit_create_edge_index(n),
-            PlanNodeEnum::DropEdgeIndex(n) => self.visit_drop_edge_index(n),
-            PlanNodeEnum::DescEdgeIndex(n) => self.visit_desc_edge_index(n),
-            PlanNodeEnum::ShowEdgeIndexes(n) => self.visit_show_edge_indexes(n),
-            PlanNodeEnum::RebuildTagIndex(n) => self.visit_rebuild_tag_index(n),
-            PlanNodeEnum::RebuildEdgeIndex(n) => self.visit_rebuild_edge_index(n),
-            PlanNodeEnum::CreateUser(n) => self.visit_create_user(n),
-            PlanNodeEnum::AlterUser(n) => self.visit_alter_user(n),
-            PlanNodeEnum::DropUser(n) => self.visit_drop_user(n),
-            PlanNodeEnum::ChangePassword(n) => self.visit_change_password(n),
-            PlanNodeEnum::InsertVertices(_n) => self.visit_create_space(&CreateSpaceNode::new(-1, SpaceManageInfo::new("".to_string()))),
-            PlanNodeEnum::InsertEdges(_n) => self.visit_create_space(&CreateSpaceNode::new(-1, SpaceManageInfo::new("".to_string()))),
+            PlanNodeEnum::DescTagIndex(_n) => self.visit_desc_tag_index(_n),
+            PlanNodeEnum::ShowTagIndexes(_n) => self.visit_show_tag_indexes(_n),
+            PlanNodeEnum::CreateEdgeIndex(_n) => self.visit_create_edge_index(_n),
+            PlanNodeEnum::DropEdgeIndex(_n) => self.visit_drop_edge_index(_n),
+            PlanNodeEnum::DescEdgeIndex(_n) => self.visit_desc_edge_index(_n),
+            PlanNodeEnum::ShowEdgeIndexes(_n) => self.visit_show_edge_indexes(_n),
+            PlanNodeEnum::RebuildTagIndex(_n) => self.visit_rebuild_tag_index(_n),
+            PlanNodeEnum::RebuildEdgeIndex(_n) => self.visit_rebuild_edge_index(_n),
+            PlanNodeEnum::CreateUser(_n) => self.visit_default(),
+            PlanNodeEnum::AlterUser(_n) => self.visit_default(),
+            PlanNodeEnum::DropUser(_n) => self.visit_default(),
+            PlanNodeEnum::ChangePassword(_n) => self.visit_default(),
+            PlanNodeEnum::InsertVertices(_n) => self.visit_default(),
+            PlanNodeEnum::InsertEdges(_n) => self.visit_default(),
         }
     }
 }
 
+/// 默认的 PlanNode 访问者实现
+///
+/// 提供空操作的默认实现，用于只需要访问部分节点类型的场景。
+pub struct DefaultPlanNodeVisitor;
+
+impl PlanNodeVisitor for DefaultPlanNodeVisitor {
+    type Result = ();
+
+    fn visit_default(&mut self) {}
+}
+
+/// PlanNode 可访问 trait
+/// 为 PlanNode 类型提供访问者支持
 pub trait PlanNodeVisitable {
+    /// 接受访问者
     fn accept<V: PlanNodeVisitor>(&self, visitor: &mut V) -> V::Result;
 }
 
 impl PlanNodeVisitable for PlanNodeEnum {
     fn accept<V: PlanNodeVisitor>(&self, visitor: &mut V) -> V::Result {
         visitor.visit(self)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    
-    struct CountingVisitor {
-        count: usize,
-    }
-    
-    impl PlanNodeVisitor for CountingVisitor {
-        type Result = usize;
-        
-        fn visit_start(&mut self, _node: &StartNode) -> Self::Result {
-            self.count += 1;
-            self.count
-        }
-        
-        fn visit_project(&mut self, _node: &ProjectNode) -> Self::Result {
-            self.count += 1;
-            self.count
-        }
-        
-        fn visit_sort(&mut self, _node: &SortNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_limit(&mut self, _node: &LimitNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_top_n(&mut self, _node: &TopNNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_sample(&mut self, _node: &SampleNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_inner_join(&mut self, _node: &InnerJoinNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_left_join(&mut self, _node: &LeftJoinNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_cross_join(&mut self, _node: &CrossJoinNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_get_vertices(&mut self, _node: &GetVerticesNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_get_edges(&mut self, _node: &GetEdgesNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_get_neighbors(&mut self, _node: &GetNeighborsNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_scan_vertices(&mut self, _node: &ScanVerticesNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_scan_edges(&mut self, _node: &ScanEdgesNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_edge_index_scan(&mut self, _node: &EdgeIndexScanNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_hash_inner_join(&mut self, _node: &HashInnerJoinNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_hash_left_join(&mut self, _node: &HashLeftJoinNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_full_outer_join(&mut self, _node: &FullOuterJoinNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_index_scan(&mut self, _node: &IndexScan) -> Self::Result { self.count += 1; self.count }
-        fn visit_expand(&mut self, _node: &ExpandNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_expand_all(&mut self, _node: &ExpandAllNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_traverse(&mut self, _node: &TraverseNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_append_vertices(&mut self, _node: &AppendVerticesNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_filter(&mut self, _node: &FilterNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_aggregate(&mut self, _node: &AggregateNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_argument(&mut self, _node: &ArgumentNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_loop(&mut self, _node: &LoopNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_pass_through(&mut self, _node: &PassThroughNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_select(&mut self, _node: &SelectNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_data_collect(&mut self, _node: &DataCollectNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_dedup(&mut self, _node: &DedupNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_pattern_apply(&mut self, _node: &PatternApplyNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_roll_up_apply(&mut self, _node: &RollUpApplyNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_union(&mut self, _node: &UnionNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_minus(&mut self, _node: &MinusNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_intersect(&mut self, _node: &IntersectNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_unwind(&mut self, _node: &UnwindNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_assign(&mut self, _node: &AssignNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_multi_shortest_path(&mut self, _node: &MultiShortestPath) -> Self::Result { self.count += 1; self.count }
-        fn visit_bfs_shortest(&mut self, _node: &BFSShortest) -> Self::Result { self.count += 1; self.count }
-        fn visit_all_paths(&mut self, _node: &AllPaths) -> Self::Result { self.count += 1; self.count }
-        fn visit_shortest_path(&mut self, _node: &ShortestPath) -> Self::Result { self.count += 1; self.count }
-        fn visit_create_space(&mut self, _node: &CreateSpaceNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_drop_space(&mut self, _node: &DropSpaceNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_desc_space(&mut self, _node: &DescSpaceNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_show_spaces(&mut self, _node: &ShowSpacesNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_create_tag(&mut self, _node: &CreateTagNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_alter_tag(&mut self, _node: &crate::query::planner::plan::core::nodes::AlterTagNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_desc_tag(&mut self, _node: &DescTagNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_drop_tag(&mut self, _node: &DropTagNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_show_tags(&mut self, _node: &ShowTagsNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_create_edge(&mut self, _node: &CreateEdgeNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_alter_edge(&mut self, _node: &crate::query::planner::plan::core::nodes::AlterEdgeNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_desc_edge(&mut self, _node: &DescEdgeNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_drop_edge(&mut self, _node: &DropEdgeNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_show_edges(&mut self, _node: &ShowEdgesNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_create_tag_index(&mut self, _node: &CreateTagIndexNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_drop_tag_index(&mut self, _node: &DropTagIndexNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_desc_tag_index(&mut self, _node: &DescTagIndexNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_show_tag_indexes(&mut self, _node: &ShowTagIndexesNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_create_edge_index(&mut self, _node: &CreateEdgeIndexNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_drop_edge_index(&mut self, _node: &DropEdgeIndexNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_desc_edge_index(&mut self, _node: &crate::query::planner::plan::core::nodes::DescEdgeIndexNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_show_edge_indexes(&mut self, _node: &ShowEdgeIndexesNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_rebuild_tag_index(&mut self, _node: &RebuildTagIndexNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_rebuild_edge_index(&mut self, _node: &RebuildEdgeIndexNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_create_user(&mut self, _node: &CreateUserNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_alter_user(&mut self, _node: &AlterUserNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_drop_user(&mut self, _node: &DropUserNode) -> Self::Result { self.count += 1; self.count }
-        fn visit_change_password(&mut self, _node: &ChangePasswordNode) -> Self::Result { self.count += 1; self.count }
-    }
-    
-    #[test]
-    fn test_plan_node_visitor() {
-        let mut visitor = CountingVisitor { count: 0 };
-        let _result = visitor.visit(&PlanNodeEnum::Start(StartNode::new()));
-        assert_eq!(visitor.count, 1);
     }
 }

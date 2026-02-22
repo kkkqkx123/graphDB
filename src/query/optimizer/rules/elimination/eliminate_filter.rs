@@ -3,7 +3,7 @@
 use crate::query::optimizer::plan::{OptContext, OptGroupNode};
 use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::query::optimizer::rule_traits::is_expression_tautology;
-use crate::query::visitor::PlanNodeVisitor;
+use crate::query::optimizer::PlanNodeVisitor;
 
 crate::define_elimination_rule! {
     /// 消除冗余过滤操作的规则

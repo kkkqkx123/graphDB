@@ -201,10 +201,10 @@ impl PatternUtils {
                     variables.push(var.clone());
                 }
                 if let Some(ref props) = p.properties {
-                    variables.extend(CoreExprUtils::find_variables(props));
+                    variables.extend(collect_variables(props));
                 }
                 for predicate in &p.predicates {
-                    variables.extend(CoreExprUtils::find_variables(predicate));
+                    variables.extend(collect_variables(predicate));
                 }
             }
             Pattern::Edge(p) => {
@@ -212,10 +212,10 @@ impl PatternUtils {
                     variables.push(var.clone());
                 }
                 if let Some(ref props) = p.properties {
-                    variables.extend(CoreExprUtils::find_variables(props));
+                    variables.extend(collect_variables(props));
                 }
                 for predicate in &p.predicates {
-                    variables.extend(CoreExprUtils::find_variables(predicate));
+                    variables.extend(collect_variables(predicate));
                 }
             }
             Pattern::Path(p) => {
@@ -236,10 +236,10 @@ impl PatternUtils {
                     variables.push(var.clone());
                 }
                 if let Some(ref props) = p.properties {
-                    variables.extend(CoreExprUtils::find_variables(props));
+                    variables.extend(collect_variables(props));
                 }
                 for predicate in &p.predicates {
-                    variables.extend(CoreExprUtils::find_variables(predicate));
+                    variables.extend(collect_variables(predicate));
                 }
             }
             PathElement::Edge(p) => {
@@ -247,10 +247,10 @@ impl PatternUtils {
                     variables.push(var.clone());
                 }
                 if let Some(ref props) = p.properties {
-                    variables.extend(CoreExprUtils::find_variables(props));
+                    variables.extend(collect_variables(props));
                 }
                 for predicate in &p.predicates {
-                    variables.extend(CoreExprUtils::find_variables(predicate));
+                    variables.extend(collect_variables(predicate));
                 }
             }
             PathElement::Alternative(patterns) => {

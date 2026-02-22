@@ -5,7 +5,7 @@ use crate::query::optimizer::rule_patterns::CommonPatterns;
 use crate::query::optimizer::rule_traits::{combine_conditions, BaseOptRule, MergeRule};
 use crate::query::planner::plan::FilterNode as FilterPlanNode;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
-use crate::query::visitor::PlanNodeVisitor;
+use crate::query::optimizer::PlanNodeVisitor;
 use std::rc::Rc;
 use std::cell::RefCell;
 

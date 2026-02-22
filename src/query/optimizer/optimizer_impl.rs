@@ -3,10 +3,10 @@
 //!
 //! Optimizer 是优化器的主类，负责协调整个优化过程：
 //! 1. 将执行计划转换为 OptGroup 结构
-//! 2. 按阶段执行优化规则（从 RuleRegistry 动态加载）
+//! 2. 按阶段执行优化规则（从枚举直接加载）
 //! 3. 生成最终的执行计划
 //!
-//! 本实现统一使用枚举+注册表机制，删除了硬编码规则名列表
+//! 本实现使用枚举+Trait 机制，提供类型安全的静态分发
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -18,7 +18,6 @@ use crate::query::optimizer::core::OptimizationPhase;
 use crate::query::optimizer::plan::{
     OptContext, OptGroup, OptGroupNode, OptRule,
 };
-use crate::query::optimizer::rule_registry::RuleRegistry;
 use crate::query::optimizer::rule_enum::OptimizationRule;
 use crate::query::planner::plan::{ExecutionPlan, PlanNodeEnum};
 use crate::query::optimizer::OptimizerError;
@@ -63,7 +62,7 @@ impl Default for Optimizer {
 }
 
 impl Optimizer {
-    /// 创建新的优化器实例，从注册表加载规则
+    /// 创建新的优化器实例，从枚举直接加载规则
     pub fn new(config: OptimizationConfig) -> Self {
         let mut optimizer = Self {
             config,
@@ -72,18 +71,18 @@ impl Optimizer {
             enable_rule_based: true,
         };
 
-        optimizer.setup_rule_sets_from_registry();
+        optimizer.setup_rule_sets();
         optimizer
     }
 
-    /// 从注册表创建优化器（使用默认配置）
+    /// 从枚举创建优化器（使用默认配置）
     pub fn from_registry() -> Self {
         let config = OptimizationConfig::default();
         Self::new(config)
     }
 
     /// 使用自定义配置和规则集创建优化器
-    /// 如果 rule_sets 为空，则从注册表加载
+    /// 如果 rule_sets 为空，则从枚举加载
     pub fn with_config(rule_sets: Vec<RuleSet>, config: OptimizationConfig) -> Self {
         let mut optimizer = Self {
             config,
@@ -93,47 +92,28 @@ impl Optimizer {
         };
 
         if optimizer.rule_sets.is_empty() {
-            optimizer.setup_rule_sets_from_registry();
+            optimizer.setup_rule_sets();
         }
 
         optimizer
     }
 
-    /// 从 RuleRegistry 加载规则并按阶段分组
-    /// 应用 RuleConfig 中的启用/禁用配置
-    fn setup_rule_sets_from_registry(&mut self) {
-        // 初始化注册表
-        if let Err(e) = RuleRegistry::initialize() {
-            eprintln!("Failed to initialize rule registry: {:?}", e);
-            return;
-        }
-
+    /// 从枚举直接创建规则集
+    fn setup_rule_sets(&mut self) {
         // 按阶段加载规则
         for phase in [
             OptimizationPhase::Rewrite,
             OptimizationPhase::Logical,
             OptimizationPhase::Physical,
         ] {
-            let rules = match RuleRegistry::get_rules_by_phase(phase) {
-                Ok(rules) => rules,
-                Err(e) => {
-                    eprintln!("Failed to get rules for phase {:?}: {:?}", phase, e);
-                    continue;
-                }
-            };
-
-            // 应用 RuleConfig 过滤
-            let filtered_rules: Vec<_> = rules
-                .into_iter()
-                .filter(|rule| self.is_rule_enabled(rule))
-                .collect();
-
-            // 实例化规则并创建规则集
             let mut rule_set = RuleSet::new(&phase.to_string());
-            for rule_enum in filtered_rules {
-                match rule_enum.create_instance() {
-                    Some(rule) => rule_set.add_rule(rule),
-                    None => eprintln!("Failed to create instance for rule: {:?}", rule_enum),
+
+            // 遍历所有规则枚举，按阶段过滤
+            for rule_enum in self.iter_all_rules() {
+                if rule_enum.phase() == phase {
+                    if let Some(rule) = rule_enum.create_instance() {
+                        rule_set.add_rule(rule);
+                    }
                 }
             }
 
@@ -143,12 +123,55 @@ impl Optimizer {
         }
     }
 
-    /// 检查规则是否启用
-    /// 优先使用 RuleConfig，如果没有配置则默认启用
-    fn is_rule_enabled(&self, _rule: &OptimizationRule) -> bool {
-        // 如果配置中包含 RuleConfig，使用它来判断
-        // 否则默认启用所有规则
-        true // 简化实现，实际应从 self.config 中读取
+    /// 遍历所有规则枚举
+    fn iter_all_rules(&self) -> impl Iterator<Item = OptimizationRule> {
+        [
+            // 逻辑优化规则
+            OptimizationRule::ProjectionPushDown,
+            OptimizationRule::CombineFilter,
+            OptimizationRule::CollapseProject,
+            OptimizationRule::DedupElimination,
+            OptimizationRule::EliminateFilter,
+            OptimizationRule::EliminateRowCollect,
+            OptimizationRule::RemoveNoopProject,
+            OptimizationRule::EliminateAppendVertices,
+            OptimizationRule::RemoveAppendVerticesBelowJoin,
+            OptimizationRule::PushFilterDownAggregate,
+            OptimizationRule::TopN,
+            OptimizationRule::MergeGetVerticesAndProject,
+            OptimizationRule::MergeGetVerticesAndDedup,
+            OptimizationRule::MergeGetNbrsAndProject,
+            OptimizationRule::MergeGetNbrsAndDedup,
+            OptimizationRule::PushFilterDownNode,
+            OptimizationRule::PushEFilterDown,
+            OptimizationRule::PushVFilterDownScanVertices,
+            OptimizationRule::PushFilterDownInnerJoin,
+            OptimizationRule::PushFilterDownHashInnerJoin,
+            OptimizationRule::PushFilterDownHashLeftJoin,
+            OptimizationRule::PushFilterDownCrossJoin,
+            OptimizationRule::PushFilterDownGetNbrs,
+            OptimizationRule::PushFilterDownExpandAll,
+            OptimizationRule::PushFilterDownAllPaths,
+            OptimizationRule::EliminateEmptySetOperation,
+            OptimizationRule::OptimizeSetOperationInputOrder,
+
+            // 物理优化规则
+            OptimizationRule::JoinOptimization,
+            OptimizationRule::PushLimitDownGetVertices,
+            OptimizationRule::PushLimitDownGetEdges,
+            OptimizationRule::PushLimitDownScanVertices,
+            OptimizationRule::PushLimitDownScanEdges,
+            OptimizationRule::PushLimitDownIndexScan,
+            OptimizationRule::ScanWithFilterOptimization,
+            OptimizationRule::IndexFullScan,
+            OptimizationRule::IndexScan,
+            OptimizationRule::EdgeIndexFullScan,
+            OptimizationRule::TagIndexFullScan,
+            OptimizationRule::UnionAllEdgeIndexScan,
+            OptimizationRule::UnionAllTagIndexScan,
+            OptimizationRule::IndexCoveringScan,
+            OptimizationRule::PushTopNDownIndexScan,
+        ].into_iter()
     }
 
     /// 查找最优执行计划

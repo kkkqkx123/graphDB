@@ -903,13 +903,13 @@ impl StmtUtils {
                     variables.extend(PatternUtils::find_variables(pattern));
                 }
                 if let Some(ref where_clause) = s.where_clause {
-                    variables.extend(CoreExprUtils::find_variables(where_clause));
+                    variables.extend(collect_variables(where_clause));
                 }
             }
             Stmt::Create(s) => match &s.target {
                 CreateTarget::Node { properties, .. } => {
                     if let Some(props) = properties {
-                        variables.extend(CoreExprUtils::find_variables(props));
+                        variables.extend(collect_variables(props));
                     }
                 }
                 CreateTarget::Edge {
@@ -918,10 +918,10 @@ impl StmtUtils {
                     properties,
                     ..
                 } => {
-                    variables.extend(CoreExprUtils::find_variables(src));
-                    variables.extend(CoreExprUtils::find_variables(dst));
+                    variables.extend(collect_variables(src));
+                    variables.extend(collect_variables(dst));
                     if let Some(props) = properties {
-                        variables.extend(CoreExprUtils::find_variables(props));
+                        variables.extend(collect_variables(props));
                     }
                 }
                 _ => {}
@@ -930,87 +930,87 @@ impl StmtUtils {
                 match &s.target {
                     DeleteTarget::Vertices(vertices) => {
                         for vertex in vertices {
-                            variables.extend(CoreExprUtils::find_variables(vertex));
+                            variables.extend(collect_variables(vertex));
                         }
                     }
                     DeleteTarget::Edges { edges, .. } => {
                         for (src, dst, rank) in edges {
-                            variables.extend(CoreExprUtils::find_variables(src));
-                            variables.extend(CoreExprUtils::find_variables(dst));
+                            variables.extend(collect_variables(src));
+                            variables.extend(collect_variables(dst));
                             if let Some(ref rank) = rank {
-                                variables.extend(CoreExprUtils::find_variables(rank));
+                                variables.extend(collect_variables(rank));
                             }
                         }
                     }
                     _ => {}
                 }
                 if let Some(ref where_clause) = s.where_clause {
-                    variables.extend(CoreExprUtils::find_variables(where_clause));
+                    variables.extend(collect_variables(where_clause));
                 }
             }
             Stmt::Update(s) => {
                 match &s.target {
                     UpdateTarget::Vertex(vertex) => {
-                        variables.extend(CoreExprUtils::find_variables(vertex));
+                        variables.extend(collect_variables(vertex));
                     }
                     UpdateTarget::Edge { src, dst, rank, .. } => {
-                        variables.extend(CoreExprUtils::find_variables(src));
-                        variables.extend(CoreExprUtils::find_variables(dst));
+                        variables.extend(collect_variables(src));
+                        variables.extend(collect_variables(dst));
                         if let Some(ref rank) = rank {
-                            variables.extend(CoreExprUtils::find_variables(rank));
+                            variables.extend(collect_variables(rank));
                         }
                     }
                     _ => {}
                 }
                 for assignment in &s.set_clause.assignments {
-                    variables.extend(CoreExprUtils::find_variables(&assignment.value));
+                    variables.extend(collect_variables(&assignment.value));
                 }
                 if let Some(ref where_clause) = s.where_clause {
-                    variables.extend(CoreExprUtils::find_variables(where_clause));
+                    variables.extend(collect_variables(where_clause));
                 }
             }
             Stmt::Go(s) => {
                 for vertex in &s.from.vertices {
-                    variables.extend(CoreExprUtils::find_variables(vertex));
+                    variables.extend(collect_variables(vertex));
                 }
                 if let Some(ref where_clause) = s.where_clause {
-                    variables.extend(CoreExprUtils::find_variables(where_clause));
+                    variables.extend(collect_variables(where_clause));
                 }
             }
             Stmt::Fetch(s) => match &s.target {
                 FetchTarget::Vertices { ids, .. } => {
                     for id in ids {
-                        variables.extend(CoreExprUtils::find_variables(id));
+                        variables.extend(collect_variables(id));
                     }
                 }
                 FetchTarget::Edges { src, dst, rank, .. } => {
-                    variables.extend(CoreExprUtils::find_variables(src));
-                    variables.extend(CoreExprUtils::find_variables(dst));
+                    variables.extend(collect_variables(src));
+                    variables.extend(collect_variables(dst));
                     if let Some(ref rank) = rank {
-                        variables.extend(CoreExprUtils::find_variables(rank));
+                        variables.extend(collect_variables(rank));
                     }
                 }
             },
             Stmt::Lookup(s) => {
                 if let Some(ref where_clause) = s.where_clause {
-                    variables.extend(CoreExprUtils::find_variables(where_clause));
+                    variables.extend(collect_variables(where_clause));
                 }
             }
             Stmt::Subgraph(s) => {
                 for vertex in &s.from.vertices {
-                    variables.extend(CoreExprUtils::find_variables(vertex));
+                    variables.extend(collect_variables(vertex));
                 }
                 if let Some(ref where_clause) = s.where_clause {
-                    variables.extend(CoreExprUtils::find_variables(where_clause));
+                    variables.extend(collect_variables(where_clause));
                 }
             }
             Stmt::FindPath(s) => {
                 for vertex in &s.from.vertices {
-                    variables.extend(CoreExprUtils::find_variables(vertex));
+                    variables.extend(collect_variables(vertex));
                 }
-                variables.extend(CoreExprUtils::find_variables(&s.to));
+                variables.extend(collect_variables(&s.to));
                 if let Some(ref where_clause) = s.where_clause {
-                    variables.extend(CoreExprUtils::find_variables(where_clause));
+                    variables.extend(collect_variables(where_clause));
                 }
             }
             _ => {}

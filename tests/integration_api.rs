@@ -23,7 +23,6 @@ use graphdb::api::service::permission_manager::RoleType;
 use graphdb::api::service::stats_manager::QueryMetrics;
 use graphdb::config::Config;
 use graphdb::storage::redb_storage::DefaultStorage;
-use graphdb::query::optimizer::rule_registry::RuleRegistry;
 
 // ==================== 会话管理测试 ====================
 
@@ -700,7 +699,6 @@ fn create_test_config() -> Config {
 
 #[tokio::test]
 async fn test_graph_service_creation() {
-    let _ = RuleRegistry::initialize();
     let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
     let db_path = temp_dir.path().join("graphdb_test");
     
@@ -717,7 +715,6 @@ async fn test_graph_service_creation() {
 
 #[tokio::test]
 async fn test_graph_service_authentication() {
-    let _ = RuleRegistry::initialize();
     let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
     let db_path = temp_dir.path().join("graphdb_test");
     
@@ -738,7 +735,6 @@ async fn test_graph_service_authentication() {
 
 #[tokio::test]
 async fn test_graph_service_signout() {
-    let _ = RuleRegistry::initialize();
     let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
     let db_path = temp_dir.path().join("graphdb_test");
     
@@ -767,7 +763,6 @@ async fn test_graph_service_signout() {
 
 #[tokio::test]
 async fn test_graph_service_execute_query() {
-    let _ = RuleRegistry::initialize();
     let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
     let db_path = temp_dir.path().join("graphdb_test");
     
@@ -791,7 +786,6 @@ async fn test_graph_service_execute_query() {
 
 #[tokio::test]
 async fn test_graph_service_invalid_session() {
-    let _ = RuleRegistry::initialize();
     let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
     let db_path = temp_dir.path().join("graphdb_test");
     
@@ -808,7 +802,6 @@ async fn test_graph_service_invalid_session() {
 
 #[tokio::test]
 async fn test_graph_service_list_sessions() {
-    let _ = RuleRegistry::initialize();
     let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
     let db_path = temp_dir.path().join("graphdb_test");
     
@@ -836,7 +829,6 @@ async fn test_graph_service_list_sessions() {
 
 #[tokio::test]
 async fn test_graph_service_kill_session() {
-    let _ = RuleRegistry::initialize();
     let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
     let db_path = temp_dir.path().join("graphdb_test");
     
@@ -865,7 +857,6 @@ async fn test_graph_service_kill_session() {
 
 #[tokio::test]
 async fn test_full_session_lifecycle() {
-    let _ = RuleRegistry::initialize();
     let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
     let db_path = temp_dir.path().join("graphdb_test");
     

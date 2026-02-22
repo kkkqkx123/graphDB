@@ -441,7 +441,6 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
 mod tests {
     use super::*;
     use crate::config::Config;
-    use crate::query::optimizer::rule_registry::RuleRegistry;
     use crate::storage::test_mock::MockStorage;
     use std::sync::Arc;
 
@@ -481,7 +480,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_graph_service_creation() {
-        let _ = RuleRegistry::initialize();
         let config = create_test_config();
 
         let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
@@ -493,7 +491,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_authentication_success() {
-        let _ = RuleRegistry::initialize();
         let config = create_test_config();
 
         let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
@@ -505,7 +502,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_authentication_failure() {
-        let _ = RuleRegistry::initialize();
         let config = create_test_config();
 
         let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
@@ -523,7 +519,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_signout() {
-        let _ = RuleRegistry::initialize();
         let config = create_test_config();
 
         let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
@@ -544,7 +539,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_execute_query() {
-        let _ = RuleRegistry::initialize();
         let config = create_test_config();
 
         let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
@@ -564,7 +558,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_invalid_session_execute() {
-        let _ = RuleRegistry::initialize();
         let config = create_test_config();
 
         let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
@@ -576,7 +569,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_permission_extraction() {
-        let _ = RuleRegistry::initialize();
         let config = create_test_config();
 
         let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
