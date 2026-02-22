@@ -7,11 +7,13 @@
 //! 2. 保留了原有完整功能：
 //!    - 空间名验证（非空、不以数字开头、长度限制等）
 //!    - 特殊字符检查
-//! 3. 使用 AstContext 统一管理上下文
+//! 3. 使用 QueryContext 统一管理上下文
+
+use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::query::context::ast::{AstContext, SpaceInfo};
 use crate::query::context::QueryContext;
+use crate::query::parser::ast::Stmt;
 use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef,
     ExpressionProps,
@@ -173,21 +175,6 @@ impl UseValidator {
         // 因此这里暂时返回 Ok，实际检查在执行阶段进行
         Ok(())
     }
-
-    /// 验证具体语句
-    fn validate_impl(
-        &mut self,
-        _query_context: Option<&QueryContext>,
-        _ast: &mut AstContext,
-    ) -> Result<(), ValidationError> {
-        // 执行 USE 验证
-        self.validate_use()?;
-
-        // USE 语句没有输出列（只是切换上下文）
-        self.outputs.clear();
-
-        Ok(())
-    }
 }
 
 impl Default for UseValidator {
@@ -197,17 +184,33 @@ impl Default for UseValidator {
 }
 
 /// 实现 StatementValidator trait
+///
+/// # 重构变更
+/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
 impl StatementValidator for UseValidator {
-    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError> {
+    fn validate(
+        &mut self,
+        stmt: &Stmt,
+        _qctx: Arc<QueryContext>,
+    ) -> Result<ValidationResult, ValidationError> {
         // 清空之前的状态
         self.outputs.clear();
         self.inputs.clear();
         self.expr_props = ExpressionProps::default();
         self.clear_errors();
 
+        // 从 Stmt 中提取 USE 语句信息
+        if let Stmt::Use(use_stmt) = stmt {
+            self.space_name = use_stmt.space.clone();
+        } else {
+            return Err(ValidationError::new(
+                "期望 USE 语句".to_string(),
+                crate::core::error::ValidationErrorType::SemanticError,
+            ));
+        }
+
         // 执行具体验证逻辑
-        // 注意：validate_impl 内部会调用 ast.query_context()
-        if let Err(e) = self.validate_impl(None, ast) {
+        if let Err(e) = self.validate_use() {
             self.add_error(e);
         }
 
@@ -215,25 +218,6 @@ impl StatementValidator for UseValidator {
         if self.has_errors() {
             let errors = self.validation_errors.clone();
             return Ok(ValidationResult::failure(errors));
-        }
-
-        // 同步输入/输出到 AstContext
-        // USE 语句会设置当前空间
-        if let Some(ref validated) = self.validated_result {
-            let space_info = SpaceInfo {
-                space_name: validated.space_name.clone(),
-                space_id: None, // 将在执行时解析
-                is_default: false,
-                vid_type: crate::core::types::DataType::Int64,
-            };
-            ast.set_space(space_info);
-        }
-
-        for output in &self.outputs {
-            ast.add_output(output.name.clone(), output.type_.clone());
-        }
-        for input in &self.inputs {
-            ast.add_input(input.name.clone(), input.type_.clone());
         }
 
         // 返回成功的验证结果

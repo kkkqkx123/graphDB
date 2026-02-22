@@ -4,7 +4,6 @@
 
 use super::plan_node_enum::PlanNodeEnum;
 use super::plan_node_traits::{PlanNode, PlanNodeClonable};
-use crate::query::context::ast::Variable;
 use crate::define_plan_node;
 
 define_plan_node! {
@@ -56,7 +55,7 @@ pub struct SelectNode {
     condition: String,
     if_branch: Option<Box<super::plan_node_enum::PlanNodeEnum>>,
     else_branch: Option<Box<super::plan_node_enum::PlanNodeEnum>>,
-    output_var: Option<Variable>,
+    output_var: Option<String>,
     col_names: Vec<String>,
     cost: f64,
 }
@@ -116,8 +115,8 @@ impl SelectNode {
         self.id
     }
 
-    pub fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
+    pub fn output_var(&self) -> Option<&str> {
+        self.output_var.as_deref()
     }
 
     pub fn col_names(&self) -> &[String] {
@@ -128,7 +127,7 @@ impl SelectNode {
         self.cost
     }
 
-    pub fn set_output_var(&mut self, var: Variable) {
+    pub fn set_output_var(&mut self, var: String) {
         self.output_var = Some(var);
     }
 
@@ -156,7 +155,7 @@ impl PlanNode for SelectNode {
         "Select"
     }
 
-    fn output_var(&self) -> Option<&Variable> {
+    fn output_var(&self) -> Option<&str> {
         self.output_var()
     }
 
@@ -168,7 +167,7 @@ impl PlanNode for SelectNode {
         self.cost()
     }
 
-    fn set_output_var(&mut self, var: Variable) {
+    fn set_output_var(&mut self, var: String) {
         self.set_output_var(var);
     }
 
@@ -197,7 +196,7 @@ pub struct LoopNode {
     id: i64,
     condition: String,
     body: Option<Box<super::plan_node_enum::PlanNodeEnum>>,
-    output_var: Option<Variable>,
+    output_var: Option<String>,
     col_names: Vec<String>,
     cost: f64,
 }
@@ -247,8 +246,8 @@ impl LoopNode {
         self.id
     }
 
-    pub fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
+    pub fn output_var(&self) -> Option<&str> {
+        self.output_var.as_deref()
     }
 
     pub fn col_names(&self) -> &[String] {
@@ -259,7 +258,7 @@ impl LoopNode {
         self.cost
     }
 
-    pub fn set_output_var(&mut self, var: Variable) {
+    pub fn set_output_var(&mut self, var: String) {
         self.output_var = Some(var);
     }
 
@@ -287,7 +286,7 @@ impl PlanNode for LoopNode {
         "Loop"
     }
 
-    fn output_var(&self) -> Option<&Variable> {
+    fn output_var(&self) -> Option<&str> {
         self.output_var()
     }
 
@@ -299,7 +298,7 @@ impl PlanNode for LoopNode {
         self.cost()
     }
 
-    fn set_output_var(&mut self, var: Variable) {
+    fn set_output_var(&mut self, var: String) {
         self.set_output_var(var);
     }
 

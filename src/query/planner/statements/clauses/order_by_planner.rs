@@ -3,8 +3,8 @@
 //! 负责规划 ORDER BY 子句的执行，对结果进行排序。
 
 use crate::core::Expression;
-use crate::query::context::ast::AstContext;
 use crate::query::context::QueryContext;
+use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
 use crate::query::planner::plan::core::nodes::sort_node::{SortNode, SortItem};
@@ -13,6 +13,7 @@ use crate::query::planner::statements::statement_planner::ClausePlanner;
 use crate::query::validator::structs::OrderByItem;
 use crate::query::validator::structs::CypherClauseKind;
 use crate::core::types::graph_schema::OrderDirection;
+use std::sync::Arc;
 
 /// ORDER BY 子句规划器
 ///
@@ -26,9 +27,8 @@ impl OrderByClausePlanner {
     }
 }
 
-fn extract_order_by_items(ast_ctx: &AstContext) -> Vec<OrderByItem> {
-    let stmt = ast_ctx.sentence();
-    if let Some(crate::query::parser::ast::Stmt::Match(match_stmt)) = stmt {
+fn extract_order_by_items(stmt: &Stmt) -> Vec<OrderByItem> {
+    if let Stmt::Match(match_stmt) = stmt {
         if let Some(order_by_clause) = &match_stmt.order_by {
             return order_by_clause.items.iter().map(|item| {
                 OrderByItem {
@@ -59,11 +59,11 @@ impl ClausePlanner for OrderByClausePlanner {
 
     fn transform_clause(
         &self,
-        _query_context: &mut QueryContext,
-        ast_ctx: &AstContext,
+        _qctx: Arc<QueryContext>,
+        stmt: &Stmt,
         input_plan: SubPlan,
     ) -> Result<SubPlan, PlannerError> {
-        let order_by_items = extract_order_by_items(ast_ctx);
+        let order_by_items = extract_order_by_items(stmt);
 
         if order_by_items.is_empty() {
             return Ok(input_plan);

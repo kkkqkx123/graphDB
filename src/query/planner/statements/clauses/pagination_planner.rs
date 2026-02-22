@@ -2,8 +2,8 @@
 //!
 //! 负责规划 LIMIT 和 SKIP 子句的执行，实现结果分页。
 
-use crate::query::context::ast::AstContext;
 use crate::query::context::QueryContext;
+use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
 use crate::query::planner::plan::core::nodes::sort_node::LimitNode;
@@ -11,6 +11,7 @@ use crate::query::planner::planner::PlannerError;
 use crate::query::planner::statements::statement_planner::ClausePlanner;
 use crate::query::planner::statements::match_statement_planner::PaginationInfo;
 use crate::query::validator::structs::CypherClauseKind;
+use std::sync::Arc;
 
 /// LIMIT/SKIP 子句规划器
 ///
@@ -24,9 +25,8 @@ impl PaginationPlanner {
     }
 }
 
-fn extract_pagination_info(ast_ctx: &AstContext) -> PaginationInfo {
-    let stmt = ast_ctx.sentence();
-    if let Some(crate::query::parser::ast::Stmt::Match(match_stmt)) = stmt {
+fn extract_pagination_info(stmt: &Stmt) -> PaginationInfo {
+    if let Stmt::Match(match_stmt) = stmt {
         let skip = match_stmt.skip.unwrap_or(0);
         let limit = match_stmt.limit.unwrap_or(100);
         return PaginationInfo { skip, limit };
@@ -45,11 +45,11 @@ impl ClausePlanner for PaginationPlanner {
 
     fn transform_clause(
         &self,
-        _query_context: &mut QueryContext,
-        ast_ctx: &AstContext,
+        _qctx: Arc<QueryContext>,
+        stmt: &Stmt,
         input_plan: SubPlan,
     ) -> Result<SubPlan, PlannerError> {
-        let pagination = extract_pagination_info(ast_ctx);
+        let pagination = extract_pagination_info(stmt);
 
         let input_node = input_plan.root().as_ref().ok_or_else(|| {
             PlannerError::PlanGenerationFailed("LIMIT/SKIP 子句需要输入计划".to_string())

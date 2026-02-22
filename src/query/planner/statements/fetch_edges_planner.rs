@@ -1,13 +1,15 @@
 //! FETCH EDGES查询规划器
 //! 处理FETCH EDGES查询的规划
 
-use crate::query::context::ast::{AstContext, FetchEdgesContext};
+use crate::query::context::QueryContext;
+use crate::query::parser::ast::{FetchTarget, Stmt};
 use crate::query::planner::plan::core::nodes::{
-    ArgumentNode, DedupNode, FilterNode, GetEdgesNode, ProjectNode,
+    ArgumentNode, FilterNode, GetEdgesNode, ProjectNode,
 };
 use crate::query::planner::plan::core::PlanNodeEnum;
 use crate::query::planner::plan::execution_plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
+use std::sync::Arc;
 
 /// FETCH EDGES查询规划器
 /// 负责将FETCH EDGES查询转换为执行计划
@@ -24,42 +26,56 @@ impl FetchEdgesPlanner {
     pub fn make() -> Box<dyn Planner> {
         Box::new(Self::new())
     }
-
-    /// 检查AST上下文是否匹配FETCH EDGES查询
-    pub fn match_ast_ctx(ast_ctx: &AstContext) -> bool {
-        ast_ctx.statement_type().to_uppercase() == "FETCH EDGES"
-    }
-
-    /// 获取匹配和实例化函数（静态注册版本）
-    pub fn get_match_and_instantiate() -> crate::query::planner::planner::MatchAndInstantiateEnum {
-        crate::query::planner::planner::MatchAndInstantiateEnum::FetchEdges(Self::new())
-    }
 }
 
 impl Planner for FetchEdgesPlanner {
-    fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
-        // 从ast_ctx创建FetchEdgesContext
-        let fetch_ctx = FetchEdgesContext::new(ast_ctx.clone());
+    fn transform(
+        &mut self,
+        stmt: &Stmt,
+        _qctx: Arc<QueryContext>,
+    ) -> Result<SubPlan, PlannerError> {
+        let fetch_stmt = match stmt {
+            Stmt::Fetch(fetch_stmt) => fetch_stmt,
+            _ => {
+                return Err(PlannerError::InvalidOperation(
+                    "FetchEdgesPlanner 需要 Fetch 语句".to_string()
+                ));
+            }
+        };
 
-        // 实现FETCH EDGES查询的规划逻辑
-        println!("Processing FETCH EDGES query planning: {:?}", fetch_ctx);
+        // 检查是否是 FETCH EDGES
+        let (src, dst, edge_type, rank) = match &fetch_stmt.target {
+            FetchTarget::Edges { src, dst, edge_type, rank, .. } => (src, dst, edge_type, rank),
+            _ => {
+                return Err(PlannerError::InvalidOperation(
+                    "FetchEdgesPlanner 需要 FETCH EDGES 语句".to_string()
+                ));
+            }
+        };
+
+        let var_name = "e";
 
         // 1. 创建参数节点，获取边的条件
-        let arg_node = ArgumentNode::new(1, &fetch_ctx.input_var_name);
+        let arg_node = ArgumentNode::new(1, var_name);
+
+        // 从表达式中提取字符串值
+        let src_str = extract_string_from_expr(src)?;
+        let dst_str = extract_string_from_expr(dst)?;
+        let rank_str = rank.as_ref().map(|r| extract_string_from_expr(r)).transpose()?.unwrap_or_else(|| "0".to_string());
 
         // 2. 创建获取边的节点
         let get_edges_node = PlanNodeEnum::GetEdges(GetEdgesNode::new(
             1, // space_id
-            &fetch_ctx.src.clone().unwrap_or_default(),
-            &fetch_ctx.edge_type.clone().unwrap_or_default(),
-            &fetch_ctx.rank.clone().unwrap_or_default(),
-            &fetch_ctx.dst.clone().unwrap_or_default(),
+            &src_str,
+            edge_type,
+            &rank_str,
+            &dst_str,
         ));
 
         // 3. 创建过滤空边的节点
         let filter_node = match FilterNode::new(
             get_edges_node.clone(),
-            crate::core::Expression::Variable(format!("{} IS NOT EMPTY", fetch_ctx.edge_name)),
+            crate::core::Expression::Variable(format!("{} IS NOT EMPTY", var_name)),
         ) {
             Ok(node) => PlanNodeEnum::Filter(node),
             Err(_) => get_edges_node.clone(),
@@ -74,25 +90,37 @@ impl Planner for FetchEdgesPlanner {
             }
         };
 
-        // 5. 如果需要去重，创建去重节点
-        let final_node = if fetch_ctx.distinct {
-            match DedupNode::new(project_node.clone()) {
-                Ok(node) => PlanNodeEnum::Dedup(node),
-                Err(_) => project_node.clone(),
-            }
-        } else {
-            project_node
-        };
-
-        // 创建SubPlan
+        // 5. 创建SubPlan
         let arg_node = PlanNodeEnum::Argument(arg_node);
-        let sub_plan = SubPlan::new(Some(final_node), Some(arg_node));
+        let sub_plan = SubPlan::new(Some(project_node), Some(arg_node));
 
         Ok(sub_plan)
     }
 
-    fn match_planner(&self, ast_ctx: &AstContext) -> bool {
-        Self::match_ast_ctx(ast_ctx)
+    fn match_planner(&self, stmt: &Stmt) -> bool {
+        match stmt {
+            Stmt::Fetch(fetch_stmt) => {
+                matches!(&fetch_stmt.target, FetchTarget::Edges { .. })
+            }
+            _ => false,
+        }
+    }
+}
+
+/// 从表达式中提取字符串值
+fn extract_string_from_expr(expr: &crate::core::Expression) -> Result<String, PlannerError> {
+    match expr {
+        crate::core::Expression::Variable(s) => Ok(s.clone()),
+        crate::core::Expression::Literal(v) => {
+            match v {
+                crate::core::Value::String(s) => Ok(s.clone()),
+                crate::core::Value::Int(i) => Ok(i.to_string()),
+                crate::core::Value::Float(f) => Ok(f.to_string()),
+                crate::core::Value::Bool(b) => Ok(b.to_string()),
+                _ => Err(PlannerError::InvalidOperation(format!("无法从字面量提取字符串: {:?}", v))),
+            }
+        }
+        _ => Err(PlannerError::InvalidOperation(format!("无法从表达式提取字符串: {:?}", expr))),
     }
 }
 

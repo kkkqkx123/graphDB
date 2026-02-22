@@ -7,8 +7,9 @@
 //! 2. 所有管理类语句都是全局语句，不需要预先选择空间
 //! 3. 验证目标对象是否存在
 
+use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::query::context::ast::AstContext;
+use crate::query::context::QueryContext;
 use crate::query::parser::ast::stmt::{
     ShowStmt, ShowTarget, DescStmt, DescTarget, ShowCreateStmt, ShowCreateTarget,
     ShowConfigsStmt, ShowSessionsStmt, ShowQueriesStmt, KillQueryStmt,
@@ -133,16 +134,27 @@ impl ShowValidator {
     }
 }
 
+/// 实现 StatementValidator trait
+///
+/// # 重构变更
+/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
 impl StatementValidator for ShowValidator {
-    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError> {
-        let stmt = ast.sentence.as_ref()
-            .and_then(|s| s.as_show())
-            .ok_or_else(|| ValidationError::new(
-                "Expected SHOW statement".to_string(),
-                ValidationErrorType::SemanticError,
-            ))?;
+    fn validate(
+        &mut self,
+        stmt: &crate::query::parser::ast::Stmt,
+        _qctx: Arc<QueryContext>,
+    ) -> Result<ValidationResult, ValidationError> {
+        let show_stmt = match stmt {
+            crate::query::parser::ast::Stmt::Show(show_stmt) => show_stmt,
+            _ => {
+                return Err(ValidationError::new(
+                    "Expected SHOW statement".to_string(),
+                    ValidationErrorType::SemanticError,
+                ));
+            }
+        };
         
-        self.validate_impl(stmt)?;
+        self.validate_impl(show_stmt)?;
         
         Ok(ValidationResult::success(
             self.inputs.clone(),
@@ -268,16 +280,27 @@ impl DescValidator {
     }
 }
 
+/// 实现 StatementValidator trait
+///
+/// # 重构变更
+/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
 impl StatementValidator for DescValidator {
-    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError> {
-        let stmt = ast.sentence.as_ref()
-            .and_then(|s| s.as_desc())
-            .ok_or_else(|| ValidationError::new(
-                "Expected DESCRIBE statement".to_string(),
-                ValidationErrorType::SemanticError,
-            ))?;
+    fn validate(
+        &mut self,
+        stmt: &crate::query::parser::ast::Stmt,
+        _qctx: Arc<QueryContext>,
+    ) -> Result<ValidationResult, ValidationError> {
+        let desc_stmt = match stmt {
+            crate::query::parser::ast::Stmt::Desc(desc_stmt) => desc_stmt,
+            _ => {
+                return Err(ValidationError::new(
+                    "Expected DESCRIBE statement".to_string(),
+                    ValidationErrorType::SemanticError,
+                ));
+            }
+        };
         
-        self.validate_impl(stmt)?;
+        self.validate_impl(desc_stmt)?;
         
         Ok(ValidationResult::success(
             self.inputs.clone(),
@@ -376,16 +399,27 @@ impl ShowCreateValidator {
     }
 }
 
+/// 实现 StatementValidator trait
+///
+/// # 重构变更
+/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
 impl StatementValidator for ShowCreateValidator {
-    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError> {
-        let stmt = ast.sentence.as_ref()
-            .and_then(|s| s.as_show_create())
-            .ok_or_else(|| ValidationError::new(
-                "Expected SHOW CREATE statement".to_string(),
-                ValidationErrorType::SemanticError,
-            ))?;
+    fn validate(
+        &mut self,
+        stmt: &crate::query::parser::ast::Stmt,
+        _qctx: Arc<QueryContext>,
+    ) -> Result<ValidationResult, ValidationError> {
+        let show_create_stmt = match stmt {
+            crate::query::parser::ast::Stmt::ShowCreate(show_create_stmt) => show_create_stmt,
+            _ => {
+                return Err(ValidationError::new(
+                    "Expected SHOW CREATE statement".to_string(),
+                    ValidationErrorType::SemanticError,
+                ));
+            }
+        };
         
-        self.validate_impl(stmt)?;
+        self.validate_impl(show_create_stmt)?;
         
         Ok(ValidationResult::success(
             self.inputs.clone(),
@@ -458,16 +492,27 @@ impl ShowConfigsValidator {
     }
 }
 
+/// 实现 StatementValidator trait
+///
+/// # 重构变更
+/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
 impl StatementValidator for ShowConfigsValidator {
-    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError> {
-        let stmt = ast.sentence.as_ref()
-            .and_then(|s| s.as_show_configs())
-            .ok_or_else(|| ValidationError::new(
-                "Expected SHOW CONFIGS statement".to_string(),
-                ValidationErrorType::SemanticError,
-            ))?;
+    fn validate(
+        &mut self,
+        stmt: &crate::query::parser::ast::Stmt,
+        _qctx: Arc<QueryContext>,
+    ) -> Result<ValidationResult, ValidationError> {
+        let show_configs_stmt = match stmt {
+            crate::query::parser::ast::Stmt::ShowConfigs(show_configs_stmt) => show_configs_stmt,
+            _ => {
+                return Err(ValidationError::new(
+                    "Expected SHOW CONFIGS statement".to_string(),
+                    ValidationErrorType::SemanticError,
+                ));
+            }
+        };
         
-        self.validate_impl(stmt)?;
+        self.validate_impl(show_configs_stmt)?;
         
         Ok(ValidationResult::success(
             self.inputs.clone(),
@@ -536,16 +581,27 @@ impl ShowSessionsValidator {
     }
 }
 
+/// 实现 StatementValidator trait
+///
+/// # 重构变更
+/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
 impl StatementValidator for ShowSessionsValidator {
-    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError> {
-        let stmt = ast.sentence.as_ref()
-            .and_then(|s| s.as_show_sessions())
-            .ok_or_else(|| ValidationError::new(
-                "Expected SHOW SESSIONS statement".to_string(),
-                ValidationErrorType::SemanticError,
-            ))?;
+    fn validate(
+        &mut self,
+        stmt: &crate::query::parser::ast::Stmt,
+        _qctx: Arc<QueryContext>,
+    ) -> Result<ValidationResult, ValidationError> {
+        let show_sessions_stmt = match stmt {
+            crate::query::parser::ast::Stmt::ShowSessions(show_sessions_stmt) => show_sessions_stmt,
+            _ => {
+                return Err(ValidationError::new(
+                    "Expected SHOW SESSIONS statement".to_string(),
+                    ValidationErrorType::SemanticError,
+                ));
+            }
+        };
         
-        self.validate_impl(stmt)?;
+        self.validate_impl(show_sessions_stmt)?;
         
         Ok(ValidationResult::success(
             self.inputs.clone(),
@@ -614,16 +670,27 @@ impl ShowQueriesValidator {
     }
 }
 
+/// 实现 StatementValidator trait
+///
+/// # 重构变更
+/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
 impl StatementValidator for ShowQueriesValidator {
-    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError> {
-        let stmt = ast.sentence.as_ref()
-            .and_then(|s| s.as_show_queries())
-            .ok_or_else(|| ValidationError::new(
-                "Expected SHOW QUERIES statement".to_string(),
-                ValidationErrorType::SemanticError,
-            ))?;
+    fn validate(
+        &mut self,
+        stmt: &crate::query::parser::ast::Stmt,
+        _qctx: Arc<QueryContext>,
+    ) -> Result<ValidationResult, ValidationError> {
+        let show_queries_stmt = match stmt {
+            crate::query::parser::ast::Stmt::ShowQueries(show_queries_stmt) => show_queries_stmt,
+            _ => {
+                return Err(ValidationError::new(
+                    "Expected SHOW QUERIES statement".to_string(),
+                    ValidationErrorType::SemanticError,
+                ));
+            }
+        };
         
-        self.validate_impl(stmt)?;
+        self.validate_impl(show_queries_stmt)?;
         
         Ok(ValidationResult::success(
             self.inputs.clone(),
@@ -694,16 +761,27 @@ impl KillQueryValidator {
     }
 }
 
+/// 实现 StatementValidator trait
+///
+/// # 重构变更
+/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
 impl StatementValidator for KillQueryValidator {
-    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError> {
-        let stmt = ast.sentence.as_ref()
-            .and_then(|s| s.as_kill_query())
-            .ok_or_else(|| ValidationError::new(
-                "Expected KILL QUERY statement".to_string(),
-                ValidationErrorType::SemanticError,
-            ))?;
+    fn validate(
+        &mut self,
+        stmt: &crate::query::parser::ast::Stmt,
+        _qctx: Arc<QueryContext>,
+    ) -> Result<ValidationResult, ValidationError> {
+        let kill_query_stmt = match stmt {
+            crate::query::parser::ast::Stmt::KillQuery(kill_query_stmt) => kill_query_stmt,
+            _ => {
+                return Err(ValidationError::new(
+                    "Expected KILL QUERY statement".to_string(),
+                    ValidationErrorType::SemanticError,
+                ));
+            }
+        };
         
-        self.validate_impl(stmt)?;
+        self.validate_impl(kill_query_stmt)?;
         
         Ok(ValidationResult::success(
             self.inputs.clone(),

@@ -3,7 +3,7 @@
 //! 处理 Cypher 风格 CREATE 语句的查询规划
 //! 支持 CREATE (n:Label {props}) 和 CREATE (a)-[:Type]->(b) 语法
 
-use crate::query::context::ast::AstContext;
+use crate::query::context::QueryContext;
 use crate::query::parser::ast::{CreateStmt, CreateTarget, Stmt};
 use crate::query::planner::plan::core::{
     node_id_generator::next_node_id,
@@ -16,6 +16,7 @@ use crate::query::planner::plan::{PlanNodeEnum, SubPlan};
 use crate::query::planner::planner::{Planner, PlannerError};
 use crate::core::YieldColumn;
 use crate::core::{Expression, Value};
+use std::sync::Arc;
 
 /// CREATE 数据语句规划器
 /// 负责将 Cypher 风格的 CREATE 语句转换为执行计划
@@ -33,11 +34,6 @@ impl CreatePlanner {
         Box::new(Self::new())
     }
 
-    /// 检查 AST 上下文是否匹配 CREATE 数据语句
-    pub fn match_ast_ctx(ast_ctx: &AstContext) -> bool {
-        matches!(ast_ctx.sentence(), Some(Stmt::Create(create_stmt)) if Self::is_data_create(create_stmt))
-    }
-
     /// 判断是否为数据创建语句（而非 Schema 创建）
     fn is_data_create(stmt: &CreateStmt) -> bool {
         matches!(&stmt.target,
@@ -47,12 +43,12 @@ impl CreatePlanner {
         )
     }
 
-    /// 从 AstContext 提取 CreateStmt
-    fn extract_create_stmt(&self, ast_ctx: &AstContext) -> Result<CreateStmt, PlannerError> {
-        match ast_ctx.sentence() {
-            Some(Stmt::Create(create_stmt)) => Ok(create_stmt.clone()),
+    /// 从 Stmt 提取 CreateStmt
+    fn extract_create_stmt(&self, stmt: &Stmt) -> Result<CreateStmt, PlannerError> {
+        match stmt {
+            Stmt::Create(create_stmt) => Ok(create_stmt.clone()),
             _ => Err(PlannerError::PlanGenerationFailed(
-                "AST 上下文中不包含 CREATE 语句".to_string(),
+                "语句不包含 CREATE".to_string(),
             )),
         }
     }
@@ -128,12 +124,18 @@ impl CreatePlanner {
 }
 
 impl Planner for CreatePlanner {
-    fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
+    fn transform(
+        &mut self,
+        stmt: &Stmt,
+        qctx: Arc<QueryContext>,
+    ) -> Result<SubPlan, PlannerError> {
         // 获取空间名称
-        let space_name = ast_ctx.space().space_name.clone();
+        let space_name = qctx.rctx()
+            .and_then(|rctx| rctx.space_name())
+            .unwrap_or_else(|| "default".to_string());
 
         // 提取 CREATE 语句
-        let create_stmt = self.extract_create_stmt(ast_ctx)?;
+        let create_stmt = self.extract_create_stmt(stmt)?;
 
         // 创建参数节点
         let arg_node = ArgumentNode::new(next_node_id(), "create_args");
@@ -209,8 +211,11 @@ impl Planner for CreatePlanner {
         Ok(sub_plan)
     }
 
-    fn match_planner(&self, ast_ctx: &AstContext) -> bool {
-        Self::match_ast_ctx(ast_ctx)
+    fn match_planner(&self, stmt: &Stmt) -> bool {
+        match stmt {
+            Stmt::Create(create_stmt) => Self::is_data_create(create_stmt),
+            _ => false,
+        }
     }
 }
 
@@ -235,65 +240,5 @@ impl CreatePlanner {
 impl Default for CreatePlanner {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::core::Value;
-    use crate::query::context::ast::base::AstContext;
-    use crate::query::parser::ast::{CreateStmt, CreateTarget, Span};
-
-    // 辅助函数：创建常量表达式
-    fn lit(val: Value) -> Expression {
-        Expression::literal(val)
-    }
-
-    fn create_test_span() -> Span {
-        use crate::core::types::span::Position;
-        Span::new(
-            Position::new(1, 1),
-            Position::new(1, 10),
-        )
-    }
-
-    #[test]
-    fn test_create_planner_match() {
-        // 测试匹配 CREATE 数据语句
-        let create_stmt = CreateStmt {
-            span: create_test_span(),
-            target: CreateTarget::Node {
-                variable: Some("n".to_string()),
-                labels: vec!["Person".to_string()],
-                properties: Some(Expression::Map(vec![
-                    ("name".to_string(), lit(Value::String("Alice".to_string()))),
-                ])),
-            },
-            if_not_exists: false,
-        };
-
-        let ast_ctx = AstContext::new(None, Some(Stmt::Create(create_stmt)));
-
-        assert!(CreatePlanner::match_ast_ctx(&ast_ctx));
-    }
-
-    #[test]
-    fn test_create_planner_not_match_ddl() {
-        // 测试不匹配 DDL CREATE 语句
-        let create_stmt = CreateStmt {
-            span: create_test_span(),
-            target: CreateTarget::Tag {
-                name: "Person".to_string(),
-                properties: vec![],
-                ttl_duration: None,
-                ttl_col: None,
-            },
-            if_not_exists: false,
-        };
-
-        let ast_ctx = AstContext::new(None, Some(Stmt::Create(create_stmt)));
-
-        assert!(!CreatePlanner::match_ast_ctx(&ast_ctx));
     }
 }

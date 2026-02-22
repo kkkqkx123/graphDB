@@ -9,10 +9,10 @@
 //!    - 别名验证
 //!    - 类型推导
 //!    - DISTINCT 验证
-//! 3. 使用 AstContext 统一管理上下文
+//! 3. 使用 QueryContext 统一管理上下文
 
+use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::query::context::ast::AstContext;
 use crate::query::context::QueryContext;
 use crate::core::YieldColumn;
 use crate::query::validator::validator_trait::{
@@ -229,11 +229,7 @@ impl YieldValidator {
     }
 
     /// 验证具体语句
-    fn validate_impl(
-        &mut self,
-        _query_context: Option<&QueryContext>,
-        _ast: &mut AstContext,
-    ) -> Result<(), ValidationError> {
+    fn validate_impl(&mut self) -> Result<(), ValidationError> {
         // 执行 YIELD 验证
         let validated = self.validate_yield()?;
 
@@ -258,8 +254,15 @@ impl Default for YieldValidator {
 }
 
 /// 实现 StatementValidator trait
+///
+/// # 重构变更
+/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
 impl StatementValidator for YieldValidator {
-    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError> {
+    fn validate(
+        &mut self,
+        _stmt: &crate::query::parser::ast::Stmt,
+        _qctx: Arc<QueryContext>,
+    ) -> Result<ValidationResult, ValidationError> {
         // 清空之前的状态
         self.outputs.clear();
         self.inputs.clear();
@@ -267,8 +270,7 @@ impl StatementValidator for YieldValidator {
         self.clear_errors();
 
         // 执行具体验证逻辑
-        // 注意：validate_impl 内部会调用 ast.query_context()
-        if let Err(e) = self.validate_impl(None, ast) {
+        if let Err(e) = self.validate_impl() {
             self.add_error(e);
         }
 
@@ -276,14 +278,6 @@ impl StatementValidator for YieldValidator {
         if self.has_errors() {
             let errors = self.validation_errors.clone();
             return Ok(ValidationResult::failure(errors));
-        }
-
-        // 同步输入/输出到 AstContext
-        for output in &self.outputs {
-            ast.add_output(output.name.clone(), output.type_.clone());
-        }
-        for input in &self.inputs {
-            ast.add_input(input.name.clone(), input.type_.clone());
         }
 
         // 返回成功的验证结果

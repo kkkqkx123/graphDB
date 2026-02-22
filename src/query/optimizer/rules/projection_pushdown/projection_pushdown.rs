@@ -29,6 +29,7 @@ use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::visitor::PlanNodeVisitor;
 use std::rc::Rc;
 use std::cell::RefCell;
+use std::sync::Arc;
 
 /// 投影下推访问者
 ///
@@ -171,7 +172,7 @@ mod tests {
     use crate::query::optimizer::plan::{OptContext, OptGroupNode};
 
     fn create_test_context() -> OptContext {
-        let query_context = QueryContext::new();
+        let query_context = Arc::new(QueryContext::default());
         OptContext::new(query_context)
     }
 

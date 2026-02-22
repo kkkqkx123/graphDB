@@ -3,7 +3,6 @@
 //!
 //! 注意：算法选择已在Planner阶段完成，此模块只包含具体算法的计划节点
 
-use crate::query::context::ast::Variable;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::{
     BinaryInputNode, PlanNode,
@@ -14,7 +13,7 @@ use crate::query::planner::plan::core::nodes::plan_node_traits::{
 pub struct MultiShortestPath {
     pub id: i64,
     pub deps: Vec<PlanNodeEnum>,
-    pub output_var: Option<Variable>,
+    pub output_var: Option<String>,
     pub col_names: Vec<String>,
     pub cost: f64,
     pub steps: usize,
@@ -81,12 +80,12 @@ impl MultiShortestPath {
     }
 
     /// 获取节点的输出变量
-    pub fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
+    pub fn output_var(&self) -> Option<&str> {
+        self.output_var.as_deref()
     }
 
     /// 设置节点的输出变量
-    pub fn set_output_var(&mut self, var: Variable) {
+    pub fn set_output_var(&mut self, var: String) {
         self.output_var = Some(var);
     }
 
@@ -118,8 +117,8 @@ impl PlanNode for MultiShortestPath {
         "MultiShortestPath"
     }
 
-    fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
+    fn output_var(&self) -> Option<&str> {
+        self.output_var.as_deref()
     }
 
     fn col_names(&self) -> &[String] {
@@ -130,7 +129,7 @@ impl PlanNode for MultiShortestPath {
         self.cost
     }
 
-    fn set_output_var(&mut self, var: Variable) {
+    fn set_output_var(&mut self, var: String) {
         self.output_var = Some(var);
     }
 
@@ -169,7 +168,7 @@ impl BinaryInputNode for MultiShortestPath {
 pub struct BFSShortest {
     pub id: i64,
     pub deps: Vec<PlanNodeEnum>,
-    pub output_var: Option<Variable>,
+    pub output_var: Option<String>,
     pub col_names: Vec<String>,
     pub cost: f64,
     pub steps: usize,
@@ -226,12 +225,12 @@ impl BFSShortest {
     }
 
     /// 获取节点的输出变量
-    pub fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
+    pub fn output_var(&self) -> Option<&str> {
+        self.output_var.as_deref()
     }
 
     /// 设置节点的输出变量
-    pub fn set_output_var(&mut self, var: Variable) {
+    pub fn set_output_var(&mut self, var: String) {
         self.output_var = Some(var);
     }
 
@@ -281,8 +280,8 @@ impl PlanNode for BFSShortest {
         "BFSShortest"
     }
 
-    fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
+    fn output_var(&self) -> Option<&str> {
+        self.output_var.as_deref()
     }
 
     fn col_names(&self) -> &[String] {
@@ -293,7 +292,7 @@ impl PlanNode for BFSShortest {
         self.cost
     }
 
-    fn set_output_var(&mut self, var: Variable) {
+    fn set_output_var(&mut self, var: String) {
         self.output_var = Some(var);
     }
 
@@ -311,7 +310,7 @@ impl PlanNode for BFSShortest {
 pub struct AllPaths {
     pub id: i64,
     pub deps: Vec<PlanNodeEnum>,
-    pub output_var: Option<Variable>,
+    pub output_var: Option<String>,
     pub col_names: Vec<String>,
     pub cost: f64,
     pub steps: usize,
@@ -391,8 +390,8 @@ impl AllPaths {
     }
 
     /// 获取节点的输出变量
-    pub fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
+    pub fn output_var(&self) -> Option<&str> {
+        self.output_var.as_deref()
     }
 
     /// 获取列名列表
@@ -441,8 +440,8 @@ impl PlanNode for AllPaths {
         "AllPaths"
     }
 
-    fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
+    fn output_var(&self) -> Option<&str> {
+        self.output_var.as_deref()
     }
 
     fn col_names(&self) -> &[String] {
@@ -453,7 +452,7 @@ impl PlanNode for AllPaths {
         self.cost
     }
 
-    fn set_output_var(&mut self, var: Variable) {
+    fn set_output_var(&mut self, var: String) {
         self.output_var = Some(var);
     }
 
@@ -471,7 +470,7 @@ impl PlanNode for AllPaths {
 pub struct ShortestPath {
     pub id: i64,
     pub deps: Vec<PlanNodeEnum>,
-    pub output_var: Option<Variable>,
+    pub output_var: Option<String>,
     pub col_names: Vec<String>,
     pub cost: f64,
     pub edge_types: Vec<String>,
@@ -534,8 +533,8 @@ impl ShortestPath {
     }
 
     /// 获取节点的输出变量
-    pub fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
+    pub fn output_var(&self) -> Option<&str> {
+        self.output_var.as_deref()
     }
 
     /// 获取列名列表
@@ -584,8 +583,8 @@ impl PlanNode for ShortestPath {
         "ShortestPath"
     }
 
-    fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
+    fn output_var(&self) -> Option<&str> {
+        self.output_var.as_deref()
     }
 
     fn col_names(&self) -> &[String] {
@@ -596,7 +595,7 @@ impl PlanNode for ShortestPath {
         self.cost
     }
 
-    fn set_output_var(&mut self, var: Variable) {
+    fn set_output_var(&mut self, var: String) {
         self.output_var = Some(var);
     }
 

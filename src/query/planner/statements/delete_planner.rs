@@ -2,7 +2,7 @@
 //!
 //! 处理 DELETE VERTEX/EDGE/TAG 语句的查询规划
 
-use crate::query::context::ast::AstContext;
+use crate::query::context::QueryContext;
 use crate::query::parser::ast::{DeleteStmt, DeleteTarget, Stmt};
 use crate::query::planner::plan::core::{
     node_id_generator::next_node_id,
@@ -13,6 +13,7 @@ use crate::query::planner::plan::core::{
 use crate::query::planner::plan::{PlanNodeEnum, SubPlan};
 use crate::query::planner::planner::{Planner, PlannerError};
 use crate::core::{Expression, YieldColumn};
+use std::sync::Arc;
 
 /// 删除操作规划器
 /// 负责将 DELETE 语句转换为执行计划
@@ -30,30 +31,24 @@ impl DeletePlanner {
         Box::new(Self::new())
     }
 
-    /// 检查 AST 上下文是否匹配删除操作
-    pub fn match_ast_ctx(ast_ctx: &AstContext) -> bool {
-        matches!(ast_ctx.sentence(), Some(Stmt::Delete(_)))
-    }
-
-    /// 获取匹配和实例化函数（静态注册版本）
-    pub fn get_match_and_instantiate() -> crate::query::planner::planner::MatchAndInstantiateEnum {
-        crate::query::planner::planner::MatchAndInstantiateEnum::Delete(Self::new())
-    }
-
-    /// 从 AstContext 提取 DeleteStmt
-    fn extract_delete_stmt(&self, ast_ctx: &AstContext) -> Result<DeleteStmt, PlannerError> {
-        match ast_ctx.sentence() {
-            Some(Stmt::Delete(delete_stmt)) => Ok(delete_stmt.clone()),
+    /// 从 Stmt 提取 DeleteStmt
+    fn extract_delete_stmt(&self, stmt: &Stmt) -> Result<DeleteStmt, PlannerError> {
+        match stmt {
+            Stmt::Delete(delete_stmt) => Ok(delete_stmt.clone()),
             _ => Err(PlannerError::PlanGenerationFailed(
-                "AST 上下文中不包含 DELETE 语句".to_string(),
+                "语句不包含 DELETE".to_string(),
             )),
         }
     }
 }
 
 impl Planner for DeletePlanner {
-    fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
-        let delete_stmt = self.extract_delete_stmt(ast_ctx)?;
+    fn transform(
+        &mut self,
+        stmt: &Stmt,
+        _qctx: Arc<QueryContext>,
+    ) -> Result<SubPlan, PlannerError> {
+        let delete_stmt = self.extract_delete_stmt(stmt)?;
 
         // 创建参数节点作为输入
         let arg_node = ArgumentNode::new(next_node_id(), "delete_input");
@@ -111,8 +106,8 @@ impl Planner for DeletePlanner {
         Ok(sub_plan)
     }
 
-    fn match_planner(&self, ast_ctx: &AstContext) -> bool {
-        Self::match_ast_ctx(ast_ctx)
+    fn match_planner(&self, stmt: &Stmt) -> bool {
+        matches!(stmt, Stmt::Delete(_))
     }
 }
 

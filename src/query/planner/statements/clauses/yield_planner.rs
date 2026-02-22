@@ -3,8 +3,8 @@
 //! 负责将 YIELD 子句转换为执行计划节点
 //! 支持 YIELD ... WHERE ... 语法
 
-use crate::query::context::ast::AstContext;
 use crate::query::context::QueryContext;
+use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::{
     FilterNode, LimitNode, PlanNodeEnum, ProjectNode,
@@ -13,6 +13,7 @@ use crate::query::planner::planner::PlannerError;
 use crate::query::planner::statements::statement_planner::ClausePlanner;
 use crate::query::validator::structs::CypherClauseKind;
 use crate::core::YieldColumn;
+use std::sync::Arc;
 
 /// YIELD 子句规划器
 #[derive(Debug)]
@@ -128,33 +129,30 @@ impl ClausePlanner for YieldClausePlanner {
 
     fn transform_clause(
         &self,
-        _query_context: &mut QueryContext,
-        ast_ctx: &AstContext,
+        _qctx: Arc<QueryContext>,
+        stmt: &Stmt,
         input_plan: SubPlan,
     ) -> Result<SubPlan, PlannerError> {
-        // 从 AST 上下文中提取 YIELD 子句信息
-        let (yield_columns, filter_condition, skip, limit) = Self::extract_yield_info(ast_ctx)?;
+        // 从语句中提取 YIELD 子句信息
+        let (yield_columns, filter_condition, skip, limit) = Self::extract_yield_info(stmt)?;
 
         self.plan_yield_clause(&yield_columns, filter_condition, skip, limit, &input_plan)
     }
 }
 
 impl YieldClausePlanner {
-    /// 从 AST 上下文中提取 YIELD 子句信息
+    /// 从语句中提取 YIELD 子句信息
     ///
     /// 完善后的实现包括：
     /// - 支持多种语句类型中的 YIELD 子句
     /// - YieldItem 到 YieldColumn 的完整转换
     /// - 聚合表达式检测
     /// - 别名处理
-    fn extract_yield_info(ast_ctx: &AstContext) -> Result<(Vec<YieldColumn>, Option<crate::core::Expression>, Option<usize>, Option<usize>), PlannerError> {
+    fn extract_yield_info(stmt: &Stmt) -> Result<(Vec<YieldColumn>, Option<crate::core::Expression>, Option<usize>, Option<usize>), PlannerError> {
         use crate::query::parser::ast::Stmt;
 
-        let sentence = ast_ctx.sentence()
-            .ok_or_else(|| PlannerError::PlanGenerationFailed("AST 上下文中没有语句".to_string()))?;
-
         // YIELD 可能作为独立语句或子句出现在其他语句中
-        match sentence {
+        match stmt {
             Stmt::Yield(yield_stmt) => {
                 let yield_columns = Self::convert_yield_items(&yield_stmt.items)?;
                 Ok((yield_columns, yield_stmt.where_clause.clone(), None, None))

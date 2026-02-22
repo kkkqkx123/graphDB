@@ -1,8 +1,14 @@
 //! 规划器注册机制
 //! 使用类型安全的枚举实现静态注册，完全消除动态分发
+//!
+//! # 重构变更
+//! - 使用 Arc<QueryContext> 替代 &QueryContext
+//! - 使用 &Stmt 替代 &AstContext
 
-use crate::query::context::ast::AstContext;
+use std::sync::Arc;
+
 use crate::query::context::QueryContext;
+use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::ExecutionPlan;
 use crate::query::planner::plan::SubPlan;
 use crate::query::validator::StatementType;
@@ -170,6 +176,42 @@ impl SentenceKind {
         }
     }
 
+    /// 从语句枚举解析语句类型
+    pub fn from_stmt(stmt: &Stmt) -> Result<Self, PlannerError> {
+        match stmt.kind().to_uppercase().as_str() {
+            "MATCH" => Ok(SentenceKind::Match),
+            "GO" => Ok(SentenceKind::Go),
+            "LOOKUP" => Ok(SentenceKind::Lookup),
+            "FIND PATH" => Ok(SentenceKind::Path),
+            "SUBGRAPH" => Ok(SentenceKind::Subgraph),
+            "FETCH" => {
+                if let Stmt::Fetch(fetch_stmt) = stmt {
+                    match &fetch_stmt.target {
+                        crate::query::parser::ast::FetchTarget::Vertices { .. } => Ok(SentenceKind::FetchVertices),
+                        crate::query::parser::ast::FetchTarget::Edges { .. } => Ok(SentenceKind::FetchEdges),
+                    }
+                } else {
+                    Err(PlannerError::UnsupportedOperation("Invalid FETCH statement".to_string()))
+                }
+            }
+            "CREATE USER" | "ALTER USER" | "DROP USER" | "CHANGE PASSWORD" => Ok(SentenceKind::UserManagement),
+            "CREATE" => Ok(SentenceKind::Create),
+            "DROP" => Ok(SentenceKind::Drop),
+            "USE" => Ok(SentenceKind::Use),
+            "DELETE" => Ok(SentenceKind::Delete),
+            "UPDATE" => Ok(SentenceKind::Update),
+            "GROUP BY" => Ok(SentenceKind::GroupBy),
+            "SET OPERATION" => Ok(SentenceKind::SetOperation),
+            "SHOW" => Ok(SentenceKind::Show),
+            "DESC" => Ok(SentenceKind::Desc),
+            "INSERT" => Ok(SentenceKind::Insert),
+            _ => Err(PlannerError::UnsupportedOperation(format!(
+                "Unsupported statement type: {}",
+                stmt.kind()
+            ))),
+        }
+    }
+
     /// 转换为字符串
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -274,7 +316,10 @@ impl SentenceKind {
 }
 
 /// 匹配函数类型
-pub type MatchFunc = fn(&AstContext) -> bool;
+///
+/// # 重构变更
+/// - 使用 &Stmt 替代 &AstContext
+pub type MatchFunc = fn(&Stmt) -> bool;
 
 /// 静态匹配和实例化枚举 - 完全消除动态分发
 #[derive(Debug, Clone)]
@@ -317,47 +362,64 @@ impl MatchAndInstantiateEnum {
         }
     }
 
-    pub fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
+    /// # 重构变更
+    /// - 使用 &Stmt 替代 &AstContext
+    pub fn transform(
+        &mut self,
+        stmt: &Stmt,
+        qctx: Arc<QueryContext>,
+    ) -> Result<SubPlan, PlannerError> {
         match self {
-            MatchAndInstantiateEnum::Match(planner) => planner.transform(ast_ctx),
-            MatchAndInstantiateEnum::Go(planner) => planner.transform(ast_ctx),
-            MatchAndInstantiateEnum::Lookup(planner) => planner.transform(ast_ctx),
-            MatchAndInstantiateEnum::Path(planner) => planner.transform(ast_ctx),
-            MatchAndInstantiateEnum::Subgraph(planner) => planner.transform(ast_ctx),
-            MatchAndInstantiateEnum::FetchVertices(planner) => planner.transform(ast_ctx),
-            MatchAndInstantiateEnum::FetchEdges(planner) => planner.transform(ast_ctx),
-            MatchAndInstantiateEnum::Maintain(planner) => planner.transform(ast_ctx),
-            MatchAndInstantiateEnum::UserManagement(planner) => planner.transform(ast_ctx),
-            MatchAndInstantiateEnum::Insert(planner) => planner.transform(ast_ctx),
-            MatchAndInstantiateEnum::Delete(planner) => planner.transform(ast_ctx),
-            MatchAndInstantiateEnum::Update(planner) => planner.transform(ast_ctx),
-            MatchAndInstantiateEnum::GroupBy(planner) => planner.transform(ast_ctx),
-            MatchAndInstantiateEnum::SetOperation(planner) => planner.transform(ast_ctx),
-            MatchAndInstantiateEnum::Use(planner) => planner.transform(ast_ctx),
+            MatchAndInstantiateEnum::Match(planner) => planner.transform(stmt, qctx),
+            MatchAndInstantiateEnum::Go(planner) => planner.transform(stmt, qctx),
+            MatchAndInstantiateEnum::Lookup(planner) => planner.transform(stmt, qctx),
+            MatchAndInstantiateEnum::Path(planner) => planner.transform(stmt, qctx),
+            MatchAndInstantiateEnum::Subgraph(planner) => planner.transform(stmt, qctx),
+            MatchAndInstantiateEnum::FetchVertices(planner) => planner.transform(stmt, qctx),
+            MatchAndInstantiateEnum::FetchEdges(planner) => planner.transform(stmt, qctx),
+            MatchAndInstantiateEnum::Maintain(planner) => planner.transform(stmt, qctx),
+            MatchAndInstantiateEnum::UserManagement(planner) => planner.transform(stmt, qctx),
+            MatchAndInstantiateEnum::Insert(planner) => planner.transform(stmt, qctx),
+            MatchAndInstantiateEnum::Delete(planner) => planner.transform(stmt, qctx),
+            MatchAndInstantiateEnum::Update(planner) => planner.transform(stmt, qctx),
+            MatchAndInstantiateEnum::GroupBy(planner) => planner.transform(stmt, qctx),
+            MatchAndInstantiateEnum::SetOperation(planner) => planner.transform(stmt, qctx),
+            MatchAndInstantiateEnum::Use(planner) => planner.transform(stmt, qctx),
         }
     }
 
+    /// # 重构变更
+    /// - 使用 Arc<QueryContext> 替代 &mut QueryContext
+    /// - 使用 &Stmt 替代 &AstContext
     pub fn transform_with_full_context(
         &mut self,
-        _query_context: &mut QueryContext,
-        ast_ctx: &AstContext,
+        qctx: Arc<QueryContext>,
+        stmt: &Stmt,
     ) -> Result<ExecutionPlan, PlannerError> {
-        let sub_plan = self.transform(ast_ctx)?;
+        let sub_plan = self.transform(stmt, qctx)?;
         Ok(ExecutionPlan::new(sub_plan.root().clone()))
     }
 }
 
-/// 规划器特征（保持与原有接口兼容）
+/// 规划器特征（重构后接口）
+///
+/// # 重构变更
+/// - transform 方法接收 Arc<QueryContext> 和 &Stmt 替代 &AstContext
+/// - match_planner 方法接收 &Stmt 替代 &AstContext
 pub trait Planner: std::fmt::Debug {
-    fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError>;
-    fn match_planner(&self, ast_ctx: &AstContext) -> bool;
+    fn transform(
+        &mut self,
+        stmt: &Stmt,
+        qctx: Arc<QueryContext>,
+    ) -> Result<SubPlan, PlannerError>;
+    fn match_planner(&self, stmt: &Stmt) -> bool;
 
     fn transform_with_full_context(
         &mut self,
-        _query_context: &mut QueryContext,
-        _ast_ctx: &AstContext,
+        qctx: Arc<QueryContext>,
+        stmt: &Stmt,
     ) -> Result<ExecutionPlan, PlannerError> {
-        let sub_plan = self.transform(_ast_ctx)?;
+        let sub_plan = self.transform(stmt, qctx)?;
         Ok(ExecutionPlan::new(sub_plan.root().clone()))
     }
 
@@ -434,72 +496,6 @@ impl StaticConfigurablePlannerRegistry {
         &self.config
     }
 
-    pub fn create_plan(
-        &mut self,
-        query_context: &mut QueryContext,
-        ast_ctx: &AstContext,
-    ) -> Result<ExecutionPlan, PlannerError> {
-        let sentence_kind = self.extract_sentence_kind(ast_ctx)?;
-
-        let cache_key = self.generate_cache_key(ast_ctx);
-
-        if self.config.enable_caching {
-            if let Some(ref cache) = self.cache {
-                if let Ok(Some(cached_plan)) = cache.get(&cache_key) {
-                    return Ok(cached_plan.clone());
-                }
-            }
-        }
-
-        let planners = self.planners.get_mut(&sentence_kind).ok_or_else(|| {
-            PlannerError::NoSuitablePlanner(format!(
-                "No planners registered for sentence kind: {:?}",
-                sentence_kind
-            ))
-        })?;
-
-        if let Some(first_planner) = planners.first_mut() {
-            let plan = first_planner.transform_with_full_context(query_context, ast_ctx)?;
-
-            if self.config.enable_caching {
-                if let Some(ref cache) = self.cache {
-                    let _ = cache.insert(cache_key.clone(), plan.clone());
-                }
-            }
-
-            return Ok(plan);
-        }
-
-        Err(PlannerError::NoSuitablePlanner(
-            "No suitable planner found for the given AST context".to_string(),
-        ))
-    }
-
-    fn generate_cache_key(&self, ast_ctx: &AstContext) -> PlanCacheKey {
-        let query_text = ast_ctx.query_text();
-        let space_id = ast_ctx.space().space_id.map(|id| id as i32);
-        let statement_type = ast_ctx.statement_type().to_string();
-
-        PlanCacheKey::new(query_text, space_id, statement_type)
-    }
-
-    fn extract_sentence_kind(&self, ast_ctx: &AstContext) -> Result<SentenceKind, PlannerError> {
-        if let Some(sentence) = ast_ctx.sentence() {
-            let kind = SentenceKind::from_str(sentence.kind())?;
-            // 将新的 SentenceKind 变体映射到 Maintain，以便使用相同的规划器
-            match kind {
-                SentenceKind::Create | SentenceKind::Drop | SentenceKind::Use | SentenceKind::Show | SentenceKind::Desc => {
-                    Ok(SentenceKind::Maintain)
-                }
-                _ => Ok(kind),
-            }
-        } else {
-            Err(PlannerError::InvalidAstContext(
-                "Missing sentence in AST context".to_string(),
-            ))
-        }
-    }
-
     pub fn planner_count(&self) -> usize {
         self.planners.values().map(|v| v.len()).sum()
     }
@@ -574,24 +570,24 @@ impl PlannerEnum {
         }
     }
 
-    /// 将 AST 上下文转换为执行计划
-    pub fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
+    /// 将语句转换为执行计划
+    pub fn transform(&mut self, stmt: &Stmt, qctx: Arc<QueryContext>) -> Result<SubPlan, PlannerError> {
         match self {
-            PlannerEnum::Match(planner) => planner.transform(ast_ctx),
-            PlannerEnum::Go(planner) => planner.transform(ast_ctx),
-            PlannerEnum::Lookup(planner) => planner.transform(ast_ctx),
-            PlannerEnum::Path(planner) => planner.transform(ast_ctx),
-            PlannerEnum::Subgraph(planner) => planner.transform(ast_ctx),
-            PlannerEnum::FetchVertices(planner) => planner.transform(ast_ctx),
-            PlannerEnum::FetchEdges(planner) => planner.transform(ast_ctx),
-            PlannerEnum::Maintain(planner) => planner.transform(ast_ctx),
-            PlannerEnum::UserManagement(planner) => planner.transform(ast_ctx),
-            PlannerEnum::Insert(planner) => planner.transform(ast_ctx),
-            PlannerEnum::Delete(planner) => planner.transform(ast_ctx),
-            PlannerEnum::Update(planner) => planner.transform(ast_ctx),
-            PlannerEnum::GroupBy(planner) => planner.transform(ast_ctx),
-            PlannerEnum::SetOperation(planner) => planner.transform(ast_ctx),
-            PlannerEnum::Use(planner) => planner.transform(ast_ctx),
+            PlannerEnum::Match(planner) => planner.transform(stmt, qctx),
+            PlannerEnum::Go(planner) => planner.transform(stmt, qctx),
+            PlannerEnum::Lookup(planner) => planner.transform(stmt, qctx),
+            PlannerEnum::Path(planner) => planner.transform(stmt, qctx),
+            PlannerEnum::Subgraph(planner) => planner.transform(stmt, qctx),
+            PlannerEnum::FetchVertices(planner) => planner.transform(stmt, qctx),
+            PlannerEnum::FetchEdges(planner) => planner.transform(stmt, qctx),
+            PlannerEnum::Maintain(planner) => planner.transform(stmt, qctx),
+            PlannerEnum::UserManagement(planner) => planner.transform(stmt, qctx),
+            PlannerEnum::Insert(planner) => planner.transform(stmt, qctx),
+            PlannerEnum::Delete(planner) => planner.transform(stmt, qctx),
+            PlannerEnum::Update(planner) => planner.transform(stmt, qctx),
+            PlannerEnum::GroupBy(planner) => planner.transform(stmt, qctx),
+            PlannerEnum::SetOperation(planner) => planner.transform(stmt, qctx),
+            PlannerEnum::Use(planner) => planner.transform(stmt, qctx),
         }
     }
 
@@ -617,23 +613,23 @@ impl PlannerEnum {
     }
 
     /// 检查是否匹配
-    pub fn matches(&self, ast_ctx: &AstContext) -> bool {
+    pub fn matches(&self, stmt: &Stmt) -> bool {
         match self {
-            PlannerEnum::Match(planner) => planner.match_planner(ast_ctx),
-            PlannerEnum::Go(planner) => planner.match_planner(ast_ctx),
-            PlannerEnum::Lookup(planner) => planner.match_planner(ast_ctx),
-            PlannerEnum::Path(planner) => planner.match_planner(ast_ctx),
-            PlannerEnum::Subgraph(planner) => planner.match_planner(ast_ctx),
-            PlannerEnum::FetchVertices(planner) => planner.match_planner(ast_ctx),
-            PlannerEnum::FetchEdges(planner) => planner.match_planner(ast_ctx),
-            PlannerEnum::Maintain(planner) => planner.match_planner(ast_ctx),
-            PlannerEnum::UserManagement(planner) => planner.match_planner(ast_ctx),
-            PlannerEnum::Insert(planner) => planner.match_planner(ast_ctx),
-            PlannerEnum::Delete(planner) => planner.match_planner(ast_ctx),
-            PlannerEnum::Update(planner) => planner.match_planner(ast_ctx),
-            PlannerEnum::GroupBy(planner) => planner.match_planner(ast_ctx),
-            PlannerEnum::SetOperation(planner) => planner.match_planner(ast_ctx),
-            PlannerEnum::Use(planner) => planner.match_planner(ast_ctx),
+            PlannerEnum::Match(planner) => planner.match_planner(stmt),
+            PlannerEnum::Go(planner) => planner.match_planner(stmt),
+            PlannerEnum::Lookup(planner) => planner.match_planner(stmt),
+            PlannerEnum::Path(planner) => planner.match_planner(stmt),
+            PlannerEnum::Subgraph(planner) => planner.match_planner(stmt),
+            PlannerEnum::FetchVertices(planner) => planner.match_planner(stmt),
+            PlannerEnum::FetchEdges(planner) => planner.match_planner(stmt),
+            PlannerEnum::Maintain(planner) => planner.match_planner(stmt),
+            PlannerEnum::UserManagement(planner) => planner.match_planner(stmt),
+            PlannerEnum::Insert(planner) => planner.match_planner(stmt),
+            PlannerEnum::Delete(planner) => planner.match_planner(stmt),
+            PlannerEnum::Update(planner) => planner.match_planner(stmt),
+            PlannerEnum::GroupBy(planner) => planner.match_planner(stmt),
+            PlannerEnum::SetOperation(planner) => planner.match_planner(stmt),
+            PlannerEnum::Use(planner) => planner.match_planner(stmt),
         }
     }
 
@@ -705,18 +701,18 @@ impl StaticPlannerRegistry {
     }
 
     /// 创建执行计划（使用静态分发）
-    pub fn create_plan(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
-        let kind = SentenceKind::from_str(ast_ctx.statement_type())
+    pub fn create_plan(&mut self, stmt: &Stmt, qctx: Arc<QueryContext>) -> Result<SubPlan, PlannerError> {
+        let kind = SentenceKind::from_stmt(stmt)
             .map_err(|_| PlannerError::NoSuitablePlanner("Unknown statement type".to_string()))?;
 
         if let Some(planner) = self.planners.iter_mut().find(|p| {
-            p.name() == kind.as_str() && p.matches(ast_ctx)
+            p.name() == kind.as_str() && p.matches(stmt)
         }) {
-            return planner.transform(ast_ctx);
+            return planner.transform(stmt, qctx);
         }
 
         Err(PlannerError::NoSuitablePlanner(
-            "No suitable planner found for the given AST context".to_string(),
+            "No suitable planner found for the given statement".to_string(),
         ))
     }
 
@@ -736,12 +732,6 @@ pub fn create_planner(kind: SentenceKind) -> Option<PlannerEnum> {
     PlannerEnum::from_sentence_kind(kind)
 }
 
-/// 便捷函数 - 执行规划（使用静态注册）
-pub fn plan(ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
-    let mut registry = StaticPlannerRegistry::new();
-    registry.create_plan(ast_ctx)
-}
-
 /// 静态注册版本的顺序规划器
 #[derive(Debug, Default)]
 pub struct StaticSequentialPlanner {
@@ -755,18 +745,19 @@ impl StaticSequentialPlanner {
         }
     }
 
-    pub fn match_ast_ctx(ast_ctx: &AstContext) -> bool {
-        let kind = SentenceKind::from_str(ast_ctx.statement_type());
+    pub fn match_stmt(stmt: &Stmt) -> bool {
+        let kind = SentenceKind::from_stmt(stmt);
         kind.is_ok()
     }
 
-    pub fn create_plan(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
-        self.registry.create_plan(ast_ctx)
+    pub fn create_plan(&mut self, stmt: &Stmt, qctx: Arc<QueryContext>) -> Result<SubPlan, PlannerError> {
+        self.registry.create_plan(stmt, qctx)
     }
 
-    /// 转换 AST 上下文为计划（静态分发版本）
-    pub fn to_plan(ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
-        plan(ast_ctx)
+    /// 转换语句为计划（静态分发版本）
+    pub fn to_plan(stmt: &Stmt, qctx: Arc<QueryContext>) -> Result<SubPlan, PlannerError> {
+        let mut registry = StaticPlannerRegistry::new();
+        registry.create_plan(stmt, qctx)
     }
 }
 

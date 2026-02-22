@@ -2,8 +2,10 @@
 //! 用于验证 REMOVE 语句（Cypher 风格的属性/标签删除）
 //! 参考 nebula-graph MutateValidator.cpp 中的删除操作验证
 
+use std::sync::Arc;
+
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::query::context::ast::AstContext;
+use crate::query::context::QueryContext;
 use crate::query::parser::ast::stmt::RemoveStmt;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
@@ -149,16 +151,27 @@ impl Default for RemoveValidator {
     }
 }
 
+/// 实现 StatementValidator trait
+///
+/// # 重构变更
+/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
 impl StatementValidator for RemoveValidator {
-    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError> {
-        let stmt = ast.sentence.as_ref()
-            .and_then(|s| s.as_remove())
-            .ok_or_else(|| ValidationError::new(
-                "Expected REMOVE statement".to_string(),
-                ValidationErrorType::SemanticError,
-            ))?;
+    fn validate(
+        &mut self,
+        stmt: &crate::query::parser::ast::Stmt,
+        _qctx: Arc<QueryContext>,
+    ) -> Result<ValidationResult, ValidationError> {
+        let remove_stmt = match stmt {
+            crate::query::parser::ast::Stmt::Remove(remove_stmt) => remove_stmt,
+            _ => {
+                return Err(ValidationError::new(
+                    "Expected REMOVE statement".to_string(),
+                    ValidationErrorType::SemanticError,
+                ));
+            }
+        };
 
-        self.validate_impl(stmt)?;
+        self.validate_impl(remove_stmt)?;
 
         Ok(ValidationResult::success(
             self.inputs.clone(),

@@ -310,12 +310,12 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
         let left_var = node
             .left_input()
             .output_var()
-            .map(|v| v.name.clone())
+            .map(|v| v.to_string())
             .unwrap_or_else(|| format!("left_{}", node.id()));
         let right_var = node
             .right_input()
             .output_var()
-            .map(|v| v.name.clone())
+            .map(|v| v.to_string())
             .unwrap_or_else(|| format!("right_{}", node.id()));
         (left_var, right_var)
     }
@@ -769,12 +769,12 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                 let left_var = node
                     .left_input()
                     .output_var()
-                    .map(|v| v.name.to_string())
+                    .map(|v| v.to_string())
                     .unwrap_or_else(|| format!("left_{}", node.id()));
                 let right_var = node
                     .right_input()
                     .output_var()
-                    .map(|v| v.name.to_string())
+                    .map(|v| v.to_string())
                     .unwrap_or_else(|| format!("right_{}", node.id()));
                 let executor = CrossJoinExecutor::new(
                     node.id(),
@@ -790,7 +790,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                 let input_var = node
                     .input()
                     .output_var()
-                    .map(|v| v.name.clone())
+                    .map(|v| v.to_string())
                     .unwrap_or_else(|| format!("union_{}", node.id()));
                 let executor = UnionExecutor::new(
                     node.id(),
@@ -805,12 +805,12 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                 let left_var = node
                     .input()
                     .output_var()
-                    .map(|v| v.name.clone())
+                    .map(|v| v.to_string())
                     .unwrap_or_else(|| format!("left_{}", node.id()));
                 let right_var = node
                     .minus_input()
                     .output_var()
-                    .map(|v| v.name.clone())
+                    .map(|v| v.to_string())
                     .unwrap_or_else(|| format!("right_{}", node.id()));
                 let executor = MinusExecutor::new(
                     node.id(),
@@ -825,12 +825,12 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                 let left_var = node
                     .input()
                     .output_var()
-                    .map(|v| v.name.clone())
+                    .map(|v| v.to_string())
                     .unwrap_or_else(|| format!("left_{}", node.id()));
                 let right_var = node
                     .intersect_input()
                     .output_var()
-                    .map(|v| v.name.clone())
+                    .map(|v| v.to_string())
                     .unwrap_or_else(|| format!("right_{}", node.id()));
                 let executor = IntersectExecutor::new(
                     node.id(),
@@ -1008,7 +1008,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             // AppendVertices执行器 - 追加顶点到路径结果
             PlanNodeEnum::AppendVertices(node) => {
                 let input_var = node.input_var()
-                    .map(|v| v.name.clone())
+                    .map(|v| v.to_string())
                     .unwrap_or_else(|| format!("input_{}", node.id()));
 
                 let src_expression = node.src_expression()
@@ -1530,7 +1530,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
     /// 执行执行计划
     pub async fn execute_plan(
         &mut self,
-        query_context: &mut QueryContext,
+        query_context: Arc<QueryContext>,
         plan: crate::query::planner::plan::ExecutionPlan,
     ) -> Result<crate::query::executor::traits::ExecutionResult, QueryError> {
         // 获取存储引擎

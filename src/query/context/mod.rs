@@ -4,8 +4,6 @@
 //!
 //! # 模块结构
 //!
-//! - `ast/` - AST 查询上下文
-//! - `validate/` - 验证上下文
 //! - `symbol/` - 符号表管理
 //! - `components.rs` - 组件访问器
 //!
@@ -18,17 +16,13 @@
 //!
 //! - `RequestContext` 已迁移到 `api::session::RequestContext`
 //! - `RuntimeContext` 已迁移到 `storage::RuntimeContext`
-
-pub mod ast;
+//! - `AstContext` 已删除，使用 `Arc<QueryContext>` 和 `&Stmt` 替代
 
 // 新的模块结构
 pub mod symbol;
 
 // 新的重构模块
 pub mod components;
-
-// 重新导出主要类型
-pub use ast::*;
 
 // 导出新的模块结构
 pub use symbol::{Symbol, SymbolTable};
@@ -225,10 +219,16 @@ impl QueryContext {
 
     /// 获取当前空间的 ID
     ///
-    /// 注意：空间信息现在存储在 AstContext 中，此方法暂时返回 0
-    /// 实际使用时请从 AstContext.space().space_id 获取
-    pub fn space_id(&self) -> u64 {
-        0
+    /// 从 RequestContext 获取空间ID
+    pub fn space_id(&self) -> Option<u64> {
+        self.rctx.as_ref().and_then(|rctx| rctx.space_id())
+    }
+
+    /// 获取当前空间的名称
+    ///
+    /// 从 RequestContext 获取空间名称
+    pub fn space_name(&self) -> Option<String> {
+        self.rctx.as_ref().and_then(|rctx| rctx.space_name())
     }
 
     /// 标记为部分成功

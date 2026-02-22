@@ -4,14 +4,15 @@
 //! 实现了 ClausePlanner 接口，提供完整的过滤功能。
 
 use crate::core::Expression;
-use crate::query::context::ast::AstContext;
 use crate::query::context::QueryContext;
+use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
 use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
 use crate::query::planner::planner::PlannerError;
 use crate::query::planner::statements::statement_planner::ClausePlanner;
 use crate::query::validator::structs::CypherClauseKind;
+use std::sync::Arc;
 
 /// WHERE 子句规划器
 ///
@@ -34,15 +35,14 @@ impl WhereClausePlanner {
         }
     }
 
-    pub fn from_ast(ast_ctx: &AstContext) -> Self {
-        let filter = extract_where_condition(ast_ctx);
+    pub fn from_stmt(stmt: &Stmt) -> Self {
+        let filter = extract_where_condition(stmt);
         Self::with_filter(filter)
     }
 }
 
-fn extract_where_condition(ast_ctx: &AstContext) -> Expression {
-    let stmt = ast_ctx.sentence();
-    if let Some(crate::query::parser::ast::Stmt::Match(match_stmt)) = stmt {
+fn extract_where_condition(stmt: &Stmt) -> Expression {
+    if let Stmt::Match(match_stmt) = stmt {
         if let Some(where_expr) = &match_stmt.where_clause {
             return where_expr.clone();
         }
@@ -61,12 +61,12 @@ impl ClausePlanner for WhereClausePlanner {
 
     fn transform_clause(
         &self,
-        _query_context: &mut QueryContext,
-        ast_ctx: &AstContext,
+        _qctx: Arc<QueryContext>,
+        stmt: &Stmt,
         input_plan: SubPlan,
     ) -> Result<SubPlan, PlannerError> {
         let condition = self.filter_expression.clone()
-            .or_else(|| extract_where_condition(ast_ctx).into())
+            .or_else(|| Some(extract_where_condition(stmt)))
             .unwrap_or_else(|| Expression::Variable("true".to_string()));
 
         let input_node = input_plan.root().as_ref().ok_or_else(|| {

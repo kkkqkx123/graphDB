@@ -2,16 +2,17 @@
 //! 对应 NebulaGraph InsertVerticesValidator 的功能
 //! 验证 INSERT VERTICES 语句的语义正确性，支持多 Tag 插入
 
+use std::collections::HashSet;
+use std::sync::Arc;
+
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::{Expression, Value};
-use crate::query::context::ast::AstContext;
+use crate::query::context::QueryContext;
 use crate::query::parser::ast::stmt::{InsertTarget, TagInsertSpec, VertexRow};
 use crate::query::parser::ast::Stmt;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
-use std::collections::HashSet;
-use std::sync::Arc;
 use crate::storage::metadata::schema_manager::SchemaManager;
 
 /// 验证后的顶点插入信息
@@ -189,11 +190,18 @@ impl Default for InsertVerticesValidator {
     }
 }
 
+/// 实现 StatementValidator trait
+///
+/// # 重构变更
+/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
 impl StatementValidator for InsertVerticesValidator {
-    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError> {
+    fn validate(
+        &mut self,
+        stmt: &Stmt,
+        qctx: Arc<QueryContext>,
+    ) -> Result<ValidationResult, ValidationError> {
         // 1. 检查是否需要空间
-        let query_context = ast.query_context();
-        if !self.is_global_statement() && query_context.is_none() {
+        if !self.is_global_statement() && qctx.space_id().is_none() {
             return Err(ValidationError::new(
                 "未选择图空间，请先执行 USE <space>".to_string(),
                 ValidationErrorType::SemanticError,
@@ -201,12 +209,6 @@ impl StatementValidator for InsertVerticesValidator {
         }
 
         // 2. 获取 INSERT 语句
-        let stmt = ast.sentence()
-            .ok_or_else(|| ValidationError::new(
-                "No statement found in AST context".to_string(),
-                ValidationErrorType::SemanticError,
-            ))?;
-
         let insert_stmt = match stmt {
             Stmt::Insert(insert_stmt) => insert_stmt,
             _ => {
@@ -270,7 +272,7 @@ impl StatementValidator for InsertVerticesValidator {
         }
 
         // 7. 获取 space_id
-        let space_id = ast.space().space_id.map(|id| id as u64).unwrap_or(0);
+        let space_id = qctx.space_id().unwrap_or(0);
 
         // 8. 创建验证结果
         let validated = ValidatedInsertVertices {
@@ -323,6 +325,7 @@ mod tests {
     use super::*;
     use crate::query::parser::ast::stmt::InsertStmt;
     use crate::query::parser::ast::Span;
+    use std::sync::Arc;
 
     fn create_insert_vertices_stmt(
         tags: Vec<TagInsertSpec>,
@@ -357,10 +360,8 @@ mod tests {
             false,
         );
 
-        let mut ast = AstContext::default();
-        ast.set_sentence(Stmt::Insert(stmt));
-
-        let result = validator.validate(&mut ast);
+        let qctx = Arc::new(QueryContext::default());
+        let result = validator.validate(&Stmt::Insert(stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("INSERT VERTEX must specify at least one tag"));
@@ -378,10 +379,8 @@ mod tests {
             false,
         );
 
-        let mut ast = AstContext::default();
-        ast.set_sentence(Stmt::Insert(stmt));
-
-        let result = validator.validate(&mut ast);
+        let qctx = Arc::new(QueryContext::default());
+        let result = validator.validate(&Stmt::Insert(stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("Tag name cannot be empty"));
@@ -399,10 +398,8 @@ mod tests {
             false,
         );
 
-        let mut ast = AstContext::default();
-        ast.set_sentence(Stmt::Insert(stmt));
-
-        let result = validator.validate(&mut ast);
+        let qctx = Arc::new(QueryContext::default());
+        let result = validator.validate(&Stmt::Insert(stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("Duplicate property name"));
@@ -420,10 +417,8 @@ mod tests {
             false,
         );
 
-        let mut ast = AstContext::default();
-        ast.set_sentence(Stmt::Insert(stmt));
-
-        let result = validator.validate(&mut ast);
+        let qctx = Arc::new(QueryContext::default());
+        let result = validator.validate(&Stmt::Insert(stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("Value count mismatch"));
@@ -441,10 +436,8 @@ mod tests {
             false,
         );
 
-        let mut ast = AstContext::default();
-        ast.set_sentence(Stmt::Insert(stmt));
-
-        let result = validator.validate(&mut ast);
+        let qctx = Arc::new(QueryContext::default());
+        let result = validator.validate(&Stmt::Insert(stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("Vertex ID cannot be empty"));
@@ -462,10 +455,8 @@ mod tests {
             false,
         );
 
-        let mut ast = AstContext::default();
-        ast.set_sentence(Stmt::Insert(stmt));
-
-        let result = validator.validate(&mut ast);
+        let qctx = Arc::new(QueryContext::default());
+        let result = validator.validate(&Stmt::Insert(stmt), qctx);
         assert!(result.is_ok());
     }
 
@@ -487,10 +478,8 @@ mod tests {
             false,
         );
 
-        let mut ast = AstContext::default();
-        ast.set_sentence(Stmt::Insert(stmt));
-
-        let result = validator.validate(&mut ast);
+        let qctx = Arc::new(QueryContext::default());
+        let result = validator.validate(&Stmt::Insert(stmt), qctx);
         assert!(result.is_ok());
     }
 
@@ -512,10 +501,8 @@ mod tests {
             false,
         );
 
-        let mut ast = AstContext::default();
-        ast.set_sentence(Stmt::Insert(stmt));
-
-        let result = validator.validate(&mut ast);
+        let qctx = Arc::new(QueryContext::default());
+        let result = validator.validate(&Stmt::Insert(stmt), qctx);
         assert!(result.is_ok());
     }
 
@@ -531,10 +518,8 @@ mod tests {
             false,
         );
 
-        let mut ast = AstContext::default();
-        ast.set_sentence(Stmt::Insert(stmt));
-
-        let result = validator.validate(&mut ast);
+        let qctx = Arc::new(QueryContext::default());
+        let result = validator.validate(&Stmt::Insert(stmt), qctx);
         assert!(result.is_ok());
     }
 
@@ -550,10 +535,8 @@ mod tests {
             false,
         );
 
-        let mut ast = AstContext::default();
-        ast.set_sentence(Stmt::Insert(stmt));
-
-        let result = validator.validate(&mut ast);
+        let qctx = Arc::new(QueryContext::default());
+        let result = validator.validate(&Stmt::Insert(stmt), qctx);
         assert!(result.is_ok());
     }
 
@@ -570,10 +553,8 @@ mod tests {
             if_not_exists: false,
         };
 
-        let mut ast = AstContext::default();
-        ast.set_sentence(Stmt::Insert(stmt));
-
-        let result = validator.validate(&mut ast);
+        let qctx = Arc::new(QueryContext::default());
+        let result = validator.validate(&Stmt::Insert(stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert_eq!(err.message, "Expected INSERT VERTICES but got INSERT EDGES");
@@ -600,10 +581,8 @@ mod tests {
             true, // if_not_exists = true
         );
 
-        let mut ast = AstContext::default();
-        ast.set_sentence(Stmt::Insert(stmt));
-
-        let result = validator.validate(&mut ast);
+        let qctx = Arc::new(QueryContext::default());
+        let result = validator.validate(&Stmt::Insert(stmt), qctx);
         assert!(result.is_ok());
 
         // 验证 if_not_exists 被正确保存

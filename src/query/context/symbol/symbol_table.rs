@@ -1,5 +1,5 @@
 use crate::core::DataType;
-use crate::query::context::ast::VariableInfo;
+use crate::core::types::VariableInfo;
 
 use std::collections::HashMap;
 use std::collections::HashSet;

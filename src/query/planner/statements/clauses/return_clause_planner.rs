@@ -3,8 +3,8 @@
 //! 负责规划 RETURN 子句的执行，实现结果投影。
 
 use crate::core::Expression;
-use crate::query::context::ast::AstContext;
 use crate::query::context::QueryContext;
+use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::data_processing_node::DedupNode;
 use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
@@ -13,6 +13,7 @@ use crate::query::planner::planner::PlannerError;
 use crate::query::planner::statements::statement_planner::ClausePlanner;
 use crate::core::YieldColumn;
 use crate::query::validator::structs::CypherClauseKind;
+use std::sync::Arc;
 
 pub use crate::query::planner::plan::core::PlanNodeEnum;
 
@@ -42,15 +43,14 @@ impl ReturnClausePlanner {
         Self { distinct }
     }
 
-    pub fn from_ast(ast_ctx: &AstContext) -> Self {
-        let distinct = extract_distinct_flag(ast_ctx);
+    pub fn from_stmt(stmt: &Stmt) -> Self {
+        let distinct = extract_distinct_flag(stmt);
         Self::with_distinct(distinct)
     }
 }
 
-fn extract_distinct_flag(ast_ctx: &AstContext) -> bool {
-    let stmt = ast_ctx.sentence();
-    if let Some(crate::query::parser::ast::Stmt::Match(match_stmt)) = stmt {
+fn extract_distinct_flag(stmt: &Stmt) -> bool {
+    if let Stmt::Match(match_stmt) = stmt {
         if let Some(return_clause) = &match_stmt.return_clause {
             return return_clause.distinct;
         }
@@ -58,11 +58,10 @@ fn extract_distinct_flag(ast_ctx: &AstContext) -> bool {
     false
 }
 
-fn extract_return_columns(ast_ctx: &AstContext) -> Vec<YieldColumn> {
+fn extract_return_columns(stmt: &Stmt) -> Vec<YieldColumn> {
     let mut columns = Vec::new();
-    let stmt = ast_ctx.sentence();
 
-    if let Some(crate::query::parser::ast::Stmt::Match(match_stmt)) = stmt {
+    if let Stmt::Match(match_stmt) = stmt {
         if let Some(return_clause) = &match_stmt.return_clause {
             for item in &return_clause.items {
                 match item {
@@ -107,11 +106,11 @@ impl ClausePlanner for ReturnClausePlanner {
 
     fn transform_clause(
         &self,
-        _query_context: &mut QueryContext,
-        ast_ctx: &AstContext,
+        _qctx: Arc<QueryContext>,
+        stmt: &Stmt,
         input_plan: SubPlan,
     ) -> Result<SubPlan, PlannerError> {
-        let yield_columns = extract_return_columns(ast_ctx);
+        let yield_columns = extract_return_columns(stmt);
 
         let input_node = input_plan.root().as_ref().ok_or_else(|| {
             PlannerError::PlanGenerationFailed("RETURN 子句需要输入计划".to_string())

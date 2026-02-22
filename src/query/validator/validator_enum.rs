@@ -6,9 +6,15 @@
 //! 1. 保留 base_validator.rs 的完整功能
 //! 2. 使用枚举避免动态分发开销
 //! 3. 统一接口，便于管理和扩展
+//!
+//! # 重构变更
+//! - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+
+use std::sync::Arc;
 
 use crate::core::error::ValidationError;
-use crate::query::context::ast::AstContext;
+use crate::query::context::QueryContext;
+use crate::query::parser::ast::Stmt;
 use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef, ExpressionProps,
 };
@@ -526,8 +532,69 @@ impl Validator {
     }
 
     /// 执行验证
-    pub fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError> {
-        forward_to_validator!(self, validate, ast)
+    ///
+    /// # 重构变更
+    /// - 接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+    pub fn validate(
+        &mut self,
+        stmt: &Stmt,
+        qctx: Arc<QueryContext>,
+    ) -> Result<ValidationResult, ValidationError> {
+        match self {
+            // 管理类验证器
+            Validator::Show(v) => v.validate(stmt, qctx),
+            Validator::Desc(v) => v.validate(stmt, qctx),
+            Validator::ShowCreate(v) => v.validate(stmt, qctx),
+            Validator::ShowConfigs(v) => v.validate(stmt, qctx),
+            Validator::ShowSessions(v) => v.validate(stmt, qctx),
+            Validator::ShowQueries(v) => v.validate(stmt, qctx),
+            Validator::KillQuery(v) => v.validate(stmt, qctx),
+            // 权限类验证器
+            Validator::CreateUser(v) => v.validate(stmt, qctx),
+            Validator::DropUser(v) => v.validate(stmt, qctx),
+            Validator::AlterUser(v) => v.validate(stmt, qctx),
+            Validator::ChangePassword(v) => v.validate(stmt, qctx),
+            Validator::Grant(v) => v.validate(stmt, qctx),
+            Validator::Revoke(v) => v.validate(stmt, qctx),
+            Validator::DescribeUser(v) => v.validate(stmt, qctx),
+            Validator::ShowUsers(v) => v.validate(stmt, qctx),
+            Validator::ShowRoles(v) => v.validate(stmt, qctx),
+            // 其他验证器
+            Validator::Alter(v) => v.validate(stmt, qctx),
+            Validator::Assignment(v) => v.validate(stmt, qctx),
+            Validator::Create(v) => v.validate(stmt, qctx),
+            Validator::Delete(v) => v.validate(stmt, qctx),
+            Validator::Drop(v) => v.validate(stmt, qctx),
+            Validator::Explain(v) => v.validate(stmt, qctx),
+            Validator::Profile(v) => v.validate(stmt, qctx),
+            Validator::FetchEdges(v) => v.validate(stmt, qctx),
+            Validator::FetchVertices(v) => v.validate(stmt, qctx),
+            Validator::FindPath(v) => v.validate(stmt, qctx),
+            Validator::GetSubgraph(v) => v.validate(stmt, qctx),
+            Validator::Go(v) => v.validate(stmt, qctx),
+            Validator::GroupBy(v) => v.validate(stmt, qctx),
+            Validator::InsertEdges(v) => v.validate(stmt, qctx),
+            Validator::InsertVertices(v) => v.validate(stmt, qctx),
+            Validator::Limit(v) => v.validate(stmt, qctx),
+            Validator::Lookup(v) => v.validate(stmt, qctx),
+            Validator::Match(v) => v.validate(stmt, qctx),
+            Validator::OrderBy(v) => v.validate(stmt, qctx),
+            Validator::Pipe(v) => v.validate(stmt, qctx),
+            Validator::Sequential(v) => v.validate(stmt, qctx),
+            Validator::SetOperation(v) => v.validate(stmt, qctx),
+            Validator::Set(v) => v.validate(stmt, qctx),
+            Validator::Update(v) => v.validate(stmt, qctx),
+            Validator::Unwind(v) => v.validate(stmt, qctx),
+            Validator::Use(v) => v.validate(stmt, qctx),
+            Validator::Yield(v) => v.validate(stmt, qctx),
+            // 新增验证器
+            Validator::UpdateConfigs(v) => v.validate(stmt, qctx),
+            Validator::Merge(v) => v.validate(stmt, qctx),
+            Validator::Return(v) => v.validate(stmt, qctx),
+            Validator::With(v) => v.validate(stmt, qctx),
+            Validator::Remove(v) => v.validate(stmt, qctx),
+            Validator::Query(v) => v.validate(stmt, qctx),
+        }
     }
 
     /// 获取输入列
@@ -750,10 +817,10 @@ impl ValidatorCollection {
     }
 
     /// 验证所有验证器
-    pub fn validate_all(&mut self, ast: &mut AstContext) -> Result<Vec<ValidationResult>, ValidationError> {
+    pub fn validate_all(&mut self, stmt: &Stmt, qctx: Arc<QueryContext>) -> Result<Vec<ValidationResult>, ValidationError> {
         let mut results = Vec::new();
         for validator in &mut self.validators {
-            let result = validator.validate(ast)?;
+            let result = validator.validate(stmt, qctx.clone())?;
             results.push(result);
         }
         Ok(results)

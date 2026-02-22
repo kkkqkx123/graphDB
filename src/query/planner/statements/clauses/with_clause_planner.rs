@@ -10,8 +10,8 @@
 //! 5. 作用域重置：只保留输出的变量，其他变量不可见
 
 use crate::core::Expression;
-use crate::query::context::ast::AstContext;
 use crate::query::context::QueryContext;
+use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::{FilterNode, LimitNode, PlanNodeEnum, ProjectNode};
 use crate::query::planner::planner::PlannerError;
@@ -22,6 +22,7 @@ use crate::query::validator::structs::{
 };
 use crate::query::visitor::ExtractGroupSuiteVisitor;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 /// WITH 子句规划器
 #[derive(Debug)]
@@ -215,18 +216,18 @@ impl ClausePlanner for WithClausePlanner {
 
     fn transform_clause(
         &self,
-        _query_context: &mut QueryContext,
-        ast_ctx: &AstContext,
+        _qctx: Arc<QueryContext>,
+        stmt: &Stmt,
         input_plan: SubPlan,
     ) -> Result<SubPlan, PlannerError> {
-        // 从 AST 上下文中提取 WITH 子句信息
-        let with_ctx = Self::extract_with_context(ast_ctx)?;
+        // 从语句中提取 WITH 子句信息
+        let with_ctx = Self::extract_with_context(stmt)?;
         self.plan_with_clause(&with_ctx, &input_plan)
     }
 }
 
 impl WithClausePlanner {
-    /// 从 AST 上下文中提取 WITH 子句上下文
+    /// 从语句中提取 WITH 子句上下文
     ///
     /// 完善后的实现包括：
     /// - 从 Stmt::With 提取完整的 WITH 子句信息
@@ -234,15 +235,12 @@ impl WithClausePlanner {
     /// - 处理 ORDER BY 和分页
     /// - 收集别名信息
     /// - 处理聚合表达式和分组键
-    fn extract_with_context(ast_ctx: &AstContext) -> Result<WithClauseContext, PlannerError> {
+    fn extract_with_context(stmt: &Stmt) -> Result<WithClauseContext, PlannerError> {
         use crate::query::parser::ast::Stmt;
         use crate::core::YieldColumn;
         use crate::query::validator::structs::{YieldClauseContext, OrderByClauseContext, PaginationContext};
 
-        let sentence = ast_ctx.sentence()
-            .ok_or_else(|| PlannerError::PlanGenerationFailed("AST 上下文中没有语句".to_string()))?;
-
-        let with_stmt = match sentence {
+        let with_stmt = match stmt {
             Stmt::With(w) => w,
             _ => {
                 return Err(PlannerError::PlanGenerationFailed(

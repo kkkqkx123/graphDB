@@ -27,7 +27,7 @@ pub use statements::{
 pub use planner::{
     PlannerEnum, StaticConfigurablePlannerRegistry, StaticPlannerRegistry,
     StaticSequentialPlanner,
-    create_planner, plan,
+    create_planner,
 };
 
 use std::sync::atomic::{AtomicI64, Ordering};

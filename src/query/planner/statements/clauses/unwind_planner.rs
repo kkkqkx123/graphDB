@@ -1,10 +1,11 @@
 //! UNWIND 子句规划器
-use crate::query::context::ast::AstContext;
 use crate::query::context::QueryContext;
+use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::PlannerError;
 use crate::query::planner::statements::statement_planner::ClausePlanner;
 use crate::query::validator::structs::CypherClauseKind;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct UnwindClausePlanner {}
@@ -26,8 +27,8 @@ impl ClausePlanner for UnwindClausePlanner {
 
     fn transform_clause(
         &self,
-        _query_context: &mut QueryContext,
-        _ast_ctx: &AstContext,
+        _qctx: Arc<QueryContext>,
+        _stmt: &Stmt,
         input_plan: SubPlan,
     ) -> Result<SubPlan, PlannerError> {
         // UNWIND 子句的实现

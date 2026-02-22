@@ -6,7 +6,6 @@ use std::sync::Arc;
 
 use crate::core::error::{DBResult, ValidationError, ValidationError as CoreValidationError, ValidationErrorType};
 use crate::core::{Expression, Value};
-use crate::query::context::ast::AstContext;
 use crate::query::context::QueryContext;
 use crate::query::parser::ast::stmt::{SetClause, UpdateStmt, UpdateTarget};
 use crate::query::validator::validator_trait::{StatementValidator, StatementType, ValidationResult, ColumnDef, ExpressionProps, ValueType};
@@ -208,22 +207,11 @@ impl UpdateValidator {
     pub fn validate_with_ast(
         &mut self,
         stmt: &UpdateStmt,
-        _query_context: Option<&QueryContext>,
-        ast: &mut AstContext,
+        qctx: Arc<QueryContext>,
     ) -> DBResult<()> {
-        self.validate_space_chosen(ast)?;
+        self.validate_space_chosen(qctx)?;
         self.validate_update_stmt(stmt)?;
-        self.generate_output_columns(ast);
-        Ok(())
-    }
-
-    fn validate_space_chosen(&self, ast: &AstContext) -> Result<(), CoreValidationError> {
-        if ast.space().space_id.is_none() {
-            return Err(CoreValidationError::new(
-                "No space selected. Use `USE <space>` to select a graph space first.".to_string(),
-                ValidationErrorType::SemanticError,
-            ));
-        }
+        self.generate_output_columns();
         Ok(())
     }
 
@@ -595,20 +583,36 @@ impl UpdateValidator {
         }
     }
 
-    fn generate_output_columns(&mut self, _ast: &mut AstContext) {
+    fn generate_output_columns(&mut self) {
         self.outputs.push(ColumnDef {
             name: "UPDATED".to_string(),
             type_: ValueType::Bool,
         });
     }
+
+    fn validate_space_chosen(&self, qctx: Arc<QueryContext>) -> Result<(), CoreValidationError> {
+        if qctx.space_id().is_none() {
+            return Err(CoreValidationError::new(
+                "No space selected. Use `USE <space>` to select a graph space first.".to_string(),
+                ValidationErrorType::SemanticError,
+            ));
+        }
+        Ok(())
+    }
 }
 
-/// StatementValidator trait 实现
+/// 实现 StatementValidator trait
+///
+/// # 重构变更
+/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
 impl StatementValidator for UpdateValidator {
-    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError> {
+    fn validate(
+        &mut self,
+        stmt: &crate::query::parser::ast::Stmt,
+        qctx: Arc<QueryContext>,
+    ) -> Result<ValidationResult, ValidationError> {
         // 1. 检查是否需要空间
-        let query_context = ast.query_context();
-        if !self.is_global_statement() && query_context.is_none() {
+        if !self.is_global_statement() && qctx.space_id().is_none() {
             return Err(ValidationError::new(
                 "未选择图空间，请先执行 USE <space>".to_string(),
                 ValidationErrorType::SemanticError,
@@ -616,25 +620,18 @@ impl StatementValidator for UpdateValidator {
         }
 
         // 2. 获取 UPDATE 语句
-        let update_stmt = if let Some(ref stmt) = ast.sentence() {
-            match stmt {
-                crate::query::parser::ast::Stmt::Update(u) => u.clone(),
-                _ => {
-                    return Err(ValidationError::new(
-                        "期望 UPDATE 语句".to_string(),
-                        ValidationErrorType::SemanticError,
-                    ));
-                }
+        let update_stmt = match stmt {
+            crate::query::parser::ast::Stmt::Update(u) => u,
+            _ => {
+                return Err(ValidationError::new(
+                    "期望 UPDATE 语句".to_string(),
+                    ValidationErrorType::SemanticError,
+                ));
             }
-        } else {
-            return Err(ValidationError::new(
-                "AST 中未找到语句".to_string(),
-                ValidationErrorType::SemanticError,
-            ));
         };
 
         // 3. 验证 UPDATE 语句
-        if let Err(e) = self.validate_update_stmt(&update_stmt) {
+        if let Err(e) = self.validate_update_stmt(update_stmt) {
             return Err(ValidationError::new(
                 format!("UPDATE 验证失败: {}", e),
                 ValidationErrorType::SemanticError,
@@ -642,7 +639,7 @@ impl StatementValidator for UpdateValidator {
         }
 
         // 4. 生成输出列
-        self.generate_output_columns(ast);
+        self.generate_output_columns();
 
         // 5. 返回验证结果
         Ok(ValidationResult::success(
@@ -664,7 +661,6 @@ impl StatementValidator for UpdateValidator {
     }
 
     fn is_global_statement(&self) -> bool {
-        // UPDATE 不是全局语句，需要预先选择空间
         false
     }
 

@@ -7,8 +7,10 @@
 //! 2. 赋值语句包装其他语句，需要递归验证内部语句
 //! 3. 变量名验证（必须以$开头）
 
+use std::sync::Arc;
+
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::query::context::ast::AstContext;
+use crate::query::context::QueryContext;
 use crate::query::parser::ast::stmt::AssignmentStmt;
 use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef,
@@ -114,32 +116,43 @@ impl AssignmentValidator {
     }
 }
 
+/// 实现 StatementValidator trait
+///
+/// # 重构变更
+/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+/// - 内部语句验证直接调用 validate 方法，传入 stmt 和 qctx
 impl StatementValidator for AssignmentValidator {
-    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError> {
-        let stmt = ast.sentence.as_ref()
-            .and_then(|s| s.as_assignment())
-            .ok_or_else(|| ValidationError::new(
-                "Expected ASSIGNMENT statement".to_string(),
-                ValidationErrorType::SemanticError,
-            ))?;
-        
-        self.validate_impl(stmt)?;
-        
+    fn validate(
+        &mut self,
+        stmt: &crate::query::parser::ast::Stmt,
+        qctx: Arc<QueryContext>,
+    ) -> Result<ValidationResult, ValidationError> {
+        let assignment_stmt = match stmt {
+            crate::query::parser::ast::Stmt::Assignment(assignment_stmt) => assignment_stmt,
+            _ => {
+                return Err(ValidationError::new(
+                    "Expected ASSIGNMENT statement".to_string(),
+                    ValidationErrorType::SemanticError,
+                ));
+            }
+        };
+
+        self.validate_impl(assignment_stmt)?;
+
         // 验证内部语句
         if let Some(ref mut inner) = self.inner_validator {
-            let mut inner_ast = AstContext::new(ast.qctx.clone(), Some(*stmt.statement.clone()));
-            let result = inner.validate(&mut inner_ast)?;
-            
+            let result = inner.validate(&assignment_stmt.statement, qctx)?;
+
             // 赋值语句的输出与内部语句相同
             self.inputs = result.inputs.clone();
             self.outputs = result.outputs.clone();
-            
+
             // 添加变量到用户定义变量列表
             if !self.user_defined_vars.contains(&self.variable) {
                 self.user_defined_vars.push(self.variable.clone());
             }
         }
-        
+
         Ok(ValidationResult::success(
             self.inputs.clone(),
             self.outputs.clone(),

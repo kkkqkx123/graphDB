@@ -12,13 +12,14 @@
 //!    - 权限检查
 //!    - 执行计划生成
 //! 3. 移除了生命周期参数，使用 Arc 管理 SchemaManager
-//! 4. 使用 AstContext 统一管理上下文
+//! 4. 使用 QueryContext 统一管理上下文
 
 use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::{Expression, Value};
-use crate::query::context::ast::AstContext;
+use crate::query::context::QueryContext;
+use crate::query::parser::ast::Stmt;
 use crate::query::parser::ast::stmt::{FetchStmt, FetchTarget};
 use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
@@ -207,11 +208,18 @@ impl Default for FetchVerticesValidator {
     }
 }
 
+/// 实现 StatementValidator trait
+///
+/// # 重构变更
+/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
 impl StatementValidator for FetchVerticesValidator {
-    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError> {
+    fn validate(
+        &mut self,
+        stmt: &Stmt,
+        qctx: Arc<QueryContext>,
+    ) -> Result<ValidationResult, ValidationError> {
         // 1. 检查是否需要空间
-        let query_context = ast.query_context();
-        if !self.is_global_statement() && query_context.is_none() {
+        if !self.is_global_statement() && qctx.space_id().is_none() {
             return Err(ValidationError::new(
                 "未选择图空间，请先执行 USE <space>".to_string(),
                 ValidationErrorType::SemanticError,
@@ -219,14 +227,8 @@ impl StatementValidator for FetchVerticesValidator {
         }
 
         // 2. 获取 FETCH 语句
-        let stmt = ast.sentence()
-            .ok_or_else(|| ValidationError::new(
-                "No statement found in AST context".to_string(),
-                ValidationErrorType::SemanticError,
-            ))?;
-
         let fetch_stmt = match stmt {
-            crate::query::parser::ast::Stmt::Fetch(fetch_stmt) => fetch_stmt,
+            Stmt::Fetch(fetch_stmt) => fetch_stmt,
             _ => {
                 return Err(ValidationError::new(
                     "Expected FETCH statement".to_string(),
@@ -239,7 +241,7 @@ impl StatementValidator for FetchVerticesValidator {
         self.validate_fetch_vertices(fetch_stmt)?;
 
         // 4. 获取 space_id
-        let space_id = ast.space().space_id.map(|id| id as u64).unwrap_or(0);
+        let space_id = qctx.space_id().unwrap_or(0);
 
         // 5. 提取顶点信息
         let (vertex_ids, properties) = match &fetch_stmt.target {
@@ -339,7 +341,7 @@ mod tests {
     use crate::query::parser::ast::stmt::{FetchStmt, FetchTarget};
     use crate::query::parser::ast::Span;
 
-    fn create_fetch_vertices_stmt(
+    fn _create_fetch_vertices_stmt(
         vertex_ids: Vec<Expression>,
         properties: Option<Vec<String>>,
     ) -> FetchStmt {

@@ -1,7 +1,16 @@
 //! Match语句验证器（新体系）
 //! 使用trait+枚举架构，替代原有的策略模式
 
+use std::collections::HashMap;
+use std::sync::Arc;
+
 use crate::core::YieldColumn;
+use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::core::Expression;
+use crate::query::context::QueryContext;
+use crate::query::parser::ast::{Stmt, Pattern};
+use crate::query::parser::ast::stmt::{MatchStmt, ReturnClause, ReturnItem, OrderByClause};
+
 use super::structs::{
     AliasType, MatchStepRange, PaginationContext, Path, QueryPart, ReturnClauseContext,
     UnwindClauseContext, WhereClauseContext, WithClauseContext, YieldClauseContext,
@@ -9,12 +18,6 @@ use super::structs::{
 use super::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult,
 };
-use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::core::Expression;
-use crate::query::context::ast::AstContext;
-use crate::query::parser::ast::stmt::{MatchStmt, ReturnClause, ReturnItem, OrderByClause};
-use crate::query::parser::ast::Pattern;
-use std::collections::HashMap;
 
 /// 验证后的MATCH信息
 #[derive(Debug, Clone)]
@@ -681,11 +684,18 @@ impl MatchValidator {
     }
 }
 
+/// 实现 StatementValidator trait
+///
+/// # 重构变更
+/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
 impl StatementValidator for MatchValidator {
-    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError> {
+    fn validate(
+        &mut self,
+        stmt: &Stmt,
+        qctx: Arc<QueryContext>,
+    ) -> Result<ValidationResult, ValidationError> {
         // 1. 检查是否需要空间
-        let query_context = ast.query_context();
-        if !self.is_global_statement() && query_context.is_none() {
+        if !self.is_global_statement() && qctx.space_id().is_none() {
             return Err(ValidationError::new(
                 "未选择图空间，请先执行 USE <space>".to_string(),
                 ValidationErrorType::SemanticError,
@@ -693,21 +703,14 @@ impl StatementValidator for MatchValidator {
         }
 
         // 2. 获取 MATCH 语句
-        let match_stmt = if let Some(ref stmt) = ast.sentence() {
-            match stmt {
-                crate::query::parser::ast::Stmt::Match(m) => m.clone(),
-                _ => {
-                    return Err(ValidationError::new(
-                        "期望 MATCH 语句".to_string(),
-                        ValidationErrorType::SemanticError,
-                    ));
-                }
+        let match_stmt = match stmt {
+            Stmt::Match(m) => m.clone(),
+            _ => {
+                return Err(ValidationError::new(
+                    "期望 MATCH 语句".to_string(),
+                    ValidationErrorType::SemanticError,
+                ));
             }
-        } else {
-            return Err(ValidationError::new(
-                "AST 中未找到语句".to_string(),
-                ValidationErrorType::SemanticError,
-            ));
         };
 
         // 3. 验证 MATCH 语句
@@ -716,7 +719,7 @@ impl StatementValidator for MatchValidator {
         }
 
         // 4. 获取 space_id
-        let space_id = ast.space().space_id.map(|id| id as u64).unwrap_or(0);
+        let space_id = qctx.space_id().unwrap_or(0);
 
         // 5. 创建验证结果
         let validated = ValidatedMatch {

@@ -8,10 +8,11 @@
 //! - 添加属性投影支持
 
 use crate::core::types::EdgeDirection;
-use crate::core::types::expression::Expression;
-use crate::query::context::ast::{AstContext, GoContext};
+use crate::query::context::QueryContext;
+use crate::query::parser::ast::{GoStmt, Stmt};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
+use std::sync::Arc;
 
 pub use crate::query::planner::plan::core::nodes::{
     ArgumentNode, DedupNode, ExpandAllNode, FilterNode, GetNeighborsNode, HashInnerJoinNode,
@@ -34,21 +35,16 @@ impl GoPlanner {
     pub fn make() -> Box<dyn Planner> {
         Box::new(Self::new())
     }
-
-    /// 检查AST上下文是否匹配GO查询
-    pub fn match_ast_ctx(ast_ctx: &AstContext) -> bool {
-        ast_ctx.statement_type().to_uppercase() == "GO"
-    }
 }
 
 impl Planner for GoPlanner {
-    fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
-        let stmt = ast_ctx.sentence().ok_or_else(|| {
-            PlannerError::InvalidAstContext("AstContext 中缺少语句".to_string())
-        })?;
-
-        let go_stmt = match &stmt {
-            crate::query::parser::ast::Stmt::Go(go_stmt) => go_stmt,
+    fn transform(
+        &mut self,
+        stmt: &Stmt,
+        _qctx: Arc<QueryContext>,
+    ) -> Result<SubPlan, PlannerError> {
+        let go_stmt = match stmt {
+            Stmt::Go(go_stmt) => go_stmt,
             _ => {
                 return Err(PlannerError::InvalidOperation(
                     "GoPlanner 需要 Go 语句".to_string()
@@ -56,51 +52,30 @@ impl Planner for GoPlanner {
             }
         };
 
-        let go_ctx = GoContext::from_sentence(ast_ctx.clone(), go_stmt);
-
-        let arg_node = ArgumentNode::new(0, &go_ctx.from.user_defined_var_name);
+        let from_var = "v";
+        let arg_node = ArgumentNode::new(0, from_var);
         let arg_node_enum = PlanNodeEnum::Argument(arg_node);
 
-        let direction_str = match go_ctx.over.direction {
-            EdgeDirection::Out => "out",
-            EdgeDirection::In => "in",
-            EdgeDirection::Both => "both",
+        let (direction_str, edge_types) = if let Some(over_clause) = &go_stmt.over {
+            let direction_str = match over_clause.direction {
+                EdgeDirection::Out => "out",
+                EdgeDirection::In => "in",
+                EdgeDirection::Both => "both",
+            };
+            (direction_str, over_clause.edge_types.clone())
+        } else {
+            ("both", vec![])
         };
 
         let expand_all_node = ExpandAllNode::new(
             1,
-            go_ctx.over.edge_types.clone(),
+            edge_types,
             direction_str,
         );
 
-        let input_for_join = if go_ctx.join_dst {
-            let expand_enum = PlanNodeEnum::ExpandAll(expand_all_node.clone());
+        let input_for_join = PlanNodeEnum::ExpandAll(expand_all_node);
 
-            let join_key_left = Expression::Variable("_expandall_vid".to_string());
-            let join_key_right = Expression::Variable("_expandall_vid".to_string());
-
-            let left_input =
-                PlanNodeEnum::Argument(ArgumentNode::new(0, &go_ctx.from.user_defined_var_name));
-
-            match HashInnerJoinNode::new(
-                left_input,
-                expand_enum,
-                vec![join_key_left],
-                vec![join_key_right],
-            ) {
-                Ok(join) => PlanNodeEnum::HashInnerJoin(join),
-                Err(e) => {
-                    return Err(PlannerError::PlanGenerationFailed(format!(
-                        "Failed to create join node: {}",
-                        e
-                    )));
-                }
-            }
-        } else {
-            PlanNodeEnum::ExpandAll(expand_all_node)
-        };
-
-        let filter_node = if let Some(ref condition) = go_ctx.filter {
+        let filter_node = if let Some(ref condition) = go_stmt.where_clause {
             match FilterNode::new(input_for_join, condition.clone()) {
                 Ok(filter) => PlanNodeEnum::Filter(filter),
                 Err(e) => {
@@ -114,7 +89,7 @@ impl Planner for GoPlanner {
             input_for_join
         };
 
-        let project_columns = Self::build_yield_columns(&go_ctx)?;
+        let project_columns = Self::build_yield_columns(go_stmt)?;
         let project_node = match ProjectNode::new(filter_node, project_columns) {
             Ok(project) => PlanNodeEnum::Project(project),
             Err(e) => {
@@ -125,51 +100,42 @@ impl Planner for GoPlanner {
             }
         };
 
-        let final_node = if go_ctx.distinct {
-            match DedupNode::new(project_node.clone()) {
-                Ok(dedup) => PlanNodeEnum::Dedup(dedup),
-                Err(_) => project_node,
-            }
-        } else {
-            project_node
-        };
-
         let sub_plan = SubPlan {
-            root: Some(final_node),
+            root: Some(project_node),
             tail: Some(arg_node_enum),
         };
 
         Ok(sub_plan)
     }
 
-    fn match_planner(&self, ast_ctx: &AstContext) -> bool {
-        Self::match_ast_ctx(ast_ctx)
+    fn match_planner(&self, stmt: &Stmt) -> bool {
+        matches!(stmt, Stmt::Go(_))
     }
 }
 
 impl GoPlanner {
     /// 构建YIELD列
     fn build_yield_columns(
-        go_ctx: &GoContext,
-    ) -> Result<Vec<crate::query::validator::YieldColumn>, PlannerError> {
+        go_stmt: &GoStmt,
+    ) -> Result<Vec<crate::core::YieldColumn>, PlannerError> {
         let mut columns = Vec::new();
 
-        if let Some(ref yield_expression) = go_ctx.yield_expression {
-            for col in &yield_expression.columns {
-                columns.push(crate::query::validator::YieldColumn {
-                    expression: crate::core::Expression::Variable(col.alias.clone()),
-                    alias: col.alias.clone(),
+        if let Some(ref yield_clause) = go_stmt.yield_clause {
+            for item in &yield_clause.items {
+                columns.push(crate::core::YieldColumn {
+                    expression: item.expression.clone(),
+                    alias: item.alias.clone().unwrap_or_default(),
                     is_matched: false,
                 });
             }
         } else {
-            columns.push(crate::query::validator::YieldColumn {
+            columns.push(crate::core::YieldColumn {
                 expression: crate::core::Expression::Variable("_expandall_dst".to_string()),
                 alias: "dst".to_string(),
                 is_matched: false,
             });
 
-            columns.push(crate::query::validator::YieldColumn {
+            columns.push(crate::core::YieldColumn {
                 expression: crate::core::Expression::Variable("_expandall_props".to_string()),
                 alias: "properties".to_string(),
                 is_matched: false,
@@ -177,7 +143,7 @@ impl GoPlanner {
         }
 
         if columns.is_empty() {
-            columns.push(crate::query::validator::YieldColumn {
+            columns.push(crate::core::YieldColumn {
                 expression: crate::core::Expression::Variable("*".to_string()),
                 alias: "result".to_string(),
                 is_matched: false,

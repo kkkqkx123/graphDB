@@ -106,7 +106,7 @@ impl OptRule for PushTopNDownIndexScanRule {
 
         // 如果原TopN有输出变量，传递给新的IndexScan
         if let Some(output_var) = node_ref.plan_node.output_var() {
-            new_group_node.plan_node.set_output_var(output_var.clone());
+            new_group_node.plan_node.set_output_var(output_var.to_string());
         }
 
         // 创建转换结果
@@ -127,9 +127,10 @@ mod tests {
     use crate::query::optimizer::plan::OptContext;
     use crate::query::planner::plan::algorithms::{IndexScan, ScanType};
     use crate::query::planner::plan::core::nodes::{PlanNodeEnum, TopNNode, SortItem};
+    use std::sync::Arc;
 
     fn create_test_context() -> OptContext {
-        let query_context = QueryContext::new();
+        let query_context = Arc::new(QueryContext::default());
         OptContext::new(query_context)
     }
 

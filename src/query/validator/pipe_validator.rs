@@ -10,10 +10,11 @@
 //!    - 列兼容性检查
 //!    - 管道连接验证
 //!    - 类型匹配验证
-//! 3. 使用 AstContext 统一管理上下文
+//! 3. 使用 QueryContext 统一管理上下文
 
+use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::query::context::ast::AstContext;
+use crate::query::context::QueryContext;
 use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
     ExpressionProps,
@@ -243,8 +244,16 @@ impl Default for PipeValidator {
     }
 }
 
+/// 实现 StatementValidator trait
+///
+/// # 重构变更
+/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
 impl StatementValidator for PipeValidator {
-    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError> {
+    fn validate(
+        &mut self,
+        _stmt: &crate::query::parser::ast::Stmt,
+        _qctx: Arc<QueryContext>,
+    ) -> Result<ValidationResult, ValidationError> {
         self.clear_errors();
 
         // 执行验证
@@ -265,10 +274,6 @@ impl StatementValidator for PipeValidator {
                 })
                 .collect()
         };
-
-        // 同步到 AstContext
-        ast.set_inputs(self.inputs.clone());
-        ast.set_outputs(self.outputs.clone());
 
         Ok(ValidationResult::success(
             self.inputs.clone(),

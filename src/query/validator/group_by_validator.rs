@@ -7,9 +7,10 @@
 //! 2. 验证分组键和聚合表达式的合法性
 //! 3. 支持 HAVING 子句验证
 
+use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::Expression;
-use crate::query::context::ast::AstContext;
+use crate::query::context::QueryContext;
 use crate::query::parser::ast::stmt::GroupByStmt;
 use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
@@ -269,16 +270,27 @@ impl GroupByValidator {
     }
 }
 
+/// 实现 StatementValidator trait
+///
+/// # 重构变更
+/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
 impl StatementValidator for GroupByValidator {
-    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError> {
-        let stmt = ast.sentence.as_ref()
-            .and_then(|s| s.as_group_by())
-            .ok_or_else(|| ValidationError::new(
-                "Expected GROUP BY statement".to_string(),
-                ValidationErrorType::SemanticError,
-            ))?;
+    fn validate(
+        &mut self,
+        stmt: &crate::query::parser::ast::Stmt,
+        _qctx: Arc<QueryContext>,
+    ) -> Result<ValidationResult, ValidationError> {
+        let group_by_stmt = match stmt {
+            crate::query::parser::ast::Stmt::GroupBy(group_by_stmt) => group_by_stmt,
+            _ => {
+                return Err(ValidationError::new(
+                    "Expected GROUP BY statement".to_string(),
+                    ValidationErrorType::SemanticError,
+                ));
+            }
+        };
         
-        self.validate_impl(stmt)?;
+        self.validate_impl(group_by_stmt)?;
         
         Ok(ValidationResult::success(
             self.inputs.clone(),

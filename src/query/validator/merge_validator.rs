@@ -2,8 +2,10 @@
 //! 用于验证 MERGE 语句（Cypher 风格的模式创建/匹配）
 //! 参考 nebula-graph MaintainValidator.cpp 中的 MergeZoneValidator 实现
 
+use std::sync::Arc;
+
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::query::context::ast::AstContext;
+use crate::query::context::QueryContext;
 use crate::query::parser::ast::stmt::{MergeStmt, SetClause};
 use crate::query::parser::ast::Pattern;
 use crate::query::validator::validator_trait::{
@@ -269,16 +271,27 @@ impl Default for MergeValidator {
     }
 }
 
+/// 实现 StatementValidator trait
+///
+/// # 重构变更
+/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
 impl StatementValidator for MergeValidator {
-    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError> {
-        let stmt = ast.sentence.as_ref()
-            .and_then(|s| s.as_merge())
-            .ok_or_else(|| ValidationError::new(
-                "Expected MERGE statement".to_string(),
-                ValidationErrorType::SemanticError,
-            ))?;
+    fn validate(
+        &mut self,
+        stmt: &crate::query::parser::ast::Stmt,
+        _qctx: Arc<QueryContext>,
+    ) -> Result<ValidationResult, ValidationError> {
+        let merge_stmt = match stmt {
+            crate::query::parser::ast::Stmt::Merge(merge_stmt) => merge_stmt,
+            _ => {
+                return Err(ValidationError::new(
+                    "Expected MERGE statement".to_string(),
+                    ValidationErrorType::SemanticError,
+                ));
+            }
+        };
 
-        self.validate_impl(stmt)?;
+        self.validate_impl(merge_stmt)?;
 
         Ok(ValidationResult::success(
             self.inputs.clone(),

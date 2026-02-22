@@ -73,7 +73,7 @@ macro_rules! define_limit_pushdown_rule {
                     new_target.set_limit(limit_value);
                     
                     if let Some(output_var) = node_ref.plan_node.output_var() {
-                        new_target.set_output_var(output_var.clone());
+                        new_target.set_output_var(output_var.to_string());
                     }
 
                     let mut new_node = child_ref.clone();

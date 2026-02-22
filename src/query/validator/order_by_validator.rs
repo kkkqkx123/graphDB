@@ -1,4 +1,4 @@
-//! ORDER BY 子句验证器\
+//! ORDER BY 子句验证器
 //! 验证 ORDER BY 子句的排序表达式和方向
 //!
 //! 本文件已按照新的 trait + 枚举 验证器体系重构：
@@ -9,12 +9,13 @@
 //!    - 输入列兼容性验证
 //!    - 表达式类型推导
 //!    - 表达式引用收集
-//! 3. 使用 AstContext 统一管理上下文
+//! 3. 使用 QueryContext 统一管理上下文
 
+use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::Expression;
 use crate::core::types::OrderDirection;
-use crate::query::context::ast::AstContext;
+use crate::query::context::QueryContext;
 use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
     ExpressionProps,
@@ -477,8 +478,16 @@ impl Default for OrderByValidator {
     }
 }
 
+/// 实现 StatementValidator trait
+///
+/// # 重构变更
+/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
 impl StatementValidator for OrderByValidator {
-    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError> {
+    fn validate(
+        &mut self,
+        _stmt: &crate::query::parser::ast::Stmt,
+        _qctx: Arc<QueryContext>,
+    ) -> Result<ValidationResult, ValidationError> {
         self.clear_errors();
 
         // 执行验证
@@ -488,10 +497,6 @@ impl StatementValidator for OrderByValidator {
 
         // ORDER BY 不改变输出结构，输出与输入相同
         self.outputs = self.inputs.clone();
-
-        // 同步到 AstContext
-        ast.set_inputs(self.inputs.clone());
-        ast.set_outputs(self.outputs.clone());
 
         Ok(ValidationResult::success(
             self.inputs.clone(),

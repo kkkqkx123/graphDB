@@ -13,6 +13,7 @@ pub mod executor;
 pub mod optimizer;
 pub mod parser;
 pub mod planner;
+pub mod query_context;
 pub mod query_pipeline_manager;
 pub mod validator;
 pub mod visitor;
@@ -22,3 +23,5 @@ pub use crate::core::{DBResult, QueryError};
 pub use executor::traits::ExecutionResult;
 // Re-export QueryPipelineManager
 pub use query_pipeline_manager::QueryPipelineManager;
+// Re-export new QueryContext
+pub use query_context::QueryContext;

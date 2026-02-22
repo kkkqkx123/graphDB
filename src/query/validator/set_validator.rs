@@ -11,15 +11,16 @@
 //!    - 表达式验证
 //! 3. 使用 AstContext 统一管理上下文
 
+use std::collections::HashMap;
+use std::sync::Arc;
+
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::Expression;
-use crate::query::context::ast::AstContext;
 use crate::query::context::QueryContext;
 use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
     ExpressionProps,
 };
-use std::collections::HashMap;
 
 /// SET 语句类型
 #[derive(Debug, Clone, PartialEq)]
@@ -363,10 +364,13 @@ impl SetValidator {
     }
 
     /// 验证具体语句
+    ///
+    /// # 重构变更
+    /// - 移除 AstContext 参数
+    /// - 接收 Arc<QueryContext> 参数
     fn validate_impl(
         &mut self,
-        _query_context: Option<&QueryContext>,
-        _ast: &mut AstContext,
+        _qctx: Arc<QueryContext>,
     ) -> Result<(), ValidationError> {
         // 执行 SET 验证
         self.validate_set()?;
@@ -391,8 +395,16 @@ impl Default for SetValidator {
 }
 
 /// 实现 StatementValidator trait
+///
+/// # 重构变更
+/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+/// - 移除 AstContext 相关操作
 impl StatementValidator for SetValidator {
-    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError> {
+    fn validate(
+        &mut self,
+        _stmt: &crate::query::parser::ast::Stmt,
+        qctx: Arc<QueryContext>,
+    ) -> Result<ValidationResult, ValidationError> {
         // 清空之前的状态
         self.outputs.clear();
         self.inputs.clear();
@@ -400,8 +412,7 @@ impl StatementValidator for SetValidator {
         self.clear_errors();
 
         // 执行具体验证逻辑
-        // 注意：validate_impl 内部会调用 ast.query_context()
-        if let Err(e) = self.validate_impl(None, ast) {
+        if let Err(e) = self.validate_impl(qctx) {
             self.add_error(e);
         }
 
@@ -409,14 +420,6 @@ impl StatementValidator for SetValidator {
         if self.has_errors() {
             let errors = self.validation_errors.clone();
             return Ok(ValidationResult::failure(errors));
-        }
-
-        // 同步输入/输出到 AstContext
-        for output in &self.outputs {
-            ast.add_output(output.name.clone(), output.type_.clone());
-        }
-        for input in &self.inputs {
-            ast.add_input(input.name.clone(), input.type_.clone());
         }
 
         // 返回成功的验证结果

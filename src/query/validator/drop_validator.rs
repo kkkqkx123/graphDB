@@ -7,8 +7,9 @@
 //! 2. DROP SPACE 是全局语句，其他 DROP 需要选择空间
 //! 3. 验证目标对象是否存在（根据 if_exists 标志）
 
+use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::query::context::ast::AstContext;
+use crate::query::context::QueryContext;
 use crate::query::parser::ast::stmt::{DropStmt, DropTarget};
 use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
@@ -173,16 +174,27 @@ impl DropValidator {
     }
 }
 
+/// 实现 StatementValidator trait
+///
+/// # 重构变更
+/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
 impl StatementValidator for DropValidator {
-    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError> {
-        let stmt = ast.sentence.as_ref()
-            .and_then(|s| s.as_drop())
-            .ok_or_else(|| ValidationError::new(
-                "Expected DROP statement".to_string(),
-                ValidationErrorType::SemanticError,
-            ))?;
+    fn validate(
+        &mut self,
+        stmt: &crate::query::parser::ast::Stmt,
+        _qctx: Arc<QueryContext>,
+    ) -> Result<ValidationResult, ValidationError> {
+        let drop_stmt = match stmt {
+            crate::query::parser::ast::Stmt::Drop(drop_stmt) => drop_stmt,
+            _ => {
+                return Err(ValidationError::new(
+                    "Expected DROP statement".to_string(),
+                    ValidationErrorType::SemanticError,
+                ));
+            }
+        };
         
-        self.validate_impl(stmt)?;
+        self.validate_impl(drop_stmt)?;
         
         Ok(ValidationResult::success(
             self.inputs.clone(),

@@ -191,6 +191,20 @@ impl RequestContext {
         self.session_info.as_ref().and_then(|s| s.graph_addr.as_deref())
     }
 
+    /// 获取空间名称
+    pub fn space_name(&self) -> Option<String> {
+        self.session_info.as_ref().and_then(|s| s.space_name.clone())
+    }
+
+    /// 获取空间ID
+    ///
+    /// 注意：此方法暂时返回 0，因为空间ID需要从SchemaManager获取
+    /// 实际使用时请从 QueryContext 获取
+    pub fn space_id(&self) -> Option<u64> {
+        // 暂时返回 0，实际实现需要从 SchemaManager 获取
+        Some(0)
+    }
+
     // ==================== 请求参数管理 ====================
 
     /// 获取查询字符串

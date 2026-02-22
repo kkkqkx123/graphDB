@@ -156,11 +156,12 @@ mod tests {
     use super::*;
     use crate::query::context::QueryContext;
     use crate::query::optimizer::plan::OptContext;
-    use crate::query::planner::plan::algorithms::{IndexScan, ScanType};
     use crate::query::planner::plan::core::nodes::{PlanNodeEnum, ProjectNode};
+    use crate::query::planner::plan::algorithms::{IndexScan, ScanType};
+    use std::sync::Arc;
 
     fn create_test_context() -> OptContext {
-        let query_context = QueryContext::new();
+        let query_context = Arc::new(QueryContext::default());
         OptContext::new(query_context)
     }
 

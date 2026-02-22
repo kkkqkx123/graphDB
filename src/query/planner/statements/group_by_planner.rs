@@ -2,8 +2,8 @@
 //!
 //! 处理 GROUP BY 语句的查询规划
 
-use crate::query::context::ast::AstContext;
-use crate::query::parser::ast::{GroupByStmt, Stmt};
+use crate::query::context::QueryContext;
+use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::core::{
     node_id_generator::next_node_id,
     nodes::{
@@ -14,6 +14,7 @@ use crate::query::planner::plan::{PlanNodeEnum, SubPlan};
 use crate::query::planner::planner::{Planner, PlannerError};
 use crate::core::Expression;
 use crate::core::types::operators::AggregateFunction;
+use std::sync::Arc;
 
 /// GroupBy 操作规划器
 /// 负责将 GROUP BY 语句转换为执行计划
@@ -31,24 +32,9 @@ impl GroupByPlanner {
         Box::new(Self::new())
     }
 
-    /// 检查 AST 上下文是否匹配 GroupBy 操作
-    pub fn match_ast_ctx(ast_ctx: &AstContext) -> bool {
-        matches!(ast_ctx.sentence(), Some(Stmt::GroupBy(_)))
-    }
-
     /// 获取匹配和实例化函数（静态注册版本）
     pub fn get_match_and_instantiate() -> crate::query::planner::planner::MatchAndInstantiateEnum {
         crate::query::planner::planner::MatchAndInstantiateEnum::GroupBy(Self::new())
-    }
-
-    /// 从 AstContext 提取 GroupByStmt
-    fn extract_group_by_stmt(&self, ast_ctx: &AstContext) -> Result<GroupByStmt, PlannerError> {
-        match ast_ctx.sentence() {
-            Some(Stmt::GroupBy(group_by_stmt)) => Ok(group_by_stmt.clone()),
-            _ => Err(PlannerError::PlanGenerationFailed(
-                "AST 上下文中不包含 GROUP BY 语句".to_string(),
-            )),
-        }
     }
 
     /// 从表达式中提取聚合函数
@@ -60,8 +46,15 @@ impl GroupByPlanner {
 }
 
 impl Planner for GroupByPlanner {
-    fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
-        let group_by_stmt = self.extract_group_by_stmt(ast_ctx)?;
+    fn transform(&mut self, stmt: &Stmt, _qctx: Arc<QueryContext>) -> Result<SubPlan, PlannerError> {
+        let group_by_stmt = match stmt {
+            Stmt::GroupBy(group_by_stmt) => group_by_stmt,
+            _ => {
+                return Err(PlannerError::InvalidOperation(
+                    "GroupByPlanner 需要 GroupBy 语句".to_string()
+                ));
+            }
+        };
 
         // 创建参数节点作为输入
         let arg_node = ArgumentNode::new(next_node_id(), "group_by_input");
@@ -114,8 +107,8 @@ impl Planner for GroupByPlanner {
         Ok(sub_plan)
     }
 
-    fn match_planner(&self, ast_ctx: &AstContext) -> bool {
-        Self::match_ast_ctx(ast_ctx)
+    fn match_planner(&self, stmt: &Stmt) -> bool {
+        matches!(stmt, Stmt::GroupBy(_))
     }
 }
 

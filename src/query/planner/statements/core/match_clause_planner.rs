@@ -5,8 +5,8 @@
 /// MATCH 子句是 Cypher 查询的核心，用于匹配图中的模式。
 /// 它可以包含多个路径，每个路径由节点和边组成。
 use crate::core::Expression;
-use crate::query::context::ast::AstContext;
 use crate::query::context::QueryContext;
+use crate::query::parser::ast::Stmt;
 use crate::query::planner::connector::SegmentsConnector;
 use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
 use crate::query::planner::plan::algorithms::path_algorithms::MultiShortestPath;
@@ -19,6 +19,7 @@ use crate::query::planner::statements::statement_planner::ClausePlanner;
 use crate::query::validator::structs::{AliasType, CypherClauseKind, MatchClauseContext, Path, PathYieldType};
 use crate::storage::metadata::SchemaManager;
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 /// MATCH子句规划器
 ///
@@ -297,16 +298,18 @@ impl ClausePlanner for MatchClausePlanner {
 
     fn transform_clause(
         &self,
-        query_context: &mut QueryContext,
-        ast_ctx: &AstContext,
+        qctx: Arc<QueryContext>,
+        stmt: &Stmt,
         input_plan: SubPlan,
     ) -> Result<SubPlan, PlannerError> {
-        // 从 AST 上下文中提取 MATCH 子句信息
+        // 从语句中提取 MATCH 子句信息
         // 传入 input_plan 用于提取可用别名
-        let match_clause_ctx = Self::extract_match_context(ast_ctx, query_context, &input_plan)?;
+        let match_clause_ctx = Self::extract_match_context(stmt, &qctx, &input_plan)?;
 
-        // 从 AST 上下文中获取 space_id，默认为 1
-        let space_id = ast_ctx.space().space_id.unwrap_or(1);
+        // 从查询上下文中获取 space_id，默认为 1
+        let space_id = qctx.rctx()
+            .and_then(|rctx| rctx.space_id())
+            .unwrap_or(1) as u64;
 
         // 对于 MATCH 子句，input_plan 可能是空计划（作为 Source）
         // 或者在管道中作为输入（如 WITH ... MATCH ...）
@@ -320,7 +323,7 @@ impl ClausePlanner for MatchClausePlanner {
 }
 
 impl MatchClausePlanner {
-    /// 从 AST 上下文中提取 MATCH 子句上下文
+    /// 从语句中提取 MATCH 子句上下文
     ///
     /// 完善后的实现包括：
     /// - 完整的 Pattern 到 Path 转换
@@ -328,17 +331,14 @@ impl MatchClausePlanner {
     /// - WHERE 子句处理
     /// - Schema 信息解析（标签ID和边类型ID）
     fn extract_match_context(
-        ast_ctx: &AstContext,
+        stmt: &Stmt,
         query_context: &QueryContext,
         input_plan: &SubPlan,
     ) -> Result<MatchClauseContext, PlannerError> {
         use crate::query::parser::ast::Stmt;
         use crate::query::validator::structs::WhereClauseContext;
 
-        let sentence = ast_ctx.sentence()
-            .ok_or_else(|| PlannerError::PlanGenerationFailed("AST 上下文中没有语句".to_string()))?;
-
-        let match_stmt = match sentence {
+        let match_stmt = match stmt {
             Stmt::Match(m) => m,
             _ => {
                 return Err(PlannerError::PlanGenerationFailed(
@@ -349,7 +349,7 @@ impl MatchClausePlanner {
 
         // 获取 schema manager 和 space 名称
         let schema_manager = query_context.schema_manager();
-        let space_name = ast_ctx.space().space_name.clone();
+        let space_name = query_context.space_name().unwrap_or("default".to_string());
 
         // 转换 patterns 到 paths（传入 schema_manager 解析标签ID和边类型ID）
         let paths = Self::convert_patterns_to_paths(&match_stmt.patterns, schema_manager, &space_name)?;

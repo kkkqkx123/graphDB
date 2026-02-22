@@ -13,7 +13,7 @@ use crate::query::executor::factory::ExecutorFactory;
 use crate::query::executor::traits::ExecutionResult;
 use crate::query::optimizer::{Optimizer, OptimizationConfig, RuleConfig};
 use crate::query::parser::Parser;
-use crate::query::planner::planner::{StaticConfigurablePlannerRegistry, PlannerConfig};
+use crate::query::planner::planner::{PlannerConfig};
 use crate::storage::StorageClient;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -21,49 +21,40 @@ use parking_lot::Mutex;
 use std::time::Instant;
 
 pub struct QueryPipelineManager<S: StorageClient + 'static> {
-    planner: StaticConfigurablePlannerRegistry,
     optimizer: Optimizer,
     executor_factory: ExecutorFactory<S>,
     stats_manager: Arc<StatsManager>,
+    planner_config: Option<PlannerConfig>,
 }
 
 impl<S: StorageClient + 'static> QueryPipelineManager<S> {
     pub fn new(storage: Arc<Mutex<S>>, stats_manager: Arc<StatsManager>) -> Self {
         let executor_factory = ExecutorFactory::with_storage(storage.clone());
-        let mut planner = StaticConfigurablePlannerRegistry::new();
-
-        Self::register_planners(&mut planner);
 
         Self {
-            planner,
             optimizer: Optimizer::from_registry(),
             executor_factory,
             stats_manager,
+            planner_config: None,
         }
     }
 
     pub fn with_optimizer_config(storage: Arc<Mutex<S>>, rule_config: RuleConfig, stats_manager: Arc<StatsManager>) -> Self {
         let executor_factory = ExecutorFactory::with_storage(storage.clone());
-        let mut planner = StaticConfigurablePlannerRegistry::new();
-
-        Self::register_planners(&mut planner);
 
         let config = OptimizationConfig::with_rule_config(rule_config);
         let optimizer = Optimizer::with_config(vec![], config);
 
         Self {
-            planner,
             optimizer,
             executor_factory,
             stats_manager,
+            planner_config: None,
         }
     }
 
     pub fn from_config_file(storage: Arc<Mutex<S>>, config_path: &PathBuf, stats_manager: Arc<StatsManager>) -> Self {
         let executor_factory = ExecutorFactory::with_storage(storage.clone());
-        let mut planner = StaticConfigurablePlannerRegistry::new();
-
-        Self::register_planners(&mut planner);
 
         let optimizer = match crate::config::Config::load(config_path) {
             Ok(config) => {
@@ -88,10 +79,10 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         };
 
         Self {
-            planner,
             optimizer,
             executor_factory,
             stats_manager,
+            planner_config: None,
         }
     }
 
@@ -116,109 +107,13 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
 
     pub fn with_config(storage: Arc<Mutex<S>>, config: PlannerConfig, stats_manager: Arc<StatsManager>) -> Self {
         let executor_factory = ExecutorFactory::with_storage(storage.clone());
-        let mut planner = StaticConfigurablePlannerRegistry::with_config(config);
-
-        Self::register_planners(&mut planner);
 
         Self {
-            planner,
             optimizer: Optimizer::default(),
             executor_factory,
             stats_manager,
+            planner_config: Some(config),
         }
-    }
-
-    fn register_planners(planner: &mut StaticConfigurablePlannerRegistry) {
-        planner.register(
-            crate::query::planner::planner::SentenceKind::Match,
-            crate::query::planner::planner::MatchAndInstantiateEnum::Match(
-                crate::query::planner::statements::match_statement_planner::MatchStatementPlanner::new()
-            ),
-        );
-        planner.register(
-            crate::query::planner::planner::SentenceKind::Go,
-            crate::query::planner::planner::MatchAndInstantiateEnum::Go(
-                crate::query::planner::statements::go_planner::GoPlanner::new()
-            ),
-        );
-        planner.register(
-            crate::query::planner::planner::SentenceKind::Lookup,
-            crate::query::planner::planner::MatchAndInstantiateEnum::Lookup(
-                crate::query::planner::statements::lookup_planner::LookupPlanner::new()
-            ),
-        );
-        planner.register(
-            crate::query::planner::planner::SentenceKind::Path,
-            crate::query::planner::planner::MatchAndInstantiateEnum::Path(
-                crate::query::planner::statements::path_planner::PathPlanner::new()
-            ),
-        );
-        planner.register(
-            crate::query::planner::planner::SentenceKind::Subgraph,
-            crate::query::planner::planner::MatchAndInstantiateEnum::Subgraph(
-                crate::query::planner::statements::subgraph_planner::SubgraphPlanner::new()
-            ),
-        );
-        planner.register(
-            crate::query::planner::planner::SentenceKind::FetchVertices,
-            crate::query::planner::planner::MatchAndInstantiateEnum::FetchVertices(
-                crate::query::planner::statements::fetch_vertices_planner::FetchVerticesPlanner::new()
-            ),
-        );
-        planner.register(
-            crate::query::planner::planner::SentenceKind::FetchEdges,
-            crate::query::planner::planner::MatchAndInstantiateEnum::FetchEdges(
-                crate::query::planner::statements::fetch_edges_planner::FetchEdgesPlanner::new()
-            ),
-        );
-        planner.register(
-            crate::query::planner::planner::SentenceKind::Maintain,
-            crate::query::planner::planner::MatchAndInstantiateEnum::Maintain(
-                crate::query::planner::statements::maintain_planner::MaintainPlanner::new()
-            ),
-        );
-        planner.register(
-            crate::query::planner::planner::SentenceKind::UserManagement,
-            crate::query::planner::planner::MatchAndInstantiateEnum::UserManagement(
-                crate::query::planner::statements::user_management_planner::UserManagementPlanner::new()
-            ),
-        );
-        planner.register(
-            crate::query::planner::planner::SentenceKind::Insert,
-            crate::query::planner::planner::MatchAndInstantiateEnum::Insert(
-                crate::query::planner::statements::insert_planner::InsertPlanner::new()
-            ),
-        );
-        planner.register(
-            crate::query::planner::planner::SentenceKind::Delete,
-            crate::query::planner::planner::MatchAndInstantiateEnum::Delete(
-                crate::query::planner::statements::delete_planner::DeletePlanner::new()
-            ),
-        );
-        planner.register(
-            crate::query::planner::planner::SentenceKind::Update,
-            crate::query::planner::planner::MatchAndInstantiateEnum::Update(
-                crate::query::planner::statements::update_planner::UpdatePlanner::new()
-            ),
-        );
-        planner.register(
-            crate::query::planner::planner::SentenceKind::GroupBy,
-            crate::query::planner::planner::MatchAndInstantiateEnum::GroupBy(
-                crate::query::planner::statements::group_by_planner::GroupByPlanner::new()
-            ),
-        );
-        planner.register(
-            crate::query::planner::planner::SentenceKind::SetOperation,
-            crate::query::planner::planner::MatchAndInstantiateEnum::SetOperation(
-                crate::query::planner::statements::set_operation_planner::SetOperationPlanner::new()
-            ),
-        );
-        planner.register(
-            crate::query::planner::planner::SentenceKind::Use,
-            crate::query::planner::planner::MatchAndInstantiateEnum::Use(
-                crate::query::planner::statements::use_planner::UsePlanner::new()
-            ),
-        );
     }
 
     pub async fn execute_query(&mut self, query_text: &str) -> DBResult<ExecutionResult> {
@@ -228,20 +123,15 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
     pub async fn execute_query_with_space(
         &mut self,
         query_text: &str,
-        space_info: Option<crate::query::context::ast::SpaceInfo>,
+        _space_info: Option<crate::core::types::SpaceInfo>,
     ) -> DBResult<ExecutionResult> {
-        let mut query_context = self.create_query_context(query_text)?;
-        let mut ast = self.parse_into_context(query_text)?;
+        let query_context = Arc::new(self.create_query_context(query_text)?);
+        let stmt = self.parse_into_context(query_text)?;
         
-        // 如果提供了空间信息，设置到 AST 上下文中
-        if let Some(space) = space_info {
-            ast.set_space(space);
-        }
-        
-        self.validate_query(&mut query_context, &mut ast)?;
-        let execution_plan = self.generate_execution_plan(&mut query_context, &ast)?;
-        let optimized_plan = self.optimize_execution_plan(&mut query_context, execution_plan)?;
-        self.execute_plan(&mut query_context, optimized_plan).await
+        self.validate_query(query_context.clone(), &stmt)?;
+        let execution_plan = self.generate_execution_plan(query_context.clone(), &stmt)?;
+        let optimized_plan = self.optimize_execution_plan(query_context.clone(), execution_plan)?;
+        self.execute_plan(query_context, optimized_plan).await
     }
 
     pub async fn execute_query_with_metrics(
@@ -268,14 +158,14 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         let mut metrics = QueryMetrics::new();
         let mut profile = QueryProfile::new(session_id, query_text.to_string());
         
-        let mut query_context = self.create_query_context(query_text)?;
+        let query_context = Arc::new(self.create_query_context(query_text)?);
         
         let parse_start = Instant::now();
-        let mut ast = match self.parse_into_context(query_text) {
-            Ok(ast) => {
+        let stmt = match self.parse_into_context(query_text) {
+            Ok(stmt) => {
                 profile.stages.parse_ms = parse_start.elapsed().as_millis() as u64;
                 metrics.record_parse_time(parse_start.elapsed());
-                ast
+                stmt
             }
             Err(e) => {
                 profile.stages.parse_ms = parse_start.elapsed().as_millis() as u64;
@@ -289,7 +179,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         };
         
         let validate_start = Instant::now();
-        if let Err(e) = self.validate_query(&mut query_context, &mut ast) {
+        if let Err(e) = self.validate_query(query_context.clone(), &stmt) {
             profile.stages.validate_ms = validate_start.elapsed().as_millis() as u64;
             profile.mark_failed_with_info(
                 ErrorInfo::new(ErrorType::ValidationError, QueryPhase::Validate, e.to_string())
@@ -302,7 +192,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         metrics.record_validate_time(validate_start.elapsed());
         
         let plan_start = Instant::now();
-        let execution_plan = match self.generate_execution_plan(&mut query_context, &ast) {
+        let execution_plan = match self.generate_execution_plan(query_context.clone(), &stmt) {
             Ok(plan) => {
                 profile.stages.plan_ms = plan_start.elapsed().as_millis() as u64;
                 metrics.set_plan_node_count(plan.node_count());
@@ -321,7 +211,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         };
         
         let optimize_start = Instant::now();
-        let optimized_plan = match self.optimize_execution_plan(&mut query_context, execution_plan) {
+        let optimized_plan = match self.optimize_execution_plan(query_context.clone(), execution_plan) {
             Ok(plan) => {
                 profile.stages.optimize_ms = optimize_start.elapsed().as_millis() as u64;
                 metrics.record_optimize_time(optimize_start.elapsed());
@@ -339,7 +229,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         };
         
         let execute_start = Instant::now();
-        let result = match self.execute_plan(&mut query_context, optimized_plan).await {
+        let result = match self.execute_plan(query_context, optimized_plan).await {
             Ok(result) => {
                 profile.stages.execute_ms = execute_start.elapsed().as_millis() as u64;
                 profile.result_count = result.count();
@@ -374,28 +264,17 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
     fn parse_into_context(
         &mut self,
         query_text: &str,
-    ) -> DBResult<crate::query::context::ast::AstContext> {
+    ) -> DBResult<crate::query::parser::ast::Stmt> {
         let mut parser = Parser::new(query_text);
-        match parser.parse() {
-            Ok(stmt) => {
-                let mut ast = crate::query::context::ast::AstContext::new(None, Some(stmt));
-                ast.set_query_type_from_statement();
-                Ok(ast)
-            }
-            Err(e) => Err(DBError::from(QueryError::pipeline_parse_error(e))),
-        }
+        parser.parse()
+            .map_err(|e| DBError::from(QueryError::pipeline_parse_error(e)))
     }
 
     fn validate_query(
         &mut self,
-        _query_context: &mut QueryContext,
-        ast: &mut crate::query::context::ast::AstContext,
+        query_context: Arc<QueryContext>,
+        stmt: &crate::query::parser::ast::Stmt,
     ) -> DBResult<()> {
-        let stmt = ast.sentence().ok_or_else(|| {
-            DBError::from(QueryError::InvalidQuery("AST 上下文中缺少语句".to_string()))
-        })?;
-
-        // 根据语句类型创建对应的验证器
         let mut validator = crate::query::validator::Validator::from_stmt(stmt)
             .ok_or_else(|| {
                 DBError::from(QueryError::InvalidQuery(format!(
@@ -404,24 +283,35 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
                 )))
             })?;
 
-        validator.validate(ast)
+        validator.validate(stmt, query_context)
             .map(|_| ())
             .map_err(|e| DBError::from(QueryError::pipeline_validation_error(e)))
     }
 
     fn generate_execution_plan(
         &mut self,
-        query_context: &mut QueryContext,
-        ast: &crate::query::context::ast::AstContext,
+        query_context: Arc<QueryContext>,
+        stmt: &crate::query::parser::ast::Stmt,
     ) -> DBResult<crate::query::planner::plan::ExecutionPlan> {
-        self.planner
-            .create_plan(query_context, ast)
-            .map_err(|e| DBError::from(QueryError::pipeline_planning_error(e)))
+        let kind = crate::query::planner::planner::SentenceKind::from_stmt(stmt)
+            .map_err(|e| DBError::from(QueryError::pipeline_planning_error(e)))?;
+        
+        if let Some(mut planner_enum) = crate::query::planner::planner::PlannerEnum::from_sentence_kind(kind) {
+            let sub_plan = planner_enum.transform(stmt, query_context)
+                .map_err(|e| DBError::from(QueryError::pipeline_planning_error(e)))?;
+            Ok(crate::query::planner::plan::ExecutionPlan::new(sub_plan.root().clone()))
+        } else {
+            Err(DBError::from(QueryError::pipeline_planning_error(
+                crate::query::planner::planner::PlannerError::NoSuitablePlanner(
+                    "No suitable planner found".to_string()
+                )
+            )))
+        }
     }
 
     fn optimize_execution_plan(
         &mut self,
-        query_context: &mut QueryContext,
+        query_context: Arc<QueryContext>,
         plan: crate::query::planner::plan::ExecutionPlan,
     ) -> DBResult<crate::query::planner::plan::ExecutionPlan> {
         self.optimizer
@@ -431,7 +321,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
 
     async fn execute_plan(
         &mut self,
-        query_context: &mut QueryContext,
+        query_context: Arc<QueryContext>,
         plan: crate::query::planner::plan::ExecutionPlan,
     ) -> DBResult<ExecutionResult> {
         self.executor_factory

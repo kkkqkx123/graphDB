@@ -4,7 +4,6 @@
 
 use super::plan_node_enum::PlanNodeEnum;
 use super::plan_node_traits::{MultipleInputNode, PlanNode, SingleInputNode};
-use crate::query::context::ast::Variable;
 
 impl PlanNodeEnum {
     /// 获取节点的唯一ID
@@ -104,7 +103,7 @@ impl PlanNodeEnum {
     }
 
     /// 获取节点的输出变量
-    pub fn output_var(&self) -> Option<&Variable> {
+    pub fn output_var(&self) -> Option<&str> {
         match self {
             // 基础节点类型 - 这些节点实现了 PlanNode trait
             PlanNodeEnum::Start(node) => node.output_var(),
@@ -335,7 +334,7 @@ impl PlanNodeEnum {
     }
 
     /// 设置节点的输出变量
-    pub fn set_output_var(&mut self, var: Variable) {
+    pub fn set_output_var(&mut self, var: String) {
         match self {
             // 基础节点类型 - 这些节点实现了 PlanNode trait
             PlanNodeEnum::Start(node) => node.set_output_var(var),

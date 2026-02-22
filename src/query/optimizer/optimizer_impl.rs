@@ -10,6 +10,7 @@
 
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::query::context::QueryContext;
 use crate::query::optimizer::core::config::{OptimizationConfig, OptimizationStats};
@@ -151,21 +152,28 @@ impl Optimizer {
     }
 
     /// 查找最优执行计划
+    ///
+    /// # 重构变更
+    /// - 接收 Arc<QueryContext> 替代 &mut QueryContext
     pub fn find_best_plan(
         &mut self,
-        query_context: &mut QueryContext,
+        query_context: Arc<QueryContext>,
         plan: ExecutionPlan,
     ) -> Result<ExecutionPlan, OptimizerError> {
         self.optimize(plan, query_context)
     }
 
     /// 执行优化流程
+    ///
+    /// # 重构变更
+    /// - 接收 Arc<QueryContext> 替代 &mut QueryContext
+    /// - 不再克隆 QueryContext，直接使用 Arc 共享
     pub fn optimize(
         &mut self,
         plan: ExecutionPlan,
-        query_context: &mut QueryContext,
+        query_context: Arc<QueryContext>,
     ) -> Result<ExecutionPlan, OptimizerError> {
-        let mut opt_ctx = OptContext::new(query_context.clone());
+        let mut opt_ctx = OptContext::new(query_context);
 
         let root_opt_node = self.build_initial_opt_group(&plan, &mut opt_ctx)?;
 
@@ -182,14 +190,18 @@ impl Optimizer {
     }
 
     /// 执行优化并返回统计信息
+    ///
+    /// # 重构变更
+    /// - 接收 Arc<QueryContext> 替代 &mut QueryContext
+    /// - 不再克隆 QueryContext，直接使用 Arc 共享
     pub fn optimize_with_stats(
         &mut self,
         plan: ExecutionPlan,
-        query_context: &mut QueryContext,
+        query_context: Arc<QueryContext>,
     ) -> Result<(ExecutionPlan, OptimizationStats), OptimizerError> {
-        let mut opt_ctx = OptContext::new(query_context.clone());
+        let mut opt_ctx = OptContext::new(query_context);
         let mut stats = OptimizationStats::default();
-        
+
         stats.plan_nodes_before = self.count_nodes(&plan);
 
         let root_opt_node = self.build_initial_opt_group(&plan, &mut opt_ctx)?;

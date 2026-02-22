@@ -4,7 +4,7 @@
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::{Expression, Value, NullType};
-use crate::query::context::ast::AstContext;
+use crate::query::context::QueryContext;
 use crate::query::parser::ast::stmt::InsertTarget;
 use crate::query::parser::ast::Stmt;
 use crate::query::validator::validator_trait::{
@@ -252,11 +252,18 @@ impl Default for InsertEdgesValidator {
     }
 }
 
+/// 实现 StatementValidator trait
+///
+/// # 重构变更
+/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
 impl StatementValidator for InsertEdgesValidator {
-    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError> {
+    fn validate(
+        &mut self,
+        stmt: &Stmt,
+        qctx: Arc<QueryContext>,
+    ) -> Result<ValidationResult, ValidationError> {
         // 1. 检查是否需要空间
-        let query_context = ast.query_context();
-        if !self.is_global_statement() && query_context.is_none() {
+        if !self.is_global_statement() && qctx.space_id().is_none() {
             return Err(ValidationError::new(
                 "未选择图空间，请先执行 USE <space>".to_string(),
                 ValidationErrorType::SemanticError,
@@ -264,12 +271,6 @@ impl StatementValidator for InsertEdgesValidator {
         }
 
         // 2. 获取 INSERT 语句
-        let stmt = ast.sentence()
-            .ok_or_else(|| ValidationError::new(
-                "No statement found in AST context".to_string(),
-                ValidationErrorType::SemanticError,
-            ))?;
-
         let insert_stmt = match stmt {
             Stmt::Insert(insert_stmt) => insert_stmt,
             _ => {
@@ -326,7 +327,7 @@ impl StatementValidator for InsertEdgesValidator {
         }
 
         // 7. 获取 space_id
-        let space_id = ast.space().space_id.map(|id| id as u64).unwrap_or(0);
+        let space_id = qctx.space_id().unwrap_or(0);
 
         // 8. 创建验证结果
         let validated = ValidatedInsertEdges {
@@ -382,6 +383,7 @@ mod tests {
     use crate::core::Expression;
     use crate::query::parser::ast::stmt::InsertStmt;
     use crate::query::parser::ast::Span;
+    use std::sync::Arc;
 
     fn create_insert_edge_stmt(
         edge_name: String,
@@ -414,10 +416,8 @@ mod tests {
             vec![Expression::literal("value")],
         );
 
-        let mut ast = AstContext::default();
-        ast.set_sentence(Stmt::Insert(stmt));
-
-        let result = validator.validate(&mut ast);
+        let qctx = Arc::new(QueryContext::default());
+        let result = validator.validate(&Stmt::Insert(stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert_eq!(err.message, "Edge type name cannot be empty");
@@ -435,10 +435,8 @@ mod tests {
             vec![Expression::literal("val1"), Expression::literal("val2")],
         );
 
-        let mut ast = AstContext::default();
-        ast.set_sentence(Stmt::Insert(stmt));
-
-        let result = validator.validate(&mut ast);
+        let qctx = Arc::new(QueryContext::default());
+        let result = validator.validate(&Stmt::Insert(stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("Duplicate property name"));
@@ -456,10 +454,8 @@ mod tests {
             vec![Expression::literal("val1")],
         );
 
-        let mut ast = AstContext::default();
-        ast.set_sentence(Stmt::Insert(stmt));
-
-        let result = validator.validate(&mut ast);
+        let qctx = Arc::new(QueryContext::default());
+        let result = validator.validate(&Stmt::Insert(stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("Value count mismatch"));
@@ -477,10 +473,8 @@ mod tests {
             vec![],
         );
 
-        let mut ast = AstContext::default();
-        ast.set_sentence(Stmt::Insert(stmt));
-
-        let result = validator.validate(&mut ast);
+        let qctx = Arc::new(QueryContext::default());
+        let result = validator.validate(&Stmt::Insert(stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("source vertex ID cannot be empty"));
@@ -498,10 +492,8 @@ mod tests {
             vec![],
         );
 
-        let mut ast = AstContext::default();
-        ast.set_sentence(Stmt::Insert(stmt));
-
-        let result = validator.validate(&mut ast);
+        let qctx = Arc::new(QueryContext::default());
+        let result = validator.validate(&Stmt::Insert(stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("destination vertex ID cannot be empty"));
@@ -519,10 +511,8 @@ mod tests {
             vec![],
         );
 
-        let mut ast = AstContext::default();
-        ast.set_sentence(Stmt::Insert(stmt));
-
-        let result = validator.validate(&mut ast);
+        let qctx = Arc::new(QueryContext::default());
+        let result = validator.validate(&Stmt::Insert(stmt), qctx);
         assert!(result.is_ok());
     }
 
@@ -538,10 +528,8 @@ mod tests {
             vec![],
         );
 
-        let mut ast = AstContext::default();
-        ast.set_sentence(Stmt::Insert(stmt));
-
-        let result = validator.validate(&mut ast);
+        let qctx = Arc::new(QueryContext::default());
+        let result = validator.validate(&Stmt::Insert(stmt), qctx);
         assert!(result.is_ok());
     }
 
@@ -557,10 +545,8 @@ mod tests {
             vec![],
         );
 
-        let mut ast = AstContext::default();
-        ast.set_sentence(Stmt::Insert(stmt));
-
-        let result = validator.validate(&mut ast);
+        let qctx = Arc::new(QueryContext::default());
+        let result = validator.validate(&Stmt::Insert(stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("source vertex ID must be a string constant or variable"));
@@ -578,10 +564,8 @@ mod tests {
             vec![],
         );
 
-        let mut ast = AstContext::default();
-        ast.set_sentence(Stmt::Insert(stmt));
-
-        let result = validator.validate(&mut ast);
+        let qctx = Arc::new(QueryContext::default());
+        let result = validator.validate(&Stmt::Insert(stmt), qctx);
         assert!(result.is_ok());
     }
 
@@ -597,10 +581,8 @@ mod tests {
             vec![],
         );
 
-        let mut ast = AstContext::default();
-        ast.set_sentence(Stmt::Insert(stmt));
-
-        let result = validator.validate(&mut ast);
+        let qctx = Arc::new(QueryContext::default());
+        let result = validator.validate(&Stmt::Insert(stmt), qctx);
         assert!(result.is_ok());
     }
 
@@ -616,10 +598,8 @@ mod tests {
             vec![],
         );
 
-        let mut ast = AstContext::default();
-        ast.set_sentence(Stmt::Insert(stmt));
-
-        let result = validator.validate(&mut ast);
+        let qctx = Arc::new(QueryContext::default());
+        let result = validator.validate(&Stmt::Insert(stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("Rank must be an integer constant or variable"));
@@ -637,10 +617,8 @@ mod tests {
             vec![Expression::literal(2020), Expression::literal("best")],
         );
 
-        let mut ast = AstContext::default();
-        ast.set_sentence(Stmt::Insert(stmt));
-
-        let result = validator.validate(&mut ast);
+        let qctx = Arc::new(QueryContext::default());
+        let result = validator.validate(&Stmt::Insert(stmt), qctx);
         assert!(result.is_ok());
     }
 
@@ -656,13 +634,11 @@ mod tests {
             if_not_exists: false,
         };
 
-        let mut ast = AstContext::default();
-        ast.set_sentence(Stmt::Insert(stmt));
-
-        let result = validator.validate(&mut ast);
+        let qctx = Arc::new(QueryContext::default());
+        let result = validator.validate(&Stmt::Insert(stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
-        assert_eq!(err.message, "Expected INSERT EDGES but got INSERT VERTICES");
+        assert!(err.message.contains("Expected INSERT EDGES but got INSERT VERTICES"));
     }
 
     #[test]

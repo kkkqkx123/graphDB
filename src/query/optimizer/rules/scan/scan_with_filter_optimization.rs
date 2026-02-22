@@ -12,6 +12,7 @@ use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::query::optimizer::rule_traits::BaseOptRule;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::Arc;
 
 /// 优化带过滤条件的扫描操作的规则
 #[derive(Debug)]
@@ -58,7 +59,7 @@ mod tests {
     use crate::query::planner::plan::PlanNodeEnum;
 
     fn create_test_context() -> OptContext {
-        let query_context = QueryContext::new();
+        let query_context = Arc::new(QueryContext::default());
         OptContext::new(query_context)
     }
 

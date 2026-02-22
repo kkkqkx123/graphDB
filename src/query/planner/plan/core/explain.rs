@@ -229,7 +229,7 @@ impl DescribeVisitor {
     fn create_description<T: PlanNode>(&mut self, name: &'static str, node: &T) {
         let mut desc = PlanNodeDescription::new(name, node.id());
         if let Some(var) = node.output_var() {
-            desc = desc.with_output_var(var.name.clone());
+            desc = desc.with_output_var(var.to_string());
         }
         desc.add_description("cost", format!("{:.2}", node.cost()));
         self.descriptions.push(desc);

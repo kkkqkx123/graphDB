@@ -2,13 +2,13 @@
 //! 对应 NebulaGraph LimitValidator.h/.cpp 的功能
 //! 验证 LIMIT 和 SKIP 子句的表达式
 
+use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::Expression;
-use crate::query::context::ast::AstContext;
+use crate::query::context::QueryContext;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
-use std::sync::Arc;
 use crate::storage::metadata::schema_manager::SchemaManager;
 
 /// 验证后的 LIMIT 信息
@@ -183,11 +183,18 @@ impl Default for LimitValidator {
     }
 }
 
+/// 实现 StatementValidator trait
+///
+/// # 重构变更
+/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
 impl StatementValidator for LimitValidator {
-    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError> {
+    fn validate(
+        &mut self,
+        _stmt: &crate::query::parser::ast::Stmt,
+        qctx: Arc<QueryContext>,
+    ) -> Result<ValidationResult, ValidationError> {
         // 1. 检查是否需要空间
-        let query_context = ast.query_context();
-        if !self.is_global_statement() && query_context.is_none() {
+        if !self.is_global_statement() && qctx.space_id().is_none() {
             return Err(ValidationError::new(
                 "未选择图空间，请先执行 USE <space>".to_string(),
                 ValidationErrorType::SemanticError,
@@ -211,7 +218,7 @@ impl StatementValidator for LimitValidator {
         self.validate_count(self.count)?;
 
         // 7. 获取 space_id
-        let space_id = ast.space().space_id.map(|id| id as u64).unwrap_or(0);
+        let space_id = qctx.space_id().unwrap_or(0);
 
         // 8. 创建验证结果
         let validated = ValidatedLimit {
@@ -262,14 +269,19 @@ impl StatementValidator for LimitValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::query::parser::ast::Stmt;
 
     #[test]
     fn test_limit_validator_basic() {
         let mut validator = LimitValidator::new()
             .set_limit(Expression::literal(10));
 
-        let mut ast = AstContext::default();
-        let result = validator.validate(&mut ast);
+        let qctx = Arc::new(QueryContext::default());
+        let use_stmt = crate::query::parser::ast::UseStmt {
+            span: crate::core::types::Span::default(),
+            space: "test".to_string(),
+        };
+        let result = validator.validate(&Stmt::Use(use_stmt), qctx);
         assert!(result.is_ok());
 
         let validated = validator.validated_result.unwrap();
@@ -282,8 +294,12 @@ mod tests {
             .set_skip(Expression::literal(5))
             .set_limit(Expression::literal(10));
 
-        let mut ast = AstContext::default();
-        let result = validator.validate(&mut ast);
+        let qctx = Arc::new(QueryContext::default());
+        let use_stmt = crate::query::parser::ast::UseStmt {
+            span: crate::core::types::Span::default(),
+            space: "test".to_string(),
+        };
+        let result = validator.validate(&Stmt::Use(use_stmt), qctx);
         assert!(result.is_ok());
 
         let validated = validator.validated_result.unwrap();
@@ -296,8 +312,12 @@ mod tests {
         let mut validator = LimitValidator::new()
             .set_skip(Expression::literal(-1));
 
-        let mut ast = AstContext::default();
-        let result = validator.validate(&mut ast);
+        let qctx = Arc::new(QueryContext::default());
+        let use_stmt = crate::query::parser::ast::UseStmt {
+            span: crate::core::types::Span::default(),
+            space: "test".to_string(),
+        };
+        let result = validator.validate(&Stmt::Use(use_stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("cannot be negative"));
@@ -308,8 +328,12 @@ mod tests {
         let mut validator = LimitValidator::new()
             .set_limit(Expression::literal(-5));
 
-        let mut ast = AstContext::default();
-        let result = validator.validate(&mut ast);
+        let qctx = Arc::new(QueryContext::default());
+        let use_stmt = crate::query::parser::ast::UseStmt {
+            span: crate::core::types::Span::default(),
+            space: "test".to_string(),
+        };
+        let result = validator.validate(&Stmt::Use(use_stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("cannot be negative"));
@@ -321,8 +345,12 @@ mod tests {
             .set_skip(Expression::literal(0))
             .set_limit(Expression::literal(0));
 
-        let mut ast = AstContext::default();
-        let result = validator.validate(&mut ast);
+        let qctx = Arc::new(QueryContext::default());
+        let use_stmt = crate::query::parser::ast::UseStmt {
+            span: crate::core::types::Span::default(),
+            space: "test".to_string(),
+        };
+        let result = validator.validate(&Stmt::Use(use_stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("greater than zero"));
@@ -333,8 +361,12 @@ mod tests {
         let mut validator = LimitValidator::new()
             .set_limit(Expression::literal("invalid"));
 
-        let mut ast = AstContext::default();
-        let result = validator.validate(&mut ast);
+        let qctx = Arc::new(QueryContext::default());
+        let use_stmt = crate::query::parser::ast::UseStmt {
+            span: crate::core::types::Span::default(),
+            space: "test".to_string(),
+        };
+        let result = validator.validate(&Stmt::Use(use_stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("must be integer"));
@@ -355,8 +387,12 @@ mod tests {
             .set_limit(Expression::literal(10))
             .set_count(100);
 
-        let mut ast = AstContext::default();
-        let result = validator.validate(&mut ast);
+        let qctx = Arc::new(QueryContext::default());
+        let use_stmt = crate::query::parser::ast::UseStmt {
+            span: crate::core::types::Span::default(),
+            space: "test".to_string(),
+        };
+        let result = validator.validate(&Stmt::Use(use_stmt), qctx);
         assert!(result.is_ok());
 
         let validated = validator.validated_result.unwrap();

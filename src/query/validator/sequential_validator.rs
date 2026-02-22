@@ -9,11 +9,12 @@
 //!    - DDL/DML 语句顺序验证
 //!    - 变量名验证
 //!    - 最大语句数限制
-//! 3. 使用 AstContext 统一管理上下文
+//! 3. 使用 QueryContext 统一管理上下文
 
+use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::DataType;
-use crate::query::context::ast::AstContext;
+use crate::query::context::QueryContext;
 use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef,
     ExpressionProps,
@@ -251,8 +252,16 @@ impl Default for SequentialValidator {
     }
 }
 
+/// 实现 StatementValidator trait
+///
+/// # 重构变更
+/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
 impl StatementValidator for SequentialValidator {
-    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError> {
+    fn validate(
+        &mut self,
+        _stmt: &crate::query::parser::ast::Stmt,
+        _qctx: Arc<QueryContext>,
+    ) -> Result<ValidationResult, ValidationError> {
         self.clear_errors();
 
         // 执行验证
@@ -263,10 +272,6 @@ impl StatementValidator for SequentialValidator {
         // Sequential 语句的输出取决于最后一条语句
         // 这里简化处理，输出为空（实际应根据最后一条语句类型确定）
         self.outputs = Vec::new();
-
-        // 同步到 AstContext
-        ast.set_inputs(self.inputs.clone());
-        ast.set_outputs(self.outputs.clone());
 
         Ok(ValidationResult::success(
             self.inputs.clone(),

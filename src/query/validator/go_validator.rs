@@ -2,18 +2,19 @@
 //! 对应 NebulaGraph GoValidator.h/.cpp 的功能
 //! 验证 GO FROM ... OVER ... WHERE ... YIELD ... 语句
 
+use std::collections::HashMap;
+use std::sync::Arc;
+
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::{
     DataType, Expression,
 };
 use crate::core::types::EdgeDirection;
-use crate::query::context::ast::AstContext;
+use crate::query::context::QueryContext;
 use crate::query::parser::ast::Stmt;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
-use std::collections::HashMap;
-use std::sync::Arc;
 use crate::storage::metadata::schema_manager::SchemaManager;
 
 /// 验证后的 GO 语句信息
@@ -391,11 +392,18 @@ impl Default for GoValidator {
     }
 }
 
+/// 实现 StatementValidator trait
+///
+/// # 重构变更
+/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
 impl StatementValidator for GoValidator {
-    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError> {
+    fn validate(
+        &mut self,
+        stmt: &Stmt,
+        qctx: Arc<QueryContext>,
+    ) -> Result<ValidationResult, ValidationError> {
         // 1. 检查是否需要空间
-        let query_context = ast.query_context();
-        if !self.is_global_statement() && query_context.is_none() {
+        if !self.is_global_statement() && qctx.space_id().is_none() {
             return Err(ValidationError::new(
                 "未选择图空间，请先执行 USE <space>".to_string(),
                 ValidationErrorType::SemanticError,
@@ -403,12 +411,6 @@ impl StatementValidator for GoValidator {
         }
 
         // 2. 获取 GO 语句
-        let stmt = ast.sentence()
-            .ok_or_else(|| ValidationError::new(
-                "No statement found in AST context".to_string(),
-                ValidationErrorType::SemanticError,
-            ))?;
-
         let go_stmt = match stmt {
             Stmt::Go(go_stmt) => go_stmt,
             _ => {
@@ -448,7 +450,7 @@ impl StatementValidator for GoValidator {
         self.build_outputs(&yield_columns);
 
         // 9. 获取 space_id
-        let space_id = ast.space().space_id.map(|id| id as u64).unwrap_or(0);
+        let space_id = qctx.space_id().unwrap_or(0);
 
         // 10. 创建验证结果
         let validated = ValidatedGo {
@@ -503,6 +505,7 @@ mod tests {
     use crate::core::Expression;
     use crate::query::parser::ast::stmt::{GoStmt, FromClause, OverClause, Steps};
     use crate::query::parser::ast::Span;
+    use std::sync::Arc;
 
     fn create_go_stmt(from_expr: Expression, edge_types: Vec<String>) -> GoStmt {
         GoStmt {
@@ -531,10 +534,8 @@ mod tests {
             vec!["friend".to_string()],
         );
         
-        let mut ast = AstContext::default();
-        ast.set_sentence(Stmt::Go(go_stmt));
-        
-        let result = validator.validate(&mut ast);
+        let qctx = Arc::new(QueryContext::default());
+        let result = validator.validate(&Stmt::Go(go_stmt), qctx);
         assert!(result.is_ok());
     }
 
@@ -547,10 +548,8 @@ mod tests {
             vec![],
         );
 
-        let mut ast = AstContext::default();
-        ast.set_sentence(Stmt::Go(go_stmt));
-
-        let result = validator.validate(&mut ast);
+        let qctx = Arc::new(QueryContext::default());
+        let result = validator.validate(&Stmt::Go(go_stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("OVER 子句必须指定至少一条边"));
@@ -580,10 +579,8 @@ mod tests {
             sample: None,
         });
 
-        let mut ast = AstContext::default();
-        ast.set_sentence(Stmt::Go(go_stmt));
-
-        let result = validator.validate(&mut ast);
+        let qctx = Arc::new(QueryContext::default());
+        let result = validator.validate(&Stmt::Go(go_stmt), qctx);
         assert!(result.is_ok());
         
         let outputs = validator.outputs();
@@ -619,10 +616,8 @@ mod tests {
             sample: None,
         });
 
-        let mut ast = AstContext::default();
-        ast.set_sentence(Stmt::Go(go_stmt));
-
-        let result = validator.validate(&mut ast);
+        let qctx = Arc::new(QueryContext::default());
+        let result = validator.validate(&Stmt::Go(go_stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("重复出现"));

@@ -3,7 +3,6 @@
 //! 包含Union、Unwind、Dedup等数据处理相关的计划节点
 
 use crate::define_plan_node_with_deps;
-use crate::query::context::ast::Variable;
 
 define_plan_node_with_deps! {
     pub struct UnionNode {
@@ -175,7 +174,7 @@ pub struct RollUpApplyNode {
     right_input_var: Option<String>,
     compare_cols: Vec<String>,
     collect_col: Option<String>,
-    output_var: Option<Variable>,
+    output_var: Option<String>,
     col_names: Vec<String>,
     cost: f64,
 }
@@ -239,8 +238,8 @@ impl RollUpApplyNode {
         "RollUpApply"
     }
 
-    pub fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
+    pub fn output_var(&self) -> Option<&str> {
+        self.output_var.as_deref()
     }
 
     pub fn col_names(&self) -> &[String] {
@@ -265,7 +264,7 @@ impl RollUpApplyNode {
         false
     }
 
-    pub fn set_output_var(&mut self, var: Variable) {
+    pub fn set_output_var(&mut self, var: String) {
         self.output_var = Some(var);
     }
 
@@ -314,7 +313,7 @@ impl super::plan_node_traits::PlanNode for RollUpApplyNode {
         self.type_name()
     }
 
-    fn output_var(&self) -> Option<&Variable> {
+    fn output_var(&self) -> Option<&str> {
         self.output_var()
     }
 
@@ -326,7 +325,7 @@ impl super::plan_node_traits::PlanNode for RollUpApplyNode {
         self.cost()
     }
 
-    fn set_output_var(&mut self, var: Variable) {
+    fn set_output_var(&mut self, var: String) {
         self.set_output_var(var);
     }
 
@@ -377,7 +376,7 @@ pub struct PatternApplyNode {
     right_input_var: Option<String>,
     key_cols: Vec<String>,
     is_anti_predicate: bool,
-    output_var: Option<Variable>,
+    output_var: Option<String>,
     col_names: Vec<String>,
     cost: f64,
 }
@@ -441,8 +440,8 @@ impl PatternApplyNode {
         "PatternApply"
     }
 
-    pub fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
+    pub fn output_var(&self) -> Option<&str> {
+        self.output_var.as_deref()
     }
 
     pub fn col_names(&self) -> &[String] {
@@ -467,7 +466,7 @@ impl PatternApplyNode {
         false
     }
 
-    pub fn set_output_var(&mut self, var: Variable) {
+    pub fn set_output_var(&mut self, var: String) {
         self.output_var = Some(var);
     }
 
@@ -516,7 +515,7 @@ impl super::plan_node_traits::PlanNode for PatternApplyNode {
         self.type_name()
     }
 
-    fn output_var(&self) -> Option<&Variable> {
+    fn output_var(&self) -> Option<&str> {
         self.output_var()
     }
 
@@ -528,7 +527,7 @@ impl super::plan_node_traits::PlanNode for PatternApplyNode {
         self.cost()
     }
 
-    fn set_output_var(&mut self, var: Variable) {
+    fn set_output_var(&mut self, var: String) {
         self.set_output_var(var);
     }
 

@@ -34,6 +34,7 @@ use crate::query::planner::plan::core::nodes::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::Arc;
 
 /// 转换Limit-Sort为TopN的规则
 #[derive(Debug)]
@@ -133,7 +134,7 @@ mod tests {
     use crate::query::planner::plan::core::nodes::{LimitNode, SortNode, SortItem};
 
     fn create_test_context() -> OptContext {
-        let query_context = QueryContext::new();
+        let query_context = Arc::new(QueryContext::default());
         OptContext::new(query_context)
     }
 

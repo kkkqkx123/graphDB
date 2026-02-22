@@ -2,7 +2,8 @@
 //!
 //! 处理 INSERT VERTEX 和 INSERT EDGE 语句的查询规划
 
-use crate::query::context::ast::AstContext;
+use std::sync::Arc;
+use crate::query::context::QueryContext;
 use crate::query::parser::ast::{InsertStmt, InsertTarget, Stmt, VertexRow};
 use crate::query::planner::plan::core::{
     node_id_generator::next_node_id,
@@ -32,9 +33,9 @@ impl InsertPlanner {
         Box::new(Self::new())
     }
 
-    /// 检查 AST 上下文是否匹配插入操作
-    pub fn match_ast_ctx(ast_ctx: &AstContext) -> bool {
-        matches!(ast_ctx.sentence(), Some(Stmt::Insert(_)))
+    /// 检查语句是否匹配插入操作
+    pub fn match_stmt(stmt: &Stmt) -> bool {
+        matches!(stmt, Stmt::Insert(_))
     }
 
     /// 获取匹配和实例化函数（静态注册版本）
@@ -42,12 +43,12 @@ impl InsertPlanner {
         crate::query::planner::planner::MatchAndInstantiateEnum::Insert(Self::new())
     }
 
-    /// 从 AstContext 提取 InsertStmt
-    fn extract_insert_stmt(&self, ast_ctx: &AstContext) -> Result<InsertStmt, PlannerError> {
-        match ast_ctx.sentence() {
-            Some(Stmt::Insert(insert_stmt)) => Ok(insert_stmt.clone()),
+    /// 从 Stmt 提取 InsertStmt
+    fn extract_insert_stmt(&self, stmt: &Stmt) -> Result<InsertStmt, PlannerError> {
+        match stmt {
+            Stmt::Insert(insert_stmt) => Ok(insert_stmt.clone()),
             _ => Err(PlannerError::PlanGenerationFailed(
-                "AST 上下文中不包含 INSERT 语句".to_string(),
+                "语句不是 INSERT 语句".to_string(),
             )),
         }
     }
@@ -112,12 +113,16 @@ impl InsertPlanner {
 }
 
 impl Planner for InsertPlanner {
-    fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
+    fn transform(
+        &mut self,
+        stmt: &Stmt,
+        qctx: Arc<QueryContext>,
+    ) -> Result<SubPlan, PlannerError> {
         // 获取空间名称
-        let space_name = ast_ctx.space().space_name.clone();
+        let space_name = qctx.space_name().unwrap_or_default();
 
         // 提取 INSERT 语句
-        let insert_stmt = self.extract_insert_stmt(ast_ctx)?;
+        let insert_stmt = self.extract_insert_stmt(stmt)?;
 
         // 创建参数节点
         let arg_node = ArgumentNode::new(next_node_id(), "insert_args");
@@ -171,8 +176,8 @@ impl Planner for InsertPlanner {
         Ok(sub_plan)
     }
 
-    fn match_planner(&self, ast_ctx: &AstContext) -> bool {
-        Self::match_ast_ctx(ast_ctx)
+    fn match_planner(&self, stmt: &Stmt) -> bool {
+        Self::match_stmt(stmt)
     }
 }
 
@@ -185,9 +190,10 @@ impl Default for InsertPlanner {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Arc;
     use crate::core::Value;
-    use crate::query::context::ast::{AstContext, SpaceInfo};
-    use crate::query::parser::ast::{InsertStmt, InsertTarget, Span, TagInsertSpec, VertexRow};
+    use crate::query::context::QueryContext;
+    use crate::query::parser::ast::{InsertStmt, InsertTarget, Span, TagInsertSpec, VertexRow, Stmt};
 
     // 辅助函数：创建常量表达式
     fn lit(val: Value) -> Expression {
@@ -199,24 +205,23 @@ mod tests {
         Span::new(Position::new(1, 1), Position::new(1, 1))
     }
 
-    fn create_test_ast_ctx_with_insert(target: InsertTarget) -> AstContext {
+    fn create_test_stmt_with_insert(target: InsertTarget) -> Stmt {
         let insert_stmt = InsertStmt {
             span: create_test_span(),
             target,
             if_not_exists: false,
         };
-        let mut ctx = AstContext::new(None, Some(Stmt::Insert(insert_stmt)));
-        ctx.set_space(SpaceInfo {
-            space_name: "test_space".to_string(),
-            ..Default::default()
-        });
-        ctx
+        Stmt::Insert(insert_stmt)
+    }
+
+    fn create_test_qctx() -> Arc<QueryContext> {
+        Arc::new(QueryContext::default())
     }
 
     #[test]
     fn test_insert_planner_new() {
         let planner = InsertPlanner::new();
-        assert!(planner.match_planner(&create_test_ast_ctx_with_insert(InsertTarget::Vertices {
+        let stmt = create_test_stmt_with_insert(InsertTarget::Vertices {
             tags: vec![
                 TagInsertSpec {
                     tag_name: "person".to_string(),
@@ -235,12 +240,13 @@ mod tests {
                     ],
                 },
             ],
-        })));
+        });
+        assert!(planner.match_planner(&stmt));
     }
 
     #[test]
-    fn test_match_ast_ctx_with_insert() {
-        let ctx = create_test_ast_ctx_with_insert(InsertTarget::Vertices {
+    fn test_match_stmt_with_insert() {
+        let stmt = create_test_stmt_with_insert(InsertTarget::Vertices {
             tags: vec![
                 TagInsertSpec {
                     tag_name: "person".to_string(),
@@ -250,13 +256,16 @@ mod tests {
             ],
             values: vec![],
         });
-        assert!(InsertPlanner::match_ast_ctx(&ctx));
+        assert!(InsertPlanner::match_stmt(&stmt));
     }
 
     #[test]
-    fn test_match_ast_ctx_without_insert() {
-        let ctx = AstContext::new(None, None);
-        assert!(!InsertPlanner::match_ast_ctx(&ctx));
+    fn test_match_stmt_without_insert() {
+        let stmt = Stmt::Use(crate::query::parser::ast::UseStmt {
+            span: create_test_span(),
+            space: "test_space".to_string(),
+        });
+        assert!(!InsertPlanner::match_stmt(&stmt));
     }
 
     #[test]
@@ -272,21 +281,24 @@ mod tests {
             ],
             values: vec![],
         };
-        let ctx = create_test_ast_ctx_with_insert(target.clone());
-        let result = planner.extract_insert_stmt(&ctx).expect("Failed to extract insert statement");
+        let stmt = create_test_stmt_with_insert(target.clone());
+        let result = planner.extract_insert_stmt(&stmt).expect("Failed to extract insert statement");
         assert_eq!(result.target, target);
     }
 
     #[test]
     fn test_extract_insert_stmt_failure() {
         let planner = InsertPlanner::new();
-        let ctx = AstContext::new(None, None);
-        let result = planner.extract_insert_stmt(&ctx);
+        let stmt = Stmt::Use(crate::query::parser::ast::UseStmt {
+            span: create_test_span(),
+            space: "test_space".to_string(),
+        });
+        let result = planner.extract_insert_stmt(&stmt);
         assert!(result.is_err());
         assert!(result
             .unwrap_err()
             .to_string()
-            .contains("不包含 INSERT 语句"));
+            .contains("不是 INSERT 语句"));
     }
 
     #[test]
@@ -370,8 +382,9 @@ mod tests {
                 },
             ],
         };
-        let ctx = create_test_ast_ctx_with_insert(target);
-        let result = planner.transform(&ctx);
+        let stmt = create_test_stmt_with_insert(target);
+        let qctx = create_test_qctx();
+        let result = planner.transform(&stmt, qctx);
         assert!(result.is_ok());
         let sub_plan = result.expect("Failed to transform insert statement");
         assert!(sub_plan.root.is_some());
@@ -390,8 +403,9 @@ mod tests {
                 vec![lit(Value::String("2023".to_string()))],
             )],
         };
-        let ctx = create_test_ast_ctx_with_insert(target);
-        let result = planner.transform(&ctx);
+        let stmt = create_test_stmt_with_insert(target);
+        let qctx = create_test_qctx();
+        let result = planner.transform(&stmt, qctx);
         assert!(result.is_ok());
         let sub_plan = result.expect("Failed to transform insert statement");
         assert!(sub_plan.root.is_some());
@@ -400,15 +414,19 @@ mod tests {
     #[test]
     fn test_transform_without_insert_stmt() {
         let mut planner = InsertPlanner::new();
-        let ctx = AstContext::new(None, None);
-        let result = planner.transform(&ctx);
+        let stmt = Stmt::Use(crate::query::parser::ast::UseStmt {
+            span: create_test_span(),
+            space: "test_space".to_string(),
+        });
+        let qctx = create_test_qctx();
+        let result = planner.transform(&stmt, qctx);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_default_impl() {
         let planner: InsertPlanner = Default::default();
-        let ctx = create_test_ast_ctx_with_insert(InsertTarget::Vertices {
+        let stmt = create_test_stmt_with_insert(InsertTarget::Vertices {
             tags: vec![
                 TagInsertSpec {
                     tag_name: "test".to_string(),
@@ -418,6 +436,6 @@ mod tests {
             ],
             values: vec![],
         });
-        assert!(planner.match_planner(&ctx));
+        assert!(planner.match_planner(&stmt));
     }
 }

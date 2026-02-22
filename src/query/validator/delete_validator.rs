@@ -18,7 +18,7 @@ use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::{Expression, Value};
-use crate::query::context::ast::AstContext;
+use crate::query::context::QueryContext;
 use crate::query::parser::ast::stmt::{DeleteStmt, DeleteTarget};
 use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
@@ -406,11 +406,18 @@ impl Default for DeleteValidator {
     }
 }
 
+/// 实现 StatementValidator trait
+///
+/// # 重构变更
+/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
 impl StatementValidator for DeleteValidator {
-    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError> {
+    fn validate(
+        &mut self,
+        stmt: &crate::query::parser::ast::Stmt,
+        qctx: Arc<QueryContext>,
+    ) -> Result<ValidationResult, ValidationError> {
         // 1. 检查是否需要空间
-        let query_context = ast.query_context();
-        if !self.is_global_statement() && query_context.is_none() {
+        if !self.is_global_statement() && qctx.space_id().is_none() {
             return Err(ValidationError::new(
                 "未选择图空间，请先执行 USE <space>".to_string(),
                 ValidationErrorType::SemanticError,
@@ -418,12 +425,6 @@ impl StatementValidator for DeleteValidator {
         }
 
         // 2. 获取 DELETE 语句
-        let stmt = ast.sentence()
-            .ok_or_else(|| ValidationError::new(
-                "No statement found in AST context".to_string(),
-                ValidationErrorType::SemanticError,
-            ))?;
-
         let delete_stmt = match stmt {
             crate::query::parser::ast::Stmt::Delete(delete_stmt) => delete_stmt,
             _ => {
@@ -438,7 +439,7 @@ impl StatementValidator for DeleteValidator {
         self.validate_delete(delete_stmt)?;
 
         // 4. 获取 space_id
-        let space_id = ast.space().space_id.map(|id| id as u64).unwrap_or(0);
+        let space_id = qctx.space_id().unwrap_or(0);
 
         // 5. 验证并转换目标
         let target_type = self.validate_and_convert_target(&delete_stmt.target, space_id)?;

@@ -12,14 +12,14 @@
 //!    - 权限检查
 //!    - 执行计划生成
 //! 3. 移除了生命周期参数，使用 Arc 管理 SchemaManager
-//! 4. 使用 AstContext 统一管理上下文
+//! 4. 使用 QueryContext 统一管理上下文
 
 use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::EdgeDirection;
 use crate::core::Value;
-use crate::query::context::ast::AstContext;
+use crate::query::context::QueryContext;
 use crate::storage::metadata::schema_manager::SchemaManager;
 use crate::query::parser::ast::stmt::{CreateStmt, CreateTarget};
 use crate::query::parser::ast::pattern::{Pattern, NodePattern, EdgePattern, PathPattern, PathElement};
@@ -505,46 +505,8 @@ impl CreateValidator {
         }
     }
 
-    /// 检查是否已选择空间（参考 base_validator.rs）
-    fn space_chosen_in_ast(&self, ast: &AstContext) -> bool {
-        ast.space().space_id.is_some()
-    }
-
-    /// 判断是否为全局语句（参考 base_validator.rs）
-    /// 
-    /// 对于 CREATE 语句：
-    /// - CREATE SPACE: 是全局语句，不需要预先选择空间
-    /// - CREATE TAG/EDGE/INDEX/Node/Edge/Path: 不是全局语句，需要预先选择空间
-    fn is_global_statement_internal(&self, ast: &AstContext) -> bool {
-        if let Some(ref stmt) = ast.sentence() {
-            if let crate::query::parser::ast::Stmt::Create(create_stmt) = stmt {
-                if let CreateTarget::Space { .. } = create_stmt.target {
-                    return true;
-                }
-            }
-        }
-        false
-    }
-
     /// 验证具体语句（参考 base_validator.rs 的 validate_impl）
-    fn validate_impl(&mut self, ast: &mut AstContext) -> Result<(), ValidationError> {
-        // 获取 CREATE 语句
-        let stmt = ast.sentence()
-            .ok_or_else(|| ValidationError::new(
-                "AST上下文中未找到语句".to_string(),
-                ValidationErrorType::SemanticError,
-            ))?;
-
-        let create_stmt = match stmt {
-            crate::query::parser::ast::Stmt::Create(create_stmt) => create_stmt,
-            _ => {
-                return Err(ValidationError::new(
-                    "预期CREATE语句".to_string(),
-                    ValidationErrorType::SemanticError,
-                ));
-            }
-        };
-
+    fn validate_impl(&mut self, create_stmt: &CreateStmt, space_name: &str) -> Result<(), ValidationError> {
         // 根据 CreateTarget 类型处理
         match &create_stmt.target {
             // CREATE SPACE: 是全局语句，不需要空间
@@ -565,7 +527,6 @@ impl CreateValidator {
             }
             // CREATE Node/Edge/Path: 需要空间，执行 DML 验证
             CreateTarget::Node { .. } | CreateTarget::Edge { .. } | CreateTarget::Path { .. } => {
-                let space_name = ast.space().space_name.clone();
                 if space_name.is_empty() {
                     return Err(ValidationError::new(
                         "CREATE 语句需要预先选择图空间，请先执行 USE <space_name>".to_string(),
@@ -574,7 +535,7 @@ impl CreateValidator {
                 }
 
                 // 执行验证
-                let result = self.validate_create(create_stmt, &space_name)?;
+                let result = self.validate_create(create_stmt, space_name)?;
 
                 // 设置输出列 - 根据实际类型设置
                 self.outputs.clear();
@@ -623,8 +584,15 @@ impl Default for CreateValidator {
 /// 3. 权限检查（check_permission）
 /// 4. 生成执行计划（to_plan）
 /// 5. 同步输入/输出到 AstContext
+///
+/// # 重构变更
+/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
 impl StatementValidator for CreateValidator {
-    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError> {
+    fn validate(
+        &mut self,
+        stmt: &crate::query::parser::ast::Stmt,
+        qctx: Arc<QueryContext>,
+    ) -> Result<ValidationResult, ValidationError> {
         // 清空之前的状态
         self.outputs.clear();
         self.inputs.clear();
@@ -633,17 +601,36 @@ impl StatementValidator for CreateValidator {
         self.clear_errors();
         self.no_space_required = false;
 
+        // 获取 CREATE 语句
+        let create_stmt = match stmt {
+            crate::query::parser::ast::Stmt::Create(create_stmt) => create_stmt,
+            _ => {
+                return Err(ValidationError::new(
+                    "预期CREATE语句".to_string(),
+                    ValidationErrorType::SemanticError,
+                ));
+            }
+        };
+
         // 步骤 1: 检查是否需要空间
-        let is_global = self.is_global_statement_internal(ast);
-        if !is_global && !self.space_chosen_in_ast(ast) {
+        let is_global = match &create_stmt.target {
+            CreateTarget::Space { .. } => true,
+            _ => false,
+        };
+
+        if !is_global && qctx.space_id().is_none() {
             return Err(ValidationError::new(
                 "未选择图空间。请先执行 `USE <space>` 选择图空间。".to_string(),
                 ValidationErrorType::SemanticError,
             ));
         }
 
-        // 步骤 2: 执行具体验证逻辑
-        if let Err(e) = self.validate_impl(ast) {
+        // 步骤 2: 获取空间名称
+        let space_name = qctx.space_name()
+            .unwrap_or_default();
+
+        // 步骤 3: 执行具体验证逻辑
+        if let Err(e) = self.validate_impl(create_stmt, &space_name) {
             self.add_error(e);
         }
 
@@ -651,14 +638,6 @@ impl StatementValidator for CreateValidator {
         if self.has_errors() {
             let errors = self.validation_errors.clone();
             return Ok(ValidationResult::failure(errors));
-        }
-
-        // 步骤 3: 同步输入/输出到 AstContext
-        for output in &self.outputs {
-            ast.add_output(output.name.clone(), output.type_.clone());
-        }
-        for input in &self.inputs {
-            ast.add_input(input.name.clone(), input.type_.clone());
         }
 
         // 返回成功的验证结果

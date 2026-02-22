@@ -18,6 +18,7 @@ use crate::query::planner::plan::core::nodes::{
 };
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::Arc;
 
 /// 连接优化规则
 ///
@@ -345,7 +346,7 @@ mod tests {
     };
 
     fn create_test_context() -> OptContext {
-        let query_context = QueryContext::new();
+        let query_context = Arc::new(QueryContext::default());
         OptContext::new(query_context)
     }
 

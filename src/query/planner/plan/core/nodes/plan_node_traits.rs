@@ -1,10 +1,12 @@
 //! PlanNode 统一特征定义
 //!
 //! 定义所有计划节点需要实现的基础特征
+//!
+//! # 重构变更
+//! - 移除对 ast::Variable 的依赖，使用 String 替代
 
 use crate::core::error::PlanNodeVisitError;
 use crate::core::Expression;
-use crate::query::context::ast::Variable;
 
 /// PlanNode 基础特征
 pub trait PlanNode {
@@ -14,8 +16,8 @@ pub trait PlanNode {
     /// 获取节点类型的名称
     fn name(&self) -> &'static str;
 
-    /// 获取节点的输出变量
-    fn output_var(&self) -> Option<&Variable>;
+    /// 获取节点的输出变量名
+    fn output_var(&self) -> Option<&str>;
 
     /// 获取列名列表
     fn col_names(&self) -> &[String];
@@ -23,8 +25,8 @@ pub trait PlanNode {
     /// 获取节点的成本估计值
     fn cost(&self) -> f64;
 
-    /// 设置节点的输出变量
-    fn set_output_var(&mut self, var: Variable);
+    /// 设置节点的输出变量名
+    fn set_output_var(&mut self, var: String);
 
     /// 设置列名
     fn set_col_names(&mut self, names: Vec<String>);
@@ -43,7 +45,7 @@ impl<T: PlanNode + ?Sized> PlanNode for &T {
         (**self).name()
     }
 
-    fn output_var(&self) -> Option<&Variable> {
+    fn output_var(&self) -> Option<&str> {
         (**self).output_var()
     }
 
@@ -55,7 +57,7 @@ impl<T: PlanNode + ?Sized> PlanNode for &T {
         (**self).cost()
     }
 
-    fn set_output_var(&mut self, _var: Variable) {
+    fn set_output_var(&mut self, _var: String) {
         panic!("无法通过引用修改输出变量")
     }
 

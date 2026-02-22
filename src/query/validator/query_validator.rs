@@ -2,8 +2,9 @@
 //! 用于验证顶层查询语句（QueryStmt）
 //! Query 语句是一个包装器，包含实际的查询语句
 
+use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::query::context::ast::AstContext;
+use crate::query::context::QueryContext;
 use crate::query::parser::ast::stmt::QueryStmt;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult,
@@ -75,27 +76,37 @@ impl Default for QueryValidator {
     }
 }
 
+/// 实现 StatementValidator trait
+///
+/// # 重构变更
+/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
 impl StatementValidator for QueryValidator {
-    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError> {
-        let stmt = ast.sentence.as_ref()
-            .and_then(|s| s.as_query())
-            .ok_or_else(|| ValidationError::new(
-                "Expected QUERY statement".to_string(),
-                ValidationErrorType::SemanticError,
-            ))?;
+    fn validate(
+        &mut self,
+        stmt: &crate::query::parser::ast::Stmt,
+        qctx: Arc<QueryContext>,
+    ) -> Result<ValidationResult, ValidationError> {
+        let query_stmt = match stmt {
+            crate::query::parser::ast::Stmt::Query(query_stmt) => query_stmt,
+            _ => {
+                return Err(ValidationError::new(
+                    "Expected QUERY statement".to_string(),
+                    ValidationErrorType::SemanticError,
+                ));
+            }
+        };
 
-        self.validate_impl(stmt)?;
+        self.validate_impl(query_stmt)?;
 
         // 验证内部语句
         if let Some(ref mut inner) = self.inner_validator {
             // 目前只支持单语句查询，使用第一个语句
-            let first_stmt = stmt.statements.first()
+            let first_stmt = query_stmt.statements.first()
                 .ok_or_else(|| ValidationError::new(
                     "Query must contain at least one statement".to_string(),
                     ValidationErrorType::SemanticError,
                 ))?;
-            let mut inner_ast = AstContext::new(ast.qctx.clone(), Some(first_stmt.clone()));
-            let result = inner.validate(&mut inner_ast)?;
+            let result = inner.validate(first_stmt, qctx.clone())?;
 
             // 复制内部验证器的输入/输出
             self.inputs = result.inputs.clone();

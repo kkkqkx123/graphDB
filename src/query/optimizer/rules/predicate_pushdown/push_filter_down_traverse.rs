@@ -146,7 +146,7 @@ impl OptRule for PushFilterDownTraverseRule {
             new_traverse_group_node.dependencies = child_ref.dependencies.clone();
 
             if let Some(output_var) = node_ref.plan_node.output_var() {
-                new_traverse_group_node.plan_node.set_output_var(output_var.clone());
+                new_traverse_group_node.plan_node.set_output_var(output_var.to_string());
             }
 
             result.add_new_group_node(Rc::new(RefCell::new(new_traverse_group_node)));

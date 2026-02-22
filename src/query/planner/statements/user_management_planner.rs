@@ -1,11 +1,12 @@
 //! 用户管理规划器
 //! 处理用户管理相关的查询规划（CREATE USER、ALTER USER、DROP USER、CHANGE PASSWORD）
 
-use crate::query::context::ast::AstContext;
+use crate::query::context::QueryContext;
 use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::core::{ArgumentNode, PlanNodeEnum};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
+use std::sync::Arc;
 
 /// 用户管理规划器
 /// 负责将用户管理操作转换为执行计划
@@ -16,26 +17,14 @@ impl UserManagementPlanner {
     pub fn new() -> Self {
         Self
     }
-
-    pub fn match_ast_ctx(ast_ctx: &AstContext) -> bool {
-        let stmt_type = ast_ctx.statement_type().to_uppercase();
-        stmt_type == "CREATE_USER"
-            || stmt_type == "ALTER_USER"
-            || stmt_type == "DROP_USER"
-            || stmt_type == "CHANGE_PASSWORD"
-    }
-
-    pub fn get_match_and_instantiate() -> crate::query::planner::planner::MatchAndInstantiateEnum {
-        crate::query::planner::planner::MatchAndInstantiateEnum::UserManagement(Self::new())
-    }
 }
 
 impl Planner for UserManagementPlanner {
-    fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
-        let stmt = ast_ctx.sentence().ok_or_else(|| {
-            PlannerError::PlanGenerationFailed("No statement found in AST context".to_string())
-        })?;
-
+    fn transform(
+        &mut self,
+        stmt: &Stmt,
+        _qctx: Arc<QueryContext>,
+    ) -> Result<SubPlan, PlannerError> {
         let arg_node = ArgumentNode::new(1, "user_management_args");
 
         let final_node = match stmt {
@@ -96,8 +85,13 @@ impl Planner for UserManagementPlanner {
         Ok(sub_plan)
     }
 
-    fn match_planner(&self, ast_ctx: &AstContext) -> bool {
-        Self::match_ast_ctx(ast_ctx)
+    fn match_planner(&self, stmt: &Stmt) -> bool {
+        matches!(stmt,
+            Stmt::CreateUser(_) |
+            Stmt::AlterUser(_) |
+            Stmt::DropUser(_) |
+            Stmt::ChangePassword(_)
+        )
     }
 }
 

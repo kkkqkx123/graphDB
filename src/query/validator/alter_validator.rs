@@ -7,9 +7,10 @@
 //! 2. ALTER SPACE 是全局语句，其他 ALTER 需要选择空间
 //! 3. 验证属性修改的合法性（添加、删除、修改）
 
+use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::PropertyDef;
-use crate::query::context::ast::AstContext;
+use crate::query::context::QueryContext;
 use crate::query::parser::ast::stmt::{AlterStmt, AlterTarget, PropertyChange};
 use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
@@ -290,16 +291,27 @@ impl AlterValidator {
     }
 }
 
+/// 实现 StatementValidator trait
+///
+/// # 重构变更
+/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
 impl StatementValidator for AlterValidator {
-    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError> {
-        let stmt = ast.sentence.as_ref()
-            .and_then(|s| s.as_alter())
-            .ok_or_else(|| ValidationError::new(
-                "Expected ALTER statement".to_string(),
-                ValidationErrorType::SemanticError,
-            ))?;
+    fn validate(
+        &mut self,
+        stmt: &crate::query::parser::ast::Stmt,
+        _qctx: Arc<QueryContext>,
+    ) -> Result<ValidationResult, ValidationError> {
+        let alter_stmt = match stmt {
+            crate::query::parser::ast::Stmt::Alter(alter_stmt) => alter_stmt,
+            _ => {
+                return Err(ValidationError::new(
+                    "Expected ALTER statement".to_string(),
+                    ValidationErrorType::SemanticError,
+                ));
+            }
+        };
         
-        self.validate_impl(stmt)?;
+        self.validate_impl(alter_stmt)?;
         
         Ok(ValidationResult::success(
             self.inputs.clone(),

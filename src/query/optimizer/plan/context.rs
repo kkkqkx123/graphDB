@@ -10,10 +10,15 @@
 //! - 运行时行数反馈：使用实际执行结果校准估算
 //!
 //! 设计原则：保持简洁，避免过度复杂化，专注于核心功能
+//!
+//! # 重构变更
+//! - 使用 Arc<QueryContext> 替代 Rc<QueryContext>，支持跨线程共享
+//! - new 方法接收 Arc<QueryContext> 替代 QueryContext，避免克隆
 
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
+use std::sync::Arc;
 
 use super::group::OptGroup;
 use super::node::{OptGroupNode};
@@ -25,7 +30,7 @@ use crate::query::optimizer::core::cost::{TableStats, FeedbackStats};
 #[derive(Debug)]
 pub struct OptContext {
     /// 查询上下文 - 提供查询执行所需的基础环境
-    qctx: Rc<QueryContext>,
+    qctx: Arc<QueryContext>,
 
     /// 变化状态 - 标记优化过程是否产生了变化
     changed: bool,
@@ -60,9 +65,12 @@ pub struct OptContext {
 
 impl OptContext {
     /// 创建新的优化上下文
-    pub fn new(query_context: QueryContext) -> Self {
+    ///
+    /// # 重构变更
+    /// - 接收 Arc<QueryContext> 替代 QueryContext，避免克隆
+    pub fn new(query_context: Arc<QueryContext>) -> Self {
         Self {
-            qctx: Rc::new(query_context),
+            qctx: query_context,
             changed: true,
             plan_node_to_group_node: RefCell::new(HashMap::new()),
             group_nodes_by_id: RefCell::new(HashMap::new()),
@@ -269,11 +277,5 @@ impl OptContext {
     /// 获取有反馈的节点ID列表
     pub fn get_feedback_node_ids(&self) -> Vec<usize> {
         self.actual_row_counts.borrow().keys().copied().collect()
-    }
-}
-
-impl Default for OptContext {
-    fn default() -> Self {
-        Self::new(QueryContext::default())
     }
 }

@@ -2,8 +2,9 @@
 //! 用于验证 WITH 语句（Cypher 风格的管道子句）
 //! 参考 nebula-graph MatchValidator.cpp 中的 With 子句验证
 
+use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::query::context::ast::AstContext;
+use crate::query::context::QueryContext;
 use crate::query::parser::ast::stmt::{WithStmt, ReturnItem};
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
@@ -287,16 +288,27 @@ impl Default for WithValidator {
     }
 }
 
+/// 实现 StatementValidator trait
+///
+/// # 重构变更
+/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
 impl StatementValidator for WithValidator {
-    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError> {
-        let stmt = ast.sentence.as_ref()
-            .and_then(|s| s.as_with())
-            .ok_or_else(|| ValidationError::new(
-                "Expected WITH statement".to_string(),
-                ValidationErrorType::SemanticError,
-            ))?;
+    fn validate(
+        &mut self,
+        stmt: &crate::query::parser::ast::Stmt,
+        _qctx: Arc<QueryContext>,
+    ) -> Result<ValidationResult, ValidationError> {
+        let with_stmt = match stmt {
+            crate::query::parser::ast::Stmt::With(with_stmt) => with_stmt,
+            _ => {
+                return Err(ValidationError::new(
+                    "Expected WITH statement".to_string(),
+                    ValidationErrorType::SemanticError,
+                ));
+            }
+        };
 
-        self.validate_impl(stmt)?;
+        self.validate_impl(with_stmt)?;
 
         Ok(ValidationResult::success(
             self.inputs.clone(),
@@ -361,13 +373,13 @@ mod tests {
         assert!(validator.validate_where_clause(&where_expr).is_ok());
 
         // 二元操作符
-        let where_expr = Expression::Binary {
+        let _where_expr = Expression::Binary {
             left: Box::new(Expression::Variable("n".to_string())),
             op: crate::core::types::operators::BinaryOperator::Equal,
             right: Box::new(Expression::Literal(Value::Int(1))),
         };
         // 这会失败，因为变量 n 不在输入中
-        // assert!(validator.validate_where_clause(&where_expr).is_err());
+        // assert!(validator.validate_where_clause(&_where_expr).is_err());
     }
 
     #[test]

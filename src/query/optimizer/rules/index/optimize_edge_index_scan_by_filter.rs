@@ -94,7 +94,7 @@ impl OptRule for OptimizeEdgeIndexScanByFilterRule {
         new_index_scan_group_node.dependencies = child_ref.dependencies.clone();
 
         if let Some(output_var) = node_ref.plan_node.output_var() {
-            new_index_scan_group_node.plan_node.set_output_var(output_var.clone());
+            new_index_scan_group_node.plan_node.set_output_var(output_var.to_string());
         }
 
         let mut result = TransformResult::new();

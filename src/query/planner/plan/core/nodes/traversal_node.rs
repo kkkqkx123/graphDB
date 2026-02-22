@@ -261,7 +261,7 @@ define_plan_node! {
         vertex_tag: String,
         vertex_props: Vec<TagProp>,
         filter: Option<String>,
-        input_var: Option<crate::query::context::ast::Variable>,
+        input_var: Option<String>,
         src_expression: Option<Expression>,
         dedup: bool,
         track_prev_path: bool,
@@ -315,8 +315,8 @@ impl AppendVerticesNode {
         self.filter = Some(filter);
     }
 
-    pub fn input_var(&self) -> Option<&crate::query::context::ast::Variable> {
-        self.input_var.as_ref()
+    pub fn input_var(&self) -> Option<&str> {
+        self.input_var.as_deref()
     }
 
     pub fn src_expression(&self) -> Option<&Expression> {

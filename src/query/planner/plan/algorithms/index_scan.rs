@@ -1,7 +1,6 @@
 //! 搜索算法相关的计划节点
 //! 包含索引扫描等搜索相关操作
 
-use crate::query::context::ast::Variable;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_visitor::PlanNodeVisitor;
 use crate::query::planner::plan::core::nodes::plan_node_traits::{
@@ -109,7 +108,7 @@ impl IndexLimit {
 pub struct IndexScan {
     pub id: i64,
     pub deps: Vec<Box<PlanNodeEnum>>,
-    pub output_var: Option<Variable>,
+    pub output_var: Option<String>,
     pub col_names: Vec<String>,
     pub cost: f64,
     pub space_id: u64,
@@ -177,8 +176,8 @@ impl IndexScan {
     }
 
     /// 获取节点的输出变量
-    pub fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
+    pub fn output_var(&self) -> Option<&str> {
+        self.output_var.as_deref()
     }
 
     /// 获取列名列表
@@ -192,7 +191,7 @@ impl IndexScan {
     }
 
     /// 设置节点的输出变量
-    pub fn set_output_var(&mut self, var: Variable) {
+    pub fn set_output_var(&mut self, var: String) {
         self.output_var = Some(var);
     }
 
@@ -228,8 +227,8 @@ impl PlanNode for IndexScan {
         "IndexScan"
     }
 
-    fn output_var(&self) -> Option<&Variable> {
-        self.output_var.as_ref()
+    fn output_var(&self) -> Option<&str> {
+        self.output_var.as_deref()
     }
 
     fn col_names(&self) -> &[String] {
@@ -240,7 +239,7 @@ impl PlanNode for IndexScan {
         self.cost
     }
 
-    fn set_output_var(&mut self, var: Variable) {
+    fn set_output_var(&mut self, var: String) {
         self.output_var = Some(var);
     }
 

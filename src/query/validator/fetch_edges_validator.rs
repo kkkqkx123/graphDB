@@ -18,7 +18,7 @@ use std::sync::Arc;
 
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::{Expression, Value};
-use crate::query::context::ast::AstContext;
+use crate::query::context::QueryContext;
 use crate::query::parser::ast::stmt::{FetchStmt, FetchTarget};
 use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
@@ -240,11 +240,18 @@ impl Default for FetchEdgesValidator {
     }
 }
 
+/// 实现 StatementValidator trait
+///
+/// # 重构变更
+/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
 impl StatementValidator for FetchEdgesValidator {
-    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError> {
+    fn validate(
+        &mut self,
+        stmt: &crate::query::parser::ast::Stmt,
+        qctx: Arc<QueryContext>,
+    ) -> Result<ValidationResult, ValidationError> {
         // 1. 检查是否需要空间
-        let query_context = ast.query_context();
-        if !self.is_global_statement() && query_context.is_none() {
+        if !self.is_global_statement() && qctx.space_id().is_none() {
             return Err(ValidationError::new(
                 "未选择图空间，请先执行 USE <space>".to_string(),
                 ValidationErrorType::SemanticError,
@@ -252,12 +259,6 @@ impl StatementValidator for FetchEdgesValidator {
         }
 
         // 2. 获取 FETCH 语句
-        let stmt = ast.sentence()
-            .ok_or_else(|| ValidationError::new(
-                "No statement found in AST context".to_string(),
-                ValidationErrorType::SemanticError,
-            ))?;
-
         let fetch_stmt = match stmt {
             crate::query::parser::ast::Stmt::Fetch(fetch_stmt) => fetch_stmt,
             _ => {
@@ -272,7 +273,7 @@ impl StatementValidator for FetchEdgesValidator {
         self.validate_fetch_edges(fetch_stmt)?;
 
         // 4. 获取 space_id
-        let space_id = ast.space().space_id.map(|id| id as u64).unwrap_or(0);
+        let space_id = qctx.space_id().unwrap_or(0);
 
         // 5. 提取边信息并验证
         let (edge_type_name, src, dst, rank, properties) = match &fetch_stmt.target {
@@ -376,7 +377,7 @@ mod tests {
     use crate::query::parser::ast::stmt::{FetchStmt, FetchTarget};
     use crate::query::parser::ast::Span;
 
-    fn create_fetch_edges_stmt(
+    fn _create_fetch_edges_stmt(
         edge_type: &str,
         src: Expression,
         dst: Expression,

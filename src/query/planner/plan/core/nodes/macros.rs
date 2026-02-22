@@ -1,6 +1,9 @@
 //! 计划节点宏定义
 //!
 //! 提供宏来简化计划节点的定义，减少样板代码
+//!
+//! # 重构变更
+//! - 移除对 ast::Variable 的依赖，使用 String 替代
 
 /// 定义计划节点的宏
 ///
@@ -32,7 +35,7 @@ macro_rules! define_plan_node {
         pub struct $name {
             id: i64,
             $($field: $type,)*
-            output_var: Option<crate::query::context::ast::Variable>,
+            output_var: Option<String>,
             col_names: Vec<String>,
             cost: f64,
         }
@@ -59,8 +62,8 @@ macro_rules! define_plan_node {
                 stringify!($name)
             }
 
-            pub fn output_var(&self) -> Option<&crate::query::context::ast::Variable> {
-                self.output_var.as_ref()
+            pub fn output_var(&self) -> Option<&str> {
+                self.output_var.as_deref()
             }
 
             pub fn col_names(&self) -> &[String] {
@@ -71,7 +74,7 @@ macro_rules! define_plan_node {
                 self.cost
             }
 
-            pub fn set_output_var(&mut self, var: crate::query::context::ast::Variable) {
+            pub fn set_output_var(&mut self, var: String) {
                 self.output_var = Some(var);
             }
 
@@ -101,7 +104,7 @@ macro_rules! define_plan_node {
                 self.type_name()
             }
 
-            fn output_var(&self) -> Option<&crate::query::context::ast::Variable> {
+            fn output_var(&self) -> Option<&str> {
                 self.output_var()
             }
 
@@ -113,7 +116,7 @@ macro_rules! define_plan_node {
                 self.cost()
             }
 
-            fn set_output_var(&mut self, var: crate::query::context::ast::Variable) {
+            fn set_output_var(&mut self, var: String) {
                 self.set_output_var(var);
             }
 
@@ -155,7 +158,7 @@ macro_rules! define_plan_node {
             id: i64,
             deps: Vec<Box<crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum>>,
             $($field: $type,)*
-            output_var: Option<crate::query::context::ast::Variable>,
+            output_var: Option<String>,
             col_names: Vec<String>,
             cost: f64,
         }
@@ -183,8 +186,8 @@ macro_rules! define_plan_node {
                 stringify!($name)
             }
 
-            pub fn output_var(&self) -> Option<&crate::query::context::ast::Variable> {
-                self.output_var.as_ref()
+            pub fn output_var(&self) -> Option<&str> {
+                self.output_var.as_deref()
             }
 
             pub fn col_names(&self) -> &[String] {
@@ -195,7 +198,7 @@ macro_rules! define_plan_node {
                 self.cost
             }
 
-            pub fn set_output_var(&mut self, var: crate::query::context::ast::Variable) {
+            pub fn set_output_var(&mut self, var: String) {
                 self.output_var = Some(var);
             }
 
@@ -233,10 +236,10 @@ macro_rules! define_plan_node {
         impl crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode for $name {
             fn id(&self) -> i64 { self.id() }
             fn name(&self) -> &'static str { self.type_name() }
-            fn output_var(&self) -> Option<&crate::query::context::ast::Variable> { self.output_var() }
+            fn output_var(&self) -> Option<&str> { self.output_var() }
             fn col_names(&self) -> &[String] { self.col_names() }
             fn cost(&self) -> f64 { self.cost() }
-            fn set_output_var(&mut self, var: crate::query::context::ast::Variable) { self.set_output_var(var); }
+            fn set_output_var(&mut self, var: String) { self.set_output_var(var); }
             fn set_col_names(&mut self, names: Vec<String>) { self.set_col_names(names); }
             fn into_enum(self) -> crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum {
                 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
@@ -293,7 +296,7 @@ macro_rules! define_binary_input_node {
             right: Box<crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum>,
             deps: Vec<Box<crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum>>,
             $($field: $type,)*
-            output_var: Option<crate::query::context::ast::Variable>,
+            output_var: Option<String>,
             col_names: Vec<String>,
             cost: f64,
         }
@@ -323,8 +326,8 @@ macro_rules! define_binary_input_node {
                 stringify!($name)
             }
 
-            pub fn output_var(&self) -> Option<&crate::query::context::ast::Variable> {
-                self.output_var.as_ref()
+            pub fn output_var(&self) -> Option<&str> {
+                self.output_var.as_deref()
             }
 
             pub fn col_names(&self) -> &[String] {
@@ -335,7 +338,7 @@ macro_rules! define_binary_input_node {
                 self.cost
             }
 
-            pub fn set_output_var(&mut self, var: crate::query::context::ast::Variable) {
+            pub fn set_output_var(&mut self, var: String) {
                 self.output_var = Some(var);
             }
 
@@ -385,10 +388,10 @@ macro_rules! define_binary_input_node {
         impl crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode for $name {
             fn id(&self) -> i64 { self.id() }
             fn name(&self) -> &'static str { self.type_name() }
-            fn output_var(&self) -> Option<&crate::query::context::ast::Variable> { self.output_var() }
+            fn output_var(&self) -> Option<&str> { self.output_var() }
             fn col_names(&self) -> &[String] { self.col_names() }
             fn cost(&self) -> f64 { self.cost() }
-            fn set_output_var(&mut self, var: crate::query::context::ast::Variable) { self.set_output_var(var); }
+            fn set_output_var(&mut self, var: String) { self.set_output_var(var); }
             fn set_col_names(&mut self, names: Vec<String>) { self.set_col_names(names); }
             fn into_enum(self) -> crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum {
                 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
@@ -449,7 +452,7 @@ macro_rules! define_plan_node_with_deps {
             input: Option<Box<crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum>>,
             deps: Vec<Box<crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum>>,
             $($field: $type,)*
-            output_var: Option<crate::query::context::ast::Variable>,
+            output_var: Option<String>,
             col_names: Vec<String>,
             cost: f64,
         }
@@ -478,8 +481,8 @@ macro_rules! define_plan_node_with_deps {
                 stringify!($name)
             }
 
-            pub fn output_var(&self) -> Option<&crate::query::context::ast::Variable> {
-                self.output_var.as_ref()
+            pub fn output_var(&self) -> Option<&str> {
+                self.output_var.as_deref()
             }
 
             pub fn col_names(&self) -> &[String] {
@@ -490,7 +493,7 @@ macro_rules! define_plan_node_with_deps {
                 self.cost
             }
 
-            pub fn set_output_var(&mut self, var: crate::query::context::ast::Variable) {
+            pub fn set_output_var(&mut self, var: String) {
                 self.output_var = Some(var);
             }
 
@@ -518,10 +521,10 @@ macro_rules! define_plan_node_with_deps {
         impl crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode for $name {
             fn id(&self) -> i64 { self.id() }
             fn name(&self) -> &'static str { self.type_name() }
-            fn output_var(&self) -> Option<&crate::query::context::ast::Variable> { self.output_var() }
+            fn output_var(&self) -> Option<&str> { self.output_var() }
             fn col_names(&self) -> &[String] { self.col_names() }
             fn cost(&self) -> f64 { self.cost() }
-            fn set_output_var(&mut self, var: crate::query::context::ast::Variable) { self.set_output_var(var); }
+            fn set_output_var(&mut self, var: String) { self.set_output_var(var); }
             fn set_col_names(&mut self, names: Vec<String>) { self.set_col_names(names); }
             fn into_enum(self) -> crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum {
                 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
@@ -572,7 +575,7 @@ macro_rules! define_join_node {
             probe_keys: Vec<crate::core::Expression>,
             deps: Vec<Box<crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum>>,
             $($field: $type,)*
-            output_var: Option<crate::query::context::ast::Variable>,
+            output_var: Option<String>,
             col_names: Vec<String>,
             cost: f64,
         }
@@ -604,8 +607,8 @@ macro_rules! define_join_node {
                 stringify!($name)
             }
 
-            pub fn output_var(&self) -> Option<&crate::query::context::ast::Variable> {
-                self.output_var.as_ref()
+            pub fn output_var(&self) -> Option<&str> {
+                self.output_var.as_deref()
             }
 
             pub fn col_names(&self) -> &[String] {
@@ -616,7 +619,7 @@ macro_rules! define_join_node {
                 self.cost
             }
 
-            pub fn set_output_var(&mut self, var: crate::query::context::ast::Variable) {
+            pub fn set_output_var(&mut self, var: String) {
                 self.output_var = Some(var);
             }
 
@@ -702,10 +705,10 @@ macro_rules! define_join_node {
         impl crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode for $name {
             fn id(&self) -> i64 { self.id() }
             fn name(&self) -> &'static str { self.type_name() }
-            fn output_var(&self) -> Option<&crate::query::context::ast::Variable> { self.output_var() }
+            fn output_var(&self) -> Option<&str> { self.output_var() }
             fn col_names(&self) -> &[String] { self.col_names() }
             fn cost(&self) -> f64 { self.cost() }
-            fn set_output_var(&mut self, var: crate::query::context::ast::Variable) { self.set_output_var(var); }
+            fn set_output_var(&mut self, var: String) { self.set_output_var(var); }
             fn set_col_names(&mut self, names: Vec<String>) { self.set_col_names(names); }
             fn into_enum(self) -> crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum {
                 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;

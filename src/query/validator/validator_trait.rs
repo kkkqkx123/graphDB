@@ -6,9 +6,16 @@
 //! 1. 保留完整功能（验证生命周期、上下文管理、权限检查等）
 //! 2. 使用 trait 统一接口，便于扩展
 //! 3. 使用枚举管理不同类型的验证器，避免动态分发
+//!
+//! # 重构变更
+//! - 使用 Arc<QueryContext> 替代 &mut AstContext
+//! - 添加 Stmt 参数，明确验证目标
+
+use std::sync::Arc;
 
 use crate::core::error::ValidationError;
-use crate::query::context::ast::AstContext;
+use crate::query::context::QueryContext;
+use crate::query::parser::ast::Stmt;
 
 /// 列定义
 #[derive(Debug, Clone)]
@@ -322,12 +329,23 @@ impl ValidationResult {
 /// 1. 简化接口，只保留核心方法
 /// 2. 验证生命周期由 Validator 枚举统一管理
 /// 3. 使用静态分发替代动态分发
-/// 4. 直接使用 AstContext 作为验证上下文（AstContext 已包含 QueryContext）
+/// 4. 使用 Arc<QueryContext> 作为验证上下文
+///
+/// # 重构变更
+/// - validate 方法现在接收 Arc<QueryContext> 和 &Stmt 替代 &mut AstContext
+/// - 验证器不再直接修改上下文，而是通过返回值传递结果
 pub trait StatementValidator {
     /// 执行验证逻辑
     /// 返回验证结果，包含输入/输出列定义
-    /// 直接使用 &mut AstContext 作为上下文，避免不必要的包装
-    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError>;
+    ///
+    /// # 参数
+    /// - `stmt`: 要验证的语句
+    /// - `qctx`: 查询上下文，包含符号表、空间信息等
+    fn validate(
+        &mut self,
+        stmt: &Stmt,
+        qctx: Arc<QueryContext>,
+    ) -> Result<ValidationResult, ValidationError>;
 
     /// 获取语句类型
     fn statement_type(&self) -> StatementType;

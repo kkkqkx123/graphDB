@@ -1,15 +1,12 @@
 //! 维护操作规划器
 //! 处理维护相关的查询规划（如SUBMIT JOB等）
 
-use crate::query::context::ast::AstContext;
+use crate::query::context::QueryContext;
+use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::core::{ArgumentNode, PlanNodeEnum, ProjectNode};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
-
-#[derive(Debug, Clone)]
-pub struct MaintainContext {
-    pub base: AstContext,
-}
+use std::sync::Arc;
 
 /// 维护操作规划器
 /// 负责将维护操作转换为执行计划
@@ -26,33 +23,15 @@ impl MaintainPlanner {
     pub fn make() -> Box<dyn Planner> {
         Box::new(Self::new())
     }
-
-    /// 检查AST上下文是否匹配维护操作
-    pub fn match_ast_ctx(ast_ctx: &AstContext) -> bool {
-        let stmt_type = ast_ctx.statement_type().to_uppercase();
-        stmt_type == "SUBMIT JOB"
-            || stmt_type.starts_with("CREATE")
-            || stmt_type.starts_with("DROP")
-    }
-
-    /// 获取匹配和实例化函数（静态注册版本）
-    pub fn get_match_and_instantiate() -> crate::query::planner::planner::MatchAndInstantiateEnum {
-        crate::query::planner::planner::MatchAndInstantiateEnum::Maintain(Self::new())
-    }
 }
 
 impl Planner for MaintainPlanner {
-    fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
-        // 从ast_ctx创建MaintainContext
-        let maintain_ctx = MaintainContext {
-            base: ast_ctx.clone(),
-        };
-
-        // 实现维护操作的规划逻辑
-        println!("Processing MAINTENANCE query planning: {:?}", maintain_ctx);
-
-        // 根据操作类型创建相应的计划节点
-        let stmt_type = maintain_ctx.base.statement_type().to_uppercase();
+    fn transform(
+        &mut self,
+        stmt: &Stmt,
+        _qctx: Arc<QueryContext>,
+    ) -> Result<SubPlan, PlannerError> {
+        let stmt_type = stmt.kind().to_uppercase();
 
         // 1. 创建参数节点来接收操作参数
         let arg_node = ArgumentNode::new(1, "maintain_args");
@@ -94,8 +73,11 @@ impl Planner for MaintainPlanner {
         Ok(sub_plan)
     }
 
-    fn match_planner(&self, ast_ctx: &AstContext) -> bool {
-        Self::match_ast_ctx(ast_ctx)
+    fn match_planner(&self, stmt: &Stmt) -> bool {
+        let stmt_type = stmt.kind().to_uppercase();
+        stmt_type == "SUBMIT JOB"
+            || stmt_type.starts_with("CREATE")
+            || stmt_type.starts_with("DROP")
     }
 }
 

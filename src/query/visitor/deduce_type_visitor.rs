@@ -7,7 +7,7 @@ use crate::core::{
     TypeUtils, DataType, BinaryOperator, UnaryOperator, Value,
 };
 use crate::query::validator::structs::ValidationContextImpl;
-use crate::query::context::ast::ColsDef;
+use crate::query::validator::validator_trait::ColumnDef;
 use crate::storage::StorageClient;
 use thiserror::Error;
 
@@ -17,6 +17,27 @@ use crate::core::{Edge, Vertex};
 use crate::core::EdgeDirection;
 #[cfg(test)]
 use crate::core::error::StorageError;
+
+/// 从 ValueType 转换为 DataType
+fn value_type_to_value_type_def(type_: &crate::query::validator::validator_trait::ValueType) -> DataType {
+    match type_ {
+        crate::query::validator::validator_trait::ValueType::Unknown => DataType::Empty,
+        crate::query::validator::validator_trait::ValueType::Bool => DataType::Bool,
+        crate::query::validator::validator_trait::ValueType::Int => DataType::Int,
+        crate::query::validator::validator_trait::ValueType::Float => DataType::Float,
+        crate::query::validator::validator_trait::ValueType::String => DataType::String,
+        crate::query::validator::validator_trait::ValueType::Date => DataType::Date,
+        crate::query::validator::validator_trait::ValueType::Time => DataType::Time,
+        crate::query::validator::validator_trait::ValueType::DateTime => DataType::DateTime,
+        crate::query::validator::validator_trait::ValueType::Vertex => DataType::Vertex,
+        crate::query::validator::validator_trait::ValueType::Edge => DataType::Edge,
+        crate::query::validator::validator_trait::ValueType::Path => DataType::Path,
+        crate::query::validator::validator_trait::ValueType::List => DataType::List,
+        crate::query::validator::validator_trait::ValueType::Map => DataType::Map,
+        crate::query::validator::validator_trait::ValueType::Set => DataType::Set,
+        crate::query::validator::validator_trait::ValueType::Null => DataType::Null,
+    }
+}
 
 
 #[derive(Error, Debug, Clone)]
@@ -37,7 +58,7 @@ pub struct DeduceTypeVisitor<'a, S: StorageClient> {
     /// 验证上下文
     validate_context: &'a ValidationContextImpl,
     /// 输入列定义：列名 -> 列类型
-    inputs: ColsDef,
+    inputs: Vec<ColumnDef>,
     /// 图空间ID
     space: String,
     /// 当前推导状态
@@ -54,7 +75,7 @@ impl<'a, S: StorageClient> DeduceTypeVisitor<'a, S> {
     pub fn new(
         storage: &'a S,
         validate_context: &'a ValidationContextImpl,
-        inputs: ColsDef,
+        inputs: Vec<ColumnDef>,
         space: String,
     ) -> Self {
         // VID 类型从存储引擎获取，如果无法获取则使用默认值
@@ -461,7 +482,8 @@ impl<'a, S: StorageClient> ExpressionVisitor for DeduceTypeVisitor<'a, S> {
     fn visit_variable(&mut self, name: &str) -> Self::Result {
         if self.inputs.iter().any(|col| col.name == name) {
             if let Some(col) = self.inputs.iter().find(|col| col.name == name) {
-                self.type_ = col.type_.clone();
+                let value_type = col.type_.clone();
+                self.type_ = value_type_to_value_type_def(&value_type);
                 return Ok(());
             }
         }
@@ -469,7 +491,8 @@ impl<'a, S: StorageClient> ExpressionVisitor for DeduceTypeVisitor<'a, S> {
         if self.validate_context.exists_var(name) {
             let var_cols = self.validate_context.get_var(name);
             if !var_cols.is_empty() {
-                self.type_ = var_cols[0].type_.clone();
+                let value_type = var_cols[0].type_.clone();
+                self.type_ = value_type_to_value_type_def(&value_type);
                 return Ok(());
             }
         }

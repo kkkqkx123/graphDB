@@ -5,7 +5,7 @@
 
 use crate::core::error::{DBError, DBResult, QueryError};
 use crate::core::Value as CoreValue;
-use crate::query::context::ast::AstContext;
+use crate::query::context::QueryContext;
 use crate::query::executor::admin as admin_executor;
 use crate::query::executor::factory::ExecutorFactory;
 use crate::query::executor::traits::{ExecutionResult, Executor, HasStorage};
@@ -147,11 +147,10 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
     fn execute_match(&mut self, clause: crate::query::parser::ast::stmt::MatchStmt) -> Result<ExecutionResult, DBError> {
         let _id = self.id;
 
-        let mut ast_ctx = AstContext::new(None, Some(Stmt::Match(clause)));
-        ast_ctx.set_query_type(crate::query::context::ast::QueryType::ReadQuery);
+        let qctx = Arc::new(QueryContext::default());
 
         let mut planner = MatchStatementPlanner::new();
-        let plan = planner.transform(&ast_ctx)
+        let plan = planner.transform(&Stmt::Match(clause), qctx)
             .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
 
         let root_node = plan.root()
@@ -264,13 +263,12 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                 }
             }
             CreateTarget::Node { .. } | CreateTarget::Edge { .. } | CreateTarget::Path { .. } => {
-                // 使用 CreatePlanner 生成执行计划并执行
-                let mut ast_ctx = AstContext::new(None, Some(Stmt::Create(clause)));
-                ast_ctx.set_query_type(crate::query::context::ast::QueryType::WriteQuery);
-
                 use crate::query::planner::statements::create_planner::CreatePlanner;
+
+                let qctx = Arc::new(QueryContext::default());
+
                 let mut planner = CreatePlanner::new();
-                let plan = planner.transform(&ast_ctx)
+                let plan = planner.transform(&Stmt::Create(clause), qctx)
                     .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
 
                 let root_node = plan.root()

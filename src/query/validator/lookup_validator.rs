@@ -2,15 +2,16 @@
 //! 对应 NebulaGraph LookupValidator.h/.cpp 的功能
 //! 验证 LOOKUP 语句的合法性
 
+use std::collections::HashMap;
+use std::sync::Arc;
+
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::Expression;
-use crate::query::context::ast::AstContext;
+use crate::query::context::QueryContext;
 use crate::query::parser::ast::{Stmt, YieldItem};
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
-use std::collections::HashMap;
-use std::sync::Arc;
 use crate::storage::metadata::schema_manager::SchemaManager;
 
 /// 验证后的 LOOKUP 信息
@@ -75,17 +76,10 @@ impl LookupValidator {
     }
 
     /// 从 AST 解析 LOOKUP 语句
-    fn parse_from_ast(
+    fn parse_from_stmt(
         &self,
-        ast: &AstContext,
+        stmt: &Stmt,
     ) -> Result<ParsedLookupInfo, ValidationError> {
-        let stmt = ast.sentence().ok_or_else(|| {
-            ValidationError::new(
-                "AST 中未找到语句".to_string(),
-                ValidationErrorType::SemanticError,
-            )
-        })?;
-
         let lookup_stmt = match stmt {
             Stmt::Lookup(lookup_stmt) => lookup_stmt,
             _ => {
@@ -335,22 +329,29 @@ impl Default for LookupValidator {
     }
 }
 
+/// 实现 StatementValidator trait
+///
+/// # 重构变更
+/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
 impl StatementValidator for LookupValidator {
-    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError> {
+    fn validate(
+        &mut self,
+        stmt: &Stmt,
+        qctx: Arc<QueryContext>,
+    ) -> Result<ValidationResult, ValidationError> {
         // 1. 检查是否需要空间
-        let query_context = ast.query_context();
-        if !self.is_global_statement() && query_context.is_none() {
+        if !self.is_global_statement() && qctx.space_id().is_none() {
             return Err(ValidationError::new(
                 "未选择图空间，请先执行 USE <space>".to_string(),
                 ValidationErrorType::SemanticError,
             ));
         }
 
-        // 2. 从 AST 解析 LOOKUP 语句
-        let parsed_info = self.parse_from_ast(ast)?;
+        // 2. 从 Stmt 解析 LOOKUP 语句
+        let parsed_info = self.parse_from_stmt(stmt)?;
 
-        // 3. 获取当前空间名称（直接从 AstContext 获取）
-        let space_name = ast.space().space_name.clone();
+        // 3. 获取当前空间名称
+        let space_name = qctx.space_name().unwrap_or_default();
 
         if space_name.is_empty() {
             return Err(ValidationError::new(
@@ -373,7 +374,7 @@ impl StatementValidator for LookupValidator {
         self.validate_yields(&parsed_info.yield_columns, parsed_info.is_yield_all)?;
 
         // 6. 获取 space_id
-        let space_id = ast.space().space_id.map(|id| id as u64).unwrap_or(0);
+        let space_id = qctx.space_id().unwrap_or(0);
 
         // 7. 创建验证结果
         let validated = ValidatedLookup {
@@ -432,12 +433,7 @@ mod tests {
     use super::*;
     use crate::query::parser::ast::stmt::{LookupStmt, LookupTarget, YieldClause};
     use crate::query::parser::ast::Span;
-
-    fn create_test_ast_with_lookup(lookup_stmt: LookupStmt) -> AstContext {
-        let mut ast = AstContext::default();
-        ast.set_sentence(Stmt::Lookup(lookup_stmt));
-        ast
-    }
+    use std::sync::Arc;
 
     fn create_simple_lookup_stmt(label: &str, is_edge: bool) -> LookupStmt {
         let target = if is_edge {
@@ -466,9 +462,9 @@ mod tests {
     fn test_lookup_validator_basic() {
         let mut validator = LookupValidator::new();
         let lookup_stmt = create_simple_lookup_stmt("person", false);
-        let mut ast = create_test_ast_with_lookup(lookup_stmt);
+        let qctx = Arc::new(QueryContext::default());
 
-        let result = validator.validate(&mut ast);
+        let result = validator.validate(&Stmt::Lookup(lookup_stmt), qctx);
         // 当前会失败，因为没有 YIELD 列且不是 YIELD *
         assert!(result.is_err());
     }
@@ -477,9 +473,9 @@ mod tests {
     fn test_lookup_validator_empty_label() {
         let mut validator = LookupValidator::new();
         let lookup_stmt = create_simple_lookup_stmt("", false);
-        let mut ast = create_test_ast_with_lookup(lookup_stmt);
+        let qctx = Arc::new(QueryContext::default());
 
-        let result = validator.validate(&mut ast);
+        let result = validator.validate(&Stmt::Lookup(lookup_stmt), qctx);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(err.message.contains("必须指定"));
@@ -488,10 +484,13 @@ mod tests {
     #[test]
     fn test_lookup_validator_not_lookup_stmt() {
         let mut validator = LookupValidator::new();
-        let mut ast = AstContext::default();
+        let qctx = Arc::new(QueryContext::default());
         // 不设置 LOOKUP 语句
 
-        let result = validator.validate(&mut ast);
+        let result = validator.validate(&Stmt::Use(crate::query::parser::ast::stmt::UseStmt {
+            span: Span::default(),
+            space: "test".to_string(),
+        }), qctx);
         assert!(result.is_err());
     }
 }

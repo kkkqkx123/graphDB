@@ -3,6 +3,7 @@
 
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::Arc;
 
 use super::core::Cost;
 use super::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, OptimizerError};
@@ -617,7 +618,7 @@ mod tests {
             active_queries: 0,
             timezone: None,
         };
-        let query_ctx = QueryContext::new();
+        let query_ctx = Arc::new(QueryContext::default());
         let mut opt_ctx = OptContext::new(query_ctx);
 
         // 创建测试节点 - 使用 OptGroupNode::default() 创建默认节点

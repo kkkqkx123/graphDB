@@ -1336,7 +1336,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::Start(node) => {
                 let mut desc = PlanNodeDescription::new("Start", node.id());
                 if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
+                    desc = desc.with_output_var(var.to_string());
                 }
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
@@ -1344,7 +1344,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::Project(node) => {
                 let mut desc = PlanNodeDescription::new("Project", node.id());
                 if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
+                    desc = desc.with_output_var(var.to_string());
                 }
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
@@ -1352,7 +1352,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::Filter(node) => {
                 let mut desc = PlanNodeDescription::new("Filter", node.id());
                 if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
+                    desc = desc.with_output_var(var.to_string());
                 }
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
@@ -1360,7 +1360,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::Sort(node) => {
                 let mut desc = PlanNodeDescription::new("Sort", node.id());
                 if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
+                    desc = desc.with_output_var(var.to_string());
                 }
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
@@ -1368,7 +1368,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::Limit(node) => {
                 let mut desc = PlanNodeDescription::new("Limit", node.id());
                 if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
+                    desc = desc.with_output_var(var.to_string());
                 }
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
@@ -1376,7 +1376,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::InnerJoin(node) => {
                 let mut desc = PlanNodeDescription::new("InnerJoin", node.id());
                 if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
+                    desc = desc.with_output_var(var.to_string());
                 }
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
@@ -1384,7 +1384,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::LeftJoin(node) => {
                 let mut desc = PlanNodeDescription::new("LeftJoin", node.id());
                 if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
+                    desc = desc.with_output_var(var.to_string());
                 }
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
@@ -1392,7 +1392,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::CrossJoin(node) => {
                 let mut desc = PlanNodeDescription::new("CrossJoin", node.id());
                 if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
+                    desc = desc.with_output_var(var.to_string());
                 }
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
@@ -1400,7 +1400,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::GetVertices(node) => {
                 let mut desc = PlanNodeDescription::new("GetVertices", node.id());
                 if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
+                    desc = desc.with_output_var(var.to_string());
                 }
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
@@ -1408,7 +1408,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::GetEdges(node) => {
                 let mut desc = PlanNodeDescription::new("GetEdges", node.id());
                 if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
+                    desc = desc.with_output_var(var.to_string());
                 }
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
@@ -1416,7 +1416,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::GetNeighbors(node) => {
                 let mut desc = PlanNodeDescription::new("GetNeighbors", node.id());
                 if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
+                    desc = desc.with_output_var(var.to_string());
                 }
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
@@ -1424,7 +1424,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::ScanVertices(node) => {
                 let mut desc = PlanNodeDescription::new("ScanVertices", node.id());
                 if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
+                    desc = desc.with_output_var(var.to_string());
                 }
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
@@ -1432,7 +1432,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::ScanEdges(node) => {
                 let mut desc = PlanNodeDescription::new("ScanEdges", node.id());
                 if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
+                    desc = desc.with_output_var(var.to_string());
                 }
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
@@ -1440,7 +1440,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::Expand(node) => {
                 let mut desc = PlanNodeDescription::new("Expand", node.id());
                 if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
+                    desc = desc.with_output_var(var.to_string());
                 }
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
@@ -1448,7 +1448,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::ExpandAll(node) => {
                 let mut desc = PlanNodeDescription::new("ExpandAll", node.id());
                 if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
+                    desc = desc.with_output_var(var.to_string());
                 }
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
@@ -1456,7 +1456,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::Traverse(node) => {
                 let mut desc = PlanNodeDescription::new("Traverse", node.id());
                 if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
+                    desc = desc.with_output_var(var.to_string());
                 }
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
@@ -1464,7 +1464,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::AppendVertices(node) => {
                 let mut desc = PlanNodeDescription::new("AppendVertices", node.id());
                 if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
+                    desc = desc.with_output_var(var.to_string());
                 }
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
@@ -1472,7 +1472,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::Aggregate(node) => {
                 let mut desc = PlanNodeDescription::new("Aggregate", node.id());
                 if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
+                    desc = desc.with_output_var(var.to_string());
                 }
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
@@ -1480,7 +1480,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::Argument(node) => {
                 let mut desc = PlanNodeDescription::new("Argument", node.id());
                 if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
+                    desc = desc.with_output_var(var.to_string());
                 }
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
@@ -1488,7 +1488,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::Loop(node) => {
                 let mut desc = PlanNodeDescription::new("Loop", node.id());
                 if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
+                    desc = desc.with_output_var(var.to_string());
                 }
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
@@ -1496,7 +1496,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::PassThrough(node) => {
                 let mut desc = PlanNodeDescription::new("PassThrough", node.id());
                 if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
+                    desc = desc.with_output_var(var.to_string());
                 }
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
@@ -1504,7 +1504,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::Select(node) => {
                 let mut desc = PlanNodeDescription::new("Select", node.id());
                 if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
+                    desc = desc.with_output_var(var.to_string());
                 }
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
@@ -1512,7 +1512,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::DataCollect(node) => {
                 let mut desc = PlanNodeDescription::new("DataCollect", node.id());
                 if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
+                    desc = desc.with_output_var(var.to_string());
                 }
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
@@ -1520,7 +1520,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::Dedup(node) => {
                 let mut desc = PlanNodeDescription::new("Dedup", node.id());
                 if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
+                    desc = desc.with_output_var(var.to_string());
                 }
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
@@ -1528,7 +1528,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::PatternApply(node) => {
                 let mut desc = PlanNodeDescription::new("PatternApply", node.id());
                 if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
+                    desc = desc.with_output_var(var.to_string());
                 }
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
@@ -1536,7 +1536,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::RollUpApply(node) => {
                 let mut desc = PlanNodeDescription::new("RollUpApply", node.id());
                 if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
+                    desc = desc.with_output_var(var.to_string());
                 }
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
@@ -1544,7 +1544,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::Union(node) => {
                 let mut desc = PlanNodeDescription::new("Union", node.id());
                 if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
+                    desc = desc.with_output_var(var.to_string());
                 }
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
@@ -1552,7 +1552,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::Minus(node) => {
                 let mut desc = PlanNodeDescription::new("Minus", node.id());
                 if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
+                    desc = desc.with_output_var(var.to_string());
                 }
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
@@ -1560,7 +1560,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::Intersect(node) => {
                 let mut desc = PlanNodeDescription::new("Intersect", node.id());
                 if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
+                    desc = desc.with_output_var(var.to_string());
                 }
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
@@ -1568,7 +1568,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::Unwind(node) => {
                 let mut desc = PlanNodeDescription::new("Unwind", node.id());
                 if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
+                    desc = desc.with_output_var(var.to_string());
                 }
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
@@ -1576,7 +1576,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::TopN(node) => {
                 let mut desc = PlanNodeDescription::new("TopN", node.id());
                 if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
+                    desc = desc.with_output_var(var.to_string());
                 }
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
@@ -1584,7 +1584,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::Sample(node) => {
                 let mut desc = PlanNodeDescription::new("Sample", node.id());
                 if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
+                    desc = desc.with_output_var(var.to_string());
                 }
                 desc.add_description("count", node.count().to_string());
                 desc.add_description("cost", format!("{:.2}", node.cost()));
@@ -1593,7 +1593,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::HashInnerJoin(node) => {
                 let mut desc = PlanNodeDescription::new("HashInnerJoin", node.id());
                 if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
+                    desc = desc.with_output_var(var.to_string());
                 }
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
@@ -1601,7 +1601,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::HashLeftJoin(node) => {
                 let mut desc = PlanNodeDescription::new("HashLeftJoin", node.id());
                 if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
+                    desc = desc.with_output_var(var.to_string());
                 }
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
@@ -1609,7 +1609,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::FullOuterJoin(node) => {
                 let mut desc = PlanNodeDescription::new("FullOuterJoin", node.id());
                 if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
+                    desc = desc.with_output_var(var.to_string());
                 }
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
@@ -1617,7 +1617,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::IndexScan(node) => {
                 let mut desc = PlanNodeDescription::new("IndexScan", node.id());
                 if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
+                    desc = desc.with_output_var(var.to_string());
                 }
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
@@ -1633,7 +1633,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::MultiShortestPath(node) => {
                 let mut desc = PlanNodeDescription::new("MultiShortestPath", node.id());
                 if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
+                    desc = desc.with_output_var(var.to_string());
                 }
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
@@ -1641,7 +1641,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::BFSShortest(node) => {
                 let mut desc = PlanNodeDescription::new("BFSShortest", node.id());
                 if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
+                    desc = desc.with_output_var(var.to_string());
                 }
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
@@ -1649,7 +1649,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::AllPaths(node) => {
                 let mut desc = PlanNodeDescription::new("AllPaths", node.id());
                 if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
+                    desc = desc.with_output_var(var.to_string());
                 }
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
@@ -1657,7 +1657,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::ShortestPath(node) => {
                 let mut desc = PlanNodeDescription::new("ShortestPath", node.id());
                 if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
+                    desc = desc.with_output_var(var.to_string());
                 }
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
@@ -1665,7 +1665,7 @@ impl PlanNodeEnum {
             PlanNodeEnum::Assign(node) => {
                 let mut desc = PlanNodeDescription::new("Assign", node.id());
                 if let Some(var) = node.output_var() {
-                    desc = desc.with_output_var(var.name.clone());
+                    desc = desc.with_output_var(var.to_string());
                 }
                 desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc

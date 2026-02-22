@@ -2,8 +2,9 @@
 //! 用于验证 RETURN 语句（Cypher 风格的返回子句）
 //! 参考 nebula-graph MatchValidator.cpp 中的 Return 子句验证
 
+use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::query::context::ast::AstContext;
+use crate::query::context::QueryContext;
 use crate::query::parser::ast::stmt::{ReturnStmt, ReturnItem};
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
@@ -256,16 +257,27 @@ impl Default for ReturnValidator {
     }
 }
 
+/// 实现 StatementValidator trait
+///
+/// # 重构变更
+/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
 impl StatementValidator for ReturnValidator {
-    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError> {
-        let stmt = ast.sentence.as_ref()
-            .and_then(|s| s.as_return())
-            .ok_or_else(|| ValidationError::new(
-                "Expected RETURN statement".to_string(),
-                ValidationErrorType::SemanticError,
-            ))?;
+    fn validate(
+        &mut self,
+        stmt: &crate::query::parser::ast::Stmt,
+        _qctx: Arc<QueryContext>,
+    ) -> Result<ValidationResult, ValidationError> {
+        let return_stmt = match stmt {
+            crate::query::parser::ast::Stmt::Return(return_stmt) => return_stmt,
+            _ => {
+                return Err(ValidationError::new(
+                    "Expected RETURN statement".to_string(),
+                    ValidationErrorType::SemanticError,
+                ));
+            }
+        };
 
-        self.validate_impl(stmt)?;
+        self.validate_impl(return_stmt)?;
 
         Ok(ValidationResult::success(
             self.inputs.clone(),

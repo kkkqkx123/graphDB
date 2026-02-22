@@ -123,7 +123,7 @@ impl OptRule for PushFilterDownAggregateRule {
         };
 
         if let Some(output_var) = filter_node.output_var() {
-            new_filter_node.set_output_var(output_var.clone());
+            new_filter_node.set_output_var(output_var.to_string());
         }
         new_filter_node.set_col_names(filter_node.col_names().to_vec());
 
@@ -131,7 +131,7 @@ impl OptRule for PushFilterDownAggregateRule {
         new_agg_node.set_input(PlanNodeEnum::Filter(new_filter_node.clone()));
 
         if let Some(output_var) = agg_node.output_var() {
-            new_agg_node.set_output_var(output_var.clone());
+            new_agg_node.set_output_var(output_var.to_string());
         }
         new_agg_node.set_col_names(agg_node.col_names().to_vec());
 

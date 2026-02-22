@@ -7,8 +7,9 @@
 //! 2. 验证左右子查询的列数和数据类型兼容性
 //! 3. 支持多种集合操作类型
 
+use std::sync::Arc;
 use crate::core::error::{ValidationError, ValidationErrorType};
-use crate::query::context::ast::AstContext;
+use crate::query::context::QueryContext;
 use crate::query::parser::ast::stmt::{SetOperationStmt, SetOperationType};
 use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
@@ -202,29 +203,38 @@ impl SetOperationValidator {
     }
 }
 
+/// 实现 StatementValidator trait
+///
+/// # 重构变更
+/// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
 impl StatementValidator for SetOperationValidator {
-    fn validate(&mut self, ast: &mut AstContext) -> Result<ValidationResult, ValidationError> {
-        let stmt = ast.sentence.as_ref()
-            .and_then(|s| s.as_set_operation())
-            .ok_or_else(|| ValidationError::new(
-                "Expected SET OPERATION statement".to_string(),
-                ValidationErrorType::SemanticError,
-            ))?;
+    fn validate(
+        &mut self,
+        stmt: &crate::query::parser::ast::Stmt,
+        qctx: Arc<QueryContext>,
+    ) -> Result<ValidationResult, ValidationError> {
+        let set_op_stmt = match stmt {
+            crate::query::parser::ast::Stmt::SetOperation(set_op_stmt) => set_op_stmt,
+            _ => {
+                return Err(ValidationError::new(
+                    "Expected SET OPERATION statement".to_string(),
+                    ValidationErrorType::SemanticError,
+                ));
+            }
+        };
         
-        self.validate_impl(stmt)?;
+        self.validate_impl(set_op_stmt)?;
         
         // 验证左右子查询
         let left_outputs = if let Some(ref mut left) = self.left_validator {
-            let mut left_ast = AstContext::new(ast.qctx.clone(), Some(*stmt.left.clone()));
-            let result = left.validate(&mut left_ast)?;
+            let result = left.validate(&set_op_stmt.left, qctx.clone())?;
             result.outputs
         } else {
             Vec::new()
         };
 
         let right_outputs = if let Some(ref mut right) = self.right_validator {
-            let mut right_ast = AstContext::new(ast.qctx.clone(), Some(*stmt.right.clone()));
-            let result = right.validate(&mut right_ast)?;
+            let result = right.validate(&set_op_stmt.right, qctx.clone())?;
             result.outputs
         } else {
             Vec::new()

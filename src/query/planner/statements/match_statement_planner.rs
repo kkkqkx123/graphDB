@@ -9,8 +9,8 @@
 //! - LIMIT/SKIP 分页
 
 use crate::core::Expression;
-use crate::query::context::ast::AstContext;
 use crate::query::context::QueryContext;
+use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::ExecutionPlan;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
@@ -23,6 +23,7 @@ use crate::query::planner::PlanIdGenerator;
 use crate::core::YieldColumn;
 use crate::query::validator::structs::OrderByItem;
 use crate::query::validator::structs::CypherClauseKind;
+use std::sync::Arc;
 
 /// 分页信息结构体
 #[derive(Debug, Clone)]
@@ -57,63 +58,27 @@ impl MatchStatementPlanner {
     pub fn with_config(config: MatchPlannerConfig) -> Self {
         Self { config }
     }
-
-    pub fn match_ast_ctx(ast_ctx: &AstContext) -> bool {
-        ast_ctx.statement_type().to_uppercase() == "MATCH"
-    }
 }
 
 impl Planner for MatchStatementPlanner {
-    fn match_planner(&self, ast_ctx: &AstContext) -> bool {
-        Self::match_ast_ctx(ast_ctx)
+    fn match_planner(&self, stmt: &Stmt) -> bool {
+        matches!(stmt, Stmt::Match(_))
     }
 
-    fn transform(&mut self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
-        let stmt = ast_ctx.sentence().ok_or_else(|| {
-            PlannerError::InvalidAstContext("AstContext 中缺少语句".to_string())
-        })?;
-
-        let space_id = ast_ctx.space().space_id.unwrap_or(1);
+    fn transform(&mut self, stmt: &Stmt, qctx: Arc<QueryContext>) -> Result<SubPlan, PlannerError> {
+        let space_id = qctx.rctx()
+            .and_then(|rctx| rctx.space_id())
+            .unwrap_or(1) as u64;
         self.plan_match_pattern(stmt, space_id)
     }
 
     fn transform_with_full_context(
         &mut self,
-        _query_context: &mut QueryContext,
-        ast_ctx: &AstContext,
+        qctx: Arc<QueryContext>,
+        stmt: &Stmt,
     ) -> Result<ExecutionPlan, PlannerError> {
-        let stmt = ast_ctx.sentence().ok_or_else(|| {
-            PlannerError::InvalidAstContext("AstContext 中缺少语句".to_string())
-        })?;
-
-        let space_id = ast_ctx.space().space_id.unwrap_or(1);
-        let mut current_plan = self.plan_match_pattern(stmt, space_id)?;
-
-        if ast_ctx.query_type() == crate::query::context::ast::QueryType::ReadQuery {
-            if let Some(where_condition) = self.extract_where_condition(stmt)? {
-                current_plan = self.plan_filter(current_plan, where_condition, space_id)?;
-            }
-
-            if let Some(return_columns) = self.extract_return_columns(stmt)? {
-                current_plan = self.plan_project(current_plan, return_columns, space_id)?;
-            }
-
-            if let Some(order_by) = self.extract_order_by(stmt)? {
-                current_plan = self.plan_sort(current_plan, order_by, space_id)?;
-            }
-
-            if let Some(pagination) = self.extract_pagination(stmt)? {
-                current_plan = self.plan_limit(current_plan, pagination)?;
-            }
-        }
-
-        let mut plan = ExecutionPlan::new(current_plan.root().clone());
-        self.set_plan_id(&mut plan);
-        Ok(plan)
-    }
-
-    fn name(&self) -> &'static str {
-        "MatchStatementPlanner"
+        let sub_plan = self.transform(stmt, qctx)?;
+        Ok(ExecutionPlan::new(sub_plan.root().clone()))
     }
 }
 
@@ -132,12 +97,11 @@ impl StatementPlanner for MatchStatementPlanner {
         ]
     }
 
-    fn extract_clauses(&self, ast_ctx: &AstContext) -> Vec<CypherClauseKind> {
+    fn extract_clauses(&self, stmt: &Stmt) -> Vec<CypherClauseKind> {
         let mut clauses = Vec::new();
         clauses.push(CypherClauseKind::Match);
 
-        let stmt = ast_ctx.sentence();
-        if let Some(crate::query::parser::ast::Stmt::Match(match_stmt)) = stmt {
+        if let crate::query::parser::ast::Stmt::Match(match_stmt) = stmt {
             if match_stmt.where_clause.is_some() {
                 clauses.push(CypherClauseKind::Where);
             }
@@ -161,17 +125,14 @@ impl StatementPlanner for MatchStatementPlanner {
         Box::new(Self::new())
     }
 
-    fn create_initial_plan(&self, ast_ctx: &AstContext) -> Result<SubPlan, PlannerError> {
-        let stmt = ast_ctx.sentence().ok_or_else(|| {
-            PlannerError::InvalidAstContext("AstContext 中缺少语句".to_string())
-        })?;
-        let space_id = ast_ctx.space().space_id.unwrap_or(1);
+    fn create_initial_plan(&self, stmt: &Stmt, qctx: Arc<QueryContext>) -> Result<SubPlan, PlannerError> {
+        let space_id = qctx.space_id().unwrap_or(1) as u64;
         self.plan_match_pattern(stmt, space_id)
     }
 
-    fn create_default_plan(&self, ast_ctx: &AstContext) -> Result<ExecutionPlan, PlannerError> {
+    fn create_default_plan(&self, stmt: &Stmt, qctx: Arc<QueryContext>) -> Result<ExecutionPlan, PlannerError> {
         let mut planner = MatchStatementPlanner::new();
-        planner.transform_with_full_context(&mut QueryContext::new(), ast_ctx)
+        planner.transform_with_full_context(qctx, stmt)
     }
 }
 
@@ -183,8 +144,25 @@ impl MatchStatementPlanner {
     ) -> Result<SubPlan, PlannerError> {
         match stmt {
             crate::query::parser::ast::Stmt::Match(_match_stmt) => {
-                let start_node = self.plan_node_pattern(space_id)?;
-                Ok(SubPlan::from_root(start_node))
+                let mut plan = self.plan_node_pattern(space_id)?;
+
+                if let Some(condition) = self.extract_where_condition(stmt)? {
+                    plan = self.plan_filter(plan, condition, space_id)?;
+                }
+
+                if let Some(columns) = self.extract_return_columns(stmt)? {
+                    plan = self.plan_project(plan, columns, space_id)?;
+                }
+
+                if let Some(order_by) = self.extract_order_by(stmt)? {
+                    plan = self.plan_sort(plan, order_by, space_id)?;
+                }
+
+                if let Some(pagination) = self.extract_pagination(stmt)? {
+                    plan = self.plan_limit(plan, pagination)?;
+                }
+
+                Ok(plan)
             }
             _ => Err(PlannerError::InvalidOperation(
                 "Expected MATCH statement".to_string()
@@ -192,9 +170,9 @@ impl MatchStatementPlanner {
         }
     }
 
-    fn plan_node_pattern(&self, space_id: u64) -> Result<PlanNodeEnum, PlannerError> {
+    fn plan_node_pattern(&self, space_id: u64) -> Result<SubPlan, PlannerError> {
         let scan_node = ScanVerticesNode::new(space_id);
-        Ok(scan_node.into_enum())
+        Ok(SubPlan::from_root(scan_node.into_enum()))
     }
 
     fn plan_filter(
@@ -368,7 +346,6 @@ impl MatchStatementPlanner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::context::ast::AstContext;
 
     #[test]
     fn test_match_statement_planner_creation() {
@@ -391,8 +368,17 @@ mod tests {
     #[test]
     fn test_extract_clauses_simple() {
         let planner = MatchStatementPlanner::new();
-        let ast_ctx = AstContext::from_strings("MATCH", "MATCH (n)");
-        let clauses = planner.extract_clauses(&ast_ctx);
+        let stmt = crate::query::parser::ast::Stmt::Match(crate::query::parser::ast::MatchStmt {
+            span: crate::core::types::Span::default(),
+            patterns: vec![],
+            optional: false,
+            where_clause: None,
+            return_clause: None,
+            order_by: None,
+            limit: None,
+            skip: None,
+        });
+        let clauses = planner.extract_clauses(&stmt);
         assert_eq!(clauses.len(), 1);
         assert!(clauses.contains(&CypherClauseKind::Match));
     }
