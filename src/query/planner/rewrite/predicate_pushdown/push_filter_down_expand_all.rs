@@ -3,12 +3,14 @@
 //! 该规则识别 Filter -> ExpandAll 模式，
 //! 并将过滤条件下推到 ExpandAll 节点中。
 
-use crate::query::planner::plan::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::traversal_node::ExpandAllNode;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planner::rewrite::rule::{RewriteRule, PushDownRule};
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
+use crate::core::Expression;
 
 /// 将过滤条件下推到ExpandAll操作的规则
 ///
@@ -71,14 +73,29 @@ impl RewriteRule for PushFilterDownExpandAllRule {
         let input = filter_node.input();
 
         // 检查输入节点是否为 ExpandAll
-        let _expand_all = match input {
+        let expand_all = match input {
             PlanNodeEnum::ExpandAll(n) => n,
             _ => return Ok(None),
         };
 
-        // 简化实现：返回 None 表示不转换
-        // 实际实现需要创建新的 ExpandAll 节点并设置 filter
-        Ok(None)
+        // 获取过滤条件
+        let filter_condition = filter_node.condition();
+
+        // 将表达式转换为字符串作为 filter
+        let filter_str = format!("{:?}", filter_condition);
+
+        // 创建新的 ExpandAll 节点
+        let mut new_expand_all = expand_all.clone();
+
+        // 设置 filter
+        new_expand_all.set_filter(filter_str);
+
+        // 构建转换结果
+        let mut result = TransformResult::new();
+        result.erase_curr = true;
+        result.add_new_node(PlanNodeEnum::ExpandAll(new_expand_all));
+
+        Ok(Some(result))
     }
 }
 
@@ -89,17 +106,18 @@ impl PushDownRule for PushFilterDownExpandAllRule {
 
     fn push_down(
         &self,
-        _ctx: &mut RewriteContext,
+        ctx: &mut RewriteContext,
         node: &PlanNodeEnum,
         _target: &PlanNodeEnum,
     ) -> RewriteResult<Option<TransformResult>> {
-        self.apply(_ctx, node)
+        self.apply(ctx, node)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::query::planner::plan::core::nodes::start_node::StartNode;
 
     #[test]
     fn test_rule_name() {
@@ -112,5 +130,25 @@ mod tests {
         let rule = PushFilterDownExpandAllRule::new();
         let pattern = rule.pattern();
         assert!(pattern.node.is_some());
+    }
+
+    #[test]
+    fn test_can_push_down() {
+        let rule = PushFilterDownExpandAllRule::new();
+
+        let start = StartNode::new();
+        let start_enum = PlanNodeEnum::Start(start);
+
+        let condition = Expression::Variable("test".to_string());
+        let filter = crate::query::planner::plan::core::nodes::filter_node::FilterNode::new(
+            start_enum.clone(),
+            condition
+        ).expect("创建FilterNode失败");
+        let filter_enum = PlanNodeEnum::Filter(filter);
+
+        let expand_all = ExpandAllNode::new(1, vec![], "OUT");
+        let expand_enum = PlanNodeEnum::ExpandAll(expand_all);
+
+        assert!(rule.can_push_down(&filter_enum, &expand_enum));
     }
 }

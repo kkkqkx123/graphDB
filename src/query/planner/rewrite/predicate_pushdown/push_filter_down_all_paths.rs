@@ -3,7 +3,7 @@
 //! 该规则识别 Filter -> AllPaths 模式，
 //! 并将过滤条件下推到 AllPaths 节点中。
 
-use crate::query::planner::plan::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
@@ -76,8 +76,9 @@ impl RewriteRule for PushFilterDownAllPathsRule {
             _ => return Ok(None),
         };
 
-        // 简化实现：返回 None 表示不转换
-        // 实际实现需要创建新的 AllPaths 节点并设置 filter
+        // 注意：AllPaths 节点目前没有 filter 字段
+        // 如果需要支持下推，需要在 AllPaths 结构中添加 filter 字段
+        // 目前返回 None 表示不转换
         Ok(None)
     }
 }
@@ -89,11 +90,11 @@ impl PushDownRule for PushFilterDownAllPathsRule {
 
     fn push_down(
         &self,
-        _ctx: &mut RewriteContext,
+        ctx: &mut RewriteContext,
         node: &PlanNodeEnum,
         _target: &PlanNodeEnum,
     ) -> RewriteResult<Option<TransformResult>> {
-        self.apply(_ctx, node)
+        self.apply(ctx, node)
     }
 }
 

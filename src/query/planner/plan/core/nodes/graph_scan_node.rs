@@ -284,6 +284,22 @@ impl GetNeighborsNode {
     pub fn direction(&self) -> &str {
         &self.direction
     }
+
+    pub fn expression(&self) -> Option<&String> {
+        self.expression.as_ref()
+    }
+
+    pub fn set_expression(&mut self, expression: String) {
+        self.expression = Some(expression);
+    }
+
+    pub fn edge_props(&self) -> &[EdgeProp] {
+        &self.edge_props
+    }
+
+    pub fn tag_props(&self) -> &[TagProp] {
+        &self.tag_props
+    }
 }
 
 define_plan_node! {

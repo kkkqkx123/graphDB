@@ -103,7 +103,6 @@ fn test_rewrite_rule_names() {
         // 谓词下推规则
         "PushFilterDownTraverseRule",
         "PushFilterDownExpandAllRule",
-        "PushFilterDownJoinRule",
         "PushFilterDownNodeRule",
         "PushEFilterDownRule",
         "PushVFilterDownScanVerticesRule",

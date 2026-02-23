@@ -3,7 +3,9 @@
 //! 该规则识别 Filter -> HashInnerJoin 模式，
 //! 并将过滤条件下推到连接的两侧。
 
-use crate::query::planner::plan::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
+use crate::query::planner::plan::core::nodes::join_node::HashInnerJoinNode;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
@@ -91,22 +93,78 @@ impl RewriteRule for PushFilterDownHashInnerJoinRule {
         let left_col_names = join.left_input().col_names().to_vec();
         let right_col_names = join.right_input().col_names().to_vec();
 
-        // 定义选择器函数
+        // 定义左侧选择器函数
         let left_picker = |expr: &Expression| -> bool {
             check_col_name(&left_col_names, expr)
         };
 
-        // 分割过滤条件
-        let (_left_filter_picked, _remaining_after_left) = split_filter(filter_condition, left_picker);
-
         // 定义右侧选择器函数
-        let _right_picker = |expr: &Expression| -> bool {
+        let right_picker = |expr: &Expression| -> bool {
             check_col_name(&right_col_names, expr)
         };
 
-        // 简化实现：返回 None 表示不转换
-        // 实际实现需要创建新的 HashInnerJoin 节点并在两侧添加 Filter
-        Ok(None)
+        // 分割过滤条件
+        let (left_picked, left_remained) = split_filter(filter_condition, left_picker);
+        let (right_picked, right_remained) = split_filter(filter_condition, right_picker);
+
+        // 如果没有可以下推的条件，则不进行转换
+        if left_picked.is_none() && right_picked.is_none() {
+            return Ok(None);
+        }
+
+        // 创建新的 HashInnerJoin 节点
+        let mut new_join = join.clone();
+        let mut new_left = join.left_input().clone();
+        let mut new_right = join.right_input().clone();
+
+        // 处理左侧下推
+        let left_pushed = left_picked.is_some();
+        if let Some(left_filter) = left_picked {
+            let left_filter_node = FilterNode::new(new_left, left_filter)
+                .map_err(|e| crate::query::planner::rewrite::result::RewriteError::rewrite_failed(
+                    format!("创建FilterNode失败: {:?}", e)
+                ))?;
+            new_left = PlanNodeEnum::Filter(left_filter_node);
+        }
+
+        // 处理右侧下推
+        let right_pushed = right_picked.is_some();
+        if let Some(right_filter) = right_picked {
+            let right_filter_node = FilterNode::new(new_right, right_filter)
+                .map_err(|e| crate::query::planner::rewrite::result::RewriteError::rewrite_failed(
+                    format!("创建FilterNode失败: {:?}", e)
+                ))?;
+            new_right = PlanNodeEnum::Filter(right_filter_node);
+        }
+
+        // 更新 Join 节点的输入
+        new_join.set_left_input(new_left);
+        new_join.set_right_input(new_right);
+
+        // 构建转换结果
+        let mut result = TransformResult::new();
+
+        // 检查是否有剩余的过滤条件
+        let remaining_condition = if left_pushed && right_pushed {
+            None
+        } else if left_pushed {
+            right_remained
+        } else {
+            left_remained
+        };
+
+        if let Some(remained) = remaining_condition {
+            result.erase_curr = false;
+            let mut new_filter = filter_node.clone();
+            new_filter.set_condition(remained);
+            result.add_new_node(PlanNodeEnum::Filter(new_filter));
+        } else {
+            result.erase_curr = true;
+        }
+
+        result.add_new_node(PlanNodeEnum::HashInnerJoin(new_join));
+
+        Ok(Some(result))
     }
 }
 
@@ -117,17 +175,18 @@ impl PushDownRule for PushFilterDownHashInnerJoinRule {
 
     fn push_down(
         &self,
-        _ctx: &mut RewriteContext,
+        ctx: &mut RewriteContext,
         node: &PlanNodeEnum,
         _target: &PlanNodeEnum,
     ) -> RewriteResult<Option<TransformResult>> {
-        self.apply(_ctx, node)
+        self.apply(ctx, node)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::query::planner::plan::core::nodes::start_node::StartNode;
 
     #[test]
     fn test_rule_name() {
@@ -140,5 +199,27 @@ mod tests {
         let rule = PushFilterDownHashInnerJoinRule::new();
         let pattern = rule.pattern();
         assert!(pattern.node.is_some());
+    }
+
+    #[test]
+    fn test_can_push_down() {
+        let rule = PushFilterDownHashInnerJoinRule::new();
+
+        let start = StartNode::new();
+        let start_enum = PlanNodeEnum::Start(start);
+
+        let condition = Expression::Variable("test".to_string());
+        let filter = FilterNode::new(start_enum.clone(), condition).expect("创建FilterNode失败");
+        let filter_enum = PlanNodeEnum::Filter(filter);
+
+        let join = HashInnerJoinNode::new(
+            start_enum.clone(),
+            start_enum,
+            vec![],
+            vec![]
+        ).expect("创建HashInnerJoinNode失败");
+        let join_enum = PlanNodeEnum::HashInnerJoin(join);
+
+        assert!(rule.can_push_down(&filter_enum, &join_enum));
     }
 }

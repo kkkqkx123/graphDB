@@ -4,7 +4,6 @@
 
 pub mod push_filter_down_traverse;
 pub mod push_filter_down_expand_all;
-pub mod push_filter_down_join;
 pub mod push_filter_down_node;
 pub mod push_efilter_down;
 pub mod push_vfilter_down_scan_vertices;
@@ -17,7 +16,6 @@ pub mod push_filter_down_all_paths;
 
 pub use push_filter_down_traverse::PushFilterDownTraverseRule;
 pub use push_filter_down_expand_all::PushFilterDownExpandAllRule;
-pub use push_filter_down_join::PushFilterDownJoinRule;
 pub use push_filter_down_node::PushFilterDownNodeRule;
 pub use push_efilter_down::PushEFilterDownRule;
 pub use push_vfilter_down_scan_vertices::PushVFilterDownScanVerticesRule;

@@ -141,7 +141,6 @@ define_rewrite_rules! {
         // ==================== 谓词下推规则 ====================
         PushFilterDownTraverse(predicate_pushdown::PushFilterDownTraverseRule),
         PushFilterDownExpandAll(predicate_pushdown::PushFilterDownExpandAllRule),
-        PushFilterDownJoin(predicate_pushdown::PushFilterDownJoinRule),
         PushFilterDownNode(predicate_pushdown::PushFilterDownNodeRule),
         PushEFilterDown(predicate_pushdown::PushEFilterDownRule),
         PushVFilterDownScanVertices(predicate_pushdown::PushVFilterDownScanVerticesRule),
@@ -223,7 +222,6 @@ impl Default for RuleRegistry {
         registry.add(RewriteRule::MergeGetNbrsAndDedup(merge::MergeGetNbrsAndDedupRule));
         registry.add(RewriteRule::PushFilterDownTraverse(predicate_pushdown::PushFilterDownTraverseRule));
         registry.add(RewriteRule::PushFilterDownExpandAll(predicate_pushdown::PushFilterDownExpandAllRule));
-        registry.add(RewriteRule::PushFilterDownJoin(predicate_pushdown::PushFilterDownJoinRule));
         registry.add(RewriteRule::PushFilterDownNode(predicate_pushdown::PushFilterDownNodeRule));
         registry.add(RewriteRule::PushEFilterDown(predicate_pushdown::PushEFilterDownRule));
         registry.add(RewriteRule::PushVFilterDownScanVertices(predicate_pushdown::PushVFilterDownScanVerticesRule));
@@ -253,7 +251,7 @@ mod tests {
     #[test]
     fn test_rule_registry_default() {
         let registry = RuleRegistry::default();
-        assert_eq!(registry.len(), 35);
+        assert_eq!(registry.len(), 34);
     }
 
     #[test]

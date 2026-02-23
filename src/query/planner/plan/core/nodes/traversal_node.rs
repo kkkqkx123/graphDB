@@ -151,6 +151,14 @@ impl ExpandAllNode {
     pub fn edge_types(&self) -> &[String] {
         &self.edge_types
     }
+
+    pub fn filter(&self) -> Option<&str> {
+        self.filter.as_deref()
+    }
+
+    pub fn set_filter(&mut self, filter: String) {
+        self.filter = Some(filter);
+    }
 }
 
 define_plan_node_with_deps! {
@@ -163,7 +171,10 @@ define_plan_node_with_deps! {
         min_steps: u32,
         max_steps: u32,
         edge_alias: Option<String>,
+        vertex_alias: Option<String>,
         e_filter: Option<Expression>,
+        v_filter: Option<Expression>,
+        first_step_filter: Option<Expression>,
     }
     enum: Traverse
     input: SingleInputNode
@@ -183,7 +194,10 @@ impl TraverseNode {
             min_steps,
             max_steps,
             edge_alias: None,
+            vertex_alias: None,
             e_filter: None,
+            v_filter: None,
+            first_step_filter: None,
             output_var: None,
             col_names: Vec::new(),
             cost: 0.0,
@@ -242,6 +256,10 @@ impl TraverseNode {
         self.edge_alias.as_ref()
     }
 
+    pub fn vertex_alias(&self) -> Option<&String> {
+        self.vertex_alias.as_ref()
+    }
+
     pub fn e_filter(&self) -> Option<&Expression> {
         self.e_filter.as_ref()
     }
@@ -251,7 +269,19 @@ impl TraverseNode {
     }
 
     pub fn v_filter(&self) -> Option<&Expression> {
-        None
+        self.v_filter.as_ref()
+    }
+
+    pub fn set_v_filter(&mut self, filter: Expression) {
+        self.v_filter = Some(filter);
+    }
+
+    pub fn first_step_filter(&self) -> Option<&Expression> {
+        self.first_step_filter.as_ref()
+    }
+
+    pub fn set_first_step_filter(&mut self, filter: Expression) {
+        self.first_step_filter = Some(filter);
     }
 }
 
@@ -268,6 +298,7 @@ define_plan_node! {
         need_fetch_prop: bool,
         vids: Vec<String>,
         tag_ids: Vec<i32>,
+        v_filter: Option<Expression>,
     }
     enum: AppendVertices
     input: MultipleInputNode
@@ -289,6 +320,7 @@ impl AppendVerticesNode {
             need_fetch_prop: false,
             vids: Vec::new(),
             tag_ids: Vec::new(),
+            v_filter: None,
             output_var: None,
             col_names: Vec::new(),
             cost: 0.0,
@@ -324,7 +356,11 @@ impl AppendVerticesNode {
     }
 
     pub fn v_filter(&self) -> Option<&Expression> {
-        None
+        self.v_filter.as_ref()
+    }
+
+    pub fn set_v_filter(&mut self, filter: Expression) {
+        self.v_filter = Some(filter);
     }
 
     pub fn dedup(&self) -> bool {
