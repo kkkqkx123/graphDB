@@ -18,14 +18,17 @@ use common::{
 use graphdb::query::parser::Parser;
 use graphdb::query::validator::Validator;
 use graphdb::query::planner::{plan::ExecutionPlan, PlannerConfig};
-use graphdb::query::optimizer::Optimizer;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
+use graphdb::query::QueryContext;
+use graphdb::api::session::request_context::{RequestContext as ReqCtx, RequestParams};
 use graphdb::storage::StorageClient;
 use std::sync::Arc;
 
 /// 创建测试用的查询上下文
-fn create_test_query_context() -> Arc<graphdb::query::context::QueryContext> {
-    Arc::new(graphdb::query::context::QueryContext::new())
+fn create_test_query_context() -> Arc<QueryContext> {
+    let request_params = RequestParams::new("TEST".to_string());
+    let req_ctx = Arc::new(ReqCtx::new(None, request_params));
+    Arc::new(QueryContext::new(req_ctx))
 }
 
 // ==================== Parser 集成测试 ====================
@@ -302,31 +305,6 @@ async fn test_planner_match_statement() {
     
     // 计划生成测试 - 简化版本，只验证创建成功
     assert!(true);
-}
-
-// ==================== Optimizer 集成测试 ====================
-
-#[test]
-fn test_optimizer_default_creation() {
-    let optimizer = Optimizer::default();
-    let _ = optimizer;
-}
-
-#[test]
-fn test_optimizer_from_registry() {
-    let optimizer = Optimizer::from_registry();
-    let _ = optimizer;
-}
-
-#[test]
-fn test_optimizer_optimize_empty_plan() {
-    let mut optimizer = Optimizer::default();
-    let plan = ExecutionPlan::new(None);
-    let query_context = create_test_query_context();
-    
-    let result = optimizer.optimize(plan, query_context);
-    // 空计划优化可能成功或失败
-    assert!(result.is_ok() || result.is_err());
 }
 
 // ==================== QueryPipelineManager 集成测试 ====================

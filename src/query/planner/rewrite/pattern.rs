@@ -5,6 +5,20 @@
 
 use crate::query::planner::plan::PlanNodeEnum;
 
+/// 生成节点匹配方法的宏
+///
+/// 为 Pattern 结构体生成便捷的节点匹配构造方法
+macro_rules! define_matcher {
+    ($($method:ident => $name:expr),+ $(,)?) => {
+        $(
+            /// 创建匹配节点的模式
+            pub fn $method() -> Self {
+                Self::new_with_name($name)
+            }
+        )+
+    };
+}
+
 /// 模式结构体
 ///
 /// 用于匹配计划树的特定结构。
@@ -86,14 +100,10 @@ impl Pattern {
         // 检查每个依赖模式是否匹配
         for dep_pattern in &self.dependencies {
             let dep_matches = plan_node.dependencies().iter().any(|input| {
-                if let Some(ref node) = dep_pattern.node {
-                    node.matches(input.name())
-                } else {
-                    true
-                }
+                dep_pattern.matches(input)
             });
 
-            if !dep_matches && !dep_pattern.dependencies.is_empty() {
+            if !dep_matches {
                 return false;
             }
         }
@@ -103,54 +113,17 @@ impl Pattern {
 
     // ==================== 便捷构造方法 ====================
 
-    /// 创建匹配 Project 节点的模式
-    pub fn with_project_matcher() -> Self {
-        Self::new_with_name("Project")
-    }
-
-    /// 创建匹配 Filter 节点的模式
-    pub fn with_filter_matcher() -> Self {
-        Self::new_with_name("Filter")
-    }
-
-    /// 创建匹配 ScanVertices 节点的模式
-    pub fn with_scan_vertices_matcher() -> Self {
-        Self::new_with_name("ScanVertices")
-    }
-
-    /// 创建匹配 GetVertices 节点的模式
-    pub fn with_get_vertices_matcher() -> Self {
-        Self::new_with_name("GetVertices")
-    }
-
-    /// 创建匹配 Limit 节点的模式
-    pub fn with_limit_matcher() -> Self {
-        Self::new_with_name("Limit")
-    }
-
-    /// 创建匹配 Sort 节点的模式
-    pub fn with_sort_matcher() -> Self {
-        Self::new_with_name("Sort")
-    }
-
-    /// 创建匹配 Aggregate 节点的模式
-    pub fn with_aggregate_matcher() -> Self {
-        Self::new_with_name("Aggregate")
-    }
-
-    /// 创建匹配 Dedup 节点的模式
-    pub fn with_dedup_matcher() -> Self {
-        Self::new_with_name("Dedup")
-    }
-
-    /// 创建匹配 GetNeighbors 节点的模式
-    pub fn with_get_neighbors_matcher() -> Self {
-        Self::new_with_name("GetNeighbors")
-    }
-
-    /// 创建匹配 Traverse 节点的模式
-    pub fn with_traverse_matcher() -> Self {
-        Self::new_with_name("Traverse")
+    define_matcher! {
+        with_project_matcher => "Project",
+        with_filter_matcher => "Filter",
+        with_scan_vertices_matcher => "ScanVertices",
+        with_get_vertices_matcher => "GetVertices",
+        with_limit_matcher => "Limit",
+        with_sort_matcher => "Sort",
+        with_aggregate_matcher => "Aggregate",
+        with_dedup_matcher => "Dedup",
+        with_get_neighbors_matcher => "GetNeighbors",
+        with_traverse_matcher => "Traverse",
     }
 
     /// 创建匹配 Join 节点的模式（匹配任何连接类型）
