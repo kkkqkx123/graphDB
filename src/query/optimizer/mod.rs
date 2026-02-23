@@ -29,7 +29,8 @@ pub mod rules;
 pub mod index_selector;
 
 // Re-export core types
-pub use core::{Cost, OptimizationConfig, OptimizationPhase, OptimizationStats, Statistics};
+pub use core::{Cost, OptimizationConfig, OptimizationPhase, OptimizationStats};
+pub use core::LegacyStatistics as Statistics;
 
 // Re-export rule enum and config
 pub use rule_enum::OptimizationRule;

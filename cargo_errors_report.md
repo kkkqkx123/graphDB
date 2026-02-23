@@ -2,39 +2,39 @@
 
 ## Summary
 
-- **Total Errors**: 0
-- **Total Warnings**: 3
+- **Total Errors**: 3
+- **Total Warnings**: 0
 - **Total Issues**: 3
-- **Unique Error Patterns**: 0
-- **Unique Warning Patterns**: 3
+- **Unique Error Patterns**: 1
+- **Unique Warning Patterns**: 0
 - **Files with Issues**: 1
 
 ## Error Statistics
 
-**Total Errors**: 0
+**Total Errors**: 3
+
+### Error Type Breakdown
+
+- **error[E0308]**: 3 errors
+
+### Files with Errors (Top 10)
+
+- `src\query\optimizer\core\selectivity.rs`: 3 errors
 
 ## Warning Statistics
 
-**Total Warnings**: 3
+**Total Warnings**: 0
 
-### Warning Type Breakdown
+## Detailed Error Categorization
 
-- **warning**: 3 warnings
-
-### Files with Warnings (Top 10)
-
-- `src\query\planner\statements\match_statement_planner.rs`: 3 warnings
-
-## Detailed Warning Categorization
-
-### warning: methods `convert_pattern_to_path_pattern`, `convert_path_element_to_node`, `convert_path_element_to_edge`, `extract_properties_from_expr`, `expr_to_value`, and `select_scan_strategy` are never used
+### error[E0308]: mismatched types: expected `f64`, found `Option<{float}>`
 
 **Total Occurrences**: 3  
 **Unique Files**: 1
 
-#### `src\query\planner\statements\match_statement_planner.rs`: 3 occurrences
+#### `src\query\optimizer\core\selectivity.rs`: 3 occurrences
 
-- Line 75: methods `convert_pattern_to_path_pattern`, `convert_path_element_to_node`, `convert_path_element_to_edge`, `extract_properties_from_expr`, `expr_to_value`, and `select_scan_strategy` are never used
-- Line 220: enum `ScanStrategy` is never used
-- Line 231: struct `DummyStorage` is never constructed
+- Line 405: mismatched types: expected `f64`, found `Option<{float}>`
+- Line 409: mismatched types: expected `f64`, found `Option<{float}>`
+- Line 413: mismatched types: expected `f64`, found `Option<{float}>`
 

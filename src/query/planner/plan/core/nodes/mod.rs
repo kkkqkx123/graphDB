@@ -53,7 +53,7 @@ pub use insert_nodes::{
 pub use join_node::{CrossJoinNode, FullOuterJoinNode, HashInnerJoinNode, HashLeftJoinNode, InnerJoinNode, LeftJoinNode};
 pub use plan_node_category::PlanNodeCategory;
 pub use plan_node_cost::{
-    CostEstimate, NodeStatistics,
+    PlanNodeCost, PlanNodeStats, CostComparison,
 };
 pub use plan_node_enum::{PlanNodeEnum};
 pub use plan_node_visitor::PlanNodeVisitor;
