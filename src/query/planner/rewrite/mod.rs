@@ -61,6 +61,9 @@ pub mod pattern;
 pub mod result;
 pub mod rule;
 
+// 宏模块
+pub mod macros;
+
 // 核心 trait 和实现
 pub mod rewrite_rule;
 pub mod plan_rewriter;
