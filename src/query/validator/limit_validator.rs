@@ -277,6 +277,8 @@ mod tests {
         let request_params = RequestParams::new("TEST".to_string());
         let rctx = Arc::new(RequestContext::new(None, request_params));
         let qctx = QueryContext::new(rctx);
+        let space_info = crate::core::types::SpaceInfo::new("test_space".to_string());
+        qctx.set_space_info(space_info);
         Arc::new(qctx)
     }
 

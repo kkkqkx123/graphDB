@@ -72,8 +72,12 @@ pub struct SymbolTable {
 
 impl Clone for SymbolTable {
     fn clone(&self) -> Self {
+        let new_map = DashMap::new();
+        for entry in self.symbols.iter() {
+            new_map.insert(entry.key().clone(), entry.value().clone());
+        }
         Self {
-            symbols: Arc::clone(&self.symbols),
+            symbols: Arc::new(new_map),
         }
     }
 }
