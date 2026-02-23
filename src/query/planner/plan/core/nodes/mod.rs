@@ -10,7 +10,6 @@ pub mod insert_nodes;
 pub mod join_node;
 pub mod macros;
 pub mod plan_node_category;
-pub mod plan_node_cost;
 pub mod plan_node_enum;
 pub mod plan_node_operations;
 pub mod plan_node_traits;
@@ -52,9 +51,6 @@ pub use insert_nodes::{
 };
 pub use join_node::{CrossJoinNode, FullOuterJoinNode, HashInnerJoinNode, HashLeftJoinNode, InnerJoinNode, LeftJoinNode};
 pub use plan_node_category::PlanNodeCategory;
-pub use plan_node_cost::{
-    PlanNodeCost, PlanNodeStats, CostComparison,
-};
 pub use plan_node_enum::{PlanNodeEnum};
 pub use plan_node_visitor::PlanNodeVisitor;
 pub use plan_node_traits::*;
