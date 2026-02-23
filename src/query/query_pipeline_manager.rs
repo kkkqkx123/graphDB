@@ -12,17 +12,14 @@ use crate::query::QueryContext;
 use crate::core::error::{DBError, DBResult, QueryError};
 use crate::query::executor::factory::ExecutorFactory;
 use crate::query::executor::base::ExecutionResult;
-use crate::query::optimizer::{Optimizer, OptimizationConfig, RuleConfig};
 use crate::query::parser::Parser;
 use crate::query::planner::planner::{PlanCache, PlanCacheKey};
 use crate::storage::StorageClient;
-use std::path::PathBuf;
 use std::sync::Arc;
 use parking_lot::Mutex;
 use std::time::Instant;
 
 pub struct QueryPipelineManager<S: StorageClient + 'static> {
-    optimizer: Optimizer,
     executor_factory: ExecutorFactory<S>,
     stats_manager: Arc<StatsManager>,
     plan_cache: Option<PlanCache>,
@@ -45,18 +42,14 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         };
 
         Self {
-            optimizer: Optimizer::from_registry(),
             executor_factory,
             stats_manager,
             plan_cache,
         }
     }
 
-    pub fn with_optimizer_config(storage: Arc<Mutex<S>>, rule_config: RuleConfig, stats_manager: Arc<StatsManager>) -> Self {
+    pub fn with_config(storage: Arc<Mutex<S>>, stats_manager: Arc<StatsManager>) -> Self {
         let executor_factory = ExecutorFactory::with_storage(storage.clone());
-
-        let config = OptimizationConfig::with_rule_config(rule_config);
-        let optimizer = Optimizer::with_config(vec![], config);
 
         // 尝试创建计划缓存
         let plan_cache = match PlanCache::with_default_config() {
@@ -71,75 +64,10 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         };
 
         Self {
-            optimizer,
             executor_factory,
             stats_manager,
             plan_cache,
         }
-    }
-
-    pub fn from_config_file(storage: Arc<Mutex<S>>, config_path: &PathBuf, stats_manager: Arc<StatsManager>) -> Self {
-        let executor_factory = ExecutorFactory::with_storage(storage.clone());
-
-        let optimizer = match crate::config::Config::load(config_path) {
-            Ok(config) => {
-                let rule_config = Self::build_rule_config(&config.optimizer.rules);
-                let opt_config = OptimizationConfig {
-                    max_iteration_rounds: config.optimizer.max_iteration_rounds,
-                    max_exploration_rounds: config.optimizer.max_exploration_rounds,
-                    enable_cost_model: config.optimizer.enable_cost_model,
-                    enable_multi_plan: config.optimizer.enable_multi_plan,
-                    enable_property_pruning: config.optimizer.enable_property_pruning,
-                    rule_config: Some(rule_config),
-                    enable_adaptive_iteration: config.optimizer.enable_adaptive_iteration,
-                    stable_threshold: config.optimizer.stable_threshold,
-                    min_iteration_rounds: config.optimizer.min_iteration_rounds,
-                };
-                Optimizer::with_config(vec![], opt_config)
-            }
-            Err(e) => {
-                log::warn!("无法加载优化器配置，使用默认配置: {}", e);
-                Optimizer::from_registry()
-            }
-        };
-
-        // 尝试创建计划缓存
-        let plan_cache = match PlanCache::with_default_config() {
-            Ok(cache) => {
-                log::info!("查询计划缓存已启用");
-                Some(cache)
-            }
-            Err(e) => {
-                log::warn!("无法创建查询计划缓存: {}", e);
-                None
-            }
-        };
-
-        Self {
-            optimizer,
-            executor_factory,
-            stats_manager,
-            plan_cache,
-        }
-    }
-
-    fn build_rule_config(rules_config: &crate::config::OptimizerRulesConfig) -> RuleConfig {
-        use crate::query::optimizer::OptimizationRule;
-        let mut rule_config = RuleConfig::default();
-        
-        for rule_name in &rules_config.disabled_rules {
-            if let Some(rule) = OptimizationRule::from_name(rule_name) {
-                rule_config.disable(rule);
-            }
-        }
-        
-        for rule_name in &rules_config.enabled_rules {
-            if let Some(rule) = OptimizationRule::from_name(rule_name) {
-                rule_config.enable(rule);
-            }
-        }
-        
-        rule_config
     }
 
     pub async fn execute_query(&mut self, query_text: &str) -> DBResult<ExecutionResult> {
@@ -376,12 +304,16 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
 
     fn optimize_execution_plan(
         &mut self,
-        query_context: Arc<QueryContext>,
+        _query_context: Arc<QueryContext>,
         plan: crate::query::planner::plan::ExecutionPlan,
     ) -> DBResult<crate::query::planner::plan::ExecutionPlan> {
-        self.optimizer
-            .find_best_plan(query_context, plan)
-            .map_err(|e| DBError::from(QueryError::pipeline_optimization_error(e)))
+        // 使用 planner rewrite 规则进行优化
+        use crate::query::planner::rewrite::rewrite_plan;
+        
+        let optimized_plan = rewrite_plan(plan)
+            .map_err(|e| DBError::from(QueryError::pipeline_optimization_error(e)))?;
+        
+        Ok(optimized_plan)
     }
 
     async fn execute_plan(

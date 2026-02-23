@@ -36,7 +36,7 @@ use crate::query::planner::plan::core::nodes::traversal_node::AppendVerticesNode
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
-use crate::query::planner::rewrite::rule::{RewriteRule, EliminationRule};
+use crate::query::planner::rewrite::rule::RewriteRule;
 
 /// 消除冗余添加顶点操作的规则
 ///
@@ -156,22 +156,6 @@ impl RewriteRule for EliminateAppendVerticesRule {
         result.add_new_node(new_project);
 
         Ok(Some(result))
-    }
-}
-
-impl EliminationRule for EliminateAppendVerticesRule {
-    fn can_eliminate(&self, node: &PlanNodeEnum) -> bool {
-        // 这个规则需要 Project->AppendVertices 模式，所以单独检查 AppendVertices 不够
-        // 返回 false 表示需要配合模式匹配使用
-        false
-    }
-
-    fn eliminate(
-        &self,
-        ctx: &mut RewriteContext,
-        node: &PlanNodeEnum,
-    ) -> RewriteResult<Option<TransformResult>> {
-        self.apply(ctx, node)
     }
 }
 

@@ -11,7 +11,7 @@ use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planner::rewrite::rule::{PushDownRule, RewriteRule};
-use crate::query::optimizer::expression_utils::{split_filter, check_col_name};
+use crate::query::planner::rewrite::expression_utils::{split_filter, check_col_name};
 
 /// 将过滤条件下推到Traverse/AppendVertices节点的规则
 ///

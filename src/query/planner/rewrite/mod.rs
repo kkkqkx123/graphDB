@@ -60,6 +60,7 @@ pub mod context;
 pub mod pattern;
 pub mod result;
 pub mod rule;
+pub mod expression_utils;
 
 // 宏模块
 pub mod macros;

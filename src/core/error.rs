@@ -772,12 +772,6 @@ impl From<crate::query::planner::planner::PlannerError> for DBError {
     }
 }
 
-impl From<crate::query::optimizer::OptimizerError> for DBError {
-    fn from(err: crate::query::optimizer::OptimizerError) -> Self {
-        DBError::Query(QueryError::ExecutionError(err.to_string()))
-    }
-}
-
 impl From<crate::query::parser::lexer::LexError> for DBError {
     fn from(err: crate::query::parser::lexer::LexError) -> Self {
         DBError::Query(QueryError::ParseError(err.to_string()))

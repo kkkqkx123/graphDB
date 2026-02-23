@@ -32,9 +32,7 @@
 
 use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
-use crate::query::planner::plan::core::nodes::set_operations_node::{MinusNode, IntersectNode};
 use crate::query::planner::plan::core::nodes::start_node::StartNode;
-use crate::query::planner::plan::core::nodes::sort_node::LimitNode;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};

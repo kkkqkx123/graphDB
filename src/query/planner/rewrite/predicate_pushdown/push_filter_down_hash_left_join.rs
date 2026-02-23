@@ -10,7 +10,7 @@ use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planner::rewrite::rule::{RewriteRule, PushDownRule};
 use crate::core::Expression;
-use crate::query::optimizer::expression_utils::{check_col_name, split_filter};
+use crate::query::planner::rewrite::expression_utils::{check_col_name, split_filter};
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 
 /// 将过滤条件下推到哈希左连接操作的规则

@@ -14,7 +14,6 @@ use crate::query::parser::ast::{LookupStmt, Stmt};
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::planner::{Planner, PlannerError};
 use crate::query::planner::plan::algorithms::{IndexScan, ScanType};
-use crate::query::optimizer::IndexSelector;
 use crate::index::Index;
 use std::sync::Arc;
 
@@ -67,19 +66,12 @@ impl Planner for LookupPlanner {
         // 1. 获取可用的索引列表（从元数据服务）
         let available_indexes = self.get_available_indexes(&qctx, space_id, lookup_stmt)?;
 
-        // 2. 使用 IndexSelector 选择最优索引
+        // 2. 使用简单启发式选择索引（选择第一个可用索引）
         let (selected_index, scan_limits, scan_type) = if !available_indexes.is_empty() {
-            if let Some((candidate, _)) = IndexSelector::select_best_index_with_detail(&available_indexes, &lookup_stmt.where_clause) {
-                let scan_limits = IndexSelector::hints_to_limits(&candidate.column_hints);
-                let scan_type = if candidate.column_hints.is_empty() {
-                    ScanType::Full
-                } else {
-                    candidate.column_hints[0].scan_type
-                };
-                (Some(candidate.index), scan_limits, scan_type)
-            } else {
-                (available_indexes.first().cloned(), vec![], ScanType::Full)
-            }
+            // 简单启发式：选择第一个可用索引
+            // 在小型数据库中，这种简单策略通常足够
+            let index = available_indexes.first().cloned();
+            (index, vec![], ScanType::Full)
         } else {
             (None, vec![], ScanType::Full)
         };

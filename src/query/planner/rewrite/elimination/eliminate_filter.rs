@@ -26,8 +26,6 @@
 use crate::core::{Expression, Value};
 use crate::core::types::operators::BinaryOperator;
 use crate::query::planner::plan::PlanNodeEnum;
-use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
-use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::planner::plan::core::nodes::start_node::StartNode;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;

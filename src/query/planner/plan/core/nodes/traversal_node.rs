@@ -299,6 +299,7 @@ define_plan_node! {
         vids: Vec<String>,
         tag_ids: Vec<i32>,
         v_filter: Option<Expression>,
+        node_alias: Option<String>,
     }
     enum: AppendVertices
     input: MultipleInputNode
@@ -321,10 +322,19 @@ impl AppendVerticesNode {
             vids: Vec::new(),
             tag_ids: Vec::new(),
             v_filter: None,
+            node_alias: None,
             output_var: None,
             col_names: Vec::new(),
             cost: 0.0,
         }
+    }
+
+    pub fn node_alias(&self) -> Option<&String> {
+        self.node_alias.as_ref()
+    }
+
+    pub fn set_node_alias(&mut self, alias: String) {
+        self.node_alias = Some(alias);
     }
 
     pub fn vertex_tag(&self) -> &str {
