@@ -5,7 +5,7 @@
 //!
 //! # 模块结构
 //!
-//! - `rewrite_rule`: 重写规则 trait 定义
+//! - `rewrite_rule`: 重写规则 trait 定义和适配器
 //! - `plan_rewriter`: 计划重写器实现
 //! - `predicate_pushdown`: 谓词下推规则
 //! - `merge`: 操作合并规则
@@ -33,10 +33,29 @@
 //!
 //! ## 聚合优化规则 (aggregate)
 //! 优化聚合操作。
+//!
+//! # 使用示例
+//!
+//! ```rust
+//! use crate::query::planner::rewrite::{PlanRewriter, create_default_rewriter, rewrite_plan};
+//! use crate::query::planner::plan::ExecutionPlan;
+//!
+//! // 使用默认重写器
+//! let plan = ExecutionPlan::new(...);
+//! let optimized_plan = rewrite_plan(plan)?;
+//!
+//! // 自定义重写器
+//! let mut rewriter = PlanRewriter::new();
+//! rewriter.add_opt_rule(MyCustomRule);
+//! let optimized_plan = rewriter.rewrite(plan)?;
+//! ```
 
 // 核心 trait 和实现
 pub mod rewrite_rule;
 pub mod plan_rewriter;
+
+// 静态分发规则枚举
+pub mod rule_enum;
 
 // 具体规则模块
 pub mod predicate_pushdown;
@@ -47,8 +66,31 @@ pub mod limit_pushdown;
 pub mod aggregate;
 
 // 统一导出核心类型
-pub use rewrite_rule::{RewriteRule, RewriteRuleMut, RewriteError};
-pub use plan_rewriter::{PlanRewriter, create_default_rewriter};
+pub use rewrite_rule::{
+    HeuristicRule,
+    HeuristicRuleAdapter,
+    IntoOptRule,
+    RewriteError,
+    // 从 optimizer 重新导出
+    OptRule,
+    OptContext,
+    OptGroupNode,
+    TransformResult,
+    OptimizerError,
+    Pattern,
+    MatchedResult,
+};
+pub use plan_rewriter::{
+    PlanRewriter,
+    create_default_rewriter,
+    rewrite_plan,
+};
+
+// 导出静态分发规则枚举
+pub use rule_enum::{
+    RewriteRule,
+    RuleRegistry,
+};
 
 // 统一导出所有重写规则
 pub use predicate_pushdown::*;

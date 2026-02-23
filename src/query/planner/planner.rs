@@ -30,6 +30,7 @@ use crate::query::planner::statements::subgraph_planner::SubgraphPlanner;
 use crate::query::planner::statements::update_planner::UpdatePlanner;
 use crate::query::planner::statements::use_planner::UsePlanner;
 use crate::query::planner::statements::user_management_planner::UserManagementPlanner;
+use crate::query::planner::rewrite::{rewrite_plan, RewriteError};
 
 /// 规划器配置
 #[derive(Debug, Clone)]
@@ -39,6 +40,8 @@ pub struct PlannerConfig {
     pub enable_parallel_planning: bool,
     pub default_timeout: Duration,
     pub cache_size: usize,
+    /// 启用计划重写优化
+    pub enable_rewrite: bool,
 }
 
 impl Default for PlannerConfig {
@@ -49,6 +52,7 @@ impl Default for PlannerConfig {
             enable_parallel_planning: false,
             default_timeout: Duration::from_secs(30),
             cache_size: 1000,
+            enable_rewrite: true,
         }
     }
 }
@@ -638,7 +642,12 @@ pub trait Planner: std::fmt::Debug {
         stmt: &Stmt,
     ) -> Result<ExecutionPlan, PlannerError> {
         let sub_plan = self.transform(stmt, qctx)?;
-        Ok(ExecutionPlan::new(sub_plan.root().clone()))
+        let plan = ExecutionPlan::new(sub_plan.root().clone());
+        
+        // 应用计划重写优化
+        let plan = rewrite_plan(plan)?;
+        
+        Ok(plan)
     }
 
     fn name(&self) -> &'static str {
@@ -840,6 +849,13 @@ pub enum PlannerError {
 impl From<crate::core::error::DBError> for PlannerError {
     fn from(err: crate::core::error::DBError) -> Self {
         PlannerError::PlanGenerationFailed(err.to_string())
+    }
+}
+
+// 为 RewriteError 实现 From 转换
+impl From<RewriteError> for PlannerError {
+    fn from(err: RewriteError) -> Self {
+        PlannerError::PlanGenerationFailed(format!("Plan rewrite failed: {}", err))
     }
 }
 
