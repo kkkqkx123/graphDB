@@ -99,17 +99,19 @@ impl Optimizer {
     }
 
     /// 从枚举直接创建规则集
+    ///
+    /// 注意：启发式规则（如谓词下推、投影下推等）已迁移到 planner/rewrite 模块，
+    /// 在计划生成阶段直接应用，不再通过优化器加载。
     fn setup_rule_sets(&mut self) {
-        // 按阶段加载规则
+        // 按阶段加载基于代价的优化规则（CBO）
         for phase in [
-            OptimizationPhase::Rewrite,
             OptimizationPhase::Logical,
             OptimizationPhase::Physical,
         ] {
             let mut rule_set = RuleSet::new(&phase.to_string());
 
-            // 遍历所有规则枚举，按阶段过滤
-            for rule_enum in self.iter_all_rules() {
+            // 遍历所有 CBO 规则枚举，按阶段过滤
+            for rule_enum in OptimizationRule::all_cbo_rules() {
                 if rule_enum.phase() == phase {
                     if let Some(rule) = rule_enum.create_instance() {
                         rule_set.add_rule(rule);
@@ -121,57 +123,6 @@ impl Optimizer {
                 self.rule_sets.push(rule_set);
             }
         }
-    }
-
-    /// 遍历所有规则枚举
-    fn iter_all_rules(&self) -> impl Iterator<Item = OptimizationRule> {
-        [
-            // 逻辑优化规则
-            OptimizationRule::ProjectionPushDown,
-            OptimizationRule::CombineFilter,
-            OptimizationRule::CollapseProject,
-            OptimizationRule::DedupElimination,
-            OptimizationRule::EliminateFilter,
-            OptimizationRule::EliminateRowCollect,
-            OptimizationRule::RemoveNoopProject,
-            OptimizationRule::EliminateAppendVertices,
-            OptimizationRule::RemoveAppendVerticesBelowJoin,
-            OptimizationRule::PushFilterDownAggregate,
-            OptimizationRule::TopN,
-            OptimizationRule::MergeGetVerticesAndProject,
-            OptimizationRule::MergeGetVerticesAndDedup,
-            OptimizationRule::MergeGetNbrsAndProject,
-            OptimizationRule::MergeGetNbrsAndDedup,
-            OptimizationRule::PushFilterDownNode,
-            OptimizationRule::PushEFilterDown,
-            OptimizationRule::PushVFilterDownScanVertices,
-            OptimizationRule::PushFilterDownInnerJoin,
-            OptimizationRule::PushFilterDownHashInnerJoin,
-            OptimizationRule::PushFilterDownHashLeftJoin,
-            OptimizationRule::PushFilterDownCrossJoin,
-            OptimizationRule::PushFilterDownGetNbrs,
-            OptimizationRule::PushFilterDownExpandAll,
-            OptimizationRule::PushFilterDownAllPaths,
-            OptimizationRule::EliminateEmptySetOperation,
-            OptimizationRule::OptimizeSetOperationInputOrder,
-
-            // 物理优化规则
-            OptimizationRule::JoinOptimization,
-            OptimizationRule::PushLimitDownGetVertices,
-            OptimizationRule::PushLimitDownGetEdges,
-            OptimizationRule::PushLimitDownScanVertices,
-            OptimizationRule::PushLimitDownScanEdges,
-            OptimizationRule::PushLimitDownIndexScan,
-            OptimizationRule::ScanWithFilterOptimization,
-            OptimizationRule::IndexFullScan,
-            OptimizationRule::IndexScan,
-            OptimizationRule::EdgeIndexFullScan,
-            OptimizationRule::TagIndexFullScan,
-            OptimizationRule::UnionAllEdgeIndexScan,
-            OptimizationRule::UnionAllTagIndexScan,
-            OptimizationRule::IndexCoveringScan,
-            OptimizationRule::PushTopNDownIndexScan,
-        ].into_iter()
     }
 
     /// 查找最优执行计划

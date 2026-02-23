@@ -10,6 +10,9 @@ pub mod template_extractor;
 // 按功能组织的模块
 pub mod statements;
 
+// 计划重写模块（启发式优化规则）
+pub mod rewrite;
+
 // 重新导出主要的类型
 pub use plan::execution_plan::{ExecutionPlan, SubPlan};
 pub use planner::{
