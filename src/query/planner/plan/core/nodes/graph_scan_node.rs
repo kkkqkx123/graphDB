@@ -7,6 +7,7 @@ use crate::core::Expression;
 use crate::define_plan_node;
 use crate::query::planner::plan::core::node_id_generator::next_node_id;
 use crate::query::planner::plan::algorithms::{IndexLimit, ScanType};
+use crate::query::planner::plan::core::nodes::PlanNodeEnum;
 
 define_plan_node! {
     pub struct GetVerticesNode {
@@ -66,6 +67,39 @@ impl GetVerticesNode {
 
     pub fn limit(&self) -> Option<i64> {
         self.limit
+    }
+
+    pub fn dedup(&self) -> bool {
+        self.dedup
+    }
+
+    pub fn set_dedup(&mut self, dedup: bool) {
+        self.dedup = dedup;
+    }
+
+    pub fn set_src_vids(&mut self, src_vids: String) {
+        self.src_ref = Expression::Variable(src_vids.clone());
+        self.src_vids = src_vids;
+    }
+
+    pub fn src_ref(&self) -> &Expression {
+        &self.src_ref
+    }
+
+    pub fn set_src_ref(&mut self, src_ref: Expression) {
+        self.src_ref = src_ref;
+    }
+
+    pub fn deps(&self) -> &[Box<PlanNodeEnum>] {
+        &self.deps
+    }
+
+    pub fn deps_mut(&mut self) -> &mut Vec<Box<PlanNodeEnum>> {
+        &mut self.deps
+    }
+
+    pub fn set_deps(&mut self, deps: Vec<Box<PlanNodeEnum>>) {
+        self.deps = deps;
     }
 }
 
@@ -299,6 +333,38 @@ impl GetNeighborsNode {
 
     pub fn tag_props(&self) -> &[TagProp] {
         &self.tag_props
+    }
+
+    pub fn dedup(&self) -> bool {
+        self.dedup
+    }
+
+    pub fn set_dedup(&mut self, dedup: bool) {
+        self.dedup = dedup;
+    }
+
+    pub fn set_src_vids(&mut self, src_vids: String) {
+        self.src_vids = src_vids;
+    }
+
+    pub fn limit(&self) -> Option<i64> {
+        self.limit
+    }
+
+    pub fn set_limit(&mut self, limit: i64) {
+        self.limit = Some(limit);
+    }
+
+    pub fn deps(&self) -> &[Box<PlanNodeEnum>] {
+        &self.deps
+    }
+
+    pub fn deps_mut(&mut self) -> &mut Vec<Box<PlanNodeEnum>> {
+        &mut self.deps
+    }
+
+    pub fn set_deps(&mut self, deps: Vec<Box<PlanNodeEnum>>) {
+        self.deps = deps;
     }
 }
 

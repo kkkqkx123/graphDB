@@ -134,6 +134,8 @@ mod tests {
     use super::*;
     use crate::core::Expression;
     use crate::query::planner::plan::core::nodes::start_node::StartNode;
+    use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
+    use crate::query::planner::plan::core::nodes::graph_scan_node::GetNeighborsNode;
 
     #[test]
     fn test_rule_name() {

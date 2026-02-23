@@ -246,6 +246,7 @@ mod tests {
     use crate::query::planner::plan::core::nodes::graph_scan_node::ScanVerticesNode;
     use std::rc::Rc;
     use std::cell::RefCell;
+    use std::sync::Arc;
 
     fn create_test_context() -> OptContext {
         let query_context = Arc::new(QueryContext::default());

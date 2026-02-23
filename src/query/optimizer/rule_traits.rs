@@ -536,6 +536,7 @@ macro_rules! impl_rule_with_post_process {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Arc;
 
     #[test]
     fn test_is_tautology_simple() {

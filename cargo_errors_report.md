@@ -2,62 +2,88 @@
 
 ## Summary
 
-- **Total Errors**: 0
-- **Total Warnings**: 6
-- **Total Issues**: 6
-- **Unique Error Patterns**: 0
-- **Unique Warning Patterns**: 1
-- **Files with Issues**: 6
+- **Total Errors**: 13
+- **Total Warnings**: 0
+- **Total Issues**: 13
+- **Unique Error Patterns**: 9
+- **Unique Warning Patterns**: 0
+- **Files with Issues**: 11
 
 ## Error Statistics
 
-**Total Errors**: 0
+**Total Errors**: 13
+
+### Error Type Breakdown
+
+- **error[E0433]**: 13 errors
+
+### Files with Errors (Top 10)
+
+- `src\query\planner\rewrite\predicate_pushdown\push_filter_down_expand_all.rs`: 2 errors
+- `src\query\planner\rewrite\predicate_pushdown\push_filter_down_get_nbrs.rs`: 2 errors
+- `src\query\planner\rewrite\predicate_pushdown\push_filter_down_hash_left_join.rs`: 1 errors
+- `src\query\optimizer\rules\join\join_optimization.rs`: 1 errors
+- `src\query\optimizer\rule_traits.rs`: 1 errors
+- `src\query\optimizer\rules\scan\scan_with_filter_optimization.rs`: 1 errors
+- `src\query\optimizer\rules\transformation\top_n.rs`: 1 errors
+- `src\query\planner\rewrite\predicate_pushdown\push_filter_down_cross_join.rs`: 1 errors
+- `src\query\optimizer\rules\transformation\optimize_set_operation_input_order.rs`: 1 errors
+- `src\query\planner\rewrite\predicate_pushdown\push_filter_down_hash_inner_join.rs`: 1 errors
 
 ## Warning Statistics
 
-**Total Warnings**: 6
+**Total Warnings**: 0
 
-### Warning Type Breakdown
+## Detailed Error Categorization
 
-- **warning**: 6 warnings
+### error[E0433]: failed to resolve: use of undeclared type `HashInnerJoinNode`: use of undeclared type `HashInnerJoinNode`
 
-### Files with Warnings (Top 10)
+**Total Occurrences**: 13  
+**Unique Files**: 11
 
-- `src\query\planner\rewrite\limit_pushdown\push_topn_down_index_scan.rs`: 1 warnings
-- `src\query\planner\rewrite\limit_pushdown\push_limit_down_index_scan.rs`: 1 warnings
-- `src\query\planner\rewrite\limit_pushdown\push_limit_down_get_edges.rs`: 1 warnings
-- `src\query\planner\rewrite\limit_pushdown\push_limit_down_scan_vertices.rs`: 1 warnings
-- `src\query\planner\rewrite\limit_pushdown\push_limit_down_scan_edges.rs`: 1 warnings
-- `src\query\planner\rewrite\limit_pushdown\push_limit_down_get_vertices.rs`: 1 warnings
+#### `src\query\planner\rewrite\predicate_pushdown\push_filter_down_expand_all.rs`: 2 occurrences
 
-## Detailed Warning Categorization
+- Line 140: failed to resolve: use of undeclared type `Expression`: use of undeclared type `Expression`
+- Line 147: failed to resolve: use of undeclared type `ExpandAllNode`: use of undeclared type `ExpandAllNode`
 
-### warning: unused import: `crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum`
+#### `src\query\planner\rewrite\predicate_pushdown\push_filter_down_get_nbrs.rs`: 2 occurrences
 
-**Total Occurrences**: 6  
-**Unique Files**: 6
+- Line 159: failed to resolve: use of undeclared type `FilterNode`: use of undeclared type `FilterNode`
+- Line 162: failed to resolve: use of undeclared type `GetNeighborsNode`: use of undeclared type `GetNeighborsNode`
 
-#### `src\query\planner\rewrite\limit_pushdown\push_limit_down_index_scan.rs`: 1 occurrences
+#### `src\query\planner\rewrite\predicate_pushdown\push_filter_down_hash_inner_join.rs`: 1 occurrences
 
-- Line 7: unused import: `crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum`
+- Line 214: failed to resolve: use of undeclared type `HashInnerJoinNode`: use of undeclared type `HashInnerJoinNode`
 
-#### `src\query\planner\rewrite\limit_pushdown\push_topn_down_index_scan.rs`: 1 occurrences
+#### `src\query\optimizer\rules\join\join_optimization.rs`: 1 occurrences
 
-- Line 7: unused import: `crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum`
+- Line 346: failed to resolve: use of undeclared type `Arc`: use of undeclared type `Arc`
 
-#### `src\query\planner\rewrite\limit_pushdown\push_limit_down_get_edges.rs`: 1 occurrences
+#### `src\query\optimizer\rules\scan\scan_with_filter_optimization.rs`: 1 occurrences
 
-- Line 7: unused import: `crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum`
+- Line 60: failed to resolve: use of undeclared type `Arc`: use of undeclared type `Arc`
 
-#### `src\query\planner\rewrite\limit_pushdown\push_limit_down_scan_vertices.rs`: 1 occurrences
+#### `src\query\planner\rewrite\predicate_pushdown\push_filter_down_cross_join.rs`: 1 occurrences
 
-- Line 7: unused import: `crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum`
+- Line 214: failed to resolve: use of undeclared type `CrossJoinNode`: use of undeclared type `CrossJoinNode`
 
-#### `src\query\planner\rewrite\limit_pushdown\push_limit_down_scan_edges.rs`: 1 occurrences
+#### `src\query\optimizer\rules\transformation\top_n.rs`: 1 occurrences
 
-- Line 7: unused import: `crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum`
+- Line 135: failed to resolve: use of undeclared type `Arc`: use of undeclared type `Arc`
 
-#### `src\query\planner\rewrite\limit_pushdown\push_limit_down_get_vertices.rs`: 1 occurrences
+#### `src\query\optimizer\rule_traits.rs`: 1 occurrences
 
-- Line 7: unused import: `crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum`
+- Line 620: failed to resolve: use of undeclared type `Arc`: use of undeclared type `Arc`
+
+#### `src\query\planner\rewrite\predicate_pushdown\push_filter_down_inner_join.rs`: 1 occurrences
+
+- Line 220: failed to resolve: use of undeclared type `InnerJoinNode`: use of undeclared type `InnerJoinNode`
+
+#### `src\query\planner\rewrite\predicate_pushdown\push_filter_down_hash_left_join.rs`: 1 occurrences
+
+- Line 214: failed to resolve: use of undeclared type `HashLeftJoinNode`: use of undeclared type `HashLeftJoinNode`
+
+#### `src\query\optimizer\rules\transformation\optimize_set_operation_input_order.rs`: 1 occurrences
+
+- Line 251: failed to resolve: use of undeclared type `Arc`: use of undeclared type `Arc`
 

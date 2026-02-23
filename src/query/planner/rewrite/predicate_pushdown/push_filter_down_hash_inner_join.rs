@@ -186,6 +186,7 @@ impl PushDownRule for PushFilterDownHashInnerJoinRule {
 mod tests {
     use super::*;
     use crate::query::planner::plan::core::nodes::start_node::StartNode;
+    use crate::query::planner::plan::core::nodes::join_node::HashInnerJoinNode;
 
     #[test]
     fn test_rule_name() {

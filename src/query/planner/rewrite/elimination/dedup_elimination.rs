@@ -1,7 +1,29 @@
 //! 消除重复操作的规则
+//!
+//! 当 Dedup 节点的子节点本身就保证结果唯一性时，可以移除 Dedup 节点。
+//!
+//! # 转换示例
+//!
+//! Before:
+//! ```text
+//!   Dedup
+//!       |
+//!   IndexScan (索引扫描保证唯一性)
+//! ```
+//!
+//! After:
+//! ```text
+//!   IndexScan
+//! ```
+//!
+//! # 适用条件
+//!
+//! - Dedup 节点的子节点为 IndexScan、GetVertices 或 GetEdges
+//! - 这些操作本身就保证结果的唯一性
 
 use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
+use crate::query::planner::plan::core::nodes::data_processing_node::DedupNode;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
@@ -9,24 +31,7 @@ use crate::query::planner::rewrite::rule::{RewriteRule, EliminationRule};
 
 /// 消除重复操作的规则
 ///
-/// # 转换示例
-///
-/// Before:
-/// ```text
-///   Dedup
-///       |
-///   IndexScan (索引扫描保证唯一性)
-/// ```
-///
-/// After:
-/// ```text
-///   IndexScan
-/// ```
-///
-/// # 适用条件
-///
-/// - Dedup 节点的子节点为 IndexScan、GetVertices 或 GetEdges
-/// - 这些操作本身就保证结果的唯一性
+/// 当子节点本身就保证结果唯一性时，移除 Dedup 节点
 #[derive(Debug)]
 pub struct DedupEliminationRule;
 
@@ -38,7 +43,28 @@ impl DedupEliminationRule {
 
     /// 检查子节点是否保证唯一性
     fn child_guarantees_uniqueness(&self, child: &PlanNodeEnum) -> bool {
-        child.is_index_scan() || child.is_get_vertices() || child.is_get_edges()
+        // 索引扫描保证唯一性
+        if child.is_index_scan() {
+            return true;
+        }
+        
+        // 根据节点类型判断
+        match child {
+            // 主键查询保证唯一性
+            PlanNodeEnum::GetVertices(_) => true,
+            PlanNodeEnum::GetEdges(_) => true,
+            // 索引扫描相关节点
+            PlanNodeEnum::ScanVertices(node) => {
+                // 如果扫描有唯一性约束（如主键扫描）
+                node.limit().map_or(false, |l| l == 1)
+            }
+            PlanNodeEnum::ScanEdges(node) => {
+                node.limit().map_or(false, |l| l == 1)
+            }
+            // 其他保证唯一性的节点
+            PlanNodeEnum::Start(_) => true,
+            _ => false,
+        }
     }
 }
 
@@ -98,16 +124,17 @@ impl EliminationRule for DedupEliminationRule {
 
     fn eliminate(
         &self,
-        _ctx: &mut RewriteContext,
+        ctx: &mut RewriteContext,
         node: &PlanNodeEnum,
     ) -> RewriteResult<Option<TransformResult>> {
-        self.apply(_ctx, node)
+        self.apply(ctx, node)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::query::planner::rewrite::rule::RewriteRule;
 
     #[test]
     fn test_dedup_elimination_rule_name() {
@@ -120,5 +147,14 @@ mod tests {
         let rule = DedupEliminationRule::new();
         let pattern = rule.pattern();
         assert!(pattern.node.is_some());
+    }
+
+    #[test]
+    fn test_child_guarantees_uniqueness() {
+        let rule = DedupEliminationRule::new();
+        
+        // Start 节点保证唯一性
+        let start_node = crate::query::planner::plan::core::nodes::start_node::StartNode::new();
+        assert!(rule.child_guarantees_uniqueness(&PlanNodeEnum::Start(start_node)));
     }
 }

@@ -3,10 +3,38 @@
 //! 优化集合操作中的空集情况：
 //! - Minus: 如果减输入为空，直接返回主输入
 //! - Intersect: 如果任一输入为空，返回空集
+//!
+//! # 转换示例
+//!
+//! Before (Minus):
+//! ```text
+//!   Minus
+//!    /   \
+//!   A   Start (空集)
+//! ```
+//!
+//! After:
+//! ```text
+//!   A
+//! ```
+//!
+//! Before (Intersect):
+//! ```text
+//!   Intersect
+//!    /       \
+//!   A       Start (空集)
+//! ```
+//!
+//! After:
+//! ```text
+//!   Start (空集)
+//! ```
 
 use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
+use crate::query::planner::plan::core::nodes::set_operations_node::{MinusNode, IntersectNode};
 use crate::query::planner::plan::core::nodes::start_node::StartNode;
+use crate::query::planner::plan::core::nodes::sort_node::LimitNode;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
@@ -27,12 +55,15 @@ impl EliminateEmptySetOperationRule {
     /// 判断节点是否为空集节点
     fn is_empty_node(&self, node: &PlanNodeEnum) -> bool {
         match node {
+            // Start 节点表示空集
             PlanNodeEnum::Start(_) => true,
+            // Limit 为 0 的扫描操作
             PlanNodeEnum::ScanVertices(n) => n.limit().map_or(false, |l| l == 0),
             PlanNodeEnum::ScanEdges(n) => n.limit().map_or(false, |l| l == 0),
             PlanNodeEnum::GetVertices(n) => n.limit().map_or(false, |l| l == 0),
             PlanNodeEnum::GetEdges(n) => n.limit().map_or(false, |l| l == 0),
             PlanNodeEnum::Limit(n) => n.count() == 0,
+            // 递归检查单输入节点
             PlanNodeEnum::Filter(n) => self.is_empty_node(n.input()),
             PlanNodeEnum::Project(n) => self.is_empty_node(n.input()),
             PlanNodeEnum::Dedup(n) => self.is_empty_node(n.input()),
@@ -128,6 +159,7 @@ impl EliminationRule for EliminateEmptySetOperationRule {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::query::planner::rewrite::rule::RewriteRule;
 
     #[test]
     fn test_eliminate_empty_set_operation_rule_name() {
@@ -140,5 +172,21 @@ mod tests {
         let rule = EliminateEmptySetOperationRule::new();
         let pattern = rule.pattern();
         assert!(pattern.node.is_some());
+    }
+
+    #[test]
+    fn test_is_empty_node() {
+        let rule = EliminateEmptySetOperationRule::new();
+        
+        // Start 节点是空集
+        let start_node = StartNode::new();
+        assert!(rule.is_empty_node(&PlanNodeEnum::Start(start_node)));
+    }
+
+    #[test]
+    fn test_create_empty_node() {
+        let rule = EliminateEmptySetOperationRule::new();
+        let empty_node = rule.create_empty_node();
+        assert!(matches!(empty_node, PlanNodeEnum::Start(_)));
     }
 }

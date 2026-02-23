@@ -55,6 +55,7 @@ mod tests {
     use crate::query::QueryContext;
     use crate::query::optimizer::plan::{OptContext, OptGroupNode};
     use crate::query::planner::plan::PlanNodeEnum;
+    use std::sync::Arc;
 
     fn create_test_context() -> OptContext {
         let query_context = Arc::new(QueryContext::default());

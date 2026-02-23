@@ -186,6 +186,7 @@ impl PushDownRule for PushFilterDownCrossJoinRule {
 mod tests {
     use super::*;
     use crate::query::planner::plan::core::nodes::start_node::StartNode;
+    use crate::query::planner::plan::core::nodes::join_node::CrossJoinNode;
 
     #[test]
     fn test_rule_name() {

@@ -116,6 +116,8 @@ impl PushDownRule for PushFilterDownExpandAllRule {
 mod tests {
     use super::*;
     use crate::query::planner::plan::core::nodes::start_node::StartNode;
+    use crate::query::planner::plan::core::nodes::traversal_node::ExpandAllNode;
+    use crate::core::Expression;
 
     #[test]
     fn test_rule_name() {

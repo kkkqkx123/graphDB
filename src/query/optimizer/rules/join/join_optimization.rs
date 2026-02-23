@@ -341,6 +341,7 @@ mod tests {
     use crate::query::planner::plan::core::nodes::{
         InnerJoinNode, ScanVerticesNode, StartNode,
     };
+    use std::sync::Arc;
 
     fn create_test_context() -> OptContext {
         let query_context = Arc::new(QueryContext::default());
