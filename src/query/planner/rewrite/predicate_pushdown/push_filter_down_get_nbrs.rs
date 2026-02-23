@@ -3,8 +3,6 @@
 //! 该规则识别 Filter -> GetNeighbors 模式，
 //! 并将过滤条件下推到 GetNeighbors 节点中。
 
-use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
-use crate::query::planner::plan::core::nodes::graph_scan_node::GetNeighborsNode;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;

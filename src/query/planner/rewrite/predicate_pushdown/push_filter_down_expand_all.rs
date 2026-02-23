@@ -4,13 +4,11 @@
 //! 并将过滤条件下推到 ExpandAll 节点中。
 
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
-use crate::query::planner::plan::core::nodes::traversal_node::ExpandAllNode;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planner::rewrite::rule::{RewriteRule, PushDownRule};
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
-use crate::core::Expression;
 
 /// 将过滤条件下推到ExpandAll操作的规则
 ///

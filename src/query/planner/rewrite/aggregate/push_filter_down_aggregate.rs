@@ -31,7 +31,9 @@ use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
-use crate::query::planner::rewrite::rule::{RewriteRule, PushDownRule};
+use crate::query::planner::rewrite::rule::{PushDownRule, RewriteRule};
+use crate::query::planner::plan::core::nodes::aggregate_node::AggregateNode;
+use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::core::Expression;
 use crate::core::types::operators::AggregateFunction;
@@ -47,6 +49,9 @@ impl PushFilterDownAggregateRule {
     }
 
     /// 检查条件是否包含聚合函数引用
+    ///
+    /// 如果条件引用了聚合函数的结果（如 COUNT(*), SUM(amount) 等），
+    /// 则不能将 Filter 下推，因为聚合结果在聚合之前不存在。
     fn has_aggregate_function_reference(
         condition: &Expression,
         group_keys: &[String],
@@ -54,22 +59,47 @@ impl PushFilterDownAggregateRule {
     ) -> bool {
         fn check_expr(expr: &Expression, group_keys: &[String], agg_funcs: &[AggregateFunction]) -> bool {
             match expr {
+                // 直接包含聚合表达式
                 Expression::Aggregate { .. } => true,
+                // 二元运算：检查左右两边
                 Expression::Binary { left, right, .. } => {
                     check_expr(left, group_keys, agg_funcs) || check_expr(right, group_keys, agg_funcs)
                 }
+                // 一元运算：检查操作数
                 Expression::Unary { operand, .. } => check_expr(operand, group_keys, agg_funcs),
+                // 属性访问：检查对象
                 Expression::Property { object, .. } => check_expr(object, group_keys, agg_funcs),
+                // 函数调用：检查是否是聚合函数或参数中包含聚合
                 Expression::Function { name, args, .. } => {
                     let func_name = name.to_lowercase();
-                    matches!(
+                    // 检查是否是聚合函数名称
+                    if matches!(
                         func_name.as_str(),
-                        "sum" | "avg" | "count" | "max" | "min" | "collect"
-                    ) || args.iter().any(|arg| check_expr(arg, group_keys, agg_funcs))
+                        "sum" | "avg" | "count" | "max" | "min" | "collect" | "collect_set" | "distinct" | "std"
+                    ) {
+                        return true;
+                    }
+                    // 检查参数中是否包含聚合
+                    args.iter().any(|arg| check_expr(arg, group_keys, agg_funcs))
                 }
+                // 变量：检查是否是分组键
+                // 如果不是分组键，则可能是聚合输出列
                 Expression::Variable(name) => {
-                    !group_keys.contains(name)
+                    // 如果是分组键，可以下推
+                    if group_keys.contains(name) {
+                        return false;
+                    }
+                    // 检查是否是聚合函数的输出列名
+                    for agg_func in agg_funcs {
+                        if agg_func.name() == name || 
+                           agg_func.field_name().map(|f| f == name).unwrap_or(false) {
+                            return true;
+                        }
+                    }
+                    // 其他变量，假设可以下推（是输入列）
+                    false
                 }
+                // 其他表达式类型
                 _ => false,
             }
         }
@@ -77,47 +107,13 @@ impl PushFilterDownAggregateRule {
         check_expr(condition, group_keys, agg_funcs)
     }
 
-    /// 重写过滤条件
-    fn rewrite_filter_condition(condition: &Expression, group_keys: &[String]) -> Expression {
-        fn rewrite(expr: &Expression, group_keys: &[String]) -> Expression {
-            match expr {
-                Expression::Binary { op, left, right } => {
-                    Expression::Binary {
-                        op: op.clone(),
-                        left: Box::new(rewrite(left, group_keys)),
-                        right: Box::new(rewrite(right, group_keys)),
-                    }
-                }
-                Expression::Unary { op, operand } => {
-                    Expression::Unary {
-                        op: op.clone(),
-                        operand: Box::new(rewrite(operand, group_keys)),
-                    }
-                }
-                Expression::Property { object, property } => {
-                    Expression::Property {
-                        object: Box::new(rewrite(object, group_keys)),
-                        property: property.clone(),
-                    }
-                }
-                Expression::Function { name, args } => {
-                    Expression::Function {
-                        name: name.clone(),
-                        args: args.iter().map(|arg| rewrite(arg, group_keys)).collect(),
-                    }
-                }
-                Expression::Variable(name) => {
-                    if group_keys.contains(name) {
-                        Expression::Variable(name.clone())
-                    } else {
-                        expr.clone()
-                    }
-                }
-                _ => expr.clone(),
-            }
-        }
-
-        rewrite(condition, group_keys)
+    /// 重写过滤条件中的变量引用
+    ///
+    /// 将 Filter 中的变量引用转换为聚合输入的列引用
+    fn rewrite_filter_condition(condition: &Expression, _group_keys: &[String]) -> Expression {
+        // 目前简化实现：直接返回原条件
+        // 在实际场景中，可能需要将聚合输出的列名映射回输入列名
+        condition.clone()
     }
 }
 
@@ -164,13 +160,38 @@ impl RewriteRule for PushFilterDownAggregateRule {
         let agg_funcs = agg_node.aggregation_functions();
 
         // 检查过滤条件是否包含聚合函数引用
+        // 如果条件引用了聚合结果（如 HAVING COUNT(*) > 10），则不能下推
         if Self::has_aggregate_function_reference(filter_condition, group_keys, agg_funcs) {
             return Ok(None);
         }
 
-        // 简化实现：返回 None 表示不转换
-        // 实际实现需要创建新的 Aggregate 节点并在其输入上添加 Filter
-        Ok(None)
+        // 获取聚合的输入节点
+        let agg_input = agg_node.input();
+
+        // 重写过滤条件（将输出列引用转换为输入列引用）
+        let rewritten_condition = Self::rewrite_filter_condition(filter_condition, group_keys);
+
+        // 创建新的 Filter 节点，放在 Aggregate 之前
+        let new_filter = FilterNode::new(agg_input.clone(), rewritten_condition)
+            .map_err(|e| crate::query::planner::rewrite::result::RewriteError::rewrite_failed(
+                format!("创建 FilterNode 失败: {:?}", e)
+            ))?;
+
+        // 创建新的 Aggregate 节点，输入为新的 Filter 节点
+        let new_aggregate = AggregateNode::new(
+            PlanNodeEnum::Filter(new_filter),
+            group_keys.to_vec(),
+            agg_funcs.to_vec(),
+        ).map_err(|e| crate::query::planner::rewrite::result::RewriteError::rewrite_failed(
+            format!("创建 AggregateNode 失败: {:?}", e)
+        ))?;
+
+        // 构建转换结果
+        let mut result = TransformResult::new();
+        result.erase_curr = true; // 删除原来的 Filter 节点
+        result.add_new_node(PlanNodeEnum::Aggregate(new_aggregate));
+
+        Ok(Some(result))
     }
 }
 
@@ -192,6 +213,7 @@ impl PushDownRule for PushFilterDownAggregateRule {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::query::planner::plan::core::nodes::start_node::StartNode;
 
     #[test]
     fn test_rule_name() {
@@ -224,7 +246,7 @@ mod tests {
     #[test]
     fn test_no_aggregate_function_reference() {
         let condition = Expression::Binary {
-            op: crate::core::BinaryOperator::Equal,
+            op: crate::core::types::operators::BinaryOperator::Equal,
             left: Box::new(Expression::Variable("name".to_string())),
             right: Box::new(Expression::Literal(crate::core::Value::String("test".to_string()))),
         };
@@ -253,7 +275,7 @@ mod tests {
     #[test]
     fn test_rewrite_filter_condition() {
         let condition = Expression::Binary {
-            op: crate::core::BinaryOperator::Equal,
+            op: crate::core::types::operators::BinaryOperator::Equal,
             left: Box::new(Expression::Variable("name".to_string())),
             right: Box::new(Expression::Literal(crate::core::Value::String("test".to_string()))),
         };
@@ -264,5 +286,100 @@ mod tests {
         );
 
         assert_eq!(rewritten, condition);
+    }
+
+    #[test]
+    fn test_apply_with_group_key_filter() {
+        // 创建 Start 节点
+        let start_node = StartNode::new();
+        let start_enum = PlanNodeEnum::Start(start_node);
+
+        // 创建 Aggregate 节点
+        let group_keys = vec!["category".to_string()];
+        let agg_funcs = vec![AggregateFunction::Count(None)];
+        let aggregate = AggregateNode::new(start_enum.clone(), group_keys, agg_funcs)
+            .expect("创建 AggregateNode 失败");
+        let aggregate_enum = PlanNodeEnum::Aggregate(aggregate);
+
+        // 创建 Filter 节点（条件只涉及分组键）
+        let condition = Expression::Binary {
+            op: crate::core::types::operators::BinaryOperator::Equal,
+            left: Box::new(Expression::Variable("category".to_string())),
+            right: Box::new(Expression::Literal(crate::core::Value::String("A".to_string()))),
+        };
+        let filter = FilterNode::new(aggregate_enum, condition)
+            .expect("创建 FilterNode 失败");
+        let filter_enum = PlanNodeEnum::Filter(filter);
+
+        // 应用规则
+        let rule = PushFilterDownAggregateRule::new();
+        let mut ctx = RewriteContext::new();
+        let result = rule.apply(&mut ctx, &filter_enum)
+            .expect("应用规则失败");
+
+        // 验证转换成功
+        assert!(result.is_some());
+        let transform_result = result.unwrap();
+        assert!(transform_result.erase_curr);
+        assert_eq!(transform_result.new_nodes.len(), 1);
+    }
+
+    #[test]
+    fn test_apply_with_aggregate_filter() {
+        // 创建 Start 节点
+        let start_node = StartNode::new();
+        let start_enum = PlanNodeEnum::Start(start_node);
+
+        // 创建 Aggregate 节点
+        let group_keys = vec!["category".to_string()];
+        let agg_funcs = vec![AggregateFunction::Count(None)];
+        let aggregate = AggregateNode::new(start_enum.clone(), group_keys, agg_funcs)
+            .expect("创建 AggregateNode 失败");
+        let aggregate_enum = PlanNodeEnum::Aggregate(aggregate);
+
+        // 创建 Filter 节点（条件涉及聚合函数结果，如 HAVING COUNT(*) > 10）
+        let condition = Expression::Binary {
+            op: crate::core::types::operators::BinaryOperator::GreaterThan,
+            left: Box::new(Expression::Variable("COUNT".to_string())),
+            right: Box::new(Expression::Literal(crate::core::Value::Int(10))),
+        };
+        let filter = FilterNode::new(aggregate_enum, condition)
+            .expect("创建 FilterNode 失败");
+        let filter_enum = PlanNodeEnum::Filter(filter);
+
+        // 应用规则
+        let rule = PushFilterDownAggregateRule::new();
+        let mut ctx = RewriteContext::new();
+        let result = rule.apply(&mut ctx, &filter_enum)
+            .expect("应用规则失败");
+
+        // 验证转换未执行（因为条件涉及聚合结果）
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_apply_with_non_aggregate_input() {
+        // 创建 Start 节点
+        let start_node = StartNode::new();
+        let start_enum = PlanNodeEnum::Start(start_node);
+
+        // 创建 Filter 节点，但输入不是 Aggregate
+        let condition = Expression::Binary {
+            op: crate::core::types::operators::BinaryOperator::Equal,
+            left: Box::new(Expression::Variable("name".to_string())),
+            right: Box::new(Expression::Literal(crate::core::Value::String("test".to_string()))),
+        };
+        let filter = FilterNode::new(start_enum, condition)
+            .expect("创建 FilterNode 失败");
+        let filter_enum = PlanNodeEnum::Filter(filter);
+
+        // 应用规则
+        let rule = PushFilterDownAggregateRule::new();
+        let mut ctx = RewriteContext::new();
+        let result = rule.apply(&mut ctx, &filter_enum)
+            .expect("应用规则失败");
+
+        // 验证转换未执行（因为输入不是 Aggregate）
+        assert!(result.is_none());
     }
 }

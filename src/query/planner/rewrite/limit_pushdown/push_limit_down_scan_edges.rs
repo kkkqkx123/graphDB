@@ -15,14 +15,16 @@ define_rewrite_pushdown_rule! {
     ///
     /// Before:
     /// ```text
-    ///   Limit(100)
+    ///   Limit(offset=10, count=100)
     ///       |
     ///   ScanEdges
     /// ```
     ///
     /// After:
     /// ```text
-    ///   ScanEdges(limit=100)
+    ///   Limit(offset=10, count=100)
+    ///       |
+    ///   ScanEdges(limit=110)
     /// ```
     ///
     /// # 适用条件
@@ -30,13 +32,32 @@ define_rewrite_pushdown_rule! {
     /// - 当前节点为Limit节点
     /// - 子节点为ScanEdges节点
     /// - Limit节点只有一个子节点
+    /// - ScanEdges尚未设置limit，或新limit小于现有limit
     name: PushLimitDownScanEdgesRule,
     parent_node: Limit,
     child_node: ScanEdges,
-    apply: |_ctx, _limit_node: &LimitNode, _scan_edges_node: &ScanEdgesNode| {
-        // 简化实现：返回 None 表示不转换
-        // 实际实现需要创建新的 ScanEdges 节点并设置 limit
-        Ok(None::<TransformResult>)
+    apply: |_ctx, limit_node: &LimitNode, scan_edges_node: &ScanEdgesNode| {
+        // 计算需要获取的总行数（offset + count）
+        let limit_rows = limit_node.offset() + limit_node.count();
+
+        // 检查ScanEdges是否已有更严格的limit
+        if let Some(existing_limit) = scan_edges_node.limit() {
+            if limit_rows >= existing_limit {
+                // 现有limit更严格，无需转换
+                return Ok(None::<TransformResult>);
+            }
+        }
+
+        // 创建新的ScanEdges节点，设置limit
+        let mut new_scan_edges = scan_edges_node.clone();
+        new_scan_edges.set_limit(limit_rows);
+
+        // 创建转换结果
+        let mut result = TransformResult::new();
+        result.erase_all = true;
+        result.add_new_node(PlanNodeEnum::ScanEdges(new_scan_edges));
+
+        Ok(Some(result))
     }
 }
 

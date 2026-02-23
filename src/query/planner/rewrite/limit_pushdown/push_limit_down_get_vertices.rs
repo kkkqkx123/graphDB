@@ -15,14 +15,16 @@ define_rewrite_pushdown_rule! {
     ///
     /// Before:
     /// ```text
-    ///   Limit(100)
+    ///   Limit(offset=10, count=100)
     ///       |
     ///   GetVertices
     /// ```
     ///
     /// After:
     /// ```text
-    ///   GetVertices(limit=100)
+    ///   Limit(offset=10, count=100)
+    ///       |
+    ///   GetVertices(limit=110)
     /// ```
     ///
     /// # 适用条件
@@ -30,13 +32,32 @@ define_rewrite_pushdown_rule! {
     /// - 当前节点为Limit节点
     /// - 子节点为GetVertices节点
     /// - Limit节点只有一个子节点
+    /// - GetVertices尚未设置limit，或新limit小于现有limit
     name: PushLimitDownGetVerticesRule,
     parent_node: Limit,
     child_node: GetVertices,
-    apply: |_ctx, _limit_node: &LimitNode, _get_vertices_node: &GetVerticesNode| {
-        // 简化实现：返回 None 表示不转换
-        // 实际实现需要创建新的 GetVertices 节点并设置 limit
-        Ok(None::<TransformResult>)
+    apply: |_ctx, limit_node: &LimitNode, get_vertices_node: &GetVerticesNode| {
+        // 计算需要获取的总行数（offset + count）
+        let limit_rows = limit_node.offset() + limit_node.count();
+
+        // 检查GetVertices是否已有更严格的limit
+        if let Some(existing_limit) = get_vertices_node.limit() {
+            if limit_rows >= existing_limit {
+                // 现有limit更严格，无需转换
+                return Ok(None::<TransformResult>);
+            }
+        }
+
+        // 创建新的GetVertices节点，设置limit
+        let mut new_get_vertices = get_vertices_node.clone();
+        new_get_vertices.set_limit(limit_rows);
+
+        // 创建转换结果
+        let mut result = TransformResult::new();
+        result.erase_all = true;
+        result.add_new_node(PlanNodeEnum::GetVertices(new_get_vertices));
+
+        Ok(Some(result))
     }
 }
 

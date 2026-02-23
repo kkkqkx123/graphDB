@@ -33,7 +33,6 @@ use crate::query::planner::plan::core::nodes::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::Arc;
 
 /// 转换Limit-Sort为TopN的规则
 #[derive(Debug)]

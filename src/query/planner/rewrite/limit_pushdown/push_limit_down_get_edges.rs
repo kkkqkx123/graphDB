@@ -15,14 +15,16 @@ define_rewrite_pushdown_rule! {
     ///
     /// Before:
     /// ```text
-    ///   Limit(100)
+    ///   Limit(offset=10, count=100)
     ///       |
     ///   GetEdges
     /// ```
     ///
     /// After:
     /// ```text
-    ///   GetEdges(limit=100)
+    ///   Limit(offset=10, count=100)
+    ///       |
+    ///   GetEdges(limit=110)
     /// ```
     ///
     /// # 适用条件
@@ -30,13 +32,32 @@ define_rewrite_pushdown_rule! {
     /// - 当前节点为Limit节点
     /// - 子节点为GetEdges节点
     /// - Limit节点只有一个子节点
+    /// - GetEdges尚未设置limit，或新limit小于现有limit
     name: PushLimitDownGetEdgesRule,
     parent_node: Limit,
     child_node: GetEdges,
-    apply: |_ctx, _limit_node: &LimitNode, _get_edges_node: &GetEdgesNode| {
-        // 简化实现：返回 None 表示不转换
-        // 实际实现需要创建新的 GetEdges 节点并设置 limit
-        Ok(None::<TransformResult>)
+    apply: |_ctx, limit_node: &LimitNode, get_edges_node: &GetEdgesNode| {
+        // 计算需要获取的总行数（offset + count）
+        let limit_rows = limit_node.offset() + limit_node.count();
+
+        // 检查GetEdges是否已有更严格的limit
+        if let Some(existing_limit) = get_edges_node.limit() {
+            if limit_rows >= existing_limit {
+                // 现有limit更严格，无需转换
+                return Ok(None::<TransformResult>);
+            }
+        }
+
+        // 创建新的GetEdges节点，设置limit
+        let mut new_get_edges = get_edges_node.clone();
+        new_get_edges.set_limit(limit_rows);
+
+        // 创建转换结果
+        let mut result = TransformResult::new();
+        result.erase_all = true;
+        result.add_new_node(PlanNodeEnum::GetEdges(new_get_edges));
+
+        Ok(Some(result))
     }
 }
 

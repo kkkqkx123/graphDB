@@ -1,11 +1,36 @@
 //! 搜索算法相关的计划节点
 //! 包含索引扫描等搜索相关操作
 
+use crate::core::types::graph_schema::OrderDirection;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_visitor::PlanNodeVisitor;
 use crate::query::planner::plan::core::nodes::plan_node_traits::{
     PlanNode, PlanNodeClonable, ZeroInputNode,
 };
+
+/// 排序项定义
+#[derive(Debug, Clone, PartialEq)]
+pub struct OrderByItem {
+    pub column: String,
+    pub direction: OrderDirection,
+}
+
+impl OrderByItem {
+    pub fn new(column: impl Into<String>, direction: OrderDirection) -> Self {
+        Self {
+            column: column.into(),
+            direction,
+        }
+    }
+
+    pub fn asc(column: impl Into<String>) -> Self {
+        Self::new(column, OrderDirection::Asc)
+    }
+
+    pub fn desc(column: impl Into<String>) -> Self {
+        Self::new(column, OrderDirection::Desc)
+    }
+}
 
 /// 索引扫描类型
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -118,7 +143,8 @@ pub struct IndexScan {
     pub scan_limits: Vec<IndexLimit>, // 索引扫描限制
     pub filter: Option<String>,
     pub return_columns: Vec<String>,
-    pub limit: Option<i64>, // 限制返回的记录数量
+    pub limit: Option<i64>,           // 限制返回的记录数量
+    pub order_by: Vec<OrderByItem>,   // 排序条件（用于TopN下推）
 }
 
 impl IndexScan {
@@ -137,6 +163,7 @@ impl IndexScan {
             filter: None,
             return_columns: Vec::new(),
             limit: None,
+            order_by: Vec::new(),
         }
     }
 
@@ -147,6 +174,10 @@ impl IndexScan {
 
     pub fn set_limit(&mut self, limit: i64) {
         self.limit = Some(limit);
+    }
+
+    pub fn set_order_by(&mut self, order_by: Vec<OrderByItem>) {
+        self.order_by = order_by;
     }
 
     pub fn has_effective_filter(&self) -> bool {

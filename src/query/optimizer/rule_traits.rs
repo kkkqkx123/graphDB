@@ -3,7 +3,6 @@
 
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::Arc;
 
 use super::core::Cost;
 use super::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, OptimizerError};

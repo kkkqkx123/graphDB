@@ -11,7 +11,6 @@ use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::planner::plan::core::nodes::plan_node_visitor::PlanNodeVisitor;
 use std::rc::Rc;
 use std::cell::RefCell;
-use std::sync::Arc;
 
 /// 集合操作输入顺序优化规则
 ///
