@@ -3,7 +3,9 @@
 //! 该规则识别 Limit -> ScanEdges 模式，
 //! 并将LIMIT值集成到ScanEdges操作中。
 
-use crate::query::optimizer::rule_patterns::PatternBuilder;
+use crate::query::optimizer::plan::Pattern;
+
+
 
 crate::define_limit_pushdown_rule! {
     /// 将LIMIT下推到扫描边操作的规则
@@ -32,6 +34,6 @@ crate::define_limit_pushdown_rule! {
         target_check: is_scan_edges,
         target_as: as_scan_edges,
         enum_variant: ScanEdges,
-        pattern: PatternBuilder::with_dependency("Limit", "ScanEdges")
+        pattern: Pattern::new_with_name("Limit").with_dependency_name("ScanEdges")
     }
 }

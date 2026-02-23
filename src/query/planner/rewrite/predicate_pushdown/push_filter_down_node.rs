@@ -4,7 +4,6 @@
 //! 并将可下推的过滤条件下推到数据源。
 
 use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, OptimizerError};
-use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::query::optimizer::rule_traits::BaseOptRule;
 use crate::query::planner::plan::core::nodes::PlanNodeEnum;
 use std::rc::Rc;
@@ -61,7 +60,7 @@ impl OptRule for PushFilterDownNodeRule {
     }
 
     fn pattern(&self) -> Pattern {
-        PatternBuilder::node("Traverse")
+        Pattern::new_with_name("Traverse")
     }
 }
 

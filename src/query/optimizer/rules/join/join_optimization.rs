@@ -11,7 +11,6 @@
 //! - 至少有两个依赖节点
 
 use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, OptimizerError};
-use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::query::optimizer::rule_traits::BaseOptRule;
 use crate::query::planner::plan::core::nodes::{
     HashInnerJoinNode, HashLeftJoinNode, PlanNodeEnum,
@@ -134,8 +133,7 @@ impl OptRule for JoinOptimizationRule {
     }
 
     fn pattern(&self) -> Pattern {
-        // 匹配 InnerJoin 或 LeftJoin（非哈希连接）
-        PatternBuilder::multi(vec!["InnerJoin", "LeftJoin"])
+        Pattern::multi(vec!["InnerJoin", "LeftJoin"])
     }
 }
 

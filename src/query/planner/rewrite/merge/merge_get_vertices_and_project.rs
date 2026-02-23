@@ -1,6 +1,8 @@
 //! 合并获取顶点和投影操作的规则
 
-use crate::query::optimizer::rule_patterns::PatternBuilder;
+use crate::query::optimizer::plan::Pattern;
+
+
 
 crate::define_merge_rule! {
     /// 合并获取顶点和投影操作的规则
@@ -33,6 +35,6 @@ crate::define_merge_rule! {
         parent_check: is_get_vertices,
         child: Project,
         child_check: is_project,
-        pattern: PatternBuilder::with_dependency("GetVertices", "Project")
+        pattern: Pattern::new_with_name("GetVertices").with_dependency_name("Project")
     }
 }

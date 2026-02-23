@@ -4,7 +4,6 @@
 //! 并将过滤条件下推到 GetNeighbors 节点中。
 
 use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, OptimizerError};
-use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::query::optimizer::rule_traits::BaseOptRule;
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -71,7 +70,7 @@ impl OptRule for PushFilterDownGetNbrsRule {
     }
 
     fn pattern(&self) -> Pattern {
-        PatternBuilder::with_dependency("Filter", "GetNeighbors")
+        Pattern::new_with_name("Filter").with_dependency_name("GetNeighbors")
     }
 }
 

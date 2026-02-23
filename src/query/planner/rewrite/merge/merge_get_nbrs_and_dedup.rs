@@ -1,6 +1,8 @@
 //! 合并获取邻居和去重操作的规则
 
-use crate::query::optimizer::rule_patterns::PatternBuilder;
+use crate::query::optimizer::plan::Pattern;
+
+
 
 crate::define_merge_rule! {
     /// 合并获取邻居和去重操作的规则
@@ -33,6 +35,6 @@ crate::define_merge_rule! {
         parent_check: is_get_neighbors,
         child: Dedup,
         child_check: is_dedup,
-        pattern: PatternBuilder::with_dependency("GetNeighbors", "Dedup")
+        pattern: Pattern::new_with_name("GetNeighbors").with_dependency_name("Dedup")
     }
 }

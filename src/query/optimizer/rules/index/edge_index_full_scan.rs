@@ -4,7 +4,6 @@
 //! 并根据索引和过滤条件转换为更高效的索引扫描操作。
 
 use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, OptimizerError};
-use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::query::optimizer::rule_traits::BaseOptRule;
 use crate::query::planner::plan::algorithms::IndexScan;
 use crate::query::planner::plan::core::nodes::PlanNodeEnum;
@@ -63,7 +62,7 @@ impl OptRule for EdgeIndexFullScanRule {
     }
 
     fn pattern(&self) -> Pattern {
-        PatternBuilder::single("IndexScan")
+        Pattern::new_with_name("IndexScan")
     }
 }
 

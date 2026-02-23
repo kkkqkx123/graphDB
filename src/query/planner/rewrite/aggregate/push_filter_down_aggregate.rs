@@ -28,7 +28,6 @@
 //! - Filter 条件不涉及聚合函数（只涉及聚合的输入列）
 
 use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, Result};
-use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::query::optimizer::rule_traits::BaseOptRule;
 use crate::core::Expression;
 use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
@@ -155,7 +154,7 @@ impl OptRule for PushFilterDownAggregateRule {
     }
 
     fn pattern(&self) -> Pattern {
-        PatternBuilder::with_dependency("Filter", "Aggregate")
+        Pattern::new_with_name("Filter").with_dependency_name("Aggregate")
     }
 }
 

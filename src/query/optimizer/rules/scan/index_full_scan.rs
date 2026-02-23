@@ -9,7 +9,6 @@
 //! - 存在可用的索引
 
 use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, Result};
-use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::query::optimizer::rule_traits::BaseOptRule;
 use crate::query::planner::plan::core::nodes::PlanNodeEnum;
 use std::cell::RefCell;
@@ -66,7 +65,7 @@ impl OptRule for IndexFullScanRule {
     }
 
     fn pattern(&self) -> Pattern {
-        PatternBuilder::index_scan()
+        Pattern::new_with_name("IndexScan")
     }
 }
 

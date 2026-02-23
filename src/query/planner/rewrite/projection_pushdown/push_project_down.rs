@@ -22,7 +22,6 @@
 //! - Project 节点有列定义
 
 use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, Result};
-use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::query::optimizer::rule_traits::{BaseOptRule, PushDownRule};
 use crate::query::planner::plan::core::nodes::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
@@ -133,7 +132,7 @@ impl OptRule for PushProjectDownRule {
     }
 
     fn pattern(&self) -> Pattern {
-        PatternBuilder::project()
+        Pattern::new_with_name("Project")
     }
 }
 

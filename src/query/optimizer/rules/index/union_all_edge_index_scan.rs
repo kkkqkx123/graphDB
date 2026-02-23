@@ -4,7 +4,6 @@
 //! 包括索引选择、扫描类型确定等。
 
 use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, OptimizerError};
-use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::query::optimizer::rule_traits::BaseOptRule;
 use crate::query::planner::plan::algorithms::IndexScan;
 use std::rc::Rc;
@@ -58,7 +57,7 @@ impl OptRule for UnionAllEdgeIndexScanRule {
     }
 
     fn pattern(&self) -> Pattern {
-        PatternBuilder::index_scan()
+        Pattern::new_with_name("IndexScan")
     }
 }
 

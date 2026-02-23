@@ -335,6 +335,11 @@ impl Pattern {
         self
     }
 
+    pub fn with_dependency_name(mut self, name: &'static str) -> Self {
+        self.dependencies.push(Self::new_with_name(name));
+        self
+    }
+
     pub fn add_dependency(&mut self, dependency: Pattern) {
         self.dependencies.push(dependency);
     }

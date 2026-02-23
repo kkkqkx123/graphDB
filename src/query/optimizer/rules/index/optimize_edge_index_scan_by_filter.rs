@@ -4,7 +4,6 @@
 //! 并将过滤条件转换为边索引范围扫描或前缀扫描。
 
 use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, OptimizerError};
-use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::query::optimizer::rule_traits::BaseOptRule;
 use crate::core::Expression;
 use crate::query::planner::plan::algorithms::IndexScan;
@@ -104,7 +103,7 @@ impl OptRule for OptimizeEdgeIndexScanByFilterRule {
     }
 
     fn pattern(&self) -> Pattern {
-        PatternBuilder::filter_with("IndexScan")
+        Pattern::new_with_name("Filter").with_dependency_name("IndexScan")
     }
 }
 

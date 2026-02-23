@@ -8,7 +8,6 @@
 //! - 子节点包含 Filter 节点
 
 use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, Result};
-use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::query::optimizer::rule_traits::BaseOptRule;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -45,7 +44,7 @@ impl OptRule for ScanWithFilterOptimizationRule {
     }
 
     fn pattern(&self) -> Pattern {
-        PatternBuilder::with_dependency("ScanVertices", "Filter")
+        Pattern::new_with_name("ScanVertices").with_dependency_name("Filter")
     }
 }
 

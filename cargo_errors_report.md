@@ -2,39 +2,46 @@
 
 ## Summary
 
-- **Total Errors**: 3
-- **Total Warnings**: 0
-- **Total Issues**: 3
-- **Unique Error Patterns**: 1
-- **Unique Warning Patterns**: 0
-- **Files with Issues**: 1
+- **Total Errors**: 0
+- **Total Warnings**: 6
+- **Total Issues**: 6
+- **Unique Error Patterns**: 0
+- **Unique Warning Patterns**: 5
+- **Files with Issues**: 2
 
 ## Error Statistics
 
-**Total Errors**: 3
-
-### Error Type Breakdown
-
-- **error[E0308]**: 3 errors
-
-### Files with Errors (Top 10)
-
-- `src\query\optimizer\core\selectivity.rs`: 3 errors
+**Total Errors**: 0
 
 ## Warning Statistics
 
-**Total Warnings**: 0
+**Total Warnings**: 6
 
-## Detailed Error Categorization
+### Warning Type Breakdown
 
-### error[E0308]: mismatched types: expected `f64`, found `Option<{float}>`
+- **warning**: 6 warnings
 
-**Total Occurrences**: 3  
-**Unique Files**: 1
+### Files with Warnings (Top 10)
 
-#### `src\query\optimizer\core\selectivity.rs`: 3 occurrences
+- `src\query\optimizer\core\analyze.rs`: 4 warnings
+- `src\query\planner\rewrite\plan_rewriter.rs`: 2 warnings
 
-- Line 405: mismatched types: expected `f64`, found `Option<{float}>`
-- Line 409: mismatched types: expected `f64`, found `Option<{float}>`
-- Line 413: mismatched types: expected `f64`, found `Option<{float}>`
+## Detailed Warning Categorization
+
+### warning: unused variable: `table_name`: help: if this is intentional, prefix it with an underscore: `_table_name`
+
+**Total Occurrences**: 6  
+**Unique Files**: 2
+
+#### `src\query\optimizer\core\analyze.rs`: 4 occurrences
+
+- Line 96: unused variable: `table_name`: help: if this is intentional, prefix it with an underscore: `_table_name`
+- Line 142: unused variable: `table_name`: help: if this is intentional, prefix it with an underscore: `_table_name`
+- Line 160: unused variable: `index_name`: help: if this is intentional, prefix it with an underscore: `_index_name`
+- ... 1 more occurrences in this file
+
+#### `src\query\planner\rewrite\plan_rewriter.rs`: 2 occurrences
+
+- Line 13: unused import: `TransformResult`
+- Line 14: unused import: `crate::query::optimizer::OptimizerError`
 

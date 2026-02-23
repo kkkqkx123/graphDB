@@ -25,7 +25,6 @@
 //! - IndexScan尚未设置limit（避免重复下推）
 
 use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, Result};
-use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::query::optimizer::rule_traits::BaseOptRule;
 use crate::query::planner::plan::core::nodes::PlanNodeEnum;
 use std::cell::RefCell;
@@ -41,7 +40,7 @@ impl OptRule for PushTopNDownIndexScanRule {
     }
 
     fn pattern(&self) -> Pattern {
-        PatternBuilder::with_dependency("TopN", "IndexScan")
+        Pattern::new_with_name("TopN").with_dependency_name("IndexScan")
     }
 
     fn apply(

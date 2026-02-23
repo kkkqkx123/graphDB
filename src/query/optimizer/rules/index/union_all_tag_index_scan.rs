@@ -4,7 +4,6 @@
 //! 并尝试将其合并为更高效的索引扫描。
 
 use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, OptimizerError};
-use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::query::optimizer::rule_traits::BaseOptRule;
 use crate::query::planner::plan::algorithms::IndexScan;
 use std::rc::Rc;
@@ -91,7 +90,7 @@ impl OptRule for UnionAllTagIndexScanRule {
     }
 
     fn pattern(&self) -> Pattern {
-        PatternBuilder::union(vec!["UnionAll"])
+        Pattern::multi(vec!["UnionAll"])
     }
 }
 

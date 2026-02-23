@@ -3,7 +3,9 @@
 //! 该规则识别 Limit -> GetVertices 模式，
 //! 并将LIMIT值集成到GetVertices操作中。
 
-use crate::query::optimizer::rule_patterns::PatternBuilder;
+use crate::query::optimizer::plan::Pattern;
+
+
 
 crate::define_limit_pushdown_rule! {
     /// 将LIMIT下推到获取顶点操作的规则
@@ -32,6 +34,6 @@ crate::define_limit_pushdown_rule! {
         target_check: is_get_vertices,
         target_as: as_get_vertices,
         enum_variant: GetVertices,
-        pattern: PatternBuilder::with_dependency("Limit", "GetVertices")
+        pattern: Pattern::new_with_name("Limit").with_dependency_name("GetVertices")
     }
 }

@@ -1,7 +1,6 @@
 //! 折叠多个投影操作的规则
 
 use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, OptimizerError};
-use crate::query::optimizer::rule_patterns::CommonPatterns;
 use crate::query::optimizer::rule_traits::{BaseOptRule, MergeRule};
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -65,7 +64,7 @@ impl OptRule for CollapseProjectRule {
     }
 
     fn pattern(&self) -> Pattern {
-        CommonPatterns::project_over_project()
+        Pattern::new_with_name("Project").with_dependency_name("Project")
     }
 }
 

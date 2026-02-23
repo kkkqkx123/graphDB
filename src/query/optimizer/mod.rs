@@ -2,7 +2,6 @@
 //! Contains the Optimizer implementation and various optimization rules
 
 // 基础设施模块
-pub mod rule_patterns;
 pub mod rule_traits;
 
 // 表达式工具模块

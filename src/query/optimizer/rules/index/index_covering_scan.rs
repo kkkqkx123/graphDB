@@ -28,7 +28,6 @@
 //! - 不需要访问顶点/边的其他属性
 
 use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, Result};
-use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::query::optimizer::rule_traits::BaseOptRule;
 use crate::query::planner::plan::core::nodes::PlanNodeEnum;
 use crate::core::YieldColumn;
@@ -46,8 +45,7 @@ impl OptRule for IndexCoveringScanRule {
     }
 
     fn pattern(&self) -> Pattern {
-        // 匹配 Project -> IndexScan -> GetVertices 模式
-        PatternBuilder::with_dependency("Project", "IndexScan")
+        Pattern::new_with_name("Project").with_dependency_name("IndexScan")
     }
 
     fn apply(

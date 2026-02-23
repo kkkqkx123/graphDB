@@ -1,7 +1,6 @@
 //! 消除冗余过滤操作的规则
 
-use crate::query::optimizer::plan::{OptContext, OptGroupNode};
-use crate::query::optimizer::rule_patterns::PatternBuilder;
+use crate::query::optimizer::plan::{OptContext, OptGroupNode, Pattern};
 use crate::query::optimizer::rule_traits::is_expression_tautology;
 use crate::query::planner::plan::core::nodes::plan_node_visitor::PlanNodeVisitor;
 
@@ -28,7 +27,7 @@ crate::define_elimination_rule! {
     pub struct EliminateFilterRule {
         target: Filter,
         target_check: is_filter,
-        pattern: PatternBuilder::filter()
+        pattern: Pattern::new_with_name("Filter")
     }
     visitor: EliminateFilterVisitor
 }

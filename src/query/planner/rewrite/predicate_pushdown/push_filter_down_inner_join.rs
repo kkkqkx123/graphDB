@@ -4,7 +4,6 @@
 //! 并将过滤条件下推到连接的一侧。
 
 use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, OptimizerError};
-use crate::query::optimizer::rule_patterns::PatternBuilder;
 use crate::query::optimizer::rule_traits::BaseOptRule;
 use crate::core::Expression;
 use crate::query::optimizer::expression_utils::{check_col_name, split_filter};
@@ -135,7 +134,7 @@ impl OptRule for PushFilterDownInnerJoinRule {
     }
 
     fn pattern(&self) -> Pattern {
-        PatternBuilder::with_dependency("Filter", "InnerJoin")
+        Pattern::new_with_name("Filter").with_dependency_name("InnerJoin")
     }
 }
 
