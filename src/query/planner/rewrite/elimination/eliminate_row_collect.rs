@@ -1,89 +1,118 @@
 //! 消除冗余数据收集操作的规则
 
-use crate::query::optimizer::plan::{OptContext, OptGroupNode};
-use crate::query::optimizer::rule_traits::create_basic_pattern;
-use crate::query::planner::plan::core::nodes::plan_node_visitor::PlanNodeVisitor;
+use crate::query::planner::plan::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
+use crate::query::planner::rewrite::context::RewriteContext;
+use crate::query::planner::rewrite::pattern::Pattern;
+use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
+use crate::query::planner::rewrite::rule::{RewriteRule, EliminationRule};
 
-crate::define_elimination_rule! {
-    /// 消除冗余数据收集操作的规则
-    ///
-    /// # 转换示例
-    ///
-    /// Before:
-    /// ```text
-    ///   DataCollect(kind=kRowBasedMove)
-    ///       |
-    ///   ScanVertices
-    /// ```
-    ///
-    /// After:
-    /// ```text
-    ///   ScanVertices
-    /// ```
-    ///
-    /// # 适用条件
-    ///
-    /// - DataCollect 节点的 kind 为 kRowBasedMove
-    /// - 子节点可以直接返回结果
-    pub struct EliminateRowCollectRule {
-        target: DataCollect,
-        target_check: is_data_collect,
-        pattern: create_basic_pattern("DataCollect")
-    }
-    visitor: EliminateRowCollectVisitor
-}
-
-/// 消除数据收集访问者
+/// 消除冗余数据收集操作的规则
 ///
-/// 状态不变量：
-/// - `is_eliminated` 为 true 时，`eliminated_node` 必须为 Some
-/// - `is_eliminated` 为 false 时，`eliminated_node` 必须为 None
-#[derive(Clone)]
-struct EliminateRowCollectVisitor<'a> {
-    is_eliminated: bool,
-    eliminated_node: Option<OptGroupNode>,
-    ctx: &'a OptContext,
+/// # 转换示例
+///
+/// Before:
+/// ```text
+///   DataCollect(kind=kRowBasedMove)
+///       |
+///   ScanVertices
+/// ```
+///
+/// After:
+/// ```text
+///   ScanVertices
+/// ```
+///
+/// # 适用条件
+///
+/// - DataCollect 节点的 kind 为 kRowBasedMove
+/// - 子节点可以直接返回结果
+#[derive(Debug)]
+pub struct EliminateRowCollectRule;
+
+impl EliminateRowCollectRule {
+    /// 创建规则实例
+    pub fn new() -> Self {
+        Self
+    }
 }
 
-impl<'a> PlanNodeVisitor for EliminateRowCollectVisitor<'a> {
-    type Result = Self;
+impl Default for EliminateRowCollectRule {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
-    fn visit_default(&mut self) -> Self::Result {
-        self.clone()
+impl RewriteRule for EliminateRowCollectRule {
+    fn name(&self) -> &'static str {
+        "EliminateRowCollectRule"
     }
 
-    fn visit_data_collect(&mut self, node: &crate::query::planner::plan::core::nodes::DataCollectNode) -> Self::Result {
-        if self.is_eliminated {
-            return self.clone();
-        }
+    fn pattern(&self) -> Pattern {
+        Pattern::new_with_name("DataCollect")
+    }
 
-        if node.collect_kind() != "kRowBasedMove" {
-            return self.clone();
-        }
-
-        let deps = node.dependencies();
-        if deps.is_empty() {
-            return self.clone();
-        }
-
-        let input = match deps.first() {
-            Some(node) => node,
-            None => return self.clone(),
+    fn apply(
+        &self,
+        _ctx: &mut RewriteContext,
+        node: &PlanNodeEnum,
+    ) -> RewriteResult<Option<TransformResult>> {
+        // 检查是否为 DataCollect 节点
+        let data_collect_node = match node {
+            PlanNodeEnum::DataCollect(n) => n,
+            _ => return Ok(None),
         };
-        let input_id = input.id() as usize;
 
-        if let Some(child_node) = self.ctx.find_group_node_by_plan_node_id(input_id) {
-            let new_node = child_node.clone();
-
-            if let Some(_output_var) = node.output_var() {
-                let mut new_node_borrowed = new_node.borrow_mut();
-                new_node_borrowed.plan_node = (**input).clone();
-            }
-
-            self.is_eliminated = true;
-            self.eliminated_node = Some(new_node.borrow().clone());
+        // 检查 collect_kind 是否为 kRowBasedMove
+        if data_collect_node.collect_kind() != "kRowBasedMove" {
+            return Ok(None);
         }
 
-        self.clone()
+        // 获取输入节点
+        let input = data_collect_node.input();
+
+        // 创建转换结果，用输入节点替换当前 DataCollect 节点
+        let mut result = TransformResult::new();
+        result.erase_curr = true;
+        result.add_new_node(input.clone());
+
+        Ok(Some(result))
+    }
+}
+
+impl EliminationRule for EliminateRowCollectRule {
+    fn can_eliminate(&self, node: &PlanNodeEnum) -> bool {
+        match node {
+            PlanNodeEnum::DataCollect(n) => {
+                n.collect_kind() == "kRowBasedMove"
+            }
+            _ => false,
+        }
+    }
+
+    fn eliminate(
+        &self,
+        _ctx: &mut RewriteContext,
+        node: &PlanNodeEnum,
+    ) -> RewriteResult<Option<TransformResult>> {
+        self.apply(_ctx, node)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_eliminate_row_collect_rule_name() {
+        let rule = EliminateRowCollectRule::new();
+        assert_eq!(rule.name(), "EliminateRowCollectRule");
+    }
+
+    #[test]
+    fn test_eliminate_row_collect_rule_pattern() {
+        let rule = EliminateRowCollectRule::new();
+        let pattern = rule.pattern();
+        assert!(pattern.node.is_some());
     }
 }

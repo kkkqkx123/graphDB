@@ -1,89 +1,120 @@
 //! 消除冗余过滤操作的规则
 
-use crate::query::optimizer::plan::{OptContext, OptGroupNode, Pattern};
+use crate::query::planner::plan::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
+use crate::query::planner::rewrite::context::RewriteContext;
+use crate::query::planner::rewrite::pattern::Pattern;
+use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
+use crate::query::planner::rewrite::rule::{RewriteRule, EliminationRule};
 use crate::query::optimizer::rule_traits::is_expression_tautology;
-use crate::query::planner::plan::core::nodes::plan_node_visitor::PlanNodeVisitor;
 
-crate::define_elimination_rule! {
-    /// 消除冗余过滤操作的规则
-    ///
-    /// # 转换示例
-    ///
-    /// Before:
-    /// ```text
-    ///   Filter(TRUE)
-    ///       |
-    ///   ScanVertices
-    /// ```
-    ///
-    /// After:
-    /// ```text
-    ///   ScanVertices
-    /// ```
-    ///
-    /// # 适用条件
-    ///
-    /// - 过滤条件为永真式（如 TRUE、1=1 等）
-    pub struct EliminateFilterRule {
-        target: Filter,
-        target_check: is_filter,
-        pattern: Pattern::new_with_name("Filter")
-    }
-    visitor: EliminateFilterVisitor
-}
-
-/// 消除过滤访问者
+/// 消除冗余过滤操作的规则
 ///
-/// 状态不变量：
-/// - `is_eliminated` 为 true 时，`eliminated_node` 必须为 Some
-/// - `is_eliminated` 为 false 时，`eliminated_node` 必须为 None
-#[derive(Clone)]
-struct EliminateFilterVisitor<'a> {
-    is_eliminated: bool,
-    eliminated_node: Option<OptGroupNode>,
-    ctx: &'a OptContext,
+/// # 转换示例
+///
+/// Before:
+/// ```text
+///   Filter(TRUE)
+///       |
+///   ScanVertices
+/// ```
+///
+/// After:
+/// ```text
+///   ScanVertices
+/// ```
+///
+/// # 适用条件
+///
+/// - 过滤条件为永真式（如 TRUE、1=1 等）
+#[derive(Debug)]
+pub struct EliminateFilterRule;
+
+impl EliminateFilterRule {
+    /// 创建规则实例
+    pub fn new() -> Self {
+        Self
+    }
 }
 
-impl<'a> PlanNodeVisitor for EliminateFilterVisitor<'a> {
-    type Result = Self;
+impl Default for EliminateFilterRule {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
-    fn visit_default(&mut self) -> Self::Result {
-        self.clone()
+impl RewriteRule for EliminateFilterRule {
+    fn name(&self) -> &'static str {
+        "EliminateFilterRule"
     }
 
-    fn visit_filter(&mut self, node: &crate::query::planner::plan::core::nodes::FilterNode) -> Self::Result {
-        if self.is_eliminated {
-            return self.clone();
-        }
+    fn pattern(&self) -> Pattern {
+        Pattern::new_with_name("Filter")
+    }
 
-        let condition = node.condition();
-        if !is_expression_tautology(condition) {
-            return self.clone();
-        }
-
-        let deps = node.dependencies();
-        if deps.is_empty() {
-            return self.clone();
-        }
-
-        let input = match deps.first() {
-            Some(node) => node,
-            None => return self.clone(),
+    fn apply(
+        &self,
+        _ctx: &mut RewriteContext,
+        node: &PlanNodeEnum,
+    ) -> RewriteResult<Option<TransformResult>> {
+        // 检查是否为 Filter 节点
+        let filter_node = match node {
+            PlanNodeEnum::Filter(n) => n,
+            _ => return Ok(None),
         };
-        let input_id = input.id() as usize;
 
-        if let Some(child_node) = self.ctx.find_group_node_by_plan_node_id(input_id) {
-            let new_node = child_node.clone();
-
-            if let Some(_output_var) = node.output_var() {
-                let mut new_node_borrowed = new_node.borrow_mut();
-                new_node_borrowed.plan_node = (**input).clone();
-            }
-
-            self.is_eliminated = true;
-            self.eliminated_node = Some(new_node.borrow().clone());
+        // 检查过滤条件是否为永真式
+        let condition = filter_node.condition();
+        if !is_expression_tautology(condition) {
+            return Ok(None);
         }
 
-        self.clone()
+        // 获取输入节点
+        let input = filter_node.input();
+
+        // 创建转换结果，用输入节点替换当前 Filter 节点
+        let mut result = TransformResult::new();
+        result.erase_curr = true;
+        result.add_new_node(input.clone());
+
+        Ok(Some(result))
+    }
+}
+
+impl EliminationRule for EliminateFilterRule {
+    fn can_eliminate(&self, node: &PlanNodeEnum) -> bool {
+        match node {
+            PlanNodeEnum::Filter(n) => {
+                let condition = n.condition();
+                is_expression_tautology(condition)
+            }
+            _ => false,
+        }
+    }
+
+    fn eliminate(
+        &self,
+        _ctx: &mut RewriteContext,
+        node: &PlanNodeEnum,
+    ) -> RewriteResult<Option<TransformResult>> {
+        self.apply(_ctx, node)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_eliminate_filter_rule_name() {
+        let rule = EliminateFilterRule::new();
+        assert_eq!(rule.name(), "EliminateFilterRule");
+    }
+
+    #[test]
+    fn test_eliminate_filter_rule_pattern() {
+        let rule = EliminateFilterRule::new();
+        let pattern = rule.pattern();
+        assert!(pattern.node.is_some());
     }
 }

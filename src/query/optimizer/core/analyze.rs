@@ -13,7 +13,7 @@ use std::time::SystemTime;
 /// 负责从存储层采样数据并计算统计信息
 #[derive(Debug)]
 pub struct StatisticsCollector<S> {
-    storage: S,
+    _storage: S,
     config: AnalyzeConfig,
 }
 
@@ -61,14 +61,14 @@ impl<S> StatisticsCollector<S> {
     /// 创建新的统计信息收集器
     pub fn new(storage: S) -> Self {
         Self {
-            storage,
+            _storage: storage,
             config: AnalyzeConfig::default(),
         }
     }
 
     /// 使用自定义配置创建
     pub fn with_config(storage: S, config: AnalyzeConfig) -> Self {
-        Self { storage, config }
+        Self { _storage: storage, config }
     }
 
     /// 获取配置
@@ -93,7 +93,7 @@ where
     ///
     /// # 返回
     /// 表的统计信息
-    pub async fn analyze_table(&mut self, table_name: &str) -> Result<TableStatistics, AnalyzeError> {
+    pub async fn analyze_table(&mut self, _table_name: &str) -> Result<TableStatistics, AnalyzeError> {
         // TODO: 实现表分析逻辑
         // 1. 从存储层获取表的元数据
         // 2. 采样数据
@@ -139,14 +139,13 @@ where
     /// 表的统计信息
     pub async fn analyze_incremental(
         &mut self,
-        table_name: &str,
-        since: SystemTime,
+        _table_name: &str,
+        _since: SystemTime,
     ) -> Result<TableStatistics, AnalyzeError> {
         // TODO: 实现增量分析逻辑
         // 1. 获取自上次分析以来的变更数据
         // 2. 仅对变更部分进行采样
         // 3. 合并新旧统计信息
-        let _ = since;
         todo!("analyze_incremental not yet implemented")
     }
 
@@ -157,7 +156,7 @@ where
     ///
     /// # 返回
     /// 索引的统计信息
-    pub async fn analyze_index(&mut self, index_name: &str) -> Result<IndexStatistics, AnalyzeError> {
+    pub async fn analyze_index(&mut self, _index_name: &str) -> Result<IndexStatistics, AnalyzeError> {
         // TODO: 实现索引分析逻辑
         // 1. 获取索引结构信息
         // 2. 统计索引页数、条目数

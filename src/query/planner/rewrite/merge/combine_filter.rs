@@ -1,12 +1,13 @@
 //! 合并多个过滤操作的规则
 
-use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, OptimizerError};
-use crate::query::optimizer::rule_traits::{combine_conditions, BaseOptRule, MergeRule};
-use crate::query::planner::plan::FilterNode as FilterPlanNode;
+use crate::query::planner::plan::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
-use crate::query::planner::plan::core::nodes::plan_node_visitor::PlanNodeVisitor;
-use std::rc::Rc;
-use std::cell::RefCell;
+use crate::query::planner::rewrite::context::RewriteContext;
+use crate::query::planner::rewrite::pattern::Pattern;
+use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
+use crate::query::planner::rewrite::rule::{RewriteRule, MergeRule};
+use crate::query::optimizer::rule_traits::combine_conditions;
 
 /// 合并多个过滤操作的规则
 ///
@@ -36,160 +37,108 @@ use std::cell::RefCell;
 #[derive(Debug)]
 pub struct CombineFilterRule;
 
-impl OptRule for CombineFilterRule {
-    fn name(&self) -> &str {
-        "CombineFilterRule"
+impl CombineFilterRule {
+    /// 创建规则实例
+    pub fn new() -> Self {
+        Self
     }
+}
 
-    fn apply(
-        &self,
-        ctx: &mut OptContext,
-        group_node: &Rc<RefCell<OptGroupNode>>,
-    ) -> Result<Option<TransformResult>, OptimizerError> {
-        let node_ref = group_node.borrow();
-        if !node_ref.plan_node.is_filter() {
-            return Ok(None);
-        }
+impl Default for CombineFilterRule {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
-        let mut visitor = CombineFilterVisitor {
-            is_merged: false,
-            merged_node: None,
-            ctx: &ctx,
-            node_dependencies: node_ref.dependencies.clone(),
-        };
-
-        let result = node_ref.plan_node.accept(&mut visitor);
-        drop(node_ref);
-
-        if result.is_merged {
-            if let Some(new_node) = result.merged_node {
-                let mut transform_result = TransformResult::new();
-                transform_result.add_new_group_node(Rc::new(RefCell::new(new_node)));
-                return Ok(Some(transform_result));
-            }
-        }
-        Ok(None)
+impl RewriteRule for CombineFilterRule {
+    fn name(&self) -> &'static str {
+        "CombineFilterRule"
     }
 
     fn pattern(&self) -> Pattern {
         Pattern::new_with_name("Filter").with_dependency_name("Filter")
     }
-}
 
-impl BaseOptRule for CombineFilterRule {}
-
-impl MergeRule for CombineFilterRule {
-    fn can_merge(&self, group_node: &Rc<RefCell<OptGroupNode>>, child: &OptGroupNode) -> bool {
-        let node_ref = group_node.borrow();
-        node_ref.plan_node.is_filter() && child.plan_node.is_filter()
-    }
-
-    fn create_merged_node(
+    fn apply(
         &self,
-        _ctx: &mut OptContext,
-        group_node: &Rc<RefCell<OptGroupNode>>,
-        child: &OptGroupNode,
-    ) -> Result<Option<TransformResult>, OptimizerError> {
-        let node_ref = group_node.borrow();
-        if let (Some(top_filter), Some(child_filter)) =
-            (node_ref.plan_node.as_filter(), child.plan_node.as_filter())
-        {
-            let top_condition = top_filter.condition();
-            let child_condition = child_filter.condition();
+        _ctx: &mut RewriteContext,
+        node: &PlanNodeEnum,
+    ) -> RewriteResult<Option<TransformResult>> {
+        // 检查是否为 Filter 节点
+        let top_filter = match node {
+            PlanNodeEnum::Filter(n) => n,
+            _ => return Ok(None),
+        };
 
-            let combined_condition_str = combine_conditions(
-                &format!("{:?}", top_condition),
-                &format!("{:?}", child_condition),
-            );
+        // 获取输入节点
+        let input = top_filter.input();
 
-            let input = top_filter
-                .dependencies()
-                .first()
-                .expect("Filter should have at least one dependency")
-                .clone();
+        // 检查输入节点是否也是 Filter
+        let child_filter = match input {
+            PlanNodeEnum::Filter(n) => n,
+            _ => return Ok(None),
+        };
 
-            let combined_filter_node = match FilterPlanNode::new(
-                *input,
-                crate::core::Expression::Variable(combined_condition_str),
-            ) {
-                Ok(node) => node,
-                Err(_) => top_filter.clone(),
-            };
+        // 获取两个过滤条件
+        let top_condition = top_filter.condition();
+        let child_condition = child_filter.condition();
 
-            let mut combined_filter_opt_node = node_ref.clone();
-            combined_filter_opt_node.plan_node =
-                crate::query::planner::plan::PlanNodeEnum::Filter(combined_filter_node);
+        // 合并条件
+        let combined_condition_str = combine_conditions(
+            &format!("{:?}", top_condition),
+            &format!("{:?}", child_condition),
+        );
 
-            combined_filter_opt_node.dependencies = node_ref.dependencies.clone();
+        // 获取子 Filter 的输入
+        let child_input = child_filter.input();
 
-            let mut result = TransformResult::new();
-            result.add_new_group_node(Rc::new(RefCell::new(combined_filter_opt_node)));
-            return Ok(Some(result));
-        }
+        // 创建合并后的 Filter 节点
+        let combined_filter_node = match FilterNode::new(
+            child_input.clone(),
+            crate::core::Expression::Variable(combined_condition_str),
+        ) {
+            Ok(node) => node,
+            Err(_) => return Ok(None),
+        };
 
+        // 创建转换结果
         let mut result = TransformResult::new();
-        result.add_new_group_node(group_node.clone());
+        result.erase_curr = true;
+        result.add_new_node(PlanNodeEnum::Filter(combined_filter_node));
+
         Ok(Some(result))
     }
 }
 
-/// 合并过滤访问者
-///
-/// 状态不变量：
-/// - `is_merged` 为 true 时，`merged_node` 必须为 Some
-/// - `is_merged` 为 false 时，`merged_node` 必须为 None
-#[derive(Clone)]
-struct CombineFilterVisitor<'a> {
-    is_merged: bool,
-    merged_node: Option<OptGroupNode>,
-    ctx: &'a OptContext,
-    node_dependencies: Vec<usize>,
-}
-
-impl<'a> PlanNodeVisitor for CombineFilterVisitor<'a> {
-    type Result = Self;
-
-    fn visit_default(&mut self) -> Self::Result {
-        self.clone()
+impl MergeRule for CombineFilterRule {
+    fn can_merge(&self, parent: &PlanNodeEnum, child: &PlanNodeEnum) -> bool {
+        parent.is_filter() && child.is_filter()
     }
 
-    fn visit_filter(&mut self, node: &crate::query::planner::plan::core::nodes::FilterNode) -> Self::Result {
-        if let Some(dep_id) = self.node_dependencies.first() {
-            if let Some(child_node) = self.ctx.find_group_node_by_id(*dep_id) {
-                let child_node_ref = child_node.borrow();
-                if child_node_ref.plan_node.is_filter() {
-                    if let Some(child_filter) = child_node_ref.plan_node.as_filter() {
-                        let top_condition = node.condition();
-                        let child_condition = child_filter.condition();
+    fn create_merged_node(
+        &self,
+        _ctx: &mut RewriteContext,
+        parent: &PlanNodeEnum,
+        _child: &PlanNodeEnum,
+    ) -> RewriteResult<Option<TransformResult>> {
+        self.apply(_ctx, parent)
+    }
+}
 
-                        let combined_condition_str = combine_conditions(
-                            &format!("{:?}", top_condition),
-                            &format!("{:?}", child_condition),
-                        );
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-                        let child_input = (*child_filter.input()).clone();
-                        let combined_filter_node = match FilterPlanNode::new(
-                            child_input,
-                            crate::core::Expression::Variable(combined_condition_str),
-                        ) {
-                            Ok(filter_node) => filter_node,
-                            Err(_) => return self.clone(),
-                        };
+    #[test]
+    fn test_rule_name() {
+        let rule = CombineFilterRule::new();
+        assert_eq!(rule.name(), "CombineFilterRule");
+    }
 
-                        let combined_opt_node = OptGroupNode::new(
-                            node.id() as usize,
-                            crate::query::planner::plan::PlanNodeEnum::Filter(combined_filter_node),
-                        );
-
-                        drop(child_node_ref);
-
-                        self.is_merged = true;
-                        self.merged_node = Some(combined_opt_node);
-                    }
-                }
-            }
-        }
-
-        self.clone()
+    #[test]
+    fn test_rule_pattern() {
+        let rule = CombineFilterRule::new();
+        let pattern = rule.pattern();
+        assert!(pattern.node.is_some());
     }
 }

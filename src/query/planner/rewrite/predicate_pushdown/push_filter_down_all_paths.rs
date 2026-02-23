@@ -3,10 +3,12 @@
 //! 该规则识别 Filter -> AllPaths 模式，
 //! 并将过滤条件下推到 AllPaths 节点中。
 
-use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, OptimizerError};
-use crate::query::optimizer::rule_traits::BaseOptRule;
-use std::rc::Rc;
-use std::cell::RefCell;
+use crate::query::planner::plan::PlanNodeEnum;
+use crate::query::planner::rewrite::context::RewriteContext;
+use crate::query::planner::rewrite::pattern::Pattern;
+use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
+use crate::query::planner::rewrite::rule::{RewriteRule, PushDownRule};
+use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 
 /// 将过滤条件下推到AllPaths操作的规则
 ///
@@ -32,47 +34,83 @@ use std::cell::RefCell;
 #[derive(Debug)]
 pub struct PushFilterDownAllPathsRule;
 
-impl OptRule for PushFilterDownAllPathsRule {
-    fn name(&self) -> &str {
-        "PushFilterDownAllPathsRule"
+impl PushFilterDownAllPathsRule {
+    /// 创建规则实例
+    pub fn new() -> Self {
+        Self
     }
+}
 
-    fn apply(
-        &self,
-        ctx: &mut OptContext,
-        group_node: &Rc<RefCell<OptGroupNode>>,
-    ) -> Result<Option<TransformResult>, OptimizerError> {
-        let node_ref = group_node.borrow();
-        
-        if !node_ref.plan_node.is_filter() {
-            return Ok(None);
-        }
+impl Default for PushFilterDownAllPathsRule {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
-        if node_ref.dependencies.len() != 1 {
-            return Ok(None);
-        }
-
-        let child_id = node_ref.dependencies[0];
-        let child_node = match ctx.find_group_node_by_id(child_id) {
-            Some(node) => node,
-            None => return Ok(None),
-        };
-
-        let child_ref = child_node.borrow();
-        
-        if child_ref.plan_node.name() != "AllPaths" {
-            return Ok(None);
-        }
-
-        let mut result = TransformResult::new();
-        result.add_new_group_node(group_node.clone());
-        
-        Ok(Some(result))
+impl RewriteRule for PushFilterDownAllPathsRule {
+    fn name(&self) -> &'static str {
+        "PushFilterDownAllPathsRule"
     }
 
     fn pattern(&self) -> Pattern {
         Pattern::new_with_name("Filter").with_dependency_name("AllPaths")
     }
+
+    fn apply(
+        &self,
+        _ctx: &mut RewriteContext,
+        node: &PlanNodeEnum,
+    ) -> RewriteResult<Option<TransformResult>> {
+        // 检查是否为 Filter 节点
+        let filter_node = match node {
+            PlanNodeEnum::Filter(n) => n,
+            _ => return Ok(None),
+        };
+
+        // 获取输入节点
+        let input = filter_node.input();
+
+        // 检查输入节点是否为 AllPaths
+        let _all_paths = match input {
+            PlanNodeEnum::AllPaths(n) => n,
+            _ => return Ok(None),
+        };
+
+        // 简化实现：返回 None 表示不转换
+        // 实际实现需要创建新的 AllPaths 节点并设置 filter
+        Ok(None)
+    }
 }
 
-impl BaseOptRule for PushFilterDownAllPathsRule {}
+impl PushDownRule for PushFilterDownAllPathsRule {
+    fn can_push_down(&self, node: &PlanNodeEnum, target: &PlanNodeEnum) -> bool {
+        matches!((node, target), (PlanNodeEnum::Filter(_), PlanNodeEnum::AllPaths(_)))
+    }
+
+    fn push_down(
+        &self,
+        _ctx: &mut RewriteContext,
+        node: &PlanNodeEnum,
+        _target: &PlanNodeEnum,
+    ) -> RewriteResult<Option<TransformResult>> {
+        self.apply(_ctx, node)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_rule_name() {
+        let rule = PushFilterDownAllPathsRule::new();
+        assert_eq!(rule.name(), "PushFilterDownAllPathsRule");
+    }
+
+    #[test]
+    fn test_rule_pattern() {
+        let rule = PushFilterDownAllPathsRule::new();
+        let pattern = rule.pattern();
+        assert!(pattern.node.is_some());
+    }
+}

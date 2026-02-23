@@ -3,11 +3,11 @@
 //! 该规则识别 Traverse 节点中的 eFilter，
 //! 并将其重写为具体的边属性表达式。
 
-use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, OptimizerError};
-use crate::query::optimizer::rule_traits::BaseOptRule;
-use crate::query::planner::plan::core::nodes::PlanNodeEnum;
-use std::rc::Rc;
-use std::cell::RefCell;
+use crate::query::planner::plan::PlanNodeEnum;
+use crate::query::planner::rewrite::context::RewriteContext;
+use crate::query::planner::rewrite::pattern::Pattern;
+use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
+use crate::query::planner::rewrite::rule::{RewriteRule, PushDownRule};
 
 /// 将边过滤条件下推到Traverse节点的规则
 ///
@@ -31,37 +31,85 @@ use std::cell::RefCell;
 #[derive(Debug)]
 pub struct PushEFilterDownRule;
 
-impl OptRule for PushEFilterDownRule {
-    fn name(&self) -> &str {
-        "PushEFilterDownRule"
+impl PushEFilterDownRule {
+    /// 创建规则实例
+    pub fn new() -> Self {
+        Self
     }
+}
 
-    fn apply(
-        &self,
-        _ctx: &mut OptContext,
-        group_node: &Rc<RefCell<OptGroupNode>>,
-    ) -> Result<Option<TransformResult>, OptimizerError> {
-        let node_ref = group_node.borrow();
-        
-        let _traverse = match &node_ref.plan_node {
-            PlanNodeEnum::Traverse(traverse) => traverse,
-            _ => return Ok(None),
-        };
+impl Default for PushEFilterDownRule {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
-        let _v_filter = match &node_ref.plan_node {
-            PlanNodeEnum::Traverse(traverse) => traverse.v_filter().cloned(),
-            _ => return Ok(None),
-        };
-
-        let mut result = TransformResult::new();
-        result.add_new_group_node(group_node.clone());
-        
-        Ok(Some(result))
+impl RewriteRule for PushEFilterDownRule {
+    fn name(&self) -> &'static str {
+        "PushEFilterDownRule"
     }
 
     fn pattern(&self) -> Pattern {
         Pattern::new_with_name("Traverse")
     }
+
+    fn apply(
+        &self,
+        _ctx: &mut RewriteContext,
+        node: &PlanNodeEnum,
+    ) -> RewriteResult<Option<TransformResult>> {
+        // 检查是否为 Traverse 节点
+        let traverse = match node {
+            PlanNodeEnum::Traverse(t) => t,
+            _ => return Ok(None),
+        };
+
+        // 获取 eFilter
+        let _e_filter = match traverse.e_filter() {
+            Some(filter) => filter,
+            None => return Ok(None),
+        };
+
+        // 简化实现：返回 None 表示不转换
+        // 实际实现需要将通配符边属性表达式重写为具体的边属性表达式
+        Ok(None)
+    }
 }
 
-impl BaseOptRule for PushEFilterDownRule {}
+impl PushDownRule for PushEFilterDownRule {
+    fn can_push_down(&self, node: &PlanNodeEnum, _target: &PlanNodeEnum) -> bool {
+        match node {
+            PlanNodeEnum::Traverse(traverse) => {
+                traverse.e_filter().is_some() && traverse.min_steps() > 0
+            }
+            _ => false,
+        }
+    }
+
+    fn push_down(
+        &self,
+        _ctx: &mut RewriteContext,
+        node: &PlanNodeEnum,
+        _target: &PlanNodeEnum,
+    ) -> RewriteResult<Option<TransformResult>> {
+        self.apply(_ctx, node)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_rule_name() {
+        let rule = PushEFilterDownRule::new();
+        assert_eq!(rule.name(), "PushEFilterDownRule");
+    }
+
+    #[test]
+    fn test_rule_pattern() {
+        let rule = PushEFilterDownRule::new();
+        let pattern = rule.pattern();
+        assert!(pattern.node.is_some());
+    }
+}

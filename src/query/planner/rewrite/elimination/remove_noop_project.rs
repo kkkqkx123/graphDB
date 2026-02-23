@@ -1,100 +1,44 @@
 //! 移除无操作投影的规则
 
-use crate::query::optimizer::plan::{OptContext, OptGroupNode, Pattern};
+use crate::query::planner::plan::PlanNodeEnum;
+use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
+use crate::query::planner::rewrite::context::RewriteContext;
+use crate::query::planner::rewrite::pattern::Pattern;
+use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
+use crate::query::planner::rewrite::rule::{RewriteRule, EliminationRule};
 use crate::core::YieldColumn;
-use crate::query::planner::plan::core::nodes::plan_node_visitor::PlanNodeVisitor;
+use crate::core::Expression;
 
-crate::define_elimination_rule! {
-    /// 移除无操作投影的规则
-    ///
-    /// # 转换示例
-    ///
-    /// Before:
-    /// ```text
-    ///   Project(v1, v2, v3)
-    ///       |
-    ///   ScanVertices (输出 v1, v2, v3)
-    /// ```
-    ///
-    /// After:
-    /// ```text
-    ///   ScanVertices
-    /// ```
-    ///
-    /// # 适用条件
-    ///
-    /// - Project 节点的输出列与子节点的输出列完全相同
-    /// - Project 节点不包含别名或表达式
-    pub struct RemoveNoopProjectRule {
-        target: Project,
-        target_check: is_project,
-        pattern: Pattern::new_with_name("Project")
-    }
-    visitor: RemoveNoopProjectVisitor
-}
-
-/// 移除无操作投影访问者
+/// 移除无操作投影的规则
 ///
-/// 状态不变量：
-/// - `is_eliminated` 为 true 时，`eliminated_node` 必须为 Some
-/// - `is_eliminated` 为 false 时，`eliminated_node` 必须为 None
-#[derive(Clone)]
-struct RemoveNoopProjectVisitor<'a> {
-    is_eliminated: bool,
-    eliminated_node: Option<OptGroupNode>,
-    ctx: &'a OptContext,
-}
+/// # 转换示例
+///
+/// Before:
+/// ```text
+///   Project(v1, v2, v3)
+///       |
+///   ScanVertices (输出 v1, v2, v3)
+/// ```
+///
+/// After:
+/// ```text
+///   ScanVertices
+/// ```
+///
+/// # 适用条件
+///
+/// - Project 节点的输出列与子节点的输出列完全相同
+/// - Project 节点不包含别名或表达式
+#[derive(Debug)]
+pub struct RemoveNoopProjectRule;
 
-impl<'a> PlanNodeVisitor for RemoveNoopProjectVisitor<'a> {
-    type Result = Self;
-
-    fn visit_default(&mut self) -> Self::Result {
-        self.clone()
+impl RemoveNoopProjectRule {
+    /// 创建规则实例
+    pub fn new() -> Self {
+        Self
     }
 
-    fn visit_project(&mut self, node: &crate::query::planner::plan::core::nodes::ProjectNode) -> Self::Result {
-        if self.is_eliminated {
-            return self.clone();
-        }
-
-        let deps = node.dependencies();
-        if deps.is_empty() {
-            return self.clone();
-        }
-
-        let input = if let Some(input) = deps.first() {
-            input
-        } else {
-            return self.clone();
-        };
-        let input_id = input.id() as usize;
-
-        if let Some(child_node) = self.ctx.find_group_node_by_plan_node_id(input_id) {
-            let child_node_ref = child_node.borrow();
-            let columns = node.columns();
-            let child_col_names = child_node_ref.plan_node.col_names();
-
-            if self.is_noop_projection(&columns, &child_col_names) {
-                let mut new_node = child_node_ref.clone();
-
-                if let Some(_output_var) = node.output_var() {
-                    new_node.plan_node = (**input).clone();
-                }
-
-                drop(child_node_ref);
-
-                self.is_eliminated = true;
-                self.eliminated_node = Some(new_node);
-            } else {
-                drop(child_node_ref);
-            }
-        }
-
-        self.clone()
-    }
-}
-
-impl<'a> RemoveNoopProjectVisitor<'a> {
+    /// 检查是否为无操作投影
     fn is_noop_projection(
         &self,
         columns: &[YieldColumn],
@@ -104,22 +48,26 @@ impl<'a> RemoveNoopProjectVisitor<'a> {
             return false;
         }
 
+        // 检查是否为通配符投影
         if columns.len() == 1 {
-            if let crate::core::Expression::Variable(var_name) = &columns[0].expression {
+            if let Expression::Variable(var_name) = &columns[0].expression {
                 if var_name == "*" {
                     return true;
                 }
             }
         }
 
+        // 如果子节点没有列名，认为是无操作
         if child_col_names.is_empty() {
             return true;
         }
 
+        // 检查是否包含别名或表达式
         if self.has_aliases_or_expressions_in_columns(columns) {
             return false;
         }
 
+        // 比较投影列和子节点列名
         let projected_columns: Vec<String> = columns.iter().map(|col| col.alias.clone()).collect();
 
         if projected_columns.len() == child_col_names.len() {
@@ -134,17 +82,18 @@ impl<'a> RemoveNoopProjectVisitor<'a> {
         false
     }
 
+    /// 检查列中是否包含别名或表达式
     fn has_aliases_or_expressions_in_columns(
         &self,
         columns: &[YieldColumn],
     ) -> bool {
         for column in columns {
             match &column.expression {
-                crate::core::Expression::Variable(_) => {}
+                Expression::Variable(_) => {}
                 _ => return true,
             }
 
-            if let crate::core::Expression::Variable(var_name) = &column.expression {
+            if let Expression::Variable(var_name) = &column.expression {
                 if var_name != &column.alias {
                     return true;
                 }
@@ -152,5 +101,90 @@ impl<'a> RemoveNoopProjectVisitor<'a> {
         }
 
         false
+    }
+}
+
+impl Default for RemoveNoopProjectRule {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl RewriteRule for RemoveNoopProjectRule {
+    fn name(&self) -> &'static str {
+        "RemoveNoopProjectRule"
+    }
+
+    fn pattern(&self) -> Pattern {
+        Pattern::new_with_name("Project")
+    }
+
+    fn apply(
+        &self,
+        _ctx: &mut RewriteContext,
+        node: &PlanNodeEnum,
+    ) -> RewriteResult<Option<TransformResult>> {
+        // 检查是否为 Project 节点
+        let project_node = match node {
+            PlanNodeEnum::Project(n) => n,
+            _ => return Ok(None),
+        };
+
+        // 获取输入节点
+        let input = project_node.input();
+        let columns = project_node.columns();
+        let child_col_names = input.col_names();
+
+        // 检查是否为无操作投影
+        if !self.is_noop_projection(&columns, &child_col_names) {
+            return Ok(None);
+        }
+
+        // 创建转换结果，用输入节点替换当前 Project 节点
+        let mut result = TransformResult::new();
+        result.erase_curr = true;
+        result.add_new_node(input.clone());
+
+        Ok(Some(result))
+    }
+}
+
+impl EliminationRule for RemoveNoopProjectRule {
+    fn can_eliminate(&self, node: &PlanNodeEnum) -> bool {
+        match node {
+            PlanNodeEnum::Project(n) => {
+                let input = n.input();
+                let columns = n.columns();
+                let child_col_names = input.col_names();
+                self.is_noop_projection(&columns, &child_col_names)
+            }
+            _ => false,
+        }
+    }
+
+    fn eliminate(
+        &self,
+        _ctx: &mut RewriteContext,
+        node: &PlanNodeEnum,
+    ) -> RewriteResult<Option<TransformResult>> {
+        self.apply(_ctx, node)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_remove_noop_project_rule_name() {
+        let rule = RemoveNoopProjectRule::new();
+        assert_eq!(rule.name(), "RemoveNoopProjectRule");
+    }
+
+    #[test]
+    fn test_remove_noop_project_rule_pattern() {
+        let rule = RemoveNoopProjectRule::new();
+        let pattern = rule.pattern();
+        assert!(pattern.node.is_some());
     }
 }

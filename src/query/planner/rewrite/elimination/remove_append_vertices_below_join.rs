@@ -1,11 +1,11 @@
 //! 移除连接下方的添加顶点操作的规则
 
-use crate::query::optimizer::plan::{OptContext, OptGroupNode, OptRule, Pattern, TransformResult, OptimizerError};
-use crate::query::optimizer::rule_traits::BaseOptRule;
+use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::MultipleInputNode;
-use crate::query::planner::plan::core::nodes::plan_node_visitor::PlanNodeVisitor;
-use std::rc::Rc;
-use std::cell::RefCell;
+use crate::query::planner::rewrite::context::RewriteContext;
+use crate::query::planner::rewrite::pattern::Pattern;
+use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
+use crate::query::planner::rewrite::rule::{RewriteRule, EliminationRule};
 
 /// 移除连接下方的添加顶点操作的规则
 ///
@@ -30,95 +30,103 @@ use std::cell::RefCell;
 #[derive(Debug)]
 pub struct RemoveAppendVerticesBelowJoinRule;
 
-impl OptRule for RemoveAppendVerticesBelowJoinRule {
-    fn name(&self) -> &str {
+impl RemoveAppendVerticesBelowJoinRule {
+    /// 创建规则实例
+    pub fn new() -> Self {
+        Self
+    }
+
+    /// 检查节点是否为连接操作
+    fn is_join_node(&self, node: &PlanNodeEnum) -> bool {
+        node.is_inner_join() || node.is_hash_inner_join() || node.is_hash_left_join()
+    }
+}
+
+impl Default for RemoveAppendVerticesBelowJoinRule {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl RewriteRule for RemoveAppendVerticesBelowJoinRule {
+    fn name(&self) -> &'static str {
         "RemoveAppendVerticesBelowJoinRule"
+    }
+
+    fn pattern(&self) -> Pattern {
+        Pattern::new_with_name("AppendVertices")
+            .with_dependency_name("InnerJoin")
     }
 
     fn apply(
         &self,
-        ctx: &mut OptContext,
-        group_node: &Rc<RefCell<OptGroupNode>>,
-    ) -> Result<Option<TransformResult>, OptimizerError> {
-        let node_ref = group_node.borrow();
-        let mut visitor = RemoveAppendVerticesBelowJoinVisitor {
-            ctx,
-            is_eliminated: false,
-            eliminated_node: None,
-            node_dependencies: node_ref.dependencies.clone(),
+        _ctx: &mut RewriteContext,
+        node: &PlanNodeEnum,
+    ) -> RewriteResult<Option<TransformResult>> {
+        // 检查是否为 AppendVertices 节点
+        let append_vertices_node = match node {
+            PlanNodeEnum::AppendVertices(n) => n,
+            _ => return Ok(None),
         };
 
-        let result = node_ref.plan_node.accept(&mut visitor);
-        drop(node_ref);
-
-        if result.is_eliminated {
-            if let Some(new_node) = result.eliminated_node {
-                let mut result = TransformResult::new();
-                result.add_new_group_node(Rc::new(RefCell::new(new_node)));
-                return Ok(Some(result));
-            }
+        // 获取输入节点（MultipleInputNode 使用 inputs()）
+        let inputs = append_vertices_node.inputs();
+        if inputs.is_empty() {
+            return Ok(None);
         }
-        Ok(None)
-    }
+        let input = &inputs[0];
 
-    fn pattern(&self) -> Pattern {
-        Pattern::new_with_name("AppendVertices").with_dependency_name("InnerJoin")
+        // 检查输入节点是否为连接操作
+        if !self.is_join_node(input) {
+            return Ok(None);
+        }
+
+        // 创建转换结果，用输入节点替换当前 AppendVertices 节点
+        let mut result = TransformResult::new();
+        result.erase_curr = true;
+        result.add_new_node((**input).clone());
+
+        Ok(Some(result))
     }
 }
 
-impl BaseOptRule for RemoveAppendVerticesBelowJoinRule {}
-
-/// 移除连接下方添加顶点访问者
-///
-/// 状态不变量：
-/// - `is_eliminated` 为 true 时，`eliminated_node` 必须为 Some
-/// - `is_eliminated` 为 false 时，`eliminated_node` 必须为 None
-#[derive(Clone)]
-struct RemoveAppendVerticesBelowJoinVisitor<'a> {
-    is_eliminated: bool,
-    eliminated_node: Option<OptGroupNode>,
-    ctx: &'a OptContext,
-    node_dependencies: Vec<usize>,
-}
-
-impl<'a> PlanNodeVisitor for RemoveAppendVerticesBelowJoinVisitor<'a> {
-    type Result = Self;
-
-    fn visit_default(&mut self) -> Self::Result {
-        self.clone()
-    }
-
-    fn visit_append_vertices(&mut self, node: &crate::query::planner::plan::core::nodes::AppendVerticesNode) -> Self::Result {
-        if self.is_eliminated {
-            return self.clone();
-        }
-
-        if let Some(dep_id) = self.node_dependencies.first() {
-            if let Some(child_node) = self.ctx.find_group_node_by_plan_node_id(*dep_id) {
-                let child_node_ref = child_node.borrow();
-                if child_node_ref.plan_node.is_inner_join()
-                    || child_node_ref.plan_node.is_hash_inner_join()
-                    || child_node_ref.plan_node.is_hash_left_join()
-                {
-                    let mut new_node = child_node_ref.clone();
-
-                    if let Some(_output_var) = node.output_var() {
-                        let inputs = node.inputs();
-                        if let Some(input) = inputs.first() {
-                            new_node.plan_node = *(*input).clone();
-                        }
-                    }
-
-                    drop(child_node_ref);
-
-                    self.is_eliminated = true;
-                    self.eliminated_node = Some(new_node);
-                } else {
-                    drop(child_node_ref);
+impl EliminationRule for RemoveAppendVerticesBelowJoinRule {
+    fn can_eliminate(&self, node: &PlanNodeEnum) -> bool {
+        match node {
+            PlanNodeEnum::AppendVertices(n) => {
+                let inputs = n.inputs();
+                if inputs.is_empty() {
+                    return false;
                 }
+                self.is_join_node(&inputs[0])
             }
+            _ => false,
         }
+    }
 
-        self.clone()
+    fn eliminate(
+        &self,
+        _ctx: &mut RewriteContext,
+        node: &PlanNodeEnum,
+    ) -> RewriteResult<Option<TransformResult>> {
+        self.apply(_ctx, node)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_remove_append_vertices_below_join_rule_name() {
+        let rule = RemoveAppendVerticesBelowJoinRule::new();
+        assert_eq!(rule.name(), "RemoveAppendVerticesBelowJoinRule");
+    }
+
+    #[test]
+    fn test_remove_append_vertices_below_join_rule_pattern() {
+        let rule = RemoveAppendVerticesBelowJoinRule::new();
+        let pattern = rule.pattern();
+        assert!(pattern.node.is_some());
     }
 }

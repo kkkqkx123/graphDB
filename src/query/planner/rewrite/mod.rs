@@ -5,7 +5,12 @@
 //!
 //! # 模块结构
 //!
-//! - `rewrite_rule`: 重写规则 trait 定义和适配器
+//! - `context`: 重写上下文定义
+//! - `pattern`: 模式匹配定义
+//! - `result`: 重写结果定义
+//! - `rule`: 重写规则 trait 定义
+//! - `macros`: 重写规则宏定义
+//! - `rewrite_rule`: 重写规则 trait 定义和适配器（兼容层）
 //! - `plan_rewriter`: 计划重写器实现
 //! - `predicate_pushdown`: 谓词下推规则
 //! - `merge`: 操作合并规则
@@ -46,9 +51,15 @@
 //!
 //! // 自定义重写器
 //! let mut rewriter = PlanRewriter::new();
-//! rewriter.add_opt_rule(MyCustomRule);
+//! rewriter.add_rule(MyCustomRule);
 //! let optimized_plan = rewriter.rewrite(plan)?;
 //! ```
+
+// 核心类型模块（新）
+pub mod context;
+pub mod pattern;
+pub mod result;
+pub mod rule;
 
 // 核心 trait 和实现
 pub mod rewrite_rule;
@@ -65,21 +76,29 @@ pub mod elimination;
 pub mod limit_pushdown;
 pub mod aggregate;
 
-// 统一导出核心类型
+// ==================== 导出核心类型 ====================
+
+// 从新的独立模块导出
+pub use context::RewriteContext;
+pub use pattern::{Pattern, MatchNode, PlanNodeMatcher, NodeVisitor, NodeVisitorRecorder, NodeVisitorFinder};
+pub use result::{RewriteError, RewriteResult, TransformResult, MatchedResult};
+pub use rule::{
+    RewriteRule, 
+    BaseRewriteRule, 
+    MergeRule, 
+    PushDownRule, 
+    EliminationRule,
+    RuleWrapper,
+    IntoRuleWrapper,
+};
+
+// 从兼容层导出
 pub use rewrite_rule::{
     HeuristicRule,
     HeuristicRuleAdapter,
     IntoOptRule,
-    RewriteError,
-    // 从 optimizer 重新导出
-    OptRule,
-    OptContext,
-    OptGroupNode,
-    TransformResult,
-    OptimizerError,
-    Pattern,
-    MatchedResult,
 };
+
 pub use plan_rewriter::{
     PlanRewriter,
     create_default_rewriter,
@@ -88,7 +107,7 @@ pub use plan_rewriter::{
 
 // 导出静态分发规则枚举
 pub use rule_enum::{
-    RewriteRule,
+    RewriteRule as RewriteRuleEnum,
     RuleRegistry,
 };
 
@@ -99,3 +118,5 @@ pub use projection_pushdown::*;
 pub use elimination::*;
 pub use limit_pushdown::*;
 pub use aggregate::*;
+
+

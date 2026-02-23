@@ -20,12 +20,17 @@
 //!
 //! // 应用规则
 //! for rule in registry.iter() {
-//!     if let Some(result) = rule.apply(ctx, group_node)? {
+//!     if let Some(result) = rule.apply(ctx, node)? {
 //!         // 处理结果
 //!     }
 //! }
 //! ```
 
+use crate::query::planner::plan::PlanNodeEnum;
+use crate::query::planner::rewrite::context::RewriteContext;
+use crate::query::planner::rewrite::pattern::Pattern;
+use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
+use crate::query::planner::rewrite::rule::RewriteRule as RewriteRuleTrait;
 use crate::query::planner::rewrite::elimination;
 use crate::query::planner::rewrite::merge;
 use crate::query::planner::rewrite::predicate_pushdown;
@@ -68,8 +73,7 @@ macro_rules! define_rewrite_rules {
                 }
             }
 
-            pub fn pattern(&self) -> crate::query::optimizer::plan::Pattern {
-                use crate::query::optimizer::plan::OptRule;
+            pub fn pattern(&self) -> Pattern {
                 match self {
                     $(
                         $enum_name::$variant_name(rule) => rule.pattern(),
@@ -79,48 +83,40 @@ macro_rules! define_rewrite_rules {
 
             pub fn apply(
                 &self,
-                ctx: &mut crate::query::optimizer::plan::OptContext,
-                group_node: &::std::rc::Rc<::std::cell::RefCell<crate::query::optimizer::plan::OptGroupNode>>,
-            ) -> Result<Option<crate::query::optimizer::plan::TransformResult>, crate::query::optimizer::OptimizerError> {
-                use crate::query::optimizer::plan::OptRule;
+                ctx: &mut RewriteContext,
+                node: &PlanNodeEnum,
+            ) -> RewriteResult<Option<TransformResult>> {
                 match self {
                     $(
-                        $enum_name::$variant_name(rule) => rule.apply(ctx, group_node),
+                        $enum_name::$variant_name(rule) => rule.apply(ctx, node),
                     )+
                 }
             }
 
-            pub fn matches(
-                &self,
-                ctx: &mut crate::query::optimizer::plan::OptContext,
-                group_node: &::std::rc::Rc<::std::cell::RefCell<crate::query::optimizer::plan::OptGroupNode>>,
-            ) -> Result<bool, crate::query::optimizer::OptimizerError> {
-                use crate::query::optimizer::plan::OptRule;
-                Ok(self.match_pattern(ctx, group_node)?.is_some())
+            pub fn matches(&self, node: &PlanNodeEnum) -> bool {
+                self.pattern().matches(node)
             }
         }
 
-        impl crate::query::optimizer::plan::OptRule for $enum_name {
-            fn name(&self) -> &str {
+        impl RewriteRuleTrait for $enum_name {
+            fn name(&self) -> &'static str {
                 self.name()
+            }
+
+            fn pattern(&self) -> Pattern {
+                self.pattern()
             }
 
             fn apply(
                 &self,
-                ctx: &mut crate::query::optimizer::plan::OptContext,
-                group_node: &::std::rc::Rc<::std::cell::RefCell<crate::query::optimizer::plan::OptGroupNode>>,
-            ) -> Result<Option<crate::query::optimizer::plan::TransformResult>, crate::query::optimizer::OptimizerError> {
-                self.apply(ctx, group_node)
-            }
-
-            fn pattern(&self) -> crate::query::optimizer::plan::Pattern {
-                self.pattern()
+                ctx: &mut RewriteContext,
+                node: &PlanNodeEnum,
+            ) -> RewriteResult<Option<TransformResult>> {
+                self.apply(ctx, node)
             }
         }
     };
 }
-
-
 
 define_rewrite_rules! {
     pub enum RewriteRule {
