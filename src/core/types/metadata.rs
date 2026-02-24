@@ -1,17 +1,13 @@
-//! 元数据类型定义（遗留类型）
+//! 元数据类型定义
 //!
-//! 此模块保留尚未迁移的类型，逐步迁移到各自的原子模块
+//! 此模块定义与元数据操作相关的类型
 
 use crate::core::Value;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
-// 从原子模块重新导出基础类型
-pub use crate::core::types::space::{generate_space_id, reset_space_id_counter, SpaceInfo};
-pub use crate::core::types::property::PropertyDef;
-pub use crate::core::types::tag::TagInfo;
-pub use crate::core::types::edge::EdgeTypeInfo;
-pub use crate::core::types::metadata_version::{MetadataVersion, SchemaVersion, SchemaHistory};
+// 从原子模块导入基础类型用于内部使用
+use crate::core::types::property::PropertyDef;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
 pub enum SchemaChangeType {

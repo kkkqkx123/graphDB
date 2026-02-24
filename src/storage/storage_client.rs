@@ -3,7 +3,7 @@ use crate::core::types::{
     EdgeTypeInfo, InsertEdgeInfo, InsertVertexInfo, PasswordInfo,
     PropertyDef, SpaceInfo, TagInfo, UpdateInfo,
 };
-use crate::core::types::metadata::{UserInfo, UserAlterInfo};
+use crate::core::types::{UserInfo, UserAlterInfo};
 use crate::index::Index;
 use crate::storage::Schema;
 use crate::api::service::permission_manager::RoleType;

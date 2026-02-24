@@ -9,7 +9,6 @@ pub mod span;
 pub mod space;
 pub mod query;
 pub mod tag;
-pub mod variable;
 
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
@@ -59,18 +58,15 @@ pub use self::metadata::{
     SchemaChange, SchemaChangeType,
     ClusterInfo, CharsetInfo,
     InsertVertexInfo, InsertEdgeInfo, UpdateTarget, UpdateOp, UpdateInfo,
-    PasswordInfo,
+    PasswordInfo, UserInfo, UserAlterInfo,
     SchemaExportConfig, SchemaImportResult, ExportFormat,
     SchemaFieldChange, FieldChangeType, SchemaAlterOperation, AlterTargetType,
 };
 
 pub use self::expression::{Expression, ExpressionMeta};
-pub use self::graph_schema::{EdgeDirection, JoinType, OrderDirection, GraphTypeInference, VertexType, PathInfo, PropertyType};
+pub use self::graph_schema::{EdgeDirection, JoinType, OrderDirection, GraphTypeInference, VertexType, PathInfo, PropertyType, EdgeTypeRef};
 pub use self::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 pub use self::span::{Position, Span, ToSpan};
-// 注意：QuerySpaceInfo已删除，统一使用SpaceInfo
-pub use self::query::QueryType;
-pub use self::variable::{VariableInfo, FromType};
 
 pub use EdgeTypeInfo as EdgeTypeSchema;
 

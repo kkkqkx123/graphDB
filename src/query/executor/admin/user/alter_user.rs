@@ -5,7 +5,7 @@
 use std::sync::Arc;
 use parking_lot::Mutex;
 
-use crate::core::types::metadata::UserAlterInfo;
+use crate::core::types::UserAlterInfo;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
 

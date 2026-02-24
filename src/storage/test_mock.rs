@@ -23,7 +23,7 @@ use crate::core::types::{
     PropertyDef, SpaceInfo, TagInfo, UpdateInfo,
 };
 #[cfg(test)]
-use crate::core::types::metadata::{UserInfo, UserAlterInfo};
+use crate::core::types::{UserInfo, UserAlterInfo};
 #[cfg(test)]
 use crate::index::Index;
 #[cfg(test)]

@@ -1480,7 +1480,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
 
             // 用户管理执行器
             PlanNodeEnum::CreateUser(node) => {
-                use crate::core::types::metadata::UserInfo;
+                use crate::core::types::UserInfo;
                 let user_info = UserInfo::new(
                     node.username().to_string(),
                     node.password().to_string(),
@@ -1490,7 +1490,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
             }
 
             PlanNodeEnum::AlterUser(node) => {
-                use crate::core::types::metadata::UserAlterInfo;
+                use crate::core::types::UserAlterInfo;
                 let mut alter_info = UserAlterInfo::new(node.username().to_string());
                 if let Some(locked) = node.is_locked() {
                     alter_info = alter_info.with_locked(locked);

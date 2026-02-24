@@ -239,6 +239,7 @@ impl From<ExpressionMeta> for ExpressionMetaSerde {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::types::operators::BinaryOperator;
 
     #[test]
     fn test_expression_meta_creation() {
@@ -360,7 +361,7 @@ mod tests {
     fn test_expression_meta_get_variables() {
         let expr = Expression::binary(
             Expression::variable("a"),
-            super::super::BinaryOperator::Add,
+            BinaryOperator::Add,
             Expression::variable("b"),
         );
         let meta = ExpressionMeta::new(expr);
@@ -372,7 +373,7 @@ mod tests {
     fn test_expression_meta_to_string() {
         let expr = Expression::binary(
             Expression::variable("x"),
-            super::super::BinaryOperator::Add,
+            BinaryOperator::Add,
             Expression::literal(1),
         );
         let meta = ExpressionMeta::new(expr);

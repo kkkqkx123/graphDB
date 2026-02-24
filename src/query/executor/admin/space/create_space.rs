@@ -5,7 +5,7 @@
 use std::sync::Arc;
 
 use crate::core::types::DataType;
-use crate::core::types::metadata::SpaceInfo;
+use crate::core::types::SpaceInfo;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
@@ -21,7 +21,7 @@ impl SpaceInfo {
         };
 
         // 使用自动生成的Space ID
-        let space_id = crate::core::types::metadata::generate_space_id();
+        let space_id = crate::core::types::generate_space_id();
 
         Self {
             space_id,

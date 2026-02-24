@@ -55,11 +55,6 @@ impl RemoveAppendVerticesBelowJoinRule {
         Self
     }
 
-    /// 检查节点是否为哈希连接节点
-    fn is_hash_join(&self, node: &PlanNodeEnum) -> bool {
-        matches!(node, PlanNodeEnum::HashInnerJoin(_) | PlanNodeEnum::HashLeftJoin(_))
-    }
-
     /// 从表达式中收集所有属性名
     fn collect_all_property_names(&self, expr: &Expression) -> Vec<String> {
         let mut result = Vec::new();
@@ -369,33 +364,4 @@ mod tests {
         assert!(pattern.node.is_some());
     }
 
-    #[test]
-    fn test_is_hash_join() {
-        let rule = RemoveAppendVerticesBelowJoinRule::new();
-        
-        // 创建测试节点
-        let start_node = crate::query::planner::plan::core::nodes::start_node::StartNode::new();
-        let start_enum = PlanNodeEnum::Start(start_node);
-        
-        // HashInnerJoin 应该返回 true
-        let hash_inner = HashInnerJoinNode::new(
-            start_enum.clone(),
-            start_enum.clone(),
-            vec![],
-            vec![],
-        ).expect("Failed to create HashInnerJoinNode");
-        assert!(rule.is_hash_join(&PlanNodeEnum::HashInnerJoin(hash_inner)));
-        
-        // HashLeftJoin 应该返回 true
-        let hash_left = HashLeftJoinNode::new(
-            start_enum.clone(),
-            start_enum.clone(),
-            vec![],
-            vec![],
-        ).expect("Failed to create HashLeftJoinNode");
-        assert!(rule.is_hash_join(&PlanNodeEnum::HashLeftJoin(hash_left)));
-        
-        // Start 节点应该返回 false
-        assert!(!rule.is_hash_join(&start_enum));
-    }
 }

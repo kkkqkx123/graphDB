@@ -6,7 +6,7 @@ use crate::core::types::{
     InsertVertexInfo, InsertEdgeInfo, UpdateInfo, UpdateOp,
     PasswordInfo, SchemaChange, SchemaChangeType,
 };
-use crate::core::types::metadata::{UserInfo, UserAlterInfo};
+use crate::core::types::{UserInfo, UserAlterInfo};
 pub use crate::core::types::EdgeTypeInfo as EdgeTypeSchema;
 use crate::index::Index;
 use crate::storage::Schema;

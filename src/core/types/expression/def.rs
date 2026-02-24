@@ -2,7 +2,7 @@
 //!
 //! 本模块定义查询引擎中使用的统一表达式类型 `Expression` 枚举。
 
-use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
+pub use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 pub use crate::core::types::DataType;
 use crate::core::Value;
 use serde::{Deserialize, Serialize};

@@ -1,11 +1,49 @@
 //! 符号表实现
 
 use crate::core::DataType;
-use crate::core::types::VariableInfo;
 
 use dashmap::DashMap;
 use std::collections::HashSet;
 use std::sync::Arc;
+
+/// 变量信息
+///
+/// Symbol的简化视图，用于变量信息交换
+#[derive(Debug, Clone)]
+pub struct VariableInfo {
+    pub variable_name: String,
+    pub variable_type: String,
+    pub source_clause: String,
+    pub is_aggregated: bool,
+    pub properties: Vec<String>,
+}
+
+impl VariableInfo {
+    pub fn new(variable_name: String, variable_type: String) -> Self {
+        Self {
+            variable_name,
+            variable_type,
+            source_clause: String::new(),
+            is_aggregated: false,
+            properties: Vec::new(),
+        }
+    }
+
+    pub fn with_source_clause(mut self, source_clause: String) -> Self {
+        self.source_clause = source_clause;
+        self
+    }
+
+    pub fn with_properties(mut self, properties: Vec<String>) -> Self {
+        self.properties = properties;
+        self
+    }
+
+    pub fn with_aggregated(mut self, is_aggregated: bool) -> Self {
+        self.is_aggregated = is_aggregated;
+        self
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct Symbol {

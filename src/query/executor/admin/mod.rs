@@ -43,4 +43,4 @@ pub use self::query_management::{
     ShowStatsExecutor,
 };
 
-pub use crate::core::types::metadata::PasswordInfo;
+pub use crate::core::types::PasswordInfo;

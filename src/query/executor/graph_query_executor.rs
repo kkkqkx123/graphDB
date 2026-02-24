@@ -10,7 +10,7 @@ use crate::query::executor::admin as admin_executor;
 use crate::query::executor::factory::ExecutorFactory;
 use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
 use crate::query::parser::ast::stmt::{AlterStmt, ChangePasswordStmt, CreateUserStmt, AlterUserStmt, DropUserStmt, DescStmt, DropStmt, Stmt};
-use crate::core::types::metadata::{UserAlterInfo, UserInfo};
+use crate::core::types::{UserAlterInfo, UserInfo};
 use crate::query::planner::planner::Planner;
 use crate::query::planner::statements::match_statement_planner::MatchStatementPlanner;
 use crate::storage::StorageClient;

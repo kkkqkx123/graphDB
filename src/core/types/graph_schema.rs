@@ -186,9 +186,12 @@ pub struct PropertyType {
     pub is_nullable: bool,
 }
 
-/// 边类型定义
+/// 边类型引用定义
+///
+/// 用于图结构类型推导的简化边类型表示，
+/// 包含源标签、目标标签和rank启用状态等类型推导所需信息
 #[derive(Debug, Clone, PartialEq)]
-pub struct EdgeTypeInfo {
+pub struct EdgeTypeRef {
     pub edge_type: i32,
     pub edge_name: String,
     pub src_tag: String,
@@ -213,7 +216,7 @@ pub struct PathInfo {
     pub path_type: PathType,
     pub steps: Option<(i32, i32)>,
     pub node_types: Vec<VertexType>,
-    pub edge_types: Vec<EdgeTypeInfo>,
+    pub edge_types: Vec<EdgeTypeRef>,
 }
 
 /// 图结构类型推导器
@@ -234,8 +237,8 @@ impl GraphTypeInference {
     }
 
     /// 推导边类型
-    pub fn deduce_edge_type(&self, edge_name: &str, edge_type: i32) -> EdgeTypeInfo {
-        EdgeTypeInfo {
+    pub fn deduce_edge_type(&self, edge_name: &str, edge_type: i32) -> EdgeTypeRef {
+        EdgeTypeRef {
             edge_type,
             edge_name: edge_name.to_string(),
             src_tag: String::new(),
