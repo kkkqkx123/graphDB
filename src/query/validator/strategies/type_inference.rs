@@ -8,7 +8,9 @@ use crate::core::BinaryOperator;
 use crate::core::UnaryOperator;
 use crate::core::Value;
 use crate::core::TypeUtils;
-use crate::query::validator::structs::{AliasType, ValidationError, ValidationErrorType};
+use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::query::validator::structs::AliasType;
+use crate::query::validator::ValueType;
 use std::collections::HashMap;
 
 /// 表达式验证上下文Trait
@@ -688,6 +690,7 @@ impl TypeValidator {
             Expression::Predicate { .. } => ValueType::Bool,
             Expression::Reduce { .. } => ValueType::Unknown,
             Expression::PathBuild(_) => ValueType::Path,
+            Expression::Parameter(_) => ValueType::Unknown,
         }
     }
 
@@ -922,7 +925,7 @@ mod tests {
     fn test_validate_literal_type() {
         let type_validator = TypeValidator::new();
         let literal_expression = Expression::Literal(Value::Bool(true));
-        let context = ValidationContextImpl::new();
+        let context = crate::query::validator::structs::common_structs::ValidationContextImpl::new();
         
         let result = type_validator.validate_expression_type(&literal_expression, &context, DataType::Bool);
         assert!(result.is_ok());

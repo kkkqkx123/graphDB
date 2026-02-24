@@ -3,7 +3,12 @@
 //! 合并原expression_validator和clause_validator的功能
 
 use crate::core::Expression;
-use crate::query::validator::structs::{ReturnClauseContext, ValidationError, ValidationErrorType};
+use crate::core::YieldColumn;
+use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::query::validator::structs::{ReturnClauseContext, BoundaryClauseContext, PaginationContext, YieldClauseContext, MatchClauseContext};
+use crate::query::validator::structs::alias_structs::AliasType;
+use crate::query::validator::structs::path_structs::PathYieldType;
+use crate::query::validator::{QueryPart, Path};
 
 /// 子句验证策略
 pub struct ClauseValidationStrategy;
@@ -258,7 +263,8 @@ impl ClauseValidationStrategy {
 mod tests {
     use super::*;
     use crate::core::Expression;
-    use crate::query::validator::structs::{YieldClauseContext, YieldColumn};
+    use crate::core::YieldColumn;
+    use crate::query::validator::structs::YieldClauseContext;
     use std::collections::HashMap;
 
     #[test]

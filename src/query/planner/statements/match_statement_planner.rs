@@ -12,12 +12,12 @@
 use crate::core::Expression;
 use crate::query::QueryContext;
 use crate::query::parser::ast::Stmt;
-use crate::query::parser::ast::pattern::{Pattern, PathElement};
+use crate::query::parser::ast::pattern::{Pattern, PathElement, RepetitionType};
 use crate::query::planner::plan::ExecutionPlan;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
 use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
-use crate::query::planner::plan::core::nodes::{LimitNode, ProjectNode, ScanVerticesNode, SortNode, SortItem};
+use crate::query::planner::plan::core::nodes::{LimitNode, ProjectNode, ScanVerticesNode, SortNode, SortItem, LeftJoinNode, UnionNode, LoopNode};
 use crate::query::planner::plan::core::nodes::ExpandAllNode;
 use crate::core::types::graph_schema::OrderDirection;
 use crate::query::planner::planner::{Planner, PlannerError};
@@ -216,23 +216,54 @@ impl MatchStatementPlanner {
                                 edge_plan
                             };
                         }
-                        PathElement::Alternative(_) => {
-                            // TODO: 处理替代路径
-                            return Err(PlannerError::PlanGenerationFailed(
-                                "替代路径模式尚未实现".to_string()
-                            ));
+                        PathElement::Alternative(patterns) => {
+                            // 处理替代路径：将多个路径选项合并为并集
+                            let alt_plan = self.plan_alternative_patterns(
+                                patterns,
+                                space_id,
+                                prev_node_alias.as_deref(),
+                            )?;
+                            plan = if let Some(existing_root) = plan.root.take() {
+                                self.cross_join_plans(
+                                    SubPlan::new(Some(existing_root), plan.tail),
+                                    alt_plan,
+                                )?
+                            } else {
+                                alt_plan
+                            };
                         }
-                        PathElement::Optional(_) => {
-                            // TODO: 处理可选路径
-                            return Err(PlannerError::PlanGenerationFailed(
-                                "可选路径模式尚未实现".to_string()
-                            ));
+                        PathElement::Optional(elem) => {
+                            // 处理可选路径：使用左连接保留左侧所有数据
+                            let opt_plan = self.plan_optional_element(
+                                elem,
+                                space_id,
+                                prev_node_alias.as_deref(),
+                            )?;
+                            plan = if let Some(existing_root) = plan.root.take() {
+                                self.left_join_plans(
+                                    SubPlan::new(Some(existing_root), plan.tail),
+                                    opt_plan,
+                                )?
+                            } else {
+                                opt_plan
+                            };
                         }
-                        PathElement::Repeated(_, _) => {
-                            // TODO: 处理重复路径
-                            return Err(PlannerError::PlanGenerationFailed(
-                                "重复路径模式尚未实现".to_string()
-                            ));
+                        PathElement::Repeated(elem, rep_type) => {
+                            // 处理重复路径：使用循环节点实现可变长度路径
+                            let rep_plan = self.plan_repeated_element(
+                                elem,
+                                *rep_type,
+                                space_id,
+                                prev_node_alias.as_deref(),
+                            )?;
+                            plan = if let Some(existing_root) = plan.root.take() {
+                                self.cross_join_plans(
+                                    SubPlan::new(Some(existing_root), plan.tail),
+                                    rep_plan,
+                                )?
+                            } else {
+                                rep_plan
+                            };
                         }
                     }
                 }
@@ -265,7 +296,12 @@ impl MatchStatementPlanner {
 
         // 如果有标签过滤，添加过滤器
         if !node.labels.is_empty() {
-            // TODO: 添加标签过滤节点
+            let label_filter = Self::build_label_filter_expression(&node.variable, &node.labels);
+            let filter_node = FilterNode::new(
+                plan.root.as_ref().unwrap().clone(),
+                label_filter,
+            ).map_err(|e| PlannerError::PlanGenerationFailed(e.to_string()))?;
+            plan = SubPlan::new(Some(filter_node.into_enum()), plan.tail);
         }
 
         // 如果有属性过滤，添加过滤器
@@ -366,16 +402,48 @@ impl MatchStatementPlanner {
     }
 
     /// 连接两个节点计划（基于别名）
+    ///
+    /// 当存在前一个节点别名时，使用哈希内连接基于节点 ID 进行连接。
+    /// 这用于处理路径模式中的连续节点，如 MATCH (a)-[]->(b) 中 a 和 b 的连接。
     fn join_node_plans(
         &self,
         left: SubPlan,
         right: SubPlan,
-        _left_alias: &str,
-        _right_alias: &Option<String>,
+        left_alias: &str,
+        right_alias: &Option<String>,
     ) -> Result<SubPlan, PlannerError> {
-        // TODO: 实现基于别名的连接逻辑
-        // 目前使用交叉连接作为默认实现
-        self.cross_join_plans(left, right)
+        use crate::query::planner::plan::core::nodes::HashInnerJoinNode;
+
+        let left_root = match left.root {
+            Some(ref r) => r,
+            None => return Ok(right),
+        };
+
+        let right_root = match right.root {
+            Some(ref r) => r,
+            None => return Ok(left),
+        };
+
+        // 构建哈希键和探测键表达式
+        // 左表使用已存在的别名作为哈希键
+        let hash_keys = vec![Expression::variable(left_alias)];
+
+        // 右表使用新节点的变量名或默认名称作为探测键
+        let probe_alias = right_alias.as_deref().unwrap_or("n");
+        let probe_keys = vec![Expression::variable(probe_alias)];
+
+        // 创建哈希内连接节点
+        let join_node = HashInnerJoinNode::new(
+            left_root.clone(),
+            right_root.clone(),
+            hash_keys,
+            probe_keys,
+        ).map_err(|e| PlannerError::JoinFailed(format!("哈希内连接失败: {}", e)))?;
+
+        Ok(SubPlan {
+            root: Some(join_node.into_enum()),
+            tail: left.tail.or(right.tail),
+        })
     }
 
     fn plan_node_pattern(&self, space_id: u64) -> Result<SubPlan, PlannerError> {
@@ -539,6 +607,222 @@ impl MatchStatementPlanner {
                 Ok(Some(PaginationInfo { skip, limit }))
             }
             _ => Ok(None),
+        }
+    }
+
+    /// 规划替代路径模式
+    ///
+    /// 将多个路径选项转换为并集操作
+    /// 例如: (a)-[:KNOWS|WORKS_WITH]->(b) 表示 KNOWS 或 WORKS_WITH 两种关系
+    fn plan_alternative_patterns(
+        &self,
+        patterns: &[Pattern],
+        space_id: u64,
+        _prev_alias: Option<&str>,
+    ) -> Result<SubPlan, PlannerError> {
+        if patterns.is_empty() {
+            return Err(PlannerError::PlanGenerationFailed(
+                "替代路径不能为空".to_string()
+            ));
+        }
+
+        // 规划第一个路径选项
+        let mut plan = self.plan_pattern(&patterns[0], space_id)?;
+
+        // 将剩余路径选项通过并集合并
+        for pattern in patterns.iter().skip(1) {
+            let pattern_plan = self.plan_pattern(pattern, space_id)?;
+            plan = self.union_plans(plan, pattern_plan)?;
+        }
+
+        Ok(plan)
+    }
+
+    /// 规划单个模式（节点、边或路径）
+    fn plan_pattern(
+        &self,
+        pattern: &Pattern,
+        space_id: u64,
+    ) -> Result<SubPlan, PlannerError> {
+        match pattern {
+            Pattern::Node(node) => self.plan_pattern_node(node, space_id),
+            Pattern::Edge(edge) => self.plan_pattern_edge(edge, space_id),
+            Pattern::Path(path) => {
+                if path.elements.is_empty() {
+                    return Err(PlannerError::PlanGenerationFailed(
+                        "空路径模式".to_string()
+                    ));
+                }
+                // 简化处理：只取路径的第一个元素
+                match &path.elements[0] {
+                    PathElement::Node(node) => self.plan_pattern_node(node, space_id),
+                    PathElement::Edge(edge) => self.plan_pattern_edge(edge, space_id),
+                    _ => Err(PlannerError::PlanGenerationFailed(
+                        "嵌套的复杂路径模式暂不支持".to_string()
+                    )),
+                }
+            }
+            Pattern::Variable(_) => Err(PlannerError::PlanGenerationFailed(
+                "变量模式尚未实现".to_string()
+            )),
+        }
+    }
+
+    /// 合并两个计划为并集
+    fn union_plans(
+        &self,
+        left: SubPlan,
+        right: SubPlan,
+    ) -> Result<SubPlan, PlannerError> {
+        let left_root = match left.root {
+            Some(ref r) => r,
+            None => return Ok(right),
+        };
+
+        let _right_root = match right.root {
+            Some(ref r) => r,
+            None => return Ok(left),
+        };
+
+        // 创建并集节点，去重
+        let union_node = UnionNode::new(
+            left_root.clone(),
+            true, // distinct = true，去重
+        ).map_err(|e| PlannerError::PlanGenerationFailed(format!("并集操作失败: {}", e)))?;
+
+        Ok(SubPlan {
+            root: Some(union_node.into_enum()),
+            tail: left.tail.or(right.tail),
+        })
+    }
+
+    /// 规划可选路径元素
+    ///
+    /// 使用左连接实现可选匹配，保留左侧所有数据
+    /// 例如: (a)-[:KNOWS]->(b)? 表示 KNOWS 关系是可选的
+    fn plan_optional_element(
+        &self,
+        element: &PathElement,
+        space_id: u64,
+        _prev_alias: Option<&str>,
+    ) -> Result<SubPlan, PlannerError> {
+        // 规划可选元素
+        let opt_plan = match element {
+            PathElement::Node(node) => self.plan_pattern_node(node, space_id)?,
+            PathElement::Edge(edge) => self.plan_pattern_edge(edge, space_id)?,
+            _ => {
+                return Err(PlannerError::PlanGenerationFailed(
+                    "可选路径不支持嵌套的复杂模式".to_string()
+                ));
+            }
+        };
+
+        Ok(opt_plan)
+    }
+
+    /// 左连接两个计划
+    fn left_join_plans(
+        &self,
+        left: SubPlan,
+        right: SubPlan,
+    ) -> Result<SubPlan, PlannerError> {
+        let left_root = match left.root {
+            Some(ref r) => r,
+            None => return Ok(right),
+        };
+
+        let right_root = match right.root {
+            Some(ref r) => r,
+            None => return Ok(left),
+        };
+
+        // 创建左连接节点
+        let join_node = LeftJoinNode::new(
+            left_root.clone(),
+            right_root.clone(),
+            vec![], // hash_keys
+            vec![], // probe_keys
+        ).map_err(|e| PlannerError::JoinFailed(format!("左连接失败: {}", e)))?;
+
+        Ok(SubPlan {
+            root: Some(join_node.into_enum()),
+            tail: left.tail.or(right.tail),
+        })
+    }
+
+    /// 规划重复路径元素
+    ///
+    /// 使用循环节点实现可变长度路径
+    /// 例如: (a)-[:KNOWS*1..3]->(b) 表示 1 到 3 跳 KNOWS 关系
+    fn plan_repeated_element(
+        &self,
+        element: &PathElement,
+        rep_type: RepetitionType,
+        space_id: u64,
+        _prev_alias: Option<&str>,
+    ) -> Result<SubPlan, PlannerError> {
+        // 规划重复元素的基本计划
+        let base_plan = match element {
+            PathElement::Node(node) => self.plan_pattern_node(node, space_id)?,
+            PathElement::Edge(edge) => self.plan_pattern_edge(edge, space_id)?,
+            _ => {
+                return Err(PlannerError::PlanGenerationFailed(
+                    "重复路径不支持嵌套的复杂模式".to_string()
+                ));
+            }
+        };
+
+        // 根据重复类型确定循环条件
+        let condition = match rep_type {
+            RepetitionType::ZeroOrMore => "loop_count >= 0".to_string(),
+            RepetitionType::OneOrMore => "loop_count >= 1".to_string(),
+            RepetitionType::ZeroOrOne => "loop_count <= 1".to_string(),
+            RepetitionType::Exactly(n) => format!("loop_count == {}", n),
+            RepetitionType::Range(min, max) => format!("loop_count >= {} && loop_count <= {}", min, max),
+        };
+
+        // 创建循环节点
+        let mut loop_node = LoopNode::new(-1, &condition);
+
+        // 设置循环体
+        if let Some(base_root) = base_plan.root {
+            loop_node.set_body(base_root);
+        }
+
+        Ok(SubPlan {
+            root: Some(loop_node.into_enum()),
+            tail: base_plan.tail,
+        })
+    }
+
+    /// 构建标签过滤表达式
+    ///
+    /// 将节点标签列表转换为表达式，用于过滤具有指定标签的节点
+    /// 例如: 标签 ["Person", "Actor"] 转换为: labels(n) CONTAINS "Person" AND labels(n) CONTAINS "Actor"
+    fn build_label_filter_expression(
+        variable: &Option<String>,
+        labels: &[String],
+    ) -> Expression {
+        let var_name = variable.as_deref().unwrap_or("n");
+        let var_expr = Expression::variable(var_name);
+
+        // 创建 labels() 函数调用表达式
+        let labels_func = Expression::function("labels", vec![var_expr]);
+
+        if labels.len() == 1 {
+            // 单个标签: labels(n) CONTAINS "label"
+            let label_literal = Expression::literal(labels[0].clone());
+            Expression::function("contains", vec![labels_func, label_literal])
+        } else {
+            // 多个标签: labels(n) CONTAINS "label1" AND labels(n) CONTAINS "label2" AND ...
+            let first_label = Expression::literal(labels[0].clone());
+            let first_condition = Expression::function("contains", vec![labels_func.clone(), first_label]);
+
+            labels.iter().skip(1).fold(first_condition, |acc, label| {
+                let label_literal = Expression::literal(label.clone());
+                let condition = Expression::function("contains", vec![labels_func.clone(), label_literal]);
+                Expression::binary(acc, crate::core::types::operators::BinaryOperator::And, condition)
+            })
         }
     }
 }

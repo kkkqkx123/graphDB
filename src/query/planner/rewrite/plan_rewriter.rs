@@ -281,8 +281,9 @@ impl PlanRewriter {
                     let new_dep = self.rewrite_node(ctx, dep, node_id)?;
                     new_deps.push(new_dep);
                 }
-                // TODO: UnionNode 需要支持设置新的 dependencies
-                Ok(PlanNodeEnum::Union(n.clone()))
+                let mut new_node = n.clone();
+                new_node.set_dependencies(new_deps);
+                Ok(PlanNodeEnum::Union(new_node))
             }
             // 叶子节点无需处理
             _ => Ok(node.clone()),

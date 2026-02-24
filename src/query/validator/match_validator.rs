@@ -7,6 +7,7 @@ use std::sync::Arc;
 use crate::core::YieldColumn;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::Expression;
+use crate::expression::functions::global_registry;
 use crate::query::QueryContext;
 use crate::query::parser::ast::{Stmt, Pattern};
 use crate::query::parser::ast::stmt::{MatchStmt, ReturnClause, ReturnItem, OrderByClause};
@@ -18,6 +19,7 @@ use super::structs::{
 use super::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult,
 };
+use super::strategies::ExpressionValidationStrategy;
 
 /// 验证后的MATCH信息
 #[derive(Debug, Clone)]
@@ -231,33 +233,17 @@ impl MatchValidator {
 
     /// 验证 WHERE 子句
     fn validate_where_clause(&mut self, where_expr: &Expression) -> Result<(), ValidationError> {
-        // 验证 WHERE 表达式是否有效
-        match where_expr {
-            Expression::Binary { op, .. } => {
-                // 检查比较操作符
-                use crate::core::BinaryOperator;
-                match op {
-                    BinaryOperator::Equal | BinaryOperator::NotEqual | BinaryOperator::LessThan |
-                    BinaryOperator::LessThanOrEqual | BinaryOperator::GreaterThan | BinaryOperator::GreaterThanOrEqual |
-                    BinaryOperator::And | BinaryOperator::Or => Ok(()),
-                    _ => Err(ValidationError::new(
-                        "WHERE 子句包含无效的操作符".to_string(),
-                        ValidationErrorType::TypeError,
-                    )),
-                }
-            }
-            Expression::Unary { op, .. } => {
-                use crate::core::UnaryOperator;
-                match op {
-                    UnaryOperator::Not => Ok(()),
-                    _ => Err(ValidationError::new(
-                        "WHERE 子句包含无效的一元操作符".to_string(),
-                        ValidationErrorType::TypeError,
-                    )),
-                }
-            }
-            _ => Ok(()), // 其他表达式类型暂时通过
-        }
+        // 使用表达式验证策略进行验证
+        let strategy = ExpressionValidationStrategy::new();
+        let context = WhereClauseContext {
+            filter: Some(where_expr.clone()),
+            aliases_available: self.aliases.clone(),
+            aliases_generated: HashMap::new(),
+            paths: Vec::new(),
+            query_parts: Vec::new(),
+            errors: Vec::new(),
+        };
+        strategy.validate_filter(where_expr, &context)
     }
 
     /// 验证 RETURN 子句
@@ -330,14 +316,21 @@ impl MatchValidator {
                     }
                 }
             }
-            Expression::Function { name: _, args } => {
+            Expression::Function { name, args } => {
                 // 验证函数调用
                 for (arg_idx, arg) in args.iter().enumerate() {
                     if let Err(e) = self.validate_return_expression(arg, arg_idx) {
                         return Err(e);
                     }
                 }
-                // TODO: 验证函数名是否有效
+                // 验证函数名是否有效（普通函数或聚合函数）
+                let registry = global_registry();
+                if !registry.contains(name) && !self.is_valid_aggregate_function(name) {
+                    return Err(ValidationError::new(
+                        format!("第 {} 个返回项引用了未定义的函数 '{}'", idx + 1, name),
+                        ValidationErrorType::SemanticError,
+                    ));
+                }
             }
             Expression::Binary { left, right, .. } => {
                 // 验证二元表达式
@@ -425,9 +418,7 @@ impl MatchValidator {
     pub fn has_aggregate_expression(&self, expression: &Expression) -> bool {
         match expression {
             Expression::Function { name, .. } => {
-                // 检查是否为聚合函数
-                let agg_functions = ["count", "sum", "avg", "min", "max", "collect"];
-                agg_functions.iter().any(|&f| f.eq_ignore_ascii_case(name))
+                self.is_valid_aggregate_function(name)
             }
             Expression::Binary { left, right, .. } => {
                 self.has_aggregate_expression(left) || self.has_aggregate_expression(right)
@@ -437,6 +428,16 @@ impl MatchValidator {
             }
             _ => false,
         }
+    }
+
+    /// 检查函数名是否为有效的聚合函数
+    fn is_valid_aggregate_function(&self, name: &str) -> bool {
+        let agg_functions = [
+            "count", "sum", "avg", "min", "max", "collect",
+            "count_distinct", "distinct", "std", "bit_and", "bit_or", "bit_xor",
+            "collect_set", "percentile",
+        ];
+        agg_functions.iter().any(|&f| f.eq_ignore_ascii_case(name))
     }
 
     /// 验证分页

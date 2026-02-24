@@ -3,7 +3,7 @@
 
 use crate::core::Expression;
 use crate::core::types::DataType;
-use crate::query::validator::{ValidationError, ValidationErrorType};
+use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::query::validator::strategies::type_deduce::TypeDeduceValidator;
 use std::collections::HashSet;
 

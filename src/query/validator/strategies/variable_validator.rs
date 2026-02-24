@@ -2,7 +2,8 @@
 //! 负责验证变量的作用域、命名格式和使用
 
 use crate::core::Expression;
-use crate::query::validator::structs::{AliasType, ValidationError, ValidationErrorType};
+use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::query::validator::structs::AliasType;
 use std::collections::HashMap;
 
 /// 变量验证器

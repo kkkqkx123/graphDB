@@ -2,8 +2,9 @@
 //! 负责验证聚合函数的使用和检查表达式是否包含聚合
 
 use crate::core::types::operators::AggregateFunction;
+use crate::core::types::DataType;
 use crate::core::Expression;
-use crate::query::validator::structs::{ValidationError, ValidationErrorType};
+use crate::core::error::{ValidationError, ValidationErrorType};
 
 /// 聚合验证策略
 pub struct AggregateValidationStrategy;

@@ -8,7 +8,7 @@ use crate::core::types::expression::visitor::ExpressionVisitor;
 use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 use crate::core::types::DataType;
 use crate::core::Value;
-use crate::query::validator::{ValidationError, ValidationErrorType};
+use crate::core::error::{ValidationError, ValidationErrorType};
 
 /// 类型推导验证器
 ///
@@ -493,6 +493,10 @@ impl ExpressionVisitor for TypeDeduceValidator {
             self.visit_expression(expr);
         }
         self.set_type(DataType::Path);
+    }
+
+    fn visit_parameter(&mut self, _name: &str) {
+        self.set_type(DataType::Empty);
     }
 }
 

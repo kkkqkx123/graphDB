@@ -505,6 +505,10 @@ macro_rules! define_plan_node_with_deps {
                 &self.deps
             }
 
+            pub fn set_dependencies(&mut self, deps: Vec<crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum>) {
+                self.deps = deps.into_iter().map(Box::new).collect();
+            }
+
             pub fn clone_plan_node(&self) -> crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum {
                 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
                 PlanNodeEnum::$enum_variant(self.clone())

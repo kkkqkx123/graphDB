@@ -11,6 +11,9 @@
 // 数据结构模块
 pub mod structs;
 
+// 验证策略子模块
+pub mod strategies;
+
 // 新的验证器体系（trait + 枚举）
 pub mod validator_trait;
 pub mod validator_enum;

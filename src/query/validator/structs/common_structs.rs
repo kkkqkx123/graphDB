@@ -8,7 +8,10 @@ use crate::query::validator::structs::{
     AliasType, QueryPart,
 };
 use crate::core::error::ValidationError;
+use crate::core::DataType;
 use crate::query::validator::validator_trait::ColumnDef;
+use crate::query::validator::strategies::type_inference::ExpressionValidationContext;
+use std::collections::HashMap;
 
 /// 验证上下文实现
 #[derive(Debug, Clone)]
@@ -111,6 +114,17 @@ impl CypherClauseKind {
             CypherClauseKind::OrderBy => "ORDER BY",
             CypherClauseKind::Pagination => "PAGINATION",
         }
+    }
+}
+
+// 为 ValidationContextImpl 实现 ExpressionValidationContext trait
+impl ExpressionValidationContext for ValidationContextImpl {
+    fn get_aliases(&self) -> &HashMap<String, AliasType> {
+        &self.aliases
+    }
+
+    fn get_variable_types(&self) -> Option<&HashMap<String, DataType>> {
+        None
     }
 }
 

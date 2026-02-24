@@ -1,10 +1,15 @@
 use crate::core::types::expression::Expression;
 use crate::core::DataType;
+use crate::core::YieldColumn;
+use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::query::validator::structs::{
-    ValidationError, ValidationErrorType, WhereClauseContext, MatchClauseContext, 
-    ReturnClauseContext, WithClauseContext, UnwindClauseContext, YieldClauseContext, 
-    BoundaryClauseContext, YieldColumn
+    WhereClauseContext, MatchClauseContext,
+    ReturnClauseContext, WithClauseContext, UnwindClauseContext, YieldClauseContext,
 };
+
+use super::type_inference::TypeValidator;
+use super::variable_validator::VariableValidator;
+use super::expression_operations::ExpressionOperationsValidator;
 
 /// 表达式验证策略
 pub struct ExpressionValidationStrategy;
@@ -21,9 +26,9 @@ impl ExpressionValidationStrategy {
         context: &WhereClauseContext,
     ) -> Result<(), ValidationError> {
         // 过滤条件必须是布尔类型或可转换为布尔类型
-        let type_validator = crate::query::validator::strategies::type_inference::TypeValidator;
+        let type_validator = TypeValidator;
         let filter_type = type_validator.deduce_expression_type_full(filter, context);
-        
+
         if !type_validator.are_types_compatible(&filter_type, &DataType::Bool) {
             return Err(ValidationError::new(
                 format!("过滤条件必须是布尔类型，当前类型为 {:?}", filter_type),
@@ -32,11 +37,11 @@ impl ExpressionValidationStrategy {
         }
 
         // 验证表达式中的变量引用
-        let var_validator = crate::query::validator::strategies::variable_validator::VariableValidator::new();
-        var_validator.validate_expression_variables(filter, context)?;
-        
+        let var_validator = VariableValidator::new();
+        var_validator.validate_expression_variables(filter, &context.aliases_available)?;
+
         // 验证表达式操作
-        let expr_validator = crate::query::validator::strategies::expression_operations::ExpressionOperationsValidator::new();
+        let expr_validator = ExpressionOperationsValidator::new();
         expr_validator.validate_expression_operations(filter)?;
 
         Ok(())
@@ -49,9 +54,9 @@ impl ExpressionValidationStrategy {
         context: &MatchClauseContext,
     ) -> Result<(), ValidationError> {
         // 验证路径表达式的类型
-        let type_validator = crate::query::validator::strategies::type_inference::TypeValidator;
+        let type_validator = TypeValidator;
         let path_type = type_validator.deduce_expression_type_full(path, context);
-        
+
         // 路径表达式应该是路径类型或可以转换为路径类型
         if !matches!(path_type, DataType::Path) && !matches!(path_type, DataType::Empty) {
             return Err(ValidationError::new(
@@ -61,8 +66,8 @@ impl ExpressionValidationStrategy {
         }
 
         // 验证路径中的变量引用
-        let var_validator = crate::query::validator::strategies::variable_validator::VariableValidator::new();
-        var_validator.validate_expression_variables(path, context)?;
+        let var_validator = VariableValidator::new();
+        var_validator.validate_expression_variables(path, &context.aliases_available)?;
 
         Ok(())
     }
@@ -75,9 +80,9 @@ impl ExpressionValidationStrategy {
         context: &ReturnClauseContext,
     ) -> Result<(), ValidationError> {
         // 验证Return表达式的类型
-        let type_validator = crate::query::validator::strategies::type_inference::TypeValidator;
+        let type_validator = TypeValidator;
         let _return_type = type_validator.deduce_expression_type_full(return_expression, context);
-        
+
         // 检查Return项中的聚合函数使用
         for item in return_items {
             if type_validator.has_aggregate_expression(&item.expression) {
@@ -92,8 +97,8 @@ impl ExpressionValidationStrategy {
         }
 
         // 验证表达式中的变量引用
-        let var_validator = crate::query::validator::strategies::variable_validator::VariableValidator::new();
-        var_validator.validate_expression_variables(return_expression, context)?;
+        let var_validator = VariableValidator::new();
+        var_validator.validate_expression_variables(return_expression, &context.aliases_available)?;
 
         Ok(())
     }
@@ -126,9 +131,9 @@ impl ExpressionValidationStrategy {
         context: &UnwindClauseContext,
     ) -> Result<(), ValidationError> {
         // Unwind表达式必须是列表类型或可迭代类型
-        let type_validator = crate::query::validator::strategies::type_inference::TypeValidator;
+        let type_validator = TypeValidator;
         let unwind_type = type_validator.deduce_expression_type_full(unwind_expression, context);
-        
+
         if unwind_type != DataType::List && unwind_type != DataType::Empty {
             return Err(ValidationError::new(
                 format!("Unwind表达式必须是列表类型，当前类型为 {:?}", unwind_type),
@@ -137,8 +142,8 @@ impl ExpressionValidationStrategy {
         }
 
         // 验证表达式中的变量引用
-        let var_validator = crate::query::validator::strategies::variable_validator::VariableValidator::new();
-        var_validator.validate_expression_variables(unwind_expression, context)?;
+        let var_validator = VariableValidator::new();
+        var_validator.validate_expression_variables(unwind_expression, &context.aliases_available)?;
 
         Ok(())
     }
@@ -146,13 +151,13 @@ impl ExpressionValidationStrategy {
     /// 验证Yield子句
     pub fn validate_yield(&self, context: &YieldClauseContext) -> Result<(), ValidationError> {
         // 验证每个Yield列
-        let type_validator = crate::query::validator::strategies::type_inference::TypeValidator;
-        let var_validator = crate::query::validator::strategies::variable_validator::VariableValidator::new();
-        
+        let type_validator = TypeValidator;
+        let var_validator = VariableValidator::new();
+
         for column in &context.yield_columns {
             // 验证表达式的类型
             let _column_type = type_validator.deduce_expression_type_full(&column.expression, context);
-            
+
             // 验证聚合函数的使用
             if type_validator.has_aggregate_expression(&column.expression) {
                 if !context.has_agg && context.group_keys.is_empty() {
@@ -164,7 +169,7 @@ impl ExpressionValidationStrategy {
             }
 
             // 验证表达式中的变量引用
-            var_validator.validate_expression_variables(&column.expression, context)?;
+            var_validator.validate_expression_variables(&column.expression, &context.aliases_available)?;
         }
 
         // 验证分组键
@@ -182,9 +187,9 @@ impl ExpressionValidationStrategy {
         context: &mut MatchClauseContext,
     ) -> Result<(), ValidationError> {
         // 验证路径模式的类型
-        let type_validator = crate::query::validator::strategies::type_inference::TypeValidator;
+        let type_validator = TypeValidator;
         let pattern_type = type_validator.deduce_expression_type_full(pattern, context);
-        
+
         if !matches!(pattern_type, DataType::Path) && !matches!(pattern_type, DataType::Empty) {
             return Err(ValidationError::new(
                 format!("路径模式必须是路径类型，当前类型为 {:?}", pattern_type),
@@ -193,8 +198,8 @@ impl ExpressionValidationStrategy {
         }
 
         // 验证路径模式中的变量引用
-        let var_validator = crate::query::validator::strategies::variable_validator::VariableValidator::new();
-        var_validator.validate_expression_variables(pattern, context)?;
+        let var_validator = VariableValidator::new();
+        var_validator.validate_expression_variables(pattern, &context.aliases_available)?;
 
         Ok(())
     }

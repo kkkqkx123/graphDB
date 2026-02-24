@@ -4,9 +4,11 @@ use super::alias_structs::AliasType;
 use super::path_structs::Path;
 use crate::core::Expression;
 use crate::core::YieldColumn;
+use crate::core::DataType;
 use crate::core::error::ValidationError;
 use crate::core::types::OrderDirection;
 use crate::query::validator::QueryPart;
+use crate::query::validator::strategies::type_inference::ExpressionValidationContext;
 use std::collections::HashMap;
 
 /// Match子句上下文
@@ -113,4 +115,65 @@ pub struct OrderByClauseContext {
 pub struct OrderByItem {
     pub expression: Expression,
     pub desc: bool,
+}
+
+// 为各上下文类型实现 ExpressionValidationContext trait
+impl ExpressionValidationContext for MatchClauseContext {
+    fn get_aliases(&self) -> &HashMap<String, AliasType> {
+        &self.aliases_available
+    }
+
+    fn get_variable_types(&self) -> Option<&HashMap<String, DataType>> {
+        None
+    }
+}
+
+impl ExpressionValidationContext for WhereClauseContext {
+    fn get_aliases(&self) -> &HashMap<String, AliasType> {
+        &self.aliases_available
+    }
+
+    fn get_variable_types(&self) -> Option<&HashMap<String, DataType>> {
+        None
+    }
+}
+
+impl ExpressionValidationContext for ReturnClauseContext {
+    fn get_aliases(&self) -> &HashMap<String, AliasType> {
+        &self.aliases_available
+    }
+
+    fn get_variable_types(&self) -> Option<&HashMap<String, DataType>> {
+        None
+    }
+}
+
+impl ExpressionValidationContext for WithClauseContext {
+    fn get_aliases(&self) -> &HashMap<String, AliasType> {
+        &self.aliases_available
+    }
+
+    fn get_variable_types(&self) -> Option<&HashMap<String, DataType>> {
+        None
+    }
+}
+
+impl ExpressionValidationContext for UnwindClauseContext {
+    fn get_aliases(&self) -> &HashMap<String, AliasType> {
+        &self.aliases_available
+    }
+
+    fn get_variable_types(&self) -> Option<&HashMap<String, DataType>> {
+        None
+    }
+}
+
+impl ExpressionValidationContext for YieldClauseContext {
+    fn get_aliases(&self) -> &HashMap<String, AliasType> {
+        &self.aliases_available
+    }
+
+    fn get_variable_types(&self) -> Option<&HashMap<String, DataType>> {
+        None
+    }
 }

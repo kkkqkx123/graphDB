@@ -2,7 +2,8 @@
 //! 负责验证表达式中的别名引用和可用性
 
 use crate::core::Expression;
-use crate::query::validator::structs::{AliasType, ValidationError, ValidationErrorType};
+use crate::core::error::{ValidationError, ValidationErrorType};
+use crate::query::validator::structs::AliasType;
 use std::collections::HashMap;
 
 /// 别名验证策略
@@ -121,7 +122,8 @@ impl AliasValidationStrategy {
             | Expression::LabelTagProperty { .. }
             | Expression::Predicate { .. }
             | Expression::Reduce { .. }
-            | Expression::PathBuild(_) => Ok(()),
+            | Expression::PathBuild(_)
+            | Expression::Parameter(_) => Ok(()),
             Expression::TypeCast { expression, .. } => {
                 // 类型转换表达式需要验证其子表达式
                 self.validate_expression_aliases(expression, aliases)

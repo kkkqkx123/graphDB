@@ -510,20 +510,75 @@ impl CreateValidator {
         // 根据 CreateTarget 类型处理
         match &create_stmt.target {
             // CREATE SPACE: 是全局语句，不需要空间
-            CreateTarget::Space { .. } => {
+            CreateTarget::Space { name, vid_type, comment: _ } => {
                 self.no_space_required = true;
-                // TODO: 实现 CREATE SPACE 的验证逻辑
-                return Err(ValidationError::new(
-                    "CREATE SPACE 验证尚未实现".to_string(),
-                    ValidationErrorType::SemanticError,
-                ));
+
+                // 获取 SchemaManager
+                let schema_manager = self.schema_manager.as_ref().ok_or_else(|| {
+                    ValidationError::new(
+                        "Schema manager not initialized".to_string(),
+                        ValidationErrorType::SemanticError,
+                    )
+                })?;
+
+                // 验证空间名称是否已存在
+                let existing_space = schema_manager.get_space(name).map_err(|e| {
+                    ValidationError::new(
+                        format!("Failed to check space existence: {}", e),
+                        ValidationErrorType::SemanticError,
+                    )
+                })?;
+
+                if existing_space.is_some() && !create_stmt.if_not_exists {
+                    return Err(ValidationError::new(
+                        format!("Space '{}' already exists", name),
+                        ValidationErrorType::SemanticError,
+                    ));
+                }
+
+                // 验证 vid_type 是否合法
+                let valid_vid_types = ["INT64", "INT32", "INT16", "INT8", "FIXEDSTRING", "STRING"];
+                let vid_type_upper = vid_type.to_uppercase();
+                let is_valid_vid_type = valid_vid_types.iter().any(|&t| {
+                    vid_type_upper.starts_with(t) || vid_type_upper == t
+                });
+
+                if !is_valid_vid_type {
+                    return Err(ValidationError::new(
+                        format!(
+                            "Invalid vid_type '{}'. Supported types: INT64, INT32, INT16, INT8, FIXEDSTRING(N), STRING",
+                            vid_type
+                        ),
+                        ValidationErrorType::SemanticError,
+                    ));
+                }
+
+                // 设置输出列 - CREATE SPACE 返回执行结果
+                self.outputs.clear();
+                self.outputs.push(ColumnDef {
+                    name: "Execution Result".to_string(),
+                    type_: ValueType::String,
+                });
+
+                // 缓存验证结果
+                let result = ValidatedCreate {
+                    space_id: 0,
+                    space_name: name.clone(),
+                    patterns: Vec::new(),
+                    auto_create_schema: false,
+                    missing_tags: Vec::new(),
+                    missing_edge_types: Vec::new(),
+                };
+                self.validated_result = Some(result);
+
+                Ok(())
             }
             // CREATE TAG/EDGE/INDEX: 需要空间，但当前验证器不支持
             CreateTarget::Tag { .. } | CreateTarget::EdgeType { .. } | CreateTarget::Index { .. } => {
-                return Err(ValidationError::new(
+                Err(ValidationError::new(
                     "CreateValidator 不支持 CREATE TAG/EDGE/INDEX，请使用 DDL 验证器".to_string(),
                     ValidationErrorType::SemanticError,
-                ));
+                ))
             }
             // CREATE Node/Edge/Path: 需要空间，执行 DML 验证
             CreateTarget::Node { .. } | CreateTarget::Edge { .. } | CreateTarget::Path { .. } => {
@@ -563,10 +618,10 @@ impl CreateValidator {
 
                 // 缓存验证结果
                 self.validated_result = Some(result);
+
+                Ok(())
             }
         }
-
-        Ok(())
     }
 }
 
