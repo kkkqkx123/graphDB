@@ -921,4 +921,90 @@ mod tests {
         let validator = MatchValidator::new();
         assert!(!validator.requires_write_permission());
     }
+
+    #[test]
+    fn test_validate_variable_pattern_valid() {
+        use crate::query::parser::ast::pattern::{NodePattern, Pattern, VariablePattern};
+        use crate::query::parser::ast::types::Span;
+
+        let mut validator = MatchValidator::new();
+
+        // 先定义一个节点变量
+        let node_pattern = NodePattern::new(
+            Some("a".to_string()),
+            vec!["Person".to_string()],
+            None,
+            vec![],
+            Span::default(),
+        );
+        let node_var_pattern = Pattern::Node(node_pattern);
+
+        // 收集别名
+        validator
+            .collect_aliases_from_patterns(&[node_var_pattern])
+            .expect("收集别名失败");
+
+        // 验证变量模式引用已定义的变量
+        let var_pattern =
+            VariablePattern::new("a".to_string(), Span::default());
+        let pattern = Pattern::Variable(var_pattern);
+
+        assert!(validator.validate_pattern(&pattern, 0).is_ok());
+    }
+
+    #[test]
+    fn test_validate_variable_pattern_undefined() {
+        use crate::query::parser::ast::pattern::{Pattern, VariablePattern};
+        use crate::query::parser::ast::types::Span;
+
+        let mut validator = MatchValidator::new();
+
+        // 验证变量模式引用未定义的变量应该失败
+        let var_pattern =
+            VariablePattern::new("undefined".to_string(), Span::default());
+        let pattern = Pattern::Variable(var_pattern);
+
+        assert!(validator.validate_pattern(&pattern, 0).is_err());
+    }
+
+    #[test]
+    fn test_validate_variable_pattern_runtime_alias() {
+        use crate::query::parser::ast::pattern::{Pattern, VariablePattern};
+        use crate::query::parser::ast::types::Span;
+
+        let mut validator = MatchValidator::new();
+
+        // 添加一个运行时别名（如 RETURN 子句中定义的别名）
+        validator.aliases.insert("runtime_alias".to_string(), AliasType::Runtime);
+
+        // 验证变量模式引用运行时别名应该失败
+        let var_pattern =
+            VariablePattern::new("runtime_alias".to_string(), Span::default());
+        let pattern = Pattern::Variable(var_pattern);
+
+        let result = validator.validate_pattern(&pattern, 0);
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert!(error.message.contains("运行时计算"));
+    }
+
+    #[test]
+    fn test_collect_aliases_skips_variable_pattern() {
+        use crate::query::parser::ast::pattern::{Pattern, VariablePattern};
+        use crate::query::parser::ast::types::Span;
+
+        let mut validator = MatchValidator::new();
+
+        // VariablePattern 不应该被收集为别名
+        let var_pattern =
+            VariablePattern::new("var".to_string(), Span::default());
+        let pattern = Pattern::Variable(var_pattern);
+
+        validator
+            .collect_aliases_from_patterns(&[pattern])
+            .expect("收集别名失败");
+
+        // 验证别名映射为空，因为 VariablePattern 是引用不是定义
+        assert!(validator.aliases.is_empty());
+    }
 }

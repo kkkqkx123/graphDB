@@ -1,6 +1,6 @@
 //! CreateSpaceExecutor - 创建图空间执行器
 //!
-//! 负责创建新的图空间（单节点简化版）。
+//! 负责创建新的图空间（单节点）。
 
 use std::sync::Arc;
 

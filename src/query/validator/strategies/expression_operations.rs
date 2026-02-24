@@ -183,7 +183,7 @@ impl ExpressionOperationsValidator {
         self.validate_expression_operations_recursive(arg, depth + 1)?;
 
         // 使用类型推导验证器验证聚合函数参数类型
-        let mut type_validator = TypeDeduceValidator::new();
+        let type_validator = TypeDeduceValidator::new();
         let _ = type_validator.deduce_type(arg);
 
         // 验证 DISTINCT 标记
@@ -237,9 +237,9 @@ impl ExpressionOperationsValidator {
         self.validate_expression_operations_recursive(index, depth + 1)?;
 
         // 使用类型推导验证器验证索引类型
-        let mut type_validator = TypeDeduceValidator::new();
-        let expr_type = type_validator.deduce_type(expression).unwrap_or(DataType::Empty);
-        let index_type = type_validator.deduce_type(index).unwrap_or(DataType::Empty);
+        let type_validator = TypeDeduceValidator::new();
+        let expr_type = type_validator.deduce_type(expression);
+        let index_type = type_validator.deduce_type(index);
 
         match expr_type {
             DataType::List => {

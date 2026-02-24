@@ -65,11 +65,6 @@ pub mod expression;
 pub mod utils;
 pub use expression::{ExpressionId, ExpressionMeta};
 
-pub mod visitor;
-pub use visitor::{
-    ExpressionDepthFirstVisitor, ExpressionTransformer, ExpressionVisitor,
-    ExpressionVisitorExt, ExpressionVisitorState, VisitorError, VisitorResult,
-};
 
 /// 统一表达式类型
 ///
@@ -717,6 +712,166 @@ impl Expression {
 
     pub fn is_not_null(expression: Expression) -> Self {
         Self::unary(UnaryOperator::IsNotNull, expression)
+    }
+
+    /// 推导表达式的数据类型
+    ///
+    /// 根据表达式结构推导其返回的数据类型，用于类型检查和验证。
+    /// 对于无法确定类型的表达式（如变量、属性访问），返回 DataType::Empty。
+    ///
+    /// # 示例
+    ///
+    /// ```rust
+    /// use crate::core::types::expression::Expression;
+    /// use crate::core::types::DataType;
+    ///
+    /// let expr = Expression::add(Expression::int(1), Expression::int(2));
+    /// assert_eq!(expr.deduce_type(), DataType::Int);
+    /// ```
+    pub fn deduce_type(&self) -> DataType {
+        match self {
+            Expression::Literal(value) => value.get_type(),
+            Expression::Variable(_) => DataType::Empty,
+            Expression::Property { .. } => DataType::Empty,
+            Expression::Binary { left, op, right } => {
+                let left_type = left.deduce_type();
+                let right_type = right.deduce_type();
+                Self::deduce_binary_type(&left_type, op, &right_type)
+            }
+            Expression::Unary { op, operand } => {
+                let operand_type = operand.deduce_type();
+                match op {
+                    UnaryOperator::Plus | UnaryOperator::Minus => operand_type,
+                    UnaryOperator::Not
+                    | UnaryOperator::IsNull
+                    | UnaryOperator::IsNotNull
+                    | UnaryOperator::IsEmpty
+                    | UnaryOperator::IsNotEmpty => DataType::Bool,
+                }
+            }
+            Expression::Function { name, args } => {
+                Self::deduce_function_type(name, args)
+            }
+            Expression::Aggregate { func, .. } => {
+                Self::deduce_aggregate_type(func)
+            }
+            Expression::List(_) => DataType::List,
+            Expression::Map(_) => DataType::Map,
+            Expression::Case { conditions, default, .. } => {
+                // 尝试从所有分支中推断类型
+                let mut types: Vec<DataType> = conditions
+                    .iter()
+                    .map(|(_, value)| value.deduce_type())
+                    .collect();
+                if let Some(def) = default {
+                    types.push(def.deduce_type());
+                }
+                // 返回第一个非空类型，或 Empty
+                types.into_iter().find(|t| *t != DataType::Empty).unwrap_or(DataType::Empty)
+            }
+            Expression::TypeCast { target_type, .. } => target_type.clone(),
+            Expression::Subscript { collection, .. } => {
+                let collection_type = collection.deduce_type();
+                match collection_type {
+                    DataType::List => DataType::Empty, // 列表元素类型未知
+                    DataType::Map => DataType::Empty,  // 映射值类型未知
+                    _ => DataType::Empty,
+                }
+            }
+            Expression::Range { .. } => DataType::List,
+            Expression::Path(_) => DataType::Path,
+            Expression::Label(_) => DataType::Empty,
+            Expression::ListComprehension { .. } => DataType::List,
+            Expression::LabelTagProperty { .. } => DataType::Empty,
+            Expression::TagProperty { .. } => DataType::Empty,
+            Expression::EdgeProperty { .. } => DataType::Empty,
+            Expression::Predicate { .. } => DataType::Bool,
+            Expression::Reduce { .. } => DataType::Empty,
+            Expression::PathBuild(_) => DataType::Path,
+            Expression::Parameter(_) => DataType::Empty,
+        }
+    }
+
+    /// 推导二元运算的结果类型
+    fn deduce_binary_type(left: &DataType, op: &BinaryOperator, right: &DataType) -> DataType {
+        use BinaryOperator::*;
+        
+        match op {
+            Add | Subtract | Multiply => {
+                if *left == DataType::Double || *right == DataType::Double {
+                    DataType::Double
+                } else if *left == DataType::Float || *right == DataType::Float {
+                    DataType::Float
+                } else {
+                    DataType::Int
+                }
+            }
+            Divide => DataType::Float,
+            Modulo => DataType::Int,
+            Exponent => {
+                if *left == DataType::Double || *right == DataType::Double {
+                    DataType::Double
+                } else if *left == DataType::Float || *right == DataType::Float {
+                    DataType::Float
+                } else {
+                    DataType::Int
+                }
+            }
+            Equal
+            | NotEqual
+            | LessThan
+            | LessThanOrEqual
+            | GreaterThan
+            | GreaterThanOrEqual
+            | And
+            | Or
+            | Xor
+            | Like
+            | In
+            | NotIn
+            | Contains
+            | StartsWith
+            | EndsWith => DataType::Bool,
+            StringConcat => DataType::String,
+            Subscript | Attribute => DataType::Empty,
+            Union | Intersect | Except => DataType::List,
+        }
+    }
+
+    /// 推导函数调用的返回类型
+    fn deduce_function_type(name: &str, _args: &[Expression]) -> DataType {
+        match name.to_uppercase().as_str() {
+            "ID" | "SRC" | "DST" | "LENGTH" | "SIZE" => DataType::Int,
+            "UPPER" | "LOWER" | "TRIM" | "LTRIM" | "RTRIM" | "SUBSTRING" | "CONCAT" => {
+                DataType::String
+            }
+            "ABS" | "CEIL" | "FLOOR" | "ROUND" | "SQRT" | "EXP" | "LOG" | "LOG10" => {
+                DataType::Float
+            }
+            "COALESCE" => {
+                // COALESCE 返回第一个非空参数的类型
+                // 简化处理，返回 Empty（需要运行时确定）
+                DataType::Empty
+            }
+            "NOW" => DataType::DateTime,
+            _ => DataType::Empty,
+        }
+    }
+
+    /// 推导聚合函数的返回类型
+    fn deduce_aggregate_type(func: &AggregateFunction) -> DataType {
+        match func {
+            AggregateFunction::Count(_) => DataType::Int,
+            AggregateFunction::Sum(_) | AggregateFunction::Avg(_) => DataType::Float,
+            AggregateFunction::Min(_) | AggregateFunction::Max(_) => DataType::Empty, // 取决于参数类型
+            AggregateFunction::Collect(_) => DataType::List,
+            AggregateFunction::CollectSet(_) => DataType::Set,
+            AggregateFunction::Distinct(_) => DataType::Empty,
+            AggregateFunction::Percentile(_, _) => DataType::Float,
+            AggregateFunction::Std(_) => DataType::Float,
+            AggregateFunction::BitAnd(_) | AggregateFunction::BitOr(_) => DataType::Int,
+            AggregateFunction::GroupConcat(_, _) => DataType::String,
+        }
     }
 }
 

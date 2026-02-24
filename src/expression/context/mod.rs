@@ -21,7 +21,7 @@ pub use crate::expression::evaluator::traits::ExpressionContext;
 pub use basic_context::{BasicExpressionContext, ExpressionContextType};
 
 // 重新导出行上下文类型
-pub use row_context::{RowExpressionContext, RowContextRef, RowExpressionContextBuilder};
+pub use row_context::{RowContextRef, RowExpressionContext, RowExpressionContextBuilder};
 
 // 重新导出查询表达式上下文
 pub use query_expression_context::QueryExpressionContext;
@@ -30,5 +30,5 @@ pub use query_expression_context::QueryExpressionContext;
 pub use cache_manager::CacheManager;
 pub use version_manager::VersionManager;
 
-// 重新导出基础 trait
-pub use traits::{VariableContext, FunctionContext, CacheContext, GraphContext, ScopedContext};
+// 重新导出分解 trait
+pub use traits::{CacheContext, FunctionContext, GraphContext, ScopedContext, VariableContext};

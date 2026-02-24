@@ -323,33 +323,14 @@ impl StmtParser {
             ctx.expect_token(TokenKind::Roles)?;
             let end_span = ctx.current_span();
             let span = ctx.merge_span(start_span.start, end_span.end);
-            Ok(Stmt::ShowRoles(crate::query::parser::ast::stmt::ShowRolesStmt { 
+            Ok(Stmt::ShowRoles(crate::query::parser::ast::stmt::ShowRolesStmt {
                 span,
                 space_name: None,
             }))
         } else if ctx.check_token(TokenKind::Create) {
-            // SHOW CREATE 需要特殊处理 - 简化实现
-            ctx.expect_token(TokenKind::Create)?;
-            // 解析 TAG 或 EDGE
-            let target = if ctx.match_token(TokenKind::Tag) {
-                let name = ctx.expect_identifier()?;
-                crate::query::parser::ast::stmt::ShowCreateTarget::Tag(name)
-            } else if ctx.match_token(TokenKind::Edge) {
-                let name = ctx.expect_identifier()?;
-                crate::query::parser::ast::stmt::ShowCreateTarget::Edge(name)
-            } else {
-                return Err(ParseError::new(
-                    ParseErrorKind::SyntaxError,
-                    "SHOW CREATE 期望 TAG 或 EDGE".to_string(),
-                    ctx.current_position(),
-                ));
-            };
-            let end_span = ctx.current_span();
-            let span = ctx.merge_span(start_span.start, end_span.end);
-            Ok(Stmt::ShowCreate(crate::query::parser::ast::stmt::ShowCreateStmt { 
-                span,
-                target,
-            }))
+            // SHOW CREATE 语句：委托给 UtilStmtParser 的统一处理方法
+            // 支持 SHOW CREATE { SPACE | TAG | EDGE | INDEX } <name>
+            return UtilStmtParser::new().parse_show_create_internal(ctx, start_span);
         } else {
             Err(ParseError::new(
                 ParseErrorKind::SyntaxError,

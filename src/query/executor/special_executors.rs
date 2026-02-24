@@ -280,3 +280,94 @@ impl<S: StorageClient + Send + 'static> HasStorage<S> for DataCollectExecutor<S>
         self.base.storage.as_ref().expect("Storage not set")
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::storage::test_mock::MockStorage;
+    use crate::core::Value;
+
+    #[test]
+    fn test_argument_executor_creation() {
+        let storage = Arc::new(Mutex::new(MockStorage));
+        let executor = ArgumentExecutor::<MockStorage>::new(1, storage, "test_var");
+        assert_eq!(executor.id(), 1);
+        assert_eq!(executor.var(), "test_var");
+        assert_eq!(executor.name(), "ArgumentExecutor");
+    }
+
+    #[test]
+    fn test_argument_executor_with_variable() {
+        let storage = Arc::new(Mutex::new(MockStorage));
+        let mut executor = ArgumentExecutor::<MockStorage>::new(1, storage, "my_var");
+        
+        // 设置变量值
+        executor.set_variable("my_var".to_string(), Value::String("test_value".to_string()));
+        
+        // 执行并验证结果
+        executor.open().expect("打开执行器失败");
+        let result = executor.execute().expect("执行失败");
+        executor.close().expect("关闭执行器失败");
+        
+        match result {
+            ExecutionResult::Values(values) => {
+                assert_eq!(values.len(), 1);
+                assert_eq!(values[0], Value::String("test_value".to_string()));
+            }
+            _ => panic!("预期返回 Values 结果，但得到 {:?}", result),
+        }
+    }
+
+    #[test]
+    fn test_argument_executor_with_result() {
+        let storage = Arc::new(Mutex::new(MockStorage));
+        let mut executor = ArgumentExecutor::<MockStorage>::new(1, storage, "my_result");
+        
+        // 设置中间结果
+        let test_result = ExecutionResult::Values(vec![Value::Int(42)]);
+        executor.set_result("my_result".to_string(), test_result.clone());
+        
+        // 执行并验证结果
+        executor.open().expect("打开执行器失败");
+        let result = executor.execute().expect("执行失败");
+        executor.close().expect("关闭执行器失败");
+        
+        match result {
+            ExecutionResult::Values(values) => {
+                assert_eq!(values.len(), 1);
+                assert_eq!(values[0], Value::Int(42));
+            }
+            _ => panic!("预期返回 Values 结果，但得到 {:?}", result),
+        }
+    }
+
+    #[test]
+    fn test_argument_executor_variable_not_found() {
+        let storage = Arc::new(Mutex::new(MockStorage));
+        let mut executor = ArgumentExecutor::<MockStorage>::new(1, storage, "undefined_var");
+        
+        // 执行时应该返回错误，因为变量未定义
+        executor.open().expect("打开执行器失败");
+        let result = executor.execute();
+        executor.close().expect("关闭执行器失败");
+        
+        assert!(result.is_err(), "当变量未定义时应该返回错误");
+    }
+
+    #[test]
+    fn test_pass_through_executor_creation() {
+        let storage = Arc::new(Mutex::new(MockStorage));
+        let executor = PassThroughExecutor::<MockStorage>::new(1, storage);
+        assert_eq!(executor.id(), 1);
+        assert_eq!(executor.name(), "PassThroughExecutor");
+    }
+
+    #[test]
+    fn test_data_collect_executor_creation() {
+        let storage = Arc::new(Mutex::new(MockStorage));
+        let executor = DataCollectExecutor::<MockStorage>::new(1, storage);
+        assert_eq!(executor.id(), 1);
+        assert_eq!(executor.name(), "DataCollectExecutor");
+        assert!(executor.collected_data().is_empty());
+    }
+}

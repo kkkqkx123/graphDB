@@ -845,7 +845,7 @@ mod tests {
     #[test]
     fn test_build_vertex_index_key() {
         let (db, _temp_dir) = create_test_db();
-        let manager = RedbIndexDataManager::new(db);
+        let _manager = RedbIndexDataManager::new(db);
 
         let space_id = 1u64;
         let index_name = "idx_test";
@@ -866,7 +866,7 @@ mod tests {
     #[test]
     fn test_build_vertex_reverse_key() {
         let (db, _temp_dir) = create_test_db();
-        let manager = RedbIndexDataManager::new(db);
+        let _manager = RedbIndexDataManager::new(db);
 
         let space_id = 1u64;
         let index_name = "idx_test";
@@ -888,7 +888,7 @@ mod tests {
     #[test]
     fn test_build_edge_index_key() {
         let (db, _temp_dir) = create_test_db();
-        let manager = RedbIndexDataManager::new(db);
+        let _manager = RedbIndexDataManager::new(db);
 
         let space_id = 1u64;
         let index_name = "idx_edge_test";
@@ -906,7 +906,7 @@ mod tests {
     #[test]
     fn test_build_edge_reverse_key() {
         let (db, _temp_dir) = create_test_db();
-        let manager = RedbIndexDataManager::new(db);
+        let _manager = RedbIndexDataManager::new(db);
 
         let space_id = 1u64;
         let index_name = "idx_edge_test";
@@ -1045,7 +1045,7 @@ mod tests {
         assert_eq!(results2.len(), 1);
 
         // 删除第一条边的索引
-        manager.delete_edge_indexes(space_id, &src1, &dst1, &["knows".to_string()]).expect("Failed to delete edge indexes");
+        manager.delete_edge_indexes(space_id, &src1, &dst1, &[index_name.to_string()]).expect("Failed to delete edge indexes");
 
         // 验证第一条边的索引已被删除，第二条仍然存在
         let results1_after = manager.lookup_edge_index(space_id, &index, &Value::Float(10.5)).expect("Failed to lookup edge index");

@@ -1,10 +1,8 @@
 //! 表达式求值器实现
 //!
-//! 提供具体的表达式求值功能，包含零成本抽象优化
-//! 使用GenericExpressionVisitor泛型接口，支持统一的访问者模式
+//! 提供具体的表达式求值功能，使用直接递归匹配实现，避免不必要的抽象开销。
 
 use crate::core::error::ExpressionError;
-use crate::core::types::expression::visitor::GenericExpressionVisitor;
 use crate::core::types::expression::Expression;
 use crate::core::value::NullType;
 use crate::core::Value;
@@ -20,28 +18,26 @@ use crate::expression::functions::global_registry;
 pub struct ExpressionEvaluator;
 
 impl ExpressionEvaluator {
-    /// 在给定上下文中求值表达式（泛型版本，零成本抽象）
+    /// 在给定上下文中求值表达式
     pub fn evaluate<C: ExpressionContext>(
         expression: &Expression,
         context: &mut C,
     ) -> Result<Value, ExpressionError> {
-        let mut evaluator = Self;
-        evaluator.visit_with_context(expression, context)
+        Self::evaluate_recursive(expression, context)
     }
 
-    /// 批量求值表达式列表（泛型版本，零成本抽象）
+    /// 批量求值表达式列表
     pub fn evaluate_batch<C: ExpressionContext>(
         expressions: &[Expression],
         context: &mut C,
     ) -> Result<Vec<Value>, ExpressionError> {
-        let mut results = Vec::with_capacity(expressions.len());
-        for expression in expressions {
-            results.push(Self::evaluate(expression, context)?);
-        }
-        Ok(results)
+        expressions
+            .iter()
+            .map(|expr| Self::evaluate(expr, context))
+            .collect()
     }
 
-    /// 检查表达式是否可以求值（泛型版本）
+    /// 检查表达式是否可以求值
     ///
     /// 检查表达式是否可以在没有运行时上下文的情况下求值
     /// 即表达式只包含常量，不包含变量或属性访问
@@ -98,13 +94,12 @@ impl ExpressionEvaluator {
                     || Self::check_requires_context(mapping)
             }
             Expression::PathBuild(exprs) => exprs.iter().any(|expr| Self::check_requires_context(expr)),
-            Expression::Parameter(_) => true, // 参数需要运行时上下文
+            Expression::Parameter(_) => true,
         }
     }
 
-    /// 在上下文中访问表达式
-    fn visit_with_context<C: ExpressionContext>(
-        &mut self,
+    /// 递归求值表达式
+    fn evaluate_recursive<C: ExpressionContext>(
         expression: &Expression,
         context: &mut C,
     ) -> Result<Value, ExpressionError> {
@@ -119,14 +114,14 @@ impl ExpressionEvaluator {
 
             // 二元操作 - 递归求值左右操作数
             Expression::Binary { left, op, right } => {
-                let left_value = self.visit_with_context(left, context)?;
-                let right_value = self.visit_with_context(right, context)?;
+                let left_value = Self::evaluate_recursive(left, context)?;
+                let right_value = Self::evaluate_recursive(right, context)?;
                 BinaryOperationEvaluator::evaluate(&left_value, op, &right_value)
             }
 
             // 一元操作 - 递归求值操作数
             Expression::Unary { op, operand } => {
-                let value = self.visit_with_context(operand, context)?;
+                let value = Self::evaluate_recursive(operand, context)?;
                 UnaryOperationEvaluator::evaluate(op, &value)
             }
 
@@ -134,7 +129,7 @@ impl ExpressionEvaluator {
             Expression::Function { name, args } => {
                 let arg_values: Result<Vec<Value>, ExpressionError> = args
                     .iter()
-                    .map(|arg| self.visit_with_context(arg, context))
+                    .map(|arg| Self::evaluate_recursive(arg, context))
                     .collect();
                 let arg_values = arg_values?;
                 
@@ -164,42 +159,34 @@ impl ExpressionEvaluator {
             }
 
             // 聚合函数 - 直接求值
-            Expression::Aggregate {
-                func,
-                arg,
-                distinct,
-            } => {
-                let arg_value = self.visit_with_context(arg, context)?;
+            Expression::Aggregate { func, arg, distinct } => {
+                let arg_value = Self::evaluate_recursive(arg, context)?;
                 FunctionEvaluator.eval_aggregate_function(func, &[arg_value], *distinct)
             }
 
             // CASE 表达式 - 短路求值
-            Expression::Case {
-                test_expr,
-                conditions,
-                default,
-            } => {
+            Expression::Case { test_expr, conditions, default } => {
                 if let Some(expr) = test_expr {
-                    let test_value = self.visit_with_context(expr, context)?;
+                    let test_value = Self::evaluate_recursive(expr, context)?;
                     for (condition, value) in conditions {
-                        let condition_result = self.visit_with_context(condition, context)?;
+                        let condition_result = Self::evaluate_recursive(condition, context)?;
                         if test_value == condition_result {
-                            return self.visit_with_context(value, context);
+                            return Self::evaluate_recursive(value, context);
                         }
                     }
                 } else {
                     for (condition, value) in conditions {
-                        let condition_result = self.visit_with_context(condition, context)?;
+                        let condition_result = Self::evaluate_recursive(condition, context)?;
                         match condition_result {
-                            Value::Bool(true) => return self.visit_with_context(value, context),
+                            Value::Bool(true) => return Self::evaluate_recursive(value, context),
                             Value::Bool(false) => continue,
                             _ => return Err(ExpressionError::type_error("CASE条件必须是布尔值")),
                         }
                     }
                 }
                 match default {
-                    Some(default_expression) => self.visit_with_context(default_expression, context),
-                    None => Ok(Value::Null(crate::core::NullType::Null)),
+                    Some(default_expression) => Self::evaluate_recursive(default_expression, context),
+                    None => Ok(Value::Null(NullType::Null)),
                 }
             }
 
@@ -207,7 +194,7 @@ impl ExpressionEvaluator {
             Expression::List(elements) => {
                 let element_values: Result<Vec<Value>, ExpressionError> = elements
                     .iter()
-                    .map(|elem| self.visit_with_context(elem, context))
+                    .map(|elem| Self::evaluate_recursive(elem, context))
                     .collect();
                 element_values.map(|vals| Value::List(List::from(vals)))
             }
@@ -216,7 +203,7 @@ impl ExpressionEvaluator {
             Expression::Map(entries) => {
                 let mut map_values = std::collections::HashMap::new();
                 for (key, value_expression) in entries {
-                    let value = self.visit_with_context(value_expression, context)?;
+                    let value = Self::evaluate_recursive(value_expression, context)?;
                     map_values.insert(key.clone(), value);
                 }
                 Ok(Value::Map(map_values))
@@ -224,25 +211,21 @@ impl ExpressionEvaluator {
 
             // 下标访问
             Expression::Subscript { collection, index } => {
-                let collection_value = self.visit_with_context(collection, context)?;
-                let index_value = self.visit_with_context(index, context)?;
+                let collection_value = Self::evaluate_recursive(collection, context)?;
+                let index_value = Self::evaluate_recursive(index, context)?;
                 CollectionOperationEvaluator.eval_subscript_access(&collection_value, &index_value)
             }
 
             // 范围访问
-            Expression::Range {
-                collection,
-                start,
-                end,
-            } => {
-                let collection_value = self.visit_with_context(collection, context)?;
+            Expression::Range { collection, start, end } => {
+                let collection_value = Self::evaluate_recursive(collection, context)?;
                 let start_value = start
                     .as_ref()
-                    .map(|e| self.visit_with_context(e, context))
+                    .map(|e| Self::evaluate_recursive(e, context))
                     .transpose()?;
                 let end_value = end
                     .as_ref()
-                    .map(|e| self.visit_with_context(e, context))
+                    .map(|e| Self::evaluate_recursive(e, context))
                     .transpose()?;
                 CollectionOperationEvaluator.eval_range_access(
                     &collection_value,
@@ -255,51 +238,34 @@ impl ExpressionEvaluator {
             Expression::Path(elements) => {
                 let element_values: Result<Vec<Value>, ExpressionError> = elements
                     .iter()
-                    .map(|elem| self.visit_with_context(elem, context))
+                    .map(|elem| Self::evaluate_recursive(elem, context))
                     .collect();
                 element_values.map(|vals| Value::List(List::from(vals)))
             }
 
             // 属性访问
             Expression::Property { object, property } => {
-                let object_value = self.visit_with_context(object, context)?;
+                let object_value = Self::evaluate_recursive(object, context)?;
                 CollectionOperationEvaluator.eval_property_access(&object_value, property)
             }
 
             // 类型转换
             Expression::TypeCast { expression, target_type } => {
-                let value = self.visit_with_context(expression, context)?;
+                let value = Self::evaluate_recursive(expression, context)?;
                 Self::eval_type_cast(&value, target_type)
             }
 
-            // 其他表达式类型 - 保持静态分发，避免动态分发回退
-            _ => Err(ExpressionError::type_error("不支持的表达式类型")),
+            // 其他需要运行时上下文的表达式类型
+            Expression::Label(_) => Err(ExpressionError::type_error("未求解的标签表达式")),
+            Expression::ListComprehension { .. } => Err(ExpressionError::type_error("列表推导表达式需要运行时上下文")),
+            Expression::LabelTagProperty { .. } => Err(ExpressionError::type_error("标签属性表达式需要运行时上下文")),
+            Expression::TagProperty { .. } => Err(ExpressionError::type_error("标签属性表达式需要运行时上下文")),
+            Expression::EdgeProperty { .. } => Err(ExpressionError::type_error("边属性表达式需要运行时上下文")),
+            Expression::Predicate { .. } => Err(ExpressionError::type_error("谓词表达式需要运行时上下文")),
+            Expression::Reduce { .. } => Err(ExpressionError::type_error("归约表达式需要运行时上下文")),
+            Expression::PathBuild(_) => Err(ExpressionError::type_error("路径构建表达式需要运行时上下文")),
+            Expression::Parameter(name) => Err(ExpressionError::type_error(&format!("查询参数 '{}' 需要运行时上下文提供值", name))),
         }
-    }
-
-    /// 编译时分支预测优化版本（完全静态分发）
-    #[inline(always)]
-    pub fn evaluate_with_branch_prediction<C: ExpressionContext>(
-        expression: &Expression,
-        context: &mut C,
-    ) -> Result<Value, ExpressionError> {
-        let mut evaluator = Self;
-        evaluator.visit_with_context(expression, context)
-    }
-
-    /// 获取求值器名称
-    pub fn name() -> &'static str {
-        "ExpressionEvaluator"
-    }
-
-    /// 获取求值器描述
-    pub fn description() -> &'static str {
-        "标准表达式求值器"
-    }
-
-    /// 获取求值器版本
-    pub fn version() -> &'static str {
-        "1.0.0"
     }
 
     /// 求值类型转换
@@ -332,118 +298,6 @@ impl ExpressionEvaluator {
             )))
         } else {
             Ok(result)
-        }
-    }
-}
-
-/// 为ExpressionEvaluator实现GenericExpressionVisitor<Expression>
-/// 提供统一的泛型访问接口
-impl GenericExpressionVisitor<Expression> for ExpressionEvaluator {
-    type Result = Result<Value, ExpressionError>;
-
-    fn visit(&mut self, expression: &Expression) -> Self::Result {
-        match expression {
-            Expression::Literal(value) => Ok(value.clone()),
-            Expression::Variable(name) => Err(ExpressionError::undefined_variable(name)),
-            Expression::Binary { left, op, right } => {
-                let left_value = self.visit(left)?;
-                let right_value = self.visit(right)?;
-                BinaryOperationEvaluator::evaluate(&left_value, op, &right_value)
-            }
-            Expression::Unary { op, operand } => {
-                let value = self.visit(operand)?;
-                UnaryOperationEvaluator::evaluate(op, &value)
-            }
-            Expression::Function { name, args } => {
-                let arg_values: Result<Vec<Value>, ExpressionError> = args
-                    .iter()
-                    .map(|arg| self.visit(arg))
-                    .collect();
-                let arg_values = arg_values?;
-                global_registry().execute(name, &arg_values)
-            }
-            Expression::Aggregate { func, arg, distinct } => {
-                let arg_value = self.visit(arg)?;
-                FunctionEvaluator.eval_aggregate_function(func, &[arg_value], *distinct)
-            }
-            Expression::Case { test_expr, conditions, default } => {
-                if let Some(expr) = test_expr {
-                    let test_value = self.visit(expr)?;
-                    for (condition, value) in conditions {
-                        let condition_result = self.visit(condition)?;
-                        if test_value == condition_result {
-                            return self.visit(value);
-                        }
-                    }
-                } else {
-                    for (condition, value) in conditions {
-                        let condition_result = self.visit(condition)?;
-                        match condition_result {
-                            Value::Bool(true) => return self.visit(value),
-                            Value::Bool(false) => continue,
-                            _ => return Err(ExpressionError::type_error("CASE条件必须是布尔值")),
-                        }
-                    }
-                }
-                match default {
-                    Some(default_expression) => self.visit(default_expression),
-                    None => Ok(Value::Null(crate::core::NullType::Null)),
-                }
-            }
-            Expression::List(elements) => {
-                let element_values: Result<Vec<Value>, ExpressionError> = elements
-                    .iter()
-                    .map(|elem| self.visit(elem))
-                    .collect();
-                element_values.map(|vals| Value::List(List::from(vals)))
-            }
-            Expression::Map(entries) => {
-                let mut map_values = std::collections::HashMap::new();
-                for (key, value_expression) in entries {
-                    let value = self.visit(value_expression)?;
-                    map_values.insert(key.clone(), value);
-                }
-                Ok(Value::Map(map_values))
-            }
-            Expression::Subscript { collection, index } => {
-                let collection_value = self.visit(collection)?;
-                let index_value = self.visit(index)?;
-                CollectionOperationEvaluator.eval_subscript_access(&collection_value, &index_value)
-            }
-            Expression::Range { collection, start, end } => {
-                let collection_value = self.visit(collection)?;
-                let start_value = start.as_ref().map(|e| self.visit(e)).transpose()?;
-                let end_value = end.as_ref().map(|e| self.visit(e)).transpose()?;
-                CollectionOperationEvaluator.eval_range_access(
-                    &collection_value,
-                    start_value.as_ref(),
-                    end_value.as_ref(),
-                )
-            }
-            Expression::Path(elements) => {
-                let element_values: Result<Vec<Value>, ExpressionError> = elements
-                    .iter()
-                    .map(|elem| self.visit(elem))
-                    .collect();
-                element_values.map(|vals| Value::List(List::from(vals)))
-            }
-            Expression::Property { object, property } => {
-                let object_value = self.visit(object.as_ref())?;
-                CollectionOperationEvaluator.eval_property_access(&object_value, property)
-            }
-            Expression::TypeCast { expression, target_type } => {
-                let value = self.visit(expression)?;
-                Self::eval_type_cast(&value, target_type)
-            }
-            Expression::Label(_) => Err(ExpressionError::type_error("未求解的标签表达式")),
-            Expression::ListComprehension { .. } => Err(ExpressionError::type_error("列表推导表达式需要运行时上下文")),
-            Expression::LabelTagProperty { .. } => Err(ExpressionError::type_error("标签属性表达式需要运行时上下文")),
-            Expression::TagProperty { .. } => Err(ExpressionError::type_error("标签属性表达式需要运行时上下文")),
-            Expression::EdgeProperty { .. } => Err(ExpressionError::type_error("边属性表达式需要运行时上下文")),
-            Expression::Predicate { .. } => Err(ExpressionError::type_error("谓词表达式需要运行时上下文")),
-            Expression::Reduce { .. } => Err(ExpressionError::type_error("归约表达式需要运行时上下文")),
-            Expression::PathBuild(_) => Err(ExpressionError::type_error("路径构建表达式需要运行时上下文")),
-            Expression::Parameter(name) => Err(ExpressionError::type_error(&format!("查询参数 '{}' 需要运行时上下文提供值", name))),
         }
     }
 }

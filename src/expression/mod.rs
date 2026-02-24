@@ -1,25 +1,23 @@
 pub mod context;
 pub mod evaluator;
 pub mod functions;
+pub mod traits;
 
-// 重新导出expression模块的访问器
-pub use crate::core::types::expression::visitor::{
-    ExpressionAcceptor, ExpressionDepthFirstVisitor, ExpressionTransformer, ExpressionVisitor,
-};
-
-// Re-export Core operators directly - no more wrapper types
+// 从 core 重新导出操作符类型
 pub use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 
-// Re-export Core type utils
+// 从 core 重新导出类型工具
 pub use crate::core::TypeUtils;
 
-// Re-export evaluator module
+// 从 core 重新导出错误类型
+pub use crate::core::error::{ExpressionError, ExpressionErrorType, ExpressionPosition};
+
+// 从 evaluator 模块重新导出 ExpressionContext trait 和求值器
 pub use evaluator::{ExpressionContext, ExpressionEvaluator};
 
-// Re-export context module types
+// 从 context 模块重新导出上下文类型和分解 trait
 pub use context::{
-    BasicExpressionContext, DefaultExpressionContext, ExpressionContextType, StorageExpressionContext,
+    BasicExpressionContext, CacheContext, DefaultExpressionContext, ExpressionContextType,
+    FunctionContext, GraphContext, QueryExpressionContext, RowContextRef, RowExpressionContext,
+    RowExpressionContextBuilder, ScopedContext, StorageExpressionContext, VariableContext,
 };
-
-// Re-export error types
-pub use crate::core::error::{ExpressionError, ExpressionErrorType, ExpressionPosition};

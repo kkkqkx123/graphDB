@@ -63,7 +63,7 @@ impl UtilStmtParser {
     }
 
     /// 解析 SHOW CREATE 内部方法
-    fn parse_show_create_internal(&mut self, ctx: &mut ParseContext, start_span: crate::query::parser::ast::types::Span) -> Result<Stmt, ParseError> {
+    pub fn parse_show_create_internal(&mut self, ctx: &mut ParseContext, start_span: crate::query::parser::ast::types::Span) -> Result<Stmt, ParseError> {
         ctx.expect_token(TokenKind::Create)?;
 
         let target = if ctx.match_token(TokenKind::Space) {

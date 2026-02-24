@@ -186,7 +186,28 @@ Pattern::Variable(_var) => {
 
 **相关文件**: `src/query/planner/statements/match_statement_planner.rs`
 
-### 3.4 待办事项（未来改进）
+### 3.4 添加测试用例 ✅ 已完成
+
+**修改内容**:
+- 为 `ArgumentExecutor` 添加了 6 个测试用例：
+  - `test_argument_executor_creation` - 测试执行器创建
+  - `test_argument_executor_with_variable` - 测试从变量存储获取值
+  - `test_argument_executor_with_result` - 测试从结果存储获取值
+  - `test_argument_executor_variable_not_found` - 测试变量不存在时的错误处理
+  - `test_pass_through_executor_creation` - 测试 PassThroughExecutor 创建
+  - `test_data_collect_executor_creation` - 测试 DataCollectExecutor 创建
+
+- 为变量验证添加了 4 个测试用例：
+  - `test_validate_variable_pattern_valid` - 测试有效变量引用
+  - `test_validate_variable_pattern_undefined` - 测试未定义变量错误
+  - `test_validate_variable_pattern_runtime_alias` - 测试运行时别名错误
+  - `test_collect_aliases_skips_variable_pattern` - 验证 VariablePattern 不被收集为别名
+
+**相关文件**: 
+- `src/query/executor/special_executors.rs`
+- `src/query/validator/match_validator.rs`
+
+### 3.5 待办事项（未来改进）
 
 1. **数据流连接优化**
    - 当前 `VariablePattern` 通过 `ExecutionContext` 获取变量值
