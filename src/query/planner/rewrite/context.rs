@@ -125,6 +125,6 @@ mod tests {
         
         let found = ctx.find_node_by_id(node_id);
         assert!(found.is_some());
-        assert_eq!(found.unwrap().borrow().id, node_id);
+        assert_eq!(found.expect("Failed to find node").borrow().id, node_id);
     }
 }

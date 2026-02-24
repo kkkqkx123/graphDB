@@ -28,17 +28,42 @@ impl<S: StorageClient + 'static> ArgumentExecutor<S> {
     pub fn var(&self) -> &str {
         &self.var
     }
+
+    /// 设置变量值到执行上下文
+    pub fn set_variable(&mut self, name: String, value: crate::core::Value) {
+        self.base.context.set_variable(name, value);
+    }
+
+    /// 设置中间结果到执行上下文
+    pub fn set_result(&mut self, name: String, result: ExecutionResult) {
+        self.base.context.set_result(name, result);
+    }
 }
 
 impl<S: StorageClient + Send + 'static> Executor<S> for ArgumentExecutor<S> {
     fn execute(&mut self) -> DBResult<ExecutionResult> {
-        if let Some(input) = &mut self.input_executor {
+        // 首先执行输入执行器获取结果
+        let _input_result = if let Some(input) = &mut self.input_executor {
             input.open()?;
             let result = input.execute()?;
             input.close()?;
-            Ok(result)
+            Some(result)
         } else {
-            Ok(ExecutionResult::Success)
+            None
+        };
+
+        // 从执行上下文中获取变量值
+        if let Some(var_value) = self.base.context.get_variable(&self.var) {
+            // 将变量值包装为 ExecutionResult
+            Ok(ExecutionResult::Values(vec![var_value.clone()]))
+        } else if let Some(result) = self.base.context.get_result(&self.var) {
+            // 如果变量存储在中间结果中，返回克隆的结果
+            Ok(result.clone())
+        } else {
+            // 变量不存在，返回错误
+            Err(crate::core::error::DBError::Internal(
+                format!("变量 '{}' 未定义", self.var)
+            ))
         }
     }
 

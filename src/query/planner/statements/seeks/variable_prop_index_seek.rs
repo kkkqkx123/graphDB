@@ -331,7 +331,7 @@ mod tests {
         let pred = VariablePropIndexSeek::extract_predicate(&expr);
         assert!(pred.is_some());
 
-        let pred = pred.unwrap();
+        let pred = pred.expect("Failed to extract predicate");
         assert_eq!(pred.property, "name");
         assert_eq!(pred.op, VariablePredicateOp::Eq);
         assert_eq!(pred.variable_name, "varName");

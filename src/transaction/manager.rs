@@ -360,8 +360,8 @@ mod tests {
     use tempfile::TempDir;
 
     fn create_test_manager() -> (TransactionManager, Arc<Database>, TempDir) {
-        let temp_dir = TempDir::new().unwrap();
-        let db = Arc::new(Database::create(temp_dir.path().join("test.db")).unwrap());
+        let temp_dir = TempDir::new().expect("Failed to create temporary directory");
+        let db = Arc::new(Database::create(temp_dir.path().join("test.db")).expect("Failed to create test database"));
         let config = TransactionManagerConfig {
             auto_cleanup: false, // 禁用后台清理，避免测试中的死锁
             ..TransactionManagerConfig::default()
@@ -408,7 +408,7 @@ mod tests {
         let txn_id = manager.begin_transaction(options)
             .expect("Failed to begin readonly transaction");
 
-        let context = manager.get_context(txn_id).unwrap();
+        let context = manager.get_context(txn_id).expect("Failed to get transaction context");
         assert!(context.read_only);
 
         manager.commit_transaction(txn_id)
@@ -431,7 +431,7 @@ mod tests {
             .expect("Failed to begin transaction");
 
         // 提交事务
-        manager.commit_transaction(txn_id).unwrap();
+        manager.commit_transaction(txn_id).expect("Failed to commit transaction");
 
         // 再次提交应该失败
         let result = manager.commit_transaction(txn_id);
@@ -444,21 +444,21 @@ mod tests {
 
         // 由于redb的单写者限制，我们只能顺序执行事务
         // 第一个事务
-        let txn1 = manager.begin_transaction(TransactionOptions::default()).unwrap();
+        let txn1 = manager.begin_transaction(TransactionOptions::default()).expect("Failed to begin transaction");
         assert!(manager.is_transaction_active(txn1));
-        manager.commit_transaction(txn1).unwrap();
+        manager.commit_transaction(txn1).expect("Failed to commit transaction");
         assert!(!manager.is_transaction_active(txn1));
 
         // 第二个事务
-        let txn2 = manager.begin_transaction(TransactionOptions::default()).unwrap();
+        let txn2 = manager.begin_transaction(TransactionOptions::default()).expect("Failed to begin transaction");
         assert!(manager.is_transaction_active(txn2));
-        manager.abort_transaction(txn2).unwrap();
+        manager.abort_transaction(txn2).expect("Failed to abort transaction");
         assert!(!manager.is_transaction_active(txn2));
 
         // 第三个事务
-        let txn3 = manager.begin_transaction(TransactionOptions::default()).unwrap();
+        let txn3 = manager.begin_transaction(TransactionOptions::default()).expect("Failed to begin transaction");
         assert!(manager.is_transaction_active(txn3));
-        manager.commit_transaction(txn3).unwrap();
+        manager.commit_transaction(txn3).expect("Failed to commit transaction");
         assert!(!manager.is_transaction_active(txn3));
 
         assert_eq!(manager.stats().committed_transactions.load(Ordering::Relaxed), 2);
@@ -470,18 +470,18 @@ mod tests {
         let (manager, _db, _temp) = create_test_manager();
         
         // 开始第一个写事务
-        let txn1 = manager.begin_transaction(TransactionOptions::default()).unwrap();
+        let txn1 = manager.begin_transaction(TransactionOptions::default()).expect("Failed to begin transaction");
         
         // 尝试开始第二个写事务应该失败（因为redb只支持单写者）
         let result = manager.begin_transaction(TransactionOptions::default());
         assert!(matches!(result, Err(TransactionError::WriteTransactionConflict)));
         
         // 提交第一个事务
-        manager.commit_transaction(txn1).unwrap();
+        manager.commit_transaction(txn1).expect("Failed to commit transaction");
         
         // 现在可以开始新的事务了
-        let txn2 = manager.begin_transaction(TransactionOptions::default()).unwrap();
-        manager.commit_transaction(txn2).unwrap();
+        let txn2 = manager.begin_transaction(TransactionOptions::default()).expect("Failed to begin transaction");
+        manager.commit_transaction(txn2).expect("Failed to commit transaction");
     }
     
     #[test]
@@ -490,16 +490,16 @@ mod tests {
         
         // 只读事务可以并发
         let options = TransactionOptions::new().read_only();
-        let txn1 = manager.begin_transaction(options.clone()).unwrap();
-        let txn2 = manager.begin_transaction(options.clone()).unwrap();
-        let txn3 = manager.begin_transaction(options).unwrap();
+        let txn1 = manager.begin_transaction(options.clone()).expect("Failed to begin transaction");
+        let txn2 = manager.begin_transaction(options.clone()).expect("Failed to begin transaction");
+        let txn3 = manager.begin_transaction(options).expect("Failed to begin transaction");
         
         assert!(manager.is_transaction_active(txn1));
         assert!(manager.is_transaction_active(txn2));
         assert!(manager.is_transaction_active(txn3));
         
-        manager.commit_transaction(txn1).unwrap();
-        manager.commit_transaction(txn2).unwrap();
-        manager.commit_transaction(txn3).unwrap();
+        manager.commit_transaction(txn1).expect("Failed to commit transaction");
+        manager.commit_transaction(txn2).expect("Failed to commit transaction");
+        manager.commit_transaction(txn3).expect("Failed to commit transaction");
     }
 }

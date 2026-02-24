@@ -222,7 +222,7 @@ impl AlterValidator {
         }
 
         // 属性名必须以字母或下划线开头
-        let first_char = name.chars().next().unwrap();
+        let first_char = name.chars().next().expect("属性名已验证非空");
         if !first_char.is_ascii_alphabetic() && first_char != '_' {
             return Err(ValidationError::new(
                 format!(

@@ -274,13 +274,13 @@ mod tests {
 
         // 验证选中的部分包含 a 和 b
         assert!(picked.is_some());
-        let picked_props = extract_property_refs(&picked.unwrap());
+        let picked_props = extract_property_refs(&picked.expect("Failed to get picked expression"));
         assert!(picked_props.contains(&"a".to_string()));
         assert!(picked_props.contains(&"b".to_string()));
 
         // 验证剩余的部分包含 c
         assert!(remained.is_some());
-        let remained_props = extract_property_refs(&remained.unwrap());
+        let remained_props = extract_property_refs(&remained.expect("Failed to get remained expression"));
         assert!(remained_props.contains(&"c".to_string()));
     }
 

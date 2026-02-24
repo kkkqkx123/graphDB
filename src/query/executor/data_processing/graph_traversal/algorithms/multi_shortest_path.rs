@@ -579,7 +579,7 @@ mod tests {
         assert!(map.contains_key(&Value::from("a")));
         assert!(map.contains_key(&Value::from("b")));
         
-        let a_pairs = map.get(&Value::from("a")).unwrap();
+        let a_pairs = map.get(&Value::from("a")).expect("Failed to get pairs for 'a'");
         assert_eq!(a_pairs.len(), 2);
     }
 
@@ -592,7 +592,7 @@ mod tests {
         
         assert!(mark_path_found(&mut map, &Value::from("a"), &Value::from("b")));
         
-        let pairs = map.get(&Value::from("a")).unwrap();
+        let pairs = map.get(&Value::from("a")).expect("Failed to get pairs for 'a'");
         assert!(!pairs[0].1); // found应该被标记为false
     }
 
@@ -606,7 +606,7 @@ mod tests {
         cleanup_termination_map(&mut map);
         
         assert_eq!(map.len(), 1);
-        let pairs = map.get(&Value::from("a")).unwrap();
+        let pairs = map.get(&Value::from("a")).expect("Failed to get pairs for 'a'");
         assert_eq!(pairs.len(), 1);
         assert_eq!(pairs[0].0, Value::from("c"));
     }

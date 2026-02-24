@@ -73,8 +73,8 @@ mod tests {
     use tempfile::TempDir;
 
     fn create_test_db() -> (Arc<redb::Database>, TempDir) {
-        let temp_dir = TempDir::new().unwrap();
-        let db = Arc::new(redb::Database::create(temp_dir.path().join("test.db")).unwrap());
+        let temp_dir = TempDir::new().expect("Failed to create temporary directory");
+        let db = Arc::new(redb::Database::create(temp_dir.path().join("test.db")).expect("Failed to create test database"));
         (db, temp_dir)
     }
 
@@ -101,12 +101,12 @@ mod tests {
         let manager = create_transaction_manager(db);
 
         let options = readonly_options();
-        let txn_id = manager.begin_transaction(options).unwrap();
+        let txn_id = manager.begin_transaction(options).expect("Failed to begin readonly transaction");
 
-        let ctx = manager.get_context(txn_id).unwrap();
+        let ctx = manager.get_context(txn_id).expect("Failed to get transaction context");
         assert!(ctx.read_only);
 
-        manager.commit_transaction(txn_id).unwrap();
+        manager.commit_transaction(txn_id).expect("Failed to commit transaction");
     }
 
     #[test]

@@ -295,7 +295,7 @@ mod tests {
         let result = validator.validate(&Stmt::Use(use_stmt), qctx);
         assert!(result.is_ok());
 
-        let validated = validator.validated_result.unwrap();
+        let validated = validator.validated_result.expect("Failed to get validated result");
         assert_eq!(validated.limit, Some(10));
     }
 
@@ -313,7 +313,7 @@ mod tests {
         let result = validator.validate(&Stmt::Use(use_stmt), qctx);
         assert!(result.is_ok());
 
-        let validated = validator.validated_result.unwrap();
+        let validated = validator.validated_result.expect("Failed to get validated result");
         assert_eq!(validated.skip, Some(5));
         assert_eq!(validated.limit, Some(10));
     }
@@ -406,7 +406,7 @@ mod tests {
         let result = validator.validate(&Stmt::Use(use_stmt), qctx);
         assert!(result.is_ok());
 
-        let validated = validator.validated_result.unwrap();
+        let validated = validator.validated_result.expect("Failed to get validated result");
         assert_eq!(validated.count, Some(100));
     }
 }

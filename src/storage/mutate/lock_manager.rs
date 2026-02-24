@@ -185,7 +185,7 @@ mod tests {
         let mut manager = MemoryLockManager::new();
         let lock = LockType::Vertex(1, Value::String("vid1".to_string()));
 
-        assert!(manager.try_lock(lock.clone()).unwrap());
+        assert!(manager.try_lock(lock.clone()).expect("Failed to acquire lock"));
         assert!(manager.is_locked(&lock));
     }
 
@@ -194,8 +194,8 @@ mod tests {
         let mut manager = MemoryLockManager::new();
         let lock = LockType::Vertex(1, Value::String("vid1".to_string()));
 
-        assert!(manager.try_lock(lock.clone()).unwrap());
-        assert!(!manager.try_lock(lock.clone()).unwrap());
+        assert!(manager.try_lock(lock.clone()).expect("Failed to acquire lock"));
+        assert!(!manager.try_lock(lock.clone()).expect("Failed to acquire lock"));
     }
 
     #[test]
@@ -203,7 +203,7 @@ mod tests {
         let mut manager = MemoryLockManager::new();
         let lock = LockType::Vertex(1, Value::String("vid1".to_string()));
 
-        manager.try_lock(lock.clone()).unwrap();
+        manager.try_lock(lock.clone()).expect("Failed to acquire lock");
         assert!(manager.is_locked(&lock));
 
         manager.unlock(&lock);
@@ -233,7 +233,7 @@ mod tests {
         ];
 
         // 先锁定第一个资源
-        manager.try_lock(lock1.clone()).unwrap();
+        manager.try_lock(lock1.clone()).expect("Failed to acquire lock");
 
         // 批量获取锁应该失败
         assert!(manager.try_lock_batch(&locks).is_err());
@@ -248,7 +248,7 @@ mod tests {
         let lock = LockType::Vertex(1, Value::String("vid1".to_string()));
 
         {
-            let guard = LockGuard::new(manager.clone(), vec![lock.clone()]).expect("创建锁守卫失败");
+            let guard = LockGuard::new(manager.clone(), vec![lock.clone()]).expect("Failed to create lock guard");
             assert!(manager.lock().is_locked(&lock));
             assert_eq!(guard.locks().len(), 1);
         }

@@ -393,7 +393,7 @@ mod tests {
         let result = validator.validate_unwind();
         assert!(result.is_ok());
         
-        let validated = result.unwrap();
+        let validated = result.expect("Failed to validate unwind");
         assert_eq!(validated.variable_name, "x");
     }
 

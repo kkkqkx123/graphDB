@@ -327,7 +327,7 @@ mod tests {
     fn test_validate_return_item_all() {
         let validator = ReturnValidator::new();
         let item = ReturnItem::All;
-        let col = validator.validate_return_item(&item).unwrap();
+        let col = validator.validate_return_item(&item).expect("Failed to validate return item");
         assert_eq!(col.name, "*");
         assert_eq!(col.type_, ValueType::Map);
     }
@@ -341,7 +341,7 @@ mod tests {
             expression: Expression::Variable("n".to_string()),
             alias: Some("node".to_string()),
         };
-        let col = validator.validate_return_item(&item).unwrap();
+        let col = validator.validate_return_item(&item).expect("Failed to validate return item");
         assert_eq!(col.name, "node");
     }
 

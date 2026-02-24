@@ -731,7 +731,7 @@ mod tests {
         ];
 
         let provided = vec![("name".to_string(), Value::String("John".to_string()))];
-        let result = validator.fill_default_values(&properties, &provided).unwrap();
+        let result = validator.fill_default_values(&properties, &provided).expect("Failed to fill default values");
 
         assert_eq!(result.len(), 3);
         assert_eq!(result[0].0, "name");

@@ -784,7 +784,7 @@ async fn test_index_selector_chooses_optimal_index() {
     let candidate = IndexSelector::select_best_index(&available_indexes, &filter);
 
     assert!(candidate.is_some(), "应该选择一个索引");
-    let selected = candidate.unwrap();
+    let selected = candidate.expect("应该选择一个索引");
     assert_eq!(selected.index.id, 1, "等值查询 name 应该选择 name 索引");
 
     // 测试范围查询：age > 25，应该选择 age 索引
@@ -796,7 +796,7 @@ async fn test_index_selector_chooses_optimal_index() {
 
     let candidate = IndexSelector::select_best_index(&available_indexes, &filter);
     assert!(candidate.is_some(), "应该选择一个索引");
-    let selected = candidate.unwrap();
+    let selected = candidate.expect("应该选择一个索引");
     assert_eq!(selected.index.id, 2, "范围查询 age 应该选择 age 索引");
 }
 

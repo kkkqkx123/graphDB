@@ -597,6 +597,6 @@ mod tests {
         assert!(result.is_ok());
 
         // 验证 if_not_exists 被正确保存
-        assert!(validator.validated_result.as_ref().unwrap().if_not_exists);
+        assert!(validator.validated_result.as_ref().expect("Failed to get validated result").if_not_exists);
     }
 }

@@ -178,7 +178,7 @@ mod tests {
 
         assert!(result.is_some(), "应该成功合并两个Filter节点");
 
-        let transform_result = result.unwrap();
+        let transform_result = result.expect("Failed to apply rewrite rule");
         assert!(transform_result.erase_curr);
         assert_eq!(transform_result.new_nodes.len(), 1);
     }

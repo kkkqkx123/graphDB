@@ -109,21 +109,21 @@ impl RedbIndexDataManager {
         if key_bytes.len() < pos + 4 {
             return Err(StorageError::DbError("Invalid key: too short".to_string()));
         }
-        let index_name_len = u32::from_le_bytes(key_bytes[pos..pos+4].try_into().unwrap()) as usize;
+        let index_name_len = u32::from_le_bytes(key_bytes[pos..pos+4].try_into().unwrap_or([0; 4])) as usize;
         pos += 4 + index_name_len;
 
         // 读取 prop_value_len 并跳过 prop_value
         if key_bytes.len() < pos + 4 {
             return Err(StorageError::DbError("Invalid key: missing prop_value_len".to_string()));
         }
-        let prop_value_len = u32::from_le_bytes(key_bytes[pos..pos+4].try_into().unwrap()) as usize;
+        let prop_value_len = u32::from_le_bytes(key_bytes[pos..pos+4].try_into().unwrap_or([0; 4])) as usize;
         pos += 4 + prop_value_len;
 
         // 读取 vertex_id_len
         if key_bytes.len() < pos + 4 {
             return Err(StorageError::DbError("Invalid key: missing vertex_id_len".to_string()));
         }
-        let vertex_id_len = u32::from_le_bytes(key_bytes[pos..pos+4].try_into().unwrap()) as usize;
+        let vertex_id_len = u32::from_le_bytes(key_bytes[pos..pos+4].try_into().unwrap_or([0; 4])) as usize;
         pos += 4;
 
         // 提取 vertex_id
@@ -171,7 +171,7 @@ impl RedbIndexDataManager {
         if key_bytes.len() < pos + 4 {
             return Err(StorageError::DbError("Invalid reverse key: missing index_name_len".to_string()));
         }
-        let index_name_len = u32::from_le_bytes(key_bytes[pos..pos+4].try_into().unwrap()) as usize;
+        let index_name_len = u32::from_le_bytes(key_bytes[pos..pos+4].try_into().unwrap_or([0; 4])) as usize;
         pos += 4;
 
         if key_bytes.len() < pos + index_name_len {
@@ -185,7 +185,7 @@ impl RedbIndexDataManager {
         if key_bytes.len() < pos + 4 {
             return Err(StorageError::DbError("Invalid reverse key: missing vertex_id_len".to_string()));
         }
-        let vertex_id_len = u32::from_le_bytes(key_bytes[pos..pos+4].try_into().unwrap()) as usize;
+        let vertex_id_len = u32::from_le_bytes(key_bytes[pos..pos+4].try_into().unwrap_or([0; 4])) as usize;
         pos += 4;
 
         if key_bytes.len() < pos + vertex_id_len {
@@ -281,7 +281,7 @@ impl RedbIndexDataManager {
         if key_bytes.len() < pos + 4 {
             return Err(StorageError::DbError("Invalid edge reverse key: missing index_name_len".to_string()));
         }
-        let index_name_len = u32::from_le_bytes(key_bytes[pos..pos+4].try_into().unwrap()) as usize;
+        let index_name_len = u32::from_le_bytes(key_bytes[pos..pos+4].try_into().unwrap_or([0; 4])) as usize;
         pos += 4;
 
         if key_bytes.len() < pos + index_name_len {
@@ -295,7 +295,7 @@ impl RedbIndexDataManager {
         if key_bytes.len() < pos + 4 {
             return Err(StorageError::DbError("Invalid edge reverse key: missing src_len".to_string()));
         }
-        let src_len = u32::from_le_bytes(key_bytes[pos..pos+4].try_into().unwrap()) as usize;
+        let src_len = u32::from_le_bytes(key_bytes[pos..pos+4].try_into().unwrap_or([0; 4])) as usize;
         pos += 4;
 
         if key_bytes.len() < pos + src_len {
@@ -498,14 +498,14 @@ impl IndexDataManager for RedbIndexDataManager {
                                 if key_bytes.len() < pos + 4 {
                                     return None;
                                 }
-                                let prop_len = u32::from_le_bytes(key_bytes[pos..pos+4].try_into().unwrap()) as usize;
+                                let prop_len = u32::from_le_bytes(key_bytes[pos..pos+4].try_into().unwrap_or([0; 4])) as usize;
                                 pos += 4 + prop_len;
 
                                 // 读取 src
                                 if key_bytes.len() < pos + 4 {
                                     return None;
                                 }
-                                let src_len = u32::from_le_bytes(key_bytes[pos..pos+4].try_into().unwrap()) as usize;
+                                let src_len = u32::from_le_bytes(key_bytes[pos..pos+4].try_into().unwrap_or([0; 4])) as usize;
                                 pos += 4;
 
                                 if key_bytes.len() < pos + src_len {
@@ -518,7 +518,7 @@ impl IndexDataManager for RedbIndexDataManager {
                                 if key_bytes.len() < pos + 4 {
                                     return None;
                                 }
-                                let dst_len = u32::from_le_bytes(key_bytes[pos..pos+4].try_into().unwrap()) as usize;
+                                let dst_len = u32::from_le_bytes(key_bytes[pos..pos+4].try_into().unwrap_or([0; 4])) as usize;
                                 pos += 4;
 
                                 if key_bytes.len() < pos + dst_len {
@@ -599,7 +599,7 @@ impl IndexDataManager for RedbIndexDataManager {
                         if key_bytes.len() < pos + 4 {
                             return None;
                         }
-                        let prop_len = u32::from_le_bytes(key_bytes[pos..pos+4].try_into().unwrap()) as usize;
+                        let prop_len = u32::from_le_bytes(key_bytes[pos..pos+4].try_into().unwrap_or([0; 4])) as usize;
                         pos += 4;
 
                         if key_bytes.len() < pos + prop_len {
@@ -654,7 +654,7 @@ impl IndexDataManager for RedbIndexDataManager {
                     if key_bytes.len() < pos + 4 {
                         return None;
                     }
-                    let prop_len = u32::from_le_bytes(key_bytes[pos..pos+4].try_into().unwrap()) as usize;
+                    let prop_len = u32::from_le_bytes(key_bytes[pos..pos+4].try_into().unwrap_or([0; 4])) as usize;
                     pos += 4;
 
                     if key_bytes.len() < pos + prop_len {
@@ -672,7 +672,7 @@ impl IndexDataManager for RedbIndexDataManager {
                     if key_bytes.len() < pos + 4 {
                         return None;
                     }
-                    let src_len = u32::from_le_bytes(key_bytes[pos..pos+4].try_into().unwrap()) as usize;
+                    let src_len = u32::from_le_bytes(key_bytes[pos..pos+4].try_into().unwrap_or([0; 4])) as usize;
                     pos += 4;
 
                     if key_bytes.len() < pos + src_len {
@@ -810,16 +810,16 @@ mod tests {
 
     /// 创建测试用的临时数据库
     fn create_test_db() -> (Arc<Database>, TempDir) {
-        let temp_dir = TempDir::new().unwrap();
+        let temp_dir = TempDir::new().expect("Failed to create temporary directory");
         let db_path = temp_dir.path().join("test.db");
-        let db = Arc::new(Database::create(&db_path).unwrap());
+        let db = Arc::new(Database::create(&db_path).expect("Failed to create test database"));
 
         // 初始化索引数据表
-        let txn = db.begin_write().unwrap();
+        let txn = db.begin_write().expect("Failed to begin write transaction");
         {
-            let _ = txn.open_table(INDEX_DATA_TABLE).unwrap();
+            let _ = txn.open_table(INDEX_DATA_TABLE).expect("Failed to open table");
         }
-        txn.commit().unwrap();
+        txn.commit().expect("Failed to commit transaction");
 
         (db, temp_dir)
     }
@@ -852,14 +852,14 @@ mod tests {
         let prop_value = Value::String("test_value".to_string());
         let vertex_id = Value::Int(123);
 
-        let key = RedbIndexDataManager::build_vertex_index_key(space_id, index_name, &prop_value, &vertex_id).unwrap();
+        let key = RedbIndexDataManager::build_vertex_index_key(space_id, index_name, &prop_value, &vertex_id).expect("Failed to build vertex index key");
 
         // 验证键的基本结构
         assert!(key.0.len() > 9); // 至少包含 space_id (8) + type (1) + 一些数据
         assert_eq!(key.0[8], KEY_TYPE_VERTEX_FORWARD);
 
         // 验证可以正确解析 vertex_id
-        let parsed_vid = RedbIndexDataManager::parse_vertex_id_from_key(&key.0).unwrap();
+        let parsed_vid = RedbIndexDataManager::parse_vertex_id_from_key(&key.0).expect("Failed to parse vertex id from key");
         assert_eq!(parsed_vid, vertex_id);
     }
 
@@ -872,16 +872,16 @@ mod tests {
         let index_name = "idx_test";
         let vertex_id = Value::Int(456);
 
-        let key = RedbIndexDataManager::build_vertex_reverse_key(space_id, index_name, &vertex_id).unwrap();
+        let key = RedbIndexDataManager::build_vertex_reverse_key(space_id, index_name, &vertex_id).expect("Failed to build vertex reverse key");
 
         // 验证键的基本结构
         assert!(key.0.len() > 9);
         assert_eq!(key.0[8], KEY_TYPE_VERTEX_REVERSE);
 
         // 验证可以正确解析
-        let (parsed_name, parsed_vid_bytes) = RedbIndexDataManager::parse_vertex_reverse_key(&key.0).unwrap();
+        let (parsed_name, parsed_vid_bytes) = RedbIndexDataManager::parse_vertex_reverse_key(&key.0).expect("Failed to parse vertex reverse key");
         assert_eq!(parsed_name, index_name);
-        let parsed_vid = RedbIndexDataManager::deserialize_value(&parsed_vid_bytes).unwrap();
+        let parsed_vid = RedbIndexDataManager::deserialize_value(&parsed_vid_bytes).expect("Failed to deserialize value");
         assert_eq!(parsed_vid, vertex_id);
     }
 
@@ -896,7 +896,7 @@ mod tests {
         let src = Value::Int(100);
         let dst = Value::Int(200);
 
-        let key = RedbIndexDataManager::build_edge_index_key(space_id, index_name, &prop_value, &src, &dst).unwrap();
+        let key = RedbIndexDataManager::build_edge_index_key(space_id, index_name, &prop_value, &src, &dst).expect("Failed to build edge index key");
 
         // 验证键的基本结构
         assert!(key.0.len() > 9);
@@ -912,16 +912,16 @@ mod tests {
         let index_name = "idx_edge_test";
         let src = Value::Int(300);
 
-        let key = RedbIndexDataManager::build_edge_reverse_key(space_id, index_name, &src).unwrap();
+        let key = RedbIndexDataManager::build_edge_reverse_key(space_id, index_name, &src).expect("Failed to build edge reverse key");
 
         // 验证键的基本结构
         assert!(key.0.len() > 9);
         assert_eq!(key.0[8], KEY_TYPE_EDGE_REVERSE);
 
         // 验证可以正确解析
-        let (parsed_name, parsed_src_bytes) = RedbIndexDataManager::parse_edge_reverse_key(&key.0).unwrap();
+        let (parsed_name, parsed_src_bytes) = RedbIndexDataManager::parse_edge_reverse_key(&key.0).expect("Failed to parse edge reverse key");
         assert_eq!(parsed_name, index_name);
-        let parsed_src = RedbIndexDataManager::deserialize_value(&parsed_src_bytes).unwrap();
+        let parsed_src = RedbIndexDataManager::deserialize_value(&parsed_src_bytes).expect("Failed to deserialize value");
         assert_eq!(parsed_src, src);
     }
 
@@ -936,18 +936,18 @@ mod tests {
         let props = vec![("name".to_string(), Value::String("Alice".to_string()))];
 
         // 更新索引
-        manager.update_vertex_indexes(space_id, &vertex_id, index_name, &props).unwrap();
+        manager.update_vertex_indexes(space_id, &vertex_id, index_name, &props).expect("Failed to update vertex indexes");
 
         // 创建索引对象用于查询
         let index = create_test_index(index_name, "person");
 
         // 查询索引
-        let results = manager.lookup_tag_index(space_id, &index, &Value::String("Alice".to_string())).unwrap();
+        let results = manager.lookup_tag_index(space_id, &index, &Value::String("Alice".to_string())).expect("Failed to lookup tag index");
         assert_eq!(results.len(), 1);
         assert_eq!(results[0], vertex_id);
 
         // 查询不存在的值
-        let empty_results = manager.lookup_tag_index(space_id, &index, &Value::String("Bob".to_string())).unwrap();
+        let empty_results = manager.lookup_tag_index(space_id, &index, &Value::String("Bob".to_string())).expect("Failed to lookup tag index");
         assert!(empty_results.is_empty());
     }
 
@@ -963,19 +963,19 @@ mod tests {
         let props = vec![("weight".to_string(), Value::Float(10.5))];
 
         // 更新边索引
-        manager.update_edge_indexes(space_id, &src, &dst, index_name, &props).unwrap();
+        manager.update_edge_indexes(space_id, &src, &dst, index_name, &props).expect("Failed to update edge indexes");
 
         // 创建索引对象用于查询
         let mut index = create_test_index(index_name, "knows");
         index.index_type = IndexType::EdgeIndex;
 
         // 查询边索引
-        let results = manager.lookup_edge_index(space_id, &index, &Value::Float(10.5)).unwrap();
+        let results = manager.lookup_edge_index(space_id, &index, &Value::Float(10.5)).expect("Failed to lookup edge index");
         assert_eq!(results.len(), 1);
         assert_eq!(results[0], src);
 
         // 查询不存在的值
-        let empty_results = manager.lookup_edge_index(space_id, &index, &Value::Float(99.9)).unwrap();
+        let empty_results = manager.lookup_edge_index(space_id, &index, &Value::Float(99.9)).expect("Failed to lookup edge index");
         assert!(empty_results.is_empty());
     }
 
@@ -993,25 +993,25 @@ mod tests {
         let props1 = vec![("name".to_string(), Value::String("Alice".to_string()))];
         let props2 = vec![("name".to_string(), Value::String("Bob".to_string()))];
 
-        manager.update_vertex_indexes(space_id, &vertex_id1, index_name, &props1).unwrap();
-        manager.update_vertex_indexes(space_id, &vertex_id2, index_name, &props2).unwrap();
+        manager.update_vertex_indexes(space_id, &vertex_id1, index_name, &props1).expect("Failed to update vertex indexes");
+        manager.update_vertex_indexes(space_id, &vertex_id2, index_name, &props2).expect("Failed to update vertex indexes");
 
         // 验证两个索引都存在
         let index = create_test_index(index_name, "person");
-        let results1 = manager.lookup_tag_index(space_id, &index, &Value::String("Alice".to_string())).unwrap();
+        let results1 = manager.lookup_tag_index(space_id, &index, &Value::String("Alice".to_string())).expect("Failed to lookup tag index");
         assert_eq!(results1.len(), 1);
 
-        let results2 = manager.lookup_tag_index(space_id, &index, &Value::String("Bob".to_string())).unwrap();
+        let results2 = manager.lookup_tag_index(space_id, &index, &Value::String("Bob".to_string())).expect("Failed to lookup tag index");
         assert_eq!(results2.len(), 1);
 
         // 删除第一个顶点的索引
-        manager.delete_vertex_indexes(space_id, &vertex_id1).unwrap();
+        manager.delete_vertex_indexes(space_id, &vertex_id1).expect("Failed to delete vertex indexes");
 
         // 验证第一个顶点的索引已被删除，第二个仍然存在
-        let results1_after = manager.lookup_tag_index(space_id, &index, &Value::String("Alice".to_string())).unwrap();
+        let results1_after = manager.lookup_tag_index(space_id, &index, &Value::String("Alice".to_string())).expect("Failed to lookup tag index");
         assert!(results1_after.is_empty());
 
-        let results2_after = manager.lookup_tag_index(space_id, &index, &Value::String("Bob".to_string())).unwrap();
+        let results2_after = manager.lookup_tag_index(space_id, &index, &Value::String("Bob".to_string())).expect("Failed to lookup tag index");
         assert_eq!(results2_after.len(), 1);
     }
 
@@ -1031,27 +1031,27 @@ mod tests {
         let props1 = vec![("weight".to_string(), Value::Float(10.5))];
         let props2 = vec![("weight".to_string(), Value::Float(20.5))];
 
-        manager.update_edge_indexes(space_id, &src1, &dst1, index_name, &props1).unwrap();
-        manager.update_edge_indexes(space_id, &src2, &dst2, index_name, &props2).unwrap();
+        manager.update_edge_indexes(space_id, &src1, &dst1, index_name, &props1).expect("Failed to update edge indexes");
+        manager.update_edge_indexes(space_id, &src2, &dst2, index_name, &props2).expect("Failed to update edge indexes");
 
         // 验证两条边索引都存在
         let mut index = create_test_index(index_name, "knows");
         index.index_type = IndexType::EdgeIndex;
 
-        let results1 = manager.lookup_edge_index(space_id, &index, &Value::Float(10.5)).unwrap();
+        let results1 = manager.lookup_edge_index(space_id, &index, &Value::Float(10.5)).expect("Failed to lookup edge index");
         assert_eq!(results1.len(), 1);
 
-        let results2 = manager.lookup_edge_index(space_id, &index, &Value::Float(20.5)).unwrap();
+        let results2 = manager.lookup_edge_index(space_id, &index, &Value::Float(20.5)).expect("Failed to lookup edge index");
         assert_eq!(results2.len(), 1);
 
         // 删除第一条边的索引
-        manager.delete_edge_indexes(space_id, &src1, &dst1, "knows").unwrap();
+        manager.delete_edge_indexes(space_id, &src1, &dst1, &["knows".to_string()]).expect("Failed to delete edge indexes");
 
         // 验证第一条边的索引已被删除，第二条仍然存在
-        let results1_after = manager.lookup_edge_index(space_id, &index, &Value::Float(10.5)).unwrap();
+        let results1_after = manager.lookup_edge_index(space_id, &index, &Value::Float(10.5)).expect("Failed to lookup edge index");
         assert!(results1_after.is_empty());
 
-        let results2_after = manager.lookup_edge_index(space_id, &index, &Value::Float(20.5)).unwrap();
+        let results2_after = manager.lookup_edge_index(space_id, &index, &Value::Float(20.5)).expect("Failed to lookup edge index");
         assert_eq!(results2_after.len(), 1);
     }
 
@@ -1067,19 +1067,19 @@ mod tests {
 
         // 创建边索引
         let props = vec![("weight".to_string(), Value::Float(10.5))];
-        manager.update_edge_indexes(space_id, &src, &dst, index_name, &props).unwrap();
+        manager.update_edge_indexes(space_id, &src, &dst, index_name, &props).expect("Failed to update edge indexes");
 
         // 验证索引存在
         let mut index = create_test_index(index_name, "knows");
         index.index_type = IndexType::EdgeIndex;
-        let results = manager.lookup_edge_index(space_id, &index, &Value::Float(10.5)).unwrap();
+        let results = manager.lookup_edge_index(space_id, &index, &Value::Float(10.5)).expect("Failed to lookup edge index");
         assert_eq!(results.len(), 1);
 
         // 清空索引
-        manager.clear_edge_index(space_id, index_name).unwrap();
+        manager.clear_edge_index(space_id, index_name).expect("Failed to clear edge index");
 
         // 验证索引已被清空
-        let results_after = manager.lookup_edge_index(space_id, &index, &Value::Float(10.5)).unwrap();
+        let results_after = manager.lookup_edge_index(space_id, &index, &Value::Float(10.5)).expect("Failed to lookup edge index");
         assert!(results_after.is_empty());
     }
 
@@ -1098,17 +1098,17 @@ mod tests {
             ("age".to_string(), Value::Int(30)),
         ];
 
-        manager.update_vertex_indexes(space_id, &vertex_id, index_name, &props).unwrap();
+        manager.update_vertex_indexes(space_id, &vertex_id, index_name, &props).expect("Failed to update vertex indexes");
 
         // 创建索引对象
         let index = create_test_index(index_name, "person");
 
         // 验证可以通过不同属性值查询到同一个顶点
-        let results_name = manager.lookup_tag_index(space_id, &index, &Value::String("Alice".to_string())).unwrap();
+        let results_name = manager.lookup_tag_index(space_id, &index, &Value::String("Alice".to_string())).expect("Failed to lookup tag index");
         assert_eq!(results_name.len(), 1);
         assert_eq!(results_name[0], vertex_id);
 
-        let results_age = manager.lookup_tag_index(space_id, &index, &Value::Int(30)).unwrap();
+        let results_age = manager.lookup_tag_index(space_id, &index, &Value::Int(30)).expect("Failed to lookup tag index");
         assert_eq!(results_age.len(), 1);
         assert_eq!(results_age[0], vertex_id);
     }
@@ -1126,13 +1126,13 @@ mod tests {
         let props = vec![("data".to_string(), Value::String("hello:world:test".to_string()))];
 
         // 更新索引
-        manager.update_vertex_indexes(space_id, &vertex_id, index_name, &props).unwrap();
+        manager.update_vertex_indexes(space_id, &vertex_id, index_name, &props).expect("Failed to update vertex indexes");
 
         // 创建索引对象
         let index = create_test_index(index_name, "test");
 
         // 验证可以正确查询（证明二进制键格式正确处理了 ':' 字符）
-        let results = manager.lookup_tag_index(space_id, &index, &Value::String("hello:world:test".to_string())).unwrap();
+        let results = manager.lookup_tag_index(space_id, &index, &Value::String("hello:world:test".to_string())).expect("Failed to lookup tag index");
         assert_eq!(results.len(), 1);
         assert_eq!(results[0], vertex_id);
     }
@@ -1149,27 +1149,27 @@ mod tests {
         let props = vec![("name".to_string(), Value::String("Alice".to_string()))];
 
         // 在两个不同的空间创建相同 vertex_id 的索引
-        manager.update_vertex_indexes(space_id1, &vertex_id, index_name, &props.clone()).unwrap();
-        manager.update_vertex_indexes(space_id2, &vertex_id, index_name, &props).unwrap();
+        manager.update_vertex_indexes(space_id1, &vertex_id, index_name, &props.clone()).expect("Failed to update vertex indexes");
+        manager.update_vertex_indexes(space_id2, &vertex_id, index_name, &props).expect("Failed to update vertex indexes");
 
         // 创建索引对象
         let index = create_test_index(index_name, "person");
 
         // 验证空间隔离
-        let results1 = manager.lookup_tag_index(space_id1, &index, &Value::String("Alice".to_string())).unwrap();
+        let results1 = manager.lookup_tag_index(space_id1, &index, &Value::String("Alice".to_string())).expect("Failed to lookup tag index");
         assert_eq!(results1.len(), 1);
 
-        let results2 = manager.lookup_tag_index(space_id2, &index, &Value::String("Alice".to_string())).unwrap();
+        let results2 = manager.lookup_tag_index(space_id2, &index, &Value::String("Alice".to_string())).expect("Failed to lookup tag index");
         assert_eq!(results2.len(), 1);
 
         // 删除空间1的索引
-        manager.delete_vertex_indexes(space_id1, &vertex_id).unwrap();
+        manager.delete_vertex_indexes(space_id1, &vertex_id).expect("Failed to delete vertex indexes");
 
         // 验证空间1的索引被删除，空间2的索引仍然存在
-        let results1_after = manager.lookup_tag_index(space_id1, &index, &Value::String("Alice".to_string())).unwrap();
+        let results1_after = manager.lookup_tag_index(space_id1, &index, &Value::String("Alice".to_string())).expect("Failed to lookup tag index");
         assert!(results1_after.is_empty());
 
-        let results2_after = manager.lookup_tag_index(space_id2, &index, &Value::String("Alice".to_string())).unwrap();
+        let results2_after = manager.lookup_tag_index(space_id2, &index, &Value::String("Alice".to_string())).expect("Failed to lookup tag index");
         assert_eq!(results2_after.len(), 1);
     }
 }

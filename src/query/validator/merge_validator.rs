@@ -148,7 +148,7 @@ impl MergeValidator {
         }
 
         // 变量名必须以字母或下划线开头
-        let first_char = name.chars().next().unwrap();
+        let first_char = name.chars().next().expect("变量名已验证非空");
         if !first_char.is_alphabetic() && first_char != '_' {
             return Err(ValidationError::new(
                 format!("Variable name must start with a letter or underscore: {}", name),

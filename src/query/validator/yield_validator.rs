@@ -354,7 +354,7 @@ mod tests {
         let result = validator.validate_yield();
         assert!(result.is_ok());
 
-        let validated = result.unwrap();
+        let validated = result.expect("Failed to validate yield");
         assert_eq!(validated.columns.len(), 1);
         assert!(!validated.distinct);
     }
@@ -418,7 +418,7 @@ mod tests {
         let result = validator.validate_yield();
         assert!(result.is_ok());
 
-        let validated = result.unwrap();
+        let validated = result.expect("Failed to validate yield");
         assert!(validated.distinct);
     }
 }

@@ -17,7 +17,7 @@ use crate::query::planner::plan::ExecutionPlan;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
 use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
-use crate::query::planner::plan::core::nodes::{LimitNode, ProjectNode, ScanVerticesNode, SortNode, SortItem, LeftJoinNode, UnionNode, LoopNode};
+use crate::query::planner::plan::core::nodes::{LimitNode, ProjectNode, ScanVerticesNode, SortNode, SortItem, LeftJoinNode, UnionNode, LoopNode, ArgumentNode};
 use crate::query::planner::plan::core::nodes::ExpandAllNode;
 use crate::core::types::graph_schema::OrderDirection;
 use crate::query::planner::planner::{Planner, PlannerError};
@@ -270,17 +270,8 @@ impl MatchStatementPlanner {
 
                 Ok(plan)
             }
-            Pattern::Node(node) => {
-                self.plan_pattern_node(node, space_id)
-            }
-            Pattern::Edge(edge) => {
-                self.plan_pattern_edge(edge, space_id)
-            }
-            Pattern::Variable(_) => {
-                Err(PlannerError::PlanGenerationFailed(
-                    "变量模式尚未实现".to_string()
-                ))
-            }
+            // 非路径模式委托给 plan_pattern 处理
+            _ => self.plan_pattern(pattern, space_id),
         }
     }
 
@@ -298,7 +289,7 @@ impl MatchStatementPlanner {
         if !node.labels.is_empty() {
             let label_filter = Self::build_label_filter_expression(&node.variable, &node.labels);
             let filter_node = FilterNode::new(
-                plan.root.as_ref().unwrap().clone(),
+                plan.root.as_ref().expect("plan的root应该存在").clone(),
                 label_filter,
             ).map_err(|e| PlannerError::PlanGenerationFailed(e.to_string()))?;
             plan = SubPlan::new(Some(filter_node.into_enum()), plan.tail);
@@ -307,7 +298,7 @@ impl MatchStatementPlanner {
         // 如果有属性过滤，添加过滤器
         if let Some(ref props) = node.properties {
             let filter_node = FilterNode::new(
-                plan.root.as_ref().unwrap().clone(),
+                plan.root.as_ref().expect("plan的root应该存在").clone(),
                 props.clone(),
             ).map_err(|e| PlannerError::PlanGenerationFailed(e.to_string()))?;
             plan = SubPlan::new(Some(filter_node.into_enum()), plan.tail);
@@ -317,7 +308,7 @@ impl MatchStatementPlanner {
         if !node.predicates.is_empty() {
             for pred in &node.predicates {
                 let filter_node = FilterNode::new(
-                    plan.root.as_ref().unwrap().clone(),
+                    plan.root.as_ref().expect("plan的root应该存在").clone(),
                     pred.clone(),
                 ).map_err(|e| PlannerError::PlanGenerationFailed(e.to_string()))?;
                 plan = SubPlan::new(Some(filter_node.into_enum()), plan.tail);
@@ -352,7 +343,7 @@ impl MatchStatementPlanner {
         // 如果有属性过滤，添加过滤器
         if let Some(ref props) = edge.properties {
             let filter_node = FilterNode::new(
-                plan.root.as_ref().unwrap().clone(),
+                plan.root.as_ref().expect("plan的root应该存在").clone(),
                 props.clone(),
             ).map_err(|e| PlannerError::PlanGenerationFailed(e.to_string()))?;
             plan = SubPlan::new(Some(filter_node.into_enum()), plan.tail);
@@ -362,7 +353,7 @@ impl MatchStatementPlanner {
         if !edge.predicates.is_empty() {
             for pred in &edge.predicates {
                 let filter_node = FilterNode::new(
-                    plan.root.as_ref().unwrap().clone(),
+                    plan.root.as_ref().expect("plan的root应该存在").clone(),
                     pred.clone(),
                 ).map_err(|e| PlannerError::PlanGenerationFailed(e.to_string()))?;
                 plan = SubPlan::new(Some(filter_node.into_enum()), plan.tail);
@@ -647,25 +638,51 @@ impl MatchStatementPlanner {
         match pattern {
             Pattern::Node(node) => self.plan_pattern_node(node, space_id),
             Pattern::Edge(edge) => self.plan_pattern_edge(edge, space_id),
-            Pattern::Path(path) => {
-                if path.elements.is_empty() {
-                    return Err(PlannerError::PlanGenerationFailed(
-                        "空路径模式".to_string()
-                    ));
-                }
-                // 简化处理：只取路径的第一个元素
-                match &path.elements[0] {
-                    PathElement::Node(node) => self.plan_pattern_node(node, space_id),
-                    PathElement::Edge(edge) => self.plan_pattern_edge(edge, space_id),
-                    _ => Err(PlannerError::PlanGenerationFailed(
-                        "嵌套的复杂路径模式暂不支持".to_string()
-                    )),
-                }
-            }
-            Pattern::Variable(_) => Err(PlannerError::PlanGenerationFailed(
-                "变量模式尚未实现".to_string()
-            )),
+            Pattern::Path(_) => self.plan_path_pattern(pattern, space_id),
+            Pattern::Variable(var) => self.plan_variable_pattern(var, space_id),
         }
+    }
+
+    /// 规划变量模式
+    /// 
+    /// 变量模式引用之前定义的变量，使用 ArgumentNode 作为数据源
+    /// 参考 nebula-graph 的 VariableVertexIdSeek 实现
+    /// 
+    /// # 设计说明
+    /// 
+    /// 变量模式用于引用之前 MATCH 子句中定义的变量，例如：
+    /// ```cypher
+    /// MATCH (a), a RETURN a
+    /// ```
+    /// 在这个例子中，第二个 `a` 是变量模式，引用第一个 `(a)` 定义的节点。
+    /// 
+    /// # 执行流程
+    /// 
+    /// 1. 创建 ArgumentNode 来标记需要从执行上下文中获取变量
+    /// 2. 在执行阶段，ArgumentExecutor 从 ExecutionContext 中获取变量值
+    /// 3. 如果变量不存在，返回执行错误
+    /// 
+    /// # TODO
+    /// 
+    /// - 添加变量存在性验证（在规划阶段检查变量是否已定义）
+    /// - 添加变量类型检查
+    /// - 建立与之前定义变量的数据流连接
+    fn plan_variable_pattern(
+        &self,
+        var: &crate::query::parser::ast::pattern::VariablePattern,
+        _space_id: u64,
+    ) -> Result<SubPlan, PlannerError> {
+        // 创建 ArgumentNode 来引用变量
+        // ArgumentNode 表示从外部变量输入数据，用于子查询或模式引用
+        // 注意：ArgumentNode 使用 ZeroInputNode 作为输入类型，表示它不依赖其他计划节点
+        // 变量值将在执行阶段从 ExecutionContext 中获取
+        let argument_node = ArgumentNode::new(0, &var.name);
+        
+        // 创建 SubPlan，只包含 ArgumentNode
+        // 由于变量值来自执行上下文，不需要连接其他计划节点
+        let sub_plan = SubPlan::from_root(argument_node.into_enum());
+        
+        Ok(sub_plan)
     }
 
     /// 合并两个计划为并集

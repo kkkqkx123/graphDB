@@ -289,7 +289,7 @@ mod tests {
         let result = validator.validate_use();
         assert!(result.is_ok());
         
-        let validated = result.unwrap();
+        let validated = result.expect("Failed to validate use");
         assert_eq!(validated.space_name, "test_space");
     }
 

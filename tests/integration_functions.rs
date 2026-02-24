@@ -84,7 +84,7 @@ fn test_id_function() {
 
     let result = registry.execute("id", &[Value::Vertex(Box::new(vertex))]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Int(100));
+    assert_eq!(result.expect("id函数应该成功"), Value::Int(100));
 }
 
 #[test]
@@ -98,7 +98,7 @@ fn test_tags_function() {
     let result = registry.execute("tags", &[Value::Vertex(Box::new(vertex))]);
     assert!(result.is_ok());
     
-    if let Value::List(list) = result.unwrap() {
+    if let Value::List(list) = result.expect("tags函数应该成功") {
         assert_eq!(list.values.len(), 2);
     } else {
         panic!("期望返回列表类型");
@@ -115,7 +115,7 @@ fn test_labels_function() {
     let result = registry.execute("labels", &[Value::Vertex(Box::new(vertex))]);
     assert!(result.is_ok());
     
-    if let Value::List(list) = result.unwrap() {
+    if let Value::List(list) = result.expect("labels函数应该成功") {
         assert_eq!(list.values.len(), 1);
         assert_eq!(list.values[0], Value::String("Person".to_string()));
     } else {
@@ -138,7 +138,7 @@ fn test_properties_vertex_function() {
     let result = registry.execute("properties", &[Value::Vertex(Box::new(vertex))]);
     assert!(result.is_ok());
     
-    if let Value::Map(map) = result.unwrap() {
+    if let Value::Map(map) = result.expect("properties函数应该成功") {
         assert!(map.contains_key("name"));
         assert!(map.contains_key("age"));
         assert_eq!(map.get("name"), Some(&Value::String("Alice".to_string())));
@@ -155,7 +155,7 @@ fn test_type_function() {
 
     let result = registry.execute("type", &[Value::Edge(edge)]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::String("KNOWS".to_string()));
+    assert_eq!(result.expect("type函数应该成功"), Value::String("KNOWS".to_string()));
 }
 
 #[test]
@@ -165,7 +165,7 @@ fn test_src_function() {
 
     let result = registry.execute("src", &[Value::Edge(edge)]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Int(100));
+    assert_eq!(result.expect("src函数应该成功"), Value::Int(100));
 }
 
 #[test]
@@ -175,7 +175,7 @@ fn test_dst_function() {
 
     let result = registry.execute("dst", &[Value::Edge(edge)]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Int(200));
+    assert_eq!(result.expect("dst函数应该成功"), Value::Int(200));
 }
 
 #[test]
@@ -185,7 +185,7 @@ fn test_rank_function() {
 
     let result = registry.execute("rank", &[Value::Edge(edge)]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Int(42));
+    assert_eq!(result.expect("rank函数应该成功"), Value::Int(42));
 }
 
 // ==================== 容器操作函数测试 ====================
@@ -199,7 +199,7 @@ fn test_head_function() {
 
     let result = registry.execute("head", &[list]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Int(1));
+    assert_eq!(result.expect("head函数应该成功"), Value::Int(1));
 }
 
 #[test]
@@ -211,7 +211,7 @@ fn test_last_function() {
 
     let result = registry.execute("last", &[list]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Int(3));
+    assert_eq!(result.expect("last函数应该成功"), Value::Int(3));
 }
 
 #[test]
@@ -224,7 +224,7 @@ fn test_tail_function() {
     let result = registry.execute("tail", &[list]);
     assert!(result.is_ok());
     
-    if let Value::List(list) = result.unwrap() {
+    if let Value::List(list) = result.expect("tail函数应该成功") {
         assert_eq!(list.values.len(), 2);
         assert_eq!(list.values[0], Value::Int(2));
         assert_eq!(list.values[1], Value::Int(3));
@@ -242,7 +242,7 @@ fn test_size_list_function() {
 
     let result = registry.execute("size", &[list]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Int(3));
+    assert_eq!(result.expect("size函数应该成功"), Value::Int(3));
 }
 
 #[test]
@@ -252,7 +252,7 @@ fn test_size_string_function() {
 
     let result = registry.execute("size", &[string]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Int(5));
+    assert_eq!(result.expect("size函数应该成功"), Value::Int(5));
 }
 
 #[test]
@@ -262,7 +262,7 @@ fn test_range_function() {
     let result = registry.execute("range", &[Value::Int(1), Value::Int(5)]);
     assert!(result.is_ok());
     
-    if let Value::List(list) = result.unwrap() {
+    if let Value::List(list) = result.expect("range函数应该成功") {
         assert_eq!(list.values.len(), 5);
         assert_eq!(list.values[0], Value::Int(1));
         assert_eq!(list.values[4], Value::Int(5));
@@ -278,7 +278,7 @@ fn test_range_with_step_function() {
     let result = registry.execute("range", &[Value::Int(0), Value::Int(10), Value::Int(2)]);
     assert!(result.is_ok());
     
-    if let Value::List(list) = result.unwrap() {
+    if let Value::List(list) = result.expect("range函数应该成功") {
         assert_eq!(list.values.len(), 6);
         assert_eq!(list.values[0], Value::Int(0));
         assert_eq!(list.values[1], Value::Int(2));
@@ -299,7 +299,7 @@ fn test_keys_map_function() {
     let result = registry.execute("keys", &[map_value]);
     assert!(result.is_ok());
     
-    if let Value::List(list) = result.unwrap() {
+    if let Value::List(list) = result.expect("keys函数应该成功") {
         assert_eq!(list.values.len(), 2);
         assert!(list.values.contains(&Value::String("name".to_string())));
         assert!(list.values.contains(&Value::String("age".to_string())));
@@ -318,7 +318,7 @@ fn test_nodes_function() {
     let result = registry.execute("nodes", &[Value::Path(path)]);
     assert!(result.is_ok());
     
-    if let Value::List(list) = result.unwrap() {
+    if let Value::List(list) = result.expect("nodes函数应该成功") {
         assert_eq!(list.values.len(), 3);
     } else {
         panic!("期望返回列表类型");
@@ -333,7 +333,7 @@ fn test_relationships_function() {
     let result = registry.execute("relationships", &[Value::Path(path)]);
     assert!(result.is_ok());
     
-    if let Value::List(list) = result.unwrap() {
+    if let Value::List(list) = result.expect("relationships函数应该成功") {
         assert_eq!(list.values.len(), 2);
     } else {
         panic!("期望返回列表类型");
@@ -348,7 +348,7 @@ fn test_bit_and_function() {
 
     let result = registry.execute("bit_and", &[Value::Int(0b1010), Value::Int(0b1100)]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Int(0b1000));
+    assert_eq!(result.expect("bit_and函数应该成功"), Value::Int(0b1000));
 }
 
 #[test]
@@ -357,7 +357,7 @@ fn test_bit_or_function() {
 
     let result = registry.execute("bit_or", &[Value::Int(0b1010), Value::Int(0b1100)]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Int(0b1110));
+    assert_eq!(result.expect("bit_or函数应该成功"), Value::Int(0b1110));
 }
 
 #[test]
@@ -366,7 +366,7 @@ fn test_bit_xor_function() {
 
     let result = registry.execute("bit_xor", &[Value::Int(0b1010), Value::Int(0b1100)]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Int(0b0110));
+    assert_eq!(result.expect("bit_xor函数应该成功"), Value::Int(0b0110));
 }
 
 #[test]
@@ -376,7 +376,7 @@ fn test_asin_function() {
     let result = registry.execute("asin", &[Value::Float(0.5)]);
     assert!(result.is_ok());
     
-    if let Value::Float(val) = result.unwrap() {
+    if let Value::Float(val) = result.expect("asin函数应该成功") {
         assert!((val - std::f64::consts::PI / 6.0).abs() < 1e-10);
     } else {
         panic!("期望返回浮点类型");
@@ -390,7 +390,7 @@ fn test_acos_function() {
     let result = registry.execute("acos", &[Value::Float(0.5)]);
     assert!(result.is_ok());
     
-    if let Value::Float(val) = result.unwrap() {
+    if let Value::Float(val) = result.expect("acos函数应该成功") {
         assert!((val - std::f64::consts::PI / 3.0).abs() < 1e-10);
     } else {
         panic!("期望返回浮点类型");
@@ -404,7 +404,7 @@ fn test_atan_function() {
     let result = registry.execute("atan", &[Value::Float(1.0)]);
     assert!(result.is_ok());
     
-    if let Value::Float(val) = result.unwrap() {
+    if let Value::Float(val) = result.expect("atan函数应该成功") {
         assert!((val - std::f64::consts::PI / 4.0).abs() < 1e-10);
     } else {
         panic!("期望返回浮点类型");
@@ -418,7 +418,7 @@ fn test_cbrt_function() {
     let result = registry.execute("cbrt", &[Value::Float(27.0)]);
     assert!(result.is_ok());
     
-    if let Value::Float(val) = result.unwrap() {
+    if let Value::Float(val) = result.expect("cbrt函数应该成功") {
         assert!((val - 3.0).abs() < 1e-10);
     } else {
         panic!("期望返回浮点类型");
@@ -432,7 +432,7 @@ fn test_hypot_function() {
     let result = registry.execute("hypot", &[Value::Float(3.0), Value::Float(4.0)]);
     assert!(result.is_ok());
     
-    if let Value::Float(val) = result.unwrap() {
+    if let Value::Float(val) = result.expect("hypot函数应该成功") {
         assert!((val - 5.0).abs() < 1e-10);
     } else {
         panic!("期望返回浮点类型");
@@ -451,7 +451,7 @@ fn test_split_function() {
     ]);
     assert!(result.is_ok());
     
-    if let Value::List(list) = result.unwrap() {
+    if let Value::List(list) = result.expect("split函数应该成功") {
         assert_eq!(list.values.len(), 3);
         assert_eq!(list.values[0], Value::String("hello".to_string()));
         assert_eq!(list.values[1], Value::String("world".to_string()));
@@ -473,7 +473,7 @@ fn test_coalesce_function() {
         Value::String("test".to_string()),
     ]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Int(42));
+    assert_eq!(result.expect("coalesce函数应该成功"), Value::Int(42));
 }
 
 #[test]
@@ -485,7 +485,7 @@ fn test_coalesce_all_null() {
         Value::Null(NullType::Null),
     ]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Null(NullType::Null));
+    assert_eq!(result.expect("coalesce函数应该成功"), Value::Null(NullType::Null));
 }
 
 #[test]
@@ -497,7 +497,7 @@ fn test_hash_string_function() {
     
     assert!(result1.is_ok());
     assert!(result2.is_ok());
-    assert_eq!(result1.unwrap(), result2.unwrap());
+    assert_eq!(result1.expect("hash函数应该成功"), result2.expect("hash函数应该成功"));
 }
 
 #[test]
@@ -509,7 +509,7 @@ fn test_hash_int_function() {
     
     assert!(result1.is_ok());
     assert!(result2.is_ok());
-    assert_eq!(result1.unwrap(), result2.unwrap());
+    assert_eq!(result1.expect("hash函数应该成功"), result2.expect("hash函数应该成功"));
 }
 
 // ==================== NULL 处理测试 ====================
@@ -521,32 +521,32 @@ fn test_null_handling() {
     // 测试 id(NULL)
     let result = registry.execute("id", &[Value::Null(NullType::Null)]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Null(NullType::Null));
+    assert_eq!(result.expect("id函数应该成功"), Value::Null(NullType::Null));
 
     // 测试 tags(NULL)
     let result = registry.execute("tags", &[Value::Null(NullType::Null)]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Null(NullType::Null));
+    assert_eq!(result.expect("tags函数应该成功"), Value::Null(NullType::Null));
 
     // 测试 head(NULL)
     let result = registry.execute("head", &[Value::Null(NullType::Null)]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Null(NullType::Null));
+    assert_eq!(result.expect("head函数应该成功"), Value::Null(NullType::Null));
 
     // 测试 size(NULL)
     let result = registry.execute("size", &[Value::Null(NullType::Null)]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Null(NullType::Null));
+    assert_eq!(result.expect("size函数应该成功"), Value::Null(NullType::Null));
 
     // 测试 nodes(NULL)
     let result = registry.execute("nodes", &[Value::Null(NullType::Null)]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Null(NullType::Null));
+    assert_eq!(result.expect("nodes函数应该成功"), Value::Null(NullType::Null));
 
     // 测试 hash(NULL)
     let result = registry.execute("hash", &[Value::Null(NullType::Null)]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Null(NullType::Null));
+    assert_eq!(result.expect("hash函数应该成功"), Value::Null(NullType::Null));
 }
 
 // ==================== 边界情况测试 ====================
@@ -559,18 +559,18 @@ fn test_empty_list_operations() {
     // head(空列表) 应该返回 NULL
     let result = registry.execute("head", &[empty_list.clone()]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Null(NullType::Null));
+    assert_eq!(result.expect("head函数应该成功"), Value::Null(NullType::Null));
 
     // last(空列表) 应该返回 NULL
     let result = registry.execute("last", &[empty_list.clone()]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Null(NullType::Null));
+    assert_eq!(result.expect("last函数应该成功"), Value::Null(NullType::Null));
 
     // tail(空列表) 应该返回空列表
     let result = registry.execute("tail", &[empty_list.clone()]);
     assert!(result.is_ok());
     
-    if let Value::List(list) = result.unwrap() {
+    if let Value::List(list) = result.expect("tail函数应该成功") {
         assert!(list.values.is_empty());
     } else {
         panic!("期望返回列表类型");
@@ -579,7 +579,7 @@ fn test_empty_list_operations() {
     // size(空列表) 应该返回 0
     let result = registry.execute("size", &[empty_list]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Int(0));
+    assert_eq!(result.expect("size函数应该成功"), Value::Int(0));
 }
 
 #[test]
@@ -592,7 +592,7 @@ fn test_empty_path() {
     let result = registry.execute("nodes", &[Value::Path(empty_path.clone())]);
     assert!(result.is_ok());
     
-    if let Value::List(list) = result.unwrap() {
+    if let Value::List(list) = result.expect("nodes函数应该成功") {
         assert_eq!(list.values.len(), 1);
     } else {
         panic!("期望返回列表类型");
@@ -602,7 +602,7 @@ fn test_empty_path() {
     let result = registry.execute("relationships", &[Value::Path(empty_path)]);
     assert!(result.is_ok());
     
-    if let Value::List(list) = result.unwrap() {
+    if let Value::List(list) = result.expect("relationships函数应该成功") {
         assert!(list.values.is_empty());
     } else {
         panic!("期望返回列表类型");
@@ -618,16 +618,16 @@ fn test_single_element_list() {
 
     let result = registry.execute("head", &[single_list.clone()]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Int(42));
+    assert_eq!(result.expect("head函数应该成功"), Value::Int(42));
 
     let result = registry.execute("last", &[single_list.clone()]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Int(42));
+    assert_eq!(result.expect("last函数应该成功"), Value::Int(42));
 
     let result = registry.execute("tail", &[single_list]);
     assert!(result.is_ok());
     
-    if let Value::List(list) = result.unwrap() {
+    if let Value::List(list) = result.expect("tail函数应该成功") {
         assert!(list.values.is_empty());
     } else {
         panic!("期望返回列表类型");
@@ -643,12 +643,12 @@ fn test_time_function() {
     // 测试 time() 无参数
     let result = registry.execute("time", &[]);
     assert!(result.is_ok());
-    assert!(matches!(result.unwrap(), Value::Time(_)));
+    assert!(matches!(result.expect("time函数应该成功"), Value::Time(_)));
 
     // 测试 time(string)
     let result = registry.execute("time", &[Value::String("14:30:00".to_string())]);
     assert!(result.is_ok());
-    assert!(matches!(result.unwrap(), Value::Time(_)));
+    assert!(matches!(result.expect("time函数应该成功"), Value::Time(_)));
 }
 
 #[test]
@@ -658,12 +658,12 @@ fn test_datetime_function() {
     // 测试 datetime() 无参数
     let result = registry.execute("datetime", &[]);
     assert!(result.is_ok());
-    assert!(matches!(result.unwrap(), Value::DateTime(_)));
+    assert!(matches!(result.expect("datetime函数应该成功"), Value::DateTime(_)));
 
     // 测试 datetime(string)
     let result = registry.execute("datetime", &[Value::String("2024-01-15 14:30:00".to_string())]);
     assert!(result.is_ok());
-    assert!(matches!(result.unwrap(), Value::DateTime(_)));
+    assert!(matches!(result.expect("datetime函数应该成功"), Value::DateTime(_)));
 }
 
 #[test]
@@ -673,7 +673,7 @@ fn test_timestamp_function() {
     // 测试 timestamp() 无参数
     let result = registry.execute("timestamp", &[]);
     assert!(result.is_ok());
-    assert!(matches!(result.unwrap(), Value::Int(_)));
+    assert!(matches!(result.expect("timestamp函数应该成功"), Value::Int(_)));
 
     // 测试 timestamp(datetime)
     let dt = Value::DateTime(graphdb::core::value::DateTimeValue {
@@ -687,7 +687,7 @@ fn test_timestamp_function() {
     });
     let result = registry.execute("timestamp", &[dt]);
     assert!(result.is_ok());
-    assert!(matches!(result.unwrap(), Value::Int(_)));
+    assert!(matches!(result.expect("timestamp函数应该成功"), Value::Int(_)));
 }
 
 // ==================== 新增图相关函数测试 ====================
@@ -699,7 +699,7 @@ fn test_startnode_function() {
 
     let result = registry.execute("startnode", &[Value::Edge(edge)]);
     assert!(result.is_ok());
-    assert!(matches!(result.unwrap(), Value::Vertex(_)));
+    assert!(matches!(result.expect("startnode函数应该成功"), Value::Vertex(_)));
 }
 
 #[test]
@@ -709,7 +709,7 @@ fn test_endnode_function() {
 
     let result = registry.execute("endnode", &[Value::Edge(edge)]);
     assert!(result.is_ok());
-    assert!(matches!(result.unwrap(), Value::Vertex(_)));
+    assert!(matches!(result.expect("endnode函数应该成功"), Value::Vertex(_)));
 }
 
 // ==================== 新增数学函数测试 ====================
@@ -721,22 +721,22 @@ fn test_sign_function() {
     // 正数
     let result = registry.execute("sign", &[Value::Int(42)]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Int(1));
+    assert_eq!(result.expect("sign函数应该成功"), Value::Int(1));
 
     // 负数
     let result = registry.execute("sign", &[Value::Int(-42)]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Int(-1));
+    assert_eq!(result.expect("sign函数应该成功"), Value::Int(-1));
 
     // 零
     let result = registry.execute("sign", &[Value::Int(0)]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Int(0));
+    assert_eq!(result.expect("sign函数应该成功"), Value::Int(0));
 
     // 浮点数
     let result = registry.execute("sign", &[Value::Float(-3.14)]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Int(-1));
+    assert_eq!(result.expect("sign函数应该成功"), Value::Int(-1));
 }
 
 #[test]
@@ -746,7 +746,7 @@ fn test_rand_function() {
     let result = registry.execute("rand", &[]);
     assert!(result.is_ok());
 
-    if let Value::Float(val) = result.unwrap() {
+    if let Value::Float(val) = result.expect("rand函数应该成功") {
         assert!(val >= 0.0 && val < 1.0);
     } else {
         panic!("期望返回浮点类型");
@@ -760,12 +760,12 @@ fn test_rand32_function() {
     // 无参数
     let result = registry.execute("rand32", &[]);
     assert!(result.is_ok());
-    assert!(matches!(result.unwrap(), Value::Int(_)));
+    assert!(matches!(result.expect("rand32函数应该成功"), Value::Int(_)));
 
     // 有范围
     let result = registry.execute("rand32", &[Value::Int(100)]);
     assert!(result.is_ok());
-    if let Value::Int(val) = result.unwrap() {
+    if let Value::Int(val) = result.expect("rand32函数应该成功") {
         assert!(val >= 0 && val < 100);
     } else {
         panic!("期望返回整数类型");
@@ -774,7 +774,7 @@ fn test_rand32_function() {
     // 指定最小最大值
     let result = registry.execute("rand32", &[Value::Int(10), Value::Int(20)]);
     assert!(result.is_ok());
-    if let Value::Int(val) = result.unwrap() {
+    if let Value::Int(val) = result.expect("rand32函数应该成功") {
         assert!(val >= 10 && val < 20);
     } else {
         panic!("期望返回整数类型");
@@ -787,7 +787,7 @@ fn test_rand64_function() {
 
     let result = registry.execute("rand64", &[]);
     assert!(result.is_ok());
-    assert!(matches!(result.unwrap(), Value::Int(_)));
+    assert!(matches!(result.expect("rand64函数应该成功"), Value::Int(_)));
 }
 
 #[test]
@@ -796,7 +796,7 @@ fn test_e_function() {
 
     let result = registry.execute("e", &[]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Float(std::f64::consts::E));
+    assert_eq!(result.expect("e函数应该成功"), Value::Float(std::f64::consts::E));
 }
 
 #[test]
@@ -805,7 +805,7 @@ fn test_pi_function() {
 
     let result = registry.execute("pi", &[]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Float(std::f64::consts::PI));
+    assert_eq!(result.expect("pi函数应该成功"), Value::Float(std::f64::consts::PI));
 }
 
 #[test]
@@ -814,7 +814,7 @@ fn test_exp2_function() {
 
     let result = registry.execute("exp2", &[Value::Int(3)]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Float(8.0));
+    assert_eq!(result.expect("exp2函数应该成功"), Value::Float(8.0));
 }
 
 #[test]
@@ -823,7 +823,7 @@ fn test_log2_function() {
 
     let result = registry.execute("log2", &[Value::Float(8.0)]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Float(3.0));
+    assert_eq!(result.expect("log2函数应该成功"), Value::Float(3.0));
 }
 
 #[test]
@@ -832,7 +832,7 @@ fn test_radians_function() {
 
     let result = registry.execute("radians", &[Value::Int(180)]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Float(std::f64::consts::PI));
+    assert_eq!(result.expect("radians函数应该成功"), Value::Float(std::f64::consts::PI));
 }
 
 // ==================== 新增字符串函数测试 ====================
@@ -847,7 +847,7 @@ fn test_lpad_function() {
         Value::String("*".to_string()),
     ]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::String("*****hello".to_string()));
+    assert_eq!(result.expect("lpad函数应该成功"), Value::String("*****hello".to_string()));
 }
 
 #[test]
@@ -860,7 +860,7 @@ fn test_rpad_function() {
         Value::String("*".to_string()),
     ]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::String("hello*****".to_string()));
+    assert_eq!(result.expect("rpad函数应该成功"), Value::String("hello*****".to_string()));
 }
 
 #[test]
@@ -874,7 +874,7 @@ fn test_concat_ws_function() {
         Value::String("c".to_string()),
     ]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::String("a,b,c".to_string()));
+    assert_eq!(result.expect("concat_ws函数应该成功"), Value::String("a,b,c".to_string()));
 }
 
 #[test]
@@ -887,7 +887,7 @@ fn test_strcasecmp_function() {
         Value::String("hello".to_string()),
     ]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Int(0));
+    assert_eq!(result.expect("strcasecmp函数应该成功"), Value::Int(0));
 
     // 小于
     let result = registry.execute("strcasecmp", &[
@@ -895,7 +895,7 @@ fn test_strcasecmp_function() {
         Value::String("banana".to_string()),
     ]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Int(-1));
+    assert_eq!(result.expect("strcasecmp函数应该成功"), Value::Int(-1));
 
     // 大于
     let result = registry.execute("strcasecmp", &[
@@ -903,7 +903,7 @@ fn test_strcasecmp_function() {
         Value::String("apple".to_string()),
     ]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Int(1));
+    assert_eq!(result.expect("strcasecmp函数应该成功"), Value::Int(1));
 }
 
 // ==================== 新增容器函数测试 ====================
@@ -922,7 +922,7 @@ fn test_toset_function() {
 
     let result = registry.execute("toset", &[list]);
     assert!(result.is_ok());
-    assert!(matches!(result.unwrap(), Value::Set(_)));
+    assert!(matches!(result.expect("toset函数应该成功"), Value::Set(_)));
 }
 
 #[test]
@@ -935,7 +935,7 @@ fn test_reverse_list_function() {
     let result = registry.execute("reverse", &[list]);
     assert!(result.is_ok());
 
-    if let Value::List(list) = result.unwrap() {
+    if let Value::List(list) = result.expect("reverse函数应该成功") {
         assert_eq!(list.values.len(), 3);
         assert_eq!(list.values[0], Value::Int(3));
         assert_eq!(list.values[1], Value::Int(2));
@@ -957,7 +957,7 @@ fn test_json_extract_function() {
         Value::String("name".to_string()),
     ]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::String("Alice".to_string()));
+    assert_eq!(result.expect("json_extract函数应该成功"), Value::String("Alice".to_string()));
 }
 
 // ==================== 新增地理空间函数测试 ====================
@@ -971,7 +971,7 @@ fn test_st_point_function() {
         Value::Float(39.9042),
     ]);
     assert!(result.is_ok());
-    assert!(matches!(result.unwrap(), Value::Geography(_)));
+    assert!(matches!(result.expect("st_point函数应该成功"), Value::Geography(_)));
 }
 
 #[test]
@@ -991,7 +991,7 @@ fn test_st_distance_function() {
     let result = registry.execute("st_distance", &[beijing, shanghai]);
     assert!(result.is_ok());
 
-    if let Value::Float(distance) = result.unwrap() {
+    if let Value::Float(distance) = result.expect("st_distance函数应该成功") {
         assert!(distance > 1000.0 && distance < 1100.0);
     } else {
         panic!("期望返回浮点类型");
@@ -1010,7 +1010,7 @@ fn test_st_isvalid_function() {
 
     let result = registry.execute("st_isvalid", &[valid_point]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Bool(true));
+    assert_eq!(result.expect("st_isvalid函数应该成功"), Value::Bool(true));
 }
 
 #[test]
@@ -1033,7 +1033,7 @@ fn test_st_dwithin_function() {
         Value::Float(1.0),
     ]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::Bool(true));
+    assert_eq!(result.expect("st_dwithin函数应该成功"), Value::Bool(true));
 }
 
 #[test]
@@ -1048,7 +1048,7 @@ fn test_st_astext_function() {
 
     let result = registry.execute("st_astext", &[point]);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), Value::String("POINT(116.4074 39.9042)".to_string()));
+    assert_eq!(result.expect("st_astext函数应该成功"), Value::String("POINT(116.4074 39.9042)".to_string()));
 }
 
 // ==================== 函数存在性测试 ====================

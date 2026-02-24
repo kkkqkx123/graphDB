@@ -871,6 +871,6 @@ mod tests {
 
         let validator = collection.get(0);
         assert!(validator.is_some());
-        assert_eq!(validator.unwrap().statement_type(), StatementType::Create);
+        assert_eq!(validator.expect("Failed to get validator").statement_type(), StatementType::Create);
     }
 }

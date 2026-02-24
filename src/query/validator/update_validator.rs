@@ -847,7 +847,7 @@ mod tests {
         // Vertex 类型更新不需要 Schema 属性验证，所以应该成功
         assert!(result.is_ok());
 
-        let validated = result.unwrap();
+        let validated = result.expect("Failed to validate update statement");
         assert_eq!(validated.space_id, 1);
     }
 

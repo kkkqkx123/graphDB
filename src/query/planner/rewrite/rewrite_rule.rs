@@ -140,7 +140,7 @@ mod tests {
         let mut ctx = RewriteContext::new();
         let node = PlanNodeEnum::ScanVertices(ScanVerticesNode::new(1));
         
-        let result = rule.apply(&mut ctx, &node).unwrap();
+        let result = rule.apply(&mut ctx, &node).expect("Failed to apply rewrite rule");
         assert!(result.is_some());
     }
 }

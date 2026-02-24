@@ -1167,7 +1167,7 @@ mod tests {
         assert_eq!(profile.error_message, Some("语法错误: 缺少右括号".to_string()));
         assert!(profile.error_info.is_some());
 
-        let info = profile.error_info.unwrap();
+        let info = profile.error_info.expect("Failed to get error info");
         assert!(matches!(info.error_type, ErrorType::ParseError));
         assert!(matches!(info.error_phase, QueryPhase::Parse));
         assert_eq!(info.error_details, Some("在位置 15 处发现语法错误".to_string()));

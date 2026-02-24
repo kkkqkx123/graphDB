@@ -319,7 +319,7 @@ mod tests {
 
         // 验证转换成功
         assert!(result.is_some());
-        let transform_result = result.unwrap();
+        let transform_result = result.expect("Failed to apply rewrite rule");
         assert!(transform_result.erase_curr);
         assert_eq!(transform_result.new_nodes.len(), 1);
     }

@@ -289,13 +289,13 @@ impl TransactionContext {
         impl<'a> std::ops::Deref for WriteTxnGuard<'a> {
             type Target = redb::WriteTransaction;
             fn deref(&self) -> &Self::Target {
-                self.guard.as_ref().unwrap()
+                self.guard.as_ref().expect("写事务应该存在")
             }
         }
 
         impl<'a> std::ops::DerefMut for WriteTxnGuard<'a> {
             fn deref_mut(&mut self) -> &mut Self::Target {
-                self.guard.as_mut().unwrap()
+                self.guard.as_mut().expect("写事务应该存在")
             }
         }
 

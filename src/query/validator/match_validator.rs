@@ -201,6 +201,21 @@ impl MatchValidator {
                         ValidationErrorType::SemanticError,
                     ));
                 }
+                
+                // 获取变量类型信息
+                if let Some(alias_type) = self.aliases.get(&var_pattern.name) {
+                    // 验证变量类型是否有效（不能是运行时变量）
+                    if matches!(alias_type, AliasType::Runtime) {
+                        return Err(ValidationError::new(
+                            format!(
+                                "第 {} 个模式: 变量 '{}' 是运行时计算的别名，不能作为模式引用",
+                                idx + 1,
+                                var_pattern.name
+                            ),
+                            ValidationErrorType::SemanticError,
+                        ));
+                    }
+                }
             }
         }
         Ok(())
@@ -797,7 +812,7 @@ mod tests {
     fn test_match_validator_with_pagination() {
         let validator = MatchValidator::with_pagination(10, 100);
         assert!(validator.pagination.is_some());
-        let ctx = validator.pagination.unwrap();
+        let ctx = validator.pagination.expect("Failed to get pagination context");
         assert_eq!(ctx.skip, 10);
         assert_eq!(ctx.limit, 100);
     }

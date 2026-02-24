@@ -359,7 +359,7 @@ mod tests {
     fn test_validate_return_item_all() {
         let validator = WithValidator::new();
         let item = ReturnItem::All;
-        let col = validator.validate_return_item(&item).unwrap();
+        let col = validator.validate_return_item(&item).expect("Failed to validate return item");
         assert_eq!(col.name, "*");
         assert_eq!(col.type_, ValueType::Map);
     }

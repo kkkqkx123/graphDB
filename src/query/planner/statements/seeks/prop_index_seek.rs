@@ -306,7 +306,7 @@ mod tests {
         let pred = PropIndexSeek::extract_predicate(&expr);
         assert!(pred.is_some());
         
-        let pred = pred.unwrap();
+        let pred = pred.expect("Failed to extract predicate");
         assert_eq!(pred.property, "age");
         assert_eq!(pred.op, PredicateOp::Eq);
         assert_eq!(pred.value, Value::Int(18));

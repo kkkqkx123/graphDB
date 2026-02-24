@@ -247,7 +247,7 @@ mod tests {
         let result = rule.apply(&mut ctx, &project_enum).expect("应用规则失败");
 
         assert!(result.is_some());
-        let transform = result.unwrap();
+        let transform = result.expect("Failed to apply rewrite rule");
         assert!(transform.erase_curr);
         assert_eq!(transform.new_nodes.len(), 1);
 
