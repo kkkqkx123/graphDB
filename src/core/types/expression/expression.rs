@@ -8,6 +8,7 @@ use std::sync::Arc;
 
 use super::Expression;
 use crate::core::types::{Position, Span};
+use crate::core::Value;
 
 /// 表达式 ID，用于缓存和追踪
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -142,7 +143,7 @@ impl ExpressionMeta {
     }
 
     /// 获取字面量值
-    pub fn as_literal(&self) -> Option<&super::Value> {
+    pub fn as_literal(&self) -> Option<&Value> {
         self.inner.as_ref().as_literal()
     }
 

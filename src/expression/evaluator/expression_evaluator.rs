@@ -267,9 +267,9 @@ impl ExpressionEvaluator {
     /// 求值类型转换
     pub fn eval_type_cast(
         value: &Value,
-        target_type: &crate::core::types::expression::DataType,
+        target_type: &crate::core::types::DataType,
     ) -> Result<Value, ExpressionError> {
-        use crate::core::types::expression::DataType;
+        use crate::core::types::DataType;
 
         let result = match target_type {
             DataType::Bool => value.to_bool(),

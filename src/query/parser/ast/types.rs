@@ -10,7 +10,7 @@ pub use crate::core::types::Span;
 
 pub type BinaryOp = crate::core::types::operators::BinaryOperator;
 pub type UnaryOp = crate::core::types::operators::UnaryOperator;
-pub type DataType = crate::core::types::expression::DataType;
+pub type DataType = crate::core::types::DataType;
 pub type AggregateFunction = CoreAggregateFunction;
 
 #[derive(Debug, Clone, PartialEq)]
