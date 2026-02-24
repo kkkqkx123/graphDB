@@ -19,11 +19,10 @@ use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
 use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
 use crate::query::planner::plan::core::nodes::{LimitNode, ProjectNode, ScanVerticesNode, SortNode, SortItem, LeftJoinNode, UnionNode, LoopNode, ArgumentNode};
 use crate::query::planner::plan::core::nodes::ExpandAllNode;
-use crate::core::types::graph_schema::OrderDirection;
 use crate::query::planner::planner::{Planner, PlannerError};
 use crate::query::planner::statements::statement_planner::StatementPlanner;
 use crate::core::YieldColumn;
-use crate::query::validator::structs::OrderByItem;
+use crate::query::parser::OrderByItem;
 use crate::query::validator::structs::CypherClauseKind;
 use std::sync::Arc;
 
@@ -484,8 +483,7 @@ impl MatchStatementPlanner {
             .into_iter()
             .map(|item| {
                 let column = self.expression_to_string(&item.expression);
-                let direction = if item.desc { OrderDirection::Desc } else { OrderDirection::Asc };
-                SortItem::new(column, direction)
+                SortItem::new(column, item.direction)
             })
             .collect();
 
@@ -572,13 +570,7 @@ impl MatchStatementPlanner {
         match stmt {
             crate::query::parser::ast::Stmt::Match(match_stmt) => {
                 if let Some(order_by_clause) = &match_stmt.order_by {
-                    let items = order_by_clause.items.iter().map(|item| {
-                        OrderByItem {
-                            expression: item.expression.clone(),
-                            desc: item.direction == crate::query::parser::ast::types::OrderDirection::Desc,
-                        }
-                    }).collect();
-                    Ok(Some(items))
+                    Ok(Some(order_by_clause.items.clone()))
                 } else {
                     Ok(None)
                 }

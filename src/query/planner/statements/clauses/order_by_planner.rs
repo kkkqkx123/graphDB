@@ -10,9 +10,8 @@ use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
 use crate::query::planner::plan::core::nodes::sort_node::{SortNode, SortItem};
 use crate::query::planner::planner::PlannerError;
 use crate::query::planner::statements::statement_planner::ClausePlanner;
-use crate::query::validator::structs::OrderByItem;
+use crate::query::parser::OrderByItem;
 use crate::query::validator::structs::CypherClauseKind;
-use crate::core::types::graph_schema::OrderDirection;
 use std::sync::Arc;
 
 /// ORDER BY 子句规划器
@@ -30,12 +29,7 @@ impl OrderByClausePlanner {
 fn extract_order_by_items(stmt: &Stmt) -> Vec<OrderByItem> {
     if let Stmt::Match(match_stmt) = stmt {
         if let Some(order_by_clause) = &match_stmt.order_by {
-            return order_by_clause.items.iter().map(|item| {
-                OrderByItem {
-                    expression: item.expression.clone(),
-                    desc: item.direction == crate::query::parser::ast::types::OrderDirection::Desc,
-                }
-            }).collect();
+            return order_by_clause.items.clone();
         }
     }
     Vec::new()
@@ -73,8 +67,7 @@ impl ClausePlanner for OrderByClausePlanner {
             .into_iter()
             .map(|item| {
                 let column = expression_to_string(&item.expression);
-                let direction = if item.desc { OrderDirection::Desc } else { OrderDirection::Asc };
-                SortItem::new(column, direction)
+                SortItem::new(column, item.direction)
             })
             .collect();
 

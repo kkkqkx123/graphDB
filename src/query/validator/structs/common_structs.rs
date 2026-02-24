@@ -1,12 +1,6 @@
 //! 通用数据结构
 
-use crate::query::validator::structs::{
-    clause_structs::{
-        MatchClauseContext, OrderByClauseContext, PaginationContext, ReturnClauseContext,
-        UnwindClauseContext, WhereClauseContext, WithClauseContext, YieldClauseContext,
-    },
-    AliasType, QueryPart,
-};
+use crate::query::validator::structs::{AliasType, QueryPart};
 use crate::core::error::ValidationError;
 use crate::core::DataType;
 use crate::query::validator::validator_trait::ColumnDef;
@@ -19,7 +13,6 @@ pub struct ValidationContextImpl {
     pub query_parts: Vec<QueryPart>,
     pub errors: Vec<ValidationError>,
     pub aliases: std::collections::HashMap<String, AliasType>,
-    pub current_clause: Option<ClauseType>,
     /// 变量定义：变量名 -> 列定义
     pub variables: std::collections::HashMap<String, Vec<ColumnDef>>,
 }
@@ -30,7 +23,6 @@ impl ValidationContextImpl {
             query_parts: Vec::new(),
             errors: Vec::new(),
             aliases: std::collections::HashMap::new(),
-            current_clause: None,
             variables: std::collections::HashMap::new(),
         }
     }
@@ -61,31 +53,6 @@ impl ValidationContextImpl {
     pub fn register_variable(&mut self, name: String, cols: Vec<ColumnDef>) {
         self.variables.insert(name, cols);
     }
-}
-
-/// 子句类型枚举
-#[derive(Debug, Clone, PartialEq)]
-pub enum ClauseType {
-    Match,
-    Return,
-    With,
-    Unwind,
-    Where,
-    Yield,
-}
-
-/// Cypher子句上下文枚举
-/// 表示不同类型的Cypher子句上下文
-#[derive(Debug, Clone)]
-pub enum CypherClauseContext {
-    Match(MatchClauseContext),
-    Where(WhereClauseContext),
-    Return(ReturnClauseContext),
-    With(WithClauseContext),
-    Unwind(UnwindClauseContext),
-    Yield(YieldClauseContext),
-    OrderBy(OrderByClauseContext),
-    Pagination(PaginationContext),
 }
 
 /// Cypher子句类型
@@ -125,43 +92,5 @@ impl ExpressionValidationContext for ValidationContextImpl {
 
     fn get_variable_types(&self) -> Option<&HashMap<String, DataType>> {
         None
-    }
-}
-
-/// 验证状态
-#[derive(Debug, Clone, PartialEq)]
-pub enum ValidationState {
-    Pending,
-    InProgress,
-    Success,
-    Failed,
-}
-
-/// 验证统计信息
-#[derive(Debug, Clone, Default)]
-pub struct ValidationStats {
-    pub total_validated: usize,
-    pub success_count: usize,
-    pub failure_count: usize,
-    pub warning_count: usize,
-}
-
-impl ValidationStats {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn record_success(&mut self) {
-        self.total_validated += 1;
-        self.success_count += 1;
-    }
-
-    pub fn record_failure(&mut self) {
-        self.total_validated += 1;
-        self.failure_count += 1;
-    }
-
-    pub fn record_warning(&mut self) {
-        self.warning_count += 1;
     }
 }

@@ -110,13 +110,6 @@ pub struct OrderByClauseContext {
     pub indexed_order_factors: Vec<(usize, OrderDirection)>,
 }
 
-/// 排序项（用于计划阶段）
-#[derive(Debug, Clone)]
-pub struct OrderByItem {
-    pub expression: Expression,
-    pub desc: bool,
-}
-
 // 为各上下文类型实现 ExpressionValidationContext trait
 impl ExpressionValidationContext for MatchClauseContext {
     fn get_aliases(&self) -> &HashMap<String, AliasType> {

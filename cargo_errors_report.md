@@ -2,39 +2,42 @@
 
 ## Summary
 
-- **Total Errors**: 3
-- **Total Warnings**: 0
-- **Total Issues**: 3
-- **Unique Error Patterns**: 2
-- **Unique Warning Patterns**: 0
-- **Files with Issues**: 1
+- **Total Errors**: 0
+- **Total Warnings**: 2
+- **Total Issues**: 2
+- **Unique Error Patterns**: 0
+- **Unique Warning Patterns**: 1
+- **Files with Issues**: 2
 
 ## Error Statistics
 
-**Total Errors**: 3
-
-### Error Type Breakdown
-
-- **error[E0308]**: 3 errors
-
-### Files with Errors (Top 10)
-
-- `src\core\symbol\symbol_table.rs`: 3 errors
+**Total Errors**: 0
 
 ## Warning Statistics
 
-**Total Warnings**: 0
+**Total Warnings**: 2
 
-## Detailed Error Categorization
+### Warning Type Breakdown
 
-### error[E0308]: mismatched types: expected `String`, found `Arc<str>`
+- **warning**: 2 warnings
 
-**Total Occurrences**: 3  
-**Unique Files**: 1
+### Files with Warnings (Top 10)
 
-#### `src\core\symbol\symbol_table.rs`: 3 occurrences
+- `src\query\planner\statements\match_statement_planner.rs`: 1 warnings
+- `src\query\planner\statements\clauses\order_by_planner.rs`: 1 warnings
 
-- Line 100: mismatched types: expected `String`, found `Arc<str>`
-- Line 101: mismatched types: expected `String`, found `Arc<str>`
-- Line 307: mismatched types: expected `Arc<str>`, found `&str`
+## Detailed Warning Categorization
+
+### warning: unused import: `crate::core::types::graph_schema::OrderDirection`
+
+**Total Occurrences**: 2  
+**Unique Files**: 2
+
+#### `src\query\planner\statements\clauses\order_by_planner.rs`: 1 occurrences
+
+- Line 15: unused import: `crate::core::types::graph_schema::OrderDirection`
+
+#### `src\query\planner\statements\match_statement_planner.rs`: 1 occurrences
+
+- Line 22: unused import: `crate::core::types::graph_schema::OrderDirection`
 
