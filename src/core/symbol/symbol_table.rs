@@ -1,9 +1,14 @@
 //! 符号表实现
+//!
+//! 使用 RwLock<HashMap> 替代 DashMap，因为：
+//! - SymbolTable 是查询级别的数据结构，不是全局共享的
+//! - 每个 QueryContext 有自己的 SymbolTable，不同查询之间不存在并发竞争
+//! - 数据量小，生命周期短，RwLock 更简单高效
 
 use crate::core::DataType;
 
-use dashmap::DashMap;
-use std::collections::HashSet;
+use parking_lot::RwLock;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 /// 变量信息
@@ -12,16 +17,16 @@ use std::sync::Arc;
 #[derive(Debug, Clone)]
 pub struct VariableInfo {
     pub variable_name: String,
-    pub variable_type: String,
+    pub variable_type: DataType,
     pub source_clause: String,
     pub is_aggregated: bool,
     pub properties: Vec<String>,
 }
 
 impl VariableInfo {
-    pub fn new(variable_name: String, variable_type: String) -> Self {
+    pub fn new(variable_name: impl Into<String>, variable_type: DataType) -> Self {
         Self {
-            variable_name,
+            variable_name: variable_name.into(),
             variable_type,
             source_clause: String::new(),
             is_aggregated: false,
@@ -29,8 +34,8 @@ impl VariableInfo {
         }
     }
 
-    pub fn with_source_clause(mut self, source_clause: String) -> Self {
-        self.source_clause = source_clause;
+    pub fn with_source_clause(mut self, source_clause: impl Into<String>) -> Self {
+        self.source_clause = source_clause.into();
         self
     }
 
@@ -47,32 +52,32 @@ impl VariableInfo {
 
 #[derive(Debug, Clone)]
 pub struct Symbol {
-    pub name: String,
+    pub name: Arc<str>,
     pub value_type: DataType,
-    pub col_names: Vec<String>,
+    pub col_names: Vec<Arc<str>>,
     pub readers: HashSet<i64>,
     pub writers: HashSet<i64>,
-    pub source_clause: String,
-    pub properties: Vec<String>,
+    pub source_clause: Arc<str>,
+    pub properties: Vec<Arc<str>>,
     pub is_aggregated: bool,
 }
 
 impl Symbol {
-    pub fn new(name: String, value_type: DataType) -> Self {
+    pub fn new(name: impl Into<Arc<str>>, value_type: DataType) -> Self {
         Self {
-            name,
+            name: name.into(),
             value_type,
             col_names: Vec::new(),
             readers: HashSet::new(),
             writers: HashSet::new(),
-            source_clause: String::new(),
+            source_clause: Arc::from(""),
             properties: Vec::new(),
             is_aggregated: false,
         }
     }
 
-    pub fn with_col_names(mut self, col_names: Vec<String>) -> Self {
-        self.col_names = col_names;
+    pub fn with_col_names(mut self, col_names: Vec<impl Into<Arc<str>>>) -> Self {
+        self.col_names = col_names.into_iter().map(Into::into).collect();
         self
     }
 
@@ -81,13 +86,13 @@ impl Symbol {
         self
     }
 
-    pub fn with_source_clause(mut self, source_clause: String) -> Self {
-        self.source_clause = source_clause;
+    pub fn with_source_clause(mut self, source_clause: impl Into<Arc<str>>) -> Self {
+        self.source_clause = source_clause.into();
         self
     }
 
-    pub fn with_properties(mut self, properties: Vec<String>) -> Self {
-        self.properties = properties;
+    pub fn with_properties(mut self, properties: Vec<impl Into<Arc<str>>>) -> Self {
+        self.properties = properties.into_iter().map(Into::into).collect();
         self
     }
 
@@ -97,25 +102,22 @@ impl Symbol {
     }
 
     pub fn to_variable_info(&self) -> VariableInfo {
-        VariableInfo::new(self.name.clone(), format!("{:?}", self.value_type))
-            .with_source_clause(self.source_clause.clone())
-            .with_properties(self.properties.clone())
+        VariableInfo::new(self.name.to_string(), self.value_type.clone())
+            .with_source_clause(self.source_clause.to_string())
+            .with_properties(self.properties.iter().map(|p| p.to_string()).collect())
             .with_aggregated(self.is_aggregated)
     }
 }
 
 pub struct SymbolTable {
-    symbols: Arc<DashMap<String, Symbol>>,
+    symbols: Arc<RwLock<HashMap<String, Symbol>>>,
 }
 
 impl Clone for SymbolTable {
     fn clone(&self) -> Self {
-        let new_map = DashMap::new();
-        for entry in self.symbols.iter() {
-            new_map.insert(entry.key().clone(), entry.value().clone());
-        }
+        let new_map = self.symbols.read().clone();
         Self {
-            symbols: Arc::new(new_map),
+            symbols: Arc::new(RwLock::new(new_map)),
         }
     }
 }
@@ -123,7 +125,7 @@ impl Clone for SymbolTable {
 impl std::fmt::Debug for SymbolTable {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("SymbolTable")
-            .field("symbols", &self.symbols.len())
+            .field("symbols", &self.symbols.read().len())
             .finish()
     }
 }
@@ -131,101 +133,105 @@ impl std::fmt::Debug for SymbolTable {
 impl SymbolTable {
     pub fn new() -> Self {
         Self {
-            symbols: Arc::new(DashMap::new()),
+            symbols: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
     pub fn new_variable(&self, name: &str) -> Result<Symbol, String> {
-        if self.symbols.contains_key(name) {
+        let mut symbols = self.symbols.write();
+        if symbols.contains_key(name) {
             return Err(format!("变量 '{}' 已存在", name));
         }
 
-        let symbol = Symbol::new(name.to_string(), DataType::DataSet);
-        self.symbols.insert(name.to_string(), symbol.clone());
-        
+        let symbol = Symbol::new(name, DataType::DataSet);
+        symbols.insert(name.to_string(), symbol.clone());
+
         Ok(symbol)
     }
 
     pub fn new_variable_with_info(&self, name: &str, info: VariableInfo) -> Result<Symbol, String> {
-        if self.symbols.contains_key(name) {
+        let mut symbols = self.symbols.write();
+        if symbols.contains_key(name) {
             return Err(format!("变量 '{}' 已存在", name));
         }
 
-        let symbol = Symbol::new(name.to_string(), DataType::DataSet)
+        let symbol = Symbol::new(name, DataType::DataSet)
             .with_source_clause(info.source_clause)
             .with_properties(info.properties)
             .with_aggregated(info.is_aggregated);
-        self.symbols.insert(name.to_string(), symbol.clone());
-        
+        symbols.insert(name.to_string(), symbol.clone());
+
         Ok(symbol)
     }
 
     pub fn new_dataset(&self, name: &str, col_names: Vec<String>) -> Result<Symbol, String> {
-        if self.symbols.contains_key(name) {
+        let mut symbols = self.symbols.write();
+        if symbols.contains_key(name) {
             return Err(format!("变量 '{}' 已存在", name));
         }
 
-        let symbol = Symbol::new(name.to_string(), DataType::DataSet)
+        let symbol = Symbol::new(name, DataType::DataSet)
             .with_col_names(col_names);
-        self.symbols.insert(name.to_string(), symbol.clone());
-        
+        symbols.insert(name.to_string(), symbol.clone());
+
         Ok(symbol)
     }
 
     pub fn has_variable(&self, name: &str) -> bool {
-        self.symbols.contains_key(name)
+        self.symbols.read().contains_key(name)
     }
 
     pub fn get_variable(&self, name: &str) -> Option<Symbol> {
-        self.symbols.get(name).map(|entry| entry.clone())
+        self.symbols.read().get(name).cloned()
     }
 
     pub fn get_variable_info(&self, name: &str) -> Option<VariableInfo> {
-        self.symbols.get(name).map(|entry| entry.to_variable_info())
+        self.symbols.read().get(name).map(|s| s.to_variable_info())
     }
 
-    pub fn remove_variable(&self, name: &str) -> Result<bool, String> {
-        let result = self.symbols.remove(name).is_some();
-        Ok(result)
+    pub fn remove_variable(&self, name: &str) -> bool {
+        self.symbols.write().remove(name).is_some()
     }
 
     pub fn size(&self) -> usize {
-        self.symbols.len()
+        self.symbols.read().len()
     }
 
-    pub fn read_by(&self, var_name: &str, node_id: i64) -> Result<(), String> {
-        if let Some(mut entry) = self.symbols.get_mut(var_name) {
-            entry.readers.insert(node_id);
-            Ok(())
+    pub fn read_by(&self, var_name: &str, node_id: i64) -> bool {
+        let mut symbols = self.symbols.write();
+        if let Some(symbol) = symbols.get_mut(var_name) {
+            symbol.readers.insert(node_id);
+            true
         } else {
-            Err(format!("变量 '{}' 不存在", var_name))
+            false
         }
     }
 
-    pub fn written_by(&self, var_name: &str, node_id: i64) -> Result<(), String> {
-        if let Some(mut entry) = self.symbols.get_mut(var_name) {
-            entry.writers.insert(node_id);
-            Ok(())
+    pub fn written_by(&self, var_name: &str, node_id: i64) -> bool {
+        let mut symbols = self.symbols.write();
+        if let Some(symbol) = symbols.get_mut(var_name) {
+            symbol.writers.insert(node_id);
+            true
         } else {
-            Err(format!("变量 '{}' 不存在", var_name))
+            false
         }
     }
 
-    pub fn delete_read_by(&self, var_name: &str, node_id: i64) -> Result<bool, String> {
-        if let Some(mut entry) = self.symbols.get_mut(var_name) {
-            let result = entry.readers.remove(&node_id);
-            Ok(result)
+    pub fn delete_read_by(&self, var_name: &str, node_id: i64) -> bool {
+        let mut symbols = self.symbols.write();
+        if let Some(symbol) = symbols.get_mut(var_name) {
+            symbol.readers.remove(&node_id)
         } else {
-            Err(format!("变量 '{}' 不存在", var_name))
+            false
         }
     }
 
-    pub fn delete_written_by(&self, var_name: &str, node_id: i64) -> Result<bool, String> {
-        if let Some(mut entry) = self.symbols.get_mut(var_name) {
-            let result = entry.writers.remove(&node_id);
-            Ok(result)
+    pub fn delete_written_by(&self, var_name: &str, node_id: i64) -> bool {
+        let mut symbols = self.symbols.write();
+        if let Some(symbol) = symbols.get_mut(var_name) {
+            symbol.writers.remove(&node_id)
         } else {
-            Err(format!("变量 '{}' 不存在", var_name))
+            false
         }
     }
 
@@ -234,22 +240,23 @@ impl SymbolTable {
         old_var: &str,
         new_var: &str,
         node_id: i64,
-    ) -> Result<bool, String> {
+    ) -> bool {
+        let mut symbols = self.symbols.write();
         let mut success = false;
 
-        if let Some(mut entry) = self.symbols.get_mut(old_var) {
-            if entry.readers.remove(&node_id) {
+        if let Some(symbol) = symbols.get_mut(old_var) {
+            if symbol.readers.remove(&node_id) {
                 success = true;
             }
         }
 
-        if let Some(mut entry) = self.symbols.get_mut(new_var) {
-            if entry.writers.insert(node_id) {
+        if let Some(symbol) = symbols.get_mut(new_var) {
+            if symbol.readers.insert(node_id) {
                 success = true;
             }
         }
 
-        Ok(success)
+        success
     }
 
     pub fn update_written_by(
@@ -257,32 +264,32 @@ impl SymbolTable {
         old_var: &str,
         new_var: &str,
         node_id: i64,
-    ) -> Result<bool, String> {
+    ) -> bool {
+        let mut symbols = self.symbols.write();
         let mut success = false;
 
-        if let Some(mut entry) = self.symbols.get_mut(old_var) {
-            if entry.writers.remove(&node_id) {
+        if let Some(symbol) = symbols.get_mut(old_var) {
+            if symbol.writers.remove(&node_id) {
                 success = true;
             }
         }
 
-        if let Some(mut entry) = self.symbols.get_mut(new_var) {
-            if entry.writers.insert(node_id) {
+        if let Some(symbol) = symbols.get_mut(new_var) {
+            if symbol.writers.insert(node_id) {
                 success = true;
             }
         }
 
-        Ok(success)
+        success
     }
 
     pub fn to_string(&self) -> String {
+        let symbols = self.symbols.read();
         let mut result = String::new();
         result.push_str("SymbolTable {\n");
-        result.push_str(&format!("  symbols: {}\n", self.symbols.len()));
+        result.push_str(&format!("  symbols: {}\n", symbols.len()));
 
-        for entry in self.symbols.iter() {
-            let name = entry.key();
-            let symbol = entry.value();
+        for (name, symbol) in symbols.iter() {
             result.push_str(&format!(
                 "  {}: type={:?}, readers={}, writers={}\n",
                 name,
@@ -296,32 +303,41 @@ impl SymbolTable {
         result
     }
 
-    pub fn get_variables_by_type(&self, var_type: &str) -> Vec<VariableInfo> {
-        self.symbols
-            .iter()
-            .filter(|entry| format!("{:?}", entry.value().value_type).to_lowercase().contains(&var_type.to_lowercase()))
-            .map(|entry| entry.value().to_variable_info())
+    pub fn get_variables_by_type(&self, var_type: &DataType) -> Vec<VariableInfo> {
+        let symbols = self.symbols.read();
+        symbols
+            .values()
+            .filter(|s| s.value_type == *var_type)
+            .map(|s| s.to_variable_info())
             .collect()
     }
 
     pub fn get_variables_by_source(&self, source: &str) -> Vec<VariableInfo> {
-        self.symbols
-            .iter()
-            .filter(|entry| entry.value().source_clause == source)
-            .map(|entry| entry.value().to_variable_info())
+        let symbols = self.symbols.read();
+        symbols
+            .values()
+            .filter(|s| s.source_clause.as_ref() == source)
+            .map(|s| s.to_variable_info())
             .collect()
     }
 
     pub fn get_aggregated_variables(&self) -> Vec<VariableInfo> {
-        self.symbols
-            .iter()
-            .filter(|entry| entry.value().is_aggregated)
-            .map(|entry| entry.value().to_variable_info())
+        let symbols = self.symbols.read();
+        symbols
+            .values()
+            .filter(|s| s.is_aggregated)
+            .map(|s| s.to_variable_info())
             .collect()
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (String, Symbol)> + '_ {
-        self.symbols.iter().map(|entry| (entry.key().clone(), entry.value().clone()))
+        let symbols = self.symbols.read();
+        // 收集到 Vec 避免长期持有锁
+        symbols
+            .iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect::<Vec<_>>()
+            .into_iter()
     }
 }
 
@@ -340,15 +356,15 @@ mod tests {
         let table = SymbolTable::new();
 
         let symbol = table.new_variable("test_var").expect("创建变量失败");
-        assert_eq!(symbol.name, "test_var");
+        assert_eq!(symbol.name.as_ref(), "test_var");
         assert!(table.has_variable("test_var"));
 
         let retrieved = table.get_variable("test_var").expect("获取变量失败");
-        assert_eq!(retrieved.name, "test_var");
+        assert_eq!(retrieved.name.as_ref(), "test_var");
 
         assert!(table.new_variable("test_var").is_err());
 
-        let removed = table.remove_variable("test_var").expect("删除变量失败");
+        let removed = table.remove_variable("test_var");
         assert!(removed);
         assert!(!table.has_variable("test_var"));
     }
@@ -358,14 +374,14 @@ mod tests {
         let table = SymbolTable::new();
         table.new_variable("var1").expect("创建变量失败");
 
-        table.read_by("var1", 1).expect("添加读者失败");
-        table.written_by("var1", 2).expect("添加写者失败");
+        assert!(table.read_by("var1", 1));
+        assert!(table.written_by("var1", 2));
 
         let symbol = table.get_variable("var1").expect("获取变量失败");
         assert!(symbol.readers.contains(&1));
         assert!(symbol.writers.contains(&2));
 
-        let deleted = table.delete_read_by("var1", 1).expect("删除读者失败");
+        let deleted = table.delete_read_by("var1", 1);
         assert!(deleted);
 
         let symbol = table.get_variable("var1").expect("获取变量失败");
@@ -401,7 +417,7 @@ mod tests {
         let table = SymbolTable::new();
         table.new_variable("var1").expect("创建变量失败");
 
-        let vars = table.get_variables_by_type("dataset");
+        let vars = table.get_variables_by_type(&DataType::DataSet);
         assert_eq!(vars.len(), 1);
         assert_eq!(vars[0].variable_name, "var1");
     }
@@ -409,7 +425,7 @@ mod tests {
     #[test]
     fn test_get_variables_by_source() {
         let table = SymbolTable::new();
-        let info = VariableInfo::new("var1".to_string(), "DataSet".to_string())
+        let info = VariableInfo::new("var1".to_string(), DataType::DataSet)
             .with_source_clause("MATCH".to_string());
         table.new_variable_with_info("var1", info).expect("创建变量失败");
 
@@ -421,7 +437,7 @@ mod tests {
     #[test]
     fn test_get_aggregated_variables() {
         let table = SymbolTable::new();
-        let info = VariableInfo::new("var1".to_string(), "DataSet".to_string())
+        let info = VariableInfo::new("var1".to_string(), DataType::DataSet)
             .with_aggregated(true);
         table.new_variable_with_info("var1", info).expect("创建变量失败");
         table.new_variable("var2").expect("创建变量失败");

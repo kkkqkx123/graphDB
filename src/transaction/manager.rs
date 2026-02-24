@@ -5,12 +5,11 @@
 //! 注意：由于redb使用单写者多读者模型，本管理器采用延迟创建写事务策略，
 //! 只在真正需要写入时才获取redb写锁。
 
-use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
 use crossbeam_utils::atomic::AtomicCell;
-use parking_lot::RwLock;
+use dashmap::DashMap;
 use redb::Database;
 
 use crate::transaction::context::TransactionContext;
@@ -22,8 +21,8 @@ pub struct TransactionManager {
     db: Arc<Database>,
     /// 配置
     config: TransactionManagerConfig,
-    /// 活跃事务表
-    active_transactions: Arc<RwLock<HashMap<TransactionId, Arc<TransactionContext>>>>,
+    /// 活跃事务表 - 使用 DashMap 替代 RwLock<HashMap> 以获得更好的并发性能
+    active_transactions: Arc<DashMap<TransactionId, Arc<TransactionContext>>>,
     /// 事务ID生成器
     id_generator: AtomicU64,
     /// 统计信息
@@ -42,7 +41,7 @@ impl TransactionManager {
         let manager = Self {
             db,
             config,
-            active_transactions: Arc::new(RwLock::new(HashMap::new())),
+            active_transactions: Arc::new(DashMap::new()),
             id_generator: AtomicU64::new(1),
             stats: Arc::new(TransactionStats::new()),
             running: Arc::new(AtomicCell::new(true)),
@@ -65,7 +64,7 @@ impl TransactionManager {
         }
 
         // 检查并发事务数限制
-        let active_count = self.active_transactions.read().len();
+        let active_count = self.active_transactions.len();
         if active_count >= self.config.max_concurrent_transactions {
             return Err(TransactionError::TooManyTransactions);
         }
@@ -107,7 +106,7 @@ impl TransactionManager {
             ))
         };
 
-        self.active_transactions.write().insert(txn_id, context);
+        self.active_transactions.insert(txn_id, context);
         self.stats.increment_total();
         self.stats.increment_active();
 
@@ -117,46 +116,45 @@ impl TransactionManager {
     /// 获取事务上下文
     pub fn get_context(&self, txn_id: TransactionId) -> Result<Arc<TransactionContext>, TransactionError> {
         self.active_transactions
-            .read()
             .get(&txn_id)
-            .cloned()
+            .map(|entry| entry.value().clone())
             .ok_or(TransactionError::TransactionNotFound(txn_id))
     }
 
     /// 检查事务是否存在且活跃
     pub fn is_transaction_active(&self, txn_id: TransactionId) -> bool {
         self.active_transactions
-            .read()
             .get(&txn_id)
-            .map(|ctx| ctx.state().can_execute())
+            .map(|entry| entry.value().state().can_execute())
             .unwrap_or(false)
     }
 
     /// 提交事务
     pub fn commit_transaction(&self, txn_id: TransactionId) -> Result<(), TransactionError> {
-        // 从HashMap中移除事务并获取所有权
+        // 从DashMap中移除事务并获取所有权
         let context = {
-            let mut write_guard = self.active_transactions.write();
-            let ctx = write_guard.remove(&txn_id)
+            let entry = self.active_transactions.get(&txn_id)
                 .ok_or(TransactionError::TransactionNotFound(txn_id))?;
-            
+            let ctx = entry.value().clone();
+            drop(entry);
+
             // 检查状态
             if !ctx.state().can_commit() {
-                // 状态不对，放回去
-                write_guard.insert(txn_id, ctx.clone());
                 return Err(TransactionError::InvalidStateForCommit(ctx.state()));
             }
-            
+
             // 检查超时
             if ctx.is_expired() {
-                // 已经超时，不放回去，直接中止
-                drop(write_guard);
+                // 已经超时，移除并中止
+                self.active_transactions.remove(&txn_id);
                 self.stats.increment_timeout();
-                // 中止事务（不需要再从HashMap移除，已经移除了）
+                // 中止事务
                 self.abort_transaction_internal(ctx)?;
                 return Err(TransactionError::TransactionTimeout);
             }
-            
+
+            // 状态检查通过，移除事务
+            self.active_transactions.remove(&txn_id);
             ctx
         };
 
@@ -216,18 +214,19 @@ impl TransactionManager {
 
     /// 中止事务
     pub fn abort_transaction(&self, txn_id: TransactionId) -> Result<(), TransactionError> {
-        // 从HashMap中移除事务并获取所有权
+        // 从DashMap中移除事务并获取所有权
         let context = {
-            let mut write_guard = self.active_transactions.write();
-            let ctx = write_guard.remove(&txn_id)
+            let entry = self.active_transactions.get(&txn_id)
                 .ok_or(TransactionError::TransactionNotFound(txn_id))?;
-            
+            let ctx = entry.value().clone();
+            drop(entry);
+
             if !ctx.state().can_abort() {
-                // 状态不对，放回去
-                write_guard.insert(txn_id, ctx.clone());
                 return Err(TransactionError::InvalidStateForAbort(ctx.state()));
             }
-            
+
+            // 状态检查通过，移除事务
+            self.active_transactions.remove(&txn_id);
             ctx
         };
 
@@ -238,9 +237,8 @@ impl TransactionManager {
     /// 获取活跃事务列表
     pub fn list_active_transactions(&self) -> Vec<TransactionInfo> {
         self.active_transactions
-            .read()
-            .values()
-            .map(|ctx| ctx.info())
+            .iter()
+            .map(|entry| entry.value().info())
             .collect()
     }
 
@@ -254,9 +252,8 @@ impl TransactionManager {
     /// * `None` - 如果事务不存在
     pub fn get_transaction_info(&self, txn_id: TransactionId) -> Option<TransactionInfo> {
         self.active_transactions
-            .read()
             .get(&txn_id)
-            .map(|ctx| ctx.info())
+            .map(|entry| entry.value().info())
     }
 
     /// 获取统计信息
@@ -268,11 +265,10 @@ impl TransactionManager {
     pub fn cleanup_expired_transactions(&self) {
         // 收集所有过期的事务ID
         let expired: Vec<TransactionId> = {
-            let read_guard = self.active_transactions.read();
-            read_guard
+            self.active_transactions
                 .iter()
-                .filter(|(_, ctx)| ctx.is_expired())
-                .map(|(id, _)| *id)
+                .filter(|entry| entry.value().is_expired())
+                .map(|entry| *entry.key())
                 .collect()
         };
 
@@ -297,21 +293,22 @@ impl TransactionManager {
                     break;
                 }
 
-                // 先收集所有过期的事务ID
+                // 先收集所有过期的事务ID和相关信息
                 let expired: Vec<(TransactionId, bool, bool)> = {
-                    let read_guard = active_transactions.read();
-                    read_guard
+                    active_transactions
                         .iter()
-                        .filter(|(_, ctx)| ctx.is_expired())
-                        .map(|(id, ctx)| (*id, ctx.state().can_abort(), ctx.read_only))
+                        .filter(|entry| entry.value().is_expired())
+                        .map(|entry| {
+                            let ctx = entry.value();
+                            (*entry.key(), ctx.state().can_abort(), ctx.read_only)
+                        })
                         .collect()
                 };
 
-                // 然后逐个处理，避免在持有读锁时获取写锁
+                // 然后逐个处理
                 for (txn_id, can_abort, is_readonly) in expired {
                     if can_abort {
-                        let mut write_guard = active_transactions.write();
-                        if let Some(ctx) = write_guard.remove(&txn_id) {
+                        if let Some((_, ctx)) = active_transactions.remove(&txn_id) {
                             let _ = ctx.transition_to(TransactionState::Aborting);
                             if !is_readonly {
                                 let _ = ctx.take_write_txn();
@@ -332,8 +329,10 @@ impl TransactionManager {
 
         // 中止所有活跃事务
         let txn_ids: Vec<TransactionId> = {
-            let read_guard = self.active_transactions.read();
-            read_guard.keys().cloned().collect()
+            self.active_transactions
+                .iter()
+                .map(|entry| *entry.key())
+                .collect()
         };
 
         for txn_id in txn_ids {

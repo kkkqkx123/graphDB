@@ -7,6 +7,69 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 use std::time::Instant;
 
+/// ErrorType 枚举变体数量（用于数组大小）
+const ERROR_TYPE_COUNT: usize = 11;
+/// QueryPhase 枚举变体数量（用于数组大小）
+const QUERY_PHASE_COUNT: usize = 5;
+
+/// 将 ErrorType 转换为数组索引
+fn error_type_to_index(error_type: ErrorType) -> usize {
+    match error_type {
+        ErrorType::ParseError => 0,
+        ErrorType::ValidationError => 1,
+        ErrorType::PlanningError => 2,
+        ErrorType::OptimizationError => 3,
+        ErrorType::ExecutionError => 4,
+        ErrorType::StorageError => 5,
+        ErrorType::TimeoutError => 6,
+        ErrorType::MemoryLimitError => 7,
+        ErrorType::PermissionError => 8,
+        ErrorType::SessionError => 9,
+        ErrorType::OtherError => 10,
+    }
+}
+
+/// 将数组索引转换为 ErrorType
+fn index_to_error_type(index: usize) -> Option<ErrorType> {
+    match index {
+        0 => Some(ErrorType::ParseError),
+        1 => Some(ErrorType::ValidationError),
+        2 => Some(ErrorType::PlanningError),
+        3 => Some(ErrorType::OptimizationError),
+        4 => Some(ErrorType::ExecutionError),
+        5 => Some(ErrorType::StorageError),
+        6 => Some(ErrorType::TimeoutError),
+        7 => Some(ErrorType::MemoryLimitError),
+        8 => Some(ErrorType::PermissionError),
+        9 => Some(ErrorType::SessionError),
+        10 => Some(ErrorType::OtherError),
+        _ => None,
+    }
+}
+
+/// 将 QueryPhase 转换为数组索引
+fn query_phase_to_index(phase: QueryPhase) -> usize {
+    match phase {
+        QueryPhase::Parse => 0,
+        QueryPhase::Validate => 1,
+        QueryPhase::Plan => 2,
+        QueryPhase::Optimize => 3,
+        QueryPhase::Execute => 4,
+    }
+}
+
+/// 将数组索引转换为 QueryPhase
+fn index_to_query_phase(index: usize) -> Option<QueryPhase> {
+    match index {
+        0 => Some(QueryPhase::Parse),
+        1 => Some(QueryPhase::Validate),
+        2 => Some(QueryPhase::Plan),
+        3 => Some(QueryPhase::Optimize),
+        4 => Some(QueryPhase::Execute),
+        _ => None,
+    }
+}
+
 /// 查询执行阶段统计
 #[derive(Debug, Clone)]
 pub struct StageMetrics {
@@ -362,9 +425,9 @@ pub struct StatsManager {
     query_profiles: Arc<Mutex<VecDeque<QueryProfile>>>,
     // 新增：监控配置
     config: crate::config::MonitoringConfig,
-    // 新增：错误统计
-    error_counts: Arc<DashMap<ErrorType, AtomicU64>>,
-    error_by_phase: Arc<DashMap<QueryPhase, AtomicU64>>,
+    // 错误统计 - 使用数组替代 DashMap，因为 ErrorType 和 QueryPhase 数量有限
+    error_counts: [AtomicU64; ERROR_TYPE_COUNT],
+    error_by_phase: [AtomicU64; QUERY_PHASE_COUNT],
 }
 
 impl StatsManager {
@@ -380,8 +443,8 @@ impl StatsManager {
             last_query_metrics: Arc::new(Mutex::new(None)),
             query_profiles: Arc::new(Mutex::new(VecDeque::with_capacity(cache_size))),
             config,
-            error_counts: Arc::new(DashMap::new()),
-            error_by_phase: Arc::new(DashMap::new()),
+            error_counts: std::array::from_fn(|_| AtomicU64::new(0)),
+            error_by_phase: std::array::from_fn(|_| AtomicU64::new(0)),
         }
     }
 
@@ -658,42 +721,62 @@ impl StatsManager {
 
     /// 记录错误
     pub fn record_error(&self, error_type: ErrorType, phase: QueryPhase) {
-        let counter = self.error_counts.entry(error_type).or_insert_with(|| AtomicU64::new(0));
-        counter.fetch_add(1, Ordering::Relaxed);
+        let index = error_type_to_index(error_type);
+        self.error_counts[index].fetch_add(1, Ordering::Relaxed);
 
-        let phase_counter = self.error_by_phase.entry(phase).or_insert_with(|| AtomicU64::new(0));
-        phase_counter.fetch_add(1, Ordering::Relaxed);
+        let phase_index = query_phase_to_index(phase);
+        self.error_by_phase[phase_index].fetch_add(1, Ordering::Relaxed);
 
         log::warn!("查询错误: type={}, phase={}", error_type, phase);
     }
 
     /// 获取指定错误类型的计数
     pub fn get_error_count(&self, error_type: ErrorType) -> u64 {
-        self.error_counts.get(&error_type).map(|c| c.load(Ordering::Relaxed)).unwrap_or(0)
+        let index = error_type_to_index(error_type);
+        self.error_counts[index].load(Ordering::Relaxed)
     }
 
     /// 获取指定阶段的错误计数
     pub fn get_error_count_by_phase(&self, phase: QueryPhase) -> u64 {
-        self.error_by_phase.get(&phase).map(|c| c.load(Ordering::Relaxed)).unwrap_or(0)
+        let index = query_phase_to_index(phase);
+        self.error_by_phase[index].load(Ordering::Relaxed)
     }
 
     /// 获取所有错误统计
     pub fn get_all_error_counts(&self) -> HashMap<ErrorType, u64> {
-        self.error_counts.iter().map(|entry| (*entry.key(), entry.value().load(Ordering::Relaxed))).collect()
+        let mut result = HashMap::new();
+        for i in 0..ERROR_TYPE_COUNT {
+            if let Some(error_type) = index_to_error_type(i) {
+                let count = self.error_counts[i].load(Ordering::Relaxed);
+                if count > 0 {
+                    result.insert(error_type, count);
+                }
+            }
+        }
+        result
     }
 
     /// 获取所有阶段的错误统计
     pub fn get_all_error_counts_by_phase(&self) -> HashMap<QueryPhase, u64> {
-        self.error_by_phase.iter().map(|entry| (*entry.key(), entry.value().load(Ordering::Relaxed))).collect()
+        let mut result = HashMap::new();
+        for i in 0..QUERY_PHASE_COUNT {
+            if let Some(phase) = index_to_query_phase(i) {
+                let count = self.error_by_phase[i].load(Ordering::Relaxed);
+                if count > 0 {
+                    result.insert(phase, count);
+                }
+            }
+        }
+        result
     }
 
     /// 重置错误统计
     pub fn reset_error_counts(&self) {
-        for counter in self.error_counts.iter() {
-            counter.value().store(0, Ordering::Relaxed);
+        for counter in &self.error_counts {
+            counter.store(0, Ordering::Relaxed);
         }
-        for counter in self.error_by_phase.iter() {
-            counter.value().store(0, Ordering::Relaxed);
+        for counter in &self.error_by_phase {
+            counter.store(0, Ordering::Relaxed);
         }
     }
 
@@ -707,7 +790,7 @@ impl StatsManager {
     /// 获取错误统计摘要
     pub fn get_error_summary(&self) -> ErrorSummary {
         ErrorSummary {
-            total_errors: self.error_counts.iter().map(|e| e.value().load(Ordering::Relaxed)).sum(),
+            total_errors: self.error_counts.iter().map(|c| c.load(Ordering::Relaxed)).sum(),
             errors_by_type: self.get_all_error_counts(),
             errors_by_phase: self.get_all_error_counts_by_phase(),
         }

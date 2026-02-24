@@ -719,7 +719,7 @@ mod tests {
                 vid_type: DataType::String,
                 tags: vec![],
                 edge_types: vec![],
-                version: crate::core::types::metadata::MetadataVersion {
+                version: crate::core::types::MetadataVersion {
                     version: 1,
                     timestamp: 0,
                     description: String::new(),

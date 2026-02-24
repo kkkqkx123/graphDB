@@ -2,24 +2,24 @@
 
 ## Summary
 
-- **Total Errors**: 2
+- **Total Errors**: 3
 - **Total Warnings**: 0
-- **Total Issues**: 2
-- **Unique Error Patterns**: 1
+- **Total Issues**: 3
+- **Unique Error Patterns**: 2
 - **Unique Warning Patterns**: 0
 - **Files with Issues**: 1
 
 ## Error Statistics
 
-**Total Errors**: 2
+**Total Errors**: 3
 
 ### Error Type Breakdown
 
-- **error[E0433]**: 2 errors
+- **error[E0308]**: 3 errors
 
 ### Files with Errors (Top 10)
 
-- `src\core\types\expression\expression.rs`: 2 errors
+- `src\core\symbol\symbol_table.rs`: 3 errors
 
 ## Warning Statistics
 
@@ -27,13 +27,14 @@
 
 ## Detailed Error Categorization
 
-### error[E0433]: failed to resolve: could not find `BinaryOperator` in `super`: could not find `BinaryOperator` in `super`
+### error[E0308]: mismatched types: expected `String`, found `Arc<str>`
 
-**Total Occurrences**: 2  
+**Total Occurrences**: 3  
 **Unique Files**: 1
 
-#### `src\core\types\expression\expression.rs`: 2 occurrences
+#### `src\core\symbol\symbol_table.rs`: 3 occurrences
 
-- Line 363: failed to resolve: could not find `BinaryOperator` in `super`: could not find `BinaryOperator` in `super`
-- Line 375: failed to resolve: could not find `BinaryOperator` in `super`: could not find `BinaryOperator` in `super`
+- Line 100: mismatched types: expected `String`, found `Arc<str>`
+- Line 101: mismatched types: expected `String`, found `Arc<str>`
+- Line 307: mismatched types: expected `Arc<str>`, found `&str`
 

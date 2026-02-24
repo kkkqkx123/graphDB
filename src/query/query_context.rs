@@ -57,8 +57,8 @@ pub struct QueryContext {
     /// ID 生成器
     id_gen: IdGenerator,
 
-    /// 符号表 - 使用 RwLock 支持并发访问
-    sym_table: RwLock<SymbolTable>,
+    /// 符号表 - 使用 Arc<SymbolTable>，内部 DashMap 已提供并发安全
+    sym_table: Arc<SymbolTable>,
 
     /// 当前空间信息
     space_info: RwLock<Option<SpaceInfo>>,
@@ -79,7 +79,7 @@ impl QueryContext {
             charset_info: None,
             obj_pool: ObjectPool::new(1000),
             id_gen: IdGenerator::new(0),
-            sym_table: RwLock::new(SymbolTable::new()),
+            sym_table: Arc::new(SymbolTable::new()),
             space_info: RwLock::new(None),
             killed: AtomicBool::new(false),
         }
@@ -178,13 +178,13 @@ impl QueryContext {
     }
 
     /// 获取符号表
-    pub fn sym_table(&self) -> std::sync::RwLockReadGuard<SymbolTable> {
-        self.sym_table.read().expect("符号表锁被污染")
+    pub fn sym_table(&self) -> &SymbolTable {
+        &self.sym_table
     }
 
-    /// 获取可变符号表
-    pub fn sym_table_mut(&self) -> std::sync::RwLockWriteGuard<SymbolTable> {
-        self.sym_table.write().expect("符号表锁被污染")
+    /// 获取符号表的 Arc 引用
+    pub fn sym_table_arc(&self) -> Arc<SymbolTable> {
+        self.sym_table.clone()
     }
 
     /// 获取当前空间信息
