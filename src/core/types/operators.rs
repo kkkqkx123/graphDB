@@ -299,4 +299,26 @@ impl AggregateFunction {
             AggregateFunction::GroupConcat(field, _) => Some(field),
         }
     }
+
+    pub fn is_variadic(&self) -> bool {
+        false
+    }
+
+    pub fn description(&self) -> &str {
+        match self {
+            AggregateFunction::Count(_) => "计算数量",
+            AggregateFunction::Sum(_) => "计算总和",
+            AggregateFunction::Avg(_) => "计算平均值",
+            AggregateFunction::Min(_) => "计算最小值",
+            AggregateFunction::Max(_) => "计算最大值",
+            AggregateFunction::Collect(_) => "收集所有值",
+            AggregateFunction::CollectSet(_) => "收集唯一值",
+            AggregateFunction::Distinct(_) => "去重",
+            AggregateFunction::Percentile(_, _) => "计算百分位数",
+            AggregateFunction::Std(_) => "计算标准差",
+            AggregateFunction::BitAnd(_) => "按位与",
+            AggregateFunction::BitOr(_) => "按位或",
+            AggregateFunction::GroupConcat(_, _) => "分组连接",
+        }
+    }
 }

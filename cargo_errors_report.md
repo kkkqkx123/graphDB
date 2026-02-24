@@ -3,8 +3,8 @@
 ## Summary
 
 - **Total Errors**: 0
-- **Total Warnings**: 4
-- **Total Issues**: 4
+- **Total Warnings**: 1
+- **Total Issues**: 1
 - **Unique Error Patterns**: 0
 - **Unique Warning Patterns**: 1
 - **Files with Issues**: 1
@@ -15,27 +15,24 @@
 
 ## Warning Statistics
 
-**Total Warnings**: 4
+**Total Warnings**: 1
 
 ### Warning Type Breakdown
 
-- **warning**: 4 warnings
+- **warning**: 1 warnings
 
 ### Files with Warnings (Top 10)
 
-- `src\storage\index\index_data_manager.rs`: 4 warnings
+- `src\expression\functions\registry.rs`: 1 warnings
 
 ## Detailed Warning Categorization
 
-### warning: unused variable: `manager`
+### warning: unused import: `super::ExpressionFunction`
 
-**Total Occurrences**: 4  
+**Total Occurrences**: 1  
 **Unique Files**: 1
 
-#### `src\storage\index\index_data_manager.rs`: 4 occurrences
+#### `src\expression\functions\registry.rs`: 1 occurrences
 
-- Line 848: unused variable: `manager`
-- Line 869: unused variable: `manager`
-- Line 891: unused variable: `manager`
-- ... 1 more occurrences in this file
+- Line 12: unused import: `super::ExpressionFunction`
 

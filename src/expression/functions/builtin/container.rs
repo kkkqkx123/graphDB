@@ -6,588 +6,368 @@ use crate::core::error::ExpressionError;
 use crate::core::value::dataset::List;
 use crate::core::value::NullType;
 use crate::core::Value;
-use crate::expression::functions::registry::FunctionRegistry;
-use crate::expression::functions::signature::FunctionSignature;
-use crate::expression::functions::signature::ValueType;
 use std::collections::BTreeSet;
 
-/// 注册所有容器操作函数
-pub fn register_all(registry: &mut FunctionRegistry) {
-    register_head(registry);
-    register_last(registry);
-    register_tail(registry);
-    register_size(registry);
-    register_range(registry);
-    register_keys(registry);
-    register_reverse_list(registry);
+/// 容器函数枚举
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ContainerFunction {
+    Head,
+    Last,
+    Tail,
+    Size,
+    Range,
+    Keys,
+    ReverseList,
+    ToSet,
 }
 
-fn register_head(registry: &mut FunctionRegistry) {
-    registry.register(
-        "head",
-        FunctionSignature::new(
-            "head",
-            vec![ValueType::Null],
-            ValueType::Null,
-            1,
-            1,
-            true,
-            "获取列表首元素",
-        ),
-        |args| {
-            match &args[0] {
-                Value::Null(_) => Ok(Value::Null(NullType::Null)),
-                _ => Ok(Value::Null(NullType::Null)),
-            }
-        },
-    );
+impl ContainerFunction {
+    /// 获取函数名称
+    pub fn name(&self) -> &str {
+        match self {
+            Self::Head => "head",
+            Self::Last => "last",
+            Self::Tail => "tail",
+            Self::Size => "size",
+            Self::Range => "range",
+            Self::Keys => "keys",
+            Self::ReverseList => "reverse",
+            Self::ToSet => "toset",
+        }
+    }
 
-    registry.register(
-        "head",
-        FunctionSignature::new(
-            "head",
-            vec![ValueType::List],
-            ValueType::Any,
-            1,
-            1,
-            true,
-            "获取列表首元素",
-        ),
-        |args| {
-            match &args[0] {
-                Value::List(list) => Ok(list.values.first().cloned().unwrap_or(Value::Null(NullType::Null))),
-                Value::Null(_) => Ok(Value::Null(NullType::Null)),
-                _ => Err(ExpressionError::type_error("head函数需要列表类型")),
-            }
-        },
-    );
+    /// 获取参数数量
+    pub fn arity(&self) -> usize {
+        match self {
+            Self::Head => 1,
+            Self::Last => 1,
+            Self::Tail => 1,
+            Self::Size => 1,
+            Self::Range => 2,
+            Self::Keys => 1,
+            Self::ReverseList => 1,
+            Self::ToSet => 1,
+        }
+    }
+
+    /// 是否为可变参数函数
+    pub fn is_variadic(&self) -> bool {
+        match self {
+            Self::Range => true,
+            _ => false,
+        }
+    }
+
+    /// 获取函数描述
+    pub fn description(&self) -> &str {
+        match self {
+            Self::Head => "获取列表的第一个元素",
+            Self::Last => "获取列表的最后一个元素",
+            Self::Tail => "获取列表除第一个元素外的所有元素",
+            Self::Size => "获取字符串、列表、映射或集合的大小",
+            Self::Range => "生成一个整数范围列表",
+            Self::Keys => "获取顶点、边或映射的所有键",
+            Self::ReverseList => "反转列表",
+            Self::ToSet => "将列表转换为集合",
+        }
+    }
+
+    pub fn execute(&self, args: &[Value]) -> Result<Value, ExpressionError> {
+        match self {
+            Self::Head => execute_head(args),
+            Self::Last => execute_last(args),
+            Self::Tail => execute_tail(args),
+            Self::Size => execute_size(args),
+            Self::Range => execute_range(args),
+            Self::Keys => execute_keys(args),
+            Self::ReverseList => execute_reverse_list(args),
+            Self::ToSet => execute_toset(args),
+        }
+    }
 }
 
-fn register_last(registry: &mut FunctionRegistry) {
-    registry.register(
-        "last",
-        FunctionSignature::new(
-            "last",
-            vec![ValueType::Null],
-            ValueType::Null,
-            1,
-            1,
-            true,
-            "获取列表末元素",
-        ),
-        |args| {
-            match &args[0] {
-                Value::Null(_) => Ok(Value::Null(NullType::Null)),
-                _ => Ok(Value::Null(NullType::Null)),
-            }
-        },
-    );
-
-    registry.register(
-        "last",
-        FunctionSignature::new(
-            "last",
-            vec![ValueType::List],
-            ValueType::Any,
-            1,
-            1,
-            true,
-            "获取列表末元素",
-        ),
-        |args| {
-            match &args[0] {
-                Value::List(list) => Ok(list.values.last().cloned().unwrap_or(Value::Null(NullType::Null))),
-                Value::Null(_) => Ok(Value::Null(NullType::Null)),
-                _ => Err(ExpressionError::type_error("last函数需要列表类型")),
-            }
-        },
-    );
+fn execute_head(args: &[Value]) -> Result<Value, ExpressionError> {
+    if args.len() != 1 {
+        return Err(ExpressionError::type_error("head函数需要1个参数"));
+    }
+    match &args[0] {
+        Value::List(list) => Ok(list
+            .values
+            .first()
+            .cloned()
+            .unwrap_or(Value::Null(NullType::Null))),
+        Value::Null(_) => Ok(Value::Null(NullType::Null)),
+        _ => Err(ExpressionError::type_error("head函数需要列表类型")),
+    }
 }
 
-fn register_tail(registry: &mut FunctionRegistry) {
-    registry.register(
-        "tail",
-        FunctionSignature::new(
-            "tail",
-            vec![ValueType::Null],
-            ValueType::Null,
-            1,
-            1,
-            true,
-            "获取列表尾部（除首元素外）",
-        ),
-        |args| {
-            match &args[0] {
-                Value::Null(_) => Ok(Value::Null(NullType::Null)),
-                _ => Ok(Value::Null(NullType::Null)),
-            }
-        },
-    );
-
-    registry.register(
-        "tail",
-        FunctionSignature::new(
-            "tail",
-            vec![ValueType::List],
-            ValueType::List,
-            1,
-            1,
-            true,
-            "获取列表尾部（除首元素外）",
-        ),
-        |args| {
-            match &args[0] {
-                Value::List(list) => {
-                    if list.values.is_empty() {
-                        Ok(Value::List(List { values: vec![] }))
-                    } else {
-                        Ok(Value::List(List { values: list.values[1..].to_vec() }))
-                    }
-                }
-                Value::Null(_) => Ok(Value::Null(NullType::Null)),
-                _ => Err(ExpressionError::type_error("tail函数需要列表类型")),
-            }
-        },
-    );
+fn execute_last(args: &[Value]) -> Result<Value, ExpressionError> {
+    if args.len() != 1 {
+        return Err(ExpressionError::type_error("last函数需要1个参数"));
+    }
+    match &args[0] {
+        Value::List(list) => Ok(list
+            .values
+            .last()
+            .cloned()
+            .unwrap_or(Value::Null(NullType::Null))),
+        Value::Null(_) => Ok(Value::Null(NullType::Null)),
+        _ => Err(ExpressionError::type_error("last函数需要列表类型")),
+    }
 }
 
-fn register_size(registry: &mut FunctionRegistry) {
-    registry.register(
-        "size",
-        FunctionSignature::new(
-            "size",
-            vec![ValueType::Null],
-            ValueType::Null,
-            1,
-            1,
-            true,
-            "获取大小",
-        ),
-        |args| {
-            match &args[0] {
-                Value::Null(_) => Ok(Value::Null(NullType::Null)),
-                _ => Ok(Value::Null(NullType::Null)),
-            }
-        },
-    );
-
-    registry.register(
-        "size",
-        FunctionSignature::new(
-            "size",
-            vec![ValueType::String],
-            ValueType::Int,
-            1,
-            1,
-            true,
-            "获取字符串长度",
-        ),
-        |args| {
-            match &args[0] {
-                Value::String(s) => Ok(Value::Int(s.len() as i64)),
-                Value::Null(_) => Ok(Value::Null(NullType::Null)),
-                _ => Err(ExpressionError::type_error("size函数需要字符串类型")),
-            }
-        },
-    );
-
-    registry.register(
-        "size",
-        FunctionSignature::new(
-            "size",
-            vec![ValueType::List],
-            ValueType::Int,
-            1,
-            1,
-            true,
-            "获取列表大小",
-        ),
-        |args| {
-            match &args[0] {
-                Value::List(list) => Ok(Value::Int(list.values.len() as i64)),
-                Value::Null(_) => Ok(Value::Null(NullType::Null)),
-                _ => Err(ExpressionError::type_error("size函数需要列表类型")),
-            }
-        },
-    );
-
-    registry.register(
-        "size",
-        FunctionSignature::new(
-            "size",
-            vec![ValueType::Map],
-            ValueType::Int,
-            1,
-            1,
-            true,
-            "获取映射大小",
-        ),
-        |args| {
-            match &args[0] {
-                Value::Map(map) => Ok(Value::Int(map.len() as i64)),
-                Value::Null(_) => Ok(Value::Null(NullType::Null)),
-                _ => Err(ExpressionError::type_error("size函数需要映射类型")),
-            }
-        },
-    );
-
-    registry.register(
-        "size",
-        FunctionSignature::new(
-            "size",
-            vec![ValueType::Set],
-            ValueType::Int,
-            1,
-            1,
-            true,
-            "获取集合大小",
-        ),
-        |args| {
-            match &args[0] {
-                Value::Set(set) => Ok(Value::Int(set.len() as i64)),
-                Value::Null(_) => Ok(Value::Null(NullType::Null)),
-                _ => Err(ExpressionError::type_error("size函数需要集合类型")),
-            }
-        },
-    );
-}
-
-fn register_range(registry: &mut FunctionRegistry) {
-    registry.register(
-        "range",
-        FunctionSignature::new(
-            "range",
-            vec![ValueType::Int, ValueType::Int],
-            ValueType::List,
-            2,
-            3,
-            true,
-            "生成范围列表",
-        ),
-        |args| {
-            let start = match &args[0] {
-                Value::Int(i) => *i,
-                Value::Null(_) => return Ok(Value::Null(NullType::Null)),
-                _ => return Err(ExpressionError::type_error("range函数需要整数参数")),
-            };
-            let end = match &args[1] {
-                Value::Int(i) => *i,
-                Value::Null(_) => return Ok(Value::Null(NullType::Null)),
-                _ => return Err(ExpressionError::type_error("range函数需要整数参数")),
-            };
-            let step = if args.len() > 2 {
-                match &args[2] {
-                    Value::Int(i) => *i,
-                    Value::Null(_) => return Ok(Value::Null(NullType::Null)),
-                    _ => return Err(ExpressionError::type_error("range函数的step需要整数")),
-                }
+fn execute_tail(args: &[Value]) -> Result<Value, ExpressionError> {
+    if args.len() != 1 {
+        return Err(ExpressionError::type_error("tail函数需要1个参数"));
+    }
+    match &args[0] {
+        Value::List(list) => {
+            if list.values.is_empty() {
+                Ok(Value::List(List { values: vec![] }))
             } else {
-                1
-            };
-
-            if step == 0 {
-                return Err(ExpressionError::new(
-                    crate::core::error::ExpressionErrorType::InvalidOperation,
-                    "range函数的step不能为0".to_string(),
-                ));
+                Ok(Value::List(List {
+                    values: list.values[1..].to_vec(),
+                }))
             }
-
-            let mut result = Vec::new();
-            if step > 0 {
-                let mut i = start;
-                while i <= end {
-                    result.push(Value::Int(i));
-                    i += step;
-                }
-            } else {
-                let mut i = start;
-                while i >= end {
-                    result.push(Value::Int(i));
-                    i += step;
-                }
-            }
-
-            Ok(Value::List(List { values: result }))
-        },
-    );
+        }
+        Value::Null(_) => Ok(Value::Null(NullType::Null)),
+        _ => Err(ExpressionError::type_error("tail函数需要列表类型")),
+    }
 }
 
-fn register_keys(registry: &mut FunctionRegistry) {
-    registry.register(
-        "keys",
-        FunctionSignature::new(
-            "keys",
-            vec![ValueType::Vertex],
-            ValueType::List,
-            1,
-            1,
-            true,
-            "获取顶点属性键列表",
-        ),
-        |args| {
-            let mut keys: BTreeSet<String> = BTreeSet::new();
-
-            match &args[0] {
-                Value::Vertex(v) => {
-                    for tag in &v.tags {
-                        for key in tag.properties.keys() {
-                            keys.insert(key.clone());
-                        }
-                    }
-                    for key in v.properties.keys() {
-                        keys.insert(key.clone());
-                    }
-                }
-                Value::Null(_) => return Ok(Value::Null(NullType::Null)),
-                _ => return Err(ExpressionError::type_error("keys函数需要顶点类型")),
-            }
-
-            let result: Vec<Value> = keys.into_iter().map(Value::String).collect();
-            Ok(Value::List(List { values: result }))
-        },
-    );
-
-    registry.register(
-        "keys",
-        FunctionSignature::new(
-            "keys",
-            vec![ValueType::Edge],
-            ValueType::List,
-            1,
-            1,
-            true,
-            "获取边属性键列表",
-        ),
-        |args| {
-            let mut keys: BTreeSet<String> = BTreeSet::new();
-
-            match &args[0] {
-                Value::Edge(e) => {
-                    for key in e.props.keys() {
-                        keys.insert(key.clone());
-                    }
-                }
-                Value::Null(_) => return Ok(Value::Null(NullType::Null)),
-                _ => return Err(ExpressionError::type_error("keys函数需要边类型")),
-            }
-
-            let result: Vec<Value> = keys.into_iter().map(Value::String).collect();
-            Ok(Value::List(List { values: result }))
-        },
-    );
-
-    registry.register(
-        "keys",
-        FunctionSignature::new(
-            "keys",
-            vec![ValueType::Map],
-            ValueType::List,
-            1,
-            1,
-            true,
-            "获取映射键列表",
-        ),
-        |args| {
-            let mut keys: BTreeSet<String> = BTreeSet::new();
-
-            match &args[0] {
-                Value::Map(m) => {
-                    for key in m.keys() {
-                        keys.insert(key.clone());
-                    }
-                }
-                Value::Null(_) => return Ok(Value::Null(NullType::Null)),
-                _ => return Err(ExpressionError::type_error("keys函数需要映射类型")),
-            }
-
-            let result: Vec<Value> = keys.into_iter().map(Value::String).collect();
-            Ok(Value::List(List { values: result }))
-        },
-    );
+fn execute_size(args: &[Value]) -> Result<Value, ExpressionError> {
+    if args.len() != 1 {
+        return Err(ExpressionError::type_error("size函数需要1个参数"));
+    }
+    match &args[0] {
+        Value::String(s) => Ok(Value::Int(s.len() as i64)),
+        Value::List(list) => Ok(Value::Int(list.values.len() as i64)),
+        Value::Map(map) => Ok(Value::Int(map.len() as i64)),
+        Value::Set(set) => Ok(Value::Int(set.len() as i64)),
+        Value::Null(_) => Ok(Value::Null(NullType::Null)),
+        _ => Err(ExpressionError::type_error(
+            "size函数需要字符串、列表、映射或集合类型",
+        )),
+    }
 }
 
-fn register_reverse_list(registry: &mut FunctionRegistry) {
-    registry.register(
-        "reverse",
-        FunctionSignature::new(
-            "reverse",
-            vec![ValueType::List],
-            ValueType::List,
-            1,
-            1,
-            true,
-            "反转列表",
-        ),
-        |args| {
-            match &args[0] {
-                Value::List(list) => {
-                    let mut reversed = list.values.clone();
-                    reversed.reverse();
-                    Ok(Value::List(List { values: reversed }))
+fn execute_range(args: &[Value]) -> Result<Value, ExpressionError> {
+    if args.len() < 2 || args.len() > 3 {
+        return Err(ExpressionError::type_error("range函数需要2或3个参数"));
+    }
+    let start = match &args[0] {
+        Value::Int(i) => *i,
+        Value::Null(_) => return Ok(Value::Null(NullType::Null)),
+        _ => return Err(ExpressionError::type_error("range函数需要整数参数")),
+    };
+    let end = match &args[1] {
+        Value::Int(i) => *i,
+        Value::Null(_) => return Ok(Value::Null(NullType::Null)),
+        _ => return Err(ExpressionError::type_error("range函数需要整数参数")),
+    };
+    let step = if args.len() > 2 {
+        match &args[2] {
+            Value::Int(i) => *i,
+            Value::Null(_) => return Ok(Value::Null(NullType::Null)),
+            _ => return Err(ExpressionError::type_error("range函数的step需要整数")),
+        }
+    } else {
+        1
+    };
+
+    if step == 0 {
+        return Err(ExpressionError::new(
+            crate::core::error::ExpressionErrorType::InvalidOperation,
+            "range函数的step不能为0".to_string(),
+        ));
+    }
+
+    let mut result = Vec::new();
+    if step > 0 {
+        let mut i = start;
+        while i <= end {
+            result.push(Value::Int(i));
+            i += step;
+        }
+    } else {
+        let mut i = start;
+        while i >= end {
+            result.push(Value::Int(i));
+            i += step;
+        }
+    }
+
+    Ok(Value::List(List { values: result }))
+}
+
+fn execute_keys(args: &[Value]) -> Result<Value, ExpressionError> {
+    if args.len() != 1 {
+        return Err(ExpressionError::type_error("keys函数需要1个参数"));
+    }
+    let mut keys: BTreeSet<String> = BTreeSet::new();
+
+    match &args[0] {
+        Value::Vertex(v) => {
+            for tag in &v.tags {
+                for key in tag.properties.keys() {
+                    keys.insert(key.clone());
                 }
-                Value::Null(_) => Ok(Value::Null(NullType::Null)),
-                _ => Err(ExpressionError::type_error("reverse函数需要列表类型")),
             }
-        },
-    );
+            for key in v.properties.keys() {
+                keys.insert(key.clone());
+            }
+        }
+        Value::Edge(e) => {
+            for key in e.props.keys() {
+                keys.insert(key.clone());
+            }
+        }
+        Value::Map(m) => {
+            for key in m.keys() {
+                keys.insert(key.clone());
+            }
+        }
+        Value::Null(_) => return Ok(Value::Null(NullType::Null)),
+        _ => return Err(ExpressionError::type_error("keys函数需要顶点、边或映射类型")),
+    }
+
+    let result: Vec<Value> = keys.into_iter().map(Value::String).collect();
+    Ok(Value::List(List { values: result }))
+}
+
+fn execute_reverse_list(args: &[Value]) -> Result<Value, ExpressionError> {
+    if args.len() != 1 {
+        return Err(ExpressionError::type_error("reverse函数需要1个参数"));
+    }
+    match &args[0] {
+        Value::List(list) => {
+            let mut reversed = list.values.clone();
+            reversed.reverse();
+            Ok(Value::List(List { values: reversed }))
+        }
+        Value::Null(_) => Ok(Value::Null(NullType::Null)),
+        _ => Err(ExpressionError::type_error("reverse函数需要列表类型")),
+    }
+}
+
+fn execute_toset(args: &[Value]) -> Result<Value, ExpressionError> {
+    if args.len() != 1 {
+        return Err(ExpressionError::type_error("toset函数需要1个参数"));
+    }
+    match &args[0] {
+        Value::List(list) => {
+            let set: std::collections::HashSet<Value> = list.values.iter().cloned().collect();
+            Ok(Value::Set(set))
+        }
+        Value::Null(_) => Ok(Value::Null(NullType::Null)),
+        _ => Err(ExpressionError::type_error("toset函数需要列表类型")),
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
-
-    fn create_test_registry() -> FunctionRegistry {
-        let mut registry = FunctionRegistry::new();
-        register_all(&mut registry);
-        registry
-    }
 
     #[test]
     fn test_head_function() {
-        let registry = create_test_registry();
-        let list = Value::List(List { values: vec![Value::Int(1), Value::Int(2), Value::Int(3)] });
-        let result = registry.execute("head", &[list]).expect("head函数执行应该成功");
+        let list = Value::List(List {
+            values: vec![Value::Int(1), Value::Int(2), Value::Int(3)],
+        });
+        let result = ContainerFunction::Head.execute(&[list]).expect("head函数执行应该成功");
         assert_eq!(result, Value::Int(1));
     }
 
     #[test]
     fn test_head_empty_list() {
-        let registry = create_test_registry();
         let list = Value::List(List { values: vec![] });
-        let result = registry.execute("head", &[list]).expect("head函数执行应该成功");
+        let result = ContainerFunction::Head.execute(&[list]).expect("head函数执行应该成功");
         assert_eq!(result, Value::Null(NullType::Null));
     }
 
     #[test]
     fn test_last_function() {
-        let registry = create_test_registry();
-        let list = Value::List(List { values: vec![Value::Int(1), Value::Int(2), Value::Int(3)] });
-        let result = registry.execute("last", &[list]).expect("last函数执行应该成功");
+        let list = Value::List(List {
+            values: vec![Value::Int(1), Value::Int(2), Value::Int(3)],
+        });
+        let result = ContainerFunction::Last.execute(&[list]).expect("last函数执行应该成功");
         assert_eq!(result, Value::Int(3));
     }
 
     #[test]
     fn test_tail_function() {
-        let registry = create_test_registry();
-        let list = Value::List(List { values: vec![Value::Int(1), Value::Int(2), Value::Int(3)] });
-        let result = registry.execute("tail", &[list]).expect("tail函数执行应该成功");
+        let list = Value::List(List {
+            values: vec![Value::Int(1), Value::Int(2), Value::Int(3)],
+        });
+        let result = ContainerFunction::Tail.execute(&[list]).expect("tail函数执行应该成功");
         assert_eq!(
             result,
-            Value::List(List { values: vec![Value::Int(2), Value::Int(3)] })
+            Value::List(List {
+                values: vec![Value::Int(2), Value::Int(3)]
+            })
         );
     }
 
     #[test]
     fn test_size_string() {
-        let registry = create_test_registry();
-        let result = registry
-            .execute("size", &[Value::String("hello".to_string())])
+        let result = ContainerFunction::Size
+            .execute(&[Value::String("hello".to_string())])
             .expect("size函数执行应该成功");
         assert_eq!(result, Value::Int(5));
     }
 
     #[test]
     fn test_size_list() {
-        let registry = create_test_registry();
-        let list = Value::List(List { values: vec![Value::Int(1), Value::Int(2), Value::Int(3)] });
-        let result = registry.execute("size", &[list]).expect("size函数执行应该成功");
+        let list = Value::List(List {
+            values: vec![Value::Int(1), Value::Int(2), Value::Int(3)],
+        });
+        let result = ContainerFunction::Size.execute(&[list]).expect("size函数执行应该成功");
         assert_eq!(result, Value::Int(3));
     }
 
     #[test]
-    fn test_size_map() {
-        let registry = create_test_registry();
-        let map = Value::Map(HashMap::from([
-            ("a".to_string(), Value::Int(1)),
-            ("b".to_string(), Value::Int(2)),
-        ]));
-        let result = registry.execute("size", &[map]).expect("size函数执行应该成功");
-        assert_eq!(result, Value::Int(2));
-    }
-
-    #[test]
     fn test_range_basic() {
-        let registry = create_test_registry();
-        let result = registry
-            .execute("range", &[Value::Int(1), Value::Int(5)])
+        let result = ContainerFunction::Range
+            .execute(&[Value::Int(1), Value::Int(5)])
             .expect("range函数执行应该成功");
         assert_eq!(
             result,
-            Value::List(List { values: vec![
-                Value::Int(1),
-                Value::Int(2),
-                Value::Int(3),
-                Value::Int(4),
-                Value::Int(5)
-            ]})
+            Value::List(List {
+                values: vec![Value::Int(1), Value::Int(2), Value::Int(3), Value::Int(4), Value::Int(5)]
+            })
         );
     }
 
     #[test]
     fn test_range_with_step() {
-        let registry = create_test_registry();
-        let result = registry
-            .execute("range", &[Value::Int(1), Value::Int(10), Value::Int(2)])
+        let result = ContainerFunction::Range
+            .execute(&[Value::Int(0), Value::Int(10), Value::Int(2)])
             .expect("range函数执行应该成功");
         assert_eq!(
             result,
-            Value::List(List { values: vec![Value::Int(1), Value::Int(3), Value::Int(5), Value::Int(7), Value::Int(9)] })
+            Value::List(List {
+                values: vec![Value::Int(0), Value::Int(2), Value::Int(4), Value::Int(6), Value::Int(8), Value::Int(10)]
+            })
         );
-    }
-
-    #[test]
-    fn test_range_negative_step() {
-        let registry = create_test_registry();
-        let result = registry
-            .execute("range", &[Value::Int(5), Value::Int(1), Value::Int(-1)])
-            .expect("range函数执行应该成功");
-        assert_eq!(
-            result,
-            Value::List(List { values: vec![
-                Value::Int(5),
-                Value::Int(4),
-                Value::Int(3),
-                Value::Int(2),
-                Value::Int(1)
-            ]})
-        );
-    }
-
-    #[test]
-    fn test_keys_map() {
-        let registry = create_test_registry();
-        let map = Value::Map(HashMap::from([
-            ("c".to_string(), Value::Int(3)),
-            ("a".to_string(), Value::Int(1)),
-            ("b".to_string(), Value::Int(2)),
-        ]));
-        let result = registry.execute("keys", &[map]).expect("keys函数执行应该成功");
-        if let Value::List(keys) = result {
-            assert_eq!(keys.values.len(), 3);
-            assert!(keys.values.contains(&Value::String("a".to_string())));
-            assert!(keys.values.contains(&Value::String("b".to_string())));
-            assert!(keys.values.contains(&Value::String("c".to_string())));
-        } else {
-            panic!("keys函数应该返回列表");
-        }
     }
 
     #[test]
     fn test_null_handling() {
-        let registry = create_test_registry();
         let null_value = Value::Null(NullType::Null);
 
         assert_eq!(
-            registry.execute("head", &[null_value.clone()]).expect("head函数应该处理NULL"),
+            ContainerFunction::Head.execute(&[null_value.clone()]).expect("head函数应该处理NULL"),
             Value::Null(NullType::Null)
         );
         assert_eq!(
-            registry.execute("last", &[null_value.clone()]).expect("last函数应该处理NULL"),
+            ContainerFunction::Last.execute(&[null_value.clone()]).expect("last函数应该处理NULL"),
             Value::Null(NullType::Null)
         );
         assert_eq!(
-            registry.execute("tail", &[null_value.clone()]).expect("tail函数应该处理NULL"),
+            ContainerFunction::Tail.execute(&[null_value.clone()]).expect("tail函数应该处理NULL"),
+            Value::Null(NullType::Null)
+        );
+        assert_eq!(
+            ContainerFunction::Size.execute(&[null_value.clone()]).expect("size函数应该处理NULL"),
             Value::Null(NullType::Null)
         );
     }

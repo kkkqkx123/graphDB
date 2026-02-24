@@ -1,634 +1,381 @@
 //! 字符串函数实现
 
 use crate::core::error::ExpressionError;
-use crate::core::value::dataset::List;
+use crate::core::value::NullType;
 use crate::core::Value;
-use crate::expression::functions::registry::FunctionRegistry;
-use crate::expression::functions::signature::FunctionSignature;
-use crate::expression::functions::signature::ValueType;
+use crate::define_function_enum;
+use crate::define_unary_string_fn;
+use crate::define_binary_string_bool_fn;
 
-/// 注册所有字符串函数
-pub fn register_all(registry: &mut FunctionRegistry) {
-    register_length(registry);
-    register_upper(registry);
-    register_lower(registry);
-    register_trim(registry);
-    register_concat(registry);
-    register_concat_ws(registry);
-    register_replace(registry);
-    register_substring(registry);
-    register_contains(registry);
-    register_starts_with(registry);
-    register_ends_with(registry);
-    register_left(registry);
-    register_right(registry);
-    register_lpad(registry);
-    register_rpad(registry);
-    register_reverse(registry);
-    register_split(registry);
-    register_strcasecmp(registry);
-}
-
-fn register_length(registry: &mut FunctionRegistry) {
-    registry.register(
-        "length",
-        FunctionSignature::new(
-            "length",
-            vec![ValueType::String],
-            ValueType::Int,
-            1,
-            1,
-            true,
-            "计算字符串长度",
-        ),
-        |args| {
-            match &args[0] {
-                Value::String(s) => Ok(Value::Int(s.len() as i64)),
-                Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
-                _ => Err(ExpressionError::type_error("length函数需要字符串类型")),
-            }
+define_function_enum! {
+    /// 字符串函数枚举
+    pub enum StringFunction {
+        Length => {
+            name: "length",
+            arity: 1,
+            variadic: false,
+            description: "计算字符串长度",
+            handler: execute_length
         },
-    );
-}
-
-fn register_strcasecmp(registry: &mut FunctionRegistry) {
-    registry.register(
-        "strcasecmp",
-        FunctionSignature::new(
-            "strcasecmp",
-            vec![ValueType::String, ValueType::String],
-            ValueType::Int,
-            2,
-            2,
-            true,
-            "不区分大小写比较两个字符串",
-        ),
-        |args| {
-            match (&args[0], &args[1]) {
-                (Value::String(s1), Value::String(s2)) => {
-                    let cmp_result = s1.to_lowercase().cmp(&s2.to_lowercase());
-                    let result = match cmp_result {
-                        std::cmp::Ordering::Less => -1,
-                        std::cmp::Ordering::Equal => 0,
-                        std::cmp::Ordering::Greater => 1,
-                    };
-                    Ok(Value::Int(result))
-                }
-                (Value::Null(_), _) | (_, Value::Null(_)) => {
-                    Ok(Value::Null(crate::core::value::NullType::Null))
-                }
-                _ => Err(ExpressionError::type_error("strcasecmp函数需要字符串类型")),
-            }
+        Upper => {
+            name: "upper",
+            arity: 1,
+            variadic: false,
+            description: "转换为大写",
+            handler: execute_upper
         },
-    );
-}
-
-fn register_upper(registry: &mut FunctionRegistry) {
-    // upper / toupper
-    for name in ["upper", "toupper"] {
-        registry.register(
-            name,
-            FunctionSignature::new(
-                name,
-                vec![ValueType::String],
-                ValueType::String,
-                1,
-                1,
-                true,
-                "转换为大写",
-            ),
-            |args| {
-                match &args[0] {
-                    Value::String(s) => Ok(Value::String(s.to_uppercase())),
-                    Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
-                    _ => Err(ExpressionError::type_error("upper函数需要字符串类型")),
-                }
-            },
-        );
+        Lower => {
+            name: "lower",
+            arity: 1,
+            variadic: false,
+            description: "转换为小写",
+            handler: execute_lower
+        },
+        Trim => {
+            name: "trim",
+            arity: 1,
+            variadic: false,
+            description: "去除首尾空白",
+            handler: execute_trim
+        },
+        Substring => {
+            name: "substring",
+            arity: 3,
+            variadic: false,
+            description: "获取子字符串",
+            handler: execute_substring
+        },
+        Concat => {
+            name: "concat",
+            arity: 1,
+            variadic: true,
+            description: "连接字符串",
+            handler: execute_concat
+        },
+        Replace => {
+            name: "replace",
+            arity: 2,
+            variadic: false,
+            description: "替换字符串",
+            handler: execute_replace
+        },
+        Contains => {
+            name: "contains",
+            arity: 2,
+            variadic: false,
+            description: "检查是否包含子字符串",
+            handler: execute_contains
+        },
+        StartsWith => {
+            name: "starts_with",
+            arity: 2,
+            variadic: false,
+            description: "检查是否以指定字符串开头",
+            handler: execute_starts_with
+        },
+        EndsWith => {
+            name: "ends_with",
+            arity: 2,
+            variadic: false,
+            description: "检查是否以指定字符串结尾",
+            handler: execute_ends_with
+        },
+        Split => {
+            name: "split",
+            arity: 2,
+            variadic: false,
+            description: "分割字符串",
+            handler: execute_split
+        },
+        Lpad => {
+            name: "lpad",
+            arity: 3,
+            variadic: false,
+            description: "左侧填充字符串",
+            handler: execute_lpad
+        },
+        Rpad => {
+            name: "rpad",
+            arity: 3,
+            variadic: false,
+            description: "右侧填充字符串",
+            handler: execute_rpad
+        },
+        ConcatWs => {
+            name: "concat_ws",
+            arity: 2,
+            variadic: true,
+            description: "使用分隔符连接字符串",
+            handler: execute_concat_ws
+        },
+        Strcasecmp => {
+            name: "strcasecmp",
+            arity: 2,
+            variadic: false,
+            description: "不区分大小写比较字符串",
+            handler: execute_strcasecmp
+        },
     }
 }
 
-fn register_lower(registry: &mut FunctionRegistry) {
-    // lower / tolower
-    for name in ["lower", "tolower"] {
-        registry.register(
-            name,
-            FunctionSignature::new(
-                name,
-                vec![ValueType::String],
-                ValueType::String,
-                1,
-                1,
-                true,
-                "转换为小写",
-            ),
-            |args| {
-                match &args[0] {
-                    Value::String(s) => Ok(Value::String(s.to_lowercase())),
-                    Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
-                    _ => Err(ExpressionError::type_error("lower函数需要字符串类型")),
-                }
-            },
-        );
+fn execute_length(args: &[Value]) -> Result<Value, ExpressionError> {
+    match &args[0] {
+        Value::String(s) => Ok(Value::Int(s.len() as i64)),
+        Value::Null(_) => Ok(Value::Null(NullType::Null)),
+        _ => Err(ExpressionError::type_error("length函数需要字符串类型")),
     }
 }
 
-fn register_trim(registry: &mut FunctionRegistry) {
-    // trim
-    registry.register(
-        "trim",
-        FunctionSignature::new(
-            "trim",
-            vec![ValueType::String],
-            ValueType::String,
-            1,
-            1,
-            true,
-            "去除首尾空白",
-        ),
-        |args| {
-            match &args[0] {
-                Value::String(s) => Ok(Value::String(s.trim().to_string())),
-                Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
-                _ => Err(ExpressionError::type_error("trim函数需要字符串类型")),
-            }
-        },
-    );
+define_unary_string_fn!(execute_upper, |s: &str| s.to_uppercase(), "upper");
+define_unary_string_fn!(execute_lower, |s: &str| s.to_lowercase(), "lower");
+define_unary_string_fn!(execute_trim, |s: &str| s.trim().to_string(), "trim");
 
-    // ltrim
-    registry.register(
-        "ltrim",
-        FunctionSignature::new(
-            "ltrim",
-            vec![ValueType::String],
-            ValueType::String,
-            1,
-            1,
-            true,
-            "去除左侧空白",
-        ),
-        |args| {
-            match &args[0] {
-                Value::String(s) => Ok(Value::String(s.trim_start().to_string())),
-                Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
-                _ => Err(ExpressionError::type_error("ltrim函数需要字符串类型")),
+fn execute_substring(args: &[Value]) -> Result<Value, ExpressionError> {
+    match (&args[0], &args[1], &args[2]) {
+        (Value::String(s), Value::Int(start), Value::Int(len)) => {
+            let start = *start as usize;
+            let len = *len as usize;
+            if start >= s.len() {
+                Ok(Value::String(String::new()))
+            } else {
+                let end = (start + len).min(s.len());
+                Ok(Value::String(s[start..end].to_string()))
             }
-        },
-    );
-
-    // rtrim
-    registry.register(
-        "rtrim",
-        FunctionSignature::new(
-            "rtrim",
-            vec![ValueType::String],
-            ValueType::String,
-            1,
-            1,
-            true,
-            "去除右侧空白",
-        ),
-        |args| {
-            match &args[0] {
-                Value::String(s) => Ok(Value::String(s.trim_end().to_string())),
-                Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
-                _ => Err(ExpressionError::type_error("rtrim函数需要字符串类型")),
-            }
-        },
-    );
-}
-
-fn register_concat(registry: &mut FunctionRegistry) {
-    registry.register(
-        "concat",
-        FunctionSignature::new(
-            "concat",
-            vec![ValueType::String],
-            ValueType::String,
-            2,
-            usize::MAX,
-            true,
-            "连接字符串",
-        ),
-        |args| {
-            let mut result = String::new();
-            for arg in args {
-                match arg {
-                    Value::String(s) => result.push_str(s),
-                    Value::Null(_) => return Ok(Value::Null(crate::core::value::NullType::Null)),
-                    _ => return Err(ExpressionError::type_error("concat函数需要字符串类型")),
-                }
-            }
-            Ok(Value::String(result))
-        },
-    );
-}
-
-fn register_replace(registry: &mut FunctionRegistry) {
-    registry.register(
-        "replace",
-        FunctionSignature::new(
-            "replace",
-            vec![ValueType::String, ValueType::String, ValueType::String],
-            ValueType::String,
-            3,
-            3,
-            true,
-            "替换字符串",
-        ),
-        |args| {
-            match (&args[0], &args[1], &args[2]) {
-                (Value::String(s), Value::String(from), Value::String(to)) => {
-                    Ok(Value::String(s.replace(from, to)))
-                }
-                (Value::String(_), Value::String(_), Value::Null(_))
-                | (Value::String(_), Value::Null(_), _) => {
-                    Ok(Value::Null(crate::core::value::NullType::Null))
-                }
-                (Value::Null(_), _, _) => Ok(Value::Null(crate::core::value::NullType::Null)),
-                _ => Err(ExpressionError::type_error("replace函数需要字符串类型")),
-            }
-        },
-    );
-}
-
-fn register_substring(registry: &mut FunctionRegistry) {
-    // substring / substr
-    for name in ["substring", "substr"] {
-        registry.register(
-            name,
-            FunctionSignature::new(
-                name,
-                vec![ValueType::String, ValueType::Int],
-                ValueType::String,
-                2,
-                3,
-                true,
-                "获取子字符串",
-            ),
-            |args| {
-                match (&args[0], &args[1]) {
-                    (Value::String(s), Value::Int(start)) => {
-                        let start = *start as usize;
-                        if args.len() == 3 {
-                            if let Value::Int(len) = &args[2] {
-                                let len = *len as usize;
-                                if start <= s.len() && len <= s.len() - start {
-                                    Ok(Value::String(s[start..start + len].to_string()))
-                                } else {
-                                    Ok(Value::String(s[start..].to_string()))
-                                }
-                            } else {
-                                Err(ExpressionError::type_error("substring函数需要整数类型参数"))
-                            }
-                        } else {
-                            if start <= s.len() {
-                                Ok(Value::String(s[start..].to_string()))
-                            } else {
-                                Ok(Value::String(String::new()))
-                            }
-                        }
-                    }
-                    (Value::Null(_), _) | (_, Value::Null(_)) => {
-                        Ok(Value::Null(crate::core::value::NullType::Null))
-                    }
-                    _ => Err(ExpressionError::type_error("substring函数需要字符串和整数类型")),
-                }
-            },
-        );
+        }
+        (Value::Null(_), _, _) | (_, Value::Null(_), _) | (_, _, Value::Null(_)) => {
+            Ok(Value::Null(NullType::Null))
+        }
+        _ => Err(ExpressionError::type_error("substring函数需要字符串和两个整数")),
     }
 }
 
-fn register_contains(registry: &mut FunctionRegistry) {
-    registry.register(
-        "contains",
-        FunctionSignature::new(
-            "contains",
-            vec![ValueType::String, ValueType::String],
-            ValueType::Bool,
-            2,
-            2,
-            true,
-            "检查是否包含子字符串",
-        ),
-        |args| {
-            match (&args[0], &args[1]) {
-                (Value::String(s), Value::String(sub)) => {
-                    Ok(Value::Bool(s.contains(sub)))
-                }
-                (Value::Null(_), _) | (_, Value::Null(_)) => {
-                    Ok(Value::Null(crate::core::value::NullType::Null))
-                }
-                _ => Err(ExpressionError::type_error("contains函数需要字符串类型")),
-            }
-        },
-    );
+fn execute_concat(args: &[Value]) -> Result<Value, ExpressionError> {
+    let mut result = String::new();
+    for arg in args {
+        match arg {
+            Value::String(s) => result.push_str(s),
+            Value::Null(_) => return Ok(Value::Null(NullType::Null)),
+            _ => return Err(ExpressionError::type_error("concat函数需要字符串类型")),
+        }
+    }
+    Ok(Value::String(result))
 }
 
-fn register_starts_with(registry: &mut FunctionRegistry) {
-    registry.register(
-        "starts_with",
-        FunctionSignature::new(
-            "starts_with",
-            vec![ValueType::String, ValueType::String],
-            ValueType::Bool,
-            2,
-            2,
-            true,
-            "检查是否以指定字符串开头",
-        ),
-        |args| {
-            match (&args[0], &args[1]) {
-                (Value::String(s), Value::String(prefix)) => {
-                    Ok(Value::Bool(s.starts_with(prefix)))
-                }
-                (Value::Null(_), _) | (_, Value::Null(_)) => {
-                    Ok(Value::Null(crate::core::value::NullType::Null))
-                }
-                _ => Err(ExpressionError::type_error("starts_with函数需要字符串类型")),
-            }
-        },
-    );
+fn execute_replace(args: &[Value]) -> Result<Value, ExpressionError> {
+    match (&args[0], &args[1]) {
+        (Value::String(s), Value::String(from)) => {
+            Ok(Value::String(s.replace(from, "")))
+        }
+        (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
+        _ => Err(ExpressionError::type_error("replace函数需要字符串类型")),
+    }
 }
 
-fn register_ends_with(registry: &mut FunctionRegistry) {
-    registry.register(
-        "ends_with",
-        FunctionSignature::new(
-            "ends_with",
-            vec![ValueType::String, ValueType::String],
-            ValueType::Bool,
-            2,
-            2,
-            true,
-            "检查是否以指定字符串结尾",
-        ),
-        |args| {
-            match (&args[0], &args[1]) {
-                (Value::String(s), Value::String(suffix)) => {
-                    Ok(Value::Bool(s.ends_with(suffix)))
-                }
-                (Value::Null(_), _) | (_, Value::Null(_)) => {
-                    Ok(Value::Null(crate::core::value::NullType::Null))
-                }
-                _ => Err(ExpressionError::type_error("ends_with函数需要字符串类型")),
-            }
-        },
-    );
+define_binary_string_bool_fn!(execute_contains, |s: &str, sub: &str| s.contains(sub), "contains");
+define_binary_string_bool_fn!(execute_starts_with, |s: &str, prefix: &str| s.starts_with(prefix), "starts_with");
+define_binary_string_bool_fn!(execute_ends_with, |s: &str, suffix: &str| s.ends_with(suffix), "ends_with");
+
+fn execute_split(args: &[Value]) -> Result<Value, ExpressionError> {
+    use crate::core::value::dataset::List;
+    if args.len() != 2 {
+        return Err(ExpressionError::type_error("split函数需要2个参数"));
+    }
+    match (&args[0], &args[1]) {
+        (Value::String(s), Value::String(delimiter)) => {
+            let parts: Vec<Value> = s.split(delimiter).map(|p| Value::String(p.to_string())).collect();
+            Ok(Value::List(List { values: parts }))
+        }
+        (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
+        _ => Err(ExpressionError::type_error("split函数需要字符串类型")),
+    }
 }
 
-fn register_left(registry: &mut FunctionRegistry) {
-    registry.register(
-        "left",
-        FunctionSignature::new(
-            "left",
-            vec![ValueType::String, ValueType::Int],
-            ValueType::String,
-            2,
-            2,
-            true,
-            "获取左侧子字符串",
-        ),
-        |args| {
-            match (&args[0], &args[1]) {
-                (Value::String(s), Value::Int(len)) => {
-                    let len = *len as usize;
-                    if len <= s.len() {
-                        Ok(Value::String(s[..len].to_string()))
-                    } else {
-                        Ok(Value::String(s.clone()))
-                    }
+fn execute_lpad(args: &[Value]) -> Result<Value, ExpressionError> {
+    if args.len() != 3 {
+        return Err(ExpressionError::type_error("lpad函数需要3个参数"));
+    }
+    match (&args[0], &args[1], &args[2]) {
+        (Value::String(s), Value::Int(len), Value::String(pad)) => {
+            let len = *len as usize;
+            if s.len() >= len {
+                Ok(Value::String(s[..len].to_string()))
+            } else {
+                let pad_len = len - s.len();
+                let mut result = String::new();
+                while result.len() < pad_len {
+                    result.push_str(pad);
                 }
-                (Value::Null(_), _) | (_, Value::Null(_)) => {
-                    Ok(Value::Null(crate::core::value::NullType::Null))
-                }
-                _ => Err(ExpressionError::type_error("left函数需要字符串和整数类型")),
+                result.truncate(pad_len);
+                result.push_str(s);
+                Ok(Value::String(result))
             }
-        },
-    );
+        }
+        (Value::Null(_), _, _) | (_, Value::Null(_), _) | (_, _, Value::Null(_)) => {
+            Ok(Value::Null(NullType::Null))
+        }
+        _ => Err(ExpressionError::type_error("lpad函数需要字符串、整数和字符串参数")),
+    }
 }
 
-fn register_right(registry: &mut FunctionRegistry) {
-    registry.register(
-        "right",
-        FunctionSignature::new(
-            "right",
-            vec![ValueType::String, ValueType::Int],
-            ValueType::String,
-            2,
-            2,
-            true,
-            "获取右侧子字符串",
-        ),
-        |args| {
-            match (&args[0], &args[1]) {
-                (Value::String(s), Value::Int(len)) => {
-                    let len = *len as usize;
-                    if len <= s.len() {
-                        Ok(Value::String(s[s.len() - len..].to_string()))
-                    } else {
-                        Ok(Value::String(s.clone()))
-                    }
+fn execute_rpad(args: &[Value]) -> Result<Value, ExpressionError> {
+    if args.len() != 3 {
+        return Err(ExpressionError::type_error("rpad函数需要3个参数"));
+    }
+    match (&args[0], &args[1], &args[2]) {
+        (Value::String(s), Value::Int(len), Value::String(pad)) => {
+            let len = *len as usize;
+            if s.len() >= len {
+                Ok(Value::String(s[..len].to_string()))
+            } else {
+                let pad_len = len - s.len();
+                let mut result = s.clone();
+                let mut pad_str = String::new();
+                while pad_str.len() < pad_len {
+                    pad_str.push_str(pad);
                 }
-                (Value::Null(_), _) | (_, Value::Null(_)) => {
-                    Ok(Value::Null(crate::core::value::NullType::Null))
-                }
-                _ => Err(ExpressionError::type_error("right函数需要字符串和整数类型")),
+                pad_str.truncate(pad_len);
+                result.push_str(&pad_str);
+                Ok(Value::String(result))
             }
-        },
-    );
+        }
+        (Value::Null(_), _, _) | (_, Value::Null(_), _) | (_, _, Value::Null(_)) => {
+            Ok(Value::Null(NullType::Null))
+        }
+        _ => Err(ExpressionError::type_error("rpad函数需要字符串、整数和字符串参数")),
+    }
 }
 
-fn register_reverse(registry: &mut FunctionRegistry) {
-    registry.register(
-        "reverse",
-        FunctionSignature::new(
-            "reverse",
-            vec![ValueType::String],
-            ValueType::String,
-            1,
-            1,
-            true,
-            "反转字符串",
-        ),
-        |args| {
-            match &args[0] {
-                Value::String(s) => {
-                    let reversed: String = s.chars().rev().collect();
-                    Ok(Value::String(reversed))
+fn execute_concat_ws(args: &[Value]) -> Result<Value, ExpressionError> {
+    if args.len() < 2 {
+        return Err(ExpressionError::type_error("concat_ws函数至少需要2个参数"));
+    }
+    let separator = match &args[0] {
+        Value::String(s) => s.clone(),
+        Value::Null(_) => return Ok(Value::Null(NullType::Null)),
+        _ => return Err(ExpressionError::type_error("concat_ws函数第一个参数需要字符串类型")),
+    };
+    let mut result = String::new();
+    for (i, arg) in args[1..].iter().enumerate() {
+        match arg {
+            Value::String(s) => {
+                if i > 0 {
+                    result.push_str(&separator);
                 }
-                Value::Null(_) => Ok(Value::Null(crate::core::value::NullType::Null)),
-                _ => Err(ExpressionError::type_error("reverse函数需要字符串类型")),
+                result.push_str(s);
             }
-        },
-    );
+            Value::Null(_) => return Ok(Value::Null(NullType::Null)),
+            _ => return Err(ExpressionError::type_error("concat_ws函数需要字符串类型")),
+        }
+    }
+    Ok(Value::String(result))
 }
 
-fn register_split(registry: &mut FunctionRegistry) {
-    registry.register(
-        "split",
-        FunctionSignature::new(
-            "split",
-            vec![ValueType::String, ValueType::String],
-            ValueType::List,
-            2,
-            2,
-            true,
-            "按分隔符分割字符串",
-        ),
-        |args| {
-            match (&args[0], &args[1]) {
-                (Value::String(s), Value::String(sep)) => {
-                    let parts: Vec<Value> = s.split(sep).map(|part| Value::String(part.to_string())).collect();
-                    Ok(Value::List(List { values: parts }))
-                }
-                (Value::Null(_), _) | (_, Value::Null(_)) => {
-                    Ok(Value::Null(crate::core::value::NullType::Null))
-                }
-                _ => Err(ExpressionError::type_error("split函数需要字符串类型")),
-            }
-        },
-    );
+fn execute_strcasecmp(args: &[Value]) -> Result<Value, ExpressionError> {
+    if args.len() != 2 {
+        return Err(ExpressionError::type_error("strcasecmp函数需要2个参数"));
+    }
+    match (&args[0], &args[1]) {
+        (Value::String(a), Value::String(b)) => {
+            let cmp = a.to_lowercase().cmp(&b.to_lowercase());
+            Ok(Value::Int(match cmp {
+                std::cmp::Ordering::Less => -1,
+                std::cmp::Ordering::Equal => 0,
+                std::cmp::Ordering::Greater => 1,
+            }))
+        }
+        (Value::Null(_), _) | (_, Value::Null(_)) => Ok(Value::Null(NullType::Null)),
+        _ => Err(ExpressionError::type_error("strcasecmp函数需要字符串类型")),
+    }
 }
 
-fn register_concat_ws(registry: &mut FunctionRegistry) {
-    registry.register(
-        "concat_ws",
-        FunctionSignature::new(
-            "concat_ws",
-            vec![ValueType::String],
-            ValueType::String,
-            2,
-            usize::MAX,
-            true,
-            "使用分隔符连接字符串",
-        ),
-        |args| {
-            if args.is_empty() {
-                return Ok(Value::String(String::new()));
-            }
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-            let separator = match &args[0] {
-                Value::String(s) => s.clone(),
-                Value::Null(_) => return Ok(Value::Null(crate::core::value::NullType::Null)),
-                _ => return Err(ExpressionError::type_error("concat_ws函数第一个参数需要字符串类型")),
-            };
+    #[test]
+    fn test_length() {
+        let func = StringFunction::Length;
+        let result = func.execute(&[Value::String("hello".to_string())]).unwrap();
+        assert_eq!(result, Value::Int(5));
+    }
 
-            let mut result = String::new();
-            let mut first = true;
+    #[test]
+    fn test_upper() {
+        let func = StringFunction::Upper;
+        let result = func.execute(&[Value::String("hello".to_string())]).unwrap();
+        assert_eq!(result, Value::String("HELLO".to_string()));
+    }
 
-            for arg in &args[1..] {
-                match arg {
-                    Value::String(s) => {
-                        if !first {
-                            result.push_str(&separator);
-                        }
-                        result.push_str(s);
-                        first = false;
-                    }
-                    Value::Null(_) => continue,
-                    _ => return Err(ExpressionError::type_error("concat_ws函数参数需要字符串类型")),
-                }
-            }
+    #[test]
+    fn test_lower() {
+        let func = StringFunction::Lower;
+        let result = func.execute(&[Value::String("HELLO".to_string())]).unwrap();
+        assert_eq!(result, Value::String("hello".to_string()));
+    }
 
-            Ok(Value::String(result))
-        },
-    );
-}
+    #[test]
+    fn test_trim() {
+        let func = StringFunction::Trim;
+        let result = func.execute(&[Value::String("  hello  ".to_string())]).unwrap();
+        assert_eq!(result, Value::String("hello".to_string()));
+    }
 
-fn register_lpad(registry: &mut FunctionRegistry) {
-    registry.register(
-        "lpad",
-        FunctionSignature::new(
-            "lpad",
-            vec![ValueType::String, ValueType::Int],
-            ValueType::String,
-            2,
-            3,
-            true,
-            "左侧填充字符串至指定长度",
-        ),
-        |args| {
-            match (&args[0], &args[1]) {
-                (Value::String(s), Value::Int(len)) => {
-                    let len = *len as usize;
-                    let pad_str = if args.len() == 3 {
-                        match &args[2] {
-                            Value::String(pad) => pad.clone(),
-                            Value::Null(_) => return Ok(Value::Null(crate::core::value::NullType::Null)),
-                            _ => return Err(ExpressionError::type_error("lpad函数第三个参数需要字符串类型")),
-                        }
-                    } else {
-                        String::from(" ")
-                    };
+    #[test]
+    fn test_substring() {
+        let func = StringFunction::Substring;
+        let result = func.execute(&[
+            Value::String("hello".to_string()),
+            Value::Int(1),
+            Value::Int(3),
+        ]).unwrap();
+        assert_eq!(result, Value::String("ell".to_string()));
+    }
 
-                    if s.len() >= len {
-                        Ok(Value::String(s[..len].to_string()))
-                    } else {
-                        let pad_len = len - s.len();
-                        let mut result = String::new();
-                        while result.len() < pad_len {
-                            result.push_str(&pad_str);
-                        }
-                        result.truncate(pad_len);
-                        result.push_str(s);
-                        Ok(Value::String(result))
-                    }
-                }
-                (Value::Null(_), _) | (_, Value::Null(_)) => {
-                    Ok(Value::Null(crate::core::value::NullType::Null))
-                }
-                _ => Err(ExpressionError::type_error("lpad函数需要字符串和整数类型")),
-            }
-        },
-    );
-}
+    #[test]
+    fn test_concat() {
+        let func = StringFunction::Concat;
+        let result = func.execute(&[
+            Value::String("hello".to_string()),
+            Value::String(" ".to_string()),
+            Value::String("world".to_string()),
+        ]).unwrap();
+        assert_eq!(result, Value::String("hello world".to_string()));
+    }
 
-fn register_rpad(registry: &mut FunctionRegistry) {
-    registry.register(
-        "rpad",
-        FunctionSignature::new(
-            "rpad",
-            vec![ValueType::String, ValueType::Int],
-            ValueType::String,
-            2,
-            3,
-            true,
-            "右侧填充字符串至指定长度",
-        ),
-        |args| {
-            match (&args[0], &args[1]) {
-                (Value::String(s), Value::Int(len)) => {
-                    let len = *len as usize;
-                    let pad_str = if args.len() == 3 {
-                        match &args[2] {
-                            Value::String(pad) => pad.clone(),
-                            Value::Null(_) => return Ok(Value::Null(crate::core::value::NullType::Null)),
-                            _ => return Err(ExpressionError::type_error("rpad函数第三个参数需要字符串类型")),
-                        }
-                    } else {
-                        String::from(" ")
-                    };
+    #[test]
+    fn test_contains() {
+        let func = StringFunction::Contains;
+        let result = func.execute(&[
+            Value::String("hello world".to_string()),
+            Value::String("world".to_string()),
+        ]).unwrap();
+        assert_eq!(result, Value::Bool(true));
+    }
 
-                    if s.len() >= len {
-                        Ok(Value::String(s[..len].to_string()))
-                    } else {
-                        let pad_len = len - s.len();
-                        let mut result = s.clone();
-                        let mut pad_count = 0;
-                        while pad_count < pad_len {
-                            result.push_str(&pad_str);
-                            pad_count += pad_str.len();
-                        }
-                        result.truncate(len);
-                        Ok(Value::String(result))
-                    }
-                }
-                (Value::Null(_), _) | (_, Value::Null(_)) => {
-                    Ok(Value::Null(crate::core::value::NullType::Null))
-                }
-                _ => Err(ExpressionError::type_error("rpad函数需要字符串和整数类型")),
-            }
-        },
-    );
+    #[test]
+    fn test_starts_with() {
+        let func = StringFunction::StartsWith;
+        let result = func.execute(&[
+            Value::String("hello world".to_string()),
+            Value::String("hello".to_string()),
+        ]).unwrap();
+        assert_eq!(result, Value::Bool(true));
+    }
+
+    #[test]
+    fn test_ends_with() {
+        let func = StringFunction::EndsWith;
+        let result = func.execute(&[
+            Value::String("hello world".to_string()),
+            Value::String("world".to_string()),
+        ]).unwrap();
+        assert_eq!(result, Value::Bool(true));
+    }
+
+    #[test]
+    fn test_null_handling() {
+        let func = StringFunction::Length;
+        let result = func.execute(&[Value::Null(NullType::Null)]).unwrap();
+        assert_eq!(result, Value::Null(NullType::Null));
+    }
 }

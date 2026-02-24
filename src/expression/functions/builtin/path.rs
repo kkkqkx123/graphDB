@@ -6,109 +6,82 @@ use crate::core::error::ExpressionError;
 use crate::core::value::dataset::List;
 use crate::core::value::NullType;
 use crate::core::Value;
-use crate::expression::functions::registry::FunctionRegistry;
-use crate::expression::functions::signature::FunctionSignature;
-use crate::expression::functions::signature::ValueType;
 
-/// 注册所有路径相关函数
-pub fn register_all(registry: &mut FunctionRegistry) {
-    register_nodes(registry);
-    register_relationships(registry);
+/// 路径函数枚举
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PathFunction {
+    Nodes,
+    Relationships,
 }
 
-fn register_nodes(registry: &mut FunctionRegistry) {
-    registry.register(
-        "nodes",
-        FunctionSignature::new(
-            "nodes",
-            vec![ValueType::Null],
-            ValueType::Null,
-            1,
-            1,
-            true,
-            "获取路径中的所有节点",
-        ),
-        |args| {
-            match &args[0] {
-                Value::Null(_) => Ok(Value::Null(NullType::Null)),
-                _ => Ok(Value::Null(NullType::Null)),
-            }
-        },
-    );
+impl PathFunction {
+    /// 获取函数名称
+    pub fn name(&self) -> &str {
+        match self {
+            Self::Nodes => "nodes",
+            Self::Relationships => "relationships",
+        }
+    }
 
-    registry.register(
-        "nodes",
-        FunctionSignature::new(
-            "nodes",
-            vec![ValueType::Path],
-            ValueType::List,
-            1,
-            1,
-            true,
-            "获取路径中的所有节点",
-        ),
-        |args| {
-            match &args[0] {
-                Value::Path(path) => {
-                    let mut result = vec![Value::Vertex(Box::new((*path.src).clone()))];
-                    for step in &path.steps {
-                        result.push(Value::Vertex(Box::new((*step.dst).clone())));
-                    }
-                    Ok(Value::List(List { values: result }))
-                }
-                Value::Null(_) => Ok(Value::Null(NullType::Null)),
-                _ => Err(ExpressionError::type_error("nodes函数需要路径类型")),
-            }
-        },
-    );
+    /// 获取参数数量
+    pub fn arity(&self) -> usize {
+        1
+    }
+
+    /// 是否为可变参数函数
+    pub fn is_variadic(&self) -> bool {
+        false
+    }
+
+    /// 获取函数描述
+    pub fn description(&self) -> &str {
+        match self {
+            Self::Nodes => "获取路径中的所有顶点",
+            Self::Relationships => "获取路径中的所有边",
+        }
+    }
+
+    pub fn execute(&self, args: &[Value]) -> Result<Value, ExpressionError> {
+        match self {
+            Self::Nodes => execute_nodes(args),
+            Self::Relationships => execute_relationships(args),
+        }
+    }
 }
 
-fn register_relationships(registry: &mut FunctionRegistry) {
-    registry.register(
-        "relationships",
-        FunctionSignature::new(
-            "relationships",
-            vec![ValueType::Null],
-            ValueType::Null,
-            1,
-            1,
-            true,
-            "获取路径中的所有边",
-        ),
-        |args| {
-            match &args[0] {
-                Value::Null(_) => Ok(Value::Null(NullType::Null)),
-                _ => Ok(Value::Null(NullType::Null)),
+fn execute_nodes(args: &[Value]) -> Result<Value, ExpressionError> {
+    if args.len() != 1 {
+        return Err(ExpressionError::type_error("nodes函数需要1个参数"));
+    }
+    match &args[0] {
+        Value::Path(path) => {
+            let mut result = vec![Value::Vertex(Box::new((*path.src).clone()))];
+            for step in &path.steps {
+                result.push(Value::Vertex(Box::new((*step.dst).clone())));
             }
-        },
-    );
+            Ok(Value::List(List { values: result }))
+        }
+        Value::Null(_) => Ok(Value::Null(NullType::Null)),
+        _ => Err(ExpressionError::type_error("nodes函数需要路径类型")),
+    }
+}
 
-    registry.register(
-        "relationships",
-        FunctionSignature::new(
-            "relationships",
-            vec![ValueType::Path],
-            ValueType::List,
-            1,
-            1,
-            true,
-            "获取路径中的所有边",
-        ),
-        |args| {
-            match &args[0] {
-                Value::Path(path) => {
-                    let result: Vec<Value> = path
-                        .steps
-                        .iter()
-                        .map(|step| Value::Edge((*step.edge).clone()))
-                        .collect();
-                    Ok(Value::List(List { values: result }))
-                }
-                Value::Null(_) => Ok(Value::Null(NullType::Null)),
-                _ => Err(ExpressionError::type_error("relationships函数需要路径类型")),
-            }
-        },
-    );
+fn execute_relationships(args: &[Value]) -> Result<Value, ExpressionError> {
+    if args.len() != 1 {
+        return Err(ExpressionError::type_error("relationships函数需要1个参数"));
+    }
+    match &args[0] {
+        Value::Path(path) => {
+            let result: Vec<Value> = path
+                .steps
+                .iter()
+                .map(|step| Value::Edge((*step.edge).clone()))
+                .collect();
+            Ok(Value::List(List { values: result }))
+        }
+        Value::Null(_) => Ok(Value::Null(NullType::Null)),
+        _ => Err(ExpressionError::type_error("relationships函数需要路径类型")),
+    }
 }
 
 #[cfg(test)]
@@ -116,12 +89,6 @@ mod tests {
     use super::*;
     use crate::core::vertex_edge_path::{Edge, Path, Step, Tag, Vertex};
     use std::collections::HashMap;
-
-    fn create_test_registry() -> FunctionRegistry {
-        let mut registry = FunctionRegistry::new();
-        register_all(&mut registry);
-        registry
-    }
 
     fn create_test_vertex_with_id(id: i64) -> Vertex {
         Vertex::new(Value::Int(id), vec![Tag::new("person".to_string(), HashMap::new())])
@@ -161,10 +128,9 @@ mod tests {
 
     #[test]
     fn test_nodes_function() {
-        let registry = create_test_registry();
         let path = create_test_path();
-        let result = registry
-            .execute("nodes", &[Value::Path(path)])
+        let result = PathFunction::Nodes
+            .execute(&[Value::Path(path)])
             .expect("nodes函数执行应该成功");
 
         if let Value::List(nodes) = result {
@@ -191,10 +157,9 @@ mod tests {
 
     #[test]
     fn test_relationships_function() {
-        let registry = create_test_registry();
         let path = create_test_path();
-        let result = registry
-            .execute("relationships", &[Value::Path(path)])
+        let result = PathFunction::Relationships
+            .execute(&[Value::Path(path)])
             .expect("relationships函数执行应该成功");
 
         if let Value::List(edges) = result {
@@ -216,11 +181,10 @@ mod tests {
 
     #[test]
     fn test_nodes_empty_path() {
-        let registry = create_test_registry();
         let v1 = create_test_vertex_with_id(1);
         let path = Path::new(v1);
-        let result = registry
-            .execute("nodes", &[Value::Path(path)])
+        let result = PathFunction::Nodes
+            .execute(&[Value::Path(path)])
             .expect("nodes函数执行应该成功");
 
         if let Value::List(nodes) = result {
@@ -232,11 +196,10 @@ mod tests {
 
     #[test]
     fn test_relationships_empty_path() {
-        let registry = create_test_registry();
         let v1 = create_test_vertex_with_id(1);
         let path = Path::new(v1);
-        let result = registry
-            .execute("relationships", &[Value::Path(path)])
+        let result = PathFunction::Relationships
+            .execute(&[Value::Path(path)])
             .expect("relationships函数执行应该成功");
 
         if let Value::List(edges) = result {
@@ -248,16 +211,17 @@ mod tests {
 
     #[test]
     fn test_null_handling() {
-        let registry = create_test_registry();
         let null_value = Value::Null(NullType::Null);
 
         assert_eq!(
-            registry.execute("nodes", &[null_value.clone()]).expect("nodes函数应该处理NULL"),
+            PathFunction::Nodes
+                .execute(&[null_value.clone()])
+                .expect("nodes函数应该处理NULL"),
             Value::Null(NullType::Null)
         );
         assert_eq!(
-            registry
-                .execute("relationships", &[null_value.clone()])
+            PathFunction::Relationships
+                .execute(&[null_value.clone()])
                 .expect("relationships函数应该处理NULL"),
             Value::Null(NullType::Null)
         );
