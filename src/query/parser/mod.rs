@@ -22,4 +22,4 @@ pub use ast::{
 pub use parser::Parser;
 pub use parser::ExprParser;
 pub use parser::StmtParser;
-pub use parser::parse_expression_meta_from_string;
+pub use parser::{parse_expression_meta_from_string, parse_expression_meta_from_string_with_cache};

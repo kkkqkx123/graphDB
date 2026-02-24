@@ -1,9 +1,11 @@
 //! 缓存管理器模块
 //!
-//! 管理表达式求值过程中的各种缓存，如正则表达式缓存等
+//! 管理表达式求值过程中的各种缓存，包括正则表达式缓存、表达式解析缓存、日期时间解析缓存等
 
 use regex::Regex;
 use std::collections::HashMap;
+use crate::core::types::expression::ExpressionMeta;
+use crate::core::value::{DateValue, TimeValue, DateTimeValue};
 
 /// 缓存管理器
 ///
@@ -12,8 +14,14 @@ use std::collections::HashMap;
 pub struct CacheManager {
     /// 正则表达式缓存
     regex_cache: HashMap<String, Regex>,
-    /// 其他缓存（泛型缓存）
-    generic_cache: HashMap<String, String>,
+    /// 表达式解析缓存（表达式字符串 -> ExpressionMeta）
+    expression_cache: HashMap<String, ExpressionMeta>,
+    /// 日期解析缓存（日期字符串 -> DateValue）
+    date_cache: HashMap<String, DateValue>,
+    /// 时间解析缓存（时间字符串 -> TimeValue）
+    time_cache: HashMap<String, TimeValue>,
+    /// 日期时间解析缓存（日期时间字符串 -> DateTimeValue）
+    datetime_cache: HashMap<String, DateTimeValue>,
 }
 
 impl CacheManager {
@@ -21,12 +29,17 @@ impl CacheManager {
     pub fn new() -> Self {
         Self {
             regex_cache: HashMap::new(),
-            generic_cache: HashMap::new(),
+            expression_cache: HashMap::new(),
+            date_cache: HashMap::new(),
+            time_cache: HashMap::new(),
+            datetime_cache: HashMap::new(),
         }
     }
 
-    /// 获取或编译正则表达式（内部方法）
-    pub fn get_regex_internal(&mut self, pattern: &str) -> Option<&Regex> {
+    // ==================== 正则表达式缓存 ====================
+
+    /// 获取或编译正则表达式
+    pub fn get_regex(&mut self, pattern: &str) -> Option<&Regex> {
         if !self.regex_cache.contains_key(pattern) {
             if let Ok(regex) = Regex::new(pattern) {
                 self.regex_cache.insert(pattern.to_string(), regex);
@@ -37,60 +50,9 @@ impl CacheManager {
         self.regex_cache.get(pattern)
     }
 
-    /// 预编译正则表达式
-    pub fn compile_regex(&mut self, pattern: String) -> Result<(), String> {
-        if self.regex_cache.contains_key(&pattern) {
-            return Ok(());
-        }
-
-        let regex = Regex::new(&pattern).map_err(|e| e.to_string())?;
-        self.regex_cache.insert(pattern, regex);
-        Ok(())
-    }
-
-    /// 检查正则表达式是否已缓存
-    pub fn has_regex(&self, pattern: &str) -> bool {
-        self.regex_cache.contains_key(pattern)
-    }
-
-    /// 移除正则表达式缓存
-    pub fn remove_regex(&mut self, pattern: &str) -> Option<Regex> {
-        self.regex_cache.remove(pattern)
-    }
-
-    /// 获取泛型缓存值
-    pub fn get_generic(&self, key: &str) -> Option<&String> {
-        self.generic_cache.get(key)
-    }
-
-    /// 设置泛型缓存值
-    pub fn set_generic(&mut self, key: String, value: String) {
-        self.generic_cache.insert(key, value);
-    }
-
-    /// 检查泛型缓存是否存在
-    pub fn has_generic(&self, key: &str) -> bool {
-        self.generic_cache.contains_key(key)
-    }
-
-    /// 移除泛型缓存
-    pub fn remove_generic(&mut self, key: &str) -> Option<String> {
-        self.generic_cache.remove(key)
-    }
-
     /// 获取正则表达式缓存数量
     pub fn regex_count(&self) -> usize {
         self.regex_cache.len()
-    }
-
-    /// 获取泛型缓存数量
-    pub fn generic_count(&self) -> usize {
-        self.generic_cache.len()
-    }
-
-    /// 获取总缓存数量
-    pub fn total_count(&self) -> usize {
-        self.regex_cache.len() + self.generic_cache.len()
     }
 
     /// 清空正则表达式缓存
@@ -98,25 +60,117 @@ impl CacheManager {
         self.regex_cache.clear();
     }
 
-    /// 清空泛型缓存
-    pub fn clear_generic(&mut self) {
-        self.generic_cache.clear();
+    // ==================== 表达式解析缓存 ====================
+
+    /// 获取缓存的表达式
+    pub fn get_expression(&self, expr_str: &str) -> Option<&ExpressionMeta> {
+        self.expression_cache.get(expr_str)
+    }
+
+    /// 缓存表达式
+    pub fn set_expression(&mut self, expr_str: String, expr: ExpressionMeta) {
+        self.expression_cache.insert(expr_str, expr);
+    }
+
+    /// 检查表达式是否已缓存
+    pub fn has_expression(&self, expr_str: &str) -> bool {
+        self.expression_cache.contains_key(expr_str)
+    }
+
+    /// 获取表达式缓存数量
+    pub fn expression_count(&self) -> usize {
+        self.expression_cache.len()
+    }
+
+    /// 清空表达式缓存
+    pub fn clear_expression(&mut self) {
+        self.expression_cache.clear();
+    }
+
+    // ==================== 日期解析缓存 ====================
+
+    /// 获取缓存的日期
+    pub fn get_date(&self, date_str: &str) -> Option<&DateValue> {
+        self.date_cache.get(date_str)
+    }
+
+    /// 缓存日期
+    pub fn set_date(&mut self, date_str: String, date: DateValue) {
+        self.date_cache.insert(date_str, date);
+    }
+
+    /// 获取日期缓存数量
+    pub fn date_count(&self) -> usize {
+        self.date_cache.len()
+    }
+
+    /// 清空日期缓存
+    pub fn clear_date(&mut self) {
+        self.date_cache.clear();
+    }
+
+    // ==================== 时间解析缓存 ====================
+
+    /// 获取缓存的时间
+    pub fn get_time(&self, time_str: &str) -> Option<&TimeValue> {
+        self.time_cache.get(time_str)
+    }
+
+    /// 缓存时间
+    pub fn set_time(&mut self, time_str: String, time: TimeValue) {
+        self.time_cache.insert(time_str, time);
+    }
+
+    /// 获取时间缓存数量
+    pub fn time_count(&self) -> usize {
+        self.time_cache.len()
+    }
+
+    /// 清空时间缓存
+    pub fn clear_time(&mut self) {
+        self.time_cache.clear();
+    }
+
+    // ==================== 日期时间解析缓存 ====================
+
+    /// 获取缓存的日期时间
+    pub fn get_datetime(&self, datetime_str: &str) -> Option<&DateTimeValue> {
+        self.datetime_cache.get(datetime_str)
+    }
+
+    /// 缓存日期时间
+    pub fn set_datetime(&mut self, datetime_str: String, datetime: DateTimeValue) {
+        self.datetime_cache.insert(datetime_str, datetime);
+    }
+
+    /// 获取日期时间缓存数量
+    pub fn datetime_count(&self) -> usize {
+        self.datetime_cache.len()
+    }
+
+    /// 清空日期时间缓存
+    pub fn clear_datetime(&mut self) {
+        self.datetime_cache.clear();
+    }
+
+    // ==================== 通用操作 ====================
+
+    /// 获取总缓存数量
+    pub fn total_count(&self) -> usize {
+        self.regex_cache.len()
+            + self.expression_cache.len()
+            + self.date_cache.len()
+            + self.time_cache.len()
+            + self.datetime_cache.len()
     }
 
     /// 清空所有缓存
     pub fn clear(&mut self) {
         self.regex_cache.clear();
-        self.generic_cache.clear();
-    }
-
-    /// 获取所有缓存的正则表达式模式
-    pub fn regex_patterns(&self) -> Vec<&str> {
-        self.regex_cache.keys().map(|k| k.as_str()).collect()
-    }
-
-    /// 获取所有泛型缓存的键
-    pub fn generic_keys(&self) -> Vec<&str> {
-        self.generic_cache.keys().map(|k| k.as_str()).collect()
+        self.expression_cache.clear();
+        self.date_cache.clear();
+        self.time_cache.clear();
+        self.datetime_cache.clear();
     }
 }
 
@@ -131,75 +185,101 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_cache_manager_regex() {
+    fn test_regex_cache() {
         let mut cache = CacheManager::new();
 
-        let regex = cache.get_regex_internal(r"\d+");
+        let regex = cache.get_regex(r"\d+");
         assert!(regex.is_some());
         assert!(regex.expect("Expected regex to be valid").is_match("123"));
         assert_eq!(cache.regex_count(), 1);
 
-        let regex2 = cache.get_regex_internal(r"\d+");
+        // 第二次获取应该使用缓存
+        let regex2 = cache.get_regex(r"\d+");
         assert!(regex2.is_some());
         assert_eq!(cache.regex_count(), 1);
     }
 
     #[test]
-    fn test_cache_manager_regex_invalid() {
+    fn test_regex_cache_invalid() {
         let mut cache = CacheManager::new();
 
-        let regex = cache.get_regex_internal(r"[invalid");
+        let regex = cache.get_regex(r"[invalid");
         assert!(regex.is_none());
         assert_eq!(cache.regex_count(), 0);
     }
 
     #[test]
-    fn test_cache_manager_generic() {
+    fn test_expression_cache() {
         let mut cache = CacheManager::new();
 
-        cache.set_generic("key1".to_string(), "value1".to_string());
-        assert_eq!(cache.get_generic("key1"), Some(&"value1".to_string()));
-        assert_eq!(cache.generic_count(), 1);
+        // 创建简单的表达式元数据
+        let expr = ExpressionMeta::new(crate::core::types::expression::Expression::literal(42));
+        cache.set_expression("42".to_string(), expr.clone());
 
-        let removed = cache.remove_generic("key1");
-        assert_eq!(removed, Some("value1".to_string()));
-        assert_eq!(cache.generic_count(), 0);
+        assert!(cache.has_expression("42"));
+        assert_eq!(cache.expression_count(), 1);
+
+        let retrieved = cache.get_expression("42");
+        assert!(retrieved.is_some());
     }
 
     #[test]
-    fn test_cache_manager_clear() {
+    fn test_date_cache() {
         let mut cache = CacheManager::new();
 
-        cache.get_regex_internal(r"\d+");
-        cache.set_generic("key1".to_string(), "value1".to_string());
+        let date = DateValue { year: 2024, month: 1, day: 15 };
+        cache.set_date("2024-01-15".to_string(), date);
 
-        assert_eq!(cache.total_count(), 2);
+        let retrieved = cache.get_date("2024-01-15");
+        assert!(retrieved.is_some());
+        assert_eq!(retrieved.unwrap().year, 2024);
+        assert_eq!(cache.date_count(), 1);
+    }
 
-        cache.clear_regex();
-        assert_eq!(cache.total_count(), 1);
+    #[test]
+    fn test_time_cache() {
+        let mut cache = CacheManager::new();
 
-        cache.clear_generic();
-        assert_eq!(cache.total_count(), 0);
+        let time = TimeValue { hour: 14, minute: 30, sec: 0, microsec: 0 };
+        cache.set_time("14:30:00".to_string(), time);
 
-        cache.get_regex_internal(r"\d+");
-        cache.set_generic("key1".to_string(), "value1".to_string());
+        let retrieved = cache.get_time("14:30:00");
+        assert!(retrieved.is_some());
+        assert_eq!(retrieved.unwrap().hour, 14);
+        assert_eq!(cache.time_count(), 1);
+    }
 
+    #[test]
+    fn test_datetime_cache() {
+        let mut cache = CacheManager::new();
+
+        let datetime = DateTimeValue {
+            year: 2024,
+            month: 1,
+            day: 15,
+            hour: 14,
+            minute: 30,
+            sec: 0,
+            microsec: 0,
+        };
+        cache.set_datetime("2024-01-15 14:30:00".to_string(), datetime);
+
+        let retrieved = cache.get_datetime("2024-01-15 14:30:00");
+        assert!(retrieved.is_some());
+        assert_eq!(retrieved.unwrap().year, 2024);
+        assert_eq!(cache.datetime_count(), 1);
+    }
+
+    #[test]
+    fn test_clear_all() {
+        let mut cache = CacheManager::new();
+
+        cache.get_regex(r"\d+");
+        cache.set_expression("test".to_string(), ExpressionMeta::new(crate::core::types::expression::Expression::literal(1)));
+        cache.set_date("2024-01-15".to_string(), DateValue { year: 2024, month: 1, day: 15 });
+
+        assert!(cache.total_count() > 0);
         cache.clear();
         assert_eq!(cache.total_count(), 0);
-    }
-
-    #[test]
-    fn test_cache_manager_patterns() {
-        let mut cache = CacheManager::new();
-
-        cache.get_regex_internal(r"\d+");
-        cache.get_regex_internal(r"[a-z]+");
-        cache.get_regex_internal(r"\w+");
-
-        let patterns = cache.regex_patterns();
-        assert_eq!(patterns.len(), 3);
-        assert!(patterns.contains(&r"\d+"));
-        assert!(patterns.contains(&r"[a-z]+"));
-        assert!(patterns.contains(&r"\w+"));
     }
 }

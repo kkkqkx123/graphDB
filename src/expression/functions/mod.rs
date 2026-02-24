@@ -390,7 +390,7 @@ impl RegexFunction {
             RegexFunction::RegexMatch => {
                 match (&args[0], &args[1]) {
                     (Value::String(s), Value::String(pattern)) => {
-                        if let Some(regex) = cache.get_regex_internal(pattern) {
+                        if let Some(regex) = cache.get_regex(pattern) {
                             Ok(Value::Bool(regex.is_match(s)))
                         } else {
                             Err(ExpressionError::new(
@@ -408,7 +408,7 @@ impl RegexFunction {
             RegexFunction::RegexReplace => {
                 match (&args[0], &args[1], &args[2]) {
                     (Value::String(s), Value::String(pattern), Value::String(replacement)) => {
-                        if let Some(regex) = cache.get_regex_internal(pattern) {
+                        if let Some(regex) = cache.get_regex(pattern) {
                             Ok(Value::String(regex.replace_all(s, replacement.as_str()).to_string()))
                         } else {
                             Err(ExpressionError::new(
@@ -426,7 +426,7 @@ impl RegexFunction {
             RegexFunction::RegexFind => {
                 match (&args[0], &args[1]) {
                     (Value::String(s), Value::String(pattern)) => {
-                        if let Some(regex) = cache.get_regex_internal(pattern) {
+                        if let Some(regex) = cache.get_regex(pattern) {
                             if let Some(matched) = regex.find(s) {
                                 Ok(Value::String(matched.as_str().to_string()))
                             } else {
