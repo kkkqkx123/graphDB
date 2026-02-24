@@ -79,9 +79,9 @@ impl PaginationValidationStrategy {
             )),
             _ => {
                 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
-                use crate::expression::context::basic_context::BasicExpressionContext;
+                use crate::expression::context::DefaultExpressionContext;
 
-                let mut context = BasicExpressionContext::new();
+                let mut context = DefaultExpressionContext::new();
                 match ExpressionEvaluator::evaluate(expression, &mut context) {
                     Ok(crate::core::Value::Int(n)) => {
                         if n >= 0 {

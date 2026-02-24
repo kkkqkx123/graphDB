@@ -8,7 +8,7 @@ use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStora
 use crate::storage::StorageClient;
 use parking_lot::Mutex;
 
-use crate::expression::context::traits::VariableContext;
+use crate::expression::evaluator::traits::ExpressionContext;
 
 /// BFSShortestExecutor - BFS最短路径执行器
 ///
@@ -819,7 +819,7 @@ impl<S: StorageClient> IndexScanExecutor<S> {
             entities
                 .into_iter()
                 .filter(|entity| {
-                    VariableContext::set_variable(&mut context, "entity".to_string(), entity.clone());
+                    ExpressionContext::set_variable(&mut context, "entity".to_string(), entity.clone());
                     match crate::expression::evaluator::expression_evaluator::ExpressionEvaluator::evaluate(filter_expr, &mut context) {
                         Ok(value) => match &value {
                             Value::Bool(true) => true,

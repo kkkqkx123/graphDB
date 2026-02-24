@@ -70,10 +70,8 @@ impl OwnedFunctionRef {
         }
     }
 
-    pub fn execute_with_cache<C>(&self, args: &[Value], cache: &mut C) -> Result<Value, ExpressionError>
-    where
-        C: crate::expression::context::traits::CacheContext,
-    {
+    /// 执行函数（带缓存）
+    pub fn execute_with_cache(&self, args: &[Value], cache: &mut crate::expression::context::CacheManager) -> Result<Value, ExpressionError> {
         match self {
             OwnedFunctionRef::Builtin(f) => {
                 if let BuiltinFunction::Regex(regex_func) = f {
@@ -100,28 +98,6 @@ pub trait ExpressionFunction: Send + Sync {
 
     /// 执行函数
     fn execute(&self, args: &[Value]) -> Result<Value, ExpressionError>;
-
-    /// 获取函数描述
-    fn description(&self) -> &str;
-}
-
-/// 缓存感知函数特征
-///
-/// 允许函数访问上下文的缓存管理器，用于优化需要缓存的函数（如正则表达式）
-pub trait CachedFunction: Send + Sync {
-    /// 获取函数名称
-    fn name(&self) -> &str;
-
-    /// 获取参数数量
-    fn arity(&self) -> usize;
-
-    /// 检查是否接受可变参数
-    fn is_variadic(&self) -> bool;
-
-    /// 执行函数（带缓存访问）
-    fn execute_with_cache<C>(&self, args: &[Value], cache: &mut C) -> Result<Value, ExpressionError>
-    where
-        C: crate::expression::context::traits::CacheContext;
 
     /// 获取函数描述
     fn description(&self) -> &str;
@@ -407,6 +383,70 @@ impl RegexFunction {
             RegexFunction::RegexFind => "正则表达式查找",
         }
     }
+
+    /// 执行函数（带缓存）
+    pub fn execute_with_cache(&self, args: &[Value], cache: &mut crate::expression::context::CacheManager) -> Result<Value, ExpressionError> {
+        match self {
+            RegexFunction::RegexMatch => {
+                match (&args[0], &args[1]) {
+                    (Value::String(s), Value::String(pattern)) => {
+                        if let Some(regex) = cache.get_regex_internal(pattern) {
+                            Ok(Value::Bool(regex.is_match(s)))
+                        } else {
+                            Err(ExpressionError::new(
+                                ExpressionErrorType::InvalidOperation,
+                                format!("无效的正则表达式: {}", pattern),
+                            ))
+                        }
+                    }
+                    (Value::Null(_), _) | (_, Value::Null(_)) => {
+                        Ok(Value::Null(crate::core::value::NullType::Null))
+                    }
+                    _ => Err(ExpressionError::type_error("regex_match函数需要字符串类型")),
+                }
+            }
+            RegexFunction::RegexReplace => {
+                match (&args[0], &args[1], &args[2]) {
+                    (Value::String(s), Value::String(pattern), Value::String(replacement)) => {
+                        if let Some(regex) = cache.get_regex_internal(pattern) {
+                            Ok(Value::String(regex.replace_all(s, replacement.as_str()).to_string()))
+                        } else {
+                            Err(ExpressionError::new(
+                                ExpressionErrorType::InvalidOperation,
+                                format!("无效的正则表达式: {}", pattern),
+                            ))
+                        }
+                    }
+                    (Value::Null(_), _, _) | (_, Value::Null(_), _) | (_, _, Value::Null(_)) => {
+                        Ok(Value::Null(crate::core::value::NullType::Null))
+                    }
+                    _ => Err(ExpressionError::type_error("regex_replace函数需要字符串类型")),
+                }
+            }
+            RegexFunction::RegexFind => {
+                match (&args[0], &args[1]) {
+                    (Value::String(s), Value::String(pattern)) => {
+                        if let Some(regex) = cache.get_regex_internal(pattern) {
+                            if let Some(matched) = regex.find(s) {
+                                Ok(Value::String(matched.as_str().to_string()))
+                            } else {
+                                Ok(Value::Null(crate::core::value::NullType::Null))
+                            }
+                        } else {
+                            Err(ExpressionError::new(
+                                ExpressionErrorType::InvalidOperation,
+                                format!("无效的正则表达式: {}", pattern),
+                            ))
+                        }
+                    }
+                    (Value::Null(_), _) | (_, Value::Null(_)) => {
+                        Ok(Value::Null(crate::core::value::NullType::Null))
+                    }
+                    _ => Err(ExpressionError::type_error("regex_find函数需要字符串类型")),
+                }
+            }
+        }
+    }
 }
 
 impl AggregateFunction {
@@ -573,10 +613,7 @@ impl FunctionRef<'_> {
     }
 
     /// 执行函数（带缓存）
-    pub fn execute_with_cache<C>(&self, args: &[Value], cache: &mut C) -> Result<Value, ExpressionError>
-    where
-        C: crate::expression::context::traits::CacheContext,
-    {
+    pub fn execute_with_cache(&self, args: &[Value], cache: &mut crate::expression::context::CacheManager) -> Result<Value, ExpressionError> {
         match self {
             FunctionRef::Builtin(f) => {
                 if let BuiltinFunction::Regex(regex_func) = f {
@@ -587,89 +624,5 @@ impl FunctionRef<'_> {
             }
             FunctionRef::Custom(f) => f.execute(args),
         }
-    }
-}
-
-impl CachedFunction for RegexFunction {
-    fn name(&self) -> &str {
-        self.name()
-    }
-
-    fn arity(&self) -> usize {
-        self.arity()
-    }
-
-    fn is_variadic(&self) -> bool {
-        self.is_variadic()
-    }
-
-    fn execute_with_cache<C>(&self, args: &[Value], cache: &mut C) -> Result<Value, ExpressionError>
-    where
-        C: crate::expression::context::traits::CacheContext,
-    {
-        match self {
-            RegexFunction::RegexMatch => {
-                match (&args[0], &args[1]) {
-                    (Value::String(s), Value::String(pattern)) => {
-                        if let Some(regex) = cache.get_regex(pattern) {
-                            Ok(Value::Bool(regex.is_match(s)))
-                        } else {
-                            Err(ExpressionError::new(
-                                ExpressionErrorType::InvalidOperation,
-                                format!("无效的正则表达式: {}", pattern),
-                            ))
-                        }
-                    }
-                    (Value::Null(_), _) | (_, Value::Null(_)) => {
-                        Ok(Value::Null(crate::core::value::NullType::Null))
-                    }
-                    _ => Err(ExpressionError::type_error("regex_match函数需要字符串类型")),
-                }
-            }
-            RegexFunction::RegexReplace => {
-                match (&args[0], &args[1], &args[2]) {
-                    (Value::String(s), Value::String(pattern), Value::String(replacement)) => {
-                        if let Some(regex) = cache.get_regex(pattern) {
-                            Ok(Value::String(regex.replace_all(s, replacement.as_str()).to_string()))
-                        } else {
-                            Err(ExpressionError::new(
-                                ExpressionErrorType::InvalidOperation,
-                                format!("无效的正则表达式: {}", pattern),
-                            ))
-                        }
-                    }
-                    (Value::Null(_), _, _) | (_, Value::Null(_), _) | (_, _, Value::Null(_)) => {
-                        Ok(Value::Null(crate::core::value::NullType::Null))
-                    }
-                    _ => Err(ExpressionError::type_error("regex_replace函数需要字符串类型")),
-                }
-            }
-            RegexFunction::RegexFind => {
-                match (&args[0], &args[1]) {
-                    (Value::String(s), Value::String(pattern)) => {
-                        if let Some(regex) = cache.get_regex(pattern) {
-                            if let Some(matched) = regex.find(s) {
-                                Ok(Value::String(matched.as_str().to_string()))
-                            } else {
-                                Ok(Value::Null(crate::core::value::NullType::Null))
-                            }
-                        } else {
-                            Err(ExpressionError::new(
-                                ExpressionErrorType::InvalidOperation,
-                                format!("无效的正则表达式: {}", pattern),
-                            ))
-                        }
-                    }
-                    (Value::Null(_), _) | (_, Value::Null(_)) => {
-                        Ok(Value::Null(crate::core::value::NullType::Null))
-                    }
-                    _ => Err(ExpressionError::type_error("regex_find函数需要字符串类型")),
-                }
-            }
-        }
-    }
-
-    fn description(&self) -> &str {
-        self.description()
     }
 }

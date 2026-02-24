@@ -15,9 +15,8 @@ pub use crate::core::error::{ExpressionError, ExpressionErrorType, ExpressionPos
 // 从 evaluator 模块重新导出 ExpressionContext trait 和求值器
 pub use evaluator::{ExpressionContext, ExpressionEvaluator};
 
-// 从 context 模块重新导出上下文类型和分解 trait
+// 从 context 模块重新导出上下文类型
 pub use context::{
-    BasicExpressionContext, CacheContext, DefaultExpressionContext, ExpressionContextType,
-    FunctionContext, GraphContext, QueryExpressionContext, RowContextRef, RowExpressionContext,
-    RowExpressionContextBuilder, ScopedContext, StorageExpressionContext, VariableContext,
+    DefaultExpressionContext, RowContextRef, RowExpressionContext,
+    RowExpressionContextBuilder, StorageExpressionContext,
 };

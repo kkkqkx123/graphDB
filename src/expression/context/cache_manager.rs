@@ -120,12 +120,6 @@ impl CacheManager {
     }
 }
 
-impl crate::expression::context::traits::CacheContext for CacheManager {
-    fn get_regex(&mut self, pattern: &str) -> Option<&regex::Regex> {
-        self.get_regex_internal(pattern)
-    }
-}
-
 impl Default for CacheManager {
     fn default() -> Self {
         Self::new()

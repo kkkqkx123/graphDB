@@ -4,8 +4,9 @@ use std::time::Instant;
 use super::base::{BaseExecutor, ExecutorStats};
 use crate::core::{Edge, Value, Vertex};
 use crate::index::Index;
-use crate::expression::context::basic_context::BasicExpressionContext;
+use crate::expression::context::DefaultExpressionContext;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
+use crate::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::query::parser::parser::parse_expression_meta_from_string;
 use crate::storage::StorageClient;
@@ -409,13 +410,13 @@ impl<S: StorageClient + Send + Sync + 'static> UpdateExecutor<S> {
         _rank: Option<i64>,
         properties: &std::collections::HashMap<String, Value>,
     ) -> DBResult<bool> {
-        let mut context = BasicExpressionContext::default();
-        context.set_variable("VID", vertex_id.clone());
+        let mut context = DefaultExpressionContext::new();
+        context.set_variable("VID".to_string(), vertex_id.clone());
         if let Some(dst_val) = dst {
-            context.set_variable("DST", dst_val);
+            context.set_variable("DST".to_string(), dst_val);
         }
         if let Some(etype) = edge_type {
-            context.set_variable("edge_type", crate::core::Value::String(etype.to_string()));
+            context.set_variable("edge_type".to_string(), crate::core::Value::String(etype.to_string()));
         }
         for (key, value) in properties {
             context.set_variable(key.clone(), value.clone());
@@ -548,8 +549,8 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
             for id in ids {
                 let should_delete = if let Some(ref expression) = condition_expression {
                     if let Ok(Some(vertex)) = storage.get_vertex(&self.space_name, id) {
-                        let mut context = BasicExpressionContext::default();
-                        context.set_variable("VID", id.clone());
+                        let mut context = DefaultExpressionContext::new();
+                        context.set_variable("VID".to_string(), id.clone());
                         for (key, value) in &vertex.properties {
                             context.set_variable(key.clone(), value.clone());
                         }
@@ -604,10 +605,10 @@ impl<S: StorageClient + Send + Sync + 'static> DeleteExecutor<S> {
             for (src, dst, edge_type) in edges {
                 let should_delete = if let Some(ref expression) = condition_expression {
                     if let Ok(Some(edge)) = storage.get_edge(&self.space_name, src, dst, edge_type) {
-                        let mut context = BasicExpressionContext::default();
-                        context.set_variable("SRC", src.clone());
-                        context.set_variable("DST", dst.clone());
-                        context.set_variable("edge_type", crate::core::Value::String(edge_type.clone()));
+                        let mut context = DefaultExpressionContext::new();
+                        context.set_variable("SRC".to_string(), src.clone());
+                        context.set_variable("DST".to_string(), dst.clone());
+                        context.set_variable("edge_type".to_string(), crate::core::Value::String(edge_type.clone()));
                         for (key, value) in &edge.props {
                             context.set_variable(key.clone(), value.clone());
                         }
