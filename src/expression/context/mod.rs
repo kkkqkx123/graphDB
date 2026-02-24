@@ -5,17 +5,15 @@
 pub mod cache_manager;
 pub mod default_context;
 pub mod row_context;
-pub mod version_manager;
 
 // 重新导出默认上下文类型
-pub use default_context::{DefaultExpressionContext, StorageExpressionContext};
+pub use default_context::DefaultExpressionContext;
 
 // 重新导出 ExpressionContext trait（来自 evaluator::traits）
 pub use crate::expression::evaluator::traits::ExpressionContext;
 
 // 重新导出行上下文类型
-pub use row_context::{RowContextRef, RowExpressionContext, RowExpressionContextBuilder};
+pub use row_context::RowExpressionContext;
 
 // 重新导出组件
 pub use cache_manager::CacheManager;
-pub use version_manager::VersionManager;

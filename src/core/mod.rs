@@ -7,7 +7,6 @@ pub mod npath;
 
 // 新增的子模块
 pub mod types;
-pub mod concurrency;
 pub mod symbol;
 
 // 错误和结果类型
@@ -25,7 +24,7 @@ pub use vertex_edge_path::{Edge, Path, Step, Vertex};
 pub use npath::{NPath, NPathIter, NPathVertexIter, NPathEdgeIter};
 
 // 表达式系统类型
-pub use crate::core::types::expression::Expression;
+pub use types::expression::Expression;
 pub use types::DataType;
 
 pub use types::graph_schema::EdgeDirection;

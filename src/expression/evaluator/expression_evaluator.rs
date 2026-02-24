@@ -47,53 +47,49 @@ impl ExpressionEvaluator {
 
     /// 检查表达式是否需要运行时上下文才能求值
     fn requires_runtime_context(expression: &Expression) -> bool {
-        Self::check_requires_context(expression)
-    }
-
-    fn check_requires_context(expression: &Expression) -> bool {
         match expression {
             Expression::Literal(_) => false,
             Expression::Variable(_) => true,
             Expression::Property { .. } => true,
             Expression::Binary { left, right, .. } => {
-                Self::check_requires_context(left) || Self::check_requires_context(right)
+                Self::requires_runtime_context(left) || Self::requires_runtime_context(right)
             }
-            Expression::Unary { operand, .. } => Self::check_requires_context(operand),
-            Expression::Function { args, .. } => args.iter().any(|arg| Self::check_requires_context(arg)),
-            Expression::Aggregate { arg, .. } => Self::check_requires_context(arg),
-            Expression::List(items) => items.iter().any(|arg| Self::check_requires_context(arg)),
-            Expression::Map(pairs) => pairs.iter().any(|(_, val)| Self::check_requires_context(val)),
+            Expression::Unary { operand, .. } => Self::requires_runtime_context(operand),
+            Expression::Function { args, .. } => args.iter().any(|arg| Self::requires_runtime_context(arg)),
+            Expression::Aggregate { arg, .. } => Self::requires_runtime_context(arg),
+            Expression::List(items) => items.iter().any(|arg| Self::requires_runtime_context(arg)),
+            Expression::Map(pairs) => pairs.iter().any(|(_, val)| Self::requires_runtime_context(val)),
             Expression::Case { test_expr, conditions, default } => {
-                test_expr.as_ref().map_or(false, |expr| Self::check_requires_context(expr))
-                    || conditions.iter().any(|(cond, val)| Self::check_requires_context(cond) || Self::check_requires_context(val))
-                    || default.as_ref().map_or(false, |d| Self::check_requires_context(d))
+                test_expr.as_ref().map_or(false, |expr| Self::requires_runtime_context(expr))
+                    || conditions.iter().any(|(cond, val)| Self::requires_runtime_context(cond) || Self::requires_runtime_context(val))
+                    || default.as_ref().map_or(false, |d| Self::requires_runtime_context(d))
             }
-            Expression::TypeCast { expression, .. } => Self::check_requires_context(expression),
+            Expression::TypeCast { expression, .. } => Self::requires_runtime_context(expression),
             Expression::Subscript { collection, index } => {
-                Self::check_requires_context(collection) || Self::check_requires_context(index)
+                Self::requires_runtime_context(collection) || Self::requires_runtime_context(index)
             }
             Expression::Range { collection, start, end } => {
-                Self::check_requires_context(collection)
-                    || start.as_ref().map_or(false, |s| Self::check_requires_context(s))
-                    || end.as_ref().map_or(false, |e| Self::check_requires_context(e))
+                Self::requires_runtime_context(collection)
+                    || start.as_ref().map_or(false, |s| Self::requires_runtime_context(s))
+                    || end.as_ref().map_or(false, |e| Self::requires_runtime_context(e))
             }
-            Expression::Path(items) => items.iter().any(|item| Self::check_requires_context(item)),
+            Expression::Path(items) => items.iter().any(|item| Self::requires_runtime_context(item)),
             Expression::Label(_) => false,
             Expression::ListComprehension { source, filter, map, .. } => {
-                Self::check_requires_context(source)
-                    || filter.as_ref().map_or(false, |f| Self::check_requires_context(f))
-                    || map.as_ref().map_or(false, |m| Self::check_requires_context(m))
+                Self::requires_runtime_context(source)
+                    || filter.as_ref().map_or(false, |f| Self::requires_runtime_context(f))
+                    || map.as_ref().map_or(false, |m| Self::requires_runtime_context(m))
             }
-            Expression::LabelTagProperty { tag, .. } => Self::check_requires_context(tag),
+            Expression::LabelTagProperty { tag, .. } => Self::requires_runtime_context(tag),
             Expression::TagProperty { .. } => false,
             Expression::EdgeProperty { .. } => false,
-            Expression::Predicate { args, .. } => args.iter().any(|arg| Self::check_requires_context(arg)),
+            Expression::Predicate { args, .. } => args.iter().any(|arg| Self::requires_runtime_context(arg)),
             Expression::Reduce { initial, source, mapping, .. } => {
-                Self::check_requires_context(initial)
-                    || Self::check_requires_context(source)
-                    || Self::check_requires_context(mapping)
+                Self::requires_runtime_context(initial)
+                    || Self::requires_runtime_context(source)
+                    || Self::requires_runtime_context(mapping)
             }
-            Expression::PathBuild(exprs) => exprs.iter().any(|expr| Self::check_requires_context(expr)),
+            Expression::PathBuild(exprs) => exprs.iter().any(|expr| Self::requires_runtime_context(expr)),
             Expression::Parameter(_) => true,
         }
     }
@@ -161,7 +157,7 @@ impl ExpressionEvaluator {
             // 聚合函数 - 直接求值
             Expression::Aggregate { func, arg, distinct } => {
                 let arg_value = Self::evaluate_recursive(arg, context)?;
-                FunctionEvaluator.eval_aggregate_function(func, &[arg_value], *distinct)
+                FunctionEvaluator::eval_aggregate_function(func, &[arg_value], *distinct)
             }
 
             // CASE 表达式 - 短路求值
@@ -213,7 +209,7 @@ impl ExpressionEvaluator {
             Expression::Subscript { collection, index } => {
                 let collection_value = Self::evaluate_recursive(collection, context)?;
                 let index_value = Self::evaluate_recursive(index, context)?;
-                CollectionOperationEvaluator.eval_subscript_access(&collection_value, &index_value)
+                CollectionOperationEvaluator::eval_subscript_access(&collection_value, &index_value)
             }
 
             // 范围访问
@@ -227,7 +223,7 @@ impl ExpressionEvaluator {
                     .as_ref()
                     .map(|e| Self::evaluate_recursive(e, context))
                     .transpose()?;
-                CollectionOperationEvaluator.eval_range_access(
+                CollectionOperationEvaluator::eval_range_access(
                     &collection_value,
                     start_value.as_ref(),
                     end_value.as_ref(),
@@ -246,7 +242,7 @@ impl ExpressionEvaluator {
             // 属性访问
             Expression::Property { object, property } => {
                 let object_value = Self::evaluate_recursive(object, context)?;
-                CollectionOperationEvaluator.eval_property_access(&object_value, property)
+                CollectionOperationEvaluator::eval_property_access(&object_value, property)
             }
 
             // 类型转换

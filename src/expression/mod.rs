@@ -1,7 +1,6 @@
 pub mod context;
 pub mod evaluator;
 pub mod functions;
-pub mod traits;
 
 // 从 core 重新导出操作符类型
 pub use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
@@ -17,6 +16,5 @@ pub use evaluator::{ExpressionContext, ExpressionEvaluator};
 
 // 从 context 模块重新导出上下文类型
 pub use context::{
-    DefaultExpressionContext, RowContextRef, RowExpressionContext,
-    RowExpressionContextBuilder, StorageExpressionContext,
+    DefaultExpressionContext, RowExpressionContext,
 };

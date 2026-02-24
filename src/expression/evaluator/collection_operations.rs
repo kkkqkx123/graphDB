@@ -12,7 +12,6 @@ pub struct CollectionOperationEvaluator;
 impl CollectionOperationEvaluator {
     /// 求值下标访问
     pub fn eval_subscript_access(
-        &self,
         collection: &Value,
         index: &Value,
     ) -> Result<Value, ExpressionError> {
@@ -69,7 +68,6 @@ impl CollectionOperationEvaluator {
 
     /// 求值范围访问
     pub fn eval_range_access(
-        &self,
         collection: &Value,
         start: Option<&Value>,
         end: Option<&Value>,
@@ -167,7 +165,6 @@ impl CollectionOperationEvaluator {
 
     /// 求值属性访问
     pub fn eval_property_access(
-        &self,
         object: &Value,
         property: &str,
     ) -> Result<Value, ExpressionError> {
@@ -212,11 +209,10 @@ impl CollectionOperationEvaluator {
     /// 求值属性访问（Attribute运算，用于BinaryOperator::Attribute）
     /// 将右侧值格式化为字符串作为属性名
     pub fn eval_attribute_access(
-        &self,
         object: &Value,
         attribute: &Value,
     ) -> Result<Value, ExpressionError> {
         let property = format!("{}", attribute);
-        self.eval_property_access(object, &property)
+        Self::eval_property_access(object, &property)
     }
 }

@@ -20,16 +20,6 @@ pub trait ExpressionContext {
         None
     }
 
-    /// 检查变量是否存在
-    fn has_variable(&self, name: &str) -> bool {
-        self.get_variable(name).is_some()
-    }
-
-    /// 获取上下文深度
-    fn get_depth(&self) -> usize {
-        0
-    }
-
     /// 检查上下文是否支持缓存
     fn supports_cache(&self) -> bool {
         false
@@ -39,37 +29,4 @@ pub trait ExpressionContext {
     fn get_cache(&mut self) -> Option<&mut crate::expression::context::cache_manager::CacheManager> {
         None
     }
-
-    /// 获取顶点引用
-    fn get_vertex(&self) -> Option<&crate::core::Vertex>;
-
-    /// 获取边引用
-    fn get_edge(&self) -> Option<&crate::core::Edge>;
-
-    /// 获取路径
-    fn get_path(&self, name: &str) -> Option<&crate::core::vertex_edge_path::Path>;
-
-    /// 设置顶点
-    fn set_vertex(&mut self, vertex: crate::core::Vertex);
-
-    /// 设置边
-    fn set_edge(&mut self, edge: crate::core::Edge);
-
-    /// 添加路径
-    fn add_path(&mut self, name: String, path: crate::core::vertex_edge_path::Path);
-
-    /// 检查是否为空上下文
-    fn is_empty(&self) -> bool;
-
-    /// 获取变量数量
-    fn variable_count(&self) -> usize;
-
-    /// 获取所有变量名
-    fn variable_names(&self) -> Vec<String>;
-
-    /// 获取所有变量
-    fn get_all_variables(&self) -> Option<std::collections::HashMap<String, Value>>;
-
-    /// 清空所有数据
-    fn clear(&mut self);
 }

@@ -2,12 +2,8 @@
 //!
 //! 提供表达式求值过程中的上下文管理
 
-use crate::core::{Edge, Value, Vertex};
-use crate::core::error::ExpressionError;
-use crate::expression::context::{
-    cache_manager::CacheManager,
-    version_manager::VersionManager,
-};
+use crate::core::Value;
+use crate::expression::context::cache_manager::CacheManager;
 use crate::expression::functions::registry::FunctionRegistry;
 use std::collections::HashMap;
 
@@ -17,33 +13,23 @@ use std::collections::HashMap;
 /// - 变量存储
 /// - 函数注册
 /// - 正则缓存
-/// - 当前顶点/边/路径
 #[derive(Debug)]
 pub struct DefaultExpressionContext {
-    /// 变量管理器
-    variables: VersionManager,
+    /// 变量存储
+    variables: HashMap<String, Value>,
     /// 函数注册表
     function_registry: FunctionRegistry,
     /// 缓存管理器
     cache_manager: CacheManager,
-    /// 当前顶点
-    vertex: Option<Vertex>,
-    /// 当前边
-    edge: Option<Edge>,
-    /// 路径存储
-    paths: HashMap<String, crate::core::vertex_edge_path::Path>,
 }
 
 impl DefaultExpressionContext {
     /// 创建新的上下文
     pub fn new() -> Self {
         Self {
-            variables: VersionManager::new(),
+            variables: HashMap::new(),
             function_registry: FunctionRegistry::new(),
             cache_manager: CacheManager::new(),
-            vertex: None,
-            edge: None,
-            paths: HashMap::new(),
         }
     }
 
@@ -111,21 +97,9 @@ impl DefaultExpressionContext {
         self.function_registry.register_custom_full(function);
     }
 
-    /// 设置顶点
-    pub fn with_vertex(mut self, vertex: Vertex) -> Self {
-        self.vertex = Some(vertex);
-        self
-    }
-
-    /// 设置边
-    pub fn with_edge(mut self, edge: Edge) -> Self {
-        self.edge = Some(edge);
-        self
-    }
-
     /// 添加变量
     pub fn add_variable(mut self, name: String, value: Value) -> Self {
-        self.variables.set(name, value);
+        self.variables.insert(name, value);
         self
     }
 
@@ -135,38 +109,9 @@ impl DefaultExpressionContext {
         I: IntoIterator<Item = (String, Value)>,
     {
         for (name, value) in variables {
-            self.variables.set(name, value);
+            self.variables.insert(name, value);
         }
         self
-    }
-
-    /// 添加路径
-    pub fn add_path(mut self, name: String, path: crate::core::vertex_edge_path::Path) -> Self {
-        self.paths.insert(name, path);
-        self
-    }
-
-    /// 检查是否为空
-    pub fn is_empty(&self) -> bool {
-        self.vertex.is_none() && self.edge.is_none() && self.variables.is_empty()
-    }
-
-    /// 获取变量数量
-    pub fn variable_count(&self) -> usize {
-        self.variables.len()
-    }
-
-    /// 获取所有变量名
-    pub fn variable_names(&self) -> Vec<String> {
-        self.variables.variable_names().into_iter().map(|s| s.to_string()).collect()
-    }
-
-    /// 清空所有数据
-    pub fn clear(&mut self) {
-        self.vertex = None;
-        self.edge = None;
-        self.variables.clear();
-        self.paths.clear();
     }
 }
 
@@ -182,60 +127,7 @@ impl crate::expression::evaluator::traits::ExpressionContext for DefaultExpressi
     }
 
     fn set_variable(&mut self, name: String, value: Value) {
-        self.variables.set(name, value);
-    }
-
-    fn get_vertex(&self) -> Option<&Vertex> {
-        self.vertex.as_ref()
-    }
-
-    fn get_edge(&self) -> Option<&Edge> {
-        self.edge.as_ref()
-    }
-
-    fn get_path(&self, name: &str) -> Option<&crate::core::vertex_edge_path::Path> {
-        self.paths.get(name)
-    }
-
-    fn set_vertex(&mut self, vertex: Vertex) {
-        self.vertex = Some(vertex);
-    }
-
-    fn set_edge(&mut self, edge: Edge) {
-        self.edge = Some(edge);
-    }
-
-    fn add_path(&mut self, name: String, path: crate::core::vertex_edge_path::Path) {
-        self.paths.insert(name, path);
-    }
-
-    fn is_empty(&self) -> bool {
-        self.vertex.is_none() && self.edge.is_none() && self.variables.is_empty()
-    }
-
-    fn variable_count(&self) -> usize {
-        self.variables.len()
-    }
-
-    fn variable_names(&self) -> Vec<String> {
-        self.variables.variable_names().into_iter().map(|s| s.to_string()).collect()
-    }
-
-    fn get_all_variables(&self) -> Option<HashMap<String, Value>> {
-        let mut all_vars = HashMap::new();
-        for name in self.variables.variable_names() {
-            if let Some(value) = self.variables.get(name) {
-                all_vars.insert(name.to_string(), value.clone());
-            }
-        }
-        Some(all_vars)
-    }
-
-    fn clear(&mut self) {
-        self.variables.clear();
-        self.vertex = None;
-        self.edge = None;
-        self.paths.clear();
+        self.variables.insert(name, value);
     }
 
     fn get_function(&self, name: &str) -> Option<crate::expression::functions::FunctionRef> {
@@ -249,79 +141,5 @@ impl crate::expression::evaluator::traits::ExpressionContext for DefaultExpressi
 
     fn get_cache(&mut self) -> Option<&mut CacheManager> {
         Some(&mut self.cache_manager)
-    }
-}
-
-/// 存储层表达式上下文 trait
-///
-/// 为存储层提供额外的属性访问接口
-pub trait StorageExpressionContext: crate::expression::evaluator::traits::ExpressionContext {
-    /// 获取变量值
-    fn get_var(&self, name: &str) -> Result<Value, ExpressionError>;
-    
-    /// 设置变量值
-    fn set_var(&mut self, name: &str, value: Value) -> Result<(), ExpressionError>;
-    
-    /// 获取变量属性值
-    fn get_var_prop(&self, var: &str, prop: &str) -> Result<Value, ExpressionError>;
-    
-    /// 获取标签属性值
-    fn get_tag_prop(&self, tag: &str, prop: &str) -> Result<Value, ExpressionError>;
-    
-    /// 获取边属性值
-    fn get_edge_prop(&self, edge: &str, prop: &str) -> Result<Value, ExpressionError>;
-}
-
-impl StorageExpressionContext for DefaultExpressionContext {
-    fn get_var(&self, name: &str) -> Result<Value, ExpressionError> {
-        self.variables.get(name)
-            .cloned()
-            .ok_or_else(|| ExpressionError::undefined_variable(name))
-    }
-
-    fn set_var(&mut self, name: &str, value: Value) -> Result<(), ExpressionError> {
-        self.variables.set(name.to_string(), value);
-        Ok(())
-    }
-
-    fn get_var_prop(&self, var: &str, prop: &str) -> Result<Value, ExpressionError> {
-        let var_value = self.variables.get(var)
-            .cloned()
-            .ok_or_else(|| ExpressionError::undefined_variable(var))?;
-
-        match var_value {
-            Value::Map(map) => map.get(prop)
-                .cloned()
-                .ok_or_else(|| ExpressionError::property_not_found(prop)),
-            _ => Err(ExpressionError::type_error(format!("变量 '{}' 不是映射类型", var))),
-        }
-    }
-
-    fn get_tag_prop(&self, tag: &str, prop: &str) -> Result<Value, ExpressionError> {
-        if let Some(vertex) = &self.vertex {
-            if vertex.has_tag(tag) {
-                vertex.get_property(tag, prop)
-                    .cloned()
-                    .ok_or_else(|| ExpressionError::property_not_found(prop))
-            } else {
-                Err(ExpressionError::label_not_found(tag))
-            }
-        } else {
-            Err(ExpressionError::type_error("上下文中没有顶点"))
-        }
-    }
-
-    fn get_edge_prop(&self, edge: &str, prop: &str) -> Result<Value, ExpressionError> {
-        if let Some(current_edge) = &self.edge {
-            if current_edge.edge_type == edge {
-                current_edge.properties().get(prop)
-                    .cloned()
-                    .ok_or_else(|| ExpressionError::property_not_found(prop))
-            } else {
-                Err(ExpressionError::label_not_found(edge))
-            }
-        } else {
-            Err(ExpressionError::type_error("上下文中没有边"))
-        }
     }
 }

@@ -9,7 +9,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use super::BuiltinFunction;
 use super::CustomFunction;
-use super::ExpressionFunction;
 
 /// 函数注册表
 /// 

@@ -1,6 +1,6 @@
 //! 函数调用求值
 //!
-//! 提供各种内置函数的求值功能
+//! 提供聚合函数的求值功能
 
 use crate::core::error::{ExpressionError, ExpressionErrorType};
 use crate::core::types::operators::AggregateFunction;
@@ -11,188 +11,8 @@ use crate::core::value::dataset::List;
 pub struct FunctionEvaluator;
 
 impl FunctionEvaluator {
-    /// 求值函数调用
-    pub fn eval_function_call(&self, name: &str, args: &[Value]) -> Result<Value, ExpressionError> {
-        match name {
-            // 数学函数
-            "abs" => {
-                if args.len() != 1 {
-                    return Err(ExpressionError::argument_count_error(1, args.len()));
-                }
-                match &args[0] {
-                    Value::Int(i) => Ok(Value::Int(i.abs())),
-                    Value::Float(f) => Ok(Value::Float(f.abs())),
-                    _ => Err(ExpressionError::type_error("abs函数需要数值类型")),
-                }
-            }
-            "ceil" => {
-                if args.len() != 1 {
-                    return Err(ExpressionError::argument_count_error(1, args.len()));
-                }
-                match &args[0] {
-                    Value::Int(i) => Ok(Value::Int(*i)),
-                    Value::Float(f) => Ok(Value::Float(f.ceil())),
-                    _ => Err(ExpressionError::type_error("ceil函数需要数值类型")),
-                }
-            }
-            "floor" => {
-                if args.len() != 1 {
-                    return Err(ExpressionError::argument_count_error(1, args.len()));
-                }
-                match &args[0] {
-                    Value::Int(i) => Ok(Value::Int(*i)),
-                    Value::Float(f) => Ok(Value::Float(f.floor())),
-                    _ => Err(ExpressionError::type_error("floor函数需要数值类型")),
-                }
-            }
-            "round" => {
-                if args.len() != 1 {
-                    return Err(ExpressionError::argument_count_error(1, args.len()));
-                }
-                match &args[0] {
-                    Value::Int(i) => Ok(Value::Int(*i)),
-                    Value::Float(f) => Ok(Value::Float(f.round())),
-                    _ => Err(ExpressionError::type_error("round函数需要数值类型")),
-                }
-            }
-
-            // 字符串函数
-            "length" => {
-                if args.len() != 1 {
-                    return Err(ExpressionError::argument_count_error(1, args.len()));
-                }
-                match &args[0] {
-                    Value::String(s) => Ok(Value::Int(s.len() as i64)),
-                    Value::List(l) => Ok(Value::Int(l.len() as i64)),
-                    Value::Map(m) => Ok(Value::Int(m.len() as i64)),
-                    _ => Err(ExpressionError::type_error(
-                        "length函数需要字符串、列表或映射类型",
-                    )),
-                }
-            }
-            "lower" => {
-                if args.len() != 1 {
-                    return Err(ExpressionError::argument_count_error(1, args.len()));
-                }
-                match &args[0] {
-                    Value::String(s) => Ok(Value::String(s.to_lowercase())),
-                    _ => Err(ExpressionError::type_error("lower函数需要字符串类型")),
-                }
-            }
-            "upper" => {
-                if args.len() != 1 {
-                    return Err(ExpressionError::argument_count_error(1, args.len()));
-                }
-                match &args[0] {
-                    Value::String(s) => Ok(Value::String(s.to_uppercase())),
-                    _ => Err(ExpressionError::type_error("upper函数需要字符串类型")),
-                }
-            }
-            "trim" => {
-                if args.len() != 1 {
-                    return Err(ExpressionError::argument_count_error(1, args.len()));
-                }
-                match &args[0] {
-                    Value::String(s) => Ok(Value::String(s.trim().to_string())),
-                    _ => Err(ExpressionError::type_error("trim函数需要字符串类型")),
-                }
-            }
-
-            _ => Err(ExpressionError::undefined_function(name)),
-        }
-    }
-
-    /// 求值聚合函数（单个参数）
-    pub fn eval_aggregate_function_single(
-        &self,
-        func: &AggregateFunction,
-        arg: &Value,
-        _distinct: bool,
-    ) -> Result<Value, ExpressionError> {
-        match func {
-            AggregateFunction::Count(_) => {
-                if arg.is_null() {
-                    Ok(Value::Int(0))
-                } else {
-                    Ok(Value::Int(1))
-                }
-            }
-            AggregateFunction::Sum(_) => {
-                if arg.is_null() {
-                    Ok(Value::Int(0))
-                } else {
-                    Ok(arg.clone())
-                }
-            }
-            AggregateFunction::Avg(_) => {
-                if arg.is_null() {
-                    Ok(Value::Null(crate::core::NullType::Null))
-                } else {
-                    Ok(arg.clone())
-                }
-            }
-            AggregateFunction::Min(_) => {
-                if arg.is_null() {
-                    Ok(Value::Null(crate::core::NullType::Null))
-                } else {
-                    Ok(arg.clone())
-                }
-            }
-            AggregateFunction::Max(_) => {
-                if arg.is_null() {
-                    Ok(Value::Null(crate::core::NullType::Null))
-                } else {
-                    Ok(arg.clone())
-                }
-            }
-            AggregateFunction::Collect(_) => Ok(Value::List(List::from(vec![arg.clone()]))),
-            AggregateFunction::CollectSet(_) => {
-                let mut set = std::collections::HashSet::new();
-                set.insert(arg.clone());
-                Ok(Value::Set(set))
-            }
-            AggregateFunction::Distinct(_) => Ok(Value::List(List::from(vec![arg.clone()]))),
-            AggregateFunction::Percentile(_, _) => {
-                if arg.is_null() {
-                    Ok(Value::Null(crate::core::NullType::Null))
-                } else {
-                    Ok(arg.clone())
-                }
-            }
-            AggregateFunction::Std(_) => {
-                if arg.is_null() {
-                    Ok(Value::Null(crate::core::NullType::Null))
-                } else {
-                    Ok(arg.clone())
-                }
-            }
-            AggregateFunction::BitAnd(_) => {
-                if arg.is_null() {
-                    Ok(Value::Null(crate::core::NullType::Null))
-                } else {
-                    Ok(arg.clone())
-                }
-            }
-            AggregateFunction::BitOr(_) => {
-                if arg.is_null() {
-                    Ok(Value::Null(crate::core::NullType::Null))
-                } else {
-                    Ok(arg.clone())
-                }
-            }
-            AggregateFunction::GroupConcat(_, _) => {
-                if arg.is_null() {
-                    Ok(Value::Null(crate::core::NullType::Null))
-                } else {
-                    Ok(arg.clone())
-                }
-            }
-        }
-    }
-
     /// 求值聚合函数
     pub fn eval_aggregate_function(
-        &self,
         func: &AggregateFunction,
         args: &[Value],
         distinct: bool,
@@ -220,9 +40,9 @@ impl FunctionEvaluator {
                 Ok(sum)
             }
             AggregateFunction::Avg(_) => {
-                let sum = self.eval_aggregate_function(&AggregateFunction::Sum("".to_string()), args, distinct)?;
+                let sum = Self::eval_aggregate_function(&AggregateFunction::Sum("".to_string()), args, distinct)?;
                 let count =
-                    self.eval_aggregate_function(&AggregateFunction::Count(None), args, distinct)?;
+                    Self::eval_aggregate_function(&AggregateFunction::Count(None), args, distinct)?;
                 sum.div(&count)
                     .map_err(|e| ExpressionError::runtime_error(e))
             }
@@ -248,8 +68,8 @@ impl FunctionEvaluator {
                 if distinct {
                     let unique_values: std::collections::HashSet<_> =
                         args.iter().cloned().collect();
-                    Ok(Value::List(List::from(unique_values.into_iter().collect::<Vec<_>>())))
-                } else {
+                    Ok(Value::List(List::from(unique_values.into_iter().collect::<Vec<_>>())))}
+                else {
                     Ok(Value::List(List::from(args.to_vec())))
                 }
             }

@@ -49,8 +49,8 @@ impl BinaryOperationEvaluator {
             BinaryOperator::EndsWith => Self::eval_ends_with(left, right),
 
             // 访问运算 - 委托给CollectionOperationEvaluator
-            BinaryOperator::Subscript => CollectionOperationEvaluator.eval_subscript_access(left, right),
-            BinaryOperator::Attribute => CollectionOperationEvaluator.eval_attribute_access(left, right),
+            BinaryOperator::Subscript => CollectionOperationEvaluator::eval_subscript_access(left, right),
+            BinaryOperator::Attribute => CollectionOperationEvaluator::eval_attribute_access(left, right),
 
             // 集合运算
             BinaryOperator::Union => Self::eval_union(left, right),
