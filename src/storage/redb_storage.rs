@@ -147,7 +147,13 @@ impl RedbStorage {
                     let mut writer = self.writer.lock();
                     writer.delete_edge(space, &edge.src, &edge.dst, &edge.edge_type)?;
                 }
-                self.index_data_manager.delete_edge_indexes(space_id, &edge.src, &edge.dst, &edge.edge_type)?;
+                let indexes = self.index_metadata_manager.list_edge_indexes(space_id)?;
+                let index_names: Vec<String> = indexes
+                    .into_iter()
+                    .filter(|idx| idx.schema_name == edge.edge_type)
+                    .map(|idx| idx.name)
+                    .collect();
+                self.index_data_manager.delete_edge_indexes(space_id, &edge.src, &edge.dst, &index_names)?;
             }
         }
         Ok(())
@@ -418,7 +424,13 @@ impl StorageClient for RedbStorage {
         let space_id = self.get_space_id(space)?;
 
         // 删除索引
-        self.index_data_manager.delete_edge_indexes(space_id, src, dst, edge_type)?;
+        let indexes = self.index_metadata_manager.list_edge_indexes(space_id)?;
+        let index_names: Vec<String> = indexes
+            .into_iter()
+            .filter(|idx| idx.schema_name == edge_type)
+            .map(|idx| idx.name)
+            .collect();
+        self.index_data_manager.delete_edge_indexes(space_id, src, dst, &index_names)?;
         
         Ok(())
     }
@@ -918,7 +930,13 @@ impl StorageClient for RedbStorage {
                     let mut writer = self.writer.lock();
                     writer.delete_edge(space, &edge.src, &edge.dst, &edge.edge_type)?;
                 }
-                self.index_data_manager.delete_edge_indexes(space_id, &edge.src, &edge.dst, &edge.edge_type)?;
+                let indexes = self.index_metadata_manager.list_edge_indexes(space_id)?;
+                let index_names: Vec<String> = indexes
+                    .into_iter()
+                    .filter(|idx| idx.schema_name == edge.edge_type)
+                    .map(|idx| idx.name)
+                    .collect();
+                self.index_data_manager.delete_edge_indexes(space_id, &edge.src, &edge.dst, &index_names)?;
                 deleted = true;
                 break;
             }
@@ -1180,7 +1198,13 @@ impl StorageClient for RedbStorage {
                 writer.delete_edge(space, &edge.src, &edge.dst, &edge.edge_type)?;
             }
             // 删除相关索引
-            self.index_data_manager.delete_edge_indexes(space_id, &edge.src, &edge.dst, &edge.edge_type)?;
+            let indexes = self.index_metadata_manager.list_edge_indexes(space_id)?;
+            let index_names: Vec<String> = indexes
+                .into_iter()
+                .filter(|idx| idx.schema_name == edge.edge_type)
+                .map(|idx| idx.name)
+                .collect();
+            self.index_data_manager.delete_edge_indexes(space_id, &edge.src, &edge.dst, &index_names)?;
         }
 
         Ok(count)

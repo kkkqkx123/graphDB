@@ -412,10 +412,11 @@ impl<S: StorageClient + Send + Sync + 'static, I: IndexDataManager + Send + Sync
 /// 边删除处理器
 ///
 /// 支持批量删除、双向边删除、索引联动删除
-pub struct EdgeDeleteProcessor<S: StorageClient, I: IndexDataManager> {
+pub struct EdgeDeleteProcessor<S: StorageClient, I: IndexDataManager, M: IndexMetadataManager> {
     storage: Arc<Mutex<S>>,
     lock_manager: Arc<Mutex<MemoryLockManager>>,
     index_data_manager: Arc<I>,
+    index_metadata_manager: Arc<M>,
     context: BatchDmlContext,
     edges: Vec<EdgeDeleteItem>,
     space_id: u64,
@@ -430,11 +431,12 @@ pub struct EdgeDeleteItem {
     pub rank: i64,
 }
 
-impl<S: StorageClient, I: IndexDataManager> EdgeDeleteProcessor<S, I> {
+impl<S: StorageClient, I: IndexDataManager, M: IndexMetadataManager> EdgeDeleteProcessor<S, I, M> {
     pub fn new(
         storage: Arc<Mutex<S>>,
         lock_manager: Arc<Mutex<MemoryLockManager>>,
         index_data_manager: Arc<I>,
+        index_metadata_manager: Arc<M>,
         context: BatchDmlContext,
         space_id: u64,
     ) -> Self {
@@ -442,6 +444,7 @@ impl<S: StorageClient, I: IndexDataManager> EdgeDeleteProcessor<S, I> {
             storage,
             lock_manager,
             index_data_manager,
+            index_metadata_manager,
             context,
             edges: Vec::new(),
             space_id,
@@ -476,16 +479,22 @@ impl<S: StorageClient, I: IndexDataManager> EdgeDeleteProcessor<S, I> {
 
     /// 删除索引
     fn delete_indexes(&self, edge: &Edge) -> Result<(), StorageError> {
+        let indexes = self.index_metadata_manager.list_edge_indexes(self.space_id)?;
+        let index_names: Vec<String> = indexes
+            .into_iter()
+            .filter(|idx| idx.schema_name == edge.edge_type)
+            .map(|idx| idx.name)
+            .collect();
         self.index_data_manager.delete_edge_indexes(
             self.space_id,
             &edge.src,
             &edge.dst,
-            &edge.edge_type,
+            &index_names,
         ).map_err(|e| StorageError::StorageError(format!("删除边索引失败: {}", e)))
     }
 }
 
-impl<S: StorageClient + Send + Sync + 'static, I: IndexDataManager + Send + Sync + 'static> DmlProcessor for EdgeDeleteProcessor<S, I> {
+impl<S: StorageClient + Send + Sync + 'static, I: IndexDataManager + Send + Sync + 'static, M: IndexMetadataManager + Send + Sync + 'static> DmlProcessor for EdgeDeleteProcessor<S, I, M> {
     fn execute(&mut self) -> Result<DmlResult, StorageError> {
         if self.edges.is_empty() {
             return Ok(DmlResult::success(0));
