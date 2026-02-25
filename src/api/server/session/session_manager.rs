@@ -5,7 +5,7 @@ use std::sync::{Arc, atomic::{AtomicU64, Ordering}};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tokio::time;
 
-use super::client_session::{ClientSession, Session};
+use super::network_session::{ClientSession, Session};
 use crate::core::error::{SessionError, SessionResult};
 
 pub const DEFAULT_MAX_ALLOWED_CONNECTIONS: usize = 100; // 默认最大连接数（单节点场景）

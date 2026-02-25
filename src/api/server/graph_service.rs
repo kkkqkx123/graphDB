@@ -1,13 +1,12 @@
 use crate::api::server::auth::{Authenticator, AuthenticatorFactory, PasswordAuthenticator};
 use crate::api::server::permission::PermissionManager;
-use crate::api::server::stats::{StatsManager, MetricType};
-use crate::api::server::QueryEngine;
-use crate::api::server::session::{ClientSession, GraphSessionManager};
+use crate::api::server::session::{ClientSession, GraphSessionManager, SpaceInfo};
 use crate::config::Config;
 use crate::storage::StorageClient;
 use crate::core::error::{SessionError, SessionResult};
-use crate::core::{Permission, StatsManager as CoreStatsManager};
+use crate::core::{Permission, StatsManager, MetricType};
 use crate::transaction::{SavepointManager, TransactionManager};
+use crate::query::QueryPipelineManager;
 use std::sync::Arc;
 use parking_lot::Mutex;
 use std::time::Duration;
@@ -15,7 +14,7 @@ use log::{info, warn};
 
 pub struct GraphService<S: StorageClient + Clone + 'static> {
     session_manager: Arc<GraphSessionManager>,
-    query_engine: Arc<Mutex<QueryEngine<S>>>,
+    pipeline_manager: Arc<Mutex<QueryPipelineManager<S>>>,
     authenticator: PasswordAuthenticator,
     permission_manager: Arc<PermissionManager>,
     stats_manager: Arc<StatsManager>,
@@ -29,27 +28,7 @@ pub struct GraphService<S: StorageClient + Clone + 'static> {
 impl<S: StorageClient + Clone + 'static> GraphService<S> {
     /// 创建新的GraphService（不包含事务管理器，用于测试）
     pub fn new(config: Config, storage: Arc<S>) -> Arc<Self> {
-        let session_idle_timeout = Duration::from_secs(config.transaction.default_timeout * 10);
-        let session_manager = GraphSessionManager::new(
-            format!("{}:{}", config.database.host, config.database.port),
-            config.database.max_connections,
-            session_idle_timeout,
-        );
-        let query_engine = Arc::new(Mutex::new(QueryEngine::new(storage.clone())));
-        let authenticator = AuthenticatorFactory::create_default(&config.auth);
-        let permission_manager = Arc::new(PermissionManager::new());
-        let stats_manager = Arc::new(StatsManager::new());
-
-        Arc::new(Self {
-            session_manager,
-            query_engine,
-            authenticator,
-            permission_manager,
-            stats_manager,
-            storage,
-            transaction_manager: None,
-            savepoint_manager: None,
-        })
+        Self::create_service(config, storage, None, None)
     }
 
     /// 使用事务管理器创建GraphService
@@ -59,26 +38,42 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         transaction_manager: Arc<TransactionManager>,
         savepoint_manager: Arc<SavepointManager>,
     ) -> Arc<Self> {
+        Self::create_service(config, storage, Some(transaction_manager), Some(savepoint_manager))
+    }
+
+    /// 内部构造函数，提取公共逻辑
+    fn create_service(
+        config: Config,
+        storage: Arc<S>,
+        transaction_manager: Option<Arc<TransactionManager>>,
+        savepoint_manager: Option<Arc<SavepointManager>>,
+    ) -> Arc<Self> {
         let session_idle_timeout = Duration::from_secs(config.transaction.default_timeout * 10);
         let session_manager = GraphSessionManager::new(
             format!("{}:{}", config.database.host, config.database.port),
             config.database.max_connections,
             session_idle_timeout,
         );
-        let query_engine = Arc::new(Mutex::new(QueryEngine::new(storage.clone())));
+        
+        let stats_manager = Arc::new(CoreStatsManager::new());
+        let pipeline_manager = Arc::new(Mutex::new(QueryPipelineManager::new(
+            Arc::new(Mutex::new((*storage).clone())),
+            stats_manager.clone(),
+        )));
+        
         let authenticator = AuthenticatorFactory::create_default(&config.auth);
         let permission_manager = Arc::new(PermissionManager::new());
-        let stats_manager = Arc::new(StatsManager::new());
+        let server_stats_manager = Arc::new(StatsManager::new());
 
         Arc::new(Self {
             session_manager,
-            query_engine,
+            pipeline_manager,
             authenticator,
             permission_manager,
-            stats_manager,
+            stats_manager: server_stats_manager,
             storage,
-            transaction_manager: Some(transaction_manager),
-            savepoint_manager: Some(savepoint_manager),
+            transaction_manager,
+            savepoint_manager,
         })
     }
 
@@ -137,7 +132,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         }
 
         // 执行普通查询
-        let result = self.execute_with_permission(session_id, stmt, space_id).await;
+        let result = self.execute_query_with_permission(session_id, stmt, space_id).await;
         
         // 如果是 USE 语句且执行成功，更新会话的空间
         if result.is_ok() && trimmed_stmt.starts_with("USE ") {
@@ -164,16 +159,16 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         result
     }
     
-    async fn get_space_info(&self, space_name: &str) -> Result<crate::api::server::session::client_session::SpaceInfo, String> {
+    async fn get_space_info(&self, space_name: &str) -> Result<SpaceInfo, String> {
         // 从存储中获取空间信息
         match self.storage.get_space(space_name) {
-            Ok(Some(space)) => Ok(crate::api::server::session::client_session::SpaceInfo {
+            Ok(Some(space)) => Ok(SpaceInfo {
                 name: space_name.to_string(),
                 id: space.space_id as i64,
             }),
             Ok(None) => {
                 // 空间不存在，返回一个默认的空间信息（用于测试）
-                Ok(crate::api::server::session::client_session::SpaceInfo {
+                Ok(SpaceInfo {
                     name: space_name.to_string(),
                     id: 1, // 默认空间ID
                 })
@@ -182,7 +177,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
                 let error_msg = format!("{}", e);
                 if error_msg.contains("Table 'spaces' does not exist") {
                     // 表不存在，返回默认空间信息
-                    Ok(crate::api::server::session::client_session::SpaceInfo {
+                    Ok(SpaceInfo {
                         name: space_name.to_string(),
                         id: 1, // 默认空间ID
                     })
@@ -193,7 +188,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         }
     }
 
-    pub async fn execute_with_permission(
+    async fn execute_query_with_permission(
         &self,
         session_id: i64,
         stmt: &str,
@@ -219,22 +214,25 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             }
         }
 
-        let request_context = crate::api::server::query_processor::RequestContext {
-            session_id,
-            statement: stmt.to_string(),
-            parameters: std::collections::HashMap::new(),
-            client_session: Some(session),
-            transaction_id: None,
-        };
+        // 从客户端会话中提取空间信息
+        let space_info = session.space().map(|s| {
+            crate::core::types::SpaceInfo {
+                space_name: s.name.clone(),
+                space_id: s.id as u64,
+                vid_type: crate::core::types::DataType::String,
+                tags: Vec::new(),
+                edge_types: Vec::new(),
+                version: crate::core::types::MetadataVersion::default(),
+                comment: None,
+            }
+        });
 
-        let mut query_engine = self
-            .query_engine
-            .lock();
-        let response = query_engine.execute(request_context).await;
+        let mut pipeline_manager = self.pipeline_manager.lock();
+        let result = pipeline_manager.execute_query_with_space(stmt, space_info).await;
 
-        match response.result {
-            Ok(result) => Ok(result),
-            Err(e) => Err(e),
+        match result {
+            Ok(exec_result) => Ok(format!("{:?}", exec_result)),
+            Err(e) => Err(e.to_string()),
         }
     }
 
@@ -266,14 +264,6 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
 
     pub fn get_session_manager(&self) -> &GraphSessionManager {
         &self.session_manager
-    }
-
-    pub fn get_query_engine(&self) -> &Mutex<QueryEngine<S>> {
-        &self.query_engine
-    }
-
-    pub fn get_authenticator(&self) -> &PasswordAuthenticator {
-        &self.authenticator
     }
 
     pub fn get_permission_manager(&self) -> &PermissionManager {
@@ -526,71 +516,106 @@ mod tests {
         let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
         let graph_service = GraphService::<MockStorage>::new(config, storage);
 
-        let session = graph_service
-            .authenticate("root", "root")
-            .await
-            .expect("Failed to authenticate");
-        let session_id = session.id();
-
-        assert!(graph_service.session_manager.find_session(session_id).is_some());
-
+        let session = graph_service.authenticate("root", "root").await;
+        assert!(session.is_ok());
+        
+        let session_id = session.unwrap().id();
         graph_service.signout(session_id);
-
-        assert!(graph_service.session_manager.find_session(session_id).is_none());
+        
+        // 验证会话已注销
+        assert!(graph_service.get_session_manager().find_session(session_id).is_none());
     }
 
     #[tokio::test]
-    async fn test_execute_query() {
+    async fn test_list_sessions() {
         let config = create_test_config();
 
         let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
         let graph_service = GraphService::<MockStorage>::new(config, storage);
 
-        let session = graph_service
-            .authenticate("root", "root")
-            .await
-            .expect("Failed to authenticate");
-        let session_id = session.id();
+        // 初始时没有会话
+        let sessions = graph_service.list_sessions();
+        assert_eq!(sessions.len(), 0);
 
-        // 执行查询，验证不 panic
-        let result = graph_service.execute(session_id, "SHOW SPACES").await;
-        // 查询可能成功或失败，但不应该 panic
-        let _ = result;
+        // 创建一个会话
+        let session = graph_service.authenticate("root", "root").await;
+        assert!(session.is_ok());
+
+        // 现在应该有一个会话
+        let sessions = graph_service.list_sessions();
+        assert_eq!(sessions.len(), 1);
     }
 
     #[tokio::test]
-    async fn test_invalid_session_execute() {
+    async fn test_get_session_info() {
         let config = create_test_config();
 
         let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
         let graph_service = GraphService::<MockStorage>::new(config, storage);
 
-        let result = graph_service.execute(999999, "SHOW SPACES").await;
+        // 不存在的会话
+        let info = graph_service.get_session_info(999);
+        assert!(info.is_none());
+
+        // 创建一个会话
+        let session = graph_service.authenticate("root", "root").await;
+        assert!(session.is_ok());
+        let session_id = session.unwrap().id();
+
+        // 获取会话信息
+        let info = graph_service.get_session_info(session_id);
+        assert!(info.is_some());
+        assert_eq!(info.unwrap().session_id, session_id);
+    }
+
+    #[tokio::test]
+    async fn test_kill_session() {
+        let config = create_test_config();
+
+        let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
+        let graph_service = GraphService::<MockStorage>::new(config, storage);
+
+        // 创建一个会话
+        let session = graph_service.authenticate("root", "root").await;
+        assert!(session.is_ok());
+        let session_id = session.unwrap().id();
+
+        // 终止会话
+        let result = graph_service.kill_session(session_id, "root");
+        assert!(result.is_ok());
+
+        // 验证会话已终止
+        assert!(graph_service.get_session_manager().find_session(session_id).is_none());
+    }
+
+    #[tokio::test]
+    async fn test_kill_nonexistent_session() {
+        let config = create_test_config();
+
+        let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
+        let graph_service = GraphService::<MockStorage>::new(config, storage);
+
+        // 终止不存在的会话应该失败
+        let result = graph_service.kill_session(999, "root");
         assert!(result.is_err());
     }
 
     #[tokio::test]
-    async fn test_permission_extraction() {
+    async fn test_permission_check() {
         let config = create_test_config();
 
         let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
         let graph_service = GraphService::<MockStorage>::new(config, storage);
 
-        assert_eq!(
-            graph_service.extract_permission_from_statement("SELECT * FROM users"),
-            crate::api::service::Permission::Read
-        );
-        assert_eq!(
-            graph_service.extract_permission_from_statement("INSERT INTO users VALUES (...)"),
-            crate::api::service::Permission::Write
-        );
-        assert_eq!(
-            graph_service.extract_permission_from_statement("DELETE FROM users"),
-            crate::api::service::Permission::Delete
-        );
-        assert_eq!(
-            graph_service.extract_permission_from_statement("ALTER TAG user"),
-            crate::api::service::Permission::Schema
-        );
+        // 测试各种语句的权限提取
+        assert_eq!(graph_service.extract_permission_from_statement("SELECT * FROM user"), Permission::Read);
+        assert_eq!(graph_service.extract_permission_from_statement("MATCH (n) RETURN n"), Permission::Read);
+        assert_eq!(graph_service.extract_permission_from_statement("INSERT INTO user VALUES (1, 'test')"), Permission::Write);
+        assert_eq!(graph_service.extract_permission_from_statement("CREATE TAG user(name string)"), Permission::Write);
+        assert_eq!(graph_service.extract_permission_from_statement("DELETE FROM user WHERE id = 1"), Permission::Delete);
+        assert_eq!(graph_service.extract_permission_from_statement("DROP TAG user"), Permission::Delete);
+        assert_eq!(graph_service.extract_permission_from_statement("ALTER TAG user ADD COLUMN age int"), Permission::Schema);
+        assert_eq!(graph_service.extract_permission_from_statement("ADD HOSTS 127.0.0.1:9779"), Permission::Schema);
+        assert_eq!(graph_service.extract_permission_from_statement("UNKNOWN STATEMENT"), Permission::Read);
     }
 }

@@ -6,7 +6,7 @@ use crate::api::core::{QueryApi, TransactionApi, SchemaApi};
 use crate::api::server::auth::PasswordAuthenticator;
 use crate::api::server::session::GraphSessionManager;
 use crate::api::server::permission::PermissionManager;
-use crate::api::server::stats::StatsManager;
+use crate::core::StatsManager;
 use crate::storage::StorageClient;
 use crate::transaction::TransactionManager;
 use crate::config::Config;

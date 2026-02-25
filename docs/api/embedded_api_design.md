@@ -4,6 +4,8 @@
 
 本文档定义 GraphDB 作为嵌入式数据库的完整 API 设计方案，参考 SQLite 的简洁性和 Neo4j 的类型安全性，为 Rust 应用提供原生图数据库支持。
 
+> **设计简化说明**: 本版本已移除过度设计的功能（C FFI API、异步 API、保存点、流式查询等），专注于嵌入式场景的核心需求。
+
 ---
 
 ## 设计原则
@@ -12,6 +14,7 @@
 2. **类型安全**: 利用 Rust 的类型系统，在编译期捕获错误
 3. **零成本抽象**: 高级 API 不带来运行时开销
 4. **可扩展性**: 支持从简单脚本到复杂应用的多种使用场景
+5. **务实性**: 优先实现核心功能，避免过度设计
 
 ---
 
@@ -21,8 +24,8 @@
 ┌─────────────────────────────────────────────────────────────┐
 │                    公共 API 层 (Public API)                   │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │
-│  │  同步 API     │  │  异步 API     │  │   C FFI API      │  │
-│  │  (embedded)  │  │  (embedded)  │  │  (跨语言绑定)     │  │
+│  │  同步 API     │  │  高级特性     │  │   批量操作        │  │
+│  │  (embedded)  │  │  (预编译语句) │  │  (数据导入)      │  │
 │  └──────────────┘  └──────────────┘  └──────────────────┘  │
 ├─────────────────────────────────────────────────────────────┤
 │                   核心引擎层 (Core Engine)                    │
@@ -47,8 +50,7 @@ pub struct GraphDatabase {
 /// 数据库配置
 pub struct DatabaseConfig {
     pub path: Option<PathBuf>,           // None = 内存模式
-    pub cache_size: usize,               // 缓存大小
-    pub max_connections: usize,          // 最大连接数
+    pub cache_size: usize,               // 缓存大小（MB）
     pub default_timeout: Duration,       // 默认超时
 }
 
@@ -60,6 +62,9 @@ impl GraphDatabase {
     /// 创建内存数据库
     /// 对应: sqlite3_open(":memory:")
     pub fn open_in_memory() -> Result<Self, GraphDbError>;
+    
+    /// 使用配置打开数据库
+    pub fn open_with_config(config: DatabaseConfig) -> Result<Self, GraphDbError>;
     
     /// 关闭数据库
     /// 对应: sqlite3_close()
@@ -79,8 +84,15 @@ impl GraphDatabase {
         query: &str, 
         params: &HashMap<String, Value>
     ) -> Result<QueryResult, GraphDbError>;
+    
+    /// 预编译查询
+    pub fn prepare(&self, query: &str) -> Result<PreparedStatement, GraphDbError>;
 }
 ```
+
+> **设计说明**: 移除 `max_connections` 配置，嵌入式数据库是单进程访问，不需要连接池管理。
+
+---
 
 ### 2. 会话管理
 
@@ -120,8 +132,13 @@ impl Session {
     
     /// 获取当前图空间
     pub fn current_space(&self) -> Option<&str>;
+    
+    /// 创建批量插入器
+    pub fn batch_inserter(&self, batch_size: usize) -> BatchInserter;
 }
 ```
+
+---
 
 ### 3. 事务管理
 
@@ -151,40 +168,22 @@ impl<'sess> Transaction<'sess> {
     /// 回滚事务
     /// 对应: sqlite3_rollback()
     pub fn rollback(mut self) -> Result<(), GraphDbError>;
-    
-    /// 创建保存点
-    pub fn savepoint(&self, name: &str) -> Result<Savepoint, GraphDbError>;
 }
 
-/// 保存点
-pub struct Savepoint<'txn> {
-    transaction: &'txn Transaction<'txn>,
-    name: String,
-}
-
-impl<'txn> Savepoint<'txn> {
-    /// 回滚到保存点
-    pub fn rollback_to(self) -> Result<(), GraphDbError>;
-    
-    /// 释放保存点
-    pub fn release(self) -> Result<(), GraphDbError>;
-}
-
-/// 托管事务（自动重试）
+/// 托管事务（自动重试）- 简化版本
 impl Session {
-    /// 执行写操作事务（带重试）
-    /// 对应: Neo4j execute_write()
-    pub fn with_write_transaction<F, T>(&self, f: F) -> Result<T, GraphDbError>
+    /// 在事务中执行操作（自动提交/回滚）
+    pub fn with_transaction<F, T>(&self, f: F) -> Result<T, GraphDbError>
     where
-        F: FnMut(&Transaction) -> Result<T, GraphDbError>;
-    
-    /// 执行读操作事务
-    /// 对应: Neo4j execute_read()
-    pub fn with_read_transaction<F, T>(&self, f: F) -> Result<T, GraphDbError>
-    where
-        F: FnMut(&Transaction) -> Result<T, GraphDbError>;
+        F: FnOnce(&Transaction) -> Result<T, GraphDbError>;
 }
 ```
+
+> **设计说明**: 
+> - 移除保存点（Savepoint）功能，嵌入式场景事务通常简单，嵌套事务需求较少
+> - 移除 `with_write_transaction` / `with_read_transaction` 的区分，简化为统一的 `with_transaction`
+
+---
 
 ### 4. 查询结果处理
 
@@ -206,7 +205,6 @@ pub struct ResultMetadata {
     pub execution_time: Duration,
     pub rows_returned: usize,
     pub rows_scanned: usize,
-    pub is_cache_hit: bool,
 }
 
 impl QueryResult {
@@ -247,6 +245,10 @@ impl Row {
 }
 ```
 
+> **设计说明**: 移除 `is_cache_hit` 字段，缓存命中统计属于监控指标，非核心功能。
+
+---
+
 ### 5. 预编译语句（高性能）
 
 ```rust
@@ -255,12 +257,6 @@ impl Row {
 pub struct PreparedStatement {
     query_plan: Arc<ExecutionPlan>,
     parameter_types: HashMap<String, DataType>,
-}
-
-impl GraphDatabase {
-    /// 预编译查询
-    /// 对应: sqlite3_prepare_v2()
-    pub fn prepare(&self, query: &str) -> Result<PreparedStatement, GraphDbError>;
 }
 
 impl PreparedStatement {
@@ -284,23 +280,20 @@ impl PreparedStatement {
 }
 ```
 
+---
+
 ### 6. 批量操作 API
 
 ```rust
 /// 批量插入器
-pub struct BatchInserter {
-    session: &Session,
+pub struct BatchInserter<'sess> {
+    session: &'sess Session,
     batch_size: usize,
     vertex_buffer: Vec<Vertex>,
     edge_buffer: Vec<Edge>,
 }
 
-impl Session {
-    /// 创建批量插入器
-    pub fn batch_inserter(&self, batch_size: usize) -> BatchInserter;
-}
-
-impl BatchInserter {
+impl<'sess> BatchInserter<'sess> {
     /// 添加顶点
     pub fn add_vertex(&mut self, vertex: Vertex) -> &mut Self;
     
@@ -319,6 +312,18 @@ pub struct BatchResult {
     pub vertices_inserted: usize,
     pub edges_inserted: usize,
     pub errors: Vec<BatchError>,
+}
+
+/// 批量错误
+pub struct BatchError {
+    pub index: usize,
+    pub item_type: BatchItemType,
+    pub error: GraphDbError,
+}
+
+pub enum BatchItemType {
+    Vertex,
+    Edge,
 }
 ```
 
@@ -420,122 +425,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ---
 
-## C FFI API
-
-```c
-// ==================== C FFI API ====================
-
-// 数据库句柄
-typedef struct graphdb graphdb;
-typedef struct graphdb_session graphdb_session;
-typedef struct graphdb_result graphdb_result;
-typedef struct graphdb_stmt graphdb_stmt;
-
-// 错误码
-typedef enum {
-    GRAPHDB_OK = 0,
-    GRAPHDB_ERROR = 1,
-    GRAPHDB_NOMEM = 2,
-    GRAPHDB_BUSY = 3,
-    GRAPHDB_NOTFOUND = 4,
-    GRAPHDB_INVALID = 5,
-} graphdb_error;
-
-// 打开数据库
-graphdb_error graphdb_open(const char* path, graphdb** db);
-
-// 关闭数据库
-graphdb_error graphdb_close(graphdb* db);
-
-// 创建会话
-graphdb_error graphdb_session(graphdb* db, graphdb_session** session);
-
-// 执行查询
-graphdb_error graphdb_execute(
-    graphdb_session* session,
-    const char* query,
-    graphdb_result** result
-);
-
-// 获取结果行数
-int graphdb_result_row_count(graphdb_result* result);
-
-// 获取列数
-int graphdb_result_column_count(graphdb_result* result);
-
-// 获取列名
-const char* graphdb_result_column_name(graphdb_result* result, int col);
-
-// 获取字符串值
-const char* graphdb_result_get_string(graphdb_result* result, int row, int col);
-
-// 获取整数值
-long long graphdb_result_get_int(graphdb_result* result, int row, int col);
-
-// 释放结果
-void graphdb_result_free(graphdb_result* result);
-
-// 预编译语句
-graphdb_error graphdb_prepare(
-    graphdb* db,
-    const char* query,
-    graphdb_stmt** stmt
-);
-
-// 绑定参数
-graphdb_error graphdb_bind_string(graphdb_stmt* stmt, const char* name, const char* value);
-graphdb_error graphdb_bind_int(graphdb_stmt* stmt, const char* name, long long value);
-
-// 执行预编译语句
-graphdb_error graphdb_stmt_execute(graphdb_stmt* stmt, graphdb_result** result);
-
-// 释放语句
-void graphdb_stmt_free(graphdb_stmt* stmt);
-```
-
----
-
-## 异步 API
-
-```rust
-// ==================== 异步 API ====================
-
-pub struct AsyncGraphDatabase {
-    inner: GraphDatabase,
-    runtime: Handle,
-}
-
-impl AsyncGraphDatabase {
-    /// 异步打开数据库
-    pub async fn open(path: impl AsRef<Path>) -> Result<Self, GraphDbError>;
-    
-    /// 异步创建会话
-    pub async fn session(&self) -> Result<AsyncSession, GraphDbError>;
-}
-
-pub struct AsyncSession {
-    inner: Session,
-}
-
-impl AsyncSession {
-    /// 异步执行查询
-    pub async fn execute(&self, query: &str) -> Result<QueryResult, GraphDbError>;
-    
-    /// 异步流式查询
-    pub async fn execute_stream(
-        &self,
-        query: &str
-    ) -> Result<impl Stream<Item = Result<Row, GraphDbError>>, GraphDbError>;
-    
-    /// 异步事务
-    pub async fn with_transaction<F, T>(&self, f: F) -> Result<T, GraphDbError>
-    where
-        F: AsyncFnMut(&AsyncTransaction) -> Result<T, GraphDbError>;
-}
-```
-
----
-
 ## API 优先级
 
 | 优先级 | API 类别 | 说明 |
@@ -544,11 +433,56 @@ impl AsyncSession {
 | **P0** | 查询执行 API | `Session::execute()`, `QueryResult` |
 | **P0** | 事务 API | `begin_transaction()`, `commit()`, `rollback()` |
 | **P1** | 参数化查询 | `execute_with_params()` |
-| **P1** | 预编译语句 | `prepare()`, `Statement` |
-| **P1** | C FFI API | 跨语言绑定基础 |
-| **P2** | 批量操作 | `BatchInserter` |
-| **P2** | 异步 API | `AsyncGraphDatabase` |
-| **P3** | 高级特性 | 保存点、流式结果、监控指标 |
+| **P1** | 预编译语句 | `prepare()`, `PreparedStatement` |
+| **P1** | 批量操作 | `BatchInserter` |
+| **P2** | 托管事务 | `with_transaction()` |
+| **P3** | ~~C FFI API~~ | ~~跨语言绑定基础~~ (移除：嵌入式场景优先 Rust 原生) |
+| **P3** | ~~异步 API~~ | ~~AsyncGraphDatabase~~ (移除：嵌入式场景同步 API 足够) |
+| **P3** | ~~保存点~~ | ~~事务内子事务~~ (移除：嵌入式场景需求较少) |
+| **P3** | ~~流式查询~~ | ~~execute_stream~~ (移除：结果集通常在内存中处理) |
+
+---
+
+## 移除的功能说明
+
+### 1. C FFI API（已移除）
+**移除原因**:
+- 项目当前是单机嵌入式数据库，目标用户主要是 Rust 开发者
+- 如需支持其他语言，建议使用 PyO3/Napi-rs 等专用绑定库直接包装 Rust API
+- C FFI 层开发成本高，且需要维护 unsafe 代码边界
+
+**替代方案**:
+- Python: 使用 PyO3 直接包装 Rust API
+- Node.js: 使用 Napi-rs 直接包装 Rust API
+- 其他语言: 通过专用绑定生成器
+
+### 2. 异步 API（已移除）
+**移除原因**:
+- 嵌入式数据库通常在同一线程/进程内使用
+- SQLite 没有专门的异步 API，同步 API 已满足需求
+- 存储引擎层面的 I/O 异步已足够
+
+**替代方案**:
+- 如需异步，可在应用层使用 `tokio::task::spawn_blocking` 包装同步调用
+
+### 3. 保存点 Savepoint（已移除）
+**移除原因**:
+- 嵌入式场景事务通常简单，嵌套事务需求较少
+- 增加 API 复杂度
+
+**替代方案**:
+- 如需嵌套事务，可在应用层实现逻辑隔离
+
+### 4. 流式查询 execute_stream（已移除）
+**移除原因**:
+- 嵌入式数据库结果集通常在内存中处理
+- 流式查询增加实现复杂度
+- 大数据量查询可通过 LIMIT/OFFSET 分页
+
+### 5. 连接池/多连接管理（已移除）
+**移除原因**:
+- 嵌入式数据库是单进程访问，不需要连接池
+- 移除 `max_connections` 配置项
 
 ---
 
@@ -569,9 +503,10 @@ impl AsyncSession {
 
 根据 `rust与C作为嵌入数据库的区别.txt` 的分析，建议：
 
-1. **Rust 原生 SDK**: 直接使用上述 API
-2. **C FFI 层**: 提供 C 兼容接口，让其他语言通过 FFI 调用
-3. **专用绑定**（可选）: 使用 PyO3、Napi-rs 等为 Python/Node.js 提供地道 API
+1. **Rust 原生 SDK**: 直接使用上述 API（当前重点）
+2. **专用绑定**（未来可选）: 使用 PyO3、Napi-rs 等为 Python/Node.js 提供地道 API
+
+> **注意**: 不推荐维护 C FFI 层，直接使用专用绑定库开发效率更高，用户体验更好。
 
 ---
 
@@ -581,3 +516,4 @@ impl AsyncSession {
 - [Neo4j Python Driver 文档](https://neo4j.com/docs/python-manual/current/)
 - [SDK功能需求分析](./SDK功能需求分析.md)
 - [Rust与C作为嵌入数据库的区别](./rust与C作为嵌入数据库的区别.txt)
+- [嵌入式 API 扩展方案](./embedded_api_expansion_plan.md)
