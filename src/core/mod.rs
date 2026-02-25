@@ -13,9 +13,22 @@ pub mod stats;
 
 // 错误和结果类型
 pub use error::{
-    DBError, DBResult, ExpressionError, ExpressionErrorType, ExpressionPosition, QueryError,
-    StorageError, StorageResult, SessionError, PermissionError, SessionResult, PermissionResult, QueryResult,
+    DBError, DBResult, GraphDBResult,
+    ExpressionError, ExpressionErrorType, ExpressionPosition,
+    QueryError, QueryResult,
+    StorageError, StorageResult,
+    SessionError, SessionResult,
+    PermissionError, PermissionResult,
+    ManagerError, ManagerResult,
+    ValidationError, ValidationErrorType,
+    SchemaValidationError, SchemaValidationResult,
+    PlanNodeVisitError, LockError,
+    ErrorCategory,
 };
+
+// 对外错误码
+pub use error::{ErrorCode, PublicError, ToPublicError};
+pub use error::codes::ErrorCategory as CodeErrorCategory;
 
 // Result 系统
 pub use result::{ResultBuilder, DefaultIterator, GetNeighborsIterator, PropIterator};

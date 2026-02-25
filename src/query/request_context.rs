@@ -1,6 +1,7 @@
 //! 请求上下文模块 - 管理查询请求的上下文信息
 
 use crate::core::Value;
+use crate::core::ErrorCode;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use std::time::{Instant, SystemTime};
@@ -63,31 +64,6 @@ impl SessionInfo {
     /// 更新最后访问时间
     pub fn touch(&mut self) {
         self.last_access_time = SystemTime::now();
-    }
-}
-
-/// 错误码枚举
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ErrorCode {
-    Success = 0,
-    SyntaxError = 1,
-    ExecutionError = 2,
-    ValidationError = 3,
-    PermissionDenied = 4,
-    ResourceNotFound = 5,
-    Timeout = 6,
-    Unknown = 99,
-}
-
-impl ErrorCode {
-    pub fn as_i32(&self) -> i32 {
-        *self as i32
-    }
-}
-
-impl Default for ErrorCode {
-    fn default() -> Self {
-        ErrorCode::Success
     }
 }
 
