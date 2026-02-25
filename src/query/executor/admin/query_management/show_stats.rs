@@ -5,8 +5,8 @@
 use std::sync::Arc;
 use parking_lot::Mutex;
 
-use crate::query::{GLOBAL_QUERY_MANAGER, QueryStatus};
-use crate::core::StatsManager;
+use crate::query::GLOBAL_QUERY_MANAGER;
+use crate::core::{StatsManager, QueryStatus};
 use crate::core::{DataSet, Value};
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;

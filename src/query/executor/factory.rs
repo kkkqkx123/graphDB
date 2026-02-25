@@ -1528,7 +1528,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
     }
 
     /// 执行执行计划
-    pub async fn execute_plan(
+    pub fn execute_plan(
         &mut self,
         query_context: Arc<QueryContext>,
         plan: crate::query::planner::plan::ExecutionPlan,

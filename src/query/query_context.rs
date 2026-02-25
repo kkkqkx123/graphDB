@@ -209,12 +209,6 @@ impl QueryContext {
         self.space_info().map(|s| s.space_name)
     }
 
-    /// 标记为部分成功
-    pub fn set_partial_success(&self) {
-        let _ = self.rctx.set_response_error("部分成功".to_string());
-        log::warn!("查询被标记为部分成功");
-    }
-
     /// 标记为已终止
     pub fn mark_killed(&self) {
         self.killed.store(true, Ordering::SeqCst);

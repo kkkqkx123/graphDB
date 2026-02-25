@@ -6,7 +6,7 @@ use log::{info, warn};
 use std::collections::HashMap;
 use std::sync::Arc;
 use parking_lot::Mutex;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH};
 use std::sync::OnceLock;
 
 use crate::core::error::{ManagerError, ManagerResult};
@@ -230,6 +230,11 @@ impl QueryManager {
             killed_queries: killed,
             avg_duration_ms: avg_duration,
         }
+    }
+
+    /// 获取查询统计（返回Result类型，兼容旧代码）
+    pub fn get_query_stats(&self) -> ManagerResult<QueryStats> {
+        Ok(self.get_stats())
     }
 
     /// 清理已完成的查询（保留最近N个）

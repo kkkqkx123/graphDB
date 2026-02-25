@@ -62,7 +62,7 @@ async fn main() -> Result<()> {
             }
 
             // Execute query directly
-            let result = api::execute_query(&query).await;
+            let result = api::execute_query(&query);
             
             // 确保日志 flush 后再退出
             logging::shutdown();

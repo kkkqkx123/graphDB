@@ -33,7 +33,7 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
     ///
     /// # 返回
     /// 结构化查询结果
-    pub async fn execute(
+    pub fn execute(
         &mut self,
         query: &str,
         ctx: QueryContext,
@@ -55,7 +55,6 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
         let execution_result = self
             .pipeline_manager
             .execute_query_with_space(query, space_info)
-            .await
             .map_err(|e| CoreError::QueryExecutionFailed(e.to_string()))?;
 
         // 转换为结构化结果
@@ -66,7 +65,7 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
     }
 
     /// 执行参数化查询
-    pub async fn execute_with_params(
+    pub fn execute_with_params(
         &mut self,
         query: &str,
         params: std::collections::HashMap<String, crate::core::Value>,
@@ -74,7 +73,7 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
     ) -> CoreResult<QueryResult> {
         let mut ctx = ctx;
         ctx.parameters = Some(params);
-        self.execute(query, ctx).await
+        self.execute(query, ctx)
     }
 
     /// 将执行结果转换为结构化查询结果

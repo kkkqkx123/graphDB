@@ -79,7 +79,7 @@ pub async fn start_service_with_config(config: Config) -> Result<()> {
     Ok(())
 }
 
-pub async fn execute_query(query_str: &str) -> Result<()> {
+pub fn execute_query(query_str: &str) -> Result<()> {
     println!("Executing query: {}", query_str);
 
     let config = crate::config::Config::default();
@@ -100,7 +100,7 @@ pub async fn execute_query(query_str: &str) -> Result<()> {
 
     let session_id = session.id();
 
-    match graph_service.execute(session_id, query_str).await {
+    match graph_service.execute(session_id, query_str) {
         Ok(result) => {
             println!("Query executed successfully: {}", result);
         }

@@ -19,19 +19,19 @@ use std::collections::HashMap;
 /// ```rust
 /// use graphdb::api::embedded::GraphDb;
 ///
-/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// let db = GraphDb::open("my_database").await?;
+/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let db = GraphDb::open("my_database")?;
 ///
 /// // 执行查询
-/// let result = db.execute("CREATE SPACE test").await?;
+/// let result = db.execute("CREATE SPACE test")?;
 ///
 /// // 使用事务
 /// let txn = db.begin_transaction()?;
-/// db.execute_in_transaction(txn.0, "CREATE TAG user(name string)").await?;
+/// db.execute_in_transaction(txn.0, "CREATE TAG user(name string)")?;
 /// db.commit_transaction(txn)?;
 ///
 /// // 关闭数据库
-/// db.close().await?;
+/// db.close()?;
 /// # Ok(())
 /// # }
 /// ```
@@ -52,7 +52,7 @@ impl<S: StorageClient + Clone + 'static> GraphDb<S> {
     /// # 返回
     /// - 成功时返回 GraphDb 实例
     /// - 失败时返回错误
-    pub async fn open(_path: &str) -> CoreResult<Self> {
+    pub fn open(_path: &str) -> CoreResult<Self> {
         // 这里需要初始化存储和事务管理器
         // 暂时使用默认实现
         todo!("实现数据库打开逻辑")
@@ -66,7 +66,7 @@ impl<S: StorageClient + Clone + 'static> GraphDb<S> {
     /// # 返回
     /// - 成功时返回查询结果
     /// - 失败时返回错误
-    pub async fn execute(&mut self, query: &str) -> CoreResult<String> {
+    pub fn execute(&mut self, query: &str) -> CoreResult<String> {
         let ctx = QueryContext {
             space_id: None,
             auto_commit: true,
@@ -74,7 +74,7 @@ impl<S: StorageClient + Clone + 'static> GraphDb<S> {
             parameters: None,
         };
 
-        match self.query_api.execute(query, ctx).await {
+        match self.query_api.execute(query, ctx) {
             Ok(result) => Ok(format!("{:?}", result)),
             Err(e) => Err(e),
         }
@@ -89,7 +89,7 @@ impl<S: StorageClient + Clone + 'static> GraphDb<S> {
     /// # 返回
     /// - 成功时返回查询结果
     /// - 失败时返回错误
-    pub async fn execute_with_params(
+    pub fn execute_with_params(
         &mut self,
         query: &str,
         params: HashMap<String, String>,
@@ -107,7 +107,7 @@ impl<S: StorageClient + Clone + 'static> GraphDb<S> {
             parameters: Some(converted_params),
         };
 
-        match self.query_api.execute(query, ctx).await {
+        match self.query_api.execute(query, ctx) {
             Ok(result) => Ok(format!("{:?}", result)),
             Err(e) => Err(e),
         }
@@ -132,7 +132,7 @@ impl<S: StorageClient + Clone + 'static> GraphDb<S> {
     /// # 返回
     /// - 成功时返回查询结果
     /// - 失败时返回错误
-    pub async fn execute_in_transaction(
+    pub fn execute_in_transaction(
         &mut self,
         txn_handle: u64,
         query: &str,
@@ -144,7 +144,7 @@ impl<S: StorageClient + Clone + 'static> GraphDb<S> {
             parameters: None,
         };
 
-        match self.query_api.execute(query, ctx).await {
+        match self.query_api.execute(query, ctx) {
             Ok(result) => Ok(format!("{:?}", result)),
             Err(e) => Err(e),
         }
@@ -179,7 +179,7 @@ impl<S: StorageClient + Clone + 'static> GraphDb<S> {
     /// # 返回
     /// - 成功时返回 ()
     /// - 失败时返回错误
-    pub async fn close(self) -> CoreResult<()> {
+    pub fn close(self) -> CoreResult<()> {
         // 清理资源
         Ok(())
     }

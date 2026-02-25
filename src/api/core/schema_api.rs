@@ -3,7 +3,7 @@
 //! 提供与传输层无关的 Schema 管理功能
 
 use crate::storage::StorageClient;
-use crate::api::core::{CoreResult, CoreError, PropertyDef, IndexTarget, SpaceConfig};
+use crate::api::core::{CoreResult, PropertyDef, IndexTarget, SpaceConfig};
 use std::sync::Arc;
 
 /// Schema 操作 API - 核心层

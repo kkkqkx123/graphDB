@@ -70,40 +70,40 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         }
     }
 
-    pub async fn execute_query(&mut self, query_text: &str) -> DBResult<ExecutionResult> {
-        self.execute_query_with_space(query_text, None).await
+    pub fn execute_query(&mut self, query_text: &str) -> DBResult<ExecutionResult> {
+        self.execute_query_with_space(query_text, None)
     }
-    
-    pub async fn execute_query_with_space(
+
+    pub fn execute_query_with_space(
         &mut self,
         query_text: &str,
         _space_info: Option<crate::core::types::SpaceInfo>,
     ) -> DBResult<ExecutionResult> {
         let query_context = Arc::new(self.create_query_context(query_text)?);
         let stmt = self.parse_into_context(query_text)?;
-        
+
         self.validate_query(query_context.clone(), &stmt)?;
         let execution_plan = self.generate_execution_plan(query_context.clone(), &stmt)?;
         let optimized_plan = self.optimize_execution_plan(query_context.clone(), execution_plan)?;
-        self.execute_plan(query_context, optimized_plan).await
+        self.execute_plan(query_context, optimized_plan)
     }
 
-    pub async fn execute_query_with_metrics(
+    pub fn execute_query_with_metrics(
         &mut self,
         query_text: &str,
     ) -> DBResult<(ExecutionResult, QueryMetrics)> {
-        self.execute_query_with_session(query_text, 0).await.map(|(result, metrics, _)| (result, metrics))
+        self.execute_query_with_session(query_text, 0).map(|(result, metrics, _)| (result, metrics))
     }
 
-    pub async fn execute_query_with_session(
+    pub fn execute_query_with_session(
         &mut self,
         query_text: &str,
         session_id: i64,
     ) -> DBResult<(ExecutionResult, QueryMetrics, QueryProfile)> {
-        self.execute_query_with_profile(query_text, session_id).await
+        self.execute_query_with_profile(query_text, session_id)
     }
 
-    pub async fn execute_query_with_profile(
+    pub fn execute_query_with_profile(
         &mut self,
         query_text: &str,
         session_id: i64,
@@ -183,7 +183,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         };
         
         let execute_start = Instant::now();
-        let result = match self.execute_plan(query_context, optimized_plan).await {
+        let result = match self.execute_plan(query_context, optimized_plan) {
             Ok(result) => {
                 profile.stages.execute_ms = execute_start.elapsed().as_millis() as u64;
                 profile.result_count = result.count();
@@ -316,14 +316,13 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         Ok(optimized_plan)
     }
 
-    async fn execute_plan(
+    fn execute_plan(
         &mut self,
         query_context: Arc<QueryContext>,
         plan: crate::query::planner::plan::ExecutionPlan,
     ) -> DBResult<ExecutionResult> {
         self.executor_factory
             .execute_plan(query_context, plan)
-            .await
             .map_err(|e| DBError::from(QueryError::pipeline_execution_error(e)))
     }
 }

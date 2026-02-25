@@ -1133,46 +1133,62 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
                 executor.execute().map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))
             }
             DropTarget::Tags(tag_names) => {
-                let mut total_dropped = 0;
-                let mut errors = Vec::new();
+                // 先验证所有标签是否存在，确保原子性
+                for tag_name in &tag_names {
+                    let mut executor = admin_executor::DropTagExecutor::new(id, self.storage.clone(), String::new(), tag_name.clone());
+                    if let Err(e) = executor.open() {
+                        return Err(DBError::Query(QueryError::ExecutionError(
+                            format!("删除标签 {} 失败: {}", tag_name, e)
+                        )));
+                    }
+                }
 
+                // 全部验证通过后，执行删除
+                let mut total_dropped = 0;
                 for tag_name in tag_names {
                     let mut executor = admin_executor::DropTagExecutor::new(id, self.storage.clone(), String::new(), tag_name.clone());
-                    if let Err(e) = executor.open().and_then(|_| executor.execute()) {
-                        errors.push(format!("DROP TAG {}: {}", tag_name, e));
-                    } else {
-                        total_dropped += 1;
+                    match executor.execute() {
+                        Ok(_) => total_dropped += 1,
+                        Err(e) => {
+                            // 由于已经验证过，这里不应该失败
+                            // 如果失败，说明有并发修改，返回错误
+                            return Err(DBError::Query(QueryError::ExecutionError(
+                                format!("删除标签 {} 时发生错误: {}", tag_name, e)
+                            )));
+                        }
                     }
                 }
 
-                if !errors.is_empty() {
-                    Err(DBError::Query(QueryError::ExecutionError(
-                        format!("部分标签删除失败: {}", errors.join("; "))
-                    )))
-                } else {
-                    Ok(ExecutionResult::Count(total_dropped))
-                }
+                Ok(ExecutionResult::Count(total_dropped))
             }
             DropTarget::Edges(edge_names) => {
-                let mut total_dropped = 0;
-                let mut errors = Vec::new();
-
-                for edge_name in edge_names {
+                // 先验证所有边类型是否存在，确保原子性
+                for edge_name in &edge_names {
                     let mut executor = admin_executor::DropEdgeExecutor::new(id, self.storage.clone(), String::new(), edge_name.clone());
-                    if let Err(e) = executor.open().and_then(|_| executor.execute()) {
-                        errors.push(format!("DROP EDGE {}: {}", edge_name, e));
-                    } else {
-                        total_dropped += 1;
+                    if let Err(e) = executor.open() {
+                        return Err(DBError::Query(QueryError::ExecutionError(
+                            format!("删除边类型 {} 失败: {}", edge_name, e)
+                        )));
                     }
                 }
 
-                if !errors.is_empty() {
-                    Err(DBError::Query(QueryError::ExecutionError(
-                        format!("部分边类型删除失败: {}", errors.join("; "))
-                    )))
-                } else {
-                    Ok(ExecutionResult::Count(total_dropped))
+                // 全部验证通过后，执行删除
+                let mut total_dropped = 0;
+                for edge_name in edge_names {
+                    let mut executor = admin_executor::DropEdgeExecutor::new(id, self.storage.clone(), String::new(), edge_name.clone());
+                    match executor.execute() {
+                        Ok(_) => total_dropped += 1,
+                        Err(e) => {
+                            // 由于已经验证过，这里不应该失败
+                            // 如果失败，说明有并发修改，返回错误
+                            return Err(DBError::Query(QueryError::ExecutionError(
+                                format!("删除边类型 {} 时发生错误: {}", edge_name, e)
+                            )));
+                        }
+                    }
                 }
+
+                Ok(ExecutionResult::Count(total_dropped))
             }
             DropTarget::TagIndex { space_name, index_name } => {
                 let mut executor = admin_executor::DropTagIndexExecutor::new(id, self.storage.clone(), space_name, index_name);

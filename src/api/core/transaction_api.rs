@@ -2,8 +2,8 @@
 //!
 //! 提供与传输层无关的事务管理功能
 
-use crate::transaction::{TransactionManager, TransactionOptions, TransactionId};
-use crate::api::core::{CoreResult, CoreError, TransactionHandle, SavepointId};
+use crate::transaction::{TransactionManager, TransactionOptions};
+use crate::api::core::{CoreResult, CoreError, TransactionHandle};
 use std::sync::Arc;
 
 /// 通用事务 API - 核心层

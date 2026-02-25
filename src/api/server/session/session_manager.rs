@@ -1,7 +1,7 @@
 use log::{info, warn};
 use parking_lot::Mutex;
 use std::collections::HashMap;
-use std::sync::{Arc, atomic::{AtomicU64, Ordering}};
+use std::sync::{Arc, atomic::{AtomicBool, AtomicU64, Ordering}};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tokio::time;
 
@@ -50,25 +50,54 @@ pub struct GraphSessionManager {
     host_addr: String,
     max_connections: usize,
     session_idle_timeout: Duration,
+    /// 后台清理任务是否正在运行
+    cleanup_task_running: Arc<AtomicBool>,
 }
 
 impl GraphSessionManager {
+    /// 创建新的会话管理器
+    ///
+    /// 注意：此构造函数不会自动启动后台清理任务，
+    /// 需要显式调用 `start_cleanup_task()` 来启动
     pub fn new(host_addr: String, max_connections: usize, session_idle_timeout: Duration) -> Arc<Self> {
-        let manager = Arc::new(Self {
+        Arc::new(Self {
             sessions: Arc::new(Mutex::new(HashMap::new())),
             active_sessions: Arc::new(Mutex::new(HashMap::new())),
             session_create_times: Arc::new(Mutex::new(HashMap::new())),
             host_addr,
             max_connections,
             session_idle_timeout,
-        });
+            cleanup_task_running: Arc::new(AtomicBool::new(false)),
+        })
+    }
 
-        let manager_clone = Arc::clone(&manager);
+    /// 启动后台会话清理任务
+    ///
+    /// 如果任务已经在运行，此方法不会重复启动
+    pub fn start_cleanup_task(self: &Arc<Self>) {
+        if self.cleanup_task_running.swap(true, Ordering::SeqCst) {
+            info!("Session cleanup task is already running");
+            return;
+        }
+
+        info!("Starting session cleanup task");
+        let manager_clone = Arc::clone(self);
         tokio::spawn(async move {
             manager_clone.background_reclamation_task().await;
         });
+    }
 
-        manager
+    /// 停止后台会话清理任务
+    ///
+    /// 设置停止标志，后台任务将在下一次循环时退出
+    pub fn stop_cleanup_task(&self) {
+        info!("Stopping session cleanup task");
+        self.cleanup_task_running.store(false, Ordering::SeqCst);
+    }
+
+    /// 检查后台清理任务是否正在运行
+    pub fn is_cleanup_task_running(&self) -> bool {
+        self.cleanup_task_running.load(Ordering::SeqCst)
     }
 
     /// Creates a new session
@@ -255,14 +284,26 @@ impl GraphSessionManager {
         }
     }
 
-    /// Background task to reclaim expired sessions
+    /// 后台任务：定期清理过期会话
+    ///
+    /// 每30秒检查一次，清理超过空闲超时的会话
+    /// 可以通过 `stop_cleanup_task()` 方法停止
     async fn background_reclamation_task(self: Arc<Self>) {
         let mut interval = time::interval(Duration::from_secs(30));
 
         loop {
             interval.tick().await;
+
+            // 检查是否应该停止
+            if !self.cleanup_task_running.load(Ordering::SeqCst) {
+                info!("Session cleanup task is stopping");
+                break;
+            }
+
             self.reclaim_expired_sessions();
         }
+
+        info!("Session cleanup task has stopped");
     }
 
     /// Reclaims expired sessions
@@ -299,16 +340,17 @@ mod tests {
         )
     }
 
-    #[tokio::test]
-    async fn test_session_manager_creation() {
+    #[test]
+    fn test_session_manager_creation() {
         let session_manager = create_test_session_manager();
 
         assert_eq!(session_manager.host_addr, "127.0.0.1:9669");
         assert_eq!(session_manager.get_sessions_from_local_cache().len(), 0);
+        assert!(!session_manager.is_cleanup_task_running());
     }
 
-    #[tokio::test]
-    async fn test_create_and_find_session() {
+    #[test]
+    fn test_create_and_find_session() {
         let session_manager = create_test_session_manager();
 
         let session = session_manager
@@ -327,8 +369,8 @@ mod tests {
         assert!(session_manager.find_session(999999).is_none());
     }
 
-    #[tokio::test]
-    async fn test_remove_session() {
+    #[test]
+    fn test_remove_session() {
         let session_manager = create_test_session_manager();
 
         let session = session_manager
@@ -341,8 +383,8 @@ mod tests {
         assert!(session_manager.find_session(session.id()).is_none());
     }
 
-    #[tokio::test]
-    async fn test_max_connections() {
+    #[test]
+    fn test_max_connections() {
         let session_manager = GraphSessionManager::new(
             "127.0.0.1:9669".to_string(),
             5,
@@ -361,8 +403,8 @@ mod tests {
         assert!(session_manager.is_out_of_connections());
     }
 
-    #[tokio::test]
-    async fn test_session_cache_operations() {
+    #[test]
+    fn test_session_cache_operations() {
         let session_manager = create_test_session_manager();
 
         let session = session_manager
@@ -381,15 +423,15 @@ mod tests {
         assert_eq!(all_sessions[0].session_id, session.id());
     }
 
-    #[tokio::test]
-    async fn test_list_sessions() {
+    #[test]
+    fn test_list_sessions() {
         let session_manager = create_test_session_manager();
 
         // Create multiple sessions
         let session1 = session_manager
             .create_session("user1".to_string(), "127.0.0.1".to_string())
             .expect("Failed to create session 1");
-        
+
         let _session2 = session_manager
             .create_session("user2".to_string(), "127.0.0.1".to_string())
             .expect("Failed to create session 2");
@@ -397,30 +439,30 @@ mod tests {
         // Test list_sessions
         let session_infos = session_manager.list_sessions();
         assert_eq!(session_infos.len(), 2);
-        
+
         // Verify session info content
         let user_names: Vec<String> = session_infos.iter().map(|info| info.user_name.clone()).collect();
         assert!(user_names.contains(&"user1".to_string()));
         assert!(user_names.contains(&"user2".to_string()));
-        
+
         // Test get_session_info for specific session
         let info1 = session_manager.get_session_info(session1.id());
         assert!(info1.is_some());
         assert_eq!(info1.expect("info1 should be Some").user_name, "user1");
-        
+
         let info_nonexistent = session_manager.get_session_info(999999);
         assert!(info_nonexistent.is_none());
     }
 
-    #[tokio::test]
-    async fn test_kill_session() {
+    #[test]
+    fn test_kill_session() {
         let session_manager = create_test_session_manager();
 
         // Create a session
         let session = session_manager
             .create_session("testuser".to_string(), "127.0.0.1".to_string())
             .expect("Failed to create session");
-        
+
         let session_id = session.id();
 
         // Add some queries to the session
@@ -431,36 +473,58 @@ mod tests {
         // Kill the session as the same user (should succeed)
         let result = session_manager.kill_session(session_id, "testuser", false);
         assert!(result.is_ok());
-        
+
         // Verify session is removed
         assert!(session_manager.find_session(session_id).is_none());
-        
+
         // Test killing non-existent session
         let result = session_manager.kill_session(999999, "testuser", false);
         assert!(matches!(result, Err(SessionError::SessionNotFound(_))));
     }
 
-    #[tokio::test]
-    async fn test_kill_session_permission_denied() {
+    #[test]
+    fn test_kill_session_permission_denied() {
         let session_manager = create_test_session_manager();
 
         // Create a session for user1
         let session = session_manager
             .create_session("user1".to_string(), "127.0.0.1".to_string())
             .expect("Failed to create session");
-        
+
         let session_id = session.id();
 
         // Try to kill the session as user2 (should fail)
         let result = session_manager.kill_session(session_id, "user2", false);
         assert!(matches!(result, Err(SessionError::PermissionDenied)));
-        
+
         // Verify session still exists
         assert!(session_manager.find_session(session_id).is_some());
-        
+
         // But God user should be able to kill it
         let result = session_manager.kill_session(session_id, "goduser", true);
         assert!(result.is_ok());
         assert!(session_manager.find_session(session_id).is_none());
+    }
+
+    #[tokio::test]
+    async fn test_cleanup_task_lifecycle() {
+        let session_manager = create_test_session_manager();
+
+        // 初始状态：清理任务未运行
+        assert!(!session_manager.is_cleanup_task_running());
+
+        // 启动清理任务
+        session_manager.start_cleanup_task();
+        assert!(session_manager.is_cleanup_task_running());
+
+        // 重复启动不会出错（幂等）
+        session_manager.start_cleanup_task();
+        assert!(session_manager.is_cleanup_task_running());
+
+        // 停止清理任务
+        session_manager.stop_cleanup_task();
+        // 注意：由于后台任务是异步的，停止标志设置后任务会在下一次循环时退出
+        // 这里我们只需要验证标志位被正确设置
+        assert!(!session_manager.is_cleanup_task_running());
     }
 }
