@@ -10,20 +10,30 @@ use log::info;
 use std::sync::Arc;
 
 pub mod core;
+
+#[cfg(feature = "server")]
 pub mod server;
+
+#[cfg(feature = "embedded")]
 pub mod embedded;
 
 // 便捷导出
 pub use core::{QueryApi, TransactionApi, SchemaApi, CoreError, CoreResult};
+
+#[cfg(feature = "server")]
 pub use server::{HttpServer, session};
+
+#[cfg(feature = "embedded")]
 pub use embedded::{GraphDb, EmbeddedConfig};
 
+#[cfg(feature = "server")]
 use crate::api::server::GraphService;
 use crate::config::Config;
 use crate::storage::redb_storage::DefaultStorage;
 use crate::transaction::{TransactionManager, SavepointManager, TransactionManagerConfig};
 
 /// 使用配置文件路径启动服务（已弃用，请使用 start_service_with_config）
+#[cfg(feature = "server")]
 pub fn start_service(config_path: String) -> Result<()> {
     let config = match Config::load(&config_path) {
         Ok(config) => config,
@@ -39,6 +49,7 @@ pub fn start_service(config_path: String) -> Result<()> {
 }
 
 /// 使用配置对象启动服务
+#[cfg(feature = "server")]
 pub fn start_service_with_config(config: Config) -> Result<()> {
     println!("Initializing GraphDB service...");
     println!("Configuration loaded: {:?}", config);
@@ -78,6 +89,7 @@ pub fn start_service_with_config(config: Config) -> Result<()> {
     Ok(())
 }
 
+#[cfg(feature = "server")]
 pub fn execute_query(query_str: &str) -> Result<()> {
     println!("Executing query: {}", query_str);
 
@@ -140,6 +152,7 @@ pub fn shutdown_signal() {
 // - Admin operations
 
 /// 使用异步运行时启动 HTTP 服务器
+#[cfg(feature = "server")]
 pub async fn start_http_server<S: crate::storage::StorageClient + Clone + Send + Sync + 'static>(
     server: Arc<HttpServer<S>>,
     config: &Config,

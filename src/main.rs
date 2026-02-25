@@ -4,6 +4,7 @@ use graphdb::config::Config;
 use graphdb::utils::logging;
 
 // 导入库模块
+#[cfg(feature = "server")]
 use graphdb::api;
 
 #[derive(Parser)]
@@ -21,6 +22,7 @@ enum Cli {
     },
 }
 
+#[cfg(feature = "server")]
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
@@ -70,4 +72,12 @@ fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(not(feature = "server"))]
+fn main() {
+    eprintln!("错误：server feature 未启用，无法运行服务端程序");
+    eprintln!("请使用以下命令重新编译：");
+    eprintln!("  cargo run --features server");
+    std::process::exit(1);
 }

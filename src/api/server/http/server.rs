@@ -4,27 +4,24 @@
 
 use crate::api::core::{QueryApi, TransactionApi, SchemaApi};
 use crate::api::server::auth::PasswordAuthenticator;
-use crate::api::server::session::GraphSessionManager;
-use crate::api::server::permission::PermissionManager;
 use crate::api::server::graph_service::GraphService;
-use crate::core::StatsManager;
+use crate::api::server::session::GraphSessionManager;
 use crate::storage::StorageClient;
 use crate::transaction::TransactionManager;
 use crate::config::Config;
 use std::sync::Arc;
-use std::time::Duration;
 use parking_lot::Mutex;
 
 /// HTTP 服务器
+///
+/// 注意：HttpServer 依赖 GraphService 获取权限管理器和统计管理器
+/// 会话管理器通过 GraphService 访问
 pub struct HttpServer<S: StorageClient + Clone + 'static> {
     graph_service: Arc<GraphService<S>>,
     query_api: QueryApi<S>,
     txn_api: TransactionApi,
     schema_api: SchemaApi<S>,
     auth_service: PasswordAuthenticator,
-    session_manager: Arc<GraphSessionManager>,
-    permission_manager: Arc<PermissionManager>,
-    stats_manager: Arc<StatsManager>,
 }
 
 impl<S: StorageClient + Clone + 'static> HttpServer<S> {
@@ -35,17 +32,12 @@ impl<S: StorageClient + Clone + 'static> HttpServer<S> {
         txn_manager: Arc<TransactionManager>,
         config: &Config,
     ) -> Self {
-        let _session_idle_timeout = Duration::from_secs(config.transaction.default_timeout * 10);
-        
         Self {
             graph_service: graph_service.clone(),
             query_api: QueryApi::new(storage.clone()),
             txn_api: TransactionApi::new(txn_manager.clone()),
             schema_api: SchemaApi::new(storage.clone()),
             auth_service: PasswordAuthenticator::new_default(config.auth.clone()),
-            session_manager: Arc::clone(&graph_service.get_session_manager()),
-            permission_manager: Arc::clone(&graph_service.get_permission_manager()),
-            stats_manager: Arc::clone(&graph_service.stats_manager),
         }
     }
 
@@ -54,14 +46,9 @@ impl<S: StorageClient + Clone + 'static> HttpServer<S> {
         &self.graph_service
     }
 
-    /// 获取会话管理器
+    /// 获取会话管理器（通过 GraphService）
     pub fn get_session_manager(&self) -> &GraphSessionManager {
-        &self.session_manager
-    }
-
-    /// 获取统计管理器
-    pub fn get_stats_manager(&self) -> &StatsManager {
-        &self.stats_manager
+        self.graph_service.get_session_manager()
     }
 
     /// 获取查询 API
@@ -82,10 +69,5 @@ impl<S: StorageClient + Clone + 'static> HttpServer<S> {
     /// 获取认证服务
     pub fn get_auth_service(&self) -> &PasswordAuthenticator {
         &self.auth_service
-    }
-
-    /// 获取权限管理器
-    pub fn get_permission_manager(&self) -> &PermissionManager {
-        &self.permission_manager
     }
 }
