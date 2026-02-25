@@ -23,8 +23,8 @@ use std::sync::Arc;
 
 // ==================== CREATE USER 语句测试 ====================
 
-#[tokio::test]
-async fn test_create_user_parser_basic() {
+#[test]
+fn test_create_user_parser_basic() {
     let query = "CREATE USER alice WITH PASSWORD 'password123'";
     let mut parser = Parser::new(query);
     
@@ -35,8 +35,8 @@ async fn test_create_user_parser_basic() {
     assert_eq!(stmt.kind(), "CREATE USER");
 }
 
-#[tokio::test]
-async fn test_create_user_parser_with_if_not_exists() {
+#[test]
+fn test_create_user_parser_with_if_not_exists() {
     let query = "CREATE USER IF NOT EXISTS alice WITH PASSWORD 'password123'";
     let mut parser = Parser::new(query);
     
@@ -47,8 +47,8 @@ async fn test_create_user_parser_with_if_not_exists() {
     assert_eq!(stmt.kind(), "CREATE USER");
 }
 
-#[tokio::test]
-async fn test_create_user_parser_complex_password() {
+#[test]
+fn test_create_user_parser_complex_password() {
     let query = "CREATE USER alice WITH PASSWORD 'P@ssw0rd!2024'";
     let mut parser = Parser::new(query);
     
@@ -59,8 +59,8 @@ async fn test_create_user_parser_complex_password() {
     assert_eq!(stmt.kind(), "CREATE USER");
 }
 
-#[tokio::test]
-async fn test_create_user_parser_special_username() {
+#[test]
+fn test_create_user_parser_special_username() {
     let query = "CREATE USER user_123 WITH PASSWORD 'password'";
     let mut parser = Parser::new(query);
     
@@ -71,8 +71,8 @@ async fn test_create_user_parser_special_username() {
     assert_eq!(stmt.kind(), "CREATE USER");
 }
 
-#[tokio::test]
-async fn test_create_user_execution_basic() {
+#[test]
+fn test_create_user_execution_basic() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -86,8 +86,8 @@ async fn test_create_user_execution_basic() {
     assert!(result.is_ok() || result.is_err());
 }
 
-#[tokio::test]
-async fn test_create_user_execution_with_if_not_exists() {
+#[test]
+fn test_create_user_execution_with_if_not_exists() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -101,8 +101,8 @@ async fn test_create_user_execution_with_if_not_exists() {
     assert!(result.is_ok() || result.is_err());
 }
 
-#[tokio::test]
-async fn test_create_user_duplicate() {
+#[test]
+fn test_create_user_duplicate() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -122,8 +122,8 @@ async fn test_create_user_duplicate() {
 
 // ==================== ALTER USER 语句测试 ====================
 
-#[tokio::test]
-async fn test_alter_user_parser_basic() {
+#[test]
+fn test_alter_user_parser_basic() {
     let query = "ALTER USER alice WITH PASSWORD 'newpassword123'";
     let mut parser = Parser::new(query);
     
@@ -134,8 +134,8 @@ async fn test_alter_user_parser_basic() {
     assert_eq!(stmt.kind(), "ALTER USER");
 }
 
-#[tokio::test]
-async fn test_alter_user_parser_complex_password() {
+#[test]
+fn test_alter_user_parser_complex_password() {
     let query = "ALTER USER alice WITH PASSWORD 'NewP@ssw0rd!2024'";
     let mut parser = Parser::new(query);
     
@@ -146,8 +146,8 @@ async fn test_alter_user_parser_complex_password() {
     assert_eq!(stmt.kind(), "ALTER USER");
 }
 
-#[tokio::test]
-async fn test_alter_user_parser_special_username() {
+#[test]
+fn test_alter_user_parser_special_username() {
     let query = "ALTER USER user_123 WITH PASSWORD 'newpassword'";
     let mut parser = Parser::new(query);
     
@@ -158,8 +158,8 @@ async fn test_alter_user_parser_special_username() {
     assert_eq!(stmt.kind(), "ALTER USER");
 }
 
-#[tokio::test]
-async fn test_alter_user_execution_basic() {
+#[test]
+fn test_alter_user_execution_basic() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -173,8 +173,8 @@ async fn test_alter_user_execution_basic() {
     assert!(result.is_ok() || result.is_err());
 }
 
-#[tokio::test]
-async fn test_alter_user_nonexistent() {
+#[test]
+fn test_alter_user_nonexistent() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -190,8 +190,8 @@ async fn test_alter_user_nonexistent() {
 
 // ==================== DROP USER 语句测试 ====================
 
-#[tokio::test]
-async fn test_drop_user_parser_basic() {
+#[test]
+fn test_drop_user_parser_basic() {
     let query = "DROP USER alice";
     let mut parser = Parser::new(query);
     
@@ -202,8 +202,8 @@ async fn test_drop_user_parser_basic() {
     assert_eq!(stmt.kind(), "DROP USER");
 }
 
-#[tokio::test]
-async fn test_drop_user_parser_with_if_exists() {
+#[test]
+fn test_drop_user_parser_with_if_exists() {
     let query = "DROP USER IF EXISTS alice";
     let mut parser = Parser::new(query);
     
@@ -214,8 +214,8 @@ async fn test_drop_user_parser_with_if_exists() {
     assert_eq!(stmt.kind(), "DROP USER");
 }
 
-#[tokio::test]
-async fn test_drop_user_parser_special_username() {
+#[test]
+fn test_drop_user_parser_special_username() {
     let query = "DROP USER user_123";
     let mut parser = Parser::new(query);
     
@@ -226,8 +226,8 @@ async fn test_drop_user_parser_special_username() {
     assert_eq!(stmt.kind(), "DROP USER");
 }
 
-#[tokio::test]
-async fn test_drop_user_execution_basic() {
+#[test]
+fn test_drop_user_execution_basic() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -241,8 +241,8 @@ async fn test_drop_user_execution_basic() {
     assert!(result.is_ok() || result.is_err());
 }
 
-#[tokio::test]
-async fn test_drop_user_with_if_exists() {
+#[test]
+fn test_drop_user_with_if_exists() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -256,8 +256,8 @@ async fn test_drop_user_with_if_exists() {
     assert!(result.is_ok() || result.is_err());
 }
 
-#[tokio::test]
-async fn test_drop_user_nonexistent() {
+#[test]
+fn test_drop_user_nonexistent() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -271,8 +271,8 @@ async fn test_drop_user_nonexistent() {
     assert!(result.is_ok() || result.is_err());
 }
 
-#[tokio::test]
-async fn test_drop_user_nonexistent_with_if_exists() {
+#[test]
+fn test_drop_user_nonexistent_with_if_exists() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -288,8 +288,8 @@ async fn test_drop_user_nonexistent_with_if_exists() {
 
 // ==================== CHANGE PASSWORD 语句测试 ====================
 
-#[tokio::test]
-async fn test_change_password_parser_basic() {
+#[test]
+fn test_change_password_parser_basic() {
     let query = "CHANGE PASSWORD 'oldpassword' TO 'newpassword'";
     let mut parser = Parser::new(query);
     
@@ -300,8 +300,8 @@ async fn test_change_password_parser_basic() {
     assert_eq!(stmt.kind(), "CHANGE PASSWORD");
 }
 
-#[tokio::test]
-async fn test_change_password_parser_complex_passwords() {
+#[test]
+fn test_change_password_parser_complex_passwords() {
     let query = "CHANGE PASSWORD 'OldP@ssw0rd!' TO 'NewP@ssw0rd!2024'";
     let mut parser = Parser::new(query);
     
@@ -312,8 +312,8 @@ async fn test_change_password_parser_complex_passwords() {
     assert_eq!(stmt.kind(), "CHANGE PASSWORD");
 }
 
-#[tokio::test]
-async fn test_change_password_parser_special_chars() {
+#[test]
+fn test_change_password_parser_special_chars() {
     let query = "CHANGE PASSWORD 'p@$$w0rd#123' TO 'n3wP@$$w0rd#456'";
     let mut parser = Parser::new(query);
     
@@ -324,8 +324,8 @@ async fn test_change_password_parser_special_chars() {
     assert_eq!(stmt.kind(), "CHANGE PASSWORD");
 }
 
-#[tokio::test]
-async fn test_change_password_execution_basic() {
+#[test]
+fn test_change_password_execution_basic() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -339,8 +339,8 @@ async fn test_change_password_execution_basic() {
     assert!(result.is_ok() || result.is_err());
 }
 
-#[tokio::test]
-async fn test_change_password_wrong_old_password() {
+#[test]
+fn test_change_password_wrong_old_password() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -356,8 +356,8 @@ async fn test_change_password_wrong_old_password() {
 
 // ==================== DCL 综合测试 ====================
 
-#[tokio::test]
-async fn test_dcl_user_lifecycle() {
+#[test]
+fn test_dcl_user_lifecycle() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -378,8 +378,8 @@ async fn test_dcl_user_lifecycle() {
     }
 }
 
-#[tokio::test]
-async fn test_dcl_multiple_users() {
+#[test]
+fn test_dcl_multiple_users() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -411,8 +411,8 @@ async fn test_dcl_multiple_users() {
     }
 }
 
-#[tokio::test]
-async fn test_dcl_if_not_exists_if_exists() {
+#[test]
+fn test_dcl_if_not_exists_if_exists() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -433,8 +433,8 @@ async fn test_dcl_if_not_exists_if_exists() {
     }
 }
 
-#[tokio::test]
-async fn test_dcl_error_handling() {
+#[test]
+fn test_dcl_error_handling() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -458,8 +458,8 @@ async fn test_dcl_error_handling() {
     }
 }
 
-#[tokio::test]
-async fn test_dcl_password_security() {
+#[test]
+fn test_dcl_password_security() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -479,8 +479,8 @@ async fn test_dcl_password_security() {
     }
 }
 
-#[tokio::test]
-async fn test_dcl_user_management_workflow() {
+#[test]
+fn test_dcl_user_management_workflow() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -503,8 +503,8 @@ async fn test_dcl_user_management_workflow() {
     }
 }
 
-#[tokio::test]
-async fn test_dcl_special_usernames() {
+#[test]
+fn test_dcl_special_usernames() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -529,8 +529,8 @@ async fn test_dcl_special_usernames() {
 
 // ==================== GRANT/REVOKE 语句测试 ====================
 
-#[tokio::test]
-async fn test_grant_parser_basic() {
+#[test]
+fn test_grant_parser_basic() {
     let query = "GRANT ROLE ADMIN ON test_space TO alice";
     let mut parser = Parser::new(query);
     
@@ -541,8 +541,8 @@ async fn test_grant_parser_basic() {
     assert_eq!(stmt.kind(), "GRANT");
 }
 
-#[tokio::test]
-async fn test_grant_parser_without_role_keyword() {
+#[test]
+fn test_grant_parser_without_role_keyword() {
     let query = "GRANT ADMIN ON test_space TO alice";
     let mut parser = Parser::new(query);
     
@@ -553,8 +553,8 @@ async fn test_grant_parser_without_role_keyword() {
     assert_eq!(stmt.kind(), "GRANT");
 }
 
-#[tokio::test]
-async fn test_grant_parser_all_roles() {
+#[test]
+fn test_grant_parser_all_roles() {
     let queries = vec![
         "GRANT GOD ON test_space TO user1",
         "GRANT ADMIN ON test_space TO user2",
@@ -570,8 +570,8 @@ async fn test_grant_parser_all_roles() {
     }
 }
 
-#[tokio::test]
-async fn test_revoke_parser_basic() {
+#[test]
+fn test_revoke_parser_basic() {
     let query = "REVOKE ROLE ADMIN ON test_space FROM alice";
     let mut parser = Parser::new(query);
     
@@ -582,8 +582,8 @@ async fn test_revoke_parser_basic() {
     assert_eq!(stmt.kind(), "REVOKE");
 }
 
-#[tokio::test]
-async fn test_revoke_parser_without_role_keyword() {
+#[test]
+fn test_revoke_parser_without_role_keyword() {
     let query = "REVOKE ADMIN ON test_space FROM alice";
     let mut parser = Parser::new(query);
     
@@ -594,8 +594,8 @@ async fn test_revoke_parser_without_role_keyword() {
     assert_eq!(stmt.kind(), "REVOKE");
 }
 
-#[tokio::test]
-async fn test_grant_revoke_execution() {
+#[test]
+fn test_grant_revoke_execution() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -618,8 +618,8 @@ async fn test_grant_revoke_execution() {
 
 // ==================== DESCRIBE USER 语句测试 ====================
 
-#[tokio::test]
-async fn test_describe_user_parser_basic() {
+#[test]
+fn test_describe_user_parser_basic() {
     let query = "DESCRIBE USER alice";
     let mut parser = Parser::new(query);
     
@@ -630,8 +630,8 @@ async fn test_describe_user_parser_basic() {
     assert_eq!(stmt.kind(), "DESCRIBE USER");
 }
 
-#[tokio::test]
-async fn test_describe_user_execution() {
+#[test]
+fn test_describe_user_execution() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -653,8 +653,8 @@ async fn test_describe_user_execution() {
 
 // ==================== SHOW USERS 语句测试 ====================
 
-#[tokio::test]
-async fn test_show_users_parser_basic() {
+#[test]
+fn test_show_users_parser_basic() {
     let query = "SHOW USERS";
     let mut parser = Parser::new(query);
     
@@ -665,8 +665,8 @@ async fn test_show_users_parser_basic() {
     assert_eq!(stmt.kind(), "SHOW USERS");
 }
 
-#[tokio::test]
-async fn test_show_users_execution() {
+#[test]
+fn test_show_users_execution() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -690,8 +690,8 @@ async fn test_show_users_execution() {
 
 // ==================== SHOW ROLES 语句测试 ====================
 
-#[tokio::test]
-async fn test_show_roles_parser_basic() {
+#[test]
+fn test_show_roles_parser_basic() {
     let query = "SHOW ROLES";
     let mut parser = Parser::new(query);
     
@@ -702,8 +702,8 @@ async fn test_show_roles_parser_basic() {
     assert_eq!(stmt.kind(), "SHOW ROLES");
 }
 
-#[tokio::test]
-async fn test_show_roles_parser_with_space() {
+#[test]
+fn test_show_roles_parser_with_space() {
     let query = "SHOW ROLES IN test_space";
     let mut parser = Parser::new(query);
     
@@ -714,8 +714,8 @@ async fn test_show_roles_parser_with_space() {
     assert_eq!(stmt.kind(), "SHOW ROLES");
 }
 
-#[tokio::test]
-async fn test_show_roles_execution() {
+#[test]
+fn test_show_roles_execution() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -740,8 +740,8 @@ async fn test_show_roles_execution() {
 
 // ==================== 新DCL语句综合测试 ====================
 
-#[tokio::test]
-async fn test_new_dcl_statements_lifecycle() {
+#[test]
+fn test_new_dcl_statements_lifecycle() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());

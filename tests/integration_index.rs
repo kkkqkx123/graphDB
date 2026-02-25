@@ -26,8 +26,8 @@ fn get_storage(storage: &Arc<Mutex<graphdb::storage::redb_storage::RedbStorage>>
 
 // ==================== Tag 索引元数据管理测试 ====================
 
-#[tokio::test]
-async fn test_create_tag_index_metadata() {
+#[test]
+fn test_create_tag_index_metadata() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
@@ -62,8 +62,8 @@ async fn test_create_tag_index_metadata() {
     assert_eq!(retrieved_index.index_type, IndexType::TagIndex);
 }
 
-#[tokio::test]
-async fn test_create_tag_index_duplicate() {
+#[test]
+fn test_create_tag_index_duplicate() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
@@ -91,8 +91,8 @@ async fn test_create_tag_index_duplicate() {
     assert!(!created, "重复索引创建应该返回 false");
 }
 
-#[tokio::test]
-async fn test_drop_tag_index_metadata() {
+#[test]
+fn test_drop_tag_index_metadata() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
@@ -124,8 +124,8 @@ async fn test_drop_tag_index_metadata() {
     assert_none(&index_opt);
 }
 
-#[tokio::test]
-async fn test_list_tag_indexes() {
+#[test]
+fn test_list_tag_indexes() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
@@ -169,8 +169,8 @@ async fn test_list_tag_indexes() {
     assert!(index_names.contains(&"person_age_idx"), "应该包含 person_age_idx");
 }
 
-#[tokio::test]
-async fn test_drop_tag_indexes_by_tag() {
+#[test]
+fn test_drop_tag_indexes_by_tag() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
@@ -214,8 +214,8 @@ async fn test_drop_tag_indexes_by_tag() {
 
 // ==================== Edge 索引元数据管理测试 ====================
 
-#[tokio::test]
-async fn test_create_edge_index_metadata() {
+#[test]
+fn test_create_edge_index_metadata() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
@@ -250,8 +250,8 @@ async fn test_create_edge_index_metadata() {
     assert_eq!(retrieved_index.index_type, IndexType::EdgeIndex);
 }
 
-#[tokio::test]
-async fn test_drop_edge_index_metadata() {
+#[test]
+fn test_drop_edge_index_metadata() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
@@ -283,8 +283,8 @@ async fn test_drop_edge_index_metadata() {
     assert_none(&index_opt);
 }
 
-#[tokio::test]
-async fn test_list_edge_indexes() {
+#[test]
+fn test_list_edge_indexes() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
@@ -330,8 +330,8 @@ async fn test_list_edge_indexes() {
 
 // ==================== 索引数据管理测试 ====================
 
-#[tokio::test]
-async fn test_update_vertex_indexes() {
+#[test]
+fn test_update_vertex_indexes() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
@@ -367,8 +367,8 @@ async fn test_update_vertex_indexes() {
     assert!(vertex_ids.contains(&vertex_id), "索引应该包含顶点 ID");
 }
 
-#[tokio::test]
-async fn test_update_edge_indexes() {
+#[test]
+fn test_update_edge_indexes() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
@@ -405,8 +405,8 @@ async fn test_update_edge_indexes() {
     assert!(src_ids.contains(&src), "索引应该包含源顶点 ID");
 }
 
-#[tokio::test]
-async fn test_delete_vertex_indexes() {
+#[test]
+fn test_delete_vertex_indexes() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
@@ -444,8 +444,8 @@ async fn test_delete_vertex_indexes() {
     assert!(!vertex_ids.contains(&vertex_id), "索引不应该包含已删除的顶点 ID");
 }
 
-#[tokio::test]
-async fn test_delete_edge_indexes() {
+#[test]
+fn test_delete_edge_indexes() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
@@ -486,8 +486,8 @@ async fn test_delete_edge_indexes() {
 
 // ==================== 索引查询测试 ====================
 
-#[tokio::test]
-async fn test_index_exact_query() {
+#[test]
+fn test_index_exact_query() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
@@ -530,8 +530,8 @@ async fn test_index_exact_query() {
     assert_eq!(vertex_ids[0], Value::Int(1), "应该返回 Alice 的顶点 ID");
 }
 
-#[tokio::test]
-async fn test_index_query_multiple_matches() {
+#[test]
+fn test_index_query_multiple_matches() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
@@ -575,8 +575,8 @@ async fn test_index_query_multiple_matches() {
     assert!(vertex_ids.contains(&Value::Int(2)), "应该包含顶点 2");
 }
 
-#[tokio::test]
-async fn test_index_query_no_match() {
+#[test]
+fn test_index_query_no_match() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
@@ -614,8 +614,8 @@ async fn test_index_query_no_match() {
 
 // ==================== 索引状态测试 ====================
 
-#[tokio::test]
-async fn test_index_status_active() {
+#[test]
+fn test_index_status_active() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
@@ -646,8 +646,8 @@ async fn test_index_status_active() {
     assert_eq!(retrieved_index.status, IndexStatus::Active, "新创建的索引应该是 Active 状态");
 }
 
-#[tokio::test]
-async fn test_unique_index() {
+#[test]
+fn test_unique_index() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
@@ -681,8 +681,8 @@ async fn test_unique_index() {
 
 // ==================== 复合索引测试 ====================
 
-#[tokio::test]
-async fn test_composite_index() {
+#[test]
+fn test_composite_index() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
@@ -732,8 +732,8 @@ async fn test_composite_index() {
 
 // ==================== IndexSelector 集成测试 ====================
 
-#[tokio::test]
-async fn test_index_selector_chooses_optimal_index() {
+#[test]
+fn test_index_selector_chooses_optimal_index() {
     use graphdb::query::optimizer::IndexSelector;
     use graphdb::core::Expression;
     use graphdb::core::types::operators::BinaryOperator;
@@ -802,8 +802,8 @@ async fn test_index_selector_chooses_optimal_index() {
 
 // ==================== 范围查询边界控制测试 ====================
 
-#[tokio::test]
-async fn test_index_range_query_with_boundaries() {
+#[test]
+fn test_index_range_query_with_boundaries() {
     use graphdb::query::planner::plan::algorithms::{IndexLimit, ScanType};
 
     let test_storage = TestStorage::new().expect("创建测试存储失败");
@@ -868,8 +868,8 @@ async fn test_index_range_query_with_boundaries() {
 
 // ==================== 扫描类型测试 ====================
 
-#[tokio::test]
-async fn test_scan_type_unique() {
+#[test]
+fn test_scan_type_unique() {
     use graphdb::query::planner::plan::algorithms::{IndexLimit, ScanType};
 
     let test_storage = TestStorage::new().expect("创建测试存储失败");
@@ -917,8 +917,8 @@ async fn test_scan_type_unique() {
     assert!(vertex_ids.contains(&Value::Int(3)), "应该包含顶点 3");
 }
 
-#[tokio::test]
-async fn test_scan_type_range() {
+#[test]
+fn test_scan_type_range() {
     use graphdb::query::planner::plan::algorithms::ScanType;
 
     let test_storage = TestStorage::new().expect("创建测试存储失败");
@@ -958,8 +958,8 @@ async fn test_scan_type_range() {
     assert!(vertex_ids.contains(&Value::Int(30)), "应该包含年龄 30");
 }
 
-#[tokio::test]
-async fn test_scan_type_full() {
+#[test]
+fn test_scan_type_full() {
     use graphdb::query::planner::plan::algorithms::ScanType;
 
     let test_storage = TestStorage::new().expect("创建测试存储失败");

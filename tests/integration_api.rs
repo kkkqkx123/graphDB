@@ -25,8 +25,8 @@ use graphdb::storage::redb_storage::DefaultStorage;
 
 // ==================== 会话管理测试 ====================
 
-#[tokio::test]
-async fn test_session_manager_creation() {
+#[test]
+fn test_session_manager_creation() {
     let session_manager = GraphSessionManager::new(
         "127.0.0.1:9669".to_string(),
         100,
@@ -37,8 +37,8 @@ async fn test_session_manager_creation() {
     assert_eq!(session_manager.list_sessions().len(), 0);
 }
 
-#[tokio::test]
-async fn test_create_and_find_session() {
+#[test]
+fn test_create_and_find_session() {
     let session_manager = GraphSessionManager::new(
         "127.0.0.1:9669".to_string(),
         100,
@@ -62,8 +62,8 @@ async fn test_create_and_find_session() {
     assert!(session_manager.find_session(999999).is_none());
 }
 
-#[tokio::test]
-async fn test_remove_session() {
+#[test]
+fn test_remove_session() {
     let session_manager = GraphSessionManager::new(
         "127.0.0.1:9669".to_string(),
         100,
@@ -85,8 +85,8 @@ async fn test_remove_session() {
     assert!(session_manager.find_session(session_id).is_none());
 }
 
-#[tokio::test]
-async fn test_max_connections_limit() {
+#[test]
+fn test_max_connections_limit() {
     let session_manager = GraphSessionManager::new(
         "127.0.0.1:9669".to_string(),
         3,
@@ -108,8 +108,8 @@ async fn test_max_connections_limit() {
     assert!(result.is_err());
 }
 
-#[tokio::test]
-async fn test_list_sessions() {
+#[test]
+fn test_list_sessions() {
     let session_manager = GraphSessionManager::new(
         "127.0.0.1:9669".to_string(),
         100,
@@ -135,8 +135,8 @@ async fn test_list_sessions() {
     assert_eq!(session_info.user_name, "user1");
 }
 
-#[tokio::test]
-async fn test_kill_session() {
+#[test]
+fn test_kill_session() {
     let session_manager = GraphSessionManager::new(
         "127.0.0.1:9669".to_string(),
         100,
@@ -696,8 +696,8 @@ fn create_test_config() -> Config {
     }
 }
 
-#[tokio::test]
-async fn test_graph_service_creation() {
+#[test]
+fn test_graph_service_creation() {
     let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
     let db_path = temp_dir.path().join("graphdb_test");
     
@@ -712,8 +712,8 @@ async fn test_graph_service_creation() {
     assert!(!graph_service.get_session_manager().is_out_of_connections());
 }
 
-#[tokio::test]
-async fn test_graph_service_authentication() {
+#[test]
+fn test_graph_service_authentication() {
     let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
     let db_path = temp_dir.path().join("graphdb_test");
     
@@ -724,16 +724,16 @@ async fn test_graph_service_authentication() {
     let graph_service = GraphService::<DefaultStorage>::new(config, storage);
 
     // 成功认证
-    let session = graph_service.authenticate("root", "root").await;
+    let session = graph_service.authenticate("root", "root");
     assert!(session.is_ok());
 
     // 失败认证
-    let session = graph_service.authenticate("root", "wrong").await;
+    let session = graph_service.authenticate("root", "wrong");
     assert!(session.is_err());
 }
 
-#[tokio::test]
-async fn test_graph_service_signout() {
+#[test]
+fn test_graph_service_signout() {
     let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
     let db_path = temp_dir.path().join("graphdb_test");
     
@@ -746,7 +746,6 @@ async fn test_graph_service_signout() {
     // 认证并获取会话
     let session = graph_service
         .authenticate("root", "root")
-        .await
         .expect("认证失败");
     let session_id = session.id();
 
@@ -760,8 +759,8 @@ async fn test_graph_service_signout() {
     assert!(graph_service.get_session_manager().find_session(session_id).is_none());
 }
 
-#[tokio::test]
-async fn test_graph_service_execute_query() {
+#[test]
+fn test_graph_service_execute_query() {
     let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
     let db_path = temp_dir.path().join("graphdb_test");
     
@@ -774,17 +773,16 @@ async fn test_graph_service_execute_query() {
     // 认证并获取会话
     let session = graph_service
         .authenticate("root", "root")
-        .await
         .expect("认证失败");
     let session_id = session.id();
 
     // 执行查询
-    let _result = graph_service.execute(session_id, "SHOW SPACES").await;
+    let _result = graph_service.execute(session_id, "SHOW SPACES");
     // 查询可能成功或失败，但不应该panic
 }
 
-#[tokio::test]
-async fn test_graph_service_invalid_session() {
+#[test]
+fn test_graph_service_invalid_session() {
     let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
     let db_path = temp_dir.path().join("graphdb_test");
     
@@ -795,12 +793,12 @@ async fn test_graph_service_invalid_session() {
     let graph_service = GraphService::<DefaultStorage>::new(config, storage);
 
     // 使用无效的会话ID执行查询
-    let result = graph_service.execute(999999, "SHOW SPACES").await;
+    let result = graph_service.execute(999999, "SHOW SPACES");
     assert!(result.is_err());
 }
 
-#[tokio::test]
-async fn test_graph_service_list_sessions() {
+#[test]
+fn test_graph_service_list_sessions() {
     let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
     let db_path = temp_dir.path().join("graphdb_test");
     
@@ -817,7 +815,6 @@ async fn test_graph_service_list_sessions() {
     // 创建会话
     let _session = graph_service
         .authenticate("root", "root")
-        .await
         .expect("认证失败");
 
     // 验证会话列表
@@ -826,8 +823,8 @@ async fn test_graph_service_list_sessions() {
     assert_eq!(sessions[0].user_name, "root");
 }
 
-#[tokio::test]
-async fn test_graph_service_kill_session() {
+#[test]
+fn test_graph_service_kill_session() {
     let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
     let db_path = temp_dir.path().join("graphdb_test");
     
@@ -840,7 +837,6 @@ async fn test_graph_service_kill_session() {
     // 创建两个会话
     let admin_session = graph_service
         .authenticate("root", "root")
-        .await
         .expect("认证失败");
     let admin_session_id = admin_session.id();
 
@@ -854,8 +850,8 @@ async fn test_graph_service_kill_session() {
 
 // ==================== API模块功能集成测试 ====================
 
-#[tokio::test]
-async fn test_full_session_lifecycle() {
+#[test]
+fn test_full_session_lifecycle() {
     let temp_dir = tempfile::tempdir().expect("创建临时目录失败");
     let db_path = temp_dir.path().join("graphdb_test");
     
@@ -868,7 +864,6 @@ async fn test_full_session_lifecycle() {
     // 1. 认证创建会话
     let session = graph_service
         .authenticate("root", "root")
-        .await
         .expect("认证失败");
     let session_id = session.id();
 
@@ -876,7 +871,7 @@ async fn test_full_session_lifecycle() {
     assert!(graph_service.get_session_manager().find_session(session_id).is_some());
 
     // 3. 执行查询
-    let _ = graph_service.execute(session_id, "SHOW SPACES").await;
+    let _ = graph_service.execute(session_id, "SHOW SPACES");
 
     // 4. 获取会话信息
     let session_info = graph_service.get_session_info(session_id);
@@ -890,8 +885,10 @@ async fn test_full_session_lifecycle() {
     assert!(graph_service.get_session_manager().find_session(session_id).is_none());
 }
 
-#[tokio::test]
-async fn test_concurrent_session_operations() {
+#[test]
+fn test_concurrent_session_operations() {
+    use std::thread;
+    
     let session_manager = GraphSessionManager::new(
         "127.0.0.1:9669".to_string(),
         100,
@@ -903,7 +900,7 @@ async fn test_concurrent_session_operations() {
     // 并发创建会话
     for i in 0..10 {
         let manager = Arc::clone(&session_manager);
-        let handle = tokio::spawn(async move {
+        let handle = thread::spawn(move || {
             let session = manager
                 .create_session(format!("user{}", i), "127.0.0.1".to_string())
                 .expect("创建会话失败");
@@ -916,7 +913,7 @@ async fn test_concurrent_session_operations() {
     // 等待所有任务完成
     let mut session_ids = vec![];
     for handle in handles {
-        session_ids.push(handle.await.expect("任务失败"));
+        session_ids.push(handle.join().expect("任务失败"));
     }
 
     // 验证所有会话都创建成功

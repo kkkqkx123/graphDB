@@ -27,8 +27,8 @@ fn get_storage(storage: &Arc<Mutex<graphdb::storage::redb_storage::RedbStorage>>
 
 // ==================== 图空间管理测试 ====================
 
-#[tokio::test]
-async fn test_storage_space_create_success() {
+#[test]
+fn test_storage_space_create_success() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     
@@ -43,8 +43,8 @@ async fn test_storage_space_create_success() {
     assert_eq!(space.expect("空间应该存在").space_name, "test_space");
 }
 
-#[tokio::test]
-async fn test_storage_space_create_duplicate() {
+#[test]
+fn test_storage_space_create_duplicate() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     
@@ -59,8 +59,8 @@ async fn test_storage_space_create_duplicate() {
     assert!(result.is_ok() || result.is_err());
 }
 
-#[tokio::test]
-async fn test_storage_space_drop_success() {
+#[test]
+fn test_storage_space_drop_success() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     
@@ -77,8 +77,8 @@ async fn test_storage_space_drop_success() {
     assert!(space.is_none(), "空间应该已被删除");
 }
 
-#[tokio::test]
-async fn test_storage_space_list() {
+#[test]
+fn test_storage_space_list() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     
@@ -94,8 +94,8 @@ async fn test_storage_space_list() {
     assert_count(&space_list, 3, "空间");
 }
 
-#[tokio::test]
-async fn test_storage_space_exists() {
+#[test]
+fn test_storage_space_exists() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     
@@ -110,8 +110,8 @@ async fn test_storage_space_exists() {
 
 // ==================== 标签管理测试 ====================
 
-#[tokio::test]
-async fn test_storage_tag_create_success() {
+#[test]
+fn test_storage_tag_create_success() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     
@@ -131,8 +131,8 @@ async fn test_storage_tag_create_success() {
     assert_eq!(tag.expect("标签应该存在").tag_name, "Person");
 }
 
-#[tokio::test]
-async fn test_storage_tag_list() {
+#[test]
+fn test_storage_tag_list() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     
@@ -152,8 +152,8 @@ async fn test_storage_tag_list() {
     assert_count(&tags, 2, "标签");
 }
 
-#[tokio::test]
-async fn test_storage_tag_drop() {
+#[test]
+fn test_storage_tag_drop() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     
@@ -175,8 +175,8 @@ async fn test_storage_tag_drop() {
 
 // ==================== 边类型管理测试 ====================
 
-#[tokio::test]
-async fn test_storage_edge_type_create_success() {
+#[test]
+fn test_storage_edge_type_create_success() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     
@@ -196,8 +196,8 @@ async fn test_storage_edge_type_create_success() {
     assert_eq!(edge_type.expect("边类型应该存在").edge_type_name, "KNOWS");
 }
 
-#[tokio::test]
-async fn test_storage_edge_type_list() {
+#[test]
+fn test_storage_edge_type_list() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     
@@ -219,8 +219,8 @@ async fn test_storage_edge_type_list() {
 
 // ==================== 顶点CRUD测试 ====================
 
-#[tokio::test]
-async fn test_storage_vertex_insert_success() {
+#[test]
+fn test_storage_vertex_insert_success() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     
@@ -238,8 +238,8 @@ async fn test_storage_vertex_insert_success() {
     assert_ok(result);
 }
 
-#[tokio::test]
-async fn test_storage_vertex_get_by_id() {
+#[test]
+fn test_storage_vertex_get_by_id() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     
@@ -262,8 +262,8 @@ async fn test_storage_vertex_get_by_id() {
     assert_eq!(retrieved_vertex.vid(), &Value::Int(100));
 }
 
-#[tokio::test]
-async fn test_storage_vertex_scan_all() {
+#[test]
+fn test_storage_vertex_scan_all() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     
@@ -290,8 +290,8 @@ async fn test_storage_vertex_scan_all() {
     assert_count(&scan_result, 3, "顶点");
 }
 
-#[tokio::test]
-async fn test_storage_vertex_update() {
+#[test]
+fn test_storage_vertex_update() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     
@@ -316,8 +316,8 @@ async fn test_storage_vertex_update() {
     assert!(retrieved.is_some());
 }
 
-#[tokio::test]
-async fn test_storage_vertex_delete() {
+#[test]
+fn test_storage_vertex_delete() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     
@@ -341,8 +341,8 @@ async fn test_storage_vertex_delete() {
     assert!(retrieved.is_none(), "顶点应该已被删除");
 }
 
-#[tokio::test]
-async fn test_storage_vertex_batch_insert() {
+#[test]
+fn test_storage_vertex_batch_insert() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     
@@ -368,8 +368,8 @@ async fn test_storage_vertex_batch_insert() {
 
 // ==================== 边CRUD测试 ====================
 
-#[tokio::test]
-async fn test_storage_edge_insert_success() {
+#[test]
+fn test_storage_edge_insert_success() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     
@@ -387,8 +387,8 @@ async fn test_storage_edge_insert_success() {
     assert_ok(result);
 }
 
-#[tokio::test]
-async fn test_storage_edge_get() {
+#[test]
+fn test_storage_edge_get() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     
@@ -413,8 +413,8 @@ async fn test_storage_edge_get() {
     assert_eq!(retrieved_edge.dst(), &Value::Int(20));
 }
 
-#[tokio::test]
-async fn test_storage_edge_delete() {
+#[test]
+fn test_storage_edge_delete() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     
@@ -439,8 +439,8 @@ async fn test_storage_edge_delete() {
     assert!(retrieved.is_none(), "边应该已被删除");
 }
 
-#[tokio::test]
-async fn test_storage_edge_batch_insert() {
+#[test]
+fn test_storage_edge_batch_insert() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     
@@ -466,8 +466,8 @@ async fn test_storage_edge_batch_insert() {
 
 // ==================== 完整数据集测试 ====================
 
-#[tokio::test]
-async fn test_storage_social_network_dataset() {
+#[test]
+fn test_storage_social_network_dataset() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     
@@ -504,8 +504,8 @@ async fn test_storage_social_network_dataset() {
 
 // ==================== 错误处理测试 ====================
 
-#[tokio::test]
-async fn test_storage_get_nonexistent_vertex() {
+#[test]
+fn test_storage_get_nonexistent_vertex() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     
@@ -520,8 +520,8 @@ async fn test_storage_get_nonexistent_vertex() {
     }
 }
 
-#[tokio::test]
-async fn test_storage_operations_isolated() {
+#[test]
+fn test_storage_operations_isolated() {
     // 测试两个独立的存储实例是否完全隔离
     let test_storage1 = TestStorage::new().expect("创建测试存储1失败");
     let test_storage2 = TestStorage::new().expect("创建测试存储2失败");

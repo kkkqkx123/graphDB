@@ -21,8 +21,7 @@ enum Cli {
     },
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
+fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli {
@@ -45,7 +44,7 @@ async fn main() -> Result<()> {
             }
 
             // Initialize and start service
-            let result = api::start_service_with_config(cfg).await;
+            let result = api::start_service_with_config(cfg);
             
             // 确保日志 flush 后再退出
             logging::shutdown();

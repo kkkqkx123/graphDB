@@ -8,7 +8,6 @@
 use anyhow::Result;
 use log::info;
 use std::sync::Arc;
-use tokio::signal;
 
 pub mod core;
 pub mod server;
@@ -25,7 +24,7 @@ use crate::storage::redb_storage::DefaultStorage;
 use crate::transaction::{TransactionManager, SavepointManager, TransactionManagerConfig};
 
 /// 使用配置文件路径启动服务（已弃用，请使用 start_service_with_config）
-pub async fn start_service(config_path: String) -> Result<()> {
+pub fn start_service(config_path: String) -> Result<()> {
     let config = match Config::load(&config_path) {
         Ok(config) => config,
         Err(e) => {
@@ -36,11 +35,11 @@ pub async fn start_service(config_path: String) -> Result<()> {
             Config::default()
         }
     };
-    start_service_with_config(config).await
+    start_service_with_config(config)
 }
 
 /// 使用配置对象启动服务
-pub async fn start_service_with_config(config: Config) -> Result<()> {
+pub fn start_service_with_config(config: Config) -> Result<()> {
     println!("Initializing GraphDB service...");
     println!("Configuration loaded: {:?}", config);
 
@@ -73,7 +72,7 @@ pub async fn start_service_with_config(config: Config) -> Result<()> {
 
     println!("Starting HTTP server on {}:{}", config.host(), config.port());
 
-    shutdown_signal().await;
+    shutdown_signal();
 
     println!("Shutting down GraphDB service...");
     Ok(())
@@ -112,29 +111,25 @@ pub fn execute_query(query_str: &str) -> Result<()> {
     Ok(())
 }
 
-pub async fn shutdown_signal() {
-    let ctrl_c = async {
-        signal::ctrl_c()
-            .await
-            .expect("Failed to install Ctrl+C handler");
-    };
-
-    #[cfg(unix)]
-    let terminate = async {
-        signal::unix::signal(signal::unix::SignalKind::terminate())
-            .expect("Failed to install signal handler")
-            .recv()
-            .await;
-    };
-
-    #[cfg(not(unix))]
-    let terminate = std::future::pending::<()>();
-
-    tokio::select! {
-        _ = ctrl_c => {},
-        _ = terminate => {},
+/// 等待关闭信号（同步实现）
+pub fn shutdown_signal() {
+    use signal_hook::flag;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
+    
+    let term = Arc::new(AtomicBool::new(false));
+    flag::register(signal_hook::consts::SIGTERM, Arc::clone(&term))
+        .expect("Failed to register SIGTERM handler");
+    flag::register(signal_hook::consts::SIGINT, Arc::clone(&term))
+        .expect("Failed to register SIGINT handler");
+    
+    println!("Waiting for shutdown signal (Ctrl+C or SIGTERM)...");
+    
+    // 主循环等待信号
+    while !term.load(Ordering::Relaxed) {
+        std::thread::sleep(std::time::Duration::from_millis(100));
     }
-
+    
     println!("Received shutdown signal");
 }
 

@@ -26,8 +26,8 @@ use std::sync::Arc;
 
 // ==================== MATCH 语句测试 ====================
 
-#[tokio::test]
-async fn test_match_parser_basic() {
+#[test]
+fn test_match_parser_basic() {
     let query = "MATCH (n:Person) RETURN n";
     let mut parser = Parser::new(query);
     
@@ -36,8 +36,8 @@ async fn test_match_parser_basic() {
     let _ = result;
 }
 
-#[tokio::test]
-async fn test_match_parser_with_where() {
+#[test]
+fn test_match_parser_with_where() {
     let query = "MATCH (n:Person) WHERE n.age > 25 RETURN n";
     let mut parser = Parser::new(query);
     
@@ -46,8 +46,8 @@ async fn test_match_parser_with_where() {
     let _ = result;
 }
 
-#[tokio::test]
-async fn test_match_parser_with_edge() {
+#[test]
+fn test_match_parser_with_edge() {
     let query = "MATCH (n:Person)-[KNOWS]->(m:Person) RETURN n, m";
     let mut parser = Parser::new(query);
     
@@ -56,8 +56,8 @@ async fn test_match_parser_with_edge() {
     let _ = result;
 }
 
-#[tokio::test]
-async fn test_match_parser_with_order_limit() {
+#[test]
+fn test_match_parser_with_order_limit() {
     let query = "MATCH (n:Person) RETURN n ORDER BY n.age DESC LIMIT 10";
     let mut parser = Parser::new(query);
     
@@ -66,8 +66,8 @@ async fn test_match_parser_with_order_limit() {
     let _ = result;
 }
 
-#[tokio::test]
-async fn test_match_parser_complex() {
+#[test]
+fn test_match_parser_complex() {
     let query = "MATCH (n:Person)-[KNOWS]->(m:Person) WHERE n.age > 25 AND m.age < 40 RETURN n.name, m.name ORDER BY m.age LIMIT 5";
     let mut parser = Parser::new(query);
     
@@ -76,8 +76,8 @@ async fn test_match_parser_complex() {
     let _ = result;
 }
 
-#[tokio::test]
-async fn test_match_parser_invalid_syntax() {
+#[test]
+fn test_match_parser_invalid_syntax() {
     let query = "MATCH (n:Person RETURN n";
     let mut parser = Parser::new(query);
     
@@ -85,8 +85,8 @@ async fn test_match_parser_invalid_syntax() {
     assert!(result.is_err(), "无效语法应该返回错误");
 }
 
-#[tokio::test]
-async fn test_match_execution_basic() {
+#[test]
+fn test_match_execution_basic() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -100,8 +100,8 @@ async fn test_match_execution_basic() {
     assert!(result.is_ok() || result.is_err());
 }
 
-#[tokio::test]
-async fn test_match_execution_with_projection() {
+#[test]
+fn test_match_execution_with_projection() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -117,8 +117,8 @@ async fn test_match_execution_with_projection() {
 
 // ==================== GO 语句测试 ====================
 
-#[tokio::test]
-async fn test_go_parser_basic() {
+#[test]
+fn test_go_parser_basic() {
     let query = "GO FROM 1 OVER KNOWS";
     let mut parser = Parser::new(query);
     
@@ -129,8 +129,8 @@ async fn test_go_parser_basic() {
     assert_eq!(stmt.kind(), "GO");
 }
 
-#[tokio::test]
-async fn test_go_parser_with_steps() {
+#[test]
+fn test_go_parser_with_steps() {
     // 使用当前解析器支持的语法: GO <steps> FROM <vertices> OVER <edge>
     let query = "GO 2 FROM 1 OVER KNOWS";
     let mut parser = Parser::new(query);
@@ -142,8 +142,8 @@ async fn test_go_parser_with_steps() {
     assert_eq!(stmt.kind(), "GO");
 }
 
-#[tokio::test]
-async fn test_go_parser_reversely() {
+#[test]
+fn test_go_parser_reversely() {
     let query = "GO FROM 1 OVER KNOWS REVERSELY";
     let mut parser = Parser::new(query);
     
@@ -154,8 +154,8 @@ async fn test_go_parser_reversely() {
     assert_eq!(stmt.kind(), "GO");
 }
 
-#[tokio::test]
-async fn test_go_parser_bidirect() {
+#[test]
+fn test_go_parser_bidirect() {
     let query = "GO FROM 1 OVER KNOWS BIDIRECT";
     let mut parser = Parser::new(query);
     
@@ -166,8 +166,8 @@ async fn test_go_parser_bidirect() {
     assert_eq!(stmt.kind(), "GO");
 }
 
-#[tokio::test]
-async fn test_go_parser_with_where() {
+#[test]
+fn test_go_parser_with_where() {
     // 使用当前解析器支持的语法: GO FROM <vertices> OVER <edge> WHERE <condition>
     let query = "GO FROM 1 OVER KNOWS WHERE $^.age > 25";
     let mut parser = Parser::new(query);
@@ -178,8 +178,8 @@ async fn test_go_parser_with_where() {
     let _ = result;
 }
 
-#[tokio::test]
-async fn test_go_parser_with_yield() {
+#[test]
+fn test_go_parser_with_yield() {
     // 使用当前解析器支持的语法: GO FROM <vertices> OVER <edge> YIELD <items>
     // 简化表达式，避免使用 $^ 引用
     let query = "GO FROM 1 OVER KNOWS YIELD name, age";
@@ -192,8 +192,8 @@ async fn test_go_parser_with_yield() {
     assert_eq!(stmt.kind(), "GO");
 }
 
-#[tokio::test]
-async fn test_go_parser_complex() {
+#[test]
+fn test_go_parser_complex() {
     // 简化复杂查询，使用当前解析器支持的语法
     let query = "GO 2 FROM 1 OVER KNOWS REVERSELY YIELD $^.name, $^.age";
     let mut parser = Parser::new(query);
@@ -205,8 +205,8 @@ async fn test_go_parser_complex() {
     assert_eq!(stmt.kind(), "GO");
 }
 
-#[tokio::test]
-async fn test_go_execution_basic() {
+#[test]
+fn test_go_execution_basic() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -220,8 +220,8 @@ async fn test_go_execution_basic() {
     assert!(result.is_ok() || result.is_err());
 }
 
-#[tokio::test]
-async fn test_go_execution_with_yield() {
+#[test]
+fn test_go_execution_with_yield() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -237,8 +237,8 @@ async fn test_go_execution_with_yield() {
 
 // ==================== LOOKUP 语句测试 ====================
 
-#[tokio::test]
-async fn test_lookup_parser_basic() {
+#[test]
+fn test_lookup_parser_basic() {
     let query = "LOOKUP ON Person WHERE Person.name == 'Alice'";
     let mut parser = Parser::new(query);
     
@@ -249,8 +249,8 @@ async fn test_lookup_parser_basic() {
     assert_eq!(stmt.kind(), "LOOKUP");
 }
 
-#[tokio::test]
-async fn test_lookup_parser_with_yield() {
+#[test]
+fn test_lookup_parser_with_yield() {
     // LOOKUP 语句的 YIELD 子句支持可能有限，测试基础功能
     let query = "LOOKUP ON Person WHERE Person.age > 25";
     let mut parser = Parser::new(query);
@@ -262,8 +262,8 @@ async fn test_lookup_parser_with_yield() {
     assert_eq!(stmt.kind(), "LOOKUP");
 }
 
-#[tokio::test]
-async fn test_lookup_parser_complex_condition() {
+#[test]
+fn test_lookup_parser_complex_condition() {
     // 简化复杂条件查询
     let query = "LOOKUP ON Person WHERE Person.age > 25";
     let mut parser = Parser::new(query);
@@ -275,8 +275,8 @@ async fn test_lookup_parser_complex_condition() {
     assert_eq!(stmt.kind(), "LOOKUP");
 }
 
-#[tokio::test]
-async fn test_lookup_parser_edge() {
+#[test]
+fn test_lookup_parser_edge() {
     // LOOKUP ON EDGE 语法测试
     let query = "LOOKUP ON KNOWS WHERE KNOWS.since > '2020-01-01'";
     let mut parser = Parser::new(query);
@@ -288,8 +288,8 @@ async fn test_lookup_parser_edge() {
     assert_eq!(stmt.kind(), "LOOKUP");
 }
 
-#[tokio::test]
-async fn test_lookup_execution_basic() {
+#[test]
+fn test_lookup_execution_basic() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -305,8 +305,8 @@ async fn test_lookup_execution_basic() {
 
 // ==================== FETCH 语句测试 ====================
 
-#[tokio::test]
-async fn test_fetch_parser_vertex() {
+#[test]
+fn test_fetch_parser_vertex() {
     let query = "FETCH PROP ON Person 1";
     let mut parser = Parser::new(query);
     
@@ -317,8 +317,8 @@ async fn test_fetch_parser_vertex() {
     assert_eq!(stmt.kind(), "FETCH");
 }
 
-#[tokio::test]
-async fn test_fetch_parser_multiple_vertices() {
+#[test]
+fn test_fetch_parser_multiple_vertices() {
     let query = "FETCH PROP ON Person 1, 2, 3";
     let mut parser = Parser::new(query);
     
@@ -329,8 +329,8 @@ async fn test_fetch_parser_multiple_vertices() {
     assert_eq!(stmt.kind(), "FETCH");
 }
 
-#[tokio::test]
-async fn test_fetch_parser_edge() {
+#[test]
+fn test_fetch_parser_edge() {
     let query = "FETCH PROP ON KNOWS 1 -> 2";
     let mut parser = Parser::new(query);
     
@@ -341,8 +341,8 @@ async fn test_fetch_parser_edge() {
     assert_eq!(stmt.kind(), "FETCH");
 }
 
-#[tokio::test]
-async fn test_fetch_parser_edge_with_rank() {
+#[test]
+fn test_fetch_parser_edge_with_rank() {
     let query = "FETCH PROP ON KNOWS 1 -> 2 @0";
     let mut parser = Parser::new(query);
     
@@ -353,8 +353,8 @@ async fn test_fetch_parser_edge_with_rank() {
     assert_eq!(stmt.kind(), "FETCH");
 }
 
-#[tokio::test]
-async fn test_fetch_execution_vertex() {
+#[test]
+fn test_fetch_execution_vertex() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -368,8 +368,8 @@ async fn test_fetch_execution_vertex() {
     assert!(result.is_ok() || result.is_err());
 }
 
-#[tokio::test]
-async fn test_fetch_execution_edge() {
+#[test]
+fn test_fetch_execution_edge() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -385,8 +385,8 @@ async fn test_fetch_execution_edge() {
 
 // ==================== FIND PATH 语句测试 ====================
 
-#[tokio::test]
-async fn test_find_path_parser_shortest() {
+#[test]
+fn test_find_path_parser_shortest() {
     let query = "FIND SHORTEST PATH FROM 1 TO 4 OVER KNOWS";
     let mut parser = Parser::new(query);
     
@@ -397,8 +397,8 @@ async fn test_find_path_parser_shortest() {
     assert_eq!(stmt.kind(), "FIND PATH");
 }
 
-#[tokio::test]
-async fn test_find_path_parser_all() {
+#[test]
+fn test_find_path_parser_all() {
     let query = "FIND ALL PATH FROM 1 TO 4 OVER KNOWS";
     let mut parser = Parser::new(query);
     
@@ -409,8 +409,8 @@ async fn test_find_path_parser_all() {
     assert_eq!(stmt.kind(), "FIND PATH");
 }
 
-#[tokio::test]
-async fn test_find_path_parser_noloop() {
+#[test]
+fn test_find_path_parser_noloop() {
     let query = "FIND NOLOOP PATH FROM 1 TO 4 OVER KNOWS";
     let mut parser = Parser::new(query);
 
@@ -428,8 +428,8 @@ async fn test_find_path_parser_noloop() {
     assert_eq!(stmt.kind(), "FIND PATH");
 }
 
-#[tokio::test]
-async fn test_find_path_parser_with_upto() {
+#[test]
+fn test_find_path_parser_with_upto() {
     let query = "FIND SHORTEST PATH FROM 1 TO 4 OVER KNOWS UPTO 5 STEPS";
     let mut parser = Parser::new(query);
     
@@ -440,8 +440,8 @@ async fn test_find_path_parser_with_upto() {
     assert_eq!(stmt.kind(), "FIND PATH");
 }
 
-#[tokio::test]
-async fn test_find_path_parser_reversely() {
+#[test]
+fn test_find_path_parser_reversely() {
     let query = "FIND SHORTEST PATH FROM 1 TO 4 OVER KNOWS REVERSELY";
     let mut parser = Parser::new(query);
     
@@ -452,8 +452,8 @@ async fn test_find_path_parser_reversely() {
     assert_eq!(stmt.kind(), "FIND PATH");
 }
 
-#[tokio::test]
-async fn test_find_path_parser_with_where() {
+#[test]
+fn test_find_path_parser_with_where() {
     let query = "FIND SHORTEST PATH FROM 1 TO 4 OVER KNOWS WHERE v.age > 20";
     let mut parser = Parser::new(query);
     
@@ -464,8 +464,8 @@ async fn test_find_path_parser_with_where() {
     assert_eq!(stmt.kind(), "FIND PATH");
 }
 
-#[tokio::test]
-async fn test_find_path_parser_complex() {
+#[test]
+fn test_find_path_parser_complex() {
     let query = "FIND ALL PATH FROM 1 TO 4 OVER KNOWS UPTO 3 STEPS WHERE v.age > 20 REVERSELY";
     let mut parser = Parser::new(query);
     
@@ -476,8 +476,8 @@ async fn test_find_path_parser_complex() {
     assert_eq!(stmt.kind(), "FIND PATH");
 }
 
-#[tokio::test]
-async fn test_find_path_execution_shortest() {
+#[test]
+fn test_find_path_execution_shortest() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -493,8 +493,8 @@ async fn test_find_path_execution_shortest() {
 
 // ==================== SUBGRAPH 语句测试 ====================
 
-#[tokio::test]
-async fn test_subgraph_parser_basic() {
+#[test]
+fn test_subgraph_parser_basic() {
     // 使用当前解析器支持的语法: GET SUBGRAPH FROM <vertices>
     let query = "GET SUBGRAPH FROM 1";
     let mut parser = Parser::new(query);
@@ -506,8 +506,8 @@ async fn test_subgraph_parser_basic() {
     assert_eq!(stmt.kind(), "SUBGRAPH");
 }
 
-#[tokio::test]
-async fn test_subgraph_parser_multiple_vertices() {
+#[test]
+fn test_subgraph_parser_multiple_vertices() {
     // 使用当前解析器支持的语法
     let query = "GET SUBGRAPH FROM 1, 2, 3";
     let mut parser = Parser::new(query);
@@ -519,8 +519,8 @@ async fn test_subgraph_parser_multiple_vertices() {
     assert_eq!(stmt.kind(), "SUBGRAPH");
 }
 
-#[tokio::test]
-async fn test_subgraph_parser_with_steps() {
+#[test]
+fn test_subgraph_parser_with_steps() {
     // 使用当前解析器支持的语法: GET SUBGRAPH STEP <n> FROM <vertices>
     let query = "GET SUBGRAPH STEP 2 FROM 1";
     let mut parser = Parser::new(query);
@@ -532,8 +532,8 @@ async fn test_subgraph_parser_with_steps() {
     assert_eq!(stmt.kind(), "SUBGRAPH");
 }
 
-#[tokio::test]
-async fn test_subgraph_parser_with_over() {
+#[test]
+fn test_subgraph_parser_with_over() {
     // 使用当前解析器支持的语法: GET SUBGRAPH FROM <vertices> OVER <edge>
     let query = "GET SUBGRAPH FROM 1 OVER KNOWS";
     let mut parser = Parser::new(query);
@@ -545,8 +545,8 @@ async fn test_subgraph_parser_with_over() {
     assert_eq!(stmt.kind(), "SUBGRAPH");
 }
 
-#[tokio::test]
-async fn test_subgraph_execution_basic() {
+#[test]
+fn test_subgraph_execution_basic() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -562,8 +562,8 @@ async fn test_subgraph_execution_basic() {
 
 // ==================== DQL 综合测试 ====================
 
-#[tokio::test]
-async fn test_dql_multiple_queries() {
+#[test]
+fn test_dql_multiple_queries() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -584,8 +584,8 @@ async fn test_dql_multiple_queries() {
     }
 }
 
-#[tokio::test]
-async fn test_dql_error_handling() {
+#[test]
+fn test_dql_error_handling() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -607,8 +607,8 @@ async fn test_dql_error_handling() {
 
 // ==================== 悬挂边相关测试 ====================
 
-#[tokio::test]
-async fn test_go_with_dangling_edges() {
+#[test]
+fn test_go_with_dangling_edges() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -624,8 +624,8 @@ async fn test_go_with_dangling_edges() {
     assert!(result.is_ok() || result.is_err());
 }
 
-#[tokio::test]
-async fn test_go_dangling_edge_returns_edge_props() {
+#[test]
+fn test_go_dangling_edge_returns_edge_props() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -640,8 +640,8 @@ async fn test_go_dangling_edge_returns_edge_props() {
     assert!(result.is_ok() || result.is_err());
 }
 
-#[tokio::test]
-async fn test_match_no_dangling_edges() {
+#[test]
+fn test_match_no_dangling_edges() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -656,8 +656,8 @@ async fn test_match_no_dangling_edges() {
     assert!(result.is_ok() || result.is_err());
 }
 
-#[tokio::test]
-async fn test_delete_vertex_with_edge_syntax() {
+#[test]
+fn test_delete_vertex_with_edge_syntax() {
     let query = "DELETE VERTEX 1 WITH EDGE";
     let mut parser = Parser::new(query);
     
@@ -668,8 +668,8 @@ async fn test_delete_vertex_with_edge_syntax() {
     assert_eq!(stmt.kind(), "DELETE");
 }
 
-#[tokio::test]
-async fn test_delete_vertex_without_edge_syntax() {
+#[test]
+fn test_delete_vertex_without_edge_syntax() {
     let query = "DELETE VERTEX 1";
     let mut parser = Parser::new(query);
     
@@ -680,8 +680,8 @@ async fn test_delete_vertex_without_edge_syntax() {
     assert_eq!(stmt.kind(), "DELETE");
 }
 
-#[tokio::test]
-async fn test_delete_vertex_multiple_with_edge() {
+#[test]
+fn test_delete_vertex_multiple_with_edge() {
     let query = "DELETE VERTEX 1, 2, 3 WITH EDGE";
     let mut parser = Parser::new(query);
     
@@ -692,8 +692,8 @@ async fn test_delete_vertex_multiple_with_edge() {
     assert_eq!(stmt.kind(), "DELETE");
 }
 
-#[tokio::test]
-async fn test_delete_vertex_with_where_and_edge() {
+#[test]
+fn test_delete_vertex_with_where_and_edge() {
     let query = "DELETE VERTEX 1 WITH EDGE WHERE 1.age > 25";
     let mut parser = Parser::new(query);
     
@@ -704,8 +704,8 @@ async fn test_delete_vertex_with_where_and_edge() {
     assert_eq!(stmt.kind(), "DELETE");
 }
 
-#[tokio::test]
-async fn test_dangling_edge_detection_and_repair() {
+#[test]
+fn test_dangling_edge_detection_and_repair() {
     use graphdb::storage::StorageClient;
     
     let test_storage = TestStorage::new().expect("创建测试存储失败");
@@ -727,8 +727,8 @@ async fn test_dangling_edge_detection_and_repair() {
     assert!(repair_result.is_ok() || repair_result.is_err());
 }
 
-#[tokio::test]
-async fn test_dangling_edge_workflow() {
+#[test]
+fn test_dangling_edge_workflow() {
     use graphdb::storage::StorageClient;
     use graphdb::core::DataType;
     
@@ -788,8 +788,8 @@ async fn test_dangling_edge_workflow() {
 
 // ==================== YIELD 语句测试 ====================
 
-#[tokio::test]
-async fn test_yield_with_where_basic() {
+#[test]
+fn test_yield_with_where_basic() {
     // 使用当前解析器支持的语法，简化 YIELD 子句
     let query = "GO FROM 1 OVER KNOWS YIELD name, age";
     let mut parser = Parser::new(query);
@@ -801,8 +801,8 @@ async fn test_yield_with_where_basic() {
     assert_eq!(stmt.kind(), "GO");
 }
 
-#[tokio::test]
-async fn test_yield_with_where_complex() {
+#[test]
+fn test_yield_with_where_complex() {
     // 简化复杂查询
     let query = "GO FROM 1 OVER KNOWS YIELD name, age";
     let mut parser = Parser::new(query);
@@ -814,8 +814,8 @@ async fn test_yield_with_where_complex() {
     assert_eq!(stmt.kind(), "GO");
 }
 
-#[tokio::test]
-async fn test_yield_with_limit() {
+#[test]
+fn test_yield_with_limit() {
     // YIELD 带 LIMIT 可能在 GO 语句中不支持，测试基础 YIELD
     let query = "GO FROM 1 OVER KNOWS YIELD name";
     let mut parser = Parser::new(query);
@@ -827,8 +827,8 @@ async fn test_yield_with_limit() {
     assert_eq!(stmt.kind(), "GO");
 }
 
-#[tokio::test]
-async fn test_yield_with_skip_limit() {
+#[test]
+fn test_yield_with_skip_limit() {
     // SKIP 在 YIELD 中可能不支持，测试基础 YIELD
     let query = "GO FROM 1 OVER KNOWS YIELD name";
     let mut parser = Parser::new(query);
@@ -840,8 +840,8 @@ async fn test_yield_with_skip_limit() {
     assert_eq!(stmt.kind(), "GO");
 }
 
-#[tokio::test]
-async fn test_yield_with_where_limit() {
+#[test]
+fn test_yield_with_where_limit() {
     // 简化查询，使用基础 YIELD
     let query = "GO FROM 1 OVER KNOWS YIELD name, age";
     let mut parser = Parser::new(query);
@@ -853,8 +853,8 @@ async fn test_yield_with_where_limit() {
     assert_eq!(stmt.kind(), "GO");
 }
 
-#[tokio::test]
-async fn test_yield_standalone() {
+#[test]
+fn test_yield_standalone() {
     // 独立 YIELD 语句测试
     let query = "YIELD 1 + 1 AS result";
     let mut parser = Parser::new(query);
@@ -865,8 +865,8 @@ async fn test_yield_standalone() {
     let _ = result;
 }
 
-#[tokio::test]
-async fn test_yield_standalone_with_where() {
+#[test]
+fn test_yield_standalone_with_where() {
     // 独立 YIELD 带 WHERE 测试
     let query = "YIELD 1 + 1 AS result WHERE result > 0";
     let mut parser = Parser::new(query);
@@ -877,8 +877,8 @@ async fn test_yield_standalone_with_where() {
     let _ = result;
 }
 
-#[tokio::test]
-async fn test_yield_execution_with_where() {
+#[test]
+fn test_yield_execution_with_where() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());

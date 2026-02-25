@@ -26,8 +26,8 @@ use std::sync::Arc;
 
 // ==================== INSERT 语句测试 ====================
 
-#[tokio::test]
-async fn test_insert_parser_vertex() {
+#[test]
+fn test_insert_parser_vertex() {
     let query = "INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30)";
     let mut parser = Parser::new(query);
     
@@ -38,8 +38,8 @@ async fn test_insert_parser_vertex() {
     assert_eq!(stmt.kind(), "INSERT");
 }
 
-#[tokio::test]
-async fn test_insert_parser_multiple_vertices() {
+#[test]
+fn test_insert_parser_multiple_vertices() {
     let query = "INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30), 2:('Bob', 25)";
     let mut parser = Parser::new(query);
     
@@ -50,8 +50,8 @@ async fn test_insert_parser_multiple_vertices() {
     assert_eq!(stmt.kind(), "INSERT");
 }
 
-#[tokio::test]
-async fn test_insert_parser_edge() {
+#[test]
+fn test_insert_parser_edge() {
     let query = "INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2020-01-01')";
     let mut parser = Parser::new(query);
     
@@ -62,8 +62,8 @@ async fn test_insert_parser_edge() {
     assert_eq!(stmt.kind(), "INSERT");
 }
 
-#[tokio::test]
-async fn test_insert_parser_edge_with_rank() {
+#[test]
+fn test_insert_parser_edge_with_rank() {
     let query = "INSERT EDGE KNOWS(since) VALUES 1 -> 2 @0:('2020-01-01')";
     let mut parser = Parser::new(query);
     
@@ -74,8 +74,8 @@ async fn test_insert_parser_edge_with_rank() {
     assert_eq!(stmt.kind(), "INSERT");
 }
 
-#[tokio::test]
-async fn test_insert_parser_multiple_edges() {
+#[test]
+fn test_insert_parser_multiple_edges() {
     let query = "INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2020-01-01'), 2 -> 3:('2021-01-01')";
     let mut parser = Parser::new(query);
     
@@ -86,8 +86,8 @@ async fn test_insert_parser_multiple_edges() {
     assert_eq!(stmt.kind(), "INSERT");
 }
 
-#[tokio::test]
-async fn test_insert_parser_invalid_syntax() {
+#[test]
+fn test_insert_parser_invalid_syntax() {
     let query = "INSERT VERTEX Person(name, age) VALUES 1:'Alice', 30";
     let mut parser = Parser::new(query);
     
@@ -95,8 +95,8 @@ async fn test_insert_parser_invalid_syntax() {
     assert!(result.is_err(), "无效语法应该返回错误");
 }
 
-#[tokio::test]
-async fn test_insert_execution_vertex() {
+#[test]
+fn test_insert_execution_vertex() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -104,14 +104,14 @@ async fn test_insert_execution_vertex() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "INSERT VERTEX Person(name, age) VALUES 1:('Alice', 30)";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("INSERT VERTEX执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
 }
 
-#[tokio::test]
-async fn test_insert_execution_edge() {
+#[test]
+fn test_insert_execution_edge() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -127,8 +127,8 @@ async fn test_insert_execution_edge() {
 
 // ==================== CREATE 语句测试 ====================
 
-#[tokio::test]
-async fn test_create_parser_vertex() {
+#[test]
+fn test_create_parser_vertex() {
     let query = "CREATE (p:Person {name: 'Alice', age: 30})";
     let mut parser = Parser::new(query);
     
@@ -137,8 +137,8 @@ async fn test_create_parser_vertex() {
     let _ = result;
 }
 
-#[tokio::test]
-async fn test_create_parser_edge() {
+#[test]
+fn test_create_parser_edge() {
     let query = "CREATE (a:Person)-[:KNOWS {since: '2020-01-01'}]->(b:Person)";
     let mut parser = Parser::new(query);
     
@@ -147,8 +147,8 @@ async fn test_create_parser_edge() {
     let _ = result;
 }
 
-#[tokio::test]
-async fn test_create_parser_multiple() {
+#[test]
+fn test_create_parser_multiple() {
     let query = "CREATE (a:Person {name: 'Alice'}), (b:Person {name: 'Bob'})";
     let mut parser = Parser::new(query);
     
@@ -157,8 +157,8 @@ async fn test_create_parser_multiple() {
     let _ = result;
 }
 
-#[tokio::test]
-async fn test_create_execution_vertex() {
+#[test]
+fn test_create_execution_vertex() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -166,14 +166,14 @@ async fn test_create_execution_vertex() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "CREATE (p:Person {name: 'Alice', age: 30})";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("CREATE顶点执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
 }
 
-#[tokio::test]
-async fn test_create_execution_edge() {
+#[test]
+fn test_create_execution_edge() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -189,8 +189,8 @@ async fn test_create_execution_edge() {
 
 // ==================== UPDATE 语句测试 ====================
 
-#[tokio::test]
-async fn test_update_parser_vertex() {
+#[test]
+fn test_update_parser_vertex() {
     let query = "UPDATE 1 SET age = 26, name = 'Alice Smith'";
     let mut parser = Parser::new(query);
     
@@ -201,8 +201,8 @@ async fn test_update_parser_vertex() {
     assert_eq!(stmt.kind(), "UPDATE");
 }
 
-#[tokio::test]
-async fn test_update_parser_vertex_with_when() {
+#[test]
+fn test_update_parser_vertex_with_when() {
     let query = "UPDATE 1 SET age = 26 WHEN age > 20";
     let mut parser = Parser::new(query);
     
@@ -213,8 +213,8 @@ async fn test_update_parser_vertex_with_when() {
     assert_eq!(stmt.kind(), "UPDATE");
 }
 
-#[tokio::test]
-async fn test_update_parser_edge() {
+#[test]
+fn test_update_parser_edge() {
     let query = "UPDATE 1 -> 2 @0 OF KNOWS SET since = '2021-01-01'";
     let mut parser = Parser::new(query);
     
@@ -225,8 +225,8 @@ async fn test_update_parser_edge() {
     assert_eq!(stmt.kind(), "UPDATE");
 }
 
-#[tokio::test]
-async fn test_update_parser_edge_with_when() {
+#[test]
+fn test_update_parser_edge_with_when() {
     let query = "UPDATE 1 -> 2 @0 OF KNOWS SET since = '2021-01-01' WHEN since < '2021-01-01'";
     let mut parser = Parser::new(query);
     
@@ -237,8 +237,8 @@ async fn test_update_parser_edge_with_when() {
     assert_eq!(stmt.kind(), "UPDATE");
 }
 
-#[tokio::test]
-async fn test_update_parser_multiple_props() {
+#[test]
+fn test_update_parser_multiple_props() {
     let query = "UPDATE 1 SET age = 26, name = 'Alice', updated = true";
     let mut parser = Parser::new(query);
     
@@ -249,8 +249,8 @@ async fn test_update_parser_multiple_props() {
     assert_eq!(stmt.kind(), "UPDATE");
 }
 
-#[tokio::test]
-async fn test_update_execution_vertex() {
+#[test]
+fn test_update_execution_vertex() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -264,8 +264,8 @@ async fn test_update_execution_vertex() {
     assert!(result.is_ok() || result.is_err());
 }
 
-#[tokio::test]
-async fn test_update_execution_edge() {
+#[test]
+fn test_update_execution_edge() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -281,8 +281,8 @@ async fn test_update_execution_edge() {
 
 // ==================== DELETE 语句测试 ====================
 
-#[tokio::test]
-async fn test_delete_parser_vertex() {
+#[test]
+fn test_delete_parser_vertex() {
     let query = "DELETE VERTEX 1";
     let mut parser = Parser::new(query);
     
@@ -293,8 +293,8 @@ async fn test_delete_parser_vertex() {
     assert_eq!(stmt.kind(), "DELETE");
 }
 
-#[tokio::test]
-async fn test_delete_parser_multiple_vertices() {
+#[test]
+fn test_delete_parser_multiple_vertices() {
     let query = "DELETE VERTEX 1, 2, 3";
     let mut parser = Parser::new(query);
     
@@ -305,8 +305,8 @@ async fn test_delete_parser_multiple_vertices() {
     assert_eq!(stmt.kind(), "DELETE");
 }
 
-#[tokio::test]
-async fn test_delete_parser_edge() {
+#[test]
+fn test_delete_parser_edge() {
     let query = "DELETE EDGE KNOWS 1 -> 2";
     let mut parser = Parser::new(query);
     
@@ -317,8 +317,8 @@ async fn test_delete_parser_edge() {
     assert_eq!(stmt.kind(), "DELETE");
 }
 
-#[tokio::test]
-async fn test_delete_parser_edge_with_rank() {
+#[test]
+fn test_delete_parser_edge_with_rank() {
     let query = "DELETE EDGE KNOWS 1 -> 2 @0";
     let mut parser = Parser::new(query);
     
@@ -329,8 +329,8 @@ async fn test_delete_parser_edge_with_rank() {
     assert_eq!(stmt.kind(), "DELETE");
 }
 
-#[tokio::test]
-async fn test_delete_parser_multiple_edges() {
+#[test]
+fn test_delete_parser_multiple_edges() {
     let query = "DELETE EDGE KNOWS 1 -> 2, 2 -> 3";
     let mut parser = Parser::new(query);
     
@@ -341,8 +341,8 @@ async fn test_delete_parser_multiple_edges() {
     assert_eq!(stmt.kind(), "DELETE");
 }
 
-#[tokio::test]
-async fn test_delete_execution_vertex() {
+#[test]
+fn test_delete_execution_vertex() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -350,14 +350,14 @@ async fn test_delete_execution_vertex() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "DELETE VERTEX 1";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("DELETE VERTEX执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
 }
 
-#[tokio::test]
-async fn test_delete_execution_edge() {
+#[test]
+fn test_delete_execution_edge() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -373,8 +373,8 @@ async fn test_delete_execution_edge() {
 
 // ==================== 新增 DML 功能测试 ====================
 
-#[tokio::test]
-async fn test_insert_if_not_exists_parser() {
+#[test]
+fn test_insert_if_not_exists_parser() {
     let query = "INSERT VERTEX IF NOT EXISTS Person(name, age) VALUES 1:('Alice', 30)";
     let mut parser = Parser::new(query);
     
@@ -385,8 +385,8 @@ async fn test_insert_if_not_exists_parser() {
     assert_eq!(stmt.kind(), "INSERT");
 }
 
-#[tokio::test]
-async fn test_insert_if_not_exists_execution() {
+#[test]
+fn test_insert_if_not_exists_execution() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -394,14 +394,14 @@ async fn test_insert_if_not_exists_execution() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "INSERT VERTEX IF NOT EXISTS Person(name, age) VALUES 1:('Alice', 30)";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("INSERT IF NOT EXISTS 执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
 }
 
-#[tokio::test]
-async fn test_insert_multiple_tags_parser() {
+#[test]
+fn test_insert_multiple_tags_parser() {
     let query = "INSERT VERTEX Person(name, age), Employee(department, salary) VALUES 1:('Alice', 30):('Engineering', 100000)";
     let mut parser = Parser::new(query);
     
@@ -412,8 +412,8 @@ async fn test_insert_multiple_tags_parser() {
     assert_eq!(stmt.kind(), "INSERT");
 }
 
-#[tokio::test]
-async fn test_upsert_vertex_parser() {
+#[test]
+fn test_upsert_vertex_parser() {
     let query = "UPSERT VERTEX 1 ON Person SET age = 26, name = 'Alice Smith'";
     let mut parser = Parser::new(query);
     
@@ -424,8 +424,8 @@ async fn test_upsert_vertex_parser() {
     assert_eq!(stmt.kind(), "UPDATE");
 }
 
-#[tokio::test]
-async fn test_upsert_edge_parser() {
+#[test]
+fn test_upsert_edge_parser() {
     let query = "UPSERT EDGE 1 -> 2 @0 OF KNOWS SET since = '2021-01-01'";
     let mut parser = Parser::new(query);
     
@@ -436,8 +436,8 @@ async fn test_upsert_edge_parser() {
     assert_eq!(stmt.kind(), "UPDATE");
 }
 
-#[tokio::test]
-async fn test_update_with_yield_parser() {
+#[test]
+fn test_update_with_yield_parser() {
     let query = "UPDATE 1 SET age = 26 YIELD age AS new_age";
     let mut parser = Parser::new(query);
     
@@ -448,8 +448,8 @@ async fn test_update_with_yield_parser() {
     assert_eq!(stmt.kind(), "UPDATE");
 }
 
-#[tokio::test]
-async fn test_update_vertex_on_tag_parser() {
+#[test]
+fn test_update_vertex_on_tag_parser() {
     let query = "UPDATE VERTEX 1 ON Person SET age = 26";
     let mut parser = Parser::new(query);
     
@@ -460,8 +460,8 @@ async fn test_update_vertex_on_tag_parser() {
     assert_eq!(stmt.kind(), "UPDATE");
 }
 
-#[tokio::test]
-async fn test_delete_tag_wildcard_parser() {
+#[test]
+fn test_delete_tag_wildcard_parser() {
     let query = "DELETE TAG * FROM 1";
     let mut parser = Parser::new(query);
     
@@ -472,8 +472,8 @@ async fn test_delete_tag_wildcard_parser() {
     assert_eq!(stmt.kind(), "DELETE");
 }
 
-#[tokio::test]
-async fn test_delete_tag_specific_parser() {
+#[test]
+fn test_delete_tag_specific_parser() {
     let query = "DELETE TAG Person, Employee FROM 1";
     let mut parser = Parser::new(query);
     
@@ -484,8 +484,8 @@ async fn test_delete_tag_specific_parser() {
     assert_eq!(stmt.kind(), "DELETE");
 }
 
-#[tokio::test]
-async fn test_delete_tag_multiple_vertices_parser() {
+#[test]
+fn test_delete_tag_multiple_vertices_parser() {
     let query = "DELETE TAG Person FROM 1, 2, 3";
     let mut parser = Parser::new(query);
     
@@ -498,8 +498,8 @@ async fn test_delete_tag_multiple_vertices_parser() {
 
 // ==================== MERGE 语句测试 ====================
 
-#[tokio::test]
-async fn test_merge_parser_basic() {
+#[test]
+fn test_merge_parser_basic() {
     let query = "MERGE (p:Person {name: 'Alice'})";
     let mut parser = Parser::new(query);
     
@@ -508,8 +508,8 @@ async fn test_merge_parser_basic() {
     let _ = result;
 }
 
-#[tokio::test]
-async fn test_merge_parser_on_match() {
+#[test]
+fn test_merge_parser_on_match() {
     let query = "MERGE (p:Person {name: 'Alice'}) ON MATCH SET p.last_seen = timestamp()";
     let mut parser = Parser::new(query);
     
@@ -518,8 +518,8 @@ async fn test_merge_parser_on_match() {
     let _ = result;
 }
 
-#[tokio::test]
-async fn test_merge_parser_on_create() {
+#[test]
+fn test_merge_parser_on_create() {
     let query = "MERGE (p:Person {name: 'Alice'}) ON CREATE SET p.created_at = timestamp()";
     let mut parser = Parser::new(query);
     
@@ -528,8 +528,8 @@ async fn test_merge_parser_on_create() {
     let _ = result;
 }
 
-#[tokio::test]
-async fn test_merge_parser_both() {
+#[test]
+fn test_merge_parser_both() {
     let query = "MERGE (p:Person {name: 'Alice'}) ON MATCH SET p.last_seen = timestamp() ON CREATE SET p.created_at = timestamp()";
     let mut parser = Parser::new(query);
     
@@ -538,8 +538,8 @@ async fn test_merge_parser_both() {
     let _ = result;
 }
 
-#[tokio::test]
-async fn test_merge_execution_basic() {
+#[test]
+fn test_merge_execution_basic() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -547,7 +547,7 @@ async fn test_merge_execution_basic() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "MERGE (p:Person {name: 'Alice'})";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("MERGE基础执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -555,8 +555,8 @@ async fn test_merge_execution_basic() {
 
 // ==================== SET 语句测试 ====================
 
-#[tokio::test]
-async fn test_set_parser_basic() {
+#[test]
+fn test_set_parser_basic() {
     let query = "SET p.age = 26";
     let mut parser = Parser::new(query);
     
@@ -567,8 +567,8 @@ async fn test_set_parser_basic() {
     assert_eq!(stmt.kind(), "SET");
 }
 
-#[tokio::test]
-async fn test_set_parser_multiple() {
+#[test]
+fn test_set_parser_multiple() {
     let query = "SET p.age = 26, p.name = 'Alice', p.updated = true";
     let mut parser = Parser::new(query);
     
@@ -579,8 +579,8 @@ async fn test_set_parser_multiple() {
     assert_eq!(stmt.kind(), "SET");
 }
 
-#[tokio::test]
-async fn test_set_parser_with_expression() {
+#[test]
+fn test_set_parser_with_expression() {
     let query = "SET p.age = p.age + 1";
     let mut parser = Parser::new(query);
     
@@ -591,8 +591,8 @@ async fn test_set_parser_with_expression() {
     assert_eq!(stmt.kind(), "SET");
 }
 
-#[tokio::test]
-async fn test_set_execution_basic() {
+#[test]
+fn test_set_execution_basic() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -600,7 +600,7 @@ async fn test_set_execution_basic() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "SET p.age = 26";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("SET基础执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -608,8 +608,8 @@ async fn test_set_execution_basic() {
 
 // ==================== REMOVE 语句测试 ====================
 
-#[tokio::test]
-async fn test_remove_parser_property() {
+#[test]
+fn test_remove_parser_property() {
     let query = "REMOVE p.temp_field";
     let mut parser = Parser::new(query);
     
@@ -620,8 +620,8 @@ async fn test_remove_parser_property() {
     assert_eq!(stmt.kind(), "REMOVE");
 }
 
-#[tokio::test]
-async fn test_remove_parser_multiple_properties() {
+#[test]
+fn test_remove_parser_multiple_properties() {
     let query = "REMOVE p.temp_field, p.old_field";
     let mut parser = Parser::new(query);
     
@@ -632,8 +632,8 @@ async fn test_remove_parser_multiple_properties() {
     assert_eq!(stmt.kind(), "REMOVE");
 }
 
-#[tokio::test]
-async fn test_remove_parser_label() {
+#[test]
+fn test_remove_parser_label() {
     let query = "REMOVE p:OldLabel";
     let mut parser = Parser::new(query);
     
@@ -644,8 +644,8 @@ async fn test_remove_parser_label() {
     assert_eq!(stmt.kind(), "REMOVE");
 }
 
-#[tokio::test]
-async fn test_remove_parser_multiple_labels() {
+#[test]
+fn test_remove_parser_multiple_labels() {
     let query = "REMOVE p:OldLabel, p:AnotherLabel";
     let mut parser = Parser::new(query);
     
@@ -656,8 +656,8 @@ async fn test_remove_parser_multiple_labels() {
     assert_eq!(stmt.kind(), "REMOVE");
 }
 
-#[tokio::test]
-async fn test_remove_parser_mixed() {
+#[test]
+fn test_remove_parser_mixed() {
     let query = "REMOVE p.temp_field, p:OldLabel";
     let mut parser = Parser::new(query);
     
@@ -668,8 +668,8 @@ async fn test_remove_parser_mixed() {
     assert_eq!(stmt.kind(), "REMOVE");
 }
 
-#[tokio::test]
-async fn test_remove_execution_property() {
+#[test]
+fn test_remove_execution_property() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -685,8 +685,8 @@ async fn test_remove_execution_property() {
 
 // ==================== DML 综合测试 ====================
 
-#[tokio::test]
-async fn test_dml_crud_operations() {
+#[test]
+fn test_dml_crud_operations() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -701,14 +701,14 @@ async fn test_dml_crud_operations() {
     ];
     
     for (i, query) in queries.iter().enumerate() {
-        let result = pipeline_manager.execute_query(query).await;
+        let result = pipeline_manager.execute_query(query);
         println!("DML CRUD操作 {} 执行结果: {:?}", i + 1, result);
         assert!(result.is_ok() || result.is_err());
     }
 }
 
-#[tokio::test]
-async fn test_dml_batch_operations() {
+#[test]
+fn test_dml_batch_operations() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -723,14 +723,14 @@ async fn test_dml_batch_operations() {
     ];
     
     for (i, query) in batch_queries.iter().enumerate() {
-        let result = pipeline_manager.execute_query(query).await;
+        let result = pipeline_manager.execute_query(query);
         println!("DML批量操作 {} 执行结果: {:?}", i + 1, result);
         assert!(result.is_ok() || result.is_err());
     }
 }
 
-#[tokio::test]
-async fn test_dml_error_handling() {
+#[test]
+fn test_dml_error_handling() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -750,8 +750,8 @@ async fn test_dml_error_handling() {
     }
 }
 
-#[tokio::test]
-async fn test_dml_transaction_like_operations() {
+#[test]
+fn test_dml_transaction_like_operations() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -766,7 +766,7 @@ async fn test_dml_transaction_like_operations() {
     ];
     
     for (i, query) in transaction_queries.iter().enumerate() {
-        let result = pipeline_manager.execute_query(query).await;
+        let result = pipeline_manager.execute_query(query);
         println!("DML事务类操作 {} 执行结果: {:?}", i + 1, result);
         assert!(result.is_ok() || result.is_err());
     }
@@ -774,8 +774,8 @@ async fn test_dml_transaction_like_operations() {
 
 // ==================== 索引优化规则测试 ====================
 
-#[tokio::test]
-async fn test_index_scan_with_limit() {
+#[test]
+fn test_index_scan_with_limit() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -799,8 +799,8 @@ async fn test_index_scan_with_limit() {
     assert!(result.is_ok() || result.is_err());
 }
 
-#[tokio::test]
-async fn test_index_scan_with_order_by_limit() {
+#[test]
+fn test_index_scan_with_order_by_limit() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -814,18 +814,18 @@ async fn test_index_scan_with_order_by_limit() {
     ];
     
     for query in setup_queries {
-        let _ = pipeline_manager.execute_query(query).await;
+        let _ = pipeline_manager.execute_query(query);
     }
     
     let query = "LOOKUP ON Person WHERE Person.age > 20 YIELD Person.name, Person.age ORDER BY Person.age DESC LIMIT 3";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("索引扫描带ORDER BY和LIMIT执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
 }
 
-#[tokio::test]
-async fn test_index_covering_scan() {
+#[test]
+fn test_index_covering_scan() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -849,8 +849,8 @@ async fn test_index_covering_scan() {
     assert!(result.is_ok() || result.is_err());
 }
 
-#[tokio::test]
-async fn test_index_scan_with_filter_optimization() {
+#[test]
+fn test_index_scan_with_filter_optimization() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -864,18 +864,18 @@ async fn test_index_scan_with_filter_optimization() {
     ];
     
     for query in setup_queries {
-        let _ = pipeline_manager.execute_query(query).await;
+        let _ = pipeline_manager.execute_query(query);
     }
     
     let query = "LOOKUP ON Person WHERE Person.age > 25 AND Person.city == 'Beijing' YIELD Person.name, Person.age, Person.city";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("索引扫描带过滤器优化执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
 }
 
-#[tokio::test]
-async fn test_dml_with_index_optimization() {
+#[test]
+fn test_dml_with_index_optimization() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -905,8 +905,8 @@ async fn test_dml_with_index_optimization() {
     }
 }
 
-#[tokio::test]
-async fn test_edge_index_scan_with_limit() {
+#[test]
+fn test_edge_index_scan_with_limit() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -922,11 +922,11 @@ async fn test_edge_index_scan_with_limit() {
     ];
     
     for query in setup_queries {
-        let _ = pipeline_manager.execute_query(query).await;
+        let _ = pipeline_manager.execute_query(query);
     }
     
     let query = "LOOKUP ON KNOWS WHERE KNOWS.since > '2019-06-01' YIELD KNOWS.since LIMIT 2";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("边索引扫描带LIMIT执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());

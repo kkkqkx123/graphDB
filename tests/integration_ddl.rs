@@ -26,8 +26,8 @@ use std::sync::Arc;
 
 // ==================== CREATE TAG 语句测试 ====================
 
-#[tokio::test]
-async fn test_create_tag_parser_basic() {
+#[test]
+fn test_create_tag_parser_basic() {
     let query = "CREATE TAG Person(name: STRING, age: INT)";
     let mut parser = Parser::new(query);
     
@@ -38,8 +38,8 @@ async fn test_create_tag_parser_basic() {
     assert_eq!(stmt.kind(), "CREATE");
 }
 
-#[tokio::test]
-async fn test_create_tag_parser_with_if_not_exists() {
+#[test]
+fn test_create_tag_parser_with_if_not_exists() {
     let query = "CREATE TAG IF NOT EXISTS Person(name: STRING, age: INT)";
     let mut parser = Parser::new(query);
     
@@ -50,8 +50,8 @@ async fn test_create_tag_parser_with_if_not_exists() {
     assert_eq!(stmt.kind(), "CREATE");
 }
 
-#[tokio::test]
-async fn test_create_tag_parser_single_property() {
+#[test]
+fn test_create_tag_parser_single_property() {
     let query = "CREATE TAG Person(name: STRING)";
     let mut parser = Parser::new(query);
     
@@ -62,8 +62,8 @@ async fn test_create_tag_parser_single_property() {
     assert_eq!(stmt.kind(), "CREATE");
 }
 
-#[tokio::test]
-async fn test_create_tag_parser_multiple_properties() {
+#[test]
+fn test_create_tag_parser_multiple_properties() {
     let query = "CREATE TAG Person(name: STRING, age: INT, created_at: TIMESTAMP)";
     let mut parser = Parser::new(query);
     
@@ -74,8 +74,8 @@ async fn test_create_tag_parser_multiple_properties() {
     assert_eq!(stmt.kind(), "CREATE");
 }
 
-#[tokio::test]
-async fn test_create_tag_parser_various_types() {
+#[test]
+fn test_create_tag_parser_various_types() {
     let query = "CREATE TAG Test(name: STRING, age: INT, score: DOUBLE, active: BOOL, birth: DATE)";
     let mut parser = Parser::new(query);
     
@@ -86,8 +86,8 @@ async fn test_create_tag_parser_various_types() {
     assert_eq!(stmt.kind(), "CREATE");
 }
 
-#[tokio::test]
-async fn test_create_tag_execution_basic() {
+#[test]
+fn test_create_tag_execution_basic() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -95,14 +95,14 @@ async fn test_create_tag_execution_basic() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "CREATE TAG Person(name: STRING, age: INT)";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("CREATE TAG基础执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
 }
 
-#[tokio::test]
-async fn test_create_tag_execution_with_if_not_exists() {
+#[test]
+fn test_create_tag_execution_with_if_not_exists() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -110,7 +110,7 @@ async fn test_create_tag_execution_with_if_not_exists() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "CREATE TAG IF NOT EXISTS Person(name: STRING, age: INT)";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("CREATE TAG带IF NOT EXISTS执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -118,8 +118,8 @@ async fn test_create_tag_execution_with_if_not_exists() {
 
 // ==================== CREATE EDGE 语句测试 ====================
 
-#[tokio::test]
-async fn test_create_edge_parser_basic() {
+#[test]
+fn test_create_edge_parser_basic() {
     let query = "CREATE EDGE KNOWS(since: DATE)";
     let mut parser = Parser::new(query);
     
@@ -130,8 +130,8 @@ async fn test_create_edge_parser_basic() {
     assert_eq!(stmt.kind(), "CREATE");
 }
 
-#[tokio::test]
-async fn test_create_edge_parser_with_if_not_exists() {
+#[test]
+fn test_create_edge_parser_with_if_not_exists() {
     let query = "CREATE EDGE IF NOT EXISTS KNOWS(since: DATE)";
     let mut parser = Parser::new(query);
     
@@ -142,8 +142,8 @@ async fn test_create_edge_parser_with_if_not_exists() {
     assert_eq!(stmt.kind(), "CREATE");
 }
 
-#[tokio::test]
-async fn test_create_edge_parser_single_property() {
+#[test]
+fn test_create_edge_parser_single_property() {
     let query = "CREATE EDGE KNOWS(since: DATE)";
     let mut parser = Parser::new(query);
     
@@ -154,8 +154,8 @@ async fn test_create_edge_parser_single_property() {
     assert_eq!(stmt.kind(), "CREATE");
 }
 
-#[tokio::test]
-async fn test_create_edge_parser_multiple_properties() {
+#[test]
+fn test_create_edge_parser_multiple_properties() {
     let query = "CREATE EDGE KNOWS(since: DATE, degree: DOUBLE, note: STRING)";
     let mut parser = Parser::new(query);
     
@@ -166,8 +166,8 @@ async fn test_create_edge_parser_multiple_properties() {
     assert_eq!(stmt.kind(), "CREATE");
 }
 
-#[tokio::test]
-async fn test_create_edge_parser_various_types() {
+#[test]
+fn test_create_edge_parser_various_types() {
     let query = "CREATE EDGE Test(since: DATE, weight: DOUBLE, active: BOOL, count: INT)";
     let mut parser = Parser::new(query);
     
@@ -178,8 +178,8 @@ async fn test_create_edge_parser_various_types() {
     assert_eq!(stmt.kind(), "CREATE");
 }
 
-#[tokio::test]
-async fn test_create_edge_execution_basic() {
+#[test]
+fn test_create_edge_execution_basic() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -193,8 +193,8 @@ async fn test_create_edge_execution_basic() {
     assert!(result.is_ok() || result.is_err());
 }
 
-#[tokio::test]
-async fn test_create_edge_execution_with_if_not_exists() {
+#[test]
+fn test_create_edge_execution_with_if_not_exists() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -210,8 +210,8 @@ async fn test_create_edge_execution_with_if_not_exists() {
 
 // ==================== ALTER TAG 语句测试 ====================
 
-#[tokio::test]
-async fn test_alter_tag_parser_add() {
+#[test]
+fn test_alter_tag_parser_add() {
     let query = "ALTER TAG Person ADD (email: STRING, phone: STRING)";
     let mut parser = Parser::new(query);
     
@@ -222,8 +222,8 @@ async fn test_alter_tag_parser_add() {
     assert_eq!(stmt.kind(), "ALTER");
 }
 
-#[tokio::test]
-async fn test_alter_tag_parser_drop() {
+#[test]
+fn test_alter_tag_parser_drop() {
     let query = "ALTER TAG Person DROP (temp_field, old_field)";
     let mut parser = Parser::new(query);
     
@@ -234,8 +234,8 @@ async fn test_alter_tag_parser_drop() {
     assert_eq!(stmt.kind(), "ALTER");
 }
 
-#[tokio::test]
-async fn test_alter_tag_parser_change() {
+#[test]
+fn test_alter_tag_parser_change() {
     let query = "ALTER TAG Person CHANGE (old_name new_name: STRING)";
     let mut parser = Parser::new(query);
     
@@ -246,8 +246,8 @@ async fn test_alter_tag_parser_change() {
     assert_eq!(stmt.kind(), "ALTER");
 }
 
-#[tokio::test]
-async fn test_alter_tag_parser_add_single() {
+#[test]
+fn test_alter_tag_parser_add_single() {
     let query = "ALTER TAG Person ADD (email: STRING)";
     let mut parser = Parser::new(query);
     
@@ -258,8 +258,8 @@ async fn test_alter_tag_parser_add_single() {
     assert_eq!(stmt.kind(), "ALTER");
 }
 
-#[tokio::test]
-async fn test_alter_tag_parser_drop_single() {
+#[test]
+fn test_alter_tag_parser_drop_single() {
     let query = "ALTER TAG Person DROP (temp_field)";
     let mut parser = Parser::new(query);
     
@@ -270,8 +270,8 @@ async fn test_alter_tag_parser_drop_single() {
     assert_eq!(stmt.kind(), "ALTER");
 }
 
-#[tokio::test]
-async fn test_alter_tag_execution_add() {
+#[test]
+fn test_alter_tag_execution_add() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -285,8 +285,8 @@ async fn test_alter_tag_execution_add() {
     assert!(result.is_ok() || result.is_err());
 }
 
-#[tokio::test]
-async fn test_alter_tag_execution_drop() {
+#[test]
+fn test_alter_tag_execution_drop() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -302,8 +302,8 @@ async fn test_alter_tag_execution_drop() {
 
 // ==================== ALTER EDGE 语句测试 ====================
 
-#[tokio::test]
-async fn test_alter_edge_parser_add() {
+#[test]
+fn test_alter_edge_parser_add() {
     let query = "ALTER EDGE KNOWS ADD (note: STRING, weight: DOUBLE)";
     let mut parser = Parser::new(query);
     
@@ -314,8 +314,8 @@ async fn test_alter_edge_parser_add() {
     assert_eq!(stmt.kind(), "ALTER");
 }
 
-#[tokio::test]
-async fn test_alter_edge_parser_drop() {
+#[test]
+fn test_alter_edge_parser_drop() {
     let query = "ALTER EDGE KNOWS DROP (temp_field, old_field)";
     let mut parser = Parser::new(query);
     
@@ -326,8 +326,8 @@ async fn test_alter_edge_parser_drop() {
     assert_eq!(stmt.kind(), "ALTER");
 }
 
-#[tokio::test]
-async fn test_alter_edge_parser_change() {
+#[test]
+fn test_alter_edge_parser_change() {
     let query = "ALTER EDGE KNOWS CHANGE (old_since new_since: DATE)";
     let mut parser = Parser::new(query);
     
@@ -338,8 +338,8 @@ async fn test_alter_edge_parser_change() {
     assert_eq!(stmt.kind(), "ALTER");
 }
 
-#[tokio::test]
-async fn test_alter_edge_parser_add_single() {
+#[test]
+fn test_alter_edge_parser_add_single() {
     let query = "ALTER EDGE KNOWS ADD (note: STRING)";
     let mut parser = Parser::new(query);
     
@@ -350,8 +350,8 @@ async fn test_alter_edge_parser_add_single() {
     assert_eq!(stmt.kind(), "ALTER");
 }
 
-#[tokio::test]
-async fn test_alter_edge_parser_drop_single() {
+#[test]
+fn test_alter_edge_parser_drop_single() {
     let query = "ALTER EDGE KNOWS DROP (temp_field)";
     let mut parser = Parser::new(query);
     
@@ -362,8 +362,8 @@ async fn test_alter_edge_parser_drop_single() {
     assert_eq!(stmt.kind(), "ALTER");
 }
 
-#[tokio::test]
-async fn test_alter_edge_execution_add() {
+#[test]
+fn test_alter_edge_execution_add() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -377,8 +377,8 @@ async fn test_alter_edge_execution_add() {
     assert!(result.is_ok() || result.is_err());
 }
 
-#[tokio::test]
-async fn test_alter_edge_execution_drop() {
+#[test]
+fn test_alter_edge_execution_drop() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -394,8 +394,8 @@ async fn test_alter_edge_execution_drop() {
 
 // ==================== DROP TAG 语句测试 ====================
 
-#[tokio::test]
-async fn test_drop_tag_parser_basic() {
+#[test]
+fn test_drop_tag_parser_basic() {
     let query = "DROP TAG Person";
     let mut parser = Parser::new(query);
     
@@ -406,8 +406,8 @@ async fn test_drop_tag_parser_basic() {
     assert_eq!(stmt.kind(), "DROP");
 }
 
-#[tokio::test]
-async fn test_drop_tag_parser_with_if_exists() {
+#[test]
+fn test_drop_tag_parser_with_if_exists() {
     let query = "DROP TAG IF EXISTS Person";
     let mut parser = Parser::new(query);
     
@@ -418,8 +418,8 @@ async fn test_drop_tag_parser_with_if_exists() {
     assert_eq!(stmt.kind(), "DROP");
 }
 
-#[tokio::test]
-async fn test_drop_tag_parser_multiple() {
+#[test]
+fn test_drop_tag_parser_multiple() {
     let query = "DROP TAG Person, Company, Location";
     let mut parser = Parser::new(query);
     
@@ -430,8 +430,8 @@ async fn test_drop_tag_parser_multiple() {
     assert_eq!(stmt.kind(), "DROP");
 }
 
-#[tokio::test]
-async fn test_drop_tag_parser_multiple_with_if_exists() {
+#[test]
+fn test_drop_tag_parser_multiple_with_if_exists() {
     let query = "DROP TAG IF EXISTS Person, Company";
     let mut parser = Parser::new(query);
     
@@ -442,8 +442,8 @@ async fn test_drop_tag_parser_multiple_with_if_exists() {
     assert_eq!(stmt.kind(), "DROP");
 }
 
-#[tokio::test]
-async fn test_drop_tag_execution_basic() {
+#[test]
+fn test_drop_tag_execution_basic() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -457,8 +457,8 @@ async fn test_drop_tag_execution_basic() {
     assert!(result.is_ok() || result.is_err());
 }
 
-#[tokio::test]
-async fn test_drop_tag_execution_with_if_exists() {
+#[test]
+fn test_drop_tag_execution_with_if_exists() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -474,8 +474,8 @@ async fn test_drop_tag_execution_with_if_exists() {
 
 // ==================== DROP EDGE 语句测试 ====================
 
-#[tokio::test]
-async fn test_drop_edge_parser_basic() {
+#[test]
+fn test_drop_edge_parser_basic() {
     let query = "DROP EDGE KNOWS";
     let mut parser = Parser::new(query);
     
@@ -486,8 +486,8 @@ async fn test_drop_edge_parser_basic() {
     assert_eq!(stmt.kind(), "DROP");
 }
 
-#[tokio::test]
-async fn test_drop_edge_parser_with_if_exists() {
+#[test]
+fn test_drop_edge_parser_with_if_exists() {
     let query = "DROP EDGE IF EXISTS KNOWS";
     let mut parser = Parser::new(query);
     
@@ -498,8 +498,8 @@ async fn test_drop_edge_parser_with_if_exists() {
     assert_eq!(stmt.kind(), "DROP");
 }
 
-#[tokio::test]
-async fn test_drop_edge_parser_multiple() {
+#[test]
+fn test_drop_edge_parser_multiple() {
     let query = "DROP EDGE KNOWS, LIKES, FOLLOWS";
     let mut parser = Parser::new(query);
     
@@ -510,8 +510,8 @@ async fn test_drop_edge_parser_multiple() {
     assert_eq!(stmt.kind(), "DROP");
 }
 
-#[tokio::test]
-async fn test_drop_edge_parser_multiple_with_if_exists() {
+#[test]
+fn test_drop_edge_parser_multiple_with_if_exists() {
     let query = "DROP EDGE IF EXISTS KNOWS, LIKES";
     let mut parser = Parser::new(query);
     
@@ -522,8 +522,8 @@ async fn test_drop_edge_parser_multiple_with_if_exists() {
     assert_eq!(stmt.kind(), "DROP");
 }
 
-#[tokio::test]
-async fn test_drop_edge_execution_basic() {
+#[test]
+fn test_drop_edge_execution_basic() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -537,8 +537,8 @@ async fn test_drop_edge_execution_basic() {
     assert!(result.is_ok() || result.is_err());
 }
 
-#[tokio::test]
-async fn test_drop_edge_execution_with_if_exists() {
+#[test]
+fn test_drop_edge_execution_with_if_exists() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -554,8 +554,8 @@ async fn test_drop_edge_execution_with_if_exists() {
 
 // ==================== DESC 语句测试 ====================
 
-#[tokio::test]
-async fn test_desc_parser_tag() {
+#[test]
+fn test_desc_parser_tag() {
     let query = "DESCRIBE TAG Person";
     let mut parser = Parser::new(query);
     
@@ -566,8 +566,8 @@ async fn test_desc_parser_tag() {
     assert_eq!(stmt.kind(), "DESC");
 }
 
-#[tokio::test]
-async fn test_desc_parser_edge() {
+#[test]
+fn test_desc_parser_edge() {
     let query = "DESCRIBE EDGE KNOWS";
     let mut parser = Parser::new(query);
     
@@ -578,8 +578,8 @@ async fn test_desc_parser_edge() {
     assert_eq!(stmt.kind(), "DESC");
 }
 
-#[tokio::test]
-async fn test_desc_parser_short_tag() {
+#[test]
+fn test_desc_parser_short_tag() {
     let query = "DESC TAG Person";
     let mut parser = Parser::new(query);
     
@@ -590,8 +590,8 @@ async fn test_desc_parser_short_tag() {
     assert_eq!(stmt.kind(), "DESC");
 }
 
-#[tokio::test]
-async fn test_desc_parser_short_edge() {
+#[test]
+fn test_desc_parser_short_edge() {
     let query = "DESC EDGE KNOWS";
     let mut parser = Parser::new(query);
     
@@ -602,8 +602,8 @@ async fn test_desc_parser_short_edge() {
     assert_eq!(stmt.kind(), "DESC");
 }
 
-#[tokio::test]
-async fn test_desc_execution_tag() {
+#[test]
+fn test_desc_execution_tag() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -617,8 +617,8 @@ async fn test_desc_execution_tag() {
     assert!(result.is_ok() || result.is_err());
 }
 
-#[tokio::test]
-async fn test_desc_execution_edge() {
+#[test]
+fn test_desc_execution_edge() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -634,8 +634,8 @@ async fn test_desc_execution_edge() {
 
 // ==================== DDL 综合测试 ====================
 
-#[tokio::test]
-async fn test_ddl_tag_lifecycle() {
+#[test]
+fn test_ddl_tag_lifecycle() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -659,8 +659,8 @@ async fn test_ddl_tag_lifecycle() {
     }
 }
 
-#[tokio::test]
-async fn test_ddl_edge_lifecycle() {
+#[test]
+fn test_ddl_edge_lifecycle() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -684,8 +684,8 @@ async fn test_ddl_edge_lifecycle() {
     }
 }
 
-#[tokio::test]
-async fn test_ddl_multiple_operations() {
+#[test]
+fn test_ddl_multiple_operations() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -706,8 +706,8 @@ async fn test_ddl_multiple_operations() {
     }
 }
 
-#[tokio::test]
-async fn test_ddl_error_handling() {
+#[test]
+fn test_ddl_error_handling() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -727,8 +727,8 @@ async fn test_ddl_error_handling() {
     }
 }
 
-#[tokio::test]
-async fn test_ddl_if_not_exists_if_exists() {
+#[test]
+fn test_ddl_if_not_exists_if_exists() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -751,8 +751,8 @@ async fn test_ddl_if_not_exists_if_exists() {
 
 // ==================== DEFAULT 默认值测试 ====================
 
-#[tokio::test]
-async fn test_create_tag_with_default_value() {
+#[test]
+fn test_create_tag_with_default_value() {
     // 当前解析器不支持 BOOL DEFAULT true 语法，只支持数值和字符串DEFAULT
     let query = "CREATE TAG Person(name: STRING, age: INT DEFAULT 18)";
     let mut parser = Parser::new(query);
@@ -764,8 +764,8 @@ async fn test_create_tag_with_default_value() {
     assert_eq!(stmt.kind(), "CREATE");
 }
 
-#[tokio::test]
-async fn test_create_tag_with_default_string() {
+#[test]
+fn test_create_tag_with_default_string() {
     let query = "CREATE TAG Person(name: STRING DEFAULT 'unknown', email: STRING DEFAULT 'test@example.com')";
     let mut parser = Parser::new(query);
     
@@ -773,8 +773,8 @@ async fn test_create_tag_with_default_string() {
     assert!(result.is_ok(), "CREATE TAG带字符串DEFAULT解析应该成功: {:?}", result.err());
 }
 
-#[tokio::test]
-async fn test_create_tag_with_default_null() {
+#[test]
+fn test_create_tag_with_default_null() {
     let query = "CREATE TAG Person(name: STRING, nickname: STRING DEFAULT NULL)";
     let mut parser = Parser::new(query);
     
@@ -784,8 +784,8 @@ async fn test_create_tag_with_default_null() {
 
 // ==================== NOT NULL 约束测试 ====================
 
-#[tokio::test]
-async fn test_create_tag_with_not_null() {
+#[test]
+fn test_create_tag_with_not_null() {
     let query = "CREATE TAG Person(name: STRING NOT NULL, age: INT NOT NULL)";
     let mut parser = Parser::new(query);
     
@@ -796,8 +796,8 @@ async fn test_create_tag_with_not_null() {
     assert_eq!(stmt.kind(), "CREATE");
 }
 
-#[tokio::test]
-async fn test_create_tag_with_nullable() {
+#[test]
+fn test_create_tag_with_nullable() {
     let query = "CREATE TAG Person(name: STRING NOT NULL, nickname: STRING NULL)";
     let mut parser = Parser::new(query);
     
@@ -805,8 +805,8 @@ async fn test_create_tag_with_nullable() {
     assert!(result.is_ok(), "CREATE TAG带NULL约束解析应该成功: {:?}", result.err());
 }
 
-#[tokio::test]
-async fn test_create_tag_with_not_null_and_default() {
+#[test]
+fn test_create_tag_with_not_null_and_default() {
     let query = "CREATE TAG Person(name: STRING NOT NULL, age: INT NOT NULL DEFAULT 0)";
     let mut parser = Parser::new(query);
     
@@ -816,8 +816,8 @@ async fn test_create_tag_with_not_null_and_default() {
 
 // ==================== COMMENT 注释测试 ====================
 
-#[tokio::test]
-async fn test_create_tag_with_comment() {
+#[test]
+fn test_create_tag_with_comment() {
     // 当前解析器支持 COMMENT，但测试简单语法
     let query = "CREATE TAG Person(name: STRING, age: INT)";
     let mut parser = Parser::new(query);
@@ -829,8 +829,8 @@ async fn test_create_tag_with_comment() {
     assert_eq!(stmt.kind(), "CREATE");
 }
 
-#[tokio::test]
-async fn test_create_tag_with_comment_and_constraints() {
+#[test]
+fn test_create_tag_with_comment_and_constraints() {
     // 当前解析器支持 NOT NULL 和 DEFAULT，但 COMMENT 语法可能有限制
     let query = "CREATE TAG Person(name: STRING NOT NULL, age: INT DEFAULT 18)";
     let mut parser = Parser::new(query);
@@ -841,8 +841,8 @@ async fn test_create_tag_with_comment_and_constraints() {
 
 // ==================== TTL 支持测试 ====================
 
-#[tokio::test]
-async fn test_create_tag_with_ttl() {
+#[test]
+fn test_create_tag_with_ttl() {
     // TTL 语法需要特定的token支持，当前测试简化版本
     // 避免使用关键字作为标签名 (Session 是关键字)
     let query = "CREATE TAG UserSession(token: STRING, created_at: TIMESTAMP)";
@@ -855,8 +855,8 @@ async fn test_create_tag_with_ttl() {
     assert_eq!(stmt.kind(), "CREATE");
 }
 
-#[tokio::test]
-async fn test_create_edge_with_ttl() {
+#[test]
+fn test_create_edge_with_ttl() {
     // TTL 语法需要特定的token支持，当前测试简化版本
     // 避免使用关键字作为属性名 (Data 是关键字)
     let query = "CREATE EDGE TempEdge(content: STRING, expire_at: TIMESTAMP)";
@@ -868,8 +868,8 @@ async fn test_create_edge_with_ttl() {
 
 // ==================== SHOW CREATE 测试 ====================
 
-#[tokio::test]
-async fn test_show_create_tag_parser() {
+#[test]
+fn test_show_create_tag_parser() {
     let query = "SHOW CREATE TAG Person";
     let mut parser = Parser::new(query);
     
@@ -880,8 +880,8 @@ async fn test_show_create_tag_parser() {
     assert_eq!(stmt.kind(), "SHOW CREATE");
 }
 
-#[tokio::test]
-async fn test_show_create_edge_parser() {
+#[test]
+fn test_show_create_edge_parser() {
     let query = "SHOW CREATE EDGE KNOWS";
     let mut parser = Parser::new(query);
     
@@ -892,8 +892,8 @@ async fn test_show_create_edge_parser() {
     assert_eq!(stmt.kind(), "SHOW CREATE");
 }
 
-#[tokio::test]
-async fn test_show_create_space_parser() {
+#[test]
+fn test_show_create_space_parser() {
     // SHOW CREATE SPACE 当前不被支持，只支持 TAG 和 EDGE
     let query = "SHOW CREATE SPACE test_space";
     let mut parser = Parser::new(query);
@@ -903,8 +903,8 @@ async fn test_show_create_space_parser() {
     assert!(result.is_err(), "SHOW CREATE SPACE应该返回错误，因为当前只支持TAG和EDGE");
 }
 
-#[tokio::test]
-async fn test_show_create_index_parser() {
+#[test]
+fn test_show_create_index_parser() {
     // SHOW CREATE INDEX 当前不被支持，只支持 TAG 和 EDGE
     let query = "SHOW CREATE INDEX idx_person_name";
     let mut parser = Parser::new(query);
@@ -914,8 +914,8 @@ async fn test_show_create_index_parser() {
     assert!(result.is_err(), "SHOW CREATE INDEX应该返回错误，因为当前只支持TAG和EDGE");
 }
 
-#[tokio::test]
-async fn test_show_create_execution() {
+#[test]
+fn test_show_create_execution() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -931,8 +931,8 @@ async fn test_show_create_execution() {
 
 // ==================== 综合功能测试 ====================
 
-#[tokio::test]
-async fn test_create_tag_full_features() {
+#[test]
+fn test_create_tag_full_features() {
     // 简化版完整功能测试，使用当前解析器支持的语法
     let query = "CREATE TAG IF NOT EXISTS Person(
         id: INT NOT NULL,
@@ -947,8 +947,8 @@ async fn test_create_tag_full_features() {
     assert!(result.is_ok(), "完整功能CREATE TAG解析应该成功: {:?}", result.err());
 }
 
-#[tokio::test]
-async fn test_create_edge_full_features() {
+#[test]
+fn test_create_edge_full_features() {
     // 简化版完整功能测试，使用当前解析器支持的语法
     let query = "CREATE EDGE IF NOT EXISTS KNOWS(
         since: DATE NOT NULL,

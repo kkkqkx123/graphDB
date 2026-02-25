@@ -23,8 +23,8 @@ use graphdb::config::AuthConfig;
 
 // ==================== PermissionManager 核心测试 ====================
 
-#[tokio::test]
-async fn test_permission_manager_creation() {
+#[test]
+fn test_permission_manager_creation() {
     let pm = PermissionManager::new();
 
     // root用户应该自动成为God角色
@@ -32,8 +32,8 @@ async fn test_permission_manager_creation() {
     assert!(pm.is_admin("root"), "root用户应该是Admin角色");
 }
 
-#[tokio::test]
-async fn test_grant_and_revoke_role() {
+#[test]
+fn test_grant_and_revoke_role() {
     let pm = PermissionManager::new();
     let space_id = 1i64;
 
@@ -54,8 +54,8 @@ async fn test_grant_and_revoke_role() {
     assert_eq!(role_after, None, "角色应该已被撤销");
 }
 
-#[tokio::test]
-async fn test_grant_multiple_roles_to_user() {
+#[test]
+fn test_grant_multiple_roles_to_user() {
     let pm = PermissionManager::new();
 
     // 给用户在不同Space授予不同角色
@@ -76,8 +76,8 @@ async fn test_grant_multiple_roles_to_user() {
     assert_eq!(user_roles.len(), 3, "用户应该有3个角色");
 }
 
-#[tokio::test]
-async fn test_list_space_users() {
+#[test]
+fn test_list_space_users() {
     let pm = PermissionManager::new();
     let space_id = 1i64;
 
@@ -99,8 +99,8 @@ async fn test_list_space_users() {
 
 // ==================== 角色权限检查测试 ====================
 
-#[tokio::test]
-async fn test_god_role_has_all_permissions() {
+#[test]
+fn test_god_role_has_all_permissions() {
     let pm = PermissionManager::new();
 
     // God角色拥有所有权限
@@ -121,8 +121,8 @@ async fn test_god_role_has_all_permissions() {
     assert!(pm.can_write_schema("root", 1).is_ok());
 }
 
-#[tokio::test]
-async fn test_admin_role_permissions() {
+#[test]
+fn test_admin_role_permissions() {
     let pm = PermissionManager::new();
     let space_id = 1i64;
 
@@ -136,8 +136,8 @@ async fn test_admin_role_permissions() {
     assert!(pm.check_permission("admin1", space_id, Permission::Admin).is_ok());
 }
 
-#[tokio::test]
-async fn test_dba_role_permissions() {
+#[test]
+fn test_dba_role_permissions() {
     let pm = PermissionManager::new();
     let space_id = 1i64;
 
@@ -153,8 +153,8 @@ async fn test_dba_role_permissions() {
     assert!(pm.check_permission("dba1", space_id, Permission::Admin).is_err());
 }
 
-#[tokio::test]
-async fn test_user_role_permissions() {
+#[test]
+fn test_user_role_permissions() {
     let pm = PermissionManager::new();
     let space_id = 1i64;
 
@@ -170,8 +170,8 @@ async fn test_user_role_permissions() {
     assert!(pm.check_permission("user1", space_id, Permission::Admin).is_err());
 }
 
-#[tokio::test]
-async fn test_guest_role_permissions() {
+#[test]
+fn test_guest_role_permissions() {
     let pm = PermissionManager::new();
     let space_id = 1i64;
 
@@ -189,8 +189,8 @@ async fn test_guest_role_permissions() {
 
 // ==================== 角色授予权限测试 ====================
 
-#[tokio::test]
-async fn test_god_can_grant_any_role() {
+#[test]
+fn test_god_can_grant_any_role() {
     let pm = PermissionManager::new();
     let space_id = 1i64;
 
@@ -202,8 +202,8 @@ async fn test_god_can_grant_any_role() {
     assert!(pm.can_write_role("root", RoleType::Guest, space_id, "target").is_ok());
 }
 
-#[tokio::test]
-async fn test_admin_grant_role_permissions() {
+#[test]
+fn test_admin_grant_role_permissions() {
     let pm = PermissionManager::new();
     let space_id = 1i64;
 
@@ -219,8 +219,8 @@ async fn test_admin_grant_role_permissions() {
     assert!(pm.can_write_role("admin1", RoleType::Admin, space_id, "target").is_err());
 }
 
-#[tokio::test]
-async fn test_dba_grant_role_permissions() {
+#[test]
+fn test_dba_grant_role_permissions() {
     let pm = PermissionManager::new();
     let space_id = 1i64;
 
@@ -236,8 +236,8 @@ async fn test_dba_grant_role_permissions() {
     assert!(pm.can_write_role("dba1", RoleType::Dba, space_id, "target").is_err());
 }
 
-#[tokio::test]
-async fn test_user_cannot_grant_any_role() {
+#[test]
+fn test_user_cannot_grant_any_role() {
     let pm = PermissionManager::new();
     let space_id = 1i64;
 
@@ -249,8 +249,8 @@ async fn test_user_cannot_grant_any_role() {
     assert!(pm.can_write_role("user1", RoleType::Dba, space_id, "target").is_err());
 }
 
-#[tokio::test]
-async fn test_cannot_modify_own_role() {
+#[test]
+fn test_cannot_modify_own_role() {
     let pm = PermissionManager::new();
     let space_id = 1i64;
 
@@ -290,8 +290,8 @@ fn create_client_session_with_role(username: &str, space_id: i64, role: RoleType
     client_session
 }
 
-#[tokio::test]
-async fn test_permission_checker_with_disabled_auth() {
+#[test]
+fn test_permission_checker_with_disabled_auth() {
     let pm = PermissionManager::new();
     let mut config = create_test_config();
     config.enable_authorize = false; // 禁用授权
@@ -305,8 +305,8 @@ async fn test_permission_checker_with_disabled_auth() {
     assert!(checker.can_write_schema(&session, 1).is_ok());
 }
 
-#[tokio::test]
-async fn test_permission_checker_space_operations() {
+#[test]
+fn test_permission_checker_space_operations() {
     let pm = PermissionManager::new();
     pm.grant_role("user1", 1, RoleType::User).expect("授予User角色应该成功");
     pm.grant_role("admin1", 1, RoleType::Admin).expect("授予Admin角色应该成功");
@@ -328,8 +328,8 @@ async fn test_permission_checker_space_operations() {
     assert!(checker.can_write_space(&admin_session).is_err());
 }
 
-#[tokio::test]
-async fn test_permission_checker_schema_operations() {
+#[test]
+fn test_permission_checker_schema_operations() {
     let pm = PermissionManager::new();
     pm.grant_role("admin1", 1, RoleType::Admin).expect("授予Admin角色应该成功");
     pm.grant_role("user1", 1, RoleType::User).expect("授予User角色应该成功");
@@ -349,8 +349,8 @@ async fn test_permission_checker_schema_operations() {
     assert!(checker.can_write_schema(&user_session, 1).is_err());
 }
 
-#[tokio::test]
-async fn test_permission_checker_data_operations() {
+#[test]
+fn test_permission_checker_data_operations() {
     let pm = PermissionManager::new();
     pm.grant_role("user1", 1, RoleType::User).expect("授予User角色应该成功");
     pm.grant_role("guest1", 1, RoleType::Guest).expect("授予Guest角色应该成功");
@@ -370,8 +370,8 @@ async fn test_permission_checker_data_operations() {
     assert!(checker.can_write_data(&guest_session, 1).is_err());
 }
 
-#[tokio::test]
-async fn test_permission_checker_user_operations() {
+#[test]
+fn test_permission_checker_user_operations() {
     let pm = PermissionManager::new();
     pm.grant_role("admin1", 1, RoleType::Admin).expect("授予Admin角色应该成功");
 
@@ -394,8 +394,8 @@ async fn test_permission_checker_user_operations() {
     assert!(checker.can_read_user(&admin_session, "otheruser").is_err());
 }
 
-#[tokio::test]
-async fn test_permission_checker_role_operations() {
+#[test]
+fn test_permission_checker_role_operations() {
     let pm = PermissionManager::new();
     pm.grant_role("admin1", 1, RoleType::Admin).expect("授予Admin角色应该成功");
 
@@ -419,8 +419,8 @@ async fn test_permission_checker_role_operations() {
     assert!(checker.can_write_role(&admin_session, 1, RoleType::User, "admin1").is_err());
 }
 
-#[tokio::test]
-async fn test_permission_checker_change_password() {
+#[test]
+fn test_permission_checker_change_password() {
     let pm = PermissionManager::new();
     pm.grant_role("user1", 1, RoleType::User).expect("授予User角色应该成功");
 
@@ -458,8 +458,8 @@ async fn test_permission_checker_change_password() {
     ).is_ok());
 }
 
-#[tokio::test]
-async fn test_permission_checker_show_operation() {
+#[test]
+fn test_permission_checker_show_operation() {
     let pm = PermissionManager::new();
     pm.grant_role("guest1", 1, RoleType::Guest).expect("授予Guest角色应该成功");
 
@@ -480,8 +480,8 @@ async fn test_permission_checker_show_operation() {
 
 // ==================== Authenticator 测试 ====================
 
-#[tokio::test]
-async fn test_password_authenticator_success() {
+#[test]
+fn test_password_authenticator_success() {
     let config = create_test_config();
     let auth = PasswordAuthenticator::new(
         |_username: &str, _password: &str| Ok(true),
@@ -491,8 +491,8 @@ async fn test_password_authenticator_success() {
     assert!(auth.authenticate("user", "pass").is_ok());
 }
 
-#[tokio::test]
-async fn test_password_authenticator_failure() {
+#[test]
+fn test_password_authenticator_failure() {
     let config = create_test_config();
     let auth = PasswordAuthenticator::new(
         |_username: &str, _password: &str| Ok(false),
@@ -502,8 +502,8 @@ async fn test_password_authenticator_failure() {
     assert!(auth.authenticate("user", "wrong_pass").is_err());
 }
 
-#[tokio::test]
-async fn test_password_authenticator_default() {
+#[test]
+fn test_password_authenticator_default() {
     let config = AuthConfig {
         enable_authorize: true,
         failed_login_attempts: 0, // 禁用登录限制
@@ -522,8 +522,8 @@ async fn test_password_authenticator_default() {
     assert!(auth.authenticate("admin", "wrong").is_err());
 }
 
-#[tokio::test]
-async fn test_password_authenticator_empty_credentials() {
+#[test]
+fn test_password_authenticator_empty_credentials() {
     let config = create_test_config();
     let auth = PasswordAuthenticator::new(
         |_username: &str, _password: &str| Ok(true),
@@ -540,8 +540,8 @@ async fn test_password_authenticator_empty_credentials() {
     assert!(auth.authenticate("", "").is_err());
 }
 
-#[tokio::test]
-async fn test_password_authenticator_disabled() {
+#[test]
+fn test_password_authenticator_disabled() {
     let mut config = create_test_config();
     config.enable_authorize = false; // 禁用授权
 
@@ -554,8 +554,8 @@ async fn test_password_authenticator_disabled() {
     assert!(auth.authenticate("any", "any").is_ok());
 }
 
-#[tokio::test]
-async fn test_password_authenticator_login_attempts_limit() {
+#[test]
+fn test_password_authenticator_login_attempts_limit() {
     let config = AuthConfig {
         enable_authorize: true,
         failed_login_attempts: 3, // 最多3次尝试
@@ -588,8 +588,8 @@ async fn test_password_authenticator_login_attempts_limit() {
 
 // ==================== ClientSession 角色管理测试 ====================
 
-#[tokio::test]
-async fn test_client_session_role_management() {
+#[test]
+fn test_client_session_role_management() {
     let session = create_test_session("testuser");
     let client_session = ClientSession::new(session);
 
@@ -608,8 +608,8 @@ async fn test_client_session_role_management() {
     assert!(client_session.is_admin());
 }
 
-#[tokio::test]
-async fn test_client_session_multiple_spaces() {
+#[test]
+fn test_client_session_multiple_spaces() {
     let session = create_test_session("testuser");
     let client_session = ClientSession::new(session);
 
@@ -628,8 +628,8 @@ async fn test_client_session_multiple_spaces() {
     assert_eq!(roles.len(), 3);
 }
 
-#[tokio::test]
-async fn test_client_session_space_info() {
+#[test]
+fn test_client_session_space_info() {
     let session = create_test_session("testuser");
     let client_session = ClientSession::new(session);
 
@@ -653,8 +653,8 @@ async fn test_client_session_space_info() {
 
 // ==================== 综合场景测试 ====================
 
-#[tokio::test]
-async fn test_complete_permission_workflow() {
+#[test]
+fn test_complete_permission_workflow() {
     // 创建权限管理器
     let pm = PermissionManager::new();
     let space_id = 1i64;
@@ -692,8 +692,8 @@ async fn test_complete_permission_workflow() {
     assert_eq!(pm.get_role("user1", space_id), None);
 }
 
-#[tokio::test]
-async fn test_cross_space_permission_isolation() {
+#[test]
+fn test_cross_space_permission_isolation() {
     let pm = PermissionManager::new();
 
     // 用户在不同Space拥有不同角色

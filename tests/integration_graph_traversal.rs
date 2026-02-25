@@ -29,8 +29,8 @@ fn get_storage(storage: &Arc<Mutex<RedbStorage>>) -> parking_lot::MutexGuard<Red
 
 // ==================== 算法上下文测试 ====================
 
-#[tokio::test]
-async fn test_algorithm_context_creation() {
+#[test]
+fn test_algorithm_context_creation() {
     // 测试算法上下文创建
     let context = AlgorithmContext::new()
         .with_max_depth(Some(10))
@@ -44,8 +44,8 @@ async fn test_algorithm_context_creation() {
     assert!(context.with_cycle);
 }
 
-#[tokio::test]
-async fn test_algorithm_context_default() {
+#[test]
+fn test_algorithm_context_default() {
     let context = AlgorithmContext::new();
     
     assert_eq!(context.max_depth, None);
@@ -54,8 +54,8 @@ async fn test_algorithm_context_default() {
     assert!(!context.with_cycle);
 }
 
-#[tokio::test]
-async fn test_algorithm_stats() {
+#[test]
+fn test_algorithm_stats() {
     let mut stats = AlgorithmStats::new();
     
     assert_eq!(stats.nodes_visited, 0);
@@ -73,8 +73,8 @@ async fn test_algorithm_stats() {
 
 // ==================== 多源最短路径执行器测试 ====================
 
-#[tokio::test]
-async fn test_multi_shortest_path_executor_creation() {
+#[test]
+fn test_multi_shortest_path_executor_creation() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
@@ -93,8 +93,8 @@ async fn test_multi_shortest_path_executor_creation() {
     assert!(executor.description().contains("shortest path"));
 }
 
-#[tokio::test]
-async fn test_multi_shortest_path_with_edge_filter() {
+#[test]
+fn test_multi_shortest_path_with_edge_filter() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
@@ -112,8 +112,8 @@ async fn test_multi_shortest_path_with_edge_filter() {
     // 验证执行器创建成功，带边类型过滤
 }
 
-#[tokio::test]
-async fn test_multi_shortest_path_bidirectional_direction() {
+#[test]
+fn test_multi_shortest_path_bidirectional_direction() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
@@ -133,8 +133,8 @@ async fn test_multi_shortest_path_bidirectional_direction() {
 
 // ==================== 子图查询执行器测试 ====================
 
-#[tokio::test]
-async fn test_subgraph_config_default() {
+#[test]
+fn test_subgraph_config_default() {
     let config = SubgraphConfig::default();
     
     assert_eq!(config.steps, 1);
@@ -144,8 +144,8 @@ async fn test_subgraph_config_default() {
     assert!(config.with_properties);
 }
 
-#[tokio::test]
-async fn test_subgraph_config_builder() {
+#[test]
+fn test_subgraph_config_builder() {
     let config = SubgraphConfig::new(3)
         .with_direction(ExecEdgeDirection::Both)
         .with_edge_types(vec!["KNOWS".to_string(), "FRIEND".to_string()])
@@ -157,8 +157,8 @@ async fn test_subgraph_config_builder() {
     assert_eq!(config.limit, Some(100));
 }
 
-#[tokio::test]
-async fn test_subgraph_executor_creation() {
+#[test]
+fn test_subgraph_executor_creation() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
@@ -176,8 +176,8 @@ async fn test_subgraph_executor_creation() {
     assert!(executor.description().contains("subgraph"));
 }
 
-#[tokio::test]
-async fn test_subgraph_executor_multiple_start_vids() {
+#[test]
+fn test_subgraph_executor_multiple_start_vids() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
@@ -196,8 +196,8 @@ async fn test_subgraph_executor_multiple_start_vids() {
 
 // ==================== 路径数据结构测试 ====================
 
-#[tokio::test]
-async fn test_path_creation() {
+#[test]
+fn test_path_creation() {
     let vertex = Vertex::with_vid(Value::from("A"));
     let path = Path::new(vertex.clone());
     
@@ -205,8 +205,8 @@ async fn test_path_creation() {
     assert!(path.steps.is_empty());
 }
 
-#[tokio::test]
-async fn test_path_with_steps() {
+#[test]
+fn test_path_with_steps() {
     let src = Vertex::with_vid(Value::from("A"));
     let dst = Vertex::with_vid(Value::from("B"));
     
@@ -222,8 +222,8 @@ async fn test_path_with_steps() {
     assert_eq!(path.steps[0].edge.edge_type, "KNOWS");
 }
 
-#[tokio::test]
-async fn test_vertex_with_vid() {
+#[test]
+fn test_vertex_with_vid() {
     let vertex = Vertex::with_vid(Value::from("test_id"));
     
     assert_eq!(vertex.vid, Box::new(Value::from("test_id")));
@@ -231,8 +231,8 @@ async fn test_vertex_with_vid() {
     assert!(vertex.properties.is_empty());
 }
 
-#[tokio::test]
-async fn test_vertex_with_tags() {
+#[test]
+fn test_vertex_with_tags() {
     let tag = Tag::new("Person".to_string(), [
         ("name".to_string(), Value::from("Alice")),
     ].iter().cloned().collect());
@@ -246,8 +246,8 @@ async fn test_vertex_with_tags() {
 
 // ==================== 边数据结构测试 ====================
 
-#[tokio::test]
-async fn test_edge_creation() {
+#[test]
+fn test_edge_creation() {
     let edge = Edge::new(
         Value::from("A"),
         Value::from("B"),
@@ -262,8 +262,8 @@ async fn test_edge_creation() {
     assert_eq!(edge.ranking, 0);
 }
 
-#[tokio::test]
-async fn test_edge_with_properties() {
+#[test]
+fn test_edge_with_properties() {
     let mut props = HashMap::new();
     props.insert("since".to_string(), Value::from("2020-01-01"));
     
@@ -281,8 +281,8 @@ async fn test_edge_with_properties() {
 
 // ==================== 边界条件测试 ====================
 
-#[tokio::test]
-async fn test_multi_shortest_path_empty_start() {
+#[test]
+fn test_multi_shortest_path_empty_start() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
@@ -300,8 +300,8 @@ async fn test_multi_shortest_path_empty_start() {
     // 验证空起点情况下执行器仍能创建
 }
 
-#[tokio::test]
-async fn test_multi_shortest_path_empty_end() {
+#[test]
+fn test_multi_shortest_path_empty_end() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
@@ -319,8 +319,8 @@ async fn test_multi_shortest_path_empty_end() {
     // 验证空终点情况下执行器仍能创建
 }
 
-#[tokio::test]
-async fn test_subgraph_empty_start() {
+#[test]
+fn test_subgraph_empty_start() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
@@ -337,8 +337,8 @@ async fn test_subgraph_empty_start() {
     // 验证空起点情况下执行器仍能创建
 }
 
-#[tokio::test]
-async fn test_subgraph_zero_steps() {
+#[test]
+fn test_subgraph_zero_steps() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
 
@@ -355,16 +355,16 @@ async fn test_subgraph_zero_steps() {
     // 验证0步配置下执行器仍能创建
 }
 
-#[tokio::test]
-async fn test_algorithm_context_with_zero_limit() {
+#[test]
+fn test_algorithm_context_with_zero_limit() {
     let context = AlgorithmContext::new()
         .with_limit(0);
     
     assert_eq!(context.limit, 0);
 }
 
-#[tokio::test]
-async fn test_algorithm_context_with_max_depth_zero() {
+#[test]
+fn test_algorithm_context_with_max_depth_zero() {
     let context = AlgorithmContext::new()
         .with_max_depth(Some(0));
 
@@ -373,8 +373,8 @@ async fn test_algorithm_context_with_max_depth_zero() {
 
 // ==================== with_loop 选项测试 ====================
 
-#[tokio::test]
-async fn test_algorithm_context_with_loop() {
+#[test]
+fn test_algorithm_context_with_loop() {
     // 测试默认情况下 with_loop 为 false
     let context_default = AlgorithmContext::new();
     assert!(!context_default.with_loop);
@@ -390,8 +390,8 @@ async fn test_algorithm_context_with_loop() {
     assert!(!context_no_loop.with_loop);
 }
 
-#[tokio::test]
-async fn test_algorithm_context_with_loop_and_other_options() {
+#[test]
+fn test_algorithm_context_with_loop_and_other_options() {
     // 测试 with_loop 与其他选项组合
     let context = AlgorithmContext::new()
         .with_max_depth(Some(10))
@@ -407,8 +407,8 @@ async fn test_algorithm_context_with_loop_and_other_options() {
     assert!(context.with_loop);
 }
 
-#[tokio::test]
-async fn test_expand_executor_with_loop() {
+#[test]
+fn test_expand_executor_with_loop() {
     use graphdb::query::executor::data_processing::graph_traversal::ExpandExecutor;
 
     let test_storage = TestStorage::new().expect("创建测试存储失败");
@@ -435,8 +435,8 @@ async fn test_expand_executor_with_loop() {
     assert!(executor_with_loop.with_loop);
 }
 
-#[tokio::test]
-async fn test_all_paths_executor_with_loop() {
+#[test]
+fn test_all_paths_executor_with_loop() {
     use graphdb::query::executor::data_processing::graph_traversal::AllPathsExecutor;
 
     let test_storage = TestStorage::new().expect("创建测试存储失败");
@@ -469,8 +469,8 @@ async fn test_all_paths_executor_with_loop() {
 
 // ==================== 带权最短路径集成测试 ====================
 
-#[tokio::test]
-async fn test_weighted_shortest_path_executor_creation() {
+#[test]
+fn test_weighted_shortest_path_executor_creation() {
     use graphdb::query::executor::data_processing::graph_traversal::ShortestPathExecutor;
     use graphdb::query::executor::data_processing::graph_traversal::algorithms::{
         EdgeWeightConfig, ShortestPathAlgorithmType
@@ -496,8 +496,8 @@ async fn test_weighted_shortest_path_executor_creation() {
     assert_eq!(executor.name(), "ShortestPathExecutor");
 }
 
-#[tokio::test]
-async fn test_weighted_shortest_path_with_ranking() {
+#[test]
+fn test_weighted_shortest_path_with_ranking() {
     use graphdb::query::executor::data_processing::graph_traversal::ShortestPathExecutor;
     use graphdb::query::executor::data_processing::graph_traversal::algorithms::{
         EdgeWeightConfig, ShortestPathAlgorithmType
@@ -522,8 +522,8 @@ async fn test_weighted_shortest_path_with_ranking() {
     assert_eq!(executor.id(), 101);
 }
 
-#[tokio::test]
-async fn test_weighted_shortest_path_astar() {
+#[test]
+fn test_weighted_shortest_path_astar() {
     use graphdb::query::executor::data_processing::graph_traversal::ShortestPathExecutor;
     use graphdb::query::executor::data_processing::graph_traversal::algorithms::{
         EdgeWeightConfig, HeuristicFunction, ShortestPathAlgorithmType
@@ -549,8 +549,8 @@ async fn test_weighted_shortest_path_astar() {
     assert_eq!(executor.id(), 102);
 }
 
-#[tokio::test]
-async fn test_weighted_path_query_parser_integration() {
+#[test]
+fn test_weighted_path_query_parser_integration() {
     use graphdb::query::parser::parser::Parser;
 
     // 测试带权路径查询语句解析
@@ -564,8 +564,8 @@ async fn test_weighted_path_query_parser_integration() {
     assert_eq!(stmt.kind(), "FIND PATH");
 }
 
-#[tokio::test]
-async fn test_weighted_path_query_with_ranking_parser() {
+#[test]
+fn test_weighted_path_query_with_ranking_parser() {
     use graphdb::query::parser::parser::Parser;
 
     // 测试使用ranking作为权重的查询语句解析
@@ -576,8 +576,8 @@ async fn test_weighted_path_query_with_ranking_parser() {
     assert!(result.is_ok(), "使用ranking权重的路径查询解析应该成功: {:?}", result.err());
 }
 
-#[tokio::test]
-async fn test_unweighted_path_query_parser() {
+#[test]
+fn test_unweighted_path_query_parser() {
     use graphdb::query::parser::parser::Parser;
 
     // 测试无权路径查询语句解析

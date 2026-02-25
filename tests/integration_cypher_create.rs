@@ -20,8 +20,8 @@ use std::sync::Arc;
 
 // ==================== CREATE 节点测试 ====================
 
-#[tokio::test]
-async fn test_create_cypher_node_basic() {
+#[test]
+fn test_create_cypher_node_basic() {
     let query = "CREATE (n:Person {name: 'Alice', age: 30})";
     let mut parser = Parser::new(query);
     
@@ -32,8 +32,8 @@ async fn test_create_cypher_node_basic() {
     assert_eq!(stmt.kind(), "CREATE");
 }
 
-#[tokio::test]
-async fn test_create_cypher_node_without_props() {
+#[test]
+fn test_create_cypher_node_without_props() {
     let query = "CREATE (n:Person)";
     let mut parser = Parser::new(query);
     
@@ -41,8 +41,8 @@ async fn test_create_cypher_node_without_props() {
     assert!(result.is_ok(), "Cypher CREATE节点无属性解析应该成功: {:?}", result.err());
 }
 
-#[tokio::test]
-async fn test_create_cypher_node_multiple_labels() {
+#[test]
+fn test_create_cypher_node_multiple_labels() {
     let query = "CREATE (n:Person:Employee {name: 'Alice', department: 'Engineering'})";
     let mut parser = Parser::new(query);
     
@@ -50,8 +50,8 @@ async fn test_create_cypher_node_multiple_labels() {
     assert!(result.is_ok(), "Cypher CREATE节点多标签解析应该成功: {:?}", result.err());
 }
 
-#[tokio::test]
-async fn test_create_cypher_node_without_variable() {
+#[test]
+fn test_create_cypher_node_without_variable() {
     let query = "CREATE (:Person {name: 'Bob'})";
     let mut parser = Parser::new(query);
     
@@ -59,8 +59,8 @@ async fn test_create_cypher_node_without_variable() {
     assert!(result.is_ok(), "Cypher CREATE节点无变量解析应该成功: {:?}", result.err());
 }
 
-#[tokio::test]
-async fn test_create_cypher_node_complex_props() {
+#[test]
+fn test_create_cypher_node_complex_props() {
     // 注意：datetime() 函数可能尚未实现，使用字符串代替
     let query = r#"CREATE (n:Person {
         name: 'Charlie',
@@ -78,8 +78,8 @@ async fn test_create_cypher_node_complex_props() {
 
 // ==================== CREATE 边测试 ====================
 
-#[tokio::test]
-async fn test_create_cypher_edge_basic() {
+#[test]
+fn test_create_cypher_edge_basic() {
     let query = "CREATE (a)-[:KNOWS {since: '2020-01-01', degree: 0.8}]->(b)";
     let mut parser = Parser::new(query);
     
@@ -90,8 +90,8 @@ async fn test_create_cypher_edge_basic() {
     assert_eq!(stmt.kind(), "CREATE");
 }
 
-#[tokio::test]
-async fn test_create_cypher_edge_without_props() {
+#[test]
+fn test_create_cypher_edge_without_props() {
     let query = "CREATE (a)-[:FRIEND]->(b)";
     let mut parser = Parser::new(query);
     
@@ -99,8 +99,8 @@ async fn test_create_cypher_edge_without_props() {
     assert!(result.is_ok(), "Cypher CREATE边无属性解析应该成功: {:?}", result.err());
 }
 
-#[tokio::test]
-async fn test_create_cypher_edge_bidirectional() {
+#[test]
+fn test_create_cypher_edge_bidirectional() {
     let query = "CREATE (a)-[:COLLEAGUE]-(b)";
     let mut parser = Parser::new(query);
     
@@ -109,8 +109,8 @@ async fn test_create_cypher_edge_bidirectional() {
     // 双向边可能暂不支持，记录结果即可
 }
 
-#[tokio::test]
-async fn test_create_cypher_edge_left_to_right() {
+#[test]
+fn test_create_cypher_edge_left_to_right() {
     let query = "CREATE (a)<-[:FOLLOWS]-(b)";
     let mut parser = Parser::new(query);
     
@@ -121,8 +121,8 @@ async fn test_create_cypher_edge_left_to_right() {
 
 // ==================== CREATE 路径测试 ====================
 
-#[tokio::test]
-async fn test_create_cypher_path_basic() {
+#[test]
+fn test_create_cypher_path_basic() {
     let query = "CREATE (a:Person)-[:KNOWS]->(b:Person)";
     let mut parser = Parser::new(query);
     
@@ -130,8 +130,8 @@ async fn test_create_cypher_path_basic() {
     assert!(result.is_ok(), "Cypher CREATE路径解析应该成功: {:?}", result.err());
 }
 
-#[tokio::test]
-async fn test_create_cypher_path_with_props() {
+#[test]
+fn test_create_cypher_path_with_props() {
     let query = "CREATE (a:Person {name: 'Alice'})-[:KNOWS {since: '2020-01-01'}]->(b:Person {name: 'Bob'})";
     let mut parser = Parser::new(query);
     
@@ -139,8 +139,8 @@ async fn test_create_cypher_path_with_props() {
     assert!(result.is_ok(), "Cypher CREATE路径带属性解析应该成功: {:?}", result.err());
 }
 
-#[tokio::test]
-async fn test_create_cypher_long_path() {
+#[test]
+fn test_create_cypher_long_path() {
     let query = "CREATE (a:Person)-[:KNOWS]->(b:Person)-[:WORKS_AT]->(c:Company)";
     let mut parser = Parser::new(query);
     
@@ -151,8 +151,8 @@ async fn test_create_cypher_long_path() {
 
 // ==================== CREATE 多个模式测试 ====================
 
-#[tokio::test]
-async fn test_create_cypher_multiple_nodes() {
+#[test]
+fn test_create_cypher_multiple_nodes() {
     let query = "CREATE (a:Person {name: 'Alice'}), (b:Person {name: 'Bob'}), (c:Person {name: 'Charlie'})";
     let mut parser = Parser::new(query);
     
@@ -160,8 +160,8 @@ async fn test_create_cypher_multiple_nodes() {
     assert!(result.is_ok(), "Cypher CREATE多个节点解析应该成功: {:?}", result.err());
 }
 
-#[tokio::test]
-async fn test_create_cypher_mixed_patterns() {
+#[test]
+fn test_create_cypher_mixed_patterns() {
     let query = "CREATE (a:Person {name: 'Alice'}), (a)-[:KNOWS]->(b:Person {name: 'Bob'})";
     let mut parser = Parser::new(query);
     
@@ -172,8 +172,8 @@ async fn test_create_cypher_mixed_patterns() {
 
 // ==================== 执行测试 ====================
 
-#[tokio::test]
-async fn test_create_cypher_node_execution() {
+#[test]
+fn test_create_cypher_node_execution() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -182,7 +182,7 @@ async fn test_create_cypher_node_execution() {
     
     // 首先创建图空间
     let create_space = "CREATE SPACE IF NOT EXISTS test_space";
-    let _ = pipeline_manager.execute_query(create_space).await;
+    let _ = pipeline_manager.execute_query(create_space);
     
     // 使用空间
     let use_space = "USE test_space";
@@ -196,8 +196,8 @@ async fn test_create_cypher_node_execution() {
     // 记录结果，不强制断言，因为功能可能还在开发中
 }
 
-#[tokio::test]
-async fn test_create_cypher_edge_execution() {
+#[test]
+fn test_create_cypher_edge_execution() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -206,15 +206,15 @@ async fn test_create_cypher_edge_execution() {
     
     // 首先创建图空间
     let create_space = "CREATE SPACE IF NOT EXISTS test_space";
-    let _ = pipeline_manager.execute_query(create_space).await;
+    let _ = pipeline_manager.execute_query(create_space);
     
     // 使用空间
     let use_space = "USE test_space";
-    let _ = pipeline_manager.execute_query(use_space).await;
+    let _ = pipeline_manager.execute_query(use_space);
     
     // 创建边（Schema 应该自动推断）
     let query = "CREATE (a:Person {name: 'Alice'})-[:KNOWS {since: '2020-01-01'}]->(b:Person {name: 'Bob'})";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("CREATE边执行结果: {:?}", result);
     // 记录结果，不强制断言，因为功能可能还在开发中
@@ -222,8 +222,8 @@ async fn test_create_cypher_edge_execution() {
 
 // ==================== 错误处理测试 ====================
 
-#[tokio::test]
-async fn test_create_cypher_invalid_syntax() {
+#[test]
+fn test_create_cypher_invalid_syntax() {
     let query = "CREATE n:Person {name: 'Alice'}";  // 缺少括号
     let mut parser = Parser::new(query);
     
@@ -232,8 +232,8 @@ async fn test_create_cypher_invalid_syntax() {
     // 应该返回错误，但暂时只记录结果
 }
 
-#[tokio::test]
-async fn test_create_cypher_empty_label() {
+#[test]
+fn test_create_cypher_empty_label() {
     let query = "CREATE (n {})";  // 没有标签
     let mut parser = Parser::new(query);
     
@@ -242,8 +242,8 @@ async fn test_create_cypher_empty_label() {
     // 记录结果，可能支持也可能不支持
 }
 
-#[tokio::test]
-async fn test_create_cypher_nested_props() {
+#[test]
+fn test_create_cypher_nested_props() {
     let query = "CREATE (n:Person {address: {city: 'Beijing', street: 'Main St'}})";
     let mut parser = Parser::new(query);
     
@@ -254,8 +254,8 @@ async fn test_create_cypher_nested_props() {
 
 // ==================== Schema 自动推断测试 ====================
 
-#[tokio::test]
-async fn test_schema_auto_inference_string() {
+#[test]
+fn test_schema_auto_inference_string() {
     let query = "CREATE (n:Person {name: 'Alice'})";
     let mut parser = Parser::new(query);
     
@@ -265,8 +265,8 @@ async fn test_schema_auto_inference_string() {
     // 验证 Schema 推断会识别 name 为 STRING 类型
 }
 
-#[tokio::test]
-async fn test_schema_auto_inference_int() {
+#[test]
+fn test_schema_auto_inference_int() {
     let query = "CREATE (n:Person {age: 30})";
     let mut parser = Parser::new(query);
     
@@ -276,8 +276,8 @@ async fn test_schema_auto_inference_int() {
     // 验证 Schema 推断会识别 age 为 INT 类型
 }
 
-#[tokio::test]
-async fn test_schema_auto_inference_float() {
+#[test]
+fn test_schema_auto_inference_float() {
     let query = "CREATE (n:Person {salary: 50000.50})";
     let mut parser = Parser::new(query);
     
@@ -287,8 +287,8 @@ async fn test_schema_auto_inference_float() {
     // 验证 Schema 推断会识别 salary 为 DOUBLE 类型
 }
 
-#[tokio::test]
-async fn test_schema_auto_inference_bool() {
+#[test]
+fn test_schema_auto_inference_bool() {
     let query = "CREATE (n:Person {is_active: true})";
     let mut parser = Parser::new(query);
     
@@ -298,8 +298,8 @@ async fn test_schema_auto_inference_bool() {
     // 验证 Schema 推断会识别 is_active 为 BOOL 类型
 }
 
-#[tokio::test]
-async fn test_schema_auto_inference_mixed_types() {
+#[test]
+fn test_schema_auto_inference_mixed_types() {
     let query = "CREATE (n:Person {name: 'Alice', age: 30, salary: 50000.50, is_active: true})";
     let mut parser = Parser::new(query);
     
@@ -311,8 +311,8 @@ async fn test_schema_auto_inference_mixed_types() {
 
 // ==================== 与 NGQL 语法对比测试 ====================
 
-#[tokio::test]
-async fn test_cypher_vs_ngql_create_node() {
+#[test]
+fn test_cypher_vs_ngql_create_node() {
     // Cypher 风格
     let cypher_query = "CREATE (n:Person {name: 'Alice', age: 30})";
     let mut cypher_parser = Parser::new(cypher_query);
@@ -331,8 +331,8 @@ async fn test_cypher_vs_ngql_create_node() {
     assert!(ngql_result.is_ok(), "NGQL语法应该解析成功");
 }
 
-#[tokio::test]
-async fn test_cypher_vs_ngql_create_edge() {
+#[test]
+fn test_cypher_vs_ngql_create_edge() {
     // Cypher 风格
     let cypher_query = "CREATE (a)-[:KNOWS {since: '2020-01-01'}]->(b)";
     let mut cypher_parser = Parser::new(cypher_query);

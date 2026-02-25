@@ -30,8 +30,8 @@ use std::sync::Arc;
 
 // ==================== USE 语句测试 ====================
 
-#[tokio::test]
-async fn test_use_parser_basic() {
+#[test]
+fn test_use_parser_basic() {
     let query = "USE test_space";
     let mut parser = Parser::new(query);
     
@@ -42,8 +42,8 @@ async fn test_use_parser_basic() {
     assert_eq!(stmt.kind(), "USE");
 }
 
-#[tokio::test]
-async fn test_use_parser_complex_name() {
+#[test]
+fn test_use_parser_complex_name() {
     let query = "USE my_graph_space_123";
     let mut parser = Parser::new(query);
     
@@ -54,8 +54,8 @@ async fn test_use_parser_complex_name() {
     assert_eq!(stmt.kind(), "USE");
 }
 
-#[tokio::test]
-async fn test_use_parser_with_dots() {
+#[test]
+fn test_use_parser_with_dots() {
     let query = "USE db.graph.space";
     let mut parser = Parser::new(query);
     
@@ -66,8 +66,8 @@ async fn test_use_parser_with_dots() {
     assert_eq!(stmt.kind(), "USE");
 }
 
-#[tokio::test]
-async fn test_use_execution_basic() {
+#[test]
+fn test_use_execution_basic() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -81,8 +81,8 @@ async fn test_use_execution_basic() {
     assert!(result.is_ok() || result.is_err());
 }
 
-#[tokio::test]
-async fn test_use_execution_nonexistent() {
+#[test]
+fn test_use_execution_nonexistent() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -98,8 +98,8 @@ async fn test_use_execution_nonexistent() {
 
 // ==================== SHOW 语句测试 ====================
 
-#[tokio::test]
-async fn test_show_parser_spaces() {
+#[test]
+fn test_show_parser_spaces() {
     let query = "SHOW SPACES";
     let mut parser = Parser::new(query);
     
@@ -110,8 +110,8 @@ async fn test_show_parser_spaces() {
     assert_eq!(stmt.kind(), "SHOW");
 }
 
-#[tokio::test]
-async fn test_show_parser_tags() {
+#[test]
+fn test_show_parser_tags() {
     let query = "SHOW TAGS";
     let mut parser = Parser::new(query);
     
@@ -122,8 +122,8 @@ async fn test_show_parser_tags() {
     assert_eq!(stmt.kind(), "SHOW");
 }
 
-#[tokio::test]
-async fn test_show_parser_edges() {
+#[test]
+fn test_show_parser_edges() {
     let query = "SHOW EDGES";
     let mut parser = Parser::new(query);
     
@@ -134,8 +134,8 @@ async fn test_show_parser_edges() {
     assert_eq!(stmt.kind(), "SHOW");
 }
 
-#[tokio::test]
-async fn test_show_parser_hosts() {
+#[test]
+fn test_show_parser_hosts() {
     let query = "SHOW HOSTS";
     let mut parser = Parser::new(query);
     
@@ -146,8 +146,8 @@ async fn test_show_parser_hosts() {
     assert_eq!(stmt.kind(), "SHOW");
 }
 
-#[tokio::test]
-async fn test_show_parser_parts() {
+#[test]
+fn test_show_parser_parts() {
     let query = "SHOW PARTS";
     let mut parser = Parser::new(query);
     
@@ -158,8 +158,8 @@ async fn test_show_parser_parts() {
     assert_eq!(stmt.kind(), "SHOW");
 }
 
-#[tokio::test]
-async fn test_show_execution_spaces() {
+#[test]
+fn test_show_execution_spaces() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -173,8 +173,8 @@ async fn test_show_execution_spaces() {
     assert!(result.is_ok() || result.is_err());
 }
 
-#[tokio::test]
-async fn test_show_execution_tags() {
+#[test]
+fn test_show_execution_tags() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -188,8 +188,8 @@ async fn test_show_execution_tags() {
     assert!(result.is_ok() || result.is_err());
 }
 
-#[tokio::test]
-async fn test_show_execution_edges() {
+#[test]
+fn test_show_execution_edges() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -205,8 +205,8 @@ async fn test_show_execution_edges() {
 
 // ==================== EXPLAIN 语句测试 ====================
 
-#[tokio::test]
-async fn test_explain_parser_match() {
+#[test]
+fn test_explain_parser_match() {
     let query = "EXPLAIN MATCH (n:Person) RETURN n";
     let mut parser = Parser::new(query);
     
@@ -217,8 +217,8 @@ async fn test_explain_parser_match() {
     assert_eq!(stmt.kind(), "EXPLAIN");
 }
 
-#[tokio::test]
-async fn test_explain_parser_go() {
+#[test]
+fn test_explain_parser_go() {
     let query = "EXPLAIN GO FROM 1 OVER KNOWS";
     let mut parser = Parser::new(query);
     
@@ -229,8 +229,8 @@ async fn test_explain_parser_go() {
     assert_eq!(stmt.kind(), "EXPLAIN");
 }
 
-#[tokio::test]
-async fn test_explain_parser_lookup() {
+#[test]
+fn test_explain_parser_lookup() {
     let query = "EXPLAIN LOOKUP ON Person WHERE Person.name == 'Alice'";
     let mut parser = Parser::new(query);
     
@@ -241,8 +241,8 @@ async fn test_explain_parser_lookup() {
     assert_eq!(stmt.kind(), "EXPLAIN");
 }
 
-#[tokio::test]
-async fn test_explain_execution_match() {
+#[test]
+fn test_explain_execution_match() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -256,8 +256,8 @@ async fn test_explain_execution_match() {
     assert!(result.is_ok() || result.is_err());
 }
 
-#[tokio::test]
-async fn test_explain_execution_go() {
+#[test]
+fn test_explain_execution_go() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -273,8 +273,8 @@ async fn test_explain_execution_go() {
 
 // ==================== RETURN 语句测试 ====================
 
-#[tokio::test]
-async fn test_return_parser_basic() {
+#[test]
+fn test_return_parser_basic() {
     let query = "RETURN n.name, n.age";
     let mut parser = Parser::new(query);
     
@@ -285,8 +285,8 @@ async fn test_return_parser_basic() {
     assert_eq!(stmt.kind(), "RETURN");
 }
 
-#[tokio::test]
-async fn test_return_parser_with_alias() {
+#[test]
+fn test_return_parser_with_alias() {
     let query = "RETURN n.name AS name, n.age AS age";
     let mut parser = Parser::new(query);
     
@@ -297,8 +297,8 @@ async fn test_return_parser_with_alias() {
     assert_eq!(stmt.kind(), "RETURN");
 }
 
-#[tokio::test]
-async fn test_return_parser_with_expression() {
+#[test]
+fn test_return_parser_with_expression() {
     let query = "RETURN n.age * 2 AS double_age";
     let mut parser = Parser::new(query);
     
@@ -309,8 +309,8 @@ async fn test_return_parser_with_expression() {
     assert_eq!(stmt.kind(), "RETURN");
 }
 
-#[tokio::test]
-async fn test_return_parser_with_aggregate() {
+#[test]
+fn test_return_parser_with_aggregate() {
     let query = "RETURN count(*) AS total, avg(n.age) AS avg_age";
     let mut parser = Parser::new(query);
     
@@ -321,8 +321,8 @@ async fn test_return_parser_with_aggregate() {
     assert_eq!(stmt.kind(), "RETURN");
 }
 
-#[tokio::test]
-async fn test_return_parser_with_distinct() {
+#[test]
+fn test_return_parser_with_distinct() {
     let query = "RETURN DISTINCT n.name";
     let mut parser = Parser::new(query);
     
@@ -333,8 +333,8 @@ async fn test_return_parser_with_distinct() {
     assert_eq!(stmt.kind(), "RETURN");
 }
 
-#[tokio::test]
-async fn test_return_execution_basic() {
+#[test]
+fn test_return_execution_basic() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -350,8 +350,8 @@ async fn test_return_execution_basic() {
 
 // ==================== WITH 语句测试 ====================
 
-#[tokio::test]
-async fn test_with_parser_basic() {
+#[test]
+fn test_with_parser_basic() {
     let query = "WITH n.name AS name, n.age AS age";
     let mut parser = Parser::new(query);
     
@@ -362,8 +362,8 @@ async fn test_with_parser_basic() {
     assert_eq!(stmt.kind(), "WITH");
 }
 
-#[tokio::test]
-async fn test_with_parser_with_aggregate() {
+#[test]
+fn test_with_parser_with_aggregate() {
     let query = "WITH count(*) AS total";
     let mut parser = Parser::new(query);
     
@@ -374,8 +374,8 @@ async fn test_with_parser_with_aggregate() {
     assert_eq!(stmt.kind(), "WITH");
 }
 
-#[tokio::test]
-async fn test_with_parser_with_expression() {
+#[test]
+fn test_with_parser_with_expression() {
     let query = "WITH n.age * 2 AS double_age";
     let mut parser = Parser::new(query);
     
@@ -386,8 +386,8 @@ async fn test_with_parser_with_expression() {
     assert_eq!(stmt.kind(), "WITH");
 }
 
-#[tokio::test]
-async fn test_with_execution_basic() {
+#[test]
+fn test_with_execution_basic() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -403,8 +403,8 @@ async fn test_with_execution_basic() {
 
 // ==================== UNWIND 语句测试 ====================
 
-#[tokio::test]
-async fn test_unwind_parser_basic() {
+#[test]
+fn test_unwind_parser_basic() {
     let query = "UNWIND [1, 2, 3] AS n";
     let mut parser = Parser::new(query);
     
@@ -415,8 +415,8 @@ async fn test_unwind_parser_basic() {
     assert_eq!(stmt.kind(), "UNWIND");
 }
 
-#[tokio::test]
-async fn test_unwind_parser_with_string_list() {
+#[test]
+fn test_unwind_parser_with_string_list() {
     let query = "UNWIND ['a', 'b', 'c'] AS s";
     let mut parser = Parser::new(query);
     
@@ -427,8 +427,8 @@ async fn test_unwind_parser_with_string_list() {
     assert_eq!(stmt.kind(), "UNWIND");
 }
 
-#[tokio::test]
-async fn test_unwind_parser_with_expression() {
+#[test]
+fn test_unwind_parser_with_expression() {
     let query = "UNWIND range(1, 10) AS n";
     let mut parser = Parser::new(query);
     
@@ -439,8 +439,8 @@ async fn test_unwind_parser_with_expression() {
     assert_eq!(stmt.kind(), "UNWIND");
 }
 
-#[tokio::test]
-async fn test_unwind_execution_basic() {
+#[test]
+fn test_unwind_execution_basic() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -456,8 +456,8 @@ async fn test_unwind_execution_basic() {
 
 // ==================== PIPE 语句测试 ====================
 
-#[tokio::test]
-async fn test_pipe_parser_basic() {
+#[test]
+fn test_pipe_parser_basic() {
     let query = "GO FROM 1 OVER KNOWS | YIELD target.name";
     let mut parser = Parser::new(query);
     
@@ -468,8 +468,8 @@ async fn test_pipe_parser_basic() {
     assert_eq!(stmt.kind(), "PIPE");
 }
 
-#[tokio::test]
-async fn test_pipe_parser_multiple() {
+#[test]
+fn test_pipe_parser_multiple() {
     let query = "GO FROM 1 OVER KNOWS | YIELD target.name | FETCH PROP ON Person $-.id";
     let mut parser = Parser::new(query);
     
@@ -480,8 +480,8 @@ async fn test_pipe_parser_multiple() {
     assert_eq!(stmt.kind(), "PIPE");
 }
 
-#[tokio::test]
-async fn test_pipe_parser_complex() {
+#[test]
+fn test_pipe_parser_complex() {
     let query = "GO FROM 1 OVER KNOWS | YIELD target.name AS name, target.age AS age WHERE age > 25 | RETURN name";
     let mut parser = Parser::new(query);
     
@@ -492,8 +492,8 @@ async fn test_pipe_parser_complex() {
     assert_eq!(stmt.kind(), "PIPE");
 }
 
-#[tokio::test]
-async fn test_pipe_execution_basic() {
+#[test]
+fn test_pipe_execution_basic() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -509,8 +509,8 @@ async fn test_pipe_execution_basic() {
 
 // ==================== 管理和辅助语句综合测试 ====================
 
-#[tokio::test]
-async fn test_management_show_operations() {
+#[test]
+fn test_management_show_operations() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -532,8 +532,8 @@ async fn test_management_show_operations() {
     }
 }
 
-#[tokio::test]
-async fn test_management_explain_operations() {
+#[test]
+fn test_management_explain_operations() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -554,8 +554,8 @@ async fn test_management_explain_operations() {
     }
 }
 
-#[tokio::test]
-async fn test_auxiliary_return_operations() {
+#[test]
+fn test_auxiliary_return_operations() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -576,8 +576,8 @@ async fn test_auxiliary_return_operations() {
     }
 }
 
-#[tokio::test]
-async fn test_auxiliary_unwind_operations() {
+#[test]
+fn test_auxiliary_unwind_operations() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -597,8 +597,8 @@ async fn test_auxiliary_unwind_operations() {
     }
 }
 
-#[tokio::test]
-async fn test_auxiliary_pipe_operations() {
+#[test]
+fn test_auxiliary_pipe_operations() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -618,8 +618,8 @@ async fn test_auxiliary_pipe_operations() {
     }
 }
 
-#[tokio::test]
-async fn test_management_error_handling() {
+#[test]
+fn test_management_error_handling() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -641,8 +641,8 @@ async fn test_management_error_handling() {
     }
 }
 
-#[tokio::test]
-async fn test_management_combined_operations() {
+#[test]
+fn test_management_combined_operations() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -664,8 +664,8 @@ async fn test_management_combined_operations() {
     }
 }
 
-#[tokio::test]
-async fn test_auxiliary_with_operations() {
+#[test]
+fn test_auxiliary_with_operations() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -685,8 +685,8 @@ async fn test_auxiliary_with_operations() {
     }
 }
 
-#[tokio::test]
-async fn test_management_performance() {
+#[test]
+fn test_management_performance() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -705,8 +705,8 @@ async fn test_management_performance() {
 
 // ==================== EXPLAIN FORMAT 语句测试 ====================
 
-#[tokio::test]
-async fn test_explain_format_table() {
+#[test]
+fn test_explain_format_table() {
     let query = "EXPLAIN FORMAT = TABLE MATCH (n:Person) RETURN n";
     let mut parser = Parser::new(query);
     
@@ -717,8 +717,8 @@ async fn test_explain_format_table() {
     assert_eq!(stmt.kind(), "EXPLAIN");
 }
 
-#[tokio::test]
-async fn test_explain_format_dot() {
+#[test]
+fn test_explain_format_dot() {
     let query = "EXPLAIN FORMAT = DOT GO FROM 1 OVER KNOWS";
     let mut parser = Parser::new(query);
     
@@ -729,8 +729,8 @@ async fn test_explain_format_dot() {
     assert_eq!(stmt.kind(), "EXPLAIN");
 }
 
-#[tokio::test]
-async fn test_profile_statement() {
+#[test]
+fn test_profile_statement() {
     let query = "PROFILE MATCH (n:Person) RETURN n LIMIT 10";
     let mut parser = Parser::new(query);
     
@@ -741,8 +741,8 @@ async fn test_profile_statement() {
     assert_eq!(stmt.kind(), "PROFILE");
 }
 
-#[tokio::test]
-async fn test_profile_format_dot() {
+#[test]
+fn test_profile_format_dot() {
     let query = "PROFILE FORMAT = DOT GO FROM 1 OVER KNOWS";
     let mut parser = Parser::new(query);
     
@@ -755,8 +755,8 @@ async fn test_profile_format_dot() {
 
 // ==================== GROUP BY 语句测试 ====================
 
-#[tokio::test]
-async fn test_group_by_basic() {
+#[test]
+fn test_group_by_basic() {
     let query = "GROUP BY category YIELD category";
     let mut parser = Parser::new(query);
     
@@ -767,8 +767,8 @@ async fn test_group_by_basic() {
     assert_eq!(stmt.kind(), "GROUP BY");
 }
 
-#[tokio::test]
-async fn test_group_by_multiple_items() {
+#[test]
+fn test_group_by_multiple_items() {
     let query = "GROUP BY category, type YIELD category, type";
     let mut parser = Parser::new(query);
     
@@ -781,8 +781,8 @@ async fn test_group_by_multiple_items() {
 
 // ==================== 会话管理语句测试 ====================
 
-#[tokio::test]
-async fn test_show_sessions() {
+#[test]
+fn test_show_sessions() {
     let query = "SHOW SESSIONS";
     let mut parser = Parser::new(query);
     
@@ -793,8 +793,8 @@ async fn test_show_sessions() {
     assert_eq!(stmt.kind(), "SHOW SESSIONS");
 }
 
-#[tokio::test]
-async fn test_show_queries() {
+#[test]
+fn test_show_queries() {
     let query = "SHOW QUERIES";
     let mut parser = Parser::new(query);
     
@@ -805,8 +805,8 @@ async fn test_show_queries() {
     assert_eq!(stmt.kind(), "SHOW QUERIES");
 }
 
-#[tokio::test]
-async fn test_kill_query() {
+#[test]
+fn test_kill_query() {
     let query = "KILL QUERY 123, 456";
     let mut parser = Parser::new(query);
     
@@ -819,8 +819,8 @@ async fn test_kill_query() {
 
 // ==================== 配置管理语句测试 ====================
 
-#[tokio::test]
-async fn test_show_configs() {
+#[test]
+fn test_show_configs() {
     let query = "SHOW CONFIGS";
     let mut parser = Parser::new(query);
     
@@ -831,8 +831,8 @@ async fn test_show_configs() {
     assert_eq!(stmt.kind(), "SHOW CONFIGS");
 }
 
-#[tokio::test]
-async fn test_show_configs_with_module() {
+#[test]
+fn test_show_configs_with_module() {
     let query = "SHOW CONFIGS storage";
     let mut parser = Parser::new(query);
     
@@ -843,8 +843,8 @@ async fn test_show_configs_with_module() {
     assert_eq!(stmt.kind(), "SHOW CONFIGS");
 }
 
-#[tokio::test]
-async fn test_update_configs() {
+#[test]
+fn test_update_configs() {
     let query = "UPDATE CONFIGS max_connections = 100";
     let mut parser = Parser::new(query);
     
@@ -855,8 +855,8 @@ async fn test_update_configs() {
     assert_eq!(stmt.kind(), "UPDATE CONFIGS");
 }
 
-#[tokio::test]
-async fn test_update_configs_with_module() {
+#[test]
+fn test_update_configs_with_module() {
     let query = "UPDATE CONFIGS storage cache_size = 1024";
     let mut parser = Parser::new(query);
     
@@ -869,8 +869,8 @@ async fn test_update_configs_with_module() {
 
 // ==================== 新功能综合测试 ====================
 
-#[tokio::test]
-async fn test_new_management_features() {
+#[test]
+fn test_new_management_features() {
     let test_storage = TestStorage::new().expect("创建测试存储失败");
     let storage = test_storage.storage();
     let stats_manager = Arc::new(StatsManager::new());
@@ -897,8 +897,8 @@ async fn test_new_management_features() {
 
 // ==================== 变量赋值语句测试 ====================
 
-#[tokio::test]
-async fn test_assignment_statement() {
+#[test]
+fn test_assignment_statement() {
     let query = "$result = GO FROM \"player100\" OVER follow";
     let mut parser = Parser::new(query);
     
@@ -911,8 +911,8 @@ async fn test_assignment_statement() {
 
 // ==================== 集合操作语句测试 ====================
 
-#[tokio::test]
-async fn test_union_statement() {
+#[test]
+fn test_union_statement() {
     let query = "GO FROM \"player100\" OVER follow UNION GO FROM \"player101\" OVER follow";
     let mut parser = Parser::new(query);
     
@@ -923,8 +923,8 @@ async fn test_union_statement() {
     assert_eq!(stmt.kind(), "SET OPERATION");
 }
 
-#[tokio::test]
-async fn test_intersect_statement() {
+#[test]
+fn test_intersect_statement() {
     let query = "GO FROM \"player100\" OVER follow INTERSECT GO FROM \"player101\" OVER follow";
     let mut parser = Parser::new(query);
     
@@ -935,8 +935,8 @@ async fn test_intersect_statement() {
     assert_eq!(stmt.kind(), "SET OPERATION");
 }
 
-#[tokio::test]
-async fn test_minus_statement() {
+#[test]
+fn test_minus_statement() {
     let query = "GO FROM \"player100\" OVER follow MINUS GO FROM \"player101\" OVER follow";
     let mut parser = Parser::new(query);
     
