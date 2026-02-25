@@ -486,7 +486,7 @@ executor/
 
 ```rust
 pub trait Executor<S: StorageEngine>: Send {
-    async fn execute(&mut self) -> DBResult<ExecutionResult>;
+    fn execute(&mut self) -> DBResult<ExecutionResult>;
     fn open(&mut self) -> DBResult<()>;
     fn close(&mut self) -> DBResult<()>;
     // ...
@@ -699,7 +699,7 @@ pub trait OptRule: std::fmt::Debug {
 ```rust
 #[async_trait]
 pub trait Executor<S: StorageEngine>: Send {
-    async fn execute(&mut self) -> DBResult<ExecutionResult>;
+    fn execute(&mut self) -> DBResult<ExecutionResult>;
     fn open(&mut self) -> DBResult<()>;
     fn close(&mut self) -> DBResult<()>;
     // ...

@@ -187,7 +187,7 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
     }
     
     /// 执行查询 - 核心逻辑
-    pub async fn execute(
+    pub fn execute(
         &mut self,
         query: &str,
         ctx: QueryContext,
@@ -205,7 +205,7 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
         let execution_result = self
             .pipeline_manager
             .execute_query_with_space(query, space_info)
-            .await
+            
             .map_err(|e| CoreError::QueryExecutionFailed(e.to_string()))?;
         
         // 转换为结构化结果
@@ -213,7 +213,7 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
     }
     
     /// 执行参数化查询
-    pub async fn execute_with_params(
+    pub fn execute_with_params(
         &mut self,
         query: &str,
         params: HashMap<String, Value>,
@@ -221,7 +221,7 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
     ) -> CoreResult<QueryResult> {
         let mut ctx = ctx;
         ctx.parameters = Some(params);
-        self.execute(query, ctx).await
+        self.execute(query, ctx)
     }
     
     fn convert_to_query_result(execution: ExecutionResult) -> CoreResult<QueryResult> {
@@ -332,7 +332,7 @@ impl<S: StorageClient> SchemaApi<S> {
     }
     
     /// 创建图空间
-    pub async fn create_space(
+    pub fn create_space(
         &self,
         name: &str,
         config: SpaceConfig,
@@ -341,12 +341,12 @@ impl<S: StorageClient> SchemaApi<S> {
     }
     
     /// 删除图空间
-    pub async fn drop_space(&self, name: &str) -> CoreResult<()> {
+    pub fn drop_space(&self, name: &str) -> CoreResult<()> {
         todo!("实现删除空间")
     }
     
     /// 创建标签
-    pub async fn create_tag(
+    pub fn create_tag(
         &self,
         space_id: u64,
         name: &str,
@@ -356,7 +356,7 @@ impl<S: StorageClient> SchemaApi<S> {
     }
     
     /// 创建边类型
-    pub async fn create_edge_type(
+    pub fn create_edge_type(
         &self,
         space_id: u64,
         name: &str,
@@ -366,7 +366,7 @@ impl<S: StorageClient> SchemaApi<S> {
     }
     
     /// 创建索引
-    pub async fn create_index(
+    pub fn create_index(
         &self,
         space_id: u64,
         name: &str,
@@ -613,9 +613,9 @@ impl HttpServer {
     }
     
     /// 处理查询请求
-    pub async fn handle_query(&self, req: QueryRequest) -> HttpResponse {
+    pub fn handle_query(&self, req: QueryRequest) -> HttpResponse {
         // 1. 认证
-        let session = match self.auth_service.authenticate(&req.token).await {
+        let session = match self.auth_service.authenticate(&req.token) {
             Ok(s) => s,
             Err(e) => return HttpResponse::unauthorized(e),
         };
@@ -629,7 +629,7 @@ impl HttpServer {
         };
         
         // 3. 调用核心层
-        match self.query_api.execute(&req.query, ctx).await {
+        match self.query_api.execute(&req.query, ctx) {
             Ok(result) => HttpResponse::success(result),
             Err(e) => HttpResponse::error(e),
         }

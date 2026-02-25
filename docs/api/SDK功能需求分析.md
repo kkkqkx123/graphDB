@@ -43,10 +43,10 @@ pub struct GraphClient {
 
 impl GraphClient {
     /// 建立连接
-    pub async fn connect(config: ConnectionConfig) -> Result<Self, ConnectionError>;
+    pub fn connect(config: ConnectionConfig) -> Result<Self, ConnectionError>;
     
     /// 断开连接
-    pub async fn disconnect(&self) -> Result<(), ConnectionError>;
+    pub fn disconnect(&self) -> Result<(), ConnectionError>;
     
     /// 检查连接状态
     pub fn is_connected(&self) -> bool;
@@ -81,20 +81,20 @@ pub struct Session {
 
 impl GraphClient {
     /// 创建会话（认证）
-    pub async fn authenticate(
+    pub fn authenticate(
         &self, 
         username: &str, 
         password: &str
     ) -> Result<Session, AuthError>;
     
     /// 恢复会话
-    pub async fn resume_session(&self, session_id: i64) -> Result<Session, SessionError>;
+    pub fn resume_session(&self, session_id: i64) -> Result<Session, SessionError>;
     
     /// 关闭会话
-    pub async fn close_session(&self, session: &Session) -> Result<(), SessionError>;
+    pub fn close_session(&self, session: &Session) -> Result<(), SessionError>;
     
     /// 刷新会话
-    pub async fn refresh_session(&self, session: &Session) -> Result<Session, SessionError>;
+    pub fn refresh_session(&self, session: &Session) -> Result<Session, SessionError>;
 }
 ```
 
@@ -122,29 +122,29 @@ pub struct SessionConfig {
 ```rust
 impl Session {
     /// 执行查询（同步等待结果）
-    pub async fn execute(&self, query: &str) -> Result<ResultSet, QueryError>;
+    pub fn execute(&self, query: &str) -> Result<ResultSet, QueryError>;
     
     /// 执行查询（带参数）
-    pub async fn execute_with_params(
+    pub fn execute_with_params(
         &self, 
         query: &str, 
         params: &HashMap<String, Value>
     ) -> Result<ResultSet, QueryError>;
     
     /// 执行查询（流式结果）
-    pub async fn execute_stream(
+    pub fn execute_stream(
         &self, 
         query: &str
     ) -> Result<Stream<ResultSet>, QueryError>;
     
     /// 批量执行
-    pub async fn execute_batch(
+    pub fn execute_batch(
         &self, 
         queries: Vec<&str>
     ) -> Result<Vec<ResultSet>, QueryError>;
     
     /// 解释查询计划
-    pub async fn explain(&self, query: &str) -> Result<ExecutionPlan, QueryError>;
+    pub fn explain(&self, query: &str) -> Result<ExecutionPlan, QueryError>;
 }
 ```
 
@@ -160,7 +160,7 @@ let params = hashmap! {
 let result = session.execute_with_params(
     "MATCH (p:Person {name: $name, age: $age}) RETURN p",
     &params
-).await?;
+)?;
 ```
 
 #### 2.3.3 查询结果处理
@@ -223,22 +223,22 @@ pub enum IsolationLevel {
 
 impl Session {
     /// 开始事务
-    pub async fn begin_transaction(
+    pub fn begin_transaction(
         &self, 
         isolation_level: IsolationLevel
     ) -> Result<Transaction, TransactionError>;
     
     /// 提交事务
-    pub async fn commit(&self, tx: &Transaction) -> Result<(), TransactionError>;
+    pub fn commit(&self, tx: &Transaction) -> Result<(), TransactionError>;
     
     /// 回滚事务
-    pub async fn rollback(&self, tx: &Transaction) -> Result<(), TransactionError>;
+    pub fn rollback(&self, tx: &Transaction) -> Result<(), TransactionError>;
     
     /// 设置保存点
-    pub async fn savepoint(&self, tx: &Transaction, name: &str) -> Result<(), TransactionError>;
+    pub fn savepoint(&self, tx: &Transaction, name: &str) -> Result<(), TransactionError>;
     
     /// 回滚到保存点
-    pub async fn rollback_to_savepoint(
+    pub fn rollback_to_savepoint(
         &self, 
         tx: &Transaction, 
         name: &str
@@ -248,7 +248,7 @@ impl Session {
 // 事务执行辅助宏
 impl Session {
     /// 在事务中执行
-    pub async fn with_transaction<F, T>(
+    pub fn with_transaction<F, T>(
         &self,
         isolation_level: IsolationLevel,
         f: F
@@ -256,14 +256,14 @@ impl Session {
     where
         F: FnOnce(&Transaction) -> Future<Output = Result<T, TransactionError>>,
     {
-        let tx = self.begin_transaction(isolation_level).await?;
-        match f(&tx).await {
+        let tx = self.begin_transaction(isolation_level)?;
+        match f(&tx) {
             Ok(result) => {
-                self.commit(&tx).await?;
+                self.commit(&tx)?;
                 Ok(result)
             }
             Err(e) => {
-                self.rollback(&tx).await?;
+                self.rollback(&tx)?;
                 Err(e)
             }
         }
@@ -288,32 +288,32 @@ pub struct TagData {
 
 impl Session {
     /// 插入顶点
-    pub async fn insert_vertex(
+    pub fn insert_vertex(
         &self, 
         builder: VertexBuilder
     ) -> Result<Value, OperationError>;
     
     /// 批量插入顶点
-    pub async fn batch_insert_vertices(
+    pub fn batch_insert_vertices(
         &self, 
         builders: Vec<VertexBuilder>
     ) -> Result<Vec<Value>, OperationError>;
     
     /// 更新顶点
-    pub async fn update_vertex(
+    pub fn update_vertex(
         &self,
         id: &Value,
         updates: HashMap<String, Value>
     ) -> Result<(), OperationError>;
     
     /// 删除顶点
-    pub async fn delete_vertex(&self, id: &Value) -> Result<(), OperationError>;
+    pub fn delete_vertex(&self, id: &Value) -> Result<(), OperationError>;
     
     /// 获取顶点
-    pub async fn get_vertex(&self, id: &Value) -> Result<Option<Vertex>, OperationError>;
+    pub fn get_vertex(&self, id: &Value) -> Result<Option<Vertex>, OperationError>;
     
     /// 扫描顶点
-    pub async fn scan_vertices(
+    pub fn scan_vertices(
         &self,
         tag: Option<&str>,
         limit: Option<usize>
@@ -334,19 +334,19 @@ pub struct EdgeBuilder {
 
 impl Session {
     /// 插入边
-    pub async fn insert_edge(
+    pub fn insert_edge(
         &self, 
         builder: EdgeBuilder
     ) -> Result<(), OperationError>;
     
     /// 批量插入边
-    pub async fn batch_insert_edges(
+    pub fn batch_insert_edges(
         &self, 
         builders: Vec<EdgeBuilder>
     ) -> Result<(), OperationError>;
     
     /// 删除边
-    pub async fn delete_edge(
+    pub fn delete_edge(
         &self,
         src: &Value,
         dst: &Value,
@@ -355,7 +355,7 @@ impl Session {
     ) -> Result<(), OperationError>;
     
     /// 获取边
-    pub async fn get_edge(
+    pub fn get_edge(
         &self,
         src: &Value,
         dst: &Value,
@@ -363,7 +363,7 @@ impl Session {
     ) -> Result<Option<Edge>, OperationError>;
     
     /// 获取节点的边
-    pub async fn get_node_edges(
+    pub fn get_node_edges(
         &self,
         node_id: &Value,
         direction: EdgeDirection,
@@ -377,40 +377,40 @@ impl Session {
 ```rust
 impl Session {
     /// 创建图空间
-    pub async fn create_space(
+    pub fn create_space(
         &self, 
         name: &str, 
         config: SpaceConfig
     ) -> Result<(), SchemaError>;
     
     /// 删除图空间
-    pub async fn drop_space(&self, name: &str) -> Result<(), SchemaError>;
+    pub fn drop_space(&self, name: &str) -> Result<(), SchemaError>;
     
     /// 切换图空间
-    pub async fn use_space(&self, name: &str) -> Result<(), SchemaError>;
+    pub fn use_space(&self, name: &str) -> Result<(), SchemaError>;
     
     /// 创建标签
-    pub async fn create_tag(
+    pub fn create_tag(
         &self, 
         name: &str, 
         properties: Vec<PropertyDef>
     ) -> Result<(), SchemaError>;
     
     /// 删除标签
-    pub async fn drop_tag(&self, name: &str) -> Result<(), SchemaError>;
+    pub fn drop_tag(&self, name: &str) -> Result<(), SchemaError>;
     
     /// 创建边类型
-    pub async fn create_edge_type(
+    pub fn create_edge_type(
         &self, 
         name: &str, 
         properties: Vec<PropertyDef>
     ) -> Result<(), SchemaError>;
     
     /// 删除边类型
-    pub async fn drop_edge_type(&self, name: &str) -> Result<(), SchemaError>;
+    pub fn drop_edge_type(&self, name: &str) -> Result<(), SchemaError>;
     
     /// 创建索引
-    pub async fn create_index(
+    pub fn create_index(
         &self,
         name: &str,
         on: IndexTarget,
@@ -418,7 +418,7 @@ impl Session {
     ) -> Result<(), SchemaError>;
     
     /// 删除索引
-    pub async fn drop_index(&self, name: &str) -> Result<(), SchemaError>;
+    pub fn drop_index(&self, name: &str) -> Result<(), SchemaError>;
 }
 ```
 
@@ -479,10 +479,10 @@ impl TraversalBuilder {
     pub fn limit(self, n: usize) -> Self;
     
     /// 执行遍历
-    pub async fn execute(self) -> Result<Vec<Element>, QueryError>;
+    pub fn execute(self) -> Result<Vec<Element>, QueryError>;
     
     /// 获取路径
-    pub async fn path(self) -> Result<Vec<Path>, QueryError>;
+    pub fn path(self) -> Result<Vec<Path>, QueryError>;
 }
 
 // 使用示例
@@ -492,7 +492,7 @@ let result = session.traversal()
     .has("age", Value::Int(25))
     .limit(10)
     .execute()
-    .await?;
+    ?;
 ```
 
 ### 2.7 批量操作
@@ -518,10 +518,10 @@ impl BatchInserter {
     pub fn with_batch_size(&mut self, size: usize) -> &mut Self;
     
     /// 执行批量插入
-    pub async fn execute(&self) -> Result<BatchResult, OperationError>;
+    pub fn execute(&self) -> Result<BatchResult, OperationError>;
     
     /// 异步执行（带进度回调）
-    pub async fn execute_with_progress<F>(
+    pub fn execute_with_progress<F>(
         &self, 
         progress_callback: F
     ) -> Result<BatchResult, OperationError>
@@ -546,19 +546,19 @@ pub struct DataImporter {
 
 impl DataImporter {
     /// 从 CSV 导入
-    pub async fn import_csv(
+    pub fn import_csv(
         &self,
         config: CsvImportConfig
     ) -> Result<ImportResult, ImportError>;
     
     /// 从 JSON 导入
-    pub async fn import_json(
+    pub fn import_json(
         &self,
         config: JsonImportConfig
     ) -> Result<ImportResult, ImportError>;
     
     /// 从 Nebula Exchange 格式导入
-    pub async fn import_exchange(
+    pub fn import_exchange(
         &self,
         config: ExchangeImportConfig
     ) -> Result<ImportResult, ImportError>;
@@ -591,13 +591,13 @@ pub struct QueryMetrics {
 
 impl Session {
     /// 启用查询性能分析
-    pub async fn enable_profiling(&self) -> Result<(), Error>;
+    pub fn enable_profiling(&self) -> Result<(), Error>;
     
     /// 获取查询指标
-    pub async fn get_query_metrics(&self, query_id: &str) -> Result<QueryMetrics, Error>;
+    pub fn get_query_metrics(&self, query_id: &str) -> Result<QueryMetrics, Error>;
     
     /// 获取慢查询列表
-    pub async fn get_slow_queries(
+    pub fn get_slow_queries(
         &self, 
         threshold: Duration
     ) -> Result<Vec<SlowQueryInfo>, Error>;
@@ -624,10 +624,10 @@ pub struct ConnectionDiagnostics {
 
 impl GraphClient {
     /// 诊断连接
-    pub async fn diagnose(&self) -> Result<ConnectionDiagnostics, Error>;
+    pub fn diagnose(&self) -> Result<ConnectionDiagnostics, Error>;
     
     /// 获取服务器统计
-    pub async fn get_server_stats(&self) -> Result<ServerStats, Error>;
+    pub fn get_server_stats(&self) -> Result<ServerStats, Error>;
 }
 ```
 
@@ -820,7 +820,7 @@ public class Example {
 ```typescript
 import { GraphClient } from 'graphdb-client';
 
-async function main() {
+function main() {
     // 连接
     const client = await GraphClient.connect('127.0.0.1', 9758);
     

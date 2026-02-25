@@ -479,8 +479,8 @@ mod tests {
     use std::sync::Arc;
 use parking_lot::Mutex;
 
-    #[tokio::test]
-    async fn test_rollup_apply_executor() {
+    #[test]
+    fn test_rollup_apply_executor() {
         let storage = Arc::new(Mutex::new(MockStorage));
 
         let left_values = vec![Value::Int(1), Value::Int(2)];
@@ -521,8 +521,8 @@ use parking_lot::Mutex;
         }
     }
 
-    #[tokio::test]
-    async fn test_rollup_apply_zero_key() {
+    #[test]
+    fn test_rollup_apply_zero_key() {
         let storage = Arc::new(Mutex::new(MockStorage));
 
         let left_values = vec![Value::Int(1), Value::Int(2), Value::Int(3)];
@@ -572,8 +572,8 @@ use parking_lot::Mutex;
         }
     }
 
-    #[tokio::test]
-    async fn test_rollup_apply_multi_key() {
+    #[test]
+    fn test_rollup_apply_multi_key() {
         let storage = Arc::new(Mutex::new(MockStorage));
 
         let left_values = vec![
@@ -626,8 +626,8 @@ use parking_lot::Mutex;
         }
     }
 
-    #[tokio::test]
-    async fn test_rollup_apply_empty_right() {
+    #[test]
+    fn test_rollup_apply_empty_right() {
         let storage = Arc::new(Mutex::new(MockStorage));
 
         let left_values = vec![Value::Int(1), Value::Int(2)];
@@ -672,8 +672,8 @@ use parking_lot::Mutex;
         }
     }
 
-    #[tokio::test]
-    async fn test_rollup_apply_empty_left() {
+    #[test]
+    fn test_rollup_apply_empty_left() {
         let storage = Arc::new(Mutex::new(MockStorage));
 
         let left_values: Vec<Value> = vec![];

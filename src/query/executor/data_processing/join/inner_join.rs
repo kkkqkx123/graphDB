@@ -412,8 +412,8 @@ mod tests {
         (left_dataset, right_dataset)
     }
 
-    #[tokio::test]
-    async fn test_inner_join_single_key_with_expression() {
+    #[test]
+    fn test_inner_join_single_key_with_expression() {
         let storage = Arc::new(Mutex::new(MockStorage));
 
         let mut executor = InnerJoinExecutor::new(
@@ -582,8 +582,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_inner_join_with_variable_expression() {
+    #[test]
+    fn test_inner_join_with_variable_expression() {
         let storage = Arc::new(Mutex::new(MockStorage));
 
         let mut executor = InnerJoinExecutor::new(

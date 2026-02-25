@@ -21,7 +21,7 @@ use common::{
 use graphdb::core::Value;
 use graphdb::query::parser::Parser;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
-use graphdb::api::service::stats_manager::StatsManager;
+use graphdb::core::stats::StatsManager;
 use std::sync::Arc;
 
 // ==================== MATCH 语句测试 ====================
@@ -94,7 +94,7 @@ fn test_match_execution_basic() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "MATCH (n:Person) RETURN n";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("MATCH基础执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -109,7 +109,7 @@ fn test_match_execution_with_projection() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "MATCH (n:Person) RETURN n.name, n.age";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("MATCH带投影执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -214,7 +214,7 @@ fn test_go_execution_basic() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "GO FROM 1 OVER KNOWS";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("GO基础执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -229,7 +229,7 @@ fn test_go_execution_with_yield() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "GO FROM 1 OVER KNOWS YIELD target.name";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("GO带YIELD执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -297,7 +297,7 @@ fn test_lookup_execution_basic() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "LOOKUP ON Person WHERE Person.name == 'Alice'";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("LOOKUP基础执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -362,7 +362,7 @@ fn test_fetch_execution_vertex() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "FETCH PROP ON Person 1";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("FETCH顶点执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -377,7 +377,7 @@ fn test_fetch_execution_edge() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "FETCH PROP ON KNOWS 1 -> 2";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("FETCH边执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -485,7 +485,7 @@ fn test_find_path_execution_shortest() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "FIND SHORTEST PATH FROM 1 TO 4 OVER KNOWS";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("FIND SHORTEST PATH执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -554,7 +554,7 @@ fn test_subgraph_execution_basic() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "GET SUBGRAPH WITH PROP 1";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("SUBGRAPH基础执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -578,7 +578,7 @@ fn test_dql_multiple_queries() {
     ];
     
     for (i, query) in queries.iter().enumerate() {
-        let result = pipeline_manager.execute_query(query).await;
+        let result = pipeline_manager.execute_query(query);
         println!("DQL查询 {} 执行结果: {:?}", i + 1, result);
         assert!(result.is_ok() || result.is_err());
     }
@@ -600,7 +600,7 @@ fn test_dql_error_handling() {
     ];
     
     for query in invalid_queries {
-        let result = pipeline_manager.execute_query(query).await;
+        let result = pipeline_manager.execute_query(query);
         assert!(result.is_err(), "无效查询应该返回错误: {}", query);
     }
 }
@@ -618,7 +618,7 @@ fn test_go_with_dangling_edges() {
     // 测试GO语句在存在悬挂边时的行为
     // GO语句应该返回悬挂边的属性，但点的属性为空
     let query = "GO FROM 1 OVER KNOWS YIELD target.name, edge.since";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("GO带悬挂边执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -634,7 +634,7 @@ fn test_go_dangling_edge_returns_edge_props() {
     
     // 测试GO语句返回悬挂边的属性
     let query = "GO FROM 1 OVER KNOWS YIELD edge.since, edge.strength";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("GO返回悬挂边属性结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -650,7 +650,7 @@ fn test_match_no_dangling_edges() {
     
     // MATCH语句不应返回悬挂边
     let query = "MATCH (n:Person)-[KNOWS]->(m:Person) RETURN n, m";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("MATCH不返回悬挂边结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -886,7 +886,7 @@ fn test_yield_execution_with_where() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
 
     let query = "GO FROM 1 OVER KNOWS YIELD target.name, target.age WHERE target.age > 25";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
 
     println!("YIELD带WHERE执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());

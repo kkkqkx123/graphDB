@@ -295,7 +295,7 @@ use rocksdb::{Options};
 let mut opts = Options::default();
 
 // 是否使用 fsync
-opts.set_use_fsync(false);  // 使用 fdatasync 而不是 fsync
+opts.set_use_fsync(false);  // 使用 fdat而不是 fsync
 
 // 每次同步的字节数
 opts.set_bytes_per_sync(8388608);  // 819KB

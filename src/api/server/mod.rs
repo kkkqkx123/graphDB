@@ -10,6 +10,6 @@ pub mod graph_service;
 
 pub use http::HttpServer;
 pub use auth::{Authenticator, PasswordAuthenticator};
-pub use session::{ClientSession, GraphSessionManager};
-pub use permission::{PermissionManager, RoleType};
+pub use session::{ClientSession, GraphSessionManager, Session, SpaceInfo};
+pub use permission::{PermissionManager, PermissionChecker, RoleType, Permission};
 pub use graph_service::GraphService;

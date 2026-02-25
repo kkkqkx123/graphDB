@@ -469,7 +469,7 @@ where
 }
 
 /// 并行规划（静态分发，无运行时开销）
-pub async fn plan_parallel(ast_contexts: Vec<AstContext>) -> Vec<Result<SubPlan, PlannerError>> {
+pub fn plan_parallel(ast_contexts: Vec<AstContext>) -> Vec<Result<SubPlan, PlannerError>> {
     use rayon::prelude::*;
     
     ast_contexts

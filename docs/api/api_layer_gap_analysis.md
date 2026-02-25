@@ -41,15 +41,15 @@ src/api/
 ### 缺口 1：同步查询执行接口
 
 **问题描述：**
-现有 `QueryEngine::execute()` 是异步的（`async fn`），但嵌入式 API 需要同步接口以简化使用。
+现有 `QueryEngine::execute()` 是异步的（`fn`），但嵌入式 API 需要同步接口以简化使用。
 
 **现有代码：**
 ```rust
 // src/api/service/query_processor.rs
 impl<S: StorageClient + Clone + 'static> QueryEngine<S> {
-    pub async fn execute(&mut self, rctx: RequestContext) -> ExecutionResponse {
+    pub fn execute(&mut self, rctx: RequestContext) -> ExecutionResponse {
         // 异步执行
-        match self.pipeline_manager.execute_query_with_space(...).await {
+        match self.pipeline_manager.execute_query_with_space(...) {
             // ...
         }
     }

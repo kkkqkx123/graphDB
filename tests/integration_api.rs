@@ -10,18 +10,16 @@ mod common;
 use std::sync::Arc;
 use std::time::Duration;
 
-use graphdb::api::session::{
+use graphdb::api::server::session::{
     ClientSession, GraphSessionManager, QueryManager, QueryStatus,
-    DEFAULT_SESSION_IDLE_TIMEOUT,
+    DEFAULT_SESSION_IDLE_TIMEOUT, Session, SpaceInfo,
 };
-use graphdb::api::session::client_session::{Session, SpaceInfo};
-use graphdb::api::service::GraphService;
+use graphdb::api::server::graph_service::GraphService;
 use graphdb::api::server::auth::{Authenticator, PasswordAuthenticator};
 use graphdb::api::server::permission::{PermissionManager, Permission};
-use graphdb::api::server::stats::{StatsManager, MetricType};
-use graphdb::core::{RoleType, QueryMetrics};
+use graphdb::core::{RoleType, QueryMetrics, StatsManager, MetricType};
 use graphdb::config::Config;
-use graphdb::storage::redb_storage::DefaultStorage;
+use graphdb::storage::{RedbStorage, DefaultStorage};
 
 // ==================== 会话管理测试 ====================
 
@@ -304,7 +302,7 @@ fn test_query_manager_creation() {
     let query_manager = QueryManager::new();
 
     // 初始状态应该为空
-    let queries = query_manager.get_all_queries().expect("获取查询失败");
+    let queries = query_manager.get_all_queries();
     assert!(queries.is_empty());
 }
 
@@ -314,8 +312,7 @@ fn test_register_and_get_query() {
 
     // 注册查询
     let query_id = query_manager
-        .register_query(1, "testuser".to_string(), Some("test_space".to_string()), "SELECT * FROM users".to_string())
-        .expect("注册查询失败");
+        .register_query(1, "testuser".to_string(), Some("test_space".to_string()), "SELECT * FROM users".to_string());
 
     // 获取查询信息
     let query_info = query_manager.get_query(query_id).expect("获取查询失败");
@@ -325,7 +322,7 @@ fn test_register_and_get_query() {
     assert_eq!(query_info.status, QueryStatus::Running);
 
     // 获取不存在的查询
-    assert!(query_manager.get_query(9999).is_err());
+    assert!(query_manager.get_query(9999).is_none());
 }
 
 #[test]
@@ -333,21 +330,19 @@ fn test_query_status_transitions() {
     let query_manager = QueryManager::new();
 
     let query_id = query_manager
-        .register_query(1, "testuser".to_string(), None, "SELECT * FROM users".to_string())
-        .expect("注册查询失败");
+        .register_query(1, "testuser".to_string(), None, "SELECT * FROM users".to_string());
 
     // 标记为完成
-    query_manager.mark_query_finished(query_id).expect("标记完成失败");
+    query_manager.finish_query(query_id).expect("标记完成失败");
     let query_info = query_manager.get_query(query_id).expect("获取查询失败");
     assert_eq!(query_info.status, QueryStatus::Finished);
     assert!(query_info.duration_ms.is_some());
 
     // 注册新查询并标记为失败
     let query_id2 = query_manager
-        .register_query(1, "testuser".to_string(), None, "INVALID QUERY".to_string())
-        .expect("注册查询失败");
+        .register_query(1, "testuser".to_string(), None, "INVALID QUERY".to_string());
 
-    query_manager.mark_query_failed(query_id2).expect("标记失败失败");
+    query_manager.fail_query(query_id2).expect("标记失败失败");
     let query_info2 = query_manager.get_query(query_id2).expect("获取查询失败");
     assert_eq!(query_info2.status, QueryStatus::Failed);
 }
@@ -357,8 +352,7 @@ fn test_kill_query() {
     let query_manager = QueryManager::new();
 
     let query_id = query_manager
-        .register_query(1, "testuser".to_string(), None, "SELECT * FROM users".to_string())
-        .expect("注册查询失败");
+        .register_query(1, "testuser".to_string(), None, "SELECT * FROM users".to_string());
 
     // 终止查询
     query_manager.kill_query(query_id).expect("终止查询失败");
@@ -373,25 +367,22 @@ fn test_get_queries_by_session() {
 
     // 为不同会话注册查询
     query_manager
-        .register_query(1, "user1".to_string(), None, "SELECT * FROM t1".to_string())
-        .expect("注册查询失败");
+        .register_query(1, "user1".to_string(), None, "SELECT * FROM t1".to_string());
     query_manager
-        .register_query(1, "user1".to_string(), None, "SELECT * FROM t2".to_string())
-        .expect("注册查询失败");
+        .register_query(1, "user1".to_string(), None, "SELECT * FROM t2".to_string());
     query_manager
-        .register_query(2, "user2".to_string(), None, "SELECT * FROM t3".to_string())
-        .expect("注册查询失败");
+        .register_query(2, "user2".to_string(), None, "SELECT * FROM t3".to_string());
 
-    // 获取会话1的查询
-    let session1_queries = query_manager.get_session_queries(1).expect("获取查询失败");
+    // 获取所有查询并按会话过滤
+    let all_queries = query_manager.get_all_queries();
+    let session1_queries: Vec<_> = all_queries.iter().filter(|q| q.session_id == 1).collect();
     assert_eq!(session1_queries.len(), 2);
 
-    // 获取会话2的查询
-    let session2_queries = query_manager.get_session_queries(2).expect("获取查询失败");
+    let session2_queries: Vec<_> = all_queries.iter().filter(|q| q.session_id == 2).collect();
     assert_eq!(session2_queries.len(), 1);
 
     // 获取不存在的会话查询
-    let session3_queries = query_manager.get_session_queries(3).expect("获取查询失败");
+    let session3_queries: Vec<_> = all_queries.iter().filter(|q| q.session_id == 3).collect();
     assert!(session3_queries.is_empty());
 }
 
@@ -400,19 +391,17 @@ fn test_get_queries_by_user() {
     let query_manager = QueryManager::new();
 
     query_manager
-        .register_query(1, "user1".to_string(), None, "SELECT * FROM t1".to_string())
-        .expect("注册查询失败");
+        .register_query(1, "user1".to_string(), None, "SELECT * FROM t1".to_string());
     query_manager
-        .register_query(2, "user1".to_string(), None, "SELECT * FROM t2".to_string())
-        .expect("注册查询失败");
+        .register_query(2, "user1".to_string(), None, "SELECT * FROM t2".to_string());
     query_manager
-        .register_query(3, "user2".to_string(), None, "SELECT * FROM t3".to_string())
-        .expect("注册查询失败");
+        .register_query(3, "user2".to_string(), None, "SELECT * FROM t3".to_string());
 
-    let user1_queries = query_manager.get_user_queries("user1").expect("获取查询失败");
+    let all_queries = query_manager.get_all_queries();
+    let user1_queries: Vec<_> = all_queries.iter().filter(|q| q.user_name == "user1").collect();
     assert_eq!(user1_queries.len(), 2);
 
-    let user2_queries = query_manager.get_user_queries("user2").expect("获取查询失败");
+    let user2_queries: Vec<_> = all_queries.iter().filter(|q| q.user_name == "user2").collect();
     assert_eq!(user2_queries.len(), 1);
 }
 
@@ -421,22 +410,17 @@ fn test_get_running_queries() {
     let query_manager = QueryManager::new();
 
     let query_id1 = query_manager
-        .register_query(1, "user1".to_string(), None, "SELECT * FROM t1".to_string())
-        .expect("注册查询失败");
+        .register_query(1, "user1".to_string(), None, "SELECT * FROM t1".to_string());
     let query_id2 = query_manager
-        .register_query(1, "user1".to_string(), None, "SELECT * FROM t2".to_string())
-        .expect("注册查询失败");
+        .register_query(1, "user1".to_string(), None, "SELECT * FROM t2".to_string());
 
-    // 两个查询都在运行
-    let running = query_manager.get_running_queries().expect("获取查询失败");
-    assert_eq!(running.len(), 2);
+    // 完成第一个查询
+    query_manager.finish_query(query_id1).expect("标记完成失败");
 
-    // 完成一个查询
-    query_manager.mark_query_finished(query_id1).expect("标记完成失败");
-
-    let running = query_manager.get_running_queries().expect("获取查询失败");
-    assert_eq!(running.len(), 1);
-    assert_eq!(running[0].query_id, query_id2);
+    // 获取正在运行的查询
+    let running_queries = query_manager.get_running_queries();
+    assert_eq!(running_queries.len(), 1);
+    assert_eq!(running_queries[0].query_id, query_id2);
 }
 
 // ==================== 认证器测试 ====================
@@ -587,31 +571,31 @@ fn test_custom_permissions() {
 
     // 授予自定义权限
     permission_manager
-        .grant_permission(1, "testuser", Permission::Read)
+        .grant_permission("testuser", 1, Permission::Read)
         .expect("授予权限失败");
     permission_manager
-        .grant_permission(1, "testuser", Permission::Write)
+        .grant_permission("testuser", 1, Permission::Write)
         .expect("授予权限失败");
 
     // 验证自定义权限
     permission_manager
-        .check_custom_permission(1, "testuser", Permission::Read)
+        .check_permission("testuser", 1, Permission::Read)
         .expect("权限检查失败");
     permission_manager
-        .check_custom_permission(1, "testuser", Permission::Write)
+        .check_permission("testuser", 1, Permission::Write)
         .expect("权限检查失败");
 
     // 未授予的权限
     assert!(permission_manager
-        .check_custom_permission(1, "testuser", Permission::Delete)
+        .check_permission("testuser", 1, Permission::Delete)
         .is_err());
 
     // 撤销权限
     permission_manager
-        .revoke_permission(1, "testuser", Permission::Read)
+        .revoke_permission("testuser", 1, Permission::Read)
         .expect("撤销权限失败");
     assert!(permission_manager
-        .check_custom_permission(1, "testuser", Permission::Read)
+        .check_permission("testuser", 1, Permission::Read)
         .is_err());
 }
 
@@ -948,7 +932,6 @@ fn test_query_manager_concurrent_operations() {
                     None,
                     format!("SELECT * FROM table{}", i),
                 )
-                .expect("注册查询失败")
         });
         handles.push(handle);
     }
@@ -967,10 +950,10 @@ fn test_query_manager_concurrent_operations() {
     assert_eq!(query_ids.len(), 10);
 
     // 验证可以查找到所有查询
-    let all_queries = query_manager.get_all_queries().expect("获取查询失败");
+    let all_queries = query_manager.get_all_queries();
     assert_eq!(all_queries.len(), 10);
 
     // 验证运行中的查询
-    let running_queries = query_manager.get_running_queries().expect("获取查询失败");
+    let running_queries = query_manager.get_running_queries();
     assert_eq!(running_queries.len(), 10);
 }

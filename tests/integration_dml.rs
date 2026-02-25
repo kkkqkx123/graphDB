@@ -21,7 +21,7 @@ use common::{
 use graphdb::core::Value;
 use graphdb::query::parser::Parser;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
-use graphdb::api::service::stats_manager::StatsManager;
+use graphdb::core::stats::StatsManager;
 use std::sync::Arc;
 
 // ==================== INSERT 语句测试 ====================
@@ -119,7 +119,7 @@ fn test_insert_execution_edge() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "INSERT EDGE KNOWS(since) VALUES 1 -> 2:('2020-01-01')";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("INSERT EDGE执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -181,7 +181,7 @@ fn test_create_execution_edge() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "CREATE (a:Person)-[:KNOWS {since: '2020-01-01'}]->(b:Person)";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("CREATE边执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -258,7 +258,7 @@ fn test_update_execution_vertex() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "UPDATE 1 SET age = 26";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("UPDATE顶点执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -273,7 +273,7 @@ fn test_update_execution_edge() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "UPDATE 1 -> 2 @0 OF KNOWS SET since = '2021-01-01'";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("UPDATE边执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -365,7 +365,7 @@ fn test_delete_execution_edge() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "DELETE EDGE KNOWS 1 -> 2";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("DELETE EDGE执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -677,7 +677,7 @@ fn test_remove_execution_property() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "REMOVE p.temp_field";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("REMOVE属性执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -745,7 +745,7 @@ fn test_dml_error_handling() {
     ];
     
     for query in invalid_queries {
-        let result = pipeline_manager.execute_query(query).await;
+        let result = pipeline_manager.execute_query(query);
         assert!(result.is_err(), "无效查询应该返回错误: {}", query);
     }
 }
@@ -789,11 +789,11 @@ fn test_index_scan_with_limit() {
     ];
     
     for query in setup_queries {
-        let _ = pipeline_manager.execute_query(query).await;
+        let _ = pipeline_manager.execute_query(query);
     }
     
     let query = "LOOKUP ON Person WHERE Person.age > 25 YIELD Person.name, Person.age LIMIT 2";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("索引扫描带LIMIT执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -839,11 +839,11 @@ fn test_index_covering_scan() {
     ];
     
     for query in setup_queries {
-        let _ = pipeline_manager.execute_query(query).await;
+        let _ = pipeline_manager.execute_query(query);
     }
     
     let query = "LOOKUP ON Person WHERE Person.name == 'Alice' YIELD Person.name, Person.age";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("索引覆盖扫描执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -888,7 +888,7 @@ fn test_dml_with_index_optimization() {
     ];
     
     for query in setup_queries {
-        let _ = pipeline_manager.execute_query(query).await;
+        let _ = pipeline_manager.execute_query(query);
     }
     
     let dml_queries = vec![
@@ -899,7 +899,7 @@ fn test_dml_with_index_optimization() {
     ];
     
     for (i, query) in dml_queries.iter().enumerate() {
-        let result = pipeline_manager.execute_query(query).await;
+        let result = pipeline_manager.execute_query(query);
         println!("DML带索引优化操作 {} 执行结果: {:?}", i + 1, result);
         assert!(result.is_ok() || result.is_err());
     }

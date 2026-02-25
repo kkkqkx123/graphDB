@@ -13,8 +13,9 @@ use graphdb::core::value::{NullType, Value, DateValue, TimeValue, DateTimeValue,
 use graphdb::core::types::DataType;
 // Vertex, Edge, Path 在需要时通过 graphdb::core 使用
 use graphdb::core::types::expression::Expression;
-use graphdb::expression::{ExpressionEvaluator, ExpressionContext, BasicExpressionContext};
-use graphdb::expression::functions::global_registry;
+use graphdb::expression::{ExpressionEvaluator, ExpressionContext};
+use graphdb::expression::context::DefaultExpressionContext;
+use graphdb::expression::functions::FunctionRegistry;
 
 // ==================== Value 类型测试 ====================
 
@@ -416,7 +417,7 @@ fn test_expression_unary_creation() {
 
 #[test]
 fn test_evaluator_literal() {
-    let mut ctx = BasicExpressionContext::new();
+    let mut ctx = DefaultExpressionContext::new();
     
     // 整数
     let expr = Expression::literal(42i64);
@@ -436,9 +437,9 @@ fn test_evaluator_literal() {
 
 #[test]
 fn test_evaluator_variable() {
-    let mut ctx = BasicExpressionContext::new();
-    ctx.set_variable("x", Value::Int(100));
-    ctx.set_variable("name", Value::String("Alice".to_string()));
+    let mut ctx = DefaultExpressionContext::new();
+    ctx.set_variable("x".to_string(), Value::Int(100));
+    ctx.set_variable("name".to_string(), Value::String("Alice".to_string()));
 
     // 读取已设置变量
     let expr = Expression::variable("x");
@@ -453,7 +454,7 @@ fn test_evaluator_variable() {
 #[test]
 fn test_evaluator_binary_arithmetic() {
     use graphdb::core::types::BinaryOperator;
-    let mut ctx = BasicExpressionContext::new();
+    let mut ctx = DefaultExpressionContext::new();
 
     // 加法: 10 + 5
     let expr = Expression::Binary {
@@ -495,7 +496,7 @@ fn test_evaluator_binary_arithmetic() {
 #[test]
 fn test_evaluator_binary_comparison() {
     use graphdb::core::types::BinaryOperator;
-    let mut ctx = BasicExpressionContext::new();
+    let mut ctx = DefaultExpressionContext::new();
 
     // 等于: 5 == 5
     let expr = Expression::Binary {
@@ -537,7 +538,7 @@ fn test_evaluator_binary_comparison() {
 #[test]
 fn test_evaluator_binary_logical() {
     use graphdb::core::types::BinaryOperator;
-    let mut ctx = BasicExpressionContext::new();
+    let mut ctx = DefaultExpressionContext::new();
 
     // AND: true && true
     let expr = Expression::Binary {
@@ -570,7 +571,7 @@ fn test_evaluator_binary_logical() {
 #[test]
 fn test_evaluator_unary() {
     use graphdb::core::types::UnaryOperator;
-    let mut ctx = BasicExpressionContext::new();
+    let mut ctx = DefaultExpressionContext::new();
 
     // NOT: !true
     let expr = Expression::Unary {
@@ -600,7 +601,7 @@ fn test_evaluator_unary() {
 #[test]
 fn test_evaluator_nested_expression() {
     use graphdb::core::types::BinaryOperator;
-    let mut ctx = BasicExpressionContext::new();
+    let mut ctx = DefaultExpressionContext::new();
 
     // (10 + 5) * 2 = 30
     let expr = Expression::Binary {
@@ -631,7 +632,7 @@ fn test_evaluator_nested_expression() {
 
 #[test]
 fn test_evaluator_batch_evaluation() {
-    let mut ctx = BasicExpressionContext::new();
+    let mut ctx = DefaultExpressionContext::new();
 
     let expressions = vec![
         Expression::literal(1i64),
@@ -665,7 +666,7 @@ fn test_evaluator_can_evaluate() {
 
 #[test]
 fn test_function_registry_builtins() {
-    let registry = global_registry();
+    let registry = FunctionRegistry::new();
 
     // 测试数学函数
     let result = registry.execute("abs", &[Value::Int(-42)]).expect("abs函数执行应该成功");
@@ -685,7 +686,7 @@ fn test_function_registry_builtins() {
 
 #[test]
 fn test_function_registry_errors() {
-    let registry = global_registry();
+    let registry = FunctionRegistry::new();
 
     // 未定义的函数
     let result = registry.execute("undefined_func", &[Value::Int(1)]);
@@ -700,11 +701,11 @@ fn test_function_registry_errors() {
 
 #[test]
 fn test_basic_context_variables() {
-    let mut ctx = BasicExpressionContext::new();
+    let mut ctx = DefaultExpressionContext::new();
 
     // 设置变量
-    ctx.set_variable("x", Value::Int(100));
-    ctx.set_variable("y", Value::String("test".to_string()));
+    ctx.set_variable("x".to_string(), Value::Int(100));
+    ctx.set_variable("y".to_string(), Value::String("test".to_string()));
 
     // 获取变量
     assert_eq!(ctx.get_variable("x"), Some(Value::Int(100)));
@@ -714,10 +715,10 @@ fn test_basic_context_variables() {
 
 #[test]
 fn test_basic_context_functions() {
-    let ctx = BasicExpressionContext::new();
+    let ctx = DefaultExpressionContext::new();
 
     // 通过全局注册表测试函数存在性和执行
-    let registry = global_registry();
+    let registry = FunctionRegistry::new();
     
     // 测试 abs 函数
     let result = registry.execute("abs", &[Value::Int(-42)]);
@@ -736,24 +737,26 @@ fn test_basic_context_functions() {
 
 #[test]
 fn test_basic_context_cache() {
-    let mut ctx = BasicExpressionContext::new();
+    let mut ctx = DefaultExpressionContext::new();
 
     // 设置和获取缓存值（通过变量模拟）
-    ctx.set_variable("cached_key1", Value::Int(42));
+    ctx.set_variable("cached_key1".to_string(), Value::Int(42));
     assert_eq!(ctx.get_variable("cached_key1"), Some(Value::Int(42)));
     assert_eq!(ctx.get_variable("nonexistent"), None);
 }
 
 #[test]
 fn test_context_parent_child() {
-    let mut parent = BasicExpressionContext::new();
-    parent.set_variable("parent_var", Value::Int(100));
+    let mut parent = DefaultExpressionContext::new();
+    parent.set_variable("parent_var".to_string(), Value::Int(100));
 
-    let mut child = BasicExpressionContext::with_parent(parent);
-    child.set_variable("child_var", Value::Int(200));
+    let mut child = DefaultExpressionContext::new();
+    child.set_variable("child_var".to_string(), Value::Int(200));
 
     // 子上下文应该能访问自己的变量
     assert_eq!(child.get_variable("child_var"), Some(Value::Int(200)));
+    // 父上下文应该能访问自己的变量
+    assert_eq!(parent.get_variable("parent_var"), Some(Value::Int(100)));
 }
 
 // ==================== 复杂场景测试 ====================
@@ -761,7 +764,7 @@ fn test_context_parent_child() {
 #[test]
 fn test_complex_arithmetic_expression() {
     use graphdb::core::types::BinaryOperator;
-    let mut ctx = BasicExpressionContext::new();
+    let mut ctx = DefaultExpressionContext::new();
 
     // 复杂表达式: (100 - 50) * 2 + 10 / 5 = 102
     let expr = Expression::Binary {
@@ -789,7 +792,7 @@ fn test_complex_arithmetic_expression() {
 #[test]
 fn test_mixed_type_operations() {
     use graphdb::core::types::BinaryOperator;
-    let mut ctx = BasicExpressionContext::new();
+    let mut ctx = DefaultExpressionContext::new();
 
     // 整数和浮点数混合运算
     let expr = Expression::Binary {
@@ -804,7 +807,7 @@ fn test_mixed_type_operations() {
 #[test]
 fn test_string_concatenation() {
     use graphdb::core::types::BinaryOperator;
-    let mut ctx = BasicExpressionContext::new();
+    let mut ctx = DefaultExpressionContext::new();
 
     // 字符串连接
     let expr = Expression::Binary {

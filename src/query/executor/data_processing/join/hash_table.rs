@@ -678,8 +678,8 @@ mod tests {
         assert!(entry.estimated_size > 0);
     }
 
-    #[tokio::test]
-    async fn test_hash_table_basic() {
+    #[test]
+    fn test_hash_table_basic() {
         let config = HashTableConfig::default();
         let memory_tracker = Arc::new(MemoryTracker::new(100 * 1024 * 1024));
 
@@ -705,8 +705,8 @@ mod tests {
         hash_table.cleanup().expect("cleanup should succeed");
     }
 
-    #[tokio::test]
-    async fn test_optimized_hash_table_memory_limit() {
+    #[test]
+    fn test_optimized_hash_table_memory_limit() {
         let mut config = HashTableConfig::default();
         config.memory_config.max_query_memory = 100; // 很小的内存限制
         config.memory_config.spill_enabled = false; // 禁用溢出

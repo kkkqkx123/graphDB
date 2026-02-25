@@ -657,8 +657,8 @@ mod tests {
     use std::sync::Arc;
 use parking_lot::Mutex;
 
-    #[tokio::test]
-    async fn test_while_loop_executor() {
+    #[test]
+    fn test_while_loop_executor() {
         let storage = Arc::new(Mutex::new(MockStorage));
         let storage_clone = storage.clone();
 

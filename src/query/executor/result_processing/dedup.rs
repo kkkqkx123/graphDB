@@ -604,8 +604,8 @@ mod tests {
     use crate::storage::test_mock::MockStorage;
     use std::collections::HashMap;
 
-    #[tokio::test]
-    async fn test_dedup_executor_full_strategy() {
+    #[test]
+    fn test_dedup_executor_full_strategy() {
         let storage = Arc::new(Mutex::new(MockStorage));
 
         let mut executor = DedupExecutor::new(1, storage.clone(), DedupStrategy::Full, None);
@@ -650,8 +650,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_dedup_executor_by_keys_strategy() {
+    #[test]
+    fn test_dedup_executor_by_keys_strategy() {
         let storage = Arc::new(Mutex::new(MockStorage));
 
         let mut executor = DedupExecutor::<MockStorage>::new(

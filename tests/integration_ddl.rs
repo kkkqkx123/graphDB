@@ -21,7 +21,7 @@ use common::{
 use graphdb::core::Value;
 use graphdb::query::parser::Parser;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
-use graphdb::api::service::stats_manager::StatsManager;
+use graphdb::core::stats::StatsManager;
 use std::sync::Arc;
 
 // ==================== CREATE TAG 语句测试 ====================
@@ -187,7 +187,7 @@ fn test_create_edge_execution_basic() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "CREATE EDGE KNOWS(since: DATE)";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("CREATE EDGE基础执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -202,7 +202,7 @@ fn test_create_edge_execution_with_if_not_exists() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "CREATE EDGE IF NOT EXISTS KNOWS(since: DATE)";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("CREATE EDGE带IF NOT EXISTS执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -279,7 +279,7 @@ fn test_alter_tag_execution_add() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "ALTER TAG Person ADD (email: STRING)";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("ALTER TAG ADD执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -294,7 +294,7 @@ fn test_alter_tag_execution_drop() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "ALTER TAG Person DROP (temp_field)";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("ALTER TAG DROP执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -371,7 +371,7 @@ fn test_alter_edge_execution_add() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "ALTER EDGE KNOWS ADD (note: STRING)";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("ALTER EDGE ADD执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -386,7 +386,7 @@ fn test_alter_edge_execution_drop() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "ALTER EDGE KNOWS DROP (temp_field)";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("ALTER EDGE DROP执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -451,7 +451,7 @@ fn test_drop_tag_execution_basic() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "DROP TAG Person";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("DROP TAG基础执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -466,7 +466,7 @@ fn test_drop_tag_execution_with_if_exists() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "DROP TAG IF EXISTS Person";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("DROP TAG带IF EXISTS执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -531,7 +531,7 @@ fn test_drop_edge_execution_basic() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "DROP EDGE KNOWS";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("DROP EDGE基础执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -546,7 +546,7 @@ fn test_drop_edge_execution_with_if_exists() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "DROP EDGE IF EXISTS KNOWS";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("DROP EDGE带IF EXISTS执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -611,7 +611,7 @@ fn test_desc_execution_tag() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "DESCRIBE TAG Person";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("DESCRIBE TAG执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -626,7 +626,7 @@ fn test_desc_execution_edge() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "DESCRIBE EDGE KNOWS";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("DESCRIBE EDGE执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -653,7 +653,7 @@ fn test_ddl_tag_lifecycle() {
     ];
     
     for (i, query) in lifecycle_queries.iter().enumerate() {
-        let result = pipeline_manager.execute_query(query).await;
+        let result = pipeline_manager.execute_query(query);
         println!("DDL标签生命周期操作 {} 执行结果: {:?}", i + 1, result);
         assert!(result.is_ok() || result.is_err());
     }
@@ -678,7 +678,7 @@ fn test_ddl_edge_lifecycle() {
     ];
     
     for (i, query) in lifecycle_queries.iter().enumerate() {
-        let result = pipeline_manager.execute_query(query).await;
+        let result = pipeline_manager.execute_query(query);
         println!("DDL边类型生命周期操作 {} 执行结果: {:?}", i + 1, result);
         assert!(result.is_ok() || result.is_err());
     }
@@ -700,7 +700,7 @@ fn test_ddl_multiple_operations() {
     ];
     
     for (i, query) in create_queries.iter().enumerate() {
-        let result = pipeline_manager.execute_query(query).await;
+        let result = pipeline_manager.execute_query(query);
         println!("DDL创建操作 {} 执行结果: {:?}", i + 1, result);
         assert!(result.is_ok() || result.is_err());
     }
@@ -722,7 +722,7 @@ fn test_ddl_error_handling() {
     ];
     
     for query in invalid_queries {
-        let result = pipeline_manager.execute_query(query).await;
+        let result = pipeline_manager.execute_query(query);
         assert!(result.is_err(), "无效查询应该返回错误: {}", query);
     }
 }
@@ -743,7 +743,7 @@ fn test_ddl_if_not_exists_if_exists() {
     ];
     
     for (i, query) in queries.iter().enumerate() {
-        let result = pipeline_manager.execute_query(query).await;
+        let result = pipeline_manager.execute_query(query);
         println!("DDL IF NOT EXISTS/IF EXISTS操作 {} 执行结果: {:?}", i + 1, result);
         assert!(result.is_ok() || result.is_err());
     }
@@ -923,7 +923,7 @@ fn test_show_create_execution() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "SHOW CREATE TAG Person";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("SHOW CREATE执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());

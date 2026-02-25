@@ -174,8 +174,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_union_all_empty_left() {
+    #[test]
+    fn test_union_all_empty_left() {
         let storage = create_test_storage();
         let mut executor = UnionAllExecutor::new(
             2,
@@ -262,8 +262,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_union_all_both_empty() {
+    #[test]
+    fn test_union_all_both_empty() {
         let storage = create_test_storage();
         let mut executor = UnionAllExecutor::new(
             4,
@@ -302,8 +302,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_union_all_mismatched_columns() {
+    #[test]
+    fn test_union_all_mismatched_columns() {
         let storage = create_test_storage();
         let mut executor = UnionAllExecutor::new(
             5,
@@ -347,8 +347,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_union_all_preserve_duplicates() {
+    #[test]
+    fn test_union_all_preserve_duplicates() {
         let storage = create_test_storage();
         let mut executor =
             UnionAllExecutor::new(6, storage, "left_dup".to_string(), "right_dup".to_string());

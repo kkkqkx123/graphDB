@@ -377,8 +377,8 @@ mod tests {
     use std::sync::Arc;
 use parking_lot::Mutex;
 
-    #[tokio::test]
-    async fn test_append_vertices_executor() {
+    #[test]
+    fn test_append_vertices_executor() {
         let storage = Arc::new(Mutex::new(MockStorage));
 
         let vids = vec![

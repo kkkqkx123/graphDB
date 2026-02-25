@@ -254,7 +254,7 @@ use crate::query::executor::data_processing::join::hash_table::{
 };
 
 impl<S: StorageEngine> RightJoinExecutor<S> {
-    async fn execute_right_join(&mut self) -> DBResult<ExecutionResult> {
+    fn execute_right_join(&mut self) -> DBResult<ExecutionResult> {
         // ... 获取输入数据集 ...
 
         // 预计算列映射
@@ -337,7 +337,7 @@ use crate::query::executor::data_processing::join::hash_table::{
 };
 
 impl<S: StorageEngine + Send + 'static> FullOuterJoinExecutor<S> {
-    async fn execute_full_outer_join(&mut self) -> DBResult<ExecutionResult> {
+    fn execute_full_outer_join(&mut self) -> DBResult<ExecutionResult> {
         // ... 获取输入数据集 ...
 
         // 预计算列映射

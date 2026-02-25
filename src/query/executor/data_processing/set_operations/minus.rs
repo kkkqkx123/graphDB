@@ -155,8 +155,8 @@ mod tests {
         Arc::new(Mutex::new(storage))
     }
 
-    #[tokio::test]
-    async fn test_minus_basic() {
+    #[test]
+    fn test_minus_basic() {
         let storage = create_test_storage();
         let mut executor = MinusExecutor::new(
             1,
@@ -210,8 +210,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_minus_no_overlap() {
+    #[test]
+    fn test_minus_no_overlap() {
         let storage = create_test_storage();
         let mut executor = MinusExecutor::new(
             2,
@@ -258,8 +258,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_minus_all_overlap() {
+    #[test]
+    fn test_minus_all_overlap() {
         let storage = create_test_storage();
         let mut executor = MinusExecutor::new(
             3,
@@ -305,8 +305,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_minus_empty_left() {
+    #[test]
+    fn test_minus_empty_left() {
         let storage = create_test_storage();
         let mut executor = MinusExecutor::new(
             4,
@@ -349,8 +349,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_minus_empty_right() {
+    #[test]
+    fn test_minus_empty_right() {
         let storage = create_test_storage();
         let mut executor = MinusExecutor::new(
             5,
@@ -394,8 +394,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_minus_both_empty() {
+    #[test]
+    fn test_minus_both_empty() {
         let storage = create_test_storage();
         let mut executor = MinusExecutor::new(
             6,
@@ -434,8 +434,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_minus_with_duplicates() {
+    #[test]
+    fn test_minus_with_duplicates() {
         let storage = create_test_storage();
         let mut executor =
             MinusExecutor::new(7, storage, "left_dup".to_string(), "right_dup".to_string());
@@ -482,8 +482,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_minus_mismatched_columns() {
+    #[test]
+    fn test_minus_mismatched_columns() {
         let storage = create_test_storage();
         let mut executor = MinusExecutor::new(
             8,

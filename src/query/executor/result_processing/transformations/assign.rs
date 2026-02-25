@@ -160,8 +160,8 @@ mod tests {
     use std::sync::Arc;
 use parking_lot::Mutex;
 
-    #[tokio::test]
-    async fn test_assign_executor() {
+    #[test]
+    fn test_assign_executor() {
         let storage = Arc::new(Mutex::new(MockStorage));
 
         // 创建赋值项

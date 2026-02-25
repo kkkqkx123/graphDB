@@ -501,8 +501,8 @@ mod tests {
     use super::*;
     use crate::storage::test_mock::MockStorage;
 
-    #[tokio::test]
-    async fn test_sample_executor_random() {
+    #[test]
+    fn test_sample_executor_random() {
         let storage = Arc::new(Mutex::new(MockStorage));
 
         // 创建测试数据
@@ -541,8 +541,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_sample_executor_reservoir() {
+    #[test]
+    fn test_sample_executor_reservoir() {
         let storage = Arc::new(Mutex::new(MockStorage));
 
         // 创建测试数据

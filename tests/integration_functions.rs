@@ -10,9 +10,9 @@
 
 mod common;
 
-use graphdb::core::{Value, List, NullType};
+use graphdb::core::{Value, NullType, List};
 use graphdb::core::vertex_edge_path::{Tag, Vertex, Edge, Path, Step};
-use graphdb::expression::functions::registry::FunctionRegistry;
+use graphdb::expression::functions::FunctionRegistry;
 use std::collections::HashMap;
 
 /// 创建测试用的顶点

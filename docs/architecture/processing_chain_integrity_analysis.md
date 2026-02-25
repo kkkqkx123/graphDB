@@ -128,9 +128,9 @@ pub fn create_executor(node: &PlanNodeEnum) -> Result<ExecutorEnum, QueryError> 
 
 ```rust
 // Scheduler 调度执行
-pub async fn schedule(&mut self, executors: Vec<ExecutorEnum>) -> Result<ExecutionResult, QueryError> {
+pub fn schedule(&mut self, executors: Vec<ExecutorEnum>) -> Result<ExecutionResult, QueryError> {
     for executor in executors {
-        executor.execute().await?;
+        executor.execute()?;
     }
     // ...
 }
@@ -620,7 +620,7 @@ pub fn create_executor(node: &PlanNodeEnum) -> Result<ExecutorEnum, QueryError> 
 // 动态分发的开销
 fn set_input(&mut self, input: Box<dyn Executor<S>>) {
     // 每次调用都需要虚函数分派
-    input.execute().await; // 运行时类型查找
+    input.execute(); // 运行时类型查找
 }
 ```
 

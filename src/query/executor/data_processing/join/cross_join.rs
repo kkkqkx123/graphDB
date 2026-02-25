@@ -384,8 +384,8 @@ pub mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_cross_join_empty_table() {
+    #[test]
+    fn test_cross_join_empty_table() {
         let storage = Arc::new(Mutex::new(MockStorage));
 
         // 创建执行器
@@ -433,8 +433,8 @@ pub mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_cross_join_three_tables() {
+    #[test]
+    fn test_cross_join_three_tables() {
         let storage = Arc::new(Mutex::new(MockStorage));
 
         // 创建执行器

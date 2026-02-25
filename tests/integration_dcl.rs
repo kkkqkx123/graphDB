@@ -18,7 +18,7 @@ use common::{
 use graphdb::core::Value;
 use graphdb::query::parser::Parser;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
-use graphdb::api::service::stats_manager::StatsManager;
+use graphdb::core::stats::StatsManager;
 use std::sync::Arc;
 
 // ==================== CREATE USER 语句测试 ====================
@@ -80,7 +80,7 @@ fn test_create_user_execution_basic() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "CREATE USER alice WITH PASSWORD 'password123'";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("CREATE USER基础执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -95,7 +95,7 @@ fn test_create_user_execution_with_if_not_exists() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "CREATE USER IF NOT EXISTS alice WITH PASSWORD 'password123'";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("CREATE USER带IF NOT EXISTS执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -110,10 +110,10 @@ fn test_create_user_duplicate() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "CREATE USER alice WITH PASSWORD 'password123'";
-    let result1 = pipeline_manager.execute_query(query).await;
+    let result1 = pipeline_manager.execute_query(query);
     println!("第一次CREATE USER执行结果: {:?}", result1);
     
-    let result2 = pipeline_manager.execute_query(query).await;
+    let result2 = pipeline_manager.execute_query(query);
     println!("第二次CREATE USER执行结果: {:?}", result2);
     
     assert!(result1.is_ok() || result1.is_err());
@@ -167,7 +167,7 @@ fn test_alter_user_execution_basic() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "ALTER USER alice WITH PASSWORD 'newpassword123'";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("ALTER USER基础执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -182,7 +182,7 @@ fn test_alter_user_nonexistent() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "ALTER USER nonexistent_user WITH PASSWORD 'newpassword'";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("ALTER USER不存在用户执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -235,7 +235,7 @@ fn test_drop_user_execution_basic() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "DROP USER alice";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("DROP USER基础执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -250,7 +250,7 @@ fn test_drop_user_with_if_exists() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "DROP USER IF EXISTS alice";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("DROP USER带IF EXISTS执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -265,7 +265,7 @@ fn test_drop_user_nonexistent() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "DROP USER nonexistent_user";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("DROP USER不存在用户执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -280,7 +280,7 @@ fn test_drop_user_nonexistent_with_if_exists() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "DROP USER IF EXISTS nonexistent_user";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("DROP USER IF EXISTS不存在用户执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -333,7 +333,7 @@ fn test_change_password_execution_basic() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "CHANGE PASSWORD 'oldpassword' TO 'newpassword'";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("CHANGE PASSWORD基础执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -348,7 +348,7 @@ fn test_change_password_wrong_old_password() {
     let mut pipeline_manager = QueryPipelineManager::new(storage, stats_manager);
     
     let query = "CHANGE PASSWORD 'wrongpassword' TO 'newpassword'";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("CHANGE PASSWORD错误旧密码执行结果: {:?}", result);
     assert!(result.is_ok() || result.is_err());
@@ -372,7 +372,7 @@ fn test_dcl_user_lifecycle() {
     ];
     
     for (i, query) in lifecycle_queries.iter().enumerate() {
-        let result = pipeline_manager.execute_query(query).await;
+        let result = pipeline_manager.execute_query(query);
         println!("DCL用户生命周期操作 {} 执行结果: {:?}", i + 1, result);
         assert!(result.is_ok() || result.is_err());
     }
@@ -393,7 +393,7 @@ fn test_dcl_multiple_users() {
     ];
     
     for (i, query) in create_queries.iter().enumerate() {
-        let result = pipeline_manager.execute_query(query).await;
+        let result = pipeline_manager.execute_query(query);
         println!("DCL创建用户 {} 执行结果: {:?}", i + 1, result);
         assert!(result.is_ok() || result.is_err());
     }
@@ -405,7 +405,7 @@ fn test_dcl_multiple_users() {
     ];
     
     for (i, query) in drop_queries.iter().enumerate() {
-        let result = pipeline_manager.execute_query(query).await;
+        let result = pipeline_manager.execute_query(query);
         println!("DCL删除用户 {} 执行结果: {:?}", i + 1, result);
         assert!(result.is_ok() || result.is_err());
     }
@@ -427,7 +427,7 @@ fn test_dcl_if_not_exists_if_exists() {
     ];
     
     for (i, query) in queries.iter().enumerate() {
-        let result = pipeline_manager.execute_query(query).await;
+        let result = pipeline_manager.execute_query(query);
         println!("DCL IF NOT EXISTS/IF EXISTS操作 {} 执行结果: {:?}", i + 1, result);
         assert!(result.is_ok() || result.is_err());
     }
@@ -453,7 +453,7 @@ fn test_dcl_error_handling() {
     ];
     
     for query in invalid_queries {
-        let result = pipeline_manager.execute_query(query).await;
+        let result = pipeline_manager.execute_query(query);
         assert!(result.is_err(), "无效查询应该返回错误: {}", query);
     }
 }
@@ -473,7 +473,7 @@ fn test_dcl_password_security() {
     ];
     
     for (i, query) in password_queries.iter().enumerate() {
-        let result = pipeline_manager.execute_query(query).await;
+        let result = pipeline_manager.execute_query(query);
         println!("DCL密码安全操作 {} 执行结果: {:?}", i + 1, result);
         assert!(result.is_ok() || result.is_err());
     }
@@ -497,7 +497,7 @@ fn test_dcl_user_management_workflow() {
     ];
     
     for (i, query) in workflow_queries.iter().enumerate() {
-        let result = pipeline_manager.execute_query(query).await;
+        let result = pipeline_manager.execute_query(query);
         println!("DCL用户管理工作流操作 {} 执行结果: {:?}", i + 1, result);
         assert!(result.is_ok() || result.is_err());
     }
@@ -521,7 +521,7 @@ fn test_dcl_special_usernames() {
     ];
     
     for (i, query) in special_username_queries.iter().enumerate() {
-        let result = pipeline_manager.execute_query(query).await;
+        let result = pipeline_manager.execute_query(query);
         println!("DCL特殊用户名操作 {} 执行结果: {:?}", i + 1, result);
         assert!(result.is_ok() || result.is_err());
     }
@@ -610,7 +610,7 @@ fn test_grant_revoke_execution() {
     ];
     
     for (i, query) in queries.iter().enumerate() {
-        let result = pipeline_manager.execute_query(query).await;
+        let result = pipeline_manager.execute_query(query);
         println!("GRANT/REVOKE操作 {} 执行结果: {:?}", i + 1, result);
         assert!(result.is_ok() || result.is_err());
     }
@@ -645,7 +645,7 @@ fn test_describe_user_execution() {
     ];
     
     for (i, query) in queries.iter().enumerate() {
-        let result = pipeline_manager.execute_query(query).await;
+        let result = pipeline_manager.execute_query(query);
         println!("DESCRIBE USER操作 {} 执行结果: {:?}", i + 1, result);
         assert!(result.is_ok() || result.is_err());
     }
@@ -682,7 +682,7 @@ fn test_show_users_execution() {
     ];
     
     for (i, query) in queries.iter().enumerate() {
-        let result = pipeline_manager.execute_query(query).await;
+        let result = pipeline_manager.execute_query(query);
         println!("SHOW USERS操作 {} 执行结果: {:?}", i + 1, result);
         assert!(result.is_ok() || result.is_err());
     }
@@ -732,7 +732,7 @@ fn test_show_roles_execution() {
     ];
     
     for (i, query) in queries.iter().enumerate() {
-        let result = pipeline_manager.execute_query(query).await;
+        let result = pipeline_manager.execute_query(query);
         println!("SHOW ROLES操作 {} 执行结果: {:?}", i + 1, result);
         assert!(result.is_ok() || result.is_err());
     }
@@ -768,7 +768,7 @@ fn test_new_dcl_statements_lifecycle() {
     ];
     
     for (i, query) in lifecycle_queries.iter().enumerate() {
-        let result = pipeline_manager.execute_query(query).await;
+        let result = pipeline_manager.execute_query(query);
         println!("新DCL语句生命周期操作 {} 执行结果: {:?}", i + 1, result);
         assert!(result.is_ok() || result.is_err());
     }

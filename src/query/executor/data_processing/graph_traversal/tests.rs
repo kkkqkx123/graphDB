@@ -10,7 +10,7 @@ mod tests {
     use std::sync::Arc;
 use parking_lot::Mutex;
 
-    async fn create_test_graph(_test_name: &str) -> Arc<Mutex<MockStorage>> {
+    fn create_test_graph(_test_name: &str) -> Arc<Mutex<MockStorage>> {
         let storage = Arc::new(Mutex::new(MockStorage));
         let space = "default";
 
@@ -74,9 +74,9 @@ use parking_lot::Mutex;
         storage
     }
 
-    #[tokio::test]
-    async fn test_expand_executor() {
-        let storage = create_test_graph("expand").await;
+    #[test]
+    fn test_expand_executor() {
+        let storage = create_test_graph("expand");
         let executor = GraphTraversalExecutorFactory::create_expand_executor(
             1,
             storage,
@@ -96,9 +96,9 @@ use parking_lot::Mutex;
         assert_eq!(executor.get_max_depth(), Some(1));
     }
 
-    #[tokio::test]
-    async fn test_expand_all_executor() {
-        let storage = create_test_graph("expand_all").await;
+    #[test]
+    fn test_expand_all_executor() {
+        let storage = create_test_graph("expand_all");
         let executor = GraphTraversalExecutorFactory::create_expand_all_executor(
             2,
             storage,
@@ -114,9 +114,9 @@ use parking_lot::Mutex;
         assert_eq!(executor.get_max_depth(), Some(2));
     }
 
-    #[tokio::test]
-    async fn test_traverse_executor() {
-        let storage = create_test_graph("traverse").await;
+    #[test]
+    fn test_traverse_executor() {
+        let storage = create_test_graph("traverse");
         let executor = GraphTraversalExecutorFactory::create_traverse_executor(
             3,
             storage,
@@ -136,9 +136,9 @@ use parking_lot::Mutex;
         assert_eq!(executor.get_max_depth(), Some(3));
     }
 
-    #[tokio::test]
-    async fn test_shortest_path_executor() {
-        let storage = create_test_graph("shortest_path").await;
+    #[test]
+    fn test_shortest_path_executor() {
+        let storage = create_test_graph("shortest_path");
         let executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
             4,
             storage,
@@ -164,7 +164,7 @@ use parking_lot::Mutex;
     ///         \--(weight: 5)--> D --(weight: 1)--> C
     /// 最短路径(按权重): A->B->C (总权重: 3)
     /// 最短路径(按步数): A->B->C 或 A->D->C (都是2步)
-    async fn create_weighted_test_graph(_test_name: &str) -> Arc<Mutex<MockStorage>> {
+    fn create_weighted_test_graph(_test_name: &str) -> Arc<Mutex<MockStorage>> {
         let storage = Arc::new(Mutex::new(MockStorage));
         let space = "default";
 
@@ -248,9 +248,9 @@ use parking_lot::Mutex;
         storage
     }
 
-    #[tokio::test]
-    async fn test_weighted_shortest_path_with_property() {
-        let storage = create_weighted_test_graph("weighted_shortest_path_prop").await;
+    #[test]
+    fn test_weighted_shortest_path_with_property() {
+        let storage = create_weighted_test_graph("weighted_shortest_path_prop");
 
         // 使用属性权重创建执行器
         let executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
@@ -268,9 +268,9 @@ use parking_lot::Mutex;
         assert_eq!(executor.id(), 5);
     }
 
-    #[tokio::test]
-    async fn test_weighted_shortest_path_with_ranking() {
-        let storage = create_weighted_test_graph("weighted_shortest_path_ranking").await;
+    #[test]
+    fn test_weighted_shortest_path_with_ranking() {
+        let storage = create_weighted_test_graph("weighted_shortest_path_ranking");
 
         // 使用ranking作为权重创建执行器
         let executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
@@ -288,9 +288,9 @@ use parking_lot::Mutex;
         assert_eq!(executor.id(), 6);
     }
 
-    #[tokio::test]
-    async fn test_unweighted_shortest_path() {
-        let storage = create_weighted_test_graph("unweighted_shortest_path").await;
+    #[test]
+    fn test_unweighted_shortest_path() {
+        let storage = create_weighted_test_graph("unweighted_shortest_path");
 
         // 使用无权图配置创建执行器
         let executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
@@ -309,7 +309,7 @@ use parking_lot::Mutex;
     }
 
     // 创建带坐标属性的测试图，用于A*算法测试
-    async fn create_spatial_test_graph(_test_name: &str) -> Arc<Mutex<MockStorage>> {
+    fn create_spatial_test_graph(_test_name: &str) -> Arc<Mutex<MockStorage>> {
         let storage = Arc::new(Mutex::new(MockStorage));
         let space = "default";
 
@@ -410,9 +410,9 @@ use parking_lot::Mutex;
         storage
     }
 
-    #[tokio::test]
-    async fn test_astar_with_spatial_heuristic() {
-        let storage = create_spatial_test_graph("astar_spatial").await;
+    #[test]
+    fn test_astar_with_spatial_heuristic() {
+        let storage = create_spatial_test_graph("astar_spatial");
 
         // 使用A*算法，带空间启发式
         let executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
@@ -432,9 +432,9 @@ use parking_lot::Mutex;
         assert_eq!(executor.id(), 8);
     }
 
-    #[tokio::test]
-    async fn test_astar_without_heuristic() {
-        let storage = create_spatial_test_graph("astar_no_heuristic").await;
+    #[test]
+    fn test_astar_without_heuristic() {
+        let storage = create_spatial_test_graph("astar_no_heuristic");
 
         // 使用A*算法，但无启发式（退化为Dijkstra）
         let executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
@@ -454,9 +454,9 @@ use parking_lot::Mutex;
         assert_eq!(executor.id(), 9);
     }
 
-    #[tokio::test]
-    async fn test_astar_with_scale_heuristic() {
-        let storage = create_spatial_test_graph("astar_scale").await;
+    #[test]
+    fn test_astar_with_scale_heuristic() {
+        let storage = create_spatial_test_graph("astar_scale");
 
         // 使用A*算法，带固定缩放因子启发式
         let executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
@@ -476,10 +476,10 @@ use parking_lot::Mutex;
         assert_eq!(executor.id(), 10);
     }
 
-    #[tokio::test]
-    async fn test_weighted_path_query_integration() {
+    #[test]
+    fn test_weighted_path_query_integration() {
         // 测试完整的带权路径查询流程
-        let storage = create_weighted_test_graph("weighted_integration").await;
+        let storage = create_weighted_test_graph("weighted_integration");
 
         // 测试使用属性权重的Dijkstra算法
         let dijkstra_executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
@@ -504,9 +504,9 @@ use parking_lot::Mutex;
         ));
     }
 
-    #[tokio::test]
-    async fn test_algorithm_auto_selection_weighted() {
-        let storage = create_weighted_test_graph("auto_select_weighted").await;
+    #[test]
+    fn test_algorithm_auto_selection_weighted() {
+        let storage = create_weighted_test_graph("auto_select_weighted");
 
         // 创建带权重的执行器，验证自动选择Dijkstra算法
         let executor = GraphTraversalExecutorFactory::create_shortest_path_executor(
@@ -531,9 +531,9 @@ use parking_lot::Mutex;
         );
     }
 
-    #[tokio::test]
-    async fn test_algorithm_auto_selection_unweighted() {
-        let storage = create_test_graph("auto_select_unweighted").await;
+    #[test]
+    fn test_algorithm_auto_selection_unweighted() {
+        let storage = create_test_graph("auto_select_unweighted");
 
         // 创建无权重的执行器，验证使用BFS算法
         let executor = GraphTraversalExecutorFactory::create_shortest_path_executor(

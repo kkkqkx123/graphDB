@@ -15,7 +15,7 @@ pub mod embedded;
 
 // 便捷导出
 pub use core::{QueryApi, TransactionApi, SchemaApi, CoreError, CoreResult};
-pub use server::HttpServer;
+pub use server::{HttpServer, session};
 pub use embedded::{GraphDb, EmbeddedConfig};
 
 use crate::api::server::GraphService;

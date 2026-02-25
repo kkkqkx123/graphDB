@@ -361,8 +361,8 @@ mod tests {
     use std::sync::Arc;
 use parking_lot::Mutex;
 
-    #[tokio::test]
-    async fn test_unwind_executor() {
+    #[test]
+    fn test_unwind_executor() {
         let storage = Arc::new(Mutex::new(MockStorage));
 
         // 创建输入数据

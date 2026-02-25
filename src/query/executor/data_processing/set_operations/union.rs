@@ -133,8 +133,8 @@ mod tests {
         Arc::new(Mutex::new(storage))
     }
 
-    #[tokio::test]
-    async fn test_union_basic() {
+    #[test]
+    fn test_union_basic() {
         let storage = create_test_storage();
         let mut executor = UnionExecutor::new(
             1,
@@ -185,8 +185,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_union_empty_datasets() {
+    #[test]
+    fn test_union_empty_datasets() {
         let storage = create_test_storage();
         let mut executor = UnionExecutor::new(
             2,
@@ -225,8 +225,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_union_mismatched_columns() {
+    #[test]
+    fn test_union_mismatched_columns() {
         let storage = create_test_storage();
         let mut executor = UnionExecutor::new(
             3,

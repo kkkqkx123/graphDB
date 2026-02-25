@@ -147,8 +147,8 @@ mod tests {
         Arc::new(Mutex::new(storage))
     }
 
-    #[tokio::test]
-    async fn test_intersect_basic() {
+    #[test]
+    fn test_intersect_basic() {
         let storage = create_test_storage();
         let mut executor = IntersectExecutor::new(
             1,
@@ -292,8 +292,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_intersect_empty_right() {
+    #[test]
+    fn test_intersect_empty_right() {
         let storage = create_test_storage();
         let mut executor = IntersectExecutor::new(
             4,
@@ -336,8 +336,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_intersect_both_empty() {
+    #[test]
+    fn test_intersect_both_empty() {
         let storage = create_test_storage();
         let mut executor = IntersectExecutor::new(
             5,
@@ -376,8 +376,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_intersect_with_duplicates() {
+    #[test]
+    fn test_intersect_with_duplicates() {
         let storage = create_test_storage();
         let mut executor =
             IntersectExecutor::new(6, storage, "left_dup".to_string(), "right_dup".to_string());
@@ -423,8 +423,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_intersect_mismatched_columns() {
+    #[test]
+    fn test_intersect_mismatched_columns() {
         let storage = create_test_storage();
         let mut executor = IntersectExecutor::new(
             7,

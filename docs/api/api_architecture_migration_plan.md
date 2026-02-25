@@ -207,9 +207,9 @@ pub struct QueryEngine<S: StorageClient + 'static> {
 }
 
 impl<S: StorageClient + Clone + 'static> QueryEngine<S> {
-    pub async fn execute(&mut self, rctx: RequestContext) -> ExecutionResponse {
+    pub fn execute(&mut self, rctx: RequestContext) -> ExecutionResponse {
         // 核心逻辑在这里
-        match self.pipeline_manager.execute_query_with_space(...).await {
+        match self.pipeline_manager.execute_query_with_space(...) {
             Ok(result) => ExecutionResponse { result: Ok(...), ... },
             Err(e) => ExecutionResponse { result: Err(...), ... },
         }
@@ -243,7 +243,7 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
         }
     }
     
-    pub async fn execute(
+    pub fn execute(
         &mut self,
         query: &str,
         ctx: QueryContext,
@@ -261,7 +261,7 @@ impl<S: StorageClient + Clone + 'static> QueryApi<S> {
         let execution_result = self
             .pipeline_manager
             .execute_query_with_space(query, space_info)
-            .await
+            
             .map_err(|e| CoreError::QueryExecutionFailed(e.to_string()))?;
         
         Self::convert_to_query_result(execution_result)
@@ -296,7 +296,7 @@ impl<S: StorageClient + Clone + 'static> QueryEngine<S> {
         }
     }
     
-    pub async fn execute(&mut self, rctx: RequestContext) -> ExecutionResponse {
+    pub fn execute(&mut self, rctx: RequestContext) -> ExecutionResponse {
         // 转换为新的上下文
         let ctx = crate::api::core::QueryContext {
             space_id: None, // 从 rctx 提取
@@ -306,7 +306,7 @@ impl<S: StorageClient + Clone + 'static> QueryEngine<S> {
         };
         
         // 调用核心层
-        match self.query_api.execute(&rctx.statement, ctx).await {
+        match self.query_api.execute(&rctx.statement, ctx) {
             Ok(result) => ExecutionResponse {
                 result: Ok(format!("{:?}", result)),
                 latency_us: result.metadata.execution_time_ms * 1000,
@@ -706,8 +706,8 @@ pub use embedded::{GraphDatabase, Session};
 pub use server::HttpServer;
 
 // 服务启动函数（保留）
-pub async fn start_service(config_path: String) -> anyhow::Result<()> {
-    server::start_service(config_path).await
+pub fn start_service(config_path: String) -> anyhow::Result<()> {
+    server::start_service(config_path)
 }
 ```
 

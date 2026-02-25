@@ -15,7 +15,7 @@ use common::{
 
 use graphdb::query::parser::Parser;
 use graphdb::query::query_pipeline_manager::QueryPipelineManager;
-use graphdb::api::service::stats_manager::StatsManager;
+use graphdb::core::stats::StatsManager;
 use std::sync::Arc;
 
 // ==================== CREATE 节点测试 ====================
@@ -186,11 +186,11 @@ fn test_create_cypher_node_execution() {
     
     // 使用空间
     let use_space = "USE test_space";
-    let _ = pipeline_manager.execute_query(use_space).await;
+    let _ = pipeline_manager.execute_query(use_space);
     
     // 创建节点（Schema 应该自动推断）
     let query = "CREATE (n:Person {name: 'Alice', age: 30})";
-    let result = pipeline_manager.execute_query(query).await;
+    let result = pipeline_manager.execute_query(query);
     
     println!("CREATE节点执行结果: {:?}", result);
     // 记录结果，不强制断言，因为功能可能还在开发中

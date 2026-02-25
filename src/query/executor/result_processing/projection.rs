@@ -384,8 +384,8 @@ mod tests {
     use crate::core::{BinaryOperator, Expression};
     use crate::storage::test_mock::MockStorage;
 
-    #[tokio::test]
-    async fn test_simple_projection() {
+    #[test]
+    fn test_simple_projection() {
         let storage = Arc::new(Mutex::new(MockStorage));
 
         // 创建简单的投影：选择第一列
@@ -416,8 +416,8 @@ mod tests {
         assert_eq!(projected_dataset.rows[2], vec![Value::Int(3)]);
     }
 
-    #[tokio::test]
-    async fn test_expression_projection() {
+    #[test]
+    fn test_expression_projection() {
         let storage = Arc::new(Mutex::new(MockStorage));
 
         // 创建表达式投影：计算两列之和
@@ -452,8 +452,8 @@ mod tests {
         assert_eq!(projected_dataset.rows[2], vec![Value::Int(33)]);
     }
 
-    #[tokio::test]
-    async fn test_vertex_projection() {
+    #[test]
+    fn test_vertex_projection() {
         let storage = Arc::new(Mutex::new(MockStorage));
 
         // 创建顶点投影
@@ -515,8 +515,8 @@ mod tests {
         );
     }
 
-    #[tokio::test]
-    async fn test_edge_projection() {
+    #[test]
+    fn test_edge_projection() {
         let storage = Arc::new(Mutex::new(MockStorage));
 
         // 创建边投影

@@ -1061,8 +1061,8 @@ mod tests {
         assert_eq!(result, Value::Int(25));
     }
 
-    #[tokio::test]
-    async fn test_handle_empty_input() {
+    #[test]
+    fn test_handle_empty_input() {
         let storage = Arc::new(Mutex::new(crate::storage::MockStorage));
         let agg_funcs = vec![AggregateFunction::Count(None)];
 

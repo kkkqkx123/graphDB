@@ -352,8 +352,8 @@ mod tests {
     use std::sync::Arc;
 use parking_lot::Mutex;
 
-    #[tokio::test]
-    async fn test_pattern_apply_single_key_positive() {
+    #[test]
+    fn test_pattern_apply_single_key_positive() {
         let storage = Arc::new(Mutex::new(MockStorage));
         let mut context = crate::query::executor::base::ExecutionContext::new();
 
@@ -390,8 +390,8 @@ use parking_lot::Mutex;
         }
     }
 
-    #[tokio::test]
-    async fn test_pattern_apply_single_key_anti_predicate() {
+    #[test]
+    fn test_pattern_apply_single_key_anti_predicate() {
         let storage = Arc::new(Mutex::new(MockStorage));
         let mut context = crate::query::executor::base::ExecutionContext::new();
 
@@ -429,8 +429,8 @@ use parking_lot::Mutex;
         }
     }
 
-    #[tokio::test]
-    async fn test_pattern_apply_zero_key_exists() {
+    #[test]
+    fn test_pattern_apply_zero_key_exists() {
         let storage = Arc::new(Mutex::new(MockStorage));
         let mut context = crate::query::executor::base::ExecutionContext::new();
 

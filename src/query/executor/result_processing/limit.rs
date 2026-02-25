@@ -297,8 +297,8 @@ mod tests {
     use super::*;
     use crate::storage::test_mock::MockStorage;
 
-    #[tokio::test]
-    async fn test_limit_executor_basic() {
+    #[test]
+    fn test_limit_executor_basic() {
         let storage = Arc::new(Mutex::new(MockStorage));
 
         // 创建测试数据
@@ -334,8 +334,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_limit_executor_only_limit() {
+    #[test]
+    fn test_limit_executor_only_limit() {
         let storage = Arc::new(Mutex::new(MockStorage));
 
         // 创建测试数据

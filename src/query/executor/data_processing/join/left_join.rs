@@ -353,8 +353,8 @@ mod tests {
     use crate::core::Value;
     use crate::storage::test_mock::MockStorage;
 
-    #[tokio::test]
-    async fn test_left_join_single_key() {
+    #[test]
+    fn test_left_join_single_key() {
         let storage = Arc::new(Mutex::new(MockStorage));
 
         // 创建执行器

@@ -21,6 +21,7 @@ pub use iterator::*;
 pub use metadata::*;
 pub use operations::*;
 pub use redb_storage::*;
+pub use redb_storage::DefaultStorage;
 pub use storage_client::*;
 pub use index::*;
 pub use transactional_storage::*;

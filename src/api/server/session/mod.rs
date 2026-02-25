@@ -9,7 +9,7 @@ pub mod request_context;
 pub mod types;
 
 pub use network_session::{ClientSession, Session, SpaceInfo};
-pub use session_manager::{GraphSessionManager, SessionInfo};
-pub use query_manager::QueryManager;
+pub use session_manager::{GraphSessionManager, SessionInfo, DEFAULT_SESSION_IDLE_TIMEOUT};
+pub use query_manager::{QueryManager, QueryStatus};
 pub use request_context::RequestContext;
 pub use types::*;

@@ -240,7 +240,7 @@ impl NebulaService {
         let db = self.db.clone();
         let mut rx = self.shutdown_tx.subscribe();
         
-        self.runtime.spawn(async move {
+        self.runtime.spawn(move {
             // 启动 HTTP 服务
             let server = axum::Server::bind(&"0.0.0.0:8080".parse().unwrap())
                 .serve(app.into_make_service());

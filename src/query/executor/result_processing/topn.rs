@@ -1268,8 +1268,8 @@ mod tests {
     use super::*;
     use crate::storage::test_mock::MockStorage;
 
-    #[tokio::test]
-    async fn test_topn_executor_basic() {
+    #[test]
+    fn test_topn_executor_basic() {
         let storage = Arc::new(Mutex::new(MockStorage));
 
         // 创建测试数据
@@ -1303,8 +1303,8 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_topn_executor_with_offset() {
+    #[test]
+    fn test_topn_executor_with_offset() {
         let storage = Arc::new(Mutex::new(MockStorage));
 
         // 创建测试数据

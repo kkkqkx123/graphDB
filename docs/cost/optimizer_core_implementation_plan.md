@@ -150,16 +150,16 @@ impl<S: StorageClient> StatisticsCollector<S> {
     pub fn with_config(storage: S, config: AnalyzeConfig) -> Self;
     
     /// 分析单个表
-    pub async fn analyze_table(&mut self, table_name: &str) -> Result<TableStatistics, AnalyzeError>;
+    pub fn analyze_table(&mut self, table_name: &str) -> Result<TableStatistics, AnalyzeError>;
     
     /// 分析多个表
-    pub async fn analyze_tables(&mut self, table_names: &[String]) -> Vec<Result<TableStatistics, AnalyzeError>>;
+    pub fn analyze_tables(&mut self, table_names: &[String]) -> Vec<Result<TableStatistics, AnalyzeError>>;
     
     /// 分析所有表
-    pub async fn analyze_all(&mut self) -> Vec<Result<TableStatistics, AnalyzeError>>;
+    pub fn analyze_all(&mut self) -> Vec<Result<TableStatistics, AnalyzeError>>;
     
     /// 增量分析（仅分析变更的数据）
-    pub async fn analyze_incremental(&mut self, table_name: &str, since: SystemTime) -> Result<TableStatistics, AnalyzeError>;
+    pub fn analyze_incremental(&mut self, table_name: &str, since: SystemTime) -> Result<TableStatistics, AnalyzeError>;
 }
 ```
 

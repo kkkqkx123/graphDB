@@ -471,7 +471,7 @@ pub use config::DatabaseConfig as EmbeddedConfig;
 ```toml
 [features]
 default = []
-# 已移除：async 和 ffi 特性（过度设计）
+# 已移除：和 ffi 特性（过度设计）
 
 [dependencies]
 # 现有依赖...
@@ -556,10 +556,10 @@ mod tests {
     #[test]
     fn test_session_use_space() {
         let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(async {
-            let db = GraphDatabase::open_in_memory().await.unwrap();
+        rt.block_on({
+            let db = GraphDatabase::open_in_memory().unwrap();
             let mut session = db.session().unwrap();
-            session.use_space("test_space").await.unwrap();
+            session.use_space("test_space").unwrap();
             assert_eq!(session.current_space(), Some("test_space"));
         });
     }
@@ -597,7 +597,7 @@ let result = tokio::task::spawn_blocking(move || {
     let db = GraphDatabase::open("my_db")?;
     let session = db.session()?;
     session.execute("MATCH (n) RETURN n")
-}).await?;
+})?;
 ```
 
 ### 2. ~~C FFI 模块~~（已移除）
