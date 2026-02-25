@@ -22,7 +22,7 @@ impl<S: StorageClient> SchemaApi<S> {
     /// # 参数
     /// - `name`: 空间名称
     /// - `config`: 空间配置
-    pub async fn create_space(&self, name: &str, config: SpaceConfig) -> CoreResult<()> {
+    pub fn create_space(&self, name: &str, config: SpaceConfig) -> CoreResult<()> {
         // TODO: 实现创建空间逻辑
         // 这里需要调用 storage 的相应方法
         log::info!("创建图空间: {}, 配置: {:?}", name, config);
@@ -33,7 +33,7 @@ impl<S: StorageClient> SchemaApi<S> {
     ///
     /// # 参数
     /// - `name`: 空间名称
-    pub async fn drop_space(&self, name: &str) -> CoreResult<()> {
+    pub fn drop_space(&self, name: &str) -> CoreResult<()> {
         log::info!("删除图空间: {}", name);
         Ok(())
     }
@@ -42,7 +42,7 @@ impl<S: StorageClient> SchemaApi<S> {
     ///
     /// # 参数
     /// - `name`: 空间名称
-    pub async fn use_space(&self, name: &str) -> CoreResult<u64> {
+    pub fn use_space(&self, name: &str) -> CoreResult<u64> {
         log::info!("使用图空间: {}", name);
         // 返回空间 ID
         Ok(1)
@@ -54,7 +54,7 @@ impl<S: StorageClient> SchemaApi<S> {
     /// - `space_id`: 空间 ID
     /// - `name`: 标签名称
     /// - `properties`: 属性定义列表
-    pub async fn create_tag(
+    pub fn create_tag(
         &self,
         space_id: u64,
         name: &str,
@@ -69,7 +69,7 @@ impl<S: StorageClient> SchemaApi<S> {
     /// # 参数
     /// - `space_id`: 空间 ID
     /// - `name`: 标签名称
-    pub async fn drop_tag(&self, space_id: u64, name: &str) -> CoreResult<()> {
+    pub fn drop_tag(&self, space_id: u64, name: &str) -> CoreResult<()> {
         log::info!("删除标签: {} from space {}", name, space_id);
         Ok(())
     }
@@ -80,7 +80,7 @@ impl<S: StorageClient> SchemaApi<S> {
     /// - `space_id`: 空间 ID
     /// - `name`: 边类型名称
     /// - `properties`: 属性定义列表
-    pub async fn create_edge_type(
+    pub fn create_edge_type(
         &self,
         space_id: u64,
         name: &str,
@@ -95,7 +95,7 @@ impl<S: StorageClient> SchemaApi<S> {
     /// # 参数
     /// - `space_id`: 空间 ID
     /// - `name`: 边类型名称
-    pub async fn drop_edge_type(&self, space_id: u64, name: &str) -> CoreResult<()> {
+    pub fn drop_edge_type(&self, space_id: u64, name: &str) -> CoreResult<()> {
         log::info!("删除边类型: {} from space {}", name, space_id);
         Ok(())
     }
@@ -106,7 +106,7 @@ impl<S: StorageClient> SchemaApi<S> {
     /// - `space_id`: 空间 ID
     /// - `name`: 索引名称
     /// - `target`: 索引目标（标签或边类型）
-    pub async fn create_index(
+    pub fn create_index(
         &self,
         space_id: u64,
         name: &str,
@@ -121,7 +121,7 @@ impl<S: StorageClient> SchemaApi<S> {
     /// # 参数
     /// - `space_id`: 空间 ID
     /// - `name`: 索引名称
-    pub async fn drop_index(&self, space_id: u64, name: &str) -> CoreResult<()> {
+    pub fn drop_index(&self, space_id: u64, name: &str) -> CoreResult<()> {
         log::info!("删除索引: {} from space {}", name, space_id);
         Ok(())
     }
@@ -133,7 +133,7 @@ impl<S: StorageClient> SchemaApi<S> {
     ///
     /// # 返回
     /// Schema 描述字符串
-    pub async fn describe_schema(&self, space_id: u64) -> CoreResult<String> {
+    pub fn describe_schema(&self, space_id: u64) -> CoreResult<String> {
         log::info!("查看 Schema: space {}", space_id);
         Ok(format!("Schema of space {}", space_id))
     }

@@ -219,7 +219,7 @@ impl PermissionChecker {
 
     /// 检查用户读取权限
     /// 业务逻辑：用户可以读取自己的信息
-    fn check_read_user(&self, username: &str, target_user: Option<&str>, session: &ClientSession) -> Result<()> {
+    fn check_read_user(&self, username: &str, target_user: Option<&str>, _session: &ClientSession) -> Result<()> {
         // 用户可以读取自己的信息
         if let Some(target) = target_user {
             if username == target {

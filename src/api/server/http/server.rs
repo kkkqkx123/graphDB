@@ -56,6 +56,31 @@ impl<S: StorageClient + Clone + 'static> HttpServer<S> {
     pub fn get_stats_manager(&self) -> &StatsManager {
         &self.stats_manager
     }
+
+    /// 获取查询 API
+    pub fn get_query_api(&self) -> &QueryApi<S> {
+        &self.query_api
+    }
+
+    /// 获取事务 API
+    pub fn get_txn_api(&self) -> &TransactionApi {
+        &self.txn_api
+    }
+
+    /// 获取 Schema API
+    pub fn get_schema_api(&self) -> &SchemaApi<S> {
+        &self.schema_api
+    }
+
+    /// 获取认证服务
+    pub fn get_auth_service(&self) -> &PasswordAuthenticator {
+        &self.auth_service
+    }
+
+    /// 获取权限管理器
+    pub fn get_permission_manager(&self) -> &PermissionManager {
+        &self.permission_manager
+    }
 }
 
 /// 查询请求

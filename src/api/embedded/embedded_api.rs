@@ -2,13 +2,14 @@
 //!
 //! 提供单机使用的嵌入式 GraphDB 接口，类似 SQLite 的使用方式
 
-use crate::api::core::{QueryApi, TransactionApi, SchemaApi, QueryContext, CoreResult};
-use crate::storage::StorageClient;
+use crate::api::core::{QueryApi, TransactionApi, SchemaApi, QueryContext, CoreResult, SpaceConfig};
+use crate::storage::RedbStorage;
 use crate::transaction::{TransactionManager, TransactionOptions};
 use crate::api::core::TransactionHandle;
 use crate::core::value::types::Value;
 use std::sync::Arc;
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 /// 嵌入式 GraphDB 数据库
 ///
@@ -35,27 +36,49 @@ use std::collections::HashMap;
 /// # Ok(())
 /// # }
 /// ```
-pub struct GraphDb<S: StorageClient + Clone + 'static> {
-    query_api: QueryApi<S>,
+pub struct GraphDb {
+    query_api: QueryApi<RedbStorage>,
     txn_api: TransactionApi,
-    schema_api: SchemaApi<S>,
-    storage: Arc<S>,
+    schema_api: SchemaApi<RedbStorage>,
+    storage: Arc<RedbStorage>,
     txn_manager: Arc<TransactionManager>,
 }
 
-impl<S: StorageClient + Clone + 'static> GraphDb<S> {
+impl GraphDb {
     /// 打开或创建数据库
     ///
     /// # 参数
-    /// - `_path` - 数据库文件路径，使用 ":memory:" 表示内存数据库
+    /// - `path` - 数据库文件路径，使用 ":memory:" 表示内存数据库
     ///
     /// # 返回
     /// - 成功时返回 GraphDb 实例
     /// - 失败时返回错误
-    pub fn open(_path: &str) -> CoreResult<Self> {
-        // 这里需要初始化存储和事务管理器
-        // 暂时使用默认实现
-        todo!("实现数据库打开逻辑")
+    pub fn open(path: &str) -> CoreResult<Self> {
+        let storage = if path == ":memory:" {
+            Arc::new(RedbStorage::new().map_err(|e| 
+                crate::api::core::CoreError::StorageError(format!("初始化存储失败: {}", e)))?)
+        } else {
+            Arc::new(RedbStorage::new_with_path(PathBuf::from(path)).map_err(|e| 
+                crate::api::core::CoreError::StorageError(format!("初始化存储失败: {}", e)))?)
+        };
+        
+        let db = storage.get_db().clone();
+        let txn_manager = Arc::new(TransactionManager::new(
+            db,
+            crate::transaction::TransactionManagerConfig::default()
+        ));
+        
+        let query_api = QueryApi::new(storage.clone());
+        let txn_api = TransactionApi::new(txn_manager.clone());
+        let schema_api = SchemaApi::new(storage.clone());
+        
+        Ok(Self {
+            query_api,
+            txn_api,
+            schema_api,
+            storage,
+            txn_manager,
+        })
     }
 
     /// 执行查询语句
@@ -181,12 +204,51 @@ impl<S: StorageClient + Clone + 'static> GraphDb<S> {
     /// - 失败时返回错误
     pub fn close(self) -> CoreResult<()> {
         // 清理资源
+        drop(self.storage);
+        drop(self.txn_manager);
         Ok(())
     }
 
     /// 检查数据库是否关闭
     pub fn is_closed(&self) -> bool {
         false
+    }
+
+    /// 创建图空间
+    ///
+    /// # 参数
+    /// - `name` - 空间名称
+    /// - `config` - 空间配置
+    ///
+    /// # 返回
+    /// - 成功时返回 ()
+    /// - 失败时返回错误
+    pub fn create_space(&self, name: &str, config: SpaceConfig) -> CoreResult<()> {
+        self.schema_api.create_space(name, config)
+    }
+
+    /// 删除图空间
+    ///
+    /// # 参数
+    /// - `name` - 空间名称
+    ///
+    /// # 返回
+    /// - 成功时返回 ()
+    /// - 失败时返回错误
+    pub fn drop_space(&self, name: &str) -> CoreResult<()> {
+        self.schema_api.drop_space(name)
+    }
+
+    /// 使用图空间
+    ///
+    /// # 参数
+    /// - `name` - 空间名称
+    ///
+    /// # 返回
+    /// - 成功时返回空间 ID
+    /// - 失败时返回错误
+    pub fn use_space(&self, name: &str) -> CoreResult<u64> {
+        self.schema_api.use_space(name)
     }
 }
 
