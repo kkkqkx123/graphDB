@@ -15,12 +15,11 @@ use graphdb::api::session::{
     DEFAULT_SESSION_IDLE_TIMEOUT,
 };
 use graphdb::api::session::client_session::{Session, SpaceInfo};
-use graphdb::api::service::{
-    Authenticator, PasswordAuthenticator, PermissionManager, Permission,
-    StatsManager, MetricType, GraphService,
-};
-use graphdb::api::service::permission_manager::RoleType;
-use graphdb::api::service::stats_manager::QueryMetrics;
+use graphdb::api::service::GraphService;
+use graphdb::api::server::auth::{Authenticator, PasswordAuthenticator};
+use graphdb::api::server::permission::{PermissionManager, Permission};
+use graphdb::api::server::stats::{StatsManager, MetricType};
+use graphdb::core::{RoleType, QueryMetrics};
 use graphdb::config::Config;
 use graphdb::storage::redb_storage::DefaultStorage;
 

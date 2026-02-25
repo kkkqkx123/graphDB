@@ -5,7 +5,7 @@
 use std::sync::{Arc, RwLock};
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use crate::api::session::RequestContext;
+use crate::query::request_context::RequestContext;
 use crate::core::types::SpaceInfo;
 use crate::core::SymbolTable;
 use crate::query::planner::plan::ExecutionPlan;
@@ -232,8 +232,8 @@ impl QueryContext {
     }
 
     /// 获取请求参数
-    pub fn request_params(&self) -> crate::api::session::RequestParams {
-        self.rctx.request_params()
+    pub fn request_params(&self) -> crate::query::request_context::RequestParams {
+        self.rctx.request_params().clone()
     }
 
     /// 重置查询上下文

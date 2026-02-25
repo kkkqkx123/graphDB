@@ -1,12 +1,25 @@
+//! GraphDB API 模块
+//!
+//! 提供多种访问方式：
+//! - `core` - 核心 API（与传输层无关）
+//! - `server` - 网络服务 API（HTTP）
+//! - `embedded` - 嵌入式 API（单机使用）
+
 use anyhow::Result;
 use log::info;
 use std::sync::Arc;
 use tokio::signal;
 
-pub mod service;
-pub mod session;
+pub mod core;
+pub mod server;
+pub mod embedded;
 
-use crate::api::service::GraphService;
+// 便捷导出
+pub use core::{QueryApi, TransactionApi, SchemaApi, CoreError, CoreResult};
+pub use server::HttpServer;
+pub use embedded::{GraphDb, EmbeddedConfig};
+
+use crate::api::server::GraphService;
 use crate::config::Config;
 use crate::storage::redb_storage::DefaultStorage;
 use crate::transaction::{TransactionManager, SavepointManager, TransactionManagerConfig};
@@ -81,7 +94,7 @@ pub async fn execute_query(query_str: &str) -> Result<()> {
         Ok(session) => session,
         Err(e) => {
             eprintln!("Failed to create session: {}", e);
-            return Err(anyhow::anyhow!(e));
+            return Err(anyhow::anyhow!("Failed to create session: {}", e));
         }
     };
 

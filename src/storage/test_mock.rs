@@ -16,7 +16,7 @@ use crate::core::error::StorageError;
 #[cfg(test)]
 use crate::storage::StorageClient;
 #[cfg(test)]
-use crate::api::service::permission_manager::RoleType;
+use crate::core::RoleType;
 #[cfg(test)]
 use crate::core::types::{
     EdgeTypeSchema, InsertEdgeInfo, InsertVertexInfo, PasswordInfo,

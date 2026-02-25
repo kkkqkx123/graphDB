@@ -270,7 +270,7 @@ impl StatementValidator for LimitValidator {
 mod tests {
     use super::*;
     use crate::query::parser::ast::Stmt;
-    use crate::api::session::{RequestContext, RequestParams};
+    use crate::query::request_context::{RequestContext, RequestParams};
 
     /// 创建测试用的 QueryContext，带有有效的 space_id
     fn create_test_query_context() -> Arc<QueryContext> {

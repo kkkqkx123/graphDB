@@ -12,7 +12,9 @@ pub mod executor;
 pub mod parser;
 pub mod planner;
 pub mod query_context;
+pub mod query_manager;
 pub mod query_pipeline_manager;
+pub mod request_context;
 pub mod validator;
 // Re-export error types from core module
 pub use crate::core::{DBResult, QueryError};
@@ -22,3 +24,5 @@ pub use executor::base::ExecutionResult;
 pub use query_pipeline_manager::QueryPipelineManager;
 // Re-export new QueryContext
 pub use query_context::QueryContext;
+// Re-export QueryManager
+pub use query_manager::{QueryManager, QueryInfo, QueryStatus, QueryStats, GLOBAL_QUERY_MANAGER, init_global_query_manager, get_global_query_manager};

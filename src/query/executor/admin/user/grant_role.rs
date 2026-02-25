@@ -5,7 +5,7 @@
 use std::sync::Arc;
 use parking_lot::Mutex;
 
-use crate::api::service::permission_manager::RoleType;
+use crate::core::RoleType;
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
 

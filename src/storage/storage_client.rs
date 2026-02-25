@@ -6,7 +6,7 @@ use crate::core::types::{
 use crate::core::types::{UserInfo, UserAlterInfo};
 use crate::index::Index;
 use crate::storage::Schema;
-use crate::api::service::permission_manager::RoleType;
+use crate::core::RoleType;
 
 pub trait StorageClient: Send + Sync + std::fmt::Debug {
     fn get_vertex(&self, space: &str, id: &Value) -> Result<Option<Vertex>, StorageError>;

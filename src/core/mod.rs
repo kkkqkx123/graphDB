@@ -8,6 +8,8 @@ pub mod npath;
 // 新增的子模块
 pub mod types;
 pub mod symbol;
+pub mod permission;
+pub mod stats;
 
 // 错误和结果类型
 pub use error::{
@@ -38,3 +40,9 @@ pub use symbol::{Symbol, SymbolTable};
 
 // 其他核心类型
 pub use type_system::TypeUtils;
+
+// 权限类型
+pub use permission::{Permission, RoleType};
+
+// 统计类型
+pub use stats::{StatsManager, QueryMetrics, QueryProfile, MetricType, MetricValue, QueryPhase, ErrorType, ErrorInfo, ErrorSummary, QueryStatus};

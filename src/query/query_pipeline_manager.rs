@@ -7,7 +7,7 @@
 //! 4. 管理查询上下文和性能监控
 //! 5. 查询计划缓存
 
-use crate::api::service::stats_manager::{QueryMetrics, QueryProfile, StatsManager, ErrorInfo, ErrorType, QueryPhase};
+use crate::core::{QueryMetrics, QueryProfile, StatsManager, ErrorInfo, ErrorType, QueryPhase};
 use crate::query::QueryContext;
 use crate::core::error::{DBError, DBResult, QueryError};
 use crate::query::executor::factory::ExecutorFactory;

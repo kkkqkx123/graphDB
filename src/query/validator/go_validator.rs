@@ -505,7 +505,7 @@ mod tests {
     use crate::core::Expression;
     use crate::query::parser::ast::stmt::{GoStmt, FromClause, OverClause, Steps};
     use crate::query::parser::ast::Span;
-    use crate::api::session::{RequestContext, RequestParams};
+    use crate::query::request_context::{RequestContext, RequestParams};
     use std::sync::Arc;
 
     /// 创建测试用的 QueryContext，带有有效的 space_id

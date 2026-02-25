@@ -1,10 +1,12 @@
-use crate::api::service::{
-    Authenticator, AuthenticatorFactory, MetricType, PasswordAuthenticator, PermissionManager, QueryEngine, StatsManager,
-};
-use crate::api::session::{ClientSession, GraphSessionManager};
+use crate::api::server::auth::{Authenticator, AuthenticatorFactory, PasswordAuthenticator};
+use crate::api::server::permission::PermissionManager;
+use crate::api::server::stats::{StatsManager, MetricType};
+use crate::api::server::QueryEngine;
+use crate::api::server::session::{ClientSession, GraphSessionManager};
 use crate::config::Config;
 use crate::storage::StorageClient;
 use crate::core::error::{SessionError, SessionResult};
+use crate::core::{Permission, StatsManager as CoreStatsManager};
 use crate::transaction::{SavepointManager, TransactionManager};
 use std::sync::Arc;
 use parking_lot::Mutex;
@@ -162,16 +164,16 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         result
     }
     
-    async fn get_space_info(&self, space_name: &str) -> Result<crate::api::session::client_session::SpaceInfo, String> {
+    async fn get_space_info(&self, space_name: &str) -> Result<crate::api::server::session::client_session::SpaceInfo, String> {
         // 从存储中获取空间信息
         match self.storage.get_space(space_name) {
-            Ok(Some(space)) => Ok(crate::api::session::client_session::SpaceInfo {
+            Ok(Some(space)) => Ok(crate::api::server::session::client_session::SpaceInfo {
                 name: space_name.to_string(),
                 id: space.space_id as i64,
             }),
             Ok(None) => {
                 // 空间不存在，返回一个默认的空间信息（用于测试）
-                Ok(crate::api::session::client_session::SpaceInfo {
+                Ok(crate::api::server::session::client_session::SpaceInfo {
                     name: space_name.to_string(),
                     id: 1, // 默认空间ID
                 })
@@ -180,7 +182,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
                 let error_msg = format!("{}", e);
                 if error_msg.contains("Table 'spaces' does not exist") {
                     // 表不存在，返回默认空间信息
-                    Ok(crate::api::session::client_session::SpaceInfo {
+                    Ok(crate::api::server::session::client_session::SpaceInfo {
                         name: space_name.to_string(),
                         id: 1, // 默认空间ID
                     })
@@ -217,7 +219,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             }
         }
 
-        let request_context = crate::api::service::query_processor::RequestContext {
+        let request_context = crate::api::server::query_processor::RequestContext {
             session_id,
             statement: stmt.to_string(),
             parameters: std::collections::HashMap::new(),
@@ -236,19 +238,19 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         }
     }
 
-    fn extract_permission_from_statement(&self, stmt: &str) -> crate::api::service::Permission {
+    fn extract_permission_from_statement(&self, stmt: &str) -> Permission {
         let stmt_upper = stmt.trim().to_uppercase();
 
         if stmt_upper.starts_with("SELECT") || stmt_upper.starts_with("MATCH") {
-            crate::api::service::Permission::Read
+            Permission::Read
         } else if stmt_upper.starts_with("INSERT") || stmt_upper.starts_with("CREATE") {
-            crate::api::service::Permission::Write
+            Permission::Write
         } else if stmt_upper.starts_with("DELETE") || stmt_upper.starts_with("DROP") {
-            crate::api::service::Permission::Delete
+            Permission::Delete
         } else if stmt_upper.starts_with("ALTER") || stmt_upper.starts_with("ADD") {
-            crate::api::service::Permission::Schema
+            Permission::Schema
         } else {
-            crate::api::service::Permission::Read
+            Permission::Read
         }
     }
 
@@ -279,12 +281,12 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
     }
 
     /// 获取会话列表（SHOW SESSIONS）
-    pub fn list_sessions(&self) -> Vec<crate::api::session::SessionInfo> {
+    pub fn list_sessions(&self) -> Vec<crate::api::server::session::SessionInfo> {
         self.session_manager.list_sessions()
     }
 
     /// 获取指定会话的详细信息
-    pub fn get_session_info(&self, session_id: i64) -> Option<crate::api::session::SessionInfo> {
+    pub fn get_session_info(&self, session_id: i64) -> Option<crate::api::server::session::SessionInfo> {
         self.session_manager.get_session_info(session_id)
     }
 

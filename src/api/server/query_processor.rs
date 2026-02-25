@@ -1,8 +1,8 @@
 use std::sync::Arc;
 use parking_lot::Mutex;
 
-use crate::api::session::ClientSession;
-use crate::api::service::StatsManager;
+use crate::api::server::session::ClientSession;
+use crate::core::StatsManager;
 use crate::query::QueryPipelineManager;
 use crate::storage::StorageClient;
 use crate::transaction::TransactionId;

@@ -321,7 +321,7 @@ impl StorageClient for DummyStorage {
         Ok(true)
     }
 
-    fn grant_role(&mut self, _username: &str, _space_id: u64, _role: crate::api::service::permission_manager::RoleType) -> Result<bool, crate::core::StorageError> {
+    fn grant_role(&mut self, _username: &str, _space_id: u64, _role: crate::core::RoleType) -> Result<bool, crate::core::StorageError> {
         Ok(true)
     }
 

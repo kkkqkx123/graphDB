@@ -1,7 +1,8 @@
 use anyhow::{anyhow, Result};
 
-use crate::api::session::ClientSession;
-use crate::api::service::permission_manager::{Permission, PermissionManager, RoleType};
+use crate::api::server::session::ClientSession;
+use crate::api::server::permission::PermissionManager;
+use crate::core::{Permission, RoleType};
 use crate::config::AuthConfig;
 
 /// 操作类型 - 对应不同的权限检查

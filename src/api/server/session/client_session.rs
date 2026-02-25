@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use std::time::Instant;
 
-use crate::api::service::permission_manager::RoleType;
+use crate::core::RoleType;
 use crate::core::error::{SessionError, QueryResult};
 use crate::transaction::{SavepointId, TransactionId, TransactionOptions};
 

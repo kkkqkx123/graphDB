@@ -14,7 +14,7 @@ use crate::storage::serializer::{vertex_to_bytes, edge_to_bytes};
 use crate::storage::metadata::{RedbExtendedSchemaManager, ExtendedSchemaManager, SchemaManager, RedbSchemaManager, IndexMetadataManager, RedbIndexMetadataManager};
 use crate::storage::operations::{RedbReader, RedbWriter};
 use crate::storage::index::{RedbIndexDataManager, IndexDataManager};
-use crate::api::service::permission_manager::RoleType;
+use crate::core::RoleType;
 use redb::Database;
 use std::collections::HashMap;
 use std::path::PathBuf;

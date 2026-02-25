@@ -126,7 +126,7 @@ impl SegmentsConnector {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::session::{RequestContext, RequestParams};
+    use crate::query::request_context::{RequestContext, RequestParams};
     use std::sync::Arc;
 
     fn create_test_query_context() -> QueryContext {
