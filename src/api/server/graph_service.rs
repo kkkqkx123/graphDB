@@ -17,7 +17,7 @@ pub struct GraphService<S: StorageClient + Clone + 'static> {
     pipeline_manager: Arc<Mutex<QueryPipelineManager<S>>>,
     authenticator: PasswordAuthenticator,
     permission_manager: Arc<PermissionManager>,
-    stats_manager: Arc<StatsManager>,
+    pub stats_manager: Arc<StatsManager>,
     storage: Arc<S>,
     
     // 事务管理相关
@@ -283,12 +283,16 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         self.session_manager.remove_session(session_id);
     }
 
-    pub fn get_session_manager(&self) -> &GraphSessionManager {
+    pub fn get_session_manager(&self) -> &Arc<GraphSessionManager> {
         &self.session_manager
     }
 
-    pub fn get_permission_manager(&self) -> &PermissionManager {
+    pub fn get_permission_manager(&self) -> &Arc<PermissionManager> {
         &self.permission_manager
+    }
+
+    pub fn get_stats_manager(&self) -> &Arc<StatsManager> {
+        &self.stats_manager
     }
 
     /// 获取会话列表（SHOW SESSIONS）

@@ -6,6 +6,7 @@ use crate::api::core::{QueryApi, TransactionApi, SchemaApi};
 use crate::api::server::auth::PasswordAuthenticator;
 use crate::api::server::session::GraphSessionManager;
 use crate::api::server::permission::PermissionManager;
+use crate::api::server::graph_service::GraphService;
 use crate::core::StatsManager;
 use crate::storage::StorageClient;
 use crate::transaction::TransactionManager;
@@ -16,6 +17,7 @@ use parking_lot::Mutex;
 
 /// HTTP 服务器
 pub struct HttpServer<S: StorageClient + Clone + 'static> {
+    graph_service: Arc<GraphService<S>>,
     query_api: QueryApi<S>,
     txn_api: TransactionApi,
     schema_api: SchemaApi<S>,
@@ -28,24 +30,28 @@ pub struct HttpServer<S: StorageClient + Clone + 'static> {
 impl<S: StorageClient + Clone + 'static> HttpServer<S> {
     /// 创建新的 HTTP 服务器
     pub fn new(
+        graph_service: Arc<GraphService<S>>,
         storage: Arc<Mutex<S>>,
         txn_manager: Arc<TransactionManager>,
         config: &Config,
     ) -> Self {
-        let session_idle_timeout = Duration::from_secs(config.transaction.default_timeout * 10);
+        let _session_idle_timeout = Duration::from_secs(config.transaction.default_timeout * 10);
+        
         Self {
+            graph_service: graph_service.clone(),
             query_api: QueryApi::new(storage.clone()),
             txn_api: TransactionApi::new(txn_manager.clone()),
             schema_api: SchemaApi::new(storage.clone()),
             auth_service: PasswordAuthenticator::new_default(config.auth.clone()),
-            session_manager: GraphSessionManager::new(
-                format!("{}:{}", config.database.host, config.database.port),
-                config.database.max_connections,
-                session_idle_timeout,
-            ),
-            permission_manager: Arc::new(PermissionManager::new()),
-            stats_manager: Arc::new(StatsManager::new()),
+            session_manager: Arc::clone(&graph_service.get_session_manager()),
+            permission_manager: Arc::clone(&graph_service.get_permission_manager()),
+            stats_manager: Arc::clone(&graph_service.stats_manager),
         }
+    }
+
+    /// 获取 GraphService
+    pub fn get_graph_service(&self) -> &GraphService<S> {
+        &self.graph_service
     }
 
     /// 获取会话管理器
@@ -82,19 +88,4 @@ impl<S: StorageClient + Clone + 'static> HttpServer<S> {
     pub fn get_permission_manager(&self) -> &PermissionManager {
         &self.permission_manager
     }
-}
-
-/// 查询请求
-#[derive(Debug, Clone)]
-pub struct QueryRequest {
-    pub query: String,
-    pub session_id: i64,
-    pub parameters: std::collections::HashMap<String, String>,
-}
-
-/// 查询响应
-#[derive(Debug, Clone)]
-pub struct QueryResponse {
-    pub result: Result<String, String>,
-    pub execution_time_ms: u64,
 }

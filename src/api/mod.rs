@@ -138,3 +138,55 @@ pub fn shutdown_signal() {
 // - HTTP API for graph queries
 // - Metrics and health check endpoints
 // - Admin operations
+
+/// 使用异步运行时启动 HTTP 服务器
+pub async fn start_http_server<S: crate::storage::StorageClient + Clone + Send + Sync + 'static>(
+    server: Arc<HttpServer<S>>,
+    config: &Config,
+) -> Result<()> {
+    use axum::serve;
+    use tokio::net::TcpListener;
+    
+    let state = crate::api::server::http::AppState::new(server);
+    let app = crate::api::server::http::router::create_router(state);
+    
+    let addr = format!("{}:{}", config.host(), config.port());
+    let listener = TcpListener::bind(&addr).await?;
+    
+    info!("HTTP server listening on {}", addr);
+    
+    serve(listener, app)
+        .with_graceful_shutdown(async_shutdown_signal())
+        .await?;
+    
+    Ok(())
+}
+
+/// 异步关闭信号
+async fn async_shutdown_signal() {
+    use tokio::signal;
+    
+    let ctrl_c = async {
+        signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        signal::unix::signal(signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = terminate => {},
+    }
+    
+    info!("shutdown signal received, starting graceful shutdown");
+}
