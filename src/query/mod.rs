@@ -14,7 +14,7 @@ pub mod planner;
 pub mod query_context;
 pub mod query_manager;
 pub mod query_pipeline_manager;
-pub mod request_context;
+pub mod query_request_context;
 pub mod validator;
 // Re-export error types from core module
 pub use crate::core::{DBResult, QueryError};

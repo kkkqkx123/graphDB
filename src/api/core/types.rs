@@ -102,8 +102,8 @@ pub struct PropertyDef {
 /// 索引目标类型
 #[derive(Debug, Clone)]
 pub enum IndexTarget {
-    Tag { name: String },
-    Edge { name: String },
+    Tag { name: String, fields: Vec<String> },
+    Edge { name: String, fields: Vec<String> },
 }
 
 /// 空间配置

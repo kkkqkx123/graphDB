@@ -433,13 +433,12 @@ mod tests {
     use super::*;
     use crate::query::parser::ast::stmt::{LookupStmt, LookupTarget, YieldClause};
     use crate::query::parser::ast::Span;
-    use crate::query::request_context::{RequestContext, RequestParams};
+    use crate::query::query_request_context::QueryRequestContext;
     use std::sync::Arc;
 
     /// 创建测试用的 QueryContext，带有有效的 space_id
     fn create_test_query_context() -> Arc<QueryContext> {
-        let request_params = RequestParams::new("TEST".to_string());
-        let rctx = Arc::new(RequestContext::new(None, request_params));
+        let rctx = Arc::new(QueryRequestContext::new("TEST".to_string()));
         let qctx = QueryContext::new(rctx);
         let space_info = crate::core::types::SpaceInfo::new("test_space".to_string());
         qctx.set_space_info(space_info);

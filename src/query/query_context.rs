@@ -5,7 +5,7 @@
 use std::sync::{Arc, RwLock};
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use crate::query::request_context::RequestContext;
+use crate::query::query_request_context::QueryRequestContext;
 use crate::core::types::SpaceInfo;
 use crate::core::SymbolTable;
 use crate::query::planner::plan::ExecutionPlan;
@@ -33,8 +33,8 @@ use crate::core::types::CharsetInfo;
 /// - 添加 space_info 字段，替代 AstContext 中的 space 字段
 /// - 删除 Clone 实现，强制使用 Arc<QueryContext>
 pub struct QueryContext {
-    /// 请求上下文
-    rctx: Arc<RequestContext>,
+    /// 查询请求上下文
+    rctx: Arc<QueryRequestContext>,
 
     /// 执行计划
     plan: RwLock<Option<Box<ExecutionPlan>>>,
@@ -69,7 +69,7 @@ pub struct QueryContext {
 
 impl QueryContext {
     /// 创建新的查询上下文
-    pub fn new(rctx: Arc<RequestContext>) -> Self {
+    pub fn new(rctx: Arc<QueryRequestContext>) -> Self {
         Self {
             rctx,
             plan: RwLock::new(None),
@@ -85,18 +85,18 @@ impl QueryContext {
         }
     }
 
-    /// 获取请求上下文
-    pub fn request_context(&self) -> &RequestContext {
+    /// 获取查询请求上下文
+    pub fn request_context(&self) -> &QueryRequestContext {
         &self.rctx
     }
 
-    /// 获取请求上下文的 Arc 引用
-    pub fn request_context_arc(&self) -> Arc<RequestContext> {
+    /// 获取查询请求上下文的 Arc 引用
+    pub fn request_context_arc(&self) -> Arc<QueryRequestContext> {
         self.rctx.clone()
     }
 
-    /// 获取请求上下文（兼容旧代码）
-    pub fn rctx(&self) -> &RequestContext {
+    /// 获取查询请求上下文（兼容旧代码）
+    pub fn rctx(&self) -> &QueryRequestContext {
         &self.rctx
     }
 
@@ -225,9 +225,14 @@ impl QueryContext {
         self.rctx.get_parameter(param).is_some()
     }
 
-    /// 获取请求参数
-    pub fn request_params(&self) -> crate::query::request_context::RequestParams {
-        self.rctx.request_params().clone()
+    /// 获取查询字符串
+    pub fn query(&self) -> &str {
+        &self.rctx.query
+    }
+
+    /// 获取参数
+    pub fn parameters(&self) -> &std::collections::HashMap<String, crate::core::Value> {
+        &self.rctx.parameters
     }
 
     /// 重置查询上下文
@@ -254,6 +259,6 @@ impl std::fmt::Debug for QueryContext {
 
 impl Default for QueryContext {
     fn default() -> Self {
-        Self::new(Arc::new(RequestContext::default()))
+        Self::new(Arc::new(QueryRequestContext::default()))
     }
 }

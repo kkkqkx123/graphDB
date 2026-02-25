@@ -1,6 +1,6 @@
 use crate::api::server::auth::{Authenticator, AuthenticatorFactory, PasswordAuthenticator};
 use crate::api::server::permission::PermissionManager;
-use crate::api::server::session::{ClientSession, GraphSessionManager, SpaceInfo};
+use crate::api::server::session::{ClientSession, GraphSessionManager, SpaceInfo, build_query_request_context};
 use crate::config::Config;
 use crate::storage::StorageClient;
 use crate::core::error::{SessionError, SessionResult};
@@ -241,8 +241,15 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             }
         });
 
+        // 从会话创建 QueryRequestContext
+        let rctx = Arc::new(build_query_request_context(
+            &session,
+            stmt.to_string(),
+            std::collections::HashMap::new(),
+        ));
+
         let mut pipeline_manager = self.pipeline_manager.lock();
-        let result = pipeline_manager.execute_query_with_space(stmt, space_info);
+        let result = pipeline_manager.execute_query_with_request(stmt, rctx, space_info);
 
         match result {
             Ok(exec_result) => Ok(format!("{:?}", exec_result)),

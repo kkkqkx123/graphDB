@@ -88,6 +88,31 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         self.execute_plan(query_context, optimized_plan)
     }
 
+    /// 使用 QueryRequestContext 执行查询
+    /// 
+    /// 这个方法允许 api 层传递完整的会话信息到 query 层
+    pub fn execute_query_with_request(
+        &mut self,
+        query_text: &str,
+        rctx: Arc<crate::query::query_request_context::QueryRequestContext>,
+        space_info: Option<crate::core::types::SpaceInfo>,
+    ) -> DBResult<ExecutionResult> {
+        let query_context = self.create_query_context_with_request(rctx)?;
+        
+        // 设置空间信息
+        if let Some(space) = space_info {
+            query_context.set_space_info(space);
+        }
+        
+        let query_context = Arc::new(query_context);
+        let stmt = self.parse_into_context(query_text)?;
+
+        self.validate_query(query_context.clone(), &stmt)?;
+        let execution_plan = self.generate_execution_plan(query_context.clone(), &stmt)?;
+        let optimized_plan = self.optimize_execution_plan(query_context.clone(), execution_plan)?;
+        self.execute_plan(query_context, optimized_plan)
+    }
+
     pub fn execute_query_with_metrics(
         &mut self,
         query_text: &str,
@@ -211,8 +236,21 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         Ok((result, metrics, profile))
     }
 
-    fn create_query_context(&self, _query_text: &str) -> DBResult<QueryContext> {
-        Ok(QueryContext::default())
+    /// 创建查询上下文（使用默认配置）
+    fn create_query_context(&self, query_text: &str) -> DBResult<QueryContext> {
+        use crate::query::query_request_context::QueryRequestContext;
+        let rctx = Arc::new(QueryRequestContext::new(query_text.to_string()));
+        Ok(QueryContext::new(rctx))
+    }
+
+    /// 从 QueryRequestContext 创建查询上下文
+    /// 
+    /// 这个方法允许 api 层传递会话信息到 query 层
+    pub fn create_query_context_with_request(
+        &self,
+        rctx: Arc<crate::query::query_request_context::QueryRequestContext>,
+    ) -> DBResult<QueryContext> {
+        Ok(QueryContext::new(rctx))
     }
 
     fn parse_into_context(

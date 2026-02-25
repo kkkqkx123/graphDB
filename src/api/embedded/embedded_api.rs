@@ -10,6 +10,7 @@ use crate::core::value::types::Value;
 use std::sync::Arc;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use parking_lot::Mutex;
 
 /// 嵌入式 GraphDB 数据库
 ///
@@ -40,7 +41,7 @@ pub struct GraphDb {
     query_api: QueryApi<RedbStorage>,
     txn_api: TransactionApi,
     schema_api: SchemaApi<RedbStorage>,
-    storage: Arc<RedbStorage>,
+    storage: Arc<Mutex<RedbStorage>>,
     txn_manager: Arc<TransactionManager>,
 }
 
@@ -55,14 +56,14 @@ impl GraphDb {
     /// - 失败时返回错误
     pub fn open(path: &str) -> CoreResult<Self> {
         let storage = if path == ":memory:" {
-            Arc::new(RedbStorage::new().map_err(|e| 
-                crate::api::core::CoreError::StorageError(format!("初始化存储失败: {}", e)))?)
+            Arc::new(Mutex::new(RedbStorage::new().map_err(|e| 
+                crate::api::core::CoreError::StorageError(format!("初始化存储失败: {}", e)))?))
         } else {
-            Arc::new(RedbStorage::new_with_path(PathBuf::from(path)).map_err(|e| 
-                crate::api::core::CoreError::StorageError(format!("初始化存储失败: {}", e)))?)
+            Arc::new(Mutex::new(RedbStorage::new_with_path(PathBuf::from(path)).map_err(|e| 
+                crate::api::core::CoreError::StorageError(format!("初始化存储失败: {}", e)))?))
         };
         
-        let db = storage.get_db().clone();
+        let db = storage.lock().get_db().clone();
         let txn_manager = Arc::new(TransactionManager::new(
             db,
             crate::transaction::TransactionManagerConfig::default()

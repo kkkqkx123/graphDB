@@ -17,11 +17,10 @@ pub struct QueryApi<S: StorageClient + 'static> {
 
 impl<S: StorageClient + Clone + 'static> QueryApi<S> {
     /// 创建新的 QueryApi 实例
-    pub fn new(storage: Arc<S>) -> Self {
-        let storage_mutex = Arc::new(Mutex::new((*storage).clone()));
+    pub fn new(storage: Arc<Mutex<S>>) -> Self {
         let stats_manager = Arc::new(StatsManager::new());
         Self {
-            pipeline_manager: QueryPipelineManager::new(storage_mutex, stats_manager),
+            pipeline_manager: QueryPipelineManager::new(storage, stats_manager),
         }
     }
 

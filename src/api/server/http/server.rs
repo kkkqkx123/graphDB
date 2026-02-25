@@ -12,6 +12,7 @@ use crate::transaction::TransactionManager;
 use crate::config::Config;
 use std::sync::Arc;
 use std::time::Duration;
+use parking_lot::Mutex;
 
 /// HTTP 服务器
 pub struct HttpServer<S: StorageClient + Clone + 'static> {
@@ -27,7 +28,7 @@ pub struct HttpServer<S: StorageClient + Clone + 'static> {
 impl<S: StorageClient + Clone + 'static> HttpServer<S> {
     /// 创建新的 HTTP 服务器
     pub fn new(
-        storage: Arc<S>,
+        storage: Arc<Mutex<S>>,
         txn_manager: Arc<TransactionManager>,
         config: &Config,
     ) -> Self {
