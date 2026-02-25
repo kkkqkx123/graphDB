@@ -506,8 +506,8 @@ mod tests {
         assert!(session_manager.find_session(session_id).is_none());
     }
 
-    #[test]
-    fn test_cleanup_task_lifecycle() {
+    #[tokio::test]
+    async fn test_cleanup_task_lifecycle() {
         let session_manager = create_test_session_manager();
 
         // 初始状态：清理任务未运行

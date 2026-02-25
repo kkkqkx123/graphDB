@@ -76,6 +76,33 @@ impl PermissionManager {
         user_roles.get(username).cloned().unwrap_or_default()
     }
 
+    /// 列出用户的所有角色
+    /// 返回 Vec<(space_id, role)>，包含用户在所有Space的角色
+    pub fn list_user_roles(&self, username: &str) -> Vec<(i64, RoleType)> {
+        let user_roles = self.user_roles.read();
+        user_roles
+            .get(username)
+            .map(|roles| {
+                roles
+                    .iter()
+                    .map(|(&space_id, &role)| (space_id, role))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    /// 列出Space中的所有用户及其角色
+    /// 返回 Vec<(username, role)>，包含指定Space中的所有用户
+    pub fn list_space_users(&self, space_id: i64) -> Vec<(String, RoleType)> {
+        let user_roles = self.user_roles.read();
+        user_roles
+            .iter()
+            .filter_map(|(username, roles)| {
+                roles.get(&space_id).map(|&role| (username.clone(), role))
+            })
+            .collect()
+    }
+
     // ==================== 角色查询（基础查询） ====================
 
     /// 检查用户是否是God角色
@@ -251,5 +278,54 @@ mod tests {
         // God 角色在任何空间都有权限
         assert!(pm.check_permission("root", 999, Permission::Write).is_ok());
         assert!(pm.check_permission("root", 999, Permission::Read).is_ok());
+    }
+
+    #[test]
+    fn test_list_user_roles() {
+        let pm = PermissionManager::new();
+
+        // 给用户在不同Space授予不同角色
+        pm.grant_role("multi_user", 1, RoleType::Admin).unwrap();
+        pm.grant_role("multi_user", 2, RoleType::User).unwrap();
+        pm.grant_role("multi_user", 3, RoleType::Guest).unwrap();
+
+        // 列出用户所有角色
+        let roles = pm.list_user_roles("multi_user");
+        assert_eq!(roles.len(), 3);
+
+        // 验证包含正确的角色
+        let role_map: HashMap<i64, RoleType> = roles.into_iter().collect();
+        assert_eq!(role_map.get(&1), Some(&RoleType::Admin));
+        assert_eq!(role_map.get(&2), Some(&RoleType::User));
+        assert_eq!(role_map.get(&3), Some(&RoleType::Guest));
+
+        // 不存在的用户返回空列表
+        let empty_roles = pm.list_user_roles("nonexistent");
+        assert!(empty_roles.is_empty());
+    }
+
+    #[test]
+    fn test_list_space_users() {
+        let pm = PermissionManager::new();
+        let space_id = 1i64;
+
+        // 给多个用户授予角色
+        pm.grant_role("user1", space_id, RoleType::User).unwrap();
+        pm.grant_role("user2", space_id, RoleType::Admin).unwrap();
+        pm.grant_role("user3", space_id, RoleType::Guest).unwrap();
+
+        // 列出Space中的所有用户
+        let users = pm.list_space_users(space_id);
+        assert_eq!(users.len(), 3);
+
+        // 验证包含正确的用户和角色
+        let user_map: HashMap<String, RoleType> = users.into_iter().collect();
+        assert_eq!(user_map.get("user1"), Some(&RoleType::User));
+        assert_eq!(user_map.get("user2"), Some(&RoleType::Admin));
+        assert_eq!(user_map.get("user3"), Some(&RoleType::Guest));
+
+        // 空的Space返回空列表
+        let empty_users = pm.list_space_users(999);
+        assert!(empty_users.is_empty());
     }
 }

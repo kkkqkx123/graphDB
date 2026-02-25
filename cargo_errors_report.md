@@ -2,47 +2,37 @@
 
 ## Summary
 
-- **Total Errors**: 0
-- **Total Warnings**: 3
-- **Total Issues**: 3
-- **Unique Error Patterns**: 0
-- **Unique Warning Patterns**: 3
-- **Files with Issues**: 3
+- **Total Errors**: 1
+- **Total Warnings**: 0
+- **Total Issues**: 1
+- **Unique Error Patterns**: 1
+- **Unique Warning Patterns**: 0
+- **Files with Issues**: 1
 
 ## Error Statistics
 
-**Total Errors**: 0
+**Total Errors**: 1
+
+### Error Type Breakdown
+
+- **error[E0425]**: 1 errors
+
+### Files with Errors (Top 10)
+
+- `src\query\planner\statements\match_statement_planner.rs`: 1 errors
 
 ## Warning Statistics
 
-**Total Warnings**: 3
+**Total Warnings**: 0
 
-### Warning Type Breakdown
+## Detailed Error Categorization
 
-- **warning**: 3 warnings
+### error[E0425]: cannot find value `_space_id` in this scope: help: a local variable with a similar name exists: `space_id`
 
-### Files with Warnings (Top 10)
+**Total Occurrences**: 1  
+**Unique Files**: 1
 
-- `src\api\server\permission\permission_checker.rs`: 1 warnings
-- `src\api\server\http\server.rs`: 1 warnings
-- `src\api\embedded\embedded_api.rs`: 1 warnings
+#### `src\query\planner\statements\match_statement_planner.rs`: 1 occurrences
 
-## Detailed Warning Categorization
-
-### warning: fields `schema_api`, `storage`, and `txn_manager` are never read
-
-**Total Occurrences**: 3  
-**Unique Files**: 3
-
-#### `src\api\embedded\embedded_api.rs`: 1 occurrences
-
-- Line 41: fields `schema_api`, `storage`, and `txn_manager` are never read
-
-#### `src\api\server\permission\permission_checker.rs`: 1 occurrences
-
-- Line 222: unused variable: `session`: help: if this is intentional, prefix it with an underscore: `_session`
-
-#### `src\api\server\http\server.rs`: 1 occurrences
-
-- Line 18: fields `query_api`, `txn_api`, `schema_api`, `auth_service`, and `permission_manager` are never read
+- Line 641: cannot find value `_space_id` in this scope: help: a local variable with a similar name exists: `space_id`
 

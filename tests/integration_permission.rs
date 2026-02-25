@@ -70,13 +70,12 @@ fn test_grant_multiple_roles_to_user() {
     assert_eq!(pm.get_role("multi_role_user", 2), Some(RoleType::User));
     assert_eq!(pm.get_role("multi_role_user", 3), Some(RoleType::Guest));
 
-    // TODO: 实现 list_user_roles 方法后再启用此测试
-    // let user_roles = pm.list_user_roles("multi_role_user");
-    // assert_eq!(user_roles.len(), 3, "用户应该有3个角色");
+    // 测试 list_user_roles 方法
+    let user_roles = pm.list_user_roles("multi_role_user");
+    assert_eq!(user_roles.len(), 3, "用户应该有3个角色");
 }
 
 #[test]
-#[ignore]
 fn test_list_space_users() {
     let pm = PermissionManager::new();
     let space_id = 1i64;
@@ -86,15 +85,15 @@ fn test_list_space_users() {
     pm.grant_role("user2", space_id, RoleType::Admin).expect("授予Admin角色应该成功");
     pm.grant_role("user3", space_id, RoleType::Guest).expect("授予Guest角色应该成功");
 
-    // TODO: 实现 list_space_users 方法后再启用此测试
-    // let space_users = pm.list_space_users(space_id);
-    // assert_eq!(space_users.len(), 3, "Space中应该有3个用户");
+    // 测试 list_space_users 方法
+    let space_users = pm.list_space_users(space_id);
+    assert_eq!(space_users.len(), 3, "Space中应该有3个用户");
 
     // 验证包含正确的用户
-    // let usernames: Vec<String> = space_users.iter().map(|(name, _)| name.clone()).collect();
-    // assert!(usernames.contains(&"user1".to_string()));
-    // assert!(usernames.contains(&"user2".to_string()));
-    // assert!(usernames.contains(&"user3".to_string()));
+    let usernames: Vec<String> = space_users.iter().map(|(name, _)| name.clone()).collect();
+    assert!(usernames.contains(&"user1".to_string()));
+    assert!(usernames.contains(&"user2".to_string()));
+    assert!(usernames.contains(&"user3".to_string()));
 }
 
 // ==================== 角色权限检查测试 ====================
@@ -707,9 +706,8 @@ fn test_complete_permission_workflow() {
     assert!(checker.permission_manager().check_permission("user1", space_id, Permission::Schema).is_err());
 
     // 6. 列出Space中的所有用户
-    // TODO: 实现 list_space_users 方法后再启用此测试
-    // let users = checker.permission_manager().list_space_users(space_id);
-    // assert_eq!(users.len(), 3);
+    let users = checker.permission_manager().list_space_users(space_id);
+    assert_eq!(users.len(), 3);
 
     // 7. 撤销角色
     checker.permission_manager().revoke_role("user1", space_id).expect("撤销角色应该成功");

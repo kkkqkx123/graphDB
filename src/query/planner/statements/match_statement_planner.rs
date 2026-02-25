@@ -10,6 +10,7 @@
 //! - 智能扫描策略选择（索引扫描、属性扫描、全表扫描）
 
 use crate::core::Expression;
+use crate::core::SymbolTable;
 use crate::query::QueryContext;
 use crate::query::parser::ast::Stmt;
 use crate::query::parser::ast::pattern::{Pattern, PathElement, RepetitionType};
@@ -74,7 +75,8 @@ impl Planner for MatchStatementPlanner {
 
     fn transform(&mut self, stmt: &Stmt, qctx: Arc<QueryContext>) -> Result<SubPlan, PlannerError> {
         let space_id = qctx.space_id().unwrap_or(1);
-        self.plan_match_pattern(stmt, space_id)
+        let sym_table = qctx.sym_table();
+        self.plan_match_pattern(stmt, space_id, sym_table)
     }
 
     fn transform_with_full_context(
@@ -109,6 +111,7 @@ impl MatchStatementPlanner {
         &self,
         stmt: &crate::query::parser::ast::Stmt,
         space_id: u64,
+        sym_table: &SymbolTable,
     ) -> Result<SubPlan, PlannerError> {
         match stmt {
             crate::query::parser::ast::Stmt::Match(match_stmt) => {
@@ -119,12 +122,12 @@ impl MatchStatementPlanner {
                 } else {
                     // 处理第一个路径模式
                     let first_pattern = &match_stmt.patterns[0];
-                    self.plan_path_pattern(first_pattern, space_id)?
+                    self.plan_path_pattern(first_pattern, space_id, sym_table)?
                 };
 
                 // 处理额外的路径模式（使用交叉连接）
                 for pattern in match_stmt.patterns.iter().skip(1) {
-                    let path_plan = self.plan_path_pattern(pattern, space_id)?;
+                    let path_plan = self.plan_path_pattern(pattern, space_id, sym_table)?;
                     plan = self.cross_join_plans(plan, path_plan)?;
                 }
 
@@ -157,6 +160,7 @@ impl MatchStatementPlanner {
         &self,
         pattern: &Pattern,
         space_id: u64,
+        sym_table: &SymbolTable,
     ) -> Result<SubPlan, PlannerError> {
         match pattern {
             Pattern::Path(path) => {
@@ -221,6 +225,7 @@ impl MatchStatementPlanner {
                                 patterns,
                                 space_id,
                                 prev_node_alias.as_deref(),
+                                sym_table,
                             )?;
                             plan = if let Some(existing_root) = plan.root.take() {
                                 self.cross_join_plans(
@@ -270,7 +275,7 @@ impl MatchStatementPlanner {
                 Ok(plan)
             }
             // 非路径模式委托给 plan_pattern 处理
-            _ => self.plan_pattern(pattern, space_id),
+            _ => self.plan_pattern(pattern, space_id, sym_table),
         }
     }
 
@@ -602,6 +607,7 @@ impl MatchStatementPlanner {
         patterns: &[Pattern],
         space_id: u64,
         _prev_alias: Option<&str>,
+        sym_table: &SymbolTable,
     ) -> Result<SubPlan, PlannerError> {
         if patterns.is_empty() {
             return Err(PlannerError::PlanGenerationFailed(
@@ -610,11 +616,11 @@ impl MatchStatementPlanner {
         }
 
         // 规划第一个路径选项
-        let mut plan = self.plan_pattern(&patterns[0], space_id)?;
+        let mut plan = self.plan_pattern(&patterns[0], space_id, sym_table)?;
 
         // 将剩余路径选项通过并集合并
         for pattern in patterns.iter().skip(1) {
-            let pattern_plan = self.plan_pattern(pattern, space_id)?;
+            let pattern_plan = self.plan_pattern(pattern, space_id, sym_table)?;
             plan = self.union_plans(plan, pattern_plan)?;
         }
 
@@ -626,54 +632,60 @@ impl MatchStatementPlanner {
         &self,
         pattern: &Pattern,
         space_id: u64,
+        sym_table: &SymbolTable,
     ) -> Result<SubPlan, PlannerError> {
         match pattern {
             Pattern::Node(node) => self.plan_pattern_node(node, space_id),
             Pattern::Edge(edge) => self.plan_pattern_edge(edge, space_id),
-            Pattern::Path(_) => self.plan_path_pattern(pattern, space_id),
-            Pattern::Variable(var) => self.plan_variable_pattern(var, space_id),
+            Pattern::Path(_) => self.plan_path_pattern(pattern, space_id, sym_table),
+            Pattern::Variable(var) => self.plan_variable_pattern(var, space_id, sym_table),
         }
     }
 
     /// 规划变量模式
-    /// 
+    ///
     /// 变量模式引用之前定义的变量，使用 ArgumentNode 作为数据源
     /// 参考 nebula-graph 的 VariableVertexIdSeek 实现
-    /// 
+    ///
     /// # 设计说明
-    /// 
+    ///
     /// 变量模式用于引用之前 MATCH 子句中定义的变量，例如：
     /// ```cypher
     /// MATCH (a), a RETURN a
     /// ```
     /// 在这个例子中，第二个 `a` 是变量模式，引用第一个 `(a)` 定义的节点。
-    /// 
+    ///
     /// # 执行流程
-    /// 
+    ///
     /// 1. 创建 ArgumentNode 来标记需要从执行上下文中获取变量
     /// 2. 在执行阶段，ArgumentExecutor 从 ExecutionContext 中获取变量值
     /// 3. 如果变量不存在，返回执行错误
-    /// 
-    /// # TODO
-    /// 
-    /// - 添加变量存在性验证（在规划阶段检查变量是否已定义）
-    /// - 添加变量类型检查
-    /// - 建立与之前定义变量的数据流连接
     fn plan_variable_pattern(
         &self,
         var: &crate::query::parser::ast::pattern::VariablePattern,
         _space_id: u64,
+        sym_table: &SymbolTable,
     ) -> Result<SubPlan, PlannerError> {
+        // 使用 SymbolTable 验证变量是否存在
+        if !sym_table.has_variable(&var.name) {
+            return Err(PlannerError::PlanGenerationFailed(
+                format!("变量 '{}' 未定义", var.name)
+            ));
+        }
+
+        // 获取变量信息（用于类型检查）
+        let _var_info = sym_table.get_variable_info(&var.name)
+            .ok_or_else(|| PlannerError::PlanGenerationFailed(
+                format!("无法获取变量 '{}' 的信息", var.name)
+            ))?;
+
         // 创建 ArgumentNode 来引用变量
         // ArgumentNode 表示从外部变量输入数据，用于子查询或模式引用
-        // 注意：ArgumentNode 使用 ZeroInputNode 作为输入类型，表示它不依赖其他计划节点
-        // 变量值将在执行阶段从 ExecutionContext 中获取
         let argument_node = ArgumentNode::new(0, &var.name);
-        
+
         // 创建 SubPlan，只包含 ArgumentNode
-        // 由于变量值来自执行上下文，不需要连接其他计划节点
         let sub_plan = SubPlan::from_root(argument_node.into_enum());
-        
+
         Ok(sub_plan)
     }
 
