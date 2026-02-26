@@ -36,20 +36,11 @@ pub enum ManagerError {
     #[error("Schema错误: {0}")]
     SchemaError(String),
 
-    #[error("索引错误: {0}")]
-    IndexError(String),
-
     #[error("事务错误: {0}")]
     TransactionError(String),
 
-    #[error("连接错误: {0}")]
-    ConnectionError(String),
-
     #[error("超时错误: {0}")]
     TimeoutError(String),
-
-    #[error("权限错误: {0}")]
-    PermissionError(String),
 
     #[error("其他错误: {0}")]
     Other(String),
@@ -60,7 +51,6 @@ impl ManagerError {
     pub fn category(&self) -> ErrorCategory {
         match self {
             ManagerError::StorageError(_)
-            | ManagerError::ConnectionError(_)
             | ManagerError::TimeoutError(_) => ErrorCategory::Retryable,
             _ => ErrorCategory::NonRetryable,
         }
@@ -96,29 +86,14 @@ impl ManagerError {
         Self::SchemaError(msg.into())
     }
 
-    /// 创建索引错误
-    pub fn index_error(msg: impl Into<String>) -> Self {
-        Self::IndexError(msg.into())
-    }
-
     /// 创建事务错误
     pub fn transaction_error(msg: impl Into<String>) -> Self {
         Self::TransactionError(msg.into())
     }
 
-    /// 创建连接错误
-    pub fn connection_error(msg: impl Into<String>) -> Self {
-        Self::ConnectionError(msg.into())
-    }
-
     /// 创建超时错误
     pub fn timeout_error(msg: impl Into<String>) -> Self {
         Self::TimeoutError(msg.into())
-    }
-
-    /// 创建权限错误
-    pub fn permission_error(msg: impl Into<String>) -> Self {
-        Self::PermissionError(msg.into())
     }
 }
 
@@ -132,7 +107,6 @@ impl ToPublicError for ManagerError {
             ManagerError::NotFound(_) => ErrorCode::ResourceNotFound,
             ManagerError::AlreadyExists(_) => ErrorCode::ResourceAlreadyExists,
             ManagerError::InvalidInput(_) => ErrorCode::InvalidInput,
-            ManagerError::PermissionError(_) => ErrorCode::PermissionDenied,
             ManagerError::TimeoutError(_) => ErrorCode::Timeout,
             _ => ErrorCode::InternalError,
         }

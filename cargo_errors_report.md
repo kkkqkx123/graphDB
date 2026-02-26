@@ -2,75 +2,74 @@
 
 ## Summary
 
-- **Total Errors**: 3
-- **Total Warnings**: 4
-- **Total Issues**: 7
-- **Unique Error Patterns**: 2
-- **Unique Warning Patterns**: 4
-- **Files with Issues**: 4
+- **Total Errors**: 5
+- **Total Warnings**: 1
+- **Total Issues**: 6
+- **Unique Error Patterns**: 4
+- **Unique Warning Patterns**: 1
+- **Files with Issues**: 3
 
 ## Error Statistics
 
-**Total Errors**: 3
+**Total Errors**: 5
 
 ### Error Type Breakdown
 
-- **error[E0277]**: 2 errors
-- **error[E0107]**: 1 errors
+- **error[E0599]**: 3 errors
+- **error[E0433]**: 2 errors
 
 ### Files with Errors (Top 10)
 
-- `src\api\mod.rs`: 2 errors
-- `src\api\server\auth\authenticator.rs`: 1 errors
+- `src\api\server\session\network_session.rs`: 2 errors
+- `src\core\error\storage.rs`: 2 errors
+- `src\core\error\manager.rs`: 1 errors
 
 ## Warning Statistics
 
-**Total Warnings**: 4
+**Total Warnings**: 1
 
 ### Warning Type Breakdown
 
-- **warning**: 4 warnings
+- **warning**: 1 warnings
 
 ### Files with Warnings (Top 10)
 
-- `src\api\server\permission\permission_checker.rs`: 3 warnings
-- `src\api\server\permission\permission_manager.rs`: 1 warnings
+- `src\api\server\session\network_session.rs`: 1 warnings
 
 ## Detailed Error Categorization
 
-### error[E0277]: `?` couldn't convert the error to `core::error::DBError`: the trait `From<std::io::Error>` is not implemented for `core::error::DBError`
+### error[E0599]: no variant or associated item named `LockError` found for enum `core::error::storage::StorageError` in the current scope: variant or associated item not found in `StorageError`
+
+**Total Occurrences**: 3  
+**Unique Files**: 2
+
+#### `src\core\error\storage.rs`: 2 occurrences
+
+- Line 82: no variant or associated item named `LockError` found for enum `core::error::storage::StorageError` in the current scope: variant or associated item not found in `StorageError`
+- Line 102: no variant or associated item named `TransactionError` found for enum `core::error::storage::StorageError` in the current scope: variant or associated item not found in `StorageError`
+
+#### `src\core\error\manager.rs`: 1 occurrences
+
+- Line 110: no variant or associated item named `PermissionError` found for enum `ManagerError` in the current scope: variant or associated item not found in `ManagerError`
+
+### error[E0433]: failed to resolve: use of undeclared type `QueryError`: use of undeclared type `QueryError`
 
 **Total Occurrences**: 2  
 **Unique Files**: 1
 
-#### `src\api\mod.rs`: 2 occurrences
+#### `src\api\server\session\network_session.rs`: 2 occurrences
 
-- Line 165: `?` couldn't convert the error to `core::error::DBError`: the trait `From<std::io::Error>` is not implemented for `core::error::DBError`
-- Line 171: `?` couldn't convert the error to `core::error::DBError`: the trait `From<std::io::Error>` is not implemented for `core::error::DBError`
+- Line 249: failed to resolve: use of undeclared type `QueryError`: use of undeclared type `QueryError`
+- Line 520: failed to resolve: use of undeclared type `QueryError`: use of undeclared type `QueryError`
 
-### error[E0107]: enum takes 2 generic arguments but 1 generic argument was supplied: expected 2 generic arguments
+## Detailed Warning Categorization
+
+### warning: unused import: `SessionError`
 
 **Total Occurrences**: 1  
 **Unique Files**: 1
 
-#### `src\api\server\auth\authenticator.rs`: 1 occurrences
+#### `src\api\server\session\network_session.rs`: 1 occurrences
 
-- Line 143: enum takes 2 generic arguments but 1 generic argument was supplied: expected 2 generic arguments
-
-## Detailed Warning Categorization
-
-### warning: unused import: `parking_lot::RwLock`
-
-**Total Occurrences**: 4  
-**Unique Files**: 2
-
-#### `src\api\server\permission\permission_checker.rs`: 3 occurrences
-
-- Line 1: unused import: `parking_lot::RwLock`
-- Line 2: unused import: `std::collections::HashMap`
-- Line 3: unused import: `std::sync::Arc`
-
-#### `src\api\server\permission\permission_manager.rs`: 1 occurrences
-
-- Line 5: unused import: `crate::config::AuthConfig`
+- Line 7: unused import: `SessionError`
 

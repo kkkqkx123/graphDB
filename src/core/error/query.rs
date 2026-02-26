@@ -7,14 +7,26 @@ use thiserror::Error;
 use crate::core::error::codes::{ErrorCode, PublicError, ToPublicError};
 use crate::core::error::storage::StorageError;
 use crate::core::error::expression::{ExpressionError, ExpressionErrorType};
-use crate::core::error::other::LockError;
 use crate::core::error::manager::ManagerError;
 use crate::core::error::session::SessionError;
 use crate::core::error::permission::PermissionError;
 use crate::core::error::DBError;
 
+/// 计划节点访问错误类型
+///
+/// 涵盖查询计划遍历和验证过程中的错误
+#[derive(Error, Debug, Clone)]
+pub enum PlanNodeVisitError {
+    #[error("访问错误: {0}")]
+    VisitError(String),
+    #[error("遍历错误: {0}")]
+    TraversalError(String),
+    #[error("验证错误: {0}")]
+    ValidationError(String),
+}
+
 /// 查询操作结果类型别名
-pub type QueryResult<T> = Result<T, SessionError>;
+pub type QueryResult<T> = Result<T, QueryError>;
 
 /// 查询层错误类型
 #[derive(Error, Debug, Clone, PartialEq)]
@@ -39,6 +51,9 @@ pub enum QueryError {
 
     #[error("表达式错误: {0}")]
     ExpressionError(String),
+
+    #[error("计划节点访问错误: {0}")]
+    PlanNodeVisitError(String),
 }
 
 impl QueryError {
@@ -87,7 +102,6 @@ impl From<DBError> for QueryError {
             DBError::Storage(se) => QueryError::StorageError(se.to_string()),
             DBError::Expression(expression) => QueryError::ExpressionError(expression.to_string()),
             DBError::Plan(plan) => QueryError::ExecutionError(plan.to_string()),
-            DBError::Lock(lock) => QueryError::ExecutionError(lock.to_string()),
             DBError::Manager(manager) => QueryError::ExecutionError(manager.to_string()),
             DBError::Validation(msg) => QueryError::InvalidQuery(msg),
             DBError::Io(io) => QueryError::ExecutionError(io.to_string()),
@@ -97,6 +111,7 @@ impl From<DBError> for QueryError {
             DBError::Transaction(msg) => QueryError::ExecutionError(msg),
             DBError::Internal(msg) => QueryError::ExecutionError(msg),
             DBError::Session(session) => QueryError::ExecutionError(session.to_string()),
+            DBError::Auth(auth) => QueryError::ExecutionError(auth.to_string()),
             DBError::Permission(permission) => QueryError::ExecutionError(permission.to_string()),
             DBError::MemoryLimitExceeded(msg) => QueryError::ExecutionError(msg),
         }
@@ -109,9 +124,9 @@ impl From<std::io::Error> for QueryError {
     }
 }
 
-impl From<LockError> for QueryError {
-    fn from(e: LockError) -> Self {
-        QueryError::ExecutionError(e.to_string())
+impl From<PlanNodeVisitError> for QueryError {
+    fn from(e: PlanNodeVisitError) -> Self {
+        QueryError::PlanNodeVisitError(e.to_string())
     }
 }
 
@@ -159,6 +174,7 @@ impl ToPublicError for QueryError {
             QueryError::ExecutionError(_) => ErrorCode::ExecutionError,
             QueryError::ExpressionError(_) => ErrorCode::ExecutionError,
             QueryError::StorageError(_) => ErrorCode::InternalError,
+            QueryError::PlanNodeVisitError(_) => ErrorCode::ExecutionError,
         }
     }
 

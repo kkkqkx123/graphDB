@@ -23,20 +23,20 @@ pub mod manager;
 pub mod session;
 pub mod permission;
 pub mod validation;
-pub mod other;
+pub mod auth;
 
 // 重新导出错误码
 pub use codes::{ErrorCode, ErrorCategory as CodeErrorCategory, PublicError, ToPublicError};
 
 // 重新导出所有错误类型
 pub use storage::{StorageError, StorageResult};
-pub use query::{QueryError, QueryResult};
+pub use query::{QueryError, QueryResult, PlanNodeVisitError};
 pub use expression::{ExpressionError, ExpressionErrorType, ExpressionPosition};
 pub use manager::{ManagerError, ManagerResult, ErrorCategory};
 pub use session::{SessionError, SessionResult};
 pub use permission::{PermissionError, PermissionResult};
 pub use validation::{ValidationError, ValidationErrorType, SchemaValidationError, SchemaValidationResult};
-pub use other::{PlanNodeVisitError, LockError};
+pub use auth::{AuthError, AuthResult};
 
 pub use crate::core::types::DataType;
 
@@ -54,9 +54,6 @@ pub enum DBError {
 
     #[error("计划节点访问错误: {0}")]
     Plan(#[from] PlanNodeVisitError),
-
-    #[error("锁操作错误: {0}")]
-    Lock(#[from] LockError),
 
     #[error("管理器错误: {0}")]
     Manager(#[from] ManagerError),
@@ -85,6 +82,9 @@ pub enum DBError {
     #[error("会话错误: {0}")]
     Session(#[from] SessionError),
 
+    #[error("认证错误: {0}")]
+    Auth(#[from] AuthError),
+
     #[error("权限错误: {0}")]
     Permission(#[from] PermissionError),
 
@@ -111,7 +111,6 @@ impl ToPublicError for DBError {
             DBError::Query(qe) => qe.to_error_code(),
             DBError::Expression(_) => ErrorCode::ExecutionError,
             DBError::Plan(_) => ErrorCode::ExecutionError,
-            DBError::Lock(_) => ErrorCode::Conflict,
             DBError::Manager(me) => me.to_error_code(),
             DBError::Validation(_) => ErrorCode::ValidationError,
             DBError::Io(_) => ErrorCode::InternalError,
@@ -121,6 +120,7 @@ impl ToPublicError for DBError {
             DBError::Transaction(_) => ErrorCode::ExecutionError,
             DBError::Internal(_) => ErrorCode::InternalError,
             DBError::Session(_) => ErrorCode::Unauthorized,
+            DBError::Auth(_) => ErrorCode::Unauthorized,
             DBError::Permission(_) => ErrorCode::PermissionDenied,
             DBError::MemoryLimitExceeded(_) => ErrorCode::ResourceExhausted,
         }

@@ -14,36 +14,24 @@ pub type SessionResult<T> = Result<T, SessionError>;
 pub enum SessionError {
     #[error("会话不存在: {0}")]
     SessionNotFound(i64),
-    
-    #[error("权限不足，无法执行此操作")]
-    PermissionDenied,
-    
+
     #[error("会话已过期")]
     SessionExpired,
-    
+
     #[error("超过最大连接数限制")]
     MaxConnectionsExceeded,
-    
+
     #[error("查询不存在: {0}")]
     QueryNotFound(u32),
-    
+
     #[error("无法终止会话: {0}")]
     KillSessionFailed(String),
-    
+
     #[error("会话管理器错误: {0}")]
     ManagerError(String),
 
-    #[error("认证失败: {0}")]
-    AuthenticationFailed(String),
-
-    #[error("用户名或密码不能为空")]
-    EmptyCredentials,
-
-    #[error("用户名或密码错误")]
-    InvalidCredentials,
-
-    #[error("已达到最大尝试次数")]
-    MaxAttemptsExceeded,
+    #[error("权限不足，无法执行此操作")]
+    InsufficientPermission,
 }
 
 impl ToPublicError for SessionError {
@@ -54,10 +42,12 @@ impl ToPublicError for SessionError {
     fn to_error_code(&self) -> ErrorCode {
         match self {
             SessionError::SessionNotFound(_) => ErrorCode::ResourceNotFound,
-            SessionError::PermissionDenied => ErrorCode::PermissionDenied,
             SessionError::SessionExpired => ErrorCode::Unauthorized,
             SessionError::MaxConnectionsExceeded => ErrorCode::ResourceExhausted,
-            _ => ErrorCode::InternalError,
+            SessionError::QueryNotFound(_) => ErrorCode::ResourceNotFound,
+            SessionError::KillSessionFailed(_) => ErrorCode::InternalError,
+            SessionError::ManagerError(_) => ErrorCode::InternalError,
+            SessionError::InsufficientPermission => ErrorCode::PermissionDenied,
         }
     }
 

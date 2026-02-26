@@ -24,22 +24,14 @@ pub enum StorageError {
     NodeNotFound(crate::core::Value),
     #[error("边未找到: {0:?}")]
     EdgeNotFound(crate::core::Value),
-    #[error("事务错误: {0}")]
-    TransactionError(String),
-    #[error("事务未找到: {0}")]
-    TransactionNotFound(u64),
     #[error("操作不支持: {0}")]
     NotSupported(String),
     #[error("冲突错误: {0}")]
     Conflict(String),
-    #[error("锁错误: {0}")]
-    LockError(String),
     #[error("锁超时: {0}")]
     LockTimeout(String),
     #[error("死锁检测")]
     Deadlock,
-    #[error("连接错误: {0}")]
-    ConnectionError(String),
     #[error("IO错误: {0}")]
     IOError(String),
     #[error("未找到: {0}")]
@@ -48,8 +40,6 @@ pub enum StorageError {
     AlreadyExists(String),
     #[error("无效输入: {0}")]
     InvalidInput(String),
-    #[error("索引错误: {0}")]
-    IndexError(String),
     #[error("解析错误: {0}")]
     ParseError(String),
 }
@@ -58,7 +48,7 @@ impl StorageError {
     pub fn is_retryable(&self) -> bool {
         matches!(
             self,
-            StorageError::LockTimeout(_) | StorageError::Deadlock | StorageError::ConnectionError(_)
+            StorageError::LockTimeout(_) | StorageError::Deadlock
         )
     }
 }
@@ -89,7 +79,7 @@ impl From<&str> for StorageError {
 
 impl<T> From<std::sync::PoisonError<T>> for StorageError {
     fn from(e: std::sync::PoisonError<T>) -> Self {
-        StorageError::LockError(e.to_string())
+        StorageError::DbError(e.to_string())
     }
 }
 
@@ -109,7 +99,6 @@ impl ToPublicError for StorageError {
             StorageError::Deadlock => ErrorCode::Deadlock,
             StorageError::Conflict(_) => ErrorCode::Conflict,
             StorageError::NotSupported(_) => ErrorCode::InvalidStatement,
-            StorageError::TransactionError(_) => ErrorCode::ExecutionError,
             _ => ErrorCode::InternalError,
         }
     }

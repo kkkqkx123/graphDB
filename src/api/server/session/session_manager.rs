@@ -229,7 +229,7 @@ impl GraphSessionManager {
         if !is_admin && target_user != current_user {
             warn!("User {} attempted to kill session {} without permission (target user: {})", 
                   current_user, session_id, target_user);
-            return Err(SessionError::PermissionDenied);
+            return Err(SessionError::InsufficientPermission);
         }
         
         info!("Killing session {} (user: {}, active queries: {})", 
@@ -495,7 +495,7 @@ mod tests {
 
         // Try to kill the session as user2 (should fail)
         let result = session_manager.kill_session(session_id, "user2", false);
-        assert!(matches!(result, Err(SessionError::PermissionDenied)));
+        assert!(matches!(result, Err(SessionError::InsufficientPermission)));
 
         // Verify session still exists
         assert!(session_manager.find_session(session_id).is_some());

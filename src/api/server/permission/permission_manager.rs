@@ -140,7 +140,10 @@ impl PermissionManager {
 
         let role = self.get_role(username, space_id)
             .or_else(|| self.get_role(username, GOD_SPACE_ID))
-            .ok_or_else(|| PermissionError::NoRoleInSpace(username.to_string(), space_id))?;
+            .ok_or_else(|| PermissionError::NoRoleInSpace {
+                user: username.to_string(),
+                space_id,
+            })?;
 
         if role.has_permission(permission) {
             Ok(())

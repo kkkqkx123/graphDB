@@ -22,7 +22,7 @@ pub use error::{
     ManagerError, ManagerResult,
     ValidationError, ValidationErrorType,
     SchemaValidationError, SchemaValidationResult,
-    PlanNodeVisitError, LockError,
+    PlanNodeVisitError,
     ErrorCategory,
 };
 

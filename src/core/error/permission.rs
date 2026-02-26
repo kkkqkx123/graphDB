@@ -14,25 +14,26 @@ pub type PermissionResult<T> = Result<T, PermissionError>;
 pub enum PermissionError {
     #[error("权限不足")]
     InsufficientPermission,
-    
+
+    #[error("用户 {user} 在空间 {space_id} 中没有角色")]
+    NoRoleInSpace { user: String, space_id: i64 },
+
+    #[error("权限被拒绝: {permission} for user {user}")]
+    PermissionDenied { permission: String, user: String },
+
     #[error("角色不存在: {0}")]
     RoleNotFound(String),
-    
-    #[error("无法授予角色: {0}")]
-    GrantRoleFailed(String),
-    
-    #[error("无法撤销角色: {0}")]
-    RevokeRoleFailed(String),
-    
+
     #[error("用户不存在: {0}")]
     UserNotFound(String),
 
-    #[error("用户 {0} 在空间 {1} 中没有角色")]
-    NoRoleInSpace(String, i64),
+    #[error("无法授予角色: {0}")]
+    GrantRoleFailed(String),
 
-    #[error("权限被拒绝: {permission:?} for user {user}")]
-    PermissionDenied { permission: String, user: String },
+    #[error("无法撤销角色: {0}")]
+    RevokeRoleFailed(String),
 
+    // 业务规则错误
     #[error("权限被拒绝: 只有 GOD 角色可以创建/删除空间")]
     OnlyGodCanManageSpaces,
 
@@ -72,7 +73,7 @@ pub enum PermissionError {
     #[error("权限被拒绝: 只有 Admin 或 God 可以管理角色")]
     OnlyAdminOrGodCanManageRoles,
 
-    #[error("权限被拒绝: 无法授予角色 {role:?}")]
+    #[error("权限被拒绝: 无法授予角色 {role}")]
     CannotGrantRole { role: String },
 
     #[error("修改密码操作需要提供目标用户")]

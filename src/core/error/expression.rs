@@ -35,8 +35,6 @@ pub enum ExpressionErrorType {
     ArgumentCountError,
     /// 无效参数数量
     InvalidArgumentCount,
-    /// 除零错误
-    DivisionByZero,
     /// 溢出错误
     Overflow,
     /// 索引越界
@@ -81,7 +79,6 @@ impl std::fmt::Display for ExpressionErrorType {
             ExpressionErrorType::FunctionError => write!(f, "函数错误"),
             ExpressionErrorType::ArgumentCountError => write!(f, "参数数量错误"),
             ExpressionErrorType::InvalidArgumentCount => write!(f, "无效参数数量"),
-            ExpressionErrorType::DivisionByZero => write!(f, "除零错误"),
             ExpressionErrorType::Overflow => write!(f, "溢出错误"),
             ExpressionErrorType::IndexOutOfBounds => write!(f, "索引越界"),
             ExpressionErrorType::NullError => write!(f, "空值错误"),
@@ -169,11 +166,6 @@ impl ExpressionError {
             ExpressionErrorType::ArgumentCountError,
             format!("参数数量错误: 期望 {}, 实际 {}", expected, actual),
         )
-    }
-
-    /// 创建除零错误
-    pub fn division_by_zero() -> Self {
-        Self::new(ExpressionErrorType::DivisionByZero, "除零错误".to_string())
     }
 
     /// 创建溢出错误

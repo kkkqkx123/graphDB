@@ -326,7 +326,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
                 self.stats_manager.dec_value(MetricType::NumActiveQueries);
                 Ok(())
             },
-            Err(e) => Err(e)
+            Err(e) => Err(SessionError::ManagerError(e.to_string()))
         }
     }
 

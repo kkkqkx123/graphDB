@@ -4,7 +4,7 @@ use std::sync::{Arc, RwLock};
 use std::time::Instant;
 
 use crate::core::RoleType;
-use crate::core::error::{SessionError, QueryResult};
+use crate::core::error::{QueryResult, QueryError};
 use crate::transaction::{SavepointId, TransactionId, TransactionOptions};
 
 #[derive(Debug, Clone)]
@@ -246,7 +246,7 @@ impl ClientSession {
         // 检查查询是否存在
         if !self.find_query(query_id) {
             warn!("Query {} not found in session {}", query_id, self.id());
-            return Err(SessionError::QueryNotFound(query_id));
+            return Err(QueryError::ExecutionError(format!("查询未找到: {}", query_id)));
         }
         
         // 标记查询为已终止
@@ -517,7 +517,7 @@ mod tests {
 
         // Try to kill non-existent query
         let result = client_session.kill_query(999);
-        assert!(matches!(result, Err(SessionError::QueryNotFound(999))));
+        assert!(matches!(result, Err(QueryError::ExecutionError(_))));
     }
 
     #[test]
