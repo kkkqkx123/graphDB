@@ -32,6 +32,18 @@ pub enum SessionError {
     
     #[error("会话管理器错误: {0}")]
     ManagerError(String),
+
+    #[error("认证失败: {0}")]
+    AuthenticationFailed(String),
+
+    #[error("用户名或密码不能为空")]
+    EmptyCredentials,
+
+    #[error("用户名或密码错误")]
+    InvalidCredentials,
+
+    #[error("已达到最大尝试次数")]
+    MaxAttemptsExceeded,
 }
 
 impl ToPublicError for SessionError {

@@ -1,9 +1,8 @@
-use anyhow::{anyhow, Result};
-
 use crate::api::server::session::ClientSession;
 use crate::api::server::permission::PermissionManager;
 use crate::core::{Permission, RoleType};
 use crate::config::AuthConfig;
+use crate::core::error::PermissionResult;
 
 /// 操作类型 - 对应不同的权限检查
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -77,7 +76,9 @@ impl PermissionChecker {
         target_space: Option<i64>,
         target_user: Option<&str>,
         target_role: Option<RoleType>,
-    ) -> Result<()> {
+    ) -> PermissionResult<()> {
+        use crate::core::error::PermissionError;
+
         // 如果未启用授权，直接返回成功
         if !self.is_authorization_enabled() {
             return Ok(());
@@ -105,7 +106,7 @@ impl PermissionChecker {
             // Space写入操作：CREATE SPACE, DROP SPACE等
             // 只有God角色可以执行
             OperationType::WriteSpace => {
-                Err(anyhow!("Permission denied: only GOD role can create/drop spaces"))
+                Err(PermissionError::OnlyGodCanManageSpaces)
             }
 
             // Schema读取操作
@@ -135,7 +136,7 @@ impl PermissionChecker {
 
             // 用户写入操作
             OperationType::WriteUser => {
-                Err(anyhow!("Permission denied: only GOD role can manage users"))
+                Err(PermissionError::OnlyGodCanManageUsers)
             }
 
             // 角色写入操作：GRANT, REVOKE
@@ -159,34 +160,40 @@ impl PermissionChecker {
     // ==================== 具体业务逻辑检查方法 ====================
 
     /// 检查Space读取权限
-    fn check_read_space(&self, username: &str, target_space: Option<i64>) -> Result<()> {
+    fn check_read_space(&self, username: &str, target_space: Option<i64>) -> PermissionResult<()> {
+        use crate::core::error::PermissionError;
+
         let space_id = target_space
-            .ok_or_else(|| anyhow!("读取Space操作需要提供Space ID"))?;
+            .ok_or_else(|| PermissionError::SpaceIdRequired)?;
         
         // 使用 PermissionManager 的基础检查
         self.permission_manager.check_permission(username, space_id, Permission::Read)
     }
 
     /// 检查Schema读取权限
-    fn check_read_schema(&self, username: &str, target_space: Option<i64>) -> Result<()> {
+    fn check_read_schema(&self, username: &str, target_space: Option<i64>) -> PermissionResult<()> {
+        use crate::core::error::PermissionError;
+
         let space_id = target_space
-            .ok_or_else(|| anyhow!("读取Schema操作需要提供Space ID"))?;
+            .ok_or_else(|| PermissionError::SchemaSpaceIdRequired)?;
         
         self.permission_manager.check_permission(username, space_id, Permission::Read)
     }
 
     /// 检查Schema写入权限
     /// 业务逻辑：只有 God 和 Admin 可以写入 Schema
-    fn check_write_schema(&self, username: &str, target_space: Option<i64>) -> Result<()> {
+    fn check_write_schema(&self, username: &str, target_space: Option<i64>) -> PermissionResult<()> {
+        use crate::core::error::PermissionError;
+
         let space_id = target_space
-            .ok_or_else(|| anyhow!("写入Schema操作需要提供Space ID"))?;
+            .ok_or_else(|| PermissionError::SchemaWriteSpaceIdRequired)?;
 
         // 检查是否是管理员
         if !self.permission_manager.is_admin(username) {
-            return Err(anyhow!(
-                "Permission denied: write schema in space {} for user {}", 
-                space_id, username
-            ));
+            return Err(PermissionError::SchemaWritePermissionDenied {
+                space_id,
+                user: username.to_string(),
+            });
         }
 
         // 管理员需要 Write 权限
@@ -194,23 +201,27 @@ impl PermissionChecker {
     }
 
     /// 检查数据读取权限
-    fn check_read_data(&self, username: &str, target_space: Option<i64>) -> Result<()> {
+    fn check_read_data(&self, username: &str, target_space: Option<i64>) -> PermissionResult<()> {
+        use crate::core::error::PermissionError;
+
         let space_id = target_space
-            .ok_or_else(|| anyhow!("读取数据操作需要提供Space ID"))?;
+            .ok_or_else(|| PermissionError::DataReadSpaceIdRequired)?;
         
         self.permission_manager.check_permission(username, space_id, Permission::Read)
     }
 
     /// 检查数据写入权限
     /// 业务逻辑：Guest角色不能写入数据
-    fn check_write_data(&self, session: &ClientSession, username: &str, target_space: Option<i64>) -> Result<()> {
+    fn check_write_data(&self, session: &ClientSession, username: &str, target_space: Option<i64>) -> PermissionResult<()> {
+        use crate::core::error::PermissionError;
+
         let space_id = target_space
-            .ok_or_else(|| anyhow!("写入数据操作需要提供Space ID"))?;
+            .ok_or_else(|| PermissionError::DataWriteSpaceIdRequired)?;
 
         // Guest角色不能写入数据
         if let Some(role) = session.role_with_space(space_id) {
             if role == RoleType::Guest {
-                return Err(anyhow!("Guest角色没有写入数据的权限"));
+                return Err(PermissionError::GuestCannotWriteData);
             }
         }
 
@@ -219,7 +230,9 @@ impl PermissionChecker {
 
     /// 检查用户读取权限
     /// 业务逻辑：用户可以读取自己的信息
-    fn check_read_user(&self, username: &str, target_user: Option<&str>, _session: &ClientSession) -> Result<()> {
+    fn check_read_user(&self, username: &str, target_user: Option<&str>, _session: &ClientSession) -> PermissionResult<()> {
+        use crate::core::error::PermissionError;
+
         // 用户可以读取自己的信息
         if let Some(target) = target_user {
             if username == target {
@@ -232,25 +245,29 @@ impl PermissionChecker {
             return Ok(());
         }
         
-        Err(anyhow!("没有权限读取用户信息"))
+        Err(PermissionError::CannotReadUserInfo)
     }
 
     /// 检查角色写入权限
     /// 业务逻辑：需要 God 或 Admin 角色，且目标角色不能高于操作者
-    fn check_write_role(&self, username: &str, target_space: Option<i64>, target_role: Option<RoleType>) -> Result<()> {
+    fn check_write_role(&self, username: &str, target_space: Option<i64>, target_role: Option<RoleType>) -> PermissionResult<()> {
+        use crate::core::error::PermissionError;
+
         let space_id = target_space
-            .ok_or_else(|| anyhow!("角色操作需要提供Space ID"))?;
+            .ok_or_else(|| PermissionError::RoleOperationSpaceIdRequired)?;
         let role = target_role
-            .ok_or_else(|| anyhow!("角色操作需要提供目标角色"))?;
+            .ok_or_else(|| PermissionError::RoleOperationTargetRoleRequired)?;
 
         // 只有 Admin 及以上可以管理角色
         if !self.permission_manager.is_admin(username) {
-            return Err(anyhow!("Permission denied: only Admin or God can manage roles"));
+            return Err(PermissionError::OnlyAdminOrGodCanManageRoles);
         }
 
         // 检查是否可以授予目标角色
         if !self.permission_manager.can_grant_role(username, space_id, role) {
-            return Err(anyhow!("Permission denied: cannot grant role {:?}", role));
+            return Err(PermissionError::CannotGrantRole {
+                role: format!("{:?}", role),
+            });
         }
 
         Ok(())
@@ -258,8 +275,10 @@ impl PermissionChecker {
 
     /// 检查修改密码权限
     /// 业务逻辑：用户可以修改自己的密码，God可以修改任何用户的密码
-    fn check_change_password(&self, username: &str, target_user: Option<&str>, session: &ClientSession) -> Result<()> {
-        let target = target_user.ok_or_else(|| anyhow!("修改密码操作需要提供目标用户"))?;
+    fn check_change_password(&self, username: &str, target_user: Option<&str>, session: &ClientSession) -> PermissionResult<()> {
+        use crate::core::error::PermissionError;
+
+        let target = target_user.ok_or_else(|| PermissionError::ChangePasswordTargetUserRequired)?;
         
         // 用户可以修改自己的密码
         if username == target {
@@ -271,48 +290,48 @@ impl PermissionChecker {
             return Ok(());
         }
         
-        Err(anyhow!("只能修改自己的密码"))
+        Err(PermissionError::CanOnlyChangeOwnPassword)
     }
 
     // ==================== 便捷方法（供外部调用） ====================
 
     /// 检查Space读取权限
-    pub fn can_read_space(&self, session: &ClientSession, space_id: i64) -> Result<()> {
+    pub fn can_read_space(&self, session: &ClientSession, space_id: i64) -> PermissionResult<()> {
         self.check_permission(session, OperationType::ReadSpace, Some(space_id), None, None)
     }
 
     /// 检查Space写入权限
-    pub fn can_write_space(&self, session: &ClientSession) -> Result<()> {
+    pub fn can_write_space(&self, session: &ClientSession) -> PermissionResult<()> {
         self.check_permission(session, OperationType::WriteSpace, None, None, None)
     }
 
     /// 检查Schema读取权限
-    pub fn can_read_schema(&self, session: &ClientSession, space_id: i64) -> Result<()> {
+    pub fn can_read_schema(&self, session: &ClientSession, space_id: i64) -> PermissionResult<()> {
         self.check_permission(session, OperationType::ReadSchema, Some(space_id), None, None)
     }
 
     /// 检查Schema写入权限
-    pub fn can_write_schema(&self, session: &ClientSession, space_id: i64) -> Result<()> {
+    pub fn can_write_schema(&self, session: &ClientSession, space_id: i64) -> PermissionResult<()> {
         self.check_permission(session, OperationType::WriteSchema, Some(space_id), None, None)
     }
 
     /// 检查数据读取权限
-    pub fn can_read_data(&self, session: &ClientSession, space_id: i64) -> Result<()> {
+    pub fn can_read_data(&self, session: &ClientSession, space_id: i64) -> PermissionResult<()> {
         self.check_permission(session, OperationType::ReadData, Some(space_id), None, None)
     }
 
     /// 检查数据写入权限
-    pub fn can_write_data(&self, session: &ClientSession, space_id: i64) -> Result<()> {
+    pub fn can_write_data(&self, session: &ClientSession, space_id: i64) -> PermissionResult<()> {
         self.check_permission(session, OperationType::WriteData, Some(space_id), None, None)
     }
 
     /// 检查用户读取权限
-    pub fn can_read_user(&self, session: &ClientSession, target_user: &str) -> Result<()> {
+    pub fn can_read_user(&self, session: &ClientSession, target_user: &str) -> PermissionResult<()> {
         self.check_permission(session, OperationType::ReadUser, None, Some(target_user), None)
     }
 
     /// 检查用户写入权限
-    pub fn can_write_user(&self, session: &ClientSession) -> Result<()> {
+    pub fn can_write_user(&self, session: &ClientSession) -> PermissionResult<()> {
         self.check_permission(session, OperationType::WriteUser, None, None, None)
     }
 
@@ -322,7 +341,7 @@ impl PermissionChecker {
         session: &ClientSession,
         space_id: i64,
         target_role: RoleType,
-    ) -> Result<()> {
+    ) -> PermissionResult<()> {
         self.check_permission(
             session,
             OperationType::WriteRole,
@@ -333,7 +352,7 @@ impl PermissionChecker {
     }
 
     /// 检查修改密码权限
-    pub fn can_change_password(&self, session: &ClientSession, target_user: &str) -> Result<()> {
+    pub fn can_change_password(&self, session: &ClientSession, target_user: &str) -> PermissionResult<()> {
         self.check_permission(
             session,
             OperationType::ChangePassword,
@@ -344,7 +363,7 @@ impl PermissionChecker {
     }
 
     /// 检查Show操作权限
-    pub fn can_show(&self, session: &ClientSession) -> Result<()> {
+    pub fn can_show(&self, session: &ClientSession) -> PermissionResult<()> {
         self.check_permission(session, OperationType::Show, None, None, None)
     }
 

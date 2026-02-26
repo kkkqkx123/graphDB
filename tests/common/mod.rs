@@ -10,6 +10,7 @@ use std::sync::Arc;
 use parking_lot::Mutex;
 use std::path::PathBuf;
 use graphdb::storage::redb_storage::RedbStorage;
+use graphdb::core::error::DBResult;
 
 /// 测试存储实例包装器
 ///
@@ -22,7 +23,7 @@ pub struct TestStorage {
 
 impl TestStorage {
     /// 创建新的测试存储实例
-    pub fn new() -> anyhow::Result<Self> {
+    pub fn new() -> DBResult<Self> {
         let temp_dir = tempfile::tempdir()?;
         let db_path = temp_dir.path().join("test.db");
         
@@ -53,7 +54,7 @@ pub struct TestContext {
 
 impl TestContext {
     /// 创建新的测试上下文
-    pub fn new() -> anyhow::Result<Self> {
+    pub fn new() -> DBResult<Self> {
         Ok(Self {
             storage: TestStorage::new()?,
         })

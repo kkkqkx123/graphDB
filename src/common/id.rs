@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::hash::Hash;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::LazyLock;
 use uuid::Uuid;
 
 /// A unique identifier for vertices
@@ -201,8 +202,7 @@ impl IdGenerator {
 }
 
 /// Global ID generator instance
-static ID_GENERATOR: once_cell::sync::Lazy<IdGenerator> =
-    once_cell::sync::Lazy::new(IdGenerator::new);
+static ID_GENERATOR: LazyLock<IdGenerator> = LazyLock::new(IdGenerator::new);
 
 /// Get reference to the global ID generator
 pub fn id_generator() -> &'static IdGenerator {

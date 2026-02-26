@@ -2,9 +2,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use super::base::{BaseExecutor, ExecutorStats};
-use super::batch::BatchOptimizer;
 use crate::core::{Value, vertex_edge_path};
-use crate::core::error::DBError;
 use crate::expression::evaluator::traits::ExpressionContext;
 use crate::query::executor::base::{DBResult, ExecutionResult, Executor, HasStorage};
 use crate::storage::StorageClient;
@@ -16,7 +14,6 @@ pub struct GetVerticesExecutor<S: StorageClient + 'static> {
     tag_filter: Option<crate::core::Expression>,
     vertex_filter: Option<crate::core::Expression>,
     limit: Option<usize>,
-    batch_optimizer: Option<BatchOptimizer<S>>,
 }
 
 impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
@@ -34,7 +31,6 @@ impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
             tag_filter,
             vertex_filter,
             limit,
-            batch_optimizer: None,
         }
     }
 }
@@ -55,21 +51,15 @@ impl<S: StorageClient + 'static> Executor<S> for GetVerticesExecutor<S> {
     }
 
     fn open(&mut self) -> DBResult<()> {
-        let storage = self.base.storage.clone()
-            .ok_or_else(|| crate::core::error::DBError::Storage(
-                crate::core::error::StorageError::DbError("Storage not set".to_string())
-            ))?;
-        self.batch_optimizer = Some(BatchOptimizer::with_default_config(storage));
         Ok(())
     }
 
     fn close(&mut self) -> DBResult<()> {
-        self.batch_optimizer = None;
         Ok(())
     }
 
     fn is_open(&self) -> bool {
-        self.batch_optimizer.is_some()
+        true
     }
 
     fn id(&self) -> i64 {
@@ -103,24 +93,29 @@ impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
     fn do_execute(&mut self) -> DBResult<Vec<vertex_edge_path::Vertex>> {
         match &self.vertex_ids {
             Some(ids) if ids.len() > 1 => {
-                let batch_result = self.batch_optimizer
-                    .as_ref()
-                    .expect("批量优化器未初始化")
-                    .batch_get_vertices(ids);
-
+                let storage = self.get_storage().lock();
                 let mut result_vertices: Vec<vertex_edge_path::Vertex> = Vec::new();
+                let mut failed_count = 0;
 
-                for vertex_opt in batch_result.items {
-                    if let Some(ref vertex) = vertex_opt {
-                        let include_vertex = if let Some(ref tag_filter_expression) = self.tag_filter {
-                            crate::query::executor::tag_filter::TagFilterProcessor
-                                ::process_tag_filter(tag_filter_expression, vertex)
-                        } else {
-                            true
-                        };
+                for id in ids {
+                    match storage.get_vertex("default", id) {
+                        Ok(Some(vertex)) => {
+                            let include_vertex = if let Some(ref tag_filter_expression) = self.tag_filter {
+                                crate::query::executor::tag_filter::TagFilterProcessor
+                                    ::process_tag_filter(tag_filter_expression, &vertex)
+                            } else {
+                                true
+                            };
 
-                        if include_vertex {
-                            result_vertices.push(vertex.clone());
+                            if include_vertex {
+                                result_vertices.push(vertex);
+                            }
+                        }
+                        Ok(None) => {
+                            failed_count += 1;
+                        }
+                        Err(_) => {
+                            failed_count += 1;
                         }
                     }
 
@@ -131,8 +126,8 @@ impl<S: StorageClient + 'static> GetVerticesExecutor<S> {
                     }
                 }
 
-                if !batch_result.failed_keys.is_empty() {
-                    log::warn!("批量获取顶点失败: {} 个", batch_result.failed_keys.len());
+                if failed_count > 0 {
+                    log::warn!("获取顶点失败: {} 个", failed_count);
                 }
 
                 Ok(result_vertices)
@@ -402,7 +397,6 @@ pub struct GetNeighborsExecutor<S: StorageClient + 'static> {
     vertex_ids: Vec<Value>,
     edge_direction: super::base::EdgeDirection,
     edge_types: Option<Vec<String>>,
-    batch_optimizer: Option<BatchOptimizer<S>>,
 }
 
 impl<S: StorageClient> GetNeighborsExecutor<S> {
@@ -418,7 +412,6 @@ impl<S: StorageClient> GetNeighborsExecutor<S> {
             vertex_ids,
             edge_direction,
             edge_types,
-            batch_optimizer: None,
         }
     }
 }
@@ -436,19 +429,15 @@ impl<S: StorageClient + 'static> Executor<S> for GetNeighborsExecutor<S> {
     }
 
     fn open(&mut self) -> DBResult<()> {
-        let storage = self.base.storage.clone()
-            .ok_or_else(|| DBError::Storage(crate::core::error::StorageError::DbError("存储未初始化".to_string())))?;
-        self.batch_optimizer = Some(BatchOptimizer::with_default_config(storage));
         Ok(())
     }
 
     fn close(&mut self) -> DBResult<()> {
-        self.batch_optimizer = None;
         Ok(())
     }
 
     fn is_open(&self) -> bool {
-        self.batch_optimizer.is_some()
+        true
     }
 
     fn id(&self) -> i64 {
@@ -484,38 +473,28 @@ impl<S: StorageClient + 'static> GetNeighborsExecutor<S> {
             return Ok(Vec::new());
         }
 
-        let batch_result = self.batch_optimizer
-            .as_ref()
-            .ok_or_else(|| DBError::Storage(crate::core::error::StorageError::DbError("批处理优化器未初始化".to_string())))?
-            .batch_get_vertices(&self.vertex_ids);
-
+        let storage = self.get_storage().lock();
         let mut neighbor_ids: Vec<Value> = Vec::new();
         let edge_types_filter = self.edge_types.as_ref();
         let direction = self.edge_direction;
 
-        for vertex_opt in batch_result.items.iter() {
-            if let Some(ref vertex) = vertex_opt {
-                let vertex_id = &vertex.vid;
+        for vertex_id in &self.vertex_ids {
+            let edges = storage.get_node_edges("default", vertex_id, direction)?;
 
-                let storage = self.get_storage().lock();
-
-                let edges = storage.get_node_edges("default", vertex_id, direction)?;
-
-                for edge in edges {
-                    if let Some(ref filter_types) = edge_types_filter {
-                        if !filter_types.contains(&edge.edge_type) {
-                            continue;
-                        }
+            for edge in edges {
+                if let Some(ref filter_types) = edge_types_filter {
+                    if !filter_types.contains(&edge.edge_type) {
+                        continue;
                     }
-
-                    let neighbor_id = if *edge.src == **vertex_id {
-                        *edge.dst
-                    } else {
-                        *edge.src
-                    };
-
-                    neighbor_ids.push(neighbor_id);
                 }
+
+                let neighbor_id = if edge.src.as_ref() == vertex_id {
+                    (*edge.dst).clone()
+                } else {
+                    (*edge.src).clone()
+                };
+
+                neighbor_ids.push(neighbor_id);
             }
         }
 
@@ -526,21 +505,25 @@ impl<S: StorageClient + 'static> GetNeighborsExecutor<S> {
             return Ok(Vec::new());
         }
 
-        let neighbor_batch_result = self.batch_optimizer
-            .as_ref()
-            .ok_or_else(|| DBError::Storage(crate::core::error::StorageError::DbError("批处理优化器未初始化".to_string())))?
-            .batch_get_vertices(&neighbor_ids);
-
         let mut neighbors: Vec<Value> = Vec::new();
+        let mut failed_count = 0;
 
-        for vertex_opt in neighbor_batch_result.items {
-            if let Some(vertex) = vertex_opt {
-                neighbors.push(crate::core::Value::Vertex(Box::new(vertex)));
+        for neighbor_id in &neighbor_ids {
+            match storage.get_vertex("default", neighbor_id) {
+                Ok(Some(vertex)) => {
+                    neighbors.push(crate::core::Value::Vertex(Box::new(vertex)));
+                }
+                Ok(None) => {
+                    failed_count += 1;
+                }
+                Err(_) => {
+                    failed_count += 1;
+                }
             }
         }
 
-        if !neighbor_batch_result.failed_keys.is_empty() {
-            log::warn!("批量获取邻居顶点失败: {} 个", neighbor_batch_result.failed_keys.len());
+        if failed_count > 0 {
+            log::warn!("获取邻居顶点失败: {} 个", failed_count);
         }
 
         Ok(neighbors)

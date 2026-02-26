@@ -177,6 +177,12 @@ impl From<validation::ValidationError> for DBError {
     }
 }
 
+impl From<std::io::Error> for DBError {
+    fn from(err: std::io::Error) -> Self {
+        DBError::Io(err.to_string())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

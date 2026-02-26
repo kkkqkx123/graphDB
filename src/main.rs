@@ -1,9 +1,9 @@
 #[cfg(feature = "server")]
 mod server_main {
-    use anyhow::Result;
     use clap::Parser;
     use graphdb::api;
     use graphdb::config::Config;
+    use graphdb::core::error::DBResult;
     use graphdb::utils::logging;
 
     #[derive(Parser)]
@@ -21,7 +21,7 @@ mod server_main {
         },
     }
 
-    pub fn main() -> Result<()> {
+    pub fn main() -> DBResult<()> {
         let cli = Cli::parse();
 
         match cli {
@@ -74,7 +74,7 @@ mod server_main {
 }
 
 #[cfg(feature = "server")]
-fn main() -> anyhow::Result<()> {
+fn main() -> DBResult<()> {
     server_main::main()
 }
 

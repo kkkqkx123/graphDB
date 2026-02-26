@@ -1,7 +1,6 @@
 // Re-export all executor modules
 pub mod admin;
 pub mod base;
-pub mod batch;
 pub mod data_access;
 pub mod data_modification;
 pub mod data_processing;
@@ -24,11 +23,6 @@ pub use base::{
 
 // Re-export ExecutorEnum (执行器枚举)
 pub use executor_enum::ExecutorEnum;
-
-// Re-export batch module (批量操作优化)
-pub use batch::{
-    BatchConfig, BatchOptimizer, BatchReadResult,
-};
 
 // Re-export data access executors
 pub use data_access::{

@@ -1,7 +1,8 @@
-use anyhow::{anyhow, Result};
 use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
+
+use crate::core::error::PermissionResult;
 
 // 从 core 层重新导出权限类型
 pub use crate::core::{Permission, RoleType};
@@ -45,7 +46,7 @@ impl PermissionManager {
     // ==================== 角色管理（基础CRUD） ====================
 
     /// 授予角色
-    pub fn grant_role(&self, username: &str, space_id: i64, role: RoleType) -> Result<()> {
+    pub fn grant_role(&self, username: &str, space_id: i64, role: RoleType) -> PermissionResult<()> {
         let mut user_roles = self.user_roles.write();
 
         let roles = user_roles.entry(username.to_string()).or_insert_with(HashMap::new);
@@ -54,7 +55,7 @@ impl PermissionManager {
     }
 
     /// 撤销角色
-    pub fn revoke_role(&self, username: &str, space_id: i64) -> Result<()> {
+    pub fn revoke_role(&self, username: &str, space_id: i64) -> PermissionResult<()> {
         let mut user_roles = self.user_roles.write();
 
         if let Some(roles) = user_roles.get_mut(username) {
@@ -134,15 +135,20 @@ impl PermissionManager {
 
     /// 基础权限检查
     /// 检查用户在指定空间是否有指定权限
-    pub fn check_permission(&self, username: &str, space_id: i64, permission: Permission) -> Result<()> {
+    pub fn check_permission(&self, username: &str, space_id: i64, permission: Permission) -> PermissionResult<()> {
+        use crate::core::error::PermissionError;
+
         let role = self.get_role(username, space_id)
             .or_else(|| self.get_role(username, GOD_SPACE_ID))
-            .ok_or_else(|| anyhow!("User {} has no role in space {}", username, space_id))?;
+            .ok_or_else(|| PermissionError::NoRoleInSpace(username.to_string(), space_id))?;
 
         if role.has_permission(permission) {
             Ok(())
         } else {
-            Err(anyhow!("Permission denied: {:?} for user {}", permission, username))
+            Err(PermissionError::PermissionDenied {
+                permission: format!("{:?}", permission),
+                user: username.to_string(),
+            })
         }
     }
 
@@ -165,7 +171,7 @@ impl PermissionManager {
     // ==================== 空间权限管理（细粒度权限） ====================
 
     /// 为用户在空间添加特定权限
-    pub fn grant_permission(&self, username: &str, space_id: i64, permission: Permission) -> Result<()> {
+    pub fn grant_permission(&self, username: &str, space_id: i64, permission: Permission) -> PermissionResult<()> {
         let mut space_permissions = self.space_permissions.write();
         let space_map = space_permissions.entry(space_id).or_insert_with(HashMap::new);
         let user_permissions = space_map.entry(username.to_string()).or_insert_with(Vec::new);
@@ -176,7 +182,7 @@ impl PermissionManager {
     }
 
     /// 撤销用户在空间的特定权限
-    pub fn revoke_permission(&self, username: &str, space_id: i64, permission: Permission) -> Result<()> {
+    pub fn revoke_permission(&self, username: &str, space_id: i64, permission: Permission) -> PermissionResult<()> {
         let mut space_permissions = self.space_permissions.write();
         if let Some(space_map) = space_permissions.get_mut(&space_id) {
             if let Some(user_permissions) = space_map.get_mut(username) {

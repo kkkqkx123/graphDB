@@ -1,13 +1,13 @@
-use anyhow::{anyhow, Result};
 use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::config::AuthConfig;
+use crate::core::error::SessionResult;
 
 /// 认证 trait
 pub trait Authenticator: Send + Sync {
-    fn authenticate(&self, username: &str, password: &str) -> Result<()>;
+    fn authenticate(&self, username: &str, password: &str) -> SessionResult<()>;
 }
 
 /// 登录失败记录
@@ -18,7 +18,7 @@ struct LoginAttempt {
 }
 
 /// 用户验证回调函数类型
-pub type UserVerifier = Arc<dyn Fn(&str, &str) -> Result<bool> + Send + Sync>;
+pub type UserVerifier = Arc<dyn Fn(&str, &str) -> SessionResult<bool> + Send + Sync>;
 
 /// 密码认证器 - 支持登录失败限制和账户锁定
 pub struct PasswordAuthenticator {
@@ -32,7 +32,7 @@ pub struct PasswordAuthenticator {
 impl PasswordAuthenticator {
     pub fn new<F>(user_verifier: F, config: AuthConfig) -> Self 
     where
-        F: Fn(&str, &str) -> Result<bool> + Send + Sync + 'static,
+        F: Fn(&str, &str) -> SessionResult<bool> + Send + Sync + 'static,
     {
         Self {
             user_verifier: Arc::new(user_verifier),
@@ -85,20 +85,22 @@ impl PasswordAuthenticator {
     }
 
     /// 验证用户密码
-    fn verify_password(&self, username: &str, password: &str) -> Result<bool> {
+    fn verify_password(&self, username: &str, password: &str) -> SessionResult<bool> {
         (self.user_verifier)(username, password)
     }
 }
 
 impl Authenticator for PasswordAuthenticator {
-    fn authenticate(&self, username: &str, password: &str) -> Result<()> {
+    fn authenticate(&self, username: &str, password: &str) -> SessionResult<()> {
+        use crate::core::error::SessionError;
+
         // 检查是否启用授权
         if !self.config.enable_authorize {
             return Ok(());
         }
 
         if username.is_empty() || password.is_empty() {
-            return Err(anyhow!("用户名或密码不能为空"));
+            return Err(SessionError::EmptyCredentials);
         }
 
         // 验证密码
@@ -115,18 +117,13 @@ impl Authenticator for PasswordAuthenticator {
                 let attempts = self.login_attempts.read();
                 if let Some(attempt) = attempts.get(username) {
                     if attempt.remaining_attempts > 0 {
-                        return Err(anyhow!(
-                            "用户名或密码错误，还剩 {} 次尝试机会",
-                            attempt.remaining_attempts
-                        ));
+                        return Err(SessionError::InvalidCredentials);
                     } else {
-                        return Err(anyhow!(
-                            "用户名或密码错误，已达到最大尝试次数"
-                        ));
+                        return Err(SessionError::MaxAttemptsExceeded);
                     }
                 }
                 
-                Err(anyhow!("用户名或密码错误"))
+                Err(SessionError::InvalidCredentials)
             }
             Err(e) => Err(e),
         }
@@ -143,7 +140,7 @@ impl AuthenticatorFactory {
         user_verifier: F,
     ) -> PasswordAuthenticator
     where
-        F: Fn(&str, &str) -> Result<bool> + Send + Sync + 'static,
+        F: Fn(&str, &str) -> SessionResult<bool> + Send + Sync + 'static,
     {
         PasswordAuthenticator::new(user_verifier, config.clone())
     }

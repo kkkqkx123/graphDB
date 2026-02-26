@@ -5,7 +5,6 @@
 //! - `server` - 网络服务 API（HTTP）
 //! - `embedded` - 嵌入式 API（单机使用）
 
-use anyhow::Result;
 use log::info;
 use std::sync::Arc;
 
@@ -31,10 +30,11 @@ use crate::api::server::GraphService;
 use crate::config::Config;
 use crate::storage::redb_storage::DefaultStorage;
 use crate::transaction::{TransactionManager, SavepointManager, TransactionManagerConfig};
+use crate::core::error::DBResult;
 
 /// 使用配置文件路径启动服务（已弃用，请使用 start_service_with_config）
 #[cfg(feature = "server")]
-pub fn start_service(config_path: String) -> Result<()> {
+pub fn start_service(config_path: String) -> DBResult<()> {
     let config = match Config::load(&config_path) {
         Ok(config) => config,
         Err(e) => {
@@ -50,7 +50,7 @@ pub fn start_service(config_path: String) -> Result<()> {
 
 /// 使用配置对象启动服务
 #[cfg(feature = "server")]
-pub fn start_service_with_config(config: Config) -> Result<()> {
+pub fn start_service_with_config(config: Config) -> DBResult<()> {
     println!("Initializing GraphDB service...");
     println!("Configuration loaded: {:?}", config);
 
@@ -90,7 +90,7 @@ pub fn start_service_with_config(config: Config) -> Result<()> {
 }
 
 #[cfg(feature = "server")]
-pub fn execute_query(query_str: &str) -> Result<()> {
+pub fn execute_query(query_str: &str) -> DBResult<()> {
     println!("Executing query: {}", query_str);
 
     let config = crate::config::Config::default();
@@ -105,7 +105,9 @@ pub fn execute_query(query_str: &str) -> Result<()> {
         Ok(session) => session,
         Err(e) => {
             eprintln!("Failed to create session: {}", e);
-            return Err(anyhow::anyhow!("Failed to create session: {}", e));
+            return Err(crate::core::error::DBError::Session(
+                crate::core::error::SessionError::ManagerError(format!("Failed to create session: {}", e))
+            ));
         }
     };
 
@@ -124,23 +126,19 @@ pub fn execute_query(query_str: &str) -> Result<()> {
 }
 
 /// 等待关闭信号（同步实现）
+/// 
+/// 注意：此函数在异步运行时外部使用，通过阻塞当前线程等待信号。
+/// 内部使用 tokio::signal 实现，需要短暂初始化运行时。
 pub fn shutdown_signal() {
-    use signal_hook::flag;
-    use std::sync::atomic::{AtomicBool, Ordering};
-    use std::sync::Arc;
-    
-    let term = Arc::new(AtomicBool::new(false));
-    flag::register(signal_hook::consts::SIGTERM, Arc::clone(&term))
-        .expect("Failed to register SIGTERM handler");
-    flag::register(signal_hook::consts::SIGINT, Arc::clone(&term))
-        .expect("Failed to register SIGINT handler");
+    use tokio::runtime::Runtime;
     
     println!("Waiting for shutdown signal (Ctrl+C or SIGTERM)...");
     
-    // 主循环等待信号
-    while !term.load(Ordering::Relaxed) {
-        std::thread::sleep(std::time::Duration::from_millis(100));
-    }
+    // 创建一个临时运行时来等待异步信号
+    let rt = Runtime::new().expect("Failed to create temporary runtime");
+    rt.block_on(async {
+        async_shutdown_signal().await;
+    });
     
     println!("Received shutdown signal");
 }
@@ -156,7 +154,7 @@ pub fn shutdown_signal() {
 pub async fn start_http_server<S: crate::storage::StorageClient + Clone + Send + Sync + 'static>(
     server: Arc<HttpServer<S>>,
     config: &Config,
-) -> Result<()> {
+) -> DBResult<()> {
     use axum::serve;
     use tokio::net::TcpListener;
     
