@@ -374,6 +374,21 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     }
 }
 
+impl<S: StorageClient + Clone + 'static> Drop for Session<S> {
+    fn drop(&mut self) {
+        // Session 被丢弃时，不需要特殊清理
+        // 因为所有事务都通过 Transaction 对象管理，而 Transaction 有自己的 Drop 实现
+        // 这里只是记录日志，方便调试
+        log::debug!("Session 被释放，当前图空间: {:?}", self.space_name);
+    }
+}
+
 // 为了支持 Send + Sync，我们需要确保 S 满足这些约束
+// 安全性说明：
+// 1. Session 内部使用 Arc<GraphDatabaseInner<S>> 来共享数据，Arc 本身是 Send + Sync 的
+// 2. GraphDatabaseInner 中的 QueryApi 使用 Mutex 保护，确保线程安全
+// 3. StorageClient 要求实现 Clone + 'static，确保可以安全跨线程传递
+// 4. 所有内部状态（space_id, space_name, auto_commit）都是简单的可复制类型
+// 因此 Session 可以安全地实现 Send 和 Sync
 unsafe impl<S: StorageClient + Clone + 'static> Send for Session<S> {}
 unsafe impl<S: StorageClient + Clone + 'static> Sync for Session<S> {}

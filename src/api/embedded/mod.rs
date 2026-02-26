@@ -25,8 +25,7 @@
 //! txn.execute("CREATE TAG user(name string)")?;
 //! txn.commit()?;
 //!
-//! // 关闭数据库
-//! db.close()?;
+//! // 数据库在 db 离开作用域时自动关闭
 //! # Ok(())
 //! # }
 //! ```

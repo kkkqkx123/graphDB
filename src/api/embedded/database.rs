@@ -42,15 +42,11 @@ use std::sync::Arc;
 /// txn.execute("CREATE TAG user(name string)")?;
 /// txn.commit()?;
 ///
-/// // 关闭数据库
-/// db.close()?;
-/// # Ok(())
-/// # }
+/// // 数据库在 db 离开作用域时自动关闭
 /// ```
 pub struct GraphDatabase<S: StorageClient + Clone + 'static> {
     inner: Arc<GraphDatabaseInner<S>>,
     config: DatabaseConfig,
-    storage: Arc<Mutex<S>>,
 }
 
 impl GraphDatabase<RedbStorage> {
@@ -116,13 +112,12 @@ impl GraphDatabase<RedbStorage> {
             schema_api,
             txn_manager,
             savepoint_manager,
-            storage: storage.clone(),
+            storage,
         });
 
         Ok(Self {
             inner,
             config,
-            storage,
         })
     }
 }
@@ -204,18 +199,6 @@ impl<S: StorageClient + Clone + 'static> GraphDatabase<S> {
         session.list_spaces()
     }
 
-    /// 关闭数据库
-    ///
-    /// # 返回
-    /// - 成功时返回 ()
-    /// - 失败时返回错误
-    pub fn close(self) -> CoreResult<()> {
-        // 释放资源
-        drop(self.inner);
-        drop(self.storage);
-        Ok(())
-    }
-
     /// 获取配置
     pub fn config(&self) -> &DatabaseConfig {
         &self.config
@@ -228,6 +211,13 @@ impl<S: StorageClient + Clone + 'static> GraphDatabase<S> {
 }
 
 // 为了支持 Send + Sync
+// 安全性说明：
+// 1. GraphDatabase 内部使用 Arc<GraphDatabaseInner<S>> 来共享数据，Arc 本身是 Send + Sync 的
+// 2. GraphDatabaseInner 中的 QueryApi 使用 Mutex 保护，确保线程安全
+// 3. StorageClient 要求实现 Clone + 'static，确保可以安全跨线程传递
+// 4. TransactionManager 和 SavepointManager 使用 Arc 包装，可以安全跨线程共享
+// 5. config 是独立的 DatabaseConfig，可以安全跨线程传递
+// 因此 GraphDatabase 可以安全地实现 Send 和 Sync
 unsafe impl<S: StorageClient + Clone + 'static> Send for GraphDatabase<S> {}
 unsafe impl<S: StorageClient + Clone + 'static> Sync for GraphDatabase<S> {}
 

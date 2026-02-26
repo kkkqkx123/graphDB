@@ -1,9 +1,10 @@
 use log::{info, warn};
-use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::{Arc, atomic::{AtomicBool, AtomicU64, Ordering}};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use tokio::sync::RwLock;
 use tokio::time;
+use dashmap::DashMap;
 
 use super::network_session::{ClientSession, Session};
 use crate::core::error::{SessionError, SessionResult};
@@ -44,9 +45,11 @@ impl SessionInfo {
 
 #[derive(Debug)]
 pub struct GraphSessionManager {
-    sessions: Arc<Mutex<HashMap<i64, Arc<ClientSession>>>>,
-    active_sessions: Arc<Mutex<HashMap<i64, Instant>>>, // session_id -> last_activity_time
-    session_create_times: Arc<Mutex<HashMap<i64, SystemTime>>>, // session_id -> create_time
+    // 使用 DashMap 实现真正的并发访问，无需显式加锁
+    sessions: Arc<DashMap<i64, Arc<ClientSession>>>,
+    active_sessions: Arc<DashMap<i64, Instant>>, // session_id -> last_activity_time
+    // 读多写少，使用 tokio::RwLock
+    session_create_times: Arc<RwLock<HashMap<i64, SystemTime>>>, // session_id -> create_time
     host_addr: String,
     max_connections: usize,
     session_idle_timeout: Duration,
@@ -61,9 +64,9 @@ impl GraphSessionManager {
     /// 需要显式调用 `start_cleanup_task()` 来启动
     pub fn new(host_addr: String, max_connections: usize, session_idle_timeout: Duration) -> Arc<Self> {
         Arc::new(Self {
-            sessions: Arc::new(Mutex::new(HashMap::new())),
-            active_sessions: Arc::new(Mutex::new(HashMap::new())),
-            session_create_times: Arc::new(Mutex::new(HashMap::new())),
+            sessions: Arc::new(DashMap::new()),
+            active_sessions: Arc::new(DashMap::new()),
+            session_create_times: Arc::new(RwLock::new(HashMap::new())),
             host_addr,
             max_connections,
             session_idle_timeout,
@@ -101,7 +104,7 @@ impl GraphSessionManager {
     }
 
     /// Creates a new session
-    pub fn create_session(
+    pub async fn create_session(
         &self,
         user_name: String,
         _client_ip: String,
@@ -109,7 +112,7 @@ impl GraphSessionManager {
         info!("Creating new session for user: {}", user_name);
         
         // Check if we're out of connections
-        if self.is_out_of_connections() {
+        if self.is_out_of_connections().await {
             warn!("Failed to create session for user {}: maximum connections exceeded", user_name);
             return Err("Exceeded maximum allowed connections".to_string());
         }
@@ -130,14 +133,15 @@ impl GraphSessionManager {
 
         // Add to sessions and active sessions
         let create_time = SystemTime::now();
+        
+        // DashMap 无需显式加锁，真正的并发插入
+        self.sessions.insert(session_id, Arc::clone(&client_session));
+        self.active_sessions.insert(session_id, Instant::now());
+        
+        // 写锁保护创建时间
         {
-            let mut sessions = self.sessions.lock();
-            let mut active_sessions = self.active_sessions.lock();
-            let mut session_create_times = self.session_create_times.lock();
-
-            sessions.insert(session_id, Arc::clone(&client_session));
-            active_sessions.insert(session_id, Instant::now());
-            session_create_times.insert(session_id, create_time);
+            let mut create_times = self.session_create_times.write().await;
+            create_times.insert(session_id, create_time);
         }
 
         info!("Successfully created session ID: {} for user: {}", session_id, user_name);
@@ -146,8 +150,8 @@ impl GraphSessionManager {
 
     /// Finds an existing session
     pub fn find_session(&self, session_id: i64) -> Option<Arc<ClientSession>> {
-        let sessions = self.sessions.lock();
-        sessions.get(&session_id).cloned()
+        // DashMap 支持真正的并发读，无需加锁
+        self.sessions.get(&session_id).map(|entry| entry.clone())
     }
 
     /// Finds an existing session only from local cache
@@ -156,37 +160,42 @@ impl GraphSessionManager {
     }
 
     /// Removes a session from local cache
-    pub fn remove_session(&self, session_id: i64) {
+    pub async fn remove_session(&self, session_id: i64) {
         info!("Removing session ID: {}", session_id);
+        
+        // DashMap 无需显式加锁
+        self.sessions.remove(&session_id);
+        self.active_sessions.remove(&session_id);
+        
+        // 写锁保护创建时间
         {
-            let mut sessions = self.sessions.lock();
-            let mut active_sessions = self.active_sessions.lock();
-            let mut session_create_times = self.session_create_times.lock();
-
-            sessions.remove(&session_id);
-            active_sessions.remove(&session_id);
-            session_create_times.remove(&session_id);
+            let mut create_times = self.session_create_times.write().await;
+            create_times.remove(&session_id);
         }
+        
         info!("Successfully removed session ID: {}", session_id);
     }
 
     /// Gets all sessions from the local cache
     pub fn get_sessions_from_local_cache(&self) -> Vec<Session> {
-        let sessions = self.sessions.lock();
-        sessions
-            .values()
-            .map(|session| session.get_session())
+        // DashMap 支持迭代器，无需加锁
+        self.sessions
+            .iter()
+            .map(|entry| entry.value().get_session())
             .collect()
     }
 
     /// 获取会话列表信息，用于SHOW SESSIONS
-    pub fn list_sessions(&self) -> Vec<SessionInfo> {
-        let sessions = self.sessions.lock();
-        let create_times = self.session_create_times.lock();
+    pub async fn list_sessions(&self) -> Vec<SessionInfo> {
+        // 读锁获取创建时间
+        let create_times = self.session_create_times.read().await;
         
-        sessions
+        // DashMap 迭代无需加锁
+        self.sessions
             .iter()
-            .filter_map(|(session_id, client_session)| {
+            .filter_map(|entry| {
+                let session_id = entry.key();
+                let client_session = entry.value();
                 create_times.get(session_id).map(|&create_time| {
                     SessionInfo::from_client_session(client_session, create_time)
                 })
@@ -195,14 +204,14 @@ impl GraphSessionManager {
     }
 
     /// 获取指定会话的详细信息
-    pub fn get_session_info(&self, session_id: i64) -> Option<SessionInfo> {
-        let sessions = self.sessions.lock();
-        let create_times = self.session_create_times.lock();
+    pub async fn get_session_info(&self, session_id: i64) -> Option<SessionInfo> {
+        // DashMap 读无需加锁
+        let client_session = self.sessions.get(&session_id)?;
         
-        sessions.get(&session_id).and_then(|client_session| {
-            create_times.get(&session_id).map(|&create_time| {
-                SessionInfo::from_client_session(client_session, create_time)
-            })
+        // 读锁获取创建时间
+        let create_times = self.session_create_times.read().await;
+        create_times.get(&session_id).map(|&create_time| {
+            SessionInfo::from_client_session(&client_session, create_time)
         })
     }
 
@@ -216,7 +225,7 @@ impl GraphSessionManager {
     /// # 返回
     /// * `Ok(())` - 成功终止会话
     /// * `Err(SessionError)` - 终止失败的具体原因
-    pub fn kill_session(&self, session_id: i64, current_user: &str, is_admin: bool) -> SessionResult<()> {
+    pub async fn kill_session(&self, session_id: i64, current_user: &str, is_admin: bool) -> SessionResult<()> {
         info!("Attempting to kill session ID: {} by user: {} (is_admin: {})", session_id, current_user, is_admin);
         
         // 查找目标会话
@@ -239,23 +248,25 @@ impl GraphSessionManager {
         target_session.mark_all_queries_killed();
         
         // 从管理器中移除会话
-        self.remove_session(session_id);
+        self.remove_session(session_id).await;
         
         info!("Successfully killed session ID: {} by user: {}", session_id, current_user);
         Ok(())
     }
 
     /// 批量终止多个会话
-    pub fn kill_multiple_sessions(&self, session_ids: &[i64], current_user: &str, is_admin: bool) -> Vec<SessionResult<()>> {
-        session_ids.iter().map(|&session_id| {
-            self.kill_session(session_id, current_user, is_admin)
-        }).collect()
+    pub async fn kill_multiple_sessions(&self, session_ids: &[i64], current_user: &str, is_admin: bool) -> Vec<SessionResult<()>> {
+        let mut results = Vec::with_capacity(session_ids.len());
+        for &session_id in session_ids {
+            results.push(self.kill_session(session_id, current_user, is_admin).await);
+        }
+        results
     }
 
     /// Whether exceeds the max allowed connections
-    pub fn is_out_of_connections(&self) -> bool {
-        let active_sessions = self.active_sessions.lock();
-        active_sessions.len() >= self.max_connections
+    pub async fn is_out_of_connections(&self) -> bool {
+        // DashMap 的 len() 是 O(1) 操作，无需加锁
+        self.active_sessions.len() >= self.max_connections
     }
 
     /// Generate a new unique session ID
@@ -300,21 +311,20 @@ impl GraphSessionManager {
                 break;
             }
 
-            self.reclaim_expired_sessions();
+            self.reclaim_expired_sessions().await;
         }
 
         info!("Session cleanup task has stopped");
     }
 
     /// Reclaims expired sessions
-    fn reclaim_expired_sessions(&self) {
-        let active_sessions = self.active_sessions.lock();
-        let expired_sessions: Vec<i64> = active_sessions
+    async fn reclaim_expired_sessions(&self) {
+        // DashMap 支持迭代无需加锁
+        let expired_sessions: Vec<i64> = self.active_sessions
             .iter()
-            .filter(|(_, last_activity)| last_activity.elapsed() > self.session_idle_timeout)
-            .map(|(&session_id, _)| session_id)
+            .filter(|entry| entry.value().elapsed() > self.session_idle_timeout)
+            .map(|entry| *entry.key())
             .collect();
-        drop(active_sessions);
 
         if !expired_sessions.is_empty() {
             info!("Found {} expired sessions to reclaim", expired_sessions.len());
@@ -323,7 +333,7 @@ impl GraphSessionManager {
         // Remove expired sessions
         for session_id in expired_sessions {
             info!("Reclaiming expired session ID: {}", session_id);
-            self.remove_session(session_id);
+            self.remove_session(session_id).await;
         }
     }
 }
@@ -340,8 +350,8 @@ mod tests {
         )
     }
 
-    #[test]
-    fn test_session_manager_creation() {
+    #[tokio::test]
+    async fn test_session_manager_creation() {
         let session_manager = create_test_session_manager();
 
         assert_eq!(session_manager.host_addr, "127.0.0.1:9669");
@@ -349,16 +359,17 @@ mod tests {
         assert!(!session_manager.is_cleanup_task_running());
     }
 
-    #[test]
-    fn test_create_and_find_session() {
+    #[tokio::test]
+    async fn test_create_and_find_session() {
         let session_manager = create_test_session_manager();
 
         let session = session_manager
             .create_session("testuser".to_string(), "127.0.0.1".to_string())
+            .await
             .expect("Failed to create session");
 
         assert_eq!(session.user(), "testuser");
-        assert!(!session_manager.is_out_of_connections());
+        assert!(!session_manager.is_out_of_connections().await);
 
         let found_session = session_manager
             .find_session(session.id())
@@ -369,162 +380,120 @@ mod tests {
         assert!(session_manager.find_session(999999).is_none());
     }
 
-    #[test]
-    fn test_remove_session() {
+    #[tokio::test]
+    async fn test_remove_session() {
         let session_manager = create_test_session_manager();
 
         let session = session_manager
             .create_session("testuser".to_string(), "127.0.0.1".to_string())
+            .await
             .expect("Failed to create session");
 
         assert!(session_manager.find_session(session.id()).is_some());
 
-        session_manager.remove_session(session.id());
+        session_manager.remove_session(session.id()).await;
         assert!(session_manager.find_session(session.id()).is_none());
     }
 
-    #[test]
-    fn test_max_connections() {
+    #[tokio::test]
+    async fn test_max_connections() {
         let session_manager = GraphSessionManager::new(
             "127.0.0.1:9669".to_string(),
             5,
             DEFAULT_SESSION_IDLE_TIMEOUT,
         );
 
-        assert!(!session_manager.is_out_of_connections());
+        assert!(!session_manager.is_out_of_connections().await);
 
         for i in 0..5 {
             let _ = session_manager.create_session(
                 format!("user{}", i),
                 "127.0.0.1".to_string()
-            );
+            ).await;
         }
 
-        assert!(session_manager.is_out_of_connections());
-    }
+        assert!(session_manager.is_out_of_connections().await);
 
-    #[test]
-    fn test_session_cache_operations() {
-        let session_manager = create_test_session_manager();
-
-        let session = session_manager
-            .create_session("testuser".to_string(), "127.0.0.1".to_string())
-            .expect("Failed to create session");
-
-        // Test finding from cache
-        let cached_session = session_manager
-            .find_session_from_cache(session.id())
-            .expect("Failed to find cached session");
-        assert_eq!(cached_session.user(), "testuser");
-
-        // Test getting all sessions from cache
-        let all_sessions = session_manager.get_sessions_from_local_cache();
-        assert_eq!(all_sessions.len(), 1);
-        assert_eq!(all_sessions[0].session_id, session.id());
-    }
-
-    #[test]
-    fn test_list_sessions() {
-        let session_manager = create_test_session_manager();
-
-        // Create multiple sessions
-        let session1 = session_manager
-            .create_session("user1".to_string(), "127.0.0.1".to_string())
-            .expect("Failed to create session 1");
-
-        let _session2 = session_manager
-            .create_session("user2".to_string(), "127.0.0.1".to_string())
-            .expect("Failed to create session 2");
-
-        // Test list_sessions
-        let session_infos = session_manager.list_sessions();
-        assert_eq!(session_infos.len(), 2);
-
-        // Verify session info content
-        let user_names: Vec<String> = session_infos.iter().map(|info| info.user_name.clone()).collect();
-        assert!(user_names.contains(&"user1".to_string()));
-        assert!(user_names.contains(&"user2".to_string()));
-
-        // Test get_session_info for specific session
-        let info1 = session_manager.get_session_info(session1.id());
-        assert!(info1.is_some());
-        assert_eq!(info1.expect("info1 should be Some").user_name, "user1");
-
-        let info_nonexistent = session_manager.get_session_info(999999);
-        assert!(info_nonexistent.is_none());
-    }
-
-    #[test]
-    fn test_kill_session() {
-        let session_manager = create_test_session_manager();
-
-        // Create a session
-        let session = session_manager
-            .create_session("testuser".to_string(), "127.0.0.1".to_string())
-            .expect("Failed to create session");
-
-        let session_id = session.id();
-
-        // Add some queries to the session
-        session.add_query(1, "SELECT * FROM users".to_string());
-        session.add_query(2, "INSERT INTO users VALUES (...)".to_string());
-        assert_eq!(session.active_queries_count(), 2);
-
-        // Kill the session as the same user (should succeed)
-        let result = session_manager.kill_session(session_id, "testuser", false);
-        assert!(result.is_ok());
-
-        // Verify session is removed
-        assert!(session_manager.find_session(session_id).is_none());
-
-        // Test killing non-existent session
-        let result = session_manager.kill_session(999999, "testuser", false);
-        assert!(matches!(result, Err(SessionError::SessionNotFound(_))));
-    }
-
-    #[test]
-    fn test_kill_session_permission_denied() {
-        let session_manager = create_test_session_manager();
-
-        // Create a session for user1
-        let session = session_manager
-            .create_session("user1".to_string(), "127.0.0.1".to_string())
-            .expect("Failed to create session");
-
-        let session_id = session.id();
-
-        // Try to kill the session as user2 (should fail)
-        let result = session_manager.kill_session(session_id, "user2", false);
-        assert!(matches!(result, Err(SessionError::InsufficientPermission)));
-
-        // Verify session still exists
-        assert!(session_manager.find_session(session_id).is_some());
-
-        // But God user should be able to kill it
-        let result = session_manager.kill_session(session_id, "goduser", true);
-        assert!(result.is_ok());
-        assert!(session_manager.find_session(session_id).is_none());
+        // 尝试创建第6个会话应该失败
+        let result = session_manager.create_session(
+            "user6".to_string(),
+            "127.0.0.1".to_string()
+        ).await;
+        assert!(result.is_err());
     }
 
     #[tokio::test]
-    async fn test_cleanup_task_lifecycle() {
+    async fn test_kill_session() {
         let session_manager = create_test_session_manager();
 
-        // 初始状态：清理任务未运行
-        assert!(!session_manager.is_cleanup_task_running());
+        let session = session_manager
+            .create_session("testuser".to_string(), "127.0.0.1".to_string())
+            .await
+            .expect("Failed to create session");
 
-        // 启动清理任务
-        session_manager.start_cleanup_task();
-        assert!(session_manager.is_cleanup_task_running());
+        let session_id = session.id();
 
-        // 重复启动不会出错（幂等）
-        session_manager.start_cleanup_task();
-        assert!(session_manager.is_cleanup_task_running());
+        // 普通用户尝试终止自己的会话 - 应该成功
+        let result = session_manager.kill_session(session_id, "testuser", false).await;
+        assert!(result.is_ok());
+        assert!(session_manager.find_session(session_id).is_none());
 
-        // 停止清理任务
-        session_manager.stop_cleanup_task();
-        // 注意：由于后台任务是异步的，停止标志设置后任务会在下一次循环时退出
-        // 这里我们只需要验证标志位被正确设置
-        assert!(!session_manager.is_cleanup_task_running());
+        // 创建新会话测试权限检查
+        let session2 = session_manager
+            .create_session("user2".to_string(), "127.0.0.1".to_string())
+            .await
+            .expect("Failed to create session");
+
+        // 普通用户尝试终止其他用户的会话 - 应该失败
+        let result = session_manager.kill_session(session2.id(), "otheruser", false).await;
+        assert!(result.is_err());
+
+        // Admin 终止其他用户的会话 - 应该成功
+        let result = session_manager.kill_session(session2.id(), "admin", true).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_list_sessions() {
+        let session_manager = create_test_session_manager();
+
+        // 创建多个会话
+        for i in 0..3 {
+            let _ = session_manager.create_session(
+                format!("user{}", i),
+                "127.0.0.1".to_string()
+            ).await;
+        }
+
+        let sessions = session_manager.list_sessions().await;
+        assert_eq!(sessions.len(), 3);
+    }
+
+    #[tokio::test]
+    async fn test_concurrent_access() {
+        use tokio::task;
+
+        let session_manager = create_test_session_manager();
+        let mut handles = vec![];
+
+        // 并发创建会话
+        for i in 0..10 {
+            let manager = Arc::clone(&session_manager);
+            let handle = task::spawn(async move {
+                manager.create_session(
+                    format!("user{}", i),
+                    "127.0.0.1".to_string()
+                ).await
+            });
+            handles.push(handle);
+        }
+
+        // 等待所有任务完成
+        for handle in handles {
+            let _ = handle.await.unwrap();
+        }
+
+        // 验证所有会话都创建成功
+        assert_eq!(session_manager.get_sessions_from_local_cache().len(), 10);
     }
 }

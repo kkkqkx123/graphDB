@@ -1,4 +1,4 @@
-use parking_lot::RwLock;
+use dashmap::DashMap;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -18,19 +18,25 @@ pub const GOD_SPACE_ID: i64 = -1;
 /// 3. 提供基础的角色查询和权限检查
 /// 
 /// 注意：本层不涉及业务逻辑判断（如God角色优先等），只提供基础数据操作
+/// 
+/// 性能优化：
+/// - 使用 DashMap 实现真正的并发访问，无需显式加锁
+/// - 读多写少场景下性能优异
 pub struct PermissionManager {
     /// 用户角色映射：username -> {space_id -> role}
     /// 注意：God角色使用特殊的space_id: -1表示全局角色，不绑定特定Space
-    user_roles: Arc<RwLock<HashMap<String, HashMap<i64, RoleType>>>>,
+    /// 使用 DashMap 支持并发读写
+    user_roles: Arc<DashMap<String, HashMap<i64, RoleType>>>,
     /// 空间权限映射：space_id -> {username -> [permissions]}
     /// 用于细粒度的权限控制
-    space_permissions: Arc<RwLock<HashMap<i64, HashMap<String, Vec<Permission>>>>>,
+    /// 使用 DashMap 支持并发读写
+    space_permissions: Arc<DashMap<i64, HashMap<String, Vec<Permission>>>>,
 }
 
 impl PermissionManager {
     /// 创建新的权限管理器
     pub fn new() -> Self {
-        let mut user_roles = HashMap::new();
+        let user_roles = DashMap::new();
         let mut root_roles = HashMap::new();
         // root用户作为God角色（全局超级管理员）
         // 使用GOD_SPACE_ID(-1)表示全局角色，不绑定特定Space
@@ -38,50 +44,59 @@ impl PermissionManager {
         user_roles.insert("root".to_string(), root_roles);
 
         Self {
-            user_roles: Arc::new(RwLock::new(user_roles)),
-            space_permissions: Arc::new(RwLock::new(HashMap::new())),
+            user_roles: Arc::new(user_roles),
+            space_permissions: Arc::new(DashMap::new()),
         }
     }
 
     // ==================== 角色管理（基础CRUD） ====================
 
     /// 授予角色
+    /// 
+    /// 使用 DashMap 的 entry API，无需显式加锁
     pub fn grant_role(&self, username: &str, space_id: i64, role: RoleType) -> PermissionResult<()> {
-        let mut user_roles = self.user_roles.write();
-
-        let roles = user_roles.entry(username.to_string()).or_insert_with(HashMap::new);
-        roles.insert(space_id, role);
+        self.user_roles
+            .entry(username.to_string())
+            .or_insert_with(HashMap::new)
+            .insert(space_id, role);
         Ok(())
     }
 
     /// 撤销角色
+    /// 
+    /// 使用 DashMap 无需显式加锁
     pub fn revoke_role(&self, username: &str, space_id: i64) -> PermissionResult<()> {
-        let mut user_roles = self.user_roles.write();
-
-        if let Some(roles) = user_roles.get_mut(username) {
+        if let Some(mut roles) = self.user_roles.get_mut(username) {
             roles.remove(&space_id);
         }
         Ok(())
     }
 
     /// 获取用户在指定空间的角色
+    /// 
+    /// DashMap 支持真正的并发读
     pub fn get_role(&self, username: &str, space_id: i64) -> Option<RoleType> {
-        let user_roles = self.user_roles.read();
-        user_roles.get(username)
+        self.user_roles
+            .get(username)
             .and_then(|roles| roles.get(&space_id).copied())
     }
 
     /// 获取用户的所有角色
+    /// 
+    /// DashMap 支持真正的并发读
     pub fn get_user_roles(&self, username: &str) -> HashMap<i64, RoleType> {
-        let user_roles = self.user_roles.read();
-        user_roles.get(username).cloned().unwrap_or_default()
+        self.user_roles
+            .get(username)
+            .map(|roles| roles.clone())
+            .unwrap_or_default()
     }
 
     /// 列出用户的所有角色
     /// 返回 Vec<(space_id, role)>，包含用户在所有Space的角色
+    /// 
+    /// DashMap 支持真正的并发读
     pub fn list_user_roles(&self, username: &str) -> Vec<(i64, RoleType)> {
-        let user_roles = self.user_roles.read();
-        user_roles
+        self.user_roles
             .get(username)
             .map(|roles| {
                 roles
@@ -94,11 +109,14 @@ impl PermissionManager {
 
     /// 列出Space中的所有用户及其角色
     /// 返回 Vec<(username, role)>，包含指定Space中的所有用户
+    /// 
+    /// DashMap 支持真正的并发读，迭代时无需加锁
     pub fn list_space_users(&self, space_id: i64) -> Vec<(String, RoleType)> {
-        let user_roles = self.user_roles.read();
-        user_roles
+        self.user_roles
             .iter()
-            .filter_map(|(username, roles)| {
+            .filter_map(|entry| {
+                let username = entry.key();
+                let roles = entry.value();
                 roles.get(&space_id).map(|&role| (username.clone(), role))
             })
             .collect()
@@ -107,21 +125,23 @@ impl PermissionManager {
     // ==================== 角色查询（基础查询） ====================
 
     /// 检查用户是否是God角色
+    /// 
+    /// DashMap 支持真正的并发读
     pub fn is_god(&self, username: &str) -> bool {
-        let user_roles = self.user_roles.read();
-        if let Some(roles) = user_roles.get(username) {
-            return roles.values().any(|&role| role == RoleType::God);
-        }
-        false
+        self.user_roles
+            .get(username)
+            .map(|roles| roles.values().any(|&role| role == RoleType::God))
+            .unwrap_or(false)
     }
 
     /// 检查用户是否是管理员（God 或 Admin 角色）
+    /// 
+    /// DashMap 支持真正的并发读
     pub fn is_admin(&self, username: &str) -> bool {
-        let user_roles = self.user_roles.read();
-        if let Some(roles) = user_roles.get(username) {
-            return roles.values().any(|&role| matches!(role, RoleType::God | RoleType::Admin));
-        }
-        false
+        self.user_roles
+            .get(username)
+            .map(|roles| roles.values().any(|&role| matches!(role, RoleType::God | RoleType::Admin)))
+            .unwrap_or(false)
     }
 
     /// 检查用户在指定空间是否有指定角色
@@ -135,6 +155,8 @@ impl PermissionManager {
 
     /// 基础权限检查
     /// 检查用户在指定空间是否有指定权限
+    /// 
+    /// DashMap 支持真正的并发读
     pub fn check_permission(&self, username: &str, space_id: i64, permission: Permission) -> PermissionResult<()> {
         use crate::core::error::PermissionError;
 
@@ -156,14 +178,14 @@ impl PermissionManager {
     }
 
     /// 检查用户是否可以授予角色
+    /// 
+    /// DashMap 支持真正的并发读
     pub fn can_grant_role(&self, granter: &str, space_id: i64, target_role: RoleType) -> bool {
-        let user_roles = self.user_roles.read();
-        if let Some(roles) = user_roles.get(granter) {
-            if let Some(&role) = roles.get(&space_id) {
-                return role.can_grant(target_role);
-            }
-        }
-        false
+        self.user_roles
+            .get(granter)
+            .and_then(|roles| roles.get(&space_id).copied())
+            .map(|role| role.can_grant(target_role))
+            .unwrap_or(false)
     }
 
     /// 检查用户是否可以撤销角色
@@ -174,10 +196,17 @@ impl PermissionManager {
     // ==================== 空间权限管理（细粒度权限） ====================
 
     /// 为用户在空间添加特定权限
+    /// 
+    /// 使用 DashMap 的 entry API，无需显式加锁
     pub fn grant_permission(&self, username: &str, space_id: i64, permission: Permission) -> PermissionResult<()> {
-        let mut space_permissions = self.space_permissions.write();
-        let space_map = space_permissions.entry(space_id).or_insert_with(HashMap::new);
-        let user_permissions = space_map.entry(username.to_string()).or_insert_with(Vec::new);
+        let mut space_map = self.space_permissions
+            .entry(space_id)
+            .or_insert_with(HashMap::new);
+        
+        let user_permissions = space_map
+            .entry(username.to_string())
+            .or_insert_with(Vec::new);
+        
         if !user_permissions.contains(&permission) {
             user_permissions.push(permission);
         }
@@ -185,9 +214,10 @@ impl PermissionManager {
     }
 
     /// 撤销用户在空间的特定权限
+    /// 
+    /// 使用 DashMap 无需显式加锁
     pub fn revoke_permission(&self, username: &str, space_id: i64, permission: Permission) -> PermissionResult<()> {
-        let mut space_permissions = self.space_permissions.write();
-        if let Some(space_map) = space_permissions.get_mut(&space_id) {
+        if let Some(mut space_map) = self.space_permissions.get_mut(&space_id) {
             if let Some(user_permissions) = space_map.get_mut(username) {
                 user_permissions.retain(|&p| p != permission);
             }
@@ -196,9 +226,10 @@ impl PermissionManager {
     }
 
     /// 获取用户在空间的特定权限列表
+    /// 
+    /// DashMap 支持真正的并发读
     pub fn get_permissions(&self, username: &str, space_id: i64) -> Vec<Permission> {
-        let space_permissions = self.space_permissions.read();
-        space_permissions
+        self.space_permissions
             .get(&space_id)
             .and_then(|space_map| space_map.get(username).cloned())
             .unwrap_or_default()

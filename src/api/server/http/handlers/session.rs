@@ -4,7 +4,6 @@ use axum::{
     response::Json as JsonResponse,
 };
 use serde::{Deserialize, Serialize};
-use tokio::task;
 
 use crate::api::server::http::{
     state::AppState,
@@ -29,27 +28,20 @@ pub async fn create<S: StorageClient + Clone + Send + Sync + 'static>(
     State(state): State<AppState<S>>,
     Json(request): Json<CreateSessionRequest>,
 ) -> Result<JsonResponse<SessionResponse>, HttpError> {
-    let server = state.server.clone();
+    let session_manager = state.server.get_session_manager();
+    let session = session_manager
+        .create_session(request.username, request.client_ip)
+        .await
+        .map_err(|e| HttpError::BadRequest(format!("创建会话失败: {}", e)))?;
     
-    let result = task::spawn_blocking(move || {
-        let session_manager = server.get_session_manager();
-        let session = session_manager
-            .create_session(request.username, request.client_ip)
-            .map_err(|e| HttpError::BadRequest(format!("创建会话失败: {}", e)))?;
-        
-        Ok::<_, HttpError>(SessionResponse {
-            session_id: session.id(),
-            username: session.user(),
-            created_at: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs(),
-        })
-    })
-    .await
-    .map_err(|e| HttpError::InternalError(format!("任务执行失败: {}", e)))?;
-    
-    Ok(JsonResponse(result?))
+    Ok(JsonResponse(SessionResponse {
+        session_id: session.id(),
+        username: session.user(),
+        created_at: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs(),
+    }))
 }
 
 pub async fn get_session<S: StorageClient + Clone + Send + Sync + 'static>(
@@ -75,6 +67,6 @@ pub async fn delete_session<S: StorageClient + Clone + Send + Sync + 'static>(
     Path(session_id): Path<i64>,
 ) -> Result<StatusCode, HttpError> {
     let session_manager = state.server.get_session_manager();
-    session_manager.remove_session(session_id);
+    session_manager.remove_session(session_id).await;
     Ok(StatusCode::NO_CONTENT)
 }

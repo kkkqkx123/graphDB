@@ -94,3 +94,55 @@ plan.set_id(id);
 1. 如果需要真正的全局唯一ID，考虑使用完整的UUID字符串
 2. 如果需要更高的安全性，考虑使用加密安全的随机数生成器
 3. 如果需要分布式环境下的唯一性，考虑使用snowflake算法或类似方案
+
+## Embedded API 中的 unsafe 使用
+
+### 位置
+- `src/api/embedded/database.rs` - `GraphDatabase` 结构体
+- `src/api/embedded/session.rs` - `Session` 结构体
+
+### 使用原因
+为 `GraphDatabase<S>` 和 `Session<S>` 实现 `Send` 和 `Sync` trait，使其可以安全地跨线程传递和共享。
+
+### 代码示例
+```rust
+// database.rs
+unsafe impl<S: StorageClient + Clone + 'static> Send for GraphDatabase<S> {}
+unsafe impl<S: StorageClient + Clone + 'static> Sync for GraphDatabase<S> {}
+
+// session.rs
+unsafe impl<S: StorageClient + Clone + 'static> Send for Session<S> {}
+unsafe impl<S: StorageClient + Clone + 'static> Sync for Session<S> {}
+```
+
+### 安全性分析
+
+#### GraphDatabase 的安全性保证
+1. **Arc 包装**：`GraphDatabase` 内部使用 `Arc<GraphDatabaseInner<S>>` 共享数据，`Arc` 本身是 `Send + Sync` 的
+2. **Mutex 保护**：`GraphDatabaseInner` 中的 `QueryApi` 使用 `Mutex` 保护，确保线程安全
+3. **类型约束**：`StorageClient` 要求实现 `Clone + 'static`，确保可以安全跨线程传递
+4. **Arc 共享**：`TransactionManager` 和 `SavepointManager` 使用 `Arc` 包装，可以安全跨线程共享
+5. **独立配置**：`config` 是独立的 `DatabaseConfig`，可以安全跨线程传递
+
+#### Session 的安全性保证
+1. **Arc 共享**：`Session` 内部使用 `Arc<GraphDatabaseInner<S>>` 来共享数据
+2. **Mutex 保护**：`GraphDatabaseInner` 中的 `QueryApi` 使用 `Mutex` 保护
+3. **类型约束**：`StorageClient` 要求实现 `Clone + 'static`
+4. **简单状态**：所有内部状态（`space_id`, `space_name`, `auto_commit`）都是简单的可复制类型
+
+### 为什么可以安全实现 Send + Sync
+1. **所有权系统**：Rust 的所有权系统确保同一时间只有一个线程可以修改数据
+2. **Mutex 保护**：所有可变状态都通过 `Mutex` 保护，防止数据竞争
+3. **Arc 引用计数**：`Arc` 确保共享数据的生命周期管理是线程安全的
+4. **类型约束**：`StorageClient` 的约束确保存储客户端本身是线程安全的
+
+### 使用场景
+这些实现使得：
+- `GraphDatabase` 可以在多线程环境中共享（如 web 服务器的多个 worker 线程）
+- `Session` 可以跨线程传递（如异步任务之间）
+- 用户可以在多线程应用中安全地使用 embedded API
+
+### 注意事项
+1. **存储客户端必须线程安全**：`StorageClient` 的实现者需要确保其 `clone()` 方法是线程安全的
+2. **避免死锁**：虽然类型系统是线程安全的，但仍需注意避免死锁（如嵌套锁）
+3. **性能考虑**：`Mutex` 有一定的性能开销，在极高并发场景下可能需要优化

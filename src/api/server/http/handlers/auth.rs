@@ -54,6 +54,6 @@ pub async fn logout<S: StorageClient + Clone + Send + Sync + 'static>(
     Json(request): Json<LogoutRequest>,
 ) -> Result<StatusCode, HttpError> {
     let session_manager = state.server.get_session_manager();
-    session_manager.remove_session(request.session_id);
+    session_manager.remove_session(request.session_id).await;
     Ok(StatusCode::NO_CONTENT)
 }

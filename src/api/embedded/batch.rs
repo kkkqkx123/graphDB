@@ -188,18 +188,15 @@ impl<'sess, S: StorageClient + Clone + 'static> BatchInserter<'sess, S> {
                 self.total_inserted.vertices_inserted += count;
             }
             Err(e) => {
-                // 插入失败，记录错误
+                // 插入失败，记录错误，但不立即返回错误
+                // 这样调用者可以通过 BatchResult 获取部分成功的结果和所有错误
                 self.total_inserted.errors.push(BatchError {
                     index: self.total_inserted.vertices_inserted,
                     item_type: BatchItemType::Vertex,
                     error: format!("批量插入顶点失败: {}", e),
                 });
-                return Err(CoreError::StorageError(format!("批量插入顶点失败: {}", e)));
             }
         }
-
-        // 清空缓冲区
-        self.vertex_buffer.clear();
 
         Ok(())
     }
@@ -226,18 +223,15 @@ impl<'sess, S: StorageClient + Clone + 'static> BatchInserter<'sess, S> {
                 self.total_inserted.edges_inserted += count;
             }
             Err(e) => {
-                // 插入失败，记录错误
+                // 插入失败，记录错误，但不立即返回错误
+                // 这样调用者可以通过 BatchResult 获取部分成功的结果和所有错误
                 self.total_inserted.errors.push(BatchError {
                     index: self.total_inserted.edges_inserted,
                     item_type: BatchItemType::Edge,
                     error: format!("批量插入边失败: {}", e),
                 });
-                return Err(CoreError::StorageError(format!("批量插入边失败: {}", e)));
             }
         }
-
-        // 清空缓冲区
-        self.edge_buffer.clear();
 
         Ok(())
     }

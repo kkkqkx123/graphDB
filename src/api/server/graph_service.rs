@@ -91,7 +91,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         })
     }
 
-    pub fn authenticate(
+    pub async fn authenticate(
         &self,
         username: &str,
         password: &str,
@@ -102,7 +102,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
             return Err("用户名或密码不能为空".to_string());
         }
 
-        if self.session_manager.is_out_of_connections() {
+        if self.session_manager.is_out_of_connections().await {
             self.stats_manager
                 .add_value(MetricType::NumAuthFailedSessions);
             return Err("超过最大连接数限制".to_string());
@@ -113,6 +113,7 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
                 let session = self
                     .session_manager
                     .create_session(username.to_string(), "127.0.0.1".to_string())
+                    .await
                     .map_err(|e| format!("创建会话失败: {}", e))?;
 
                 Ok(session)
@@ -273,14 +274,14 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
         }
     }
 
-    pub fn signout(&self, session_id: i64) {
+    pub async fn signout(&self, session_id: i64) {
         if let Some(session) = self.session_manager.find_session(session_id) {
             if let Some(space_name) = session.space_name() {
                 self.stats_manager
                     .dec_space_metric(&space_name, MetricType::NumActiveQueries);
             }
         }
-        self.session_manager.remove_session(session_id);
+        self.session_manager.remove_session(session_id).await;
     }
 
     pub fn get_session_manager(&self) -> &Arc<GraphSessionManager> {
@@ -296,24 +297,24 @@ impl<S: StorageClient + Clone + 'static> GraphService<S> {
     }
 
     /// 获取会话列表（SHOW SESSIONS）
-    pub fn list_sessions(&self) -> Vec<crate::api::server::session::SessionInfo> {
-        self.session_manager.list_sessions()
+    pub async fn list_sessions(&self) -> Vec<crate::api::server::session::SessionInfo> {
+        self.session_manager.list_sessions().await
     }
 
     /// 获取指定会话的详细信息
-    pub fn get_session_info(&self, session_id: i64) -> Option<crate::api::server::session::SessionInfo> {
-        self.session_manager.get_session_info(session_id)
+    pub async fn get_session_info(&self, session_id: i64) -> Option<crate::api::server::session::SessionInfo> {
+        self.session_manager.get_session_info(session_id).await
     }
 
     /// 终止会话（KILL SESSION）
-    pub fn kill_session(&self, session_id: i64, current_user: &str) -> SessionResult<()> {
+    pub async fn kill_session(&self, session_id: i64, current_user: &str) -> SessionResult<()> {
         // 获取当前会话以检查权限
         let current_session = self.session_manager.find_session(session_id)
             .ok_or(SessionError::SessionNotFound(session_id))?;
         
         let is_admin = current_session.is_admin();
         
-        self.session_manager.kill_session(session_id, current_user, is_admin)
+        self.session_manager.kill_session(session_id, current_user, is_admin).await
     }
 
     /// 终止查询（KILL QUERY）
@@ -495,133 +496,133 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_graph_service_creation() {
+    #[tokio::test]
+    async fn test_graph_service_creation() {
         let config = create_test_config();
 
         let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
         let graph_service = GraphService::<MockStorage>::new_for_test(config, storage);
 
         // 验证服务创建成功
-        assert!(!graph_service.get_session_manager().is_out_of_connections());
+        assert!(!graph_service.get_session_manager().is_out_of_connections().await);
     }
 
-    #[test]
-    fn test_authentication_success() {
+    #[tokio::test]
+    async fn test_authentication_success() {
         let config = create_test_config();
 
         let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
         let graph_service = GraphService::<MockStorage>::new_for_test(config, storage);
 
-        let session = graph_service.authenticate("root", "root");
+        let session = graph_service.authenticate("root", "root").await;
         assert!(session.is_ok());
     }
 
-    #[test]
-    fn test_authentication_failure() {
+    #[tokio::test]
+    async fn test_authentication_failure() {
         let config = create_test_config();
 
         let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
         let graph_service = GraphService::<MockStorage>::new_for_test(config, storage);
 
-        let session = graph_service.authenticate("root", "wrong_password");
+        let session = graph_service.authenticate("root", "wrong_password").await;
         assert!(session.is_err());
 
-        let session = graph_service.authenticate("", "password");
+        let session = graph_service.authenticate("", "password").await;
         assert!(session.is_err());
 
-        let session = graph_service.authenticate("testuser", "");
+        let session = graph_service.authenticate("testuser", "").await;
         assert!(session.is_err());
     }
 
-    #[test]
-    fn test_signout() {
+    #[tokio::test]
+    async fn test_signout() {
         let config = create_test_config();
 
         let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
         let graph_service = GraphService::<MockStorage>::new_for_test(config, storage);
 
-        let session = graph_service.authenticate("root", "root");
+        let session = graph_service.authenticate("root", "root").await;
         assert!(session.is_ok());
 
         let session_id = session.unwrap().id();
-        graph_service.signout(session_id);
+        graph_service.signout(session_id).await;
 
         // 验证会话已注销
         assert!(graph_service.get_session_manager().find_session(session_id).is_none());
     }
 
-    #[test]
-    fn test_list_sessions() {
+    #[tokio::test]
+    async fn test_list_sessions() {
         let config = create_test_config();
 
         let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
         let graph_service = GraphService::<MockStorage>::new_for_test(config, storage);
 
         // 初始时没有会话
-        let sessions = graph_service.list_sessions();
+        let sessions = graph_service.list_sessions().await;
         assert_eq!(sessions.len(), 0);
 
         // 创建一个会话
-        let session = graph_service.authenticate("root", "root");
+        let session = graph_service.authenticate("root", "root").await;
         assert!(session.is_ok());
 
         // 现在应该有一个会话
-        let sessions = graph_service.list_sessions();
+        let sessions = graph_service.list_sessions().await;
         assert_eq!(sessions.len(), 1);
     }
 
-    #[test]
-    fn test_get_session_info() {
+    #[tokio::test]
+    async fn test_get_session_info() {
         let config = create_test_config();
 
         let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
         let graph_service = GraphService::<MockStorage>::new_for_test(config, storage);
 
         // 不存在的会话
-        let info = graph_service.get_session_info(999);
+        let info = graph_service.get_session_info(999).await;
         assert!(info.is_none());
 
         // 创建一个会话
-        let session = graph_service.authenticate("root", "root");
+        let session = graph_service.authenticate("root", "root").await;
         assert!(session.is_ok());
         let session_id = session.unwrap().id();
 
         // 获取会话信息
-        let info = graph_service.get_session_info(session_id);
+        let info = graph_service.get_session_info(session_id).await;
         assert!(info.is_some());
         assert_eq!(info.unwrap().session_id, session_id);
     }
 
-    #[test]
-    fn test_kill_session() {
+    #[tokio::test]
+    async fn test_kill_session() {
         let config = create_test_config();
 
         let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
         let graph_service = GraphService::<MockStorage>::new_for_test(config, storage);
 
         // 创建一个会话
-        let session = graph_service.authenticate("root", "root");
+        let session = graph_service.authenticate("root", "root").await;
         assert!(session.is_ok());
         let session_id = session.unwrap().id();
 
         // 终止会话
-        let result = graph_service.kill_session(session_id, "root");
+        let result = graph_service.kill_session(session_id, "root").await;
         assert!(result.is_ok());
 
         // 验证会话已终止
         assert!(graph_service.get_session_manager().find_session(session_id).is_none());
     }
 
-    #[test]
-    fn test_kill_nonexistent_session() {
+    #[tokio::test]
+    async fn test_kill_nonexistent_session() {
         let config = create_test_config();
 
         let storage = Arc::new(MockStorage::new().expect("Failed to create Memory storage"));
         let graph_service = GraphService::<MockStorage>::new_for_test(config, storage);
 
         // 终止不存在的会话应该失败
-        let result = graph_service.kill_session(999, "root");
+        let result = graph_service.kill_session(999, "root").await;
         assert!(result.is_err());
     }
 
