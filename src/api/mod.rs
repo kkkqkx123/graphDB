@@ -23,7 +23,7 @@ pub use core::{QueryApi, TransactionApi, SchemaApi, CoreError, CoreResult};
 pub use server::{HttpServer, session};
 
 #[cfg(feature = "embedded")]
-pub use embedded::{GraphDb, EmbeddedConfig};
+pub use embedded::GraphDatabase;
 
 #[cfg(feature = "server")]
 use crate::api::server::GraphService;
