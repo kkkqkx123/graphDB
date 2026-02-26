@@ -190,12 +190,46 @@ mod tests {
         assert!(result.is_ok());
 
         let expression = result.expect("Expected Ok result for simple tag list parsing");
-        // 验证表达式结构（这里简化测试）
-        match expression {
-            Expression::Binary { op, .. } => {
-                assert_eq!(op, BinaryOperator::Or);
+        
+        // 验证表达式结构 - 应该是层级的 OR 表达式
+        // 结构应为: (tags IN [user] OR tags IN [admin]) OR tags IN [moderator]
+        match &expression {
+            Expression::Binary { op, left, right } => {
+                assert_eq!(*op, BinaryOperator::Or, "顶层操作符应为 Or");
+                
+                // 检查左侧是否为 OR 表达式 (tags IN [user] OR tags IN [admin])
+                match &**left {
+                    Expression::Binary { op: inner_op, left: inner_left, right: inner_right } => {
+                        assert_eq!(*inner_op, BinaryOperator::Or, "左侧操作符应为 Or");
+                        
+                        // 检查最左边是否为 In 表达式
+                        match &**inner_left {
+                            Expression::Binary { op: leaf_op, .. } => {
+                                assert_eq!(*leaf_op, BinaryOperator::In, "最左侧操作符应为 In");
+                            }
+                            _ => panic!("最左侧表达式应为 Binary In 表达式"),
+                        }
+                        
+                        // 检查左侧的右边是否为 In 表达式
+                        match &**inner_right {
+                            Expression::Binary { op: leaf_op, .. } => {
+                                assert_eq!(*leaf_op, BinaryOperator::In, "左中侧操作符应为 In");
+                            }
+                            _ => panic!("左侧的右边表达式应为 Binary In 表达式"),
+                        }
+                    }
+                    _ => panic!("左侧应为 Binary OR 表达式"),
+                }
+                
+                // 检查右侧是否为 In 表达式 (tags IN [moderator])
+                match &**right {
+                    Expression::Binary { op: right_op, .. } => {
+                        assert_eq!(*right_op, BinaryOperator::In, "右侧操作符应为 In");
+                    }
+                    _ => panic!("右侧表达式应为 Binary In 表达式"),
+                }
             }
-            _ => panic!("Expected binary expression"),
+            _ => panic!("Expected binary expression with Or operator at top level"),
         }
     }
 

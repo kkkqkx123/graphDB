@@ -113,17 +113,17 @@ impl Authenticator for PasswordAuthenticator {
             Ok(false) => {
                 // 登录失败，记录尝试
                 self.record_failed_attempt(username);
-                
+
                 let attempts = self.login_attempts.read();
                 if let Some(attempt) = attempts.get(username) {
                     if attempt.remaining_attempts > 0 {
-                        return Err(AuthError::InvalidCredentials);
+                        return Err(AuthError::InvalidCredentials(attempt.remaining_attempts));
                     } else {
                         return Err(AuthError::MaxAttemptsExceeded);
                     }
                 }
-                
-                Err(AuthError::InvalidCredentials)
+
+                Err(AuthError::InvalidCredentials(0))
             }
             Err(e) => Err(e),
         }

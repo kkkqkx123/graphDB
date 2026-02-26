@@ -9,7 +9,7 @@ use crate::query::planner::plan::core::{
     node_id_generator::next_node_id,
     nodes::{
         insert_nodes::{EdgeInsertInfo, InsertEdgesNode, InsertVerticesNode, VertexInsertInfo, TagInsertSpec},
-        ArgumentNode, ProjectNode,
+        ArgumentNode, ProjectNode, control_flow_node::PassThroughNode,
     },
 };
 use crate::query::planner::plan::{PlanNodeEnum, SubPlan};
@@ -27,11 +27,6 @@ impl CreatePlanner {
     /// 创建新的 CREATE 规划器
     pub fn new() -> Self {
         Self
-    }
-
-    /// 创建规划器实例的工厂函数
-    pub fn make() -> Box<dyn Planner> {
-        Box::new(Self::new())
     }
 
     /// 判断是否为数据创建语句（而非 Schema 创建）
@@ -180,12 +175,58 @@ impl Planner for CreatePlanner {
                     1,
                 )
             }
-            CreateTarget::Path { patterns: _ } => {
-                // 路径创建需要更复杂的处理
-                // 这里简化处理，返回错误提示
-                return Err(PlannerError::PlanGenerationFailed(
-                    "路径创建尚未完全实现".to_string()
-                ));
+            CreateTarget::Path { patterns } => {
+                let mut vertex_infos = Vec::new();
+                let mut edge_infos = Vec::new();
+                let mut created_count = 0;
+
+                for pattern in patterns {
+                    match pattern {
+                        crate::query::parser::ast::pattern::Pattern::Path(path) => {
+                            let (mut vertices, mut edges) = self.process_path_pattern(path, &space_name)?;
+                            vertex_infos.append(&mut vertices);
+                            edge_infos.append(&mut edges);
+                            created_count += 1;
+                        }
+                        crate::query::parser::ast::pattern::Pattern::Node(node) => {
+                            let info = self.process_node_pattern(node, &space_name)?;
+                            vertex_infos.push(info);
+                            created_count += 1;
+                        }
+                        _ => {
+                            return Err(PlannerError::PlanGenerationFailed(
+                                "路径创建只支持节点和路径模式".to_string()
+                            ));
+                        }
+                    }
+                }
+
+                if vertex_infos.is_empty() && edge_infos.is_empty() {
+                    return Err(PlannerError::PlanGenerationFailed(
+                        "路径创建必须包含至少一个节点或边".to_string()
+                    ));
+                }
+
+                let mut insert_nodes = Vec::new();
+
+                for info in vertex_infos {
+                    insert_nodes.push(PlanNodeEnum::InsertVertices(
+                        InsertVerticesNode::new(next_node_id(), info)
+                    ));
+                }
+
+                for info in edge_infos {
+                    insert_nodes.push(PlanNodeEnum::InsertEdges(
+                        InsertEdgesNode::new(next_node_id(), info)
+                    ));
+                }
+
+                if insert_nodes.len() == 1 {
+                    (insert_nodes.into_iter().next().unwrap(), created_count)
+                } else {
+                    let combined = self.combine_insert_nodes(insert_nodes)?;
+                    (PlanNodeEnum::PassThrough(combined), created_count)
+                }
             }
             _ => {
                 return Err(PlannerError::PlanGenerationFailed(
@@ -233,10 +274,191 @@ impl CreatePlanner {
             )),
         }
     }
+
+    /// 处理节点模式
+    fn process_node_pattern(
+        &self,
+        node: &crate::query::parser::ast::pattern::NodePattern,
+        space_name: &str,
+    ) -> Result<VertexInsertInfo, PlannerError> {
+        let props = if let Some(expr) = &node.properties {
+            Self::extract_properties(expr)?
+        } else {
+            vec![]
+        };
+
+        self.build_vertex_insert_info(
+            space_name.to_string(),
+            &node.labels,
+            &props,
+        )
+    }
+
+    /// 处理路径模式
+    fn process_path_pattern(
+        &self,
+        path: &crate::query::parser::ast::pattern::PathPattern,
+        space_name: &str,
+    ) -> Result<(Vec<VertexInsertInfo>, Vec<EdgeInsertInfo>), PlannerError> {
+        let mut vertex_infos = Vec::new();
+        let mut edge_infos = Vec::new();
+        let mut prev_vertex: Option<VertexInsertInfo> = None;
+
+        for element in &path.elements {
+            match element {
+                crate::query::parser::ast::pattern::PathElement::Node(node) => {
+                    let vertex_info = self.process_node_pattern(node, space_name)?;
+                    prev_vertex = Some(vertex_info.clone());
+                    vertex_infos.push(vertex_info);
+                }
+                crate::query::parser::ast::pattern::PathElement::Edge(edge) => {
+                    if prev_vertex.is_none() {
+                        return Err(PlannerError::PlanGenerationFailed(
+                            "边模式前必须有节点模式".to_string()
+                        ));
+                    }
+
+                    let props = if let Some(expr) = &edge.properties {
+                        Self::extract_properties(expr)?
+                    } else {
+                        vec![]
+                    };
+
+                    if edge.edge_types.is_empty() {
+                        return Err(PlannerError::PlanGenerationFailed(
+                            "边模式必须指定边类型".to_string()
+                        ));
+                    }
+
+                    let edge_type = edge.edge_types[0].clone();
+
+                    let src_vid = Expression::literal(Value::Null(crate::core::NullType::default()));
+                    let dst_vid = Expression::literal(Value::Null(crate::core::NullType::default()));
+
+                    let edge_info = EdgeInsertInfo {
+                        space_name: space_name.to_string(),
+                        edge_name: edge_type,
+                        prop_names: props.iter().map(|(k, _)| k.clone()).collect(),
+                        edges: vec![(src_vid, dst_vid, None, props.iter().map(|(_, v)| v.clone()).collect())],
+                    };
+
+                    edge_infos.push(edge_info);
+                }
+                _ => {
+                    return Err(PlannerError::PlanGenerationFailed(
+                        "路径创建不支持 Alternative、Optional 或 Repeated 模式".to_string()
+                    ));
+                }
+            }
+        }
+
+        Ok((vertex_infos, edge_infos))
+    }
+
+    /// 组合多个插入节点
+    fn combine_insert_nodes(
+        &self,
+        nodes: Vec<PlanNodeEnum>,
+    ) -> Result<PassThroughNode, PlannerError> {
+        if nodes.is_empty() {
+            return Err(PlannerError::PlanGenerationFailed(
+                "无法组合空的节点列表".to_string()
+            ));
+        }
+
+        Ok(PassThroughNode::new(next_node_id()))
+    }
 }
 
 impl Default for CreatePlanner {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::query::parser::parser::Parser;
+    use crate::query::planner::planner::Planner;
+    use crate::query::QueryContext;
+    use std::sync::Arc;
+
+    #[test]
+    fn test_create_path_simple() {
+        let sql = "CREATE (a:Person {name: 'Alice'})-[:FRIEND]->(b:Person {name: 'Bob'})";
+        let mut parser = Parser::new(sql);
+        let stmt = parser.parse().expect("解析失败");
+
+        let mut planner = CreatePlanner::new();
+        let qctx = Arc::new(QueryContext::default());
+
+        let result = planner.transform(&stmt, qctx);
+        assert!(result.is_ok(), "CREATE PATH 应该成功，但得到错误: {:?}", result.err());
+    }
+
+    #[test]
+    fn test_create_path_with_properties() {
+        let sql = "CREATE (a:Person {name: 'Alice', age: 30})-[:FRIEND {since: 2020}]->(b:Person {name: 'Bob', age: 25})";
+        let mut parser = Parser::new(sql);
+        let stmt = parser.parse().expect("解析失败");
+
+        let mut planner = CreatePlanner::new();
+        let qctx = Arc::new(QueryContext::default());
+
+        let result = planner.transform(&stmt, qctx);
+        assert!(result.is_ok(), "带属性的 CREATE PATH 应该成功");
+    }
+
+    #[test]
+    fn test_create_path_multiple_edges() {
+        let sql = "CREATE (a:Person)-[:FRIEND]->(b:Person)-[:FRIEND]->(c:Person)";
+        let mut parser = Parser::new(sql);
+        let stmt = parser.parse().expect("解析失败");
+
+        let mut planner = CreatePlanner::new();
+        let qctx = Arc::new(QueryContext::default());
+
+        let result = planner.transform(&stmt, qctx);
+        assert!(result.is_ok(), "多边 CREATE PATH 应该成功");
+    }
+
+    #[test]
+    fn test_create_path_single_node() {
+        let sql = "CREATE (a:Person {name: 'Alice'})";
+        let mut parser = Parser::new(sql);
+        let stmt = parser.parse().expect("解析失败");
+
+        let mut planner = CreatePlanner::new();
+        let qctx = Arc::new(QueryContext::default());
+
+        let result = planner.transform(&stmt, qctx);
+        assert!(result.is_ok(), "单节点 CREATE 应该成功");
+    }
+
+    #[test]
+    fn test_create_path_without_labels() {
+        let sql = "CREATE (a)-[:FRIEND]->(b)";
+        let mut parser = Parser::new(sql);
+        let stmt = parser.parse().expect("解析失败");
+
+        let mut planner = CreatePlanner::new();
+        let qctx = Arc::new(QueryContext::default());
+
+        let result = planner.transform(&stmt, qctx);
+        assert!(result.is_err(), "没有标签的 CREATE PATH 应该失败");
+    }
+
+    #[test]
+    fn test_create_path_bidirectional_edge() {
+        let sql = "CREATE (a:Person)-[:FRIEND]-(b:Person)";
+        let mut parser = Parser::new(sql);
+        let stmt = parser.parse().expect("解析应该成功");
+
+        let mut planner = CreatePlanner::new();
+        let qctx = Arc::new(QueryContext::default());
+
+        let result = planner.transform(&stmt, qctx);
+        assert!(result.is_ok(), "双向边 CREATE PATH 应该成功");
     }
 }

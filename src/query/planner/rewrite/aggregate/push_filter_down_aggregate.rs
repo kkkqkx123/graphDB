@@ -109,10 +109,24 @@ impl PushFilterDownAggregateRule {
 
     /// 重写过滤条件中的变量引用
     ///
-    /// 将 Filter 中的变量引用转换为聚合输入的列引用
+    /// 将 Filter 中的变量引用转换为聚合输入的列引用。
+    ///
+    /// # 为什么不需要重写
+    ///
+    /// 当前实现直接返回原条件，这是正确的，因为：
+    ///
+    /// 1. **分组键**：分组键在聚合前后名称相同，不需要重写
+    /// 2. **聚合函数输出列**：已被 `has_aggregate_function_reference` 阻止，不会下推
+    /// 3. **其他输入列**：输入列在聚合前后名称相同，不需要重写
+    ///
+    /// # 何时需要重写
+    ///
+    /// 如果未来需要支持以下场景，可以使用 `expression_utils::rewrite_expression`：
+    ///
+    /// - 聚合输出列名与输入列名不同
+    /// - 需要将聚合输出列映射回输入列
+    /// - 需要处理复杂的列名转换
     fn rewrite_filter_condition(condition: &Expression, _group_keys: &[String]) -> Expression {
-        // 目前简化实现：直接返回原条件
-        // 在实际场景中，可能需要将聚合输出的列名映射回输入列名
         condition.clone()
     }
 }

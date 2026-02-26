@@ -384,35 +384,75 @@ impl WithClausePlanner {
     /// 推断别名类型
     ///
     /// 根据表达式推断别名类型
+    /// 参考 NebulaGraph 的 DeduceAliasTypeVisitor 实现
     fn deduce_alias_type(expression: &Expression) -> AliasType {
         use crate::core::Expression;
 
         match expression {
+            // 大多数表达式无法推断类型，默认返回 Runtime
+            Expression::Literal(_)
+            | Expression::Unary { .. }
+            | Expression::TypeCast { .. }
+            | Expression::Label(_)
+            | Expression::Binary { .. }
+            | Expression::Aggregate { .. }
+            | Expression::List(_)
+            | Expression::Map(_)
+            | Expression::Case { .. }
+            | Expression::LabelTagProperty { .. }
+            | Expression::TagProperty { .. }
+            | Expression::EdgeProperty { .. }
+            | Expression::Predicate { .. }
+            | Expression::Reduce { .. }
+            | Expression::Parameter(_)
+            | Expression::ListComprehension { .. } => AliasType::Runtime,
+
+            // 变量引用 - 默认返回 Variable，实际类型需要从 aliases_available 中获取
             Expression::Variable(_) => AliasType::Variable,
+
+            // 属性访问 - 尝试从对象推断类型
             Expression::Property { object, .. } => {
-                if let Expression::Variable(var_name) = object.as_ref() {
-                    // 根据变量名推断类型（简化实现）
-                    if var_name.starts_with('e') || var_name.starts_with('E') {
-                        AliasType::Edge
-                    } else if var_name.starts_with('v') || var_name.starts_with('V') {
-                        AliasType::Node
-                    } else {
-                        AliasType::Variable
-                    }
-                } else {
-                    AliasType::Variable
-                }
+                Self::deduce_alias_type(object)
             }
+
+            // 路径构建表达式
+            Expression::PathBuild(_) => AliasType::Path,
+
+            // 路径表达式
+            Expression::Path(_) => AliasType::Path,
+
+            // 函数调用 - 根据函数名推断类型
             Expression::Function { name, .. } => {
                 let name_lower = name.to_lowercase();
                 match name_lower.as_str() {
-                    "id" | "src" | "dst" => AliasType::Variable,
-                    "nodes" | "relationships" => AliasType::Path,
-                    _ => AliasType::Variable,
+                    "nodes" => AliasType::NodeList,
+                    "relationships" => AliasType::EdgeList,
+                    "reversepath" => AliasType::Path,
+                    "startnode" | "endnode" => AliasType::Node,
+                    // 其他函数返回 Runtime
+                    _ => AliasType::Runtime,
                 }
             }
-            Expression::Aggregate { .. } => AliasType::Variable,
-            _ => AliasType::Variable,
+
+            // 下标访问 - 递归推断集合类型
+            Expression::Subscript { collection, .. } => {
+                let collection_type = Self::deduce_alias_type(collection);
+                match collection_type {
+                    AliasType::EdgeList => AliasType::Edge,
+                    AliasType::NodeList => AliasType::Node,
+                    _ => collection_type,
+                }
+            }
+
+            // 范围表达式 - 递归推断集合类型
+            Expression::Range { collection, .. } => {
+                let collection_type = Self::deduce_alias_type(collection);
+                match collection_type {
+                    AliasType::EdgeList => AliasType::EdgeList,
+                    AliasType::NodeList => AliasType::NodeList,
+                    _ => collection_type,
+                }
+            }
         }
     }
 

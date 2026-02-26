@@ -74,6 +74,9 @@ mod server_main {
 }
 
 #[cfg(feature = "server")]
+use graphdb::core::error::DBResult;
+
+#[cfg(feature = "server")]
 fn main() -> DBResult<()> {
     server_main::main()
 }

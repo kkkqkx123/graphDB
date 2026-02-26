@@ -26,11 +26,6 @@ impl UsePlanner {
         Self
     }
 
-    /// 创建规划器实例的工厂函数
-    pub fn make() -> Box<dyn Planner> {
-        Box::new(Self::new())
-    }
-
     /// 从 Stmt 提取 UseStmt
     fn extract_use_stmt(&self, stmt: &Stmt) -> Result<UseStmt, PlannerError> {
         match stmt {

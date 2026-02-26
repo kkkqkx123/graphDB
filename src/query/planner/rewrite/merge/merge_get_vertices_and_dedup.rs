@@ -1,7 +1,5 @@
 //! 合并获取顶点和去重操作的规则
 
-use crate::query::planner::plan::core::nodes::data_processing_node::DedupNode;
-use crate::query::planner::plan::core::nodes::graph_scan_node::GetVerticesNode;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::query::planner::rewrite::context::RewriteContext;
@@ -123,6 +121,8 @@ impl MergeRule for MergeGetVerticesAndDedupRule {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::query::planner::plan::core::nodes::data_processing_node::DedupNode;
+    use crate::query::planner::plan::core::nodes::graph_scan_node::GetVerticesNode;
     use crate::query::planner::plan::core::nodes::start_node::StartNode;
 
     #[test]

@@ -26,11 +26,6 @@ impl UpdatePlanner {
         Self
     }
 
-    /// 创建规划器实例的工厂函数
-    pub fn make() -> Box<dyn Planner> {
-        Box::new(Self::new())
-    }
-
     /// 从 Stmt 提取 UpdateStmt
     fn extract_update_stmt(&self, stmt: &Stmt) -> Result<UpdateStmt, PlannerError> {
         match stmt {

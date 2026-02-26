@@ -18,8 +18,8 @@ pub enum AuthError {
     #[error("用户名或密码不能为空")]
     EmptyCredentials,
 
-    #[error("用户名或密码错误")]
-    InvalidCredentials,
+    #[error("用户名或密码错误，还剩 {0} 次尝试机会")]
+    InvalidCredentials(u32),
 
     #[error("已达到最大尝试次数")]
     MaxAttemptsExceeded,
@@ -37,7 +37,7 @@ impl ToPublicError for AuthError {
         match self {
             AuthError::AuthenticationFailed(_) => ErrorCode::Unauthorized,
             AuthError::EmptyCredentials => ErrorCode::InvalidInput,
-            AuthError::InvalidCredentials => ErrorCode::Unauthorized,
+            AuthError::InvalidCredentials(_) => ErrorCode::Unauthorized,
             AuthError::MaxAttemptsExceeded => ErrorCode::ResourceExhausted,
             AuthError::AuthenticatorError(_) => ErrorCode::InternalError,
         }

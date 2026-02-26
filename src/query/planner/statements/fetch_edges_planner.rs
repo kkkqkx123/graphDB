@@ -21,11 +21,6 @@ impl FetchEdgesPlanner {
     pub fn new() -> Self {
         Self
     }
-
-    /// 创建规划器实例的工厂函数
-    pub fn make() -> Box<dyn Planner> {
-        Box::new(Self::new())
-    }
 }
 
 impl Planner for FetchEdgesPlanner {

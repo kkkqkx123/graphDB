@@ -27,16 +27,6 @@ impl GroupByPlanner {
         Self
     }
 
-    /// 创建规划器实例的工厂函数
-    pub fn make() -> Box<dyn Planner> {
-        Box::new(Self::new())
-    }
-
-    /// 获取匹配和实例化函数（静态注册版本）
-    pub fn get_match_and_instantiate() -> crate::query::planner::planner::PlannerEnum {
-        crate::query::planner::planner::PlannerEnum::GroupBy(Self::new())
-    }
-
     /// 从表达式中提取聚合函数
     /// 
     /// 递归遍历表达式树，收集所有聚合函数。

@@ -8,6 +8,7 @@ use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planner::rewrite::rule::{MergeRule, RewriteRule};
+use crate::query::planner::rewrite::expression_utils::rewrite_expression;
 
 /// 折叠多个投影操作的规则
 ///
@@ -104,92 +105,6 @@ impl CollapseProjectRule {
         }
     }
 
-    /// 重写表达式，将属性引用替换为实际表达式
-    fn rewrite_expression(
-        expr: &Expression,
-        rewrite_map: &std::collections::HashMap<String, Expression>,
-    ) -> Expression {
-        match expr {
-            Expression::Variable(name) => {
-                if let Some(new_expr) = rewrite_map.get(name) {
-                    new_expr.clone()
-                } else {
-                    expr.clone()
-                }
-            }
-            Expression::Property { object, property } => {
-                if let Expression::Variable(obj_name) = object.as_ref() {
-                    let full_name = format!("{}.{}", obj_name, property);
-                    if let Some(new_expr) = rewrite_map.get(&full_name) {
-                        return new_expr.clone();
-                    }
-                    if let Some(new_expr) = rewrite_map.get(property) {
-                        return Expression::Property {
-                            object: Box::new(new_expr.clone()),
-                            property: property.clone(),
-                        };
-                    }
-                }
-                Expression::Property {
-                    object: Box::new(Self::rewrite_expression(object, rewrite_map)),
-                    property: property.clone(),
-                }
-            }
-            Expression::Binary { left, op, right } => Expression::Binary {
-                left: Box::new(Self::rewrite_expression(left, rewrite_map)),
-                op: *op,
-                right: Box::new(Self::rewrite_expression(right, rewrite_map)),
-            },
-            Expression::Unary { op, operand } => Expression::Unary {
-                op: *op,
-                operand: Box::new(Self::rewrite_expression(operand, rewrite_map)),
-            },
-            Expression::Function { name, args } => Expression::Function {
-                name: name.clone(),
-                args: args
-                    .iter()
-                    .map(|arg| Self::rewrite_expression(arg, rewrite_map))
-                    .collect(),
-            },
-            Expression::Aggregate { func, arg, distinct } => Expression::Aggregate {
-                func: func.clone(),
-                arg: Box::new(Self::rewrite_expression(arg, rewrite_map)),
-                distinct: *distinct,
-            },
-            Expression::List(list) => Expression::List(
-                list.iter()
-                    .map(|item| Self::rewrite_expression(item, rewrite_map))
-                    .collect(),
-            ),
-            Expression::Map(map) => Expression::Map(
-                map.iter()
-                    .map(|(k, v)| (k.clone(), Self::rewrite_expression(v, rewrite_map)))
-                    .collect(),
-            ),
-            Expression::Case {
-                test_expr,
-                conditions,
-                default,
-            } => Expression::Case {
-                test_expr: test_expr
-                    .as_ref()
-                    .map(|e| Box::new(Self::rewrite_expression(e, rewrite_map))),
-                conditions: conditions
-                    .iter()
-                    .map(|(w, t)| {
-                        (
-                            Self::rewrite_expression(w, rewrite_map),
-                            Self::rewrite_expression(t, rewrite_map),
-                        )
-                    })
-                    .collect(),
-                default: default
-                    .as_ref()
-                    .map(|e| Box::new(Self::rewrite_expression(e, rewrite_map))),
-            },
-            _ => expr.clone(),
-        }
-    }
 }
 
 impl Default for CollapseProjectRule {
@@ -260,7 +175,7 @@ impl RewriteRule for CollapseProjectRule {
         let new_columns: Vec<YieldColumn> = parent_cols
             .iter()
             .map(|col| YieldColumn {
-                expression: Self::rewrite_expression(&col.expression, &rewrite_map),
+                expression: rewrite_expression(&col.expression, &rewrite_map),
                 alias: col.alias.clone(),
                 is_matched: col.is_matched,
             })

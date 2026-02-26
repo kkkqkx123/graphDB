@@ -30,16 +30,6 @@ impl SubgraphPlanner {
     pub fn new() -> Self {
         Self
     }
-
-    /// 创建规划器实例的工厂函数
-    pub fn make() -> Box<dyn Planner> {
-        Box::new(Self::new())
-    }
-
-    /// 获取匹配和实例化函数（静态注册版本）
-    pub fn get_match_and_instantiate() -> crate::query::planner::planner::PlannerEnum {
-        crate::query::planner::planner::PlannerEnum::Subgraph(Self::new())
-    }
 }
 
 impl Planner for SubgraphPlanner {

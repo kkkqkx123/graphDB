@@ -274,24 +274,21 @@ fn execute_timestamp(args: &[Value]) -> Result<Value, ExpressionError> {
     use std::time::{SystemTime, UNIX_EPOCH};
     
     if args.is_empty() {
-        // 返回当前时间戳（毫秒）
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("系统时间错误")
             .as_millis();
         Ok(Value::Int(now as i64))
     } else {
-        // 从 DateTimeValue 转换
         match &args[0] {
             Value::DateTime(dt) => {
-                // 简化的转换：假设从固定纪元开始计算
-                // 实际应用中可能需要更复杂的日期时间计算
-                let timestamp = (dt.year as i64 * 365 * 24 * 60 * 60 
-                    + dt.month as i64 * 30 * 24 * 60 * 60 
-                    + dt.day as i64 * 24 * 60 * 60 
-                    + dt.hour as i64 * 60 * 60 
-                    + dt.minute as i64 * 60 
-                    + dt.sec as i64) * 1000;
+                let naive_dt = chrono::NaiveDateTime::new(
+                    chrono::NaiveDate::from_ymd_opt(dt.year, dt.month, dt.day)
+                        .ok_or_else(|| ExpressionError::type_error("无效的日期"))?,
+                    chrono::NaiveTime::from_hms_micro_opt(dt.hour, dt.minute, dt.sec, dt.microsec)
+                        .ok_or_else(|| ExpressionError::type_error("无效的时间"))?,
+                );
+                let timestamp = naive_dt.and_utc().timestamp_millis();
                 Ok(Value::Int(timestamp))
             }
             Value::Null(_) => Ok(Value::Null(NullType::Null)),

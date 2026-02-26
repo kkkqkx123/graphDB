@@ -32,11 +32,6 @@ impl PathPlanner {
     pub fn new() -> Self {
         Self {}
     }
-
-    /// 创建规划器实例的工厂函数
-    pub fn make() -> Box<dyn Planner> {
-        Box::new(Self::new())
-    }
 }
 
 impl Planner for PathPlanner {
@@ -138,21 +133,20 @@ impl PathPlanner {
     }
 
     /// 判断是否为最短路径查询
-    fn is_shortest_path_stmt(&self, _stmt: &crate::query::parser::ast::FindPathStmt) -> bool {
-        // 简化实现，默认为最短路径
-        true
+    fn is_shortest_path_stmt(&self, stmt: &crate::query::parser::ast::FindPathStmt) -> bool {
+        stmt.shortest
     }
 
     /// 从语句获取边类型
-    fn get_edge_types_from_stmt(&self, _stmt: &crate::query::parser::ast::FindPathStmt) -> Vec<String> {
-        // 简化实现，返回空列表
-        vec![]
+    fn get_edge_types_from_stmt(&self, stmt: &crate::query::parser::ast::FindPathStmt) -> Vec<String> {
+        stmt.over.as_ref()
+            .map(|over| over.edge_types.clone())
+            .unwrap_or_default()
     }
 
     /// 从语句获取最大步数
-    fn get_max_steps_from_stmt(&self, _stmt: &crate::query::parser::ast::FindPathStmt) -> usize {
-        // 简化实现，返回默认值
-        10
+    fn get_max_steps_from_stmt(&self, stmt: &crate::query::parser::ast::FindPathStmt) -> usize {
+        stmt.max_steps.unwrap_or(10)
     }
 }
 

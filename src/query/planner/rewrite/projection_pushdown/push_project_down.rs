@@ -134,6 +134,129 @@ impl PushProjectDownRule {
 
         false
     }
+
+    /// 递归查找数据源节点
+    fn find_data_source(&self, node: &PlanNodeEnum) -> Option<PlanNodeEnum> {
+        if Self::is_data_source(node) {
+            return Some(node.clone());
+        }
+
+        if Self::is_intermediate_node(node) {
+            if let Some(input) = node.dependencies().first() {
+                return self.find_data_source(input);
+            }
+        }
+
+        None
+    }
+
+    /// 通过中间节点链下推投影
+    ///
+    /// 这个方法处理以下场景：
+    /// ```
+    /// Project(col1, col2)
+    ///       |
+    ///    Filter(condition)
+    ///       |
+    ///   ScanVertices
+    /// ```
+    ///
+    /// 转换为：
+    /// ```
+    /// Filter(condition)
+    ///       |
+    ///   ScanVertices(col1, col2)
+    /// ```
+    fn push_down_through_intermediate_nodes(
+        &self,
+        project_node: &crate::query::planner::plan::core::nodes::ProjectNode,
+        intermediate_node: &PlanNodeEnum,
+    ) -> RewriteResult<Option<TransformResult>> {
+        let columns = project_node.columns();
+
+        // 递归查找数据源节点
+        let data_source = match self.find_data_source(intermediate_node) {
+            Some(source) => source,
+            None => return Ok(None),
+        };
+
+        // 创建带有投影列的新数据源节点
+        let new_data_source = match self.create_data_source_with_projection(&data_source, columns) {
+            Some(node) => node,
+            None => return Ok(None),
+        };
+
+        // 重建中间节点链
+        let mut current_node = new_data_source;
+
+        // 从数据源向上重建节点链
+        let node_chain = self.collect_intermediate_nodes(intermediate_node, &data_source)?;
+
+        // 从下往上重建节点链
+        for node in node_chain.into_iter().rev() {
+            current_node = self.rebuild_node_with_new_input(node, current_node)?;
+        }
+
+        // 创建转换结果
+        let mut result = TransformResult::new();
+        result.erase_curr = true;
+        result.add_new_node(current_node);
+
+        Ok(Some(result))
+    }
+
+    /// 收集从中间节点到数据源之间的所有中间节点
+    fn collect_intermediate_nodes(
+        &self,
+        start: &PlanNodeEnum,
+        end: &PlanNodeEnum,
+    ) -> RewriteResult<Vec<PlanNodeEnum>> {
+        let mut nodes = Vec::new();
+        let mut current = start.clone();
+
+        // 使用 ID 来判断是否到达数据源节点
+        let end_id = end.id();
+
+        while Self::is_intermediate_node(&current) {
+            if current.id() == end_id {
+                break;
+            }
+
+            nodes.push(current.clone());
+
+            let deps = current.dependencies();
+            if let Some(input) = deps.first() {
+                current = (**input).clone();
+            } else {
+                break;
+            }
+        }
+
+        Ok(nodes)
+    }
+
+    /// 使用新的输入节点重建节点
+    fn rebuild_node_with_new_input(
+        &self,
+        mut node: PlanNodeEnum,
+        new_input: PlanNodeEnum,
+    ) -> RewriteResult<PlanNodeEnum> {
+        match &mut node {
+            PlanNodeEnum::Filter(n) => {
+                n.set_input(new_input);
+                Ok(node)
+            }
+            PlanNodeEnum::Dedup(n) => {
+                n.set_input(new_input);
+                Ok(node)
+            }
+            PlanNodeEnum::Limit(n) => {
+                n.set_input(new_input);
+                Ok(node)
+            }
+            _ => Ok(node),
+        }
+    }
 }
 
 impl Default for PushProjectDownRule {
@@ -187,10 +310,8 @@ impl RewriteRule for PushProjectDownRule {
         // 如果子节点是中间节点，尝试继续向下查找数据源
         if Self::is_intermediate_node(input) {
             if self.contains_data_source(input) {
-                // 找到了数据源，但当前实现简化处理
-                // 实际应该重构整个子树，将投影下推到数据源
-                // 这里仅作演示，返回 None 表示不进行转换
-                return Ok(None);
+                // 找到了数据源，通过中间节点链下推投影
+                return self.push_down_through_intermediate_nodes(project_node, input);
             }
         }
 
@@ -226,7 +347,7 @@ mod tests {
     use super::*;
     use crate::core::{Expression, YieldColumn};
     use crate::query::planner::plan::core::nodes::{
-        FilterNode, GetVerticesNode, ProjectNode, ScanVerticesNode, StartNode,
+        DedupNode, FilterNode, GetVerticesNode, LimitNode, ProjectNode, ScanVerticesNode, StartNode,
     };
 
     #[test]
@@ -405,5 +526,230 @@ mod tests {
         // 非数据源
         let start = PlanNodeEnum::Start(StartNode::new());
         assert!(!rule.contains_data_source(&start));
+    }
+
+    #[test]
+    fn test_find_data_source() {
+        let rule = PushProjectDownRule::new();
+
+        // 直接数据源
+        let scan = PlanNodeEnum::ScanVertices(ScanVerticesNode::new(1));
+        assert!(rule.find_data_source(&scan).is_some());
+
+        // 中间节点 -> 数据源
+        let filter = FilterNode::new(
+            scan.clone(),
+            crate::core::Expression::literal(true),
+        )
+        .expect("创建 FilterNode 失败");
+        let filter_enum = PlanNodeEnum::Filter(filter);
+        let found = rule.find_data_source(&filter_enum);
+        assert!(found.is_some());
+        assert!(matches!(found.unwrap(), PlanNodeEnum::ScanVertices(_)));
+
+        // 非数据源
+        let start = PlanNodeEnum::Start(StartNode::new());
+        assert!(rule.find_data_source(&start).is_none());
+    }
+
+    #[test]
+    fn test_push_down_through_filter() {
+        let rule = PushProjectDownRule::new();
+        let mut ctx = RewriteContext::new();
+
+        // 创建 ScanVertices 节点
+        let scan_node = ScanVerticesNode::new(1);
+        let scan = PlanNodeEnum::ScanVertices(scan_node);
+
+        // 创建 Filter 节点
+        let filter = FilterNode::new(
+            scan.clone(),
+            crate::core::Expression::literal(true),
+        )
+        .expect("创建 FilterNode 失败");
+        let filter_enum = PlanNodeEnum::Filter(filter);
+
+        // 创建 Project 节点
+        let columns = vec![
+            YieldColumn {
+                expression: Expression::Variable("id".to_string()),
+                alias: "id".to_string(),
+                is_matched: false,
+            },
+            YieldColumn {
+                expression: Expression::Variable("name".to_string()),
+                alias: "name".to_string(),
+                is_matched: false,
+            },
+        ];
+        let project =
+            ProjectNode::new(filter_enum.clone(), columns).expect("创建 ProjectNode 失败");
+        let project_enum = PlanNodeEnum::Project(project);
+
+        // 应用规则
+        let result = rule.apply(&mut ctx, &project_enum).expect("应用规则失败");
+
+        assert!(result.is_some());
+        let transform = result.expect("Failed to apply rewrite rule");
+        assert!(transform.erase_curr);
+        assert_eq!(transform.new_nodes.len(), 1);
+
+        // 验证新节点是 Filter，其输入是带有投影列的 ScanVertices
+        match &transform.new_nodes[0] {
+            PlanNodeEnum::Filter(filter_node) => {
+                match filter_node.input() {
+                    PlanNodeEnum::ScanVertices(scan_node) => {
+                        assert_eq!(scan_node.col_names(), &["id", "name"]);
+                    }
+                    _ => panic!("期望 Filter 的输入是 ScanVertices"),
+                }
+            }
+            _ => panic!("期望 Filter 节点"),
+        }
+    }
+
+    #[test]
+    fn test_push_down_through_dedup() {
+        let rule = PushProjectDownRule::new();
+        let mut ctx = RewriteContext::new();
+
+        // 创建 ScanVertices 节点
+        let scan_node = ScanVerticesNode::new(1);
+        let scan = PlanNodeEnum::ScanVertices(scan_node);
+
+        // 创建 Dedup 节点
+        let dedup = DedupNode::new(scan).expect("创建 DedupNode 失败");
+        let dedup_enum = PlanNodeEnum::Dedup(dedup);
+
+        // 创建 Project 节点
+        let columns = vec![YieldColumn {
+            expression: Expression::Variable("id".to_string()),
+            alias: "id".to_string(),
+            is_matched: false,
+        }];
+        let project =
+            ProjectNode::new(dedup_enum.clone(), columns).expect("创建 ProjectNode 失败");
+        let project_enum = PlanNodeEnum::Project(project);
+
+        // 应用规则
+        let result = rule.apply(&mut ctx, &project_enum).expect("应用规则失败");
+
+        assert!(result.is_some());
+        let transform = result.expect("Failed to apply rewrite rule");
+        assert!(transform.erase_curr);
+
+        // 验证新节点是 Dedup，其输入是带有投影列的 ScanVertices
+        match &transform.new_nodes[0] {
+            PlanNodeEnum::Dedup(dedup_node) => {
+                match dedup_node.input() {
+                    PlanNodeEnum::ScanVertices(scan_node) => {
+                        assert_eq!(scan_node.col_names(), &["id"]);
+                    }
+                    _ => panic!("期望 Dedup 的输入是 ScanVertices"),
+                }
+            }
+            _ => panic!("期望 Dedup 节点"),
+        }
+    }
+
+    #[test]
+    fn test_push_down_through_limit() {
+        let rule = PushProjectDownRule::new();
+        let mut ctx = RewriteContext::new();
+
+        // 创建 ScanVertices 节点
+        let scan_node = ScanVerticesNode::new(1);
+        let scan = PlanNodeEnum::ScanVertices(scan_node);
+
+        // 创建 Limit 节点
+        let limit = LimitNode::new(scan, 0, 10).expect("创建 LimitNode 失败");
+        let limit_enum = PlanNodeEnum::Limit(limit);
+
+        // 创建 Project 节点
+        let columns = vec![YieldColumn {
+            expression: Expression::Variable("id".to_string()),
+            alias: "id".to_string(),
+            is_matched: false,
+        }];
+        let project =
+            ProjectNode::new(limit_enum.clone(), columns).expect("创建 ProjectNode 失败");
+        let project_enum = PlanNodeEnum::Project(project);
+
+        // 应用规则
+        let result = rule.apply(&mut ctx, &project_enum).expect("应用规则失败");
+
+        assert!(result.is_some());
+        let transform = result.expect("Failed to apply rewrite rule");
+        assert!(transform.erase_curr);
+
+        // 验证新节点是 Limit，其输入是带有投影列的 ScanVertices
+        match &transform.new_nodes[0] {
+            PlanNodeEnum::Limit(limit_node) => {
+                match limit_node.input() {
+                    PlanNodeEnum::ScanVertices(scan_node) => {
+                        assert_eq!(scan_node.col_names(), &["id"]);
+                    }
+                    _ => panic!("期望 Limit 的输入是 ScanVertices"),
+                }
+            }
+            _ => panic!("期望 Limit 节点"),
+        }
+    }
+
+    #[test]
+    fn test_push_down_through_multiple_intermediate_nodes() {
+        let rule = PushProjectDownRule::new();
+        let mut ctx = RewriteContext::new();
+
+        // 创建 ScanVertices 节点
+        let scan_node = ScanVerticesNode::new(1);
+        let scan = PlanNodeEnum::ScanVertices(scan_node);
+
+        // 创建 Filter 节点
+        let filter = FilterNode::new(
+            scan.clone(),
+            crate::core::Expression::literal(true),
+        )
+        .expect("创建 FilterNode 失败");
+        let filter_enum = PlanNodeEnum::Filter(filter);
+
+        // 创建 Limit 节点
+        let limit = LimitNode::new(filter_enum, 0, 10).expect("创建 LimitNode 失败");
+        let limit_enum = PlanNodeEnum::Limit(limit);
+
+        // 创建 Project 节点
+        let columns = vec![YieldColumn {
+            expression: Expression::Variable("id".to_string()),
+            alias: "id".to_string(),
+            is_matched: false,
+        }];
+        let project =
+            ProjectNode::new(limit_enum.clone(), columns).expect("创建 ProjectNode 失败");
+        let project_enum = PlanNodeEnum::Project(project);
+
+        // 应用规则
+        let result = rule.apply(&mut ctx, &project_enum).expect("应用规则失败");
+
+        assert!(result.is_some());
+        let transform = result.expect("Failed to apply rewrite rule");
+        assert!(transform.erase_curr);
+
+        // 验证新节点是 Limit，其输入是 Filter，Filter 的输入是带有投影列的 ScanVertices
+        match &transform.new_nodes[0] {
+            PlanNodeEnum::Limit(limit_node) => {
+                match limit_node.input() {
+                    PlanNodeEnum::Filter(filter_node) => {
+                        match filter_node.input() {
+                            PlanNodeEnum::ScanVertices(scan_node) => {
+                                assert_eq!(scan_node.col_names(), &["id"]);
+                            }
+                            _ => panic!("期望 Filter 的输入是 ScanVertices"),
+                        }
+                    }
+                    _ => panic!("期望 Limit 的输入是 Filter"),
+                }
+            }
+            _ => panic!("期望 Limit 节点"),
+        }
     }
 }

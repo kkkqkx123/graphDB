@@ -5,7 +5,6 @@
 //! # 重构变更
 //! - 移除对 ast::Variable 的依赖，使用 String 替代
 
-use crate::core::error::PlanNodeVisitError;
 use crate::core::Expression;
 
 /// PlanNode 基础特征
@@ -186,25 +185,6 @@ pub trait PlanNodeClonable {
 
     /// 克隆节点并分配新的ID
     fn clone_with_new_id(&self, new_id: i64) -> PlanNodeEnum;
-}
-
-/// PlanNode 可访问特征
-pub trait PlanNodeVisitable {
-    /// 接受访问者
-    fn accept(&self, visitor: &mut dyn PlanNodeVisitor) -> Result<(), PlanNodeVisitError>;
-}
-
-/// PlanNode 访问者特征
-pub trait PlanNodeVisitor {
-    /// 访问前处理
-    fn pre_visit(&mut self) -> Result<(), PlanNodeVisitError> {
-        Ok(())
-    }
-
-    /// 访问后处理
-    fn post_visit(&mut self) -> Result<(), PlanNodeVisitError> {
-        Ok(())
-    }
 }
 
 // 前向声明

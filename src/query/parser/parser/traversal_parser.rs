@@ -5,7 +5,7 @@
 use crate::core::types::graph_schema::EdgeDirection;
 use crate::core::types::expression::Expression as CoreExpression;
 use crate::query::parser::ast::stmt::*;
-use crate::query::parser::ast::pattern::{EdgePattern, NodePattern, PathElement, PathPattern, Pattern, VariablePattern};
+use crate::query::parser::ast::pattern::{EdgePattern, EdgeRange, NodePattern, PathElement, PathPattern, Pattern, VariablePattern};
 use crate::query::parser::core::error::{ParseError, ParseErrorKind};
 use crate::query::parser::parser::clause_parser::ClauseParser;
 use crate::query::parser::parser::ExprParser;
@@ -422,8 +422,32 @@ impl TraversalParser {
 
             // 解析范围（可选）如 *[1..3]
             if ctx.match_token(TokenKind::Star) {
-                // 范围解析暂时简化处理
-                range = Some(crate::query::parser::ast::pattern::EdgeRange { min: None, max: None });
+                if ctx.match_token(TokenKind::LBracket) {
+                    let min = if matches!(ctx.current_token().kind, TokenKind::IntegerLiteral(_)) {
+                        let n = ctx.expect_integer_literal()? as usize;
+                        Some(n)
+                    } else {
+                        None
+                    };
+
+                    if ctx.match_token(TokenKind::DotDot) {
+                        let max = if matches!(ctx.current_token().kind, TokenKind::IntegerLiteral(_)) {
+                            let n = ctx.expect_integer_literal()? as usize;
+                            Some(n)
+                        } else {
+                            None
+                        };
+                        range = Some(EdgeRange::new(min, max));
+                    } else if let Some(min_val) = min {
+                        range = Some(EdgeRange::fixed(min_val));
+                    } else {
+                        range = Some(EdgeRange::any());
+                    }
+
+                    ctx.expect_token(TokenKind::RBracket)?;
+                } else {
+                    range = Some(EdgeRange::any());
+                }
             }
 
             ctx.expect_token(TokenKind::RBracket)?;
@@ -487,10 +511,19 @@ impl TraversalParser {
 
     /// 解析属性表达式
     fn parse_properties_expr(&mut self, ctx: &mut ParseContext) -> Result<CoreExpression, ParseError> {
-        // 简化实现：解析为表达式
-        let mut expr_parser = ExprParser::new(ctx);
-        let result = expr_parser.parse_expression(ctx)?;
-        Ok(result.expr)
+        let mut properties = Vec::new();
+        
+        while !ctx.check_token(TokenKind::RBrace) {
+            let key = ctx.expect_identifier()?;
+            ctx.expect_token(TokenKind::Colon)?;
+            let value = self.parse_expression(ctx)?;
+            properties.push((key, value));
+            if !ctx.match_token(TokenKind::Comma) {
+                break;
+            }
+        }
+        
+        Ok(CoreExpression::map(properties))
     }
 
     /// 解析表达式

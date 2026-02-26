@@ -366,11 +366,11 @@ impl<S: StorageClient + Clone + 'static> Session<S> {
     /// # }
     /// ```
     pub fn prepare(&self, query: &str) -> CoreResult<PreparedStatement<S>> {
-        Ok(PreparedStatement::new(
+        PreparedStatement::new(
             self.db.query_api.clone(),
             query.to_string(),
             self.space_id,
-        ))
+        )
     }
 }
 

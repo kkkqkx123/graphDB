@@ -8,6 +8,7 @@ use std::collections::HashMap;
 pub enum AliasType {
     Node,
     Edge,
+    NodeList,
     EdgeList,
     Path,
     Variable,

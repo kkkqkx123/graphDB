@@ -266,32 +266,39 @@ impl HeuristicFunction {
         match self {
             HeuristicFunction::Zero => 0.0,
             HeuristicFunction::PropertyDistance(lat_prop, lon_prop) => {
-                // 计算欧几里得距离
-                let get_coords = |props: &std::collections::HashMap<String, crate::core::Value>| {
-                    let lat = props.get(lat_prop)
-                        .and_then(|v| match v {
-                            crate::core::Value::Float(f) => Some(*f),
-                            crate::core::Value::Int(i) => Some(*i as f64),
-                            _ => None,
-                        })
-                        .unwrap_or(0.0);
-                    let lon = props.get(lon_prop)
-                        .and_then(|v| match v {
-                            crate::core::Value::Float(f) => Some(*f),
-                            crate::core::Value::Int(i) => Some(*i as f64),
-                            _ => None,
-                        })
-                        .unwrap_or(0.0);
-                    (lat, lon)
+                let get_coords = |props: &std::collections::HashMap<String, crate::core::Value>| -> Option<(f64, f64)> {
+                    let lat = props.get(lat_prop).and_then(|v| match v {
+                        crate::core::Value::Float(f) => Some(*f),
+                        crate::core::Value::Int(i) => Some(*i as f64),
+                        _ => None,
+                    });
+                    let lon = props.get(lon_prop).and_then(|v| match v {
+                        crate::core::Value::Float(f) => Some(*f),
+                        crate::core::Value::Int(i) => Some(*i as f64),
+                        _ => None,
+                    });
+                    match (lat, lon) {
+                        (Some(la), Some(lo)) => Some((la, lo)),
+                        _ => None,
+                    }
                 };
 
                 if let (Some(c_props), Some(t_props)) = (current_props, target_props) {
-                    let (c_lat, c_lon) = get_coords(c_props);
-                    let (t_lat, t_lon) = get_coords(t_props);
-                    // 简化的欧几里得距离
-                    let d_lat = c_lat - t_lat;
-                    let d_lon = c_lon - t_lon;
-                    ((d_lat * d_lat) + (d_lon * d_lon)).sqrt()
+                    if let (Some((c_lat, c_lon)), Some((t_lat, t_lon))) = (get_coords(c_props), get_coords(t_props)) {
+                        const EARTH_RADIUS_KM: f64 = 6371.0;
+                        let to_rad = |deg: f64| deg * std::f64::consts::PI / 180.0;
+                        
+                        let lat1 = to_rad(c_lat);
+                        let lat2 = to_rad(t_lat);
+                        let dlat = to_rad(t_lat - c_lat);
+                        let dlon = to_rad(t_lon - c_lon);
+                        
+                        let a = (dlat / 2.0).sin().powi(2) + lat1.cos() * lat2.cos() * (dlon / 2.0).sin().powi(2);
+                        let c = 2.0 * a.sqrt().atan2((1.0 - a).sqrt());
+                        EARTH_RADIUS_KM * c
+                    } else {
+                        0.0
+                    }
                 } else {
                     0.0
                 }

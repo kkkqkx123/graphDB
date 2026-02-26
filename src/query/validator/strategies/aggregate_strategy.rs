@@ -2,7 +2,6 @@
 //! 负责验证聚合函数的使用和检查表达式是否包含聚合
 
 use crate::core::types::operators::AggregateFunction;
-use crate::core::types::DataType;
 use crate::core::Expression;
 use crate::core::error::{ValidationError, ValidationErrorType};
 
@@ -223,6 +222,7 @@ impl AggregateValidationStrategy {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::types::DataType;
     use crate::core::types::operators::{AggregateFunction, BinaryOperator};
     use crate::core::Expression;
 

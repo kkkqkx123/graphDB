@@ -768,27 +768,6 @@ impl PlannerEnum {
             PlannerEnum::Use(planner) => planner.match_planner(stmt),
         }
     }
-
-    /// 转换为动态分发类型（用于向后兼容）
-    pub fn into_dynamic(self) -> Box<dyn Planner> {
-        match self {
-            PlannerEnum::Match(planner) => Box::new(planner),
-            PlannerEnum::Go(planner) => Box::new(planner),
-            PlannerEnum::Lookup(planner) => Box::new(planner),
-            PlannerEnum::Path(planner) => Box::new(planner),
-            PlannerEnum::Subgraph(planner) => Box::new(planner),
-            PlannerEnum::FetchVertices(planner) => Box::new(planner),
-            PlannerEnum::FetchEdges(planner) => Box::new(planner),
-            PlannerEnum::Maintain(planner) => Box::new(planner),
-            PlannerEnum::UserManagement(planner) => Box::new(planner),
-            PlannerEnum::Insert(planner) => Box::new(planner),
-            PlannerEnum::Delete(planner) => Box::new(planner),
-            PlannerEnum::Update(planner) => Box::new(planner),
-            PlannerEnum::GroupBy(planner) => Box::new(planner),
-            PlannerEnum::SetOperation(planner) => Box::new(planner),
-            PlannerEnum::Use(planner) => Box::new(planner),
-        }
-    }
 }
 
 /// 错误处理宏
