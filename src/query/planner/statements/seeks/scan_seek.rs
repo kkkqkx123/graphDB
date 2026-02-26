@@ -17,9 +17,9 @@ impl ScanSeek {
 }
 
 impl SeekStrategy for ScanSeek {
-    fn execute(
+    fn execute<S: StorageClient>(
         &self,
-        storage: &dyn StorageClient,
+        storage: &S,
         context: &SeekStrategyContext,
     ) -> Result<SeekResult, StorageError> {
         let vertices = storage.scan_vertices("default")?;

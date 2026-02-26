@@ -1,6 +1,5 @@
 use crate::core::value::Value;
-use crate::core::result::result_iterator::ResultIterator;
-use std::sync::Arc;
+use crate::core::result::iterator_enum::ResultIteratorEnum;
 
 /// Result 状态
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -32,20 +31,21 @@ impl Default for ResultMeta {
 }
 
 /// Result 结构体
-/// 
+///
 /// 基于 Nebula-Graph 的 Result 设计，使用 Rust 的类型系统和内存安全特性
-/// 
+///
 /// # 特性
 /// - 零成本抽象：编译时优化，无运行时开销
 /// - 类型安全：编译时类型检查
 /// - 内存安全：Rust 所有权系统保证
 /// - 高效迭代：支持多种迭代器类型
+/// - 使用 ResultIteratorEnum 实现静态分发，避免 Arc<dyn ResultIterator> 的动态分发开销
 #[derive(Debug, Clone)]
 pub struct Result {
     rows: Vec<Vec<Value>>,
     col_names: Vec<String>,
     meta: ResultMeta,
-    iterator: Option<Arc<dyn ResultIterator<'static, Vec<Value>, Row = Vec<Value>>>>,
+    iterator: Option<ResultIteratorEnum>,
 }
 
 impl Result {
@@ -73,7 +73,7 @@ impl Result {
         rows: Vec<Vec<Value>>,
         col_names: Vec<String>,
         state: ResultState,
-        iterator: Option<Arc<dyn ResultIterator<'static, Vec<Value>, Row = Vec<Value>>>>,
+        iterator: Option<ResultIteratorEnum>,
     ) -> Self {
         let row_count = rows.len();
         let col_count = col_names.len();
@@ -169,7 +169,7 @@ impl Result {
         self.rows.get(row).and_then(|r| r.get(col))
     }
 
-    pub fn iterator(&self) -> Option<&Arc<dyn ResultIterator<'static, Vec<Value>, Row = Vec<Value>>>> {
+    pub fn iterator(&self) -> Option<&ResultIteratorEnum> {
         self.iterator.as_ref()
     }
 

@@ -5,9 +5,10 @@
 //! - Expression: 表达式类型
 //! - SimplePredicate: 简单谓词实现
 //! - PredicateOptimizer: 谓词优化器
+//!
+//! 使用 PredicateEnum 实现静态分发，避免 Box<dyn Predicate> 的动态分发开销
 
 use crate::core::Value;
-use std::fmt;
 
 /// 比较操作符
 #[derive(Debug, Clone, PartialEq)]
@@ -120,14 +121,78 @@ impl Expression {
     }
 }
 
-/// 谓词 trait
-pub trait Predicate: Send + Sync + fmt::Debug {
-    fn evaluate(&self, row: &[Value]) -> bool;
-    fn to_expression(&self) -> Expression;
-    fn can_pushdown(&self) -> bool;
-    fn pushdown_cost(&self) -> f64;
-    fn as_predicate(&self) -> &dyn Predicate;
-    fn box_clone(&self) -> Box<dyn Predicate>;
+/// 谓词枚举 - 使用静态分发替代 Box<dyn Predicate>
+#[derive(Debug, Clone, PartialEq)]
+pub enum PredicateEnum {
+    /// 简单谓词
+    Simple(SimplePredicate),
+    /// 组合谓词
+    Compound(CompoundPredicate),
+}
+
+impl PredicateEnum {
+    /// 评估谓词
+    pub fn evaluate(&self, row: &[Value]) -> bool {
+        match self {
+            PredicateEnum::Simple(p) => p.evaluate(row),
+            PredicateEnum::Compound(p) => p.evaluate(row),
+        }
+    }
+
+    /// 转换为表达式
+    pub fn to_expression(&self) -> Expression {
+        match self {
+            PredicateEnum::Simple(p) => p.to_expression(),
+            PredicateEnum::Compound(p) => p.to_expression(),
+        }
+    }
+
+    /// 是否可以下推
+    pub fn can_pushdown(&self) -> bool {
+        match self {
+            PredicateEnum::Simple(p) => p.can_pushdown(),
+            PredicateEnum::Compound(p) => p.can_pushdown(),
+        }
+    }
+
+    /// 获取下推成本
+    pub fn pushdown_cost(&self) -> f64 {
+        match self {
+            PredicateEnum::Simple(p) => p.pushdown_cost(),
+            PredicateEnum::Compound(p) => p.pushdown_cost(),
+        }
+    }
+
+    /// 创建新的简单谓词
+    pub fn simple(column: &str, op: CompareOp, value: Value) -> Self {
+        PredicateEnum::Simple(SimplePredicate::new(column, op, value))
+    }
+
+    /// 创建 AND 组合谓词
+    pub fn and(predicates: Vec<PredicateEnum>) -> Self {
+        PredicateEnum::Compound(CompoundPredicate::and(predicates))
+    }
+
+    /// 创建 OR 组合谓词
+    pub fn or(predicates: Vec<PredicateEnum>) -> Self {
+        PredicateEnum::Compound(CompoundPredicate::or(predicates))
+    }
+
+    /// 获取简单谓词的引用
+    pub fn as_simple(&self) -> Option<&SimplePredicate> {
+        match self {
+            PredicateEnum::Simple(p) => Some(p),
+            _ => None,
+        }
+    }
+
+    /// 获取组合谓词的引用
+    pub fn as_compound(&self) -> Option<&CompoundPredicate> {
+        match self {
+            PredicateEnum::Compound(p) => Some(p),
+            _ => None,
+        }
+    }
 }
 
 /// 简单谓词 - 基于单个条件的过滤
@@ -146,10 +211,20 @@ impl SimplePredicate {
             value,
         }
     }
-}
 
-impl Predicate for SimplePredicate {
-    fn evaluate(&self, row: &[Value]) -> bool {
+    pub fn column(&self) -> &str {
+        &self.column
+    }
+
+    pub fn op(&self) -> &CompareOp {
+        &self.op
+    }
+
+    pub fn value(&self) -> &Value {
+        &self.value
+    }
+
+    pub fn evaluate(&self, row: &[Value]) -> bool {
         if let Ok(idx) = self.column.parse::<usize>() {
             if idx < row.len() {
                 return self.evaluate_value(&row[idx]);
@@ -165,7 +240,7 @@ impl Predicate for SimplePredicate {
         false
     }
 
-    fn to_expression(&self) -> Expression {
+    pub fn to_expression(&self) -> Expression {
         Expression::Function {
             name: format!("{:?}", self.op),
             args: vec![
@@ -175,7 +250,7 @@ impl Predicate for SimplePredicate {
         }
     }
 
-    fn can_pushdown(&self) -> bool {
+    pub fn can_pushdown(&self) -> bool {
         matches!(
             self.op,
             CompareOp::Equal
@@ -187,20 +262,10 @@ impl Predicate for SimplePredicate {
         )
     }
 
-    fn pushdown_cost(&self) -> f64 {
+    pub fn pushdown_cost(&self) -> f64 {
         1.0
     }
 
-    fn as_predicate(&self) -> &dyn Predicate {
-        self
-    }
-
-    fn box_clone(&self) -> Box<dyn Predicate> {
-        Box::new(self.clone())
-    }
-}
-
-impl SimplePredicate {
     fn evaluate_value(&self, val: &Value) -> bool {
         match (&self.op, val, &self.value) {
             (CompareOp::Equal, Value::Int(a), Value::Int(b)) => a == b,
@@ -225,37 +290,34 @@ impl SimplePredicate {
 }
 
 /// 组合谓词 - 多个谓词的逻辑组合
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct CompoundPredicate {
     op: LogicalOp,
-    predicates: Vec<Box<dyn Predicate>>,
-}
-
-impl Clone for CompoundPredicate {
-    fn clone(&self) -> Self {
-        Self {
-            op: self.op.clone(),
-            predicates: self.predicates.iter().map(|p| p.box_clone()).collect(),
-        }
-    }
+    predicates: Vec<PredicateEnum>,
 }
 
 impl CompoundPredicate {
-    pub fn new(op: LogicalOp, predicates: Vec<Box<dyn Predicate>>) -> Self {
+    pub fn new(op: LogicalOp, predicates: Vec<PredicateEnum>) -> Self {
         Self { op, predicates }
     }
 
-    pub fn and(predicates: Vec<Box<dyn Predicate>>) -> Self {
+    pub fn and(predicates: Vec<PredicateEnum>) -> Self {
         Self::new(LogicalOp::And, predicates)
     }
 
-    pub fn or(predicates: Vec<Box<dyn Predicate>>) -> Self {
+    pub fn or(predicates: Vec<PredicateEnum>) -> Self {
         Self::new(LogicalOp::Or, predicates)
     }
-}
 
-impl Predicate for CompoundPredicate {
-    fn evaluate(&self, row: &[Value]) -> bool {
+    pub fn op(&self) -> &LogicalOp {
+        &self.op
+    }
+
+    pub fn predicates(&self) -> &[PredicateEnum] {
+        &self.predicates
+    }
+
+    pub fn evaluate(&self, row: &[Value]) -> bool {
         match self.op {
             LogicalOp::And => self.predicates.iter().all(|p| p.evaluate(row)),
             LogicalOp::Or => self.predicates.iter().any(|p| p.evaluate(row)),
@@ -263,7 +325,7 @@ impl Predicate for CompoundPredicate {
         }
     }
 
-    fn to_expression(&self) -> Expression {
+    pub fn to_expression(&self) -> Expression {
         let exprs: Vec<Expression> = self
             .predicates
             .iter()
@@ -276,7 +338,7 @@ impl Predicate for CompoundPredicate {
         }
     }
 
-    fn can_pushdown(&self) -> bool {
+    pub fn can_pushdown(&self) -> bool {
         match self.op {
             LogicalOp::And => self.predicates.iter().all(|p| p.can_pushdown()),
             LogicalOp::Or => self.predicates.iter().any(|p| p.can_pushdown()),
@@ -284,7 +346,7 @@ impl Predicate for CompoundPredicate {
         }
     }
 
-    fn pushdown_cost(&self) -> f64 {
+    pub fn pushdown_cost(&self) -> f64 {
         match self.op {
             LogicalOp::And => self.predicates.iter().map(|p| p.pushdown_cost()).sum(),
             LogicalOp::Or => self
@@ -295,21 +357,13 @@ impl Predicate for CompoundPredicate {
             LogicalOp::Not => 100.0,
         }
     }
-
-    fn as_predicate(&self) -> &dyn Predicate {
-        self
-    }
-
-    fn box_clone(&self) -> Box<dyn Predicate> {
-        Box::new(self.clone())
-    }
 }
 
 /// 谓词下推优化器
 #[derive(Debug, Default)]
 pub struct PredicateOptimizer {
-    pushdown_candidates: Vec<Box<dyn Predicate>>,
-    filter_candidates: Vec<Box<dyn Predicate>>,
+    pushdown_candidates: Vec<PredicateEnum>,
+    filter_candidates: Vec<PredicateEnum>,
 }
 
 impl PredicateOptimizer {
@@ -317,41 +371,38 @@ impl PredicateOptimizer {
         Self::default()
     }
 
-    pub fn analyze(&mut self, predicate: &dyn Predicate) {
+    pub fn analyze(&mut self, predicate: &PredicateEnum) {
         if predicate.can_pushdown() {
-            self.pushdown_candidates
-                .push(predicate.box_clone());
+            self.pushdown_candidates.push(predicate.clone());
         } else {
-            self.filter_candidates
-                .push(predicate.box_clone());
+            self.filter_candidates.push(predicate.clone());
         }
     }
 
-    pub fn get_pushdown_predicates(&self) -> &[Box<dyn Predicate>] {
+    pub fn get_pushdown_predicates(&self) -> &[PredicateEnum] {
         &self.pushdown_candidates
     }
 
-    pub fn get_filter_predicates(&self) -> &[Box<dyn Predicate>] {
+    pub fn get_filter_predicates(&self) -> &[PredicateEnum] {
         &self.filter_candidates
     }
 
-    pub fn optimize(&self, predicate: &dyn Predicate) -> (Vec<Box<dyn Predicate>>, Vec<Box<dyn Predicate>>) {
+    pub fn optimize(&self, predicate: &PredicateEnum) -> (Vec<PredicateEnum>, Vec<PredicateEnum>) {
         let mut pushdown = Vec::new();
         let mut filter = Vec::new();
-        let predicate = predicate.box_clone();
-        self.classify_predicate(predicate, &mut pushdown, &mut filter);
+        self.classify_predicate(predicate.clone(), &mut pushdown, &mut filter);
         (pushdown, filter)
     }
 
     fn classify_predicate(
         &self,
-        predicate: Box<dyn Predicate>,
-        pushdown: &mut Vec<Box<dyn Predicate>>,
-        filter: &mut Vec<Box<dyn Predicate>>,
+        predicate: PredicateEnum,
+        pushdown: &mut Vec<PredicateEnum>,
+        filter: &mut Vec<PredicateEnum>,
     ) {
-        if let Some(compound) = predicate.as_any().downcast_ref::<CompoundPredicate>() {
+        if let Some(compound) = predicate.as_compound() {
             for p in &compound.predicates {
-                self.classify_predicate(p.box_clone(), pushdown, filter);
+                self.classify_predicate(p.clone(), pushdown, filter);
             }
         } else if predicate.can_pushdown() {
             pushdown.push(predicate);
@@ -361,38 +412,18 @@ impl PredicateOptimizer {
     }
 }
 
-trait AsAny {
-    fn as_any(&self) -> &dyn std::any::Any;
-}
-
-impl<T: std::any::Any> AsAny for T {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-}
-
 /// 谓词下推结果
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PushdownResult {
-    pub pushed_predicates: Vec<Box<dyn Predicate>>,
-    pub remaining_predicates: Vec<Box<dyn Predicate>>,
+    pub pushed_predicates: Vec<PredicateEnum>,
+    pub remaining_predicates: Vec<PredicateEnum>,
     pub estimated_cost_reduction: f64,
-}
-
-impl Clone for PushdownResult {
-    fn clone(&self) -> Self {
-        Self {
-            pushed_predicates: self.pushed_predicates.iter().map(|p| p.box_clone()).collect(),
-            remaining_predicates: self.remaining_predicates.iter().map(|p| p.box_clone()).collect(),
-            estimated_cost_reduction: self.estimated_cost_reduction,
-        }
-    }
 }
 
 impl PushdownResult {
     pub fn new(
-        pushed: Vec<Box<dyn Predicate>>,
-        remaining: Vec<Box<dyn Predicate>>,
+        pushed: Vec<PredicateEnum>,
+        remaining: Vec<PredicateEnum>,
         reduction: f64,
     ) -> Self {
         Self {
@@ -446,10 +477,19 @@ mod tests {
     }
 
     #[test]
-    fn test_compound_predicate_and() {
-        let pred1 = SimplePredicate::new("age", CompareOp::Greater, Value::Int(20));
-        let pred2 = SimplePredicate::new("age", CompareOp::Less, Value::Int(40));
-        let compound = CompoundPredicate::and(vec![Box::new(pred1), Box::new(pred2)]);
+    fn test_predicate_enum_simple() {
+        let pred = PredicateEnum::simple("age", CompareOp::Equal, Value::Int(25));
+        
+        let row = vec![Value::String("Alice".to_string()), Value::Int(25)];
+        assert!(pred.evaluate(&row));
+        assert!(pred.can_pushdown());
+    }
+
+    #[test]
+    fn test_predicate_enum_and() {
+        let pred1 = PredicateEnum::simple("age", CompareOp::Greater, Value::Int(20));
+        let pred2 = PredicateEnum::simple("age", CompareOp::Less, Value::Int(40));
+        let compound = PredicateEnum::and(vec![pred1, pred2]);
 
         let row = vec![Value::String("Alice".to_string()), Value::Int(30)];
         assert!(compound.evaluate(&row));
@@ -459,10 +499,10 @@ mod tests {
     }
 
     #[test]
-    fn test_compound_predicate_or() {
-        let pred1 = SimplePredicate::new("name", CompareOp::Equal, Value::String("Alice".to_string()));
-        let pred2 = SimplePredicate::new("name", CompareOp::Equal, Value::String("Bob".to_string()));
-        let compound = CompoundPredicate::or(vec![Box::new(pred1), Box::new(pred2)]);
+    fn test_predicate_enum_or() {
+        let pred1 = PredicateEnum::simple("name", CompareOp::Equal, Value::String("Alice".to_string()));
+        let pred2 = PredicateEnum::simple("name", CompareOp::Equal, Value::String("Bob".to_string()));
+        let compound = PredicateEnum::or(vec![pred1, pred2]);
 
         let row = vec![Value::String("Alice".to_string()), Value::Int(25)];
         assert!(compound.evaluate(&row));
@@ -476,20 +516,55 @@ mod tests {
 
     #[test]
     fn test_predicate_can_pushdown() {
-        let pred = SimplePredicate::new("age", CompareOp::Equal, Value::Int(25));
+        let pred = PredicateEnum::simple("age", CompareOp::Equal, Value::Int(25));
         assert!(pred.can_pushdown());
 
-        let not_pred = SimplePredicate::new("age", CompareOp::Like, Value::String("%".to_string()));
+        let not_pred = PredicateEnum::simple("age", CompareOp::Like, Value::String("%".to_string()));
         assert!(!not_pred.can_pushdown());
     }
 
     #[test]
     fn test_optimizer() {
-        let pred1 = SimplePredicate::new("age", CompareOp::Equal, Value::Int(25));
+        let pred1 = PredicateEnum::simple("age", CompareOp::Equal, Value::Int(25));
         let optimizer = PredicateOptimizer::new();
 
         let (pushdown, filter) = optimizer.optimize(&pred1);
         assert_eq!(pushdown.len(), 1);
         assert_eq!(filter.len(), 0);
+    }
+
+    #[test]
+    fn test_compound_predicate_and() {
+        let pred1 = SimplePredicate::new("age", CompareOp::Greater, Value::Int(20));
+        let pred2 = SimplePredicate::new("age", CompareOp::Less, Value::Int(40));
+        let compound = CompoundPredicate::and(vec![
+            PredicateEnum::Simple(pred1),
+            PredicateEnum::Simple(pred2),
+        ]);
+
+        let row = vec![Value::String("Alice".to_string()), Value::Int(30)];
+        assert!(compound.evaluate(&row));
+
+        let row2 = vec![Value::String("Bob".to_string()), Value::Int(50)];
+        assert!(!compound.evaluate(&row2));
+    }
+
+    #[test]
+    fn test_compound_predicate_or() {
+        let pred1 = SimplePredicate::new("name", CompareOp::Equal, Value::String("Alice".to_string()));
+        let pred2 = SimplePredicate::new("name", CompareOp::Equal, Value::String("Bob".to_string()));
+        let compound = CompoundPredicate::or(vec![
+            PredicateEnum::Simple(pred1),
+            PredicateEnum::Simple(pred2),
+        ]);
+
+        let row = vec![Value::String("Alice".to_string()), Value::Int(25)];
+        assert!(compound.evaluate(&row));
+
+        let row2 = vec![Value::String("Bob".to_string()), Value::Int(30)];
+        assert!(compound.evaluate(&row2));
+
+        let row3 = vec![Value::String("Charlie".to_string()), Value::Int(35)];
+        assert!(!compound.evaluate(&row3));
     }
 }

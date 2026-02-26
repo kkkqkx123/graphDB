@@ -21,6 +21,7 @@ use crate::core::types::EdgeDirection;
 use crate::core::Value;
 use crate::query::QueryContext;
 use crate::storage::metadata::schema_manager::SchemaManager;
+use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 use crate::query::parser::ast::stmt::{CreateStmt, CreateTarget};
 use crate::query::parser::ast::pattern::{Pattern, NodePattern, EdgePattern, PathPattern, PathElement};
 use crate::query::validator::validator_trait::{
@@ -85,7 +86,7 @@ pub struct ValidatedPathCreate {
 #[derive(Debug)]
 pub struct CreateValidator {
     // Schema 管理
-    schema_manager: Option<Arc<dyn SchemaManager>>,
+    schema_manager: Option<Arc<RedbSchemaManager>>,
     // 是否自动创建 Schema
     auto_create_schema: bool,
     // 输入列定义
@@ -121,7 +122,7 @@ impl CreateValidator {
     }
 
     /// 设置 SchemaManager
-    pub fn with_schema_manager(mut self, schema_manager: Arc<dyn SchemaManager>) -> Self {
+    pub fn with_schema_manager(mut self, schema_manager: Arc<RedbSchemaManager>) -> Self {
         self.schema_manager = Some(schema_manager);
         self
     }
@@ -172,6 +173,7 @@ impl CreateValidator {
 
         // 获取空间信息
         let space = schema_manager
+            .as_ref()
             .get_space(space_name)
             .map_err(|e| {
                 ValidationError::new(
@@ -229,7 +231,7 @@ impl CreateValidator {
         &self,
         patterns: &[Pattern],
         space_name: &str,
-        schema_manager: &(dyn SchemaManager + Send + Sync),
+        schema_manager: &RedbSchemaManager,
         missing_tags: &mut Vec<String>,
         missing_edge_types: &mut Vec<String>,
     ) -> Result<Vec<ValidatedPattern>, ValidationError> {
@@ -264,7 +266,7 @@ impl CreateValidator {
         &self,
         node: &NodePattern,
         space_name: &str,
-        schema_manager: &(dyn SchemaManager + Send + Sync),
+        schema_manager: &RedbSchemaManager,
         missing_tags: &mut Vec<String>,
     ) -> Result<ValidatedNodeCreate, ValidationError> {
         // 验证标签
@@ -301,7 +303,7 @@ impl CreateValidator {
         &self,
         edge: &EdgePattern,
         space_name: &str,
-        schema_manager: &(dyn SchemaManager + Send + Sync),
+        schema_manager: &RedbSchemaManager,
         missing_edge_types: &mut Vec<String>,
     ) -> Result<ValidatedEdgeCreate, ValidationError> {
         // 验证边类型（取第一个边类型）
@@ -345,7 +347,7 @@ impl CreateValidator {
         &self,
         path: &PathPattern,
         space_name: &str,
-        schema_manager: &(dyn SchemaManager + Send + Sync),
+        schema_manager: &RedbSchemaManager,
         missing_tags: &mut Vec<String>,
         missing_edge_types: &mut Vec<String>,
     ) -> Result<ValidatedPathCreate, ValidationError> {
@@ -391,7 +393,7 @@ impl CreateValidator {
         labels: &[String],
         properties: &Option<crate::core::types::expression::Expression>,
         space_name: &str,
-        schema_manager: &(dyn SchemaManager + Send + Sync),
+        schema_manager: &RedbSchemaManager,
         missing_tags: &mut Vec<String>,
     ) -> Result<ValidatedPattern, ValidationError> {
         // 验证标签
@@ -433,7 +435,7 @@ impl CreateValidator {
         properties: &Option<crate::core::types::expression::Expression>,
         direction: &EdgeDirection,
         space_name: &str,
-        schema_manager: &(dyn SchemaManager + Send + Sync),
+        schema_manager: &RedbSchemaManager,
         missing_edge_types: &mut Vec<String>,
     ) -> Result<ValidatedPattern, ValidationError> {
         // 验证边类型

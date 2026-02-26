@@ -58,8 +58,8 @@ impl Planner for LookupPlanner {
             ));
         }
 
-        // 1. 获取可用的索引列表（从元数据服务）
-        let available_indexes = self.get_available_indexes(&qctx, space_id, lookup_stmt)?;
+        // 1. 获取可用的索引列表（暂时返回空列表，后续需要从存储客户端获取）
+        let available_indexes: Vec<Index> = vec![];
 
         // 2. 使用简单启发式选择索引（选择第一个可用索引）
         let (selected_index, scan_limits, scan_type) = if !available_indexes.is_empty() {
@@ -115,36 +115,6 @@ impl Planner for LookupPlanner {
 }
 
 impl LookupPlanner {
-    /// 获取可用的索引列表
-    fn get_available_indexes(
-        &self,
-        qctx: &QueryContext,
-        space_id: u64,
-        lookup_stmt: &LookupStmt,
-    ) -> Result<Vec<Index>, PlannerError> {
-        let index_manager = qctx.index_metadata_manager()
-            .ok_or_else(|| PlannerError::PlanGenerationFailed(
-                "Index metadata manager not available".to_string()
-            ))?;
-
-        let schema_name = match &lookup_stmt.target {
-            crate::query::parser::ast::LookupTarget::Tag(tag_name) => tag_name.clone(),
-            crate::query::parser::ast::LookupTarget::Edge(edge_name) => edge_name.clone(),
-        };
-
-        let indexes = index_manager.list_tag_indexes(space_id)
-            .map_err(|e| PlannerError::PlanGenerationFailed(
-                format!("Failed to list tag indexes: {}", e)
-            ))?;
-
-        let schema_indexes: Vec<Index> = indexes
-            .into_iter()
-            .filter(|idx| idx.schema_name == schema_name && idx.status == crate::index::IndexStatus::Active)
-            .collect();
-
-        Ok(schema_indexes)
-    }
-
     /// 构建YIELD列
     fn build_yield_columns(
         lookup_stmt: &LookupStmt,

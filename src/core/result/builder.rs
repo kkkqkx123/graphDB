@@ -1,7 +1,6 @@
 use crate::core::value::Value;
 use crate::core::result::{Result, ResultState};
-use crate::core::result::result_iterator::ResultIterator;
-use std::sync::Arc;
+use crate::core::result::iterator_enum::ResultIteratorEnum;
 
 /// ResultBuilder
 ///
@@ -62,7 +61,7 @@ impl ResultBuilder {
         Result::from_rows(self.rows, self.col_names)
     }
 
-    pub fn build_with_iterator(self, iterator: Arc<dyn ResultIterator<'static, Vec<Value>, Row = Vec<Value>>>) -> Result {
+    pub fn build_with_iterator(self, iterator: ResultIteratorEnum) -> Result {
         Result::from_builder(self.rows, self.col_names, ResultState::Completed, Some(iterator))
     }
 
@@ -178,15 +177,16 @@ mod tests {
     #[test]
     fn test_result_builder_build_with_iterator() {
         use crate::core::result::iterator::DefaultIterator;
+        use crate::core::result::iterator_enum::ResultIteratorEnum;
         let col_names = vec!["id".to_string()];
         let rows = vec![vec![Value::Int(1)]];
-        let iterator = Arc::new(DefaultIterator::new(rows.clone()));
-        
+        let iterator = ResultIteratorEnum::default_iterator(rows.clone());
+
         let result = ResultBuilder::new()
             .col_names(col_names)
             .rows(rows)
             .build_with_iterator(iterator);
-        
+
         assert!(result.iterator().is_some());
     }
 

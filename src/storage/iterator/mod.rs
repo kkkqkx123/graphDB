@@ -27,7 +27,7 @@ pub use prop_iter::PropIter;
 pub use sequential_iter::SequentialIter;
 pub use storage_iter::VecPairIterator;
 pub use composite::{CompositeIter, FilterIter, MapIter, TakeIter, SkipIter};
-pub use predicate::{Predicate, Expression, SimplePredicate, CompoundPredicate, PredicateOptimizer, PushdownResult};
+pub use predicate::{PredicateEnum, Expression, SimplePredicate, CompoundPredicate, PredicateOptimizer, PushdownResult, CompareOp, LogicalOp};
 
 /// 存储引擎迭代器接口
 /// 用于底层KV存储的迭代操作

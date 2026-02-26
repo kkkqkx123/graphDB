@@ -98,9 +98,9 @@ impl EdgeSeek {
 }
 
 impl SeekStrategy for EdgeSeek {
-    fn execute(
+    fn execute<S: StorageClient>(
         &self,
-        storage: &dyn StorageClient,
+        storage: &S,
         _context: &SeekStrategyContext,
     ) -> Result<SeekResult, StorageError> {
         let mut edge_ids = Vec::new();

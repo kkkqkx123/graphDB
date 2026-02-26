@@ -25,7 +25,6 @@ uuid = { version = "1.19.0", features = ["v4"] }
 chrono = { version = "0.4.38", features = ["serde"] }
 bcrypt = "0.18.0"
 regex = "1.11.1"
-async-trait = "0.1.83"
 rand = "0.8.5"
 rayon = "1.10.0"
 dashmap = "6.1"

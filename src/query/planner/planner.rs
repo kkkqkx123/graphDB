@@ -660,7 +660,7 @@ pub trait Planner: std::fmt::Debug {
 // ============================================================================
 
 /// 规划器枚举 - 静态分发核心
-/// 完全消除 Box<dyn Planner> 动态分发，使用编译时多态
+/// 完全消除动态分发，使用编译时多态
 #[derive(Debug, Clone)]
 pub enum PlannerEnum {
     Match(MatchStatementPlanner),

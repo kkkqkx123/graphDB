@@ -24,7 +24,7 @@ use crate::query::validator::validator_trait::{
     StatementType, StatementValidator, ValidationResult, ColumnDef, ValueType,
     ExpressionProps,
 };
-use crate::storage::metadata::schema_manager::SchemaManager;
+use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 
 /// 验证后的边获取信息
 #[derive(Debug, Clone)]
@@ -65,7 +65,7 @@ pub struct ValidatedYieldColumn {
 #[derive(Debug)]
 pub struct FetchEdgesValidator {
     // Schema 管理
-    schema_manager: Option<Arc<dyn SchemaManager>>,
+    schema_manager: Option<Arc<RedbSchemaManager>>,
     // 输入列定义
     inputs: Vec<ColumnDef>,
     // 输出列定义
@@ -90,7 +90,7 @@ impl FetchEdgesValidator {
         }
     }
 
-    pub fn with_schema_manager(mut self, schema_manager: Arc<dyn SchemaManager>) -> Self {
+    pub fn with_schema_manager(mut self, schema_manager: Arc<RedbSchemaManager>) -> Self {
         self.schema_manager = Some(schema_manager);
         self
     }

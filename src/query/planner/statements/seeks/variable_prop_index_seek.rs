@@ -227,9 +227,9 @@ impl VariablePropIndexSeek {
 }
 
 impl SeekStrategy for VariablePropIndexSeek {
-    fn execute(
+    fn execute<S: StorageClient>(
         &self,
-        storage: &dyn StorageClient,
+        storage: &S,
         context: &SeekStrategyContext,
     ) -> Result<SeekResult, StorageError> {
         // 检查变量是否已绑定

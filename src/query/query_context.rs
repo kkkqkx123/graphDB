@@ -9,8 +9,6 @@ use crate::query::query_request_context::QueryRequestContext;
 use crate::core::types::SpaceInfo;
 use crate::core::SymbolTable;
 use crate::query::planner::plan::ExecutionPlan;
-use crate::storage::metadata::{SchemaManager, IndexMetadataManager};
-use crate::storage::StorageClient;
 use crate::utils::{ObjectPool, IdGenerator};
 use crate::core::types::CharsetInfo;
 
@@ -23,7 +21,6 @@ use crate::core::types::CharsetInfo;
 ///
 /// - 持有请求上下文（会话信息、请求参数）
 /// - 持有执行计划
-/// - 持有资源访问器（SchemaManager、StorageClient 等）
 /// - 持有工具（对象池、ID 生成器、符号表）
 /// - 持有当前空间信息
 ///
@@ -38,15 +35,6 @@ pub struct QueryContext {
 
     /// 执行计划
     plan: RwLock<Option<Box<ExecutionPlan>>>,
-
-    /// 模式管理器
-    schema_manager: Option<Arc<dyn SchemaManager>>,
-
-    /// 索引元数据管理器
-    index_metadata_manager: Option<Arc<dyn IndexMetadataManager>>,
-
-    /// 存储客户端
-    storage_client: Option<Arc<dyn StorageClient>>,
 
     /// 字符集信息
     charset_info: Option<Box<CharsetInfo>>,
@@ -73,9 +61,6 @@ impl QueryContext {
         Self {
             rctx,
             plan: RwLock::new(None),
-            schema_manager: None,
-            index_metadata_manager: None,
-            storage_client: None,
             charset_info: None,
             obj_pool: ObjectPool::new(1000),
             id_gen: IdGenerator::new(0),
@@ -100,21 +85,6 @@ impl QueryContext {
         &self.rctx
     }
 
-    /// 设置模式管理器
-    pub fn set_schema_manager(&mut self, sm: Arc<dyn SchemaManager>) {
-        self.schema_manager = Some(sm);
-    }
-
-    /// 设置索引元数据管理器
-    pub fn set_index_metadata_manager(&mut self, imm: Arc<dyn IndexMetadataManager>) {
-        self.index_metadata_manager = Some(imm);
-    }
-
-    /// 设置存储客户端
-    pub fn set_storage_client(&mut self, storage: Arc<dyn StorageClient>) {
-        self.storage_client = Some(storage);
-    }
-
     /// 设置字符集信息
     pub fn set_charset_info(&mut self, charset_info: CharsetInfo) {
         self.charset_info = Some(Box::new(charset_info));
@@ -135,21 +105,6 @@ impl QueryContext {
     /// 获取执行计划 ID
     pub fn plan_id(&self) -> Option<i64> {
         self.plan.read().ok()?.as_ref().map(|p| p.id)
-    }
-
-    /// 获取模式管理器
-    pub fn schema_manager(&self) -> Option<&Arc<dyn SchemaManager>> {
-        self.schema_manager.as_ref()
-    }
-
-    /// 获取索引元数据管理器
-    pub fn index_metadata_manager(&self) -> Option<&Arc<dyn IndexMetadataManager>> {
-        self.index_metadata_manager.as_ref()
-    }
-
-    /// 获取存储客户端
-    pub fn storage_client(&self) -> Option<&Arc<dyn StorageClient>> {
-        self.storage_client.as_ref()
     }
 
     /// 获取字符集信息

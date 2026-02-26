@@ -17,9 +17,9 @@ impl VertexSeek {
 }
 
 impl SeekStrategy for VertexSeek {
-    fn execute(
+    fn execute<S: StorageClient>(
         &self,
-        storage: &dyn StorageClient,
+        storage: &S,
         context: &SeekStrategyContext,
     ) -> Result<SeekResult, StorageError> {
         let mut vertex_ids = Vec::new();

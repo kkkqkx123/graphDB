@@ -9,7 +9,7 @@ use crate::query::QueryContext;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
-use crate::storage::metadata::schema_manager::SchemaManager;
+use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 
 /// 验证后的 LIMIT 信息
 #[derive(Debug, Clone)]
@@ -27,7 +27,7 @@ pub struct LimitValidator {
     expression_props: ExpressionProps,
     user_defined_vars: Vec<String>,
     validated_result: Option<ValidatedLimit>,
-    schema_manager: Option<Arc<dyn SchemaManager>>,
+    schema_manager: Option<Arc<RedbSchemaManager>>,
     skip_expr: Option<Expression>,
     limit_expr: Option<Expression>,
     count: Option<u64>,
@@ -48,7 +48,7 @@ impl LimitValidator {
         }
     }
 
-    pub fn with_schema_manager(mut self, schema_manager: Arc<dyn SchemaManager>) -> Self {
+    pub fn with_schema_manager(mut self, schema_manager: Arc<RedbSchemaManager>) -> Self {
         self.schema_manager = Some(schema_manager);
         self
     }

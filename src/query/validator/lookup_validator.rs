@@ -13,6 +13,7 @@ use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
 use crate::storage::metadata::schema_manager::SchemaManager;
+use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 
 /// 验证后的 LOOKUP 信息
 #[derive(Debug, Clone)]
@@ -55,7 +56,7 @@ pub struct LookupValidator {
     expression_props: ExpressionProps,
     user_defined_vars: Vec<String>,
     validated_result: Option<ValidatedLookup>,
-    schema_manager: Option<Arc<dyn SchemaManager>>,
+    schema_manager: Option<Arc<RedbSchemaManager>>,
 }
 
 impl LookupValidator {
@@ -70,7 +71,7 @@ impl LookupValidator {
         }
     }
 
-    pub fn with_schema_manager(mut self, schema_manager: Arc<dyn SchemaManager>) -> Self {
+    pub fn with_schema_manager(mut self, schema_manager: Arc<RedbSchemaManager>) -> Self {
         self.schema_manager = Some(schema_manager);
         self
     }
@@ -171,7 +172,7 @@ impl LookupValidator {
 
         if is_edge {
             // 验证 Edge Type 是否存在
-            match schema_manager.get_edge_type(space_name, label) {
+            match schema_manager.as_ref().get_edge_type(space_name, label) {
                 Ok(Some(_edge_info)) => {
                     // Edge Type 存在，返回 Single 索引类型
                     Ok(LookupIndexType::Single(label.to_string()))
@@ -187,7 +188,7 @@ impl LookupValidator {
             }
         } else {
             // 验证 Tag 是否存在
-            match schema_manager.get_tag(space_name, label) {
+            match schema_manager.as_ref().get_tag(space_name, label) {
                 Ok(Some(_tag_info)) => {
                     // Tag 存在，返回 Single 索引类型
                     Ok(LookupIndexType::Single(label.to_string()))

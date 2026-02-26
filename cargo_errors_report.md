@@ -2,29 +2,24 @@
 
 ## Summary
 
-- **Total Errors**: 13
+- **Total Errors**: 2
 - **Total Warnings**: 0
-- **Total Issues**: 13
-- **Unique Error Patterns**: 6
+- **Total Issues**: 2
+- **Unique Error Patterns**: 2
 - **Unique Warning Patterns**: 0
-- **Files with Issues**: 6
+- **Files with Issues**: 1
 
 ## Error Statistics
 
-**Total Errors**: 13
+**Total Errors**: 2
 
 ### Error Type Breakdown
 
-- **error[E0433]**: 13 errors
+- **error[E0599]**: 2 errors
 
 ### Files with Errors (Top 10)
 
-- `src\query\planner\rewrite\merge\collapse_consecutive_project.rs`: 4 errors
-- `src\query\planner\rewrite\merge\merge_get_nbrs_and_dedup.rs`: 2 errors
-- `src\query\planner\rewrite\merge\merge_get_vertices_and_dedup.rs`: 2 errors
-- `src\query\planner\rewrite\merge\merge_get_vertices_and_project.rs`: 2 errors
-- `src\query\planner\rewrite\merge\merge_get_nbrs_and_project.rs`: 2 errors
-- `src\query\validator\strategies\aggregate_strategy.rs`: 1 errors
+- `src\query\validator\lookup_validator.rs`: 2 errors
 
 ## Warning Statistics
 
@@ -32,39 +27,13 @@
 
 ## Detailed Error Categorization
 
-### error[E0433]: failed to resolve: use of undeclared type `ProjectNode`: use of undeclared type `ProjectNode`
+### error[E0599]: no method named `get_edge_type` found for reference `&RedbSchemaManager` in the current scope
 
-**Total Occurrences**: 13  
-**Unique Files**: 6
+**Total Occurrences**: 2  
+**Unique Files**: 1
 
-#### `src\query\planner\rewrite\merge\collapse_consecutive_project.rs`: 4 occurrences
+#### `src\query\validator\lookup_validator.rs`: 2 occurrences
 
-- Line 178: failed to resolve: use of undeclared type `Expression`: use of undeclared type `Expression`
-- Line 183: failed to resolve: use of undeclared type `Expression`: use of undeclared type `Expression`
-- Line 193: failed to resolve: use of undeclared type `Expression`: use of undeclared type `Expression`
-- ... 1 more occurrences in this file
-
-#### `src\query\planner\rewrite\merge\merge_get_nbrs_and_project.rs`: 2 occurrences
-
-- Line 159: failed to resolve: use of undeclared type `ProjectNode`: use of undeclared type `ProjectNode`
-- Line 163: failed to resolve: use of undeclared type `GetNeighborsNode`: use of undeclared type `GetNeighborsNode`
-
-#### `src\query\planner\rewrite\merge\merge_get_vertices_and_project.rs`: 2 occurrences
-
-- Line 156: failed to resolve: use of undeclared type `ProjectNode`: use of undeclared type `ProjectNode`
-- Line 160: failed to resolve: use of undeclared type `GetVerticesNode`: use of undeclared type `GetVerticesNode`
-
-#### `src\query\planner\rewrite\merge\merge_get_nbrs_and_dedup.rs`: 2 occurrences
-
-- Line 145: failed to resolve: use of undeclared type `DedupNode`: use of undeclared type `DedupNode`
-- Line 149: failed to resolve: use of undeclared type `GetNeighborsNode`: use of undeclared type `GetNeighborsNode`
-
-#### `src\query\planner\rewrite\merge\merge_get_vertices_and_dedup.rs`: 2 occurrences
-
-- Line 145: failed to resolve: use of undeclared type `DedupNode`: use of undeclared type `DedupNode`
-- Line 149: failed to resolve: use of undeclared type `GetVerticesNode`: use of undeclared type `GetVerticesNode`
-
-#### `src\query\validator\strategies\aggregate_strategy.rs`: 1 occurrences
-
-- Line 576: failed to resolve: use of undeclared type `DataType`: use of undeclared type `DataType`
+- Line 174: no method named `get_edge_type` found for reference `&RedbSchemaManager` in the current scope
+- Line 190: no method named `get_tag` found for reference `&RedbSchemaManager` in the current scope
 

@@ -13,7 +13,7 @@ use crate::query::parser::ast::Stmt;
 use crate::query::validator::validator_trait::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult, ValueType,
 };
-use crate::storage::metadata::schema_manager::SchemaManager;
+use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 
 /// 验证后的顶点插入信息
 #[derive(Debug, Clone)]
@@ -46,7 +46,7 @@ pub struct InsertVerticesValidator {
     expression_props: ExpressionProps,
     user_defined_vars: Vec<String>,
     validated_result: Option<ValidatedInsertVertices>,
-    schema_manager: Option<Arc<dyn SchemaManager>>,
+    schema_manager: Option<Arc<RedbSchemaManager>>,
 }
 
 impl InsertVerticesValidator {
@@ -61,7 +61,7 @@ impl InsertVerticesValidator {
         }
     }
 
-    pub fn with_schema_manager(mut self, schema_manager: Arc<dyn SchemaManager>) -> Self {
+    pub fn with_schema_manager(mut self, schema_manager: Arc<RedbSchemaManager>) -> Self {
         self.schema_manager = Some(schema_manager);
         self
     }

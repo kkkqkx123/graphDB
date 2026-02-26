@@ -16,12 +16,10 @@ use super::seek_strategy_base::{
 use super::variable_prop_index_seek::VariablePropIndexSeek;
 use super::vertex_seek::VertexSeek;
 
-pub type SeekStrategyTraitObject = dyn SeekStrategy + Send + Sync;
-
 pub trait SeekStrategy: Send + Sync {
-    fn execute(
+    fn execute<S: StorageClient>(
         &self,
-        storage: &dyn StorageClient,
+        storage: &S,
         context: &SeekStrategyContext,
     ) -> Result<SeekResult, StorageError>;
 
@@ -59,9 +57,9 @@ impl Clone for AnySeekStrategy {
 }
 
 impl SeekStrategy for AnySeekStrategy {
-    fn execute(
+    fn execute<S: StorageClient>(
         &self,
-        storage: &dyn StorageClient,
+        storage: &S,
         context: &SeekStrategyContext,
     ) -> Result<SeekResult, StorageError> {
         match self {
@@ -98,35 +96,6 @@ impl SeekStrategy for AnySeekStrategy {
 }
 
 impl SeekStrategySelector {
-    pub fn create_strategy(
-        &self,
-        strategy_type: SeekStrategyType,
-    ) -> AnySeekStrategy {
-        match strategy_type {
-            SeekStrategyType::VertexSeek => AnySeekStrategy::VertexSeek(VertexSeek::new()),
-            SeekStrategyType::IndexSeek => AnySeekStrategy::IndexSeek(IndexSeek::new()),
-            SeekStrategyType::PropIndexSeek => {
-                // PropIndexSeek 需要谓词，这里创建空实例
-                AnySeekStrategy::PropIndexSeek(PropIndexSeek::new(vec![]))
-            }
-            SeekStrategyType::VariablePropIndexSeek => {
-                // VariablePropIndexSeek 需要谓词，这里创建空实例
-                AnySeekStrategy::VariablePropIndexSeek(VariablePropIndexSeek::new(vec![]))
-            }
-            SeekStrategyType::EdgeSeek => {
-                // EdgeSeek 需要边模式，这里创建默认实例
-                AnySeekStrategy::EdgeSeek(EdgeSeek::new(EdgePattern {
-                    edge_types: vec![],
-                    direction: super::edge_seek::EdgeDirection::Both,
-                    src_vid: None,
-                    dst_vid: None,
-                    properties: vec![],
-                }))
-            }
-            SeekStrategyType::ScanSeek => AnySeekStrategy::ScanSeek(ScanSeek::new()),
-        }
-    }
-
     /// 创建带参数的 PropIndexSeek 策略
     pub fn create_prop_index_strategy(
         &self,
@@ -151,13 +120,35 @@ impl SeekStrategySelector {
         AnySeekStrategy::EdgeSeek(EdgeSeek::new(edge_pattern))
     }
 
-    pub fn find(
+    pub fn find<S: StorageClient>(
         &self,
-        storage: &dyn StorageClient,
+        storage: &S,
         context: &SeekStrategyContext,
     ) -> Result<SeekResult, StorageError> {
         let strategy_type = self.select_strategy(storage, context);
-        let strategy = self.create_strategy(strategy_type);
+        let strategy = match strategy_type {
+            SeekStrategyType::VertexSeek => AnySeekStrategy::VertexSeek(VertexSeek::new()),
+            SeekStrategyType::IndexSeek => AnySeekStrategy::IndexSeek(IndexSeek::new()),
+            SeekStrategyType::PropIndexSeek => {
+                let predicates = PropIndexSeek::extract_predicates(&context.predicates);
+                self.create_prop_index_strategy(predicates)
+            }
+            SeekStrategyType::VariablePropIndexSeek => {
+                let predicates = VariablePropIndexSeek::extract_predicates(&context.predicates);
+                self.create_variable_prop_index_strategy(predicates)
+            }
+            SeekStrategyType::EdgeSeek => {
+                let edge_pattern = EdgePattern {
+                    edge_types: context.node_pattern.labels.clone(),
+                    direction: super::edge_seek::EdgeDirection::Both,
+                    src_vid: context.node_pattern.vid.clone(),
+                    dst_vid: None,
+                    properties: context.node_pattern.properties.clone(),
+                };
+                self.create_edge_strategy(edge_pattern)
+            }
+            SeekStrategyType::ScanSeek => AnySeekStrategy::ScanSeek(ScanSeek::new()),
+        };
         strategy.execute(storage, context)
     }
 }

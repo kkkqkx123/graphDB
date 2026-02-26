@@ -35,7 +35,7 @@
 use crate::core::Expression;
 use crate::core::types::YieldColumn;
 use crate::query::planner::plan::PlanNodeEnum;
-use crate::query::planner::plan::core::nodes::plan_node_traits::{SingleInputNode, MultipleInputNode, JoinNode};
+use crate::query::planner::plan::core::nodes::plan_node_traits::{SingleInputNode, MultipleInputNode};
 use crate::query::planner::plan::core::nodes::join_node::{HashInnerJoinNode, HashLeftJoinNode};
 use crate::query::planner::plan::core::nodes::project_node::ProjectNode;
 use crate::query::planner::rewrite::context::RewriteContext;
@@ -199,16 +199,16 @@ impl RewriteRule for RemoveAppendVerticesBelowJoinRule {
         _ctx: &mut RewriteContext,
         node: &PlanNodeEnum,
     ) -> RewriteResult<Option<TransformResult>> {
-        // 检查是否为哈希连接节点，并获取 JoinNode trait 对象
-        let join_node: &dyn JoinNode = match node {
-            PlanNodeEnum::HashInnerJoin(n) => n,
-            PlanNodeEnum::HashLeftJoin(n) => n,
+        // 检查是否为哈希连接节点
+        let (hash_keys, probe_keys, left_input, right_input) = match node {
+            PlanNodeEnum::HashInnerJoin(n) => {
+                (n.hash_keys().to_vec(), n.probe_keys().to_vec(), n.left_input().clone(), n.right_input().clone())
+            }
+            PlanNodeEnum::HashLeftJoin(n) => {
+                (n.hash_keys().to_vec(), n.probe_keys().to_vec(), n.left_input().clone(), n.right_input().clone())
+            }
             _ => return Ok(None),
         };
-
-        // 获取左右输入节点
-        let left_input = join_node.left_input();
-        let right_input = join_node.right_input();
 
         // 检查右输入是否为 Project
         let project = match right_input {
@@ -253,19 +253,15 @@ impl RewriteRule for RemoveAppendVerticesBelowJoinRule {
             None => return Ok(None),
         };
 
-        // 获取 Join 的 hash keys 和 probe keys
-        let hash_keys = join_node.hash_keys();
-        let probe_keys = join_node.probe_keys();
-
         // 检查 avNodeAlias 在 probe keys 中的引用次数
-        let probe_ref_count = self.count_alias_references(probe_keys, av_node_alias);
+        let probe_ref_count = self.count_alias_references(&probe_keys, av_node_alias);
         if probe_ref_count > 1 {
             // 如果被引用多次，不能移除 AppendVertices
             return Ok(None);
         }
 
         // 查找匹配的 probe key 索引
-        let probe_key_idx = match self.find_matching_probe_key(probe_keys, av_node_alias) {
+        let probe_key_idx = match self.find_matching_probe_key(&probe_keys, av_node_alias) {
             Some(idx) => idx,
             None => return Ok(None),
         };
@@ -309,7 +305,7 @@ impl RewriteRule for RemoveAppendVerticesBelowJoinRule {
         ).map_err(|e| RewriteError::InvalidPlanStructure(e.to_string()))?;
 
         // 创建新的 probe keys
-        let mut new_probe_keys: Vec<Expression> = probe_keys.iter().cloned().collect();
+        let mut new_probe_keys: Vec<Expression> = probe_keys.clone();
         new_probe_keys[probe_key_idx] = self.create_variable_expr(av_node_alias);
 
         // 创建新的 Join 节点

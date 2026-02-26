@@ -12,7 +12,7 @@ use crate::query::validator::validator_trait::{
 };
 use std::collections::HashSet;
 use std::sync::Arc;
-use crate::storage::metadata::schema_manager::SchemaManager;
+use crate::storage::metadata::redb_schema_manager::RedbSchemaManager;
 
 /// 验证后的边插入信息
 #[derive(Debug, Clone)]
@@ -40,7 +40,7 @@ pub struct InsertEdgesValidator {
     expression_props: ExpressionProps,
     user_defined_vars: Vec<String>,
     validated_result: Option<ValidatedInsertEdges>,
-    schema_manager: Option<Arc<dyn SchemaManager>>,
+    schema_manager: Option<Arc<RedbSchemaManager>>,
 }
 
 impl InsertEdgesValidator {
@@ -55,7 +55,7 @@ impl InsertEdgesValidator {
         }
     }
 
-    pub fn with_schema_manager(mut self, schema_manager: Arc<dyn SchemaManager>) -> Self {
+    pub fn with_schema_manager(mut self, schema_manager: Arc<RedbSchemaManager>) -> Self {
         self.schema_manager = Some(schema_manager);
         self
     }
