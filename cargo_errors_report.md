@@ -2,38 +2,37 @@
 
 ## Summary
 
-- **Total Errors**: 0
-- **Total Warnings**: 2
-- **Total Issues**: 2
-- **Unique Error Patterns**: 0
-- **Unique Warning Patterns**: 2
+- **Total Errors**: 1
+- **Total Warnings**: 0
+- **Total Issues**: 1
+- **Unique Error Patterns**: 1
+- **Unique Warning Patterns**: 0
 - **Files with Issues**: 1
 
 ## Error Statistics
 
-**Total Errors**: 0
+**Total Errors**: 1
+
+### Error Type Breakdown
+
+- **error[E0061]**: 1 errors
+
+### Files with Errors (Top 10)
+
+- `src\query\optimizer\cost\node_estimators\sort_limit.rs`: 1 errors
 
 ## Warning Statistics
 
-**Total Warnings**: 2
+**Total Warnings**: 0
 
-### Warning Type Breakdown
+## Detailed Error Categorization
 
-- **warning**: 2 warnings
+### error[E0061]: this method takes 2 arguments but 1 argument was supplied
 
-### Files with Warnings (Top 10)
-
-- `src\query\validator\update_validator.rs`: 2 warnings
-
-## Detailed Warning Categorization
-
-### warning: unused imports: `DataType`, `PropertyDef`, and `TagInfo`
-
-**Total Occurrences**: 2  
+**Total Occurrences**: 1  
 **Unique Files**: 1
 
-#### `src\query\validator\update_validator.rs`: 2 occurrences
+#### `src\query\optimizer\cost\node_estimators\sort_limit.rs`: 1 occurrences
 
-- Line 687: unused imports: `DataType`, `PropertyDef`, and `TagInfo`
-- Line 690: unused import: `crate::storage::metadata::schema_manager::SchemaManager`
+- Line 46: this method takes 2 arguments but 1 argument was supplied
 

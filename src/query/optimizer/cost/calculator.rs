@@ -322,17 +322,41 @@ impl CostCalculator {
 
     /// 计算排序代价
     ///
-    /// 公式：输入行数 × log(输入行数) × 比较代价
-    /// 超过内存阈值时使用外部排序
+    /// 基于实际 SortExecutor 实现：
+    /// - 小数据量：单线程标准排序 O(n log n)
+    /// - 大数据量：Scatter-Gather 并行排序
+    /// - 有 LIMIT 且数据量大：使用 Top-N 算法 O(n log k)
+    /// - 超过内存阈值：外部排序
     ///
     /// # 参数
     /// - `input_rows`: 输入行数
     /// - `sort_columns`: 排序列数
-    pub fn calculate_sort_cost(&self, input_rows: u64, sort_columns: usize) -> f64 {
+    /// - `limit`: 可选的 LIMIT 值（用于 Top-N 优化）
+    pub fn calculate_sort_cost(
+        &self,
+        input_rows: u64,
+        sort_columns: usize,
+        limit: Option<i64>,
+    ) -> f64 {
         if input_rows == 0 {
             return 0.0;
         }
+
         let rows = input_rows as f64;
+
+        // 检查是否可以使用 Top-N 优化
+        // 参考 SortExecutor: 如果数据量 > limit * 10，使用 Top-N 算法
+        if let Some(limit_val) = limit {
+            let limit_u = limit_val.max(0) as u64;
+            if limit_u > 0 && input_rows > limit_u * 10 {
+                // Top-N 算法：使用堆排序，复杂度 O(n log k)
+                let k = limit_u as f64;
+                return rows * k.log2().max(1.0) * sort_columns as f64
+                    * self.config.cpu_operator_cost * self.config.sort_comparison_cost;
+            }
+        }
+
+        // 标准排序：O(n log n)
         let comparisons = rows * rows.log2().max(1.0);
         let cpu_cost = comparisons * sort_columns as f64 * self.config.cpu_operator_cost * self.config.sort_comparison_cost;
 
@@ -348,9 +372,12 @@ impl CostCalculator {
     }
 
     /// 计算Limit代价
-    pub fn calculate_limit_cost(&self, input_rows: u64, _limit: i64) -> f64 {
-        // Limit 主要是内存操作，代价较低
-        input_rows as f64 * self.config.cpu_operator_cost * 0.5
+    ///
+    /// 公式：实际处理的行数 × CPU操作代价
+    /// Limit 只需要处理前 N 行，代价与 min(limit, input_rows) 成正比
+    pub fn calculate_limit_cost(&self, input_rows: u64, limit: i64) -> f64 {
+        let rows_to_process = (limit.max(0) as u64).min(input_rows);
+        rows_to_process as f64 * self.config.cpu_operator_cost * 0.5
     }
 
     /// 计算TopN代价（优先队列）
@@ -365,11 +392,33 @@ impl CostCalculator {
 
     /// 计算聚合代价
     ///
+    /// 基于实际 AggregateExecutor 实现：
+    /// - 使用 HashMap 存储分组状态
+    /// - 需要计算分组键（表达式求值）
+    /// - 每个聚合函数需要更新状态
+    ///
     /// # 参数
     /// - `input_rows`: 输入行数
     /// - `agg_functions`: 聚合函数数量
-    pub fn calculate_aggregate_cost(&self, input_rows: u64, agg_functions: usize) -> f64 {
-        input_rows as f64 * agg_functions as f64 * self.config.cpu_operator_cost
+    /// - `group_by_keys`: GROUP BY 键数量（用于估算哈希操作代价）
+    pub fn calculate_aggregate_cost(
+        &self,
+        input_rows: u64,
+        agg_functions: usize,
+        group_by_keys: usize,
+    ) -> f64 {
+        // 基础聚合函数处理代价
+        let agg_cost = input_rows as f64 * agg_functions as f64 * self.config.cpu_operator_cost;
+
+        // 哈希表操作代价（插入、查找）
+        // 每个输入行都需要计算分组键并进行哈希操作
+        let hash_cost = if group_by_keys > 0 {
+            input_rows as f64 * group_by_keys as f64 * self.config.cpu_operator_cost * 2.0
+        } else {
+            0.0
+        };
+
+        agg_cost + hash_cost
     }
 
     /// 计算去重代价（使用哈希表）
@@ -577,12 +626,23 @@ mod tests {
         let stats_manager = Arc::new(StatisticsManager::new());
         let calculator = CostCalculator::new(stats_manager);
 
-        let cost = calculator.calculate_sort_cost(1000, 2);
+        // 测试标准排序（无 limit）
+        let cost = calculator.calculate_sort_cost(1000, 2, None);
         assert!(cost > 0.0);
 
         // 空输入应该返回 0
-        let zero_cost = calculator.calculate_sort_cost(0, 2);
+        let zero_cost = calculator.calculate_sort_cost(0, 2, None);
         assert_eq!(zero_cost, 0.0);
+
+        // 测试 Top-N 优化（数据量 > limit * 10）
+        let topn_cost = calculator.calculate_sort_cost(1000, 2, Some(50));
+        // Top-N 应该比全排序便宜
+        assert!(topn_cost < cost);
+
+        // 测试小 limit（不触发 Top-N）
+        let small_limit_cost = calculator.calculate_sort_cost(1000, 2, Some(200));
+        // 小 limit 应该使用标准排序
+        assert!(small_limit_cost >= cost * 0.99 && small_limit_cost <= cost * 1.01);
     }
 
     #[test]

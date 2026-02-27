@@ -24,6 +24,7 @@ pub mod session;
 pub mod permission;
 pub mod validation;
 pub mod auth;
+pub mod optimize;
 
 // 重新导出错误码
 pub use codes::{ErrorCode, ErrorCategory as CodeErrorCategory, PublicError, ToPublicError};
@@ -37,6 +38,7 @@ pub use session::{SessionError, SessionResult};
 pub use permission::{PermissionError, PermissionResult};
 pub use validation::{ValidationError, ValidationErrorType, SchemaValidationError, SchemaValidationResult};
 pub use auth::{AuthError, AuthResult};
+pub use optimize::{OptimizeError, OptimizeResult, CostError, CostResult};
 
 pub use crate::core::types::DataType;
 

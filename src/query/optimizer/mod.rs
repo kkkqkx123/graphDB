@@ -44,9 +44,9 @@ pub use cost::{
     CostCalculator,
     CostModelConfig,
     CostAssigner,
-    CostError,
     SelectivityEstimator,
 };
+pub use crate::core::error::optimize::CostError;
 
 pub use strategy::{
     TraversalStartSelector,

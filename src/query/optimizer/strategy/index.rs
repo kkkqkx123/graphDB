@@ -165,10 +165,10 @@ impl IndexSelector {
                     )
                 }
                 PredicateOperator::LessThan | PredicateOperator::LessThanOrEqual => {
-                    self.selectivity_estimator.estimate_less_than_selectivity()
+                    self.selectivity_estimator.estimate_less_than_selectivity(None)
                 }
                 PredicateOperator::GreaterThan | PredicateOperator::GreaterThanOrEqual => {
-                    self.selectivity_estimator.estimate_greater_than_selectivity()
+                    self.selectivity_estimator.estimate_greater_than_selectivity(None)
                 }
                 PredicateOperator::Like => {
                     // 尝试从表达式中提取模式
