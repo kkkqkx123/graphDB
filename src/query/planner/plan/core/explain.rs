@@ -231,7 +231,6 @@ impl DescribeVisitor {
         if let Some(var) = node.output_var() {
             desc = desc.with_output_var(var.to_string());
         }
-        desc.add_description("cost", format!("{:.2}", node.cost()));
         self.descriptions.push(desc);
     }
 }

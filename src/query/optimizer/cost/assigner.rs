@@ -1,6 +1,6 @@
 //! 代价赋值器模块
 //!
-//! 为执行计划中的所有节点计算并设置代价
+//! 为执行计划中的所有节点计算代价（仅用于优化决策，不存储到节点中）
 //!
 //! ## 使用示例
 //!
@@ -13,14 +13,21 @@
 //! let stats_manager = Arc::new(StatisticsManager::new());
 //! let assigner = CostAssigner::new(stats_manager);
 //!
-//! // 为执行计划赋值代价
-//! // assigner.assign_costs(&mut plan);
+//! // 为执行计划计算代价（仅用于优化决策）
+//! // let total_cost = assigner.assign_costs(&mut plan)?;
 //! ```
+//!
+//! ## 架构说明
+//!
+//! 代价计算完全隔离在优化器层，不再存储到 PlanNode 中。
+//! 代价仅用于优化决策（如索引选择、连接算法选择等），
+//! 执行阶段不需要代价信息。
 
 use std::sync::Arc;
 
 use crate::query::optimizer::stats::StatisticsManager;
 use crate::query::planner::plan::{ExecutionPlan, PlanNodeEnum};
+use crate::query::planner::plan::core::nodes::plan_node_traits::MultipleInputNode;
 
 use super::{CostCalculator, CostModelConfig};
 
@@ -93,6 +100,7 @@ impl CostAssigner {
     /// 递归为节点及其子节点赋值代价
     ///
     /// 使用后序遍历：先计算子节点代价，再计算当前节点
+    /// 注意：代价不再存储在节点中，仅用于优化决策
     fn assign_node_costs_recursive(&self, node: &mut PlanNodeEnum) -> Result<f64, CostError> {
         // 1. 先递归计算子节点的代价（后序遍历）
         let child_costs = self.calculate_child_costs(node)?;
@@ -100,10 +108,8 @@ impl CostAssigner {
         // 2. 根据节点类型计算自身代价
         let node_cost = self.calculate_node_cost(node, &child_costs)?;
 
-        // 3. 设置节点代价
-        self.set_node_cost(node, node_cost);
-
-        // 4. 返回累计代价（节点自身代价 + 子节点代价）
+        // 3. 返回累计代价（节点自身代价 + 子节点代价）
+        // 注意：代价不再设置到节点中，仅用于优化决策
         let total_cost = node_cost + child_costs.iter().sum::<f64>();
         Ok(total_cost)
     }
@@ -133,23 +139,8 @@ impl CostAssigner {
     }
 
     /// 获取可变子节点引用
-    fn get_child_mut(&self, node: &mut PlanNodeEnum, index: usize) -> Option<&mut PlanNodeEnum> {
+    fn get_child_mut<'a>(&self, node: &'a mut PlanNodeEnum, index: usize) -> Option<&'a mut PlanNodeEnum> {
         match node {
-            // 单输入节点
-            PlanNodeEnum::Project(n) if index == 0 => Some(n.input_mut()),
-            PlanNodeEnum::Filter(n) if index == 0 => Some(n.input_mut()),
-            PlanNodeEnum::Sort(n) if index == 0 => Some(n.input_mut()),
-            PlanNodeEnum::Limit(n) if index == 0 => Some(n.input_mut()),
-            PlanNodeEnum::TopN(n) if index == 0 => Some(n.input_mut()),
-            PlanNodeEnum::Sample(n) if index == 0 => Some(n.input_mut()),
-            PlanNodeEnum::Dedup(n) if index == 0 => Some(n.input_mut()),
-            PlanNodeEnum::DataCollect(n) if index == 0 => Some(n.input_mut()),
-            PlanNodeEnum::Aggregate(n) if index == 0 => Some(n.input_mut()),
-            PlanNodeEnum::Unwind(n) if index == 0 => Some(n.input_mut()),
-            PlanNodeEnum::Assign(n) if index == 0 => Some(n.input_mut()),
-            PlanNodeEnum::PatternApply(n) if index == 0 => Some(n.input_mut()),
-            PlanNodeEnum::Traverse(n) if index == 0 => Some(n.input_mut()),
-
             // 双输入节点
             PlanNodeEnum::InnerJoin(n) => match index {
                 0 => Some(n.left_input_mut()),
@@ -187,7 +178,7 @@ impl CostAssigner {
             PlanNodeEnum::ExpandAll(n) => n.inputs_mut().get_mut(index).map(|b| b.as_mut()),
             PlanNodeEnum::AppendVertices(n) => n.inputs_mut().get_mut(index).map(|b| b.as_mut()),
 
-            // 无输入节点
+            // 无输入节点和单输入节点 - 不支持可变访问
             _ => None,
         }
     }
@@ -200,7 +191,7 @@ impl CostAssigner {
     ) -> Result<f64, CostError> {
         let cost = match node {
             // ==================== 扫描操作 ====================
-            PlanNodeEnum::ScanVertices(n) => {
+            PlanNodeEnum::ScanVertices(_) => {
                 // 从节点中提取标签信息（如果有）
                 // 简化处理：使用默认标签或从统计信息中推断
                 self.cost_calculator.calculate_scan_vertices_cost("default")
@@ -208,7 +199,7 @@ impl CostAssigner {
             PlanNodeEnum::ScanEdges(_) => {
                 self.cost_calculator.calculate_scan_edges_cost("default")
             }
-            PlanNodeEnum::IndexScan(n) => {
+            PlanNodeEnum::IndexScan(_n) => {
                 // 从索引扫描节点提取信息
                 let tag_name = "default";
                 let property_name = "default";
@@ -216,8 +207,8 @@ impl CostAssigner {
                 self.cost_calculator
                     .calculate_index_scan_cost(tag_name, property_name, selectivity)
             }
-            PlanNodeEnum::EdgeIndexScan(n) => {
-                let edge_type = n.edge_type();
+            PlanNodeEnum::EdgeIndexScan(_n) => {
+                let edge_type = "default";
                 let selectivity = 0.1;
                 self.cost_calculator
                     .calculate_edge_index_scan_cost(edge_type, selectivity)
@@ -414,44 +405,6 @@ impl CostAssigner {
             .copied()
             .map(|c| c.max(1.0) as u64)
             .unwrap_or(1)
-    }
-
-    /// 设置节点的代价
-    fn set_node_cost(&self, node: &mut PlanNodeEnum, cost: f64) {
-        node.set_cost(cost);
-    }
-
-    /// 验证执行计划中的所有节点代价是否已计算
-    ///
-    /// 返回未计算代价的节点列表
-    pub fn validate_costs(&self, plan: &ExecutionPlan) -> Vec<(i64, String)> {
-        let mut uncalculated = Vec::new();
-        if let Some(root) = plan.root() {
-            self.validate_node_costs_recursive(root, &mut uncalculated);
-        }
-        uncalculated
-    }
-
-    /// 递归验证节点代价
-    fn validate_node_costs_recursive(
-        &self,
-        node: &PlanNodeEnum,
-        uncalculated: &mut Vec<(i64, String)>,
-    ) {
-        // 检查当前节点
-        if !node.is_cost_calculated() {
-            uncalculated.push((node.id(), node.name().to_string()));
-        }
-
-        // 递归检查子节点
-        for child in node.children() {
-            self.validate_node_costs_recursive(child, uncalculated);
-        }
-    }
-
-    /// 检查执行计划是否已计算代价
-    pub fn is_costs_calculated(&self, plan: &ExecutionPlan) -> bool {
-        self.validate_costs(plan).is_empty()
     }
 }
 

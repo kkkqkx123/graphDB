@@ -37,7 +37,6 @@ macro_rules! define_plan_node {
             $($field: $type,)*
             output_var: Option<String>,
             col_names: Vec<String>,
-            cost: Option<f64>,
         }
 
         impl Clone for $name {
@@ -48,7 +47,6 @@ macro_rules! define_plan_node {
                     $($field: self.$field.clone(),)*
                     output_var: self.output_var.clone(),
                     col_names: self.col_names.clone(),
-                    cost: self.cost,
                 }
             }
         }
@@ -68,31 +66,6 @@ macro_rules! define_plan_node {
 
             pub fn col_names(&self) -> &[String] {
                 &self.col_names
-            }
-
-            /// 获取代价选项
-            /// 
-            /// 返回 None 表示代价未计算，Some(cost) 表示已计算
-            pub fn cost(&self) -> Option<f64> {
-                self.cost
-            }
-
-            /// 获取代价，如果未设置返回默认值
-            /// 
-            /// # Safety
-            /// 如果代价未计算，将返回传入的默认值
-            pub fn cost_or(&self, default: f64) -> f64 {
-                self.cost.unwrap_or(default)
-            }
-
-            /// 设置代价
-            pub fn set_cost(&mut self, cost: f64) {
-                self.cost = Some(cost);
-            }
-
-            /// 检查代价是否已计算
-            pub fn is_cost_calculated(&self) -> bool {
-                self.cost.is_some()
             }
 
             pub fn set_output_var(&mut self, var: String) {
@@ -131,10 +104,6 @@ macro_rules! define_plan_node {
 
             fn col_names(&self) -> &[String] {
                 self.col_names()
-            }
-
-            fn cost(&self) -> Option<f64> {
-                self.cost()
             }
 
             fn set_output_var(&mut self, var: String) {
@@ -181,7 +150,6 @@ macro_rules! define_plan_node {
             $($field: $type,)*
             output_var: Option<String>,
             col_names: Vec<String>,
-            cost: Option<f64>,
         }
 
         impl Clone for $name {
@@ -193,7 +161,6 @@ macro_rules! define_plan_node {
                     $($field: self.$field.clone(),)*
                     output_var: self.output_var.clone(),
                     col_names: self.col_names.clone(),
-                    cost: self.cost,
                 }
             }
         }
@@ -213,31 +180,6 @@ macro_rules! define_plan_node {
 
             pub fn col_names(&self) -> &[String] {
                 &self.col_names
-            }
-
-            /// 获取代价选项
-            /// 
-            /// 返回 None 表示代价未计算，Some(cost) 表示已计算
-            pub fn cost(&self) -> Option<f64> {
-                self.cost
-            }
-
-            /// 获取代价，如果未设置返回默认值
-            /// 
-            /// # Safety
-            /// 如果代价未计算，将返回传入的默认值
-            pub fn cost_or(&self, default: f64) -> f64 {
-                self.cost.unwrap_or(default)
-            }
-
-            /// 设置代价
-            pub fn set_cost(&mut self, cost: f64) {
-                self.cost = Some(cost);
-            }
-
-            /// 检查代价是否已计算
-            pub fn is_cost_calculated(&self) -> bool {
-                self.cost.is_some()
             }
 
             pub fn set_output_var(&mut self, var: String) {
@@ -292,10 +234,6 @@ macro_rules! define_plan_node {
                 self.col_names()
             }
 
-            fn cost(&self) -> Option<f64> {
-                self.cost()
-            }
-
             fn set_output_var(&mut self, var: String) {
                 self.set_output_var(var);
             }
@@ -310,6 +248,10 @@ macro_rules! define_plan_node {
         impl crate::query::planner::plan::core::nodes::plan_node_traits::MultipleInputNode for $name {
             fn inputs(&self) -> &[Box<crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum>] {
                 &self.deps
+            }
+
+            fn inputs_mut(&mut self) -> &mut Vec<Box<crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum>> {
+                &mut self.deps
             }
 
             fn add_input(&mut self, input: crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum) {
@@ -358,7 +300,6 @@ macro_rules! define_binary_input_node {
             $($field: $type,)*
             output_var: Option<String>,
             col_names: Vec<String>,
-            cost: Option<f64>,
         }
 
         impl Clone for $name {
@@ -372,7 +313,6 @@ macro_rules! define_binary_input_node {
                     $($field: self.$field.clone(),)*
                     output_var: self.output_var.clone(),
                     col_names: self.col_names.clone(),
-                    cost: self.cost,
                 }
             }
         }
@@ -394,26 +334,6 @@ macro_rules! define_binary_input_node {
                 &self.col_names
             }
 
-            /// 获取代价，如果未设置返回 0.0
-            pub fn cost(&self) -> f64 {
-                self.cost.unwrap_or(0.0)
-            }
-
-            /// 获取原始代价选项
-            pub fn cost_option(&self) -> Option<f64> {
-                self.cost
-            }
-
-            /// 设置代价
-            pub fn set_cost(&mut self, cost: f64) {
-                self.cost = Some(cost);
-            }
-
-            /// 检查代价是否已计算
-            pub fn is_cost_calculated(&self) -> bool {
-                self.cost.is_some()
-            }
-
             pub fn set_output_var(&mut self, var: String) {
                 self.output_var = Some(var);
             }
@@ -432,6 +352,14 @@ macro_rules! define_binary_input_node {
 
             pub fn right_input(&self) -> &crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum {
                 &self.right
+            }
+
+            pub fn left_input_mut(&mut self) -> &mut crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum {
+                &mut self.left
+            }
+
+            pub fn right_input_mut(&mut self) -> &mut crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum {
+                &mut self.right
             }
 
             pub fn set_left_input(&mut self, input: crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum) {
@@ -466,7 +394,6 @@ macro_rules! define_binary_input_node {
             fn name(&self) -> &'static str { self.type_name() }
             fn output_var(&self) -> Option<&str> { self.output_var() }
             fn col_names(&self) -> &[String] { self.col_names() }
-            fn cost(&self) -> f64 { self.cost() }
             fn set_output_var(&mut self, var: String) { self.set_output_var(var); }
             fn set_col_names(&mut self, names: Vec<String>) { self.set_col_names(names); }
             fn into_enum(self) -> crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum {
@@ -482,6 +409,14 @@ macro_rules! define_binary_input_node {
 
             fn right_input(&self) -> &crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum {
                 &self.right
+            }
+
+            fn left_input_mut(&mut self) -> &mut crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum {
+                &mut self.left
+            }
+
+            fn right_input_mut(&mut self) -> &mut crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum {
+                &mut self.right
             }
 
             fn set_left_input(&mut self, input: crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum) {
@@ -530,7 +465,6 @@ macro_rules! define_plan_node_with_deps {
             $($field: $type,)*
             output_var: Option<String>,
             col_names: Vec<String>,
-            cost: Option<f64>,
         }
 
         impl Clone for $name {
@@ -543,7 +477,6 @@ macro_rules! define_plan_node_with_deps {
                     $($field: self.$field.clone(),)*
                     output_var: self.output_var.clone(),
                     col_names: self.col_names.clone(),
-                    cost: self.cost,
                 }
             }
         }
@@ -563,31 +496,6 @@ macro_rules! define_plan_node_with_deps {
 
             pub fn col_names(&self) -> &[String] {
                 &self.col_names
-            }
-
-            /// 获取代价选项
-            /// 
-            /// 返回 None 表示代价未计算，Some(cost) 表示已计算
-            pub fn cost(&self) -> Option<f64> {
-                self.cost
-            }
-
-            /// 获取代价，如果未设置返回默认值
-            /// 
-            /// # Safety
-            /// 如果代价未计算，将返回传入的默认值
-            pub fn cost_or(&self, default: f64) -> f64 {
-                self.cost.unwrap_or(default)
-            }
-
-            /// 设置代价
-            pub fn set_cost(&mut self, cost: f64) {
-                self.cost = Some(cost);
-            }
-
-            /// 检查代价是否已计算
-            pub fn is_cost_calculated(&self) -> bool {
-                self.cost.is_some()
             }
 
             pub fn set_output_var(&mut self, var: String) {
@@ -624,7 +532,6 @@ macro_rules! define_plan_node_with_deps {
             fn name(&self) -> &'static str { self.type_name() }
             fn output_var(&self) -> Option<&str> { self.output_var() }
             fn col_names(&self) -> &[String] { self.col_names() }
-            fn cost(&self) -> Option<f64> { self.cost() }
             fn set_output_var(&mut self, var: String) { self.set_output_var(var); }
             fn set_col_names(&mut self, names: Vec<String>) { self.set_col_names(names); }
             fn into_enum(self) -> crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum {
@@ -678,7 +585,6 @@ macro_rules! define_join_node {
             $($field: $type,)*
             output_var: Option<String>,
             col_names: Vec<String>,
-            cost: Option<f64>,
         }
 
         impl Clone for $name {
@@ -694,7 +600,6 @@ macro_rules! define_join_node {
                     $($field: self.$field.clone(),)*
                     output_var: self.output_var.clone(),
                     col_names: self.col_names.clone(),
-                    cost: self.cost,
                 }
             }
         }
@@ -714,31 +619,6 @@ macro_rules! define_join_node {
 
             pub fn col_names(&self) -> &[String] {
                 &self.col_names
-            }
-
-            /// 获取代价选项
-            /// 
-            /// 返回 None 表示代价未计算，Some(cost) 表示已计算
-            pub fn cost(&self) -> Option<f64> {
-                self.cost
-            }
-
-            /// 获取代价，如果未设置返回默认值
-            /// 
-            /// # Safety
-            /// 如果代价未计算，将返回传入的默认值
-            pub fn cost_or(&self, default: f64) -> f64 {
-                self.cost.unwrap_or(default)
-            }
-
-            /// 设置代价
-            pub fn set_cost(&mut self, cost: f64) {
-                self.cost = Some(cost);
-            }
-
-            /// 检查代价是否已计算
-            pub fn is_cost_calculated(&self) -> bool {
-                self.cost.is_some()
             }
 
             pub fn set_output_var(&mut self, var: String) {
@@ -767,6 +647,14 @@ macro_rules! define_join_node {
 
             pub fn right_input(&self) -> &crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum {
                 &self.right
+            }
+
+            pub fn left_input_mut(&mut self) -> &mut crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum {
+                &mut self.left
+            }
+
+            pub fn right_input_mut(&mut self) -> &mut crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum {
+                &mut self.right
             }
 
             pub fn set_left_input(&mut self, input: crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum) {
@@ -829,7 +717,6 @@ macro_rules! define_join_node {
             fn name(&self) -> &'static str { self.type_name() }
             fn output_var(&self) -> Option<&str> { self.output_var() }
             fn col_names(&self) -> &[String] { self.col_names() }
-            fn cost(&self) -> Option<f64> { self.cost() }
             fn set_output_var(&mut self, var: String) { self.set_output_var(var); }
             fn set_col_names(&mut self, names: Vec<String>) { self.set_col_names(names); }
             fn into_enum(self) -> crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum {
@@ -845,6 +732,14 @@ macro_rules! define_join_node {
 
             fn right_input(&self) -> &crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum {
                 &self.right
+            }
+
+            fn left_input_mut(&mut self) -> &mut crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum {
+                &mut self.left
+            }
+
+            fn right_input_mut(&mut self) -> &mut crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum {
+                &mut self.right
             }
 
             fn set_left_input(&mut self, input: crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum) {

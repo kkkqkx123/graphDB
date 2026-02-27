@@ -20,7 +20,6 @@ impl CreateTagNode {
             info,
             output_var: None,
             col_names: Vec::new(),
-            cost: 1.0,
         }
     }
 
@@ -52,7 +51,6 @@ impl AlterTagNode {
             info,
             output_var: None,
             col_names: Vec::new(),
-            cost: 1.0,
         }
     }
 
@@ -86,7 +84,6 @@ impl DescTagNode {
             tag_name,
             output_var: None,
             col_names: Vec::new(),
-            cost: 1.0,
         }
     }
 
@@ -116,7 +113,6 @@ impl DropTagNode {
             tag_name,
             output_var: None,
             col_names: Vec::new(),
-            cost: 1.0,
         }
     }
 
@@ -142,7 +138,6 @@ impl ShowTagsNode {
             id,
             output_var: None,
             col_names: Vec::new(),
-            cost: 1.0,
         }
     }
 }

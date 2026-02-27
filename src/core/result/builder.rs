@@ -176,7 +176,6 @@ mod tests {
 
     #[test]
     fn test_result_builder_build_with_iterator() {
-        use crate::core::result::iterator::DefaultIterator;
         use crate::core::result::iterator_enum::ResultIteratorEnum;
         let col_names = vec!["id".to_string()];
         let rows = vec![vec![Value::Int(1)]];

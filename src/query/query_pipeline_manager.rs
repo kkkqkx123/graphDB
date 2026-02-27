@@ -327,9 +327,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         // 3. 存入缓存
         if let Some(ref cache) = self.plan_cache {
             if let Ok(cache_key) = PlanCacheKey::from_stmt(stmt, query_context.space_id().map(|id| id as i32)) {
-                // 估算计划成本（使用节点数作为简单估算）
-                let estimated_cost = plan.node_count() as f64 * 100.0;
-                if let Err(e) = cache.insert(cache_key, plan.clone(), estimated_cost) {
+                if let Err(e) = cache.insert(cache_key, plan.clone()) {
                     log::warn!("无法缓存查询计划: {}", e);
                 } else {
                     log::debug!("查询计划已缓存");

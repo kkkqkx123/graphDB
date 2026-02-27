@@ -135,7 +135,6 @@ pub struct IndexScan {
     pub deps: Vec<Box<PlanNodeEnum>>,
     pub output_var: Option<String>,
     pub col_names: Vec<String>,
-    pub cost: f64,
     pub space_id: u64,
     pub tag_id: i32,
     pub index_id: i32,
@@ -154,7 +153,6 @@ impl IndexScan {
             deps: Vec::new(),
             output_var: None,
             col_names: Vec::new(),
-            cost: 0.0,
             space_id,
             tag_id,
             index_id,
@@ -216,11 +214,6 @@ impl IndexScan {
         &self.col_names
     }
 
-    /// 获取节点的成本估计值
-    pub fn cost(&self) -> f64 {
-        self.cost
-    }
-
     /// 设置节点的输出变量
     pub fn set_output_var(&mut self, var: String) {
         self.output_var = Some(var);
@@ -264,10 +257,6 @@ impl PlanNode for IndexScan {
 
     fn col_names(&self) -> &[String] {
         &self.col_names
-    }
-
-    fn cost(&self) -> f64 {
-        self.cost
     }
 
     fn set_output_var(&mut self, var: String) {

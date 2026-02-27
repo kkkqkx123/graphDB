@@ -46,16 +46,6 @@ impl SeekStrategy for IndexSeek {
         })
     }
 
-    fn estimated_cost(&self, context: &SeekStrategyContext) -> f64 {
-        if context.has_explicit_vid() {
-            1.0
-        } else if context.has_predicates() {
-            10.0
-        } else {
-            50.0
-        }
-    }
-
     fn supports(&self, context: &SeekStrategyContext) -> bool {
         context.get_index_for_labels(&context.node_pattern.labels).is_some()
     }

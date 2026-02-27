@@ -2,77 +2,47 @@
 
 ## Summary
 
-- **Total Errors**: 4
-- **Total Warnings**: 1
-- **Total Issues**: 5
-- **Unique Error Patterns**: 3
-- **Unique Warning Patterns**: 1
-- **Files with Issues**: 2
+- **Total Errors**: 0
+- **Total Warnings**: 3
+- **Total Issues**: 3
+- **Unique Error Patterns**: 0
+- **Unique Warning Patterns**: 2
+- **Files with Issues**: 3
 
 ## Error Statistics
 
-**Total Errors**: 4
-
-### Error Type Breakdown
-
-- **error[E0308]**: 2 errors
-- **error[E0369]**: 1 errors
-- **error[E0277]**: 1 errors
-
-### Files with Errors (Top 10)
-
-- `src\api\server\session\network_session.rs`: 4 errors
+**Total Errors**: 0
 
 ## Warning Statistics
 
-**Total Warnings**: 1
+**Total Warnings**: 3
 
 ### Warning Type Breakdown
 
-- **warning**: 1 warnings
+- **warning**: 3 warnings
 
 ### Files with Warnings (Top 10)
 
-- `src\core\result\builder.rs`: 1 warnings
-
-## Detailed Error Categorization
-
-### error[E0308]: mismatched types: expected `SavepointId`, found integer
-
-**Total Occurrences**: 2  
-**Unique Files**: 1
-
-#### `src\api\server\session\network_session.rs`: 2 occurrences
-
-- Line 525: mismatched types: expected `SavepointId`, found integer
-- Line 526: mismatched types: expected `SavepointId`, found integer
-
-### error[E0277]: can't compare `savepoint::SavepointId` with `{integer}`: no implementation for `savepoint::SavepointId == {integer}`
-
-**Total Occurrences**: 1  
-**Unique Files**: 1
-
-#### `src\api\server\session\network_session.rs`: 1 occurrences
-
-- Line 528: can't compare `savepoint::SavepointId` with `{integer}`: no implementation for `savepoint::SavepointId == {integer}`
-
-### error[E0369]: binary operation `==` cannot be applied to type `transaction::types::TransactionOptions`: transaction::types::TransactionOptions, transaction::types::TransactionOptions
-
-**Total Occurrences**: 1  
-**Unique Files**: 1
-
-#### `src\api\server\session\network_session.rs`: 1 occurrences
-
-- Line 505: binary operation `==` cannot be applied to type `transaction::types::TransactionOptions`: transaction::types::TransactionOptions, transaction::types::TransactionOptions
+- `src\query\validator\schema_validator.rs`: 1 warnings
+- `src\api\server\session\network_session.rs`: 1 warnings
+- `src\query\validator\update_validator.rs`: 1 warnings
 
 ## Detailed Warning Categorization
 
-### warning: unused import: `crate::core::result::iterator::DefaultIterator`
+### warning: struct `MockSchemaManager` is never constructed
 
-**Total Occurrences**: 1  
-**Unique Files**: 1
+**Total Occurrences**: 3  
+**Unique Files**: 3
 
-#### `src\core\result\builder.rs`: 1 occurrences
+#### `src\query\validator\update_validator.rs`: 1 occurrences
 
-- Line 179: unused import: `crate::core::result::iterator::DefaultIterator`
+- Line 708: struct `MockSchemaManager` is never constructed
+
+#### `src\query\validator\schema_validator.rs`: 1 occurrences
+
+- Line 588: struct `MockSchemaManager` is never constructed
+
+#### `src\api\server\session\network_session.rs`: 1 occurrences
+
+- Line 378: comparison is useless due to type limits
 

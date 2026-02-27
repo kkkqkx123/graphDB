@@ -21,7 +21,6 @@ impl ArgumentNode {
             var: var.to_string(),
             output_var: None,
             col_names: Vec::new(),
-            cost: 0.0,
         }
     }
 
@@ -43,7 +42,6 @@ impl PassThroughNode {
             id,
             output_var: None,
             col_names: Vec::new(),
-            cost: 0.0,
         }
     }
 }
@@ -57,7 +55,6 @@ pub struct SelectNode {
     else_branch: Option<Box<super::plan_node_enum::PlanNodeEnum>>,
     output_var: Option<String>,
     col_names: Vec<String>,
-    cost: f64,
 }
 
 impl Clone for SelectNode {
@@ -69,7 +66,6 @@ impl Clone for SelectNode {
             else_branch: self.else_branch.as_ref().map(|node| node.clone()),
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
-            cost: self.cost,
         }
     }
 }
@@ -83,7 +79,6 @@ impl SelectNode {
             else_branch: None,
             output_var: None,
             col_names: Vec::new(),
-            cost: 0.0,
         }
     }
 
@@ -123,10 +118,6 @@ impl SelectNode {
         &self.col_names
     }
 
-    pub fn cost(&self) -> f64 {
-        self.cost
-    }
-
     pub fn set_output_var(&mut self, var: String) {
         self.output_var = Some(var);
     }
@@ -163,10 +154,6 @@ impl PlanNode for SelectNode {
         self.col_names()
     }
 
-    fn cost(&self) -> f64 {
-        self.cost()
-    }
-
     fn set_output_var(&mut self, var: String) {
         self.set_output_var(var);
     }
@@ -198,7 +185,6 @@ pub struct LoopNode {
     body: Option<Box<super::plan_node_enum::PlanNodeEnum>>,
     output_var: Option<String>,
     col_names: Vec<String>,
-    cost: f64,
 }
 
 impl Clone for LoopNode {
@@ -209,7 +195,6 @@ impl Clone for LoopNode {
             body: self.body.as_ref().map(|node| node.clone()),
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
-            cost: self.cost,
         }
     }
 }
@@ -222,7 +207,6 @@ impl LoopNode {
             body: None,
             output_var: None,
             col_names: Vec::new(),
-            cost: 0.0,
         }
     }
 
@@ -252,10 +236,6 @@ impl LoopNode {
 
     pub fn col_names(&self) -> &[String] {
         &self.col_names
-    }
-
-    pub fn cost(&self) -> f64 {
-        self.cost
     }
 
     pub fn set_output_var(&mut self, var: String) {
@@ -292,10 +272,6 @@ impl PlanNode for LoopNode {
 
     fn col_names(&self) -> &[String] {
         self.col_names()
-    }
-
-    fn cost(&self) -> f64 {
-        self.cost()
     }
 
     fn set_output_var(&mut self, var: String) {

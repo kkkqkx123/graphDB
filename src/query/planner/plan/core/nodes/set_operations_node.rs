@@ -24,7 +24,6 @@ impl MinusNode {
             deps: vec![Box::new(input), Box::new(minus_input)],
             output_var: None,
             col_names,
-            cost: 0.0,
         })
     }
 
@@ -53,7 +52,6 @@ impl IntersectNode {
             deps: vec![Box::new(input), Box::new(intersect_input)],
             output_var: None,
             col_names,
-            cost: 0.0,
         })
     }
 

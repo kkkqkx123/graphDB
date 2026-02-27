@@ -23,8 +23,6 @@ pub trait SeekStrategy: Send + Sync {
         context: &SeekStrategyContext,
     ) -> Result<SeekResult, StorageError>;
 
-    fn estimated_cost(&self, context: &SeekStrategyContext) -> f64;
-
     fn supports(&self, context: &SeekStrategyContext) -> bool;
 }
 
@@ -69,17 +67,6 @@ impl SeekStrategy for AnySeekStrategy {
             AnySeekStrategy::VariablePropIndexSeek(s) => s.execute(storage, context),
             AnySeekStrategy::EdgeSeek(s) => s.execute(storage, context),
             AnySeekStrategy::ScanSeek(s) => s.execute(storage, context),
-        }
-    }
-
-    fn estimated_cost(&self, context: &SeekStrategyContext) -> f64 {
-        match self {
-            AnySeekStrategy::VertexSeek(s) => s.estimated_cost(context),
-            AnySeekStrategy::IndexSeek(s) => s.estimated_cost(context),
-            AnySeekStrategy::PropIndexSeek(s) => s.estimated_cost(context),
-            AnySeekStrategy::VariablePropIndexSeek(s) => s.estimated_cost(context),
-            AnySeekStrategy::EdgeSeek(s) => s.estimated_cost(context),
-            AnySeekStrategy::ScanSeek(s) => s.estimated_cost(context),
         }
     }
 

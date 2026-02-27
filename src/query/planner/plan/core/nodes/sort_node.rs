@@ -57,7 +57,6 @@ impl SortNode {
             limit: None,
             output_var: None,
             col_names,
-            cost: 0.0,
         })
     }
 
@@ -103,7 +102,6 @@ impl LimitNode {
             count,
             output_var: None,
             col_names,
-            cost: 0.0,
         })
     }
 
@@ -144,7 +142,6 @@ impl TopNNode {
             limit,
             output_var: None,
             col_names,
-            cost: 0.0,
         })
     }
 

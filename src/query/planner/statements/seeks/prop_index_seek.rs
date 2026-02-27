@@ -261,19 +261,6 @@ impl SeekStrategy for PropIndexSeek {
         })
     }
 
-    fn estimated_cost(&self, _context: &SeekStrategyContext) -> f64 {
-        // 如果有等值谓词，成本较低
-        let has_equality = self.predicates.iter().any(|p| p.op.is_equality());
-        
-        if has_equality {
-            5.0 // 等值查询成本较低
-        } else if self.predicates.iter().any(|p| p.op.is_range()) {
-            15.0 // 范围查询成本中等
-        } else {
-            30.0 // 其他查询成本较高
-        }
-    }
-
     fn supports(&self, _context: &SeekStrategyContext) -> bool {
         // 只要有属性谓词就支持
         !self.predicates.is_empty()

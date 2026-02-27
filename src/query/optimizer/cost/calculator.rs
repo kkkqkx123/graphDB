@@ -411,8 +411,8 @@ impl CostCalculator {
     /// 计算最短路径代价
     pub fn calculate_shortest_path_cost(&self, start_nodes: u64, max_depth: u32) -> f64 {
         // 基于BFS的复杂度估算
-        let avg_branching = 2.0; // 假设平均分支因子
-        let explored_nodes = start_nodes as f64 * avg_branching.powi(max_depth as i32);
+        let avg_branching = 2.0_f64; // 假设平均分支因子
+        let explored_nodes = start_nodes as f64 * avg_branching.powf(max_depth as f64);
         explored_nodes * self.config.cpu_tuple_cost
     }
 

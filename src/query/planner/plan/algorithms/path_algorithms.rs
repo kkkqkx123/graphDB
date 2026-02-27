@@ -15,7 +15,6 @@ pub struct MultiShortestPath {
     pub deps: Vec<PlanNodeEnum>,
     pub output_var: Option<String>,
     pub col_names: Vec<String>,
-    pub cost: f64,
     pub steps: usize,
     pub left_vid_var: String,    // 左输入顶点变量
     pub right_vid_var: String,   // 右输入顶点变量
@@ -30,7 +29,6 @@ impl MultiShortestPath {
             deps: vec![left, right],
             output_var: None,
             col_names: Vec::new(),
-            cost: 0.0,
             steps,
             left_vid_var: String::new(),
             right_vid_var: String::new(),
@@ -94,11 +92,6 @@ impl MultiShortestPath {
         &self.col_names
     }
 
-    /// 获取节点的成本估计值
-    pub fn cost(&self) -> f64 {
-        self.cost
-    }
-
     /// 使用访问者模式访问节点
     pub fn accept<V>(&self, visitor: &mut V) -> V::Result
     where
@@ -125,10 +118,6 @@ impl PlanNode for MultiShortestPath {
         &self.col_names
     }
 
-    fn cost(&self) -> f64 {
-        self.cost
-    }
-
     fn set_output_var(&mut self, var: String) {
         self.output_var = Some(var);
     }
@@ -151,6 +140,14 @@ impl BinaryInputNode for MultiShortestPath {
         &self.deps[1]
     }
 
+    fn left_input_mut(&mut self) -> &mut PlanNodeEnum {
+        &mut self.deps[0]
+    }
+
+    fn right_input_mut(&mut self) -> &mut PlanNodeEnum {
+        &mut self.deps[1]
+    }
+
     fn set_left_input(&mut self, input: PlanNodeEnum) {
         self.deps[0] = input;
     }
@@ -170,7 +167,6 @@ pub struct BFSShortest {
     pub deps: Vec<PlanNodeEnum>,
     pub output_var: Option<String>,
     pub col_names: Vec<String>,
-    pub cost: f64,
     pub steps: usize,
     pub edge_types: Vec<String>,      // 边类型
     pub with_cycle: bool,             // 是否允许回路（路径中重复访问顶点）
@@ -192,7 +188,6 @@ impl BFSShortest {
             deps: vec![left, right],
             output_var: None,
             col_names: vec!["path".to_string()],
-            cost: 0.0,
             steps,
             edge_types,
             with_cycle,
@@ -239,11 +234,6 @@ impl BFSShortest {
         &self.col_names
     }
 
-    /// 获取节点的成本估计值
-    pub fn cost(&self) -> f64 {
-        self.cost
-    }
-
     /// 使用访问者模式访问节点
     pub fn accept<V>(&self, visitor: &mut V) -> V::Result
     where
@@ -260,6 +250,14 @@ impl BinaryInputNode for BFSShortest {
 
     fn right_input(&self) -> &PlanNodeEnum {
         &self.deps[1]
+    }
+
+    fn left_input_mut(&mut self) -> &mut PlanNodeEnum {
+        &mut self.deps[0]
+    }
+
+    fn right_input_mut(&mut self) -> &mut PlanNodeEnum {
+        &mut self.deps[1]
     }
 
     fn set_left_input(&mut self, input: PlanNodeEnum) {
@@ -288,10 +286,6 @@ impl PlanNode for BFSShortest {
         &self.col_names
     }
 
-    fn cost(&self) -> f64 {
-        self.cost
-    }
-
     fn set_output_var(&mut self, var: String) {
         self.output_var = Some(var);
     }
@@ -312,7 +306,6 @@ pub struct AllPaths {
     pub deps: Vec<PlanNodeEnum>,
     pub output_var: Option<String>,
     pub col_names: Vec<String>,
-    pub cost: f64,
     pub steps: usize,
     pub edge_types: Vec<String>,
     pub min_hop: usize,
@@ -339,7 +332,6 @@ impl AllPaths {
             deps: vec![left, right],
             output_var: None,
             col_names: vec!["path".to_string()],
-            cost: 0.0,
             steps,
             edge_types,
             min_hop,
@@ -399,11 +391,6 @@ impl AllPaths {
         &self.col_names
     }
 
-    /// 获取节点的成本估计值
-    pub fn cost(&self) -> f64 {
-        self.cost
-    }
-
     /// 使用访问者模式访问节点
     pub fn accept<V>(&self, visitor: &mut V) -> V::Result
     where
@@ -420,6 +407,14 @@ impl BinaryInputNode for AllPaths {
 
     fn right_input(&self) -> &PlanNodeEnum {
         &self.deps[1]
+    }
+
+    fn left_input_mut(&mut self) -> &mut PlanNodeEnum {
+        &mut self.deps[0]
+    }
+
+    fn right_input_mut(&mut self) -> &mut PlanNodeEnum {
+        &mut self.deps[1]
     }
 
     fn set_left_input(&mut self, input: PlanNodeEnum) {
@@ -448,10 +443,6 @@ impl PlanNode for AllPaths {
         &self.col_names
     }
 
-    fn cost(&self) -> f64 {
-        self.cost
-    }
-
     fn set_output_var(&mut self, var: String) {
         self.output_var = Some(var);
     }
@@ -472,7 +463,6 @@ pub struct ShortestPath {
     pub deps: Vec<PlanNodeEnum>,
     pub output_var: Option<String>,
     pub col_names: Vec<String>,
-    pub cost: f64,
     pub edge_types: Vec<String>,
     pub max_step: usize,             // 最大步数
     pub weight_expression: Option<String>, // 权重表达式
@@ -493,7 +483,6 @@ impl ShortestPath {
             deps: vec![left, right],
             output_var: None,
             col_names: vec!["path".to_string()],
-            cost: 0.0,
             edge_types,
             max_step,
             weight_expression: None,
@@ -542,11 +531,6 @@ impl ShortestPath {
         &self.col_names
     }
 
-    /// 获取节点的成本估计值
-    pub fn cost(&self) -> f64 {
-        self.cost
-    }
-
     /// 使用访问者模式访问节点
     pub fn accept<V>(&self, visitor: &mut V) -> V::Result
     where
@@ -563,6 +547,14 @@ impl BinaryInputNode for ShortestPath {
 
     fn right_input(&self) -> &PlanNodeEnum {
         &self.deps[1]
+    }
+
+    fn left_input_mut(&mut self) -> &mut PlanNodeEnum {
+        &mut self.deps[0]
+    }
+
+    fn right_input_mut(&mut self) -> &mut PlanNodeEnum {
+        &mut self.deps[1]
     }
 
     fn set_left_input(&mut self, input: PlanNodeEnum) {
@@ -589,10 +581,6 @@ impl PlanNode for ShortestPath {
 
     fn col_names(&self) -> &[String] {
         &self.col_names
-    }
-
-    fn cost(&self) -> f64 {
-        self.cost
     }
 
     fn set_output_var(&mut self, var: String) {

@@ -1338,7 +1338,6 @@ impl PlanNodeEnum {
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.to_string());
                 }
-                desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
             PlanNodeEnum::Project(node) => {
@@ -1346,7 +1345,6 @@ impl PlanNodeEnum {
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.to_string());
                 }
-                desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
             PlanNodeEnum::Filter(node) => {
@@ -1354,7 +1352,6 @@ impl PlanNodeEnum {
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.to_string());
                 }
-                desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
             PlanNodeEnum::Sort(node) => {
@@ -1362,7 +1359,6 @@ impl PlanNodeEnum {
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.to_string());
                 }
-                desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
             PlanNodeEnum::Limit(node) => {
@@ -1370,7 +1366,6 @@ impl PlanNodeEnum {
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.to_string());
                 }
-                desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
             PlanNodeEnum::InnerJoin(node) => {
@@ -1378,7 +1373,6 @@ impl PlanNodeEnum {
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.to_string());
                 }
-                desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
             PlanNodeEnum::LeftJoin(node) => {
@@ -1386,7 +1380,6 @@ impl PlanNodeEnum {
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.to_string());
                 }
-                desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
             PlanNodeEnum::CrossJoin(node) => {
@@ -1394,7 +1387,6 @@ impl PlanNodeEnum {
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.to_string());
                 }
-                desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
             PlanNodeEnum::GetVertices(node) => {
@@ -1402,7 +1394,6 @@ impl PlanNodeEnum {
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.to_string());
                 }
-                desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
             PlanNodeEnum::GetEdges(node) => {
@@ -1410,7 +1401,6 @@ impl PlanNodeEnum {
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.to_string());
                 }
-                desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
             PlanNodeEnum::GetNeighbors(node) => {
@@ -1418,7 +1408,6 @@ impl PlanNodeEnum {
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.to_string());
                 }
-                desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
             PlanNodeEnum::ScanVertices(node) => {
@@ -1426,7 +1415,6 @@ impl PlanNodeEnum {
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.to_string());
                 }
-                desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
             PlanNodeEnum::ScanEdges(node) => {
@@ -1434,7 +1422,6 @@ impl PlanNodeEnum {
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.to_string());
                 }
-                desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
             PlanNodeEnum::Expand(node) => {
@@ -1442,7 +1429,6 @@ impl PlanNodeEnum {
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.to_string());
                 }
-                desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
             PlanNodeEnum::ExpandAll(node) => {
@@ -1450,7 +1436,6 @@ impl PlanNodeEnum {
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.to_string());
                 }
-                desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
             PlanNodeEnum::Traverse(node) => {
@@ -1458,7 +1443,6 @@ impl PlanNodeEnum {
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.to_string());
                 }
-                desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
             PlanNodeEnum::AppendVertices(node) => {
@@ -1466,7 +1450,6 @@ impl PlanNodeEnum {
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.to_string());
                 }
-                desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
             PlanNodeEnum::Aggregate(node) => {
@@ -1474,7 +1457,6 @@ impl PlanNodeEnum {
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.to_string());
                 }
-                desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
             PlanNodeEnum::Argument(node) => {
@@ -1482,7 +1464,6 @@ impl PlanNodeEnum {
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.to_string());
                 }
-                desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
             PlanNodeEnum::Loop(node) => {
@@ -1490,7 +1471,6 @@ impl PlanNodeEnum {
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.to_string());
                 }
-                desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
             PlanNodeEnum::PassThrough(node) => {
@@ -1498,7 +1478,6 @@ impl PlanNodeEnum {
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.to_string());
                 }
-                desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
             PlanNodeEnum::Select(node) => {
@@ -1506,7 +1485,6 @@ impl PlanNodeEnum {
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.to_string());
                 }
-                desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
             PlanNodeEnum::DataCollect(node) => {
@@ -1514,7 +1492,6 @@ impl PlanNodeEnum {
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.to_string());
                 }
-                desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
             PlanNodeEnum::Dedup(node) => {
@@ -1522,7 +1499,6 @@ impl PlanNodeEnum {
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.to_string());
                 }
-                desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
             PlanNodeEnum::PatternApply(node) => {
@@ -1530,7 +1506,6 @@ impl PlanNodeEnum {
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.to_string());
                 }
-                desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
             PlanNodeEnum::RollUpApply(node) => {
@@ -1538,7 +1513,6 @@ impl PlanNodeEnum {
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.to_string());
                 }
-                desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
             PlanNodeEnum::Union(node) => {
@@ -1546,7 +1520,6 @@ impl PlanNodeEnum {
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.to_string());
                 }
-                desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
             PlanNodeEnum::Minus(node) => {
@@ -1554,7 +1527,6 @@ impl PlanNodeEnum {
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.to_string());
                 }
-                desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
             PlanNodeEnum::Intersect(node) => {
@@ -1562,7 +1534,6 @@ impl PlanNodeEnum {
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.to_string());
                 }
-                desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
             PlanNodeEnum::Unwind(node) => {
@@ -1570,7 +1541,6 @@ impl PlanNodeEnum {
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.to_string());
                 }
-                desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
             PlanNodeEnum::TopN(node) => {
@@ -1578,7 +1548,6 @@ impl PlanNodeEnum {
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.to_string());
                 }
-                desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
             PlanNodeEnum::Sample(node) => {
@@ -1587,7 +1556,6 @@ impl PlanNodeEnum {
                     desc = desc.with_output_var(var.to_string());
                 }
                 desc.add_description("count", node.count().to_string());
-                desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
             PlanNodeEnum::HashInnerJoin(node) => {
@@ -1595,7 +1563,6 @@ impl PlanNodeEnum {
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.to_string());
                 }
-                desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
             PlanNodeEnum::HashLeftJoin(node) => {
@@ -1603,7 +1570,6 @@ impl PlanNodeEnum {
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.to_string());
                 }
-                desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
             PlanNodeEnum::FullOuterJoin(node) => {
@@ -1611,7 +1577,6 @@ impl PlanNodeEnum {
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.to_string());
                 }
-                desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
             PlanNodeEnum::IndexScan(node) => {
@@ -1619,7 +1584,6 @@ impl PlanNodeEnum {
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.to_string());
                 }
-                desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
             PlanNodeEnum::EdgeIndexScan(node) => {
@@ -1627,7 +1591,6 @@ impl PlanNodeEnum {
                 desc.add_description("spaceId", node.space_id().to_string());
                 desc.add_description("edgeType", node.edge_type().to_string());
                 desc.add_description("indexName", node.index_name().to_string());
-                desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
             PlanNodeEnum::MultiShortestPath(node) => {
@@ -1635,7 +1598,6 @@ impl PlanNodeEnum {
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.to_string());
                 }
-                desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
             PlanNodeEnum::BFSShortest(node) => {
@@ -1643,7 +1605,6 @@ impl PlanNodeEnum {
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.to_string());
                 }
-                desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
             PlanNodeEnum::AllPaths(node) => {
@@ -1651,7 +1612,6 @@ impl PlanNodeEnum {
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.to_string());
                 }
-                desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
             PlanNodeEnum::ShortestPath(node) => {
@@ -1659,7 +1619,6 @@ impl PlanNodeEnum {
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.to_string());
                 }
-                desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
             PlanNodeEnum::Assign(node) => {
@@ -1667,7 +1626,6 @@ impl PlanNodeEnum {
                 if let Some(var) = node.output_var() {
                     desc = desc.with_output_var(var.to_string());
                 }
-                desc.add_description("cost", format!("{:.2}", node.cost()));
                 desc
             }
 

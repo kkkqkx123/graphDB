@@ -5,58 +5,6 @@
 use super::plan_node_enum::PlanNodeEnum;
 use super::plan_node_traits::{MultipleInputNode, PlanNode, SingleInputNode};
 
-/// 为 PlanNodeEnum 生成 match 分支的宏
-///
-/// 这个宏生成对所有节点类型的匹配，自动调用指定的方法
-macro_rules! match_all_nodes {
-    ($self:expr, $method:ident) => {
-        match $self {
-            PlanNodeEnum::Start(node) => node.$method(),
-            PlanNodeEnum::Project(node) => node.$method(),
-            PlanNodeEnum::Sort(node) => node.$method(),
-            PlanNodeEnum::Limit(node) => node.$method(),
-            PlanNodeEnum::TopN(node) => node.$method(),
-            PlanNodeEnum::Sample(node) => node.$method(),
-            PlanNodeEnum::InnerJoin(node) => node.$method(),
-            PlanNodeEnum::LeftJoin(node) => node.$method(),
-            PlanNodeEnum::CrossJoin(node) => node.$method(),
-            PlanNodeEnum::HashInnerJoin(node) => node.$method(),
-            PlanNodeEnum::HashLeftJoin(node) => node.$method(),
-            PlanNodeEnum::FullOuterJoin(node) => node.$method(),
-            PlanNodeEnum::IndexScan(node) => node.$method(),
-            PlanNodeEnum::EdgeIndexScan(node) => node.$method(),
-            PlanNodeEnum::GetVertices(node) => node.$method(),
-            PlanNodeEnum::GetEdges(node) => node.$method(),
-            PlanNodeEnum::GetNeighbors(node) => node.$method(),
-            PlanNodeEnum::ScanVertices(node) => node.$method(),
-            PlanNodeEnum::ScanEdges(node) => node.$method(),
-            PlanNodeEnum::Expand(node) => node.$method(),
-            PlanNodeEnum::ExpandAll(node) => node.$method(),
-            PlanNodeEnum::Traverse(node) => node.$method(),
-            PlanNodeEnum::AppendVertices(node) => node.$method(),
-            PlanNodeEnum::Filter(node) => node.$method(),
-            PlanNodeEnum::Aggregate(node) => node.$method(),
-            PlanNodeEnum::Argument(node) => node.$method(),
-            PlanNodeEnum::Loop(node) => node.$method(),
-            PlanNodeEnum::PassThrough(node) => node.$method(),
-            PlanNodeEnum::Select(node) => node.$method(),
-            PlanNodeEnum::DataCollect(node) => node.$method(),
-            PlanNodeEnum::Dedup(node) => node.$method(),
-            PlanNodeEnum::PatternApply(node) => node.$method(),
-            PlanNodeEnum::RollUpApply(node) => node.$method(),
-            PlanNodeEnum::Union(node) => node.$method(),
-            PlanNodeEnum::Minus(node) => node.$method(),
-            PlanNodeEnum::Intersect(node) => node.$method(),
-            PlanNodeEnum::Unwind(node) => node.$method(),
-            PlanNodeEnum::Assign(node) => node.$method(),
-            PlanNodeEnum::MultiShortestPath(node) => node.$method(),
-            PlanNodeEnum::BFSShortest(node) => node.$method(),
-            PlanNodeEnum::AllPaths(node) => node.$method(),
-            PlanNodeEnum::ShortestPath(node) => node.$method(),
-        }
-    };
-}
-
 /// 为 PlanNodeEnum 生成 match 分支的宏（带默认值）
 ///
 /// 这个宏生成对所有节点类型的匹配，自动调用指定的方法，对管理节点返回默认值
@@ -216,13 +164,6 @@ impl PlanNodeEnum {
     /// 获取列名列表
     pub fn col_names(&self) -> &[String] {
         match_all_nodes_with_default!(self, col_names, &[])
-    }
-
-    /// 获取节点的成本估计值
-    /// 
-    /// 返回 None 表示代价未计算，Some(cost) 表示已计算
-    pub fn cost(&self) -> Option<f64> {
-        match_all_nodes_with_default!(self, cost, Some(1.0))
     }
 
     /// 获取节点的依赖节点列表
@@ -406,62 +347,5 @@ impl PlanNodeEnum {
             // 管理节点 - 不需要设置列名
             _ => {}
         }
-    }
-
-    /// 设置节点的代价
-    pub fn set_cost(&mut self, cost: f64) {
-        match self {
-            // 基础节点类型
-            PlanNodeEnum::Start(node) => node.set_cost(cost),
-            PlanNodeEnum::Project(node) => node.set_cost(cost),
-            PlanNodeEnum::Sort(node) => node.set_cost(cost),
-            PlanNodeEnum::Limit(node) => node.set_cost(cost),
-            PlanNodeEnum::TopN(node) => node.set_cost(cost),
-            PlanNodeEnum::Sample(node) => node.set_cost(cost),
-            PlanNodeEnum::InnerJoin(node) => node.set_cost(cost),
-            PlanNodeEnum::LeftJoin(node) => node.set_cost(cost),
-            PlanNodeEnum::CrossJoin(node) => node.set_cost(cost),
-            PlanNodeEnum::HashInnerJoin(node) => node.set_cost(cost),
-            PlanNodeEnum::HashLeftJoin(node) => node.set_cost(cost),
-            PlanNodeEnum::FullOuterJoin(node) => node.set_cost(cost),
-            PlanNodeEnum::IndexScan(node) => node.set_cost(cost),
-            PlanNodeEnum::GetVertices(node) => node.set_cost(cost),
-            PlanNodeEnum::GetEdges(node) => node.set_cost(cost),
-            PlanNodeEnum::GetNeighbors(node) => node.set_cost(cost),
-            PlanNodeEnum::ScanVertices(node) => node.set_cost(cost),
-            PlanNodeEnum::ScanEdges(node) => node.set_cost(cost),
-            PlanNodeEnum::EdgeIndexScan(node) => node.set_cost(cost),
-            PlanNodeEnum::Expand(node) => node.set_cost(cost),
-            PlanNodeEnum::ExpandAll(node) => node.set_cost(cost),
-            PlanNodeEnum::Traverse(node) => node.set_cost(cost),
-            PlanNodeEnum::AppendVertices(node) => node.set_cost(cost),
-            PlanNodeEnum::Filter(node) => node.set_cost(cost),
-            PlanNodeEnum::Aggregate(node) => node.set_cost(cost),
-            PlanNodeEnum::Argument(node) => node.set_cost(cost),
-            PlanNodeEnum::Loop(node) => node.set_cost(cost),
-            PlanNodeEnum::PassThrough(node) => node.set_cost(cost),
-            PlanNodeEnum::Select(node) => node.set_cost(cost),
-            PlanNodeEnum::DataCollect(node) => node.set_cost(cost),
-            PlanNodeEnum::Dedup(node) => node.set_cost(cost),
-            PlanNodeEnum::PatternApply(node) => node.set_cost(cost),
-            PlanNodeEnum::RollUpApply(node) => node.set_cost(cost),
-            PlanNodeEnum::Union(node) => node.set_cost(cost),
-            PlanNodeEnum::Minus(node) => node.set_cost(cost),
-            PlanNodeEnum::Intersect(node) => node.set_cost(cost),
-            PlanNodeEnum::Unwind(node) => node.set_cost(cost),
-            PlanNodeEnum::Assign(node) => node.set_cost(cost),
-            PlanNodeEnum::MultiShortestPath(node) => node.set_cost(cost),
-            PlanNodeEnum::BFSShortest(node) => node.set_cost(cost),
-            PlanNodeEnum::AllPaths(node) => node.set_cost(cost),
-            PlanNodeEnum::ShortestPath(node) => node.set_cost(cost),
-
-            // 管理节点 - 不需要设置代价
-            _ => {}
-        }
-    }
-
-    /// 检查代价是否已计算
-    pub fn is_cost_calculated(&self) -> bool {
-        match_all_nodes_with_default!(self, is_cost_calculated, true)
     }
 }

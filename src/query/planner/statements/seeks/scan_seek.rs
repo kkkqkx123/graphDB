@@ -40,10 +40,6 @@ impl SeekStrategy for ScanSeek {
         })
     }
 
-    fn estimated_cost(&self, context: &SeekStrategyContext) -> f64 {
-        context.estimated_rows as f64
-    }
-
     fn supports(&self, _context: &SeekStrategyContext) -> bool {
         true
     }
@@ -96,21 +92,5 @@ mod tests {
             vec![],
         );
         assert!(seek.supports(&context));
-    }
-
-    #[test]
-    fn test_scan_seek_cost() {
-        let seek = ScanSeek::new();
-        let context = SeekStrategyContext::new(
-            1,
-            NodePattern {
-                vid: None,
-                labels: vec![],
-                properties: vec![],
-            },
-            vec![],
-        )
-        .with_estimated_rows(10000);
-        assert_eq!(seek.estimated_cost(&context), 10000.0);
     }
 }

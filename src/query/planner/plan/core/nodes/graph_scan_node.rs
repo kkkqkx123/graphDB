@@ -37,7 +37,6 @@ impl GetVerticesNode {
             limit: None,
             output_var: None,
             col_names: Vec::new(),
-            cost: 0.0,
         }
     }
 
@@ -132,7 +131,6 @@ impl EdgeIndexScanNode {
             return_columns: Vec::new(),
             output_var: None,
             col_names: Vec::new(),
-            cost: 0.0,
         }
     }
 
@@ -218,7 +216,6 @@ impl GetEdgesNode {
             limit: None,
             output_var: None,
             col_names: Vec::new(),
-            cost: 0.0,
         }
     }
 
@@ -291,7 +288,6 @@ impl GetNeighborsNode {
             limit: None,
             output_var: None,
             col_names: Vec::new(),
-            cost: 0.0,
         }
     }
 
@@ -389,7 +385,6 @@ impl ScanVerticesNode {
             limit: None,
             output_var: None,
             col_names: Vec::new(),
-            cost: 0.0,
         }
     }
 
@@ -443,7 +438,6 @@ impl ScanEdgesNode {
             limit: None,
             output_var: None,
             col_names: Vec::new(),
-            cost: 0.0,
         }
     }
 

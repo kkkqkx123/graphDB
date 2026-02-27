@@ -60,8 +60,9 @@ mod server_main {
                     eprintln!("初始化日志系统失败: {}", e);
                 }
 
-                // Execute query directly
-                let result = api::execute_query(&query);
+                // Execute query directly using tokio runtime
+                let rt = tokio::runtime::Runtime::new()?;
+                let result = rt.block_on(api::execute_query(&query));
 
                 // 确保日志 flush 后再退出
                 logging::shutdown();

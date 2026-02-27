@@ -9,11 +9,10 @@ use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+pub use crate::transaction::savepoint::SavepointId;
+
 /// 事务ID
 pub type TransactionId = u64;
-
-/// 保存点ID
-pub type SavepointId = u64;
 
 /// 事务状态
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -144,7 +143,7 @@ pub enum TransactionError {
 }
 
 /// 事务选项
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TransactionOptions {
     /// 事务超时时间
     pub timeout: Option<Duration>,

@@ -21,11 +21,6 @@ pub trait PlanNode {
     /// 获取列名列表
     fn col_names(&self) -> &[String];
 
-    /// 获取节点的成本估计值
-    /// 
-    /// 返回 None 表示代价未计算，Some(cost) 表示已计算
-    fn cost(&self) -> Option<f64>;
-
     /// 设置节点的输出变量名
     fn set_output_var(&mut self, var: String);
 
@@ -52,10 +47,6 @@ impl<T: PlanNode + ?Sized> PlanNode for &T {
 
     fn col_names(&self) -> &[String] {
         (**self).col_names()
-    }
-
-    fn cost(&self) -> Option<f64> {
-        (**self).cost()
     }
 
     fn set_output_var(&mut self, _var: String) {
@@ -97,6 +88,12 @@ pub trait BinaryInputNode: PlanNode {
     /// 获取右输入节点
     fn right_input(&self) -> &PlanNodeEnum;
 
+    /// 获取左输入节点的可变引用
+    fn left_input_mut(&mut self) -> &mut PlanNodeEnum;
+
+    /// 获取右输入节点的可变引用
+    fn right_input_mut(&mut self) -> &mut PlanNodeEnum;
+
     /// 设置左输入节点
     fn set_left_input(&mut self, input: PlanNodeEnum);
 
@@ -117,6 +114,14 @@ impl<T: BinaryInputNode + ?Sized> BinaryInputNode for &T {
 
     fn right_input(&self) -> &PlanNodeEnum {
         (**self).right_input()
+    }
+
+    fn left_input_mut(&mut self) -> &mut PlanNodeEnum {
+        panic!("无法通过引用修改输入节点")
+    }
+
+    fn right_input_mut(&mut self) -> &mut PlanNodeEnum {
+        panic!("无法通过引用修改输入节点")
     }
 
     fn set_left_input(&mut self, _input: PlanNodeEnum) {
@@ -157,6 +162,9 @@ impl<T: JoinNode + ?Sized> JoinNode for &T {
 pub trait MultipleInputNode: PlanNode {
     /// 获取所有输入节点
     fn inputs(&self) -> &[Box<PlanNodeEnum>];
+
+    /// 获取所有输入节点的可变引用
+    fn inputs_mut(&mut self) -> &mut Vec<Box<PlanNodeEnum>>;
 
     /// 添加输入节点
     fn add_input(&mut self, input: PlanNodeEnum);

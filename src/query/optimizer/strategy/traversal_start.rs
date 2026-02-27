@@ -264,10 +264,10 @@ impl TraversalStartSelector {
         // 计算扫描代价
         let estimated_cost = if selectivity < 0.1 {
             // 使用索引扫描
-            self.cost_calculator.calculate_index_scan_cost(tag_name, selectivity)
+            self.cost_calculator.calculate_index_scan_cost(tag_name, "", selectivity)
         } else {
             // 全表扫描
-            self.cost_calculator.calculate_scan_cost(tag_name)
+            self.cost_calculator.calculate_scan_vertices_cost(tag_name)
         };
 
         let reason = if selectivity < 0.1 {

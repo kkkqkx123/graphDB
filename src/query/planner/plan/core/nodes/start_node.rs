@@ -17,7 +17,6 @@ impl StartNode {
             id: -1,
             output_var: None,
             col_names: vec![],
-            cost: 0.0,
         }
     }
 }
@@ -48,7 +47,6 @@ mod tests {
         let start_node = StartNode::new();
 
         assert_eq!(start_node.id(), -1);
-        assert_eq!(start_node.cost(), 0.0);
         assert!(start_node.output_var().is_none());
     }
 

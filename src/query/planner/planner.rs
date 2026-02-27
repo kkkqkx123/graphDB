@@ -144,20 +144,17 @@ pub struct CachedPlan {
     pub last_accessed: Instant,
     /// 访问次数
     pub access_count: u64,
-    /// 计划成本估算
-    pub estimated_cost: f64,
 }
 
 impl CachedPlan {
     /// 创建新的缓存项
-    pub fn new(plan: ExecutionPlan, estimated_cost: f64) -> Self {
+    pub fn new(plan: ExecutionPlan) -> Self {
         let now = Instant::now();
         Self {
             plan,
             created_at: now,
             last_accessed: now,
             access_count: 1,
-            estimated_cost,
         }
     }
 
@@ -171,12 +168,11 @@ impl CachedPlan {
     /// 分数越高越应该保留
     pub fn value_score(&self) -> f64 {
         let age_secs = self.created_at.elapsed().as_secs() as f64;
-        let recency = 1.0 / (1.0 + age_secs / 3600.0); // 1小时内衰减
+        let recency = 1.0 / (1.0 + age_secs / 3600.0);
 
         let frequency = (self.access_count as f64).ln_1p();
-        let cost_savings = self.estimated_cost.max(1.0);
 
-        recency * frequency * cost_savings
+        recency * frequency
     }
 }
 
@@ -302,17 +298,14 @@ impl PlanCache {
         &self,
         key: PlanCacheKey,
         plan: ExecutionPlan,
-        estimated_cost: f64,
     ) -> Result<(), PlannerError> {
-        // 检查是否应该缓存
         if !self.should_cache(&plan) {
             return Ok(());
         }
 
-        let cached = CachedPlan::new(plan, estimated_cost);
+        let cached = CachedPlan::new(plan);
         let mut cache = self.cache.lock();
         
-        // 检查是否发生淘汰
         if cache.len() >= self.config.max_entries && !cache.contains(&key) {
             self.record_eviction();
         }
@@ -330,10 +323,9 @@ impl PlanCache {
         stmt: &Stmt,
         space_id: Option<i32>,
         plan: ExecutionPlan,
-        estimated_cost: f64,
     ) -> Result<(), PlannerError> {
         let key = PlanCacheKey::from_stmt(stmt, space_id)?;
-        self.insert(key, plan, estimated_cost)
+        self.insert(key, plan)
     }
 
     /// 移除缓存项

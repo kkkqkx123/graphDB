@@ -26,7 +26,6 @@ impl SampleNode {
             count,
             output_var: None,
             col_names,
-            cost: 0.0,
         })
     }
 

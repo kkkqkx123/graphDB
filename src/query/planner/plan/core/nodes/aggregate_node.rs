@@ -34,7 +34,6 @@ impl AggregateNode {
             aggregation_functions,
             output_var: None,
             col_names,
-            cost: 0.0,
         })
     }
 

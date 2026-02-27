@@ -45,7 +45,6 @@ impl InsertVerticesNode {
             info,
             output_var: None,
             col_names: vec!["inserted".to_string()],
-            cost: 1.0,
         }
     }
 
@@ -97,7 +96,6 @@ impl InsertEdgesNode {
             info,
             output_var: None,
             col_names: vec!["inserted".to_string()],
-            cost: 1.0,
         }
     }
 
@@ -203,7 +201,6 @@ mod tests {
         assert_eq!(node.prop_names().map(|p| p.len()), Some(1));
         assert_eq!(node.values().len(), 1);
         assert_eq!(node.col_names(), &["inserted"]);
-        assert!((node.cost() - 1.0).abs() < f64::EPSILON);
     }
 
     #[test]
@@ -228,7 +225,6 @@ mod tests {
         assert_eq!(node.prop_names().len(), 1);
         assert_eq!(node.edges().len(), 1);
         assert_eq!(node.col_names(), &["inserted"]);
-        assert!((node.cost() - 1.0).abs() < f64::EPSILON);
     }
 
     #[test]

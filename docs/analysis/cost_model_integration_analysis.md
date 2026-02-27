@@ -1,321 +1,351 @@
-# GraphDB 代价模型集成分析文档
+# GraphDB 代价模型集成分析报告
 
-## 概述
+## 一、架构现状分析
 
-本文档基于 `cost_model_refined_plan.md` 和 `cost_model_introduction_analysis.md`，详细分析 GraphDB 当前代价体系的正式集成方案，以及如何为每个操作类型提供代价计算。
+### 1.1 当前架构确认
 
----
-
-## 一、现有代价体系架构分析
-
-### 1.1 当前架构概览
-
-| 组件 | 位置 | 状态 |
-|------|------|------|
-| `cost` 字段 | `src/query/planner/plan/core/nodes/plan_node_traits.rs` | 所有节点都有 `cost: f64` |
-| `cost()` 方法 | `src/query/planner/plan/core/nodes/plan_node_traits.rs` | 已定义在 `PlanNode` trait 中 |
-| `CostCalculator` | `src/query/optimizer/cost/calculator.rs` | 已实现基础计算 |
-| `StatisticsManager` | `src/query/optimizer/stats/` | 已实现统计信息管理 |
-| `SeekStrategy` 代价 | `src/query/planner/statements/seeks/seek_strategy.rs` | 已有 `estimated_cost()` 接口 |
-
-### 1.2 现有问题
-
-1. **代价恒为 0.0**：所有节点创建时 `cost: 0.0`，且从未更新
-2. **代价计算与计划生成脱节**：`CostCalculator` 存在但未被 `QueryPlanner` 使用
-3. **缺乏统一的代价赋值机制**：没有集中的地方为计划节点计算并设置代价
-
----
-
-## 二、各操作类型的代价计算方法
-
-### 2.1 扫描操作（Scan Operations）
-
-```rust
-/// 全表扫描顶点代价
-/// 公式：行数 × CPU处理代价
-pub fn calculate_scan_vertices_cost(&self, tag_name: &str) -> f64 {
-    let row_count = self.stats_manager.get_vertex_count(tag_name);
-    row_count as f64 * self.config.cpu_tuple_cost
-}
-
-/// 全表扫描边代价
-pub fn calculate_scan_edges_cost(&self, edge_type: &str) -> f64 {
-    let edge_stats = self.stats_manager.get_edge_stats(edge_type);
-    let row_count = edge_stats.map(|s| s.edge_count).unwrap_or(0);
-    row_count as f64 * self.config.cpu_tuple_cost
-}
-```
-
-### 2.2 索引扫描（Index Scan）
-
-```rust
-/// 索引扫描代价
-/// 公式：索引访问代价 + 回表代价
-pub fn calculate_index_scan_cost(
-    &self,
-    tag_name: &str,
-    property_name: &str,
-    selectivity: f64,
-) -> f64 {
-    let table_rows = self.stats_manager.get_vertex_count(tag_name);
-    let matching_rows = (selectivity * table_rows as f64).max(1.0) as u64;
-    
-    // 索引访问代价（顺序IO）
-    let index_pages = (matching_rows / 10).max(1);
-    let index_access_cost = index_pages as f64 * self.config.seq_page_cost 
-        + matching_rows as f64 * self.config.cpu_index_tuple_cost;
-    
-    // 回表代价（随机IO）
-    let table_access_cost = matching_rows as f64 * self.config.random_page_cost
-        + matching_rows as f64 * self.config.cpu_tuple_cost;
-    
-    index_access_cost + table_access_cost
-}
-```
-
-### 2.3 图遍历操作（Traversal Operations）
-
-```rust
-/// 扩展操作代价（Expand）
-pub fn calculate_expand_cost(
-    &self,
-    start_nodes: u64,
-    edge_type: Option<&str>,
-) -> f64 {
-    let avg_degree = match edge_type {
-        Some(et) => {
-            self.stats_manager.get_edge_stats(et)
-                .map(|s| s.avg_out_degree)
-                .unwrap_or(1.0)
-        }
-        None => 2.0,
-    };
-    
-    let output_rows = (start_nodes as f64 * avg_degree) as u64;
-    let io_cost = output_rows as f64 * self.config.seq_page_cost;
-    let cpu_cost = output_rows as f64 * self.config.cpu_tuple_cost;
-    
-    io_cost + cpu_cost
-}
-
-/// 多步遍历代价（Traverse）
-pub fn calculate_traverse_cost(
-    &self,
-    start_nodes: u64,
-    edge_type: Option<&str>,
-    steps: u32,
-) -> f64 {
-    let avg_degree = match edge_type {
-        Some(et) => {
-            self.stats_manager.get_edge_stats(et)
-                .map(|s| (s.avg_out_degree + s.avg_in_degree) / 2.0)
-                .unwrap_or(1.0)
-        }
-        None => 2.0,
-    };
-    
-    let mut total_cost = 0.0;
-    let mut current_rows = start_nodes as f64;
-    
-    for _ in 0..steps {
-        current_rows *= avg_degree;
-        total_cost += current_rows * self.config.cpu_tuple_cost;
-    }
-    
-    total_cost
-}
-```
-
-### 2.4 过滤操作（Filter）
-
-```rust
-/// 过滤代价
-/// 公式：输入行数 × 条件数量 × 操作符代价
-pub fn calculate_filter_cost(
-    &self,
-    input_rows: u64,
-    condition_count: usize,
-) -> f64 {
-    input_rows as f64 * condition_count as f64 * self.config.cpu_operator_cost
-}
-```
-
-### 2.5 连接操作（Join）
-
-```rust
-/// 哈希内连接代价
-pub fn calculate_hash_join_cost(&self, left_rows: u64, right_rows: u64) -> f64 {
-    let build_cost = left_rows as f64 * self.config.cpu_tuple_cost;
-    let probe_cost = right_rows as f64 * self.config.cpu_tuple_cost;
-    let hash_overhead = left_rows as f64 * 0.1 * self.config.cpu_operator_cost;
-    
-    build_cost + probe_cost + hash_overhead
-}
-
-/// 嵌套循环连接代价
-pub fn calculate_nested_loop_join_cost(&self, left_rows: u64, right_rows: u64) -> f64 {
-    let outer_cost = left_rows as f64 * self.config.cpu_tuple_cost;
-    let inner_cost = left_rows as f64 * right_rows as f64 * self.config.cpu_tuple_cost;
-    
-    outer_cost + inner_cost
-}
-```
-
-### 2.6 排序和聚合
-
-```rust
-/// 排序代价
-pub fn calculate_sort_cost(&self, input_rows: u64, sort_columns: usize) -> f64 {
-    if input_rows == 0 {
-        return 0.0;
-    }
-    let rows = input_rows as f64;
-    let comparisons = rows * rows.log2();
-    comparisons * sort_columns as f64 * self.config.cpu_operator_cost
-}
-
-/// TopN代价
-pub fn calculate_topn_cost(&self, input_rows: u64, limit: i64) -> f64 {
-    let n = input_rows as f64;
-    let k = limit as f64;
-    n * k.log2() * self.config.cpu_operator_cost
-}
-
-/// 聚合代价
-pub fn calculate_aggregate_cost(&self, input_rows: u64, agg_functions: usize) -> f64 {
-    input_rows as f64 * agg_functions as f64 * self.config.cpu_operator_cost
-}
-```
-
-### 2.7 投影和去重
-
-```rust
-/// 投影代价
-pub fn calculate_project_cost(&self, input_rows: u64, columns: usize) -> f64 {
-    input_rows as f64 * columns as f64 * self.config.cpu_operator_cost
-}
-
-/// 去重代价
-pub fn calculate_dedup_cost(&self, input_rows: u64) -> f64 {
-    input_rows as f64 * self.config.cpu_operator_cost * 2.0
-}
-```
-
----
-
-## 三、代价计算与执行计划的集成方案
-
-### 3.1 核心集成架构
+经过代码审查，确认当前 GraphDB 的架构如下：
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     QueryPlanner                            │
+│                    Query Planning Pipeline                   │
 ├─────────────────────────────────────────────────────────────┤
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐  │
-│  │ PlanGenerator│───▶│ CostAssigner │───▶│ PlanCache    │  │
-│  └──────────────┘    └──────────────┘    └──────────────┘  │
-│         │                   │                             │
-│         ▼                   ▼                             │
-│  ┌──────────────┐    ┌──────────────┐                     │
-│  │ PlanNodeEnum │    │ CostCalculator│                    │
-│  └──────────────┘    └──────────────┘                     │
-│                               │                           │
-│                               ▼                           │
-│                        ┌──────────────┐                   │
-│                        │StatisticsMgr │                   │
-│                        └──────────────┘                   │
+│                                                             │
+│  1. Parser → AST                                           │
+│                                                             │
+│  2. Planner → Initial Plan (逻辑计划)                       │
+│     └─ 选择访问路径（ScanVertices, IndexScan 等）            │
+│                                                             │
+│  3. Rewrite → Optimized Plan (逻辑计划)                     │
+│     ├─ 谓词下推（规则驱动）                                 │
+│     ├─ 投影下推（规则驱动）                                 │
+│     ├─ 消除冗余节点（规则驱动）                             │
+│     ├─ 合并操作（规则驱动）                                 │
+│     └─ Limit 下推（规则驱动）                               │
+│                                                             │
+│  4. Optimizer → Physical Plan (物理计划)                    │
+│     └─ 基于代价的优化（待集成）                             │
+│                                                             │
+│  5. Executor → Execute                                     │
+│                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 3.2 代价赋值器（CostAssigner）设计
+### 1.2 Planner 模块确认
 
-`CostAssigner` 负责遍历执行计划并为每个节点计算代价：
+**关键发现：Planner 模块已经完全是规则驱动的，没有使用 optimizer 模块**
 
-1. 后序遍历计划树，先计算子节点代价
-2. 根据节点类型调用对应的 `CostCalculator` 方法
-3. 设置节点的 `cost` 字段
-4. 返回累计代价供父节点使用
+检查结果：
+- `src/query/planner/` 模块中没有任何对 `optimizer` 模块的引用
+- Planner 模块未导入：`CostCalculator`、`StatisticsManager`、`SelectivityEstimator` 等
+- Rewrite 规则完全基于启发式，不依赖代价计算
 
-### 3.3 集成到 QueryPlanner
+### 1.3 PlanNode 中的 Cost 定义
 
-修改 `QueryPlanner` 以集成代价赋值：
+PlanNode 保留了对 cost 的基础定义（用于存储计算后的代价）：
 
-1. 添加 `CostAssigner` 成员
-2. 在 `create_plan()` 中，生成计划后调用 `cost_assigner.assign_costs()`
-3. 缓存计划时使用实际计算的代价而非节点数估算
+```rust
+// src/query/planner/plan/core/nodes/plan_node_traits.rs
 
-### 3.4 代价模型配置
+pub trait PlanNode {
+    /// 获取节点的成本估计值
+    /// 返回 None 表示代价未计算，Some(cost) 表示已计算
+    fn cost(&self) -> Option<f64>;
+    // ...
+}
+```
 
-参考 PostgreSQL 设计可配置的代价参数：
-
-| 参数名 | 默认值 | 说明 |
-|--------|--------|------|
-| `seq_page_cost` | 1.0 | 顺序页读取代价 |
-| `random_page_cost` | 4.0 | 随机页读取代价 |
-| `cpu_tuple_cost` | 0.01 | 行处理 CPU 代价 |
-| `cpu_index_tuple_cost` | 0.005 | 索引行处理代价 |
-| `cpu_operator_cost` | 0.0025 | 操作符计算代价 |
+这个设计是正确的：
+- PlanNode 只定义代价的**存储能力**
+- 实际代价计算由 Optimizer 层的 `CostAssigner` 负责
+- Planner 不使用代价，只生成初始计划
 
 ---
 
-## 四、实施步骤和优先级
+## 二、当前代价体系集成状态
 
-### 阶段 1：基础框架完善（Week 1）
+### 2.1 已实现的模块
 
-| 任务 | 文件 | 说明 |
+#### 统计信息模块 (`src/query/optimizer/stats/`)
+
+| 文件 | 状态 | 说明 |
 |------|------|------|
-| 1. 创建 `CostModelConfig` | `optimizer/cost/config.rs` | 定义可配置的代价参数 |
-| 2. 扩展 `CostCalculator` | `optimizer/cost/calculator.rs` | 添加所有节点类型的计算方法 |
-| 3. 创建 `CostAssigner` | `optimizer/cost/assigner.rs` | 实现计划遍历和代价赋值 |
+| `manager.rs` | ✅ 已实现 | StatisticsManager 统一管理统计信息 |
+| `collector.rs` | ✅ 已实现 | StatisticsCollector 从存储引擎收集统计信息 |
+| `tag.rs` | ✅ 已实现 | TagStatistics 标签级别统计 |
+| `edge.rs` | ✅ 已实现 | EdgeTypeStatistics 边类型统计 |
+| `property.rs` | ✅ 已实现 | PropertyStatistics 属性统计 |
 
-### 阶段 2：核心节点支持（Week 2）
+#### 代价计算模块 (`src/query/optimizer/cost/`)
 
-| 优先级 | 节点类型 | 说明 |
-|--------|----------|------|
-| P0 | `ScanVertices` | 最基础的扫描操作 |
-| P0 | `IndexScan` | 索引选择的核心 |
-| P0 | `Filter` | 最常用的操作 |
-| P1 | `HashInnerJoin` | 连接操作 |
-| P1 | `Expand` / `Traverse` | 图数据库特有操作 |
+| 文件 | 状态 | 说明 |
+|------|------|------|
+| `calculator.rs` | ✅ 已实现 | CostCalculator 完整的代价计算方法 |
+| `selectivity.rs` | ✅ 已实现 | SelectivityEstimator 选择性估计 |
+| `config.rs` | ✅ 已实现 | CostModelConfig 可配置的代价参数 |
+| `assigner.rs` | ✅ 已实现 | CostAssigner 为计划节点赋值代价 |
 
-### 阶段 3：Planner 集成（Week 3）
+#### 优化策略模块 (`src/query/optimizer/strategy/`)
 
-1. 修改 `QueryPlanner` 添加 `CostAssigner`
-2. 在 `create_plan()` 中调用代价赋值
-3. 更新计划缓存使用实际代价
+| 文件 | 状态 | 说明 |
+|------|------|------|
+| `traversal_start.rs` | ✅ 已实现 | TraversalStartSelector 遍历起点选择 |
+| `index.rs` | ✅ 已实现 | IndexSelector 索引选择策略 |
 
-### 阶段 4：优化策略集成（Week 4）
+#### ANALYZE 命令 (`src/query/executor/admin/`)
 
-将代价计算集成到现有的 `SeekStrategy` 选择中，使用 `CostCalculator` 获取更精确的代价估算。
+| 文件 | 状态 | 说明 |
+|------|------|------|
+| `analyze.rs` | ✅ 已实现 | AnalyzeExecutor 统计信息收集 |
 
-### 阶段 5：测试和调优（Week 5-6）
+### 2.2 架构设计确认
 
-1. 编写单元测试验证代价计算
-2. 创建基准测试对比不同策略
-3. 调整默认代价参数
+当前架构符合业界最佳实践：
 
----
-
-## 五、关键代码集成点总结
-
-| 集成点 | 当前状态 | 需要修改 |
-|--------|----------|----------|
-| `PlanNode.cost` | 字段存在，恒为 0.0 | 通过 `CostAssigner` 设置 |
-| `CostCalculator` | 已实现基础方法 | 扩展所有节点类型 |
-| `QueryPlanner` | 使用节点数估算代价 | 集成 `CostAssigner` |
-| `SeekStrategy` | 有 `estimated_cost()` | 使用 `CostCalculator` |
-| `PlanCache` | 使用节点数 × 100 | 使用实际计算的代价 |
+| 层次 | 职责 | 是否使用代价 |
+|------|------|-------------|
+| **Parser** | 解析查询 | ❌ |
+| **Planner** | 生成初始计划 | ❌ |
+| **Rewrite** | 启发式规则优化 | ❌ **保持纯粹** |
+| **Optimizer** | 基于代价的优化 | ✅ **在此使用** |
+| **Executor** | 执行计划 | ❌ |
 
 ---
 
-## 六、设计优势
+## 三、应通过基于代价的优化策略来优化的操作
 
-1. **非侵入式**：不需要修改现有的计划节点定义，只需要添加代价赋值步骤
-2. **可扩展**：新的节点类型只需要在 `CostAssigner` 中添加匹配分支
-3. **可配置**：代价参数可以根据硬件环境调整
-4. **渐进式**：可以逐步支持更多节点类型，不影响现有功能
+### 3.1 高优先级优化
+
+#### 3.1.1 索引选择（Index Selection）
+
+**当前实现：** LookupPlanner 使用简单启发式
+
+```rust
+// 当前实现：lookup_planner.rs
+// 简单启发式：选择第一个可用索引
+let index = available_indexes.first().cloned();
+```
+
+**应优化为：** 使用 IndexSelector 基于代价选择
+
+| 场景 | 当前策略 | 推荐策略 |
+|------|---------|---------|
+| 有多个可用索引 | 选择第一个 | 基于选择性选择最优索引 |
+| 索引 vs 全表扫描 | 总是全表扫描 | 基于代价选择 |
+
+**相关文件：**
+- [lookup_planner.rs](file:///d:/项目/database/graphDB/src/query/planner/statements/lookup_planner.rs)
+- [index.rs](file:///d:/项目/database/graphDB/src/query/optimizer/strategy/index.rs)
+
+#### 3.1.2 遍历起点选择（Traversal Start Selection）
+
+**当前实现：** MatchStatementPlanner 固定遍历顺序
+
+**应优化为：** 使用 TraversalStartSelector 选择代价最小的起点
+
+| 场景 | 当前策略 | 推荐策略 |
+|------|---------|---------|
+| 多节点路径模式 | 固定顺序 | 基于节点选择性选择起点 |
+| 边类型过滤 | 不考虑 | 基于边类型统计选择 |
+
+**相关文件：**
+- [match_statement_planner.rs](file:///d:/项目/database/graphDB/src/query/planner/statements/match_statement_planner.rs)
+- [traversal_start.rs](file:///d:/项目/database/graphDB/src/query/optimizer/strategy/traversal_start.rs)
+
+#### 3.1.3 连接算法选择（Join Algorithm Selection）
+
+**当前实现：** 固定使用哈希连接
+
+**应优化为：** 基于左右表数据量选择连接算法
+
+| 场景 | 当前策略 | 推荐策略 |
+|------|---------|---------|
+| 小表 JOIN 大表 | 哈希连接 | 嵌套循环连接可能更优 |
+| 大表 JOIN 大表 | 哈希连接 | 哈希连接或排序合并连接 |
+
+**相关代价计算：**
+- [calculator.rs - calculate_hash_join_cost](file:///d:/项目/database/graphDB/src/query/optimizer/cost/calculator.rs)
+- [calculator.rs - calculate_nested_loop_join_cost](file:///d:/项目/database/graphDB/src/query/optimizer/cost/calculator.rs)
+
+### 3.2 中优先级优化
+
+#### 3.2.1 路径算法选择
+
+**相关文件：** [path_planner.rs](file:///d:/项目/database/graphDB/src/query/planner/statements/path_planner.rs)
+
+| 场景 | 当前策略 | 推荐策略 |
+|------|---------|---------|
+| 稀疏图最短路径 | BFS | BFS |
+| 带权最短路径 | BFS | Dijkstra 或 A* |
+| 全路径查询 | 全部展开 | 基于数据量选择展开深度 |
+
+#### 3.2.2 聚合策略选择
+
+**相关文件：** [group_by_planner.rs](file:///d:/项目/database/graphDB/src/query/planner/statements/group_by_planner.rs)
+
+| 场景 | 当前策略 | 推荐策略 |
+|------|---------|---------|
+| 小数据量聚合 | 哈希聚合 | 流式聚合或哈希聚合 |
+| 大数据量聚合 | 哈希聚合 | 基于数据量选择 |
+
+#### 3.2.3 子图扩展策略
+
+**相关文件：** [subgraph_planner.rs](file:///d:/项目/database/graphDB/src/query/planner/statements/subgraph_planner.rs)
+
+| 场景 | 当前策略 | 推荐策略 |
+|------|---------|---------|
+| 多步扩展 | 顺序扩展 | 基于边类型选择性优化顺序 |
+| 零步扩展 | 不优化 | 直接返回起始顶点 |
+
+### 3.3 低优先级优化
+
+| 操作 | 优化策略 |
+|------|---------|
+| 集合操作 (UNION/INTERSECT/MINUS) | 基于数据量选择实现方式 |
+| 去重策略 | 基于选择性选择哈希或排序去重 |
+| 排序策略 | 基于数据量选择内存排序或外部排序 |
 
 ---
 
-*文档生成时间：2026-02-27*
-*基于：cost_model_refined_plan.md, cost_model_introduction_analysis.md*
+## 四、代价优化器层设计建议
+
+### 4.1 建议新增模块
+
+```
+src/query/
+├── optimizer/
+│   ├── mod.rs
+│   ├── stats/                    # 现有：统计信息模块
+│   │   ├── mod.rs
+│   │   ├── manager.rs
+│   │   ├── collector.rs
+│   │   ├── tag.rs
+│   │   ├── edge.rs
+│   │   └── property.rs
+│   ├── cost/                     # 现有：代价计算模块
+│   │   ├── mod.rs
+│   │   ├── calculator.rs
+│   │   ├── selectivity.rs
+│   │   ├── config.rs
+│   │   └── assigner.rs
+│   ├── strategy/                 # 现有：优化策略模块
+│   │   ├── mod.rs
+│   │   ├── traversal_start.rs
+│   │   └── index.rs
+│   └── cost_based/               # 新增：基于代价的优化器
+│       ├── mod.rs
+│       ├── optimizer.rs           # 主优化器
+│       ├── index_optimizer.rs     # 索引优化
+│       ├── join_optimizer.rs      # 连接优化
+│       └── traversal_optimizer.rs # 遍历优化
+```
+
+### 4.2 优化器接口设计
+
+```rust
+// src/query/optimizer/cost_based/optimizer.rs
+
+use crate::query::optimizer::stats::StatisticsManager;
+use crate::query::optimizer::cost::{CostCalculator, SelectivityEstimator, CostAssigner};
+use crate::query::optimizer::strategy::{TraversalStartSelector, IndexSelector};
+use crate::query::planner::plan::ExecutionPlan;
+
+/// 基于代价的优化器
+///
+/// 在 Rewrite 之后应用，负责需要代价判断的优化决策
+pub struct CostBasedOptimizer {
+    stats_manager: Arc<StatisticsManager>,
+    cost_calculator: Arc<CostCalculator>,
+    selectivity_estimator: Arc<SelectivityEstimator>,
+    index_selector: Arc<IndexSelector>,
+    traversal_start_selector: Arc<TraversalStartSelector>,
+    cost_assigner: CostAssigner,
+}
+
+impl CostBasedOptimizer {
+    pub fn new(stats_manager: Arc<StatisticsManager>) -> Self {
+        // 初始化所有组件
+    }
+
+    /// 优化执行计划
+    pub fn optimize(&self, plan: ExecutionPlan) -> Result<ExecutionPlan, OptimizerError> {
+        // 1. 索引选择优化
+        let plan = self.optimize_index_selection(plan)?;
+        
+        // 2. 遍历起点优化
+        let plan = self.optimize_traversal_start(plan)?;
+        
+        // 3. 连接算法优化
+        let plan = self.optimize_join_algorithm(plan)?;
+        
+        // 4. 代价赋值（用于 EXPLAIN）
+        self.assign_costs(plan)
+    }
+}
+```
+
+---
+
+## 五、实施优先级建议
+
+### 第一阶段：核心优化（高优先级）
+
+1. **索引选择优化**
+   - 在 LookupPlanner 中集成 IndexSelector
+   - 实现自动选择最优索引
+
+2. **遍历起点优化**
+   - 在 MatchStatementPlanner 中集成 TraversalStartSelector
+   - 实现基于统计信息选择最优遍历起点
+
+3. **连接算法优化**
+   - 实现哈希连接 vs 嵌套循环连接的选择
+
+### 第二阶段：扩展优化（中优先级）
+
+4. **路径算法优化**
+5. **聚合策略优化**
+6. **子图扩展优化**
+
+### 第三阶段：高级优化（低优先级）
+
+7. **计划枚举和选择**
+8. **代价感知的计划缓存**
+9. **动态统计信息更新**
+
+---
+
+## 六、总结
+
+### 架构确认
+
+- ✅ Planner 模块已经是纯粹规则驱动的，没有使用 optimizer
+- ✅ PlanNode 中保留了 cost 定义，用于存储计算后的代价
+- ✅ Optimizer 模块已完整实现，可以进行集成
+
+### 核心原则
+
+1. **Rewrite 层保持纯粹规则驱动**
+   - 规则总是产生更优或等价的计划
+   - 不需要代价判断
+   - 专注于逻辑优化
+
+2. **Optimizer 层负责基于代价的优化**
+   - 需要权衡不同策略的代价
+   - 使用统计信息
+   - 专注于物理优化
+
+### 待集成操作
+
+| 优先级 | 操作 | 当前状态 | 目标状态 |
+|--------|------|---------|---------|
+| 高 | 索引选择 | 简单启发式 | 基于代价选择 |
+| 高 | 遍历起点选择 | 固定顺序 | 基于代价选择 |
+| 高 | 连接算法选择 | 固定哈希连接 | 基于代价选择 |
+| 中 | 路径算法选择 | 固定BFS | 基于图特征选择 |
+| 中 | 聚合策略选择 | 固定策略 | 基于数据量选择 |
+| 低 | 集合操作实现 | 固定实现 | 基于数据量选择 |
+
+---
+
+*文档更新时间：2026-02-27*

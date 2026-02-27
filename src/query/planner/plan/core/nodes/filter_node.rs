@@ -29,7 +29,6 @@ impl FilterNode {
             condition,
             output_var: None,
             col_names,
-            cost: 0.0,
         })
     }
 

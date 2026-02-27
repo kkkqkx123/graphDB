@@ -148,18 +148,6 @@ impl SeekStrategy for EdgeSeek {
         })
     }
 
-    fn estimated_cost(&self, _context: &SeekStrategyContext) -> f64 {
-        if !self.edge_pattern.edge_types.is_empty() {
-            if self.edge_pattern.src_vid.is_some() || self.edge_pattern.dst_vid.is_some() {
-                10.0 // 有明确顶点ID，成本较低
-            } else {
-                40.0 // 只有边类型，成本中等
-            }
-        } else {
-            100.0 // 全表扫描，成本较高
-        }
-    }
-
     fn supports(&self, _context: &SeekStrategyContext) -> bool {
         // 只要有边模式就支持
         true

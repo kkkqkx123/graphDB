@@ -375,7 +375,7 @@ mod tests {
         // 模拟空闲
         std::thread::sleep(std::time::Duration::from_millis(100));
         let idle2 = client_session.idle_seconds();
-        assert!(idle2 >= 0);
+        assert!(idle2 > 0);
 
         // 重置空闲时间
         client_session.charge();
@@ -522,10 +522,10 @@ mod tests {
         assert!(client_session.savepoint_stack().is_empty());
 
         // 添加保存点
-        client_session.push_savepoint(1);
-        client_session.push_savepoint(2);
+        client_session.push_savepoint(SavepointId::new(1));
+        client_session.push_savepoint(SavepointId::new(2));
         assert_eq!(client_session.savepoint_count(), 2);
-        assert_eq!(client_session.savepoint_stack(), vec![1, 2]);
+        assert_eq!(client_session.savepoint_stack(), vec![SavepointId::new(1), SavepointId::new(2)]);
 
         // 清空保存点
         client_session.clear_savepoints();

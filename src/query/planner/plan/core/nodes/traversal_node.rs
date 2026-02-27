@@ -33,7 +33,6 @@ impl ExpandNode {
             filter: None,
             output_var: None,
             col_names: Vec::new(),
-            cost: 0.0,
         }
     }
 
@@ -92,7 +91,6 @@ impl ExpandAllNode {
             filter: None,
             output_var: None,
             col_names: Vec::new(),
-            cost: 0.0,
         }
     }
 
@@ -200,7 +198,6 @@ impl TraverseNode {
             first_step_filter: None,
             output_var: None,
             col_names: Vec::new(),
-            cost: 0.0,
         }
     }
 
@@ -325,7 +322,6 @@ impl AppendVerticesNode {
             node_alias: None,
             output_var: None,
             col_names: Vec::new(),
-            cost: 0.0,
         }
     }
 

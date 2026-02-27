@@ -99,7 +99,7 @@ impl IndexSelector {
         // 如果没有谓词，使用全表扫描
         if predicates.is_empty() {
             let vertex_count = self.cost_calculator.statistics_manager().get_vertex_count(tag_name);
-            let estimated_cost = self.cost_calculator.calculate_scan_cost(tag_name);
+            let estimated_cost = self.cost_calculator.calculate_scan_vertices_cost(tag_name);
             return IndexSelection::FullScan {
                 estimated_cost,
                 vertex_count,
@@ -130,7 +130,7 @@ impl IndexSelector {
         // 如果没有找到合适的索引，使用全表扫描
         best_selection.unwrap_or_else(|| {
             let vertex_count = self.cost_calculator.statistics_manager().get_vertex_count(tag_name);
-            let estimated_cost = self.cost_calculator.calculate_scan_cost(tag_name);
+            let estimated_cost = self.cost_calculator.calculate_scan_vertices_cost(tag_name);
             IndexSelection::FullScan {
                 estimated_cost,
                 vertex_count,
@@ -190,6 +190,7 @@ impl IndexSelector {
         // 计算代价
         let estimated_cost = self.cost_calculator.calculate_index_scan_cost(
             &index.schema_name,
+            &covered_predicates[0].property_name,
             total_selectivity,
         );
 
@@ -215,7 +216,7 @@ impl IndexSelector {
 
         // 添加全表扫描作为基准
         let vertex_count = self.cost_calculator.statistics_manager().get_vertex_count(tag_name);
-        let full_scan_cost = self.cost_calculator.calculate_scan_cost(tag_name);
+        let full_scan_cost = self.cost_calculator.calculate_scan_vertices_cost(tag_name);
         strategies.push(IndexSelection::FullScan {
             estimated_cost: full_scan_cost,
             vertex_count,

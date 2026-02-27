@@ -19,7 +19,6 @@ impl CreateSpaceNode {
             info,
             output_var: None,
             col_names: Vec::new(),
-            cost: 1.0,
         }
     }
 
@@ -43,7 +42,6 @@ impl DropSpaceNode {
             space_name,
             output_var: None,
             col_names: Vec::new(),
-            cost: 1.0,
         }
     }
 
@@ -67,7 +65,6 @@ impl DescSpaceNode {
             space_name,
             output_var: None,
             col_names: Vec::new(),
-            cost: 1.0,
         }
     }
 
@@ -89,7 +86,6 @@ impl ShowSpacesNode {
             id,
             output_var: None,
             col_names: Vec::new(),
-            cost: 1.0,
         }
     }
 }

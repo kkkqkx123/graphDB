@@ -19,7 +19,6 @@ impl CreateTagIndexNode {
             info,
             output_var: None,
             col_names: Vec::new(),
-            cost: 1.0,
         }
     }
 
@@ -53,7 +52,6 @@ impl DropTagIndexNode {
             index_name,
             output_var: None,
             col_names: Vec::new(),
-            cost: 1.0,
         }
     }
 
@@ -83,7 +81,6 @@ impl DescTagIndexNode {
             index_name,
             output_var: None,
             col_names: Vec::new(),
-            cost: 1.0,
         }
     }
 
@@ -109,7 +106,6 @@ impl ShowTagIndexesNode {
             id,
             output_var: None,
             col_names: Vec::new(),
-            cost: 1.0,
         }
     }
 }
@@ -129,7 +125,6 @@ impl CreateEdgeIndexNode {
             info,
             output_var: None,
             col_names: Vec::new(),
-            cost: 1.0,
         }
     }
 
@@ -163,7 +158,6 @@ impl DropEdgeIndexNode {
             index_name,
             output_var: None,
             col_names: Vec::new(),
-            cost: 1.0,
         }
     }
 
@@ -193,7 +187,6 @@ impl DescEdgeIndexNode {
             index_name,
             output_var: None,
             col_names: Vec::new(),
-            cost: 1.0,
         }
     }
 
@@ -219,7 +212,6 @@ impl ShowEdgeIndexesNode {
             id,
             output_var: None,
             col_names: Vec::new(),
-            cost: 1.0,
         }
     }
 }
@@ -241,7 +233,6 @@ impl RebuildTagIndexNode {
             index_name,
             output_var: None,
             col_names: Vec::new(),
-            cost: 1.0,
         }
     }
 
@@ -271,7 +262,6 @@ impl RebuildEdgeIndexNode {
             index_name,
             output_var: None,
             col_names: Vec::new(),
-            cost: 1.0,
         }
     }
 

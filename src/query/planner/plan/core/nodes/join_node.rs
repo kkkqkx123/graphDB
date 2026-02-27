@@ -33,7 +33,6 @@ impl InnerJoinNode {
             deps,
             output_var: None,
             col_names,
-            cost: 0.0,
         })
     }
 }
@@ -65,7 +64,6 @@ impl LeftJoinNode {
             deps,
             output_var: None,
             col_names,
-            cost: 0.0,
         })
     }
 }
@@ -94,7 +92,6 @@ impl CrossJoinNode {
             deps,
             output_var: None,
             col_names,
-            cost: 0.0,
         })
     }
 }
@@ -126,7 +123,6 @@ impl HashInnerJoinNode {
             deps,
             output_var: None,
             col_names,
-            cost: 0.0,
         })
     }
 }
@@ -158,7 +154,6 @@ impl HashLeftJoinNode {
             deps,
             output_var: None,
             col_names,
-            cost: 0.0,
         })
     }
 }
@@ -190,7 +185,6 @@ impl FullOuterJoinNode {
             deps,
             output_var: None,
             col_names,
-            cost: 0.0,
         })
     }
 }

@@ -292,14 +292,6 @@ impl SeekStrategy for VariablePropIndexSeek {
         })
     }
 
-    fn estimated_cost(&self, _context: &SeekStrategyContext) -> f64 {
-        if self.all_variables_bound() {
-            5.0 // 变量已绑定，成本较低
-        } else {
-            100.0 // 变量未绑定，需要延迟执行
-        }
-    }
-
     fn supports(&self, _context: &SeekStrategyContext) -> bool {
         // 只要有变量属性谓词就支持
         !self.predicates.is_empty()

@@ -24,7 +24,6 @@ impl CreateUserNode {
             role: "user".to_string(),
             output_var: None,
             col_names: Vec::new(),
-            cost: 1.0,
         }
     }
 
@@ -65,7 +64,6 @@ impl AlterUserNode {
             is_locked: None,
             output_var: None,
             col_names: Vec::new(),
-            cost: 1.0,
         }
     }
 
@@ -107,7 +105,6 @@ impl DropUserNode {
             username,
             output_var: None,
             col_names: Vec::new(),
-            cost: 1.0,
         }
     }
 
@@ -131,7 +128,6 @@ impl ChangePasswordNode {
             password_info,
             output_var: None,
             col_names: Vec::new(),
-            cost: 1.0,
         }
     }
 

@@ -26,7 +26,6 @@ impl UnionNode {
             distinct,
             output_var: None,
             col_names,
-            cost: 0.0,
         })
     }
 
@@ -61,7 +60,6 @@ impl UnwindNode {
             list_expression: list_expression.to_string(),
             output_var: None,
             col_names,
-            cost: 0.0,
         })
     }
 
@@ -93,7 +91,6 @@ impl DedupNode {
             deps: vec![Box::new(input)],
             output_var: None,
             col_names,
-            cost: 0.0,
         })
     }
 }
@@ -120,7 +117,6 @@ impl DataCollectNode {
             collect_kind: collect_kind.to_string(),
             output_var: None,
             col_names,
-            cost: 0.0,
         })
     }
 
@@ -151,7 +147,6 @@ impl AssignNode {
             assignments,
             output_var: None,
             col_names,
-            cost: 0.0,
         })
     }
 
@@ -176,7 +171,6 @@ pub struct RollUpApplyNode {
     collect_col: Option<String>,
     output_var: Option<String>,
     col_names: Vec<String>,
-    cost: f64,
 }
 
 impl RollUpApplyNode {
@@ -202,7 +196,6 @@ impl RollUpApplyNode {
             collect_col,
             output_var: None,
             col_names,
-            cost: 0.0,
         })
     }
 
@@ -244,10 +237,6 @@ impl RollUpApplyNode {
 
     pub fn col_names(&self) -> &[String] {
         &self.col_names
-    }
-
-    pub fn cost(&self) -> f64 {
-        self.cost
     }
 
     pub fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
@@ -292,7 +281,6 @@ impl RollUpApplyNode {
             collect_col: self.collect_col.clone(),
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
-            cost: self.cost,
         })
     }
 
@@ -319,10 +307,6 @@ impl super::plan_node_traits::PlanNode for RollUpApplyNode {
 
     fn col_names(&self) -> &[String] {
         self.col_names()
-    }
-
-    fn cost(&self) -> f64 {
-        self.cost()
     }
 
     fn set_output_var(&mut self, var: String) {
@@ -378,7 +362,6 @@ pub struct PatternApplyNode {
     is_anti_predicate: bool,
     output_var: Option<String>,
     col_names: Vec<String>,
-    cost: f64,
 }
 
 impl PatternApplyNode {
@@ -404,7 +387,6 @@ impl PatternApplyNode {
             is_anti_predicate,
             output_var: None,
             col_names,
-            cost: 0.0,
         })
     }
 
@@ -446,10 +428,6 @@ impl PatternApplyNode {
 
     pub fn col_names(&self) -> &[String] {
         &self.col_names
-    }
-
-    pub fn cost(&self) -> f64 {
-        self.cost
     }
 
     pub fn dependencies(&self) -> &[Box<super::plan_node_enum::PlanNodeEnum>] {
@@ -494,7 +472,6 @@ impl PatternApplyNode {
             is_anti_predicate: self.is_anti_predicate,
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
-            cost: self.cost,
         })
     }
 
@@ -521,10 +498,6 @@ impl super::plan_node_traits::PlanNode for PatternApplyNode {
 
     fn col_names(&self) -> &[String] {
         self.col_names()
-    }
-
-    fn cost(&self) -> f64 {
-        self.cost()
     }
 
     fn set_output_var(&mut self, var: String) {
