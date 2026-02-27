@@ -41,6 +41,9 @@ pub use stats::{
 
 pub use cost::{
     CostCalculator,
+    CostModelConfig,
+    CostAssigner,
+    CostError,
     SelectivityEstimator,
 };
 

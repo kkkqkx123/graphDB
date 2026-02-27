@@ -37,7 +37,7 @@ macro_rules! define_plan_node {
             $($field: $type,)*
             output_var: Option<String>,
             col_names: Vec<String>,
-            cost: f64,
+            cost: Option<f64>,
         }
 
         impl Clone for $name {
@@ -70,8 +70,29 @@ macro_rules! define_plan_node {
                 &self.col_names
             }
 
-            pub fn cost(&self) -> f64 {
+            /// 获取代价选项
+            /// 
+            /// 返回 None 表示代价未计算，Some(cost) 表示已计算
+            pub fn cost(&self) -> Option<f64> {
                 self.cost
+            }
+
+            /// 获取代价，如果未设置返回默认值
+            /// 
+            /// # Safety
+            /// 如果代价未计算，将返回传入的默认值
+            pub fn cost_or(&self, default: f64) -> f64 {
+                self.cost.unwrap_or(default)
+            }
+
+            /// 设置代价
+            pub fn set_cost(&mut self, cost: f64) {
+                self.cost = Some(cost);
+            }
+
+            /// 检查代价是否已计算
+            pub fn is_cost_calculated(&self) -> bool {
+                self.cost.is_some()
             }
 
             pub fn set_output_var(&mut self, var: String) {
@@ -112,7 +133,7 @@ macro_rules! define_plan_node {
                 self.col_names()
             }
 
-            fn cost(&self) -> f64 {
+            fn cost(&self) -> Option<f64> {
                 self.cost()
             }
 
@@ -160,7 +181,7 @@ macro_rules! define_plan_node {
             $($field: $type,)*
             output_var: Option<String>,
             col_names: Vec<String>,
-            cost: f64,
+            cost: Option<f64>,
         }
 
         impl Clone for $name {
@@ -194,8 +215,29 @@ macro_rules! define_plan_node {
                 &self.col_names
             }
 
-            pub fn cost(&self) -> f64 {
+            /// 获取代价选项
+            /// 
+            /// 返回 None 表示代价未计算，Some(cost) 表示已计算
+            pub fn cost(&self) -> Option<f64> {
                 self.cost
+            }
+
+            /// 获取代价，如果未设置返回默认值
+            /// 
+            /// # Safety
+            /// 如果代价未计算，将返回传入的默认值
+            pub fn cost_or(&self, default: f64) -> f64 {
+                self.cost.unwrap_or(default)
+            }
+
+            /// 设置代价
+            pub fn set_cost(&mut self, cost: f64) {
+                self.cost = Some(cost);
+            }
+
+            /// 检查代价是否已计算
+            pub fn is_cost_calculated(&self) -> bool {
+                self.cost.is_some()
             }
 
             pub fn set_output_var(&mut self, var: String) {
@@ -234,12 +276,30 @@ macro_rules! define_plan_node {
         }
 
         impl crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode for $name {
-            fn id(&self) -> i64 { self.id() }
-            fn name(&self) -> &'static str { self.type_name() }
-            fn output_var(&self) -> Option<&str> { self.output_var() }
-            fn col_names(&self) -> &[String] { self.col_names() }
-            fn cost(&self) -> f64 { self.cost() }
-            fn set_output_var(&mut self, var: String) { self.set_output_var(var); }
+            fn id(&self) -> i64 {
+                self.id()
+            }
+
+            fn name(&self) -> &'static str {
+                self.type_name()
+            }
+
+            fn output_var(&self) -> Option<&str> {
+                self.output_var()
+            }
+
+            fn col_names(&self) -> &[String] {
+                self.col_names()
+            }
+
+            fn cost(&self) -> Option<f64> {
+                self.cost()
+            }
+
+            fn set_output_var(&mut self, var: String) {
+                self.set_output_var(var);
+            }
+
             fn set_col_names(&mut self, names: Vec<String>) { self.set_col_names(names); }
             fn into_enum(self) -> crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum {
                 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
@@ -298,7 +358,7 @@ macro_rules! define_binary_input_node {
             $($field: $type,)*
             output_var: Option<String>,
             col_names: Vec<String>,
-            cost: f64,
+            cost: Option<f64>,
         }
 
         impl Clone for $name {
@@ -334,8 +394,24 @@ macro_rules! define_binary_input_node {
                 &self.col_names
             }
 
+            /// 获取代价，如果未设置返回 0.0
             pub fn cost(&self) -> f64 {
+                self.cost.unwrap_or(0.0)
+            }
+
+            /// 获取原始代价选项
+            pub fn cost_option(&self) -> Option<f64> {
                 self.cost
+            }
+
+            /// 设置代价
+            pub fn set_cost(&mut self, cost: f64) {
+                self.cost = Some(cost);
+            }
+
+            /// 检查代价是否已计算
+            pub fn is_cost_calculated(&self) -> bool {
+                self.cost.is_some()
             }
 
             pub fn set_output_var(&mut self, var: String) {
@@ -454,7 +530,7 @@ macro_rules! define_plan_node_with_deps {
             $($field: $type,)*
             output_var: Option<String>,
             col_names: Vec<String>,
-            cost: f64,
+            cost: Option<f64>,
         }
 
         impl Clone for $name {
@@ -489,8 +565,29 @@ macro_rules! define_plan_node_with_deps {
                 &self.col_names
             }
 
-            pub fn cost(&self) -> f64 {
+            /// 获取代价选项
+            /// 
+            /// 返回 None 表示代价未计算，Some(cost) 表示已计算
+            pub fn cost(&self) -> Option<f64> {
                 self.cost
+            }
+
+            /// 获取代价，如果未设置返回默认值
+            /// 
+            /// # Safety
+            /// 如果代价未计算，将返回传入的默认值
+            pub fn cost_or(&self, default: f64) -> f64 {
+                self.cost.unwrap_or(default)
+            }
+
+            /// 设置代价
+            pub fn set_cost(&mut self, cost: f64) {
+                self.cost = Some(cost);
+            }
+
+            /// 检查代价是否已计算
+            pub fn is_cost_calculated(&self) -> bool {
+                self.cost.is_some()
             }
 
             pub fn set_output_var(&mut self, var: String) {
@@ -527,7 +624,7 @@ macro_rules! define_plan_node_with_deps {
             fn name(&self) -> &'static str { self.type_name() }
             fn output_var(&self) -> Option<&str> { self.output_var() }
             fn col_names(&self) -> &[String] { self.col_names() }
-            fn cost(&self) -> f64 { self.cost() }
+            fn cost(&self) -> Option<f64> { self.cost() }
             fn set_output_var(&mut self, var: String) { self.set_output_var(var); }
             fn set_col_names(&mut self, names: Vec<String>) { self.set_col_names(names); }
             fn into_enum(self) -> crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum {
@@ -581,7 +678,7 @@ macro_rules! define_join_node {
             $($field: $type,)*
             output_var: Option<String>,
             col_names: Vec<String>,
-            cost: f64,
+            cost: Option<f64>,
         }
 
         impl Clone for $name {
@@ -619,8 +716,29 @@ macro_rules! define_join_node {
                 &self.col_names
             }
 
-            pub fn cost(&self) -> f64 {
+            /// 获取代价选项
+            /// 
+            /// 返回 None 表示代价未计算，Some(cost) 表示已计算
+            pub fn cost(&self) -> Option<f64> {
                 self.cost
+            }
+
+            /// 获取代价，如果未设置返回默认值
+            /// 
+            /// # Safety
+            /// 如果代价未计算，将返回传入的默认值
+            pub fn cost_or(&self, default: f64) -> f64 {
+                self.cost.unwrap_or(default)
+            }
+
+            /// 设置代价
+            pub fn set_cost(&mut self, cost: f64) {
+                self.cost = Some(cost);
+            }
+
+            /// 检查代价是否已计算
+            pub fn is_cost_calculated(&self) -> bool {
+                self.cost.is_some()
             }
 
             pub fn set_output_var(&mut self, var: String) {
@@ -711,7 +829,7 @@ macro_rules! define_join_node {
             fn name(&self) -> &'static str { self.type_name() }
             fn output_var(&self) -> Option<&str> { self.output_var() }
             fn col_names(&self) -> &[String] { self.col_names() }
-            fn cost(&self) -> f64 { self.cost() }
+            fn cost(&self) -> Option<f64> { self.cost() }
             fn set_output_var(&mut self, var: String) { self.set_output_var(var); }
             fn set_col_names(&mut self, names: Vec<String>) { self.set_col_names(names); }
             fn into_enum(self) -> crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum {

@@ -11,7 +11,7 @@ use std::time::Instant;
 use crate::storage::StorageClient;
 
 use super::admin::{
-    AlterEdgeExecutor, AlterTagExecutor, ChangePasswordExecutor, CreateEdgeExecutor,
+    AlterEdgeExecutor, AlterTagExecutor, AnalyzeExecutor, ChangePasswordExecutor, CreateEdgeExecutor,
     CreateSpaceExecutor, CreateTagExecutor, CreateUserExecutor, AlterUserExecutor, DropUserExecutor,
     DescEdgeExecutor, DescSpaceExecutor, DescTagExecutor,
     DropEdgeExecutor, DropSpaceExecutor, DropTagExecutor, ShowSpacesExecutor, ShowTagsExecutor, ShowEdgesExecutor,
@@ -118,6 +118,7 @@ pub enum ExecutorEnum<S: StorageClient + Send + 'static> {
     AlterUser(AlterUserExecutor<S>),
     DropUser(DropUserExecutor<S>),
     ChangePassword(ChangePasswordExecutor<S>),
+    Analyze(AnalyzeExecutor<S>),
 }
 
 impl<S: StorageClient + Send + 'static> Debug for ExecutorEnum<S> {
@@ -197,6 +198,7 @@ impl<S: StorageClient + Send + 'static> Debug for ExecutorEnum<S> {
             ExecutorEnum::AlterUser(exec) => f.write_str(&format!("ExecutorEnum::AlterUser({})", exec.name())),
             ExecutorEnum::DropUser(exec) => f.write_str(&format!("ExecutorEnum::DropUser({})", exec.name())),
             ExecutorEnum::ChangePassword(exec) => f.write_str(&format!("ExecutorEnum::ChangePassword({})", exec.name())),
+            ExecutorEnum::Analyze(exec) => f.write_str(&format!("ExecutorEnum::Analyze({})", exec.name())),
         }
     }
 }
@@ -278,6 +280,7 @@ impl<S: StorageClient + Send + 'static> ExecutorEnum<S> {
             ExecutorEnum::AlterUser(exec) => exec.id(),
             ExecutorEnum::DropUser(exec) => exec.id(),
             ExecutorEnum::ChangePassword(exec) => exec.id(),
+            ExecutorEnum::Analyze(exec) => exec.id(),
         }
     }
 
@@ -357,6 +360,7 @@ impl<S: StorageClient + Send + 'static> ExecutorEnum<S> {
             ExecutorEnum::AlterUser(exec) => exec.name(),
             ExecutorEnum::DropUser(exec) => exec.name(),
             ExecutorEnum::ChangePassword(exec) => exec.name(),
+            ExecutorEnum::Analyze(exec) => exec.name(),
         }
     }
 
@@ -436,6 +440,7 @@ impl<S: StorageClient + Send + 'static> ExecutorEnum<S> {
             ExecutorEnum::AlterUser(exec) => exec.stats(),
             ExecutorEnum::DropUser(exec) => exec.stats(),
             ExecutorEnum::ChangePassword(exec) => exec.stats(),
+            ExecutorEnum::Analyze(exec) => exec.stats(),
         }
     }
 
@@ -515,6 +520,7 @@ impl<S: StorageClient + Send + 'static> ExecutorEnum<S> {
             ExecutorEnum::AlterUser(exec) => exec.stats_mut(),
             ExecutorEnum::DropUser(exec) => exec.stats_mut(),
             ExecutorEnum::ChangePassword(exec) => exec.stats_mut(),
+            ExecutorEnum::Analyze(exec) => exec.stats_mut(),
         }
     }
 }
@@ -597,6 +603,7 @@ impl<S: StorageClient + Send + 'static> super::base::Executor<S> for ExecutorEnu
             ExecutorEnum::AlterUser(exec) => exec.execute(),
             ExecutorEnum::DropUser(exec) => exec.execute(),
             ExecutorEnum::ChangePassword(exec) => exec.execute(),
+            ExecutorEnum::Analyze(exec) => exec.execute(),
         };
         self.stats_mut().add_total_time(start.elapsed());
         result
@@ -678,6 +685,7 @@ impl<S: StorageClient + Send + 'static> super::base::Executor<S> for ExecutorEnu
             ExecutorEnum::AlterUser(exec) => exec.open(),
             ExecutorEnum::DropUser(exec) => exec.open(),
             ExecutorEnum::ChangePassword(exec) => exec.open(),
+            ExecutorEnum::Analyze(exec) => exec.open(),
         }
     }
 
@@ -757,6 +765,7 @@ impl<S: StorageClient + Send + 'static> super::base::Executor<S> for ExecutorEnu
             ExecutorEnum::AlterUser(exec) => exec.close(),
             ExecutorEnum::DropUser(exec) => exec.close(),
             ExecutorEnum::ChangePassword(exec) => exec.close(),
+            ExecutorEnum::Analyze(exec) => exec.close(),
         }
     }
 
@@ -836,6 +845,7 @@ impl<S: StorageClient + Send + 'static> super::base::Executor<S> for ExecutorEnu
             ExecutorEnum::AlterUser(exec) => exec.is_open(),
             ExecutorEnum::DropUser(exec) => exec.is_open(),
             ExecutorEnum::ChangePassword(exec) => exec.is_open(),
+            ExecutorEnum::Analyze(exec) => exec.is_open(),
         }
     }
 
@@ -927,6 +937,7 @@ impl<S: StorageClient + Send + 'static> super::base::Executor<S> for ExecutorEnu
             ExecutorEnum::AlterUser(exec) => exec.stats(),
             ExecutorEnum::DropUser(exec) => exec.stats(),
             ExecutorEnum::ChangePassword(exec) => exec.stats(),
+            ExecutorEnum::Analyze(exec) => exec.stats(),
         }
     }
 
@@ -1006,6 +1017,7 @@ impl<S: StorageClient + Send + 'static> super::base::Executor<S> for ExecutorEnu
             ExecutorEnum::AlterUser(exec) => exec.stats_mut(),
             ExecutorEnum::DropUser(exec) => exec.stats_mut(),
             ExecutorEnum::ChangePassword(exec) => exec.stats_mut(),
+            ExecutorEnum::Analyze(exec) => exec.stats_mut(),
         }
     }
 }
@@ -1087,6 +1099,7 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for ExecutorEnum<S> {
             ExecutorEnum::AlterUser(_) => {}
             ExecutorEnum::DropUser(_) => {}
             ExecutorEnum::ChangePassword(_) => {}
+            ExecutorEnum::Analyze(_) => {}
         }
     }
 
@@ -1166,6 +1179,7 @@ impl<S: StorageClient + Send + 'static> InputExecutor<S> for ExecutorEnum<S> {
             ExecutorEnum::AlterUser(_) => None,
             ExecutorEnum::DropUser(_) => None,
             ExecutorEnum::ChangePassword(_) => None,
+            ExecutorEnum::Analyze(_) => None,
         }
     }
 }
@@ -1266,6 +1280,7 @@ impl<S: StorageClient + Send + 'static> NodeType for ExecutorEnum<S> {
             ExecutorEnum::AlterUser(_) => "alter_user",
             ExecutorEnum::DropUser(_) => "drop_user",
             ExecutorEnum::ChangePassword(_) => "change_password",
+            ExecutorEnum::Analyze(_) => "analyze",
         }
     }
 
@@ -1345,6 +1360,7 @@ impl<S: StorageClient + Send + 'static> NodeType for ExecutorEnum<S> {
             ExecutorEnum::AlterUser(_) => "Alter User",
             ExecutorEnum::DropUser(_) => "Drop User",
             ExecutorEnum::ChangePassword(_) => "Change Password",
+            ExecutorEnum::Analyze(_) => "Analyze",
         }
     }
 
@@ -1424,6 +1440,7 @@ impl<S: StorageClient + Send + 'static> NodeType for ExecutorEnum<S> {
             ExecutorEnum::AlterUser(_) => NodeCategory::Admin,
             ExecutorEnum::DropUser(_) => NodeCategory::Admin,
             ExecutorEnum::ChangePassword(_) => NodeCategory::Admin,
+            ExecutorEnum::Analyze(_) => NodeCategory::Admin,
         }
     }
 }

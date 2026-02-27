@@ -22,7 +22,9 @@ pub trait PlanNode {
     fn col_names(&self) -> &[String];
 
     /// 获取节点的成本估计值
-    fn cost(&self) -> f64;
+    /// 
+    /// 返回 None 表示代价未计算，Some(cost) 表示已计算
+    fn cost(&self) -> Option<f64>;
 
     /// 设置节点的输出变量名
     fn set_output_var(&mut self, var: String);
@@ -52,7 +54,7 @@ impl<T: PlanNode + ?Sized> PlanNode for &T {
         (**self).col_names()
     }
 
-    fn cost(&self) -> f64 {
+    fn cost(&self) -> Option<f64> {
         (**self).cost()
     }
 

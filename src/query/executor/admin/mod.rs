@@ -9,6 +9,7 @@ pub mod edge;
 pub mod index;
 pub mod user;
 pub mod query_management;
+pub mod analyze;
 
 pub use self::space::{
     CreateSpaceExecutor, DropSpaceExecutor, DescSpaceExecutor, ShowSpacesExecutor, SwitchSpaceExecutor,
@@ -41,6 +42,11 @@ pub use self::user::{
 
 pub use self::query_management::{
     ShowStatsExecutor,
+};
+
+pub use self::analyze::{
+    AnalyzeExecutor,
+    AnalyzeTarget,
 };
 
 pub use crate::core::types::PasswordInfo;

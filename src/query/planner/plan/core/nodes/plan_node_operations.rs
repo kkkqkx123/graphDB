@@ -5,53 +5,116 @@
 use super::plan_node_enum::PlanNodeEnum;
 use super::plan_node_traits::{MultipleInputNode, PlanNode, SingleInputNode};
 
+/// 为 PlanNodeEnum 生成 match 分支的宏
+///
+/// 这个宏生成对所有节点类型的匹配，自动调用指定的方法
+macro_rules! match_all_nodes {
+    ($self:expr, $method:ident) => {
+        match $self {
+            PlanNodeEnum::Start(node) => node.$method(),
+            PlanNodeEnum::Project(node) => node.$method(),
+            PlanNodeEnum::Sort(node) => node.$method(),
+            PlanNodeEnum::Limit(node) => node.$method(),
+            PlanNodeEnum::TopN(node) => node.$method(),
+            PlanNodeEnum::Sample(node) => node.$method(),
+            PlanNodeEnum::InnerJoin(node) => node.$method(),
+            PlanNodeEnum::LeftJoin(node) => node.$method(),
+            PlanNodeEnum::CrossJoin(node) => node.$method(),
+            PlanNodeEnum::HashInnerJoin(node) => node.$method(),
+            PlanNodeEnum::HashLeftJoin(node) => node.$method(),
+            PlanNodeEnum::FullOuterJoin(node) => node.$method(),
+            PlanNodeEnum::IndexScan(node) => node.$method(),
+            PlanNodeEnum::EdgeIndexScan(node) => node.$method(),
+            PlanNodeEnum::GetVertices(node) => node.$method(),
+            PlanNodeEnum::GetEdges(node) => node.$method(),
+            PlanNodeEnum::GetNeighbors(node) => node.$method(),
+            PlanNodeEnum::ScanVertices(node) => node.$method(),
+            PlanNodeEnum::ScanEdges(node) => node.$method(),
+            PlanNodeEnum::Expand(node) => node.$method(),
+            PlanNodeEnum::ExpandAll(node) => node.$method(),
+            PlanNodeEnum::Traverse(node) => node.$method(),
+            PlanNodeEnum::AppendVertices(node) => node.$method(),
+            PlanNodeEnum::Filter(node) => node.$method(),
+            PlanNodeEnum::Aggregate(node) => node.$method(),
+            PlanNodeEnum::Argument(node) => node.$method(),
+            PlanNodeEnum::Loop(node) => node.$method(),
+            PlanNodeEnum::PassThrough(node) => node.$method(),
+            PlanNodeEnum::Select(node) => node.$method(),
+            PlanNodeEnum::DataCollect(node) => node.$method(),
+            PlanNodeEnum::Dedup(node) => node.$method(),
+            PlanNodeEnum::PatternApply(node) => node.$method(),
+            PlanNodeEnum::RollUpApply(node) => node.$method(),
+            PlanNodeEnum::Union(node) => node.$method(),
+            PlanNodeEnum::Minus(node) => node.$method(),
+            PlanNodeEnum::Intersect(node) => node.$method(),
+            PlanNodeEnum::Unwind(node) => node.$method(),
+            PlanNodeEnum::Assign(node) => node.$method(),
+            PlanNodeEnum::MultiShortestPath(node) => node.$method(),
+            PlanNodeEnum::BFSShortest(node) => node.$method(),
+            PlanNodeEnum::AllPaths(node) => node.$method(),
+            PlanNodeEnum::ShortestPath(node) => node.$method(),
+        }
+    };
+}
+
+/// 为 PlanNodeEnum 生成 match 分支的宏（带默认值）
+///
+/// 这个宏生成对所有节点类型的匹配，自动调用指定的方法，对管理节点返回默认值
+macro_rules! match_all_nodes_with_default {
+    ($self:expr, $method:ident, $default:expr) => {
+        match $self {
+            PlanNodeEnum::Start(node) => node.$method(),
+            PlanNodeEnum::Project(node) => node.$method(),
+            PlanNodeEnum::Sort(node) => node.$method(),
+            PlanNodeEnum::Limit(node) => node.$method(),
+            PlanNodeEnum::TopN(node) => node.$method(),
+            PlanNodeEnum::Sample(node) => node.$method(),
+            PlanNodeEnum::InnerJoin(node) => node.$method(),
+            PlanNodeEnum::LeftJoin(node) => node.$method(),
+            PlanNodeEnum::CrossJoin(node) => node.$method(),
+            PlanNodeEnum::HashInnerJoin(node) => node.$method(),
+            PlanNodeEnum::HashLeftJoin(node) => node.$method(),
+            PlanNodeEnum::FullOuterJoin(node) => node.$method(),
+            PlanNodeEnum::IndexScan(node) => node.$method(),
+            PlanNodeEnum::EdgeIndexScan(node) => node.$method(),
+            PlanNodeEnum::GetVertices(node) => node.$method(),
+            PlanNodeEnum::GetEdges(node) => node.$method(),
+            PlanNodeEnum::GetNeighbors(node) => node.$method(),
+            PlanNodeEnum::ScanVertices(node) => node.$method(),
+            PlanNodeEnum::ScanEdges(node) => node.$method(),
+            PlanNodeEnum::Expand(node) => node.$method(),
+            PlanNodeEnum::ExpandAll(node) => node.$method(),
+            PlanNodeEnum::Traverse(node) => node.$method(),
+            PlanNodeEnum::AppendVertices(node) => node.$method(),
+            PlanNodeEnum::Filter(node) => node.$method(),
+            PlanNodeEnum::Aggregate(node) => node.$method(),
+            PlanNodeEnum::Argument(node) => node.$method(),
+            PlanNodeEnum::Loop(node) => node.$method(),
+            PlanNodeEnum::PassThrough(node) => node.$method(),
+            PlanNodeEnum::Select(node) => node.$method(),
+            PlanNodeEnum::DataCollect(node) => node.$method(),
+            PlanNodeEnum::Dedup(node) => node.$method(),
+            PlanNodeEnum::PatternApply(node) => node.$method(),
+            PlanNodeEnum::RollUpApply(node) => node.$method(),
+            PlanNodeEnum::Union(node) => node.$method(),
+            PlanNodeEnum::Minus(node) => node.$method(),
+            PlanNodeEnum::Intersect(node) => node.$method(),
+            PlanNodeEnum::Unwind(node) => node.$method(),
+            PlanNodeEnum::Assign(node) => node.$method(),
+            PlanNodeEnum::MultiShortestPath(node) => node.$method(),
+            PlanNodeEnum::BFSShortest(node) => node.$method(),
+            PlanNodeEnum::AllPaths(node) => node.$method(),
+            PlanNodeEnum::ShortestPath(node) => node.$method(),
+            // 管理节点返回默认值
+            _ => $default,
+        }
+    };
+}
+
 impl PlanNodeEnum {
     /// 获取节点的唯一ID
     pub fn id(&self) -> i64 {
-        match self {
-            // 基础节点类型 - 这些节点实现了 PlanNode trait
-            PlanNodeEnum::Start(node) => node.id(),
-            PlanNodeEnum::Project(node) => node.id(),
-            PlanNodeEnum::Sort(node) => node.id(),
-            PlanNodeEnum::Limit(node) => node.id(),
-            PlanNodeEnum::TopN(node) => node.id(),
-            PlanNodeEnum::Sample(node) => node.id(),
-            PlanNodeEnum::InnerJoin(node) => node.id(),
-            PlanNodeEnum::LeftJoin(node) => node.id(),
-            PlanNodeEnum::CrossJoin(node) => node.id(),
-            PlanNodeEnum::HashInnerJoin(node) => node.id(),
-            PlanNodeEnum::HashLeftJoin(node) => node.id(),
-            PlanNodeEnum::IndexScan(node) => node.id(),
-            PlanNodeEnum::GetVertices(node) => node.id(),
-            PlanNodeEnum::GetEdges(node) => node.id(),
-            PlanNodeEnum::GetNeighbors(node) => node.id(),
-            PlanNodeEnum::ScanVertices(node) => node.id(),
-            PlanNodeEnum::ScanEdges(node) => node.id(),
-            PlanNodeEnum::Expand(node) => node.id(),
-            PlanNodeEnum::ExpandAll(node) => node.id(),
-            PlanNodeEnum::Traverse(node) => node.id(),
-            PlanNodeEnum::AppendVertices(node) => node.id(),
-            PlanNodeEnum::Filter(node) => node.id(),
-            PlanNodeEnum::Aggregate(node) => node.id(),
-            PlanNodeEnum::Argument(node) => node.id(),
-            PlanNodeEnum::Loop(node) => node.id(),
-            PlanNodeEnum::PassThrough(node) => node.id(),
-            PlanNodeEnum::Select(node) => node.id(),
-            PlanNodeEnum::DataCollect(node) => node.id(),
-            PlanNodeEnum::Dedup(node) => node.id(),
-            PlanNodeEnum::PatternApply(node) => node.id(),
-            PlanNodeEnum::RollUpApply(node) => node.id(),
-            PlanNodeEnum::Union(node) => node.id(),
-            PlanNodeEnum::Unwind(node) => node.id(),
-            PlanNodeEnum::Assign(node) => node.id(),
-            PlanNodeEnum::MultiShortestPath(node) => node.id(),
-            PlanNodeEnum::BFSShortest(node) => node.id(),
-            PlanNodeEnum::AllPaths(node) => node.id(),
-            PlanNodeEnum::ShortestPath(node) => node.id(),
-
-            // 管理节点
-            _ => 0,
-        }
+        match_all_nodes_with_default!(self, id, 0)
     }
 
     /// 获取节点类型的名称
@@ -152,98 +215,14 @@ impl PlanNodeEnum {
 
     /// 获取列名列表
     pub fn col_names(&self) -> &[String] {
-        match self {
-            // 基础节点类型 - 这些节点实现了 PlanNode trait
-            PlanNodeEnum::Start(node) => node.col_names(),
-            PlanNodeEnum::Project(node) => node.col_names(),
-            PlanNodeEnum::Sort(node) => node.col_names(),
-            PlanNodeEnum::Limit(node) => node.col_names(),
-            PlanNodeEnum::TopN(node) => node.col_names(),
-            PlanNodeEnum::Sample(node) => node.col_names(),
-            PlanNodeEnum::InnerJoin(node) => node.col_names(),
-            PlanNodeEnum::LeftJoin(node) => node.col_names(),
-            PlanNodeEnum::CrossJoin(node) => node.col_names(),
-            PlanNodeEnum::HashInnerJoin(node) => node.col_names(),
-            PlanNodeEnum::HashLeftJoin(node) => node.col_names(),
-            PlanNodeEnum::IndexScan(node) => node.col_names(),
-            PlanNodeEnum::GetVertices(node) => node.col_names(),
-            PlanNodeEnum::GetEdges(node) => node.col_names(),
-            PlanNodeEnum::GetNeighbors(node) => node.col_names(),
-            PlanNodeEnum::ScanVertices(node) => node.col_names(),
-            PlanNodeEnum::ScanEdges(node) => node.col_names(),
-            PlanNodeEnum::Expand(node) => node.col_names(),
-            PlanNodeEnum::ExpandAll(node) => node.col_names(),
-            PlanNodeEnum::Traverse(node) => node.col_names(),
-            PlanNodeEnum::AppendVertices(node) => node.col_names(),
-            PlanNodeEnum::Filter(node) => node.col_names(),
-            PlanNodeEnum::Aggregate(node) => node.col_names(),
-            PlanNodeEnum::Argument(node) => node.col_names(),
-            PlanNodeEnum::Loop(node) => node.col_names(),
-            PlanNodeEnum::PassThrough(node) => node.col_names(),
-            PlanNodeEnum::Select(node) => node.col_names(),
-            PlanNodeEnum::DataCollect(node) => node.col_names(),
-            PlanNodeEnum::Dedup(node) => node.col_names(),
-            PlanNodeEnum::PatternApply(node) => node.col_names(),
-            PlanNodeEnum::RollUpApply(node) => node.col_names(),
-            PlanNodeEnum::Union(node) => node.col_names(),
-            PlanNodeEnum::Unwind(node) => node.col_names(),
-            PlanNodeEnum::Assign(node) => node.col_names(),
-            PlanNodeEnum::MultiShortestPath(node) => node.col_names(),
-            PlanNodeEnum::BFSShortest(node) => node.col_names(),
-            PlanNodeEnum::AllPaths(node) => node.col_names(),
-            PlanNodeEnum::ShortestPath(node) => node.col_names(),
-
-            // 管理节点 - 无列名
-            _ => &[],
-        }
+        match_all_nodes_with_default!(self, col_names, &[])
     }
 
     /// 获取节点的成本估计值
-    pub fn cost(&self) -> f64 {
-        match self {
-            // 基础节点类型 - 这些节点实现了 PlanNode trait
-            PlanNodeEnum::Start(node) => node.cost(),
-            PlanNodeEnum::Project(node) => node.cost(),
-            PlanNodeEnum::Sort(node) => node.cost(),
-            PlanNodeEnum::Limit(node) => node.cost(),
-            PlanNodeEnum::TopN(node) => node.cost(),
-            PlanNodeEnum::Sample(node) => node.cost(),
-            PlanNodeEnum::InnerJoin(node) => node.cost(),
-            PlanNodeEnum::LeftJoin(node) => node.cost(),
-            PlanNodeEnum::CrossJoin(node) => node.cost(),
-            PlanNodeEnum::HashInnerJoin(node) => node.cost(),
-            PlanNodeEnum::HashLeftJoin(node) => node.cost(),
-            PlanNodeEnum::IndexScan(node) => node.cost(),
-            PlanNodeEnum::GetVertices(node) => node.cost(),
-            PlanNodeEnum::GetEdges(node) => node.cost(),
-            PlanNodeEnum::GetNeighbors(node) => node.cost(),
-            PlanNodeEnum::ScanVertices(node) => node.cost(),
-            PlanNodeEnum::ScanEdges(node) => node.cost(),
-            PlanNodeEnum::Expand(node) => node.cost(),
-            PlanNodeEnum::ExpandAll(node) => node.cost(),
-            PlanNodeEnum::Traverse(node) => node.cost(),
-            PlanNodeEnum::AppendVertices(node) => node.cost(),
-            PlanNodeEnum::Filter(node) => node.cost(),
-            PlanNodeEnum::Aggregate(node) => node.cost(),
-            PlanNodeEnum::Argument(node) => node.cost(),
-            PlanNodeEnum::Loop(node) => node.cost(),
-            PlanNodeEnum::PassThrough(node) => node.cost(),
-            PlanNodeEnum::Select(node) => node.cost(),
-            PlanNodeEnum::DataCollect(node) => node.cost(),
-            PlanNodeEnum::Dedup(node) => node.cost(),
-            PlanNodeEnum::PatternApply(node) => node.cost(),
-            PlanNodeEnum::RollUpApply(node) => node.cost(),
-            PlanNodeEnum::Union(node) => node.cost(),
-            PlanNodeEnum::Unwind(node) => node.cost(),
-            PlanNodeEnum::Assign(node) => node.cost(),
-            PlanNodeEnum::MultiShortestPath(node) => node.cost(),
-            PlanNodeEnum::BFSShortest(node) => node.cost(),
-            PlanNodeEnum::AllPaths(node) => node.cost(),
-            PlanNodeEnum::ShortestPath(node) => node.cost(),
-
-            // 管理节点 - 默认成本
-            _ => 1.0,
-        }
+    /// 
+    /// 返回 None 表示代价未计算，Some(cost) 表示已计算
+    pub fn cost(&self) -> Option<f64> {
+        match_all_nodes_with_default!(self, cost, Some(1.0))
     }
 
     /// 获取节点的依赖节点列表
@@ -427,5 +406,62 @@ impl PlanNodeEnum {
             // 管理节点 - 不需要设置列名
             _ => {}
         }
+    }
+
+    /// 设置节点的代价
+    pub fn set_cost(&mut self, cost: f64) {
+        match self {
+            // 基础节点类型
+            PlanNodeEnum::Start(node) => node.set_cost(cost),
+            PlanNodeEnum::Project(node) => node.set_cost(cost),
+            PlanNodeEnum::Sort(node) => node.set_cost(cost),
+            PlanNodeEnum::Limit(node) => node.set_cost(cost),
+            PlanNodeEnum::TopN(node) => node.set_cost(cost),
+            PlanNodeEnum::Sample(node) => node.set_cost(cost),
+            PlanNodeEnum::InnerJoin(node) => node.set_cost(cost),
+            PlanNodeEnum::LeftJoin(node) => node.set_cost(cost),
+            PlanNodeEnum::CrossJoin(node) => node.set_cost(cost),
+            PlanNodeEnum::HashInnerJoin(node) => node.set_cost(cost),
+            PlanNodeEnum::HashLeftJoin(node) => node.set_cost(cost),
+            PlanNodeEnum::FullOuterJoin(node) => node.set_cost(cost),
+            PlanNodeEnum::IndexScan(node) => node.set_cost(cost),
+            PlanNodeEnum::GetVertices(node) => node.set_cost(cost),
+            PlanNodeEnum::GetEdges(node) => node.set_cost(cost),
+            PlanNodeEnum::GetNeighbors(node) => node.set_cost(cost),
+            PlanNodeEnum::ScanVertices(node) => node.set_cost(cost),
+            PlanNodeEnum::ScanEdges(node) => node.set_cost(cost),
+            PlanNodeEnum::EdgeIndexScan(node) => node.set_cost(cost),
+            PlanNodeEnum::Expand(node) => node.set_cost(cost),
+            PlanNodeEnum::ExpandAll(node) => node.set_cost(cost),
+            PlanNodeEnum::Traverse(node) => node.set_cost(cost),
+            PlanNodeEnum::AppendVertices(node) => node.set_cost(cost),
+            PlanNodeEnum::Filter(node) => node.set_cost(cost),
+            PlanNodeEnum::Aggregate(node) => node.set_cost(cost),
+            PlanNodeEnum::Argument(node) => node.set_cost(cost),
+            PlanNodeEnum::Loop(node) => node.set_cost(cost),
+            PlanNodeEnum::PassThrough(node) => node.set_cost(cost),
+            PlanNodeEnum::Select(node) => node.set_cost(cost),
+            PlanNodeEnum::DataCollect(node) => node.set_cost(cost),
+            PlanNodeEnum::Dedup(node) => node.set_cost(cost),
+            PlanNodeEnum::PatternApply(node) => node.set_cost(cost),
+            PlanNodeEnum::RollUpApply(node) => node.set_cost(cost),
+            PlanNodeEnum::Union(node) => node.set_cost(cost),
+            PlanNodeEnum::Minus(node) => node.set_cost(cost),
+            PlanNodeEnum::Intersect(node) => node.set_cost(cost),
+            PlanNodeEnum::Unwind(node) => node.set_cost(cost),
+            PlanNodeEnum::Assign(node) => node.set_cost(cost),
+            PlanNodeEnum::MultiShortestPath(node) => node.set_cost(cost),
+            PlanNodeEnum::BFSShortest(node) => node.set_cost(cost),
+            PlanNodeEnum::AllPaths(node) => node.set_cost(cost),
+            PlanNodeEnum::ShortestPath(node) => node.set_cost(cost),
+
+            // 管理节点 - 不需要设置代价
+            _ => {}
+        }
+    }
+
+    /// 检查代价是否已计算
+    pub fn is_cost_calculated(&self) -> bool {
+        match_all_nodes_with_default!(self, is_cost_calculated, true)
     }
 }
