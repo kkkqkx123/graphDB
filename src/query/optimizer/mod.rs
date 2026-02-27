@@ -7,6 +7,7 @@
 //! - `stats` - 统计信息模块，管理标签、边类型和属性的统计信息
 //! - `cost` - 代价计算模块，计算查询操作的代价
 //! - `strategy` - 优化策略模块，提供遍历起点选择和索引选择
+//! - `decision` - 优化决策模块，提供基于决策的缓存机制
 //!
 //! ## 使用示例
 //!
@@ -28,6 +29,7 @@
 pub mod stats;
 pub mod cost;
 pub mod strategy;
+pub mod decision;
 
 // 重新导出主要类型
 pub use stats::{
@@ -55,4 +57,23 @@ pub use strategy::{
     IndexSelection,
     PropertyPredicate,
     PredicateOperator,
+};
+
+pub use decision::{
+    AccessPath,
+    EntityType,
+    EntityIndexChoice,
+    IndexChoice,
+    IndexSelectionDecision,
+    JoinAlgorithm,
+    JoinOrderDecision,
+    OptimizationDecision,
+    RewriteRuleId,
+    TraversalStartDecision,
+    CachedDecision,
+    DecisionCache,
+    DecisionCacheConfig,
+    DecisionCacheError,
+    DecisionCacheKey,
+    DecisionCacheStats,
 };

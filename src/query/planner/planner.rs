@@ -2,18 +2,13 @@
 //! 使用类型安全的枚举实现静态注册，完全消除动态分发
 //!
 
-use std::num::NonZeroUsize;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
 
 use crate::query::QueryContext;
 use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::ExecutionPlan;
 use crate::query::planner::plan::SubPlan;
-use crate::query::planner::template_extractor::TemplateExtractor;
 use crate::query::validator::StatementType;
-use lru::LruCache;
-use parking_lot::Mutex;
 
 use crate::query::planner::statements::delete_planner::DeletePlanner;
 use crate::query::planner::statements::fetch_edges_planner::FetchEdgesPlanner;
@@ -35,380 +30,17 @@ use crate::query::planner::rewrite::{rewrite_plan, RewriteError};
 /// 规划器配置
 #[derive(Debug, Clone)]
 pub struct PlannerConfig {
-    pub enable_caching: bool,
     pub max_plan_depth: usize,
     pub enable_parallel_planning: bool,
-    pub default_timeout: Duration,
-    pub cache_size: usize,
-    /// 启用计划重写优化
     pub enable_rewrite: bool,
 }
 
 impl Default for PlannerConfig {
     fn default() -> Self {
         Self {
-            enable_caching: true,
             max_plan_depth: 100,
             enable_parallel_planning: false,
-            default_timeout: Duration::from_secs(30),
-            cache_size: 1000,
             enable_rewrite: true,
-        }
-    }
-}
-
-/// 计划缓存键
-/// 支持参数化查询缓存，将具体参数值替换为占位符
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
-pub struct PlanCacheKey {
-    /// 查询模板（参数化后的 SQL）
-    query_template: String,
-    /// 图空间 ID
-    space_id: Option<i32>,
-    /// 语句类型
-    statement_type: SentenceKind,
-    /// 模式指纹（用于 MATCH 查询的结构识别）
-    pattern_fingerprint: Option<String>,
-}
-
-impl PlanCacheKey {
-    /// 创建新的缓存键
-    pub fn new(
-        query_template: String,
-        space_id: Option<i32>,
-        statement_type: SentenceKind,
-        pattern_fingerprint: Option<String>,
-    ) -> Self {
-        Self {
-            query_template,
-            space_id,
-            statement_type,
-            pattern_fingerprint,
-        }
-    }
-
-    /// 从语句创建缓存键
-    pub fn from_stmt(stmt: &Stmt, space_id: Option<i32>) -> Result<Self, PlannerError> {
-        let statement_type = SentenceKind::from_stmt(stmt)?;
-        let query_template = Self::extract_template(stmt);
-        let pattern_fingerprint = Self::generate_fingerprint(stmt);
-
-        Ok(Self {
-            query_template,
-            space_id,
-            statement_type,
-            pattern_fingerprint,
-        })
-    }
-
-    /// 提取查询模板（参数化）
-    /// 将具体参数值替换为占位符，使相似查询共享缓存
-    fn extract_template(stmt: &Stmt) -> String {
-        TemplateExtractor::extract(stmt)
-    }
-
-    /// 生成模式指纹
-    /// 用于识别查询的结构特征
-    fn generate_fingerprint(stmt: &Stmt) -> Option<String> {
-        match stmt {
-            Stmt::Match(m) => {
-                // 提取模式结构作为指纹
-                let pattern_count = m.patterns.len();
-                let has_where = m.where_clause.is_some();
-                let has_return = m.return_clause.is_some();
-                Some(format!("M:{}:W{}:R{}", pattern_count, has_where as u8, has_return as u8))
-            }
-            Stmt::Go(g) => {
-                // 提取步数特征
-                let step_str = match &g.steps {
-                    crate::query::parser::ast::Steps::Fixed(n) => format!("F{}", n),
-                    crate::query::parser::ast::Steps::Range { min, max } => format!("R{}-{}", min, max),
-                    crate::query::parser::ast::Steps::Variable(_) => "V".to_string(),
-                };
-                Some(format!("G:{}:S{}", step_str, g.over.as_ref().map(|_| "E").unwrap_or("N")))
-            }
-            _ => None,
-        }
-    }
-}
-
-/// 缓存的计划项
-/// 包含执行计划和元数据
-#[derive(Debug, Clone)]
-pub struct CachedPlan {
-    /// 执行计划
-    pub plan: ExecutionPlan,
-    /// 创建时间
-    pub created_at: Instant,
-    /// 最后访问时间
-    pub last_accessed: Instant,
-    /// 访问次数
-    pub access_count: u64,
-}
-
-impl CachedPlan {
-    /// 创建新的缓存项
-    pub fn new(plan: ExecutionPlan) -> Self {
-        let now = Instant::now();
-        Self {
-            plan,
-            created_at: now,
-            last_accessed: now,
-            access_count: 1,
-        }
-    }
-
-    /// 记录访问
-    pub fn record_access(&mut self) {
-        self.last_accessed = Instant::now();
-        self.access_count += 1;
-    }
-
-    /// 计算缓存价值分数（用于淘汰策略）
-    /// 分数越高越应该保留
-    pub fn value_score(&self) -> f64 {
-        let age_secs = self.created_at.elapsed().as_secs() as f64;
-        let recency = 1.0 / (1.0 + age_secs / 3600.0);
-
-        let frequency = (self.access_count as f64).ln_1p();
-
-        recency * frequency
-    }
-}
-
-/// 计划缓存统计
-#[derive(Debug, Clone, Default)]
-pub struct PlanCacheStats {
-    /// 命中次数
-    pub hits: u64,
-    /// 未命中次数
-    pub misses: u64,
-    /// 插入次数
-    pub inserts: u64,
-    /// 淘汰次数
-    pub evictions: u64,
-}
-
-impl PlanCacheStats {
-    /// 总查询次数
-    pub fn total_queries(&self) -> u64 {
-        self.hits + self.misses
-    }
-
-    /// 命中率
-    pub fn hit_rate(&self) -> f64 {
-        let total = self.total_queries();
-        if total == 0 {
-            0.0
-        } else {
-            self.hits as f64 / total as f64
-        }
-    }
-}
-
-/// 计划缓存配置
-#[derive(Debug, Clone)]
-pub struct PlanCacheConfig {
-    /// 最大缓存条目数
-    pub max_entries: usize,
-    /// 条目最大存活时间（秒）
-    pub ttl_seconds: u64,
-    /// 启用统计
-    pub enable_stats: bool,
-    /// 最小执行时间阈值（微秒）- 低于此值不缓存
-    pub min_execution_time_us: u64,
-    /// 最大计划复杂度（节点数）
-    pub max_plan_nodes: usize,
-    /// 最小节点数才缓存（太简单的查询不缓存）
-    pub min_plan_nodes: usize,
-}
-
-impl Default for PlanCacheConfig {
-    fn default() -> Self {
-        Self {
-            max_entries: 1000,
-            ttl_seconds: 3600, // 1小时
-            enable_stats: true,
-            min_execution_time_us: 1000, // 1ms
-            max_plan_nodes: 100,
-            min_plan_nodes: 3,
-        }
-    }
-}
-
-/// 计划缓存
-#[derive(Debug)]
-pub struct PlanCache {
-    cache: Mutex<LruCache<PlanCacheKey, CachedPlan>>,
-    stats: Mutex<PlanCacheStats>,
-    config: PlanCacheConfig,
-}
-
-impl PlanCache {
-    /// 创建新的计划缓存
-    pub fn new(config: PlanCacheConfig) -> Result<Self, PlannerError> {
-        if config.max_entries == 0 {
-            return Err(PlannerError::InvalidOperation(
-                "Plan cache size must be greater than 0".to_string(),
-            ));
-        }
-        let cache_size = NonZeroUsize::new(config.max_entries)
-            .ok_or_else(|| PlannerError::InvalidOperation(
-                "Failed to create plan cache with size".to_string(),
-            ))?;
-        Ok(Self {
-            cache: Mutex::new(LruCache::new(cache_size)),
-            stats: Mutex::new(PlanCacheStats::default()),
-            config,
-        })
-    }
-
-    /// 使用默认配置创建
-    pub fn with_default_config() -> Result<Self, PlannerError> {
-        Self::new(PlanCacheConfig::default())
-    }
-
-    /// 获取缓存的计划
-    pub fn get(&self, key: &PlanCacheKey) -> Result<Option<ExecutionPlan>, PlannerError> {
-        let mut cache = self.cache.lock();
-        
-        if let Some(cached) = cache.get_mut(key) {
-            // 检查 TTL
-            if self.is_expired(cached) {
-                cache.pop(key);
-                drop(cache);
-                self.record_miss();
-                return Ok(None);
-            }
-            
-            cached.record_access();
-            let plan = cached.plan.clone();
-            drop(cache);
-            self.record_hit();
-            Ok(Some(plan))
-        } else {
-            drop(cache);
-            self.record_miss();
-            Ok(None)
-        }
-    }
-
-    /// 插入计划到缓存
-    pub fn insert(
-        &self,
-        key: PlanCacheKey,
-        plan: ExecutionPlan,
-    ) -> Result<(), PlannerError> {
-        if !self.should_cache(&plan) {
-            return Ok(());
-        }
-
-        let cached = CachedPlan::new(plan);
-        let mut cache = self.cache.lock();
-        
-        if cache.len() >= self.config.max_entries && !cache.contains(&key) {
-            self.record_eviction();
-        }
-        
-        cache.push(key, cached);
-        drop(cache);
-        
-        self.record_insert();
-        Ok(())
-    }
-
-    /// 从语句和计划创建缓存项
-    pub fn insert_from_stmt(
-        &self,
-        stmt: &Stmt,
-        space_id: Option<i32>,
-        plan: ExecutionPlan,
-    ) -> Result<(), PlannerError> {
-        let key = PlanCacheKey::from_stmt(stmt, space_id)?;
-        self.insert(key, plan)
-    }
-
-    /// 移除缓存项
-    pub fn remove(&self, key: &PlanCacheKey) -> Result<(), PlannerError> {
-        let mut cache = self.cache.lock();
-        cache.pop(key);
-        Ok(())
-    }
-
-    /// 清空缓存
-    pub fn clear(&self) -> Result<(), PlannerError> {
-        let mut cache = self.cache.lock();
-        cache.clear();
-        
-        let mut stats = self.stats.lock();
-        *stats = PlanCacheStats::default();
-        
-        Ok(())
-    }
-
-    /// 获取缓存大小
-    pub fn size(&self) -> usize {
-        let cache = self.cache.lock();
-        cache.len()
-    }
-
-    /// 获取统计信息
-    pub fn stats(&self) -> PlanCacheStats {
-        let stats = self.stats.lock();
-        stats.clone()
-    }
-
-    /// 检查计划是否应该被缓存
-    fn should_cache(&self, plan: &ExecutionPlan) -> bool {
-        let node_count = plan.node_count();
-        
-        // 太简单的查询不缓存
-        if node_count < self.config.min_plan_nodes {
-            return false;
-        }
-        
-        // 太复杂的查询可能是 adhoc，不缓存
-        if node_count > self.config.max_plan_nodes {
-            return false;
-        }
-        
-        true
-    }
-
-    /// 检查缓存项是否过期
-    fn is_expired(&self, cached: &CachedPlan) -> bool {
-        cached.created_at.elapsed().as_secs() > self.config.ttl_seconds
-    }
-
-    /// 记录命中
-    fn record_hit(&self) {
-        if self.config.enable_stats {
-            let mut stats = self.stats.lock();
-            stats.hits += 1;
-        }
-    }
-
-    /// 记录未命中
-    fn record_miss(&self) {
-        if self.config.enable_stats {
-            let mut stats = self.stats.lock();
-            stats.misses += 1;
-        }
-    }
-
-    /// 记录插入
-    fn record_insert(&self) {
-        if self.config.enable_stats {
-            let mut stats = self.stats.lock();
-            stats.inserts += 1;
-        }
-    }
-
-    /// 记录淘汰
-    fn record_eviction(&self) {
-        if self.config.enable_stats {
-            let mut stats = self.stats.lock();
-            stats.evictions += 1;
         }
     }
 }
@@ -620,6 +252,8 @@ pub type MatchFunc = fn(&Stmt) -> bool;
 /// # 重构变更
 /// - transform 方法接收 Arc<QueryContext> 和 &Stmt 替代 &AstContext
 /// - match_planner 方法接收 &Stmt 替代 &AstContext
+/// - 新增 transform_with_decision 方法支持使用预计算决策
+/// - 新增 compute_decision 方法用于计算优化决策
 pub trait Planner: std::fmt::Debug {
     fn transform(
         &mut self,
@@ -628,12 +262,68 @@ pub trait Planner: std::fmt::Debug {
     ) -> Result<SubPlan, PlannerError>;
     fn match_planner(&self, stmt: &Stmt) -> bool;
 
+    /// 使用预计算的优化决策生成计划
+    ///
+    /// 当决策缓存命中时，使用此方法避免重复计算
+    fn transform_with_decision(
+        &mut self,
+        stmt: &Stmt,
+        qctx: Arc<QueryContext>,
+        decision: &crate::query::optimizer::decision::OptimizationDecision,
+    ) -> Result<SubPlan, PlannerError> {
+        // 默认实现：忽略决策，直接调用 transform
+        // 子类应该覆盖此方法以应用决策
+        self.transform(stmt, qctx)
+    }
+
+    /// 计算优化决策
+    ///
+    /// 用于决策缓存未命中时计算新的决策
+    fn compute_decision(
+        &mut self,
+        stmt: &Stmt,
+        qctx: Arc<QueryContext>,
+    ) -> Result<crate::query::optimizer::decision::OptimizationDecision, PlannerError> {
+        // 默认实现：返回空决策
+        // 子类应该覆盖此方法以计算实际决策
+        Ok(crate::query::optimizer::decision::OptimizationDecision::new(
+            crate::query::optimizer::decision::TraversalStartDecision::new(
+                "default".to_string(),
+                crate::query::optimizer::decision::AccessPath::FullScan {
+                    entity_type: crate::query::optimizer::decision::EntityType::Vertex { tag_name: None },
+                },
+                1.0,
+                1000.0,
+            ),
+            crate::query::optimizer::decision::IndexSelectionDecision::empty(),
+            crate::query::optimizer::decision::JoinOrderDecision::empty(),
+            0,
+            0,
+        ))
+    }
+
     fn transform_with_full_context(
         &mut self,
         qctx: Arc<QueryContext>,
         stmt: &Stmt,
     ) -> Result<ExecutionPlan, PlannerError> {
         let sub_plan = self.transform(stmt, qctx)?;
+        let plan = ExecutionPlan::new(sub_plan.root().clone());
+        
+        // 应用计划重写优化
+        let plan = rewrite_plan(plan)?;
+        
+        Ok(plan)
+    }
+
+    /// 使用决策生成完整执行计划
+    fn transform_with_decision_full_context(
+        &mut self,
+        qctx: Arc<QueryContext>,
+        stmt: &Stmt,
+        decision: &crate::query::optimizer::decision::OptimizationDecision,
+    ) -> Result<ExecutionPlan, PlannerError> {
+        let sub_plan = self.transform_with_decision(stmt, qctx, decision)?;
         let plan = ExecutionPlan::new(sub_plan.root().clone());
         
         // 应用计划重写优化
@@ -716,6 +406,32 @@ impl PlannerEnum {
             PlannerEnum::GroupBy(planner) => planner.transform(stmt, qctx),
             PlannerEnum::SetOperation(planner) => planner.transform(stmt, qctx),
             PlannerEnum::Use(planner) => planner.transform(stmt, qctx),
+        }
+    }
+
+    /// 使用预计算的优化决策生成计划
+    pub fn transform_with_decision(
+        &mut self,
+        stmt: &Stmt,
+        qctx: Arc<QueryContext>,
+        decision: &crate::query::optimizer::decision::OptimizationDecision,
+    ) -> Result<SubPlan, PlannerError> {
+        match self {
+            PlannerEnum::Match(planner) => planner.transform_with_decision(stmt, qctx, decision),
+            PlannerEnum::Go(planner) => planner.transform_with_decision(stmt, qctx, decision),
+            PlannerEnum::Lookup(planner) => planner.transform_with_decision(stmt, qctx, decision),
+            PlannerEnum::Path(planner) => planner.transform_with_decision(stmt, qctx, decision),
+            PlannerEnum::Subgraph(planner) => planner.transform_with_decision(stmt, qctx, decision),
+            PlannerEnum::FetchVertices(planner) => planner.transform_with_decision(stmt, qctx, decision),
+            PlannerEnum::FetchEdges(planner) => planner.transform_with_decision(stmt, qctx, decision),
+            PlannerEnum::Maintain(planner) => planner.transform_with_decision(stmt, qctx, decision),
+            PlannerEnum::UserManagement(planner) => planner.transform_with_decision(stmt, qctx, decision),
+            PlannerEnum::Insert(planner) => planner.transform_with_decision(stmt, qctx, decision),
+            PlannerEnum::Delete(planner) => planner.transform_with_decision(stmt, qctx, decision),
+            PlannerEnum::Update(planner) => planner.transform_with_decision(stmt, qctx, decision),
+            PlannerEnum::GroupBy(planner) => planner.transform_with_decision(stmt, qctx, decision),
+            PlannerEnum::SetOperation(planner) => planner.transform_with_decision(stmt, qctx, decision),
+            PlannerEnum::Use(planner) => planner.transform_with_decision(stmt, qctx, decision),
         }
     }
 

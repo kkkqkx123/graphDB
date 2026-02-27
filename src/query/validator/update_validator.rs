@@ -703,6 +703,9 @@ mod tests {
         }
     }
 
+    #[derive(Debug)]
+    struct MockSchemaManager;
+
     impl SchemaManager for MockSchemaManager {
         fn create_space(&self, _space: &crate::core::types::SpaceInfo) -> crate::storage::StorageResult<bool> {
             Ok(true)

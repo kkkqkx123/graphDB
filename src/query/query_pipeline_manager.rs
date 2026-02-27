@@ -5,7 +5,7 @@
 //! 2. 协调各个处理阶段（解析→验证→规划→优化→执行）
 //! 3. 处理错误和异常
 //! 4. 管理查询上下文和性能监控
-//! 5. 查询计划缓存
+//! 5. 查询优化决策缓存
 
 use crate::core::{QueryMetrics, QueryProfile, StatsManager, ErrorInfo, ErrorType, QueryPhase};
 use crate::query::QueryContext;
@@ -13,7 +13,11 @@ use crate::core::error::{DBError, DBResult, QueryError};
 use crate::query::executor::factory::ExecutorFactory;
 use crate::query::executor::base::ExecutionResult;
 use crate::query::parser::Parser;
-use crate::query::planner::planner::{PlanCache, PlanCacheKey};
+use crate::query::optimizer::decision::{
+    DecisionCache, DecisionCacheConfig, DecisionCacheKey, OptimizationDecision,
+};
+use crate::query::planner::planner::SentenceKind;
+use crate::query::planner::template_extractor::TemplateExtractor;
 use crate::storage::StorageClient;
 use std::sync::Arc;
 use parking_lot::Mutex;
@@ -22,21 +26,25 @@ use std::time::Instant;
 pub struct QueryPipelineManager<S: StorageClient + 'static> {
     executor_factory: ExecutorFactory<S>,
     stats_manager: Arc<StatsManager>,
-    plan_cache: Option<PlanCache>,
+    decision_cache: Option<DecisionCache>,
+    /// 统计信息版本（用于决策缓存失效）
+    stats_version: u64,
+    /// 索引版本（用于决策缓存失效）
+    index_version: u64,
 }
 
 impl<S: StorageClient + 'static> QueryPipelineManager<S> {
     pub fn new(storage: Arc<Mutex<S>>, stats_manager: Arc<StatsManager>) -> Self {
         let executor_factory = ExecutorFactory::with_storage(storage.clone());
 
-        // 尝试创建计划缓存
-        let plan_cache = match PlanCache::with_default_config() {
+        // 尝试创建决策缓存
+        let decision_cache = match DecisionCache::with_default_config() {
             Ok(cache) => {
-                log::info!("查询计划缓存已启用");
+                log::info!("查询优化决策缓存已启用");
                 Some(cache)
             }
             Err(e) => {
-                log::warn!("无法创建查询计划缓存: {}", e);
+                log::warn!("无法创建查询优化决策缓存: {}", e);
                 None
             }
         };
@@ -44,21 +52,23 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         Self {
             executor_factory,
             stats_manager,
-            plan_cache,
+            decision_cache,
+            stats_version: 1,
+            index_version: 1,
         }
     }
 
     pub fn with_config(storage: Arc<Mutex<S>>, stats_manager: Arc<StatsManager>) -> Self {
         let executor_factory = ExecutorFactory::with_storage(storage.clone());
 
-        // 尝试创建计划缓存
-        let plan_cache = match PlanCache::with_default_config() {
+        // 尝试创建决策缓存
+        let decision_cache = match DecisionCache::with_default_config() {
             Ok(cache) => {
-                log::info!("查询计划缓存已启用");
+                log::info!("查询优化决策缓存已启用");
                 Some(cache)
             }
             Err(e) => {
-                log::warn!("无法创建查询计划缓存: {}", e);
+                log::warn!("无法创建查询优化决策缓存: {}", e);
                 None
             }
         };
@@ -66,7 +76,9 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         Self {
             executor_factory,
             stats_manager,
-            plan_cache,
+            decision_cache,
+            stats_version: 1,
+            index_version: 1,
         }
     }
 
@@ -285,36 +297,53 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         query_context: Arc<QueryContext>,
         stmt: &crate::query::parser::ast::Stmt,
     ) -> DBResult<crate::query::planner::plan::ExecutionPlan> {
-        // 1. 尝试从缓存获取
-        if let Some(ref cache) = self.plan_cache {
-            match PlanCacheKey::from_stmt(stmt, query_context.space_id().map(|id| id as i32)) {
-                Ok(cache_key) => {
-                    match cache.get(&cache_key) {
-                        Ok(Some(cached_plan)) => {
-                            log::debug!("查询计划缓存命中");
-                            return Ok(cached_plan);
-                        }
-                        Ok(None) => {
-                            // 缓存未命中，继续生成计划
-                        }
-                        Err(e) => {
-                            log::warn!("查询计划缓存访问失败: {}", e);
-                        }
-                    }
-                }
-                Err(e) => {
-                    log::warn!("无法创建缓存键: {}", e);
-                }
-            }
-        }
-
-        // 2. 生成新计划
+        // 获取语句类型
         let kind = crate::query::planner::planner::SentenceKind::from_stmt(stmt)
             .map_err(|e| DBError::from(QueryError::pipeline_planning_error(e)))?;
-        
+
+        // 获取或计算优化决策
+        let decision = if let Some(ref cache) = self.decision_cache {
+            // 构建决策缓存键
+            let template = TemplateExtractor::extract(stmt);
+            let template_hash = DecisionCacheKey::hash_template(&template);
+            let decision_key = DecisionCacheKey::new(
+                template_hash,
+                query_context.space_id().map(|id| id as i32),
+                kind,
+                Self::generate_pattern_fingerprint(stmt),
+            );
+
+            // 尝试从缓存获取或使用计算函数
+            match cache.get_or_compute(
+                decision_key,
+                self.stats_version,
+                self.index_version,
+                || self.compute_decision(stmt, query_context.clone(), kind),
+            ) {
+                Ok(decision) => {
+                    log::debug!("优化决策缓存命中或使用新决策");
+                    Some(decision)
+                }
+                Err(e) => {
+                    log::warn!("决策缓存操作失败: {}", e);
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
+        // 生成执行计划
         let plan = if let Some(mut planner_enum) = crate::query::planner::planner::PlannerEnum::from_sentence_kind(kind) {
-            let sub_plan = planner_enum.transform(stmt, query_context.clone())
-                .map_err(|e| DBError::from(QueryError::pipeline_planning_error(e)))?;
+            let sub_plan = if let Some(ref decision) = decision {
+                // 使用预计算的决策生成计划
+                planner_enum.transform_with_decision(stmt, query_context.clone(), decision)
+                    .map_err(|e| DBError::from(QueryError::pipeline_planning_error(e)))?
+            } else {
+                // 不使用决策，直接生成计划
+                planner_enum.transform(stmt, query_context.clone())
+                    .map_err(|e| DBError::from(QueryError::pipeline_planning_error(e)))?
+            };
             crate::query::planner::plan::ExecutionPlan::new(sub_plan.root().clone())
         } else {
             return Err(DBError::from(QueryError::pipeline_planning_error(
@@ -324,18 +353,152 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
             )));
         };
 
-        // 3. 存入缓存
-        if let Some(ref cache) = self.plan_cache {
-            if let Ok(cache_key) = PlanCacheKey::from_stmt(stmt, query_context.space_id().map(|id| id as i32)) {
-                if let Err(e) = cache.insert(cache_key, plan.clone()) {
-                    log::warn!("无法缓存查询计划: {}", e);
-                } else {
-                    log::debug!("查询计划已缓存");
+        Ok(plan)
+    }
+
+    /// 计算优化决策
+    fn compute_decision(
+        &self,
+        stmt: &crate::query::parser::ast::Stmt,
+        qctx: Arc<QueryContext>,
+        kind: SentenceKind,
+    ) -> Result<OptimizationDecision, crate::query::optimizer::decision::DecisionCacheError> {
+        use crate::query::optimizer::decision::{
+            TraversalStartDecision, AccessPath, EntityType,
+            IndexSelectionDecision, JoinOrderDecision,
+        };
+        use crate::query::optimizer::{TraversalStartSelector, CostCalculator, SelectivityEstimator};
+        use crate::query::optimizer::stats::StatisticsManager;
+
+        // 创建统计信息管理器和代价计算器
+        let stats_manager = Arc::new(StatisticsManager::new());
+        let cost_calculator = Arc::new(CostCalculator::new(stats_manager.clone()));
+        let selectivity_estimator = Arc::new(SelectivityEstimator::new(stats_manager.clone()));
+
+        // 根据语句类型计算决策
+        match kind {
+            SentenceKind::Match => {
+                // 对于 MATCH 语句，计算遍历起点决策
+                let selector = TraversalStartSelector::new(
+                    cost_calculator,
+                    selectivity_estimator,
+                );
+
+                // 提取模式并选择起点
+                if let crate::query::parser::ast::Stmt::Match(match_stmt) = stmt {
+                    // 简化实现：使用第一个模式
+                    if let Some(pattern) = match_stmt.patterns.first() {
+                        if let Some(candidate) = selector.select_start_node(pattern) {
+                            let access_path = Self::convert_selection_reason_to_access_path(
+                                &candidate.reason,
+                            );
+
+                            let variable_name = candidate.node_pattern.variable.clone()
+                                .unwrap_or_else(|| "n".to_string());
+
+                            let traversal_decision = TraversalStartDecision::new(
+                                variable_name,
+                                access_path,
+                                candidate.estimated_start_nodes as f64 / 10000.0, // 简化的选择性计算
+                                candidate.estimated_cost,
+                            );
+
+                            return Ok(OptimizationDecision::new(
+                                traversal_decision,
+                                IndexSelectionDecision::empty(),
+                                JoinOrderDecision::empty(),
+                                self.stats_version,
+                                self.index_version,
+                            ));
+                        }
+                    }
                 }
+
+                // 默认决策
+                Ok(OptimizationDecision::new(
+                    TraversalStartDecision::new(
+                        "n".to_string(),
+                        AccessPath::FullScan {
+                            entity_type: EntityType::Vertex { tag_name: None },
+                        },
+                        1.0,
+                        1000.0,
+                    ),
+                    IndexSelectionDecision::empty(),
+                    JoinOrderDecision::empty(),
+                    self.stats_version,
+                    self.index_version,
+                ))
+            }
+            _ => {
+                // 其他语句类型使用默认决策
+                Ok(OptimizationDecision::new(
+                    TraversalStartDecision::new(
+                        "default".to_string(),
+                        AccessPath::FullScan {
+                            entity_type: EntityType::Vertex { tag_name: None },
+                        },
+                        1.0,
+                        1000.0,
+                    ),
+                    IndexSelectionDecision::empty(),
+                    JoinOrderDecision::empty(),
+                    self.stats_version,
+                    self.index_version,
+                ))
             }
         }
+    }
 
-        Ok(plan)
+    /// 将选择原因转换为访问路径
+    fn convert_selection_reason_to_access_path(
+        reason: &crate::query::optimizer::strategy::SelectionReason,
+    ) -> crate::query::optimizer::decision::AccessPath {
+        use crate::query::optimizer::strategy::SelectionReason;
+        use crate::query::optimizer::decision::{AccessPath, EntityType};
+
+        match reason {
+            SelectionReason::ExplicitVid => AccessPath::ExplicitVid {
+                vid_description: "explicit".to_string(),
+            },
+            SelectionReason::HighSelectivityIndex { .. } => AccessPath::IndexScan {
+                index_name: "auto".to_string(),
+                property_name: "unknown".to_string(),
+                predicate_description: "high_selectivity".to_string(),
+            },
+            SelectionReason::TagIndex { .. } => AccessPath::TagIndex {
+                tag_name: "default".to_string(),
+            },
+            SelectionReason::FullScan { .. } => AccessPath::FullScan {
+                entity_type: EntityType::Vertex { tag_name: None },
+            },
+            SelectionReason::VariableBinding { variable_name } => AccessPath::VariableBinding {
+                source_variable: variable_name.clone(),
+            },
+        }
+    }
+
+    /// 生成模式指纹
+    fn generate_pattern_fingerprint(
+        stmt: &crate::query::parser::ast::Stmt,
+    ) -> Option<String> {
+        match stmt {
+            crate::query::parser::ast::Stmt::Match(m) => {
+                let pattern_count = m.patterns.len();
+                let has_where = m.where_clause.is_some();
+                let has_return = m.return_clause.is_some();
+                Some(format!("M:{}:W{}:R{}", pattern_count, has_where as u8, has_return as u8))
+            }
+            crate::query::parser::ast::Stmt::Go(g) => {
+                let step_str = match &g.steps {
+                    crate::query::parser::ast::Steps::Fixed(n) => format!("F{}", n),
+                    crate::query::parser::ast::Steps::Range { min, max } => format!("R{}-{}", min, max),
+                    crate::query::parser::ast::Steps::Variable(_) => "V".to_string(),
+                };
+                Some(format!("G:{}:S{}", step_str, g.over.as_ref().map(|_| "E").unwrap_or("N")))
+            }
+            _ => None,
+        }
     }
 
     fn optimize_execution_plan(

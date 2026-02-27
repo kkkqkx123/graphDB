@@ -16,8 +16,7 @@ pub mod rewrite;
 // 重新导出主要的类型
 pub use plan::execution_plan::{ExecutionPlan, SubPlan};
 pub use planner::{
-    Planner, PlannerConfig, PlannerError,
-    PlanCache, PlanCacheKey, SentenceKind,
+    Planner, PlannerConfig, PlannerError, SentenceKind,
 };
 pub use connector::SegmentsConnector;
 pub use template_extractor::{TemplateExtractor, ParameterizingTransformer, ParameterizedResult};
