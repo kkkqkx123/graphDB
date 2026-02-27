@@ -133,30 +133,41 @@ impl CostCalculator {
     /// - `start_nodes`: 起始节点数量
     /// - `edge_type`: 边类型（可选）
     pub fn calculate_expand_cost(&self, start_nodes: u64, edge_type: Option<&str>) -> f64 {
-        let avg_degree = match edge_type {
+        let (avg_degree, is_super_node) = match edge_type {
             Some(et) => self
                 .stats_manager
                 .get_edge_stats(et)
-                .map(|s| s.avg_out_degree)
-                .unwrap_or(1.0),
-            None => 2.0, // 默认平均度数
+                .map(|s| {
+                    let is_super = s.avg_out_degree > self.config.super_node_threshold as f64;
+                    (s.avg_out_degree, is_super)
+                })
+                .unwrap_or((2.0, false)),
+            None => (2.0, false), // 默认平均度数
         };
 
         let output_rows = (start_nodes as f64 * avg_degree) as u64;
 
-        // IO代价：读取边数据
-        let io_cost = output_rows as f64 * self.config.seq_page_cost;
-        // CPU代价：处理边和顶点
-        let cpu_cost = output_rows as f64 * self.config.cpu_tuple_cost;
+        // IO代价：读取边数据（考虑缓存）
+        let io_cost = self.calculate_io_cost(output_rows);
+        // CPU代价：边遍历代价（比顶点处理更复杂）
+        let cpu_cost = output_rows as f64 * self.config.edge_traversal_cost;
 
-        io_cost + cpu_cost
+        let base_cost = io_cost + cpu_cost;
+
+        // 超级节点额外代价惩罚
+        if is_super_node {
+            base_cost * self.config.super_node_penalty
+        } else {
+            base_cost
+        }
     }
 
     /// 计算全扩展代价（ExpandAll）
     pub fn calculate_expand_all_cost(&self, start_nodes: u64, edge_type: Option<&str>) -> f64 {
         // ExpandAll 比 Expand 返回更多数据（包括顶点信息）
         let base_cost = self.calculate_expand_cost(start_nodes, edge_type);
-        base_cost * 1.5 // 额外 50% 开销用于获取顶点信息
+        // 额外 50% 开销用于获取顶点信息
+        base_cost * 1.5
     }
 
     /// 计算多步遍历代价
@@ -176,18 +187,21 @@ impl CostCalculator {
                 .stats_manager
                 .get_edge_stats(et)
                 .map(|s| (s.avg_out_degree + s.avg_in_degree) / 2.0)
-                .unwrap_or(1.0),
+                .unwrap_or(2.0),
             None => 2.0,
         };
 
-        // 计算每步的输出行数累加
+        // 计算每步的输出行数累加（考虑多跳惩罚）
         let mut total_cost = 0.0;
         let mut current_rows = start_nodes as f64;
 
-        for _ in 0..steps {
+        for step in 0..steps {
             current_rows *= avg_degree;
-            total_cost += current_rows * self.config.cpu_tuple_cost;
-            total_cost += current_rows * self.config.seq_page_cost; // IO开销
+            // 每多一跳，代价递增
+            let step_penalty = self.config.multi_hop_penalty.powi(step as i32);
+            let step_cost = current_rows * self.config.edge_traversal_cost * step_penalty;
+            let io_cost = self.calculate_io_cost(current_rows as u64);
+            total_cost += step_cost + io_cost;
         }
 
         total_cost
@@ -201,7 +215,20 @@ impl CostCalculator {
 
     /// 计算获取邻居节点代价
     pub fn calculate_get_neighbors_cost(&self, start_nodes: u64, edge_type: Option<&str>) -> f64 {
-        self.calculate_expand_cost(start_nodes, edge_type)
+        let avg_degree = match edge_type {
+            Some(et) => self
+                .stats_manager
+                .get_edge_stats(et)
+                .map(|s| s.avg_out_degree)
+                .unwrap_or(2.0),
+            None => 2.0,
+        };
+
+        let neighbor_count = (start_nodes as f64 * avg_degree) as u64;
+        let lookup_cost = neighbor_count as f64 * self.config.neighbor_lookup_cost;
+        let io_cost = self.calculate_io_cost(neighbor_count);
+
+        lookup_cost + io_cost
     }
 
     /// 计算获取顶点代价
@@ -296,6 +323,7 @@ impl CostCalculator {
     /// 计算排序代价
     ///
     /// 公式：输入行数 × log(输入行数) × 比较代价
+    /// 超过内存阈值时使用外部排序
     ///
     /// # 参数
     /// - `input_rows`: 输入行数
@@ -306,7 +334,17 @@ impl CostCalculator {
         }
         let rows = input_rows as f64;
         let comparisons = rows * rows.log2().max(1.0);
-        comparisons * sort_columns as f64 * self.config.cpu_operator_cost * self.config.sort_comparison_cost
+        let cpu_cost = comparisons * sort_columns as f64 * self.config.cpu_operator_cost * self.config.sort_comparison_cost;
+
+        // 判断是否使用外部排序
+        if input_rows > self.config.memory_sort_threshold {
+            // 外部排序：需要读写临时文件
+            let pages = (input_rows / 100).max(1); // 假设每页100行
+            let io_cost = pages as f64 * self.config.external_sort_page_cost * 2.0; // 读写两次
+            cpu_cost + io_cost
+        } else {
+            cpu_cost
+        }
     }
 
     /// 计算Limit代价
@@ -413,14 +451,18 @@ impl CostCalculator {
         // 基于BFS的复杂度估算
         let avg_branching = 2.0_f64; // 假设平均分支因子
         let explored_nodes = start_nodes as f64 * avg_branching.powf(max_depth as f64);
-        explored_nodes * self.config.cpu_tuple_cost
+        let traversal_cost = explored_nodes * self.config.edge_traversal_cost;
+        let io_cost = self.calculate_io_cost(explored_nodes as u64);
+
+        // 加上基础开销
+        traversal_cost + io_cost + self.config.shortest_path_base_cost
     }
 
     /// 计算所有路径代价
     pub fn calculate_all_paths_cost(&self, start_nodes: u64, max_depth: u32) -> f64 {
         // 所有路径的复杂度比最短路径高很多
         let base_cost = self.calculate_shortest_path_cost(start_nodes, max_depth);
-        base_cost * 3.0
+        base_cost * self.config.path_enumeration_factor
     }
 
     /// 计算多源最短路径代价
@@ -455,6 +497,32 @@ impl CostCalculator {
                 (1.0 / (stats.edge_count as f64).sqrt()).min(1.0).max(0.001)
             }
             _ => 0.1,
+        }
+    }
+
+    // ==================== 缓存感知 IO 代价计算 ====================
+
+    /// 计算 IO 代价（考虑缓存）
+    ///
+    /// 根据有效缓存大小调整 I/O 代价：
+    /// - 如果访问的数据页数 < effective_cache_pages: 大部分在缓存中
+    /// - 否则: 部分需要磁盘 IO
+    fn calculate_io_cost(&self, rows: u64) -> f64 {
+        // 假设每页 100 行
+        let pages = (rows / 100).max(1);
+
+        if pages <= self.config.effective_cache_pages {
+            // 数据可能在缓存中
+            pages as f64 * self.config.seq_page_cost * self.config.cache_hit_cost_factor
+        } else {
+            // 部分数据需要从磁盘读取
+            let cached_pages = self.config.effective_cache_pages;
+            let disk_pages = pages - cached_pages;
+
+            let cached_cost = cached_pages as f64 * self.config.seq_page_cost * self.config.cache_hit_cost_factor;
+            let disk_cost = disk_pages as f64 * self.config.seq_page_cost;
+
+            cached_cost + disk_cost
         }
     }
 }

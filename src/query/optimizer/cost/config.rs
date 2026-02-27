@@ -24,9 +24,11 @@
 /// 代价模型配置
 ///
 /// 定义各种操作的代价参数，用于计算查询计划的执行代价。
+/// 参考 PostgreSQL 代价模型设计，并针对图数据库特性进行扩展。
 /// 这些参数可以根据硬件环境进行调整。
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CostModelConfig {
+    // ==================== 基础 I/O 代价参数（与 PostgreSQL 一致） ====================
     /// 顺序页读取代价
     ///
     /// 顺序读取一个磁盘页面的成本。默认值 1.0
@@ -56,6 +58,7 @@ pub struct CostModelConfig {
     /// 执行每个操作符或函数的 CPU 成本。默认值 0.0025
     pub cpu_operator_cost: f64,
 
+    // ==================== 算法相关参数 ====================
     /// 哈希构建开销系数
     ///
     /// 构建哈希表的额外开销系数。默认值 0.1
@@ -65,18 +68,88 @@ pub struct CostModelConfig {
     ///
     /// 每次比较操作的代价系数。默认值 1.0
     pub sort_comparison_cost: f64,
+
+    /// 内存排序阈值（行数）
+    ///
+    /// 超过此阈值将使用外部排序。默认值 10000
+    pub memory_sort_threshold: u64,
+
+    /// 外部排序页代价
+    ///
+    /// 外部排序时读写临时文件的代价。默认值 2.0
+    pub external_sort_page_cost: f64,
+
+    // ==================== 图数据库特有参数 ====================
+    /// 边遍历代价
+    ///
+    /// 遍历一条边的代价，比顶点处理更复杂。默认值 0.02
+    pub edge_traversal_cost: f64,
+
+    /// 多跳遍历每步递增系数
+    ///
+    /// 每多一跳，代价递增的系数。默认值 1.2
+    pub multi_hop_penalty: f64,
+
+    /// 邻居节点查找代价
+    ///
+    /// 查找一个邻居节点的代价。默认值 0.015
+    pub neighbor_lookup_cost: f64,
+
+    /// 有效缓存大小（页数）
+    ///
+    /// 用于缓存感知的代价计算。默认值 10000
+    pub effective_cache_pages: u64,
+
+    /// 缓存命中代价系数
+    ///
+    /// 数据在缓存中时的代价系数。默认值 0.1
+    pub cache_hit_cost_factor: f64,
+
+    /// 最短路径算法基础代价
+    ///
+    /// 最短路径算法的固定开销。默认值 10.0
+    pub shortest_path_base_cost: f64,
+
+    /// 路径枚举指数系数
+    ///
+    /// 枚举所有路径时的复杂度系数。默认值 2.0
+    pub path_enumeration_factor: f64,
+
+    /// 超级节点阈值（度数）
+    ///
+    /// 超过此度数的节点被视为超级节点。默认值 10000
+    pub super_node_threshold: u64,
+
+    /// 超级节点额外代价系数
+    ///
+    /// 涉及超级节点时的额外代价。默认值 2.0
+    pub super_node_penalty: f64,
 }
 
 impl Default for CostModelConfig {
     fn default() -> Self {
         Self {
+            // 基础 I/O 代价参数（与 PostgreSQL 一致）
             seq_page_cost: 1.0,
             random_page_cost: 4.0,
             cpu_tuple_cost: 0.01,
             cpu_index_tuple_cost: 0.005,
             cpu_operator_cost: 0.0025,
+            // 算法相关参数
             hash_build_overhead: 0.1,
             sort_comparison_cost: 1.0,
+            memory_sort_threshold: 10000,
+            external_sort_page_cost: 2.0,
+            // 图数据库特有参数
+            edge_traversal_cost: 0.02,
+            multi_hop_penalty: 1.2,
+            neighbor_lookup_cost: 0.015,
+            effective_cache_pages: 10000,
+            cache_hit_cost_factor: 0.1,
+            shortest_path_base_cost: 10.0,
+            path_enumeration_factor: 2.0,
+            super_node_threshold: 10000,
+            super_node_penalty: 2.0,
         }
     }
 }
@@ -104,6 +177,7 @@ impl CostModelConfig {
         Self {
             seq_page_cost: 0.1,
             random_page_cost: 0.1,
+            cache_hit_cost_factor: 0.01, // 缓存命中几乎无代价
             ..Default::default()
         }
     }
@@ -157,11 +231,27 @@ mod tests {
     #[test]
     fn test_default_config() {
         let config = CostModelConfig::default();
+        // 基础 I/O 代价参数
         assert_eq!(config.seq_page_cost, 1.0);
         assert_eq!(config.random_page_cost, 4.0);
         assert_eq!(config.cpu_tuple_cost, 0.01);
         assert_eq!(config.cpu_index_tuple_cost, 0.005);
         assert_eq!(config.cpu_operator_cost, 0.0025);
+        // 算法相关参数
+        assert_eq!(config.hash_build_overhead, 0.1);
+        assert_eq!(config.sort_comparison_cost, 1.0);
+        assert_eq!(config.memory_sort_threshold, 10000);
+        assert_eq!(config.external_sort_page_cost, 2.0);
+        // 图数据库特有参数
+        assert_eq!(config.edge_traversal_cost, 0.02);
+        assert_eq!(config.multi_hop_penalty, 1.2);
+        assert_eq!(config.neighbor_lookup_cost, 0.015);
+        assert_eq!(config.effective_cache_pages, 10000);
+        assert_eq!(config.cache_hit_cost_factor, 0.1);
+        assert_eq!(config.shortest_path_base_cost, 10.0);
+        assert_eq!(config.path_enumeration_factor, 2.0);
+        assert_eq!(config.super_node_threshold, 10000);
+        assert_eq!(config.super_node_penalty, 2.0);
     }
 
     #[test]

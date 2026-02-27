@@ -5,7 +5,21 @@
 //! 2. 协调各个处理阶段（解析→验证→规划→优化→执行）
 //! 3. 处理错误和异常
 //! 4. 管理查询上下文和性能监控
-//! 5. 查询优化决策缓存
+//!
+//! ## 与 OptimizerEngine 的关系
+//!
+//! `QueryPipelineManager` 通过引用使用 `OptimizerEngine`，而不是直接创建优化器组件。
+//! `OptimizerEngine` 是全局实例，与数据库实例同生命周期，负责所有查询优化相关的功能。
+//!
+//! ```rust
+//! // 创建方式
+//! let optimizer_engine = Arc::new(OptimizerEngine::default());
+//! let pipeline = QueryPipelineManager::with_optimizer(
+//!     storage,
+//!     stats_manager,
+//!     optimizer_engine,
+//! );
+//! ```
 
 use crate::core::{QueryMetrics, QueryProfile, StatsManager, ErrorInfo, ErrorType, QueryPhase};
 use crate::query::QueryContext;
@@ -13,73 +27,59 @@ use crate::core::error::{DBError, DBResult, QueryError};
 use crate::query::executor::factory::ExecutorFactory;
 use crate::query::executor::base::ExecutionResult;
 use crate::query::parser::Parser;
-use crate::query::optimizer::decision::{
-    DecisionCache, DecisionCacheConfig, DecisionCacheKey, OptimizationDecision,
-};
-use crate::query::planner::planner::SentenceKind;
-use crate::query::planner::template_extractor::TemplateExtractor;
+use crate::query::optimizer::OptimizerEngine;
 use crate::storage::StorageClient;
 use std::sync::Arc;
 use parking_lot::Mutex;
 use std::time::Instant;
 
+/// 查询管道管理器
+///
+/// 负责协调整查询处理流程，通过引用 `OptimizerEngine` 使用优化功能。
 pub struct QueryPipelineManager<S: StorageClient + 'static> {
     executor_factory: ExecutorFactory<S>,
     stats_manager: Arc<StatsManager>,
-    decision_cache: Option<DecisionCache>,
-    /// 统计信息版本（用于决策缓存失效）
-    stats_version: u64,
-    /// 索引版本（用于决策缓存失效）
-    index_version: u64,
+    /// 优化器引擎（全局实例的引用）
+    optimizer_engine: Arc<OptimizerEngine>,
 }
 
 impl<S: StorageClient + 'static> QueryPipelineManager<S> {
+    /// 使用默认优化器引擎创建
+    ///
+    /// 注意：这会创建一个新的 OptimizerEngine 实例。在生产环境中，
+    /// 建议使用 `with_optimizer` 方法传入全局共享的 OptimizerEngine。
     pub fn new(storage: Arc<Mutex<S>>, stats_manager: Arc<StatsManager>) -> Self {
+        let optimizer_engine = Arc::new(OptimizerEngine::default());
+        Self::with_optimizer(storage, stats_manager, optimizer_engine)
+    }
+
+    /// 使用指定的优化器引擎创建
+    ///
+    /// 这是推荐的生产环境使用方式，可以共享全局的 OptimizerEngine 实例。
+    ///
+    /// # 参数
+    /// - `storage`: 存储客户端
+    /// - `stats_manager`: 统计信息管理器
+    /// - `optimizer_engine`: 优化器引擎（全局实例）
+    pub fn with_optimizer(
+        storage: Arc<Mutex<S>>,
+        stats_manager: Arc<StatsManager>,
+        optimizer_engine: Arc<OptimizerEngine>,
+    ) -> Self {
         let executor_factory = ExecutorFactory::with_storage(storage.clone());
 
-        // 尝试创建决策缓存
-        let decision_cache = match DecisionCache::with_default_config() {
-            Ok(cache) => {
-                log::info!("查询优化决策缓存已启用");
-                Some(cache)
-            }
-            Err(e) => {
-                log::warn!("无法创建查询优化决策缓存: {}", e);
-                None
-            }
-        };
+        log::info!("查询管道管理器已创建，使用优化器引擎");
 
         Self {
             executor_factory,
             stats_manager,
-            decision_cache,
-            stats_version: 1,
-            index_version: 1,
+            optimizer_engine,
         }
     }
 
-    pub fn with_config(storage: Arc<Mutex<S>>, stats_manager: Arc<StatsManager>) -> Self {
-        let executor_factory = ExecutorFactory::with_storage(storage.clone());
-
-        // 尝试创建决策缓存
-        let decision_cache = match DecisionCache::with_default_config() {
-            Ok(cache) => {
-                log::info!("查询优化决策缓存已启用");
-                Some(cache)
-            }
-            Err(e) => {
-                log::warn!("无法创建查询优化决策缓存: {}", e);
-                None
-            }
-        };
-
-        Self {
-            executor_factory,
-            stats_manager,
-            decision_cache,
-            stats_version: 1,
-            index_version: 1,
-        }
+    /// 获取优化器引擎
+    pub fn optimizer_engine(&self) -> &OptimizerEngine {
+        &self.optimizer_engine
     }
 
     pub fn execute_query(&mut self, query_text: &str) -> DBResult<ExecutionResult> {
@@ -301,36 +301,16 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         let kind = crate::query::planner::planner::SentenceKind::from_stmt(stmt)
             .map_err(|e| DBError::from(QueryError::pipeline_planning_error(e)))?;
 
-        // 获取或计算优化决策
-        let decision = if let Some(ref cache) = self.decision_cache {
-            // 构建决策缓存键
-            let template = TemplateExtractor::extract(stmt);
-            let template_hash = DecisionCacheKey::hash_template(&template);
-            let decision_key = DecisionCacheKey::new(
-                template_hash,
-                query_context.space_id().map(|id| id as i32),
-                kind,
-                Self::generate_pattern_fingerprint(stmt),
-            );
-
-            // 尝试从缓存获取或使用计算函数
-            match cache.get_or_compute(
-                decision_key,
-                self.stats_version,
-                self.index_version,
-                || self.compute_decision(stmt, query_context.clone(), kind),
-            ) {
-                Ok(decision) => {
-                    log::debug!("优化决策缓存命中或使用新决策");
-                    Some(decision)
-                }
-                Err(e) => {
-                    log::warn!("决策缓存操作失败: {}", e);
-                    None
-                }
+        // 使用 OptimizerEngine 计算优化决策
+        let decision = match self.optimizer_engine.compute_decision(stmt, kind) {
+            Ok(decision) => {
+                log::debug!("优化决策计算成功");
+                Some(decision)
             }
-        } else {
-            None
+            Err(e) => {
+                log::warn!("优化决策计算失败: {}", e);
+                None
+            }
         };
 
         // 生成执行计划
@@ -354,128 +334,6 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         };
 
         Ok(plan)
-    }
-
-    /// 计算优化决策
-    fn compute_decision(
-        &self,
-        stmt: &crate::query::parser::ast::Stmt,
-        qctx: Arc<QueryContext>,
-        kind: SentenceKind,
-    ) -> Result<OptimizationDecision, crate::query::optimizer::decision::DecisionCacheError> {
-        use crate::query::optimizer::decision::{
-            TraversalStartDecision, AccessPath, EntityType,
-            IndexSelectionDecision, JoinOrderDecision,
-        };
-        use crate::query::optimizer::{TraversalStartSelector, CostCalculator, SelectivityEstimator};
-        use crate::query::optimizer::stats::StatisticsManager;
-
-        // 创建统计信息管理器和代价计算器
-        let stats_manager = Arc::new(StatisticsManager::new());
-        let cost_calculator = Arc::new(CostCalculator::new(stats_manager.clone()));
-        let selectivity_estimator = Arc::new(SelectivityEstimator::new(stats_manager.clone()));
-
-        // 根据语句类型计算决策
-        match kind {
-            SentenceKind::Match => {
-                // 对于 MATCH 语句，计算遍历起点决策
-                let selector = TraversalStartSelector::new(
-                    cost_calculator,
-                    selectivity_estimator,
-                );
-
-                // 提取模式并选择起点
-                if let crate::query::parser::ast::Stmt::Match(match_stmt) = stmt {
-                    // 简化实现：使用第一个模式
-                    if let Some(pattern) = match_stmt.patterns.first() {
-                        if let Some(candidate) = selector.select_start_node(pattern) {
-                            let access_path = Self::convert_selection_reason_to_access_path(
-                                &candidate.reason,
-                            );
-
-                            let variable_name = candidate.node_pattern.variable.clone()
-                                .unwrap_or_else(|| "n".to_string());
-
-                            let traversal_decision = TraversalStartDecision::new(
-                                variable_name,
-                                access_path,
-                                candidate.estimated_start_nodes as f64 / 10000.0, // 简化的选择性计算
-                                candidate.estimated_cost,
-                            );
-
-                            return Ok(OptimizationDecision::new(
-                                traversal_decision,
-                                IndexSelectionDecision::empty(),
-                                JoinOrderDecision::empty(),
-                                self.stats_version,
-                                self.index_version,
-                            ));
-                        }
-                    }
-                }
-
-                // 默认决策
-                Ok(OptimizationDecision::new(
-                    TraversalStartDecision::new(
-                        "n".to_string(),
-                        AccessPath::FullScan {
-                            entity_type: EntityType::Vertex { tag_name: None },
-                        },
-                        1.0,
-                        1000.0,
-                    ),
-                    IndexSelectionDecision::empty(),
-                    JoinOrderDecision::empty(),
-                    self.stats_version,
-                    self.index_version,
-                ))
-            }
-            _ => {
-                // 其他语句类型使用默认决策
-                Ok(OptimizationDecision::new(
-                    TraversalStartDecision::new(
-                        "default".to_string(),
-                        AccessPath::FullScan {
-                            entity_type: EntityType::Vertex { tag_name: None },
-                        },
-                        1.0,
-                        1000.0,
-                    ),
-                    IndexSelectionDecision::empty(),
-                    JoinOrderDecision::empty(),
-                    self.stats_version,
-                    self.index_version,
-                ))
-            }
-        }
-    }
-
-    /// 将选择原因转换为访问路径
-    fn convert_selection_reason_to_access_path(
-        reason: &crate::query::optimizer::strategy::SelectionReason,
-    ) -> crate::query::optimizer::decision::AccessPath {
-        use crate::query::optimizer::strategy::SelectionReason;
-        use crate::query::optimizer::decision::{AccessPath, EntityType};
-
-        match reason {
-            SelectionReason::ExplicitVid => AccessPath::ExplicitVid {
-                vid_description: "explicit".to_string(),
-            },
-            SelectionReason::HighSelectivityIndex { .. } => AccessPath::IndexScan {
-                index_name: "auto".to_string(),
-                property_name: "unknown".to_string(),
-                predicate_description: "high_selectivity".to_string(),
-            },
-            SelectionReason::TagIndex { .. } => AccessPath::TagIndex {
-                tag_name: "default".to_string(),
-            },
-            SelectionReason::FullScan { .. } => AccessPath::FullScan {
-                entity_type: EntityType::Vertex { tag_name: None },
-            },
-            SelectionReason::VariableBinding { variable_name } => AccessPath::VariableBinding {
-                source_variable: variable_name.clone(),
-            },
-        }
     }
 
     /// 生成模式指纹

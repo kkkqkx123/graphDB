@@ -4,6 +4,7 @@
 //!
 //! ## 模块结构
 //!
+//! - `engine` - 优化器引擎，全局唯一的优化器实例，整合所有优化组件
 //! - `stats` - 统计信息模块，管理标签、边类型和属性的统计信息
 //! - `cost` - 代价计算模块，计算查询操作的代价
 //! - `strategy` - 优化策略模块，提供遍历起点选择和索引选择
@@ -12,26 +13,24 @@
 //! ## 使用示例
 //!
 //! ```rust
-//! use graphdb::query::optimizer::StatisticsManager;
-//! use graphdb::query::optimizer::CostCalculator;
-//! use std::sync::Arc;
+//! use graphdb::query::optimizer::OptimizerEngine;
 //!
-//! // 创建统计信息管理器
-//! let stats_manager = Arc::new(StatisticsManager::new());
+//! // 创建优化器引擎（全局实例）
+//! let optimizer = OptimizerEngine::default();
 //!
-//! // 创建代价计算器
-//! let cost_calculator = CostCalculator::new(stats_manager);
-//!
-//! // 计算扫描代价
-//! let scan_cost = cost_calculator.calculate_scan_cost("Person");
+//! // 计算优化决策
+//! let decision = optimizer.compute_decision(&stmt, sentence_kind);
 //! ```
 
+pub mod engine;
 pub mod stats;
 pub mod cost;
 pub mod strategy;
 pub mod decision;
 
 // 重新导出主要类型
+pub use engine::OptimizerEngine;
+
 pub use stats::{
     StatisticsManager,
     StatisticsCollector,
