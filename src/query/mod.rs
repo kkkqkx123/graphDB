@@ -9,6 +9,7 @@
 // Sub-modules
 pub mod core;
 pub mod executor;
+pub mod optimizer;
 pub mod parser;
 pub mod planner;
 pub mod query_context;
