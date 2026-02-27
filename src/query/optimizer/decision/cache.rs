@@ -246,7 +246,7 @@ impl DecisionCache {
         decision: OptimizationDecision,
     ) -> Result<(), DecisionCacheError> {
         let cached = CachedDecision::new(decision);
-        let mut cache = self.cache.lock();
+        let cache = self.cache.lock();
 
         if cache.len() >= self.config.max_entries && !cache.contains(&key) {
             drop(cache);

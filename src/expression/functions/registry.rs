@@ -225,3 +225,12 @@ pub fn global_registry() -> Arc<FunctionRegistry> {
     static REGISTRY: OnceLock<Arc<FunctionRegistry>> = OnceLock::new();
     REGISTRY.get_or_init(|| Arc::new(FunctionRegistry::new())).clone()
 }
+
+/// 获取全局函数注册表的静态引用
+/// 
+/// 用于需要返回函数引用的场景（如 ExpressionContext::get_function）
+pub fn global_registry_ref() -> &'static FunctionRegistry {
+    use std::sync::OnceLock;
+    static REGISTRY: OnceLock<FunctionRegistry> = OnceLock::new();
+    REGISTRY.get_or_init(FunctionRegistry::new)
+}

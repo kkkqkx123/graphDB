@@ -252,8 +252,6 @@ pub type MatchFunc = fn(&Stmt) -> bool;
 /// # 重构变更
 /// - transform 方法接收 Arc<QueryContext> 和 &Stmt 替代 &AstContext
 /// - match_planner 方法接收 &Stmt 替代 &AstContext
-/// - 新增 transform_with_decision 方法支持使用预计算决策
-/// - 新增 compute_decision 方法用于计算优化决策
 pub trait Planner: std::fmt::Debug {
     fn transform(
         &mut self,
@@ -262,68 +260,12 @@ pub trait Planner: std::fmt::Debug {
     ) -> Result<SubPlan, PlannerError>;
     fn match_planner(&self, stmt: &Stmt) -> bool;
 
-    /// 使用预计算的优化决策生成计划
-    ///
-    /// 当决策缓存命中时，使用此方法避免重复计算
-    fn transform_with_decision(
-        &mut self,
-        stmt: &Stmt,
-        qctx: Arc<QueryContext>,
-        decision: &crate::query::optimizer::decision::OptimizationDecision,
-    ) -> Result<SubPlan, PlannerError> {
-        // 默认实现：忽略决策，直接调用 transform
-        // 子类应该覆盖此方法以应用决策
-        self.transform(stmt, qctx)
-    }
-
-    /// 计算优化决策
-    ///
-    /// 用于决策缓存未命中时计算新的决策
-    fn compute_decision(
-        &mut self,
-        stmt: &Stmt,
-        qctx: Arc<QueryContext>,
-    ) -> Result<crate::query::optimizer::decision::OptimizationDecision, PlannerError> {
-        // 默认实现：返回空决策
-        // 子类应该覆盖此方法以计算实际决策
-        Ok(crate::query::optimizer::decision::OptimizationDecision::new(
-            crate::query::optimizer::decision::TraversalStartDecision::new(
-                "default".to_string(),
-                crate::query::optimizer::decision::AccessPath::FullScan {
-                    entity_type: crate::query::optimizer::decision::EntityType::Vertex { tag_name: None },
-                },
-                1.0,
-                1000.0,
-            ),
-            crate::query::optimizer::decision::IndexSelectionDecision::empty(),
-            crate::query::optimizer::decision::JoinOrderDecision::empty(),
-            0,
-            0,
-        ))
-    }
-
     fn transform_with_full_context(
         &mut self,
         qctx: Arc<QueryContext>,
         stmt: &Stmt,
     ) -> Result<ExecutionPlan, PlannerError> {
         let sub_plan = self.transform(stmt, qctx)?;
-        let plan = ExecutionPlan::new(sub_plan.root().clone());
-        
-        // 应用计划重写优化
-        let plan = rewrite_plan(plan)?;
-        
-        Ok(plan)
-    }
-
-    /// 使用决策生成完整执行计划
-    fn transform_with_decision_full_context(
-        &mut self,
-        qctx: Arc<QueryContext>,
-        stmt: &Stmt,
-        decision: &crate::query::optimizer::decision::OptimizationDecision,
-    ) -> Result<ExecutionPlan, PlannerError> {
-        let sub_plan = self.transform_with_decision(stmt, qctx, decision)?;
         let plan = ExecutionPlan::new(sub_plan.root().clone());
         
         // 应用计划重写优化
@@ -406,32 +348,6 @@ impl PlannerEnum {
             PlannerEnum::GroupBy(planner) => planner.transform(stmt, qctx),
             PlannerEnum::SetOperation(planner) => planner.transform(stmt, qctx),
             PlannerEnum::Use(planner) => planner.transform(stmt, qctx),
-        }
-    }
-
-    /// 使用预计算的优化决策生成计划
-    pub fn transform_with_decision(
-        &mut self,
-        stmt: &Stmt,
-        qctx: Arc<QueryContext>,
-        decision: &crate::query::optimizer::decision::OptimizationDecision,
-    ) -> Result<SubPlan, PlannerError> {
-        match self {
-            PlannerEnum::Match(planner) => planner.transform_with_decision(stmt, qctx, decision),
-            PlannerEnum::Go(planner) => planner.transform_with_decision(stmt, qctx, decision),
-            PlannerEnum::Lookup(planner) => planner.transform_with_decision(stmt, qctx, decision),
-            PlannerEnum::Path(planner) => planner.transform_with_decision(stmt, qctx, decision),
-            PlannerEnum::Subgraph(planner) => planner.transform_with_decision(stmt, qctx, decision),
-            PlannerEnum::FetchVertices(planner) => planner.transform_with_decision(stmt, qctx, decision),
-            PlannerEnum::FetchEdges(planner) => planner.transform_with_decision(stmt, qctx, decision),
-            PlannerEnum::Maintain(planner) => planner.transform_with_decision(stmt, qctx, decision),
-            PlannerEnum::UserManagement(planner) => planner.transform_with_decision(stmt, qctx, decision),
-            PlannerEnum::Insert(planner) => planner.transform_with_decision(stmt, qctx, decision),
-            PlannerEnum::Delete(planner) => planner.transform_with_decision(stmt, qctx, decision),
-            PlannerEnum::Update(planner) => planner.transform_with_decision(stmt, qctx, decision),
-            PlannerEnum::GroupBy(planner) => planner.transform_with_decision(stmt, qctx, decision),
-            PlannerEnum::SetOperation(planner) => planner.transform_with_decision(stmt, qctx, decision),
-            PlannerEnum::Use(planner) => planner.transform_with_decision(stmt, qctx, decision),
         }
     }
 

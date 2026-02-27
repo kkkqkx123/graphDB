@@ -25,11 +25,12 @@
 
 use std::sync::Arc;
 
+use crate::core::Expression;
 use crate::query::optimizer::stats::StatisticsManager;
 use crate::query::planner::plan::{ExecutionPlan, PlanNodeEnum};
-use crate::query::planner::plan::core::nodes::plan_node_traits::MultipleInputNode;
+use crate::query::planner::plan::core::nodes::plan_node_traits::{MultipleInputNode, SingleInputNode};
 
-use super::{CostCalculator, CostModelConfig};
+use super::{CostCalculator, CostModelConfig, SelectivityEstimator};
 
 /// 代价赋值错误
 #[derive(Debug, Clone)]
@@ -56,32 +57,74 @@ impl std::fmt::Display for CostError {
 
 impl std::error::Error for CostError {}
 
+/// 节点代价和行数估算结果
+#[derive(Debug, Clone, Copy)]
+pub struct NodeCostEstimate {
+    /// 节点自身代价（不包含子节点）
+    pub node_cost: f64,
+    /// 累计代价（包含所有子节点）
+    pub total_cost: f64,
+    /// 估算的输出行数
+    pub output_rows: u64,
+}
+
+impl NodeCostEstimate {
+    /// 创建新的估算结果
+    pub fn new(node_cost: f64, total_cost: f64, output_rows: u64) -> Self {
+        Self {
+            node_cost,
+            total_cost,
+            output_rows,
+        }
+    }
+
+    /// 创建叶子节点的估算结果（无子节点）
+    pub fn leaf(node_cost: f64, output_rows: u64) -> Self {
+        Self {
+            node_cost,
+            total_cost: node_cost,
+            output_rows,
+        }
+    }
+}
+
 /// 代价赋值器
 ///
 /// 为执行计划中的所有节点计算并设置代价
 #[derive(Debug, Clone)]
 pub struct CostAssigner {
     cost_calculator: CostCalculator,
+    selectivity_estimator: SelectivityEstimator,
+    config: CostModelConfig,
 }
 
 impl CostAssigner {
     /// 创建新的代价赋值器（使用默认配置）
     pub fn new(stats_manager: Arc<StatisticsManager>) -> Self {
         Self {
-            cost_calculator: CostCalculator::new(stats_manager),
+            cost_calculator: CostCalculator::new(stats_manager.clone()),
+            selectivity_estimator: SelectivityEstimator::new(stats_manager),
+            config: CostModelConfig::default(),
         }
     }
 
     /// 创建新的代价赋值器（使用指定配置）
     pub fn with_config(stats_manager: Arc<StatisticsManager>, config: CostModelConfig) -> Self {
         Self {
-            cost_calculator: CostCalculator::with_config(stats_manager, config),
+            cost_calculator: CostCalculator::with_config(stats_manager.clone(), config),
+            selectivity_estimator: SelectivityEstimator::new(stats_manager),
+            config,
         }
     }
 
     /// 获取代价计算器
     pub fn cost_calculator(&self) -> &CostCalculator {
         &self.cost_calculator
+    }
+
+    /// 获取选择性估计器
+    pub fn selectivity_estimator(&self) -> &SelectivityEstimator {
+        &self.selectivity_estimator
     }
 
     /// 为整个执行计划赋值代价
@@ -141,7 +184,7 @@ impl CostAssigner {
     /// 获取可变子节点引用
     fn get_child_mut<'a>(&self, node: &'a mut PlanNodeEnum, index: usize) -> Option<&'a mut PlanNodeEnum> {
         match node {
-            // 双输入节点
+            // ==================== 双输入节点 ====================
             PlanNodeEnum::InnerJoin(n) => match index {
                 0 => Some(n.left_input_mut()),
                 1 => Some(n.right_input_mut()),
@@ -173,12 +216,77 @@ impl CostAssigner {
                 _ => None,
             },
 
-            // 多输入节点 - 需要特殊处理
+            // ==================== 单输入节点 ====================
+            PlanNodeEnum::Project(n) => {
+                if index == 0 { Some(n.input_mut()) } else { None }
+            }
+            PlanNodeEnum::Filter(n) => {
+                if index == 0 { Some(n.input_mut()) } else { None }
+            }
+            PlanNodeEnum::Sort(n) => {
+                if index == 0 { Some(n.input_mut()) } else { None }
+            }
+            PlanNodeEnum::Limit(n) => {
+                if index == 0 { Some(n.input_mut()) } else { None }
+            }
+            PlanNodeEnum::TopN(n) => {
+                if index == 0 { Some(n.input_mut()) } else { None }
+            }
+            PlanNodeEnum::Sample(n) => {
+                if index == 0 { Some(n.input_mut()) } else { None }
+            }
+            PlanNodeEnum::Dedup(n) => {
+                if index == 0 { Some(n.input_mut()) } else { None }
+            }
+            PlanNodeEnum::DataCollect(n) => {
+                if index == 0 { Some(n.input_mut()) } else { None }
+            }
+            PlanNodeEnum::Aggregate(n) => {
+                if index == 0 { Some(n.input_mut()) } else { None }
+            }
+            PlanNodeEnum::Unwind(n) => {
+                if index == 0 { Some(n.input_mut()) } else { None }
+            }
+            PlanNodeEnum::Assign(n) => {
+                if index == 0 { Some(n.input_mut()) } else { None }
+            }
+            PlanNodeEnum::PatternApply(n) => {
+                if index == 0 { Some(n.input_mut()) } else { None }
+            }
+            PlanNodeEnum::RollUpApply(n) => {
+                if index == 0 { Some(n.input_mut()) } else { None }
+            }
+            PlanNodeEnum::Traverse(n) => {
+                if index == 0 { Some(n.input_mut()) } else { None }
+            }
+            PlanNodeEnum::Union(n) => {
+                n.dependencies_mut().get_mut(index).map(|b| b.as_mut())
+            }
+            PlanNodeEnum::Minus(n) => {
+                n.dependencies_mut().get_mut(index).map(|b| b.as_mut())
+            }
+            PlanNodeEnum::Intersect(n) => {
+                n.dependencies_mut().get_mut(index).map(|b| b.as_mut())
+            }
+
+            // ==================== 多输入节点 ====================
             PlanNodeEnum::Expand(n) => n.inputs_mut().get_mut(index).map(|b| b.as_mut()),
             PlanNodeEnum::ExpandAll(n) => n.inputs_mut().get_mut(index).map(|b| b.as_mut()),
             PlanNodeEnum::AppendVertices(n) => n.inputs_mut().get_mut(index).map(|b| b.as_mut()),
+            PlanNodeEnum::GetVertices(n) => n.inputs_mut().get_mut(index).map(|b| b.as_mut()),
+            PlanNodeEnum::GetNeighbors(n) => n.inputs_mut().get_mut(index).map(|b| b.as_mut()),
 
-            // 无输入节点和单输入节点 - 不支持可变访问
+            // ==================== 控制流节点 ====================
+            PlanNodeEnum::Loop(n) => {
+                if index == 0 { n.body_mut().as_mut().map(|b| b.as_mut()) } else { None }
+            }
+            PlanNodeEnum::Select(n) => match index {
+                0 => n.if_branch_mut().as_mut().map(|b| b.as_mut()),
+                1 => n.else_branch_mut().as_mut().map(|b| b.as_mut()),
+                _ => None,
+            },
+
+            // ==================== 无输入节点 ====================
             _ => None,
         }
     }
@@ -191,25 +299,24 @@ impl CostAssigner {
     ) -> Result<f64, CostError> {
         let cost = match node {
             // ==================== 扫描操作 ====================
-            PlanNodeEnum::ScanVertices(_) => {
-                // 从节点中提取标签信息（如果有）
-                // 简化处理：使用默认标签或从统计信息中推断
-                self.cost_calculator.calculate_scan_vertices_cost("default")
+            PlanNodeEnum::ScanVertices(n) => {
+                let tag_name = n.tag().map(|s| s.as_str()).unwrap_or("default");
+                self.cost_calculator.calculate_scan_vertices_cost(tag_name)
             }
-            PlanNodeEnum::ScanEdges(_) => {
-                self.cost_calculator.calculate_scan_edges_cost("default")
+            PlanNodeEnum::ScanEdges(n) => {
+                let edge_type = n.edge_type().unwrap_or_else(|| "default".to_string());
+                self.cost_calculator.calculate_scan_edges_cost(&edge_type)
             }
-            PlanNodeEnum::IndexScan(_n) => {
-                // 从索引扫描节点提取信息
-                let tag_name = "default";
-                let property_name = "default";
-                let selectivity = 0.1; // 默认选择性
+            PlanNodeEnum::IndexScan(n) => {
+                let selectivity = self.estimate_index_scan_selectivity(n);
+                let tag_name = self.get_tag_name_from_index_scan(n);
+                let property_name = self.get_property_name_from_index_scan(n);
                 self.cost_calculator
-                    .calculate_index_scan_cost(tag_name, property_name, selectivity)
+                    .calculate_index_scan_cost(&tag_name, &property_name, selectivity)
             }
-            PlanNodeEnum::EdgeIndexScan(_n) => {
-                let edge_type = "default";
-                let selectivity = 0.1;
+            PlanNodeEnum::EdgeIndexScan(n) => {
+                let edge_type = n.edge_type();
+                let selectivity = self.estimate_edge_index_scan_selectivity(n);
                 self.cost_calculator
                     .calculate_edge_index_scan_cost(edge_type, selectivity)
             }
@@ -237,24 +344,26 @@ impl CostAssigner {
                 let input_rows = self.estimate_input_rows(child_costs, 0);
                 self.cost_calculator.calculate_append_vertices_cost(input_rows)
             }
-            PlanNodeEnum::GetNeighbors(_) => {
+            PlanNodeEnum::GetNeighbors(n) => {
                 let input_rows = self.estimate_input_rows(child_costs, 0);
+                let edge_type = n.edge_types().first().map(|s| s.as_str());
                 self.cost_calculator
-                    .calculate_get_neighbors_cost(input_rows, None)
+                    .calculate_get_neighbors_cost(input_rows, edge_type)
             }
-            PlanNodeEnum::GetVertices(_) => {
-                // 假设获取少量顶点
-                self.cost_calculator.calculate_get_vertices_cost(10)
+            PlanNodeEnum::GetVertices(n) => {
+                let vid_count = n.limit().unwrap_or(100) as u64;
+                self.cost_calculator.calculate_get_vertices_cost(vid_count)
             }
-            PlanNodeEnum::GetEdges(_) => {
-                self.cost_calculator.calculate_get_edges_cost(10)
+            PlanNodeEnum::GetEdges(n) => {
+                let edge_count = n.limit().unwrap_or(100) as u64;
+                self.cost_calculator.calculate_get_edges_cost(edge_count)
             }
 
             // ==================== 过滤和投影 ====================
-            PlanNodeEnum::Filter(_) => {
+            PlanNodeEnum::Filter(n) => {
                 let input_rows = self.estimate_input_rows(child_costs, 0);
-                // 简化：假设平均 2 个条件
-                self.cost_calculator.calculate_filter_cost(input_rows, 2)
+                let condition_count = self.count_filter_conditions(n.condition());
+                self.cost_calculator.calculate_filter_cost(input_rows, condition_count)
             }
             PlanNodeEnum::Project(n) => {
                 let input_rows = self.estimate_input_rows(child_costs, 0);
@@ -338,10 +447,10 @@ impl CostAssigner {
                 let right_rows = self.estimate_input_rows(child_costs, 1);
                 self.cost_calculator.calculate_intersect_cost(left_rows, right_rows)
             }
-            PlanNodeEnum::Unwind(_) => {
+            PlanNodeEnum::Unwind(n) => {
                 let input_rows = self.estimate_input_rows(child_costs, 0);
-                // 假设平均列表大小为 3
-                self.cost_calculator.calculate_unwind_cost(input_rows, 3.0)
+                let list_size = self.estimate_unwind_list_size(n);
+                self.cost_calculator.calculate_unwind_cost(input_rows, list_size)
             }
             PlanNodeEnum::DataCollect(_) => {
                 let input_rows = self.estimate_input_rows(child_costs, 0);
@@ -353,15 +462,15 @@ impl CostAssigner {
             }
 
             // ==================== 控制流节点 ====================
-            PlanNodeEnum::Loop(_) => {
+            PlanNodeEnum::Loop(n) => {
                 let body_cost = child_costs.first().copied().unwrap_or(0.0);
-                // 假设平均 3 次迭代
-                self.cost_calculator.calculate_loop_cost(body_cost, 3)
+                let iterations = self.estimate_loop_iterations(n);
+                self.cost_calculator.calculate_loop_cost(body_cost, iterations)
             }
-            PlanNodeEnum::Select(_) => {
+            PlanNodeEnum::Select(n) => {
                 let input_rows = self.estimate_input_rows(child_costs, 0);
-                // 假设 2 个分支
-                self.cost_calculator.calculate_select_cost(input_rows, 2)
+                let branch_count = self.estimate_select_branch_count(n);
+                self.cost_calculator.calculate_select_cost(input_rows, branch_count)
             }
             PlanNodeEnum::PassThrough(_) => {
                 let input_rows = self.estimate_input_rows(child_costs, 0);
@@ -370,26 +479,27 @@ impl CostAssigner {
             PlanNodeEnum::Argument(_) => 0.0,
 
             // ==================== 图算法 ====================
-            PlanNodeEnum::ShortestPath(_) => {
-                // 假设从少量节点开始，最大深度为 5
-                self.cost_calculator.calculate_shortest_path_cost(1, 5)
+            PlanNodeEnum::ShortestPath(n) => {
+                let max_depth = n.max_step() as u32;
+                self.cost_calculator.calculate_shortest_path_cost(1, max_depth)
             }
-            PlanNodeEnum::AllPaths(_) => {
-                self.cost_calculator.calculate_all_paths_cost(1, 5)
+            PlanNodeEnum::AllPaths(n) => {
+                let max_depth = n.max_hop() as u32;
+                self.cost_calculator.calculate_all_paths_cost(1, max_depth)
             }
-            PlanNodeEnum::MultiShortestPath(_) => {
-                self.cost_calculator.calculate_multi_shortest_path_cost(2, 5)
+            PlanNodeEnum::MultiShortestPath(n) => {
+                let max_depth = n.steps() as u32;
+                self.cost_calculator.calculate_multi_shortest_path_cost(2, max_depth)
             }
-            PlanNodeEnum::BFSShortest(_) => {
-                // BFS 最短路径与标准最短路径类似
-                self.cost_calculator.calculate_shortest_path_cost(1, 5)
+            PlanNodeEnum::BFSShortest(n) => {
+                let max_depth = n.steps() as u32;
+                self.cost_calculator.calculate_shortest_path_cost(1, max_depth)
             }
 
             // ==================== 起始节点 ====================
             PlanNodeEnum::Start(_) => 0.0,
 
             // ==================== 管理节点 ====================
-            // 管理节点（DDL/DML）通常代价较低或不在查询优化范围内
             _ => 1.0,
         };
 
@@ -398,20 +508,196 @@ impl CostAssigner {
 
     /// 估算输入行数
     fn estimate_input_rows(&self, child_costs: &[f64], index: usize) -> u64 {
-        // 简化估算：从子节点代价反推行数
-        // 实际实现中应该使用更准确的行数估算
         child_costs
             .get(index)
             .copied()
             .map(|c| c.max(1.0) as u64)
             .unwrap_or(1)
     }
+
+    /// 估算索引扫描的选择性
+    fn estimate_index_scan_selectivity(&self, node: &crate::query::planner::plan::algorithms::IndexScan) -> f64 {
+        if node.scan_limits.is_empty() {
+            return 0.1;
+        }
+
+        let mut total_selectivity: f64 = 1.0;
+        for limit in &node.scan_limits {
+            let sel = match limit.scan_type {
+                crate::query::planner::plan::algorithms::ScanType::Unique => 0.01,
+                crate::query::planner::plan::algorithms::ScanType::Prefix => 0.05,
+                crate::query::planner::plan::algorithms::ScanType::Range => 0.1,
+                crate::query::planner::plan::algorithms::ScanType::Full => 1.0,
+            };
+            total_selectivity *= sel;
+        }
+        total_selectivity.min(1.0)
+    }
+
+    /// 估算边索引扫描的选择性
+    fn estimate_edge_index_scan_selectivity(&self, node: &crate::query::planner::plan::core::nodes::graph_scan_node::EdgeIndexScanNode) -> f64 {
+        if node.scan_limits().is_empty() {
+            return 0.1;
+        }
+
+        let mut total_selectivity: f64 = 1.0;
+        for limit in node.scan_limits() {
+            let sel = match limit.scan_type {
+                crate::query::planner::plan::algorithms::ScanType::Unique => 0.01,
+                crate::query::planner::plan::algorithms::ScanType::Prefix => 0.05,
+                crate::query::planner::plan::algorithms::ScanType::Range => 0.1,
+                crate::query::planner::plan::algorithms::ScanType::Full => 1.0,
+            };
+            total_selectivity *= sel;
+        }
+        total_selectivity.min(1.0)
+    }
+
+    /// 从 IndexScan 节点获取标签名称
+    ///
+    /// 首先尝试通过 tag_id 从统计信息管理器中查找标签名称，
+    /// 如果找不到则返回 "default" 作为回退值
+    fn get_tag_name_from_index_scan(&self, node: &crate::query::planner::plan::algorithms::IndexScan) -> String {
+        // 尝试通过 tag_id 获取标签名称
+        if let Some(tag_name) = self.cost_calculator.statistics_manager().get_tag_name_by_id(node.tag_id) {
+            return tag_name;
+        }
+
+        // 回退：尝试从 scan_limits 中的列名推断标签名称
+        // 例如：如果列名是 "Person.name"，则标签可能是 "Person"
+        if let Some(limit) = node.scan_limits.first() {
+            let column = &limit.column;
+            if let Some(dot_pos) = column.find('.') {
+                return column[..dot_pos].to_string();
+            }
+        }
+
+        "default".to_string()
+    }
+
+    /// 从 IndexScan 节点获取属性名称
+    fn get_property_name_from_index_scan(&self, node: &crate::query::planner::plan::algorithms::IndexScan) -> String {
+        if let Some(limit) = node.scan_limits.first() {
+            limit.column.clone()
+        } else {
+            "default".to_string()
+        }
+    }
+
+    /// 计算过滤条件数量
+    fn count_filter_conditions(&self, condition: &Expression) -> usize {
+        match condition {
+            Expression::Binary { op, left, right } => {
+                use crate::core::types::BinaryOperator;
+                match op {
+                    BinaryOperator::And => {
+                        self.count_filter_conditions(left) + self.count_filter_conditions(right)
+                    }
+                    BinaryOperator::Or => {
+                        (self.count_filter_conditions(left) + self.count_filter_conditions(right)).max(1)
+                    }
+                    _ => 1,
+                }
+            }
+            Expression::Unary { .. } => 1,
+            Expression::Function { args, .. } => {
+                args.iter().map(|_| 1).sum::<usize>().max(1)
+            }
+            _ => 1,
+        }
+    }
+
+    /// 估算 Unwind 节点的列表大小
+    ///
+    /// 尝试从列表表达式中推断大小，如果无法推断则使用配置默认值
+    fn estimate_unwind_list_size(&self, node: &crate::query::planner::plan::core::nodes::data_processing_node::UnwindNode) -> f64 {
+        let list_expr = node.list_expression();
+        
+        // 尝试解析表达式推断列表大小
+        // 例如：range(1, 10) -> 9, [1,2,3] -> 3
+        if let Some(size) = self.try_parse_list_size(list_expr) {
+            return size;
+        }
+        
+        // 使用配置默认值
+        self.config.default_unwind_list_size
+    }
+
+    /// 尝试从表达式字符串解析列表大小
+    fn try_parse_list_size(&self, expr: &str) -> Option<f64> {
+        let expr = expr.trim();
+        
+        // 尝试解析 range(start, end) 或 range(start, end, step)
+        if expr.starts_with("range(") && expr.ends_with(')') {
+            let args_str = &expr[6..expr.len()-1];
+            let args: Vec<&str> = args_str.split(',').map(|s| s.trim()).collect();
+            
+            if args.len() >= 2 {
+                let start: i64 = args[0].parse().ok()?;
+                let end: i64 = args[1].parse().ok()?;
+                let step: i64 = if args.len() >= 3 {
+                    args[2].parse().ok()?
+                } else {
+                    1
+                };
+                
+                if step != 0 {
+                    let count = ((end - start) / step).abs() as f64;
+                    return Some(count.max(0.0));
+                }
+            }
+        }
+        
+        // 尝试解析数组字面量 [a, b, c]
+        if expr.starts_with('[') && expr.ends_with(']') {
+            let inner = &expr[1..expr.len()-1];
+            if inner.is_empty() {
+                return Some(0.0);
+            }
+            let count = inner.split(',').count() as f64;
+            return Some(count);
+        }
+        
+        None
+    }
+
+    /// 估算 Loop 节点的迭代次数
+    ///
+    /// 尝试从条件中推断迭代次数，如果无法推断则使用配置默认值
+    fn estimate_loop_iterations(&self, _node: &crate::query::planner::plan::core::nodes::control_flow_node::LoopNode) -> u32 {
+        // 当前无法从条件字符串可靠推断迭代次数
+        // 未来可以尝试解析条件表达式，例如 "i < 10" -> 10
+        self.config.default_loop_iterations
+    }
+
+    /// 估算 Select 节点的分支数
+    ///
+    /// 根据实际分支情况计算分支数
+    fn estimate_select_branch_count(&self, node: &crate::query::planner::plan::core::nodes::control_flow_node::SelectNode) -> usize {
+        let mut count = 0;
+        if node.if_branch().is_some() {
+            count += 1;
+        }
+        if node.else_branch().is_some() {
+            count += 1;
+        }
+        
+        if count == 0 {
+            self.config.default_select_branches
+        } else {
+            count
+        }
+    }
 }
 
 impl Default for CostAssigner {
     fn default() -> Self {
+        let stats_manager = Arc::new(StatisticsManager::new());
+        let config = CostModelConfig::default();
         Self {
-            cost_calculator: CostCalculator::default(),
+            cost_calculator: CostCalculator::with_config(stats_manager.clone(), config),
+            selectivity_estimator: SelectivityEstimator::new(stats_manager),
+            config,
         }
     }
 }

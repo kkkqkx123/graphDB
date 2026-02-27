@@ -4,7 +4,7 @@
 
 use crate::config::Config;
 use flexi_logger::{Cleanup, Criterion, FileSpec, Logger, Naming, WriteMode, LoggerHandle};
-use std::sync::Mutex;
+use parking_lot::Mutex;
 
 /// 全局日志句柄，用于程序退出时 flush
 static LOGGER_HANDLE: Mutex<Option<LoggerHandle>> = Mutex::new(None);
@@ -43,9 +43,7 @@ pub fn init(config: &Config) -> Result<(), Box<dyn std::error::Error>> {
         .start()?;
 
     // 保存句柄供后续 flush 使用
-    if let Ok(mut guard) = LOGGER_HANDLE.lock() {
-        *guard = Some(handle);
-    }
+    *LOGGER_HANDLE.lock() = Some(handle);
 
     log::info!("日志系统初始化完成: {}/{}", config.log.dir, config.log.file);
     Ok(())
@@ -64,11 +62,10 @@ pub fn init(config: &Config) -> Result<(), Box<dyn std::error::Error>> {
 /// logging::shutdown();
 /// ```
 pub fn shutdown() {
-    if let Ok(mut guard) = LOGGER_HANDLE.lock() {
-        if let Some(handle) = guard.take() {
-            handle.flush();
-            // handle 在这里被 drop，会等待异步线程完成
-        }
+    let mut guard = LOGGER_HANDLE.lock();
+    if let Some(handle) = guard.take() {
+        handle.flush();
+        // handle 在这里被 drop，会等待异步线程完成
     }
 }
 
@@ -78,10 +75,7 @@ pub fn shutdown() {
 /// * `true` - 日志系统已初始化
 /// * `false` - 日志系统未初始化
 pub fn is_initialized() -> bool {
-    LOGGER_HANDLE
-        .lock()
-        .map(|guard| guard.is_some())
-        .unwrap_or(false)
+    LOGGER_HANDLE.lock().is_some()
 }
 
 #[cfg(test)]
@@ -107,9 +101,8 @@ mod tests {
 
     #[test]
     fn test_is_initialized_before_init() {
-        // 确保测试时日志未初始化
-        // 注意：如果其他测试已经初始化了日志，这个测试可能失败
-        // 在实际运行中，测试是并行的，所以这个测试的结果可能不稳定
-        // 这里主要是为了演示 API 用法
+        // 确保在初始化前返回 false
+        // 注意：由于 LOGGER_HANDLE 是全局的，这个测试可能受到其他测试的影响
+        // 在实际运行中，应该在独立的进程中测试
     }
 }

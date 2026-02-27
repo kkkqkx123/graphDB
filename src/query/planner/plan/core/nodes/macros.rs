@@ -510,6 +510,10 @@ macro_rules! define_plan_node_with_deps {
                 &self.deps
             }
 
+            pub fn dependencies_mut(&mut self) -> &mut Vec<Box<crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum>> {
+                &mut self.deps
+            }
+
             pub fn set_dependencies(&mut self, deps: Vec<crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum>) {
                 self.deps = deps.into_iter().map(Box::new).collect();
             }
@@ -543,6 +547,10 @@ macro_rules! define_plan_node_with_deps {
         impl crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode for $name {
             fn input(&self) -> &crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum {
                 self.input.as_ref().expect("输入节点不存在")
+            }
+
+            fn input_mut(&mut self) -> &mut crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum {
+                self.input.as_mut().expect("输入节点不存在")
             }
 
             fn set_input(&mut self, input: crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum) {

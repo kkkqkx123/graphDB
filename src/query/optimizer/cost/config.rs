@@ -124,6 +124,22 @@ pub struct CostModelConfig {
     ///
     /// 涉及超级节点时的额外代价。默认值 2.0
     pub super_node_penalty: f64,
+
+    // ==================== 控制流默认参数 ====================
+    /// Unwind 默认列表大小
+    ///
+    /// 当无法从表达式推断列表大小时使用的默认值。默认值 3.0
+    pub default_unwind_list_size: f64,
+
+    /// Loop 默认迭代次数
+    ///
+    /// 当无法从条件推断迭代次数时使用的默认值。默认值 3
+    pub default_loop_iterations: u32,
+
+    /// Select 默认分支数
+    ///
+    /// 当无法确定分支数时使用的默认值。默认值 2
+    pub default_select_branches: usize,
 }
 
 impl Default for CostModelConfig {
@@ -150,6 +166,10 @@ impl Default for CostModelConfig {
             path_enumeration_factor: 2.0,
             super_node_threshold: 10000,
             super_node_penalty: 2.0,
+            // 控制流默认参数
+            default_unwind_list_size: 3.0,
+            default_loop_iterations: 3,
+            default_select_branches: 2,
         }
     }
 }
@@ -252,6 +272,10 @@ mod tests {
         assert_eq!(config.path_enumeration_factor, 2.0);
         assert_eq!(config.super_node_threshold, 10000);
         assert_eq!(config.super_node_penalty, 2.0);
+        // 控制流默认参数
+        assert_eq!(config.default_unwind_list_size, 3.0);
+        assert_eq!(config.default_loop_iterations, 3);
+        assert_eq!(config.default_select_branches, 2);
     }
 
     #[test]

@@ -1,7 +1,7 @@
 //! ID生成器模块 - 提供唯一ID生成功能
 //!
 //! 提供两种ID生成策略：
-//! - IdGenerator: 基于原子计数器的顺序ID生成
+//! - IdGenerator: 基于原子计数器的顺序ID生成，用于会话级ID生成
 //! - generate_id: 基于时间戳的唯一ID生成
 
 use std::sync::atomic::{AtomicI64, Ordering};
@@ -10,6 +10,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 /// 基于原子计数器的ID生成器
 ///
 /// 线程安全的顺序ID生成器，适用于需要递增ID的场景
+/// 用于会话级别的ID生成（如执行计划ID），不需要全局唯一
 #[derive(Debug)]
 pub struct IdGenerator {
     counter: AtomicI64,
@@ -53,34 +54,6 @@ impl Default for IdGenerator {
     }
 }
 
-/// 执行计划ID生成器 - 单例实现
-///
-/// 用于生成执行计划相关的唯一ID
-pub struct EPIdGenerator {
-    generator: IdGenerator,
-}
-
-impl EPIdGenerator {
-    /// 获取单例实例
-    pub fn instance() -> &'static Self {
-        use std::sync::OnceLock;
-        static INSTANCE: OnceLock<EPIdGenerator> = OnceLock::new();
-        INSTANCE.get_or_init(|| EPIdGenerator {
-            generator: IdGenerator::new(0),
-        })
-    }
-
-    /// 生成下一个执行计划ID
-    pub fn id(&self) -> i64 {
-        self.generator.id()
-    }
-
-    /// 重置计数器
-    pub fn reset(&self, value: i64) {
-        self.generator.reset(value);
-    }
-}
-
 /// 基于时间戳的唯一ID生成
 ///
 /// 使用纳秒级时间戳生成唯一ID，适用于分布式场景或需要全局唯一的ID
@@ -116,16 +89,6 @@ mod tests {
         gen.reset(100);
         assert_eq!(gen.current_value(), 100);
         assert_eq!(gen.id(), 100);
-    }
-
-    #[test]
-    fn test_ep_id_generator() {
-        let gen = EPIdGenerator::instance();
-
-        let first_id = gen.id();
-        let second_id = gen.id();
-
-        assert_eq!(second_id, first_id + 1);
     }
 
     #[test]

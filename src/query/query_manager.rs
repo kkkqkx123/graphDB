@@ -4,10 +4,8 @@
 
 use log::{info, warn};
 use std::collections::HashMap;
-use std::sync::Arc;
 use parking_lot::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
-use std::sync::OnceLock;
 
 use crate::core::error::{ManagerError, ManagerResult};
 
@@ -262,19 +260,4 @@ impl Default for QueryManager {
     fn default() -> Self {
         Self::new()
     }
-}
-
-/// 全局查询管理器
-pub static GLOBAL_QUERY_MANAGER: OnceLock<Arc<QueryManager>> = OnceLock::new();
-
-/// 初始化全局查询管理器
-pub fn init_global_query_manager() -> Arc<QueryManager> {
-    let manager = Arc::new(QueryManager::new());
-    GLOBAL_QUERY_MANAGER.set(manager.clone()).ok();
-    manager
-}
-
-/// 获取全局查询管理器
-pub fn get_global_query_manager() -> Option<Arc<QueryManager>> {
-    GLOBAL_QUERY_MANAGER.get().cloned()
 }

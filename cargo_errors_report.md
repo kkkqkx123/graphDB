@@ -3,11 +3,11 @@
 ## Summary
 
 - **Total Errors**: 0
-- **Total Warnings**: 3
-- **Total Issues**: 3
+- **Total Warnings**: 2
+- **Total Issues**: 2
 - **Unique Error Patterns**: 0
 - **Unique Warning Patterns**: 2
-- **Files with Issues**: 3
+- **Files with Issues**: 1
 
 ## Error Statistics
 
@@ -15,34 +15,25 @@
 
 ## Warning Statistics
 
-**Total Warnings**: 3
+**Total Warnings**: 2
 
 ### Warning Type Breakdown
 
-- **warning**: 3 warnings
+- **warning**: 2 warnings
 
 ### Files with Warnings (Top 10)
 
-- `src\query\validator\schema_validator.rs`: 1 warnings
-- `src\api\server\session\network_session.rs`: 1 warnings
-- `src\query\validator\update_validator.rs`: 1 warnings
+- `src\query\validator\update_validator.rs`: 2 warnings
 
 ## Detailed Warning Categorization
 
-### warning: struct `MockSchemaManager` is never constructed
+### warning: unused imports: `DataType`, `PropertyDef`, and `TagInfo`
 
-**Total Occurrences**: 3  
-**Unique Files**: 3
+**Total Occurrences**: 2  
+**Unique Files**: 1
 
-#### `src\query\validator\update_validator.rs`: 1 occurrences
+#### `src\query\validator\update_validator.rs`: 2 occurrences
 
-- Line 708: struct `MockSchemaManager` is never constructed
-
-#### `src\query\validator\schema_validator.rs`: 1 occurrences
-
-- Line 588: struct `MockSchemaManager` is never constructed
-
-#### `src\api\server\session\network_session.rs`: 1 occurrences
-
-- Line 378: comparison is useless due to type limits
+- Line 687: unused imports: `DataType`, `PropertyDef`, and `TagInfo`
+- Line 690: unused import: `crate::storage::metadata::schema_manager::SchemaManager`
 

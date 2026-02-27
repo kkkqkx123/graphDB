@@ -87,9 +87,24 @@ impl PlanNodeEnum {
 
             // ControlFlowNode
             PlanNodeEnum::Argument(_) => vec![],
-            PlanNodeEnum::Loop(_) => vec![],
+            PlanNodeEnum::Loop(node) => {
+                let mut children = Vec::new();
+                if let Some(body) = node.body() {
+                    children.push(body.as_ref());
+                }
+                children
+            },
             PlanNodeEnum::PassThrough(_) => vec![],
-            PlanNodeEnum::Select(_) => vec![],
+            PlanNodeEnum::Select(node) => {
+                let mut children = Vec::new();
+                if let Some(if_branch) = node.if_branch() {
+                    children.push(if_branch.as_ref());
+                }
+                if let Some(else_branch) = node.else_branch() {
+                    children.push(else_branch.as_ref());
+                }
+                children
+            },
         }
     }
 }

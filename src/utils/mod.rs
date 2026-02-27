@@ -2,7 +2,7 @@
 
 // ID生成模块
 pub mod id_gen;
-pub use id_gen::{EPIdGenerator, IdGenerator, generate_id, is_valid_id, INVALID_ID};
+pub use id_gen::{IdGenerator, generate_id, is_valid_id, INVALID_ID};
 
 // 对象池模块
 pub mod object_pool;

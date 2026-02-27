@@ -581,82 +581,10 @@ impl SchemaValidator {
 mod tests {
     use super::*;
     use crate::core::types::PropertyDef;
-    use crate::storage::metadata::schema_manager::SchemaManager;
-
-    #[derive(Debug)]
-    struct MockSchemaManager;
-
-    impl SchemaManager for MockSchemaManager {
-        fn create_space(&self, _space: &crate::core::types::SpaceInfo) -> crate::storage::StorageResult<bool> {
-            Ok(true)
-        }
-        fn drop_space(&self, _space_name: &str) -> crate::storage::StorageResult<bool> {
-            Ok(true)
-        }
-        fn get_space(&self, _space_name: &str) -> crate::storage::StorageResult<Option<crate::core::types::SpaceInfo>> {
-            Ok(None)
-        }
-        fn get_space_by_id(&self, _space_id: u64) -> crate::storage::StorageResult<Option<crate::core::types::SpaceInfo>> {
-            Ok(None)
-        }
-        fn list_spaces(&self) -> crate::storage::StorageResult<Vec<crate::core::types::SpaceInfo>> {
-            Ok(vec![])
-        }
-        fn create_tag(&self, _space: &str, _tag: &TagInfo) -> crate::storage::StorageResult<bool> {
-            Ok(true)
-        }
-        fn get_tag(&self, _space: &str, tag_name: &str) -> crate::storage::StorageResult<Option<TagInfo>> {
-            if tag_name == "person" {
-                Ok(Some(TagInfo {
-                    tag_id: 1,
-                    tag_name: "person".to_string(),
-                    properties: vec![
-                        PropertyDef::new("name".to_string(), DataType::String)
-                            .with_nullable(false),
-                        PropertyDef::new("age".to_string(), DataType::Int)
-                            .with_nullable(true),
-                        PropertyDef::new("email".to_string(), DataType::String)
-                            .with_nullable(true)
-                            .with_default(Some(Value::String("unknown@example.com".to_string()))),
-                    ],
-                    comment: None,
-                    ttl_duration: None,
-                    ttl_col: None,
-                }))
-            } else {
-                Ok(None)
-            }
-        }
-        fn list_tags(&self, _space: &str) -> crate::storage::StorageResult<Vec<TagInfo>> {
-            Ok(vec![])
-        }
-        fn drop_tag(&self, _space: &str, _tag_name: &str) -> crate::storage::StorageResult<bool> {
-            Ok(true)
-        }
-        fn create_edge_type(&self, _space: &str, _edge: &EdgeTypeInfo) -> crate::storage::StorageResult<bool> {
-            Ok(true)
-        }
-        fn get_edge_type(&self, _space: &str, _edge_type_name: &str) -> crate::storage::StorageResult<Option<EdgeTypeInfo>> {
-            Ok(None)
-        }
-        fn list_edge_types(&self, _space: &str) -> crate::storage::StorageResult<Vec<EdgeTypeInfo>> {
-            Ok(vec![])
-        }
-        fn drop_edge_type(&self, _space: &str, _edge_type_name: &str) -> crate::storage::StorageResult<bool> {
-            Ok(true)
-        }
-        fn get_tag_schema(&self, _space: &str, _tag: &str) -> crate::storage::StorageResult<crate::storage::Schema> {
-            Ok(crate::storage::Schema::new("test".to_string(), 1))
-        }
-        fn get_edge_type_schema(&self, _space: &str, _edge: &str) -> crate::storage::StorageResult<crate::storage::Schema> {
-            Ok(crate::storage::Schema::new("test".to_string(), 1))
-        }
-    }
 
     fn create_test_validator() -> SchemaValidator {
         // 由于现在使用具体类型 RedbSchemaManager，测试需要创建一个真实的 RedbSchemaManager
         // 或者使用其他方法。这里暂时注释掉，需要后续修复测试
-        // SchemaValidator::new(Arc::new(MockSchemaManager))
         panic!("测试需要更新以使用 RedbSchemaManager");
     }
 

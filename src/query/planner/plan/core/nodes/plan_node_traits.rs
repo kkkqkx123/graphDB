@@ -69,6 +69,9 @@ pub trait SingleInputNode: PlanNode {
     /// 获取输入节点
     fn input(&self) -> &PlanNodeEnum;
 
+    /// 获取输入节点的可变引用
+    fn input_mut(&mut self) -> &mut PlanNodeEnum;
+
     /// 设置输入节点
     fn set_input(&mut self, input: PlanNodeEnum);
 

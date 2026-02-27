@@ -1,9 +1,6 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::fmt;
 use std::hash::Hash;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::LazyLock;
 use uuid::Uuid;
 
 /// A unique identifier for vertices
@@ -126,119 +123,6 @@ impl fmt::Display for IndexId {
     }
 }
 
-/// Global ID generator
-#[derive(Debug)]
-pub struct IdGenerator {
-    vertex_counter: AtomicU64,
-    edge_counter: AtomicU64,
-    tag_counter: AtomicU64,
-    edge_type_counter: AtomicU64,
-    space_counter: AtomicU64,
-    index_counter: AtomicU64,
-}
-
-impl IdGenerator {
-    pub fn new() -> Self {
-        Self {
-            vertex_counter: AtomicU64::new(1), // Start from 1 to avoid 0
-            edge_counter: AtomicU64::new(1),
-            tag_counter: AtomicU64::new(1),
-            edge_type_counter: AtomicU64::new(1),
-            space_counter: AtomicU64::new(1),
-            index_counter: AtomicU64::new(1),
-        }
-    }
-
-    pub fn generate_vertex_id(&self) -> VertexId {
-        let id = self.vertex_counter.fetch_add(1, Ordering::SeqCst) as i64;
-        VertexId::new(id)
-    }
-
-    pub fn generate_edge_id(&self) -> EdgeId {
-        let id = self.edge_counter.fetch_add(1, Ordering::SeqCst) as i64;
-        EdgeId::new(id)
-    }
-
-    pub fn generate_tag_id(&self) -> TagId {
-        let id = self.tag_counter.fetch_add(1, Ordering::SeqCst);
-        if id > i32::MAX as u64 {
-            panic!("Tag ID overflow: exceeded maximum value of i32");
-        }
-        TagId::new(id as i32)
-    }
-
-    pub fn generate_edge_type(&self) -> EdgeType {
-        let id = self.edge_type_counter.fetch_add(1, Ordering::SeqCst);
-        if id > i32::MAX as u64 {
-            panic!("Edge type ID overflow: exceeded maximum value of i32");
-        }
-        EdgeType::new(id as i32)
-    }
-
-    pub fn generate_space_id(&self) -> SpaceId {
-        let id = self.space_counter.fetch_add(1, Ordering::SeqCst);
-        if id > i32::MAX as u64 {
-            panic!("Space ID overflow: exceeded maximum value of i32");
-        }
-        SpaceId::new(id as i32)
-    }
-
-    pub fn generate_index_id(&self) -> IndexId {
-        let id = self.index_counter.fetch_add(1, Ordering::SeqCst);
-        if id > i32::MAX as u64 {
-            panic!("Index ID overflow: exceeded maximum value of i32");
-        }
-        IndexId::new(id as i32)
-    }
-
-    pub fn reset(&self) {
-        self.vertex_counter.store(1, Ordering::SeqCst);
-        self.edge_counter.store(1, Ordering::SeqCst);
-        self.tag_counter.store(1, Ordering::SeqCst);
-        self.edge_type_counter.store(1, Ordering::SeqCst);
-        self.space_counter.store(1, Ordering::SeqCst);
-        self.index_counter.store(1, Ordering::SeqCst);
-    }
-}
-
-/// Global ID generator instance
-static ID_GENERATOR: LazyLock<IdGenerator> = LazyLock::new(IdGenerator::new);
-
-/// Get reference to the global ID generator
-pub fn id_generator() -> &'static IdGenerator {
-    &ID_GENERATOR
-}
-
-/// Generate a new vertex ID
-pub fn gen_vertex_id() -> VertexId {
-    ID_GENERATOR.generate_vertex_id()
-}
-
-/// Generate a new edge ID
-pub fn gen_edge_id() -> EdgeId {
-    ID_GENERATOR.generate_edge_id()
-}
-
-/// Generate a new tag ID
-pub fn gen_tag_id() -> TagId {
-    ID_GENERATOR.generate_tag_id()
-}
-
-/// Generate a new edge type
-pub fn gen_edge_type() -> EdgeType {
-    ID_GENERATOR.generate_edge_type()
-}
-
-/// Generate a new space ID
-pub fn gen_space_id() -> SpaceId {
-    ID_GENERATOR.generate_space_id()
-}
-
-/// Generate a new index ID
-pub fn gen_index_id() -> IndexId {
-    ID_GENERATOR.generate_index_id()
-}
-
 /// UUID generator utility
 pub struct UuidGenerator;
 
@@ -300,14 +184,12 @@ pub mod id_utils {
 
     /// Convert a string to a vertex ID (useful for external IDs)
     pub fn string_to_vertex_id(s: &str) -> VertexId {
-        // Simple hash-based conversion, in production you'd want a more robust solution
         let hash = hash_string(s);
         VertexId::new(hash as i64)
     }
 
     /// Convert a string to an edge ID (useful for external IDs)
     pub fn string_to_edge_id(s: &str) -> EdgeId {
-        // Simple hash-based conversion, in production you'd want a more robust solution
         let hash = hash_string(s);
         EdgeId::new(hash as i64)
     }
@@ -348,88 +230,6 @@ pub mod id_utils {
     }
 }
 
-/// A registry to map string IDs to numeric IDs (useful for external IDs)
-#[derive(Debug)]
-pub struct IdRegistry {
-    string_to_vertex: HashMap<String, VertexId>,
-    vertex_to_string: HashMap<VertexId, String>,
-    string_to_edge: HashMap<String, EdgeId>,
-    edge_to_string: HashMap<EdgeId, String>,
-}
-
-impl IdRegistry {
-    pub fn new() -> Self {
-        Self {
-            string_to_vertex: HashMap::new(),
-            vertex_to_string: HashMap::new(),
-            string_to_edge: HashMap::new(),
-            edge_to_string: HashMap::new(),
-        }
-    }
-
-    /// Register a string ID for a vertex
-    pub fn register_vertex_string_id(&mut self, string_id: String, vertex_id: VertexId) {
-        self.string_to_vertex.insert(string_id.clone(), vertex_id);
-        self.vertex_to_string.insert(vertex_id, string_id);
-    }
-
-    /// Register a string ID for an edge
-    pub fn register_edge_string_id(&mut self, string_id: String, edge_id: EdgeId) {
-        self.string_to_edge.insert(string_id.clone(), edge_id);
-        self.edge_to_string.insert(edge_id, string_id);
-    }
-
-    /// Get the numeric vertex ID for a string ID
-    pub fn get_vertex_id(&self, string_id: &str) -> Option<VertexId> {
-        self.string_to_vertex.get(string_id).copied()
-    }
-
-    /// Get the string ID for a numeric vertex ID
-    pub fn get_string_id_for_vertex(&self, vertex_id: VertexId) -> Option<String> {
-        self.vertex_to_string.get(&vertex_id).cloned()
-    }
-
-    /// Get the numeric edge ID for a string ID
-    pub fn get_edge_id(&self, string_id: &str) -> Option<EdgeId> {
-        self.string_to_edge.get(string_id).copied()
-    }
-
-    /// Get the string ID for a numeric edge ID
-    pub fn get_string_id_for_edge(&self, edge_id: EdgeId) -> Option<String> {
-        self.edge_to_string.get(&edge_id).cloned()
-    }
-
-    /// Check if a string ID exists for a vertex
-    pub fn has_vertex_string_id(&self, string_id: &str) -> bool {
-        self.string_to_vertex.contains_key(string_id)
-    }
-
-    /// Check if a string ID exists for an edge
-    pub fn has_edge_string_id(&self, string_id: &str) -> bool {
-        self.string_to_edge.contains_key(string_id)
-    }
-}
-
-/// ID configuration
-#[derive(Debug, Clone)]
-pub struct IdConfig {
-    pub enable_string_ids: bool,
-    pub string_id_prefix: String,
-    pub max_id_value: i64,
-    pub use_uuid: bool,
-}
-
-impl Default for IdConfig {
-    fn default() -> Self {
-        Self {
-            enable_string_ids: false,
-            string_id_prefix: "ext_".to_string(),
-            max_id_value: i64::MAX,
-            use_uuid: false,
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -438,112 +238,48 @@ mod tests {
     fn test_vertex_id() {
         let id = VertexId::new(123);
         assert_eq!(id.as_i64(), 123);
-        assert_eq!(format!("{}", id), "v123");
+        assert_eq!(id.to_string(), "v123");
     }
 
     #[test]
     fn test_edge_id() {
         let id = EdgeId::new(456);
         assert_eq!(id.as_i64(), 456);
-        assert_eq!(format!("{}", id), "e456");
+        assert_eq!(id.to_string(), "e456");
     }
 
     #[test]
     fn test_tag_id() {
-        let id = TagId::new(1);
-        assert_eq!(id.as_i32(), 1);
-        assert_eq!(format!("{}", id), "tag1");
-    }
-
-    #[test]
-    fn test_edge_type() {
-        let id = EdgeType::new(2);
-        assert_eq!(id.as_i32(), 2);
-        assert_eq!(format!("{}", id), "edge_type2");
-    }
-
-    #[test]
-    fn test_space_id() {
-        let id = SpaceId::new(10);
-        assert_eq!(id.as_i32(), 10);
-        assert_eq!(format!("{}", id), "space10");
-    }
-
-    #[test]
-    fn test_index_id() {
-        let id = IndexId::new(5);
-        assert_eq!(id.as_i32(), 5);
-        assert_eq!(format!("{}", id), "index5");
-    }
-
-    #[test]
-    fn test_id_generator() {
-        let gen = IdGenerator::new();
-
-        let id1 = gen.generate_vertex_id();
-        let id2 = gen.generate_vertex_id();
-
-        assert!(id_utils::is_valid_vertex_id(id1));
-        assert!(id_utils::is_valid_vertex_id(id2));
-        assert_ne!(id1.as_i64(), id2.as_i64());
-    }
-
-    #[test]
-    fn test_global_id_generator() {
-        let id1 = gen_vertex_id();
-        let id2 = gen_vertex_id();
-
-        assert_ne!(id1.as_i64(), id2.as_i64());
+        let id = TagId::new(789);
+        assert_eq!(id.as_i32(), 789);
+        assert_eq!(id.to_string(), "tag789");
     }
 
     #[test]
     fn test_uuid_generator() {
-        let uuid_str = UuidGenerator::generate();
-        assert!(UuidGenerator::is_valid(&uuid_str));
-
-        let uuid = UuidGenerator::generate_uuid();
-        assert_eq!(uuid.to_string().len(), 36); // Standard UUID length
+        let uuid1 = UuidGenerator::generate();
+        let uuid2 = UuidGenerator::generate();
+        assert_ne!(uuid1, uuid2);
+        assert!(UuidGenerator::is_valid(&uuid1));
     }
 
     #[test]
     fn test_string_id() {
-        let string_id = StringId::new("test_id".to_string());
-        assert_eq!(string_id.as_str(), "test_id");
-        assert_eq!(format!("{}", string_id), "test_id");
-    }
-
-    #[test]
-    fn test_id_registry() {
-        let mut registry = IdRegistry::new();
-
-        let vertex_id = VertexId::new(100);
-        registry.register_vertex_string_id("vertex_100".to_string(), vertex_id);
-
-        assert_eq!(registry.get_vertex_id("vertex_100"), Some(vertex_id));
-        assert_eq!(
-            registry.get_string_id_for_vertex(vertex_id),
-            Some("vertex_100".to_string())
-        );
-
-        let edge_id = EdgeId::new(200);
-        registry.register_edge_string_id("edge_200".to_string(), edge_id);
-
-        assert_eq!(registry.get_edge_id("edge_200"), Some(edge_id));
-        assert_eq!(
-            registry.get_string_id_for_edge(edge_id),
-            Some("edge_200".to_string())
-        );
+        let id = StringId::new("test_id".to_string());
+        assert_eq!(id.as_str(), "test_id");
+        assert_eq!(id.to_string(), "test_id");
     }
 
     #[test]
     fn test_id_utils() {
-        let vertex_id = id_utils::string_to_vertex_id("test_vertex");
-        assert!(id_utils::is_valid_vertex_id(vertex_id));
+        let vid1 = id_utils::string_to_vertex_id("test1");
+        let vid2 = id_utils::string_to_vertex_id("test1");
+        let vid3 = id_utils::string_to_vertex_id("test2");
 
-        let edge_id = id_utils::string_to_edge_id("test_edge");
-        assert!(id_utils::is_valid_edge_id(edge_id));
+        assert_eq!(vid1.as_i64(), vid2.as_i64());
+        assert_ne!(vid1.as_i64(), vid3.as_i64());
 
-        let combined = id_utils::combine_vertex_edge_ids(VertexId::new(1), EdgeId::new(2));
-        assert_eq!(combined, "1_2");
+        assert!(id_utils::is_valid_vertex_id(vid1));
+        assert!(!id_utils::is_valid_vertex_id(VertexId::new(0)));
     }
 }

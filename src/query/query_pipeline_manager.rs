@@ -301,29 +301,10 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         let kind = crate::query::planner::planner::SentenceKind::from_stmt(stmt)
             .map_err(|e| DBError::from(QueryError::pipeline_planning_error(e)))?;
 
-        // 使用 OptimizerEngine 计算优化决策
-        let decision = match self.optimizer_engine.compute_decision(stmt, kind) {
-            Ok(decision) => {
-                log::debug!("优化决策计算成功");
-                Some(decision)
-            }
-            Err(e) => {
-                log::warn!("优化决策计算失败: {}", e);
-                None
-            }
-        };
-
         // 生成执行计划
         let plan = if let Some(mut planner_enum) = crate::query::planner::planner::PlannerEnum::from_sentence_kind(kind) {
-            let sub_plan = if let Some(ref decision) = decision {
-                // 使用预计算的决策生成计划
-                planner_enum.transform_with_decision(stmt, query_context.clone(), decision)
-                    .map_err(|e| DBError::from(QueryError::pipeline_planning_error(e)))?
-            } else {
-                // 不使用决策，直接生成计划
-                planner_enum.transform(stmt, query_context.clone())
-                    .map_err(|e| DBError::from(QueryError::pipeline_planning_error(e)))?
-            };
+            let sub_plan = planner_enum.transform(stmt, query_context.clone())
+                .map_err(|e| DBError::from(QueryError::pipeline_planning_error(e)))?;
             crate::query::planner::plan::ExecutionPlan::new(sub_plan.root().clone())
         } else {
             return Err(DBError::from(QueryError::pipeline_planning_error(
@@ -334,29 +315,6 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         };
 
         Ok(plan)
-    }
-
-    /// 生成模式指纹
-    fn generate_pattern_fingerprint(
-        stmt: &crate::query::parser::ast::Stmt,
-    ) -> Option<String> {
-        match stmt {
-            crate::query::parser::ast::Stmt::Match(m) => {
-                let pattern_count = m.patterns.len();
-                let has_where = m.where_clause.is_some();
-                let has_return = m.return_clause.is_some();
-                Some(format!("M:{}:W{}:R{}", pattern_count, has_where as u8, has_return as u8))
-            }
-            crate::query::parser::ast::Stmt::Go(g) => {
-                let step_str = match &g.steps {
-                    crate::query::parser::ast::Steps::Fixed(n) => format!("F{}", n),
-                    crate::query::parser::ast::Steps::Range { min, max } => format!("R{}-{}", min, max),
-                    crate::query::parser::ast::Steps::Variable(_) => "V".to_string(),
-                };
-                Some(format!("G:{}:S{}", step_str, g.over.as_ref().map(|_| "E").unwrap_or("N")))
-            }
-            _ => None,
-        }
     }
 
     fn optimize_execution_plan(

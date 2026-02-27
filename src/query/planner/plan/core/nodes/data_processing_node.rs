@@ -339,6 +339,10 @@ impl super::plan_node_traits::SingleInputNode for RollUpApplyNode {
         &self.left_input
     }
 
+    fn input_mut(&mut self) -> &mut super::plan_node_enum::PlanNodeEnum {
+        &mut self.left_input
+    }
+
     fn set_input(&mut self, input: super::plan_node_enum::PlanNodeEnum) {
         self.left_input = Box::new(input.clone());
         self.deps.clear();
@@ -528,6 +532,10 @@ impl super::plan_node_traits::PlanNodeClonable for PatternApplyNode {
 impl super::plan_node_traits::SingleInputNode for PatternApplyNode {
     fn input(&self) -> &super::plan_node_enum::PlanNodeEnum {
         &self.left_input
+    }
+
+    fn input_mut(&mut self) -> &mut super::plan_node_enum::PlanNodeEnum {
+        &mut self.left_input
     }
 
     fn set_input(&mut self, input: super::plan_node_enum::PlanNodeEnum) {

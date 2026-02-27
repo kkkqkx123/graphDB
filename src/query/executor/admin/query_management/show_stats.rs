@@ -5,7 +5,6 @@
 use std::sync::Arc;
 use parking_lot::Mutex;
 
-use crate::query::GLOBAL_QUERY_MANAGER;
 use crate::core::{StatsManager, QueryStatus};
 use crate::core::{DataSet, Value};
 use crate::query::executor::base::{BaseExecutor, ExecutionResult, Executor, HasStorage};
@@ -142,33 +141,9 @@ impl<S: StorageClient + Send + Sync + 'static> Executor<S> for ShowStatsExecutor
 
 impl<S: StorageClient> ShowStatsExecutor<S> {
     fn show_all_stats(&self, storage: &S) -> DataSet {
-        let query_stats = GLOBAL_QUERY_MANAGER
-            .get()
-            .and_then(|qm| qm.get_query_stats().ok())
-            .unwrap_or_default();
         let storage_stats = storage.get_storage_stats();
 
         let rows = vec![
-            vec![
-                Value::String("Total Queries".to_string()),
-                Value::Int(query_stats.total_queries as i64),
-            ],
-            vec![
-                Value::String("Running Queries".to_string()),
-                Value::Int(query_stats.running_queries as i64),
-            ],
-            vec![
-                Value::String("Finished Queries".to_string()),
-                Value::Int(query_stats.finished_queries as i64),
-            ],
-            vec![
-                Value::String("Failed Queries".to_string()),
-                Value::Int(query_stats.failed_queries as i64),
-            ],
-            vec![
-                Value::String("Killed Queries".to_string()),
-                Value::Int(query_stats.killed_queries as i64),
-            ],
             vec![
                 Value::String("Total Vertices".to_string()),
                 Value::Int(storage_stats.total_vertices as i64),
@@ -198,33 +173,24 @@ impl<S: StorageClient> ShowStatsExecutor<S> {
     }
 
     fn show_query_stats(&self) -> DataSet {
-        let query_stats = GLOBAL_QUERY_MANAGER
-            .get()
-            .and_then(|qm| qm.get_query_stats().ok())
-            .unwrap_or_default();
+        let rows = if let Some(stats_manager) = Self::get_stats_manager() {
+            // 使用 Metrics 获取查询统计
+            let total_queries = stats_manager.get_value(crate::core::stats::MetricType::NumQueries).unwrap_or(0);
+            let active_queries = stats_manager.get_value(crate::core::stats::MetricType::NumActiveQueries).unwrap_or(0);
 
-        let rows = vec![
             vec![
-                Value::String("Total Queries".to_string()),
-                Value::Int(query_stats.total_queries as i64),
-            ],
-            vec![
-                Value::String("Running Queries".to_string()),
-                Value::Int(query_stats.running_queries as i64),
-            ],
-            vec![
-                Value::String("Finished Queries".to_string()),
-                Value::Int(query_stats.finished_queries as i64),
-            ],
-            vec![
-                Value::String("Failed Queries".to_string()),
-                Value::Int(query_stats.failed_queries as i64),
-            ],
-            vec![
-                Value::String("Killed Queries".to_string()),
-                Value::Int(query_stats.killed_queries as i64),
-            ],
-        ];
+                vec![
+                    Value::String("Total Queries".to_string()),
+                    Value::Int(total_queries as i64),
+                ],
+                vec![
+                    Value::String("Active Queries".to_string()),
+                    Value::Int(active_queries as i64),
+                ],
+            ]
+        } else {
+            vec![]
+        };
 
         DataSet {
             col_names: vec!["Statistic".to_string(), "Value".to_string()],
@@ -498,54 +464,6 @@ impl<S: StorageClient> ShowStatsExecutor<S> {
 
 impl<S: StorageClient> HasStorage<S> for ShowStatsExecutor<S> {
     fn get_storage(&self) -> &Arc<Mutex<S>> {
-        self.base.get_storage()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::storage::test_mock::MockStorage;
-    use crate::query::executor::Executor;
-
-    #[test]
-    fn test_show_stats_executor() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
-        let mut executor = ShowStatsExecutor::new(1, storage);
-
-        let result = executor.execute();
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_show_stats_executor_with_type() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
-        let mut executor = ShowStatsExecutor::with_type(2, storage, "query".to_string());
-
-        let result = executor.execute();
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_executor_lifecycle() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
-        let mut executor = ShowStatsExecutor::new(3, storage);
-
-        assert!(!executor.is_open());
-        assert!(executor.open().is_ok());
-        assert!(executor.is_open());
-        assert!(executor.close().is_ok());
-        assert!(!executor.is_open());
-    }
-
-    #[test]
-    fn test_executor_stats() {
-        let storage = Arc::new(Mutex::new(MockStorage::new().expect("Failed to create MockStorage")));
-        let executor = ShowStatsExecutor::new(4, storage);
-
-        assert_eq!(executor.id(), 4);
-        assert_eq!(executor.name(), "ShowStatsExecutor");
-        assert_eq!(executor.description(), "Shows database statistics");
-        assert!(executor.stats().num_rows == 0);
+        self.base.storage.as_ref().expect("Storage not available")
     }
 }

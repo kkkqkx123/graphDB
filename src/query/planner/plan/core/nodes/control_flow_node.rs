@@ -98,6 +98,14 @@ impl SelectNode {
         &self.else_branch
     }
 
+    pub fn if_branch_mut(&mut self) -> &mut Option<Box<super::plan_node_enum::PlanNodeEnum>> {
+        &mut self.if_branch
+    }
+
+    pub fn else_branch_mut(&mut self) -> &mut Option<Box<super::plan_node_enum::PlanNodeEnum>> {
+        &mut self.else_branch
+    }
+
     pub fn condition(&self) -> &str {
         &self.condition
     }
@@ -216,6 +224,10 @@ impl LoopNode {
 
     pub fn body(&self) -> &Option<Box<super::plan_node_enum::PlanNodeEnum>> {
         &self.body
+    }
+
+    pub fn body_mut(&mut self) -> &mut Option<Box<super::plan_node_enum::PlanNodeEnum>> {
+        &mut self.body
     }
 
     pub fn condition(&self) -> &str {
