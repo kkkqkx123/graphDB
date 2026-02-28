@@ -36,7 +36,7 @@ use super::{
     node_estimators::{
         NodeEstimator,
         ScanEstimator, GraphTraversalEstimator, JoinEstimator,
-        SortLimitEstimator, SetOperationEstimator, ControlFlowEstimator,
+        SortLimitEstimator, ControlFlowEstimator,
         GraphAlgorithmEstimator, DataProcessingEstimator,
     },
 };
@@ -203,12 +203,12 @@ impl CostAssigner {
                 estimator.estimate(node, child_estimates)
             }
 
-            // 集合操作
+            // 集合操作 - 无优化决策需求，返回保守估计
             PlanNodeEnum::Union(_) |
             PlanNodeEnum::Minus(_) |
             PlanNodeEnum::Intersect(_) => {
-                let estimator = SetOperationEstimator::new(&self.cost_calculator);
-                estimator.estimate(node, child_estimates)
+                let input_rows: u64 = child_estimates.iter().map(|e| e.output_rows).sum();
+                Ok((1.0, input_rows.max(1)))
             }
 
             // 控制流节点

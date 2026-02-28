@@ -2,37 +2,47 @@
 
 ## Summary
 
-- **Total Errors**: 1
-- **Total Warnings**: 0
-- **Total Issues**: 1
-- **Unique Error Patterns**: 1
-- **Unique Warning Patterns**: 0
-- **Files with Issues**: 1
+- **Total Errors**: 0
+- **Total Warnings**: 3
+- **Total Issues**: 3
+- **Unique Error Patterns**: 0
+- **Unique Warning Patterns**: 3
+- **Files with Issues**: 3
 
 ## Error Statistics
 
-**Total Errors**: 1
-
-### Error Type Breakdown
-
-- **error[E0061]**: 1 errors
-
-### Files with Errors (Top 10)
-
-- `src\query\optimizer\cost\node_estimators\sort_limit.rs`: 1 errors
+**Total Errors**: 0
 
 ## Warning Statistics
 
-**Total Warnings**: 0
+**Total Warnings**: 3
 
-## Detailed Error Categorization
+### Warning Type Breakdown
 
-### error[E0061]: this method takes 2 arguments but 1 argument was supplied
+- **warning**: 3 warnings
 
-**Total Occurrences**: 1  
-**Unique Files**: 1
+### Files with Warnings (Top 10)
 
-#### `src\query\optimizer\cost\node_estimators\sort_limit.rs`: 1 occurrences
+- `src\query\optimizer\cost\node_estimators\scan.rs`: 1 warnings
+- `src\query\optimizer\cost\assigner.rs`: 1 warnings
+- `src\query\optimizer\cost\node_estimators\graph_traversal.rs`: 1 warnings
 
-- Line 46: this method takes 2 arguments but 1 argument was supplied
+## Detailed Warning Categorization
+
+### warning: method `get_avg_in_degree` is never used
+
+**Total Occurrences**: 3  
+**Unique Files**: 3
+
+#### `src\query\optimizer\cost\node_estimators\graph_traversal.rs`: 1 occurrences
+
+- Line 38: method `get_avg_in_degree` is never used
+
+#### `src\query\optimizer\cost\assigner.rs`: 1 occurrences
+
+- Line 28: unused import: `CostError`
+
+#### `src\query\optimizer\cost\node_estimators\scan.rs`: 1 occurrences
+
+- Line 14: unused import: `get_input_rows`
 
