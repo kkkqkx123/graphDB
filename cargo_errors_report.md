@@ -3,10 +3,10 @@
 ## Summary
 
 - **Total Errors**: 0
-- **Total Warnings**: 3
-- **Total Issues**: 3
+- **Total Warnings**: 1
+- **Total Issues**: 1
 - **Unique Error Patterns**: 0
-- **Unique Warning Patterns**: 3
+- **Unique Warning Patterns**: 1
 - **Files with Issues**: 1
 
 ## Error Statistics
@@ -15,26 +15,24 @@
 
 ## Warning Statistics
 
-**Total Warnings**: 3
+**Total Warnings**: 1
 
 ### Warning Type Breakdown
 
-- **warning**: 3 warnings
+- **warning**: 1 warnings
 
 ### Files with Warnings (Top 10)
 
-- `src\query\optimizer\strategy\join_order.rs`: 3 warnings
+- `src\query\planner\rewrite\elimination\eliminate_sort.rs`: 1 warnings
 
 ## Detailed Warning Categorization
 
-### warning: unused variable: `hash_join_cost`: help: if this is intentional, prefix it with an underscore: `_hash_join_cost`
+### warning: function `create_test_sort_node` is never used
 
-**Total Occurrences**: 3  
+**Total Occurrences**: 1  
 **Unique Files**: 1
 
-#### `src\query\optimizer\strategy\join_order.rs`: 3 occurrences
+#### `src\query\planner\rewrite\elimination\eliminate_sort.rs`: 1 occurrences
 
-- Line 485: unused variable: `hash_join_cost`: help: if this is intentional, prefix it with an underscore: `_hash_join_cost`
-- Line 488: unused variable: `nested_loop_cost`: help: if this is intentional, prefix it with an underscore: `_nested_loop_cost`
-- Line 564: unused variable: `conditions`: help: if this is intentional, prefix it with an underscore: `_conditions`
+- Line 212: function `create_test_sort_node` is never used
 

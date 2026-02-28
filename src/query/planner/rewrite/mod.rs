@@ -31,13 +31,28 @@
 //! 将投影操作下推到计划树底层。
 //!
 //! ## 消除规则 (elimination)
-//! 消除冗余的操作。
+//! 消除冗余的操作，包括：
+//! - 永假式过滤 (`EliminateFilterRule`)
+//! - 无操作投影 (`RemoveNoopProjectRule`)
+//! - 不必要的去重 (`DedupEliminationRule`)
+//! - 冗余的排序 (`EliminateSortRule`) - 当输入已有序时
 //!
 //! ## LIMIT 下推规则 (limit_pushdown)
 //! 将 LIMIT/TOPN 操作下推。
 //!
 //! ## 聚合优化规则 (aggregate)
 //! 优化聚合操作。
+//!
+//! # 与基于代价的优化的关系
+//!
+//! 本模块的规则是**启发式规则**，不依赖代价计算，总是执行。
+//! 基于代价的优化在 `strategy` 模块中实现，包括：
+//! - 排序策略选择 (`SortEliminationOptimizer`) - 基于代价决定是否转换为 TopN
+//! - 聚合策略选择 (`AggregateStrategySelector`)
+//! - 连接顺序优化 (`JoinOrderOptimizer`)
+//! - 遍历方向优化 (`TraversalDirectionOptimizer`)
+//!
+//! 启发式规则优先执行，基于代价的优化在之后执行。
 //!
 //! # 使用示例
 //!

@@ -128,6 +128,7 @@ define_rewrite_rules! {
         EliminateRowCollect(elimination::EliminateRowCollectRule),
         EliminateEmptySetOperation(elimination::EliminateEmptySetOperationRule),
         DedupElimination(elimination::DedupEliminationRule),
+        EliminateSort(elimination::EliminateSortRule),
 
         // ==================== 合并规则 ====================
         CombineFilter(merge::CombineFilterRule),
@@ -213,6 +214,7 @@ impl Default for RuleRegistry {
         registry.add(RewriteRule::EliminateRowCollect(elimination::EliminateRowCollectRule::new()));
         registry.add(RewriteRule::EliminateEmptySetOperation(elimination::EliminateEmptySetOperationRule::new()));
         registry.add(RewriteRule::DedupElimination(elimination::DedupEliminationRule::new()));
+        registry.add(RewriteRule::EliminateSort(elimination::EliminateSortRule::new()));
         registry.add(RewriteRule::CombineFilter(merge::CombineFilterRule::new()));
         registry.add(RewriteRule::CollapseProject(merge::CollapseProjectRule::new()));
         registry.add(RewriteRule::CollapseConsecutiveProject(merge::CollapseConsecutiveProjectRule::new()));

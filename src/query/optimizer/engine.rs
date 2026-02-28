@@ -37,6 +37,7 @@ use std::sync::Arc;
 
 use crate::query::optimizer::{
     CostCalculator, CostModelConfig, SelectivityEstimator, StatisticsManager,
+    SortEliminationOptimizer,
 };
 
 /// 优化器引擎
@@ -51,6 +52,8 @@ pub struct OptimizerEngine {
     cost_calculator: Arc<CostCalculator>,
     /// 选择性估计器
     selectivity_estimator: Arc<SelectivityEstimator>,
+    /// 排序消除优化器
+    sort_elimination_optimizer: Arc<SortEliminationOptimizer>,
     /// 代价模型配置
     cost_config: CostModelConfig,
 }
@@ -71,10 +74,16 @@ impl OptimizerEngine {
         ));
         let selectivity_estimator = Arc::new(SelectivityEstimator::new(stats_manager.clone()));
 
+        // 创建排序消除优化器
+        let sort_elimination_optimizer = Arc::new(SortEliminationOptimizer::new(
+            cost_calculator.clone(),
+        ));
+
         Self {
             stats_manager,
             cost_calculator,
             selectivity_estimator,
+            sort_elimination_optimizer,
             cost_config,
         }
     }
@@ -114,6 +123,11 @@ impl OptimizerEngine {
         &self.selectivity_estimator
     }
 
+    /// 获取排序消除优化器
+    pub fn sort_elimination_optimizer(&self) -> &SortEliminationOptimizer {
+        &self.sort_elimination_optimizer
+    }
+
     /// 更新代价模型配置
     ///
     /// 注意：更新配置会重新创建代价计算器，但不会影响已有的决策缓存
@@ -122,6 +136,10 @@ impl OptimizerEngine {
         self.cost_calculator = Arc::new(CostCalculator::with_config(
             self.stats_manager.clone(),
             self.cost_config,
+        ));
+        // 重新创建排序消除优化器，使用新的代价计算器
+        self.sort_elimination_optimizer = Arc::new(SortEliminationOptimizer::new(
+            self.cost_calculator.clone(),
         ));
         log::info!("优化器代价模型配置已更新: {:?}", self.cost_config);
     }

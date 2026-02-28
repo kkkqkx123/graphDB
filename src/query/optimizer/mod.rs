@@ -72,6 +72,11 @@ pub use strategy::{
     DirectionContext,
     DirectionSelectionReason,
     DegreeInfo,
+    SortEliminationOptimizer,
+    SortEliminationDecision,
+    SortContext,
+    SortKeepReason,
+    TopNConversionReason,
 };
 
 pub use decision::{
