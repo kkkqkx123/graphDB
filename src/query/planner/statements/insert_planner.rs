@@ -13,7 +13,7 @@ use crate::query::planner::plan::core::{
     },
 };
 use crate::query::planner::plan::{PlanNodeEnum, SubPlan};
-use crate::query::planner::planner::{Planner, PlannerError};
+use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::core::YieldColumn;
 use crate::core::Expression;
 
@@ -105,14 +105,14 @@ impl InsertPlanner {
 impl Planner for InsertPlanner {
     fn transform(
         &mut self,
-        stmt: &Stmt,
+        validated: &ValidatedStatement,
         qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
         // 获取空间名称
-        let space_name = qctx.space_name().unwrap_or_default();
+        let space_name = qctx.rctx().space_name.clone().unwrap_or_else(|| "default".to_string());
 
         // 提取 INSERT 语句
-        let insert_stmt = self.extract_insert_stmt(stmt)?;
+        let insert_stmt = self.extract_insert_stmt(&validated.stmt)?;
 
         // 创建参数节点
         let arg_node = ArgumentNode::new(next_node_id(), "insert_args");
@@ -184,6 +184,8 @@ mod tests {
     use crate::core::Value;
     use crate::query::QueryContext;
     use crate::query::parser::ast::{InsertStmt, InsertTarget, Span, TagInsertSpec, VertexRow, Stmt};
+    use crate::query::planner::planner::{Planner, ValidatedStatement};
+    use crate::query::validator::ValidationInfo;
 
     // 辅助函数：创建常量表达式
     fn lit(val: Value) -> Expression {
@@ -374,7 +376,12 @@ mod tests {
         };
         let stmt = create_test_stmt_with_insert(target);
         let qctx = create_test_qctx();
-        let result = planner.transform(&stmt, qctx);
+
+        // 创建验证后的语句
+        let validation_info = ValidationInfo::new();
+        let validated = ValidatedStatement::new(stmt, validation_info);
+
+        let result = planner.transform(&validated, qctx);
         assert!(result.is_ok());
         let sub_plan = result.expect("Failed to transform insert statement");
         assert!(sub_plan.root.is_some());
@@ -395,7 +402,12 @@ mod tests {
         };
         let stmt = create_test_stmt_with_insert(target);
         let qctx = create_test_qctx();
-        let result = planner.transform(&stmt, qctx);
+
+        // 创建验证后的语句
+        let validation_info = ValidationInfo::new();
+        let validated = ValidatedStatement::new(stmt, validation_info);
+
+        let result = planner.transform(&validated, qctx);
         assert!(result.is_ok());
         let sub_plan = result.expect("Failed to transform insert statement");
         assert!(sub_plan.root.is_some());
@@ -409,7 +421,12 @@ mod tests {
             space: "test_space".to_string(),
         });
         let qctx = create_test_qctx();
-        let result = planner.transform(&stmt, qctx);
+
+        // 创建验证后的语句
+        let validation_info = ValidationInfo::new();
+        let validated = ValidatedStatement::new(stmt, validation_info);
+
+        let result = planner.transform(&validated, qctx);
         assert!(result.is_err());
     }
 

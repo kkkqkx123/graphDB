@@ -18,7 +18,7 @@ use crate::query::planner::plan::core::nodes::{
     PlanNodeEnum, ProjectNode as Project,
 };
 use crate::query::planner::plan::SubPlan;
-use crate::query::planner::planner::{Planner, PlannerError};
+use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
 
 /// SUBGRAPH查询规划器
 /// 负责将SUBGRAPH查询转换为执行计划
@@ -33,8 +33,8 @@ impl SubgraphPlanner {
 }
 
 impl Planner for SubgraphPlanner {
-    fn transform(&mut self, stmt: &Stmt, _qctx: Arc<QueryContext>) -> Result<SubPlan, PlannerError> {
-        let subgraph_stmt = match stmt {
+    fn transform(&mut self, validated: &ValidatedStatement, _qctx: Arc<QueryContext>) -> Result<SubPlan, PlannerError> {
+        let subgraph_stmt = match &validated.stmt {
             Stmt::Subgraph(subgraph_stmt) => subgraph_stmt,
             _ => {
                 return Err(PlannerError::InvalidOperation(

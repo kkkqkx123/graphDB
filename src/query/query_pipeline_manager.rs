@@ -28,6 +28,7 @@ use crate::query::executor::factory::ExecutorFactory;
 use crate::query::executor::base::ExecutionResult;
 use crate::query::parser::Parser;
 use crate::query::optimizer::OptimizerEngine;
+use crate::query::validator::{ValidatedStatement, ValidationInfo};
 use crate::storage::StorageClient;
 use std::sync::Arc;
 use parking_lot::Mutex;
@@ -94,14 +95,20 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         let query_context = Arc::new(self.create_query_context(query_text)?);
         let stmt = self.parse_into_context(query_text)?;
 
-        self.validate_query(query_context.clone(), &stmt)?;
-        let execution_plan = self.generate_execution_plan(query_context.clone(), &stmt)?;
+        // 验证查询并获取验证信息
+        let validation_info = self.validate_query(query_context.clone(), &stmt)?;
+        query_context.set_validation_info(validation_info.clone());
+
+        // 创建验证后的语句
+        let validated = ValidatedStatement::new(stmt, validation_info);
+
+        let execution_plan = self.generate_execution_plan(query_context.clone(), &validated)?;
         let optimized_plan = self.optimize_execution_plan(query_context.clone(), execution_plan)?;
         self.execute_plan(query_context, optimized_plan)
     }
 
     /// 使用 QueryRequestContext 执行查询
-    /// 
+    ///
     /// 这个方法允许 api 层传递完整的会话信息到 query 层
     pub fn execute_query_with_request(
         &mut self,
@@ -110,17 +117,23 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         space_info: Option<crate::core::types::SpaceInfo>,
     ) -> DBResult<ExecutionResult> {
         let query_context = self.create_query_context_with_request(rctx)?;
-        
+
         // 设置空间信息
         if let Some(space) = space_info {
             query_context.set_space_info(space);
         }
-        
+
         let query_context = Arc::new(query_context);
         let stmt = self.parse_into_context(query_text)?;
 
-        self.validate_query(query_context.clone(), &stmt)?;
-        let execution_plan = self.generate_execution_plan(query_context.clone(), &stmt)?;
+        // 验证查询并获取验证信息
+        let validation_info = self.validate_query(query_context.clone(), &stmt)?;
+        query_context.set_validation_info(validation_info.clone());
+
+        // 创建验证后的语句
+        let validated = ValidatedStatement::new(stmt, validation_info);
+
+        let execution_plan = self.generate_execution_plan(query_context.clone(), &validated)?;
         let optimized_plan = self.optimize_execution_plan(query_context.clone(), execution_plan)?;
         self.execute_plan(query_context, optimized_plan)
     }
@@ -170,20 +183,27 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         };
         
         let validate_start = Instant::now();
-        if let Err(e) = self.validate_query(query_context.clone(), &stmt) {
-            profile.stages.validate_ms = validate_start.elapsed().as_millis() as u64;
-            profile.mark_failed_with_info(
-                ErrorInfo::new(ErrorType::ValidationError, QueryPhase::Validate, e.to_string())
-            );
-            profile.total_duration_ms = total_start.elapsed().as_millis() as u64;
-            self.stats_manager.record_query_profile(profile.clone());
-            return Err(e);
-        }
+        let validation_info = match self.validate_query(query_context.clone(), &stmt) {
+            Ok(info) => info,
+            Err(e) => {
+                profile.stages.validate_ms = validate_start.elapsed().as_millis() as u64;
+                profile.mark_failed_with_info(
+                    ErrorInfo::new(ErrorType::ValidationError, QueryPhase::Validate, e.to_string())
+                );
+                profile.total_duration_ms = total_start.elapsed().as_millis() as u64;
+                self.stats_manager.record_query_profile(profile.clone());
+                return Err(e);
+            }
+        };
+        query_context.set_validation_info(validation_info.clone());
         profile.stages.validate_ms = validate_start.elapsed().as_millis() as u64;
         metrics.record_validate_time(validate_start.elapsed());
-        
+
+        // 创建验证后的语句
+        let validated = ValidatedStatement::new(stmt, validation_info);
+
         let plan_start = Instant::now();
-        let execution_plan = match self.generate_execution_plan(query_context.clone(), &stmt) {
+        let execution_plan = match self.generate_execution_plan(query_context.clone(), &validated) {
             Ok(plan) => {
                 profile.stages.plan_ms = plan_start.elapsed().as_millis() as u64;
                 metrics.set_plan_node_count(plan.node_count());
@@ -274,11 +294,12 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
             .map_err(|e| DBError::from(QueryError::pipeline_parse_error(e)))
     }
 
+    /// 验证查询并返回验证信息
     fn validate_query(
         &mut self,
         query_context: Arc<QueryContext>,
         stmt: &crate::query::parser::ast::Stmt,
-    ) -> DBResult<()> {
+    ) -> DBResult<ValidationInfo> {
         let mut validator = crate::query::validator::Validator::from_stmt(stmt)
             .ok_or_else(|| {
                 DBError::from(QueryError::InvalidQuery(format!(
@@ -287,23 +308,35 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
                 )))
             })?;
 
-        validator.validate(stmt, query_context)
-            .map(|_| ())
-            .map_err(|e| DBError::from(QueryError::pipeline_validation_error(e)))
+        // 使用 validate 获取详细的验证信息
+        let validation_result = validator.validate(stmt, query_context)
+            .map_err(|e| DBError::from(QueryError::pipeline_validation_error(e)))?;
+
+        if validation_result.success {
+            Ok(validation_result.info.unwrap_or_default())
+        } else {
+            let error_msg = validation_result.errors
+                .iter()
+                .map(|e| e.to_string())
+                .collect::<Vec<_>>()
+                .join(", ");
+            Err(DBError::from(QueryError::InvalidQuery(error_msg)))
+        }
     }
 
+    /// 使用验证后的语句生成执行计划
     fn generate_execution_plan(
         &mut self,
         query_context: Arc<QueryContext>,
-        stmt: &crate::query::parser::ast::Stmt,
+        validated: &ValidatedStatement,
     ) -> DBResult<crate::query::planner::plan::ExecutionPlan> {
         // 获取语句类型
-        let kind = crate::query::planner::planner::SentenceKind::from_stmt(stmt)
+        let kind = crate::query::planner::planner::SentenceKind::from_stmt(&validated.stmt)
             .map_err(|e| DBError::from(QueryError::pipeline_planning_error(e)))?;
 
-        // 生成执行计划
+        // 生成执行计划，使用验证后的语句
         let plan = if let Some(mut planner_enum) = crate::query::planner::planner::PlannerEnum::from_sentence_kind(kind) {
-            let sub_plan = planner_enum.transform(stmt, query_context.clone())
+            let sub_plan = planner_enum.transform(validated, query_context.clone())
                 .map_err(|e| DBError::from(QueryError::pipeline_planning_error(e)))?;
             crate::query::planner::plan::ExecutionPlan::new(sub_plan.root().clone())
         } else {
@@ -325,10 +358,19 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         // 使用 planner rewrite 规则进行优化
         use crate::query::planner::rewrite::rewrite_plan;
         
-        let optimized_plan = rewrite_plan(plan)
+        let rewritten_plan = rewrite_plan(plan)
             .map_err(|e| DBError::from(QueryError::pipeline_optimization_error(e)))?;
         
-        Ok(optimized_plan)
+        // 使用优化器的分析器分析重写后的计划
+        if let Some(ref root) = rewritten_plan.root {
+            // 引用计数分析 - 识别被多次引用的子计划
+            let ref_analysis = self.optimizer_engine.reference_count_analyzer().analyze(root);
+            if ref_analysis.repeated_count() > 0 {
+                log::debug!("发现 {} 个被多次引用的子计划", ref_analysis.repeated_count());
+            }
+        }
+        
+        Ok(rewritten_plan)
     }
 
     fn execute_plan(

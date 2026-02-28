@@ -22,6 +22,7 @@ use std::sync::Arc;
 
 use crate::query::optimizer::cost::CostCalculator;
 use crate::query::optimizer::decision::OptimizationDecision;
+use crate::query::optimizer::analysis::ExpressionAnalyzer;
 
 /// 聚合策略类型
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -91,6 +92,8 @@ pub enum SelectionReason {
 #[derive(Debug)]
 pub struct AggregateStrategySelector {
     cost_calculator: Arc<CostCalculator>,
+    /// 表达式分析器，用于分析聚合表达式的特性
+    expression_analyzer: ExpressionAnalyzer,
 }
 
 /// 聚合策略选择的上下文信息
@@ -108,12 +111,94 @@ pub struct AggregateContext {
     pub input_is_sorted: bool,
     /// 排序键是否与分组键匹配
     pub sort_keys_match_group_keys: bool,
+    /// 聚合表达式是否确定性
+    pub is_deterministic: bool,
+    /// 聚合表达式复杂度评分
+    pub complexity_score: u32,
+}
+
+impl AggregateContext {
+    /// 创建新的聚合上下文
+    pub fn new(
+        input_rows: u64,
+        group_keys: Vec<String>,
+        agg_function_count: usize,
+    ) -> Self {
+        Self {
+            input_rows,
+            group_keys,
+            agg_function_count,
+            memory_limit: 0,
+            input_is_sorted: false,
+            sort_keys_match_group_keys: false,
+            is_deterministic: true,
+            complexity_score: 0,
+        }
+    }
+
+    /// 设置内存限制
+    pub fn with_memory_limit(mut self, memory_limit: u64) -> Self {
+        self.memory_limit = memory_limit;
+        self
+    }
+
+    /// 设置输入已排序
+    pub fn with_sorted_input(mut self, sort_keys_match: bool) -> Self {
+        self.input_is_sorted = true;
+        self.sort_keys_match_group_keys = sort_keys_match;
+        self
+    }
+
+    /// 设置表达式特性
+    pub fn with_expression_analysis(mut self, is_deterministic: bool, complexity_score: u32) -> Self {
+        self.is_deterministic = is_deterministic;
+        self.complexity_score = complexity_score;
+        self
+    }
 }
 
 impl AggregateStrategySelector {
     /// 创建新的聚合策略选择器
     pub fn new(cost_calculator: Arc<CostCalculator>) -> Self {
-        Self { cost_calculator }
+        Self {
+            cost_calculator,
+            expression_analyzer: ExpressionAnalyzer::new(),
+        }
+    }
+
+    /// 创建带表达式分析器的聚合策略选择器
+    pub fn with_analyzer(
+        cost_calculator: Arc<CostCalculator>,
+        expression_analyzer: ExpressionAnalyzer,
+    ) -> Self {
+        Self {
+            cost_calculator,
+            expression_analyzer,
+        }
+    }
+
+    /// 分析聚合表达式并创建上下文
+    ///
+    /// 使用表达式分析器分析聚合表达式的特性，创建完整的聚合上下文
+    pub fn analyze_and_create_context(
+        &self,
+        input_rows: u64,
+        group_keys: Vec<String>,
+        agg_function_count: usize,
+        expressions: &[crate::core::Expression],
+    ) -> AggregateContext {
+        let mut context = AggregateContext::new(input_rows, group_keys, agg_function_count);
+
+        // 分析所有聚合表达式
+        for expr in expressions {
+            let analysis = self.expression_analyzer.analyze(expr);
+            if !analysis.is_deterministic {
+                context.is_deterministic = false;
+            }
+            context.complexity_score += analysis.complexity_score;
+        }
+
+        context
     }
 
     /// 选择最优聚合策略
@@ -127,6 +212,23 @@ impl AggregateStrategySelector {
         // 如果输入已排序且排序键匹配分组键，优先使用流式聚合
         if context.input_is_sorted && context.sort_keys_match_group_keys {
             return self.create_streaming_aggregate_decision(context);
+        }
+
+        // 如果表达式非确定性，优先使用哈希聚合（避免排序带来的不确定性）
+        if !context.is_deterministic {
+            let group_by_cardinality = self.estimate_group_by_cardinality(context);
+            let hash_cost = self.calculate_hash_aggregate_cost(context, group_by_cardinality);
+            let hash_memory = self.estimate_hash_memory_usage(context, group_by_cardinality);
+            return AggregateStrategyDecision {
+                strategy: AggregateStrategy::HashAggregate,
+                estimated_output_rows: group_by_cardinality.max(1),
+                estimated_cost: hash_cost,
+                estimated_memory_bytes: hash_memory,
+                reason: SelectionReason::CostBased {
+                    hash_cost,
+                    sort_cost: hash_cost * 1.5, // 假设排序代价更高
+                },
+            };
         }
 
         // 估算分组键基数
@@ -386,6 +488,8 @@ mod tests {
             memory_limit: 0,
             input_is_sorted: true,
             sort_keys_match_group_keys: true,
+            is_deterministic: true,
+            complexity_score: 0,
         };
 
         let decision = selector.select_strategy(&context);
@@ -403,6 +507,8 @@ mod tests {
             memory_limit: 0,
             input_is_sorted: false,
             sort_keys_match_group_keys: false,
+            is_deterministic: true,
+            complexity_score: 0,
         };
 
         let decision = selector.select_strategy(&context);
@@ -420,6 +526,8 @@ mod tests {
             memory_limit: 1024, // 1KB 内存限制（非常小）
             input_is_sorted: false,
             sort_keys_match_group_keys: false,
+            is_deterministic: true,
+            complexity_score: 0,
         };
 
         let decision = selector.select_strategy(&context);
@@ -435,9 +543,13 @@ mod tests {
         let strategy = selector.select_strategy_quick(500, 1, 1);
         assert_eq!(strategy, AggregateStrategy::HashAggregate);
 
-        // 大数据量低基数应该选排序聚合
-        let strategy = selector.select_strategy_quick(100000, 1, 1);
+        // 大数据量且多键（低基数）应该选排序聚合
+        let strategy = selector.select_strategy_quick(100000, 10, 1);
         assert_eq!(strategy, AggregateStrategy::SortAggregate);
+
+        // 大数据量且单键（高基数）应该选哈希聚合
+        let strategy = selector.select_strategy_quick(100000, 1, 1);
+        assert_eq!(strategy, AggregateStrategy::HashAggregate);
     }
 
     #[test]

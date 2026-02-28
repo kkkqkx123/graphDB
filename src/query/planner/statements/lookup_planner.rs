@@ -12,7 +12,7 @@ use crate::core::types::expression::Expression;
 use crate::query::QueryContext;
 use crate::query::parser::ast::{LookupStmt, Stmt};
 use crate::query::planner::plan::SubPlan;
-use crate::query::planner::planner::{Planner, PlannerError};
+use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::query::planner::plan::algorithms::{IndexScan, ScanType};
 use crate::index::Index;
 use std::sync::Arc;
@@ -38,10 +38,10 @@ impl LookupPlanner {
 impl Planner for LookupPlanner {
     fn transform(
         &mut self,
-        stmt: &Stmt,
+        validated: &ValidatedStatement,
         qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
-        let lookup_stmt = match stmt {
+        let lookup_stmt = match &validated.stmt {
             Stmt::Lookup(lookup_stmt) => lookup_stmt,
             _ => {
                 return Err(PlannerError::InvalidOperation(

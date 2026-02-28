@@ -478,10 +478,10 @@ mod tests {
 
     #[test]
     fn test_variable_extraction() {
-        let analyzer = ExpressionAnalyzer::property_extractor();
+        let analyzer = ExpressionAnalyzer::new();
         let expr = Expression::Variable("x".to_string());
         let analysis = analyzer.analyze(&expr);
-        assert!(analysis.referenced_variables.contains("x"));
+        assert!(analysis.referenced_variables.contains(&"x".to_string()));
     }
 
     #[test]
@@ -514,7 +514,7 @@ mod tests {
             property: "name".to_string(),
         };
         let analysis = analyzer.analyze(&expr);
-        assert!(analysis.referenced_properties.contains("name"));
+        assert!(analysis.referenced_properties.contains(&"name".to_string()));
     }
 
     #[test]
@@ -537,7 +537,7 @@ mod tests {
                     object: Box::new(Expression::Variable("b".to_string())),
                     property: "y".to_string(),
                 },
-                Expression::Literal(Value::Null),
+                Expression::Literal(Value::Null(crate::core::value::types::NullType::Null)),
             ],
         };
         let complex_analysis = analyzer.analyze(&complex);

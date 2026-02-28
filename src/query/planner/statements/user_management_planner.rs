@@ -5,7 +5,7 @@ use crate::query::QueryContext;
 use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::core::{ArgumentNode, PlanNodeEnum};
 use crate::query::planner::plan::SubPlan;
-use crate::query::planner::planner::{Planner, PlannerError};
+use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
 use std::sync::Arc;
 
 /// 用户管理规划器
@@ -22,12 +22,12 @@ impl UserManagementPlanner {
 impl Planner for UserManagementPlanner {
     fn transform(
         &mut self,
-        stmt: &Stmt,
+        validated: &ValidatedStatement,
         _qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
         let arg_node = ArgumentNode::new(1, "user_management_args");
 
-        let final_node = match stmt {
+        let final_node = match &validated.stmt {
             Stmt::CreateUser(create_stmt) => {
                 let mut node = crate::query::planner::plan::core::nodes::CreateUserNode::new(
                     1,
@@ -75,7 +75,7 @@ impl Planner for UserManagementPlanner {
             _ => {
                 return Err(PlannerError::PlanGenerationFailed(format!(
                     "Unsupported user management operation: {:?}",
-                    stmt
+                    validated.stmt
                 )))
             }
         };

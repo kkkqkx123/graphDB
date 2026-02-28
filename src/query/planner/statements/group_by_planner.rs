@@ -11,7 +11,7 @@ use crate::query::planner::plan::core::{
     },
 };
 use crate::query::planner::plan::{PlanNodeEnum, SubPlan};
-use crate::query::planner::planner::{Planner, PlannerError};
+use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::core::Expression;
 use crate::core::types::operators::AggregateFunction;
 use std::sync::Arc;
@@ -155,8 +155,8 @@ impl GroupByPlanner {
 }
 
 impl Planner for GroupByPlanner {
-    fn transform(&mut self, stmt: &Stmt, _qctx: Arc<QueryContext>) -> Result<SubPlan, PlannerError> {
-        let group_by_stmt = match stmt {
+    fn transform(&mut self, validated: &ValidatedStatement, _qctx: Arc<QueryContext>) -> Result<SubPlan, PlannerError> {
+        let group_by_stmt = match &validated.stmt {
             Stmt::GroupBy(group_by_stmt) => group_by_stmt,
             _ => {
                 return Err(PlannerError::InvalidOperation(

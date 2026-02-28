@@ -11,7 +11,7 @@ use crate::query::planner::plan::core::{
     },
 };
 use crate::query::planner::plan::{PlanNodeEnum, SubPlan};
-use crate::query::planner::planner::{Planner, PlannerError};
+use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::core::{Expression, YieldColumn};
 use std::sync::Arc;
 
@@ -40,10 +40,10 @@ impl DeletePlanner {
 impl Planner for DeletePlanner {
     fn transform(
         &mut self,
-        stmt: &Stmt,
+        validated: &ValidatedStatement,
         _qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
-        let delete_stmt = self.extract_delete_stmt(stmt)?;
+        let delete_stmt = self.extract_delete_stmt(&validated.stmt)?;
 
         // 创建参数节点作为输入
         let arg_node = ArgumentNode::new(next_node_id(), "delete_input");

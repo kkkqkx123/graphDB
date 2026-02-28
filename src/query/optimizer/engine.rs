@@ -37,7 +37,8 @@ use std::sync::Arc;
 
 use crate::query::optimizer::{
     CostCalculator, CostModelConfig, SelectivityEstimator, StatisticsManager,
-    SortEliminationOptimizer,
+    SortEliminationOptimizer, ExpressionAnalyzer, ReferenceCountAnalyzer,
+    AggregateStrategySelector,
 };
 
 /// 优化器引擎
@@ -54,6 +55,12 @@ pub struct OptimizerEngine {
     selectivity_estimator: Arc<SelectivityEstimator>,
     /// 排序消除优化器
     sort_elimination_optimizer: Arc<SortEliminationOptimizer>,
+    /// 聚合策略选择器
+    aggregate_strategy_selector: AggregateStrategySelector,
+    /// 表达式分析器
+    expression_analyzer: ExpressionAnalyzer,
+    /// 引用计数分析器
+    reference_count_analyzer: ReferenceCountAnalyzer,
     /// 代价模型配置
     cost_config: CostModelConfig,
 }
@@ -79,11 +86,24 @@ impl OptimizerEngine {
             cost_calculator.clone(),
         ));
 
+        // 创建分析器
+        let expression_analyzer = ExpressionAnalyzer::new();
+        let reference_count_analyzer = ReferenceCountAnalyzer::new();
+
+        // 创建聚合策略选择器，使用表达式分析器
+        let aggregate_strategy_selector = AggregateStrategySelector::with_analyzer(
+            cost_calculator.clone(),
+            expression_analyzer.clone(),
+        );
+
         Self {
             stats_manager,
             cost_calculator,
             selectivity_estimator,
             sort_elimination_optimizer,
+            aggregate_strategy_selector,
+            expression_analyzer,
+            reference_count_analyzer,
             cost_config,
         }
     }
@@ -128,6 +148,21 @@ impl OptimizerEngine {
         &self.sort_elimination_optimizer
     }
 
+    /// 获取表达式分析器
+    pub fn expression_analyzer(&self) -> &ExpressionAnalyzer {
+        &self.expression_analyzer
+    }
+
+    /// 获取引用计数分析器
+    pub fn reference_count_analyzer(&self) -> &ReferenceCountAnalyzer {
+        &self.reference_count_analyzer
+    }
+
+    /// 获取聚合策略选择器
+    pub fn aggregate_strategy_selector(&self) -> &AggregateStrategySelector {
+        &self.aggregate_strategy_selector
+    }
+
     /// 更新代价模型配置
     ///
     /// 注意：更新配置会重新创建代价计算器，但不会影响已有的决策缓存
@@ -141,6 +176,14 @@ impl OptimizerEngine {
         self.sort_elimination_optimizer = Arc::new(SortEliminationOptimizer::new(
             self.cost_calculator.clone(),
         ));
+        // 重新创建分析器
+        self.expression_analyzer = ExpressionAnalyzer::new();
+        self.reference_count_analyzer = ReferenceCountAnalyzer::new();
+        // 重新创建聚合策略选择器
+        self.aggregate_strategy_selector = AggregateStrategySelector::with_analyzer(
+            self.cost_calculator.clone(),
+            self.expression_analyzer.clone(),
+        );
         log::info!("优化器代价模型配置已更新: {:?}", self.cost_config);
     }
 }

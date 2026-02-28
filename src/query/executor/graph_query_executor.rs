@@ -11,8 +11,9 @@ use crate::query::executor::factory::ExecutorFactory;
 use crate::query::executor::base::{ExecutionResult, Executor, HasStorage};
 use crate::query::parser::ast::stmt::{AlterStmt, ChangePasswordStmt, CreateUserStmt, AlterUserStmt, DropUserStmt, DescStmt, DropStmt, Stmt};
 use crate::core::types::{UserAlterInfo, UserInfo};
-use crate::query::planner::planner::Planner;
+use crate::query::planner::planner::{Planner, ValidatedStatement};
 use crate::query::planner::statements::match_statement_planner::MatchStatementPlanner;
+use crate::query::validator::ValidationInfo;
 use crate::storage::StorageClient;
 use std::sync::Arc;
 use parking_lot::Mutex;
@@ -149,8 +150,12 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
 
         let qctx = Arc::new(QueryContext::default());
 
+        // 创建验证后的语句
+        let validation_info = ValidationInfo::new();
+        let validated = ValidatedStatement::new(Stmt::Match(clause), validation_info);
+
         let mut planner = MatchStatementPlanner::new();
-        let plan = planner.transform(&Stmt::Match(clause), qctx)
+        let plan = planner.transform(&validated, qctx)
             .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
 
         let root_node = plan.root()
@@ -267,8 +272,12 @@ impl<S: StorageClient + 'static> GraphQueryExecutor<S> {
 
                 let qctx = Arc::new(QueryContext::default());
 
+                // 创建验证后的语句
+                let validation_info = ValidationInfo::new();
+                let validated = ValidatedStatement::new(Stmt::Create(clause), validation_info);
+
                 let mut planner = CreatePlanner::new();
-                let plan = planner.transform(&Stmt::Create(clause), qctx)
+                let plan = planner.transform(&validated, qctx)
                     .map_err(|e| DBError::Query(QueryError::ExecutionError(e.to_string())))?;
 
                 let root_node = plan.root()

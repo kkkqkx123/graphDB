@@ -11,7 +11,7 @@ use crate::query::planner::plan::core::{
     },
 };
 use crate::query::planner::plan::{PlanNodeEnum, SubPlan};
-use crate::query::planner::planner::{Planner, PlannerError};
+use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
 use std::sync::Arc;
 
 /// 集合操作规划器
@@ -27,8 +27,8 @@ impl SetOperationPlanner {
 }
 
 impl Planner for SetOperationPlanner {
-    fn transform(&mut self, stmt: &Stmt, _qctx: Arc<QueryContext>) -> Result<SubPlan, PlannerError> {
-        let set_op_stmt = match stmt {
+    fn transform(&mut self, validated: &ValidatedStatement, _qctx: Arc<QueryContext>) -> Result<SubPlan, PlannerError> {
+        let set_op_stmt = match &validated.stmt {
             Stmt::SetOperation(set_op_stmt) => set_op_stmt,
             _ => {
                 return Err(PlannerError::InvalidOperation(

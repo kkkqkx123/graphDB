@@ -12,7 +12,7 @@
 use crate::query::QueryContext;
 use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::SubPlan;
-use crate::query::planner::planner::Planner;
+use crate::query::planner::planner::{Planner, ValidatedStatement};
 use crate::query::validator::structs::CypherClauseKind;
 use std::sync::Arc;
 
@@ -69,7 +69,7 @@ mod tests {
     }
 
     impl Planner for MockStatementPlanner {
-        fn transform(&mut self, _stmt: &Stmt, _qctx: Arc<QueryContext>) -> Result<SubPlan, crate::query::planner::planner::PlannerError> {
+        fn transform(&mut self, _validated: &ValidatedStatement, _qctx: Arc<QueryContext>) -> Result<SubPlan, crate::query::planner::planner::PlannerError> {
             let start_node = StartNode::new();
             let start_node_enum = PlanNodeEnum::Start(start_node);
             Ok(SubPlan {
@@ -161,6 +161,8 @@ mod tests {
 
     #[test]
     fn test_statement_planner_transform() {
+        use crate::query::validator::ValidationInfo;
+
         let mut planner = MockStatementPlanner::new(
             "MATCH",
             vec![CypherClauseKind::Match],
@@ -168,7 +170,11 @@ mod tests {
         let stmt = create_test_match_stmt();
         let qctx = create_test_qctx();
 
-        let result = planner.transform(&stmt, qctx);
+        // 创建验证后的语句
+        let validation_info = ValidationInfo::new();
+        let validated = ValidatedStatement::new(stmt, validation_info);
+
+        let result = planner.transform(&validated, qctx);
         assert!(result.is_ok());
         let sub_plan = result.expect("transform should succeed");
         assert!(sub_plan.root.is_some());

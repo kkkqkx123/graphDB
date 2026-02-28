@@ -531,15 +531,17 @@ impl Validator {
         }
     }
 
-    /// 执行验证
+    /// 执行验证并返回详细的验证信息
     ///
     /// # 重构变更
     /// - 接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+    /// - 返回包含 ValidationInfo 的完整验证结果
     pub fn validate(
         &mut self,
         stmt: &Stmt,
         qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
+        use crate::query::validator::StatementValidator;
         match self {
             // 管理类验证器
             Validator::Show(v) => v.validate(stmt, qctx),

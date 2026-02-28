@@ -20,8 +20,9 @@ use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
 use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
 use crate::query::planner::plan::core::nodes::{LimitNode, ProjectNode, ScanVerticesNode, SortNode, SortItem, LeftJoinNode, UnionNode, LoopNode, ArgumentNode};
 use crate::query::planner::plan::core::nodes::ExpandAllNode;
-use crate::query::planner::planner::{Planner, PlannerError};
+use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::query::planner::statements::statement_planner::StatementPlanner;
+use crate::query::validator::ValidationInfo;
 use crate::core::YieldColumn;
 use crate::query::parser::OrderByItem;
 use crate::query::validator::structs::CypherClauseKind;
@@ -73,19 +74,24 @@ impl Planner for MatchStatementPlanner {
         matches!(stmt, Stmt::Match(_))
     }
 
-    fn transform(&mut self, stmt: &Stmt, qctx: Arc<QueryContext>) -> Result<SubPlan, PlannerError> {
+    fn transform(
+        &mut self,
+        validated: &ValidatedStatement,
+        qctx: Arc<QueryContext>,
+    ) -> Result<SubPlan, PlannerError> {
         let space_id = qctx.space_id().unwrap_or(1);
         let sym_table = qctx.sym_table();
-        self.plan_match_pattern(stmt, space_id, sym_table)
-    }
 
-    fn transform_with_full_context(
-        &mut self,
-        qctx: Arc<QueryContext>,
-        stmt: &Stmt,
-    ) -> Result<ExecutionPlan, PlannerError> {
-        let sub_plan = self.transform(stmt, qctx)?;
-        Ok(ExecutionPlan::new(sub_plan.root().clone()))
+        // 使用验证信息进行优化规划
+        let validation_info = &validated.validation_info;
+
+        // 检查优化提示
+        for hint in &validation_info.optimization_hints {
+            log::debug!("优化提示: {:?}", hint);
+        }
+
+        // 使用别名映射优化规划
+        self.plan_match_pattern(&validated.stmt, space_id, sym_table, Some(validation_info))
     }
 }
 
@@ -112,6 +118,7 @@ impl MatchStatementPlanner {
         stmt: &crate::query::parser::ast::Stmt,
         space_id: u64,
         sym_table: &SymbolTable,
+        validation_info: Option<&ValidationInfo>,
     ) -> Result<SubPlan, PlannerError> {
         match stmt {
             crate::query::parser::ast::Stmt::Match(match_stmt) => {

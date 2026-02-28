@@ -18,6 +18,7 @@ use super::structs::{
 };
 use super::{
     ColumnDef, ExpressionProps, StatementType, StatementValidator, ValidationResult,
+    ValidationInfo, PathAnalysis,
 };
 use super::strategies::ExpressionValidationStrategy;
 
@@ -704,6 +705,7 @@ impl MatchValidator {
 ///
 /// # 重构变更
 /// - validate 方法接收 &Stmt 和 Arc<QueryContext> 替代 &mut AstContext
+/// - validate 返回包含 ValidationInfo 的完整验证结果
 impl StatementValidator for MatchValidator {
     fn validate(
         &mut self,
@@ -756,11 +758,46 @@ impl StatementValidator for MatchValidator {
         // 6. 生成输出列
         self.generate_output_columns(&match_stmt);
 
-        // 7. 返回验证结果
-        Ok(ValidationResult::success(
-            self.inputs.clone(),
-            self.outputs.clone(),
-        ))
+        // 7. 构建详细的 ValidationInfo
+        let mut info = ValidationInfo::new();
+
+        // 7.1 添加别名映射
+        for (name, alias_type) in &self.aliases {
+            info.add_alias(name.clone(), alias_type.clone());
+        }
+
+        // 7.2 添加路径分析
+        if let Some(ref validated) = self.validated_result {
+            for pattern in &validated.patterns {
+                if let crate::query::parser::ast::Pattern::Path(path) = pattern {
+                    let mut analysis = PathAnalysis::new();
+                    analysis.node_count = path.elements.iter()
+                        .filter(|e| matches!(e, crate::query::parser::ast::PathElement::Node(_)))
+                        .count();
+                    analysis.edge_count = path.elements.iter()
+                        .filter(|e| matches!(e, crate::query::parser::ast::PathElement::Edge(_)))
+                        .count();
+                    info.add_path_analysis(analysis);
+                }
+            }
+        }
+
+        // 7.3 添加优化提示
+        if self.aliases.len() > 10 {
+            info.add_optimization_hint(
+                crate::query::validator::OptimizationHint::PerformanceWarning {
+                    message: "查询包含大量别名，可能影响性能".to_string(),
+                    severity: crate::query::validator::HintSeverity::Warning,
+                }
+            );
+        }
+
+        // 7.4 添加语义信息
+        info.semantic_info.referenced_tags = self.get_referenced_tags();
+        info.semantic_info.referenced_edges = self.get_referenced_edges();
+
+        // 8. 返回包含详细信息的验证结果
+        Ok(ValidationResult::success_with_info(info))
     }
 
     fn statement_type(&self) -> StatementType {
@@ -792,6 +829,34 @@ impl StatementValidator for MatchValidator {
 impl Default for MatchValidator {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl MatchValidator {
+    /// 获取引用的标签列表
+    fn get_referenced_tags(&self) -> Vec<String> {
+        let mut tags = Vec::new();
+        if let Some(ref validated) = self.validated_result {
+            for pattern in &validated.patterns {
+                if let crate::query::parser::ast::Pattern::Node(node) = pattern {
+                    tags.extend(node.labels.clone());
+                }
+            }
+        }
+        tags
+    }
+
+    /// 获取引用的边类型列表
+    fn get_referenced_edges(&self) -> Vec<String> {
+        let mut edges = Vec::new();
+        if let Some(ref validated) = self.validated_result {
+            for pattern in &validated.patterns {
+                if let crate::query::parser::ast::Pattern::Edge(edge) = pattern {
+                    edges.extend(edge.edge_types.clone());
+                }
+            }
+        }
+        edges
     }
 }
 

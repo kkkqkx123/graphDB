@@ -8,7 +8,7 @@ use crate::query::planner::plan::core::nodes::{
 };
 use crate::query::planner::plan::core::PlanNodeEnum;
 use crate::query::planner::plan::execution_plan::SubPlan;
-use crate::query::planner::planner::{Planner, PlannerError};
+use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
 use std::sync::Arc;
 
 /// FETCH EDGES查询规划器
@@ -26,10 +26,10 @@ impl FetchEdgesPlanner {
 impl Planner for FetchEdgesPlanner {
     fn transform(
         &mut self,
-        stmt: &Stmt,
+        validated: &ValidatedStatement,
         _qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
-        let fetch_stmt = match stmt {
+        let fetch_stmt = match &validated.stmt {
             Stmt::Fetch(fetch_stmt) => fetch_stmt,
             _ => {
                 return Err(PlannerError::InvalidOperation(

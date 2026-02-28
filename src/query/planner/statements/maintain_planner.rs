@@ -5,7 +5,7 @@ use crate::query::QueryContext;
 use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::core::{ArgumentNode, PlanNodeEnum, ProjectNode};
 use crate::query::planner::plan::SubPlan;
-use crate::query::planner::planner::{Planner, PlannerError};
+use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
 use std::sync::Arc;
 
 /// 维护操作规划器
@@ -23,10 +23,10 @@ impl MaintainPlanner {
 impl Planner for MaintainPlanner {
     fn transform(
         &mut self,
-        stmt: &Stmt,
+        validated: &ValidatedStatement,
         _qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
-        let stmt_type = stmt.kind().to_uppercase();
+        let stmt_type = validated.stmt.kind().to_uppercase();
 
         // 1. 创建参数节点来接收操作参数
         let arg_node = ArgumentNode::new(1, "maintain_args");

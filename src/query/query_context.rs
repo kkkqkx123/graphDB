@@ -9,6 +9,7 @@ use crate::query::query_request_context::QueryRequestContext;
 use crate::core::types::SpaceInfo;
 use crate::core::SymbolTable;
 use crate::query::planner::plan::ExecutionPlan;
+use crate::query::validator::ValidationInfo;
 use crate::utils::{ObjectPool, IdGenerator};
 use crate::core::types::CharsetInfo;
 
@@ -53,6 +54,9 @@ pub struct QueryContext {
 
     /// 是否被标记为已终止
     killed: AtomicBool,
+
+    /// 验证结果缓存
+    validation_info: RwLock<Option<ValidationInfo>>,
 }
 
 impl QueryContext {
@@ -67,6 +71,7 @@ impl QueryContext {
             sym_table: Arc::new(SymbolTable::new()),
             space_info: RwLock::new(None),
             killed: AtomicBool::new(false),
+            validation_info: RwLock::new(None),
         }
     }
 
@@ -175,6 +180,23 @@ impl QueryContext {
         self.killed.load(Ordering::SeqCst)
     }
 
+    /// 设置验证信息
+    pub fn set_validation_info(&self, info: ValidationInfo) {
+        if let Ok(mut guard) = self.validation_info.write() {
+            *guard = Some(info);
+        }
+    }
+
+    /// 获取验证信息
+    pub fn validation_info(&self) -> Option<ValidationInfo> {
+        self.validation_info.read().ok()?.clone()
+    }
+
+    /// 获取验证信息的引用（用于规划阶段）
+    pub fn get_validation_info(&self) -> Option<ValidationInfo> {
+        self.validation_info()
+    }
+
     /// 检查参数是否存在
     pub fn exist_parameter(&self, param: &str) -> bool {
         self.rctx.get_parameter(param).is_some()
@@ -193,6 +215,9 @@ impl QueryContext {
     /// 重置查询上下文
     pub fn reset(&self) {
         if let Ok(mut guard) = self.plan.write() {
+            *guard = None;
+        }
+        if let Ok(mut guard) = self.validation_info.write() {
             *guard = None;
         }
         self.killed.store(false, Ordering::SeqCst);

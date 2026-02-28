@@ -11,7 +11,7 @@ use crate::core::types::EdgeDirection;
 use crate::query::QueryContext;
 use crate::query::parser::ast::{GoStmt, Stmt};
 use crate::query::planner::plan::SubPlan;
-use crate::query::planner::planner::{Planner, PlannerError};
+use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
 use std::sync::Arc;
 
 pub use crate::query::planner::plan::core::nodes::{
@@ -35,10 +35,10 @@ impl GoPlanner {
 impl Planner for GoPlanner {
     fn transform(
         &mut self,
-        stmt: &Stmt,
+        validated: &ValidatedStatement,
         _qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
-        let go_stmt = match stmt {
+        let go_stmt = match &validated.stmt {
             Stmt::Go(go_stmt) => go_stmt,
             _ => {
                 return Err(PlannerError::InvalidOperation(

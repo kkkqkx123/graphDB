@@ -13,7 +13,7 @@ use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::algorithms::{ShortestPath, AllPaths};
 use crate::query::planner::plan::core::PlanNode;
-use crate::query::planner::planner::{Planner, PlannerError};
+use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
 use std::sync::Arc;
 
 pub use crate::query::planner::plan::core::nodes::{
@@ -35,8 +35,8 @@ impl PathPlanner {
 }
 
 impl Planner for PathPlanner {
-    fn transform(&mut self, stmt: &Stmt, _qctx: Arc<QueryContext>) -> Result<SubPlan, PlannerError> {
-        let find_path_stmt = match stmt {
+    fn transform(&mut self, validated: &ValidatedStatement, _qctx: Arc<QueryContext>) -> Result<SubPlan, PlannerError> {
+        let find_path_stmt = match &validated.stmt {
             Stmt::FindPath(find_path_stmt) => find_path_stmt,
             _ => {
                 return Err(PlannerError::InvalidOperation(

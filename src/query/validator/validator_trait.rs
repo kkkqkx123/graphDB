@@ -16,6 +16,8 @@ use std::sync::Arc;
 use crate::core::error::ValidationError;
 use crate::query::QueryContext;
 use crate::query::parser::ast::Stmt;
+use crate::query::validator::validation_info::ValidationInfo;
+use crate::query::validator::structs::AliasType;
 
 /// 列定义
 #[derive(Debug, Clone)]
@@ -280,6 +282,7 @@ impl StatementType {
 }
 
 /// 验证结果
+/// 包含验证阶段的所有信息，用于传递给规划阶段
 #[derive(Debug, Clone)]
 pub struct ValidationResult {
     pub success: bool,
@@ -287,9 +290,12 @@ pub struct ValidationResult {
     pub inputs: Vec<ColumnDef>,
     pub outputs: Vec<ColumnDef>,
     pub warnings: Vec<String>,
+    /// 详细的验证信息（可选，用于新接口）
+    pub info: Option<ValidationInfo>,
 }
 
 impl ValidationResult {
+    /// 创建成功的验证结果（旧接口兼容）
     pub fn success(inputs: Vec<ColumnDef>, outputs: Vec<ColumnDef>) -> Self {
         Self {
             success: true,
@@ -297,6 +303,19 @@ impl ValidationResult {
             inputs,
             outputs,
             warnings: Vec::new(),
+            info: None,
+        }
+    }
+
+    /// 创建成功的验证结果（新接口，包含详细验证信息）
+    pub fn success_with_info(info: ValidationInfo) -> Self {
+        Self {
+            success: true,
+            errors: Vec::new(),
+            inputs: Vec::new(),
+            outputs: Vec::new(),
+            warnings: Vec::new(),
+            info: Some(info),
         }
     }
 
@@ -307,6 +326,7 @@ impl ValidationResult {
             inputs: Vec::new(),
             outputs: Vec::new(),
             warnings: Vec::new(),
+            info: None,
         }
     }
 
@@ -321,6 +341,16 @@ impl ValidationResult {
             self.success = false;
         }
     }
+
+    /// 检查是否包含验证信息
+    pub fn has_info(&self) -> bool {
+        self.info.is_some()
+    }
+
+    /// 获取验证信息
+    pub fn info(&self) -> Option<&ValidationInfo> {
+        self.info.as_ref()
+    }
 }
 
 /// 所有语句验证器的统一接口
@@ -334,9 +364,10 @@ impl ValidationResult {
 /// # 重构变更
 /// - validate 方法现在接收 Arc<QueryContext> 和 &Stmt 替代 &mut AstContext
 /// - 验证器不再直接修改上下文，而是通过返回值传递结果
+/// - validate 方法返回包含 ValidationInfo 的详细验证结果
 pub trait StatementValidator {
     /// 执行验证逻辑
-    /// 返回验证结果，包含输入/输出列定义
+    /// 返回包含详细验证信息的验证结果
     ///
     /// # 参数
     /// - `stmt`: 要验证的语句
@@ -345,7 +376,20 @@ pub trait StatementValidator {
         &mut self,
         stmt: &Stmt,
         qctx: Arc<QueryContext>,
-    ) -> Result<ValidationResult, ValidationError>;
+    ) -> Result<ValidationResult, ValidationError> {
+        // 默认实现：构建基本的 ValidationInfo
+        let mut info = ValidationInfo::new();
+
+        // 将输入输出列信息转换为验证信息
+        for input in self.inputs() {
+            info.add_alias(input.name.clone(), AliasType::Variable);
+        }
+        for output in self.outputs() {
+            info.add_alias(output.name.clone(), AliasType::Variable);
+        }
+
+        Ok(ValidationResult::success_with_info(info))
+    }
 
     /// 获取语句类型
     fn statement_type(&self) -> StatementType;

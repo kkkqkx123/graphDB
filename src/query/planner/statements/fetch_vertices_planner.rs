@@ -8,7 +8,7 @@ use crate::query::planner::plan::core::nodes::{
     ArgumentNode, GetVerticesNode, PlanNodeEnum, ProjectNode,
 };
 use crate::query::planner::plan::SubPlan;
-use crate::query::planner::planner::{Planner, PlannerError};
+use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
 use std::sync::Arc;
 
 /// FETCH VERTICES查询规划器
@@ -26,10 +26,10 @@ impl FetchVerticesPlanner {
 impl Planner for FetchVerticesPlanner {
     fn transform(
         &mut self,
-        stmt: &Stmt,
+        validated: &ValidatedStatement,
         _qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
-        let fetch_stmt = match stmt {
+        let fetch_stmt = match &validated.stmt {
             Stmt::Fetch(fetch_stmt) => fetch_stmt,
             _ => {
                 return Err(PlannerError::InvalidOperation(

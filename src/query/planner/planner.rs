@@ -8,7 +8,10 @@ use crate::query::QueryContext;
 use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::ExecutionPlan;
 use crate::query::planner::plan::SubPlan;
-use crate::query::validator::StatementType;
+use crate::query::validator::{StatementType, ValidationInfo};
+
+// 公开导出 ValidatedStatement，供 planner 实现使用
+pub use crate::query::validator::ValidatedStatement;
 
 use crate::query::planner::statements::delete_planner::DeletePlanner;
 use crate::query::planner::statements::fetch_edges_planner::FetchEdgesPlanner;
@@ -252,25 +255,34 @@ pub type MatchFunc = fn(&Stmt) -> bool;
 /// # 重构变更
 /// - transform 方法接收 Arc<QueryContext> 和 &Stmt 替代 &AstContext
 /// - match_planner 方法接收 &Stmt 替代 &AstContext
+/// - 新增 transform_validated 方法接收 ValidatedStatement，包含验证信息
 pub trait Planner: std::fmt::Debug {
+    /// 转换验证后的语句为执行子计划
+    /// 可以访问验证阶段收集的信息，避免重复解析
+    ///
+    /// # 参数
+    /// - `validated`: 验证后的语句，包含 ValidationInfo
+    /// - `qctx`: 查询上下文
     fn transform(
         &mut self,
-        stmt: &Stmt,
+        validated: &ValidatedStatement,
         qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError>;
+
     fn match_planner(&self, stmt: &Stmt) -> bool;
 
+    /// 使用验证后的语句进行完整转换
     fn transform_with_full_context(
         &mut self,
         qctx: Arc<QueryContext>,
-        stmt: &Stmt,
+        validated: &ValidatedStatement,
     ) -> Result<ExecutionPlan, PlannerError> {
-        let sub_plan = self.transform(stmt, qctx)?;
+        let sub_plan = self.transform(validated, qctx)?;
         let plan = ExecutionPlan::new(sub_plan.root().clone());
-        
+
         // 应用计划重写优化
         let plan = rewrite_plan(plan)?;
-        
+
         Ok(plan)
     }
 
@@ -330,24 +342,25 @@ impl PlannerEnum {
         }
     }
 
-    /// 将语句转换为执行计划
-    pub fn transform(&mut self, stmt: &Stmt, qctx: Arc<QueryContext>) -> Result<SubPlan, PlannerError> {
+    /// 将验证后的语句转换为执行计划
+    /// 可以访问验证阶段收集的信息
+    pub fn transform(&mut self, validated: &ValidatedStatement, qctx: Arc<QueryContext>) -> Result<SubPlan, PlannerError> {
         match self {
-            PlannerEnum::Match(planner) => planner.transform(stmt, qctx),
-            PlannerEnum::Go(planner) => planner.transform(stmt, qctx),
-            PlannerEnum::Lookup(planner) => planner.transform(stmt, qctx),
-            PlannerEnum::Path(planner) => planner.transform(stmt, qctx),
-            PlannerEnum::Subgraph(planner) => planner.transform(stmt, qctx),
-            PlannerEnum::FetchVertices(planner) => planner.transform(stmt, qctx),
-            PlannerEnum::FetchEdges(planner) => planner.transform(stmt, qctx),
-            PlannerEnum::Maintain(planner) => planner.transform(stmt, qctx),
-            PlannerEnum::UserManagement(planner) => planner.transform(stmt, qctx),
-            PlannerEnum::Insert(planner) => planner.transform(stmt, qctx),
-            PlannerEnum::Delete(planner) => planner.transform(stmt, qctx),
-            PlannerEnum::Update(planner) => planner.transform(stmt, qctx),
-            PlannerEnum::GroupBy(planner) => planner.transform(stmt, qctx),
-            PlannerEnum::SetOperation(planner) => planner.transform(stmt, qctx),
-            PlannerEnum::Use(planner) => planner.transform(stmt, qctx),
+            PlannerEnum::Match(planner) => planner.transform(validated, qctx),
+            PlannerEnum::Go(planner) => planner.transform(validated, qctx),
+            PlannerEnum::Lookup(planner) => planner.transform(validated, qctx),
+            PlannerEnum::Path(planner) => planner.transform(validated, qctx),
+            PlannerEnum::Subgraph(planner) => planner.transform(validated, qctx),
+            PlannerEnum::FetchVertices(planner) => planner.transform(validated, qctx),
+            PlannerEnum::FetchEdges(planner) => planner.transform(validated, qctx),
+            PlannerEnum::Maintain(planner) => planner.transform(validated, qctx),
+            PlannerEnum::UserManagement(planner) => planner.transform(validated, qctx),
+            PlannerEnum::Insert(planner) => planner.transform(validated, qctx),
+            PlannerEnum::Delete(planner) => planner.transform(validated, qctx),
+            PlannerEnum::Update(planner) => planner.transform(validated, qctx),
+            PlannerEnum::GroupBy(planner) => planner.transform(validated, qctx),
+            PlannerEnum::SetOperation(planner) => planner.transform(validated, qctx),
+            PlannerEnum::Use(planner) => planner.transform(validated, qctx),
         }
     }
 

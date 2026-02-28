@@ -13,7 +13,7 @@ use crate::query::planner::plan::core::{
     },
 };
 use crate::query::planner::plan::{PlanNodeEnum, SubPlan};
-use crate::query::planner::planner::{Planner, PlannerError};
+use crate::query::planner::planner::{Planner, PlannerError, ValidatedStatement};
 use crate::core::YieldColumn;
 use crate::core::{Expression, Value};
 use std::sync::Arc;
@@ -121,14 +121,14 @@ impl CreatePlanner {
 impl Planner for CreatePlanner {
     fn transform(
         &mut self,
-        stmt: &Stmt,
+        validated: &ValidatedStatement,
         qctx: Arc<QueryContext>,
     ) -> Result<SubPlan, PlannerError> {
         // 获取空间名称
         let space_name = qctx.rctx().space_name.clone().unwrap_or_else(|| "default".to_string());
 
         // 提取 CREATE 语句
-        let create_stmt = self.extract_create_stmt(stmt)?;
+        let create_stmt = self.extract_create_stmt(&validated.stmt)?;
 
         // 创建参数节点
         let arg_node = ArgumentNode::new(next_node_id(), "create_args");
@@ -380,7 +380,8 @@ impl Default for CreatePlanner {
 mod tests {
     use super::*;
     use crate::query::parser::parser::Parser;
-    use crate::query::planner::planner::Planner;
+    use crate::query::planner::planner::{Planner, ValidatedStatement};
+    use crate::query::validator::ValidationInfo;
     use crate::query::QueryContext;
     use std::sync::Arc;
 
@@ -393,7 +394,11 @@ mod tests {
         let mut planner = CreatePlanner::new();
         let qctx = Arc::new(QueryContext::default());
 
-        let result = planner.transform(&stmt, qctx);
+        // 创建验证后的语句
+        let validation_info = ValidationInfo::new();
+        let validated = ValidatedStatement::new(stmt, validation_info);
+
+        let result = planner.transform(&validated, qctx);
         assert!(result.is_ok(), "CREATE PATH 应该成功，但得到错误: {:?}", result.err());
     }
 
@@ -406,7 +411,11 @@ mod tests {
         let mut planner = CreatePlanner::new();
         let qctx = Arc::new(QueryContext::default());
 
-        let result = planner.transform(&stmt, qctx);
+        // 创建验证后的语句
+        let validation_info = ValidationInfo::new();
+        let validated = ValidatedStatement::new(stmt, validation_info);
+
+        let result = planner.transform(&validated, qctx);
         assert!(result.is_ok(), "带属性的 CREATE PATH 应该成功");
     }
 
@@ -419,7 +428,11 @@ mod tests {
         let mut planner = CreatePlanner::new();
         let qctx = Arc::new(QueryContext::default());
 
-        let result = planner.transform(&stmt, qctx);
+        // 创建验证后的语句
+        let validation_info = ValidationInfo::new();
+        let validated = ValidatedStatement::new(stmt, validation_info);
+
+        let result = planner.transform(&validated, qctx);
         assert!(result.is_ok(), "多边 CREATE PATH 应该成功");
     }
 
@@ -432,7 +445,11 @@ mod tests {
         let mut planner = CreatePlanner::new();
         let qctx = Arc::new(QueryContext::default());
 
-        let result = planner.transform(&stmt, qctx);
+        // 创建验证后的语句
+        let validation_info = ValidationInfo::new();
+        let validated = ValidatedStatement::new(stmt, validation_info);
+
+        let result = planner.transform(&validated, qctx);
         assert!(result.is_ok(), "单节点 CREATE 应该成功");
     }
 
@@ -445,7 +462,11 @@ mod tests {
         let mut planner = CreatePlanner::new();
         let qctx = Arc::new(QueryContext::default());
 
-        let result = planner.transform(&stmt, qctx);
+        // 创建验证后的语句
+        let validation_info = ValidationInfo::new();
+        let validated = ValidatedStatement::new(stmt, validation_info);
+
+        let result = planner.transform(&validated, qctx);
         assert!(result.is_err(), "没有标签的 CREATE PATH 应该失败");
     }
 
@@ -458,7 +479,11 @@ mod tests {
         let mut planner = CreatePlanner::new();
         let qctx = Arc::new(QueryContext::default());
 
-        let result = planner.transform(&stmt, qctx);
+        // 创建验证后的语句
+        let validation_info = ValidationInfo::new();
+        let validated = ValidatedStatement::new(stmt, validation_info);
+
+        let result = planner.transform(&validated, qctx);
         assert!(result.is_ok(), "双向边 CREATE PATH 应该成功");
     }
 }

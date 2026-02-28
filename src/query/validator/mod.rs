@@ -52,6 +52,7 @@ pub mod return_validator;
 pub mod with_validator;
 pub mod remove_validator;
 pub mod query_validator;
+pub mod validation_info;
 
 // 导出数据结构
 pub use structs::{
@@ -135,3 +136,16 @@ pub use return_validator::ReturnValidator;
 pub use with_validator::WithValidator;
 pub use remove_validator::RemoveValidator;
 pub use query_validator::QueryValidator;
+
+// 导出验证信息相关类型
+pub use validation_info::{
+    ValidatedStatement,
+    ValidationInfo,
+    PathAnalysis,
+    OptimizationHint,
+    IndexHint,
+    SemanticInfo,
+    AggregateCallInfo,
+    ClauseKind,
+    HintSeverity,
+};
