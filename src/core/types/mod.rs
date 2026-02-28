@@ -63,7 +63,7 @@ pub use self::metadata::{
     SchemaFieldChange, FieldChangeType, SchemaAlterOperation, AlterTargetType,
 };
 
-pub use self::expression::{Expression, ExpressionMeta};
+pub use self::expression::{Expression, ExpressionMeta, ExpressionContext, ContextualExpression, SerializableExpression, OptimizationFlags};
 pub use self::graph_schema::{EdgeDirection, JoinType, OrderDirection, GraphTypeInference, VertexType, PathInfo, PropertyType, EdgeTypeRef};
 pub use self::operators::{AggregateFunction, BinaryOperator, UnaryOperator};
 pub use self::span::{Position, Span, ToSpan};

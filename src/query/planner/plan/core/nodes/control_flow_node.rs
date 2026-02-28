@@ -2,9 +2,13 @@
 //!
 //! 包含Start、Argument、Select、Loop等控制流相关的计划节点
 
+use std::sync::Arc;
+
 use super::plan_node_enum::PlanNodeEnum;
 use super::plan_node_traits::{PlanNode, PlanNodeClonable};
 use crate::define_plan_node;
+use crate::core::types::{ContextualExpression, SerializableExpression, ExpressionContext, ExpressionMeta};
+use crate::core::Expression;
 
 define_plan_node! {
     pub struct ArgumentNode {
@@ -50,7 +54,8 @@ impl PassThroughNode {
 #[derive(Debug)]
 pub struct SelectNode {
     id: i64,
-    condition: String,
+    condition: ContextualExpression,
+    condition_serializable: Option<SerializableExpression>,
     if_branch: Option<Box<super::plan_node_enum::PlanNodeEnum>>,
     else_branch: Option<Box<super::plan_node_enum::PlanNodeEnum>>,
     output_var: Option<String>,
@@ -62,6 +67,7 @@ impl Clone for SelectNode {
         SelectNode {
             id: self.id,
             condition: self.condition.clone(),
+            condition_serializable: self.condition_serializable.clone(),
             if_branch: self.if_branch.as_ref().map(|node| node.clone()),
             else_branch: self.else_branch.as_ref().map(|node| node.clone()),
             output_var: self.output_var.clone(),
@@ -71,10 +77,26 @@ impl Clone for SelectNode {
 }
 
 impl SelectNode {
-    pub fn new(id: i64, condition: &str) -> Self {
+    pub fn new(id: i64, condition: ContextualExpression) -> Self {
         Self {
             id,
-            condition: condition.to_string(),
+            condition,
+            condition_serializable: None,
+            if_branch: None,
+            else_branch: None,
+            output_var: None,
+            col_names: Vec::new(),
+        }
+    }
+    
+    pub fn from_string(id: i64, condition: String, ctx: Arc<ExpressionContext>) -> Self {
+        let expr_meta = ExpressionMeta::new(Expression::Variable(condition));
+        let expr_id = ctx.register_expression(expr_meta);
+        let ctx_expr = ContextualExpression::new(expr_id, ctx);
+        Self {
+            id,
+            condition: ctx_expr,
+            condition_serializable: None,
             if_branch: None,
             else_branch: None,
             output_var: None,
@@ -106,8 +128,23 @@ impl SelectNode {
         &mut self.else_branch
     }
 
-    pub fn condition(&self) -> &str {
+    pub fn condition(&self) -> &ContextualExpression {
         &self.condition
+    }
+    
+    pub fn set_condition(&mut self, condition: ContextualExpression) {
+        self.condition = condition;
+        self.condition_serializable = None;
+    }
+    
+    pub fn prepare_for_serialization(&mut self) {
+        self.condition_serializable = Some(SerializableExpression::from_contextual(&self.condition));
+    }
+    
+    pub fn after_deserialization(&mut self, ctx: Arc<ExpressionContext>) {
+        if let Some(ref ser_expr) = self.condition_serializable {
+            self.condition = ser_expr.clone().to_contextual(ctx);
+        }
     }
 
     pub fn type_name(&self) -> &'static str {
@@ -189,7 +226,8 @@ impl PlanNodeClonable for SelectNode {
 #[derive(Debug)]
 pub struct LoopNode {
     id: i64,
-    condition: String,
+    condition: ContextualExpression,
+    condition_serializable: Option<SerializableExpression>,
     body: Option<Box<super::plan_node_enum::PlanNodeEnum>>,
     output_var: Option<String>,
     col_names: Vec<String>,
@@ -200,6 +238,7 @@ impl Clone for LoopNode {
         LoopNode {
             id: self.id,
             condition: self.condition.clone(),
+            condition_serializable: self.condition_serializable.clone(),
             body: self.body.as_ref().map(|node| node.clone()),
             output_var: self.output_var.clone(),
             col_names: self.col_names.clone(),
@@ -208,10 +247,25 @@ impl Clone for LoopNode {
 }
 
 impl LoopNode {
-    pub fn new(id: i64, condition: &str) -> Self {
+    pub fn new(id: i64, condition: ContextualExpression) -> Self {
         Self {
             id,
-            condition: condition.to_string(),
+            condition,
+            condition_serializable: None,
+            body: None,
+            output_var: None,
+            col_names: Vec::new(),
+        }
+    }
+    
+    pub fn from_string(id: i64, condition: String, ctx: Arc<ExpressionContext>) -> Self {
+        let expr_meta = ExpressionMeta::new(Expression::Variable(condition));
+        let expr_id = ctx.register_expression(expr_meta);
+        let ctx_expr = ContextualExpression::new(expr_id, ctx);
+        Self {
+            id,
+            condition: ctx_expr,
+            condition_serializable: None,
             body: None,
             output_var: None,
             col_names: Vec::new(),
@@ -230,8 +284,23 @@ impl LoopNode {
         &mut self.body
     }
 
-    pub fn condition(&self) -> &str {
+    pub fn condition(&self) -> &ContextualExpression {
         &self.condition
+    }
+    
+    pub fn set_condition(&mut self, condition: ContextualExpression) {
+        self.condition = condition;
+        self.condition_serializable = None;
+    }
+    
+    pub fn prepare_for_serialization(&mut self) {
+        self.condition_serializable = Some(SerializableExpression::from_contextual(&self.condition));
+    }
+    
+    pub fn after_deserialization(&mut self, ctx: Arc<ExpressionContext>) {
+        if let Some(ref ser_expr) = self.condition_serializable {
+            self.condition = ser_expr.clone().to_contextual(ctx);
+        }
     }
 
     pub fn type_name(&self) -> &'static str {

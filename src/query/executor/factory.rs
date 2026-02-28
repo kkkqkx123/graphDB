@@ -1104,10 +1104,9 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                 let body_executor = self.create_executor(body, storage.clone(), context)?;
                 
                 let condition = node.condition()
-                    .is_empty()
-                    .then_some(node.condition().to_string())
-                    .filter(|c| !c.is_empty())
-                    .and_then(|c| parse_expression_safe(&c));
+                    .expression()
+                    .map(|meta| meta.inner().clone())
+                    .unwrap_or_else(|| crate::core::Expression::Literal(crate::core::Value::Bool(true)));
                 
                 let executor = LoopExecutor::new(
                     node.id(),
@@ -1207,10 +1206,8 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
 
             PlanNodeEnum::Select(node) => {
                 let condition = node.condition()
-                    .is_empty()
-                    .then_some(node.condition().to_string())
-                    .filter(|c| !c.is_empty())
-                    .and_then(|c| parse_expression_safe(&c))
+                    .expression()
+                    .map(|meta| meta.inner().clone())
                     .unwrap_or_else(|| crate::core::Expression::Literal(crate::core::Value::Bool(true)));
 
                 let if_branch = node.if_branch()
