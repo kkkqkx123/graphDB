@@ -463,7 +463,7 @@ mod tests {
 
     #[test]
     fn test_expression_analyzer_new() {
-        let analyzer = ExpressionAnalyzer::new();
+        let _analyzer = ExpressionAnalyzer::new();
         // 验证创建成功
     }
 

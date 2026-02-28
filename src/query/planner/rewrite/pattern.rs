@@ -289,11 +289,13 @@ impl NodeVisitor for NodeVisitorFinder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Arc;
     use crate::query::planner::plan::core::nodes::graph_scan_node::ScanVerticesNode;
     use crate::query::planner::plan::core::nodes::project_node::ProjectNode;
     use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
     use crate::core::Value;
     use crate::core::Expression;
+    use crate::core::types::ExpressionContext;
 
     #[test]
     fn test_pattern_matches() {
@@ -302,8 +304,9 @@ mod tests {
         let project_node = PlanNodeEnum::Project(
             ProjectNode::new(input_node.clone(), Vec::new()).expect("创建ProjectNode应该成功")
         );
+        let ctx = Arc::new(ExpressionContext::new());
         let filter_node = PlanNodeEnum::Filter(
-            FilterNode::new(input_node, Expression::Literal(Value::Bool(true)))
+            FilterNode::from_expression(input_node, Expression::Literal(Value::Bool(true)), ctx)
                 .expect("创建FilterNode应该成功")
         );
         
@@ -343,8 +346,9 @@ mod tests {
         let project = PlanNodeEnum::Project(
             ProjectNode::new(scan.clone(), Vec::new()).expect("创建ProjectNode应该成功")
         );
+        let ctx = Arc::new(ExpressionContext::new());
         let filter = PlanNodeEnum::Filter(
-            FilterNode::new(project.clone(), Expression::Literal(Value::Bool(true)))
+            FilterNode::from_expression(project.clone(), Expression::Literal(Value::Bool(true)), ctx.clone())
                 .expect("创建FilterNode应该成功")
         );
         
@@ -352,7 +356,7 @@ mod tests {
         
         // Filter -> Scan 不应该匹配
         let filter2 = PlanNodeEnum::Filter(
-            FilterNode::new(scan, Expression::Literal(Value::Bool(true)))
+            FilterNode::from_expression(scan, Expression::Literal(Value::Bool(true)), ctx)
                 .expect("创建FilterNode应该成功")
         );
         assert!(!pattern.matches(&filter2));

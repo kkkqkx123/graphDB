@@ -71,15 +71,26 @@ impl RewriteRule for PushFilterDownAllPathsRule {
         let input = filter_node.input();
 
         // 检查输入节点是否为 AllPaths
-        let _all_paths = match input {
+        let all_paths = match input {
             PlanNodeEnum::AllPaths(n) => n,
             _ => return Ok(None),
         };
 
-        // 注意：AllPaths 节点目前没有 filter 字段
-        // 如果需要支持下推，需要在 AllPaths 结构中添加 filter 字段
-        // 目前返回 None 表示不转换
-        Ok(None)
+        // 获取过滤条件
+        let filter_condition = filter_node.condition();
+
+        // 创建新的 AllPaths 节点
+        let mut new_all_paths = all_paths.clone();
+
+        // 设置 filter
+        new_all_paths.set_filter(filter_condition.clone());
+
+        // 构建转换结果
+        let mut result = TransformResult::new();
+        result.erase_curr = true;
+        result.add_new_node(PlanNodeEnum::AllPaths(new_all_paths));
+
+        Ok(Some(result))
     }
 }
 

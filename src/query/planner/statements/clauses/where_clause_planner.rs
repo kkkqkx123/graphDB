@@ -69,7 +69,9 @@ impl ClausePlanner for WhereClausePlanner {
             PlannerError::PlanGenerationFailed("WHERE 子句需要输入计划".to_string())
         })?;
 
-        let filter_node = FilterNode::new(input_node.clone(), condition)?;
+        use std::sync::Arc;
+        let ctx = Arc::new(crate::core::types::ExpressionContext::new());
+        let filter_node = FilterNode::from_expression(input_node.clone(), condition, ctx)?;
         Ok(SubPlan::new(Some(filter_node.into_enum()), input_plan.tail))
     }
 }

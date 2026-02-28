@@ -207,15 +207,6 @@ mod tests {
     use crate::query::planner::plan::core::nodes::{
         SortItem, SortNode, StartNode,
     };
-    use crate::core::types::graph_schema::OrderDirection;
-
-    fn create_test_sort_node(input: PlanNodeEnum, columns: Vec<&str>) -> SortNode {
-        let sort_items: Vec<SortItem> = columns
-            .into_iter()
-            .map(|c| SortItem::new(c.to_string(), OrderDirection::Asc))
-            .collect();
-        SortNode::new(input, sort_items).expect("Failed to create SortNode")
-    }
 
     #[test]
     fn test_eliminate_sort_rule_name() {

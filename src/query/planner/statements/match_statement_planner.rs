@@ -11,10 +11,10 @@
 
 use crate::core::Expression;
 use crate::core::SymbolTable;
+use crate::core::types::ExpressionContext;
 use crate::query::QueryContext;
 use crate::query::parser::ast::Stmt;
 use crate::query::parser::ast::pattern::{Pattern, PathElement, RepetitionType};
-use crate::query::planner::plan::ExecutionPlan;
 use crate::query::planner::plan::SubPlan;
 use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
 use crate::query::planner::plan::core::nodes::plan_node_traits::PlanNode;
@@ -118,7 +118,7 @@ impl MatchStatementPlanner {
         stmt: &crate::query::parser::ast::Stmt,
         space_id: u64,
         sym_table: &SymbolTable,
-        validation_info: Option<&ValidationInfo>,
+        _validation_info: Option<&ValidationInfo>,
     ) -> Result<SubPlan, PlannerError> {
         match stmt {
             crate::query::parser::ast::Stmt::Match(match_stmt) => {
@@ -296,21 +296,26 @@ impl MatchStatementPlanner {
         let scan_node = ScanVerticesNode::new(space_id);
         let mut plan = SubPlan::from_root(scan_node.into_enum());
 
+        // 创建表达式上下文
+        let ctx = Arc::new(ExpressionContext::new());
+
         // 如果有标签过滤，添加过滤器
         if !node.labels.is_empty() {
             let label_filter = Self::build_label_filter_expression(&node.variable, &node.labels);
-            let filter_node = FilterNode::new(
+            let filter_node = FilterNode::from_expression(
                 plan.root.as_ref().expect("plan的root应该存在").clone(),
                 label_filter,
+                ctx.clone(),
             ).map_err(|e| PlannerError::PlanGenerationFailed(e.to_string()))?;
             plan = SubPlan::new(Some(filter_node.into_enum()), plan.tail);
         }
 
         // 如果有属性过滤，添加过滤器
         if let Some(ref props) = node.properties {
-            let filter_node = FilterNode::new(
+            let filter_node = FilterNode::from_expression(
                 plan.root.as_ref().expect("plan的root应该存在").clone(),
                 props.clone(),
+                ctx.clone(),
             ).map_err(|e| PlannerError::PlanGenerationFailed(e.to_string()))?;
             plan = SubPlan::new(Some(filter_node.into_enum()), plan.tail);
         }
@@ -318,9 +323,10 @@ impl MatchStatementPlanner {
         // 如果有谓词过滤，添加过滤器
         if !node.predicates.is_empty() {
             for pred in &node.predicates {
-                let filter_node = FilterNode::new(
+                let filter_node = FilterNode::from_expression(
                     plan.root.as_ref().expect("plan的root应该存在").clone(),
                     pred.clone(),
+                    ctx.clone(),
                 ).map_err(|e| PlannerError::PlanGenerationFailed(e.to_string()))?;
                 plan = SubPlan::new(Some(filter_node.into_enum()), plan.tail);
             }
@@ -353,9 +359,12 @@ impl MatchStatementPlanner {
 
         // 如果有属性过滤，添加过滤器
         if let Some(ref props) = edge.properties {
-            let filter_node = FilterNode::new(
+            use std::sync::Arc;
+            let ctx = Arc::new(crate::core::types::ExpressionContext::new());
+            let filter_node = FilterNode::from_expression(
                 plan.root.as_ref().expect("plan的root应该存在").clone(),
                 props.clone(),
+                ctx,
             ).map_err(|e| PlannerError::PlanGenerationFailed(e.to_string()))?;
             plan = SubPlan::new(Some(filter_node.into_enum()), plan.tail);
         }
@@ -363,9 +372,12 @@ impl MatchStatementPlanner {
         // 如果有谓词过滤，添加过滤器
         if !edge.predicates.is_empty() {
             for pred in &edge.predicates {
-                let filter_node = FilterNode::new(
+                use std::sync::Arc;
+                let ctx = Arc::new(crate::core::types::ExpressionContext::new());
+                let filter_node = FilterNode::from_expression(
                     plan.root.as_ref().expect("plan的root应该存在").clone(),
                     pred.clone(),
+                    ctx,
                 ).map_err(|e| PlannerError::PlanGenerationFailed(e.to_string()))?;
                 plan = SubPlan::new(Some(filter_node.into_enum()), plan.tail);
             }
@@ -463,7 +475,8 @@ impl MatchStatementPlanner {
             PlannerError::PlanGenerationFailed("输入计划没有根节点".to_string())
         })?;
 
-        let filter_node = FilterNode::new(input_node.clone(), condition)?;
+        let ctx = Arc::new(ExpressionContext::new());
+        let filter_node = FilterNode::from_expression(input_node.clone(), condition, ctx)?;
         Ok(SubPlan::new(Some(filter_node.into_enum()), input_plan.tail))
     }
 
@@ -801,7 +814,7 @@ impl MatchStatementPlanner {
         };
 
         // 根据重复类型确定循环条件
-        let condition = match rep_type {
+        let condition_str = match rep_type {
             RepetitionType::ZeroOrMore => "loop_count >= 0".to_string(),
             RepetitionType::OneOrMore => "loop_count >= 1".to_string(),
             RepetitionType::ZeroOrOne => "loop_count <= 1".to_string(),
@@ -810,7 +823,9 @@ impl MatchStatementPlanner {
         };
 
         // 创建循环节点
-        let mut loop_node = LoopNode::new(-1, &condition);
+        use std::sync::Arc;
+        let ctx = Arc::new(crate::core::types::ExpressionContext::new());
+        let mut loop_node = LoopNode::from_string(-1, condition_str, ctx);
 
         // 设置循环体
         if let Some(base_root) = base_plan.root {

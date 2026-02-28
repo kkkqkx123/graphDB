@@ -79,14 +79,11 @@ impl RewriteRule for PushFilterDownExpandAllRule {
         // 获取过滤条件
         let filter_condition = filter_node.condition();
 
-        // 将表达式转换为字符串作为 filter
-        let filter_str = format!("{:?}", filter_condition);
-
         // 创建新的 ExpandAll 节点
         let mut new_expand_all = expand_all.clone();
 
         // 设置 filter
-        new_expand_all.set_filter(filter_str);
+        new_expand_all.set_filter(filter_condition.clone());
 
         // 构建转换结果
         let mut result = TransformResult::new();
@@ -135,14 +132,18 @@ mod tests {
     #[test]
     fn test_can_push_down() {
         let rule = PushFilterDownExpandAllRule::new();
+        use std::sync::Arc;
+        use crate::core::types::ExpressionContext;
 
         let start = StartNode::new();
         let start_enum = PlanNodeEnum::Start(start);
 
         let condition = Expression::Variable("test".to_string());
-        let filter = crate::query::planner::plan::core::nodes::filter_node::FilterNode::new(
+        let ctx = Arc::new(ExpressionContext::new());
+        let filter = crate::query::planner::plan::core::nodes::filter_node::FilterNode::from_expression(
             start_enum.clone(),
-            condition
+            condition,
+            ctx
         ).expect("创建FilterNode失败");
         let filter_enum = PlanNodeEnum::Filter(filter);
 

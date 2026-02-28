@@ -11,6 +11,8 @@ use crate::core::error::{DBError, DBResult};
 use crate::core::value::DataSet;
 use crate::core::Expression;
 use crate::core::Value;
+use crate::core::value::NullType;
+use crate::core::types::ContextualExpression;
 use crate::expression::evaluator::expression_evaluator::ExpressionEvaluator;
 use crate::expression::evaluator::traits::ExpressionContext;
 use crate::expression::DefaultExpressionContext;
@@ -39,7 +41,7 @@ pub struct FilterExecutor<S: StorageClient + Send + 'static> {
 }
 
 impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
-    pub fn new(id: i64, storage: Arc<Mutex<S>>, condition: Expression) -> Self {
+    pub fn new(id: i64, storage: Arc<Mutex<S>>, condition: ContextualExpression) -> Self {
         let base = BaseResultProcessor::new(
             id,
             "FilterExecutor".to_string(),
@@ -47,9 +49,14 @@ impl<S: StorageClient + Send + 'static> FilterExecutor<S> {
             storage,
         );
 
+        let expr = match condition.expression() {
+            Some(meta) => meta.inner().clone(),
+            None => Expression::Literal(Value::Null(NullType::Null)),
+        };
+
         Self {
             base,
-            condition,
+            condition: expr,
             input_executor: None,
             parallel_config: ParallelConfig::default(),
         }
@@ -420,7 +427,13 @@ mod tests {
             right: Box::new(Expression::Literal(crate::core::Value::Int(25))),
         };
 
-        let mut executor = FilterExecutor::new(1, storage, condition);
+        use std::sync::Arc;
+        let ctx = Arc::new(crate::core::types::ExpressionContext::new());
+        let condition_meta = crate::core::types::ExpressionMeta::new(condition);
+        let condition_id = ctx.register_expression(condition_meta);
+        let ctx_condition = ContextualExpression::new(condition_id, ctx);
+
+        let mut executor = FilterExecutor::new(1, storage, ctx_condition);
 
         // 设置输入数据
         <FilterExecutor<MockStorage> as ResultProcessor<MockStorage>>::set_input(

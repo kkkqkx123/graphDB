@@ -318,7 +318,7 @@ impl ResultProcessorFactory {
     pub fn create_filter<S: StorageClient>(
         id: i64,
         storage: Arc<Mutex<S>>,
-        condition: crate::core::Expression,
+        condition: crate::core::types::ContextualExpression,
     ) -> crate::query::executor::result_processing::filter::FilterExecutor<S> {
         crate::query::executor::result_processing::filter::FilterExecutor::new(
             id, storage, condition,

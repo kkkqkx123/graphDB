@@ -273,8 +273,12 @@ impl FingerprintCalculator {
             // 哈希过滤条件中的常量值
             PlanNodeEnum::Filter(n) => {
                 let condition = n.condition();
+                let expr = match condition.expression() {
+                    Some(meta) => meta.inner().clone(),
+                    None => return,
+                };
                 // 哈希条件表达式的结构（不包含变量名）
-                self.hash_expression_structure(condition, hasher);
+                self.hash_expression_structure(&expr, hasher);
             }
 
             // 哈希投影列
@@ -391,7 +395,7 @@ mod tests {
 
     #[test]
     fn test_fingerprint_calculator_new() {
-        let calculator = FingerprintCalculator::new();
+        let _calculator = FingerprintCalculator::new();
         // 验证创建成功
     }
 

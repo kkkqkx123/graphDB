@@ -71,7 +71,9 @@ impl Planner for GoPlanner {
         let input_for_join = PlanNodeEnum::ExpandAll(expand_all_node);
 
         let filter_node = if let Some(ref condition) = go_stmt.where_clause {
-            match FilterNode::new(input_for_join, condition.clone()) {
+            use std::sync::Arc;
+            let ctx = Arc::new(crate::core::types::ExpressionContext::new());
+            match FilterNode::from_expression(input_for_join, condition.clone(), ctx) {
                 Ok(filter) => PlanNodeEnum::Filter(filter),
                 Err(e) => {
                     return Err(PlannerError::PlanGenerationFailed(format!(

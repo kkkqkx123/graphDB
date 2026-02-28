@@ -197,9 +197,12 @@ impl Planner for GroupByPlanner {
 
         // 如果有 HAVING 子句，添加 FilterNode
         if let Some(ref having_expr) = group_by_stmt.having_clause {
-            let filter_node = FilterNode::new(
+            use std::sync::Arc;
+            let ctx = Arc::new(crate::core::types::ExpressionContext::new());
+            let filter_node = FilterNode::from_expression(
                 final_node.clone(),
                 having_expr.clone(),
+                ctx,
             ).map_err(|e| PlannerError::PlanGenerationFailed(format!(
                 "Failed to create FilterNode: {}",
                 e

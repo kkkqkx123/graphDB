@@ -374,8 +374,8 @@ pub trait StatementValidator {
     /// - `qctx`: 查询上下文，包含符号表、空间信息等
     fn validate(
         &mut self,
-        stmt: &Stmt,
-        qctx: Arc<QueryContext>,
+        _stmt: &Stmt,
+        _qctx: Arc<QueryContext>,
     ) -> Result<ValidationResult, ValidationError> {
         // 默认实现：构建基本的 ValidationInfo
         let mut info = ValidationInfo::new();

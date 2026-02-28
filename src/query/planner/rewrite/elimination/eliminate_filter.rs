@@ -111,8 +111,17 @@ impl RewriteRule for EliminateFilterRule {
             _ => return Ok(None),
         };
 
+        // 获取过滤条件
+        let condition = filter_node.condition();
+
+        // 获取底层表达式
+        let expr = match condition.expression() {
+            Some(meta) => meta.inner().clone(),
+            None => return Ok(None),
+        };
+
         // 检查条件是否为永假式
-        if !self.is_contradiction(filter_node.condition()) {
+        if !self.is_contradiction(&expr) {
             return Ok(None);
         }
 
@@ -129,7 +138,13 @@ impl RewriteRule for EliminateFilterRule {
 impl EliminationRule for EliminateFilterRule {
     fn can_eliminate(&self, node: &PlanNodeEnum) -> bool {
         match node {
-            PlanNodeEnum::Filter(n) => self.is_contradiction(n.condition()),
+            PlanNodeEnum::Filter(n) => {
+                let condition = n.condition();
+                match condition.expression() {
+                    Some(meta) => self.is_contradiction(meta.inner()),
+                    None => false,
+                }
+            }
             _ => false,
         }
     }

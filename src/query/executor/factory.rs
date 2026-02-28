@@ -1012,7 +1012,8 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                     .unwrap_or_else(|| format!("input_{}", node.id()));
 
                 let src_expression = node.src_expression()
-                    .cloned()
+                    .and_then(|ctx_expr| ctx_expr.expression())
+                    .map(|meta| meta.inner().clone())
                     .unwrap_or_else(|| crate::core::Expression::Variable("_".to_string()));
 
                 let executor = AppendVerticesExecutor::new(
@@ -1105,8 +1106,7 @@ impl<S: StorageClient + 'static> ExecutorFactory<S> {
                 
                 let condition = node.condition()
                     .expression()
-                    .map(|meta| meta.inner().clone())
-                    .unwrap_or_else(|| crate::core::Expression::Literal(crate::core::Value::Bool(true)));
+                    .map(|meta| meta.inner().clone());
                 
                 let executor = LoopExecutor::new(
                     node.id(),

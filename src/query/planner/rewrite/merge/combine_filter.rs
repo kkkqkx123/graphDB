@@ -1,6 +1,9 @@
 //! 合并多个过滤操作的规则
 
+use std::sync::Arc;
+
 use crate::core::Expression;
+use crate::core::types::ExpressionContext;
 use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
@@ -92,14 +95,28 @@ impl RewriteRule for CombineFilterRule {
         let top_condition = top_filter.condition();
         let child_condition = child_filter.condition();
 
+        // 获取表达式用于合并
+        let top_expr = match top_condition.expression() {
+            Some(meta) => meta.inner().clone(),
+            None => return Ok(None),
+        };
+
+        let child_expr = match child_condition.expression() {
+            Some(meta) => meta.inner().clone(),
+            None => return Ok(None),
+        };
+
         // 合并条件
-        let combined_condition = self.combine_conditions(top_condition, child_condition);
+        let combined_condition = self.combine_conditions(&top_expr, &child_expr);
+
+        // 获取上下文
+        let ctx = top_condition.context().clone();
 
         // 获取子 Filter 的输入
         let child_input = child_filter.input().clone();
 
         // 创建合并后的 Filter 节点
-        let combined_filter_node = match FilterNode::new(child_input, combined_condition) {
+        let combined_filter_node = match FilterNode::from_expression(child_input, combined_condition, ctx) {
             Ok(node) => node,
             Err(_) => return Ok(None),
         };
@@ -150,6 +167,7 @@ mod tests {
     #[test]
     fn test_combine_filters() {
         let start = PlanNodeEnum::Start(StartNode::new());
+        let expr_ctx = Arc::new(ExpressionContext::new());
 
         // 下层Filter: col1 > 100
         let child_condition = Expression::Binary {
@@ -158,7 +176,7 @@ mod tests {
             right: Box::new(Expression::Literal(crate::core::Value::Int(100))),
         };
         let child_filter =
-            FilterNode::new(start, child_condition).expect("创建FilterNode失败");
+            FilterNode::from_expression(start, child_condition, expr_ctx.clone()).expect("创建FilterNode失败");
         let child_node = PlanNodeEnum::Filter(child_filter);
 
         // 上层Filter: col2 > 200
@@ -168,7 +186,7 @@ mod tests {
             right: Box::new(Expression::Literal(crate::core::Value::Int(200))),
         };
         let top_filter =
-            FilterNode::new(child_node.clone(), top_condition).expect("创建FilterNode失败");
+            FilterNode::from_expression(child_node.clone(), top_condition, expr_ctx).expect("创建FilterNode失败");
         let top_node = PlanNodeEnum::Filter(top_filter);
 
         // 应用规则

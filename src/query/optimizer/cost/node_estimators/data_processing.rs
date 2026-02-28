@@ -88,9 +88,13 @@ impl<'a> NodeEstimator for DataProcessingEstimator<'a> {
         match node {
             PlanNodeEnum::Filter(n) => {
                 let input_rows_val = get_input_rows(child_estimates, 0);
-                let condition_count = self.count_filter_conditions(n.condition());
+                let condition_expr = match n.condition().expression() {
+                    Some(meta) => meta.inner().clone(),
+                    None => return Ok((0.0, input_rows_val)),
+                };
+                let condition_count = self.count_filter_conditions(&condition_expr);
                 // 估算过滤后的行数
-                let selectivity = self.selectivity_estimator.estimate_from_expression(n.condition(), None);
+                let selectivity = self.selectivity_estimator.estimate_from_expression(&condition_expr, None);
                 let output_rows = (input_rows_val as f64 * selectivity).max(1.0) as u64;
                 let cost = self.cost_calculator.calculate_filter_cost(input_rows_val, condition_count);
                 Ok((cost, output_rows))

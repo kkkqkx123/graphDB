@@ -68,9 +68,12 @@ impl Planner for FetchEdgesPlanner {
         ));
 
         // 3. 创建过滤空边的节点
-        let filter_node = match FilterNode::new(
+        use std::sync::Arc;
+        let ctx = Arc::new(crate::core::types::ExpressionContext::new());
+        let filter_node = match FilterNode::from_expression(
             get_edges_node.clone(),
             crate::core::Expression::Variable(format!("{} IS NOT EMPTY", var_name)),
+            ctx,
         ) {
             Ok(node) => PlanNodeEnum::Filter(node),
             Err(_) => get_edges_node.clone(),

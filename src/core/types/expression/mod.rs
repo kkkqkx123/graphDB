@@ -57,8 +57,8 @@
 
 // 子模块定义
 mod def;
-mod constructors;
-mod query;
+mod construction;
+mod inspection;
 mod traverse;
 mod display;
 mod type_deduce;

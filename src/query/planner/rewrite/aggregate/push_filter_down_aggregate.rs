@@ -27,6 +27,8 @@
 //! - Filter 节点的子节点是 Aggregate 节点
 //! - Filter 条件不涉及聚合函数（只涉及聚合的输入列）
 
+use std::sync::Arc;
+
 use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::planner::rewrite::context::RewriteContext;
 use crate::query::planner::rewrite::pattern::Pattern;
@@ -36,6 +38,7 @@ use crate::query::planner::plan::core::nodes::aggregate_node::AggregateNode;
 use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 use crate::core::Expression;
+use crate::core::types::ExpressionContext;
 use crate::core::types::operators::AggregateFunction;
 
 /// 将过滤下推到聚合之前的规则
@@ -160,6 +163,15 @@ impl RewriteRule for PushFilterDownAggregateRule {
         // 获取过滤条件
         let filter_condition = filter_node.condition();
 
+        // 获取表达式用于处理
+        let filter_expr = match filter_condition.expression() {
+            Some(meta) => meta.inner().clone(),
+            None => return Ok(None),
+        };
+
+        // 获取上下文用于创建 ContextualExpression
+        let ctx = filter_condition.context().clone();
+
         // 获取输入节点
         let input = filter_node.input();
 
@@ -175,7 +187,7 @@ impl RewriteRule for PushFilterDownAggregateRule {
 
         // 检查过滤条件是否包含聚合函数引用
         // 如果条件引用了聚合结果（如 HAVING COUNT(*) > 10），则不能下推
-        if Self::has_aggregate_function_reference(filter_condition, group_keys, agg_funcs) {
+        if Self::has_aggregate_function_reference(&filter_expr, group_keys, agg_funcs) {
             return Ok(None);
         }
 
@@ -183,10 +195,10 @@ impl RewriteRule for PushFilterDownAggregateRule {
         let agg_input = agg_node.input();
 
         // 重写过滤条件（将输出列引用转换为输入列引用）
-        let rewritten_condition = Self::rewrite_filter_condition(filter_condition, group_keys);
+        let rewritten_condition = Self::rewrite_filter_condition(&filter_expr, group_keys);
 
         // 创建新的 Filter 节点，放在 Aggregate 之前
-        let new_filter = FilterNode::new(agg_input.clone(), rewritten_condition)
+        let new_filter = FilterNode::from_expression(agg_input.clone(), rewritten_condition, ctx.clone())
             .map_err(|e| crate::query::planner::rewrite::result::RewriteError::rewrite_failed(
                 format!("创建 FilterNode 失败: {:?}", e)
             ))?;
@@ -321,7 +333,8 @@ mod tests {
             left: Box::new(Expression::Variable("category".to_string())),
             right: Box::new(Expression::Literal(crate::core::Value::String("A".to_string()))),
         };
-        let filter = FilterNode::new(aggregate_enum, condition)
+        let expr_ctx = Arc::new(ExpressionContext::new());
+        let filter = FilterNode::from_expression(aggregate_enum, condition, expr_ctx)
             .expect("创建 FilterNode 失败");
         let filter_enum = PlanNodeEnum::Filter(filter);
 
@@ -357,7 +370,8 @@ mod tests {
             left: Box::new(Expression::Variable("COUNT".to_string())),
             right: Box::new(Expression::Literal(crate::core::Value::Int(10))),
         };
-        let filter = FilterNode::new(aggregate_enum, condition)
+        let expr_ctx = Arc::new(ExpressionContext::new());
+        let filter = FilterNode::from_expression(aggregate_enum, condition, expr_ctx)
             .expect("创建 FilterNode 失败");
         let filter_enum = PlanNodeEnum::Filter(filter);
 
@@ -383,7 +397,8 @@ mod tests {
             left: Box::new(Expression::Variable("name".to_string())),
             right: Box::new(Expression::Literal(crate::core::Value::String("test".to_string()))),
         };
-        let filter = FilterNode::new(start_enum, condition)
+        let expr_ctx = Arc::new(ExpressionContext::new());
+        let filter = FilterNode::from_expression(start_enum, condition, expr_ctx)
             .expect("创建 FilterNode 失败");
         let filter_enum = PlanNodeEnum::Filter(filter);
 

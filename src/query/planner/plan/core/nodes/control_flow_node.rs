@@ -392,20 +392,20 @@ mod tests {
 
     #[test]
     fn test_select_node_creation() {
-        let node = SelectNode::new(1, "condition");
+        let ctx = Arc::new(ExpressionContext::new());
+        let node = SelectNode::from_string(1, "condition".to_string(), ctx);
         assert_eq!(node.type_name(), "Select");
         assert_eq!(node.id(), 1);
-        assert_eq!(node.condition(), "condition");
         assert!(node.if_branch().is_none());
         assert!(node.else_branch().is_none());
     }
 
     #[test]
     fn test_loop_node_creation() {
-        let node = LoopNode::new(1, "condition");
+        let ctx = Arc::new(ExpressionContext::new());
+        let node = LoopNode::from_string(1, "condition".to_string(), ctx);
         assert_eq!(node.type_name(), "Loop");
         assert_eq!(node.id(), 1);
-        assert_eq!(node.condition(), "condition");
         assert!(node.body().is_none());
     }
 

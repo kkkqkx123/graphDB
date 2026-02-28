@@ -84,8 +84,14 @@ impl RewriteRule for PushFilterDownGetNbrsRule {
         // 获取过滤条件
         let condition = filter_node.condition();
 
+        // 获取底层 Expression
+        let expr = match condition.expression() {
+            Some(meta) => meta.inner().clone(),
+            None => return Ok(None),
+        };
+
         // 将 Expression 序列化为字符串
-        let condition_str = match serde_json::to_string(condition) {
+        let condition_str = match serde_json::to_string(&expr) {
             Ok(s) => s,
             Err(_) => return Ok(None),
         };
@@ -153,12 +159,15 @@ mod tests {
     #[test]
     fn test_can_push_down() {
         let rule = PushFilterDownGetNbrsRule::new();
+        use std::sync::Arc;
+        use crate::core::types::ExpressionContext;
 
         let start = StartNode::new();
         let start_enum = PlanNodeEnum::Start(start);
 
         let condition = Expression::Variable("test".to_string());
-        let filter = FilterNode::new(start_enum.clone(), condition).expect("创建FilterNode失败");
+        let ctx = Arc::new(ExpressionContext::new());
+        let filter = FilterNode::from_expression(start_enum.clone(), condition, ctx).expect("创建FilterNode失败");
         let filter_enum = PlanNodeEnum::Filter(filter);
 
         let get_nbrs = GetNeighborsNode::new(1, "v");

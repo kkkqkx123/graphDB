@@ -3,6 +3,8 @@
 //! 该规则识别 Filter -> HashLeftJoin 模式，
 //! 并将过滤条件下推到连接的两侧。
 
+use std::sync::Arc;
+
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::filter_node::FilterNode;
 use crate::query::planner::rewrite::context::RewriteContext;
@@ -10,6 +12,7 @@ use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planner::rewrite::rule::{RewriteRule, PushDownRule};
 use crate::core::Expression;
+use crate::core::types::{ContextualExpression, ExpressionContext};
 use crate::query::planner::rewrite::expression_utils::{check_col_name, split_filter};
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 
@@ -88,6 +91,15 @@ impl RewriteRule for PushFilterDownHashLeftJoinRule {
         // 获取过滤条件
         let filter_condition = filter_node.condition();
 
+        // 获取表达式用于处理
+        let filter_expr = match filter_condition.expression() {
+            Some(meta) => meta.inner().clone(),
+            None => return Ok(None),
+        };
+
+        // 获取上下文用于创建 ContextualExpression
+        let ctx = filter_condition.context().clone();
+
         // 获取左右输入的列名
         let left_col_names = join.left_input().col_names().to_vec();
         let right_col_names = join.right_input().col_names().to_vec();
@@ -103,8 +115,8 @@ impl RewriteRule for PushFilterDownHashLeftJoinRule {
         };
 
         // 分割过滤条件
-        let (left_picked, left_remained) = split_filter(filter_condition, left_picker);
-        let (right_picked, right_remained) = split_filter(filter_condition, right_picker);
+        let (left_picked, left_remained) = split_filter(&filter_expr, left_picker);
+        let (right_picked, right_remained) = split_filter(&filter_expr, right_picker);
 
         // 如果没有可以下推的条件，则不进行转换
         if left_picked.is_none() && right_picked.is_none() {
@@ -119,7 +131,7 @@ impl RewriteRule for PushFilterDownHashLeftJoinRule {
         // 处理左侧下推
         let left_pushed = left_picked.is_some();
         if let Some(left_filter) = left_picked {
-            let left_filter_node = FilterNode::new(new_left, left_filter)
+            let left_filter_node = FilterNode::from_expression(new_left, left_filter, ctx.clone())
                 .map_err(|e| crate::query::planner::rewrite::result::RewriteError::rewrite_failed(
                     format!("创建FilterNode失败: {:?}", e)
                 ))?;
@@ -129,7 +141,7 @@ impl RewriteRule for PushFilterDownHashLeftJoinRule {
         // 处理右侧下推
         let right_pushed = right_picked.is_some();
         if let Some(right_filter) = right_picked {
-            let right_filter_node = FilterNode::new(new_right, right_filter)
+            let right_filter_node = FilterNode::from_expression(new_right, right_filter, ctx.clone())
                 .map_err(|e| crate::query::planner::rewrite::result::RewriteError::rewrite_failed(
                     format!("创建FilterNode失败: {:?}", e)
                 ))?;
@@ -155,7 +167,10 @@ impl RewriteRule for PushFilterDownHashLeftJoinRule {
         if let Some(remained) = remaining_condition {
             result.erase_curr = false;
             let mut new_filter = filter_node.clone();
-            new_filter.set_condition(remained);
+            let remained_meta = crate::core::types::ExpressionMeta::new(remained);
+            let remained_id = ctx.register_expression(remained_meta);
+            let remained_ctx_expr = ContextualExpression::new(remained_id, ctx);
+            new_filter.set_condition(remained_ctx_expr);
             result.add_new_node(PlanNodeEnum::Filter(new_filter));
         } else {
             result.erase_curr = true;
@@ -209,7 +224,8 @@ mod tests {
         let start_enum = PlanNodeEnum::Start(start);
 
         let condition = Expression::Variable("test".to_string());
-        let filter = FilterNode::new(start_enum.clone(), condition).expect("创建FilterNode失败");
+        let ctx = Arc::new(ExpressionContext::new());
+        let filter = FilterNode::from_expression(start_enum.clone(), condition, ctx).expect("创建FilterNode失败");
         let filter_enum = PlanNodeEnum::Filter(filter);
 
         let join = HashLeftJoinNode::new(

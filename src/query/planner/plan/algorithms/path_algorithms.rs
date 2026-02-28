@@ -314,6 +314,7 @@ pub struct AllPaths {
     pub has_step_limit: bool,
     pub limit: i64,
     pub offset: i64,
+    pub filter: Option<crate::core::types::ContextualExpression>,
 }
 
 impl AllPaths {
@@ -340,6 +341,7 @@ impl AllPaths {
             has_step_limit: true,
             limit: -1,
             offset: 0,
+            filter: None,
         }
     }
 
@@ -369,6 +371,14 @@ impl AllPaths {
 
     pub fn set_offset(&mut self, offset: i64) {
         self.offset = offset;
+    }
+
+    pub fn filter(&self) -> Option<&crate::core::types::ContextualExpression> {
+        self.filter.as_ref()
+    }
+
+    pub fn set_filter(&mut self, filter: crate::core::types::ContextualExpression) {
+        self.filter = Some(filter);
     }
 
     /// 获取节点的唯一ID

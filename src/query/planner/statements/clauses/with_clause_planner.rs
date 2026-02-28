@@ -112,7 +112,9 @@ impl WithClausePlanner {
             .as_ref()
             .ok_or_else(|| PlannerError::PlanGenerationFailed("输入计划没有根节点".to_string()))?;
 
-        FilterNode::new(input_node.clone(), condition)
+        use std::sync::Arc;
+        let ctx = Arc::new(crate::core::types::ExpressionContext::new());
+        FilterNode::from_expression(input_node.clone(), condition, ctx)
             .map_err(|e| PlannerError::PlanGenerationFailed(format!("创建过滤节点失败: {}", e)))
             .map(|node| PlanNodeEnum::Filter(node))
     }

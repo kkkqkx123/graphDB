@@ -346,9 +346,11 @@ impl PushDownRule for PushProjectDownRule {
 mod tests {
     use super::*;
     use crate::core::{Expression, YieldColumn};
+    use crate::core::types::ExpressionContext;
     use crate::query::planner::plan::core::nodes::{
         DedupNode, FilterNode, GetVerticesNode, LimitNode, ProjectNode, ScanVerticesNode, StartNode,
     };
+    use std::sync::Arc;
 
     #[test]
     fn test_rule_name() {
@@ -375,9 +377,11 @@ mod tests {
     #[test]
     fn test_is_intermediate_node() {
         let scan = ScanVerticesNode::new(1);
-        let filter = FilterNode::new(
+        let ctx = Arc::new(ExpressionContext::new());
+        let filter = FilterNode::from_expression(
             PlanNodeEnum::ScanVertices(scan.clone()),
             crate::core::Expression::literal(true),
+            ctx,
         )
         .expect("创建 FilterNode 失败");
         assert!(PushProjectDownRule::is_intermediate_node(&PlanNodeEnum::Filter(filter)));
@@ -509,15 +513,17 @@ mod tests {
     #[test]
     fn test_contains_data_source() {
         let rule = PushProjectDownRule::new();
+        let ctx = Arc::new(ExpressionContext::new());
 
         // 直接数据源
         let scan = PlanNodeEnum::ScanVertices(ScanVerticesNode::new(1));
         assert!(rule.contains_data_source(&scan));
 
         // 中间节点 -> 数据源
-        let filter = FilterNode::new(
+        let filter = FilterNode::from_expression(
             scan.clone(),
             crate::core::Expression::literal(true),
+            ctx.clone(),
         )
         .expect("创建 FilterNode 失败");
         let filter_enum = PlanNodeEnum::Filter(filter);
@@ -531,15 +537,17 @@ mod tests {
     #[test]
     fn test_find_data_source() {
         let rule = PushProjectDownRule::new();
+        let ctx = Arc::new(ExpressionContext::new());
 
         // 直接数据源
         let scan = PlanNodeEnum::ScanVertices(ScanVerticesNode::new(1));
         assert!(rule.find_data_source(&scan).is_some());
 
         // 中间节点 -> 数据源
-        let filter = FilterNode::new(
+        let filter = FilterNode::from_expression(
             scan.clone(),
             crate::core::Expression::literal(true),
+            ctx.clone(),
         )
         .expect("创建 FilterNode 失败");
         let filter_enum = PlanNodeEnum::Filter(filter);
@@ -555,16 +563,19 @@ mod tests {
     #[test]
     fn test_push_down_through_filter() {
         let rule = PushProjectDownRule::new();
-        let mut ctx = RewriteContext::new();
+        let mut rewrite_ctx = RewriteContext::new();
 
         // 创建 ScanVertices 节点
         let scan_node = ScanVerticesNode::new(1);
         let scan = PlanNodeEnum::ScanVertices(scan_node);
 
         // 创建 Filter 节点
-        let filter = FilterNode::new(
+        use std::sync::Arc;
+        let ctx = Arc::new(crate::core::types::ExpressionContext::new());
+        let filter = FilterNode::from_expression(
             scan.clone(),
             crate::core::Expression::literal(true),
+            ctx,
         )
         .expect("创建 FilterNode 失败");
         let filter_enum = PlanNodeEnum::Filter(filter);
@@ -587,7 +598,7 @@ mod tests {
         let project_enum = PlanNodeEnum::Project(project);
 
         // 应用规则
-        let result = rule.apply(&mut ctx, &project_enum).expect("应用规则失败");
+        let result = rule.apply(&mut rewrite_ctx, &project_enum).expect("应用规则失败");
 
         assert!(result.is_some());
         let transform = result.expect("Failed to apply rewrite rule");
@@ -700,15 +711,17 @@ mod tests {
     fn test_push_down_through_multiple_intermediate_nodes() {
         let rule = PushProjectDownRule::new();
         let mut ctx = RewriteContext::new();
+        let expr_ctx = Arc::new(ExpressionContext::new());
 
         // 创建 ScanVertices 节点
         let scan_node = ScanVerticesNode::new(1);
         let scan = PlanNodeEnum::ScanVertices(scan_node);
 
         // 创建 Filter 节点
-        let filter = FilterNode::new(
+        let filter = FilterNode::from_expression(
             scan.clone(),
             crate::core::Expression::literal(true),
+            expr_ctx.clone(),
         )
         .expect("创建 FilterNode 失败");
         let filter_enum = PlanNodeEnum::Filter(filter);

@@ -9,6 +9,7 @@ use crate::query::planner::rewrite::pattern::Pattern;
 use crate::query::planner::rewrite::result::{RewriteResult, TransformResult};
 use crate::query::planner::rewrite::rule::{RewriteRule, PushDownRule};
 use crate::core::Expression;
+use crate::core::types::ContextualExpression;
 use crate::query::planner::rewrite::expression_utils::split_filter;
 use crate::query::planner::plan::core::nodes::plan_node_traits::SingleInputNode;
 
@@ -95,13 +96,22 @@ impl RewriteRule for PushFilterDownTraverseRule {
         // 获取过滤条件
         let filter_condition = filter_node.condition();
 
+        // 获取表达式用于处理
+        let filter_expr = match filter_condition.expression() {
+            Some(meta) => meta.inner().clone(),
+            None => return Ok(None),
+        };
+
+        // 获取上下文用于创建 ContextualExpression
+        let ctx = filter_condition.context().clone();
+
         // 定义选择器函数：检查表达式是否包含边属性
         let picker = |expr: &Expression| -> bool {
             is_edge_property_expression(edge_alias, expr)
         };
 
         // 分割过滤条件
-        let (filter_picked, filter_unpicked) = split_filter(filter_condition, picker);
+        let (filter_picked, filter_unpicked) = split_filter(&filter_expr, picker);
 
         // 如果没有可以选择的条件，则不进行转换
         let picked = match filter_picked {
@@ -113,15 +123,29 @@ impl RewriteRule for PushFilterDownTraverseRule {
         let mut new_traverse = traverse.clone();
 
         // 设置或合并 eFilter
-        if let Some(existing) = traverse.e_filter() {
-            let combined = Expression::Binary {
-                left: Box::new(picked),
-                op: crate::core::types::operators::BinaryOperator::And,
-                right: Box::new(existing.clone()),
-            };
-            new_traverse.set_e_filter(combined);
+        if let Some(existing_ctx) = traverse.e_filter() {
+            let existing_expr = existing_ctx.expression().map(|meta| meta.inner().clone());
+            if let Some(existing) = existing_expr {
+                let combined = Expression::Binary {
+                    left: Box::new(picked),
+                    op: crate::core::types::operators::BinaryOperator::And,
+                    right: Box::new(existing),
+                };
+                let combined_meta = crate::core::types::ExpressionMeta::new(combined);
+                let combined_id = ctx.register_expression(combined_meta);
+                let combined_ctx_expr = ContextualExpression::new(combined_id, ctx.clone());
+                new_traverse.set_e_filter(combined_ctx_expr);
+            } else {
+                let picked_meta = crate::core::types::ExpressionMeta::new(picked);
+                let picked_id = ctx.register_expression(picked_meta);
+                let picked_ctx_expr = ContextualExpression::new(picked_id, ctx.clone());
+                new_traverse.set_e_filter(picked_ctx_expr);
+            }
         } else {
-            new_traverse.set_e_filter(picked);
+            let picked_meta = crate::core::types::ExpressionMeta::new(picked);
+            let picked_id = ctx.register_expression(picked_meta);
+            let picked_ctx_expr = ContextualExpression::new(picked_id, ctx.clone());
+            new_traverse.set_e_filter(picked_ctx_expr);
         }
 
         // 构建转换结果
@@ -132,7 +156,10 @@ impl RewriteRule for PushFilterDownTraverseRule {
             result.erase_curr = false;
             // 更新 Filter 节点的条件
             let mut new_filter = filter_node.clone();
-            new_filter.set_condition(unpicked);
+            let unpicked_meta = crate::core::types::ExpressionMeta::new(unpicked);
+            let unpicked_id = ctx.register_expression(unpicked_meta);
+            let unpicked_ctx_expr = ContextualExpression::new(unpicked_id, ctx);
+            new_filter.set_condition(unpicked_ctx_expr);
             result.add_new_node(PlanNodeEnum::Filter(new_filter));
         } else {
             // 完全下推，删除 Filter 节点

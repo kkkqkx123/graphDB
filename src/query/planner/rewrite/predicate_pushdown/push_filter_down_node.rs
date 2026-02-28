@@ -4,6 +4,7 @@
 //! 并将可下推的过滤条件下推到数据源。
 
 use crate::core::Expression;
+use crate::core::types::{ContextualExpression, ExpressionMeta};
 use crate::query::planner::plan::core::nodes::plan_node_enum::PlanNodeEnum;
 use crate::query::planner::plan::core::nodes::traversal_node::TraverseNode;
 use crate::query::planner::plan::core::nodes::AppendVerticesNode;
@@ -85,6 +86,12 @@ impl PushFilterDownNodeRule {
             None => return Ok(None),
         };
 
+        // 获取表达式用于处理
+        let v_expr = match v_filter.expression() {
+            Some(meta) => meta.inner().clone(),
+            None => return Ok(None),
+        };
+
         // 获取列名用于判断可下推的表达式
         let col_names = traverse.col_names().to_vec();
 
@@ -94,7 +101,7 @@ impl PushFilterDownNodeRule {
         };
 
         // 分割过滤条件
-        let (filter_picked, filter_remained) = split_filter(v_filter, picker);
+        let (filter_picked, filter_remained) = split_filter(&v_expr, picker);
 
         // 如果没有可以下推的条件，则不进行转换
         let picked = match filter_picked {
@@ -105,22 +112,33 @@ impl PushFilterDownNodeRule {
         // 创建新的 Traverse 节点
         let mut new_traverse = traverse.clone();
 
+        // 获取上下文用于创建 ContextualExpression
+        let ctx = v_filter.context().clone();
+
         // 设置 firstStepFilter
         if let Some(existing) = traverse.first_step_filter() {
-            // 合并现有条件
+            let existing_expr = match existing.expression() {
+                Some(meta) => meta.inner().clone(),
+                None => return Ok(None),
+            };
             let combined = Expression::Binary {
                 left: Box::new(picked),
                 op: crate::core::types::operators::BinaryOperator::And,
-                right: Box::new(existing.clone()),
+                right: Box::new(existing_expr),
             };
-            new_traverse.set_first_step_filter(combined);
+            new_traverse.set_first_step_filter_expression(combined, ctx.clone());
         } else {
-            new_traverse.set_first_step_filter(picked);
+            new_traverse.set_first_step_filter_expression(picked, ctx.clone());
         }
 
         // 更新 vFilter
         if let Some(remained) = filter_remained {
-            new_traverse.set_v_filter(remained);
+            new_traverse.set_v_filter_expression(remained, ctx);
+        } else {
+            new_traverse.set_v_filter(ContextualExpression::new(
+                crate::core::types::expression::ExpressionId::new(0),
+                ctx,
+            ));
         }
 
         // 构建转换结果
@@ -142,6 +160,12 @@ impl PushFilterDownNodeRule {
             None => return Ok(None),
         };
 
+        // 获取表达式用于处理
+        let v_expr = match v_filter.expression() {
+            Some(meta) => meta.inner().clone(),
+            None => return Ok(None),
+        };
+
         // 获取列名用于判断可下推的表达式
         let col_names = append.col_names().to_vec();
 
@@ -151,7 +175,7 @@ impl PushFilterDownNodeRule {
         };
 
         // 分割过滤条件
-        let (filter_picked, filter_remained) = split_filter(v_filter, picker);
+        let (filter_picked, filter_remained) = split_filter(&v_expr, picker);
 
         // 如果没有可以下推的条件，则不进行转换
         let picked = match filter_picked {
@@ -162,22 +186,35 @@ impl PushFilterDownNodeRule {
         // 创建新的 AppendVertices 节点
         let mut new_append = append.clone();
 
+        // 获取上下文用于创建 ContextualExpression
+        let ctx = v_filter.context().clone();
+
         // 设置 filter
-        let picked_str = match serde_json::to_string(&picked) {
-            Ok(s) => s,
-            Err(_) => return Ok(None),
-        };
+        let picked_expr_meta = ExpressionMeta::new(picked.clone());
+        let picked_id = ctx.register_expression(picked_expr_meta);
+        let picked_ctx_expr = ContextualExpression::new(picked_id, ctx.clone());
 
         if let Some(existing) = append.filter() {
-            let combined = format!("{{\"and\": [{}, {}]}}", picked_str, existing);
-            new_append.set_filter(combined);
+            let existing_expr = match existing.expression() {
+                Some(meta) => meta.inner().clone(),
+                None => return Ok(None),
+            };
+            let combined = Expression::Binary {
+                left: Box::new(picked),
+                op: crate::core::types::operators::BinaryOperator::And,
+                right: Box::new(existing_expr),
+            };
+            let combined_meta = ExpressionMeta::new(combined);
+            let combined_id = ctx.register_expression(combined_meta);
+            let combined_ctx_expr = ContextualExpression::new(combined_id, ctx.clone());
+            new_append.set_filter(combined_ctx_expr);
         } else {
-            new_append.set_filter(picked_str);
+            new_append.set_filter(picked_ctx_expr);
         }
 
         // 更新 vFilter
         if let Some(remained) = filter_remained {
-            new_append.set_v_filter(remained);
+            new_append.set_v_filter_expression(remained, ctx);
         }
 
         // 构建转换结果

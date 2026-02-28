@@ -8,7 +8,7 @@ use crate::query::QueryContext;
 use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::ExecutionPlan;
 use crate::query::planner::plan::SubPlan;
-use crate::query::validator::{StatementType, ValidationInfo};
+use crate::query::validator::StatementType;
 
 // 公开导出 ValidatedStatement，供 planner 实现使用
 pub use crate::query::validator::ValidatedStatement;

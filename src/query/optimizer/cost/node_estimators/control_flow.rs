@@ -37,10 +37,10 @@ impl<'a> ControlFlowEstimator<'a> {
         &self,
         node: &crate::query::planner::plan::core::nodes::control_flow_node::LoopNode,
     ) -> u32 {
-        let condition = node.condition().trim();
+        let condition = node.condition().to_expression_string();
 
         // 使用表达式解析器尝试解析迭代次数
-        if let Some(iterations) = self.expression_parser.parse_loop_iterations(condition) {
+        if let Some(iterations) = self.expression_parser.parse_loop_iterations(&condition) {
             return iterations;
         }
 

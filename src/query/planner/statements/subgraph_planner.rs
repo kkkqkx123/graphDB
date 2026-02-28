@@ -14,7 +14,7 @@ use crate::query::QueryContext;
 use crate::query::parser::ast::stmt::Steps;
 use crate::query::parser::ast::Stmt;
 use crate::query::planner::plan::core::nodes::{
-    ArgumentNode as Argument, ExpandAllNode, FilterNode as Filter, GetVerticesNode,
+    ArgumentNode as Argument, ExpandAllNode, FilterNode, GetVerticesNode,
     PlanNodeEnum, ProjectNode as Project,
 };
 use crate::query::planner::plan::SubPlan;
@@ -160,7 +160,9 @@ impl SubgraphPlanner {
         let mut current = input;
 
         for condition in filters {
-            current = match Filter::new(current.clone(), condition.clone()) {
+            use std::sync::Arc;
+            let ctx = Arc::new(crate::core::types::ExpressionContext::new());
+            current = match FilterNode::from_expression(current.clone(), condition.clone(), ctx) {
                 Ok(node) => PlanNodeEnum::Filter(node),
                 Err(_) => current,
             };

@@ -77,8 +77,22 @@ impl RewriteRule for PushVFilterDownScanVerticesRule {
             None => return Ok(None),
         };
 
+        // 获取底层表达式
+        let v_expr = match v_filter.expression() {
+            Some(meta) => meta.inner().clone(),
+            None => return Ok(None),
+        };
+
         // 重写表达式，将通配符替换为具体的顶点别名
-        let rewritten_filter = rewrite_wildcard_to_alias(v_filter, &vertex_alias);
+        let rewritten_expr = rewrite_wildcard_to_alias(&v_expr, &vertex_alias);
+
+        // 获取上下文
+        let ctx = v_filter.context().clone();
+
+        // 将重写后的表达式注册到上下文中
+        let rewritten_meta = crate::core::types::ExpressionMeta::new(rewritten_expr);
+        let rewritten_id = ctx.register_expression(rewritten_meta);
+        let rewritten_filter = crate::core::types::ContextualExpression::new(rewritten_id, ctx);
 
         // 创建新的 Traverse 节点
         let mut new_traverse = traverse.clone();
