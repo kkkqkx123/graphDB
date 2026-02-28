@@ -15,6 +15,10 @@ pub struct EdgeTypeStatistics {
     pub avg_out_degree: f64,
     /// 平均入度
     pub avg_in_degree: f64,
+    /// 最大出度
+    pub max_out_degree: u64,
+    /// 最大入度
+    pub max_in_degree: u64,
     /// 唯一源顶点数
     pub unique_src_vertices: u64,
     /// 唯一目标顶点数
@@ -31,6 +35,8 @@ impl EdgeTypeStatistics {
             edge_count: 0,
             avg_out_degree: 0.0,
             avg_in_degree: 0.0,
+            max_out_degree: 0,
+            max_in_degree: 0,
             unique_src_vertices: 0,
             unique_dst_vertices: 0,
             last_analyzed: SystemTime::now(),

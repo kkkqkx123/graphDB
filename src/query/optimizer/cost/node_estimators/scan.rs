@@ -11,7 +11,7 @@ use crate::query::planner::plan::algorithms::{IndexScan, ScanType};
 use crate::query::optimizer::cost::estimate::NodeCostEstimate;
 use crate::query::optimizer::cost::CostCalculator;
 use crate::core::error::optimize::CostError;
-use super::{NodeEstimator, get_input_rows};
+use super::NodeEstimator;
 
 /// 扫描操作估算器
 pub struct ScanEstimator<'a> {

@@ -51,11 +51,27 @@ pub use crate::core::error::optimize::CostError;
 pub use strategy::{
     TraversalStartSelector,
     CandidateStart,
-    SelectionReason,
+    TraversalSelectionReason,
     IndexSelector,
     IndexSelection,
     PropertyPredicate,
     PredicateOperator,
+    AggregateStrategySelector,
+    AggregateStrategy,
+    AggregateStrategyDecision,
+    AggregateContext,
+    AggregateSelectionReason,
+    JoinOrderOptimizer,
+    JoinOrderResult,
+    TableInfo,
+    JoinCondition,
+    OptimizationMethod,
+    TraversalDirectionOptimizer,
+    TraversalDirection,
+    TraversalDirectionDecision,
+    DirectionContext,
+    DirectionSelectionReason,
+    DegreeInfo,
 };
 
 pub use decision::{

@@ -9,6 +9,7 @@
 //! - GetVertices
 //! - GetEdges
 
+use crate::core::types::EdgeDirection;
 use crate::query::planner::plan::PlanNodeEnum;
 use crate::query::optimizer::cost::estimate::NodeCostEstimate;
 use crate::query::optimizer::cost::CostCalculator;
@@ -61,7 +62,12 @@ impl<'a> NodeEstimator for GraphTraversalEstimator<'a> {
             PlanNodeEnum::Expand(n) => {
                 let start_rows = get_input_rows(child_estimates, 0);
                 let edge_type = n.edge_types().first().map(|s| s.as_str());
-                let avg_degree = self.get_avg_out_degree(edge_type);
+                // 根据遍历方向选择对应的度数
+                let avg_degree = match n.direction() {
+                    EdgeDirection::Out => self.get_avg_out_degree(edge_type),
+                    EdgeDirection::In => self.get_avg_in_degree(edge_type),
+                    EdgeDirection::Both => self.get_avg_degree(edge_type),
+                };
                 let output_rows = (start_rows as f64 * avg_degree) as u64;
                 let cost = self.cost_calculator.calculate_expand_cost(start_rows, edge_type);
                 Ok((cost, output_rows.max(1)))
@@ -69,7 +75,12 @@ impl<'a> NodeEstimator for GraphTraversalEstimator<'a> {
             PlanNodeEnum::ExpandAll(n) => {
                 let start_rows = get_input_rows(child_estimates, 0);
                 let edge_type = n.edge_types().first().map(|s| s.as_str());
-                let avg_degree = self.get_avg_out_degree(edge_type);
+                // ExpandAllNode 使用字符串表示方向，需要解析
+                let avg_degree = match n.direction() {
+                    "IN" | "in" | "In" => self.get_avg_in_degree(edge_type),
+                    "BOTH" | "both" | "Both" => self.get_avg_degree(edge_type),
+                    _ => self.get_avg_out_degree(edge_type), // 默认出边
+                };
                 let output_rows = (start_rows as f64 * avg_degree) as u64;
                 let cost = self.cost_calculator.calculate_expand_all_cost(start_rows, edge_type);
                 Ok((cost, output_rows.max(1)))
@@ -78,7 +89,12 @@ impl<'a> NodeEstimator for GraphTraversalEstimator<'a> {
                 let start_rows = get_input_rows(child_estimates, 0);
                 let edge_type = n.edge_types().first().map(|s| s.as_str());
                 let steps = n.max_steps();
-                let avg_degree = self.get_avg_degree(edge_type);
+                // 根据遍历方向选择度数
+                let avg_degree = match n.direction() {
+                    EdgeDirection::Out => self.get_avg_out_degree(edge_type),
+                    EdgeDirection::In => self.get_avg_in_degree(edge_type),
+                    EdgeDirection::Both => self.get_avg_degree(edge_type),
+                };
                 // 多步遍历的输出行数估算
                 let output_rows = (start_rows as f64 * avg_degree.powi(steps as i32)) as u64;
                 let cost = self.cost_calculator
@@ -94,7 +110,12 @@ impl<'a> NodeEstimator for GraphTraversalEstimator<'a> {
             PlanNodeEnum::GetNeighbors(n) => {
                 let start_rows = get_input_rows(child_estimates, 0);
                 let edge_type = n.edge_types().first().map(|s| s.as_str());
-                let avg_degree = self.get_avg_out_degree(edge_type);
+                // GetNeighborsNode 使用字符串表示方向，需要解析
+                let avg_degree = match n.direction() {
+                    "IN" | "in" | "In" => self.get_avg_in_degree(edge_type),
+                    "BOTH" | "both" | "Both" => self.get_avg_degree(edge_type),
+                    _ => self.get_avg_out_degree(edge_type), // 默认出边
+                };
                 let output_rows = (start_rows as f64 * avg_degree) as u64;
                 let cost = self.cost_calculator
                     .calculate_get_neighbors_cost(start_rows, edge_type);
