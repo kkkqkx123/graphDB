@@ -2,38 +2,37 @@
 
 ## Summary
 
-- **Total Errors**: 2
-- **Total Warnings**: 0
-- **Total Issues**: 2
-- **Unique Error Patterns**: 2
-- **Unique Warning Patterns**: 0
+- **Total Errors**: 0
+- **Total Warnings**: 1
+- **Total Issues**: 1
+- **Unique Error Patterns**: 0
+- **Unique Warning Patterns**: 1
 - **Files with Issues**: 1
 
 ## Error Statistics
 
-**Total Errors**: 2
-
-### Error Type Breakdown
-
-- **error**: 2 errors
-
-### Files with Errors (Top 10)
-
-- `src\query\planner\rewrite\elimination\eliminate_sort.rs`: 2 errors
+**Total Errors**: 0
 
 ## Warning Statistics
 
-**Total Warnings**: 0
+**Total Warnings**: 1
 
-## Detailed Error Categorization
+### Warning Type Breakdown
 
-### error: unknown start of token: \
+- **warning**: 1 warnings
 
-**Total Occurrences**: 2  
+### Files with Warnings (Top 10)
+
+- `src\query\planner\rewrite\predicate_pushdown\push_filter_down_all_paths.rs`: 1 warnings
+
+## Detailed Warning Categorization
+
+### warning: unused import: `crate::core::types::ContextualExpression`
+
+**Total Occurrences**: 1  
 **Unique Files**: 1
 
-#### `src\query\planner\rewrite\elimination\eliminate_sort.rs`: 2 occurrences
+#### `src\query\planner\rewrite\predicate_pushdown\push_filter_down_all_paths.rs`: 1 occurrences
 
-- Line 207: unknown start of token: \
-- Line 207: expected one of `::`, `;`, or `as`, found `plan`: expected one of `::`, `;`, or `as`
+- Line 12: unused import: `crate::core::types::ContextualExpression`
 

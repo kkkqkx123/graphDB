@@ -1,6 +1,6 @@
-//! 表达式构造函数
+//! 表达式构造方法
 //!
-//! 提供创建各类表达式的工厂方法。
+//! 提供创建各类表达式的方法。
 
 use crate::core::types::expression::Expression;
 use crate::core::types::operators::{AggregateFunction, BinaryOperator, UnaryOperator};

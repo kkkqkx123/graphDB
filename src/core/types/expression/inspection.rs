@@ -1,6 +1,6 @@
-//! 表达式查询方法
+//! 表达式检查方法
 //!
-//! 提供查询表达式属性和状态的方法。
+//! 提供检查表达式属性和状态的方法。
 
 use crate::core::types::expression::Expression;
 use crate::core::Value;
