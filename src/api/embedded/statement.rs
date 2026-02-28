@@ -203,9 +203,9 @@ impl<S: StorageClient + Clone + 'static> PreparedStatement<S> {
         // 使用查询解析器解析查询
         let mut parser = Parser::new(query);
         match parser.parse() {
-            Ok(stmt) => {
+            Ok(parser_result) => {
                 // 从解析后的语句中提取参数
-                Self::extract_params_from_stmt(&stmt, &mut params);
+                Self::extract_params_from_stmt(&parser_result.stmt, &mut params);
                 Ok(params)
             }
             Err(e) => {

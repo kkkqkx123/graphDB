@@ -2,6 +2,9 @@
 //!
 //! 负责解析工具类语句，包括 USE、SHOW、EXPLAIN、FETCH、LOOKUP、UNWIND、RETURN、WITH、YIELD、SET、REMOVE 等。
 
+use std::sync::Arc;
+
+use crate::core::types::expression::ContextualExpression;
 use crate::core::types::expression::Expression as CoreExpression;
 use crate::query::parser::ast::stmt::*;
 use crate::query::parser::ast::types::OrderDirection;
@@ -371,7 +374,7 @@ impl UtilStmtParser {
     }
 
     /// 解析表达式列表
-    fn parse_expression_list(&mut self, ctx: &mut ParseContext) -> Result<Vec<CoreExpression>, ParseError> {
+    fn parse_expression_list(&mut self, ctx: &mut ParseContext) -> Result<Vec<ContextualExpression>, ParseError> {
         let mut expressions = Vec::new();
         
         loop {
@@ -385,10 +388,9 @@ impl UtilStmtParser {
     }
 
     /// 解析表达式
-    fn parse_expression(&mut self, ctx: &mut ParseContext) -> Result<CoreExpression, ParseError> {
+    fn parse_expression(&mut self, ctx: &mut ParseContext) -> Result<ContextualExpression, ParseError> {
         let mut expr_parser = ExprParser::new(ctx);
-        let result = expr_parser.parse_expression(ctx)?;
-        Ok(result.expr)
+        expr_parser.parse_expression_with_context(ctx, ctx.expression_context_clone())
     }
 
     /// 解析 ORDER BY 子句

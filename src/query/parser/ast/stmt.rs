@@ -5,7 +5,7 @@
 use super::pattern::*;
 use super::types::*;
 use crate::core::types::PropertyDef;
-use crate::core::types::expression::Expression;
+use crate::core::types::expression::ContextualExpression;
 use crate::core::types::expression::utils::collect_variables;
 
 /// 语句枚举 - 所有图数据库操作语句
@@ -327,9 +327,9 @@ pub enum CreateTarget {
     Edge {
         variable: Option<String>,
         edge_type: String,
-        src: Expression,
-        dst: Expression,
-        properties: Option<Expression>,
+        src: ContextualExpression,
+        dst: ContextualExpression,
+        properties: Option<ContextualExpression>,
         direction: EdgeDirection,
     },
     /// Cypher 风格的完整路径创建: CREATE (a)-[:FRIEND]->(b)
@@ -366,7 +366,7 @@ pub enum CreateTarget {
 pub struct MatchStmt {
     pub span: Span,
     pub patterns: Vec<Pattern>,
-    pub where_clause: Option<Expression>,
+    pub where_clause: Option<ContextualExpression>,
     pub return_clause: Option<ReturnClause>,
     pub order_by: Option<OrderByClause>,
     pub limit: Option<usize>,
@@ -390,7 +390,7 @@ pub struct ReturnClause {
 #[derive(Debug, Clone, PartialEq)]
 pub enum ReturnItem {
     All,
-    Expression { expression: Expression, alias: Option<String> },
+    Expression { expression: ContextualExpression, alias: Option<String> },
 }
 
 /// 排序子句
@@ -403,7 +403,7 @@ pub struct OrderByClause {
 /// 排序项
 #[derive(Debug, Clone, PartialEq)]
 pub struct OrderByItem {
-    pub expression: Expression,
+    pub expression: ContextualExpression,
     pub direction: OrderDirection,
 }
 
@@ -412,7 +412,7 @@ pub struct OrderByItem {
 pub struct DeleteStmt {
     pub span: Span,
     pub target: DeleteTarget,
-    pub where_clause: Option<Expression>,
+    pub where_clause: Option<ContextualExpression>,
     pub with_edge: bool, // 是否同时删除关联边
 }
 
@@ -457,7 +457,7 @@ pub struct UpdateStmt {
     pub span: Span,
     pub target: UpdateTarget,
     pub set_clause: SetClause,
-    pub where_clause: Option<Expression>,
+    pub where_clause: Option<ContextualExpression>,
     pub is_upsert: bool,
     pub yield_clause: Option<YieldClause>,
 }
@@ -465,17 +465,17 @@ pub struct UpdateStmt {
 /// 更新目标
 #[derive(Debug, Clone, PartialEq)]
 pub enum UpdateTarget {
-    Vertex(Expression),
+    Vertex(ContextualExpression),
     Edge {
-        src: Expression,
-        dst: Expression,
+        src: ContextualExpression,
+        dst: ContextualExpression,
         edge_type: Option<String>,
-        rank: Option<Expression>,
+        rank: Option<ContextualExpression>,
     },
     Tag(String),
     /// 指定 Tag 的顶点更新: UPDATE VERTEX <vid> ON <tag> SET ...
     TagOnVertex {
-        vid: Box<Expression>,
+        vid: Box<ContextualExpression>,
         tag_name: String,
     },
 }
@@ -491,7 +491,7 @@ pub struct SetClause {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Assignment {
     pub property: String,
-    pub value: Expression,
+    pub value: ContextualExpression,
 }
 
 /// GO 语句
@@ -501,7 +501,7 @@ pub struct GoStmt {
     pub steps: Steps,
     pub from: FromClause,
     pub over: Option<OverClause>,
-    pub where_clause: Option<Expression>,
+    pub where_clause: Option<ContextualExpression>,
     pub yield_clause: Option<YieldClause>,
 }
 
@@ -524,14 +524,14 @@ pub struct StepClause {
 #[derive(Debug, Clone, PartialEq)]
 pub struct WhereClause {
     pub span: Span,
-    pub condition: Expression,
+    pub condition: ContextualExpression,
 }
 
 /// FROM 子句
 #[derive(Debug, Clone, PartialEq)]
 pub struct FromClause {
     pub span: Span,
-    pub vertices: Vec<Expression>,
+    pub vertices: Vec<ContextualExpression>,
 }
 
 /// OVER 子句
@@ -547,7 +547,7 @@ pub struct OverClause {
 pub struct YieldClause {
     pub span: Span,
     pub items: Vec<YieldItem>,
-    pub where_clause: Option<Expression>,
+    pub where_clause: Option<ContextualExpression>,
     pub order_by: Option<OrderByClause>,
     pub limit: Option<super::types::LimitClause>,
     pub skip: Option<super::types::SkipClause>,
@@ -557,7 +557,7 @@ pub struct YieldClause {
 /// YIELD 项
 #[derive(Debug, Clone, PartialEq)]
 pub struct YieldItem {
-    pub expression: Expression,
+    pub expression: ContextualExpression,
     pub alias: Option<String>,
 }
 
@@ -572,14 +572,14 @@ pub struct FetchStmt {
 #[derive(Debug, Clone, PartialEq)]
 pub enum FetchTarget {
     Vertices {
-        ids: Vec<Expression>,
+        ids: Vec<ContextualExpression>,
         properties: Option<Vec<String>>,
     },
     Edges {
-        src: Expression,
-        dst: Expression,
+        src: ContextualExpression,
+        dst: ContextualExpression,
         edge_type: String,
-        rank: Option<Expression>,
+        rank: Option<ContextualExpression>,
         properties: Option<Vec<String>>,
     },
 }
@@ -682,9 +682,9 @@ pub struct SubgraphStmt {
 pub struct FindPathStmt {
     pub span: Span,
     pub from: FromClause,
-    pub to: Expression,
+    pub to: ContextualExpression,
     pub over: Option<OverClause>,
-    pub where_clause: Option<Expression>,
+    pub where_clause: Option<ContextualExpression>,
     pub shortest: bool,
     pub max_steps: Option<usize>,
     pub limit: Option<usize>,
@@ -714,7 +714,7 @@ pub enum InsertTarget {
     Edge {
         edge_name: String,
         prop_names: Vec<String>,
-        edges: Vec<(Expression, Expression, Option<Expression>, Vec<Expression>)>,
+        edges: Vec<(ContextualExpression, ContextualExpression, Option<ContextualExpression>, Vec<ContextualExpression>)>,
     },
 }
 
@@ -729,8 +729,8 @@ pub struct TagInsertSpec {
 /// 顶点行数据
 #[derive(Debug, Clone, PartialEq)]
 pub struct VertexRow {
-    pub vid: Expression,
-    pub tag_values: Vec<Vec<Expression>>,
+    pub vid: ContextualExpression,
+    pub tag_values: Vec<Vec<ContextualExpression>>,
 }
 
 /// MERGE 语句
@@ -808,7 +808,7 @@ pub struct SetOperationStmt {
 #[derive(Debug, Clone, PartialEq)]
 pub struct UnwindStmt {
     pub span: Span,
-    pub expression: Expression,
+    pub expression: ContextualExpression,
     pub variable: String,
 }
 
@@ -828,7 +828,7 @@ pub struct ReturnStmt {
 pub struct WithStmt {
     pub span: Span,
     pub items: Vec<ReturnItem>,
-    pub where_clause: Option<Expression>,
+    pub where_clause: Option<ContextualExpression>,
     pub distinct: bool,
     pub order_by: Option<OrderByClause>,
     pub skip: Option<usize>,
@@ -840,7 +840,7 @@ pub struct WithStmt {
 pub struct YieldStmt {
     pub span: Span,
     pub items: Vec<YieldItem>,
-    pub where_clause: Option<Expression>,
+    pub where_clause: Option<ContextualExpression>,
     pub distinct: bool,
     pub order_by: Option<OrderByClause>,
     pub skip: Option<usize>,
@@ -1293,13 +1293,22 @@ mod tests {
 
     #[test]
     fn test_find_path_stmt() {
+        use crate::core::types::expression::Expression;
+        use std::sync::Arc;
+        
+        let expr_context = Arc::new(crate::core::types::expression::ExpressionContext::new());
+        let expr = Expression::Variable("target".to_string());
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let expr_id = expr_context.register_expression(expr_meta);
+        let to_expr = crate::core::types::expression::ContextualExpression::new(expr_id, expr_context);
+        
         let stmt = Stmt::FindPath(FindPathStmt {
             span: Span::default(),
             from: FromClause {
                 span: Span::default(),
                 vertices: vec![],
             },
-            to: Expression::Variable("target".to_string()),
+            to: to_expr,
             over: None,
             where_clause: None,
             shortest: true,

@@ -2,6 +2,9 @@
 //!
 //! 负责解析数据修改相关语句，包括 INSERT、DELETE、UPDATE、MERGE 等。
 
+use std::sync::Arc;
+
+use crate::core::types::expression::ContextualExpression;
 use crate::core::types::expression::Expression as CoreExpression;
 use crate::core::types::EdgeDirection;
 use crate::query::parser::ast::stmt::*;
@@ -506,10 +509,9 @@ impl DmlParser {
     }
 
     /// 解析表达式
-    fn parse_expression(&mut self, ctx: &mut ParseContext) -> Result<CoreExpression, ParseError> {
+    fn parse_expression(&mut self, ctx: &mut ParseContext) -> Result<ContextualExpression, ParseError> {
         let mut expr_parser = ExprParser::new(ctx);
-        let result = expr_parser.parse_expression(ctx)?;
-        Ok(result.expr)
+        expr_parser.parse_expression_with_context(ctx, ctx.expression_context_clone())
     }
 
     /// 解析 Cypher 风格的 CREATE 数据语句（CREATE token 已被消费）
@@ -680,7 +682,7 @@ impl DmlParser {
     }
 
     /// 解析属性映射: {prop1: value1, prop2: value2}
-    fn parse_property_map(&mut self, ctx: &mut ParseContext) -> Result<CoreExpression, ParseError> {
+    fn parse_property_map(&mut self, ctx: &mut ParseContext) -> Result<ContextualExpression, ParseError> {
         let _start_span = ctx.current_span();
         let mut properties = Vec::new();
         
@@ -689,7 +691,14 @@ impl DmlParser {
                 let key = ctx.expect_identifier()?;
                 ctx.expect_token(TokenKind::Colon)?;
                 let value = self.parse_expression(ctx)?;
-                properties.push((key, value));
+                let value_expr = value.expression()
+                    .ok_or_else(|| ParseError::new_simple(
+                        "Expression not registered in context".to_string(),
+                        ctx.current_position()
+                    ))?
+                    .inner()
+                    .clone();
+                properties.push((key, value_expr));
                 
                 if !ctx.match_token(TokenKind::Comma) {
                     break;
@@ -697,8 +706,11 @@ impl DmlParser {
             }
         }
         
-        // 创建 Map 表达式（元组变体）
-        Ok(CoreExpression::Map(properties))
+        // 创建 Map 表达式并注册到上下文
+        let expr = CoreExpression::Map(properties);
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let id = ctx.expression_context().register_expression(expr_meta);
+        Ok(ContextualExpression::new(id, ctx.expression_context_clone()))
     }
 }
 

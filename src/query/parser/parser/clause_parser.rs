@@ -2,7 +2,10 @@
 //!
 //! 负责解析各种共享子句，包括 RETURN、YIELD、SET、OVER、WHERE 等。
 
+use std::sync::Arc;
+
 use crate::core::types::graph_schema::EdgeDirection;
+use crate::core::types::expression::ContextualExpression;
 use crate::core::types::expression::Expression as CoreExpression;
 use crate::query::parser::ast::stmt::*;
 use crate::query::parser::ast::types::{OrderDirection, LimitClause, SkipClause};
@@ -183,13 +186,22 @@ impl ClauseParser {
             ctx.expect_token(TokenKind::Assign)?;
             let value = self.parse_expression(ctx)?;
             
-            let property = match &property_expr {
-                CoreExpression::Property { property, .. } => property.clone(),
-                CoreExpression::Variable(name) => name.clone(),
-                _ => {
+            let property = match property_expr.expression() {
+                Some(expr) => match expr.inner() {
+                    CoreExpression::Property { property, .. } => property.clone(),
+                    CoreExpression::Variable(name) => name.clone(),
+                    _ => {
+                        return Err(ParseError::new(
+                            ParseErrorKind::SyntaxError,
+                            "SET assignment requires a property path (e.g., p.age)".to_string(),
+                            ctx.current_position(),
+                        ));
+                    }
+                },
+                None => {
                     return Err(ParseError::new(
                         ParseErrorKind::SyntaxError,
-                        "SET assignment requires a property path (e.g., p.age)".to_string(),
+                        "Expression not registered in context".to_string(),
                         ctx.current_position(),
                     ));
                 }
@@ -255,10 +267,9 @@ impl ClauseParser {
     }
 
     /// 解析表达式
-    fn parse_expression(&mut self, ctx: &mut ParseContext) -> Result<CoreExpression, ParseError> {
+    fn parse_expression(&mut self, ctx: &mut ParseContext) -> Result<ContextualExpression, ParseError> {
         let mut expr_parser = ExprParser::new(ctx);
-        let result = expr_parser.parse_expression(ctx)?;
-        Ok(result.expr)
+        expr_parser.parse_expression_with_context(ctx, ctx.expression_context_clone())
     }
 }
 

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::query::parser::lexer::Lexer;
 use crate::query::parser::lexer::LexError;
 use crate::query::parser::Token;
@@ -5,6 +7,7 @@ use crate::query::parser::core::error::{ParseError, ParseErrorKind};
 use crate::core::types::{Position, Span};
 use crate::query::parser::TokenKind;
 use crate::query::parser::ParseErrors;
+use crate::core::types::expression::ExpressionContext;
 
 pub struct ParseContext<'a> {
     lexer: Lexer<'a>,
@@ -14,12 +17,14 @@ pub struct ParseContext<'a> {
     upsert_mode: bool,
     recursion_depth: usize,
     max_recursion_depth: usize,
+    expr_context: Arc<ExpressionContext>,
 }
 
 impl<'a> ParseContext<'a> {
     pub fn new(input: &'a str) -> Self {
         let lexer = Lexer::new(input);
         let current_token = lexer.current_token().clone();
+        let expr_context = Arc::new(ExpressionContext::new());
 
         Self {
             lexer,
@@ -29,12 +34,14 @@ impl<'a> ParseContext<'a> {
             upsert_mode: false,
             recursion_depth: 0,
             max_recursion_depth: 100,
+            expr_context,
         }
     }
 
     pub fn from_string(input: String) -> Self {
         let lexer = Lexer::from_string(input);
         let current_token = lexer.current_token().clone();
+        let expr_context = Arc::new(ExpressionContext::new());
 
         Self {
             lexer,
@@ -44,7 +51,20 @@ impl<'a> ParseContext<'a> {
             upsert_mode: false,
             recursion_depth: 0,
             max_recursion_depth: 100,
+            expr_context,
         }
+    }
+
+    pub fn set_expression_context(&mut self, expr_context: Arc<ExpressionContext>) {
+        self.expr_context = expr_context;
+    }
+
+    pub fn expression_context(&self) -> &Arc<ExpressionContext> {
+        &self.expr_context
+    }
+
+    pub fn expression_context_clone(&self) -> Arc<ExpressionContext> {
+        self.expr_context.clone()
     }
 
     pub fn lexer(&self) -> &Lexer<'a> {

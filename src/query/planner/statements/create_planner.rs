@@ -389,14 +389,14 @@ mod tests {
     fn test_create_path_simple() {
         let sql = "CREATE (a:Person {name: 'Alice'})-[:FRIEND]->(b:Person {name: 'Bob'})";
         let mut parser = Parser::new(sql);
-        let stmt = parser.parse().expect("解析失败");
+        let parser_result = parser.parse().expect("解析失败");
 
         let mut planner = CreatePlanner::new();
         let qctx = Arc::new(QueryContext::default());
 
         // 创建验证后的语句
         let validation_info = ValidationInfo::new();
-        let validated = ValidatedStatement::new(stmt, validation_info);
+        let validated = ValidatedStatement::new(parser_result.stmt, validation_info);
 
         let result = planner.transform(&validated, qctx);
         assert!(result.is_ok(), "CREATE PATH 应该成功，但得到错误: {:?}", result.err());
@@ -406,14 +406,14 @@ mod tests {
     fn test_create_path_with_properties() {
         let sql = "CREATE (a:Person {name: 'Alice', age: 30})-[:FRIEND {since: 2020}]->(b:Person {name: 'Bob', age: 25})";
         let mut parser = Parser::new(sql);
-        let stmt = parser.parse().expect("解析失败");
+        let parser_result = parser.parse().expect("解析失败");
 
         let mut planner = CreatePlanner::new();
         let qctx = Arc::new(QueryContext::default());
 
         // 创建验证后的语句
         let validation_info = ValidationInfo::new();
-        let validated = ValidatedStatement::new(stmt, validation_info);
+        let validated = ValidatedStatement::new(parser_result.stmt, validation_info);
 
         let result = planner.transform(&validated, qctx);
         assert!(result.is_ok(), "带属性的 CREATE PATH 应该成功");
@@ -423,14 +423,14 @@ mod tests {
     fn test_create_path_multiple_edges() {
         let sql = "CREATE (a:Person)-[:FRIEND]->(b:Person)-[:FRIEND]->(c:Person)";
         let mut parser = Parser::new(sql);
-        let stmt = parser.parse().expect("解析失败");
+        let parser_result = parser.parse().expect("解析失败");
 
         let mut planner = CreatePlanner::new();
         let qctx = Arc::new(QueryContext::default());
 
         // 创建验证后的语句
         let validation_info = ValidationInfo::new();
-        let validated = ValidatedStatement::new(stmt, validation_info);
+        let validated = ValidatedStatement::new(parser_result.stmt, validation_info);
 
         let result = planner.transform(&validated, qctx);
         assert!(result.is_ok(), "多边 CREATE PATH 应该成功");
@@ -440,14 +440,14 @@ mod tests {
     fn test_create_path_single_node() {
         let sql = "CREATE (a:Person {name: 'Alice'})";
         let mut parser = Parser::new(sql);
-        let stmt = parser.parse().expect("解析失败");
+        let parser_result = parser.parse().expect("解析失败");
 
         let mut planner = CreatePlanner::new();
         let qctx = Arc::new(QueryContext::default());
 
         // 创建验证后的语句
         let validation_info = ValidationInfo::new();
-        let validated = ValidatedStatement::new(stmt, validation_info);
+        let validated = ValidatedStatement::new(parser_result.stmt, validation_info);
 
         let result = planner.transform(&validated, qctx);
         assert!(result.is_ok(), "单节点 CREATE 应该成功");
@@ -457,14 +457,14 @@ mod tests {
     fn test_create_path_without_labels() {
         let sql = "CREATE (a)-[:FRIEND]->(b)";
         let mut parser = Parser::new(sql);
-        let stmt = parser.parse().expect("解析失败");
+        let parser_result = parser.parse().expect("解析失败");
 
         let mut planner = CreatePlanner::new();
         let qctx = Arc::new(QueryContext::default());
 
         // 创建验证后的语句
         let validation_info = ValidationInfo::new();
-        let validated = ValidatedStatement::new(stmt, validation_info);
+        let validated = ValidatedStatement::new(parser_result.stmt, validation_info);
 
         let result = planner.transform(&validated, qctx);
         assert!(result.is_err(), "没有标签的 CREATE PATH 应该失败");
@@ -474,14 +474,14 @@ mod tests {
     fn test_create_path_bidirectional_edge() {
         let sql = "CREATE (a:Person)-[:FRIEND]-(b:Person)";
         let mut parser = Parser::new(sql);
-        let stmt = parser.parse().expect("解析应该成功");
+        let parser_result = parser.parse().expect("解析应该成功");
 
         let mut planner = CreatePlanner::new();
         let qctx = Arc::new(QueryContext::default());
 
         // 创建验证后的语句
         let validation_info = ValidationInfo::new();
-        let validated = ValidatedStatement::new(stmt, validation_info);
+        let validated = ValidatedStatement::new(parser_result.stmt, validation_info);
 
         let result = planner.transform(&validated, qctx);
         assert!(result.is_ok(), "双向边 CREATE PATH 应该成功");

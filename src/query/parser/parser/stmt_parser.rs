@@ -3,6 +3,8 @@
 //! 负责解析各种语句，包括 MATCH、GO、CREATE、DELETE、UPDATE 等。
 //! 本模块作为入口，将具体解析逻辑委托给各个子模块。
 
+use std::sync::Arc;
+
 use crate::query::parser::ast::stmt::*;
 use crate::query::parser::core::error::{ParseError, ParseErrorKind};
 use crate::query::parser::parser::parse_context::ParseContext;
@@ -14,7 +16,7 @@ use crate::query::parser::parser::{
     util_stmt_parser::UtilStmtParser,
 };
 use crate::query::parser::TokenKind;
-use crate::core::types::expression::Expression;
+use crate::core::types::expression::ContextualExpression;
 
 /// 语句解析器
 pub struct StmtParser;
@@ -190,7 +192,11 @@ impl StmtParser {
         let mut group_items = Vec::new();
         loop {
             let ident = ctx.expect_identifier()?;
-            group_items.push(Expression::Variable(ident));
+            let expr = Expression::Variable(ident);
+            let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+            let expr_id = ctx.expression_context().register_expression(expr_meta);
+            let contextual_expr = crate::core::types::expression::ContextualExpression::new(expr_id, ctx.expression_context_clone());
+            group_items.push(contextual_expr);
             if !ctx.match_token(TokenKind::Comma) {
                 break;
             }
@@ -237,10 +243,9 @@ impl StmtParser {
     }
 
     /// 解析表达式（辅助方法）
-    fn parse_expression(&mut self, ctx: &mut ParseContext) -> Result<Expression, ParseError> {
+    fn parse_expression(&mut self, ctx: &mut ParseContext) -> Result<ContextualExpression, ParseError> {
         let mut expr_parser = crate::query::parser::parser::ExprParser::new(ctx);
-        let result = expr_parser.parse_expression(ctx)?;
-        Ok(result.expr)
+        expr_parser.parse_expression_with_context(ctx, ctx.expression_context_clone())
     }
 
     /// 解析扩展的 SHOW 语句（包括 SESSIONS、QUERIES 和 CONFIGS）

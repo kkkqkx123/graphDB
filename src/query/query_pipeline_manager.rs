@@ -93,14 +93,14 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         _space_info: Option<crate::core::types::SpaceInfo>,
     ) -> DBResult<ExecutionResult> {
         let query_context = Arc::new(self.create_query_context(query_text)?);
-        let stmt = self.parse_into_context(query_text)?;
+        let parser_result = self.parse_into_context(query_text)?;
 
         // 验证查询并获取验证信息
-        let validation_info = self.validate_query(query_context.clone(), &stmt)?;
+        let validation_info = self.validate_query(query_context.clone(), &parser_result.stmt)?;
         query_context.set_validation_info(validation_info.clone());
 
         // 创建验证后的语句
-        let validated = ValidatedStatement::new(stmt, validation_info);
+        let validated = ValidatedStatement::new(parser_result.stmt, validation_info);
 
         let execution_plan = self.generate_execution_plan(query_context.clone(), &validated)?;
         let optimized_plan = self.optimize_execution_plan(query_context.clone(), execution_plan)?;
@@ -124,14 +124,14 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
         }
 
         let query_context = Arc::new(query_context);
-        let stmt = self.parse_into_context(query_text)?;
+        let parser_result = self.parse_into_context(query_text)?;
 
         // 验证查询并获取验证信息
-        let validation_info = self.validate_query(query_context.clone(), &stmt)?;
+        let validation_info = self.validate_query(query_context.clone(), &parser_result.stmt)?;
         query_context.set_validation_info(validation_info.clone());
 
         // 创建验证后的语句
-        let validated = ValidatedStatement::new(stmt, validation_info);
+        let validated = ValidatedStatement::new(parser_result.stmt, validation_info);
 
         let execution_plan = self.generate_execution_plan(query_context.clone(), &validated)?;
         let optimized_plan = self.optimize_execution_plan(query_context.clone(), execution_plan)?;
@@ -288,7 +288,7 @@ impl<S: StorageClient + 'static> QueryPipelineManager<S> {
     fn parse_into_context(
         &mut self,
         query_text: &str,
-    ) -> DBResult<crate::query::parser::ast::Stmt> {
+    ) -> DBResult<crate::query::parser::parser::ParserResult> {
         let mut parser = Parser::new(query_text);
         parser.parse()
             .map_err(|e| DBError::from(QueryError::pipeline_parse_error(e)))

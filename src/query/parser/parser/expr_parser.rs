@@ -3,8 +3,10 @@
 //! 负责解析各种表达式，包括算术表达式、逻辑表达式、函数调用等。
 //! 直接生成 Core Expression，避免 AST Expression 的冗余转换。
 
+use std::sync::Arc;
+
 use crate::core::Value;
-use crate::core::types::expression::Expression;
+use crate::core::types::expression::{Expression, ExpressionMeta, ExpressionContext, ContextualExpression};
 use crate::core::types::operators::{BinaryOperator, UnaryOperator};
 use crate::query::parser::core::error::{ParseError, ParseErrorKind};
 use crate::core::types::{Span, Position};
@@ -30,6 +32,18 @@ impl<'a> ExprParser<'a> {
 
     pub fn parse_expression(&mut self, ctx: &mut ParseContext<'a>) -> Result<ParseResult, ParseError> {
         self.parse_or_expression(ctx)
+    }
+
+    /// 解析表达式并返回 ContextualExpression
+    pub fn parse_expression_with_context(
+        &mut self,
+        ctx: &mut ParseContext<'a>,
+        expr_ctx: Arc<ExpressionContext>,
+    ) -> Result<ContextualExpression, ParseError> {
+        let result = self.parse_expression(ctx)?;
+        let expr_meta = ExpressionMeta::with_span(result.expr, result.span);
+        let id = expr_ctx.register_expression(expr_meta);
+        Ok(ContextualExpression::new(id, expr_ctx))
     }
 
     fn parse_or_expression(&mut self, ctx: &mut ParseContext<'a>) -> Result<ParseResult, ParseError> {

@@ -2,7 +2,10 @@
 //!
 //! 负责解析图遍历相关语句，包括 MATCH、GO、FIND PATH、GET SUBGRAPH 等。
 
+use std::sync::Arc;
+
 use crate::core::types::graph_schema::EdgeDirection;
+use crate::core::types::expression::ContextualExpression;
 use crate::core::types::expression::Expression as CoreExpression;
 use crate::query::parser::ast::stmt::*;
 use crate::query::parser::ast::pattern::{EdgePattern, EdgeRange, NodePattern, PathElement, PathPattern, Pattern, VariablePattern};
@@ -496,7 +499,7 @@ impl TraversalParser {
     }
 
     /// 解析表达式列表
-    fn parse_expression_list(&mut self, ctx: &mut ParseContext) -> Result<Vec<CoreExpression>, ParseError> {
+    fn parse_expression_list(&mut self, ctx: &mut ParseContext) -> Result<Vec<ContextualExpression>, ParseError> {
         let mut expressions = Vec::new();
         
         loop {
@@ -510,7 +513,7 @@ impl TraversalParser {
     }
 
     /// 解析属性表达式
-    fn parse_properties_expr(&mut self, ctx: &mut ParseContext) -> Result<CoreExpression, ParseError> {
+    fn parse_properties_expr(&mut self, ctx: &mut ParseContext) -> Result<ContextualExpression, ParseError> {
         let mut properties = Vec::new();
         
         while !ctx.check_token(TokenKind::RBrace) {
@@ -523,14 +526,29 @@ impl TraversalParser {
             }
         }
         
-        Ok(CoreExpression::map(properties))
+        let mut mapped_properties = Vec::new();
+        for (k, v) in properties {
+            let v_expr = v.expression()
+                .ok_or_else(|| ParseError::new_simple(
+                    "Expression not registered in context".to_string(),
+                    ctx.current_position()
+                ))?
+                .inner()
+                .clone();
+            mapped_properties.push((k, v_expr));
+        }
+        
+        let expr = CoreExpression::map(mapped_properties);
+        
+        let expr_meta = crate::core::types::expression::ExpressionMeta::new(expr);
+        let id = ctx.expression_context().register_expression(expr_meta);
+        Ok(ContextualExpression::new(id, ctx.expression_context_clone()))
     }
 
     /// 解析表达式
-    fn parse_expression(&mut self, ctx: &mut ParseContext) -> Result<CoreExpression, ParseError> {
+    fn parse_expression(&mut self, ctx: &mut ParseContext) -> Result<ContextualExpression, ParseError> {
         let mut expr_parser = ExprParser::new(ctx);
-        let result = expr_parser.parse_expression(ctx)?;
-        Ok(result.expr)
+        expr_parser.parse_expression_with_context(ctx, ctx.expression_context_clone())
     }
 }
 

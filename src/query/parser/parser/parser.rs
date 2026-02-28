@@ -1,31 +1,49 @@
+use std::sync::Arc;
+
 use crate::query::parser::parser::parse_context::ParseContext;
 use crate::query::parser::parser::expr_parser::ExprParser;
 use crate::query::parser::parser::stmt_parser::StmtParser;
 use crate::query::parser::ast::stmt::Stmt;
-use crate::core::types::expression::{Expression, ExpressionMeta};
+use crate::core::types::expression::{Expression, ExpressionMeta, ExpressionContext, ContextualExpression};
+
+/// Parser 解析结果，包含 AST 和表达式上下文
+#[derive(Debug, Clone)]
+pub struct ParserResult {
+    /// 解析后的 AST
+    pub stmt: Stmt,
+    /// 表达式上下文，包含所有注册的表达式
+    pub expr_context: Arc<ExpressionContext>,
+}
 
 pub struct Parser<'a> {
     ctx: ParseContext<'a>,
+    expr_context: Arc<ExpressionContext>,
     _expr_parser: std::marker::PhantomData<ExprParser<'a>>,
     _stmt_parser: std::marker::PhantomData<StmtParser>,
 }
 
 impl<'a> Parser<'a> {
     pub fn new(input: &'a str) -> Self {
-        let ctx = ParseContext::new(input);
+        let expr_context = Arc::new(ExpressionContext::new());
+        let mut ctx = ParseContext::new(input);
+        ctx.set_expression_context(expr_context.clone());
 
         Self {
             ctx,
+            expr_context,
             _expr_parser: std::marker::PhantomData,
             _stmt_parser: std::marker::PhantomData,
         }
     }
 
     pub fn from_string(input: String) -> Self {
-        let ctx = ParseContext::from_string(input);
+        let expr_context = Arc::new(ExpressionContext::new());
+        let mut ctx = ParseContext::from_string(input);
+        ctx.set_expression_context(expr_context.clone());
 
         Self {
             ctx,
+            expr_context,
             _expr_parser: std::marker::PhantomData,
             _stmt_parser: std::marker::PhantomData,
         }
@@ -35,8 +53,12 @@ impl<'a> Parser<'a> {
         self.ctx.set_compat_mode(enabled);
     }
 
-    pub fn parse(&mut self) -> Result<Stmt, crate::query::parser::core::error::ParseError> {
-        self.parse_statement()
+    pub fn parse(&mut self) -> Result<ParserResult, crate::query::parser::core::error::ParseError> {
+        let stmt = self.parse_statement()?;
+        Ok(ParserResult {
+            stmt,
+            expr_context: self.expr_context.clone(),
+        })
     }
 
     pub fn parse_statement(&mut self) -> Result<Stmt, crate::query::parser::core::error::ParseError> {
@@ -54,6 +76,22 @@ impl<'a> Parser<'a> {
         let mut expr_parser = ExprParser::new(&self.ctx);
         let result = expr_parser.parse_expression(&mut self.ctx)?;
         Ok(ExpressionMeta::with_span(result.expr, result.span))
+    }
+
+    /// 解析表达式并返回 ContextualExpression
+    pub fn parse_expression_contextual(&mut self) -> Result<ContextualExpression, crate::query::parser::core::error::ParseError> {
+        let mut expr_parser = ExprParser::new(&self.ctx);
+        expr_parser.parse_expression_with_context(&mut self.ctx, self.expr_context.clone())
+    }
+
+    /// 获取表达式上下文
+    pub fn expression_context(&self) -> &Arc<ExpressionContext> {
+        &self.expr_context
+    }
+
+    /// 获取表达式上下文的克隆
+    pub fn expression_context_clone(&self) -> Arc<ExpressionContext> {
+        self.expr_context.clone()
     }
 
     pub fn has_errors(&self) -> bool {
