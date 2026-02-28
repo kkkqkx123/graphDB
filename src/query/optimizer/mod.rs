@@ -7,6 +7,7 @@
 //! - `engine` - 优化器引擎，全局唯一的优化器实例，整合所有优化组件
 //! - `stats` - 统计信息模块，管理标签、边类型和属性的统计信息
 //! - `cost` - 代价计算模块，计算查询操作的代价
+//! - `analysis` - 计划分析模块，提供引用计数和表达式分析
 //! - `strategy` - 优化策略模块，提供遍历起点选择和索引选择
 //! - `decision` - 优化决策模块，提供基于决策的缓存机制
 //!
@@ -25,6 +26,7 @@
 pub mod engine;
 pub mod stats;
 pub mod cost;
+pub mod analysis;
 pub mod strategy;
 pub mod decision;
 
@@ -47,6 +49,15 @@ pub use cost::{
     SelectivityEstimator,
 };
 pub use crate::core::error::optimize::CostError;
+
+// 重新导出分析模块类型
+pub use analysis::{
+    ReferenceCountAnalyzer,
+    ReferenceCountAnalysis,
+    ExpressionAnalyzer,
+    ExpressionAnalysis,
+    AnalysisOptions,
+};
 
 pub use strategy::{
     TraversalStartSelector,

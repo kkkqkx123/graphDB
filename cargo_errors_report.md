@@ -2,37 +2,59 @@
 
 ## Summary
 
-- **Total Errors**: 0
-- **Total Warnings**: 1
-- **Total Issues**: 1
-- **Unique Error Patterns**: 0
-- **Unique Warning Patterns**: 1
-- **Files with Issues**: 1
+- **Total Errors**: 4
+- **Total Warnings**: 0
+- **Total Issues**: 4
+- **Unique Error Patterns**: 3
+- **Unique Warning Patterns**: 0
+- **Files with Issues**: 2
 
 ## Error Statistics
 
-**Total Errors**: 0
+**Total Errors**: 4
+
+### Error Type Breakdown
+
+- **error[E0061]**: 2 errors
+- **error**: 1 errors
+- **error[E0382]**: 1 errors
+
+### Files with Errors (Top 10)
+
+- `src\query\optimizer\strategy\partition_pruning.rs`: 3 errors
+- `src\query\optimizer\strategy\materialization_strategy.rs`: 1 errors
 
 ## Warning Statistics
 
-**Total Warnings**: 1
+**Total Warnings**: 0
 
-### Warning Type Breakdown
+## Detailed Error Categorization
 
-- **warning**: 1 warnings
+### error[E0061]: this function takes 1 argument but 0 arguments were supplied
 
-### Files with Warnings (Top 10)
+**Total Occurrences**: 2  
+**Unique Files**: 1
 
-- `src\query\planner\rewrite\elimination\eliminate_sort.rs`: 1 warnings
+#### `src\query\optimizer\strategy\partition_pruning.rs`: 2 occurrences
 
-## Detailed Warning Categorization
+- Line 253: this function takes 1 argument but 0 arguments were supplied
+- Line 265: this function takes 1 argument but 0 arguments were supplied
 
-### warning: function `create_test_sort_node` is never used
+### error: lifetime may not live long enough: method was supposed to return data with lifetime `'2` but it is returning data with lifetime `'1`
 
 **Total Occurrences**: 1  
 **Unique Files**: 1
 
-#### `src\query\planner\rewrite\elimination\eliminate_sort.rs`: 1 occurrences
+#### `src\query\optimizer\strategy\materialization_strategy.rs`: 1 occurrences
 
-- Line 212: function `create_test_sort_node` is never used
+- Line 399: lifetime may not live long enough: method was supposed to return data with lifetime `'2` but it is returning data with lifetime `'1`
+
+### error[E0382]: borrow of moved value: `selected_partitions`: value borrowed here after move
+
+**Total Occurrences**: 1  
+**Unique Files**: 1
+
+#### `src\query\optimizer\strategy\partition_pruning.rs`: 1 occurrences
+
+- Line 354: borrow of moved value: `selected_partitions`: value borrowed here after move
 
