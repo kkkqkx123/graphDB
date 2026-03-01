@@ -193,10 +193,10 @@ impl SetOperationValidator {
         ValidatedSetOperation {
             op_type: self.op_type.clone(),
             left_outputs: self.left_validator.as_ref()
-                .map(|v| v.outputs().to_vec())
+                .map(|v| v.as_ref().outputs().to_vec())
                 .unwrap_or_default(),
             right_outputs: self.right_validator.as_ref()
-                .map(|v| v.outputs().to_vec())
+                .map(|v| v.as_ref().outputs().to_vec())
                 .unwrap_or_default(),
             output_col_names: self.outputs.iter().map(|c| c.name.clone()).collect(),
         }
@@ -283,10 +283,10 @@ impl StatementValidator for SetOperationValidator {
     fn is_global_statement(&self) -> bool {
         // 集合操作是否为全局语句取决于左右子查询
         let left_global = self.left_validator.as_ref()
-            .map(|v| v.is_global_statement())
+            .map(|v| v.as_ref().is_global_statement())
             .unwrap_or(false);
         let right_global = self.right_validator.as_ref()
-            .map(|v| v.is_global_statement())
+            .map(|v| v.as_ref().is_global_statement())
             .unwrap_or(false);
         left_global && right_global
     }

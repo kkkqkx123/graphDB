@@ -110,7 +110,7 @@ impl AssignmentValidator {
         ValidatedAssignment {
             variable: self.variable.clone(),
             inner_statement_type: self.inner_validator.as_ref()
-                .map(|v| v.statement_type().as_str().to_string())
+                .map(|v| v.as_ref().statement_type().as_str().to_string())
                 .unwrap_or_default(),
         }
     }
@@ -172,9 +172,8 @@ impl StatementValidator for AssignmentValidator {
     }
 
     fn is_global_statement(&self) -> bool {
-        // 赋值语句是否为全局语句取决于内部语句
         self.inner_validator.as_ref()
-            .map(|v| v.is_global_statement())
+            .map(|v| v.as_ref().is_global_statement())
             .unwrap_or(false)
     }
 

@@ -132,9 +132,8 @@ impl StatementValidator for QueryValidator {
     }
 
     fn is_global_statement(&self) -> bool {
-        // Query 的全局性取决于内部语句
         if let Some(ref inner) = self.inner_validator {
-            inner.is_global_statement()
+            inner.as_ref().is_global_statement()
         } else {
             false
         }

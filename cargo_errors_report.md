@@ -2,32 +2,29 @@
 
 ## Summary
 
-- **Total Errors**: 769
+- **Total Errors**: 633
 - **Total Warnings**: 30
-- **Total Issues**: 799
-- **Unique Error Patterns**: 198
+- **Total Issues**: 663
+- **Unique Error Patterns**: 53
 - **Unique Warning Patterns**: 15
-- **Files with Issues**: 86
+- **Files with Issues**: 85
 
 ## Error Statistics
 
-**Total Errors**: 769
+**Total Errors**: 633
 
 ### Error Type Breakdown
 
-- **error[E0308]**: 523 errors
-- **error[E0599]**: 214 errors
-- **error[E0277]**: 10 errors
+- **error[E0308]**: 525 errors
+- **error[E0599]**: 69 errors
+- **error[E0277]**: 18 errors
 - **error[E0616]**: 10 errors
-- **error[E0061]**: 6 errors
-- **error[E0432]**: 2 errors
+- **error[E0061]**: 8 errors
 - **error[E0063]**: 2 errors
-- **error[E0425]**: 1 errors
 - **error[E0624]**: 1 errors
 
 ### Files with Errors (Top 10)
 
-- `src\query\validator\validator_enum.rs`: 149 errors
 - `src\query\planner\template_extractor.rs`: 31 errors
 - `src\api\embedded\statement.rs`: 30 errors
 - `src\query\validator\strategies\expression_strategy_test.rs`: 29 errors
@@ -37,6 +34,7 @@
 - `src\query\parser\ast\utils.rs`: 23 errors
 - `src\query\validator\statements\delete_validator.rs`: 22 errors
 - `src\query\validator\strategies\aggregate_strategy.rs`: 21 errors
+- `src\query\validator\strategies\expression_operations.rs`: 17 errors
 
 ## Warning Statistics
 
@@ -48,22 +46,22 @@
 
 ### Files with Warnings (Top 10)
 
-- `src\query\validator\helpers\type_checker.rs`: 4 warnings
 - `src\query\validator\strategies\helpers\type_checker.rs`: 4 warnings
-- `src\query\validator\validator_enum.rs`: 2 warnings
-- `src\query\validator\clauses\yield_validator.rs`: 2 warnings
+- `src\query\validator\helpers\type_checker.rs`: 4 warnings
 - `src\query\parser\parser\util_stmt_parser.rs`: 2 warnings
-- `src\query\parser\parser\clause_parser.rs`: 1 warnings
-- `src\query\parser\parser\parser.rs`: 1 warnings
-- `src\query\validator\statements\merge_validator.rs`: 1 warnings
+- `src\query\validator\clauses\yield_validator.rs`: 2 warnings
+- `src\query\validator\validator_enum.rs`: 2 warnings
+- `src\query\validator\strategies\helpers\expression_checker.rs`: 1 warnings
+- `src\query\validator\clauses\return_validator.rs`: 1 warnings
+- `src\query\validator\helpers\expression_checker.rs`: 1 warnings
+- `src\query\parser\parser\dml_parser.rs`: 1 warnings
 - `src\query\validator\statements\unwind_validator.rs`: 1 warnings
-- `src\query\parser\parser\traversal_parser.rs`: 1 warnings
 
 ## Detailed Error Categorization
 
 ### error[E0308]: mismatched types: expected `ContextualExpression`, found `Expression`
 
-**Total Occurrences**: 523  
+**Total Occurrences**: 525  
 **Unique Files**: 68
 
 #### `src\query\planner\template_extractor.rs`: 31 occurrences
@@ -164,13 +162,6 @@
 - Line 159: mismatched types: expected `&Expression`, found `&Arc<ExpressionMeta>`
 - ... 7 more occurrences in this file
 
-#### `src\query\validator\statements\insert_edges_validator.rs`: 10 occurrences
-
-- Line 98: mismatched types: expected `&Expression`, found `&Arc<ExpressionMeta>`
-- Line 121: mismatched types: expected `&ContextualExpression`, found `&Expression`
-- Line 165: mismatched types: expected `&Expression`, found `&Arc<ExpressionMeta>`
-- ... 7 more occurrences in this file
-
 #### `src\query\planner\rewrite\projection_pushdown\push_project_down.rs`: 10 occurrences
 
 - Line 404: mismatched types: expected `ContextualExpression`, found `Expression`
@@ -178,11 +169,18 @@
 - Line 445: mismatched types: expected `ContextualExpression`, found `Expression`
 - ... 7 more occurrences in this file
 
-#### `src\query\validator\statements\fetch_edges_validator.rs`: 9 occurrences
+#### `src\query\validator\statements\insert_edges_validator.rs`: 10 occurrences
 
-- Line 131: arguments to this method are incorrect
-- Line 297: mismatched types: expected `&Expression`, found `&ContextualExpression`
-- Line 298: mismatched types: expected `&Expression`, found `&ContextualExpression`
+- Line 98: mismatched types: expected `&Expression`, found `&Arc<ExpressionMeta>`
+- Line 121: mismatched types: expected `&ContextualExpression`, found `&Expression`
+- Line 165: mismatched types: expected `&Expression`, found `&Arc<ExpressionMeta>`
+- ... 7 more occurrences in this file
+
+#### `src\query\validator\statements\go_validator.rs`: 9 occurrences
+
+- Line 149: mismatched types: expected `ContextualExpression`, found `Expression`
+- Line 222: mismatched types: expected `ContextualExpression`, found `Expression`
+- Line 425: mismatched types: expected `&[Expression]`, found `&Vec<ContextualExpression>`
 - ... 6 more occurrences in this file
 
 #### `src\query\validator\statements\set_validator.rs`: 9 occurrences
@@ -192,11 +190,11 @@
 - Line 193: arguments to this method are incorrect
 - ... 6 more occurrences in this file
 
-#### `src\query\validator\statements\go_validator.rs`: 9 occurrences
+#### `src\query\validator\statements\fetch_edges_validator.rs`: 9 occurrences
 
-- Line 149: mismatched types: expected `ContextualExpression`, found `Expression`
-- Line 222: mismatched types: expected `ContextualExpression`, found `Expression`
-- Line 425: mismatched types: expected `&[Expression]`, found `&Vec<ContextualExpression>`
+- Line 131: arguments to this method are incorrect
+- Line 297: mismatched types: expected `&Expression`, found `&ContextualExpression`
+- Line 298: mismatched types: expected `&Expression`, found `&ContextualExpression`
 - ... 6 more occurrences in this file
 
 #### `src\query\validator\strategies\expression_strategy.rs`: 9 occurrences
@@ -297,13 +295,6 @@
 - Line 262: mismatched types: expected `&Expression`, found `&ContextualExpression`
 - ... 2 more occurrences in this file
 
-#### `src\query\validator\clauses\order_by_validator.rs`: 5 occurrences
-
-- Line 188: mismatched types: expected `&Expression`, found `&Arc<ExpressionMeta>`
-- Line 228: mismatched types: expected `&Expression`, found `&Arc<ExpressionMeta>`
-- Line 398: mismatched types: expected `&Expression`, found `&Arc<ExpressionMeta>`
-- ... 2 more occurrences in this file
-
 #### `src\query\validator\statements\remove_validator.rs`: 5 occurrences
 
 - Line 44: mismatched types: expected `&Expression`, found `&Arc<ExpressionMeta>`
@@ -311,32 +302,18 @@
 - Line 260: mismatched types: expected `&ContextualExpression`, found `&Expression`
 - ... 2 more occurrences in this file
 
-#### `src\query\planner\rewrite\projection_pushdown\projection_pushdown.rs`: 4 occurrences
+#### `src\query\validator\clauses\order_by_validator.rs`: 5 occurrences
 
-- Line 233: mismatched types: expected `ContextualExpression`, found `Expression`
-- Line 238: mismatched types: expected `ContextualExpression`, found `Expression`
-- Line 274: mismatched types: expected `ContextualExpression`, found `Expression`
-- ... 1 more occurrences in this file
+- Line 188: mismatched types: expected `&Expression`, found `&Arc<ExpressionMeta>`
+- Line 228: mismatched types: expected `&Expression`, found `&Arc<ExpressionMeta>`
+- Line 398: mismatched types: expected `&Expression`, found `&Arc<ExpressionMeta>`
+- ... 2 more occurrences in this file
 
-#### `src\query\validator\clauses\return_validator.rs`: 4 occurrences
+#### `src\query\validator\statements\insert_vertices_validator.rs`: 4 occurrences
 
-- Line 77: mismatched types: expected `&Expression`, found `&Arc<ExpressionMeta>`
-- Line 179: mismatched types: expected `&Expression`, found `&Arc<ExpressionMeta>`
-- Line 206: mismatched types: expected `&Expression`, found `&Arc<ExpressionMeta>`
-- ... 1 more occurrences in this file
-
-#### `src\query\planner\statements\delete_planner.rs`: 4 occurrences
-
-- Line 56: mismatched types: expected `ContextualExpression`, found `Expression`
-- Line 63: mismatched types: expected `ContextualExpression`, found `Expression`
-- Line 70: mismatched types: expected `ContextualExpression`, found `Expression`
-- ... 1 more occurrences in this file
-
-#### `src\query\optimizer\strategy\traversal_start.rs`: 4 occurrences
-
-- Line 299: mismatched types: expected `&Expression`, found `&ContextualExpression`
-- Line 306: mismatched types: expected `&Expression`, found `&ContextualExpression`
-- Line 387: mismatched types: expected `&Expression`, found `&ContextualExpression`
+- Line 146: mismatched types: expected `&Expression`, found `&Arc<ExpressionMeta>`
+- Line 188: mismatched types: expected `&Expression`, found `&Arc<ExpressionMeta>`
+- Line 392: mismatched types: expected `ContextualExpression`, found `Expression`
 - ... 1 more occurrences in this file
 
 #### `src\query\validator\strategies\helpers\expression_checker.rs`: 4 occurrences
@@ -346,11 +323,11 @@
 - Line 517: mismatched types: expected `&ContextualExpression`, found `&Expression`
 - ... 1 more occurrences in this file
 
-#### `src\query\validator\statements\insert_vertices_validator.rs`: 4 occurrences
+#### `src\query\planner\rewrite\projection_pushdown\projection_pushdown.rs`: 4 occurrences
 
-- Line 146: mismatched types: expected `&Expression`, found `&Arc<ExpressionMeta>`
-- Line 188: mismatched types: expected `&Expression`, found `&Arc<ExpressionMeta>`
-- Line 392: mismatched types: expected `ContextualExpression`, found `Expression`
+- Line 233: mismatched types: expected `ContextualExpression`, found `Expression`
+- Line 238: mismatched types: expected `ContextualExpression`, found `Expression`
+- Line 274: mismatched types: expected `ContextualExpression`, found `Expression`
 - ... 1 more occurrences in this file
 
 #### `src\query\validator\utility\update_config_validator.rs`: 4 occurrences
@@ -360,11 +337,11 @@
 - Line 260: mismatched types: expected `Arc<ExpressionContext>`, found `ExpressionContext`
 - ... 1 more occurrences in this file
 
-#### `src\query\planner\statements\go_planner.rs`: 4 occurrences
+#### `src\query\planner\statements\delete_planner.rs`: 4 occurrences
 
-- Line 76: mismatched types: expected `Expression`, found `ContextualExpression`
-- Line 130: mismatched types: expected `ContextualExpression`, found `Expression`
-- Line 136: mismatched types: expected `ContextualExpression`, found `Expression`
+- Line 56: mismatched types: expected `ContextualExpression`, found `Expression`
+- Line 63: mismatched types: expected `ContextualExpression`, found `Expression`
+- Line 70: mismatched types: expected `ContextualExpression`, found `Expression`
 - ... 1 more occurrences in this file
 
 #### `src\query\validator\helpers\expression_checker.rs`: 4 occurrences
@@ -374,29 +351,38 @@
 - Line 517: mismatched types: expected `&ContextualExpression`, found `&Expression`
 - ... 1 more occurrences in this file
 
-#### `src\query\planner\rewrite\elimination\remove_append_vertices_below_join.rs`: 3 occurrences
+#### `src\query\validator\clauses\return_validator.rs`: 4 occurrences
 
-- Line 121: mismatched types: expected `&Expression`, found `&ContextualExpression`
-- Line 127: mismatched types: expected `ContextualExpression`, found `Expression`
-- Line 296: mismatched types: expected `ContextualExpression`, found `Expression`
+- Line 77: mismatched types: expected `&Expression`, found `&Arc<ExpressionMeta>`
+- Line 179: mismatched types: expected `&Expression`, found `&Arc<ExpressionMeta>`
+- Line 206: mismatched types: expected `&Expression`, found `&Arc<ExpressionMeta>`
+- ... 1 more occurrences in this file
 
-#### `src\query\validator\statements\lookup_validator.rs`: 3 occurrences
+#### `src\query\planner\statements\go_planner.rs`: 4 occurrences
 
-- Line 128: mismatched types: expected `Option<Expression>`, found `Option<ContextualExpression>`
-- Line 139: mismatched types: expected `&Expression`, found `&ContextualExpression`
-- Line 387: mismatched types: expected `Option<ContextualExpression>`, found `Option<Expression>`
+- Line 76: mismatched types: expected `Expression`, found `ContextualExpression`
+- Line 130: mismatched types: expected `ContextualExpression`, found `Expression`
+- Line 136: mismatched types: expected `ContextualExpression`, found `Expression`
+- ... 1 more occurrences in this file
+
+#### `src\query\optimizer\strategy\traversal_start.rs`: 4 occurrences
+
+- Line 299: mismatched types: expected `&Expression`, found `&ContextualExpression`
+- Line 306: mismatched types: expected `&Expression`, found `&ContextualExpression`
+- Line 387: mismatched types: expected `&Expression`, found `&ContextualExpression`
+- ... 1 more occurrences in this file
+
+#### `src\query\validator\validator_enum.rs`: 3 occurrences
+
+- Line 249: mismatched types: expected `ValidationResult`, found `Result<ValidationResult, ...>`
+- Line 304: mismatched types: expected `Vec<ColumnDef>`, found `&[ColumnDef]`
+- Line 359: mismatched types: expected `Vec<ColumnDef>`, found `&[ColumnDef]`
 
 #### `src\query\planner\statements\clauses\yield_planner.rs`: 3 occurrences
 
 - Line 156: mismatched types: expected `Option<Expression>`, found `Option<ContextualExpression>`
 - Line 164: mismatched types: expected `Option<Expression>`, found `Option<ContextualExpression>`
 - Line 188: mismatched types: expected `&Expression`, found `&ContextualExpression`
-
-#### `src\query\planner\statements\fetch_edges_planner.rs`: 3 occurrences
-
-- Line 57: mismatched types: expected `&Expression`, found `&ContextualExpression`
-- Line 58: mismatched types: expected `&Expression`, found `&ContextualExpression`
-- Line 59: mismatched types: expected `&Expression`, found `&ContextualExpression`
 
 #### `src\query\validator\clauses\group_by_validator.rs`: 3 occurrences
 
@@ -410,20 +396,58 @@
 - Line 409: mismatched types: expected `&Expression`, found `&Arc<ExpressionMeta>`
 - Line 436: mismatched types: expected `&Expression`, found `&Arc<ExpressionMeta>`
 
+#### `src\query\planner\rewrite\elimination\remove_append_vertices_below_join.rs`: 3 occurrences
+
+- Line 121: mismatched types: expected `&Expression`, found `&ContextualExpression`
+- Line 127: mismatched types: expected `ContextualExpression`, found `Expression`
+- Line 296: mismatched types: expected `ContextualExpression`, found `Expression`
+
+#### `src\query\planner\statements\fetch_edges_planner.rs`: 3 occurrences
+
+- Line 57: mismatched types: expected `&Expression`, found `&ContextualExpression`
+- Line 58: mismatched types: expected `&Expression`, found `&ContextualExpression`
+- Line 59: mismatched types: expected `&Expression`, found `&ContextualExpression`
+
+#### `src\query\validator\statements\lookup_validator.rs`: 3 occurrences
+
+- Line 128: mismatched types: expected `Option<Expression>`, found `Option<ContextualExpression>`
+- Line 139: mismatched types: expected `&Expression`, found `&ContextualExpression`
+- Line 387: mismatched types: expected `Option<ContextualExpression>`, found `Option<Expression>`
+
+#### `src\query\planner\rewrite\elimination\remove_noop_project.rs`: 2 occurrences
+
+- Line 107: mismatched types: expected `ContextualExpression`, found `Expression`
+- Line 113: mismatched types: expected `ContextualExpression`, found `Expression`
+
+#### `src\query\planner\statements\lookup_planner.rs`: 2 occurrences
+
+- Line 93: mismatched types: expected `Expression`, found `ContextualExpression`
+- Line 138: mismatched types: expected `ContextualExpression`, found `Expression`
+
 #### `src\query\planner\rewrite\merge\merge_get_vertices_and_project.rs`: 2 occurrences
 
 - Line 97: mismatched types: expected `Expression`, found `ContextualExpression`
 - Line 154: mismatched types: expected `ContextualExpression`, found `Expression`
 
-#### `src\query\validator\statements\create_validator.rs`: 2 occurrences
+#### `src\query\validator\clauses\yield_validator.rs`: 2 occurrences
 
-- Line 479: mismatched types: expected `&Expression`, found `&Arc<ExpressionMeta>`
-- Line 517: mismatched types: expected `&Expression`, found `&Arc<ExpressionMeta>`
+- Line 229: mismatched types: expected `&Expression`, found `&Arc<ExpressionMeta>`
+- Line 433: mismatched types: expected `ContextualExpression`, found `Expression`
 
 #### `src\query\planner\statements\clauses\return_clause_planner.rs`: 2 occurrences
 
 - Line 77: mismatched types: expected `ContextualExpression`, found `Expression`
 - Line 89: mismatched types: expected `ContextualExpression`, found `Expression`
+
+#### `src\query\planner\rewrite\merge\merge_get_nbrs_and_project.rs`: 2 occurrences
+
+- Line 98: mismatched types: expected `ContextualExpression`, found `Expression`
+- Line 157: mismatched types: expected `ContextualExpression`, found `Expression`
+
+#### `src\query\validator\statements\merge_validator.rs`: 2 occurrences
+
+- Line 192: mismatched types: expected `&Expression`, found `&Arc<ExpressionMeta>`
+- Line 222: mismatched types: expected `&Expression`, found `&Arc<ExpressionMeta>`
 
 #### `src\query\query_pipeline_manager.rs`: 2 occurrences
 
@@ -435,74 +459,43 @@
 - Line 182: mismatched types: expected `&Expression`, found `&ContextualExpression`
 - Line 204: mismatched types: expected `Expression`, found `ContextualExpression`
 
-#### `src\query\planner\rewrite\merge\merge_get_nbrs_and_project.rs`: 2 occurrences
+#### `src\query\validator\statements\create_validator.rs`: 2 occurrences
 
-- Line 98: mismatched types: expected `ContextualExpression`, found `Expression`
-- Line 157: mismatched types: expected `ContextualExpression`, found `Expression`
-
-#### `src\query\validator\clauses\yield_validator.rs`: 2 occurrences
-
-- Line 229: mismatched types: expected `&Expression`, found `&Arc<ExpressionMeta>`
-- Line 433: mismatched types: expected `ContextualExpression`, found `Expression`
-
-#### `src\query\planner\statements\lookup_planner.rs`: 2 occurrences
-
-- Line 93: mismatched types: expected `Expression`, found `ContextualExpression`
-- Line 138: mismatched types: expected `ContextualExpression`, found `Expression`
-
-#### `src\query\planner\rewrite\elimination\remove_noop_project.rs`: 2 occurrences
-
-- Line 107: mismatched types: expected `ContextualExpression`, found `Expression`
-- Line 113: mismatched types: expected `ContextualExpression`, found `Expression`
-
-#### `src\query\validator\statements\merge_validator.rs`: 2 occurrences
-
-- Line 192: mismatched types: expected `&Expression`, found `&Arc<ExpressionMeta>`
-- Line 222: mismatched types: expected `&Expression`, found `&Arc<ExpressionMeta>`
-
-#### `src\query\planner\statements\update_planner.rs`: 1 occurrences
-
-- Line 62: mismatched types: expected `ContextualExpression`, found `Expression`
-
-#### `src\query\planner\rewrite\elimination\eliminate_append_vertices.rs`: 1 occurrences
-
-- Line 81: mismatched types: expected `&Expression`, found `&ContextualExpression`
-
-#### `src\query\executor\factory.rs`: 1 occurrences
-
-- Line 658: mismatched types: expected `Expression`, found `ContextualExpression`
-
-#### `src\query\planner\statements\use_planner.rs`: 1 occurrences
-
-- Line 55: mismatched types: expected `ContextualExpression`, found `Expression`
-
-#### `src\query\planner\statements\clauses\where_clause_planner.rs`: 1 occurrences
-
-- Line 47: mismatched types: expected `Expression`, found `ContextualExpression`
-
-#### `src\query\validator\validator_enum.rs`: 1 occurrences
-
-- Line 249: mismatched types: expected `ValidationResult`, found `Result<ValidationResult, ...>`
+- Line 479: mismatched types: expected `&Expression`, found `&Arc<ExpressionMeta>`
+- Line 517: mismatched types: expected `&Expression`, found `&Arc<ExpressionMeta>`
 
 #### `src\query\planner\statements\clauses\order_by_planner.rs`: 1 occurrences
 
 - Line 69: mismatched types: expected `&Expression`, found `&ContextualExpression`
 
+#### `src\query\planner\rewrite\elimination\eliminate_append_vertices.rs`: 1 occurrences
+
+- Line 81: mismatched types: expected `&Expression`, found `&ContextualExpression`
+
+#### `src\query\planner\statements\clauses\where_clause_planner.rs`: 1 occurrences
+
+- Line 47: mismatched types: expected `Expression`, found `ContextualExpression`
+
 #### `src\query\planner\statements\maintain_planner.rs`: 1 occurrences
 
 - Line 38: mismatched types: expected `ContextualExpression`, found `Expression`
 
-### error[E0599]: no method named `deduce_type` found for struct `std::sync::Arc<core::types::expression::expression::ExpressionMeta>` in the current scope: method not found in `Arc<ExpressionMeta>`
+#### `src\query\executor\factory.rs`: 1 occurrences
 
-**Total Occurrences**: 214  
-**Unique Files**: 16
+- Line 658: mismatched types: expected `Expression`, found `ContextualExpression`
 
-#### `src\query\validator\validator_enum.rs`: 148 occurrences
+#### `src\query\planner\statements\update_planner.rs`: 1 occurrences
 
-- Line 190: no method named `get_type` found for reference `&ShowValidator` in the current scope: method not found in `&ShowValidator`
-- Line 191: no method named `get_type` found for reference `&DescValidator` in the current scope: method not found in `&DescValidator`
-- Line 192: no method named `get_type` found for reference `&ShowCreateValidator` in the current scope: method not found in `&ShowCreateValidator`
-- ... 145 more occurrences in this file
+- Line 62: mismatched types: expected `ContextualExpression`, found `Expression`
+
+#### `src\query\planner\statements\use_planner.rs`: 1 occurrences
+
+- Line 55: mismatched types: expected `ContextualExpression`, found `Expression`
+
+### error[E0599]: no method named `expression` found for struct `std::sync::Arc<core::types::expression::expression::ExpressionMeta>` in the current scope
+
+**Total Occurrences**: 69  
+**Unique Files**: 17
 
 #### `src\query\parser\ast\utils.rs`: 13 occurrences
 
@@ -515,22 +508,15 @@
 
 - Line 59: no variant or associated item named `from_stmt` found for enum `Validator` in the current scope: variant or associated item not found in `Validator`
 - Line 68: no variant or associated item named `from_stmt` found for enum `Validator` in the current scope: variant or associated item not found in `Validator`
-- Line 196: no method named `outputs` found for reference `&Box<Validator>` in the current scope
+- Line 196: no method named `outputs` found for reference `&Validator` in the current scope
 - ... 5 more occurrences in this file
 
 #### `src\query\validator\utility\explain_validator.rs`: 6 occurrences
 
 - Line 62: no variant or associated item named `from_stmt` found for enum `Validator` in the current scope: variant or associated item not found in `Validator`
-- Line 86: no method named `statement_type` found for reference `&Box<Validator>` in the current scope
-- Line 141: no method named `is_global_statement` found for reference `&Box<Validator>` in the current scope: method not found in `&Box<Validator>`
+- Line 86: no method named `statement_type` found for reference `&Validator` in the current scope
+- Line 140: no method named `is_global_statement` found for reference `&Validator` in the current scope: method not found in `&Validator`
 - ... 3 more occurrences in this file
-
-#### `src\query\validator\helpers\type_checker.rs`: 5 occurrences
-
-- Line 30: no method named `deduce_type` found for struct `std::sync::Arc<core::types::expression::expression::ExpressionMeta>` in the current scope: method not found in `Arc<ExpressionMeta>`
-- Line 507: no variant or associated item named `Any` found for enum `validator_trait::ValueType` in the current scope: variant or associated item not found in `ValueType`
-- Line 508: no method named `to_data_type` found for reference `&validator_trait::ValueType` in the current scope: method not found in `&ValueType`
-- ... 2 more occurrences in this file
 
 #### `src\query\validator\strategies\helpers\type_checker.rs`: 5 occurrences
 
@@ -539,12 +525,12 @@
 - Line 508: no method named `to_data_type` found for reference `&validator_trait::ValueType` in the current scope: method not found in `&ValueType`
 - ... 2 more occurrences in this file
 
-#### `src\query\validator\helpers\variable_checker.rs`: 4 occurrences
+#### `src\query\validator\helpers\type_checker.rs`: 5 occurrences
 
-- Line 22: no method named `expression` found for reference `&def::Expression` in the current scope
-- Line 101: no method named `expression` found for reference `&def::Expression` in the current scope
-- Line 175: no method named `expression` found for reference `&def::Expression` in the current scope
-- ... 1 more occurrences in this file
+- Line 30: no method named `deduce_type` found for struct `std::sync::Arc<core::types::expression::expression::ExpressionMeta>` in the current scope: method not found in `Arc<ExpressionMeta>`
+- Line 507: no variant or associated item named `Any` found for enum `validator_trait::ValueType` in the current scope: variant or associated item not found in `ValueType`
+- Line 508: no method named `to_data_type` found for reference `&validator_trait::ValueType` in the current scope: method not found in `&ValueType`
+- ... 2 more occurrences in this file
 
 #### `src\query\validator\strategies\helpers\variable_checker.rs`: 4 occurrences
 
@@ -553,13 +539,20 @@
 - Line 175: no method named `expression` found for reference `&def::Expression` in the current scope
 - ... 1 more occurrences in this file
 
-#### `src\query\validator\utility\update_config_validator.rs`: 3 occurrences
+#### `src\query\validator\helpers\variable_checker.rs`: 4 occurrences
 
-- Line 255: no method named `add_expression` found for struct `core::types::expression::context::ExpressionContext` in the current scope
-- Line 259: no method named `add_expression` found for struct `core::types::expression::context::ExpressionContext` in the current scope
-- Line 264: no method named `add_expression` found for struct `core::types::expression::context::ExpressionContext` in the current scope
+- Line 22: no method named `expression` found for reference `&def::Expression` in the current scope
+- Line 101: no method named `expression` found for reference `&def::Expression` in the current scope
+- Line 175: no method named `expression` found for reference `&def::Expression` in the current scope
+- ... 1 more occurrences in this file
 
 #### `src\query\validator\strategies\helpers\expression_checker.rs`: 3 occurrences
+
+- Line 19: no method named `expression` found for reference `&def::Expression` in the current scope
+- Line 334: no method named `expression` found for reference `&def::Expression` in the current scope
+- Line 391: no method named `expression` found for reference `&def::Expression` in the current scope
+
+#### `src\query\validator\helpers\expression_checker.rs`: 3 occurrences
 
 - Line 19: no method named `expression` found for reference `&def::Expression` in the current scope
 - Line 334: no method named `expression` found for reference `&def::Expression` in the current scope
@@ -574,20 +567,25 @@
 #### `src\query\validator\assignment_validator.rs`: 3 occurrences
 
 - Line 58: no variant or associated item named `from_stmt` found for enum `Validator` in the current scope: variant or associated item not found in `Validator`
-- Line 113: no method named `statement_type` found for reference `&Box<Validator>` in the current scope
-- Line 177: no method named `is_global_statement` found for reference `&Box<Validator>` in the current scope: method not found in `&Box<Validator>`
+- Line 113: no method named `statement_type` found for reference `&Validator` in the current scope
+- Line 176: no method named `is_global_statement` found for reference `&Validator` in the current scope: method not found in `&Validator`
 
-#### `src\query\validator\helpers\expression_checker.rs`: 3 occurrences
+#### `src\query\validator\utility\update_config_validator.rs`: 3 occurrences
 
-- Line 19: no method named `expression` found for reference `&def::Expression` in the current scope
-- Line 334: no method named `expression` found for reference `&def::Expression` in the current scope
-- Line 391: no method named `expression` found for reference `&def::Expression` in the current scope
+- Line 255: no method named `add_expression` found for struct `core::types::expression::context::ExpressionContext` in the current scope
+- Line 259: no method named `add_expression` found for struct `core::types::expression::context::ExpressionContext` in the current scope
+- Line 264: no method named `add_expression` found for struct `core::types::expression::context::ExpressionContext` in the current scope
 
 #### `src\query\validator\dml\query_validator.rs`: 3 occurrences
 
 - Line 49: no variant or associated item named `from_stmt` found for enum `Validator` in the current scope: variant or associated item not found in `Validator`
 - Line 68: no method named `outputs` found for reference `&Box<Validator>` in the current scope
-- Line 137: no method named `is_global_statement` found for reference `&Box<Validator>` in the current scope: method not found in `&Box<Validator>`
+- Line 136: no method named `is_global_statement` found for reference `&Validator` in the current scope: method not found in `&Validator`
+
+#### `src\query\parser\parser\parser.rs`: 2 occurrences
+
+- Line 110: no variant or associated item named `InvalidExpression` found for enum `query::parser::core::error::ParseErrorKind` in the current scope: variant or associated item not found in `ParseErrorKind`
+- Line 132: no variant or associated item named `InvalidExpression` found for enum `query::parser::core::error::ParseErrorKind` in the current scope: variant or associated item not found in `ParseErrorKind`
 
 #### `src\query\validator\strategies\expression_strategy_test.rs`: 2 occurrences
 
@@ -598,29 +596,53 @@
 
 - Line 303: no variant or associated item named `from_stmt` found for enum `Validator` in the current scope: variant or associated item not found in `Validator`
 
-### error[E0277]: the `?` operator can only be applied to values that implement `Try`: the `?` operator cannot be applied to type `ValidationResult`
+#### `src\query\validator\validator_enum.rs`: 1 occurrences
 
-**Total Occurrences**: 10  
-**Unique Files**: 7
+- Line 467: no variant or associated item named `UpdateConfig` found for enum `validator_trait::StatementType` in the current scope: variant or associated item not found in `StatementType`
 
-#### `src\query\validator\utility\explain_validator.rs`: 2 occurrences
+### error[E0277]: the trait bound `def::Expression: From<std::sync::Arc<core::types::expression::expression::ExpressionMeta>>` is not satisfied: the trait `From<std::sync::Arc<core::types::expression::expression::ExpressionMeta>>` is not implemented for `def::Expression`
 
-- Line 117: the `?` operator can only be applied to values that implement `Try`: the `?` operator cannot be applied to type `ValidationResult`
-- Line 250: the `?` operator can only be applied to values that implement `Try`: the `?` operator cannot be applied to type `ValidationResult`
+**Total Occurrences**: 18  
+**Unique Files**: 10
+
+#### `src\query\executor\factory.rs`: 5 occurrences
+
+- Line 80: the trait bound `def::Expression: From<std::sync::Arc<core::types::expression::expression::ExpressionMeta>>` is not satisfied: the trait `From<std::sync::Arc<core::types::expression::expression::ExpressionMeta>>` is not implemented for `def::Expression`
+- Line 981: the trait bound `def::Expression: From<std::sync::Arc<core::types::expression::expression::ExpressionMeta>>` is not satisfied: the trait `From<std::sync::Arc<core::types::expression::expression::ExpressionMeta>>` is not implemented for `def::Expression`
+- Line 998: the trait bound `def::Expression: From<std::sync::Arc<core::types::expression::expression::ExpressionMeta>>` is not satisfied: the trait `From<std::sync::Arc<core::types::expression::expression::ExpressionMeta>>` is not implemented for `def::Expression`
+- ... 2 more occurrences in this file
 
 #### `src\query\planner\statements\subgraph_planner.rs`: 2 occurrences
 
 - Line 74: a value of type `Vec<def::Expression>` cannot be built from an iterator over elements of type `contextual::ContextualExpression`: value of type `Vec<def::Expression>` cannot be built from `std::iter::Iterator<Item=contextual::ContextualExpression>`
 - Line 119: a value of type `Vec<def::Expression>` cannot be built from an iterator over elements of type `contextual::ContextualExpression`: value of type `Vec<def::Expression>` cannot be built from `std::iter::Iterator<Item=contextual::ContextualExpression>`
 
+#### `src\query\executor\data_modification.rs`: 2 occurrences
+
+- Line 309: the trait bound `def::Expression: From<std::sync::Arc<core::types::expression::expression::ExpressionMeta>>` is not satisfied: the trait `From<std::sync::Arc<core::types::expression::expression::ExpressionMeta>>` is not implemented for `def::Expression`
+- Line 538: the trait bound `def::Expression: From<std::sync::Arc<core::types::expression::expression::ExpressionMeta>>` is not satisfied: the trait `From<std::sync::Arc<core::types::expression::expression::ExpressionMeta>>` is not implemented for `def::Expression`
+
+#### `src\query\validator\utility\explain_validator.rs`: 2 occurrences
+
+- Line 117: the `?` operator can only be applied to values that implement `Try`: the `?` operator cannot be applied to type `ValidationResult`
+- Line 249: the `?` operator can only be applied to values that implement `Try`: the `?` operator cannot be applied to type `ValidationResult`
+
 #### `src\query\validator\dml\set_operation_validator.rs`: 2 occurrences
 
 - Line 230: the `?` operator can only be applied to values that implement `Try`: the `?` operator cannot be applied to type `ValidationResult`
 - Line 237: the `?` operator can only be applied to values that implement `Try`: the `?` operator cannot be applied to type `ValidationResult`
 
+#### `src\query\executor\tag_filter.rs`: 1 occurrences
+
+- Line 96: the trait bound `def::Expression: From<std::sync::Arc<core::types::expression::expression::ExpressionMeta>>` is not satisfied: the trait `From<std::sync::Arc<core::types::expression::expression::ExpressionMeta>>` is not implemented for `def::Expression`
+
 #### `src\query\planner\statements\insert_planner.rs`: 1 occurrences
 
 - Line 70: a value of type `Vec<(def::Expression, Vec<Vec<def::Expression>>)>` cannot be built from an iterator over elements of type `(contextual::ContextualExpression, Vec<Vec<contextual::ContextualExpression>>)`: value of type `Vec<(def::Expression, Vec<Vec<def::Expression>>)>` cannot be built from `std::iter::Iterator<Item=(contextual::ContextualExpression, Vec<Vec<contextual::ContextualExpression>>)>`
+
+#### `src\query\validator\dml\query_validator.rs`: 1 occurrences
+
+- Line 109: the `?` operator can only be applied to values that implement `Try`: the `?` operator cannot be applied to type `ValidationResult`
 
 #### `src\query\validator\statements\go_validator.rs`: 1 occurrences
 
@@ -629,10 +651,6 @@
 #### `src\query\validator\assignment_validator.rs`: 1 occurrences
 
 - Line 144: the `?` operator can only be applied to values that implement `Try`: the `?` operator cannot be applied to type `ValidationResult`
-
-#### `src\query\validator\dml\query_validator.rs`: 1 occurrences
-
-- Line 109: the `?` operator can only be applied to values that implement `Try`: the `?` operator cannot be applied to type `ValidationResult`
 
 ### error[E0616]: field `context` of struct `contextual::ContextualExpression` is private: private field
 
@@ -648,8 +666,14 @@
 
 ### error[E0061]: this function takes 2 arguments but 1 argument was supplied
 
-**Total Occurrences**: 6  
-**Unique Files**: 2
+**Total Occurrences**: 8  
+**Unique Files**: 3
+
+#### `src\query\validator\strategies\helpers\type_checker.rs`: 3 occurrences
+
+- Line 597: this function takes 2 arguments but 1 argument was supplied
+- Line 605: this function takes 2 arguments but 1 argument was supplied
+- Line 613: this function takes 2 arguments but 1 argument was supplied
 
 #### `src\query\validator\helpers\type_checker.rs`: 3 occurrences
 
@@ -657,11 +681,10 @@
 - Line 605: this function takes 2 arguments but 1 argument was supplied
 - Line 613: this function takes 2 arguments but 1 argument was supplied
 
-#### `src\query\validator\strategies\helpers\type_checker.rs`: 3 occurrences
+#### `src\query\parser\parser\parser.rs`: 2 occurrences
 
-- Line 597: this function takes 2 arguments but 1 argument was supplied
-- Line 605: this function takes 2 arguments but 1 argument was supplied
-- Line 613: this function takes 2 arguments but 1 argument was supplied
+- Line 109: this function takes 3 arguments but 2 arguments were supplied
+- Line 131: this function takes 3 arguments but 2 arguments were supplied
 
 ### error[E0063]: missing field `expression` in initializer of `update_validator::ValidatedAssignment`: missing `expression`
 
@@ -672,28 +695,6 @@
 
 - Line 483: missing field `expression` in initializer of `update_validator::ValidatedAssignment`: missing `expression`
 - Line 515: missing field `expression` in initializer of `update_validator::ValidatedAssignment`: missing `expression`
-
-### error[E0432]: unresolved import `crate::query::parser::parser::parse_expression_meta_from_string`: no `parse_expression_meta_from_string` in `query::parser::parser`
-
-**Total Occurrences**: 2  
-**Unique Files**: 2
-
-#### `src\query\executor\data_modification.rs`: 1 occurrences
-
-- Line 11: unresolved import `crate::query::parser::parser::parse_expression_meta_from_string`: no `parse_expression_meta_from_string` in `query::parser::parser`
-
-#### `src\query\parser\parser\mod.rs`: 1 occurrences
-
-- Line 24: unresolved imports `parser::parse_expression_meta_from_string`, `parser::parse_expression_meta_from_string_with_cache`: no `parse_expression_meta_from_string` in `query::parser::parser::parser`, no `parse_expression_meta_from_string_with_cache` in `query::parser::parser::parser`
-
-### error[E0425]: cannot find function `parse_expression_meta_from_string` in module `crate::query::parser`: not found in `crate::query::parser`
-
-**Total Occurrences**: 1  
-**Unique Files**: 1
-
-#### `src\query\executor\tag_filter.rs`: 1 occurrences
-
-- Line 95: cannot find function `parse_expression_meta_from_string` in module `crate::query::parser`: not found in `crate::query::parser`
 
 ### error[E0624]: method `validate_group_key_type_internal` is private: private method
 
@@ -711,13 +712,6 @@
 **Total Occurrences**: 30  
 **Unique Files**: 21
 
-#### `src\query\validator\helpers\type_checker.rs`: 4 occurrences
-
-- Line 6: unused import: `crate::core::AggregateFunction`
-- Line 7: unused import: `crate::core::BinaryOperator`
-- Line 8: unused import: `crate::core::UnaryOperator`
-- ... 1 more occurrences in this file
-
 #### `src\query\validator\strategies\helpers\type_checker.rs`: 4 occurrences
 
 - Line 6: unused import: `crate::core::AggregateFunction`
@@ -725,82 +719,89 @@
 - Line 8: unused import: `crate::core::UnaryOperator`
 - ... 1 more occurrences in this file
 
-#### `src\query\validator\clauses\yield_validator.rs`: 2 occurrences
+#### `src\query\validator\helpers\type_checker.rs`: 4 occurrences
 
-- Line 18: unused import: `crate::core::Expression`
-- Line 331: unused import: `ExpressionId`
+- Line 6: unused import: `crate::core::AggregateFunction`
+- Line 7: unused import: `crate::core::BinaryOperator`
+- Line 8: unused import: `crate::core::UnaryOperator`
+- ... 1 more occurrences in this file
 
 #### `src\query\validator\validator_enum.rs`: 2 occurrences
 
 - Line 15: unused import: `crate::core::error::ValidationError`
 - Line 19: unused import: `ExpressionProps`
 
+#### `src\query\validator\clauses\yield_validator.rs`: 2 occurrences
+
+- Line 18: unused import: `crate::core::Expression`
+- Line 331: unused import: `ExpressionId`
+
 #### `src\query\parser\parser\util_stmt_parser.rs`: 2 occurrences
 
 - Line 5: unused import: `std::sync::Arc`
 - Line 8: unused import: `crate::core::types::expression::Expression as CoreExpression`
 
-#### `src\query\validator\clauses\with_validator.rs`: 1 occurrences
-
-- Line 8: unused import: `crate::core::Expression`
-
 #### `src\query\validator\statements\create_validator.rs`: 1 occurrences
 
 - Line 21: unused import: `crate::core::Expression`
-
-#### `src\query\validator\statements\insert_edges_validator.rs`: 1 occurrences
-
-- Line 113: unused import: `crate::core::types::expression::Expression`
-
-#### `src\query\validator\strategies\helpers\expression_checker.rs`: 1 occurrences
-
-- Line 7: unused import: `crate::query::validator::strategies::helpers::type_checker::TypeDeduceValidator`
-
-#### `src\query\validator\statements\remove_validator.rs`: 1 occurrences
-
-- Line 9: unused import: `crate::core::Expression`
-
-#### `src\query\validator\statements\merge_validator.rs`: 1 occurrences
-
-- Line 9: unused import: `crate::core::Expression`
 
 #### `src\query\validator\strategies\expression_strategy.rs`: 1 occurrences
 
 - Line 2: unused import: `crate::core::types::expression::Expression`
 
-#### `src\query\validator\statements\unwind_validator.rs`: 1 occurrences
+#### `src\query\parser\parser\dml_parser.rs`: 1 occurrences
 
-- Line 18: unused import: `NullType`
+- Line 5: unused import: `std::sync::Arc`
 
 #### `src\query\validator\clauses\return_validator.rs`: 1 occurrences
 
 - Line 8: unused import: `crate::core::Expression`
 
-#### `src\query\validator\helpers\expression_checker.rs`: 1 occurrences
+#### `src\query\parser\parser\clause_parser.rs`: 1 occurrences
 
-- Line 7: unused import: `crate::query::validator::strategies::helpers::type_checker::TypeDeduceValidator`
+- Line 5: unused import: `std::sync::Arc`
 
 #### `src\query\parser\parser\traversal_parser.rs`: 1 occurrences
 
 - Line 5: unused import: `std::sync::Arc`
 
+#### `src\query\validator\statements\insert_edges_validator.rs`: 1 occurrences
+
+- Line 113: unused import: `crate::core::types::expression::Expression`
+
+#### `src\query\parser\parser\parser.rs`: 1 occurrences
+
+- Line 7: unused import: `Expression`
+
+#### `src\query\validator\statements\unwind_validator.rs`: 1 occurrences
+
+- Line 18: unused import: `NullType`
+
+#### `src\query\validator\strategies\helpers\expression_checker.rs`: 1 occurrences
+
+- Line 7: unused import: `crate::query::validator::strategies::helpers::type_checker::TypeDeduceValidator`
+
 #### `src\query\parser\parser\stmt_parser.rs`: 1 occurrences
 
 - Line 6: unused import: `std::sync::Arc`
 
-#### `src\query\parser\parser\clause_parser.rs`: 1 occurrences
+#### `src\query\validator\statements\merge_validator.rs`: 1 occurrences
 
-- Line 5: unused import: `std::sync::Arc`
+- Line 9: unused import: `crate::core::Expression`
 
-#### `src\query\parser\parser\parser.rs`: 1 occurrences
+#### `src\query\validator\statements\remove_validator.rs`: 1 occurrences
 
-- Line 7: unused imports: `ExpressionMeta` and `Expression`
-
-#### `src\query\parser\parser\dml_parser.rs`: 1 occurrences
-
-- Line 5: unused import: `std::sync::Arc`
+- Line 9: unused import: `crate::core::Expression`
 
 #### `src\query\validator\strategies\mod.rs`: 1 occurrences
 
 - Line 18: unused import: `agg_functions::*`
+
+#### `src\query\validator\helpers\expression_checker.rs`: 1 occurrences
+
+- Line 7: unused import: `crate::query::validator::strategies::helpers::type_checker::TypeDeduceValidator`
+
+#### `src\query\validator\clauses\with_validator.rs`: 1 occurrences
+
+- Line 8: unused import: `crate::core::Expression`
 
