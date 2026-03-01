@@ -4,7 +4,7 @@ use crate::query::validator::structs::{AliasType, QueryPart};
 use crate::core::error::ValidationError;
 use crate::core::DataType;
 use crate::query::validator::validator_trait::ColumnDef;
-use crate::query::validator::strategies::type_inference::ExpressionValidationContext;
+use crate::query::validator::strategies::helpers::ExpressionValidationContext;
 use std::collections::HashMap;
 
 /// 验证上下文实现

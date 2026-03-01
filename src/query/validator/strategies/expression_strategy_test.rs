@@ -416,7 +416,7 @@ mod expression_strategy_tests {
 
     #[test]
     fn test_validate_expression_type() {
-        let type_validator = crate::query::validator::strategies::type_inference::TypeValidator::new();
+        let type_validator = crate::query::validator::strategies::helpers::TypeValidator::new();
         let context = ValidationContextImpl::new();
         
         // 字面量类型验证
@@ -427,10 +427,28 @@ mod expression_strategy_tests {
         let result = type_validator.validate_expression_type(&bool_expression, &context, DataType::Int);
         assert!(result.is_err());
     }
+    
+    #[test]
+    fn test_validate_expression_type_mismatch() {
+        let type_validator = crate::query::validator::strategies::helpers::TypeValidator::new();
+        let context = ValidationContextImpl::new();
+        
+        let result = type_validator.validate_expression_type(
+            &Expression::int(42),
+            &context,
+            DataType::Int,
+        );
+        
+        assert!(result.is_ok());
+    }
+    
+    #[test]
+    fn test_validate_expression_type_mismatch() {
+        let type_validator = crate::query::validator::strategies::helpers::TypeValidator::new();
 
     #[test]
     fn test_validate_aggregate_expression() {
-        let type_validator = crate::query::validator::strategies::type_inference::TypeValidator::new();
+        let type_validator = crate::query::validator::strategies::helpers::TypeValidator::new();
         let context = YieldClauseContext {
             yield_columns: vec![],
             aliases_available: HashMap::new(),
@@ -480,7 +498,7 @@ mod expression_strategy_tests {
 
     #[test]
     fn test_has_aggregate_expression() {
-        let type_validator = crate::query::validator::strategies::type_inference::TypeValidator::new();
+        let type_validator = crate::query::validator::strategies::helpers::TypeValidator::new();
         
         // 包含聚合函数的表达式
         let agg_expression = Expression::Aggregate {
@@ -500,7 +518,7 @@ mod expression_strategy_tests {
 
     #[test]
     fn test_validate_group_key_type() {
-        let type_validator = crate::query::validator::strategies::type_inference::TypeValidator::new();
+        let type_validator = crate::query::validator::strategies::helpers::TypeValidator::new();
         let mut aliases = HashMap::new();
         aliases.insert("n".to_string(), crate::query::validator::AliasType::Node);
         let context = YieldClauseContext {

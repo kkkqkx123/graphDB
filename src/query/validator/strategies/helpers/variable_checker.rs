@@ -1,4 +1,4 @@
-//! 变量验证器
+//! 变量检查工具
 //! 负责验证变量的作用域、命名格式和使用
 
 use crate::core::types::expression::contextual::ContextualExpression;
@@ -6,35 +6,31 @@ use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::query::validator::structs::AliasType;
 use std::collections::HashMap;
 
-/// 变量验证器
-pub struct VariableValidator;
+pub struct VariableChecker;
 
-impl VariableValidator {
+impl VariableChecker {
     pub fn new() -> Self {
         Self
     }
 
-    /// 验证变量作用域
     pub fn validate_variable_scope(
         &self,
         expression: &ContextualExpression,
         available_aliases: &HashMap<String, AliasType>,
     ) -> Result<(), ValidationError> {
-        // 从 ContextualExpression 获取 Expression
-        if let Some(expr) = expression.expression() {
-            // 提取表达式中使用的变量
-            let variables = self.extract_variables_internal(&expr);
-            
-            // 验证每个变量的作用域
-            for var in &variables {
-                self.validate_variable_usage(var, available_aliases)?;
+        if let Some(expr_meta) = expression.expression() {
+            if let Some(expr) = expr_meta.inner().expression() {
+                let variables = self.extract_variables_internal(&expr);
+                
+                for var in &variables {
+                    self.validate_variable_usage(var, available_aliases)?;
+                }
             }
         }
         
         Ok(())
     }
 
-    /// 验证变量命名格式
     pub fn validate_variable_name_format(&self, var: &str) -> Result<(), ValidationError> {
         if var.is_empty() {
             return Err(ValidationError::new(
@@ -43,7 +39,6 @@ impl VariableValidator {
             ));
         }
 
-        // 检查变量名格式
         let first_char = var.chars().next().ok_or_else(|| {
             ValidationError::new(
                 "变量名不能为空".to_string(),
@@ -57,7 +52,6 @@ impl VariableValidator {
             ));
         }
 
-        // 检查变量名是否只包含字母、数字和下划线
         if !var.chars().all(|c| c.is_alphanumeric() || c == '_') {
             return Err(ValidationError::new(
                 format!("变量名只能包含字母、数字和下划线: {:?}", var),
@@ -65,7 +59,6 @@ impl VariableValidator {
             ));
         }
 
-        // 检查变量名长度
         if var.len() > 255 {
             return Err(ValidationError::new(
                 format!("变量名太长: {:?}", var),
@@ -76,16 +69,13 @@ impl VariableValidator {
         Ok(())
     }
 
-    /// 验证变量使用
     fn validate_variable_usage(
         &self,
         var: &str,
         available_aliases: &HashMap<String, AliasType>,
     ) -> Result<(), ValidationError> {
-        // 首先验证变量名格式
         self.validate_variable_name_format(var)?;
 
-        // 检查变量是否在可用别名中
         if !available_aliases.contains_key(var) {
             return Err(ValidationError::new(
                 format!("变量 {:?} 未定义", var),
@@ -96,7 +86,6 @@ impl VariableValidator {
         Ok(())
     }
 
-    /// 验证简单变量作用域
     pub fn validate_variable_scope_simple(
         &self,
         variables: &[String],
@@ -107,23 +96,21 @@ impl VariableValidator {
         Ok(())
     }
 
-    /// 提取表达式中的变量
-    fn extract_variables(&self, expression: &ContextualExpression) -> Vec<String> {
-        if let Some(expr) = expression.expression() {
-            self.extract_variables_internal(&expr)
-        } else {
-            Vec::new()
+    pub fn extract_variables(&self, expression: &ContextualExpression) -> Vec<String> {
+        if let Some(expr_meta) = expression.expression() {
+            if let Some(expr) = expr_meta.inner().expression() {
+                return self.extract_variables_internal(&expr);
+            }
         }
+        Vec::new()
     }
 
-    /// 内部方法：递归收集变量
     fn extract_variables_internal(&self, expression: &crate::core::types::expression::Expression) -> Vec<String> {
         let mut variables = Vec::new();
         self.collect_variables_internal(expression, &mut variables);
         variables
     }
 
-    /// 内部方法：递归收集变量
     fn collect_variables_internal(&self, expression: &crate::core::types::expression::Expression, variables: &mut Vec<String>) {
         match expression {
             crate::core::types::expression::Expression::Variable(name) => {
@@ -183,16 +170,15 @@ impl VariableValidator {
         }
     }
 
-    /// 检查是否包含指定变量
     pub fn contains_variable(&self, expression: &ContextualExpression, var: &str) -> bool {
-        if let Some(expr) = expression.expression() {
-            self.contains_variable_internal(&expr, var)
-        } else {
-            false
+        if let Some(expr_meta) = expression.expression() {
+            if let Some(expr) = expr_meta.inner().expression() {
+                return self.contains_variable_internal(&expr, var);
+            }
         }
+        false
     }
 
-    /// 内部方法：检查是否包含指定变量
     fn contains_variable_internal(&self, expression: &crate::core::types::expression::Expression, var: &str) -> bool {
         match expression {
             crate::core::types::expression::Expression::Variable(name) => name == var,
@@ -242,7 +228,6 @@ impl VariableValidator {
         }
     }
 
-    /// 验证表达式中的变量
     pub fn validate_expression_variables(
         &self,
         expression: &ContextualExpression,
@@ -251,16 +236,15 @@ impl VariableValidator {
         self.validate_variable_scope(expression, available_aliases)
     }
 
-    /// 检查是否为算术表达式
     pub fn is_arithmetic_expression(&self, expression: &ContextualExpression, var: &str) -> bool {
-        if let Some(expr) = expression.expression() {
-            self.is_arithmetic_expression_internal(&expr, var)
-        } else {
-            false
+        if let Some(expr_meta) = expression.expression() {
+            if let Some(expr) = expr_meta.inner().expression() {
+                return self.is_arithmetic_expression_internal(&expr, var);
+            }
         }
+        false
     }
 
-    /// 内部方法：检查是否为算术表达式
     fn is_arithmetic_expression_internal(&self, expression: &crate::core::types::expression::Expression, var: &str) -> bool {
         match expression {
             crate::core::types::expression::Expression::Binary { op, left, right } => {
@@ -295,62 +279,60 @@ mod tests {
     use crate::core::Value;
 
     #[test]
-    fn test_variable_validator_creation() {
-        let _validator = VariableValidator::new();
+    fn test_variable_checker_creation() {
+        let _checker = VariableChecker::new();
         assert!(true);
     }
 
     #[test]
     fn test_validate_variable_name_format() {
-        let validator = VariableValidator::new();
+        let checker = VariableChecker::new();
         
-        // 有效变量名
-        assert!(validator.validate_variable_name_format("var").is_ok());
-        assert!(validator.validate_variable_name_format("var1").is_ok());
-        assert!(validator.validate_variable_name_format("var_name").is_ok());
-        assert!(validator.validate_variable_name_format("_var").is_ok());
+        assert!(checker.validate_variable_name_format("var").is_ok());
+        assert!(checker.validate_variable_name_format("var1").is_ok());
+        assert!(checker.validate_variable_name_format("var_name").is_ok());
+        assert!(checker.validate_variable_name_format("_var").is_ok());
         
-        // 无效变量名
-        assert!(validator.validate_variable_name_format("").is_err());
-        assert!(validator.validate_variable_name_format("1var").is_err());
-        assert!(validator.validate_variable_name_format("var-name").is_err());
-        assert!(validator.validate_variable_name_format("var name").is_err());
+        assert!(checker.validate_variable_name_format("").is_err());
+        assert!(checker.validate_variable_name_format("1var").is_err());
+        assert!(checker.validate_variable_name_format("var-name").is_err());
+        assert!(checker.validate_variable_name_format("var name").is_err());
     }
 
     #[test]
     fn test_contains_variable() {
-        let validator = VariableValidator::new();
+        let checker = VariableChecker::new();
         
         let var_expression = Expression::Variable("test_var".to_string());
-        assert!(validator.contains_variable(&var_expression, "test_var"));
-        assert!(!validator.contains_variable(&var_expression, "other_var"));
+        assert!(checker.contains_variable(&var_expression, "test_var"));
+        assert!(!checker.contains_variable(&var_expression, "other_var"));
         
         let literal_expression = Expression::Literal(Value::Int(42));
-        assert!(!validator.contains_variable(&literal_expression, "test_var"));
+        assert!(!checker.contains_variable(&literal_expression, "test_var"));
     }
 
     #[test]
     fn test_is_arithmetic_expression() {
-        let validator = VariableValidator::new();
+        let checker = VariableChecker::new();
         
         let add_expression = Expression::Binary {
             op: crate::core::BinaryOperator::Add,
             left: Box::new(Expression::Variable("var".to_string())),
             right: Box::new(Expression::Literal(Value::Int(1))),
         };
-        assert!(validator.is_arithmetic_expression(&add_expression, "var"));
+        assert!(checker.is_arithmetic_expression(&add_expression, "var"));
         
         let eq_expression = Expression::Binary {
             op: crate::core::BinaryOperator::Equal,
             left: Box::new(Expression::Variable("var".to_string())),
             right: Box::new(Expression::Literal(Value::Int(1))),
         };
-        assert!(!validator.is_arithmetic_expression(&eq_expression, "var"));
+        assert!(!checker.is_arithmetic_expression(&eq_expression, "var"));
     }
 
     #[test]
     fn test_extract_variables() {
-        let validator = VariableValidator::new();
+        let checker = VariableChecker::new();
         
         let complex_expression = Expression::Binary {
             op: crate::core::BinaryOperator::Add,
@@ -358,7 +340,7 @@ mod tests {
             right: Box::new(Expression::Variable("var2".to_string())),
         };
         
-        let variables = validator.extract_variables(&complex_expression);
+        let variables = checker.extract_variables(&complex_expression);
         assert_eq!(variables.len(), 2);
         assert!(variables.contains(&"var1".to_string()));
         assert!(variables.contains(&"var2".to_string()));

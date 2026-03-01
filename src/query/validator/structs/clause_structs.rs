@@ -8,7 +8,7 @@ use crate::core::DataType;
 use crate::core::error::ValidationError;
 use crate::core::types::OrderDirection;
 use crate::query::validator::QueryPart;
-use crate::query::validator::strategies::type_inference::ExpressionValidationContext;
+use crate::query::validator::strategies::helpers::ExpressionValidationContext;
 use std::collections::HashMap;
 
 /// Match子句上下文

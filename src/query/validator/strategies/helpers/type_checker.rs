@@ -1,5 +1,5 @@
-//! 表达式类型验证系统
-//! 负责验证表达式的类型信息（类型推导使用 DeduceTypeVisitor）
+//! 类型检查工具
+//! 负责表达式类型推导、类型验证和类型兼容性检查
 
 use crate::core::Expression;
 use crate::core::DataType;
@@ -13,15 +13,27 @@ use crate::query::validator::structs::AliasType;
 use crate::query::validator::ValueType;
 use std::collections::HashMap;
 
-/// 表达式验证上下文Trait
-/// 定义表达式验证所需的基本接口
 pub trait ExpressionValidationContext {
     fn get_aliases(&self) -> &HashMap<String, AliasType>;
     fn get_variable_types(&self) -> Option<&HashMap<String, DataType>>;
 }
 
-/// 表达式类型验证器
-/// 负责验证表达式的类型是否符合预期
+pub struct TypeDeduceValidator;
+
+impl TypeDeduceValidator {
+    pub fn new() -> Self {
+        Self
+    }
+
+    pub fn deduce_type(&self, expression: &crate::core::types::expression::contextual::ContextualExpression) -> DataType {
+        if let Some(expr) = expression.expression() {
+            expr.deduce_type()
+        } else {
+            DataType::Empty
+        }
+    }
+}
+
 pub struct TypeValidator;
 
 impl TypeValidator {
@@ -29,37 +41,26 @@ impl TypeValidator {
         Self
     }
 
-    /// 检查类型是否可以用于索引
-    /// 使用 TypeUtils 的统一实现
     pub fn is_indexable_type(&self, type_def: &DataType) -> bool {
         TypeUtils::is_indexable_type(type_def)
     }
 
-    /// 获取类型的默认值
-    /// 使用 TypeUtils 的统一实现
     pub fn get_default_value(&self, type_def: &DataType) -> Option<Expression> {
         TypeUtils::get_default_value(type_def).map(|v| Expression::Literal(v))
     }
 
-    /// 验证类型是否可以强制转换
-    /// 使用 TypeUtils 的统一实现，确保行为一致
     pub fn can_cast(&self, from: &DataType, to: &DataType) -> bool {
         TypeUtils::can_cast(from, to)
     }
 
-    /// 获取类型的字符串表示
-    /// 使用 TypeUtils 的统一实现
     pub fn type_to_string(&self, type_def: &DataType) -> String {
         TypeUtils::type_to_string(type_def)
     }
 
-    /// 检查两个类型是否兼容
-    /// 使用 TypeUtils 的统一实现
     pub fn are_types_compatible(&self, left: &DataType, right: &DataType) -> bool {
         TypeUtils::are_types_compatible(left, right)
     }
 
-    /// 验证表达式类型
     pub fn validate_expression_type<C: ExpressionValidationContext>(
         &self,
         expression: &Expression,
@@ -69,7 +70,6 @@ impl TypeValidator {
         self.validate_expression_type_full(expression, context, expected_type)
     }
 
-    /// 完整的表达式类型验证（使用上下文）
     pub fn validate_expression_type_full<C: ExpressionValidationContext>(
         &self,
         expression: &Expression,
@@ -124,7 +124,6 @@ impl TypeValidator {
         }
     }
 
-    /// 验证二元表达式类型
     fn validate_binary_expression_type<C: ExpressionValidationContext>(
         &self,
         op: &crate::core::BinaryOperator,
@@ -198,7 +197,6 @@ impl TypeValidator {
         }
     }
 
-    /// 验证一元表达式类型
     fn validate_unary_expression_type<C: ExpressionValidationContext>(
         &self,
         op: &crate::core::UnaryOperator,
@@ -238,7 +236,6 @@ impl TypeValidator {
         }
     }
 
-    /// 验证函数返回类型
     fn validate_function_return_type<C: ExpressionValidationContext>(
         &self,
         name: &str,
@@ -260,7 +257,6 @@ impl TypeValidator {
         }
     }
 
-    /// 验证聚合函数返回类型
     fn validate_aggregate_return_type<C: ExpressionValidationContext>(
         &self,
         func: &crate::core::AggregateFunction,
@@ -283,7 +279,6 @@ impl TypeValidator {
         }
     }
 
-    /// 验证变量类型
     fn validate_variable_type<C: ExpressionValidationContext>(
         &self,
         name: &str,
@@ -308,7 +303,6 @@ impl TypeValidator {
         Ok(())
     }
 
-    /// 完整的表达式类型推导（使用上下文）
     pub fn deduce_expression_type_full<C: ExpressionValidationContext>(
         &self,
         expression: &Expression,
@@ -344,7 +338,6 @@ impl TypeValidator {
         }
     }
 
-    /// 推导二元表达式类型
     fn deduce_binary_expr_type(
         &self,
         op: &crate::core::BinaryOperator,
@@ -372,7 +365,6 @@ impl TypeValidator {
         }
     }
 
-    /// 推导算术表达式类型（参考 NebulaGraph 的实现）
     fn deduce_arithmetic_expr_type(
         &self,
         _op: &crate::core::BinaryOperator,
@@ -396,7 +388,6 @@ impl TypeValidator {
         }
     }
 
-    /// 推导一元表达式类型
     fn deduce_unary_expr_type(
         &self,
         op: &crate::core::UnaryOperator,
@@ -428,7 +419,6 @@ impl TypeValidator {
         }
     }
 
-    /// 推导函数返回类型
     fn deduce_function_return_type<C: ExpressionValidationContext>(
         &self,
         name: &str,
@@ -465,7 +455,6 @@ impl TypeValidator {
         }
     }
 
-    /// 推导聚合函数返回类型
     pub fn deduce_aggregate_return_type(
         &self,
         func: &crate::core::AggregateFunction,
@@ -487,7 +476,6 @@ impl TypeValidator {
         }
     }
 
-    /// 推导聚合函数返回类型（带参数类型，参考 NebulaGraph）
     pub fn deduce_aggregate_return_type_with_arg(
         &self,
         func: &crate::core::AggregateFunction,
@@ -510,484 +498,119 @@ impl TypeValidator {
         }
     }
 
-    /// 检查表达式是否包含聚合函数
-    pub fn has_aggregate_expression(&self, expression: &Expression) -> bool {
-        self.has_aggregate_expression_internal(expression)
+    fn deduce_expr_type(&self, expression: &Expression) -> DataType {
+        expression.deduce_type()
     }
 
-    /// 内部方法：检查表达式是否包含聚合函数
+    fn are_types_compatible_enhanced(&self, left: &DataType, right: &ValueType) -> bool {
+        match (left, right) {
+            (DataType::Empty, _) | (_, ValueType::Any) => true,
+            _ => self.are_types_compatible(left, &right.to_data_type()),
+        }
+    }
+
+    fn value_type_def_to_value_type(type_def: &DataType) -> ValueType {
+        ValueType::from_data_type(type_def)
+    }
+
     pub fn has_aggregate_expression_internal(&self, expression: &Expression) -> bool {
         match expression {
             Expression::Aggregate { .. } => true,
-            Expression::Binary { left, right, .. } => {
-                self.has_aggregate_expression_internal(left) || self.has_aggregate_expression_internal(right)
+            Expression::Unary { operand, .. } => {
+                self.has_aggregate_expression_internal(operand.as_ref())
             }
-            Expression::Unary { operand, .. } => self.has_aggregate_expression_internal(operand),
+            Expression::Binary { left, right, .. } => {
+                self.has_aggregate_expression_internal(left.as_ref())
+                    || self.has_aggregate_expression_internal(right.as_ref())
+            }
             Expression::Function { args, .. } => {
                 args.iter().any(|arg| self.has_aggregate_expression_internal(arg))
             }
-            Expression::List(items) => items.iter().any(|item| self.has_aggregate_expression_internal(item)),
-            Expression::Map(pairs) => {
-                pairs.iter().any(|(_, value)| self.has_aggregate_expression_internal(value))
+            Expression::List(items) => {
+                items.iter().any(|item| self.has_aggregate_expression_internal(item))
             }
+            Expression::Map(items) => items
+                .iter()
+                .any(|(_, value)| self.has_aggregate_expression_internal(value)),
             Expression::Case {
                 test_expr,
                 conditions,
                 default,
             } => {
-                test_expr.as_ref().map_or(false, |test| self.has_aggregate_expression_internal(test)) ||
-                conditions.iter().any(|(when_expression, then_expression)| {
-                    self.has_aggregate_expression_internal(when_expression) || self.has_aggregate_expression_internal(then_expression)
-                }) || default.as_ref().map_or(false, |d| self.has_aggregate_expression_internal(d))
+                test_expr.as_ref().map_or(false, |expr| self.has_aggregate_expression_internal(expr))
+                    || conditions.iter().any(|(cond, val)| {
+                        self.has_aggregate_expression_internal(cond)
+                            || self.has_aggregate_expression_internal(val)
+                    })
+                    || default.as_ref().map_or(false, |d| self.has_aggregate_expression_internal(d))
             }
-            Expression::Property { object, .. } => self.has_aggregate_expression_internal(object),
-            Expression::Subscript { collection, index } => {
-                self.has_aggregate_expression_internal(collection) || self.has_aggregate_expression_internal(index)
-            }
-            Expression::Range {
-                collection,
-                start,
-                end,
-            } => {
-                self.has_aggregate_expression_internal(collection)
-                    || start.as_ref().map_or(false, |s| self.has_aggregate_expression_internal(s))
-                    || end.as_ref().map_or(false, |e| self.has_aggregate_expression_internal(e))
-            }
-            Expression::Path(items) => items.iter().any(|item| self.has_aggregate_expression_internal(item)),
-            Expression::TypeCast { expression, .. } => self.has_aggregate_expression_internal(expression),
             _ => false,
         }
     }
 
-    /// 验证分组键类型
     pub fn validate_group_key_type<C: ExpressionValidationContext>(
         &self,
-        group_key: &crate::core::types::expression::contextual::ContextualExpression,
+        expression: &Expression,
         context: &C,
     ) -> Result<(), ValidationError> {
-        if let Some(expr) = group_key.expression() {
-            self.validate_group_key_type_internal(&expr, context)
-        } else {
-            Ok(())
-        }
+        self.validate_group_key_type_internal(expression, context)
     }
 
-    /// 内部方法：验证分组键类型
-    pub fn validate_group_key_type_internal<C: ExpressionValidationContext>(
+    fn validate_group_key_type_internal<C: ExpressionValidationContext>(
         &self,
-        group_key: &Expression,
-        context: &C,
+        expression: &Expression,
+        _context: &C,
     ) -> Result<(), ValidationError> {
-        let key_type = self.deduce_expression_type_full(group_key, context);
-        
-        match key_type {
-            DataType::Int
-            | DataType::Float
-            | DataType::String
-            | DataType::Bool
-            | DataType::Date
-            | DataType::Time
-            | DataType::DateTime => Ok(()),
+        match expression {
+            Expression::Literal(_) | Expression::Variable(_) | Expression::Property { .. } => {
+                Ok(())
+            }
+            Expression::Binary { left, right, .. } => {
+                self.validate_group_key_type_internal(left.as_ref(), _context)?;
+                self.validate_group_key_type_internal(right.as_ref(), _context)
+            }
+            Expression::Unary { operand, .. } => {
+                self.validate_group_key_type_internal(operand.as_ref(), _context)
+            }
             _ => Err(ValidationError::new(
-                format!(
-                    "分组键的类型 {:?} 不支持，只支持基本类型",
-                    key_type
-                ),
-                ValidationErrorType::TypeError,
+                "GROUP BY 键必须是有效的表达式".to_string(),
+                ValidationErrorType::SemanticError,
             )),
         }
     }
+}
 
-    /// 从 DataType 转换为 ValueType
-    pub fn value_type_def_to_value_type(type_def: &DataType) -> ValueType {
-        match type_def {
-            DataType::Empty => ValueType::Unknown,
-            DataType::Null => ValueType::Null,
-            DataType::Bool => ValueType::Bool,
-            DataType::Int => ValueType::Int,
-            DataType::Float => ValueType::Float,
-            DataType::String => ValueType::String,
-            DataType::Date => ValueType::Date,
-            DataType::Time => ValueType::Time,
-            DataType::DateTime => ValueType::DateTime,
-            DataType::Vertex => ValueType::Vertex,
-            DataType::Edge => ValueType::Edge,
-            DataType::Path => ValueType::Path,
-            DataType::List => ValueType::List,
-            DataType::Map => ValueType::Map,
-            DataType::Set => ValueType::Set,
-            _ => ValueType::Unknown,
-        }
-    }
-
-    /// 从 ValueType 转换为 DataType
-    pub fn value_type_to_value_type_def(type_: &ValueType) -> DataType {
-        match type_ {
-            ValueType::Unknown => DataType::Empty,
-            ValueType::Bool => DataType::Bool,
-            ValueType::Int => DataType::Int,
-            ValueType::Float => DataType::Float,
-            ValueType::String => DataType::String,
-            ValueType::Date => DataType::Date,
-            ValueType::Time => DataType::Time,
-            ValueType::DateTime => DataType::DateTime,
-            ValueType::Vertex => DataType::Vertex,
-            ValueType::Edge => DataType::Edge,
-            ValueType::Path => DataType::Path,
-            ValueType::List => DataType::List,
-            ValueType::Map => DataType::Map,
-            ValueType::Set => DataType::Set,
-            ValueType::Null => DataType::Null,
-        }
-    }
-
-    /// 完整的表达式类型推导（增强版）
-    pub fn deduce_expr_type(&self, expression: &Expression) -> ValueType {
-        match expression {
-            Expression::Literal(value) => {
-                Self::value_type_def_to_value_type(&value.get_type())
-            }
-            Expression::Variable(_) => {
-                ValueType::Unknown
-            }
-            Expression::Property { object, property: _ } => {
-                self.deduce_expr_type(object)
-            }
-            Expression::Binary { op, left, right } => {
-                let left_type = self.deduce_expr_type(left);
-                let right_type = self.deduce_expr_type(right);
-                self.deduce_binary_expr_type_enhanced(op, &left_type, &right_type)
-            }
-            Expression::Unary { op, operand } => {
-                let operand_type = self.deduce_expr_type(operand);
-                self.deduce_unary_expr_type_enhanced(op, &operand_type)
-            }
-            Expression::Function { name, args } => {
-                self.deduce_function_type_enhanced(name, args)
-            }
-            Expression::Aggregate { func, arg: _, distinct: _ } => {
-                self.deduce_aggregate_type_enhanced(func)
-            }
-            Expression::List(_) => {
-                ValueType::List
-            }
-            Expression::Map(_) => ValueType::Map,
-            Expression::Case { test_expr, conditions, default } => {
-                if let Some(test_expression) = test_expr {
-                    let test_type = self.deduce_expr_type(test_expression);
-                    if test_type != ValueType::Unknown {
-                        return test_type;
-                    }
-                }
-                for (_, then_expression) in conditions {
-                    let then_type = self.deduce_expr_type(then_expression);
-                    if then_type != ValueType::Unknown {
-                        return then_type;
-                    }
-                }
-                if let Some(default_expression) = default {
-                    return self.deduce_expr_type(default_expression);
-                }
-                ValueType::Unknown
-            }
-            Expression::TypeCast { expression: _, target_type: _ } => {
-                ValueType::Unknown
-            }
-            Expression::Subscript { collection, index: _ } => {
-                self.deduce_expr_type(collection)
-            }
-            Expression::Range { collection, start: _, end: _ } => {
-                self.deduce_expr_type(collection)
-            }
-            Expression::Path(_) => ValueType::Path,
-            Expression::Label(_) => ValueType::String,
-            Expression::ListComprehension { .. } => ValueType::List,
-            Expression::LabelTagProperty { .. } => ValueType::Unknown,
-            Expression::TagProperty { .. } => ValueType::Unknown,
-            Expression::EdgeProperty { .. } => ValueType::Unknown,
-            Expression::Predicate { .. } => ValueType::Bool,
-            Expression::Reduce { .. } => ValueType::Unknown,
-            Expression::PathBuild(_) => ValueType::Path,
-            Expression::Parameter(_) => ValueType::Unknown,
-        }
-    }
-
-    /// 增强版二元表达式类型推导
-    pub fn deduce_binary_expr_type_enhanced(
-        &self,
-        op: &BinaryOperator,
-        left_type: &ValueType,
-        right_type: &ValueType,
-    ) -> ValueType {
-        if op.is_arithmetic() {
-            if *left_type == ValueType::Int && *right_type == ValueType::Int {
-                ValueType::Int
-            } else if matches!(*left_type, ValueType::Int | ValueType::Float)
-                && matches!(*right_type, ValueType::Int | ValueType::Float) {
-                ValueType::Float
-            } else {
-                ValueType::Unknown
-            }
-        } else if op.is_comparison() {
-            ValueType::Bool
-        } else if op.is_logical() {
-            ValueType::Bool
-        } else if matches!(
-            op,
-            BinaryOperator::StringConcat
-                | BinaryOperator::Like
-                | BinaryOperator::Contains
-                | BinaryOperator::StartsWith
-                | BinaryOperator::EndsWith
-        ) {
-            ValueType::String
-        } else {
-            ValueType::Unknown
-        }
-    }
-
-    /// 增强版一元表达式类型推导
-    pub fn deduce_unary_expr_type_enhanced(
-        &self,
-        op: &UnaryOperator,
-        operand_type: &ValueType,
-    ) -> ValueType {
-        match op {
-            UnaryOperator::Plus => operand_type.clone(),
-            UnaryOperator::Minus => operand_type.clone(),
-            UnaryOperator::Not => ValueType::Bool,
-            UnaryOperator::IsNull => ValueType::Bool,
-            UnaryOperator::IsNotNull => ValueType::Bool,
-            UnaryOperator::IsEmpty => ValueType::Bool,
-            UnaryOperator::IsNotEmpty => ValueType::Bool,
-        }
-    }
-
-    /// 增强版函数返回类型推导
-    pub fn deduce_function_type_enhanced(&self, name: &str, args: &[Expression]) -> ValueType {
-        let name_lower = name.to_lowercase();
-        match name_lower.as_str() {
-            "id" => ValueType::String,
-            "count" | "sum" | "avg" | "min" | "max" => ValueType::Float,
-            "length" | "size" => ValueType::Int,
-            "to_string" | "string" => ValueType::String,
-            "to_int" | "to_integer" | "int" => ValueType::Int,
-            "to_float" | "to_double" | "float" => ValueType::Float,
-            "abs" => ValueType::Float,
-            "floor" | "ceil" | "round" => ValueType::Int,
-            "sqrt" | "exp" | "log" => ValueType::Float,
-            "now" => ValueType::DateTime,
-            "date" | "datetime" => ValueType::DateTime,
-            "head" | "tail" | "last" => {
-                if !args.is_empty() {
-                    self.deduce_expr_type(&args[0])
-                } else {
-                    ValueType::Unknown
-                }
-            }
-            "keys" => ValueType::List,
-            "properties" => ValueType::Map,
-            "labels" => ValueType::List,
-            "type" => ValueType::String,
-            "rank" => ValueType::Int,
-            "src" | "dst" => ValueType::String,
-            _ => ValueType::Unknown,
-        }
-    }
-
-    /// 增强版聚合函数类型推导
-    pub fn deduce_aggregate_type_enhanced(&self, func: &AggregateFunction) -> ValueType {
-        match func {
-            AggregateFunction::Count(_) => ValueType::Int,
-            AggregateFunction::Sum(_) => ValueType::Float,
-            AggregateFunction::Avg(_) => ValueType::Float,
-            AggregateFunction::Min(_) => ValueType::Unknown,
-            AggregateFunction::Max(_) => ValueType::Unknown,
-            AggregateFunction::Collect(_) => ValueType::List,
-            AggregateFunction::CollectSet(_) => ValueType::Set,
-            AggregateFunction::Distinct(_) => ValueType::Set,
-            AggregateFunction::Percentile(_, _) => ValueType::Float,
-            AggregateFunction::Std(_) => ValueType::Float,
-            AggregateFunction::BitAnd(_) | AggregateFunction::BitOr(_) => ValueType::Int,
-            AggregateFunction::GroupConcat(_, _) => ValueType::String,
-        }
-    }
-
-    /// 增强版类型兼容性检查
-    pub fn are_types_compatible_enhanced(&self, actual: &ValueType, expected: &ValueType) -> bool {
-        if *actual == *expected {
-            return true;
-        }
-        match (actual, expected) {
-            (ValueType::Int, ValueType::Float) => true,
-            (ValueType::Float, ValueType::Int) => true,
-            (ValueType::Unknown, _) => true,
-            (_, ValueType::Unknown) => true,
-            _ => false,
-        }
-    }
-
-    /// 增强版过滤条件类型验证
-    pub fn validate_filter_type_enhanced(&self, filter: &Expression) -> Result<(), ValidationError> {
-        let filter_type = self.deduce_expr_type(filter);
-        match filter_type {
-            ValueType::Bool => Ok(()),
-            ValueType::Null | ValueType::Unknown => Ok(()),
-            _ => Err(ValidationError::new(
-                format!("过滤条件必须返回布尔类型，实际返回 {:?}", filter_type),
-                ValidationErrorType::TypeError,
-            )),
-        }
-    }
-
-    /// 表达式常量折叠（增强版）
-    pub fn fold_constant_expr_enhanced(&self, expression: &Expression) -> Option<Expression> {
-        match expression {
-            Expression::Binary { op, left, right } => {
-                if let Some(lit_left) = self.fold_constant_expr_enhanced(left) {
-                    if let Some(lit_right) = self.fold_constant_expr_enhanced(right) {
-                        return self.evaluate_binary_expr_enhanced(op, &lit_left, &lit_right);
-                    }
-                }
-                None
-            }
-            Expression::Unary { op, operand } => {
-                if let Some(lit_operand) = self.fold_constant_expr_enhanced(operand) {
-                    return self.evaluate_unary_expr_enhanced(op, &lit_operand);
-                }
-                None
-            }
-            _ => None,
-        }
-    }
-
-    /// 计算二元表达式的常量值（增强版）
-    fn evaluate_binary_expr_enhanced(
-        &self,
-        op: &BinaryOperator,
-        left: &Expression,
-        right: &Expression,
-    ) -> Option<Expression> {
-        match (left, right) {
-            (Expression::Literal(l), Expression::Literal(r)) => {
-                let result = self.compute_binary_op_enhanced(op, l, r)?;
-                Some(Expression::Literal(result))
-            }
-            _ => None,
-        }
-    }
-
-    /// 计算一元表达式的常量值（增强版）
-    fn evaluate_unary_expr_enhanced(&self, op: &UnaryOperator, operand: &Expression) -> Option<Expression> {
-        if let Expression::Literal(val) = operand {
-            let result = self.compute_unary_op_enhanced(op, val)?;
-            Some(Expression::Literal(result))
-        } else {
-            None
-        }
-    }
-
-    /// 计算二元操作（增强版）
-    fn compute_binary_op_enhanced(
-        &self,
-        op: &BinaryOperator,
-        left: &Value,
-        right: &Value,
-    ) -> Option<Value> {
-        if op.is_arithmetic() {
-            match (left, right) {
-                (Value::Int(l), Value::Int(r)) => Some(Value::Int(l + r)),
-                (Value::Float(l), Value::Float(r)) => Some(Value::Float(l + r)),
-                (Value::Int(l), Value::Float(r)) => Some(Value::Float(*l as f64 + r)),
-                (Value::Float(l), Value::Int(r)) => Some(Value::Float(l + *r as f64)),
-                _ => None,
-            }
-        } else {
-            None
-        }
-    }
-
-    /// 计算一元操作（增强版）
-    fn compute_unary_op_enhanced(&self, op: &UnaryOperator, val: &Value) -> Option<Value> {
-        match op {
-            UnaryOperator::Minus => {
-                match val {
-                    Value::Int(n) => Some(Value::Int(-n)),
-                    Value::Float(n) => Some(Value::Float(-n)),
-                    _ => None,
-                }
-            }
-            UnaryOperator::Not => {
-                match val {
-                    Value::Bool(b) => Some(Value::Bool(!b)),
-                    _ => None,
-                }
-            }
-            _ => None,
-        }
-    }
+pub fn deduce_expression_type(expression: &Expression) -> DataType {
+    expression.deduce_type()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::Value;
+    use crate::core::types::expression::Expression;
 
     #[test]
-    fn test_type_validator_creation() {
-        let _type_validator = TypeValidator::new();
-        assert!(true);
+    fn test_deduce_literal_type() {
+        let expr = Expression::int(42);
+        let validator = TypeDeduceValidator::new();
+        let ctx = crate::query::validator::structs::YieldClauseContext::default();
+        let data_type = validator.deduce_type(&crate::core::types::expression::contextual::ContextualExpression::new(expr));
+        assert_eq!(data_type, DataType::Int);
     }
 
     #[test]
-    fn test_validate_literal_type() {
-        let type_validator = TypeValidator::new();
-        let literal_expression = Expression::Literal(Value::Bool(true));
-        let context = crate::query::validator::structs::common_structs::ValidationContextImpl::new();
-        
-        let result = type_validator.validate_expression_type(&literal_expression, &context, DataType::Bool);
-        assert!(result.is_ok());
-        
-        let result = type_validator.validate_expression_type(&literal_expression, &context, DataType::Int);
-        assert!(result.is_err());
+    fn test_deduce_binary_type() {
+        let expr = Expression::add(Expression::int(1), Expression::int(2));
+        let validator = TypeDeduceValidator::new();
+        let data_type = validator.deduce_type(&crate::core::types::expression::contextual::ContextualExpression::new(expr));
+        assert_eq!(data_type, DataType::Int);
     }
 
     #[test]
-    fn test_deduce_binary_expr_type() {
-        let type_validator = TypeValidator::new();
-        let op = crate::core::BinaryOperator::Equal;
-        let left_type = DataType::Int;
-        let right_type = DataType::Int;
-        
-        let result = type_validator.deduce_binary_expr_type(&op, &left_type, &right_type);
-        assert_eq!(result, DataType::Bool);
-    }
-
-    #[test]
-    fn test_deduce_aggregate_return_type() {
-        let type_validator = TypeValidator::new();
-        
-        let count_type = type_validator.deduce_aggregate_return_type(&crate::core::AggregateFunction::Count(None));
-        assert_eq!(count_type, DataType::Int);
-        
-        let sum_type = type_validator.deduce_aggregate_return_type(&crate::core::AggregateFunction::Sum("value".to_string()));
-        assert_eq!(sum_type, DataType::Float);
-        
-        let avg_type = type_validator.deduce_aggregate_return_type(&crate::core::AggregateFunction::Avg("value".to_string()));
-        assert_eq!(avg_type, DataType::Float);
-        
-        let collect_type = type_validator.deduce_aggregate_return_type(&crate::core::AggregateFunction::Collect("value".to_string()));
-        assert_eq!(collect_type, DataType::List);
-    }
-
-    #[test]
-    fn test_are_types_compatible() {
-        let type_validator = TypeValidator::new();
-
-        assert!(type_validator.are_types_compatible(&DataType::Int, &DataType::Int));
-        assert!(type_validator.are_types_compatible(&DataType::Int, &DataType::Float));
-        assert!(type_validator.are_types_compatible(&DataType::Float, &DataType::Int));
-        assert!(type_validator.are_types_compatible(&DataType::Empty, &DataType::Int));
-        assert!(type_validator.are_types_compatible(&DataType::String, &DataType::Empty));
+    fn test_deduce_variable_type() {
+        let expr = Expression::variable("x");
+        let validator = TypeDeduceValidator::new();
+        let data_type = validator.deduce_type(&crate::core::types::expression::contextual::ContextualExpression::new(expr));
+        assert_eq!(data_type, DataType::Empty);
     }
 }

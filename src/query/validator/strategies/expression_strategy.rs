@@ -8,8 +8,8 @@ use crate::query::validator::structs::{
     ReturnClauseContext, WithClauseContext, UnwindClauseContext, YieldClauseContext,
 };
 
-use super::type_inference::TypeValidator;
-use super::variable_validator::VariableValidator;
+use super::helpers::TypeValidator;
+use super::helpers::VariableChecker;
 use super::expression_operations::ExpressionOperationsValidator;
 
 /// 表达式验证策略
@@ -40,7 +40,7 @@ impl ExpressionValidationStrategy {
             }
 
             // 验证表达式中的变量引用
-            let var_validator = VariableValidator::new();
+            let var_validator = VariableChecker::new();
             var_validator.validate_expression_variables(filter, &context.aliases_available)?;
 
             // 验证表达式操作
@@ -72,7 +72,7 @@ impl ExpressionValidationStrategy {
             }
 
             // 验证路径中的变量引用
-            let var_validator = VariableValidator::new();
+            let var_validator = VariableChecker::new();
             var_validator.validate_expression_variables(path, &context.aliases_available)?;
         }
 
@@ -108,7 +108,7 @@ impl ExpressionValidationStrategy {
             }
 
             // 验证表达式中的变量引用
-            let var_validator = VariableValidator::new();
+            let var_validator = VariableChecker::new();
             var_validator.validate_expression_variables(return_expression, &context.aliases_available)?;
         }
 
@@ -156,7 +156,7 @@ impl ExpressionValidationStrategy {
             }
 
             // 验证表达式中的变量引用
-            let var_validator = VariableValidator::new();
+            let var_validator = VariableChecker::new();
             var_validator.validate_expression_variables(unwind_expression, &context.aliases_available)?;
         }
 
@@ -167,7 +167,7 @@ impl ExpressionValidationStrategy {
     pub fn validate_yield(&self, context: &YieldClauseContext) -> Result<(), ValidationError> {
         // 验证每个Yield列
         let type_validator = TypeValidator;
-        let var_validator = VariableValidator::new();
+        let var_validator = VariableChecker::new();
 
         for column in &context.yield_columns {
             // 从 ContextualExpression 获取 Expression
@@ -220,7 +220,7 @@ impl ExpressionValidationStrategy {
             }
 
             // 验证路径模式中的变量引用
-            let var_validator = VariableValidator::new();
+            let var_validator = VariableChecker::new();
             var_validator.validate_expression_variables(pattern, &context.aliases_available)?;
         }
 
