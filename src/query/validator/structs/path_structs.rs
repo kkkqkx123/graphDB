@@ -78,9 +78,9 @@ pub struct EdgeInfo {
     pub alias: String,
     pub inner_alias: String, // 内部别名
     pub types: Vec<String>,
-    pub props: Option<Expression>,
+    pub props: Option<ContextualExpression>,
     pub anonymous: bool,
-    pub filter: Option<Expression>,    // 边过滤条件
+    pub filter: Option<ContextualExpression>,    // 边过滤条件
     pub direction: Direction,          // 边方向
     pub range: Option<MatchStepRange>, // 步数范围
     pub edge_types: Vec<i32>,          // 边类型ID

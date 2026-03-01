@@ -1,7 +1,7 @@
 //! 分页验证策略
 //! 负责验证SKIP、LIMIT和分页相关的表达式
 
-use crate::core::Expression;
+use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::YieldColumn;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::core::types::expression::utils::is_evaluable;
@@ -18,8 +18,8 @@ impl PaginationValidationStrategy {
     /// 验证分页参数的有效性
     pub fn validate_pagination(
         &self,
-        skip_expression: Option<&Expression>,
-        limit_expression: Option<&Expression>,
+        skip_expression: Option<&ContextualExpression>,
+        limit_expression: Option<&ContextualExpression>,
         context: &PaginationContext,
     ) -> Result<(), ValidationError> {
         // 验证分页参数的有效性
@@ -52,7 +52,23 @@ impl PaginationValidationStrategy {
     /// 验证分页表达式
     fn validate_pagination_expression(
         &self,
-        expression: &Expression,
+        expression: &ContextualExpression,
+        clause_name: &str,
+    ) -> Result<(), ValidationError> {
+        if let Some(expr) = expression.expression() {
+            self.validate_pagination_expression_internal(&expr, clause_name)
+        } else {
+            Err(ValidationError::new(
+                format!("{}表达式无效", clause_name),
+                ValidationErrorType::PaginationError,
+            ))
+        }
+    }
+
+    /// 内部方法：验证分页表达式
+    fn validate_pagination_expression_internal(
+        &self,
+        expression: &crate::core::types::expression::Expression,
         clause_name: &str,
     ) -> Result<(), ValidationError> {
         if !is_evaluable(expression) {
@@ -63,7 +79,7 @@ impl PaginationValidationStrategy {
         }
 
         match expression {
-            Expression::Literal(crate::core::Value::Int(n)) => {
+            crate::core::types::expression::Expression::Literal(crate::core::Value::Int(n)) => {
                 if *n >= 0 {
                     Ok(())
                 } else {
@@ -73,7 +89,7 @@ impl PaginationValidationStrategy {
                     ))
                 }
             }
-            Expression::Literal(_) => Err(ValidationError::new(
+            crate::core::types::expression::Expression::Literal(_) => Err(ValidationError::new(
                 format!("{}表达式必须求值为整数类型", clause_name),
                 ValidationErrorType::PaginationError,
             )),
@@ -123,7 +139,7 @@ impl PaginationValidationStrategy {
     /// 验证排序子句
     pub fn validate_order_by(
         &self,
-        _factors: &[Expression], // 排序因子
+        _factors: &[ContextualExpression], // 排序因子
         yield_columns: &[YieldColumn],
         context: &OrderByClauseContext,
     ) -> Result<(), ValidationError> {

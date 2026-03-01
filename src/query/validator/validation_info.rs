@@ -5,7 +5,7 @@
 
 use std::collections::HashMap;
 
-use crate::core::Expression;
+use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::Span;
 
 use super::structs::AliasType;
@@ -93,14 +93,14 @@ impl ValidationInfo {
 
     /// 添加表达式类型
     /// 使用表达式字符串表示作为键
-    pub fn add_expr_type(&mut self, expr: &Expression, value_type: ValueType) {
-        let expr_str = format!("{:?}", expr);
+    pub fn add_expr_type(&mut self, expr: &ContextualExpression, value_type: ValueType) {
+        let expr_str = expr.to_expression_string();
         self.expr_types.insert(expr_str, value_type);
     }
 
     /// 根据表达式字符串获取类型
-    pub fn get_expr_type(&self, expr: &Expression) -> Option<&ValueType> {
-        let expr_str = format!("{:?}", expr);
+    pub fn get_expr_type(&self, expr: &ContextualExpression) -> Option<&ValueType> {
+        let expr_str = expr.to_expression_string();
         self.expr_types.get(&expr_str)
     }
 
@@ -194,7 +194,7 @@ pub enum OptimizationHint {
     UseIndexScan {
         table: String,
         column: String,
-        condition: Expression,
+        condition: ContextualExpression,
     },
     /// 建议限制结果数量
     LimitResults {
@@ -203,7 +203,7 @@ pub enum OptimizationHint {
     },
     /// 建议预过滤
     PreFilter {
-        condition: Expression,
+        condition: ContextualExpression,
         selectivity: f64,
     },
     /// 建议连接顺序
@@ -236,7 +236,7 @@ pub struct IndexHint {
     /// 索引列
     pub columns: Vec<String>,
     /// 适用条件
-    pub applicable_conditions: Vec<Expression>,
+    pub applicable_conditions: Vec<ContextualExpression>,
     /// 预估选择性
     pub estimated_selectivity: f64,
 }
@@ -285,7 +285,7 @@ pub struct AggregateCallInfo {
     /// 函数名
     pub function_name: String,
     /// 参数表达式
-    pub arguments: Vec<Expression>,
+    pub arguments: Vec<ContextualExpression>,
     /// 是否去重
     pub distinct: bool,
     /// 别名

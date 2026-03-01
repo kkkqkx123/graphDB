@@ -2,7 +2,7 @@
 //! 负责验证聚合函数的使用和检查表达式是否包含聚合
 
 use crate::core::types::operators::AggregateFunction;
-use crate::core::Expression;
+use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::error::{ValidationError, ValidationErrorType};
 
 /// 聚合验证策略
@@ -14,30 +14,45 @@ impl AggregateValidationStrategy {
     }
 
     /// 检查表达式是否包含聚合函数
-    pub fn has_aggregate_expression(&self, expression: &Expression) -> bool {
+    pub fn has_aggregate_expression(&self, expression: &ContextualExpression) -> bool {
+        if let Some(expr) = expression.expression() {
+            self.has_aggregate_expression_internal(&expr)
+        } else {
+            false
+        }
+    }
+
+    /// 内部方法：检查 Expression 是否包含聚合函数
+    fn has_aggregate_expression_internal(&self, expression: &crate::core::types::expression::Expression) -> bool {
         match expression {
-            Expression::Aggregate { .. } => true,
-            Expression::Unary { operand, .. } => self.has_aggregate_expression(operand.as_ref()),
-            Expression::Binary { left, right, .. } => {
-                self.has_aggregate_expression(left.as_ref()) || self.has_aggregate_expression(right.as_ref())
+            crate::core::types::expression::Expression::Aggregate { .. } => true,
+            crate::core::types::expression::Expression::Unary { operand, .. } => {
+                self.has_aggregate_expression_internal(operand.as_ref())
             }
-            Expression::Function { args, .. } => {
-                args.iter().any(|arg| self.has_aggregate_expression(arg))
+            crate::core::types::expression::Expression::Binary { left, right, .. } => {
+                self.has_aggregate_expression_internal(left.as_ref())
+                    || self.has_aggregate_expression_internal(right.as_ref())
             }
-            Expression::List(items) => items.iter().any(|item| self.has_aggregate_expression(item)),
-            Expression::Map(items) => items
+            crate::core::types::expression::Expression::Function { args, .. } => {
+                args.iter().any(|arg| self.has_aggregate_expression_internal(arg))
+            }
+            crate::core::types::expression::Expression::List(items) => {
+                items.iter().any(|item| self.has_aggregate_expression_internal(item))
+            }
+            crate::core::types::expression::Expression::Map(items) => items
                 .iter()
-                .any(|(_, value)| self.has_aggregate_expression(value)),
-            Expression::Case {
+                .any(|(_, value)| self.has_aggregate_expression_internal(value)),
+            crate::core::types::expression::Expression::Case {
                 test_expr,
                 conditions,
                 default,
             } => {
-                test_expr.as_ref().map_or(false, |expr| self.has_aggregate_expression(expr))
+                test_expr.as_ref().map_or(false, |expr| self.has_aggregate_expression_internal(expr))
                     || conditions.iter().any(|(cond, val)| {
-                        self.has_aggregate_expression(cond) || self.has_aggregate_expression(val)
+                        self.has_aggregate_expression_internal(cond)
+                            || self.has_aggregate_expression_internal(val)
                     })
-                    || default.as_ref().map_or(false, |d| self.has_aggregate_expression(d))
+                    || default.as_ref().map_or(false, |d| self.has_aggregate_expression_internal(d))
             }
             _ => false,
         }
@@ -46,7 +61,7 @@ impl AggregateValidationStrategy {
     /// 验证UNWIND子句中不允许使用聚合函数
     pub fn validate_unwind_aggregate(
         &self,
-        unwind_expression: &Expression,
+        unwind_expression: &ContextualExpression,
     ) -> Result<(), ValidationError> {
         if self.has_aggregate_expression(unwind_expression) {
             return Err(ValidationError::new(
@@ -63,9 +78,21 @@ impl AggregateValidationStrategy {
     /// 2. 是否有聚合函数嵌套
     /// 3. 特殊属性（*）是否只用于COUNT
     /// 4. 参数表达式是否合法
-    pub fn validate_aggregate_expression(&self, expression: &Expression) -> Result<(), ValidationError> {
+    pub fn validate_aggregate_expression(&self, expression: &ContextualExpression) -> Result<(), ValidationError> {
+        if let Some(expr) = expression.expression() {
+            self.validate_aggregate_expression_internal(&expr)
+        } else {
+            Ok(())
+        }
+    }
+
+    /// 内部方法：验证聚合表达式的合法性
+    fn validate_aggregate_expression_internal(
+        &self,
+        expression: &crate::core::types::expression::Expression,
+    ) -> Result<(), ValidationError> {
         match expression {
-            Expression::Aggregate {
+            crate::core::types::expression::Expression::Aggregate {
                 func,
                 arg,
                 distinct: _,
@@ -75,7 +102,7 @@ impl AggregateValidationStrategy {
                 // 暂时跳过这个检查，因为枚举值总是有效的
 
                 // 2. 检查聚合函数嵌套 - 不允许聚合函数中包含聚合函数
-                if self.has_aggregate_expression(arg) {
+                if self.has_aggregate_expression_internal(arg) {
                     return Err(ValidationError::new(
                         "不允许聚合函数嵌套".to_string(),
                         ValidationErrorType::AggregateError,
@@ -107,7 +134,7 @@ impl AggregateValidationStrategy {
     fn validate_wildcard_property(
         &self,
         func: &AggregateFunction,
-        expression: &Expression,
+        expression: &crate::core::types::expression::Expression,
     ) -> Result<(), ValidationError> {
         let is_count = matches!(func, AggregateFunction::Count(_));
         
@@ -115,9 +142,9 @@ impl AggregateValidationStrategy {
             return Ok(());
         }
         
-        if let Expression::Property { object, property } = expression {
+        if let crate::core::types::expression::Expression::Property { object, property } = expression {
             if property == "*" {
-                if let Expression::Variable(var_name) = object.as_ref() {
+                if let crate::core::types::expression::Expression::Variable(var_name) = object.as_ref() {
                     let ref_type = if var_name == "-" {
                         "输入属性"
                     } else {
@@ -146,49 +173,49 @@ impl AggregateValidationStrategy {
     /// 验证规则：
     /// 1. 递归检查所有子表达式的合法性
     /// 2. 确保参数表达式的结构正确
-    fn validate_expression_in_aggregate(&self, expression: &Expression) -> Result<(), ValidationError> {
+    fn validate_expression_in_aggregate(&self, expression: &crate::core::types::expression::Expression) -> Result<(), ValidationError> {
         match expression {
             // 递归检查一元操作（包括各种一元操作符）
-            Expression::Unary { operand, .. } => {
+            crate::core::types::expression::Expression::Unary { operand, .. } => {
                 self.validate_expression_in_aggregate(operand)?;
             }
 
             // 递归检查二元操作
-            Expression::Binary { left, right, .. } => {
+            crate::core::types::expression::Expression::Binary { left, right, .. } => {
                 self.validate_expression_in_aggregate(left)?;
                 self.validate_expression_in_aggregate(right)?;
             }
 
             // 递归检查函数调用参数
-            Expression::Function { args, .. } => {
+            crate::core::types::expression::Expression::Function { args, .. } => {
                 for arg in args {
                     self.validate_expression_in_aggregate(arg)?;
                 }
             }
 
             // 递归检查列表元素
-            Expression::List(items) => {
+            crate::core::types::expression::Expression::List(items) => {
                 for item in items {
                     self.validate_expression_in_aggregate(item)?;
                 }
             }
 
             // 递归检查Map值
-            Expression::Map(items) => {
+            crate::core::types::expression::Expression::Map(items) => {
                 for (_, value) in items {
                     self.validate_expression_in_aggregate(value)?;
                 }
             }
 
             // 递归检查类型转换表达式
-            Expression::TypeCast {
+            crate::core::types::expression::Expression::TypeCast {
                 expression: cast_expression, ..
             } => {
                 self.validate_expression_in_aggregate(cast_expression)?;
             }
 
             // 递归检查CASE表达式
-            Expression::Case {
+            crate::core::types::expression::Expression::Case {
                 test_expr,
                 conditions,
                 default,

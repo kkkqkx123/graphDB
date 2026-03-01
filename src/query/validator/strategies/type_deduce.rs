@@ -3,6 +3,7 @@
 //! 本模块实现表达式类型推导功能，类似于 nebula-graph 的 DeduceTypeVisitor。
 //! 用于在验证阶段推导表达式的返回类型，并检查类型兼容性。
 
+use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::expression::Expression;
 use crate::core::types::DataType;
 
@@ -47,8 +48,12 @@ impl TypeDeduceValidator {
     /// # 返回
     ///
     /// 返回推导出的数据类型。如果无法确定，返回 DataType::Empty。
-    pub fn deduce_type(&self, expression: &Expression) -> DataType {
-        expression.deduce_type()
+    pub fn deduce_type(&self, expression: &ContextualExpression) -> DataType {
+        if let Some(expr) = expression.expression() {
+            expr.deduce_type()
+        } else {
+            DataType::Empty
+        }
     }
 }
 

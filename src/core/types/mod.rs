@@ -75,13 +75,13 @@ pub use EdgeTypeInfo as EdgeTypeSchema;
 /// 表示YIELD子句中的一个输出列
 #[derive(Debug, Clone)]
 pub struct YieldColumn {
-    pub expression: Expression,
+    pub expression: crate::core::types::expression::contextual::ContextualExpression,
     pub alias: String,
     pub is_matched: bool,
 }
 
 impl YieldColumn {
-    pub fn new(expression: Expression, alias: String) -> Self {
+    pub fn new(expression: crate::core::types::expression::contextual::ContextualExpression, alias: String) -> Self {
         Self {
             expression,
             alias,

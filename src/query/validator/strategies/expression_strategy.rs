@@ -1,3 +1,4 @@
+use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::types::expression::Expression;
 use crate::core::DataType;
 use crate::core::YieldColumn;
@@ -22,27 +23,30 @@ impl ExpressionValidationStrategy {
     /// 验证过滤条件
     pub fn validate_filter(
         &self,
-        filter: &Expression,
+        filter: &ContextualExpression,
         context: &WhereClauseContext,
     ) -> Result<(), ValidationError> {
-        // 过滤条件必须是布尔类型或可转换为布尔类型
-        let type_validator = TypeValidator;
-        let filter_type = type_validator.deduce_expression_type_full(filter, context);
+        // 从 ContextualExpression 获取 Expression
+        if let Some(expr) = filter.expression() {
+            // 过滤条件必须是布尔类型或可转换为布尔类型
+            let type_validator = TypeValidator;
+            let filter_type = type_validator.deduce_expression_type_full(&expr, context);
 
-        if !type_validator.are_types_compatible(&filter_type, &DataType::Bool) {
-            return Err(ValidationError::new(
-                format!("过滤条件必须是布尔类型，当前类型为 {:?}", filter_type),
-                ValidationErrorType::TypeError,
-            ));
+            if !type_validator.are_types_compatible(&filter_type, &DataType::Bool) {
+                return Err(ValidationError::new(
+                    format!("过滤条件必须是布尔类型，当前类型为 {:?}", filter_type),
+                    ValidationErrorType::TypeError,
+                ));
+            }
+
+            // 验证表达式中的变量引用
+            let var_validator = VariableValidator::new();
+            var_validator.validate_expression_variables(filter, &context.aliases_available)?;
+
+            // 验证表达式操作
+            let expr_validator = ExpressionOperationsValidator::new();
+            expr_validator.validate_expression_operations(&expr)?;
         }
-
-        // 验证表达式中的变量引用
-        let var_validator = VariableValidator::new();
-        var_validator.validate_expression_variables(filter, &context.aliases_available)?;
-
-        // 验证表达式操作
-        let expr_validator = ExpressionOperationsValidator::new();
-        expr_validator.validate_expression_operations(filter)?;
 
         Ok(())
     }
@@ -50,24 +54,27 @@ impl ExpressionValidationStrategy {
     /// 验证Match路径
     pub fn validate_path(
         &self,
-        path: &Expression,
+        path: &ContextualExpression,
         context: &MatchClauseContext,
     ) -> Result<(), ValidationError> {
-        // 验证路径表达式的类型
-        let type_validator = TypeValidator;
-        let path_type = type_validator.deduce_expression_type_full(path, context);
+        // 从 ContextualExpression 获取 Expression
+        if let Some(expr) = path.expression() {
+            // 验证路径表达式的类型
+            let type_validator = TypeValidator;
+            let path_type = type_validator.deduce_expression_type_full(&expr, context);
 
-        // 路径表达式应该是路径类型或可以转换为路径类型
-        if !matches!(path_type, DataType::Path) && !matches!(path_type, DataType::Empty) {
-            return Err(ValidationError::new(
-                format!("路径表达式类型不匹配，期望路径类型，实际为 {:?}", path_type),
-                ValidationErrorType::TypeError,
-            ));
+            // 路径表达式应该是路径类型或可以转换为路径类型
+            if !matches!(path_type, DataType::Path) && !matches!(path_type, DataType::Empty) {
+                return Err(ValidationError::new(
+                    format!("路径表达式类型不匹配，期望路径类型，实际为 {:?}", path_type),
+                    ValidationErrorType::TypeError,
+                ));
+            }
+
+            // 验证路径中的变量引用
+            let var_validator = VariableValidator::new();
+            var_validator.validate_expression_variables(path, &context.aliases_available)?;
         }
-
-        // 验证路径中的变量引用
-        let var_validator = VariableValidator::new();
-        var_validator.validate_expression_variables(path, &context.aliases_available)?;
 
         Ok(())
     }
@@ -75,30 +82,35 @@ impl ExpressionValidationStrategy {
     /// 验证Return子句
     pub fn validate_return(
         &self,
-        return_expression: &Expression,
+        return_expression: &ContextualExpression,
         return_items: &[YieldColumn],
         context: &ReturnClauseContext,
     ) -> Result<(), ValidationError> {
-        // 验证Return表达式的类型
-        let type_validator = TypeValidator;
-        let _return_type = type_validator.deduce_expression_type_full(return_expression, context);
+        // 从 ContextualExpression 获取 Expression
+        if let Some(expr) = return_expression.expression() {
+            // 验证Return表达式的类型
+            let type_validator = TypeValidator;
+            let _return_type = type_validator.deduce_expression_type_full(&expr, context);
 
-        // 检查Return项中的聚合函数使用
-        for item in return_items {
-            if type_validator.has_aggregate_expression(&item.expression) {
-                // 验证聚合函数的使用是否符合上下文
-                if !context.yield_clause.has_agg && context.yield_clause.group_keys.is_empty() {
-                    return Err(ValidationError::new(
-                        "在GROUP BY子句中使用聚合函数时，必须指定GROUP BY键".to_string(),
-                        ValidationErrorType::SemanticError,
-                    ));
+            // 检查Return项中的聚合函数使用
+            for item in return_items {
+                if let Some(item_expr) = item.expression.expression() {
+                    if type_validator.has_aggregate_expression_internal(&item_expr) {
+                        // 验证聚合函数的使用是否符合上下文
+                        if !context.yield_clause.has_agg && context.yield_clause.group_keys.is_empty() {
+                            return Err(ValidationError::new(
+                                "在GROUP BY子句中使用聚合函数时，必须指定GROUP BY键".to_string(),
+                                ValidationErrorType::SemanticError,
+                            ));
+                        }
+                    }
                 }
             }
-        }
 
-        // 验证表达式中的变量引用
-        let var_validator = VariableValidator::new();
-        var_validator.validate_expression_variables(return_expression, &context.aliases_available)?;
+            // 验证表达式中的变量引用
+            let var_validator = VariableValidator::new();
+            var_validator.validate_expression_variables(return_expression, &context.aliases_available)?;
+        }
 
         Ok(())
     }
@@ -106,7 +118,7 @@ impl ExpressionValidationStrategy {
     /// 验证With子句
     pub fn validate_with(
         &self,
-        with_expression: &Expression,
+        with_expression: &ContextualExpression,
         with_items: &[YieldColumn],
         context: &WithClauseContext,
     ) -> Result<(), ValidationError> {
@@ -127,23 +139,26 @@ impl ExpressionValidationStrategy {
     /// 验证Unwind子句
     pub fn validate_unwind(
         &self,
-        unwind_expression: &Expression,
+        unwind_expression: &ContextualExpression,
         context: &UnwindClauseContext,
     ) -> Result<(), ValidationError> {
-        // Unwind表达式必须是列表类型或可迭代类型
-        let type_validator = TypeValidator;
-        let unwind_type = type_validator.deduce_expression_type_full(unwind_expression, context);
+        // 从 ContextualExpression 获取 Expression
+        if let Some(expr) = unwind_expression.expression() {
+            // Unwind表达式必须是列表类型或可迭代类型
+            let type_validator = TypeValidator;
+            let unwind_type = type_validator.deduce_expression_type_full(&expr, context);
 
-        if unwind_type != DataType::List && unwind_type != DataType::Empty {
-            return Err(ValidationError::new(
-                format!("Unwind表达式必须是列表类型，当前类型为 {:?}", unwind_type),
-                ValidationErrorType::TypeError,
-            ));
+            if unwind_type != DataType::List && unwind_type != DataType::Empty {
+                return Err(ValidationError::new(
+                    format!("Unwind表达式必须是列表类型，当前类型为 {:?}", unwind_type),
+                    ValidationErrorType::TypeError,
+                ));
+            }
+
+            // 验证表达式中的变量引用
+            let var_validator = VariableValidator::new();
+            var_validator.validate_expression_variables(unwind_expression, &context.aliases_available)?;
         }
-
-        // 验证表达式中的变量引用
-        let var_validator = VariableValidator::new();
-        var_validator.validate_expression_variables(unwind_expression, &context.aliases_available)?;
 
         Ok(())
     }
@@ -155,26 +170,31 @@ impl ExpressionValidationStrategy {
         let var_validator = VariableValidator::new();
 
         for column in &context.yield_columns {
-            // 验证表达式的类型
-            let _column_type = type_validator.deduce_expression_type_full(&column.expression, context);
+            // 从 ContextualExpression 获取 Expression
+            if let Some(expr) = column.expression.expression() {
+                // 验证表达式的类型
+                let _column_type = type_validator.deduce_expression_type_full(&expr, context);
 
-            // 验证聚合函数的使用
-            if type_validator.has_aggregate_expression(&column.expression) {
-                if !context.has_agg && context.group_keys.is_empty() {
-                    return Err(ValidationError::new(
-                        "在GROUP BY子句中使用聚合函数时，必须指定GROUP BY键".to_string(),
-                        ValidationErrorType::SemanticError,
-                    ));
+                // 验证聚合函数的使用
+                if type_validator.has_aggregate_expression_internal(&expr) {
+                    if !context.has_agg && context.group_keys.is_empty() {
+                        return Err(ValidationError::new(
+                            "在GROUP BY子句中使用聚合函数时，必须指定GROUP BY键".to_string(),
+                            ValidationErrorType::SemanticError,
+                        ));
+                    }
                 }
-            }
 
-            // 验证表达式中的变量引用
-            var_validator.validate_expression_variables(&column.expression, &context.aliases_available)?;
+                // 验证表达式中的变量引用
+                var_validator.validate_expression_variables(&column.expression, &context.aliases_available)?;
+            }
         }
 
         // 验证分组键
         for group_key in &context.group_keys {
-            type_validator.validate_group_key_type(group_key, context)?;
+            if let Some(expr) = group_key.expression() {
+                type_validator.validate_group_key_type_internal(&expr, context)?;
+            }
         }
 
         Ok(())
@@ -183,23 +203,26 @@ impl ExpressionValidationStrategy {
     /// 验证单个路径模式
     pub fn validate_single_path_pattern(
         &self,
-        pattern: &Expression,
+        pattern: &ContextualExpression,
         context: &mut MatchClauseContext,
     ) -> Result<(), ValidationError> {
-        // 验证路径模式的类型
-        let type_validator = TypeValidator;
-        let pattern_type = type_validator.deduce_expression_type_full(pattern, context);
+        // 从 ContextualExpression 获取 Expression
+        if let Some(expr) = pattern.expression() {
+            // 验证路径模式的类型
+            let type_validator = TypeValidator;
+            let pattern_type = type_validator.deduce_expression_type_full(&expr, context);
 
-        if !matches!(pattern_type, DataType::Path) && !matches!(pattern_type, DataType::Empty) {
-            return Err(ValidationError::new(
-                format!("路径模式必须是路径类型，当前类型为 {:?}", pattern_type),
-                ValidationErrorType::TypeError,
-            ));
+            if !matches!(pattern_type, DataType::Path) && !matches!(pattern_type, DataType::Empty) {
+                return Err(ValidationError::new(
+                    format!("路径模式必须是路径类型，当前类型为 {:?}", pattern_type),
+                    ValidationErrorType::TypeError,
+                ));
+            }
+
+            // 验证路径模式中的变量引用
+            let var_validator = VariableValidator::new();
+            var_validator.validate_expression_variables(pattern, &context.aliases_available)?;
         }
-
-        // 验证路径模式中的变量引用
-        let var_validator = VariableValidator::new();
-        var_validator.validate_expression_variables(pattern, &context.aliases_available)?;
 
         Ok(())
     }

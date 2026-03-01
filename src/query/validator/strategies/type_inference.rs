@@ -512,50 +512,68 @@ impl TypeValidator {
 
     /// 检查表达式是否包含聚合函数
     pub fn has_aggregate_expression(&self, expression: &Expression) -> bool {
+        self.has_aggregate_expression_internal(expression)
+    }
+
+    /// 内部方法：检查表达式是否包含聚合函数
+    pub fn has_aggregate_expression_internal(&self, expression: &Expression) -> bool {
         match expression {
             Expression::Aggregate { .. } => true,
             Expression::Binary { left, right, .. } => {
-                self.has_aggregate_expression(left) || self.has_aggregate_expression(right)
+                self.has_aggregate_expression_internal(left) || self.has_aggregate_expression_internal(right)
             }
-            Expression::Unary { operand, .. } => self.has_aggregate_expression(operand),
+            Expression::Unary { operand, .. } => self.has_aggregate_expression_internal(operand),
             Expression::Function { args, .. } => {
-                args.iter().any(|arg| self.has_aggregate_expression(arg))
+                args.iter().any(|arg| self.has_aggregate_expression_internal(arg))
             }
-            Expression::List(items) => items.iter().any(|item| self.has_aggregate_expression(item)),
+            Expression::List(items) => items.iter().any(|item| self.has_aggregate_expression_internal(item)),
             Expression::Map(pairs) => {
-                pairs.iter().any(|(_, value)| self.has_aggregate_expression(value))
+                pairs.iter().any(|(_, value)| self.has_aggregate_expression_internal(value))
             }
             Expression::Case {
                 test_expr,
                 conditions,
                 default,
             } => {
-                test_expr.as_ref().map_or(false, |test| self.has_aggregate_expression(test)) ||
+                test_expr.as_ref().map_or(false, |test| self.has_aggregate_expression_internal(test)) ||
                 conditions.iter().any(|(when_expression, then_expression)| {
-                    self.has_aggregate_expression(when_expression) || self.has_aggregate_expression(then_expression)
-                }) || default.as_ref().map_or(false, |d| self.has_aggregate_expression(d))
+                    self.has_aggregate_expression_internal(when_expression) || self.has_aggregate_expression_internal(then_expression)
+                }) || default.as_ref().map_or(false, |d| self.has_aggregate_expression_internal(d))
             }
-            Expression::Property { object, .. } => self.has_aggregate_expression(object),
+            Expression::Property { object, .. } => self.has_aggregate_expression_internal(object),
             Expression::Subscript { collection, index } => {
-                self.has_aggregate_expression(collection) || self.has_aggregate_expression(index)
+                self.has_aggregate_expression_internal(collection) || self.has_aggregate_expression_internal(index)
             }
             Expression::Range {
                 collection,
                 start,
                 end,
             } => {
-                self.has_aggregate_expression(collection)
-                    || start.as_ref().map_or(false, |s| self.has_aggregate_expression(s))
-                    || end.as_ref().map_or(false, |e| self.has_aggregate_expression(e))
+                self.has_aggregate_expression_internal(collection)
+                    || start.as_ref().map_or(false, |s| self.has_aggregate_expression_internal(s))
+                    || end.as_ref().map_or(false, |e| self.has_aggregate_expression_internal(e))
             }
-            Expression::Path(items) => items.iter().any(|item| self.has_aggregate_expression(item)),
-            Expression::TypeCast { expression, .. } => self.has_aggregate_expression(expression),
+            Expression::Path(items) => items.iter().any(|item| self.has_aggregate_expression_internal(item)),
+            Expression::TypeCast { expression, .. } => self.has_aggregate_expression_internal(expression),
             _ => false,
         }
     }
 
     /// 验证分组键类型
     pub fn validate_group_key_type<C: ExpressionValidationContext>(
+        &self,
+        group_key: &crate::core::types::expression::contextual::ContextualExpression,
+        context: &C,
+    ) -> Result<(), ValidationError> {
+        if let Some(expr) = group_key.expression() {
+            self.validate_group_key_type_internal(&expr, context)
+        } else {
+            Ok(())
+        }
+    }
+
+    /// 内部方法：验证分组键类型
+    pub fn validate_group_key_type_internal<C: ExpressionValidationContext>(
         &self,
         group_key: &Expression,
         context: &C,

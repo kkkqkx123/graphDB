@@ -2,7 +2,7 @@
 
 use super::alias_structs::AliasType;
 use super::path_structs::Path;
-use crate::core::Expression;
+use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::YieldColumn;
 use crate::core::DataType;
 use crate::core::error::ValidationError;
@@ -19,8 +19,8 @@ pub struct MatchClauseContext {
     pub aliases_generated: HashMap<String, AliasType>,
     pub where_clause: Option<WhereClauseContext>,
     pub is_optional: bool,
-    pub skip: Option<Expression>,
-    pub limit: Option<Expression>,
+    pub skip: Option<ContextualExpression>,
+    pub limit: Option<ContextualExpression>,
     pub query_parts: Vec<QueryPart>,
     pub errors: Vec<ValidationError>,
 }
@@ -83,8 +83,8 @@ pub struct YieldClauseContext {
     pub aliases_generated: HashMap<String, AliasType>,
     pub distinct: bool,
     pub has_agg: bool,
-    pub group_keys: Vec<Expression>,
-    pub group_items: Vec<Expression>,
+    pub group_keys: Vec<ContextualExpression>,
+    pub group_items: Vec<ContextualExpression>,
     pub need_gen_project: bool,
     pub agg_output_column_names: Vec<String>,
     pub proj_output_column_names: Vec<String>,
@@ -92,7 +92,7 @@ pub struct YieldClauseContext {
     pub paths: Vec<Path>,
     pub query_parts: Vec<QueryPart>,
     pub errors: Vec<ValidationError>,
-    pub filter_condition: Option<Expression>,
+    pub filter_condition: Option<ContextualExpression>,
     pub skip: Option<usize>,
     pub limit: Option<usize>,
 }

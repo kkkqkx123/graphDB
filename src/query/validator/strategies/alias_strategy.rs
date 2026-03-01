@@ -1,7 +1,7 @@
 //! 别名验证策略
 //! 负责验证表达式中的别名引用和可用性
 
-use crate::core::Expression;
+use crate::core::types::expression::contextual::ContextualExpression;
 use crate::core::error::{ValidationError, ValidationErrorType};
 use crate::query::validator::structs::AliasType;
 use std::collections::HashMap;
@@ -17,7 +17,7 @@ impl AliasValidationStrategy {
     /// 验证表达式列表中的别名
     pub fn validate_aliases(
         &self,
-        exprs: &[Expression],
+        exprs: &[ContextualExpression],
         aliases: &HashMap<String, AliasType>,
     ) -> Result<(), ValidationError> {
         for expression in exprs {
@@ -29,11 +29,169 @@ impl AliasValidationStrategy {
     /// 验证单个表达式中的别名
     pub fn validate_expression_aliases(
         &self,
-        expression: &Expression,
+        expression: &ContextualExpression,
+        aliases: &HashMap<String, AliasType>,
+    ) -> Result<(), ValidationError> {
+        // 从 ContextualExpression 获取 Expression
+        if let Some(expr) = expression.expression() {
+            // 首先检查表达式本身是否引用了一个别名
+            if let Some(alias_name) = self.extract_alias_name_internal(&expr) {
+                if !aliases.contains_key(&alias_name) {
+                    return Err(ValidationError::new(
+                        format!("未定义的变量别名: {}", alias_name),
+                        ValidationErrorType::AliasError,
+                    ));
+                }
+            }
+
+            // 递归验证子表达式
+            self.validate_subexpressions_aliases_internal(&expr, aliases)?;
+        }
+
+        Ok(())
+    }
+
+    /// 从表达式中提取别名名称
+    pub fn extract_alias_name(&self, expression: &ContextualExpression) -> Option<String> {
+        if let Some(expr) = expression.expression() {
+            self.extract_alias_name_internal(&expr)
+        } else {
+            None
+        }
+    }
+
+    /// 内部方法：从表达式中提取别名名称
+    fn extract_alias_name_internal(&self, expression: &crate::core::types::expression::Expression) -> Option<String> {
+        match expression {
+            crate::core::types::expression::Expression::Variable(name) => Some(name.clone()),
+            crate::core::types::expression::Expression::Property { property, .. } => Some(property.clone()),
+            crate::core::types::expression::Expression::Label(name) => Some(name.clone()),
+            crate::core::types::expression::Expression::TagProperty { tag_name, property } => Some(format!("{}.{}", tag_name, property)),
+            crate::core::types::expression::Expression::EdgeProperty { edge_name, property } => Some(format!("{}.{}", edge_name, property)),
+            // 根据实际的表达式类型，可能需要处理其他别名引用
+            _ => None,
+        }
+    }
+
+    /// 递归验证子表达式中的别名
+    fn validate_subexpressions_aliases(
+        &self,
+        expression: &ContextualExpression,
+        aliases: &HashMap<String, AliasType>,
+    ) -> Result<(), ValidationError> {
+        if let Some(expr) = expression.expression() {
+            self.validate_subexpressions_aliases_internal(&expr, aliases)
+        } else {
+            Ok(())
+        }
+    }
+
+    /// 内部方法：递归验证子表达式中的别名
+    fn validate_subexpressions_aliases_internal(
+        &self,
+        expression: &crate::core::types::expression::Expression,
+        aliases: &HashMap<String, AliasType>,
+    ) -> Result<(), ValidationError> {
+        match expression {
+            crate::core::types::expression::Expression::Unary { operand, .. } => {
+                self.validate_expression_aliases_internal(operand, aliases)
+            }
+            crate::core::types::expression::Expression::Binary { left, right, .. } => {
+                self.validate_expression_aliases_internal(left, aliases)?;
+                self.validate_expression_aliases_internal(right, aliases)
+            }
+            crate::core::types::expression::Expression::Function { args, .. } => {
+                for arg in args {
+                    self.validate_expression_aliases_internal(arg, aliases)?;
+                }
+                Ok(())
+            }
+            crate::core::types::expression::Expression::List(items) => {
+                for item in items {
+                    self.validate_expression_aliases_internal(item, aliases)?;
+                }
+                Ok(())
+            }
+            crate::core::types::expression::Expression::Map(items) => {
+                for (_, value) in items {
+                    self.validate_expression_aliases_internal(value, aliases)?;
+                }
+                Ok(())
+            }
+            crate::core::types::expression::Expression::Case {
+                test_expr,
+                conditions,
+                default,
+            } => {
+                if let Some(test_expression) = test_expr {
+                    self.validate_expression_aliases_internal(test_expression, aliases)?;
+                }
+                for (condition, value) in conditions {
+                    self.validate_expression_aliases_internal(condition, aliases)?;
+                    self.validate_expression_aliases_internal(value, aliases)?;
+                }
+                if let Some(default_expression) = default {
+                    self.validate_expression_aliases_internal(default_expression, aliases)?;
+                }
+                Ok(())
+            }
+            crate::core::types::expression::Expression::Subscript { collection, index } => {
+                self.validate_expression_aliases_internal(collection, aliases)?;
+                self.validate_expression_aliases_internal(index, aliases)
+            }
+            crate::core::types::expression::Expression::Literal(_)
+            | crate::core::types::expression::Expression::Property { .. }
+            | crate::core::types::expression::Expression::Variable(_)
+            | crate::core::types::expression::Expression::Label(_)
+            | crate::core::types::expression::Expression::ListComprehension { .. }
+            | crate::core::types::expression::Expression::TagProperty { .. }
+            | crate::core::types::expression::Expression::EdgeProperty { .. }
+            | crate::core::types::expression::Expression::LabelTagProperty { .. }
+            | crate::core::types::expression::Expression::Predicate { .. }
+            | crate::core::types::expression::Expression::Reduce { .. }
+            | crate::core::types::expression::Expression::PathBuild(_)
+            | crate::core::types::expression::Expression::Parameter(_) => Ok(()),
+            crate::core::types::expression::Expression::TypeCast { expression, .. } => {
+                // 类型转换表达式需要验证其子表达式
+                self.validate_expression_aliases_internal(expression, aliases)
+            }
+            crate::core::types::expression::Expression::Aggregate { arg, .. } => {
+                // 聚合函数表达式需要验证其参数表达式
+                self.validate_expression_aliases_internal(arg, aliases)
+            }
+            crate::core::types::expression::Expression::Range {
+                collection,
+                start,
+                end,
+            } => {
+                // 范围访问表达式需要验证集合和范围表达式
+                self.validate_expression_aliases_internal(collection, aliases)?;
+                if let Some(start_expression) = start {
+                    self.validate_expression_aliases_internal(start_expression, aliases)?;
+                }
+                if let Some(end_expression) = end {
+                    self.validate_expression_aliases_internal(end_expression, aliases)?;
+                }
+                Ok(())
+            }
+            crate::core::types::expression::Expression::Path(items) => {
+                // 路径表达式需要验证其所有项
+                for item in items {
+                    self.validate_expression_aliases_internal(item, aliases)?;
+                }
+                Ok(())
+            }
+        }
+    }
+
+    /// 内部方法：验证单个表达式中的别名
+    fn validate_expression_aliases_internal(
+        &self,
+        expression: &crate::core::types::expression::Expression,
         aliases: &HashMap<String, AliasType>,
     ) -> Result<(), ValidationError> {
         // 首先检查表达式本身是否引用了一个别名
-        if let Some(alias_name) = self.extract_alias_name(expression) {
+        if let Some(alias_name) = self.extract_alias_name_internal(expression) {
             if !aliases.contains_key(&alias_name) {
                 return Err(ValidationError::new(
                     format!("未定义的变量别名: {}", alias_name),
@@ -43,124 +201,13 @@ impl AliasValidationStrategy {
         }
 
         // 递归验证子表达式
-        self.validate_subexpressions_aliases(expression, aliases)?;
-
-        Ok(())
-    }
-
-    /// 从表达式中提取别名名称
-    pub fn extract_alias_name(&self, expression: &Expression) -> Option<String> {
-        match expression {
-            Expression::Variable(name) => Some(name.clone()),
-            Expression::Property { property, .. } => Some(property.clone()),
-            Expression::Label(name) => Some(name.clone()),
-            Expression::TagProperty { tag_name, property } => Some(format!("{}.{}", tag_name, property)),
-            Expression::EdgeProperty { edge_name, property } => Some(format!("{}.{}", edge_name, property)),
-            // 根据实际的表达式类型，可能需要处理其他别名引用
-            _ => None,
-        }
-    }
-
-    /// 递归验证子表达式中的别名
-    fn validate_subexpressions_aliases(
-        &self,
-        expression: &Expression,
-        aliases: &HashMap<String, AliasType>,
-    ) -> Result<(), ValidationError> {
-        match expression {
-            Expression::Unary { operand, .. } => self.validate_expression_aliases(operand, aliases),
-            Expression::Binary { left, right, .. } => {
-                self.validate_expression_aliases(left, aliases)?;
-                self.validate_expression_aliases(right, aliases)
-            }
-            Expression::Function { args, .. } => {
-                for arg in args {
-                    self.validate_expression_aliases(arg, aliases)?;
-                }
-                Ok(())
-            }
-            Expression::List(items) => {
-                for item in items {
-                    self.validate_expression_aliases(item, aliases)?;
-                }
-                Ok(())
-            }
-            Expression::Map(items) => {
-                for (_, value) in items {
-                    self.validate_expression_aliases(value, aliases)?;
-                }
-                Ok(())
-            }
-            Expression::Case {
-                test_expr,
-                conditions,
-                default,
-            } => {
-                if let Some(test_expression) = test_expr {
-                    self.validate_expression_aliases(test_expression, aliases)?;
-                }
-                for (condition, value) in conditions {
-                    self.validate_expression_aliases(condition, aliases)?;
-                    self.validate_expression_aliases(value, aliases)?;
-                }
-                if let Some(default_expression) = default {
-                    self.validate_expression_aliases(default_expression, aliases)?;
-                }
-                Ok(())
-            }
-            Expression::Subscript { collection, index } => {
-                self.validate_expression_aliases(collection, aliases)?;
-                self.validate_expression_aliases(index, aliases)
-            }
-            Expression::Literal(_)
-            | Expression::Property { .. }
-            | Expression::Variable(_)
-            | Expression::Label(_)
-            | Expression::ListComprehension { .. }
-            | Expression::TagProperty { .. }
-            | Expression::EdgeProperty { .. }
-            | Expression::LabelTagProperty { .. }
-            | Expression::Predicate { .. }
-            | Expression::Reduce { .. }
-            | Expression::PathBuild(_)
-            | Expression::Parameter(_) => Ok(()),
-            Expression::TypeCast { expression, .. } => {
-                // 类型转换表达式需要验证其子表达式
-                self.validate_expression_aliases(expression, aliases)
-            }
-            Expression::Aggregate { arg, .. } => {
-                // 聚合函数表达式需要验证其参数表达式
-                self.validate_expression_aliases(arg, aliases)
-            }
-            Expression::Range {
-                collection,
-                start,
-                end,
-            } => {
-                // 范围访问表达式需要验证集合和范围表达式
-                self.validate_expression_aliases(collection, aliases)?;
-                if let Some(start_expression) = start {
-                    self.validate_expression_aliases(start_expression, aliases)?;
-                }
-                if let Some(end_expression) = end {
-                    self.validate_expression_aliases(end_expression, aliases)?;
-                }
-                Ok(())
-            }
-            Expression::Path(items) => {
-                // 路径表达式需要验证其所有项
-                for item in items {
-                    self.validate_expression_aliases(item, aliases)?;
-                }
-                Ok(())
-            }
-        }
+        self.validate_subexpressions_aliases_internal(expression, aliases)
     }
 
     /// 检查别名类型是否匹配使用方式
     pub fn check_alias(
         &self,
-        ref_expression: &Expression,
+        ref_expression: &ContextualExpression,
         aliases_available: &HashMap<String, AliasType>,
     ) -> Result<(), ValidationError> {
         // 提取表达式中的别名名称
